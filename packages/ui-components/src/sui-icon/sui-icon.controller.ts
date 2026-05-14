@@ -38,14 +38,15 @@ function makeSvg(doc: Document): SVGSVGElement {
 }
 
 function populatePaths(svg: SVGSVGElement, fragment: string): void {
-  while (svg.firstChild) svg.removeChild(svg.firstChild)
   const parsed = new DOMParser().parseFromString(
     `<svg xmlns="${SVG_NS}">${fragment}</svg>`,
     'image/svg+xml',
   ).documentElement
+  const adopted: Node[] = []
   while (parsed.firstChild) {
-    svg.appendChild(svg.ownerDocument.adoptNode(parsed.firstChild))
+    adopted.push(svg.ownerDocument.adoptNode(parsed.firstChild))
   }
+  svg.replaceChildren(...adopted)
 }
 
 export default controller<Scope>({

@@ -45,7 +45,13 @@ fn cli_builds_a_single_fixture() {
     let js = out.join("hello.js");
     assert!(js.exists(), "expected {} to exist", js.display());
     let body = std::fs::read_to_string(js).unwrap();
-    assert!(body.contains("export default view"));
+    // The compiler wraps `view(...)` in `Object.assign(...)` so the
+    // default export carries `_compilerVersion`. Match either shape.
+    assert!(
+        body.contains("export default view")
+            || body.contains("export default Object.assign(view"),
+        "expected view default export, got:\n{body}"
+    );
 }
 
 #[test]

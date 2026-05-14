@@ -233,10 +233,25 @@ pub fn resolve_project_ship_dir(start_dir: &Path) -> Option<PathBuf> {
 /// Resolves the `.ship` directory by searching upwards from the given
 /// directory. Supports the `SHIP_DIR` environment variable override.
 pub fn get_project_dir(start_dir: Option<PathBuf>) -> Result<PathBuf> {
-    // 1. Check for environment variable override
+    // 1. Check for environment variable override.
+    //
+    // Callers of this function expect the `.ship/` directory itself
+    // (the traversal arm below returns `<project>/.ship/`). When the
+    // env override points at a project root that contains a `.ship/`
+    // subdirectory, descend into it so both code paths return the same
+    // shape — this is the path `shipd --workspace <project_root>` takes
+    // in lib.rs::run_network. Paths that don't have a `.ship/` child
+    // are returned as-is for back-compat with tests that pass arbitrary
+    // override dirs.
     if let Some(env_path) = crate::env::read(crate::env::Var::DevProjectDir) {
         let path = PathBuf::from(env_path);
         if path.exists() && path.is_dir() {
+            if path.file_name().and_then(|n| n.to_str()) != Some(SHIP_DIR_NAME) {
+                let nested = path.join(SHIP_DIR_NAME);
+                if nested.exists() && nested.is_dir() {
+                    return Ok(nested);
+                }
+            }
             return Ok(path);
         }
     }

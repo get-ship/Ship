@@ -1,5 +1,4 @@
 import { controller, signal, effect, ref } from '@ship/sui-runtime'
-import type { Signal } from '@ship/sui-runtime'
 import type { Scope } from './sui-segmented.sui'
 
 interface OptionEl extends HTMLElement {
@@ -26,9 +25,6 @@ export default controller<Scope>({
   },
 
   mount(state, host) {
-    const scope = state as unknown as Scope
-    const optionsSig = scope.options as unknown as Signal<Option[]>
-
     if (!host.hasAttribute('role')) host.setAttribute('role', 'radiogroup')
 
     // Light-DOM hidden input for form participation.
@@ -49,12 +45,12 @@ export default controller<Scope>({
     }
 
     const select = (val: string) => {
-      if (scope.disabled() as boolean) return
-      const opts = optionsSig()
+      if (state.disabled()) return
+      const opts = state.options()
       const opt = opts.find((o) => o.value === val)
       if (!opt || opt.disabled) return
-      if ((scope.value() as string) === val) return
-      ;(scope.value as unknown as Signal<string>).set(val)
+      if (state.value() === val) return
+      state.value.set(val)
       host.dispatchEvent(
         new CustomEvent('sui-change', {
           detail: { value: val },
@@ -72,11 +68,11 @@ export default controller<Scope>({
     }
 
     const onKeyDown = (e: KeyboardEvent) => {
-      const opts = optionsSig()
-      const enabled = opts.filter((o) => !o.disabled && !(scope.disabled() as boolean))
+      const opts = state.options()
+      const enabled = opts.filter((o) => !o.disabled && !state.disabled())
       if (!enabled.length) return
       const values = enabled.map((o) => o.value)
-      const cur = scope.value() as string
+      const cur = state.value()
       const i = Math.max(0, values.indexOf(cur))
       let next = i
 
@@ -106,22 +102,17 @@ export default controller<Scope>({
       })
     }
 
-    // Mirror light-DOM children into the options signal so the template
-    // renders one button per option.
-    optionsSig.set(readOptions())
-    const observer = new MutationObserver(() => optionsSig.set(readOptions()))
+    state.options.set(readOptions())
+    const observer = new MutationObserver(() => state.options.set(readOptions()))
     observer.observe(host, { childList: true, subtree: false })
 
-    // Keep the form-participation input in sync.
     const stopHidden = effect(() => {
-      hiddenInput.name = scope.name() as string
-      hiddenInput.value = scope.value() as string
+      hiddenInput.name = state.name()
+      hiddenInput.value = state.value()
     })
 
-    // Wire delegated click + keydown on the shadow container once it's
-    // bound. The container is a bind:this ref in the template.
     const stopContainer = effect(() => {
-      const container = scope.containerEl() as HTMLElement | null
+      const container = state.containerEl()
       if (!container) return
       container.addEventListener('click', onClick)
       container.addEventListener('keydown', onKeyDown)

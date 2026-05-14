@@ -9,9 +9,290 @@
 //
 // Authors do not import the runtime value of `ship`; only this type.
 //
-// TODO: tighten to the generated SDK manifest once the per-project SDK
-// type is reachable from this package. Today the type is `unknown`
-// so the runtime doesn't depend on the SDK package shape.
+// Return shapes use `@ship/sui-runtime`'s generated.ts when the daemon
+// struct carries `#[derive(Type)]`; otherwise `unknown` until a real
+// shape lands. Op names mirror the daemon's `schema.rs::OPS` catalog.
+//
+// Domain knowledge here mirrors what generated.ts already carries
+// (AgentsSummariesResponse, GitOverview, etc.) — keeping ops + shapes
+// co-located so controller code can read `ship.foo.bar()` without the
+// indirection of a per-project SDK manifest.
+
+import type { AgentsSummariesResponse, GitDiff, GitDiffArgs, GitOverview } from './generated'
+import type { LiveSource } from './live'
+
+/** Artifact metadata record — mirrors the daemon's `ArtifactRecord`. */
+export interface ArtifactRecord {
+  id: string
+  name: string
+  mime: string
+  size: number
+  path: string
+  scope: string
+  project_id?: string | null
+  run_id?: string | null
+  user_id?: string | null
+  content_hash?: string | null
+  expires_at?: string | null
+  owner_actor?: string | null
+  collection_id?: string | null
+  item_id?: string | null
+  created_at: string
+}
+
+/** Minimal skill index row — mirrors the daemon's `IndexEntry`. */
+export interface SkillIndexEntry {
+  id: string
+  scope: 'project' | 'user'
+  name: string
+  description: string
+}
+
+/** Collection field record for view controllers (id+attrs). */
+export interface CollectionFieldRecord {
+  name: string
+  type: string
+  field_type: string
+  required: boolean
+  values: string[]
+  default: unknown
+}
+
+/** Collection summary row exposed by `ship.collections.list()`. */
+export interface CollectionSummary {
+  id: string
+  name: string
+  field_count: number
+  fields: CollectionFieldRecord[]
+  builtin: boolean
+}
+
+/** Project registry record returned by `ship.workspaces.list()`. Mirrors
+ *  the daemon's `routes::projects_api::Project` shape. */
+export interface WorkspaceSummary {
+  id: string
+  name: string
+  path: string
+  label?: string
+  created_at: string
+  last_seen_at: string
+}
 
 /** Live SDK handle exposed to controllers, hooks, and `<data>` sources. */
-export type ShipSDK = unknown
+export interface ShipSDK {
+  agents: {
+    /** Agent list summaries — full payload as first patch, deltas after. */
+    summaries(): LiveSource<AgentsSummariesResponse>
+    /** Agent-create wizard ctx (templates + presets + providers). */
+    create_ctx(): LiveSource<unknown>
+    /** Graph payload (nodes + edges) for the agent-wire canvas. */
+    wire(args: { id: string }): LiveSource<unknown>
+    /** Full view-shaped agent detail. */
+    detail(args: { id: string }): LiveSource<unknown>
+    /** Tier list + catalog rows for the per-agent settings pane. */
+    settings(args: { id: string }): LiveSource<unknown>
+    /** Catalog rows for the agents list (providers, skills, etc.). */
+    catalogs(): LiveSource<unknown>
+    /** Create an agent. Body is the agent doc as written to disk; `id` is
+     *  the agent slug. */
+    create(args: { id: string; doc: Record<string, unknown> }): Promise<{
+      ok: true
+      id: string
+    }>
+    /** Replace an agent doc (PUT). Used by agent settings + wire panes. */
+    update(args: { id: string; doc: Record<string, unknown> }): Promise<{
+      ok: true
+      id: string
+    }>
+  }
+  canvas: {
+    /** Canvas document body. */
+    doc(args: { slug: string }): LiveSource<unknown>
+    /** Available canvas documents. */
+    list(): LiveSource<unknown>
+  }
+  chat: {
+    /** Recent chat messages, optionally scoped to a workspace. */
+    state(args?: { workspace_id?: string }): LiveSource<unknown>
+  }
+  collections: {
+    /** Collections list + active schema + items. */
+    state(args?: { active?: string }): LiveSource<unknown>
+    /** Single collection's schema + items. */
+    detail(args: { id: string }): LiveSource<{
+      schema: {
+        id: string
+        name: string
+        fields: CollectionFieldRecord[]
+        builtin: boolean
+      }
+      items: unknown[]
+      total_items: number
+    }>
+    /** Rows within a collection. */
+    items(args: { collection: string }): LiveSource<{
+      items: unknown[]
+      total_items: number
+    }>
+    /** All collection summaries. */
+    list(): LiveSource<{ items: CollectionSummary[] }>
+    /** Create a new collection schema. */
+    create(args: {
+      id: string
+      name?: string
+      fields?: Record<string, unknown>
+    }): Promise<{ ok: true; id: string }>
+    /** Replace a collection's schema (field set). */
+    update_schema(args: {
+      id: string
+      fields: Array<{
+        name: string
+        type: string
+        required?: boolean
+        values?: string[]
+      }>
+    }): Promise<{ ok: true; id: string }>
+    /** Read a single item by id. */
+    get_item(args: { collection: string; item_id: string }): Promise<{
+      ok: true
+      data: { id: string; data: Record<string, unknown> }
+    }>
+    /** Insert an item into a collection. */
+    create_item(args: {
+      collection: string
+      data: Record<string, unknown>
+      id?: string
+    }): Promise<{ ok: true; id: string }>
+    /** Partial-merge an item. */
+    update_item(args: {
+      collection: string
+      item_id: string
+      data: Record<string, unknown>
+    }): Promise<{ ok: true; id: string }>
+    /** Delete an item. */
+    delete_item(args: { collection: string; item_id: string }): Promise<void>
+  }
+  dashboard: {
+    /** Aggregate stats + recent runs + events + agents + collections. */
+    state(): LiveSource<unknown>
+  }
+  events: {
+    /** Kernel events with filters, grouped by entity. */
+    list(args?: {
+      limit?: number
+      event_type?: string
+      actor?: string
+      entity?: string
+      q?: string
+    }): LiveSource<unknown>
+  }
+  git: {
+    /** Repo overview — branch + head + status buckets + commits + branches. */
+    overview(args?: { workspace_id?: string; limit?: number }): LiveSource<GitOverview>
+    /** Unified diff for a commit (or `'WORKING'` for the working tree). */
+    diff(args: GitDiffArgs): LiveSource<GitDiff>
+    /** Per-file annotation overlays for a diff. */
+    annotations(args: { file: string; workspace_id?: string }): LiveSource<unknown>
+  }
+  mesh: {
+    /** Live registry of mesh-connected agents. */
+    snapshot(): LiveSource<unknown>
+  }
+  settings: {
+    /** Settings view ctx — providers, defaults, terminal, about. */
+    state(): LiveSource<unknown>
+  }
+  sessions: {
+    /** Live PTY-session registry (Mission Control feed). */
+    list(): LiveSource<unknown>
+    /** Spawn a new PTY session and attach the actor.
+     *  `kind` is `'agent' | 'shell'`; agents require `agent_id` + `provider`. */
+    start(args: {
+      workspace_id: string
+      kind: 'agent' | 'shell'
+      agent_id?: string
+      provider?: string
+    }): Promise<{ session_id: string; attached: boolean }>
+    /** Gracefully stop a live session. Resolves once the daemon acks. */
+    end(args: { id: string }): Promise<void>
+  }
+  workspaces: {
+    /** Known projects + active flag per row. Live SSE — patches re-emit
+     *  whenever the project registry or `shell.project.active` changes. */
+    list(): LiveSource<{
+      items: (WorkspaceSummary & { active: boolean })[]
+      active: string | null
+    }>
+    /** Currently-active workspace id (or null). Live SSE — patches on
+     *  `config.changed` for `shell.project.active`. */
+    active(): LiveSource<{ id: string | null }>
+    /** Switch the active project — daemon emits `config.changed`. */
+    activate(args: { id: string }): Promise<{ ok: true; active: string }>
+  }
+  artifacts: {
+    /** Artifact metadata records, filterable by scope/mime/collection/etc. */
+    list(args?: {
+      scope?: string
+      mime?: string
+      collection_id?: string
+      item_id?: string
+      owner_actor?: string
+      content_hash?: string
+      sort?: string
+      limit?: number
+      offset?: number
+    }): LiveSource<{
+      items: ArtifactRecord[]
+      count: number
+      scope: string
+    }>
+    /** Fetch raw artifact body. `as` picks the response shape — `text`
+     *  (default) for preview panes, `blob` for binary downloads, `json`
+     *  for structured payloads. */
+    get(args: { id: string; as?: 'text' }): Promise<string>
+    get(args: { id: string; as: 'blob' }): Promise<Blob>
+    get(args: { id: string; as: 'json' }): Promise<unknown>
+    /** Upload an artifact via multipart form. */
+    upload(args: {
+      file: File | Blob
+      filename?: string
+      collection_id?: string
+      item_id?: string
+    }): Promise<{ ok: true; data: ArtifactRecord }>
+  }
+  skills: {
+    /** All skill IndexEntry rows across project + user scopes. */
+    list(): LiveSource<{ items: SkillIndexEntry[] }>
+    /** Skills tree (sources + groups) for the explorer. */
+    summaries(args?: {
+      q?: string
+      kind?: string
+      tag?: string
+    }): LiveSource<unknown>
+    /** Single skill detail (frontmatter + body + vars). */
+    detail(args: { id: string }): LiveSource<unknown>
+    /** Invoke a library skill — attach its reference content to a
+     *  session and emit lifecycle events on the kernel bus.
+     *
+     *  Resolves the skill, mints a `run_id`, picks a `session_id`
+     *  (explicit > active-agent-for-workspace > synthetic = run_id),
+     *  and emits `skill.started` → `skill.attached_to_session` →
+     *  `skill.completed`. Operator + mode skill types are not yet
+     *  wired through this surface — see
+     *  `.artifacts/sui-arc/skills-invoke-real.md`. */
+    invoke(args: {
+      id: string
+      vars?: Record<string, unknown>
+      workspace_id?: string
+      session_id?: string
+    }): Promise<{
+      ok: true
+      run_id: string
+      skill_id: string
+      session_id: string
+      workspace_id: string | null
+      mode: 'library'
+      reused_session: boolean
+    }>
+  }
+}

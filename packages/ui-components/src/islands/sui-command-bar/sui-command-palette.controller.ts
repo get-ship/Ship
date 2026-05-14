@@ -60,6 +60,28 @@ export default controller<Scope>({
         .map((d, i) => ({ ...d, idx: i }))
     })
 
+    // Installed views from /api/v1/views — anything not already in
+    // NAV_DESTINATIONS, listed as a second "Views" section so the user can
+    // jump to views the curated nav doesn't cover (custom views, examples
+    // like `counter`, etc.). Indices are offset past findItems so the
+    // shared selectedIdx + getPaletteItems() walk in DOM order stays in
+    // sync — ArrowDown/Enter use a single document-order query.
+    const viewItems = derived(() => {
+      const needle = bar!.value().replace(/^>+\s*/, '').toLowerCase().trim()
+      const offset = findItems().length
+      const navPaths = new Set(NAV_DESTINATIONS.map((d) => d.path))
+      return bar!.views()
+        .filter((name: string) => !navPaths.has('/' + name))
+        .filter((name: string) => !needle || name.toLowerCase().includes(needle))
+        .map((name: string, i: number) => ({
+          name,
+          label: name.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
+          path: '/' + name,
+          icon: 'app-window',
+          idx: offset + i,
+        }))
+    })
+
     const cmdItems = derived(() => {
       const needle = bar!.value().replace(/^\/+\s*/, '').toLowerCase().trim()
       return SLASH_COMMANDS
@@ -127,12 +149,15 @@ export default controller<Scope>({
 
     const hostEl = host as HTMLElement | null
     function activateNavItem(path: string): void {
-      void navigateTo(path)
-      bar!.value.set('')
-      bar!.open.set(false)
+      // Dispatch before closing: sui-dialog gates its <slot> on {#if open()},
+      // so flipping open=false synchronously detaches the projection path and
+      // a later composed event from the palette host can't reach the bar host.
       hostEl?.dispatchEvent(new CustomEvent('sui-command:select', {
         detail: { mode: 'find', item: { path } }, bubbles: true, composed: true,
       }))
+      void navigateTo(path)
+      bar!.value.set('')
+      bar!.open.set(false)
     }
 
     function activateCmd(key: string): void {
@@ -174,7 +199,7 @@ export default controller<Scope>({
       modeGlyph, searchPlaceholder,
       chipLabel, chipDotBg,
       activeSessions,
-      findItems, cmdItems, mentionItems,
+      findItems, viewItems, cmdItems, mentionItems,
       createSurfaces, currentSurfaceDef, createNameValid,
       endSession, selectSession, startNewSession, viewChats,
       activateNavItem, activateCmd, activateMention,

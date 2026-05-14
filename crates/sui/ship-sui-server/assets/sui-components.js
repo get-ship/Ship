@@ -1,14 +1,14 @@
-// packages/ui-components/src/sui-status-dot/sui-status-dot.sui
-import { adoptSuiSheets, bindAttr, component, prop } from "@ship/sui-runtime";
-var sui_status_dot_default = component("sui-status-dot", {
-  props: {
-    tone: prop.union(["default", "primary", "info", "success", "warning", "destructive", "accent", "muted"], { default: "success", reflect: true }),
-    pulse: prop.bool({ default: false, reflect: true }),
-    size: prop.union(["sm", "md"], { default: "md", reflect: true }),
-    label: prop.string({ default: "" })
-  },
-  shadow: true,
-  styles: `
+var du=Symbol.for("sui:error-boundary");function mu(i,u){i[du]=u}function bu(i){delete i[du]}function Pn(i){let u=i;while(u){if(u instanceof Element){let n=u[du];if(n)return n}let d=u.parentNode;if(d){u=d;continue}let m=u;if(m.host){u=m.host;continue}u=null}return null}function Gn(i,u,d){try{return d()}catch(m){let n=Pn(i);if(n){n.catch(m,u);return}console.error("[sui] uncaught throw (no error boundary):",m);return}}var yn=null,Cn=null,Rd=0,Sd=new Set,Kn=[];function fu(i,u){Kn.push(i);try{return u()}finally{Kn.pop()}}function kd(){return Kn.length>0?Kn[Kn.length-1]:null}function Nu(i){if(yn===null)return;if(i.has(yn))return;let u=yn;if(i.add(u),Cn!==null)Cn.push(()=>i.delete(u))}function G(i){let u=i,d=new Set,m=()=>{return Nu(d),u};return m.set=(n)=>{let b=typeof n==="function"?n(u):n;if(Object.is(b,u))return;if(u=b,Rd>0)for(let w of d)Sd.add(w);else for(let w of[...d])w()},m.__subs=d,m.__peek=()=>u,m}function h(i){let u,d=!0,m=new Set,n=[],b=()=>{if(d)return;if(d=!0,m.size===0)return;let M=u;if(w(),Object.is(M,u))return;for(let y of[...m])y()},w=()=>{for(let E of n)E();n=[];let M=yn,y=Cn;yn=b,Cn=n;try{u=i()}finally{yn=M,Cn=y}d=!1},r=()=>{if(Nu(m),d)w();return u};return r.set=()=>{throw Error("cannot set on a derived; mutate its dependencies instead")},r.__subs=m,r.__peek=()=>{if(d)w();return u},r}function q(i){let u=void 0,d=!0,m=[],n=kd(),b=()=>{if(!d)return;if(u){try{u()}catch(M){console.error("[sui] effect cleanup threw:",M)}u=void 0}for(let M of m)M();m=[];let w=yn,r=Cn;yn=b,Cn=m;try{u=i()}catch(M){let y=n?Pn(n):null;if(y)y.catch(M,"effect");else console.error("[sui] effect threw:",M)}finally{yn=w,Cn=r}};return b(),()=>{d=!1;for(let w of m)w();if(m=[],u){try{u()}catch(w){console.error("[sui] effect cleanup threw:",w)}u=void 0}}}var pn=null;function Bn(i,u){let d=pn;pn=i;try{return u()}finally{pn=d}}function wn(i){let u=pn;if(!u)return;u.cleanup(i)}function In(){let i=[],u=!1;return{cleanup(m){if(u){try{m()}catch(n){console.error("[sui/scope] late cleanup threw:",n)}return}i.push(m)},dispose(){if(u)return;u=!0;for(let m=i.length-1;m>=0;m--)try{i[m]()}catch(n){console.error("[sui/scope] cleanup threw:",n)}i.length=0},get disposed(){return u}}}var ad=Symbol("sui.shared");function Uu(i){return!!i?.[ad]}function Lu(i,u,d){i[`__sui_ctx_${u}`]=d}function tu(i){let u={};for(let d in i)if(Object.prototype.hasOwnProperty.call(i,d)&&Uu(i[d]))u[d]=i[d];return u}function e(i=null){return G(null)}function O(i,u,d){let m=i[u];if(typeof m==="function"&&typeof m.set==="function")return m.set(d),m;let n=G(d);return i[u]=n,n}function bn(i,u,d){let m=()=>{if(i.assignedNodes({flatten:!0}).some(vd))u.removeAttribute(d);else u.setAttribute(d,"")};return i.addEventListener("slotchange",m),m(),()=>{i.removeEventListener("slotchange",m)}}function vd(i){if(i.nodeType===Node.TEXT_NODE)return(i.textContent??"").trim().length>0;if(i.nodeType===Node.ELEMENT_NODE){let u=i;return(u.textContent??"").trim().length>0||u.childElementCount>0}return!1}function Rn(i,u,d={}){if(typeof u==="string"){let m=i.tagName.toLowerCase(),n=i.namespaceURI==="http://www.w3.org/2000/svg"?i.ownerDocument.createElementNS("http://www.w3.org/2000/svg",m):i.ownerDocument.createElement(m);n.innerHTML=u,Ou(i,n,d);return}Fu(i,u,d)}function Fu(i,u,d){if(d.skip?.(i))return;if(i.tagName!==u.tagName){i.replaceWith(u.cloneNode(!0));return}xd(i,u),Ou(i,u,d)}function xd(i,u){let d=Array.from(i.attributes);for(let n of d)if(!u.hasAttribute(n.name))i.removeAttribute(n.name);let m=Array.from(u.attributes);for(let n of m)if(i.getAttribute(n.name)!==n.value)i.setAttribute(n.name,n.value);if(i instanceof HTMLInputElement&&u instanceof HTMLInputElement){if(u.hasAttribute("value")&&i.value!==u.value)i.value=u.value;if(i.checked!==u.checked)i.checked=u.checked}}function Ou(i,u,d){let m=new Map;for(let r of Array.from(i.children))if(r.id)m.set(r.id,r);let n=new Set;for(let r of Array.from(u.children))if(r.id)n.add(r.id);let b=Array.from(u.childNodes),w=i.firstChild;for(let r of b){while(w&&w.nodeType===Node.ELEMENT_NODE&&w.id&&n.has(w.id)&&!(r.nodeType===Node.ELEMENT_NODE&&r.id===w.id))w=w.nextSibling;let M=null;if(r.nodeType===Node.ELEMENT_NODE){let y=r.id;if(y&&m.has(y))M=m.get(y),m.delete(y)}if(!M&&w&&hd(w,r))M=w;if(M){if(M===w)w=w.nextSibling;else i.insertBefore(M,w);$d(M,r,i,d)}else i.insertBefore(r.cloneNode(!0),w)}while(w){let r=w.nextSibling;i.removeChild(w),w=r}}function hd(i,u){if(i.nodeType!==u.nodeType)return!1;if(i.nodeType===Node.ELEMENT_NODE)return i.tagName===u.tagName;return!0}function $d(i,u,d,m){if(i.nodeType!==u.nodeType){d.replaceChild(u.cloneNode(!0),i);return}if(i.nodeType===Node.TEXT_NODE||i.nodeType===Node.COMMENT_NODE){if(i.nodeValue!==u.nodeValue)i.nodeValue=u.nodeValue;return}if(i.nodeType===Node.ELEMENT_NODE)Fu(i,u,m)}function S(i,u){let d;return q(()=>{let m=u(),n=m==null?"":String(m);if(n===d)return;if(d===void 0&&i.textContent===n){d=n;return}i.textContent=n,d=n})}function T(i,u,d){let m,n=!1;return q(()=>{let b=d();if(n&&b===m)return;let w=b==null||b===!1||b===""?null:b===!0?"":String(b);if(n||i.getAttribute(u)!==w)if(w===null)i.removeAttribute(u);else i.setAttribute(u,w);m=b,n=!0})}function zn(i,u,d){let m;return q(()=>{let n=!!d();if(n===m)return;if(m===void 0&&n===i.classList.contains(u)){m=n;return}if(n)i.classList.add(u);else i.classList.remove(u);m=n})}function Wn(i,u,d){return q(()=>{i[u]=d()})}function gn(i,u,d){let m=q(()=>{let b=u();if(i.value!==b)i.value=b}),n=()=>{let b=i.value;if(u.set(b),d)d(b)};return i.addEventListener("input",n),()=>{m(),i.removeEventListener("input",n)}}function Dn(i,u){let d=q(()=>{let n=u();if(i.checked!==n)i.checked=n}),m=()=>u.set(i.checked);return i.addEventListener("change",m),()=>{d(),i.removeEventListener("change",m)}}function fn(i,u){let m=i.namespaceURI==="http://www.w3.org/2000/svg",n=i.tagName.toLowerCase();return q(()=>{let b=u(),w=m?i.ownerDocument.createElementNS("http://www.w3.org/2000/svg",n):i.ownerDocument.createElement(n);w.innerHTML=b,Rn(i,w)})}function p(i,u,d,m={}){let n=m.modifiers??[],b,w=!0,r=(y)=>{for(let L of n)switch(L.kind){case"preventDefault":y.preventDefault();break;case"stopPropagation":y.stopPropagation();break;case"stopImmediatePropagation":y.stopImmediatePropagation();break;case"self":if(y.target!==i)return;break;case"trusted":if(!y.isTrusted)return;break;case"key":{if(!Au(y,L.arg??""))return;break}}let E=n.find((L)=>L.kind==="debounce"),l=n.find((L)=>L.kind==="throttle");if(E){let L=Number(E.arg)||0;if(b!==void 0)clearTimeout(b);b=setTimeout(()=>{b=void 0,d(y)},L);return}if(l){let L=Number(l.arg)||0;if(!w)return;w=!1,d(y),b=setTimeout(()=>{w=!0},L);return}d(y)},M={};if(m.capture)M.capture=!0;if(m.passive)M.passive=!0;if(m.once)M.once=!0;return i.addEventListener(u,r,M),()=>{if(i.removeEventListener(u,r,M),b!==void 0)clearTimeout(b)}}function Au(i,u){let d=u.split("+").map((E)=>E.toLowerCase()),m=d.pop()??"",n=d.includes("meta")||d.includes("cmd"),b=d.includes("ctrl")||d.includes("control"),w=d.includes("shift"),r=d.includes("alt")||d.includes("option"),M=d.includes("mod"),y=typeof navigator<"u"&&/Mac|iPhone|iPad|iPod/i.test(navigator.platform||navigator.userAgent||"");if(n&&!i.metaKey)return!1;if(b&&!i.ctrlKey)return!1;if(w&&!i.shiftKey)return!1;if(r&&!i.altKey)return!1;if(M&&!(y?i.metaKey:i.ctrlKey))return!1;return i.key.toLowerCase()===m}function Ku(i,u,d){i.dispatchEvent(new CustomEvent(u,{detail:d,bubbles:!0,composed:!0}))}function Bu(i,u){let d=i,m=Object.keys(u);for(let n of m)d[n]=u[n];wn(()=>{for(let n of m)if(d[n]===u[n])try{delete d[n]}catch{d[n]=void 0}})}function cn(i){let u=i;u.emit=function(d,m){Ku(i,d,m)},u.expose=function(d){Bu(i,d)}}function _(i,u,d,m){i.addEventListener(u,d,m),wn(()=>i.removeEventListener(u,d,m))}function Eu(i,u){let d=q(()=>{let m=i();if(!m)return;let n=()=>{u(m.assignedElements())};return m.addEventListener("slotchange",n),n(),()=>m.removeEventListener("slotchange",n)});wn(d)}var lu=Symbol("sui:transition");function _n(i){return i[lu]}function od(i){let u=i,d=u[lu];if(!d)d={inOpts:{},outOpts:{}},u[lu]=d;return d}function ln(i,u,d={},m="both"){let n=od(i);if(m==="in"||m==="both")n.inT=u,n.inOpts=d;if(m==="out"||m==="both")n.outT=u,n.outOpts=d;if(!i.hasAttribute("data-sui-transition"))i.setAttribute("data-sui-transition","")}function sd(){if(typeof window>"u"||typeof window.matchMedia!=="function")return!1;try{return window.matchMedia("(prefers-reduced-motion: reduce)").matches}catch{return!1}}function Su(i){if(!sd())return i;return{...i,duration:0,delay:0}}function ku(i){let u=_n(i);if(!u?.inT?.in)return;u.current?.cancel();let d=u.inT.in(i,Su(u.inOpts));return u.current=d,d}function au(i){let u=_n(i);if(!u?.outT?.out)return;u.current?.cancel();let d=u.outT.out(i,Su(u.outOpts));return u.current=d,d}function ru(i){if(i.nodeType!==1)return;let u=i;if(u.hasAttribute("data-sui-transition")){let d=_n(u);if(d?.current?.cancel(),d)d.current=void 0}for(let d of u.querySelectorAll("[data-sui-transition]")){let m=_n(d);if(m?.current?.cancel(),m)m.current=void 0}}function vu(i,u){for(let d of i){if(d.nodeType!==1)continue;let m=d;if(m.hasAttribute("data-sui-transition"))u(m);for(let n of m.querySelectorAll("[data-sui-transition]"))u(n)}}function Vn(i){vu(i,(u)=>{ku(u)})}function Sn(i){let u=[];if(vu(i,(d)=>{let m=au(d);if(m)u.push(m.finished.catch(()=>{}))}),u.length===0)return null;return Promise.all(u).then(()=>{return})}var ed=200,pd="cubic-bezier(0.4, 0, 0.2, 1)",cd=0;function Tn(i){return{duration:typeof i.duration==="number"?i.duration:ed,easing:typeof i.easing==="string"?i.easing:pd,delay:typeof i.delay==="number"?i.delay:cd,fill:"both"}}function Qn(i,u,d){let m=i.animate;if(typeof m!=="function")return;return m.call(i,u,d)}var Zn={in:(i,u)=>Qn(i,[{opacity:0},{opacity:1}],Tn(u)),out:(i,u)=>Qn(i,[{opacity:1},{opacity:0}],Tn(u))};function Iu(i,u){let d=i==="y"?"translateY(-100%)":"translateX(-100%)",m="translate(0, 0)";return u==="in"?[{opacity:0,transform:d},{opacity:1,transform:"translate(0, 0)"}]:[{opacity:1,transform:"translate(0, 0)"},{opacity:0,transform:d}]}var Mu={in:(i,u)=>{let d=u.axis==="x"?"x":"y";return Qn(i,Iu(d,"in"),Tn(u))},out:(i,u)=>{let d=u.axis==="x"?"x":"y";return Qn(i,Iu(d,"out"),Tn(u))}};function Ru(i,u){let d={opacity:0,transform:`scale(${i})`},m={opacity:1,transform:"scale(1)"};return u==="in"?[d,m]:[m,d]}var yu={in:(i,u)=>{let d=typeof u.from==="number"?u.from:0;return Qn(i,Ru(d,"in"),Tn(u))},out:(i,u)=>{let d=typeof u.from==="number"?u.from:0;return Qn(i,Ru(d,"out"),Tn(u))}};function _d(i,u,d,m,n){if(d.fill(0,0,u),u===0)return;let b=0;for(let r=0;r<u;r++){let M=i[2*r+1],y=0,E=b;while(y<E){let l=y+E>>>1;if(i[2*n[l]+1]<M)y=l+1;else E=l}if(m[r]=y>0?n[y-1]:-1,n[y]=r,y===b)b++}let w=n[b-1];while(w>=0)d[w]=1,w=m[w]}function s(i){let{anchor:u,items:d,key:m,render:n}=i,b=[],w=!0,r=new Set,M=new Map,y=new Map,E=new Map,l=new Set,L=[],f=[],t=new Int32Array(0),H=new Uint8Array(0),C=new Int32Array(0),z=new Int32Array(0),j=(D)=>{for(let Z of D.nodes)try{Z.parentNode?.removeChild(Z)}catch{}D.cleanup?.()},g=null,J=q(()=>{if(!w)return;let D=d();if(D===g)return;g=D;let Z=D.length;if(t.length<Z*2)t=new Int32Array(Math.max(t.length*2,Z*2,16));if(H.length<Z){let F=Math.max(H.length*2,Z,8);H=new Uint8Array(F),C=new Int32Array(F),z=new Int32Array(F)}for(let F=0;F<Z;F++){let B=D[F],A=m(B,F);if(M.has(A))console.warn("[sui] {#for}: duplicate key",A,"at index",F,"(prior at",M.get(A),"); the earlier item will be dropped from the rendered output.","Fix the key function so each item maps to a unique value.");M.set(A,F)}for(let F of b)y.set(F.key,F);for(let F of b){if(M.has(F.key))continue;let B=Sn(F.nodes);if(B===null){j(F);continue}r.add(F),B.then(()=>{if(!r.delete(F))return;j(F)})}f.length=0,L.length=0;let X=!1;for(let F=0;F<Z;F++){let B=D[F],A=m(B,F),K=y.get(A),a;if(K){if(X=!0,K.item!==B||K.__i!==F)K.item=B,K.__i=F,Gn(u,"render",()=>K.update?.(B,F));a=K}else{let k=Gn(u,"render",()=>n(B,F));if(!k)continue;a={key:A,item:B,__i:F,nodes:k.nodes,...k.cleanup&&{cleanup:k.cleanup},...k.update&&{update:k.update}},L.push(...k.nodes)}f.push(a)}let W=0;if(X){for(let F=0;F<b.length;F++)E.set(b[F].key,F);for(let F=0;F<f.length;F++){let B=E.get(f[F].key);if(B!==void 0)t[2*W]=F,t[2*W+1]=B,W++}_d(t,W,H,C,z);for(let F=0;F<W;F++)if(H[F])l.add(t[2*F])}let Y=u.parentNode;if(Y&&W===0&&f.length>0){let F=document.createDocumentFragment();for(let B=0;B<f.length;B++){let A=f[B].nodes;for(let K=0;K<A.length;K++)F.appendChild(A[K])}Y.insertBefore(F,u.nextSibling)}else{let F=u;for(let B=0;B<f.length;B++){if(!Y)break;let A=f[B];if(l.has(B))F=A.nodes[A.nodes.length-1]??F;else for(let K of A.nodes)Y.insertBefore(K,F.nextSibling),F=K}}let N=b;if(b=f,f=N,L.length>0)Vn(L);M.clear(),y.clear(),E.clear(),l.clear(),L.length=0});return()=>{w=!1,J();for(let D of b)j(D);for(let D of r)j(D);r.clear(),b=[],f.length=0,g=null}}function R(i){let{anchor:u}=i,{test:d,branches:m}=nm(i)?{test:i.test,branches:i.branches}:im(i),n=null,b=-2,w=null,r=(y)=>{for(let E of y)try{E.parentNode?.removeChild(E)}catch{}},M=q(()=>{let y=d();if(n&&y===b)return;if(w&&y===w.idx&&y>=0&&y<m.length){let L=w;w=null;for(let f of L.nodes)ru(f);n={nodes:L.nodes,...L.cleanup&&{cleanup:L.cleanup}},b=y,Vn(n.nodes);return}if(n){let L={idx:b,nodes:n.nodes,...n.cleanup&&{cleanup:n.cleanup}},f=Sn(L.nodes);if(n=null,f===null)r(L.nodes),L.cleanup?.();else w=L,f.then(()=>{if(w!==L)return;r(L.nodes),L.cleanup?.(),w=null})}if(b=y,y<0||y>=m.length)return;let E=Gn(u,"render",()=>m[y]());if(!E)return;n=E;let l=u.parentNode;if(!l)return;for(let L of n.nodes)l.insertBefore(L,u);Vn(n.nodes)});return()=>{if(M(),n)r(n.nodes),n.cleanup?.(),n=null;if(w)r(w.nodes),w.cleanup?.(),w=null}}function nm(i){return typeof i.test==="function"}function im(i){let{cond:u,then_:d,else_:m}=i;return{test:()=>u()?0:m?1:-1,branches:m?[d,m]:[d]}}var wu=(i)=>i??"",Hu=(i)=>{if(i===null||i==="")return NaN;return Number(i)},Cu=(i)=>{if(i===null)return!1;if(i.toLowerCase()==="false")return!1;return!0};function ni(i){return(u)=>{if(u===null||u==="")return i;try{return JSON.parse(u)}catch{return i}}}function zu(i,u){let d=new Set(i);return(m)=>m!==null&&d.has(m)?m:u}var ii=(i)=>{switch(i.type){case"string":return wu;case"bool":return Cu;case"number":return Hu;case"union":{let u=i.values??[],d=i.default??u[0]??"";return zu(u,d)}case"object":return ni(i.default);case"array":return ni(i.default??[])}};function hu(i,u,d,m){if(!u)return;let n={},b,w=d.formValue;if(w!==void 0){let{sig:M,propDef:y}=xu(d,m,w,"formValue"),E=y.default,l=ii(y);b=q(()=>{let L=M();u.setFormValue(um(L))}),n.reset=()=>{M.set(E)},n.restore=(L)=>{M.set(l(L))}}let r=d.formDisabled;if(r!==void 0){let{sig:M,propDef:y}=xu(d,m,r,"formDisabled");if(y.type!=="bool")throw Error(`[sui-runtime] formDisabled: "${r}" must be a bool-typed prop`);n.disabled=(E)=>{M.set(!!E)}}if(i.__shipSetFormHooks=n,b)i.__shipSetFormValueCleanup=b;return b}function $u(i){let u=i;delete u.__shipSetFormHooks,delete u.__shipSetFormValueCleanup}function um(i){if(i===null||i===void 0)return"";if(typeof i==="boolean")return i?"on":"";return String(i)}function xu(i,u,d,m){let n=i.props[d];if(!n)throw Error(`[sui-runtime] ${m}: "${d}" — no matching prop on this component`);let b=u[Yn(d)];if(!b)throw Error(`[sui-runtime] ${m}: "${d}" — prop signal missing`);return{sig:b,propDef:n}}var P={string(i={}){return{type:"string",...i}},bool(i={}){return{type:"bool",...i}},number(i={}){return{type:"number",...i}},union(i,u={}){return{type:"union",values:i,...u}},object(i={}){return{type:"object",...i}},array(i={}){return{type:"array",...i}}},dm=(i,u)=>{if(u===void 0||u===null)return null;switch(i.type){case"string":return u===""?null:String(u);case"number":return Number.isNaN(u)?null:String(u);case"bool":return u?"":null;case"union":return String(u);case"object":case"array":try{return JSON.stringify(u)}catch{return null}}},mm=(i,u)=>{let d=`ship-set-style-${i}`;if(document.getElementById(d))return;let m=document.createElement("style");m.id=d,m.textContent=`[data-component="${i}"] { ${u} }`,document.head.appendChild(m)},bm=(i,u,d,m)=>{let n=i.getAttribute(u),b=n!==null?m(n):d.default;return G(b)},fm=(i)=>{let u=[],d={};for(let[b,w]of Object.entries(i.props??{}))u.push(b),d[b]={camel:Yn(b),decode:ii(w)};let m=i.formAssociated===!0||i.formValue!==void 0||i.formDisabled!==void 0,n={observedAttrs:u,props:d};if(m)n.formAssociated=!0;return n};function Q(i,u){let d=fm(u),m=Object.entries(u.props??{});ju(i,d,(n,b,w)=>{let r=null;if(u.shadow){if(r=n.shadowRoot??n.attachShadow({mode:"open"}),u.styles){let y=document.createElement("style");y.textContent=u.styles,r.appendChild(y)}}else if(u.styles)mm(i,u.styles);let M=[];for(let[y,E]of m){let l=Yn(y),L=d.props[y].decode,f=bm(n,y,E,L);if(b[l]=f,E.reflect){let t=!0,H=q(()=>{let C=f();if(t){t=!1;return}let z=dm(E,C);if(z===null)n.removeAttribute(y);else n.setAttribute(y,z)});M.push(H)}}if(u.formValue!==void 0||u.formDisabled!==void 0){let y=hu(n,w,u,b);if(typeof y==="function")M.push(y)}if(u.setup){let y={props:b,host:n,cleanups:M};if(w)y.internals=w;u.setup(y)}return()=>{$u(n);for(let y of M.splice(0))try{y()}catch(E){console.error(`[ship-set:${i}] cleanup threw:`,E)}}})}var ou=new Set;function ju(i,u,d){if(customElements.get(i)){if(!ou.has(i))ou.add(i),console.warn(`[sui-runtime] customElements.define("${i}", …) called twice. `+"The first registration wins; this call is a no-op. Likely cause: two modules independently registering the same tag.");return}if(u.formAssociated){class n extends HTMLElement{static formAssociated=!0;static get observedAttributes(){return u.observedAttrs}cleanup;scope;propSignals={};internals;constructor(){super();this.internals=this.attachInternals()}connectedCallback(){this.dataset.component=i,cn(this),this.scope=In();try{this.cleanup=Bn(this.scope,()=>fu(this,()=>d(this,this.propSignals,this.internals)))}catch(b){let w=Pn(this.parentNode);if(w)w.catch(b,"mount");else console.error(`[ship-set:${i}] setup threw:`,b)}}disconnectedCallback(){try{this.cleanup?.()}catch(b){console.error(`[ship-set:${i}] cleanup threw:`,b)}this.cleanup=void 0;try{this.scope?.dispose()}catch(b){console.error(`[ship-set:${i}] scope dispose threw:`,b)}this.scope=void 0}attributeChangedCallback(b,w,r){let M=u.props[b];if(!M)return;let y=this.propSignals[M.camel];if(y)y.set(M.decode(r))}formResetCallback(){let b=this.__shipSetFormHooks;try{b?.reset?.()}catch(w){console.error(`[ship-set:${i}] formResetCallback threw:`,w)}this.dispatchEvent(new CustomEvent("ship-set:form-reset"))}formStateRestoreCallback(b,w){let r=this.__shipSetFormHooks;try{r?.restore?.(b)}catch(M){console.error(`[ship-set:${i}] formStateRestoreCallback threw:`,M)}this.dispatchEvent(new CustomEvent("ship-set:form-restore",{detail:{state:b,mode:w}}))}formDisabledCallback(b){let w=this.__shipSetFormHooks;try{w?.disabled?.(b)}catch(r){console.error(`[ship-set:${i}] formDisabledCallback threw:`,r)}this.dispatchEvent(new CustomEvent("ship-set:form-disabled",{detail:{disabled:b}}))}}customElements.define(i,n);return}class m extends HTMLElement{static get observedAttributes(){return u.observedAttrs}cleanup;scope;propSignals={};connectedCallback(){this.dataset.component=i,cn(this),this.scope=In();try{this.cleanup=Bn(this.scope,()=>fu(this,()=>d(this,this.propSignals)))}catch(n){let b=Pn(this.parentNode);if(b)b.catch(n,"mount");else console.error(`[ship-set:${i}] setup threw:`,n)}}disconnectedCallback(){try{this.cleanup?.()}catch(n){console.error(`[ship-set:${i}] cleanup threw:`,n)}this.cleanup=void 0;try{this.scope?.dispose()}catch(n){console.error(`[ship-set:${i}] scope dispose threw:`,n)}this.scope=void 0}attributeChangedCallback(n,b,w){let r=u.props[n];if(!r)return;let M=this.propSignals[r.camel];if(M)M.set(r.decode(w))}}customElements.define(i,m)}function Yn(i){return i.replace(/-([a-z])/g,(u,d)=>d.toUpperCase())}function Pu(i,u,d){let m=Em(i.state,{ship:u.ship,...d}),n={};for(let[L,f]of Object.entries(m))n[L]=G(f);let b={ship:u.ship,route:u.route??{},navigate:u.navigate??((L)=>{}),...d,...n},w=lm(n,b),r={...b},M={};for(let[L,f]of Object.entries(i.derived??{}))M[L]=h(()=>f(r));Object.assign(r,M);let y={};for(let[L,f]of Object.entries(i.on??{}))y[L]=(...t)=>f(w,...t);let E={},l=typeof i.use==="function"?i.use(r):i.use??{};for(let[L,f]of Object.entries(l))E[L]=Pu(f,u,r);return{...n,...M,...y,...E}}function Em(i,u){if(i===void 0)return{};if(typeof i==="function")return i(u);return i}function lm(i,u){return new Proxy({},{get(d,m){if(m in i)return i[m]();return u[m]},set(d,m,n){if(m in i)return i[m].set(n),!0;return console.warn(`[ship-set] hook handler tried to write s.${m} = … but ${m} is not a hook state key. The assignment was ignored.`),!0},has(d,m){return m in i||m in u},ownKeys(){return Object.keys(i)},getOwnPropertyDescriptor(d,m){if(m in i)return{configurable:!0,enumerable:!0,writable:!0,value:i[m]()};return}})}var su="__shipSetLifecycle";function eu(i,u){let d=rm(i,u),m={ship:u.ship,route:u.route??{},navigate:u.navigate??((L)=>{}),...u.scope??{}},n=d.scope?d.scope(m,u.host):{};Object.assign(m,n);let b=Mm(m,u.stateKeys,n),w=ym(b,m),r={...m},M=wm(d,r);Object.assign(r,M);let y=Cm(d,r,u);for(let[L,f]of Object.entries(y))r[L]=f;let E=Hm(d,w),l={...n,...M,...E,...y};if(Object.keys(n).length>0&&u.host){let L=tu(n);if(Object.keys(L).length>0){let f=u.host,t=f.tagName.toLowerCase();Lu(f,t,L)}}if(d.mount||d.unmount){let L={state:w};if(d.mount)L.mount=d.mount;if(d.unmount)L.unmount=d.unmount;Object.defineProperty(l,su,{value:L,enumerable:!0,configurable:!0,writable:!1})}return l}function rm(i,u){if(typeof i==="function")return i({ship:u.ship});return i}function Mm(i,u,d){let m={},n=u!==void 0,b=d?Object.keys(d):[];if(n||b.length>0){if(u)for(let w of u){let r=i[w];if(gu(r))m[w]=r}for(let w of b){if(w in m)continue;let r=i[w];if(gu(r))m[w]=r}return m}for(let[w,r]of Object.entries(i))if(gu(r))m[w]=r;return m}function gu(i){return typeof i==="function"&&"set"in i&&typeof i.set==="function"}function ym(i,u){return new Proxy({},{get(d,m){if(m in i)return i[m]();return u[m]},set(d,m,n){if(m in i){if(typeof n==="function")i[m].set(()=>n);else i[m].set(n);return!0}return console.warn(`[ship-set] handler tried to write s.${m} = … but ${m} is not declared as <state name="${m}"> in the template. The assignment was ignored.`),!0},has(d,m){return m in i||m in u},ownKeys(){return Object.keys(i)},getOwnPropertyDescriptor(d,m){if(m in i)return{configurable:!0,enumerable:!0,writable:!0,value:i[m]()};return}})}function wm(i,u){let d=i.derived??{},m={};for(let[n,b]of Object.entries(d))m[n]=h(()=>b(u));return m}function Hm(i,u){let d=i.on??{},m={};for(let[n,b]of Object.entries(d))m[n]=(...w)=>b(u,...w);return m}function Cm(i,u,d){if(i.use===void 0)return{};let m=typeof i.use==="function"?i.use(u):i.use,n={};for(let[b,w]of Object.entries(m))n[b]=Pu(w,d,u);return n}function U(i){return{setup:(u)=>eu(i,u),__def:i}}if(typeof customElements<"u"){for(let i of["sui-if","sui-for","sui-match","sui-while-loading","sui-while-error"])if(!customElements.get(i))customElements.define(i,class extends HTMLElement{})}var gm=`:host([tone='default'])     { --tone: var(--foreground);       --tone-fg: var(--foreground);       --tone-contrast: var(--background); }
+:host([tone='primary'])     { --tone: var(--primary);          --tone-fg: var(--primary);          --tone-contrast: var(--primary-foreground); }
+:host([tone='info'])        { --tone: var(--info);             --tone-fg: var(--info);             --tone-contrast: var(--info-foreground); }
+:host([tone='success'])     { --tone: var(--success);          --tone-fg: var(--success);          --tone-contrast: var(--success-foreground); }
+:host([tone='warning'])     { --tone: var(--warning);          --tone-fg: var(--warning);          --tone-contrast: var(--warning-foreground); }
+:host([tone='destructive']) { --tone: var(--destructive);      --tone-fg: var(--destructive);      --tone-contrast: var(--destructive-foreground); }
+:host([tone='accent'])      { --tone: var(--accent);           --tone-fg: var(--accent);           --tone-contrast: var(--accent-foreground); }
+:host([tone='muted'])       { --tone: var(--muted-foreground); --tone-fg: var(--muted-foreground); --tone-contrast: var(--background); }
+`,Dm=`:host([hidden]) { display: none !important; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+`;function pu(i){if(typeof CSSStyleSheet>"u")return null;try{let u=new CSSStyleSheet;return u.replaceSync(i),u}catch{return null}}var cu=pu(gm),_u=pu(Dm);function V(i){if(typeof ShadowRoot>"u")return;if(!(i instanceof ShadowRoot))return;let u=[_u,cu].filter((d)=>d!=null);if(u.length===0)return;try{i.adoptedStyleSheets=[...u,...i.adoptedStyleSheets??[]]}catch{}}var LL=Q("sui-status-dot",{props:{tone:P.union(["default","primary","info","success","warning","destructive","accent","muted"],{default:"success",reflect:!0}),pulse:P.bool({default:!1,reflect:!0}),size:P.union(["sm","md"],{default:"md",reflect:!0}),label:P.string({default:""})},shadow:!0,styles:`
   :host {
     display: inline-flex;
     vertical-align: middle;
@@ -37,40 +37,7 @@ var sui_status_dot_default = component("sui-status-dot", {
   @media (prefers-reduced-motion: reduce) {
     :host([pulse]) .dot { animation: none; }
   }
-`,
-  setup(ctx) {
-    const { props, host } = ctx;
-    if (!ctx.cleanups)
-      ctx.cleanups = [];
-    const __cleanups = ctx.cleanups;
-    const $scope = Object.create(null);
-    $scope.tone = props.tone;
-    $scope.pulse = props.pulse;
-    $scope.size = props.size;
-    $scope.label = props.label;
-    const __root = host.shadowRoot ?? host;
-    adoptSuiSheets(__root);
-    const __e0 = document.createElement("span");
-    __e0.setAttribute("class", "dot");
-    __e0.setAttribute("part", "dot");
-    __cleanups.push(bindAttr(__e0, "role", () => $scope.label() ? "img" : null));
-    __cleanups.push(bindAttr(__e0, "aria-label", () => $scope.label() || null));
-    __cleanups.push(bindAttr(__e0, "aria-hidden", () => $scope.label() ? null : "true"));
-    __root.appendChild(__e0);
-    return $scope;
-  }
-});
-
-// packages/ui-components/src/sui-spinner/sui-spinner.sui
-import { adoptSuiSheets as adoptSuiSheets2, bindAttr as bindAttr2, component as component2, prop as prop2 } from "@ship/sui-runtime";
-var sui_spinner_default = component2("sui-spinner", {
-  props: {
-    size: prop2.union(["xs", "sm", "md", "lg"], { default: "md", reflect: true }),
-    tone: prop2.union(["default", "primary", "info", "success", "warning", "destructive", "accent", "muted"], { default: "default", reflect: true }),
-    label: prop2.string({ default: "Loading" })
-  },
-  shadow: true,
-  styles: `
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.tone=u.tone,n.pulse=u.pulse,n.size=u.size,n.label=u.label;let b=d.shadowRoot??d;V(b);let w=document.createElement("span");return w.setAttribute("class","dot"),w.setAttribute("part","dot"),m.push(T(w,"role",()=>n.label()?"img":null)),m.push(T(w,"aria-label",()=>n.label()||null)),m.push(T(w,"aria-hidden",()=>n.label()?null:"true")),b.appendChild(w),n}});var lL=Q("sui-spinner",{props:{size:P.union(["xs","sm","md","lg"],{default:"md",reflect:!0}),tone:P.union(["default","primary","info","success","warning","destructive","accent","muted"],{default:"default",reflect:!0}),label:P.string({default:"Loading"})},shadow:!0,styles:`
   :host {
     display: inline-flex;
     vertical-align: middle;
@@ -94,40 +61,7 @@ var sui_spinner_default = component2("sui-spinner", {
   }
   @keyframes sui-spinner-spin { to { transform: rotate(360deg); } }
   @media (prefers-reduced-motion: reduce) { .ring { animation-duration: 1.5s; } }
-`,
-  setup(ctx) {
-    const { props, host } = ctx;
-    if (!ctx.cleanups)
-      ctx.cleanups = [];
-    const __cleanups = ctx.cleanups;
-    const $scope = Object.create(null);
-    $scope.size = props.size;
-    $scope.tone = props.tone;
-    $scope.label = props.label;
-    const __root = host.shadowRoot ?? host;
-    adoptSuiSheets2(__root);
-    const __e0 = document.createElement("span");
-    __e0.setAttribute("class", "ring");
-    __e0.setAttribute("part", "ring");
-    __cleanups.push(bindAttr2(__e0, "role", () => $scope.label() ? "status" : null));
-    __cleanups.push(bindAttr2(__e0, "aria-label", () => $scope.label() || null));
-    __cleanups.push(bindAttr2(__e0, "aria-hidden", () => $scope.label() ? null : "true"));
-    __root.appendChild(__e0);
-    return $scope;
-  }
-});
-
-// packages/ui-components/src/sui-badge/sui-badge.sui
-import { adoptSuiSheets as adoptSuiSheets3, component as component3, prop as prop3 } from "@ship/sui-runtime";
-var sui_badge_default = component3("sui-badge", {
-  props: {
-    tone: prop3.union(["default", "primary", "info", "success", "warning", "destructive", "accent", "muted"], { default: "default", reflect: true }),
-    variant: prop3.union(["solid", "soft", "outline"], { default: "soft", reflect: true }),
-    size: prop3.union(["sm", "md", "lg"], { default: "md", reflect: true }),
-    pill: prop3.bool({ default: false, reflect: true })
-  },
-  shadow: true,
-  styles: `
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.size=u.size,n.tone=u.tone,n.label=u.label;let b=d.shadowRoot??d;V(b);let w=document.createElement("span");return w.setAttribute("class","ring"),w.setAttribute("part","ring"),m.push(T(w,"role",()=>n.label()?"status":null)),m.push(T(w,"aria-label",()=>n.label()||null)),m.push(T(w,"aria-hidden",()=>n.label()?null:"true")),b.appendChild(w),n}});var yL=Q("sui-badge",{props:{tone:P.union(["default","primary","info","success","warning","destructive","accent","muted"],{default:"default",reflect:!0}),variant:P.union(["solid","soft","outline"],{default:"soft",reflect:!0}),size:P.union(["sm","md","lg"],{default:"md",reflect:!0}),pill:P.bool({default:!1,reflect:!0})},shadow:!0,styles:`
   :host {
     display: inline-flex;
     vertical-align: middle;
@@ -215,108 +149,7 @@ var sui_badge_default = component3("sui-badge", {
     .badge { border-color: CanvasText; color: CanvasText; }
     :host([variant='solid']) .badge { background: Highlight; color: HighlightText; border-color: Highlight; }
   }
-`,
-  setup(ctx) {
-    const { props, host } = ctx;
-    if (!ctx.cleanups)
-      ctx.cleanups = [];
-    const __cleanups = ctx.cleanups;
-    const $scope = Object.create(null);
-    $scope.tone = props.tone;
-    $scope.variant = props.variant;
-    $scope.size = props.size;
-    $scope.pill = props.pill;
-    const __root = host.shadowRoot ?? host;
-    adoptSuiSheets3(__root);
-    const __e0 = document.createElement("span");
-    __e0.setAttribute("class", "badge");
-    __e0.setAttribute("part", "badge");
-    const __e1 = document.createElement("span");
-    __e1.setAttribute("class", "leading");
-    __e1.setAttribute("part", "leading");
-    const __e2 = document.createElement("slot");
-    __e2.setAttribute("name", "leading");
-    __e1.appendChild(__e2);
-    __e0.appendChild(__e1);
-    const __e3 = document.createElement("slot");
-    __e0.appendChild(__e3);
-    __root.appendChild(__e0);
-    return $scope;
-  }
-});
-
-// packages/ui-components/src/sui-chip/sui-chip.sui
-import { adoptSuiSheets as adoptSuiSheets4, attachRef, bindIf, component as component4, prop as prop4 } from "@ship/sui-runtime";
-
-// packages/ui-components/src/sui-chip/sui-chip.controller.ts
-import { controller, effect } from "@ship/sui-runtime";
-var sui_chip_controller_default = controller({
-  mount(state, host) {
-    const scope = state;
-    if (!host.hasAttribute("role"))
-      host.setAttribute("role", "button");
-    if (!host.hasAttribute("tabindex") && !scope.disabled()) {
-      host.setAttribute("tabindex", "0");
-    }
-    const stopSync = effect(() => {
-      const sel = scope.selected();
-      const dis = scope.disabled();
-      host.setAttribute("aria-pressed", sel ? "true" : "false");
-      if (dis) {
-        host.setAttribute("aria-disabled", "true");
-        if (host.getAttribute("tabindex") !== "-1")
-          host.setAttribute("tabindex", "-1");
-      } else {
-        host.removeAttribute("aria-disabled");
-        if (host.getAttribute("tabindex") === "-1")
-          host.setAttribute("tabindex", "0");
-      }
-    });
-    const onKeydown = (e) => {
-      if (scope.disabled())
-        return;
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        host.click();
-      } else if (scope.removable() && (e.key === "Backspace" || e.key === "Delete")) {
-        e.preventDefault();
-        host.dispatchEvent(new CustomEvent("ship-remove", { detail: {}, bubbles: true, composed: true }));
-      }
-    };
-    host.addEventListener("keydown", onKeydown);
-    const stopRemoveBtn = effect(() => {
-      const btn = scope.removeBtn?.();
-      if (!btn)
-        return;
-      const onClick = (e) => {
-        e.stopPropagation();
-        if (scope.disabled())
-          return;
-        host.dispatchEvent(new CustomEvent("ship-remove", { detail: {}, bubbles: true, composed: true }));
-      };
-      btn.addEventListener("click", onClick);
-      return () => btn.removeEventListener("click", onClick);
-    });
-    return () => {
-      stopSync();
-      host.removeEventListener("keydown", onKeydown);
-      stopRemoveBtn();
-    };
-  }
-});
-
-// packages/ui-components/src/sui-chip/sui-chip.sui
-var sui_chip_default = component4("sui-chip", {
-  props: {
-    tone: prop4.union(["default", "primary", "info", "success", "warning", "destructive", "accent", "muted"], { default: "muted", reflect: true }),
-    variant: prop4.union(["solid", "soft", "outline", "ghost"], { default: "soft", reflect: true }),
-    size: prop4.union(["sm", "md", "lg"], { default: "sm", reflect: true }),
-    selected: prop4.bool({ default: false, reflect: true }),
-    removable: prop4.bool({ default: false, reflect: true }),
-    disabled: prop4.bool({ default: false, reflect: true })
-  },
-  shadow: true,
-  styles: `
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.tone=u.tone,n.variant=u.variant,n.size=u.size,n.pill=u.pill;let b=d.shadowRoot??d;V(b);let w=document.createElement("span");w.setAttribute("class","badge"),w.setAttribute("part","badge");let r=document.createElement("span");r.setAttribute("class","leading"),r.setAttribute("part","leading");let M=document.createElement("slot");M.setAttribute("name","leading"),r.appendChild(M),w.appendChild(r);let y=document.createElement("slot");return w.appendChild(y),b.appendChild(w),n}});var ui=U({mount(i,u){let d=i;if(!u.hasAttribute("role"))u.setAttribute("role","button");if(!u.hasAttribute("tabindex")&&!d.disabled())u.setAttribute("tabindex","0");let m=q(()=>{let w=d.selected(),r=d.disabled();if(u.setAttribute("aria-pressed",w?"true":"false"),r){if(u.setAttribute("aria-disabled","true"),u.getAttribute("tabindex")!=="-1")u.setAttribute("tabindex","-1")}else if(u.removeAttribute("aria-disabled"),u.getAttribute("tabindex")==="-1")u.setAttribute("tabindex","0")}),n=(w)=>{if(d.disabled())return;if(w.key==="Enter"||w.key===" ")w.preventDefault(),u.click();else if(d.removable()&&(w.key==="Backspace"||w.key==="Delete"))w.preventDefault(),u.dispatchEvent(new CustomEvent("ship-remove",{detail:{},bubbles:!0,composed:!0}))};u.addEventListener("keydown",n);let b=q(()=>{let w=d.removeBtn?.();if(!w)return;let r=(M)=>{if(M.stopPropagation(),d.disabled())return;u.dispatchEvent(new CustomEvent("ship-remove",{detail:{},bubbles:!0,composed:!0}))};return w.addEventListener("click",r),()=>w.removeEventListener("click",r)});return()=>{m(),u.removeEventListener("keydown",n),b()}}});var PL=Q("sui-chip",{props:{tone:P.union(["default","primary","info","success","warning","destructive","accent","muted"],{default:"muted",reflect:!0}),variant:P.union(["solid","soft","outline","ghost"],{default:"soft",reflect:!0}),size:P.union(["sm","md","lg"],{default:"sm",reflect:!0}),selected:P.bool({default:!1,reflect:!0}),removable:P.bool({default:!1,reflect:!0}),disabled:P.bool({default:!1,reflect:!0})},shadow:!0,styles:`
   :host {
     display: inline-flex;
     vertical-align: middle;
@@ -475,160 +308,7 @@ var sui_chip_default = component4("sui-chip", {
     :host([selected]) .chip { background: Highlight; color: HighlightText; border-color: Highlight; }
     :host(:focus-visible) .chip { outline: 2px solid CanvasText; outline-offset: 2px; }
   }
-`,
-  setup(ctx) {
-    const { props, host } = ctx;
-    if (!ctx.cleanups)
-      ctx.cleanups = [];
-    const __cleanups = ctx.cleanups;
-    const $scope = Object.create(null);
-    $scope.tone = props.tone;
-    $scope.variant = props.variant;
-    $scope.size = props.size;
-    $scope.selected = props.selected;
-    $scope.removable = props.removable;
-    $scope.disabled = props.disabled;
-    let __r = null;
-    if (sui_chip_controller_default && typeof sui_chip_controller_default.setup === "function") {
-      ctx.scope = $scope;
-      __r = sui_chip_controller_default.setup(ctx);
-      if (__r && typeof __r === "object")
-        Object.assign($scope, __r);
-    }
-    const __wireBoundary_b0 = (anchor) => bindIf({
-      anchor,
-      test: () => {
-        if ($scope.removable())
-          return 0;
-        return -1;
-      },
-      branches: [
-        () => {
-          const __frag5 = document.createDocumentFragment();
-          const __c6 = [];
-          const __e7 = document.createElement("button");
-          __e7.setAttribute("class", "remove");
-          __e7.setAttribute("part", "remove");
-          __e7.setAttribute("type", "button");
-          __e7.setAttribute("aria-label", "Remove");
-          __e7.setAttribute("tabindex", "-1");
-          attachRef($scope, "removeBtn", __e7);
-          const __e8 = document.createElement("svg");
-          __e8.setAttribute("viewbox", "0 0 10 10");
-          __e8.setAttribute("aria-hidden", "true");
-          const __e9 = document.createElement("path");
-          __e9.setAttribute("d", "M2 2 L8 8 M8 2 L2 8");
-          __e8.appendChild(__e9);
-          __e7.appendChild(__e8);
-          __frag5.appendChild(__e7);
-          return { nodes: Array.from(__frag5.childNodes), cleanup: () => {
-            for (const c of __c6)
-              try {
-                c();
-              } catch (e) {}
-          } };
-        }
-      ]
-    });
-    const __root = host.shadowRoot ?? host;
-    adoptSuiSheets4(__root);
-    const __e0 = document.createElement("span");
-    __e0.setAttribute("class", "chip");
-    __e0.setAttribute("part", "chip");
-    const __e1 = document.createElement("span");
-    __e1.setAttribute("class", "leading");
-    __e1.setAttribute("part", "leading");
-    const __e2 = document.createElement("slot");
-    __e2.setAttribute("name", "leading");
-    __e1.appendChild(__e2);
-    __e0.appendChild(__e1);
-    const __e3 = document.createElement("slot");
-    __e0.appendChild(__e3);
-    const __ifAnchor4 = document.createComment("if");
-    __e0.appendChild(__ifAnchor4);
-    __cleanups.push(__wireBoundary_b0(__ifAnchor4));
-    __root.appendChild(__e0);
-    if (__r != null) {
-      const __lc = Object.getOwnPropertyDescriptor(__r, "__shipSetLifecycle")?.value;
-      if (__lc) {
-        const __sp = new Proxy($scope, {
-          get(t, k) {
-            return t[k];
-          },
-          set(t, k, v) {
-            const s = t[k];
-            if (s != null && typeof s.set === "function") {
-              if (typeof v === "function") {
-                s.set(() => v);
-              } else {
-                s.set(v);
-              }
-              return true;
-            }
-            return false;
-          }
-        });
-        if (__lc.mount) {
-          const __mc = __lc.mount(__sp, host);
-          if (typeof __mc === "function")
-            __cleanups.push(__mc);
-        }
-        if (__lc.unmount)
-          __cleanups.push(() => __lc.unmount(__sp));
-      }
-    }
-    return $scope;
-  }
-});
-
-// packages/ui-components/src/sui-card/sui-card.sui
-import { adoptSuiSheets as adoptSuiSheets5, bindSlotEmpty, component as component5, prop as prop5 } from "@ship/sui-runtime";
-
-// packages/ui-components/src/sui-card/sui-card.controller.ts
-import { controller as controller2, effect as effect2 } from "@ship/sui-runtime";
-var sui_card_controller_default = controller2({
-  mount(state, host) {
-    const scope = state;
-    const onKeydown = (e) => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        host.click();
-      }
-    };
-    const stopSync = effect2(() => {
-      if (scope.interactive()) {
-        if (!host.hasAttribute("role"))
-          host.setAttribute("role", "button");
-        if (!host.hasAttribute("tabindex"))
-          host.setAttribute("tabindex", "0");
-        host.addEventListener("keydown", onKeydown);
-        return () => host.removeEventListener("keydown", onKeydown);
-      } else {
-        if (host.getAttribute("role") === "button")
-          host.removeAttribute("role");
-        if (host.getAttribute("tabindex") === "0")
-          host.removeAttribute("tabindex");
-      }
-    });
-    return () => {
-      stopSync();
-    };
-  }
-});
-
-// packages/ui-components/src/sui-card/sui-card.sui
-var sui_card_default = component5("sui-card", {
-  props: {
-    tone: prop5.union(["default", "primary", "info", "success", "warning", "destructive", "accent", "muted"], { default: "default", reflect: true }),
-    variant: prop5.union(["default", "outline"], { default: "default", reflect: true }),
-    padding: prop5.union(["none", "sm", "md", "lg"], { default: "md", reflect: true }),
-    interactive: prop5.bool({ default: false, reflect: true }),
-    "accent-bar": prop5.bool({ default: false, reflect: true }),
-    "status-rail": prop5.bool({ default: false, reflect: true }),
-    fill: prop5.bool({ default: false, reflect: true })
-  },
-  shadow: true,
-  styles: `
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.tone=u.tone,n.variant=u.variant,n.size=u.size,n.selected=u.selected,n.removable=u.removable,n.disabled=u.disabled,n.removeBtn=G(null);let b=null;if(ui&&typeof ui.setup==="function"){if(i.scope=n,b=ui.setup(i),b&&typeof b==="object")Object.assign(n,b)}let w=(f)=>R({anchor:f,test:()=>{if(n.removable())return 0;return-1},branches:[()=>{let t=document.createDocumentFragment(),H=[],C=document.createElement("button");C.setAttribute("class","remove"),C.setAttribute("part","remove"),C.setAttribute("type","button"),C.setAttribute("aria-label","Remove"),C.setAttribute("tabindex","-1"),O(n,"removeBtn",C);let z=document.createElement("svg");z.setAttribute("viewbox","0 0 10 10"),z.setAttribute("aria-hidden","true");let j=document.createElement("path");return j.setAttribute("d","M2 2 L8 8 M8 2 L2 8"),z.appendChild(j),C.appendChild(z),t.appendChild(C),{nodes:Array.from(t.childNodes),cleanup:()=>{for(let g of H)try{g()}catch(J){}}}}]}),r=d.shadowRoot??d;V(r);let M=document.createElement("span");M.setAttribute("class","chip"),M.setAttribute("part","chip");let y=document.createElement("span");y.setAttribute("class","leading"),y.setAttribute("part","leading");let E=document.createElement("slot");E.setAttribute("name","leading"),y.appendChild(E),M.appendChild(y);let l=document.createElement("slot");M.appendChild(l);let L=document.createComment("if");if(M.appendChild(L),m.push(w(L)),r.appendChild(M),b!=null){let f=Object.getOwnPropertyDescriptor(b,"__shipSetLifecycle")?.value;if(f){let t=new Proxy(n,{get(H,C){return H[C]},set(H,C,z){let j=H[C];if(j!=null&&typeof j.set==="function"){if(typeof z==="function")j.set(()=>z);else j.set(z);return!0}return!1}});if(f.mount){let H=f.mount(t,d);if(typeof H==="function")m.push(H)}if(f.unmount)m.push(()=>f.unmount(t))}}return n}});var di=U({mount(i,u){let d=i,m=(b)=>{if(b.key==="Enter"||b.key===" ")b.preventDefault(),u.click()},n=q(()=>{if(d.interactive()){if(!u.hasAttribute("role"))u.setAttribute("role","button");if(!u.hasAttribute("tabindex"))u.setAttribute("tabindex","0");return u.addEventListener("keydown",m),()=>u.removeEventListener("keydown",m)}else{if(u.getAttribute("role")==="button")u.removeAttribute("role");if(u.getAttribute("tabindex")==="0")u.removeAttribute("tabindex")}});return()=>{n()}}});var GL=Q("sui-card",{props:{tone:P.union(["default","primary","info","success","warning","destructive","accent","muted"],{default:"default",reflect:!0}),variant:P.union(["default","outline"],{default:"default",reflect:!0}),padding:P.union(["none","sm","md","lg"],{default:"md",reflect:!0}),interactive:P.bool({default:!1,reflect:!0}),"accent-bar":P.bool({default:!1,reflect:!0}),"status-rail":P.bool({default:!1,reflect:!0}),fill:P.bool({default:!1,reflect:!0})},shadow:!0,styles:`
   :host {
     display: block;
     position: relative;
@@ -736,97 +416,7 @@ var sui_card_default = component5("sui-card", {
   @media (forced-colors: active) {
     :host([interactive]:focus-visible) { outline: 2px solid CanvasText; outline-offset: 2px; }
   }
-`,
-  setup(ctx) {
-    const { props, host } = ctx;
-    if (!ctx.cleanups)
-      ctx.cleanups = [];
-    const __cleanups = ctx.cleanups;
-    const $scope = Object.create(null);
-    $scope.tone = props.tone;
-    $scope.variant = props.variant;
-    $scope.padding = props.padding;
-    $scope.interactive = props.interactive;
-    $scope.accentBar = props.accentBar;
-    $scope.statusRail = props.statusRail;
-    $scope.fill = props.fill;
-    let __r = null;
-    if (sui_card_controller_default && typeof sui_card_controller_default.setup === "function") {
-      ctx.scope = $scope;
-      __r = sui_card_controller_default.setup(ctx);
-      if (__r && typeof __r === "object")
-        Object.assign($scope, __r);
-    }
-    const __root = host.shadowRoot ?? host;
-    adoptSuiSheets5(__root);
-    const __e0 = document.createElement("div");
-    __e0.setAttribute("class", "header");
-    __e0.setAttribute("part", "header");
-    const __e1 = document.createElement("slot");
-    __e1.setAttribute("name", "header");
-    __cleanups.push(bindSlotEmpty(__e1, host, "data-no-header"));
-    __e0.appendChild(__e1);
-    __root.appendChild(__e0);
-    const __e2 = document.createElement("div");
-    __e2.setAttribute("class", "content");
-    __e2.setAttribute("part", "content");
-    const __e3 = document.createElement("slot");
-    __e2.appendChild(__e3);
-    __root.appendChild(__e2);
-    const __e4 = document.createElement("div");
-    __e4.setAttribute("class", "footer");
-    __e4.setAttribute("part", "footer");
-    const __e5 = document.createElement("slot");
-    __e5.setAttribute("name", "footer");
-    __cleanups.push(bindSlotEmpty(__e5, host, "data-no-footer"));
-    __e4.appendChild(__e5);
-    __root.appendChild(__e4);
-    if (__r != null) {
-      const __lc = Object.getOwnPropertyDescriptor(__r, "__shipSetLifecycle")?.value;
-      if (__lc) {
-        const __sp = new Proxy($scope, {
-          get(t, k) {
-            return t[k];
-          },
-          set(t, k, v) {
-            const s = t[k];
-            if (s != null && typeof s.set === "function") {
-              if (typeof v === "function") {
-                s.set(() => v);
-              } else {
-                s.set(v);
-              }
-              return true;
-            }
-            return false;
-          }
-        });
-        if (__lc.mount) {
-          const __mc = __lc.mount(__sp, host);
-          if (typeof __mc === "function")
-            __cleanups.push(__mc);
-        }
-        if (__lc.unmount)
-          __cleanups.push(() => __lc.unmount(__sp));
-      }
-    }
-    return $scope;
-  }
-});
-
-// packages/ui-components/src/sui-link/sui-link.sui
-import { adoptSuiSheets as adoptSuiSheets6, bindAttr as bindAttr3, bindIf as bindIf2, component as component6, prop as prop6 } from "@ship/sui-runtime";
-var sui_link_default = component6("sui-link", {
-  props: {
-    href: prop6.string({ default: "" }),
-    external: prop6.bool({ default: false, reflect: true }),
-    tone: prop6.union(["default", "primary", "info", "success", "warning", "destructive", "accent", "muted"], { default: "default", reflect: true }),
-    variant: prop6.union(["default", "underline", "subtle"], { default: "default", reflect: true }),
-    target: prop6.string({ default: "" }),
-    rel: prop6.string({ default: "" })
-  },
-  shadow: true,
-  styles: `
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.tone=u.tone,n.variant=u.variant,n.padding=u.padding,n.interactive=u.interactive,n.accentBar=u.accentBar,n.statusRail=u.statusRail,n.fill=u.fill;let b=null;if(di&&typeof di.setup==="function"){if(i.scope=n,b=di.setup(i),b&&typeof b==="object")Object.assign(n,b)}let w=d.shadowRoot??d;V(w);let r=document.createElement("div");r.setAttribute("class","header"),r.setAttribute("part","header");let M=document.createElement("slot");M.setAttribute("name","header"),m.push(bn(M,d,"data-no-header")),r.appendChild(M),w.appendChild(r);let y=document.createElement("div");y.setAttribute("class","content"),y.setAttribute("part","content");let E=document.createElement("slot");y.appendChild(E),w.appendChild(y);let l=document.createElement("div");l.setAttribute("class","footer"),l.setAttribute("part","footer");let L=document.createElement("slot");if(L.setAttribute("name","footer"),m.push(bn(L,d,"data-no-footer")),l.appendChild(L),w.appendChild(l),b!=null){let f=Object.getOwnPropertyDescriptor(b,"__shipSetLifecycle")?.value;if(f){let t=new Proxy(n,{get(H,C){return H[C]},set(H,C,z){let j=H[C];if(j!=null&&typeof j.set==="function"){if(typeof z==="function")j.set(()=>z);else j.set(z);return!0}return!1}});if(f.mount){let H=f.mount(t,d);if(typeof H==="function")m.push(H)}if(f.unmount)m.push(()=>f.unmount(t))}}return n}});var QL=Q("sui-link",{props:{href:P.string({default:""}),external:P.bool({default:!1,reflect:!0}),tone:P.union(["default","primary","info","success","warning","destructive","accent","muted"],{default:"default",reflect:!0}),variant:P.union(["default","underline","subtle"],{default:"default",reflect:!0}),target:P.string({default:""}),rel:P.string({default:""})},shadow:!0,styles:`
   :host {
     display: inline;
     font-family: var(--font-body);
@@ -887,86 +477,7 @@ var sui_link_default = component6("sui-link", {
     clip: rect(0, 0, 0, 0);
     white-space: nowrap;
   }
-`,
-  setup(ctx) {
-    const { props, host } = ctx;
-    if (!ctx.cleanups)
-      ctx.cleanups = [];
-    const __cleanups = ctx.cleanups;
-    const $scope = Object.create(null);
-    $scope.href = props.href;
-    $scope.external = props.external;
-    $scope.tone = props.tone;
-    $scope.variant = props.variant;
-    $scope.target = props.target;
-    $scope.rel = props.rel;
-    const __wireBoundary_b3 = (anchor) => bindIf2({
-      anchor,
-      test: () => {
-        if ($scope.external())
-          return 0;
-        return -1;
-      },
-      branches: [
-        () => {
-          const __frag3 = document.createDocumentFragment();
-          const __c4 = [];
-          const __e5 = document.createElement("span");
-          __e5.setAttribute("class", "sr-only");
-          const __t6 = document.createTextNode("(opens in new tab)");
-          __e5.appendChild(__t6);
-          __frag3.appendChild(__e5);
-          const __e7 = document.createElement("span");
-          __e7.setAttribute("class", "ext");
-          __e7.setAttribute("aria-hidden", "true");
-          const __e8 = document.createElement("svg");
-          __e8.setAttribute("viewbox", "0 0 24 24");
-          __e8.setAttribute("fill", "none");
-          __e8.setAttribute("stroke", "currentColor");
-          __e8.setAttribute("stroke-width", "2");
-          __e8.setAttribute("stroke-linecap", "round");
-          __e8.setAttribute("stroke-linejoin", "round");
-          const __e9 = document.createElement("path");
-          __e9.setAttribute("d", "M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3");
-          __e8.appendChild(__e9);
-          __e7.appendChild(__e8);
-          __frag3.appendChild(__e7);
-          return { nodes: Array.from(__frag3.childNodes), cleanup: () => {
-            for (const c of __c4)
-              try {
-                c();
-              } catch (e) {}
-          } };
-        }
-      ]
-    });
-    const __root = host.shadowRoot ?? host;
-    adoptSuiSheets6(__root);
-    const __e0 = document.createElement("a");
-    __e0.setAttribute("part", "link");
-    __cleanups.push(bindAttr3(__e0, "href", () => $scope.href()));
-    __cleanups.push(bindAttr3(__e0, "target", () => $scope.external() ? "_blank" : $scope.target()));
-    __cleanups.push(bindAttr3(__e0, "rel", () => $scope.external() ? "noopener noreferrer" : $scope.rel()));
-    const __e1 = document.createElement("slot");
-    __e0.appendChild(__e1);
-    const __ifAnchor2 = document.createComment("if");
-    __e0.appendChild(__ifAnchor2);
-    __cleanups.push(__wireBoundary_b3(__ifAnchor2));
-    __root.appendChild(__e0);
-    return $scope;
-  }
-});
-
-// packages/ui-components/src/sui-divider/sui-divider.sui
-import { adoptSuiSheets as adoptSuiSheets7, bindAttr as bindAttr4, component as component7, prop as prop7 } from "@ship/sui-runtime";
-var sui_divider_default = component7("sui-divider", {
-  props: {
-    orientation: prop7.union(["horizontal", "vertical"], { default: "horizontal", reflect: true }),
-    variant: prop7.union(["solid", "dashed"], { default: "solid", reflect: true }),
-    tone: prop7.union(["default", "muted", "primary", "destructive"], { default: "default", reflect: true })
-  },
-  shadow: true,
-  styles: `
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.href=u.href,n.external=u.external,n.tone=u.tone,n.variant=u.variant,n.target=u.target,n.rel=u.rel;let b=(E)=>R({anchor:E,test:()=>{if(n.external())return 0;return-1},branches:[()=>{let l=document.createDocumentFragment(),L=[],f=document.createElement("span");f.setAttribute("class","sr-only");let t=document.createTextNode("(opens in new tab)");f.appendChild(t),l.appendChild(f);let H=document.createElement("span");H.setAttribute("class","ext"),H.setAttribute("aria-hidden","true");let C=document.createElement("svg");C.setAttribute("viewbox","0 0 24 24"),C.setAttribute("fill","none"),C.setAttribute("stroke","currentColor"),C.setAttribute("stroke-width","2"),C.setAttribute("stroke-linecap","round"),C.setAttribute("stroke-linejoin","round");let z=document.createElement("path");return z.setAttribute("d","M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"),C.appendChild(z),H.appendChild(C),l.appendChild(H),{nodes:Array.from(l.childNodes),cleanup:()=>{for(let j of L)try{j()}catch(g){}}}}]}),w=d.shadowRoot??d;V(w);let r=document.createElement("a");r.setAttribute("part","link"),m.push(T(r,"href",()=>n.href())),m.push(T(r,"target",()=>n.external()?"_blank":n.target())),m.push(T(r,"rel",()=>n.external()?"noopener noreferrer":n.rel()));let M=document.createElement("slot");r.appendChild(M);let y=document.createComment("if");return r.appendChild(y),m.push(b(y)),w.appendChild(r),n}});var qL=Q("sui-divider",{props:{orientation:P.union(["horizontal","vertical"],{default:"horizontal",reflect:!0}),variant:P.union(["solid","dashed"],{default:"solid",reflect:!0}),tone:P.union(["default","muted","primary","destructive"],{default:"default",reflect:!0})},shadow:!0,styles:`
   :host {
     display: block;
     --tone-bg: var(--border);
@@ -1010,37 +521,7 @@ var sui_divider_default = component7("sui-divider", {
     border-left: 1px dashed var(--tone-bg);
     width: 0;
   }
-`,
-  setup(ctx) {
-    const { props, host } = ctx;
-    if (!ctx.cleanups)
-      ctx.cleanups = [];
-    const __cleanups = ctx.cleanups;
-    const $scope = Object.create(null);
-    $scope.orientation = props.orientation;
-    $scope.variant = props.variant;
-    $scope.tone = props.tone;
-    const __root = host.shadowRoot ?? host;
-    adoptSuiSheets7(__root);
-    const __e0 = document.createElement("hr");
-    __e0.setAttribute("class", "line");
-    __e0.setAttribute("part", "line");
-    __e0.setAttribute("role", "separator");
-    __cleanups.push(bindAttr4(__e0, "aria-orientation", () => $scope.orientation()));
-    __root.appendChild(__e0);
-    return $scope;
-  }
-});
-
-// packages/ui-components/src/sui-skeleton/sui-skeleton.sui
-import { adoptSuiSheets as adoptSuiSheets8, component as component8, prop as prop8 } from "@ship/sui-runtime";
-var sui_skeleton_default = component8("sui-skeleton", {
-  props: {
-    shape: prop8.union(["text", "line", "block", "circle"], { default: "text", reflect: true }),
-    size: prop8.union(["sm", "md", "lg"], { default: "md", reflect: true })
-  },
-  shadow: true,
-  styles: `
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.orientation=u.orientation,n.variant=u.variant,n.tone=u.tone;let b=d.shadowRoot??d;V(b);let w=document.createElement("hr");return w.setAttribute("class","line"),w.setAttribute("part","line"),w.setAttribute("role","separator"),m.push(T(w,"aria-orientation",()=>n.orientation())),b.appendChild(w),n}});var FL=Q("sui-skeleton",{props:{shape:P.union(["text","line","block","circle"],{default:"text",reflect:!0}),size:P.union(["sm","md","lg"],{default:"md",reflect:!0})},shadow:!0,styles:`
   :host { display: inline-block; vertical-align: middle; }
   :host([shape='block']) { display: block; }
 
@@ -1083,74 +564,7 @@ var sui_skeleton_default = component8("sui-skeleton", {
   @media (prefers-reduced-motion: reduce) {
     .sk { animation: none; }
   }
-`,
-  setup(ctx) {
-    const { props, host } = ctx;
-    if (!ctx.cleanups)
-      ctx.cleanups = [];
-    const __cleanups = ctx.cleanups;
-    const $scope = Object.create(null);
-    $scope.shape = props.shape;
-    $scope.size = props.size;
-    const __root = host.shadowRoot ?? host;
-    adoptSuiSheets8(__root);
-    const __e0 = document.createElement("span");
-    __e0.setAttribute("class", "sk");
-    __e0.setAttribute("part", "sk");
-    __e0.setAttribute("role", "status");
-    __e0.setAttribute("aria-label", "Loading");
-    __e0.setAttribute("aria-live", "polite");
-    __e0.setAttribute("aria-busy", "true");
-    __root.appendChild(__e0);
-    return $scope;
-  }
-});
-
-// packages/ui-components/src/sui-stat/sui-stat.sui
-import { adoptSuiSheets as adoptSuiSheets9, component as component9, prop as prop9 } from "@ship/sui-runtime";
-
-// packages/ui-components/src/sui-stat/sui-stat.controller.ts
-import { controller as controller3, effect as effect3 } from "@ship/sui-runtime";
-var sui_stat_controller_default = controller3({
-  mount(state, host) {
-    const scope = state;
-    const onKeydown = (e) => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        host.click();
-      }
-    };
-    const stopSync = effect3(() => {
-      if (scope.interactive()) {
-        if (!host.hasAttribute("role"))
-          host.setAttribute("role", "button");
-        if (!host.hasAttribute("tabindex"))
-          host.setAttribute("tabindex", "0");
-        host.addEventListener("keydown", onKeydown);
-        return () => host.removeEventListener("keydown", onKeydown);
-      } else {
-        if (host.getAttribute("role") === "button")
-          host.removeAttribute("role");
-        if (host.getAttribute("tabindex") === "0")
-          host.removeAttribute("tabindex");
-      }
-    });
-    return () => {
-      stopSync();
-      host.removeEventListener("keydown", onKeydown);
-    };
-  }
-});
-
-// packages/ui-components/src/sui-stat/sui-stat.sui
-var sui_stat_default = component9("sui-stat", {
-  props: {
-    tone: prop9.union(["default", "primary", "info", "success", "warning", "destructive", "accent"], { default: "default", reflect: true }),
-    interactive: prop9.bool({ default: false, reflect: true }),
-    size: prop9.union(["sm", "md", "lg"], { default: "md", reflect: true })
-  },
-  shadow: true,
-  styles: `
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.shape=u.shape,n.size=u.size;let b=d.shadowRoot??d;V(b);let w=document.createElement("span");return w.setAttribute("class","sk"),w.setAttribute("part","sk"),w.setAttribute("role","status"),w.setAttribute("aria-label","Loading"),w.setAttribute("aria-live","polite"),w.setAttribute("aria-busy","true"),b.appendChild(w),n}});var mi=U({mount(i,u){let d=i,m=(b)=>{if(b.key==="Enter"||b.key===" ")b.preventDefault(),u.click()},n=q(()=>{if(d.interactive()){if(!u.hasAttribute("role"))u.setAttribute("role","button");if(!u.hasAttribute("tabindex"))u.setAttribute("tabindex","0");return u.addEventListener("keydown",m),()=>u.removeEventListener("keydown",m)}else{if(u.getAttribute("role")==="button")u.removeAttribute("role");if(u.getAttribute("tabindex")==="0")u.removeAttribute("tabindex")}});return()=>{n(),u.removeEventListener("keydown",m)}}});var RL=Q("sui-stat",{props:{tone:P.union(["default","primary","info","success","warning","destructive","accent"],{default:"default",reflect:!0}),interactive:P.bool({default:!1,reflect:!0}),size:P.union(["sm","md","lg"],{default:"md",reflect:!0})},shadow:!0,styles:`
   :host {
     display: flex;
     flex-direction: column;
@@ -1210,97 +624,7 @@ var sui_stat_default = component9("sui-stat", {
     color: var(--muted-foreground);
   }
   ::slotted([slot='trend']) { font-size: var(--text-sm); }
-`,
-  setup(ctx) {
-    const { props, host } = ctx;
-    if (!ctx.cleanups)
-      ctx.cleanups = [];
-    const __cleanups = ctx.cleanups;
-    const $scope = Object.create(null);
-    $scope.tone = props.tone;
-    $scope.interactive = props.interactive;
-    $scope.size = props.size;
-    let __r = null;
-    if (sui_stat_controller_default && typeof sui_stat_controller_default.setup === "function") {
-      ctx.scope = $scope;
-      __r = sui_stat_controller_default.setup(ctx);
-      if (__r && typeof __r === "object")
-        Object.assign($scope, __r);
-    }
-    const __root = host.shadowRoot ?? host;
-    adoptSuiSheets9(__root);
-    const __e0 = document.createElement("span");
-    __e0.setAttribute("class", "label");
-    __e0.setAttribute("part", "label");
-    const __e1 = document.createElement("slot");
-    __e1.setAttribute("name", "label");
-    __e0.appendChild(__e1);
-    __root.appendChild(__e0);
-    const __e2 = document.createElement("span");
-    __e2.setAttribute("class", "value-row");
-    __e2.setAttribute("part", "value-row");
-    const __e3 = document.createElement("span");
-    __e3.setAttribute("class", "value");
-    __e3.setAttribute("part", "value");
-    const __e4 = document.createElement("slot");
-    __e3.appendChild(__e4);
-    __e2.appendChild(__e3);
-    const __e5 = document.createElement("span");
-    __e5.setAttribute("class", "trend");
-    __e5.setAttribute("part", "trend");
-    const __e6 = document.createElement("slot");
-    __e6.setAttribute("name", "trend");
-    __e5.appendChild(__e6);
-    __e2.appendChild(__e5);
-    __root.appendChild(__e2);
-    const __e7 = document.createElement("span");
-    __e7.setAttribute("class", "hint");
-    __e7.setAttribute("part", "hint");
-    const __e8 = document.createElement("slot");
-    __e8.setAttribute("name", "hint");
-    __e7.appendChild(__e8);
-    __root.appendChild(__e7);
-    if (__r != null) {
-      const __lc = Object.getOwnPropertyDescriptor(__r, "__shipSetLifecycle")?.value;
-      if (__lc) {
-        const __sp = new Proxy($scope, {
-          get(t, k) {
-            return t[k];
-          },
-          set(t, k, v) {
-            const s = t[k];
-            if (s != null && typeof s.set === "function") {
-              if (typeof v === "function") {
-                s.set(() => v);
-              } else {
-                s.set(v);
-              }
-              return true;
-            }
-            return false;
-          }
-        });
-        if (__lc.mount) {
-          const __mc = __lc.mount(__sp, host);
-          if (typeof __mc === "function")
-            __cleanups.push(__mc);
-        }
-        if (__lc.unmount)
-          __cleanups.push(() => __lc.unmount(__sp));
-      }
-    }
-    return $scope;
-  }
-});
-
-// packages/ui-components/src/sui-mark/sui-mark.sui
-import { adoptSuiSheets as adoptSuiSheets10, component as component10, prop as prop10 } from "@ship/sui-runtime";
-var sui_mark_default = component10("sui-mark", {
-  props: {
-    tone: prop10.union(["default", "primary", "info", "success", "warning", "destructive", "accent", "muted"], { default: "warning", reflect: true })
-  },
-  shadow: true,
-  styles: `
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.tone=u.tone,n.interactive=u.interactive,n.size=u.size;let b=null;if(mi&&typeof mi.setup==="function"){if(i.scope=n,b=mi.setup(i),b&&typeof b==="object")Object.assign(n,b)}let w=d.shadowRoot??d;V(w);let r=document.createElement("span");r.setAttribute("class","label"),r.setAttribute("part","label");let M=document.createElement("slot");M.setAttribute("name","label"),r.appendChild(M),w.appendChild(r);let y=document.createElement("span");y.setAttribute("class","value-row"),y.setAttribute("part","value-row");let E=document.createElement("span");E.setAttribute("class","value"),E.setAttribute("part","value");let l=document.createElement("slot");E.appendChild(l),y.appendChild(E);let L=document.createElement("span");L.setAttribute("class","trend"),L.setAttribute("part","trend");let f=document.createElement("slot");f.setAttribute("name","trend"),L.appendChild(f),y.appendChild(L),w.appendChild(y);let t=document.createElement("span");t.setAttribute("class","hint"),t.setAttribute("part","hint");let H=document.createElement("slot");if(H.setAttribute("name","hint"),t.appendChild(H),w.appendChild(t),b!=null){let C=Object.getOwnPropertyDescriptor(b,"__shipSetLifecycle")?.value;if(C){let z=new Proxy(n,{get(j,g){return j[g]},set(j,g,J){let D=j[g];if(D!=null&&typeof D.set==="function"){if(typeof J==="function")D.set(()=>J);else D.set(J);return!0}return!1}});if(C.mount){let j=C.mount(z,d);if(typeof j==="function")m.push(j)}if(C.unmount)m.push(()=>C.unmount(z))}}return n}});var aL=Q("sui-mark",{props:{tone:P.union(["default","primary","info","success","warning","destructive","accent","muted"],{default:"warning",reflect:!0})},shadow:!0,styles:`
   :host {
     display: inline;
     --tone: var(--warning);
@@ -1312,54 +636,7 @@ var sui_mark_default = component10("sui-mark", {
     padding: 0 2px;
     border-radius: 2px;
   }
-`,
-  setup(ctx) {
-    const { props, host } = ctx;
-    if (!ctx.cleanups)
-      ctx.cleanups = [];
-    const __cleanups = ctx.cleanups;
-    const $scope = Object.create(null);
-    $scope.tone = props.tone;
-    const __root = host.shadowRoot ?? host;
-    adoptSuiSheets10(__root);
-    const __e0 = document.createElement("mark");
-    __e0.setAttribute("part", "mark");
-    const __e1 = document.createElement("slot");
-    __e0.appendChild(__e1);
-    __root.appendChild(__e0);
-    return $scope;
-  }
-});
-
-// packages/ui-components/src/sui-kbd/sui-kbd.sui
-import { adoptSuiSheets as adoptSuiSheets11, component as component11, prop as prop11 } from "@ship/sui-runtime";
-
-// packages/ui-components/src/sui-kbd/sui-kbd.controller.ts
-import { controller as controller4, effect as effect4 } from "@ship/sui-runtime";
-var sui_kbd_controller_default = controller4({
-  mount(state, host) {
-    const scope = state;
-    if (!host.hasAttribute("role"))
-      host.setAttribute("role", "group");
-    const stopSync = effect4(() => {
-      const k = scope.keys();
-      if (k)
-        host.setAttribute("aria-label", `Keyboard shortcut: ${k}`);
-      else
-        host.removeAttribute("aria-label");
-    });
-    return () => stopSync();
-  }
-});
-
-// packages/ui-components/src/sui-kbd/sui-kbd.sui
-var sui_kbd_default = component11("sui-kbd", {
-  props: {
-    keys: prop11.string({ default: "" }),
-    size: prop11.union(["sm", "md"], { default: "md", reflect: true })
-  },
-  shadow: true,
-  styles: `
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.tone=u.tone;let b=d.shadowRoot??d;V(b);let w=document.createElement("mark");w.setAttribute("part","mark");let r=document.createElement("slot");return w.appendChild(r),b.appendChild(w),n}});var bi=U({mount(i,u){let d=i;if(!u.hasAttribute("role"))u.setAttribute("role","group");let m=q(()=>{let n=d.keys();if(n)u.setAttribute("aria-label",`Keyboard shortcut: ${n}`);else u.removeAttribute("aria-label")});return()=>m()}});var sL=Q("sui-kbd",{props:{keys:P.string({default:""}),size:P.union(["sm","md"],{default:"md",reflect:!0})},shadow:!0,styles:`
   :host {
     display: inline-flex;
     align-items: center;
@@ -1387,76 +664,7 @@ var sui_kbd_default = component11("sui-kbd", {
 
   :host([size='sm']) kbd { font-size: 10px; padding: 1px 4px; min-width: 16px; }
   :host([size='md']) kbd { font-size: 11px; padding: 2px 5px; min-width: 18px; }
-`,
-  setup(ctx) {
-    const { props, host } = ctx;
-    if (!ctx.cleanups)
-      ctx.cleanups = [];
-    const __cleanups = ctx.cleanups;
-    const $scope = Object.create(null);
-    $scope.keys = props.keys;
-    $scope.size = props.size;
-    let __r = null;
-    if (sui_kbd_controller_default && typeof sui_kbd_controller_default.setup === "function") {
-      ctx.scope = $scope;
-      __r = sui_kbd_controller_default.setup(ctx);
-      if (__r && typeof __r === "object")
-        Object.assign($scope, __r);
-    }
-    const __root = host.shadowRoot ?? host;
-    adoptSuiSheets11(__root);
-    const __e0 = document.createElement("kbd");
-    __e0.setAttribute("part", "kbd");
-    const __e1 = document.createElement("slot");
-    __e0.appendChild(__e1);
-    __root.appendChild(__e0);
-    if (__r != null) {
-      const __lc = Object.getOwnPropertyDescriptor(__r, "__shipSetLifecycle")?.value;
-      if (__lc) {
-        const __sp = new Proxy($scope, {
-          get(t, k) {
-            return t[k];
-          },
-          set(t, k, v) {
-            const s = t[k];
-            if (s != null && typeof s.set === "function") {
-              if (typeof v === "function") {
-                s.set(() => v);
-              } else {
-                s.set(v);
-              }
-              return true;
-            }
-            return false;
-          }
-        });
-        if (__lc.mount) {
-          const __mc = __lc.mount(__sp, host);
-          if (typeof __mc === "function")
-            __cleanups.push(__mc);
-        }
-        if (__lc.unmount)
-          __cleanups.push(() => __lc.unmount(__sp));
-      }
-    }
-    return $scope;
-  }
-});
-
-// packages/ui-components/src/sui-avatar/sui-avatar.sui
-import { adoptSuiSheets as adoptSuiSheets12, bindAttr as bindAttr5, bindIf as bindIf3, bindText, component as component12, prop as prop12 } from "@ship/sui-runtime";
-var sui_avatar_default = component12("sui-avatar", {
-  props: {
-    src: prop12.string({ default: "" }),
-    name: prop12.string({ default: "" }),
-    initials: prop12.string({ default: "" }),
-    "icon-slug": prop12.string({ default: "" }),
-    size: prop12.union(["xs", "sm", "md", "lg", "xl"], { default: "md", reflect: true }),
-    shape: prop12.union(["round", "square"], { default: "round", reflect: true }),
-    tone: prop12.union(["default", "primary", "info", "success", "warning", "destructive", "accent", "muted"], { default: "muted", reflect: true })
-  },
-  shadow: true,
-  styles: `
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.keys=u.keys,n.size=u.size;let b=null;if(bi&&typeof bi.setup==="function"){if(i.scope=n,b=bi.setup(i),b&&typeof b==="object")Object.assign(n,b)}let w=d.shadowRoot??d;V(w);let r=document.createElement("kbd");r.setAttribute("part","kbd");let M=document.createElement("slot");if(r.appendChild(M),w.appendChild(r),b!=null){let y=Object.getOwnPropertyDescriptor(b,"__shipSetLifecycle")?.value;if(y){let E=new Proxy(n,{get(l,L){return l[L]},set(l,L,f){let t=l[L];if(t!=null&&typeof t.set==="function"){if(typeof f==="function")t.set(()=>f);else t.set(f);return!0}return!1}});if(y.mount){let l=y.mount(E,d);if(typeof l==="function")m.push(l)}if(y.unmount)m.push(()=>y.unmount(E))}}return n}});var cL=Q("sui-avatar",{props:{src:P.string({default:""}),name:P.string({default:""}),initials:P.string({default:""}),"icon-slug":P.string({default:""}),size:P.union(["xs","sm","md","lg","xl"],{default:"md",reflect:!0}),shape:P.union(["round","square"],{default:"round",reflect:!0}),tone:P.union(["default","primary","info","success","warning","destructive","accent","muted"],{default:"muted",reflect:!0})},shadow:!0,styles:`
   :host {
     display: inline-flex;
     vertical-align: middle;
@@ -1515,89 +723,7 @@ var sui_avatar_default = component12("sui-avatar", {
     padding: 10%;
     box-sizing: border-box;
   }
-`,
-  setup(ctx) {
-    const { props, host } = ctx;
-    if (!ctx.cleanups)
-      ctx.cleanups = [];
-    const __cleanups = ctx.cleanups;
-    const $scope = Object.create(null);
-    $scope.src = props.src;
-    $scope.name = props.name;
-    $scope.initials = props.initials;
-    $scope.iconSlug = props.iconSlug;
-    $scope.size = props.size;
-    $scope.shape = props.shape;
-    $scope.tone = props.tone;
-    const __wireBoundary_b1 = (anchor) => bindIf3({
-      anchor,
-      test: () => {
-        if ($scope.iconSlug() || $scope.src())
-          return 0;
-        return 1;
-      },
-      branches: [
-        () => {
-          const __frag2 = document.createDocumentFragment();
-          const __c3 = [];
-          const __e4 = document.createElement("img");
-          __e4.setAttribute("part", "img");
-          __c3.push(bindAttr5(__e4, "src", () => $scope.iconSlug() ? "https://cdn.simpleicons.org/" + $scope.iconSlug() : $scope.src()));
-          __c3.push(bindAttr5(__e4, "alt", () => $scope.name()));
-          __frag2.appendChild(__e4);
-          return { nodes: Array.from(__frag2.childNodes), cleanup: () => {
-            for (const c of __c3)
-              try {
-                c();
-              } catch (e) {}
-          } };
-        },
-        () => {
-          const __frag5 = document.createDocumentFragment();
-          const __c6 = [];
-          const __e7 = document.createElement("span");
-          __e7.setAttribute("part", "initials");
-          const __t8 = document.createTextNode("");
-          __e7.appendChild(__t8);
-          __c6.push(bindText(__t8, () => $scope.initials() ? $scope.initials().slice(0, 2).toUpperCase() : $scope.name().trim().slice(0, 1).toUpperCase() || "?"));
-          __frag5.appendChild(__e7);
-          return { nodes: Array.from(__frag5.childNodes), cleanup: () => {
-            for (const c of __c6)
-              try {
-                c();
-              } catch (e) {}
-          } };
-        }
-      ]
-    });
-    const __root = host.shadowRoot ?? host;
-    adoptSuiSheets12(__root);
-    const __e0 = document.createElement("span");
-    __e0.setAttribute("class", "root");
-    __e0.setAttribute("part", "root");
-    __e0.setAttribute("role", "img");
-    __cleanups.push(bindAttr5(__e0, "aria-label", () => $scope.name() || $scope.initials() || "avatar"));
-    const __ifAnchor1 = document.createComment("if");
-    __e0.appendChild(__ifAnchor1);
-    __cleanups.push(__wireBoundary_b1(__ifAnchor1));
-    __root.appendChild(__e0);
-    return $scope;
-  }
-});
-
-// packages/ui-components/src/sui-progress/sui-progress.sui
-import { adoptSuiSheets as adoptSuiSheets13, bindAttr as bindAttr6, component as component13, prop as prop13 } from "@ship/sui-runtime";
-var sui_progress_default = component13("sui-progress", {
-  props: {
-    value: prop13.number({ default: 0 }),
-    max: prop13.number({ default: 100 }),
-    tone: prop13.union(["default", "primary", "info", "success", "warning", "destructive", "accent"], { default: "primary", reflect: true }),
-    size: prop13.union(["sm", "md", "lg"], { default: "md", reflect: true }),
-    indeterminate: prop13.bool({ default: false, reflect: true }),
-    label: prop13.string({ default: "" })
-  },
-  shadow: true,
-  styles: `
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.src=u.src,n.name=u.name,n.initials=u.initials,n.iconSlug=u.iconSlug,n.size=u.size,n.shape=u.shape,n.tone=u.tone;let b=(y)=>R({anchor:y,test:()=>{if(n.iconSlug()||n.src())return 0;return 1},branches:[()=>{let E=document.createDocumentFragment(),l=[],L=document.createElement("img");return L.setAttribute("part","img"),l.push(T(L,"src",()=>n.iconSlug()?"https://cdn.simpleicons.org/"+n.iconSlug():n.src())),l.push(T(L,"alt",()=>n.name())),E.appendChild(L),{nodes:Array.from(E.childNodes),cleanup:()=>{for(let f of l)try{f()}catch(t){}}}},()=>{let E=document.createDocumentFragment(),l=[],L=document.createElement("span");L.setAttribute("part","initials");let f=document.createTextNode("");return L.appendChild(f),l.push(S(f,()=>n.initials()?n.initials().slice(0,2).toUpperCase():n.name().trim().slice(0,1).toUpperCase()||"?")),E.appendChild(L),{nodes:Array.from(E.childNodes),cleanup:()=>{for(let t of l)try{t()}catch(H){}}}}]}),w=d.shadowRoot??d;V(w);let r=document.createElement("span");r.setAttribute("class","root"),r.setAttribute("part","root"),r.setAttribute("role","img"),m.push(T(r,"aria-label",()=>n.name()||n.initials()||"avatar"));let M=document.createComment("if");return r.appendChild(M),m.push(b(M)),w.appendChild(r),n}});var it=Q("sui-progress",{props:{value:P.number({default:0}),max:P.number({default:100}),tone:P.union(["default","primary","info","success","warning","destructive","accent"],{default:"primary",reflect:!0}),size:P.union(["sm","md","lg"],{default:"md",reflect:!0}),indeterminate:P.bool({default:!1,reflect:!0}),label:P.string({default:""})},shadow:!0,styles:`
   :host {
     display: block;
     --tone: var(--primary);
@@ -1636,56 +762,228 @@ var sui_progress_default = component13("sui-progress", {
   @media (prefers-reduced-motion: reduce) {
     :host([indeterminate]) .fill { animation-duration: 3s; }
   }
-`,
-  setup(ctx) {
-    const { props, host } = ctx;
-    if (!ctx.cleanups)
-      ctx.cleanups = [];
-    const __cleanups = ctx.cleanups;
-    const $scope = Object.create(null);
-    $scope.value = props.value;
-    $scope.max = props.max;
-    $scope.tone = props.tone;
-    $scope.size = props.size;
-    $scope.indeterminate = props.indeterminate;
-    $scope.label = props.label;
-    const __root = host.shadowRoot ?? host;
-    adoptSuiSheets13(__root);
-    const __e0 = document.createElement("div");
-    __e0.setAttribute("class", "track");
-    __e0.setAttribute("part", "track");
-    __e0.setAttribute("role", "progressbar");
-    __cleanups.push(bindAttr6(__e0, "aria-valuenow", () => $scope.indeterminate() ? null : $scope.value()));
-    __e0.setAttribute("aria-valuemin", "0");
-    __cleanups.push(bindAttr6(__e0, "aria-valuemax", () => $scope.max()));
-    __cleanups.push(bindAttr6(__e0, "aria-busy", () => $scope.indeterminate() ? "true" : "false"));
-    __cleanups.push(bindAttr6(__e0, "aria-label", () => $scope.label()));
-    const __e1 = document.createElement("div");
-    __e1.setAttribute("class", "fill");
-    __e1.setAttribute("part", "fill");
-    __cleanups.push(bindAttr6(__e1, "style", () => $scope.indeterminate() ? "" : "width: clamp(0%, " + $scope.value() / ($scope.max() || 1) * 100 + "%, 100%)"));
-    __e0.appendChild(__e1);
-    __root.appendChild(__e0);
-    return $scope;
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.value=u.value,n.max=u.max,n.tone=u.tone,n.size=u.size,n.indeterminate=u.indeterminate,n.label=u.label;let b=d.shadowRoot??d;V(b);let w=document.createElement("div");w.setAttribute("class","track"),w.setAttribute("part","track"),w.setAttribute("role","progressbar"),m.push(T(w,"aria-valuenow",()=>n.indeterminate()?null:n.value())),w.setAttribute("aria-valuemin","0"),m.push(T(w,"aria-valuemax",()=>n.max())),m.push(T(w,"aria-busy",()=>n.indeterminate()?"true":"false")),m.push(T(w,"aria-label",()=>n.label()));let r=document.createElement("div");return r.setAttribute("class","fill"),r.setAttribute("part","fill"),m.push(T(r,"style",()=>n.indeterminate()?"":"width: clamp(0%, "+n.value()/(n.max()||1)*100+"%, 100%)")),w.appendChild(r),b.appendChild(w),n}});var mt=Q("sui-progress-ring",{props:{value:P.number({default:0}),max:P.number({default:100}),size:P.number({default:48}),"track-width":P.number({default:4}),tone:P.union(["default","primary","info","success","warning","destructive","accent"],{default:"primary",reflect:!0}),indeterminate:P.bool({default:!1,reflect:!0}),label:P.string({default:""})},shadow:!0,styles:`
+  :host {
+    display: inline-block;
+    --tone: var(--primary);
   }
-});
 
-// packages/ui-components/src/sui-button/sui-button.sui
-import { adoptSuiSheets as adoptSuiSheets14, bindAttr as bindAttr7, bindIf as bindIf4, bindSlotEmpty as bindSlotEmpty2, component as component14, prop as prop14 } from "@ship/sui-runtime";
-var sui_button_default = component14("sui-button", {
-  props: {
-    tone: prop14.union(["default", "primary", "info", "success", "warning", "destructive", "accent", "muted"], { default: "default", reflect: true }),
-    variant: prop14.union(["solid", "soft", "outline", "ghost", "default"], { default: "default", reflect: true }),
-    size: prop14.union(["sm", "md", "lg"], { default: "md", reflect: true }),
-    type: prop14.union(["button", "submit", "reset"], { default: "button", reflect: true }),
-    disabled: prop14.bool({ default: false, reflect: true }),
-    loading: prop14.bool({ default: false, reflect: true }),
-    label: prop14.string({ default: "" }),
-    pressed: prop14.string({ default: "", reflect: true }),
-    expanded: prop14.string({ default: "", reflect: true })
-  },
-  shadow: true,
-  styles: `
+  .ring {
+    position: relative;
+  }
+
+  .ring-svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    transform: rotate(-90deg);
+  }
+
+  :host([indeterminate]) .ring-svg {
+    animation: sui-ring-spin 1.4s linear infinite;
+  }
+  @keyframes sui-ring-spin {
+    from { transform: rotate(-90deg); }
+    to   { transform: rotate(270deg); }
+  }
+
+  .track { stroke: var(--muted); }
+
+  .bar {
+    stroke: var(--tone);
+    transition: stroke-dashoffset var(--duration-medium, 220ms) var(--ease-out, ease-out);
+  }
+
+  .label {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: var(--text-xs);
+    font-weight: var(--font-weight-semibold);
+    font-family: var(--font-body);
+    color: var(--foreground);
+    font-variant-numeric: tabular-nums;
+    pointer-events: none;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    :host([indeterminate]) .ring-svg { animation-duration: 3s; }
+    .bar { transition: none; }
+  }
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.value=u.value,n.max=u.max,n.size=u.size,n.trackWidth=u.trackWidth,n.tone=u.tone,n.indeterminate=u.indeterminate,n.label=u.label;let b=d.shadowRoot??d;V(b);let w=document.createElement("div");w.setAttribute("class","ring"),m.push(T(w,"style",()=>"width:"+n.size()+"px;height:"+n.size()+"px"));let r=document.createElement("svg");r.setAttribute("class","ring-svg"),m.push(T(r,"viewbox",()=>"0 0 "+n.size()+" "+n.size())),r.setAttribute("role","progressbar"),r.setAttribute("aria-valuemin","0"),m.push(T(r,"aria-valuemax",()=>n.max())),m.push(T(r,"aria-valuenow",()=>n.indeterminate()?null:n.value()<0?0:n.value()>n.max()?n.max():n.value())),m.push(T(r,"aria-label",()=>n.label()||null)),r.setAttribute("xmlns","http://www.w3.org/2000/svg");let M=document.createElement("circle");M.setAttribute("class","track"),M.setAttribute("part","track"),m.push(T(M,"cx",()=>n.size()/2)),m.push(T(M,"cy",()=>n.size()/2)),m.push(T(M,"r",()=>(n.size()-n.trackWidth())/2)),M.setAttribute("fill","none"),m.push(T(M,"stroke-width",()=>n.trackWidth())),r.appendChild(M);let y=document.createElement("circle");y.setAttribute("class","bar"),y.setAttribute("part","ring"),m.push(T(y,"cx",()=>n.size()/2)),m.push(T(y,"cy",()=>n.size()/2)),m.push(T(y,"r",()=>(n.size()-n.trackWidth())/2)),y.setAttribute("fill","none"),m.push(T(y,"stroke-width",()=>n.trackWidth())),y.setAttribute("stroke-linecap","round"),m.push(T(y,"stroke-dasharray",()=>3.141592653589793*(n.size()-n.trackWidth()))),m.push(T(y,"stroke-dashoffset",()=>n.indeterminate()?3.141592653589793*(n.size()-n.trackWidth())*0.25:3.141592653589793*(n.size()-n.trackWidth())*(1-(n.value()<0?0:n.value()>(n.max()||1)?1:n.value()/(n.max()||1))))),r.appendChild(y),w.appendChild(r);let E=document.createElement("div");E.setAttribute("class","label"),E.setAttribute("aria-hidden","true");let l=document.createElement("slot");return E.appendChild(l),w.appendChild(E),b.appendChild(w),n}});var Du={default:"var(--foreground)",primary:"var(--primary)",info:"var(--info)",success:"var(--success)",warning:"var(--warning)",destructive:"var(--destructive)",accent:"var(--accent)",muted:"var(--muted-foreground)"};function mn(i){if(!i)return Du.default;return Du[i]??Du.default}function qn(i){if(!i)return[];return i.split(",").map((u)=>Number.parseFloat(u.trim())).filter((u)=>Number.isFinite(u))}function kn(i){if(!i)return[];return i.split(",").map((u)=>u.trim())}function rn(i,u){if(!i)return u;try{return JSON.parse(i)}catch{return u}}function Nn(i,u,d,m=2){if(i.length===0)return{d:"",points:[]};let n=Math.min(...i),w=Math.max(...i)-n||1,r=d-m*2,M=i.length===1?0:u/(i.length-1),y=i.map((l,L)=>{let f=i.length===1?u/2:L*M,t=m+r-(l-n)/w*r;return[f,t]});return{d:y.map(([l,L],f)=>`${f===0?"M":"L"}${l.toFixed(2)},${L.toFixed(2)}`).join(" "),points:y}}function nd(i,u,d,m){return[i+d*Math.cos(m),u+d*Math.sin(m)]}function an(i,u,d,m,n){let[b,w]=nd(i,u,d,m),[r,M]=nd(i,u,d,n),y=n-m>Math.PI?1:0,E=n>m?1:0;return`M${b.toFixed(2)},${w.toFixed(2)} A${d},${d} 0 ${y} ${E} ${r.toFixed(2)},${M.toFixed(2)}`}var fi=U({scope:()=>{let i=G([]),u=G([]);return{seriesPaths:i,gridLines:u}},mount(i,u){let d=q(()=>{let m=rn(i.series(),[]),n=i.width(),b=i.height(),w=m.flatMap((L)=>L.data),r=w.length?Math.min(...w):0,y=(w.length?Math.max(...w):1)-r||1,E=b-4;i.gridLines.set(i.grid()?[0.25,0.5,0.75].map((L,f)=>({id:`g${f}`,y:2+E*L})):[]);let l=[];for(let L of m){if(L.data.length<2)continue;let f=L.data.map((J)=>(J-r)/y*100),{d:t,points:H}=Nn(f,n,b,2);if(!t)continue;let C=mn(L.tone),z=H[0],j=H[H.length-1],g=`${t} L${j[0].toFixed(2)},${b} L${z[0].toFixed(2)},${b} Z`;l.push({name:L.name,areaD:g,strokeD:t,color:C,pts:H.map(([J,D],Z)=>({id:`${L.name}-${Z}`,cx:J,cy:D}))})}i.seriesPaths.set(l)});return()=>d()}});var Mt=Q("sui-area-chart",{props:{series:P.string({default:"",reflect:!0}),labels:P.string({default:""}),width:P.number({default:300}),height:P.number({default:200}),points:P.bool({default:!1,reflect:!0}),grid:P.bool({default:!1,reflect:!0}),label:P.string({default:"area chart"})},shadow:!0,styles:`
+  :host {
+    display: block;
+    width: 100%;
+    height: 200px;
+    transition: opacity var(--duration-fast) var(--ease-out);
+  }
+  .wrap { display: flex; flex-direction: column; gap: 6px; width: 100%; height: 100%; }
+  svg { display: block; width: 100%; flex: 1; overflow: hidden; }
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    font-size: var(--text-xs);
+    color: var(--muted-foreground);
+    font-family: var(--font-body);
+  }
+  .legend:empty { display: none; }
+  .grid-line { stroke: var(--border); stroke-width: 1; stroke-dasharray: 2 3; }
+
+  @media (prefers-reduced-motion: reduce) {
+    :host { transition: none; }
+  }
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.series=u.series,n.labels=u.labels,n.width=u.width,n.height=u.height,n.points=u.points,n.grid=u.grid,n.label=u.label;let b=null;if(fi&&typeof fi.setup==="function"){if(i.scope=n,b=fi.setup(i),b&&typeof b==="object")Object.assign(n,b)}let w=(H)=>s({anchor:H,items:()=>n.gridLines(),key:(C,z)=>{let j=Object.create(n);return j.g=C,j.__i=z,((g)=>C.id)(j)},render:(C,z)=>{let j=Object.create(n);return j.g=C,j.__i=z,j.__v=G(0),((g)=>{let J=document.createDocumentFragment(),D=[],Z=document.createElement("line");Z.setAttribute("class","grid-line"),Z.setAttribute("x1","0"),D.push(T(Z,"x2",()=>(g.__v(),g.width())));{let X=g.g.y;if(X==null||X===!1||X==="")Z.removeAttribute("y1");else Z.setAttribute("y1",X===!0?"":String(X))}{let X=g.g.y;if(X==null||X===!1||X==="")Z.removeAttribute("y2");else Z.setAttribute("y2",X===!0?"":String(X))}return J.appendChild(Z),{nodes:Array.from(J.childNodes),cleanup:()=>{for(let X of D)try{X()}catch(W){}},update:(X,W)=>{g.g=X,g.__i=W;{let Y=g.g.y;if(Y==null||Y===!1||Y==="")Z.removeAttribute("y1");else Z.setAttribute("y1",Y===!0?"":String(Y))}{let Y=g.g.y;if(Y==null||Y===!1||Y==="")Z.removeAttribute("y2");else Z.setAttribute("y2",Y===!0?"":String(Y))}g.__v.set((Y)=>Y+1)}}})(j)}}),r=(H)=>s({anchor:H,items:()=>n.seriesPaths(),key:(C,z)=>{let j=Object.create(n);return j.s=C,j.__i=z,((g)=>C.name)(j)},render:(C,z)=>{let j=Object.create(n);return j.s=C,j.__i=z,j.__v=G(0),((g)=>{let J=(F)=>s({anchor:F,items:()=>g.s.pts,key:(B,A)=>{let K=Object.create(g);return K.p=B,K.__i=A,((a)=>B.id)(K)},render:(B,A)=>{let K=Object.create(g);return K.p=B,K.__i=A,K.__v=G(0),((a)=>{let k=document.createDocumentFragment(),v=[],I=document.createElement("circle");{let x=a.p.cx;if(x==null||x===!1||x==="")I.removeAttribute("cx");else I.setAttribute("cx",x===!0?"":String(x))}{let x=a.p.cy;if(x==null||x===!1||x==="")I.removeAttribute("cy");else I.setAttribute("cy",x===!0?"":String(x))}I.setAttribute("r","2.5");{let x=a.s.color;if(x==null||x===!1||x==="")I.removeAttribute("fill");else I.setAttribute("fill",x===!0?"":String(x))}return k.appendChild(I),{nodes:Array.from(k.childNodes),cleanup:()=>{for(let x of v)try{x()}catch(o){}},update:(x,o)=>{a.p=x,a.__i=o;{let $=a.p.cx;if($==null||$===!1||$==="")I.removeAttribute("cx");else I.setAttribute("cx",$===!0?"":String($))}{let $=a.p.cy;if($==null||$===!1||$==="")I.removeAttribute("cy");else I.setAttribute("cy",$===!0?"":String($))}{let $=a.s.color;if($==null||$===!1||$==="")I.removeAttribute("fill");else I.setAttribute("fill",$===!0?"":String($))}a.__v.set(($)=>$+1)}}})(K)}}),D=(F)=>R({anchor:F,test:()=>{if(g.points())return 0;return-1},branches:[()=>{let B=document.createDocumentFragment(),A=[],K=document.createComment("for");return B.appendChild(K),A.push(J(K)),{nodes:Array.from(B.childNodes),cleanup:()=>{for(let a of A)try{a()}catch(k){}}}}]}),Z=document.createDocumentFragment(),X=[],W=document.createElement("path");{let F=g.s.areaD;if(F==null||F===!1||F==="")W.removeAttribute("d");else W.setAttribute("d",F===!0?"":String(F))}{let F=g.s.color;if(F==null||F===!1||F==="")W.removeAttribute("fill");else W.setAttribute("fill",F===!0?"":String(F))}W.setAttribute("fill-opacity","0.3"),W.setAttribute("stroke","none"),Z.appendChild(W);let Y=document.createElement("path");{let F=g.s.strokeD;if(F==null||F===!1||F==="")Y.removeAttribute("d");else Y.setAttribute("d",F===!0?"":String(F))}Y.setAttribute("fill","none");{let F=g.s.color;if(F==null||F===!1||F==="")Y.removeAttribute("stroke");else Y.setAttribute("stroke",F===!0?"":String(F))}Y.setAttribute("stroke-width","1.75"),Y.setAttribute("stroke-linecap","round"),Y.setAttribute("stroke-linejoin","round"),Z.appendChild(Y);let N=document.createComment("if");return Z.appendChild(N),X.push(D(N)),{nodes:Array.from(Z.childNodes),cleanup:()=>{for(let F of X)try{F()}catch(B){}},update:(F,B)=>{g.s=F,g.__i=B;{let A=g.s.areaD;if(A==null||A===!1||A==="")W.removeAttribute("d");else W.setAttribute("d",A===!0?"":String(A))}{let A=g.s.color;if(A==null||A===!1||A==="")W.removeAttribute("fill");else W.setAttribute("fill",A===!0?"":String(A))}{let A=g.s.strokeD;if(A==null||A===!1||A==="")Y.removeAttribute("d");else Y.setAttribute("d",A===!0?"":String(A))}{let A=g.s.color;if(A==null||A===!1||A==="")Y.removeAttribute("stroke");else Y.setAttribute("stroke",A===!0?"":String(A))}g.__v.set((A)=>A+1)}}})(j)}}),M=d.shadowRoot??d;V(M);let y=document.createElement("div");y.setAttribute("class","wrap");let E=document.createElement("svg");m.push(T(E,"viewbox",()=>"0 0 "+n.width()+" "+n.height())),E.setAttribute("preserveaspectratio","none"),E.setAttribute("role","img"),m.push(T(E,"aria-label",()=>n.label()));let l=document.createComment("for");E.appendChild(l),m.push(w(l));let L=document.createComment("for");E.appendChild(L),m.push(r(L)),y.appendChild(E);let f=document.createElement("div");f.setAttribute("class","legend");let t=document.createElement("slot");if(f.appendChild(t),y.appendChild(f),M.appendChild(y),b!=null){let H=Object.getOwnPropertyDescriptor(b,"__shipSetLifecycle")?.value;if(H){let C=new Proxy(n,{get(z,j){return z[j]},set(z,j,g){let J=z[j];if(J!=null&&typeof J.set==="function"){if(typeof g==="function")J.set(()=>g);else J.set(g);return!0}return!1}});if(H.mount){let z=H.mount(C,d);if(typeof z==="function")m.push(z)}if(H.unmount)m.push(()=>H.unmount(C))}}return n}});var Li=U({scope:()=>{let i=G([]),u=G(!0);return{bars:i,isEmpty:u}},mount(i,u){let d=q(()=>{let m=qn(i.data());if(m.length===0){i.bars.set([]),i.isEmpty.set(!0);return}let n=kn(i.labels()),b=i.width(),w=i.height(),r=i.max(),M=r>0?r:Math.max(...m,0),y=M<=0?1:M,E=mn(i.tone()),l=4,L=3,f=i.orientation()==="horizontal",t=m.length;i.bars.set(m.map((H,C)=>{let z=Math.max(0,H)/y,j,g,J,D;if(f)D=(w-l*(t-1))/t,g=C*(D+l),J=z*b,j=0;else J=(b-l*(t-1))/t,j=C*(J+l),D=z*w,g=w-D;return{id:`b${C}`,x:j,y:g,w:Math.max(0,J),h:Math.max(0,D),rx:L,ry:L,color:E,title:`${n[C]??String(H)}: ${H}`}})),i.isEmpty.set(!1)});return()=>d()}});var Pt=Q("sui-bar-chart",{props:{data:P.string({default:"",reflect:!0}),labels:P.string({default:""}),tone:P.union(["default","primary","info","success","warning","destructive","accent","muted"],{default:"primary",reflect:!0}),orientation:P.union(["vertical","horizontal"],{default:"vertical",reflect:!0}),width:P.number({default:300}),height:P.number({default:200}),max:P.number({default:0}),label:P.string({default:"bar chart"})},shadow:!0,styles:`
+  :host {
+    display: block;
+    width: 100%;
+    height: 200px;
+    transition: opacity var(--duration-fast) var(--ease-out);
+  }
+  svg { display: block; width: 100%; height: 100%; overflow: hidden; }
+
+  @media (prefers-reduced-motion: reduce) {
+    :host { transition: none; }
+  }
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.data=u.data,n.labels=u.labels,n.tone=u.tone,n.orientation=u.orientation,n.width=u.width,n.height=u.height,n.max=u.max,n.label=u.label;let b=null;if(Li&&typeof Li.setup==="function"){if(i.scope=n,b=Li.setup(i),b&&typeof b==="object")Object.assign(n,b)}let w=(E)=>s({anchor:E,items:()=>n.bars(),key:(l,L)=>{let f=Object.create(n);return f.b=l,f.__i=L,((t)=>l.id)(f)},render:(l,L)=>{let f=Object.create(n);return f.b=l,f.__i=L,f.__v=G(0),((t)=>{let H=document.createDocumentFragment(),C=[],z=document.createElement("rect");{let J=t.b.x;if(J==null||J===!1||J==="")z.removeAttribute("x");else z.setAttribute("x",J===!0?"":String(J))}{let J=t.b.y;if(J==null||J===!1||J==="")z.removeAttribute("y");else z.setAttribute("y",J===!0?"":String(J))}{let J=t.b.w;if(J==null||J===!1||J==="")z.removeAttribute("width");else z.setAttribute("width",J===!0?"":String(J))}{let J=t.b.h;if(J==null||J===!1||J==="")z.removeAttribute("height");else z.setAttribute("height",J===!0?"":String(J))}{let J=t.b.rx;if(J==null||J===!1||J==="")z.removeAttribute("rx");else z.setAttribute("rx",J===!0?"":String(J))}{let J=t.b.ry;if(J==null||J===!1||J==="")z.removeAttribute("ry");else z.setAttribute("ry",J===!0?"":String(J))}{let J=t.b.color;if(J==null||J===!1||J==="")z.removeAttribute("fill");else z.setAttribute("fill",J===!0?"":String(J))}let j=document.createElement("title"),g=document.createTextNode("");return j.appendChild(g),g.textContent=t.b.title,z.appendChild(j),H.appendChild(z),{nodes:Array.from(H.childNodes),cleanup:()=>{for(let J of C)try{J()}catch(D){}},update:(J,D)=>{t.b=J,t.__i=D;{let Z=t.b.x;if(Z==null||Z===!1||Z==="")z.removeAttribute("x");else z.setAttribute("x",Z===!0?"":String(Z))}{let Z=t.b.y;if(Z==null||Z===!1||Z==="")z.removeAttribute("y");else z.setAttribute("y",Z===!0?"":String(Z))}{let Z=t.b.w;if(Z==null||Z===!1||Z==="")z.removeAttribute("width");else z.setAttribute("width",Z===!0?"":String(Z))}{let Z=t.b.h;if(Z==null||Z===!1||Z==="")z.removeAttribute("height");else z.setAttribute("height",Z===!0?"":String(Z))}{let Z=t.b.rx;if(Z==null||Z===!1||Z==="")z.removeAttribute("rx");else z.setAttribute("rx",Z===!0?"":String(Z))}{let Z=t.b.ry;if(Z==null||Z===!1||Z==="")z.removeAttribute("ry");else z.setAttribute("ry",Z===!0?"":String(Z))}{let Z=t.b.color;if(Z==null||Z===!1||Z==="")z.removeAttribute("fill");else z.setAttribute("fill",Z===!0?"":String(Z))}g.textContent=t.b.title,t.__v.set((Z)=>Z+1)}}})(f)}}),r=(E)=>R({anchor:E,test:()=>{if(n.isEmpty())return 0;return 1},branches:[()=>{let l=document.createDocumentFragment(),L=[],f=document.createElement("svg");return L.push(T(f,"viewbox",()=>"0 0 "+n.width()+" "+n.height())),f.setAttribute("aria-hidden","true"),l.appendChild(f),{nodes:Array.from(l.childNodes),cleanup:()=>{for(let t of L)try{t()}catch(H){}}}},()=>{let l=document.createDocumentFragment(),L=[],f=document.createElement("svg");L.push(T(f,"viewbox",()=>"0 0 "+n.width()+" "+n.height())),f.setAttribute("preserveaspectratio","none"),f.setAttribute("role","img"),L.push(T(f,"aria-label",()=>n.label()));let t=document.createComment("for");return f.appendChild(t),L.push(w(t)),l.appendChild(f),{nodes:Array.from(l.childNodes),cleanup:()=>{for(let H of L)try{H()}catch(C){}}}}]}),M=d.shadowRoot??d;V(M);let y=document.createComment("if");if(M.appendChild(y),m.push(r(y)),b!=null){let E=Object.getOwnPropertyDescriptor(b,"__shipSetLifecycle")?.value;if(E){let l=new Proxy(n,{get(L,f){return L[f]},set(L,f,t){let H=L[f];if(H!=null&&typeof H.set==="function"){if(typeof t==="function")H.set(()=>t);else H.set(t);return!0}return!1}});if(E.mount){let L=E.mount(l,d);if(typeof L==="function")m.push(L)}if(E.unmount)m.push(()=>E.unmount(l))}}return n}});var ti=U({scope:()=>{let i=G([]),u=G([]);return{seriesPaths:i,gridLines:u}},mount(i,u){let d=q(()=>{let m=rn(i.series(),[]),n=i.width(),b=i.height(),w=m.flatMap((L)=>L.data),r=w.length?Math.min(...w):0,y=(w.length?Math.max(...w):1)-r||1,E=b-4;i.gridLines.set(i.grid()?[0.25,0.5,0.75].map((L,f)=>({id:`g${f}`,y:2+E*L})):[]);let l=[];for(let L of m){if(L.data.length<2)continue;let f=L.data.map((z)=>(z-r)/y*100),{d:t,points:H}=Nn(f,n,b,2);if(!t)continue;let C=mn(L.tone);l.push({name:L.name,strokeD:t,color:C,pts:H.map(([z,j],g)=>({id:`${L.name}-${g}`,cx:z,cy:j}))})}i.seriesPaths.set(l)});return()=>d()}});var Wt=Q("sui-line-chart",{props:{series:P.string({default:"",reflect:!0}),labels:P.string({default:""}),width:P.number({default:300}),height:P.number({default:200}),points:P.bool({default:!1,reflect:!0}),grid:P.bool({default:!1,reflect:!0}),label:P.string({default:"line chart"})},shadow:!0,styles:`
+  :host {
+    display: block;
+    width: 100%;
+    height: 200px;
+    transition: opacity var(--duration-fast) var(--ease-out);
+  }
+  .wrap { display: flex; flex-direction: column; gap: 6px; width: 100%; height: 100%; }
+  svg { display: block; width: 100%; flex: 1; overflow: hidden; }
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    font-size: var(--text-xs);
+    color: var(--muted-foreground);
+    font-family: var(--font-body);
+  }
+  .legend:empty { display: none; }
+  .grid-line { stroke: var(--border); stroke-width: 1; stroke-dasharray: 2 3; }
+
+  @media (prefers-reduced-motion: reduce) {
+    :host { transition: none; }
+  }
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.series=u.series,n.labels=u.labels,n.width=u.width,n.height=u.height,n.points=u.points,n.grid=u.grid,n.label=u.label;let b=null;if(ti&&typeof ti.setup==="function"){if(i.scope=n,b=ti.setup(i),b&&typeof b==="object")Object.assign(n,b)}let w=(H)=>s({anchor:H,items:()=>n.gridLines(),key:(C,z)=>{let j=Object.create(n);return j.g=C,j.__i=z,((g)=>C.id)(j)},render:(C,z)=>{let j=Object.create(n);return j.g=C,j.__i=z,j.__v=G(0),((g)=>{let J=document.createDocumentFragment(),D=[],Z=document.createElement("line");Z.setAttribute("class","grid-line"),Z.setAttribute("x1","0"),D.push(T(Z,"x2",()=>(g.__v(),g.width())));{let X=g.g.y;if(X==null||X===!1||X==="")Z.removeAttribute("y1");else Z.setAttribute("y1",X===!0?"":String(X))}{let X=g.g.y;if(X==null||X===!1||X==="")Z.removeAttribute("y2");else Z.setAttribute("y2",X===!0?"":String(X))}return J.appendChild(Z),{nodes:Array.from(J.childNodes),cleanup:()=>{for(let X of D)try{X()}catch(W){}},update:(X,W)=>{g.g=X,g.__i=W;{let Y=g.g.y;if(Y==null||Y===!1||Y==="")Z.removeAttribute("y1");else Z.setAttribute("y1",Y===!0?"":String(Y))}{let Y=g.g.y;if(Y==null||Y===!1||Y==="")Z.removeAttribute("y2");else Z.setAttribute("y2",Y===!0?"":String(Y))}g.__v.set((Y)=>Y+1)}}})(j)}}),r=(H)=>s({anchor:H,items:()=>n.seriesPaths(),key:(C,z)=>{let j=Object.create(n);return j.s=C,j.__i=z,((g)=>C.name)(j)},render:(C,z)=>{let j=Object.create(n);return j.s=C,j.__i=z,j.__v=G(0),((g)=>{let J=(N)=>s({anchor:N,items:()=>g.s.pts,key:(F,B)=>{let A=Object.create(g);return A.p=F,A.__i=B,((K)=>F.id)(A)},render:(F,B)=>{let A=Object.create(g);return A.p=F,A.__i=B,A.__v=G(0),((K)=>{let a=document.createDocumentFragment(),k=[],v=document.createElement("circle");{let I=K.p.cx;if(I==null||I===!1||I==="")v.removeAttribute("cx");else v.setAttribute("cx",I===!0?"":String(I))}{let I=K.p.cy;if(I==null||I===!1||I==="")v.removeAttribute("cy");else v.setAttribute("cy",I===!0?"":String(I))}v.setAttribute("r","2.5");{let I=K.s.color;if(I==null||I===!1||I==="")v.removeAttribute("fill");else v.setAttribute("fill",I===!0?"":String(I))}return a.appendChild(v),{nodes:Array.from(a.childNodes),cleanup:()=>{for(let I of k)try{I()}catch(x){}},update:(I,x)=>{K.p=I,K.__i=x;{let o=K.p.cx;if(o==null||o===!1||o==="")v.removeAttribute("cx");else v.setAttribute("cx",o===!0?"":String(o))}{let o=K.p.cy;if(o==null||o===!1||o==="")v.removeAttribute("cy");else v.setAttribute("cy",o===!0?"":String(o))}{let o=K.s.color;if(o==null||o===!1||o==="")v.removeAttribute("fill");else v.setAttribute("fill",o===!0?"":String(o))}K.__v.set((o)=>o+1)}}})(A)}}),D=(N)=>R({anchor:N,test:()=>{if(g.points())return 0;return-1},branches:[()=>{let F=document.createDocumentFragment(),B=[],A=document.createComment("for");return F.appendChild(A),B.push(J(A)),{nodes:Array.from(F.childNodes),cleanup:()=>{for(let K of B)try{K()}catch(a){}}}}]}),Z=document.createDocumentFragment(),X=[],W=document.createElement("path");{let N=g.s.strokeD;if(N==null||N===!1||N==="")W.removeAttribute("d");else W.setAttribute("d",N===!0?"":String(N))}W.setAttribute("fill","none");{let N=g.s.color;if(N==null||N===!1||N==="")W.removeAttribute("stroke");else W.setAttribute("stroke",N===!0?"":String(N))}W.setAttribute("stroke-width","1.75"),W.setAttribute("stroke-linecap","round"),W.setAttribute("stroke-linejoin","round"),Z.appendChild(W);let Y=document.createComment("if");return Z.appendChild(Y),X.push(D(Y)),{nodes:Array.from(Z.childNodes),cleanup:()=>{for(let N of X)try{N()}catch(F){}},update:(N,F)=>{g.s=N,g.__i=F;{let B=g.s.strokeD;if(B==null||B===!1||B==="")W.removeAttribute("d");else W.setAttribute("d",B===!0?"":String(B))}{let B=g.s.color;if(B==null||B===!1||B==="")W.removeAttribute("stroke");else W.setAttribute("stroke",B===!0?"":String(B))}g.__v.set((B)=>B+1)}}})(j)}}),M=d.shadowRoot??d;V(M);let y=document.createElement("div");y.setAttribute("class","wrap");let E=document.createElement("svg");m.push(T(E,"viewbox",()=>"0 0 "+n.width()+" "+n.height())),E.setAttribute("preserveaspectratio","none"),E.setAttribute("role","img"),m.push(T(E,"aria-label",()=>n.label()));let l=document.createComment("for");E.appendChild(l),m.push(w(l));let L=document.createComment("for");E.appendChild(L),m.push(r(L)),y.appendChild(E);let f=document.createElement("div");f.setAttribute("class","legend");let t=document.createElement("slot");if(f.appendChild(t),y.appendChild(f),M.appendChild(y),b!=null){let H=Object.getOwnPropertyDescriptor(b,"__shipSetLifecycle")?.value;if(H){let C=new Proxy(n,{get(z,j){return z[j]},set(z,j,g){let J=z[j];if(J!=null&&typeof J.set==="function"){if(typeof g==="function")J.set(()=>g);else J.set(g);return!0}return!1}});if(H.mount){let z=H.mount(C,d);if(typeof z==="function")m.push(z)}if(H.unmount)m.push(()=>H.unmount(C))}}return n}});var Ei=U({scope:()=>{let i=G(!1),u=G(""),d=G(""),m=G("var(--primary)");return{hasData:i,strokePath:u,areaPath:d,lineColor:m}},mount(i,u){let d=q(()=>{let m=qn(i.data()),n=i.width(),b=i.height(),w=mn(i.tone());if(i.lineColor.set(w),m.length<2){i.hasData.set(!1),i.strokePath.set(""),i.areaPath.set("");return}let{d:r,points:M}=Nn(m,n,b,2);if(i.strokePath.set(r),i.fill()){let y=M[0],E=M[M.length-1];i.areaPath.set(`${r} L${E[0].toFixed(2)},${b} L${y[0].toFixed(2)},${b} Z`)}else i.areaPath.set("");i.hasData.set(!0)});return()=>d()}});var Ut=Q("sui-sparkline",{props:{data:P.string({default:"",reflect:!0}),tone:P.union(["default","primary","info","success","warning","destructive","accent","muted"],{default:"primary",reflect:!0}),width:P.number({default:80}),height:P.number({default:20}),fill:P.bool({default:!1,reflect:!0}),label:P.string({default:"sparkline"})},shadow:!0,styles:`
+  :host {
+    --sui-sparkline-w: auto;
+    --sui-sparkline-h: 40px;
+    display: inline-block;
+    width: var(--sui-sparkline-w);
+    height: var(--sui-sparkline-h);
+    line-height: 0;
+    transition: opacity var(--duration-fast) var(--ease-out);
+  }
+  svg { display: block; overflow: visible; }
+
+  @media (prefers-reduced-motion: reduce) {
+    :host { transition: none; }
+  }
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.data=u.data,n.tone=u.tone,n.width=u.width,n.height=u.height,n.fill=u.fill,n.label=u.label;let b=null;if(Ei&&typeof Ei.setup==="function"){if(i.scope=n,b=Ei.setup(i),b&&typeof b==="object")Object.assign(n,b)}let w=(E)=>R({anchor:E,test:()=>{if(n.fill())return 0;return-1},branches:[()=>{let l=document.createDocumentFragment(),L=[],f=document.createElement("path");return L.push(T(f,"d",()=>n.areaPath())),L.push(T(f,"fill",()=>n.lineColor())),f.setAttribute("fill-opacity","0.18"),f.setAttribute("stroke","none"),l.appendChild(f),{nodes:Array.from(l.childNodes),cleanup:()=>{for(let t of L)try{t()}catch(H){}}}}]}),r=(E)=>R({anchor:E,test:()=>{if(n.hasData())return 0;return 1},branches:[()=>{let l=document.createDocumentFragment(),L=[],f=document.createElement("svg");L.push(T(f,"viewbox",()=>"0 0 "+n.width()+" "+n.height())),L.push(T(f,"width",()=>n.width())),L.push(T(f,"height",()=>n.height())),f.setAttribute("role","img"),L.push(T(f,"aria-label",()=>n.label()));let t=document.createComment("if");f.appendChild(t),L.push(w(t));let H=document.createElement("path");L.push(T(H,"d",()=>n.strokePath())),H.setAttribute("fill","none"),L.push(T(H,"stroke",()=>n.lineColor())),H.setAttribute("stroke-width","1.5"),H.setAttribute("stroke-linecap","round"),H.setAttribute("stroke-linejoin","round");let C=document.createTextNode(`
+    `);return H.appendChild(C),f.appendChild(H),l.appendChild(f),{nodes:Array.from(l.childNodes),cleanup:()=>{for(let z of L)try{z()}catch(j){}}}},()=>{let l=document.createDocumentFragment(),L=[],f=document.createElement("svg");L.push(T(f,"viewbox",()=>"0 0 "+n.width()+" "+n.height())),L.push(T(f,"width",()=>n.width())),L.push(T(f,"height",()=>n.height())),f.setAttribute("aria-hidden","true");let t=document.createTextNode(`
+  `);return f.appendChild(t),l.appendChild(f),{nodes:Array.from(l.childNodes),cleanup:()=>{for(let H of L)try{H()}catch(C){}}}}]}),M=d.shadowRoot??d;V(M);let y=document.createComment("if");if(M.appendChild(y),m.push(r(y)),b!=null){let E=Object.getOwnPropertyDescriptor(b,"__shipSetLifecycle")?.value;if(E){let l=new Proxy(n,{get(L,f){return L[f]},set(L,f,t){let H=L[f];if(H!=null&&typeof H.set==="function"){if(typeof t==="function")H.set(()=>t);else H.set(t);return!0}return!1}});if(E.mount){let L=E.mount(l,d);if(typeof L==="function")m.push(L)}if(E.unmount)m.push(()=>E.unmount(l))}}return n}});var li=U({scope:()=>({segments:G([])}),mount(i,u){let d=q(()=>{let m=rn(i.data(),[]),n=m.reduce((L,f)=>L+Math.max(0,f.value),0);if(n<=0){i.segments.set([]);return}let b=i.size(),w=i.thickness(),r=(b-w)/2,M=b/2,y=b/2,E=2*Math.PI,l=-Math.PI/2;i.segments.set(m.filter((L)=>L.value>0).map((L,f)=>{let t=L.value/n*E,H=t>=E-0.001?E-0.001:t,C=an(M,y,r,l,l+H);return l+=t,{id:`s${f}`,d:C,color:mn(L.tone),title:`${L.label}: ${L.value}`}}))});return()=>d()}});var Rt=Q("sui-donut",{props:{data:P.string({default:"",reflect:!0}),size:P.number({default:120}),thickness:P.number({default:16}),label:P.string({default:"donut chart"})},shadow:!0,styles:`
+  :host {
+    display: inline-block;
+    position: relative;
+    transition: opacity var(--duration-fast) var(--ease-out);
+  }
+  svg { display: block; }
+  .track { stroke: var(--muted); }
+  .center {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--heading-font);
+    font-weight: var(--font-weight-semibold);
+    font-size: var(--text-lg);
+    color: var(--foreground);
+    line-height: var(--leading-tight);
+    pointer-events: none;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    :host { transition: none; }
+  }
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.data=u.data,n.size=u.size,n.thickness=u.thickness,n.label=u.label;let b=null;if(li&&typeof li.setup==="function"){if(i.scope=n,b=li.setup(i),b&&typeof b==="object")Object.assign(n,b)}let w=(t)=>s({anchor:t,items:()=>n.segments(),key:(H,C)=>{let z=Object.create(n);return z.seg=H,z.__i=C,((j)=>H.id)(z)},render:(H,C)=>{let z=Object.create(n);return z.seg=H,z.__i=C,z.__v=G(0),((j)=>{let g=document.createDocumentFragment(),J=[],D=document.createElement("path");D.setAttribute("part","segment");{let W=j.seg.d;if(W==null||W===!1||W==="")D.removeAttribute("d");else D.setAttribute("d",W===!0?"":String(W))}D.setAttribute("fill","none");{let W=j.seg.color;if(W==null||W===!1||W==="")D.removeAttribute("stroke");else D.setAttribute("stroke",W===!0?"":String(W))}J.push(T(D,"stroke-width",()=>(j.__v(),j.thickness()))),D.setAttribute("stroke-linecap","butt");let Z=document.createElement("title"),X=document.createTextNode("");return Z.appendChild(X),X.textContent=j.seg.title,D.appendChild(Z),g.appendChild(D),{nodes:Array.from(g.childNodes),cleanup:()=>{for(let W of J)try{W()}catch(Y){}},update:(W,Y)=>{j.seg=W,j.__i=Y;{let N=j.seg.d;if(N==null||N===!1||N==="")D.removeAttribute("d");else D.setAttribute("d",N===!0?"":String(N))}{let N=j.seg.color;if(N==null||N===!1||N==="")D.removeAttribute("stroke");else D.setAttribute("stroke",N===!0?"":String(N))}X.textContent=j.seg.title,j.__v.set((N)=>N+1)}}})(z)}}),r=d.shadowRoot??d;V(r);let M=document.createElement("svg");m.push(T(M,"viewbox",()=>"0 0 "+n.size()+" "+n.size())),M.setAttribute("role","img"),m.push(T(M,"aria-label",()=>n.label())),m.push(T(M,"style",()=>"width:"+n.size()+"px;height:"+n.size()+"px"));let y=document.createElement("circle");y.setAttribute("class","track"),y.setAttribute("part","track"),m.push(T(y,"cx",()=>n.size()/2)),m.push(T(y,"cy",()=>n.size()/2)),m.push(T(y,"r",()=>(n.size()-n.thickness())/2)),y.setAttribute("fill","none"),m.push(T(y,"stroke-width",()=>n.thickness()));let E=document.createTextNode(`
+  `);y.appendChild(E),M.appendChild(y);let l=document.createComment("for");M.appendChild(l),m.push(w(l)),r.appendChild(M);let L=document.createElement("div");L.setAttribute("class","center");let f=document.createElement("slot");if(L.appendChild(f),r.appendChild(L),b!=null){let t=Object.getOwnPropertyDescriptor(b,"__shipSetLifecycle")?.value;if(t){let H=new Proxy(n,{get(C,z){return C[z]},set(C,z,j){let g=C[z];if(g!=null&&typeof g.set==="function"){if(typeof j==="function")g.set(()=>j);else g.set(j);return!0}return!1}});if(t.mount){let C=t.mount(H,d);if(typeof C==="function")m.push(C)}if(t.unmount)m.push(()=>t.unmount(H))}}return n}});var ud=Math.PI/180,ri=135*ud,id=405*ud,Mi=U({scope:()=>({trackD:G(""),valueD:G(""),arcColor:G("var(--primary)")}),mount(i,u){let d=q(()=>{let m=i.size(),n=i.thickness(),b=(m-n)/2-2,w=m/2,r=m/2;i.trackD.set(an(w,r,b,ri,id));let M=i.value(),y=i.min(),E=i.max(),l=Math.max(0,Math.min(1,(M-y)/(E-y||1))),L=ri+(id-ri)*l;i.valueD.set(l>0?an(w,r,b,ri,L):"");let f=i.tone(),t=i.lowThreshold(),H=i.highThreshold(),C=f;if(!C)if(t>0&&M<t)C="destructive";else if(H>0&&M<H)C="warning";else if(t>0||H>0)C="success";else C="primary";i.arcColor.set(mn(C))});return()=>d()}});var $t=Q("sui-gauge",{props:{value:P.number({default:0,reflect:!0}),min:P.number({default:0}),max:P.number({default:100}),tone:P.union(["default","primary","info","success","warning","destructive","accent","muted"],{default:"",reflect:!0}),"low-threshold":P.number({default:0}),"high-threshold":P.number({default:0}),size:P.number({default:140}),thickness:P.number({default:12}),label:P.string({default:"gauge"})},shadow:!0,styles:`
+  :host {
+    display: inline-block;
+    position: relative;
+    transition: opacity var(--duration-fast) var(--ease-out);
+  }
+  svg { display: block; }
+  .track { stroke: var(--muted); }
+  .gauge-label {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--heading-font);
+    font-weight: var(--font-weight-semibold);
+    font-size: var(--text-xl);
+    color: var(--foreground);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    :host { transition: none; }
+  }
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.value=u.value,n.min=u.min,n.max=u.max,n.tone=u.tone,n.lowThreshold=u.lowThreshold,n.highThreshold=u.highThreshold,n.size=u.size,n.thickness=u.thickness,n.label=u.label;let b=null;if(Mi&&typeof Mi.setup==="function"){if(i.scope=n,b=Mi.setup(i),b&&typeof b==="object")Object.assign(n,b)}let w=(t)=>R({anchor:t,test:()=>{if(n.valueD())return 0;return-1},branches:[()=>{let H=document.createDocumentFragment(),C=[],z=document.createElement("path");z.setAttribute("part","fill"),C.push(T(z,"d",()=>n.valueD())),z.setAttribute("fill","none"),C.push(T(z,"stroke",()=>n.arcColor())),C.push(T(z,"stroke-width",()=>n.thickness())),z.setAttribute("stroke-linecap","round");let j=document.createTextNode(`
+    `);return z.appendChild(j),H.appendChild(z),{nodes:Array.from(H.childNodes),cleanup:()=>{for(let g of C)try{g()}catch(J){}}}}]}),r=d.shadowRoot??d;V(r);let M=document.createElement("svg");m.push(T(M,"viewbox",()=>"0 0 "+n.size()+" "+n.size())),M.setAttribute("role","img"),m.push(T(M,"aria-label",()=>n.label())),m.push(T(M,"style",()=>"width:"+n.size()+"px;height:"+n.size()+"px"));let y=document.createElement("path");y.setAttribute("class","track"),y.setAttribute("part","track"),m.push(T(y,"d",()=>n.trackD())),y.setAttribute("fill","none"),m.push(T(y,"stroke-width",()=>n.thickness())),y.setAttribute("stroke-linecap","round");let E=document.createTextNode(`
+  `);y.appendChild(E),M.appendChild(y);let l=document.createComment("if");M.appendChild(l),m.push(w(l)),r.appendChild(M);let L=document.createElement("div");L.setAttribute("class","gauge-label");let f=document.createElement("slot");if(L.appendChild(f),r.appendChild(L),b!=null){let t=Object.getOwnPropertyDescriptor(b,"__shipSetLifecycle")?.value;if(t){let H=new Proxy(n,{get(C,z){return C[z]},set(C,z,j){let g=C[z];if(g!=null&&typeof g.set==="function"){if(typeof j==="function")g.set(()=>j);else g.set(j);return!0}return!1}});if(t.mount){let C=t.mount(H,d);if(typeof C==="function")m.push(C)}if(t.unmount)m.push(()=>t.unmount(H))}}return n}});var yi=U({scope:()=>({bars:G([])}),mount(i,u){let d=q(()=>{let m=rn(i.segments(),[]),n=m.reduce((M,y)=>M+Math.max(0,y.count),0),b=i.total(),w=b>0?b:n,r=w<=0?1:w;i.bars.set(m.filter((M)=>M.count>0).map((M,y)=>{let E=Math.max(0,M.count)/r*100;return{id:`b${y}`,style:`width:${E.toFixed(3)}%;background:${mn(M.tone)};`,title:`${M.label??M.tone}: ${M.count}`}}))});return()=>d()}});var nE=Q("sui-meter",{props:{segments:P.string({default:"",reflect:!0}),total:P.number({default:0}),label:P.string({default:"meter"})},shadow:!0,styles:`
+  :host {
+    display: block;
+    width: 100%;
+    font-family: var(--font-body);
+    transition: opacity var(--duration-fast) var(--ease-out);
+  }
+  .wrap { display: flex; flex-direction: column; gap: 8px; }
+  .bar {
+    display: flex;
+    gap: 2px;
+    height: 10px;
+    width: 100%;
+    background: var(--muted);
+    border-radius: var(--radius-full);
+    overflow: hidden;
+  }
+  .seg:first-child {
+    border-top-left-radius: var(--radius-full);
+    border-bottom-left-radius: var(--radius-full);
+  }
+  .seg:last-child {
+    border-top-right-radius: var(--radius-full);
+    border-bottom-right-radius: var(--radius-full);
+  }
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    font-size: var(--text-xs);
+    color: var(--muted-foreground);
+  }
+  .legend:empty { display: none; }
+
+  @media (prefers-reduced-motion: reduce) {
+    :host { transition: none; }
+  }
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.segments=u.segments,n.total=u.total,n.label=u.label;let b=null;if(yi&&typeof yi.setup==="function"){if(i.scope=n,b=yi.setup(i),b&&typeof b==="object")Object.assign(n,b)}let w=(f)=>s({anchor:f,items:()=>n.bars(),key:(t,H)=>{let C=Object.create(n);return C.b=t,C.__i=H,((z)=>t.id)(C)},render:(t,H)=>{let C=Object.create(n);return C.b=t,C.__i=H,C.__v=G(0),((z)=>{let j=document.createDocumentFragment(),g=[],J=document.createElement("div");J.setAttribute("class","seg"),J.setAttribute("part","segment");{let D=z.b.style;if(D==null||D===!1||D==="")J.removeAttribute("style");else J.setAttribute("style",D===!0?"":String(D))}{let D=z.b.title;if(D==null||D===!1||D==="")J.removeAttribute("title");else J.setAttribute("title",D===!0?"":String(D))}return j.appendChild(J),{nodes:Array.from(j.childNodes),cleanup:()=>{for(let D of g)try{D()}catch(Z){}},update:(D,Z)=>{z.b=D,z.__i=Z;{let X=z.b.style;if(X==null||X===!1||X==="")J.removeAttribute("style");else J.setAttribute("style",X===!0?"":String(X))}{let X=z.b.title;if(X==null||X===!1||X==="")J.removeAttribute("title");else J.setAttribute("title",X===!0?"":String(X))}z.__v.set((X)=>X+1)}}})(C)}}),r=d.shadowRoot??d;V(r);let M=document.createElement("div");M.setAttribute("class","wrap");let y=document.createElement("div");y.setAttribute("class","bar"),y.setAttribute("part","bar"),y.setAttribute("role","img"),m.push(T(y,"aria-label",()=>n.label()));let E=document.createComment("for");y.appendChild(E),m.push(w(E)),M.appendChild(y);let l=document.createElement("div");l.setAttribute("class","legend");let L=document.createElement("slot");if(l.appendChild(L),M.appendChild(l),r.appendChild(M),b!=null){let f=Object.getOwnPropertyDescriptor(b,"__shipSetLifecycle")?.value;if(f){let t=new Proxy(n,{get(H,C){return H[C]},set(H,C,z){let j=H[C];if(j!=null&&typeof j.set==="function"){if(typeof z==="function")j.set(()=>z);else j.set(z);return!0}return!1}});if(f.mount){let H=f.mount(t,d);if(typeof H==="function")m.push(H)}if(f.unmount)m.push(()=>f.unmount(t))}}return n}});var wi=U({scope:()=>({cells:G([]),svgW:G(0),svgH:G(0)}),mount(i,u){let d=q(()=>{let m=kn(i.rows()),n=kn(i.cols()),b=i.cellSize(),w=i.gap(),r=i.data(),M=rn(r,[]),y=Array.isArray(M)&&M.length>0&&Array.isArray(M[0]),E;if(y)E=M;else{let J=qn(r),D=n.length||1,Z=m.length||(J.length>0?Math.ceil(J.length/D):0);E=Array.from({length:Z},(X,W)=>J.slice(W*D,(W+1)*D))}let l=E.length,L=l>0?Math.max(...E.map((J)=>J.length)):0,f=E.flatMap((J)=>J.filter((D)=>typeof D==="number")),t=f.length?Math.min(...f):0,C=(f.length?Math.max(...f):1)-t,z=mn(i.tone()),j=b+w;i.svgW.set(L>0?L*b+(L-1)*w:0),i.svgH.set(l>0?l*b+(l-1)*w:0);let g=[];for(let J=0;J<l;J++){let D=E[J]??[];for(let Z=0;Z<L;Z++){let X=D[Z]??0,W=C===0?t>0?1:0:(X-t)/C,Y=(W*100).toFixed(1),N=W>0?`fill:color-mix(in oklch,${z} ${Y}%,transparent)`:"";g.push({id:`c${J}-${Z}`,x:Z*j,y:J*j,w:b,h:b,fill:N})}}i.cells.set(g)});return()=>d()}});var LE=Q("sui-heatmap",{props:{data:P.string({default:"",reflect:!0}),rows:P.string({default:""}),cols:P.string({default:""}),tone:P.union(["default","primary","info","success","warning","destructive","accent","muted"],{default:"primary",reflect:!0}),"cell-size":P.number({default:20}),gap:P.number({default:3}),label:P.string({default:"heatmap"})},shadow:!0,styles:`
+  :host {
+    display: inline-block;
+    font-family: var(--font-body);
+  }
+  svg { display: block; overflow: visible; }
+  .cell { fill: var(--muted); }
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.data=u.data,n.rows=u.rows,n.cols=u.cols,n.tone=u.tone,n.cellSize=u.cellSize,n.gap=u.gap,n.label=u.label;let b=null;if(wi&&typeof wi.setup==="function"){if(i.scope=n,b=wi.setup(i),b&&typeof b==="object")Object.assign(n,b)}let w=(E)=>s({anchor:E,items:()=>n.cells(),key:(l,L)=>{let f=Object.create(n);return f.cell=l,f.__i=L,((t)=>l.id)(f)},render:(l,L)=>{let f=Object.create(n);return f.cell=l,f.__i=L,f.__v=G(0),((t)=>{let H=document.createDocumentFragment(),C=[],z=document.createElement("rect");z.setAttribute("class","cell"),z.setAttribute("part","cell");{let g=t.cell.x;if(g==null||g===!1||g==="")z.removeAttribute("x");else z.setAttribute("x",g===!0?"":String(g))}{let g=t.cell.y;if(g==null||g===!1||g==="")z.removeAttribute("y");else z.setAttribute("y",g===!0?"":String(g))}{let g=t.cell.w;if(g==null||g===!1||g==="")z.removeAttribute("width");else z.setAttribute("width",g===!0?"":String(g))}{let g=t.cell.h;if(g==null||g===!1||g==="")z.removeAttribute("height");else z.setAttribute("height",g===!0?"":String(g))}z.setAttribute("rx","2");{let g=t.cell.fill;if(g==null||g===!1||g==="")z.removeAttribute("style");else z.setAttribute("style",g===!0?"":String(g))}let j=document.createTextNode(`
+    `);return z.appendChild(j),H.appendChild(z),{nodes:Array.from(H.childNodes),cleanup:()=>{for(let g of C)try{g()}catch(J){}},update:(g,J)=>{t.cell=g,t.__i=J;{let D=t.cell.x;if(D==null||D===!1||D==="")z.removeAttribute("x");else z.setAttribute("x",D===!0?"":String(D))}{let D=t.cell.y;if(D==null||D===!1||D==="")z.removeAttribute("y");else z.setAttribute("y",D===!0?"":String(D))}{let D=t.cell.w;if(D==null||D===!1||D==="")z.removeAttribute("width");else z.setAttribute("width",D===!0?"":String(D))}{let D=t.cell.h;if(D==null||D===!1||D==="")z.removeAttribute("height");else z.setAttribute("height",D===!0?"":String(D))}{let D=t.cell.fill;if(D==null||D===!1||D==="")z.removeAttribute("style");else z.setAttribute("style",D===!0?"":String(D))}t.__v.set((D)=>D+1)}}})(f)}}),r=d.shadowRoot??d;V(r);let M=document.createElement("svg");m.push(T(M,"viewbox",()=>"0 0 "+n.svgW()+" "+n.svgH())),M.setAttribute("role","img"),m.push(T(M,"aria-label",()=>n.label()));let y=document.createComment("for");if(M.appendChild(y),m.push(w(y)),r.appendChild(M),b!=null){let E=Object.getOwnPropertyDescriptor(b,"__shipSetLifecycle")?.value;if(E){let l=new Proxy(n,{get(L,f){return L[f]},set(L,f,t){let H=L[f];if(H!=null&&typeof H.set==="function"){if(typeof t==="function")H.set(()=>t);else H.set(t);return!0}return!1}});if(E.mount){let L=E.mount(l,d);if(typeof L==="function")m.push(L)}if(E.unmount)m.push(()=>E.unmount(l))}}return n}});var lE=Q("sui-button",{props:{tone:P.union(["default","primary","info","success","warning","destructive","accent","muted"],{default:"default",reflect:!0}),variant:P.union(["solid","soft","outline","ghost","default"],{default:"default",reflect:!0}),size:P.union(["sm","md","lg"],{default:"md",reflect:!0}),type:P.union(["button","submit","reset"],{default:"button",reflect:!0}),disabled:P.bool({default:!1,reflect:!0}),loading:P.bool({default:!1,reflect:!0}),label:P.string({default:""}),pressed:P.string({default:"",reflect:!0}),expanded:P.string({default:"",reflect:!0})},shadow:!0,styles:`
     :host {
       display: inline-flex;
       vertical-align: middle;
@@ -1862,211 +1160,7 @@ var sui_button_default = component14("sui-button", {
       align-items: center;
       flex: 0 0 auto;
     }
-  `,
-  setup(ctx) {
-    const { props, host } = ctx;
-    if (!ctx.cleanups)
-      ctx.cleanups = [];
-    const __cleanups = ctx.cleanups;
-    const $scope = Object.create(null);
-    $scope.tone = props.tone;
-    $scope.variant = props.variant;
-    $scope.size = props.size;
-    $scope.type = props.type;
-    $scope.disabled = props.disabled;
-    $scope.loading = props.loading;
-    $scope.label = props.label;
-    $scope.pressed = props.pressed;
-    $scope.expanded = props.expanded;
-    const __wireBoundary_b7 = (anchor) => bindIf4({
-      anchor,
-      test: () => {
-        if ($scope.loading())
-          return 0;
-        return -1;
-      },
-      branches: [
-        () => {
-          const __frag6 = document.createDocumentFragment();
-          const __c7 = [];
-          const __e8 = document.createElement("span");
-          __e8.setAttribute("class", "spinner-wrap");
-          __e8.setAttribute("aria-hidden", "true");
-          const __e9 = document.createElement("span");
-          __e9.setAttribute("class", "spinner");
-          __e8.appendChild(__e9);
-          __frag6.appendChild(__e8);
-          return { nodes: Array.from(__frag6.childNodes), cleanup: () => {
-            for (const c of __c7)
-              try {
-                c();
-              } catch (e) {}
-          } };
-        }
-      ]
-    });
-    const __root = host.shadowRoot ?? host;
-    adoptSuiSheets14(__root);
-    const __e0 = document.createElement("button");
-    __e0.setAttribute("part", "button");
-    __cleanups.push(bindAttr7(__e0, "type", () => $scope.type()));
-    __cleanups.push(bindAttr7(__e0, "disabled", () => $scope.disabled() || $scope.loading()));
-    __cleanups.push(bindAttr7(__e0, "aria-busy", () => $scope.loading() ? "true" : "false"));
-    __cleanups.push(bindAttr7(__e0, "aria-disabled", () => $scope.disabled() || $scope.loading() ? "true" : "false"));
-    __cleanups.push(bindAttr7(__e0, "aria-label", () => $scope.label()));
-    __cleanups.push(bindAttr7(__e0, "aria-pressed", () => $scope.pressed()));
-    __cleanups.push(bindAttr7(__e0, "aria-expanded", () => $scope.expanded()));
-    const __e1 = document.createElement("span");
-    __e1.setAttribute("class", "content");
-    const __e2 = document.createElement("slot");
-    __e2.setAttribute("name", "leading");
-    __e1.appendChild(__e2);
-    const __e3 = document.createElement("slot");
-    __cleanups.push(bindSlotEmpty2(__e3, host, "data-icon-only"));
-    __e1.appendChild(__e3);
-    const __e4 = document.createElement("slot");
-    __e4.setAttribute("name", "trailing");
-    __e1.appendChild(__e4);
-    __e0.appendChild(__e1);
-    const __ifAnchor5 = document.createComment("if");
-    __e0.appendChild(__ifAnchor5);
-    __cleanups.push(__wireBoundary_b7(__ifAnchor5));
-    __root.appendChild(__e0);
-    return $scope;
-  }
-});
-
-// packages/ui-components/src/sui-tabs/sui-tabs.sui
-import { adoptSuiSheets as adoptSuiSheets15, attachRef as attachRef2, bindAttr as bindAttr8, component as component15, prop as prop15 } from "@ship/sui-runtime";
-
-// packages/ui-components/src/sui-tabs/sui-tabs.controller.ts
-import { controller as controller5, effect as effect5, signal } from "@ship/sui-runtime";
-var sui_tabs_controller_default = controller5({
-  mount(state, host) {
-    const scope = state;
-    const slotVersion = signal(0);
-    const getTabs = () => {
-      const slot = scope.tabSlot();
-      if (!slot)
-        return Array.from(host.querySelectorAll(":scope > sui-tab"));
-      return slot.assignedElements().filter((el) => el.tagName.toLowerCase() === "sui-tab");
-    };
-    const activate = (name) => {
-      if (scope.active() === name)
-        return;
-      scope.active.set(name);
-      host.dispatchEvent(new CustomEvent("sui-tab-change", {
-        detail: { name },
-        bubbles: true,
-        composed: true
-      }));
-    };
-    const stopSync = effect5(() => {
-      slotVersion();
-      const activeName = scope.active();
-      const tabs = getTabs();
-      let resolved = activeName;
-      if (!resolved && tabs.length > 0) {
-        resolved = tabs[0].getAttribute("name") ?? "";
-        if (resolved)
-          scope.active.set(resolved);
-      }
-      for (const tab of tabs) {
-        const name = tab.getAttribute("name") ?? "";
-        if (name === resolved) {
-          tab.setAttribute("active", "");
-        } else {
-          tab.removeAttribute("active");
-        }
-        tab.id = `sui-tab-${name}`;
-        tab.setAttribute("aria-controls", `sui-tabpanel-${name}`);
-      }
-      for (const panel of Array.from(host.querySelectorAll(':scope > sui-tab-panel, :scope > [role="tabpanel"]'))) {
-        const name = panel.getAttribute("name") ?? "";
-        if (name === resolved) {
-          panel.removeAttribute("hidden");
-          panel.setAttribute("active", "");
-        } else {
-          panel.setAttribute("hidden", "");
-          panel.removeAttribute("active");
-        }
-      }
-    });
-    const onKeydown = (e) => {
-      const vertical = scope.orientation() === "vertical";
-      const nextKey = vertical ? "ArrowDown" : "ArrowRight";
-      const prevKey = vertical ? "ArrowUp" : "ArrowLeft";
-      const navKeys = [nextKey, prevKey, "Home", "End"];
-      const activateKeys = ["Enter", " "];
-      if (!navKeys.includes(e.key) && !activateKeys.includes(e.key))
-        return;
-      e.preventDefault();
-      const tabs = getTabs().filter((t) => !t.hasAttribute("disabled"));
-      if (!tabs.length)
-        return;
-      const names = tabs.map((t) => t.getAttribute("name") ?? "");
-      const current = scope.active();
-      const i = Math.max(0, names.indexOf(current));
-      let next = i;
-      if (e.key === nextKey)
-        next = (i + 1) % names.length;
-      else if (e.key === prevKey)
-        next = (i - 1 + names.length) % names.length;
-      else if (e.key === "Home")
-        next = 0;
-      else if (e.key === "End")
-        next = names.length - 1;
-      const targetName = names[next];
-      activate(targetName);
-      queueMicrotask(() => {
-        const targetTab = tabs[next];
-        const btn = targetTab.shadowRoot?.querySelector("button");
-        btn ? btn.focus() : targetTab.focus();
-      });
-    };
-    const onClick = (e) => {
-      const target = e.target.closest("sui-tab");
-      if (!target || target.hasAttribute("disabled"))
-        return;
-      const name = target.getAttribute("name") ?? "";
-      if (name)
-        activate(name);
-    };
-    const onSlotChange = () => slotVersion.set(slotVersion() + 1);
-    const strip = scope.strip();
-    const tabSlot = scope.tabSlot();
-    if (strip) {
-      strip.addEventListener("keydown", onKeydown);
-      strip.addEventListener("click", onClick);
-    }
-    if (tabSlot) {
-      tabSlot.addEventListener("slotchange", onSlotChange);
-    }
-    return () => {
-      stopSync();
-      if (strip) {
-        strip.removeEventListener("keydown", onKeydown);
-        strip.removeEventListener("click", onClick);
-      }
-      if (tabSlot) {
-        tabSlot.removeEventListener("slotchange", onSlotChange);
-      }
-    };
-  }
-});
-
-// packages/ui-components/src/sui-tabs/sui-tabs.sui
-var sui_tabs_default = component15("sui-tabs", {
-  props: {
-    active: prop15.string({ default: "", reflect: true }),
-    variant: prop15.union(["underline", "pill", "enclosed"], { default: "underline", reflect: true }),
-    size: prop15.union(["sm", "md", "lg"], { default: "md", reflect: true }),
-    tone: prop15.union(["default", "primary", "info", "success", "warning", "destructive", "accent", "muted"], { default: "default", reflect: true }),
-    sticky: prop15.bool({ default: false, reflect: true }),
-    orientation: prop15.union(["horizontal", "vertical"], { default: "horizontal", reflect: true })
-  },
-  shadow: true,
-  styles: `
+  `,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.tone=u.tone,n.variant=u.variant,n.size=u.size,n.type=u.type,n.disabled=u.disabled,n.loading=u.loading,n.label=u.label,n.pressed=u.pressed,n.expanded=u.expanded;let b=(f)=>R({anchor:f,test:()=>{if(n.loading())return 0;return-1},branches:[()=>{let t=document.createDocumentFragment(),H=[],C=document.createElement("span");C.setAttribute("class","spinner-wrap"),C.setAttribute("aria-hidden","true");let z=document.createElement("span");return z.setAttribute("class","spinner"),C.appendChild(z),t.appendChild(C),{nodes:Array.from(t.childNodes),cleanup:()=>{for(let j of H)try{j()}catch(g){}}}}]}),w=d.shadowRoot??d;V(w);let r=document.createElement("button");r.setAttribute("part","button"),m.push(T(r,"type",()=>n.type())),m.push(T(r,"disabled",()=>n.disabled()||n.loading())),m.push(T(r,"aria-busy",()=>n.loading()?"true":"false")),m.push(T(r,"aria-disabled",()=>n.disabled()||n.loading()?"true":"false")),m.push(T(r,"aria-label",()=>n.label())),m.push(T(r,"aria-pressed",()=>n.pressed())),m.push(T(r,"aria-expanded",()=>n.expanded()));let M=document.createElement("span");M.setAttribute("class","content");let y=document.createElement("slot");y.setAttribute("name","leading"),M.appendChild(y);let E=document.createElement("slot");m.push(bn(E,d,"data-icon-only")),M.appendChild(E);let l=document.createElement("slot");l.setAttribute("name","trailing"),M.appendChild(l),r.appendChild(M);let L=document.createComment("if");return r.appendChild(L),m.push(b(L)),w.appendChild(r),n}});var Hi=U({mount(i,u){let d=i,m=G(0),n=()=>{let L=d.tabSlot();if(!L)return Array.from(u.querySelectorAll(":scope > sui-tab"));return L.assignedElements().filter((f)=>f.tagName.toLowerCase()==="sui-tab")},b=(L)=>{if(d.active()===L)return;d.active.set(L),u.dispatchEvent(new CustomEvent("sui-tab-change",{detail:{name:L},bubbles:!0,composed:!0}))},w=q(()=>{m();let L=d.active(),f=n(),t=L;if(!t&&f.length>0){if(t=f[0].getAttribute("name")??"",t)d.active.set(t)}for(let H of f){let C=H.getAttribute("name")??"";if(C===t)H.setAttribute("active","");else H.removeAttribute("active");H.id=`sui-tab-${C}`,H.setAttribute("aria-controls",`sui-tabpanel-${C}`)}for(let H of Array.from(u.querySelectorAll(':scope > sui-tab-panel, :scope > [role="tabpanel"]')))if((H.getAttribute("name")??"")===t)H.removeAttribute("hidden"),H.setAttribute("active","");else H.setAttribute("hidden",""),H.removeAttribute("active")}),r=(L)=>{let f=d.orientation()==="vertical",t=f?"ArrowDown":"ArrowRight",H=f?"ArrowUp":"ArrowLeft",C=[t,H,"Home","End"],z=["Enter"," "];if(!C.includes(L.key)&&!z.includes(L.key))return;L.preventDefault();let j=n().filter((W)=>!W.hasAttribute("disabled"));if(!j.length)return;let g=j.map((W)=>W.getAttribute("name")??""),J=d.active(),D=Math.max(0,g.indexOf(J)),Z=D;if(L.key===t)Z=(D+1)%g.length;else if(L.key===H)Z=(D-1+g.length)%g.length;else if(L.key==="Home")Z=0;else if(L.key==="End")Z=g.length-1;let X=g[Z];b(X),queueMicrotask(()=>{let W=j[Z],Y=W.shadowRoot?.querySelector("button");Y?Y.focus():W.focus()})},M=(L)=>{let f=L.target.closest("sui-tab");if(!f||f.hasAttribute("disabled"))return;let t=f.getAttribute("name")??"";if(t)b(t)},y=()=>m.set(m()+1),E=d.strip(),l=d.tabSlot();if(E)E.addEventListener("keydown",r),E.addEventListener("click",M);if(l)l.addEventListener("slotchange",y);return()=>{if(w(),E)E.removeEventListener("keydown",r),E.removeEventListener("click",M);if(l)l.removeEventListener("slotchange",y)}}});var CE=Q("sui-tabs",{props:{active:P.string({default:"",reflect:!0}),variant:P.union(["underline","pill","enclosed"],{default:"underline",reflect:!0}),size:P.union(["sm","md","lg"],{default:"md",reflect:!0}),tone:P.union(["default","primary","info","success","warning","destructive","accent","muted"],{default:"default",reflect:!0}),sticky:P.bool({default:!1,reflect:!0}),orientation:P.union(["horizontal","vertical"],{default:"horizontal",reflect:!0})},shadow:!0,styles:`
   :host {
     display: block;
     --tone: var(--primary);
@@ -2105,102 +1199,7 @@ var sui_tabs_default = component15("sui-tabs", {
   ::slotted([slot='tab']) {
     flex: 0 0 auto;
   }
-`,
-  setup(ctx) {
-    const { props, host } = ctx;
-    if (!ctx.cleanups)
-      ctx.cleanups = [];
-    const __cleanups = ctx.cleanups;
-    const $scope = Object.create(null);
-    $scope.active = props.active;
-    $scope.variant = props.variant;
-    $scope.size = props.size;
-    $scope.tone = props.tone;
-    $scope.sticky = props.sticky;
-    $scope.orientation = props.orientation;
-    let __r = null;
-    if (sui_tabs_controller_default && typeof sui_tabs_controller_default.setup === "function") {
-      ctx.scope = $scope;
-      __r = sui_tabs_controller_default.setup(ctx);
-      if (__r && typeof __r === "object")
-        Object.assign($scope, __r);
-    }
-    const __root = host.shadowRoot ?? host;
-    adoptSuiSheets15(__root);
-    const __e0 = document.createElement("div");
-    __e0.setAttribute("class", "strip");
-    __e0.setAttribute("part", "strip");
-    __e0.setAttribute("role", "tablist");
-    __cleanups.push(bindAttr8(__e0, "aria-orientation", () => $scope.orientation()));
-    attachRef2($scope, "strip", __e0);
-    const __e1 = document.createElement("slot");
-    attachRef2($scope, "tabSlot", __e1);
-    __e0.appendChild(__e1);
-    __root.appendChild(__e0);
-    if (__r != null) {
-      const __lc = Object.getOwnPropertyDescriptor(__r, "__shipSetLifecycle")?.value;
-      if (__lc) {
-        const __sp = new Proxy($scope, {
-          get(t, k) {
-            return t[k];
-          },
-          set(t, k, v) {
-            const s = t[k];
-            if (s != null && typeof s.set === "function") {
-              if (typeof v === "function") {
-                s.set(() => v);
-              } else {
-                s.set(v);
-              }
-              return true;
-            }
-            return false;
-          }
-        });
-        if (__lc.mount) {
-          const __mc = __lc.mount(__sp, host);
-          if (typeof __mc === "function")
-            __cleanups.push(__mc);
-        }
-        if (__lc.unmount)
-          __cleanups.push(() => __lc.unmount(__sp));
-      }
-    }
-    return $scope;
-  }
-});
-
-// packages/ui-components/src/sui-tab/sui-tab.sui
-import { adoptSuiSheets as adoptSuiSheets16, attachRef as attachRef3, bindAttr as bindAttr9, bindIf as bindIf5, bindText as bindText2, component as component16, prop as prop16 } from "@ship/sui-runtime";
-
-// packages/ui-components/src/sui-tab/sui-tab.controller.ts
-import { controller as controller6, effect as effect6 } from "@ship/sui-runtime";
-var sui_tab_controller_default = controller6({
-  mount(state, host) {
-    const scope = state;
-    const stopTabIndex = effect6(() => {
-      const btn = scope.btn();
-      if (!btn)
-        return;
-      btn.tabIndex = scope.active() ? 0 : -1;
-    });
-    return () => {
-      stopTabIndex();
-    };
-  }
-});
-
-// packages/ui-components/src/sui-tab/sui-tab.sui
-var sui_tab_default = component16("sui-tab", {
-  props: {
-    name: prop16.string({ default: "", reflect: true }),
-    label: prop16.string({ default: "", reflect: true }),
-    count: prop16.string({ default: "", reflect: true }),
-    disabled: prop16.bool({ default: false, reflect: true }),
-    active: prop16.bool({ default: false, reflect: true })
-  },
-  shadow: true,
-  styles: `
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.active=u.active,n.variant=u.variant,n.size=u.size,n.tone=u.tone,n.sticky=u.sticky,n.orientation=u.orientation,n.strip=G(null),n.tabSlot=G(null);let b=null;if(Hi&&typeof Hi.setup==="function"){if(i.scope=n,b=Hi.setup(i),b&&typeof b==="object")Object.assign(n,b)}let w=d.shadowRoot??d;V(w);let r=document.createElement("div");r.setAttribute("class","strip"),r.setAttribute("part","strip"),r.setAttribute("role","tablist"),m.push(T(r,"aria-orientation",()=>n.orientation())),O(n,"strip",r);let M=document.createElement("slot");if(O(n,"tabSlot",M),r.appendChild(M),w.appendChild(r),b!=null){let y=Object.getOwnPropertyDescriptor(b,"__shipSetLifecycle")?.value;if(y){let E=new Proxy(n,{get(l,L){return l[L]},set(l,L,f){let t=l[L];if(t!=null&&typeof t.set==="function"){if(typeof f==="function")t.set(()=>f);else t.set(f);return!0}return!1}});if(y.mount){let l=y.mount(E,d);if(typeof l==="function")m.push(l)}if(y.unmount)m.push(()=>y.unmount(E))}}return n}});var Ci=U({mount(i,u){let d=i,m=q(()=>{let n=d.btn();if(!n)return;n.tabIndex=d.active()?0:-1});return()=>{m()}}});var ZE=Q("sui-tab",{props:{name:P.string({default:"",reflect:!0}),label:P.string({default:"",reflect:!0}),count:P.string({default:"",reflect:!0}),disabled:P.bool({default:!1,reflect:!0}),active:P.bool({default:!1,reflect:!0})},shadow:!0,styles:`
   :host { display: inline-flex; }
 
   button {
@@ -2286,119 +1285,25 @@ var sui_tab_default = component16("sui-tab", {
     position: relative;
     bottom: -1px;
   }
-`,
-  setup(ctx) {
-    const { props, host } = ctx;
-    if (!ctx.cleanups)
-      ctx.cleanups = [];
-    const __cleanups = ctx.cleanups;
-    const $scope = Object.create(null);
-    $scope.name = props.name;
-    $scope.label = props.label;
-    $scope.count = props.count;
-    $scope.disabled = props.disabled;
-    $scope.active = props.active;
-    let __r = null;
-    if (sui_tab_controller_default && typeof sui_tab_controller_default.setup === "function") {
-      ctx.scope = $scope;
-      __r = sui_tab_controller_default.setup(ctx);
-      if (__r && typeof __r === "object")
-        Object.assign($scope, __r);
-    }
-    const __wireBoundary_b5 = (anchor) => bindIf5({
-      anchor,
-      test: () => {
-        if ($scope.count() !== "")
-          return 0;
-        return -1;
-      },
-      branches: [
-        () => {
-          const __frag5 = document.createDocumentFragment();
-          const __c6 = [];
-          const __e7 = document.createElement("span");
-          __e7.setAttribute("class", "count");
-          __e7.setAttribute("aria-hidden", "true");
-          const __t8 = document.createTextNode("");
-          __e7.appendChild(__t8);
-          __c6.push(bindText2(__t8, () => $scope.count()));
-          __frag5.appendChild(__e7);
-          return { nodes: Array.from(__frag5.childNodes), cleanup: () => {
-            for (const c of __c6)
-              try {
-                c();
-              } catch (e) {}
-          } };
-        }
-      ]
-    });
-    const __root = host.shadowRoot ?? host;
-    adoptSuiSheets16(__root);
-    const __e0 = document.createElement("button");
-    __e0.setAttribute("part", "button");
-    __e0.setAttribute("type", "button");
-    __e0.setAttribute("role", "tab");
-    __cleanups.push(bindAttr9(__e0, "data-name", () => $scope.name()));
-    __cleanups.push(bindAttr9(__e0, "aria-selected", () => $scope.active() ? "true" : "false"));
-    __cleanups.push(bindAttr9(__e0, "aria-disabled", () => $scope.disabled() ? "true" : "false"));
-    __cleanups.push(bindAttr9(__e0, "disabled", () => $scope.disabled()));
-    attachRef3($scope, "btn", __e0);
-    const __e1 = document.createElement("span");
-    __e1.setAttribute("class", "leading");
-    __e1.setAttribute("part", "leading");
-    const __e2 = document.createElement("slot");
-    __e2.setAttribute("name", "leading");
-    __e1.appendChild(__e2);
-    __e0.appendChild(__e1);
-    const __e3 = document.createElement("slot");
-    __e0.appendChild(__e3);
-    const __ifAnchor4 = document.createComment("if");
-    __e0.appendChild(__ifAnchor4);
-    __cleanups.push(__wireBoundary_b5(__ifAnchor4));
-    __root.appendChild(__e0);
-    if (__r != null) {
-      const __lc = Object.getOwnPropertyDescriptor(__r, "__shipSetLifecycle")?.value;
-      if (__lc) {
-        const __sp = new Proxy($scope, {
-          get(t, k) {
-            return t[k];
-          },
-          set(t, k, v) {
-            const s = t[k];
-            if (s != null && typeof s.set === "function") {
-              if (typeof v === "function") {
-                s.set(() => v);
-              } else {
-                s.set(v);
-              }
-              return true;
-            }
-            return false;
-          }
-        });
-        if (__lc.mount) {
-          const __mc = __lc.mount(__sp, host);
-          if (typeof __mc === "function")
-            __cleanups.push(__mc);
-        }
-        if (__lc.unmount)
-          __cleanups.push(() => __lc.unmount(__sp));
-      }
-    }
-    return $scope;
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.name=u.name,n.label=u.label,n.count=u.count,n.disabled=u.disabled,n.active=u.active,n.btn=G(null);let b=null;if(Ci&&typeof Ci.setup==="function"){if(i.scope=n,b=Ci.setup(i),b&&typeof b==="object")Object.assign(n,b)}let w=(f)=>R({anchor:f,test:()=>{if(n.count()!=="")return 0;return-1},branches:[()=>{let t=document.createDocumentFragment(),H=[],C=document.createElement("span");C.setAttribute("class","count"),C.setAttribute("aria-hidden","true");let z=document.createTextNode("");return C.appendChild(z),H.push(S(z,()=>n.count())),t.appendChild(C),{nodes:Array.from(t.childNodes),cleanup:()=>{for(let j of H)try{j()}catch(g){}}}}]}),r=d.shadowRoot??d;V(r);let M=document.createElement("button");M.setAttribute("part","button"),M.setAttribute("type","button"),M.setAttribute("role","tab"),m.push(T(M,"data-name",()=>n.name())),m.push(T(M,"aria-selected",()=>n.active()?"true":"false")),m.push(T(M,"aria-disabled",()=>n.disabled()?"true":"false")),m.push(T(M,"disabled",()=>n.disabled())),O(n,"btn",M);let y=document.createElement("span");y.setAttribute("class","leading"),y.setAttribute("part","leading");let E=document.createElement("slot");E.setAttribute("name","leading"),y.appendChild(E),M.appendChild(y);let l=document.createElement("slot");M.appendChild(l);let L=document.createComment("if");if(M.appendChild(L),m.push(w(L)),r.appendChild(M),b!=null){let f=Object.getOwnPropertyDescriptor(b,"__shipSetLifecycle")?.value;if(f){let t=new Proxy(n,{get(H,C){return H[C]},set(H,C,z){let j=H[C];if(j!=null&&typeof j.set==="function"){if(typeof z==="function")j.set(()=>z);else j.set(z);return!0}return!1}});if(f.mount){let H=f.mount(t,d);if(typeof H==="function")m.push(H)}if(f.unmount)m.push(()=>f.unmount(t))}}return n}});var zi=U({mount(i,u){let d=i;if(!u.hasAttribute("role"))u.setAttribute("role","tabpanel");if(!u.hasAttribute("tabindex"))u.setAttribute("tabindex","0");let m=q(()=>{let n=d.name();if(!n)return;if(!u.id)u.id=`sui-tabpanel-${n}`;u.setAttribute("aria-labelledby",`sui-tab-${n}`)});return()=>{m()}}});var QE=Q("sui-tab-panel",{props:{name:P.string({default:"",reflect:!0}),active:P.bool({default:!1,reflect:!0})},shadow:!0,styles:`
+  :host { display: none; }
+  :host([active]) {
+    display: block;
+    animation: sui-tab-panel-fade var(--duration-medium, 200ms) var(--ease-out, ease-out);
   }
-});
-
-// packages/ui-components/src/sui-empty-state/sui-empty-state.sui
-import { adoptSuiSheets as adoptSuiSheets17, bindAttr as bindAttr10, bindSlotEmpty as bindSlotEmpty3, component as component17, prop as prop17 } from "@ship/sui-runtime";
-var sui_empty_state_default = component17("sui-empty-state", {
-  props: {
-    variant: prop17.union(["default", "inline", "placeholder", "connecting"], { default: "default", reflect: true }),
-    size: prop17.union(["sm", "md", "lg"], { default: "md", reflect: true }),
-    tone: prop17.union(["default", "primary", "info", "success", "warning", "destructive", "accent", "muted"], { default: "muted", reflect: true })
-  },
-  shadow: true,
-  styles: `
+  @keyframes sui-tab-panel-fade {
+    from { opacity: 0; transform: translateY(4px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  :host(:focus-visible) {
+    outline: none;
+    box-shadow:
+      0 0 0 var(--ring-offset, 2px) var(--background),
+      0 0 0 calc(var(--ring-offset, 2px) + var(--ring-width, 2px))
+        color-mix(in oklch, var(--ring-color, var(--primary)) var(--ring-opacity, 60%), transparent);
+    border-radius: var(--radius-md, 6px);
+  }
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.name=u.name,n.active=u.active;let b=null;if(zi&&typeof zi.setup==="function"){if(i.scope=n,b=zi.setup(i),b&&typeof b==="object")Object.assign(n,b)}let w=d.shadowRoot??d;V(w);let r=document.createElement("slot");if(w.appendChild(r),b!=null){let M=Object.getOwnPropertyDescriptor(b,"__shipSetLifecycle")?.value;if(M){let y=new Proxy(n,{get(E,l){return E[l]},set(E,l,L){let f=E[l];if(f!=null&&typeof f.set==="function"){if(typeof L==="function")f.set(()=>L);else f.set(L);return!0}return!1}});if(M.mount){let E=M.mount(y,d);if(typeof E==="function")m.push(E)}if(M.unmount)m.push(()=>M.unmount(y))}}return n}});var qE=Q("sui-empty-state",{props:{variant:P.union(["default","inline","placeholder","connecting"],{default:"default",reflect:!0}),size:P.union(["sm","md","lg"],{default:"md",reflect:!0}),tone:P.union(["default","primary","info","success","warning","destructive","accent","muted"],{default:"muted",reflect:!0})},shadow:!0,styles:`
   :host {
     display: block;
     font-family: var(--font-body);
@@ -2548,124 +1453,7 @@ var sui_empty_state_default = component17("sui-empty-state", {
     .box { border-color: CanvasText; }
     .icon { background: Canvas; color: CanvasText; }
   }
-`,
-  setup(ctx) {
-    const { props, host } = ctx;
-    if (!ctx.cleanups)
-      ctx.cleanups = [];
-    const __cleanups = ctx.cleanups;
-    const $scope = Object.create(null);
-    $scope.variant = props.variant;
-    $scope.size = props.size;
-    $scope.tone = props.tone;
-    const __root = host.shadowRoot ?? host;
-    adoptSuiSheets17(__root);
-    const __e0 = document.createElement("div");
-    __e0.setAttribute("class", "box");
-    __e0.setAttribute("part", "box");
-    __cleanups.push(bindAttr10(__e0, "role", () => $scope.variant() === "connecting" ? "status" : "note"));
-    __cleanups.push(bindAttr10(__e0, "aria-live", () => $scope.variant() === "connecting" ? "polite" : "off"));
-    const __e1 = document.createElement("div");
-    __e1.setAttribute("class", "icon");
-    __e1.setAttribute("part", "icon");
-    __e1.setAttribute("aria-hidden", "true");
-    const __e2 = document.createElement("slot");
-    __e2.setAttribute("name", "icon");
-    __cleanups.push(bindSlotEmpty3(__e2, host, "data-no-icon"));
-    __e1.appendChild(__e2);
-    __e0.appendChild(__e1);
-    const __e3 = document.createElement("div");
-    __e3.setAttribute("class", "copy");
-    const __e4 = document.createElement("div");
-    __e4.setAttribute("class", "title");
-    __e4.setAttribute("part", "title");
-    const __e5 = document.createElement("slot");
-    __e5.setAttribute("name", "title");
-    __e4.appendChild(__e5);
-    __e3.appendChild(__e4);
-    const __e6 = document.createElement("div");
-    __e6.setAttribute("class", "desc");
-    __e6.setAttribute("part", "desc");
-    const __e7 = document.createElement("slot");
-    __e6.appendChild(__e7);
-    __e3.appendChild(__e6);
-    __e0.appendChild(__e3);
-    const __e8 = document.createElement("div");
-    __e8.setAttribute("class", "actions");
-    __e8.setAttribute("part", "actions");
-    const __e9 = document.createElement("slot");
-    __e9.setAttribute("name", "action");
-    __e8.appendChild(__e9);
-    __e0.appendChild(__e8);
-    __root.appendChild(__e0);
-    return $scope;
-  }
-});
-
-// packages/ui-components/src/sui-input/sui-input.sui
-import { adoptSuiSheets as adoptSuiSheets18, attachRef as attachRef4, bindAttr as bindAttr12, bindIf as bindIf6, bindSlotEmpty as bindSlotEmpty4, bindText as bindText3, bindValue, component as component18, prop as prop18 } from "@ship/sui-runtime";
-
-// packages/ui-components/src/sui-input/sui-input.controller.ts
-import { bindAttr as bindAttr11, bindNativeEvent, controller as controller7, onCleanup } from "@ship/sui-runtime";
-var _idSeq = 0;
-var sui_input_controller_default = controller7({
-  mount(state, host) {
-    const scope = state;
-    const inputEl = scope.inputEl();
-    if (!inputEl)
-      return;
-    host.expose({
-      focus: () => inputEl.focus(),
-      blur: () => inputEl.blur(),
-      clear: () => {
-        inputEl.value = "";
-        scope.value.set("");
-      },
-      reportValidity: () => inputEl.reportValidity()
-    });
-    bindNativeEvent(inputEl, "input", () => host.emit("sui-input", { value: inputEl.value }));
-    bindNativeEvent(inputEl, "change", () => host.emit("sui-input-change", { value: inputEl.value }));
-    const errId = `sui-input-err-${++_idSeq}`;
-    onCleanup(bindAttr11(inputEl, "aria-describedby", () => {
-      const parts = [];
-      if (scope.invalid() && scope.errorMessage()) {
-        const errRef = scope.errorEl;
-        const errorEl = typeof errRef === "function" ? errRef() : null;
-        if (errorEl) {
-          errorEl.id = errId;
-          parts.push(errId);
-        }
-      }
-      const extra = scope.describedBy();
-      if (extra)
-        parts.push(extra);
-      return parts.length > 0 ? parts.join(" ") : null;
-    }));
-  }
-});
-
-// packages/ui-components/src/sui-input/sui-input.sui
-var sui_input_default = component18("sui-input", {
-  props: {
-    type: prop18.union(["text", "search", "email", "url", "tel", "password", "number"], { default: "text", reflect: true }),
-    value: prop18.string({ default: "" }),
-    placeholder: prop18.string({ default: "" }),
-    name: prop18.string({ default: "" }),
-    autocomplete: prop18.string({ default: "" }),
-    required: prop18.bool({ default: false, reflect: true }),
-    disabled: prop18.bool({ default: false, reflect: true }),
-    readonly: prop18.bool({ default: false, reflect: true }),
-    invalid: prop18.bool({ default: false, reflect: true }),
-    loading: prop18.bool({ default: false, reflect: true }),
-    tone: prop18.union(["default", "primary", "info", "success", "warning", "destructive", "accent", "muted"], { default: "default", reflect: true }),
-    variant: prop18.union(["default", "ghost"], { default: "default", reflect: true }),
-    size: prop18.union(["sm", "md", "lg"], { default: "md", reflect: true }),
-    label: prop18.string({ default: "" }),
-    "described-by": prop18.string({ default: "" }),
-    "error-message": prop18.string({ default: "" })
-  },
-  shadow: true,
-  styles: `
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.variant=u.variant,n.size=u.size,n.tone=u.tone;let b=d.shadowRoot??d;V(b);let w=document.createElement("div");w.setAttribute("class","box"),w.setAttribute("part","box"),m.push(T(w,"role",()=>n.variant()==="connecting"?"status":"note")),m.push(T(w,"aria-live",()=>n.variant()==="connecting"?"polite":"off"));let r=document.createElement("div");r.setAttribute("class","icon"),r.setAttribute("part","icon"),r.setAttribute("aria-hidden","true");let M=document.createElement("slot");M.setAttribute("name","icon"),m.push(bn(M,d,"data-no-icon")),r.appendChild(M),w.appendChild(r);let y=document.createElement("div");y.setAttribute("class","copy");let E=document.createElement("div");E.setAttribute("class","title"),E.setAttribute("part","title");let l=document.createElement("slot");l.setAttribute("name","title"),E.appendChild(l),y.appendChild(E);let L=document.createElement("div");L.setAttribute("class","desc"),L.setAttribute("part","desc");let f=document.createElement("slot");L.appendChild(f),y.appendChild(L),w.appendChild(y);let t=document.createElement("div");t.setAttribute("class","actions"),t.setAttribute("part","actions");let H=document.createElement("slot");return H.setAttribute("name","action"),t.appendChild(H),w.appendChild(t),b.appendChild(w),n}});var Zm=0,ji=U({mount(i,u){let d=i,m=d.inputEl();if(!m)return;u.expose({focus:()=>m.focus(),blur:()=>m.blur(),clear:()=>{m.value="",d.value.set("")},reportValidity:()=>m.reportValidity()}),_(m,"input",()=>u.emit("sui-input",{value:m.value})),_(m,"change",()=>u.emit("sui-input-change",{value:m.value}));let n=`sui-input-err-${++Zm}`;wn(T(m,"aria-describedby",()=>{let b=[];if(d.invalid()&&d.errorMessage()){let r=d.errorEl,M=typeof r==="function"?r():null;if(M)M.id=n,b.push(n)}let w=d.describedBy();if(w)b.push(w);return b.length>0?b.join(" "):null}))}});var KE=Q("sui-input",{props:{type:P.union(["text","search","email","url","tel","password","number"],{default:"text",reflect:!0}),value:P.string({default:""}),placeholder:P.string({default:""}),name:P.string({default:""}),autocomplete:P.string({default:""}),required:P.bool({default:!1,reflect:!0}),disabled:P.bool({default:!1,reflect:!0}),readonly:P.bool({default:!1,reflect:!0}),invalid:P.bool({default:!1,reflect:!0}),loading:P.bool({default:!1,reflect:!0}),tone:P.union(["default","primary","info","success","warning","destructive","accent","muted"],{default:"default",reflect:!0}),variant:P.union(["default","ghost"],{default:"default",reflect:!0}),size:P.union(["sm","md","lg"],{default:"md",reflect:!0}),label:P.string({default:""}),"described-by":P.string({default:""}),"error-message":P.string({default:""})},shadow:!0,formAssociated:!0,formValue:"value",formDisabled:"disabled",styles:`
   :host {
     display: inline-flex;
     flex-direction: column;
@@ -2767,313 +1555,7 @@ var sui_input_default = component18("sui-input", {
     color: var(--destructive);
     line-height: 1.4;
   }
-`,
-  setup(ctx) {
-    const { props, host } = ctx;
-    if (!ctx.cleanups)
-      ctx.cleanups = [];
-    const __cleanups = ctx.cleanups;
-    const $scope = Object.create(null);
-    $scope.type = props.type;
-    $scope.value = props.value;
-    $scope.placeholder = props.placeholder;
-    $scope.name = props.name;
-    $scope.autocomplete = props.autocomplete;
-    $scope.required = props.required;
-    $scope.disabled = props.disabled;
-    $scope.readonly = props.readonly;
-    $scope.invalid = props.invalid;
-    $scope.loading = props.loading;
-    $scope.tone = props.tone;
-    $scope.variant = props.variant;
-    $scope.size = props.size;
-    $scope.label = props.label;
-    $scope.describedBy = props.describedBy;
-    $scope.errorMessage = props.errorMessage;
-    let __r = null;
-    if (sui_input_controller_default && typeof sui_input_controller_default.setup === "function") {
-      ctx.scope = $scope;
-      __r = sui_input_controller_default.setup(ctx);
-      if (__r && typeof __r === "object")
-        Object.assign($scope, __r);
-    }
-    const __wireBoundary_b13 = (anchor) => bindIf6({
-      anchor,
-      test: () => {
-        if ($scope.loading())
-          return 0;
-        return 1;
-      },
-      branches: [
-        () => {
-          const __frag4 = document.createDocumentFragment();
-          const __c5 = [];
-          const __e6 = document.createElement("span");
-          __e6.setAttribute("class", "spinner");
-          __e6.setAttribute("aria-hidden", "true");
-          __frag4.appendChild(__e6);
-          return { nodes: Array.from(__frag4.childNodes), cleanup: () => {
-            for (const c of __c5)
-              try {
-                c();
-              } catch (e) {}
-          } };
-        },
-        () => {
-          const __frag7 = document.createDocumentFragment();
-          const __c8 = [];
-          const __e9 = document.createElement("slot");
-          __e9.setAttribute("name", "trailing");
-          __c8.push(bindSlotEmpty4(__e9, host, "data-no-trailing"));
-          __frag7.appendChild(__e9);
-          return { nodes: Array.from(__frag7.childNodes), cleanup: () => {
-            for (const c of __c8)
-              try {
-                c();
-              } catch (e) {}
-          } };
-        }
-      ]
-    });
-    const __wireBoundary_b14 = (anchor) => bindIf6({
-      anchor,
-      test: () => {
-        if ($scope.invalid() && $scope.errorMessage())
-          return 0;
-        return -1;
-      },
-      branches: [
-        () => {
-          const __frag11 = document.createDocumentFragment();
-          const __c12 = [];
-          const __e13 = document.createElement("span");
-          __e13.setAttribute("class", "error");
-          __e13.setAttribute("role", "alert");
-          attachRef4($scope, "errorEl", __e13);
-          const __t14 = document.createTextNode("");
-          __e13.appendChild(__t14);
-          __c12.push(bindText3(__t14, () => $scope.errorMessage()));
-          __frag11.appendChild(__e13);
-          return { nodes: Array.from(__frag11.childNodes), cleanup: () => {
-            for (const c of __c12)
-              try {
-                c();
-              } catch (e) {}
-          } };
-        }
-      ]
-    });
-    const __root = host.shadowRoot ?? host;
-    adoptSuiSheets18(__root);
-    const __e0 = document.createElement("div");
-    __e0.setAttribute("class", "wrap");
-    __e0.setAttribute("part", "wrap");
-    const __e1 = document.createElement("slot");
-    __e1.setAttribute("name", "leading");
-    __cleanups.push(bindSlotEmpty4(__e1, host, "data-no-leading"));
-    __e0.appendChild(__e1);
-    const __e2 = document.createElement("input");
-    __e2.setAttribute("part", "input");
-    __cleanups.push(bindAttr12(__e2, "type", () => $scope.type()));
-    __cleanups.push(bindAttr12(__e2, "placeholder", () => $scope.placeholder()));
-    __cleanups.push(bindAttr12(__e2, "name", () => $scope.name()));
-    __cleanups.push(bindAttr12(__e2, "autocomplete", () => $scope.autocomplete() || "off"));
-    __cleanups.push(bindAttr12(__e2, "disabled", () => $scope.disabled()));
-    __cleanups.push(bindAttr12(__e2, "readonly", () => $scope.readonly()));
-    __cleanups.push(bindAttr12(__e2, "required", () => $scope.required()));
-    __cleanups.push(bindAttr12(__e2, "aria-label", () => $scope.label()));
-    __cleanups.push(bindAttr12(__e2, "aria-invalid", () => $scope.invalid() ? "true" : "false"));
-    __cleanups.push(bindAttr12(__e2, "aria-required", () => $scope.required() ? "true" : "false"));
-    __cleanups.push(bindAttr12(__e2, "aria-busy", () => $scope.loading() ? "true" : "false"));
-    __cleanups.push(bindValue(__e2, $scope.value));
-    attachRef4($scope, "inputEl", __e2);
-    __e0.appendChild(__e2);
-    const __ifAnchor3 = document.createComment("if");
-    __e0.appendChild(__ifAnchor3);
-    __cleanups.push(__wireBoundary_b13(__ifAnchor3));
-    __root.appendChild(__e0);
-    const __ifAnchor10 = document.createComment("if");
-    __root.appendChild(__ifAnchor10);
-    __cleanups.push(__wireBoundary_b14(__ifAnchor10));
-    if (__r != null) {
-      const __lc = Object.getOwnPropertyDescriptor(__r, "__shipSetLifecycle")?.value;
-      if (__lc) {
-        const __sp = new Proxy($scope, {
-          get(t, k) {
-            return t[k];
-          },
-          set(t, k, v) {
-            const s = t[k];
-            if (s != null && typeof s.set === "function") {
-              if (typeof v === "function") {
-                s.set(() => v);
-              } else {
-                s.set(v);
-              }
-              return true;
-            }
-            return false;
-          }
-        });
-        if (__lc.mount) {
-          const __mc = __lc.mount(__sp, host);
-          if (typeof __mc === "function")
-            __cleanups.push(__mc);
-        }
-        if (__lc.unmount)
-          __cleanups.push(() => __lc.unmount(__sp));
-      }
-    }
-    return $scope;
-  }
-});
-
-// packages/ui-components/src/sui-icon/sui-icon.sui
-import { adoptSuiSheets as adoptSuiSheets19, component as component19, prop as prop19 } from "@ship/sui-runtime";
-
-// packages/ui-components/src/sui-icon/sui-icon.controller.ts
-import { controller as controller8, effect as effect7, signal as signal2 } from "@ship/sui-runtime";
-
-// packages/ui-components/src/sui-icon/registry.ts
-var ALIASES = {
-  git: "git-branch",
-  refresh: "refresh-cw",
-  stop: "stop-circle",
-  warning: "triangle-alert"
-};
-var ICON_REGISTRY_URL = "/_sui/lucide-icons.json";
-var registry = null;
-var pending = null;
-function getIconRegistry() {
-  return registry;
-}
-function loadIconRegistry() {
-  if (registry)
-    return Promise.resolve(registry);
-  if (pending)
-    return pending;
-  pending = fetch(ICON_REGISTRY_URL).then((r) => {
-    if (!r.ok)
-      throw new Error(`lucide registry fetch ${r.status}`);
-    return r.json();
-  }).then((map) => {
-    registry = map;
-    return map;
-  }).catch((err) => {
-    pending = null;
-    throw err;
-  });
-  return pending;
-}
-function resolveIconName(name) {
-  if (!name || !registry)
-    return;
-  if (registry[name])
-    return name;
-  const aliased = ALIASES[name];
-  if (aliased && registry[aliased])
-    return aliased;
-  return;
-}
-function getIconSvg(resolved) {
-  return registry ? registry[resolved] : undefined;
-}
-
-// packages/ui-components/src/sui-icon/sui-icon.controller.ts
-var SVG_NS = "http://www.w3.org/2000/svg";
-var registryRev = signal2(getIconRegistry() ? 1 : 0);
-var kicked = false;
-function kickFetch() {
-  if (kicked || getIconRegistry())
-    return;
-  kicked = true;
-  loadIconRegistry().then(() => registryRev.set(registryRev() + 1)).catch(() => {
-    kicked = false;
-  });
-}
-function makeSvg(doc) {
-  const svg = doc.createElementNS(SVG_NS, "svg");
-  svg.setAttribute("part", "svg");
-  svg.setAttribute("class", "sui-icon-svg");
-  svg.setAttribute("viewBox", "0 0 24 24");
-  svg.setAttribute("fill", "none");
-  svg.setAttribute("stroke", "currentColor");
-  svg.setAttribute("stroke-width", "2");
-  svg.setAttribute("stroke-linecap", "round");
-  svg.setAttribute("stroke-linejoin", "round");
-  return svg;
-}
-function populatePaths(svg, fragment) {
-  while (svg.firstChild)
-    svg.removeChild(svg.firstChild);
-  const parsed = new DOMParser().parseFromString(`<svg xmlns="${SVG_NS}">${fragment}</svg>`, "image/svg+xml").documentElement;
-  while (parsed.firstChild) {
-    svg.appendChild(svg.ownerDocument.adoptNode(parsed.firstChild));
-  }
-}
-var sui_icon_controller_default = controller8({
-  mount(state, host) {
-    const scope = state;
-    const root = host.shadowRoot;
-    let svgEl = null;
-    let lastResolved = null;
-    const stopAria = effect7(() => {
-      const label = scope.label();
-      if (label) {
-        host.setAttribute("role", "img");
-        host.setAttribute("aria-label", label);
-        host.removeAttribute("aria-hidden");
-      } else {
-        host.setAttribute("aria-hidden", "true");
-        host.removeAttribute("role");
-        host.removeAttribute("aria-label");
-      }
-    });
-    const stopRender = effect7(() => {
-      registryRev();
-      const requested = scope.name();
-      const resolved = resolveIconName(requested) ?? null;
-      const label = scope.label();
-      if (!resolved) {
-        if (svgEl) {
-          svgEl.remove();
-          svgEl = null;
-        }
-        lastResolved = null;
-        if (requested && !getIconRegistry())
-          kickFetch();
-        return;
-      }
-      if (!svgEl) {
-        svgEl = makeSvg(host.ownerDocument);
-        root.insertBefore(svgEl, root.firstChild);
-      }
-      if (resolved !== lastResolved) {
-        populatePaths(svgEl, getIconSvg(resolved));
-        lastResolved = resolved;
-      }
-      if (label)
-        svgEl.removeAttribute("aria-hidden");
-      else
-        svgEl.setAttribute("aria-hidden", "true");
-    });
-    return () => {
-      stopAria();
-      stopRender();
-    };
-  }
-});
-
-// packages/ui-components/src/sui-icon/sui-icon.sui
-var sui_icon_default = component19("sui-icon", {
-  props: {
-    name: prop19.string({ default: "", reflect: true }),
-    size: prop19.union(["sm", "md", "lg"], { default: "md", reflect: true }),
-    tone: prop19.union(["default", "info", "success", "warning", "destructive", "accent", "muted", "primary"], { default: "default", reflect: true }),
-    label: prop19.string({ default: "", reflect: true })
-  },
-  shadow: true,
-  styles: `
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.type=u.type,n.value=u.value,n.placeholder=u.placeholder,n.name=u.name,n.autocomplete=u.autocomplete,n.required=u.required,n.disabled=u.disabled,n.readonly=u.readonly,n.invalid=u.invalid,n.loading=u.loading,n.tone=u.tone,n.variant=u.variant,n.size=u.size,n.label=u.label,n.describedBy=u.describedBy,n.errorMessage=u.errorMessage,n.errorEl=G(null),n.inputEl=G(null);let b=null;if(ji&&typeof ji.setup==="function"){if(i.scope=n,b=ji.setup(i),b&&typeof b==="object")Object.assign(n,b)}let w=(t)=>R({anchor:t,test:()=>{if(n.loading())return 0;return 1},branches:[()=>{let H=document.createDocumentFragment(),C=[],z=document.createElement("span");return z.setAttribute("class","spinner"),z.setAttribute("aria-hidden","true"),H.appendChild(z),{nodes:Array.from(H.childNodes),cleanup:()=>{for(let j of C)try{j()}catch(g){}}}},()=>{let H=document.createDocumentFragment(),C=[],z=document.createElement("slot");return z.setAttribute("name","trailing"),C.push(bn(z,d,"data-no-trailing")),H.appendChild(z),{nodes:Array.from(H.childNodes),cleanup:()=>{for(let j of C)try{j()}catch(g){}}}}]}),r=(t)=>R({anchor:t,test:()=>{if(n.invalid()&&n.errorMessage())return 0;return-1},branches:[()=>{let H=document.createDocumentFragment(),C=[],z=document.createElement("span");z.setAttribute("class","error"),z.setAttribute("role","alert"),O(n,"errorEl",z);let j=document.createTextNode("");return z.appendChild(j),C.push(S(j,()=>n.errorMessage())),H.appendChild(z),{nodes:Array.from(H.childNodes),cleanup:()=>{for(let g of C)try{g()}catch(J){}}}}]}),M=d.shadowRoot??d;V(M);let y=document.createElement("div");y.setAttribute("class","wrap"),y.setAttribute("part","wrap");let E=document.createElement("slot");E.setAttribute("name","leading"),m.push(bn(E,d,"data-no-leading")),y.appendChild(E);let l=document.createElement("input");l.setAttribute("part","input"),m.push(T(l,"type",()=>n.type())),m.push(T(l,"placeholder",()=>n.placeholder())),m.push(T(l,"name",()=>n.name())),m.push(T(l,"autocomplete",()=>n.autocomplete()||"off")),m.push(T(l,"disabled",()=>n.disabled())),m.push(T(l,"readonly",()=>n.readonly())),m.push(T(l,"required",()=>n.required())),m.push(T(l,"aria-label",()=>n.label())),m.push(T(l,"aria-invalid",()=>n.invalid()?"true":"false")),m.push(T(l,"aria-required",()=>n.required()?"true":"false")),m.push(T(l,"aria-busy",()=>n.loading()?"true":"false")),m.push(gn(l,n.value)),O(n,"inputEl",l),y.appendChild(l);let L=document.createComment("if");y.appendChild(L),m.push(w(L)),M.appendChild(y);let f=document.createComment("if");if(M.appendChild(f),m.push(r(f)),b!=null){let t=Object.getOwnPropertyDescriptor(b,"__shipSetLifecycle")?.value;if(t){let H=new Proxy(n,{get(C,z){return C[z]},set(C,z,j){let g=C[z];if(g!=null&&typeof g.set==="function"){if(typeof j==="function")g.set(()=>j);else g.set(j);return!0}return!1}});if(t.mount){let C=t.mount(H,d);if(typeof C==="function")m.push(C)}if(t.unmount)m.push(()=>t.unmount(H))}}return n}});var Jm={git:"git-branch",refresh:"refresh-cw",stop:"stop-circle",warning:"triangle-alert"};var Hn=null,vn=null;function Pi(){return Hn}function dd(){if(Hn)return Promise.resolve(Hn);if(vn)return vn;return vn=fetch("/_sui/lucide-icons.json").then((i)=>{if(!i.ok)throw Error(`lucide registry fetch ${i.status}`);return i.json()}).then((i)=>{return Hn=i,i}).catch((i)=>{throw vn=null,i}),vn}function md(i){if(!i||!Hn)return;if(Hn[i])return i;let u=Jm[i];if(u&&Hn[u])return u;return}function bd(i){return Hn?Hn[i]:void 0}var fd="http://www.w3.org/2000/svg",Ju=G(Pi()?1:0),Zu=!1;function Xm(){if(Zu||Pi())return;Zu=!0,dd().then(()=>Ju.set(Ju()+1)).catch(()=>{Zu=!1})}function Gm(i){let u=i.createElementNS(fd,"svg");return u.setAttribute("part","svg"),u.setAttribute("class","sui-icon-svg"),u.setAttribute("viewBox","0 0 24 24"),u.setAttribute("fill","none"),u.setAttribute("stroke","currentColor"),u.setAttribute("stroke-width","2"),u.setAttribute("stroke-linecap","round"),u.setAttribute("stroke-linejoin","round"),u}function Wm(i,u){let d=new DOMParser().parseFromString(`<svg xmlns="${fd}">${u}</svg>`,"image/svg+xml").documentElement,m=[];while(d.firstChild)m.push(i.ownerDocument.adoptNode(d.firstChild));i.replaceChildren(...m)}var gi=U({mount(i,u){let d=i,m=u.shadowRoot,n=null,b=null,w=q(()=>{let M=d.label();if(M)u.setAttribute("role","img"),u.setAttribute("aria-label",M),u.removeAttribute("aria-hidden");else u.setAttribute("aria-hidden","true"),u.removeAttribute("role"),u.removeAttribute("aria-label")}),r=q(()=>{Ju();let M=d.name(),y=md(M)??null,E=d.label();if(!y){if(n)n.remove(),n=null;if(b=null,M&&!Pi())Xm();return}if(!n)n=Gm(u.ownerDocument),m.insertBefore(n,m.firstChild);if(y!==b)Wm(n,bd(y)),b=y;if(E)n.removeAttribute("aria-hidden");else n.setAttribute("aria-hidden","true")});return()=>{w(),r()}}});var xE=Q("sui-icon",{props:{name:P.string({default:"",reflect:!0}),size:P.union(["sm","md","lg"],{default:"md",reflect:!0}),tone:P.union(["default","info","success","warning","destructive","accent","muted","primary"],{default:"default",reflect:!0}),label:P.string({default:"",reflect:!0})},shadow:!0,styles:`
   :host {
     display: inline-flex;
     align-items: center;
@@ -3095,70 +1577,158 @@ var sui_icon_default = component19("sui-icon", {
 
   /* Slot passthrough: user-provided SVG fills the icon box */
   ::slotted(svg) { width: 100%; height: 100%; }
-`,
-  setup(ctx) {
-    const { props, host } = ctx;
-    if (!ctx.cleanups)
-      ctx.cleanups = [];
-    const __cleanups = ctx.cleanups;
-    const $scope = Object.create(null);
-    $scope.name = props.name;
-    $scope.size = props.size;
-    $scope.tone = props.tone;
-    $scope.label = props.label;
-    let __r = null;
-    if (sui_icon_controller_default && typeof sui_icon_controller_default.setup === "function") {
-      ctx.scope = $scope;
-      __r = sui_icon_controller_default.setup(ctx);
-      if (__r && typeof __r === "object")
-        Object.assign($scope, __r);
-    }
-    const __root = host.shadowRoot ?? host;
-    adoptSuiSheets19(__root);
-    const __e0 = document.createElement("slot");
-    __root.appendChild(__e0);
-    if (__r != null) {
-      const __lc = Object.getOwnPropertyDescriptor(__r, "__shipSetLifecycle")?.value;
-      if (__lc) {
-        const __sp = new Proxy($scope, {
-          get(t, k) {
-            return t[k];
-          },
-          set(t, k, v) {
-            const s = t[k];
-            if (s != null && typeof s.set === "function") {
-              if (typeof v === "function") {
-                s.set(() => v);
-              } else {
-                s.set(v);
-              }
-              return true;
-            }
-            return false;
-          }
-        });
-        if (__lc.mount) {
-          const __mc = __lc.mount(__sp, host);
-          if (typeof __mc === "function")
-            __cleanups.push(__mc);
-        }
-        if (__lc.unmount)
-          __cleanups.push(() => __lc.unmount(__sp));
-      }
-    }
-    return $scope;
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.name=u.name,n.size=u.size,n.tone=u.tone,n.label=u.label;let b=null;if(gi&&typeof gi.setup==="function"){if(i.scope=n,b=gi.setup(i),b&&typeof b==="object")Object.assign(n,b)}let w=d.shadowRoot??d;V(w);let r=document.createElement("slot");if(w.appendChild(r),b!=null){let M=Object.getOwnPropertyDescriptor(b,"__shipSetLifecycle")?.value;if(M){let y=new Proxy(n,{get(E,l){return E[l]},set(E,l,L){let f=E[l];if(f!=null&&typeof f.set==="function"){if(typeof L==="function")f.set(()=>L);else f.set(L);return!0}return!1}});if(M.mount){let E=M.mount(y,d);if(typeof E==="function")m.push(E)}if(M.unmount)m.push(()=>M.unmount(y))}}return n}});var Di=U({mount(i,u){let d=i,m=()=>Array.from(u.querySelectorAll(":scope > option, :scope > optgroup > option")),n=()=>{let f=d.value(),t=m();if(t.length===0)return f;let H=t.find((z)=>z.value===f)??t.find((z)=>z.hasAttribute("selected"))??t[0];return(H?.textContent??"").trim()||H?.value||f},b=()=>{let f=d.selectEl();if(!f){let H=m(),C=H.find((z)=>z.value===d.value())??H.find((z)=>z.hasAttribute("selected"))??H[0];if(!C||C.value==="")u.setAttribute("data-placeholder","");else u.removeAttribute("data-placeholder");return}let t=f.selectedOptions?.[0]??f.options[f.selectedIndex];if(!t||t.value==="")u.setAttribute("data-placeholder","");else u.removeAttribute("data-placeholder")},w=()=>{let f=d.selectEl();if(!f)return;let t=u.querySelectorAll(":scope > option, :scope > optgroup");f.replaceChildren(...Array.from(t,(H)=>H.cloneNode(!0))),f.value=d.value()},r=()=>{let f=d.valueLabel();if(f)f.textContent=n()},M=q(()=>{let f=d.value(),t=d.selectEl();if(t)t.value=f;r(),b()}),y=(f)=>{let t=f.target.value;d.value.set(t),u.dispatchEvent(new CustomEvent("sui-change",{detail:{value:t},bubbles:!0,composed:!0}))},E=d.selectEl();if(E)E.addEventListener("change",y);let l=d.optionsSlot(),L=()=>{w(),r(),b()};if(l)l.addEventListener("slotchange",L);return w(),r(),b(),()=>{if(E)E.removeEventListener("change",y);if(l)l.removeEventListener("slotchange",L);M()}}});var pE=Q("sui-select",{props:{value:P.string({default:""}),name:P.string({default:""}),required:P.bool({default:!1,reflect:!0}),disabled:P.bool({default:!1,reflect:!0}),invalid:P.bool({default:!1,reflect:!0}),tone:P.union(["default","info","success","warning","destructive","accent","muted"],{default:"default",reflect:!0}),size:P.union(["sm","md","lg"],{default:"md",reflect:!0}),label:P.string({default:""}),"described-by":P.string({default:""})},shadow:!0,formAssociated:!0,formValue:"value",formDisabled:"disabled",styles:`
+  :host {
+    display: inline-flex;
+    vertical-align: middle;
+    --tone: var(--foreground);
+    --tone-fg: var(--foreground);
   }
-});
 
-// packages/ui-components/src/sui-separator/sui-separator.sui
-import { adoptSuiSheets as adoptSuiSheets20, bindAttr as bindAttr13, component as component20, prop as prop20 } from "@ship/sui-runtime";
-var sui_separator_default = component20("sui-separator", {
-  props: {
-    orientation: prop20.union(["horizontal", "vertical"], { default: "horizontal", reflect: true }),
-    variant: prop20.union(["solid", "dashed"], { default: "solid", reflect: true })
-  },
-  shadow: true,
-  styles: `
+  :host([tone='info'])        { --tone: var(--info);             --tone-fg: var(--info); }
+  :host([tone='success'])     { --tone: var(--success);          --tone-fg: var(--success); }
+  :host([tone='warning'])     { --tone: var(--warning);          --tone-fg: var(--warning); }
+  :host([tone='destructive']) { --tone: var(--destructive);      --tone-fg: var(--destructive); }
+  :host([tone='accent'])      { --tone: var(--accent);           --tone-fg: var(--accent); }
+  :host([tone='muted'])       { --tone: var(--muted-foreground); --tone-fg: var(--muted-foreground); }
+
+  :host(:not([size])),
+  :host([size='md']) { --sel-h: 34px; --sel-px: 12px; --sel-fs: 13px; --sel-gap: 8px; --sel-chev: 14px; }
+  :host([size='sm']) { --sel-h: 28px; --sel-px: 10px; --sel-fs: 12px; --sel-gap: 6px; --sel-chev: 12px; }
+  :host([size='lg']) { --sel-h: 40px; --sel-px: 16px; --sel-fs: 14px; --sel-gap: 8px; --sel-chev: 16px; }
+
+  .field {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sel-gap);
+    min-height: var(--sel-h);
+    padding-inline: var(--sel-px);
+    padding-inline-end: calc(var(--sel-px) + var(--sel-chev) + 6px);
+    background: var(--background);
+    color: var(--foreground);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-xs);
+    font-family: var(--font-body);
+    font-size: var(--sel-fs);
+    font-weight: var(--font-weight-medium);
+    line-height: 1;
+    letter-spacing: -0.005em;
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+    transition:
+      background-color var(--duration-fast) var(--ease-out),
+      border-color var(--duration-fast) var(--ease-out),
+      box-shadow var(--duration-fast) var(--ease-out),
+      color var(--duration-fast) var(--ease-out);
+  }
+
+  :host(:not([disabled])) .field:hover {
+    background: color-mix(in oklch, var(--muted) 70%, var(--background));
+    border-color: color-mix(in oklch, var(--border) 160%, transparent);
+    box-shadow: var(--shadow-sm);
+  }
+
+  :host([tone]:not([tone='default'])) .field {
+    border-color: color-mix(in oklch, var(--tone) 38%, var(--border));
+  }
+  :host([tone]:not([tone='default']):not([disabled])) .field:hover {
+    background: color-mix(in oklch, var(--tone) 8%, var(--background));
+    border-color: color-mix(in oklch, var(--tone) 55%, var(--border));
+  }
+
+  select {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding-inline: var(--sel-px);
+    padding-inline-end: calc(var(--sel-px) + var(--sel-chev) + 6px);
+    font: inherit;
+    color: transparent;
+    background: transparent;
+    border: 0;
+    outline: 0;
+    appearance: none;
+    -webkit-appearance: none;
+    cursor: inherit;
+  }
+  select option { color: var(--foreground); background: var(--background); }
+
+  .value {
+    display: inline-block;
+    max-width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    pointer-events: none;
+  }
+  :host([data-placeholder]) .value { color: var(--muted-foreground); }
+
+  .chevron {
+    position: absolute;
+    inset-block: 0;
+    inset-inline-end: var(--sel-px);
+    margin-block: auto;
+    width: var(--sel-chev);
+    height: var(--sel-chev);
+    color: var(--muted-foreground);
+    pointer-events: none;
+    transition:
+      color var(--duration-fast) var(--ease-out),
+      transform var(--duration-medium) var(--ease-out);
+  }
+  :host(:not([disabled])) .field:hover .chevron { color: var(--foreground); }
+  :host([tone]:not([tone='default'])) .chevron {
+    color: color-mix(in oklch, var(--tone-fg) 75%, var(--muted-foreground));
+  }
+
+  :host(:focus-within) .field {
+    outline: none;
+    border-color: color-mix(in oklch, var(--tone) 60%, var(--border));
+    box-shadow:
+      0 0 0 var(--ring-offset) var(--background),
+      0 0 0 calc(var(--ring-offset) + var(--ring-width))
+        color-mix(in oklch, var(--tone) 55%, transparent);
+  }
+  :host(:not([tone]):focus-within) .field,
+  :host([tone='default']:focus-within) .field {
+    border-color: color-mix(in oklch, var(--ring-color) 55%, var(--border));
+    box-shadow:
+      0 0 0 var(--ring-offset) var(--background),
+      0 0 0 calc(var(--ring-offset) + var(--ring-width))
+        color-mix(in oklch, var(--ring-color) var(--ring-opacity), transparent);
+  }
+
+  :host([invalid]) .field { border-color: var(--destructive); }
+  :host([invalid]:focus-within) .field {
+    border-color: var(--destructive);
+    box-shadow:
+      0 0 0 var(--ring-offset) var(--background),
+      0 0 0 calc(var(--ring-offset) + var(--ring-width))
+        color-mix(in oklch, var(--destructive) var(--ring-opacity), transparent);
+  }
+
+  :host([disabled]) { opacity: 0.6; cursor: not-allowed; }
+  :host([disabled]) .field {
+    background: var(--muted);
+    border-color: color-mix(in oklch, var(--border) 80%, transparent);
+    box-shadow: none;
+    cursor: not-allowed;
+    filter: saturate(0.6);
+  }
+  :host([disabled]) select { cursor: not-allowed; }
+
+  @media (forced-colors: active) {
+    :host(:focus-within) .field { outline: 2px solid CanvasText; outline-offset: 2px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .field, .chevron { transition: none; }
+  }
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.value=u.value,n.name=u.name,n.required=u.required,n.disabled=u.disabled,n.invalid=u.invalid,n.tone=u.tone,n.size=u.size,n.label=u.label,n.describedBy=u.describedBy,n.optionsSlot=G(null),n.selectEl=G(null),n.valueLabel=G(null);let b=null;if(Di&&typeof Di.setup==="function"){if(i.scope=n,b=Di.setup(i),b&&typeof b==="object")Object.assign(n,b)}let w=d.shadowRoot??d;V(w);let r=document.createElement("div");r.setAttribute("class","field"),r.setAttribute("part","field");let M=document.createElement("span");M.setAttribute("class","value"),M.setAttribute("aria-hidden","true"),O(n,"valueLabel",M),r.appendChild(M);let y=document.createElement("svg");y.setAttribute("class","chevron"),y.setAttribute("part","chevron"),y.setAttribute("viewbox","0 0 16 16"),y.setAttribute("aria-hidden","true"),y.setAttribute("focusable","false"),y.setAttribute("fill","none"),y.setAttribute("stroke","currentColor"),y.setAttribute("stroke-width","1.75"),y.setAttribute("stroke-linecap","round"),y.setAttribute("stroke-linejoin","round");let E=document.createElement("path");E.setAttribute("d","M4 6l4 4 4-4"),y.appendChild(E),r.appendChild(y);let l=document.createElement("select");l.setAttribute("part","select"),m.push(T(l,"name",()=>n.name())),m.push(T(l,"disabled",()=>n.disabled())),m.push(T(l,"required",()=>n.required())),m.push(T(l,"aria-invalid",()=>n.invalid()?"true":"false")),m.push(T(l,"aria-label",()=>n.label())),m.push(T(l,"aria-describedby",()=>n.describedBy())),O(n,"selectEl",l),r.appendChild(l),w.appendChild(r);let L=document.createElement("span");L.setAttribute("hidden","");let f=document.createElement("slot");if(O(n,"optionsSlot",f),L.appendChild(f),w.appendChild(L),b!=null){let t=Object.getOwnPropertyDescriptor(b,"__shipSetLifecycle")?.value;if(t){let H=new Proxy(n,{get(C,z){return C[z]},set(C,z,j){let g=C[z];if(g!=null&&typeof g.set==="function"){if(typeof j==="function")g.set(()=>j);else g.set(j);return!0}return!1}});if(t.mount){let C=t.mount(H,d);if(typeof C==="function")m.push(C)}if(t.unmount)m.push(()=>t.unmount(H))}}return n}});var nl=Q("sui-separator",{props:{orientation:P.union(["horizontal","vertical"],{default:"horizontal",reflect:!0}),variant:P.union(["solid","dashed"],{default:"solid",reflect:!0})},shadow:!0,styles:`
   :host {
     display: block;
   }
@@ -3201,56 +1771,7 @@ var sui_separator_default = component20("sui-separator", {
     border-left: 1px dashed var(--border);
     width: 0;
   }
-`,
-  setup(ctx) {
-    const { props, host } = ctx;
-    if (!ctx.cleanups)
-      ctx.cleanups = [];
-    const __cleanups = ctx.cleanups;
-    const $scope = Object.create(null);
-    $scope.orientation = props.orientation;
-    $scope.variant = props.variant;
-    const __root = host.shadowRoot ?? host;
-    adoptSuiSheets20(__root);
-    const __e0 = document.createElement("hr");
-    __e0.setAttribute("class", "sep");
-    __e0.setAttribute("part", "sep");
-    __e0.setAttribute("role", "separator");
-    __cleanups.push(bindAttr13(__e0, "aria-orientation", () => $scope.orientation()));
-    __root.appendChild(__e0);
-    return $scope;
-  }
-});
-
-// packages/ui-components/src/sui-label/sui-label.sui
-import { adoptSuiSheets as adoptSuiSheets21, attachRef as attachRef5, bindIf as bindIf7, component as component21, prop as prop21 } from "@ship/sui-runtime";
-
-// packages/ui-components/src/sui-label/sui-label.controller.ts
-import { controller as controller9, effect as effect8 } from "@ship/sui-runtime";
-var sui_label_controller_default = controller9({
-  mount(state, _host) {
-    const scope = state;
-    const stopFor = effect8(() => {
-      const labelEl = scope.labelEl();
-      if (!labelEl)
-        return;
-      labelEl.htmlFor = scope["for"]?.() ?? "";
-    });
-    return () => {
-      stopFor();
-    };
-  }
-});
-
-// packages/ui-components/src/sui-label/sui-label.sui
-var sui_label_default = component21("sui-label", {
-  props: {
-    for: prop21.string({ default: "" }),
-    size: prop21.union(["sm", "md"], { default: "sm", reflect: true }),
-    required: prop21.bool({ default: false, reflect: true })
-  },
-  shadow: true,
-  styles: `
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.orientation=u.orientation,n.variant=u.variant;let b=d.shadowRoot??d;V(b);let w=document.createElement("hr");return w.setAttribute("class","sep"),w.setAttribute("part","sep"),w.setAttribute("role","separator"),m.push(T(w,"aria-orientation",()=>n.orientation())),b.appendChild(w),n}});var Zi=U({mount(i,u){let d=i,m=q(()=>{let n=d.labelEl();if(!n)return;n.htmlFor=d.for?.()??""});return()=>{m()}}});var fl=Q("sui-label",{props:{for:P.string({default:""}),size:P.union(["sm","md"],{default:"sm",reflect:!0}),required:P.bool({default:!1,reflect:!0})},shadow:!0,styles:`
   :host {
     display: inline-block;
   }
@@ -3273,128 +1794,7 @@ var sui_label_default = component21("sui-label", {
     color: var(--destructive);
     margin-left: 2px;
   }
-`,
-  setup(ctx) {
-    const { props, host } = ctx;
-    if (!ctx.cleanups)
-      ctx.cleanups = [];
-    const __cleanups = ctx.cleanups;
-    const $scope = Object.create(null);
-    $scope.for = props.for;
-    $scope.size = props.size;
-    $scope.required = props.required;
-    let __r = null;
-    if (sui_label_controller_default && typeof sui_label_controller_default.setup === "function") {
-      ctx.scope = $scope;
-      __r = sui_label_controller_default.setup(ctx);
-      if (__r && typeof __r === "object")
-        Object.assign($scope, __r);
-    }
-    const __wireBoundary_b1 = (anchor) => bindIf7({
-      anchor,
-      test: () => {
-        if ($scope.required())
-          return 0;
-        return -1;
-      },
-      branches: [
-        () => {
-          const __frag3 = document.createDocumentFragment();
-          const __c4 = [];
-          const __e5 = document.createElement("span");
-          __e5.setAttribute("class", "req");
-          __e5.setAttribute("aria-hidden", "true");
-          const __t6 = document.createTextNode("*");
-          __e5.appendChild(__t6);
-          __frag3.appendChild(__e5);
-          return { nodes: Array.from(__frag3.childNodes), cleanup: () => {
-            for (const c of __c4)
-              try {
-                c();
-              } catch (e) {}
-          } };
-        }
-      ]
-    });
-    const __root = host.shadowRoot ?? host;
-    adoptSuiSheets21(__root);
-    const __e0 = document.createElement("label");
-    __e0.setAttribute("part", "label");
-    attachRef5($scope, "labelEl", __e0);
-    const __e1 = document.createElement("slot");
-    __e0.appendChild(__e1);
-    const __ifAnchor2 = document.createComment("if");
-    __e0.appendChild(__ifAnchor2);
-    __cleanups.push(__wireBoundary_b1(__ifAnchor2));
-    __root.appendChild(__e0);
-    if (__r != null) {
-      const __lc = Object.getOwnPropertyDescriptor(__r, "__shipSetLifecycle")?.value;
-      if (__lc) {
-        const __sp = new Proxy($scope, {
-          get(t, k) {
-            return t[k];
-          },
-          set(t, k, v) {
-            const s = t[k];
-            if (s != null && typeof s.set === "function") {
-              if (typeof v === "function") {
-                s.set(() => v);
-              } else {
-                s.set(v);
-              }
-              return true;
-            }
-            return false;
-          }
-        });
-        if (__lc.mount) {
-          const __mc = __lc.mount(__sp, host);
-          if (typeof __mc === "function")
-            __cleanups.push(__mc);
-        }
-        if (__lc.unmount)
-          __cleanups.push(() => __lc.unmount(__sp));
-      }
-    }
-    return $scope;
-  }
-});
-
-// packages/ui-components/src/sui-alert/sui-alert.sui
-import { adoptSuiSheets as adoptSuiSheets22, attachRef as attachRef6, bindAttr as bindAttr14, component as component22, prop as prop22 } from "@ship/sui-runtime";
-
-// packages/ui-components/src/sui-alert/sui-alert.controller.ts
-import { controller as controller10, effect as effect9 } from "@ship/sui-runtime";
-var sui_alert_controller_default = controller10({
-  mount(state, host) {
-    const scope = state;
-    const stopDismiss = effect9(() => {
-      const btn = scope.closeBtn();
-      if (!btn)
-        return;
-      const onClick = () => {
-        if (!scope.dismissible())
-          return;
-        host.dispatchEvent(new CustomEvent("sui-dismiss", { bubbles: true, composed: true }));
-        host.remove();
-      };
-      btn.addEventListener("click", onClick);
-      return () => btn.removeEventListener("click", onClick);
-    });
-    return () => {
-      stopDismiss();
-    };
-  }
-});
-
-// packages/ui-components/src/sui-alert/sui-alert.sui
-var sui_alert_default = component22("sui-alert", {
-  props: {
-    tone: prop22.union(["info", "success", "warning", "destructive", "muted"], { default: "info", reflect: true }),
-    dismissible: prop22.bool({ default: false, reflect: true })
-  },
-  shadow: true,
-  styles: `
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.for=u.for,n.size=u.size,n.required=u.required,n.labelEl=G(null);let b=null;if(Zi&&typeof Zi.setup==="function"){if(i.scope=n,b=Zi.setup(i),b&&typeof b==="object")Object.assign(n,b)}let w=(l)=>R({anchor:l,test:()=>{if(n.required())return 0;return-1},branches:[()=>{let L=document.createDocumentFragment(),f=[],t=document.createElement("span");t.setAttribute("class","req"),t.setAttribute("aria-hidden","true");let H=document.createTextNode("*");return t.appendChild(H),L.appendChild(t),{nodes:Array.from(L.childNodes),cleanup:()=>{for(let C of f)try{C()}catch(z){}}}}]}),r=d.shadowRoot??d;V(r);let M=document.createElement("label");M.setAttribute("part","label"),O(n,"labelEl",M);let y=document.createElement("slot");M.appendChild(y);let E=document.createComment("if");if(M.appendChild(E),m.push(w(E)),r.appendChild(M),b!=null){let l=Object.getOwnPropertyDescriptor(b,"__shipSetLifecycle")?.value;if(l){let L=new Proxy(n,{get(f,t){return f[t]},set(f,t,H){let C=f[t];if(C!=null&&typeof C.set==="function"){if(typeof H==="function")C.set(()=>H);else C.set(H);return!0}return!1}});if(l.mount){let f=l.mount(L,d);if(typeof f==="function")m.push(f)}if(l.unmount)m.push(()=>l.unmount(L))}}return n}});var Ji=U({mount(i,u){let d=i,m=q(()=>{let n=d.closeBtn();if(!n)return;let b=()=>{if(!d.dismissible())return;u.dispatchEvent(new CustomEvent("sui-dismiss",{bubbles:!0,composed:!0})),u.remove()};return n.addEventListener("click",b),()=>n.removeEventListener("click",b)});return()=>{m()}}});var Ml=Q("sui-alert",{props:{tone:P.union(["info","success","warning","destructive","muted"],{default:"info",reflect:!0}),dismissible:P.bool({default:!1,reflect:!0})},shadow:!0,styles:`
   :host {
     display: block;
     --tone: var(--info);
@@ -3461,152 +1861,7 @@ var sui_alert_default = component22("sui-alert", {
   }
 
   ::slotted([slot='icon']) { display: inline-flex; }
-`,
-  setup(ctx) {
-    const { props, host } = ctx;
-    if (!ctx.cleanups)
-      ctx.cleanups = [];
-    const __cleanups = ctx.cleanups;
-    const $scope = Object.create(null);
-    $scope.tone = props.tone;
-    $scope.dismissible = props.dismissible;
-    let __r = null;
-    if (sui_alert_controller_default && typeof sui_alert_controller_default.setup === "function") {
-      ctx.scope = $scope;
-      __r = sui_alert_controller_default.setup(ctx);
-      if (__r && typeof __r === "object")
-        Object.assign($scope, __r);
-    }
-    const __root = host.shadowRoot ?? host;
-    adoptSuiSheets22(__root);
-    const __e0 = document.createElement("div");
-    __e0.setAttribute("class", "box");
-    __e0.setAttribute("part", "box");
-    __cleanups.push(bindAttr14(__e0, "role", () => $scope.tone() === "destructive" || $scope.tone() === "warning" ? "alert" : "status"));
-    __cleanups.push(bindAttr14(__e0, "aria-live", () => $scope.tone() === "destructive" || $scope.tone() === "warning" ? "assertive" : "polite"));
-    __e0.setAttribute("aria-atomic", "true");
-    const __e1 = document.createElement("span");
-    const __e2 = document.createElement("slot");
-    __e2.setAttribute("name", "icon");
-    __e1.appendChild(__e2);
-    __e0.appendChild(__e1);
-    const __e3 = document.createElement("div");
-    __e3.setAttribute("class", "content");
-    const __e4 = document.createElement("div");
-    __e4.setAttribute("class", "title");
-    const __e5 = document.createElement("slot");
-    __e5.setAttribute("name", "title");
-    __e4.appendChild(__e5);
-    __e3.appendChild(__e4);
-    const __e6 = document.createElement("div");
-    __e6.setAttribute("class", "body");
-    const __e7 = document.createElement("slot");
-    __e6.appendChild(__e7);
-    __e3.appendChild(__e6);
-    const __e8 = document.createElement("div");
-    __e8.setAttribute("class", "actions");
-    const __e9 = document.createElement("slot");
-    __e9.setAttribute("name", "actions");
-    __e8.appendChild(__e9);
-    __e3.appendChild(__e8);
-    __e0.appendChild(__e3);
-    const __e10 = document.createElement("button");
-    __e10.setAttribute("class", "close");
-    __e10.setAttribute("part", "close");
-    __e10.setAttribute("aria-label", "Dismiss");
-    attachRef6($scope, "closeBtn", __e10);
-    const __t11 = document.createTextNode("×");
-    __e10.appendChild(__t11);
-    __e0.appendChild(__e10);
-    __root.appendChild(__e0);
-    if (__r != null) {
-      const __lc = Object.getOwnPropertyDescriptor(__r, "__shipSetLifecycle")?.value;
-      if (__lc) {
-        const __sp = new Proxy($scope, {
-          get(t, k) {
-            return t[k];
-          },
-          set(t, k, v) {
-            const s = t[k];
-            if (s != null && typeof s.set === "function") {
-              if (typeof v === "function") {
-                s.set(() => v);
-              } else {
-                s.set(v);
-              }
-              return true;
-            }
-            return false;
-          }
-        });
-        if (__lc.mount) {
-          const __mc = __lc.mount(__sp, host);
-          if (typeof __mc === "function")
-            __cleanups.push(__mc);
-        }
-        if (__lc.unmount)
-          __cleanups.push(() => __lc.unmount(__sp));
-      }
-    }
-    return $scope;
-  }
-});
-
-// packages/ui-components/src/sui-tooltip/sui-tooltip.sui
-import { adoptSuiSheets as adoptSuiSheets23, attachRef as attachRef7, component as component23, prop as prop23 } from "@ship/sui-runtime";
-
-// packages/ui-components/src/sui-tooltip/sui-tooltip.controller.ts
-import { controller as controller11, effect as effect10 } from "@ship/sui-runtime";
-var _seq = 0;
-var sui_tooltip_controller_default = controller11({
-  mount(state, host) {
-    const scope = state;
-    const bubbleId = `sui-tooltip-${++_seq}`;
-    const stopBubbleId = effect10(() => {
-      const bubble = scope.bubbleEl();
-      if (bubble)
-        bubble.id = bubbleId;
-    });
-    const wireTrigger = () => {
-      const slot = scope.defaultSlot();
-      if (!slot)
-        return;
-      const first = slot.assignedElements({ flatten: true })[0];
-      if (!first)
-        return;
-      const existing = first.getAttribute("aria-describedby") ?? "";
-      if (!existing.split(/\s+/).includes(bubbleId)) {
-        first.setAttribute("aria-describedby", existing ? `${existing} ${bubbleId}` : bubbleId);
-      }
-    };
-    const stopSlot = effect10(() => {
-      const slot = scope.defaultSlot();
-      if (!slot)
-        return;
-      slot.addEventListener("slotchange", wireTrigger);
-      wireTrigger();
-      return () => slot.removeEventListener("slotchange", wireTrigger);
-    });
-    const onKeydown = (e) => {
-      if (e.key === "Escape")
-        host.blur();
-    };
-    host.addEventListener("keydown", onKeydown);
-    return () => {
-      stopBubbleId();
-      stopSlot();
-      host.removeEventListener("keydown", onKeydown);
-    };
-  }
-});
-
-// packages/ui-components/src/sui-tooltip/sui-tooltip.sui
-var sui_tooltip_default = component23("sui-tooltip", {
-  props: {
-    placement: prop23.union(["top", "bottom", "left", "right"], { default: "top", reflect: true })
-  },
-  shadow: true,
-  styles: `
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.tone=u.tone,n.dismissible=u.dismissible,n.closeBtn=G(null);let b=null;if(Ji&&typeof Ji.setup==="function"){if(i.scope=n,b=Ji.setup(i),b&&typeof b==="object")Object.assign(n,b)}let w=d.shadowRoot??d;V(w);let r=document.createElement("div");r.setAttribute("class","box"),r.setAttribute("part","box"),m.push(T(r,"role",()=>n.tone()==="destructive"||n.tone()==="warning"?"alert":"status")),m.push(T(r,"aria-live",()=>n.tone()==="destructive"||n.tone()==="warning"?"assertive":"polite")),r.setAttribute("aria-atomic","true");let M=document.createElement("span"),y=document.createElement("slot");y.setAttribute("name","icon"),M.appendChild(y),r.appendChild(M);let E=document.createElement("div");E.setAttribute("class","content");let l=document.createElement("div");l.setAttribute("class","title");let L=document.createElement("slot");L.setAttribute("name","title"),l.appendChild(L),E.appendChild(l);let f=document.createElement("div");f.setAttribute("class","body");let t=document.createElement("slot");f.appendChild(t),E.appendChild(f);let H=document.createElement("div");H.setAttribute("class","actions");let C=document.createElement("slot");C.setAttribute("name","actions"),H.appendChild(C),E.appendChild(H),r.appendChild(E);let z=document.createElement("button");z.setAttribute("class","close"),z.setAttribute("part","close"),z.setAttribute("aria-label","Dismiss"),O(n,"closeBtn",z);let j=document.createTextNode("×");if(z.appendChild(j),r.appendChild(z),w.appendChild(r),b!=null){let g=Object.getOwnPropertyDescriptor(b,"__shipSetLifecycle")?.value;if(g){let J=new Proxy(n,{get(D,Z){return D[Z]},set(D,Z,X){let W=D[Z];if(W!=null&&typeof W.set==="function"){if(typeof X==="function")W.set(()=>X);else W.set(X);return!0}return!1}});if(g.mount){let D=g.mount(J,d);if(typeof D==="function")m.push(D)}if(g.unmount)m.push(()=>g.unmount(J))}}return n}});var Tm=0,Xi=U({mount(i,u){let d=i,m=`sui-tooltip-${++Tm}`,n=q(()=>{let M=d.bubbleEl();if(M)M.id=m}),b=()=>{let M=d.defaultSlot();if(!M)return;let y=M.assignedElements({flatten:!0})[0];if(!y)return;let E=y.getAttribute("aria-describedby")??"";if(!E.split(/\s+/).includes(m))y.setAttribute("aria-describedby",E?`${E} ${m}`:m)},w=q(()=>{let M=d.defaultSlot();if(!M)return;return M.addEventListener("slotchange",b),b(),()=>M.removeEventListener("slotchange",b)}),r=(M)=>{if(M.key==="Escape")u.blur()};return u.addEventListener("keydown",r),()=>{n(),w(),u.removeEventListener("keydown",r)}}});var jl=Q("sui-tooltip",{props:{placement:P.union(["top","bottom","left","right"],{default:"top",reflect:!0})},shadow:!0,styles:`
   :host {
     position: relative;
     display: inline-flex;
@@ -3659,155 +1914,7 @@ var sui_tooltip_default = component23("sui-tooltip", {
     top: 50%;
     transform: translateY(-50%);
   }
-`,
-  setup(ctx) {
-    const { props, host } = ctx;
-    if (!ctx.cleanups)
-      ctx.cleanups = [];
-    const __cleanups = ctx.cleanups;
-    const $scope = Object.create(null);
-    $scope.placement = props.placement;
-    let __r = null;
-    if (sui_tooltip_controller_default && typeof sui_tooltip_controller_default.setup === "function") {
-      ctx.scope = $scope;
-      __r = sui_tooltip_controller_default.setup(ctx);
-      if (__r && typeof __r === "object")
-        Object.assign($scope, __r);
-    }
-    const __root = host.shadowRoot ?? host;
-    adoptSuiSheets23(__root);
-    const __e0 = document.createElement("slot");
-    attachRef7($scope, "defaultSlot", __e0);
-    __root.appendChild(__e0);
-    const __e1 = document.createElement("span");
-    __e1.setAttribute("class", "bubble");
-    __e1.setAttribute("role", "tooltip");
-    __e1.setAttribute("part", "bubble");
-    attachRef7($scope, "bubbleEl", __e1);
-    const __e2 = document.createElement("slot");
-    __e2.setAttribute("name", "content");
-    __e1.appendChild(__e2);
-    __root.appendChild(__e1);
-    if (__r != null) {
-      const __lc = Object.getOwnPropertyDescriptor(__r, "__shipSetLifecycle")?.value;
-      if (__lc) {
-        const __sp = new Proxy($scope, {
-          get(t, k) {
-            return t[k];
-          },
-          set(t, k, v) {
-            const s = t[k];
-            if (s != null && typeof s.set === "function") {
-              if (typeof v === "function") {
-                s.set(() => v);
-              } else {
-                s.set(v);
-              }
-              return true;
-            }
-            return false;
-          }
-        });
-        if (__lc.mount) {
-          const __mc = __lc.mount(__sp, host);
-          if (typeof __mc === "function")
-            __cleanups.push(__mc);
-        }
-        if (__lc.unmount)
-          __cleanups.push(() => __lc.unmount(__sp));
-      }
-    }
-    return $scope;
-  }
-});
-
-// packages/ui-components/src/sui-collapsible/sui-collapsible.sui
-import { adoptSuiSheets as adoptSuiSheets24, attachRef as attachRef8, component as component24, prop as prop24 } from "@ship/sui-runtime";
-
-// packages/ui-components/src/sui-collapsible/sui-collapsible.controller.ts
-import { controller as controller12, effect as effect11 } from "@ship/sui-runtime";
-var _seq2 = 0;
-var sui_collapsible_controller_default = controller12({
-  mount(state, host) {
-    const scope = state;
-    const contentId = `sui-collapsible-${++_seq2}`;
-    const stopContentId = effect11(() => {
-      const wrap = scope.contentWrap();
-      if (wrap)
-        wrap.id = contentId;
-    });
-    const syncAriaExpanded = () => {
-      const slot = scope.triggerSlot();
-      if (!slot)
-        return;
-      const isOpen = scope.open();
-      for (const el of slot.assignedElements()) {
-        const h = el;
-        h.setAttribute("aria-expanded", String(isOpen));
-        h.setAttribute("aria-controls", contentId);
-        if (!h.hasAttribute("tabindex") && !h.matches("button, a, input, select, textarea")) {
-          h.setAttribute("tabindex", "0");
-        }
-      }
-    };
-    const stopSlot = effect11(() => {
-      const slot = scope.triggerSlot();
-      if (!slot)
-        return;
-      slot.addEventListener("slotchange", syncAriaExpanded);
-      syncAriaExpanded();
-      return () => slot.removeEventListener("slotchange", syncAriaExpanded);
-    });
-    const stopOpenSync = effect11(() => {
-      scope.open();
-      scope.triggerSlot();
-      syncAriaExpanded();
-    });
-    const toggle = () => {
-      if (scope.disabled())
-        return;
-      const next = !scope.open();
-      scope.open.set(next);
-      host.dispatchEvent(new CustomEvent("sui-toggle", {
-        detail: { open: next },
-        bubbles: true,
-        composed: true
-      }));
-    };
-    const onKeydown = (e) => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        toggle();
-      }
-    };
-    const stopWrap = effect11(() => {
-      const wrap = scope.triggerWrap();
-      if (!wrap)
-        return;
-      wrap.addEventListener("click", toggle);
-      wrap.addEventListener("keydown", onKeydown);
-      return () => {
-        wrap.removeEventListener("click", toggle);
-        wrap.removeEventListener("keydown", onKeydown);
-      };
-    });
-    return () => {
-      stopContentId();
-      stopSlot();
-      stopOpenSync();
-      stopWrap();
-    };
-  }
-});
-
-// packages/ui-components/src/sui-collapsible/sui-collapsible.sui
-var sui_collapsible_default = component24("sui-collapsible", {
-  props: {
-    open: prop24.bool({ default: false, reflect: true }),
-    disabled: prop24.bool({ default: false, reflect: true })
-  },
-  shadow: true,
-  styles: `
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.placement=u.placement,n.bubbleEl=G(null),n.defaultSlot=G(null);let b=null;if(Xi&&typeof Xi.setup==="function"){if(i.scope=n,b=Xi.setup(i),b&&typeof b==="object")Object.assign(n,b)}let w=d.shadowRoot??d;V(w);let r=document.createElement("slot");O(n,"defaultSlot",r),w.appendChild(r);let M=document.createElement("span");M.setAttribute("class","bubble"),M.setAttribute("role","tooltip"),M.setAttribute("part","bubble"),O(n,"bubbleEl",M);let y=document.createElement("slot");if(y.setAttribute("name","content"),M.appendChild(y),w.appendChild(M),b!=null){let E=Object.getOwnPropertyDescriptor(b,"__shipSetLifecycle")?.value;if(E){let l=new Proxy(n,{get(L,f){return L[f]},set(L,f,t){let H=L[f];if(H!=null&&typeof H.set==="function"){if(typeof t==="function")H.set(()=>t);else H.set(t);return!0}return!1}});if(E.mount){let L=E.mount(l,d);if(typeof L==="function")m.push(L)}if(E.unmount)m.push(()=>E.unmount(l))}}return n}});var Qm=0,Gi=U({mount(i,u){let d=i,m=`sui-collapsible-${++Qm}`,n=q(()=>{let l=d.contentWrap();if(l)l.id=m}),b=()=>{let l=d.triggerSlot();if(!l)return;let L=d.open();for(let f of l.assignedElements()){let t=f;if(t.setAttribute("aria-expanded",String(L)),t.setAttribute("aria-controls",m),!t.hasAttribute("tabindex")&&!t.matches("button, a, input, select, textarea"))t.setAttribute("tabindex","0")}},w=q(()=>{let l=d.triggerSlot();if(!l)return;return l.addEventListener("slotchange",b),b(),()=>l.removeEventListener("slotchange",b)}),r=q(()=>{d.open(),d.triggerSlot(),b()}),M=()=>{if(d.disabled())return;let l=!d.open();d.open.set(l),u.dispatchEvent(new CustomEvent("sui-toggle",{detail:{open:l},bubbles:!0,composed:!0}))},y=(l)=>{if(l.key==="Enter"||l.key===" ")l.preventDefault(),M()},E=q(()=>{let l=d.triggerWrap();if(!l)return;return l.addEventListener("click",M),l.addEventListener("keydown",y),()=>{l.removeEventListener("click",M),l.removeEventListener("keydown",y)}});return()=>{n(),w(),r(),E()}}});var Xl=Q("sui-collapsible",{props:{open:P.bool({default:!1,reflect:!0}),disabled:P.bool({default:!1,reflect:!0})},shadow:!0,styles:`
   :host {
     display: block;
     font-family: var(--font-body);
@@ -3840,127 +1947,7 @@ var sui_collapsible_default = component24("sui-collapsible", {
   @media (prefers-reduced-motion: reduce) {
     .content-wrap { transition: none; }
   }
-`,
-  setup(ctx) {
-    const { props, host } = ctx;
-    if (!ctx.cleanups)
-      ctx.cleanups = [];
-    const __cleanups = ctx.cleanups;
-    const $scope = Object.create(null);
-    $scope.open = props.open;
-    $scope.disabled = props.disabled;
-    let __r = null;
-    if (sui_collapsible_controller_default && typeof sui_collapsible_controller_default.setup === "function") {
-      ctx.scope = $scope;
-      __r = sui_collapsible_controller_default.setup(ctx);
-      if (__r && typeof __r === "object")
-        Object.assign($scope, __r);
-    }
-    const __root = host.shadowRoot ?? host;
-    adoptSuiSheets24(__root);
-    const __e0 = document.createElement("div");
-    __e0.setAttribute("class", "trigger-wrap");
-    attachRef8($scope, "triggerWrap", __e0);
-    const __e1 = document.createElement("slot");
-    __e1.setAttribute("name", "trigger");
-    attachRef8($scope, "triggerSlot", __e1);
-    __e0.appendChild(__e1);
-    __root.appendChild(__e0);
-    const __e2 = document.createElement("div");
-    __e2.setAttribute("class", "content-wrap");
-    __e2.setAttribute("part", "content");
-    attachRef8($scope, "contentWrap", __e2);
-    const __e3 = document.createElement("div");
-    __e3.setAttribute("class", "content-inner");
-    const __e4 = document.createElement("slot");
-    __e3.appendChild(__e4);
-    __e2.appendChild(__e3);
-    __root.appendChild(__e2);
-    if (__r != null) {
-      const __lc = Object.getOwnPropertyDescriptor(__r, "__shipSetLifecycle")?.value;
-      if (__lc) {
-        const __sp = new Proxy($scope, {
-          get(t, k) {
-            return t[k];
-          },
-          set(t, k, v) {
-            const s = t[k];
-            if (s != null && typeof s.set === "function") {
-              if (typeof v === "function") {
-                s.set(() => v);
-              } else {
-                s.set(v);
-              }
-              return true;
-            }
-            return false;
-          }
-        });
-        if (__lc.mount) {
-          const __mc = __lc.mount(__sp, host);
-          if (typeof __mc === "function")
-            __cleanups.push(__mc);
-        }
-        if (__lc.unmount)
-          __cleanups.push(() => __lc.unmount(__sp));
-      }
-    }
-    return $scope;
-  }
-});
-
-// packages/ui-components/src/sui-checkbox/sui-checkbox.sui
-import { adoptSuiSheets as adoptSuiSheets25, attachRef as attachRef9, bindAttr as bindAttr15, bindChecked, component as component25, prop as prop25 } from "@ship/sui-runtime";
-
-// packages/ui-components/src/sui-checkbox/sui-checkbox.controller.ts
-import { controller as controller13, effect as effect12 } from "@ship/sui-runtime";
-var sui_checkbox_controller_default = controller13({
-  mount(state, host) {
-    const scope = state;
-    const stopIndet = effect12(() => {
-      const el = scope.inputEl();
-      if (!el)
-        return;
-      el.indeterminate = scope.indeterminate();
-    });
-    const stopChange = effect12(() => {
-      const el = scope.inputEl();
-      if (!el)
-        return;
-      const onNativeChange = () => {
-        scope.indeterminate.set(false);
-        host.dispatchEvent(new CustomEvent("sui-change", {
-          detail: { checked: el.checked, value: scope.value() },
-          bubbles: true,
-          composed: true
-        }));
-      };
-      el.addEventListener("change", onNativeChange);
-      return () => el.removeEventListener("change", onNativeChange);
-    });
-    return () => {
-      stopIndet();
-      stopChange();
-    };
-  }
-});
-
-// packages/ui-components/src/sui-checkbox/sui-checkbox.sui
-var sui_checkbox_default = component25("sui-checkbox", {
-  props: {
-    checked: prop25.bool({ default: false, reflect: true }),
-    indeterminate: prop25.bool({ default: false, reflect: true }),
-    disabled: prop25.bool({ default: false, reflect: true }),
-    required: prop25.bool({ default: false, reflect: true }),
-    invalid: prop25.bool({ default: false, reflect: true }),
-    tone: prop25.union(["default", "primary", "info", "success", "warning", "destructive", "accent", "muted"], { default: "default", reflect: true }),
-    size: prop25.union(["sm", "md", "lg"], { default: "md", reflect: true }),
-    name: prop25.string({ default: "" }),
-    value: prop25.string({ default: "on" }),
-    label: prop25.string({ default: "" })
-  },
-  shadow: true,
-  styles: `
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.open=u.open,n.disabled=u.disabled,n.contentWrap=G(null),n.triggerSlot=G(null),n.triggerWrap=G(null);let b=null;if(Gi&&typeof Gi.setup==="function"){if(i.scope=n,b=Gi.setup(i),b&&typeof b==="object")Object.assign(n,b)}let w=d.shadowRoot??d;V(w);let r=document.createElement("div");r.setAttribute("class","trigger-wrap"),O(n,"triggerWrap",r);let M=document.createElement("slot");M.setAttribute("name","trigger"),O(n,"triggerSlot",M),r.appendChild(M),w.appendChild(r);let y=document.createElement("div");y.setAttribute("class","content-wrap"),y.setAttribute("part","content"),O(n,"contentWrap",y);let E=document.createElement("div");E.setAttribute("class","content-inner");let l=document.createElement("slot");if(E.appendChild(l),y.appendChild(E),w.appendChild(y),b!=null){let L=Object.getOwnPropertyDescriptor(b,"__shipSetLifecycle")?.value;if(L){let f=new Proxy(n,{get(t,H){return t[H]},set(t,H,C){let z=t[H];if(z!=null&&typeof z.set==="function"){if(typeof C==="function")z.set(()=>C);else z.set(C);return!0}return!1}});if(L.mount){let t=L.mount(f,d);if(typeof t==="function")m.push(t)}if(L.unmount)m.push(()=>L.unmount(f))}}return n}});var Wi=U({mount(i,u){let d=i,m=q(()=>{let b=d.inputEl();if(!b)return;b.indeterminate=d.indeterminate()}),n=q(()=>{let b=d.inputEl();if(!b)return;let w=()=>{d.indeterminate.set(!1),u.dispatchEvent(new CustomEvent("sui-change",{detail:{checked:b.checked,value:d.value()},bubbles:!0,composed:!0}))};return b.addEventListener("change",w),()=>b.removeEventListener("change",w)});return()=>{m(),n()}}});var Yl=Q("sui-checkbox",{props:{checked:P.bool({default:!1,reflect:!0}),indeterminate:P.bool({default:!1,reflect:!0}),disabled:P.bool({default:!1,reflect:!0}),required:P.bool({default:!1,reflect:!0}),invalid:P.bool({default:!1,reflect:!0}),tone:P.union(["default","primary","info","success","warning","destructive","accent","muted"],{default:"default",reflect:!0}),size:P.union(["sm","md","lg"],{default:"md",reflect:!0}),name:P.string({default:""}),value:P.string({default:"on"}),label:P.string({default:""})},shadow:!0,formAssociated:!0,formValue:"checked",formDisabled:"disabled",styles:`
   :host {
     display: inline-flex;
     align-items: center;
@@ -4149,134 +2136,7 @@ var sui_checkbox_default = component25("sui-checkbox", {
     color: inherit;
     line-height: var(--leading-tight, 1.25);
   }
-`,
-  setup(ctx) {
-    const { props, host } = ctx;
-    if (!ctx.cleanups)
-      ctx.cleanups = [];
-    const __cleanups = ctx.cleanups;
-    const $scope = Object.create(null);
-    $scope.checked = props.checked;
-    $scope.indeterminate = props.indeterminate;
-    $scope.disabled = props.disabled;
-    $scope.required = props.required;
-    $scope.invalid = props.invalid;
-    $scope.tone = props.tone;
-    $scope.size = props.size;
-    $scope.name = props.name;
-    $scope.value = props.value;
-    $scope.label = props.label;
-    let __r = null;
-    if (sui_checkbox_controller_default && typeof sui_checkbox_controller_default.setup === "function") {
-      ctx.scope = $scope;
-      __r = sui_checkbox_controller_default.setup(ctx);
-      if (__r && typeof __r === "object")
-        Object.assign($scope, __r);
-    }
-    const __root = host.shadowRoot ?? host;
-    adoptSuiSheets25(__root);
-    const __e0 = document.createElement("label");
-    __e0.setAttribute("part", "label");
-    const __e1 = document.createElement("span");
-    __e1.setAttribute("class", "box");
-    __e1.setAttribute("part", "box");
-    const __e2 = document.createElement("input");
-    __e2.setAttribute("part", "input");
-    __e2.setAttribute("type", "checkbox");
-    __cleanups.push(bindChecked(__e2, $scope.checked));
-    __cleanups.push(bindAttr15(__e2, "disabled", () => $scope.disabled()));
-    __cleanups.push(bindAttr15(__e2, "required", () => $scope.required()));
-    __cleanups.push(bindAttr15(__e2, "name", () => $scope.name()));
-    __cleanups.push(bindAttr15(__e2, "value", () => $scope.value()));
-    __cleanups.push(bindAttr15(__e2, "aria-checked", () => $scope.indeterminate() ? "mixed" : $scope.checked() ? "true" : "false"));
-    __cleanups.push(bindAttr15(__e2, "aria-invalid", () => $scope.invalid() ? "true" : "false"));
-    __cleanups.push(bindAttr15(__e2, "aria-label", () => $scope.label() || $scope.name() || "checkbox"));
-    attachRef9($scope, "inputEl", __e2);
-    __e1.appendChild(__e2);
-    const __e3 = document.createElement("span");
-    __e3.setAttribute("class", "glyph check");
-    __e3.setAttribute("aria-hidden", "true");
-    __e1.appendChild(__e3);
-    const __e4 = document.createElement("span");
-    __e4.setAttribute("class", "glyph mixed");
-    __e4.setAttribute("aria-hidden", "true");
-    __e1.appendChild(__e4);
-    __e0.appendChild(__e1);
-    const __e5 = document.createElement("slot");
-    __e0.appendChild(__e5);
-    __root.appendChild(__e0);
-    if (__r != null) {
-      const __lc = Object.getOwnPropertyDescriptor(__r, "__shipSetLifecycle")?.value;
-      if (__lc) {
-        const __sp = new Proxy($scope, {
-          get(t, k) {
-            return t[k];
-          },
-          set(t, k, v) {
-            const s = t[k];
-            if (s != null && typeof s.set === "function") {
-              if (typeof v === "function") {
-                s.set(() => v);
-              } else {
-                s.set(v);
-              }
-              return true;
-            }
-            return false;
-          }
-        });
-        if (__lc.mount) {
-          const __mc = __lc.mount(__sp, host);
-          if (typeof __mc === "function")
-            __cleanups.push(__mc);
-        }
-        if (__lc.unmount)
-          __cleanups.push(() => __lc.unmount(__sp));
-      }
-    }
-    return $scope;
-  }
-});
-
-// packages/ui-components/src/sui-switch/sui-switch.sui
-import { adoptSuiSheets as adoptSuiSheets26, attachRef as attachRef10, bindAttr as bindAttr16, bindChecked as bindChecked2, component as component26, prop as prop26 } from "@ship/sui-runtime";
-
-// packages/ui-components/src/sui-switch/sui-switch.controller.ts
-import { controller as controller14, effect as effect13 } from "@ship/sui-runtime";
-var sui_switch_controller_default = controller14({
-  mount(state, host) {
-    const scope = state;
-    const stopChange = effect13(() => {
-      const el = scope.inputEl();
-      if (!el)
-        return;
-      const onNativeChange = () => {
-        host.dispatchEvent(new CustomEvent("sui-change", {
-          detail: { checked: el.checked },
-          bubbles: true,
-          composed: true
-        }));
-      };
-      el.addEventListener("change", onNativeChange);
-      return () => el.removeEventListener("change", onNativeChange);
-    });
-    return () => stopChange();
-  }
-});
-
-// packages/ui-components/src/sui-switch/sui-switch.sui
-var sui_switch_default = component26("sui-switch", {
-  props: {
-    checked: prop26.bool({ default: false, reflect: true }),
-    disabled: prop26.bool({ default: false, reflect: true }),
-    tone: prop26.union(["default", "primary", "info", "success", "warning", "destructive", "accent", "muted"], { default: "default", reflect: true }),
-    size: prop26.union(["sm", "md", "lg"], { default: "md", reflect: true }),
-    name: prop26.string({ default: "" }),
-    value: prop26.string({ default: "on" }),
-    label: prop26.string({ default: "" })
-  },
-  shadow: true,
-  styles: `
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.checked=u.checked,n.indeterminate=u.indeterminate,n.disabled=u.disabled,n.required=u.required,n.invalid=u.invalid,n.tone=u.tone,n.size=u.size,n.name=u.name,n.value=u.value,n.label=u.label,n.inputEl=G(null);let b=null;if(Wi&&typeof Wi.setup==="function"){if(i.scope=n,b=Wi.setup(i),b&&typeof b==="object")Object.assign(n,b)}let w=d.shadowRoot??d;V(w);let r=document.createElement("label");r.setAttribute("part","label");let M=document.createElement("span");M.setAttribute("class","box"),M.setAttribute("part","box");let y=document.createElement("input");y.setAttribute("part","input"),y.setAttribute("type","checkbox"),m.push(Dn(y,n.checked)),m.push(T(y,"disabled",()=>n.disabled())),m.push(T(y,"required",()=>n.required())),m.push(T(y,"name",()=>n.name())),m.push(T(y,"value",()=>n.value())),m.push(T(y,"aria-checked",()=>n.indeterminate()?"mixed":n.checked()?"true":"false")),m.push(T(y,"aria-invalid",()=>n.invalid()?"true":"false")),m.push(T(y,"aria-label",()=>n.label()||n.name()||"checkbox")),O(n,"inputEl",y),M.appendChild(y);let E=document.createElement("span");E.setAttribute("class","glyph check"),E.setAttribute("aria-hidden","true"),M.appendChild(E);let l=document.createElement("span");l.setAttribute("class","glyph mixed"),l.setAttribute("aria-hidden","true"),M.appendChild(l),r.appendChild(M);let L=document.createElement("slot");if(r.appendChild(L),w.appendChild(r),b!=null){let f=Object.getOwnPropertyDescriptor(b,"__shipSetLifecycle")?.value;if(f){let t=new Proxy(n,{get(H,C){return H[C]},set(H,C,z){let j=H[C];if(j!=null&&typeof j.set==="function"){if(typeof z==="function")j.set(()=>z);else j.set(z);return!0}return!1}});if(f.mount){let H=f.mount(t,d);if(typeof H==="function")m.push(H)}if(f.unmount)m.push(()=>f.unmount(t))}}return n}});var Ti=U({mount(i,u){let d=i,m=q(()=>{let n=d.inputEl();if(!n)return;let b=()=>{u.dispatchEvent(new CustomEvent("sui-change",{detail:{checked:n.checked},bubbles:!0,composed:!0}))};return n.addEventListener("change",b),()=>n.removeEventListener("change",b)});return()=>m()}});var Al=Q("sui-switch",{props:{checked:P.bool({default:!1,reflect:!0}),disabled:P.bool({default:!1,reflect:!0}),tone:P.union(["default","primary","info","success","warning","destructive","accent","muted"],{default:"default",reflect:!0}),size:P.union(["sm","md","lg"],{default:"md",reflect:!0}),name:P.string({default:""}),value:P.string({default:"on"}),label:P.string({default:""})},shadow:!0,formAssociated:!0,formValue:"checked",formDisabled:"disabled",styles:`
   :host {
     display: inline-flex;
     align-items: center;
@@ -4429,148 +2289,7 @@ var sui_switch_default = component26("sui-switch", {
     color: inherit;
     line-height: var(--leading-tight, 1.25);
   }
-`,
-  setup(ctx) {
-    const { props, host } = ctx;
-    if (!ctx.cleanups)
-      ctx.cleanups = [];
-    const __cleanups = ctx.cleanups;
-    const $scope = Object.create(null);
-    $scope.checked = props.checked;
-    $scope.disabled = props.disabled;
-    $scope.tone = props.tone;
-    $scope.size = props.size;
-    $scope.name = props.name;
-    $scope.value = props.value;
-    $scope.label = props.label;
-    let __r = null;
-    if (sui_switch_controller_default && typeof sui_switch_controller_default.setup === "function") {
-      ctx.scope = $scope;
-      __r = sui_switch_controller_default.setup(ctx);
-      if (__r && typeof __r === "object")
-        Object.assign($scope, __r);
-    }
-    const __root = host.shadowRoot ?? host;
-    adoptSuiSheets26(__root);
-    const __e0 = document.createElement("label");
-    const __e1 = document.createElement("span");
-    __e1.setAttribute("class", "track");
-    __e1.setAttribute("part", "track");
-    const __e2 = document.createElement("input");
-    __e2.setAttribute("part", "input");
-    __e2.setAttribute("type", "checkbox");
-    __e2.setAttribute("role", "switch");
-    __cleanups.push(bindChecked2(__e2, $scope.checked));
-    __cleanups.push(bindAttr16(__e2, "disabled", () => $scope.disabled()));
-    __cleanups.push(bindAttr16(__e2, "name", () => $scope.name()));
-    __cleanups.push(bindAttr16(__e2, "value", () => $scope.value()));
-    __cleanups.push(bindAttr16(__e2, "aria-checked", () => $scope.checked() ? "true" : "false"));
-    __cleanups.push(bindAttr16(__e2, "aria-label", () => $scope.label() || $scope.name() || "toggle"));
-    attachRef10($scope, "inputEl", __e2);
-    __e1.appendChild(__e2);
-    const __e3 = document.createElement("span");
-    __e3.setAttribute("class", "thumb");
-    __e3.setAttribute("part", "thumb");
-    __e1.appendChild(__e3);
-    __e0.appendChild(__e1);
-    const __e4 = document.createElement("slot");
-    __e0.appendChild(__e4);
-    __root.appendChild(__e0);
-    if (__r != null) {
-      const __lc = Object.getOwnPropertyDescriptor(__r, "__shipSetLifecycle")?.value;
-      if (__lc) {
-        const __sp = new Proxy($scope, {
-          get(t, k) {
-            return t[k];
-          },
-          set(t, k, v) {
-            const s = t[k];
-            if (s != null && typeof s.set === "function") {
-              if (typeof v === "function") {
-                s.set(() => v);
-              } else {
-                s.set(v);
-              }
-              return true;
-            }
-            return false;
-          }
-        });
-        if (__lc.mount) {
-          const __mc = __lc.mount(__sp, host);
-          if (typeof __mc === "function")
-            __cleanups.push(__mc);
-        }
-        if (__lc.unmount)
-          __cleanups.push(() => __lc.unmount(__sp));
-      }
-    }
-    return $scope;
-  }
-});
-
-// packages/ui-components/src/sui-textarea/sui-textarea.sui
-import { adoptSuiSheets as adoptSuiSheets27, attachRef as attachRef11, bindAttr as bindAttr17, bindValue as bindValue2, component as component27, effect as effect15, prop as prop27 } from "@ship/sui-runtime";
-
-// packages/ui-components/src/sui-textarea/sui-textarea.controller.ts
-import { controller as controller15, effect as effect14 } from "@ship/sui-runtime";
-var sui_textarea_controller_default = controller15({
-  mount(state, host) {
-    const scope = state;
-    let blurValue = scope.value();
-    const stopListeners = effect14(() => {
-      const el = scope.textareaEl();
-      if (!el)
-        return;
-      const onNativeInput = () => {
-        host.dispatchEvent(new CustomEvent("sui-input", {
-          detail: { value: el.value },
-          bubbles: true,
-          composed: true
-        }));
-      };
-      const onNativeBlur = () => {
-        const current = scope.value();
-        if (current !== blurValue) {
-          blurValue = current;
-          host.dispatchEvent(new CustomEvent("sui-change", {
-            detail: { value: current },
-            bubbles: true,
-            composed: true
-          }));
-        }
-      };
-      el.addEventListener("input", onNativeInput);
-      el.addEventListener("blur", onNativeBlur);
-      return () => {
-        el.removeEventListener("input", onNativeInput);
-        el.removeEventListener("blur", onNativeBlur);
-      };
-    });
-    return () => stopListeners();
-  }
-});
-
-// packages/ui-components/src/sui-textarea/sui-textarea.sui
-var sui_textarea_default = component27("sui-textarea", {
-  props: {
-    value: prop27.string({ default: "" }),
-    placeholder: prop27.string({ default: "" }),
-    name: prop27.string({ default: "" }),
-    rows: prop27.number({ default: 4 }),
-    required: prop27.bool({ default: false, reflect: true }),
-    disabled: prop27.bool({ default: false, reflect: true }),
-    readonly: prop27.bool({ default: false, reflect: true }),
-    invalid: prop27.bool({ default: false, reflect: true }),
-    tone: prop27.union(["default", "primary", "info", "success", "warning", "destructive", "accent", "muted"], { default: "default", reflect: true }),
-    variant: prop27.union(["default", "code"], { default: "default", reflect: true }),
-    size: prop27.union(["sm", "md"], { default: "md", reflect: true }),
-    resize: prop27.union(["none", "vertical", "horizontal", "both"], { default: "vertical" }),
-    label: prop27.string({ default: "" }),
-    "described-by": prop27.string({ default: "" })
-  },
-  shadow: true,
-  styles: `
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.checked=u.checked,n.disabled=u.disabled,n.tone=u.tone,n.size=u.size,n.name=u.name,n.value=u.value,n.label=u.label,n.inputEl=G(null);let b=null;if(Ti&&typeof Ti.setup==="function"){if(i.scope=n,b=Ti.setup(i),b&&typeof b==="object")Object.assign(n,b)}let w=d.shadowRoot??d;V(w);let r=document.createElement("label"),M=document.createElement("span");M.setAttribute("class","track"),M.setAttribute("part","track");let y=document.createElement("input");y.setAttribute("part","input"),y.setAttribute("type","checkbox"),y.setAttribute("role","switch"),m.push(Dn(y,n.checked)),m.push(T(y,"disabled",()=>n.disabled())),m.push(T(y,"name",()=>n.name())),m.push(T(y,"value",()=>n.value())),m.push(T(y,"aria-checked",()=>n.checked()?"true":"false")),m.push(T(y,"aria-label",()=>n.label()||n.name()||"toggle")),O(n,"inputEl",y),M.appendChild(y);let E=document.createElement("span");E.setAttribute("class","thumb"),E.setAttribute("part","thumb"),M.appendChild(E),r.appendChild(M);let l=document.createElement("slot");if(r.appendChild(l),w.appendChild(r),b!=null){let L=Object.getOwnPropertyDescriptor(b,"__shipSetLifecycle")?.value;if(L){let f=new Proxy(n,{get(t,H){return t[H]},set(t,H,C){let z=t[H];if(z!=null&&typeof z.set==="function"){if(typeof C==="function")z.set(()=>C);else z.set(C);return!0}return!1}});if(L.mount){let t=L.mount(f,d);if(typeof t==="function")m.push(t)}if(L.unmount)m.push(()=>L.unmount(f))}}return n}});var Qi=U({mount(i,u){let d=i,m=d.value(),n=q(()=>{let b=d.textareaEl();if(!b)return;let w=()=>{u.dispatchEvent(new CustomEvent("sui-input",{detail:{value:b.value},bubbles:!0,composed:!0}))},r=()=>{let M=d.value();if(M!==m)m=M,u.dispatchEvent(new CustomEvent("sui-change",{detail:{value:M},bubbles:!0,composed:!0}))};return b.addEventListener("input",w),b.addEventListener("blur",r),()=>{b.removeEventListener("input",w),b.removeEventListener("blur",r)}});return()=>n()}});var kl=Q("sui-textarea",{props:{value:P.string({default:""}),placeholder:P.string({default:""}),name:P.string({default:""}),rows:P.number({default:4}),required:P.bool({default:!1,reflect:!0}),disabled:P.bool({default:!1,reflect:!0}),readonly:P.bool({default:!1,reflect:!0}),invalid:P.bool({default:!1,reflect:!0}),tone:P.union(["default","primary","info","success","warning","destructive","accent","muted"],{default:"default",reflect:!0}),variant:P.union(["default","code"],{default:"default",reflect:!0}),size:P.union(["sm","md"],{default:"md",reflect:!0}),resize:P.union(["none","vertical","horizontal","both"],{default:"vertical"}),label:P.string({default:""}),"described-by":P.string({default:""})},shadow:!0,formAssociated:!0,formValue:"value",formDisabled:"disabled",styles:`
   :host {
     display: block;
     width: 100%;
@@ -4681,152 +2400,7 @@ var sui_textarea_default = component27("sui-textarea", {
     textarea:focus-visible { outline: 2px solid CanvasText; outline-offset: 2px; }
   }
 
-`,
-  setup(ctx) {
-    const { props, host } = ctx;
-    if (!ctx.cleanups)
-      ctx.cleanups = [];
-    const __cleanups = ctx.cleanups;
-    const $scope = Object.create(null);
-    $scope.value = props.value;
-    $scope.placeholder = props.placeholder;
-    $scope.name = props.name;
-    $scope.rows = props.rows;
-    $scope.required = props.required;
-    $scope.disabled = props.disabled;
-    $scope.readonly = props.readonly;
-    $scope.invalid = props.invalid;
-    $scope.tone = props.tone;
-    $scope.variant = props.variant;
-    $scope.size = props.size;
-    $scope.resize = props.resize;
-    $scope.label = props.label;
-    $scope.describedBy = props.describedBy;
-    let __r = null;
-    if (sui_textarea_controller_default && typeof sui_textarea_controller_default.setup === "function") {
-      ctx.scope = $scope;
-      __r = sui_textarea_controller_default.setup(ctx);
-      if (__r && typeof __r === "object")
-        Object.assign($scope, __r);
-    }
-    const __root = host.shadowRoot ?? host;
-    adoptSuiSheets27(__root);
-    const __e0 = document.createElement("textarea");
-    __e0.setAttribute("part", "textarea");
-    __cleanups.push(bindAttr17(__e0, "placeholder", () => $scope.placeholder()));
-    __cleanups.push(bindAttr17(__e0, "name", () => $scope.name()));
-    __cleanups.push(bindAttr17(__e0, "rows", () => $scope.rows()));
-    __cleanups.push(bindAttr17(__e0, "disabled", () => $scope.disabled()));
-    __cleanups.push(bindAttr17(__e0, "required", () => $scope.required()));
-    __cleanups.push(bindAttr17(__e0, "readonly", () => $scope.readonly()));
-    __cleanups.push(bindAttr17(__e0, "aria-invalid", () => $scope.invalid() ? "true" : "false"));
-    __cleanups.push(bindAttr17(__e0, "aria-required", () => $scope.required() ? "true" : "false"));
-    __cleanups.push(bindAttr17(__e0, "aria-label", () => $scope.label()));
-    __cleanups.push(bindAttr17(__e0, "aria-describedby", () => $scope.describedBy()));
-    __cleanups.push(effect15(() => {
-      const __v = $scope.resize();
-      if (__v == null)
-        __e0.style.removeProperty("resize");
-      else
-        __e0.style.setProperty("resize", String(__v));
-    }));
-    __cleanups.push(bindValue2(__e0, $scope.value));
-    attachRef11($scope, "textareaEl", __e0);
-    __root.appendChild(__e0);
-    if (__r != null) {
-      const __lc = Object.getOwnPropertyDescriptor(__r, "__shipSetLifecycle")?.value;
-      if (__lc) {
-        const __sp = new Proxy($scope, {
-          get(t, k) {
-            return t[k];
-          },
-          set(t, k, v) {
-            const s = t[k];
-            if (s != null && typeof s.set === "function") {
-              if (typeof v === "function") {
-                s.set(() => v);
-              } else {
-                s.set(v);
-              }
-              return true;
-            }
-            return false;
-          }
-        });
-        if (__lc.mount) {
-          const __mc = __lc.mount(__sp, host);
-          if (typeof __mc === "function")
-            __cleanups.push(__mc);
-        }
-        if (__lc.unmount)
-          __cleanups.push(() => __lc.unmount(__sp));
-      }
-    }
-    return $scope;
-  }
-});
-
-// packages/ui-components/src/sui-field/sui-field.sui
-import { adoptSuiSheets as adoptSuiSheets28, attachRef as attachRef12, component as component28, prop as prop28 } from "@ship/sui-runtime";
-
-// packages/ui-components/src/sui-field/sui-field.controller.ts
-import { controller as controller16, effect as effect16 } from "@ship/sui-runtime";
-var _idSeq2 = 0;
-var sui_field_controller_default = controller16({
-  mount(state, host) {
-    const scope = state;
-    const hintId = `sui-field-hint-${++_idSeq2}`;
-    const errorId = `sui-field-error-${++_idSeq2}`;
-    const stopIds = effect16(() => {
-      const hint = scope.hintEl();
-      const error = scope.errorEl();
-      if (hint)
-        hint.id = hintId;
-      if (error)
-        error.id = errorId;
-    });
-    const wireControl = () => {
-      const slot = scope.controlSlot();
-      const first = slot?.assignedElements({ flatten: true })[0];
-      if (!first)
-        return;
-      const inv = scope.invalid();
-      const targetId = inv ? errorId : hintId;
-      const prior = (first.getAttribute("aria-describedby") || "").split(/\s+/).filter((id) => id && id !== hintId && id !== errorId);
-      const final = [...prior, targetId].join(" ").trim();
-      if (final)
-        first.setAttribute("aria-describedby", final);
-      if ("invalid" in first)
-        first.invalid = inv;
-      else
-        first.setAttribute("aria-invalid", inv ? "true" : "false");
-    };
-    const stopInvalid = effect16(() => {
-      scope.invalid();
-      wireControl();
-    });
-    const stopSlot = effect16(() => {
-      const slot = scope.controlSlot();
-      if (!slot)
-        return;
-      slot.addEventListener("slotchange", wireControl);
-      return () => slot.removeEventListener("slotchange", wireControl);
-    });
-    return () => {
-      stopIds();
-      stopInvalid();
-      stopSlot();
-    };
-  }
-});
-
-// packages/ui-components/src/sui-field/sui-field.sui
-var sui_field_default = component28("sui-field", {
-  props: {
-    invalid: prop28.bool({ default: false, reflect: true })
-  },
-  shadow: true,
-  styles: `
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.value=u.value,n.placeholder=u.placeholder,n.name=u.name,n.rows=u.rows,n.required=u.required,n.disabled=u.disabled,n.readonly=u.readonly,n.invalid=u.invalid,n.tone=u.tone,n.variant=u.variant,n.size=u.size,n.resize=u.resize,n.label=u.label,n.describedBy=u.describedBy,n.textareaEl=G(null);let b=null;if(Qi&&typeof Qi.setup==="function"){if(i.scope=n,b=Qi.setup(i),b&&typeof b==="object")Object.assign(n,b)}let w=d.shadowRoot??d;V(w);let r=document.createElement("textarea");if(r.setAttribute("part","textarea"),m.push(T(r,"placeholder",()=>n.placeholder())),m.push(T(r,"name",()=>n.name())),m.push(T(r,"rows",()=>n.rows())),m.push(T(r,"disabled",()=>n.disabled())),m.push(T(r,"required",()=>n.required())),m.push(T(r,"readonly",()=>n.readonly())),m.push(T(r,"aria-invalid",()=>n.invalid()?"true":"false")),m.push(T(r,"aria-required",()=>n.required()?"true":"false")),m.push(T(r,"aria-label",()=>n.label())),m.push(T(r,"aria-describedby",()=>n.describedBy())),m.push(q(()=>{let M=n.resize();if(M==null)r.style.removeProperty("resize");else r.style.setProperty("resize",String(M))})),m.push(gn(r,n.value)),O(n,"textareaEl",r),w.appendChild(r),b!=null){let M=Object.getOwnPropertyDescriptor(b,"__shipSetLifecycle")?.value;if(M){let y=new Proxy(n,{get(E,l){return E[l]},set(E,l,L){let f=E[l];if(f!=null&&typeof f.set==="function"){if(typeof L==="function")f.set(()=>L);else f.set(L);return!0}return!1}});if(M.mount){let E=M.mount(y,d);if(typeof E==="function")m.push(E)}if(M.unmount)m.push(()=>M.unmount(y))}}return n}});var Ld=0,Vi=U({mount(i,u){let d=i,m=`sui-field-hint-${++Ld}`,n=`sui-field-error-${++Ld}`,b=q(()=>{let y=d.hintEl(),E=d.errorEl();if(y)y.id=m;if(E)E.id=n}),w=()=>{let E=d.controlSlot()?.assignedElements({flatten:!0})[0];if(!E)return;let l=d.invalid(),L=l?n:m,t=[...(E.getAttribute("aria-describedby")||"").split(/\s+/).filter((H)=>H&&H!==m&&H!==n),L].join(" ").trim();if(t)E.setAttribute("aria-describedby",t);if("invalid"in E)E.invalid=l;else E.setAttribute("aria-invalid",l?"true":"false")},r=q(()=>{d.invalid(),w()}),M=q(()=>{let y=d.controlSlot();if(!y)return;return y.addEventListener("slotchange",w),()=>y.removeEventListener("slotchange",w)});return()=>{b(),r(),M()}}});var ol=Q("sui-field",{props:{invalid:P.bool({default:!1,reflect:!0})},shadow:!0,styles:`
   :host {
     display: flex;
     flex-direction: column;
@@ -4844,245 +2418,128 @@ var sui_field_default = component28("sui-field", {
 
   :host(:not([invalid])) .error { display: none; }
   :host([invalid]) .hint { display: none; }
-`,
-  setup(ctx) {
-    const { props, host } = ctx;
-    if (!ctx.cleanups)
-      ctx.cleanups = [];
-    const __cleanups = ctx.cleanups;
-    const $scope = Object.create(null);
-    $scope.invalid = props.invalid;
-    let __r = null;
-    if (sui_field_controller_default && typeof sui_field_controller_default.setup === "function") {
-      ctx.scope = $scope;
-      __r = sui_field_controller_default.setup(ctx);
-      if (__r && typeof __r === "object")
-        Object.assign($scope, __r);
-    }
-    const __root = host.shadowRoot ?? host;
-    adoptSuiSheets28(__root);
-    const __e0 = document.createElement("slot");
-    __e0.setAttribute("name", "label");
-    __root.appendChild(__e0);
-    const __e1 = document.createElement("slot");
-    attachRef12($scope, "controlSlot", __e1);
-    __root.appendChild(__e1);
-    const __e2 = document.createElement("div");
-    __e2.setAttribute("class", "hint");
-    attachRef12($scope, "hintEl", __e2);
-    const __e3 = document.createElement("slot");
-    __e3.setAttribute("name", "hint");
-    __e2.appendChild(__e3);
-    __root.appendChild(__e2);
-    const __e4 = document.createElement("div");
-    __e4.setAttribute("class", "error");
-    __e4.setAttribute("role", "alert");
-    __e4.setAttribute("aria-live", "polite");
-    attachRef12($scope, "errorEl", __e4);
-    const __e5 = document.createElement("slot");
-    __e5.setAttribute("name", "error");
-    __e4.appendChild(__e5);
-    __root.appendChild(__e4);
-    if (__r != null) {
-      const __lc = Object.getOwnPropertyDescriptor(__r, "__shipSetLifecycle")?.value;
-      if (__lc) {
-        const __sp = new Proxy($scope, {
-          get(t, k) {
-            return t[k];
-          },
-          set(t, k, v) {
-            const s = t[k];
-            if (s != null && typeof s.set === "function") {
-              if (typeof v === "function") {
-                s.set(() => v);
-              } else {
-                s.set(v);
-              }
-              return true;
-            }
-            return false;
-          }
-        });
-        if (__lc.mount) {
-          const __mc = __lc.mount(__sp, host);
-          if (typeof __mc === "function")
-            __cleanups.push(__mc);
-        }
-        if (__lc.unmount)
-          __cleanups.push(() => __lc.unmount(__sp));
-      }
-    }
-    return $scope;
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.invalid=u.invalid,n.controlSlot=G(null),n.errorEl=G(null),n.hintEl=G(null);let b=null;if(Vi&&typeof Vi.setup==="function"){if(i.scope=n,b=Vi.setup(i),b&&typeof b==="object")Object.assign(n,b)}let w=d.shadowRoot??d;V(w);let r=document.createElement("slot");r.setAttribute("name","label"),w.appendChild(r);let M=document.createElement("slot");O(n,"controlSlot",M),w.appendChild(M);let y=document.createElement("div");y.setAttribute("class","hint"),O(n,"hintEl",y);let E=document.createElement("slot");E.setAttribute("name","hint"),y.appendChild(E),w.appendChild(y);let l=document.createElement("div");l.setAttribute("class","error"),l.setAttribute("role","alert"),l.setAttribute("aria-live","polite"),O(n,"errorEl",l);let L=document.createElement("slot");if(L.setAttribute("name","error"),l.appendChild(L),w.appendChild(l),b!=null){let f=Object.getOwnPropertyDescriptor(b,"__shipSetLifecycle")?.value;if(f){let t=new Proxy(n,{get(H,C){return H[C]},set(H,C,z){let j=H[C];if(j!=null&&typeof j.set==="function"){if(typeof z==="function")j.set(()=>z);else j.set(z);return!0}return!1}});if(f.mount){let H=f.mount(t,d);if(typeof H==="function")m.push(H)}if(f.unmount)m.push(()=>f.unmount(t))}}return n}});var Yi=U({scope:(i,u)=>{let d=i,m=e(null),n=h(()=>d.tone()==="destructive"?"destructive":"default");function b(M){u.dispatchEvent(new CustomEvent(M,{bubbles:!0,composed:!0})),d.open.set(!1)}function w(){b("sui-confirm")}function r(){b("sui-cancel")}return{dialogRef:m,confirmTone:n,onConfirm:w,onCancel:r}},mount(i,u){let d=i,m=d.open,n=d.dialogRef,b=q(()=>{let r=m(),M=n();if(!M)return;if(r&&typeof M.show==="function")M.show();else if(!r&&typeof M.close==="function")M.close()}),w=()=>{if(m())m.set(!1)};return u.addEventListener("sui-close",w),()=>{b(),u.removeEventListener("sui-close",w)}}});var n5=Q("sui-alert-dialog",{props:{open:P.bool({default:!1,reflect:!0}),tone:P.union(["default","destructive"],{default:"default",reflect:!0}),"confirm-label":P.string({default:"Confirm"}),"cancel-label":P.string({default:"Cancel"})},shadow:!0,styles:`
+  :host { display: contents; }
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.open=u.open,n.tone=u.tone,n.confirmLabel=u.confirmLabel,n.cancelLabel=u.cancelLabel,n.dialogRef=G(null);let b=null;if(Yi&&typeof Yi.setup==="function"){if(i.scope=n,b=Yi.setup(i),b&&typeof b==="object")Object.assign(n,b)}let w=d.shadowRoot??d;V(w);let r=document.createElement("sui-dialog");r.setAttribute("role-override","alertdialog"),r.setAttribute("size","sm"),r.setAttribute("no-close-button",""),O(n,"dialogRef",r);let M=document.createElement("span");M.setAttribute("slot","header");let y=document.createElement("slot");y.setAttribute("name","title"),M.appendChild(y),r.appendChild(M);let E=document.createElement("slot");r.appendChild(E);let l=document.createElement("span");l.setAttribute("slot","footer");let L=document.createElement("sui-button");L.setAttribute("variant","outline"),m.push(p(L,"click",function(){let C=n.onCancel;return typeof C==="function"?C.bind(void 0):()=>{}}(),{modifiers:[]}));let f=document.createTextNode("");L.appendChild(f),m.push(S(f,()=>n.cancelLabel())),l.appendChild(L);let t=document.createElement("sui-button");t.setAttribute("variant","solid"),m.push(T(t,"tone",()=>n.confirmTone())),m.push(p(t,"click",function(){let C=n.onConfirm;return typeof C==="function"?C.bind(void 0):()=>{}}(),{modifiers:[]}));let H=document.createTextNode("");if(t.appendChild(H),m.push(S(H,()=>n.confirmLabel())),l.appendChild(t),r.appendChild(l),w.appendChild(r),b!=null){let C=Object.getOwnPropertyDescriptor(b,"__shipSetLifecycle")?.value;if(C){let z=new Proxy(n,{get(j,g){return j[g]},set(j,g,J){let D=j[g];if(D!=null&&typeof D.set==="function"){if(typeof J==="function")D.set(()=>J);else D.set(J);return!0}return!1}});if(C.mount){let j=C.mount(z,d);if(typeof j==="function")m.push(j)}if(C.unmount)m.push(()=>C.unmount(z))}}return n}});function td(i){if(i<1024)return`${i} B`;if(i<1048576)return`${(i/1024).toFixed(1)} KB`;return`${(i/1048576).toFixed(1)} MB`}var qi=U({scope:()=>{let i=G([]),u=G(!1),d=G(""),m=e(null),n=e(null),b=e(null),w=h(()=>i().map((r,M)=>({file:r,idx:M,key:`${M}:${r.name}:${r.size}`,name:r.name,sizeStr:td(r.size)})));return{files:i,over:u,errorMsg:d,displayFiles:w,dropzoneEl:m,inputEl:n,fileListEl:b}},mount(i,u){let d=(C)=>{let z=i.accept().split(",").map((J)=>J.trim().toLowerCase()).filter(Boolean);if(z.length===0)return!0;let j="."+(C.name.split(".").pop()||"").toLowerCase(),g=C.type.toLowerCase();return z.some((J)=>{if(J.startsWith("."))return j===J;if(J.endsWith("/*"))return g.startsWith(J.slice(0,-1));return g===J})},m=(C)=>{u.dispatchEvent(new CustomEvent("sui-change",{detail:{files:[...C]},bubbles:!0,composed:!0}))},n=(C)=>{i.errorMsg.set("");let z=[];for(let J of C){if(J.size>i.maxSize()){i.errorMsg.set(`"${J.name}" exceeds max size (${td(i.maxSize())}).`);continue}if(i.accept()&&!d(J)){i.errorMsg.set(`"${J.name}" is not an accepted file type.`);continue}z.push(J)}let j=i.files(),g=i.multiple()?[...j,...z]:z.slice(0,1);i.files.set(g),m(g)},b=(C)=>{let z=i.files();if(C<0||C>=z.length)return;let j=z.filter((g,J)=>J!==C);i.files.set(j),i.errorMsg.set(""),m(j)},w=()=>{if(i.disabled())return;i.inputEl()?.click()},r=()=>w(),M=(C)=>{if(i.disabled())return;if(C.key==="Enter"||C.key===" ")C.preventDefault(),w()},y=(C)=>{if(i.disabled())return;C.preventDefault(),i.over.set(!0)},E=()=>i.over.set(!1),l=(C)=>{if(i.disabled())return;C.preventDefault(),i.over.set(!1);let z=C.dataTransfer?.files;if(z&&z.length)n(Array.from(z))},L=(C)=>{let z=C.target;if(z.files&&z.files.length)n(Array.from(z.files));z.value=""},f=i.dropzoneEl(),t=i.inputEl();f?.addEventListener("click",r),f?.addEventListener("keydown",M),f?.addEventListener("dragover",y),f?.addEventListener("dragleave",E),f?.addEventListener("drop",l),t?.addEventListener("change",L);let H=(C)=>{let j=C.target?.closest?.("button.remove");if(!j||!u.shadowRoot?.contains(j))return;let g=Number(j.dataset.idx);if(Number.isInteger(g))b(g)};return u.shadowRoot?.addEventListener("click",H),()=>{f?.removeEventListener("click",r),f?.removeEventListener("keydown",M),f?.removeEventListener("dragover",y),f?.removeEventListener("dragleave",E),f?.removeEventListener("drop",l),t?.removeEventListener("change",L),u.shadowRoot?.removeEventListener("click",H)}}});var f5=Q("sui-file-upload",{props:{accept:P.string({default:""}),multiple:P.bool({default:!1}),"max-size":P.number({default:10485760}),disabled:P.bool({default:!1,reflect:!0}),tone:P.union(["default","primary","info","success","warning","destructive","accent","muted"],{default:"default",reflect:!0})},shadow:!0,styles:`
+  :host {
+    display: block;
+    --tone-border: var(--border);
+    --tone-bg: color-mix(in oklch, var(--primary) 8%, transparent);
+    --tone-ring: var(--primary);
   }
-});
+  :host([disabled]) { opacity: 0.5; pointer-events: none; }
 
-// packages/ui-components/src/sui-toast/sui-toast.sui
-import { adoptSuiSheets as adoptSuiSheets29, attachRef as attachRef13, bindAttr as bindAttr18, bindIf as bindIf8, component as component29, prop as prop29 } from "@ship/sui-runtime";
+  :host([tone='primary'])     { --tone-ring: var(--primary);     --tone-bg: color-mix(in oklch, var(--primary) 10%, transparent); }
+  :host([tone='info'])        { --tone-ring: var(--info);         --tone-bg: color-mix(in oklch, var(--info) 10%, transparent); }
+  :host([tone='success'])     { --tone-ring: var(--success);      --tone-bg: color-mix(in oklch, var(--success) 10%, transparent); }
+  :host([tone='warning'])     { --tone-ring: var(--warning);      --tone-bg: color-mix(in oklch, var(--warning) 10%, transparent); }
+  :host([tone='destructive']) { --tone-ring: var(--destructive);  --tone-bg: color-mix(in oklch, var(--destructive) 10%, transparent); }
+  :host([tone='accent'])      { --tone-ring: var(--accent);       --tone-bg: color-mix(in oklch, var(--accent) 10%, transparent); }
+  :host([tone='muted'])       { --tone-ring: var(--muted-foreground); --tone-bg: var(--muted); }
 
-// packages/ui-components/src/sui-toast/sui-toast.controller.ts
-import { controller as controller17, effect as effect17, ref, signal as signal3 } from "@ship/sui-runtime";
-var TONES_WITH_AUTO_ICON = new Set(["info", "success", "warning", "destructive", "accent"]);
-var sui_toast_controller_default = controller17({
-  scope: () => {
-    const hasSlottedIcon = signal3(false);
-    const iconSlotEl = ref(null);
-    const titleSlotEl = ref(null);
-    const actionsSlotEl = ref(null);
-    const closeBtn = ref(null);
-    return { hasSlottedIcon, iconSlotEl, titleSlotEl, actionsSlotEl, closeBtn };
-  },
-  mount(state, host) {
-    const scope = state;
-    let timer = null;
-    let remaining = 0;
-    let startedAt = 0;
-    let removed = false;
-    if (!host.hasAttribute("tabindex"))
-      host.tabIndex = 0;
-    function clearTimer() {
-      if (timer) {
-        clearTimeout(timer);
-        timer = null;
-      }
-    }
-    function scheduleDismiss() {
-      clearTimer();
-      const dur = scope.duration();
-      if (dur > 0) {
-        remaining = dur;
-        startedAt = Date.now();
-        timer = setTimeout(() => dismiss("timeout"), dur);
-        host.style.setProperty("--toast-duration", `${dur}ms`);
-      }
-    }
-    function dismiss(reason = "manual") {
-      if (removed)
-        return;
-      removed = true;
-      clearTimer();
-      host.dispatchEvent(new CustomEvent("sui-dismiss", {
-        detail: { reason },
-        bubbles: true,
-        composed: true
-      }));
-      host.remove();
-    }
-    async function close(reason = "manual") {
-      if (removed)
-        return;
-      const prefersReduce = typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-      if (prefersReduce) {
-        dismiss(reason);
-        return;
-      }
-      clearTimer();
-      host.setAttribute("closing", "");
-      await new Promise((resolve) => {
-        const onEnd = () => {
-          host.removeEventListener("animationend", onEnd);
-          resolve();
-        };
-        host.addEventListener("animationend", onEnd);
-        setTimeout(() => resolve(), 260);
-      });
-      dismiss(reason);
-    }
-    const onPause = () => {
-      if (!timer)
-        return;
-      const elapsed = Date.now() - startedAt;
-      remaining = Math.max(0, remaining - elapsed);
-      clearTimer();
-      host.toggleAttribute("data-paused", true);
-    };
-    const onResume = () => {
-      if (removed || scope.duration() <= 0)
-        return;
-      if (remaining <= 0)
-        return;
-      host.toggleAttribute("data-paused", false);
-      startedAt = Date.now();
-      timer = setTimeout(() => dismiss("timeout"), remaining);
-    };
-    const onKeydown = (e) => {
-      if (e.key === "Escape" && scope.dismissible()) {
-        e.stopPropagation();
-        dismiss("manual");
-      }
-    };
-    host.addEventListener("mouseenter", onPause);
-    host.addEventListener("mouseleave", onResume);
-    host.addEventListener("focusin", onPause);
-    host.addEventListener("focusout", onResume);
-    host.addEventListener("keydown", onKeydown);
-    scheduleDismiss();
-    const hasSlottedIconSig = scope.hasSlottedIcon;
-    const slotIsFilled = (slot) => slot.assignedNodes({ flatten: true }).some((n) => {
-      if (n.nodeType === Node.ELEMENT_NODE)
-        return true;
-      return (n.textContent?.trim().length ?? 0) > 0;
-    });
-    const iconSlotEl = scope.iconSlotEl();
-    if (iconSlotEl) {
-      const onIconSlotChange = () => hasSlottedIconSig.set(slotIsFilled(iconSlotEl));
-      iconSlotEl.addEventListener("slotchange", onIconSlotChange);
-      hasSlottedIconSig.set(slotIsFilled(iconSlotEl));
-    }
-    const titleSlotEl = scope.titleSlotEl();
-    const actionsSlotEl = scope.actionsSlotEl();
-    if (titleSlotEl) {
-      const onTitleChange = () => host.toggleAttribute("data-no-title", !slotIsFilled(titleSlotEl));
-      titleSlotEl.addEventListener("slotchange", onTitleChange);
-      host.toggleAttribute("data-no-title", !slotIsFilled(titleSlotEl));
-    }
-    if (actionsSlotEl) {
-      const onActionsChange = () => host.toggleAttribute("data-no-actions", !slotIsFilled(actionsSlotEl));
-      actionsSlotEl.addEventListener("slotchange", onActionsChange);
-      host.toggleAttribute("data-no-actions", !slotIsFilled(actionsSlotEl));
-    }
-    const stopIconAttrEffect = effect17(() => {
-      const tone = scope.tone();
-      const slotted = scope.hasSlottedIcon();
-      const hasAuto = TONES_WITH_AUTO_ICON.has(tone);
-      host.toggleAttribute("data-no-icon", !hasAuto && !slotted);
-    });
-    const stopCloseEffect = effect17(() => {
-      const btn = scope.closeBtn();
-      if (!btn)
-        return;
-      const onClick = () => dismiss("manual");
-      btn.addEventListener("click", onClick);
-      return () => btn.removeEventListener("click", onClick);
-    });
-    const h = host;
-    h.dismiss = dismiss;
-    h.close = close;
-    return () => {
-      removed = true;
-      clearTimer();
-      host.removeEventListener("mouseenter", onPause);
-      host.removeEventListener("mouseleave", onResume);
-      host.removeEventListener("focusin", onPause);
-      host.removeEventListener("focusout", onResume);
-      host.removeEventListener("keydown", onKeydown);
-      stopIconAttrEffect();
-      stopCloseEffect();
-    };
+  .dropzone {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 24px 16px;
+    border: 2px dashed var(--border);
+    border-radius: var(--radius-md, 6px);
+    background: transparent;
+    cursor: pointer;
+    transition:
+      border-color var(--duration-fast, 150ms) var(--ease-out, ease-out),
+      background-color var(--duration-fast, 150ms) var(--ease-out, ease-out);
+    color: var(--muted-foreground);
+    font-family: var(--font-body);
+    font-size: 13px;
+    user-select: none;
   }
-});
+  .dropzone:focus-visible {
+    outline: 2px solid var(--tone-ring);
+    outline-offset: 2px;
+  }
+  .dropzone.over {
+    border-style: solid;
+    border-color: var(--tone-ring);
+    background: var(--tone-bg);
+  }
 
-// packages/ui-components/src/sui-toast/sui-toast.sui
-var sui_toast_default = component29("sui-toast", {
-  props: {
-    tone: prop29.union(["default", "info", "success", "warning", "destructive", "accent", "muted", "primary"], { default: "default", reflect: true }),
-    size: prop29.union(["sm", "md", "lg"], { default: "md", reflect: true }),
-    duration: prop29.number({ default: 5000 }),
-    dismissible: prop29.bool({ default: true, reflect: true }),
-    "show-progress": prop29.bool({ default: false, reflect: true }),
-    closing: prop29.bool({ default: false, reflect: true })
-  },
-  shadow: true,
-  styles: `
+  .icon {
+    font-size: 1.5rem;
+    line-height: 1;
+  }
+
+  input[type='file'] {
+    display: none;
+  }
+
+  .file-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 8px;
+  }
+
+  .file-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    border-radius: var(--radius-sm, 4px);
+    background: var(--muted);
+    font-family: var(--font-body);
+    font-size: 13px;
+    color: var(--foreground);
+  }
+
+  .file-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .file-size {
+    color: var(--muted-foreground);
+    flex-shrink: 0;
+  }
+
+  .remove {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+    color: var(--muted-foreground);
+    padding: 2px;
+    line-height: 1;
+    border-radius: var(--radius-sm, 4px);
+    font-size: 16px;
+    font-family: inherit;
+  }
+  .remove:hover {
+    color: var(--foreground);
+    background: var(--border);
+  }
+  .remove:focus-visible {
+    outline: 2px solid var(--tone-ring);
+    outline-offset: 1px;
+  }
+
+  .error {
+    font-family: var(--font-body);
+    font-size: 12px;
+    color: var(--destructive);
+    margin-top: 4px;
+    padding: 0 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .dropzone { transition: none; }
+  }
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.accept=u.accept,n.multiple=u.multiple,n.maxSize=u.maxSize,n.disabled=u.disabled,n.tone=u.tone,n.dropzoneEl=G(null),n.fileListEl=G(null),n.inputEl=G(null);let b=null;if(qi&&typeof qi.setup==="function"){if(i.scope=n,b=qi.setup(i),b&&typeof b==="object")Object.assign(n,b)}let w=(j)=>R({anchor:j,test:()=>{if(n.errorMsg())return 0;return-1},branches:[()=>{let g=document.createDocumentFragment(),J=[],D=document.createElement("div");D.setAttribute("class","error"),D.setAttribute("role","alert"),D.setAttribute("part","error");let Z=document.createTextNode("");return D.appendChild(Z),J.push(S(Z,()=>n.errorMsg())),g.appendChild(D),{nodes:Array.from(g.childNodes),cleanup:()=>{for(let X of J)try{X()}catch(W){}}}}]}),r=(j)=>s({anchor:j,items:()=>n.displayFiles(),key:(g,J)=>{let D=Object.create(n);return D.f=g,D.__i=J,((Z)=>g.key)(D)},render:(g,J)=>{let D=Object.create(n);return D.f=g,D.__i=J,D.__v=G(0),((Z)=>{let X=document.createDocumentFragment(),W=[],Y=document.createElement("div");Y.setAttribute("class","file-item"),Y.setAttribute("part","file-item");let N=document.createElement("span");N.setAttribute("class","file-name");let F=document.createTextNode("");N.appendChild(F),F.textContent=Z.f.name,Y.appendChild(N);let B=document.createElement("span");B.setAttribute("class","file-size");let A=document.createTextNode("");B.appendChild(A),A.textContent=Z.f.sizeStr,Y.appendChild(B);let K=document.createElement("button");K.setAttribute("class","remove"),K.setAttribute("part","remove"),K.setAttribute("type","button");{let k=Z.f.idx;if(k==null||k===!1||k==="")K.removeAttribute("data-idx");else K.setAttribute("data-idx",k===!0?"":String(k))}{let k="Remove "+Z.f.name;if(k==null||k===!1||k==="")K.removeAttribute("aria-label");else K.setAttribute("aria-label",k===!0?"":String(k))}let a=document.createTextNode("×");return K.appendChild(a),Y.appendChild(K),X.appendChild(Y),{nodes:Array.from(X.childNodes),cleanup:()=>{for(let k of W)try{k()}catch(v){}},update:(k,v)=>{Z.f=k,Z.__i=v,F.textContent=Z.f.name,A.textContent=Z.f.sizeStr;{let I=Z.f.idx;if(I==null||I===!1||I==="")K.removeAttribute("data-idx");else K.setAttribute("data-idx",I===!0?"":String(I))}{let I="Remove "+Z.f.name;if(I==null||I===!1||I==="")K.removeAttribute("aria-label");else K.setAttribute("aria-label",I===!0?"":String(I))}Z.__v.set((I)=>I+1)}}})(D)}}),M=(j)=>R({anchor:j,test:()=>{if(n.displayFiles().length>0)return 0;return-1},branches:[()=>{let g=document.createDocumentFragment(),J=[],D=document.createElement("div");D.setAttribute("class","file-list"),D.setAttribute("part","file-list"),D.setAttribute("aria-live","polite"),O(n,"fileListEl",D);let Z=document.createComment("for");return D.appendChild(Z),J.push(r(Z)),g.appendChild(D),{nodes:Array.from(g.childNodes),cleanup:()=>{for(let X of J)try{X()}catch(W){}}}}]}),y=d.shadowRoot??d;V(y);let E=document.createElement("div");E.setAttribute("class","dropzone"),m.push(zn(E,"over",()=>n.over())),E.setAttribute("part","dropzone"),E.setAttribute("role","button"),m.push(T(E,"tabindex",()=>n.disabled()?"-1":"0")),m.push(T(E,"aria-label",()=>n.accept()?"Upload files ("+n.accept()+")":"Upload files")),m.push(T(E,"aria-disabled",()=>n.disabled()?"true":"false")),O(n,"dropzoneEl",E);let l=document.createElement("span");l.setAttribute("class","icon"),l.setAttribute("aria-hidden","true");let L=document.createTextNode("\uD83D\uDCC4");l.appendChild(L),E.appendChild(l);let f=document.createElement("span"),t=document.createTextNode("Drop files here or click to browse");f.appendChild(t),E.appendChild(f),y.appendChild(E);let H=document.createElement("input");H.setAttribute("type","file"),H.setAttribute("part","input"),m.push(T(H,"accept",()=>n.accept())),m.push(T(H,"multiple",()=>n.multiple())),H.setAttribute("aria-hidden","true"),H.setAttribute("tabindex","-1"),O(n,"inputEl",H),y.appendChild(H);let C=document.createComment("if");y.appendChild(C),m.push(w(C));let z=document.createComment("if");if(y.appendChild(z),m.push(M(z)),b!=null){let j=Object.getOwnPropertyDescriptor(b,"__shipSetLifecycle")?.value;if(j){let g=new Proxy(n,{get(J,D){return J[D]},set(J,D,Z){let X=J[D];if(X!=null&&typeof X.set==="function"){if(typeof Z==="function")X.set(()=>Z);else X.set(Z);return!0}return!1}});if(j.mount){let J=j.mount(g,d);if(typeof J==="function")m.push(J)}if(j.unmount)m.push(()=>j.unmount(g))}}return n}});var Vm=new Set(["info","success","warning","destructive","accent"]),Ni=U({scope:()=>{let i=G(!1),u=G(!0),d=e(null),m=e(null),n=e(null),b=e(null);return{hasSlottedIcon:i,visible:u,iconSlotEl:d,titleSlotEl:m,actionsSlotEl:n,closeBtn:b}},mount(i,u){let d=i,m=null,n=0,b=0,w=!1;if(!u.hasAttribute("tabindex"))u.tabIndex=0;function r(){if(m)clearTimeout(m),m=null}function M(){r();let Z=d.duration();if(Z>0)n=Z,b=Date.now(),m=setTimeout(()=>y("timeout"),Z),u.style.setProperty("--toast-duration",`${Z}ms`)}function y(Z="manual"){if(w)return;w=!0,r(),u.dispatchEvent(new CustomEvent("sui-dismiss",{detail:{reason:Z},bubbles:!0,composed:!0})),u.remove()}async function E(Z="manual"){if(w)return;if(typeof window<"u"&&window.matchMedia?.("(prefers-reduced-motion: reduce)").matches){y(Z);return}r(),u.setAttribute("closing",""),d.visible.set(!1),await new Promise((Y)=>setTimeout(Y,200)),y(Z)}let l=()=>{if(!m)return;let Z=Date.now()-b;n=Math.max(0,n-Z),r(),u.toggleAttribute("data-paused",!0)},L=()=>{if(w||d.duration()<=0)return;if(n<=0)return;u.toggleAttribute("data-paused",!1),b=Date.now(),m=setTimeout(()=>y("timeout"),n)},f=(Z)=>{if(Z.key==="Escape"&&d.dismissible())Z.stopPropagation(),y("manual")};u.addEventListener("mouseenter",l),u.addEventListener("mouseleave",L),u.addEventListener("focusin",l),u.addEventListener("focusout",L),u.addEventListener("keydown",f),M();let t=d.hasSlottedIcon,H=(Z)=>Z.assignedNodes({flatten:!0}).some((X)=>{if(X.nodeType===Node.ELEMENT_NODE)return!0;return(X.textContent?.trim().length??0)>0}),C=d.iconSlotEl();if(C){let Z=()=>t.set(H(C));C.addEventListener("slotchange",Z),t.set(H(C))}let z=d.titleSlotEl(),j=d.actionsSlotEl();if(z){let Z=()=>u.toggleAttribute("data-no-title",!H(z));z.addEventListener("slotchange",Z),u.toggleAttribute("data-no-title",!H(z))}if(j){let Z=()=>u.toggleAttribute("data-no-actions",!H(j));j.addEventListener("slotchange",Z),u.toggleAttribute("data-no-actions",!H(j))}let g=q(()=>{let Z=d.tone(),X=d.hasSlottedIcon(),W=Vm.has(Z);u.toggleAttribute("data-no-icon",!W&&!X)}),J=q(()=>{let Z=d.closeBtn();if(!Z)return;let X=()=>y("manual");return Z.addEventListener("click",X),()=>Z.removeEventListener("click",X)}),D=u;return D.dismiss=y,D.close=E,()=>{w=!0,r(),u.removeEventListener("mouseenter",l),u.removeEventListener("mouseleave",L),u.removeEventListener("focusin",l),u.removeEventListener("focusout",L),u.removeEventListener("keydown",f),g(),J()}}});var M5=Q("sui-toast",{props:{tone:P.union(["default","info","success","warning","destructive","accent","muted","primary"],{default:"default",reflect:!0}),size:P.union(["sm","md","lg"],{default:"md",reflect:!0}),duration:P.number({default:5000}),dismissible:P.bool({default:!0,reflect:!0}),"show-progress":P.bool({default:!1,reflect:!0}),closing:P.bool({default:!1,reflect:!0})},shadow:!0,styles:`
   :host {
     display: block;
     --toast-px: 14px;
@@ -5132,17 +2589,6 @@ var sui_toast_default = component29("sui-toast", {
   :host([data-slide-from='top'])    { --toast-slide-x: 0;     --toast-slide-y: -12px; }
   :host([data-slide-from='bottom']) { --toast-slide-x: 0;     --toast-slide-y: 12px; }
 
-  @keyframes sui-toast-in {
-    from {
-      opacity: 0;
-      transform: translate3d(var(--toast-slide-x), var(--toast-slide-y), 0) scale(0.98);
-    }
-    to {
-      opacity: 1;
-      transform: translate3d(0, 0, 0) scale(1);
-    }
-  }
-
   .toast {
     display: grid;
     grid-template-columns: auto 1fr auto;
@@ -5166,8 +2612,9 @@ var sui_toast_default = component29("sui-toast", {
     position: relative;
     overflow: hidden;
     isolation: isolate;
-    animation: sui-toast-in var(--duration-medium, 200ms) var(--ease-out, ease-out) both;
   }
+  /* Enter/exit polish is driven by \`in:slide\` + \`out:fade\` on the
+     #if-mounted .toast (see template). */
 
   :host(:not([tone])) .toast,
   :host([tone='default']) .toast {
@@ -5304,19 +2751,7 @@ var sui_toast_default = component29("sui-toast", {
     to   { transform: scaleX(0); }
   }
 
-  :host([closing]) {
-    animation: sui-toast-out var(--duration-medium, 200ms) var(--ease-in, ease-in) forwards;
-  }
-  @keyframes sui-toast-out {
-    to {
-      opacity: 0;
-      transform: translate3d(var(--toast-slide-x), var(--toast-slide-y), 0) scale(0.96);
-    }
-  }
-
   @media (prefers-reduced-motion: reduce) {
-    .toast { animation: none; }
-    :host([closing]) { animation: none; }
     .progress { animation: none; }
   }
 
@@ -5324,638 +2759,14 @@ var sui_toast_default = component29("sui-toast", {
     .toast { border: 1px solid CanvasText; }
     .close:focus-visible { outline: 2px solid CanvasText; outline-offset: 2px; }
   }
-`,
-  setup(ctx) {
-    const { props, host } = ctx;
-    if (!ctx.cleanups)
-      ctx.cleanups = [];
-    const __cleanups = ctx.cleanups;
-    const $scope = Object.create(null);
-    $scope.tone = props.tone;
-    $scope.size = props.size;
-    $scope.duration = props.duration;
-    $scope.dismissible = props.dismissible;
-    $scope.showProgress = props.showProgress;
-    $scope.closing = props.closing;
-    let __r = null;
-    if (sui_toast_controller_default && typeof sui_toast_controller_default.setup === "function") {
-      ctx.scope = $scope;
-      __r = sui_toast_controller_default.setup(ctx);
-      if (__r && typeof __r === "object")
-        Object.assign($scope, __r);
-    }
-    const __wireBoundary_b4 = (anchor) => bindIf8({
-      anchor,
-      test: () => {
-        const __d = $scope.tone();
-        if (__d === "info")
-          return 0;
-        if (__d === "success")
-          return 1;
-        if (__d === "warning")
-          return 2;
-        if (__d === "destructive")
-          return 3;
-        if (__d === "accent")
-          return 4;
-        return -1;
-      },
-      branches: [
-        () => {
-          const __frag7 = document.createDocumentFragment();
-          const __c8 = [];
-          const __e9 = document.createElement("svg");
-          __e9.setAttribute("viewbox", "0 0 24 24");
-          __e9.setAttribute("fill", "none");
-          __e9.setAttribute("stroke", "currentColor");
-          __e9.setAttribute("stroke-width", "2");
-          __e9.setAttribute("stroke-linecap", "round");
-          __e9.setAttribute("stroke-linejoin", "round");
-          __e9.setAttribute("aria-hidden", "true");
-          const __e10 = document.createElement("circle");
-          __e10.setAttribute("cx", "12");
-          __e10.setAttribute("cy", "12");
-          __e10.setAttribute("r", "9");
-          __e9.appendChild(__e10);
-          const __e11 = document.createElement("path");
-          __e11.setAttribute("d", "M12 8h.01");
-          __e9.appendChild(__e11);
-          const __e12 = document.createElement("path");
-          __e12.setAttribute("d", "M11 12h1v4h1");
-          __e9.appendChild(__e12);
-          __frag7.appendChild(__e9);
-          return { nodes: Array.from(__frag7.childNodes), cleanup: () => {
-            for (const c of __c8)
-              try {
-                c();
-              } catch (e) {}
-          } };
-        },
-        () => {
-          const __frag13 = document.createDocumentFragment();
-          const __c14 = [];
-          const __e15 = document.createElement("svg");
-          __e15.setAttribute("viewbox", "0 0 24 24");
-          __e15.setAttribute("fill", "none");
-          __e15.setAttribute("stroke", "currentColor");
-          __e15.setAttribute("stroke-width", "2");
-          __e15.setAttribute("stroke-linecap", "round");
-          __e15.setAttribute("stroke-linejoin", "round");
-          __e15.setAttribute("aria-hidden", "true");
-          const __e16 = document.createElement("circle");
-          __e16.setAttribute("cx", "12");
-          __e16.setAttribute("cy", "12");
-          __e16.setAttribute("r", "9");
-          __e15.appendChild(__e16);
-          const __e17 = document.createElement("path");
-          __e17.setAttribute("d", "m8.5 12.5 2.5 2.5 4.5-5");
-          __e15.appendChild(__e17);
-          __frag13.appendChild(__e15);
-          return { nodes: Array.from(__frag13.childNodes), cleanup: () => {
-            for (const c of __c14)
-              try {
-                c();
-              } catch (e) {}
-          } };
-        },
-        () => {
-          const __frag18 = document.createDocumentFragment();
-          const __c19 = [];
-          const __e20 = document.createElement("svg");
-          __e20.setAttribute("viewbox", "0 0 24 24");
-          __e20.setAttribute("fill", "none");
-          __e20.setAttribute("stroke", "currentColor");
-          __e20.setAttribute("stroke-width", "2");
-          __e20.setAttribute("stroke-linecap", "round");
-          __e20.setAttribute("stroke-linejoin", "round");
-          __e20.setAttribute("aria-hidden", "true");
-          const __e21 = document.createElement("path");
-          __e21.setAttribute("d", "M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z");
-          __e20.appendChild(__e21);
-          const __e22 = document.createElement("line");
-          __e22.setAttribute("x1", "12");
-          __e22.setAttribute("x2", "12");
-          __e22.setAttribute("y1", "9");
-          __e22.setAttribute("y2", "13");
-          __e20.appendChild(__e22);
-          const __e23 = document.createElement("line");
-          __e23.setAttribute("x1", "12");
-          __e23.setAttribute("x2", "12.01");
-          __e23.setAttribute("y1", "17");
-          __e23.setAttribute("y2", "17");
-          __e20.appendChild(__e23);
-          __frag18.appendChild(__e20);
-          return { nodes: Array.from(__frag18.childNodes), cleanup: () => {
-            for (const c of __c19)
-              try {
-                c();
-              } catch (e) {}
-          } };
-        },
-        () => {
-          const __frag24 = document.createDocumentFragment();
-          const __c25 = [];
-          const __e26 = document.createElement("svg");
-          __e26.setAttribute("viewbox", "0 0 24 24");
-          __e26.setAttribute("fill", "none");
-          __e26.setAttribute("stroke", "currentColor");
-          __e26.setAttribute("stroke-width", "2");
-          __e26.setAttribute("stroke-linecap", "round");
-          __e26.setAttribute("stroke-linejoin", "round");
-          __e26.setAttribute("aria-hidden", "true");
-          const __e27 = document.createElement("circle");
-          __e27.setAttribute("cx", "12");
-          __e27.setAttribute("cy", "12");
-          __e27.setAttribute("r", "9");
-          __e26.appendChild(__e27);
-          const __e28 = document.createElement("line");
-          __e28.setAttribute("x1", "15");
-          __e28.setAttribute("x2", "9");
-          __e28.setAttribute("y1", "9");
-          __e28.setAttribute("y2", "15");
-          __e26.appendChild(__e28);
-          const __e29 = document.createElement("line");
-          __e29.setAttribute("x1", "9");
-          __e29.setAttribute("x2", "15");
-          __e29.setAttribute("y1", "9");
-          __e29.setAttribute("y2", "15");
-          __e26.appendChild(__e29);
-          __frag24.appendChild(__e26);
-          return { nodes: Array.from(__frag24.childNodes), cleanup: () => {
-            for (const c of __c25)
-              try {
-                c();
-              } catch (e) {}
-          } };
-        },
-        () => {
-          const __frag30 = document.createDocumentFragment();
-          const __c31 = [];
-          const __e32 = document.createElement("svg");
-          __e32.setAttribute("viewbox", "0 0 24 24");
-          __e32.setAttribute("fill", "none");
-          __e32.setAttribute("stroke", "currentColor");
-          __e32.setAttribute("stroke-width", "2");
-          __e32.setAttribute("stroke-linecap", "round");
-          __e32.setAttribute("stroke-linejoin", "round");
-          __e32.setAttribute("aria-hidden", "true");
-          const __e33 = document.createElement("path");
-          __e33.setAttribute("d", "M12 2 3 14h7l-1 8 10-12h-7l1-8Z");
-          __e32.appendChild(__e33);
-          __frag30.appendChild(__e32);
-          return { nodes: Array.from(__frag30.childNodes), cleanup: () => {
-            for (const c of __c31)
-              try {
-                c();
-              } catch (e) {}
-          } };
-        }
-      ]
-    });
-    const __wireBoundary_b3 = (anchor) => bindIf8({
-      anchor,
-      test: () => {
-        if (!$scope.hasSlottedIcon())
-          return 0;
-        return -1;
-      },
-      branches: [
-        () => {
-          const __frag4 = document.createDocumentFragment();
-          const __c5 = [];
-          const __matchAnchor6 = document.createComment("match");
-          __frag4.appendChild(__matchAnchor6);
-          __c5.push(__wireBoundary_b4(__matchAnchor6));
-          return { nodes: Array.from(__frag4.childNodes), cleanup: () => {
-            for (const c of __c5)
-              try {
-                c();
-              } catch (e) {}
-          } };
-        }
-      ]
-    });
-    const __wireBoundary_b7 = (anchor) => bindIf8({
-      anchor,
-      test: () => {
-        if ($scope.dismissible())
-          return 0;
-        return -1;
-      },
-      branches: [
-        () => {
-          const __frag42 = document.createDocumentFragment();
-          const __c43 = [];
-          const __e44 = document.createElement("button");
-          __e44.setAttribute("class", "close");
-          __e44.setAttribute("part", "close");
-          __e44.setAttribute("type", "button");
-          __e44.setAttribute("aria-label", "Dismiss notification");
-          attachRef13($scope, "closeBtn", __e44);
-          const __e45 = document.createElement("svg");
-          __e45.setAttribute("viewbox", "0 0 24 24");
-          __e45.setAttribute("fill", "none");
-          __e45.setAttribute("stroke", "currentColor");
-          __e45.setAttribute("stroke-width", "2");
-          __e45.setAttribute("stroke-linecap", "round");
-          __e45.setAttribute("stroke-linejoin", "round");
-          __e45.setAttribute("aria-hidden", "true");
-          const __e46 = document.createElement("line");
-          __e46.setAttribute("x1", "18");
-          __e46.setAttribute("y1", "6");
-          __e46.setAttribute("x2", "6");
-          __e46.setAttribute("y2", "18");
-          __e45.appendChild(__e46);
-          const __e47 = document.createElement("line");
-          __e47.setAttribute("x1", "6");
-          __e47.setAttribute("y1", "6");
-          __e47.setAttribute("x2", "18");
-          __e47.setAttribute("y2", "18");
-          __e45.appendChild(__e47);
-          __e44.appendChild(__e45);
-          __frag42.appendChild(__e44);
-          return { nodes: Array.from(__frag42.childNodes), cleanup: () => {
-            for (const c of __c43)
-              try {
-                c();
-              } catch (e) {}
-          } };
-        }
-      ]
-    });
-    const __wireBoundary_b9 = (anchor) => bindIf8({
-      anchor,
-      test: () => {
-        if ($scope.showProgress() && $scope.duration() > 0)
-          return 0;
-        return -1;
-      },
-      branches: [
-        () => {
-          const __frag49 = document.createDocumentFragment();
-          const __c50 = [];
-          const __e51 = document.createElement("span");
-          __e51.setAttribute("class", "progress");
-          __e51.setAttribute("aria-hidden", "true");
-          __frag49.appendChild(__e51);
-          return { nodes: Array.from(__frag49.childNodes), cleanup: () => {
-            for (const c of __c50)
-              try {
-                c();
-              } catch (e) {}
-          } };
-        }
-      ]
-    });
-    const __root = host.shadowRoot ?? host;
-    adoptSuiSheets29(__root);
-    const __e0 = document.createElement("div");
-    __e0.setAttribute("class", "toast");
-    __cleanups.push(bindAttr18(__e0, "role", () => $scope.tone() === "destructive" || $scope.tone() === "warning" ? "alert" : "status"));
-    __cleanups.push(bindAttr18(__e0, "aria-live", () => $scope.tone() === "destructive" || $scope.tone() === "warning" ? "assertive" : "polite"));
-    __e0.setAttribute("aria-atomic", "true");
-    __e0.setAttribute("part", "toast");
-    const __e1 = document.createElement("span");
-    __e1.setAttribute("class", "icon");
-    const __e2 = document.createElement("slot");
-    __e2.setAttribute("name", "icon");
-    attachRef13($scope, "iconSlotEl", __e2);
-    __e1.appendChild(__e2);
-    const __ifAnchor3 = document.createComment("if");
-    __e1.appendChild(__ifAnchor3);
-    __cleanups.push(__wireBoundary_b3(__ifAnchor3));
-    __e0.appendChild(__e1);
-    const __e34 = document.createElement("div");
-    __e34.setAttribute("class", "content");
-    const __e35 = document.createElement("div");
-    __e35.setAttribute("class", "title");
-    const __e36 = document.createElement("slot");
-    __e36.setAttribute("name", "title");
-    attachRef13($scope, "titleSlotEl", __e36);
-    __e35.appendChild(__e36);
-    __e34.appendChild(__e35);
-    const __e37 = document.createElement("div");
-    __e37.setAttribute("class", "body");
-    const __e38 = document.createElement("slot");
-    __e37.appendChild(__e38);
-    __e34.appendChild(__e37);
-    const __e39 = document.createElement("div");
-    __e39.setAttribute("class", "actions");
-    const __e40 = document.createElement("slot");
-    __e40.setAttribute("name", "actions");
-    attachRef13($scope, "actionsSlotEl", __e40);
-    __e39.appendChild(__e40);
-    __e34.appendChild(__e39);
-    __e0.appendChild(__e34);
-    const __ifAnchor41 = document.createComment("if");
-    __e0.appendChild(__ifAnchor41);
-    __cleanups.push(__wireBoundary_b7(__ifAnchor41));
-    const __ifAnchor48 = document.createComment("if");
-    __e0.appendChild(__ifAnchor48);
-    __cleanups.push(__wireBoundary_b9(__ifAnchor48));
-    __root.appendChild(__e0);
-    if (__r != null) {
-      const __lc = Object.getOwnPropertyDescriptor(__r, "__shipSetLifecycle")?.value;
-      if (__lc) {
-        const __sp = new Proxy($scope, {
-          get(t, k) {
-            return t[k];
-          },
-          set(t, k, v) {
-            const s = t[k];
-            if (s != null && typeof s.set === "function") {
-              if (typeof v === "function") {
-                s.set(() => v);
-              } else {
-                s.set(v);
-              }
-              return true;
-            }
-            return false;
-          }
-        });
-        if (__lc.mount) {
-          const __mc = __lc.mount(__sp, host);
-          if (typeof __mc === "function")
-            __cleanups.push(__mc);
-        }
-        if (__lc.unmount)
-          __cleanups.push(() => __lc.unmount(__sp));
-      }
-    }
-    return $scope;
-  }
-});
-
-// packages/ui-components/src/sui-toast/sui-toast-container.sui
-import { adoptSuiSheets as adoptSuiSheets30, attachRef as attachRef14, component as component30, prop as prop30 } from "@ship/sui-runtime";
-
-// packages/ui-components/src/sui-toast/sui-toast-container.controller.ts
-import { bindHtml, controller as controller18, effect as effect18, signal as signal4 } from "@ship/sui-runtime";
-var SLIDE_FROM = {
-  "top-left": "top",
-  "top-center": "top",
-  "top-right": "top",
-  "bottom-left": "bottom",
-  "bottom-center": "bottom",
-  "bottom-right": "bottom"
-};
-var sui_toast_container_controller_default = controller18({
-  mount(state, host) {
-    const scope = state;
-    if (!host.hasAttribute("role"))
-      host.setAttribute("role", "region");
-    if (!host.hasAttribute("aria-label"))
-      host.setAttribute("aria-label", "Notifications");
-    if (!host.hasAttribute("aria-live"))
-      host.setAttribute("aria-live", "polite");
-    const slotVersion = signal4(0);
-    const defaultSlotEl = scope.defaultSlotEl();
-    const getToasts = () => {
-      if (defaultSlotEl) {
-        return defaultSlotEl.assignedElements().filter((e) => e.tagName.toLowerCase() === "sui-toast");
-      }
-      return Array.from(host.querySelectorAll(":scope > sui-toast"));
-    };
-    const stopSlotEffect = effect18(() => {
-      slotVersion();
-      const pos = scope.position();
-      const maxVis = scope.maxVisible();
-      const dir = SLIDE_FROM[pos] ?? "bottom";
-      const toasts = getToasts();
-      for (const t of toasts) {
-        t.setAttribute("data-slide-from", dir);
-      }
-      if (maxVis > 0 && toasts.length > maxVis) {
-        const overflow = toasts.length - maxVis;
-        for (let i = 0;i < overflow; i++) {
-          const victim = toasts[i];
-          if (typeof victim.close === "function")
-            victim.close("programmatic");
-          else
-            victim.dismiss?.("programmatic");
-        }
-      }
-    });
-    const onSlotChange = () => slotVersion.set(slotVersion() + 1);
-    if (defaultSlotEl) {
-      defaultSlotEl.addEventListener("slotchange", onSlotChange);
-    }
-    function show(opts = {}) {
-      const doc = host.ownerDocument ?? document;
-      const t = doc.createElement("sui-toast");
-      if (opts.tone)
-        t.setAttribute("tone", opts.tone);
-      if (opts.size)
-        t.setAttribute("size", opts.size);
-      if (typeof opts.duration === "number")
-        t.setAttribute("duration", String(opts.duration));
-      if (opts.dismissible === false)
-        t.removeAttribute("dismissible");
-      else
-        t.setAttribute("dismissible", "");
-      if (opts.showProgress)
-        t.setAttribute("show-progress", "");
-      if (opts.title) {
-        const span = doc.createElement("span");
-        span.setAttribute("slot", "title");
-        span.textContent = opts.title;
-        t.appendChild(span);
-      }
-      if (opts.description) {
-        t.appendChild(doc.createTextNode(opts.description));
-      }
-      if (opts.actionHtml) {
-        const wrap = doc.createElement("span");
-        wrap.setAttribute("slot", "actions");
-        const html = opts.actionHtml;
-        bindHtml(wrap, () => html);
-        t.appendChild(wrap);
-      }
-      host.appendChild(t);
-      return t;
-    }
-    host.show = show;
-    return () => {
-      stopSlotEffect();
-      if (defaultSlotEl) {
-        defaultSlotEl.removeEventListener("slotchange", onSlotChange);
-      }
-    };
-  }
-});
-
-// packages/ui-components/src/sui-toast/sui-toast-container.sui
-var sui_toast_container_default = component30("sui-toast-container", {
-  props: {
-    position: prop30.union(["top-left", "top-center", "top-right", "bottom-left", "bottom-center", "bottom-right"], { default: "bottom-right", reflect: true }),
-    "max-visible": prop30.number({ default: 5, reflect: true })
-  },
-  shadow: true,
-  styles: `
-  :host {
-    position: fixed;
-    z-index: var(--z-toast, 9999);
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-2, 8px);
-    pointer-events: none;
-    max-width: min(440px, calc(100vw - 32px));
-    --toast-edge: 16px;
-    padding: 0;
-    margin: 0;
-    box-sizing: border-box;
-  }
-
-  :host(:not([position])),
-  :host([position='bottom-right']) {
-    bottom: var(--toast-edge);
-    right: var(--toast-edge);
-    top: auto;
-    left: auto;
-    flex-direction: column-reverse;
-    align-items: flex-end;
-  }
-  :host([position='bottom-left']) {
-    bottom: var(--toast-edge);
-    left: var(--toast-edge);
-    top: auto;
-    right: auto;
-    flex-direction: column-reverse;
-    align-items: flex-start;
-  }
-  :host([position='bottom-center']) {
-    bottom: var(--toast-edge);
-    left: 50%;
-    transform: translateX(-50%);
-    top: auto;
-    right: auto;
-    flex-direction: column-reverse;
-    align-items: center;
-  }
-  :host([position='top-right']) {
-    top: var(--toast-edge);
-    right: var(--toast-edge);
-    bottom: auto;
-    left: auto;
-    flex-direction: column;
-    align-items: flex-end;
-  }
-  :host([position='top-left']) {
-    top: var(--toast-edge);
-    left: var(--toast-edge);
-    bottom: auto;
-    right: auto;
-    flex-direction: column;
-    align-items: flex-start;
-  }
-  :host([position='top-center']) {
-    top: var(--toast-edge);
-    left: 50%;
-    transform: translateX(-50%);
-    bottom: auto;
-    right: auto;
-    flex-direction: column;
-    align-items: center;
-  }
-
-  ::slotted(sui-toast) {
-    pointer-events: auto;
-    width: auto;
-  }
-`,
-  setup(ctx) {
-    const { props, host } = ctx;
-    if (!ctx.cleanups)
-      ctx.cleanups = [];
-    const __cleanups = ctx.cleanups;
-    const $scope = Object.create(null);
-    $scope.position = props.position;
-    $scope.maxVisible = props.maxVisible;
-    let __r = null;
-    if (sui_toast_container_controller_default && typeof sui_toast_container_controller_default.setup === "function") {
-      ctx.scope = $scope;
-      __r = sui_toast_container_controller_default.setup(ctx);
-      if (__r && typeof __r === "object")
-        Object.assign($scope, __r);
-    }
-    const __root = host.shadowRoot ?? host;
-    adoptSuiSheets30(__root);
-    const __e0 = document.createElement("slot");
-    attachRef14($scope, "defaultSlotEl", __e0);
-    __root.appendChild(__e0);
-    if (__r != null) {
-      const __lc = Object.getOwnPropertyDescriptor(__r, "__shipSetLifecycle")?.value;
-      if (__lc) {
-        const __sp = new Proxy($scope, {
-          get(t, k) {
-            return t[k];
-          },
-          set(t, k, v) {
-            const s = t[k];
-            if (s != null && typeof s.set === "function") {
-              if (typeof v === "function") {
-                s.set(() => v);
-              } else {
-                s.set(v);
-              }
-              return true;
-            }
-            return false;
-          }
-        });
-        if (__lc.mount) {
-          const __mc = __lc.mount(__sp, host);
-          if (typeof __mc === "function")
-            __cleanups.push(__mc);
-        }
-        if (__lc.unmount)
-          __cleanups.push(() => __lc.unmount(__sp));
-      }
-    }
-    return $scope;
-  }
-});
-
-// packages/ui-components/src/sui-breadcrumb/sui-breadcrumb.sui
-import { adoptSuiSheets as adoptSuiSheets31, bindAttr as bindAttr19, bindFor, bindIf as bindIf9, bindText as bindText4, component as component31, prop as prop31 } from "@ship/sui-runtime";
-
-// packages/ui-components/src/sui-breadcrumb/sui-breadcrumb.controller.ts
-import { controller as controller19, signal as signal5 } from "@ship/sui-runtime";
-var sui_breadcrumb_controller_default = controller19({
-  scope: () => {
-    const items = signal5([]);
-    const lastSlot = signal5("");
-    return { items, lastSlot };
-  },
-  mount(state, host) {
-    const scope = state;
-    const items = scope.items;
-    const lastSlot = scope.lastSlot;
-    const sync = () => {
-      const children = Array.from(host.querySelectorAll(":scope > sui-breadcrumb-item"));
-      const next = children.map((el, i) => {
-        const slot = `i${i}`;
-        el.setAttribute("slot", slot);
-        return { slot };
-      });
-      lastSlot.set(next.length > 0 ? next[next.length - 1].slot : "");
-      items.set(next);
-    };
-    sync();
-    const observer = new MutationObserver(sync);
-    observer.observe(host, { childList: true });
-    return () => observer.disconnect();
-  }
-});
-
-// packages/ui-components/src/sui-breadcrumb/sui-breadcrumb.sui
-var sui_breadcrumb_default = component31("sui-breadcrumb", {
-  props: {
-    separator: prop31.string({ default: "/", reflect: true })
-  },
-  shadow: true,
-  styles: `
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.tone=u.tone,n.size=u.size,n.duration=u.duration,n.dismissible=u.dismissible,n.showProgress=u.showProgress,n.closing=u.closing,n.actionsSlotEl=G(null),n.closeBtn=G(null),n.iconSlotEl=G(null),n.titleSlotEl=G(null);let b=null;if(Ni&&typeof Ni.setup==="function"){if(i.scope=n,b=Ni.setup(i),b&&typeof b==="object")Object.assign(n,b)}let w=(f)=>R({anchor:f,test:()=>{let t=n.tone();if(t==="info")return 0;if(t==="success")return 1;if(t==="warning")return 2;if(t==="destructive")return 3;if(t==="accent")return 4;return-1},branches:[()=>{let t=document.createDocumentFragment(),H=[],C=document.createElement("svg");C.setAttribute("viewbox","0 0 24 24"),C.setAttribute("fill","none"),C.setAttribute("stroke","currentColor"),C.setAttribute("stroke-width","2"),C.setAttribute("stroke-linecap","round"),C.setAttribute("stroke-linejoin","round"),C.setAttribute("aria-hidden","true");let z=document.createElement("circle");z.setAttribute("cx","12"),z.setAttribute("cy","12"),z.setAttribute("r","9"),C.appendChild(z);let j=document.createElement("path");j.setAttribute("d","M12 8h.01"),C.appendChild(j);let g=document.createElement("path");return g.setAttribute("d","M11 12h1v4h1"),C.appendChild(g),t.appendChild(C),{nodes:Array.from(t.childNodes),cleanup:()=>{for(let J of H)try{J()}catch(D){}}}},()=>{let t=document.createDocumentFragment(),H=[],C=document.createElement("svg");C.setAttribute("viewbox","0 0 24 24"),C.setAttribute("fill","none"),C.setAttribute("stroke","currentColor"),C.setAttribute("stroke-width","2"),C.setAttribute("stroke-linecap","round"),C.setAttribute("stroke-linejoin","round"),C.setAttribute("aria-hidden","true");let z=document.createElement("circle");z.setAttribute("cx","12"),z.setAttribute("cy","12"),z.setAttribute("r","9"),C.appendChild(z);let j=document.createElement("path");return j.setAttribute("d","m8.5 12.5 2.5 2.5 4.5-5"),C.appendChild(j),t.appendChild(C),{nodes:Array.from(t.childNodes),cleanup:()=>{for(let g of H)try{g()}catch(J){}}}},()=>{let t=document.createDocumentFragment(),H=[],C=document.createElement("svg");C.setAttribute("viewbox","0 0 24 24"),C.setAttribute("fill","none"),C.setAttribute("stroke","currentColor"),C.setAttribute("stroke-width","2"),C.setAttribute("stroke-linecap","round"),C.setAttribute("stroke-linejoin","round"),C.setAttribute("aria-hidden","true");let z=document.createElement("path");z.setAttribute("d","M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"),C.appendChild(z);let j=document.createElement("line");j.setAttribute("x1","12"),j.setAttribute("x2","12"),j.setAttribute("y1","9"),j.setAttribute("y2","13"),C.appendChild(j);let g=document.createElement("line");return g.setAttribute("x1","12"),g.setAttribute("x2","12.01"),g.setAttribute("y1","17"),g.setAttribute("y2","17"),C.appendChild(g),t.appendChild(C),{nodes:Array.from(t.childNodes),cleanup:()=>{for(let J of H)try{J()}catch(D){}}}},()=>{let t=document.createDocumentFragment(),H=[],C=document.createElement("svg");C.setAttribute("viewbox","0 0 24 24"),C.setAttribute("fill","none"),C.setAttribute("stroke","currentColor"),C.setAttribute("stroke-width","2"),C.setAttribute("stroke-linecap","round"),C.setAttribute("stroke-linejoin","round"),C.setAttribute("aria-hidden","true");let z=document.createElement("circle");z.setAttribute("cx","12"),z.setAttribute("cy","12"),z.setAttribute("r","9"),C.appendChild(z);let j=document.createElement("line");j.setAttribute("x1","15"),j.setAttribute("x2","9"),j.setAttribute("y1","9"),j.setAttribute("y2","15"),C.appendChild(j);let g=document.createElement("line");return g.setAttribute("x1","9"),g.setAttribute("x2","15"),g.setAttribute("y1","9"),g.setAttribute("y2","15"),C.appendChild(g),t.appendChild(C),{nodes:Array.from(t.childNodes),cleanup:()=>{for(let J of H)try{J()}catch(D){}}}},()=>{let t=document.createDocumentFragment(),H=[],C=document.createElement("svg");C.setAttribute("viewbox","0 0 24 24"),C.setAttribute("fill","none"),C.setAttribute("stroke","currentColor"),C.setAttribute("stroke-width","2"),C.setAttribute("stroke-linecap","round"),C.setAttribute("stroke-linejoin","round"),C.setAttribute("aria-hidden","true");let z=document.createElement("path");return z.setAttribute("d","M12 2 3 14h7l-1 8 10-12h-7l1-8Z"),C.appendChild(z),t.appendChild(C),{nodes:Array.from(t.childNodes),cleanup:()=>{for(let j of H)try{j()}catch(g){}}}}]}),r=(f)=>R({anchor:f,test:()=>{if(!n.hasSlottedIcon())return 0;return-1},branches:[()=>{let t=document.createDocumentFragment(),H=[],C=document.createComment("match");return t.appendChild(C),H.push(w(C)),{nodes:Array.from(t.childNodes),cleanup:()=>{for(let z of H)try{z()}catch(j){}}}}]}),M=(f)=>R({anchor:f,test:()=>{if(n.dismissible())return 0;return-1},branches:[()=>{let t=document.createDocumentFragment(),H=[],C=document.createElement("button");C.setAttribute("class","close"),C.setAttribute("part","close"),C.setAttribute("type","button"),C.setAttribute("aria-label","Dismiss notification"),O(n,"closeBtn",C);let z=document.createElement("svg");z.setAttribute("viewbox","0 0 24 24"),z.setAttribute("fill","none"),z.setAttribute("stroke","currentColor"),z.setAttribute("stroke-width","2"),z.setAttribute("stroke-linecap","round"),z.setAttribute("stroke-linejoin","round"),z.setAttribute("aria-hidden","true");let j=document.createElement("line");j.setAttribute("x1","18"),j.setAttribute("y1","6"),j.setAttribute("x2","6"),j.setAttribute("y2","18"),z.appendChild(j);let g=document.createElement("line");return g.setAttribute("x1","6"),g.setAttribute("y1","6"),g.setAttribute("x2","18"),g.setAttribute("y2","18"),z.appendChild(g),C.appendChild(z),t.appendChild(C),{nodes:Array.from(t.childNodes),cleanup:()=>{for(let J of H)try{J()}catch(D){}}}}]}),y=(f)=>R({anchor:f,test:()=>{if(n.showProgress()&&n.duration()>0)return 0;return-1},branches:[()=>{let t=document.createDocumentFragment(),H=[],C=document.createElement("span");return C.setAttribute("class","progress"),C.setAttribute("aria-hidden","true"),t.appendChild(C),{nodes:Array.from(t.childNodes),cleanup:()=>{for(let z of H)try{z()}catch(j){}}}}]}),E=(f)=>R({anchor:f,test:()=>{if(n.visible())return 0;return-1},branches:[()=>{let t=document.createDocumentFragment(),H=[],C=document.createElement("div");C.setAttribute("class","toast"),ln(C,Mu,{axis:"y",duration:200},"in"),ln(C,Zn,{duration:180},"out"),H.push(T(C,"role",()=>n.tone()==="destructive"||n.tone()==="warning"?"alert":"status")),H.push(T(C,"aria-live",()=>n.tone()==="destructive"||n.tone()==="warning"?"assertive":"polite")),C.setAttribute("aria-atomic","true"),C.setAttribute("part","toast");let z=document.createElement("span");z.setAttribute("class","icon");let j=document.createElement("slot");j.setAttribute("name","icon"),O(n,"iconSlotEl",j),z.appendChild(j);let g=document.createComment("if");z.appendChild(g),H.push(r(g)),C.appendChild(z);let J=document.createElement("div");J.setAttribute("class","content");let D=document.createElement("div");D.setAttribute("class","title");let Z=document.createElement("slot");Z.setAttribute("name","title"),O(n,"titleSlotEl",Z),D.appendChild(Z),J.appendChild(D);let X=document.createElement("div");X.setAttribute("class","body");let W=document.createElement("slot");X.appendChild(W),J.appendChild(X);let Y=document.createElement("div");Y.setAttribute("class","actions");let N=document.createElement("slot");N.setAttribute("name","actions"),O(n,"actionsSlotEl",N),Y.appendChild(N),J.appendChild(Y),C.appendChild(J);let F=document.createComment("if");C.appendChild(F),H.push(M(F));let B=document.createComment("if");return C.appendChild(B),H.push(y(B)),t.appendChild(C),{nodes:Array.from(t.childNodes),cleanup:()=>{for(let A of H)try{A()}catch(K){}}}}]}),l=d.shadowRoot??d;V(l);let L=document.createComment("if");if(l.appendChild(L),m.push(E(L)),b!=null){let f=Object.getOwnPropertyDescriptor(b,"__shipSetLifecycle")?.value;if(f){let t=new Proxy(n,{get(H,C){return H[C]},set(H,C,z){let j=H[C];if(j!=null&&typeof j.set==="function"){if(typeof z==="function")j.set(()=>z);else j.set(z);return!0}return!1}});if(f.mount){let H=f.mount(t,d);if(typeof H==="function")m.push(H)}if(f.unmount)m.push(()=>f.unmount(t))}}return n}});var Ym={"top-left":"top","top-center":"top","top-right":"top","bottom-left":"bottom","bottom-center":"bottom","bottom-right":"bottom"},Mn="16px",Un="position:fixed;display:flex;gap:var(--space-2,8px);pointer-events:none;z-index:var(--z-toast,9999);max-width:min(440px,calc(100vw - 32px));padding:0;margin:0;box-sizing:border-box;";function qm(i){switch(i){case"top-right":return`${Un}top:${Mn};right:${Mn};flex-direction:column;align-items:flex-end;`;case"top-left":return`${Un}top:${Mn};left:${Mn};flex-direction:column;align-items:flex-start;`;case"top-center":return`${Un}top:${Mn};left:50%;transform:translateX(-50%);flex-direction:column;align-items:center;`;case"bottom-left":return`${Un}bottom:${Mn};left:${Mn};flex-direction:column-reverse;align-items:flex-start;`;case"bottom-center":return`${Un}bottom:${Mn};left:50%;transform:translateX(-50%);flex-direction:column-reverse;align-items:center;`;case"bottom-right":default:return`${Un}bottom:${Mn};right:${Mn};flex-direction:column-reverse;align-items:flex-end;`}}var Ui=U({mount(i,u){let d=i;if(!u.hasAttribute("role"))u.setAttribute("role","region");if(!u.hasAttribute("aria-label"))u.setAttribute("aria-label","Notifications");if(!u.hasAttribute("aria-live"))u.setAttribute("aria-live","polite");let m=G(0),n=d.defaultSlotEl(),b=d.stackEl(),w=(t)=>{if(!b)return;if(t.parentElement!==b)b.appendChild(t)},r=()=>{if(!b)return[];return Array.from(b.children).filter((t)=>t.tagName.toLowerCase()==="sui-toast")},M=q(()=>{if(!b)return;let t=d.position();b.style.cssText=qm(t),b.setAttribute("data-position",t)}),y=q(()=>{m();let t=d.position(),H=d.maxVisible(),C=Ym[t]??"bottom",z=r();for(let j of z)j.setAttribute("data-slide-from",C),j.style.pointerEvents="auto";if(H>0&&z.length>H){let j=z.length-H;for(let g=0;g<j;g++){let J=z[g];if(typeof J.close==="function")J.close("programmatic");else J.dismiss?.("programmatic")}}}),E=()=>{if(n){for(let t of n.assignedElements())if(t.tagName.toLowerCase()==="sui-toast")w(t)}m.set(m()+1)};if(n)n.addEventListener("slotchange",E),E();let l=new MutationObserver((t)=>{let H=!1;for(let C of t){for(let z of C.addedNodes)if(z.nodeType===Node.ELEMENT_NODE){let j=z;if(j.tagName.toLowerCase()==="sui-toast")w(j),H=!0}if(C.removedNodes.length)H=!0}if(H)m.set(m()+1)});l.observe(u,{childList:!0});for(let t of Array.from(u.children))if(t.tagName.toLowerCase()==="sui-toast")w(t);m.set(m()+1);let L=b?new MutationObserver(()=>m.set(m()+1)):null;if(b&&L)L.observe(b,{childList:!0});function f(t={}){let H=u.ownerDocument??document,C=H.createElement("sui-toast");if(t.tone)C.setAttribute("tone",t.tone);if(t.size)C.setAttribute("size",t.size);if(typeof t.duration==="number")C.setAttribute("duration",String(t.duration));if(t.dismissible===!1)C.removeAttribute("dismissible");else C.setAttribute("dismissible","");if(t.showProgress)C.setAttribute("show-progress","");if(t.title){let z=H.createElement("span");z.setAttribute("slot","title"),z.textContent=t.title,C.appendChild(z)}if(t.description)C.appendChild(H.createTextNode(t.description));if(t.actionHtml){let z=H.createElement("span");z.setAttribute("slot","actions");let j=t.actionHtml;fn(z,()=>j),C.appendChild(z)}if(b)b.appendChild(C);else u.appendChild(C);return C}return u.show=f,()=>{if(y(),M(),l.disconnect(),L?.disconnect(),n)n.removeEventListener("slotchange",E)}}});var j5=Q("sui-toast-container",{props:{position:P.union(["top-left","top-center","top-right","bottom-left","bottom-center","bottom-right"],{default:"bottom-right",reflect:!0}),"max-visible":P.number({default:5,reflect:!0})},shadow:!0,styles:`
+  /* Host collapses — the visible stack lives in body via <sui-portal>
+     (see template). The host stays minimal so it can sit anywhere in
+     the document without taking layout space. */
+  :host { display: contents; }
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.position=u.position,n.maxVisible=u.maxVisible,n.defaultSlotEl=G(null),n.stackEl=G(null);let b=null;if(Ui&&typeof Ui.setup==="function"){if(i.scope=n,b=Ui.setup(i),b&&typeof b==="object")Object.assign(n,b)}let w=d.shadowRoot??d;V(w);let r=document.createElement("sui-portal");r.setAttribute("target","body");let M=document.createElement("div");M.setAttribute("class","sui-toast-stack"),M.setAttribute("data-sui-toast-stack",""),O(n,"stackEl",M),r.appendChild(M),w.appendChild(r);let y=document.createElement("slot");if(O(n,"defaultSlotEl",y),w.appendChild(y),b!=null){let E=Object.getOwnPropertyDescriptor(b,"__shipSetLifecycle")?.value;if(E){let l=new Proxy(n,{get(L,f){return L[f]},set(L,f,t){let H=L[f];if(H!=null&&typeof H.set==="function"){if(typeof t==="function")H.set(()=>t);else H.set(t);return!0}return!1}});if(E.mount){let L=E.mount(l,d);if(typeof L==="function")m.push(L)}if(E.unmount)m.push(()=>E.unmount(l))}}return n}});var Fi=U({mount(i,u){let d=i,m=(b)=>{let w=b.detail??{},r=d.containerEl();if(!r||typeof r.show!=="function")return;r.show({tone:w.tone,duration:w.duration,title:w.message,description:w.description,actionHtml:w.actionHtml})},n=u.closest("sui-shell, ship-shell")??u.ownerDocument?.body??u;return n.addEventListener("ship:notify",m),()=>{n.removeEventListener("ship:notify",m)}}});var X5=Q("sui-toast-host",{props:{position:P.union(["top-left","top-center","top-right","bottom-left","bottom-center","bottom-right"],{default:"bottom-right",reflect:!0})},shadow:!0,styles:`
+  :host { display: contents; }
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.position=u.position,n.containerEl=G(null);let b=null;if(Fi&&typeof Fi.setup==="function"){if(i.scope=n,b=Fi.setup(i),b&&typeof b==="object")Object.assign(n,b)}let w=d.shadowRoot??d;V(w);let r=document.createElement("sui-toast-container");if(m.push(T(r,"position",()=>n.position())),O(n,"containerEl",r),w.appendChild(r),b!=null){let M=Object.getOwnPropertyDescriptor(b,"__shipSetLifecycle")?.value;if(M){let y=new Proxy(n,{get(E,l){return E[l]},set(E,l,L){let f=E[l];if(f!=null&&typeof f.set==="function"){if(typeof L==="function")f.set(()=>L);else f.set(L);return!0}return!1}});if(M.mount){let E=M.mount(y,d);if(typeof E==="function")m.push(E)}if(M.unmount)m.push(()=>M.unmount(y))}}return n}});var Oi=U({scope:()=>{let i=G([]),u=G("");return{items:i,lastSlot:u}},mount(i,u){let d=()=>{let b=Array.from(u.querySelectorAll(":scope > sui-breadcrumb-item")).map((w,r)=>{let M=`i${r}`;return w.setAttribute("slot",M),{slot:M}});i.lastSlot.set(b.length>0?b[b.length-1].slot:""),i.items.set(b)};d();let m=new MutationObserver(d);return m.observe(u,{childList:!0}),()=>m.disconnect()}});var Y5=Q("sui-breadcrumb",{props:{separator:P.string({default:"/",reflect:!0})},shadow:!0,styles:`
   :host { display: flex; align-items: center; }
   nav { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 2px; }
   .sep {
@@ -5965,174 +2776,7 @@ var sui_breadcrumb_default = component31("sui-breadcrumb", {
     opacity: 0.7;
   }
   .sep svg { width: 12px; height: 12px; }
-`,
-  setup(ctx) {
-    const { props, host } = ctx;
-    if (!ctx.cleanups)
-      ctx.cleanups = [];
-    const __cleanups = ctx.cleanups;
-    const $scope = Object.create(null);
-    $scope.separator = props.separator;
-    let __r = null;
-    if (sui_breadcrumb_controller_default && typeof sui_breadcrumb_controller_default.setup === "function") {
-      ctx.scope = $scope;
-      __r = sui_breadcrumb_controller_default.setup(ctx);
-      if (__r && typeof __r === "object")
-        Object.assign($scope, __r);
-    }
-    const __wireBoundary_b0 = (anchor) => bindFor({
-      anchor,
-      items: () => $scope.items(),
-      key: (item, __i) => {
-        const __child = Object.create($scope);
-        __child.item = item;
-        __child.__i = __i;
-        return (($scope2) => item.slot)(__child);
-      },
-      render: (item, __i) => {
-        const __childScope2 = Object.create($scope);
-        __childScope2.item = item;
-        __childScope2.__i = __i;
-        return (($scope2) => {
-          const __wireBoundary_b3 = (anchor2) => bindIf9({
-            anchor: anchor2,
-            test: () => {
-              if ($scope2.separator() === "/")
-                return 0;
-              return 1;
-            },
-            branches: [
-              () => {
-                const __frag11 = document.createDocumentFragment();
-                const __c12 = [];
-                const __e13 = document.createElement("svg");
-                __e13.setAttribute("viewbox", "0 0 24 24");
-                __e13.setAttribute("fill", "none");
-                __e13.setAttribute("stroke", "currentColor");
-                __e13.setAttribute("stroke-width", "2");
-                __e13.setAttribute("stroke-linecap", "round");
-                __e13.setAttribute("stroke-linejoin", "round");
-                const __e14 = document.createElement("path");
-                __e14.setAttribute("d", "M9 6l6 6-6 6");
-                __e13.appendChild(__e14);
-                __frag11.appendChild(__e13);
-                return { nodes: Array.from(__frag11.childNodes), cleanup: () => {
-                  for (const c of __c12)
-                    try {
-                      c();
-                    } catch (e) {}
-                } };
-              },
-              () => {
-                const __frag15 = document.createDocumentFragment();
-                const __c16 = [];
-                const __t17 = document.createTextNode("");
-                __frag15.appendChild(__t17);
-                __c16.push(bindText4(__t17, () => $scope2.separator()));
-                return { nodes: Array.from(__frag15.childNodes), cleanup: () => {
-                  for (const c of __c16)
-                    try {
-                      c();
-                    } catch (e) {}
-                } };
-              }
-            ]
-          });
-          const __wireBoundary_b2 = (anchor2) => bindIf9({
-            anchor: anchor2,
-            test: () => {
-              if ($scope2.item.slot !== $scope2.lastSlot())
-                return 0;
-              return -1;
-            },
-            branches: [
-              () => {
-                const __frag7 = document.createDocumentFragment();
-                const __c8 = [];
-                const __e9 = document.createElement("span");
-                __e9.setAttribute("class", "sep");
-                __e9.setAttribute("aria-hidden", "true");
-                const __ifAnchor10 = document.createComment("if");
-                __e9.appendChild(__ifAnchor10);
-                __c8.push(__wireBoundary_b3(__ifAnchor10));
-                __frag7.appendChild(__e9);
-                return { nodes: Array.from(__frag7.childNodes), cleanup: () => {
-                  for (const c of __c8)
-                    try {
-                      c();
-                    } catch (e) {}
-                } };
-              }
-            ]
-          });
-          const __frag3 = document.createDocumentFragment();
-          const __c4 = [];
-          const __e5 = document.createElement("slot");
-          __c4.push(bindAttr19(__e5, "name", () => $scope2.item.slot));
-          __frag3.appendChild(__e5);
-          const __ifAnchor6 = document.createComment("if");
-          __frag3.appendChild(__ifAnchor6);
-          __c4.push(__wireBoundary_b2(__ifAnchor6));
-          return { nodes: Array.from(__frag3.childNodes), cleanup: () => {
-            for (const c of __c4)
-              try {
-                c();
-              } catch (e) {}
-          } };
-        })(__childScope2);
-      }
-    });
-    const __root = host.shadowRoot ?? host;
-    adoptSuiSheets31(__root);
-    const __e0 = document.createElement("nav");
-    __e0.setAttribute("aria-label", "Breadcrumb");
-    __e0.setAttribute("part", "nav");
-    const __forAnchor1 = document.createComment("for");
-    __e0.appendChild(__forAnchor1);
-    __cleanups.push(__wireBoundary_b0(__forAnchor1));
-    __root.appendChild(__e0);
-    if (__r != null) {
-      const __lc = Object.getOwnPropertyDescriptor(__r, "__shipSetLifecycle")?.value;
-      if (__lc) {
-        const __sp = new Proxy($scope, {
-          get(t, k) {
-            return t[k];
-          },
-          set(t, k, v) {
-            const s = t[k];
-            if (s != null && typeof s.set === "function") {
-              if (typeof v === "function") {
-                s.set(() => v);
-              } else {
-                s.set(v);
-              }
-              return true;
-            }
-            return false;
-          }
-        });
-        if (__lc.mount) {
-          const __mc = __lc.mount(__sp, host);
-          if (typeof __mc === "function")
-            __cleanups.push(__mc);
-        }
-        if (__lc.unmount)
-          __cleanups.push(() => __lc.unmount(__sp));
-      }
-    }
-    return $scope;
-  }
-});
-
-// packages/ui-components/src/sui-breadcrumb/sui-breadcrumb-item.sui
-import { adoptSuiSheets as adoptSuiSheets32, bindAttr as bindAttr20, bindIf as bindIf10, component as component32, prop as prop32 } from "@ship/sui-runtime";
-var sui_breadcrumb_item_default = component32("sui-breadcrumb-item", {
-  props: {
-    href: prop32.string({ default: "", reflect: true }),
-    active: prop32.bool({ default: false, reflect: true })
-  },
-  shadow: true,
-  styles: `
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.separator=u.separator;let b=null;if(Oi&&typeof Oi.setup==="function"){if(i.scope=n,b=Oi.setup(i),b&&typeof b==="object")Object.assign(n,b)}let w=(E)=>s({anchor:E,items:()=>n.items(),key:(l,L)=>{let f=Object.create(n);return f.item=l,f.__i=L,((t)=>l.slot)(f)},render:(l,L)=>{let f=Object.create(n);return f.item=l,f.__i=L,f.__v=G(0),((t)=>{let H=(D)=>R({anchor:D,test:()=>{if(t.separator()==="/")return 0;return 1},branches:[()=>{let Z=document.createDocumentFragment(),X=[],W=document.createElement("svg");W.setAttribute("viewbox","0 0 24 24"),W.setAttribute("fill","none"),W.setAttribute("stroke","currentColor"),W.setAttribute("stroke-width","2"),W.setAttribute("stroke-linecap","round"),W.setAttribute("stroke-linejoin","round");let Y=document.createElement("path");return Y.setAttribute("d","M9 6l6 6-6 6"),W.appendChild(Y),Z.appendChild(W),{nodes:Array.from(Z.childNodes),cleanup:()=>{for(let N of X)try{N()}catch(F){}}}},()=>{let Z=document.createDocumentFragment(),X=[],W=document.createTextNode("");return Z.appendChild(W),X.push(S(W,()=>(t.__v(),t.separator()))),{nodes:Array.from(Z.childNodes),cleanup:()=>{for(let Y of X)try{Y()}catch(N){}}}}]}),C=(D)=>R({anchor:D,test:()=>{if(t.item.slot!==t.lastSlot())return 0;return-1},branches:[()=>{let Z=document.createDocumentFragment(),X=[],W=document.createElement("span");W.setAttribute("class","sep"),W.setAttribute("aria-hidden","true");let Y=document.createComment("if");return W.appendChild(Y),X.push(H(Y)),Z.appendChild(W),{nodes:Array.from(Z.childNodes),cleanup:()=>{for(let N of X)try{N()}catch(F){}}}}]}),z=document.createDocumentFragment(),j=[],g=document.createElement("slot");{let D=t.item.slot;if(D==null||D===!1||D==="")g.removeAttribute("name");else g.setAttribute("name",D===!0?"":String(D))}z.appendChild(g);let J=document.createComment("if");return z.appendChild(J),j.push(C(J)),{nodes:Array.from(z.childNodes),cleanup:()=>{for(let D of j)try{D()}catch(Z){}},update:(D,Z)=>{t.item=D,t.__i=Z;{let X=t.item.slot;if(X==null||X===!1||X==="")g.removeAttribute("name");else g.setAttribute("name",X===!0?"":String(X))}t.__v.set((X)=>X+1)}}})(f)}}),r=d.shadowRoot??d;V(r);let M=document.createElement("nav");M.setAttribute("aria-label","Breadcrumb"),M.setAttribute("part","nav");let y=document.createComment("for");if(M.appendChild(y),m.push(w(y)),r.appendChild(M),b!=null){let E=Object.getOwnPropertyDescriptor(b,"__shipSetLifecycle")?.value;if(E){let l=new Proxy(n,{get(L,f){return L[f]},set(L,f,t){let H=L[f];if(H!=null&&typeof H.set==="function"){if(typeof t==="function")H.set(()=>t);else H.set(t);return!0}return!1}});if(E.mount){let L=E.mount(l,d);if(typeof L==="function")m.push(L)}if(E.unmount)m.push(()=>E.unmount(l))}}return n}});var U5=Q("sui-breadcrumb-item",{props:{href:P.string({default:"",reflect:!0}),active:P.bool({default:!1,reflect:!0})},shadow:!0,styles:`
   :host {
     display: inline-flex;
     align-items: center;
@@ -6159,141 +2803,7 @@ var sui_breadcrumb_item_default = component32("sui-breadcrumb-item", {
     outline: var(--ring-width) solid var(--ring-color);
     outline-offset: var(--ring-offset);
   }
-`,
-  setup(ctx) {
-    const { props, host } = ctx;
-    if (!ctx.cleanups)
-      ctx.cleanups = [];
-    const __cleanups = ctx.cleanups;
-    const $scope = Object.create(null);
-    $scope.href = props.href;
-    $scope.active = props.active;
-    const __wireBoundary_b0 = (anchor) => bindIf10({
-      anchor,
-      test: () => {
-        if ($scope.href() && !$scope.active())
-          return 0;
-        return 1;
-      },
-      branches: [
-        () => {
-          const __frag1 = document.createDocumentFragment();
-          const __c2 = [];
-          const __e3 = document.createElement("a");
-          __c2.push(bindAttr20(__e3, "href", () => $scope.href()));
-          __e3.setAttribute("part", "link");
-          const __e4 = document.createElement("slot");
-          __e3.appendChild(__e4);
-          __frag1.appendChild(__e3);
-          return { nodes: Array.from(__frag1.childNodes), cleanup: () => {
-            for (const c of __c2)
-              try {
-                c();
-              } catch (e) {}
-          } };
-        },
-        () => {
-          const __frag5 = document.createDocumentFragment();
-          const __c6 = [];
-          const __e7 = document.createElement("span");
-          __e7.setAttribute("class", "label");
-          __e7.setAttribute("part", "label");
-          __c6.push(bindAttr20(__e7, "aria-current", () => $scope.active() ? "page" : "false"));
-          const __e8 = document.createElement("slot");
-          __e7.appendChild(__e8);
-          __frag5.appendChild(__e7);
-          return { nodes: Array.from(__frag5.childNodes), cleanup: () => {
-            for (const c of __c6)
-              try {
-                c();
-              } catch (e) {}
-          } };
-        }
-      ]
-    });
-    const __root = host.shadowRoot ?? host;
-    adoptSuiSheets32(__root);
-    const __ifAnchor0 = document.createComment("if");
-    __root.appendChild(__ifAnchor0);
-    __cleanups.push(__wireBoundary_b0(__ifAnchor0));
-    return $scope;
-  }
-});
-
-// packages/ui-components/src/sui-pagination/sui-pagination.sui
-import { adoptSuiSheets as adoptSuiSheets33, attachRef as attachRef15, bindAttr as bindAttr21, bindText as bindText5, component as component33, prop as prop33 } from "@ship/sui-runtime";
-
-// packages/ui-components/src/sui-pagination/sui-pagination.controller.ts
-import { controller as controller20, signal as signal6, ref as ref2, effect as effect19 } from "@ship/sui-runtime";
-var sui_pagination_controller_default = controller20({
-  scope: () => ({
-    totalPages: signal6(1),
-    info: signal6(""),
-    prevBtn: ref2(null),
-    nextBtn: ref2(null)
-  }),
-  mount(state, host) {
-    const scope = state;
-    const stopEffect = effect19(() => {
-      const p = scope.page();
-      const t = scope.total();
-      const pp = scope.perPage();
-      const tp = t > 0 ? Math.ceil(t / pp) : 1;
-      scope.totalPages.set(tp);
-      if (t > 0) {
-        const start = (p - 1) * pp + 1;
-        const end = Math.min(p * pp, t);
-        scope.info.set(`Page ${p} of ${tp} (${start}–${end} of ${t})`);
-      } else {
-        scope.info.set(`Page ${p} of ${tp}`);
-      }
-    });
-    const prevBtn = scope.prevBtn();
-    const nextBtn = scope.nextBtn();
-    const onPrev = () => {
-      const p = scope.page();
-      if (p > 1) {
-        const np = p - 1;
-        scope.page.set(np);
-        host.dispatchEvent(new CustomEvent("sui-page", {
-          detail: { page: np },
-          bubbles: true,
-          composed: true
-        }));
-      }
-    };
-    const onNext = () => {
-      const p = scope.page();
-      const tp = scope.totalPages();
-      if (p < tp) {
-        const np = p + 1;
-        scope.page.set(np);
-        host.dispatchEvent(new CustomEvent("sui-page", {
-          detail: { page: np },
-          bubbles: true,
-          composed: true
-        }));
-      }
-    };
-    prevBtn?.addEventListener("click", onPrev);
-    nextBtn?.addEventListener("click", onNext);
-    return () => {
-      stopEffect();
-      prevBtn?.removeEventListener("click", onPrev);
-      nextBtn?.removeEventListener("click", onNext);
-    };
-  }
-});
-
-// packages/ui-components/src/sui-pagination/sui-pagination.sui
-var sui_pagination_default = component33("sui-pagination", {
-  props: {
-    page: prop33.number({ default: 1, reflect: true }),
-    total: prop33.number({ default: 0, reflect: true }),
-    "per-page": prop33.number({ default: 25, reflect: true })
-  },
-  shadow: true,
-  styles: `
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.href=u.href,n.active=u.active;let b=(M)=>R({anchor:M,test:()=>{if(n.href()&&!n.active())return 0;return 1},branches:[()=>{let y=document.createDocumentFragment(),E=[],l=document.createElement("a");E.push(T(l,"href",()=>n.href())),l.setAttribute("part","link");let L=document.createElement("slot");return l.appendChild(L),y.appendChild(l),{nodes:Array.from(y.childNodes),cleanup:()=>{for(let f of E)try{f()}catch(t){}}}},()=>{let y=document.createDocumentFragment(),E=[],l=document.createElement("span");l.setAttribute("class","label"),l.setAttribute("part","label"),E.push(T(l,"aria-current",()=>n.active()?"page":"false"));let L=document.createElement("slot");return l.appendChild(L),y.appendChild(l),{nodes:Array.from(y.childNodes),cleanup:()=>{for(let f of E)try{f()}catch(t){}}}}]}),w=d.shadowRoot??d;V(w);let r=document.createComment("if");return w.appendChild(r),m.push(b(r)),n}});var Ai=U({scope:()=>({totalPages:G(1),info:G(""),prevBtn:e(null),nextBtn:e(null)}),mount(i,u){let d=i,m=q(()=>{let M=d.page(),y=d.total(),E=d.perPage(),l=y>0?Math.ceil(y/E):1;if(d.totalPages.set(l),y>0){let L=(M-1)*E+1,f=Math.min(M*E,y);d.info.set(`Page ${M} of ${l} (${L}–${f} of ${y})`)}else d.info.set(`Page ${M} of ${l}`)}),n=d.prevBtn(),b=d.nextBtn(),w=()=>{let M=d.page();if(M>1){let y=M-1;d.page.set(y),u.dispatchEvent(new CustomEvent("sui-page",{detail:{page:y},bubbles:!0,composed:!0}))}},r=()=>{let M=d.page(),y=d.totalPages();if(M<y){let E=M+1;d.page.set(E),u.dispatchEvent(new CustomEvent("sui-page",{detail:{page:E},bubbles:!0,composed:!0}))}};return n?.addEventListener("click",w),b?.addEventListener("click",r),()=>{m(),n?.removeEventListener("click",w),b?.removeEventListener("click",r)}}});var I5=Q("sui-pagination",{props:{page:P.number({default:1,reflect:!0}),total:P.number({default:0,reflect:!0}),"per-page":P.number({default:25,reflect:!0})},shadow:!0,styles:`
   :host { display: block; }
   nav.bar {
     display: flex;
@@ -6335,167 +2845,7 @@ var sui_pagination_default = component33("sui-pagination", {
     outline: var(--ring-width) solid var(--ring-color);
     outline-offset: var(--ring-offset);
   }
-`,
-  setup(ctx) {
-    const { props, host } = ctx;
-    if (!ctx.cleanups)
-      ctx.cleanups = [];
-    const __cleanups = ctx.cleanups;
-    const $scope = Object.create(null);
-    $scope.page = props.page;
-    $scope.total = props.total;
-    $scope.perPage = props.perPage;
-    let __r = null;
-    if (sui_pagination_controller_default && typeof sui_pagination_controller_default.setup === "function") {
-      ctx.scope = $scope;
-      __r = sui_pagination_controller_default.setup(ctx);
-      if (__r && typeof __r === "object")
-        Object.assign($scope, __r);
-    }
-    const __root = host.shadowRoot ?? host;
-    adoptSuiSheets33(__root);
-    const __e0 = document.createElement("nav");
-    __e0.setAttribute("class", "bar");
-    __e0.setAttribute("aria-label", "Pagination");
-    const __e1 = document.createElement("button");
-    attachRef15($scope, "prevBtn", __e1);
-    __e1.setAttribute("class", "pg-btn");
-    __e1.setAttribute("part", "prev");
-    __cleanups.push(bindAttr21(__e1, "disabled", () => $scope.page() <= 1));
-    __e1.setAttribute("aria-label", "Previous page");
-    __cleanups.push(bindAttr21(__e1, "aria-disabled", () => $scope.page() <= 1 ? "true" : "false"));
-    const __t2 = document.createTextNode("Prev");
-    __e1.appendChild(__t2);
-    __e0.appendChild(__e1);
-    const __e3 = document.createElement("span");
-    __e3.setAttribute("class", "info");
-    __e3.setAttribute("part", "info");
-    const __t4 = document.createTextNode("");
-    __e3.appendChild(__t4);
-    __cleanups.push(bindText5(__t4, () => $scope.info()));
-    __e0.appendChild(__e3);
-    const __e5 = document.createElement("span");
-    __e5.setAttribute("class", "spacer");
-    __e0.appendChild(__e5);
-    const __e6 = document.createElement("button");
-    attachRef15($scope, "nextBtn", __e6);
-    __e6.setAttribute("class", "pg-btn");
-    __e6.setAttribute("part", "next");
-    __cleanups.push(bindAttr21(__e6, "disabled", () => $scope.page() >= $scope.totalPages()));
-    __e6.setAttribute("aria-label", "Next page");
-    __cleanups.push(bindAttr21(__e6, "aria-disabled", () => $scope.page() >= $scope.totalPages() ? "true" : "false"));
-    const __t7 = document.createTextNode("Next");
-    __e6.appendChild(__t7);
-    __e0.appendChild(__e6);
-    __root.appendChild(__e0);
-    if (__r != null) {
-      const __lc = Object.getOwnPropertyDescriptor(__r, "__shipSetLifecycle")?.value;
-      if (__lc) {
-        const __sp = new Proxy($scope, {
-          get(t, k) {
-            return t[k];
-          },
-          set(t, k, v) {
-            const s = t[k];
-            if (s != null && typeof s.set === "function") {
-              if (typeof v === "function") {
-                s.set(() => v);
-              } else {
-                s.set(v);
-              }
-              return true;
-            }
-            return false;
-          }
-        });
-        if (__lc.mount) {
-          const __mc = __lc.mount(__sp, host);
-          if (typeof __mc === "function")
-            __cleanups.push(__mc);
-        }
-        if (__lc.unmount)
-          __cleanups.push(() => __lc.unmount(__sp));
-      }
-    }
-    return $scope;
-  }
-});
-
-// packages/ui-components/src/sui-timestamp/sui-timestamp.sui
-import { adoptSuiSheets as adoptSuiSheets34, bindAttr as bindAttr22, bindIf as bindIf11, bindText as bindText6, component as component34, prop as prop34 } from "@ship/sui-runtime";
-
-// packages/ui-components/src/sui-timestamp/sui-timestamp.controller.ts
-import { controller as controller21, signal as signal7, derived, effect as effect20 } from "@ship/sui-runtime";
-
-// packages/ui-components/src/sui-timestamp/sui-timestamp.ts
-var MINUTE = 60000;
-var HOUR = 3600000;
-var DAY = 86400000;
-function formatRelative(iso, now = Date.now()) {
-  const t = Date.parse(iso);
-  if (Number.isNaN(t))
-    return iso;
-  const diff = now - t;
-  const abs = Math.abs(diff);
-  const suffix = diff >= 0 ? "ago" : "from now";
-  if (abs < MINUTE)
-    return "just now";
-  if (abs < HOUR)
-    return `${Math.floor(abs / MINUTE)}m ${suffix}`;
-  if (abs < DAY)
-    return `${Math.floor(abs / HOUR)}h ${suffix}`;
-  const days = Math.floor(abs / DAY);
-  if (days < 30)
-    return `${days}d ${suffix}`;
-  if (days < 365)
-    return `${Math.floor(days / 30)}mo ${suffix}`;
-  return `${Math.floor(days / 365)}y ${suffix}`;
-}
-function absoluteIso(value) {
-  const parsed = Date.parse(value);
-  return Number.isNaN(parsed) ? value : new Date(parsed).toISOString();
-}
-
-// packages/ui-components/src/sui-timestamp/sui-timestamp.controller.ts
-var MINUTE2 = 60000;
-var sui_timestamp_controller_default = controller21({
-  scope: ({ value }) => {
-    const tick = signal7(0);
-    const absStr = derived(() => {
-      const v = value();
-      return v ? absoluteIso(v) : "";
-    });
-    const relStr = derived(() => {
-      tick();
-      const v = value();
-      return v ? formatRelative(v) : "";
-    });
-    return { tick, absStr, relStr };
-  },
-  mount(state, host) {
-    const scope = state;
-    const tick = scope.tick;
-    const stopTitle = effect20(() => {
-      const v = scope.value();
-      if (v)
-        host.title = scope.absStr();
-    });
-    const timer = setInterval(() => tick.set(tick() + 1), MINUTE2);
-    return () => {
-      stopTitle();
-      clearInterval(timer);
-    };
-  }
-});
-
-// packages/ui-components/src/sui-timestamp/sui-timestamp.sui
-var sui_timestamp_default = component34("sui-timestamp", {
-  props: {
-    value: prop34.string({ default: "", reflect: true }),
-    format: prop34.union(["relative", "absolute", "both"], { default: "relative", reflect: true })
-  },
-  shadow: true,
-  styles: `
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.page=u.page,n.total=u.total,n.perPage=u.perPage,n.nextBtn=G(null),n.prevBtn=G(null);let b=null;if(Ai&&typeof Ai.setup==="function"){if(i.scope=n,b=Ai.setup(i),b&&typeof b==="object")Object.assign(n,b)}let w=d.shadowRoot??d;V(w);let r=document.createElement("nav");r.setAttribute("class","bar"),r.setAttribute("aria-label","Pagination");let M=document.createElement("button");O(n,"prevBtn",M),M.setAttribute("class","pg-btn"),M.setAttribute("part","prev"),m.push(T(M,"disabled",()=>n.page()<=1)),M.setAttribute("aria-label","Previous page"),m.push(T(M,"aria-disabled",()=>n.page()<=1?"true":"false"));let y=document.createTextNode("Prev");M.appendChild(y),r.appendChild(M);let E=document.createElement("span");E.setAttribute("class","info"),E.setAttribute("part","info");let l=document.createTextNode("");E.appendChild(l),m.push(S(l,()=>n.info())),r.appendChild(E);let L=document.createElement("span");L.setAttribute("class","spacer"),r.appendChild(L);let f=document.createElement("button");O(n,"nextBtn",f),f.setAttribute("class","pg-btn"),f.setAttribute("part","next"),m.push(T(f,"disabled",()=>n.page()>=n.totalPages())),f.setAttribute("aria-label","Next page"),m.push(T(f,"aria-disabled",()=>n.page()>=n.totalPages()?"true":"false"));let t=document.createTextNode("Next");if(f.appendChild(t),r.appendChild(f),w.appendChild(r),b!=null){let H=Object.getOwnPropertyDescriptor(b,"__shipSetLifecycle")?.value;if(H){let C=new Proxy(n,{get(z,j){return z[j]},set(z,j,g){let J=z[j];if(J!=null&&typeof J.set==="function"){if(typeof g==="function")J.set(()=>g);else J.set(g);return!0}return!1}});if(H.mount){let z=H.mount(C,d);if(typeof z==="function")m.push(z)}if(H.unmount)m.push(()=>H.unmount(C))}}return n}});function Ed(i,u=Date.now()){let d=Date.parse(i);if(Number.isNaN(d))return i;let m=u-d,n=Math.abs(m),b=m>=0?"ago":"from now";if(n<60000)return"just now";if(n<3600000)return`${Math.floor(n/60000)}m ${b}`;if(n<86400000)return`${Math.floor(n/3600000)}h ${b}`;let w=Math.floor(n/86400000);if(w<30)return`${w}d ${b}`;if(w<365)return`${Math.floor(w/30)}mo ${b}`;return`${Math.floor(w/365)}y ${b}`}function ld(i){let u=Date.parse(i);return Number.isNaN(u)?i:new Date(u).toISOString()}var Nm=60000,Ki=U({scope:({value:i})=>{let u=G(0),d=h(()=>{let n=i();return n?ld(n):""}),m=h(()=>{u();let n=i();return n?Ed(n):""});return{tick:u,absStr:d,relStr:m}},mount(i,u){let d=q(()=>{if(i.value())u.title=i.absStr()}),m=setInterval(()=>i.tick.set(i.tick()+1),Nm);return()=>{d(),clearInterval(m)}}});var $5=Q("sui-timestamp",{props:{value:P.string({default:"",reflect:!0}),format:P.union(["relative","absolute","both"],{default:"relative",reflect:!0})},shadow:!0,styles:`
   :host {
     display: inline;
     font-family: var(--font-body);
@@ -6503,166 +2853,7 @@ var sui_timestamp_default = component34("sui-timestamp", {
     color: inherit;
   }
   .abs { color: var(--muted-foreground); margin-left: 4px; }
-`,
-  setup(ctx) {
-    const { props, host } = ctx;
-    if (!ctx.cleanups)
-      ctx.cleanups = [];
-    const __cleanups = ctx.cleanups;
-    const $scope = Object.create(null);
-    $scope.value = props.value;
-    $scope.format = props.format;
-    let __r = null;
-    if (sui_timestamp_controller_default && typeof sui_timestamp_controller_default.setup === "function") {
-      ctx.scope = $scope;
-      __r = sui_timestamp_controller_default.setup(ctx);
-      if (__r && typeof __r === "object")
-        Object.assign($scope, __r);
-    }
-    const __wireBoundary_b2 = (anchor) => bindIf11({
-      anchor,
-      test: () => {
-        if ($scope.format() === "absolute")
-          return 0;
-        return 1;
-      },
-      branches: [
-        () => {
-          const __frag5 = document.createDocumentFragment();
-          const __c6 = [];
-          const __t7 = document.createTextNode("");
-          __frag5.appendChild(__t7);
-          __c6.push(bindText6(__t7, () => $scope.absStr()));
-          return { nodes: Array.from(__frag5.childNodes), cleanup: () => {
-            for (const c of __c6)
-              try {
-                c();
-              } catch (e) {}
-          } };
-        },
-        () => {
-          const __frag8 = document.createDocumentFragment();
-          const __c9 = [];
-          const __t10 = document.createTextNode("");
-          __frag8.appendChild(__t10);
-          __c9.push(bindText6(__t10, () => $scope.relStr()));
-          return { nodes: Array.from(__frag8.childNodes), cleanup: () => {
-            for (const c of __c9)
-              try {
-                c();
-              } catch (e) {}
-          } };
-        }
-      ]
-    });
-    const __wireBoundary_b5 = (anchor) => bindIf11({
-      anchor,
-      test: () => {
-        if ($scope.format() === "both")
-          return 0;
-        return -1;
-      },
-      branches: [
-        () => {
-          const __frag12 = document.createDocumentFragment();
-          const __c13 = [];
-          const __e14 = document.createElement("span");
-          __e14.setAttribute("class", "abs");
-          __e14.setAttribute("part", "abs");
-          const __t15 = document.createTextNode("(");
-          __e14.appendChild(__t15);
-          const __t16 = document.createTextNode("");
-          __e14.appendChild(__t16);
-          __c13.push(bindText6(__t16, () => $scope.absStr()));
-          const __t17 = document.createTextNode(")");
-          __e14.appendChild(__t17);
-          __frag12.appendChild(__e14);
-          return { nodes: Array.from(__frag12.childNodes), cleanup: () => {
-            for (const c of __c13)
-              try {
-                c();
-              } catch (e) {}
-          } };
-        }
-      ]
-    });
-    const __wireBoundary_b0 = (anchor) => bindIf11({
-      anchor,
-      test: () => {
-        if ($scope.value())
-          return 0;
-        return -1;
-      },
-      branches: [
-        () => {
-          const __frag1 = document.createDocumentFragment();
-          const __c2 = [];
-          const __e3 = document.createElement("time");
-          __c2.push(bindAttr22(__e3, "datetime", () => $scope.value()));
-          __e3.setAttribute("part", "time");
-          const __ifAnchor4 = document.createComment("if");
-          __e3.appendChild(__ifAnchor4);
-          __c2.push(__wireBoundary_b2(__ifAnchor4));
-          __frag1.appendChild(__e3);
-          const __ifAnchor11 = document.createComment("if");
-          __frag1.appendChild(__ifAnchor11);
-          __c2.push(__wireBoundary_b5(__ifAnchor11));
-          return { nodes: Array.from(__frag1.childNodes), cleanup: () => {
-            for (const c of __c2)
-              try {
-                c();
-              } catch (e) {}
-          } };
-        }
-      ]
-    });
-    const __root = host.shadowRoot ?? host;
-    adoptSuiSheets34(__root);
-    const __ifAnchor0 = document.createComment("if");
-    __root.appendChild(__ifAnchor0);
-    __cleanups.push(__wireBoundary_b0(__ifAnchor0));
-    if (__r != null) {
-      const __lc = Object.getOwnPropertyDescriptor(__r, "__shipSetLifecycle")?.value;
-      if (__lc) {
-        const __sp = new Proxy($scope, {
-          get(t, k) {
-            return t[k];
-          },
-          set(t, k, v) {
-            const s = t[k];
-            if (s != null && typeof s.set === "function") {
-              if (typeof v === "function") {
-                s.set(() => v);
-              } else {
-                s.set(v);
-              }
-              return true;
-            }
-            return false;
-          }
-        });
-        if (__lc.mount) {
-          const __mc = __lc.mount(__sp, host);
-          if (typeof __mc === "function")
-            __cleanups.push(__mc);
-        }
-        if (__lc.unmount)
-          __cleanups.push(() => __lc.unmount(__sp));
-      }
-    }
-    return $scope;
-  }
-});
-
-// packages/ui-components/src/sui-metachip/sui-metachip.sui
-import { adoptSuiSheets as adoptSuiSheets35, bindText as bindText7, component as component35, prop as prop35 } from "@ship/sui-runtime";
-var sui_metachip_default = component35("sui-metachip", {
-  props: {
-    label: prop35.string({ default: "", reflect: true }),
-    value: prop35.string({ default: "", reflect: true })
-  },
-  shadow: true,
-  styles: `
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.value=u.value,n.format=u.format;let b=null;if(Ki&&typeof Ki.setup==="function"){if(i.scope=n,b=Ki.setup(i),b&&typeof b==="object")Object.assign(n,b)}let w=(l)=>R({anchor:l,test:()=>{if(n.format()==="absolute")return 0;return 1},branches:[()=>{let L=document.createDocumentFragment(),f=[],t=document.createTextNode("");return L.appendChild(t),f.push(S(t,()=>n.absStr())),{nodes:Array.from(L.childNodes),cleanup:()=>{for(let H of f)try{H()}catch(C){}}}},()=>{let L=document.createDocumentFragment(),f=[],t=document.createTextNode("");return L.appendChild(t),f.push(S(t,()=>n.relStr())),{nodes:Array.from(L.childNodes),cleanup:()=>{for(let H of f)try{H()}catch(C){}}}}]}),r=(l)=>R({anchor:l,test:()=>{if(n.format()==="both")return 0;return-1},branches:[()=>{let L=document.createDocumentFragment(),f=[],t=document.createElement("span");t.setAttribute("class","abs"),t.setAttribute("part","abs");let H=document.createTextNode("(");t.appendChild(H);let C=document.createTextNode("");t.appendChild(C),f.push(S(C,()=>n.absStr()));let z=document.createTextNode(")");return t.appendChild(z),L.appendChild(t),{nodes:Array.from(L.childNodes),cleanup:()=>{for(let j of f)try{j()}catch(g){}}}}]}),M=(l)=>R({anchor:l,test:()=>{if(n.value())return 0;return-1},branches:[()=>{let L=document.createDocumentFragment(),f=[],t=document.createElement("time");f.push(T(t,"datetime",()=>n.value())),t.setAttribute("part","time");let H=document.createComment("if");t.appendChild(H),f.push(w(H)),L.appendChild(t);let C=document.createComment("if");return L.appendChild(C),f.push(r(C)),{nodes:Array.from(L.childNodes),cleanup:()=>{for(let z of f)try{z()}catch(j){}}}}]}),y=d.shadowRoot??d;V(y);let E=document.createComment("if");if(y.appendChild(E),m.push(M(E)),b!=null){let l=Object.getOwnPropertyDescriptor(b,"__shipSetLifecycle")?.value;if(l){let L=new Proxy(n,{get(f,t){return f[t]},set(f,t,H){let C=f[t];if(C!=null&&typeof C.set==="function"){if(typeof H==="function")C.set(()=>H);else C.set(H);return!0}return!1}});if(l.mount){let f=l.mount(L,d);if(typeof f==="function")m.push(f)}if(l.unmount)m.push(()=>l.unmount(L))}}return n}});var e5=Q("sui-metachip",{props:{label:P.string({default:"",reflect:!0}),value:P.string({default:"",reflect:!0})},shadow:!0,styles:`
   :host {
     display: inline-flex;
     align-items: baseline;
@@ -6687,169 +2878,7 @@ var sui_metachip_default = component35("sui-metachip", {
     font-size: var(--text-xs);
   }
   ::slotted(*) { color: inherit; }
-`,
-  setup(ctx) {
-    const { props, host } = ctx;
-    if (!ctx.cleanups)
-      ctx.cleanups = [];
-    const __cleanups = ctx.cleanups;
-    const $scope = Object.create(null);
-    $scope.label = props.label;
-    $scope.value = props.value;
-    const __root = host.shadowRoot ?? host;
-    adoptSuiSheets35(__root);
-    const __e0 = document.createElement("span");
-    __e0.setAttribute("class", "k");
-    __e0.setAttribute("part", "label");
-    const __e1 = document.createElement("slot");
-    __e1.setAttribute("name", "label");
-    const __t2 = document.createTextNode("");
-    __e1.appendChild(__t2);
-    __cleanups.push(bindText7(__t2, () => $scope.label()));
-    __e0.appendChild(__e1);
-    __root.appendChild(__e0);
-    const __e3 = document.createElement("span");
-    __e3.setAttribute("class", "v");
-    __e3.setAttribute("part", "value");
-    const __e4 = document.createElement("slot");
-    const __t5 = document.createTextNode("");
-    __e4.appendChild(__t5);
-    __cleanups.push(bindText7(__t5, () => $scope.value()));
-    __e3.appendChild(__e4);
-    __root.appendChild(__e3);
-    return $scope;
-  }
-});
-
-// packages/ui-components/src/sui-popover/sui-popover.sui
-import { adoptSuiSheets as adoptSuiSheets36, attachRef as attachRef16, component as component36, prop as prop36 } from "@ship/sui-runtime";
-
-// packages/ui-components/src/sui-popover/sui-popover.controller.ts
-import { controller as controller22, effect as effect21, bindNativeEvent as bindNativeEvent2, slotted } from "@ship/sui-runtime";
-var anchorSeq = 0;
-var anchorSupported = typeof CSS !== "undefined" && typeof CSS.supports === "function" && CSS.supports("anchor-name", "--x");
-var sui_popover_controller_default = controller22({
-  mount(state, host) {
-    const scope = state;
-    const id = ++anchorSeq;
-    const anchorName = `--sui-popover-${id}`;
-    const panelId = `sui-popover-panel-${id}`;
-    host.style.setProperty("--sui-popover-anchor", anchorName);
-    const triggerSlot = scope.triggerSlot();
-    const panelEl = scope.panelEl();
-    if (!panelEl)
-      return;
-    panelEl.id = panelId;
-    slotted(scope.triggerSlot, (els) => {
-      for (const el of els) {
-        el.setAttribute("popovertarget", panelId);
-        el.setAttribute("aria-haspopup", "dialog");
-        el.setAttribute("aria-controls", panelId);
-        el.setAttribute("aria-expanded", scope.open() ? "true" : "false");
-      }
-    });
-    function onToggle(ev) {
-      const newState = ev.newState;
-      const nowOpen = newState === "open";
-      const hasAttr = host.hasAttribute("open");
-      if (nowOpen && !hasAttr)
-        host.setAttribute("open", "");
-      else if (!nowOpen && hasAttr)
-        host.removeAttribute("open");
-      const slot = triggerSlot;
-      const els = slot?.assignedElements({ flatten: true }) ?? [];
-      for (const el of els) {
-        el.setAttribute("aria-expanded", nowOpen ? "true" : "false");
-      }
-      host.emit("sui-toggle", { open: nowOpen });
-      if (nowOpen && !anchorSupported)
-        positionFallback();
-    }
-    bindNativeEvent2(panelEl, "toggle", onToggle);
-    host.expose({
-      show: () => panelEl.showPopover?.(),
-      hide: () => panelEl.hidePopover?.(),
-      toggle: () => typeof panelEl.togglePopover === "function" ? void panelEl.togglePopover() : panelEl.matches?.(":popover-open") ? panelEl.hidePopover?.() : panelEl.showPopover?.()
-    });
-    const stopOpenSync = effect21(() => {
-      const wantOpen = scope.open();
-      const isOpen = panelEl.matches?.(":popover-open") ?? false;
-      if (wantOpen && !isOpen)
-        panelEl.showPopover?.();
-      else if (!wantOpen && isOpen)
-        panelEl.hidePopover?.();
-    });
-    function positionFallback() {
-      const slot = triggerSlot;
-      const els = slot?.assignedElements({ flatten: true }) ?? [];
-      const trigger = els[0];
-      if (!trigger || !panelEl)
-        return;
-      const r = trigger.getBoundingClientRect();
-      const placement = scope.placement();
-      panelEl.style.top = "";
-      panelEl.style.left = "";
-      panelEl.style.right = "";
-      panelEl.style.bottom = "";
-      const gap = 6;
-      switch (placement) {
-        case "top":
-          panelEl.style.bottom = `${window.innerHeight - r.top + gap}px`;
-          panelEl.style.left = `${r.left}px`;
-          break;
-        case "top-end":
-          panelEl.style.bottom = `${window.innerHeight - r.top + gap}px`;
-          panelEl.style.right = `${window.innerWidth - r.right}px`;
-          break;
-        case "bottom-end":
-          panelEl.style.top = `${r.bottom + gap}px`;
-          panelEl.style.right = `${window.innerWidth - r.right}px`;
-          break;
-        case "left":
-          panelEl.style.right = `${window.innerWidth - r.left + gap}px`;
-          panelEl.style.top = `${r.top}px`;
-          break;
-        case "left-end":
-          panelEl.style.right = `${window.innerWidth - r.left + gap}px`;
-          panelEl.style.bottom = `${window.innerHeight - r.bottom}px`;
-          break;
-        case "right":
-          panelEl.style.left = `${r.right + gap}px`;
-          panelEl.style.top = `${r.top}px`;
-          break;
-        case "right-end":
-          panelEl.style.left = `${r.right + gap}px`;
-          panelEl.style.bottom = `${window.innerHeight - r.bottom}px`;
-          break;
-        case "bottom":
-        default:
-          panelEl.style.top = `${r.bottom + gap}px`;
-          panelEl.style.left = `${r.left}px`;
-      }
-    }
-    function onWindowChange() {
-      if (!scope.open())
-        return;
-      positionFallback();
-    }
-    if (!anchorSupported) {
-      bindNativeEvent2(window, "resize", onWindowChange);
-      bindNativeEvent2(window, "scroll", onWindowChange, { capture: true, passive: true });
-    }
-    return () => {
-      stopOpenSync();
-    };
-  }
-});
-
-// packages/ui-components/src/sui-popover/sui-popover.sui
-var sui_popover_default = component36("sui-popover", {
-  props: {
-    open: prop36.bool({ default: false, reflect: true }),
-    placement: prop36.union(["top", "top-end", "bottom", "bottom-end", "left", "left-end", "right", "right-end"], { default: "bottom", reflect: true })
-  },
-  shadow: true,
-  styles: `
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.label=u.label,n.value=u.value;let b=d.shadowRoot??d;V(b);let w=document.createElement("span");w.setAttribute("class","k"),w.setAttribute("part","label");let r=document.createElement("slot");r.setAttribute("name","label");let M=document.createTextNode("");r.appendChild(M),m.push(S(M,()=>n.label())),w.appendChild(r),b.appendChild(w);let y=document.createElement("span");y.setAttribute("class","v"),y.setAttribute("part","value");let E=document.createElement("slot"),l=document.createTextNode("");return E.appendChild(l),m.push(S(l,()=>n.value())),y.appendChild(E),b.appendChild(y),n}});var Um=0,rd=typeof CSS<"u"&&typeof CSS.supports==="function"&&CSS.supports("anchor-name","--x"),Bi=U({mount(i,u){let d=i,m=++Um,n=`--sui-popover-${m}`,b=`sui-popover-panel-${m}`;u.style.setProperty("--sui-popover-anchor",n);let w=d.triggerSlot(),r=d.panelEl();if(!r)return;r.id=b,Eu(d.triggerSlot,(L)=>{for(let f of L)f.setAttribute("popovertarget",b),f.setAttribute("aria-haspopup","dialog"),f.setAttribute("aria-controls",b),f.setAttribute("aria-expanded",d.open()?"true":"false")});function M(L){let t=L.newState==="open",H=u.hasAttribute("open");if(t&&!H)u.setAttribute("open","");else if(!t&&H)u.removeAttribute("open");let z=w?.assignedElements({flatten:!0})??[];for(let j of z)j.setAttribute("aria-expanded",t?"true":"false");if(u.emit("sui-toggle",{open:t}),t&&!rd)E()}_(r,"toggle",M),u.expose({show:()=>r.showPopover?.(),hide:()=>r.hidePopover?.(),toggle:()=>typeof r.togglePopover==="function"?void r.togglePopover():r.matches?.(":popover-open")?r.hidePopover?.():r.showPopover?.()});let y=q(()=>{let L=d.open(),f=r.matches?.(":popover-open")??!1;if(L&&!f)r.showPopover?.();else if(!L&&f)r.hidePopover?.()});function E(){let t=(w?.assignedElements({flatten:!0})??[])[0];if(!t||!r)return;let H=t.getBoundingClientRect(),C=d.placement();r.style.top="",r.style.left="",r.style.right="",r.style.bottom="";let z=6;switch(C){case"top":r.style.bottom=`${window.innerHeight-H.top+z}px`,r.style.left=`${H.left}px`;break;case"top-end":r.style.bottom=`${window.innerHeight-H.top+z}px`,r.style.right=`${window.innerWidth-H.right}px`;break;case"bottom-end":r.style.top=`${H.bottom+z}px`,r.style.right=`${window.innerWidth-H.right}px`;break;case"left":r.style.right=`${window.innerWidth-H.left+z}px`,r.style.top=`${H.top}px`;break;case"left-end":r.style.right=`${window.innerWidth-H.left+z}px`,r.style.bottom=`${window.innerHeight-H.bottom}px`;break;case"right":r.style.left=`${H.right+z}px`,r.style.top=`${H.top}px`;break;case"right-end":r.style.left=`${H.right+z}px`,r.style.bottom=`${window.innerHeight-H.bottom}px`;break;case"bottom":default:r.style.top=`${H.bottom+z}px`,r.style.left=`${H.left}px`}}function l(){if(!d.open())return;E()}if(!rd)_(window,"resize",l),_(window,"scroll",l,{capture:!0,passive:!0});return()=>{y()}}});var u8=Q("sui-popover",{props:{open:P.bool({default:!1,reflect:!0}),placement:P.union(["top","top-end","bottom","bottom-end","left","left-end","right","right-end"],{default:"bottom",reflect:!0})},shadow:!0,styles:`
   :host {
     position: relative;
     display: inline-flex;
@@ -6882,16 +2911,9 @@ var sui_popover_default = component36("sui-popover", {
     -webkit-backdrop-filter: var(--card-backdrop-filter, none);
     font-family: var(--font-body, system-ui);
     font-size: var(--text-base, 14px);
-    opacity: 0;
-    transform: translateY(-4px);
-    transition:
-      opacity var(--duration-medium, 200ms) var(--ease-out, ease-out),
-      transform var(--duration-medium, 200ms) var(--ease-out, ease-out);
   }
-  .panel:popover-open > .surface {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  /* Open/close polish is driven by \`transition:scale\` on the
+     #if-mounted .surface (see template). No CSS transition here. */
 
   /* CSS Anchor Positioning. Controller sets a unique anchor-name on the
      SLOTTED trigger element via \`--sui-popover-anchor\`, so each instance
@@ -6939,384 +2961,9 @@ var sui_popover_default = component36("sui-popover", {
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .panel > .surface { transition: none; transform: none; }
+    .panel > .surface { transform: none; }
   }
-`,
-  setup(ctx) {
-    const { props, host } = ctx;
-    if (!ctx.cleanups)
-      ctx.cleanups = [];
-    const __cleanups = ctx.cleanups;
-    const $scope = Object.create(null);
-    $scope.open = props.open;
-    $scope.placement = props.placement;
-    let __r = null;
-    if (sui_popover_controller_default && typeof sui_popover_controller_default.setup === "function") {
-      ctx.scope = $scope;
-      __r = sui_popover_controller_default.setup(ctx);
-      if (__r && typeof __r === "object")
-        Object.assign($scope, __r);
-    }
-    const __root = host.shadowRoot ?? host;
-    adoptSuiSheets36(__root);
-    const __e0 = document.createElement("slot");
-    __e0.setAttribute("name", "trigger");
-    attachRef16($scope, "triggerSlot", __e0);
-    __root.appendChild(__e0);
-    const __e1 = document.createElement("div");
-    __e1.setAttribute("class", "panel");
-    __e1.setAttribute("part", "panel");
-    __e1.setAttribute("popover", "auto");
-    attachRef16($scope, "panelEl", __e1);
-    __e1.setAttribute("role", "dialog");
-    __e1.setAttribute("aria-modal", "false");
-    const __e2 = document.createElement("div");
-    __e2.setAttribute("class", "surface");
-    const __e3 = document.createElement("slot");
-    __e2.appendChild(__e3);
-    __e1.appendChild(__e2);
-    __root.appendChild(__e1);
-    if (__r != null) {
-      const __lc = Object.getOwnPropertyDescriptor(__r, "__shipSetLifecycle")?.value;
-      if (__lc) {
-        const __sp = new Proxy($scope, {
-          get(t, k) {
-            return t[k];
-          },
-          set(t, k, v) {
-            const s = t[k];
-            if (s != null && typeof s.set === "function") {
-              if (typeof v === "function") {
-                s.set(() => v);
-              } else {
-                s.set(v);
-              }
-              return true;
-            }
-            return false;
-          }
-        });
-        if (__lc.mount) {
-          const __mc = __lc.mount(__sp, host);
-          if (typeof __mc === "function")
-            __cleanups.push(__mc);
-        }
-        if (__lc.unmount)
-          __cleanups.push(() => __lc.unmount(__sp));
-      }
-    }
-    return $scope;
-  }
-});
-
-// packages/ui-components/src/sui-theme-picker/sui-theme-picker.sui
-import { adoptSuiSheets as adoptSuiSheets37, attachRef as attachRef17, bindAttr as bindAttr23, bindFor as bindFor2, bindText as bindText8, component as component37, effect as effect23, on, prop as prop37 } from "@ship/sui-runtime";
-
-// packages/ui-components/src/sui-theme-picker/sui-theme-picker.controller.ts
-import { controller as controller23, signal as signal8, derived as derived2, effect as effect22, ref as ref3 } from "@ship/sui-runtime";
-
-// packages/ship-set/src/themes.ts
-var THEMES = [
-  {
-    id: "ship-light",
-    label: "SHIP Light",
-    dark: false,
-    swatches: [
-      "oklch(0.99 0.001 106.423)",
-      "oklch(1 0 0)",
-      "oklch(0.67 0.16 58)",
-      "oklch(0.61 0.23 303)"
-    ]
-  },
-  {
-    id: "ship-dark",
-    label: "SHIP Dark",
-    dark: true,
-    swatches: [
-      "oklch(0.18 0.01 250)",
-      "oklch(0.18 0.01 50)",
-      "oklch(0.77 0.16 70)",
-      "oklch(0.3 0.05 300)"
-    ]
-  },
-  {
-    id: "paper",
-    label: "Paper",
-    dark: false,
-    swatches: [
-      "oklch(0.97 0.014 80)",
-      "oklch(0.99 0.010 80)",
-      "oklch(0.55 0.14 35)",
-      "oklch(0.48 0.09 55)"
-    ]
-  },
-  {
-    id: "halo",
-    label: "Halo (Soft)",
-    dark: false,
-    swatches: [
-      "oklch(0.92 0.008 230)",
-      "oklch(0.92 0.008 230)",
-      "oklch(0.62 0.14 50)",
-      "oklch(0.55 0.05 230)"
-    ]
-  },
-  {
-    id: "console",
-    label: "Console",
-    dark: true,
-    swatches: [
-      "oklch(0.13 0.008 220)",
-      "oklch(0.16 0.010 220)",
-      "oklch(0.78 0.20 145)",
-      "oklch(0.78 0.16 195)"
-    ]
-  },
-  {
-    id: "contrast",
-    label: "High Contrast",
-    dark: true,
-    swatches: [
-      "oklch(0.09 0 0)",
-      "oklch(0.15 0 0)",
-      "oklch(0.87 0.18 85)",
-      "oklch(0.99 0 0)"
-    ]
-  },
-  {
-    id: "glass",
-    label: "Glass",
-    dark: false,
-    swatches: [
-      "oklch(0.95 0.04 230)",
-      "oklch(0.99 0.005 240)",
-      "oklch(0.62 0.16 50)",
-      "oklch(0.62 0.14 280)"
-    ]
-  }
-];
-var THEME_BY_ID = Object.fromEntries(THEMES.map((t) => [t.id, t]));
-var DEFAULT_THEME = "ship-light";
-var THEME_STORAGE_KEY = "ship-site-theme";
-var isValidTheme = (value) => typeof value === "string" && (value in THEME_BY_ID);
-var isDarkTheme = (id) => THEME_BY_ID[id]?.dark ?? false;
-function applyTheme(id, root = document.documentElement) {
-  const next = isValidTheme(id) ? id : DEFAULT_THEME;
-  const dark = isDarkTheme(next);
-  root.dataset.theme = next;
-  root.classList.toggle("dark", dark);
-  if (typeof document !== "undefined" && typeof CustomEvent !== "undefined") {
-    document.dispatchEvent(new CustomEvent("ship:theme:change", { detail: { id: next, dark } }));
-  }
-  return next;
-}
-function readStoredTheme() {
-  if (typeof localStorage === "undefined")
-    return DEFAULT_THEME;
-  try {
-    const raw = localStorage.getItem(THEME_STORAGE_KEY);
-    return isValidTheme(raw) ? raw : DEFAULT_THEME;
-  } catch {
-    return DEFAULT_THEME;
-  }
-}
-function persistTheme(id) {
-  if (typeof localStorage === "undefined")
-    return;
-  try {
-    localStorage.setItem(THEME_STORAGE_KEY, id);
-  } catch {}
-  try {
-    fetch("/api/settings", {
-      method: "PUT",
-      credentials: "same-origin",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ key: "shell.theme", value: id })
-    }).catch(() => {});
-  } catch {}
-}
-
-// packages/ui-components/src/sui-theme-picker/sui-theme-picker.controller.ts
-var GROUPS = [
-  { label: "Default", ids: ["ship-light", "ship-dark"] },
-  { label: "Texture", ids: ["paper", "halo"] },
-  { label: "Effects", ids: ["glass"] },
-  { label: "Special", ids: ["console", "contrast"] }
-];
-var THEMES_BY_ID = new Map(THEMES.map((t) => [t.id, t]));
-function ensureThemesCssInShadow(host) {
-  const root = host.shadowRoot;
-  if (!root)
-    return;
-  if (root.querySelector("link[data-sui-theme-preview-styles]"))
-    return;
-  const link = document.createElement("link");
-  link.rel = "stylesheet";
-  link.href = "/api/assets/view-tokens.css";
-  link.setAttribute("data-sui-theme-preview-styles", "");
-  root.appendChild(link);
-}
-var sui_theme_picker_controller_default = controller23({
-  scope: (init) => {
-    const initAny = init;
-    const activeTheme = signal8(readStoredTheme());
-    const panelOpen = signal8(false);
-    const groups = signal8(GROUPS.map((g) => ({
-      label: g.label,
-      themes: g.ids.map((id) => THEMES_BY_ID.get(id)).filter((t) => !!t)
-    })));
-    const dotColor = derived2(() => THEMES_BY_ID.get(activeTheme())?.swatches[2] ?? "var(--primary, #3b82f6)");
-    const triggerLabel = derived2(() => THEMES_BY_ID.get(activeTheme())?.label ?? "Theme");
-    const internals = {
-      host: null,
-      panel: null
-    };
-    function togglePanel() {
-      const panel = internals.panel;
-      if (!panel)
-        return;
-      if (panelOpen())
-        panel.hidePopover?.();
-      else
-        panel.showPopover?.();
-    }
-    function selectTheme(id) {
-      const next = applyTheme(id);
-      if (initAny.persist())
-        persistTheme(next);
-      activeTheme.set(next);
-      const host = internals.host;
-      if (host) {
-        host.dispatchEvent(new CustomEvent("sui-theme-change", {
-          detail: { id: next, dark: THEMES_BY_ID.get(next)?.dark ?? false },
-          bubbles: true,
-          composed: true
-        }));
-      }
-      internals.panel?.hidePopover?.();
-    }
-    const triggerBtn = ref3(null);
-    const panelEl = ref3(null);
-    return {
-      activeTheme,
-      panelOpen,
-      groups,
-      dotColor,
-      triggerLabel,
-      togglePanel,
-      selectTheme,
-      triggerBtn,
-      panelEl,
-      _internals: internals
-    };
-  },
-  mount(state, host) {
-    const scope = state;
-    scope._internals.host = host;
-    ensureThemesCssInShadow(host);
-    applyTheme(readStoredTheme());
-    const stopPanelSync = effect22(() => {
-      const panel = scope.panelEl();
-      scope._internals.panel = panel;
-      if (!panel)
-        return;
-      const onToggle = (e) => {
-        const newState = e.newState;
-        const open = newState === "open";
-        if (scope.panelOpen() !== open)
-          scope.panelOpen.set(open);
-        if (open)
-          anchorPanel();
-      };
-      panel.addEventListener("toggle", onToggle);
-      return () => panel.removeEventListener("toggle", onToggle);
-    });
-    function anchorPanel() {
-      const panel = scope.panelEl();
-      const trigger = scope.triggerBtn();
-      if (!panel || !trigger)
-        return;
-      const r = trigger.getBoundingClientRect();
-      panel.style.top = `${r.bottom + 4}px`;
-      panel.style.left = `${Math.max(8, r.right - panel.offsetWidth)}px`;
-    }
-    function onExternalChange(e) {
-      const id = e.detail?.id;
-      if (!isValidTheme(id))
-        return;
-      if (scope.activeTheme() !== id)
-        scope.activeTheme.set(id);
-    }
-    document.addEventListener("ship:theme:change", onExternalChange);
-    function onPanelKeydown(e) {
-      const panel = scope.panelEl();
-      if (!panel)
-        return;
-      const cards = Array.from(panel.querySelectorAll(".card"));
-      if (!cards.length)
-        return;
-      const root = panel.getRootNode();
-      const idx = cards.findIndex((c) => c === root.activeElement);
-      switch (e.key) {
-        case "ArrowDown":
-          e.preventDefault();
-          cards[(idx + 1 + cards.length) % cards.length]?.focus();
-          break;
-        case "ArrowUp":
-          e.preventDefault();
-          cards[(idx - 1 + cards.length) % cards.length]?.focus();
-          break;
-        case "Home":
-          e.preventDefault();
-          cards[0]?.focus();
-          break;
-        case "End":
-          e.preventDefault();
-          cards[cards.length - 1]?.focus();
-          break;
-        case "Escape":
-          e.preventDefault();
-          panel.hidePopover?.();
-          break;
-      }
-    }
-    const stopKeyBind = effect22(() => {
-      const panel = scope.panelEl();
-      if (!panel)
-        return;
-      panel.addEventListener("keydown", onPanelKeydown);
-      return () => panel.removeEventListener("keydown", onPanelKeydown);
-    });
-    const stopFocusOnOpen = effect22(() => {
-      if (!scope.panelOpen())
-        return;
-      requestAnimationFrame(() => {
-        const panel = scope.panelEl();
-        if (!panel)
-          return;
-        const cards = Array.from(panel.querySelectorAll(".card"));
-        const current = cards.find((c) => c.getAttribute("aria-selected") === "true");
-        (current ?? cards[0])?.focus();
-      });
-    });
-    return () => {
-      document.removeEventListener("ship:theme:change", onExternalChange);
-      stopPanelSync();
-      stopKeyBind();
-      stopFocusOnOpen();
-    };
-  }
-});
-
-// packages/ui-components/src/sui-theme-picker/sui-theme-picker.sui
-var sui_theme_picker_default = component37("sui-theme-picker", {
-  props: {
-    placement: prop37.union(["top", "top-end", "bottom", "bottom-end", "left", "left-end", "right", "right-end"], { default: "bottom-end", reflect: true }),
-    "label-style": prop37.union(["text", "compact"], { default: "text", reflect: true }),
-    persist: prop37.bool({ default: true, reflect: true })
-  },
-  shadow: true,
-  styles: `
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.open=u.open,n.placement=u.placement,n.panelEl=G(null),n.triggerSlot=G(null);let b=null;if(Bi&&typeof Bi.setup==="function"){if(i.scope=n,b=Bi.setup(i),b&&typeof b==="object")Object.assign(n,b)}let w=(f)=>R({anchor:f,test:()=>{if(n.open())return 0;return-1},branches:[()=>{let t=document.createDocumentFragment(),H=[],C=document.createElement("div");C.setAttribute("class","surface"),ln(C,yu,{duration:120},"both");let z=document.createElement("slot");return C.appendChild(z),t.appendChild(C),{nodes:Array.from(t.childNodes),cleanup:()=>{for(let j of H)try{j()}catch(g){}}}}]}),r=(f)=>R({anchor:f,test:()=>{if(n.open())return 0;return-1},branches:[()=>{let t=document.createDocumentFragment(),H=[],C=document.createElement("sui-portal");C.setAttribute("target","body");let z=document.createElement("div");return z.setAttribute("class","sui-popover-presence"),z.setAttribute("aria-hidden","true"),z.setAttribute("data-sui-popover-open",""),C.appendChild(z),t.appendChild(C),{nodes:Array.from(t.childNodes),cleanup:()=>{for(let j of H)try{j()}catch(g){}}}}]}),M=d.shadowRoot??d;V(M);let y=document.createElement("slot");y.setAttribute("name","trigger"),O(n,"triggerSlot",y),M.appendChild(y);let E=document.createElement("div");E.setAttribute("class","panel"),E.setAttribute("part","panel"),E.setAttribute("popover","auto"),O(n,"panelEl",E),E.setAttribute("role","dialog"),E.setAttribute("aria-modal","false");let l=document.createComment("if");E.appendChild(l),m.push(w(l)),M.appendChild(E);let L=document.createComment("if");if(M.appendChild(L),m.push(r(L)),b!=null){let f=Object.getOwnPropertyDescriptor(b,"__shipSetLifecycle")?.value;if(f){let t=new Proxy(n,{get(H,C){return H[C]},set(H,C,z){let j=H[C];if(j!=null&&typeof j.set==="function"){if(typeof z==="function")j.set(()=>z);else j.set(z);return!0}return!1}});if(f.mount){let H=f.mount(t,d);if(typeof H==="function")m.push(H)}if(f.unmount)m.push(()=>f.unmount(t))}}return n}});var Xu=[{id:"ship-light",label:"SHIP Light",dark:!1,swatches:["oklch(0.99 0.001 106.423)","oklch(1 0 0)","oklch(0.67 0.16 58)","oklch(0.61 0.23 303)"]},{id:"ship-dark",label:"SHIP Dark",dark:!0,swatches:["oklch(0.18 0.01 250)","oklch(0.18 0.01 50)","oklch(0.77 0.16 70)","oklch(0.3 0.05 300)"]},{id:"paper",label:"Paper",dark:!1,swatches:["oklch(0.97 0.014 80)","oklch(0.99 0.010 80)","oklch(0.55 0.14 35)","oklch(0.48 0.09 55)"]},{id:"halo",label:"Halo (Soft)",dark:!1,swatches:["oklch(0.92 0.008 230)","oklch(0.92 0.008 230)","oklch(0.62 0.14 50)","oklch(0.55 0.05 230)"]},{id:"console",label:"Console",dark:!0,swatches:["oklch(0.13 0.008 220)","oklch(0.16 0.010 220)","oklch(0.78 0.20 145)","oklch(0.78 0.16 195)"]},{id:"contrast",label:"High Contrast",dark:!0,swatches:["oklch(0.09 0 0)","oklch(0.15 0 0)","oklch(0.87 0.18 85)","oklch(0.99 0 0)"]},{id:"glass",label:"Glass",dark:!1,swatches:["oklch(0.95 0.04 230)","oklch(0.99 0.005 240)","oklch(0.62 0.16 50)","oklch(0.62 0.14 280)"]}],Md=Object.fromEntries(Xu.map((i)=>[i.id,i]));var Ii=(i)=>typeof i==="string"&&(i in Md),Fm=(i)=>Md[i]?.dark??!1;function Gu(i,u=document.documentElement){let d=Ii(i)?i:"ship-light",m=Fm(d);if(u.dataset.theme=d,u.classList.toggle("dark",m),typeof document<"u"&&typeof CustomEvent<"u")document.dispatchEvent(new CustomEvent("ship:theme:change",{detail:{id:d,dark:m}}));return d}function Wu(){if(typeof localStorage>"u")return"ship-light";try{let i=localStorage.getItem("ship-site-theme");return Ii(i)?i:"ship-light"}catch{return"ship-light"}}function yd(i){if(typeof localStorage>"u")return;try{localStorage.setItem("ship-site-theme",i)}catch{}try{fetch("/api/settings",{method:"PUT",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({key:"shell.theme",value:i})}).catch(()=>{})}catch{}}var Om=[{label:"Default",ids:["ship-light","ship-dark"]},{label:"Texture",ids:["paper","halo"]},{label:"Effects",ids:["glass"]},{label:"Special",ids:["console","contrast"]}],Ri=new Map(Xu.map((i)=>[i.id,i]));function Am(i){let u=i.shadowRoot;if(!u)return;if(u.querySelector("link[data-sui-theme-preview-styles]"))return;let d=document.createElement("link");d.rel="stylesheet",d.href="/api/assets/view-tokens.css",d.setAttribute("data-sui-theme-preview-styles",""),u.appendChild(d)}var Si=U({scope:(i)=>{let u=i,d=G(Wu()),m=G(!1),n=G(Om.map((L)=>({label:L.label,themes:L.ids.map((f)=>Ri.get(f)).filter((f)=>!!f)}))),b=h(()=>Ri.get(d())?.swatches[2]??"var(--primary, #3b82f6)"),w=h(()=>Ri.get(d())?.label??"Theme"),r={host:null,panel:null};function M(){let L=r.panel;if(!L)return;if(m())L.hidePopover?.();else L.showPopover?.()}function y(L){let f=Gu(L);if(u.persist())yd(f);d.set(f);let t=r.host;if(t)t.dispatchEvent(new CustomEvent("sui-theme-change",{detail:{id:f,dark:Ri.get(f)?.dark??!1},bubbles:!0,composed:!0}));r.panel?.hidePopover?.()}let E=e(null),l=e(null);return{activeTheme:d,panelOpen:m,groups:n,dotColor:b,triggerLabel:w,togglePanel:M,selectTheme:y,triggerBtn:E,panelEl:l,_internals:r}},mount(i,u){let d=i;d._internals.host=u,Am(u),Gu(Wu());let m=q(()=>{let y=d.panelEl();if(d._internals.panel=y,!y)return;let E=(l)=>{let f=l.newState==="open";if(d.panelOpen()!==f)d.panelOpen.set(f);if(f)n()};return y.addEventListener("toggle",E),()=>y.removeEventListener("toggle",E)});function n(){let y=d.panelEl(),E=d.triggerBtn();if(!y||!E)return;let l=E.getBoundingClientRect();y.style.top=`${l.bottom+4}px`,y.style.left=`${Math.max(8,l.right-y.offsetWidth)}px`}function b(y){let E=y.detail?.id;if(!Ii(E))return;if(d.activeTheme()!==E)d.activeTheme.set(E)}document.addEventListener("ship:theme:change",b);function w(y){let E=d.panelEl();if(!E)return;let l=Array.from(E.querySelectorAll(".card"));if(!l.length)return;let L=E.getRootNode(),f=l.findIndex((t)=>t===L.activeElement);switch(y.key){case"ArrowDown":y.preventDefault(),l[(f+1+l.length)%l.length]?.focus();break;case"ArrowUp":y.preventDefault(),l[(f-1+l.length)%l.length]?.focus();break;case"Home":y.preventDefault(),l[0]?.focus();break;case"End":y.preventDefault(),l[l.length-1]?.focus();break;case"Escape":y.preventDefault(),E.hidePopover?.();break}}let r=q(()=>{let y=d.panelEl();if(!y)return;return y.addEventListener("keydown",w),()=>y.removeEventListener("keydown",w)}),M=q(()=>{if(!d.panelOpen())return;requestAnimationFrame(()=>{let y=d.panelEl();if(!y)return;let E=Array.from(y.querySelectorAll(".card"));(E.find((L)=>L.getAttribute("aria-selected")==="true")??E[0])?.focus()})});return()=>{document.removeEventListener("ship:theme:change",b),m(),r(),M()}}});var l8=Q("sui-theme-picker",{props:{placement:P.union(["top","top-end","bottom","bottom-end","left","left-end","right","right-end"],{default:"bottom-end",reflect:!0}),"label-style":P.union(["text","compact"],{default:"text",reflect:!0}),persist:P.bool({default:!0,reflect:!0})},shadow:!0,styles:`
   :host {
     position: relative;
     display: inline-flex;
@@ -7588,338 +3235,86 @@ var sui_theme_picker_default = component37("sui-theme-picker", {
     background: color-mix(in oklch, var(--foreground) 8%, transparent);
     color: var(--muted-foreground);
   }
-`,
-  setup(ctx) {
-    const { props, host } = ctx;
-    if (!ctx.cleanups)
-      ctx.cleanups = [];
-    const __cleanups = ctx.cleanups;
-    const $scope = Object.create(null);
-    $scope.placement = props.placement;
-    $scope.labelStyle = props.labelStyle;
-    $scope.persist = props.persist;
-    let __r = null;
-    if (sui_theme_picker_controller_default && typeof sui_theme_picker_controller_default.setup === "function") {
-      ctx.scope = $scope;
-      __r = sui_theme_picker_controller_default.setup(ctx);
-      if (__r && typeof __r === "object")
-        Object.assign($scope, __r);
-    }
-    const __wireBoundary_b6 = (anchor) => bindFor2({
-      anchor,
-      items: () => $scope.groups(),
-      key: (g, __i) => {
-        const __child = Object.create($scope);
-        __child.g = g;
-        __child.__i = __i;
-        return (($scope2) => g.label)(__child);
-      },
-      render: (g, __i) => {
-        const __childScope9 = Object.create($scope);
-        __childScope9.g = g;
-        __childScope9.__i = __i;
-        return (($scope2) => {
-          const __wireBoundary_b9 = (anchor2) => bindFor2({
-            anchor: anchor2,
-            items: () => $scope2.g.themes,
-            key: (t, __i2) => {
-              const __child = Object.create($scope2);
-              __child.t = t;
-              __child.__i = __i2;
-              return (($scope3) => t.id)(__child);
-            },
-            render: (t, __i2) => {
-              const __childScope17 = Object.create($scope2);
-              __childScope17.t = t;
-              __childScope17.__i = __i2;
-              return (($scope3) => {
-                const __frag18 = document.createDocumentFragment();
-                const __c19 = [];
-                const __e20 = document.createElement("button");
-                __e20.setAttribute("class", "card");
-                __e20.setAttribute("role", "option");
-                __e20.setAttribute("type", "button");
-                __c19.push(bindAttr23(__e20, "data-theme-card", () => $scope3.t.id));
-                __c19.push(bindAttr23(__e20, "aria-label", () => $scope3.t.label));
-                __c19.push(bindAttr23(__e20, "aria-selected", () => $scope3.activeTheme() === $scope3.t.id ? "true" : "false"));
-                __c19.push(bindAttr23(__e20, "tabindex", () => $scope3.activeTheme() === $scope3.t.id ? "0" : "-1"));
-                __c19.push(on(__e20, "click", function() {
-                  const __h = () => $scope3.selectTheme($scope3.t.id);
-                  return typeof __h === "function" ? __h.bind(undefined) : () => {};
-                }(), { modifiers: [] }));
-                const __e21 = document.createElement("span");
-                __e21.setAttribute("class", "tc-bg");
-                __c19.push(bindAttr23(__e21, "data-theme-preview", () => $scope3.t.id));
-                __e21.setAttribute("aria-hidden", "true");
-                const __e22 = document.createElement("span");
-                __e22.setAttribute("class", "tc-overlay");
-                __e21.appendChild(__e22);
-                const __e23 = document.createElement("span");
-                __e23.setAttribute("class", "tc-card");
-                const __e24 = document.createElement("span");
-                __e24.setAttribute("class", "tc-card-head");
-                const __e25 = document.createElement("span");
-                __e25.setAttribute("class", "tc-eyebrow");
-                const __t26 = document.createTextNode("THEME");
-                __e25.appendChild(__t26);
-                __e24.appendChild(__e25);
-                const __e27 = document.createElement("span");
-                __e27.setAttribute("class", "tc-heading");
-                const __t28 = document.createTextNode("");
-                __e27.appendChild(__t28);
-                __c19.push(bindText8(__t28, () => $scope3.t.label));
-                __e24.appendChild(__e27);
-                __e23.appendChild(__e24);
-                const __e29 = document.createElement("span");
-                __e29.setAttribute("class", "tc-typo");
-                const __e30 = document.createElement("span");
-                __e30.setAttribute("class", "tc-body");
-                const __t31 = document.createTextNode("The quick brown fox");
-                __e30.appendChild(__t31);
-                __e29.appendChild(__e30);
-                const __e32 = document.createElement("span");
-                __e32.setAttribute("class", "tc-mono");
-                const __t33 = document.createTextNode("");
-                __e32.appendChild(__t33);
-                __c19.push(bindText8(__t33, () => "{ build: ok }"));
-                __e29.appendChild(__e32);
-                __e23.appendChild(__e29);
-                const __e34 = document.createElement("span");
-                __e34.setAttribute("class", "tc-controls");
-                const __e35 = document.createElement("span");
-                __e35.setAttribute("class", "tc-cta");
-                const __t36 = document.createTextNode("Action");
-                __e35.appendChild(__t36);
-                __e34.appendChild(__e35);
-                const __e37 = document.createElement("span");
-                __e37.setAttribute("class", "tc-ghost");
-                const __t38 = document.createTextNode("Cancel");
-                __e37.appendChild(__t38);
-                __e34.appendChild(__e37);
-                const __e39 = document.createElement("span");
-                __e39.setAttribute("class", "tc-chip tc-chip-accent");
-                const __t40 = document.createTextNode("New");
-                __e39.appendChild(__t40);
-                __e34.appendChild(__e39);
-                const __e41 = document.createElement("span");
-                __e41.setAttribute("class", "tc-chip tc-chip-muted");
-                const __t42 = document.createTextNode("Idle");
-                __e41.appendChild(__t42);
-                __e34.appendChild(__e41);
-                __e23.appendChild(__e34);
-                __e21.appendChild(__e23);
-                __e20.appendChild(__e21);
-                const __e43 = document.createElement("span");
-                __e43.setAttribute("class", "row");
-                const __e44 = document.createElement("span");
-                __e44.setAttribute("class", "name");
-                const __t45 = document.createTextNode("");
-                __e44.appendChild(__t45);
-                __c19.push(bindText8(__t45, () => $scope3.t.label));
-                __e43.appendChild(__e44);
-                const __e46 = document.createElement("span");
-                __e46.setAttribute("class", "radio");
-                __e46.setAttribute("aria-hidden", "true");
-                __e43.appendChild(__e46);
-                __e20.appendChild(__e43);
-                __frag18.appendChild(__e20);
-                return { nodes: Array.from(__frag18.childNodes), cleanup: () => {
-                  for (const c of __c19)
-                    try {
-                      c();
-                    } catch (e) {}
-                } };
-              })(__childScope17);
-            }
-          });
-          const __frag10 = document.createDocumentFragment();
-          const __c11 = [];
-          const __e12 = document.createElement("section");
-          __e12.setAttribute("class", "group");
-          __c11.push(bindAttr23(__e12, "aria-label", () => $scope2.g.label));
-          const __e13 = document.createElement("div");
-          __e13.setAttribute("class", "group-h");
-          const __t14 = document.createTextNode("");
-          __e13.appendChild(__t14);
-          __c11.push(bindText8(__t14, () => $scope2.g.label));
-          __e12.appendChild(__e13);
-          const __e15 = document.createElement("div");
-          __e15.setAttribute("class", "group-rows");
-          const __forAnchor16 = document.createComment("for");
-          __e15.appendChild(__forAnchor16);
-          __c11.push(__wireBoundary_b9(__forAnchor16));
-          __e12.appendChild(__e15);
-          __frag10.appendChild(__e12);
-          return { nodes: Array.from(__frag10.childNodes), cleanup: () => {
-            for (const c of __c11)
-              try {
-                c();
-              } catch (e) {}
-          } };
-        })(__childScope9);
-      }
-    });
-    const __root = host.shadowRoot ?? host;
-    adoptSuiSheets37(__root);
-    const __e0 = document.createElement("button");
-    __e0.setAttribute("class", "trigger");
-    __e0.setAttribute("part", "trigger");
-    __e0.setAttribute("type", "button");
-    attachRef17($scope, "triggerBtn", __e0);
-    __e0.setAttribute("aria-label", "Choose theme");
-    __e0.setAttribute("aria-haspopup", "dialog");
-    __cleanups.push(bindAttr23(__e0, "aria-expanded", () => $scope.panelOpen() ? "true" : "false"));
-    __cleanups.push(on(__e0, "click", function() {
-      const __h = () => $scope.togglePanel();
-      return typeof __h === "function" ? __h.bind(undefined) : () => {};
-    }(), { modifiers: [] }));
-    const __e1 = document.createElement("span");
-    __e1.setAttribute("class", "dot");
-    __e1.setAttribute("part", "dot");
-    __cleanups.push(effect23(() => {
-      const __v = $scope.dotColor();
-      if (__v == null)
-        __e1.style.removeProperty("background");
-      else
-        __e1.style.setProperty("background", String(__v));
-    }));
-    __e1.setAttribute("aria-hidden", "true");
-    __e0.appendChild(__e1);
-    const __e2 = document.createElement("span");
-    __e2.setAttribute("class", "label");
-    __e2.setAttribute("part", "label");
-    const __t3 = document.createTextNode("");
-    __e2.appendChild(__t3);
-    __cleanups.push(bindText8(__t3, () => $scope.triggerLabel()));
-    __e0.appendChild(__e2);
-    const __e4 = document.createElement("svg");
-    __e4.setAttribute("class", "caret");
-    __e4.setAttribute("viewbox", "0 0 10 6");
-    __e4.setAttribute("aria-hidden", "true");
-    const __e5 = document.createElement("path");
-    __e5.setAttribute("d", "M1 1l4 4 4-4");
-    __e5.setAttribute("fill", "none");
-    __e5.setAttribute("stroke", "currentColor");
-    __e5.setAttribute("stroke-width", "1.5");
-    __e5.setAttribute("stroke-linecap", "round");
-    __e5.setAttribute("stroke-linejoin", "round");
-    __e4.appendChild(__e5);
-    __e0.appendChild(__e4);
-    __root.appendChild(__e0);
-    const __e6 = document.createElement("div");
-    __e6.setAttribute("class", "panel");
-    __e6.setAttribute("part", "panel");
-    __e6.setAttribute("popover", "auto");
-    attachRef17($scope, "panelEl", __e6);
-    const __e7 = document.createElement("div");
-    __e7.setAttribute("class", "grid");
-    __e7.setAttribute("part", "grid");
-    __e7.setAttribute("role", "listbox");
-    __e7.setAttribute("aria-label", "Theme");
-    const __forAnchor8 = document.createComment("for");
-    __e7.appendChild(__forAnchor8);
-    __cleanups.push(__wireBoundary_b6(__forAnchor8));
-    __e6.appendChild(__e7);
-    __root.appendChild(__e6);
-    if (__r != null) {
-      const __lc = Object.getOwnPropertyDescriptor(__r, "__shipSetLifecycle")?.value;
-      if (__lc) {
-        const __sp = new Proxy($scope, {
-          get(t, k) {
-            return t[k];
-          },
-          set(t, k, v) {
-            const s = t[k];
-            if (s != null && typeof s.set === "function") {
-              if (typeof v === "function") {
-                s.set(() => v);
-              } else {
-                s.set(v);
-              }
-              return true;
-            }
-            return false;
-          }
-        });
-        if (__lc.mount) {
-          const __mc = __lc.mount(__sp, host);
-          if (typeof __mc === "function")
-            __cleanups.push(__mc);
-        }
-        if (__lc.unmount)
-          __cleanups.push(() => __lc.unmount(__sp));
-      }
-    }
-    return $scope;
-  }
-});
-
-// packages/ui-components/src/sui-rail/sui-rail.sui
-import { adoptSuiSheets as adoptSuiSheets38, attachRef as attachRef18, component as component38, prop as prop38 } from "@ship/sui-runtime";
-
-// packages/ui-components/src/sui-rail/sui-rail.controller.ts
-import { controller as controller24, effect as effect24 } from "@ship/sui-runtime";
-var sui_rail_controller_default = controller24({
-  mount(state, host) {
-    const scope = state;
-    const stopIcon = effect24(() => {
-      const btn = scope.toggleBtn();
-      const col = scope.collapsed();
-      if (btn)
-        btn.setAttribute("aria-label", col ? "Show rail" : "Hide rail");
-    });
-    const onToggle = () => {
-      const next = !scope.collapsed();
-      scope.collapsed.set(next);
-      host.dispatchEvent(new CustomEvent("sui-rail:toggle", {
-        detail: { collapsed: next },
-        bubbles: true,
-        composed: true
-      }));
-    };
-    const stopBtn = effect24(() => {
-      const btn = scope.toggleBtn();
-      if (!btn)
-        return;
-      btn.addEventListener("click", onToggle);
-      return () => btn.removeEventListener("click", onToggle);
-    });
-    return () => {
-      stopIcon();
-      stopBtn();
-    };
-  }
-});
-
-// packages/ui-components/src/sui-rail/sui-rail.sui
-var sui_rail_default = component38("sui-rail", {
-  props: {
-    collapsed: prop38.bool({ default: false, reflect: true })
-  },
-  shadow: true,
-  styles: `
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.placement=u.placement,n.labelStyle=u.labelStyle,n.persist=u.persist,n.panelEl=G(null),n.triggerBtn=G(null);let b=null;if(Si&&typeof Si.setup==="function"){if(i.scope=n,b=Si.setup(i),b&&typeof b==="object")Object.assign(n,b)}let w=(z)=>s({anchor:z,items:()=>n.groups(),key:(j,g)=>{let J=Object.create(n);return J.g=j,J.__i=g,((D)=>j.label)(J)},render:(j,g)=>{let J=Object.create(n);return J.g=j,J.__i=g,J.__v=G(0),((D)=>{let Z=(K)=>s({anchor:K,items:()=>D.g.themes,key:(a,k)=>{let v=Object.create(D);return v.t=a,v.__i=k,((I)=>a.id)(v)},render:(a,k)=>{let v=Object.create(D);return v.t=a,v.__i=k,v.__v=G(0),((I)=>{let x=document.createDocumentFragment(),o=[],$=document.createElement("button");$.setAttribute("class","card"),$.setAttribute("role","option"),$.setAttribute("type","button");{let c=I.t.id;if(c==null||c===!1||c==="")$.removeAttribute("data-theme-card");else $.setAttribute("data-theme-card",c===!0?"":String(c))}{let c=I.t.label;if(c==null||c===!1||c==="")$.removeAttribute("aria-label");else $.setAttribute("aria-label",c===!0?"":String(c))}o.push(T($,"aria-selected",()=>(I.__v(),I.activeTheme()===I.t.id?"true":"false"))),o.push(T($,"tabindex",()=>(I.__v(),I.activeTheme()===I.t.id?"0":"-1"))),o.push(p($,"click",function(){let c=()=>I.selectTheme(I.t.id);return typeof c==="function"?c.bind(void 0):()=>{}}(),{modifiers:[]}));let nn=document.createElement("span");nn.setAttribute("class","tc-bg");{let c=I.t.id;if(c==null||c===!1||c==="")nn.removeAttribute("data-theme-preview");else nn.setAttribute("data-theme-preview",c===!0?"":String(c))}nn.setAttribute("aria-hidden","true");let Ln=document.createElement("span");Ln.setAttribute("class","tc-overlay"),nn.appendChild(Ln);let dn=document.createElement("span");dn.setAttribute("class","tc-card");let tn=document.createElement("span");tn.setAttribute("class","tc-card-head");let jn=document.createElement("span");jn.setAttribute("class","tc-eyebrow");let h0=document.createTextNode("THEME");jn.appendChild(h0),tn.appendChild(jn);let An=document.createElement("span");An.setAttribute("class","tc-heading");let on=document.createTextNode("");An.appendChild(on),on.textContent=I.t.label,tn.appendChild(An),dn.appendChild(tn);let sn=document.createElement("span");sn.setAttribute("class","tc-typo");let $0=document.createElement("span");$0.setAttribute("class","tc-body");let Od=document.createTextNode("The quick brown fox");$0.appendChild(Od),sn.appendChild($0);let o0=document.createElement("span");o0.setAttribute("class","tc-mono");let s0=document.createTextNode("");o0.appendChild(s0),s0.textContent="{ build: ok }",sn.appendChild(o0),dn.appendChild(sn);let Xn=document.createElement("span");Xn.setAttribute("class","tc-controls");let e0=document.createElement("span");e0.setAttribute("class","tc-cta");let Ad=document.createTextNode("Action");e0.appendChild(Ad),Xn.appendChild(e0);let p0=document.createElement("span");p0.setAttribute("class","tc-ghost");let Kd=document.createTextNode("Cancel");p0.appendChild(Kd),Xn.appendChild(p0);let c0=document.createElement("span");c0.setAttribute("class","tc-chip tc-chip-accent");let Bd=document.createTextNode("New");c0.appendChild(Bd),Xn.appendChild(c0);let _0=document.createElement("span");_0.setAttribute("class","tc-chip tc-chip-muted");let Id=document.createTextNode("Idle");_0.appendChild(Id),Xn.appendChild(_0),dn.appendChild(Xn),nn.appendChild(dn),$.appendChild(nn);let en=document.createElement("span");en.setAttribute("class","row");let nu=document.createElement("span");nu.setAttribute("class","name");let iu=document.createTextNode("");nu.appendChild(iu),iu.textContent=I.t.label,en.appendChild(nu);let uu=document.createElement("span");return uu.setAttribute("class","radio"),uu.setAttribute("aria-hidden","true"),en.appendChild(uu),$.appendChild(en),x.appendChild($),{nodes:Array.from(x.childNodes),cleanup:()=>{for(let c of o)try{c()}catch(qu){}},update:(c,qu)=>{I.t=c,I.__i=qu;{let un=I.t.id;if(un==null||un===!1||un==="")$.removeAttribute("data-theme-card");else $.setAttribute("data-theme-card",un===!0?"":String(un))}{let un=I.t.label;if(un==null||un===!1||un==="")$.removeAttribute("aria-label");else $.setAttribute("aria-label",un===!0?"":String(un))}{let un=I.t.id;if(un==null||un===!1||un==="")nn.removeAttribute("data-theme-preview");else nn.setAttribute("data-theme-preview",un===!0?"":String(un))}on.textContent=I.t.label,s0.textContent="{ build: ok }",iu.textContent=I.t.label,I.__v.set((un)=>un+1)}}})(v)}}),X=document.createDocumentFragment(),W=[],Y=document.createElement("section");Y.setAttribute("class","group");{let K=D.g.label;if(K==null||K===!1||K==="")Y.removeAttribute("aria-label");else Y.setAttribute("aria-label",K===!0?"":String(K))}let N=document.createElement("div");N.setAttribute("class","group-h");let F=document.createTextNode("");N.appendChild(F),F.textContent=D.g.label,Y.appendChild(N);let B=document.createElement("div");B.setAttribute("class","group-rows");let A=document.createComment("for");return B.appendChild(A),W.push(Z(A)),Y.appendChild(B),X.appendChild(Y),{nodes:Array.from(X.childNodes),cleanup:()=>{for(let K of W)try{K()}catch(a){}},update:(K,a)=>{D.g=K,D.__i=a;{let k=D.g.label;if(k==null||k===!1||k==="")Y.removeAttribute("aria-label");else Y.setAttribute("aria-label",k===!0?"":String(k))}F.textContent=D.g.label,D.__v.set((k)=>k+1)}}})(J)}}),r=d.shadowRoot??d;V(r);let M=document.createElement("button");M.setAttribute("class","trigger"),M.setAttribute("part","trigger"),M.setAttribute("type","button"),O(n,"triggerBtn",M),M.setAttribute("aria-label","Choose theme"),M.setAttribute("aria-haspopup","dialog"),m.push(T(M,"aria-expanded",()=>n.panelOpen()?"true":"false")),m.push(p(M,"click",function(){let z=()=>n.togglePanel();return typeof z==="function"?z.bind(void 0):()=>{}}(),{modifiers:[]}));let y=document.createElement("span");y.setAttribute("class","dot"),y.setAttribute("part","dot"),m.push(q(()=>{let z=n.dotColor();if(z==null)y.style.removeProperty("background");else y.style.setProperty("background",String(z))})),y.setAttribute("aria-hidden","true"),M.appendChild(y);let E=document.createElement("span");E.setAttribute("class","label"),E.setAttribute("part","label");let l=document.createTextNode("");E.appendChild(l),m.push(S(l,()=>n.triggerLabel())),M.appendChild(E);let L=document.createElement("svg");L.setAttribute("class","caret"),L.setAttribute("viewbox","0 0 10 6"),L.setAttribute("aria-hidden","true");let f=document.createElement("path");f.setAttribute("d","M1 1l4 4 4-4"),f.setAttribute("fill","none"),f.setAttribute("stroke","currentColor"),f.setAttribute("stroke-width","1.5"),f.setAttribute("stroke-linecap","round"),f.setAttribute("stroke-linejoin","round"),L.appendChild(f),M.appendChild(L),r.appendChild(M);let t=document.createElement("div");t.setAttribute("class","panel"),t.setAttribute("part","panel"),t.setAttribute("popover","auto"),O(n,"panelEl",t);let H=document.createElement("div");H.setAttribute("class","grid"),H.setAttribute("part","grid"),H.setAttribute("role","listbox"),H.setAttribute("aria-label","Theme");let C=document.createComment("for");if(H.appendChild(C),m.push(w(C)),t.appendChild(H),r.appendChild(t),b!=null){let z=Object.getOwnPropertyDescriptor(b,"__shipSetLifecycle")?.value;if(z){let j=new Proxy(n,{get(g,J){return g[J]},set(g,J,D){let Z=g[J];if(Z!=null&&typeof Z.set==="function"){if(typeof D==="function")Z.set(()=>D);else Z.set(D);return!0}return!1}});if(z.mount){let g=z.mount(j,d);if(typeof g==="function")m.push(g)}if(z.unmount)m.push(()=>z.unmount(j))}}return n}});var Km=`
+.sui-rail-project-popover {
+  position: fixed;
+  z-index: var(--z-popover, 1000);
+  min-width: 220px;
+  background: var(--popover, var(--card, #fff));
+  color: var(--popover-foreground, var(--card-foreground, #111));
+  border: 1px solid var(--border, #e5e5e5);
+  border-radius: var(--radius-md, 8px);
+  box-shadow: var(--shadow-md, 0 4px 12px rgba(0,0,0,0.15));
+  overflow: hidden;
+  font-family: var(--font-body, system-ui);
+  font-size: var(--text-base, 14px);
+}
+.sui-rail-project-popover-title {
+  padding: 8px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted-foreground);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.sui-rail-project-popover-row {
+  padding: 8px 12px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  transition: background-color var(--duration-fast, 100ms) var(--ease-out, ease-out);
+}
+.sui-rail-project-popover-row:hover {
+  background: color-mix(in oklch, var(--foreground) 6%, transparent);
+}
+.sui-rail-project-popover-row.active {
+  background: color-mix(in oklch, var(--primary) 12%, transparent);
+  color: var(--primary);
+}
+.sui-rail-project-popover-row-name {
+  font-size: 13px;
+  font-weight: 500;
+}
+.sui-rail-project-popover-row-path {
+  font-size: 11px;
+  color: var(--muted-foreground);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sui-rail-project-popover-sep {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 0;
+}
+.sui-rail-project-popover-row.add {
+  color: var(--primary);
+  font-weight: 500;
+}
+.sui-rail-project-popover-empty {
+  padding: 12px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+`,wd=!1;function Bm(){if(wd)return;wd=!0;let i=document.createElement("style");i.setAttribute("data-sui-rail",""),i.textContent=Km,document.head.appendChild(i)}function ki(i,u,d){i.dispatchEvent(new CustomEvent(u,{detail:d,bubbles:!0,composed:!0}))}function Hd(i){Bm();let{host:u,open:d,projects:m,activeProjectId:n,popoverEl:b,badgeEl:w}=i,r=()=>d.set(!1),M=async()=>{try{let j=await fetch("/api/v1/projects",{credentials:"same-origin"});if(!j.ok)return;let g=await j.json();m.set(g.projects??[]),n.set(g.active??null)}catch{}},y=async(j)=>{try{await fetch("/api/v1/projects/switch",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({id:j})}),n.set(j),r(),ki(u,"ship:project:change",{id:j})}catch{}M()},E=async()=>{let j=window.prompt("Path to project directory:");if(!j)return;try{let g=await fetch("/api/v1/projects",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({path:j})});if(!g.ok){let J=await g.text().catch(()=>"");ki(u,"sui:notify",{tone:"warning",title:`Add failed: ${J||g.status}`});return}await M(),ki(u,"sui:notify",{tone:"success",title:"Project added."})}catch(g){ki(u,"sui:notify",{tone:"destructive",title:String(g.message??g)})}},l=()=>{let j=b(),g=w();if(!j||!g)return;let J=g.getBoundingClientRect(),D=j.offsetWidth||220,Z=8,X=Math.max(8,Math.min(J.left,window.innerWidth-D-8)),W=Math.max(8,window.innerHeight-J.top+Z);j.style.left=`${X}px`,j.style.bottom=`${W}px`},L=(j)=>{let g=j.target;if(!g)return;if(g.closest("[data-rail-add]")){E();return}let J=g.closest("[data-project-id]");if(J?.dataset.projectId)y(J.dataset.projectId)},f=()=>d.set(!d()),t=(j)=>{if(!d())return;let g=typeof j.composedPath==="function"?j.composedPath():[],J=b(),D=w();for(let Z of g)if(Z===J||Z===D)return;r()},H=()=>{if(d())l()},C=q(()=>{let j=w();if(!j)return;return j.addEventListener("click",f),()=>j.removeEventListener("click",f)}),z=q(()=>{let j=b();if(!j)return;return requestAnimationFrame(l),j.addEventListener("click",L),()=>j.removeEventListener("click",L)});return document.addEventListener("click",t,!0),window.addEventListener("resize",H),window.addEventListener("scroll",H,{capture:!0,passive:!0}),{loadProjects:M,dispose(){C(),z(),document.removeEventListener("click",t,!0),window.removeEventListener("resize",H),window.removeEventListener("scroll",H,!0)}}}var Im=15000;function Cd(i){return i.split("/").filter(Boolean)[0]??"dashboard"}function zd(i,u,d){i.dispatchEvent(new CustomEvent(u,{detail:d,bubbles:!0,composed:!0}))}var ai=U({scope:()=>{let i=G(!1),u=G([]),d=G(null),m=G(typeof location<"u"?Cd(location.pathname):""),n=G(0);return{projectOpen:i,projects:u,activeProjectId:d,activeView:m,sessionCount:n,projectInitial:()=>{let w=u(),r=w.find((M)=>M.id===d())??w[0];if(!r)return"·";return(r.label??r.name).charAt(0).toUpperCase()},popoverEl:e(),projectBadgeEl:e(),launcherBtnEl:e(),createBtnEl:e(),missionEl:e(),navSlot:e()}},mount(i,u){let d=Hd({host:u,open:i.projectOpen,projects:i.projects,activeProjectId:i.activeProjectId,popoverEl:i.popoverEl,badgeEl:i.projectBadgeEl});d.loadProjects();let m=()=>i.projectOpen.set(!1),n=(H)=>{zd(u,"ship:launcher:open",{anchor:H.currentTarget}),m()},b=()=>{zd(u,"ship:create:open"),m()},w=q(()=>{let H=i.launcherBtnEl();if(!H)return;return H.addEventListener("click",n),()=>H.removeEventListener("click",n)}),r=q(()=>{let H=i.createBtnEl();if(!H)return;return H.addEventListener("click",b),()=>H.removeEventListener("click",b)}),M=async()=>{try{let H=await fetch("/api/v1/pty-sessions",{credentials:"same-origin"});if(!H.ok)return;let z=(await H.json()).sessions.filter((j)=>j.status!=="ended").length;i.sessionCount.set(z)}catch{}};M();let y=window.setInterval(()=>void M(),Im),E=()=>void M();window.addEventListener("ship:session:changed",E);let l=q(()=>{let H=i.missionEl();if(!H)return;let C=i.sessionCount();H.setAttribute("badge",C>0?String(C):"")}),L=()=>{i.activeView.set(Cd(location.pathname))},f=()=>L();document.addEventListener("sui:navigate",f),window.addEventListener("popstate",f);let t=q(()=>{let H=i.activeView(),C=u.querySelectorAll("sui-rail-item[data-view]");for(let j of C)if(j.dataset.view===H)j.setAttribute("active","");else j.removeAttribute("active");let z=i.missionEl();if(z)if(H==="mesh")z.setAttribute("active","");else z.removeAttribute("active")});return()=>{w(),r(),l(),t(),d.dispose(),document.removeEventListener("sui:navigate",f),window.removeEventListener("popstate",f),window.removeEventListener("ship:session:changed",E),window.clearInterval(y)}}});var P8=Q("sui-rail",{props:{collapsed:P.bool({default:!1,reflect:!0})},shadow:!0,styles:`
   :host {
     display: flex;
     flex-direction: column;
     height: 100%;
     min-height: 0;
-    width: var(--ship-rail-w, 200px);
+    width: var(--ship-rail-w-collapsed, 48px);
     background: var(--sidebar, var(--muted));
     border-right: 1px solid var(--border);
     overflow: hidden;
     user-select: none;
     -webkit-user-select: none;
-    /* Inherited custom props consumed by slotted children */
-    --rail-label-display: flex;
-    --rail-item-justify: flex-start;
-  }
-  :host([collapsed]) {
-    width: 32px;
     --rail-label-display: none;
     --rail-item-justify: center;
   }
-  :host([collapsed]) .rail-nav { display: none; }
-  :host([collapsed]) .rail-footer { padding: 4px; justify-content: center; }
+  :host([collapsed]),
+  .rail-footer { padding: 4px; }
 
   .rail-nav {
     flex: 1;
@@ -7937,14 +3332,47 @@ var sui_rail_default = component38("sui-rail", {
 
   .rail-footer {
     display: flex;
+    flex-direction: column;
     align-items: center;
-    justify-content: flex-end;
+    gap: 4px;
     padding: var(--space-2, 8px);
     border-top: 1px solid var(--border);
     flex-shrink: 0;
   }
 
-  .toggle-btn {
+  .project-badge {
+    appearance: none;
+    background: var(--primary);
+    color: var(--primary-foreground, white);
+    border: none;
+    border-radius: 6px;
+    width: 28px;
+    height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color var(--duration-fast, 100ms) var(--ease-out, ease-out);
+  }
+  .project-badge:hover {
+    background: color-mix(in oklch, var(--primary) 80%, black);
+  }
+  .project-badge:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px color-mix(in oklch, var(--primary, #3b82f6) 50%, transparent);
+  }
+
+  .footer-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    width: auto;
+  }
+
+  .footer-btn {
     appearance: none;
     background: transparent;
     border: 1px solid transparent;
@@ -7962,102 +3390,20 @@ var sui_rail_default = component38("sui-rail", {
       border-color var(--duration-fast, 100ms) var(--ease-out, ease-out),
       color var(--duration-fast, 100ms) var(--ease-out, ease-out);
   }
-  .toggle-btn:hover {
+  .footer-btn:hover {
     background: color-mix(in oklch, var(--foreground) 8%, transparent);
     border-color: var(--border);
     color: var(--foreground);
   }
-  .toggle-btn:focus-visible {
+  .footer-btn:focus-visible {
     outline: none;
     box-shadow: 0 0 0 2px color-mix(in oklch, var(--primary, #3b82f6) 50%, transparent);
   }
-  .toggle-btn::before { content: '◀'; font-size: 10px; line-height: 1; }
-  :host([collapsed]) .toggle-btn::before { content: '▶'; }
 
   @media (prefers-reduced-motion: reduce) {
     :host { transition: none; }
   }
-`,
-  setup(ctx) {
-    const { props, host } = ctx;
-    if (!ctx.cleanups)
-      ctx.cleanups = [];
-    const __cleanups = ctx.cleanups;
-    const $scope = Object.create(null);
-    $scope.collapsed = props.collapsed;
-    let __r = null;
-    if (sui_rail_controller_default && typeof sui_rail_controller_default.setup === "function") {
-      ctx.scope = $scope;
-      __r = sui_rail_controller_default.setup(ctx);
-      if (__r && typeof __r === "object")
-        Object.assign($scope, __r);
-    }
-    const __root = host.shadowRoot ?? host;
-    adoptSuiSheets38(__root);
-    const __e0 = document.createElement("nav");
-    __e0.setAttribute("class", "rail-nav");
-    __e0.setAttribute("part", "nav");
-    const __e1 = document.createElement("slot");
-    attachRef18($scope, "navSlot", __e1);
-    __e0.appendChild(__e1);
-    __root.appendChild(__e0);
-    const __e2 = document.createElement("div");
-    __e2.setAttribute("class", "rail-footer");
-    __e2.setAttribute("part", "footer");
-    const __e3 = document.createElement("button");
-    __e3.setAttribute("type", "button");
-    __e3.setAttribute("class", "toggle-btn");
-    __e3.setAttribute("part", "toggle");
-    attachRef18($scope, "toggleBtn", __e3);
-    __e3.setAttribute("aria-label", "Collapse rail");
-    __e2.appendChild(__e3);
-    __root.appendChild(__e2);
-    if (__r != null) {
-      const __lc = Object.getOwnPropertyDescriptor(__r, "__shipSetLifecycle")?.value;
-      if (__lc) {
-        const __sp = new Proxy($scope, {
-          get(t, k) {
-            return t[k];
-          },
-          set(t, k, v) {
-            const s = t[k];
-            if (s != null && typeof s.set === "function") {
-              if (typeof v === "function") {
-                s.set(() => v);
-              } else {
-                s.set(v);
-              }
-              return true;
-            }
-            return false;
-          }
-        });
-        if (__lc.mount) {
-          const __mc = __lc.mount(__sp, host);
-          if (typeof __mc === "function")
-            __cleanups.push(__mc);
-        }
-        if (__lc.unmount)
-          __cleanups.push(() => __lc.unmount(__sp));
-      }
-    }
-    return $scope;
-  }
-});
-
-// packages/ui-components/src/sui-rail/sui-rail-item.sui
-import { adoptSuiSheets as adoptSuiSheets39, attachRef as attachRef19, bindAttr as bindAttr24, bindText as bindText9, component as component39, prop as prop39 } from "@ship/sui-runtime";
-var sui_rail_item_default = component39("sui-rail-item", {
-  props: {
-    href: prop39.string({ default: "" }),
-    label: prop39.string({ default: "" }),
-    icon: prop39.string({ default: "" }),
-    active: prop39.bool({ default: false, reflect: true }),
-    badge: prop39.string({ default: "" }),
-    disabled: prop39.bool({ default: false, reflect: true })
-  },
-  shadow: true,
-  styles: `
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.collapsed=u.collapsed,n.createBtnEl=G(null),n.launcherBtnEl=G(null),n.navSlot=G(null),n.popoverEl=G(null),n.projectBadgeEl=G(null);let b=null;if(ai&&typeof ai.setup==="function"){if(i.scope=n,b=ai.setup(i),b&&typeof b==="object")Object.assign(n,b)}let w=(Z)=>R({anchor:Z,test:()=>{if(n.projects().length===0)return 0;return-1},branches:[()=>{let X=document.createDocumentFragment(),W=[],Y=document.createElement("div");Y.setAttribute("class","sui-rail-project-popover-empty");let N=document.createTextNode("No projects tracked.");return Y.appendChild(N),X.appendChild(Y),{nodes:Array.from(X.childNodes),cleanup:()=>{for(let F of W)try{F()}catch(B){}}}}]}),r=(Z)=>s({anchor:Z,items:()=>n.projects(),key:(X,W)=>{let Y=Object.create(n);return Y.p=X,Y.__i=W,((N)=>X.id)(Y)},render:(X,W)=>{let Y=Object.create(n);return Y.p=X,Y.__i=W,Y.__v=G(0),((N)=>{let F=document.createDocumentFragment(),B=[],A=document.createElement("div");A.setAttribute("class","sui-rail-project-popover-row"),B.push(zn(A,"active",()=>(N.__v(),N.p.id===N.activeProjectId())));{let I=N.p.id;if(I==null||I===!1||I==="")A.removeAttribute("data-project-id");else A.setAttribute("data-project-id",I===!0?"":String(I))}let K=document.createElement("span");K.setAttribute("class","sui-rail-project-popover-row-name");let a=document.createTextNode("");K.appendChild(a),a.textContent=N.p.label||N.p.name,A.appendChild(K);let k=document.createElement("span");k.setAttribute("class","sui-rail-project-popover-row-path");let v=document.createTextNode("");return k.appendChild(v),v.textContent=N.p.path,A.appendChild(k),F.appendChild(A),{nodes:Array.from(F.childNodes),cleanup:()=>{for(let I of B)try{I()}catch(x){}},update:(I,x)=>{N.p=I,N.__i=x;{let o=N.p.id;if(o==null||o===!1||o==="")A.removeAttribute("data-project-id");else A.setAttribute("data-project-id",o===!0?"":String(o))}a.textContent=N.p.label||N.p.name,v.textContent=N.p.path,N.__v.set((o)=>o+1)}}})(Y)}}),M=(Z)=>R({anchor:Z,test:()=>{if(n.projectOpen())return 0;return-1},branches:[()=>{let X=document.createDocumentFragment(),W=[],Y=document.createElement("div");Y.setAttribute("class","sui-rail-project-popover"),Y.setAttribute("part","project-popover"),Y.setAttribute("role","dialog"),Y.setAttribute("aria-label","Switch project"),O(n,"popoverEl",Y),ln(Y,Zn,{duration:150},"both");let N=document.createElement("div");N.setAttribute("class","sui-rail-project-popover-title");let F=document.createTextNode("Projects");N.appendChild(F),Y.appendChild(N);let B=document.createComment("if");Y.appendChild(B),W.push(w(B));let A=document.createComment("for");Y.appendChild(A),W.push(r(A));let K=document.createElement("div");K.setAttribute("class","sui-rail-project-popover-sep"),Y.appendChild(K);let a=document.createElement("div");a.setAttribute("class","sui-rail-project-popover-row add"),a.setAttribute("data-rail-add","");let k=document.createElement("span"),v=document.createTextNode("+ Add project");return k.appendChild(v),a.appendChild(k),Y.appendChild(a),X.appendChild(Y),{nodes:Array.from(X.childNodes),cleanup:()=>{for(let I of W)try{I()}catch(x){}}}}]}),y=d.shadowRoot??d;V(y);let E=document.createElement("nav");E.setAttribute("class","rail-nav"),E.setAttribute("part","nav");let l=document.createElement("slot");O(n,"navSlot",l),E.appendChild(l),y.appendChild(E);let L=document.createElement("div");L.setAttribute("class","rail-footer"),L.setAttribute("part","footer");let f=document.createElement("button");f.setAttribute("type","button"),f.setAttribute("class","project-badge"),f.setAttribute("part","project-badge"),f.setAttribute("aria-label","Switch project"),f.setAttribute("aria-haspopup","dialog"),f.setAttribute("title","Switch project"),O(n,"projectBadgeEl",f);let t=document.createTextNode("");f.appendChild(t),m.push(S(t,()=>n.projectInitial())),L.appendChild(f);let H=document.createElement("div");H.setAttribute("class","footer-actions");let C=document.createElement("button");C.setAttribute("type","button"),C.setAttribute("class","footer-btn"),C.setAttribute("part","launcher-btn"),C.setAttribute("title","Open launcher"),C.setAttribute("aria-label","Open launcher"),O(n,"launcherBtnEl",C);let z=document.createElement("sui-icon");z.setAttribute("name","folder"),z.setAttribute("size","sm"),C.appendChild(z),H.appendChild(C);let j=document.createElement("button");j.setAttribute("type","button"),j.setAttribute("class","footer-btn"),j.setAttribute("part","create-btn"),j.setAttribute("title","Create new"),j.setAttribute("aria-label","Create new"),O(n,"createBtnEl",j);let g=document.createElement("sui-icon");g.setAttribute("name","plus"),g.setAttribute("size","sm"),j.appendChild(g),H.appendChild(j),L.appendChild(H),y.appendChild(L);let J=document.createElement("sui-portal");J.setAttribute("target","body");let D=document.createComment("if");if(J.appendChild(D),m.push(M(D)),y.appendChild(J),b!=null){let Z=Object.getOwnPropertyDescriptor(b,"__shipSetLifecycle")?.value;if(Z){let X=new Proxy(n,{get(W,Y){return W[Y]},set(W,Y,N){let F=W[Y];if(F!=null&&typeof F.set==="function"){if(typeof N==="function")F.set(()=>N);else F.set(N);return!0}return!1}});if(Z.mount){let W=Z.mount(X,d);if(typeof W==="function")m.push(W)}if(Z.unmount)m.push(()=>Z.unmount(X))}}return n}});var Z8=Q("sui-rail-item",{props:{href:P.string({default:""}),label:P.string({default:""}),icon:P.string({default:""}),active:P.bool({default:!1,reflect:!0}),badge:P.string({default:""}),disabled:P.bool({default:!1,reflect:!0})},shadow:!0,styles:`
   :host {
     display: block;
     padding: 0 var(--space-2, 8px);
@@ -8142,65 +3488,7 @@ var sui_rail_item_default = component39("sui-rail-item", {
     flex-shrink: 0;
   }
   .badge:not(:empty) { display: var(--rail-label-display, inline-flex); }
-`,
-  setup(ctx) {
-    const { props, host } = ctx;
-    if (!ctx.cleanups)
-      ctx.cleanups = [];
-    const __cleanups = ctx.cleanups;
-    const $scope = Object.create(null);
-    $scope.href = props.href;
-    $scope.label = props.label;
-    $scope.icon = props.icon;
-    $scope.active = props.active;
-    $scope.badge = props.badge;
-    $scope.disabled = props.disabled;
-    const __root = host.shadowRoot ?? host;
-    adoptSuiSheets39(__root);
-    const __e0 = document.createElement("a");
-    __e0.setAttribute("class", "item");
-    __e0.setAttribute("part", "item");
-    attachRef19($scope, "itemEl", __e0);
-    __cleanups.push(bindAttr24(__e0, "href", () => $scope.href() || "#"));
-    __cleanups.push(bindAttr24(__e0, "aria-current", () => $scope.active() ? "page" : null));
-    __cleanups.push(bindAttr24(__e0, "aria-disabled", () => $scope.disabled() ? "true" : null));
-    __cleanups.push(bindAttr24(__e0, "title", () => $scope.label()));
-    const __e1 = document.createElement("span");
-    __e1.setAttribute("class", "icon-wrap");
-    __e1.setAttribute("part", "icon-wrap");
-    const __e2 = document.createElement("sui-icon");
-    __cleanups.push(bindAttr24(__e2, "name", () => $scope.icon()));
-    __e2.setAttribute("size", "sm");
-    __e1.appendChild(__e2);
-    __e0.appendChild(__e1);
-    const __e3 = document.createElement("span");
-    __e3.setAttribute("class", "label");
-    __e3.setAttribute("part", "label");
-    const __t4 = document.createTextNode("");
-    __e3.appendChild(__t4);
-    __cleanups.push(bindText9(__t4, () => $scope.label()));
-    __e0.appendChild(__e3);
-    const __e5 = document.createElement("span");
-    __e5.setAttribute("class", "badge");
-    __e5.setAttribute("part", "badge");
-    attachRef19($scope, "badgeEl", __e5);
-    const __t6 = document.createTextNode("");
-    __e5.appendChild(__t6);
-    __cleanups.push(bindText9(__t6, () => $scope.badge()));
-    __e0.appendChild(__e5);
-    __root.appendChild(__e0);
-    return $scope;
-  }
-});
-
-// packages/ui-components/src/sui-rail/sui-rail-section.sui
-import { adoptSuiSheets as adoptSuiSheets40, bindText as bindText10, component as component40, prop as prop40 } from "@ship/sui-runtime";
-var sui_rail_section_default = component40("sui-rail-section", {
-  props: {
-    label: prop40.string({ default: "" })
-  },
-  shadow: true,
-  styles: `
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.href=u.href,n.label=u.label,n.icon=u.icon,n.active=u.active,n.badge=u.badge,n.disabled=u.disabled,n.badgeEl=G(null),n.itemEl=G(null);let b=d.shadowRoot??d;V(b);let w=document.createElement("a");w.setAttribute("class","item"),w.setAttribute("part","item"),O(n,"itemEl",w),m.push(T(w,"href",()=>n.href()||"#")),m.push(T(w,"aria-current",()=>n.active()?"page":null)),m.push(T(w,"aria-disabled",()=>n.disabled()?"true":null)),m.push(T(w,"title",()=>n.label()));let r=document.createElement("span");r.setAttribute("class","icon-wrap"),r.setAttribute("part","icon-wrap");let M=document.createElement("sui-icon");m.push(T(M,"name",()=>n.icon())),M.setAttribute("size","sm"),r.appendChild(M),w.appendChild(r);let y=document.createElement("span");y.setAttribute("class","label"),y.setAttribute("part","label");let E=document.createTextNode("");y.appendChild(E),m.push(S(E,()=>n.label())),w.appendChild(y);let l=document.createElement("span");l.setAttribute("class","badge"),l.setAttribute("part","badge"),O(n,"badgeEl",l);let L=document.createTextNode("");return l.appendChild(L),m.push(S(L,()=>n.badge())),w.appendChild(l),b.appendChild(w),n}});var G8=Q("sui-rail-section",{props:{label:P.string({default:""})},shadow:!0,styles:`
   :host {
     display: block;
     margin-top: var(--space-2, 8px);
@@ -8221,40 +3509,7 @@ var sui_rail_section_default = component40("sui-rail-section", {
     overflow: hidden;
     text-overflow: ellipsis;
   }
-`,
-  setup(ctx) {
-    const { props, host } = ctx;
-    if (!ctx.cleanups)
-      ctx.cleanups = [];
-    const __cleanups = ctx.cleanups;
-    const $scope = Object.create(null);
-    $scope.label = props.label;
-    const __root = host.shadowRoot ?? host;
-    adoptSuiSheets40(__root);
-    const __e0 = document.createElement("span");
-    __e0.setAttribute("class", "heading");
-    __e0.setAttribute("part", "heading");
-    const __t1 = document.createTextNode("");
-    __e0.appendChild(__t1);
-    __cleanups.push(bindText10(__t1, () => $scope.label()));
-    __root.appendChild(__e0);
-    const __e2 = document.createElement("slot");
-    __root.appendChild(__e2);
-    return $scope;
-  }
-});
-
-// packages/ui-components/src/sui-status-bar/sui-status-bar.sui
-import { adoptSuiSheets as adoptSuiSheets41, bindText as bindText11, component as component41, prop as prop41 } from "@ship/sui-runtime";
-var sui_status_bar_default = component41("sui-status-bar", {
-  props: {
-    branch: prop41.string({ default: "" }),
-    theme: prop41.string({ default: "" }),
-    online: prop41.bool({ default: false, reflect: true }),
-    agents: prop41.string({ default: "" })
-  },
-  shadow: true,
-  styles: `
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.label=u.label;let b=d.shadowRoot??d;V(b);let w=document.createElement("span");w.setAttribute("class","heading"),w.setAttribute("part","heading");let r=document.createTextNode("");w.appendChild(r),m.push(S(r,()=>n.label())),b.appendChild(w);let M=document.createElement("slot");return b.appendChild(M),n}});var Q8=Q("sui-status-bar",{props:{branch:P.string({default:""}),theme:P.string({default:""}),online:P.bool({default:!1,reflect:!0}),agents:P.string({default:""})},shadow:!0,styles:`
   :host {
     display: flex;
     align-items: center;
@@ -8298,281 +3553,7 @@ var sui_status_bar_default = component41("sui-status-bar", {
   }
 
   .spacer { flex: 1; }
-`,
-  setup(ctx) {
-    const { props, host } = ctx;
-    if (!ctx.cleanups)
-      ctx.cleanups = [];
-    const __cleanups = ctx.cleanups;
-    const $scope = Object.create(null);
-    $scope.branch = props.branch;
-    $scope.theme = props.theme;
-    $scope.online = props.online;
-    $scope.agents = props.agents;
-    const __root = host.shadowRoot ?? host;
-    adoptSuiSheets41(__root);
-    const __e0 = document.createElement("span");
-    __e0.setAttribute("class", "dot");
-    __e0.setAttribute("part", "dot");
-    __e0.setAttribute("aria-hidden", "true");
-    __root.appendChild(__e0);
-    const __e1 = document.createElement("span");
-    __e1.setAttribute("class", "text");
-    __e1.setAttribute("part", "branch");
-    const __t2 = document.createTextNode("");
-    __e1.appendChild(__t2);
-    __cleanups.push(bindText11(__t2, () => $scope.branch()));
-    __root.appendChild(__e1);
-    const __e3 = document.createElement("span");
-    __e3.setAttribute("class", "text");
-    __e3.setAttribute("part", "agents");
-    const __t4 = document.createTextNode("");
-    __e3.appendChild(__t4);
-    __cleanups.push(bindText11(__t4, () => $scope.agents()));
-    __root.appendChild(__e3);
-    const __e5 = document.createElement("span");
-    __e5.setAttribute("class", "slot-wrap");
-    const __e6 = document.createElement("slot");
-    __e6.setAttribute("name", "start");
-    __e5.appendChild(__e6);
-    __root.appendChild(__e5);
-    const __e7 = document.createElement("span");
-    __e7.setAttribute("class", "spacer");
-    __root.appendChild(__e7);
-    const __e8 = document.createElement("span");
-    __e8.setAttribute("class", "slot-wrap");
-    const __e9 = document.createElement("slot");
-    __e9.setAttribute("name", "end");
-    __e8.appendChild(__e9);
-    __root.appendChild(__e8);
-    const __e10 = document.createElement("span");
-    __e10.setAttribute("class", "text");
-    __e10.setAttribute("part", "theme");
-    const __t11 = document.createTextNode("");
-    __e10.appendChild(__t11);
-    __cleanups.push(bindText11(__t11, () => $scope.theme()));
-    __root.appendChild(__e10);
-    return $scope;
-  }
-});
-
-// packages/ui-components/src/sui-dialog/sui-dialog.sui
-import { adoptSuiSheets as adoptSuiSheets42, attachRef as attachRef20, component as component42, prop as prop42 } from "@ship/sui-runtime";
-
-// packages/ui-components/src/sui-dialog/sui-dialog.controller.ts
-import { controller as controller25, effect as effect25 } from "@ship/sui-runtime";
-
-// packages/ui-components/src/overlay-focus.ts
-var FOCUSABLE = [
-  "a[href]",
-  "area[href]",
-  "button:not([disabled])",
-  'input:not([disabled]):not([type="hidden"])',
-  "select:not([disabled])",
-  "textarea:not([disabled])",
-  "iframe",
-  "object",
-  "embed",
-  "summary",
-  '[contenteditable]:not([contenteditable="false"])',
-  '[tabindex]:not([tabindex^="-"])'
-].join(",");
-function focusableWithin(root) {
-  return Array.from(root.querySelectorAll(FOCUSABLE)).filter((el) => {
-    if (el.hasAttribute("disabled"))
-      return false;
-    if (el.getAttribute("aria-hidden") === "true")
-      return false;
-    return true;
-  });
-}
-
-class FocusReturn {
-  saved = null;
-  save() {
-    this.saved = document.activeElement ?? null;
-  }
-  restore() {
-    const t = this.saved;
-    this.saved = null;
-    if (t && typeof t.focus === "function")
-      t.focus();
-  }
-}
-var _scrollLockCount = 0;
-var _savedOverflow = null;
-var _savedPadding = null;
-function acquireScrollLock() {
-  if (typeof document === "undefined")
-    return;
-  _scrollLockCount += 1;
-  if (_scrollLockCount > 1)
-    return;
-  const body = document.body;
-  _savedOverflow = body.style.overflow;
-  _savedPadding = body.style.paddingRight;
-  const scrollW = typeof window !== "undefined" ? window.innerWidth - document.documentElement.clientWidth : 0;
-  if (scrollW > 0) {
-    const cur = parseFloat(getComputedStyle(body).paddingRight || "0") || 0;
-    body.style.paddingRight = `${cur + scrollW}px`;
-  }
-  body.style.overflow = "hidden";
-}
-function releaseScrollLock() {
-  if (typeof document === "undefined")
-    return;
-  if (_scrollLockCount === 0)
-    return;
-  _scrollLockCount -= 1;
-  if (_scrollLockCount > 0)
-    return;
-  const body = document.body;
-  body.style.overflow = _savedOverflow ?? "";
-  body.style.paddingRight = _savedPadding ?? "";
-  _savedOverflow = null;
-  _savedPadding = null;
-}
-
-// packages/ui-components/src/sui-dialog/sui-dialog.controller.ts
-var _seq3 = 0;
-var sui_dialog_controller_default = controller25({
-  mount(state, host) {
-    const scope = state;
-    const uid = ++_seq3;
-    const headerId = `sui-dialog-header-${uid}`;
-    const bodyId = `sui-dialog-body-${uid}`;
-    const dialogEl = scope.dialogEl();
-    const closeBtn = scope.closeBtn();
-    const sentinelStart = scope.sentinelStart();
-    const sentinelEnd = scope.sentinelEnd();
-    const headerEl = scope.headerEl();
-    const bodyEl = scope.bodyEl();
-    if (!dialogEl)
-      return;
-    if (headerEl)
-      headerEl.id = headerId;
-    if (bodyEl)
-      bodyEl.id = bodyId;
-    dialogEl.setAttribute("aria-labelledby", headerId);
-    dialogEl.setAttribute("aria-describedby", bodyId);
-    let hasScrollLock = false;
-    const focusReturn = new FocusReturn;
-    function updateRole() {
-      dialogEl.setAttribute("role", scope.roleOverride() || "dialog");
-      dialogEl.setAttribute("aria-modal", "true");
-    }
-    updateRole();
-    function collectFocusables() {
-      const shadowFocusables = focusableWithin(dialogEl).filter((el) => !el.classList.contains("sentinel"));
-      const lightFocusables = focusableWithin(host);
-      return [...lightFocusables, ...shadowFocusables];
-    }
-    function focusInitial() {
-      const autofocus = host.querySelector("[autofocus]") ?? dialogEl.querySelector("[autofocus]");
-      if (autofocus) {
-        autofocus.focus();
-        return;
-      }
-      const focusables = collectFocusables();
-      const primary = focusables.find((el) => el !== closeBtn) ?? focusables[0];
-      if (primary)
-        primary.focus();
-      else
-        dialogEl.focus();
-    }
-    function doOpen() {
-      focusReturn.save();
-      try {
-        dialogEl.showModal();
-      } catch {}
-      if (!hasScrollLock) {
-        acquireScrollLock();
-        hasScrollLock = true;
-      }
-      queueMicrotask(() => focusInitial());
-      host.dispatchEvent(new CustomEvent("sui-open", { bubbles: true, composed: true }));
-    }
-    function doClose() {
-      if (dialogEl.open)
-        dialogEl.close();
-    }
-    const onNativeClose = () => {
-      if (scope.open())
-        scope.open.set(false);
-      if (hasScrollLock) {
-        releaseScrollLock();
-        hasScrollLock = false;
-      }
-      focusReturn.restore();
-      host.dispatchEvent(new CustomEvent("sui-close", { bubbles: true, composed: true }));
-    };
-    const onBackdropClick = (e) => {
-      if (!scope.dismissible())
-        return;
-      if (e.target === dialogEl)
-        scope.open.set(false);
-    };
-    const onDismiss = () => {
-      host.dispatchEvent(new CustomEvent("sui-dismiss", { bubbles: true, composed: true }));
-      scope.open.set(false);
-    };
-    const onSentinelStartFocus = () => {
-      const items = collectFocusables();
-      if (items.length)
-        items[items.length - 1].focus();
-    };
-    const onSentinelEndFocus = () => {
-      const items = collectFocusables();
-      if (items.length)
-        items[0].focus();
-    };
-    dialogEl.addEventListener("close", onNativeClose);
-    dialogEl.addEventListener("click", onBackdropClick);
-    closeBtn?.addEventListener("click", onDismiss);
-    sentinelStart?.addEventListener("focus", onSentinelStartFocus);
-    sentinelEnd?.addEventListener("focus", onSentinelEndFocus);
-    const stopOpenSync = effect25(() => {
-      const wantOpen = scope.open();
-      host.setAttribute("data-state", wantOpen ? "open" : "closed");
-      if (wantOpen && !dialogEl.open)
-        doOpen();
-      else if (!wantOpen && dialogEl.open)
-        doClose();
-    });
-    const stopRoleSync = effect25(() => {
-      updateRole();
-    });
-    host.show = () => scope.open.set(true);
-    host.showModal = () => scope.open.set(true);
-    host.close = () => scope.open.set(false);
-    return () => {
-      if (hasScrollLock)
-        releaseScrollLock();
-      dialogEl.removeEventListener("close", onNativeClose);
-      dialogEl.removeEventListener("click", onBackdropClick);
-      closeBtn?.removeEventListener("click", onDismiss);
-      sentinelStart?.removeEventListener("focus", onSentinelStartFocus);
-      sentinelEnd?.removeEventListener("focus", onSentinelEndFocus);
-      stopOpenSync();
-      stopRoleSync();
-    };
-  }
-});
-
-// packages/ui-components/src/sui-dialog/sui-dialog.sui
-var sui_dialog_default = component42("sui-dialog", {
-  props: {
-    open: prop42.bool({ default: false, reflect: true }),
-    size: prop42.union(["sm", "md", "lg", "full"], { default: "md", reflect: true }),
-    backdrop: prop42.union(["default", "blur", "solid"], { default: "default", reflect: true }),
-    dismissible: prop42.bool({ default: true }),
-    "no-close-button": prop42.bool({ default: false, reflect: true }),
-    "no-header": prop42.bool({ default: false, reflect: true }),
-    "no-footer": prop42.bool({ default: false, reflect: true }),
-    "role-override": prop42.union(["dialog", "alertdialog"], { default: "dialog", reflect: true })
-  },
-  shadow: true,
-  styles: `
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.branch=u.branch,n.theme=u.theme,n.online=u.online,n.agents=u.agents;let b=d.shadowRoot??d;V(b);let w=document.createElement("span");w.setAttribute("class","dot"),w.setAttribute("part","dot"),w.setAttribute("aria-hidden","true"),b.appendChild(w);let r=document.createElement("span");r.setAttribute("class","text"),r.setAttribute("part","branch");let M=document.createTextNode("");r.appendChild(M),m.push(S(M,()=>n.branch())),b.appendChild(r);let y=document.createElement("span");y.setAttribute("class","text"),y.setAttribute("part","agents");let E=document.createTextNode("");y.appendChild(E),m.push(S(E,()=>n.agents())),b.appendChild(y);let l=document.createElement("span");l.setAttribute("class","slot-wrap");let L=document.createElement("slot");L.setAttribute("name","start"),l.appendChild(L),b.appendChild(l);let f=document.createElement("span");f.setAttribute("class","spacer"),b.appendChild(f);let t=document.createElement("span");t.setAttribute("class","slot-wrap");let H=document.createElement("slot");H.setAttribute("name","end"),t.appendChild(H),b.appendChild(t);let C=document.createElement("span");C.setAttribute("class","text"),C.setAttribute("part","theme");let z=document.createTextNode("");return C.appendChild(z),m.push(S(z,()=>n.theme())),b.appendChild(C),n}});var Rm=["a[href]","area[href]","button:not([disabled])",'input:not([disabled]):not([type="hidden"])',"select:not([disabled])","textarea:not([disabled])","iframe","object","embed","summary",'[contenteditable]:not([contenteditable="false"])','[tabindex]:not([tabindex^="-"])'].join(",");function Fn(i){return Array.from(i.querySelectorAll(Rm)).filter((u)=>{if(u.hasAttribute("disabled"))return!1;if(u.getAttribute("aria-hidden")==="true")return!1;return!0})}class hn{saved=null;save(){this.saved=document.activeElement??null}restore(){let i=this.saved;if(this.saved=null,i&&typeof i.focus==="function")i.focus()}}var xn=0,Tu=null,Qu=null;function vi(){if(typeof document>"u")return;if(xn+=1,xn>1)return;let i=document.body;Tu=i.style.overflow,Qu=i.style.paddingRight;let u=typeof window<"u"?window.innerWidth-document.documentElement.clientWidth:0;if(u>0){let d=parseFloat(getComputedStyle(i).paddingRight||"0")||0;i.style.paddingRight=`${d+u}px`}i.style.overflow="hidden"}function On(){if(typeof document>"u")return;if(xn===0)return;if(xn-=1,xn>0)return;let i=document.body;i.style.overflow=Tu??"",i.style.paddingRight=Qu??"",Tu=null,Qu=null}var Sm=0,xi=U({mount(i,u){let d=i,m=++Sm,n=`sui-dialog-header-${m}`,b=`sui-dialog-body-${m}`,w=d.dialogEl(),r=d.closeBtn(),M=d.sentinelStart(),y=d.sentinelEnd();if(!w)return;let E=q(()=>{let N=d.headerEl();if(N)N.id=n}),l=q(()=>{let N=d.bodyEl();if(N)N.id=b});w.setAttribute("aria-labelledby",n),w.setAttribute("aria-describedby",b);let L=!1,f=new hn;function t(){w.setAttribute("role",d.roleOverride()||"dialog"),w.setAttribute("aria-modal","true")}t();function H(){let N=Fn(w).filter((B)=>!B.classList.contains("sentinel"));return[...Fn(u),...N]}function C(){let N=u.querySelector("[autofocus]")??w.querySelector("[autofocus]");if(N){N.focus();return}let F=H(),B=F.find((A)=>A!==r)??F[0];if(B)B.focus();else w.focus()}function z(){f.save();try{w.showModal()}catch{}if(!L)vi(),L=!0;queueMicrotask(()=>C()),u.dispatchEvent(new CustomEvent("sui-open",{bubbles:!0,composed:!0}))}function j(){if(w.open)w.close()}let g=()=>{if(d.open())d.open.set(!1);if(L)On(),L=!1;f.restore(),u.dispatchEvent(new CustomEvent("sui-close",{bubbles:!0,composed:!0}))},J=(N)=>{if(!d.dismissible())return;if(N.target===w)d.open.set(!1)},D=()=>{u.dispatchEvent(new CustomEvent("sui-dismiss",{bubbles:!0,composed:!0})),d.open.set(!1)},Z=()=>{let N=H();if(N.length)N[N.length-1].focus()},X=()=>{let N=H();if(N.length)N[0].focus()};w.addEventListener("close",g),w.addEventListener("click",J),r?.addEventListener("click",D),M?.addEventListener("focus",Z),y?.addEventListener("focus",X);let W=q(()=>{let N=d.open();if(u.setAttribute("data-state",N?"open":"closed"),N&&!w.open)z();else if(!N&&w.open)j()}),Y=q(()=>{t()});return u.show=()=>d.open.set(!0),u.showModal=()=>d.open.set(!0),u.close=()=>d.open.set(!1),()=>{if(L)On();w.removeEventListener("close",g),w.removeEventListener("click",J),r?.removeEventListener("click",D),M?.removeEventListener("focus",Z),y?.removeEventListener("focus",X),W(),Y(),E(),l()}}});var A8=Q("sui-dialog",{props:{open:P.bool({default:!1,reflect:!0}),size:P.union(["sm","md","lg","full"],{default:"md",reflect:!0}),backdrop:P.union(["default","blur","solid"],{default:"default",reflect:!0}),dismissible:P.bool({default:!0}),"no-close-button":P.bool({default:!1,reflect:!0}),"no-header":P.bool({default:!1,reflect:!0}),"no-footer":P.bool({default:!1,reflect:!0}),"role-override":P.union(["dialog","alertdialog"],{default:"dialog",reflect:!0})},shadow:!0,styles:`
   :host { display: contents; }
 
   :host(:not([size])), :host([size='md']) { --dlg-max-w: 500px; --dlg-px: 24px; --dlg-hpy: 18px; --dlg-bpy: 16px; --dlg-fpy: 16px; }
@@ -8580,7 +3561,13 @@ var sui_dialog_default = component42("sui-dialog", {
   :host([size='lg']) { --dlg-max-w: 700px; --dlg-px: 28px; --dlg-hpy: 20px; --dlg-bpy: 20px; --dlg-fpy: 18px; }
   :host([size='full']) { --dlg-max-w: 90vw; --dlg-px: 28px; --dlg-hpy: 20px; --dlg-bpy: 20px; --dlg-fpy: 18px; }
 
-  dialog {
+  /* \`dialog:not([open])\` MUST stay display:none — overriding to
+     display:flex on the bare selector caused a closed dialog to paint
+     a 2px artifact at viewport center, visible as a faint horizontal
+     line across every view that mounted a sui-dialog. Qualifying with
+     \`[open]\` keeps the closed dialog hidden per browser default. */
+  dialog:not([open]) { display: none; }
+  dialog[open] {
     position: fixed;
     inset: 0;
     margin: auto;
@@ -8597,25 +3584,14 @@ var sui_dialog_default = component42("sui-dialog", {
     overflow: visible;
     display: flex;
     flex-direction: column;
-    opacity: 0;
-    /* Closed state: don't intercept clicks. The dialog stays in the
-       layout tree so the open-state CSS transition has something to
-       animate from, but \`position: fixed; inset: 0\` would otherwise
-       cover the entire viewport with an invisible (opacity: 0) but
-       click-eating overlay — clicks would land on the dialog instead
-       of the underlying app surface. \`pointer-events: none\` lifts that
-       restriction whenever the dialog isn't open. */
-    pointer-events: none;
-    transform: translateY(8px) scale(0.96);
-    transition:
-      opacity var(--duration-medium, 200ms) var(--ease-out, ease-out),
-      transform var(--duration-medium, 200ms) var(--ease-out, ease-out);
   }
-  :host([size='full']) dialog { max-height: 90vh; }
-  dialog[open] {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-    pointer-events: auto;
+  :host([size='full']) dialog[open] { max-height: 90vh; }
+
+  /* Open/close polish is driven by the \`transition:fade\` directive on
+     the content wrapper (Web Animations API) and by the native
+     ::backdrop fade below — no CSS transition on \`dialog\` itself. */
+  .dialog-content {
+    display: contents;
   }
 
   dialog::backdrop {
@@ -8680,257 +3656,12 @@ var sui_dialog_default = component42("sui-dialog", {
   :host([no-close-button]) .close { display: none; }
 
   @media (prefers-reduced-motion: reduce) {
-    dialog { transition: none; transform: none !important; opacity: 1; }
     dialog::backdrop { transition: none; }
   }
   @media (forced-colors: active) {
     dialog { border: 1px solid CanvasText; }
   }
-`,
-  setup(ctx) {
-    const { props, host } = ctx;
-    if (!ctx.cleanups)
-      ctx.cleanups = [];
-    const __cleanups = ctx.cleanups;
-    const $scope = Object.create(null);
-    $scope.open = props.open;
-    $scope.size = props.size;
-    $scope.backdrop = props.backdrop;
-    $scope.dismissible = props.dismissible;
-    $scope.noCloseButton = props.noCloseButton;
-    $scope.noHeader = props.noHeader;
-    $scope.noFooter = props.noFooter;
-    $scope.roleOverride = props.roleOverride;
-    let __r = null;
-    if (sui_dialog_controller_default && typeof sui_dialog_controller_default.setup === "function") {
-      ctx.scope = $scope;
-      __r = sui_dialog_controller_default.setup(ctx);
-      if (__r && typeof __r === "object")
-        Object.assign($scope, __r);
-    }
-    const __root = host.shadowRoot ?? host;
-    adoptSuiSheets42(__root);
-    const __e0 = document.createElement("dialog");
-    __e0.setAttribute("part", "dialog");
-    attachRef20($scope, "dialogEl", __e0);
-    const __e1 = document.createElement("span");
-    __e1.setAttribute("tabindex", "0");
-    __e1.setAttribute("class", "sentinel");
-    __e1.setAttribute("aria-hidden", "true");
-    attachRef20($scope, "sentinelStart", __e1);
-    __e0.appendChild(__e1);
-    const __e2 = document.createElement("button");
-    __e2.setAttribute("class", "close");
-    __e2.setAttribute("part", "close");
-    __e2.setAttribute("type", "button");
-    __e2.setAttribute("aria-label", "Close dialog");
-    attachRef20($scope, "closeBtn", __e2);
-    const __e3 = document.createElement("svg");
-    __e3.setAttribute("viewbox", "0 0 16 16");
-    __e3.setAttribute("fill", "none");
-    __e3.setAttribute("stroke", "currentColor");
-    __e3.setAttribute("stroke-width", "1.75");
-    __e3.setAttribute("stroke-linecap", "round");
-    __e3.setAttribute("stroke-linejoin", "round");
-    __e3.setAttribute("aria-hidden", "true");
-    __e3.setAttribute("focusable", "false");
-    const __e4 = document.createElement("path");
-    __e4.setAttribute("d", "M3.5 3.5l9 9M12.5 3.5l-9 9");
-    __e3.appendChild(__e4);
-    __e2.appendChild(__e3);
-    __e0.appendChild(__e2);
-    const __e5 = document.createElement("div");
-    __e5.setAttribute("class", "header");
-    __e5.setAttribute("part", "header");
-    attachRef20($scope, "headerEl", __e5);
-    const __e6 = document.createElement("slot");
-    __e6.setAttribute("name", "header");
-    __e5.appendChild(__e6);
-    __e0.appendChild(__e5);
-    const __e7 = document.createElement("div");
-    __e7.setAttribute("class", "body");
-    __e7.setAttribute("part", "body");
-    attachRef20($scope, "bodyEl", __e7);
-    const __e8 = document.createElement("slot");
-    __e7.appendChild(__e8);
-    __e0.appendChild(__e7);
-    const __e9 = document.createElement("div");
-    __e9.setAttribute("class", "footer");
-    __e9.setAttribute("part", "footer");
-    const __e10 = document.createElement("slot");
-    __e10.setAttribute("name", "footer");
-    __e9.appendChild(__e10);
-    __e0.appendChild(__e9);
-    const __e11 = document.createElement("span");
-    __e11.setAttribute("tabindex", "0");
-    __e11.setAttribute("class", "sentinel");
-    __e11.setAttribute("aria-hidden", "true");
-    attachRef20($scope, "sentinelEnd", __e11);
-    __e0.appendChild(__e11);
-    __root.appendChild(__e0);
-    if (__r != null) {
-      const __lc = Object.getOwnPropertyDescriptor(__r, "__shipSetLifecycle")?.value;
-      if (__lc) {
-        const __sp = new Proxy($scope, {
-          get(t, k) {
-            return t[k];
-          },
-          set(t, k, v) {
-            const s = t[k];
-            if (s != null && typeof s.set === "function") {
-              if (typeof v === "function") {
-                s.set(() => v);
-              } else {
-                s.set(v);
-              }
-              return true;
-            }
-            return false;
-          }
-        });
-        if (__lc.mount) {
-          const __mc = __lc.mount(__sp, host);
-          if (typeof __mc === "function")
-            __cleanups.push(__mc);
-        }
-        if (__lc.unmount)
-          __cleanups.push(() => __lc.unmount(__sp));
-      }
-    }
-    return $scope;
-  }
-});
-
-// packages/ui-components/src/sui-drawer/sui-drawer.sui
-import { adoptSuiSheets as adoptSuiSheets43, attachRef as attachRef21, component as component43, prop as prop43 } from "@ship/sui-runtime";
-
-// packages/ui-components/src/sui-drawer/sui-drawer.controller.ts
-import { controller as controller26, effect as effect26 } from "@ship/sui-runtime";
-var _seq4 = 0;
-var sui_drawer_controller_default = controller26({
-  mount(state, host) {
-    const scope = state;
-    const uid = ++_seq4;
-    const headerId = `sui-drawer-header-${uid}`;
-    const bodyId = `sui-drawer-body-${uid}`;
-    const dialogEl = scope.dialogEl();
-    const closeBtn = scope.closeBtn();
-    const sentinelStart = scope.sentinelStart();
-    const sentinelEnd = scope.sentinelEnd();
-    const headerEl = scope.headerEl();
-    const bodyEl = scope.bodyEl();
-    if (!dialogEl)
-      return;
-    if (headerEl)
-      headerEl.id = headerId;
-    if (bodyEl)
-      bodyEl.id = bodyId;
-    dialogEl.setAttribute("aria-labelledby", headerId);
-    dialogEl.setAttribute("aria-describedby", bodyId);
-    let hasScrollLock = false;
-    const focusReturn = new FocusReturn;
-    function collectFocusables() {
-      const shadowFocusables = focusableWithin(dialogEl).filter((el) => !el.classList.contains("sentinel"));
-      const lightFocusables = focusableWithin(host);
-      return [...lightFocusables, ...shadowFocusables];
-    }
-    function focusInitial() {
-      const autofocus = host.querySelector("[autofocus]") ?? dialogEl.querySelector("[autofocus]");
-      if (autofocus) {
-        autofocus.focus();
-        return;
-      }
-      const focusables = collectFocusables();
-      const primary = focusables.find((el) => el !== closeBtn) ?? focusables[0];
-      if (primary)
-        primary.focus();
-      else
-        dialogEl.focus();
-    }
-    function doOpen() {
-      focusReturn.save();
-      try {
-        dialogEl.showModal();
-      } catch {}
-      if (!hasScrollLock) {
-        acquireScrollLock();
-        hasScrollLock = true;
-      }
-      queueMicrotask(() => focusInitial());
-      host.dispatchEvent(new CustomEvent("sui-open", { bubbles: true, composed: true }));
-    }
-    function doClose() {
-      if (dialogEl.open)
-        dialogEl.close();
-    }
-    const onNativeClose = () => {
-      if (scope.open())
-        scope.open.set(false);
-      if (hasScrollLock) {
-        releaseScrollLock();
-        hasScrollLock = false;
-      }
-      focusReturn.restore();
-      host.dispatchEvent(new CustomEvent("sui-close", { bubbles: true, composed: true }));
-    };
-    const onBackdropClick = (e) => {
-      if (!scope.dismissible())
-        return;
-      if (e.target === dialogEl)
-        scope.open.set(false);
-    };
-    const onDismiss = () => {
-      host.dispatchEvent(new CustomEvent("sui-dismiss", { bubbles: true, composed: true }));
-      scope.open.set(false);
-    };
-    const onSentinelStartFocus = () => {
-      const items = collectFocusables();
-      if (items.length)
-        items[items.length - 1].focus();
-    };
-    const onSentinelEndFocus = () => {
-      const items = collectFocusables();
-      if (items.length)
-        items[0].focus();
-    };
-    dialogEl.addEventListener("close", onNativeClose);
-    dialogEl.addEventListener("click", onBackdropClick);
-    closeBtn?.addEventListener("click", onDismiss);
-    sentinelStart?.addEventListener("focus", onSentinelStartFocus);
-    sentinelEnd?.addEventListener("focus", onSentinelEndFocus);
-    const stopOpenSync = effect26(() => {
-      const wantOpen = scope.open();
-      host.setAttribute("data-state", wantOpen ? "open" : "closed");
-      if (wantOpen && !dialogEl.open)
-        doOpen();
-      else if (!wantOpen && dialogEl.open)
-        doClose();
-    });
-    host.show = () => scope.open.set(true);
-    host.close = () => scope.open.set(false);
-    return () => {
-      if (hasScrollLock)
-        releaseScrollLock();
-      dialogEl.removeEventListener("close", onNativeClose);
-      dialogEl.removeEventListener("click", onBackdropClick);
-      closeBtn?.removeEventListener("click", onDismiss);
-      sentinelStart?.removeEventListener("focus", onSentinelStartFocus);
-      sentinelEnd?.removeEventListener("focus", onSentinelEndFocus);
-      stopOpenSync();
-    };
-  }
-});
-
-// packages/ui-components/src/sui-drawer/sui-drawer.sui
-var sui_drawer_default = component43("sui-drawer", {
-  props: {
-    open: prop43.bool({ default: false, reflect: true }),
-    side: prop43.union(["right", "left"], { default: "right", reflect: true }),
-    size: prop43.union(["sm", "md", "lg"], { default: "md", reflect: true }),
-    dismissible: prop43.bool({ default: true })
-  },
-  shadow: true,
-  styles: `
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.open=u.open,n.size=u.size,n.backdrop=u.backdrop,n.dismissible=u.dismissible,n.noCloseButton=u.noCloseButton,n.noHeader=u.noHeader,n.noFooter=u.noFooter,n.roleOverride=u.roleOverride,n.bodyEl=G(null),n.closeBtn=G(null),n.dialogEl=G(null),n.headerEl=G(null),n.sentinelEnd=G(null),n.sentinelStart=G(null);let b=null;if(xi&&typeof xi.setup==="function"){if(i.scope=n,b=xi.setup(i),b&&typeof b==="object")Object.assign(n,b)}let w=(z)=>R({anchor:z,test:()=>{if(n.open())return 0;return-1},branches:[()=>{let j=document.createDocumentFragment(),g=[],J=document.createElement("div");J.setAttribute("class","dialog-content"),ln(J,Zn,{duration:150},"both");let D=document.createElement("div");D.setAttribute("class","header"),D.setAttribute("part","header"),O(n,"headerEl",D);let Z=document.createElement("slot");Z.setAttribute("name","header"),D.appendChild(Z),J.appendChild(D);let X=document.createElement("div");X.setAttribute("class","body"),X.setAttribute("part","body"),O(n,"bodyEl",X);let W=document.createElement("slot");X.appendChild(W),J.appendChild(X);let Y=document.createElement("div");Y.setAttribute("class","footer"),Y.setAttribute("part","footer");let N=document.createElement("slot");return N.setAttribute("name","footer"),Y.appendChild(N),J.appendChild(Y),j.appendChild(J),{nodes:Array.from(j.childNodes),cleanup:()=>{for(let F of g)try{F()}catch(B){}}}}]}),r=(z)=>R({anchor:z,test:()=>{if(n.open())return 0;return-1},branches:[()=>{let j=document.createDocumentFragment(),g=[],J=document.createElement("sui-portal");J.setAttribute("target","body");let D=document.createElement("div");return D.setAttribute("class","sui-dialog-presence"),D.setAttribute("aria-hidden","true"),D.setAttribute("data-sui-dialog-open",""),J.appendChild(D),j.appendChild(J),{nodes:Array.from(j.childNodes),cleanup:()=>{for(let Z of g)try{Z()}catch(X){}}}}]}),M=d.shadowRoot??d;V(M);let y=document.createElement("dialog");y.setAttribute("part","dialog"),O(n,"dialogEl",y);let E=document.createElement("span");E.setAttribute("tabindex","0"),E.setAttribute("class","sentinel"),E.setAttribute("aria-hidden","true"),O(n,"sentinelStart",E),y.appendChild(E);let l=document.createElement("button");l.setAttribute("class","close"),l.setAttribute("part","close"),l.setAttribute("type","button"),l.setAttribute("aria-label","Close dialog"),O(n,"closeBtn",l);let L=document.createElement("svg");L.setAttribute("viewbox","0 0 16 16"),L.setAttribute("fill","none"),L.setAttribute("stroke","currentColor"),L.setAttribute("stroke-width","1.75"),L.setAttribute("stroke-linecap","round"),L.setAttribute("stroke-linejoin","round"),L.setAttribute("aria-hidden","true"),L.setAttribute("focusable","false");let f=document.createElement("path");f.setAttribute("d","M3.5 3.5l9 9M12.5 3.5l-9 9"),L.appendChild(f),l.appendChild(L),y.appendChild(l);let t=document.createComment("if");y.appendChild(t),m.push(w(t));let H=document.createElement("span");H.setAttribute("tabindex","0"),H.setAttribute("class","sentinel"),H.setAttribute("aria-hidden","true"),O(n,"sentinelEnd",H),y.appendChild(H),M.appendChild(y);let C=document.createComment("if");if(M.appendChild(C),m.push(r(C)),b!=null){let z=Object.getOwnPropertyDescriptor(b,"__shipSetLifecycle")?.value;if(z){let j=new Proxy(n,{get(g,J){return g[J]},set(g,J,D){let Z=g[J];if(Z!=null&&typeof Z.set==="function"){if(typeof D==="function")Z.set(()=>D);else Z.set(D);return!0}return!1}});if(z.mount){let g=z.mount(j,d);if(typeof g==="function")m.push(g)}if(z.unmount)m.push(()=>z.unmount(j))}}return n}});var km=0,hi=U({mount(i,u){let d=i,m=++km,n=`sui-drawer-header-${m}`,b=`sui-drawer-body-${m}`,w=d.dialogEl(),r=d.closeBtn(),M=d.sentinelStart(),y=d.sentinelEnd(),E=d.headerEl(),l=d.bodyEl();if(!w)return;if(E)E.id=n;if(l)l.id=b;w.setAttribute("aria-labelledby",n),w.setAttribute("aria-describedby",b);let L=!1,f=new hn;function t(){let W=Fn(w).filter((N)=>!N.classList.contains("sentinel"));return[...Fn(u),...W]}function H(){let W=u.querySelector("[autofocus]")??w.querySelector("[autofocus]");if(W){W.focus();return}let Y=t(),N=Y.find((F)=>F!==r)??Y[0];if(N)N.focus();else w.focus()}function C(){f.save();try{w.showModal()}catch{}if(!L)vi(),L=!0;queueMicrotask(()=>H()),u.dispatchEvent(new CustomEvent("sui-open",{bubbles:!0,composed:!0}))}function z(){if(w.open)w.close()}let j=()=>{if(d.open())d.open.set(!1);if(L)On(),L=!1;f.restore(),u.dispatchEvent(new CustomEvent("sui-close",{bubbles:!0,composed:!0}))},g=(W)=>{if(!d.dismissible())return;if(W.target===w)d.open.set(!1)},J=()=>{u.dispatchEvent(new CustomEvent("sui-dismiss",{bubbles:!0,composed:!0})),d.open.set(!1)},D=()=>{let W=t();if(W.length)W[W.length-1].focus()},Z=()=>{let W=t();if(W.length)W[0].focus()};w.addEventListener("close",j),w.addEventListener("click",g),r?.addEventListener("click",J),M?.addEventListener("focus",D),y?.addEventListener("focus",Z);let X=q(()=>{let W=d.open();if(u.setAttribute("data-state",W?"open":"closed"),W&&!w.open)C();else if(!W&&w.open)z()});return u.show=()=>d.open.set(!0),u.close=()=>d.open.set(!1),()=>{if(L)On();w.removeEventListener("close",j),w.removeEventListener("click",g),r?.removeEventListener("click",J),M?.removeEventListener("focus",D),y?.removeEventListener("focus",Z),X()}}});var a8=Q("sui-drawer",{props:{open:P.bool({default:!1,reflect:!0}),side:P.union(["right","left"],{default:"right",reflect:!0}),size:P.union(["sm","md","lg"],{default:"md",reflect:!0}),dismissible:P.bool({default:!0})},shadow:!0,styles:`
   :host { display: contents; }
 
   :host(:not([size])), :host([size='md']) { --dr-w: 420px; --dr-px: 24px; --dr-hpy: 16px; --dr-bpy: 16px; --dr-fpy: 14px; }
@@ -9039,299 +3770,7 @@ var sui_drawer_default = component43("sui-drawer", {
   @media (forced-colors: active) {
     dialog { border: 1px solid CanvasText; }
   }
-`,
-  setup(ctx) {
-    const { props, host } = ctx;
-    if (!ctx.cleanups)
-      ctx.cleanups = [];
-    const __cleanups = ctx.cleanups;
-    const $scope = Object.create(null);
-    $scope.open = props.open;
-    $scope.side = props.side;
-    $scope.size = props.size;
-    $scope.dismissible = props.dismissible;
-    let __r = null;
-    if (sui_drawer_controller_default && typeof sui_drawer_controller_default.setup === "function") {
-      ctx.scope = $scope;
-      __r = sui_drawer_controller_default.setup(ctx);
-      if (__r && typeof __r === "object")
-        Object.assign($scope, __r);
-    }
-    const __root = host.shadowRoot ?? host;
-    adoptSuiSheets43(__root);
-    const __e0 = document.createElement("dialog");
-    __e0.setAttribute("part", "dialog");
-    __e0.setAttribute("role", "dialog");
-    __e0.setAttribute("aria-modal", "true");
-    attachRef21($scope, "dialogEl", __e0);
-    const __e1 = document.createElement("span");
-    __e1.setAttribute("tabindex", "0");
-    __e1.setAttribute("class", "sentinel");
-    __e1.setAttribute("aria-hidden", "true");
-    attachRef21($scope, "sentinelStart", __e1);
-    __e0.appendChild(__e1);
-    const __e2 = document.createElement("div");
-    __e2.setAttribute("class", "header");
-    __e2.setAttribute("part", "header");
-    attachRef21($scope, "headerEl", __e2);
-    const __e3 = document.createElement("div");
-    __e3.setAttribute("class", "header-content");
-    const __e4 = document.createElement("div");
-    __e4.setAttribute("class", "title");
-    const __e5 = document.createElement("slot");
-    __e5.setAttribute("name", "title");
-    __e4.appendChild(__e5);
-    __e3.appendChild(__e4);
-    const __e6 = document.createElement("div");
-    __e6.setAttribute("class", "description");
-    const __e7 = document.createElement("slot");
-    __e7.setAttribute("name", "description");
-    __e6.appendChild(__e7);
-    __e3.appendChild(__e6);
-    __e2.appendChild(__e3);
-    const __e8 = document.createElement("button");
-    __e8.setAttribute("class", "close");
-    __e8.setAttribute("part", "close");
-    __e8.setAttribute("type", "button");
-    __e8.setAttribute("aria-label", "Close drawer");
-    attachRef21($scope, "closeBtn", __e8);
-    const __e9 = document.createElement("svg");
-    __e9.setAttribute("viewbox", "0 0 16 16");
-    __e9.setAttribute("fill", "none");
-    __e9.setAttribute("stroke", "currentColor");
-    __e9.setAttribute("stroke-width", "1.75");
-    __e9.setAttribute("stroke-linecap", "round");
-    __e9.setAttribute("stroke-linejoin", "round");
-    __e9.setAttribute("aria-hidden", "true");
-    __e9.setAttribute("focusable", "false");
-    const __e10 = document.createElement("path");
-    __e10.setAttribute("d", "M3.5 3.5l9 9M12.5 3.5l-9 9");
-    __e9.appendChild(__e10);
-    __e8.appendChild(__e9);
-    __e2.appendChild(__e8);
-    __e0.appendChild(__e2);
-    const __e11 = document.createElement("div");
-    __e11.setAttribute("class", "body");
-    __e11.setAttribute("part", "body");
-    attachRef21($scope, "bodyEl", __e11);
-    const __e12 = document.createElement("slot");
-    __e11.appendChild(__e12);
-    __e0.appendChild(__e11);
-    const __e13 = document.createElement("div");
-    __e13.setAttribute("class", "footer");
-    __e13.setAttribute("part", "footer");
-    const __e14 = document.createElement("slot");
-    __e14.setAttribute("name", "footer");
-    __e13.appendChild(__e14);
-    __e0.appendChild(__e13);
-    const __e15 = document.createElement("span");
-    __e15.setAttribute("tabindex", "0");
-    __e15.setAttribute("class", "sentinel");
-    __e15.setAttribute("aria-hidden", "true");
-    attachRef21($scope, "sentinelEnd", __e15);
-    __e0.appendChild(__e15);
-    __root.appendChild(__e0);
-    if (__r != null) {
-      const __lc = Object.getOwnPropertyDescriptor(__r, "__shipSetLifecycle")?.value;
-      if (__lc) {
-        const __sp = new Proxy($scope, {
-          get(t, k) {
-            return t[k];
-          },
-          set(t, k, v) {
-            const s = t[k];
-            if (s != null && typeof s.set === "function") {
-              if (typeof v === "function") {
-                s.set(() => v);
-              } else {
-                s.set(v);
-              }
-              return true;
-            }
-            return false;
-          }
-        });
-        if (__lc.mount) {
-          const __mc = __lc.mount(__sp, host);
-          if (typeof __mc === "function")
-            __cleanups.push(__mc);
-        }
-        if (__lc.unmount)
-          __cleanups.push(() => __lc.unmount(__sp));
-      }
-    }
-    return $scope;
-  }
-});
-
-// packages/ui-components/src/sui-dropdown-menu/sui-dropdown-menu.sui
-import { adoptSuiSheets as adoptSuiSheets44, attachRef as attachRef22, component as component44, prop as prop44 } from "@ship/sui-runtime";
-
-// packages/ui-components/src/sui-dropdown-menu/sui-dropdown-menu.controller.ts
-import { controller as controller27, effect as effect27, bindNativeEvent as bindNativeEvent3 } from "@ship/sui-runtime";
-var _seq5 = 0;
-var sui_dropdown_menu_controller_default = controller27({
-  mount(state, host) {
-    const scope = state;
-    const panelId = `sui-dropdown-menu-panel-${++_seq5}`;
-    const triggerWrap = scope.triggerWrap();
-    const triggerSlot = scope.triggerSlot();
-    const panelEl = scope.panelEl();
-    if (!panelEl)
-      return;
-    panelEl.id = panelId;
-    let typeaheadBuf = "";
-    let typeaheadTimer = null;
-    function pushTypeahead(key) {
-      if (typeaheadTimer)
-        clearTimeout(typeaheadTimer);
-      typeaheadBuf += key.toLowerCase();
-      typeaheadTimer = setTimeout(() => {
-        typeaheadBuf = "";
-      }, 350);
-      const items = getItems();
-      const i = items.indexOf(document.activeElement);
-      for (let j = 0;j < items.length; j++) {
-        const idx = (i + 1 + j) % items.length;
-        const label = (items[idx].textContent ?? "").trim().toLowerCase();
-        if (label.startsWith(typeaheadBuf))
-          return idx;
-      }
-      return -1;
-    }
-    function getItems() {
-      return Array.from(host.querySelectorAll('[role="menuitem"], button[data-value], [data-value]')).filter((el) => !el.hasAttribute("disabled"));
-    }
-    function focusItem(index) {
-      const items = getItems();
-      if (!items.length)
-        return;
-      const i = (index % items.length + items.length) % items.length;
-      for (const it of items)
-        it.setAttribute("tabindex", "-1");
-      items[i].setAttribute("tabindex", "0");
-      items[i].focus();
-    }
-    function currentIndex() {
-      return getItems().indexOf(document.activeElement);
-    }
-    function setupItems() {
-      getItems().forEach((el, idx) => {
-        if (!el.hasAttribute("role"))
-          el.setAttribute("role", "menuitem");
-        if (!el.hasAttribute("tabindex"))
-          el.setAttribute("tabindex", idx === 0 ? "0" : "-1");
-      });
-    }
-    function setupTrigger() {
-      const els = triggerSlot?.assignedElements({ flatten: true }) ?? [];
-      for (const el of els) {
-        el.setAttribute("aria-haspopup", "menu");
-        el.setAttribute("aria-controls", panelId);
-        el.setAttribute("aria-expanded", scope.open() ? "true" : "false");
-      }
-    }
-    function openPanel() {
-      const trigger = triggerSlot?.assignedElements({ flatten: true })?.[0];
-      if (trigger && panelEl) {
-        const r = trigger.getBoundingClientRect();
-        panelEl.style.top = `${r.bottom + 4}px`;
-        panelEl.style.left = `${r.left}px`;
-      }
-      panelEl?.showPopover?.();
-    }
-    function closePanel() {
-      panelEl?.hidePopover?.();
-    }
-    const onTriggerClick = () => {
-      if (scope.open())
-        closePanel();
-      else
-        openPanel();
-    };
-    const onToggle = (ev) => {
-      const te = ev;
-      const nowOpen = te.newState === "open";
-      if (nowOpen !== scope.open())
-        scope.open.set(nowOpen);
-      host.setAttribute("data-state", nowOpen ? "open" : "closed");
-      setupTrigger();
-      if (nowOpen)
-        queueMicrotask(() => {
-          setupItems();
-          focusItem(0);
-        });
-    };
-    const onItemClick = (e) => {
-      const target = e.target.closest("[data-value]");
-      if (!target)
-        return;
-      host.emit("sui-select", { value: target.dataset.value ?? "" });
-      closePanel();
-    };
-    const onKeydown = (e) => {
-      if (!scope.open())
-        return;
-      const items = getItems();
-      if (!items.length)
-        return;
-      const i = currentIndex();
-      if (e.key === "ArrowDown") {
-        e.preventDefault();
-        focusItem(i + 1);
-      } else if (e.key === "ArrowUp") {
-        e.preventDefault();
-        focusItem(i - 1);
-      } else if (e.key === "Home") {
-        e.preventDefault();
-        focusItem(0);
-      } else if (e.key === "End") {
-        e.preventDefault();
-        focusItem(items.length - 1);
-      } else if (e.key === "Escape") {
-        e.preventDefault();
-        closePanel();
-      } else if (e.key === "Tab") {
-        closePanel();
-      } else if ((e.key === "Enter" || e.key === " ") && i >= 0) {
-        e.preventDefault();
-        items[i].click();
-      } else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey) {
-        const next = pushTypeahead(e.key);
-        if (next >= 0) {
-          e.preventDefault();
-          focusItem(next);
-        }
-      }
-    };
-    if (triggerWrap)
-      bindNativeEvent3(triggerWrap, "click", onTriggerClick);
-    bindNativeEvent3(panelEl, "toggle", onToggle);
-    bindNativeEvent3(panelEl, "click", onItemClick);
-    bindNativeEvent3(host, "keydown", onKeydown);
-    if (triggerSlot)
-      bindNativeEvent3(triggerSlot, "slotchange", setupTrigger);
-    bindNativeEvent3(panelEl, "slotchange", setupItems);
-    const stopSync = effect27(() => {
-      const wantOpen = scope.open();
-      host.setAttribute("data-state", wantOpen ? "open" : "closed");
-      setupTrigger();
-    });
-    return () => {
-      if (typeaheadTimer)
-        clearTimeout(typeaheadTimer);
-      stopSync();
-    };
-  }
-});
-
-// packages/ui-components/src/sui-dropdown-menu/sui-dropdown-menu.sui
-var sui_dropdown_menu_default = component44("sui-dropdown-menu", {
-  props: {
-    open: prop44.bool({ default: false, reflect: true })
-  },
-  shadow: true,
-  styles: `
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.open=u.open,n.side=u.side,n.size=u.size,n.dismissible=u.dismissible,n.bodyEl=G(null),n.closeBtn=G(null),n.dialogEl=G(null),n.headerEl=G(null),n.sentinelEnd=G(null),n.sentinelStart=G(null);let b=null;if(hi&&typeof hi.setup==="function"){if(i.scope=n,b=hi.setup(i),b&&typeof b==="object")Object.assign(n,b)}let w=d.shadowRoot??d;V(w);let r=document.createElement("dialog");r.setAttribute("part","dialog"),r.setAttribute("role","dialog"),r.setAttribute("aria-modal","true"),O(n,"dialogEl",r);let M=document.createElement("span");M.setAttribute("tabindex","0"),M.setAttribute("class","sentinel"),M.setAttribute("aria-hidden","true"),O(n,"sentinelStart",M),r.appendChild(M);let y=document.createElement("div");y.setAttribute("class","header"),y.setAttribute("part","header"),O(n,"headerEl",y);let E=document.createElement("div");E.setAttribute("class","header-content");let l=document.createElement("div");l.setAttribute("class","title");let L=document.createElement("slot");L.setAttribute("name","title"),l.appendChild(L),E.appendChild(l);let f=document.createElement("div");f.setAttribute("class","description");let t=document.createElement("slot");t.setAttribute("name","description"),f.appendChild(t),E.appendChild(f),y.appendChild(E);let H=document.createElement("button");H.setAttribute("class","close"),H.setAttribute("part","close"),H.setAttribute("type","button"),H.setAttribute("aria-label","Close drawer"),O(n,"closeBtn",H);let C=document.createElement("svg");C.setAttribute("viewbox","0 0 16 16"),C.setAttribute("fill","none"),C.setAttribute("stroke","currentColor"),C.setAttribute("stroke-width","1.75"),C.setAttribute("stroke-linecap","round"),C.setAttribute("stroke-linejoin","round"),C.setAttribute("aria-hidden","true"),C.setAttribute("focusable","false");let z=document.createElement("path");z.setAttribute("d","M3.5 3.5l9 9M12.5 3.5l-9 9"),C.appendChild(z),H.appendChild(C),y.appendChild(H),r.appendChild(y);let j=document.createElement("div");j.setAttribute("class","body"),j.setAttribute("part","body"),O(n,"bodyEl",j);let g=document.createElement("slot");j.appendChild(g),r.appendChild(j);let J=document.createElement("div");J.setAttribute("class","footer"),J.setAttribute("part","footer");let D=document.createElement("slot");D.setAttribute("name","footer"),J.appendChild(D),r.appendChild(J);let Z=document.createElement("span");if(Z.setAttribute("tabindex","0"),Z.setAttribute("class","sentinel"),Z.setAttribute("aria-hidden","true"),O(n,"sentinelEnd",Z),r.appendChild(Z),w.appendChild(r),b!=null){let X=Object.getOwnPropertyDescriptor(b,"__shipSetLifecycle")?.value;if(X){let W=new Proxy(n,{get(Y,N){return Y[N]},set(Y,N,F){let B=Y[N];if(B!=null&&typeof B.set==="function"){if(typeof F==="function")B.set(()=>F);else B.set(F);return!0}return!1}});if(X.mount){let Y=X.mount(W,d);if(typeof Y==="function")m.push(Y)}if(X.unmount)m.push(()=>X.unmount(W))}}return n}});var am=0,$i=U({mount(i,u){let d=i,m=`sui-dropdown-menu-panel-${++am}`,n=d.triggerWrap(),b=d.triggerSlot(),w=d.panelEl();if(!w)return;w.id=m;let r="",M=null;function y(Z){if(M)clearTimeout(M);r+=Z.toLowerCase(),M=setTimeout(()=>{r=""},350);let X=E(),W=X.indexOf(document.activeElement);for(let Y=0;Y<X.length;Y++){let N=(W+1+Y)%X.length;if((X[N].textContent??"").trim().toLowerCase().startsWith(r))return N}return-1}function E(){return Array.from(u.querySelectorAll('[role="menuitem"], button[data-value], [data-value]')).filter((Z)=>!Z.hasAttribute("disabled"))}function l(Z){let X=E();if(!X.length)return;let W=(Z%X.length+X.length)%X.length;for(let Y of X)Y.setAttribute("tabindex","-1");X[W].setAttribute("tabindex","0"),X[W].focus()}function L(){return E().indexOf(document.activeElement)}function f(){E().forEach((Z,X)=>{if(!Z.hasAttribute("role"))Z.setAttribute("role","menuitem");if(!Z.hasAttribute("tabindex"))Z.setAttribute("tabindex",X===0?"0":"-1")})}function t(){let Z=b?.assignedElements({flatten:!0})??[];for(let X of Z)X.setAttribute("aria-haspopup","menu"),X.setAttribute("aria-controls",m),X.setAttribute("aria-expanded",d.open()?"true":"false")}function H(){let Z=b?.assignedElements({flatten:!0})?.[0];if(Z&&w){let X=Z.getBoundingClientRect();w.style.top=`${X.bottom+4}px`,w.style.left=`${X.left}px`}w?.showPopover?.()}function C(){w?.hidePopover?.()}let z=()=>{if(d.open())C();else H()},j=(Z)=>{let W=Z.newState==="open";if(W!==d.open())d.open.set(W);if(u.setAttribute("data-state",W?"open":"closed"),t(),W)queueMicrotask(()=>{f(),l(0)})},g=(Z)=>{let X=Z.target.closest("[data-value]");if(!X)return;u.emit("sui-select",{value:X.dataset.value??""}),C()},J=(Z)=>{if(!d.open())return;let X=E();if(!X.length)return;let W=L();if(Z.key==="ArrowDown")Z.preventDefault(),l(W+1);else if(Z.key==="ArrowUp")Z.preventDefault(),l(W-1);else if(Z.key==="Home")Z.preventDefault(),l(0);else if(Z.key==="End")Z.preventDefault(),l(X.length-1);else if(Z.key==="Escape")Z.preventDefault(),C();else if(Z.key==="Tab")C();else if((Z.key==="Enter"||Z.key===" ")&&W>=0)Z.preventDefault(),X[W].click();else if(Z.key.length===1&&!Z.ctrlKey&&!Z.metaKey){let Y=y(Z.key);if(Y>=0)Z.preventDefault(),l(Y)}};if(n)_(n,"click",z);if(_(w,"toggle",j),_(w,"click",g),_(u,"keydown",J),b)_(b,"slotchange",t);_(w,"slotchange",f);let D=q(()=>{let Z=d.open();u.setAttribute("data-state",Z?"open":"closed"),t()});return()=>{if(M)clearTimeout(M);D()}}});var s8=Q("sui-dropdown-menu",{props:{open:P.bool({default:!1,reflect:!0})},shadow:!0,styles:`
   :host { position: relative; display: inline-flex; }
 
   .panel {
@@ -9380,238 +3819,7 @@ var sui_dropdown_menu_default = component44("sui-dropdown-menu", {
   @media (forced-colors: active) {
     .panel { border: 1px solid CanvasText; }
   }
-`,
-  setup(ctx) {
-    const { props, host } = ctx;
-    if (!ctx.cleanups)
-      ctx.cleanups = [];
-    const __cleanups = ctx.cleanups;
-    const $scope = Object.create(null);
-    $scope.open = props.open;
-    let __r = null;
-    if (sui_dropdown_menu_controller_default && typeof sui_dropdown_menu_controller_default.setup === "function") {
-      ctx.scope = $scope;
-      __r = sui_dropdown_menu_controller_default.setup(ctx);
-      if (__r && typeof __r === "object")
-        Object.assign($scope, __r);
-    }
-    const __root = host.shadowRoot ?? host;
-    adoptSuiSheets44(__root);
-    const __e0 = document.createElement("span");
-    __e0.setAttribute("class", "trigger-wrap");
-    attachRef22($scope, "triggerWrap", __e0);
-    const __e1 = document.createElement("slot");
-    __e1.setAttribute("name", "trigger");
-    attachRef22($scope, "triggerSlot", __e1);
-    __e0.appendChild(__e1);
-    __root.appendChild(__e0);
-    const __e2 = document.createElement("div");
-    __e2.setAttribute("class", "panel");
-    __e2.setAttribute("part", "panel");
-    __e2.setAttribute("popover", "auto");
-    __e2.setAttribute("role", "menu");
-    attachRef22($scope, "panelEl", __e2);
-    const __e3 = document.createElement("slot");
-    attachRef22($scope, "itemSlot", __e3);
-    __e2.appendChild(__e3);
-    __root.appendChild(__e2);
-    if (__r != null) {
-      const __lc = Object.getOwnPropertyDescriptor(__r, "__shipSetLifecycle")?.value;
-      if (__lc) {
-        const __sp = new Proxy($scope, {
-          get(t, k) {
-            return t[k];
-          },
-          set(t, k, v) {
-            const s = t[k];
-            if (s != null && typeof s.set === "function") {
-              if (typeof v === "function") {
-                s.set(() => v);
-              } else {
-                s.set(v);
-              }
-              return true;
-            }
-            return false;
-          }
-        });
-        if (__lc.mount) {
-          const __mc = __lc.mount(__sp, host);
-          if (typeof __mc === "function")
-            __cleanups.push(__mc);
-        }
-        if (__lc.unmount)
-          __cleanups.push(() => __lc.unmount(__sp));
-      }
-    }
-    return $scope;
-  }
-});
-
-// packages/ui-components/src/sui-context-menu/sui-context-menu.sui
-import { adoptSuiSheets as adoptSuiSheets45, attachRef as attachRef23, component as component45, prop as prop45 } from "@ship/sui-runtime";
-
-// packages/ui-components/src/sui-context-menu/sui-context-menu.controller.ts
-import { controller as controller28, effect as effect28, bindNativeEvent as bindNativeEvent4 } from "@ship/sui-runtime";
-var _seq6 = 0;
-var sui_context_menu_controller_default = controller28({
-  mount(state, host) {
-    const scope = state;
-    const panelId = `sui-context-menu-panel-${++_seq6}`;
-    const triggerSlot = scope.triggerSlot();
-    const panelEl = scope.panelEl();
-    if (!panelEl)
-      return;
-    panelEl.id = panelId;
-    let typeaheadBuf = "";
-    let typeaheadTimer = null;
-    function pushTypeahead(key) {
-      if (typeaheadTimer)
-        clearTimeout(typeaheadTimer);
-      typeaheadBuf += key.toLowerCase();
-      typeaheadTimer = setTimeout(() => {
-        typeaheadBuf = "";
-      }, 350);
-      const items = getItems();
-      const i = items.indexOf(document.activeElement);
-      for (let j = 0;j < items.length; j++) {
-        const idx = (i + 1 + j) % items.length;
-        const label = (items[idx].textContent ?? "").trim().toLowerCase();
-        if (label.startsWith(typeaheadBuf))
-          return idx;
-      }
-      return -1;
-    }
-    function getItems() {
-      return Array.from(host.querySelectorAll('[role="menuitem"], button[data-value], [data-value]')).filter((el) => !el.hasAttribute("disabled"));
-    }
-    function focusItem(index) {
-      const items = getItems();
-      if (!items.length)
-        return;
-      const i = (index % items.length + items.length) % items.length;
-      for (const it of items)
-        it.setAttribute("tabindex", "-1");
-      items[i].setAttribute("tabindex", "0");
-      items[i].focus();
-    }
-    function currentIndex() {
-      return getItems().indexOf(document.activeElement);
-    }
-    function setupItems() {
-      getItems().forEach((el, idx) => {
-        if (!el.hasAttribute("role"))
-          el.setAttribute("role", "menuitem");
-        if (!el.hasAttribute("tabindex"))
-          el.setAttribute("tabindex", idx === 0 ? "0" : "-1");
-      });
-    }
-    function doShow(x, y) {
-      if (panelEl) {
-        panelEl.style.top = `${y}px`;
-        panelEl.style.left = `${x}px`;
-      }
-      panelEl?.showPopover?.();
-    }
-    function doClose() {
-      panelEl?.hidePopover?.();
-    }
-    host.expose({ show: doShow, close: doClose });
-    const onContextMenu = (e) => {
-      e.preventDefault();
-      doShow(e.clientX, e.clientY);
-    };
-    const onToggle = (ev) => {
-      const te = ev;
-      const nowOpen = te.newState === "open";
-      if (nowOpen !== scope.open())
-        scope.open.set(nowOpen);
-      host.setAttribute("data-state", nowOpen ? "open" : "closed");
-      if (nowOpen) {
-        host.emit("sui-open");
-        queueMicrotask(() => {
-          setupItems();
-          focusItem(0);
-        });
-      } else {
-        host.emit("sui-close");
-      }
-    };
-    const onItemClick = (e) => {
-      const target = e.target.closest("[data-value]");
-      if (!target)
-        return;
-      host.emit("sui-select", { value: target.dataset.value ?? "" });
-      doClose();
-    };
-    const onKeydown = (e) => {
-      if (!scope.open())
-        return;
-      const items = getItems();
-      if (!items.length)
-        return;
-      const i = currentIndex();
-      if (e.key === "ArrowDown") {
-        e.preventDefault();
-        focusItem(i + 1);
-      } else if (e.key === "ArrowUp") {
-        e.preventDefault();
-        focusItem(i - 1);
-      } else if (e.key === "Home") {
-        e.preventDefault();
-        focusItem(0);
-      } else if (e.key === "End") {
-        e.preventDefault();
-        focusItem(items.length - 1);
-      } else if (e.key === "Escape") {
-        e.preventDefault();
-        doClose();
-      } else if (e.key === "Tab") {
-        doClose();
-      } else if ((e.key === "Enter" || e.key === " ") && i >= 0) {
-        e.preventDefault();
-        items[i].click();
-      } else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey) {
-        const next = pushTypeahead(e.key);
-        if (next >= 0) {
-          e.preventDefault();
-          focusItem(next);
-        }
-      }
-    };
-    const wireTrigger = () => {
-      const els = triggerSlot?.assignedElements({ flatten: true }) ?? [];
-      for (const el of els) {
-        el.addEventListener("contextmenu", onContextMenu);
-      }
-    };
-    if (triggerSlot)
-      bindNativeEvent4(triggerSlot, "slotchange", wireTrigger);
-    wireTrigger();
-    bindNativeEvent4(panelEl, "toggle", onToggle);
-    bindNativeEvent4(panelEl, "click", onItemClick);
-    bindNativeEvent4(host, "keydown", onKeydown);
-    const stopSync = effect28(() => {
-      host.setAttribute("data-state", scope.open() ? "open" : "closed");
-    });
-    return () => {
-      const els = triggerSlot?.assignedElements({ flatten: true }) ?? [];
-      for (const el of els)
-        el.removeEventListener("contextmenu", onContextMenu);
-      if (typeaheadTimer)
-        clearTimeout(typeaheadTimer);
-      stopSync();
-    };
-  }
-});
-
-// packages/ui-components/src/sui-context-menu/sui-context-menu.sui
-var sui_context_menu_default = component45("sui-context-menu", {
-  props: {
-    open: prop45.bool({ default: false, reflect: true })
-  },
-  shadow: true,
-  styles: `
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.open=u.open,n.itemSlot=G(null),n.panelEl=G(null),n.triggerSlot=G(null),n.triggerWrap=G(null);let b=null;if($i&&typeof $i.setup==="function"){if(i.scope=n,b=$i.setup(i),b&&typeof b==="object")Object.assign(n,b)}let w=d.shadowRoot??d;V(w);let r=document.createElement("span");r.setAttribute("class","trigger-wrap"),O(n,"triggerWrap",r);let M=document.createElement("slot");M.setAttribute("name","trigger"),O(n,"triggerSlot",M),r.appendChild(M),w.appendChild(r);let y=document.createElement("div");y.setAttribute("class","panel"),y.setAttribute("part","panel"),y.setAttribute("popover","auto"),y.setAttribute("role","menu"),O(n,"panelEl",y);let E=document.createElement("slot");if(O(n,"itemSlot",E),y.appendChild(E),w.appendChild(y),b!=null){let l=Object.getOwnPropertyDescriptor(b,"__shipSetLifecycle")?.value;if(l){let L=new Proxy(n,{get(f,t){return f[t]},set(f,t,H){let C=f[t];if(C!=null&&typeof C.set==="function"){if(typeof H==="function")C.set(()=>H);else C.set(H);return!0}return!1}});if(l.mount){let f=l.mount(L,d);if(typeof f==="function")m.push(f)}if(l.unmount)m.push(()=>l.unmount(L))}}return n}});var vm=0,oi=U({mount(i,u){let d=i,m=`sui-context-menu-panel-${++vm}`,n=d.triggerSlot(),b=d.panelEl();if(!b)return;b.id=m;let w="",r=null;function M(D){if(r)clearTimeout(r);w+=D.toLowerCase(),r=setTimeout(()=>{w=""},350);let Z=y(),X=Z.indexOf(document.activeElement);for(let W=0;W<Z.length;W++){let Y=(X+1+W)%Z.length;if((Z[Y].textContent??"").trim().toLowerCase().startsWith(w))return Y}return-1}function y(){return Array.from(u.querySelectorAll('[role="menuitem"], button[data-value], [data-value]')).filter((D)=>!D.hasAttribute("disabled"))}function E(D){let Z=y();if(!Z.length)return;let X=(D%Z.length+Z.length)%Z.length;for(let W of Z)W.setAttribute("tabindex","-1");Z[X].setAttribute("tabindex","0"),Z[X].focus()}function l(){return y().indexOf(document.activeElement)}function L(){y().forEach((D,Z)=>{if(!D.hasAttribute("role"))D.setAttribute("role","menuitem");if(!D.hasAttribute("tabindex"))D.setAttribute("tabindex",Z===0?"0":"-1")})}function f(D,Z){if(b)b.style.top=`${Z}px`,b.style.left=`${D}px`;b?.showPopover?.()}function t(){b?.hidePopover?.()}u.expose({show:f,close:t});let H=(D)=>{D.preventDefault(),f(D.clientX,D.clientY)},C=(D)=>{let X=D.newState==="open";if(X!==d.open())d.open.set(X);if(u.setAttribute("data-state",X?"open":"closed"),X)u.emit("sui-open"),queueMicrotask(()=>{L(),E(0)});else u.emit("sui-close")},z=(D)=>{let Z=D.target.closest("[data-value]");if(!Z)return;u.emit("sui-select",{value:Z.dataset.value??""}),t()},j=(D)=>{if(!d.open())return;let Z=y();if(!Z.length)return;let X=l();if(D.key==="ArrowDown")D.preventDefault(),E(X+1);else if(D.key==="ArrowUp")D.preventDefault(),E(X-1);else if(D.key==="Home")D.preventDefault(),E(0);else if(D.key==="End")D.preventDefault(),E(Z.length-1);else if(D.key==="Escape")D.preventDefault(),t();else if(D.key==="Tab")t();else if((D.key==="Enter"||D.key===" ")&&X>=0)D.preventDefault(),Z[X].click();else if(D.key.length===1&&!D.ctrlKey&&!D.metaKey){let W=M(D.key);if(W>=0)D.preventDefault(),E(W)}},g=()=>{let D=n?.assignedElements({flatten:!0})??[];for(let Z of D)Z.addEventListener("contextmenu",H)};if(n)_(n,"slotchange",g);g(),_(b,"toggle",C),_(b,"click",z),_(u,"keydown",j);let J=q(()=>{u.setAttribute("data-state",d.open()?"open":"closed")});return()=>{let D=n?.assignedElements({flatten:!0})??[];for(let Z of D)Z.removeEventListener("contextmenu",H);if(r)clearTimeout(r);J()}}});var ir=Q("sui-context-menu",{props:{open:P.bool({default:!1,reflect:!0})},shadow:!0,styles:`
   :host { display: contents; }
 
   .panel {
@@ -9660,206 +3868,7 @@ var sui_context_menu_default = component45("sui-context-menu", {
   @media (forced-colors: active) {
     .panel { border: 1px solid CanvasText; }
   }
-`,
-  setup(ctx) {
-    const { props, host } = ctx;
-    if (!ctx.cleanups)
-      ctx.cleanups = [];
-    const __cleanups = ctx.cleanups;
-    const $scope = Object.create(null);
-    $scope.open = props.open;
-    let __r = null;
-    if (sui_context_menu_controller_default && typeof sui_context_menu_controller_default.setup === "function") {
-      ctx.scope = $scope;
-      __r = sui_context_menu_controller_default.setup(ctx);
-      if (__r && typeof __r === "object")
-        Object.assign($scope, __r);
-    }
-    const __root = host.shadowRoot ?? host;
-    adoptSuiSheets45(__root);
-    const __e0 = document.createElement("slot");
-    __e0.setAttribute("name", "trigger");
-    attachRef23($scope, "triggerSlot", __e0);
-    __root.appendChild(__e0);
-    const __e1 = document.createElement("div");
-    __e1.setAttribute("class", "panel");
-    __e1.setAttribute("part", "panel");
-    __e1.setAttribute("popover", "auto");
-    __e1.setAttribute("role", "menu");
-    __e1.setAttribute("aria-label", "Context menu");
-    attachRef23($scope, "panelEl", __e1);
-    const __e2 = document.createElement("slot");
-    attachRef23($scope, "itemSlot", __e2);
-    __e1.appendChild(__e2);
-    __root.appendChild(__e1);
-    if (__r != null) {
-      const __lc = Object.getOwnPropertyDescriptor(__r, "__shipSetLifecycle")?.value;
-      if (__lc) {
-        const __sp = new Proxy($scope, {
-          get(t, k) {
-            return t[k];
-          },
-          set(t, k, v) {
-            const s = t[k];
-            if (s != null && typeof s.set === "function") {
-              if (typeof v === "function") {
-                s.set(() => v);
-              } else {
-                s.set(v);
-              }
-              return true;
-            }
-            return false;
-          }
-        });
-        if (__lc.mount) {
-          const __mc = __lc.mount(__sp, host);
-          if (typeof __mc === "function")
-            __cleanups.push(__mc);
-        }
-        if (__lc.unmount)
-          __cleanups.push(() => __lc.unmount(__sp));
-      }
-    }
-    return $scope;
-  }
-});
-
-// packages/ui-components/src/sui-hover-card/sui-hover-card.sui
-import { adoptSuiSheets as adoptSuiSheets46, attachRef as attachRef24, component as component46, prop as prop46 } from "@ship/sui-runtime";
-
-// packages/ui-components/src/sui-hover-card/sui-hover-card.controller.ts
-import { controller as controller29, effect as effect29 } from "@ship/sui-runtime";
-var _seq7 = 0;
-var GAP = 8;
-function positionPanel(trigger, panel, placement) {
-  const r = trigger.getBoundingClientRect();
-  panel.style.top = "";
-  panel.style.left = "";
-  panel.style.right = "";
-  panel.style.bottom = "";
-  switch (placement) {
-    case "top":
-      panel.style.bottom = `${window.innerHeight - r.top + GAP}px`;
-      panel.style.left = `${r.left + r.width / 2}px`;
-      panel.style.transform = "translateX(-50%)";
-      break;
-    case "left":
-      panel.style.right = `${window.innerWidth - r.left + GAP}px`;
-      panel.style.top = `${r.top}px`;
-      break;
-    case "right":
-      panel.style.left = `${r.right + GAP}px`;
-      panel.style.top = `${r.top}px`;
-      break;
-    case "bottom":
-    default:
-      panel.style.top = `${r.bottom + GAP}px`;
-      panel.style.left = `${r.left + r.width / 2}px`;
-      panel.style.transform = "translateX(-50%)";
-  }
-}
-var sui_hover_card_controller_default = controller29({
-  mount(state, host) {
-    const scope = state;
-    const cardId = `sui-hover-card-${++_seq7}`;
-    const triggerSlot = scope.triggerSlot();
-    const panelEl = scope.panelEl();
-    if (!panelEl)
-      return;
-    panelEl.id = cardId;
-    let showTimer = null;
-    let hideTimer = null;
-    function clearTimers() {
-      if (showTimer) {
-        clearTimeout(showTimer);
-        showTimer = null;
-      }
-      if (hideTimer) {
-        clearTimeout(hideTimer);
-        hideTimer = null;
-      }
-    }
-    function wireTrigger() {
-      const els = triggerSlot?.assignedElements({ flatten: true }) ?? [];
-      for (const el of els) {
-        el.setAttribute("aria-describedby", cardId);
-      }
-    }
-    function doShow() {
-      clearTimers();
-      const trigger = triggerSlot?.assignedElements({ flatten: true })?.[0];
-      if (trigger && panelEl) {
-        positionPanel(trigger, panelEl, scope.placement() || "bottom");
-      }
-      panelEl?.showPopover?.();
-    }
-    function doHide() {
-      clearTimers();
-      panelEl?.hidePopover?.();
-    }
-    host.show = doShow;
-    host.hide = doHide;
-    const onToggle = (ev) => {
-      const te = ev;
-      const nowOpen = te.newState === "open";
-      if (nowOpen !== scope.open())
-        scope.open.set(nowOpen);
-      host.setAttribute("data-state", nowOpen ? "open" : "closed");
-      host.dispatchEvent(new CustomEvent(nowOpen ? "sui-open" : "sui-close", {
-        bubbles: true,
-        composed: true
-      }));
-    };
-    const onPointerEnter = () => {
-      clearTimers();
-      showTimer = setTimeout(() => doShow(), scope.showDelay() ?? 300);
-    };
-    const onPointerLeave = () => {
-      clearTimers();
-      hideTimer = setTimeout(() => doHide(), scope.hideDelay() ?? 100);
-    };
-    const onFocusIn = () => {
-      clearTimers();
-      doShow();
-    };
-    const onFocusOut = () => {
-      clearTimers();
-      hideTimer = setTimeout(() => doHide(), scope.hideDelay() ?? 100);
-    };
-    panelEl.addEventListener("toggle", onToggle);
-    triggerSlot?.addEventListener("slotchange", wireTrigger);
-    wireTrigger();
-    host.addEventListener("pointerenter", onPointerEnter);
-    host.addEventListener("pointerleave", onPointerLeave);
-    host.addEventListener("focusin", onFocusIn);
-    host.addEventListener("focusout", onFocusOut);
-    const stopSync = effect29(() => {
-      host.setAttribute("data-state", scope.open() ? "open" : "closed");
-    });
-    return () => {
-      clearTimers();
-      panelEl.removeEventListener("toggle", onToggle);
-      triggerSlot?.removeEventListener("slotchange", wireTrigger);
-      host.removeEventListener("pointerenter", onPointerEnter);
-      host.removeEventListener("pointerleave", onPointerLeave);
-      host.removeEventListener("focusin", onFocusIn);
-      host.removeEventListener("focusout", onFocusOut);
-      stopSync();
-    };
-  }
-});
-
-// packages/ui-components/src/sui-hover-card/sui-hover-card.sui
-var sui_hover_card_default = component46("sui-hover-card", {
-  props: {
-    open: prop46.bool({ default: false, reflect: true }),
-    placement: prop46.union(["top", "bottom", "left", "right"], { default: "bottom", reflect: true }),
-    "show-delay": prop46.number({ default: 300 }),
-    "hide-delay": prop46.number({ default: 100 })
-  },
-  shadow: true,
-  styles: `
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.open=u.open,n.itemSlot=G(null),n.panelEl=G(null),n.triggerSlot=G(null);let b=null;if(oi&&typeof oi.setup==="function"){if(i.scope=n,b=oi.setup(i),b&&typeof b==="object")Object.assign(n,b)}let w=d.shadowRoot??d;V(w);let r=document.createElement("slot");r.setAttribute("name","trigger"),O(n,"triggerSlot",r),w.appendChild(r);let M=document.createElement("div");M.setAttribute("class","panel"),M.setAttribute("part","panel"),M.setAttribute("popover","auto"),M.setAttribute("role","menu"),M.setAttribute("aria-label","Context menu"),O(n,"panelEl",M);let y=document.createElement("slot");if(O(n,"itemSlot",y),M.appendChild(y),w.appendChild(M),b!=null){let E=Object.getOwnPropertyDescriptor(b,"__shipSetLifecycle")?.value;if(E){let l=new Proxy(n,{get(L,f){return L[f]},set(L,f,t){let H=L[f];if(H!=null&&typeof H.set==="function"){if(typeof t==="function")H.set(()=>t);else H.set(t);return!0}return!1}});if(E.mount){let L=E.mount(l,d);if(typeof L==="function")m.push(L)}if(E.unmount)m.push(()=>E.unmount(l))}}return n}});var xm=0,si=8;function hm(i,u,d){let m=i.getBoundingClientRect();switch(u.style.top="",u.style.left="",u.style.right="",u.style.bottom="",d){case"top":u.style.bottom=`${window.innerHeight-m.top+si}px`,u.style.left=`${m.left+m.width/2}px`,u.style.transform="translateX(-50%)";break;case"left":u.style.right=`${window.innerWidth-m.left+si}px`,u.style.top=`${m.top}px`;break;case"right":u.style.left=`${m.right+si}px`,u.style.top=`${m.top}px`;break;case"bottom":default:u.style.top=`${m.bottom+si}px`,u.style.left=`${m.left+m.width/2}px`,u.style.transform="translateX(-50%)"}}var ei=U({mount(i,u){let d=i,m=`sui-hover-card-${++xm}`,n=d.triggerSlot(),b=d.panelEl();if(!b)return;b.id=m;let w=null,r=null;function M(){if(w)clearTimeout(w),w=null;if(r)clearTimeout(r),r=null}function y(){let j=n?.assignedElements({flatten:!0})??[];for(let g of j)g.setAttribute("aria-describedby",m)}function E(){M();let j=n?.assignedElements({flatten:!0})?.[0];if(j&&b)hm(j,b,d.placement()||"bottom");b?.showPopover?.()}function l(){M(),b?.hidePopover?.()}u.show=E,u.hide=l;let L=(j)=>{let J=j.newState==="open";if(J!==d.open())d.open.set(J);u.setAttribute("data-state",J?"open":"closed"),u.dispatchEvent(new CustomEvent(J?"sui-open":"sui-close",{bubbles:!0,composed:!0}))},f=()=>{M(),w=setTimeout(()=>E(),d.showDelay()??300)},t=()=>{M(),r=setTimeout(()=>l(),d.hideDelay()??100)},H=()=>{M(),E()},C=()=>{M(),r=setTimeout(()=>l(),d.hideDelay()??100)};b.addEventListener("toggle",L),n?.addEventListener("slotchange",y),y(),u.addEventListener("pointerenter",f),u.addEventListener("pointerleave",t),u.addEventListener("focusin",H),u.addEventListener("focusout",C);let z=q(()=>{u.setAttribute("data-state",d.open()?"open":"closed")});return()=>{M(),b.removeEventListener("toggle",L),n?.removeEventListener("slotchange",y),u.removeEventListener("pointerenter",f),u.removeEventListener("pointerleave",t),u.removeEventListener("focusin",H),u.removeEventListener("focusout",C),z()}}});var Lr=Q("sui-hover-card",{props:{open:P.bool({default:!1,reflect:!0}),placement:P.union(["top","bottom","left","right"],{default:"bottom",reflect:!0}),"show-delay":P.number({default:300}),"hide-delay":P.number({default:100})},shadow:!0,styles:`
   :host { display: inline-flex; position: relative; }
 
   .panel {
@@ -9894,304 +3903,9 @@ var sui_hover_card_default = component46("sui-hover-card", {
   @media (forced-colors: active) {
     .panel { border: 1px solid CanvasText; }
   }
-`,
-  setup(ctx) {
-    const { props, host } = ctx;
-    if (!ctx.cleanups)
-      ctx.cleanups = [];
-    const __cleanups = ctx.cleanups;
-    const $scope = Object.create(null);
-    $scope.open = props.open;
-    $scope.placement = props.placement;
-    $scope.showDelay = props.showDelay;
-    $scope.hideDelay = props.hideDelay;
-    let __r = null;
-    if (sui_hover_card_controller_default && typeof sui_hover_card_controller_default.setup === "function") {
-      ctx.scope = $scope;
-      __r = sui_hover_card_controller_default.setup(ctx);
-      if (__r && typeof __r === "object")
-        Object.assign($scope, __r);
-    }
-    const __root = host.shadowRoot ?? host;
-    adoptSuiSheets46(__root);
-    const __e0 = document.createElement("slot");
-    __e0.setAttribute("name", "trigger");
-    attachRef24($scope, "triggerSlot", __e0);
-    __root.appendChild(__e0);
-    const __e1 = document.createElement("div");
-    __e1.setAttribute("class", "panel");
-    __e1.setAttribute("part", "panel");
-    __e1.setAttribute("popover", "auto");
-    attachRef24($scope, "panelEl", __e1);
-    const __e2 = document.createElement("slot");
-    __e1.appendChild(__e2);
-    __root.appendChild(__e1);
-    if (__r != null) {
-      const __lc = Object.getOwnPropertyDescriptor(__r, "__shipSetLifecycle")?.value;
-      if (__lc) {
-        const __sp = new Proxy($scope, {
-          get(t, k) {
-            return t[k];
-          },
-          set(t, k, v) {
-            const s = t[k];
-            if (s != null && typeof s.set === "function") {
-              if (typeof v === "function") {
-                s.set(() => v);
-              } else {
-                s.set(v);
-              }
-              return true;
-            }
-            return false;
-          }
-        });
-        if (__lc.mount) {
-          const __mc = __lc.mount(__sp, host);
-          if (typeof __mc === "function")
-            __cleanups.push(__mc);
-        }
-        if (__lc.unmount)
-          __cleanups.push(() => __lc.unmount(__sp));
-      }
-    }
-    return $scope;
-  }
-});
-
-// packages/ui-components/src/sui-accordion/sui-accordion.sui
-import { adoptSuiSheets as adoptSuiSheets47, component as component47, prop as prop47 } from "@ship/sui-runtime";
-
-// packages/ui-components/src/sui-accordion/sui-accordion.controller.ts
-import { controller as controller30, effect as effect30 } from "@ship/sui-runtime";
-var sui_accordion_controller_default = controller30({
-  mount(state, host) {
-    const scope = state;
-    const getItems = () => Array.from(host.querySelectorAll(":scope > sui-accordion-item"));
-    const getEnabledItems = () => getItems().filter((i) => !i.hasAttribute("disabled"));
-    const getOpenValues = () => {
-      const v = scope.value();
-      return new Set(v ? v.split(",").filter(Boolean) : []);
-    };
-    const syncItems = () => {
-      const open = getOpenValues();
-      for (const item of getItems()) {
-        const val = item.getAttribute("value") || "";
-        if (open.has(val)) {
-          item.setAttribute("open", "");
-        } else {
-          item.removeAttribute("open");
-        }
-      }
-    };
-    const stopEffect = effect30(() => {
-      scope.value();
-      syncItems();
-    });
-    const onToggle = (e) => {
-      const ev = e;
-      ev.stopPropagation();
-      const itemVal = ev.detail?.value;
-      const open = getOpenValues();
-      if (scope.type() === "single") {
-        scope.value.set(open.has(itemVal) ? "" : itemVal);
-      } else {
-        if (open.has(itemVal)) {
-          open.delete(itemVal);
-        } else {
-          open.add(itemVal);
-        }
-        scope.value.set(Array.from(open).join(","));
-      }
-      host.dispatchEvent(new CustomEvent("sui-change", {
-        detail: { value: scope.value() },
-        bubbles: true,
-        composed: true
-      }));
-    };
-    const onNav = (e) => {
-      const ev = e;
-      ev.stopPropagation();
-      const enabled = getEnabledItems();
-      if (!enabled.length)
-        return;
-      const current = ev.target?.closest("sui-accordion-item");
-      const idx = current ? enabled.indexOf(current) : -1;
-      let target;
-      switch (ev.detail?.direction) {
-        case "next":
-          target = enabled[(idx + 1) % enabled.length];
-          break;
-        case "prev":
-          target = enabled[(idx - 1 + enabled.length) % enabled.length];
-          break;
-        case "first":
-          target = enabled[0];
-          break;
-        case "last":
-          target = enabled[enabled.length - 1];
-          break;
-      }
-      if (target) {
-        const btn = target.shadowRoot?.querySelector("button");
-        btn?.focus();
-      }
-    };
-    host.addEventListener("sui-accordion-item-toggle", onToggle);
-    host.addEventListener("sui-accordion-nav", onNav);
-    return () => {
-      stopEffect();
-      host.removeEventListener("sui-accordion-item-toggle", onToggle);
-      host.removeEventListener("sui-accordion-nav", onNav);
-    };
-  }
-});
-
-// packages/ui-components/src/sui-accordion/sui-accordion.sui
-var sui_accordion_default = component47("sui-accordion", {
-  props: {
-    type: prop47.string({ default: "single", reflect: true }),
-    value: prop47.string({ default: "", reflect: true })
-  },
-  shadow: true,
-  styles: `
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.open=u.open,n.placement=u.placement,n.showDelay=u.showDelay,n.hideDelay=u.hideDelay,n.panelEl=G(null),n.triggerSlot=G(null);let b=null;if(ei&&typeof ei.setup==="function"){if(i.scope=n,b=ei.setup(i),b&&typeof b==="object")Object.assign(n,b)}let w=d.shadowRoot??d;V(w);let r=document.createElement("slot");r.setAttribute("name","trigger"),O(n,"triggerSlot",r),w.appendChild(r);let M=document.createElement("div");M.setAttribute("class","panel"),M.setAttribute("part","panel"),M.setAttribute("popover","auto"),O(n,"panelEl",M);let y=document.createElement("slot");if(M.appendChild(y),w.appendChild(M),b!=null){let E=Object.getOwnPropertyDescriptor(b,"__shipSetLifecycle")?.value;if(E){let l=new Proxy(n,{get(L,f){return L[f]},set(L,f,t){let H=L[f];if(H!=null&&typeof H.set==="function"){if(typeof t==="function")H.set(()=>t);else H.set(t);return!0}return!1}});if(E.mount){let L=E.mount(l,d);if(typeof L==="function")m.push(L)}if(E.unmount)m.push(()=>E.unmount(l))}}return n}});var pi=U({mount(i,u){let d=i,m=()=>Array.from(u.querySelectorAll(":scope > sui-accordion-item")),n=()=>m().filter((E)=>!E.hasAttribute("disabled")),b=()=>{let E=d.value();return new Set(E?E.split(",").filter(Boolean):[])},w=()=>{let E=b();for(let l of m()){let L=l.getAttribute("value")||"";if(E.has(L))l.setAttribute("open","");else l.removeAttribute("open")}},r=q(()=>{d.value(),w()}),M=(E)=>{let l=E;l.stopPropagation();let L=l.detail?.value,f=b();if(d.type()==="single")d.value.set(f.has(L)?"":L);else{if(f.has(L))f.delete(L);else f.add(L);d.value.set(Array.from(f).join(","))}u.dispatchEvent(new CustomEvent("sui-change",{detail:{value:d.value()},bubbles:!0,composed:!0}))},y=(E)=>{let l=E;l.stopPropagation();let L=n();if(!L.length)return;let f=l.target?.closest("sui-accordion-item"),t=f?L.indexOf(f):-1,H;switch(l.detail?.direction){case"next":H=L[(t+1)%L.length];break;case"prev":H=L[(t-1+L.length)%L.length];break;case"first":H=L[0];break;case"last":H=L[L.length-1];break}if(H)H.shadowRoot?.querySelector("button")?.focus()};return u.addEventListener("sui-accordion-item-toggle",M),u.addEventListener("sui-accordion-nav",y),()=>{r(),u.removeEventListener("sui-accordion-item-toggle",M),u.removeEventListener("sui-accordion-nav",y)}}});var yr=Q("sui-accordion",{props:{type:P.string({default:"single",reflect:!0}),value:P.string({default:"",reflect:!0})},shadow:!0,styles:`
   :host { display: block; }
-`,
-  setup(ctx) {
-    const { props, host } = ctx;
-    if (!ctx.cleanups)
-      ctx.cleanups = [];
-    const __cleanups = ctx.cleanups;
-    const $scope = Object.create(null);
-    $scope.type = props.type;
-    $scope.value = props.value;
-    let __r = null;
-    if (sui_accordion_controller_default && typeof sui_accordion_controller_default.setup === "function") {
-      ctx.scope = $scope;
-      __r = sui_accordion_controller_default.setup(ctx);
-      if (__r && typeof __r === "object")
-        Object.assign($scope, __r);
-    }
-    const __root = host.shadowRoot ?? host;
-    adoptSuiSheets47(__root);
-    const __e0 = document.createElement("slot");
-    __root.appendChild(__e0);
-    if (__r != null) {
-      const __lc = Object.getOwnPropertyDescriptor(__r, "__shipSetLifecycle")?.value;
-      if (__lc) {
-        const __sp = new Proxy($scope, {
-          get(t, k) {
-            return t[k];
-          },
-          set(t, k, v) {
-            const s = t[k];
-            if (s != null && typeof s.set === "function") {
-              if (typeof v === "function") {
-                s.set(() => v);
-              } else {
-                s.set(v);
-              }
-              return true;
-            }
-            return false;
-          }
-        });
-        if (__lc.mount) {
-          const __mc = __lc.mount(__sp, host);
-          if (typeof __mc === "function")
-            __cleanups.push(__mc);
-        }
-        if (__lc.unmount)
-          __cleanups.push(() => __lc.unmount(__sp));
-      }
-    }
-    return $scope;
-  }
-});
-
-// packages/ui-components/src/sui-accordion/sui-accordion-item.sui
-import { adoptSuiSheets as adoptSuiSheets48, attachRef as attachRef25, bindAttr as bindAttr25, component as component48, prop as prop48 } from "@ship/sui-runtime";
-
-// packages/ui-components/src/sui-accordion/sui-accordion-item.controller.ts
-import { controller as controller31, effect as effect31 } from "@ship/sui-runtime";
-var _seq8 = 0;
-var sui_accordion_item_controller_default = controller31({
-  mount(state, host) {
-    const scope = state;
-    const uid = ++_seq8;
-    const triggerId = `sui-acc-trigger-${uid}`;
-    const contentId = `sui-acc-content-${uid}`;
-    const stopIds = effect31(() => {
-      const btn = scope.triggerBtn();
-      const wrap = scope.contentWrap();
-      if (btn) {
-        btn.id = triggerId;
-        btn.setAttribute("aria-controls", contentId);
-      }
-      if (wrap) {
-        wrap.id = contentId;
-        wrap.setAttribute("aria-labelledby", triggerId);
-      }
-    });
-    const stopAriaExpanded = effect31(() => {
-      const btn = scope.triggerBtn();
-      if (btn)
-        btn.setAttribute("aria-expanded", scope.open() ? "true" : "false");
-    });
-    const onClick = () => {
-      if (scope.disabled())
-        return;
-      host.dispatchEvent(new CustomEvent("sui-accordion-item-toggle", {
-        detail: { value: scope.value() },
-        bubbles: true,
-        composed: true
-      }));
-    };
-    const onKeydown = (e) => {
-      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
-        e.preventDefault();
-        host.dispatchEvent(new CustomEvent("sui-accordion-nav", {
-          detail: { direction: e.key === "ArrowDown" ? "next" : "prev" },
-          bubbles: true,
-          composed: true
-        }));
-      } else if (e.key === "Home" || e.key === "End") {
-        e.preventDefault();
-        host.dispatchEvent(new CustomEvent("sui-accordion-nav", {
-          detail: { direction: e.key === "Home" ? "first" : "last" },
-          bubbles: true,
-          composed: true
-        }));
-      }
-    };
-    const stopBtn = effect31(() => {
-      const btn = scope.triggerBtn();
-      if (!btn)
-        return;
-      btn.addEventListener("click", onClick);
-      btn.addEventListener("keydown", onKeydown);
-      return () => {
-        btn.removeEventListener("click", onClick);
-        btn.removeEventListener("keydown", onKeydown);
-      };
-    });
-    return () => {
-      stopIds();
-      stopAriaExpanded();
-      stopBtn();
-    };
-  }
-});
-
-// packages/ui-components/src/sui-accordion/sui-accordion-item.sui
-var sui_accordion_item_default = component48("sui-accordion-item", {
-  props: {
-    value: prop48.string({ default: "", reflect: true }),
-    disabled: prop48.bool({ default: false, reflect: true }),
-    open: prop48.bool({ default: false, reflect: true })
-  },
-  shadow: true,
-  styles: `
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.type=u.type,n.value=u.value;let b=null;if(pi&&typeof pi.setup==="function"){if(i.scope=n,b=pi.setup(i),b&&typeof b==="object")Object.assign(n,b)}let w=d.shadowRoot??d;V(w);let r=document.createElement("slot");if(w.appendChild(r),b!=null){let M=Object.getOwnPropertyDescriptor(b,"__shipSetLifecycle")?.value;if(M){let y=new Proxy(n,{get(E,l){return E[l]},set(E,l,L){let f=E[l];if(f!=null&&typeof f.set==="function"){if(typeof L==="function")f.set(()=>L);else f.set(L);return!0}return!1}});if(M.mount){let E=M.mount(y,d);if(typeof E==="function")m.push(E)}if(M.unmount)m.push(()=>M.unmount(y))}}return n}});var $m=0,ci=U({mount(i,u){let d=i,m=++$m,n=`sui-acc-trigger-${m}`,b=`sui-acc-content-${m}`,w=q(()=>{let l=d.triggerBtn(),L=d.contentWrap();if(l)l.id=n,l.setAttribute("aria-controls",b);if(L)L.id=b,L.setAttribute("aria-labelledby",n)}),r=q(()=>{let l=d.triggerBtn();if(l)l.setAttribute("aria-expanded",d.open()?"true":"false")}),M=()=>{if(d.disabled())return;u.dispatchEvent(new CustomEvent("sui-accordion-item-toggle",{detail:{value:d.value()},bubbles:!0,composed:!0}))},y=(l)=>{if(l.key==="ArrowDown"||l.key==="ArrowUp")l.preventDefault(),u.dispatchEvent(new CustomEvent("sui-accordion-nav",{detail:{direction:l.key==="ArrowDown"?"next":"prev"},bubbles:!0,composed:!0}));else if(l.key==="Home"||l.key==="End")l.preventDefault(),u.dispatchEvent(new CustomEvent("sui-accordion-nav",{detail:{direction:l.key==="Home"?"first":"last"},bubbles:!0,composed:!0}))},E=q(()=>{let l=d.triggerBtn();if(!l)return;return l.addEventListener("click",M),l.addEventListener("keydown",y),()=>{l.removeEventListener("click",M),l.removeEventListener("keydown",y)}});return()=>{w(),r(),E()}}});var Pr=Q("sui-accordion-item",{props:{value:P.string({default:"",reflect:!0}),disabled:P.bool({default:!1,reflect:!0}),open:P.bool({default:!1,reflect:!0})},shadow:!0,styles:`
   :host {
     display: block;
     font-family: var(--font-body);
@@ -10248,104 +3962,7 @@ var sui_accordion_item_default = component48("sui-accordion-item", {
 
   .content-inner { overflow: hidden; }
   .content-body { padding: 12px 0; }
-`,
-  setup(ctx) {
-    const { props, host } = ctx;
-    if (!ctx.cleanups)
-      ctx.cleanups = [];
-    const __cleanups = ctx.cleanups;
-    const $scope = Object.create(null);
-    $scope.value = props.value;
-    $scope.disabled = props.disabled;
-    $scope.open = props.open;
-    let __r = null;
-    if (sui_accordion_item_controller_default && typeof sui_accordion_item_controller_default.setup === "function") {
-      ctx.scope = $scope;
-      __r = sui_accordion_item_controller_default.setup(ctx);
-      if (__r && typeof __r === "object")
-        Object.assign($scope, __r);
-    }
-    const __root = host.shadowRoot ?? host;
-    adoptSuiSheets48(__root);
-    const __e0 = document.createElement("button");
-    __e0.setAttribute("class", "trigger");
-    __e0.setAttribute("part", "trigger");
-    attachRef25($scope, "triggerBtn", __e0);
-    __cleanups.push(bindAttr25(__e0, "disabled", () => $scope.disabled()));
-    const __e1 = document.createElement("span");
-    __e1.setAttribute("class", "trigger-label");
-    const __e2 = document.createElement("slot");
-    __e2.setAttribute("name", "trigger");
-    __e1.appendChild(__e2);
-    __e0.appendChild(__e1);
-    const __e3 = document.createElement("svg");
-    __e3.setAttribute("class", "chevron");
-    __e3.setAttribute("part", "chevron");
-    __e3.setAttribute("viewbox", "0 0 16 16");
-    __e3.setAttribute("fill", "none");
-    __e3.setAttribute("stroke", "currentColor");
-    __e3.setAttribute("stroke-width", "1.75");
-    __e3.setAttribute("stroke-linecap", "round");
-    __e3.setAttribute("stroke-linejoin", "round");
-    __e3.setAttribute("aria-hidden", "true");
-    const __e4 = document.createElement("path");
-    __e4.setAttribute("d", "M4 6l4 4 4-4");
-    __e3.appendChild(__e4);
-    __e0.appendChild(__e3);
-    __root.appendChild(__e0);
-    const __e5 = document.createElement("div");
-    __e5.setAttribute("class", "content-wrap");
-    __e5.setAttribute("part", "content");
-    attachRef25($scope, "contentWrap", __e5);
-    __e5.setAttribute("role", "region");
-    const __e6 = document.createElement("div");
-    __e6.setAttribute("class", "content-inner");
-    const __e7 = document.createElement("div");
-    __e7.setAttribute("class", "content-body");
-    const __e8 = document.createElement("slot");
-    __e7.appendChild(__e8);
-    __e6.appendChild(__e7);
-    __e5.appendChild(__e6);
-    __root.appendChild(__e5);
-    if (__r != null) {
-      const __lc = Object.getOwnPropertyDescriptor(__r, "__shipSetLifecycle")?.value;
-      if (__lc) {
-        const __sp = new Proxy($scope, {
-          get(t, k) {
-            return t[k];
-          },
-          set(t, k, v) {
-            const s = t[k];
-            if (s != null && typeof s.set === "function") {
-              if (typeof v === "function") {
-                s.set(() => v);
-              } else {
-                s.set(v);
-              }
-              return true;
-            }
-            return false;
-          }
-        });
-        if (__lc.mount) {
-          const __mc = __lc.mount(__sp, host);
-          if (typeof __mc === "function")
-            __cleanups.push(__mc);
-        }
-        if (__lc.unmount)
-          __cleanups.push(() => __lc.unmount(__sp));
-      }
-    }
-    return $scope;
-  }
-});
-
-// packages/ui-components/src/sui-list-tile/sui-list-tile.sui
-import { adoptSuiSheets as adoptSuiSheets49, attachRef as attachRef26, bindAttr as bindAttr26, bindIf as bindIf12, component as component49, prop as prop49 } from "@ship/sui-runtime";
-
-// packages/ui-components/src/sui-list-tile/sui-list-tile.controller.ts
-import { controller as controller32, effect as effect32 } from "@ship/sui-runtime";
-var DIVIDER_CSS = `
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.value=u.value,n.disabled=u.disabled,n.open=u.open,n.contentWrap=G(null),n.triggerBtn=G(null);let b=null;if(ci&&typeof ci.setup==="function"){if(i.scope=n,b=ci.setup(i),b&&typeof b==="object")Object.assign(n,b)}let w=d.shadowRoot??d;V(w);let r=document.createElement("button");r.setAttribute("class","trigger"),r.setAttribute("part","trigger"),O(n,"triggerBtn",r),m.push(T(r,"disabled",()=>n.disabled()));let M=document.createElement("span");M.setAttribute("class","trigger-label");let y=document.createElement("slot");y.setAttribute("name","trigger"),M.appendChild(y),r.appendChild(M);let E=document.createElement("svg");E.setAttribute("class","chevron"),E.setAttribute("part","chevron"),E.setAttribute("viewbox","0 0 16 16"),E.setAttribute("fill","none"),E.setAttribute("stroke","currentColor"),E.setAttribute("stroke-width","1.75"),E.setAttribute("stroke-linecap","round"),E.setAttribute("stroke-linejoin","round"),E.setAttribute("aria-hidden","true");let l=document.createElement("path");l.setAttribute("d","M4 6l4 4 4-4"),E.appendChild(l),r.appendChild(E),w.appendChild(r);let L=document.createElement("div");L.setAttribute("class","content-wrap"),L.setAttribute("part","content"),O(n,"contentWrap",L),L.setAttribute("role","region");let f=document.createElement("div");f.setAttribute("class","content-inner");let t=document.createElement("div");t.setAttribute("class","content-body");let H=document.createElement("slot");if(t.appendChild(H),f.appendChild(t),L.appendChild(f),w.appendChild(L),b!=null){let C=Object.getOwnPropertyDescriptor(b,"__shipSetLifecycle")?.value;if(C){let z=new Proxy(n,{get(j,g){return j[g]},set(j,g,J){let D=j[g];if(D!=null&&typeof D.set==="function"){if(typeof J==="function")D.set(()=>J);else D.set(J);return!0}return!1}});if(C.mount){let j=C.mount(z,d);if(typeof j==="function")m.push(j)}if(C.unmount)m.push(()=>C.unmount(z))}}return n}});var jd=`
 sui-list-tile[variant='row'] + sui-list-tile[variant='row'] {
   border-top: 1px solid var(--border-subtle);
 }
@@ -10353,125 +3970,7 @@ sui-list-tile[variant='row'][selected] + sui-list-tile[variant='row'],
 sui-list-tile[variant='row'] + sui-list-tile[variant='row'][selected] {
   border-top: none;
 }
-`;
-var _dividerInstalled = new WeakSet;
-function installDividerStyles(doc) {
-  if (_dividerInstalled.has(doc))
-    return;
-  _dividerInstalled.add(doc);
-  try {
-    if (typeof CSSStyleSheet !== "undefined" && "replaceSync" in CSSStyleSheet.prototype) {
-      const sheet = new CSSStyleSheet;
-      sheet.replaceSync(DIVIDER_CSS);
-      doc.adoptedStyleSheets = [...doc.adoptedStyleSheets, sheet];
-      return;
-    }
-  } catch {}
-  const style = doc.createElement("style");
-  style.setAttribute("data-sui-list-tile-dividers", "");
-  style.textContent = DIVIDER_CSS;
-  doc.head.appendChild(style);
-}
-var sui_list_tile_controller_default = controller32({
-  mount(state, host) {
-    const scope = state;
-    installDividerStyles(host.ownerDocument);
-    const resolveRole = () => {
-      if (scope.navigable())
-        return "link";
-      if (scope.interactive())
-        return "button";
-      return "listitem";
-    };
-    const stopRole = effect32(() => {
-      scope.navigable();
-      scope.interactive();
-      host.setAttribute("role", resolveRole());
-    });
-    const stopSelected = effect32(() => {
-      host.setAttribute("aria-selected", scope.selected() ? "true" : "false");
-    });
-    const stopDisabled = effect32(() => {
-      host.setAttribute("aria-disabled", scope.disabled() ? "true" : "false");
-    });
-    const stopTabindex = effect32(() => {
-      const el = scope.tileEl();
-      if (!el)
-        return;
-      const interactive = scope.interactive();
-      const disabled = scope.disabled();
-      if (interactive && !disabled) {
-        el.setAttribute("tabindex", "0");
-      } else {
-        el.removeAttribute("tabindex");
-      }
-    });
-    const dispatchSelect = () => {
-      if (scope.disabled() || !scope.interactive())
-        return false;
-      const ev = new CustomEvent("sui-select", {
-        detail: {},
-        bubbles: true,
-        composed: true,
-        cancelable: true
-      });
-      host.dispatchEvent(ev);
-      return ev.defaultPrevented;
-    };
-    const onClick = (e) => {
-      if (!scope.interactive())
-        return;
-      const prevented = dispatchSelect();
-      if (prevented && scope.navigable()) {
-        e.preventDefault();
-      }
-    };
-    const onKeyDown = (e) => {
-      if (!scope.interactive() || scope.disabled())
-        return;
-      if (scope.navigable() && e.key === "Enter")
-        return;
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        dispatchSelect();
-      }
-    };
-    const stopHandlers = effect32(() => {
-      const el = scope.tileEl();
-      if (!el)
-        return;
-      el.addEventListener("click", onClick);
-      el.addEventListener("keydown", onKeyDown);
-      return () => {
-        el.removeEventListener("click", onClick);
-        el.removeEventListener("keydown", onKeyDown);
-      };
-    });
-    return () => {
-      stopRole();
-      stopSelected();
-      stopDisabled();
-      stopTabindex();
-      stopHandlers();
-    };
-  }
-});
-
-// packages/ui-components/src/sui-list-tile/sui-list-tile.sui
-var sui_list_tile_default = component49("sui-list-tile", {
-  props: {
-    variant: prop49.string({ default: "row", reflect: true }),
-    interactive: prop49.bool({ default: false, reflect: true }),
-    navigable: prop49.string({ default: "", reflect: true }),
-    selected: prop49.bool({ default: false, reflect: true }),
-    disabled: prop49.bool({ default: false, reflect: true }),
-    density: prop49.string({ default: "normal", reflect: true }),
-    tone: prop49.string({ default: "default", reflect: true }),
-    target: prop49.string({ default: "", reflect: true }),
-    rel: prop49.string({ default: "", reflect: true })
-  },
-  shadow: true,
-  styles: `
+`,Pd=new WeakSet;function om(i){if(Pd.has(i))return;Pd.add(i);try{if(typeof CSSStyleSheet<"u"&&"replaceSync"in CSSStyleSheet.prototype){let d=new CSSStyleSheet;d.replaceSync(jd),i.adoptedStyleSheets=[...i.adoptedStyleSheets,d];return}}catch{}let u=i.createElement("style");u.setAttribute("data-sui-list-tile-dividers",""),u.textContent=jd,i.head.appendChild(u)}var _i=U({mount(i,u){let d=i;om(u.ownerDocument);let m=()=>{if(d.navigable())return"link";if(d.interactive())return"button";return"listitem"},n=q(()=>{d.navigable(),d.interactive(),u.setAttribute("role",m())}),b=q(()=>{u.setAttribute("aria-selected",d.selected()?"true":"false")}),w=q(()=>{u.setAttribute("aria-disabled",d.disabled()?"true":"false")}),r=q(()=>{let L=d.tileEl();if(!L)return;let f=d.interactive(),t=d.disabled();if(f&&!t)L.setAttribute("tabindex","0");else L.removeAttribute("tabindex")}),M=()=>{if(d.disabled()||!d.interactive())return!1;let L=new CustomEvent("sui-select",{detail:{},bubbles:!0,composed:!0,cancelable:!0});return u.dispatchEvent(L),L.defaultPrevented},y=(L)=>{if(!d.interactive())return;if(M()&&d.navigable())L.preventDefault()},E=(L)=>{if(!d.interactive()||d.disabled())return;if(d.navigable()&&L.key==="Enter")return;if(L.key==="Enter"||L.key===" ")L.preventDefault(),M()},l=q(()=>{let L=d.tileEl();if(!L)return;return L.addEventListener("click",y),L.addEventListener("keydown",E),()=>{L.removeEventListener("click",y),L.removeEventListener("keydown",E)}});return()=>{n(),b(),w(),r(),l()}}});var Gr=Q("sui-list-tile",{props:{variant:P.string({default:"row",reflect:!0}),interactive:P.bool({default:!1,reflect:!0}),navigable:P.string({default:"",reflect:!0}),selected:P.bool({default:!1,reflect:!0}),disabled:P.bool({default:!1,reflect:!0}),density:P.string({default:"normal",reflect:!0}),tone:P.string({default:"default",reflect:!0}),target:P.string({default:"",reflect:!0}),rel:P.string({default:"",reflect:!0})},shadow:!0,styles:`
   :host {
     display: block;
     --pad-y: 10px;
@@ -10618,244 +4117,46 @@ var sui_list_tile_default = component49("sui-list-tile", {
     display: inline-flex;
     align-items: center;
   }
-`,
-  setup(ctx) {
-    const { props, host } = ctx;
-    if (!ctx.cleanups)
-      ctx.cleanups = [];
-    const __cleanups = ctx.cleanups;
-    const $scope = Object.create(null);
-    $scope.variant = props.variant;
-    $scope.interactive = props.interactive;
-    $scope.navigable = props.navigable;
-    $scope.selected = props.selected;
-    $scope.disabled = props.disabled;
-    $scope.density = props.density;
-    $scope.tone = props.tone;
-    $scope.target = props.target;
-    $scope.rel = props.rel;
-    let __r = null;
-    if (sui_list_tile_controller_default && typeof sui_list_tile_controller_default.setup === "function") {
-      ctx.scope = $scope;
-      __r = sui_list_tile_controller_default.setup(ctx);
-      if (__r && typeof __r === "object")
-        Object.assign($scope, __r);
-    }
-    const __wireBoundary_b0 = (anchor) => bindIf12({
-      anchor,
-      test: () => {
-        if ($scope.navigable())
-          return 0;
-        return 1;
-      },
-      branches: [
-        () => {
-          const __frag1 = document.createDocumentFragment();
-          const __c2 = [];
-          const __e3 = document.createElement("a");
-          __e3.setAttribute("class", "tile");
-          __e3.setAttribute("part", "button");
-          attachRef26($scope, "tileEl", __e3);
-          __c2.push(bindAttr26(__e3, "href", () => $scope.navigable()));
-          __c2.push(bindAttr26(__e3, "target", () => $scope.target() || null));
-          __c2.push(bindAttr26(__e3, "rel", () => $scope.rel() || null));
-          const __e4 = document.createElement("div");
-          __e4.setAttribute("class", "row");
-          __e4.setAttribute("part", "row");
-          const __e5 = document.createElement("slot");
-          __e5.setAttribute("name", "leading");
-          __e4.appendChild(__e5);
-          const __e6 = document.createElement("span");
-          __e6.setAttribute("class", "primary");
-          __e6.setAttribute("part", "primary");
-          const __e7 = document.createElement("slot");
-          __e6.appendChild(__e7);
-          __e4.appendChild(__e6);
-          const __e8 = document.createElement("span");
-          __e8.setAttribute("part", "trailing");
-          const __e9 = document.createElement("slot");
-          __e9.setAttribute("name", "trailing");
-          __e8.appendChild(__e9);
-          __e4.appendChild(__e8);
-          __e3.appendChild(__e4);
-          const __e10 = document.createElement("div");
-          __e10.setAttribute("class", "secondary");
-          __e10.setAttribute("part", "secondary");
-          const __e11 = document.createElement("slot");
-          __e11.setAttribute("name", "meta");
-          __e10.appendChild(__e11);
-          __e3.appendChild(__e10);
-          __frag1.appendChild(__e3);
-          return { nodes: Array.from(__frag1.childNodes), cleanup: () => {
-            for (const c of __c2)
-              try {
-                c();
-              } catch (e) {}
-          } };
-        },
-        () => {
-          const __frag12 = document.createDocumentFragment();
-          const __c13 = [];
-          const __e14 = document.createElement("div");
-          __e14.setAttribute("class", "tile");
-          __e14.setAttribute("part", "button");
-          attachRef26($scope, "tileEl", __e14);
-          const __e15 = document.createElement("div");
-          __e15.setAttribute("class", "row");
-          __e15.setAttribute("part", "row");
-          const __e16 = document.createElement("slot");
-          __e16.setAttribute("name", "leading");
-          __e15.appendChild(__e16);
-          const __e17 = document.createElement("span");
-          __e17.setAttribute("class", "primary");
-          __e17.setAttribute("part", "primary");
-          const __e18 = document.createElement("slot");
-          __e17.appendChild(__e18);
-          __e15.appendChild(__e17);
-          const __e19 = document.createElement("span");
-          __e19.setAttribute("part", "trailing");
-          const __e20 = document.createElement("slot");
-          __e20.setAttribute("name", "trailing");
-          __e19.appendChild(__e20);
-          __e15.appendChild(__e19);
-          __e14.appendChild(__e15);
-          const __e21 = document.createElement("div");
-          __e21.setAttribute("class", "secondary");
-          __e21.setAttribute("part", "secondary");
-          const __e22 = document.createElement("slot");
-          __e22.setAttribute("name", "meta");
-          __e21.appendChild(__e22);
-          __e14.appendChild(__e21);
-          __frag12.appendChild(__e14);
-          return { nodes: Array.from(__frag12.childNodes), cleanup: () => {
-            for (const c of __c13)
-              try {
-                c();
-              } catch (e) {}
-          } };
-        }
-      ]
-    });
-    const __root = host.shadowRoot ?? host;
-    adoptSuiSheets49(__root);
-    const __ifAnchor0 = document.createComment("if");
-    __root.appendChild(__ifAnchor0);
-    __cleanups.push(__wireBoundary_b0(__ifAnchor0));
-    if (__r != null) {
-      const __lc = Object.getOwnPropertyDescriptor(__r, "__shipSetLifecycle")?.value;
-      if (__lc) {
-        const __sp = new Proxy($scope, {
-          get(t, k) {
-            return t[k];
-          },
-          set(t, k, v) {
-            const s = t[k];
-            if (s != null && typeof s.set === "function") {
-              if (typeof v === "function") {
-                s.set(() => v);
-              } else {
-                s.set(v);
-              }
-              return true;
-            }
-            return false;
-          }
-        });
-        if (__lc.mount) {
-          const __mc = __lc.mount(__sp, host);
-          if (typeof __mc === "function")
-            __cleanups.push(__mc);
-        }
-        if (__lc.unmount)
-          __cleanups.push(() => __lc.unmount(__sp));
-      }
-    }
-    return $scope;
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.variant=u.variant,n.interactive=u.interactive,n.navigable=u.navigable,n.selected=u.selected,n.disabled=u.disabled,n.density=u.density,n.tone=u.tone,n.target=u.target,n.rel=u.rel,n.tileEl=G(null);let b=null;if(_i&&typeof _i.setup==="function"){if(i.scope=n,b=_i.setup(i),b&&typeof b==="object")Object.assign(n,b)}let w=(y)=>R({anchor:y,test:()=>{if(n.navigable())return 0;return 1},branches:[()=>{let E=document.createDocumentFragment(),l=[],L=document.createElement("a");L.setAttribute("class","tile"),L.setAttribute("part","button"),O(n,"tileEl",L),l.push(T(L,"href",()=>n.navigable())),l.push(T(L,"target",()=>n.target()||null)),l.push(T(L,"rel",()=>n.rel()||null));let f=document.createElement("div");f.setAttribute("class","row"),f.setAttribute("part","row");let t=document.createElement("slot");t.setAttribute("name","leading"),f.appendChild(t);let H=document.createElement("span");H.setAttribute("class","primary"),H.setAttribute("part","primary");let C=document.createElement("slot");H.appendChild(C),f.appendChild(H);let z=document.createElement("span");z.setAttribute("part","trailing");let j=document.createElement("slot");j.setAttribute("name","trailing"),z.appendChild(j),f.appendChild(z),L.appendChild(f);let g=document.createElement("div");g.setAttribute("class","secondary"),g.setAttribute("part","secondary");let J=document.createElement("slot");return J.setAttribute("name","meta"),g.appendChild(J),L.appendChild(g),E.appendChild(L),{nodes:Array.from(E.childNodes),cleanup:()=>{for(let D of l)try{D()}catch(Z){}}}},()=>{let E=document.createDocumentFragment(),l=[],L=document.createElement("div");L.setAttribute("class","tile"),L.setAttribute("part","button"),O(n,"tileEl",L);let f=document.createElement("div");f.setAttribute("class","row"),f.setAttribute("part","row");let t=document.createElement("slot");t.setAttribute("name","leading"),f.appendChild(t);let H=document.createElement("span");H.setAttribute("class","primary"),H.setAttribute("part","primary");let C=document.createElement("slot");H.appendChild(C),f.appendChild(H);let z=document.createElement("span");z.setAttribute("part","trailing");let j=document.createElement("slot");j.setAttribute("name","trailing"),z.appendChild(j),f.appendChild(z),L.appendChild(f);let g=document.createElement("div");g.setAttribute("class","secondary"),g.setAttribute("part","secondary");let J=document.createElement("slot");return J.setAttribute("name","meta"),g.appendChild(J),L.appendChild(g),E.appendChild(L),{nodes:Array.from(E.childNodes),cleanup:()=>{for(let D of l)try{D()}catch(Z){}}}}]}),r=d.shadowRoot??d;V(r);let M=document.createComment("if");if(r.appendChild(M),m.push(w(M)),b!=null){let y=Object.getOwnPropertyDescriptor(b,"__shipSetLifecycle")?.value;if(y){let E=new Proxy(n,{get(l,L){return l[L]},set(l,L,f){let t=l[L];if(t!=null&&typeof t.set==="function"){if(typeof f==="function")t.set(()=>f);else t.set(f);return!0}return!1}});if(y.mount){let l=y.mount(E,d);if(typeof l==="function")m.push(l)}if(y.unmount)m.push(()=>y.unmount(E))}}return n}});var n0=U({scope:(i,u)=>{let d=G(null),m=G(!1);return{caughtError:d,hasFallbackSlot:m,reset:()=>{if(d.set(null),u instanceof HTMLElement)u.removeAttribute("data-error-message")}}},mount(i,u){let d=u.querySelectorAll(':scope > template[slot="fallback"]');for(let m of Array.from(d)){let n=document.createElement("div");n.setAttribute("slot","fallback"),n.appendChild(m.content.cloneNode(!0)),m.replaceWith(n)}return i.hasFallbackSlot.set(!!u.querySelector(':scope > [slot="fallback"]')),mu(u,{catch(m,n){if(i.caughtError()!==null)return;let b=m instanceof Error?m:Error(String(m));u.setAttribute("data-error-message",b.message),i.caughtError.set(b),u.dispatchEvent(new CustomEvent("sui-error-boundary:caught",{bubbles:!0,composed:!0,detail:{error:b,source:n}}))},reset:i.reset}),u.reset=i.reset,()=>{bu(u),delete u.reset}}});var qr=Q("sui-error-boundary",{props:{"fallback-text":P.string({default:""})},shadow:!0,styles:`
+  :host {
+    display: block;
+    font-family: var(--font-body);
   }
-});
 
-// packages/ui-components/src/sui-error-state/sui-error-state.sui
-import { adoptSuiSheets as adoptSuiSheets50, attachRef as attachRef27, bindAttr as bindAttr27, bindText as bindText12, component as component50, prop as prop50 } from "@ship/sui-runtime";
-
-// packages/ui-components/src/sui-error-state/sui-error-state.controller.ts
-import { controller as controller33, effect as effect33 } from "@ship/sui-runtime";
-var sui_error_state_controller_default = controller33({
-  mount(state, host) {
-    const scope = state;
-    let detailsOpen = false;
-    const updateToggleLabel = (btn) => {
-      btn.textContent = detailsOpen ? "Hide details" : "Show details";
-      btn.setAttribute("aria-expanded", detailsOpen ? "true" : "false");
-    };
-    const stopDetailsSlot = effect33(() => {
-      const slot = scope.detailsSlot();
-      if (!slot)
-        return;
-      const check = () => {
-        const hasContent = slot.assignedNodes({ flatten: true }).some((n) => n.nodeType === Node.ELEMENT_NODE || n.nodeType === Node.TEXT_NODE && (n.textContent ?? "").trim().length > 0);
-        if (hasContent) {
-          host.setAttribute("data-has-details", "");
-        } else {
-          host.removeAttribute("data-has-details");
-          host.removeAttribute("data-details-open");
-          detailsOpen = false;
-          const btn = scope.detailsToggleBtn();
-          if (btn)
-            updateToggleLabel(btn);
-        }
-      };
-      slot.addEventListener("slotchange", check);
-      check();
-      return () => slot.removeEventListener("slotchange", check);
-    });
-    const stopToggleInit = effect33(() => {
-      const btn = scope.detailsToggleBtn();
-      if (!btn)
-        return;
-      updateToggleLabel(btn);
-      const onClick = () => {
-        detailsOpen = !detailsOpen;
-        if (detailsOpen) {
-          host.setAttribute("data-details-open", "");
-        } else {
-          host.removeAttribute("data-details-open");
-        }
-        updateToggleLabel(btn);
-      };
-      btn.addEventListener("click", onClick);
-      return () => btn.removeEventListener("click", onClick);
-    });
-    const stopActionSlot = effect33(() => {
-      const slot = scope.actionSlot();
-      if (!slot)
-        return;
-      const onSlotChange = () => {
-        const retry = slot.assignedElements().find((el) => el.getAttribute("slot") === "retry");
-        if (retry)
-          requestAnimationFrame(() => retry.focus?.());
-      };
-      slot.addEventListener("slotchange", onSlotChange);
-      return () => slot.removeEventListener("slotchange", onSlotChange);
-    });
-    return () => {
-      stopDetailsSlot();
-      stopToggleInit();
-      stopActionSlot();
-    };
+  .fallback {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-2, 8px);
+    padding: var(--space-3, 12px) var(--space-4, 16px);
+    border: 1px solid color-mix(in oklch, var(--destructive) 30%, var(--border));
+    border-radius: var(--radius);
+    background: color-mix(in oklch, var(--destructive) 6%, var(--background));
+    color: var(--foreground);
+    font-size: var(--text-sm, 13px);
   }
-});
 
-// packages/ui-components/src/sui-error-state/sui-error-state.sui
-var sui_error_state_default = component50("sui-error-state", {
-  props: {
-    title: prop50.string({ default: "" }),
-    body: prop50.string({ default: "" }),
-    size: prop50.union(["sm", "md", "lg"], { default: "md", reflect: true }),
-    variant: prop50.union(["default", "inline"], { default: "default", reflect: true }),
-    icon: prop50.string({ default: "alert-circle" })
-  },
-  shadow: true,
-  styles: `
+  .message {
+    color: var(--muted-foreground);
+  }
+
+  .retry {
+    appearance: none;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 4px 10px;
+    font: inherit;
+    font-size: var(--text-xs, 12px);
+    color: var(--foreground);
+    cursor: pointer;
+  }
+  .retry:hover {
+    background: var(--muted);
+  }
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.fallbackText=u.fallbackText;let b=null;if(n0&&typeof n0.setup==="function"){if(i.scope=n,b=n0.setup(i),b&&typeof b==="object")Object.assign(n,b)}let w=(E)=>R({anchor:E,test:()=>{if(n.hasFallbackSlot())return 0;return 1},branches:[()=>{let l=document.createDocumentFragment(),L=[],f=document.createElement("slot");return f.setAttribute("name","fallback"),l.appendChild(f),{nodes:Array.from(l.childNodes),cleanup:()=>{for(let t of L)try{t()}catch(H){}}}},()=>{let l=document.createDocumentFragment(),L=[],f=document.createElement("div");f.setAttribute("class","fallback"),f.setAttribute("part","fallback"),f.setAttribute("role","alert");let t=document.createElement("div");t.setAttribute("class","message"),t.setAttribute("part","message");let H=document.createTextNode("");t.appendChild(H),L.push(S(H,()=>n.fallbackText()||"Something went wrong")),f.appendChild(t);let C=document.createElement("button");C.setAttribute("class","retry"),C.setAttribute("part","retry"),C.setAttribute("type","button"),L.push(p(C,"click",function(){let j=n.reset;return typeof j==="function"?j.bind(void 0):()=>{}}(),{modifiers:[]}));let z=document.createTextNode("Retry");return C.appendChild(z),f.appendChild(C),l.appendChild(f),{nodes:Array.from(l.childNodes),cleanup:()=>{for(let j of L)try{j()}catch(g){}}}}]}),r=(E)=>R({anchor:E,test:()=>{if(n.caughtError()===null)return 0;return 1},branches:[()=>{let l=document.createDocumentFragment(),L=[],f=document.createElement("slot");return l.appendChild(f),{nodes:Array.from(l.childNodes),cleanup:()=>{for(let t of L)try{t()}catch(H){}}}},()=>{let l=document.createDocumentFragment(),L=[],f=document.createComment("if");return l.appendChild(f),L.push(w(f)),{nodes:Array.from(l.childNodes),cleanup:()=>{for(let t of L)try{t()}catch(H){}}}}]}),M=d.shadowRoot??d;V(M);let y=document.createComment("if");if(M.appendChild(y),m.push(r(y)),b!=null){let E=Object.getOwnPropertyDescriptor(b,"__shipSetLifecycle")?.value;if(E){let l=new Proxy(n,{get(L,f){return L[f]},set(L,f,t){let H=L[f];if(H!=null&&typeof H.set==="function"){if(typeof t==="function")H.set(()=>t);else H.set(t);return!0}return!1}});if(E.mount){let L=E.mount(l,d);if(typeof L==="function")m.push(L)}if(E.unmount)m.push(()=>E.unmount(l))}}return n}});var i0=U({mount(i,u){let d=i,m=[],n=null,b=()=>{let L=d.target()||"body",f=document.querySelector(L);if(!f)return console.warn(`[sui-portal] target "${L}" not found in document`),null;return f},w=(L)=>{let f=d.portalSlot(),t=f?f.assignedNodes():Array.from(u.childNodes);for(let H of t)if(L.appendChild(H),!m.includes(H))m.push(H)},r=(L)=>{for(let f of m)L.appendChild(f)},M=()=>{for(let L of m)if(L.parentNode)L.parentNode.removeChild(L);m.length=0},y=q(()=>{let L=b();if(!L){n=null;return}if(n===null)w(L);else if(n!==L)r(L);n=L}),E=d.portalSlot(),l=()=>{if(!n||!E)return;for(let L of E.assignedNodes())if(!m.includes(L))n.appendChild(L),m.push(L)};if(E)E.addEventListener("slotchange",l);return()=>{if(y(),E)E.removeEventListener("slotchange",l);M()}}});var Kr=Q("sui-portal",{props:{target:P.string({default:"body"})},shadow:!0,styles:`
+  :host { display: none; }
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.target=u.target,n.portalSlot=G(null);let b=null;if(i0&&typeof i0.setup==="function"){if(i.scope=n,b=i0.setup(i),b&&typeof b==="object")Object.assign(n,b)}let w=d.shadowRoot??d;V(w);let r=document.createElement("slot");if(O(n,"portalSlot",r),w.appendChild(r),b!=null){let M=Object.getOwnPropertyDescriptor(b,"__shipSetLifecycle")?.value;if(M){let y=new Proxy(n,{get(E,l){return E[l]},set(E,l,L){let f=E[l];if(f!=null&&typeof f.set==="function"){if(typeof L==="function")f.set(()=>L);else f.set(L);return!0}return!1}});if(M.mount){let E=M.mount(y,d);if(typeof E==="function")m.push(E)}if(M.unmount)m.push(()=>M.unmount(y))}}return n}});var u0=U({mount(i,u){let d=i,m=!1,n=(M)=>{M.textContent=m?"Hide details":"Show details",M.setAttribute("aria-expanded",m?"true":"false")},b=q(()=>{let M=d.detailsSlot();if(!M)return;let y=()=>{if(M.assignedNodes({flatten:!0}).some((l)=>l.nodeType===Node.ELEMENT_NODE||l.nodeType===Node.TEXT_NODE&&(l.textContent??"").trim().length>0))u.setAttribute("data-has-details","");else{u.removeAttribute("data-has-details"),u.removeAttribute("data-details-open"),m=!1;let l=d.detailsToggleBtn();if(l)n(l)}};return M.addEventListener("slotchange",y),y(),()=>M.removeEventListener("slotchange",y)}),w=q(()=>{let M=d.detailsToggleBtn();if(!M)return;n(M);let y=()=>{if(m=!m,m)u.setAttribute("data-details-open","");else u.removeAttribute("data-details-open");n(M)};return M.addEventListener("click",y),()=>M.removeEventListener("click",y)}),r=q(()=>{let M=d.actionSlot();if(!M)return;let y=()=>{let E=M.assignedElements().find((l)=>l.getAttribute("slot")==="retry");if(E)requestAnimationFrame(()=>E.focus?.())};return M.addEventListener("slotchange",y),()=>M.removeEventListener("slotchange",y)});return()=>{b(),w(),r()}}});var ar=Q("sui-error-state",{props:{title:P.string({default:""}),body:P.string({default:""}),size:P.union(["sm","md","lg"],{default:"md",reflect:!0}),variant:P.union(["default","inline"],{default:"default",reflect:!0}),icon:P.string({default:"alert-circle"})},shadow:!0,styles:`
   :host {
     display: block;
     font-family: var(--font-body);
@@ -10999,169 +4300,7 @@ var sui_error_state_default = component50("sui-error-state", {
     .box { border-color: CanvasText; }
     .icon { background: Canvas; color: CanvasText; }
   }
-`,
-  setup(ctx) {
-    const { props, host } = ctx;
-    if (!ctx.cleanups)
-      ctx.cleanups = [];
-    const __cleanups = ctx.cleanups;
-    const $scope = Object.create(null);
-    $scope.title = props.title;
-    $scope.body = props.body;
-    $scope.size = props.size;
-    $scope.variant = props.variant;
-    $scope.icon = props.icon;
-    let __r = null;
-    if (sui_error_state_controller_default && typeof sui_error_state_controller_default.setup === "function") {
-      ctx.scope = $scope;
-      __r = sui_error_state_controller_default.setup(ctx);
-      if (__r && typeof __r === "object")
-        Object.assign($scope, __r);
-    }
-    const __root = host.shadowRoot ?? host;
-    adoptSuiSheets50(__root);
-    const __e0 = document.createElement("div");
-    __e0.setAttribute("class", "box");
-    __e0.setAttribute("part", "box");
-    __e0.setAttribute("role", "alert");
-    const __e1 = document.createElement("div");
-    __e1.setAttribute("class", "icon");
-    __e1.setAttribute("part", "icon");
-    __e1.setAttribute("aria-hidden", "true");
-    const __e2 = document.createElement("sui-icon");
-    __cleanups.push(bindAttr27(__e2, "name", () => $scope.icon()));
-    __e2.setAttribute("size", "md");
-    __e1.appendChild(__e2);
-    __e0.appendChild(__e1);
-    const __e3 = document.createElement("div");
-    __e3.setAttribute("class", "copy");
-    const __e4 = document.createElement("div");
-    __e4.setAttribute("class", "title");
-    __e4.setAttribute("part", "title");
-    const __e5 = document.createElement("slot");
-    __e5.setAttribute("name", "title");
-    const __t6 = document.createTextNode("");
-    __e5.appendChild(__t6);
-    __cleanups.push(bindText12(__t6, () => $scope.title() || "Something went wrong"));
-    __e4.appendChild(__e5);
-    __e3.appendChild(__e4);
-    const __e7 = document.createElement("div");
-    __e7.setAttribute("class", "desc");
-    __e7.setAttribute("part", "desc");
-    const __e8 = document.createElement("slot");
-    const __t9 = document.createTextNode("");
-    __e8.appendChild(__t9);
-    __cleanups.push(bindText12(__t9, () => $scope.body()));
-    __e7.appendChild(__e8);
-    __e3.appendChild(__e7);
-    const __e10 = document.createElement("button");
-    __e10.setAttribute("class", "details-toggle");
-    attachRef27($scope, "detailsToggleBtn", __e10);
-    __e10.setAttribute("type", "button");
-    __e3.appendChild(__e10);
-    const __e11 = document.createElement("div");
-    __e11.setAttribute("class", "details");
-    attachRef27($scope, "detailsPanel", __e11);
-    const __e12 = document.createElement("slot");
-    __e12.setAttribute("name", "details");
-    attachRef27($scope, "detailsSlot", __e12);
-    __e11.appendChild(__e12);
-    __e3.appendChild(__e11);
-    __e0.appendChild(__e3);
-    const __e13 = document.createElement("div");
-    __e13.setAttribute("class", "actions");
-    __e13.setAttribute("part", "actions");
-    const __e14 = document.createElement("slot");
-    __e14.setAttribute("name", "action");
-    attachRef27($scope, "actionSlot", __e14);
-    __e13.appendChild(__e14);
-    __e0.appendChild(__e13);
-    __root.appendChild(__e0);
-    if (__r != null) {
-      const __lc = Object.getOwnPropertyDescriptor(__r, "__shipSetLifecycle")?.value;
-      if (__lc) {
-        const __sp = new Proxy($scope, {
-          get(t, k) {
-            return t[k];
-          },
-          set(t, k, v) {
-            const s = t[k];
-            if (s != null && typeof s.set === "function") {
-              if (typeof v === "function") {
-                s.set(() => v);
-              } else {
-                s.set(v);
-              }
-              return true;
-            }
-            return false;
-          }
-        });
-        if (__lc.mount) {
-          const __mc = __lc.mount(__sp, host);
-          if (typeof __mc === "function")
-            __cleanups.push(__mc);
-        }
-        if (__lc.unmount)
-          __cleanups.push(() => __lc.unmount(__sp));
-      }
-    }
-    return $scope;
-  }
-});
-
-// packages/ui-components/src/sui-stepper/sui-stepper.sui
-import { adoptSuiSheets as adoptSuiSheets51, attachRef as attachRef28, component as component51, prop as prop51 } from "@ship/sui-runtime";
-
-// packages/ui-components/src/sui-stepper/sui-stepper.controller.ts
-import { controller as controller34, effect as effect34 } from "@ship/sui-runtime";
-var sui_stepper_controller_default = controller34({
-  mount(state, host) {
-    const scope = state;
-    if (!host.hasAttribute("role"))
-      host.setAttribute("role", "progressbar");
-    const stopEffect = effect34(() => {
-      const t = Math.max(1, Math.floor(scope.total() || 0));
-      const c = Math.max(1, Math.min(t, Math.floor(scope.current() || 1)));
-      const label = scope.label();
-      host.setAttribute("aria-valuemin", "1");
-      host.setAttribute("aria-valuemax", String(t));
-      host.setAttribute("aria-valuenow", String(c));
-      if (label) {
-        host.setAttribute("aria-label", label);
-      } else {
-        host.setAttribute("aria-label", `Step ${c} of ${t}`);
-      }
-      const container = scope.dotsEl();
-      if (!container)
-        return;
-      container.textContent = "";
-      for (let i = 1;i <= t; i++) {
-        const dot = document.createElement("span");
-        dot.className = "dot";
-        dot.setAttribute("part", "dot");
-        dot.setAttribute("data-state", i === c ? "active" : i < c ? "done" : "pending");
-        dot.setAttribute("aria-hidden", "true");
-        container.appendChild(dot);
-      }
-    });
-    return () => {
-      stopEffect();
-    };
-  }
-});
-
-// packages/ui-components/src/sui-stepper/sui-stepper.sui
-var sui_stepper_default = component51("sui-stepper", {
-  props: {
-    total: prop51.number({ default: 4, reflect: true }),
-    current: prop51.number({ default: 1, reflect: true }),
-    tone: prop51.string({ default: "", reflect: true }),
-    size: prop51.union(["sm", "md", "lg"], { default: "md", reflect: true }),
-    label: prop51.string({ default: "" })
-  },
-  shadow: true,
-  styles: `
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.title=u.title,n.body=u.body,n.size=u.size,n.variant=u.variant,n.icon=u.icon,n.actionSlot=G(null),n.detailsPanel=G(null),n.detailsSlot=G(null),n.detailsToggleBtn=G(null);let b=null;if(u0&&typeof u0.setup==="function"){if(i.scope=n,b=u0.setup(i),b&&typeof b==="object")Object.assign(n,b)}let w=d.shadowRoot??d;V(w);let r=document.createElement("div");r.setAttribute("class","box"),r.setAttribute("part","box"),r.setAttribute("role","alert");let M=document.createElement("div");M.setAttribute("class","icon"),M.setAttribute("part","icon"),M.setAttribute("aria-hidden","true");let y=document.createElement("sui-icon");m.push(T(y,"name",()=>n.icon())),y.setAttribute("size","md"),M.appendChild(y),r.appendChild(M);let E=document.createElement("div");E.setAttribute("class","copy");let l=document.createElement("div");l.setAttribute("class","title"),l.setAttribute("part","title");let L=document.createElement("slot");L.setAttribute("name","title");let f=document.createTextNode("");L.appendChild(f),m.push(S(f,()=>n.title()||"Something went wrong")),l.appendChild(L),E.appendChild(l);let t=document.createElement("div");t.setAttribute("class","desc"),t.setAttribute("part","desc");let H=document.createElement("slot"),C=document.createTextNode("");H.appendChild(C),m.push(S(C,()=>n.body())),t.appendChild(H),E.appendChild(t);let z=document.createElement("button");z.setAttribute("class","details-toggle"),O(n,"detailsToggleBtn",z),z.setAttribute("type","button"),E.appendChild(z);let j=document.createElement("div");j.setAttribute("class","details"),O(n,"detailsPanel",j);let g=document.createElement("slot");g.setAttribute("name","details"),O(n,"detailsSlot",g),j.appendChild(g),E.appendChild(j),r.appendChild(E);let J=document.createElement("div");J.setAttribute("class","actions"),J.setAttribute("part","actions");let D=document.createElement("slot");if(D.setAttribute("name","action"),O(n,"actionSlot",D),J.appendChild(D),r.appendChild(J),w.appendChild(r),b!=null){let Z=Object.getOwnPropertyDescriptor(b,"__shipSetLifecycle")?.value;if(Z){let X=new Proxy(n,{get(W,Y){return W[Y]},set(W,Y,N){let F=W[Y];if(F!=null&&typeof F.set==="function"){if(typeof N==="function")F.set(()=>N);else F.set(N);return!0}return!1}});if(Z.mount){let W=Z.mount(X,d);if(typeof W==="function")m.push(W)}if(Z.unmount)m.push(()=>Z.unmount(X))}}return n}});var d0=U({mount(i,u){let d=i;if(!u.hasAttribute("role"))u.setAttribute("role","progressbar");let m=q(()=>{let n=Math.max(1,Math.floor(d.total()||0)),b=Math.max(1,Math.min(n,Math.floor(d.current()||1))),w=d.label();if(u.setAttribute("aria-valuemin","1"),u.setAttribute("aria-valuemax",String(n)),u.setAttribute("aria-valuenow",String(b)),w)u.setAttribute("aria-label",w);else u.setAttribute("aria-label",`Step ${b} of ${n}`);let r=d.dotsEl();if(!r)return;let M=[];for(let y=1;y<=n;y++){let E=document.createElement("span");E.className="dot",E.setAttribute("part","dot"),E.setAttribute("data-state",y===b?"active":y<b?"done":"pending"),E.setAttribute("aria-hidden","true"),M.push(E)}r.replaceChildren(...M)});return()=>{m()}}});var sr=Q("sui-stepper",{props:{total:P.number({default:4,reflect:!0}),current:P.number({default:1,reflect:!0}),tone:P.string({default:"",reflect:!0}),size:P.union(["sm","md","lg"],{default:"md",reflect:!0}),label:P.string({default:""})},shadow:!0,styles:`
   :host {
     display: inline-flex;
     align-items: center;
@@ -11212,191 +4351,41 @@ var sui_stepper_default = component51("sui-stepper", {
   @media (prefers-reduced-motion: reduce) {
     .dot { transition: none; }
   }
-`,
-  setup(ctx) {
-    const { props, host } = ctx;
-    if (!ctx.cleanups)
-      ctx.cleanups = [];
-    const __cleanups = ctx.cleanups;
-    const $scope = Object.create(null);
-    $scope.total = props.total;
-    $scope.current = props.current;
-    $scope.tone = props.tone;
-    $scope.size = props.size;
-    $scope.label = props.label;
-    let __r = null;
-    if (sui_stepper_controller_default && typeof sui_stepper_controller_default.setup === "function") {
-      ctx.scope = $scope;
-      __r = sui_stepper_controller_default.setup(ctx);
-      if (__r && typeof __r === "object")
-        Object.assign($scope, __r);
-    }
-    const __root = host.shadowRoot ?? host;
-    adoptSuiSheets51(__root);
-    const __e0 = document.createElement("div");
-    __e0.setAttribute("class", "dots");
-    attachRef28($scope, "dotsEl", __e0);
-    __root.appendChild(__e0);
-    if (__r != null) {
-      const __lc = Object.getOwnPropertyDescriptor(__r, "__shipSetLifecycle")?.value;
-      if (__lc) {
-        const __sp = new Proxy($scope, {
-          get(t, k) {
-            return t[k];
-          },
-          set(t, k, v) {
-            const s = t[k];
-            if (s != null && typeof s.set === "function") {
-              if (typeof v === "function") {
-                s.set(() => v);
-              } else {
-                s.set(v);
-              }
-              return true;
-            }
-            return false;
-          }
-        });
-        if (__lc.mount) {
-          const __mc = __lc.mount(__sp, host);
-          if (typeof __mc === "function")
-            __cleanups.push(__mc);
-        }
-        if (__lc.unmount)
-          __cleanups.push(() => __lc.unmount(__sp));
-      }
-    }
-    return $scope;
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.total=u.total,n.current=u.current,n.tone=u.tone,n.size=u.size,n.label=u.label,n.dotsEl=G(null);let b=null;if(d0&&typeof d0.setup==="function"){if(i.scope=n,b=d0.setup(i),b&&typeof b==="object")Object.assign(n,b)}let w=d.shadowRoot??d;V(w);let r=document.createElement("div");if(r.setAttribute("class","dots"),O(n,"dotsEl",r),w.appendChild(r),b!=null){let M=Object.getOwnPropertyDescriptor(b,"__shipSetLifecycle")?.value;if(M){let y=new Proxy(n,{get(E,l){return E[l]},set(E,l,L){let f=E[l];if(f!=null&&typeof f.set==="function"){if(typeof L==="function")f.set(()=>L);else f.set(L);return!0}return!1}});if(M.mount){let E=M.mount(y,d);if(typeof E==="function")m.push(E)}if(M.unmount)m.push(()=>M.unmount(y))}}return n}});var sm=new Set(["done","failed","pending","running"]);function em(i){return i.split(",").map((u)=>u.trim().toLowerCase()).filter((u)=>u.length>0).map((u)=>sm.has(u)?u:"pending")}var m0=U({scope:()=>({segments:G([]),ariaLabel:G(null)}),mount(i,u){let d=q(()=>{let m=em(i.values()||"");i.segments.set(m.map((n,b)=>({id:`s${b}`,state:n}))),i.ariaLabel.set(m.length===0?null:`${m.length} step outcome${m.length===1?"":"s"}`)});return()=>d()}});var iM=Q("sui-step-segments",{props:{values:P.string({default:"",reflect:!0}),size:P.union(["sm","md"],{default:"sm",reflect:!0})},shadow:!0,styles:`
+  :host { display: inline-flex; vertical-align: middle; }
+
+  .row { display: inline-flex; gap: 3px; align-items: center; }
+  .row:empty { display: none; }
+
+  .seg {
+    display: inline-block;
+    width: 18px;
+    height: 6px;
+    border-radius: 2px;
+    background: color-mix(in oklch, var(--muted-foreground) 28%, transparent);
   }
-});
 
-// packages/ui-components/src/sui-timeline/sui-timeline.sui
-import { adoptSuiSheets as adoptSuiSheets52, component as component52 } from "@ship/sui-runtime";
+  :host([size='md']) .seg { width: 24px; height: 8px; border-radius: 3px; }
 
-// packages/ui-components/src/sui-timeline/sui-timeline.controller.ts
-import { controller as controller35 } from "@ship/sui-runtime";
-var sui_timeline_controller_default = controller35({
-  mount(_state, host) {
-    if (!host.hasAttribute("role"))
-      host.setAttribute("role", "list");
+  .seg[data-state='done']    { background: var(--success); }
+  .seg[data-state='failed']  { background: var(--destructive); }
+  .seg[data-state='running'] {
+    background: var(--warning);
+    animation: sui-step-segments-pulse var(--duration-slow, 1200ms) ease-in-out infinite;
   }
-});
 
-// packages/ui-components/src/sui-timeline/sui-timeline.sui
-var sui_timeline_default = component52("sui-timeline", {
-  shadow: true,
-  styles: `
+  @keyframes sui-step-segments-pulse {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: 0.55; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .seg[data-state='running'] { animation: none; }
+  }
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.values=u.values,n.size=u.size;let b=null;if(m0&&typeof m0.setup==="function"){if(i.scope=n,b=m0.setup(i),b&&typeof b==="object")Object.assign(n,b)}let w=(E)=>s({anchor:E,items:()=>n.segments(),key:(l,L)=>{let f=Object.create(n);return f.seg=l,f.__i=L,((t)=>l.id)(f)},render:(l,L)=>{let f=Object.create(n);return f.seg=l,f.__i=L,f.__v=G(0),((t)=>{let H=document.createDocumentFragment(),C=[],z=document.createElement("span");z.setAttribute("class","seg"),z.setAttribute("part","seg");{let j=t.seg.state;if(j==null||j===!1||j==="")z.removeAttribute("data-state");else z.setAttribute("data-state",j===!0?"":String(j))}return H.appendChild(z),{nodes:Array.from(H.childNodes),cleanup:()=>{for(let j of C)try{j()}catch(g){}},update:(j,g)=>{t.seg=j,t.__i=g;{let J=t.seg.state;if(J==null||J===!1||J==="")z.removeAttribute("data-state");else z.setAttribute("data-state",J===!0?"":String(J))}t.__v.set((J)=>J+1)}}})(f)}}),r=d.shadowRoot??d;V(r);let M=document.createElement("span");M.setAttribute("class","row"),M.setAttribute("part","row"),m.push(T(M,"role",()=>n.segments().length>0?"img":null)),m.push(T(M,"aria-label",()=>n.ariaLabel()));let y=document.createComment("for");if(M.appendChild(y),m.push(w(y)),r.appendChild(M),b!=null){let E=Object.getOwnPropertyDescriptor(b,"__shipSetLifecycle")?.value;if(E){let l=new Proxy(n,{get(L,f){return L[f]},set(L,f,t){let H=L[f];if(H!=null&&typeof H.set==="function"){if(typeof t==="function")H.set(()=>t);else H.set(t);return!0}return!1}});if(E.mount){let L=E.mount(l,d);if(typeof L==="function")m.push(L)}if(E.unmount)m.push(()=>E.unmount(l))}}return n}});var b0=U({mount(i,u){if(!u.hasAttribute("role"))u.setAttribute("role","list")}});var LM=Q("sui-timeline",{shadow:!0,styles:`
   :host { display: block; position: relative; }
   .list { display: flex; flex-direction: column; gap: 4px; }
-`,
-  setup(ctx) {
-    const { props, host } = ctx;
-    if (!ctx.cleanups)
-      ctx.cleanups = [];
-    const __cleanups = ctx.cleanups;
-    const $scope = Object.create(null);
-    let __r = null;
-    if (sui_timeline_controller_default && typeof sui_timeline_controller_default.setup === "function") {
-      ctx.scope = $scope;
-      __r = sui_timeline_controller_default.setup(ctx);
-      if (__r && typeof __r === "object")
-        Object.assign($scope, __r);
-    }
-    const __root = host.shadowRoot ?? host;
-    adoptSuiSheets52(__root);
-    const __e0 = document.createElement("div");
-    __e0.setAttribute("class", "list");
-    __e0.setAttribute("part", "list");
-    const __e1 = document.createElement("slot");
-    __e0.appendChild(__e1);
-    __root.appendChild(__e0);
-    if (__r != null) {
-      const __lc = Object.getOwnPropertyDescriptor(__r, "__shipSetLifecycle")?.value;
-      if (__lc) {
-        const __sp = new Proxy($scope, {
-          get(t, k) {
-            return t[k];
-          },
-          set(t, k, v) {
-            const s = t[k];
-            if (s != null && typeof s.set === "function") {
-              if (typeof v === "function") {
-                s.set(() => v);
-              } else {
-                s.set(v);
-              }
-              return true;
-            }
-            return false;
-          }
-        });
-        if (__lc.mount) {
-          const __mc = __lc.mount(__sp, host);
-          if (typeof __mc === "function")
-            __cleanups.push(__mc);
-        }
-        if (__lc.unmount)
-          __cleanups.push(() => __lc.unmount(__sp));
-      }
-    }
-    return $scope;
-  }
-});
-
-// packages/ui-components/src/sui-timeline/sui-timeline-item.sui
-import { adoptSuiSheets as adoptSuiSheets53, bindIf as bindIf13, bindText as bindText13, component as component53, prop as prop52 } from "@ship/sui-runtime";
-
-// packages/ui-components/src/sui-timeline/sui-timeline-item.controller.ts
-import { controller as controller36, effect as effect35 } from "@ship/sui-runtime";
-var sui_timeline_item_controller_default = controller36({
-  mount(state, host) {
-    const scope = state;
-    if (!host.hasAttribute("role"))
-      host.setAttribute("role", "listitem");
-    const stopRole = effect35(() => {
-      if (scope.interactive()) {
-        host.setAttribute("role", "button");
-        if (!host.hasAttribute("tabindex"))
-          host.setAttribute("tabindex", "0");
-      } else {
-        host.setAttribute("role", "listitem");
-        host.removeAttribute("tabindex");
-      }
-    });
-    const emit = () => {
-      host.dispatchEvent(new CustomEvent("sui-select", { bubbles: true, composed: true, detail: {} }));
-    };
-    const onClick = () => {
-      if (scope.interactive())
-        emit();
-    };
-    const onKeydown = (e) => {
-      if (!scope.interactive())
-        return;
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        emit();
-      }
-    };
-    host.addEventListener("click", onClick);
-    host.addEventListener("keydown", onKeydown);
-    return () => {
-      stopRole();
-      host.removeEventListener("click", onClick);
-      host.removeEventListener("keydown", onKeydown);
-    };
-  }
-});
-
-// packages/ui-components/src/sui-timeline/sui-timeline-item.sui
-var sui_timeline_item_default = component53("sui-timeline-item", {
-  props: {
-    tone: prop52.string({ default: "default", reflect: true }),
-    at: prop52.string({ default: "", reflect: true }),
-    interactive: prop52.bool({ default: false, reflect: true })
-  },
-  shadow: true,
-  styles: `
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null),b=null;if(b0&&typeof b0.setup==="function"){if(i.scope=n,b=b0.setup(i),b&&typeof b==="object")Object.assign(n,b)}let w=d.shadowRoot??d;V(w);let r=document.createElement("div");r.setAttribute("class","list"),r.setAttribute("part","list");let M=document.createElement("slot");if(r.appendChild(M),w.appendChild(r),b!=null){let y=Object.getOwnPropertyDescriptor(b,"__shipSetLifecycle")?.value;if(y){let E=new Proxy(n,{get(l,L){return l[L]},set(l,L,f){let t=l[L];if(t!=null&&typeof t.set==="function"){if(typeof f==="function")t.set(()=>f);else t.set(f);return!0}return!1}});if(y.mount){let l=y.mount(E,d);if(typeof l==="function")m.push(l)}if(y.unmount)m.push(()=>y.unmount(E))}}return n}});var f0=U({mount(i,u){let d=i;if(!u.hasAttribute("role"))u.setAttribute("role","listitem");let m=q(()=>{if(d.interactive()){if(u.setAttribute("role","button"),!u.hasAttribute("tabindex"))u.setAttribute("tabindex","0")}else u.setAttribute("role","listitem"),u.removeAttribute("tabindex")}),n=()=>{u.dispatchEvent(new CustomEvent("sui-select",{bubbles:!0,composed:!0,detail:{}}))},b=()=>{if(d.interactive())n()},w=(r)=>{if(!d.interactive())return;if(r.key==="Enter"||r.key===" ")r.preventDefault(),n()};return u.addEventListener("click",b),u.addEventListener("keydown",w),()=>{m(),u.removeEventListener("click",b),u.removeEventListener("keydown",w)}}});var yM=Q("sui-timeline-item",{props:{tone:P.string({default:"default",reflect:!0}),at:P.string({default:"",reflect:!0}),interactive:P.bool({default:!1,reflect:!0})},shadow:!0,styles:`
   :host {
     display: grid;
     grid-template-columns: 20px 1fr;
@@ -11484,156 +4473,7 @@ var sui_timeline_item_default = component53("sui-timeline-item", {
   @media (forced-colors: active) {
     :host([interactive]:focus-visible) { outline: 2px solid CanvasText; outline-offset: 2px; }
   }
-`,
-  setup(ctx) {
-    const { props, host } = ctx;
-    if (!ctx.cleanups)
-      ctx.cleanups = [];
-    const __cleanups = ctx.cleanups;
-    const $scope = Object.create(null);
-    $scope.tone = props.tone;
-    $scope.at = props.at;
-    $scope.interactive = props.interactive;
-    let __r = null;
-    if (sui_timeline_item_controller_default && typeof sui_timeline_item_controller_default.setup === "function") {
-      ctx.scope = $scope;
-      __r = sui_timeline_item_controller_default.setup(ctx);
-      if (__r && typeof __r === "object")
-        Object.assign($scope, __r);
-    }
-    const __wireBoundary_b0 = (anchor) => bindIf13({
-      anchor,
-      test: () => {
-        if ($scope.at())
-          return 0;
-        return -1;
-      },
-      branches: [
-        () => {
-          const __frag6 = document.createDocumentFragment();
-          const __c7 = [];
-          const __e8 = document.createElement("span");
-          __e8.setAttribute("class", "at");
-          __e8.setAttribute("part", "at");
-          const __t9 = document.createTextNode("");
-          __e8.appendChild(__t9);
-          __c7.push(bindText13(__t9, () => $scope.at()));
-          __frag6.appendChild(__e8);
-          return { nodes: Array.from(__frag6.childNodes), cleanup: () => {
-            for (const c of __c7)
-              try {
-                c();
-              } catch (e) {}
-          } };
-        }
-      ]
-    });
-    const __root = host.shadowRoot ?? host;
-    adoptSuiSheets53(__root);
-    const __e0 = document.createElement("div");
-    __e0.setAttribute("class", "gutter");
-    const __e1 = document.createElement("span");
-    __e1.setAttribute("class", "dot");
-    __e1.setAttribute("part", "dot");
-    __e0.appendChild(__e1);
-    __root.appendChild(__e0);
-    const __e2 = document.createElement("div");
-    __e2.setAttribute("class", "body");
-    __e2.setAttribute("part", "body");
-    const __e3 = document.createElement("div");
-    __e3.setAttribute("class", "head");
-    const __e4 = document.createElement("slot");
-    __e4.setAttribute("name", "title");
-    __e3.appendChild(__e4);
-    const __ifAnchor5 = document.createComment("if");
-    __e3.appendChild(__ifAnchor5);
-    __cleanups.push(__wireBoundary_b0(__ifAnchor5));
-    __e2.appendChild(__e3);
-    const __e10 = document.createElement("div");
-    __e10.setAttribute("class", "content");
-    const __e11 = document.createElement("slot");
-    __e10.appendChild(__e11);
-    __e2.appendChild(__e10);
-    __root.appendChild(__e2);
-    if (__r != null) {
-      const __lc = Object.getOwnPropertyDescriptor(__r, "__shipSetLifecycle")?.value;
-      if (__lc) {
-        const __sp = new Proxy($scope, {
-          get(t, k) {
-            return t[k];
-          },
-          set(t, k, v) {
-            const s = t[k];
-            if (s != null && typeof s.set === "function") {
-              if (typeof v === "function") {
-                s.set(() => v);
-              } else {
-                s.set(v);
-              }
-              return true;
-            }
-            return false;
-          }
-        });
-        if (__lc.mount) {
-          const __mc = __lc.mount(__sp, host);
-          if (typeof __mc === "function")
-            __cleanups.push(__mc);
-        }
-        if (__lc.unmount)
-          __cleanups.push(() => __lc.unmount(__sp));
-      }
-    }
-    return $scope;
-  }
-});
-
-// packages/ui-components/src/sui-loading/sui-loading.sui
-import { adoptSuiSheets as adoptSuiSheets54, attachRef as attachRef29, component as component54, prop as prop53 } from "@ship/sui-runtime";
-
-// packages/ui-components/src/sui-loading/sui-loading.controller.ts
-import { controller as controller37 } from "@ship/sui-runtime";
-var DEFAULT_MESSAGES = ["Waking daemon", "Warming routes", "Fetching state", "Hydrating shell"];
-function parseMessages(raw) {
-  const trimmed = raw.trim();
-  if (!trimmed)
-    return DEFAULT_MESSAGES;
-  return trimmed.split("|").map((s) => s.trim()).filter(Boolean);
-}
-var sui_loading_controller_default = controller37({
-  mount(state, _host) {
-    const scope = state;
-    const msgEl = scope.msgEl();
-    if (!msgEl)
-      return;
-    let index = 0;
-    const showMsg = () => {
-      const msgs = parseMessages(scope.messages());
-      msgEl.textContent = msgs[index] ?? "";
-      msgEl.style.opacity = "1";
-    };
-    showMsg();
-    const timer = setInterval(() => {
-      msgEl.style.opacity = "0";
-      requestAnimationFrame(() => {
-        const msgs = parseMessages(scope.messages());
-        index = (index + 1) % msgs.length;
-        msgEl.textContent = msgs[index] ?? "";
-        msgEl.style.opacity = "1";
-      });
-    }, 1400);
-    return () => clearInterval(timer);
-  }
-});
-
-// packages/ui-components/src/sui-loading/sui-loading.sui
-var sui_loading_default = component54("sui-loading", {
-  props: {
-    messages: prop53.string({ default: "" }),
-    compact: prop53.bool({ default: false, reflect: true })
-  },
-  shadow: true,
-  styles: `
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.tone=u.tone,n.at=u.at,n.interactive=u.interactive;let b=null;if(f0&&typeof f0.setup==="function"){if(i.scope=n,b=f0.setup(i),b&&typeof b==="object")Object.assign(n,b)}let w=(C)=>R({anchor:C,test:()=>{if(n.at())return 0;return-1},branches:[()=>{let z=document.createDocumentFragment(),j=[],g=document.createElement("span");g.setAttribute("class","at"),g.setAttribute("part","at");let J=document.createTextNode("");return g.appendChild(J),j.push(S(J,()=>n.at())),z.appendChild(g),{nodes:Array.from(z.childNodes),cleanup:()=>{for(let D of j)try{D()}catch(Z){}}}}]}),r=d.shadowRoot??d;V(r);let M=document.createElement("div");M.setAttribute("class","gutter");let y=document.createElement("span");y.setAttribute("class","dot"),y.setAttribute("part","dot"),M.appendChild(y),r.appendChild(M);let E=document.createElement("div");E.setAttribute("class","body"),E.setAttribute("part","body");let l=document.createElement("div");l.setAttribute("class","head");let L=document.createElement("slot");L.setAttribute("name","title"),l.appendChild(L);let f=document.createComment("if");l.appendChild(f),m.push(w(f)),E.appendChild(l);let t=document.createElement("div");t.setAttribute("class","content");let H=document.createElement("slot");if(t.appendChild(H),E.appendChild(t),r.appendChild(E),b!=null){let C=Object.getOwnPropertyDescriptor(b,"__shipSetLifecycle")?.value;if(C){let z=new Proxy(n,{get(j,g){return j[g]},set(j,g,J){let D=j[g];if(D!=null&&typeof D.set==="function"){if(typeof J==="function")D.set(()=>J);else D.set(J);return!0}return!1}});if(C.mount){let j=C.mount(z,d);if(typeof j==="function")m.push(j)}if(C.unmount)m.push(()=>C.unmount(z))}}return n}});var pm=["Waking daemon","Warming routes","Fetching state","Hydrating shell"];function gd(i){let u=i.trim();if(!u)return pm;return u.split("|").map((d)=>d.trim()).filter(Boolean)}var L0=U({mount(i,u){let d=i,m=d.msgEl();if(!m)return;let n=0;(()=>{let r=gd(d.messages());m.textContent=r[n]??"",m.style.opacity="1"})();let w=setInterval(()=>{m.style.opacity="0",requestAnimationFrame(()=>{let r=gd(d.messages());n=(n+1)%r.length,m.textContent=r[n]??"",m.style.opacity="1"})},1400);return()=>clearInterval(w)}});var PM=Q("sui-loading",{props:{messages:P.string({default:""}),compact:P.bool({default:!1,reflect:!0})},shadow:!0,styles:`
   :host {
     display: flex;
     flex-direction: column;
@@ -11759,258 +4599,7 @@ var sui_loading_default = component54("sui-loading", {
     .particle { display: none; }
     .message { transition: none; }
   }
-`,
-  setup(ctx) {
-    const { props, host } = ctx;
-    if (!ctx.cleanups)
-      ctx.cleanups = [];
-    const __cleanups = ctx.cleanups;
-    const $scope = Object.create(null);
-    $scope.messages = props.messages;
-    $scope.compact = props.compact;
-    let __r = null;
-    if (sui_loading_controller_default && typeof sui_loading_controller_default.setup === "function") {
-      ctx.scope = $scope;
-      __r = sui_loading_controller_default.setup(ctx);
-      if (__r && typeof __r === "object")
-        Object.assign($scope, __r);
-    }
-    const __root = host.shadowRoot ?? host;
-    adoptSuiSheets54(__root);
-    const __e0 = document.createElement("div");
-    __e0.setAttribute("class", "stage");
-    __e0.setAttribute("part", "stage");
-    __e0.setAttribute("aria-hidden", "true");
-    const __e1 = document.createElement("div");
-    __e1.setAttribute("class", "rocket");
-    const __e2 = document.createElement("svg");
-    __e2.setAttribute("viewbox", "0 0 32 40");
-    __e2.setAttribute("fill", "none");
-    __e2.setAttribute("xmlns", "http://www.w3.org/2000/svg");
-    const __e3 = document.createElement("path");
-    __e3.setAttribute("d", "M16 2 C20 6 22 11 22 16 H10 C10 11 12 6 16 2 Z");
-    __e3.setAttribute("fill", "currentColor");
-    __e2.appendChild(__e3);
-    const __e4 = document.createElement("rect");
-    __e4.setAttribute("x", "10");
-    __e4.setAttribute("y", "16");
-    __e4.setAttribute("width", "12");
-    __e4.setAttribute("height", "14");
-    __e4.setAttribute("rx", "2");
-    __e4.setAttribute("fill", "currentColor");
-    __e4.setAttribute("opacity", "0.9");
-    __e2.appendChild(__e4);
-    const __e5 = document.createElement("circle");
-    __e5.setAttribute("cx", "16");
-    __e5.setAttribute("cy", "20");
-    __e5.setAttribute("r", "2.5");
-    __e5.setAttribute("fill", "var(--background, #fff)");
-    __e5.setAttribute("opacity", "0.85");
-    __e2.appendChild(__e5);
-    const __e6 = document.createElement("path");
-    __e6.setAttribute("d", "M10 24 L4 32 L10 30 Z");
-    __e6.setAttribute("fill", "currentColor");
-    __e6.setAttribute("opacity", "0.75");
-    __e2.appendChild(__e6);
-    const __e7 = document.createElement("path");
-    __e7.setAttribute("d", "M22 24 L28 32 L22 30 Z");
-    __e7.setAttribute("fill", "currentColor");
-    __e7.setAttribute("opacity", "0.75");
-    __e2.appendChild(__e7);
-    const __e8 = document.createElement("rect");
-    __e8.setAttribute("x", "13");
-    __e8.setAttribute("y", "29");
-    __e8.setAttribute("width", "6");
-    __e8.setAttribute("height", "2");
-    __e8.setAttribute("rx", "0.5");
-    __e8.setAttribute("fill", "var(--background, #000)");
-    __e8.setAttribute("opacity", "0.5");
-    __e2.appendChild(__e8);
-    __e1.appendChild(__e2);
-    __e0.appendChild(__e1);
-    const __e9 = document.createElement("div");
-    __e9.setAttribute("class", "flame");
-    __e0.appendChild(__e9);
-    const __e10 = document.createElement("div");
-    __e10.setAttribute("class", "particle p1");
-    __e0.appendChild(__e10);
-    const __e11 = document.createElement("div");
-    __e11.setAttribute("class", "particle p2");
-    __e0.appendChild(__e11);
-    const __e12 = document.createElement("div");
-    __e12.setAttribute("class", "particle p3");
-    __e0.appendChild(__e12);
-    __root.appendChild(__e0);
-    const __e13 = document.createElement("div");
-    __e13.setAttribute("class", "message");
-    __e13.setAttribute("part", "message");
-    attachRef29($scope, "msgEl", __e13);
-    __root.appendChild(__e13);
-    if (__r != null) {
-      const __lc = Object.getOwnPropertyDescriptor(__r, "__shipSetLifecycle")?.value;
-      if (__lc) {
-        const __sp = new Proxy($scope, {
-          get(t, k) {
-            return t[k];
-          },
-          set(t, k, v) {
-            const s = t[k];
-            if (s != null && typeof s.set === "function") {
-              if (typeof v === "function") {
-                s.set(() => v);
-              } else {
-                s.set(v);
-              }
-              return true;
-            }
-            return false;
-          }
-        });
-        if (__lc.mount) {
-          const __mc = __lc.mount(__sp, host);
-          if (typeof __mc === "function")
-            __cleanups.push(__mc);
-        }
-        if (__lc.unmount)
-          __cleanups.push(() => __lc.unmount(__sp));
-      }
-    }
-    return $scope;
-  }
-});
-
-// packages/ui-components/src/sui-edit-overlay/sui-edit-overlay.sui
-import { adoptSuiSheets as adoptSuiSheets55, attachRef as attachRef30, component as component55 } from "@ship/sui-runtime";
-
-// packages/ui-components/src/sui-edit-overlay/sui-edit-overlay.controller.ts
-import { controller as controller38 } from "@ship/sui-runtime";
-function targetFromEvent(e) {
-  const root = document.getElementById("ship-view-root");
-  if (!root)
-    return null;
-  const target = e.target;
-  if (!target || !root.contains(target))
-    return null;
-  if (target.closest("sui-edit-overlay"))
-    return null;
-  return target;
-}
-function describe(el) {
-  const tag = el.tagName.toLowerCase();
-  const id = el.id || null;
-  let selector = tag;
-  if (id)
-    selector = `#${id}`;
-  else if (el.classList.length > 0) {
-    selector = `${tag}.${Array.from(el.classList).slice(0, 2).join(".")}`;
-  }
-  return { tag, selector, id };
-}
-var sui_edit_overlay_controller_default = controller38({
-  mount(state, host) {
-    const scope = state;
-    const boxEl = scope.boxEl();
-    const labelEl = scope.labelEl();
-    let _raf = null;
-    function applyHighlight(hl) {
-      if (!boxEl || !labelEl)
-        return;
-      if (!hl) {
-        boxEl.classList.remove("visible");
-        labelEl.classList.remove("visible");
-        return;
-      }
-      boxEl.style.cssText = `top:${hl.top}px;left:${hl.left}px;width:${hl.width}px;height:${hl.height}px`;
-      boxEl.classList.add("visible");
-      labelEl.style.cssText = `top:${hl.top}px;left:${hl.left}px`;
-      labelEl.textContent = `<${hl.tag}${hl.id ? `#${hl.id}` : ""}>`;
-      labelEl.classList.add("visible");
-    }
-    const onPointerMove = (e) => {
-      if (_raf)
-        return;
-      _raf = requestAnimationFrame(() => {
-        _raf = null;
-        const target = targetFromEvent(e);
-        if (!target) {
-          applyHighlight(null);
-          return;
-        }
-        const rect = target.getBoundingClientRect();
-        const { tag, id } = describe(target);
-        applyHighlight({ top: rect.top, left: rect.left, width: rect.width, height: rect.height, tag, id });
-      });
-    };
-    const onPointerLeave = () => {
-      applyHighlight(null);
-    };
-    const onClick = (e) => {
-      const target = targetFromEvent(e);
-      if (!target)
-        return;
-      e.preventDefault();
-      e.stopPropagation();
-      const { tag, selector, id } = describe(target);
-      const shellEl = host.closest("sui-shell") ?? host.closest("ship-shell");
-      shellEl?.dispatchEvent(new CustomEvent("sui:chat:annotate", {
-        detail: {
-          tag,
-          selector,
-          id,
-          preview: (target.textContent ?? "").trim().slice(0, 60)
-        },
-        bubbles: true
-      }));
-      window.ship?.chat?.open?.();
-    };
-    function setupListeners() {
-      const root = document.getElementById("ship-view-root");
-      if (!root)
-        return;
-      root.addEventListener("pointermove", onPointerMove, true);
-      root.addEventListener("pointerleave", onPointerLeave, true);
-      root.addEventListener("click", onClick, true);
-    }
-    function teardownListeners() {
-      const root = document.getElementById("ship-view-root");
-      if (!root)
-        return;
-      root.removeEventListener("pointermove", onPointerMove, true);
-      root.removeEventListener("pointerleave", onPointerLeave, true);
-      root.removeEventListener("click", onClick, true);
-    }
-    function applyActive() {
-      const on2 = document.body.classList.contains("edit-mode");
-      host.classList.toggle("active", on2);
-      if (on2)
-        setupListeners();
-      else {
-        teardownListeners();
-        applyHighlight(null);
-        if (_raf) {
-          cancelAnimationFrame(_raf);
-          _raf = null;
-        }
-      }
-    }
-    applyActive();
-    const observer = new MutationObserver(() => applyActive());
-    observer.observe(document.body, { attributes: true, attributeFilter: ["class"] });
-    return () => {
-      observer.disconnect();
-      teardownListeners();
-      if (_raf) {
-        cancelAnimationFrame(_raf);
-        _raf = null;
-      }
-    };
-  }
-});
-
-// packages/ui-components/src/sui-edit-overlay/sui-edit-overlay.sui
-var sui_edit_overlay_default = component55("sui-edit-overlay", {
-  shadow: true,
-  styles: `
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.messages=u.messages,n.compact=u.compact,n.msgEl=G(null);let b=null;if(L0&&typeof L0.setup==="function"){if(i.scope=n,b=L0.setup(i),b&&typeof b==="object")Object.assign(n,b)}let w=d.shadowRoot??d;V(w);let r=document.createElement("div");r.setAttribute("class","stage"),r.setAttribute("part","stage"),r.setAttribute("aria-hidden","true");let M=document.createElement("div");M.setAttribute("class","rocket");let y=document.createElement("svg");y.setAttribute("viewbox","0 0 32 40"),y.setAttribute("fill","none"),y.setAttribute("xmlns","http://www.w3.org/2000/svg");let E=document.createElement("path");E.setAttribute("d","M16 2 C20 6 22 11 22 16 H10 C10 11 12 6 16 2 Z"),E.setAttribute("fill","currentColor"),y.appendChild(E);let l=document.createElement("rect");l.setAttribute("x","10"),l.setAttribute("y","16"),l.setAttribute("width","12"),l.setAttribute("height","14"),l.setAttribute("rx","2"),l.setAttribute("fill","currentColor"),l.setAttribute("opacity","0.9"),y.appendChild(l);let L=document.createElement("circle");L.setAttribute("cx","16"),L.setAttribute("cy","20"),L.setAttribute("r","2.5"),L.setAttribute("fill","var(--background, #fff)"),L.setAttribute("opacity","0.85"),y.appendChild(L);let f=document.createElement("path");f.setAttribute("d","M10 24 L4 32 L10 30 Z"),f.setAttribute("fill","currentColor"),f.setAttribute("opacity","0.75"),y.appendChild(f);let t=document.createElement("path");t.setAttribute("d","M22 24 L28 32 L22 30 Z"),t.setAttribute("fill","currentColor"),t.setAttribute("opacity","0.75"),y.appendChild(t);let H=document.createElement("rect");H.setAttribute("x","13"),H.setAttribute("y","29"),H.setAttribute("width","6"),H.setAttribute("height","2"),H.setAttribute("rx","0.5"),H.setAttribute("fill","var(--background, #000)"),H.setAttribute("opacity","0.5"),y.appendChild(H),M.appendChild(y),r.appendChild(M);let C=document.createElement("div");C.setAttribute("class","flame"),r.appendChild(C);let z=document.createElement("div");z.setAttribute("class","particle p1"),r.appendChild(z);let j=document.createElement("div");j.setAttribute("class","particle p2"),r.appendChild(j);let g=document.createElement("div");g.setAttribute("class","particle p3"),r.appendChild(g),w.appendChild(r);let J=document.createElement("div");if(J.setAttribute("class","message"),J.setAttribute("part","message"),O(n,"msgEl",J),w.appendChild(J),b!=null){let D=Object.getOwnPropertyDescriptor(b,"__shipSetLifecycle")?.value;if(D){let Z=new Proxy(n,{get(X,W){return X[W]},set(X,W,Y){let N=X[W];if(N!=null&&typeof N.set==="function"){if(typeof Y==="function")N.set(()=>Y);else N.set(Y);return!0}return!1}});if(D.mount){let X=D.mount(Z,d);if(typeof X==="function")m.push(X)}if(D.unmount)m.push(()=>D.unmount(Z))}}return n}});function Dd(i){let u=document.getElementById("ship-view-root");if(!u)return null;let d=i.target;if(!d||!u.contains(d))return null;if(d.closest("sui-edit-overlay"))return null;return d}function Zd(i){let u=i.tagName.toLowerCase(),d=i.id||null,m=u;if(d)m=`#${d}`;else if(i.classList.length>0)m=`${u}.${Array.from(i.classList).slice(0,2).join(".")}`;return{tag:u,selector:m,id:d}}var t0=U({mount(i,u){let d=i,m=d.boxEl(),n=d.labelEl(),b=null;function w(t){if(!m||!n)return;if(!t){m.classList.remove("visible"),n.classList.remove("visible");return}m.style.cssText=`top:${t.top}px;left:${t.left}px;width:${t.width}px;height:${t.height}px`,m.classList.add("visible"),n.style.cssText=`top:${t.top}px;left:${t.left}px`,n.textContent=`<${t.tag}${t.id?`#${t.id}`:""}>`,n.classList.add("visible")}let r=(t)=>{if(b)return;b=requestAnimationFrame(()=>{b=null;let H=Dd(t);if(!H){w(null);return}let C=H.getBoundingClientRect(),{tag:z,id:j}=Zd(H);w({top:C.top,left:C.left,width:C.width,height:C.height,tag:z,id:j})})},M=()=>{w(null)},y=(t)=>{let H=Dd(t);if(!H)return;t.preventDefault(),t.stopPropagation();let{tag:C,selector:z,id:j}=Zd(H);(u.closest("sui-shell")??u.closest("ship-shell"))?.dispatchEvent(new CustomEvent("sui:chat:annotate",{detail:{tag:C,selector:z,id:j,preview:(H.textContent??"").trim().slice(0,60)},bubbles:!0})),window.ship?.chat?.open?.()};function E(){let t=document.getElementById("ship-view-root");if(!t)return;t.addEventListener("pointermove",r,!0),t.addEventListener("pointerleave",M,!0),t.addEventListener("click",y,!0)}function l(){let t=document.getElementById("ship-view-root");if(!t)return;t.removeEventListener("pointermove",r,!0),t.removeEventListener("pointerleave",M,!0),t.removeEventListener("click",y,!0)}function L(){let t=document.body.classList.contains("edit-mode");if(u.classList.toggle("active",t),t)E();else if(l(),w(null),b)cancelAnimationFrame(b),b=null}L();let f=new MutationObserver(()=>L());return f.observe(document.body,{attributes:!0,attributeFilter:["class"]}),()=>{if(f.disconnect(),l(),b)cancelAnimationFrame(b),b=null}}});var GM=Q("sui-edit-overlay",{shadow:!0,styles:`
   :host {
     position: fixed;
     inset: 0;
@@ -12068,373 +4657,10 @@ var sui_edit_overlay_default = component55("sui-edit-overlay", {
     border: 1px solid var(--border);
     margin: 0 2px;
   }
-`,
-  setup(ctx) {
-    const { props, host } = ctx;
-    if (!ctx.cleanups)
-      ctx.cleanups = [];
-    const __cleanups = ctx.cleanups;
-    const $scope = Object.create(null);
-    let __r = null;
-    if (sui_edit_overlay_controller_default && typeof sui_edit_overlay_controller_default.setup === "function") {
-      ctx.scope = $scope;
-      __r = sui_edit_overlay_controller_default.setup(ctx);
-      if (__r && typeof __r === "object")
-        Object.assign($scope, __r);
-    }
-    const __root = host.shadowRoot ?? host;
-    adoptSuiSheets55(__root);
-    const __e0 = document.createElement("div");
-    __e0.setAttribute("class", "box");
-    __e0.setAttribute("part", "box");
-    attachRef30($scope, "boxEl", __e0);
-    __root.appendChild(__e0);
-    const __e1 = document.createElement("div");
-    __e1.setAttribute("class", "label");
-    __e1.setAttribute("part", "label");
-    attachRef30($scope, "labelEl", __e1);
-    __root.appendChild(__e1);
-    const __e2 = document.createElement("div");
-    __e2.setAttribute("class", "hint");
-    __e2.setAttribute("part", "hint");
-    const __t3 = document.createTextNode(`
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.boxEl=G(null),n.labelEl=G(null);let b=null;if(t0&&typeof t0.setup==="function"){if(i.scope=n,b=t0.setup(i),b&&typeof b==="object")Object.assign(n,b)}let w=d.shadowRoot??d;V(w);let r=document.createElement("div");r.setAttribute("class","box"),r.setAttribute("part","box"),O(n,"boxEl",r),w.appendChild(r);let M=document.createElement("div");M.setAttribute("class","label"),M.setAttribute("part","label"),O(n,"labelEl",M),w.appendChild(M);let y=document.createElement("div");y.setAttribute("class","hint"),y.setAttribute("part","hint");let E=document.createTextNode(`
   Edit mode — hover an element, click to annotate.
-  `);
-    __e2.appendChild(__t3);
-    const __e4 = document.createElement("kbd");
-    const __t5 = document.createTextNode("⌘⇧E");
-    __e4.appendChild(__t5);
-    __e2.appendChild(__e4);
-    const __t6 = document.createTextNode(` to exit.
-`);
-    __e2.appendChild(__t6);
-    __root.appendChild(__e2);
-    if (__r != null) {
-      const __lc = Object.getOwnPropertyDescriptor(__r, "__shipSetLifecycle")?.value;
-      if (__lc) {
-        const __sp = new Proxy($scope, {
-          get(t, k) {
-            return t[k];
-          },
-          set(t, k, v) {
-            const s = t[k];
-            if (s != null && typeof s.set === "function") {
-              if (typeof v === "function") {
-                s.set(() => v);
-              } else {
-                s.set(v);
-              }
-              return true;
-            }
-            return false;
-          }
-        });
-        if (__lc.mount) {
-          const __mc = __lc.mount(__sp, host);
-          if (typeof __mc === "function")
-            __cleanups.push(__mc);
-        }
-        if (__lc.unmount)
-          __cleanups.push(() => __lc.unmount(__sp));
-      }
-    }
-    return $scope;
-  }
-});
-
-// packages/ui-components/src/sui-annotation/sui-annotation-layer.sui
-import { adoptSuiSheets as adoptSuiSheets56, attachRef as attachRef31, bindAttr as bindAttr28, bindFor as bindFor3, bindIf as bindIf14, bindProp, bindValue as bindValue3, component as component56, on as on2, prop as prop54 } from "@ship/sui-runtime";
-
-// packages/ui-components/src/sui-annotation/sui-annotation-layer.controller.ts
-import { controller as controller39, signal as signal9, derived as derived3, ref as ref4 } from "@ship/sui-runtime";
-
-// packages/ui-components/src/sui-annotation/sui-annotation.internals.ts
-var CROCKFORD = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
-function newUlid(now = Date.now()) {
-  let ts = now;
-  const time = new Array(10);
-  for (let i = 9;i >= 0; i--) {
-    time[i] = CROCKFORD[ts % 32];
-    ts = Math.floor(ts / 32);
-  }
-  const rand = new Array(16);
-  const cryptoObj = typeof globalThis !== "undefined" ? globalThis.crypto : undefined;
-  if (cryptoObj?.getRandomValues) {
-    const buf = new Uint8Array(16);
-    cryptoObj.getRandomValues(buf);
-    for (let i = 0;i < 16; i++)
-      rand[i] = CROCKFORD[buf[i] % 32];
-  } else {
-    for (let i = 0;i < 16; i++)
-      rand[i] = CROCKFORD[Math.floor(Math.random() * 32)];
-  }
-  return time.join("") + rand.join("");
-}
-function buildAnnotationEvent(input) {
-  const target = {};
-  if (input.viewId)
-    target.view_id = input.viewId;
-  if (input.selector)
-    target.selector = input.selector;
-  if (input.rect)
-    target.rect = input.rect;
-  return {
-    id: newUlid(),
-    kind: input.kind,
-    target,
-    note: input.note,
-    created_at: new Date().toISOString(),
-    author_kind: "human"
-  };
-}
-
-// packages/ui-components/src/sui-annotation/sui-annotation-layer.controller.ts
-var DEFAULT_ENDPOINT = "/api/feedback";
-var sui_annotation_layer_controller_default = controller39({
-  scope: (props, host) => {
-    const viewIdProp = props.viewId;
-    const modeProp = props.mode;
-    const endpointProp = props.endpoint;
-    const stagingProp = props.staging;
-    const staged = signal9([]);
-    const pending2 = signal9(null);
-    const drag = signal9(null);
-    const noteText = signal9("");
-    const _positions = {};
-    const dragVisible = derived3(() => {
-      const d = drag();
-      if (!d)
-        return false;
-      return Math.abs(d.curX - d.startX) > 4 || Math.abs(d.curY - d.startY) > 4;
-    });
-    const dragRectStyle = derived3(() => {
-      const d = drag();
-      if (!d)
-        return "";
-      const x = Math.min(d.startX, d.curX);
-      const y = Math.min(d.startY, d.curY);
-      const w = Math.abs(d.curX - d.startX);
-      const h = Math.abs(d.curY - d.startY);
-      return `left:${x}px;top:${y}px;width:${w}px;height:${h}px`;
-    });
-    const popoverStyle = derived3(() => {
-      const p = pending2();
-      if (!p)
-        return "";
-      const left = Math.min(p.x + 12, 1e4);
-      const top = Math.min(p.y + 12, 1e4);
-      return `left:${left}px;top:${top}px`;
-    });
-    const markers = derived3(() => staged().map((a, i) => ({
-      id: a.id,
-      kind: a.kind,
-      index: i,
-      rect: a.kind === "region" && a.target.rect ? a.target.rect.join(",") : "",
-      pos: _positions[a.id] ?? { x: 0, y: 0 }
-    })));
-    async function sendOne(ev) {
-      const ep = endpointProp() || DEFAULT_ENDPOINT;
-      try {
-        const resp = await fetch(ep, {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(ev)
-        });
-        if (!resp.ok) {
-          host.dispatchEvent(new CustomEvent("sui-annotation-error", {
-            detail: { code: `http_${resp.status}`, id: ev.id },
-            bubbles: true,
-            composed: true
-          }));
-          return;
-        }
-        staged.set(staged().filter((s) => s.id !== ev.id));
-        host.dispatchEvent(new CustomEvent("sui-annotation-sent", {
-          detail: { id: ev.id, status: resp.status },
-          bubbles: true,
-          composed: true
-        }));
-      } catch (e) {
-        host.dispatchEvent(new CustomEvent("sui-annotation-error", {
-          detail: { code: "network_error", message: String(e), id: ev.id },
-          bubbles: true,
-          composed: true
-        }));
-      }
-    }
-    function confirmNote(note) {
-      const p = pending2();
-      if (!p)
-        return;
-      const trimmed = note.trim();
-      if (!trimmed) {
-        pending2.set(null);
-        noteText.set("");
-        return;
-      }
-      const ev = buildAnnotationEvent({
-        viewId: viewIdProp() || undefined,
-        kind: p.kind,
-        selector: p.kind === "point" ? p.selector : undefined,
-        rect: p.kind === "region" ? p.rect : undefined,
-        note: trimmed
-      });
-      _positions[ev.id] = { x: p.x, y: p.y };
-      staged.set([...staged(), ev]);
-      host.dispatchEvent(new CustomEvent("sui-annotation-staged", {
-        detail: ev,
-        bubbles: true,
-        composed: true
-      }));
-      pending2.set(null);
-      noteText.set("");
-      if (!stagingProp())
-        sendOne(ev);
-    }
-    const sendNote = () => {
-      confirmNote(noteText());
-    };
-    const cancelPending = () => {
-      pending2.set(null);
-      noteText.set("");
-    };
-    const onNoteKeydown = (e) => {
-      if (e.key === "Escape") {
-        cancelPending();
-      } else if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-        const ta = e.currentTarget;
-        confirmNote(ta.value);
-      }
-    };
-    const overlayEl = ref4(null);
-    return {
-      staged,
-      pending: pending2,
-      drag,
-      noteText,
-      dragVisible,
-      dragRectStyle,
-      popoverStyle,
-      markers,
-      overlayEl,
-      confirmNote,
-      sendNote,
-      cancelPending,
-      onNoteKeydown,
-      sendOne
-    };
-  },
-  mount(state, host) {
-    const scope = state;
-    let _drag = null;
-    let _raf = null;
-    const overlayPos = (e) => {
-      const el = scope.overlayEl();
-      if (!el)
-        return { x: 0, y: 0 };
-      const r = el.getBoundingClientRect();
-      return { x: e.clientX - r.left, y: e.clientY - r.top };
-    };
-    const onPointerDown = (e) => {
-      const m = scope.mode();
-      if (m === "off")
-        return;
-      const t = e.target;
-      if (t.closest("[data-annotation-popover]") || t.closest("sui-annotation-marker"))
-        return;
-      if (scope.pending()) {
-        scope.pending.set(null);
-        scope.noteText.set("");
-        return;
-      }
-      e.preventDefault();
-      const p = overlayPos(e);
-      _drag = { startX: p.x, startY: p.y, curX: p.x, curY: p.y };
-      scope.drag.set(_drag);
-      e.target.setPointerCapture?.(e.pointerId);
-    };
-    const onPointerMove = (e) => {
-      if (!_drag)
-        return;
-      const p = overlayPos(e);
-      _drag = { ..._drag, curX: p.x, curY: p.y };
-      if (_raf !== null)
-        return;
-      _raf = requestAnimationFrame(() => {
-        _raf = null;
-        if (_drag)
-          scope.drag.set({ ..._drag });
-      });
-    };
-    const onPointerUp = (e) => {
-      if (!_drag)
-        return;
-      const p = overlayPos(e);
-      const dx = Math.abs(p.x - _drag.startX);
-      const dy = Math.abs(p.y - _drag.startY);
-      const m = scope.mode();
-      let next = null;
-      if (m === "point" || m === "region" && dx < 8 && dy < 8) {
-        next = { kind: "point", x: p.x, y: p.y, selector: "body" };
-      } else if (m === "region") {
-        const x = Math.min(_drag.startX, p.x);
-        const y = Math.min(_drag.startY, p.y);
-        const rect = [
-          Math.round(x),
-          Math.round(y),
-          Math.round(dx),
-          Math.round(dy)
-        ];
-        next = { kind: "region", x: x + dx / 2, y: y + dy / 2, rect };
-      }
-      _drag = null;
-      scope.drag.set(null);
-      scope.noteText.set("");
-      if (next)
-        scope.pending.set(next);
-    };
-    const overlayEl = scope.overlayEl();
-    if (overlayEl) {
-      overlayEl.addEventListener("pointerdown", onPointerDown);
-      overlayEl.addEventListener("pointermove", onPointerMove);
-      overlayEl.addEventListener("pointerup", onPointerUp);
-    }
-    Object.defineProperty(host, "staged", {
-      configurable: true,
-      get: () => scope.staged()
-    });
-    host.send = async () => {
-      for (const ev of [...scope.staged()])
-        await scope.sendOne(ev);
-    };
-    host.clear = () => {
-      scope.staged.set([]);
-    };
-    return () => {
-      if (_raf !== null) {
-        cancelAnimationFrame(_raf);
-        _raf = null;
-      }
-      if (overlayEl) {
-        overlayEl.removeEventListener("pointerdown", onPointerDown);
-        overlayEl.removeEventListener("pointermove", onPointerMove);
-        overlayEl.removeEventListener("pointerup", onPointerUp);
-      }
-    };
-  }
-});
-
-// packages/ui-components/src/sui-annotation/sui-annotation-layer.sui
-var sui_annotation_layer_default = component56("sui-annotation-layer", {
-  props: {
-    "view-id": prop54.string({ default: "" }),
-    mode: prop54.union(["off", "point", "region"], { default: "off", reflect: true }),
-    endpoint: prop54.string({ default: "/api/feedback" }),
-    staging: prop54.bool({ default: false, reflect: true })
-  },
-  shadow: true,
-  styles: `
+  `);y.appendChild(E);let l=document.createElement("kbd"),L=document.createTextNode("⌘⇧E");l.appendChild(L),y.appendChild(l);let f=document.createTextNode(` to exit.
+`);if(y.appendChild(f),w.appendChild(y),b!=null){let t=Object.getOwnPropertyDescriptor(b,"__shipSetLifecycle")?.value;if(t){let H=new Proxy(n,{get(C,z){return C[z]},set(C,z,j){let g=C[z];if(g!=null&&typeof g.set==="function"){if(typeof j==="function")g.set(()=>j);else g.set(j);return!0}return!1}});if(t.mount){let C=t.mount(H,d);if(typeof C==="function")m.push(C)}if(t.unmount)m.push(()=>t.unmount(H))}}return n}});function cm(i=Date.now()){let u=i,d=[,,,,,,,,,,];for(let b=9;b>=0;b--)d[b]="0123456789ABCDEFGHJKMNPQRSTVWXYZ"[u%32],u=Math.floor(u/32);let m=Array(16),n=typeof globalThis<"u"?globalThis.crypto:void 0;if(n?.getRandomValues){let b=new Uint8Array(16);n.getRandomValues(b);for(let w=0;w<16;w++)m[w]="0123456789ABCDEFGHJKMNPQRSTVWXYZ"[b[w]%32]}else for(let b=0;b<16;b++)m[b]="0123456789ABCDEFGHJKMNPQRSTVWXYZ"[Math.floor(Math.random()*32)];return d.join("")+m.join("")}function Jd(i){let u={};if(i.viewId)u.view_id=i.viewId;if(i.selector)u.selector=i.selector;if(i.rect)u.rect=i.rect;return{id:cm(),kind:i.kind,target:u,note:i.note,created_at:new Date().toISOString(),author_kind:"human"}}var _m="/api/feedback",E0=U({scope:(i,u)=>{let{viewId:d,mode:m,endpoint:n,staging:b}=i,w=G([]),r=G(null),M=G(null),y=G(""),E={},l=h(()=>{let D=M();if(!D)return!1;return Math.abs(D.curX-D.startX)>4||Math.abs(D.curY-D.startY)>4}),L=h(()=>{let D=M();if(!D)return"";let Z=Math.min(D.startX,D.curX),X=Math.min(D.startY,D.curY),W=Math.abs(D.curX-D.startX),Y=Math.abs(D.curY-D.startY);return`left:${Z}px;top:${X}px;width:${W}px;height:${Y}px`}),f=h(()=>{let D=r();if(!D)return"";let Z=Math.min(D.x+12,1e4),X=Math.min(D.y+12,1e4);return`left:${Z}px;top:${X}px`}),t=h(()=>w().map((D,Z)=>({id:D.id,kind:D.kind,index:Z,rect:D.kind==="region"&&D.target.rect?D.target.rect.join(","):"",pos:E[D.id]??{x:0,y:0}})));async function H(D){let Z=n()||_m;try{let X=await fetch(Z,{method:"POST",credentials:"include",headers:{"Content-Type":"application/json"},body:JSON.stringify(D)});if(!X.ok){u.dispatchEvent(new CustomEvent("sui-annotation-error",{detail:{code:`http_${X.status}`,id:D.id},bubbles:!0,composed:!0}));return}w.set(w().filter((W)=>W.id!==D.id)),u.dispatchEvent(new CustomEvent("sui-annotation-sent",{detail:{id:D.id,status:X.status},bubbles:!0,composed:!0}))}catch(X){u.dispatchEvent(new CustomEvent("sui-annotation-error",{detail:{code:"network_error",message:String(X),id:D.id},bubbles:!0,composed:!0}))}}function C(D){let Z=r();if(!Z)return;let X=D.trim();if(!X){r.set(null),y.set("");return}let W=Jd({viewId:d()||void 0,kind:Z.kind,selector:Z.kind==="point"?Z.selector:void 0,rect:Z.kind==="region"?Z.rect:void 0,note:X});if(E[W.id]={x:Z.x,y:Z.y},w.set([...w(),W]),u.dispatchEvent(new CustomEvent("sui-annotation-staged",{detail:W,bubbles:!0,composed:!0})),r.set(null),y.set(""),!b())H(W)}let z=()=>{C(y())},j=()=>{r.set(null),y.set("")},g=(D)=>{if(D.key==="Escape")j();else if(D.key==="Enter"&&(D.metaKey||D.ctrlKey)){let Z=D.currentTarget;C(Z.value)}},J=e(null);return{staged:w,pending:r,drag:M,noteText:y,dragVisible:l,dragRectStyle:L,popoverStyle:f,markers:t,overlayEl:J,confirmNote:C,sendNote:z,cancelPending:j,onNoteKeydown:g,sendOne:H}},mount(i,u){let d=i,m=null,n=null,b=(E)=>{let l=d.overlayEl();if(!l)return{x:0,y:0};let L=l.getBoundingClientRect();return{x:E.clientX-L.left,y:E.clientY-L.top}},w=(E)=>{if(d.mode()==="off")return;let L=E.target;if(L.closest("[data-annotation-popover]")||L.closest("sui-annotation-marker"))return;if(d.pending()){d.pending.set(null),d.noteText.set("");return}E.preventDefault();let f=b(E);m={startX:f.x,startY:f.y,curX:f.x,curY:f.y},d.drag.set(m),E.target.setPointerCapture?.(E.pointerId)},r=(E)=>{if(!m)return;let l=b(E);if(m={...m,curX:l.x,curY:l.y},n!==null)return;n=requestAnimationFrame(()=>{if(n=null,m)d.drag.set({...m})})},M=(E)=>{if(!m)return;let l=b(E),L=Math.abs(l.x-m.startX),f=Math.abs(l.y-m.startY),t=d.mode(),H=null;if(t==="point"||t==="region"&&L<8&&f<8)H={kind:"point",x:l.x,y:l.y,selector:"body"};else if(t==="region"){let C=Math.min(m.startX,l.x),z=Math.min(m.startY,l.y),j=[Math.round(C),Math.round(z),Math.round(L),Math.round(f)];H={kind:"region",x:C+L/2,y:z+f/2,rect:j}}if(m=null,d.drag.set(null),d.noteText.set(""),H)d.pending.set(H)},y=d.overlayEl();if(y)y.addEventListener("pointerdown",w),y.addEventListener("pointermove",r),y.addEventListener("pointerup",M);return Object.defineProperty(u,"staged",{configurable:!0,get:()=>d.staged()}),u.send=async()=>{for(let E of[...d.staged()])await d.sendOne(E)},u.clear=()=>{d.staged.set([])},()=>{if(n!==null)cancelAnimationFrame(n),n=null;if(y)y.removeEventListener("pointerdown",w),y.removeEventListener("pointermove",r),y.removeEventListener("pointerup",M)}}});var UM=Q("sui-annotation-layer",{props:{"view-id":P.string({default:""}),mode:P.union(["off","point","region"],{default:"off",reflect:!0}),endpoint:P.string({default:"/api/feedback"}),staging:P.bool({default:!1,reflect:!0})},shadow:!0,styles:`
   :host {
     position: relative;
     display: block;
@@ -12512,239 +4738,7 @@ var sui_annotation_layer_default = component56("sui-annotation-layer", {
     color: var(--primary-foreground);
     border-color: var(--primary);
   }
-`,
-  setup(ctx) {
-    const { props, host } = ctx;
-    if (!ctx.cleanups)
-      ctx.cleanups = [];
-    const __cleanups = ctx.cleanups;
-    const $scope = Object.create(null);
-    $scope.viewId = props.viewId;
-    $scope.mode = props.mode;
-    $scope.endpoint = props.endpoint;
-    $scope.staging = props.staging;
-    let __r = null;
-    if (sui_annotation_layer_controller_default && typeof sui_annotation_layer_controller_default.setup === "function") {
-      ctx.scope = $scope;
-      __r = sui_annotation_layer_controller_default.setup(ctx);
-      if (__r && typeof __r === "object")
-        Object.assign($scope, __r);
-    }
-    const __wireBoundary_b1 = (anchor) => bindIf14({
-      anchor,
-      test: () => {
-        if ($scope.dragVisible())
-          return 0;
-        return -1;
-      },
-      branches: [
-        () => {
-          const __frag4 = document.createDocumentFragment();
-          const __c5 = [];
-          const __e6 = document.createElement("div");
-          __e6.setAttribute("class", "drag-rect");
-          __c5.push(bindAttr28(__e6, "style", () => $scope.dragRectStyle()));
-          __frag4.appendChild(__e6);
-          return { nodes: Array.from(__frag4.childNodes), cleanup: () => {
-            for (const c of __c5)
-              try {
-                c();
-              } catch (e) {}
-          } };
-        }
-      ]
-    });
-    const __wireBoundary_b3 = (anchor) => bindFor3({
-      anchor,
-      items: () => $scope.markers(),
-      key: (m, __i) => {
-        const __child = Object.create($scope);
-        __child.m = m;
-        __child.__i = __i;
-        return (($scope2) => m.id)(__child);
-      },
-      render: (m, __i) => {
-        const __childScope8 = Object.create($scope);
-        __childScope8.m = m;
-        __childScope8.__i = __i;
-        return (($scope2) => {
-          const __frag9 = document.createDocumentFragment();
-          const __c10 = [];
-          const __e11 = document.createElement("sui-annotation-marker");
-          __c10.push(bindProp(__e11, "kind", () => $scope2.m.kind));
-          __c10.push(bindProp(__e11, "index", () => $scope2.m.index));
-          __c10.push(bindProp(__e11, "rect", () => $scope2.m.rect));
-          __c10.push(bindProp(__e11, "x", () => $scope2.m.pos.x));
-          __c10.push(bindProp(__e11, "y", () => $scope2.m.pos.y));
-          __frag9.appendChild(__e11);
-          return { nodes: Array.from(__frag9.childNodes), cleanup: () => {
-            for (const c of __c10)
-              try {
-                c();
-              } catch (e) {}
-          } };
-        })(__childScope8);
-      }
-    });
-    const __wireBoundary_b9 = (anchor) => bindIf14({
-      anchor,
-      test: () => {
-        if ($scope.pending())
-          return 0;
-        return -1;
-      },
-      branches: [
-        () => {
-          const __frag13 = document.createDocumentFragment();
-          const __c14 = [];
-          const __e15 = document.createElement("div");
-          __e15.setAttribute("class", "popover");
-          __e15.setAttribute("data-annotation-popover", "");
-          __c14.push(bindAttr28(__e15, "style", () => $scope.popoverStyle()));
-          __c14.push(on2(__e15, "pointerdown", function() {
-            const __h = (e) => e.stopPropagation();
-            return typeof __h === "function" ? __h.bind(undefined) : () => {};
-          }(), { modifiers: [] }));
-          const __e16 = document.createElement("textarea");
-          __e16.setAttribute("part", "note-input");
-          __e16.setAttribute("placeholder", "Add a note…");
-          __c14.push(bindValue3(__e16, $scope.noteText));
-          __c14.push(on2(__e16, "keydown", function() {
-            const __h = $scope.onNoteKeydown;
-            return typeof __h === "function" ? __h.bind(undefined) : () => {};
-          }(), { modifiers: [] }));
-          __e15.appendChild(__e16);
-          const __e17 = document.createElement("div");
-          __e17.setAttribute("class", "popover-actions");
-          const __e18 = document.createElement("button");
-          __e18.setAttribute("type", "button");
-          __c14.push(on2(__e18, "click", function() {
-            const __h = $scope.cancelPending;
-            return typeof __h === "function" ? __h.bind(undefined) : () => {};
-          }(), { modifiers: [] }));
-          const __t19 = document.createTextNode("Cancel");
-          __e18.appendChild(__t19);
-          __e17.appendChild(__e18);
-          const __e20 = document.createElement("button");
-          __e20.setAttribute("type", "button");
-          __e20.setAttribute("data-primary", "");
-          __c14.push(on2(__e20, "click", function() {
-            const __h = $scope.sendNote;
-            return typeof __h === "function" ? __h.bind(undefined) : () => {};
-          }(), { modifiers: [] }));
-          const __t21 = document.createTextNode("Send");
-          __e20.appendChild(__t21);
-          __e17.appendChild(__e20);
-          __e15.appendChild(__e17);
-          __frag13.appendChild(__e15);
-          return { nodes: Array.from(__frag13.childNodes), cleanup: () => {
-            for (const c of __c14)
-              try {
-                c();
-              } catch (e) {}
-          } };
-        }
-      ]
-    });
-    const __root = host.shadowRoot ?? host;
-    adoptSuiSheets56(__root);
-    const __e0 = document.createElement("div");
-    __e0.setAttribute("class", "surface");
-    __e0.setAttribute("part", "surface");
-    const __e1 = document.createElement("slot");
-    __e0.appendChild(__e1);
-    const __e2 = document.createElement("div");
-    __e2.setAttribute("class", "overlay");
-    __e2.setAttribute("part", "overlay");
-    attachRef31($scope, "overlayEl", __e2);
-    const __ifAnchor3 = document.createComment("if");
-    __e2.appendChild(__ifAnchor3);
-    __cleanups.push(__wireBoundary_b1(__ifAnchor3));
-    const __forAnchor7 = document.createComment("for");
-    __e2.appendChild(__forAnchor7);
-    __cleanups.push(__wireBoundary_b3(__forAnchor7));
-    const __ifAnchor12 = document.createComment("if");
-    __e2.appendChild(__ifAnchor12);
-    __cleanups.push(__wireBoundary_b9(__ifAnchor12));
-    __e0.appendChild(__e2);
-    __root.appendChild(__e0);
-    if (__r != null) {
-      const __lc = Object.getOwnPropertyDescriptor(__r, "__shipSetLifecycle")?.value;
-      if (__lc) {
-        const __sp = new Proxy($scope, {
-          get(t, k) {
-            return t[k];
-          },
-          set(t, k, v) {
-            const s = t[k];
-            if (s != null && typeof s.set === "function") {
-              if (typeof v === "function") {
-                s.set(() => v);
-              } else {
-                s.set(v);
-              }
-              return true;
-            }
-            return false;
-          }
-        });
-        if (__lc.mount) {
-          const __mc = __lc.mount(__sp, host);
-          if (typeof __mc === "function")
-            __cleanups.push(__mc);
-        }
-        if (__lc.unmount)
-          __cleanups.push(() => __lc.unmount(__sp));
-      }
-    }
-    return $scope;
-  }
-});
-
-// packages/ui-components/src/sui-annotation/sui-annotation-marker.sui
-import { adoptSuiSheets as adoptSuiSheets57, attachRef as attachRef32, component as component57, prop as prop55 } from "@ship/sui-runtime";
-
-// packages/ui-components/src/sui-annotation/sui-annotation-marker.controller.ts
-import { controller as controller40, effect as effect36 } from "@ship/sui-runtime";
-var sui_annotation_marker_controller_default = controller40({
-  mount(state, _host) {
-    const scope = state;
-    const stop = effect36(() => {
-      const pinEl = scope.pinEl();
-      const boxEl = scope.boxEl();
-      const x = scope.x();
-      const y = scope.y();
-      const idx = scope.index();
-      const rect = scope.rect();
-      if (pinEl) {
-        pinEl.style.left = `${x}px`;
-        pinEl.style.top = `${y}px`;
-        pinEl.textContent = String(idx + 1);
-      }
-      if (boxEl && rect) {
-        const parts = rect.split(",").map(Number);
-        if (parts.length === 4 && parts.every((n) => Number.isFinite(n))) {
-          const [rx, ry, rw, rh] = parts;
-          boxEl.style.cssText = `left:${rx}px;top:${ry}px;width:${rw}px;height:${rh}px`;
-        }
-      }
-    });
-    return stop;
-  }
-});
-
-// packages/ui-components/src/sui-annotation/sui-annotation-marker.sui
-var sui_annotation_marker_default = component57("sui-annotation-marker", {
-  props: {
-    kind: prop55.union(["point", "region"], { default: "point", reflect: true }),
-    x: prop55.number({ default: 0 }),
-    y: prop55.number({ default: 0 }),
-    rect: prop55.string({ default: "" }),
-    active: prop55.bool({ default: false, reflect: true }),
-    index: prop55.number({ default: 0 })
-  },
-  shadow: true,
-  styles: `
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.viewId=u.viewId,n.mode=u.mode,n.endpoint=u.endpoint,n.staging=u.staging,n.overlayEl=G(null);let b=null;if(E0&&typeof E0.setup==="function"){if(i.scope=n,b=E0.setup(i),b&&typeof b==="object")Object.assign(n,b)}let w=(C)=>R({anchor:C,test:()=>{if(n.dragVisible())return 0;return-1},branches:[()=>{let z=document.createDocumentFragment(),j=[],g=document.createElement("div");return g.setAttribute("class","drag-rect"),j.push(T(g,"style",()=>n.dragRectStyle())),z.appendChild(g),{nodes:Array.from(z.childNodes),cleanup:()=>{for(let J of j)try{J()}catch(D){}}}}]}),r=(C)=>s({anchor:C,items:()=>n.markers(),key:(z,j)=>{let g=Object.create(n);return g.m=z,g.__i=j,((J)=>z.id)(g)},render:(z,j)=>{let g=Object.create(n);return g.m=z,g.__i=j,g.__v=G(0),((J)=>{let D=document.createDocumentFragment(),Z=[],X=document.createElement("sui-annotation-marker");return X.kind=J.m.kind,X.index=J.m.index,X.rect=J.m.rect,X.x=J.m.pos.x,X.y=J.m.pos.y,D.appendChild(X),{nodes:Array.from(D.childNodes),cleanup:()=>{for(let W of Z)try{W()}catch(Y){}},update:(W,Y)=>{J.m=W,J.__i=Y,X.kind=J.m.kind,X.index=J.m.index,X.rect=J.m.rect,X.x=J.m.pos.x,X.y=J.m.pos.y,J.__v.set((N)=>N+1)}}})(g)}}),M=(C)=>R({anchor:C,test:()=>{if(n.pending())return 0;return-1},branches:[()=>{let z=document.createDocumentFragment(),j=[],g=document.createElement("div");g.setAttribute("class","popover"),g.setAttribute("data-annotation-popover",""),j.push(T(g,"style",()=>n.popoverStyle())),j.push(p(g,"pointerdown",function(){let N=(F)=>F.stopPropagation();return typeof N==="function"?N.bind(void 0):()=>{}}(),{modifiers:[]}));let J=document.createElement("textarea");J.setAttribute("part","note-input"),J.setAttribute("placeholder","Add a note…"),j.push(gn(J,n.noteText)),j.push(p(J,"keydown",function(){let N=n.onNoteKeydown;return typeof N==="function"?N.bind(void 0):()=>{}}(),{modifiers:[]})),g.appendChild(J);let D=document.createElement("div");D.setAttribute("class","popover-actions");let Z=document.createElement("button");Z.setAttribute("type","button"),j.push(p(Z,"click",function(){let N=n.cancelPending;return typeof N==="function"?N.bind(void 0):()=>{}}(),{modifiers:[]}));let X=document.createTextNode("Cancel");Z.appendChild(X),D.appendChild(Z);let W=document.createElement("button");W.setAttribute("type","button"),W.setAttribute("data-primary",""),j.push(p(W,"click",function(){let N=n.sendNote;return typeof N==="function"?N.bind(void 0):()=>{}}(),{modifiers:[]}));let Y=document.createTextNode("Send");return W.appendChild(Y),D.appendChild(W),g.appendChild(D),z.appendChild(g),{nodes:Array.from(z.childNodes),cleanup:()=>{for(let N of j)try{N()}catch(F){}}}}]}),y=d.shadowRoot??d;V(y);let E=document.createElement("div");E.setAttribute("class","surface"),E.setAttribute("part","surface");let l=document.createElement("slot");E.appendChild(l);let L=document.createElement("div");L.setAttribute("class","overlay"),L.setAttribute("part","overlay"),O(n,"overlayEl",L);let f=document.createComment("if");L.appendChild(f),m.push(w(f));let t=document.createComment("for");L.appendChild(t),m.push(r(t));let H=document.createComment("if");if(L.appendChild(H),m.push(M(H)),E.appendChild(L),y.appendChild(E),b!=null){let C=Object.getOwnPropertyDescriptor(b,"__shipSetLifecycle")?.value;if(C){let z=new Proxy(n,{get(j,g){return j[g]},set(j,g,J){let D=j[g];if(D!=null&&typeof D.set==="function"){if(typeof J==="function")D.set(()=>J);else D.set(J);return!0}return!1}});if(C.mount){let j=C.mount(z,d);if(typeof j==="function")m.push(j)}if(C.unmount)m.push(()=>C.unmount(z))}}return n}});var l0=U({mount(i,u){let d=i;return q(()=>{let n=d.pinEl(),b=d.boxEl(),w=d.x(),r=d.y(),M=d.index(),y=d.rect();if(n)n.style.left=`${w}px`,n.style.top=`${r}px`,n.textContent=String(M+1);if(b&&y){let E=y.split(",").map(Number);if(E.length===4&&E.every((l)=>Number.isFinite(l))){let[l,L,f,t]=E;b.style.cssText=`left:${l}px;top:${L}px;width:${f}px;height:${t}px`}}})}});var IM=Q("sui-annotation-marker",{props:{kind:P.union(["point","region"],{default:"point",reflect:!0}),x:P.number({default:0}),y:P.number({default:0}),rect:P.string({default:""}),active:P.bool({default:!1,reflect:!0}),index:P.number({default:0})},shadow:!0,styles:`
   :host {
     position: absolute;
     pointer-events: auto;
@@ -12789,108 +4783,7 @@ var sui_annotation_marker_default = component57("sui-annotation-marker", {
   :host([active]) [part='box'] {
     background: color-mix(in oklch, var(--primary) 14%, transparent);
   }
-`,
-  setup(ctx) {
-    const { props, host } = ctx;
-    if (!ctx.cleanups)
-      ctx.cleanups = [];
-    const __cleanups = ctx.cleanups;
-    const $scope = Object.create(null);
-    $scope.kind = props.kind;
-    $scope.x = props.x;
-    $scope.y = props.y;
-    $scope.rect = props.rect;
-    $scope.active = props.active;
-    $scope.index = props.index;
-    let __r = null;
-    if (sui_annotation_marker_controller_default && typeof sui_annotation_marker_controller_default.setup === "function") {
-      ctx.scope = $scope;
-      __r = sui_annotation_marker_controller_default.setup(ctx);
-      if (__r && typeof __r === "object")
-        Object.assign($scope, __r);
-    }
-    const __root = host.shadowRoot ?? host;
-    adoptSuiSheets57(__root);
-    const __e0 = document.createElement("div");
-    __e0.setAttribute("part", "pin");
-    __e0.setAttribute("role", "button");
-    __e0.setAttribute("tabindex", "0");
-    attachRef32($scope, "pinEl", __e0);
-    __root.appendChild(__e0);
-    const __e1 = document.createElement("div");
-    __e1.setAttribute("part", "box");
-    __e1.setAttribute("role", "button");
-    __e1.setAttribute("tabindex", "0");
-    attachRef32($scope, "boxEl", __e1);
-    __root.appendChild(__e1);
-    if (__r != null) {
-      const __lc = Object.getOwnPropertyDescriptor(__r, "__shipSetLifecycle")?.value;
-      if (__lc) {
-        const __sp = new Proxy($scope, {
-          get(t, k) {
-            return t[k];
-          },
-          set(t, k, v) {
-            const s = t[k];
-            if (s != null && typeof s.set === "function") {
-              if (typeof v === "function") {
-                s.set(() => v);
-              } else {
-                s.set(v);
-              }
-              return true;
-            }
-            return false;
-          }
-        });
-        if (__lc.mount) {
-          const __mc = __lc.mount(__sp, host);
-          if (typeof __mc === "function")
-            __cleanups.push(__mc);
-        }
-        if (__lc.unmount)
-          __cleanups.push(() => __lc.unmount(__sp));
-      }
-    }
-    return $scope;
-  }
-});
-
-// packages/ui-components/src/sui-annotation/sui-annotation-list.sui
-import { adoptSuiSheets as adoptSuiSheets58, bindAttr as bindAttr29, bindFor as bindFor4, bindIf as bindIf15, bindText as bindText14, component as component58, on as on3 } from "@ship/sui-runtime";
-
-// packages/ui-components/src/sui-annotation/sui-annotation-list.controller.ts
-import { controller as controller41, signal as signal10 } from "@ship/sui-runtime";
-var sui_annotation_list_controller_default = controller41({
-  scope: (_, host) => {
-    const staged = signal10([]);
-    const emitRemove = (id) => {
-      host.dispatchEvent(new CustomEvent("sui-annotation-remove", {
-        detail: { id },
-        bubbles: true,
-        composed: true
-      }));
-    };
-    return { staged, emitRemove };
-  },
-  mount(state, host) {
-    const scope = state;
-    const stagedSignal = scope.staged;
-    const initial = host.staged;
-    if (initial != null)
-      stagedSignal.set(Array.isArray(initial) ? initial : []);
-    Object.defineProperty(host, "staged", {
-      configurable: true,
-      get: () => stagedSignal(),
-      set: (v) => stagedSignal.set(Array.isArray(v) ? v : [])
-    });
-  }
-});
-
-// packages/ui-components/src/sui-annotation/sui-annotation-list.sui
-var sui_annotation_list_default = component58("sui-annotation-list", {
-  shadow: true,
-  styles: `
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.kind=u.kind,n.x=u.x,n.y=u.y,n.rect=u.rect,n.active=u.active,n.index=u.index,n.boxEl=G(null),n.pinEl=G(null);let b=null;if(l0&&typeof l0.setup==="function"){if(i.scope=n,b=l0.setup(i),b&&typeof b==="object")Object.assign(n,b)}let w=d.shadowRoot??d;V(w);let r=document.createElement("div");r.setAttribute("part","pin"),r.setAttribute("role","button"),r.setAttribute("tabindex","0"),O(n,"pinEl",r),w.appendChild(r);let M=document.createElement("div");if(M.setAttribute("part","box"),M.setAttribute("role","button"),M.setAttribute("tabindex","0"),O(n,"boxEl",M),w.appendChild(M),b!=null){let y=Object.getOwnPropertyDescriptor(b,"__shipSetLifecycle")?.value;if(y){let E=new Proxy(n,{get(l,L){return l[L]},set(l,L,f){let t=l[L];if(t!=null&&typeof t.set==="function"){if(typeof f==="function")t.set(()=>f);else t.set(f);return!0}return!1}});if(y.mount){let l=y.mount(E,d);if(typeof l==="function")m.push(l)}if(y.unmount)m.push(()=>y.unmount(E))}}return n}});var r0=U({scope:(i,u)=>{return{staged:G([]),emitRemove:(n)=>{u.dispatchEvent(new CustomEvent("sui-annotation-remove",{detail:{id:n},bubbles:!0,composed:!0}))}}},mount(i,u){let d=u.staged;if(d!=null)i.staged.set(Array.isArray(d)?d:[]);Object.defineProperty(u,"staged",{configurable:!0,get:()=>i.staged(),set:(m)=>i.staged.set(Array.isArray(m)?m:[])})}});var xM=Q("sui-annotation-list",{shadow:!0,styles:`
   :host {
     display: block;
     font-family: var(--font-body);
@@ -12945,211 +4838,7 @@ var sui_annotation_list_default = component58("sui-annotation-list", {
     color: var(--destructive);
     border-color: var(--destructive);
   }
-`,
-  setup(ctx) {
-    const { props, host } = ctx;
-    if (!ctx.cleanups)
-      ctx.cleanups = [];
-    const __cleanups = ctx.cleanups;
-    const $scope = Object.create(null);
-    let __r = null;
-    if (sui_annotation_list_controller_default && typeof sui_annotation_list_controller_default.setup === "function") {
-      ctx.scope = $scope;
-      __r = sui_annotation_list_controller_default.setup(ctx);
-      if (__r && typeof __r === "object")
-        Object.assign($scope, __r);
-    }
-    const __wireBoundary_b1 = (anchor) => bindFor4({
-      anchor,
-      items: () => $scope.staged(),
-      key: (a, __i) => {
-        const __child = Object.create($scope);
-        __child.a = a;
-        __child.__i = __i;
-        return (($scope2) => a.id)(__child);
-      },
-      render: (a, __i) => {
-        const __childScope9 = Object.create($scope);
-        __childScope9.a = a;
-        __childScope9.__i = __i;
-        return (($scope2) => {
-          const __frag10 = document.createDocumentFragment();
-          const __c11 = [];
-          const __e12 = document.createElement("li");
-          __e12.setAttribute("part", "item");
-          __c11.push(bindAttr29(__e12, "data-id", () => $scope2.a.id));
-          const __e13 = document.createElement("span");
-          __e13.setAttribute("class", "kind");
-          const __t14 = document.createTextNode("");
-          __e13.appendChild(__t14);
-          __c11.push(bindText14(__t14, () => $scope2.a.kind));
-          __e12.appendChild(__e13);
-          const __e15 = document.createElement("span");
-          __e15.setAttribute("class", "note");
-          __c11.push(bindAttr29(__e15, "title", () => $scope2.a.note ?? ""));
-          const __t16 = document.createTextNode("");
-          __e15.appendChild(__t16);
-          __c11.push(bindText14(__t16, () => $scope2.a.note ?? "(no note)"));
-          __e12.appendChild(__e15);
-          const __e17 = document.createElement("button");
-          __e17.setAttribute("type", "button");
-          __e17.setAttribute("aria-label", "Remove annotation");
-          __c11.push(on3(__e17, "click", function() {
-            const __h = () => $scope2.emitRemove($scope2.a.id);
-            return typeof __h === "function" ? __h.bind(undefined) : () => {};
-          }(), { modifiers: [] }));
-          const __t18 = document.createTextNode("Remove");
-          __e17.appendChild(__t18);
-          __e12.appendChild(__e17);
-          __frag10.appendChild(__e12);
-          return { nodes: Array.from(__frag10.childNodes), cleanup: () => {
-            for (const c of __c11)
-              try {
-                c();
-              } catch (e) {}
-          } };
-        })(__childScope9);
-      }
-    });
-    const __wireBoundary_b0 = (anchor) => bindIf15({
-      anchor,
-      test: () => {
-        if ($scope.staged().length === 0)
-          return 0;
-        return 1;
-      },
-      branches: [
-        () => {
-          const __frag1 = document.createDocumentFragment();
-          const __c2 = [];
-          const __e3 = document.createElement("div");
-          __e3.setAttribute("class", "empty");
-          __e3.setAttribute("part", "empty");
-          const __t4 = document.createTextNode("No staged annotations.");
-          __e3.appendChild(__t4);
-          __frag1.appendChild(__e3);
-          return { nodes: Array.from(__frag1.childNodes), cleanup: () => {
-            for (const c of __c2)
-              try {
-                c();
-              } catch (e) {}
-          } };
-        },
-        () => {
-          const __frag5 = document.createDocumentFragment();
-          const __c6 = [];
-          const __e7 = document.createElement("ol");
-          __e7.setAttribute("part", "list");
-          const __forAnchor8 = document.createComment("for");
-          __e7.appendChild(__forAnchor8);
-          __c6.push(__wireBoundary_b1(__forAnchor8));
-          __frag5.appendChild(__e7);
-          return { nodes: Array.from(__frag5.childNodes), cleanup: () => {
-            for (const c of __c6)
-              try {
-                c();
-              } catch (e) {}
-          } };
-        }
-      ]
-    });
-    const __root = host.shadowRoot ?? host;
-    adoptSuiSheets58(__root);
-    const __ifAnchor0 = document.createComment("if");
-    __root.appendChild(__ifAnchor0);
-    __cleanups.push(__wireBoundary_b0(__ifAnchor0));
-    if (__r != null) {
-      const __lc = Object.getOwnPropertyDescriptor(__r, "__shipSetLifecycle")?.value;
-      if (__lc) {
-        const __sp = new Proxy($scope, {
-          get(t, k) {
-            return t[k];
-          },
-          set(t, k, v) {
-            const s = t[k];
-            if (s != null && typeof s.set === "function") {
-              if (typeof v === "function") {
-                s.set(() => v);
-              } else {
-                s.set(v);
-              }
-              return true;
-            }
-            return false;
-          }
-        });
-        if (__lc.mount) {
-          const __mc = __lc.mount(__sp, host);
-          if (typeof __mc === "function")
-            __cleanups.push(__mc);
-        }
-        if (__lc.unmount)
-          __cleanups.push(() => __lc.unmount(__sp));
-      }
-    }
-    return $scope;
-  }
-});
-
-// packages/ui-components/src/sui-radio-group/sui-radio.sui
-import { adoptSuiSheets as adoptSuiSheets59, attachRef as attachRef33, bindAttr as bindAttr30, bindChecked as bindChecked3, component as component59, prop as prop56 } from "@ship/sui-runtime";
-
-// packages/ui-components/src/sui-radio-group/sui-radio.controller.ts
-import { controller as controller42, effect as effect37 } from "@ship/sui-runtime";
-var sui_radio_controller_default = controller42({
-  mount(state, host) {
-    const scope = state;
-    const stop = effect37(() => {
-      const input = scope.inputEl();
-      if (!input)
-        return;
-      const onClick = () => {
-        if (scope.disabled())
-          return;
-        host.dispatchEvent(new CustomEvent("sui-radio-select", {
-          detail: { value: scope.value() },
-          bubbles: true,
-          composed: true
-        }));
-      };
-      const onKeydown = (e) => {
-        const navKeys = ["ArrowDown", "ArrowRight", "ArrowUp", "ArrowLeft"];
-        if (!navKeys.includes(e.key))
-          return;
-        e.preventDefault();
-        const forward = e.key === "ArrowDown" || e.key === "ArrowRight";
-        host.dispatchEvent(new CustomEvent("sui-radio-nav", {
-          detail: { direction: forward ? "next" : "prev" },
-          bubbles: true,
-          composed: true
-        }));
-      };
-      input.addEventListener("click", onClick);
-      input.addEventListener("keydown", onKeydown);
-      return () => {
-        input.removeEventListener("click", onClick);
-        input.removeEventListener("keydown", onKeydown);
-      };
-    });
-    host.focusInput = () => {
-      const input = host.shadowRoot?.querySelector("input");
-      input?.focus();
-    };
-    return () => stop();
-  }
-});
-
-// packages/ui-components/src/sui-radio-group/sui-radio.sui
-var sui_radio_default = component59("sui-radio", {
-  props: {
-    value: prop56.string({ default: "", reflect: true }),
-    disabled: prop56.bool({ default: false, reflect: true }),
-    checked: prop56.bool({ default: false, reflect: true }),
-    tone: prop56.union(["default", "primary", "info", "success", "warning", "destructive", "accent", "muted"], { default: "default", reflect: true }),
-    size: prop56.union(["sm", "md", "lg"], { default: "md", reflect: true })
-  },
-  shadow: true,
-  styles: `
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null),b=null;if(r0&&typeof r0.setup==="function"){if(i.scope=n,b=r0.setup(i),b&&typeof b==="object")Object.assign(n,b)}let w=(E)=>s({anchor:E,items:()=>n.staged(),key:(l,L)=>{let f=Object.create(n);return f.a=l,f.__i=L,((t)=>l.id)(f)},render:(l,L)=>{let f=Object.create(n);return f.a=l,f.__i=L,f.__v=G(0),((t)=>{let H=document.createDocumentFragment(),C=[],z=document.createElement("li");z.setAttribute("part","item");{let W=t.a.id;if(W==null||W===!1||W==="")z.removeAttribute("data-id");else z.setAttribute("data-id",W===!0?"":String(W))}let j=document.createElement("span");j.setAttribute("class","kind");let g=document.createTextNode("");j.appendChild(g),g.textContent=t.a.kind,z.appendChild(j);let J=document.createElement("span");J.setAttribute("class","note"),C.push(T(J,"title",()=>(t.__v(),t.a.note??"")));let D=document.createTextNode("");J.appendChild(D),C.push(S(D,()=>(t.__v(),t.a.note??"(no note)"))),z.appendChild(J);let Z=document.createElement("button");Z.setAttribute("type","button"),Z.setAttribute("aria-label","Remove annotation"),C.push(p(Z,"click",function(){let W=()=>t.emitRemove(t.a.id);return typeof W==="function"?W.bind(void 0):()=>{}}(),{modifiers:[]}));let X=document.createTextNode("Remove");return Z.appendChild(X),z.appendChild(Z),H.appendChild(z),{nodes:Array.from(H.childNodes),cleanup:()=>{for(let W of C)try{W()}catch(Y){}},update:(W,Y)=>{t.a=W,t.__i=Y;{let N=t.a.id;if(N==null||N===!1||N==="")z.removeAttribute("data-id");else z.setAttribute("data-id",N===!0?"":String(N))}g.textContent=t.a.kind,t.__v.set((N)=>N+1)}}})(f)}}),r=(E)=>R({anchor:E,test:()=>{if(n.staged().length===0)return 0;return 1},branches:[()=>{let l=document.createDocumentFragment(),L=[],f=document.createElement("div");f.setAttribute("class","empty"),f.setAttribute("part","empty");let t=document.createTextNode("No staged annotations.");return f.appendChild(t),l.appendChild(f),{nodes:Array.from(l.childNodes),cleanup:()=>{for(let H of L)try{H()}catch(C){}}}},()=>{let l=document.createDocumentFragment(),L=[],f=document.createElement("ol");f.setAttribute("part","list");let t=document.createComment("for");return f.appendChild(t),L.push(w(t)),l.appendChild(f),{nodes:Array.from(l.childNodes),cleanup:()=>{for(let H of L)try{H()}catch(C){}}}}]}),M=d.shadowRoot??d;V(M);let y=document.createComment("if");if(M.appendChild(y),m.push(r(y)),b!=null){let E=Object.getOwnPropertyDescriptor(b,"__shipSetLifecycle")?.value;if(E){let l=new Proxy(n,{get(L,f){return L[f]},set(L,f,t){let H=L[f];if(H!=null&&typeof H.set==="function"){if(typeof t==="function")H.set(()=>t);else H.set(t);return!0}return!1}});if(E.mount){let L=E.mount(l,d);if(typeof L==="function")m.push(L)}if(E.unmount)m.push(()=>E.unmount(l))}}return n}});var M0=U({mount(i,u){let d=i,m=q(()=>{let n=d.inputEl();if(!n)return;let b=()=>{if(d.disabled())return;u.dispatchEvent(new CustomEvent("sui-radio-select",{detail:{value:d.value()},bubbles:!0,composed:!0}))},w=(r)=>{if(!["ArrowDown","ArrowRight","ArrowUp","ArrowLeft"].includes(r.key))return;r.preventDefault();let y=r.key==="ArrowDown"||r.key==="ArrowRight";u.dispatchEvent(new CustomEvent("sui-radio-nav",{detail:{direction:y?"next":"prev"},bubbles:!0,composed:!0}))};return n.addEventListener("click",b),n.addEventListener("keydown",w),()=>{n.removeEventListener("click",b),n.removeEventListener("keydown",w)}});return u.focusInput=()=>{u.shadowRoot?.querySelector("input")?.focus()},()=>m()}});var pM=Q("sui-radio",{props:{value:P.string({default:"",reflect:!0}),disabled:P.bool({default:!1,reflect:!0}),checked:P.bool({default:!1,reflect:!0}),tone:P.union(["default","primary","info","success","warning","destructive","accent","muted"],{default:"default",reflect:!0}),size:P.union(["sm","md","lg"],{default:"md",reflect:!0})},shadow:!0,styles:`
   :host {
     display: inline-flex;
     align-items: center;
@@ -13271,186 +4960,7 @@ var sui_radio_default = component59("sui-radio", {
     color: inherit;
     line-height: var(--leading-tight, 1.25);
   }
-`,
-  setup(ctx) {
-    const { props, host } = ctx;
-    if (!ctx.cleanups)
-      ctx.cleanups = [];
-    const __cleanups = ctx.cleanups;
-    const $scope = Object.create(null);
-    $scope.value = props.value;
-    $scope.disabled = props.disabled;
-    $scope.checked = props.checked;
-    $scope.tone = props.tone;
-    $scope.size = props.size;
-    let __r = null;
-    if (sui_radio_controller_default && typeof sui_radio_controller_default.setup === "function") {
-      ctx.scope = $scope;
-      __r = sui_radio_controller_default.setup(ctx);
-      if (__r && typeof __r === "object")
-        Object.assign($scope, __r);
-    }
-    const __root = host.shadowRoot ?? host;
-    adoptSuiSheets59(__root);
-    const __e0 = document.createElement("label");
-    __e0.setAttribute("part", "label");
-    const __e1 = document.createElement("span");
-    __e1.setAttribute("class", "circle");
-    __e1.setAttribute("part", "circle");
-    const __e2 = document.createElement("input");
-    __e2.setAttribute("part", "input");
-    __e2.setAttribute("type", "radio");
-    __cleanups.push(bindChecked3(__e2, $scope.checked));
-    __cleanups.push(bindAttr30(__e2, "disabled", () => $scope.disabled()));
-    __cleanups.push(bindAttr30(__e2, "aria-checked", () => $scope.checked() ? "true" : "false"));
-    __cleanups.push(bindAttr30(__e2, "tabindex", () => $scope.checked() ? "0" : "-1"));
-    attachRef33($scope, "inputEl", __e2);
-    __e1.appendChild(__e2);
-    const __e3 = document.createElement("span");
-    __e3.setAttribute("class", "dot");
-    __e3.setAttribute("part", "dot");
-    __e3.setAttribute("aria-hidden", "true");
-    __e1.appendChild(__e3);
-    __e0.appendChild(__e1);
-    const __e4 = document.createElement("slot");
-    __e0.appendChild(__e4);
-    __root.appendChild(__e0);
-    if (__r != null) {
-      const __lc = Object.getOwnPropertyDescriptor(__r, "__shipSetLifecycle")?.value;
-      if (__lc) {
-        const __sp = new Proxy($scope, {
-          get(t, k) {
-            return t[k];
-          },
-          set(t, k, v) {
-            const s = t[k];
-            if (s != null && typeof s.set === "function") {
-              if (typeof v === "function") {
-                s.set(() => v);
-              } else {
-                s.set(v);
-              }
-              return true;
-            }
-            return false;
-          }
-        });
-        if (__lc.mount) {
-          const __mc = __lc.mount(__sp, host);
-          if (typeof __mc === "function")
-            __cleanups.push(__mc);
-        }
-        if (__lc.unmount)
-          __cleanups.push(() => __lc.unmount(__sp));
-      }
-    }
-    return $scope;
-  }
-});
-
-// packages/ui-components/src/sui-radio-group/sui-radio-group.sui
-import { adoptSuiSheets as adoptSuiSheets60, component as component60, prop as prop57 } from "@ship/sui-runtime";
-
-// packages/ui-components/src/sui-radio-group/sui-radio-group.controller.ts
-import { controller as controller43, effect as effect38 } from "@ship/sui-runtime";
-var sui_radio_group_controller_default = controller43({
-  mount(state, host) {
-    const scope = state;
-    if (!host.hasAttribute("role"))
-      host.setAttribute("role", "radiogroup");
-    const hiddenInput = document.createElement("input");
-    hiddenInput.type = "hidden";
-    host.appendChild(hiddenInput);
-    const getRadios = () => Array.from(host.querySelectorAll(":scope > sui-radio"));
-    const enabledRadios = () => getRadios().filter((r) => !r.hasAttribute("disabled") && !scope.disabled());
-    const syncRadios = () => {
-      const currentValue = scope.value();
-      const isGroupDisabled = scope.disabled();
-      const groupTone = scope.tone();
-      const groupSize = scope.size();
-      for (const radio of getRadios()) {
-        radio.toggleAttribute("checked", radio.getAttribute("value") === currentValue);
-        if (isGroupDisabled)
-          radio.setAttribute("disabled", "");
-        if (groupTone && !radio.hasAttribute("tone"))
-          radio.setAttribute("tone", groupTone);
-        if (groupSize && !radio.hasAttribute("size"))
-          radio.setAttribute("size", groupSize);
-      }
-      hiddenInput.name = scope.name();
-      hiddenInput.value = currentValue;
-    };
-    const stopSync = effect38(() => {
-      scope.value();
-      scope.disabled();
-      scope.tone();
-      scope.size();
-      syncRadios();
-    });
-    const stopLabel = effect38(() => {
-      const label = scope.label();
-      if (label)
-        host.setAttribute("aria-label", label);
-      else
-        host.removeAttribute("aria-label");
-    });
-    const onSelect = (e) => {
-      const ce = e;
-      ce.stopPropagation();
-      const newVal = ce.detail.value;
-      if (newVal === scope.value())
-        return;
-      scope.value.set(newVal);
-      syncRadios();
-      host.dispatchEvent(new CustomEvent("sui-change", {
-        detail: { value: newVal },
-        bubbles: true,
-        composed: true
-      }));
-    };
-    const onNav = (e) => {
-      const ce = e;
-      ce.stopPropagation();
-      const enabled = enabledRadios();
-      if (!enabled.length)
-        return;
-      const current = ce.composedPath().find((el) => el.tagName?.toLowerCase() === "sui-radio");
-      const idx = current ? enabled.indexOf(current) : -1;
-      const next = ce.detail.direction === "next" ? enabled[(idx + 1) % enabled.length] : enabled[(idx - 1 + enabled.length) % enabled.length];
-      const nextVal = next.getAttribute("value") ?? "";
-      scope.value.set(nextVal);
-      syncRadios();
-      next.focusInput?.();
-      host.dispatchEvent(new CustomEvent("sui-change", {
-        detail: { value: nextVal },
-        bubbles: true,
-        composed: true
-      }));
-    };
-    host.addEventListener("sui-radio-select", onSelect);
-    host.addEventListener("sui-radio-nav", onNav);
-    return () => {
-      stopSync();
-      stopLabel();
-      host.removeEventListener("sui-radio-select", onSelect);
-      host.removeEventListener("sui-radio-nav", onNav);
-      hiddenInput.remove();
-    };
-  }
-});
-
-// packages/ui-components/src/sui-radio-group/sui-radio-group.sui
-var sui_radio_group_default = component60("sui-radio-group", {
-  props: {
-    value: prop57.string({ default: "", reflect: true }),
-    disabled: prop57.bool({ default: false, reflect: true }),
-    tone: prop57.union(["default", "primary", "info", "success", "warning", "destructive", "accent", "muted"], { default: "default", reflect: true }),
-    size: prop57.union(["sm", "md", "lg"], { default: "md", reflect: true }),
-    name: prop57.string({ default: "" }),
-    label: prop57.string({ default: "" })
-  },
-  shadow: true,
-  styles: `
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.value=u.value,n.disabled=u.disabled,n.checked=u.checked,n.tone=u.tone,n.size=u.size,n.inputEl=G(null);let b=null;if(M0&&typeof M0.setup==="function"){if(i.scope=n,b=M0.setup(i),b&&typeof b==="object")Object.assign(n,b)}let w=d.shadowRoot??d;V(w);let r=document.createElement("label");r.setAttribute("part","label");let M=document.createElement("span");M.setAttribute("class","circle"),M.setAttribute("part","circle");let y=document.createElement("input");y.setAttribute("part","input"),y.setAttribute("type","radio"),m.push(Dn(y,n.checked)),m.push(T(y,"disabled",()=>n.disabled())),m.push(T(y,"aria-checked",()=>n.checked()?"true":"false")),m.push(T(y,"tabindex",()=>n.checked()?"0":"-1")),O(n,"inputEl",y),M.appendChild(y);let E=document.createElement("span");E.setAttribute("class","dot"),E.setAttribute("part","dot"),E.setAttribute("aria-hidden","true"),M.appendChild(E),r.appendChild(M);let l=document.createElement("slot");if(r.appendChild(l),w.appendChild(r),b!=null){let L=Object.getOwnPropertyDescriptor(b,"__shipSetLifecycle")?.value;if(L){let f=new Proxy(n,{get(t,H){return t[H]},set(t,H,C){let z=t[H];if(z!=null&&typeof z.set==="function"){if(typeof C==="function")z.set(()=>C);else z.set(C);return!0}return!1}});if(L.mount){let t=L.mount(f,d);if(typeof t==="function")m.push(t)}if(L.unmount)m.push(()=>L.unmount(f))}}return n}});var y0=U({mount(i,u){let d=i;if(!u.hasAttribute("role"))u.setAttribute("role","radiogroup");let m=document.createElement("input");m.type="hidden",u.appendChild(m);let n=()=>Array.from(u.querySelectorAll(":scope > sui-radio")),b=()=>n().filter((l)=>!l.hasAttribute("disabled")&&!d.disabled()),w=()=>{let l=d.value(),L=d.disabled(),f=d.tone(),t=d.size();for(let H of n()){if(H.toggleAttribute("checked",H.getAttribute("value")===l),L)H.setAttribute("disabled","");if(f&&!H.hasAttribute("tone"))H.setAttribute("tone",f);if(t&&!H.hasAttribute("size"))H.setAttribute("size",t)}m.name=d.name(),m.value=l},r=q(()=>{d.value(),d.disabled(),d.tone(),d.size(),w()}),M=q(()=>{let l=d.label();if(l)u.setAttribute("aria-label",l);else u.removeAttribute("aria-label")}),y=(l)=>{let L=l;L.stopPropagation();let f=L.detail.value;if(f===d.value())return;d.value.set(f),w(),u.dispatchEvent(new CustomEvent("sui-change",{detail:{value:f},bubbles:!0,composed:!0}))},E=(l)=>{let L=l;L.stopPropagation();let f=b();if(!f.length)return;let t=L.composedPath().find((j)=>j.tagName?.toLowerCase()==="sui-radio"),H=t?f.indexOf(t):-1,C=L.detail.direction==="next"?f[(H+1)%f.length]:f[(H-1+f.length)%f.length],z=C.getAttribute("value")??"";d.value.set(z),w(),C.focusInput?.(),u.dispatchEvent(new CustomEvent("sui-change",{detail:{value:z},bubbles:!0,composed:!0}))};return u.addEventListener("sui-radio-select",y),u.addEventListener("sui-radio-nav",E),()=>{r(),M(),u.removeEventListener("sui-radio-select",y),u.removeEventListener("sui-radio-nav",E),m.remove()}}});var d9=Q("sui-radio-group",{props:{value:P.string({default:"",reflect:!0}),disabled:P.bool({default:!1,reflect:!0}),tone:P.union(["default","primary","info","success","warning","destructive","accent","muted"],{default:"default",reflect:!0}),size:P.union(["sm","md","lg"],{default:"md",reflect:!0}),name:P.string({default:""}),label:P.string({default:""})},shadow:!0,styles:`
   :host {
     display: flex;
     flex-direction: column;
@@ -13458,208 +4968,7 @@ var sui_radio_group_default = component60("sui-radio-group", {
     font-family: var(--font-body);
     color: var(--foreground);
   }
-`,
-  setup(ctx) {
-    const { props, host } = ctx;
-    if (!ctx.cleanups)
-      ctx.cleanups = [];
-    const __cleanups = ctx.cleanups;
-    const $scope = Object.create(null);
-    $scope.value = props.value;
-    $scope.disabled = props.disabled;
-    $scope.tone = props.tone;
-    $scope.size = props.size;
-    $scope.name = props.name;
-    $scope.label = props.label;
-    let __r = null;
-    if (sui_radio_group_controller_default && typeof sui_radio_group_controller_default.setup === "function") {
-      ctx.scope = $scope;
-      __r = sui_radio_group_controller_default.setup(ctx);
-      if (__r && typeof __r === "object")
-        Object.assign($scope, __r);
-    }
-    const __root = host.shadowRoot ?? host;
-    adoptSuiSheets60(__root);
-    const __e0 = document.createElement("slot");
-    __root.appendChild(__e0);
-    if (__r != null) {
-      const __lc = Object.getOwnPropertyDescriptor(__r, "__shipSetLifecycle")?.value;
-      if (__lc) {
-        const __sp = new Proxy($scope, {
-          get(t, k) {
-            return t[k];
-          },
-          set(t, k, v) {
-            const s = t[k];
-            if (s != null && typeof s.set === "function") {
-              if (typeof v === "function") {
-                s.set(() => v);
-              } else {
-                s.set(v);
-              }
-              return true;
-            }
-            return false;
-          }
-        });
-        if (__lc.mount) {
-          const __mc = __lc.mount(__sp, host);
-          if (typeof __mc === "function")
-            __cleanups.push(__mc);
-        }
-        if (__lc.unmount)
-          __cleanups.push(() => __lc.unmount(__sp));
-      }
-    }
-    return $scope;
-  }
-});
-
-// packages/ui-components/src/sui-slider/sui-slider.sui
-import { adoptSuiSheets as adoptSuiSheets61, attachRef as attachRef34, bindAttr as bindAttr31, component as component61, prop as prop58 } from "@ship/sui-runtime";
-
-// packages/ui-components/src/sui-slider/sui-slider.controller.ts
-import { controller as controller44, effect as effect39 } from "@ship/sui-runtime";
-var sui_slider_controller_default = controller44({
-  mount(state, host) {
-    const scope = state;
-    const hiddenInput = document.createElement("input");
-    hiddenInput.type = "hidden";
-    host.appendChild(hiddenInput);
-    const clamp = (v) => {
-      const step = scope.step();
-      const min = scope.min();
-      const max = scope.max();
-      const stepped = Math.round((v - min) / step) * step + min;
-      return Math.max(min, Math.min(max, stepped));
-    };
-    const setValue = (v) => {
-      const clamped = clamp(v);
-      if (clamped === scope.value())
-        return;
-      scope.value.set(clamped);
-      hiddenInput.name = scope.name();
-      hiddenInput.value = String(clamped);
-      host.dispatchEvent(new CustomEvent("sui-change", {
-        detail: { value: clamped },
-        bubbles: true,
-        composed: true
-      }));
-    };
-    const valueFromPointer = (clientX) => {
-      const track = scope.trackEl();
-      if (!track)
-        return scope.value();
-      const rect = track.getBoundingClientRect();
-      const pct = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
-      return scope.min() + pct * (scope.max() - scope.min());
-    };
-    const stopPositionSync = effect39(() => {
-      const val = scope.value();
-      const min = scope.min();
-      const max = scope.max();
-      const range = max - min || 1;
-      const pct = (val - min) / range * 100;
-      const fill = scope.fillEl();
-      const thumb = scope.thumbEl();
-      if (fill)
-        fill.style.width = `${pct}%`;
-      if (thumb)
-        thumb.style.left = `${pct}%`;
-      hiddenInput.name = scope.name();
-      hiddenInput.value = String(val);
-    });
-    let dragging = false;
-    const onPointerDown = (e) => {
-      if (scope.disabled())
-        return;
-      e.preventDefault();
-      dragging = true;
-      setValue(valueFromPointer(e.clientX));
-      const thumb = scope.thumbEl();
-      thumb?.focus();
-      const onMove = (ev) => {
-        if (dragging)
-          setValue(valueFromPointer(ev.clientX));
-      };
-      const onUp = () => {
-        dragging = false;
-        document.removeEventListener("pointermove", onMove);
-        document.removeEventListener("pointerup", onUp);
-      };
-      document.addEventListener("pointermove", onMove);
-      document.addEventListener("pointerup", onUp);
-    };
-    const onKeydown = (e) => {
-      if (scope.disabled())
-        return;
-      const step = scope.step();
-      let handled = true;
-      switch (e.key) {
-        case "ArrowRight":
-        case "ArrowUp":
-          setValue(scope.value() + step);
-          break;
-        case "ArrowLeft":
-        case "ArrowDown":
-          setValue(scope.value() - step);
-          break;
-        case "Home":
-          setValue(scope.min());
-          break;
-        case "End":
-          setValue(scope.max());
-          break;
-        case "PageUp":
-          setValue(scope.value() + step * 10);
-          break;
-        case "PageDown":
-          setValue(scope.value() - step * 10);
-          break;
-        default:
-          handled = false;
-      }
-      if (handled)
-        e.preventDefault();
-    };
-    const stopPointer = effect39(() => {
-      const container = scope.containerEl();
-      if (!container)
-        return;
-      container.addEventListener("pointerdown", onPointerDown);
-      return () => container.removeEventListener("pointerdown", onPointerDown);
-    });
-    const stopKeydown = effect39(() => {
-      const thumb = scope.thumbEl();
-      if (!thumb)
-        return;
-      thumb.addEventListener("keydown", onKeydown);
-      return () => thumb.removeEventListener("keydown", onKeydown);
-    });
-    return () => {
-      stopPositionSync();
-      stopPointer();
-      stopKeydown();
-      hiddenInput.remove();
-    };
-  }
-});
-
-// packages/ui-components/src/sui-slider/sui-slider.sui
-var sui_slider_default = component61("sui-slider", {
-  props: {
-    value: prop58.number({ default: 0, reflect: true }),
-    min: prop58.number({ default: 0 }),
-    max: prop58.number({ default: 100 }),
-    step: prop58.number({ default: 1 }),
-    disabled: prop58.bool({ default: false, reflect: true }),
-    tone: prop58.union(["default", "primary", "info", "success", "warning", "destructive", "accent", "muted"], { default: "default", reflect: true }),
-    size: prop58.union(["sm", "md", "lg"], { default: "md", reflect: true }),
-    name: prop58.string({ default: "" }),
-    label: prop58.string({ default: "slider" })
-  },
-  shadow: true,
-  styles: `
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.value=u.value,n.disabled=u.disabled,n.tone=u.tone,n.size=u.size,n.name=u.name,n.label=u.label;let b=null;if(y0&&typeof y0.setup==="function"){if(i.scope=n,b=y0.setup(i),b&&typeof b==="object")Object.assign(n,b)}let w=d.shadowRoot??d;V(w);let r=document.createElement("slot");if(w.appendChild(r),b!=null){let M=Object.getOwnPropertyDescriptor(b,"__shipSetLifecycle")?.value;if(M){let y=new Proxy(n,{get(E,l){return E[l]},set(E,l,L){let f=E[l];if(f!=null&&typeof f.set==="function"){if(typeof L==="function")f.set(()=>L);else f.set(L);return!0}return!1}});if(M.mount){let E=M.mount(y,d);if(typeof E==="function")m.push(E)}if(M.unmount)m.push(()=>M.unmount(y))}}return n}});var w0=U({mount(i,u){let d=i,m=document.createElement("input");m.type="hidden",u.appendChild(m);let n=(f)=>{let t=d.step(),H=d.min(),C=d.max(),z=Math.round((f-H)/t)*t+H;return Math.max(H,Math.min(C,z))},b=(f)=>{let t=n(f);if(t===d.value())return;d.value.set(t),m.name=d.name(),m.value=String(t),u.dispatchEvent(new CustomEvent("sui-change",{detail:{value:t},bubbles:!0,composed:!0}))},w=(f)=>{let t=d.trackEl();if(!t)return d.value();let H=t.getBoundingClientRect(),C=Math.max(0,Math.min(1,(f-H.left)/H.width));return d.min()+C*(d.max()-d.min())},r=q(()=>{let f=d.value(),t=d.min(),C=d.max()-t||1,z=(f-t)/C*100,j=d.fillEl(),g=d.thumbEl();if(j)j.style.width=`${z}%`;if(g)g.style.left=`${z}%`;m.name=d.name(),m.value=String(f)}),M=!1,y=(f)=>{if(d.disabled())return;f.preventDefault(),M=!0,b(w(f.clientX)),d.thumbEl()?.focus();let H=(z)=>{if(M)b(w(z.clientX))},C=()=>{M=!1,document.removeEventListener("pointermove",H),document.removeEventListener("pointerup",C)};document.addEventListener("pointermove",H),document.addEventListener("pointerup",C)},E=(f)=>{if(d.disabled())return;let t=d.step(),H=!0;switch(f.key){case"ArrowRight":case"ArrowUp":b(d.value()+t);break;case"ArrowLeft":case"ArrowDown":b(d.value()-t);break;case"Home":b(d.min());break;case"End":b(d.max());break;case"PageUp":b(d.value()+t*10);break;case"PageDown":b(d.value()-t*10);break;default:H=!1}if(H)f.preventDefault()},l=q(()=>{let f=d.containerEl();if(!f)return;return f.addEventListener("pointerdown",y),()=>f.removeEventListener("pointerdown",y)}),L=q(()=>{let f=d.thumbEl();if(!f)return;return f.addEventListener("keydown",E),()=>f.removeEventListener("keydown",E)});return()=>{r(),l(),L(),m.remove()}}});var E9=Q("sui-slider",{props:{value:P.number({default:0,reflect:!0}),min:P.number({default:0}),max:P.number({default:100}),step:P.number({default:1}),disabled:P.bool({default:!1,reflect:!0}),tone:P.union(["default","primary","info","success","warning","destructive","accent","muted"],{default:"default",reflect:!0}),size:P.union(["sm","md","lg"],{default:"md",reflect:!0}),name:P.string({default:""}),label:P.string({default:"slider"})},shadow:!0,styles:`
   :host {
     display: block;
     font-family: var(--font-body);
@@ -13743,256 +5052,16 @@ var sui_slider_default = component61("sui-slider", {
     .thumb:focus-visible { outline: 2px solid CanvasText; outline-offset: 2px; }
   }
 
-`,
-  setup(ctx) {
-    const { props, host } = ctx;
-    if (!ctx.cleanups)
-      ctx.cleanups = [];
-    const __cleanups = ctx.cleanups;
-    const $scope = Object.create(null);
-    $scope.value = props.value;
-    $scope.min = props.min;
-    $scope.max = props.max;
-    $scope.step = props.step;
-    $scope.disabled = props.disabled;
-    $scope.tone = props.tone;
-    $scope.size = props.size;
-    $scope.name = props.name;
-    $scope.label = props.label;
-    let __r = null;
-    if (sui_slider_controller_default && typeof sui_slider_controller_default.setup === "function") {
-      ctx.scope = $scope;
-      __r = sui_slider_controller_default.setup(ctx);
-      if (__r && typeof __r === "object")
-        Object.assign($scope, __r);
-    }
-    const __root = host.shadowRoot ?? host;
-    adoptSuiSheets61(__root);
-    const __e0 = document.createElement("div");
-    __e0.setAttribute("class", "container");
-    attachRef34($scope, "containerEl", __e0);
-    const __e1 = document.createElement("div");
-    __e1.setAttribute("class", "track");
-    __e1.setAttribute("part", "track");
-    attachRef34($scope, "trackEl", __e1);
-    const __e2 = document.createElement("div");
-    __e2.setAttribute("class", "fill");
-    __e2.setAttribute("part", "fill");
-    attachRef34($scope, "fillEl", __e2);
-    __e1.appendChild(__e2);
-    __e0.appendChild(__e1);
-    const __e3 = document.createElement("div");
-    __e3.setAttribute("class", "thumb");
-    __e3.setAttribute("part", "thumb");
-    __e3.setAttribute("role", "slider");
-    __cleanups.push(bindAttr31(__e3, "tabindex", () => $scope.disabled() ? "-1" : "0"));
-    __cleanups.push(bindAttr31(__e3, "aria-valuemin", () => $scope.min()));
-    __cleanups.push(bindAttr31(__e3, "aria-valuemax", () => $scope.max()));
-    __cleanups.push(bindAttr31(__e3, "aria-valuenow", () => $scope.value()));
-    __cleanups.push(bindAttr31(__e3, "aria-label", () => $scope.label() || "slider"));
-    __cleanups.push(bindAttr31(__e3, "aria-disabled", () => $scope.disabled() ? "true" : "false"));
-    attachRef34($scope, "thumbEl", __e3);
-    __e0.appendChild(__e3);
-    __root.appendChild(__e0);
-    if (__r != null) {
-      const __lc = Object.getOwnPropertyDescriptor(__r, "__shipSetLifecycle")?.value;
-      if (__lc) {
-        const __sp = new Proxy($scope, {
-          get(t, k) {
-            return t[k];
-          },
-          set(t, k, v) {
-            const s = t[k];
-            if (s != null && typeof s.set === "function") {
-              if (typeof v === "function") {
-                s.set(() => v);
-              } else {
-                s.set(v);
-              }
-              return true;
-            }
-            return false;
-          }
-        });
-        if (__lc.mount) {
-          const __mc = __lc.mount(__sp, host);
-          if (typeof __mc === "function")
-            __cleanups.push(__mc);
-        }
-        if (__lc.unmount)
-          __cleanups.push(() => __lc.unmount(__sp));
-      }
-    }
-    return $scope;
-  }
-});
-
-// packages/ui-components/src/sui-segmented/sui-segmented-option.sui
-import { adoptSuiSheets as adoptSuiSheets62, component as component62, prop as prop59 } from "@ship/sui-runtime";
-var sui_segmented_option_default = component62("sui-segmented-option", {
-  props: {
-    value: prop59.string({ default: "", reflect: true }),
-    icon: prop59.string({ default: "", reflect: true }),
-    disabled: prop59.bool({ default: false, reflect: true })
-  },
-  shadow: true,
-  styles: `
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.value=u.value,n.min=u.min,n.max=u.max,n.step=u.step,n.disabled=u.disabled,n.tone=u.tone,n.size=u.size,n.name=u.name,n.label=u.label,n.containerEl=G(null),n.fillEl=G(null),n.thumbEl=G(null),n.trackEl=G(null);let b=null;if(w0&&typeof w0.setup==="function"){if(i.scope=n,b=w0.setup(i),b&&typeof b==="object")Object.assign(n,b)}let w=d.shadowRoot??d;V(w);let r=document.createElement("div");r.setAttribute("class","container"),O(n,"containerEl",r);let M=document.createElement("div");M.setAttribute("class","track"),M.setAttribute("part","track"),O(n,"trackEl",M);let y=document.createElement("div");y.setAttribute("class","fill"),y.setAttribute("part","fill"),O(n,"fillEl",y),M.appendChild(y),r.appendChild(M);let E=document.createElement("div");if(E.setAttribute("class","thumb"),E.setAttribute("part","thumb"),E.setAttribute("role","slider"),m.push(T(E,"tabindex",()=>n.disabled()?"-1":"0")),m.push(T(E,"aria-valuemin",()=>n.min())),m.push(T(E,"aria-valuemax",()=>n.max())),m.push(T(E,"aria-valuenow",()=>n.value())),m.push(T(E,"aria-label",()=>n.label()||"slider")),m.push(T(E,"aria-disabled",()=>n.disabled()?"true":"false")),O(n,"thumbEl",E),r.appendChild(E),w.appendChild(r),b!=null){let l=Object.getOwnPropertyDescriptor(b,"__shipSetLifecycle")?.value;if(l){let L=new Proxy(n,{get(f,t){return f[t]},set(f,t,H){let C=f[t];if(C!=null&&typeof C.set==="function"){if(typeof H==="function")C.set(()=>H);else C.set(H);return!0}return!1}});if(l.mount){let f=l.mount(L,d);if(typeof f==="function")m.push(f)}if(l.unmount)m.push(()=>l.unmount(L))}}return n}});var M9=Q("sui-segmented-option",{props:{value:P.string({default:"",reflect:!0}),icon:P.string({default:"",reflect:!0}),disabled:P.bool({default:!1,reflect:!0})},shadow:!0,styles:`
   :host { display: none; }
-`,
-  setup(ctx) {
-    const { props, host } = ctx;
-    if (!ctx.cleanups)
-      ctx.cleanups = [];
-    const __cleanups = ctx.cleanups;
-    const $scope = Object.create(null);
-    $scope.value = props.value;
-    $scope.icon = props.icon;
-    $scope.disabled = props.disabled;
-    const __root = host.shadowRoot ?? host;
-    adoptSuiSheets62(__root);
-    const __t0 = document.createTextNode(`
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.value=u.value,n.icon=u.icon,n.disabled=u.disabled;let b=d.shadowRoot??d;V(b);let w=document.createTextNode(`
 
-`);
-    __root.appendChild(__t0);
-    const __t1 = document.createTextNode(`
-`);
-    __root.appendChild(__t1);
-    const __t2 = document.createTextNode(`
-`);
-    __root.appendChild(__t2);
-    const __t3 = document.createTextNode(`
+`);b.appendChild(w);let r=document.createTextNode(`
+`);b.appendChild(r);let M=document.createTextNode(`
+`);b.appendChild(M);let y=document.createTextNode(`
 
-`);
-    __root.appendChild(__t3);
-    const __t4 = document.createTextNode(`
-`);
-    __root.appendChild(__t4);
-    return $scope;
-  }
-});
-
-// packages/ui-components/src/sui-segmented/sui-segmented.sui
-import { adoptSuiSheets as adoptSuiSheets63, attachRef as attachRef35, bindAttr as bindAttr32, bindFor as bindFor5, bindIf as bindIf16, bindProp as bindProp2, bindText as bindText15, component as component63, prop as prop60 } from "@ship/sui-runtime";
-
-// packages/ui-components/src/sui-segmented/sui-segmented.controller.ts
-import { controller as controller45, signal as signal11, effect as effect40, ref as ref5 } from "@ship/sui-runtime";
-var cssEscape = (s) => typeof CSS !== "undefined" && CSS.escape ? CSS.escape(s) : s.replace(/[^\w-]/g, "\\$&");
-var sui_segmented_controller_default = controller45({
-  scope: () => {
-    const options = signal11([]);
-    const containerEl = ref5(null);
-    return { options, containerEl };
-  },
-  mount(state, host) {
-    const scope = state;
-    const optionsSig = scope.options;
-    if (!host.hasAttribute("role"))
-      host.setAttribute("role", "radiogroup");
-    const hiddenInput = document.createElement("input");
-    hiddenInput.type = "hidden";
-    host.appendChild(hiddenInput);
-    const readOptions = () => {
-      const els = Array.from(host.querySelectorAll(":scope > sui-segmented-option"));
-      return els.map((el) => ({
-        value: el.getAttribute("value") ?? "",
-        label: el.textContent?.trim() ?? "",
-        icon: el.getAttribute("icon") || null,
-        disabled: el.hasAttribute("disabled")
-      }));
-    };
-    const select = (val) => {
-      if (scope.disabled())
-        return;
-      const opts = optionsSig();
-      const opt = opts.find((o) => o.value === val);
-      if (!opt || opt.disabled)
-        return;
-      if (scope.value() === val)
-        return;
-      scope.value.set(val);
-      host.dispatchEvent(new CustomEvent("sui-change", {
-        detail: { value: val },
-        bubbles: true,
-        composed: true
-      }));
-    };
-    const onClick = (e) => {
-      const btn = e.target?.closest(".btn");
-      if (!btn)
-        return;
-      const val = btn.getAttribute("data-value");
-      if (val !== null)
-        select(val);
-    };
-    const onKeyDown = (e) => {
-      const opts = optionsSig();
-      const enabled = opts.filter((o) => !o.disabled && !scope.disabled());
-      if (!enabled.length)
-        return;
-      const values = enabled.map((o) => o.value);
-      const cur = scope.value();
-      const i = Math.max(0, values.indexOf(cur));
-      let next = i;
-      if (e.key === "ArrowRight" || e.key === "ArrowDown") {
-        e.preventDefault();
-        next = (i + 1) % values.length;
-      } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
-        e.preventDefault();
-        next = (i - 1 + values.length) % values.length;
-      } else if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        const focused = host.shadowRoot.activeElement;
-        const focusedValue = focused?.getAttribute("data-value");
-        if (focusedValue)
-          select(focusedValue);
-        return;
-      } else {
-        return;
-      }
-      const targetValue = values[next] ?? "";
-      select(targetValue);
-      queueMicrotask(() => {
-        const btn = host.shadowRoot?.querySelector(`.btn[data-value="${cssEscape(targetValue)}"]`);
-        btn?.focus();
-      });
-    };
-    optionsSig.set(readOptions());
-    const observer = new MutationObserver(() => optionsSig.set(readOptions()));
-    observer.observe(host, { childList: true, subtree: false });
-    const stopHidden = effect40(() => {
-      hiddenInput.name = scope.name();
-      hiddenInput.value = scope.value();
-    });
-    const stopContainer = effect40(() => {
-      const container = scope.containerEl();
-      if (!container)
-        return;
-      container.addEventListener("click", onClick);
-      container.addEventListener("keydown", onKeyDown);
-      return () => {
-        container.removeEventListener("click", onClick);
-        container.removeEventListener("keydown", onKeyDown);
-      };
-    });
-    return () => {
-      observer.disconnect();
-      stopHidden();
-      stopContainer();
-      hiddenInput.remove();
-    };
-  }
-});
-
-// packages/ui-components/src/sui-segmented/sui-segmented.sui
-var sui_segmented_default = component63("sui-segmented", {
-  props: {
-    value: prop60.string({ default: "", reflect: true }),
-    size: prop60.union(["sm", "md"], { default: "md", reflect: true }),
-    disabled: prop60.bool({ default: false, reflect: true }),
-    name: prop60.string({ default: "" })
-  },
-  shadow: true,
-  styles: `
+`);b.appendChild(y);let E=document.createTextNode(`
+`);return b.appendChild(E),n}});var nb=(i)=>typeof CSS<"u"&&CSS.escape?CSS.escape(i):i.replace(/[^\w-]/g,"\\$&"),H0=U({scope:()=>{let i=G([]),u=e(null);return{options:i,containerEl:u}},mount(i,u){if(!u.hasAttribute("role"))u.setAttribute("role","radiogroup");let d=document.createElement("input");d.type="hidden",u.appendChild(d);let m=()=>{return Array.from(u.querySelectorAll(":scope > sui-segmented-option")).map((l)=>({value:l.getAttribute("value")??"",label:l.textContent?.trim()??"",icon:l.getAttribute("icon")||null,disabled:l.hasAttribute("disabled")}))},n=(E)=>{if(i.disabled())return;let L=i.options().find((f)=>f.value===E);if(!L||L.disabled)return;if(i.value()===E)return;i.value.set(E),u.dispatchEvent(new CustomEvent("sui-change",{detail:{value:E},bubbles:!0,composed:!0}))},b=(E)=>{let l=E.target?.closest(".btn");if(!l)return;let L=l.getAttribute("data-value");if(L!==null)n(L)},w=(E)=>{let L=i.options().filter((j)=>!j.disabled&&!i.disabled());if(!L.length)return;let f=L.map((j)=>j.value),t=i.value(),H=Math.max(0,f.indexOf(t)),C=H;if(E.key==="ArrowRight"||E.key==="ArrowDown")E.preventDefault(),C=(H+1)%f.length;else if(E.key==="ArrowLeft"||E.key==="ArrowUp")E.preventDefault(),C=(H-1+f.length)%f.length;else if(E.key==="Enter"||E.key===" "){E.preventDefault();let g=u.shadowRoot.activeElement?.getAttribute("data-value");if(g)n(g);return}else return;let z=f[C]??"";n(z),queueMicrotask(()=>{u.shadowRoot?.querySelector(`.btn[data-value="${nb(z)}"]`)?.focus()})};i.options.set(m());let r=new MutationObserver(()=>i.options.set(m()));r.observe(u,{childList:!0,subtree:!1});let M=q(()=>{d.name=i.name(),d.value=i.value()}),y=q(()=>{let E=i.containerEl();if(!E)return;return E.addEventListener("click",b),E.addEventListener("keydown",w),()=>{E.removeEventListener("click",b),E.removeEventListener("keydown",w)}});return()=>{r.disconnect(),M(),y(),d.remove()}}});var j9=Q("sui-segmented",{props:{value:P.string({default:"",reflect:!0}),size:P.union(["sm","md"],{default:"md",reflect:!0}),disabled:P.bool({default:!1,reflect:!0}),name:P.string({default:""})},shadow:!0,styles:`
   :host {
     display: inline-flex;
   }
@@ -14063,180 +5132,7 @@ var sui_segmented_default = component63("sui-segmented", {
   }
   :host(:not([size='sm'])) .btn-icon { width: 16px; height: 16px; }
 
-`,
-  setup(ctx) {
-    const { props, host } = ctx;
-    if (!ctx.cleanups)
-      ctx.cleanups = [];
-    const __cleanups = ctx.cleanups;
-    const $scope = Object.create(null);
-    $scope.value = props.value;
-    $scope.size = props.size;
-    $scope.disabled = props.disabled;
-    $scope.name = props.name;
-    let __r = null;
-    if (sui_segmented_controller_default && typeof sui_segmented_controller_default.setup === "function") {
-      ctx.scope = $scope;
-      __r = sui_segmented_controller_default.setup(ctx);
-      if (__r && typeof __r === "object")
-        Object.assign($scope, __r);
-    }
-    const __wireBoundary_b1 = (anchor) => bindFor5({
-      anchor,
-      items: () => $scope.options(),
-      key: (opt, __i) => {
-        const __child = Object.create($scope);
-        __child.opt = opt;
-        __child.__i = __i;
-        return (($scope2) => opt.value)(__child);
-      },
-      render: (opt, __i) => {
-        const __childScope2 = Object.create($scope);
-        __childScope2.opt = opt;
-        __childScope2.__i = __i;
-        return (($scope2) => {
-          const __wireBoundary_b7 = (anchor2) => bindIf16({
-            anchor: anchor2,
-            test: () => {
-              if ($scope2.opt.icon)
-                return 0;
-              return -1;
-            },
-            branches: [
-              () => {
-                const __frag7 = document.createDocumentFragment();
-                const __c8 = [];
-                const __e9 = document.createElement("span");
-                __e9.setAttribute("class", "btn-icon");
-                __e9.setAttribute("aria-hidden", "true");
-                const __e10 = document.createElement("sui-icon");
-                __c8.push(bindProp2(__e10, "name", () => $scope2.opt.icon));
-                __e10.setAttribute("size", "sm");
-                __e9.appendChild(__e10);
-                __frag7.appendChild(__e9);
-                return { nodes: Array.from(__frag7.childNodes), cleanup: () => {
-                  for (const c of __c8)
-                    try {
-                      c();
-                    } catch (e) {}
-                } };
-              }
-            ]
-          });
-          const __frag3 = document.createDocumentFragment();
-          const __c4 = [];
-          const __e5 = document.createElement("button");
-          __e5.setAttribute("class", "btn");
-          __e5.setAttribute("role", "radio");
-          __e5.setAttribute("type", "button");
-          __c4.push(bindAttr32(__e5, "data-value", () => $scope2.opt.value));
-          __c4.push(bindAttr32(__e5, "aria-checked", () => $scope2.opt.value === $scope2.value() ? "true" : "false"));
-          __c4.push(bindAttr32(__e5, "aria-disabled", () => $scope2.disabled() || $scope2.opt.disabled ? "true" : "false"));
-          __c4.push(bindProp2(__e5, "disabled", () => $scope2.disabled() || $scope2.opt.disabled));
-          __c4.push(bindAttr32(__e5, "tabindex", () => $scope2.opt.value === $scope2.value() ? "0" : "-1"));
-          const __ifAnchor6 = document.createComment("if");
-          __e5.appendChild(__ifAnchor6);
-          __c4.push(__wireBoundary_b7(__ifAnchor6));
-          const __t11 = document.createTextNode("");
-          __e5.appendChild(__t11);
-          __c4.push(bindText15(__t11, () => $scope2.opt.label));
-          __frag3.appendChild(__e5);
-          return { nodes: Array.from(__frag3.childNodes), cleanup: () => {
-            for (const c of __c4)
-              try {
-                c();
-              } catch (e) {}
-          } };
-        })(__childScope2);
-      }
-    });
-    const __root = host.shadowRoot ?? host;
-    adoptSuiSheets63(__root);
-    const __e0 = document.createElement("div");
-    __e0.setAttribute("class", "container");
-    __e0.setAttribute("part", "container");
-    attachRef35($scope, "containerEl", __e0);
-    const __forAnchor1 = document.createComment("for");
-    __e0.appendChild(__forAnchor1);
-    __cleanups.push(__wireBoundary_b1(__forAnchor1));
-    __root.appendChild(__e0);
-    if (__r != null) {
-      const __lc = Object.getOwnPropertyDescriptor(__r, "__shipSetLifecycle")?.value;
-      if (__lc) {
-        const __sp = new Proxy($scope, {
-          get(t, k) {
-            return t[k];
-          },
-          set(t, k, v) {
-            const s = t[k];
-            if (s != null && typeof s.set === "function") {
-              if (typeof v === "function") {
-                s.set(() => v);
-              } else {
-                s.set(v);
-              }
-              return true;
-            }
-            return false;
-          }
-        });
-        if (__lc.mount) {
-          const __mc = __lc.mount(__sp, host);
-          if (typeof __mc === "function")
-            __cleanups.push(__mc);
-        }
-        if (__lc.unmount)
-          __cleanups.push(() => __lc.unmount(__sp));
-      }
-    }
-    return $scope;
-  }
-});
-
-// packages/ui-components/src/sui-toggle-group/sui-toggle.sui
-import { adoptSuiSheets as adoptSuiSheets64, attachRef as attachRef36, bindAttr as bindAttr33, component as component64, prop as prop61 } from "@ship/sui-runtime";
-
-// packages/ui-components/src/sui-toggle-group/sui-toggle.controller.ts
-import { controller as controller46, effect as effect41 } from "@ship/sui-runtime";
-var sui_toggle_controller_default = controller46({
-  mount(state, host) {
-    const scope = state;
-    const stop = effect41(() => {
-      const btn = scope.buttonEl();
-      if (!btn)
-        return;
-      const onClick = () => {
-        if (scope.disabled())
-          return;
-        scope.pressed.set(!scope.pressed());
-        host.dispatchEvent(new CustomEvent("sui-toggle", {
-          detail: { pressed: scope.pressed(), value: scope.value() },
-          bubbles: true,
-          composed: true
-        }));
-      };
-      btn.addEventListener("click", onClick);
-      return () => btn.removeEventListener("click", onClick);
-    });
-    host.focusButton = () => {
-      const btn = host.shadowRoot?.querySelector("button");
-      btn?.focus();
-    };
-    return () => stop();
-  }
-});
-
-// packages/ui-components/src/sui-toggle-group/sui-toggle.sui
-var sui_toggle_default = component64("sui-toggle", {
-  props: {
-    pressed: prop61.bool({ default: false, reflect: true }),
-    disabled: prop61.bool({ default: false, reflect: true }),
-    value: prop61.string({ default: "", reflect: true }),
-    size: prop61.union(["sm", "md", "lg"], { default: "md", reflect: true }),
-    variant: prop61.union(["outline", "ghost"], { default: "outline", reflect: true })
-  },
-  shadow: true,
-  styles: `
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.value=u.value,n.size=u.size,n.disabled=u.disabled,n.name=u.name,n.containerEl=G(null);let b=null;if(H0&&typeof H0.setup==="function"){if(i.scope=n,b=H0.setup(i),b&&typeof b==="object")Object.assign(n,b)}let w=(E)=>s({anchor:E,items:()=>n.options(),key:(l,L)=>{let f=Object.create(n);return f.opt=l,f.__i=L,((t)=>l.value)(f)},render:(l,L)=>{let f=Object.create(n);return f.opt=l,f.__i=L,f.__v=G(0),((t)=>{let H=(D)=>R({anchor:D,test:()=>{if(t.opt.icon)return 0;return-1},branches:[()=>{let Z=document.createDocumentFragment(),X=[],W=document.createElement("span");W.setAttribute("class","btn-icon"),W.setAttribute("aria-hidden","true");let Y=document.createElement("sui-icon");return Y.name=t.opt.icon,Y.setAttribute("size","sm"),W.appendChild(Y),Z.appendChild(W),{nodes:Array.from(Z.childNodes),cleanup:()=>{for(let N of X)try{N()}catch(F){}}}}]}),C=document.createDocumentFragment(),z=[],j=document.createElement("button");j.setAttribute("class","btn"),j.setAttribute("role","radio"),j.setAttribute("type","button");{let D=t.opt.value;if(D==null||D===!1||D==="")j.removeAttribute("data-value");else j.setAttribute("data-value",D===!0?"":String(D))}z.push(T(j,"aria-checked",()=>(t.__v(),t.opt.value===t.value()?"true":"false"))),z.push(T(j,"aria-disabled",()=>(t.__v(),t.disabled()||t.opt.disabled?"true":"false"))),z.push(Wn(j,"disabled",()=>(t.__v(),t.disabled()||t.opt.disabled))),z.push(T(j,"tabindex",()=>(t.__v(),t.opt.value===t.value()?"0":"-1")));let g=document.createComment("if");j.appendChild(g),z.push(H(g));let J=document.createTextNode("");return j.appendChild(J),J.textContent=t.opt.label,C.appendChild(j),{nodes:Array.from(C.childNodes),cleanup:()=>{for(let D of z)try{D()}catch(Z){}},update:(D,Z)=>{t.opt=D,t.__i=Z;{let X=t.opt.value;if(X==null||X===!1||X==="")j.removeAttribute("data-value");else j.setAttribute("data-value",X===!0?"":String(X))}J.textContent=t.opt.label,t.__v.set((X)=>X+1)}}})(f)}}),r=d.shadowRoot??d;V(r);let M=document.createElement("div");M.setAttribute("class","container"),M.setAttribute("part","container"),O(n,"containerEl",M);let y=document.createComment("for");if(M.appendChild(y),m.push(w(y)),r.appendChild(M),b!=null){let E=Object.getOwnPropertyDescriptor(b,"__shipSetLifecycle")?.value;if(E){let l=new Proxy(n,{get(L,f){return L[f]},set(L,f,t){let H=L[f];if(H!=null&&typeof H.set==="function"){if(typeof t==="function")H.set(()=>t);else H.set(t);return!0}return!1}});if(E.mount){let L=E.mount(l,d);if(typeof L==="function")m.push(L)}if(E.unmount)m.push(()=>E.unmount(l))}}return n}});var C0=U({mount(i,u){let d=i,m=q(()=>{let n=d.buttonEl();if(!n)return;let b=()=>{if(d.disabled())return;d.pressed.set(!d.pressed()),u.dispatchEvent(new CustomEvent("sui-toggle",{detail:{pressed:d.pressed(),value:d.value()},bubbles:!0,composed:!0}))};return n.addEventListener("click",b),()=>n.removeEventListener("click",b)});return u.focusButton=()=>{u.shadowRoot?.querySelector("button")?.focus()},()=>m()}});var X9=Q("sui-toggle",{props:{pressed:P.bool({default:!1,reflect:!0}),disabled:P.bool({default:!1,reflect:!0}),value:P.string({default:"",reflect:!0}),size:P.union(["sm","md","lg"],{default:"md",reflect:!0}),variant:P.union(["outline","ghost"],{default:"outline",reflect:!0})},shadow:!0,styles:`
   :host { display: inline-flex; }
 
   :host(:not([size])), :host([size='md']) {
@@ -14292,190 +5188,7 @@ var sui_toggle_default = component64("sui-toggle", {
     :host([pressed]) button { outline: 2px solid CanvasText; }
   }
 
-`,
-  setup(ctx) {
-    const { props, host } = ctx;
-    if (!ctx.cleanups)
-      ctx.cleanups = [];
-    const __cleanups = ctx.cleanups;
-    const $scope = Object.create(null);
-    $scope.pressed = props.pressed;
-    $scope.disabled = props.disabled;
-    $scope.value = props.value;
-    $scope.size = props.size;
-    $scope.variant = props.variant;
-    let __r = null;
-    if (sui_toggle_controller_default && typeof sui_toggle_controller_default.setup === "function") {
-      ctx.scope = $scope;
-      __r = sui_toggle_controller_default.setup(ctx);
-      if (__r && typeof __r === "object")
-        Object.assign($scope, __r);
-    }
-    const __root = host.shadowRoot ?? host;
-    adoptSuiSheets64(__root);
-    const __e0 = document.createElement("button");
-    __e0.setAttribute("part", "button");
-    __e0.setAttribute("type", "button");
-    __cleanups.push(bindAttr33(__e0, "aria-pressed", () => $scope.pressed() ? "true" : "false"));
-    __cleanups.push(bindAttr33(__e0, "disabled", () => $scope.disabled()));
-    attachRef36($scope, "buttonEl", __e0);
-    const __e1 = document.createElement("slot");
-    __e0.appendChild(__e1);
-    __root.appendChild(__e0);
-    if (__r != null) {
-      const __lc = Object.getOwnPropertyDescriptor(__r, "__shipSetLifecycle")?.value;
-      if (__lc) {
-        const __sp = new Proxy($scope, {
-          get(t, k) {
-            return t[k];
-          },
-          set(t, k, v) {
-            const s = t[k];
-            if (s != null && typeof s.set === "function") {
-              if (typeof v === "function") {
-                s.set(() => v);
-              } else {
-                s.set(v);
-              }
-              return true;
-            }
-            return false;
-          }
-        });
-        if (__lc.mount) {
-          const __mc = __lc.mount(__sp, host);
-          if (typeof __mc === "function")
-            __cleanups.push(__mc);
-        }
-        if (__lc.unmount)
-          __cleanups.push(() => __lc.unmount(__sp));
-      }
-    }
-    return $scope;
-  }
-});
-
-// packages/ui-components/src/sui-toggle-group/sui-toggle-group.sui
-import { adoptSuiSheets as adoptSuiSheets65, attachRef as attachRef37, component as component65, prop as prop62 } from "@ship/sui-runtime";
-
-// packages/ui-components/src/sui-toggle-group/sui-toggle-group.controller.ts
-import { controller as controller47, effect as effect42 } from "@ship/sui-runtime";
-var sui_toggle_group_controller_default = controller47({
-  mount(state, host) {
-    const scope = state;
-    if (!host.hasAttribute("role"))
-      host.setAttribute("role", "group");
-    const hiddenInput = document.createElement("input");
-    hiddenInput.type = "hidden";
-    host.appendChild(hiddenInput);
-    const getToggles = () => {
-      const slot = scope.defaultSlotEl();
-      if (!slot)
-        return Array.from(host.querySelectorAll(":scope > sui-toggle"));
-      return slot.assignedElements().filter((el) => el.tagName.toLowerCase() === "sui-toggle");
-    };
-    const enabledToggles = () => getToggles().filter((t) => !t.hasAttribute("disabled"));
-    const getSelectedValues = () => new Set(scope.value().split(",").filter(Boolean));
-    const setSelectedValues = (vals) => {
-      const joined = Array.from(vals).join(",");
-      scope.value.set(joined);
-      syncToggles();
-      hiddenInput.name = scope.name();
-      hiddenInput.value = joined;
-      host.dispatchEvent(new CustomEvent("sui-change", {
-        detail: { value: joined },
-        bubbles: true,
-        composed: true
-      }));
-    };
-    const syncToggles = () => {
-      const selected = getSelectedValues();
-      const size = scope.size();
-      const variant = scope.variant();
-      for (const toggle of getToggles()) {
-        const val = toggle.getAttribute("value") ?? "";
-        toggle.toggleAttribute("pressed", selected.has(val));
-        if (size)
-          toggle.setAttribute("size", size);
-        if (variant)
-          toggle.setAttribute("variant", variant);
-      }
-    };
-    const onToggle = (e) => {
-      const ce = e;
-      ce.stopPropagation();
-      const toggle = ce.composedPath().find((el) => el.tagName?.toLowerCase() === "sui-toggle");
-      if (!toggle)
-        return;
-      const val = toggle.getAttribute("value") ?? "";
-      const selected = getSelectedValues();
-      if (scope.type() === "single") {
-        if (selected.has(val))
-          setSelectedValues(new Set);
-        else
-          setSelectedValues(new Set([val]));
-      } else {
-        if (selected.has(val))
-          selected.delete(val);
-        else
-          selected.add(val);
-        setSelectedValues(selected);
-      }
-    };
-    const onKeydown = (e) => {
-      if (e.key !== "ArrowRight" && e.key !== "ArrowLeft")
-        return;
-      const items = enabledToggles();
-      if (!items.length)
-        return;
-      const current = e.composedPath().find((el) => items.includes(el));
-      const i = current ? items.indexOf(current) : -1;
-      const next = e.key === "ArrowRight" ? (i + 1) % items.length : (i - 1 + items.length) % items.length;
-      items[next]?.focusButton?.();
-      e.preventDefault();
-    };
-    const stopSync = effect42(() => {
-      scope.value();
-      scope.size();
-      scope.variant();
-      syncToggles();
-    });
-    const stopSlot = effect42(() => {
-      const slot = scope.defaultSlotEl();
-      if (!slot)
-        return;
-      const onSlotChange = () => syncToggles();
-      slot.addEventListener("slotchange", onSlotChange);
-      return () => slot.removeEventListener("slotchange", onSlotChange);
-    });
-    const stopHidden = effect42(() => {
-      hiddenInput.name = scope.name();
-      hiddenInput.value = scope.value();
-    });
-    host.addEventListener("sui-toggle", onToggle);
-    host.addEventListener("keydown", onKeydown);
-    return () => {
-      stopSync();
-      stopSlot();
-      stopHidden();
-      host.removeEventListener("sui-toggle", onToggle);
-      host.removeEventListener("keydown", onKeydown);
-      hiddenInput.remove();
-    };
-  }
-});
-
-// packages/ui-components/src/sui-toggle-group/sui-toggle-group.sui
-var sui_toggle_group_default = component65("sui-toggle-group", {
-  props: {
-    type: prop62.union(["single", "multiple"], { default: "single", reflect: true }),
-    value: prop62.string({ default: "", reflect: true }),
-    size: prop62.union(["sm", "md", "lg"], { default: "md", reflect: true }),
-    variant: prop62.union(["outline", "ghost"], { default: "outline", reflect: true }),
-    name: prop62.string({ default: "" })
-  },
-  shadow: true,
-  styles: `
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.pressed=u.pressed,n.disabled=u.disabled,n.value=u.value,n.size=u.size,n.variant=u.variant,n.buttonEl=G(null);let b=null;if(C0&&typeof C0.setup==="function"){if(i.scope=n,b=C0.setup(i),b&&typeof b==="object")Object.assign(n,b)}let w=d.shadowRoot??d;V(w);let r=document.createElement("button");r.setAttribute("part","button"),r.setAttribute("type","button"),m.push(T(r,"aria-pressed",()=>n.pressed()?"true":"false")),m.push(T(r,"disabled",()=>n.disabled())),O(n,"buttonEl",r);let M=document.createElement("slot");if(r.appendChild(M),w.appendChild(r),b!=null){let y=Object.getOwnPropertyDescriptor(b,"__shipSetLifecycle")?.value;if(y){let E=new Proxy(n,{get(l,L){return l[L]},set(l,L,f){let t=l[L];if(t!=null&&typeof t.set==="function"){if(typeof f==="function")t.set(()=>f);else t.set(f);return!0}return!1}});if(y.mount){let l=y.mount(E,d);if(typeof l==="function")m.push(l)}if(y.unmount)m.push(()=>y.unmount(E))}}return n}});var z0=U({mount(i,u){let d=i;if(!u.hasAttribute("role"))u.setAttribute("role","group");let m=document.createElement("input");m.type="hidden",u.appendChild(m);let n=()=>{let t=d.defaultSlotEl();if(!t)return Array.from(u.querySelectorAll(":scope > sui-toggle"));return t.assignedElements().filter((H)=>H.tagName.toLowerCase()==="sui-toggle")},b=()=>n().filter((t)=>!t.hasAttribute("disabled")),w=()=>new Set(d.value().split(",").filter(Boolean)),r=(t)=>{let H=Array.from(t).join(",");d.value.set(H),M(),m.name=d.name(),m.value=H,u.dispatchEvent(new CustomEvent("sui-change",{detail:{value:H},bubbles:!0,composed:!0}))},M=()=>{let t=w(),H=d.size(),C=d.variant();for(let z of n()){let j=z.getAttribute("value")??"";if(z.toggleAttribute("pressed",t.has(j)),H)z.setAttribute("size",H);if(C)z.setAttribute("variant",C)}},y=(t)=>{let H=t;H.stopPropagation();let C=H.composedPath().find((g)=>g.tagName?.toLowerCase()==="sui-toggle");if(!C)return;let z=C.getAttribute("value")??"",j=w();if(d.type()==="single")if(j.has(z))r(new Set);else r(new Set([z]));else{if(j.has(z))j.delete(z);else j.add(z);r(j)}},E=(t)=>{if(t.key!=="ArrowRight"&&t.key!=="ArrowLeft")return;let H=b();if(!H.length)return;let C=t.composedPath().find((g)=>H.includes(g)),z=C?H.indexOf(C):-1,j=t.key==="ArrowRight"?(z+1)%H.length:(z-1+H.length)%H.length;H[j]?.focusButton?.(),t.preventDefault()},l=q(()=>{d.value(),d.size(),d.variant(),M()}),L=q(()=>{let t=d.defaultSlotEl();if(!t)return;let H=()=>M();return t.addEventListener("slotchange",H),()=>t.removeEventListener("slotchange",H)}),f=q(()=>{m.name=d.name(),m.value=d.value()});return u.addEventListener("sui-toggle",y),u.addEventListener("keydown",E),()=>{l(),L(),f(),u.removeEventListener("sui-toggle",y),u.removeEventListener("keydown",E),m.remove()}}});var Y9=Q("sui-toggle-group",{props:{type:P.union(["single","multiple"],{default:"single",reflect:!0}),value:P.string({default:"",reflect:!0}),size:P.union(["sm","md","lg"],{default:"md",reflect:!0}),variant:P.union(["outline","ghost"],{default:"outline",reflect:!0}),name:P.string({default:""})},shadow:!0,styles:`
   :host {
     display: inline-flex;
     gap: 0;
@@ -14485,72 +5198,7 @@ var sui_toggle_group_default = component65("sui-toggle-group", {
   ::slotted(sui-toggle:first-child) { border-radius: var(--radius, 6px) 0 0 var(--radius, 6px); }
   ::slotted(sui-toggle:last-child) { border-radius: 0 var(--radius, 6px) var(--radius, 6px) 0; }
   ::slotted(sui-toggle:not(:first-child):not(:last-child)) { border-radius: 0; }
-`,
-  setup(ctx) {
-    const { props, host } = ctx;
-    if (!ctx.cleanups)
-      ctx.cleanups = [];
-    const __cleanups = ctx.cleanups;
-    const $scope = Object.create(null);
-    $scope.type = props.type;
-    $scope.value = props.value;
-    $scope.size = props.size;
-    $scope.variant = props.variant;
-    $scope.name = props.name;
-    let __r = null;
-    if (sui_toggle_group_controller_default && typeof sui_toggle_group_controller_default.setup === "function") {
-      ctx.scope = $scope;
-      __r = sui_toggle_group_controller_default.setup(ctx);
-      if (__r && typeof __r === "object")
-        Object.assign($scope, __r);
-    }
-    const __root = host.shadowRoot ?? host;
-    adoptSuiSheets65(__root);
-    const __e0 = document.createElement("slot");
-    attachRef37($scope, "defaultSlotEl", __e0);
-    __root.appendChild(__e0);
-    if (__r != null) {
-      const __lc = Object.getOwnPropertyDescriptor(__r, "__shipSetLifecycle")?.value;
-      if (__lc) {
-        const __sp = new Proxy($scope, {
-          get(t, k) {
-            return t[k];
-          },
-          set(t, k, v) {
-            const s = t[k];
-            if (s != null && typeof s.set === "function") {
-              if (typeof v === "function") {
-                s.set(() => v);
-              } else {
-                s.set(v);
-              }
-              return true;
-            }
-            return false;
-          }
-        });
-        if (__lc.mount) {
-          const __mc = __lc.mount(__sp, host);
-          if (typeof __mc === "function")
-            __cleanups.push(__mc);
-        }
-        if (__lc.unmount)
-          __cleanups.push(() => __lc.unmount(__sp));
-      }
-    }
-    return $scope;
-  }
-});
-
-// packages/ui-components/src/sui-code/sui-code.sui
-import { adoptSuiSheets as adoptSuiSheets66, bindAttr as bindAttr34, bindIf as bindIf17, bindText as bindText16, component as component66, prop as prop63 } from "@ship/sui-runtime";
-var sui_code_default = component66("sui-code", {
-  props: {
-    lang: prop63.string({ default: "", reflect: true }),
-    block: prop63.bool({ default: false, reflect: true })
-  },
-  shadow: true,
-  styles: `
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.type=u.type,n.value=u.value,n.size=u.size,n.variant=u.variant,n.name=u.name,n.defaultSlotEl=G(null);let b=null;if(z0&&typeof z0.setup==="function"){if(i.scope=n,b=z0.setup(i),b&&typeof b==="object")Object.assign(n,b)}let w=d.shadowRoot??d;V(w);let r=document.createElement("slot");if(O(n,"defaultSlotEl",r),w.appendChild(r),b!=null){let M=Object.getOwnPropertyDescriptor(b,"__shipSetLifecycle")?.value;if(M){let y=new Proxy(n,{get(E,l){return E[l]},set(E,l,L){let f=E[l];if(f!=null&&typeof f.set==="function"){if(typeof L==="function")f.set(()=>L);else f.set(L);return!0}return!1}});if(M.mount){let E=M.mount(y,d);if(typeof E==="function")m.push(E)}if(M.unmount)m.push(()=>M.unmount(y))}}return n}});var U9=Q("sui-code",{props:{lang:P.string({default:"",reflect:!0}),block:P.bool({default:!1,reflect:!0})},shadow:!0,styles:`
   :host {
     display: inline;
     font-family: var(--font-mono);
@@ -14593,158 +5241,7 @@ var sui_code_default = component66("sui-code", {
     line-height: var(--leading-normal);
     font-family: inherit;
   }
-`,
-  setup(ctx) {
-    const { props, host } = ctx;
-    if (!ctx.cleanups)
-      ctx.cleanups = [];
-    const __cleanups = ctx.cleanups;
-    const $scope = Object.create(null);
-    $scope.lang = props.lang;
-    $scope.block = props.block;
-    const __wireBoundary_b2 = (anchor) => bindIf17({
-      anchor,
-      test: () => {
-        if ($scope.lang())
-          return 0;
-        return -1;
-      },
-      branches: [
-        () => {
-          const __frag5 = document.createDocumentFragment();
-          const __c6 = [];
-          const __e7 = document.createElement("header");
-          __e7.setAttribute("part", "label");
-          const __t8 = document.createTextNode("");
-          __e7.appendChild(__t8);
-          __c6.push(bindText16(__t8, () => $scope.lang()));
-          __frag5.appendChild(__e7);
-          return { nodes: Array.from(__frag5.childNodes), cleanup: () => {
-            for (const c of __c6)
-              try {
-                c();
-              } catch (e) {}
-          } };
-        }
-      ]
-    });
-    const __wireBoundary_b0 = (anchor) => bindIf17({
-      anchor,
-      test: () => {
-        if ($scope.block())
-          return 0;
-        return 1;
-      },
-      branches: [
-        () => {
-          const __frag1 = document.createDocumentFragment();
-          const __c2 = [];
-          const __e3 = document.createElement("div");
-          __e3.setAttribute("class", "block");
-          __e3.setAttribute("part", "block");
-          __e3.setAttribute("role", "region");
-          __c2.push(bindAttr34(__e3, "aria-label", () => $scope.lang() ? $scope.lang() + " code block" : "code block"));
-          const __ifAnchor4 = document.createComment("if");
-          __e3.appendChild(__ifAnchor4);
-          __c2.push(__wireBoundary_b2(__ifAnchor4));
-          const __e9 = document.createElement("pre");
-          __e9.setAttribute("part", "pre");
-          const __e10 = document.createElement("slot");
-          __e9.appendChild(__e10);
-          __e3.appendChild(__e9);
-          __frag1.appendChild(__e3);
-          return { nodes: Array.from(__frag1.childNodes), cleanup: () => {
-            for (const c of __c2)
-              try {
-                c();
-              } catch (e) {}
-          } };
-        },
-        () => {
-          const __frag11 = document.createDocumentFragment();
-          const __c12 = [];
-          const __e13 = document.createElement("code");
-          __e13.setAttribute("class", "inline");
-          __e13.setAttribute("part", "inline");
-          const __e14 = document.createElement("slot");
-          __e13.appendChild(__e14);
-          __frag11.appendChild(__e13);
-          return { nodes: Array.from(__frag11.childNodes), cleanup: () => {
-            for (const c of __c12)
-              try {
-                c();
-              } catch (e) {}
-          } };
-        }
-      ]
-    });
-    const __root = host.shadowRoot ?? host;
-    adoptSuiSheets66(__root);
-    const __ifAnchor0 = document.createComment("if");
-    __root.appendChild(__ifAnchor0);
-    __cleanups.push(__wireBoundary_b0(__ifAnchor0));
-    return $scope;
-  }
-});
-
-// packages/ui-components/src/sui-copy-button/sui-copy-button.sui
-import { adoptSuiSheets as adoptSuiSheets67, attachRef as attachRef38, bindAttr as bindAttr35, bindIf as bindIf18, bindSlotEmpty as bindSlotEmpty5, bindText as bindText17, component as component67, prop as prop64 } from "@ship/sui-runtime";
-
-// packages/ui-components/src/sui-copy-button/sui-copy-button.controller.ts
-import { controller as controller48, effect as effect43 } from "@ship/sui-runtime";
-var sui_copy_button_controller_default = controller48({
-  mount(state, host) {
-    const scope = state;
-    let resetTimer;
-    const handleClick = async () => {
-      try {
-        await navigator.clipboard.writeText(scope.value());
-      } catch {
-        const ta = document.createElement("textarea");
-        ta.value = scope.value();
-        document.body.appendChild(ta);
-        ta.select();
-        try {
-          document.execCommand("copy");
-        } catch {}
-        ta.remove();
-      }
-      scope.copied.set(true);
-      host.dispatchEvent(new CustomEvent("sui-copy", {
-        detail: { value: scope.value() },
-        bubbles: true,
-        composed: true
-      }));
-      if (resetTimer)
-        clearTimeout(resetTimer);
-      resetTimer = setTimeout(() => {
-        scope.copied.set(false);
-      }, 1200);
-    };
-    const stopBtn = effect43(() => {
-      const btn = scope.buttonEl();
-      if (!btn)
-        return;
-      btn.addEventListener("click", handleClick);
-      return () => btn.removeEventListener("click", handleClick);
-    });
-    return () => {
-      stopBtn();
-      if (resetTimer)
-        clearTimeout(resetTimer);
-    };
-  }
-});
-
-// packages/ui-components/src/sui-copy-button/sui-copy-button.sui
-var sui_copy_button_default = component67("sui-copy-button", {
-  props: {
-    value: prop64.string({ default: "", reflect: true }),
-    label: prop64.string({ default: "Copy", reflect: true }),
-    copied: prop64.bool({ default: false, reflect: true })
-  },
-  shadow: true,
-  styles: `
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.lang=u.lang,n.block=u.block;let b=(y)=>R({anchor:y,test:()=>{if(n.lang())return 0;return-1},branches:[()=>{let E=document.createDocumentFragment(),l=[],L=document.createElement("header");L.setAttribute("part","label");let f=document.createTextNode("");return L.appendChild(f),l.push(S(f,()=>n.lang())),E.appendChild(L),{nodes:Array.from(E.childNodes),cleanup:()=>{for(let t of l)try{t()}catch(H){}}}}]}),w=(y)=>R({anchor:y,test:()=>{if(n.block())return 0;return 1},branches:[()=>{let E=document.createDocumentFragment(),l=[],L=document.createElement("div");L.setAttribute("class","block"),L.setAttribute("part","block"),L.setAttribute("role","region"),l.push(T(L,"aria-label",()=>n.lang()?n.lang()+" code block":"code block"));let f=document.createComment("if");L.appendChild(f),l.push(b(f));let t=document.createElement("pre");t.setAttribute("part","pre");let H=document.createElement("slot");return t.appendChild(H),L.appendChild(t),E.appendChild(L),{nodes:Array.from(E.childNodes),cleanup:()=>{for(let C of l)try{C()}catch(z){}}}},()=>{let E=document.createDocumentFragment(),l=[],L=document.createElement("code");L.setAttribute("class","inline"),L.setAttribute("part","inline");let f=document.createElement("slot");return L.appendChild(f),E.appendChild(L),{nodes:Array.from(E.childNodes),cleanup:()=>{for(let t of l)try{t()}catch(H){}}}}]}),r=d.shadowRoot??d;V(r);let M=document.createComment("if");return r.appendChild(M),m.push(w(M)),n}});var j0=U({mount(i,u){let d=i,m,n=async()=>{try{await navigator.clipboard.writeText(d.value())}catch{let w=document.createElement("textarea");w.value=d.value(),document.body.appendChild(w),w.select();try{document.execCommand("copy")}catch{}w.remove()}if(d.copied.set(!0),u.dispatchEvent(new CustomEvent("sui-copy",{detail:{value:d.value()},bubbles:!0,composed:!0})),m)clearTimeout(m);m=setTimeout(()=>{d.copied.set(!1)},1200)},b=q(()=>{let w=d.buttonEl();if(!w)return;return w.addEventListener("click",n),()=>w.removeEventListener("click",n)});return()=>{if(b(),m)clearTimeout(m)}}});var I9=Q("sui-copy-button",{props:{value:P.string({default:"",reflect:!0}),label:P.string({default:"Copy",reflect:!0}),copied:P.bool({default:!1,reflect:!0})},shadow:!0,styles:`
   :host {
     display: inline-flex;
   }
@@ -14793,184 +5290,10 @@ var sui_copy_button_default = component67("sui-copy-button", {
   sui-icon {
     flex: 0 0 auto;
   }
-`,
-  setup(ctx) {
-    const { props, host } = ctx;
-    if (!ctx.cleanups)
-      ctx.cleanups = [];
-    const __cleanups = ctx.cleanups;
-    const $scope = Object.create(null);
-    $scope.value = props.value;
-    $scope.label = props.label;
-    $scope.copied = props.copied;
-    let __r = null;
-    if (sui_copy_button_controller_default && typeof sui_copy_button_controller_default.setup === "function") {
-      ctx.scope = $scope;
-      __r = sui_copy_button_controller_default.setup(ctx);
-      if (__r && typeof __r === "object")
-        Object.assign($scope, __r);
-    }
-    const __wireBoundary_b2 = (anchor) => bindIf18({
-      anchor,
-      test: () => {
-        if ($scope.copied())
-          return 0;
-        return 1;
-      },
-      branches: [
-        () => {
-          const __frag2 = document.createDocumentFragment();
-          const __c3 = [];
-          const __e4 = document.createElement("sui-icon");
-          __e4.setAttribute("name", "check");
-          __e4.setAttribute("size", "sm");
-          __e4.setAttribute("aria-hidden", "true");
-          __frag2.appendChild(__e4);
-          return { nodes: Array.from(__frag2.childNodes), cleanup: () => {
-            for (const c of __c3)
-              try {
-                c();
-              } catch (e) {}
-          } };
-        },
-        () => {
-          const __frag5 = document.createDocumentFragment();
-          const __c6 = [];
-          const __e7 = document.createElement("sui-icon");
-          __e7.setAttribute("name", "copy");
-          __e7.setAttribute("size", "sm");
-          __e7.setAttribute("aria-hidden", "true");
-          __frag5.appendChild(__e7);
-          return { nodes: Array.from(__frag5.childNodes), cleanup: () => {
-            for (const c of __c6)
-              try {
-                c();
-              } catch (e) {}
-          } };
-        }
-      ]
-    });
-    const __root = host.shadowRoot ?? host;
-    adoptSuiSheets67(__root);
-    const __e0 = document.createElement("button");
-    __e0.setAttribute("part", "button");
-    __e0.setAttribute("type", "button");
-    __cleanups.push(bindAttr35(__e0, "aria-label", () => $scope.label()));
-    attachRef38($scope, "buttonEl", __e0);
-    const __ifAnchor1 = document.createComment("if");
-    __e0.appendChild(__ifAnchor1);
-    __cleanups.push(__wireBoundary_b2(__ifAnchor1));
-    const __e8 = document.createElement("slot");
-    __cleanups.push(bindSlotEmpty5(__e8, host, "data-empty"));
-    __e0.appendChild(__e8);
-    const __e9 = document.createElement("span");
-    __e9.setAttribute("class", "default-label");
-    const __t10 = document.createTextNode("");
-    __e9.appendChild(__t10);
-    __cleanups.push(bindText17(__t10, () => $scope.copied() ? "Copied" : $scope.label()));
-    __e0.appendChild(__e9);
-    __root.appendChild(__e0);
-    if (__r != null) {
-      const __lc = Object.getOwnPropertyDescriptor(__r, "__shipSetLifecycle")?.value;
-      if (__lc) {
-        const __sp = new Proxy($scope, {
-          get(t, k) {
-            return t[k];
-          },
-          set(t, k, v) {
-            const s = t[k];
-            if (s != null && typeof s.set === "function") {
-              if (typeof v === "function") {
-                s.set(() => v);
-              } else {
-                s.set(v);
-              }
-              return true;
-            }
-            return false;
-          }
-        });
-        if (__lc.mount) {
-          const __mc = __lc.mount(__sp, host);
-          if (typeof __mc === "function")
-            __cleanups.push(__mc);
-        }
-        if (__lc.unmount)
-          __cleanups.push(() => __lc.unmount(__sp));
-      }
-    }
-    return $scope;
-  }
-});
-
-// packages/ui-components/src/sui-json-view/sui-json-view.sui
-import { adoptSuiSheets as adoptSuiSheets68, attachRef as attachRef39, component as component68, prop as prop65 } from "@ship/sui-runtime";
-
-// packages/ui-components/src/sui-json-view/sui-json-view.controller.ts
-import { controller as controller49, bindHtml as bindHtml2 } from "@ship/sui-runtime";
-function escape(s) {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-}
-function renderValue(v, key, level, expanded, depth) {
-  const keyPrefix = key !== null ? `<span class="key">"${escape(key)}"</span>: ` : "";
-  if (v === null)
-    return `${keyPrefix}<span class="null">null</span>`;
-  if (typeof v === "string")
-    return `${keyPrefix}<span class="s">"${escape(v)}"</span>`;
-  if (typeof v === "number")
-    return `${keyPrefix}<span class="n">${v}</span>`;
-  if (typeof v === "boolean")
-    return `${keyPrefix}<span class="b">${String(v)}</span>`;
-  const isArr = Array.isArray(v);
-  const entries = isArr ? v.map((x, i) => [String(i), x]) : Object.entries(v);
-  const open = expanded || level < depth;
-  const open1 = isArr ? "[" : "{";
-  const close1 = isArr ? "]" : "}";
-  const count = entries.length;
-  if (count === 0)
-    return `${keyPrefix}${open1}${close1}`;
-  const children = entries.map(([k, val]) => `<div class="node">${renderValue(val, isArr ? null : k, level + 1, expanded, depth)}</div>`).join("");
-  return `<details${open ? " open" : ""}>
-<summary><span class="caret">▶</span>${keyPrefix}${open1}<span class="meta">${count} ${isArr ? "items" : "keys"}</span></summary>
-<div class="branch">${children}</div>
-${close1}</details>`;
-}
-var sui_json_view_controller_default = controller49({
-  mount(state, host) {
-    const scope = state;
-    if (!host.hasAttribute("role"))
-      host.setAttribute("role", "tree");
-    if (!host.hasAttribute("aria-label"))
-      host.setAttribute("aria-label", "JSON tree");
-    const el = scope.contentEl();
-    if (!el)
-      return () => {};
-    return bindHtml2(el, () => {
-      const data = scope.data();
-      const expanded = scope.expanded();
-      const depth = scope.depth();
-      if (!data)
-        return "";
-      let parsed;
-      try {
-        parsed = JSON.parse(data);
-      } catch (e) {
-        return `<span class="error" part="error" role="alert">Invalid JSON: ${escape(e.message)}</span>`;
-      }
-      return `<div part="root">${renderValue(parsed, null, 0, expanded, depth)}</div>`;
-    });
-  }
-});
-
-// packages/ui-components/src/sui-json-view/sui-json-view.sui
-var sui_json_view_default = component68("sui-json-view", {
-  props: {
-    data: prop65.string({ default: "", reflect: true }),
-    expanded: prop65.bool({ default: false, reflect: true }),
-    depth: prop65.number({ default: 1, reflect: true })
-  },
-  shadow: true,
-  styles: `
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.value=u.value,n.label=u.label,n.copied=u.copied,n.buttonEl=G(null);let b=null;if(j0&&typeof j0.setup==="function"){if(i.scope=n,b=j0.setup(i),b&&typeof b==="object")Object.assign(n,b)}let w=(f)=>R({anchor:f,test:()=>{if(n.copied())return 0;return 1},branches:[()=>{let t=document.createDocumentFragment(),H=[],C=document.createElement("sui-icon");return C.setAttribute("name","check"),C.setAttribute("size","sm"),C.setAttribute("aria-hidden","true"),t.appendChild(C),{nodes:Array.from(t.childNodes),cleanup:()=>{for(let z of H)try{z()}catch(j){}}}},()=>{let t=document.createDocumentFragment(),H=[],C=document.createElement("sui-icon");return C.setAttribute("name","copy"),C.setAttribute("size","sm"),C.setAttribute("aria-hidden","true"),t.appendChild(C),{nodes:Array.from(t.childNodes),cleanup:()=>{for(let z of H)try{z()}catch(j){}}}}]}),r=d.shadowRoot??d;V(r);let M=document.createElement("button");M.setAttribute("part","button"),M.setAttribute("type","button"),m.push(T(M,"aria-label",()=>n.label())),O(n,"buttonEl",M);let y=document.createComment("if");M.appendChild(y),m.push(w(y));let E=document.createElement("slot");m.push(bn(E,d,"data-empty")),M.appendChild(E);let l=document.createElement("span");l.setAttribute("class","default-label");let L=document.createTextNode("");if(l.appendChild(L),m.push(S(L,()=>n.copied()?"Copied":n.label())),M.appendChild(l),r.appendChild(M),b!=null){let f=Object.getOwnPropertyDescriptor(b,"__shipSetLifecycle")?.value;if(f){let t=new Proxy(n,{get(H,C){return H[C]},set(H,C,z){let j=H[C];if(j!=null&&typeof j.set==="function"){if(typeof z==="function")j.set(()=>z);else j.set(z);return!0}return!1}});if(f.mount){let H=f.mount(t,d);if(typeof H==="function")m.push(H)}if(f.unmount)m.push(()=>f.unmount(t))}}return n}});function Vu(i){return i.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}function Xd(i,u,d,m,n){let b=u!==null?`<span class="key">"${Vu(u)}"</span>: `:"";if(i===null)return`${b}<span class="null">null</span>`;if(typeof i==="string")return`${b}<span class="s">"${Vu(i)}"</span>`;if(typeof i==="number")return`${b}<span class="n">${i}</span>`;if(typeof i==="boolean")return`${b}<span class="b">${String(i)}</span>`;let w=Array.isArray(i),r=w?i.map((f,t)=>[String(t),f]):Object.entries(i),M=m||d<n,y=w?"[":"{",E=w?"]":"}",l=r.length;if(l===0)return`${b}${y}${E}`;let L=r.map(([f,t])=>`<div class="node">${Xd(t,w?null:f,d+1,m,n)}</div>`).join("");return`<details${M?" open":""}>
+<summary><span class="caret">▶</span>${b}${y}<span class="meta">${l} ${w?"items":"keys"}</span></summary>
+<div class="branch">${L}</div>
+${E}</details>`}var P0=U({mount(i,u){let d=i;if(!u.hasAttribute("role"))u.setAttribute("role","tree");if(!u.hasAttribute("aria-label"))u.setAttribute("aria-label","JSON tree");let m=d.contentEl();if(!m)return()=>{};return fn(m,()=>{let n=d.data(),b=d.expanded(),w=d.depth();if(!n)return"";let r;try{r=JSON.parse(n)}catch(M){return`<span class="error" part="error" role="alert">Invalid JSON: ${Vu(M.message)}</span>`}return`<div part="root">${Xd(r,null,0,b,w)}</div>`})}});var x9=Q("sui-json-view",{props:{data:P.string({default:"",reflect:!0}),expanded:P.bool({default:!1,reflect:!0}),depth:P.number({default:1,reflect:!0})},shadow:!0,styles:`
   :host {
     display: block;
     font-family: var(--font-mono);
@@ -15008,160 +5331,10 @@ var sui_json_view_default = component68("sui-json-view", {
   .null { color: var(--muted-foreground); font-style: italic; }
   .meta { color: var(--muted-foreground); font-size: var(--text-xs); margin-left: 4px; }
   .error { color: var(--destructive); }
-`,
-  setup(ctx) {
-    const { props, host } = ctx;
-    if (!ctx.cleanups)
-      ctx.cleanups = [];
-    const __cleanups = ctx.cleanups;
-    const $scope = Object.create(null);
-    $scope.data = props.data;
-    $scope.expanded = props.expanded;
-    $scope.depth = props.depth;
-    let __r = null;
-    if (sui_json_view_controller_default && typeof sui_json_view_controller_default.setup === "function") {
-      ctx.scope = $scope;
-      __r = sui_json_view_controller_default.setup(ctx);
-      if (__r && typeof __r === "object")
-        Object.assign($scope, __r);
-    }
-    const __root = host.shadowRoot ?? host;
-    adoptSuiSheets68(__root);
-    const __e0 = document.createElement("div");
-    __e0.setAttribute("class", "json-root");
-    attachRef39($scope, "contentEl", __e0);
-    __root.appendChild(__e0);
-    if (__r != null) {
-      const __lc = Object.getOwnPropertyDescriptor(__r, "__shipSetLifecycle")?.value;
-      if (__lc) {
-        const __sp = new Proxy($scope, {
-          get(t, k) {
-            return t[k];
-          },
-          set(t, k, v) {
-            const s = t[k];
-            if (s != null && typeof s.set === "function") {
-              if (typeof v === "function") {
-                s.set(() => v);
-              } else {
-                s.set(v);
-              }
-              return true;
-            }
-            return false;
-          }
-        });
-        if (__lc.mount) {
-          const __mc = __lc.mount(__sp, host);
-          if (typeof __mc === "function")
-            __cleanups.push(__mc);
-        }
-        if (__lc.unmount)
-          __cleanups.push(() => __lc.unmount(__sp));
-      }
-    }
-    return $scope;
-  }
-});
-
-// packages/ui-components/src/sui-diff/sui-diff.sui
-import { adoptSuiSheets as adoptSuiSheets69, attachRef as attachRef40, component as component69, prop as prop66 } from "@ship/sui-runtime";
-
-// packages/ui-components/src/sui-diff/sui-diff.controller.ts
-import { controller as controller50, bindHtml as bindHtml3 } from "@ship/sui-runtime";
-function escape2(s) {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-}
-function diffLines(a, b) {
-  const A = a.split(`
-`);
-  const B = b.split(`
-`);
-  const n = A.length;
-  const m = B.length;
-  const dp = Array.from({ length: n + 1 }, () => new Array(m + 1).fill(0));
-  for (let i2 = n - 1;i2 >= 0; i2--) {
-    for (let j2 = m - 1;j2 >= 0; j2--) {
-      dp[i2][j2] = A[i2] === B[j2] ? dp[i2 + 1][j2 + 1] + 1 : Math.max(dp[i2 + 1][j2], dp[i2][j2 + 1]);
-    }
-  }
-  const out = [];
-  let i = 0;
-  let j = 0;
-  while (i < n && j < m) {
-    if (A[i] === B[j]) {
-      out.push({ kind: "ctx", text: A[i] });
-      i++;
-      j++;
-    } else if (dp[i + 1][j] >= dp[i][j + 1]) {
-      out.push({ kind: "del", text: A[i] });
-      i++;
-    } else {
-      out.push({ kind: "add", text: B[j] });
-      j++;
-    }
-  }
-  while (i < n)
-    out.push({ kind: "del", text: A[i++] });
-  while (j < m)
-    out.push({ kind: "add", text: B[j++] });
-  return out;
-}
-function parseUnified(value) {
-  return value.split(`
-`).map((line) => {
-    if (line.startsWith("@@"))
-      return { kind: "hunk", text: line };
-    if (line.startsWith("+"))
-      return { kind: "add", text: line.slice(1) };
-    if (line.startsWith("-"))
-      return { kind: "del", text: line.slice(1) };
-    return { kind: "ctx", text: line.startsWith(" ") ? line.slice(1) : line };
-  });
-}
-function renderLines(lines) {
-  return lines.map((l) => {
-    const sign = l.kind === "add" ? "+" : l.kind === "del" ? "-" : l.kind === "hunk" ? "@" : " ";
-    const kindLabel = l.kind === "add" ? "added" : l.kind === "del" ? "removed" : l.kind === "hunk" ? "hunk" : "context";
-    return `<div class="line ${l.kind}" part="line" role="listitem" aria-label="${kindLabel}: ${escape2(l.text)}"><span class="sign" aria-hidden="true">${sign}</span><span>${escape2(l.text)}</span></div>`;
-  }).join("");
-}
-var sui_diff_controller_default = controller50({
-  mount(state, host) {
-    const scope = state;
-    if (!host.hasAttribute("role"))
-      host.setAttribute("role", "region");
-    if (!host.hasAttribute("aria-label"))
-      host.setAttribute("aria-label", "diff");
-    const el = scope.contentEl();
-    if (!el)
-      return () => {};
-    return bindHtml3(el, () => {
-      const value = scope.value();
-      const from = scope.from();
-      const to = scope.to();
-      let lines;
-      if (value) {
-        lines = parseUnified(value);
-      } else if (from || to) {
-        lines = diffLines(from, to);
-      } else {
-        lines = [];
-      }
-      return renderLines(lines);
-    });
-  }
-});
-
-// packages/ui-components/src/sui-diff/sui-diff.sui
-var sui_diff_default = component69("sui-diff", {
-  props: {
-    from: prop66.string({ default: "", reflect: true }),
-    to: prop66.string({ default: "", reflect: true }),
-    value: prop66.string({ default: "", reflect: true })
-  },
-  shadow: true,
-  styles: `
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.data=u.data,n.expanded=u.expanded,n.depth=u.depth,n.contentEl=G(null);let b=null;if(P0&&typeof P0.setup==="function"){if(i.scope=n,b=P0.setup(i),b&&typeof b==="object")Object.assign(n,b)}let w=d.shadowRoot??d;V(w);let r=document.createElement("div");if(r.setAttribute("class","json-root"),O(n,"contentEl",r),w.appendChild(r),b!=null){let M=Object.getOwnPropertyDescriptor(b,"__shipSetLifecycle")?.value;if(M){let y=new Proxy(n,{get(E,l){return E[l]},set(E,l,L){let f=E[l];if(f!=null&&typeof f.set==="function"){if(typeof L==="function")f.set(()=>L);else f.set(L);return!0}return!1}});if(M.mount){let E=M.mount(y,d);if(typeof E==="function")m.push(E)}if(M.unmount)m.push(()=>M.unmount(y))}}return n}});function Gd(i){return i.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}function ib(i,u){let d=i.split(`
+`),m=u.split(`
+`),n=d.length,b=m.length,w=Array.from({length:n+1},()=>Array(b+1).fill(0));for(let E=n-1;E>=0;E--)for(let l=b-1;l>=0;l--)w[E][l]=d[E]===m[l]?w[E+1][l+1]+1:Math.max(w[E+1][l],w[E][l+1]);let r=[],M=0,y=0;while(M<n&&y<b)if(d[M]===m[y])r.push({kind:"ctx",text:d[M]}),M++,y++;else if(w[M+1][y]>=w[M][y+1])r.push({kind:"del",text:d[M]}),M++;else r.push({kind:"add",text:m[y]}),y++;while(M<n)r.push({kind:"del",text:d[M++]});while(y<b)r.push({kind:"add",text:m[y++]});return r}function ub(i){return i.split(`
+`).map((u)=>{if(u.startsWith("@@"))return{kind:"hunk",text:u};if(u.startsWith("+"))return{kind:"add",text:u.slice(1)};if(u.startsWith("-"))return{kind:"del",text:u.slice(1)};return{kind:"ctx",text:u.startsWith(" ")?u.slice(1):u}})}function db(i){return i.map((u)=>{let d=u.kind==="add"?"+":u.kind==="del"?"-":u.kind==="hunk"?"@":" ",m=u.kind==="add"?"added":u.kind==="del"?"removed":u.kind==="hunk"?"hunk":"context";return`<div class="line ${u.kind}" part="line" role="listitem" aria-label="${m}: ${Gd(u.text)}"><span class="sign" aria-hidden="true">${d}</span><span>${Gd(u.text)}</span></div>`}).join("")}var g0=U({mount(i,u){let d=i;if(!u.hasAttribute("role"))u.setAttribute("role","region");if(!u.hasAttribute("aria-label"))u.setAttribute("aria-label","diff");let m=d.contentEl();if(!m)return()=>{};return fn(m,()=>{let n=d.value(),b=d.from(),w=d.to(),r;if(n)r=ub(n);else if(b||w)r=ib(b,w);else r=[];return db(r)})}});var p9=Q("sui-diff",{props:{from:P.string({default:"",reflect:!0}),to:P.string({default:"",reflect:!0}),value:P.string({default:"",reflect:!0})},shadow:!0,styles:`
   :host {
     display: block;
     font-family: var(--font-mono);
@@ -15186,161 +5359,11 @@ var sui_diff_default = component69("sui-diff", {
   .sign { color: var(--muted-foreground); user-select: none; }
   .line.add .sign { color: var(--success); }
   .line.del .sign { color: var(--destructive); }
-`,
-  setup(ctx) {
-    const { props, host } = ctx;
-    if (!ctx.cleanups)
-      ctx.cleanups = [];
-    const __cleanups = ctx.cleanups;
-    const $scope = Object.create(null);
-    $scope.from = props.from;
-    $scope.to = props.to;
-    $scope.value = props.value;
-    let __r = null;
-    if (sui_diff_controller_default && typeof sui_diff_controller_default.setup === "function") {
-      ctx.scope = $scope;
-      __r = sui_diff_controller_default.setup(ctx);
-      if (__r && typeof __r === "object")
-        Object.assign($scope, __r);
-    }
-    const __root = host.shadowRoot ?? host;
-    adoptSuiSheets69(__root);
-    const __e0 = document.createElement("div");
-    __e0.setAttribute("class", "diff-root");
-    attachRef40($scope, "contentEl", __e0);
-    __root.appendChild(__e0);
-    if (__r != null) {
-      const __lc = Object.getOwnPropertyDescriptor(__r, "__shipSetLifecycle")?.value;
-      if (__lc) {
-        const __sp = new Proxy($scope, {
-          get(t, k) {
-            return t[k];
-          },
-          set(t, k, v) {
-            const s = t[k];
-            if (s != null && typeof s.set === "function") {
-              if (typeof v === "function") {
-                s.set(() => v);
-              } else {
-                s.set(v);
-              }
-              return true;
-            }
-            return false;
-          }
-        });
-        if (__lc.mount) {
-          const __mc = __lc.mount(__sp, host);
-          if (typeof __mc === "function")
-            __cleanups.push(__mc);
-        }
-        if (__lc.unmount)
-          __cleanups.push(() => __lc.unmount(__sp));
-      }
-    }
-    return $scope;
-  }
-});
-
-// packages/ui-components/src/sui-markdown/sui-markdown.sui
-import { adoptSuiSheets as adoptSuiSheets70, attachRef as attachRef41, component as component70, prop as prop67 } from "@ship/sui-runtime";
-
-// packages/ui-components/src/sui-markdown/sui-markdown.controller.ts
-import { controller as controller51, bindHtml as bindHtml4 } from "@ship/sui-runtime";
-function escape3(s) {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-}
-function inline(s) {
-  let out = escape3(s);
-  out = out.replace(/`([^`]+)`/g, (_, c) => `<code>${c}</code>`);
-  out = out.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
-  out = out.replace(/(^|[^*])\*([^*\n]+)\*/g, "$1<em>$2</em>");
-  out = out.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (_, t, h) => `<a href="${h}" rel="noopener noreferrer">${t}</a>`);
-  return out;
-}
-function renderMarkdown(src) {
-  const lines = src.replace(/\r\n/g, `
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.from=u.from,n.to=u.to,n.value=u.value,n.contentEl=G(null);let b=null;if(g0&&typeof g0.setup==="function"){if(i.scope=n,b=g0.setup(i),b&&typeof b==="object")Object.assign(n,b)}let w=d.shadowRoot??d;V(w);let r=document.createElement("div");if(r.setAttribute("class","diff-root"),O(n,"contentEl",r),w.appendChild(r),b!=null){let M=Object.getOwnPropertyDescriptor(b,"__shipSetLifecycle")?.value;if(M){let y=new Proxy(n,{get(E,l){return E[l]},set(E,l,L){let f=E[l];if(f!=null&&typeof f.set==="function"){if(typeof L==="function")f.set(()=>L);else f.set(L);return!0}return!1}});if(M.mount){let E=M.mount(y,d);if(typeof E==="function")m.push(E)}if(M.unmount)m.push(()=>M.unmount(y))}}return n}});function Yu(i){return i.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}function $n(i){let u=Yu(i);return u=u.replace(/`([^`]+)`/g,(d,m)=>`<code>${m}</code>`),u=u.replace(/\*\*([^*]+)\*\*/g,"<strong>$1</strong>"),u=u.replace(/(^|[^*])\*([^*\n]+)\*/g,"$1<em>$2</em>"),u=u.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g,(d,m,n)=>`<a href="${n}" rel="noopener noreferrer">${m}</a>`),u}function mb(i){let u=i.replace(/\r\n/g,`
 `).split(`
-`);
-  const out = [];
-  let i = 0;
-  while (i < lines.length) {
-    const line = lines[i];
-    if (/^```/.test(line)) {
-      const lang = line.slice(3).trim();
-      const buf2 = [];
-      i++;
-      while (i < lines.length && !/^```/.test(lines[i]))
-        buf2.push(lines[i++]);
-      i++;
-      out.push(`<pre data-lang="${escape3(lang)}"><code>${escape3(buf2.join(`
-`))}</code></pre>`);
-      continue;
-    }
-    const h = /^(#{1,6})\s+(.*)$/.exec(line);
-    if (h) {
-      out.push(`<h${h[1].length}>${inline(h[2])}</h${h[1].length}>`);
-      i++;
-      continue;
-    }
-    if (/^\s*[-*]\s+/.test(line)) {
-      const buf2 = [];
-      while (i < lines.length && /^\s*[-*]\s+/.test(lines[i])) {
-        buf2.push(`<li>${inline(lines[i].replace(/^\s*[-*]\s+/, ""))}</li>`);
-        i++;
-      }
-      out.push(`<ul>${buf2.join("")}</ul>`);
-      continue;
-    }
-    if (/^\s*\d+\.\s+/.test(line)) {
-      const buf2 = [];
-      while (i < lines.length && /^\s*\d+\.\s+/.test(lines[i])) {
-        buf2.push(`<li>${inline(lines[i].replace(/^\s*\d+\.\s+/, ""))}</li>`);
-        i++;
-      }
-      out.push(`<ol>${buf2.join("")}</ol>`);
-      continue;
-    }
-    if (/^>\s?/.test(line)) {
-      const buf2 = [];
-      while (i < lines.length && /^>\s?/.test(lines[i])) {
-        buf2.push(lines[i].replace(/^>\s?/, ""));
-        i++;
-      }
-      out.push(`<blockquote>${inline(buf2.join(" "))}</blockquote>`);
-      continue;
-    }
-    if (line.trim() === "") {
-      i++;
-      continue;
-    }
-    const buf = [];
-    while (i < lines.length && lines[i].trim() !== "" && !/^(```|#|>|\s*[-*]\s+|\s*\d+\.\s+)/.test(lines[i])) {
-      buf.push(lines[i]);
-      i++;
-    }
-    out.push(`<p>${inline(buf.join(" "))}</p>`);
-  }
-  return out.join(`
-`);
-}
-var sui_markdown_controller_default = controller51({
-  mount(state) {
-    const scope = state;
-    const el = scope.contentEl();
-    if (!el)
-      return () => {};
-    return bindHtml4(el, () => renderMarkdown(scope.value() ?? ""));
-  }
-});
-
-// packages/ui-components/src/sui-markdown/sui-markdown.sui
-var sui_markdown_default = component70("sui-markdown", {
-  props: {
-    value: prop67.string({ default: "", reflect: true })
-  },
-  shadow: true,
-  styles: `
+`),d=[],m=0;while(m<u.length){let n=u[m];if(/^```/.test(n)){let r=n.slice(3).trim(),M=[];m++;while(m<u.length&&!/^```/.test(u[m]))M.push(u[m++]);m++,d.push(`<pre data-lang="${Yu(r)}"><code>${Yu(M.join(`
+`))}</code></pre>`);continue}let b=/^(#{1,6})\s+(.*)$/.exec(n);if(b){d.push(`<h${b[1].length}>${$n(b[2])}</h${b[1].length}>`),m++;continue}if(/^\s*[-*]\s+/.test(n)){let r=[];while(m<u.length&&/^\s*[-*]\s+/.test(u[m]))r.push(`<li>${$n(u[m].replace(/^\s*[-*]\s+/,""))}</li>`),m++;d.push(`<ul>${r.join("")}</ul>`);continue}if(/^\s*\d+\.\s+/.test(n)){let r=[];while(m<u.length&&/^\s*\d+\.\s+/.test(u[m]))r.push(`<li>${$n(u[m].replace(/^\s*\d+\.\s+/,""))}</li>`),m++;d.push(`<ol>${r.join("")}</ol>`);continue}if(/^>\s?/.test(n)){let r=[];while(m<u.length&&/^>\s?/.test(u[m]))r.push(u[m].replace(/^>\s?/,"")),m++;d.push(`<blockquote>${$n(r.join(" "))}</blockquote>`);continue}if(n.trim()===""){m++;continue}let w=[];while(m<u.length&&u[m].trim()!==""&&!/^(```|#|>|\s*[-*]\s+|\s*\d+\.\s+)/.test(u[m]))w.push(u[m]),m++;d.push(`<p>${$n(w.join(" "))}</p>`)}return d.join(`
+`)}var D0=U({mount(i){let u=i,d=u.contentEl();if(!d)return()=>{};return fn(d,()=>mb(u.value()??""))}});var d7=Q("sui-markdown",{props:{value:P.string({default:"",reflect:!0})},shadow:!0,styles:`
   :host {
     display: block;
     font-family: var(--font-body);
@@ -15388,104 +5411,170 @@ var sui_markdown_default = component70("sui-markdown", {
   ul, ol { margin: 0.4em 0; padding-left: 22px; }
   li { margin: 2px 0; }
   strong { font-weight: var(--font-weight-semibold); }
-`,
-  setup(ctx) {
-    const { props, host } = ctx;
-    if (!ctx.cleanups)
-      ctx.cleanups = [];
-    const __cleanups = ctx.cleanups;
-    const $scope = Object.create(null);
-    $scope.value = props.value;
-    let __r = null;
-    if (sui_markdown_controller_default && typeof sui_markdown_controller_default.setup === "function") {
-      ctx.scope = $scope;
-      __r = sui_markdown_controller_default.setup(ctx);
-      if (__r && typeof __r === "object")
-        Object.assign($scope, __r);
-    }
-    const __root = host.shadowRoot ?? host;
-    adoptSuiSheets70(__root);
-    const __e0 = document.createElement("div");
-    __e0.setAttribute("class", "md-root");
-    attachRef41($scope, "contentEl", __e0);
-    __root.appendChild(__e0);
-    if (__r != null) {
-      const __lc = Object.getOwnPropertyDescriptor(__r, "__shipSetLifecycle")?.value;
-      if (__lc) {
-        const __sp = new Proxy($scope, {
-          get(t, k) {
-            return t[k];
-          },
-          set(t, k, v) {
-            const s = t[k];
-            if (s != null && typeof s.set === "function") {
-              if (typeof v === "function") {
-                s.set(() => v);
-              } else {
-                s.set(v);
-              }
-              return true;
-            }
-            return false;
-          }
-        });
-        if (__lc.mount) {
-          const __mc = __lc.mount(__sp, host);
-          if (typeof __mc === "function")
-            __cleanups.push(__mc);
-        }
-        if (__lc.unmount)
-          __cleanups.push(() => __lc.unmount(__sp));
-      }
-    }
-    return $scope;
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.value=u.value,n.contentEl=G(null);let b=null;if(D0&&typeof D0.setup==="function"){if(i.scope=n,b=D0.setup(i),b&&typeof b==="object")Object.assign(n,b)}let w=d.shadowRoot??d;V(w);let r=document.createElement("div");if(r.setAttribute("class","md-root"),O(n,"contentEl",r),w.appendChild(r),b!=null){let M=Object.getOwnPropertyDescriptor(b,"__shipSetLifecycle")?.value;if(M){let y=new Proxy(n,{get(E,l){return E[l]},set(E,l,L){let f=E[l];if(f!=null&&typeof f.set==="function"){if(typeof L==="function")f.set(()=>L);else f.set(L);return!0}return!1}});if(M.mount){let E=M.mount(y,d);if(typeof E==="function")m.push(E)}if(M.unmount)m.push(()=>M.unmount(y))}}return n}});var Wd={actions:"#view-topbar-actions","status-start":"#view-status-start","status-end":"#view-status-end"},Z0={title:"#breadcrumbs-title",branch:"#status-branch"},J0=U({mount(i,u){let d=i,m={};function n(){for(let M of Object.keys(Wd)){let y=document.querySelector(Wd[M]);if(!y)continue;let E=Array.from(u.querySelectorAll(`[slot="${M}"]`));if(E.length===0)continue;for(let l of E)y.appendChild(l);m[M]=E}}function b(){let M=document.querySelector(Z0.title);if(M)M.textContent="";if(d.branch()){let y=document.querySelector(Z0.branch);if(y)y.textContent=""}if(d.ahead()>0||d.behind()>0){let y=document.querySelector("#status-ab");if(y)y.textContent=""}if(d.tone()!=="default"||d.busy()){let y=document.querySelector("#status-dot");if(y)delete y.dataset.tone,y.removeAttribute("data-busy")}}function w(){for(let M of Object.keys(m)){for(let y of m[M]??[])y.remove();delete m[M]}b()}let r=q(()=>{let M=d.title(),y=d.branch(),E=d.ahead(),l=d.behind(),L=d.tone(),f=d.busy();if(M){let t=document.querySelector(Z0.title);if(t)t.textContent=M}if(y){let t=document.querySelector(Z0.branch);if(t)t.textContent=y}if(E>0||l>0){let t=document.querySelector("#status-ab");if(t){let H=[];if(E>0)H.push(`↑${E}`);if(l>0)H.push(`↓${l}`);t.textContent=H.join(" ")}}if(L!=="default"||f){let t=document.querySelector("#status-dot");if(t)if(t.dataset.tone=L,f)t.setAttribute("data-busy","");else t.removeAttribute("data-busy")}});return queueMicrotask(()=>n()),()=>{r(),w()}}});var E7=Q("sui-view-chrome",{props:{title:P.string({default:"",reflect:!0}),branch:P.string({default:"",reflect:!0}),ahead:P.number({default:0,reflect:!0}),behind:P.number({default:0,reflect:!0}),tone:P.union(["default","success","warning","destructive","accent","muted"],{default:"default",reflect:!0}),busy:P.bool({default:!1,reflect:!0})},shadow:!0,styles:`
+  :host { display: none; }
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.title=u.title,n.branch=u.branch,n.ahead=u.ahead,n.behind=u.behind,n.tone=u.tone,n.busy=u.busy;let b=null;if(J0&&typeof J0.setup==="function"){if(i.scope=n,b=J0.setup(i),b&&typeof b==="object")Object.assign(n,b)}let w=d.shadowRoot??d;V(w);let r=document.createTextNode(`
+
+`);w.appendChild(r);let M=document.createTextNode(`
+`);w.appendChild(M);let y=document.createTextNode(`
+`);w.appendChild(y);let E=document.createTextNode(`
+`);w.appendChild(E);let l=document.createTextNode(`
+`);w.appendChild(l);let L=document.createTextNode(`
+`);w.appendChild(L);let f=document.createTextNode(`
+
+`);w.appendChild(f);let t=document.createTextNode(`
+`);if(w.appendChild(t),b!=null){let H=Object.getOwnPropertyDescriptor(b,"__shipSetLifecycle")?.value;if(H){let C=new Proxy(n,{get(z,j){return z[j]},set(z,j,g){let J=z[j];if(J!=null&&typeof J.set==="function"){if(typeof g==="function")J.set(()=>g);else J.set(g);return!0}return!1}});if(H.mount){let z=H.mount(C,d);if(typeof z==="function")m.push(z)}if(H.unmount)m.push(()=>H.unmount(C))}}return n}});var X0=U({mount(i,u){let d=i;if(!u.hasAttribute("role"))u.setAttribute("role","navigation");let m=()=>Array.from(u.querySelectorAll(":scope > sui-navigation-item")),n=()=>m().filter((E)=>!E.hasAttribute("disabled")),b=()=>{let E=d.value();for(let l of m())l.toggleAttribute("active",l.getAttribute("value")===E)},w=(E)=>{let l=E;l.stopPropagation();let L=l.detail.value;d.value.set(L),b(),u.dispatchEvent(new CustomEvent("sui-change",{detail:{value:L},bubbles:!0,composed:!0}))},r=(E)=>{if(E.key!=="ArrowRight"&&E.key!=="ArrowLeft"&&E.key!=="Home"&&E.key!=="End")return;let l=n();if(!l.length)return;let L=E.composedPath().find((H)=>l.includes(H)),f=L?l.indexOf(L):-1,t;if(E.key==="ArrowRight")t=l[(f+1)%l.length];else if(E.key==="ArrowLeft")t=l[(f-1+l.length)%l.length];else if(E.key==="Home")t=l[0];else if(E.key==="End")t=l[l.length-1];if(t)E.preventDefault(),t.focusLink?.()},M=q(()=>{d.value(),b()}),y=q(()=>{let E=d.defaultSlotEl();if(!E)return;let l=()=>b();return E.addEventListener("slotchange",l),()=>E.removeEventListener("slotchange",l)});return u.addEventListener("sui-nav-select",w),u.addEventListener("keydown",r),()=>{M(),y(),u.removeEventListener("sui-nav-select",w),u.removeEventListener("keydown",r)}}});var H7=Q("sui-navigation-menu",{props:{value:P.string({default:"",reflect:!0})},shadow:!0,styles:`
+  :host {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    border-bottom: 1px solid var(--border);
+    font-family: var(--font-body);
   }
-});
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.value=u.value,n.defaultSlotEl=G(null);let b=null;if(X0&&typeof X0.setup==="function"){if(i.scope=n,b=X0.setup(i),b&&typeof b==="object")Object.assign(n,b)}let w=d.shadowRoot??d;V(w);let r=document.createElement("slot");if(O(n,"defaultSlotEl",r),w.appendChild(r),b!=null){let M=Object.getOwnPropertyDescriptor(b,"__shipSetLifecycle")?.value;if(M){let y=new Proxy(n,{get(E,l){return E[l]},set(E,l,L){let f=E[l];if(f!=null&&typeof f.set==="function"){if(typeof L==="function")f.set(()=>L);else f.set(L);return!0}return!1}});if(M.mount){let E=M.mount(y,d);if(typeof E==="function")m.push(E)}if(M.unmount)m.push(()=>M.unmount(y))}}return n}});var G0=U({mount(i,u){let d=i,m=(n)=>{if(d.disabled())return;if(!d.href())n.preventDefault();u.dispatchEvent(new CustomEvent("sui-nav-select",{detail:{value:d.value()},bubbles:!0,composed:!0}))};return u.focusLink=()=>{u.shadowRoot?.querySelector(".link")?.focus()},u.addEventListener("click",m),()=>u.removeEventListener("click",m)}});var D7=Q("sui-navigation-item",{props:{value:P.string({default:"",reflect:!0}),active:P.bool({default:!1,reflect:!0}),disabled:P.bool({default:!1,reflect:!0}),href:P.string({default:""})},shadow:!0,styles:`
+  :host { display: inline-flex; position: relative; }
 
-// packages/ui-components/src/sui-toolbar/sui-toolbar.sui
-import { adoptSuiSheets as adoptSuiSheets71, attachRef as attachRef42, component as component71, prop as prop68 } from "@ship/sui-runtime";
-
-// packages/ui-components/src/sui-toolbar/sui-toolbar.controller.ts
-import { controller as controller52 } from "@ship/sui-runtime";
-var sui_toolbar_controller_default = controller52({
-  mount(state, host) {
-    const scope = state;
-    if (!host.hasAttribute("role"))
-      host.setAttribute("role", "toolbar");
-    if (!host.hasAttribute("aria-orientation"))
-      host.setAttribute("aria-orientation", "horizontal");
-    const focusable = () => {
-      const slot = scope.defaultSlot();
-      const els = slot?.assignedElements({ flatten: true }) ?? [];
-      return els.filter((el) => !el.hasAttribute("disabled"));
-    };
-    const onKey = (e) => {
-      if (e.key !== "ArrowRight" && e.key !== "ArrowLeft")
-        return;
-      const items = focusable();
-      if (!items.length)
-        return;
-      const active = e.composedPath().find((n) => items.includes(n)) || null;
-      const i = active ? items.indexOf(active) : -1;
-      const next = e.key === "ArrowRight" ? (i + 1) % items.length : (i - 1 + items.length) % items.length;
-      items[next]?.focus();
-      e.preventDefault();
-    };
-    host.addEventListener("keydown", onKey);
-    return () => host.removeEventListener("keydown", onKey);
+  .link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    font-family: var(--font-body);
+    font-size: var(--text-base);
+    font-weight: var(--font-weight-medium);
+    color: var(--muted-foreground);
+    text-decoration: none;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    transition:
+      color var(--duration-fast) var(--ease-out),
+      background-color var(--duration-fast) var(--ease-out);
+    line-height: var(--leading-normal);
+    border-radius: var(--radius);
   }
-});
+  .link:hover {
+    color: var(--foreground);
+    background: color-mix(in oklch, var(--muted) 50%, transparent);
+  }
+  :host([active]) .link {
+    color: var(--foreground);
+    font-weight: var(--font-weight-semibold);
+  }
+  :host([disabled]) .link {
+    cursor: not-allowed;
+    opacity: 0.5;
+    pointer-events: none;
+  }
+  .link:focus-visible {
+    outline: none;
+    box-shadow:
+      0 0 0 var(--ring-offset, 2px) var(--background),
+      0 0 0 calc(var(--ring-offset, 2px) + var(--ring-width, 2px))
+        color-mix(in oklch, var(--primary) 50%, transparent);
+  }
 
-// packages/ui-components/src/sui-toolbar/sui-toolbar.sui
-var sui_toolbar_default = component71("sui-toolbar", {
-  props: {
-    justify: prop68.union(["start", "center", "end", "between"], { default: "start", reflect: true }),
-    align: prop68.union(["center", "start", "end", "baseline"], { default: "center", reflect: true }),
-    gap: prop68.union(["sm", "md", "lg"], { default: "md", reflect: true }),
-    variant: prop68.union(["default", "bordered"], { default: "default", reflect: true })
-  },
-  shadow: true,
-  styles: `
+  .indicator {
+    position: absolute;
+    bottom: 0;
+    left: 14px;
+    right: 14px;
+    height: 2px;
+    background: var(--foreground);
+    border-radius: var(--radius-full);
+    opacity: 0;
+    transform: scaleX(0);
+    transition:
+      opacity var(--duration-fast) var(--ease-out),
+      transform var(--duration-fast) var(--ease-out);
+  }
+  :host([active]) .indicator {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+
+  @media (forced-colors: active) {
+    .link:focus-visible { outline: 2px solid CanvasText; outline-offset: 2px; }
+    :host([active]) .indicator { background: CanvasText; }
+  }
+
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.value=u.value,n.active=u.active,n.disabled=u.disabled,n.href=u.href;let b=null;if(G0&&typeof G0.setup==="function"){if(i.scope=n,b=G0.setup(i),b&&typeof b==="object")Object.assign(n,b)}let w=(E)=>R({anchor:E,test:()=>{if(n.href())return 0;return 1},branches:[()=>{let l=document.createDocumentFragment(),L=[],f=document.createElement("a");f.setAttribute("class","link"),f.setAttribute("part","link"),L.push(T(f,"href",()=>n.href())),L.push(T(f,"aria-current",()=>n.active()?"page":"false"));let t=document.createElement("slot");return f.appendChild(t),l.appendChild(f),{nodes:Array.from(l.childNodes),cleanup:()=>{for(let H of L)try{H()}catch(C){}}}},()=>{let l=document.createDocumentFragment(),L=[],f=document.createElement("button");f.setAttribute("class","link"),f.setAttribute("part","link"),f.setAttribute("type","button"),L.push(T(f,"aria-current",()=>n.active()?"true":"false")),L.push(T(f,"disabled",()=>n.disabled()));let t=document.createElement("slot");return f.appendChild(t),l.appendChild(f),{nodes:Array.from(l.childNodes),cleanup:()=>{for(let H of L)try{H()}catch(C){}}}}]}),r=d.shadowRoot??d;V(r);let M=document.createComment("if");r.appendChild(M),m.push(w(M));let y=document.createElement("div");if(y.setAttribute("class","indicator"),y.setAttribute("part","indicator"),y.setAttribute("aria-hidden","true"),r.appendChild(y),b!=null){let E=Object.getOwnPropertyDescriptor(b,"__shipSetLifecycle")?.value;if(E){let l=new Proxy(n,{get(L,f){return L[f]},set(L,f,t){let H=L[f];if(H!=null&&typeof H.set==="function"){if(typeof t==="function")H.set(()=>t);else H.set(t);return!0}return!1}});if(E.mount){let L=E.mount(l,d);if(typeof L==="function")m.push(L)}if(E.unmount)m.push(()=>E.unmount(l))}}return n}});var W0=U({mount(i,u){let d=i,m=null,n=()=>{let r=d.viewportEl();if(!r)return;let M=d.orientation(),y=M==="vertical"||M==="both",E=M==="horizontal"||M==="both",l=d.vThumb(),L=d.hThumb();if(y&&l){let f=r.clientHeight/r.scrollHeight;if(f<1){let t=Math.max(24,f*r.clientHeight),C=r.scrollTop/(r.scrollHeight-r.clientHeight)*(r.clientHeight-t);l.style.height=`${t}px`,l.style.top=`${C}px`,l.style.display=""}else l.style.display="none"}if(E&&L){let f=r.clientWidth/r.scrollWidth;if(f<1){let t=Math.max(24,f*r.clientWidth),C=r.scrollLeft/(r.scrollWidth-r.clientWidth)*(r.clientWidth-t);L.style.width=`${t}px`,L.style.left=`${C}px`,L.style.display=""}else L.style.display="none"}},b=()=>{n();let r=d.vScrollbar(),M=d.hScrollbar();if(r?.classList.add("active"),M?.classList.add("active"),m)clearTimeout(m);m=setTimeout(()=>{r?.classList.remove("active"),M?.classList.remove("active")},1200)},w=d.viewportEl();if(w)w.addEventListener("scroll",b,{passive:!0});return n(),()=>{if(m)clearTimeout(m);if(w)w.removeEventListener("scroll",b)}}});var T7=Q("sui-scroll-area",{props:{orientation:P.union(["vertical","horizontal","both"],{default:"vertical",reflect:!0}),size:P.union(["sm","md","lg"],{default:"md",reflect:!0})},shadow:!0,styles:`
+  :host {
+    display: block;
+    position: relative;
+    overflow: hidden;
+  }
+
+  :host(:not([size])), :host([size='md']) { --sb-size: 8px; }
+  :host([size='sm']) { --sb-size: 6px; }
+  :host([size='lg']) { --sb-size: 10px; }
+
+  .viewport {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .viewport::-webkit-scrollbar { display: none; }
+
+  :host(:not([orientation])) .viewport,
+  :host([orientation='vertical']) .viewport { overflow-y: auto; }
+  :host([orientation='horizontal']) .viewport { overflow-x: auto; }
+  :host([orientation='both']) .viewport { overflow: auto; }
+
+  /* Overlay scrollbar tracks — absolute-positioned, opacity-fade on hover/scroll */
+  .scrollbar {
+    position: absolute;
+    opacity: 0;
+    transition: opacity var(--duration-medium) var(--ease-out);
+    z-index: 1;
+  }
+  :host(:hover) .scrollbar,
+  :host(:focus-within) .scrollbar,
+  .scrollbar.active { opacity: 1; }
+
+  .scrollbar-v {
+    top: 0; right: 2px; bottom: 0;
+    width: var(--sb-size);
+  }
+  .scrollbar-h {
+    left: 0; right: 0; bottom: 2px;
+    height: var(--sb-size);
+  }
+
+  /* Orientation-driven track visibility */
+  :host(:not([orientation])) .scrollbar-h,
+  :host([orientation='vertical']) .scrollbar-h { display: none; }
+  :host([orientation='horizontal']) .scrollbar-v { display: none; }
+
+  .thumb {
+    position: absolute;
+    border-radius: var(--radius-full);
+    background: color-mix(in oklch, var(--foreground) 30%, transparent);
+    transition: background-color var(--duration-fast) var(--ease-out);
+  }
+  .thumb:hover {
+    background: color-mix(in oklch, var(--foreground) 50%, transparent);
+  }
+  .scrollbar-v .thumb {
+    width: 100%;
+    min-height: 24px;
+  }
+  .scrollbar-h .thumb {
+    height: 100%;
+    min-width: 24px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .scrollbar { transition: none; }
+    .thumb { transition: none; }
+  }
+
+  @media (forced-colors: active) {
+    .thumb { background: CanvasText; }
+  }
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.orientation=u.orientation,n.size=u.size,n.hScrollbar=G(null),n.hThumb=G(null),n.vScrollbar=G(null),n.vThumb=G(null),n.viewportEl=G(null);let b=null;if(W0&&typeof W0.setup==="function"){if(i.scope=n,b=W0.setup(i),b&&typeof b==="object")Object.assign(n,b)}let w=d.shadowRoot??d;V(w);let r=document.createElement("div");r.setAttribute("class","viewport"),r.setAttribute("part","viewport"),r.setAttribute("tabindex","0"),O(n,"viewportEl",r);let M=document.createElement("slot");r.appendChild(M),w.appendChild(r);let y=document.createElement("div");y.setAttribute("class","scrollbar scrollbar-v"),y.setAttribute("part","scrollbar-v"),y.setAttribute("aria-hidden","true"),O(n,"vScrollbar",y);let E=document.createElement("div");E.setAttribute("class","thumb"),O(n,"vThumb",E),y.appendChild(E),w.appendChild(y);let l=document.createElement("div");l.setAttribute("class","scrollbar scrollbar-h"),l.setAttribute("part","scrollbar-h"),l.setAttribute("aria-hidden","true"),O(n,"hScrollbar",l);let L=document.createElement("div");if(L.setAttribute("class","thumb"),O(n,"hThumb",L),l.appendChild(L),w.appendChild(l),b!=null){let f=Object.getOwnPropertyDescriptor(b,"__shipSetLifecycle")?.value;if(f){let t=new Proxy(n,{get(H,C){return H[C]},set(H,C,z){let j=H[C];if(j!=null&&typeof j.set==="function"){if(typeof z==="function")j.set(()=>z);else j.set(z);return!0}return!1}});if(f.mount){let H=f.mount(t,d);if(typeof H==="function")m.push(H)}if(f.unmount)m.push(()=>f.unmount(t))}}return n}});var T0=U({mount(i,u){let d=i;if(!u.hasAttribute("role"))u.setAttribute("role","toolbar");if(!u.hasAttribute("aria-orientation"))u.setAttribute("aria-orientation","horizontal");let m=()=>{return(d.defaultSlot()?.assignedElements({flatten:!0})??[]).filter((r)=>!r.hasAttribute("disabled"))},n=(b)=>{if(b.key!=="ArrowRight"&&b.key!=="ArrowLeft")return;let w=m();if(!w.length)return;let r=b.composedPath().find((E)=>w.includes(E))||null,M=r?w.indexOf(r):-1,y=b.key==="ArrowRight"?(M+1)%w.length:(M-1+w.length)%w.length;w[y]?.focus(),b.preventDefault()};return u.addEventListener("keydown",n),()=>u.removeEventListener("keydown",n)}});var U7=Q("sui-toolbar",{props:{justify:P.union(["start","center","end","between"],{default:"start",reflect:!0}),align:P.union(["center","start","end","baseline"],{default:"center",reflect:!0}),gap:P.union(["sm","md","lg"],{default:"md",reflect:!0}),variant:P.union(["default","bordered"],{default:"default",reflect:!0})},shadow:!0,styles:`
   :host {
     display: flex;
     align-items: center;
@@ -15504,128 +5593,7 @@ var sui_toolbar_default = component71("sui-toolbar", {
     border-top: 1px solid var(--border);
   }
   ::slotted([slot='spacer']) { flex: 1; }
-`,
-  setup(ctx) {
-    const { props, host } = ctx;
-    if (!ctx.cleanups)
-      ctx.cleanups = [];
-    const __cleanups = ctx.cleanups;
-    const $scope = Object.create(null);
-    $scope.justify = props.justify;
-    $scope.align = props.align;
-    $scope.gap = props.gap;
-    $scope.variant = props.variant;
-    let __r = null;
-    if (sui_toolbar_controller_default && typeof sui_toolbar_controller_default.setup === "function") {
-      ctx.scope = $scope;
-      __r = sui_toolbar_controller_default.setup(ctx);
-      if (__r && typeof __r === "object")
-        Object.assign($scope, __r);
-    }
-    const __root = host.shadowRoot ?? host;
-    adoptSuiSheets71(__root);
-    const __e0 = document.createElement("slot");
-    __e0.setAttribute("name", "spacer");
-    __root.appendChild(__e0);
-    const __e1 = document.createElement("slot");
-    attachRef42($scope, "defaultSlot", __e1);
-    __root.appendChild(__e1);
-    if (__r != null) {
-      const __lc = Object.getOwnPropertyDescriptor(__r, "__shipSetLifecycle")?.value;
-      if (__lc) {
-        const __sp = new Proxy($scope, {
-          get(t, k) {
-            return t[k];
-          },
-          set(t, k, v) {
-            const s = t[k];
-            if (s != null && typeof s.set === "function") {
-              if (typeof v === "function") {
-                s.set(() => v);
-              } else {
-                s.set(v);
-              }
-              return true;
-            }
-            return false;
-          }
-        });
-        if (__lc.mount) {
-          const __mc = __lc.mount(__sp, host);
-          if (typeof __mc === "function")
-            __cleanups.push(__mc);
-        }
-        if (__lc.unmount)
-          __cleanups.push(() => __lc.unmount(__sp));
-      }
-    }
-    return $scope;
-  }
-});
-
-// packages/ui-components/src/sui-app-icon/sui-app-icon.sui
-import { adoptSuiSheets as adoptSuiSheets72, attachRef as attachRef43, component as component72, prop as prop69 } from "@ship/sui-runtime";
-
-// packages/ui-components/src/sui-app-icon/sui-app-icon.controller.ts
-import { controller as controller53, effect as effect44 } from "@ship/sui-runtime";
-var APP_GLYPH = {
-  dashboard: "layout-dashboard",
-  pipelines: "workflow",
-  agents: "bot",
-  skills: "sparkles",
-  git: "git-branch",
-  collections: "database",
-  canvas: "frame",
-  settings: "settings",
-  chat: "messages-square",
-  events: "radio",
-  specs: "file-text",
-  theme: "palette",
-  setup: "rocket",
-  overview: "compass",
-  mesh: "network"
-};
-var APP_ALIASES = {
-  "theme-studio": "theme"
-};
-var APP_NAMES = new Set([...Object.keys(APP_GLYPH), ...Object.keys(APP_ALIASES)]);
-var sui_app_icon_controller_default = controller53({
-  mount(state, host) {
-    const scope = state;
-    const stopEffect = effect44(() => {
-      const name = scope.name();
-      const label = scope.label();
-      const resolved = APP_ALIASES[name] ?? name;
-      const known = APP_NAMES.has(name);
-      const glyph = known ? APP_GLYPH[resolved] : "dot";
-      const icon = scope.glyphEl();
-      if (icon)
-        icon.setAttribute("name", glyph);
-      if (label) {
-        host.setAttribute("role", "img");
-        host.setAttribute("aria-label", label);
-        host.removeAttribute("aria-hidden");
-      } else {
-        host.setAttribute("aria-hidden", "true");
-        host.removeAttribute("role");
-        host.removeAttribute("aria-label");
-      }
-    });
-    return () => stopEffect();
-  }
-});
-
-// packages/ui-components/src/sui-app-icon/sui-app-icon.sui
-var sui_app_icon_default = component72("sui-app-icon", {
-  props: {
-    name: prop69.string({ default: "", reflect: true }),
-    variant: prop69.union(["glyph", "tile", "solid"], { default: "glyph", reflect: true }),
-    size: prop69.union(["sm", "md", "lg"], { default: "md", reflect: true }),
-    radius: prop69.string({ default: "", reflect: true }),
-    label: prop69.string({ default: "", reflect: true })
-  },
-  shadow: true,
-  styles: `
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.justify=u.justify,n.align=u.align,n.gap=u.gap,n.variant=u.variant,n.defaultSlot=G(null);let b=null;if(T0&&typeof T0.setup==="function"){if(i.scope=n,b=T0.setup(i),b&&typeof b==="object")Object.assign(n,b)}let w=d.shadowRoot??d;V(w);let r=document.createElement("slot");r.setAttribute("name","spacer"),w.appendChild(r);let M=document.createElement("slot");if(O(n,"defaultSlot",M),w.appendChild(M),b!=null){let y=Object.getOwnPropertyDescriptor(b,"__shipSetLifecycle")?.value;if(y){let E=new Proxy(n,{get(l,L){return l[L]},set(l,L,f){let t=l[L];if(t!=null&&typeof t.set==="function"){if(typeof f==="function")t.set(()=>f);else t.set(f);return!0}return!1}});if(y.mount){let l=y.mount(E,d);if(typeof l==="function")m.push(l)}if(y.unmount)m.push(()=>y.unmount(E))}}return n}});var Td={dashboard:"layout-dashboard",pipelines:"workflow",agents:"bot",skills:"sparkles",git:"git-branch",collections:"database",canvas:"frame",settings:"settings",chat:"messages-square",events:"radio",specs:"file-text",theme:"palette",setup:"rocket",overview:"compass",mesh:"network"},Qd={"theme-studio":"theme"},bb=new Set([...Object.keys(Td),...Object.keys(Qd)]),Q0=U({mount(i,u){let d=i,m=q(()=>{let n=d.name(),b=d.label(),w=Qd[n]??n,M=bb.has(n)?Td[w]:"dot",y=d.glyphEl();if(y)y.setAttribute("name",M);if(b)u.setAttribute("role","img"),u.setAttribute("aria-label",b),u.removeAttribute("aria-hidden");else u.setAttribute("aria-hidden","true"),u.removeAttribute("role"),u.removeAttribute("aria-label")});return()=>m()}});var I7=Q("sui-app-icon",{props:{name:P.string({default:"",reflect:!0}),variant:P.union(["glyph","tile","solid"],{default:"glyph",reflect:!0}),size:P.union(["sm","md","lg"],{default:"md",reflect:!0}),radius:P.string({default:"",reflect:!0}),label:P.string({default:"",reflect:!0})},shadow:!0,styles:`
   :host {
     display: inline-flex;
     align-items: center;
@@ -15706,101 +5674,7 @@ var sui_app_icon_default = component72("sui-app-icon", {
     height: var(--glyph-size);
     display: block;
   }
-`,
-  setup(ctx) {
-    const { props, host } = ctx;
-    if (!ctx.cleanups)
-      ctx.cleanups = [];
-    const __cleanups = ctx.cleanups;
-    const $scope = Object.create(null);
-    $scope.name = props.name;
-    $scope.variant = props.variant;
-    $scope.size = props.size;
-    $scope.radius = props.radius;
-    $scope.label = props.label;
-    let __r = null;
-    if (sui_app_icon_controller_default && typeof sui_app_icon_controller_default.setup === "function") {
-      ctx.scope = $scope;
-      __r = sui_app_icon_controller_default.setup(ctx);
-      if (__r && typeof __r === "object")
-        Object.assign($scope, __r);
-    }
-    const __root = host.shadowRoot ?? host;
-    adoptSuiSheets72(__root);
-    const __e0 = document.createElement("span");
-    __e0.setAttribute("class", "frame");
-    __e0.setAttribute("part", "frame");
-    const __e1 = document.createElement("slot");
-    const __e2 = document.createElement("sui-icon");
-    attachRef43($scope, "glyphEl", __e2);
-    __e2.setAttribute("part", "glyph");
-    __e2.setAttribute("aria-hidden", "true");
-    __e1.appendChild(__e2);
-    __e0.appendChild(__e1);
-    __root.appendChild(__e0);
-    if (__r != null) {
-      const __lc = Object.getOwnPropertyDescriptor(__r, "__shipSetLifecycle")?.value;
-      if (__lc) {
-        const __sp = new Proxy($scope, {
-          get(t, k) {
-            return t[k];
-          },
-          set(t, k, v) {
-            const s = t[k];
-            if (s != null && typeof s.set === "function") {
-              if (typeof v === "function") {
-                s.set(() => v);
-              } else {
-                s.set(v);
-              }
-              return true;
-            }
-            return false;
-          }
-        });
-        if (__lc.mount) {
-          const __mc = __lc.mount(__sp, host);
-          if (typeof __mc === "function")
-            __cleanups.push(__mc);
-        }
-        if (__lc.unmount)
-          __cleanups.push(() => __lc.unmount(__sp));
-      }
-    }
-    return $scope;
-  }
-});
-
-// packages/ui-components/src/sui-tree-view/sui-tree-view.sui
-import { adoptSuiSheets as adoptSuiSheets73, bindFor as bindFor6, bindIf as bindIf19, bindProp as bindProp3, component as component73 } from "@ship/sui-runtime";
-
-// packages/ui-components/src/sui-tree-view/sui-tree-view.controller.ts
-import { controller as controller54, signal as signal12 } from "@ship/sui-runtime";
-var sui_tree_view_controller_default = controller54({
-  scope: () => {
-    const nodes = signal12([]);
-    return { nodes };
-  },
-  mount(state, host) {
-    const scope = state;
-    const nodesSignal = scope.nodes;
-    const initNodes = host.nodes;
-    if (initNodes != null)
-      nodesSignal.set(initNodes);
-    Object.defineProperty(host, "nodes", {
-      configurable: true,
-      get: () => nodesSignal(),
-      set: (v) => nodesSignal.set(v)
-    });
-    if (!host.hasAttribute("role"))
-      host.setAttribute("role", "tree");
-  }
-});
-
-// packages/ui-components/src/sui-tree-view/sui-tree-view.sui
-var sui_tree_view_default = component73("sui-tree-view", {
-  shadow: true,
-  styles: `
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.name=u.name,n.variant=u.variant,n.size=u.size,n.radius=u.radius,n.label=u.label,n.glyphEl=G(null);let b=null;if(Q0&&typeof Q0.setup==="function"){if(i.scope=n,b=Q0.setup(i),b&&typeof b==="object")Object.assign(n,b)}let w=d.shadowRoot??d;V(w);let r=document.createElement("span");r.setAttribute("class","frame"),r.setAttribute("part","frame");let M=document.createElement("slot"),y=document.createElement("sui-icon");if(O(n,"glyphEl",y),y.setAttribute("part","glyph"),y.setAttribute("aria-hidden","true"),M.appendChild(y),r.appendChild(M),w.appendChild(r),b!=null){let E=Object.getOwnPropertyDescriptor(b,"__shipSetLifecycle")?.value;if(E){let l=new Proxy(n,{get(L,f){return L[f]},set(L,f,t){let H=L[f];if(H!=null&&typeof H.set==="function"){if(typeof t==="function")H.set(()=>t);else H.set(t);return!0}return!1}});if(E.mount){let L=E.mount(l,d);if(typeof L==="function")m.push(L)}if(E.unmount)m.push(()=>E.unmount(l))}}return n}});var V0=U({scope:()=>{return{nodes:G([])}},mount(i,u){let d=u.nodes;if(d!=null)i.nodes.set(d);if(Object.defineProperty(u,"nodes",{configurable:!0,get:()=>i.nodes(),set:(m)=>i.nodes.set(m)}),!u.hasAttribute("role"))u.setAttribute("role","tree")}});var x7=Q("sui-tree-view",{shadow:!0,styles:`
   :host {
     display: block;
     font-family: var(--font-body);
@@ -15808,241 +5682,7 @@ var sui_tree_view_default = component73("sui-tree-view", {
     color: var(--foreground);
   }
   ul { list-style: none; margin: 0; padding: 0; }
-`,
-  setup(ctx) {
-    const { props, host } = ctx;
-    if (!ctx.cleanups)
-      ctx.cleanups = [];
-    const __cleanups = ctx.cleanups;
-    const $scope = Object.create(null);
-    let __r = null;
-    if (sui_tree_view_controller_default && typeof sui_tree_view_controller_default.setup === "function") {
-      ctx.scope = $scope;
-      __r = sui_tree_view_controller_default.setup(ctx);
-      if (__r && typeof __r === "object")
-        Object.assign($scope, __r);
-    }
-    const __wireBoundary_b1 = (anchor) => bindFor6({
-      anchor,
-      items: () => $scope.nodes(),
-      key: (n, __i) => {
-        const __child = Object.create($scope);
-        __child.n = n;
-        __child.__i = __i;
-        return (($scope2) => n.id)(__child);
-      },
-      render: (n, __i) => {
-        const __childScope5 = Object.create($scope);
-        __childScope5.n = n;
-        __childScope5.__i = __i;
-        return (($scope2) => {
-          const __frag6 = document.createDocumentFragment();
-          const __c7 = [];
-          const __e8 = document.createElement("sui-tree-item");
-          __c7.push(bindProp3(__e8, "node", () => $scope2.n));
-          __frag6.appendChild(__e8);
-          return { nodes: Array.from(__frag6.childNodes), cleanup: () => {
-            for (const c of __c7)
-              try {
-                c();
-              } catch (e) {}
-          } };
-        })(__childScope5);
-      }
-    });
-    const __wireBoundary_b0 = (anchor) => bindIf19({
-      anchor,
-      test: () => {
-        if ($scope.nodes().length > 0)
-          return 0;
-        return 1;
-      },
-      branches: [
-        () => {
-          const __frag1 = document.createDocumentFragment();
-          const __c2 = [];
-          const __e3 = document.createElement("ul");
-          __e3.setAttribute("role", "tree");
-          const __forAnchor4 = document.createComment("for");
-          __e3.appendChild(__forAnchor4);
-          __c2.push(__wireBoundary_b1(__forAnchor4));
-          __frag1.appendChild(__e3);
-          return { nodes: Array.from(__frag1.childNodes), cleanup: () => {
-            for (const c of __c2)
-              try {
-                c();
-              } catch (e) {}
-          } };
-        },
-        () => {
-          const __frag9 = document.createDocumentFragment();
-          const __c10 = [];
-          const __e11 = document.createElement("slot");
-          __frag9.appendChild(__e11);
-          return { nodes: Array.from(__frag9.childNodes), cleanup: () => {
-            for (const c of __c10)
-              try {
-                c();
-              } catch (e) {}
-          } };
-        }
-      ]
-    });
-    const __root = host.shadowRoot ?? host;
-    adoptSuiSheets73(__root);
-    const __ifAnchor0 = document.createComment("if");
-    __root.appendChild(__ifAnchor0);
-    __cleanups.push(__wireBoundary_b0(__ifAnchor0));
-    if (__r != null) {
-      const __lc = Object.getOwnPropertyDescriptor(__r, "__shipSetLifecycle")?.value;
-      if (__lc) {
-        const __sp = new Proxy($scope, {
-          get(t, k) {
-            return t[k];
-          },
-          set(t, k, v) {
-            const s = t[k];
-            if (s != null && typeof s.set === "function") {
-              if (typeof v === "function") {
-                s.set(() => v);
-              } else {
-                s.set(v);
-              }
-              return true;
-            }
-            return false;
-          }
-        });
-        if (__lc.mount) {
-          const __mc = __lc.mount(__sp, host);
-          if (typeof __mc === "function")
-            __cleanups.push(__mc);
-        }
-        if (__lc.unmount)
-          __cleanups.push(() => __lc.unmount(__sp));
-      }
-    }
-    return $scope;
-  }
-});
-
-// packages/ui-components/src/sui-tree-view/sui-tree-item.sui
-import { adoptSuiSheets as adoptSuiSheets74, attachRef as attachRef44, bindFor as bindFor7, bindIf as bindIf20, bindProp as bindProp4, bindText as bindText18, component as component74, prop as prop70 } from "@ship/sui-runtime";
-
-// packages/ui-components/src/sui-tree-view/sui-tree-item.controller.ts
-import { controller as controller55, signal as signal13, derived as derived4, effect as effect45, ref as ref6 } from "@ship/sui-runtime";
-var sui_tree_item_controller_default = controller55({
-  scope: ({ label }) => {
-    const node = signal13(null);
-    const nodeLabel = derived4(() => {
-      const n = node();
-      return n ? n.label : label();
-    });
-    const nodeChildren = derived4(() => {
-      const n = node();
-      return n?.children ?? [];
-    });
-    const rowEl = ref6(null);
-    return { node, nodeLabel, nodeChildren, rowEl };
-  },
-  mount(state, host) {
-    const scope = state;
-    if (!host.hasAttribute("role"))
-      host.setAttribute("role", "treeitem");
-    const nodeSignal = scope.node;
-    const initNode = host.node;
-    if (initNode != null)
-      nodeSignal.set(initNode);
-    Object.defineProperty(host, "node", {
-      configurable: true,
-      get: () => nodeSignal(),
-      set: (v) => nodeSignal.set(v)
-    });
-    const stopLeafSync = effect45(() => {
-      const n = nodeSignal();
-      if (n !== null) {
-        const isLeaf = !n.children || n.children.length === 0;
-        if (isLeaf)
-          host.setAttribute("leaf", "");
-        else
-          host.removeAttribute("leaf");
-      }
-    });
-    const syncAria = effect45(() => {
-      const row = scope.rowEl();
-      if (!row)
-        return;
-      if (!scope.leaf()) {
-        row.setAttribute("aria-expanded", String(scope.expanded()));
-      } else {
-        row.removeAttribute("aria-expanded");
-      }
-      row.setAttribute("aria-selected", String(scope.selected()));
-    });
-    const toggle = (e) => {
-      if (scope.leaf())
-        return;
-      e.stopPropagation();
-      const next = !scope.expanded();
-      scope.expanded.set(next);
-      host.dispatchEvent(new CustomEvent("sui-toggle", {
-        detail: { expanded: next },
-        bubbles: true,
-        composed: true
-      }));
-    };
-    const select = () => {
-      host.dispatchEvent(new CustomEvent("sui-select", {
-        bubbles: true,
-        composed: true,
-        detail: {}
-      }));
-    };
-    const onRowClick = (e) => {
-      select();
-      toggle(e);
-    };
-    const onKey = (e) => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        select();
-      } else if (e.key === "ArrowRight" && !scope.leaf() && !scope.expanded()) {
-        e.preventDefault();
-        toggle(e);
-      } else if (e.key === "ArrowLeft" && scope.expanded()) {
-        e.preventDefault();
-        toggle(e);
-      }
-    };
-    const stopRow = effect45(() => {
-      const row = scope.rowEl();
-      if (!row)
-        return;
-      row.addEventListener("click", onRowClick);
-      row.addEventListener("keydown", onKey);
-      return () => {
-        row.removeEventListener("click", onRowClick);
-        row.removeEventListener("keydown", onKey);
-      };
-    });
-    return () => {
-      stopLeafSync();
-      syncAria();
-      stopRow();
-    };
-  }
-});
-
-// packages/ui-components/src/sui-tree-view/sui-tree-item.sui
-var sui_tree_item_default = component74("sui-tree-item", {
-  props: {
-    label: prop70.string({ default: "", reflect: true }),
-    expanded: prop70.bool({ default: false, reflect: true }),
-    selected: prop70.bool({ default: false, reflect: true }),
-    leaf: prop70.bool({ default: false, reflect: true })
-  },
-  shadow: true,
-  styles: `
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null),b=null;if(V0&&typeof V0.setup==="function"){if(i.scope=n,b=V0.setup(i),b&&typeof b==="object")Object.assign(n,b)}let w=(E)=>s({anchor:E,items:()=>n.nodes(),key:(l,L)=>{let f=Object.create(n);return f.n=l,f.__i=L,((t)=>l.id)(f)},render:(l,L)=>{let f=Object.create(n);return f.n=l,f.__i=L,f.__v=G(0),((t)=>{let H=document.createDocumentFragment(),C=[],z=document.createElement("sui-tree-item");return z.node=t.n,H.appendChild(z),{nodes:Array.from(H.childNodes),cleanup:()=>{for(let j of C)try{j()}catch(g){}},update:(j,g)=>{t.n=j,t.__i=g,z.node=t.n,t.__v.set((J)=>J+1)}}})(f)}}),r=(E)=>R({anchor:E,test:()=>{if(n.nodes().length>0)return 0;return 1},branches:[()=>{let l=document.createDocumentFragment(),L=[],f=document.createElement("ul");f.setAttribute("role","tree");let t=document.createComment("for");return f.appendChild(t),L.push(w(t)),l.appendChild(f),{nodes:Array.from(l.childNodes),cleanup:()=>{for(let H of L)try{H()}catch(C){}}}},()=>{let l=document.createDocumentFragment(),L=[],f=document.createElement("slot");return l.appendChild(f),{nodes:Array.from(l.childNodes),cleanup:()=>{for(let t of L)try{t()}catch(H){}}}}]}),M=d.shadowRoot??d;V(M);let y=document.createComment("if");if(M.appendChild(y),m.push(r(y)),b!=null){let E=Object.getOwnPropertyDescriptor(b,"__shipSetLifecycle")?.value;if(E){let l=new Proxy(n,{get(L,f){return L[f]},set(L,f,t){let H=L[f];if(H!=null&&typeof H.set==="function"){if(typeof t==="function")H.set(()=>t);else H.set(t);return!0}return!1}});if(E.mount){let L=E.mount(l,d);if(typeof L==="function")m.push(L)}if(E.unmount)m.push(()=>E.unmount(l))}}return n}});var Y0=U({scope:({label:i})=>{let u=G(null),d=h(()=>{let b=u();return b?b.label:i()}),m=h(()=>{return u()?.children??[]}),n=e(null);return{node:u,nodeLabel:d,nodeChildren:m,rowEl:n}},mount(i,u){if(!u.hasAttribute("role"))u.setAttribute("role","treeitem");let d=u.node;if(d!=null)i.node.set(d);Object.defineProperty(u,"node",{configurable:!0,get:()=>i.node(),set:(E)=>i.node.set(E)});let m=q(()=>{let E=i.node();if(E!==null)if(!E.children||E.children.length===0)u.setAttribute("leaf","");else u.removeAttribute("leaf")}),n=q(()=>{let E=i.rowEl();if(!E)return;if(!i.leaf())E.setAttribute("aria-expanded",String(i.expanded()));else E.removeAttribute("aria-expanded");E.setAttribute("aria-selected",String(i.selected()))}),b=(E)=>{if(i.leaf())return;E.stopPropagation();let l=!i.expanded();i.expanded.set(l),u.dispatchEvent(new CustomEvent("sui-toggle",{detail:{expanded:l},bubbles:!0,composed:!0}))},w=()=>{u.dispatchEvent(new CustomEvent("sui-select",{bubbles:!0,composed:!0,detail:{}}))},r=(E)=>{w(),b(E)},M=(E)=>{if(E.key==="Enter"||E.key===" ")E.preventDefault(),w();else if(E.key==="ArrowRight"&&!i.leaf()&&!i.expanded())E.preventDefault(),b(E);else if(E.key==="ArrowLeft"&&i.expanded())E.preventDefault(),b(E)},y=q(()=>{let E=i.rowEl();if(!E)return;return E.addEventListener("click",r),E.addEventListener("keydown",M),()=>{E.removeEventListener("click",r),E.removeEventListener("keydown",M)}});return()=>{m(),n(),y()}}});var p7=Q("sui-tree-item",{props:{label:P.string({default:"",reflect:!0}),expanded:P.bool({default:!1,reflect:!0}),selected:P.bool({default:!1,reflect:!0}),leaf:P.bool({default:!1,reflect:!0})},shadow:!0,styles:`
   :host { display: block; }
 
   .row {
@@ -16097,368 +5737,7 @@ var sui_tree_item_default = component74("sui-tree-item", {
     padding-left: 6px;
   }
   :host(:not([expanded])) .children { display: none; }
-`,
-  setup(ctx) {
-    const { props, host } = ctx;
-    if (!ctx.cleanups)
-      ctx.cleanups = [];
-    const __cleanups = ctx.cleanups;
-    const $scope = Object.create(null);
-    $scope.label = props.label;
-    $scope.expanded = props.expanded;
-    $scope.selected = props.selected;
-    $scope.leaf = props.leaf;
-    let __r = null;
-    if (sui_tree_item_controller_default && typeof sui_tree_item_controller_default.setup === "function") {
-      ctx.scope = $scope;
-      __r = sui_tree_item_controller_default.setup(ctx);
-      if (__r && typeof __r === "object")
-        Object.assign($scope, __r);
-    }
-    const __wireBoundary_b3 = (anchor) => bindFor7({
-      anchor,
-      items: () => $scope.nodeChildren(),
-      key: (c, __i) => {
-        const __child = Object.create($scope);
-        __child.c = c;
-        __child.__i = __i;
-        return (($scope2) => c.id)(__child);
-      },
-      render: (c, __i) => {
-        const __childScope14 = Object.create($scope);
-        __childScope14.c = c;
-        __childScope14.__i = __i;
-        return (($scope2) => {
-          const __frag15 = document.createDocumentFragment();
-          const __c16 = [];
-          const __e17 = document.createElement("sui-tree-item");
-          __c16.push(bindProp4(__e17, "node", () => $scope2.c));
-          __frag15.appendChild(__e17);
-          return { nodes: Array.from(__frag15.childNodes), cleanup: () => {
-            for (const c2 of __c16)
-              try {
-                c2();
-              } catch (e) {}
-          } };
-        })(__childScope14);
-      }
-    });
-    const __wireBoundary_b2 = (anchor) => bindIf20({
-      anchor,
-      test: () => {
-        if ($scope.nodeChildren().length > 0)
-          return 0;
-        return 1;
-      },
-      branches: [
-        () => {
-          const __frag11 = document.createDocumentFragment();
-          const __c12 = [];
-          const __forAnchor13 = document.createComment("for");
-          __frag11.appendChild(__forAnchor13);
-          __c12.push(__wireBoundary_b3(__forAnchor13));
-          return { nodes: Array.from(__frag11.childNodes), cleanup: () => {
-            for (const c of __c12)
-              try {
-                c();
-              } catch (e) {}
-          } };
-        },
-        () => {
-          const __frag18 = document.createDocumentFragment();
-          const __c19 = [];
-          const __e20 = document.createElement("slot");
-          __frag18.appendChild(__e20);
-          return { nodes: Array.from(__frag18.childNodes), cleanup: () => {
-            for (const c of __c19)
-              try {
-                c();
-              } catch (e) {}
-          } };
-        }
-      ]
-    });
-    const __root = host.shadowRoot ?? host;
-    adoptSuiSheets74(__root);
-    const __e0 = document.createElement("div");
-    __e0.setAttribute("class", "row");
-    __e0.setAttribute("part", "row");
-    __e0.setAttribute("tabindex", "0");
-    attachRef44($scope, "rowEl", __e0);
-    const __e1 = document.createElement("span");
-    __e1.setAttribute("class", "caret");
-    __e1.setAttribute("part", "caret");
-    __e1.setAttribute("aria-hidden", "true");
-    const __e2 = document.createElement("svg");
-    __e2.setAttribute("viewbox", "0 0 12 12");
-    __e2.setAttribute("fill", "none");
-    __e2.setAttribute("stroke", "currentColor");
-    __e2.setAttribute("stroke-width", "1.5");
-    const __e3 = document.createElement("polyline");
-    __e3.setAttribute("points", "4 3 8 6 4 9");
-    __e2.appendChild(__e3);
-    __e1.appendChild(__e2);
-    __e0.appendChild(__e1);
-    const __e4 = document.createElement("slot");
-    __e4.setAttribute("name", "icon");
-    __e0.appendChild(__e4);
-    const __e5 = document.createElement("span");
-    __e5.setAttribute("class", "label");
-    __e5.setAttribute("part", "label");
-    const __t6 = document.createTextNode("");
-    __e5.appendChild(__t6);
-    __cleanups.push(bindText18(__t6, () => $scope.nodeLabel()));
-    __e0.appendChild(__e5);
-    const __e7 = document.createElement("span");
-    __e7.setAttribute("class", "trailing");
-    const __e8 = document.createElement("slot");
-    __e8.setAttribute("name", "trailing");
-    __e7.appendChild(__e8);
-    __e0.appendChild(__e7);
-    __root.appendChild(__e0);
-    const __e9 = document.createElement("div");
-    __e9.setAttribute("class", "children");
-    __e9.setAttribute("part", "children");
-    __e9.setAttribute("role", "group");
-    const __ifAnchor10 = document.createComment("if");
-    __e9.appendChild(__ifAnchor10);
-    __cleanups.push(__wireBoundary_b2(__ifAnchor10));
-    __root.appendChild(__e9);
-    if (__r != null) {
-      const __lc = Object.getOwnPropertyDescriptor(__r, "__shipSetLifecycle")?.value;
-      if (__lc) {
-        const __sp = new Proxy($scope, {
-          get(t, k) {
-            return t[k];
-          },
-          set(t, k, v) {
-            const s = t[k];
-            if (s != null && typeof s.set === "function") {
-              if (typeof v === "function") {
-                s.set(() => v);
-              } else {
-                s.set(v);
-              }
-              return true;
-            }
-            return false;
-          }
-        });
-        if (__lc.mount) {
-          const __mc = __lc.mount(__sp, host);
-          if (typeof __mc === "function")
-            __cleanups.push(__mc);
-        }
-        if (__lc.unmount)
-          __cleanups.push(() => __lc.unmount(__sp));
-      }
-    }
-    return $scope;
-  }
-});
-
-// packages/ui-components/src/sui-table/sui-table.sui
-import { adoptSuiSheets as adoptSuiSheets75, bindAttr as bindAttr36, bindClass, bindFor as bindFor8, bindIf as bindIf21, bindText as bindText19, component as component75, on as on4, prop as prop71 } from "@ship/sui-runtime";
-
-// packages/ui-components/src/sui-table/sui-table.controller.ts
-import { controller as controller56, signal as signal14, derived as derived5, bindNativeEvent as bindNativeEvent5 } from "@ship/sui-runtime";
-var lightDomInstalled = new WeakSet;
-function installLightDomStyles(doc) {
-  if (lightDomInstalled.has(doc))
-    return;
-  lightDomInstalled.add(doc);
-  try {
-    if (typeof CSSStyleSheet !== "undefined" && "replaceSync" in CSSStyleSheet.prototype) {
-      const sheet = new CSSStyleSheet;
-      sheet.replaceSync(SUI_TABLE_LIGHT_DOM_CSS);
-      doc.adoptedStyleSheets = [...doc.adoptedStyleSheets, sheet];
-      return;
-    }
-  } catch {}
-  const style = doc.createElement("style");
-  style.setAttribute("data-sui-table", "");
-  style.textContent = SUI_TABLE_LIGHT_DOM_CSS;
-  doc.head.appendChild(style);
-}
-var sui_table_controller_default = controller56({
-  scope: () => {
-    const rows = signal14([]);
-    const columns = signal14([]);
-    const sortKey = signal14(null);
-    const sortDir = signal14("asc");
-    const selected = signal14([]);
-    const sortedRows = derived5(() => {
-      const key = sortKey();
-      const dir = sortDir();
-      const data = rows();
-      if (!key)
-        return data;
-      return [...data].sort((a, b) => {
-        const av = String(a[key] ?? "");
-        const bv = String(b[key] ?? "");
-        const cmp = av < bv ? -1 : av > bv ? 1 : 0;
-        return dir === "asc" ? cmp : -cmp;
-      });
-    });
-    return { rows, columns, sortKey, sortDir, selected, sortedRows };
-  },
-  on: {
-    sortBy(s, field) {
-      if (s.sortKey === field) {
-        s.sortDir = s.sortDir === "asc" ? "desc" : "asc";
-      } else {
-        s.sortKey = field;
-        s.sortDir = "asc";
-      }
-    },
-    toggleSelect(s, id) {
-      const cur = s.selected;
-      s.selected = cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id];
-    },
-    selectAll(s) {
-      s.selected = s.rows.map((r) => r.id);
-    },
-    clearSelection(s) {
-      s.selected = [];
-    }
-  },
-  mount(state, host) {
-    const scope = state;
-    const rowsSignal = scope.rows;
-    const colsSignal = scope.columns;
-    const initRows = host.rows;
-    if (initRows != null)
-      rowsSignal.set(initRows);
-    const initCols = host.columns;
-    if (initCols != null)
-      colsSignal.set(initCols);
-    Object.defineProperty(host, "rows", {
-      configurable: true,
-      get: () => rowsSignal(),
-      set: (v) => rowsSignal.set(v)
-    });
-    Object.defineProperty(host, "columns", {
-      configurable: true,
-      get: () => colsSignal(),
-      set: (v) => colsSignal.set(v)
-    });
-    installLightDomStyles(host.ownerDocument);
-    const paintSortChevrons = () => {
-      host.querySelectorAll("th[data-sort-key]").forEach((th) => {
-        const dir = th.getAttribute("aria-sort") || "none";
-        const ind = th.querySelector(".sui-sort-indicator");
-        if (!ind)
-          return;
-        if (dir === "ascending") {
-          ind.style.transform = "rotate(180deg)";
-          ind.style.opacity = "1";
-        } else if (dir === "descending") {
-          ind.style.transform = "rotate(0deg)";
-          ind.style.opacity = "1";
-        } else {
-          ind.style.transform = "rotate(0deg)";
-          ind.style.opacity = "0.4";
-        }
-      });
-    };
-    const enhanceSortableHeaders = () => {
-      host.querySelectorAll("th[data-sort-key]").forEach((th) => {
-        if (!th.hasAttribute("aria-sort"))
-          th.setAttribute("aria-sort", "none");
-        if (!th.hasAttribute("tabindex"))
-          th.setAttribute("tabindex", "0");
-        if (!th.hasAttribute("role"))
-          th.setAttribute("role", "columnheader");
-        if (!th.querySelector(".sui-sort-indicator")) {
-          const chev = document.createElement("span");
-          chev.className = "sui-sort-indicator";
-          chev.setAttribute("aria-hidden", "true");
-          chev.style.cssText = "margin-left:4px;display:inline-block;opacity:0.5;transition:transform 120ms var(--ease-out),opacity 120ms var(--ease-out);vertical-align:middle;";
-          const svgNS = "http://www.w3.org/2000/svg";
-          const svg = document.createElementNS(svgNS, "svg");
-          svg.setAttribute("width", "10");
-          svg.setAttribute("height", "10");
-          svg.setAttribute("viewBox", "0 0 10 10");
-          svg.setAttribute("fill", "none");
-          svg.setAttribute("stroke", "currentColor");
-          svg.setAttribute("stroke-width", "1.5");
-          svg.setAttribute("stroke-linecap", "round");
-          svg.setAttribute("stroke-linejoin", "round");
-          svg.setAttribute("aria-hidden", "true");
-          const path = document.createElementNS(svgNS, "path");
-          path.setAttribute("d", "M2 4l3-2 3 2M2 6l3 2 3-2");
-          svg.appendChild(path);
-          chev.appendChild(svg);
-          th.appendChild(chev);
-        }
-      });
-      paintSortChevrons();
-    };
-    const syncEmptyState = () => {
-      const bodyRow = host.querySelector(":scope > table tbody > tr") || host.querySelector(":scope > table > tr:not(:has(th))") || host.querySelector(":scope > tbody > tr") || host.querySelector(':scope > tr:not([slot="head"])');
-      const hasEmptySlot = host.querySelector('[slot="empty"]') != null;
-      if (!bodyRow && hasEmptySlot)
-        host.setAttribute("data-empty", "");
-      else
-        host.removeAttribute("data-empty");
-    };
-    const cycleSort = (th) => {
-      const key = th.getAttribute("data-sort-key") || "";
-      const current = th.getAttribute("aria-sort") || "none";
-      const next = current === "none" ? "ascending" : current === "ascending" ? "descending" : "none";
-      host.querySelectorAll("th[data-sort-key]").forEach((peer) => {
-        if (peer !== th)
-          peer.setAttribute("aria-sort", "none");
-      });
-      th.setAttribute("aria-sort", next);
-      paintSortChevrons();
-      host.emit("sui-sort", { key, direction: next });
-    };
-    const onHeaderClick = (e) => {
-      const th = e.target.closest("th[data-sort-key]");
-      if (!th || !host.contains(th))
-        return;
-      cycleSort(th);
-    };
-    const onHeaderKey = (e) => {
-      if (e.key !== "Enter" && e.key !== " ")
-        return;
-      const th = e.target.closest("th[data-sort-key]");
-      if (!th || !host.contains(th))
-        return;
-      e.preventDefault();
-      cycleSort(th);
-    };
-    const onRowClick = (e) => {
-      const td = e.target.closest("td");
-      if (!td || !host.contains(td))
-        return;
-      if (td.classList.contains("sui-table-gutter-cell"))
-        return;
-      const tr = td.closest("tr");
-      if (!tr)
-        return;
-      const rowId = tr.getAttribute("data-row-id");
-      if (!rowId)
-        return;
-      host.emit("sui-row-click", { id: rowId, index: tr.rowIndex });
-    };
-    bindNativeEvent5(host, "click", onHeaderClick);
-    bindNativeEvent5(host, "click", onRowClick);
-    bindNativeEvent5(host, "keydown", onHeaderKey);
-    enhanceSortableHeaders();
-    syncEmptyState();
-    const observer = new MutationObserver(() => {
-      enhanceSortableHeaders();
-      syncEmptyState();
-    });
-    observer.observe(host, { childList: true, subtree: true });
-    return () => {
-      observer.disconnect();
-    };
-  }
-});
-var SUI_TABLE_LIGHT_DOM_CSS = `
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.label=u.label,n.expanded=u.expanded,n.selected=u.selected,n.leaf=u.leaf,n.rowEl=G(null);let b=null;if(Y0&&typeof Y0.setup==="function"){if(i.scope=n,b=Y0.setup(i),b&&typeof b==="object")Object.assign(n,b)}let w=(J)=>s({anchor:J,items:()=>n.nodeChildren(),key:(D,Z)=>{let X=Object.create(n);return X.c=D,X.__i=Z,((W)=>D.id)(X)},render:(D,Z)=>{let X=Object.create(n);return X.c=D,X.__i=Z,X.__v=G(0),((W)=>{let Y=document.createDocumentFragment(),N=[],F=document.createElement("sui-tree-item");return F.node=W.c,Y.appendChild(F),{nodes:Array.from(Y.childNodes),cleanup:()=>{for(let B of N)try{B()}catch(A){}},update:(B,A)=>{W.c=B,W.__i=A,F.node=W.c,W.__v.set((K)=>K+1)}}})(X)}}),r=(J)=>R({anchor:J,test:()=>{if(n.nodeChildren().length>0)return 0;return 1},branches:[()=>{let D=document.createDocumentFragment(),Z=[],X=document.createComment("for");return D.appendChild(X),Z.push(w(X)),{nodes:Array.from(D.childNodes),cleanup:()=>{for(let W of Z)try{W()}catch(Y){}}}},()=>{let D=document.createDocumentFragment(),Z=[],X=document.createElement("slot");return D.appendChild(X),{nodes:Array.from(D.childNodes),cleanup:()=>{for(let W of Z)try{W()}catch(Y){}}}}]}),M=d.shadowRoot??d;V(M);let y=document.createElement("div");y.setAttribute("class","row"),y.setAttribute("part","row"),y.setAttribute("tabindex","0"),O(n,"rowEl",y);let E=document.createElement("span");E.setAttribute("class","caret"),E.setAttribute("part","caret"),E.setAttribute("aria-hidden","true");let l=document.createElement("svg");l.setAttribute("viewbox","0 0 12 12"),l.setAttribute("fill","none"),l.setAttribute("stroke","currentColor"),l.setAttribute("stroke-width","1.5");let L=document.createElement("polyline");L.setAttribute("points","4 3 8 6 4 9"),l.appendChild(L),E.appendChild(l),y.appendChild(E);let f=document.createElement("slot");f.setAttribute("name","icon"),y.appendChild(f);let t=document.createElement("span");t.setAttribute("class","label"),t.setAttribute("part","label");let H=document.createTextNode("");t.appendChild(H),m.push(S(H,()=>n.nodeLabel())),y.appendChild(t);let C=document.createElement("span");C.setAttribute("class","trailing");let z=document.createElement("slot");z.setAttribute("name","trailing"),C.appendChild(z),y.appendChild(C),M.appendChild(y);let j=document.createElement("div");j.setAttribute("class","children"),j.setAttribute("part","children"),j.setAttribute("role","group");let g=document.createComment("if");if(j.appendChild(g),m.push(r(g)),M.appendChild(j),b!=null){let J=Object.getOwnPropertyDescriptor(b,"__shipSetLifecycle")?.value;if(J){let D=new Proxy(n,{get(Z,X){return Z[X]},set(Z,X,W){let Y=Z[X];if(Y!=null&&typeof Y.set==="function"){if(typeof W==="function")Y.set(()=>W);else Y.set(W);return!0}return!1}});if(J.mount){let Z=J.mount(D,d);if(typeof Z==="function")m.push(Z)}if(J.unmount)m.push(()=>J.unmount(D))}}return n}});var Vd=new WeakSet;function fb(i){if(Vd.has(i))return;Vd.add(i);try{if(typeof CSSStyleSheet<"u"&&"replaceSync"in CSSStyleSheet.prototype){let d=new CSSStyleSheet;d.replaceSync(Yd),i.adoptedStyleSheets=[...i.adoptedStyleSheets,d];return}}catch{}let u=i.createElement("style");u.setAttribute("data-sui-table",""),u.textContent=Yd,i.head.appendChild(u)}var q0=U({scope:()=>{let i=G([]),u=G([]),d=G(null),m=G("asc"),n=G([]),b=h(()=>{let w=d(),r=m(),M=i();if(!w)return M;return[...M].sort((y,E)=>{let l=String(y[w]??""),L=String(E[w]??""),f=l<L?-1:l>L?1:0;return r==="asc"?f:-f})});return{rows:i,columns:u,sortKey:d,sortDir:m,selected:n,sortedRows:b}},on:{sortBy(i,u){if(i.sortKey===u)i.sortDir=i.sortDir==="asc"?"desc":"asc";else i.sortKey=u,i.sortDir="asc"},toggleSelect(i,u){let d=i.selected;i.selected=d.includes(u)?d.filter((m)=>m!==u):[...d,u]},selectAll(i){i.selected=i.rows.map((u)=>u.id)},clearSelection(i){i.selected=[]}},mount(i,u){let d=u.rows;if(d!=null)i.rows.set(d);let m=u.columns;if(m!=null)i.columns.set(m);Object.defineProperty(u,"rows",{configurable:!0,get:()=>i.rows(),set:(L)=>i.rows.set(L)}),Object.defineProperty(u,"columns",{configurable:!0,get:()=>i.columns(),set:(L)=>i.columns.set(L)}),fb(u.ownerDocument);let n=()=>{u.querySelectorAll("th[data-sort-key]").forEach((L)=>{let f=L.getAttribute("aria-sort")||"none",t=L.querySelector(".sui-sort-indicator");if(!t)return;if(f==="ascending")t.style.transform="rotate(180deg)",t.style.opacity="1";else if(f==="descending")t.style.transform="rotate(0deg)",t.style.opacity="1";else t.style.transform="rotate(0deg)",t.style.opacity="0.4"})},b=()=>{u.querySelectorAll("th[data-sort-key]").forEach((L)=>{if(!L.hasAttribute("aria-sort"))L.setAttribute("aria-sort","none");if(!L.hasAttribute("tabindex"))L.setAttribute("tabindex","0");if(!L.hasAttribute("role"))L.setAttribute("role","columnheader");if(!L.querySelector(".sui-sort-indicator")){let f=document.createElement("span");f.className="sui-sort-indicator",f.setAttribute("aria-hidden","true"),f.style.cssText="margin-left:4px;display:inline-block;opacity:0.5;transition:transform 120ms var(--ease-out),opacity 120ms var(--ease-out);vertical-align:middle;";let t="http://www.w3.org/2000/svg",H=document.createElementNS(t,"svg");H.setAttribute("width","10"),H.setAttribute("height","10"),H.setAttribute("viewBox","0 0 10 10"),H.setAttribute("fill","none"),H.setAttribute("stroke","currentColor"),H.setAttribute("stroke-width","1.5"),H.setAttribute("stroke-linecap","round"),H.setAttribute("stroke-linejoin","round"),H.setAttribute("aria-hidden","true");let C=document.createElementNS(t,"path");C.setAttribute("d","M2 4l3-2 3 2M2 6l3 2 3-2"),H.appendChild(C),f.appendChild(H),L.appendChild(f)}}),n()},w=()=>{let L=u.querySelector(":scope > table tbody > tr")||u.querySelector(":scope > table > tr:not(:has(th))")||u.querySelector(":scope > tbody > tr")||u.querySelector(':scope > tr:not([slot="head"])'),f=u.querySelector('[slot="empty"]')!=null;if(!L&&f)u.setAttribute("data-empty","");else u.removeAttribute("data-empty")},r=(L)=>{let f=L.getAttribute("data-sort-key")||"",t=L.getAttribute("aria-sort")||"none",H=t==="none"?"ascending":t==="ascending"?"descending":"none";u.querySelectorAll("th[data-sort-key]").forEach((C)=>{if(C!==L)C.setAttribute("aria-sort","none")}),L.setAttribute("aria-sort",H),n(),u.emit("sui-sort",{key:f,direction:H})},M=(L)=>{let f=L.target.closest("th[data-sort-key]");if(!f||!u.contains(f))return;r(f)},y=(L)=>{if(L.key!=="Enter"&&L.key!==" ")return;let f=L.target.closest("th[data-sort-key]");if(!f||!u.contains(f))return;L.preventDefault(),r(f)},E=(L)=>{let f=L.target.closest("td");if(!f||!u.contains(f))return;if(f.classList.contains("sui-table-gutter-cell"))return;let t=f.closest("tr");if(!t)return;let H=t.getAttribute("data-row-id");if(!H)return;u.emit("sui-row-click",{id:H,index:t.rowIndex})};_(u,"click",M),_(u,"click",E),_(u,"keydown",y),b(),w();let l=new MutationObserver(()=>{b(),w()});return l.observe(u,{childList:!0,subtree:!0}),()=>{l.disconnect()}}}),Yd=`
   sui-table {
     --sui-table-border-soft: color-mix(in oklch, var(--border) 80%, transparent);
   }
@@ -16612,23 +5891,7 @@ var SUI_TABLE_LIGHT_DOM_CSS = `
   @media (forced-colors: active) {
     sui-table th, sui-table td { border-bottom-color: CanvasText; }
   }
-`;
-
-// packages/ui-components/src/sui-table/sui-table.sui
-var sui_table_default = component75("sui-table", {
-  props: {
-    variant: prop71.union(["slot", "native", "data"], { default: "slot", reflect: true }),
-    density: prop71.union(["compact", "default", "comfortable"], { default: "default", reflect: true }),
-    dense: prop71.bool({ default: false, reflect: true }),
-    hoverable: prop71.bool({ default: true, reflect: true }),
-    striped: prop71.bool({ default: false, reflect: true }),
-    "sticky-header": prop71.bool({ default: false, reflect: true }),
-    "sticky-first-col": prop71.bool({ default: false, reflect: true }),
-    gutter: prop71.bool({ default: false, reflect: true }),
-    label: prop71.string({ default: "" })
-  },
-  shadow: true,
-  styles: `
+`;var dy=Q("sui-table",{props:{variant:P.union(["slot","native","data"],{default:"slot",reflect:!0}),density:P.union(["compact","default","comfortable"],{default:"default",reflect:!0}),dense:P.bool({default:!1,reflect:!0}),hoverable:P.bool({default:!0,reflect:!0}),striped:P.bool({default:!1,reflect:!0}),"sticky-header":P.bool({default:!1,reflect:!0}),"sticky-first-col":P.bool({default:!1,reflect:!0}),gutter:P.bool({default:!1,reflect:!0}),label:P.string({default:""})},shadow:!0,styles:`
   :host {
     display: block;
     width: 100%;
@@ -16696,462 +5959,7 @@ var sui_table_default = component75("sui-table", {
   @media (forced-colors: active) {
     .wrap { border-color: CanvasText; }
   }
-`,
-  setup(ctx) {
-    const { props, host } = ctx;
-    if (!ctx.cleanups)
-      ctx.cleanups = [];
-    const __cleanups = ctx.cleanups;
-    const $scope = Object.create(null);
-    $scope.variant = props.variant;
-    $scope.density = props.density;
-    $scope.dense = props.dense;
-    $scope.hoverable = props.hoverable;
-    $scope.striped = props.striped;
-    $scope.stickyHeader = props.stickyHeader;
-    $scope.stickyFirstCol = props.stickyFirstCol;
-    $scope.gutter = props.gutter;
-    $scope.label = props.label;
-    let __r = null;
-    if (sui_table_controller_default && typeof sui_table_controller_default.setup === "function") {
-      ctx.scope = $scope;
-      __r = sui_table_controller_default.setup(ctx);
-      if (__r && typeof __r === "object")
-        Object.assign($scope, __r);
-    }
-    const __wireBoundary_b2 = (anchor) => bindFor8({
-      anchor,
-      items: () => $scope.columns(),
-      key: (c, __i) => {
-        const __child = Object.create($scope);
-        __child.c = c;
-        __child.__i = __i;
-        return (($scope2) => c.field)(__child);
-      },
-      render: (c, __i) => {
-        const __childScope8 = Object.create($scope);
-        __childScope8.c = c;
-        __childScope8.__i = __i;
-        return (($scope2) => {
-          const __frag9 = document.createDocumentFragment();
-          const __c10 = [];
-          const __e11 = document.createElement("th");
-          __c10.push(on4(__e11, "click", function() {
-            const __h = () => $scope2.sortBy($scope2.c.field);
-            return typeof __h === "function" ? __h.bind(undefined) : () => {};
-          }(), { modifiers: [] }));
-          __c10.push(bindClass(__e11, "sorted", () => $scope2.sortKey() === $scope2.c.field));
-          const __t12 = document.createTextNode("");
-          __e11.appendChild(__t12);
-          __c10.push(bindText19(__t12, () => $scope2.c.label));
-          __frag9.appendChild(__e11);
-          return { nodes: Array.from(__frag9.childNodes), cleanup: () => {
-            for (const c2 of __c10)
-              try {
-                c2();
-              } catch (e) {}
-          } };
-        })(__childScope8);
-      }
-    });
-    const __wireBoundary_b6 = (anchor) => bindFor8({
-      anchor,
-      items: () => $scope.sortedRows(),
-      key: (r, __i) => {
-        const __child = Object.create($scope);
-        __child.r = r;
-        __child.__i = __i;
-        return (($scope2) => r.id)(__child);
-      },
-      render: (r, __i) => {
-        const __childScope15 = Object.create($scope);
-        __childScope15.r = r;
-        __childScope15.__i = __i;
-        return (($scope2) => {
-          const __wireBoundary_b9 = (anchor2) => bindFor8({
-            anchor: anchor2,
-            items: () => $scope2.columns(),
-            key: (c, __i2) => {
-              const __child = Object.create($scope2);
-              __child.c = c;
-              __child.__i = __i2;
-              return (($scope3) => c.field)(__child);
-            },
-            render: (c, __i2) => {
-              const __childScope20 = Object.create($scope2);
-              __childScope20.c = c;
-              __childScope20.__i = __i2;
-              return (($scope3) => {
-                const __frag21 = document.createDocumentFragment();
-                const __c22 = [];
-                const __e23 = document.createElement("td");
-                const __t24 = document.createTextNode("");
-                __e23.appendChild(__t24);
-                __c22.push(bindText19(__t24, () => $scope3.r[$scope3.c.field]));
-                __frag21.appendChild(__e23);
-                return { nodes: Array.from(__frag21.childNodes), cleanup: () => {
-                  for (const c2 of __c22)
-                    try {
-                      c2();
-                    } catch (e) {}
-                } };
-              })(__childScope20);
-            }
-          });
-          const __frag16 = document.createDocumentFragment();
-          const __c17 = [];
-          const __e18 = document.createElement("tr");
-          __c17.push(bindClass(__e18, "selected", () => $scope2.selected().includes($scope2.r.id)));
-          __c17.push(on4(__e18, "click", function() {
-            const __h = () => $scope2.toggleSelect($scope2.r.id);
-            return typeof __h === "function" ? __h.bind(undefined) : () => {};
-          }(), { modifiers: [] }));
-          const __forAnchor19 = document.createComment("for");
-          __e18.appendChild(__forAnchor19);
-          __c17.push(__wireBoundary_b9(__forAnchor19));
-          __frag16.appendChild(__e18);
-          return { nodes: Array.from(__frag16.childNodes), cleanup: () => {
-            for (const c of __c17)
-              try {
-                c();
-              } catch (e) {}
-          } };
-        })(__childScope15);
-      }
-    });
-    const __wireBoundary_b0 = (anchor) => bindIf21({
-      anchor,
-      test: () => {
-        if ($scope.variant() === "data")
-          return 0;
-        if ($scope.variant() !== "native")
-          return 1;
-        return 2;
-      },
-      branches: [
-        () => {
-          const __frag1 = document.createDocumentFragment();
-          const __c2 = [];
-          const __e3 = document.createElement("div");
-          __e3.setAttribute("class", "wrap");
-          __e3.setAttribute("part", "wrap");
-          const __e4 = document.createElement("table");
-          __e4.setAttribute("part", "table");
-          __c2.push(bindAttr36(__e4, "aria-label", () => $scope.label() || null));
-          const __e5 = document.createElement("thead");
-          __e5.setAttribute("part", "thead");
-          const __e6 = document.createElement("tr");
-          const __forAnchor7 = document.createComment("for");
-          __e6.appendChild(__forAnchor7);
-          __c2.push(__wireBoundary_b2(__forAnchor7));
-          __e5.appendChild(__e6);
-          __e4.appendChild(__e5);
-          const __e13 = document.createElement("tbody");
-          __e13.setAttribute("part", "tbody");
-          const __forAnchor14 = document.createComment("for");
-          __e13.appendChild(__forAnchor14);
-          __c2.push(__wireBoundary_b6(__forAnchor14));
-          __e4.appendChild(__e13);
-          __e3.appendChild(__e4);
-          __frag1.appendChild(__e3);
-          return { nodes: Array.from(__frag1.childNodes), cleanup: () => {
-            for (const c of __c2)
-              try {
-                c();
-              } catch (e) {}
-          } };
-        },
-        () => {
-          const __frag25 = document.createDocumentFragment();
-          const __c26 = [];
-          const __e27 = document.createElement("div");
-          __e27.setAttribute("class", "wrap");
-          __e27.setAttribute("part", "wrap");
-          const __e28 = document.createElement("table");
-          __e28.setAttribute("part", "table");
-          __c26.push(bindAttr36(__e28, "aria-label", () => $scope.label() || null));
-          const __e29 = document.createElement("thead");
-          __e29.setAttribute("part", "thead");
-          const __e30 = document.createElement("slot");
-          __e30.setAttribute("name", "head");
-          __e29.appendChild(__e30);
-          __e28.appendChild(__e29);
-          const __e31 = document.createElement("tbody");
-          __e31.setAttribute("part", "tbody");
-          const __e32 = document.createElement("slot");
-          __e31.appendChild(__e32);
-          __e28.appendChild(__e31);
-          __e27.appendChild(__e28);
-          const __e33 = document.createElement("div");
-          __e33.setAttribute("class", "empty");
-          __e33.setAttribute("part", "empty");
-          __e33.setAttribute("role", "status");
-          const __e34 = document.createElement("slot");
-          __e34.setAttribute("name", "empty");
-          __e33.appendChild(__e34);
-          __e27.appendChild(__e33);
-          __frag25.appendChild(__e27);
-          return { nodes: Array.from(__frag25.childNodes), cleanup: () => {
-            for (const c of __c26)
-              try {
-                c();
-              } catch (e) {}
-          } };
-        },
-        () => {
-          const __frag35 = document.createDocumentFragment();
-          const __c36 = [];
-          const __e37 = document.createElement("div");
-          __e37.setAttribute("class", "wrap");
-          __e37.setAttribute("part", "wrap");
-          const __e38 = document.createElement("slot");
-          __e37.appendChild(__e38);
-          const __e39 = document.createElement("div");
-          __e39.setAttribute("class", "empty");
-          __e39.setAttribute("part", "empty");
-          __e39.setAttribute("role", "status");
-          const __e40 = document.createElement("slot");
-          __e40.setAttribute("name", "empty");
-          __e39.appendChild(__e40);
-          __e37.appendChild(__e39);
-          __frag35.appendChild(__e37);
-          return { nodes: Array.from(__frag35.childNodes), cleanup: () => {
-            for (const c of __c36)
-              try {
-                c();
-              } catch (e) {}
-          } };
-        }
-      ]
-    });
-    const __root = host.shadowRoot ?? host;
-    adoptSuiSheets75(__root);
-    const __ifAnchor0 = document.createComment("if");
-    __root.appendChild(__ifAnchor0);
-    __cleanups.push(__wireBoundary_b0(__ifAnchor0));
-    if (__r != null) {
-      const __lc = Object.getOwnPropertyDescriptor(__r, "__shipSetLifecycle")?.value;
-      if (__lc) {
-        const __sp = new Proxy($scope, {
-          get(t, k) {
-            return t[k];
-          },
-          set(t, k, v) {
-            const s = t[k];
-            if (s != null && typeof s.set === "function") {
-              if (typeof v === "function") {
-                s.set(() => v);
-              } else {
-                s.set(v);
-              }
-              return true;
-            }
-            return false;
-          }
-        });
-        if (__lc.mount) {
-          const __mc = __lc.mount(__sp, host);
-          if (typeof __mc === "function")
-            __cleanups.push(__mc);
-        }
-        if (__lc.unmount)
-          __cleanups.push(() => __lc.unmount(__sp));
-      }
-    }
-    return $scope;
-  }
-});
-
-// packages/ui-components/src/sui-graph-canvas/sui-graph-canvas.sui
-import { adoptSuiSheets as adoptSuiSheets76, attachRef as attachRef45, component as component76, prop as prop72 } from "@ship/sui-runtime";
-
-// packages/ui-components/src/sui-graph-canvas/sui-graph-canvas.controller.ts
-import { controller as controller57, bindHtml as bindHtml5 } from "@ship/sui-runtime";
-function esc(s) {
-  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
-}
-function coerce(v, fallback) {
-  if (Array.isArray(v))
-    return v;
-  if (typeof v === "string" && v.trim()) {
-    try {
-      const parsed = JSON.parse(v);
-      return Array.isArray(parsed) ? parsed : fallback;
-    } catch {
-      return fallback;
-    }
-  }
-  return fallback;
-}
-function computePositions(nodes, width, height, layout) {
-  const map = new Map;
-  const missing = nodes.some((n) => typeof n.x !== "number" || typeof n.y !== "number");
-  if (layout === "positioned" && !missing) {
-    for (const n of nodes)
-      map.set(n.id, { x: n.x, y: n.y });
-    return map;
-  }
-  const cx = width * 0.22;
-  const cy = height * 0.5;
-  const centers = nodes.filter((n) => n.kind === "agent");
-  const satellites = nodes.filter((n) => n.kind !== "agent");
-  centers.forEach((n, i) => {
-    const span = Math.max(1, centers.length);
-    const y = cy + (i - (span - 1) / 2) * 80;
-    map.set(n.id, { x: cx, y });
-  });
-  const byKind = new Map;
-  for (const n of satellites) {
-    const list = byKind.get(n.kind) ?? [];
-    list.push(n);
-    byKind.set(n.kind, list);
-  }
-  const kinds = Array.from(byKind.keys());
-  kinds.forEach((kind, bandIdx) => {
-    const list = byKind.get(kind);
-    const bandX = width * (0.5 + (bandIdx + 1) / (kinds.length + 1) * 0.45);
-    list.forEach((n, i) => {
-      const y = height * (i + 1) / (list.length + 1);
-      map.set(n.id, { x: bandX, y });
-    });
-  });
-  return map;
-}
-function bezierPath(a, b) {
-  const dx = Math.max(40, Math.abs(b.x - a.x) * 0.4);
-  return `M ${a.x} ${a.y} C ${a.x + dx} ${a.y}, ${b.x - dx} ${b.y}, ${b.x} ${b.y}`;
-}
-function kindTemplateFor(host, kind) {
-  const tpls = host.querySelectorAll('template[slot="node"]');
-  for (const t of Array.from(tpls)) {
-    if (t.dataset.kind === kind)
-      return t;
-  }
-  return null;
-}
-function nodeBodyHtml(host, n) {
-  const tpl = kindTemplateFor(host, n.kind);
-  if (!tpl) {
-    const sub = n.sub ? `<div class="node-sub">${esc(n.sub)}</div>` : "";
-    return `<div class="node-h"><span class="tag">${esc(n.kind)}</span></div><div class="node-title">${esc(n.title ?? n.id)}</div>${sub}`;
-  }
-  return tpl.innerHTML.replace(/\$\{title\}/g, esc(n.title ?? "")).replace(/\$\{sub\}/g, esc(n.sub ?? "")).replace(/\$\{id\}/g, esc(n.id));
-}
-function renderGraphHtml(host, nodesRaw, edgesRaw, width, height, layout, selectedId) {
-  const nodes = coerce(nodesRaw, []);
-  const edges = coerce(edgesRaw, []);
-  const pos = computePositions(nodes, width, height, layout);
-  const edgePaths = edges.map((e) => {
-    const a = pos.get(e.from);
-    const b = pos.get(e.to);
-    if (!a || !b)
-      return "";
-    const d = esc(bezierPath(a, b));
-    const dashed = e.dashed ? " data-dashed" : "";
-    return `<path d="${d}" data-kind="${esc(e.kind ?? "default")}"${dashed}></path>`;
-  }).join("");
-  const nodeDivs = nodes.map((n) => {
-    const p = pos.get(n.id);
-    if (!p)
-      return "";
-    const left = p.x / width * 100;
-    const top = p.y / height * 100;
-    const sel = selectedId && selectedId === n.id ? " data-selected" : "";
-    const wStyle = n.w ? `--node-w: ${n.w}px;` : "";
-    const label = esc(`${n.kind}: ${n.title ?? n.id}`);
-    const body = nodeBodyHtml(host, n);
-    return `<div class="node" part="node" data-kind="${esc(n.kind)}" data-id="${esc(n.id)}"${sel} tabindex="0" role="button" aria-label="${label}" style="left: ${left}%; top: ${top}%;${wStyle}">${body}</div>`;
-  }).join("");
-  return `<svg class="edges" part="edges" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" aria-hidden="true">${edgePaths}</svg>` + nodeDivs;
-}
-var sui_graph_canvas_controller_default = controller57({
-  mount(state, host) {
-    const scope = state;
-    const canvas = scope.canvasEl();
-    if (!canvas)
-      return;
-    const inner = canvas.ownerDocument.createElement("div");
-    canvas.appendChild(inner);
-    const stopRender = bindHtml5(inner, () => {
-      const nodesRaw = scope.nodes();
-      const edgesRaw = scope.edges();
-      const width = scope.width() || 1000;
-      const height = scope.height() || 600;
-      const layout = scope.layout() || "positioned";
-      const selectedId = scope.selectedId();
-      return renderGraphHtml(host, nodesRaw, edgesRaw, width, height, layout, selectedId);
-    });
-    let lastHoveredId = "";
-    const onClick = (e) => {
-      const node = e.target.closest(".node[data-id]");
-      if (!node)
-        return;
-      const id = node.getAttribute("data-id") ?? "";
-      const kind = node.getAttribute("data-kind") ?? "";
-      host.setAttribute("selected-id", id);
-      host.dispatchEvent(new CustomEvent("sui-node-select", {
-        detail: { id, kind },
-        bubbles: true,
-        composed: true
-      }));
-    };
-    const onKeyDown = (e) => {
-      if (e.key !== "Enter" && e.key !== " ")
-        return;
-      const node = e.target.closest(".node[data-id]");
-      if (!node)
-        return;
-      e.preventDefault();
-      const id = node.getAttribute("data-id") ?? "";
-      const kind = node.getAttribute("data-kind") ?? "";
-      host.setAttribute("selected-id", id);
-      host.dispatchEvent(new CustomEvent("sui-node-select", {
-        detail: { id, kind },
-        bubbles: true,
-        composed: true
-      }));
-    };
-    const onMouseOver = (e) => {
-      const node = e.target.closest(".node[data-id]");
-      if (!node) {
-        lastHoveredId = "";
-        return;
-      }
-      const id = node.getAttribute("data-id") ?? "";
-      if (id === lastHoveredId)
-        return;
-      lastHoveredId = id;
-      const kind = node.getAttribute("data-kind") ?? "";
-      host.dispatchEvent(new CustomEvent("sui-node-hover", {
-        detail: { id, kind },
-        bubbles: true,
-        composed: true
-      }));
-    };
-    canvas.addEventListener("click", onClick);
-    canvas.addEventListener("keydown", onKeyDown);
-    canvas.addEventListener("mouseover", onMouseOver);
-    return () => {
-      stopRender();
-      canvas.removeEventListener("click", onClick);
-      canvas.removeEventListener("keydown", onKeyDown);
-      canvas.removeEventListener("mouseover", onMouseOver);
-    };
-  }
-});
-
-// packages/ui-components/src/sui-graph-canvas/sui-graph-canvas.sui
-var sui_graph_canvas_default = component76("sui-graph-canvas", {
-  props: {
-    nodes: prop72.string({ default: "" }),
-    edges: prop72.string({ default: "" }),
-    width: prop72.number({ default: 1000, reflect: true }),
-    height: prop72.number({ default: 600, reflect: true }),
-    layout: prop72.union(["positioned", "radial"], { default: "positioned", reflect: true }),
-    "selected-id": prop72.string({ default: "", reflect: true })
-  },
-  shadow: true,
-  styles: `
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.variant=u.variant,n.density=u.density,n.dense=u.dense,n.hoverable=u.hoverable,n.striped=u.striped,n.stickyHeader=u.stickyHeader,n.stickyFirstCol=u.stickyFirstCol,n.gutter=u.gutter,n.label=u.label;let b=null;if(q0&&typeof q0.setup==="function"){if(i.scope=n,b=q0.setup(i),b&&typeof b==="object")Object.assign(n,b)}let w=(l)=>s({anchor:l,items:()=>n.columns(),key:(L,f)=>{let t=Object.create(n);return t.c=L,t.__i=f,((H)=>L.field)(t)},render:(L,f)=>{let t=Object.create(n);return t.c=L,t.__i=f,t.__v=G(0),((H)=>{let C=document.createDocumentFragment(),z=[],j=document.createElement("th");z.push(p(j,"click",function(){let J=()=>H.sortBy(H.c.field);return typeof J==="function"?J.bind(void 0):()=>{}}(),{modifiers:[]})),z.push(zn(j,"sorted",()=>(H.__v(),H.sortKey()===H.c.field)));let g=document.createTextNode("");return j.appendChild(g),g.textContent=H.c.label,C.appendChild(j),{nodes:Array.from(C.childNodes),cleanup:()=>{for(let J of z)try{J()}catch(D){}},update:(J,D)=>{H.c=J,H.__i=D,g.textContent=H.c.label,H.__v.set((Z)=>Z+1)}}})(t)}}),r=(l)=>s({anchor:l,items:()=>n.sortedRows(),key:(L,f)=>{let t=Object.create(n);return t.r=L,t.__i=f,((H)=>L.id)(t)},render:(L,f)=>{let t=Object.create(n);return t.r=L,t.__i=f,t.__v=G(0),((H)=>{let C=(D)=>s({anchor:D,items:()=>H.columns(),key:(Z,X)=>{let W=Object.create(H);return W.c=Z,W.__i=X,((Y)=>Z.field)(W)},render:(Z,X)=>{let W=Object.create(H);return W.c=Z,W.__i=X,W.__v=G(0),((Y)=>{let N=document.createDocumentFragment(),F=[],B=document.createElement("td"),A=document.createTextNode("");return B.appendChild(A),A.textContent=Y.r[Y.c.field],N.appendChild(B),{nodes:Array.from(N.childNodes),cleanup:()=>{for(let K of F)try{K()}catch(a){}},update:(K,a)=>{Y.c=K,Y.__i=a,A.textContent=Y.r[Y.c.field],Y.__v.set((k)=>k+1)}}})(W)}}),z=document.createDocumentFragment(),j=[],g=document.createElement("tr");j.push(zn(g,"selected",()=>(H.__v(),H.selected().includes(H.r.id)))),j.push(p(g,"click",function(){let D=()=>H.toggleSelect(H.r.id);return typeof D==="function"?D.bind(void 0):()=>{}}(),{modifiers:[]}));let J=document.createComment("for");return g.appendChild(J),j.push(C(J)),z.appendChild(g),{nodes:Array.from(z.childNodes),cleanup:()=>{for(let D of j)try{D()}catch(Z){}},update:(D,Z)=>{H.r=D,H.__i=Z,H.__v.set((X)=>X+1)}}})(t)}}),M=(l)=>R({anchor:l,test:()=>{if(n.variant()==="data")return 0;if(n.variant()!=="native")return 1;return 2},branches:[()=>{let L=document.createDocumentFragment(),f=[],t=document.createElement("div");t.setAttribute("class","wrap"),t.setAttribute("part","wrap");let H=document.createElement("table");H.setAttribute("part","table"),f.push(T(H,"aria-label",()=>n.label()||null));let C=document.createElement("thead");C.setAttribute("part","thead");let z=document.createElement("tr"),j=document.createComment("for");z.appendChild(j),f.push(w(j)),C.appendChild(z),H.appendChild(C);let g=document.createElement("tbody");g.setAttribute("part","tbody");let J=document.createComment("for");return g.appendChild(J),f.push(r(J)),H.appendChild(g),t.appendChild(H),L.appendChild(t),{nodes:Array.from(L.childNodes),cleanup:()=>{for(let D of f)try{D()}catch(Z){}}}},()=>{let L=document.createDocumentFragment(),f=[],t=document.createElement("div");t.setAttribute("class","wrap"),t.setAttribute("part","wrap");let H=document.createElement("table");H.setAttribute("part","table"),f.push(T(H,"aria-label",()=>n.label()||null));let C=document.createElement("thead");C.setAttribute("part","thead");let z=document.createElement("slot");z.setAttribute("name","head"),C.appendChild(z),H.appendChild(C);let j=document.createElement("tbody");j.setAttribute("part","tbody");let g=document.createElement("slot");j.appendChild(g),H.appendChild(j),t.appendChild(H);let J=document.createElement("div");J.setAttribute("class","empty"),J.setAttribute("part","empty"),J.setAttribute("role","status");let D=document.createElement("slot");return D.setAttribute("name","empty"),J.appendChild(D),t.appendChild(J),L.appendChild(t),{nodes:Array.from(L.childNodes),cleanup:()=>{for(let Z of f)try{Z()}catch(X){}}}},()=>{let L=document.createDocumentFragment(),f=[],t=document.createElement("div");t.setAttribute("class","wrap"),t.setAttribute("part","wrap");let H=document.createElement("slot");t.appendChild(H);let C=document.createElement("div");C.setAttribute("class","empty"),C.setAttribute("part","empty"),C.setAttribute("role","status");let z=document.createElement("slot");return z.setAttribute("name","empty"),C.appendChild(z),t.appendChild(C),L.appendChild(t),{nodes:Array.from(L.childNodes),cleanup:()=>{for(let j of f)try{j()}catch(g){}}}}]}),y=d.shadowRoot??d;V(y);let E=document.createComment("if");if(y.appendChild(E),m.push(M(E)),b!=null){let l=Object.getOwnPropertyDescriptor(b,"__shipSetLifecycle")?.value;if(l){let L=new Proxy(n,{get(f,t){return f[t]},set(f,t,H){let C=f[t];if(C!=null&&typeof C.set==="function"){if(typeof H==="function")C.set(()=>H);else C.set(H);return!0}return!1}});if(l.mount){let f=l.mount(L,d);if(typeof f==="function")m.push(f)}if(l.unmount)m.push(()=>l.unmount(L))}}return n}});function En(i){return String(i).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;")}function qd(i,u){if(Array.isArray(i))return i;if(typeof i==="string"&&i.trim())try{let d=JSON.parse(i);return Array.isArray(d)?d:u}catch{return u}return u}function Lb(i,u,d,m){let n=new Map,b=i.some((L)=>typeof L.x!=="number"||typeof L.y!=="number");if(m==="positioned"&&!b){for(let L of i)n.set(L.id,{x:L.x,y:L.y});return n}let w=u*0.22,r=d*0.5,M=i.filter((L)=>L.kind==="agent"),y=i.filter((L)=>L.kind!=="agent");M.forEach((L,f)=>{let t=Math.max(1,M.length),H=r+(f-(t-1)/2)*80;n.set(L.id,{x:w,y:H})});let E=new Map;for(let L of y){let f=E.get(L.kind)??[];f.push(L),E.set(L.kind,f)}let l=Array.from(E.keys());return l.forEach((L,f)=>{let t=E.get(L),H=u*(0.5+(f+1)/(l.length+1)*0.45);t.forEach((C,z)=>{let j=d*(z+1)/(t.length+1);n.set(C.id,{x:H,y:j})})}),n}function tb(i,u){let d=Math.max(40,Math.abs(u.x-i.x)*0.4);return`M ${i.x} ${i.y} C ${i.x+d} ${i.y}, ${u.x-d} ${u.y}, ${u.x} ${u.y}`}function Eb(i,u){let d=i.querySelectorAll('template[slot="node"]');for(let m of Array.from(d))if(m.dataset.kind===u)return m;return null}function lb(i,u){let d=Eb(i,u.kind);if(!d){let m=u.sub?`<div class="node-sub">${En(u.sub)}</div>`:"";return`<div class="node-h"><span class="tag">${En(u.kind)}</span></div><div class="node-title">${En(u.title??u.id)}</div>${m}`}return d.innerHTML.replace(/\$\{title\}/g,En(u.title??"")).replace(/\$\{sub\}/g,En(u.sub??"")).replace(/\$\{id\}/g,En(u.id))}function rb(i,u,d,m,n,b,w){let r=qd(u,[]),M=qd(d,[]),y=Lb(r,m,n,b),E=M.map((L)=>{let f=y.get(L.from),t=y.get(L.to);if(!f||!t)return"";let H=En(tb(f,t)),C=L.dashed?" data-dashed":"";return`<path d="${H}" data-kind="${En(L.kind??"default")}"${C}></path>`}).join(""),l=r.map((L)=>{let f=y.get(L.id);if(!f)return"";let t=f.x/m*100,H=f.y/n*100,C=w&&w===L.id?" data-selected":"",z=L.w?`--node-w: ${L.w}px;`:"",j=En(`${L.kind}: ${L.title??L.id}`),g=lb(i,L);return`<div class="node" part="node" data-kind="${En(L.kind)}" data-id="${En(L.id)}"${C} tabindex="0" role="button" aria-label="${j}" style="left: ${t}%; top: ${H}%;${z}">${g}</div>`}).join("");return`<svg class="edges" part="edges" viewBox="0 0 ${m} ${n}" preserveAspectRatio="none" aria-hidden="true">${E}</svg>`+l}var N0=U({mount(i,u){let d=i,m=d.canvasEl();if(!m)return;let n=m.ownerDocument.createElement("div");m.appendChild(n);let b=fn(n,()=>{let E=d.nodes(),l=d.edges(),L=d.width()||1000,f=d.height()||600,t=d.layout()||"positioned",H=d.selectedId();return rb(u,E,l,L,f,t,H)}),w="",r=(E)=>{let l=E.target.closest(".node[data-id]");if(!l)return;let L=l.getAttribute("data-id")??"",f=l.getAttribute("data-kind")??"";u.setAttribute("selected-id",L),u.dispatchEvent(new CustomEvent("sui-node-select",{detail:{id:L,kind:f},bubbles:!0,composed:!0}))},M=(E)=>{if(E.key!=="Enter"&&E.key!==" ")return;let l=E.target.closest(".node[data-id]");if(!l)return;E.preventDefault();let L=l.getAttribute("data-id")??"",f=l.getAttribute("data-kind")??"";u.setAttribute("selected-id",L),u.dispatchEvent(new CustomEvent("sui-node-select",{detail:{id:L,kind:f},bubbles:!0,composed:!0}))},y=(E)=>{let l=E.target.closest(".node[data-id]");if(!l){w="";return}let L=l.getAttribute("data-id")??"";if(L===w)return;w=L;let f=l.getAttribute("data-kind")??"";u.dispatchEvent(new CustomEvent("sui-node-hover",{detail:{id:L,kind:f},bubbles:!0,composed:!0}))};return m.addEventListener("click",r),m.addEventListener("keydown",M),m.addEventListener("mouseover",y),()=>{b(),m.removeEventListener("click",r),m.removeEventListener("keydown",M),m.removeEventListener("mouseover",y)}}});var Ey=Q("sui-graph-canvas",{props:{nodes:P.string({default:""}),edges:P.string({default:""}),width:P.number({default:1000,reflect:!0}),height:P.number({default:600,reflect:!0}),layout:P.union(["positioned","radial"],{default:"positioned",reflect:!0}),"selected-id":P.string({default:"",reflect:!0})},shadow:!0,styles:`
   :host {
     display: block;
     position: relative;
@@ -17258,66 +6066,656 @@ var sui_graph_canvas_default = component76("sui-graph-canvas", {
   @media (prefers-reduced-motion: reduce) {
     .node { transition: none; }
   }
-`,
-  setup(ctx) {
-    const { props, host } = ctx;
-    if (!ctx.cleanups)
-      ctx.cleanups = [];
-    const __cleanups = ctx.cleanups;
-    const $scope = Object.create(null);
-    $scope.nodes = props.nodes;
-    $scope.edges = props.edges;
-    $scope.width = props.width;
-    $scope.height = props.height;
-    $scope.layout = props.layout;
-    $scope.selectedId = props.selectedId;
-    let __r = null;
-    if (sui_graph_canvas_controller_default && typeof sui_graph_canvas_controller_default.setup === "function") {
-      ctx.scope = $scope;
-      __r = sui_graph_canvas_controller_default.setup(ctx);
-      if (__r && typeof __r === "object")
-        Object.assign($scope, __r);
-    }
-    const __root = host.shadowRoot ?? host;
-    adoptSuiSheets76(__root);
-    const __e0 = document.createElement("div");
-    __e0.setAttribute("class", "canvas");
-    __e0.setAttribute("part", "canvas");
-    attachRef45($scope, "canvasEl", __e0);
-    __root.appendChild(__e0);
-    const __e1 = document.createElement("slot");
-    __e1.setAttribute("name", "node");
-    __e1.setAttribute("hidden", "");
-    __root.appendChild(__e1);
-    if (__r != null) {
-      const __lc = Object.getOwnPropertyDescriptor(__r, "__shipSetLifecycle")?.value;
-      if (__lc) {
-        const __sp = new Proxy($scope, {
-          get(t, k) {
-            return t[k];
-          },
-          set(t, k, v) {
-            const s = t[k];
-            if (s != null && typeof s.set === "function") {
-              if (typeof v === "function") {
-                s.set(() => v);
-              } else {
-                s.set(v);
-              }
-              return true;
-            }
-            return false;
-          }
-        });
-        if (__lc.mount) {
-          const __mc = __lc.mount(__sp, host);
-          if (typeof __mc === "function")
-            __cleanups.push(__mc);
-        }
-        if (__lc.unmount)
-          __cleanups.push(() => __lc.unmount(__sp));
-      }
-    }
-    return $scope;
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.nodes=u.nodes,n.edges=u.edges,n.width=u.width,n.height=u.height,n.layout=u.layout,n.selectedId=u.selectedId,n.canvasEl=G(null);let b=null;if(N0&&typeof N0.setup==="function"){if(i.scope=n,b=N0.setup(i),b&&typeof b==="object")Object.assign(n,b)}let w=d.shadowRoot??d;V(w);let r=document.createElement("div");r.setAttribute("class","canvas"),r.setAttribute("part","canvas"),O(n,"canvasEl",r),w.appendChild(r);let M=document.createElement("slot");if(M.setAttribute("name","node"),M.setAttribute("hidden",""),w.appendChild(M),b!=null){let y=Object.getOwnPropertyDescriptor(b,"__shipSetLifecycle")?.value;if(y){let E=new Proxy(n,{get(l,L){return l[L]},set(l,L,f){let t=l[L];if(t!=null&&typeof t.set==="function"){if(typeof f==="function")t.set(()=>f);else t.set(f);return!0}return!1}});if(y.mount){let l=y.mount(E,d);if(typeof l==="function")m.push(l)}if(y.unmount)m.push(()=>y.unmount(E))}}return n}});var U0=U({mount(i,u){if(!u.hasAttribute("role"))u.setAttribute("role","list");if(!u.hasAttribute("aria-label"))u.setAttribute("aria-label","pipeline steps")}});var Hy=Q("sui-pipeline-dag",{shadow:!0,styles:`
+  :host {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    overflow-x: auto;
+    padding: 4px 0 2px;
   }
-});
+  ::slotted(.arrow) {
+    display: flex;
+    align-items: center;
+    padding: 0 6px;
+    color: var(--border);
+    font-size: 14px;
+    flex-shrink: 0;
+  }
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null),b=null;if(U0&&typeof U0.setup==="function"){if(i.scope=n,b=U0.setup(i),b&&typeof b==="object")Object.assign(n,b)}let w=d.shadowRoot??d;V(w);let r=document.createElement("slot");if(w.appendChild(r),b!=null){let M=Object.getOwnPropertyDescriptor(b,"__shipSetLifecycle")?.value;if(M){let y=new Proxy(n,{get(E,l){return E[l]},set(E,l,L){let f=E[l];if(f!=null&&typeof f.set==="function"){if(typeof L==="function")f.set(()=>L);else f.set(L);return!0}return!1}});if(M.mount){let E=M.mount(y,d);if(typeof E==="function")m.push(E)}if(M.unmount)m.push(()=>M.unmount(y))}}return n}});var F0=U({mount(i,u){let d=i;if(!u.hasAttribute("role"))u.setAttribute("role","listitem");let m=q(()=>{let n=d.name(),b=d.stepType(),w=d.agent(),r=d.state(),M=`${b} step ${n}${w?` (${w})`:""}: ${r}`;u.setAttribute("aria-label",M)});return()=>{m()}}});var Dy=Q("sui-pipeline-step",{props:{name:P.string({default:"",reflect:!0}),"step-type":P.union(["agent","gate","merge","run","human"],{default:"agent",reflect:!0}),state:P.union(["pending","running","completed","failed"],{default:"pending",reflect:!0}),agent:P.string({default:"",reflect:!0})},shadow:!0,styles:`
+  :host {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    min-width: 130px;
+    background: var(--background);
+    position: relative;
+    font-family: var(--font-body);
+  }
+  .icon {
+    position: absolute;
+    top: 10px;
+    right: 12px;
+    font-size: 10px;
+    color: var(--muted-foreground);
+    line-height: 1;
+  }
+  :host([state='completed']) {
+    border-color: var(--tone-success-border);
+    background: var(--tone-success-bg);
+  }
+  :host([state='completed']) .icon { color: var(--success); }
+  :host([state='running']) {
+    border-color: var(--tone-info-border);
+    background: var(--tone-info-bg);
+    box-shadow: 0 0 0 3px var(--tone-info-ring);
+  }
+  :host([state='running']) .icon { color: var(--info); }
+  :host([state='failed']) {
+    border-color: var(--tone-destructive-border);
+    background: var(--tone-destructive-bg);
+  }
+  :host([state='failed']) .icon { color: var(--destructive); }
+
+  .name {
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    font-weight: 600;
+    padding-right: 16px;
+    color: var(--foreground);
+  }
+  .type {
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--muted-foreground);
+  }
+  .status {
+    font-size: 10px;
+    color: var(--muted-foreground);
+  }
+  sui-spinner {
+    position: absolute;
+    top: 10px;
+    right: 12px;
+  }
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.name=u.name,n.stepType=u.stepType,n.state=u.state,n.agent=u.agent;let b=null;if(F0&&typeof F0.setup==="function"){if(i.scope=n,b=F0.setup(i),b&&typeof b==="object")Object.assign(n,b)}let w=(z)=>R({anchor:z,test:()=>{if(n.state()==="running")return 0;return 1},branches:[()=>{let j=document.createDocumentFragment(),g=[],J=document.createElement("sui-spinner");return J.setAttribute("size","sm"),J.setAttribute("tone","info"),J.setAttribute("label","Running"),j.appendChild(J),{nodes:Array.from(j.childNodes),cleanup:()=>{for(let D of g)try{D()}catch(Z){}}}},()=>{let j=document.createDocumentFragment(),g=[],J=document.createElement("span");J.setAttribute("class","icon"),J.setAttribute("aria-hidden","true");let D=document.createTextNode("");return J.appendChild(D),g.push(S(D,()=>n.state()==="completed"?"✓":n.state()==="failed"?"✗":"○")),j.appendChild(J),{nodes:Array.from(j.childNodes),cleanup:()=>{for(let Z of g)try{Z()}catch(X){}}}}]}),r=(z)=>R({anchor:z,test:()=>{if(n.agent())return 0;return-1},branches:[()=>{let j=document.createDocumentFragment(),g=[],J=document.createTextNode(" · ");j.appendChild(J);let D=document.createTextNode("");return j.appendChild(D),g.push(S(D,()=>n.agent())),{nodes:Array.from(j.childNodes),cleanup:()=>{for(let Z of g)try{Z()}catch(X){}}}}]}),M=d.shadowRoot??d;V(M);let y=document.createComment("if");M.appendChild(y),m.push(w(y));let E=document.createElement("span");E.setAttribute("class","name");let l=document.createTextNode("");E.appendChild(l),m.push(S(l,()=>n.name())),M.appendChild(E);let L=document.createElement("span");L.setAttribute("class","type");let f=document.createTextNode("");L.appendChild(f),m.push(S(f,()=>n.stepType()));let t=document.createComment("if");L.appendChild(t),m.push(r(t)),M.appendChild(L);let H=document.createElement("span");H.setAttribute("class","status");let C=document.createTextNode("");if(H.appendChild(C),m.push(S(C,()=>n.state())),M.appendChild(H),b!=null){let z=Object.getOwnPropertyDescriptor(b,"__shipSetLifecycle")?.value;if(z){let j=new Proxy(n,{get(g,J){return g[J]},set(g,J,D){let Z=g[J];if(Z!=null&&typeof Z.set==="function"){if(typeof D==="function")Z.set(()=>D);else Z.set(D);return!0}return!1}});if(z.mount){let g=z.mount(j,d);if(typeof g==="function")m.push(g)}if(z.unmount)m.push(()=>z.unmount(j))}}return n}});var Mb={dispatched:"info",running:"info",gatepending:"warning",completed:"success",failed:"destructive",merged:"accent",pending:"muted"},O0=U({scope:(i)=>{let u=i;return{tone:h(()=>Mb[u.state()]??"muted")}},mount(i,u){let d=i;if(!u.hasAttribute("role"))u.setAttribute("role","article");let m=q(()=>{let n=d.slug(),b=d.agent(),w=d.state();u.setAttribute("aria-label",`Pipeline run ${n||""}${b?` on ${b}`:""}: ${w}`)});return()=>{m()}}});var Ty=Q("sui-pipeline-run",{props:{state:P.union(["dispatched","gatepending","running","completed","failed","merged","pending"],{default:"pending",reflect:!0}),slug:P.string({default:"",reflect:!0}),agent:P.string({default:"",reflect:!0})},shadow:!0,styles:`
+  :host { display: block; }
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .slug {
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--foreground);
+  }
+  .agent { font-size: 11px; color: var(--muted-foreground); }
+  .agent code {
+    background: var(--muted);
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 10.5px;
+    font-family: var(--font-mono);
+  }
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.state=u.state,n.slug=u.slug,n.agent=u.agent;let b=null;if(O0&&typeof O0.setup==="function"){if(i.scope=n,b=O0.setup(i),b&&typeof b==="object")Object.assign(n,b)}let w=(D)=>R({anchor:D,test:()=>{if(n.agent())return 0;return-1},branches:[()=>{let Z=document.createDocumentFragment(),X=[],W=document.createElement("span");W.setAttribute("class","agent");let Y=document.createElement("code"),N=document.createTextNode("");return Y.appendChild(N),X.push(S(N,()=>n.agent())),W.appendChild(Y),Z.appendChild(W),{nodes:Array.from(Z.childNodes),cleanup:()=>{for(let F of X)try{F()}catch(B){}}}}]}),r=d.shadowRoot??d;V(r);let M=document.createElement("sui-card");M.setAttribute("status-rail",""),m.push(T(M,"tone",()=>n.tone()));let y=document.createElement("div");y.setAttribute("slot","header");let E=document.createElement("header"),l=document.createElement("div");l.setAttribute("class","left");let L=document.createElement("span");L.setAttribute("class","slug");let f=document.createTextNode("");L.appendChild(f),m.push(S(f,()=>n.slug())),l.appendChild(L);let t=document.createComment("if");l.appendChild(t),m.push(w(t));let H=document.createElement("slot");H.setAttribute("name","actions"),l.appendChild(H),E.appendChild(l);let C=document.createElement("sui-badge");m.push(T(C,"tone",()=>n.tone()));let z=document.createTextNode("");C.appendChild(z),m.push(S(z,()=>n.state())),E.appendChild(C),y.appendChild(E),M.appendChild(y);let j=document.createElement("slot");M.appendChild(j);let g=document.createElement("div");g.setAttribute("slot","footer");let J=document.createElement("slot");if(J.setAttribute("name","footer"),g.appendChild(J),M.appendChild(g),r.appendChild(M),b!=null){let D=Object.getOwnPropertyDescriptor(b,"__shipSetLifecycle")?.value;if(D){let Z=new Proxy(n,{get(X,W){return X[W]},set(X,W,Y){let N=X[W];if(N!=null&&typeof N.set==="function"){if(typeof Y==="function")N.set(()=>Y);else N.set(Y);return!0}return!1}});if(D.mount){let X=D.mount(Z,d);if(typeof X==="function")m.push(X)}if(D.unmount)m.push(()=>D.unmount(Z))}}return n}});var yb={run:"muted",agent:"info",gate:"warning",merge:"accent",human:"warning"},A0=U({scope:(i)=>{let u=i,d=h(()=>yb[u.stepType()]??"muted"),m=h(()=>(u.after()||"").split(",").map((b)=>b.trim()).filter(Boolean)),n=h(()=>(u.command()||"").trim());return{kindTone:d,afterList:m,commandTrim:n}}});var Uy=Q("sui-pipeline-step-def",{props:{name:P.string({default:"",reflect:!0}),"step-type":P.union(["agent","gate","run","merge","human"],{default:"agent",reflect:!0}),agent:P.string({default:"",reflect:!0}),provider:P.string({default:"",reflect:!0}),model:P.string({default:"",reflect:!0}),after:P.string({default:"",reflect:!0}),command:P.string({default:""}),index:P.number({default:0,reflect:!0})},shadow:!0,styles:`
+  :host {
+    display: block;
+    padding: 16px 0;
+    border-top: 1px solid var(--border-subtle);
+  }
+  :host(:first-of-type), :host([first]) { border-top: none; padding-top: 0; }
+  :host(:last-of-type) { padding-bottom: 0; }
+
+  [part='row'] {
+    display: grid;
+    grid-template-columns: 2ch 1fr;
+    gap: 16px;
+  }
+  .index {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--muted-foreground);
+    padding-top: 3px;
+  }
+  .body {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0;
+  }
+  [part='header'] {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .name {
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    font-weight: var(--font-weight-semibold);
+    color: var(--foreground);
+  }
+  .after {
+    font-size: var(--text-xs);
+    color: var(--muted-foreground);
+  }
+  .after code {
+    font-family: var(--font-mono);
+    background: color-mix(in oklch, var(--muted) 40%, transparent);
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: var(--text-xs);
+  }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  [part='command'] {
+    margin: 0;
+    padding: 10px 12px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-subtle);
+    background: color-mix(in oklch, var(--muted) 35%, transparent);
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    line-height: 1.55;
+    color: var(--foreground);
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow-x: auto;
+  }
+  .trailing { margin-left: auto; }
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.name=u.name,n.stepType=u.stepType,n.agent=u.agent,n.provider=u.provider,n.model=u.model,n.after=u.after,n.command=u.command,n.index=u.index;let b=null;if(A0&&typeof A0.setup==="function"){if(i.scope=n,b=A0.setup(i),b&&typeof b==="object")Object.assign(n,b)}let w=(A)=>s({anchor:A,items:()=>n.afterList(),key:(K,a)=>{let k=Object.create(n);return k.a=K,k.idx=a,((v)=>K)(k)},render:(K,a)=>{let k=Object.create(n);return k.a=K,k.idx=a,k.__v=G(0),((v)=>{let I=(dn)=>R({anchor:dn,test:()=>{if(v.idx>0)return 0;return-1},branches:[()=>{let tn=document.createDocumentFragment(),jn=[],h0=document.createTextNode(", ");return tn.appendChild(h0),{nodes:Array.from(tn.childNodes),cleanup:()=>{for(let An of jn)try{An()}catch(on){}}}}]}),x=document.createDocumentFragment(),o=[],$=document.createComment("if");x.appendChild($),o.push(I($));let nn=document.createElement("code"),Ln=document.createTextNode("");return nn.appendChild(Ln),Ln.textContent=v.a,x.appendChild(nn),{nodes:Array.from(x.childNodes),cleanup:()=>{for(let dn of o)try{dn()}catch(tn){}},update:(dn,tn)=>{v.a=dn,v.idx=tn,Ln.textContent=v.a,v.__v.set((jn)=>jn+1)}}})(k)}}),r=(A)=>R({anchor:A,test:()=>{if(n.afterList().length>0)return 0;return-1},branches:[()=>{let K=document.createDocumentFragment(),a=[],k=document.createElement("span");k.setAttribute("class","after");let v=document.createTextNode("after ");k.appendChild(v);let I=document.createComment("for");return k.appendChild(I),a.push(w(I)),K.appendChild(k),{nodes:Array.from(K.childNodes),cleanup:()=>{for(let x of a)try{x()}catch(o){}}}}]}),M=(A)=>R({anchor:A,test:()=>{if(n.agent())return 0;return-1},branches:[()=>{let K=document.createDocumentFragment(),a=[],k=document.createElement("sui-chip");k.setAttribute("size","sm");let v=document.createTextNode("");return k.appendChild(v),a.push(S(v,()=>n.agent())),K.appendChild(k),{nodes:Array.from(K.childNodes),cleanup:()=>{for(let I of a)try{I()}catch(x){}}}}]}),y=(A)=>R({anchor:A,test:()=>{if(n.provider())return 0;return-1},branches:[()=>{let K=document.createDocumentFragment(),a=[],k=document.createElement("sui-chip");k.setAttribute("size","sm");let v=document.createTextNode("");return k.appendChild(v),a.push(S(v,()=>n.provider())),K.appendChild(k),{nodes:Array.from(K.childNodes),cleanup:()=>{for(let I of a)try{I()}catch(x){}}}}]}),E=(A)=>R({anchor:A,test:()=>{if(n.model())return 0;return-1},branches:[()=>{let K=document.createDocumentFragment(),a=[],k=document.createElement("sui-chip");k.setAttribute("size","sm");let v=document.createTextNode("");return k.appendChild(v),a.push(S(v,()=>n.model())),K.appendChild(k),{nodes:Array.from(K.childNodes),cleanup:()=>{for(let I of a)try{I()}catch(x){}}}}]}),l=(A)=>R({anchor:A,test:()=>{if(n.agent()||n.provider()||n.model())return 0;return-1},branches:[()=>{let K=document.createDocumentFragment(),a=[],k=document.createElement("div");k.setAttribute("class","chips");let v=document.createComment("if");k.appendChild(v),a.push(M(v));let I=document.createComment("if");k.appendChild(I),a.push(y(I));let x=document.createComment("if");return k.appendChild(x),a.push(E(x)),K.appendChild(k),{nodes:Array.from(K.childNodes),cleanup:()=>{for(let o of a)try{o()}catch($){}}}}]}),L=(A)=>R({anchor:A,test:()=>{if(n.commandTrim())return 0;return-1},branches:[()=>{let K=document.createDocumentFragment(),a=[],k=document.createElement("pre");k.setAttribute("part","command");let v=document.createTextNode("");return k.appendChild(v),a.push(S(v,()=>n.commandTrim())),K.appendChild(k),{nodes:Array.from(K.childNodes),cleanup:()=>{for(let I of a)try{I()}catch(x){}}}}]}),f=d.shadowRoot??d;V(f);let t=document.createElement("div");t.setAttribute("part","row");let H=document.createElement("span");H.setAttribute("class","index");let C=document.createTextNode("");H.appendChild(C),m.push(S(C,()=>n.index()||"")),t.appendChild(H);let z=document.createElement("div");z.setAttribute("class","body");let j=document.createElement("div");j.setAttribute("part","header");let g=document.createElement("span");g.setAttribute("class","name");let J=document.createTextNode("");g.appendChild(J),m.push(S(J,()=>n.name())),j.appendChild(g);let D=document.createElement("sui-chip");D.setAttribute("size","sm"),m.push(T(D,"tone",()=>n.kindTone()));let Z=document.createTextNode("");D.appendChild(Z),m.push(S(Z,()=>n.stepType())),j.appendChild(D);let X=document.createComment("if");j.appendChild(X),m.push(r(X));let W=document.createElement("span");W.setAttribute("class","trailing");let Y=document.createElement("slot");Y.setAttribute("name","trailing"),W.appendChild(Y),j.appendChild(W),z.appendChild(j);let N=document.createComment("if");z.appendChild(N),m.push(l(N));let F=document.createComment("if");z.appendChild(F),m.push(L(F));let B=document.createElement("slot");if(B.setAttribute("name","gate"),z.appendChild(B),t.appendChild(z),f.appendChild(t),b!=null){let A=Object.getOwnPropertyDescriptor(b,"__shipSetLifecycle")?.value;if(A){let K=new Proxy(n,{get(a,k){return a[k]},set(a,k,v){let I=a[k];if(I!=null&&typeof I.set==="function"){if(typeof v==="function")I.set(()=>v);else I.set(v);return!0}return!1}});if(A.mount){let a=A.mount(K,d);if(typeof a==="function")m.push(a)}if(A.unmount)m.push(()=>A.unmount(K))}}return n}});var K0=U({scope:(i)=>{let u=i;return{stepsLabel:h(()=>{let m=u.steps();return`${m} step${m===1?"":"s"}`})}},mount(i,u){let d=i;if(!u.hasAttribute("role"))u.setAttribute("role","article");let m=q(()=>{let n=d.name(),b=d.steps(),w=d.description(),r=b===1?"":"s",M=w?`: ${w}`:"";u.setAttribute("aria-label",`Pipeline ${n}, ${b} step${r}${M}`)});return()=>{m()}}});var Iy=Q("sui-pipeline-definition",{props:{name:P.string({default:"",reflect:!0}),steps:P.number({default:0,reflect:!0}),description:P.string({default:"",reflect:!0})},shadow:!0,styles:`
+  :host { display: block; }
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+  }
+  .name {
+    font-family: var(--heading-font, var(--font-body));
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--foreground);
+  }
+  .steps {
+    font-size: 10.5px;
+    color: var(--muted-foreground);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .desc {
+    font-size: 12.5px;
+    color: var(--muted-foreground);
+    line-height: 1.5;
+    min-height: 1.5em;
+    margin: 6px 0 0;
+  }
+  .no-desc { opacity: 0.5; }
+  sui-card { display: block; }
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.name=u.name,n.steps=u.steps,n.description=u.description;let b=null;if(K0&&typeof K0.setup==="function"){if(i.scope=n,b=K0.setup(i),b&&typeof b==="object")Object.assign(n,b)}let w=(z)=>R({anchor:z,test:()=>{if(n.description())return 0;return 1},branches:[()=>{let j=document.createDocumentFragment(),g=[],J=document.createElement("p");J.setAttribute("class","desc");let D=document.createTextNode("");return J.appendChild(D),g.push(S(D,()=>n.description())),j.appendChild(J),{nodes:Array.from(j.childNodes),cleanup:()=>{for(let Z of g)try{Z()}catch(X){}}}},()=>{let j=document.createDocumentFragment(),g=[],J=document.createElement("p");J.setAttribute("class","desc no-desc");let D=document.createTextNode("No description");return J.appendChild(D),j.appendChild(J),{nodes:Array.from(j.childNodes),cleanup:()=>{for(let Z of g)try{Z()}catch(X){}}}}]}),r=d.shadowRoot??d;V(r);let M=document.createElement("sui-card");M.setAttribute("interactive",""),M.setAttribute("accent-bar",""),M.setAttribute("padding","md");let y=document.createElement("div");y.setAttribute("slot","header");let E=document.createElement("header"),l=document.createElement("span");l.setAttribute("class","name");let L=document.createTextNode("");l.appendChild(L),m.push(S(L,()=>n.name())),E.appendChild(l);let f=document.createElement("span");f.setAttribute("class","steps");let t=document.createTextNode("");f.appendChild(t),m.push(S(t,()=>n.stepsLabel())),E.appendChild(f);let H=document.createElement("slot");H.setAttribute("name","actions"),E.appendChild(H),y.appendChild(E),M.appendChild(y);let C=document.createComment("if");if(M.appendChild(C),m.push(w(C)),r.appendChild(M),b!=null){let z=Object.getOwnPropertyDescriptor(b,"__shipSetLifecycle")?.value;if(z){let j=new Proxy(n,{get(g,J){return g[J]},set(g,J,D){let Z=g[J];if(Z!=null&&typeof Z.set==="function"){if(typeof D==="function")Z.set(()=>D);else Z.set(D);return!0}return!1}});if(z.mount){let g=z.mount(j,d);if(typeof g==="function")m.push(g)}if(z.unmount)m.push(()=>z.unmount(j))}}return n}});var B0=U({scope:()=>{return{preEl:e(null)}},mount(i,u){let d=i,m=null,n="",b=!0,w=()=>{let f=d.preEl();if(!f)return;if(n.length===0)f.textContent="(no output yet)",f.setAttribute("data-empty","");else f.textContent=n,f.removeAttribute("data-empty");if(d.autoscroll()&&b)f.scrollTop=f.scrollHeight},r=(f)=>{n+=f;let t=d.maxBytes();if(n.length>t){let H=n.length-t,C=n.indexOf(`
+`,H);n=n.slice(C>=0?C+1:H)}w()},M=()=>{if(m)m.close(),m=null,u.dispatchEvent(new CustomEvent("sui-stream-close",{bubbles:!0,composed:!0}))},y=()=>{let f=d.url();if(!f||m)return;try{m=new EventSource(f,{withCredentials:!0})}catch{u.dispatchEvent(new CustomEvent("sui-stream-error",{bubbles:!0,composed:!0}));return}m.addEventListener(d.event(),(t)=>{let H=t.data??"";r(H),u.dispatchEvent(new CustomEvent("sui-log-tick",{detail:{bytes:H.length},bubbles:!0,composed:!0}))}),m.onopen=()=>{u.dispatchEvent(new CustomEvent("sui-stream-open",{bubbles:!0,composed:!0}))},m.onerror=()=>{u.dispatchEvent(new CustomEvent("sui-stream-error",{bubbles:!0,composed:!0}))}},E=(f)=>{let t=f.currentTarget;b=t.scrollHeight-t.clientHeight<=t.scrollTop+4},l=q(()=>{let f=d.preEl();if(!f)return;return f.addEventListener("scroll",E),w(),()=>f.removeEventListener("scroll",E)}),L=q(()=>{if(d.url(),d.event(),d.active()){if(m)M();y()}else M()});return u.clear=()=>{n="",w()},()=>{l(),L(),M()}}});var xy=Q("sui-log-stream",{props:{url:P.string({default:"",reflect:!0}),event:P.string({default:"log",reflect:!0}),autoscroll:P.bool({default:!1,reflect:!0}),active:P.bool({default:!1,reflect:!0}),"max-bytes":P.number({default:1e6})},shadow:!0,styles:`
+  :host {
+    display: block;
+    min-height: 8rem;
+    max-height: 24rem;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-subtle);
+    background: color-mix(in oklch, var(--background) 95%, black 5%);
+    color: var(--foreground);
+    overflow: hidden;
+  }
+  [part='scroll'] {
+    height: 100%;
+    max-height: inherit;
+    margin: 0;
+    padding: var(--space-3) var(--space-4);
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    line-height: 1.55;
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow-y: auto;
+  }
+  [part='scroll'][data-empty] {
+    color: var(--muted-foreground);
+    font-style: italic;
+  }
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.url=u.url,n.event=u.event,n.autoscroll=u.autoscroll,n.active=u.active,n.maxBytes=u.maxBytes,n.preEl=G(null);let b=null;if(B0&&typeof B0.setup==="function"){if(i.scope=n,b=B0.setup(i),b&&typeof b==="object")Object.assign(n,b)}let w=d.shadowRoot??d;V(w);let r=document.createElement("pre");r.setAttribute("part","scroll"),r.setAttribute("data-empty",""),O(n,"preEl",r);let M=document.createTextNode("(no output yet)");if(r.appendChild(M),w.appendChild(r),b!=null){let y=Object.getOwnPropertyDescriptor(b,"__shipSetLifecycle")?.value;if(y){let E=new Proxy(n,{get(l,L){return l[L]},set(l,L,f){let t=l[L];if(t!=null&&typeof t.set==="function"){if(typeof f==="function")t.set(()=>f);else t.set(f);return!0}return!1}});if(y.mount){let l=y.mount(E,d);if(typeof l==="function")m.push(l)}if(y.unmount)m.push(()=>y.unmount(E))}}return n}});var Jn={claude:{label:"Claude",hue:"oklch(0.70 0.16 35)",svg:'<svg role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="#D97757"><title>Claude</title><path d="m4.7144 15.9555 4.7174-2.6471.079-.2307-.079-.1275h-.2307l-.7893-.0486-2.6956-.0729-2.3375-.0971-2.2646-.1214-.5707-.1215-.5343-.7042.0546-.3522.4797-.3218.686.0608 1.5179.1032 2.2767.1578 1.6514.0972 2.4468.255h.3886l.0546-.1579-.1336-.0971-.1032-.0972L6.973 9.8356l-2.55-1.6879-1.3356-.9714-.7225-.4918-.3643-.4614-.1578-1.0078.6557-.7225.8803.0607.2246.0607.8925.686 1.9064 1.4754 2.4893 1.8336.3643.3035.1457-.1032.0182-.0728-.164-.2733-1.3539-2.4467-1.445-2.4893-.6435-1.032-.17-.6194c-.0607-.255-.1032-.4674-.1032-.7285L6.287.1335 6.6997 0l.9957.1336.419.3642.6192 1.4147 1.0018 2.2282 1.5543 3.0296.4553.8985.2429.8318.091.255h.1579v-.1457l.1275-1.706.2368-2.0947.2307-2.6957.0789-.7589.3764-.9107.7468-.4918.5828.2793.4797.686-.0668.4433-.2853 1.8517-.5586 2.9021-.3643 1.9429h.2125l.2429-.2429.9835-1.3053 1.6514-2.0643.7286-.8196.85-.9046.5464-.4311h1.0321l.759 1.1293-.34 1.1657-1.0625 1.3478-.8804 1.1414-1.2628 1.7-.7893 1.36.0729.1093.1882-.0183 2.8535-.607 1.5421-.2794 1.8396-.3157.8318.3886.091.3946-.3278.8075-1.967.4857-2.3072.4614-3.4364.8136-.0425.0304.0486.0607 1.5482.1457.6618.0364h1.621l3.0175.2247.7892.522.4736.6376-.079.4857-1.2142.6193-1.6393-.3886-3.825-.9107-1.3113-.3279h-.1822v.1093l1.0929 1.0686 2.0035 1.8092 2.5075 2.3314.1275.5768-.3218.4554-.34-.0486-2.2039-1.6575-.85-.7468-1.9246-1.621h-.1275v.17l.4432.6496 2.3436 3.5214.1214 1.0807-.17.3521-.6071.2125-.6679-.1214-1.3721-1.9246L14.38 17.959l-1.1414-1.9428-.1397.079-.674 7.2552-.3156.3703-.7286.2793-.6071-.4614-.3218-.7468.3218-1.4753.3886-1.9246.3157-1.53.2853-1.9004.17-.6314-.0121-.0425-.1397.0182-1.4328 1.9672-2.1796 2.9446-1.7243 1.8456-.4128.164-.7164-.3704.0667-.6618.4008-.5889 2.386-3.0357 1.4389-1.882.929-1.0868-.0062-.1579h-.0546l-6.3385 4.1164-1.1293.1457-.4857-.4554.0608-.7467.2307-.2429 1.9064-1.3114Z"/></svg>'},codex:{label:"Codex",hue:"oklch(0.22 0.02 220)",svg:'<svg width="721" height="721" viewBox="0 0 721 721" fill="none" xmlns="http://www.w3.org/2000/svg"><g clip-path="url(#clip0_1637_2934)"><g clip-path="url(#clip1_1637_2934)"><path d="M304.246 294.611V249.028C304.246 245.189 305.687 242.309 309.044 240.392L400.692 187.612C413.167 180.415 428.042 177.058 443.394 177.058C500.971 177.058 537.44 221.682 537.44 269.182C537.44 272.54 537.44 276.379 536.959 280.218L441.954 224.558C436.197 221.201 430.437 221.201 424.68 224.558L304.246 294.611ZM518.245 472.145V363.224C518.245 356.505 515.364 351.707 509.608 348.349L389.174 278.296L428.519 255.743C431.877 253.826 434.757 253.826 438.115 255.743L529.762 308.523C556.154 323.879 573.905 356.505 573.905 388.171C573.905 424.636 552.315 458.225 518.245 472.141V472.145ZM275.937 376.182L236.592 353.152C233.235 351.235 231.794 348.354 231.794 344.515V238.956C231.794 187.617 271.139 148.749 324.4 148.749C344.555 148.749 363.264 155.468 379.102 167.463L284.578 222.164C278.822 225.521 275.942 230.319 275.942 237.039V376.186L275.937 376.182ZM360.626 425.122L304.246 393.455V326.283L360.626 294.616L417.002 326.283V393.455L360.626 425.122ZM396.852 570.989C376.698 570.989 357.989 564.27 342.151 552.276L436.674 497.574C442.431 494.217 445.311 489.419 445.311 482.699V343.552L485.138 366.582C488.495 368.499 489.936 371.379 489.936 375.219V480.778C489.936 532.117 450.109 570.985 396.852 570.985V570.989ZM283.134 463.99L191.486 411.211C165.094 395.854 147.343 363.229 147.343 331.562C147.343 294.616 169.415 261.509 203.48 247.593V356.991C203.48 363.71 206.361 368.508 212.117 371.866L332.074 441.437L292.729 463.99C289.372 465.907 286.491 465.907 283.134 463.99ZM277.859 542.68C223.639 542.68 183.813 501.895 183.813 451.514C183.813 447.675 184.294 443.836 184.771 439.997L279.295 494.698C285.051 498.056 290.812 498.056 296.568 494.698L417.002 425.127V470.71C417.002 474.549 415.562 477.429 412.204 479.346L320.557 532.126C308.081 539.323 293.206 542.68 277.854 542.68H277.859ZM396.852 599.776C454.911 599.776 503.37 558.513 514.41 503.812C568.149 489.896 602.696 439.515 602.696 388.176C602.696 354.587 588.303 321.962 562.392 298.45C564.791 288.373 566.231 278.296 566.231 268.224C566.231 199.611 510.571 148.267 446.274 148.267C433.322 148.267 420.846 150.184 408.37 154.505C386.775 133.392 357.026 119.958 324.4 119.958C266.342 119.958 217.883 161.22 206.843 215.921C153.104 229.837 118.557 280.218 118.557 331.557C118.557 365.146 132.95 397.771 158.861 421.283C156.462 431.36 155.022 441.437 155.022 451.51C155.022 520.123 210.682 571.466 274.978 571.466C287.931 571.466 300.407 569.549 312.883 565.228C334.473 586.341 364.222 599.776 396.852 599.776Z" fill="black"/></g></g><defs><clipPath id="clip0_1637_2934"><rect width="720" height="720" fill="white" transform="translate(0.606934 0.0999756)"/></clipPath><clipPath id="clip1_1637_2934"><rect width="484.139" height="479.818" fill="white" transform="translate(118.557 119.958)"/></clipPath></defs></svg>',svgDark:'<svg width="721" height="721" viewBox="0 0 721 721" fill="none" xmlns="http://www.w3.org/2000/svg"><g clip-path="url(#clip0_1637_2935)"><g clip-path="url(#clip1_1637_2935)"><path d="M304.246 295.411V249.828C304.246 245.989 305.687 243.109 309.044 241.191L400.692 188.412C413.167 181.215 428.042 177.858 443.394 177.858C500.971 177.858 537.44 222.482 537.44 269.982C537.44 273.34 537.44 277.179 536.959 281.018L441.954 225.358C436.197 222 430.437 222 424.68 225.358L304.246 295.411ZM518.245 472.945V364.024C518.245 357.304 515.364 352.507 509.608 349.149L389.174 279.096L428.519 256.543C431.877 254.626 434.757 254.626 438.115 256.543L529.762 309.323C556.154 324.679 573.905 357.304 573.905 388.971C573.905 425.436 552.315 459.024 518.245 472.941V472.945ZM275.937 376.982L236.592 353.952C233.235 352.034 231.794 349.154 231.794 345.315V239.756C231.794 188.416 271.139 149.548 324.4 149.548C344.555 149.548 363.264 156.268 379.102 168.262L284.578 222.964C278.822 226.321 275.942 231.119 275.942 237.838V376.986L275.937 376.982ZM360.626 425.922L304.246 394.255V327.083L360.626 295.416L417.002 327.083V394.255L360.626 425.922ZM396.852 571.789C376.698 571.789 357.989 565.07 342.151 553.075L436.674 498.374C442.431 495.017 445.311 490.219 445.311 483.499V344.352L485.138 367.382C488.495 369.299 489.936 372.179 489.936 376.018V481.577C489.936 532.917 450.109 571.785 396.852 571.785V571.789ZM283.134 464.79L191.486 412.01C165.094 396.654 147.343 364.029 147.343 332.362C147.343 295.416 169.415 262.309 203.48 248.393V357.791C203.48 364.51 206.361 369.308 212.117 372.665L332.074 442.237L292.729 464.79C289.372 466.707 286.491 466.707 283.134 464.79ZM277.859 543.48C223.639 543.48 183.813 502.695 183.813 452.314C183.813 448.475 184.294 444.636 184.771 440.797L279.295 495.498C285.051 498.856 290.812 498.856 296.568 495.498L417.002 425.927V471.509C417.002 475.349 415.562 478.229 412.204 480.146L320.557 532.926C308.081 540.122 293.206 543.48 277.854 543.48H277.859ZM396.852 600.576C454.911 600.576 503.37 559.313 514.41 504.612C568.149 490.696 602.696 440.315 602.696 388.976C602.696 355.387 588.303 322.762 562.392 299.25C564.791 289.173 566.231 279.096 566.231 269.024C566.231 200.411 510.571 149.067 446.274 149.067C433.322 149.067 420.846 150.984 408.37 155.305C386.775 134.192 357.026 120.758 324.4 120.758C266.342 120.758 217.883 162.02 206.843 216.721C153.104 230.637 118.557 281.018 118.557 332.357C118.557 365.946 132.95 398.571 158.861 422.083C156.462 432.16 155.022 442.237 155.022 452.309C155.022 520.922 210.682 572.266 274.978 572.266C287.931 572.266 300.407 570.349 312.883 566.028C334.473 587.141 364.222 600.576 396.852 600.576Z" fill="white"/></g></g><defs><clipPath id="clip0_1637_2935"><rect width="720" height="720" fill="white" transform="translate(0.606934 0.899902)"/></clipPath><clipPath id="clip1_1637_2935"><rect width="484.139" height="479.818" fill="white" transform="translate(118.557 120.758)"/></clipPath></defs></svg>'},cursor:{label:"Cursor",hue:"oklch(0.45 0.02 250)",svg:'<svg role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="currentColor"><title>Cursor</title><path d="M11.925.0078 24 6.9702v10.0562L11.925 24 0 17.0288V6.9702ZM2.64 8.529 12 13.924v9.6448l9.36-5.3962V7.529l-9.36 5.4ZM10.677 11.11 2.64 6.4702l9.36-5.4038 8.01 4.6212Z"/></svg>'},gemini:{label:"Gemini",hue:"oklch(0.62 0.14 285)",svg:'<svg role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="#8E75B2"><title>Google Gemini</title><path d="M11.04 19.32Q12 21.51 12 24q0-2.49.93-4.68.96-2.19 2.58-3.81t3.81-2.55Q21.51 12 24 12q-2.49 0-4.68-.93a12.3 12.3 0 0 1-3.81-2.58 12.3 12.3 0 0 1-2.58-3.81Q12 2.49 12 0q0 2.49-.96 4.68-.93 2.19-2.55 3.81a12.3 12.3 0 0 1-3.81 2.58Q2.49 12 0 12q2.49 0 4.68.96 2.19.93 3.81 2.55t2.55 3.81"/></svg>'},opencode:{label:"OpenCode",hue:"oklch(0.60 0.18 35)",svg:'<svg width="240" height="300" viewBox="0 0 240 300" fill="none" xmlns="http://www.w3.org/2000/svg"><g clip-path="url(#clip0_1401_86274)"><mask id="mask0_1401_86274" style="mask-type:luminance" maskUnits="userSpaceOnUse" x="0" y="0" width="240" height="300"><path d="M240 0H0V300H240V0Z" fill="white"/></mask><g mask="url(#mask0_1401_86274)"><path d="M180 240H60V120H180V240Z" fill="#CFCECD"/><path d="M180 60H60V240H180V60ZM240 300H0V0H240V300Z" fill="#211E1E"/></g></g><defs><clipPath id="clip0_1401_86274"><rect width="240" height="300" fill="white"/></clipPath></defs></svg>',svgDark:'<svg width="240" height="300" viewBox="0 0 240 300" fill="none" xmlns="http://www.w3.org/2000/svg"><g clip-path="url(#clip0_1401_86283)"><mask id="mask0_1401_86283" style="mask-type:luminance" maskUnits="userSpaceOnUse" x="0" y="0" width="240" height="300"><path d="M240 0H0V300H240V0Z" fill="white"/></mask><g mask="url(#mask0_1401_86283)"><path d="M180 240H60V120H180V240Z" fill="#4B4646"/><path d="M180 60H60V240H180V60ZM240 300H0V0H240V300Z" fill="#F1ECEC"/></g></g><defs><clipPath id="clip0_1401_86283"><rect width="240" height="300" fill="white"/></clipPath></defs></svg>'}};var I0=U({scope:(i)=>{let u=i,d=e(null),m=h(()=>(Jn[u.provider()]??Jn.claude).label);return{tileEl:d,tileLabel:m}},mount(i,u){let d=i,m=q(()=>{let b=Jn[d.provider()]??Jn.claude;u.style.setProperty("--blob-hue",b.hue)}),n=q(()=>{let b=d.tileEl();if(!b)return;return fn(b,()=>{return(Jn[d.provider()]??Jn.claude).svg})});return()=>{m(),n()}}});var _y=Q("sui-provider-blob",{props:{provider:P.union(["claude","codex","cursor","gemini","opencode"],{default:"claude",reflect:!0}),size:P.union(["sm","md","lg"],{default:"md",reflect:!0}),variant:P.union(["tile","glyph"],{default:"tile",reflect:!0})},shadow:!0,styles:`
+  :host {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    vertical-align: middle;
+    font-family: var(--font-body);
+    font-size: var(--text-xs);
+    color: var(--muted-foreground);
+    --blob-size: 20px;
+    --blob-hue: var(--muted);
+  }
+  :host([size='sm']) { --blob-size: 14px; font-size: 11px; }
+  :host([size='md']) { --blob-size: 20px; }
+  :host([size='lg']) { --blob-size: 28px; font-size: var(--text-sm); }
+  .tile {
+    width: var(--blob-size);
+    height: var(--blob-size);
+    flex-shrink: 0;
+    border-radius: calc(var(--blob-size) * 0.22);
+    display: grid;
+    place-items: center;
+    background: color-mix(in oklch, var(--blob-hue) 14%, var(--surface-1));
+    box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--blob-hue) 20%, transparent);
+    overflow: hidden;
+  }
+  :host([variant='glyph']) .tile {
+    background: transparent;
+    box-shadow: none;
+  }
+  .tile-inner {
+    display: contents;
+  }
+  .tile svg {
+    width: 72%;
+    height: 72%;
+    display: block;
+  }
+  :host([variant='glyph']) .tile svg {
+    width: 100%;
+    height: 100%;
+  }
+  .label {
+    white-space: nowrap;
+    text-transform: capitalize;
+  }
+  .label:empty { display: none; }
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.provider=u.provider,n.size=u.size,n.variant=u.variant,n.tileEl=G(null);let b=null;if(I0&&typeof I0.setup==="function"){if(i.scope=n,b=I0.setup(i),b&&typeof b==="object")Object.assign(n,b)}let w=d.shadowRoot??d;V(w);let r=document.createElement("span");r.setAttribute("class","tile"),r.setAttribute("role","img"),m.push(T(r,"aria-label",()=>n.tileLabel()));let M=document.createElement("span");M.setAttribute("class","tile-inner"),O(n,"tileEl",M),r.appendChild(M),w.appendChild(r);let y=document.createElement("span");y.setAttribute("class","label");let E=document.createElement("slot");if(y.appendChild(E),w.appendChild(y),b!=null){let l=Object.getOwnPropertyDescriptor(b,"__shipSetLifecycle")?.value;if(l){let L=new Proxy(n,{get(f,t){return f[t]},set(f,t,H){let C=f[t];if(C!=null&&typeof C.set==="function"){if(typeof H==="function")C.set(()=>H);else C.set(H);return!0}return!1}});if(l.mount){let f=l.mount(L,d);if(typeof f==="function")m.push(f)}if(l.unmount)m.push(()=>l.unmount(L))}}return n}});var Ud="ship-theme";function wb(i){if(i==="light"||i==="dark")return i;if(typeof window>"u")return"light";try{let d=localStorage.getItem(Ud);if(d==="light"||d==="dark")return d}catch{}return window.matchMedia?.("(prefers-color-scheme: dark)")?.matches?"dark":"light"}function Nd(i){if(typeof document>"u")return;document.documentElement.classList.toggle("dark",i==="dark")}var R0=U({scope:(i,u)=>{let d=i,m=h(()=>d.theme()==="dark");function n(){let b=d.theme()==="dark"?"light":"dark";d.theme.set(b);try{localStorage.setItem(Ud,b)}catch{}Nd(b),u.dispatchEvent(new CustomEvent("sui-theme-change",{detail:{theme:b},bubbles:!0,composed:!0}))}return{isDark:m,toggle:n}},mount(i){let u=i,d=wb(u.theme());if(d!==u.theme())u.theme.set(d);Nd(d)}});var bw=Q("sui-theme-toggle",{props:{theme:P.union(["light","dark","auto"],{default:"auto",reflect:!0})},shadow:!0,styles:`
+  :host { display: inline-flex; }
+  button {
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 4px 8px;
+    font: inherit;
+    font-size: 12px;
+    color: var(--foreground);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  button:hover { background: var(--muted); }
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.theme=u.theme;let b=null;if(R0&&typeof R0.setup==="function"){if(i.scope=n,b=R0.setup(i),b&&typeof b==="object")Object.assign(n,b)}let w=d.shadowRoot??d;V(w);let r=document.createElement("button");r.setAttribute("type","button"),r.setAttribute("aria-label","Toggle theme"),m.push(T(r,"aria-pressed",()=>n.isDark()?"true":"false")),r.setAttribute("title","Toggle theme"),m.push(p(r,"click",function(){let l=n.toggle;return typeof l==="function"?l.bind(void 0):()=>{}}(),{modifiers:[]}));let M=document.createTextNode("");r.appendChild(M),m.push(S(M,()=>n.isDark()?"\uD83C\uDF19":"☀"));let y=document.createElement("slot"),E=document.createTextNode("");if(y.appendChild(E),m.push(S(E,()=>n.isDark()?"Dark":"Light")),r.appendChild(y),w.appendChild(r),b!=null){let l=Object.getOwnPropertyDescriptor(b,"__shipSetLifecycle")?.value;if(l){let L=new Proxy(n,{get(f,t){return f[t]},set(f,t,H){let C=f[t];if(C!=null&&typeof C.set==="function"){if(typeof H==="function")C.set(()=>H);else C.set(H);return!0}return!1}});if(l.mount){let f=l.mount(L,d);if(typeof f==="function")m.push(f)}if(l.unmount)m.push(()=>l.unmount(L))}}return n}});var Fd=/^([a-z]+(?:\([^)]+\))?!?):\s*(.+)$/,S0=U({scope:(i,u)=>{let d=i,m=h(()=>{let M=d.subject().match(Fd);return M?`${M[1]}:`:""}),n=h(()=>{let M=d.subject().match(Fd);return M?M[2]:d.subject()}),b=h(()=>(d.author()||"?").charAt(0).toUpperCase()),w=h(()=>d.active()?6:4.5);function r(){u.dispatchEvent(new CustomEvent("sui-select",{detail:{sha:d.sha()},bubbles:!0,composed:!0}))}return{scopePrefix:m,subjectRest:n,initial:b,dotR:w,emitSelect:r}},mount(i,u){let d=i;if(!u.hasAttribute("role"))u.setAttribute("role","button");if(!u.hasAttribute("tabindex"))u.setAttribute("tabindex","0");let m=(n)=>{if(n.key==="Enter"||n.key===" ")n.preventDefault(),u.dispatchEvent(new CustomEvent("sui-select",{detail:{sha:d.sha()},bubbles:!0,composed:!0}))};return u.addEventListener("keydown",m),()=>{u.removeEventListener("keydown",m)}}});var rw=Q("sui-history-row",{props:{sha:P.string({default:"",reflect:!0}),subject:P.string({default:"",reflect:!0}),author:P.string({default:"",reflect:!0}),timestamp:P.string({default:"",reflect:!0}),additions:P.number({default:0,reflect:!0}),deletions:P.number({default:0,reflect:!0}),active:P.bool({default:!1,reflect:!0}),human:P.bool({default:!1,reflect:!0})},shadow:!0,styles:`
+  :host {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    cursor: pointer;
+    border-bottom: 1px solid var(--border-subtle);
+    transition: background var(--duration-fast) ease;
+    font-family: var(--font-body);
+  }
+  :host(:hover) { background: color-mix(in oklch, var(--muted) 50%, transparent); }
+  :host([active]) { background: color-mix(in oklch, var(--primary) 8%, transparent); }
+
+  .lane {
+    width: 44px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    align-self: stretch;
+  }
+  .lane svg { display: block; }
+
+  .avatar {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    display: grid;
+    place-items: center;
+    font-size: 9px;
+    font-weight: 600;
+    color: var(--primary-foreground);
+    background: color-mix(in oklch, var(--primary) 70%, var(--muted));
+    text-transform: uppercase;
+  }
+  :host([human]) .avatar {
+    background: conic-gradient(from 40deg, var(--status-blue, var(--info)), var(--accent));
+  }
+
+  .msg {
+    flex: 1;
+    min-width: 0;
+    padding: 8px 6px 8px 10px;
+  }
+  .title {
+    font-size: 12.5px;
+    font-weight: 500;
+    color: var(--foreground);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.35;
+  }
+  :host([active]) .title { color: var(--primary); }
+  .scope { color: var(--primary); opacity: 0.85; }
+  .meta {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-top: 2px;
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    color: var(--muted-foreground);
+  }
+
+  .stats {
+    display: flex;
+    gap: 6px;
+    padding-right: 14px;
+    flex-shrink: 0;
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+  }
+  .add { color: var(--success); }
+  .del { color: var(--destructive); }
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.sha=u.sha,n.subject=u.subject,n.author=u.author,n.timestamp=u.timestamp,n.additions=u.additions,n.deletions=u.deletions,n.active=u.active,n.human=u.human;let b=null;if(S0&&typeof S0.setup==="function"){if(i.scope=n,b=S0.setup(i),b&&typeof b==="object")Object.assign(n,b)}let w=(B)=>R({anchor:B,test:()=>{if(n.scopePrefix())return 0;return-1},branches:[()=>{let A=document.createDocumentFragment(),K=[],a=document.createElement("span");a.setAttribute("class","scope");let k=document.createTextNode("");return a.appendChild(k),K.push(S(k,()=>n.scopePrefix())),A.appendChild(a),{nodes:Array.from(A.childNodes),cleanup:()=>{for(let v of K)try{v()}catch(I){}}}}]}),r=(B)=>R({anchor:B,test:()=>{if(n.additions()>0)return 0;return-1},branches:[()=>{let A=document.createDocumentFragment(),K=[],a=document.createElement("span");a.setAttribute("class","add");let k=document.createTextNode("+");a.appendChild(k);let v=document.createTextNode("");return a.appendChild(v),K.push(S(v,()=>n.additions())),A.appendChild(a),{nodes:Array.from(A.childNodes),cleanup:()=>{for(let I of K)try{I()}catch(x){}}}}]}),M=(B)=>R({anchor:B,test:()=>{if(n.deletions()>0)return 0;return-1},branches:[()=>{let A=document.createDocumentFragment(),K=[],a=document.createElement("span");a.setAttribute("class","del");let k=document.createTextNode("−");a.appendChild(k);let v=document.createTextNode("");return a.appendChild(v),K.push(S(v,()=>n.deletions())),A.appendChild(a),{nodes:Array.from(A.childNodes),cleanup:()=>{for(let I of K)try{I()}catch(x){}}}}]}),y=d.shadowRoot??d;V(y);let E=document.createElement("div");E.setAttribute("class","lane"),m.push(p(E,"click",function(){let B=n.emitSelect;return typeof B==="function"?B.bind(void 0):()=>{}}(),{modifiers:[]}));let l=document.createElement("svg");l.setAttribute("width","44"),l.setAttribute("height","46"),l.setAttribute("aria-hidden","true");let L=document.createElement("line");L.setAttribute("x1","22"),L.setAttribute("y1","0"),L.setAttribute("x2","22"),L.setAttribute("y2","46"),L.setAttribute("stroke","var(--primary)"),L.setAttribute("stroke-width","1.5"),L.setAttribute("opacity","0.45"),l.appendChild(L);let f=document.createElement("circle");f.setAttribute("cx","22"),f.setAttribute("cy","23"),m.push(T(f,"r",()=>n.dotR())),m.push(T(f,"fill",()=>n.active()?"var(--primary)":"var(--background)")),f.setAttribute("stroke","var(--primary)"),f.setAttribute("stroke-width","2"),l.appendChild(f),E.appendChild(l),y.appendChild(E);let t=document.createElement("div");t.setAttribute("class","avatar");let H=document.createTextNode("");t.appendChild(H),m.push(S(H,()=>n.initial())),y.appendChild(t);let C=document.createElement("div");C.setAttribute("class","msg"),m.push(p(C,"click",function(){let B=n.emitSelect;return typeof B==="function"?B.bind(void 0):()=>{}}(),{modifiers:[]}));let z=document.createElement("div");z.setAttribute("class","title");let j=document.createComment("if");z.appendChild(j),m.push(w(j));let g=document.createTextNode("");z.appendChild(g),m.push(S(g,()=>n.subjectRest())),C.appendChild(z);let J=document.createElement("div");J.setAttribute("class","meta");let D=document.createElement("span"),Z=document.createTextNode("");D.appendChild(Z),m.push(S(Z,()=>n.sha())),J.appendChild(D);let X=document.createElement("span"),W=document.createTextNode("");X.appendChild(W),m.push(S(W,()=>n.timestamp())),J.appendChild(X),C.appendChild(J),y.appendChild(C);let Y=document.createElement("div");Y.setAttribute("class","stats");let N=document.createComment("if");Y.appendChild(N),m.push(r(N));let F=document.createComment("if");if(Y.appendChild(F),m.push(M(F)),y.appendChild(Y),b!=null){let B=Object.getOwnPropertyDescriptor(b,"__shipSetLifecycle")?.value;if(B){let A=new Proxy(n,{get(K,a){return K[a]},set(K,a,k){let v=K[a];if(v!=null&&typeof v.set==="function"){if(typeof k==="function")v.set(()=>k);else v.set(k);return!0}return!1}});if(B.mount){let K=B.mount(A,d);if(typeof K==="function")m.push(K)}if(B.unmount)m.push(()=>B.unmount(A))}}return n}});var k0=U({scope:(i,u)=>{let d=i,m=e(null),n=e(null),b=e(null),w=G(!1),r=h(()=>d.mode()==="sign-up"?"Create your account":"Welcome back"),M=h(()=>{if(d.loading())return d.mode()==="sign-up"?"Creating account…":"Signing in…";return d.mode()==="sign-up"?"Create account":"Sign in"}),y=h(()=>d.mode()==="sign-up"?"sign-in":"sign-up"),E=h(()=>y()==="sign-up"?"Create an account":"Sign in instead"),l=h(()=>d.mode()==="sign-up"?"Already have an account?":"New here?"),L=h(()=>d.mode()==="sign-up"?"new-password":"current-password");function f(j){if(j===d.mode())return;d.mode.set(j),u.dispatchEvent(new CustomEvent("sui-mode-change",{detail:{mode:j},bubbles:!0,composed:!0}))}function t(j){let g=j.detail;if(!g||typeof g.name!=="string")return;let J=g.name==="sign-up"?"sign-up":"sign-in";f(J)}function H(j){j.preventDefault();let g=j.currentTarget??n();if(!g)return;let J=g.elements.namedItem("email")?.value??"",D=g.elements.namedItem("password")?.value??"";u.dispatchEvent(new CustomEvent("sui-auth-submit",{detail:{mode:d.mode(),email:J,password:D},bubbles:!0,composed:!0}))}function C(){f(y())}function z(){if(d.open())d.open.set(!1)}return{dialogRef:m,formRef:n,providersSlot:b,hasProviders:w,defaultTitle:r,submitLabel:M,otherMode:y,switchLabel:E,switchPrompt:l,passwordAutocomplete:L,onTabChange:t,onSubmit:H,onSwitchClick:C,onDialogClose:z}},mount(i,u){let d=i,m=()=>{let r=d.providersSlot();if(!r){d.hasProviders.set(!1);return}let M=r.assignedNodes({flatten:!0}).some((y)=>{if(y.nodeType===Node.TEXT_NODE)return(y.textContent||"").trim().length>0;return y.nodeType===Node.ELEMENT_NODE});d.hasProviders.set(M)},n=q(()=>{let r=d.providersSlot();if(!r)return;return r.addEventListener("slotchange",m),m(),()=>r.removeEventListener("slotchange",m)}),b=q(()=>{let r=d.open(),M=d.dialogRef();if(!M)return;if(r&&typeof M.showModal==="function"){if(!M.hasAttribute("open"))M.showModal()}else if(!r&&typeof M.close==="function"){if(M.hasAttribute("open"))M.close()}}),w=u;return w.show=()=>d.open.set(!0),w.showModal=()=>d.open.set(!0),w.close=()=>d.open.set(!1),()=>{n(),b()}}});var zw=Q("sui-auth-dialog",{props:{open:P.bool({default:!1,reflect:!0}),mode:P.union(["sign-in","sign-up"],{default:"sign-in",reflect:!0}),loading:P.bool({default:!1,reflect:!0}),backdrop:P.union(["default","blur","solid"],{default:"blur",reflect:!0})},shadow:!0,styles:`
+  :host { display: none; }
+  :host([open]) { display: contents; }
+
+  .body {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 4px 0 0;
+    font-family: var(--font-body);
+    color: var(--foreground);
+  }
+
+  .providers {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  ::slotted(*) { width: 100%; }
+
+  .or {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: var(--muted-foreground);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .or::before, .or::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: color-mix(in oklch, var(--border) 55%, transparent);
+  }
+
+  form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  label {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--muted-foreground);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-weight: 500;
+  }
+  input {
+    height: 38px;
+    padding: 0 12px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--card);
+    color: var(--foreground);
+    font: inherit;
+    font-size: 14px;
+    transition: border-color 120ms ease, box-shadow 120ms ease;
+  }
+  input:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--tone-accent-ring, var(--ring));
+  }
+
+  .submit-row {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 4px;
+  }
+  .submit-row sui-button { width: 100%; }
+
+  .terms {
+    color: var(--muted-foreground);
+    font-size: 11.5px;
+    text-align: center;
+    line-height: 1.5;
+    margin: 0;
+  }
+
+  .switch {
+    color: var(--muted-foreground);
+    font-size: 12.5px;
+    text-align: center;
+    margin: 0;
+  }
+  .switch button {
+    appearance: none;
+    background: transparent;
+    border: 0;
+    padding: 0;
+    color: var(--accent);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.open=u.open,n.mode=u.mode,n.loading=u.loading,n.backdrop=u.backdrop,n.dialogRef=G(null),n.formRef=G(null),n.providersSlot=G(null);let b=null;if(k0&&typeof k0.setup==="function"){if(i.scope=n,b=k0.setup(i),b&&typeof b==="object")Object.assign(n,b)}let w=(x)=>R({anchor:x,test:()=>{if(n.hasProviders())return 0;return-1},branches:[()=>{let o=document.createDocumentFragment(),$=[],nn=document.createElement("div");nn.setAttribute("class","or");let Ln=document.createTextNode("or");return nn.appendChild(Ln),o.appendChild(nn),{nodes:Array.from(o.childNodes),cleanup:()=>{for(let dn of $)try{dn()}catch(tn){}}}}]}),r=d.shadowRoot??d;V(r);let M=document.createElement("sui-dialog");M.setAttribute("part","dialog"),M.setAttribute("size","sm"),m.push(T(M,"backdrop",()=>n.backdrop())),O(n,"dialogRef",M),m.push(p(M,"sui-close",function(){let x=n.onDialogClose;return typeof x==="function"?x.bind(void 0):()=>{}}(),{modifiers:[]}));let y=document.createElement("div");y.setAttribute("slot","header");let E=document.createElement("slot");E.setAttribute("name","header");let l=document.createTextNode("");E.appendChild(l),m.push(S(l,()=>n.defaultTitle())),y.appendChild(E),M.appendChild(y);let L=document.createElement("div");L.setAttribute("class","body");let f=document.createElement("sui-tabs");f.setAttribute("variant","pill"),m.push(T(f,"active",()=>n.mode())),m.push(p(f,"sui-tab-change",function(){let x=n.onTabChange;return typeof x==="function"?x.bind(void 0):()=>{}}(),{modifiers:[]}));let t=document.createElement("sui-tab");t.setAttribute("name","sign-in"),t.setAttribute("label","Sign in"),f.appendChild(t);let H=document.createElement("sui-tab");H.setAttribute("name","sign-up"),H.setAttribute("label","Sign up"),f.appendChild(H),L.appendChild(f);let C=document.createElement("div");C.setAttribute("class","providers");let z=document.createElement("slot");z.setAttribute("name","providers"),O(n,"providersSlot",z),C.appendChild(z),L.appendChild(C);let j=document.createComment("if");L.appendChild(j),m.push(w(j));let g=document.createElement("form");g.setAttribute("part","form"),m.push(p(g,"submit",function(){let x=n.onSubmit;return typeof x==="function"?x.bind(void 0):()=>{}}(),{modifiers:[]})),g.setAttribute("novalidate",""),O(n,"formRef",g);let J=document.createElement("label"),D=document.createTextNode(`
+        Email
+        `);J.appendChild(D);let Z=document.createElement("input");Z.setAttribute("name","email"),Z.setAttribute("type","email"),Z.setAttribute("autocomplete","email"),Z.setAttribute("inputmode","email"),Z.setAttribute("required",""),Z.setAttribute("placeholder","you@company.com"),J.appendChild(Z),g.appendChild(J);let X=document.createElement("label"),W=document.createTextNode(`
+        Password
+        `);X.appendChild(W);let Y=document.createElement("input");Y.setAttribute("name","password"),Y.setAttribute("type","password"),m.push(T(Y,"autocomplete",()=>n.passwordAutocomplete())),Y.setAttribute("required",""),Y.setAttribute("minlength","8"),X.appendChild(Y),g.appendChild(X);let N=document.createElement("div");N.setAttribute("class","submit-row");let F=document.createElement("sui-button");F.setAttribute("part","submit"),F.setAttribute("tone","accent"),F.setAttribute("variant","solid"),F.setAttribute("size","md"),F.setAttribute("type","submit"),m.push(T(F,"loading",()=>n.loading())),m.push(T(F,"disabled",()=>n.loading()));let B=document.createTextNode("");F.appendChild(B),m.push(S(B,()=>n.submitLabel())),N.appendChild(F);let A=document.createElement("p");A.setAttribute("class","terms");let K=document.createElement("slot");K.setAttribute("name","terms"),A.appendChild(K),N.appendChild(A),g.appendChild(N),L.appendChild(g);let a=document.createElement("p");a.setAttribute("class","switch");let k=document.createTextNode("");a.appendChild(k),m.push(S(k,()=>n.switchPrompt()));let v=document.createElement("button");v.setAttribute("type","button"),m.push(p(v,"click",function(){let x=n.onSwitchClick;return typeof x==="function"?x.bind(void 0):()=>{}}(),{modifiers:[]}));let I=document.createTextNode("");if(v.appendChild(I),m.push(S(I,()=>n.switchLabel())),a.appendChild(v),L.appendChild(a),M.appendChild(L),r.appendChild(M),b!=null){let x=Object.getOwnPropertyDescriptor(b,"__shipSetLifecycle")?.value;if(x){let o=new Proxy(n,{get($,nn){return $[nn]},set($,nn,Ln){let dn=$[nn];if(dn!=null&&typeof dn.set==="function"){if(typeof Ln==="function")dn.set(()=>Ln);else dn.set(Ln);return!0}return!1}});if(x.mount){let $=x.mount(o,d);if(typeof $==="function")m.push($)}if(x.unmount)m.push(()=>x.unmount(o))}}return n}});var a0=U({scope:(i,u)=>{let d=i,m=G(!1),n=h(()=>d.empty()||d.files()===0),b=h(()=>{let E=d.files();return`${E} file${E===1?"":"s"} changed`}),w=h(()=>m()?"chevrons-up-down":"chevrons-down-up"),r=h(()=>m()?"Expand all":"Collapse all"),M=h(()=>m()?"Expand all files":"Collapse all files");function y(){let E=!m();m.set(E),u.querySelectorAll("sui-git-diff-file").forEach((L)=>{if(E)L.setAttribute("collapsed","");else L.removeAttribute("collapsed")})}return{allCollapsed:m,showEmpty:n,filesLabel:b,toggleIcon:w,toggleLabel:r,toggleTitle:M,toggleAll:y}},mount(i,u){let d=i;if(!u.hasAttribute("role"))u.setAttribute("role","region");let m=q(()=>{let n=d.files(),b=d.additions(),w=d.deletions();u.setAttribute("aria-label",`Diff: ${n} file${n===1?"":"s"} changed, ${b} additions, ${w} deletions`)});return()=>{m()}}});var Jw=Q("sui-git-diff",{props:{files:P.number({default:0,reflect:!0}),additions:P.number({default:0,reflect:!0}),deletions:P.number({default:0,reflect:!0}),empty:P.bool({default:!1,reflect:!0})},shadow:!0,styles:`
+  :host {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    font-family: var(--font-body);
+    background: var(--background);
+    color: var(--foreground);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+  }
+  .toolbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 6px 16px;
+    border-bottom: 1px solid var(--border-subtle);
+    background: color-mix(in oklch, var(--card) 50%, transparent);
+    flex-shrink: 0;
+  }
+  .count { font-size: 12px; color: var(--muted-foreground); }
+  .adds { font-size: 11px; color: var(--success); }
+  .dels { font-size: 11px; color: var(--destructive); }
+  .spacer { flex: 1; }
+  .toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: var(--radius-md);
+    background: transparent;
+    border: 0;
+    font-family: inherit;
+    font-size: 11px;
+    color: var(--muted-foreground);
+    cursor: pointer;
+    transition: background var(--duration-fast) ease, color var(--duration-fast) ease;
+  }
+  .toggle:hover { background: var(--muted); color: var(--foreground); }
+  .body { flex: 1; overflow: auto; }
+  :host([empty]) .toolbar { display: none; }
+  .empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 48px 16px;
+    color: var(--muted-foreground);
+    font-size: 13px;
+  }
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.files=u.files,n.additions=u.additions,n.deletions=u.deletions,n.empty=u.empty;let b=null;if(a0&&typeof a0.setup==="function"){if(i.scope=n,b=a0.setup(i),b&&typeof b==="object")Object.assign(n,b)}let w=(l)=>R({anchor:l,test:()=>{if(n.additions()>0)return 0;return-1},branches:[()=>{let L=document.createDocumentFragment(),f=[],t=document.createElement("span");t.setAttribute("class","adds");let H=document.createTextNode("+");t.appendChild(H);let C=document.createTextNode("");return t.appendChild(C),f.push(S(C,()=>n.additions())),L.appendChild(t),{nodes:Array.from(L.childNodes),cleanup:()=>{for(let z of f)try{z()}catch(j){}}}}]}),r=(l)=>R({anchor:l,test:()=>{if(n.deletions()>0)return 0;return-1},branches:[()=>{let L=document.createDocumentFragment(),f=[],t=document.createElement("span");t.setAttribute("class","dels");let H=document.createTextNode("-");t.appendChild(H);let C=document.createTextNode("");return t.appendChild(C),f.push(S(C,()=>n.deletions())),L.appendChild(t),{nodes:Array.from(L.childNodes),cleanup:()=>{for(let z of f)try{z()}catch(j){}}}}]}),M=(l)=>R({anchor:l,test:()=>{if(n.showEmpty())return 0;return 1},branches:[()=>{let L=document.createDocumentFragment(),f=[],t=document.createElement("div");t.setAttribute("class","empty");let H=document.createTextNode("No changes to display");return t.appendChild(H),L.appendChild(t),{nodes:Array.from(L.childNodes),cleanup:()=>{for(let C of f)try{C()}catch(z){}}}},()=>{let L=document.createDocumentFragment(),f=[],t=document.createElement("div");t.setAttribute("class","toolbar");let H=document.createElement("span");H.setAttribute("class","count");let C=document.createTextNode("");H.appendChild(C),f.push(S(C,()=>n.filesLabel())),t.appendChild(H);let z=document.createComment("if");t.appendChild(z),f.push(w(z));let j=document.createComment("if");t.appendChild(j),f.push(r(j));let g=document.createElement("span");g.setAttribute("class","spacer"),t.appendChild(g);let J=document.createElement("button");J.setAttribute("class","toggle"),J.setAttribute("type","button"),f.push(p(J,"click",function(){let Y=n.toggleAll;return typeof Y==="function"?Y.bind(void 0):()=>{}}(),{modifiers:[]})),f.push(T(J,"title",()=>n.toggleTitle()));let D=document.createElement("sui-icon");D.setAttribute("size","sm"),f.push(T(D,"name",()=>n.toggleIcon())),J.appendChild(D);let Z=document.createTextNode("");J.appendChild(Z),f.push(S(Z,()=>n.toggleLabel())),t.appendChild(J),L.appendChild(t);let X=document.createElement("div");X.setAttribute("class","body");let W=document.createElement("slot");return X.appendChild(W),L.appendChild(X),{nodes:Array.from(L.childNodes),cleanup:()=>{for(let Y of f)try{Y()}catch(N){}}}}]}),y=d.shadowRoot??d;V(y);let E=document.createComment("if");if(y.appendChild(E),m.push(M(E)),b!=null){let l=Object.getOwnPropertyDescriptor(b,"__shipSetLifecycle")?.value;if(l){let L=new Proxy(n,{get(f,t){return f[t]},set(f,t,H){let C=f[t];if(C!=null&&typeof C.set==="function"){if(typeof H==="function")C.set(()=>H);else C.set(H);return!0}return!1}});if(l.mount){let f=l.mount(L,d);if(typeof f==="function")m.push(f)}if(l.unmount)m.push(()=>l.unmount(L))}}return n}});var v0=U({scope:(i)=>{let u=i,d=h(()=>u.collapsed()?"chevron-right":"chevron-down"),m=h(()=>u.collapsed()?"false":"true");function n(){u.collapsed.set(!u.collapsed())}return{chevIcon:d,expandedLabel:m,toggle:n}},mount(i,u){let d=i;if(!u.hasAttribute("role"))u.setAttribute("role","group");let m=q(()=>{let n=d.path(),b=d.additions(),w=d.deletions();u.setAttribute("aria-label",`${n}: +${b} -${w}`)});return()=>{m()}}});var Vw=Q("sui-git-diff-file",{props:{path:P.string({default:"",reflect:!0}),additions:P.number({default:0,reflect:!0}),deletions:P.number({default:0,reflect:!0}),collapsed:P.bool({default:!1,reflect:!0})},shadow:!0,styles:`
+  :host {
+    display: block;
+    border-bottom: 1px solid color-mix(in oklch, var(--border) 35%, transparent);
+  }
+  .header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 6px 12px;
+    background: transparent;
+    border: 0;
+    border-bottom: 1px solid var(--border-subtle);
+    text-align: left;
+    cursor: pointer;
+    color: var(--foreground);
+    transition: background var(--duration-fast) ease;
+    font-family: inherit;
+  }
+  .header:hover { background: color-mix(in oklch, var(--muted) 40%, transparent); }
+  .chev { color: var(--muted-foreground); flex-shrink: 0; }
+  .fileicon { color: var(--muted-foreground); flex-shrink: 0; }
+  .path {
+    flex: 1;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--foreground);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .stats { display: inline-flex; align-items: center; gap: 8px; flex-shrink: 0; }
+  .adds, .dels {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    font-size: 10px;
+    font-family: var(--font-mono);
+  }
+  .adds { color: var(--success); }
+  .dels { color: var(--destructive); }
+  .body { display: block; }
+  :host([collapsed]) .body { display: none; }
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.path=u.path,n.additions=u.additions,n.deletions=u.deletions,n.collapsed=u.collapsed;let b=null;if(v0&&typeof v0.setup==="function"){if(i.scope=n,b=v0.setup(i),b&&typeof b==="object")Object.assign(n,b)}let w=(g)=>R({anchor:g,test:()=>{if(n.additions()>0)return 0;return-1},branches:[()=>{let J=document.createDocumentFragment(),D=[],Z=document.createElement("span");Z.setAttribute("class","adds");let X=document.createElement("sui-icon");X.setAttribute("size","sm"),X.setAttribute("name","plus"),Z.appendChild(X);let W=document.createTextNode("");return Z.appendChild(W),D.push(S(W,()=>n.additions())),J.appendChild(Z),{nodes:Array.from(J.childNodes),cleanup:()=>{for(let Y of D)try{Y()}catch(N){}}}}]}),r=(g)=>R({anchor:g,test:()=>{if(n.deletions()>0)return 0;return-1},branches:[()=>{let J=document.createDocumentFragment(),D=[],Z=document.createElement("span");Z.setAttribute("class","dels");let X=document.createElement("sui-icon");X.setAttribute("size","sm"),X.setAttribute("name","minus"),Z.appendChild(X);let W=document.createTextNode("");return Z.appendChild(W),D.push(S(W,()=>n.deletions())),J.appendChild(Z),{nodes:Array.from(J.childNodes),cleanup:()=>{for(let Y of D)try{Y()}catch(N){}}}}]}),M=d.shadowRoot??d;V(M);let y=document.createElement("button");y.setAttribute("class","header"),y.setAttribute("type","button"),m.push(p(y,"click",function(){let g=n.toggle;return typeof g==="function"?g.bind(void 0):()=>{}}(),{modifiers:[]})),m.push(T(y,"aria-expanded",()=>n.expandedLabel()));let E=document.createElement("sui-icon");E.setAttribute("class","chev"),E.setAttribute("size","sm"),m.push(T(E,"name",()=>n.chevIcon())),y.appendChild(E);let l=document.createElement("sui-icon");l.setAttribute("class","fileicon"),l.setAttribute("size","sm"),l.setAttribute("name","file-code"),y.appendChild(l);let L=document.createElement("span");L.setAttribute("class","path");let f=document.createTextNode("");L.appendChild(f),m.push(S(f,()=>n.path())),y.appendChild(L);let t=document.createElement("span");t.setAttribute("class","stats");let H=document.createComment("if");t.appendChild(H),m.push(w(H));let C=document.createComment("if");t.appendChild(C),m.push(r(C)),y.appendChild(t),M.appendChild(y);let z=document.createElement("div");z.setAttribute("class","body");let j=document.createElement("slot");if(z.appendChild(j),M.appendChild(z),b!=null){let g=Object.getOwnPropertyDescriptor(b,"__shipSetLifecycle")?.value;if(g){let J=new Proxy(n,{get(D,Z){return D[Z]},set(D,Z,X){let W=D[Z];if(W!=null&&typeof W.set==="function"){if(typeof X==="function")W.set(()=>X);else W.set(X);return!0}return!1}});if(g.mount){let D=g.mount(J,d);if(typeof D==="function")m.push(D)}if(g.unmount)m.push(()=>g.unmount(J))}}return n}});var Nw=Q("sui-git-diff-hunk",{props:{header:P.string({default:"",reflect:!0})},shadow:!0,styles:`
+  :host {
+    display: block;
+    padding: 2px 12px;
+    background: var(--tone-info-bg);
+    border-top: 1px solid var(--tone-info-bg);
+    border-bottom: 1px solid var(--tone-info-bg);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--info);
+    user-select: none;
+  }
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.header=u.header;let b=d.shadowRoot??d;V(b);let w=document.createTextNode(`
+
+`);b.appendChild(w);let r=document.createTextNode(`
+
+`);b.appendChild(r);let M=document.createTextNode("");return b.appendChild(M),m.push(S(M,()=>n.header())),n}});var x0=U({scope:(i,u)=>{let d=i,m=d.new,n=d.old,b=d.type,w=h(()=>n?.()??""),r=h(()=>m?.()??""),M=h(()=>{let E=b?.();return E==="add"?"+":E==="del"?"-":" "});function y(E){E.stopPropagation(),u.dispatchEvent(new CustomEvent("sui-comment",{detail:{old:n?.()??"",new:m?.()??""},bubbles:!0,composed:!0}))}return{oldCol:w,newCol:r,sigChar:M,emitComment:y}},mount(i,u){let d=i,m=d.new,n=d.old,b=d.type,w=q(()=>{let r=b?.()??"context",M=m?.()??"",y=n?.()??"",E=r==="add"?"added":r==="del"?"removed":"context";u.setAttribute("aria-label",`line ${M||y} ${E}`)});return()=>{w()}}});var Bw=Q("sui-git-diff-line",{props:{type:P.union(["add","del","context"],{default:"context",reflect:!0}),old:P.string({default:"",reflect:!0}),new:P.string({default:"",reflect:!0}),"comment-count":P.number({default:0,reflect:!0})},shadow:!0,styles:`
+  :host {
+    display: flex;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    line-height: 1.45;
+    position: relative;
+  }
+  :host([type='add']) { background: var(--tone-success-bg); }
+  :host([type='del']) { background: var(--tone-destructive-bg); }
+  :host([comment-count]) { border-left: 2px solid var(--accent); }
+  .num {
+    width: 42px;
+    flex-shrink: 0;
+    padding-right: 8px;
+    text-align: right;
+    color: color-mix(in oklch, var(--muted-foreground) 60%, transparent);
+    user-select: none;
+    border-right: 1px solid color-mix(in oklch, var(--border) 20%, transparent);
+  }
+  .sig {
+    width: 16px;
+    flex-shrink: 0;
+    text-align: center;
+    user-select: none;
+    color: var(--muted-foreground);
+  }
+  .content {
+    flex: 1;
+    padding-right: 28px;
+    white-space: pre-wrap;
+    word-break: break-all;
+    color: var(--muted-foreground);
+  }
+  :host([type='add']) .sig,
+  :host([type='add']) .content { color: var(--success); }
+  :host([type='del']) .sig,
+  :host([type='del']) .content { color: var(--destructive); }
+
+  .comment-btn {
+    position: absolute;
+    right: 4px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 18px;
+    height: 18px;
+    border-radius: var(--radius-sm);
+    background: var(--accent);
+    color: var(--accent-foreground);
+    border: 0;
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity var(--duration-fast) ease;
+    font-size: 13px;
+    line-height: 1;
+    font-family: var(--font-body);
+  }
+  :host(:hover) .comment-btn { opacity: 1; }
+  :host([comment-count]) .comment-btn { opacity: 0.7; }
+  :host([comment-count]:hover) .comment-btn { opacity: 1; }
+  .comment-btn:focus-visible {
+    outline: 2px solid var(--ring-color, var(--ring));
+    outline-offset: 1px;
+  }
+`,setup(i){let{props:u,host:d}=i;if(!i.cleanups)i.cleanups=[];let m=i.cleanups,n=Object.create(null);n.type=u.type,n.old=u.old,n.new=u.new,n.commentCount=u.commentCount;let b=null;if(x0&&typeof x0.setup==="function"){if(i.scope=n,b=x0.setup(i),b&&typeof b==="object")Object.assign(n,b)}let w=d.shadowRoot??d;V(w);let r=document.createElement("span");r.setAttribute("class","num");let M=document.createTextNode("");r.appendChild(M),m.push(S(M,()=>n.oldCol())),w.appendChild(r);let y=document.createElement("span");y.setAttribute("class","num");let E=document.createTextNode("");y.appendChild(E),m.push(S(E,()=>n.newCol())),w.appendChild(y);let l=document.createElement("span");l.setAttribute("class","sig");let L=document.createTextNode("");l.appendChild(L),m.push(S(L,()=>n.sigChar())),w.appendChild(l);let f=document.createElement("span");f.setAttribute("class","content");let t=document.createElement("slot");f.appendChild(t),w.appendChild(f);let H=document.createElement("button");H.setAttribute("class","comment-btn"),H.setAttribute("type","button"),H.setAttribute("aria-label","Comment on this line"),H.setAttribute("title","Comment on this line"),m.push(p(H,"click",function(){let z=n.emitComment;return typeof z==="function"?z.bind(void 0):()=>{}}(),{modifiers:[]}));let C=document.createTextNode("+");if(H.appendChild(C),w.appendChild(H),b!=null){let z=Object.getOwnPropertyDescriptor(b,"__shipSetLifecycle")?.value;if(z){let j=new Proxy(n,{get(g,J){return g[J]},set(g,J,D){let Z=g[J];if(Z!=null&&typeof Z.set==="function"){if(typeof D==="function")Z.set(()=>D);else Z.set(D);return!0}return!1}});if(z.mount){let g=z.mount(j,d);if(typeof g==="function")m.push(g)}if(z.unmount)m.push(()=>z.unmount(j))}}return n}});

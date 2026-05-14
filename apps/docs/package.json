@@ -4,13 +4,13 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "collect": "pnpm exec tsx scripts/collect-skill-docs.ts",
-    "collect:watch": "AUDIENCE=internal pnpm exec tsx scripts/collect-skill-docs.ts --watch",
-    "dev": "env AUDIENCE=internal sh -c 'pnpm exec tsx scripts/collect-skill-docs.ts --watch & astro dev --host; kill 0'",
-    "openapi:generate": "pnpm exec tsx scripts/generate-openapi.ts",
-    "openapi:check-drift": "pnpm exec tsx scripts/check-openapi-drift.ts",
-    "docs:check-drift": "pnpm exec tsx scripts/check-skill-docs-drift.ts",
-    "prebuild": "pnpm run openapi:generate && pnpm run collect",
+    "collect": "bun scripts/collect-skill-docs.ts",
+    "collect:watch": "AUDIENCE=internal bun scripts/collect-skill-docs.ts --watch",
+    "dev": "env AUDIENCE=internal sh -c 'bun scripts/collect-skill-docs.ts --watch & astro dev --host; kill 0'",
+    "openapi:generate": "bun scripts/generate-openapi.ts",
+    "openapi:check-drift": "bun scripts/check-openapi-drift.ts",
+    "docs:check-drift": "bun scripts/check-skill-docs-drift.ts",
+    "prebuild": "bun run openapi:generate && bun run collect",
     "build": "astro build",
     "preview": "astro preview"
   },
@@ -26,7 +26,6 @@
   },
   "devDependencies": {
     "@astrojs/markdoc": "^1.0.3",
-    "@types/node": "^22.0.0",
-    "tsx": "^4.0.0"
+    "@types/node": "^22.0.0"
   }
 }

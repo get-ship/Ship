@@ -140,17 +140,25 @@ export type UseSection<Scope> = Record<string, ControllerHook>
 
 /**
  * `mount` lifecycle. Runs once after the rendered DOM is attached and
- * all signals/handlers/hooks are wired. Receives a writable state
- * mutator and the owning element. May return a cleanup function that
- * is called on disconnect (equivalent to pushing to cleanups).
+ * all signals/handlers/hooks are wired. May return a cleanup function
+ * that is called on disconnect (equivalent to pushing to cleanups).
+ *
+ * `state` is the full `Scope` view — signals are preserved as
+ * `Signal<T>` (so `state.caughtError.set(null)` is well-typed) and
+ * non-signal entries from the controller's `scope: () => ({...})`
+ * factory (helper functions, plain values) are directly accessible
+ * (`state.reset()` resolves to the factory-returned arrow). The
+ * compiler emits both groups into the per-file `Scope` interface in
+ * `<file>.sui.d.ts`; controllers no longer need the `state['key'] as
+ * Signal<T>` cast tax.
  */
-export type MountSection<Scope> = (state: MutableState<Scope>, el: HTMLElement) => (() => void) | void
+export type MountSection<Scope> = (state: Scope, el: HTMLElement) => (() => void) | void
 
 /**
  * `unmount` lifecycle. Runs once on disconnect; tear down whatever
- * `mount` set up. Receives a writable state mutator.
+ * `mount` set up. Receives the same `Scope`-typed state view as `mount`.
  */
-export type UnmountSection<Scope> = (state: MutableState<Scope>) => void
+export type UnmountSection<Scope> = (state: Scope) => void
 
 // ---------------------------------------------------------------------------
 // The controller surface

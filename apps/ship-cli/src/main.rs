@@ -1,6 +1,7 @@
 mod add;
 mod audit;
 mod auth;
+mod build;
 mod cli;
 mod commands;
 mod compile;
@@ -122,7 +123,7 @@ fn dispatch(command: Option<Commands>) -> Result<()> {
             } => run_compile_cmd(provider.as_deref(), dry_run, path),
             Commands::Workspace { action } => dispatch_workspace(action),
             Commands::Lint { action } => dispatch_lint(action),
-            Commands::Lsp => lsp::run_stdio().map_err(|e: anyhow::Error| e),
+            Commands::Lsp => j2_lsp::run_stdio().map_err(|e: anyhow::Error| e),
             Commands::Mcp { action } => dispatch_mcp(action),
             Commands::Convert { source } => convert::run_convert(&source),
             Commands::Docs { topic } => help_topics::run(topic.as_deref()),
@@ -206,8 +207,8 @@ fn dispatch(command: Option<Commands>) -> Result<()> {
                     DaemonCommands::Status => DaemonCommand::Status,
                     DaemonCommands::Dir => DaemonCommand::Dir,
                     DaemonCommands::Cleanup => DaemonCommand::Cleanup,
-                    DaemonCommands::RepairMigrations { mark_applied } => {
-                        DaemonCommand::RepairMigrations { mark_applied }
+                    DaemonCommands::RepairMigrations { mark_applied, prune_orphans, yes } => {
+                        DaemonCommand::RepairMigrations { mark_applied, prune_orphans, yes }
                     }
                     DaemonCommands::Run { host, port, dev } => DaemonCommand::Run { host, port, dev },
                     DaemonCommands::Supervise { host, dev } => DaemonCommand::Supervise { host, dev },
@@ -219,6 +220,7 @@ fn dispatch(command: Option<Commands>) -> Result<()> {
                 run_daemon(cmd)
             }
             Commands::Doctor => doctor::run(),
+            Commands::Build { dry_run } => build::run(dry_run),
             Commands::Runtime { action } => match action {
                 cli::RuntimeCommands::Install { bun, sui_compiler } => {
                     runtime_cmd::run_install(bun, sui_compiler)

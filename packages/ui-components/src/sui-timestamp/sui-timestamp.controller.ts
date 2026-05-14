@@ -1,5 +1,4 @@
 import { controller, signal, derived, effect } from '@ship/sui-runtime'
-import type { Signal } from '@ship/sui-runtime'
 import type { Scope } from './sui-timestamp.sui'
 import { absoluteIso, formatRelative } from './sui-timestamp'
 
@@ -8,11 +7,11 @@ const MINUTE = 60_000
 export default controller<Scope>({
   scope: ({ value }) => {
     const tick = signal(0)
-    const absStr = derived(() => {
+    const absStr = derived<string>(() => {
       const v = (value as () => string)()
       return v ? absoluteIso(v) : ''
     })
-    const relStr = derived(() => {
+    const relStr = derived<string>(() => {
       tick()
       const v = (value as () => string)()
       return v ? formatRelative(v) : ''
@@ -21,15 +20,12 @@ export default controller<Scope>({
   },
 
   mount(state, host) {
-    const scope = state as unknown as Scope
-    const tick = scope.tick as unknown as Signal<number>
-
     const stopTitle = effect(() => {
-      const v = scope.value() as string
-      if (v) host.title = scope.absStr() as string
+      const v = state.value()
+      if (v) host.title = state.absStr()
     })
 
-    const timer = setInterval(() => tick.set(tick() + 1), MINUTE)
+    const timer = setInterval(() => state.tick.set(state.tick() + 1), MINUTE)
 
     return () => {
       stopTitle()

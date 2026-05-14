@@ -9,6 +9,8 @@
 
 import { effect, type Signal } from './signal'
 import type { Disposer } from './bind'
+import { runProtected } from './error-boundary'
+import { runEnter, runLeave } from './transition'
 
 /**
  * Inputs to `bindFor` — what to iterate, how to identify items, and
@@ -45,9 +47,40 @@ export interface RenderedItem {
 interface ItemRecord<T> {
   key: unknown
   item: T
+  /** Last index the row was rendered at; paired with `item` so the
+   *  identity-skip in step 2 only fires when both are unchanged. */
+  __i: number
   nodes: Node[]
   cleanup?: () => void
   update?: (item: unknown, index: number) => void
+}
+
+// `matched` packs each matched record's (newIndex, prevIndex) pair into
+// adjacent Int32 slots: matched[2*i]=new-array index, matched[2*i+1]=prev-array
+// index. mask/pred/tails are caller-owned scratch (length >= count). On
+// return, mask[i]=1 iff matched record i is in the LIS of its prev positions.
+// O(n log n) patience sort.
+function computeLisMaskInto(
+  matched: Int32Array, count: number,
+  mask: Uint8Array, pred: Int32Array, tails: Int32Array,
+): void {
+  mask.fill(0, 0, count)
+  if (count === 0) return
+  let tailsLen = 0
+  for (let i = 0; i < count; i++) {
+    const v = matched[2 * i + 1]!
+    let lo = 0, hi = tailsLen
+    while (lo < hi) {
+      const mid = (lo + hi) >>> 1
+      if (matched[2 * tails[mid]! + 1]! < v) lo = mid + 1
+      else hi = mid
+    }
+    pred[i] = lo > 0 ? tails[lo - 1]! : -1
+    tails[lo] = i
+    if (lo === tailsLen) tailsLen++
+  }
+  let idx = tails[tailsLen - 1]!
+  while (idx >= 0) { mask[idx] = 1; idx = pred[idx]! }
 }
 
 /**
@@ -55,8 +88,9 @@ interface ItemRecord<T> {
  * called once per new key; rows whose keys persist across renders keep
  * their original nodes (and any focus / scroll / animation state).
  *
- * Reconciliation is O(n+m): diff by key set, remove gone keys, insert
- * new keys, move existing keys into their new positions.
+ * Reconciliation uses a longest-increasing-subsequence algorithm to
+ * minimise DOM moves. Matched keys already in a stable relative order
+ * are never moved; only out-of-order and new keys are inserted.
  *
  * Compiler target: `{#for item of list key={item.id}}…{/for}`.
  *
@@ -84,90 +118,229 @@ export function bindFor<T>(opts: BindForOptions<T>): Disposer {
   const { anchor, items, key, render } = opts
   let prev: ItemRecord<T>[] = []
   let active = true
+  // Rows whose key disappeared from the items array and whose
+  // out-transition is in flight. Tracked so the disposer can flush
+  // them synchronously without waiting for animations.
+  const departing = new Set<ItemRecord<T>>()
+
+  // Scratch — allocated once at bindFor setup, .clear()'d each render so
+  // reconciliation reuses a constant working set instead of allocating
+  // O(N) transient collections per effect run.
+  const nextKeys = new Map<unknown, number>() // key → first-seen index
+  const prevByKey = new Map<unknown, ItemRecord<T>>()
+  const prevPos = new Map<unknown, number>()
+  const stable = new Set<number>()
+  const freshNodes: Node[] = []
+  let nextRecords: ItemRecord<T>[] = []
+  let matched = new Int32Array(0)        // [newIdx, prevIdx] pairs
+  let lisMaskBuf = new Uint8Array(0), lisPred = new Int32Array(0), lisTails = new Int32Array(0)
+
+  const flush = (r: ItemRecord<T>) => {
+    for (const n of r.nodes) {
+      try {
+        n.parentNode?.removeChild(n)
+      } catch {
+        // Already detached.
+      }
+    }
+    r.cleanup?.()
+  }
+
+  // Last-seen items array, retained so we can short-circuit when the
+  // reactive source re-fires with the same reference (e.g. a derived
+  // upstream re-evaluates and returns its cached array). Cleared by
+  // disposal alongside `prev`.
+  let lastItems: readonly T[] | null = null
 
   const dispose = effect(() => {
     if (!active) return
     const next = items()
-    const nextKeys = new Map<unknown, { item: T; index: number }>()
-    for (let i = 0; i < next.length; i++) {
+    // Same-array short-circuit: if the reactive source produced the
+    // exact same array reference, no key set or position changed, so
+    // the reconciler has nothing to do. Per-row state still flows
+    // through each row's own signals — those re-render independently.
+    if (next === lastItems) return
+    lastItems = next
+    const n = next.length
+
+    // Grow scratch typed arrays to the new high-water mark; never shrink.
+    if (matched.length < n * 2) matched = new Int32Array(Math.max(matched.length * 2, n * 2, 16))
+    if (lisMaskBuf.length < n) {
+      const cap = Math.max(lisMaskBuf.length * 2, n, 8)
+      lisMaskBuf = new Uint8Array(cap); lisPred = new Int32Array(cap); lisTails = new Int32Array(cap)
+    }
+
+    for (let i = 0; i < n; i++) {
       const item = next[i]!
       const k = key(item, i)
-      nextKeys.set(k, { item, index: i })
+      if (nextKeys.has(k)) {
+        // Duplicate key: silent overwrite would drop the earlier item
+        // from the rendered output. Warn once per render — the user's
+        // key function is broken (or the list contains duplicate
+        // identity). Reconciliation continues using last-wins to keep
+        // the DOM in a consistent state.
+        console.warn(
+          '[sui] {#for}: duplicate key',
+          k,
+          'at index',
+          i,
+          '(prior at',
+          nextKeys.get(k),
+          '); the earlier item will be dropped from the rendered output.',
+          'Fix the key function so each item maps to a unique value.',
+        )
+      }
+      nextKeys.set(k, i)
     }
 
-    const prevByKey = new Map<unknown, ItemRecord<T>>()
     for (const r of prev) prevByKey.set(r.key, r)
 
-    // 1. Remove items that are gone in the next array.
+    // 1. Remove items that are gone in the next array. Rows with an
+    //    out-transition stay in DOM until the animation resolves; the
+    //    LIS reposition below skips them naturally since they're
+    //    absent from `nextRecords`. No transition → synchronous flush
+    //    (preserves the historical non-animated behaviour).
     for (const r of prev) {
-      if (!nextKeys.has(r.key)) {
-        for (const n of r.nodes) {
-          try {
-            n.parentNode?.removeChild(n)
-          } catch {
-            // Already detached — ignore.
-          }
-        }
-        r.cleanup?.()
+      if (nextKeys.has(r.key)) continue
+      const leaving = runLeave(r.nodes)
+      if (leaving === null) {
+        flush(r)
+        continue
       }
+      departing.add(r)
+      leaving.then(() => {
+        if (!departing.delete(r)) return
+        flush(r)
+      })
     }
 
-    // 2. Walk the new array; reuse where keys match, render where new.
-    //    Insert each item's nodes immediately after the running cursor.
-    let cursor: Node = anchor
-    const newRecords: ItemRecord<T>[] = []
-    for (let i = 0; i < next.length; i++) {
+    // 2. Build new records list — reuse matched keys, render new ones.
+    //    No DOM mutations in this pass.
+    nextRecords.length = 0
+    freshNodes.length = 0
+    let anyReused = false
+    for (let i = 0; i < n; i++) {
       const item = next[i]!
       const k = key(item, i)
       const existing = prevByKey.get(k)
       let record: ItemRecord<T>
       if (existing) {
-        existing.item = item
-        existing.update?.(item, i)
+        anyReused = true
+        // Skip the per-row update push when the item reference and its
+        // position are both unchanged. The row's internal signals would
+        // short-circuit on Object.is anyway, but the function-call /
+        // closure-allocation overhead per row dominates at N=1000.
+        if (existing.item !== item || existing.__i !== i) {
+          existing.item = item
+          existing.__i = i
+          runProtected(anchor, 'render', () => existing.update?.(item, i))
+        }
         record = existing
       } else {
-        const r = render(item, i)
+        const r = runProtected(anchor, 'render', () => render(item, i))
+        if (!r) {
+          // Render threw and was caught by a boundary (or logged when
+          // no boundary is in scope). Skip this item: the boundary
+          // will unmount the subtree shortly.
+          continue
+        }
         record = {
           key: k,
           item,
+          __i: i,
           nodes: r.nodes,
           ...(r.cleanup && { cleanup: r.cleanup }),
           ...(r.update && { update: r.update }),
         }
+        freshNodes.push(...r.nodes)
       }
-      // Move/insert nodes into position right after `cursor`.
-      const parent = anchor.parentNode
-      if (!parent) {
-        // Anchor isn't in a tree — defer (this can happen mid-disconnect).
-        continue
-      }
-      for (const n of record.nodes) {
-        const desired = cursor.nextSibling
-        if (n !== desired) {
-          parent.insertBefore(n, desired)
-        }
-        cursor = n
-      }
-      newRecords.push(record)
+      nextRecords.push(record)
     }
 
-    prev = newRecords
+    // 3. Find matched records already in a stable relative order (LIS of
+    //    their previous-array positions). These records don't need DOM
+    //    moves — only non-LIS and new records are repositioned. Skipped
+    //    entirely when step 2 reused no rows (full-replace / first
+    //    render): with no matches there's no LIS to compute and the
+    //    placement loop below takes the fragment fast path.
+    let matchedCount = 0
+    if (anyReused) {
+      for (let i = 0; i < prev.length; i++) prevPos.set(prev[i]!.key, i)
+
+      for (let i = 0; i < nextRecords.length; i++) {
+        const p = prevPos.get(nextRecords[i]!.key)
+        if (p !== undefined) {
+          matched[2 * matchedCount] = i
+          matched[2 * matchedCount + 1] = p
+          matchedCount++
+        }
+      }
+
+      computeLisMaskInto(matched, matchedCount, lisMaskBuf, lisPred, lisTails)
+      for (let j = 0; j < matchedCount; j++) {
+        if (lisMaskBuf[j]) stable.add(matched[2 * j]!)
+      }
+    }
+
+    // 4. Place all records. Fast path: when no records were matched
+    //    against the previous render, every record's nodes are freshly
+    //    created and unparented — batch them into a DocumentFragment so
+    //    the parent sees one mutation instead of N. Covers both the
+    //    initial mount (prev empty) and full-replace (prev fully
+    //    discarded, all new keys). Custom elements still upgrade and
+    //    receive connectedCallback when the fragment lands in the live
+    //    tree.
+    const parent = anchor.parentNode
+    if (parent && matchedCount === 0 && nextRecords.length > 0) {
+      const frag = document.createDocumentFragment()
+      for (let i = 0; i < nextRecords.length; i++) {
+        const nodes = nextRecords[i]!.nodes
+        for (let j = 0; j < nodes.length; j++) frag.appendChild(nodes[j]!)
+      }
+      parent.insertBefore(frag, anchor.nextSibling)
+    } else {
+      let cursor: Node = anchor
+      for (let i = 0; i < nextRecords.length; i++) {
+        if (!parent) break
+        const record = nextRecords[i]!
+        if (stable.has(i)) {
+          cursor = record.nodes[record.nodes.length - 1] ?? cursor
+        } else {
+          for (const node of record.nodes) {
+            parent.insertBefore(node, cursor.nextSibling)
+            cursor = node
+          }
+        }
+      }
+    }
+
+    // Swap buffers: `nextRecords` becomes the new prev; the old prev
+    // (now stale) becomes the empty buffer for the next render.
+    const tmp = prev
+    prev = nextRecords
+    nextRecords = tmp
+
+    if (freshNodes.length > 0) runEnter(freshNodes)
+
+    // Drop scratch contents so we don't pin references (records, items,
+    // keys) between renders. The Maps/Sets themselves are reused.
+    nextKeys.clear()
+    prevByKey.clear()
+    prevPos.clear()
+    stable.clear()
+    freshNodes.length = 0
   })
 
   return () => {
     active = false
     dispose()
-    for (const r of prev) {
-      for (const n of r.nodes) {
-        try {
-          n.parentNode?.removeChild(n)
-        } catch {
-          // Already detached.
-        }
-      }
-      r.cleanup?.()
-    }
+    for (const r of prev) flush(r)
+    // Departing rows: hard teardown skips out-animations.
+    for (const d of departing) flush(d)
+    departing.clear()
     prev = []
+    nextRecords.length = 0
+    lastItems = null
   }
 }
 

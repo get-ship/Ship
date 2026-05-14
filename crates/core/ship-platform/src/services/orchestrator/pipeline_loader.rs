@@ -13,8 +13,6 @@
 
 use ship_substrate::events::job::{JobCreatedPayload, Pipeline, PipelineStep};
 use ship_jobs::pipeline::{PipelineMeta, normalize_pipeline};
-// Validation moved to `ship-pipelines::validate` per modular-runtime-01.
-// Re-export the load-time helper used by step_io callers.
 
 mod resolve;
 use resolve::resolve_steps;

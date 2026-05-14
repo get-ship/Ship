@@ -1,6 +1,37 @@
 import { controller, signal, ref } from '@ship/sui-runtime'
 import type { Signal } from '@ship/sui-runtime'
 import type { Scope } from './sui-panel-dock.sui'
+import { ensureResizePillStyles } from './resize-pill-styles'
+
+// Lazy-load the sui-terminal island bundle. The shell ships <sui-panel-dock>
+// eagerly but not xterm.js — the dock auto-populates an empty terminal slot
+// on first mount so the Terminal tab renders the live engine rather than
+// the empty area users were reporting. Subsequent mounts no-op via the
+// custom-elements registry check + dedup of the inserted script tag.
+const SUI_TERMINAL_BUNDLE = '/_sui/islands/sui-terminal/island.js'
+
+function ensureTerminalLoaded(): void {
+  if (customElements.get('sui-terminal')) return
+  if (document.querySelector('script[data-sui-terminal-island]')) return
+  const s = document.createElement('script')
+  s.type = 'module'
+  s.src = SUI_TERMINAL_BUNDLE
+  s.dataset['suiTerminalIsland'] = '1'
+  document.head.appendChild(s)
+}
+
+function ensureTerminalSlotFilled(host: HTMLElement): void {
+  // If an outer surface already projects a terminal child, defer to it —
+  // index.html / app shells may want to project a real engine elsewhere.
+  const existing = host.querySelector(':scope > [slot="terminal"]')
+  if (existing) return
+  const term = document.createElement('sui-terminal')
+  term.setAttribute('slot', 'terminal')
+  term.setAttribute('fit', '')
+  // Light-DOM child of the dock → projected into <slot name="terminal">.
+  host.appendChild(term)
+  ensureTerminalLoaded()
+}
 
 export interface DockTabDef {
   id: string
@@ -22,16 +53,30 @@ const DEFAULT_TABS: DockTabDef[] = [
 const DEFAULT_HEIGHT = 240
 const MIN_HEIGHT = 120
 
+interface DockScope {
+  activeTab: Signal<string>
+  storageKey: () => string
+  resizing: Signal<boolean>
+}
+
 export default controller<Scope>({
   scope: (state, host) => {
     const tabs = signal<DockTabDef[]>(DEFAULT_TABS)
+    const dragHeight = signal<number>(DEFAULT_HEIGHT)
+    const resizeHandle = ref<HTMLElement>(null)
     const hostEl = host as HTMLElement | null
-    const activeTabSig = (state as { activeTab: Signal<string> }).activeTab
+    const s = state as unknown as DockScope
+
+    const writeStored = (suffix: string, val: string): void => {
+      try { localStorage.setItem(`${s.storageKey()}-${suffix}`, val) }
+      catch { /* best-effort */ }
+    }
 
     function activate(id: string): void {
       if (!tabs().some((t) => t.id === id)) return
-      if (activeTabSig() === id) return
-      activeTabSig.set(id)
+      if (s.activeTab() === id) return
+      s.activeTab.set(id)
+      writeStored('active', id)
       hostEl?.dispatchEvent(
         new CustomEvent('sui:dock:activate', {
           detail: { tab: id }, bubbles: true, composed: true,
@@ -41,14 +86,14 @@ export default controller<Scope>({
     function onClear(): void {
       hostEl?.dispatchEvent(
         new CustomEvent('sui:dock:clear', {
-          detail: { tab: activeTabSig() }, bubbles: true, composed: true,
+          detail: { tab: s.activeTab() }, bubbles: true, composed: true,
         }),
       )
     }
     function onPopout(): void {
       hostEl?.dispatchEvent(
         new CustomEvent('sui:dock:popout', {
-          detail: { tab: activeTabSig() }, bubbles: true, composed: true,
+          detail: { tab: s.activeTab() }, bubbles: true, composed: true,
         }),
       )
     }
@@ -58,9 +103,7 @@ export default controller<Scope>({
       )
     }
 
-    const resizeHandle = ref<HTMLElement>(null)
-
-    return { tabs, resizeHandle, activate, onClear, onPopout, onClose }
+    return { tabs, dragHeight, resizeHandle, activate, onClear, onPopout, onClose }
   },
 
   mount(state, host) {
@@ -68,50 +111,49 @@ export default controller<Scope>({
     const tabsSig = (scope as unknown as { tabs: Signal<DockTabDef[]> }).tabs
     const activeTabSig = (scope as unknown as { activeTab: Signal<string> }).activeTab
     const resizingSig = (scope as unknown as { resizing: Signal<boolean> }).resizing
-    const storageKeySig = (scope as unknown as { storageKey: () => string }).storageKey
+    const dragHeightSig = (scope as unknown as { dragHeight: Signal<number> }).dragHeight
+    const storageKey = (scope as unknown as { storageKey: () => string }).storageKey
     const activate = (scope as unknown as { activate: (id: string) => void }).activate
     const resizeHandle = (scope as unknown as { resizeHandle: () => HTMLElement }).resizeHandle()
 
-    function readStored(suffix: string): string | null {
-      try { return localStorage.getItem(`${storageKeySig()}-${suffix}`) }
+    ensureResizePillStyles()
+    ensureTerminalSlotFilled(host)
+
+    const readStored = (suffix: string): string | null => {
+      try { return localStorage.getItem(`${storageKey()}-${suffix}`) }
       catch { return null }
     }
-    function writeStored(suffix: string, val: string): void {
-      try { localStorage.setItem(`${storageKeySig()}-${suffix}`, val) }
+    const writeStored = (suffix: string, val: string): void => {
+      try { localStorage.setItem(`${storageKey()}-${suffix}`, val) }
       catch { /* best-effort */ }
     }
 
-    function applyHeight(px: number): void {
+    const applyHeight = (px: number): void => {
       document.documentElement.style.setProperty('--ship-dock-height', `${px}px`)
+      dragHeightSig.set(px)
     }
-    function currentHeight(): number {
+    const currentHeight = (): number => {
       const v = getComputedStyle(document.documentElement).getPropertyValue('--ship-dock-height')
       const n = Number.parseInt(v, 10)
       return Number.isFinite(n) ? n : DEFAULT_HEIGHT
     }
 
-    // Restore persisted state
+    // Hydrate persisted state.
     const lastActive = readStored('active')
-    if (lastActive && DEFAULT_TABS.some((t) => t.id === lastActive)) {
+    if (lastActive && tabsSig().some((t) => t.id === lastActive)) {
       activeTabSig.set(lastActive)
     }
     const h = Number.parseInt(readStored('height') ?? '', 10)
     applyHeight(Number.isFinite(h) ? h : DEFAULT_HEIGHT)
 
-    // Persist active tab on user-driven changes (via activate()).
-    // We intercept the activate handler to write through.
-    const wrappedActivate = (id: string): void => {
-      const prev = activeTabSig()
-      activate(id)
-      if (activeTabSig() !== prev) writeStored('active', id)
-    }
-
     // Toolbar slot content tracking — adds .has-content when assigned.
+    // {#for tabs()} re-renders the toolbar list when tabs change, so we
+    // re-attach listeners after each render by observing shadowRoot.
     const sr = host.shadowRoot!
     const toolbarCleanups: Array<() => void> = []
-    for (const tb of sr.querySelectorAll<HTMLElement>('[data-toolbar]')) {
+    const trackToolbar = (tb: HTMLElement): void => {
       const slot = tb.querySelector<HTMLSlotElement>('slot')
-      if (!slot) continue
+      if (!slot) return
       const sync = (): void => {
         const has = slot.assignedElements({ flatten: true }).length > 0
         tb.classList.toggle('has-content', has)
@@ -120,8 +162,19 @@ export default controller<Scope>({
       queueMicrotask(sync)
       toolbarCleanups.push(() => slot.removeEventListener('slotchange', sync))
     }
+    for (const tb of sr.querySelectorAll<HTMLElement>('[data-toolbar]')) trackToolbar(tb)
+    const mo = new MutationObserver((records) => {
+      for (const r of records) {
+        for (const n of r.addedNodes) {
+          if (n.nodeType !== 1) continue
+          const el = n as HTMLElement
+          if (el.matches?.('[data-toolbar]')) trackToolbar(el)
+        }
+      }
+    })
+    mo.observe(sr, { childList: true, subtree: true })
 
-    // Resize drag
+    // Resize drag.
     const onPointerDown = (ev: PointerEvent): void => {
       ev.preventDefault()
       const startY = ev.clientY
@@ -164,8 +217,8 @@ export default controller<Scope>({
     resizeHandle.addEventListener('pointerdown', onPointerDown)
     resizeHandle.addEventListener('dblclick', onDblClick)
 
-    // Public imperative API
-    Object.defineProperty(host, 'activate', { value: wrappedActivate, configurable: true })
+    // Imperative API parity with <ship-panel-dock>.
+    Object.defineProperty(host, 'activate', { value: activate, configurable: true })
     Object.defineProperty(host, 'show', {
       value: () => document.body.classList.add('dock-open'), configurable: true,
     })
@@ -183,6 +236,7 @@ export default controller<Scope>({
 
     return () => {
       for (const cleanup of toolbarCleanups) cleanup()
+      mo.disconnect()
       resizeHandle.removeEventListener('pointerdown', onPointerDown)
       resizeHandle.removeEventListener('dblclick', onDblClick)
     }

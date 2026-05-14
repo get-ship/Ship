@@ -1,4 +1,5 @@
 //! Skill directory inspection helpers shared by skill-listing tools.
+#![allow(dead_code)] // helpers used by skill tools not yet wired to MCP server
 
 use std::collections::HashMap;
 use std::path::Path;

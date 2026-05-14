@@ -46,20 +46,37 @@ function navigateDoc(to: string): void {
 export default controller<Scope>({
   scope: (state, host) => {
     const path = (state as { path: () => string }).path
+    const projectProp = (state as { project: () => string }).project
+    const viewProp = (state as { view: () => string }).view
     const labels = signal<Map<string, string>>(new Map())
     const dockOpen = signal(false)
 
     const crumbs = derived<Crumb[]>(() => {
-      const p = path()
       const labelsMap = labels()
-      const segs = p.split('/').filter(Boolean)
+      const project = projectProp().trim()
+      const view = viewProp().trim()
+
+      // Source segments: explicit `view` prop overrides path entirely.
+      // Otherwise split the path; empty path falls back to the "dashboard"
+      // crumb (parity with ship-nav-top.renderCrumbs).
+      const segs = view
+        ? [view]
+        : path().split('/').filter(Boolean)
       if (segs.length === 0) segs.push('dashboard')
-      return segs.map((seg, i) => {
+
+      const out: Crumb[] = []
+      if (project) {
+        // Project segment links to root; never the leaf (a view always
+        // follows). Matches the ship-shell home-link convention.
+        out.push({ href: '/', label: project, isLast: false })
+      }
+      segs.forEach((seg, i) => {
         const isLast = i === segs.length - 1
         const href = '/' + segs.slice(0, i + 1).join('/')
         const label = i === 0 ? (labelsMap.get(seg) ?? humanize(seg)) : seg
-        return { href, label, isLast }
+        out.push({ href, label, isLast })
       })
+      return out
     })
 
     const hostEl = host as HTMLElement | null
@@ -77,17 +94,9 @@ export default controller<Scope>({
         new CustomEvent('sui:rail:toggle', { bubbles: true, composed: true }),
       )
     }
-    function onStudio(): void {
-      navigateDoc('/ship-ui-studio')
-    }
     function onDockToggle(): void {
       hostEl?.dispatchEvent(
         new CustomEvent('sui:dock:toggle', { bubbles: true, composed: true }),
-      )
-    }
-    function onChatToggle(): void {
-      hostEl?.dispatchEvent(
-        new CustomEvent('sui:chat:toggle', { bubbles: true, composed: true }),
       )
     }
     function onFullscreen(): void {
@@ -97,8 +106,8 @@ export default controller<Scope>({
 
     return {
       labels, dockOpen, crumbs,
-      onCrumbClick, onBrand, onRailToggle, onStudio,
-      onDockToggle, onChatToggle, onFullscreen,
+      onCrumbClick, onBrand, onRailToggle,
+      onDockToggle, onFullscreen,
     }
   },
 

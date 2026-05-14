@@ -56,8 +56,8 @@ export interface SetupInfo {
   namespaces?: UseNamespace[];
   /** Handlers from the `on:` section (D-4). */
   onHandlers?: OnHandler[];
-  /** Template-declared scope members resolved from the sibling `.sui.d.ts`,
-   * when the `.ts` imports Scope from a `.sui` path (D-1). */
+  /** Template-declared scope members resolved from the mirror-tree
+   * `.sui.d.ts`, when the `.ts` imports Scope from a `.sui` path (D-1). */
   scopeMembers?: SetupMember[];
 }
 
@@ -69,15 +69,44 @@ export function pairedSetupPath(templateFsPath: string): string | null {
 }
 
 /**
- * Given a `.ts` setup file path, find the sibling `.sui.d.ts` file if present.
- * Returns the path or null if not found.
+ * Walk up from `start` until a workspace `Cargo.toml` (the one with a
+ * `[workspace]` table) is found. Returns the repo root, or null when no
+ * marker is found before the filesystem root.
+ */
+function findRepoRoot(start: string): string | null {
+  let cur = path.resolve(start);
+  while (true) {
+    const cargo = path.join(cur, 'Cargo.toml');
+    try {
+      const s = fs.readFileSync(cargo, 'utf8');
+      if (s.includes('[workspace]')) return cur;
+    } catch {}
+    const parent = path.dirname(cur);
+    if (parent === cur) return null;
+    cur = parent;
+  }
+}
+
+/**
+ * Given a `.ts` setup file path, find its companion `.sui.d.ts` in the
+ * project mirror tree (`<repo-root>/.ship/sui-out/<src-rel>/`). The setup
+ * file is paired by stem: a setup at `<src>/<stem>.ts` corresponds to a
+ * `.sui` at `<src>/<stem>.sui` and a declaration at
+ * `<repo-root>/.ship/sui-out/<src-rel>/<stem>.sui.d.ts` — except for
+ * view pages, where `controller.ts` pairs with `page.sui`. Returns the
+ * resolved path or null when no mirror artifact exists.
  */
 export function pairedDtsPath(setupFsPath: string): string | null {
   const dir = path.dirname(setupFsPath);
   const base = path.basename(setupFsPath);
-  const stem = base.endsWith('.ts') ? base.slice(0, -3) : base;
-  // stem is e.g. "view" — we look for "view.sui.d.ts" next to "view.ts"
-  const candidate = path.join(dir, `${stem}.sui.d.ts`);
+  const stem = base === 'controller.ts'
+    ? 'page'
+    : (base.endsWith('.ts') ? base.slice(0, -3) : base);
+  const dtsName = `${stem}.sui.d.ts`;
+  const repoRoot = findRepoRoot(dir);
+  if (!repoRoot) return null;
+  const rel = path.relative(repoRoot, dir);
+  const candidate = path.join(repoRoot, '.ship/sui-out', rel, dtsName);
   try {
     fs.accessSync(candidate);
     return candidate;
@@ -183,8 +212,8 @@ export function analyzeSetup(setupPath: string, source: string): SetupInfo {
   }
 
   // D-1 enhancement: if the .ts file imports `Scope` from a `.sui` path,
-  // resolve the sibling `.sui.d.ts` and enrich `scopeMembers` with typed
-  // declarations. These are the template-declared bindings (state, data,
+  // resolve the mirror-tree `.sui.d.ts` and enrich `scopeMembers` with
+  // typed declarations. These are the template-declared bindings (state, data,
   // props, use-* hooks) the controller may not expose in its own sections.
   const dtsPath = pairedDtsPath(setupPath);
   if (dtsPath) {

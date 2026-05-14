@@ -61,7 +61,14 @@ impl<'a> Parser<'a> {
             while self.i < self.bytes.len() && self.bytes[self.i] != b'<' {
                 self.i += 1;
             }
-            let data = decode_entities(&self.src[start..self.i]);
+            // Don't decode HTML entities here — the text chunk may contain
+            // `{...}` expression markers whose bodies are JS source, not
+            // HTML content. Decoding `&deg;` to `°` inside an expression
+            // body produces multi-byte chars that downstream byte-walkers
+            // (lex.rs, expr_subset.rs, expr_rewrite.rs) historically can't
+            // handle. The template tokenizer decodes Text-token bodies
+            // explicitly after expression splitting; expressions stay raw.
+            let data = self.src[start..self.i].to_string();
             out.push(Node::Text(Text { data, span: Span::new(start, self.i) }));
         }
         if let Some(parent) = parent_tag {
@@ -187,9 +194,19 @@ impl<'a> Parser<'a> {
             } else {
                 self.read_unquoted()
             };
+            // Attribute values are kept raw when they're an expression
+            // (`name="{expr}"`) — the body is JS source. Plain literal
+            // values are decoded as HTML so `href="https://x?a=1&amp;b=2"`
+            // still produces a valid URL.
+            let trimmed = value.trim();
+            let decoded = if trimmed.starts_with('{') && trimmed.ends_with('}') {
+                value
+            } else {
+                decode_entities(&value)
+            };
             out.push(Attr {
                 name,
-                value: decode_entities(&value),
+                value: decoded,
                 span: Span::new(name_start, self.i),
                 value_span: vs,
             });

@@ -8,7 +8,7 @@
     "test:watch": "vitest",
     "db:generate:auth": "drizzle-kit generate --config drizzle-auth.config.ts",
     "db:generate:registry": "drizzle-kit generate --config drizzle-registry.config.ts",
-    "db:generate": "pnpm db:generate:auth && pnpm db:generate:registry"
+    "db:generate": "bun run db:generate:auth && bun run db:generate:registry"
   },
   "dependencies": {
     "@ship-cloud/types": "workspace:*",

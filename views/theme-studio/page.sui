@@ -1,0 +1,85 @@
+<div class="ship-view ship-theme-studio">
+
+  <!-- Left: token editor -->
+  <aside class="ts-editor">
+    <h2>Tokens</h2>
+    {#for entry of tokenEntries() key={entry.name}}
+      <div class="ts-row">
+        <label attr:for={'ts-' + entry.name}>{entry.name}</label>
+        {#if entry.meta.type === 'color'}
+          <span class="ts-swatch" style:background={draftTokens()[entry.name] ?? entry.meta.default}></span>
+        {:else}
+          <span class="ts-swatch" style="background: transparent; border-style: dashed"></span>
+        {/if}
+        <input type="text"
+          attr:id={'ts-' + entry.name}
+          attr:value={draftTokens()[entry.name] ?? entry.meta.default}
+          attr:aria-label={entry.name + ' value'}
+          on:input={(e) => draftTokens.set({ ...draftTokens(), [entry.name]: e.target.value })} />
+        {#if entry.meta.intent}
+          <span class="ts-intent">{entry.meta.intent}</span>
+        {/if}
+      </div>
+    {/for}
+  </aside>
+
+  <!-- Right top: live preview -->
+  <section class="ts-preview" id="ts-preview" data-theme-draft attr:style={draftStyle()}>
+    <div class="hero">
+      <h1 style="margin:0">Primary headline</h1>
+    </div>
+    <p style="color: var(--muted-foreground); max-width: 520px">
+      Body copy lives in muted-foreground. Interactive elements use primary.
+      Destructive actions should remain legible against the background.
+    </p>
+    <div style="display:flex; gap:12px; margin: 16px 0">
+      <button class="btn-primary">Primary action</button>
+      <button class="btn-destructive">Destructive</button>
+    </div>
+    <div class="hero">
+      <div class="card">
+        <strong>Card title</strong>
+        <div style="margin-top:6px">Muted on muted — legibility matters here.</div>
+      </div>
+      <div class="card">
+        <strong>Another</strong>
+        <div style="margin-top:6px">Borders should read at arm's length.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Right bottom: contrast report -->
+  <section class="ts-contrast">
+    {#if contrastReport().kind === 'ok'}
+      <table>
+        <thead>
+          <tr>
+            <th>Pair</th><th>Ratio</th><th>Min</th><th>AA body</th><th>AAA</th><th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {#for p of contrastRows() key={p.label}}
+            <tr>
+              <td>{p.label} ({p.foreground}/{p.background})</td>
+              <td>{p.ratioStr}</td>
+              <td>{p.minStr}</td>
+              <td>{p.aa_body === true ? '✓' : p.aa_body === false ? '✗' : '?'}</td>
+              <td>{p.aaa_body === true ? '✓' : p.aaa_body === false ? '✗' : '?'}</td>
+              <td>
+                <span class:pass={p.passes === true} class:fail={p.passes === false}>
+                  {p.passes === true ? 'pass' : p.passes === false ? 'fail' : '—'}
+                </span>
+              </td>
+            </tr>
+          {/for}
+        </tbody>
+      </table>
+    {/if}
+    {#if contrastReport().kind === 'error'}
+      <p style="color: var(--destructive); font-size: var(--text-xs)">
+        Contrast unavailable: {contrastReport().error.message}
+      </p>
+    {/if}
+  </section>
+
+</div>

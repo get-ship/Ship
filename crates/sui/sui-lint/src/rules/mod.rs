@@ -12,6 +12,8 @@ use lint::report::Finding;
 
 pub mod controller_purity;
 pub mod css_token;
+pub mod event_name;
+pub mod for_key;
 
 /// Function signature every rule conforms to.
 pub type RuleFn = fn(&Path, &str) -> Vec<Finding>;
@@ -26,4 +28,6 @@ pub const CONTROLLER_RULES: &[(&str, RuleFn)] = &[
 /// `lib.rs::lint_sui_template_source` walks this slice in order.
 pub const SUI_TEMPLATE_RULES: &[(&str, RuleFn)] = &[
     (css_token::RULE_ID, css_token::check),
+    (for_key::RULE_ID, for_key::check),
+    (event_name::RULE_ID, event_name::check),
 ];

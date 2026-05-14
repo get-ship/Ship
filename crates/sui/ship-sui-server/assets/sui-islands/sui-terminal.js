@@ -1,5 +1,5 @@
 // packages/ui-components/src/islands/sui-terminal/sui-terminal.sui
-import { adoptSuiSheets, attachRef, bindAttr, component, prop } from "@ship/sui-runtime";
+import { adoptSuiSheets, attachRef, bindAttr, component, prop, signal } from "@ship/sui-runtime";
 
 // packages/ui-components/src/islands/sui-terminal/sui-terminal.controller.ts
 import { controller, effect } from "@ship/sui-runtime";
@@ -13771,6 +13771,7 @@ var sui_terminal_default = component("sui-terminal", {
     $scope.readonly = props.readonly;
     $scope.theme = props.theme;
     $scope.fit = props.fit;
+    $scope["termHost"] = signal(null);
     let __r = null;
     if (sui_terminal_controller_default && typeof sui_terminal_controller_default.setup === "function") {
       ctx.scope = $scope;

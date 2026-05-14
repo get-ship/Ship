@@ -1,16 +1,48 @@
-// ship-set runtime — fine-grained reactive signals.
+// SUI runtime — fine-grained reactive signals.
 //
 // Solid-shaped: signals are sources, derived are memoized computeds,
 // effects subscribe and re-run on dep change. Reading inside a tracked
 // scope (effect/derived) auto-subscribes; writing notifies subscribers.
 //
-// See .artifacts/specs/ship-set/03-runtime-architecture.md § Signal engine.
+// Dependency tracking is diff-based: each tracked run records an
+// "untrack" thunk per fresh subscription; the next run (or disposal)
+// fires the prior thunks first so deps the closure no longer reads
+// stop firing it. Mirrors `crates/sui-signals` to keep server-side
+// and browser-side reactivity in lockstep.
+
+import { findNearestBoundary } from './error-boundary'
 
 type Subscriber = () => void
+type UntrackThunk = () => void
 
 let CURRENT_OBSERVER: Subscriber | null = null
+// `null` outside any tracked run. Inside an effect/derived run, points
+// at the Vec that observer is using to collect untracks for this run.
+let CURRENT_UNTRACKS: UntrackThunk[] | null = null
 let BATCH_DEPTH = 0
 const PENDING: Set<Subscriber> = new Set()
+
+// Host stack — pushed/popped by the component factory wrapper so any
+// effect created during a component's setup captures `this` as its
+// host for error-boundary routing. Outside any setup the stack is
+// empty and effects fall through to console.error on throw.
+const HOST_STACK: Node[] = []
+
+/** Push a host on the stack while `fn` runs. Used by the component
+ *  factory wrapper so effects/deriveds created during setup capture
+ *  it. */
+export function withHost<T>(host: Node, fn: () => T): T {
+  HOST_STACK.push(host)
+  try {
+    return fn()
+  } finally {
+    HOST_STACK.pop()
+  }
+}
+
+function currentHost(): Node | null {
+  return HOST_STACK.length > 0 ? HOST_STACK[HOST_STACK.length - 1]! : null
+}
 
 /**
  * A reactive signal — a callable getter paired with a setter and a
@@ -35,6 +67,22 @@ export interface Signal<T> {
   __subs: Set<Subscriber>
   /** package-private — current cached value, useful for non-tracking reads. */
   __peek(): T
+}
+
+/**
+ * Subscribe the current observer (if any) to `subs` and record an untrack
+ * thunk so it can be removed on the observer's next run or disposal.
+ *
+ * Called by both `signal` and `derived` getters.
+ */
+function track(subs: Set<Subscriber>): void {
+  if (CURRENT_OBSERVER === null) return
+  if (subs.has(CURRENT_OBSERVER)) return
+  const sub = CURRENT_OBSERVER
+  subs.add(sub)
+  if (CURRENT_UNTRACKS !== null) {
+    CURRENT_UNTRACKS.push(() => subs.delete(sub))
+  }
 }
 
 /**
@@ -65,7 +113,7 @@ export function signal<T>(initial: T): Signal<T> {
   const subs = new Set<Subscriber>()
 
   const sig = (() => {
-    if (CURRENT_OBSERVER !== null) subs.add(CURRENT_OBSERVER)
+    track(subs)
     return value
   }) as Signal<T>
 
@@ -97,12 +145,18 @@ export function signal<T>(initial: T): Signal<T> {
 export interface Derived<T> extends Signal<T> {}
 
 /**
- * Create a memoized computed value. `fn` runs once eagerly to seed the
- * cache, then re-runs on demand whenever a tracked dependency invalidates.
+ * Create a memoized computed value. `fn` runs once on first read to
+ * seed the cache, then re-runs on demand when a tracked dependency
+ * invalidates.
  *
- * Subscribers are notified on invalidation, not on recompute — readers
- * pay the recomputation cost only when they actually pull. Dependencies
- * are re-collected each run, so conditional reads work.
+ * Notifications are referentially memoized: when a dep changes we
+ * eagerly recompute and skip notifying subscribers when the new value
+ * is `Object.is`-equal to the cached one (so a derived returning the
+ * same ref doesn't churn its downstream effects). When no subscribers
+ * exist we stay lazy and defer recompute to the next read. Dependencies
+ * are diffed each run: deps read in run N but not in run N+1 are
+ * unsubscribed, so conditional reads (e.g. `if cond() { a() } else
+ * { b() }`) do not leak stale subscriptions.
  *
  * @param fn Pure read function; tracked reads inside register as deps.
  * @returns A signal-like reader. Calling `.set` throws.
@@ -122,36 +176,41 @@ export function derived<T>(fn: () => T): Derived<T> {
   let value: T
   let dirty = true
   const subs = new Set<Subscriber>()
-  let trackedSigs: Signal<unknown>[] = []
+  let untracks: UntrackThunk[] = []
 
-  const recompute = () => {
-    const prev = CURRENT_OBSERVER
-    CURRENT_OBSERVER = invalidate
-    const oldTracked = trackedSigs
-    const newTracked: Signal<unknown>[] = []
-    // Trick: temporarily wrap tracking so we collect dependencies.
-    const collector: Subscriber = () => invalidate()
-    CURRENT_OBSERVER = collector
-    try {
-      value = fn()
-    } finally {
-      CURRENT_OBSERVER = prev
-    }
-    // Replace untracked subscriptions
-    for (const t of oldTracked) t.__subs.delete(invalidate)
-    trackedSigs = newTracked
-    dirty = false
-  }
-
-  const invalidate = () => {
+  const invalidate: Subscriber = () => {
     if (dirty) return
     dirty = true
-    // Notify subscribers — they read us next time and recompute lazily.
+    if (subs.size === 0) return
+    // Eagerly recompute so we can suppress notify on identity-equal
+    // results. Holds an immutable-ref contract: derived returning the
+    // same mutated reference will look unchanged here.
+    const prev = value
+    recompute()
+    if (Object.is(prev, value)) return
     for (const s of [...subs]) s()
   }
 
+  const recompute = () => {
+    // Drop prior dependency subscriptions.
+    for (const u of untracks) u()
+    untracks = []
+
+    const prevObs = CURRENT_OBSERVER
+    const prevUnt = CURRENT_UNTRACKS
+    CURRENT_OBSERVER = invalidate
+    CURRENT_UNTRACKS = untracks
+    try {
+      value = fn()
+    } finally {
+      CURRENT_OBSERVER = prevObs
+      CURRENT_UNTRACKS = prevUnt
+    }
+    dirty = false
+  }
+
   const reader = (() => {
-    if (CURRENT_OBSERVER !== null) subs.add(CURRENT_OBSERVER)
+    track(subs)
     if (dirty) recompute()
     return value
   }) as Derived<T>
@@ -176,6 +235,10 @@ export function derived<T>(fn: () => T): Derived<T> {
  * on disposal. Errors thrown inside `fn` or its cleanup are logged and
  * swallowed — one bad effect never breaks the reactive graph.
  *
+ * Dependencies are diffed each run: signals read in run N but not in
+ * run N+1 are unsubscribed. Disposal proactively unsubscribes from
+ * every signal the effect was tracking (no waiting for lazy pruning).
+ *
  * @param fn Side-effecting function; tracked reads register as deps.
  *   May return an optional cleanup callback.
  * @returns A disposer that detaches the effect.
@@ -198,8 +261,13 @@ export function derived<T>(fn: () => T): Derived<T> {
 export function effect(fn: () => void | (() => void)): () => void {
   let cleanup: (() => void) | void = undefined
   let active = true
+  let untracks: UntrackThunk[] = []
+  // Capture host at creation so subsequent re-runs (which happen
+  // outside any `withHost` scope) still know which boundary subtree
+  // they belong to.
+  const host = currentHost()
 
-  const run = () => {
+  const run: Subscriber = () => {
     if (!active) return
     if (cleanup) {
       try {
@@ -209,14 +277,27 @@ export function effect(fn: () => void | (() => void)): () => void {
       }
       cleanup = undefined
     }
-    const prev = CURRENT_OBSERVER
+
+    // Drop prior subscriptions so this run cleanly re-tracks.
+    for (const u of untracks) u()
+    untracks = []
+
+    const prevObs = CURRENT_OBSERVER
+    const prevUnt = CURRENT_UNTRACKS
     CURRENT_OBSERVER = run
+    CURRENT_UNTRACKS = untracks
     try {
       cleanup = fn()
     } catch (e) {
-      console.error('[sui] effect threw:', e)
+      const boundary = host ? findNearestBoundary(host) : null
+      if (boundary) {
+        boundary.catch(e, 'effect')
+      } else {
+        console.error('[sui] effect threw:', e)
+      }
     } finally {
-      CURRENT_OBSERVER = prev
+      CURRENT_OBSERVER = prevObs
+      CURRENT_UNTRACKS = prevUnt
     }
   }
 
@@ -224,12 +305,16 @@ export function effect(fn: () => void | (() => void)): () => void {
 
   return () => {
     active = false
+    // Proactively remove this effect from every signal's sub set.
+    for (const u of untracks) u()
+    untracks = []
     if (cleanup) {
       try {
         cleanup()
       } catch (e) {
         console.error('[sui] effect cleanup threw:', e)
       }
+      cleanup = undefined
     }
   }
 }

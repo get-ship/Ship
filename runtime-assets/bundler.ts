@@ -9,7 +9,7 @@
 // Start:  bun run ~/.ship/runtime/bundler.ts
 // Stop:   send { id, kind: 'shutdown' } or close stdin
 
-import { existsSync, mkdirSync, readdirSync, watch } from 'node:fs'
+import { existsSync, lstatSync, mkdirSync, readdirSync, watch } from 'node:fs'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { homedir, tmpdir } from 'node:os'
 import { basename, dirname, isAbsolute, join, resolve } from 'node:path'
@@ -45,7 +45,7 @@ interface BundleManifest {
 
 const repoRoot = process.env.SHIP_REPO_ROOT ?? process.cwd()
 const litAssetsDir = resolve(repoRoot, 'apps/shipd/assets')
-const suiAssetsDir = resolve(repoRoot, 'crates/sui/ship-ui-framework/assets')
+const suiAssetsDir = resolve(repoRoot, 'crates/sui/ship-sui-server/assets')
 
 function assetsDirFor(name: string): string {
   if (name.startsWith('sui-') || name.startsWith('views/')) return suiAssetsDir
@@ -98,24 +98,41 @@ function discoverIslandBundles(): BundleTarget[] {
   return out
 }
 
-// Views: one bundle per views/<name>/, entrypoint is page.sui itself. The
-// plugin's onLoad transforms the .sui via sui-compiler, and the resulting
-// `import setup from "./controller.ts"` resolves to views/<name>/controller.ts
-// (the .sui's own directory).
+// Views: one bundle per discovered view, entrypoint is the leaf .sui file.
+// The plugin's onLoad transforms the .sui via sui-compiler, and the
+// resulting `import setup from "./controller.ts"` resolves to the .sui's
+// own directory.
+//
+// Two layouts are honored, both rooted at the workspace (SHIP_REPO_ROOT
+// is the daemon's attached workspace, NOT the Ship repo):
+//
+// - `<workspace>/views/<name>/page.sui`        — top-level app convention
+// - `<workspace>/.ship/views/<name>/index.sui` — colocated with .ship/ config
+//
+// Top-level wins when both exist (mirrors the resolver's priority order,
+// which lets workspace `views/` shadow `.ship/views/` by name).
 function discoverViewBundles(): BundleTarget[] {
-  const viewsDir = resolve(repoRoot, 'views')
-  if (!existsSync(viewsDir)) return []
   const out: BundleTarget[] = []
-  for (const e of readdirSync(viewsDir, { withFileTypes: true })) {
-    if (!e.isDirectory()) continue
-    const pageSui = resolve(viewsDir, e.name, 'page.sui')
-    if (!existsSync(pageSui)) continue
-    out.push({
-      name: `views/${e.name}/view`,
-      entry: pageSui,
-      external: ['@ship/sui-runtime', '@ship/sui-runtime/template-hooks', '@ship/sui-dom', '@ship/sdk-client'],
-      outFile: `views/${e.name}/view.js`,
-    })
+  const seen = new Set<string>()
+  const candidates: Array<{ dir: string; leaf: string }> = [
+    { dir: resolve(repoRoot, 'views'), leaf: 'page.sui' },
+    { dir: resolve(repoRoot, '.ship', 'views'), leaf: 'index.sui' },
+  ]
+  for (const { dir, leaf } of candidates) {
+    if (!existsSync(dir)) continue
+    for (const e of readdirSync(dir, { withFileTypes: true })) {
+      if (!e.isDirectory()) continue
+      if (seen.has(e.name)) continue
+      const entry = resolve(dir, e.name, leaf)
+      if (!existsSync(entry)) continue
+      seen.add(e.name)
+      out.push({
+        name: `views/${e.name}/view`,
+        entry,
+        external: ['@ship/sui-runtime', '@ship/sui-runtime/template-hooks', '@ship/sui-dom', '@ship/sdk-client'],
+        outFile: `views/${e.name}/view.js`,
+      })
+    }
   }
   return out
 }
@@ -214,7 +231,7 @@ async function aggregateCem(): Promise<void> {
     const modules = (cem as { modules?: unknown[] })?.modules
     if (Array.isArray(modules)) out.modules.push(...modules)
   }
-  const target = resolve(repoRoot, 'crates/sui/ship-ui-framework/assets/sui-custom-elements.json')
+  const target = resolve(repoRoot, 'crates/ship-ui-framework/assets/sui-custom-elements.json')
   mkdirSync(dirname(target), { recursive: true })
   await Bun.write(target, JSON.stringify(out))
 }
@@ -233,14 +250,15 @@ function suiPlugin() {
     name: 'sui',
     setup(build: { onResolve: any; onLoad: any }) {
       // Redirect on-disk `.compiled.js` imports back to their `.sui` source
-      // so the plugin transforms them fresh. The convention across the
-      // monorepo is `<tag>/dist/<tag>.compiled.js` shadowing `<tag>/<tag>.sui`,
-      // used by sui-components/src/index.ts and the test pretest hook.
-      // Bundling reads the .sui directly — no on-disk shadow needed.
+      // so the plugin transforms them fresh. Post dist-relocation, imports
+      // name the artifact next to its source (`<tag>/<tag>.compiled.js`
+      // shadowing `<tag>/<tag>.sui`) — the actual artifact lives in the
+      // project mirror tree at `<repo-root>/.ship/sui-out/`, but the
+      // bundler reads the .sui directly so no on-disk shadow is needed.
       build.onResolve({ filter: /\.compiled\.js$/ }, ({ path: id, importer }: any) => {
         const abs = isAbsolute(id) ? id : resolve(dirname(importer ?? ''), id)
         const stem = basename(abs, '.compiled.js')
-        const sui = resolve(dirname(dirname(abs)), `${stem}.sui`)
+        const sui = resolve(dirname(abs), `${stem}.sui`)
         if (existsSync(sui)) return { path: sui }
         return null
       })
@@ -327,7 +345,7 @@ async function buildTarget(
 // ── File watcher ──────────────────────────────────────────────────────────────
 
 type FSWatcher = ReturnType<typeof watch>
-let activeWatcher: FSWatcher | null = null
+let activeWatchers: FSWatcher[] = []
 
 // Debounce: skip rebuild requests within 150ms of the last one per target
 const rebuildDebounce = new Map<string, ReturnType<typeof setTimeout>>()
@@ -352,23 +370,68 @@ function targetsForFile(absPath: string): BundleTarget[] {
   })
 }
 
+// Per-directory watch. We deliberately avoid `recursive: true` because Bun's
+// Linux implementation walks symlinks and aborts the entire subtree the first
+// time it hits a broken one — common in monorepos with stale `node_modules/`
+// symlinks. Walking real subdirectories ourselves keeps each watcher isolated.
+function watchDirRecursive(root: string, onFile: (absPath: string) => void) {
+  const SKIP = new Set(['node_modules', '.git', '.ship', 'target', 'dist', '.cache'])
+
+  function attach(dir: string) {
+    let entries: import('node:fs').Dirent[]
+    try {
+      entries = readdirSync(dir, { withFileTypes: true })
+    } catch {
+      return
+    }
+    let w: FSWatcher
+    try {
+      w = watch(dir, (event, filename) => {
+        if (!filename) return
+        const child = join(dir, filename)
+        // New directory created? Attach a watcher to it too.
+        if (event === 'rename') {
+          try {
+            const st = lstatSync(child)
+            if (st.isDirectory() && !SKIP.has(filename)) attach(child)
+          } catch {
+            // child was deleted between event and stat — ignore
+          }
+        }
+        onFile(child)
+      })
+    } catch {
+      return
+    }
+    w.on('error', (err: unknown) => {
+      const msg = err instanceof Error ? err.message : String(err)
+      process.stderr.write(`[bundler] watch error on ${dir}: ${msg}\n`)
+    })
+    activeWatchers.push(w)
+    for (const e of entries) {
+      if (!e.isDirectory()) continue
+      if (SKIP.has(e.name)) continue
+      attach(join(dir, e.name))
+    }
+  }
+  attach(root)
+}
+
 function startWatching() {
-  if (activeWatcher) return
+  if (activeWatchers.length > 0) return
 
   const watchDirs: string[] = []
-  for (const d of ['packages', 'views']) {
+  for (const d of ['packages', 'views', '.ship/views']) {
     const abs = resolve(repoRoot, d)
     if (existsSync(abs)) watchDirs.push(abs)
   }
   if (watchDirs.length === 0) return
 
   for (const dir of watchDirs) {
-    const w = watch(dir, { recursive: true }, (_event, filename) => {
-      if (!filename) return
-      const ext = filename.split('.').pop()
+    watchDirRecursive(dir, (absPath) => {
+      const ext = absPath.split('.').pop()
       if (!['ts', 'tsx', 'js', 'sui'].includes(ext ?? '')) return
 
-      const absPath = join(dir, filename)
       const affected = targetsForFile(absPath)
       const toRebuild = affected.length > 0 ? affected : TARGETS
 
@@ -391,16 +454,14 @@ function startWatching() {
         })
       }
     })
-    // keep the last watcher handle (we'll close all on stop)
-    activeWatcher = w
   }
 }
 
 function stopWatching() {
-  if (activeWatcher) {
-    activeWatcher.close()
-    activeWatcher = null
+  for (const w of activeWatchers) {
+    try { w.close() } catch {}
   }
+  activeWatchers = []
   for (const t of rebuildDebounce.values()) clearTimeout(t)
   rebuildDebounce.clear()
 }
@@ -413,12 +474,21 @@ function emit(msg: Response | Event) {
 
 // ── Main loop ─────────────────────────────────────────────────────────────────
 
-// CLI mode: `--all` runs build_all + exits without reading stdin. Used by
-// `just dev-build-all` so callers don't need to script stdin/stdout JSON
-// gymnastics for one-shot builds.
+// CLI mode: `--all` runs a one-shot build of the sui-* family + views and
+// exits. This is the asset set `crates/sui/ship-sui-server/build.rs` requires
+// via its ASSETS const, so the root `bun run build:bundles` script can fan
+// out here in CI without scripting the stdin/stdout JSON protocol.
+//
+// The `ship-*` (lit) targets are intentionally excluded — they belong to
+// `@ship/set`'s own build path (`bun run --filter '@ship/set' build` + `... icons`)
+// and depend on a generated lucide registry that lives outside this
+// bundler's dependency graph. Watch mode still rebuilds them on edit.
 if (process.argv.includes('--all')) {
   let failed = false
-  for (const target of TARGETS) {
+  const allTargets = TARGETS.filter(
+    (t) => t.name.startsWith('sui-') || t.name.startsWith('views/'),
+  )
+  for (const target of allTargets) {
     try {
       const { bytes } = await buildTarget(target)
       process.stdout.write(`✓ ${target.name} (${bytes} bytes)\n`)

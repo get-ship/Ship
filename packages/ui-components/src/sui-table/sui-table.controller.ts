@@ -1,6 +1,5 @@
 import { controller, signal, derived, bindNativeEvent } from '@ship/sui-runtime'
 import type { Scope } from './sui-table.sui'
-import type { Signal } from '@ship/sui-runtime'
 
 type Row = Record<string, unknown> & { id: string }
 type Column = { field: string; label: string }
@@ -71,29 +70,22 @@ export default controller<Scope>({
   },
 
   mount(state, host) {
-    const scope = state as unknown as Scope & {
-      rows: Signal<Row[]>; columns: Signal<Column[]>
-    }
-
-    // Wire rows/columns JS properties to their signals so parent can do
-    // prop:rows={list} / prop:columns={cols} (bindProp sets el.rows = value).
-    const rowsSignal = scope.rows as unknown as Signal<Row[]>
-    const colsSignal = scope.columns as unknown as Signal<Column[]>
-
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const initRows = (host as any).rows
-    if (initRows != null) rowsSignal.set(initRows)
+    if (initRows != null) state.rows.set(initRows)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const initCols = (host as any).columns
-    if (initCols != null) colsSignal.set(initCols)
+    if (initCols != null) state.columns.set(initCols)
 
     Object.defineProperty(host, 'rows', {
       configurable: true,
-      get: () => rowsSignal(),
-      set: (v: Row[]) => rowsSignal.set(v),
+      get: () => state.rows(),
+      set: (v: Row[]) => state.rows.set(v),
     })
     Object.defineProperty(host, 'columns', {
       configurable: true,
-      get: () => colsSignal(),
-      set: (v: Column[]) => colsSignal.set(v),
+      get: () => state.columns(),
+      set: (v: Column[]) => state.columns.set(v),
     })
 
     installLightDomStyles(host.ownerDocument)

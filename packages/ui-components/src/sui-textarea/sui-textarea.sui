@@ -35,18 +35,18 @@
   ────────────────────────────────────────────────────────────────────────
   Parts: textarea                textarea                  ✓
   ────────────────────────────────────────────────────────────────────────
-  formAssociated / internals     DEFERRED                  SUI component() factory
-                                                           does not surface
-                                                           ElementInternals today.
+  formAssociated / internals     NATIVE                    `form-value` on value,
+                                                           `form-disabled` on disabled
+                                                           wire ElementInternals.
   ────────────────────────────────────────────────────────────────────────
 -->
 
-<prop name="value" type="string" default="" />
+<prop name="value" type="string" default="" form-value />
 <prop name="placeholder" type="string" default="" />
 <prop name="name" type="string" default="" />
 <prop name="rows" type="number" default="4" />
 <prop name="required" type="bool" default="false" reflect />
-<prop name="disabled" type="bool" default="false" reflect />
+<prop name="disabled" type="bool" default="false" reflect form-disabled />
 <prop name="readonly" type="bool" default="false" reflect />
 <prop name="invalid" type="bool" default="false" reflect />
 <prop name="tone" values="default|primary|info|success|warning|destructive|accent|muted" default="default" reflect />

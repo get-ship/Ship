@@ -1,0 +1,120 @@
+.canvas-workspace {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  height: 100vh;
+  min-height: 0;
+}
+.canvas-rail {
+  border-right: 1px solid var(--border);
+  background: var(--sidebar);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+.canvas-rail-head {
+  padding: var(--space-4) var(--space-3) var(--space-3);
+  border-bottom: 1px solid var(--border);
+}
+.canvas-rail-title {
+  font-family: var(--font-display);
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-semibold);
+  margin: 0 0 var(--space-1);
+  letter-spacing: -0.01em;
+}
+.canvas-rail-sub { font-size: var(--text-xs); color: var(--muted-foreground); }
+.canvas-rail-list { padding: var(--space-2) 0; flex: 1; }
+.canvas-rail-item {
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-2) var(--space-3);
+  text-decoration: none;
+  color: var(--foreground);
+  border-left: 3px solid transparent;
+  transition: background var(--duration-fast) var(--ease-out),
+              border-color var(--duration-fast) var(--ease-out);
+}
+.canvas-rail-item:hover {
+  background: color-mix(in oklch, var(--muted) 50%, transparent);
+  border-left-color: color-mix(in oklch, var(--muted-foreground) 30%, transparent);
+}
+.canvas-rail-item.active {
+  background: color-mix(in oklch, var(--primary) 12%, transparent);
+  border-left-color: var(--primary);
+}
+.canvas-rail-item-title { font-size: var(--text-sm); font-weight: var(--font-weight-medium); }
+.canvas-rail-item-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+}
+.canvas-rail-item-id { font-family: var(--font-mono); font-size: 10px; color: var(--muted-foreground); opacity: 0.7; }
+.canvas-rail-item-detail { font-size: 10px; color: var(--muted-foreground); opacity: 0.7; }
+.canvas-rail-empty {
+  padding: var(--space-5) var(--space-3);
+  font-size: var(--text-xs);
+  color: var(--muted-foreground);
+  line-height: 1.5;
+}
+.canvas-rail-empty code {
+  font-family: var(--font-mono);
+  background: var(--muted);
+  padding: 1px var(--space-1);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+}
+.canvas-rail-section {
+  padding: var(--space-3) var(--space-3) var(--space-2);
+  border-top: 1px solid var(--border);
+}
+.canvas-rail-section-title {
+  font-size: 10px;
+  font-weight: var(--font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted-foreground);
+  margin: 0 0 var(--space-2);
+}
+.canvas-feedback-item {
+  padding: var(--space-1) 0;
+  font-size: var(--text-xs);
+  color: var(--muted-foreground);
+  line-height: 1.4;
+  border-bottom: 1px solid color-mix(in oklch, var(--border) 50%, transparent);
+}
+.canvas-feedback-item:last-child { border-bottom: none; }
+.canvas-feedback-author { font-weight: var(--font-weight-medium); color: var(--foreground); }
+.canvas-feedback-time { font-size: 10px; opacity: 0.6; }
+.canvas-feedback-empty { font-size: var(--text-xs); color: var(--muted-foreground); font-style: italic; }
+.canvas-rail-cta { padding: var(--space-3); border-top: 1px solid var(--border); }
+.canvas-rail-cta a {
+  font-size: var(--text-xs);
+  color: var(--muted-foreground);
+  text-decoration: none;
+  cursor: pointer;
+  transition: color var(--duration-fast) var(--ease-out);
+}
+.canvas-rail-cta a:hover { color: var(--primary); }
+.canvas-main { overflow: hidden; background: var(--background); position: relative; }
+.canvas-doc { padding: var(--space-6); height: 100%; overflow-y: auto; }
+.canvas-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: var(--space-8);
+  text-align: center;
+  color: var(--muted-foreground);
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.canvas-empty sui-icon { font-size: 48px; opacity: 0.3; }
+.canvas-empty-title {
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: var(--font-weight-semibold);
+  color: var(--foreground);
+}
+.canvas-empty-desc { font-size: var(--text-sm); max-width: 420px; line-height: 1.6; color: var(--muted-foreground); }
+.canvas-empty-hint { font-size: var(--text-xs); color: var(--muted-foreground); opacity: 0.6; margin-top: var(--space-2); }

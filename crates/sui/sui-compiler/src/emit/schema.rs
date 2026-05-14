@@ -16,12 +16,24 @@ pub fn emit_schema(program: &Program, opts: &CompileOpts) -> Value {
         .collect();
     let component = opts.component_meta.as_ref().map(|m| component_value(&m.name, &program.props));
 
-    json!({ "data": data, "component": component })
+    json!({
+        "data": data,
+        "component": component,
+        "_compilerVersion": crate::compiler_version().to_json(),
+    })
 }
 
 fn component_value(tag: &str, props: &[PropDecl]) -> Value {
-    let props: Vec<Value> = props.iter().map(prop_value).collect();
-    json!({ "tag": tag, "props": props })
+    let prop_values: Vec<Value> = props.iter().map(prop_value).collect();
+    let form_associated = props.iter().any(|p| p.form_value || p.form_disabled);
+    let mut obj = json!({ "tag": tag, "props": prop_values });
+    if form_associated {
+        obj.as_object_mut().unwrap().insert(
+            "formAssociated".into(),
+            Value::Bool(true),
+        );
+    }
+    obj
 }
 
 fn prop_value(p: &PropDecl) -> Value {
@@ -38,6 +50,12 @@ fn prop_value(p: &PropDecl) -> Value {
         "bindable": p.bindable,
     });
     let merged = entry.as_object_mut().unwrap();
+    if p.form_value {
+        merged.insert("formValue".into(), Value::Bool(true));
+    }
+    if p.form_disabled {
+        merged.insert("formDisabled".into(), Value::Bool(true));
+    }
     for (k, v) in kind.as_object().unwrap() {
         merged.insert(k.clone(), v.clone());
     }

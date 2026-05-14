@@ -1,5 +1,4 @@
 import { controller, signal } from '@ship/sui-runtime'
-import type { Signal } from '@ship/sui-runtime'
 import type { Scope } from './sui-breadcrumb.sui'
 
 interface Item {
@@ -14,10 +13,6 @@ export default controller<Scope>({
   },
 
   mount(state, host) {
-    const scope = state as unknown as Scope
-    const items = scope.items as unknown as Signal<Item[]>
-    const lastSlot = scope.lastSlot as unknown as Signal<string>
-
     const sync = () => {
       const children = Array.from(
         host.querySelectorAll<Element>(':scope > sui-breadcrumb-item'),
@@ -27,8 +22,8 @@ export default controller<Scope>({
         el.setAttribute('slot', slot)
         return { slot }
       })
-      lastSlot.set(next.length > 0 ? next[next.length - 1]!.slot : '')
-      items.set(next)
+      state.lastSlot.set(next.length > 0 ? next[next.length - 1]!.slot : '')
+      state.items.set(next)
     }
 
     sync()

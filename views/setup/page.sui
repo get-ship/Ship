@@ -1,0 +1,236 @@
+<div class="ship-view setup-view">
+  <div class="setup-wrap">
+
+    <!-- Progress stepper -->
+    <div class="setup-stepper-wrap">
+      <sui-stepper prop:total={4} prop:current={step()} label="Setup progress"></sui-stepper>
+    </div>
+
+    <!-- Step panels -->
+    <sui-card padding="lg" role="region" aria-labelledby="setup-step-title">
+
+      <!-- Step 1: Welcome -->
+      {#if step() === 1}
+        <p class="setup-eyebrow">Step 1 of 4</p>
+        <h1 class="setup-title" id="setup-step-title">Welcome to SHIP</h1>
+        <p class="setup-lede">The workbench for shipping software with agents.</p>
+        <p class="setup-lede">
+          Ship runs locally. You own the data, the agents, and the pipelines.
+          The next two steps pick a project folder and an AI provider — you can
+          change either later from settings.
+        </p>
+        <div class="setup-actions setup-actions--end">
+          <sui-button tone="primary" variant="solid" size="md"
+            on:click={() => step.set(2)}>
+            Let's set it up
+            <sui-icon slot="trailing" name="arrow-right"></sui-icon>
+          </sui-button>
+        </div>
+      {/if}
+
+      <!-- Step 2: Workspace -->
+      {#if step() === 2}
+        <p class="setup-eyebrow">Step 2 of 4</p>
+        <h2 class="setup-title" id="setup-step-title">Pick a project folder</h2>
+        <p class="setup-lede">
+          Ship stores agents, pipelines, and sessions under
+          <sui-code>.ship/</sui-code> in the project folder.
+          Start a new one or point at an existing repo.
+        </p>
+
+        <sui-tabs variant="segmented" size="md"
+          prop:active={wsMode()}
+          on:ship-tab-change={onWsModeChange}
+          style="width:100%; margin-bottom: var(--space-5)">
+          <sui-tab name="new" label="Create new project"></sui-tab>
+          <sui-tab name="existing" label="Open existing project"></sui-tab>
+
+          <sui-tab-panel name="new" style="padding-top: var(--space-2)">
+            <sui-field>
+              <sui-label for="setup-ws-name">Project name</sui-label>
+              <sui-input id="setup-ws-name" size="md" placeholder="my-ship-project"
+                bind:value={wsName}></sui-input>
+              <span slot="hint" style="font-size:var(--text-xs); color:var(--muted-foreground)">
+                Stored at <sui-code>~/Documents/Ship/&lt;name&gt;</sui-code> by default.
+              </span>
+            </sui-field>
+          </sui-tab-panel>
+
+          <sui-tab-panel name="existing" style="padding-top: var(--space-2)">
+            <sui-field>
+              <sui-label for="setup-ws-path">Folder path</sui-label>
+              <sui-input id="setup-ws-path" size="md"
+                placeholder="/Users/you/code/my-repo"
+                bind:value={wsPath}></sui-input>
+              <span slot="hint" style="font-size:var(--text-xs); color:var(--muted-foreground)">
+                Must exist and not already be a Ship workspace.
+              </span>
+            </sui-field>
+          </sui-tab-panel>
+        </sui-tabs>
+
+        {#if wsError()}
+          <sui-alert tone="destructive" style="margin-bottom:var(--space-4)">{wsError()}</sui-alert>
+        {/if}
+
+        <form mutation="ship.projects.create"
+          on:submit={onWsSubmit}
+          on:success={onWsSuccess}
+          on:error={onWsMutationError}>
+          <input type="hidden" name="mode" attr:value={wsMode()} />
+          <input type="hidden" name="name" attr:value={wsName()} />
+          <input type="hidden" name="path" attr:value={wsPath()} />
+          <div class="setup-actions">
+            <sui-button variant="ghost" size="md" type="button"
+              on:click={() => step.set(1)}>
+              <sui-icon slot="leading" name="arrow-left"></sui-icon>Back
+            </sui-button>
+            <sui-button tone="primary" variant="solid" size="md" type="submit"
+              prop:disabled={wsMode() === 'new' ? !wsName() : !wsPath()}
+              prop:loading={wsCreating()}>
+              Continue
+              <sui-icon slot="trailing" name="arrow-right"></sui-icon>
+            </sui-button>
+          </div>
+        </form>
+      {/if}
+
+      <!-- Step 3: Provider -->
+      {#if step() === 3}
+        <p class="setup-eyebrow">Step 3 of 4</p>
+        <h2 class="setup-title" id="setup-step-title">Connect an AI provider</h2>
+        <p class="setup-lede">
+          Ship talks to whichever provider CLIs you have installed. Pick one to
+          start with — add more or change later from settings.
+        </p>
+
+        <div class="setup-grid-2" role="radiogroup" aria-label="AI provider"
+          style="margin-bottom: var(--space-5)">
+          {#for p of ([
+            { id: 'claude',   name: 'Claude',   sub: 'Anthropic · claude' },
+            { id: 'gemini',   name: 'Gemini',   sub: 'Google · gemini' },
+            { id: 'codex',    name: 'Codex',    sub: 'OpenAI · codex' },
+            { id: 'opencode', name: 'OpenCode', sub: 'Open source · opencode' },
+          ]) key={p.id}}
+            <sui-card interactive padding="md" role="radio"
+              prop:tone={provider() === p.id ? 'accent' : ''}
+              prop:fill={provider() === p.id}
+              attr:aria-checked={provider() === p.id ? 'true' : 'false'}
+              on:click={() => { provider.set(p.id); apiKey.set(''); providerTestOk.set(false) }}>
+              <div style="display:flex; align-items:center; gap:var(--space-3)">
+                <sui-provider-blob prop:provider={p.id} size="md" variant="glyph"></sui-provider-blob>
+                <div style="min-width:0">
+                  <div style="font-size:var(--text-md); font-weight:var(--font-weight-semibold); color:var(--foreground)">{p.name}</div>
+                  <div style="font-size:var(--text-xs); color:var(--muted-foreground); margin-top:2px">{p.sub}</div>
+                </div>
+              </div>
+            </sui-card>
+          {/for}
+        </div>
+
+        {#if provider()}
+          <sui-field style="margin-bottom: var(--space-4)">
+            <sui-label for="setup-api-key">API key</sui-label>
+            <sui-input id="setup-api-key" size="md" type="password"
+              placeholder="sk-..."
+              bind:value={apiKey}
+              on:ship-input={() => providerTestOk.set(false)}></sui-input>
+            <span slot="hint" style="font-size:var(--text-xs); color:var(--muted-foreground)">
+              Stored locally in your Ship settings. Never sent anywhere but the
+              provider you chose.
+            </span>
+          </sui-field>
+
+          <form mutation="ship.providers.test"
+            on:submit={onProviderTestSubmit}
+            on:success={onProviderTestSuccess}
+            on:error={onProviderTestError}>
+            <input type="hidden" name="provider" attr:value={provider()} />
+            <input type="hidden" name="key" attr:value={apiKey()} />
+            <div style="display:flex; align-items:center; gap:var(--space-3); margin-top:var(--space-3)">
+              <sui-button variant="outline" size="sm" type="submit"
+                prop:disabled={!apiKey() || providerTesting()}
+                prop:loading={providerTesting()}>
+                Test connection
+              </sui-button>
+              {#if providerTestOk()}
+                <sui-badge tone="success" variant="soft" size="sm">
+                  <sui-icon slot="leading" name="check"></sui-icon>Connected
+                </sui-badge>
+              {/if}
+              {#if providerTestError()}
+                <sui-badge tone="destructive" variant="soft" size="sm">
+                  {providerTestError()}
+                </sui-badge>
+              {/if}
+            </div>
+          </form>
+        {/if}
+
+        <form mutation="ship.settings.configure"
+          on:submit={onSettingsSubmit}
+          on:success={onSettingsSuccess}
+          on:error={onSettingsError}>
+          <input type="hidden" name="provider" attr:value={provider()} />
+          <input type="hidden" name="api_key" attr:value={apiKey()} />
+          <div class="setup-actions">
+            <sui-button variant="ghost" size="md" type="button"
+              on:click={() => { provider.set(''); apiKey.set(''); providerTestOk.set(false); step.set(4) }}>
+              Skip, configure later
+            </sui-button>
+            <sui-button tone="primary" variant="solid" size="md" type="submit"
+              prop:disabled={!providerTestOk()}
+              prop:loading={settingsSaving()}>
+              Save &amp; continue
+              <sui-icon slot="trailing" name="arrow-right"></sui-icon>
+            </sui-button>
+          </div>
+        </form>
+      {/if}
+
+      <!-- Step 4: Done -->
+      {#if step() === 4}
+        <p class="setup-eyebrow">Step 4 of 4</p>
+        <h2 class="setup-title" id="setup-step-title">Ship is ready</h2>
+        <p class="setup-lede">
+          Your workspace is set up. Jump into the dashboard, or browse what's new.
+        </p>
+
+        <nav class="setup-grid-3" aria-label="Resources" style="margin: var(--space-6) 0">
+          <a href="https://getship.dev/docs" target="_blank" rel="noopener noreferrer"
+            style="text-decoration:none; color:inherit">
+            <sui-card interactive padding="md">
+              <div style="font-size:var(--text-sm); font-weight:var(--font-weight-semibold)">Docs</div>
+              <div style="font-size:var(--text-xs); color:var(--muted-foreground)">Guides &amp; reference</div>
+            </sui-card>
+          </a>
+          <a href="https://getship.dev/community" target="_blank" rel="noopener noreferrer"
+            style="text-decoration:none; color:inherit">
+            <sui-card interactive padding="md">
+              <div style="font-size:var(--text-sm); font-weight:var(--font-weight-semibold)">Community</div>
+              <div style="font-size:var(--text-xs); color:var(--muted-foreground)">Discord &amp; GitHub</div>
+            </sui-card>
+          </a>
+          <a href="https://getship.dev/store" target="_blank" rel="noopener noreferrer"
+            style="text-decoration:none; color:inherit">
+            <sui-card interactive padding="md">
+              <div style="font-size:var(--text-sm); font-weight:var(--font-weight-semibold)">Store</div>
+              <div style="font-size:var(--text-xs); color:var(--muted-foreground)">Agents &amp; skills</div>
+            </sui-card>
+          </a>
+        </nav>
+
+        <form mutation="ship.settings.completeSetup"
+          on:ship-mutation-ok={() => navigate('/')}>
+          <div class="setup-actions setup-actions--end">
+            <sui-button tone="accent" variant="solid" size="lg" type="submit">
+              Open Ship
+              <sui-icon slot="trailing" name="arrow-right"></sui-icon>
+            </sui-button>
+          </div>
+        </form>
+      {/if}
+
+    </sui-card>
+  </div>
+</div>

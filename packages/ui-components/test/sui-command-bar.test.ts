@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import '../src/islands/sui-command-bar/dist/sui-command-bar.compiled.js'
-import '../src/islands/sui-command-bar/dist/sui-command-palette.compiled.js'
-import '../src/islands/sui-command-bar/dist/sui-command-chat.compiled.js'
-import '../src/sui-dialog/dist/sui-dialog.compiled.js'
+import '../src/islands/sui-command-bar/sui-command-bar.compiled.js'
+import '../src/islands/sui-command-bar/sui-command-palette.compiled.js'
+import '../src/islands/sui-command-bar/sui-command-chat.compiled.js'
+import '../src/sui-dialog/sui-dialog.compiled.js'
 import { createContainerRegistry, flush, mount } from '../src/test-utils'
 
 const reg = createContainerRegistry()
@@ -367,6 +367,56 @@ describe('<sui-command-bar>', () => {
       await flush()
       expect(events.length).toBeGreaterThan(0)
       expect(events[0]!.detail.mode).toBe('find')
+    })
+  })
+
+  describe('navigation contract — shell listens for sui:navigate', () => {
+    // The shell (apps/shell2/src/main.ts) wires the actual mountRoute call
+    // off sui:navigate-with-detail. The bar's job is to dispatch that event
+    // with the chosen path — without it, selecting a result updated the URL
+    // silently and the page kept showing the old view.
+    it('clicking a find item dispatches sui:navigate with detail.to', async () => {
+      const { el } = makeBar()
+      ;(el as CB).show('find')
+      await flush()
+      const events: CustomEvent[] = []
+      const onNav = (e: Event) => {
+        const ce = e as CustomEvent<{ to?: string }>
+        if (ce.detail?.to) events.push(ce)
+      }
+      document.addEventListener('sui:navigate', onNav)
+      try {
+        const item = palShadow(el)?.querySelector('.cb-item[data-path]') as HTMLElement | null
+        const expectedPath = item?.dataset['path']
+        item?.click()
+        await flush()
+        expect(events.length).toBeGreaterThan(0)
+        expect(events[0]!.detail.to).toBe(expectedPath)
+      } finally {
+        document.removeEventListener('sui:navigate', onNav)
+      }
+    })
+
+    it('Enter on a find result dispatches sui:navigate with detail.to', async () => {
+      const { el } = makeBar()
+      ;(el as CB).show('find')
+      await flush()
+      const events: CustomEvent[] = []
+      const onNav = (e: Event) => {
+        const ce = e as CustomEvent<{ to?: string }>
+        if (ce.detail?.to) events.push(ce)
+      }
+      document.addEventListener('sui:navigate', onNav)
+      try {
+        const expectedPath = (palShadow(el)?.querySelector('.cb-item[data-path]') as HTMLElement | null)
+          ?.dataset['path']
+        el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, composed: true }))
+        await flush()
+        expect(events.length).toBeGreaterThan(0)
+        expect(events[0]!.detail.to).toBe(expectedPath)
+      } finally {
+        document.removeEventListener('sui:navigate', onNav)
+      }
     })
   })
 

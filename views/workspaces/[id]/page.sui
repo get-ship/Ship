@@ -1,0 +1,90 @@
+<div class="ship-view ship-view-workspaces-detail">
+  <div class="wsd-wrap">
+
+    <nav class="wsd-back" aria-label="Breadcrumb">
+      <a class="wsd-back-link" href="/workspaces">
+        <sui-icon name="chevron-left" size="sm"></sui-icon>
+        <span>Workspaces</span>
+      </a>
+    </nav>
+
+    {#while-loading of projects}
+      <div class="wsd-skel" data-test="loading" aria-label="Loading workspace">
+        <sui-skeleton shape="line" size="lg" style="width:240px"></sui-skeleton>
+        <sui-skeleton shape="line" size="sm" style="width:60%;margin-top:12px"></sui-skeleton>
+        <sui-skeleton shape="block" size="md" style="width:100%;height:120px;margin-top:24px"></sui-skeleton>
+      </div>
+    {/while-loading}
+
+    {#while-error err of projects}
+      <sui-error-state title="Couldn't load workspaces" data-test="error">
+        {err.message}
+        <sui-button slot="action" tone="primary" variant="solid"
+          on:click={() => window.location.reload()}>Retry</sui-button>
+      </sui-error-state>
+    {/while-error}
+
+    {#if projects().kind === 'ok'}
+      {#if notFound()}
+        <sui-empty-state variant="default" size="md" data-test="not-found">
+          <sui-icon slot="icon" name="folder-x"></sui-icon>
+          <span slot="title">Workspace not found</span>
+          No workspace with id <code class="wsd-code">{wsId()}</code> is registered.
+          <sui-button slot="action" tone="primary" variant="solid"
+            on:click={() => navigate('/workspaces')}>Back to workspaces</sui-button>
+        </sui-empty-state>
+      {:else if workspace()}
+        {#if activationError()}
+          <sui-error-state variant="inline" size="sm" title="Couldn't switch workspace" data-test="mutation-error">
+            {activationError()}
+            <sui-button slot="action" size="sm" variant="outline"
+              on:click={() => activationError.set('')}>Dismiss</sui-button>
+          </sui-error-state>
+        {/if}
+
+        <header class="wsd-head" data-test="detail" data-view-enter>
+          <div class="wsd-head-icon" aria-hidden="true">
+            <sui-icon name="folder" size="lg" tone="primary"></sui-icon>
+          </div>
+          <div class="wsd-head-titles">
+            <h1 class="wsd-title">
+              {workspace().label || workspace().name}
+              {#if isActive()}
+                <sui-chip tone="primary" variant="soft" size="sm" data-test="active-chip">active</sui-chip>
+              {/if}
+            </h1>
+            <p class="wsd-sub">Workspace</p>
+          </div>
+          <div class="wsd-head-actions">
+            <sui-button size="md"
+              variant={isActive() ? 'soft' : 'solid'}
+              tone="primary"
+              aria-label={isActive() ? 'Workspace already active' : 'Activate this workspace'}
+              prop:disabled={isActive() || activatingId() === wsId()}
+              on:click={() => activate()}
+              data-test="activate-btn">
+              {activatingId() === wsId() ? 'Activating…' : isActive() ? 'Active' : 'Activate'}
+            </sui-button>
+          </div>
+        </header>
+
+        <section class="wsd-meta" aria-label="Workspace details">
+          <dl class="wsd-meta-list">
+            <div class="wsd-meta-row">
+              <dt>ID</dt>
+              <dd><code class="wsd-code">{workspace().id}</code></dd>
+            </div>
+            <div class="wsd-meta-row">
+              <dt>Name</dt>
+              <dd>{workspace().name}</dd>
+            </div>
+            <div class="wsd-meta-row">
+              <dt>Path</dt>
+              <dd><code class="wsd-code wsd-path">{workspace().path}</code></dd>
+            </div>
+          </dl>
+        </section>
+      {/if}
+    {/if}
+  </div>
+</div>

@@ -15,8 +15,9 @@
 
 import { createClient, type ShipSDK } from '@ship/sdk-client'
 import { shipFetch, gitStatus } from '@ship/sdk'
-import { initRailFeatures } from './rail-features'
+import { route as createRoute, defineRoutes } from '@ship/sui-runtime/route'
 import { KernelBridge } from './kernel-bridge'
+import { initHmr } from './hmr'
 
 interface MountFn {
   (
@@ -25,12 +26,45 @@ interface MountFn {
     opts?: {
       cssScope?: 'adjacent' | 'document-head' | 'none'
       ship?: ShipSDK
+      module?: unknown
+      route?: unknown
+      navigate?: (path: string) => void
     },
-  ): Promise<{ dispose(): void; element: HTMLElement }>
+  ): Promise<{ dispose(): void; element: HTMLElement; scope: Record<string, unknown> }>
 }
 
 // Single SDK client instance, shared across every mounted view.
 const shipClient: ShipSDK = createClient()
+
+// Pre-register dynamic-route patterns the shell knows about. Views in
+// `views/<name>/[id]/` use these to read `route.params.id()`. Views
+// can also register their own at controller-import time, but those
+// registrations land in the view-bundle's copy of @ship/sui-runtime
+// (served via `/_sui/runtime.js`) — a separate module instance from
+// the shell's bundle of @ship/sui-runtime, so the shell's
+// `routeSignals` proxy never sees them. Registering here at the shell
+// layer means params get seeded against the SHAPES the shell knows.
+defineRoutes([
+  { pattern: '/agents/:id' },
+  { pattern: '/skills/:id' },
+  { pattern: '/collections/:id' },
+  { pattern: '/artifacts/:id' },
+  { pattern: '/workspaces/:id' },
+  { pattern: '/ship-ui-studio/:component' },
+])
+
+// Shared route signal. Views that declare dynamic params read
+// `route.params.id()`; the singleton updates on every popstate /
+// history.pushState the shell triggers.
+const routeSignals = createRoute()
+
+// `navigate(path)` passed to controllers — fire a same-origin link click
+// equivalent via history.pushState + the existing internal-anchor flow.
+function navigate(path: string): void {
+  history.pushState({}, '', path)
+  const next = readRouteFromUrl(location.pathname)
+  if (next) void mountRoute(next)
+}
 
 // ── window.ship API ──────────────────────────────────────────────────
 
@@ -51,12 +85,6 @@ function initShipApi(): void {
       }))
     },
     subscribe: kernelBridge.subscribe.bind(kernelBridge),
-    chat: {
-      open() { document.dispatchEvent(new CustomEvent('sui:chat:toggle', { bubbles: true })) },
-      send(message: string) {
-        document.dispatchEvent(new CustomEvent('sui:chat:send', { detail: { message }, bubbles: true }))
-      },
-    },
     command() {
       document.dispatchEvent(new CustomEvent('ship:bar:open', { bubbles: true }))
     },
@@ -71,13 +99,35 @@ declare global {
       current(): { path: string }
       notify(message: string, tone?: 'success' | 'warning' | 'error' | 'info'): void
       subscribe(namespace: string, handler: (event: { event_type: string; entity: string; timestamp: string; payload: unknown; [k: string]: unknown }) => () => void): () => void
-      chat: {
-        open(): void
-        send(message: string): void
-      }
       command(): void
     }
+    /** Devtools surface: scope of the currently-mounted view. Re-published
+     *  on every successful mountRoute and cleared when landing/dispose
+     *  runs. `<sui-devtools-signals>` reads this to render the live tree —
+     *  a corresponding `sui:scope:change` event fires on document so
+     *  consumers can re-anchor without polling. */
+    __suiCurrentScope?: Record<string, unknown> | null
+    /** Daemon operating mode, derived from `<meta name="ship-mode">` at
+     *  boot. `'Production'` when shipd serves prebuilt shell HTML in
+     *  production; `'Development'` everywhere else (Vite dev server,
+     *  un-rewritten static index). The status bar renders a DEV badge
+     *  whenever this is `'Development'`. */
+    __shipMode?: 'Production' | 'Development'
   }
+}
+
+/** Read `<meta name="ship-mode">` and normalize. Anything that isn't
+ *  `production` falls back to development so the badge errs on the side
+ *  of being shown. */
+function readShipMode(): 'Production' | 'Development' {
+  const meta = document.querySelector('meta[name="ship-mode"]') as HTMLMetaElement | null
+  const raw = (meta?.content ?? '').trim().toLowerCase()
+  return raw === 'production' ? 'Production' : 'Development'
+}
+
+function publishScope(scope: Record<string, unknown> | null): void {
+  window.__suiCurrentScope = scope
+  document.dispatchEvent(new CustomEvent('sui:scope:change', { detail: { scope } }))
 }
 
 interface SuiRuntime {
@@ -104,9 +154,13 @@ interface Route {
   sub?: string
 }
 
+// Empty path → agents. Launch priorities (Agents · Skills · Collections ·
+// Artifacts · Workspaces · Settings) put Agents first on the rail, so
+// landing on `/` mounts the agents view rather than the deprioritized
+// dashboard. Pre-shift this returned `{ view: 'dashboard' }`.
 function readRoute(): Route | null {
   const segs = location.pathname.split('/').filter(Boolean)
-  if (segs.length === 0) return null
+  if (segs.length === 0) return { view: 'agents' }
   return { view: segs[0]!, ...(segs.length > 1 ? { sub: segs.slice(1).join('/') } : {}) }
 }
 
@@ -125,11 +179,11 @@ function payloadUrl(r: Route): string {
 // latest navigation and become the current handle; otherwise we were
 // superseded mid-flight and immediately dispose ourselves so SSE
 // connections + style elements don't leak.
-let currentHandle: { dispose(): void } | null = null
+let currentHandle: { dispose(): void; scope?: Record<string, unknown> } | null = null
 let latestMountToken = 0
 let currentRoute: Route | null = null
 
-async function mountRoute(r: Route): Promise<void> {
+async function mountRoute(r: Route, opts: { module?: unknown } = {}): Promise<void> {
   const slot = document.getElementById('ship-content')
   if (!slot) throw new Error('shell: #ship-content missing from index.html')
 
@@ -143,6 +197,7 @@ async function mountRoute(r: Route): Promise<void> {
     // SUI handle since its bindings reference DOM we're about to wipe.
     currentHandle?.dispose()
     currentHandle = null
+    publishScope(null)
     return showLanding(slot)
   }
 
@@ -181,6 +236,16 @@ async function mountRoute(r: Route): Promise<void> {
       // `ship` is undefined and the data lambda throws — visible
       // as views stuck on `Loading…` because the patch never lands.
       ship: shipClient,
+      // Shared `route` signal so views with `/x/:id`-style patterns
+      // can read `route.params.id()`. Without this, mount.ts wires
+      // `route: undefined` into setupCtx and dynamic-route controllers
+      // crash with `route is not a function`.
+      route: routeSignals,
+      navigate,
+      // HMR path passes a cache-busted, freshly-imported view module.
+      // Without this, dynamic-import returns the cached old module and
+      // the rebuilt .sui never takes effect until a hard reload.
+      ...(opts.module !== undefined ? { module: opts.module } : {}),
     })
 
     // Race guard for rapid navigation: if a later mountRoute already
@@ -195,6 +260,7 @@ async function mountRoute(r: Route): Promise<void> {
 
     currentHandle = handle
     currentRoute = r
+    publishScope(handle.scope as unknown as Record<string, unknown>)
     // The new mount has replaced slot.innerHTML, so the previous view's
     // DOM nodes are detached. Run its dispose to close SSE + remove the
     // stale <style> element. Dispose is idempotent.
@@ -207,34 +273,22 @@ async function mountRoute(r: Route): Promise<void> {
 </div>`
   }
   updateNav(r)
-  updateRailActive(r)
 }
 
 function showLanding(slot: HTMLElement): void {
   slot.innerHTML = `
     <div class="shell-empty">
       <h2>Ship</h2>
-      <p>Open a view: <a href="/ship-ui-studio">/ship-ui-studio</a> · <a href="/counter">/counter</a> · <a href="/sui-demo">/sui-demo</a></p>
+      <p>Open a view: <a href="/agents">/agents</a> · <a href="/skills">/skills</a> · <a href="/collections">/collections</a> · <a href="/artifacts">/artifacts</a></p>
     </div>
   `
   currentRoute = null
   updateNav(null)
-  updateRailActive(null)
 }
 
 function updateNav(r: Route | null): void {
   const path = r ? routeToPath(r) : '/'
   document.dispatchEvent(new CustomEvent('sui:navigate', { detail: { to: path } }))
-}
-
-// Mark the matching rail item active; clear all others.
-function updateRailActive(r: Route | null): void {
-  const items = document.querySelectorAll<HTMLElement>('sui-rail-item[data-view]')
-  const viewName = r?.view ?? ''
-  for (const item of items) {
-    if (item.dataset.view === viewName) item.setAttribute('active', '')
-    else item.removeAttribute('active')
-  }
 }
 
 // ── Click delegate ──────────────────────────────────────────────────
@@ -269,25 +323,30 @@ function onAnchorClick(e: MouseEvent): void {
   const next = readRouteFromUrl(a.pathname)
   if (!next) return
   e.preventDefault()
-  const path = routeToPath(next)
-  if (currentRoute && path === routeToPath(currentRoute)) return
-  history.pushState({}, '', path)
+  // Preserve the anchor's own pathname for the URL (so `href="/"` stays
+  // as `/` and survives a reload), while resolving the route to a view
+  // name for the SUI mount call.
+  const urlPath = a.pathname || '/'
+  const sameView = currentRoute && currentRoute.view === next.view && (currentRoute.sub ?? '') === (next.sub ?? '')
+  if (sameView) return
+  history.pushState({}, '', urlPath + a.search + a.hash)
   void mountRoute(next)
 }
 
 function readRouteFromUrl(pathname: string): Route | null {
   const segs = pathname.split('/').filter(Boolean)
-  if (segs.length === 0) return null
+  if (segs.length === 0) return { view: 'agents' }
   return { view: segs[0]!, ...(segs.length > 1 ? { sub: segs.slice(1).join('/') } : {}) }
 }
 
-// ── Rail collapse persistence ────────────────────────────────────────
+// ── Rail visibility persistence ──────────────────────────────────────
 //
-// Default behavior matches apps/shell: rail starts COLLAPSED (icon-only),
-// expands when the user opens it, persists via the same `ship-rail-open`
-// key so users who flip back and forth between shell + shell2 see the
-// same state. Pre-fix shell2 used its own inverted key
-// `ship-rail-collapsed` with the opposite default — port mismatch.
+// Two states only: visible (icon-only, 48px wide) or hidden (display:none).
+// The arrow toggle on the rail was removed — the top-nav menu button
+// dispatches `sui:rail:toggle` on document; this listener flips the
+// `[collapsed]` attribute on the rail. Persisted under `ship-rail-open`:
+// presence of the key means "visible". Default is visible on first load
+// so users see the nav before being asked to discover the menu button.
 
 const RAIL_OPEN_KEY = 'ship-rail-open'
 
@@ -295,23 +354,19 @@ function initRail(): void {
   const rail = document.getElementById('ship-rail')
   if (!rail) return
 
-  // Restore persisted state before first paint. Default: collapsed.
-  // The rail expands only when the user has explicitly opened it.
-  let open = false
+  // Default to visible. Users who explicitly hide the rail get an
+  // explicit `0` written (we don't rely on key-absence-as-default since
+  // that fights the "default visible" intent).
+  let open = true
   try {
-    open = !!localStorage.getItem(RAIL_OPEN_KEY)
+    const v = localStorage.getItem(RAIL_OPEN_KEY)
+    if (v === '0') open = false
   } catch { /* best-effort */ }
   applyRail(rail, open)
 
-  // sui-rail:toggle — fired by the rail's own collapse button
-  rail.addEventListener('sui-rail:toggle', (e: Event) => {
-    const collapsed = (e as CustomEvent<{ collapsed: boolean }>).detail?.collapsed
-    persistRailOpen(!collapsed)
-  })
-
   // sui:rail:toggle — fired by sui-nav-top's menu button (toggle request)
   document.addEventListener('sui:rail:toggle', () => {
-    const nextOpen = rail.hasAttribute('collapsed') // currently collapsed → open it
+    const nextOpen = rail.hasAttribute('collapsed') // currently hidden → show it
     applyRail(rail, nextOpen)
     persistRailOpen(nextOpen)
   })
@@ -321,18 +376,17 @@ function applyRail(rail: HTMLElement, open: boolean): void {
   if (open) {
     rail.removeAttribute('collapsed')
     document.body.classList.add('rail-open')
-    document.body.classList.remove('rail-collapsed')
+    document.body.classList.remove('rail-hidden')
   } else {
     rail.setAttribute('collapsed', '')
     document.body.classList.remove('rail-open')
-    document.body.classList.add('rail-collapsed')
+    document.body.classList.add('rail-hidden')
   }
 }
 
 function persistRailOpen(open: boolean): void {
   try {
-    if (open) localStorage.setItem(RAIL_OPEN_KEY, '1')
-    else localStorage.removeItem(RAIL_OPEN_KEY)
+    localStorage.setItem(RAIL_OPEN_KEY, open ? '1' : '0')
   } catch { /* best-effort */ }
 }
 
@@ -344,6 +398,14 @@ function persistRailOpen(open: boolean): void {
 
 const statusBar = document.getElementById('ship-status-bar') as HTMLElement | null
 let daemonOnline = false
+
+const shipMode = readShipMode()
+window.__shipMode = shipMode
+if (statusBar) {
+  // Lowercase mode value so status-bar can compare with `attr === 'development'`.
+  statusBar.setAttribute('mode', shipMode.toLowerCase())
+}
+document.dispatchEvent(new CustomEvent('ship:mode', { detail: { mode: shipMode } }))
 
 async function updateStatus(): Promise<void> {
   if (!statusBar) return
@@ -463,32 +525,38 @@ function getCommandBar(): CommandBar | null {
 
 document.addEventListener('keydown', (e: KeyboardEvent) => {
   const mod = e.metaKey || e.ctrlKey
+  // `e.key` reports the produced character: Chromium yields lowercase
+  // 'b' for Ctrl+B without Shift, but some automation drivers (and a few
+  // platform keyboard layouts) emit uppercase. Normalize so the
+  // shortcuts trigger regardless of caller. Keep ⌘⇧E gated on Shift via
+  // its dedicated branch below.
+  const key = e.key.toLowerCase()
 
-  if (mod && e.key === 'j') {
+  if (mod && key === 'j') {
     e.preventDefault()
     getDock()?.toggle()
     return
   }
 
-  if (mod && e.key === 'k') {
+  if (mod && key === 'k') {
     e.preventDefault()
     getCommandBar()?.toggle('find')
     return
   }
 
-  if (mod && e.key === 'p') {
+  if (mod && key === 'p') {
     e.preventDefault()
     getCommandBar()?.show('find')
     return
   }
 
-  if (mod && e.shiftKey && e.key === 'E') {
+  if (mod && e.shiftKey && key === 'e') {
     e.preventDefault()
     document.body.classList.toggle('edit-mode')
     return
   }
 
-  if (mod && e.key === 'b') {
+  if (mod && key === 'b') {
     e.preventDefault()
     document.dispatchEvent(new CustomEvent('sui:rail:toggle', { bubbles: true }))
     return
@@ -508,15 +576,33 @@ document.addEventListener('keydown', (e: KeyboardEvent) => {
 // Wire close event from dock.
 document.addEventListener('sui:dock:close', () => getDock()?.hide(), true)
 
-// ── Event bridges ────────────────────────────────────────────────────
+// ── Chrome event wiring ─────────────────────────────────────────────
 //
-// Reflect chrome component state into body classes so layout.css rules
-// (and any third-party CSS) can key off predictable class names.
+// Bridges component-dispatched events from <sui-nav-top> and <sui-rail>
+// to the corresponding chrome elements that already live in the shell.
+// Without these, clicking the menu / CLI / launcher / "+" buttons fired
+// the event but no surface listened (pre-fix shell2 had no plumbing).
 
-// sui-rail:toggle → body.rail-collapsed
-document.addEventListener('sui-rail:toggle', (e: Event) => {
-  const collapsed = (e as CustomEvent<{ collapsed: boolean }>).detail?.collapsed
-  document.body.classList.toggle('rail-collapsed', collapsed)
+// Top-nav CLI / debug-panel button → toggle the panel-dock. The dock's
+// `toggle()` method flips `body.dock-open`, which layout.css uses to
+// reveal the dock surface.
+document.addEventListener('sui:dock:toggle', () => getDock()?.toggle())
+
+// Rail launcher button → open <sui-launcher>. The launcher listens for
+// `sui:launcher:open` on document; the rail dispatches the legacy
+// `ship:launcher:open` for parity with apps/shell wiring. Bridge so
+// both names work without forcing the rail to know about the SUI
+// island's listener name.
+document.addEventListener('ship:launcher:open', () => {
+  document.dispatchEvent(new CustomEvent('sui:launcher:open', { bubbles: true }))
+})
+
+// Rail "+" button → open the command bar in create mode. Parity with
+// apps/shell where ship-command-bar listens for `ship:create:open` and
+// calls openBar('create'). In shell2 the bar is `<sui-command-bar>`,
+// which exposes the same imperative surface (`show(mode)`).
+document.addEventListener('ship:create:open', () => {
+  getCommandBar()?.show('create')
 })
 
 document.addEventListener('click', onAnchorClick)
@@ -529,15 +615,53 @@ window.addEventListener('popstate', () => {
   }
 })
 
+// External navigation requests — components that need to navigate dispatch
+// `sui:navigate` with `{ to: path }` (window.ship.navigate, sui-launcher,
+// sui-command-bar palette items). They push history state themselves, but
+// without this listener nothing remounts the view, so picking a result in
+// the cmd-bar or the views picker updated the URL silently and the page
+// kept showing the old view. mountRoute's own dispatches use either no
+// detail or fire after currentRoute is updated, so the sameView guard
+// prevents a remount loop.
+document.addEventListener('sui:navigate', (e: Event) => {
+  const detail = (e as CustomEvent).detail as { to?: string } | undefined
+  if (!detail?.to) return
+  const next = readRouteFromUrl(detail.to)
+  if (!next) return
+  const sameView = currentRoute
+    && currentRoute.view === next.view
+    && (currentRoute.sub ?? '') === (next.sub ?? '')
+  if (sameView) return
+  void mountRoute(next)
+})
+
 initShipApi()
 initRail()
-initRailFeatures()
+initHmr({
+  getCurrentView: () => currentRoute?.view ?? null,
+  // mountRoute re-fetches the payload (dev mode bypasses SSR cache) and,
+  // when given `module`, mounts using the cache-busted view bundle in
+  // place of the cached one — so .sui edits land without a full reload.
+  remount: (module) => {
+    const r = currentRoute
+    if (!r) return Promise.resolve()
+    return module !== undefined ? mountRoute(r, { module }) : mountRoute(r)
+  },
+})
 setInterval(() => void updateStatus(), 15000)
 void updateStatus()
 
 const initial = readRoute()
-if (initial) void mountRoute(initial)
-else {
+if (initial) {
+  // Bare `/` resolves to the agents view; rewrite the URL so the rail
+  // (which derives the active item from `location.pathname`) can
+  // highlight Agents on first paint. Use replaceState so back-button
+  // history doesn't pick up the synthetic redirect.
+  if (location.pathname === '/' || location.pathname === '') {
+    history.replaceState({}, '', '/' + initial.view)
+  }
+  void mountRoute(initial)
+} else {
   const slot = document.getElementById('ship-content')
   if (slot) showLanding(slot)
 }

@@ -88,6 +88,17 @@ pub struct TemplateEmitter {
     /// Whether the current compile mode is `View`. Components don't
     /// emit `hydrate(root, ctx)` (no SSR/attach() path).
     pub(super) is_view: bool,
+    /// True while emitting the per-item IIFE body of a `{#for}` loop.
+    /// When set, reactive binding closures void-read `$scope.__v` to
+    /// track the per-row version signal and re-run when `update` fires.
+    pub(super) for_in_scope: bool,
+    /// D5: statements that re-execute an inlined static assignment
+    /// (`__t.textContent = $scope.row.label;`, …). Accumulated while
+    /// emitting the current `{#for}` row body; spliced into that for's
+    /// `update()` callback so keyed-row reuse refreshes the inlined
+    /// DOM. `emit_for` saves/restores this list around its body walk
+    /// to scope it per for-loop.
+    pub(super) inline_update_stmts: Vec<String>,
 }
 
 impl TemplateEmitter {
@@ -104,6 +115,8 @@ impl TemplateEmitter {
             boundary_depth: 0,
             keys: KeyAllocator::default(),
             is_view,
+            for_in_scope: false,
+            inline_update_stmts: Vec::new(),
         }
     }
 
@@ -137,6 +150,37 @@ impl TemplateEmitter {
     /// element-bound leaf kind migrated).
     pub fn hydrate_uses_markers(&self) -> bool {
         self.hydrate_uses_markers
+    }
+
+    /// Returns `"void $scope.__v(), "` when inside a `{#for}` IIFE body,
+    /// so reactive getter closures track the per-row version signal.
+    /// Used as a prefix inside `() => (…)` style closures.
+    pub(super) fn for_version_comma(&self) -> &'static str {
+        if self.for_in_scope { "void $scope.__v(), " } else { "" }
+    }
+
+    /// Returns `"void $scope.__v(); "` when inside a `{#for}` IIFE body.
+    /// Used as a leading statement inside `effect(() => { … })` bodies.
+    pub(super) fn for_version_stmt(&self) -> &'static str {
+        if self.for_in_scope { "void $scope.__v(); " } else { "" }
+    }
+
+    /// D5: classify a binding-expression source as "static enough to
+    /// inline as a direct DOM assignment". Conservative — any `()`
+    /// call, optional-chain `?.`, or nullish-coalescing `??` defers
+    /// back to the `bind*` effect path so reactivity / null semantics
+    /// stay correct. Only meaningful inside a `{#for}` row body, where
+    /// each effect costs a closure + cleanup slot × every row × every
+    /// render.
+    pub(super) fn is_static_row_expr(&self, source: &str) -> bool {
+        // TEMP-DISABLE for A/B bench measurement; revert before commit.
+        if std::env::var_os("SUI_D5_DISABLE").is_some() {
+            return false;
+        }
+        self.for_in_scope
+            && !source.contains('(')
+            && !source.contains("?.")
+            && !source.contains("??")
     }
 
     pub(super) fn fresh(&mut self, prefix: &str) -> String {
@@ -198,9 +242,22 @@ impl TemplateEmitter {
                 let rw = rewrite_for_scope(&expr.source, &[]);
                 w.line(&format!("const {v} = document.createTextNode(\"\");"));
                 w.line(&format!("{parent_var}.appendChild({v});"));
-                w.line(&format!(
-                    "{cleanups_var}.push(bindText({v}, () => ({rw})));"
-                ));
+                if self.is_static_row_expr(&expr.source) {
+                    // D5: row-scope static read — skip the bindText
+                    // effect and write textContent directly. Saves a
+                    // closure + cleanup slot per row per binding. The
+                    // assignment is also re-run by the for's
+                    // `update()` callback so keyed-row reuse refreshes
+                    // the DOM when the row instance changes.
+                    let stmt = format!("{v}.textContent = ({rw});");
+                    w.line(&stmt);
+                    self.inline_update_stmts.push(stmt);
+                } else {
+                    let fv = self.for_version_comma();
+                    w.line(&format!(
+                        "{cleanups_var}.push(bindText({v}, () => ({fv}{rw})));"
+                    ));
+                }
                 // Phase 3b.3: at depth 0 in views, also emit a direct
                 // hydrate call so SSR'd `<!--sui:text:bN-->…<!--/sui-->`
                 // markers wire up without going through the runtime
@@ -234,7 +291,18 @@ impl TemplateEmitter {
 
     /// Emit a `{ nodes, cleanup }` branch result. Used by `bindIf`,
     /// `bindFor`, and the `<while-*>` helpers.
+    ///
+    /// D5's static-inline path collects per-row update statements into
+    /// `self.inline_update_stmts` so the surrounding `{#for}`'s
+    /// `update(new, idx)` callback can re-run them on row reuse. But
+    /// the vars they reference (text-node consts like `__t12`) are
+    /// declared INSIDE this branch's closure — invisible to the outer
+    /// `update`. Leaving the pushes in place crashes every navigation
+    /// with `ReferenceError: __t12 is not defined`. Save + restore the
+    /// stack so branch-local static bindings stay branch-local; their
+    /// initial values are still set inline during branch render.
     pub(super) fn emit_branch(&mut self, w: &mut Writer, body: &[Instr]) {
+        let outer_inline = std::mem::take(&mut self.inline_update_stmts);
         w.line("() => {");
         w.enter();
         let frag = self.fresh("frag");
@@ -251,5 +319,6 @@ impl TemplateEmitter {
         ));
         w.leave();
         w.line("},");
+        self.inline_update_stmts = outer_inline;
     }
 }

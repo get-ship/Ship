@@ -27,6 +27,7 @@ html, body {
   display: grid;
   grid-template-columns: auto 1fr;
   grid-template-rows: var(--ship-top-bar-h) 1fr auto var(--ship-status-bar-h);
+  column-gap: 6px;
   height: 100vh;
   overflow: hidden;
 }
@@ -76,6 +77,13 @@ html, body {
     transform var(--duration-normal, 200ms) var(--ease-out);
 }
 
+/* The dock's :host paints var(--shadow-edge-top), which includes a 1px
+   top-edge component. box-shadow renders outside the box, so the line is
+   visible even when the host is height:0 / overflow:hidden — it reads as a
+   faint horizontal rule across the chrome. Suppress while collapsed; the
+   open state draws its own explicit border-top above. */
+body:not(.dock-open) #ship-panel-dock { --shadow-edge-top: none; }
+
 body.dock-open #ship-panel-dock {
   height: var(--ship-dock-height, 240px);
   border-top: 1px solid var(--border);
@@ -83,10 +91,12 @@ body.dock-open #ship-panel-dock {
   transform: none;
 }
 
-/* body.rail-collapsed mirrors [collapsed] on sui-rail — used by other layout
-   elements that need to know the rail state without querying the component. */
-body.rail-collapsed #ship-rail {
-  width: 32px;
+/* Rail is icon-only (48px) when visible, display:none when hidden.
+   body.rail-hidden mirrors the rail's [collapsed] attribute so other
+   chrome surfaces (status bar, dock) can key off it without querying
+   the component directly. */
+body.rail-hidden #ship-rail {
+  display: none;
 }
 
 /* body.edit-mode — sui-edit-overlay watches this via MutationObserver.

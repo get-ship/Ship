@@ -138,6 +138,21 @@ function checkExprGrammar(
   visit(stmts[0]!);
 }
 
+// Mirrors `crates/sui-compiler/src/emit/util.rs::camel_of` — `foo-bar`
+// becomes `fooBar`, leading hyphens stripped. The compiler exposes
+// only the camelCased name to template scope.
+function camelOf(attr: string): string {
+  let out = '';
+  let up = false;
+  for (let i = 0; i < attr.length; i++) {
+    const c = attr[i]!;
+    if (c === '-') { up = true; continue; }
+    out += up ? c.toUpperCase() : c;
+    up = false;
+  }
+  return out;
+}
+
 function isAssignmentOp(k: ts.SyntaxKind): boolean {
   return (
     k === ts.SyntaxKind.EqualsToken ||
@@ -163,6 +178,31 @@ function diagnoseReferences(
 ): void {
   const scope = buildScope(nodes, source);
   const setupNames = new Set(setup?.members.map(m => m.name) ?? []);
+  // Mirror the compiler's symbol table:
+  //   * `<prop name="foo-bar">` declares the *camelCased* identifier
+  //     (`crates/sui-compiler/src/check/symbol_table.rs` calls
+  //     `camel_of(&p.name)`). The literal kebab name is never visible
+  //     to template expressions.
+  //   * `bind:this={X}` is a *write target*, not an expression read —
+  //     `scope_bound::check_attr` skips `BindThis`, and the runtime
+  //     fills the slot from the rendered element. We treat the target
+  //     name as declared so the surrounding scope check doesn't flag
+  //     it as unbound when no controller is found.
+  for (const n of nodes) {
+    if (n.kind !== 'element-open') continue;
+    if (n.tag === 'prop' || n.tag === 'state' || n.tag === 'data') {
+      const nameAttr = n.attrs.find(a => a.name === 'name' && a.value?.kind === 'string');
+      const raw = nameAttr?.value?.kind === 'string' ? nameAttr.value.text : undefined;
+      if (raw) setupNames.add(camelOf(raw));
+    }
+    for (const a of n.attrs) {
+      if (a.kind !== 'bind' || a.name !== 'this') continue;
+      if (a.value?.kind === 'expr') {
+        const ident = a.value.text.trim();
+        if (/^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(ident)) setupNames.add(ident);
+      }
+    }
+  }
   const declByName = new Map<string, typeof scope.declarations>();
   for (const d of scope.declarations) {
     let arr = declByName.get(d.name);

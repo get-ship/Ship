@@ -1,0 +1,13 @@
+// Route metadata for views/dashboard/. Workspace landing page.
+{
+  "name": "dashboard",
+  "path": "/dashboard",
+  "title": "Dashboard",
+  "layout": "default",
+  "auth": "user",
+  "rail": {
+    "label": "Dashboard",
+    "icon": "layout-dashboard"
+  },
+  "events": ["job.completed", "job.started", "workspace.event"]
+}

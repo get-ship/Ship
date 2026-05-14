@@ -8,7 +8,7 @@ use sui_compiler::{compile, CompileMode, CompileOpts};
 fn compile_view(source: &str) -> sui_compiler::CompileError {
     compile(
         source,
-        CompileOpts { setup_url: None, mode: CompileMode::View, source_path: None, styles: None, component_meta: None, emit_dts: false },
+        CompileOpts { setup_url: None, mode: CompileMode::View, source_path: None, styles: None, component_meta: None, emit_dts: false, emit_ssr: false },
     )
     .expect_err("expected error")
 }
@@ -54,7 +54,7 @@ fn arrow_in_on_handler_is_allowed() {
     let src = r#"<button on:click={() => x()}></button>"#;
     compile(
         src,
-        CompileOpts { setup_url: None, mode: CompileMode::View, source_path: None, styles: None, component_meta: None, emit_dts: false },
+        CompileOpts { setup_url: None, mode: CompileMode::View, source_path: None, styles: None, component_meta: None, emit_dts: false, emit_ssr: false },
     )
     .expect("on: handlers allow arrows");
 }

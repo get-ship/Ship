@@ -1,7 +1,7 @@
 <!--
   <sui-devtools-source> — SUI port of <ship-devtools-source>.
   Shows the mounted view's template + manifest. Editable for user-scoped views.
-  Requires the code-editor pack (<ship-code-editor>) to be loaded before first render.
+  Embeds <sui-code-editor> (lazy-loaded by the controller on first mount).
   Read-only for project-scoped; shows Fork affordance for project scope.
 -->
 
@@ -45,7 +45,7 @@
   }
   .pane-head.manifest { border-top: 1px solid var(--border); }
   .pane-editor { flex: 1; min-height: 0; display: flex; flex-direction: column; }
-  .pane-editor ship-code-editor { flex: 1; min-height: 0; }
+  .pane-editor sui-code-editor { flex: 1; min-height: 0; }
   .diagnostics {
     padding: 4px var(--space-3, 12px);
     background: color-mix(in oklch, var(--destructive) 10%, transparent);
@@ -116,14 +116,14 @@
     <div class="pane">
       <div class="pane-head">{templateRelPath()}</div>
       <div class="pane-editor">
-        <ship-code-editor language="html" bind:this={templateEditorEl} readonly={editorReadonly()}></ship-code-editor>
+        <sui-code-editor language="html" bind:this={templateEditorEl} readonly={editorReadonly()}></sui-code-editor>
       </div>
     </div>
     {#if src().manifest}
       <div class="pane-head manifest">{src().manifest_filename}</div>
       <div class="pane">
         <div class="pane-editor">
-          <ship-code-editor language={manifestLangVal()} bind:this={manifestEditorEl} readonly></ship-code-editor>
+          <sui-code-editor language={manifestLangVal()} bind:this={manifestEditorEl} readonly></sui-code-editor>
         </div>
       </div>
     {/if}
@@ -135,12 +135,14 @@
     </sui-empty-state>
   {/if}
 </div>
-<div class="diagnostics" style:display={showDiag() ? '' : 'none'}>
-  {#if diagMsg()}
-    {diagMsg()}
-  {:else}
-    {#for d of diagnostics() key={d.line + ':' + d.col + ':' + d.rule}}
-      <div>{d.line}:{d.col} [{d.rule}] {d.message}</div>
-    {/for}
-  {/if}
-</div>
+{#if showDiag()}
+  <div class="diagnostics" transition:slide={{ duration: 180 }}>
+    {#if diagMsg()}
+      {diagMsg()}
+    {:else}
+      {#for d of diagnostics() key={d.line + ':' + d.col + ':' + d.rule}}
+        <div>{d.line}:{d.col} [{d.rule}] {d.message}</div>
+      {/for}
+    {/if}
+  </div>
+{/if}

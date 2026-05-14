@@ -21,7 +21,7 @@ Forbidden in `*.controller.ts`:
 - Re-querying the shadow DOM after `mount` (use `bind:this` for refs)
 - A `.sui` body that is just `<div bind:this={ref}></div>` — the template is the renderer
 
-For HTML-blob cases (markdown rendering, third-party SVG generators, icon-pack swaps), use `bindHtml(el, () => string)` from `@ship/ui-runtime`.
+For HTML-blob cases (markdown rendering, third-party SVG generators, icon-pack swaps), use `bindHtml(el, () => string)` from `@ship/sui-runtime`.
 
 ## File layout
 
@@ -57,7 +57,7 @@ Five rules:
 
 Plain `.ts` files (not `controller.ts`, not under `_components/`) are helpers, types, or tests.
 
-Migration note: existing `views/agents/`, `views/counter/`, `views/git/` still use the legacy `view.sui` / `view.controller.ts` / `view.css` shape. They migrate in a separate job once the daemon resolver picks up the new convention. The router (`packages/ship-set/src/router/`) ignores legacy directories — it only walks views that ship a `manifest.jsonc`.
+Every first-party view in `views/` now uses the `page.sui` + `controller.ts` + `manifest.jsonc` shape — `views/home/`, `views/agents/`, `views/sessions/`, `views/workspaces/`, `views/git/`, `views/skills/`, `views/chat/`, `views/events/`, `views/dashboard/`, `views/settings/`, `views/canvas/`, `views/mesh/`, `views/pipelines/`, `views/overview/`. The router (`packages/ship-set/src/router/`) walks only manifest-bearing directories — a missing `manifest.jsonc` means the view is invisible to the rail, regardless of which template form it ships.
 
 ### Worked example: `views/home/`
 
@@ -100,7 +100,7 @@ Page composes the view-private widget. Reactive state lives in
 
 ```ts
 // views/home/controller.ts
-import { controller, signal } from '@ship/ui-runtime'
+import { controller, signal } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
 
 export default controller<Scope>({
@@ -128,16 +128,16 @@ node scripts/scaffold-view.mjs settings --component settings-toolbar
 <!-- reactive args — re-subscribes when selectedId changes.
      `selectedId` is a signal declared in the controller's `scope:`
      factory (see Controller contract below). -->
-<data name="agent" source="ship.agents.get({id: $scope.selectedId()})" live />
+<data name="agent" source="ship.agents.detail({id: $scope.selectedId()})" live />
 
 <!-- props (component .sui files only) -->
 <prop name="tone" values="default|primary" default="default" reflect />
 <prop name="disabled" type="bool" default="false" reflect />
 
 <!-- mutations (write-side complement to <data>) -->
-<form mutation="ship.agents.create">
-  <input name="name" />
-  <button type="submit" disabled={$mutation().kind === 'loading'}>Create</button>
+<form mutation="ship.workspaces.activate">
+  <input name="id" />
+  <button type="submit" disabled={$mutation().kind === 'loading'}>Switch</button>
 </form>
 
 <!-- control flow — block syntax -->
@@ -181,7 +181,7 @@ For full examples see `references/template-surface.md`.
 
 ```ts
 // view.controller.ts
-import { controller, signal, derived, shared, useShared, useFilteredList, unwrap } from '@ship/ui-runtime'
+import { controller, signal, derived, shared, useShared, useFilteredList, unwrap } from '@ship/sui-runtime'
 import type { Scope } from './view.sui'   // compiler-emitted .d.ts
 
 export default controller<Scope>({
@@ -205,48 +205,26 @@ Three blocks, each one job:
 - **`on:`** — multi-statement event handlers. The first arg is a writable proxy: `s.count = s.count + 1` mutates state.
 - **`mount:` / `unmount:`** — lifecycle. Runs after first attach / on disconnect.
 
-## Cross-component reactive context (shared / useShared)
+## Cross-component reactive context
 
-For complex components that split into a public outer + internal inner pieces, share signals from parent to descendants without prop-drilling.
+For complex components that split into a public outer + internal inner pieces, share signals from parent to descendants without prop-drilling. The parent calls `shared(signal(…))` inside its `scope:`; descendants call `useShared<ParentScope>('parent-tag')` to resolve the same signal identity. `useShared` walks DOM ancestry across shadow boundaries; returns `null` when no provider is found.
 
-**Provider** wraps signals with `shared(...)` inside `scope:`:
+Two controller tiers — smallest that fits: **no controller** (pure `.sui`, single-expression inline handlers only) or **paired controller** (state, derived, hooks, lifecycle, multi-statement handlers). A multi-statement `on:event` in a tier-1 file is a compile error.
 
-```ts
-// parent.controller.ts
-scope: () => {
-  const mode  = shared(signal<BarMode>('find'))
-  const value = shared(signal(''))
-  const local = signal(0)  // not shared
-  return { mode, value, local }
-}
+Full contract, worked examples, lookup semantics: `references/shared-context.md`.
+
+## Form-aware components
+
+Component `.sui` files only — views don't participate in form submission. When a `<sui-*>` component is itself a form control, mark its value prop with `form-value` and (optionally) its disabled prop with `form-disabled`:
+
+```html
+<prop name="value" type="string" default="" form-value />
+<prop name="disabled" type="bool" default="false" reflect form-disabled />
 ```
 
-The runtime auto-publishes the marked signals on the host element under the host's tag name.
+The compiler emits `static formAssociated = true` and the runtime auto-wires `setFormValue`, `formResetCallback`, `formStateRestoreCallback`, and `formDisabledCallback`. Drop any hand-rolled `ElementInternals` plumbing — the runtime owns it. The setup ctx still surfaces `internals?: ElementInternals` for `setValidity()` / `checkValidity()` paths.
 
-**Consumer** resolves the parent's scope inside its own `scope:`:
-
-```ts
-// child.controller.ts
-import type { Scope as ParentScope } from '../parent/parent.sui'
-
-scope: () => {
-  const bar = useShared<ParentScope>('parent-tag-name')
-  return { bar }
-}
-```
-
-Template binds `bar.mode()`, `bar.value`, etc. — same signal identity, two-way reactivity flows.
-
-`useShared` walks DOM ancestry crossing shadow boundaries. Returns `null` when no provider is found; descendant guards with `{#if bar}`.
-
-Tiers, smallest that fits:
-
-1. **No controller** — pure `.sui` with `<prop>` / `<data>` and single-expression inline handlers. No state, no derived, no hooks. Pure presentational.
-2. **Paired controller** — anything with state, derived, hooks, lifecycle, or multi-statement handlers.
-
-A multi-statement `on:event` in a tier-1 file (no `.controller.ts`) is a compile error. Enforced by `crates/sui-compiler/src/check/handler_complexity.rs`.
-
-For tiers, hooks (`useFilteredList`, `useSelection`, `useForm`), and the live-data envelope, see `references/controller-tiers.md`.
+Worked examples: `packages/ui-components/src/sui-input/sui-input.sui`, `packages/ui-components/src/sui-select/sui-select.sui`. Full contract and constraints: `references/form-association.md`.
 
 ## Live data envelope
 
@@ -264,6 +242,121 @@ unwrapOr(sig, fallback)   // T
   {#for a of agents().value.items key={a.id}}…{/for}
 {/if}
 ```
+
+## Live SSE data
+
+The full end-to-end loop for `<data live>` — what's on the wire, where each
+piece lives, and how to confirm it locally.
+
+### Wire path
+
+```
+.sui  <data live source="ship.git.overview()" live />
+  ↓ sui-compiler
+.js   $scope.git = live(() => ship.git.overview())
+  ↓ @ship/sdk-client createClient()
+HTTP  GET /_sui/data?expr=ship.git.overview()    [text/event-stream]
+  ↓ apps/shipd/src/views/sui_data.rs
+Rust  registry::call("git.overview", {}) → initial; subscribe `config` ns
+  ↓ kernel event → re-resolve
+SSE   event: patch \n data: {"op":"set","value":{…}}
+  ↓ makeSseSource() in @ship/sdk-client
+sig   LiveSignal<T> flips loading → ok → ok (per patch)
+  ↓ bindWhileLoading / bindWhileError / bindIf
+DOM   morphs in place — no re-render of the surrounding view
+```
+
+The compiler turns each `source=` attribute into a literal expression
+inside `live(() => …)`. The expression must resolve to a `LiveSource<T>`
+(has `.subscribe(sig)`) — that's the shape every SDK method returns, so
+`ship.<domain>.<op>(args)` is the idiomatic form. Don't hand-roll an
+`EventSource` in the controller; let the SDK own the wire.
+
+### Worked example: `views/home/`
+
+The home view ships the canonical demo. `<data live>` subscribes to
+`ship.git.overview()`; the daemon's git_signal singleton refreshes on
+filesystem events under `.ship/` and on git ops, so staging a file in
+the worktree visibly flips the "clean / N changed" badge without a
+page reload.
+
+```html
+<!-- views/home/page.sui -->
+<data name="git" source="ship.git.overview()" live />
+
+<section class="home-live" aria-live="polite">
+  {#while-loading of git}
+    <p>Connecting…</p>
+  {/while-loading}
+  {#while-error err of git}
+    <p>SSE error: {err.message}</p>
+  {/while-error}
+  {#if git().kind === 'ok'}
+    <p>
+      Branch <strong>{branch()}</strong>
+      · <span>{headShort()}</span>
+      · <span>{clean() ? 'clean' : changedSummary()}</span>
+    </p>
+  {/if}
+</section>
+```
+
+```ts
+// views/home/controller.ts
+import { controller, signal, unwrapOr } from '@ship/sui-runtime'
+import type { GitOverview } from '@ship/sdk-client'
+import type { Scope } from './page.sui'
+
+const EMPTY: GitOverview = { branch: '', head_short: '', clean: true,
+  total_changed: 0, staged: [], modified: [], untracked: [],
+  commits: [], branches: [], ahead: 0, behind: 0, workspace_id: null }
+
+const read = ({ git }: Scope) => unwrapOr(git, EMPTY)
+
+export default controller<Scope>({
+  scope: () => ({ seen: signal(0) }),
+  derived: {
+    branch:    (s) => read(s).branch,
+    headShort: (s) => read(s).head_short,
+    clean:     (s) => read(s).clean,
+    changedSummary: (s) => `${read(s).total_changed} changed`,
+  },
+})
+```
+
+### Verify locally
+
+```bash
+just dev-restart            # rebuilds shipd + restarts the daemon
+PORT=$(cat $(./target/debug/ship daemon dir)/port)
+
+# 1. Confirm the SDK channel is live (Ctrl-C after a few `patch` events).
+curl -N "http://localhost:$PORT/_sui/data?expr=$(printf 'ship.git.overview()' | jq -sRr @uri)"
+
+# 2. Open the view, stage a file, watch the badge flip.
+xdg-open "http://localhost:$PORT/"            # or open in your browser
+touch CHANGE_ME && git add CHANGE_ME           # status flips to "1 changed"
+git restore --staged CHANGE_ME && rm CHANGE_ME # back to "clean"
+```
+
+### When to add a new live source
+
+A new `ship.<domain>.<op>(...)` live source needs three things:
+
+1. **Registry entry** — `apps/shipd/src/services/registry/<domain>.rs` returns
+   the current value synchronously. The dispatcher in `registry.rs` and the
+   schema row in `services/schema.rs` keep the catalog honest.
+2. **SDK method** — `packages/ship-sdk-client/src/index.ts` exposes the
+   method returning `makeSseSource(...)` against `/_sui/data?expr=…`.
+3. **(Optional) signal-backed source** — if the data has a tighter wake-up
+   surface than the default `config` kernel namespace, mirror the pattern in
+   `apps/shipd/src/views/git_signal.rs`: a `Signal<Value>` plus a singleton
+   background task that updates it. `sui_sse.rs::is_signal_backed_expr` picks
+   up the new registry name automatically.
+
+The view-side surface (`<data live source="ship.X.Y()" live />` + controller
+derived helpers) is the same regardless of which mechanism powers the
+re-resolves on the daemon.
 
 ## Manifest
 
@@ -300,14 +393,295 @@ The router (`packages/ship-set/src/router/`) walks `views/` at build/start time 
 6. **Read signals by call:** `count()` reads, `count.set(n)` writes.
 7. **Block syntax for control flow.** `{#if}/{#for}/{#match}/{#while-loading}/{#while-error}`.
 8. **No `el.innerHTML/.outerHTML/.insertAdjacentHTML`** in `*.controller.ts`. Use `bindHtml()` for HTML-blob cases.
+9. **`{#for}` blocks declare `key={EXPR}`.** Without a stable key the reconciler falls back to positional matching and DOM identity (focus, selection, in-place edits) is lost on reorder. `sui-for-key` lint warns when missing.
+10. **`on:<event>` event names must match the platform whitelist:** DOM events (`click`, `input`, …), `sui-*` / `ship-*` custom-event families, and `tag:event`-prefixed cross-component events. `sui-event-name` lint warns on typos like `on:Click` with Levenshtein suggestions.
+11. **Form-aware components use `form-value` / `form-disabled` on `<prop>`** — never hand-roll `attachInternals()` / `setFormValue` / `formResetCallback`. See "Form-aware components" above.
+
+## Performance gates
+
+Three recipes guard runtime + visual surface before a PR:
+
+- `just bench` — capture a fresh js-framework-benchmark baseline; commit the
+  resulting `tests/perf/baselines/<date>-baseline.json`.
+- `just bench-check` — re-runs the bench suite against the current bundle and
+  fails if any op regresses >15% vs the latest committed baseline. Override
+  the threshold via `BENCH_REGRESSION_THRESHOLD`. Run before merging any
+  runtime-affecting change.
+- `just visual` — Playwright screenshots vs committed PNGs (daemon must be
+  running). Pass `--update-snapshots` to refresh baselines after a
+  deliberate visual change.
+- `just smoke-deploy` — full build + daemon restart + every baselined view
+  curled + Playwright visual suite. Proxy for what CI will see; aim for
+  green before opening a PR.
+
+## Diagnostics via MCP
+
+Before declaring a `.sui` edit done, call `mcp__ship__sui_diagnostics` with the
+file path to surface compile-grammar issues, missing bindings, or unstable-key
+warnings. This catches syntax errors that would only otherwise surface during
+`pnpm -F ui-components test` or `cargo test -p sui-compiler`. For type +
+binding info at a point, `mcp__ship__sui_hover` returns the same content the
+VS Code extension shows.
+
+```ts
+// Pseudocode:
+// mcp__ship__sui_diagnostics({ file: "packages/ui-components/src/sui-button/sui-button.sui" })
+// mcp__ship__sui_hover({ file: "…/sui-button.sui", line: 12, col: 4 })
+```
+
+## LSP integration
+
+`.sui` files get diagnostics + hover via the `@ship/sui-lsp` language
+server. Two integration paths:
+
+1. **MCP** (for agents that don't speak LSP): call
+   `mcp__ship__sui_diagnostics` or `mcp__ship__sui_hover` with a file path —
+   see "Diagnostics via MCP" above.
+2. **Native LSP** (for editors): the `apps/vscode/` extension auto-launches
+   the server when a `.sui` file is opened (`.vscode/extensions.json`
+   recommends it). Other editors can launch the server directly over stdio:
+   `node packages/sui-lsp/bin/sui-lsp.js --stdio` (build the package first
+   with `pnpm -F @ship/sui-lsp build`). Configure your client to map the
+   `sui` language ID to that command for files matching `*.sui`.
 
 ## Components
 
 Views compose `<sui-*>` components from `packages/ui-components/`. See the `ship-components` skill for the component contract.
 
+## Error handling
+
+Wrap fault-prone subtrees in `<sui-error-boundary>`. Throws inside the
+wrapped subtree (effects, controller mount, render expressions) are caught
+and the fallback is rendered. Use `fallback-text` for a string fallback or
+`<template slot="fallback">` for custom markup. Call `.reset()` on the host
+element to retry.
+
+```html
+<sui-error-boundary fallback-text="Couldn't load feed">
+  <sui-some-component prop={maybeThrows()}></sui-some-component>
+</sui-error-boundary>
+```
+
+The boundary fires `sui-error-boundary:caught` (bubbling, composed) with
+`{ error, source }` where `source` is `'effect' | 'mount' | 'render' |
+'unknown'`. Nest boundaries to scope recovery — the innermost catches
+first, mirroring React.
+
+## Portal
+
+Use `<sui-portal target="body">` to teleport its slotted content into a
+different DOM location (typically `document.body`) for stacking-context
+escape — modals, dropdowns, popovers, toasts. The portal element stays
+the logical parent, so reactive bindings inside continue to fire and
+events bubble through the original DOM ancestry, not the target's.
+
+```html
+<sui-popover-trigger>Open</sui-popover-trigger>
+<sui-portal target="body">
+  <sui-popover-panel>Floating content</sui-popover-panel>
+</sui-portal>
+```
+
+`target` is a CSS selector resolved against `document`; the default is
+`body`. Common alternatives: `#modal-root`, `[data-portal-root]`. A
+missing target warns to the console and leaves children in place
+(graceful degradation). Multiple portals targeting the same selector
+append in registration order — z-index ordering remains the author's
+job. Teleported nodes are removed from the target when the portal
+itself unmounts.
+
+## Transitions
+
+Wrap elements with `transition:<name>` to animate enter/exit on `{#if}`
+or `{#for}` mount/unmount. Built-ins: `fade`, `slide`, `scale`. Use
+`in:<name>` + `out:<name>` for asymmetric directions. Custom transitions
+export `{ in?, out? }` matching the `Transition` type.
+
+```html
+{#if visible()}
+  <div transition:fade={{ duration: 200 }}>...</div>
+{/if}
+
+<!-- Asymmetric: slide in, fade out -->
+{#if visible()}
+  <div in:slide out:fade={{ duration: 150 }}>...</div>
+{/if}
+```
+
+The compiler auto-imports built-in names from `@ship/sui-runtime`;
+custom transitions must be on the controller's `scope:` factory.
+Out-transitions defer DOM removal until the animation finishes; a
+rapid toggle while an out-transition is in flight rescues the same
+nodes so the in-transition picks up from current state without
+re-rendering. `prefers-reduced-motion: reduce` collapses duration and
+delay to `0` automatically. Transitions don't surface in SSR output —
+they register on element construction (CSR + hydrate paths).
+
+## When components use these — real-world exemplars
+
+The portal + transition primitives are composed by three platform
+components. Read them when you're authoring a new overlay-style
+primitive:
+
+| Primitive | Portal role | Transition |
+|---|---|---|
+| `sui-dialog` | `<sui-portal target="body">` teleports a `[data-sui-dialog-open]` marker so page-level styles can react to "any modal open" via `:has` selectors. The dialog element itself stays in shadow because native `showModal()` already escapes parent stacking context via top layer. | `transition:fade={{ duration: 150 }}` on the #if-mounted content wrapper drives open/close polish. |
+| `sui-popover` | Same pattern — `[data-sui-popover-open]` marker portaled to body. Native `popover="auto"` handles top-layer + light dismiss; the marker is for page-level hooks. | `transition:scale={{ duration: 120 }}` on the #if-mounted `.surface`. |
+| `sui-toast-container` | `<sui-portal target="body">` teleports the actual stack of toasts. Toast containers *genuinely* need to escape ancestor `transform` / `overflow` containing blocks — `position: fixed` alone isn't enough. The slot stays in shadow; the controller adopts slotted + `show()`-created toasts into the body-side stack. | Each `<sui-toast>` uses asymmetric `in:slide={{ axis: 'y' }}` + `out:fade` on its `#if visible()` panel. The controller flips `visible` to false on `close()` and tears the host down after the out-transition. |
+
+The takeaway: where the native platform already provides top-layer
+rendering (`<dialog>.showModal()`, `popover="auto"`), `<sui-portal>`
+is best used for *document-level state markers* that page chrome can
+target — not for re-portaling the panel itself, which would break
+slot projection (slots only project inside their host's shadow tree;
+once teleported they detach). Where the native platform does NOT (a
+fixed-position toast stack inside a transformed ancestor),
+`<sui-portal>` is the right tool to teleport the whole thing.
+
+## Rail composition
+
+`<sui-rail>` is the left chrome container; views are addressed via
+slotted children. Author the rail in the shell HTML once and let the
+controller handle features (project switcher, session-count badge,
+launcher / create, active-view tracking, click-outside dismiss).
+
+```html
+<!-- apps/shell2/index.html — single static instance -->
+<sui-rail id="ship-rail">
+  <sui-rail-item icon="layout-dashboard" label="Dashboard" href="/" data-view="dashboard"></sui-rail-item>
+  <sui-rail-item icon="bot" label="Agents" href="/agents" data-view="agents"></sui-rail-item>
+  <sui-rail-item icon="git-branch" label="Git" href="/git" data-view="git"></sui-rail-item>
+  <sui-rail-item icon="sparkles" label="UI Studio" href="/ship-ui-studio" data-view="ship-ui-studio"></sui-rail-item>
+</sui-rail>
+```
+
+Three composition rules:
+
+1. **`data-view` is the active-view key.** The rail's controller
+   listens for `sui:navigate` (and `popstate`) and reads
+   `location.pathname.split('/').filter(Boolean)[0]`. The matching
+   `<sui-rail-item[data-view]>` child gets the `active` attribute set;
+   all others have it cleared. No manual wiring in the shell.
+2. **Mission Control is baked in.** `<sui-rail>` renders its own
+   `<sui-rail-item part="mission-control" data-view="mesh">` inside
+   the nav after the slot. The controller polls `/api/v1/pty-sessions`
+   every 15s and reflects the live count to the item's `badge`
+   attribute (suppressed at 0). Don't re-slot a Mission Control item
+   from the shell — it would collide.
+3. **Footer features dispatch bubbled events.** Project badge,
+   launcher, create — every footer action emits a composed bubbling
+   event the shell can listen for at the document level:
+   `sui-rail:toggle`, `ship:launcher:open`, `ship:create:open`,
+   `ship:project:change`. The project popover is wrapped in
+   `<sui-portal target="body">` with `transition:fade={{ duration: 150 }}`
+   so it escapes the rail's `overflow: hidden` + stacking context
+   cleanly.
+
+The rail controller fetches `/api/v1/projects` for the switcher and
+positions the portaled popover against the project-badge bounding
+rect (updates on `resize` / capturing `scroll`). When you need the
+selected project, listen on `document` for `ship:project:change`.
+
+## Morph (in-place DOM patching)
+
+Add the `morph` directive to any element whose contents are produced
+by `bindRawHtml` (or another HTML-string-replacing path) to preserve
+focus, scroll, selection, and event-listener identity across
+re-renders:
+
+```html
+<div morph>
+  {/* server-rendered HTML — bindRawHtml in the controller */}
+</div>
+```
+
+Without the directive, `bindRawHtml` replaces `innerHTML` and destroys
+any in-progress UI state on the children. With the directive,
+`bindRawHtml` routes updates through `morph()` — same-id elements are
+reused (even across reorders), attributes are swapped only when they
+change, and only truly-different subtrees are touched.
+
+`bindHtml` always morphs (no directive required); the directive only
+matters for `bindRawHtml` and any future HTML-producing binding.
+
+Limitations: doesn't preserve `<select>` value across morphs (browser
+quirk), doesn't morph into shadow DOM, matches only by `id` and
+tag-plus-position (no content-similarity heuristics).
+
 ## References
 
 | When you need | Read |
 |---|---|
-| Worked template examples, controller tiers, hooks, manifest schema, daemon routes, SSR + attach pipeline | `references/template-surface.md` |
+| Worked template examples, controller tiers, hooks, `<prop>` attribute reference, manifest schema, daemon routes, SSR + attach pipeline | `references/template-surface.md` |
+| Form-aware components — full contract, constraints, controller access to `internals` | `references/form-association.md` |
+| Cross-component reactive context (`shared` / `useShared`), controller tiers | `references/shared-context.md` |
 | Working on the SUI codebase itself (compiler, runtime, daemon SUI handlers) | `references/sui-internals.md` |
+
+## Hot reload
+
+In dev mode, `.sui` and `.controller.ts` edits trigger an in-place view
+re-mount without a full page reload. shell2's boot calls
+`initHmr()` (apps/shell2/src/hmr.ts), which uses
+`subscribeHmr` from `@ship/sui-runtime/dev` to listen on shipd's
+`/_sui/dev/hmr` SSE channel. When the Bun bundler emits
+`module-changed` for `views/<name>/view` and `<name>` matches the
+current route, shell2 cache-busts the rebuilt `view.js` and re-mounts
+through the existing `mount()` lifecycle.
+
+Other bundles (sui-components, sui-islands/*, sui-runtime, sui-dom,
+ship-elements) trigger a full reload — custom-element re-registration
+without reload isn't yet supported. Compile errors are logged to the
+browser console with `file:line`. Production builds inline
+`import.meta.env.DEV` to `false`, so HMR is a no-op and no
+EventSource opens.
+
+Run `just dev` and edit any view file under `views/<name>/` to see it
+apply in place.
+
+## Routes
+
+URL state is reactive. Import from `@ship/sui-runtime/route`:
+
+```ts
+import { controller } from '@ship/sui-runtime'
+import { route, defineRoutes, navigate } from '@ship/sui-runtime/route'
+import type { Scope } from './page.sui'
+
+defineRoutes([{ pattern: '/agents/:id' }])
+
+export default controller<Scope>({
+  scope: () => {
+    const r = route()
+    return {
+      agentId: r.params.id,             // Signal<string | undefined>
+      tab:     r.query.tab,             // Signal<string | undefined>
+      goHome:  () => navigate('/'),
+    }
+  },
+})
+```
+
+`route().params.<name>` and `route().query.<name>` are signals — call them
+to read (and subscribe) inside `effect`, `derived`, or a `<data>` source
+thunk. Param keys are lazy: reading `r.params.id` the first time creates
+the signal and seeds it from the current pathname. `defineRoutes([...])`
+registers patterns whose `:param` segments populate `params`; safe to
+call any number of times. Mutate the URL via `navigate(path)` —
+assigning to `params`/`query` throws. `popstate` and `navigate` both
+fire the global updater so every attached `route()` instance re-evaluates.
+
+## Controller scope is typed
+
+The compiler emits `Scope` in `<file>.sui.d.ts` covering BOTH template
+reactive identifiers AND the keys you add via `scope: () => ({...})`
+factory. `mount(state, host)` sees direct, typed members:
+
+```ts
+mount(state, host) {
+  state.caughtError.set(null)  // Signal<Error | null>
+  state.reset()                 // () => void
+}
+```
+
+No casts. No "scope signals missing" defensive throws. If a key is
+mistyped or missing, the TypeScript compiler catches it.

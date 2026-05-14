@@ -1,3 +1,10 @@
+// FILE_CAP_OVERRIDE: five sibling control-flow blocks ({#if}, {#for},
+// {#match}, {#while-loading}, {#while-error}) all share a hoist /
+// hydrate / boundary-key plumbing pattern that's only legible
+// side-by-side. Splitting each into its own file would force the
+// shared `emit_branch` + `emit_boundary_hydrate` helpers behind a
+// `pub(super)` boundary and obscure the structural similarity.
+
 //! Control-flow emit: `{#if}`, `{#for}`, `{#match}`, `{#while-loading}`,
 //! and `{#while-error}`.
 //!
@@ -18,6 +25,7 @@ use super::super::expr_rewrite::rewrite_for_scope;
 use super::super::writer::{js_string, Writer};
 use super::TemplateEmitter;
 use crate::ir::*;
+use crate::lower::for_uses_row::body_references_for_vars;
 
 impl TemplateEmitter {
     pub(in crate::emit) fn emit_if(
@@ -111,6 +119,19 @@ impl TemplateEmitter {
         let it_rw = rewrite_for_scope(&instr.iterable.source, &[]);
         let var = &instr.var_name;
         let idx_name = instr.index_name.as_deref().unwrap_or("__i");
+        // D3: skip the per-row `__v` version signal when no binding in
+        // the body would observe the update. The detector checks every
+        // reachable Expr for an identifier-shaped reference to the row
+        // binder (or the named index); on a hit we keep the sentinel
+        // and the matching `void $scope.__v()` / `__v.set(c => c + 1)`
+        // wiring. On a miss the row body is purely static (or reads
+        // only outer-scope signals) and the per-row reactive plumbing
+        // is dead weight — ~4 allocations × every row × every render.
+        let body_needs_v = body_references_for_vars(
+            &instr.body,
+            var,
+            instr.index_name.as_deref(),
+        );
 
         let mut h = Writer::new();
         h.line(&format!(
@@ -131,6 +152,14 @@ impl TemplateEmitter {
         h.line(&format!("const {child_scope} = Object.create($scope);"));
         h.line(&format!("{child_scope}.{var} = {var};"));
         h.line(&format!("{child_scope}.{idx_name} = {idx_name};"));
+        if body_needs_v {
+            // Per-row version signal. Incremented by `update` to force
+            // all reactive binding closures inside this row to
+            // re-evaluate, picking up the new item value from
+            // $scope.{var}. Skipped when the body holds no expression
+            // that reads the row or index — there's nothing to refresh.
+            h.line(&format!("{child_scope}.__v = signal(0);"));
+        }
         // Wrap the body in an IIFE that takes `$scope` as a parameter so
         // the iteration's child scope shadows the outer `$scope` without
         // a same-block `const $scope` declaration (which would TDZ on
@@ -153,7 +182,13 @@ impl TemplateEmitter {
         body_w.line(&format!("const {cl} = [];"));
         let hoist_snapshot = self.boundary_hoists.len();
         self.boundary_depth += 1;
+        let outer_for = std::mem::replace(&mut self.for_in_scope, body_needs_v);
+        // D5: scope inline-update statements per for-loop so a nested
+        // for inside this one collects into its own bucket, not ours.
+        let outer_inline = std::mem::take(&mut self.inline_update_stmts);
         self.emit_children(&mut body_w, &instr.body, &frag, &cl);
+        self.for_in_scope = outer_for;
+        let inline_updates = std::mem::replace(&mut self.inline_update_stmts, outer_inline);
         self.boundary_depth -= 1;
         let captured_hoists = self.boundary_hoists.split_off_from(hoist_snapshot);
         if !captured_hoists.is_empty() {
@@ -162,9 +197,31 @@ impl TemplateEmitter {
             h.push_str(&captured_hoists);
         }
         h.push_str(&body_w.into_string());
-        h.line(&format!(
-            "return {{ nodes: Array.from({frag}.childNodes), cleanup: () => {{ for (const c of {cl}) try {{ c(); }} catch (e) {{}} }} }};"
-        ));
+        let needs_update = body_needs_v || !inline_updates.is_empty();
+        if needs_update {
+            let new_var = self.fresh("new");
+            let new_idx = self.fresh("newI");
+            // The update body re-runs each inlined static assignment
+            // so keyed-row reuse refreshes the DOM when bindFor
+            // reassigns the row instance. `__v.set` only fires when a
+            // reactive binding (a `()` call in source) is present.
+            let inline_run = inline_updates.join(" ");
+            let v_bump = if body_needs_v {
+                " $scope.__v.set(c => c + 1);"
+            } else {
+                ""
+            };
+            h.line(&format!(
+                "return {{ nodes: Array.from({frag}.childNodes), cleanup: () => {{ for (const c of {cl}) try {{ c(); }} catch (e) {{}} }}, update: ({new_var}, {new_idx}) => {{ $scope.{var} = {new_var}; $scope.{idx_name} = {new_idx}; {inline_run}{v_bump} }} }};"
+            ));
+        } else {
+            // No body expression reads the row/index — bindFor's
+            // optional `update` hook would have nothing to refresh.
+            // Omit it entirely so key-reuse skips a no-op call too.
+            h.line(&format!(
+                "return {{ nodes: Array.from({frag}.childNodes), cleanup: () => {{ for (const c of {cl}) try {{ c(); }} catch (e) {{}} }} }};"
+            ));
+        }
         h.leave();
         h.line(&format!("}})({child_scope});"));
         h.leave();

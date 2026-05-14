@@ -36,7 +36,8 @@ Reference views: `views/counter/` (no controller), `views/agents/` (object-liter
 
 <!-- props (component .sui files only; tag = directory/filename stem) -->
 <prop name="tone" values="default|primary" default="default" reflect />
-<prop name="disabled" type="bool" default="false" reflect />
+<prop name="disabled" type="bool" default="false" reflect form-disabled />
+<prop name="value" type="string" default="" form-value />
 
 <!-- mutations (write-side complement to <data>) -->
 <form mutation="ship.agents.create">
@@ -75,6 +76,26 @@ Reference views: `views/counter/` (no controller), `views/agents/` (object-liter
 ```
 
 File IS the component / view — no `<component>` wrapper. Top-level directives (`<data>`, `<prop>`, `<use-*>`) declare scope; the rest is the body. Reactive component state is declared in the paired controller's `scope:` factory.
+
+### `<prop>` attribute reference
+
+| Attribute | Meaning |
+|---|---|
+| `name` | Kebab-case attribute name on the host element. |
+| `type` | `string` / `number` / `bool` / `union` / `object` / `array`. |
+| `values="a\|b\|c"` | Union type — enumerated allowed string values. Implies `type="union"`. |
+| `default` | Initial value when the attribute is absent. |
+| `reflect` | Boolean flag. Mirror prop changes back to the host attribute. |
+| `form-value` | Boolean flag. Marks this prop as the form-control value — see "Form-aware components" in `../SKILL.md`. One prop per component; rejected on `object` / `array` types. |
+| `form-disabled` | Boolean flag. Marks this prop as the form-disabled signal — only valid on `type="bool"` props. |
+
+### `{#for}` requires `key={…}`
+
+The reconciler uses the key expression for stable identity across reorders. Without it the lint `sui-for-key` warns (Warn severity, LSP-only — doesn't block compile yet) and DOM identity (focus, selection, in-place edits, animation state) is lost when items shift. The runtime additionally warns on duplicate key values at first render.
+
+### `on:<event>` is whitelisted
+
+DOM events, `sui-*` and `ship-*` custom-event families, and `tag:event`-prefixed cross-component events (`sui-dialog:close`, …) are accepted. Anything else (typos like `on:Click`, made-up event names) triggers the `sui-event-name` lint with a Levenshtein-suggested closest match.
 
 ## Controller (paired `view.controller.ts`, five sections)
 

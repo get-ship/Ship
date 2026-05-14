@@ -1,0 +1,8 @@
+// Route metadata for views/setup/. First-run setup wizard.
+{
+  "name": "setup",
+  "path": "/setup",
+  "title": "Set up Ship",
+  "layout": "minimal",
+  "auth": "public"
+}

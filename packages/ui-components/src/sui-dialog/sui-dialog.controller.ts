@@ -15,13 +15,21 @@ export default controller<Scope>({
     const closeBtn = scope.closeBtn() as HTMLButtonElement | null
     const sentinelStart = scope.sentinelStart() as HTMLElement | null
     const sentinelEnd = scope.sentinelEnd() as HTMLElement | null
-    const headerEl = scope.headerEl() as HTMLElement | null
-    const bodyEl = scope.bodyEl() as HTMLElement | null
 
     if (!dialogEl) return
 
-    if (headerEl) headerEl.id = headerId
-    if (bodyEl) bodyEl.id = bodyId
+    // headerEl + bodyEl live inside the `{#if open()}` branch — they
+    // come and go with each open cycle. Assign their `id` reactively
+    // so aria-labelledby / aria-describedby keep resolving.
+    const stopHeaderIdEffect = effect(() => {
+      const h = scope.headerEl() as HTMLElement | null
+      if (h) h.id = headerId
+    })
+    const stopBodyIdEffect = effect(() => {
+      const b = scope.bodyEl() as HTMLElement | null
+      if (b) b.id = bodyId
+    })
+
     dialogEl.setAttribute('aria-labelledby', headerId)
     dialogEl.setAttribute('aria-describedby', bodyId)
 
@@ -120,6 +128,8 @@ export default controller<Scope>({
       sentinelEnd?.removeEventListener('focus', onSentinelEndFocus)
       stopOpenSync()
       stopRoleSync()
+      stopHeaderIdEffect()
+      stopBodyIdEffect()
     }
   },
 })

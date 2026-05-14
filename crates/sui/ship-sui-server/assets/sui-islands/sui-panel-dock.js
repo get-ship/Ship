@@ -1,8 +1,66 @@
 // packages/ui-components/src/islands/sui-panel-dock/sui-panel-dock.sui
-import { adoptSuiSheets, attachRef, bindAttr, bindFor, bindIf, bindProp, bindText, component, on, prop } from "@ship/sui-runtime";
+import { adoptSuiSheets, attachRef, bindAttr, bindFor, bindIf, bindProp, bindText, component, fade, on, prop, registerTransition, signal as signal2 } from "@ship/sui-runtime";
 
 // packages/ui-components/src/islands/sui-panel-dock/sui-panel-dock.controller.ts
 import { controller, signal, ref } from "@ship/sui-runtime";
+
+// packages/ui-components/src/islands/sui-panel-dock/resize-pill-styles.ts
+var RESIZE_PILL_STYLES = `
+.sui-dock-resize-pill {
+  position: fixed;
+  left: 50%;
+  bottom: calc(var(--ship-dock-height, 240px) + 12px);
+  transform: translateX(-50%);
+  z-index: var(--z-tooltip, 1100);
+  padding: 4px 10px;
+  border-radius: var(--radius-md, 8px);
+  background: var(--popover, var(--card, #fff));
+  color: var(--popover-foreground, var(--card-foreground, #111));
+  border: 1px solid var(--border, #e5e5e5);
+  box-shadow: var(--shadow-md, 0 4px 12px rgba(0, 0, 0, 0.15));
+  font-family: var(--mono-font, ui-monospace, monospace);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+  user-select: none;
+}
+`;
+var stylesInstalled = false;
+function ensureResizePillStyles() {
+  if (stylesInstalled)
+    return;
+  if (typeof document === "undefined")
+    return;
+  stylesInstalled = true;
+  const el = document.createElement("style");
+  el.setAttribute("data-sui-panel-dock", "");
+  el.textContent = RESIZE_PILL_STYLES;
+  document.head.appendChild(el);
+}
+
+// packages/ui-components/src/islands/sui-panel-dock/sui-panel-dock.controller.ts
+var SUI_TERMINAL_BUNDLE = "/_sui/islands/sui-terminal/island.js";
+function ensureTerminalLoaded() {
+  if (customElements.get("sui-terminal"))
+    return;
+  if (document.querySelector("script[data-sui-terminal-island]"))
+    return;
+  const s = document.createElement("script");
+  s.type = "module";
+  s.src = SUI_TERMINAL_BUNDLE;
+  s.dataset["suiTerminalIsland"] = "1";
+  document.head.appendChild(s);
+}
+function ensureTerminalSlotFilled(host) {
+  const existing = host.querySelector(':scope > [slot="terminal"]');
+  if (existing)
+    return;
+  const term = document.createElement("sui-terminal");
+  term.setAttribute("slot", "terminal");
+  term.setAttribute("fit", "");
+  host.appendChild(term);
+  ensureTerminalLoaded();
+}
 var DEFAULT_TABS = [
   { id: "terminal", label: "Terminal", icon: "terminal", live: true },
   { id: "source", label: "Source", icon: "file-code" },
@@ -16,14 +74,22 @@ var MIN_HEIGHT = 120;
 var sui_panel_dock_controller_default = controller({
   scope: (state, host) => {
     const tabs = signal(DEFAULT_TABS);
+    const dragHeight = signal(DEFAULT_HEIGHT);
+    const resizeHandle = ref(null);
     const hostEl = host;
-    const activeTabSig = state.activeTab;
+    const s = state;
+    const writeStored = (suffix, val) => {
+      try {
+        localStorage.setItem(`${s.storageKey()}-${suffix}`, val);
+      } catch {}
+    };
     function activate(id) {
       if (!tabs().some((t) => t.id === id))
         return;
-      if (activeTabSig() === id)
+      if (s.activeTab() === id)
         return;
-      activeTabSig.set(id);
+      s.activeTab.set(id);
+      writeStored("active", id);
       hostEl?.dispatchEvent(new CustomEvent("sui:dock:activate", {
         detail: { tab: id },
         bubbles: true,
@@ -32,14 +98,14 @@ var sui_panel_dock_controller_default = controller({
     }
     function onClear() {
       hostEl?.dispatchEvent(new CustomEvent("sui:dock:clear", {
-        detail: { tab: activeTabSig() },
+        detail: { tab: s.activeTab() },
         bubbles: true,
         composed: true
       }));
     }
     function onPopout() {
       hostEl?.dispatchEvent(new CustomEvent("sui:dock:popout", {
-        detail: { tab: activeTabSig() },
+        detail: { tab: s.activeTab() },
         bubbles: true,
         composed: true
       }));
@@ -47,55 +113,52 @@ var sui_panel_dock_controller_default = controller({
     function onClose() {
       hostEl?.dispatchEvent(new CustomEvent("sui:dock:close", { bubbles: true, composed: true }));
     }
-    const resizeHandle = ref(null);
-    return { tabs, resizeHandle, activate, onClear, onPopout, onClose };
+    return { tabs, dragHeight, resizeHandle, activate, onClear, onPopout, onClose };
   },
   mount(state, host) {
     const scope = state;
     const tabsSig = scope.tabs;
     const activeTabSig = scope.activeTab;
     const resizingSig = scope.resizing;
-    const storageKeySig = scope.storageKey;
+    const dragHeightSig = scope.dragHeight;
+    const storageKey = scope.storageKey;
     const activate = scope.activate;
     const resizeHandle = scope.resizeHandle();
-    function readStored(suffix) {
+    ensureResizePillStyles();
+    ensureTerminalSlotFilled(host);
+    const readStored = (suffix) => {
       try {
-        return localStorage.getItem(`${storageKeySig()}-${suffix}`);
+        return localStorage.getItem(`${storageKey()}-${suffix}`);
       } catch {
         return null;
       }
-    }
-    function writeStored(suffix, val) {
+    };
+    const writeStored = (suffix, val) => {
       try {
-        localStorage.setItem(`${storageKeySig()}-${suffix}`, val);
+        localStorage.setItem(`${storageKey()}-${suffix}`, val);
       } catch {}
-    }
-    function applyHeight(px) {
+    };
+    const applyHeight = (px) => {
       document.documentElement.style.setProperty("--ship-dock-height", `${px}px`);
-    }
-    function currentHeight() {
+      dragHeightSig.set(px);
+    };
+    const currentHeight = () => {
       const v = getComputedStyle(document.documentElement).getPropertyValue("--ship-dock-height");
       const n = Number.parseInt(v, 10);
       return Number.isFinite(n) ? n : DEFAULT_HEIGHT;
-    }
+    };
     const lastActive = readStored("active");
-    if (lastActive && DEFAULT_TABS.some((t) => t.id === lastActive)) {
+    if (lastActive && tabsSig().some((t) => t.id === lastActive)) {
       activeTabSig.set(lastActive);
     }
     const h = Number.parseInt(readStored("height") ?? "", 10);
     applyHeight(Number.isFinite(h) ? h : DEFAULT_HEIGHT);
-    const wrappedActivate = (id) => {
-      const prev = activeTabSig();
-      activate(id);
-      if (activeTabSig() !== prev)
-        writeStored("active", id);
-    };
     const sr = host.shadowRoot;
     const toolbarCleanups = [];
-    for (const tb of sr.querySelectorAll("[data-toolbar]")) {
+    const trackToolbar = (tb) => {
       const slot = tb.querySelector("slot");
       if (!slot)
-        continue;
+        return;
       const sync = () => {
         const has = slot.assignedElements({ flatten: true }).length > 0;
         tb.classList.toggle("has-content", has);
@@ -103,7 +166,21 @@ var sui_panel_dock_controller_default = controller({
       slot.addEventListener("slotchange", sync);
       queueMicrotask(sync);
       toolbarCleanups.push(() => slot.removeEventListener("slotchange", sync));
-    }
+    };
+    for (const tb of sr.querySelectorAll("[data-toolbar]"))
+      trackToolbar(tb);
+    const mo = new MutationObserver((records) => {
+      for (const r of records) {
+        for (const n of r.addedNodes) {
+          if (n.nodeType !== 1)
+            continue;
+          const el = n;
+          if (el.matches?.("[data-toolbar]"))
+            trackToolbar(el);
+        }
+      }
+    });
+    mo.observe(sr, { childList: true, subtree: true });
     const onPointerDown = (ev) => {
       ev.preventDefault();
       const startY = ev.clientY;
@@ -143,7 +220,7 @@ var sui_panel_dock_controller_default = controller({
     };
     resizeHandle.addEventListener("pointerdown", onPointerDown);
     resizeHandle.addEventListener("dblclick", onDblClick);
-    Object.defineProperty(host, "activate", { value: wrappedActivate, configurable: true });
+    Object.defineProperty(host, "activate", { value: activate, configurable: true });
     Object.defineProperty(host, "show", {
       value: () => document.body.classList.add("dock-open"),
       configurable: true
@@ -164,6 +241,7 @@ var sui_panel_dock_controller_default = controller({
     return () => {
       for (const cleanup of toolbarCleanups)
         cleanup();
+      mo.disconnect();
       resizeHandle.removeEventListener("pointerdown", onPointerDown);
       resizeHandle.removeEventListener("dblclick", onDblClick);
     };
@@ -332,6 +410,7 @@ var sui_panel_dock_default = component("sui-panel-dock", {
     $scope.activeTab = props.activeTab;
     $scope.storageKey = props.storageKey;
     $scope.resizing = props.resizing;
+    $scope["resizeHandle"] = signal2(null);
     let __r = null;
     if (sui_panel_dock_controller_default && typeof sui_panel_dock_controller_default.setup === "function") {
       ctx.scope = $scope;
@@ -352,6 +431,7 @@ var sui_panel_dock_default = component("sui-panel-dock", {
         const __childScope3 = Object.create($scope);
         __childScope3.t = t;
         __childScope3.__i = __i;
+        __childScope3.__v = signal2(0);
         return (($scope2) => {
           const __wireBoundary_b8 = (anchor2) => bindIf({
             anchor: anchor2,
@@ -362,14 +442,14 @@ var sui_panel_dock_default = component("sui-panel-dock", {
             },
             branches: [
               () => {
-                const __frag11 = document.createDocumentFragment();
-                const __c12 = [];
-                const __e13 = document.createElement("span");
-                __e13.setAttribute("class", "live-dot");
-                __e13.setAttribute("aria-hidden", "true");
-                __frag11.appendChild(__e13);
-                return { nodes: Array.from(__frag11.childNodes), cleanup: () => {
-                  for (const c of __c12)
+                const __frag12 = document.createDocumentFragment();
+                const __c13 = [];
+                const __e14 = document.createElement("span");
+                __e14.setAttribute("class", "live-dot");
+                __e14.setAttribute("aria-hidden", "true");
+                __frag12.appendChild(__e14);
+                return { nodes: Array.from(__frag12.childNodes), cleanup: () => {
+                  for (const c of __c13)
                     try {
                       c();
                     } catch (e) {}
@@ -386,16 +466,16 @@ var sui_panel_dock_default = component("sui-panel-dock", {
             },
             branches: [
               () => {
-                const __frag15 = document.createDocumentFragment();
-                const __c16 = [];
-                const __e17 = document.createElement("span");
-                __e17.setAttribute("class", "count");
-                const __t18 = document.createTextNode("");
-                __e17.appendChild(__t18);
-                __c16.push(bindText(__t18, () => $scope2.t.count.toLocaleString()));
-                __frag15.appendChild(__e17);
-                return { nodes: Array.from(__frag15.childNodes), cleanup: () => {
-                  for (const c of __c16)
+                const __frag16 = document.createDocumentFragment();
+                const __c17 = [];
+                const __e18 = document.createElement("span");
+                __e18.setAttribute("class", "count");
+                const __t19 = document.createTextNode("");
+                __e18.appendChild(__t19);
+                __c17.push(bindText(__t19, () => (void $scope2.__v(), $scope2.t.count.toLocaleString())));
+                __frag16.appendChild(__e18);
+                return { nodes: Array.from(__frag16.childNodes), cleanup: () => {
+                  for (const c of __c17)
                     try {
                       c();
                     } catch (e) {}
@@ -409,37 +489,198 @@ var sui_panel_dock_default = component("sui-panel-dock", {
           __e6.setAttribute("class", "tab");
           __e6.setAttribute("role", "tab");
           __e6.setAttribute("type", "button");
-          __c5.push(bindAttr(__e6, "aria-selected", () => $scope2.t.id === $scope2.activeTab() ? "true" : "false"));
-          __c5.push(bindAttr(__e6, "tabindex", () => $scope2.t.id === $scope2.activeTab() ? "0" : "-1"));
-          __c5.push(bindAttr(__e6, "data-tab", () => $scope2.t.id));
+          __c5.push(bindAttr(__e6, "aria-selected", () => (void $scope2.__v(), $scope2.t.id === $scope2.activeTab() ? "true" : "false")));
+          __c5.push(bindAttr(__e6, "tabindex", () => (void $scope2.__v(), $scope2.t.id === $scope2.activeTab() ? "0" : "-1")));
+          {
+            const __av7 = $scope2.t.id;
+            if (__av7 == null || __av7 === false || __av7 === "")
+              __e6.removeAttribute("data-tab");
+            else
+              __e6.setAttribute("data-tab", __av7 === true ? "" : String(__av7));
+          }
           __c5.push(on(__e6, "click", function() {
             const __h = () => $scope2.activate($scope2.t.id);
             return typeof __h === "function" ? __h.bind(undefined) : () => {};
           }(), { modifiers: [] }));
-          const __e7 = document.createElement("sui-icon");
-          __c5.push(bindProp(__e7, "name", () => $scope2.t.icon));
-          __e7.setAttribute("size", "sm");
-          __e6.appendChild(__e7);
-          const __e8 = document.createElement("span");
-          const __t9 = document.createTextNode("");
-          __e8.appendChild(__t9);
-          __c5.push(bindText(__t9, () => $scope2.t.label));
+          const __e8 = document.createElement("sui-icon");
+          __e8["name"] = $scope2.t.icon;
+          __e8.setAttribute("size", "sm");
           __e6.appendChild(__e8);
-          const __ifAnchor10 = document.createComment("if");
-          __e6.appendChild(__ifAnchor10);
-          __c5.push(__wireBoundary_b8(__ifAnchor10));
-          const __ifAnchor14 = document.createComment("if");
-          __e6.appendChild(__ifAnchor14);
-          __c5.push(__wireBoundary_b9(__ifAnchor14));
+          const __e9 = document.createElement("span");
+          const __t10 = document.createTextNode("");
+          __e9.appendChild(__t10);
+          __t10.textContent = $scope2.t.label;
+          __e6.appendChild(__e9);
+          const __ifAnchor11 = document.createComment("if");
+          __e6.appendChild(__ifAnchor11);
+          __c5.push(__wireBoundary_b8(__ifAnchor11));
+          const __ifAnchor15 = document.createComment("if");
+          __e6.appendChild(__ifAnchor15);
+          __c5.push(__wireBoundary_b9(__ifAnchor15));
           __frag4.appendChild(__e6);
           return { nodes: Array.from(__frag4.childNodes), cleanup: () => {
             for (const c of __c5)
               try {
                 c();
               } catch (e) {}
+          }, update: (__new20, __newI21) => {
+            $scope2.t = __new20;
+            $scope2.__i = __newI21;
+            {
+              const __av7 = $scope2.t.id;
+              if (__av7 == null || __av7 === false || __av7 === "")
+                __e6.removeAttribute("data-tab");
+              else
+                __e6.setAttribute("data-tab", __av7 === true ? "" : String(__av7));
+            }
+            __e8["name"] = $scope2.t.icon;
+            __t10.textContent = $scope2.t.label;
+            $scope2.__v.set((c) => c + 1);
           } };
         })(__childScope3);
       }
+    });
+    const __wireBoundary_b14 = (anchor) => bindFor({
+      anchor,
+      items: () => $scope.tabs(),
+      key: (t, __i) => {
+        const __child = Object.create($scope);
+        __child.t = t;
+        __child.__i = __i;
+        return (($scope2) => t.id)(__child);
+      },
+      render: (t, __i) => {
+        const __childScope30 = Object.create($scope);
+        __childScope30.t = t;
+        __childScope30.__i = __i;
+        __childScope30.__v = signal2(0);
+        return (($scope2) => {
+          const __frag31 = document.createDocumentFragment();
+          const __c32 = [];
+          const __e33 = document.createElement("div");
+          __e33.setAttribute("class", "toolbar");
+          {
+            const __av34 = $scope2.t.id;
+            if (__av34 == null || __av34 === false || __av34 === "")
+              __e33.removeAttribute("data-toolbar");
+            else
+              __e33.setAttribute("data-toolbar", __av34 === true ? "" : String(__av34));
+          }
+          __c32.push(bindAttr(__e33, "hidden", () => (void $scope2.__v(), $scope2.t.id !== $scope2.activeTab())));
+          const __e35 = document.createElement("slot");
+          {
+            const __av36 = "toolbar:" + $scope2.t.id;
+            if (__av36 == null || __av36 === false || __av36 === "")
+              __e35.removeAttribute("name");
+            else
+              __e35.setAttribute("name", __av36 === true ? "" : String(__av36));
+          }
+          __e33.appendChild(__e35);
+          __frag31.appendChild(__e33);
+          return { nodes: Array.from(__frag31.childNodes), cleanup: () => {
+            for (const c of __c32)
+              try {
+                c();
+              } catch (e) {}
+          }, update: (__new37, __newI38) => {
+            $scope2.t = __new37;
+            $scope2.__i = __newI38;
+            {
+              const __av34 = $scope2.t.id;
+              if (__av34 == null || __av34 === false || __av34 === "")
+                __e33.removeAttribute("data-toolbar");
+              else
+                __e33.setAttribute("data-toolbar", __av34 === true ? "" : String(__av34));
+            }
+            {
+              const __av36 = "toolbar:" + $scope2.t.id;
+              if (__av36 == null || __av36 === false || __av36 === "")
+                __e35.removeAttribute("name");
+              else
+                __e35.setAttribute("name", __av36 === true ? "" : String(__av36));
+            }
+            $scope2.__v.set((c) => c + 1);
+          } };
+        })(__childScope30);
+      }
+    });
+    const __wireBoundary_b18 = (anchor) => bindFor({
+      anchor,
+      items: () => $scope.tabs(),
+      key: (t, __i) => {
+        const __child = Object.create($scope);
+        __child.t = t;
+        __child.__i = __i;
+        return (($scope2) => t.id)(__child);
+      },
+      render: (t, __i) => {
+        const __childScope41 = Object.create($scope);
+        __childScope41.t = t;
+        __childScope41.__i = __i;
+        __childScope41.__v = signal2(0);
+        return (($scope2) => {
+          const __frag42 = document.createDocumentFragment();
+          const __c43 = [];
+          const __e44 = document.createElement("slot");
+          {
+            const __av45 = $scope2.t.id;
+            if (__av45 == null || __av45 === false || __av45 === "")
+              __e44.removeAttribute("name");
+            else
+              __e44.setAttribute("name", __av45 === true ? "" : String(__av45));
+          }
+          __c43.push(bindAttr(__e44, "data-active", () => (void $scope2.__v(), $scope2.t.id === $scope2.activeTab())));
+          __frag42.appendChild(__e44);
+          return { nodes: Array.from(__frag42.childNodes), cleanup: () => {
+            for (const c of __c43)
+              try {
+                c();
+              } catch (e) {}
+          }, update: (__new46, __newI47) => {
+            $scope2.t = __new46;
+            $scope2.__i = __newI47;
+            {
+              const __av45 = $scope2.t.id;
+              if (__av45 == null || __av45 === false || __av45 === "")
+                __e44.removeAttribute("name");
+              else
+                __e44.setAttribute("name", __av45 === true ? "" : String(__av45));
+            }
+            $scope2.__v.set((c) => c + 1);
+          } };
+        })(__childScope41);
+      }
+    });
+    const __wireBoundary_b21 = (anchor) => bindIf({
+      anchor,
+      test: () => {
+        if ($scope.resizing())
+          return 0;
+        return -1;
+      },
+      branches: [
+        () => {
+          const __frag50 = document.createDocumentFragment();
+          const __c51 = [];
+          const __e52 = document.createElement("div");
+          __e52.setAttribute("class", "sui-dock-resize-pill");
+          __e52.setAttribute("part", "resize-pill");
+          registerTransition(__e52, fade, { duration: 120 }, "both");
+          const __t53 = document.createTextNode("");
+          __e52.appendChild(__t53);
+          __c51.push(bindText(__t53, () => $scope.dragHeight()));
+          const __t54 = document.createTextNode(`px
+    `);
+          __e52.appendChild(__t54);
+          __frag50.appendChild(__e52);
+          return { nodes: Array.from(__frag50.childNodes), cleanup: () => {
+            for (const c of __c51)
+              try {
+                c();
+              } catch (e) {}
+          } };
+        }
+      ]
     });
     const __root = host.shadowRoot ?? host;
     adoptSuiSheets(__root);
@@ -456,130 +697,70 @@ var sui_panel_dock_default = component("sui-panel-dock", {
     const __forAnchor2 = document.createComment("for");
     __e1.appendChild(__forAnchor2);
     __cleanups.push(__wireBoundary_b1(__forAnchor2));
-    const __e19 = document.createElement("span");
-    __e19.setAttribute("class", "tools");
-    const __e20 = document.createElement("button");
-    __e20.setAttribute("class", "tool");
-    __e20.setAttribute("type", "button");
-    __e20.setAttribute("aria-label", "Clear");
-    __e20.setAttribute("title", "Clear");
-    __e20.setAttribute("data-action", "clear");
-    __cleanups.push(on(__e20, "click", function() {
+    const __e22 = document.createElement("span");
+    __e22.setAttribute("class", "tools");
+    const __e23 = document.createElement("button");
+    __e23.setAttribute("class", "tool");
+    __e23.setAttribute("type", "button");
+    __e23.setAttribute("aria-label", "Clear");
+    __e23.setAttribute("title", "Clear");
+    __e23.setAttribute("data-action", "clear");
+    __cleanups.push(on(__e23, "click", function() {
       const __h = $scope.onClear;
       return typeof __h === "function" ? __h.bind(undefined) : () => {};
     }(), { modifiers: [] }));
-    const __e21 = document.createElement("sui-icon");
-    __e21.setAttribute("name", "refresh-ccw");
-    __e21.setAttribute("size", "sm");
-    __e20.appendChild(__e21);
-    __e19.appendChild(__e20);
-    const __e22 = document.createElement("button");
-    __e22.setAttribute("class", "tool");
-    __e22.setAttribute("type", "button");
-    __e22.setAttribute("aria-label", "Pop out");
-    __e22.setAttribute("title", "Pop out");
-    __e22.setAttribute("data-action", "popout");
-    __cleanups.push(on(__e22, "click", function() {
+    const __e24 = document.createElement("sui-icon");
+    __e24.setAttribute("name", "refresh-cw");
+    __e24.setAttribute("size", "sm");
+    __e23.appendChild(__e24);
+    __e22.appendChild(__e23);
+    const __e25 = document.createElement("button");
+    __e25.setAttribute("class", "tool");
+    __e25.setAttribute("type", "button");
+    __e25.setAttribute("aria-label", "Pop out");
+    __e25.setAttribute("title", "Pop out");
+    __e25.setAttribute("data-action", "popout");
+    __cleanups.push(on(__e25, "click", function() {
       const __h = $scope.onPopout;
       return typeof __h === "function" ? __h.bind(undefined) : () => {};
     }(), { modifiers: [] }));
-    const __e23 = document.createElement("sui-icon");
-    __e23.setAttribute("name", "maximize-2");
-    __e23.setAttribute("size", "sm");
-    __e22.appendChild(__e23);
-    __e19.appendChild(__e22);
-    const __e24 = document.createElement("button");
-    __e24.setAttribute("class", "tool");
-    __e24.setAttribute("type", "button");
-    __e24.setAttribute("aria-label", "Close panel");
-    __e24.setAttribute("title", "Close (⌘J)");
-    __e24.setAttribute("data-action", "close");
-    __cleanups.push(on(__e24, "click", function() {
+    const __e26 = document.createElement("sui-icon");
+    __e26.setAttribute("name", "maximize");
+    __e26.setAttribute("size", "sm");
+    __e25.appendChild(__e26);
+    __e22.appendChild(__e25);
+    const __e27 = document.createElement("button");
+    __e27.setAttribute("class", "tool");
+    __e27.setAttribute("type", "button");
+    __e27.setAttribute("aria-label", "Close panel");
+    __e27.setAttribute("title", "Close (⌘J)");
+    __e27.setAttribute("data-action", "close");
+    __cleanups.push(on(__e27, "click", function() {
       const __h = $scope.onClose;
       return typeof __h === "function" ? __h.bind(undefined) : () => {};
     }(), { modifiers: [] }));
-    const __e25 = document.createElement("sui-icon");
-    __e25.setAttribute("name", "x");
-    __e25.setAttribute("size", "sm");
-    __e24.appendChild(__e25);
-    __e19.appendChild(__e24);
-    __e1.appendChild(__e19);
+    const __e28 = document.createElement("sui-icon");
+    __e28.setAttribute("name", "x");
+    __e28.setAttribute("size", "sm");
+    __e27.appendChild(__e28);
+    __e22.appendChild(__e27);
+    __e1.appendChild(__e22);
     __root.appendChild(__e1);
-    const __e26 = document.createElement("div");
-    __e26.setAttribute("class", "toolbar");
-    __e26.setAttribute("data-toolbar", "terminal");
-    __cleanups.push(bindAttr(__e26, "hidden", () => $scope.activeTab() !== "terminal"));
-    const __e27 = document.createElement("slot");
-    __e27.setAttribute("name", "toolbar:terminal");
-    __e26.appendChild(__e27);
-    __root.appendChild(__e26);
-    const __e28 = document.createElement("div");
-    __e28.setAttribute("class", "toolbar");
-    __e28.setAttribute("data-toolbar", "source");
-    __cleanups.push(bindAttr(__e28, "hidden", () => $scope.activeTab() !== "source"));
-    const __e29 = document.createElement("slot");
-    __e29.setAttribute("name", "toolbar:source");
-    __e28.appendChild(__e29);
-    __root.appendChild(__e28);
-    const __e30 = document.createElement("div");
-    __e30.setAttribute("class", "toolbar");
-    __e30.setAttribute("data-toolbar", "signals");
-    __cleanups.push(bindAttr(__e30, "hidden", () => $scope.activeTab() !== "signals"));
-    const __e31 = document.createElement("slot");
-    __e31.setAttribute("name", "toolbar:signals");
-    __e30.appendChild(__e31);
-    __root.appendChild(__e30);
-    const __e32 = document.createElement("div");
-    __e32.setAttribute("class", "toolbar");
-    __e32.setAttribute("data-toolbar", "lint");
-    __cleanups.push(bindAttr(__e32, "hidden", () => $scope.activeTab() !== "lint"));
-    const __e33 = document.createElement("slot");
-    __e33.setAttribute("name", "toolbar:lint");
-    __e32.appendChild(__e33);
-    __root.appendChild(__e32);
-    const __e34 = document.createElement("div");
-    __e34.setAttribute("class", "toolbar");
-    __e34.setAttribute("data-toolbar", "schema");
-    __cleanups.push(bindAttr(__e34, "hidden", () => $scope.activeTab() !== "schema"));
-    const __e35 = document.createElement("slot");
-    __e35.setAttribute("name", "toolbar:schema");
-    __e34.appendChild(__e35);
-    __root.appendChild(__e34);
-    const __e36 = document.createElement("div");
-    __e36.setAttribute("class", "toolbar");
-    __e36.setAttribute("data-toolbar", "components");
-    __cleanups.push(bindAttr(__e36, "hidden", () => $scope.activeTab() !== "components"));
-    const __e37 = document.createElement("slot");
-    __e37.setAttribute("name", "toolbar:components");
-    __e36.appendChild(__e37);
-    __root.appendChild(__e36);
-    const __e38 = document.createElement("div");
-    __e38.setAttribute("class", "bodies");
-    const __e39 = document.createElement("slot");
-    __e39.setAttribute("name", "terminal");
-    __cleanups.push(bindAttr(__e39, "data-active", () => $scope.activeTab() === "terminal"));
-    __e38.appendChild(__e39);
-    const __e40 = document.createElement("slot");
-    __e40.setAttribute("name", "source");
-    __cleanups.push(bindAttr(__e40, "data-active", () => $scope.activeTab() === "source"));
-    __e38.appendChild(__e40);
-    const __e41 = document.createElement("slot");
-    __e41.setAttribute("name", "signals");
-    __cleanups.push(bindAttr(__e41, "data-active", () => $scope.activeTab() === "signals"));
-    __e38.appendChild(__e41);
-    const __e42 = document.createElement("slot");
-    __e42.setAttribute("name", "lint");
-    __cleanups.push(bindAttr(__e42, "data-active", () => $scope.activeTab() === "lint"));
-    __e38.appendChild(__e42);
-    const __e43 = document.createElement("slot");
-    __e43.setAttribute("name", "schema");
-    __cleanups.push(bindAttr(__e43, "data-active", () => $scope.activeTab() === "schema"));
-    __e38.appendChild(__e43);
-    const __e44 = document.createElement("slot");
-    __e44.setAttribute("name", "components");
-    __cleanups.push(bindAttr(__e44, "data-active", () => $scope.activeTab() === "components"));
-    __e38.appendChild(__e44);
-    __root.appendChild(__e38);
+    const __forAnchor29 = document.createComment("for");
+    __root.appendChild(__forAnchor29);
+    __cleanups.push(__wireBoundary_b14(__forAnchor29));
+    const __e39 = document.createElement("div");
+    __e39.setAttribute("class", "bodies");
+    const __forAnchor40 = document.createComment("for");
+    __e39.appendChild(__forAnchor40);
+    __cleanups.push(__wireBoundary_b18(__forAnchor40));
+    __root.appendChild(__e39);
+    const __e48 = document.createElement("sui-portal");
+    __e48.setAttribute("target", "body");
+    const __ifAnchor49 = document.createComment("if");
+    __e48.appendChild(__ifAnchor49);
+    __cleanups.push(__wireBoundary_b21(__ifAnchor49));
+    __root.appendChild(__e48);
     if (__r != null) {
       const __lc = Object.getOwnPropertyDescriptor(__r, "__shipSetLifecycle")?.value;
       if (__lc) {

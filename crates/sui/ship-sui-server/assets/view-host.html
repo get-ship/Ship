@@ -13,9 +13,11 @@
   <script type="importmap">
     {
       "imports": {
-        "@ship/ui-runtime":    "/_sui/runtime.js",
-        "@ship/ui-dom":        "/_sui/dom.js",
-        "@ship/ui-sdk-client": "/_sui/sdk-client.js"
+        "@ship/sui-runtime":                "/_sui/runtime.js",
+        "@ship/sui-runtime/route":          "/_sui/runtime.js",
+        "@ship/sui-runtime/template-hooks": "/_sui/runtime.js",
+        "@ship/sui-dom":                    "/_sui/dom.js",
+        "@ship/sdk-client":                 "/_sui/sdk-client.js"
       }
     }
   </script>
@@ -36,7 +38,7 @@
   </style>
 </head>
 <body>
-  <div id="sui-root"></div>
+  <div id="sui-root"><!-- SUI_SSR_CONTENT --></div>
 
   <!-- Mount script. The hosted view's name comes from the URL path
        segments after the host prefix (e.g. `/view-host/ship-ui-studio/sui-button`

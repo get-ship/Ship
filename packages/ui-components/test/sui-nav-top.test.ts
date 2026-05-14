@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import '../src/islands/sui-nav-top/dist/sui-nav-top.compiled.js'
+import '../src/islands/sui-nav-top/sui-nav-top.compiled.js'
 import { createContainerRegistry, flush, mount } from '../src/test-utils'
 
 const reg = createContainerRegistry()
@@ -37,7 +37,12 @@ describe('<sui-nav-top>', () => {
     expect(shadow_.querySelector('[part~="studio"]')).not.toBeNull()
     expect(shadow_.querySelector('[part~="dock-toggle"]')).not.toBeNull()
     expect(shadow_.querySelector('[part~="fullscreen"]')).not.toBeNull()
-    expect(shadow_.querySelector('[part~="chat-toggle"]')).not.toBeNull()
+  })
+
+  it('has no chat-toggle button (removed)', async () => {
+    const { el } = mount(reg, 'sui-nav-top')
+    await flush()
+    expect(shadow(el).querySelector('[part~="chat-toggle"]')).toBeNull()
   })
 
   it('renders <sui-theme-picker> in shadow DOM', () => {
@@ -103,17 +108,6 @@ describe('<sui-nav-top>', () => {
     expect(events).toHaveLength(1)
   })
 
-  it('chat-toggle button dispatches sui:chat:toggle when clicked', async () => {
-    const { el } = mount(reg, 'sui-nav-top')
-    await flush()
-    const events: Event[] = []
-    el.addEventListener('sui:chat:toggle', (e) => events.push(e))
-    const btn = shadow(el).querySelector<HTMLElement>('[part~="chat-toggle"]')!
-    btn.click()
-    await flush()
-    expect(events).toHaveLength(1)
-  })
-
   it('dock-toggle button dispatches sui:dock:toggle when clicked', async () => {
     const { el } = mount(reg, 'sui-nav-top')
     await flush()
@@ -152,5 +146,53 @@ describe('<sui-nav-top>', () => {
     await flush()
     const btn = shadow(el).querySelector('[part~="dock-toggle"]')!
     expect(btn.hasAttribute('aria-pressed')).toBe(true)
+  })
+
+  it('project prop prepends a home-linked crumb', async () => {
+    const { el } = mount(reg, 'sui-nav-top', { project: 'Ship', path: '/agents' })
+    await flush()
+    const crumbs = shadow(el).querySelector('.crumbs')!
+    const links = crumbs.querySelectorAll('a')
+    expect(links.length).toBeGreaterThanOrEqual(1)
+    expect(links[0]!.getAttribute('href')).toBe('/')
+    expect(links[0]!.textContent).toBe('Ship')
+  })
+
+  it('view prop overrides path-derived root segment', async () => {
+    const { el } = mount(reg, 'sui-nav-top', { view: 'home', path: '/pipelines' })
+    await flush()
+    const crumbs = shadow(el).querySelector('.crumbs')!
+    // 'home' should be the leaf, not 'pipelines'
+    expect(crumbs.textContent).toContain('Home')
+    expect(crumbs.textContent).not.toContain('Pipelines')
+  })
+
+  it('project + view together render "Project › View"', async () => {
+    const { el } = mount(reg, 'sui-nav-top', { project: 'Ship', view: 'home' })
+    await flush()
+    const crumbs = shadow(el).querySelector('.crumbs')!
+    const projectLink = crumbs.querySelector('a')!
+    expect(projectLink.getAttribute('href')).toBe('/')
+    expect(projectLink.textContent).toBe('Ship')
+    expect(crumbs.querySelector('.current')!.textContent).toBe('Home')
+  })
+
+  it('empty project + empty view falls back to path-only crumbs', async () => {
+    const { el } = mount(reg, 'sui-nav-top', { path: '/git' })
+    await flush()
+    const crumbs = shadow(el).querySelector('.crumbs')!
+    // No leading anchor segment beyond the path-derived one (which would be the leaf)
+    expect(crumbs.textContent).toContain('Git')
+    expect(crumbs.textContent).not.toContain('Ship')
+  })
+
+  it('crumb anchors carry a data-sui-transition marker (transition:fade wired)', async () => {
+    const { el } = mount(reg, 'sui-nav-top', { project: 'Ship', path: '/agents' })
+    await flush()
+    const crumbs = shadow(el).querySelector('.crumbs')!
+    // transition: directive registers `data-sui-transition` on the node.
+    // See packages/sui-runtime/src/transition.ts MARK constant.
+    expect(crumbs.querySelector('a[data-sui-transition]')).not.toBeNull()
+    expect(crumbs.querySelector('.current[data-sui-transition]')).not.toBeNull()
   })
 })

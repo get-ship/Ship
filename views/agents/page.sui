@@ -8,30 +8,44 @@
         <h1 class="agents-title">Agents</h1>
         <p class="agents-sub">{total()} agent{total() === 1 ? '' : 's'}</p>
       </div>
-      <sui-button tone="primary" variant="solid" on:click={newAgent}>
+      <sui-button tone="primary" variant="solid" on:click={openNew}>
         <sui-icon slot="leading" name="plus"></sui-icon>
         New agent
       </sui-button>
     </header>
 
     {#while-loading of agents}
-      <p class="loading-copy" data-test="loading">Loading agents&hellip;</p>
+      <div class="agents-grid" data-test="loading" role="status" aria-live="polite" aria-busy="true" aria-label="Loading agents">
+        {#for n of [0,1,2,3,4,5] key={n}}
+          <div class="agents-skel-card" aria-hidden="true">
+            <sui-skeleton shape="block" size="md" class="agents-skel-icon"></sui-skeleton>
+            <div class="agents-skel-body">
+              <sui-skeleton shape="line" size="md" style="width:70%"></sui-skeleton>
+              <sui-skeleton shape="line" size="sm" style="width:95%"></sui-skeleton>
+              <sui-skeleton shape="line" size="sm" style="width:55%"></sui-skeleton>
+            </div>
+          </div>
+        {/for}
+      </div>
     {/while-loading}
 
     {#while-error err of agents}
-      <p class="loading-copy" data-test="error">Error loading agents: {err.message}</p>
+      <sui-error-state title="Couldn't load agents" data-test="error" role="alert" aria-live="assertive">
+        {err.message}
+        <sui-button slot="action" tone="primary" variant="solid" on:click={() => window.location.reload()}>Retry</sui-button>
+      </sui-error-state>
     {/while-error}
 
     {#if agents().kind === 'ok'}
       {#if items().length === 0}
-        <sui-empty-state icon="sparkles" variant="default" size="lg" data-test="empty">
+        <sui-empty-state icon="sparkles" variant="default" size="sm" data-test="empty" role="status">
           <span slot="title">No agents yet</span>
           Drop a JSONC file under
           <code class="agents-empty-code">.ship/agents/</code>
           or create one from the Studio.
-          <sui-button slot="action" tone="primary" variant="solid" on:click={newAgent}>
+          <sui-button slot="action" tone="primary" variant="solid" on:click={openNew} data-test="cta-create-first">
             <sui-icon slot="leading" name="plus"></sui-icon>
-            New agent
+            Create your first agent
           </sui-button>
         </sui-empty-state>
       {:else}
@@ -58,7 +72,7 @@
                 </div>
                 {#if a.providers && a.providers.length > 0}
                   <div class="agents-card-providers" aria-label="Compiles to">
-                    {#for p of a.providers.slice(0, 4)}
+                    {#for p of a.providers.slice(0, 4) key={p}}
                       <sui-chip tone="muted" variant="outline" size="sm" title={p}>{p}</sui-chip>
                     {/for}
                     {#if a.providers.length > 4}
@@ -68,13 +82,30 @@
                 {/if}
                 <div class="agents-card-badges">
                   <sui-badge tone="muted" variant="outline" size="sm" class="agents-card-badge-source">{a.source}</sui-badge>
-                  {#if a.active}
-                    <sui-chip tone="primary" variant="soft" size="sm">
-                      <sui-status-dot slot="leading" tone="primary" size="sm" pulse label="Active session"></sui-status-dot>
-                      active session
+                  {#if agentStatus()[a.id]}
+                    <sui-chip
+                        tone={agentStatus()[a.id] === 'errored' ? 'destructive' : agentStatus()[a.id] === 'completed' ? 'success' : 'primary'}
+                        variant="soft"
+                        size="sm"
+                        data-test="live-status"
+                        attr:data-status={agentStatus()[a.id]}>
+                      <sui-status-dot
+                          slot="leading"
+                          tone={agentStatus()[a.id] === 'errored' ? 'destructive' : agentStatus()[a.id] === 'completed' ? 'success' : 'primary'}
+                          size="sm"
+                          attr:pulse={agentStatus()[a.id] === 'running' ? '' : null}
+                          label={agentStatus()[a.id]}></sui-status-dot>
+                      {agentStatus()[a.id]}
                     </sui-chip>
+                  {:else}
+                    {#if a.active}
+                      <sui-chip tone="primary" variant="soft" size="sm">
+                        <sui-status-dot slot="leading" tone="primary" size="sm" pulse label="Active session"></sui-status-dot>
+                        active session
+                      </sui-chip>
+                    {/if}
                   {/if}
-                  {#for t of (a.tags || []).slice(0, 2)}
+                  {#for t of (a.tags || []).slice(0, 2) key={t}}
                     <sui-chip tone="muted" variant="soft" size="sm">{t}</sui-chip>
                   {/for}
                   {#if (a.tags || []).length > 2}
@@ -82,6 +113,13 @@
                   {/if}
                 </div>
               </div>
+              <sui-button slot="trailing" variant="ghost" size="sm"
+                  data-test="open-session"
+                  attr:data-agent={a.id}
+                  on:click={(e) => openSession(a.id, (a.providers && a.providers[0]) || 'claude', e)}>
+                <sui-icon slot="leading" name="play" size="xs"></sui-icon>
+                Open in session
+              </sui-button>
             </sui-list-tile>
           {/for}
         </div>
@@ -89,4 +127,45 @@
     {/if}
 
   </div>
+
+  <sui-dialog attr:open={dialogOpen() ? '' : null} size="sm" on:sui-close={closeNew} data-test="new-agent-dialog">
+    <span slot="header">New agent</span>
+    <sui-field label="Name" hint="Human-readable label.">
+      <sui-input value={formName()} on:sui-input={nameInput} placeholder="e.g. Rust Compiler" autofocus></sui-input>
+    </sui-field>
+    <sui-field label="ID" hint="Lowercase kebab-case — becomes the filename stem.">
+      <sui-input value={formId()} on:sui-input={idInput} placeholder="rust-compiler"></sui-input>
+    </sui-field>
+    <sui-field label="Provider">
+      <sui-select value={formProvider()} on:sui-change={providerChange}>
+        <option value="claude">claude</option>
+        <option value="codex">codex</option>
+        <option value="cursor">cursor</option>
+        <option value="gemini">gemini</option>
+        <option value="opencode">opencode</option>
+      </sui-select>
+    </sui-field>
+    <sui-field label="Model" hint="Optional override — leave blank for the provider default.">
+      <sui-select value={formModel()} on:sui-change={modelChange}>
+        <option value="">(provider default)</option>
+        {#for m of modelOptions() key={m}}
+          <option attr:value={m}>{m}</option>
+        {/for}
+      </sui-select>
+    </sui-field>
+    {#if formErr()}
+      <sui-alert tone="destructive" compact>{formErr()}</sui-alert>
+    {/if}
+    <sui-toolbar slot="footer">
+      <sui-button variant="outline" on:click={closeNew}>Cancel</sui-button>
+      <sui-button tone="primary" variant="solid"
+          data-test="submit-new-agent"
+          attr:loading={submitting() ? '' : null}
+          attr:disabled={canSubmit() ? null : ''}
+          on:click={submitNew}>
+        <sui-icon slot="leading" name="plus" size="sm"></sui-icon>
+        Create
+      </sui-button>
+    </sui-toolbar>
+  </sui-dialog>
 </div>

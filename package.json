@@ -1,6 +1,36 @@
 {
   "name": "ship-monorepo",
   "private": true,
+  "workspaces": {
+    "packages": [
+      "apps/docs",
+      "apps/shell",
+      "apps/shell2",
+      "apps/site",
+      "apps/gateway",
+      "packages/*",
+      "apps/workers/*"
+    ],
+    "catalog": {
+      "drizzle-orm": "0.45.1",
+      "hono": "4.10.8",
+      "zod": "4.3.6"
+    }
+  },
+  "engines": {
+    "bun": ">=1.0.0"
+  },
+  "overrides": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "trustedDependencies": [
+    "better-sqlite3",
+    "lightningcss",
+    "sharp",
+    "tree-sitter-cli",
+    "workerd"
+  ],
   "scripts": {
     "build:bundles": "bun run runtime-assets/bundler.ts --all",
     "build:jinja-docs": "node scripts/build-jinja-docs.mjs",
@@ -8,14 +38,15 @@
     "wasm": "wasm-pack build crates/core/compiler --target web --out-dir ../../../packages/compiler --out-name compiler -- --features wasm",
     "lint": "vp lint",
     "lint:fix": "vp lint --fix",
-    "test:e2e": "playwright test --config tests/e2e/playwright.config.ts"
+    "test:e2e": "playwright test --config tests/e2e/playwright.config.ts",
+    "test:e2e:visual": "node node_modules/@playwright/test/cli.js test --config tests/e2e/visual/playwright.config.ts",
+    "test:parity": "node packages/sui-runtime/fixtures/e2e/parity.mjs"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "^1.25.1",
     "@cloudflare/vitest-pool-workers": "^0.15.2",
     "@playwright/test": "^1.58.2",
     "drizzle-kit": "^0.31.8",
-    "esbuild": "^0.27.3",
     "playwright": "^1.59.1",
     "typescript": "~5.8.3",
     "vite": "^7.3.1",
@@ -23,17 +54,6 @@
     "vite-tsconfig-paths": "6.0.3",
     "vitest": "^4.1.5",
     "wrangler": "^4.66.0"
-  },
-  "pnpm": {
-    "overrides": {
-      "react": "^19.0.0",
-      "react-dom": "^19.0.0"
-    },
-    "ignoredBuiltDependencies": [
-      "esbuild",
-      "lightningcss",
-      "rs-module-lexer"
-    ]
   },
   "dependencies": {
     "@tiptap/core": "^3.21.0",

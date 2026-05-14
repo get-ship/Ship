@@ -11,6 +11,7 @@ pub mod daemon_settings;
 pub mod envelope;
 pub mod events;
 pub mod integrity;
+pub mod project_id_reconcile;
 pub mod repair;
 #[cfg(test)]
 mod events_tests;
@@ -168,6 +169,17 @@ fn ensure_db_at_path(path: &std::path::Path) -> Result<()> {
     block_on(async { sqlx::query("PRAGMA busy_timeout = 5000").execute(&mut conn).await })?;
     block_on(async { sqlx::query("PRAGMA foreign_keys = ON").execute(&mut conn).await })?;
 
+    // Pre-migration column reconcile. `events.workspace_id` was renamed to
+    // `events.project_id` in commit 0b52fa28 by patching the 0001 baseline
+    // in place rather than introducing a new migration. DBs created before
+    // that patch still carry the old column name and silently break event
+    // writes. Detect and rename here, before sqlx_migrate inspects schema,
+    // so the canonical insert path (`INSERT INTO events (... project_id ...)`)
+    // succeeds on existing installs without touching user data.
+    project_id_reconcile::reconcile_events_project_id_column(&mut conn).with_context(|| {
+        format!("events.project_id reconcile failed on {}", path.display())
+    })?;
+
     // Run migrations. If they fail, refuse to start — never delete user data.
     if let Err(e) = block_on_migrate(async {
         sqlx::migrate!("./migrations").run(&mut conn).await
@@ -193,6 +205,140 @@ fn ensure_db_at_path(path: &std::path::Path) -> Result<()> {
 pub fn ensure_db_at(ship_dir: &Path) -> Result<()> {
     ensure_db_at_path(&platform_db_path(ship_dir))
 }
+
+/// Idempotent baseline-schema reconcile. Re-executes the platform-layer
+/// `CREATE TABLE IF NOT EXISTS` statements when an expected table is
+/// missing. Returns the number of statements executed (0 == healthy,
+/// nothing to do).
+///
+/// Why this exists: `sqlx::migrate!` is checksum-driven. A user who runs
+/// `ship daemon repair-migrations` after an aggressive edit to 0001 can
+/// end up with the checksum patched to match the new file while the
+/// underlying tables still reflect the *old* 0001. `ensure_db_at` then
+/// skips the migration (already-applied) and the daemon boots into a
+/// database where queries like `SELECT … FROM projects` raise
+/// `no such table`. This routine restores the schema without touching
+/// `_sqlx_migrations` and without re-running migrations that were
+/// genuinely already applied.
+///
+/// The statements are hand-lifted from migration 0001 (the subset that
+/// creates tables consumers query directly). Indices, triggers, and
+/// already-existing tables are left alone — an `IF NOT EXISTS` table
+/// rebuild is enough to clear the user-visible `no such table` errors.
+pub fn reconcile_baseline_schema(ship_dir: &Path) -> Result<usize> {
+    let path = platform_db_path(ship_dir);
+    if !path.exists() {
+        return Ok(0);
+    }
+    let mut conn = open_db_at(&path)?;
+    let projects_present: i64 = block_on(async {
+        sqlx::query_scalar(
+            "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='projects'",
+        )
+        .fetch_one(&mut conn)
+        .await
+    })?;
+    if projects_present > 0 {
+        return Ok(0);
+    }
+
+    let mut executed = 0usize;
+    for stmt in BASELINE_TABLE_STATEMENTS {
+        block_on(async { sqlx::query(stmt).execute(&mut conn).await })
+            .with_context(|| {
+                let preview: String = stmt.chars().take(80).collect();
+                format!("reconcile statement failed: {preview}")
+            })?;
+        executed += 1;
+    }
+    Ok(executed)
+}
+
+/// Subset of migration 0001 that recreates the projection tables read by
+/// platform handlers (`projects`, `sessions`, `daemon_settings`,
+/// `cursors`, `auth_sessions`, `daemon_owner`, `project_compile_state`).
+/// Every statement is `CREATE … IF NOT EXISTS` so this is safe to run on
+/// every startup; the matching content lives in
+/// `migrations/0001_schema.sql` and must be kept in sync when the
+/// canonical schema gains a column.
+const BASELINE_TABLE_STATEMENTS: &[&str] = &[
+    "CREATE TABLE IF NOT EXISTS sessions (
+        id                          TEXT PRIMARY KEY,
+        workspace_id                TEXT NOT NULL,
+        branch                      TEXT NOT NULL,
+        project_id                  TEXT,
+        kind                        TEXT NOT NULL DEFAULT 'direct_attach',
+        pipeline_run_id             TEXT,
+        chat_thread_id              TEXT,
+        status                      TEXT NOT NULL DEFAULT 'active',
+        started_at                  TEXT NOT NULL,
+        ended_at                    TEXT,
+        agent_id                    TEXT,
+        primary_provider            TEXT,
+        goal                        TEXT,
+        summary                     TEXT,
+        updated_workspace_ids_json  TEXT NOT NULL DEFAULT '[]',
+        tool_call_count             INTEGER NOT NULL DEFAULT 0,
+        drained_at                  TEXT,
+        last_activity_at            TEXT,
+        duration_secs               INTEGER,
+        model                       TEXT,
+        files_changed               INTEGER,
+        lines_added                 INTEGER,
+        lines_removed               INTEGER,
+        tool_calls                  INTEGER,
+        gate_result                 TEXT,
+        exit_reason                 TEXT,
+        created_at                  TEXT NOT NULL,
+        updated_at                  TEXT NOT NULL
+    )",
+    "CREATE TABLE IF NOT EXISTS cursors (
+        name           TEXT PRIMARY KEY,
+        last_event_id  TEXT NOT NULL,
+        updated_at     TEXT NOT NULL DEFAULT (datetime('now'))
+    )",
+    "CREATE TABLE IF NOT EXISTS daemon_settings (
+        key         TEXT PRIMARY KEY NOT NULL,
+        value_json  TEXT NOT NULL,
+        updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
+    )",
+    "CREATE TABLE IF NOT EXISTS auth_sessions (
+        token            TEXT PRIMARY KEY NOT NULL,
+        agent_id         TEXT NOT NULL,
+        scopes_json      TEXT NOT NULL,
+        project_id       TEXT,
+        created_at_unix  INTEGER NOT NULL,
+        expires_at_unix  INTEGER NOT NULL,
+        revoked_at_unix  INTEGER,
+        source           TEXT NOT NULL,
+        updated_at       TEXT NOT NULL DEFAULT (datetime('now'))
+    )",
+    "CREATE TABLE IF NOT EXISTS daemon_owner (
+        user_id        TEXT PRIMARY KEY NOT NULL,
+        bound_at_unix  INTEGER NOT NULL,
+        source         TEXT NOT NULL,
+        updated_at     TEXT NOT NULL DEFAULT (datetime('now'))
+    )",
+    "CREATE TABLE IF NOT EXISTS projects (
+        id            TEXT PRIMARY KEY NOT NULL,
+        path          TEXT NOT NULL,
+        name          TEXT NOT NULL,
+        label         TEXT,
+        created_at    TEXT NOT NULL,
+        last_seen_at  TEXT NOT NULL,
+        archived_at   TEXT,
+        updated_at    TEXT NOT NULL DEFAULT (datetime('now'))
+    )",
+    "CREATE TABLE IF NOT EXISTS project_compile_state (
+        project_id              TEXT PRIMARY KEY NOT NULL,
+        active_agent            TEXT,
+        compiled_at             TEXT NOT NULL,
+        ship_version            TEXT NOT NULL,
+        provider                TEXT,
+        plugins_installed_json  TEXT NOT NULL DEFAULT '[]',
+        updated_at              TEXT NOT NULL DEFAULT (datetime('now'))
+    )",
+];
 
 /// Open a connection to a specific database path (no migration run).
 /// The database must already be initialized via `ensure_db`.

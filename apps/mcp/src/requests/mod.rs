@@ -13,6 +13,7 @@ mod mesh;
 mod planning;
 mod project;
 mod session;
+mod sui_lsp;
 mod view;
 
 pub use dispatch::*;
@@ -21,6 +22,7 @@ pub use mesh::*;
 pub use planning::*;
 pub use project::*;
 pub use session::*;
+pub use sui_lsp::*;
 pub use view::*;
 pub use chat::*;
 pub use lint::*;

@@ -1,0 +1,130 @@
+<!--
+  <sui-pipeline-step-def> — SUI port of <ship-pipeline-step-def>.
+
+  Renders the DECLARED shape of a pipeline step — what the YAML
+  says the step is. Distinct from <sui-pipeline-step>, which renders
+  an individual run's live step state. Used on pipeline-definition
+  views (focus page, editor, registry detail).
+
+  Prop / event / slot parity vs <ship-pipeline-step-def>
+  ─────────────────────────────────────────────────────────────────────────────
+  Lit                          SUI                      Notes
+  ─────────────────────────────────────────────────────────────────────────────
+  name (string)                name (string, reflect)   ✓
+  step-type (enum,             step-type (enum,         ✓ same type→tone map
+    'agent')                     'agent', reflect)        in template
+  agent (string)               agent (string, reflect)  ✓
+  provider (string)            provider (string,        ✓
+                                 reflect)
+  model (string)               model (string, reflect)  ✓
+  after (string)               after (string, reflect)  ✓ comma-separated
+  command (string)             command (string)         ✓ pre-block, trimmed
+  index (number)               index (number, reflect)  ✓ gutter
+  ─────────────────────────────────────────────────────────────────────────────
+  slots: gate, trailing        slots: gate, trailing    ✓
+  parts: row, header, command  parts: row, header,      ✓
+                                  command
+  ─────────────────────────────────────────────────────────────────────────────
+-->
+
+<prop name="name" type="string" default="" reflect />
+<prop name="step-type" values="agent|gate|run|merge|human" default="agent" reflect />
+<prop name="agent" type="string" default="" reflect />
+<prop name="provider" type="string" default="" reflect />
+<prop name="model" type="string" default="" reflect />
+<prop name="after" type="string" default="" reflect />
+<prop name="command" type="string" default="" />
+<prop name="index" type="number" default="0" reflect />
+
+<style>
+  :host {
+    display: block;
+    padding: 16px 0;
+    border-top: 1px solid var(--border-subtle);
+  }
+  :host([hidden]) { display: none; }
+  :host(:first-of-type), :host([first]) { border-top: none; padding-top: 0; }
+  :host(:last-of-type) { padding-bottom: 0; }
+
+  [part='row'] {
+    display: grid;
+    grid-template-columns: 2ch 1fr;
+    gap: 16px;
+  }
+  .index {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--muted-foreground);
+    padding-top: 3px;
+  }
+  .body {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0;
+  }
+  [part='header'] {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .name {
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    font-weight: var(--font-weight-semibold);
+    color: var(--foreground);
+  }
+  .after {
+    font-size: var(--text-xs);
+    color: var(--muted-foreground);
+  }
+  .after code {
+    font-family: var(--font-mono);
+    background: color-mix(in oklch, var(--muted) 40%, transparent);
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: var(--text-xs);
+  }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  [part='command'] {
+    margin: 0;
+    padding: 10px 12px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-subtle);
+    background: color-mix(in oklch, var(--muted) 35%, transparent);
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    line-height: 1.55;
+    color: var(--foreground);
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow-x: auto;
+  }
+  .trailing { margin-left: auto; }
+</style>
+
+<div part="row">
+  <span class="index">{index() || ''}</span>
+  <div class="body">
+    <div part="header">
+      <span class="name">{name()}</span>
+      <sui-chip size="sm" tone={kindTone()}>{stepType()}</sui-chip>
+      {#if afterList().length > 0}
+        <span class="after">after {#for (a, idx) of afterList() key={a}}{#if idx > 0}, {/if}<code>{a}</code>{/for}</span>
+      {/if}
+      <span class="trailing"><slot name="trailing"></slot></span>
+    </div>
+    {#if agent() || provider() || model()}
+      <div class="chips">
+        {#if agent()}<sui-chip size="sm">{agent()}</sui-chip>{/if}
+        {#if provider()}<sui-chip size="sm">{provider()}</sui-chip>{/if}
+        {#if model()}<sui-chip size="sm">{model()}</sui-chip>{/if}
+      </div>
+    {/if}
+    {#if commandTrim()}
+      <pre part="command">{commandTrim()}</pre>
+    {/if}
+    <slot name="gate"></slot>
+  </div>
+</div>

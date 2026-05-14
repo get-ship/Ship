@@ -34,14 +34,58 @@ pub mod bindings;
 pub mod check;
 pub mod diagnostics;
 pub mod emit;
+pub mod ffi;
 pub mod ir;
 pub mod islands;
 pub mod keys;
 pub mod lower;
+pub mod out_layout;
 pub mod parse;
 pub mod render;
 
 pub use diagnostics::{CompileError, Span};
+
+/// Identity stamp embedded in every emitted artifact (JS leading
+/// comment, CEM, schema, meta sidecar) so the daemon and runtime can
+/// detect drift between the compiled bundle and the running shell —
+/// e.g. a stale `view.js` that lacks an export the runtime expects.
+///
+/// Cargo version is the crate's `version` field; git sha + dirty flag
+/// + build timestamp come from `build.rs` via the shared `build_info`
+/// crate. On source-tarball builds without `.git`, `git` is the
+/// literal string `"unknown"`.
+#[derive(Debug, Clone, Copy)]
+pub struct CompilerVersion {
+    pub cargo: &'static str,
+    pub git: &'static str,
+    pub dirty: bool,
+    pub built_at: &'static str,
+}
+
+impl CompilerVersion {
+    /// Serialise as the JSON shape consumers (JS comment, CEM,
+    /// schema, meta, `/api/_meta`) all share. Single source of truth.
+    pub fn to_json(&self) -> serde_json::Value {
+        serde_json::json!({
+            "cargo": self.cargo,
+            "git": self.git,
+            "dirty": self.dirty,
+            "builtAt": self.built_at,
+        })
+    }
+}
+
+/// Return the compiler's identity stamp. Cheap (no allocation —
+/// every field is a `&'static str` resolved at compile time).
+pub fn compiler_version() -> CompilerVersion {
+    let bi = build_info::build_info!();
+    CompilerVersion {
+        cargo: env!("CARGO_PKG_VERSION"),
+        git: bi.git_sha,
+        dirty: bi.git_dirty,
+        built_at: bi.timestamp,
+    }
+}
 
 /// Compile mode.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -79,6 +123,10 @@ pub struct CompileOpts {
     /// Emit a `.sui.d.ts` declaration file alongside the JS module.
     /// Defaults to `true`. Pass `false` (via `--no-dts`) to suppress.
     pub emit_dts: bool,
+    /// Emit a `.ssr.html` static SSR snapshot alongside the JS module
+    /// (view mode only). Defaults to `true`. Pass `false` (via `--no-ssr`)
+    /// to suppress, e.g. for island bundles that have no static skeleton.
+    pub emit_ssr: bool,
 }
 
 impl Default for CompileOpts {
@@ -90,6 +138,7 @@ impl Default for CompileOpts {
             styles: None,
             component_meta: None,
             emit_dts: true,
+            emit_ssr: true,
         }
     }
 }
@@ -106,6 +155,10 @@ pub struct CompileOutput {
     /// for LSP/IDE consumption. The runtime never loads this; it's purely
     /// developer-tooling fuel.
     pub meta: Option<serde_json::Value>,
+    /// Static SSR HTML body fragment, present when `CompileOpts::emit_ssr` is
+    /// true and mode is `View`. Written to the project mirror tree as
+    /// `<repo-root>/.ship/sui-out/<src-rel>/<stem>.ssr.html` by the CLI.
+    pub ssr_html: Option<String>,
 }
 
 /// Compile a `.sui` source string.
@@ -150,12 +203,27 @@ pub fn compile(source: &str, opts: CompileOpts) -> Result<CompileOutput, Compile
     };
     let schema = Some(emit::schema::emit_schema(&program, &opts));
     let dts = if opts.emit_dts {
-        Some(emit::dts::emit_dts(&program))
+        // Re-read the paired controller for d.ts emission. Cheap — it's
+        // a small file read; the parsed shape is identical to the one
+        // `check::run` consumed above, so behaviour stays consistent.
+        let controller = check::controller_parse::read_paired_controller(opts.source_path.as_deref());
+        Some(emit::dts::emit_dts(&program, controller.as_ref()))
     } else {
         None
     };
     let meta = Some(emit::meta::emit_meta(&bindings));
-    Ok(CompileOutput { js, css: None, cem, schema, dts, meta })
+    let ssr_html = if opts.emit_ssr && mode == CompileMode::View {
+        let view_name = opts.source_path
+            .as_ref()
+            .and_then(|p| p.file_stem())
+            .and_then(|s| s.to_str())
+            .map(|s| s.trim_end_matches(".html").to_string())
+            .unwrap_or_else(|| "view".to_string());
+        Some(emit::ssr::emit_ssr_html(&program, &bindings, &view_name))
+    } else {
+        None
+    };
+    Ok(CompileOutput { js, css: None, cem, schema, dts, meta, ssr_html })
 }
 
 fn attach_path(err: CompileError, opts: &CompileOpts) -> CompileError {

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import '../src/sui-graph-canvas/dist/sui-graph-canvas.compiled.js'
+import '../src/sui-graph-canvas/sui-graph-canvas.compiled.js'
 import { createContainerRegistry, flush, mount } from '../src/test-utils'
 
 const reg = createContainerRegistry()

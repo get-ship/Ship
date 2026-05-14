@@ -2,6 +2,7 @@
 
 use axum::{Json, extract::{Path, State}, http::StatusCode, response::IntoResponse};
 use serde::{Deserialize, Serialize};
+
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
@@ -52,10 +53,11 @@ fn cached_providers() -> Vec<ProviderStatus> {
             poisoned.into_inner()
         }
     };
-    if let Some((ts, ref cached)) = *guard
-        && ts.elapsed() < PROVIDER_CACHE_TTL {
+    if let Some((ts, ref cached)) = *guard {
+        if ts.elapsed() < PROVIDER_CACHE_TTL {
             return cached.clone();
         }
+    }
     let providers: Vec<ProviderStatus> = ship_platform::agents::providers::PROVIDERS
         .iter()
         .map(|d| {
@@ -85,8 +87,8 @@ fn cached_providers() -> Vec<ProviderStatus> {
     path = "/api/v1/settings",
     responses(
         (status = 200, body = MeshResponse),
-        (status = 401, description = "unauthorized", body = crate::wire::ErrorResponse),
-        (status = 500, description = "server error", body = crate::wire::ErrorResponse),
+        (status = 401, description = "unauthorized", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 500, description = "server error", body = crate::routes::openapi_types::ErrorResponse),
     ),
     tag = "settings"
 )]
@@ -118,15 +120,15 @@ pub async fn list_settings(
     request_body = SettingsUpdateReq,
     responses(
         (status = 200, body = MeshResponse),
-        (status = 400, description = "bad request", body = crate::wire::ErrorResponse),
-        (status = 401, description = "unauthorized", body = crate::wire::ErrorResponse),
-        (status = 403, description = "insufficient scope", body = crate::wire::ErrorResponse),
-        (status = 500, description = "server error", body = crate::wire::ErrorResponse),
+        (status = 400, description = "bad request", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 401, description = "unauthorized", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 403, description = "insufficient scope", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 500, description = "server error", body = crate::routes::openapi_types::ErrorResponse),
     ),
     tag = "settings"
 )]
 pub async fn update_setting(
-    State(_state): State<ApiState>,
+    State(state): State<ApiState>,
     axum::Extension(auth): axum::Extension<AuthContext>,
     Json(req): Json<SettingsUpdateReq>,
 ) -> impl IntoResponse {
@@ -139,7 +141,7 @@ pub async fn update_setting(
             }),
         );
     }
-    match ship_platform::config::set_setting(&req.key, req.value.clone()) {
+    match ship_platform::config::set_setting_and_emit(state.kernel(), &req.key, req.value.clone()).await {
         Ok(()) => (
             StatusCode::OK,
             Json(MeshResponse {
@@ -164,9 +166,9 @@ pub async fn update_setting(
     params(("key" = String, Path, description = "Setting key (e.g. defaults.provider)")),
     responses(
         (status = 200, body = MeshResponse),
-        (status = 401, description = "unauthorized", body = crate::wire::ErrorResponse),
-        (status = 404, description = "setting not found", body = crate::wire::ErrorResponse),
-        (status = 500, description = "server error", body = crate::wire::ErrorResponse),
+        (status = 401, description = "unauthorized", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 404, description = "setting not found", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 500, description = "server error", body = crate::routes::openapi_types::ErrorResponse),
     ),
     tag = "settings"
 )]
@@ -205,8 +207,8 @@ pub async fn get_setting(
     path = "/api/v1/providers",
     responses(
         (status = 200, body = MeshResponse),
-        (status = 401, description = "unauthorized", body = crate::wire::ErrorResponse),
-        (status = 500, description = "server error", body = crate::wire::ErrorResponse),
+        (status = 401, description = "unauthorized", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 500, description = "server error", body = crate::routes::openapi_types::ErrorResponse),
     ),
     tag = "settings"
 )]

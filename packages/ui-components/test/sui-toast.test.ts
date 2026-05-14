@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import '../src/sui-toast/dist/sui-toast.compiled.js'
-import '../src/sui-toast/dist/sui-toast-container.compiled.js'
+import '../src/sui-portal/sui-portal.compiled.js'
+import '../src/sui-toast/sui-toast.compiled.js'
+import '../src/sui-toast/sui-toast-container.compiled.js'
 import { createContainerRegistry, flush, mount } from '../src/test-utils'
 
 const reg = createContainerRegistry()
@@ -338,7 +339,7 @@ describe('<sui-toast-container>', () => {
     expect(toast.getAttribute('data-slide-from')).toBe('top')
   })
 
-  it('show({ title, description, tone }) creates sui-toast child with slots', async () => {
+  it('show({ title, description, tone }) creates sui-toast in the portal stack', async () => {
     const { el } = mount(reg, 'sui-toast-container')
     const container = el as SuiToastContainer
     const toast = container.show({ title: 'Hello', description: 'World', tone: 'info', duration: 0 })
@@ -346,7 +347,10 @@ describe('<sui-toast-container>', () => {
     expect(toast.getAttribute('tone')).toBe('info')
     expect(toast.querySelector('[slot="title"]')?.textContent).toBe('Hello')
     expect(toast.textContent).toContain('World')
-    expect(el.contains(toast)).toBe(true)
+    // sui-toast-container now portals toasts to a body-level stack — the
+    // toast lives in document.body, not inside the container's light DOM.
+    const stack = document.body.querySelector('[data-sui-toast-stack]')
+    expect(stack?.contains(toast)).toBe(true)
   })
 
   it('max-visible=2 with 3 toasts — oldest gets close called', async () => {

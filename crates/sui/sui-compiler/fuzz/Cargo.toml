@@ -25,3 +25,17 @@ path = "fuzz_targets/parse_fragment.rs"
 test = false
 doc = false
 bench = false
+
+[[bin]]
+name = "compile_full"
+path = "fuzz_targets/compile_full.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "bindings_build"
+path = "fuzz_targets/bindings_build.rs"
+test = false
+doc = false
+bench = false

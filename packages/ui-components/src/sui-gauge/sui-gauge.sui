@@ -1,0 +1,84 @@
+<!--
+  <sui-gauge> — SUI port of <ship-gauge>.
+  Single-value 270° arc gauge with optional tone thresholds.
+
+  Prop parity vs <ship-gauge>
+  ─────────────────────────────────────────────────────────────────────────────
+  Lit               SUI               Notes
+  ─────────────────────────────────────────────────────────────────────────────
+  value (number)    value (number)    ✓ default 0, reflect
+  min (number)      min (number)      ✓ default 0
+  max (number)      max (number)      ✓ default 100
+  tone (string)     tone (union)      ✓ reflect; empty = auto from thresholds
+  low-threshold     low-threshold     ✓ 0 = not set
+  high-threshold    high-threshold    ✓ 0 = not set
+  size (number)     size (number)     ✓ default 140
+  thickness         thickness         ✓ default 12
+  label (string)    label (string)    ✓ aria-label on SVG
+  ─────────────────────────────────────────────────────────────────────────────
+  Slots: (default) — center label
+  Parts: track, fill
+  ─────────────────────────────────────────────────────────────────────────────
+-->
+
+<prop name="value" type="number" default="0" reflect />
+<prop name="min" type="number" default="0" />
+<prop name="max" type="number" default="100" />
+<prop name="tone" values="default|primary|info|success|warning|destructive|accent|muted" default="" reflect />
+<prop name="low-threshold" type="number" default="0" />
+<prop name="high-threshold" type="number" default="0" />
+<prop name="size" type="number" default="140" />
+<prop name="thickness" type="number" default="12" />
+<prop name="label" type="string" default="gauge" />
+
+<style>
+  :host {
+    display: inline-block;
+    position: relative;
+    transition: opacity var(--duration-fast) var(--ease-out);
+  }
+  :host([hidden]) { display: none; }
+  svg { display: block; }
+  .track { stroke: var(--muted); }
+  .gauge-label {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--heading-font);
+    font-weight: var(--font-weight-semibold);
+    font-size: var(--text-xl);
+    color: var(--foreground);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    :host { transition: none; }
+  }
+</style>
+
+<svg
+  viewBox={'0 0 ' + size() + ' ' + size()}
+  role="img"
+  aria-label={label()}
+  style={'width:' + size() + 'px;height:' + size() + 'px'}>
+  <path
+    class="track"
+    part="track"
+    d={trackD()}
+    fill="none"
+    stroke-width={thickness()}
+    stroke-linecap="round">
+  </path>
+  {#if valueD()}
+    <path
+      part="fill"
+      d={valueD()}
+      fill="none"
+      stroke={arcColor()}
+      stroke-width={thickness()}
+      stroke-linecap="round">
+    </path>
+  {/if}
+</svg>
+<div class="gauge-label"><slot></slot></div>

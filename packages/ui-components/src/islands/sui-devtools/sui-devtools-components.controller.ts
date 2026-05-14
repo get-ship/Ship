@@ -1,6 +1,13 @@
 import { controller, signal, derived, ref } from '@ship/sui-runtime'
 import type { Scope } from './sui-devtools-components.sui'
 
+// The dock's Components tab inspects the SUI inventory, not the legacy
+// lit `ship-*` catalog. `/api/assets/sui-custom-elements.json` is the
+// CEM emitted by sui-build for every `<sui-*>` in
+// packages/ui-components/src; the older `/api/assets/custom-elements.json`
+// is the lit-element catalog used by apps/shell (j2).
+const SUI_CEM_URL = '/api/assets/sui-custom-elements.json'
+
 interface CemAttr { name: string; description?: string; type?: { text?: string }; default?: string }
 interface CemDecl { kind: string; name: string; tagName?: string; customElement?: boolean; description?: string; attributes?: CemAttr[]; slots?: Array<{ name: string; description?: string }> }
 interface CemModule { kind: string; path: string; declarations?: CemDecl[] }
@@ -68,10 +75,10 @@ export default controller<Scope>({
       if (loaded) return
       loaded = true
       try {
-        const resp = await fetch('/api/assets/custom-elements.json', { credentials: 'same-origin' })
+        const resp = await fetch(SUI_CEM_URL, { credentials: 'same-origin' })
         if (!resp.ok) return
-        const cem = await resp.json() as { modules: CemModule[] }
-        s['entries'] = flattenCem(cem.modules)
+        const cem = await resp.json() as { modules?: CemModule[] }
+        s['entries'] = flattenCem(cem.modules ?? [])
       } catch { /* best-effort */ }
     }
 

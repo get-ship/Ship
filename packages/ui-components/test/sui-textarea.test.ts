@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import '../src/sui-textarea/dist/sui-textarea.compiled.js'
+import '../src/sui-textarea/sui-textarea.compiled.js'
 import { createContainerRegistry, flush, mount } from '../src/test-utils'
 
 const reg = createContainerRegistry()
@@ -172,5 +172,36 @@ describe('<sui-textarea>', () => {
   it('cleanup on disconnect — no leaked effects', () => {
     const { container } = mount(reg, 'sui-textarea')
     container.remove()
+  })
+
+  it('is form-associated', () => {
+    const ctor = customElements.get('sui-textarea') as unknown as {
+      formAssociated?: boolean
+    }
+    expect(ctor.formAssociated).toBe(true)
+  })
+
+  it('participates in FormData when named inside a <form>', async () => {
+    const container = reg.mk()
+    container.innerHTML =
+      '<form><sui-textarea name="note" value="hi"></sui-textarea></form>'
+    const form = container.querySelector('form') as HTMLFormElement
+    await flush()
+    const proto = (window as unknown as { ElementInternals?: { prototype: ElementInternals } })
+      .ElementInternals?.prototype
+    if (!proto || typeof proto.setFormValue !== 'function') return
+    const data = new FormData(form)
+    expect(data.get('note')).toBe('hi')
+  })
+
+  it('form.reset() restores the prop default', async () => {
+    const container = reg.mk()
+    container.innerHTML =
+      '<form><sui-textarea name="note" value="initial"></sui-textarea></form>'
+    const el = container.querySelector('sui-textarea') as HTMLElement
+    await flush()
+    ;(el as unknown as { formResetCallback?: () => void }).formResetCallback!()
+    await flush()
+    expect(ta(el).value).toBe('')
   })
 })

@@ -13,7 +13,7 @@
 //!   - `"field__exists": bool`  -> IS NOT NULL / IS NULL
 //!   - `"_or": [{...}, {...}]`  -> OR conditions
 
-use sea_query::{Alias, Order, Query, SqliteQueryBuilder};
+use sea_query::{Alias, Asterisk, Order, Query, SqliteQueryBuilder};
 use serde::Deserialize;
 use std::collections::BTreeMap;
 
@@ -55,7 +55,7 @@ pub fn build_select(req: &QueryRequest) -> (String, sea_query::Values) {
     );
     let table = collection_table(&req.collection);
     let mut query = Query::select();
-    query.column(sea_query::Asterisk).from(table.clone());
+    query.column(Asterisk).from(table.clone());
 
     for (key, value) in &req.filter {
         if key == "_or" {

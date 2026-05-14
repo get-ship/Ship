@@ -193,7 +193,9 @@ fn skip_string(bytes: &[u8], from: usize, quote: u8) -> usize {
     while i < bytes.len() {
         let c = bytes[i];
         if c == b'\\' {
-            i += 2;
+            // Bounded skip: a trailing `\\` at end-of-input must not push
+            // i past `bytes.len()` (callers slice with this value).
+            i = (i + 2).min(bytes.len());
             continue;
         }
         if c == quote {
@@ -209,7 +211,7 @@ fn skip_template_literal(bytes: &[u8], from: usize, span: Span) -> Result<usize,
     while i < bytes.len() {
         let c = bytes[i];
         if c == b'\\' {
-            i += 2;
+            i = (i + 2).min(bytes.len());
             continue;
         }
         if c == b'`' {
@@ -237,11 +239,17 @@ fn skip_template_literal(bytes: &[u8], from: usize, span: Span) -> Result<usize,
                 }
                 k += 1;
             }
-            let body = std::str::from_utf8(&bytes[start..k]).map_err(|_| {
+            // Cap both ends — the inner loop can leave `k == bytes.len()`
+            // (no closing `}`), and downstream nested skip_template_literal
+            // returns can push i past the end via `i = k + 1`. Either way
+            // the slice is bounded here.
+            let body_end = k.min(bytes.len());
+            let body_start = start.min(body_end);
+            let body = std::str::from_utf8(&bytes[body_start..body_end]).map_err(|_| {
                 CompileError::new("non-UTF8 expression source").with_category("expression")
             })?;
             check(&Expr::new(body, span, false))?;
-            i = k + 1;
+            i = (k + 1).min(bytes.len());
             continue;
         }
         i += 1;

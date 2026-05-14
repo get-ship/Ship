@@ -23,6 +23,8 @@
 
 import { effect } from './signal'
 import type { Disposer } from './bind'
+import { runProtected } from './error-boundary'
+import { runEnter, runLeave, cancelTransitions } from './transition'
 
 /**
  * One branch's rendered nodes plus an optional teardown. Returned by
@@ -106,39 +108,94 @@ export function bindIf(opts: BindIfOptions): Disposer {
   let active: BranchRender | null = null
   let lastIdx = -2 // sentinel: not -1 (which is a real "no match")
 
-  const tearDown = () => {
-    if (!active) return
-    for (const n of active.nodes) {
+  // A branch whose out-transition is in flight. Kept in DOM until the
+  // animation resolves; rescued back into `active` if the same branch
+  // index is re-selected before removal. Without this, a rapid
+  // visible→hidden→visible toggle would stall (waiting on out) or
+  // double-remove (out completes after the new branch already
+  // unmounted it).
+  type Pending = { idx: number; nodes: Node[]; cleanup?: () => void }
+  let pendingOut: Pending | null = null
+
+  const removeNodes = (nodes: Iterable<Node>) => {
+    for (const n of nodes) {
       try {
         n.parentNode?.removeChild(n)
       } catch {
         // already detached
       }
     }
-    active.cleanup?.()
-    active = null
   }
 
   const dispose = effect(() => {
     const idx = test()
-    if (idx === lastIdx) return
-    tearDown()
-    lastIdx = idx
-    if (idx < 0 || idx >= branches.length) {
-      active = null
+    if (active && idx === lastIdx) return
+
+    // Same branch index re-selected while its out-transition is
+    // running: cancel the departure and re-promote the nodes. The
+    // in-transition picks up from the current animated state instead
+    // of restarting from the off-screen frame.
+    if (pendingOut && idx === pendingOut.idx && idx >= 0 && idx < branches.length) {
+      const promoted = pendingOut
+      pendingOut = null
+      for (const n of promoted.nodes) cancelTransitions(n)
+      active = { nodes: promoted.nodes, ...(promoted.cleanup && { cleanup: promoted.cleanup }) }
+      lastIdx = idx
+      runEnter(active.nodes)
       return
     }
-    active = branches[idx]!()
+
+    // Tear down the currently-active branch. With transitions, the
+    // nodes move to `pendingOut`; runLeave starts the out-transition;
+    // removal + cleanup are deferred until the animation finishes.
+    // Without transitions, runLeave returns null and we tear down
+    // synchronously — preserving the old (transition-free) semantics.
+    if (active) {
+      const dep: Pending = {
+        idx: lastIdx,
+        nodes: active.nodes,
+        ...(active.cleanup && { cleanup: active.cleanup }),
+      }
+      const leaving = runLeave(dep.nodes)
+      active = null
+      if (leaving === null) {
+        removeNodes(dep.nodes)
+        dep.cleanup?.()
+      } else {
+        pendingOut = dep
+        leaving.then(() => {
+          if (pendingOut !== dep) return // rescued or superseded
+          removeNodes(dep.nodes)
+          dep.cleanup?.()
+          pendingOut = null
+        })
+      }
+    }
+
+    lastIdx = idx
+    if (idx < 0 || idx >= branches.length) return
+    const rendered = runProtected(anchor, 'render', () => branches[idx]!())
+    if (!rendered) return
+    active = rendered
     const parent = anchor.parentNode
     if (!parent) return
-    for (const n of active.nodes) {
-      parent.insertBefore(n, anchor)
-    }
+    for (const n of active.nodes) parent.insertBefore(n, anchor)
+    runEnter(active.nodes)
   })
 
   return () => {
     dispose()
-    tearDown()
+    // Hard teardown — skip animations, remove everything synchronously.
+    if (active) {
+      removeNodes(active.nodes)
+      active.cleanup?.()
+      active = null
+    }
+    if (pendingOut) {
+      removeNodes(pendingOut.nodes)
+      pendingOut.cleanup?.()
+      pendingOut = null
+    }
   }
 }
 

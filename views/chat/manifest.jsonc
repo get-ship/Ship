@@ -1,0 +1,17 @@
+{
+  "name": "chat",
+  "path": "/chat",
+  "title": "Chat",
+  "layout": "default",
+  "auth": "user",
+  "rail": { "label": "Chat", "icon": "message-square-plus" },
+  "events": [
+    "studio.message",
+    "session.progress",
+    "session.started",
+    "session.ended",
+    "job.created",
+    "job.completed",
+    "job.failed"
+  ]
+}

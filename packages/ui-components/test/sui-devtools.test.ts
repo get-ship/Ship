@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it, vi, beforeEach } from 'vitest'
-import '../src/islands/sui-devtools/dist/sui-devtools-source.compiled.js'
-import '../src/islands/sui-devtools/dist/sui-devtools-components.compiled.js'
-import '../src/islands/sui-devtools/dist/sui-devtools-lint.compiled.js'
-import '../src/islands/sui-devtools/dist/sui-devtools-schema.compiled.js'
-import '../src/islands/sui-devtools/dist/sui-devtools-signals.compiled.js'
+import '../src/islands/sui-devtools/sui-devtools-source.compiled.js'
+import '../src/islands/sui-devtools/sui-devtools-components.compiled.js'
+import '../src/islands/sui-devtools/sui-devtools-lint.compiled.js'
+import '../src/islands/sui-devtools/sui-devtools-schema.compiled.js'
+import '../src/islands/sui-devtools/sui-devtools-signals.compiled.js'
 import { createContainerRegistry, flush, mount } from '../src/test-utils'
 
 const reg = createContainerRegistry()
@@ -25,10 +25,9 @@ describe('<sui-devtools-source>', () => {
     expect(shadow(el).querySelector('.split')).not.toBeNull()
   })
 
-  it('diagnostics container is hidden initially', () => {
+  it('diagnostics container is not rendered initially', () => {
     const { el } = mount(reg, 'sui-devtools-source')
-    const diag = shadow(el).querySelector<HTMLElement>('.diagnostics')!
-    expect(diag.style.display).toBe('none')
+    expect(shadow(el).querySelector('.diagnostics')).toBeNull()
   })
 
   it('shows empty-state when fetch returns 404', async () => {
@@ -64,6 +63,59 @@ describe('<sui-devtools-source>', () => {
     await flush()
     expect(typeof (el as unknown as { refresh?: unknown }).refresh).toBe('function')
   })
+
+  it('embeds <sui-code-editor> tags (not <ship-code-editor>) when source is present', async () => {
+    const origShip = (window as unknown as { ship?: unknown }).ship
+    ;(window as unknown as { ship: unknown }).ship = { current: () => ({ path: '/api/v/myview' }) }
+    const origFetch = globalThis.fetch
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({
+        view_name: 'myview.j2',
+        template_path: '/abs/views/myview/index.html.j2',
+        template: '<p>hi</p>',
+        manifest_filename: null,
+        manifest: null,
+        scope: 'project',
+      }),
+    })
+    const { el } = mount(reg, 'sui-devtools-source')
+    await flush(); await flush()
+    expect(shadow(el).querySelector('sui-code-editor')).not.toBeNull()
+    expect(shadow(el).querySelector('ship-code-editor')).toBeNull()
+    globalThis.fetch = origFetch
+    ;(window as unknown as { ship: unknown }).ship = origShip
+  })
+
+  it('triggers /api/v1/ship/schema + jinja-macros fetch for global-scope sources', async () => {
+    const origShip = (window as unknown as { ship?: unknown }).ship
+    ;(window as unknown as { ship: unknown }).ship = { current: () => ({ path: '/api/v/myview2' }) }
+    const origFetch = globalThis.fetch
+    const calls: string[] = []
+    globalThis.fetch = vi.fn().mockImplementation((url: string) => {
+      calls.push(url)
+      if (url.startsWith('/api/v1/view-source')) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({
+          view_name: 'myview2.j2',
+          template_path: '/abs/views/myview2/index.html.j2',
+          template: '',
+          manifest_filename: null,
+          manifest: null,
+          scope: 'global',
+        }) })
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({ ok: true, data: { ops: [], findings: [] } }) })
+    }) as unknown as typeof fetch
+    mount(reg, 'sui-devtools-source')
+    await flush(); await flush(); await flush(); await flush()
+    // editor wiring is gated on the lazy sui-code-editor island; what we
+    // can observe is the lint + completion fetches firing for global scope.
+    expect(calls.some(u => u.includes('/api/v1/lint/view'))).toBe(true)
+    expect(calls.some(u => u.includes('/api/v1/ship/schema'))).toBe(true)
+    expect(calls.some(u => u.includes('/api/assets/jinja-macros.json'))).toBe(true)
+    globalThis.fetch = origFetch
+    ;(window as unknown as { ship: unknown }).ship = origShip
+  })
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -85,7 +137,7 @@ describe('<sui-devtools-components>', () => {
     globalThis.fetch = fetchSpy
     const { el } = mount(reg, 'sui-devtools-components')
     await flush()
-    expect(body(el).innerHTML).toContain('Loading components')
+    expect(body(el).innerHTML).toContain('Loading sui-* components')
     resolve({ ok: true, json: () => Promise.resolve({ modules: [] }) })
     globalThis.fetch = origFetch
   })
@@ -137,6 +189,19 @@ describe('<sui-devtools-components>', () => {
     const { el } = mount(reg, 'sui-devtools-components')
     await flush()
     expect(typeof (el as unknown as { refresh?: unknown }).refresh).toBe('function')
+  })
+
+  it('fetches the SUI inventory (sui-custom-elements.json), not the legacy lit CEM', async () => {
+    const fetchSpy = vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve({ modules: [] }) })
+    const origFetch = globalThis.fetch
+    globalThis.fetch = fetchSpy
+    mount(reg, 'sui-devtools-components')
+    await flush(); await flush()
+    expect(fetchSpy).toHaveBeenCalled()
+    const calledUrl = String(fetchSpy.mock.calls[0]?.[0] ?? '')
+    expect(calledUrl).toContain('/api/assets/sui-custom-elements.json')
+    expect(calledUrl).not.toBe('/api/assets/custom-elements.json')
+    globalThis.fetch = origFetch
   })
 })
 
@@ -261,13 +326,21 @@ describe('<sui-devtools-signals>', () => {
   })
 
   it('filter input narrows shown signals', async () => {
-    // Inject synthetic signals into _ds
-    ;(document as unknown as { _ds: unknown })._ds = {
-      signals: { foo: { value: 'bar' }, baz: { value: 42 } },
+    // The signals tree reads window.__suiCurrentScope. Stub a scope with
+    // two signal getters (matching the runtime's Signal shape — callable
+    // plus `__peek()`) so the controller surfaces them as live entries.
+    type FakeSig<T> = (() => T) & { __peek: () => T }
+    const mk = <T>(v: T): FakeSig<T> => {
+      const s = (() => v) as FakeSig<T>
+      s.__peek = () => v
+      return s
+    }
+    ;(window as unknown as { __suiCurrentScope: Record<string, unknown> }).__suiCurrentScope = {
+      foo: mk('bar'),
+      baz: mk(42),
     }
     const { el } = mount(reg, 'sui-devtools-signals')
     await flush()
-    // Force a sample via refresh
     ;(el as unknown as { refresh(): void }).refresh()
     await flush()
     const input = toolbar(el).querySelector<HTMLInputElement>('input')!
@@ -276,6 +349,6 @@ describe('<sui-devtools-signals>', () => {
     await flush()
     expect(body(el).innerHTML).toContain('foo')
     expect(body(el).innerHTML).not.toContain('baz')
-    ;(document as unknown as { _ds: unknown })._ds = undefined
+    ;(window as unknown as { __suiCurrentScope: unknown }).__suiCurrentScope = null
   })
 })

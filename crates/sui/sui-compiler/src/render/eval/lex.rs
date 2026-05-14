@@ -52,37 +52,44 @@ pub(super) fn tokenize(src: &str) -> Result<Vec<Tok>, EvalError> {
             out.push(Tok::Ident(src[start..i].to_string()));
             continue;
         }
-        let three = if i + 2 < bytes.len() { &src[i..i + 3] } else { "" };
-        if three == "===" {
+        // Multi-byte punctuation peeks compare bytes directly. Slicing
+        // `src` here would panic when `i+N` lands inside a multi-byte
+        // UTF-8 char (e.g. `°` from a decoded `&deg;`). All recognized
+        // puncts are pure ASCII, so a byte comparison is safe and
+        // sufficient.
+        let three_bytes: &[u8] =
+            if i + 3 <= bytes.len() { &bytes[i..i + 3] } else { &[] };
+        if three_bytes == b"===" {
             out.push(Tok::Punct("==="));
             i += 3;
             continue;
         }
-        if three == "!==" {
+        if three_bytes == b"!==" {
             out.push(Tok::Punct("!=="));
             i += 3;
             continue;
         }
-        let two = if i + 1 < bytes.len() { &src[i..i + 2] } else { "" };
-        if two == "=>" {
+        let two_bytes: &[u8] =
+            if i + 2 <= bytes.len() { &bytes[i..i + 2] } else { &[] };
+        if two_bytes == b"=>" {
             return Err(EvalError::NonEvaluable(
                 "arrow functions are not evaluable at render time".into(),
             ));
         }
-        if matches!(two, "++" | "--") {
+        if two_bytes == b"++" || two_bytes == b"--" {
             return Err(EvalError::NonEvaluable(
                 "increment / decrement operators are not evaluable".into(),
             ));
         }
-        let two_punct: Option<&'static str> = match two {
-            "==" => Some("=="),
-            "!=" => Some("!="),
-            "<=" => Some("<="),
-            ">=" => Some(">="),
-            "&&" => Some("&&"),
-            "||" => Some("||"),
-            "??" => Some("??"),
-            "?." => Some("?."),
+        let two_punct: Option<&'static str> = match two_bytes {
+            b"==" => Some("=="),
+            b"!=" => Some("!="),
+            b"<=" => Some("<="),
+            b">=" => Some(">="),
+            b"&&" => Some("&&"),
+            b"||" => Some("||"),
+            b"??" => Some("??"),
+            b"?." => Some("?."),
             _ => None,
         };
         if let Some(p) = two_punct {
@@ -129,8 +136,9 @@ fn read_string(src: &str, from: usize, quote: u8) -> Result<(String, usize), Eva
         let c = bytes[i];
         if c == b'\\' && i + 1 < bytes.len() {
             out.push_str(&src[chunk_start..i]);
-            out.push(unescape(bytes[i + 1]));
-            i += 2;
+            let (escaped, advance) = unescape_at(src, i + 1);
+            out.push(escaped);
+            i += 1 + advance;
             chunk_start = i;
             continue;
         }
@@ -143,13 +151,27 @@ fn read_string(src: &str, from: usize, quote: u8) -> Result<(String, usize), Eva
     Err(EvalError::ParseError("unterminated string literal".into()))
 }
 
-fn unescape(c: u8) -> char {
-    match c {
-        b'n' => '\n', b't' => '\t', b'r' => '\r',
-        b'\\' => '\\', b'\'' => '\'', b'"' => '"', b'`' => '`',
-        b'0' => '\0',
-        other => other as char,
-    }
+/// Decode the escape sequence starting at `src[pos]` (the byte after the
+/// backslash). Returns the resulting char and the number of source bytes
+/// consumed. Single-byte ASCII escapes consume 1; if the byte after the
+/// backslash is the lead of a multi-byte UTF-8 char (e.g. `\<emoji>`)
+/// the whole char is consumed so `chunk_start` stays on a boundary.
+fn unescape_at(src: &str, pos: usize) -> (char, usize) {
+    // First char starting at `pos` — its length determines `advance`.
+    let ch = src[pos..].chars().next().unwrap_or('\0');
+    let advance = ch.len_utf8();
+    let mapped = match ch {
+        'n' => '\n',
+        't' => '\t',
+        'r' => '\r',
+        '\\' => '\\',
+        '\'' => '\'',
+        '"' => '"',
+        '`' => '`',
+        '0' => '\0',
+        other => other,
+    };
+    (mapped, advance)
 }
 
 fn read_template(src: &str, from: usize) -> Result<(Vec<TplPart>, usize), EvalError> {
@@ -162,8 +184,9 @@ fn read_template(src: &str, from: usize) -> Result<(Vec<TplPart>, usize), EvalEr
         let c = bytes[i];
         if c == b'\\' && i + 1 < bytes.len() {
             cur.push_str(&src[chunk_start..i]);
-            cur.push(unescape(bytes[i + 1]));
-            i += 2;
+            let (escaped, advance) = unescape_at(src, i + 1);
+            cur.push(escaped);
+            i += 1 + advance;
             chunk_start = i;
             continue;
         }

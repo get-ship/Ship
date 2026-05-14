@@ -28,9 +28,27 @@ pub fn resolve(name: &str, sub_path: Option<&str>) -> Result<ResolvedView, Resol
     }
 }
 
+/// Resolution order:
+/// 1. `SHIP_DEV_PROJECT_DIR` env var — tests and dev tooling.
+/// 2. The current daemon's `machine/daemons/<hash>/workspace` file — persisted
+///    by `apps/shipd/src/daemon.rs::write_workspace_file` on startup. Lets
+///    a per-worktree daemon serve user-authored views from the workspace
+///    it was launched against even if its cwd drifts later.
 fn resolve_project_root() -> Option<PathBuf> {
-    let dir = std::env::var("SHIP_DEV_PROJECT_DIR").ok()?;
-    Some(std::path::PathBuf::from(dir))
+    if let Ok(env_path) = std::env::var("SHIP_DEV_PROJECT_DIR") {
+        return Some(PathBuf::from(env_path));
+    }
+    workspace_from_daemon_file()
+}
+
+fn workspace_from_daemon_file() -> Option<PathBuf> {
+    let cwd = std::env::current_dir().ok()?;
+    let daemon_dir = ship_substrate::home::daemon::daemon_dir_for(&cwd);
+    let workspace_path = daemon_dir.join("workspace");
+    let raw = std::fs::read_to_string(&workspace_path).ok()?;
+    let trimmed = raw.trim();
+    if trimmed.is_empty() { return None; }
+    Some(PathBuf::from(trimmed))
 }
 
 fn join_request(name: &str, sub_path: Option<&str>) -> String {

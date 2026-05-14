@@ -33,15 +33,23 @@
   Slots: (default)               (default)                 ✓ label content
   Parts: input, box, label       input, box, label         ✓
   ────────────────────────────────────────────────────────────────────────
-  formAssociated / internals     DEFERRED                  SUI component() factory
-                                                           does not surface
-                                                           ElementInternals today.
+  formAssociated / internals     NATIVE                    `form-value` on checked,
+                                                           `form-disabled` on disabled
+                                                           wire ElementInternals.
+                                                           setFormValue emits the
+                                                           stringified bool ('true'/
+                                                           'false') — host scripts
+                                                           that need HTML-checkbox
+                                                           semantics (value-only
+                                                           when checked) should call
+                                                           internals.setFormValue
+                                                           themselves.
   ────────────────────────────────────────────────────────────────────────
 -->
 
-<prop name="checked" type="bool" default="false" reflect />
+<prop name="checked" type="bool" default="false" reflect form-value />
 <prop name="indeterminate" type="bool" default="false" reflect />
-<prop name="disabled" type="bool" default="false" reflect />
+<prop name="disabled" type="bool" default="false" reflect form-disabled />
 <prop name="required" type="bool" default="false" reflect />
 <prop name="invalid" type="bool" default="false" reflect />
 <prop name="tone" values="default|primary|info|success|warning|destructive|accent|muted" default="default" reflect />

@@ -1,4 +1,4 @@
-#![allow(dead_code)]
+#![allow(dead_code)] // git info tools tested but not yet wired to MCP server
 
 use std::path::Path;
 use std::process::Command;

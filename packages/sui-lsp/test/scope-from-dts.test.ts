@@ -27,6 +27,19 @@ export interface Scope {
 }
 `
 
+// Build a tempdir laid out as a tiny workspace so pairedDtsPath can walk
+// up to a `[workspace]`-flagged Cargo.toml and then resolve the
+// `.ship/sui-out/<src-rel>/` mirror tree where `.sui.d.ts` actually lives.
+function mkWorkspace(): { root: string; srcDir: string; mirrorDir: string } {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'lsp-dts-'))
+  fs.writeFileSync(path.join(root, 'Cargo.toml'), '[workspace]\nmembers = []\n')
+  const srcDir = path.join(root, 'pkg', 'src')
+  fs.mkdirSync(srcDir, { recursive: true })
+  const mirrorDir = path.join(root, '.ship/sui-out/pkg/src')
+  fs.mkdirSync(mirrorDir, { recursive: true })
+  return { root, srcDir, mirrorDir }
+}
+
 describe('scope-from-dts', () => {
   it('scopeMembersFromDtsSource extracts Scope interface members', () => {
     const members = scopeMembersFromDtsSource('view.sui.d.ts', DTS_AGENTS)
@@ -50,43 +63,43 @@ describe('scope-from-dts', () => {
     expect(members).toEqual([])
   })
 
-  it('pairedDtsPath returns path when .sui.d.ts exists', () => {
-    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'lsp-dts-'))
-    const dtsPath = path.join(tmp, 'view.sui.d.ts')
+  it('pairedDtsPath returns mirror path when .sui.d.ts exists', () => {
+    const { root, srcDir, mirrorDir } = mkWorkspace()
+    const dtsPath = path.join(mirrorDir, 'page.sui.d.ts')
     fs.writeFileSync(dtsPath, DTS_AGENTS)
-    const tsPath = path.join(tmp, 'view.ts')
+    const tsPath = path.join(srcDir, 'controller.ts')
     const result = pairedDtsPath(tsPath)
     expect(result).toBe(dtsPath)
-    fs.rmSync(tmp, { recursive: true })
+    fs.rmSync(root, { recursive: true })
   })
 
   it('pairedDtsPath returns null when .sui.d.ts is absent', () => {
-    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'lsp-dts-'))
-    const tsPath = path.join(tmp, 'view.ts')
+    const { root, srcDir } = mkWorkspace()
+    const tsPath = path.join(srcDir, 'controller.ts')
     const result = pairedDtsPath(tsPath)
     expect(result).toBeNull()
-    fs.rmSync(tmp, { recursive: true })
+    fs.rmSync(root, { recursive: true })
   })
 
   it('analyzeSetup merges dts scopeMembers when .sui.d.ts is present', () => {
-    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'lsp-dts-'))
-    const dtsPath = path.join(tmp, 'view.sui.d.ts')
+    const { root, srcDir, mirrorDir } = mkWorkspace()
+    const dtsPath = path.join(mirrorDir, 'page.sui.d.ts')
     fs.writeFileSync(dtsPath, DTS_GIT)
     const tsSrc = `
       import { controller } from '@ship/sui-runtime'
-      import type { Scope } from './view.sui'
+      import type { Scope } from './page.sui'
       export default controller<Scope>({
         derived: { branch: (s) => s.overview },
         on: { switchTab: (s) => { s.tab = 'history' } },
       })
     `
-    const tsPath = path.join(tmp, 'view.ts')
+    const tsPath = path.join(srcDir, 'controller.ts')
     const info = analyzeSetup(tsPath, tsSrc)
     expect(info.scopeMembers).toBeDefined()
     const scopeNames = info.scopeMembers!.map((m) => m.name).sort()
     expect(scopeNames).toEqual(['overview', 'tab'])
     const overviewMember = info.scopeMembers!.find((m) => m.name === 'overview')!
     expect(overviewMember.type).toBe('Signal<LiveState<unknown>>')
-    fs.rmSync(tmp, { recursive: true })
+    fs.rmSync(root, { recursive: true })
   })
 })

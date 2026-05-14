@@ -40,6 +40,7 @@ fn compile_fixture(name: &str, mode: CompileMode, setup: Option<&str>) -> String
             styles: None,
             component_meta,
             emit_dts: false,
+            emit_ssr: false,
         },
     )
     .expect("compile");

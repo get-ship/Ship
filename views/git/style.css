@@ -19,6 +19,22 @@
 }
 .git-error { color: var(--destructive); }
 
+.git-skel { padding: 16px 20px; display: flex; flex-direction: column; gap: 16px; }
+.git-skel-head { display: flex; align-items: center; gap: 16px; }
+.git-skel-titles { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+.git-skel-tabs { display: flex; gap: 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+.git-skel-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.git-skel-row { display: flex; align-items: center; gap: 10px; }
+.git-skel-row sui-skeleton[shape="line"] { flex: 1; }
+
 /* Header */
 .git-head {
   display: flex;

@@ -5,6 +5,9 @@ edition = "2024"
 license-file = "LICENSE"
 publish = false
 
+[features]
+unstable = []
+
 [dependencies]
 ship-kernel = { path = "../ship-kernel" }
 ship-types = { path = "../ship-types" }
@@ -38,9 +41,6 @@ libc = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["test-util"] }
-
-[features]
-unstable = []
 
 [lints]
 workspace = true

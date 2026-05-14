@@ -59,21 +59,80 @@ Bindings, control flow, hooks — same surface as views. See `ship-views`'s `ref
 
 ## Paired controller
 
+Templates declare; controllers contribute state via the `scope:()` factory.
+The compiler reads that factory and emits each returned key into the
+`Scope` interface of `<file>.sui.d.ts`, so `mount(state, host)` sees direct,
+typed members — no casts, no defensive throws.
+
 ```ts
-// sui-terminal.controller.ts
-import { controller } from '@ship/ui-runtime'
-import type { Scope } from './sui-terminal.sui'  // compiler-emitted
+// sui-error-boundary.controller.ts — the canonical exemplar.
+import { controller, signal, attachBoundary, detachBoundary } from '@ship/sui-runtime'
+import type { Scope } from './sui-error-boundary.sui'
 
 export default controller<Scope>({
-  mount: (state, host) => {
-    // host = the <sui-terminal> element; shadow root + template are
-    // already rendered. Wire listeners, return disposer.
-    return () => { /* cleanup */ }
+  scope: (_baseScope, host) => {
+    const caughtError = signal<Error | null>(null)
+    const reset = () => { caughtError.set(null) }
+    return { caughtError, reset }
+  },
+  mount(state, host) {
+    attachBoundary(host, {
+      catch(err) { state.caughtError.set(err instanceof Error ? err : new Error(String(err))) },
+      reset: state.reset,
+    })
+    return () => detachBoundary(host)
   },
 })
 ```
 
+Three things to notice:
+
+- `scope:` returns plain identifiers (`caughtError`, `reset`). Those keys
+  land in template scope AND on the typed `state` arg to `mount`.
+- `state.caughtError.set(err)` — direct, typed `Signal<Error | null>`. No
+  `state['caughtError'] as unknown as Signal<...>` cast. No
+  `throw new Error('scope signals missing')` defensive guard.
+- If you rename `caughtError` in the factory but forget to update a
+  template reference, the TypeScript compiler catches it.
+
 Use `controller(def)` only — raw `function setup(ctx)` is not accepted. Get refs via `bind:this={el}` in the template; declarative slot reactivity (`<slot reflect-empty="<attr>">`) replaces hand-rolled slotchange listeners.
+
+**Don't create an empty controller.** Controllers are optional — if your
+component has no `scope`, no `derived`, no `on`, and no `mount`, skip the
+`.controller.ts` file entirely. The compiler synthesizes a no-op controller
+from the `.sui` template alone. The LSP rule `controller.empty` flags
+`controller({})`-shape files (and `export default null`) as a warning;
+delete them rather than satisfy the convention with ceremony.
+
+Working exemplars: `packages/ui-components/src/sui-error-boundary/`,
+`packages/ui-components/src/sui-portal/`,
+`packages/ui-components/src/sui-toast-container/`.
+
+## Form-aware components
+
+When a component participates in HTML form submission (input, textarea, checkbox, switch, select, file upload, …), mark its value prop with `form-value` and its disabled prop with `form-disabled`:
+
+```html
+<prop name="value" type="string" default="" form-value />
+<prop name="disabled" type="bool" default="false" reflect form-disabled />
+```
+
+The compiler emits `static formAssociated = true` on the generated host class; the runtime calls `host.attachInternals()` on connect and auto-wires the full platform lifecycle:
+
+- `setFormValue(<value>)` runs on every change to the marked prop.
+- `formResetCallback()` resets the prop to its declared `default`.
+- `formStateRestoreCallback(state)` rehydrates the prop on bfcache restore.
+- `formDisabledCallback(disabled)` syncs the marked disabled prop when the surrounding form's disabled state cascades.
+
+Drop any hand-rolled `ElementInternals` plumbing — the runtime owns it. The setup ctx surfaces `internals?: ElementInternals` if a controller needs `setValidity()` / `checkValidity()` for custom validation.
+
+Worked examples: `packages/ui-components/src/sui-input/sui-input.sui`, `packages/ui-components/src/sui-select/sui-select.sui`, `packages/ui-components/src/sui-checkbox/sui-checkbox.sui`.
+
+Constraints (compiler-enforced):
+
+- Only one prop per component may carry `form-value`.
+- `form-value` is rejected on `type="object"` / `type="array"` props (only `string` / `number` / `bool` / `union`).
+- `form-disabled` is only valid on `type="bool"` props.
 
 ## Compile shape
 
@@ -107,6 +166,39 @@ Authors don't call `component()` directly — the compiler emits it.
 5. **`<sui-select>` uses native `<option>`** (no `<sui-option>`). Emits `sui-change`.
 6. **No `el.innerHTML/.outerHTML/.insertAdjacentHTML`** in `*.controller.ts`. Use `bindHtml()` for HTML-blob cases.
 7. **No `customElements.define` in component code** — the compiler emits the registration.
+8. **`{#for}` blocks declare `key={EXPR}`.** Without a stable key the reconciler falls back to positional matching and DOM identity is lost on reorder. `sui-for-key` lint warns when missing.
+9. **`on:<event>` event names must match the platform whitelist:** DOM events, `sui-*` / `ship-*` custom-event families, `tag:event`-prefixed cross-component events. `sui-event-name` lint warns on typos with Levenshtein suggestions.
+10. **Form-aware components use `form-value` / `form-disabled` on `<prop>`** — never hand-roll `attachInternals()` / `setFormValue` / `formResetCallback`. See "Form-aware components" above.
+
+## Diagnostics via MCP
+
+Before declaring a `.sui` edit done, call `mcp__ship__sui_diagnostics` with the
+component file path to catch parse errors, missing `<prop>`/`<state>`
+attributes, unbound identifiers, or invalid template expressions — feedback the
+agent would otherwise only see during `pnpm -F ui-components test` or
+`cargo test -p sui-compiler`. For a single position, `mcp__ship__sui_hover`
+returns the declaration source + setup return type for an identifier.
+
+```ts
+// Pseudocode:
+// mcp__ship__sui_diagnostics({ file: "packages/ui-components/src/sui-button/sui-button.sui" })
+// mcp__ship__sui_hover({ file: "…/sui-button.sui", line: 12, col: 4 })
+```
+
+## LSP integration
+
+`.sui` files get diagnostics + hover via the `@ship/sui-lsp` language
+server. Two integration paths:
+
+1. **MCP** (for agents that don't speak LSP): call
+   `mcp__ship__sui_diagnostics` or `mcp__ship__sui_hover` with a file path —
+   see "Diagnostics via MCP" above.
+2. **Native LSP** (for editors): the `apps/vscode/` extension auto-launches
+   the server when a `.sui` file is opened (`.vscode/extensions.json`
+   recommends it). Other editors can launch the server directly over stdio:
+   `node packages/sui-lsp/bin/sui-lsp.js --stdio` (build first with
+   `pnpm -F @ship/sui-lsp build`). Map the `sui` language ID to that command
+   for files matching `*.sui`.
 
 ## What's available in a view
 
@@ -117,6 +209,108 @@ Components fall into three buckets:
 - **Islands** — heavy components that lazy-load their engine only when mounted (terminal, code-editor, markdown-editor). Declared as a `packs:` entry in the view manifest; loaded at first instantiation.
 
 Discover what's registered by reading the MCP resource `ship://components` — the canonical agent-side component catalog. It returns the aggregated Custom Elements Manifest (every `<sui-*>` primitive's tagName, attributes, slots, parts, events, CSS custom properties) as JSON. For a single tag, read `ship://components/<tag>` (e.g. `ship://components/sui-button`). Don't `curl` the daemon's `/api/assets/sui-custom-elements.json` — that endpoint exists for browser tooling; agent auth blocks raw HTTP.
+
+## Visual sweep: ship-ui-studio
+
+Once a component is registered, `ship-ui-studio` is the fastest way to eyeball it. Open `/sui/ship-ui-studio/<tag>` (e.g. `/sui/ship-ui-studio/sui-button`) and the detail page renders:
+
+- A **single live preview** plus a prop panel for ad-hoc tweaking.
+- A **state variant matrix** — when the component declares enum props, every cell in the cartesian product of `variant × tone` (or the single largest enum, if there's only one) is rendered side-by-side, independent of the prop panel. This is the Storybook-style sweep that catches "ghost tone-warning has wrong contrast" without clicking through 40 combinations one at a time.
+- A **View source** link in the header that opens `/_sui/source/<tag>` — a static HTML page showing the on-disk `.sui` template and `.controller.ts` for the component. Useful when reviewing how an existing primitive wires its scope before authoring a similar one.
+
+## Platform features (shared with views)
+
+Components live inside the same runtime as views; the same primitives are
+available. Skim the matrix below; for deep treatment of each, see the
+`ship-views` skill section of the same name.
+
+### Morph
+
+Add the `morph` attribute to any element whose contents are produced by
+`bindRawHtml` (or another HTML-string path) to preserve focus, scroll,
+selection, and event-listener identity across re-renders. `bindHtml`
+morphs unconditionally — the directive only matters for `bindRawHtml`.
+
+```html
+<div morph>{/* server-rendered HTML — bindRawHtml in the controller */}</div>
+```
+
+Limitations: no `<select>`-value preservation, no shadow-DOM matching,
+matches by `id` and tag-plus-position only.
+
+### Error boundaries
+
+Wrap fault-prone subtrees in `<sui-error-boundary>` — throws inside
+effects, controller `mount`, or render expressions are caught and the
+fallback renders. `fallback-text` for a string fallback or
+`<template slot="fallback">` for custom markup. Call `.reset()` on the
+host to retry. Fires `sui-error-boundary:caught` (bubbling, composed)
+with `{ error, source: 'effect' | 'mount' | 'render' | 'unknown' }`.
+
+```html
+<sui-error-boundary fallback-text="Couldn't load">
+  <sui-some-component prop={maybeThrows()}></sui-some-component>
+</sui-error-boundary>
+```
+
+### Portal
+
+`<sui-portal target="body">` teleports slotted content out of the host
+shadow tree for stacking-context escape (modals, popovers, toasts).
+`target` is a CSS selector resolved against `document`; default `body`.
+The portal element stays the logical parent, so reactive bindings and
+event bubbling still flow through the original DOM ancestry. Missing
+target warns and leaves children in place. See `sui-dialog`,
+`sui-popover`, `sui-toast-container` for composition patterns.
+
+### Transitions
+
+`transition:<name>` animates enter/exit of `{#if}` / `{#for}` mounts.
+Built-ins: `fade`, `slide`, `scale`. Use `in:` / `out:` for asymmetric
+directions. Custom transitions live on the controller's `scope:` factory
+and match the `Transition` type. `prefers-reduced-motion: reduce`
+collapses duration + delay to `0`. Transitions don't surface in SSR —
+they register on construction (CSR + hydrate paths).
+
+```html
+{#if open()}
+  <div transition:scale={{ duration: 120 }}>...</div>
+{/if}
+```
+
+### Routes
+
+URL state is reactive. Components rarely consume routes directly — that's
+a view-controller concern — but a component controller may read
+`route()` to surface URL-dependent behavior (e.g. a tab strip whose
+active tab is `route().query.tab`).
+
+```ts
+import { route, defineRoutes, navigate } from '@ship/sui-runtime/route'
+// route().params.<name> / route().query.<name> are Signal<string | undefined>
+```
+
+Full treatment: `ship-views` § Routes.
+
+### HMR
+
+In dev mode, `.sui` and `.controller.ts` edits trigger an in-place re-mount.
+shell2's boot calls `initHmr()` (`apps/shell2/src/hmr.ts`), which uses
+`subscribeHmr` from `@ship/sui-runtime/dev` to listen on shipd's
+`/_sui/dev/hmr` SSE channel. Component-tag changes still need a full
+reload (custom-element re-registration isn't yet supported); compile
+errors surface in the browser console. Production builds inline
+`import.meta.env.DEV` to `false`, so HMR is a no-op.
+
+### Performance gates
+
+- `just bench-check` — js-framework-benchmark vs latest baseline under
+  `tests/perf/baselines/`; fails on >15% regression. Run before merging
+  runtime-affecting component changes.
+- `just visual` — Playwright screenshots vs committed PNGs (daemon must
+  be running). Use `--update-snapshots` after a deliberate visual change.
+- `just smoke-deploy` — full build + daemon restart + every baselined
+  view curled + Playwright. Proxy for CI; aim for green before PR.
 
 ## References
 

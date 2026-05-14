@@ -84,10 +84,32 @@ export type { BindForOptions, RenderedItem } from './for'
 export { bindIf } from './if'
 export type { BindIfOptions, BranchRender } from './if'
 
+export {
+  registerTransition,
+  runIn,
+  runOut,
+  runEnter,
+  runLeave,
+  cancelTransitions,
+  fade,
+  slide,
+  scale,
+} from './transition'
+export type {
+  Transition,
+  TransitionConfig,
+  TransitionDir,
+  SlideConfig,
+  ScaleConfig,
+} from './transition'
+
 export { bindAwait } from './await'
 export type { BindAwaitOptions } from './await'
 
 export { bindRawHtml } from './raw-html'
+
+export { morph } from './morph'
+export type { MorphOptions } from './morph'
 
 export { resolveSlots, snapshotChildren, slotFilled } from './slot'
 export type { SlotDecl } from './slot'
@@ -121,7 +143,14 @@ export type {
   BindWhileErrorOptions,
 } from './while'
 
-export type { ShipSDK } from './ship'
+export type {
+  ArtifactRecord,
+  CollectionFieldRecord,
+  CollectionSummary,
+  ShipSDK,
+  SkillIndexEntry,
+  WorkspaceSummary,
+} from './ship'
 
 export { component, prop } from './component'
 export type { PropDef, ComponentDef, ComponentSetupContext } from './component'
@@ -174,12 +203,28 @@ export type { ShellContext } from './template-hooks/shell'
 // Register <sui-if>, <sui-for>, <sui-match> custom elements.
 import './boundary-elements'
 
+export {
+  attachBoundary,
+  detachBoundary,
+  findNearestBoundary,
+  runProtected,
+} from './error-boundary'
+export type { BoundaryHandle, BoundarySource } from './error-boundary'
+
 export { suiTonesSheet, suiBaseSheet, adoptSuiSheets } from './styles/index'
 
 // F1 mount unification — hosts call mount(target, payload, opts) to put
 // a view on screen. See .artifacts/design-f1-mount-unification.md.
 export { mount } from './mount'
 export type { ViewPayload, MountOptions, MountHandle } from './mount'
+
+// Re-export route surface so the bundled `@ship/sui-runtime/route`
+// importmap entry (which points at the single runtime.js bundle)
+// resolves to the actual symbols. Authors continue to use the subpath
+// import (`from '@ship/sui-runtime/route'`); the importmap routes it
+// here.
+export { defineRoutes, navigate, route } from './route'
+export type { RouteShape, RouteSignals } from './route'
 
 // Generated daemon ↔ runtime data contract. Authored by `cargo xtask
 // gen-types` from Rust source; do not edit `generated.ts` by hand.

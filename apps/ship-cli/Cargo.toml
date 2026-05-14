@@ -20,7 +20,7 @@ shipd = { path = "../shipd" }
 tokio = { workspace = true, features = ["rt", "rt-multi-thread"] }
 cli-framework = { path = "../../crates/core/cli-framework" }
 lint = { path = "../../crates/core/lint" }
-lsp = { path = "../../crates/lsp" }
+j2-lsp = { path = "../../crates/j2-lsp", package = "j2-lsp" }
 compiler = { path = "../../crates/core/compiler" }
 ship-application = { path = "../../crates/core/ship-application" }
 ship-substrate = { path = "../../crates/core/ship-substrate" }

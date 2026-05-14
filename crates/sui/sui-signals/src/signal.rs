@@ -2,7 +2,7 @@
 
 use std::sync::{Arc, Mutex, Weak};
 
-use crate::runtime::{SubFn, get_observer, is_batching, queue_pending};
+use crate::runtime::{SubFn, get_observer, is_batching, queue_pending, record_untrack};
 
 type WeakSub = Weak<dyn Fn() + Send + Sync>;
 
@@ -46,11 +46,33 @@ impl<T: Clone + Send + Sync + 'static> Signal<T> {
     /// subscriber. Call `peek()` for non-tracking reads.
     pub fn get(&self) -> T {
         let observer = get_observer();
-        let mut inner = self.lock();
-        if let Some(sub) = observer {
-            subscribe_if_new(&mut inner.subs, sub);
+        let (value, newly_subscribed) = {
+            let mut inner = self.lock();
+            let newly = if let Some(sub) = observer.as_ref() {
+                subscribe_if_new(&mut inner.subs, Arc::clone(sub))
+            } else {
+                false
+            };
+            (inner.value.clone(), newly)
+        };
+
+        // Record an untrack thunk so the active observer can drop its
+        // subscription to this signal on its next tracked run / disposal.
+        // We only record on the first subscription per (observer, signal) per
+        // run — subsequent reads of the same signal dedupe via subscribe_if_new.
+        if newly_subscribed {
+            let sub = observer.expect("observer was Some when newly_subscribed");
+            let inner_arc = Arc::clone(&self.0);
+            record_untrack(Box::new(move || {
+                let mut inner = inner_arc.lock().unwrap_or_else(|e| e.into_inner());
+                inner.subs.retain(|w| match w.upgrade() {
+                    Some(s) => !Arc::ptr_eq(&s, &sub),
+                    None => false,
+                });
+            }));
         }
-        inner.value.clone()
+
+        value
     }
 
     /// Read the current value without subscribing the current scope.
@@ -104,7 +126,8 @@ impl<T: Clone + Send + Sync + 'static> Signal<T> {
 }
 
 /// Add `sub` to `subs` only if it isn't already present (pointer equality).
-fn subscribe_if_new(subs: &mut Vec<WeakSub>, sub: SubFn) {
+/// Returns true when this call added a new subscription.
+fn subscribe_if_new(subs: &mut Vec<WeakSub>, sub: SubFn) -> bool {
     subs.retain(|w| w.strong_count() > 0);
     let already = subs
         .iter()
@@ -112,6 +135,7 @@ fn subscribe_if_new(subs: &mut Vec<WeakSub>, sub: SubFn) {
     if !already {
         subs.push(Arc::downgrade(&sub));
     }
+    !already
 }
 
 /// Upgrade all live subs, prune dead ones, return the live arcs.

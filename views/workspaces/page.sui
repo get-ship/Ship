@@ -1,0 +1,83 @@
+<data name="projects" source="ship.workspaces.list()" live />
+
+<div class="ship-view ship-view-workspaces">
+  <div class="ws-wrap">
+
+    <header class="ws-head">
+      <div class="ws-head-titles">
+        <h1 class="ws-title">Workspaces</h1>
+        <p class="ws-sub">{items().length} known project{items().length === 1 ? '' : 's'}</p>
+      </div>
+    </header>
+
+    {#if activationError()}
+      <sui-error-state variant="inline" size="sm" title="Couldn't switch workspace" data-test="mutation-error">
+        {activationError()}
+        <sui-button slot="action" size="sm" variant="outline"
+          on:click={() => activationError.set('')}>Dismiss</sui-button>
+      </sui-error-state>
+    {/if}
+
+    {#while-loading of projects}
+      <ul class="ws-list" data-test="loading" aria-label="Loading workspaces">
+        {#for n of [0,1,2] key={n}}
+          <li class="ws-skel-row" aria-hidden="true">
+            <div class="ws-skel-main">
+              <sui-skeleton shape="block" size="sm" class="ws-skel-icon"></sui-skeleton>
+              <div class="ws-skel-text">
+                <sui-skeleton shape="line" size="md" style="width:40%"></sui-skeleton>
+                <sui-skeleton shape="line" size="sm" style="width:70%"></sui-skeleton>
+              </div>
+            </div>
+            <sui-skeleton shape="line" size="md" style="width:88px"></sui-skeleton>
+          </li>
+        {/for}
+      </ul>
+    {/while-loading}
+
+    {#while-error err of projects}
+      <sui-error-state title="Couldn't load workspaces" data-test="error">
+        {err.message}
+        <sui-button slot="action" tone="primary" variant="solid"
+          on:click={() => window.location.reload()}>Retry</sui-button>
+      </sui-error-state>
+    {/while-error}
+
+    {#if projects().kind === 'ok'}
+      {#if items().length === 0}
+        <sui-empty-state variant="default" size="sm" data-test="empty">
+          <sui-icon slot="icon" name="folder-tree"></sui-icon>
+          <span slot="title">No workspaces registered</span>
+          Run <code class="ws-empty-code">ship init</code> in a project folder to register it.
+        </sui-empty-state>
+      {:else}
+        <ul class="ws-list" data-test="list" data-view-enter>
+          {#for p of items() key={p.id}}
+            <li class="ws-row" data-test="row" data-active={effectiveActiveId() === p.id ? '1' : '0'}>
+              <div class="ws-row-main">
+                <sui-icon name="folder" size="sm" tone="muted"></sui-icon>
+                <div class="ws-row-text">
+                  <div class="ws-row-name">
+                    {p.label || p.name}
+                    {#if effectiveActiveId() === p.id}
+                      <sui-chip tone="primary" variant="soft" size="sm" data-test="active-chip">active</sui-chip>
+                    {/if}
+                  </div>
+                  <div class="ws-row-path">{p.path}</div>
+                </div>
+              </div>
+              <sui-button size="sm"
+                variant={effectiveActiveId() === p.id ? 'soft' : 'outline'}
+                tone={effectiveActiveId() === p.id ? 'primary' : 'default'}
+                aria-label={'Activate ' + (p.label || p.name)}
+                prop:disabled={activatingId() === p.id || effectiveActiveId() === p.id}
+                on:click={() => activate(p.id)}>
+                {activatingId() === p.id ? 'Activating…' : effectiveActiveId() === p.id ? 'Active' : 'Activate'}
+              </sui-button>
+            </li>
+          {/for}
+        </ul>
+      {/if}
+    {/if}
+  </div>
+</div>

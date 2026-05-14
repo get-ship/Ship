@@ -33,7 +33,7 @@
           <a
             class="catalog-item"
             href={'/ship-ui-studio/' + item.id}
-            data-active={item.id === (route.params.name() ?? '') ? 'true' : 'false'}
+            data-active={item.id === currentName() ? 'true' : 'false'}
             data-test="catalog-item"
           >
             <code class="catalog-item-name">{item.id}</code>
@@ -58,6 +58,18 @@
         <div class="detail-header-meta">
           <code class="detail-tag">{entry().tag}</code>
           <sui-badge tone={entry().kind === 'sui' ? 'primary' : 'info'} variant="soft" size="sm">{entry().kind}</sui-badge>
+          {#if entry().kind === 'sui'}
+            <a
+              class="detail-source-link"
+              href={'/_sui/source/' + entry().tag}
+              target="_blank"
+              rel="noopener"
+              data-test="source-link"
+            >
+              <sui-icon name="file-code" size="sm"></sui-icon>
+              <span>View source</span>
+            </a>
+          {/if}
         </div>
         {#if entry().description}
           <p class="detail-description">{entry().description}</p>
@@ -113,13 +125,46 @@
         {/if}
 
         <div class="detail-render-wrap">
+          {#if entry().kind === 'sui'}
+            <div class="detail-render-toolbar">
+              <button
+                type="button"
+                class="copy-code-btn"
+                data-test="copy-code"
+                data-copied={copyFeedback() ? 'true' : 'false'}
+                on:click={() => copyCode(entry())}
+              >{copyFeedback() ? 'Copied' : 'Copy code'}</button>
+            </div>
+          {/if}
           <div class="detail-render-stage" data-stage-kind={entry().kind}>
-            <div class="detail-render" data-render-slot data-test="render-slot"></div>
+            <div class="detail-render" data-render-slot data-test="render-slot" morph></div>
           </div>
           {#if entry().kind === 'sui'}
             <div class="detail-render-caption">Live preview · default slot text: <code>example</code></div>
           {:else}
             <div class="detail-render-caption">Live view · <code>/sui/{entry().id}</code></div>
+          {/if}
+          {#if matrixCells().length > 0}
+            <section class="detail-matrix-section" data-test="state-matrix">
+              <header class="detail-matrix-header">
+                <h3 class="detail-matrix-title">State matrix</h3>
+                <span class="detail-matrix-meta">{matrixAxesLabel()} · {matrixCells().length} cells</span>
+              </header>
+              <div class="detail-matrix">
+                {#for cell of matrixCells() key={cell.id}}
+                  <div class="matrix-cell" data-test="matrix-cell" data-label={cell.label}>
+                    <div
+                      class="matrix-cell-host"
+                      data-matrix-tag={entry().tag}
+                      data-matrix-cell={cell.id}
+                      data-props={cell.propsJson}
+                      morph
+                    ></div>
+                    <div class="matrix-cell-label">{cell.label}</div>
+                  </div>
+                {/for}
+              </div>
+            </section>
           {/if}
         </div>
       </div>

@@ -26,9 +26,13 @@ if [ -f "$d/pid" ] && kill -0 "$(cat "$d/pid")" 2>/dev/null; then
 fi
 
 # Launch the stashed shipd. No --port: it auto-derives via path_hash.
+# Pass --workspace explicitly so the daemon scopes itself to *this*
+# worktree even if its own resolver disagreed: belt-and-suspenders for
+# the per-worktree daemon dir (machine/daemons/<hash>/).
 log="${SHIP_HOME:-$HOME/.ship}/machine/logs/shipd.log"
 mkdir -p "$(dirname "$log")"
-"$d/.bin/shipd" --dev >>"$log" 2>&1 &
+workspace=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
+"$d/.bin/shipd" --dev --workspace "$workspace" >>"$log" 2>&1 &
 spawned=$!
 disown $spawned
 

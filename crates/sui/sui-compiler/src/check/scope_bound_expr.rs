@@ -21,6 +21,10 @@ pub(super) fn check_expr(expr: &Expr, v: &mut Visitor, extra_locals: &[&str]) {
     let bytes = expr.source.as_bytes();
     let mut i = 0;
     let mut prev_dot = false;
+    // Last non-whitespace, non-comment byte. Drives the object-key
+    // heuristic: `{ ident:` and `, ident:` mean `ident` is a property
+    // name, not a free identifier.
+    let mut prev_meaningful: Option<u8> = None;
     let mut in_str: Option<u8> = None;
     let mut local_stack: Vec<String> =
         extra_locals.iter().map(|s| s.to_string()).collect();
@@ -46,6 +50,7 @@ pub(super) fn check_expr(expr: &Expr, v: &mut Visitor, extra_locals: &[&str]) {
         }
         if c == b'.' {
             prev_dot = true;
+            prev_meaningful = Some(b'.');
             i += 1;
             continue;
         }
@@ -60,9 +65,11 @@ pub(super) fn check_expr(expr: &Expr, v: &mut Visitor, extra_locals: &[&str]) {
             {
                 i = after_arrow;
                 prev_dot = false;
+                prev_meaningful = Some(b')');
                 continue;
             }
             prev_dot = false;
+            prev_meaningful = Some(c);
             i += 1;
             continue;
         }
@@ -71,6 +78,9 @@ pub(super) fn check_expr(expr: &Expr, v: &mut Visitor, extra_locals: &[&str]) {
             i += 1;
         }
         let word = &expr.source[start..i];
+        let was_after_brace_or_comma =
+            matches!(prev_meaningful, Some(b'{') | Some(b','));
+        prev_meaningful = Some(b'A'); // identifier: treat as alpha-token
         if is_keyword(word) {
             prev_dot = false;
             continue;
@@ -84,6 +94,13 @@ pub(super) fn check_expr(expr: &Expr, v: &mut Visitor, extra_locals: &[&str]) {
         }
         if prev_dot {
             // Property access: `foo.bar` — `bar` is unrestricted.
+            prev_dot = false;
+            continue;
+        }
+        // Object-literal key: `{ key:` or `, key:` (single `:`, not
+        // `::` which is reserved). Property names don't reference an
+        // outer binding — skip the scope check.
+        if was_after_brace_or_comma && peek_colon(&expr.source, i) {
             prev_dot = false;
             continue;
         }
@@ -110,6 +127,18 @@ fn peek_after(src: &str, i: usize, c1: u8, c2: u8) -> bool {
         k += 1;
     }
     k + 1 < bytes.len() && bytes[k] == c1 && bytes[k + 1] == c2
+}
+
+/// True iff the next non-whitespace byte after `i` is a single `:`
+/// (and not the start of `::`).
+fn peek_colon(src: &str, i: usize) -> bool {
+    let bytes = src.as_bytes();
+    let mut k = i;
+    while k < bytes.len() && bytes[k].is_ascii_whitespace() {
+        k += 1;
+    }
+    k < bytes.len() && bytes[k] == b':'
+        && (k + 1 >= bytes.len() || bytes[k + 1] != b':')
 }
 
 /// We're at a `(`; if this looks like an arrow param list (`(a, b) =>

@@ -3,10 +3,16 @@ name = "sui-compiler"
 version = "0.1.0"
 edition = "2024"
 publish = false
+build = "build.rs"
 description = "Ahead-of-time compiler for `.sui` source files. Emits ESM JS that hydrates against `@ship/sui-runtime` without re-parsing at load time."
 
 [lib]
+name = "sui_compiler"
+crate-type = ["lib", "cdylib"]
 path = "src/lib.rs"
+
+[build-dependencies]
+build-info = { path = "../../core/build-info" }
 
 [[bin]]
 name = "sui-compiler"
@@ -25,6 +31,7 @@ libc = { workspace = true }
 # becomes a CompileError. Same rule definition consumed by crates/lsp
 # at edit-time.
 sui-lint = { path = "../sui-lint" }
+build-info = { path = "../../core/build-info" }
 
 [dev-dependencies]
 tempfile = { workspace = true }

@@ -17,6 +17,7 @@ use std::collections::BTreeSet;
 
 pub mod bindings;
 pub mod directives;
+pub mod for_uses_row;
 pub mod template;
 
 #[derive(Debug, Clone, Default)]
@@ -41,6 +42,12 @@ pub struct Lowered {
     /// "@ship/sui-runtime/route"` so routeless views don't pull in the
     /// route module.
     pub uses_route: bool,
+    /// Built-in transition names referenced by `transition:` / `in:` /
+    /// `out:` directives — limited to `fade`, `slide`, `scale`. The
+    /// emitter folds these into the `@ship/sui-runtime` import list so
+    /// authors don't have to import them manually. Custom transition
+    /// names (anything else) resolve through `$scope`.
+    pub transition_builtins: BTreeSet<&'static str>,
 }
 
 /// Walk the program, build a `Lowered` summary.
@@ -116,6 +123,13 @@ fn check_attr_for_route(a: &AttrInstr, out: &mut Lowered) {
         AttrInstr::Static { .. }
         | AttrInstr::BindThis { .. }
         | AttrInstr::SlotReflectEmpty { .. } => {}
+        AttrInstr::Transition { opts, .. } => {
+            if let Some(e) = opts
+                && expr_references_route(&e.source)
+            {
+                out.uses_route = true;
+            }
+        }
     }
 }
 
@@ -190,8 +204,18 @@ fn walk_instr(instr: &Instr, out: &mut Lowered, is_view: bool, depth: &mut usize
             }
             *depth -= 1;
         }
-        Instr::For(ForInstr { iterable, key, body, else_body, .. }) => {
+        Instr::For(ForInstr { var_name, index_name, iterable, key, body, else_body, .. }) => {
             out.runtime_imports.insert("bindFor");
+            // D3: `signal` only needed when the body actually observes
+            // the per-row update (i.e. emit_for will keep the `__v`
+            // version sentinel). Static row bodies skip it.
+            if for_uses_row::body_references_for_vars(
+                body,
+                var_name,
+                index_name.as_deref(),
+            ) {
+                out.runtime_imports.insert("signal");
+            }
             if is_view && *depth == 0 {
                 out.dom_imports.insert("collectElementMarkers");
             }

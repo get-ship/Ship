@@ -15,10 +15,42 @@ default:
 
 # ── Daily ────────────────────────────────────────────────────────────────────
 
+# One-shot fresh-clone setup. Order matters: gen-types feeds the workspace,
+# ship-set icons feed @ship/set build, both pnpm builds populate the asset
+# trees that shipd's include_str! consumes, and dev-runtime-install copies
+# bun + sui-compiler + bundler.ts into ~/.ship/runtime/.
+[group('daily')]
+bootstrap:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    command -v bun  >/dev/null || { echo "bun not on PATH — install via 'curl -fsSL https://bun.sh/install | bash'" >&2; exit 1; }
+    command -v pnpm >/dev/null || { echo "pnpm not on PATH" >&2; exit 1; }
+    cargo run -p xtask --quiet -- gen-types
+    cargo build -p ship-cli
+    pnpm install
+    pnpm -F @ship/set icons
+    pnpm -F @ship/set build
+    pnpm -F @ship/ui-components build
+    just dev-runtime-install
+    echo "bootstrap complete — 'just dev' to start the daemon"
+
 # Build + stash + start the dev daemon for this worktree.
 [group('daily')]
 dev:
     @scripts/dev/start.sh
+
+# Frontend dev server for shell2 (vite). Proxies /api, /_sui, /sui, /view-host
+# to the daemon — `just dev` must already be running.
+[group('daily')]
+shell2-dev:
+    @scripts/dev/shell2-start.sh
+
+# Force a one-shot rebuild of every asset bundle served by the daemon
+# (sui-runtime, sui-dom, sui-components, islands, ship-elements, views/*).
+# Runs `runtime-assets/bundler.ts --all` against the installed bun toolchain.
+[group('daily')]
+dev-build-all:
+    @bun runtime-assets/bundler.ts --all
 
 # Stop, rebuild, re-stash, start. Use after Rust changes.
 [group('daily')]
@@ -75,6 +107,13 @@ dev-runtime-update:
 test:
     cargo test --workspace --features unstable
 
+# Visual baselines — Playwright screenshots vs committed PNGs.
+# Daemon must be running (`just dev`). Pass --update-snapshots to refresh
+# baselines after a deliberate visual change.
+[group('daily')]
+visual *ARGS:
+    pnpm test:e2e:visual {{ARGS}}
+
 # Library tests only — skips integration suites for fast inner-loop feedback.
 [group('daily')]
 test-fast:
@@ -101,6 +140,13 @@ lint:
 [group('daily')]
 qa:
     node tests/loops/run.mjs
+
+# Full smoke: build everything, restart the daemon, hit every baselined
+# view, run the Playwright visual suite. What CI will run — aim for green
+# before opening a PR.
+[group('daily')]
+smoke-deploy:
+    @scripts/dev/smoke-deploy.sh
 
 # ── Occasional ───────────────────────────────────────────────────────────────
 
@@ -131,6 +177,23 @@ clean-deep:
     cargo clean
     rm -rf node_modules apps/*/node_modules packages/*/node_modules
 
+# Capture a fresh perf baseline. Rebuilds the SUI bench bundle, runs the
+# js-framework-benchmark suite against SUI + comparison frameworks, and
+# writes tests/perf/baselines/<date>-<label>.json. Commit the result.
+# `label` is required — pass e.g. `just bench baseline` or `just bench post-d5`
+# (passes through to `--label`). No implicit overwrite of the date's anchor.
+[group('occasional')]
+bench label:
+    @scripts/dev/bench-run.mjs --label {{label}}
+
+# Compare current SUI perf vs the latest committed baseline. Exits non-zero
+# if any op regresses by more than 15% (override with
+# BENCH_REGRESSION_THRESHOLD). Manual gate before merging large runtime
+# changes.
+[group('occasional')]
+bench-check:
+    @scripts/dev/bench-check.mjs
+
 # Format Rust.
 [group('occasional')]
 fmt:
@@ -145,6 +208,13 @@ fmt-check:
 [group('occasional')]
 lint-views:
     cargo run --features unstable -p ship-cli --quiet -- lint views --format json
+
+# Regenerate the aggregated SUI Custom Elements Manifest from per-component
+# CEMs under packages/ui-components/src/. Writes
+# crates/ship-sui/assets/sui-custom-elements.json which apps/shipd embeds.
+[group('occasional')]
+cem:
+    pnpm -F @ship/ui-components build
 
 # Build docs site (Astro static).
 [group('occasional')]
@@ -181,19 +251,59 @@ docs-check-drift:
 shell-dev:
     pnpm --filter shell dev
 
+# One-shot production build: gen-types, ship-set + ui-components rebuilds,
+# cargo --release, then verify outputs. Equivalent to `ship build`.
+[group('daily')]
+build:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    command -v pnpm >/dev/null || { echo "build: pnpm not on PATH" >&2; exit 1; }
+    echo "[1/6] gen-types"
+    cargo run -p xtask --quiet -- gen-types
+    echo "[2/6] ship-set icons"
+    pnpm -F @ship/set icons
+    echo "[3/6] ship-set build (sui-build → apps/shipd/assets/)"
+    pnpm -F @ship/set build
+    echo "[4/6] ui-components build (sui-build → crates/sui/ship-sui-server/assets/)"
+    pnpm -F @ship/ui-components build
+    echo "[5/6] cargo build --release (ship-cli + shipd + mcp)"
+    cargo build --release -p ship-cli -p shipd -p mcp
+    echo "[6/6] verify outputs"
+    target_dir=$(cargo metadata --format-version 1 --no-deps --offline | grep -o '"target_directory":"[^"]*"' | cut -d'"' -f4)
+    missing=0
+    for bin in ship shipd mcp; do
+        if [ ! -x "$target_dir/release/$bin" ]; then
+            echo "  ✗ $target_dir/release/$bin missing" >&2
+            missing=1
+        else
+            echo "  ✓ $target_dir/release/$bin"
+        fi
+    done
+    for asset in crates/sui/ship-sui-server/assets/sui-runtime.js crates/sui/ship-sui-server/assets/sui-components.js apps/shipd/assets/ship-elements.js; do
+        if [ ! -s "$asset" ]; then
+            echo "  ✗ $asset missing or empty" >&2
+            missing=1
+        else
+            echo "  ✓ $asset"
+        fi
+    done
+    [ "$missing" = "0" ] || { echo "build: outputs incomplete" >&2; exit 1; }
+    echo "build complete — release binaries at $target_dir/release/"
+
 # Build CLI + MCP + shipd (unstable dev build).
 [group('occasional')]
-build:
+build-dev:
     cargo build --features unstable -p ship-cli -p mcp -p shipd
 
-# Build release binary (stable, no unstable features — what users get).
+# Cargo-only release build (no front-end). Use `just build` for the full
+# production artifact set; this recipe is the cargo subset.
 [group('occasional')]
 build-release:
     cargo build --release -p ship-cli -p mcp -p shipd
 
 # Install dev binaries to ~/.local/bin (ship + shipd).
 [group('occasional')]
-install-dev: build
+install-dev: build-dev
     #!/usr/bin/env bash
     set -euo pipefail
     target=$(cargo metadata --format-version 1 --no-deps --offline | grep -o '"target_directory":"[^"]*"' | cut -d'"' -f4)
@@ -294,9 +404,18 @@ check-no-set-var-global-dir:
     fi
     @echo "No set_var(SHIP_GLOBAL_DIR) found ✓"
 
-# Seed the local registry with @unofficial packages.
-[group('occasional')]
+# Populate the local daemon with one agent + skill + collection + artifact
+# so first-run dev doesn't look like a dead app. Targets the daemon serving
+# the current worktree (discovers port + token from its daemon_dir).
+# Requires `just dev` to be running.
+[group('daily')]
 seed:
+    @scripts/dev/seed.sh
+
+# Seed the local *registry* (not the daemon) with @unofficial packages.
+# Separate from `just seed`; targets registry-site dev server on :3000.
+[group('occasional')]
+seed-registry:
     @echo "Seeding local registry — requires dev server running on :3000"
     curl -s -X POST http://localhost:3000/api/registry/seed \
       -H "Content-Type: application/json" \

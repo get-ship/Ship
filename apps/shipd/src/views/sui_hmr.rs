@@ -268,4 +268,51 @@ mod tests {
         let b = channel() as *const HmrChannel;
         assert_eq!(a, b);
     }
+
+    // ── HMR route availability per daemon mode ────────────────────────────
+
+    fn build_hmr_router(mode: ship_sui::DaemonMode) -> axum::Router {
+        use axum::routing;
+        let mut r = axum::Router::new();
+        if mode == ship_sui::DaemonMode::Development {
+            r = r
+                .route("/_sui/hmr", routing::get(serve_hmr))
+                .route("/_sui/hmr-client.js", routing::get(serve_hmr_client_js))
+                .route("/_sui/dev/hmr", routing::get(serve_bundle_hmr));
+        }
+        r
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn hmr_routes_available_in_dev() {
+        use tower::ServiceExt;
+        let app = build_hmr_router(ship_sui::DaemonMode::Development);
+        let req = axum::http::Request::get("/_sui/hmr")
+            .body(axum::body::Body::empty())
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK, "/_sui/hmr must be 200 in dev mode");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn hmr_routes_absent_in_production() {
+        use tower::ServiceExt;
+        let app = build_hmr_router(ship_sui::DaemonMode::Production);
+        let req = axum::http::Request::get("/_sui/hmr")
+            .body(axum::body::Body::empty())
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::NOT_FOUND, "/_sui/hmr must be 404 in prod mode");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn bundle_hmr_route_absent_in_production() {
+        use tower::ServiceExt;
+        let app = build_hmr_router(ship_sui::DaemonMode::Production);
+        let req = axum::http::Request::get("/_sui/dev/hmr")
+            .body(axum::body::Body::empty())
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::NOT_FOUND, "/_sui/dev/hmr must be 404 in prod mode");
+    }
 }

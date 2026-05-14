@@ -1,5 +1,5 @@
 // packages/ui-components/src/islands/sui-launcher/sui-launcher.sui
-import { adoptSuiSheets, attachRef, component, prop } from "@ship/sui-runtime";
+import { adoptSuiSheets, attachRef, component, prop, signal as signal2 } from "@ship/sui-runtime";
 
 // packages/ui-components/src/islands/sui-launcher/sui-launcher.controller.ts
 import { controller, effect, signal, bindNativeEvent } from "@ship/sui-runtime";
@@ -539,6 +539,13 @@ var sui_launcher_default = component("sui-launcher", {
     const __cleanups = ctx.cleanups;
     const $scope = Object.create(null);
     $scope.open = props.open;
+    $scope["bodyEl"] = signal2(null);
+    $scope["countEl"] = signal2(null);
+    $scope["filterInput"] = signal2(null);
+    $scope["footEl"] = signal2(null);
+    $scope["headEl"] = signal2(null);
+    $scope["maskEl"] = signal2(null);
+    $scope["panelEl"] = signal2(null);
     let __r = null;
     if (sui_launcher_controller_default && typeof sui_launcher_controller_default.setup === "function") {
       ctx.scope = $scope;

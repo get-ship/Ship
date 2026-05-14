@@ -1,13 +1,15 @@
 ---
 name: ship-runtime
 stable-id: ship-runtime
-description: Use when working on Ship's runtime internals — the daemon (shipd), persistence, workspace management, pipeline orchestration, event system, and database layer.
+description: Use when working on Ship's DAEMON runtime internals — shipd, persistence, workspace management, pipeline orchestration, event system, database layer.
 tags: [ship, runtime, internals, daemon]
 authors: [ship]
 audience: internal
 ---
 
-# Ship Runtime Internals
+# Ship Runtime (Daemon Internals)
+
+> **Boundary:** This is the **daemon** runtime — shipd, the DB, kernel, event store, workspace state, pipelines. For the **SUI** runtime (signals, bindings, transitions, mount, attach), see `docs/ship-sui/SKILL.md` and `packages/sui-runtime/src/`. Different package, different concerns.
 
 Ship's runtime layer owns all persistent state, pipeline execution, and inter-agent communication. The core library lives in `crates/core/runtime/`; the daemon binary lives in `apps/shipd/`.
 

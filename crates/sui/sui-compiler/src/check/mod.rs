@@ -19,6 +19,8 @@ pub mod pure_derived;
 mod pure_derived_tests;
 pub mod scope_bound;
 mod scope_bound_expr;
+#[cfg(test)]
+mod scope_bound_expr_tests;
 pub mod symbol_table;
 pub mod scope_member;
 pub mod key_identity;
@@ -230,6 +232,11 @@ where
         | AttrInstr::Style { expr, .. }
         | AttrInstr::Prop { expr, .. } => f(expr)?,
         AttrInstr::Mutation { .. } => {}
+        AttrInstr::Transition { opts, .. } => {
+            if let Some(e) = opts {
+                f(e)?;
+            }
+        }
     }
     Ok(())
 }

@@ -13,6 +13,12 @@ export * from './parse-types';
 const WS = /\s/;
 const TAG_NAME = /^[a-zA-Z][a-zA-Z0-9-]*/;
 
+// Tags whose body is treated as raw text. Mirrors
+// `crates/sui-compiler/src/parse/html.rs::RAW_TEXT_TAGS` — the compiler
+// owns the grammar and the LSP must not flag constructs the compiler
+// happily accepts (CSS `:host { ... }` blocks, etc).
+const RAW_TEXT_TAGS = new Set(['style', 'script']);
+
 export function parse(source: string): ParseResult {
   const nodes: Node[] = [];
   const errors: ParseError[] = [];
@@ -91,6 +97,9 @@ function readOpenTag(s: string, i: number, nodes: Node[], errors: ParseError[]):
       p++;
       const range = { start, end: p };
       nodes.push({ kind: 'element-open', tag, tagRange, attrs, selfClosing: false, range });
+      if (RAW_TEXT_TAGS.has(tag.toLowerCase())) {
+        return consumeRawText(s, p, tag, nodes);
+      }
       return p;
     }
     const before = p;
@@ -98,6 +107,18 @@ function readOpenTag(s: string, i: number, nodes: Node[], errors: ParseError[]):
     if (p === before) p++;
   }
   errors.push({ range: { start, end: p }, message: 'Unterminated open tag' });
+  return p;
+}
+
+function consumeRawText(s: string, i: number, tag: string, nodes: Node[]): number {
+  const needle = `</${tag.toLowerCase()}`;
+  const start = i;
+  let p = i;
+  while (p < s.length) {
+    if (s[p] === '<' && s.slice(p, p + needle.length).toLowerCase() === needle) break;
+    p++;
+  }
+  if (p > start) nodes.push({ kind: 'text', range: { start, end: p } });
   return p;
 }
 

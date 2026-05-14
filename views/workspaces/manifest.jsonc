@@ -1,0 +1,14 @@
+// Route metadata for views/workspaces/. Project registry + active
+// switcher — exercises `ship.workspaces.{list,activate}()`.
+{
+  "name": "workspaces",
+  "path": "/workspaces",
+  "title": "Workspaces",
+  "layout": "default",
+  "auth": "user",
+  "rail": {
+    "label": "Workspaces",
+    "icon": "folder-tree"
+  },
+  "events": ["config.changed", "workspace.activated"]
+}

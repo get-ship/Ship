@@ -1,0 +1,244 @@
+<div class="ship-view ship-view-settings">
+  <main class="settings-wrap">
+    <header class="settings-header">
+      <h1>Settings</h1>
+      <p>CLI and studio configuration</p>
+    </header>
+
+    {#while-loading of settings}
+      <div class="s-skel" aria-busy="true" aria-label="Loading settings">
+        {#for n of [0, 1, 2] key={n}}
+          <div class="s-skel-card">
+            <div class="s-skel-head">
+              <sui-skeleton shape="circle" size="sm"></sui-skeleton>
+              <sui-skeleton shape="line" size="md" style="width:120px"></sui-skeleton>
+            </div>
+            <div class="s-skel-body">
+              <sui-skeleton shape="line" size="md"></sui-skeleton>
+              <sui-skeleton shape="line" size="md"></sui-skeleton>
+            </div>
+          </div>
+        {/for}
+      </div>
+    {/while-loading}
+
+    {#while-error err of settings}
+      <sui-error-state variant="default" size="md" title="Couldn't load settings">
+        {err.message}
+      </sui-error-state>
+    {/while-error}
+
+    {#if settings().kind === 'ok'}
+      <div class="s-sections">
+
+        <!-- Theme -->
+        <sui-card padding="none">
+          <div slot="header" class="s-section-head">
+            <h2 class="s-section-title">
+              <sui-icon name="eye"></sui-icon>Theme
+            </h2>
+          </div>
+          <div class="s-section-body">
+            <sui-empty-state icon="palette" tone="muted" size="sm" style="padding: var(--space-4) 0">
+              <span slot="title">Theme lives in the top bar</span>
+              Open the palette icon in the top-right to pick a theme. Every
+              Ship theme bundles a full aesthetic — palette, motion, radii,
+              shadows, typography — not just color.
+            </sui-empty-state>
+          </div>
+        </sui-card>
+
+        <!-- Providers -->
+        <sui-card padding="none">
+          <div slot="header" class="s-section-head">
+            <h2 class="s-section-title">
+              <sui-icon name="cpu"></sui-icon>Providers
+            </h2>
+          </div>
+          <div class="s-section-body">
+            <sui-list-tile density="compact">
+              <span class="s-row-label" id="s-label-provider">Default provider</span>
+              <span slot="meta">Used when no provider is specified</span>
+              <span slot="trailing" class="s-row-trailing">
+                <form mutation="ship.settings.update" on:success={() => flashSaved(savedProvider)}>
+                  <input type="hidden" name="key" value="defaults.provider" />
+                  <sui-badge tone="success" variant="soft" size="sm"
+                    class="s-save-badge" class:visible={savedProvider()}>
+                    <sui-icon slot="leading" name="check" size="sm"></sui-icon>Saved
+                  </sui-badge>
+                  <sui-select name="value" size="sm" aria-labelledby="s-label-provider"
+                    prop:value={settings().value.default_provider}
+                    on:sui-change={(e) => e.target.closest('form')?.requestSubmit()}>
+                    {#for p of settings().value.providers key={p.id}}
+                      <option value={p.id}>{p.id}</option>
+                    {/for}
+                  </sui-select>
+                </form>
+              </span>
+            </sui-list-tile>
+
+            <sui-list-tile density="compact">
+              <span class="s-row-label" id="s-label-model">Default model</span>
+              <span slot="meta">Model name passed to the provider</span>
+              <span slot="trailing" class="s-row-trailing">
+                <form mutation="ship.settings.update" on:success={() => flashSaved(savedModel)}>
+                  <input type="hidden" name="key" value="defaults.model" />
+                  <sui-badge tone="success" variant="soft" size="sm"
+                    class="s-save-badge" class:visible={savedModel()}>
+                    <sui-icon slot="leading" name="check" size="sm"></sui-icon>Saved
+                  </sui-badge>
+                  <sui-input name="value" size="sm" aria-labelledby="s-label-model"
+                    prop:value={settings().value.default_model}
+                    placeholder="e.g. sonnet"
+                    on:blur={(e) => e.target.closest('form')?.requestSubmit()}
+                    on:keydown={(e) => { if (e.key === 'Enter') e.target.blur() }}></sui-input>
+                </form>
+              </span>
+            </sui-list-tile>
+
+            {#if settings().value.providers.length > 0}
+              <div class="s-provider-list">
+                <div class="s-provider-label">Installed providers</div>
+                {#for p of settings().value.providers key={p.id}}
+                  <sui-list-tile density="compact" class="s-prov-tile">
+                    <sui-provider-blob slot="leading" provider={p.id} size="sm" variant="glyph"
+                      style={p.available ? '' : 'opacity:0.45;filter:grayscale(1)'}></sui-provider-blob>
+                    <span class="s-prov-name">{p.id}</span>
+                    <span slot="trailing" class="s-prov-right">
+                      <span>{p.available ? 'installed' : 'not found'}</span>
+                      {#if p.version}
+                        <span class="mono">v{p.version}{p.label ? ' (' + p.label + ')' : ''}</span>
+                      {/if}
+                    </span>
+                  </sui-list-tile>
+                {/for}
+              </div>
+            {/if}
+          </div>
+        </sui-card>
+
+        <!-- Terminal -->
+        <sui-card padding="none">
+          <div slot="header" class="s-section-head">
+            <h2 class="s-section-title">
+              <sui-icon name="terminal"></sui-icon>Terminal
+            </h2>
+          </div>
+          <div class="s-section-body">
+            <sui-list-tile density="compact">
+              <span class="s-row-label" id="s-label-term">Terminal program</span>
+              <span slot="meta">Used when launching sessions</span>
+              <span slot="trailing" class="s-row-trailing">
+                <form mutation="ship.settings.update" on:success={() => flashSaved(savedTerminal)}>
+                  <input type="hidden" name="key" value="terminal.program" />
+                  <sui-badge tone="success" variant="soft" size="sm"
+                    class="s-save-badge" class:visible={savedTerminal()}>
+                    <sui-icon slot="leading" name="check" size="sm"></sui-icon>Saved
+                  </sui-badge>
+                  <sui-select name="value" size="sm" aria-labelledby="s-label-term"
+                    prop:value={settings().value.terminal.program}
+                    on:sui-change={(e) => e.target.closest('form')?.requestSubmit()}>
+                    {#for opt of settings().value.terminal.options key={opt.value}}
+                      <option value={opt.value}>{opt.label}</option>
+                    {/for}
+                  </sui-select>
+                </form>
+              </span>
+            </sui-list-tile>
+
+            <sui-list-tile density="compact">
+              <span class="s-row-label" id="s-label-worktree">Worktree base directory</span>
+              <span slot="meta">Root for git worktrees</span>
+              <span slot="trailing" class="s-row-trailing">
+                <form mutation="ship.settings.update" on:success={() => flashSaved(savedWorktree)}>
+                  <input type="hidden" name="key" value="worktree.base_dir" />
+                  <sui-badge tone="success" variant="soft" size="sm"
+                    class="s-save-badge" class:visible={savedWorktree()}>
+                    <sui-icon slot="leading" name="check" size="sm"></sui-icon>Saved
+                  </sui-badge>
+                  <sui-input name="value" size="sm" aria-labelledby="s-label-worktree"
+                    prop:value={settings().value.terminal.worktree_base}
+                    placeholder="/path/to/worktrees"
+                    on:blur={(e) => e.target.closest('form')?.requestSubmit()}
+                    on:keydown={(e) => { if (e.key === 'Enter') e.target.blur() }}></sui-input>
+                </form>
+              </span>
+            </sui-list-tile>
+          </div>
+        </sui-card>
+
+        <!-- Advanced (collapsible) -->
+        <sui-card padding="none">
+          <sui-collapsible
+            on:sui-toggle={() => advancedOpen.set(!advancedOpen())}>
+            <div slot="trigger" class="s-collapse-trigger">
+              <h2 class="s-section-title">
+                <sui-icon name="settings"></sui-icon>Advanced
+              </h2>
+              <sui-icon name="chevron-down" class="s-chevron" class:open={advancedOpen()}></sui-icon>
+            </div>
+            <div class="s-collapse-inner">
+              <div class="s-section-body">
+                <sui-list-tile density="compact">
+                  <span class="s-row-label">Daemon status</span>
+                  <span slot="trailing" class="s-row-trailing">
+                    <sui-status-dot
+                      tone={settings().kind === 'ok' ? 'success' : 'danger'}
+                      label={settings().kind === 'ok' ? 'Connected' : 'Disconnected'}></sui-status-dot>
+                    <span class="s-status-text">{settings().kind === 'ok' ? 'Connected' : 'Disconnected'}</span>
+                  </span>
+                </sui-list-tile>
+                <sui-list-tile density="compact">
+                  <span class="s-row-label">Daemon endpoint</span>
+                  <span slot="trailing" class="s-mono-val">{settings().value.daemon_endpoint}</span>
+                </sui-list-tile>
+                <sui-list-tile density="compact">
+                  <span class="s-row-label" id="s-label-registry">Registry endpoint</span>
+                  <span slot="meta">Package registry URL</span>
+                  <span slot="trailing" class="s-row-trailing">
+                    <form mutation="ship.settings.update" on:success={() => flashSaved(savedRegistry)}>
+                      <input type="hidden" name="key" value="registry.endpoint" />
+                      <sui-badge tone="success" variant="soft" size="sm"
+                        class="s-save-badge" class:visible={savedRegistry()}>
+                        <sui-icon slot="leading" name="check" size="sm"></sui-icon>Saved
+                      </sui-badge>
+                      <sui-input name="value" size="sm" aria-labelledby="s-label-registry"
+                        prop:value={settings().value.advanced_registry}
+                        placeholder="https://registry.getship.dev"
+                        on:blur={(e) => e.target.closest('form')?.requestSubmit()}
+                        on:keydown={(e) => { if (e.key === 'Enter') e.target.blur() }}></sui-input>
+                    </form>
+                  </span>
+                </sui-list-tile>
+              </div>
+            </div>
+          </sui-collapsible>
+        </sui-card>
+
+        <!-- About -->
+        <sui-card padding="none">
+          <div slot="header" class="s-section-head">
+            <h2 class="s-section-title">
+              <sui-icon name="info"></sui-icon>About
+            </h2>
+          </div>
+          <div class="s-section-body">
+            <sui-list-tile density="compact">
+              <span class="s-row-label">Documentation</span>
+              <span slot="trailing">
+                <sui-link prop:href={settings().value.about.docs} external>getship.dev/docs</sui-link>
+              </span>
+            </sui-list-tile>
+            <sui-list-tile density="compact">
+              <span class="s-row-label">Source</span>
+              <span slot="trailing">
+                <sui-link prop:href={settings().value.about.source} external>GitHub</sui-link>
+              </span>
+            </sui-list-tile>
+          </div>
+        </sui-card>
+
+      </div>
+    {/if}
+  </main>
+</div>

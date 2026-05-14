@@ -28,7 +28,7 @@ pub mod types {
             // (skill.{created,updated,deleted}, rule.{created,updated,
             // deleted}, permissions.updated). event-coverage/02 added 2 (session.status_changed, session.turn_failed) for 82 total.
             // Adjust this when adding/removing event types.
-            assert_eq!(ALL.len(), 82, "exactly 82 event type constants required");
+            assert_eq!(ALL.len(), 83, "exactly 83 event type constants required");
         }
     }
 }

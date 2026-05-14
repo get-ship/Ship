@@ -42,11 +42,16 @@ pub fn collect_attr_imports(a: &AttrInstr, out: &mut Lowered, is_view: bool, dep
             }
         }
         AttrInstr::BindThis { .. } => {
-            // The component setup body emits `attachRef(...)` — it
-            // reuses an author-declared `ref(null)` slot if the
-            // controller's scope: factory pre-declared one, otherwise
-            // installs a fresh signal seeded with the element.
+            // The setup body pre-seeds `$scope.<var> = signal(null)` for
+            // every bind:this target the template references — including
+            // ones inside conditional / loop branches that haven't
+            // rendered yet. Without the pre-seed, a controller reading
+            // `scope.headerEl()` before the `{#if open()}` branch mounted
+            // would see `undefined` and crash with
+            // `headerEl is not a function`. attachRef() reuses the
+            // pre-seeded slot when the element finally mounts.
             out.runtime_imports.insert("attachRef");
+            out.runtime_imports.insert("signal");
             if direct_emit {
                 out.dom_imports.insert("collectElementMarkers");
                 out.dom_imports.insert("hydrateRef");
@@ -87,6 +92,15 @@ pub fn collect_attr_imports(a: &AttrInstr, out: &mut Lowered, is_view: bool, dep
             out.runtime_imports.insert("wireFormMutation");
             if direct_emit {
                 out.dom_imports.insert("collectElementMarkers");
+            }
+        }
+        AttrInstr::Transition { name, .. } => {
+            out.runtime_imports.insert("registerTransition");
+            match name.as_str() {
+                "fade" => { out.transition_builtins.insert("fade"); }
+                "slide" => { out.transition_builtins.insert("slide"); }
+                "scale" => { out.transition_builtins.insert("scale"); }
+                _ => {}
             }
         }
     }

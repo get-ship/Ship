@@ -1,0 +1,285 @@
+<div class="ship-view ship-view-skills">
+  <h1 class="sr-only">Skills</h1>
+  <div class="skills-ide">
+
+    <aside class="skills-explorer" aria-label="Skills file explorer">
+      <div class="se-head">
+        <div class="se-search">
+          <sui-icon name="search" size="sm" tone="muted"></sui-icon>
+          <input type="text" placeholder="Search skills…" spellcheck="false"
+            aria-label="Search skills"
+            bind:value={q}
+            on:input={(e) => q.set(e.target.value)} />
+        </div>
+        {#if rail().kind === 'ok'}
+          <div class="se-filters" role="group" aria-label="Filter by kind">
+            {#for kc of rail().value.kind_counts key={kc.id}}
+              <button class="se-pill" class:is-active={kind() === kc.id}
+                on:click={() => kind.set(kc.id)}>
+                {kc.label} <span style="opacity:0.6;font-variant-numeric:tabular-nums">{kc.count}</span>
+              </button>
+            {/for}
+          </div>
+        {/if}
+      </div>
+
+      <div class="se-body" role="tree" aria-label="Skills tree">
+        {#while-loading of rail}
+          <div class="se-skel" role="status" aria-live="polite" aria-busy="true" aria-label="Loading skills">
+            {#for n of [0, 1, 2, 3, 4, 5] key={n}}
+              <div class="se-skel-row">
+                <sui-skeleton shape="line" size="md"></sui-skeleton>
+              </div>
+            {/for}
+          </div>
+        {/while-loading}
+        {#while-error err of rail}
+          <sui-error-state variant="inline" size="sm" title="Couldn't load skills" role="alert" aria-live="assertive">
+            {err.message}
+          </sui-error-state>
+        {/while-error}
+        {#if rail().kind === 'ok'}
+          {#if rail().value.groups.length === 0}
+            <div class="se-empty">
+              {q() ? 'No skills match "' + q() + '".' : 'No skills discovered.'}
+            </div>
+          {:else}
+            {#for g of rail().value.groups key={g.source}}
+              <div class="se-section">
+                <div class="se-section-head">
+                  <span class="se-section-label">
+                    <sui-icon name="folder" size="xs" tone="muted"></sui-icon>
+                    {g.source === 'PROJECT SKILLS' ? 'Project Skills' : g.source === 'USER SKILLS' ? 'Library' : g.source}
+                    <span class="count">({g.skills.length})</span>
+                  </span>
+                </div>
+                {#if g.skills.length === 0}
+                  <div class="se-empty">{q() ? 'No matches.' : 'No skills yet.'}</div>
+                {:else}
+                  {#for s of g.skills key={s.id}}
+                    <div role="treeitem" class="se-skill-row"
+                      attr:aria-selected={skillId() === s.id ? 'true' : 'false'}>
+                      <button class="se-skill" class:is-active={skillId() === s.id}
+                        on:click={() => skillId.set(s.id)}
+                        attr:title={s.description}>
+                        <span class="se-chevron" aria-hidden="true">
+                          <sui-icon name="chevron-right" size="xs"></sui-icon>
+                        </span>
+                        <sui-icon name="zap" size="xs" tone="primary"></sui-icon>
+                        <span class="se-name">{s.name}</span>
+                        <span class="se-dots">
+                          {#if s.has_vars}<span class="se-dot vars" title="Variables"></span>{/if}
+                          {#if s.has_refs}<span class="se-dot refs" title="Reference docs"></span>{/if}
+                          {#if s.has_evals}<span class="se-dot evals" title="Evals"></span>{/if}
+                        </span>
+                      </button>
+                      <button class="se-invoke"
+                        aria-label={'Invoke ' + s.name}
+                        prop:disabled={invokeBusy() === s.id}
+                        on:click={() => invoke(s.id)}>
+                        <sui-icon name="play" size="xs"></sui-icon>
+                        <span>{invokeBusy() === s.id ? 'Invoking…' : 'Invoke'}</span>
+                      </button>
+                    </div>
+                  {/for}
+                {/if}
+              </div>
+            {/for}
+          {/if}
+        {/if}
+      </div>
+    </aside>
+
+    <div class="skills-editor">
+      {#if skillId() && skill().kind === 'ok' && skill().value}
+        <header class="sd-header">
+          <div class="sd-title-row">
+            <div class="sd-title-main">
+              <h1 class="sd-name">{skill().value.name}</h1>
+              <sui-chip variant="soft" size="sm"
+                attr:tone={skill().value.kind === 'smart' ? 'primary' : skill().value.kind === 'docs' ? 'info' : skill().value.kind === 'operator' ? 'warning' : 'muted'}>
+                {skill().value.kind}
+              </sui-chip>
+              <span class="sd-source-label">{skill().value.source}</span>
+            </div>
+            <div class="sd-title-actions">
+              <button class="sd-action sd-source-btn"
+                class:is-active={viewRaw()}
+                aria-pressed={viewRaw() ? 'true' : 'false'}
+                on:click={openSource}>
+                <sui-icon name="file-code" size="xs"></sui-icon>
+                <span>{viewRaw() ? 'Rendered' : 'Source'}</span>
+              </button>
+              <button class="sd-action sd-invoke-btn"
+                prop:disabled={invokeBusy() === skill().value.id}
+                on:click={() => invoke(skill().value.id)}>
+                <sui-icon name="play" size="xs"></sui-icon>
+                <span>{invokeBusy() === skill().value.id ? 'Invoking…' : 'Invoke'}</span>
+              </button>
+            </div>
+          </div>
+          {#if skill().value.description}
+            <p class="sd-description">{skill().value.description}</p>
+          {/if}
+          {#if invokeResult()}
+            <sui-alert tone={invokeResult().ok ? 'success' : 'warning'} class="sd-invoke-result">
+              {#if invokeResult().ok}
+                Invoked · run <code>{invokeResult().run_id}</code> · session <code>{invokeResult().session_id}</code>
+                <button class="sd-invoke-dismiss" aria-label="Dismiss"
+                  on:click={() => invokeResult.set(null)}>×</button>
+              {:else}
+                {invokeResult().error}
+                <button class="sd-invoke-dismiss" aria-label="Dismiss"
+                  on:click={() => invokeResult.set(null)}>×</button>
+              {/if}
+            </sui-alert>
+          {/if}
+        </header>
+
+        <div class="sd-tabs-row">
+          <sui-tabs variant="underline">
+            <sui-tab name="content" active={tab() === 'content'}
+              on:click={() => tab.set('content')}>SKILL.md</sui-tab>
+            <sui-tab name="metadata" active={tab() === 'metadata'}
+              on:click={() => tab.set('metadata')}>Metadata</sui-tab>
+            <sui-tab name="runs" active={tab() === 'runs'}
+              count={runs().kind === 'ok' ? (runs().value.rows.length + '') : ''}
+              on:click={() => tab.set('runs')}>Runs</sui-tab>
+          </sui-tabs>
+        </div>
+
+        <div class="sd-tab-body">
+          {#if tab() === 'content'}
+            <div class="se-editor-content">
+              {#if skill().value.body}
+                {#if viewRaw()}
+                  <pre class="sd-raw"><code>{skill().value.body}</code></pre>
+                {:else}
+                  <sui-markdown-editor attr:value={skill().value.body}></sui-markdown-editor>
+                {/if}
+              {:else}
+                <div class="se-empty-state" style="padding:40px 0">
+                  <sui-icon name="file" size="xl" tone="muted"></sui-icon>
+                  <span class="se-empty-desc">This skill has no SKILL.md content yet.</span>
+                </div>
+              {/if}
+            </div>
+          {:else if tab() === 'metadata'}
+            <div class="se-editor-content sd-meta">
+              <dl class="sd-meta-list">
+                <dt>id</dt><dd><code>{skill().value.id}</code></dd>
+                <dt>kind</dt><dd>{skill().value.kind}</dd>
+                <dt>source</dt><dd>{skill().value.source}</dd>
+                {#if skill().value.description}
+                  <dt>description</dt><dd>{skill().value.description}</dd>
+                {/if}
+              </dl>
+              {#if skill().value.tags && skill().value.tags.length > 0}
+                <div class="sd-meta-section">
+                  <div class="sd-meta-label">Tags</div>
+                  <div class="sd-meta-chips">
+                    {#for t of skill().value.tags key={t}}
+                      <sui-chip variant="soft" size="sm" tone="muted">{t}</sui-chip>
+                    {/for}
+                  </div>
+                </div>
+              {/if}
+              {#if skill().value.authors && skill().value.authors.length > 0}
+                <div class="sd-meta-section">
+                  <div class="sd-meta-label">Authors</div>
+                  <div class="sd-meta-chips">
+                    {#for a of skill().value.authors key={a}}
+                      <sui-chip variant="soft" size="sm" tone="muted">{a}</sui-chip>
+                    {/for}
+                  </div>
+                </div>
+              {/if}
+              <div class="sd-meta-section">
+                <div class="sd-meta-label">Variables ({skill().value.variables?.length ?? 0})</div>
+                {#if skill().value.variables && skill().value.variables.length > 0}
+                  <ul class="sd-meta-vars">
+                    {#for v of skill().value.variables key={v}}
+                      <li><code>{v}</code></li>
+                    {/for}
+                  </ul>
+                {:else}
+                  <p class="sd-meta-empty">No variables defined.</p>
+                {/if}
+              </div>
+              <div class="sd-meta-section">
+                <div class="sd-meta-label">Files ({skill().value.files?.length ?? 0})</div>
+                <ul class="sd-meta-files">
+                  {#for f of (skill().value.files || []) key={f}}
+                    <li><code>{f}</code></li>
+                  {/for}
+                </ul>
+              </div>
+            </div>
+          {:else if tab() === 'runs'}
+            <div class="se-editor-content sd-runs">
+              {#while-loading of runs}
+                <div class="se-empty-state" role="status" aria-live="polite" aria-busy="true">
+                  <sui-spinner size="md"></sui-spinner>
+                  <span class="se-empty-desc">Loading runs…</span>
+                </div>
+              {/while-loading}
+              {#while-error err of runs}
+                <sui-error-state variant="inline" size="sm" title="Couldn't load runs" role="alert" aria-live="assertive">
+                  {err.message}
+                </sui-error-state>
+              {/while-error}
+              {#if runs().kind === 'ok'}
+                {#if runs().value.rows.length === 0}
+                  <div class="se-empty-state" style="padding:40px 0">
+                    <sui-icon name="zap" size="xl" tone="muted"></sui-icon>
+                    <span class="se-empty-title">No invocations yet</span>
+                    <span class="se-empty-desc">Click <b>Invoke</b> to start a session attached to this skill.</span>
+                  </div>
+                {:else}
+                  <ul class="sd-runs-list">
+                    {#for r of runs().value.rows key={r.id}}
+                      <li class="sd-run-row">
+                        <sui-icon name="play" size="xs" tone="primary"></sui-icon>
+                        <span class="sd-run-time" attr:title={r.timestamp}>{r.timestamp}</span>
+                        <span class="sd-run-actor">{r.actor}</span>
+                        {#if r.session_id}
+                          <span class="sd-run-session" attr:title={'Session ' + r.session_id}>
+                            <sui-icon name="link" size="xs" tone="muted"></sui-icon>
+                            {r.session_id.slice(0, 8)}
+                          </span>
+                        {/if}
+                        <code class="sd-run-id" attr:title={r.id}>{r.id.slice(0, 12)}</code>
+                      </li>
+                    {/for}
+                  </ul>
+                {/if}
+              {/if}
+            </div>
+          {/if}
+        </div>
+      {:else if skillId() && skill().kind === 'loading'}
+        <div class="se-empty-state">
+          <sui-spinner size="md"></sui-spinner>
+          <span class="se-empty-desc">Loading skill…</span>
+        </div>
+      {:else if skillId() && skill().kind === 'error'}
+        <div class="se-empty-state">
+          <sui-icon name="alert-triangle" size="xl" tone="warning"></sui-icon>
+          <span class="se-empty-title">Couldn't load skill</span>
+          <span class="se-empty-desc">{skill().error.message}</span>
+        </div>
+      {:else}
+        <div class="se-empty-state">
+          <sui-icon name="zap" size="xl" class="se-empty-icon" tone="muted"></sui-icon>
+          <span class="se-empty-title">No skill selected</span>
+          <span class="se-empty-desc">Select a skill from the explorer to view its content and invoke it.</span>
+        </div>
+      {/if}
+    </div>
+
+  </div>
+  <div class="skills-mobile">
+    <sui-icon name="monitor" size="xl" tone="muted"></sui-icon>
+    <span>Best experienced on desktop</span>
+  </div>
+</div>

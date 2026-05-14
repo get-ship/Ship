@@ -19,7 +19,6 @@ pub(crate) struct ConvertResult {
 
 #[derive(Deserialize)]
 pub(crate) struct ProjectLibraryJson {
-    pub name: Option<String>,
     #[serde(default)]
     pub agents: Vec<AgentJson>,
     #[serde(default)]

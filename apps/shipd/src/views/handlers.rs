@@ -4,6 +4,7 @@ use std::collections::HashMap;
 
 use axum::{extract::Path, http::StatusCode, response::IntoResponse};
 
+
 use super::resolve::{is_valid_view_name, read_manifest_file, resolve_view_dir, scan_views_dir};
 use super::{ViewListEntry, ViewManifest, mesh_err, mesh_ok};
 
@@ -14,14 +15,15 @@ use super::{ViewListEntry, ViewManifest, mesh_err, mesh_ok};
     path = "/api/v1/views",
     responses(
         (status = 200, description = "Catalog of available views"),
-        (status = 401, description = "Unauthenticated", body = crate::wire::ErrorResponse),
+        (status = 401, description = "Unauthenticated", body = crate::routes::openapi_types::ErrorResponse),
     ),
     tag = "views"
 )]
 pub async fn list_views() -> impl IntoResponse {
     let mut views: HashMap<String, ViewListEntry> = HashMap::new();
-    if let Ok(d) = ship_application::project::get_project_dir(None) { scan_views_dir(&d.join("views"), "project", &mut views); }
-    if let Ok(d) = ship_application::project::get_global_dir() { scan_views_dir(&d.join("views"), "global", &mut views); }
+    for d in super::discovery::view_search_dirs() {
+        scan_views_dir(&d.path, d.source, &mut views);
+    }
     let mut list: Vec<ViewListEntry> = views.into_values().collect();
     list.sort_by(|a, b| a.name.cmp(&b.name));
     mesh_ok(serde_json::json!({ "views": list }))
@@ -77,8 +79,8 @@ pub async fn serve_view_asset(Path((name, file)): Path<(String, String)>) -> axu
     params(("name" = String, Path, description = "View name")),
     responses(
         (status = 200, description = "View manifest JSON"),
-        (status = 401, description = "Unauthenticated", body = crate::wire::ErrorResponse),
-        (status = 404, description = "View not found", body = crate::wire::ErrorResponse),
+        (status = 401, description = "Unauthenticated", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 404, description = "View not found", body = crate::routes::openapi_types::ErrorResponse),
     ),
     tag = "views"
 )]
@@ -88,12 +90,14 @@ pub async fn serve_view_manifest(Path(name): Path<String>) -> impl IntoResponse 
         Some(v) => v,
         None => return mesh_err(StatusCode::NOT_FOUND, format!("view '{name}' not found")),
     };
-    if (view_dir.join("manifest.yaml").exists()
+    if view_dir.join("manifest.yaml").exists()
         || view_dir.join("manifest.jsonc").exists()
-        || view_dir.join("manifest.json").exists())
-        && let Some(m) = read_manifest_file(&view_dir, &name) {
+        || view_dir.join("manifest.json").exists()
+    {
+        if let Some(m) = read_manifest_file(&view_dir, &name) {
             return mesh_ok(serde_json::json!(m));
         }
+    }
     if view_dir.join("index.html").exists() {
         return mesh_ok(serde_json::json!(ViewManifest {
             name: name.clone(), view_type: "html".into(),
@@ -119,8 +123,8 @@ pub async fn serve_view_manifest(Path(name): Path<String>) -> impl IntoResponse 
     params(("name" = String, Path, description = "View name")),
     responses(
         (status = 200, description = "View module bundle (JavaScript)", content_type = "application/javascript"),
-        (status = 401, description = "Unauthenticated", body = crate::wire::ErrorResponse),
-        (status = 404, description = "View not found", body = crate::wire::ErrorResponse),
+        (status = 401, description = "Unauthenticated", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 404, description = "View not found", body = crate::routes::openapi_types::ErrorResponse),
     ),
     tag = "views"
 )]

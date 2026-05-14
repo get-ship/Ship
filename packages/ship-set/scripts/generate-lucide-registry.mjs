@@ -8,7 +8,7 @@
  *      These ship in `ship-elements.js`, which still loads the table
  *      synchronously.
  *
- *   2. `crates/sui/ship-ui-framework/assets/lucide-icons.json` — the same
+ *   2. `crates/sui/ship-sui-server/assets/lucide-icons.json` — the same
  *      table as plain JSON, served to the page on demand at
  *      `/_sui/lucide-icons.json`. The SUI `<sui-icon>` controller
  *      fetches it on first mount instead of bundling the table into
@@ -66,7 +66,7 @@ console.log(`wrote ${dest} with ${entries.length} icons`)
 // `cargo build`-time content hash only changes when the icon set
 // actually changes.
 const jsonDest = join(
-  root, '..', '..', 'crates', 'ship-ui-framework', 'assets', 'lucide-icons.json',
+  root, '..', '..', 'crates', 'ship-sui-server', 'assets', 'lucide-icons.json',
 )
 const jsonObj = Object.fromEntries(
   [...entries].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)),

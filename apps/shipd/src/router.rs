@@ -38,6 +38,7 @@ pub fn build_router(
     pairing_registry: pairing::SharedPairingRegistry,
     attestation_verifier: attest::AttestationVerifier,
     mcp_ct: CancellationToken,
+    daemon_mode: ship_sui::DaemonMode,
 ) -> Router {
     use crate::routes::{Route, ShipRouterExt};
     let kernel_factory = rt.kernel().clone();
@@ -223,7 +224,18 @@ pub fn build_router(
     // initial `/shell/` GET is what mints the browser cookie that
     // everything else uses. The shell IS the app; it always mounts.
     root = root.merge(shell_assets::router(shell_registry));
+    // HMR routes are development-only; not registered in production mode.
+    if daemon_mode == ship_sui::DaemonMode::Development {
+        let hmr_routes: Router<()> = Router::new()
+            .ship_route(Route::SuiHmr, views::sui_hmr::serve_hmr)
+            .ship_route(Route::SuiHmrClientJs, views::sui_hmr::serve_hmr_client_js)
+            .ship_route(Route::SuiDevHmr, views::sui_hmr::serve_bundle_hmr);
+        root = root.merge(hmr_routes);
+    }
     root
+        // Daemon-mode Extension — Sui handlers read it via
+        // `Option<Extension<DaemonMode>>` without router-state plumbing.
+        .layer(axum::Extension(daemon_mode))
         // X-Shipd-Build header on every response: build SHA + dirty flag.
         // CLI/shell/browser read this to detect daemon-vs-client skew.
         .layer(axum::middleware::from_fn(build_header_middleware))

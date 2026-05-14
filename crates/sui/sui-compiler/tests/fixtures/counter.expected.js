@@ -10,6 +10,7 @@ export default view((ctx) => {
   $scope.route = route;
   $scope.navigate = navigate;
   if (setup && typeof setup.setup === "function") {
+    ctx.scope = $scope;
     const __r = setup.setup(ctx);
     if (__r && typeof __r === "object") Object.assign($scope, __r);
   }

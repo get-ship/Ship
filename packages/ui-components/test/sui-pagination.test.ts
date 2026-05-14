@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import '../src/sui-pagination/dist/sui-pagination.compiled.js'
+import '../src/sui-pagination/sui-pagination.compiled.js'
 import { createContainerRegistry, flush, mount } from '../src/test-utils'
 
 const reg = createContainerRegistry()

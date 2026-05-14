@@ -1,5 +1,3 @@
-<data name="overview" source="ship.git.overview()" live />
-
 <use-kbd>
   <on key="1" action="showChanges" />
   <on key="2" action="showHistory" />
@@ -8,11 +6,34 @@
 
 <div class="ship-view git-view">
   {#while-loading of overview}
-    <p class="git-loading" data-test="loading">Loading repo overview&hellip;</p>
+    <div class="git-skel" data-test="loading" aria-busy="true" aria-label="Loading repo overview">
+      <div class="git-skel-head">
+        <div class="git-skel-titles">
+          <sui-skeleton shape="line" size="lg" style="width:96px"></sui-skeleton>
+          <sui-skeleton shape="line" size="sm" style="width:180px"></sui-skeleton>
+        </div>
+        <sui-skeleton shape="line" size="md" style="width:80px"></sui-skeleton>
+      </div>
+      <div class="git-skel-tabs">
+        <sui-skeleton shape="line" size="md" style="width:80px"></sui-skeleton>
+        <sui-skeleton shape="line" size="md" style="width:80px"></sui-skeleton>
+        <sui-skeleton shape="line" size="md" style="width:80px"></sui-skeleton>
+      </div>
+      <div class="git-skel-card">
+        {#for n of [0, 1, 2] key={n}}
+          <div class="git-skel-row">
+            <sui-skeleton shape="circle" size="sm"></sui-skeleton>
+            <sui-skeleton shape="line" size="md"></sui-skeleton>
+          </div>
+        {/for}
+      </div>
+    </div>
   {/while-loading}
 
   {#while-error err of overview}
-    <p class="git-error" data-test="error">Failed to load: {err.message}</p>
+    <sui-error-state variant="default" size="md" title="Couldn't load repo" data-test="error">
+      {err.message}
+    </sui-error-state>
   {/while-error}
 
   {#if overview().kind === 'ok'}
@@ -28,6 +49,10 @@
         </p>
       </div>
       <div class="git-head-actions">
+        <sui-button variant="ghost" size="sm" aria-label="Refresh"
+          on:click={() => window.location.reload()}>
+          <sui-icon name="refresh-cw" size="sm"></sui-icon>
+        </sui-button>
         <sui-chip tone={clean() ? 'success' : 'warning'} variant="soft" size="sm">
           {clean() ? 'clean' : totalChanged() + ' changed'}
         </sui-chip>
@@ -51,7 +76,7 @@
           <div class="git-clean">
             <div class="git-hero">
               <div class="git-halo">
-                <ship-icon name="check" size="md"></ship-icon>
+                <sui-icon name="check" size="md"></sui-icon>
               </div>
               <div>
                 <h2 class="git-hero-title">Working tree is clean.</h2>
@@ -93,7 +118,7 @@
                 {:else}
                   {#for b of recentBranches() key={b.name}}
                     <div class="git-row">
-                      <ship-icon name="git-branch" size="xs" class={b.active ? 'git-icon-active' : 'git-icon-muted'}></ship-icon>
+                      <sui-icon name="git-branch" size="xs" class={b.active ? 'git-icon-active' : 'git-icon-muted'}></sui-icon>
                       <div class="git-row-body">
                         <div class="git-row-title git-mono">{b.name}</div>
                         <div class="git-row-sub">{b.upstream ? b.upstream : 'local only'}</div>
@@ -136,6 +161,17 @@
             {/if}
           </div>
         {/if}
+        <div class="git-diff-pane">
+          {#if totalChanged() === 0}
+            <sui-empty-state tone="muted" size="md" style="flex:1">
+              <span slot="title">No changes in this diff</span>
+            </sui-empty-state>
+          {:else}
+            <sui-empty-state tone="muted" size="md" style="flex:1">
+              <span slot="title">Select a file</span>
+            </sui-empty-state>
+          {/if}
+        </div>
       {/if}
 
       {#if tab() === 'history'}
@@ -149,7 +185,11 @@
           </div>
           {#if commitFilter.filtered().length === 0}
             <sui-empty-state tone="muted" size="md">
-              <span slot="title">{commitsCount() === 0 ? 'No commits' : 'No matching commits'}</span>
+              {#if commitsCount() === 0}
+                <span slot="title">No commits</span>
+              {:else}
+                <span slot="title">No matching commits</span>
+              {/if}
             </sui-empty-state>
           {:else}
             <div class="git-history-rows">
@@ -181,7 +221,7 @@
             <div class="git-history-rows">
               {#for b of branches() key={b.name}}
                 <div class="git-history-row">
-                  <ship-icon name="git-branch" size="sm" class={b.active ? 'git-icon-active' : 'git-icon-muted'}></ship-icon>
+                  <sui-icon name="git-branch" size="sm" class={b.active ? 'git-icon-active' : 'git-icon-muted'}></sui-icon>
                   <div class="git-row-body">
                     <div class="git-row-title git-mono">{b.name}{b.active ? ' (HEAD)' : ''}</div>
                     <div class="git-row-sub">{b.upstream ? b.upstream : 'local only'}</div>

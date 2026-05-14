@@ -27,6 +27,11 @@ fn fixtures() -> Vec<Fixture> {
         Fixture { name: "shadow-tones", setup_url: None,               mode: CompileMode::Component,
             component_meta: Some(ComponentMeta { name: "shadow-tones-test".into(), shadow: true }) },
         Fixture { name: "comment-and-whitespace", setup_url: None,    mode: CompileMode::View,      component_meta: None },
+        Fixture { name: "for-update",  setup_url: None,               mode: CompileMode::View,      component_meta: None },
+        Fixture { name: "for-static",  setup_url: None,               mode: CompileMode::View,      component_meta: None },
+        Fixture { name: "for-static-text", setup_url: None,           mode: CompileMode::View,      component_meta: None },
+        Fixture { name: "for-static-attr", setup_url: None,           mode: CompileMode::View,      component_meta: None },
+        Fixture { name: "for-dynamic-mixed", setup_url: None,         mode: CompileMode::View,      component_meta: None },
     ]
 }
 
@@ -44,20 +49,149 @@ fn compile_fixture(f: &Fixture) -> String {
         styles: None,
         component_meta: f.component_meta.clone(),
         emit_dts: false,
+        ..CompileOpts::default()
     };
     let out = compile(&source, opts).expect("compile");
     out.js
 }
 
+fn compile_ssr_fixture(name: &str) -> String {
+    let path = fixtures_dir().join(format!("{name}.sui"));
+    let source = fs::read_to_string(&path).expect("read fixture");
+    let opts = CompileOpts {
+        mode: CompileMode::View,
+        source_path: Some(path),
+        emit_dts: false,
+        emit_ssr: true,
+        ..CompileOpts::default()
+    };
+    let out = compile(&source, opts).expect("compile");
+    out.ssr_html.expect("ssr_html present for view mode")
+}
+
+/// Strip lines or JSON fields named `_compilerVersion` so snapshots
+/// don't churn on every rebuild (git sha + timestamp + dirty flag
+/// vary per build, but the rest of the output is deterministic).
+fn strip_version_stamp(input: &str) -> String {
+    // Unwrap the view-default Object.assign(...) wrapper so the body
+    // matches pre-stamp snapshots. The wrapper exists solely to
+    // attach `_compilerVersion` to the default export.
+    let s = input.replace(
+        "export default Object.assign(view((ctx) => {",
+        "export default view((ctx) => {",
+    );
+    // Drop the matching `}), { _compilerVersion: ... });` closer
+    // (single-line) by collapsing to `});`. We match conservatively
+    // to avoid touching unrelated `})` sequences.
+    let s = {
+        let mut out = String::with_capacity(s.len());
+        for line in s.lines() {
+            let trimmed = line.trim_start();
+            if trimmed.starts_with("}), { _compilerVersion:") && line.ends_with(");") {
+                let indent_len = line.len() - trimmed.len();
+                out.push_str(&line[..indent_len]);
+                out.push_str("});");
+                out.push('\n');
+            } else {
+                out.push_str(line);
+                out.push('\n');
+            }
+        }
+        out
+    };
+    strip_version_stamp_inner(&s)
+}
+
+fn strip_version_stamp_inner(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    // Brace-counted skip for multi-line JSON `"_compilerVersion": { ... }`
+    // emitted by serde_json::to_string_pretty.
+    let mut skip_depth: Option<i32> = None;
+    let mut trailing_comma_pending = false;
+    for line in s.lines() {
+        if let Some(depth) = skip_depth.as_mut() {
+            // Count braces on this line; once balanced, exit skip mode.
+            for c in line.chars() {
+                match c {
+                    '{' => *depth += 1,
+                    '}' => *depth -= 1,
+                    _ => {}
+                }
+            }
+            if *depth <= 0 {
+                skip_depth = None;
+                // A `},` closer means there's a sibling field after us
+                // (impossible — `_compilerVersion` is always last in our
+                // emitters). A bare `}` closer means we dropped the
+                // last field; the previous in-snapshot field's trailing
+                // comma must be removed to keep the JSON valid.
+                if !line.trim_end().ends_with(',') && trailing_comma_pending {
+                    // Remove the trailing comma from the last pushed line.
+                    if out.ends_with(",\n") {
+                        out.truncate(out.len() - 2);
+                        out.push('\n');
+                    }
+                    trailing_comma_pending = false;
+                }
+            }
+            continue;
+        }
+        let t = line.trim_start();
+        if t.starts_with("// _compilerVersion") || t.starts_with("/*! _compilerVersion") {
+            continue;
+        }
+        // JS lines that attach `_compilerVersion` to the default
+        // export — match both shapes the compiler emits.
+        if t.starts_with("export const _compilerVersion")
+            || t.starts_with("_compilerVersion: ")
+            || t.starts_with("_compilerVersion:{")
+            || t.starts_with("}), { _compilerVersion:")
+        {
+            continue;
+        }
+        if t.starts_with("\"_compilerVersion\":") {
+            // Count braces on the field's first line. If balanced on a
+            // single line, skip just this one; otherwise enter skip mode.
+            let mut depth = 0i32;
+            for c in line.chars() {
+                match c {
+                    '{' => depth += 1,
+                    '}' => depth -= 1,
+                    _ => {}
+                }
+            }
+            if depth > 0 {
+                skip_depth = Some(depth);
+                trailing_comma_pending = true;
+            } else {
+                // Single-line: if it ends with `,` the JSON is still
+                // valid after removal; if `}` (last field), strip the
+                // previous line's comma.
+                if !line.trim_end().ends_with(',') {
+                    if out.ends_with(",\n") {
+                        out.truncate(out.len() - 2);
+                        out.push('\n');
+                    }
+                }
+            }
+            continue;
+        }
+        out.push_str(line);
+        out.push('\n');
+    }
+    out
+}
+
 fn assert_snapshot(name: &str, actual: &str, expected_path: &Path) {
+    let normalized_actual = strip_version_stamp(actual);
     if std::env::var("UPDATE_SNAPSHOTS").is_ok() {
-        fs::write(expected_path, actual).expect("write snapshot");
+        fs::write(expected_path, &normalized_actual).expect("write snapshot");
         return;
     }
     let expected = match fs::read_to_string(expected_path) {
         Ok(s) => s,
         Err(_) => {
-            fs::write(expected_path, actual).expect("write snapshot");
+            fs::write(expected_path, &normalized_actual).expect("write snapshot");
             panic!(
                 "snapshot {} did not exist; wrote it now — re-run to confirm",
                 expected_path.display()
@@ -65,7 +199,7 @@ fn assert_snapshot(name: &str, actual: &str, expected_path: &Path) {
         }
     };
     assert_eq!(
-        expected, actual,
+        strip_version_stamp(&expected), normalized_actual,
         "snapshot mismatch for {name}. Set UPDATE_SNAPSHOTS=1 to refresh."
     );
 }
@@ -122,6 +256,7 @@ fn bind_this_button_direct_emits_hydrate_ref() {
         styles: None,
         component_meta: None,
         emit_dts: false,
+        emit_ssr: false,
     };
     let out = compile(&source, opts).expect("compile");
     // Phase 3b.4: the bind:this leaf is direct-emit — the view's
@@ -163,6 +298,250 @@ fn comment_and_whitespace_snapshot() {
     assert_snapshot(fx.name, &js, &path);
 }
 
+/// The `{#for}` render closure must return `{ nodes, cleanup, update }`.
+/// The `update` function mutates the child scope's item + index and
+/// increments the per-row version signal so bindings re-evaluate.
+#[test]
+fn for_update_snapshot() {
+    let fx = &fixtures()[8];
+    let js = compile_fixture(fx);
+    let path = fixtures_dir().join(format!("{}.expected.js", fx.name));
+    assert_snapshot(fx.name, &js, &path);
+}
+
+/// D3: when a `{#for}` body contains no expression that reads the row
+/// or index binder, the compiler omits the per-row `__v` version
+/// signal, the `void $scope.__v()` reads, the `__v.set` increment, and
+/// the `update` field on the render-closure return. The `signal`
+/// runtime import is also dropped (nothing else here uses it).
+#[test]
+fn for_static_body_omits_v_sentinel() {
+    let path = fixtures_dir().join("for-static.sui");
+    let source = std::fs::read_to_string(&path).unwrap();
+    let opts = CompileOpts {
+        setup_url: None,
+        mode: CompileMode::View,
+        source_path: Some(path),
+        styles: None,
+        component_meta: None,
+        emit_dts: false,
+        emit_ssr: false,
+    };
+    let out = sui_compiler::compile(&source, opts).expect("compile");
+    assert!(
+        !out.js.contains("signal(0)"),
+        "static row body must not allocate __v: \n{}",
+        out.js
+    );
+    assert!(
+        !out.js.contains("__v"),
+        "static row body must not reference __v anywhere: \n{}",
+        out.js
+    );
+    assert!(
+        !out.js.contains("update:"),
+        "static row body must not emit an update field: \n{}",
+        out.js
+    );
+    // The only `signal` usage in this fixture was the per-row sentinel.
+    // The runtime import list must drop it.
+    assert!(
+        !out.js.contains(" signal,") && !out.js.contains(", signal "),
+        "signal import must be dropped when no for-body needs __v: \n{}",
+        out.js
+    );
+}
+
+/// D3: a `{#for}` whose body holds a binding reading the index alone
+/// (no row-field reference) must still emit `__v` — reorders shift the
+/// index for surviving keys, so the binding has to re-fire.
+#[test]
+fn for_body_referencing_index_keeps_v_sentinel() {
+    use sui_compiler::compile;
+    let src = r#"<data name="rows" source="ship.rows()" live />
+<ul>
+  {#for (row, i) of rows().value key={row.id}}
+    <li>{i}</li>
+  {/for}
+</ul>
+"#;
+    let opts = CompileOpts {
+        setup_url: None,
+        mode: CompileMode::View,
+        source_path: None,
+        styles: None,
+        component_meta: None,
+        emit_dts: false,
+        emit_ssr: false,
+    };
+    let out = compile(src, opts).expect("compile");
+    assert!(
+        out.js.contains("__v = signal(0)"),
+        "index-only body still needs __v: \n{}",
+        out.js
+    );
+    assert!(
+        out.js.contains("$scope.__v.set(c => c + 1)"),
+        "index-only body still needs __v.set: \n{}",
+        out.js
+    );
+}
+
+#[test]
+fn for_static_snapshot() {
+    let fx = &fixtures()[9];
+    let js = compile_fixture(fx);
+    let path = fixtures_dir().join(format!("{}.expected.js", fx.name));
+    assert_snapshot(fx.name, &js, &path);
+}
+
+#[test]
+fn for_static_text_snapshot() {
+    let fx = &fixtures()[10];
+    let js = compile_fixture(fx);
+    let path = fixtures_dir().join(format!("{}.expected.js", fx.name));
+    assert_snapshot(fx.name, &js, &path);
+}
+
+#[test]
+fn for_static_attr_snapshot() {
+    let fx = &fixtures()[11];
+    let js = compile_fixture(fx);
+    let path = fixtures_dir().join(format!("{}.expected.js", fx.name));
+    assert_snapshot(fx.name, &js, &path);
+}
+
+#[test]
+fn for_dynamic_mixed_snapshot() {
+    let fx = &fixtures()[12];
+    let js = compile_fixture(fx);
+    let path = fixtures_dir().join(format!("{}.expected.js", fx.name));
+    assert_snapshot(fx.name, &js, &path);
+}
+
+/// D5: a `{#for}` body whose only DynamicText reads a row property
+/// (no `()`) must inline the assignment as `node.textContent = …`
+/// and never call `bindText` for that read.
+#[test]
+fn for_static_text_inlines_text_content() {
+    let path = fixtures_dir().join("for-static-text.sui");
+    let source = std::fs::read_to_string(&path).unwrap();
+    let opts = CompileOpts {
+        setup_url: None,
+        mode: CompileMode::View,
+        source_path: Some(path),
+        styles: None,
+        component_meta: None,
+        emit_dts: false,
+        emit_ssr: false,
+    };
+    let out = sui_compiler::compile(&source, opts).expect("compile");
+    assert!(
+        out.js.contains(".textContent = ($scope.row.label)"),
+        "expected inlined textContent assignment, got:\n{}",
+        out.js
+    );
+    assert!(
+        !out.js.contains("bindText("),
+        "static row text must not emit bindText call, got:\n{}",
+        out.js
+    );
+}
+
+/// D5: a `{#for}` body whose only AttrInstr::Expr reads a row property
+/// must inline the assignment as `el.setAttribute(...)` and never call
+/// `bindAttr` for that read.
+#[test]
+fn for_static_attr_inlines_set_attribute() {
+    let path = fixtures_dir().join("for-static-attr.sui");
+    let source = std::fs::read_to_string(&path).unwrap();
+    let opts = CompileOpts {
+        setup_url: None,
+        mode: CompileMode::View,
+        source_path: Some(path),
+        styles: None,
+        component_meta: None,
+        emit_dts: false,
+        emit_ssr: false,
+    };
+    let out = sui_compiler::compile(&source, opts).expect("compile");
+    assert!(
+        out.js.contains("setAttribute(\"id\""),
+        "expected inlined setAttribute, got:\n{}",
+        out.js
+    );
+    assert!(
+        !out.js.contains("bindAttr("),
+        "static row attr must not emit bindAttr call, got:\n{}",
+        out.js
+    );
+}
+
+/// D5: a `{#for}` body that mixes a reactive binding (`()` present)
+/// with a static row read inlines only the static one. The reactive
+/// binding still emits its `bind*` effect.
+#[test]
+fn for_dynamic_mixed_inlines_only_static() {
+    let path = fixtures_dir().join("for-dynamic-mixed.sui");
+    let source = std::fs::read_to_string(&path).unwrap();
+    let opts = CompileOpts {
+        setup_url: None,
+        mode: CompileMode::View,
+        source_path: Some(path),
+        styles: None,
+        component_meta: None,
+        emit_dts: false,
+        emit_ssr: false,
+    };
+    let out = sui_compiler::compile(&source, opts).expect("compile");
+    assert!(
+        out.js.contains(".textContent = ($scope.row.label)"),
+        "expected inlined textContent for row.label, got:\n{}",
+        out.js
+    );
+    assert!(
+        out.js.contains("bindClass("),
+        "expected bindClass effect for class:active={{selected()}}, got:\n{}",
+        out.js
+    );
+}
+
+#[test]
+fn for_render_closure_emits_update_field() {
+    let path = fixtures_dir().join("for-update.sui");
+    let source = std::fs::read_to_string(&path).unwrap();
+    let opts = CompileOpts {
+        setup_url: None,
+        mode: CompileMode::View,
+        source_path: Some(path),
+        styles: None,
+        component_meta: None,
+        emit_dts: false,
+        emit_ssr: false,
+    };
+    let out = sui_compiler::compile(&source, opts).expect("compile");
+    assert!(
+        out.js.contains("update:"),
+        "expected `update:` field in render closure return, got:\n{}",
+        out.js
+    );
+    assert!(
+        out.js.contains("signal(0)"),
+        "expected per-row version signal, got:\n{}",
+        out.js
+    );
+    assert!(
+        out.js.contains("void $scope.__v()"),
+        "expected void $scope.__v() in binding closure, got:\n{}",
+        out.js
+    );
+    assert!(
+        out.js.contains("$scope.__v.set(c => c + 1)"),
+        "expected version signal increment in update, got:\n{}",
+        out.js
+    );
+}
+
 /// R2: views that reference `route` in template expressions must emit
 /// `import { route as __routeFactory } from "@ship/sui-runtime/route"` and
 /// use `ctx.route ?? __routeFactory()` for `$scope.route`. Views that don't
@@ -178,6 +557,7 @@ fn route_view_emits_route_import() {
         styles: None,
         component_meta: None,
         emit_dts: false,
+        emit_ssr: false,
     };
     let out = sui_compiler::compile(&source, opts).expect("compile");
     assert!(
@@ -203,6 +583,7 @@ fn routeless_view_omits_route_import() {
         styles: None,
         component_meta: None,
         emit_dts: false,
+        emit_ssr: false,
     };
     let out = sui_compiler::compile(&source, opts).expect("compile");
     assert!(
@@ -229,6 +610,7 @@ fn comment_nodes_not_emitted() {
         styles: None,
         component_meta: None,
         emit_dts: false,
+        emit_ssr: false,
     };
     let out = sui_compiler::compile(&source, opts).expect("compile");
     assert!(
@@ -251,6 +633,7 @@ fn whitespace_text_nodes_dropped_between_elements() {
         styles: None,
         component_meta: None,
         emit_dts: false,
+        emit_ssr: false,
     };
     let out = sui_compiler::compile(&source, opts).expect("compile");
     // Inter-element indentation whitespace must be gone.
@@ -281,6 +664,7 @@ fn shadow_tones_emits_adopted_style_sheets_call() {
             shadow: true,
         }),
         emit_dts: false,
+        emit_ssr: false,
     };
     let out = compile(&source, opts).expect("compile");
     assert!(
@@ -299,6 +683,7 @@ fn shadow_tones_emits_adopted_style_sheets_call() {
             shadow: false,
         }),
         emit_dts: false,
+        emit_ssr: false,
     };
     let light_out = compile(
         &std::fs::read_to_string(fixtures_dir().join("shadow-tones.sui")).unwrap(),
@@ -326,6 +711,7 @@ fn reflect_empty_slot_emits_bind_slot_empty_call() {
             shadow: true,
         }),
         emit_dts: false,
+        emit_ssr: false,
     };
     let out = compile(&source, opts).expect("compile");
     assert!(
@@ -352,6 +738,7 @@ fn ship_button_emits_cem() {
         styles: None,
         component_meta: Some(ComponentMeta { name: "ship-button-test".into(), shadow: false }),
         emit_dts: false,
+        emit_ssr: false,
     };
     let out = compile(&source, opts).expect("compile");
     let cem = out.cem.expect("CEM emitted for component-mode");
@@ -371,6 +758,7 @@ fn with_island_emits_islands_export() {
         styles: None,
         component_meta: None,
         emit_dts: false,
+        emit_ssr: false,
     };
     let out = compile(&source, opts).expect("compile");
     assert!(
@@ -403,6 +791,7 @@ fn without_island_omits_islands_export() {
         styles: None,
         component_meta: None,
         emit_dts: false,
+        emit_ssr: false,
     };
     let out = compile(&source, opts).expect("compile");
     assert!(
@@ -424,6 +813,7 @@ fn schema_emitted_for_each_fixture() {
             styles: None,
             component_meta: fx.component_meta.clone(),
             emit_dts: false,
+            emit_ssr: false,
         };
         let out = compile(&source, opts).expect("compile");
         let schema = out.schema.expect("schema emitted");
@@ -431,6 +821,42 @@ fn schema_emitted_for_each_fixture() {
         let expected = fixtures_dir().join(format!("{}.expected.schema.json", fx.name));
         assert_snapshot(&format!("{}.schema", fx.name), &s, &expected);
     }
+}
+
+/// SSR snapshot tests — assert that the static HTML skeleton emitted by
+/// `emit_ssr_html` is deterministic and matches the checked-in expectation.
+/// On first run (or with UPDATE_SNAPSHOTS=1) the file is written and the
+/// test passes.
+
+#[test]
+fn ssr_simple_snapshot() {
+    let html = compile_ssr_fixture("ssr-simple");
+    let expected_path = fixtures_dir().join("ssr-simple.expected.ssr.html");
+    assert_snapshot("ssr-simple.ssr", &html, &expected_path);
+}
+
+#[test]
+fn ssr_if_snapshot() {
+    let html = compile_ssr_fixture("ssr-if");
+    let expected_path = fixtures_dir().join("ssr-if.expected.ssr.html");
+    assert_snapshot("ssr-if.ssr", &html, &expected_path);
+    // status is in loading state → condition is false → else branch renders.
+    assert!(
+        html.contains("<sui-if") && html.contains("Loading"),
+        "{{#if}} with false condition must render else branch; got: {html:?}"
+    );
+}
+
+#[test]
+fn ssr_for_snapshot() {
+    let html = compile_ssr_fixture("ssr-for");
+    let expected_path = fixtures_dir().join("ssr-for.expected.ssr.html");
+    assert_snapshot("ssr-for.ssr", &html, &expected_path);
+    // {#for} with non-array iterable renders as a hidden placeholder.
+    assert!(
+        html.contains("<sui-for") && html.contains("hidden"),
+        "non-array {{#for}} must emit hidden sui-for placeholder; got: {html:?}"
+    );
 }
 
 /// Phase 3b.5 (gate L): every fixture emits a `.sui.meta.json` sidecar
@@ -448,6 +874,7 @@ fn meta_sidecar_emitted_for_each_fixture() {
             styles: None,
             component_meta: fx.component_meta.clone(),
             emit_dts: false,
+            emit_ssr: false,
         };
         let out = compile(&source, opts).expect("compile");
         let meta = out.meta.expect("meta emitted");

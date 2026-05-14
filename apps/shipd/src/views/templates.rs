@@ -107,62 +107,6 @@ pub(crate) const TEMPLATES: &[(&str, &str)] = &[
         "canvas/artifact.html.j2",
         include_str!("../../templates/canvas/artifact.html.j2"),
     ),
-    (
-        "chat/shell.html.j2",
-        include_str!("../../templates/chat/shell.html.j2"),
-    ),
-    (
-        "chat/partials/composer.html.j2",
-        include_str!("../../templates/chat/partials/composer.html.j2"),
-    ),
-    (
-        "chat/partials/message.html.j2",
-        include_str!("../../templates/chat/partials/message.html.j2"),
-    ),
-    (
-        "chat/partials/messages.html.j2",
-        include_str!("../../templates/chat/partials/messages.html.j2"),
-    ),
-    (
-        "events/shell.html.j2",
-        include_str!("../../templates/events/shell.html.j2"),
-    ),
-    (
-        "events/content.html.j2",
-        include_str!("../../templates/events/content.html.j2"),
-    ),
-    (
-        "events/partials/event_row.html.j2",
-        include_str!("../../templates/events/partials/event_row.html.j2"),
-    ),
-    (
-        "events/partials/filters.html.j2",
-        include_str!("../../templates/events/partials/filters.html.j2"),
-    ),
-    (
-        "settings/partials/about.html.j2",
-        include_str!("../../templates/settings/partials/about.html.j2"),
-    ),
-    (
-        "settings/partials/advanced.html.j2",
-        include_str!("../../templates/settings/partials/advanced.html.j2"),
-    ),
-    (
-        "settings/partials/provider_row.html.j2",
-        include_str!("../../templates/settings/partials/provider_row.html.j2"),
-    ),
-    (
-        "settings/partials/providers.html.j2",
-        include_str!("../../templates/settings/partials/providers.html.j2"),
-    ),
-    (
-        "settings/partials/terminal.html.j2",
-        include_str!("../../templates/settings/partials/terminal.html.j2"),
-    ),
-    (
-        "settings/shell.html.j2",
-        include_str!("../../templates/settings/shell.html.j2"),
-    ),
     // (Data browser view lives in .ship/views/data/ as a client-side view,
     // not as daemon-rendered Jinja templates.)
 ];

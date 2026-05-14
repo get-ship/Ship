@@ -5,7 +5,7 @@
 //! implementation in phase 1.
 
 use anyhow::Result;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 /// The three artifact scopes. Each maps to a distinct blob path layout.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -174,12 +174,3 @@ pub fn relative_blob_path(_scope: &ArtifactScope, id: &str, _backend: &LocalFsBa
     }
 }
 
-// Only used for blob_path test access — expose the path helper on Path.
-#[allow(dead_code)]
-pub(crate) fn global_blob_path(
-    global_dir: &Path,
-    scope: &ArtifactScope,
-    id: &str,
-) -> PathBuf {
-    LocalFsBackend::new(global_dir.to_path_buf()).blob_path(scope, id)
-}

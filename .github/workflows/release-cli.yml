@@ -71,17 +71,13 @@ jobs:
           workspaces: '. -> target'
           key: ${{ matrix.target }}
 
-      - uses: pnpm/action-setup@v4
+      - uses: oven-sh/setup-bun@v2
         with:
-          version: 10
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          cache: pnpm
+          bun-version: latest
       - name: Install JS deps
-        run: pnpm install --frozen-lockfile
+        run: bun install --frozen-lockfile
       - name: Build daemon asset bundles
-        run: pnpm build:bundles
+        run: bun run build:bundles
 
       - name: Resolve version
         id: version
@@ -171,17 +167,13 @@ jobs:
           workspaces: '. -> target'
           key: installer-${{ matrix.target }}
 
-      - uses: pnpm/action-setup@v4
+      - uses: oven-sh/setup-bun@v2
         with:
-          version: 10
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          cache: pnpm
+          bun-version: latest
       - name: Install JS deps
-        run: pnpm install --frozen-lockfile
+        run: bun install --frozen-lockfile
       - name: Build daemon asset bundles
-        run: pnpm build:bundles
+        run: bun run build:bundles
 
       - name: Install cargo-dist
         shell: bash
@@ -261,17 +253,13 @@ jobs:
           workspaces: '. -> target'
           key: linux-${{ matrix.format }}-${{ matrix.target }}
 
-      - uses: pnpm/action-setup@v4
+      - uses: oven-sh/setup-bun@v2
         with:
-          version: 10
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          cache: pnpm
+          bun-version: latest
       - name: Install JS deps
-        run: pnpm install --frozen-lockfile
+        run: bun install --frozen-lockfile
       - name: Build daemon asset bundles
-        run: pnpm build:bundles
+        run: bun run build:bundles
 
       - name: Install packaging tool
         shell: bash

@@ -108,12 +108,14 @@ pub mod events;
 pub mod specs;
 pub mod settings;
 pub mod collections;
+pub mod artifacts;
 pub mod sessions;
 pub mod actors;
 pub mod mesh;
 pub mod chat;
 pub mod dashboard;
 pub mod git;
+pub mod workspaces;
 
 // ── Dispatch ─────────────────────────────────────────────────────────
 
@@ -156,6 +158,9 @@ pub fn call(name: &str, args: &Value, state: &ApiState) -> Result<Value, Registr
     if let Some(value) = collections::try_dispatch(name, args, state, &files)? {
         return Ok(value);
     }
+    if let Some(value) = artifacts::try_dispatch(name, args, state, &files)? {
+        return Ok(value);
+    }
     if let Some(value) = sessions::try_dispatch(name, args, state, &files)? {
         return Ok(value);
     }
@@ -172,6 +177,9 @@ pub fn call(name: &str, args: &Value, state: &ApiState) -> Result<Value, Registr
         return Ok(value);
     }
     if let Some(value) = git::try_dispatch(name, args, state, &files)? {
+        return Ok(value);
+    }
+    if let Some(value) = workspaces::try_dispatch(name, args, state, &files)? {
         return Ok(value);
     }
     Err(RegistryError::unknown_service(name))

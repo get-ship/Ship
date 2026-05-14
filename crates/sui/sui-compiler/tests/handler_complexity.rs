@@ -18,6 +18,7 @@ fn view_opts(source_path: Option<PathBuf>) -> CompileOpts {
         styles: None,
         component_meta: None,
         emit_dts: false,
+        emit_ssr: false,
     }
 }
 

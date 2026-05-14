@@ -33,4 +33,44 @@ describe('bindRawHtml', () => {
     sig.set('b')
     expect(el.innerHTML).toBe('a')
   })
+
+  // Documentation-by-test for the XSS contract: this binding is the
+  // ESCAPE hatch. It MUST NOT silently sanitize — callers rely on
+  // exact innerHTML semantics. Changing this behavior is a breaking
+  // contract change.
+  it('does NOT escape — XSS surface is intentional and documented', () => {
+    const el = document.createElement('div')
+    const sig = signal('<img src=x onerror="window.__xss=true">')
+    bindRawHtml(el, () => sig(), [sig])
+    // The <img> element is constructed live — the contract is "raw".
+    expect(el.querySelector('img')).not.toBeNull()
+    expect(el.innerHTML).toContain('onerror')
+  })
+
+  it('morph directive routes updates through morph() — preserves identity', () => {
+    const el = document.createElement('div')
+    el.setAttribute('morph', '')
+    document.body.appendChild(el)
+    const sig = signal('<p id="a">first</p>')
+    bindRawHtml(el, () => sig(), [sig])
+    const p = el.querySelector('#a')!
+    expect(p.textContent).toBe('first')
+    sig.set('<p id="a">second</p>')
+    expect(el.querySelector('#a')).toBe(p) // identity preserved
+    expect(p.textContent).toBe('second')
+    el.remove()
+  })
+
+  it('script tags are inert via innerHTML (HTML5 spec) but markup survives', () => {
+    const el = document.createElement('div')
+    const sig = signal('<script>window.__xss=true</script><b>after</b>')
+    bindRawHtml(el, () => sig(), [sig])
+    // HTML5: script tags inserted via innerHTML do NOT execute. The
+    // markup is preserved but inert. Authors relying on raw HTML
+    // should know this — execution requires explicit Element insert.
+    expect(el.querySelector('script')).not.toBeNull()
+    expect(el.querySelector('b')?.textContent).toBe('after')
+    // @ts-expect-error — probe the window for leaked execution
+    expect(globalThis.__xss).toBeUndefined()
+  })
 })

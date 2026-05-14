@@ -138,13 +138,22 @@
     color: var(--background);
   }
 
-  :host(:focus-visible) { outline: none; }
+  /* Keyboard-only focus ring — host carries focus (role=button,
+   * tabindex=0 from controller). Outline gives a robust ring across
+   * themes; the stacked box-shadow keeps the soft halo for parity
+   * with sui-button. */
+  :host(:focus-visible) {
+    outline: 2px solid color-mix(in oklch, var(--tone) 75%, var(--ring-color, var(--primary)));
+    outline-offset: 2px;
+    border-radius: var(--chip-radius);
+  }
   :host(:focus-visible) .chip {
     box-shadow:
       0 0 0 var(--ring-offset) var(--background),
       0 0 0 calc(var(--ring-offset) + var(--ring-width))
         color-mix(in oklch, var(--tone) var(--ring-opacity), transparent);
   }
+  :host([disabled]:focus-visible) { outline: none; }
 
   :host([disabled]) .chip {
     cursor: not-allowed;

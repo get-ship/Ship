@@ -130,11 +130,17 @@ const MAX_RESTARTS: u32 = 20;
 /// Start the supervised worker. Returns a handle immediately; the worker
 /// process is spawned in the background.
 pub fn start(home: &ShipHome, repo_root: PathBuf) -> WorkerHandle {
+    start_with_script(home, repo_root, home.runtime_bundler_ts())
+}
+
+/// Like `start`, but uses `bundler_ts` as the path to the bundler script
+/// instead of `~/.ship/runtime/bundler.ts`. Bun is still sourced from the
+/// installed runtime.
+pub fn start_with_script(home: &ShipHome, repo_root: PathBuf, bundler_ts: PathBuf) -> WorkerHandle {
     let (cmd_tx, cmd_rx) = mpsc::channel::<PendingCall>(64);
     let (event_tx, _) = broadcast::channel::<BundlerEvent>(128);
 
     let bun = home.runtime_bun();
-    let bundler_ts = home.runtime_bundler_ts();
     let event_tx2 = event_tx.clone();
     let cmd_rx = Arc::new(Mutex::new(cmd_rx));
 
@@ -152,6 +158,21 @@ async fn run_supervisor(
     cmd_rx: Arc<Mutex<mpsc::Receiver<PendingCall>>>,
     event_tx: broadcast::Sender<BundlerEvent>,
 ) {
+    // Toolchain probe — `~/.ship/runtime/` isn't populated until the
+    // user runs `ship runtime install`. Don't spawn-and-backoff in a
+    // loop when both pieces are missing; just log once and stay idle.
+    // The supervisor wakes up if/when callers send commands (mpsc),
+    // which will fail with NotRunning — also acceptable.
+    if !bun.exists() || !bundler_ts.exists() {
+        warn!(
+            bun = %bun.display(),
+            bundler_ts = %bundler_ts.display(),
+            "bundler: toolchain not installed at ~/.ship/runtime/ — \
+             worker disabled. Run `ship runtime install` to enable."
+        );
+        return;
+    }
+
     let mut backoff = INITIAL_BACKOFF;
     let mut restarts = 0u32;
 

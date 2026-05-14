@@ -1,0 +1,191 @@
+{#while-loading of wireCtx}
+  <sui-spinner size="md" style="margin: var(--space-8) auto; display:block"></sui-spinner>
+{/while-loading}
+{#while-error err of wireCtx}
+  <sui-view-chrome title={'Agent: ' + agentId()}>
+    <sui-button slot="actions" variant="ghost" size="sm" on:click={goBack}>
+      <sui-icon slot="leading" name="chevron-left" size="xs"></sui-icon>
+      Agents
+    </sui-button>
+  </sui-view-chrome>
+  <div class="ship-view ad-detail">
+    <div class="ad-detail-body">
+      <sui-empty-state icon="search-x" variant="default" size="md" data-test="agent-not-found">
+        <span slot="title">No such agent</span>
+        <span>{'No agent with id "' + agentId() + '" was found. ' + (err.message || '')}</span>
+        <sui-button slot="action" tone="primary" variant="solid" on:click={goBack}>
+          <sui-icon slot="leading" name="chevron-left" size="xs"></sui-icon>
+          Back to agents
+        </sui-button>
+      </sui-empty-state>
+    </div>
+  </div>
+{/while-error}
+
+{#if notFound()}
+  <sui-view-chrome title={'Agent: ' + agentId()}>
+    <sui-button slot="actions" variant="ghost" size="sm" on:click={goBack}>
+      <sui-icon slot="leading" name="chevron-left" size="xs"></sui-icon>
+      Agents
+    </sui-button>
+  </sui-view-chrome>
+  <div class="ship-view ad-detail">
+    <div class="ad-detail-body">
+      <sui-empty-state icon="search-x" variant="default" size="md" data-test="agent-not-found">
+        <span slot="title">No such agent</span>
+        <span>{'No agent with id "' + agentId() + '" exists in this workspace or your library.'}</span>
+        <sui-button slot="action" tone="primary" variant="solid" on:click={goBack}>
+          <sui-icon slot="leading" name="chevron-left" size="xs"></sui-icon>
+          Back to agents
+        </sui-button>
+      </sui-empty-state>
+    </div>
+  </div>
+{/if}
+
+{#if wireData() && wireData().agent}
+  <sui-view-chrome title={wireData().agent.name}>
+    <sui-segmented slot="actions" value="overview" size="sm">
+      <sui-segmented-option value="overview">Overview</sui-segmented-option>
+      <sui-segmented-option value="wire" on:click={goWire}>Wire</sui-segmented-option>
+      <sui-segmented-option value="settings" on:click={goSettings}>Settings</sui-segmented-option>
+    </sui-segmented>
+    <sui-button slot="actions" variant="ghost" size="sm" on:click={goBack}>
+      <sui-icon slot="leading" name="chevron-left" size="xs"></sui-icon>
+      Agents
+    </sui-button>
+  </sui-view-chrome>
+
+  <div class="ship-view ad-detail" data-test="agent-detail">
+    <div class="ad-detail-body">
+
+      <header class="ad-detail-head">
+        <sui-avatar size="xl" shape="square"
+          attr:identity-hue={wireData().agent.id}
+          attr:initials={wireData().agent.letter}
+          attr:name={wireData().agent.name}></sui-avatar>
+        <div class="ad-detail-head-body">
+          <h1 class="ad-detail-title" data-test="agent-name">{wireData().agent.name}</h1>
+          <div class="ad-detail-id-row">
+            <code class="ad-detail-id">{wireData().agent.id}</code>
+            <sui-badge tone="muted" variant="outline" size="sm" data-test="agent-source">{wireData().agent.source}</sui-badge>
+          </div>
+          {#if providerList().length > 0}
+            <div class="ad-detail-providers" aria-label="Compiles to">
+              {#for p of providerList() key={p.id}}
+                <sui-chip tone={p.isDefault ? 'primary' : 'muted'} variant={p.isDefault ? 'soft' : 'outline'} size="sm" attr:title={p.label}>{p.label}</sui-chip>
+              {/for}
+            </div>
+          {/if}
+        </div>
+        <div class="ad-detail-head-actions">
+          <sui-button variant="outline" size="sm" on:click={goSettings} data-test="edit-settings-btn">
+            <sui-icon slot="leading" name="edit" size="xs"></sui-icon>
+            Edit settings
+          </sui-button>
+          <sui-button variant="ghost" size="sm" on:click={openSource} data-test="open-source-btn">
+            <sui-icon slot="leading" name="file-code" size="xs"></sui-icon>
+            Open raw JSONC
+          </sui-button>
+        </div>
+      </header>
+
+      <p class="ad-detail-desc" data-test="agent-description">{description()}</p>
+
+      <section class="ad-detail-stats" aria-label="Counts">
+        <div class="ad-stat" data-test="stat-skills">
+          <div class="ad-stat-val">{stats().skills}</div>
+          <div class="ad-stat-lbl">Skill{stats().skills === 1 ? '' : 's'}</div>
+        </div>
+        <div class="ad-stat" data-test="stat-mcp">
+          <div class="ad-stat-val">{stats().mcp}</div>
+          <div class="ad-stat-lbl">MCP server{stats().mcp === 1 ? '' : 's'}</div>
+        </div>
+        <div class="ad-stat" data-test="stat-rules">
+          <div class="ad-stat-val">{stats().rules}</div>
+          <div class="ad-stat-lbl">Rule{stats().rules === 1 ? '' : 's'}</div>
+        </div>
+        <div class="ad-stat" data-test="stat-providers">
+          <div class="ad-stat-val">{stats().providers}</div>
+          <div class="ad-stat-lbl">Provider{stats().providers === 1 ? '' : 's'}</div>
+        </div>
+      </section>
+
+      <section class="ad-detail-section" data-test="section-skills">
+        <div class="ad-detail-section-head">
+          <h2 class="ad-detail-section-title"><sui-icon name="zap" size="sm"></sui-icon>Skills <span class="ad-detail-section-count">{stats().skills}</span></h2>
+        </div>
+        {#if stats().skills === 0}
+          <div class="ad-detail-empty">No skills wired.</div>
+        {:else}
+          <div class="ad-detail-list">
+            {#for s of skillsList() key={s}}
+              <button class="ad-detail-item ad-detail-item--skill" type="button" on:click={() => goSkill(s)} data-test="skill-link" attr:data-id={s}>
+                <span class="ad-detail-item-icon"><sui-icon name="zap" size="xs"></sui-icon></span>
+                <span class="ad-detail-item-name">{s}</span>
+                <sui-icon class="ad-detail-item-chev" name="chevron-right" size="xs"></sui-icon>
+              </button>
+            {/for}
+          </div>
+        {/if}
+      </section>
+
+      <section class="ad-detail-section" data-test="section-mcp">
+        <div class="ad-detail-section-head">
+          <h2 class="ad-detail-section-title"><sui-icon name="terminal" size="sm"></sui-icon>MCP Servers <span class="ad-detail-section-count">{stats().mcp}</span></h2>
+        </div>
+        {#if stats().mcp === 0}
+          <div class="ad-detail-empty">No MCP servers connected.</div>
+        {:else}
+          <div class="ad-detail-list">
+            {#for m of mcpList() key={m}}
+              <div class="ad-detail-item ad-detail-item--mcp" data-test="mcp-row" attr:data-id={m}>
+                <span class="ad-detail-item-icon"><sui-icon name="terminal" size="xs"></sui-icon></span>
+                <span class="ad-detail-item-name">{m}</span>
+              </div>
+            {/for}
+          </div>
+        {/if}
+      </section>
+
+      <section class="ad-detail-section" data-test="section-rules">
+        <div class="ad-detail-section-head">
+          <h2 class="ad-detail-section-title"><sui-icon name="file-text" size="sm"></sui-icon>Rules <span class="ad-detail-section-count">{stats().rules}</span></h2>
+        </div>
+        {#if stats().rules === 0}
+          <div class="ad-detail-empty">No rules attached.</div>
+        {:else}
+          <div class="ad-detail-list">
+            {#for r of rulesList() key={r}}
+              <div class="ad-detail-item ad-detail-item--rule" data-test="rule-row" attr:data-id={r}>
+                <span class="ad-detail-item-icon"><sui-icon name="file-text" size="xs"></sui-icon></span>
+                <span class="ad-detail-item-name">{r}</span>
+              </div>
+            {/for}
+          </div>
+        {/if}
+      </section>
+
+      <section class="ad-detail-section" data-test="section-permissions">
+        <div class="ad-detail-section-head">
+          <h2 class="ad-detail-section-title"><sui-icon name="lock" size="sm"></sui-icon>Permissions</h2>
+        </div>
+        <div class="ad-detail-perm-row">
+          <span class="ad-detail-perm-label">Preset</span>
+          <sui-chip tone="muted" variant="soft" size="sm" data-test="perm-preset">{permPreset()}</sui-chip>
+        </div>
+      </section>
+
+      <section class="ad-detail-section ad-detail-meta" data-test="section-meta">
+        <div class="ad-detail-section-head">
+          <h2 class="ad-detail-section-title"><sui-icon name="info" size="sm"></sui-icon>Source</h2>
+        </div>
+        <div class="ad-detail-perm-row">
+          <span class="ad-detail-perm-label">File</span>
+          <code class="ad-detail-path" data-test="agent-path">{sourcePath()}</code>
+        </div>
+      </section>
+
+    </div>
+  </div>
+{/if}

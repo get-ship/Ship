@@ -1,46 +1,47 @@
 import { controller, signal, derived } from '@ship/sui-runtime'
 import type { Scope } from './sui-devtools-signals.sui'
 
+// The signal tree reads from `window.__suiCurrentScope`, published by
+// apps/shell2/src/main.ts after every successful mountRoute. The handle's
+// scope is a record of signal getters + plain values + framework helpers
+// (`ship`, `route`, `navigate`); we surface the signal/value entries and
+// hide the helpers (callable framework objects without `__peek`).
+
+// Keys exposed by the runtime in the public scope that aren't useful in
+// the devtools signal tree — framework helpers, not view state.
+const FRAMEWORK_KEYS = new Set(['ship', 'route', 'navigate'])
+
+interface SignalEntry { key: string; value: string }
+
+type MaybeSignal = ((...args: unknown[]) => unknown) & { __peek?: () => unknown }
+
+function isSignalGetter(v: unknown): v is MaybeSignal {
+  return typeof v === 'function' && typeof (v as MaybeSignal).__peek === 'function'
+}
+
 function collectSignals(): Record<string, unknown> {
-  const ds = (document as unknown as { _ds?: { signals?: unknown } })._ds
-  if (ds?.signals) {
-    const out: Record<string, unknown> = {}
-    for (const [k, v] of Object.entries(ds.signals as Record<string, unknown>))
-      out[k] = (v as { value?: unknown })?.value ?? v
-    return out
-  }
-  const alt = (window as unknown as { ds?: { signals?: unknown } }).ds
-    ?? (globalThis as unknown as { __ds?: { signals?: unknown } }).__ds
-  if (alt?.signals) {
-    const out: Record<string, unknown> = {}
-    for (const [k, v] of Object.entries(alt.signals as Record<string, unknown>))
-      out[k] = (v as { value?: unknown })?.value ?? v
-    return out
-  }
+  const scope = (window as unknown as { __suiCurrentScope?: Record<string, unknown> | null }).__suiCurrentScope
+  if (!scope) return {}
   const out: Record<string, unknown> = {}
-  document.querySelectorAll('[data-signals]').forEach((el) => {
-    const raw = el.getAttribute('data-signals')
-    if (!raw) return
-    try { Object.assign(out, new Function(`return (${raw})`)()) } catch { /* ignore */ }
-  })
-  const view = document.getElementById('ship-view-root')
-  if (view) {
-    const walk = (node: Element): void => {
-      for (const attr of Array.from(node.attributes)) {
-        if (attr.name.startsWith('data-signals:')) {
-          const name = attr.name.slice('data-signals:'.length)
-          try { out[name] = new Function(`return (${attr.value})`)() } catch { out[name] = attr.value }
-        }
-      }
-      for (const child of Array.from(node.children)) walk(child)
+  for (const [k, v] of Object.entries(scope)) {
+    if (FRAMEWORK_KEYS.has(k)) continue
+    if (isSignalGetter(v)) {
+      // Use __peek() — reading via the tracked getter inside a non-reactive
+      // context still works but `__peek` is the canonical non-tracking
+      // read and avoids polluting any ambient observer.
+      try { out[k] = v.__peek!() } catch { /* skip uncallable */ }
+      continue
     }
-    walk(view)
+    if (typeof v === 'function') continue // method on the scope, not state
+    out[k] = v
   }
   return out
 }
 
 function renderValue(v: unknown): string {
+  if (v === undefined) return 'undefined'
   if (typeof v === 'string') return v.length > 80 ? `"${v.slice(0, 77)}…"` : `"${v}"`
+  if (typeof v === 'function') return '<fn>'
   try { return JSON.stringify(v) } catch { return String(v) }
 }
 
@@ -49,7 +50,7 @@ export default controller<Scope>({
     const sigs = signal<Record<string, unknown>>({})
     const filter = signal('')
     const allCount = derived(() => Object.keys(sigs()).length)
-    const shownEntries = derived(() => {
+    const shownEntries = derived<SignalEntry[]>(() => {
       const s = sigs()
       const needle = filter().toLowerCase()
       const keys = Object.keys(s).sort()
@@ -63,15 +64,15 @@ export default controller<Scope>({
     const s = state as Record<string, unknown>
     let timer: ReturnType<typeof setInterval> | null = null
 
-    function _sample(): void { s['sigs'] = collectSignals() }
+    function sample(): void { s['sigs'] = collectSignals() }
 
-    function _start(): void {
+    function start(): void {
       if (timer) return
-      _sample()
-      timer = setInterval(_sample, 500)
+      sample()
+      timer = setInterval(sample, 500)
     }
 
-    function _stop(): void {
+    function stop(): void {
       if (!timer) return
       clearInterval(timer)
       timer = null
@@ -79,19 +80,24 @@ export default controller<Scope>({
 
     const onDockActivate = (ev: Event) => {
       const tab = (ev as CustomEvent<{ tab: string }>).detail?.tab
-      if (tab === 'signals') _start()
-      else _stop()
+      if (tab === 'signals') start()
+      else stop()
     }
+
+    // Re-sample immediately on view navigation (handle replaced).
+    const onScopeChange = () => sample()
 
     const dock = host.closest('sui-panel-dock') as HTMLElement | null
     dock?.addEventListener('sui:dock:activate', onDockActivate)
-    if (dock?.getAttribute('active-tab') === 'signals') _start()
+    document.addEventListener('sui:scope:change', onScopeChange)
+    if (dock?.getAttribute('active-tab') === 'signals') start()
 
-    Object.defineProperty(host, 'refresh', { value: () => _sample(), configurable: true })
+    Object.defineProperty(host, 'refresh', { value: () => sample(), configurable: true })
 
     return () => {
-      _stop()
+      stop()
       dock?.removeEventListener('sui:dock:activate', onDockActivate)
+      document.removeEventListener('sui:scope:change', onScopeChange)
     }
   },
 })

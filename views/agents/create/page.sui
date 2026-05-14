@@ -1,0 +1,157 @@
+<data name="createCtx" source="ship.agents.create_ctx()" />
+
+<sui-view-chrome title="New agent">
+  <sui-button slot="actions" variant="ghost" size="sm" on:click={cancel}>
+    <sui-icon slot="leading" name="x" size="xs"></sui-icon>
+    Cancel
+  </sui-button>
+</sui-view-chrome>
+
+<div class="ship-view agents-create">
+
+  <div class="step-row">
+    {#for entry of [['Template',0],['Identity',1],['Wiring',2],['Review',3]] key={entry[1]}}
+      {#if entry[1] > 0}<span class="step-join"></span>{/if}
+      <button type="button" class="step-btn"
+        class:active={step() === entry[1]}
+        class:done={step() > entry[1]}
+        on:click={() => goTo(entry[1])}>
+        <span class="n">{step() > entry[1] ? '✓' : entry[1] + 1}</span>
+        <span>{entry[0]}</span>
+      </button>
+    {/for}
+  </div>
+
+  {#while-loading of createCtx}
+    <sui-spinner size="md" style="margin: var(--space-8) auto; display:block"></sui-spinner>
+  {/while-loading}
+
+  {#if createCtx().kind === 'ok'}
+
+    {#if step() === 0}
+      <h2 class="create-h">Start from a template</h2>
+      <p class="create-sub">Templates pre-wire skills, MCP servers, and a sensible permission preset. You can change everything in the next steps.</p>
+      <div class="tpl-grid">
+        {#for t of createCtx().value.templates key={t.id}}
+          <sui-card padding="none" class="tpl-card"
+            attr:data-selected={template() === t.id ? 'true' : null}
+            on:click={() => selectTemplate(t.id, t.permission_preset, t.hue)}>
+            <span attr:class={'hue-tile hue-' + t.hue}>{t.letter}</span>
+            <div style="flex:1; min-width:0">
+              <div class="tpl-nm">{t.label}</div>
+              <div class="tpl-dc">{t.description}</div>
+            </div>
+          </sui-card>
+        {/for}
+      </div>
+    {/if}
+
+    {#if step() === 1}
+      <h2 class="create-h">Identity</h2>
+      <p class="create-sub">A human name plus a machine id. The id matches the filename stem — <code>rust-compiler.jsonc</code> has id <code>rust-compiler</code>.</p>
+      <div class="id-grid">
+        <div>
+          <div attr:class={'hue-tile ' + 'hue-' + hue()} style="width:64px; height:64px; font-size:24px">
+            {(id() && id()[0] ? id()[0] : (name() && name()[0] ? name()[0] : '?')).toUpperCase()}
+          </div>
+          <div class="hue-pick">
+            {#for h of ['orange','amber','red','violet','blue','teal','green','pink','slate'] key={h}}
+              <div attr:class={'hue-tile hue-' + h}
+                attr:data-selected={hue() === h ? 'true' : null}
+                on:click={() => hue.set(h)}
+                role="button" tabindex="0" attr:aria-label={h + ' avatar color'}></div>
+            {/for}
+          </div>
+        </div>
+        <div>
+          <div class="field-row-dual">
+            <div class="field">
+              <label>Name</label>
+              <sui-input value={name()} on:sui-input={nameInput} placeholder="e.g. Rust Compiler"></sui-input>
+            </div>
+            <div class="field">
+              <label>ID</label>
+              <sui-input value={id()} on:sui-input={(e) => id.set(e.detail.value)} placeholder="rust-compiler"></sui-input>
+            </div>
+          </div>
+          <div class="slug-hint">saves to <code>.ship/agents/{id() || '(id)'}.jsonc</code></div>
+          <div class="field">
+            <label>Description</label>
+            <sui-textarea value={desc()} on:sui-input={(e) => desc.set(e.detail.value)} rows="3" placeholder="What does this agent do?"></sui-textarea>
+          </div>
+        </div>
+      </div>
+    {/if}
+
+    {#if step() === 2}
+      <h2 class="create-h">Wiring</h2>
+      <p class="create-sub">Which AI providers this agent compiles to, and what permission preset applies.</p>
+      <div class="field">
+        <label>Providers</label>
+        <div class="prov-grid" style:grid-template-columns={`repeat(${createCtx().value.available_providers.length}, 1fr)`}>
+          {#for p of createCtx().value.available_providers key={p}}
+            <sui-card padding="sm" class="tpl-card prov-card"
+              attr:data-selected={providers().includes(p) ? 'true' : null}
+              on:click={() => toggleProvider(p)}
+              style="flex-direction:column; align-items:center; gap:6px; text-align:center">
+              <span style="font-size:var(--text-xs); text-transform:capitalize">{p}</span>
+            </sui-card>
+          {/for}
+        </div>
+      </div>
+      <div class="field" style="margin-top: var(--space-5)">
+        <label>Permission preset</label>
+        <div class="preset-list">
+          {#for p of createCtx().value.permission_presets key={p.id}}
+            <sui-card padding="sm" class="preset-card"
+              attr:data-selected={preset() === p.id ? 'true' : null}
+              on:click={() => preset.set(p.id)}>
+              <div style="display:flex; align-items:center; gap:var(--space-3)">
+                <div style="flex:1">
+                  <div style="font-weight:var(--font-weight-semibold); font-size:var(--text-md)">{p.label}</div>
+                  <div style="font-size:var(--text-xs); color:var(--muted-foreground); margin-top:2px">{p.description}</div>
+                </div>
+              </div>
+            </sui-card>
+          {/for}
+        </div>
+      </div>
+    {/if}
+
+    {#if step() === 3}
+      <h2 class="create-h">Review</h2>
+      <p class="create-sub">Creates <code>.ship/agents/{id() || 'new'}.jsonc</code> on submit.</p>
+      <sui-card class="review-card" padding="md">
+        <pre>{reviewJson()}</pre>
+      </sui-card>
+      {#if err()}
+        <sui-alert tone="destructive" style="margin-top:var(--space-3)">{err()}</sui-alert>
+      {/if}
+    {/if}
+
+  {/if}
+
+  <div class="actions-row">
+    {#if step() > 0}
+      <sui-button variant="ghost" size="sm" on:click={back}>
+        <sui-icon slot="leading" name="arrow-left" size="xs"></sui-icon>Back
+      </sui-button>
+    {/if}
+    <span class="spacer"></span>
+    <sui-button variant="ghost" size="sm" on:click={cancel}>Cancel</sui-button>
+    {#if step() !== 3}
+      <sui-button tone="primary" variant="solid" size="sm" on:click={next}>
+        Continue
+        <sui-icon slot="trailing" name="arrow-right" size="xs"></sui-icon>
+      </sui-button>
+    {:else}
+      <sui-button tone="primary" variant="solid" size="sm"
+        attr:disabled={creating() || !id() ? '' : null}
+        on:click={create}>
+        <sui-icon slot="leading" name="check" size="xs"></sui-icon>
+        {creating() ? 'Creating…' : 'Create agent'}
+      </sui-button>
+    {/if}
+  </div>
+
+</div>

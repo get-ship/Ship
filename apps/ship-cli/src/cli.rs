@@ -290,6 +290,15 @@ pub enum Commands {
     /// Diagnose ship setup — build identity, daemon status, home layout
     Doctor,
 
+    /// One-shot production build: regen types, rebuild ship-set + ui-components,
+    /// then `cargo build --release` and verify all expected outputs exist.
+    /// Equivalent to `just build`; provided so users without `just` can ship.
+    Build {
+        /// Print each stage's command without running it
+        #[arg(long)]
+        dry_run: bool,
+    },
+
     /// Manage the bundled JS toolchain at ~/.ship/runtime/ (Bun + sui-compiler + bundler.ts)
     Runtime {
         #[command(subcommand)]
@@ -399,6 +408,18 @@ pub enum DaemonCommands {
         /// tables). Schema-level no-op; only writes the bookkeeping row.
         #[arg(long, value_name = "VERSION")]
         mark_applied: Option<i64>,
+        /// Delete `_sqlx_migrations` rows whose source file no longer
+        /// exists (typically because the migration was squashed
+        /// upstream). Required to recover from `migration N was
+        /// previously applied but is missing in the resolved
+        /// migrations`. Pure metadata change — no data tables touched.
+        /// Prompts before deleting unless `--yes` is also passed.
+        #[arg(long)]
+        prune_orphans: bool,
+        /// Skip the interactive confirmation prompt. Required when
+        /// `--prune-orphans` is used in a non-TTY context (CI, scripts).
+        #[arg(long, short = 'y')]
+        yes: bool,
     },
     /// Run the daemon in the foreground (internal — used by `start`, also useful for Docker/systemd)
     #[command(hide = true)]

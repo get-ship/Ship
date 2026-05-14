@@ -183,6 +183,11 @@ impl<'r> Walker<'r> {
                 self.pending_form_inject.push(("action".to_string(), action));
                 self.pending_form_inject.push(("method".to_string(), "post".to_string()));
             }
+            AttrInstr::Transition { .. } => {
+                // Transitions don't surface in SSR output. They register
+                // on element construction (CSR / hydrate paths) and
+                // consume no SSR marker key.
+            }
         }
     }
 

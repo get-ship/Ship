@@ -1,38 +1,119 @@
-import { controller, effect } from '@ship/sui-runtime'
+import { controller, effect, ref, signal } from '@ship/sui-runtime'
+// Two-state rail: visible (icon-only, 48px) vs hidden (display:none).
+// The arrow toggle button was removed — the top-nav menu button is the
+// sole control surface, dispatching `sui:rail:toggle` which the shell
+// app translates into a [collapsed] attribute on the rail.
 import type { Scope } from './sui-rail.sui'
+import { setupProjectSwitcher, type Project } from './sui-rail-project-switcher'
+
+function routeToViewName(path: string): string {
+  const seg = path.split('/').filter(Boolean)[0]
+  return seg ?? 'dashboard'
+}
+
+function dispatchBubble(host: HTMLElement, type: string, detail?: unknown): void {
+  host.dispatchEvent(new CustomEvent(type, {
+    detail,
+    bubbles: true,
+    composed: true,
+  }))
+}
 
 export default controller<Scope>({
+  scope: () => {
+    const projectOpen = signal(false)
+    const projects = signal<Project[]>([])
+    const activeProjectId = signal<string | null>(null)
+    const activeView = signal<string>(
+      typeof location !== 'undefined' ? routeToViewName(location.pathname) : '',
+    )
+    const projectInitial = (): string => {
+      const list = projects()
+      const cur = list.find((p) => p.id === activeProjectId()) ?? list[0]
+      // Always render SOMETHING — `·` placeholder when no project is tracked
+      // so the badge isn't a featureless solid color square. Matches j2
+      // shell's ship-rail behavior.
+      if (!cur) return '·'
+      return (cur.label ?? cur.name).charAt(0).toUpperCase()
+    }
+    return {
+      projectOpen,
+      projects,
+      activeProjectId,
+      activeView,
+      projectInitial,
+      popoverEl: ref<HTMLElement>(),
+      projectBadgeEl: ref<HTMLElement>(),
+      launcherBtnEl: ref<HTMLElement>(),
+      createBtnEl: ref<HTMLElement>(),
+      navSlot: ref<HTMLSlotElement>(),
+    }
+  },
+
   mount(state, host) {
-    const scope = state as unknown as Scope
+    // Landmark a11y: declare the rail as a navigation region so assistive
+    // tech announces it as a landmark and `aria-label` distinguishes it
+    // from other nav landmarks (e.g. top-nav). Done in mount() rather
+    // than the template so it cannot be stripped by markup edits.
+    if (!host.hasAttribute('role')) host.setAttribute('role', 'navigation')
+    if (!host.hasAttribute('aria-label')) host.setAttribute('aria-label', 'Primary navigation')
 
-    const stopIcon = effect(() => {
-      const btn = scope.toggleBtn() as HTMLElement | null
-      const col = scope.collapsed()
-      if (btn) btn.setAttribute('aria-label', col ? 'Show rail' : 'Hide rail')
+    const switcher = setupProjectSwitcher({
+      host,
+      open: state.projectOpen,
+      projects: state.projects,
+      activeProjectId: state.activeProjectId,
+      popoverEl: state.popoverEl,
+      badgeEl: state.projectBadgeEl,
     })
+    void switcher.loadProjects()
 
-    const onToggle = () => {
-      const next = !scope.collapsed()
-      scope.collapsed.set(next)
-      host.dispatchEvent(
-        new CustomEvent('sui-rail:toggle', {
-          detail: { collapsed: next },
-          bubbles: true,
-          composed: true,
-        }),
-      )
+    const closePopover = (): void => state.projectOpen.set(false)
+    const onLauncherClick = (e: MouseEvent): void => {
+      dispatchBubble(host, 'ship:launcher:open', { anchor: e.currentTarget })
+      closePopover()
+    }
+    const onCreateClick = (): void => {
+      dispatchBubble(host, 'ship:create:open')
+      closePopover()
     }
 
-    const stopBtn = effect(() => {
-      const btn = scope.toggleBtn() as HTMLButtonElement | null
+    const stopLauncherBind = effect(() => {
+      const btn = state.launcherBtnEl()
       if (!btn) return
-      btn.addEventListener('click', onToggle)
-      return () => btn.removeEventListener('click', onToggle)
+      btn.addEventListener('click', onLauncherClick)
+      return () => btn.removeEventListener('click', onLauncherClick)
+    })
+    const stopCreateBind = effect(() => {
+      const btn = state.createBtnEl()
+      if (!btn) return
+      btn.addEventListener('click', onCreateClick)
+      return () => btn.removeEventListener('click', onCreateClick)
+    })
+
+    const recomputeActive = (): void => {
+      state.activeView.set(routeToViewName(location.pathname))
+    }
+    const onNavigate = (): void => recomputeActive()
+    document.addEventListener('sui:navigate', onNavigate)
+    window.addEventListener('popstate', onNavigate)
+
+    const stopActiveSync = effect(() => {
+      const name = state.activeView()
+      const items = host.querySelectorAll<HTMLElement>('sui-rail-item[data-view]')
+      for (const item of items) {
+        if (item.dataset.view === name) item.setAttribute('active', '')
+        else item.removeAttribute('active')
+      }
     })
 
     return () => {
-      stopIcon()
-      stopBtn()
+      stopLauncherBind()
+      stopCreateBind()
+      stopActiveSync()
+      switcher.dispose()
+      document.removeEventListener('sui:navigate', onNavigate)
+      window.removeEventListener('popstate', onNavigate)
     }
   },
 })

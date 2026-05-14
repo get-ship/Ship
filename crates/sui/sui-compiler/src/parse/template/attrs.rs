@@ -63,6 +63,15 @@ fn compile_attr(
     if let Some(rest) = name.strip_prefix("prop:") {
         return compile_prop(rest, value, value_span, loc);
     }
+    if let Some(rest) = name.strip_prefix("transition:") {
+        return compile_transition(rest, value, value_span, loc, TransitionDir::Both);
+    }
+    if let Some(rest) = name.strip_prefix("in:") {
+        return compile_transition(rest, value, value_span, loc, TransitionDir::In);
+    }
+    if let Some(rest) = name.strip_prefix("out:") {
+        return compile_transition(rest, value, value_span, loc, TransitionDir::Out);
+    }
     if is_expr_value(value) {
         let inner = strip_braces(value).to_string();
         expr::validate_at(&inner, false, loc, value_span)?;
@@ -318,28 +327,65 @@ fn compile_prop(
     })
 }
 
+fn compile_transition(
+    name: &str,
+    value: &str,
+    value_span: Span,
+    loc: &str,
+    dir: TransitionDir,
+) -> Result<AttrInstr, CompileError> {
+    let err = |msg: String| {
+        CompileError::new(msg).with_span(value_span).with_category(loc.to_string())
+    };
+    if name.is_empty() {
+        return Err(err(format!("{}:requires a transition name", dir.as_str())));
+    }
+    if !is_bare_identifier(name) {
+        return Err(err(format!("transition name \"{name}\" must be a bare identifier")));
+    }
+    let opts = if value.is_empty() {
+        None
+    } else if is_expr_value(value) {
+        let inner = strip_braces(value).to_string();
+        expr::validate_at(&inner, false, loc, value_span)?;
+        Some(Expr::new(inner, value_span, false))
+    } else {
+        return Err(err("transition options must be an {expression}".into()));
+    };
+    Ok(AttrInstr::Transition { name: name.to_string(), opts, dir, span: value_span })
+}
+
 fn compile_dynamic_attr(
-    raw_name_expr: &str,
+    raw_name: &str,
     value: &str,
     value_span: Span,
     loc: &str,
 ) -> Result<AttrInstr, CompileError> {
-    if !is_expr_value(raw_name_expr) {
-        return Err(CompileError::new("attr: expects attr:{nameExpr}")
-            .with_span(value_span)
-            .with_category(loc.to_string()));
-    }
     if !is_expr_value(value) {
-        return Err(CompileError::new("attr:{...} expects ={valueExpr}")
+        return Err(CompileError::new("attr: expects ={valueExpr}")
             .with_span(value_span)
             .with_category(loc.to_string()));
     }
-    let name_inner = strip_braces(raw_name_expr).to_string();
-    expr::validate_at(&name_inner, false, loc, value_span)?;
     let value_inner = strip_braces(value).to_string();
     expr::validate_at(&value_inner, false, loc, value_span)?;
-    Ok(AttrInstr::DynamicAttr {
-        name_expr: Expr::new(name_inner, value_span, false),
+    if is_expr_value(raw_name) {
+        let name_inner = strip_braces(raw_name).to_string();
+        expr::validate_at(&name_inner, false, loc, value_span)?;
+        return Ok(AttrInstr::DynamicAttr {
+            name_expr: Expr::new(name_inner, value_span, false),
+            expr: Expr::new(value_inner, value_span, false),
+            span: value_span,
+        });
+    }
+    if !is_valid_attr_name(raw_name) {
+        return Err(CompileError::new(
+            "attr: expects attr:<name>={valueExpr} or attr:{nameExpr}={valueExpr}",
+        )
+        .with_span(value_span)
+        .with_category(loc.to_string()));
+    }
+    Ok(AttrInstr::Expr {
+        name: raw_name.to_string(),
         expr: Expr::new(value_inner, value_span, false),
         span: value_span,
     })

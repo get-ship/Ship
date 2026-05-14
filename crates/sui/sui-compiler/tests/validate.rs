@@ -21,6 +21,7 @@ fn opts(source_path: PathBuf) -> CompileOpts {
         styles: None,
         component_meta: None,
         emit_dts: false,
+        emit_ssr: false,
     }
 }
 

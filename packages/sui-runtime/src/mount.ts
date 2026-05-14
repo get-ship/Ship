@@ -17,11 +17,12 @@ import { signal, type Signal } from './signal'
 import type { LiveSignal, LiveState } from './live'
 import type { RouteSignals } from './route'
 import { createScope, withScope } from './effect-scope'
+import { morph } from './morph'
 import type { ViewPayload as GeneratedViewPayload } from './generated'
 
 /**
  * Wire shape returned by `GET /_sui/views/<name>[/<sub>]`. The base type
- * is generated from `crates/sui/ship-ui-framework/src/view_payload.rs::ViewPayload`
+ * is generated from `crates/sui/ship-sui-server/src/view_payload.rs::ViewPayload`
  * via `cargo xtask gen-types`. The local generic specializes `scope` —
  * Rust ships it as untyped JSON; per-view modules narrow it here.
  */
@@ -77,8 +78,10 @@ const LIFECYCLE_KEY = '__shipSetLifecycle'
 /**
  * Mount a view into a DOM target.
  *
- * @param target Element to receive the rendered view. Existing
- *               innerHTML is replaced with payload.html.
+ * @param target Element to receive the rendered view. If the
+ *               target already contains markup (SSR pre-render),
+ *               mount morph-patches it toward payload.html, preserving
+ *               node identity. Otherwise children are built fresh.
  * @param payloadOrName  A fetched ViewPayload, or a `name[/sub]`
  *               string the runtime fetches from `/_sui/views/...`.
  * @param opts   ship / route / navigate / restoreScope / cssScope.
@@ -96,8 +99,18 @@ export async function mount<Scope = Record<string, unknown>>(
       ? await fetchPayload(payloadOrName)
       : payloadOrName
 
-  // 1. Inject SSR HTML.
-  target.innerHTML = payload.html
+  // 1. Adopt SSR markup if present (morph in place), else clean-mount.
+  //    The view-host shell ships SSR content inside `target` before this
+  //    runs; overwriting via `innerHTML = payload.html` would discard it
+  //    and cause a 140-200ms blank flash. Morph reconciles in place and
+  //    preserves focus/scroll/selection/custom-element state.
+  if (hasHydratableMarkup(target)) {
+    morph(target, payload.html)
+  } else {
+    const tmpl = (target.ownerDocument ?? document).createElement('template')
+    tmpl.innerHTML = payload.html
+    target.replaceChildren(...Array.from(tmpl.content.childNodes))
+  }
 
   // 2. Inject CSS.
   const styleEl = injectCss(target, payload.css, opts.cssScope ?? 'adjacent')
@@ -288,6 +301,16 @@ export async function mount<Scope = Record<string, unknown>>(
 
 // ── Internals ─────────────────────────────────────────────────────────
 
+function hasHydratableMarkup(el: HTMLElement): boolean {
+  if (el.children.length > 0) return true
+  for (const n of Array.from(el.childNodes)) {
+    if (n.nodeType === Node.TEXT_NODE && (n.nodeValue ?? '').trim() !== '') {
+      return true
+    }
+  }
+  return false
+}
+
 async function fetchPayload(nameOrPath: string): Promise<ViewPayload> {
   const path = nameOrPath.startsWith('/_sui/views/')
     ? nameOrPath
@@ -402,10 +425,13 @@ function openLiveChannel(
     if (!sig) return
     ;(sig as Signal<LiveState<unknown>>).set(value)
   })
-  // patch-elements deferred until cleanup commit — agent-push integration
-  // isn't on F1's critical path, mount keeps backward compat by accepting
-  // the event but ignoring the body until applyPatchElements is moved
-  // into ui-runtime.
+  // NOTE: no listener for `patch-elements` events. The current SSE
+  // protocol pushes element patches under that name (see
+  // `apps/shipd/src/views/sui_patch_channel.rs`); EventSource silently
+  // drops events without a matching listener. Wiring a handler is
+  // pending the `applyPatchElements` port into ui-runtime — until then,
+  // agent-push of DOM diffs is a no-op on the client. `patch-signals`
+  // above is the supported live-state channel.
   es.addEventListener('error', () => {
     // Built-in EventSource reconnect handles transient drops.
   })

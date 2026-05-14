@@ -141,7 +141,7 @@ Agents in a running Ship cluster discover and message each other through the run
 ## Install
 
 Full per-platform matrix (GUI, CLI, dev fallback, uninstall) lives in
-[`docs/INSTALL.md`](docs/INSTALL.md). Short form:
+[`docs/ship-getting-started/references/docs/installation.md`](docs/ship-getting-started/references/docs/installation.md). Short form:
 
 ```sh
 # macOS          brew install madvib/tap/ship      (tap: TODO)

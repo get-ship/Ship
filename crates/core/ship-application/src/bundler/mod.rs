@@ -12,7 +12,7 @@ use std::path::PathBuf;
 use tokio::sync::broadcast;
 
 pub use worker::{BundlerEvent, WorkerError, WorkerHandle};
-use worker::start as worker_start;
+use worker::{start as worker_start, start_with_script as worker_start_with_script};
 
 use ship_substrate::ShipHome;
 
@@ -31,6 +31,15 @@ impl Bundler {
     /// immediately.
     pub fn start(home: &ShipHome, repo_root: PathBuf) -> Self {
         Self { inner: worker_start(home, repo_root) }
+    }
+
+    /// Like `start`, but uses `script` as the `bundler.ts` path instead of
+    /// the copy in `~/.ship/runtime/`. Bun and the sui-compiler still come
+    /// from the installed runtime. Used in dev mode so edits to the in-repo
+    /// `runtime-assets/bundler.ts` take effect on daemon restart without an
+    /// extra `ship runtime install`.
+    pub fn start_with_script(home: &ShipHome, repo_root: PathBuf, script: PathBuf) -> Self {
+        Self { inner: worker_start_with_script(home, repo_root, script) }
     }
 
     /// Build a single named target (e.g. `"sui-runtime"`, `"views/git/view"`).
