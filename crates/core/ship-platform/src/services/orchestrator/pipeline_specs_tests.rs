@@ -82,41 +82,20 @@ fn step_specs_block_writes_per_stage_files() {
 }
 
 #[test]
-fn header_split_fallback_partitions_by_agent_name() {
-    let pipeline = tdd_pipeline();
-    let body = "\
-# Overall
-## test-writer
-write the failing tests
-
-## rust-runtime
-implement against the tests
-
-## reviewer
-grade the implementation
-";
-    let split = split_by_agent_headers(body, &pipeline).expect("must split");
-    assert!(split[0].contains("write the failing tests"));
-    assert!(split[1].contains("implement against the tests"));
-    assert!(split[2].contains("grade the implementation"));
-}
-
-#[test]
-fn header_split_returns_none_when_a_step_is_missing() {
-    let pipeline = tdd_pipeline();
-    let body = "## test-writer\nonly one stage\n";
-    assert!(split_by_agent_headers(body, &pipeline).is_none());
-}
-
-#[test]
-fn legacy_fallback_shares_spec_across_stages() {
+fn empty_step_specs_writes_empty_per_stage_files() {
+    // Pipelines without a step_specs block produce empty per-stage files.
+    // The dispatched agent works from the overall spec + its profile.
     let tmp = tempfile::tempdir().unwrap();
     let pipeline = tdd_pipeline();
-    write_pipeline_specs(tmp.path(), "slug", &pipeline, "one body for all", None).unwrap();
+    write_pipeline_specs(tmp.path(), "slug", &pipeline, "overall only", None).unwrap();
     let a = std::fs::read_to_string(tmp.path().join(".artifacts/pipeline/01-step-1.md")).unwrap();
     let b = std::fs::read_to_string(tmp.path().join(".artifacts/pipeline/02-step-2.md")).unwrap();
-    assert_eq!(a, "one body for all");
-    assert_eq!(b, "one body for all");
+    assert!(a.is_empty(), "no step_specs => empty per-stage file");
+    assert!(b.is_empty(), "no step_specs => empty per-stage file");
+    assert_eq!(
+        std::fs::read_to_string(tmp.path().join(".artifacts/pipeline/spec.md")).unwrap(),
+        "overall only"
+    );
 }
 
 #[test]

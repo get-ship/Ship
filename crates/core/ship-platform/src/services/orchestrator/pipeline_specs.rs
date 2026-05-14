@@ -14,11 +14,11 @@
 //! that tells it which file to execute and where to find upstream/downstream
 //! context.
 //!
-//! Resolution order for per-step bodies:
-//! 1. Explicit `step_specs:` block on the pipeline YAML.
-//! 2. Split the overall spec body on agent-named `##` headers.
-//! 3. Legacy fallback: share the overall spec body across every step (emits
-//!    a deprecation log line).
+//! Resolution: per-step bodies come from the pipeline JSONC's `step_specs:`
+//! block (positional, one entry per step). Steps without an entry get an
+//! empty body — the dispatched agent works from the job-level spec at
+//! `.artifacts/pipeline/spec.md` plus its agent profile. There is no
+//! implicit "share the overall spec across every stage" behaviour.
 
 use ship_substrate::events::job::{Pipeline, PipelineStep};
 use crate::services::orchestrator::step_io::ResolvedInput;
@@ -35,7 +35,7 @@ pub const OVERALL_SPEC_FILE: &str = "spec.md";
 /// preserved so a later stage cannot overwrite an earlier stage's spec.
 pub fn write_pipeline_specs(
     worktree_path: &Path,
-    slug: &str,
+    _slug: &str,
     pipeline: &Pipeline,
     user_spec_body: &str,
     step_specs: Option<&[String]>,
@@ -50,7 +50,7 @@ pub fn write_pipeline_specs(
             .with_context(|| format!("write {OVERALL_SPEC_FILE}"))?;
     }
 
-    let bodies = resolve_step_bodies(slug, pipeline, user_spec_body, step_specs);
+    let bodies = resolve_step_bodies(pipeline, step_specs);
     for (idx, step) in pipeline.steps.iter().enumerate() {
         let fname = step_spec_filename(idx, step);
         let path = dir.join(&fname);
@@ -129,72 +129,17 @@ pub fn prepare_step_for_dispatch(
 }
 
 fn resolve_step_bodies(
-    slug: &str,
     pipeline: &Pipeline,
-    user_spec_body: &str,
     step_specs: Option<&[String]>,
 ) -> Vec<String> {
-    if let Some(specs) = step_specs {
-        let mut out: Vec<String> = specs.iter().cloned().collect();
-        out.resize(pipeline.steps.len(), String::new());
-        return out;
-    }
-    if let Some(split) = split_by_agent_headers(user_spec_body, pipeline) {
-        return split;
-    }
-    tracing::warn!(
-        slug,
-        "pipeline: no step_specs or agent-named headers; sharing the overall spec across every \
-         stage (deprecated — add a `step_specs:` block to the pipeline YAML)"
-    );
-    vec![user_spec_body.to_string(); pipeline.steps.len()]
-}
-
-/// Split `body` on `#`/`##` headers whose trimmed text matches a step's agent
-/// name or step id. Returns `None` when at least one step can't be matched.
-fn split_by_agent_headers(body: &str, pipeline: &Pipeline) -> Option<Vec<String>> {
-    if pipeline.steps.is_empty() {
-        return None;
-    }
-    let keys: Vec<String> = pipeline
-        .steps
-        .iter()
-        .map(|s| s.agent.clone().unwrap_or_else(|| s.id.clone()))
-        .collect();
-
-    let mut sections: std::collections::HashMap<String, String> =
-        std::collections::HashMap::new();
-    let mut current_key: Option<String> = None;
-    let mut current_buf = String::new();
-
-    for line in body.lines() {
-        if let Some(header) = parse_header(line) {
-            let matched = keys.iter().find(|k| k.eq_ignore_ascii_case(header.trim()));
-            if let Some(key) = matched {
-                if let Some(prev) = current_key.take() {
-                    sections.insert(prev, std::mem::take(&mut current_buf));
-                }
-                current_key = Some(key.clone());
-                continue;
-            }
+    match step_specs {
+        Some(specs) => {
+            let mut out: Vec<String> = specs.iter().cloned().collect();
+            out.resize(pipeline.steps.len(), String::new());
+            out
         }
-        if current_key.is_some() {
-            current_buf.push_str(line);
-            current_buf.push('\n');
-        }
+        None => vec![String::new(); pipeline.steps.len()],
     }
-    if let Some(prev) = current_key.take() {
-        sections.insert(prev, current_buf);
-    }
-
-    if keys.iter().any(|k| !sections.contains_key(k)) {
-        return None;
-    }
-    Some(
-        keys.iter()
-            .map(|k| sections.remove(k).unwrap_or_default().trim().to_string())
-            .collect(),
-    )
 }
 
 fn fmt_size(bytes: u64) -> String {
@@ -202,17 +147,6 @@ fn fmt_size(bytes: u64) -> String {
         format!("{:.1} KB", bytes as f64 / 1024.0)
     } else {
         format!("{bytes} B")
-    }
-}
-
-fn parse_header(line: &str) -> Option<&str> {
-    let line = line.trim_start();
-    if let Some(rest) = line.strip_prefix("## ") {
-        Some(rest)
-    } else if let Some(rest) = line.strip_prefix("# ") {
-        Some(rest)
-    } else {
-        None
     }
 }
 
