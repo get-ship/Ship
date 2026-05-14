@@ -57,7 +57,6 @@ pub const PROVIDER_MANAGED_KEYS: &[(&str, &[&str])] = &[
         &[
             "permissions",
             "hooks",
-            "model",
             "env",
             "availableModels",
             "maxCostPerSession",
@@ -65,10 +64,10 @@ pub const PROVIDER_MANAGED_KEYS: &[(&str, &[&str])] = &[
             "autoMemoryEnabled",
         ],
     ),
-    ("codex", &["model", "mcp_servers"]),
-    ("gemini", &["model", "hooks", "mcpServers"]),
+    ("codex", &["mcp_servers"]),
+    ("gemini", &["hooks", "mcpServers"]),
     ("cursor", &[]),
-    ("opencode", &["model", "mcp", "permission"]),
+    ("opencode", &["mcp", "permission"]),
 ];
 
 /// Look up Ship-managed keys for a provider.

@@ -45,7 +45,6 @@
                   "properties": {
                     "permissions": false,
                     "hooks": false,
-                    "model": false,
                     "env": false,
                     "availableModels": false,
                     "maxCostPerSession": false,
@@ -60,7 +59,6 @@
                 { "$ref": "https://raw.githubusercontent.com/openai/codex/main/codex-rs/core/config.schema.json" },
                 {
                   "properties": {
-                    "model": false,
                     "mcp_servers": false
                   }
                 }
@@ -71,7 +69,6 @@
                 { "$ref": "https://raw.githubusercontent.com/google-gemini/gemini-cli/main/schemas/settings.schema.json" },
                 {
                   "properties": {
-                    "model": false,
                     "hooks": false,
                     "mcpServers": false
                   }
@@ -87,7 +84,6 @@
                 { "$ref": "https://opencode.ai/config.json" },
                 {
                   "properties": {
-                    "model": false,
                     "mcp": false,
                     "permission": false
                   }
