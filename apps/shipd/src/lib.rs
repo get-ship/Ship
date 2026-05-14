@@ -26,12 +26,18 @@ pub mod managers;
 pub mod project_api;
 pub mod routes;
 pub mod router;
-pub mod mcp;
+// (former shipd/integrations/ — apps_bridge → views/mcp_apps_embed; registry → routes/mcp_registry)
 pub mod views;
 pub mod ship_runtime;
-pub mod spawn_bounded;
-pub mod task_health;
-pub mod supervisor;
+// Production supervisor code lives in the `ship-supervisor` crate. The
+// existing `crate::supervisor::*` import path across shipd resolves
+// through this re-export so call sites don't churn.
+pub use ship_supervisor as supervisor;
+// Tests for supervisor + shipd-internal integration (use ApiState,
+// ShipRuntime, etc.) live under `apps/shipd/src/supervisor/`.
+#[cfg(test)]
+#[path = "supervisor/mod.rs"]
+mod supervisor_tests;
 
 #[cfg(test)]
 pub mod test_harness;
@@ -148,8 +154,6 @@ pub async fn run_network(
     }
     // Start the abandoned session scanner.
     rt.session_scanner().await;
-    // One-shot: rehash legacy artifact rows that predate content_hash.
-    rt.backfill_artifact_content_hashes().await;
     // Start the artifact GC loop (runs now then every hour).
     rt.start_artifact_gc();
     daemon::human_gateway::spawn_human_gateway(rt.kernel(), rt.health_registry()).await;

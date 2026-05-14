@@ -13,7 +13,7 @@ use tokio::sync::Mutex;
 
 use crate::auth::SessionRegistry;
 use crate::managers::{JobManager, MeshManager, SessionScanner};
-use crate::task_health::HealthRegistry;
+use ship_substrate::task_health::HealthRegistry;
 use crate::supervisor::job_dispatch::DispatchHandle;
 
 // ---- Config types ----
@@ -277,35 +277,6 @@ impl ShipRuntime {
             ship_platform::kv::migrate_from_platform_db(&dir)
                 .context("kv migration from platform.db")?;
             ship_substrate::db::ensure_db_at(&dir)?;
-            // One-shot drain of the legacy `settings` KV namespace into the
-            // daemon_settings table. Idempotent and inexpensive on every boot.
-            if let Err(e) = ship_platform::config::drain_legacy_settings_kv() {
-                tracing::warn!("settings drain from legacy KV: {e}");
-            }
-            // One-shot drain of legacy per-project `runtime::*` KV rows. The
-            // ProjectConfig variant is gone; rows are deleted. (Providers
-            // now lives in ship.jsonc only.)
-            if let Err(e) = ship_platform::config::drain_legacy_project_config_kv() {
-                tracing::warn!("project config drain from legacy KV: {e}");
-            }
-            // One-shot drain of the legacy `project` KV namespace into
-            // project.registered / project.seen events. Idempotent.
-            if let Err(e) = ship_platform::projects::drain_legacy_kv() {
-                tracing::warn!("projects drain from legacy KV: {e}");
-            }
-            // One-shot drain of legacy auth.sessions and auth.daemon_owner
-            // KV namespaces into events. Idempotent.
-            if let Err(e) = ship_platform::projections::auth::drain_legacy_sessions_kv() {
-                tracing::warn!("auth sessions drain from legacy KV: {e}");
-            }
-            if let Err(e) = ship_platform::projections::auth::drain_legacy_owner_kv() {
-                tracing::warn!("auth owner drain from legacy KV: {e}");
-            }
-            // One-shot drain of legacy `runtime::*` agents KV rows into
-            // `<ship_dir>/agents/<id>.jsonc` files. Idempotent.
-            if let Err(e) = ship_platform::config::agents::drain_legacy_kv() {
-                tracing::warn!("agents drain from legacy KV: {e}");
-            }
             ship_substrate::events::init_kernel_router(dir)
                 .map_err(|e| anyhow!("failed to initialize KernelRouter: {e}"))
         })
@@ -647,24 +618,6 @@ impl ShipRuntime {
             .await
     }
 
-    /// Rehash blobs for legacy artifact metadata rows that predate the
-    /// content_hash column. One-shot; idempotent. Logged on failure but
-    /// doesn't block startup.
-    pub async fn backfill_artifact_content_hashes(&self) {
-        let ship_dir = self.ship_dir.clone();
-        tokio::task::spawn_blocking(move || {
-            match ship_substrate::data::DataService::open(&ship_dir) {
-                Ok(mut svc) => {
-                    if let Err(e) = ship_platform::artifacts::gc::backfill_content_hashes(&ship_dir, &mut svc) {
-                        tracing::warn!("artifact content_hash backfill failed: {e}");
-                    }
-                }
-                Err(e) => tracing::warn!("artifact backfill: failed to open DataService: {e}"),
-            }
-        })
-        .await
-        .ok();
-    }
 
     /// Spawn the artifact GC loop. Runs immediately on startup then every hour.
     ///
@@ -672,7 +625,7 @@ impl ShipRuntime {
     pub fn start_artifact_gc(&self) {
         let ship_dir = self.ship_dir.clone();
         let kernel = self.kernel.clone();
-        crate::task_health::spawn_supervised(
+        ship_substrate::task_health::spawn_supervised(
             &self.health_registry,
             "artifact-gc",
             move || {
