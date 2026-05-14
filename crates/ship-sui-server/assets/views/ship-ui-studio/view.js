@@ -1,5 +1,5 @@
 // views/ship-ui-studio/page.sui
-import { bindAttr, bindFor, bindIf, bindText, on, view } from "@ship/sui-runtime";
+import { bindAttr, bindFor, bindIf, bindText, on, signal as signal2, view } from "@ship/sui-runtime";
 import { collectElementMarkers, collectTextOpens, hydrateAttr, hydrateOn, hydrateText } from "@ship/sui-dom";
 
 // views/ship-ui-studio/controller.ts
@@ -28,7 +28,6 @@ var STUDIO_HIDE_TAGS = new Set([
   "sui-devtools-components"
 ]);
 var BAKED_SUI_VIEWS = [
-  { id: "counter", tag: "counter", kind: "view", description: "Simple counter demo" },
   { id: "agents", tag: "agents", kind: "view", description: "Agent list" },
   { id: "git", tag: "git", kind: "view", description: "Git overview" }
 ];
@@ -133,6 +132,7 @@ var page_default = view((ctx) => {
   $scope.route = route;
   $scope.navigate = navigate;
   if (controller_default && typeof controller_default.setup === "function") {
+    ctx.scope = $scope;
     const __r = controller_default.setup(ctx);
     if (__r && typeof __r === "object")
       Object.assign($scope, __r);
@@ -150,33 +150,66 @@ var page_default = view((ctx) => {
       const __childScope29 = Object.create($scope);
       __childScope29.item = item;
       __childScope29.__i = __i;
+      __childScope29.__v = signal2(0);
       return (($scope2) => {
         const __frag30 = document.createDocumentFragment();
         const __c31 = [];
         const __e32 = document.createElement("a");
         __e32.setAttribute("class", "catalog-item");
-        __c31.push(bindAttr(__e32, "href", () => "/ship-ui-studio/" + $scope2.item.id));
+        {
+          const __av33 = "/ship-ui-studio/" + $scope2.item.id;
+          if (__av33 == null || __av33 === false || __av33 === "")
+            __e32.removeAttribute("href");
+          else
+            __e32.setAttribute("href", __av33 === true ? "" : String(__av33));
+        }
         __e32.setAttribute("data-test", "catalog-item");
-        const __e33 = document.createElement("code");
-        __e33.setAttribute("class", "catalog-item-name");
-        const __t34 = document.createTextNode("");
-        __e33.appendChild(__t34);
-        __c31.push(bindText(__t34, () => $scope2.item.id));
-        __e32.appendChild(__e33);
-        const __e35 = document.createElement("sui-badge");
-        __c31.push(bindAttr(__e35, "tone", () => $scope2.item.kind === "sui" ? "primary" : "info"));
-        __e35.setAttribute("variant", "soft");
-        __e35.setAttribute("size", "sm");
-        const __t36 = document.createTextNode("");
-        __e35.appendChild(__t36);
-        __c31.push(bindText(__t36, () => $scope2.item.kind));
-        __e32.appendChild(__e35);
+        const __e34 = document.createElement("code");
+        __e34.setAttribute("class", "catalog-item-name");
+        const __t35 = document.createTextNode("");
+        __e34.appendChild(__t35);
+        __t35.textContent = $scope2.item.id;
+        __e32.appendChild(__e34);
+        const __e36 = document.createElement("sui-badge");
+        {
+          const __av37 = $scope2.item.kind === "sui" ? "primary" : "info";
+          if (__av37 == null || __av37 === false || __av37 === "")
+            __e36.removeAttribute("tone");
+          else
+            __e36.setAttribute("tone", __av37 === true ? "" : String(__av37));
+        }
+        __e36.setAttribute("variant", "soft");
+        __e36.setAttribute("size", "sm");
+        const __t38 = document.createTextNode("");
+        __e36.appendChild(__t38);
+        __t38.textContent = $scope2.item.kind;
+        __e32.appendChild(__e36);
         __frag30.appendChild(__e32);
         return { nodes: Array.from(__frag30.childNodes), cleanup: () => {
           for (const c of __c31)
             try {
               c();
             } catch (e) {}
+        }, update: (__new39, __newI40) => {
+          $scope2.item = __new39;
+          $scope2.__i = __newI40;
+          {
+            const __av33 = "/ship-ui-studio/" + $scope2.item.id;
+            if (__av33 == null || __av33 === false || __av33 === "")
+              __e32.removeAttribute("href");
+            else
+              __e32.setAttribute("href", __av33 === true ? "" : String(__av33));
+          }
+          __t35.textContent = $scope2.item.id;
+          {
+            const __av37 = $scope2.item.kind === "sui" ? "primary" : "info";
+            if (__av37 == null || __av37 === false || __av37 === "")
+              __e36.removeAttribute("tone");
+            else
+              __e36.setAttribute("tone", __av37 === true ? "" : String(__av37));
+          }
+          __t38.textContent = $scope2.item.kind;
+          $scope2.__v.set((c) => c + 1);
         } };
       })(__childScope29);
     }
@@ -246,58 +279,58 @@ var page_default = view((ctx) => {
     },
     branches: [
       () => {
-        const __frag47 = document.createDocumentFragment();
-        const __c48 = [];
-        const __e49 = document.createElement("div");
-        __e49.setAttribute("class", "studio-loading");
-        const __e50 = document.createElement("sui-spinner");
-        __e50.setAttribute("size", "md");
-        __e49.appendChild(__e50);
-        const __e51 = document.createElement("p");
-        __e51.setAttribute("class", "studio-loading-text");
-        const __t52 = document.createTextNode("Loading catalog");
-        __e51.appendChild(__t52);
-        __e49.appendChild(__e51);
-        __frag47.appendChild(__e49);
-        return { nodes: Array.from(__frag47.childNodes), cleanup: () => {
-          for (const c of __c48)
+        const __frag51 = document.createDocumentFragment();
+        const __c52 = [];
+        const __e53 = document.createElement("div");
+        __e53.setAttribute("class", "studio-loading");
+        const __e54 = document.createElement("sui-spinner");
+        __e54.setAttribute("size", "md");
+        __e53.appendChild(__e54);
+        const __e55 = document.createElement("p");
+        __e55.setAttribute("class", "studio-loading-text");
+        const __t56 = document.createTextNode("Loading catalog");
+        __e55.appendChild(__t56);
+        __e53.appendChild(__e55);
+        __frag51.appendChild(__e53);
+        return { nodes: Array.from(__frag51.childNodes), cleanup: () => {
+          for (const c of __c52)
             try {
               c();
             } catch (e) {}
         } };
       },
       () => {
-        const __frag53 = document.createDocumentFragment();
-        const __c54 = [];
-        const __e55 = document.createElement("div");
-        __e55.setAttribute("class", "studio-welcome");
-        const __e56 = document.createElement("div");
-        __e56.setAttribute("class", "studio-welcome-mark");
-        __e56.setAttribute("aria-hidden", "true");
-        const __t57 = document.createTextNode("◐");
-        __e56.appendChild(__t57);
-        __e55.appendChild(__e56);
-        const __e58 = document.createElement("h2");
-        __e58.setAttribute("class", "studio-welcome-title");
-        const __t59 = document.createTextNode("SUI Studio");
-        __e58.appendChild(__t59);
-        __e55.appendChild(__e58);
-        const __e60 = document.createElement("p");
-        __e60.setAttribute("class", "studio-welcome-desc");
-        const __t61 = document.createTextNode("Select a component from the sidebar to preview it.");
+        const __frag57 = document.createDocumentFragment();
+        const __c58 = [];
+        const __e59 = document.createElement("div");
+        __e59.setAttribute("class", "studio-welcome");
+        const __e60 = document.createElement("div");
+        __e60.setAttribute("class", "studio-welcome-mark");
+        __e60.setAttribute("aria-hidden", "true");
+        const __t61 = document.createTextNode("◐");
         __e60.appendChild(__t61);
-        __e55.appendChild(__e60);
-        const __e62 = document.createElement("p");
-        __e62.setAttribute("class", "studio-welcome-stats");
-        const __t63 = document.createTextNode("");
+        __e59.appendChild(__e60);
+        const __e62 = document.createElement("h2");
+        __e62.setAttribute("class", "studio-welcome-title");
+        const __t63 = document.createTextNode("SUI Studio");
         __e62.appendChild(__t63);
-        __c54.push(bindText(__t63, () => $scope.totalCount()));
-        const __t64 = document.createTextNode(" components available");
-        __e62.appendChild(__t64);
-        __e55.appendChild(__e62);
-        __frag53.appendChild(__e55);
-        return { nodes: Array.from(__frag53.childNodes), cleanup: () => {
-          for (const c of __c54)
+        __e59.appendChild(__e62);
+        const __e64 = document.createElement("p");
+        __e64.setAttribute("class", "studio-welcome-desc");
+        const __t65 = document.createTextNode("Select a component from the sidebar to preview it.");
+        __e64.appendChild(__t65);
+        __e59.appendChild(__e64);
+        const __e66 = document.createElement("p");
+        __e66.setAttribute("class", "studio-welcome-stats");
+        const __t67 = document.createTextNode("");
+        __e66.appendChild(__t67);
+        __c58.push(bindText(__t67, () => $scope.totalCount()));
+        const __t68 = document.createTextNode(" components available");
+        __e66.appendChild(__t68);
+        __e59.appendChild(__e66);
+        __frag57.appendChild(__e59);
+        return { nodes: Array.from(__frag57.childNodes), cleanup: () => {
+          for (const c of __c58)
             try {
               c();
             } catch (e) {}
@@ -382,34 +415,34 @@ var page_default = view((ctx) => {
       __e16.appendChild(__ifAnchor17);
       __cleanups.push(__wireBoundary_b8(__ifAnchor17));
       __e1.appendChild(__e16);
-      const __e37 = document.createElement("div");
-      __e37.setAttribute("class", "studio-sidebar-counts");
-      const __e38 = document.createElement("span");
-      __e38.setAttribute("class", "studio-count-text");
-      const __t39 = document.createTextNode("");
-      __e38.appendChild(__t39);
-      __cleanups.push(bindText(__t39, () => $scope.filteredCount()));
-      const __t40 = document.createTextNode(" of ");
-      __e38.appendChild(__t40);
-      const __t41 = document.createTextNode("");
-      __e38.appendChild(__t41);
-      __cleanups.push(bindText(__t41, () => $scope.totalCount()));
-      __e37.appendChild(__e38);
+      const __e41 = document.createElement("div");
+      __e41.setAttribute("class", "studio-sidebar-counts");
       const __e42 = document.createElement("span");
-      __e42.setAttribute("class", "studio-search-hint");
-      const __e43 = document.createElement("sui-kbd");
-      const __t44 = document.createTextNode("/");
-      __e43.appendChild(__t44);
-      __e42.appendChild(__e43);
-      __e37.appendChild(__e42);
-      __e1.appendChild(__e37);
+      __e42.setAttribute("class", "studio-count-text");
+      const __t43 = document.createTextNode("");
+      __e42.appendChild(__t43);
+      __cleanups.push(bindText(__t43, () => $scope.filteredCount()));
+      const __t44 = document.createTextNode(" of ");
+      __e42.appendChild(__t44);
+      const __t45 = document.createTextNode("");
+      __e42.appendChild(__t45);
+      __cleanups.push(bindText(__t45, () => $scope.totalCount()));
+      __e41.appendChild(__e42);
+      const __e46 = document.createElement("span");
+      __e46.setAttribute("class", "studio-search-hint");
+      const __e47 = document.createElement("sui-kbd");
+      const __t48 = document.createTextNode("/");
+      __e47.appendChild(__t48);
+      __e46.appendChild(__e47);
+      __e41.appendChild(__e46);
+      __e1.appendChild(__e41);
       __e0.appendChild(__e1);
-      const __e45 = document.createElement("main");
-      __e45.setAttribute("class", "studio-main");
-      const __ifAnchor46 = document.createComment("if");
-      __e45.appendChild(__ifAnchor46);
-      __cleanups.push(__wireBoundary_b16(__ifAnchor46));
-      __e0.appendChild(__e45);
+      const __e49 = document.createElement("main");
+      __e49.setAttribute("class", "studio-main");
+      const __ifAnchor50 = document.createComment("if");
+      __e49.appendChild(__ifAnchor50);
+      __cleanups.push(__wireBoundary_b16(__ifAnchor50));
+      __e0.appendChild(__e49);
       container.appendChild(__e0);
       return () => {
         for (const c of __cleanups)

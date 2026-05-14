@@ -47,11 +47,15 @@ const STUDIO_HIDE_TAGS = new Set<string>([
   'sui-devtools-components',
 ])
 
-// Baked SUI views not surfaced by /api/v1/views.
+// Baked SUI views not surfaced by /api/v1/views. The endpoint currently
+// reports every view as `type: "html"`, so the kind=='sui' filter in
+// loadDaemonViews() yields zero entries — these baked ids keep the
+// `view` row populated until the daemon emits the SUI type. Every id
+// here must resolve to an actual /_sui/views/<id> payload, otherwise
+// the studio's iframe preview hits a 404 and renders blank.
 const BAKED_SUI_VIEWS: CatalogEntry[] = [
-  { id: 'counter', tag: 'counter', kind: 'view', description: 'Simple counter demo' },
-  { id: 'agents',  tag: 'agents',  kind: 'view', description: 'Agent list' },
-  { id: 'git',     tag: 'git',     kind: 'view', description: 'Git overview' },
+  { id: 'agents', tag: 'agents', kind: 'view', description: 'Agent list' },
+  { id: 'git',    tag: 'git',    kind: 'view', description: 'Git overview' },
 ]
 
 interface CemAttribute {

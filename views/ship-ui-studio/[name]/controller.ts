@@ -34,6 +34,39 @@ let sharedFrame: HTMLIFrameElement | null = null
 let sharedNode: HTMLElement | null = null
 let sharedNodeTag: string | null = null
 
+// Components shipped as their own island bundle at
+// `/_sui/islands/<tag>/island.js`. The daemon normally injects these into the
+// host page by static-scanning view templates for the tag, but the
+// studio creates host nodes via `document.createElement(tag)` at
+// runtime — the daemon can't see those, so the island module never
+// runs and the host never upgrades. Eagerly fetch the bundle when the
+// studio is about to render one of these tags. The other island tags
+// (panel-dock, nav-top, command-bar, rail, terminal, launcher,
+// devtools) live on STUDIO_HIDE_TAGS in catalog.ts so they don't
+// reach this code path.
+const ISLAND_TAGS = new Set<string>([
+  'sui-code-editor',
+  'sui-markdown-editor',
+])
+const islandsLoaded = new Set<string>()
+function ensureIsland(tag: string): void {
+  if (!ISLAND_TAGS.has(tag) || islandsLoaded.has(tag)) return
+  if (customElements.get(tag)) {
+    islandsLoaded.add(tag)
+    return
+  }
+  islandsLoaded.add(tag)
+  // Fire-and-forget. The host node is already in the DOM; once the
+  // module evaluates it calls customElements.define and the existing
+  // element upgrades in place — no need to re-create the host.
+  import(/* @vite-ignore */ `/_sui/islands/${tag}/island.js`).catch(() => {
+    // Leave the host un-upgraded on failure so the studio visibly
+    // fails for the offending tag rather than silently pretending the
+    // component is present.
+    islandsLoaded.delete(tag)
+  })
+}
+
 export default controller<Scope>({
   scope: () => ({
     allCatalog: signal<CatalogEntry[]>([]),
@@ -43,19 +76,28 @@ export default controller<Scope>({
     filterKind: signal<StudioFilterKind>('all'),
     filterText: signal(''),
     copyFeedback: signal(false),
+    // Authoritative subroute slug — seeded from `location.pathname` at
+    // mount() rather than `route.params.name()`. The shell pre-registers
+    // the dynamic pattern as `/ship-ui-studio/:component` (see
+    // apps/shell2/src/main.ts), so the view's own `defineRoutes` call
+    // above lands in a different runtime instance and the shell's
+    // shared `route` proxy never seeds `params.name`. Reading the
+    // pathname sidesteps that mismatch entirely — every catalog click
+    // full-remounts this view, so we don't need reactive route params
+    // to track nav.
+    currentName: signal<string>(''),
   }),
 
   derived: {
-    entry: ({ allCatalog, route }) => {
-      const name = route.params.name()
+    entry: ({ allCatalog, currentName }) => {
+      const name = currentName()
       if (!name) return null
-      return allCatalog().find(e => e.id === name) ?? null
+      return (allCatalog() as CatalogEntry[]).find(e => e.id === name) ?? null
     },
     hasProps: ({ entry }) => {
       const e = entry() as CatalogEntry | null
       return e !== null && (e.props ?? []).length > 0
     },
-    currentName: ({ route }) => route.params.name() ?? '',
     filteredCatalog: ({ allCatalog, filterKind, filterText }) => {
       const kind = filterKind()
       const text = filterText().toLowerCase()
@@ -112,6 +154,7 @@ export default controller<Scope>({
     // defineRoutes above, but mount runs before the first reactive tick.
     const segments = location.pathname.split('/').filter(Boolean)
     const name = segments[segments.length - 1] ?? ''
+    state.currentName = name
     const entry = all.find(e => e.id === name)
 
     if (!entry) {
@@ -183,6 +226,7 @@ export default controller<Scope>({
       sharedNode.className = 'detail-rendered-component'
       sharedNodeTag = entry.tag
     }
+    ensureIsland(entry.tag)
     const node = sharedNode
     // Reset transform (cleared in case the prior mount applied ZOOM)
     node.style.transform = ''
