@@ -10,6 +10,8 @@
   theme    (string, '')         current theme ID
   online   (bool, false, reflect)  daemon connection state; dot is green/red
   agents   (string, '')         active agent indicator text
+  mode     (string, '')         daemon operating mode ('development' | 'production');
+                                renders a DEV badge when value === 'development'
   ─────────────────────────────────────────────────────────────────────────────
   Slots:
     start  — view-injected status content between branch and spacer
@@ -31,6 +33,7 @@
 <prop name="theme" type="string" default="" />
 <prop name="online" type="bool" default="false" reflect />
 <prop name="agents" type="string" default="" />
+<prop name="mode" type="string" default="" />
 
 <style>
   :host {
@@ -77,6 +80,28 @@
   }
 
   .spacer { flex: 1; }
+
+  /* DEV badge. Rendered when [mode="development"]; mirrors apps/shell
+     parity where shipd-served HTML rewrites the meta to "production"
+     and the badge disappears. The mode attribute is set on this host
+     by apps/shell2/src/main.ts at boot; without this rule the
+     attribute was inert. */
+  .mode {
+    display: none;
+    font-family: var(--mono-font, var(--font-mono));
+    font-size: 9.5px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    padding: 1px 5px;
+    border-radius: var(--radius-sm, 4px);
+    background: color-mix(in oklab, var(--warning, #d97706) 18%, transparent);
+    color: var(--warning, #d97706);
+    border: 1px solid color-mix(in oklab, var(--warning, #d97706) 36%, transparent);
+    text-transform: uppercase;
+    line-height: 1.2;
+    flex-shrink: 0;
+  }
+  :host([mode="development"]) .mode { display: inline-flex; }
 </style>
 
 <span class="dot" part="dot" aria-hidden="true"></span>
@@ -85,4 +110,5 @@
 <span class="slot-wrap"><slot name="start"></slot></span>
 <span class="spacer"></span>
 <span class="slot-wrap"><slot name="end"></slot></span>
+<span class="mode" part="mode" aria-label="Daemon mode">dev</span>
 <span class="text" part="theme">{theme()}</span>
