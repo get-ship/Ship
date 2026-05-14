@@ -138,9 +138,7 @@ export default controller<Scope>({
       previewError.set('')
       previewText.set('')
       try {
-        const resp = await fetch(`/api/v1/artifacts/${item.id}`, { credentials: 'same-origin' })
-        if (!resp.ok) { previewError.set(`HTTP ${resp.status}`); return }
-        const text = await resp.text()
+        const text = await ship.artifacts.get({ id: item.id })
         previewText.set(text.length > 50_000 ? text.slice(0, 50_000) + '\n…(truncated)' : text)
       } catch (e) {
         previewError.set((e as Error).message)
@@ -151,6 +149,12 @@ export default controller<Scope>({
 
     void refresh()
 
+    // SDK upload wrapper captured from ctx so the `submitUpload` on-
+    // handler can reach the daemon through the typed surface instead
+    // of constructing FormData inline.
+    const uploadArtifact = (args: { file: File; collection_id?: string }) =>
+      ship.artifacts.upload(args)
+
     return {
       items, loading, loadError,
       mimeFilter, collectionFilter, searchQuery,
@@ -158,7 +162,7 @@ export default controller<Scope>({
       uploadOpen, uploadFiles, uploadCollection, uploadError, uploading,
       collectionsLive, collectionOptions,
       visibleItems, totalCount, visibleCount, hasActiveFilters, detailUrl, previewKind,
-      refresh, loadPreview,
+      refresh, loadPreview, uploadArtifact,
     }
   },
 
@@ -206,16 +210,10 @@ export default controller<Scope>({
       s.uploading = true
       s.uploadError = ''
       try {
-        const fd = new FormData()
-        fd.append('file', files[0]!)
         const col = (s.uploadCollection as string).trim()
-        if (col) fd.append('collection_id', col)
-        const res = await fetch('/api/v1/artifacts', { method: 'POST', credentials: 'same-origin', body: fd })
-        if (!res.ok) {
-          const txt = await res.text().catch(() => '')
-          s.uploadError = txt || `Upload failed (HTTP ${res.status})`
-          return
-        }
+        const args: { file: File; collection_id?: string } = { file: files[0]! }
+        if (col) args.collection_id = col
+        await (s.uploadArtifact as (a: { file: File; collection_id?: string }) => Promise<unknown>)(args)
         s.uploadOpen = false
         s.uploadFiles = []
         s.uploadCollection = ''

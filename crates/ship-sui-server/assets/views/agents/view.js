@@ -15,6 +15,8 @@ var slugify = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$
 var controller_default = controller({
   scope: ({ ship }) => {
     const agentEvents = live(() => ship.events.list({ event_type: "agent.", limit: 50 }));
+    const createAgent = (args) => ship.agents.create(args);
+    const startSession = (args) => ship.sessions.start(args);
     const agentStatus = derived(() => {
       const env = agentEvents();
       if (env.kind !== "ok")
@@ -57,7 +59,9 @@ var controller_default = controller({
       submitting,
       formErr,
       modelOptions,
-      canSubmit
+      canSubmit,
+      createAgent,
+      startSession
     };
   },
   derived: {
@@ -110,39 +114,27 @@ var controller_default = controller({
         permissions: { preset: "standard" }
       };
       try {
-        const resp = await fetch("/api/v1/agents", {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id, doc })
-        });
-        if (!resp.ok) {
-          const body = await resp.json().catch(() => ({}));
-          s.formErr = body.message ?? `HTTP ${resp.status}`;
-          s.submitting = false;
-          return;
-        }
+        await s.createAgent({ id, doc });
         s.dialogOpen = false;
         window.location.reload();
       } catch (err) {
-        s.formErr = "Network: " + (err instanceof Error ? err.message : String(err));
+        const msg = err instanceof Error ? err.message : String(err);
+        s.formErr = msg.startsWith("[ship-sdk-client]") ? msg : "Network: " + msg;
         s.submitting = false;
       }
     },
-    openSession: async (_s, agentId, provider, evt) => {
+    openSession: async (s, agentId, provider, evt) => {
       if (evt) {
         evt.preventDefault();
         evt.stopPropagation();
       }
       try {
-        const resp = await fetch("/api/v1/sessions/spawn", {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ workspace_id: "main", kind: "agent", agent_id: agentId, provider })
+        await s.startSession({
+          workspace_id: "main",
+          kind: "agent",
+          agent_id: agentId,
+          provider
         });
-        if (!resp.ok)
-          return;
         window.location.href = "/sessions";
       } catch {}
     }

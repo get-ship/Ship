@@ -143,7 +143,14 @@ export type {
   BindWhileErrorOptions,
 } from './while'
 
-export type { ShipSDK, WorkspaceSummary } from './ship'
+export type {
+  ArtifactRecord,
+  CollectionFieldRecord,
+  CollectionSummary,
+  ShipSDK,
+  SkillIndexEntry,
+  WorkspaceSummary,
+} from './ship'
 
 export { component, prop } from './component'
 export type { PropDef, ComponentDef, ComponentSetupContext } from './component'

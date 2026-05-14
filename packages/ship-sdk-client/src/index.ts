@@ -1,52 +1,47 @@
 // @ship/sdk-client — browser SDK shim for ship-set views.
 //
-// Each domain method returns a `LiveSource` (see @ship/sui-runtime/live):
-// the runtime's `live()` detects the shape, calls `subscribe(sig)` to
-// open the patch stream, and the first SSE event flips the signal from
-// `loading` to `ok`. The disposer returned by `subscribe` closes the
-// EventSource on tear-down.
+// Each domain method returns either a `LiveSource` (read — opens an SSE
+// channel to `/_sui/data?expr=ship.<domain>.<op>(<args>)`) or a Promise
+// (write — POST/PUT/PATCH/DELETE against the daemon's REST surface).
+// The runtime's `live()` detects the source shape, calls `subscribe(sig)`
+// to open the patch stream, and the first SSE event flips the signal
+// from `loading` to `ok`. The disposer returned by `subscribe` closes
+// the EventSource on tear-down.
 //
-// Wire format: the daemon's `/_sui/data?expr=ship.<domain>.<op>()`
-// endpoint streams `event: patch` frames whose data payload matches the
-// runtime's Patch shape (currently always `{op: 'set', value: ...}`).
-// Subsequent ops (`merge`, `append`, …) flow through `applyPatch` so a
-// future server-side narrowing to per-row patches lights up without an
-// SDK change.
+// HTTP plumbing lives in `./http.ts`; the SSE bridge in `./sse.ts`.
+// Keeping `index.ts` to the surface declaration only respects the 300-
+// line file cap and makes the SDK surface readable at a glance.
 
 import {
   type AgentsSummariesResponse,
+  type ArtifactRecord,
   type GitDiff,
   type GitDiffArgs,
   type GitOverview,
-  type LiveSignal,
   type LiveSource,
   type ShipSDK,
 } from '@ship/sui-runtime'
-// R3: applyPatch + Patch live at the /patch subpath now (the runtime
-// barrel no longer re-exports them). sdk-client uses them to mutate
-// the live signal in place when the daemon streams a partial patch
-// (op !== 'set').
-import { applyPatch, type Patch } from '@ship/sui-runtime/patch'
+import { fetchBody, mutateForm, mutateJson } from './http'
+import { makeSseSource } from './sse'
+
+export { makeSseSource } from './sse'
 
 export type {
   AgentSummary,
   AgentsSummariesResponse,
+  ArtifactRecord,
   BranchSummary as GitBranch,
+  CollectionFieldRecord,
+  CollectionSummary,
   CommitSummary as GitCommit,
   GitDiff,
   GitDiffArgs,
   GitOverview,
+  ShipSDK,
+  SkillIndexEntry,
   StatusFile as GitFileEntry,
   WorkspaceSummary,
 } from '@ship/sui-runtime'
-
-/**
- * Public Ship SDK surface as exposed to view setups. Owned by
- * `@ship/sui-runtime` (so controllers see the full shape without an
- * extra import) and re-exported here for callers that prefer the
- * sdk-client entrypoint.
- */
-export type { ShipSDK } from '@ship/sui-runtime'
 
 /** Options accepted by `createClient`. */
 export interface CreateClientOpts {
@@ -64,13 +59,14 @@ export interface CreateClientOpts {
 
 /**
  * Build a Ship SDK handle. The returned object carries one method per
- * domain; each call returns a `LiveSource<T>` ready to be passed to
- * `live()`.
+ * domain; each call returns either a `LiveSource<T>` ready to be passed
+ * to `live()` or a Promise for mutation ops.
  *
  * @example
  * ```ts
  * const ship = createClient()
  * const agents = live(() => ship.agents.summaries())
+ * await ship.agents.create({ id: 'foo', doc: { ... } })
  * ```
  */
 export function createClient(opts?: CreateClientOpts): ShipSDK {
@@ -79,8 +75,7 @@ export function createClient(opts?: CreateClientOpts): ShipSDK {
 
   // Build the `/_sui/data?expr=...` SSE URL for a single op call. The
   // daemon parses the expr as `ship.<domain>.<op>(<json>?)`. Args are
-  // emitted as a JSON object literal when present (same wire format
-  // git.diff has used since the SDK landed).
+  // emitted as a JSON object literal when present.
   const sse = <T>(domain: string, op: string, args?: unknown): LiveSource<T> => {
     const argsLit = args === undefined ? '' : JSON.stringify(args)
     const expr = `ship.${domain}.${op}(${argsLit})`
@@ -90,35 +85,13 @@ export function createClient(opts?: CreateClientOpts): ShipSDK {
     )
   }
 
-  // Mutation helper — POST/DELETE against the daemon's REST surface.
-  // Cookie-bound so the auth middleware sees the session. JSON body
-  // when provided, no body for DELETE.
-  const mutate = async <T>(
-    method: 'POST' | 'DELETE',
-    path: string,
-    body?: unknown,
-  ): Promise<T> => {
-    const init: RequestInit = { method, credentials: 'same-origin' }
-    if (body !== undefined) {
-      init.headers = { 'content-type': 'application/json' }
-      init.body = JSON.stringify(body)
-    }
-    const resp = await fetch(`${baseUrl}${path}`, init)
-    if (!resp.ok) {
-      // Pull the daemon's JSON error envelope when we can; fall back
-      // to status text otherwise so the caller always sees a useful msg.
-      let detail = `${resp.status} ${resp.statusText}`
-      try {
-        const text = await resp.text()
-        if (text) detail = text
-      } catch { /* keep status-line fallback */ }
-      throw new Error(`[ship-sdk-client] ${method} ${path} failed: ${detail}`)
-    }
-    if (resp.status === 204) return undefined as unknown as T
-    const ct = resp.headers.get('content-type') ?? ''
-    if (ct.includes('application/json')) return (await resp.json()) as T
-    return undefined as unknown as T
-  }
+  // Curried HTTP helpers — bind baseUrl once so the per-op factories
+  // below stay terse.
+  const json = <T>(method: 'POST' | 'PUT' | 'PATCH' | 'DELETE', path: string, body?: unknown) =>
+    mutateJson<T>(baseUrl, method, path, body)
+  const form = <T>(path: string, body: FormData) => mutateForm<T>(baseUrl, path, body)
+  const body = <T>(path: string, as: 'text' | 'blob' | 'json') =>
+    fetchBody<T>(baseUrl, path, as)
 
   return {
     agents: {
@@ -128,6 +101,17 @@ export function createClient(opts?: CreateClientOpts): ShipSDK {
       detail:    (args) => sse('agents', 'detail', args),
       settings:  (args) => sse('agents', 'settings', args),
       catalogs:    () => sse('agents', 'catalogs'),
+      create:    (args) =>
+        json<{ ok: true; id: string }>('POST', '/api/v1/agents', {
+          id: args.id,
+          doc: args.doc,
+        }),
+      update:    (args) =>
+        json<{ ok: true; id: string }>(
+          'PUT',
+          `/api/v1/agents/${encodeURIComponent(args.id)}`,
+          args.doc,
+        ),
     },
     canvas: {
       doc:  (args) => sse('canvas', 'doc', args),
@@ -141,6 +125,43 @@ export function createClient(opts?: CreateClientOpts): ShipSDK {
       detail: (args) => sse('collections', 'detail', args),
       items:  (args) => sse('collections', 'items', args),
       list:      () => sse('collections', 'list'),
+      create: (args) =>
+        json<{ ok: true; id: string }>('POST', '/api/v1/collections', {
+          id: args.id,
+          name: args.name ?? args.id,
+          fields: args.fields ?? {},
+        }),
+      update_schema: (args) =>
+        json<{ ok: true; id: string }>(
+          'PUT',
+          `/api/v1/collections/${encodeURIComponent(args.id)}/schema`,
+          { id: args.id, fields: args.fields },
+        ),
+      get_item: (args) =>
+        body<{ ok: true; data: { id: string; data: Record<string, unknown> } }>(
+          `/api/v1/collections/${encodeURIComponent(args.collection)}/items/${encodeURIComponent(args.item_id)}`,
+          'json',
+        ),
+      create_item: (args) => {
+        const b: Record<string, unknown> = { data: args.data }
+        if (args.id !== undefined) b.id = args.id
+        return json<{ ok: true; id: string }>(
+          'POST',
+          `/api/v1/collections/${encodeURIComponent(args.collection)}/items`,
+          b,
+        )
+      },
+      update_item: (args) =>
+        json<{ ok: true; id: string }>(
+          'PUT',
+          `/api/v1/collections/${encodeURIComponent(args.collection)}/items/${encodeURIComponent(args.item_id)}`,
+          { data: args.data },
+        ),
+      delete_item: (args) =>
+        json<void>(
+          'DELETE',
+          `/api/v1/collections/${encodeURIComponent(args.collection)}/items/${encodeURIComponent(args.item_id)}`,
+        ),
     },
     dashboard: {
       state: () => sse('dashboard', 'state'),
@@ -164,18 +185,18 @@ export function createClient(opts?: CreateClientOpts): ShipSDK {
     sessions: {
       list: () => sse('sessions', 'list'),
       start: (args) =>
-        mutate<{ session_id: string; attached: boolean }>(
+        json<{ session_id: string; attached: boolean }>(
           'POST',
           '/api/v1/sessions/spawn',
           args,
         ),
-      end: (args) => mutate<void>('DELETE', `/api/v1/sessions/${encodeURIComponent(args.id)}`),
+      end: (args) => json<void>('DELETE', `/api/v1/sessions/${encodeURIComponent(args.id)}`),
     },
     workspaces: {
       list:    () => sse('workspaces', 'list'),
       active:  () => sse('workspaces', 'active'),
       activate: (args) =>
-        mutate<{ ok: true; active: string }>(
+        json<{ ok: true; active: string }>(
           'POST',
           '/api/v1/projects/switch',
           { id: args.id },
@@ -183,13 +204,25 @@ export function createClient(opts?: CreateClientOpts): ShipSDK {
     },
     artifacts: {
       list: (args) => sse('artifacts', 'list', args),
+      get: ((args: { id: string; as?: 'text' | 'blob' | 'json' }) =>
+        body(`/api/v1/artifacts/${encodeURIComponent(args.id)}`, args.as ?? 'text')
+      ) as ShipSDK['artifacts']['get'],
+      upload: (args) => {
+        const fd = new FormData()
+        const name = args.filename
+          ?? (args.file instanceof File ? args.file.name : 'upload.bin')
+        fd.append('file', args.file, name)
+        if (args.collection_id) fd.append('collection_id', args.collection_id)
+        if (args.item_id) fd.append('item_id', args.item_id)
+        return form<{ ok: true; data: ArtifactRecord }>('/api/v1/artifacts', fd)
+      },
     },
     skills: {
       list:        () => sse('skills', 'list'),
       summaries: (args) => sse('skills', 'summaries', args),
       detail:    (args) => sse('skills', 'detail', args),
       invoke:    (args) =>
-        mutate<{
+        json<{
           ok: true
           run_id: string
           skill_id: string
@@ -209,103 +242,3 @@ export function createClient(opts?: CreateClientOpts): ShipSDK {
     },
   }
 }
-
-/**
- * Wire one `_sui/data` SSE channel into a `LiveSource`. The first
- * `patch` event with `op === 'set'` flips the signal to ok; subsequent
- * events go through `applyPatch` against a façade that maps T <→ ok-state.
- *
- * Visible for tests via the package main barrel — production code uses
- * `createClient`.
- */
-export function makeSseSource<T>(
-  url: string,
-  ESCtor: typeof globalThis.EventSource | undefined,
-): LiveSource<T> {
-  return {
-    subscribe(sig: LiveSignal<T>): () => void {
-      if (!ESCtor) {
-        sig.set({
-          kind: 'error',
-          error: new Error('[ship-set/sdk-client] no EventSource available'),
-        })
-        return () => {}
-      }
-      const facade = makeFacade<T>(sig)
-      const es = new ESCtor(url)
-      let firstSeen = false
-
-      const onPatch = (ev: MessageEvent): void => {
-        let patch: Patch
-        try {
-          patch = JSON.parse(ev.data) as Patch
-        } catch (err) {
-          sig.set({ kind: 'error', error: toError(err) })
-          return
-        }
-        try {
-          if (!firstSeen) {
-            firstSeen = true
-            // The first frame is always a full `set` from the resolver.
-            // Use the value directly so the signal transitions cleanly
-            // from loading → ok with the same patch flow as updates.
-            if (patch.op === 'set' && (!patch.path || patch.path === '')) {
-              sig.set({ kind: 'ok', value: patch.value as T })
-            } else {
-              applyPatch(facade, patch)
-            }
-          } else {
-            applyPatch(facade, patch)
-          }
-        } catch (err) {
-          sig.set({ kind: 'error', error: toError(err) })
-        }
-      }
-      const onError = (): void => {
-        if (!firstSeen) {
-          sig.set({
-            kind: 'error',
-            error: new Error('[ship-set/sdk-client] SSE connection error'),
-          })
-        }
-      }
-
-      es.addEventListener('patch', onPatch as EventListener)
-      es.addEventListener('error', onError)
-
-      return () => {
-        es.removeEventListener('patch', onPatch as EventListener)
-        es.removeEventListener('error', onError)
-        es.close()
-      }
-    },
-  }
-}
-
-/**
- * Project a `LiveSignal<T>` into a plain `Signal<T>` view for `applyPatch`.
- * Reads return the inner ok value (undefined while loading/error); writes
- * transition to `{ kind: 'ok', value }`.
- */
-function makeFacade<T>(sig: LiveSignal<T>): import('@ship/sui-runtime').Signal<T> {
-  type Inner = import('@ship/sui-runtime').Signal<T>
-  const reader = (() => {
-    const v = sig()
-    return v.kind === 'ok' ? v.value : (undefined as unknown as T)
-  }) as Inner
-  reader.set = (next) => {
-    const cur = sig.__peek()
-    const prev = cur.kind === 'ok' ? cur.value : (undefined as unknown as T)
-    const v = typeof next === 'function' ? (next as (p: T) => T)(prev) : next
-    sig.set({ kind: 'ok', value: v })
-  }
-  reader.__subs = sig.__subs
-  reader.__peek = () => {
-    const v = sig.__peek()
-    return v.kind === 'ok' ? v.value : (undefined as unknown as T)
-  }
-  return reader
-}
-
-const toError = (err: unknown): Error =>
-  err instanceof Error ? err : new Error(String(err))

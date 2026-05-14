@@ -268,6 +268,171 @@ describe('createClient', () => {
     }
   })
 
+  it('agents.create POSTs {id, doc} to /api/v1/agents', async () => {
+    const calls: Array<{ url: string; init?: RequestInit }> = []
+    const orig = globalThis.fetch
+    globalThis.fetch = async (url: any, init?: any) => {
+      calls.push({ url: String(url), init })
+      return new Response(JSON.stringify({ ok: true, id: 'foo' }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      })
+    }
+    try {
+      const ship = createClient({ EventSource: FakeEventSource as any })
+      const doc = { agent: { id: 'foo', name: 'Foo' } }
+      const resp = await ship.agents.create({ id: 'foo', doc })
+      expect(resp).toEqual({ ok: true, id: 'foo' })
+      expect(calls[0]!.url).toBe('/api/v1/agents')
+      expect(calls[0]!.init?.method).toBe('POST')
+      expect(JSON.parse(calls[0]!.init?.body as string)).toEqual({ id: 'foo', doc })
+    } finally {
+      globalThis.fetch = orig
+    }
+  })
+
+  it('agents.update PUTs the doc body to /api/v1/agents/{id}', async () => {
+    const calls: Array<{ url: string; init?: RequestInit }> = []
+    const orig = globalThis.fetch
+    globalThis.fetch = async (url: any, init?: any) => {
+      calls.push({ url: String(url), init })
+      return new Response(JSON.stringify({ ok: true, id: 'foo' }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      })
+    }
+    try {
+      const ship = createClient({ EventSource: FakeEventSource as any })
+      await ship.agents.update({ id: 'foo', doc: { agent: { id: 'foo' } } })
+      expect(calls[0]!.url).toBe('/api/v1/agents/foo')
+      expect(calls[0]!.init?.method).toBe('PUT')
+    } finally {
+      globalThis.fetch = orig
+    }
+  })
+
+  it('collections.create_item POSTs to /api/v1/collections/{id}/items', async () => {
+    const calls: Array<{ url: string; init?: RequestInit }> = []
+    const orig = globalThis.fetch
+    globalThis.fetch = async (url: any, init?: any) => {
+      calls.push({ url: String(url), init })
+      return new Response(JSON.stringify({ ok: true, id: 'item-1' }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      })
+    }
+    try {
+      const ship = createClient({ EventSource: FakeEventSource as any })
+      await ship.collections.create_item({
+        collection: 'systems',
+        data: { name: 'X' },
+      })
+      expect(calls[0]!.url).toBe('/api/v1/collections/systems/items')
+      expect(JSON.parse(calls[0]!.init?.body as string)).toEqual({ data: { name: 'X' } })
+    } finally {
+      globalThis.fetch = orig
+    }
+  })
+
+  it('collections.update_item PUTs and collections.delete_item DELETEs', async () => {
+    const calls: Array<{ url: string; init?: RequestInit }> = []
+    const orig = globalThis.fetch
+    globalThis.fetch = async (url: any, init?: any) => {
+      calls.push({ url: String(url), init })
+      return new Response(JSON.stringify({ ok: true, id: 'r-1' }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      })
+    }
+    try {
+      const ship = createClient({ EventSource: FakeEventSource as any })
+      await ship.collections.update_item({
+        collection: 'systems',
+        item_id: 'r-1',
+        data: { a: 1 },
+      })
+      await ship.collections.delete_item({ collection: 'systems', item_id: 'r-1' })
+      expect(calls[0]!.url).toBe('/api/v1/collections/systems/items/r-1')
+      expect(calls[0]!.init?.method).toBe('PUT')
+      expect(calls[1]!.init?.method).toBe('DELETE')
+    } finally {
+      globalThis.fetch = orig
+    }
+  })
+
+  it('collections.create POSTs to /api/v1/collections with id/name/fields', async () => {
+    const calls: Array<{ url: string; init?: RequestInit }> = []
+    const orig = globalThis.fetch
+    globalThis.fetch = async (url: any, init?: any) => {
+      calls.push({ url: String(url), init })
+      return new Response(JSON.stringify({ ok: true, id: 'x' }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      })
+    }
+    try {
+      const ship = createClient({ EventSource: FakeEventSource as any })
+      await ship.collections.create({ id: 'x', name: 'X collection' })
+      const body = JSON.parse(calls[0]!.init?.body as string)
+      expect(body).toEqual({ id: 'x', name: 'X collection', fields: {} })
+    } finally {
+      globalThis.fetch = orig
+    }
+  })
+
+  it('artifacts.get returns text by default and json with as=json', async () => {
+    const orig = globalThis.fetch
+    globalThis.fetch = async (url: any) => {
+      const u = String(url)
+      if (u.endsWith('/a1')) {
+        return new Response('hello world', {
+          status: 200,
+          headers: { 'content-type': 'text/plain' },
+        })
+      }
+      return new Response(JSON.stringify({ ok: true, value: 42 }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      })
+    }
+    try {
+      const ship = createClient({ EventSource: FakeEventSource as any })
+      const text = await ship.artifacts.get({ id: 'a1' })
+      expect(text).toBe('hello world')
+      const json = await ship.artifacts.get({ id: 'a2', as: 'json' })
+      expect(json).toEqual({ ok: true, value: 42 })
+    } finally {
+      globalThis.fetch = orig
+    }
+  })
+
+  it('artifacts.upload posts multipart form to /api/v1/artifacts', async () => {
+    const calls: Array<{ url: string; init?: RequestInit }> = []
+    const orig = globalThis.fetch
+    globalThis.fetch = async (url: any, init?: any) => {
+      calls.push({ url: String(url), init })
+      return new Response(
+        JSON.stringify({ ok: true, data: { id: 'a1', name: 'foo.txt', mime: 'text/plain' } }),
+        { status: 200, headers: { 'content-type': 'application/json' } },
+      )
+    }
+    try {
+      const ship = createClient({ EventSource: FakeEventSource as any })
+      // jsdom has File/Blob — pass a File.
+      const file = new File(['hello'], 'foo.txt', { type: 'text/plain' })
+      const resp = await ship.artifacts.upload({ file, collection_id: 'systems' })
+      expect((resp as { ok: boolean }).ok).toBe(true)
+      expect(calls[0]!.url).toBe('/api/v1/artifacts')
+      expect(calls[0]!.init?.method).toBe('POST')
+      expect(calls[0]!.init?.body).toBeInstanceOf(FormData)
+      const fd = calls[0]!.init?.body as FormData
+      expect(fd.get('file')).toBeInstanceOf(File)
+      expect(fd.get('collection_id')).toBe('systems')
+    } finally {
+      globalThis.fetch = orig
+    }
+  })
+
   it('disposer closes the EventSource', () => {
     FakeEventSource.instances = []
     const source = makeSseSource('http://test', FakeEventSource as any)

@@ -30,11 +30,34 @@ export default controller<Scope>({
     const newColDraftId = signal('')
     const newColDraftName = signal('')
     const drawerError = signal('')
+    // SDK mutators captured from the controller ctx so `on` handlers can
+    // reach the daemon through the typed surface instead of raw fetch.
+    const createItem = (a: { collection: string; data: Record<string, unknown> }) =>
+      ship.collections.create_item(a)
+    const updateItem = (a: {
+      collection: string
+      item_id: string
+      data: Record<string, unknown>
+    }) => ship.collections.update_item(a)
+    const deleteItem = (a: { collection: string; item_id: string }) =>
+      ship.collections.delete_item(a)
+    const updateSchema = (a: {
+      id: string
+      fields: Array<{
+        name: string
+        type: string
+        required?: boolean
+        values?: string[]
+      }>
+    }) => ship.collections.update_schema(a)
+    const createCol = (a: { id: string; name?: string; fields?: Record<string, unknown> }) =>
+      ship.collections.create(a)
     return {
       activeId, colDetail, schemaFieldsView, tab,
       newRowOpen, editOpen, editId, newColOpen,
       rowDraft, editDraft, newColDraftId, newColDraftName,
       drawerError,
+      createItem, updateItem, deleteItem, updateSchema, createCol,
     }
   },
   on: {
@@ -50,13 +73,14 @@ export default controller<Scope>({
     },
     saveNewRow: async (s) => {
       const id = s.activeId as string
-      const res = await fetch(`/api/v1/collections/${id}/items`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ data: s.rowDraft }),
-      })
-      if (!res.ok) { s.drawerError = await res.text().catch(() => 'Request failed'); return }
+      try {
+        await (s.createItem as (a: { collection: string; data: Record<string, unknown> }) => Promise<unknown>)(
+          { collection: id, data: s.rowDraft as Record<string, unknown> },
+        )
+      } catch (err) {
+        s.drawerError = err instanceof Error ? err.message : 'Request failed'
+        return
+      }
       s.newRowOpen = false
       s.rowDraft = {}
       s.drawerError = ''
@@ -64,13 +88,16 @@ export default controller<Scope>({
     saveEdit: async (s) => {
       const colId = s.activeId as string
       const rowId = s.editId as string
-      const res = await fetch(`/api/v1/collections/${colId}/items/${rowId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ data: s.editDraft }),
-      })
-      if (!res.ok) { s.drawerError = await res.text().catch(() => 'Request failed'); return }
+      try {
+        await (s.updateItem as (a: {
+          collection: string
+          item_id: string
+          data: Record<string, unknown>
+        }) => Promise<unknown>)({ collection: colId, item_id: rowId, data: s.editDraft as Record<string, unknown> })
+      } catch (err) {
+        s.drawerError = err instanceof Error ? err.message : 'Request failed'
+        return
+      }
       s.editOpen = false
       s.editDraft = {}
       s.drawerError = ''
@@ -78,10 +105,11 @@ export default controller<Scope>({
     deleteRow: async (s) => {
       const colId = s.activeId as string
       const rowId = s.editId as string
-      await fetch(`/api/v1/collections/${colId}/items/${rowId}`, {
-        method: 'DELETE',
-        credentials: 'include',
-      })
+      try {
+        await (s.deleteItem as (a: { collection: string; item_id: string }) => Promise<void>)({
+          collection: colId, item_id: rowId,
+        })
+      } catch { /* swallow — UI reflects via SSE refresh */ }
       s.editOpen = false
       s.editDraft = {}
       s.drawerError = ''
@@ -99,23 +127,26 @@ export default controller<Scope>({
           values: x.values ?? [],
         }))
       const colId = s.activeId as string
-      await fetch('/api/v1/collections/' + colId + '/schema', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ id: colId, fields: fs }),
-      })
+      try {
+        await (s.updateSchema as (a: {
+          id: string
+          fields: Array<{ name: string; type: string; required?: boolean; values?: string[] }>
+        }) => Promise<unknown>)({ id: colId, fields: fs })
+      } catch { /* surface via existing error path on next render */ }
     },
     createCollection: async (s) => {
       const id = (s.newColDraftId as string).trim()
       if (!id) { s.drawerError = 'Collection ID is required'; return }
-      const res = await fetch('/api/v1/collections', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ id, name: (s.newColDraftName as string).trim() || id, fields: {} }),
-      })
-      if (!res.ok) { s.drawerError = await res.text().catch(() => 'Request failed'); return }
+      try {
+        await (s.createCol as (a: { id: string; name?: string; fields?: Record<string, unknown> }) => Promise<unknown>)({
+          id,
+          name: (s.newColDraftName as string).trim() || id,
+          fields: {},
+        })
+      } catch (err) {
+        s.drawerError = err instanceof Error ? err.message : 'Request failed'
+        return
+      }
       s.newColOpen = false
       s.newColDraftId = ''
       s.newColDraftName = ''

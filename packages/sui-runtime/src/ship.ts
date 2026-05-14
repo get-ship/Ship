@@ -93,6 +93,17 @@ export interface ShipSDK {
     settings(args: { id: string }): LiveSource<unknown>
     /** Catalog rows for the agents list (providers, skills, etc.). */
     catalogs(): LiveSource<unknown>
+    /** Create an agent. Body is the agent doc as written to disk; `id` is
+     *  the agent slug. */
+    create(args: { id: string; doc: Record<string, unknown> }): Promise<{
+      ok: true
+      id: string
+    }>
+    /** Replace an agent doc (PUT). Used by agent settings + wire panes. */
+    update(args: { id: string; doc: Record<string, unknown> }): Promise<{
+      ok: true
+      id: string
+    }>
   }
   canvas: {
     /** Canvas document body. */
@@ -125,6 +136,41 @@ export interface ShipSDK {
     }>
     /** All collection summaries. */
     list(): LiveSource<{ items: CollectionSummary[] }>
+    /** Create a new collection schema. */
+    create(args: {
+      id: string
+      name?: string
+      fields?: Record<string, unknown>
+    }): Promise<{ ok: true; id: string }>
+    /** Replace a collection's schema (field set). */
+    update_schema(args: {
+      id: string
+      fields: Array<{
+        name: string
+        type: string
+        required?: boolean
+        values?: string[]
+      }>
+    }): Promise<{ ok: true; id: string }>
+    /** Read a single item by id. */
+    get_item(args: { collection: string; item_id: string }): Promise<{
+      ok: true
+      data: { id: string; data: Record<string, unknown> }
+    }>
+    /** Insert an item into a collection. */
+    create_item(args: {
+      collection: string
+      data: Record<string, unknown>
+      id?: string
+    }): Promise<{ ok: true; id: string }>
+    /** Partial-merge an item. */
+    update_item(args: {
+      collection: string
+      item_id: string
+      data: Record<string, unknown>
+    }): Promise<{ ok: true; id: string }>
+    /** Delete an item. */
+    delete_item(args: { collection: string; item_id: string }): Promise<void>
   }
   dashboard: {
     /** Aggregate stats + recent runs + events + agents + collections. */
@@ -200,6 +246,19 @@ export interface ShipSDK {
       count: number
       scope: string
     }>
+    /** Fetch raw artifact body. `as` picks the response shape — `text`
+     *  (default) for preview panes, `blob` for binary downloads, `json`
+     *  for structured payloads. */
+    get(args: { id: string; as?: 'text' }): Promise<string>
+    get(args: { id: string; as: 'blob' }): Promise<Blob>
+    get(args: { id: string; as: 'json' }): Promise<unknown>
+    /** Upload an artifact via multipart form. */
+    upload(args: {
+      file: File | Blob
+      filename?: string
+      collection_id?: string
+      item_id?: string
+    }): Promise<{ ok: true; data: ArtifactRecord }>
   }
   skills: {
     /** All skill IndexEntry rows across project + user scopes. */

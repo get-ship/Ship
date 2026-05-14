@@ -21,6 +21,16 @@ export default controller<Scope>({
   scope: ({ ship }) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const agentEvents = live(() => (ship as any).events.list({ event_type: 'agent.', limit: 50 }))
+    // SDK mutators captured from the controller ctx so `on` handlers can
+    // reach the daemon through the typed surface instead of raw fetch.
+    const createAgent = (args: { id: string; doc: Record<string, unknown> }) =>
+      ship.agents.create(args)
+    const startSession = (args: {
+      workspace_id: string
+      kind: 'agent' | 'shell'
+      agent_id?: string
+      provider?: string
+    }) => ship.sessions.start(args)
     const agentStatus = derived<Record<string, AgentStatus>>(() => {
       const env = agentEvents()
       if (env.kind !== 'ok') return {}
@@ -62,6 +72,7 @@ export default controller<Scope>({
       agentEvents, agentStatus,
       dialogOpen, formName, formId, formIdTouched, formProvider, formModel,
       submitting, formErr, modelOptions, canSubmit,
+      createAgent, startSession,
     }
   },
   derived: {
@@ -110,35 +121,28 @@ export default controller<Scope>({
         permissions: { preset: 'standard' },
       }
       try {
-        const resp = await fetch('/api/v1/agents', {
-          method: 'POST',
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id, doc }),
-        })
-        if (!resp.ok) {
-          const body = await resp.json().catch(() => ({}))
-          s.formErr = (body as { message?: string }).message ?? `HTTP ${resp.status}`
-          s.submitting = false
-          return
-        }
+        await (s.createAgent as (a: { id: string; doc: Record<string, unknown> }) => Promise<unknown>)({ id, doc })
         s.dialogOpen = false
         window.location.reload()
       } catch (err) {
-        s.formErr = 'Network: ' + (err instanceof Error ? err.message : String(err))
+        const msg = err instanceof Error ? err.message : String(err)
+        // SDK error messages already carry the daemon's JSON envelope —
+        // surface as-is so users see "agent exists" / validation text.
+        s.formErr = msg.startsWith('[ship-sdk-client]') ? msg : 'Network: ' + msg
         s.submitting = false
       }
     },
-    openSession: async (_s, agentId: string, provider: string, evt?: Event) => {
+    openSession: async (s, agentId: string, provider: string, evt?: Event) => {
       if (evt) { evt.preventDefault(); evt.stopPropagation() }
       try {
-        const resp = await fetch('/api/v1/sessions/spawn', {
-          method: 'POST',
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ workspace_id: 'main', kind: 'agent', agent_id: agentId, provider }),
+        await (s.startSession as (a: {
+          workspace_id: string
+          kind: 'agent' | 'shell'
+          agent_id?: string
+          provider?: string
+        }) => Promise<unknown>)({
+          workspace_id: 'main', kind: 'agent', agent_id: agentId, provider,
         })
-        if (!resp.ok) return
         window.location.href = '/sessions'
       } catch { /* ignore */ }
     },
