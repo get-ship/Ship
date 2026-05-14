@@ -839,8 +839,9 @@ impl ShipServer {
     }
 
     #[tool(
-        description = "Get artifact metadata (JSON). Does not return bytes. \
-        Use artifact_download to retrieve binary content."
+        description = "Get artifact metadata (JSON record: id, name, mime, size, \
+        scope, content_hash, path, created_at). Returns the metadata record only, \
+        not the binary payload — read the file at `path` to retrieve bytes."
     )]
     async fn get_artifact(
         &self,

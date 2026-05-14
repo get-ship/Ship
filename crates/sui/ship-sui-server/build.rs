@@ -68,7 +68,8 @@ fn main() {
     let repo_root = manifest_dir
         .parent()
         .and_then(|p| p.parent())
-        .expect("repo root (two levels above crates/ship-sui)")
+        .and_then(|p| p.parent())
+        .expect("repo root (three levels above crates/sui/ship-sui-server)")
         .to_path_buf();
 
     fs::create_dir_all(assets.join("sui-islands"))

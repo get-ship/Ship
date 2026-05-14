@@ -80,7 +80,7 @@ fn check_attr(attr: &AttrInstr) -> Result<(), CompileError> {
     if let Some(block_body) = arrow_block_body(&handler.source)
         && count_stmts(block_body) > 1 {
             return Err(CompileError::new(
-                "multi-statement handler — paired `<view>.ts` controller required for tier-2 work",
+                "multi-statement handler — paired `controller.ts` required for tier-2 work",
             )
             .with_span(handler.span)
             .with_category(format!("on:{event} handler")));
