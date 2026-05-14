@@ -77,7 +77,7 @@ Every error in `runtime::toolchain` carries a recovery hint in its `Display` imp
 
 ## See also
 
-- `docs/ship-views/references/docs/dev-loop.md` — the `.sui` edit → browser update path via the Bun worker.
+- `docs/ship-sui/SKILL.md` — the `.sui` edit → browser update path via the Bun worker is documented under the Tooling section there.
 - `crates/core/runtime/src/toolchain/` — the Rust orchestration code.
 - `crates/core/runtime/src/bundler/` — the worker supervisor and IPC layer.
 - `runtime-assets/bundler.ts` — the worker source.

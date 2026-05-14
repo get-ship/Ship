@@ -84,8 +84,4 @@ None tracked here today. New open questions surface when they arrive with a forc
 
 ## Phased-out adjacent skills
 
-These docs remain the source of truth for the **current production stack** until views are ported off them. New work for SUI goes here, not in those skills.
-
-- **`docs/ship-views/`** — j2 templates + Datastar signals. Currently shipping; one view at a time gets ported off.
-- **`docs/ship-components/`** — `.ship` SFC three-block format. Format is dead. Components ported to `.sui` over time; pack-distribution mechanics survive (see ship-component-packs).
-- **`docs/ship-component-packs/`** — packs of `.ship` components. Pack distribution survives; the `.ship` shape inside does not. Packs of `.sui` components are the target.
+The legacy `docs/ship-views/`, `docs/ship-components/`, and `docs/ship-component-packs/` skill dirs (j2 + Datastar prod stack, `.ship` SFC format, and LIT-era pack distribution) have been deleted. Their live counterparts under `.ship/skills/ship-views/` and `.ship/skills/ship-components/` were already migrated to SUI and remain canonical for agent authoring. The canonical user-facing SUI entry is `docs/ship-sui/`; this skill (`docs/ship-ui/`) provides deeper internal references on SSR / hooks / effect-scope / status.
