@@ -207,9 +207,7 @@ fn dispatch(command: Option<Commands>) -> Result<()> {
                     DaemonCommands::Status => DaemonCommand::Status,
                     DaemonCommands::Dir => DaemonCommand::Dir,
                     DaemonCommands::Cleanup => DaemonCommand::Cleanup,
-                    DaemonCommands::RepairMigrations { mark_applied, prune_orphans, yes } => {
-                        DaemonCommand::RepairMigrations { mark_applied, prune_orphans, yes }
-                    }
+                    DaemonCommands::RepairMigrations => DaemonCommand::RepairMigrations,
                     DaemonCommands::Run { host, port, dev } => DaemonCommand::Run { host, port, dev },
                     DaemonCommands::Supervise { host, dev } => DaemonCommand::Supervise { host, dev },
                     DaemonCommands::InstallService { shipd_path, no_start, no_autostart } => {

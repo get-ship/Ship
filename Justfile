@@ -388,10 +388,11 @@ check-raw:
     @scripts/lint/check-module-dag.sh
     @just check-migrations
 
-# Enforce platform.db migration naming discipline.
+# Enforce platform.db migration naming + authoring discipline.
 [group('occasional')]
 check-migrations:
     @scripts/lint/check-migration-naming.sh
+    @scripts/lint/check-migration-discipline.sh
 
 # Fail if any test uses set_var("SHIP_GLOBAL_DIR") — causes env var races.
 [group('occasional')]

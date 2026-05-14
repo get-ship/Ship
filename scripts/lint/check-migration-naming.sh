@@ -21,9 +21,10 @@ set -u
 
 cd "$(dirname "$0")/../.."
 
+# ship-application was folded into ship-platform; its migrations/ dir is
+# gone. platform.db migrations live under ship-substrate.
 MIG_DIRS=(
     "crates/core/ship-substrate/migrations"
-    "crates/core/ship-application/migrations"
 )
 
 # Allowed pre-launch: the canonical baseline + any legacy numbered

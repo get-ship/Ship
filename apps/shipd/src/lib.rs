@@ -170,12 +170,16 @@ pub async fn run_network(
         // Leave any pre-existing value alone — callers that need a
         // different SUI resolver root than the daemon workspace
         // (rare; mostly studio in-place editing) can still override.
+        // Routed through the typed `Var` registry rather than a raw env
+        // literal, so the override stays accountable to the env.rs
+        // taxonomy (no raw `set_var` of a string name).
         // SAFETY: shipd's process is single-threaded at this point in
         // startup — set_var is unsound only when other threads can
         // observe the env mid-update.
-        if std::env::var_os("SHIP_DEV_PROJECT_DIR").is_none() {
+        use ship_substrate::env::{self, Var};
+        if env::read(Var::DevProjectDir).is_none() {
             // SAFETY: pre-async-runtime, no concurrent env access.
-            unsafe { std::env::set_var("SHIP_DEV_PROJECT_DIR", w); }
+            unsafe { env::set(Var::DevProjectDir, w); }
         }
     } else {
         tracing::info!(daemon_dir = %daemon_dir.display(), "shipd: global-only mode (no --workspace given)");

@@ -41,7 +41,7 @@ pub fn view_search_dirs() -> Vec<ViewSearchDir> {
             source: "workspace",
         });
         out.push(ViewSearchDir {
-            path: workspace.join(".ship").join("views"),
+            path: ship_substrate::ShipHome::project_ship_dir(&workspace).join("views"),
             source: "project",
         });
     }

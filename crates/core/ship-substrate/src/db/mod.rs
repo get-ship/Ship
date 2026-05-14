@@ -11,6 +11,7 @@ pub mod daemon_settings;
 pub mod envelope;
 pub mod events;
 pub mod integrity;
+mod migrate;
 pub mod project_id_reconcile;
 pub mod repair;
 #[cfg(test)]
@@ -69,30 +70,54 @@ pub fn event_log_summary(ship_dir: &Path) -> EventLogSummary {
     EventLogSummary { event_count: count, latest_event_id: latest }
 }
 
-/// Platform database path: `~/.ship/machine/db/platform.db`.
+/// The one canonical DB-path resolver. Every path-returning helper in this
+/// module routes through here; nothing computes a `machine/db/...` path
+/// independently. The resolution rule lives in exactly this function:
+///
+/// - if `Var::DevDbDir` is set (workflow-set, never production) the machine
+///   stores live at `<that dir>/<name>` — the dev workflow's isolated
+///   scratch DB for a worktree iterating on migration code;
+/// - otherwise the canonical `<ship_dir>/machine/db/<name>`, exactly as
+///   before — so an unset override yields today's behaviour for every
+///   customer.
+///
+/// `Var::DevDbDir` is read here and nowhere else.
+pub(crate) fn resolve_db_path(ship_dir: &Path, db: crate::Db) -> PathBuf {
+    if let Some(dir) = crate::env::read(crate::env::Var::DevDbDir) {
+        return PathBuf::from(dir).join(db.as_str());
+    }
+    crate::ShipHome::at(ship_dir.to_path_buf())
+        .machine_dir()
+        .join(crate::home::ship_home::MACHINE_DB_DIR)
+        .join(db.as_str())
+}
+
+/// Platform database path: `~/.ship/machine/db/platform.db` (or the
+/// `Var::DevDbDir` override). Thin typed wrapper over [`resolve_db_path`].
 ///
 /// Never inside a project directory. Per-actor event stores are managed
 /// separately by `KernelRouter`. Tests get automatic isolation
 /// via `get_global_dir()`'s test-binary detection (per-thread temp dir).
 pub fn db_path() -> Result<PathBuf> {
-    Ok(platform_db_path(&crate::project::get_global_dir()?))
+    Ok(resolve_db_path(&crate::project::get_global_dir()?, crate::Db::Platform))
 }
 
 /// Resolve the platform database path under a given ship-home root.
-/// Routes through `ShipHome::db_path(Db::Platform)` so callers can't
-/// accidentally land at the legacy `<root>/platform.db` location.
+/// Thin typed wrapper over [`resolve_db_path`].
 pub fn platform_db_path(ship_dir: &Path) -> PathBuf {
-    crate::ShipHome::at(ship_dir.to_path_buf()).db_path(crate::Db::Platform)
+    resolve_db_path(ship_dir, crate::Db::Platform)
 }
 
 /// Resolve the data database path under a given ship-home root.
+/// Thin typed wrapper over [`resolve_db_path`].
 pub fn data_db_path(ship_dir: &Path) -> PathBuf {
-    crate::ShipHome::at(ship_dir.to_path_buf()).db_path(crate::Db::Data)
+    resolve_db_path(ship_dir, crate::Db::Data)
 }
 
 /// Resolve the KV database path under a given ship-home root.
+/// Thin typed wrapper over [`resolve_db_path`].
 pub fn kv_db_path(ship_dir: &Path) -> PathBuf {
-    crate::ShipHome::at(ship_dir.to_path_buf()).db_path(crate::Db::Kv)
+    resolve_db_path(ship_dir, crate::Db::Kv)
 }
 
 /// Ensure the KV schema is up to date at the derived global path.
@@ -180,17 +205,14 @@ fn ensure_db_at_path(path: &std::path::Path) -> Result<()> {
         format!("events.project_id reconcile failed on {}", path.display())
     })?;
 
-    // Run migrations. If they fail, refuse to start — never delete user data.
-    if let Err(e) = block_on_migrate(async {
-        sqlx::migrate!("./migrations").run(&mut conn).await
-    }) {
-        tracing::error!(
-            "migrations failed on {}: {e}\n\
-             If this is a checksum mismatch from merging a branch that edited a baseline migration, \
-             run: ship daemon repair-migrations (non-destructive — patches recorded checksums to \
-             match the current files; never touches your data).",
-            path.display()
-        );
+    // Tolerant migration pass — see `db::migrate`. It relaxes exactly one
+    // failure mode: a `_sqlx_migrations` log that is *ahead* of this binary
+    // (chronic across dev worktrees sharing one `platform.db`, impossible
+    // for a customer). Genuine corruption — a dirty migration or an edited
+    // applied one — still hard-errors. On failure, refuse to start; never
+    // delete user data.
+    if let Err(e) = block_on_anyhow(migrate::run_tolerant(&mut conn)) {
+        tracing::error!("platform.db migration failed on {}: {e}", path.display());
         return Err(anyhow!("migration failed on {}: {e}", path.display()));
     }
 
@@ -211,15 +233,14 @@ pub fn ensure_db_at(ship_dir: &Path) -> Result<()> {
 /// missing. Returns the number of statements executed (0 == healthy,
 /// nothing to do).
 ///
-/// Why this exists: `sqlx::migrate!` is checksum-driven. A user who runs
-/// `ship daemon repair-migrations` after an aggressive edit to 0001 can
-/// end up with the checksum patched to match the new file while the
-/// underlying tables still reflect the *old* 0001. `ensure_db_at` then
-/// skips the migration (already-applied) and the daemon boots into a
-/// database where queries like `SELECT … FROM projects` raise
-/// `no such table`. This routine restores the schema without touching
-/// `_sqlx_migrations` and without re-running migrations that were
-/// genuinely already applied.
+/// Why this exists: migration tracking is checksum-driven and version-keyed.
+/// If a `platform.db` ends up with migration 0001 recorded as applied while
+/// its tables still reflect an *older* 0001 — e.g. a DB carried across an
+/// aggressive pre-launch baseline edit — `ensure_db_at` sees 0001 as already
+/// applied, skips it, and the daemon boots into a database where queries
+/// like `SELECT … FROM projects` raise `no such table`. This routine
+/// restores the schema without touching `_sqlx_migrations` and without
+/// re-running migrations that were genuinely already applied.
 ///
 /// The statements are hand-lifted from migration 0001 (the subset that
 /// creates tables consumers query directly). Indices, triggers, and

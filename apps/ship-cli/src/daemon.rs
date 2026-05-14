@@ -31,11 +31,8 @@ pub enum DaemonCommand {
     /// `scripts/dev/*` without those reaching into ShipHome internals.
     Dir,
     Cleanup,
-    RepairMigrations {
-        mark_applied: Option<i64>,
-        prune_orphans: bool,
-        yes: bool,
-    },
+    /// Read-only migration drift diagnostic — see `daemon_repair_migrations`.
+    RepairMigrations,
     Run { host: String, port: u16, dev: bool },
     /// Internal: supervisor loop that watches and restarts the daemon.
     Supervise { host: String, dev: bool },
@@ -114,9 +111,7 @@ pub fn run_daemon(cmd: DaemonCommand) -> Result<()> {
             Ok(())
         }
         DaemonCommand::Cleanup => daemon_cleanup(),
-        DaemonCommand::RepairMigrations { mark_applied, prune_orphans, yes } => {
-            daemon_repair_migrations(mark_applied, prune_orphans, yes)
-        }
+        DaemonCommand::RepairMigrations => daemon_repair_migrations(),
         DaemonCommand::Run { host, port, dev } => daemon_run(host, port, dev),
         DaemonCommand::Supervise { host, dev } => daemon_supervise(host, dev),
         DaemonCommand::InstallService { shipd_path, no_start, no_autostart } => {
@@ -755,19 +750,22 @@ fn format_relative_time(ts: &str) -> String {
     }
 }
 
-fn daemon_repair_migrations(
-    mark_applied: Option<i64>,
-    prune_orphans: bool,
-    yes: bool,
-) -> Result<()> {
+/// Read-only migration drift diagnostic. Reports how `platform.db`'s
+/// `_sqlx_migrations` log relates to the migration set this binary embeds —
+/// and changes nothing. The tolerant migration runner (`db::migrate`)
+/// reconciles a DB that is merely *ahead* of the binary on its own, so the
+/// old mutating escape hatches (`--mark-applied`, `--prune-orphans`,
+/// checksum patching) are gone. What's left is the tool for understanding
+/// the one drift the runner still rejects: an applied migration whose
+/// checksum no longer matches its embedded source.
+fn daemon_repair_migrations() -> Result<()> {
     use ship_substrate::db::repair;
-    use std::io::{BufRead, IsTerminal, Write};
 
     let global_dir = ship_substrate::project::get_global_dir()
         .context("resolve global ship dir")?;
     let db_path = ship_substrate::db::platform_db_path(&global_dir);
     if !db_path.exists() {
-        println!("no platform.db at {} — nothing to repair", db_path.display());
+        println!("no platform.db at {} — nothing to report", db_path.display());
         return Ok(());
     }
     let mut conn = ship_substrate::db::open_db_at(&db_path)?;
@@ -776,71 +774,31 @@ fn daemon_repair_migrations(
         .build()
         .context("build tokio runtime")?;
 
-    if let Some(version) = mark_applied {
-        let inserted =
-            rt.block_on(async { repair::mark_applied(&mut conn, version).await })?;
-        if inserted {
-            println!("marked migration {version} as applied (no SQL executed)");
-        } else {
-            println!("migration {version} already recorded — nothing to do");
-        }
-        return Ok(());
-    }
+    let report = rt.block_on(async { repair::migration_drift(&mut conn).await })?;
 
-    let report = rt.block_on(async { repair::repair_migrations(&mut conn).await })?;
-
-    println!("migration repair: {}", db_path.display());
-    println!("  updated:   {} migrations", report.updated.len());
-    if !report.updated.is_empty() {
-        println!("    versions: {:?}", report.updated);
-    }
-    println!("  unchanged: {} migrations", report.unchanged.len());
-    if !report.orphaned.is_empty() {
-        println!(
-            "  orphaned (recorded but no embedded migration — investigate): {:?}",
-            report.orphaned
-        );
-    }
+    println!("migration drift: {}", db_path.display());
+    println!("  in sync:   {} migrations", report.in_sync.len());
     if !report.pending.is_empty() {
         println!(
-            "  pending (embedded but not yet applied): {:?}",
+            "  pending (embedded but not yet applied — runs on next start): {:?}",
             report.pending
         );
     }
-    if report.updated.is_empty() && report.orphaned.is_empty() {
-        println!("nothing to repair — checksums already match.");
+    if !report.db_ahead.is_empty() {
+        println!(
+            "  db ahead (in the log but not in this binary — tolerated, no action): {:?}",
+            report.db_ahead
+        );
     }
-
-    if prune_orphans {
-        if report.orphaned.is_empty() {
-            println!("no orphans to prune");
-            return Ok(());
-        }
-        let interactive = std::io::stdin().is_terminal();
-        if !yes {
-            if !interactive {
-                anyhow::bail!(
-                    "refusing to prune without --yes in non-interactive mode"
-                );
-            }
-            print!(
-                "Delete these {} rows from _sqlx_migrations? {:?} [y/N] ",
-                report.orphaned.len(),
-                report.orphaned
-            );
-            std::io::stdout().flush().ok();
-            let mut answer = String::new();
-            std::io::stdin().lock().read_line(&mut answer)?;
-            let answer = answer.trim().to_ascii_lowercase();
-            if answer != "y" && answer != "yes" {
-                println!("aborted — no rows deleted");
-                return Ok(());
-            }
-        }
-        let deleted = rt.block_on(async {
-            repair::prune_orphans(&mut conn, &report.orphaned).await
-        })?;
-        println!("pruned: {deleted} migrations");
+    if !report.checksum_mismatch.is_empty() {
+        println!(
+            "  checksum mismatch (applied migration was edited — startup will \
+             hard-error; restore the original file content): {:?}",
+            report.checksum_mismatch
+        );
+    }
+    if report.is_clean() {
+        println!("clean — the DB and this binary's migration set agree.");
     }
     Ok(())
 }

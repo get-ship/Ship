@@ -1,0 +1,12 @@
+# platform.db migration checksum lock — see check-migration-discipline.sh
+#
+# One `sha256  filename` row per migration in
+# crates/core/ship-substrate/migrations/. Applied migrations are immutable:
+# a schema change is a NEW migration file, never an edit to a recorded one.
+# Editing a listed file changes its hash and the discipline lint fails.
+#
+# Adding a migration: append it here in the same pass that adds the .sql
+# (regenerate with `scripts/lint/check-migration-discipline.sh --update`).
+6c010d06fa4d3dc0c7bfd7f233e928d11df55f8c0446ed0e57cc839365a3a050  0001_schema.sql
+65794cf7908e03c9e99bc7dbe3fe8975240bcd5474f0e75e68c7e2a3196e48a8  0002_drop_kv_state.sql
+ee5f85ae07376cf5aa42b0a0871669b4bfb8a0dc6c9b9e4cddf303804c48edf0  202605121200_jobs_projection.sql

@@ -56,6 +56,16 @@ pub enum Var {
     /// instead of walking up from cwd. Tests use it for parallel-safe
     /// project-root isolation; production callers should never set it.
     DevProjectDir,
+    /// `SHIP_DEV_DB_DIR` — directory override for the machine SQLite stores.
+    /// When set, the canonical DB-path resolver
+    /// (`ship_substrate::db::resolve_db_path`) returns `<dir>/<name>` instead
+    /// of `<ship_home>/machine/db/<name>`. This is **workflow-set, never
+    /// production-set** — the dev workflow points an iterating worktree's
+    /// daemon at an isolated scratch DB so it can build a different version
+    /// of the migration set without colliding with the shared canonical
+    /// `platform.db`. Unset (the production and default-dev case) yields
+    /// exactly the canonical path. Same disposition as `DevProjectDir`.
+    DevDbDir,
 }
 
 impl Var {
@@ -83,6 +93,7 @@ impl Var {
             Var::TelegramChatId => "SHIP_TELEGRAM_CHAT_ID",
             Var::RespectWorktree => "SHIP_RESPECT_WORKTREE",
             Var::DevProjectDir => "SHIP_DEV_PROJECT_DIR",
+            Var::DevDbDir => "SHIP_DEV_DB_DIR",
         }
     }
 
@@ -107,7 +118,8 @@ impl Var {
             | Var::TelegramToken
             | Var::TelegramChatId
             | Var::RespectWorktree
-            | Var::DevProjectDir => Category::DevDebug,
+            | Var::DevProjectDir
+            | Var::DevDbDir => Category::DevDebug,
         }
     }
 }
@@ -154,6 +166,7 @@ mod tests {
         assert_eq!(Var::AgentId.as_str(), "SHIP_AGENT_ID");
         assert_eq!(Var::DaemonPath.as_str(), "SHIPD_PATH");
         assert_eq!(Var::DevProjectDir.as_str(), "SHIP_DEV_PROJECT_DIR");
+        assert_eq!(Var::DevDbDir.as_str(), "SHIP_DEV_DB_DIR");
     }
 
     #[test]
@@ -224,6 +237,7 @@ mod tests {
             Var::TelegramChatId,
             Var::RespectWorktree,
             Var::DevProjectDir,
+            Var::DevDbDir,
         ];
         let mut seen = std::collections::HashSet::new();
         for v in names {

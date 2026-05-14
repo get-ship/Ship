@@ -13,7 +13,10 @@ use ship_types::{Scope, Vector};
 use crate::project::SHIP_DIR_NAME;
 const LIBRARY_DIR: &str = "library";
 const MACHINE_DIR: &str = "machine";
-const MACHINE_DB_DIR: &str = "db";
+/// `machine/db/` subdirectory holding the SQLite stores. Exposed to the
+/// `db` module so the one canonical DB-path resolver can join it without
+/// re-deriving the layout.
+pub(crate) const MACHINE_DB_DIR: &str = "db";
 const MACHINE_DAEMON_DIR: &str = "daemon";
 const SETTINGS_FILE: &str = "settings.jsonc";
 const LOCAL_FILE: &str = "local.jsonc";
@@ -114,11 +117,6 @@ impl ShipHome {
                 None => PathBuf::from(SHIP_DIR_NAME).join(vector.as_str()),
             },
         }
-    }
-
-    /// Path to a machine-local database file.
-    pub fn db_path(&self, db: Db) -> PathBuf {
-        self.machine_dir().join(MACHINE_DB_DIR).join(db.as_str())
     }
 
     /// Path to the singleton daemon's directory.
@@ -222,10 +220,6 @@ mod tests {
         assert_eq!(h.library_dir(), tmp.path().join(".ship/library"));
         assert_eq!(h.machine_dir(), tmp.path().join(".ship/machine"));
         assert_eq!(
-            h.db_path(Db::Platform),
-            tmp.path().join(".ship/machine/db/platform.db")
-        );
-        assert_eq!(
             h.daemon_file(DaemonFile::Token),
             tmp.path().join(".ship/machine/daemon/token")
         );
@@ -284,20 +278,6 @@ mod tests {
         let h = home(tmp.path());
         let p = h.vector_dir(Scope::Project, Vector::Agents, None);
         assert_eq!(p, PathBuf::from(".ship/agents"));
-    }
-
-    #[test]
-    fn db_paths() {
-        let tmp = tempdir().unwrap();
-        let h = home(tmp.path());
-        assert_eq!(
-            h.db_path(Db::Platform),
-            tmp.path().join(".ship/machine/db/platform.db")
-        );
-        assert_eq!(
-            h.db_path(Db::Data),
-            tmp.path().join(".ship/machine/db/data.db")
-        );
     }
 
     #[test]

@@ -396,31 +396,13 @@ pub enum DaemonCommands {
     Dir,
     /// Remove orphaned worktrees for merged and failed jobs
     Cleanup,
-    /// Reconcile recorded migration checksums to the current files.
-    /// Non-destructive: touches only `_sqlx_migrations`, never any data
-    /// table. Use after merging branches that legitimately edited a
-    /// baseline migration file.
+    /// Report how `platform.db`'s migration log relates to the migration
+    /// set this binary embeds. Read-only — inspects `_sqlx_migrations` and
+    /// changes nothing. The migration runner now tolerates a DB whose log
+    /// is ahead of the binary on its own, so this is a pure diagnostic:
+    /// use it to understand a startup migration error.
     #[command(name = "repair-migrations")]
-    RepairMigrations {
-        /// Mark a migration version as applied without executing it.
-        /// Use when a migration's effects already landed via a renamed
-        /// file (running it would fail on duplicate columns / existing
-        /// tables). Schema-level no-op; only writes the bookkeeping row.
-        #[arg(long, value_name = "VERSION")]
-        mark_applied: Option<i64>,
-        /// Delete `_sqlx_migrations` rows whose source file no longer
-        /// exists (typically because the migration was squashed
-        /// upstream). Required to recover from `migration N was
-        /// previously applied but is missing in the resolved
-        /// migrations`. Pure metadata change — no data tables touched.
-        /// Prompts before deleting unless `--yes` is also passed.
-        #[arg(long)]
-        prune_orphans: bool,
-        /// Skip the interactive confirmation prompt. Required when
-        /// `--prune-orphans` is used in a non-TTY context (CI, scripts).
-        #[arg(long, short = 'y')]
-        yes: bool,
-    },
+    RepairMigrations,
     /// Run the daemon in the foreground (internal — used by `start`, also useful for Docker/systemd)
     #[command(hide = true)]
     Run {
