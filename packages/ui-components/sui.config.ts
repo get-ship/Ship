@@ -20,7 +20,12 @@ const config: SuiBuildConfig = {
   // them under `sui-islands/` so the always-loaded framework bundles
   // (sui-components.js etc.) at the top of `assets/` stay distinguishable.
   lazyOutSubdir: 'sui-islands',
-  aggregateCemTo: '../../crates/ship-sui/assets/sui-custom-elements.json',
+  // Aggregate CEM lands next to the bundles in `outdir` so the crate that
+  // bakes it in (`crates/sui/ship-sui-server`, via `build.rs` +
+  // `src/assets.rs`) reads a fresh table. A post-fold typo pointed this at
+  // the untracked `crates/ship-sui/assets/`, which nothing consumes — the
+  // server CEM then went stale (missing every primitive added since).
+  aggregateCemTo: '../../crates/sui/ship-sui-server/assets/sui-custom-elements.json',
   aggregateCemSources: ['src'],
 }
 

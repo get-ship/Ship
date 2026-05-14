@@ -34,7 +34,6 @@ describe('<sui-nav-top>', () => {
     await flush()
     const shadow_ = shadow(el)
     expect(shadow_.querySelector('[part~="rail-toggle"]')).not.toBeNull()
-    expect(shadow_.querySelector('[part~="studio"]')).not.toBeNull()
     expect(shadow_.querySelector('[part~="dock-toggle"]')).not.toBeNull()
     expect(shadow_.querySelector('[part~="fullscreen"]')).not.toBeNull()
   })

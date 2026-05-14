@@ -1,8 +1,8 @@
 <!--
   <sui-nav-top> — SUI port of <ship-nav-top>.
   Top bar: brand link, breadcrumb trail, per-view action slot, command-bar
-  slot, rail toggle, UI Studio shortcut, embedded theme picker, dock toggle,
-  and fullscreen toggle.
+  slot, rail toggle, embedded theme picker, dock toggle, and fullscreen
+  toggle.
 
   Prop / event surface
   ─────────────────────────────────────────────────────────────────────────────
@@ -27,8 +27,7 @@
     actions      per-view action buttons injected by the mounted view
     command-bar  command palette host — shell2 slots <sui-command-bar> here
   ─────────────────────────────────────────────────────────────────────────────
-  Parts: brand, crumbs, rail-toggle, studio, theme-picker, dock-toggle,
-         fullscreen
+  Parts: brand, crumbs, rail-toggle, theme-picker, dock-toggle, fullscreen
   ─────────────────────────────────────────────────────────────────────────────
   CSS custom properties:
     --ship-top-bar-h (default 40px)  host height; matches layout grid row
@@ -39,7 +38,7 @@
     #view-topbar-actions       → slot name="actions"        ✓
     <ship-command-bar>         → slot name="command-bar"    ✓ (filled by shell2)
     #toggle-rail               → part="rail-toggle"         ✓
-    #open-ui-studio            → part="studio"              ✓
+    #open-ui-studio            → removed (shell2 dropped the UI Studio button)
     <ship-popover#theme-picker>→ <sui-theme-picker>         ✓ (runtime-exceed:
                                                               sui-popover uses
                                                               sui-portal + a
