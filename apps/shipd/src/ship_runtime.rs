@@ -116,7 +116,7 @@ pub struct ShipRuntime {
     /// handle), so `std::sync::OnceLock` is the right primitive — using
     /// `tokio::sync::OnceCell` would require `get_or_init` to take an
     /// `async` initializer.
-    pub bundler: std::sync::OnceLock<ship_application::bundler::Bundler>,
+    pub bundler: std::sync::OnceLock<ship_platform::bundler::Bundler>,
     /// `RulesService` impl — pilot for the modular-runtime spec 02
     /// service-layer pattern. HTTP handlers in `services::rules` go
     /// through this trait so the cloud worker / browser embed / unit
@@ -186,7 +186,7 @@ pub fn default_worktree_resolver() -> WorktreeResolver {
         if let Some(path) = crate::project_api::worktree_path_for_branch(id) {
             return Some(path);
         }
-        if let Ok(project_ship) = ship_application::project::get_project_dir(None)
+        if let Ok(project_ship) = ship_substrate::project::get_project_dir(None)
             && let Some(root) = project_ship.parent()
             && let Some(current_branch) = crate::project_api::current_branch_at(root)
             && current_branch == id
@@ -578,7 +578,7 @@ impl ShipRuntime {
     /// editing `runtime-assets/bundler.ts` in the repo see no effect until
     /// they re-run `ship runtime install` — a footgun that has bitten more
     /// than one debugging session.
-    pub fn bundler(&self) -> &ship_application::bundler::Bundler {
+    pub fn bundler(&self) -> &ship_platform::bundler::Bundler {
         self.bundler.get_or_init(|| {
             let home = ship_substrate::ShipHome::at(self.ship_dir.clone());
             let repo_root = self
@@ -592,13 +592,13 @@ impl ShipRuntime {
                     path = %bundler_override.display(),
                     "bundler: using in-repo bundler.ts (dev override)"
                 );
-                ship_application::bundler::Bundler::start_with_script(
+                ship_platform::bundler::Bundler::start_with_script(
                     &home,
                     repo_root,
                     bundler_override,
                 )
             } else {
-                ship_application::bundler::Bundler::start(&home, repo_root)
+                ship_platform::bundler::Bundler::start(&home, repo_root)
             }
         })
     }
@@ -608,8 +608,8 @@ impl ShipRuntime {
     /// surface a clear error rather than inventing one.
     pub fn project_slug(&self) -> Option<String> {
         let ws = self.workspace_dir.as_ref()?;
-        let project_ship = ship_application::project::get_project_dir(Some(ws.clone())).ok()?;
-        Some(ship_application::project::project_slug_from_ship_dir(&project_ship))
+        let project_ship = ship_substrate::project::get_project_dir(Some(ws.clone())).ok()?;
+        Some(ship_substrate::project::project_slug_from_ship_dir(&project_ship))
     }
 
     /// Lazily initialize and return the mesh manager.

@@ -63,7 +63,7 @@ pub(crate) fn current_branch_at(root: &std::path::Path) -> Option<String> {
 /// Look up the worktree path for a branch via `git worktree list --porcelain`.
 /// Returns None if the branch isn't a checked-out worktree.
 pub(crate) fn worktree_path_for_branch(branch: &str) -> Option<PathBuf> {
-    let project_ship = ship_application::project::get_project_dir(None).ok()?;
+    let project_ship = ship_substrate::project::get_project_dir(None).ok()?;
     let project_root = project_ship.parent()?;
     let output = ship_substrate::spawn_bounded::Cmd::new("git")
         .args(["worktree", "list", "--porcelain"])

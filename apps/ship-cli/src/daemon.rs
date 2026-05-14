@@ -763,7 +763,7 @@ fn daemon_repair_migrations(
     use ship_substrate::db::repair;
     use std::io::{BufRead, IsTerminal, Write};
 
-    let global_dir = ship_application::project::get_global_dir()
+    let global_dir = ship_substrate::project::get_global_dir()
         .context("resolve global ship dir")?;
     let db_path = ship_substrate::db::platform_db_path(&global_dir);
     if !db_path.exists() {

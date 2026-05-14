@@ -1,11 +1,9 @@
-//! Lint the substrate / platform / application layer boundary.
+//! Lint the substrate / platform layer boundary.
 //!
-//! Three rules, mechanically enforced from `Cargo.toml` of each layer:
+//! Two rules, mechanically enforced from `Cargo.toml` of each layer:
 //!
-//! 1. `ship-substrate` declares no dependency on `ship-platform` or
-//!    `ship-application`.
-//! 2. `ship-platform` declares no dependency on `ship-application`.
-//! 3. None of the three lists itself.
+//! 1. `ship-substrate` declares no dependency on `ship-platform`.
+//! 2. Neither layer lists itself.
 //!
 //! Catches the most common form of layer regression — a one-line dep
 //! addition "for convenience" that wires the wrong direction. Run via
@@ -25,17 +23,12 @@ const LAYERS: &[Layer] = &[
     Layer {
         name: "ship-substrate",
         manifest: "crates/core/ship-substrate/Cargo.toml",
-        forbidden: &["ship-platform", "ship-application"],
+        forbidden: &["ship-platform"],
     },
     Layer {
         name: "ship-platform",
         manifest: "crates/core/ship-platform/Cargo.toml",
-        forbidden: &["ship-application"],
-    },
-    Layer {
-        name: "ship-application",
-        manifest: "crates/core/ship-application/Cargo.toml",
-        // No forbidden upstream — application is the top of the stack.
+        // No forbidden upstream — platform is the top of the core stack.
         forbidden: &[],
     },
 ];

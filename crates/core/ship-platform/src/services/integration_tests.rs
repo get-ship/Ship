@@ -15,8 +15,8 @@ mod mesh_kernel {
     use ship_substrate::events::permissions::{ActorPermissions, DeliveryScope, PermittedSubscription};
     use ship_substrate::events::validator::{CallerKind, EmitContext};
     use ship_substrate::events::{EventEnvelope, Mailbox};
-    use ship_platform::services::mesh::MeshService;
-    use ship_platform::services::{ServiceHandle, spawn_service};
+    use crate::services::mesh::MeshService;
+    use crate::services::{ServiceHandle, spawn_service};
 
     // ── Fixtures ──────────────────────────────────────────────────────────────
 

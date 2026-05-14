@@ -164,9 +164,9 @@ pub fn handle_skill_action(action: SkillAction, project_dir: Option<&Path>) -> R
             let installed_path = match install_scope {
                 SkillInstallScope::Project => {
                     let dir = require_project_dir(project_dir)?;
-                    ship_application::project::skills_dir(dir).join(&installed.id)
+                    ship_substrate::project::skills_dir(dir).join(&installed.id)
                 }
-                SkillInstallScope::User => ship_application::project::user_skills_dir().join(&installed.id),
+                SkillInstallScope::User => ship_substrate::project::user_skills_dir().join(&installed.id),
             };
             println!(
                 "Installed skill: {} ({}) -> {}",

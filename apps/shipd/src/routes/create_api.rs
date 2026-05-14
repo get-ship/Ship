@@ -163,7 +163,7 @@ fn scaffold_view(state: &ApiState, req: &CreateRequest) -> axum::response::Respo
         .join(&req.shape);
 
     let mut scaffold_src: Option<std::path::PathBuf> = None;
-    if let Ok(d) = ship_application::project::get_project_dir(None) {
+    if let Ok(d) = ship_substrate::project::get_project_dir(None) {
         let p = d.join(&scaffold_rel);
         if p.is_dir() {
             scaffold_src = Some(p);

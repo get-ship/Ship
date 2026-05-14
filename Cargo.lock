@@ -509,7 +509,6 @@ dependencies = [
  "clap",
  "serde",
  "serde_json",
- "ship-application",
  "ship-platform",
  "ship-substrate",
  "tempfile",
@@ -2290,7 +2289,6 @@ dependencies = [
  "rmcp",
  "serde",
  "serde_json",
- "ship-application",
  "ship-platform",
  "ship-substrate",
  "tempfile",
@@ -3989,52 +3987,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dc6fe69c597f9c37bfeeeeeb33da3530379845f10be461a66d16d03eca2ded77"
 
 [[package]]
-name = "ship-application"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "chrono",
- "compiler",
- "cron",
- "flate2",
- "globset",
- "home",
- "indexmap",
- "jsonschema",
- "libc",
- "minijinja",
- "nanoid",
- "notify",
- "portable-pty",
- "reqwest 0.12.28",
- "rmp-serde",
- "sea-query",
- "semver",
- "serde",
- "serde_json",
- "serde_yaml",
- "sha2",
- "ship-jobs",
- "ship-kernel",
- "ship-pipelines",
- "ship-platform",
- "ship-substrate",
- "ship-types",
- "specta",
- "sqlx",
- "sysinfo",
- "tar",
- "tempfile",
- "thiserror 2.0.18",
- "tokio",
- "tracing",
- "ulid",
- "ureq",
- "walkdir",
-]
-
-[[package]]
 name = "ship-cli"
 version = "0.2.0"
 dependencies = [
@@ -4065,7 +4017,6 @@ dependencies = [
  "serde_json",
  "serde_yaml",
  "sha2",
- "ship-application",
  "ship-jobs",
  "ship-platform",
  "ship-substrate",
@@ -4313,7 +4264,6 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_yaml",
- "ship-application",
  "ship-jobs",
  "ship-pipelines",
  "ship-platform",
@@ -6345,7 +6295,6 @@ dependencies = [
  "regex",
  "serde",
  "serde_json",
- "ship-application",
  "ship-platform",
  "ship-substrate",
  "ship-sui",

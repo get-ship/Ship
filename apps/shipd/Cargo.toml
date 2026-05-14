@@ -18,7 +18,6 @@ name = "shipd"
 path = "src/main.rs"
 
 [dependencies]
-ship-application = { path = "../../crates/core/ship-application" }
 ship-substrate = { path = "../../crates/core/ship-substrate" }
 ship-platform = { path = "../../crates/core/ship-platform" }
 ship-supervisor = { path = "../../crates/ship-supervisor" }
@@ -87,7 +86,7 @@ regex = { workspace = true }
 specta = { workspace = true, features = ["chrono", "serde_json"], optional = true }
 
 [features]
-unstable = ["ship-application/unstable"]
+unstable = ["ship-platform/unstable"]
 specta = ["dep:specta", "ship-sui/specta"]
 
 [dev-dependencies]

@@ -11,11 +11,11 @@ pub use super::view_filters_list::{filter_sort_by, filter_take, filter_where};
 /// Returns all items from a collection as a list of objects with
 /// `id`, `data`, `created_at`, `updated_at`. Returns empty list on error.
 pub fn ship_items(collection: String) -> Vec<Value> {
-    let ship_dir = match ship_application::project::get_global_dir() {
+    let ship_dir = match ship_substrate::project::get_global_dir() {
         Ok(d) => d,
         Err(_) => return vec![],
     };
-    let project_dir = ship_application::project::get_project_dir(None).ok();
+    let project_dir = ship_substrate::project::get_project_dir(None).ok();
     let schemas = ship_platform::collections::schema::load_schemas_merged(&ship_dir, project_dir.as_deref())
         .unwrap_or_default();
     let schema = match schemas.iter().find(|s| s.id == collection) {
@@ -47,11 +47,11 @@ pub fn ship_items(collection: String) -> Vec<Value> {
 /// Global function: `ship_schema(collection_name)`.
 /// Returns the schema for a collection, or undefined on error.
 pub fn ship_schema(collection: String) -> Value {
-    let ship_dir = match ship_application::project::get_global_dir() {
+    let ship_dir = match ship_substrate::project::get_global_dir() {
         Ok(d) => d,
         Err(_) => return Value::UNDEFINED,
     };
-    let project_dir = ship_application::project::get_project_dir(None).ok();
+    let project_dir = ship_substrate::project::get_project_dir(None).ok();
     let schemas = ship_platform::collections::schema::load_schemas_merged(&ship_dir, project_dir.as_deref())
         .unwrap_or_default();
     match schemas.into_iter().find(|s| s.id == collection) {
@@ -63,11 +63,11 @@ pub fn ship_schema(collection: String) -> Value {
 /// Global function: `ship_query('task', {status: 'active', priority__gte: 3, _sort: '-priority'})`.
 /// SQL pushdown through query.rs. Keys starting with `_` are query options.
 pub fn ship_query(collection: String, opts: Option<Value>) -> Vec<Value> {
-    let ship_dir = match ship_application::project::get_global_dir() {
+    let ship_dir = match ship_substrate::project::get_global_dir() {
         Ok(d) => d,
         Err(_) => return vec![],
     };
-    let project_dir = ship_application::project::get_project_dir(None).ok();
+    let project_dir = ship_substrate::project::get_project_dir(None).ok();
     let schemas = ship_platform::collections::schema::load_schemas_merged(&ship_dir, project_dir.as_deref())
         .unwrap_or_default();
     let schema = match schemas.iter().find(|s| s.id == collection) {
@@ -150,9 +150,9 @@ fn parse_sort_string(val: &serde_json::Value, sort: &mut std::collections::BTree
 /// list rather than failing the render.
 fn canvas_artifact_service()
 -> Option<(ship_platform::artifacts::ArtifactService, ship_substrate::data::DataService)> {
-    let global = ship_application::project::get_global_dir().ok()?;
-    let project_ship = ship_application::project::get_project_dir(None).ok()?;
-    let slug = ship_application::project::project_slug_from_ship_dir(&project_ship);
+    let global = ship_substrate::project::get_global_dir().ok()?;
+    let project_ship = ship_substrate::project::get_project_dir(None).ok()?;
+    let slug = ship_substrate::project::project_slug_from_ship_dir(&project_ship);
     let mut svc = ship_substrate::data::DataService::open(&global).ok()?;
     ship_platform::artifacts::ensure_artifacts_collection(&mut svc).ok()?;
     let _ = slug;

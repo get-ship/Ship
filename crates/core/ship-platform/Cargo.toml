@@ -59,7 +59,7 @@ jsonschema = { version = "0.46", default-features = false }
 libc = { workspace = true }
 
 [features]
-unstable = []
+unstable = ["ship-substrate/unstable"]
 # Enable derive(Type) on public data structs in the migrated services
 # (rules/mcp/skills/agents/pipelines/git/permissions/...) so xtask can
 # emit TypeScript bindings via `cargo xtask gen-types`. Off by default.

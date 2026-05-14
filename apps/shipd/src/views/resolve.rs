@@ -98,13 +98,13 @@ pub(crate) fn resolve_view_dir(
     global_override: Option<&std::path::Path>,
 ) -> Option<(PathBuf, &'static str)> {
     if !is_valid_view_name(name) { return None; }
-    if let Ok(d) = ship_application::project::get_project_dir(None) {
+    if let Ok(d) = ship_substrate::project::get_project_dir(None) {
         let c = d.join("views").join(name);
         if c.is_dir() { return Some((c, "project")); }
     }
     let global = match global_override {
         Some(p) => Some(p.to_path_buf()),
-        None => ship_application::project::get_global_dir().ok(),
+        None => ship_substrate::project::get_global_dir().ok(),
     };
     if let Some(d) = global {
         let c = d.join("views").join(name);

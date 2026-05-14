@@ -33,7 +33,7 @@ impl ProjectState {
             eprintln!("warning: could not open platform.db: {}", e);
             return ProjectState::default();
         }
-        let project_id = match ship_application::project::ensure_project_id(ship_dir) {
+        let project_id = match ship_substrate::project::ensure_project_id(ship_dir) {
             Ok(id) => id,
             Err(e) => {
                 eprintln!("warning: could not resolve project id: {}", e);

@@ -90,7 +90,7 @@ async fn http_get_errors(
     view: Option<&str>,
     limit: Option<usize>,
 ) -> Result<String> {
-    let global_dir = ship_application::project::get_global_dir()?;
+    let global_dir = ship_substrate::project::get_global_dir()?;
     let port = read_port(&global_dir)?;
     let token = read_token(&global_dir)?;
     let mut url = format!("http://127.0.0.1:{port}/api/v1/view-errors");
@@ -125,7 +125,7 @@ async fn http_get_errors(
 }
 
 async fn http_delete_errors() -> Result<u64> {
-    let global_dir = ship_application::project::get_global_dir()?;
+    let global_dir = ship_substrate::project::get_global_dir()?;
     let port = read_port(&global_dir)?;
     let token = read_token(&global_dir)?;
     let url = format!("http://127.0.0.1:{port}/api/v1/view-errors");

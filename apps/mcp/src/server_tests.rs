@@ -1,5 +1,5 @@
 use super::*;
-use ship_application::project::init_project;
+use ship_platform::projects::init_project;
 use ship_platform::config::{AgentProfile, get_config, save_config};
 use tempfile::tempdir;
 
@@ -10,7 +10,7 @@ fn install_active_agent(project_dir: &std::path::Path, agent: AgentProfile) {
     save_config(&config, Some(project_dir.to_path_buf())).expect("save config");
     // Mark as active by emitting compile.completed — the projection is the
     // source of truth for "which agent is active for this project".
-    let project_id = ship_application::project::ensure_project_id(project_dir).expect("project id");
+    let project_id = ship_substrate::project::ensure_project_id(project_dir).expect("project id");
     let payload = ship_substrate::events::types::CompileCompleted {
         active_agent: Some(id),
         compiled_at: chrono::Utc::now().to_rfc3339(),

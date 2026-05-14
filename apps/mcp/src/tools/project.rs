@@ -2,8 +2,8 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use ship_application::project::{get_active_project_global, get_project_dir, set_active_project_global};
-use ship_application::project::{get_project_name, list_registered_projects};
+use ship_substrate::project::{get_active_project_global, get_project_dir, set_active_project_global};
+use ship_substrate::project::{get_project_name, list_registered_projects};
 use ship_platform::config::get_config;
 use ship_platform::sessions::get_active_session as runtime_get_active_session;
 use ship_substrate::events::read_recent_events;
@@ -111,7 +111,7 @@ fn resolve_project_root(ship_dir: PathBuf) -> PathBuf {
 /// the project root (with `.ship/` appended internally to find ship.jsonc).
 fn active_agent_for_project(project_dir: &Path) -> Option<String> {
     let ship_dir = ship_substrate::ShipHome::project_ship_dir(project_dir);
-    let project_id = ship_application::project::ensure_project_id(&ship_dir).ok()?;
+    let project_id = ship_substrate::project::ensure_project_id(&ship_dir).ok()?;
     ship_platform::projections::compile_state::load(&project_id)
         .ok()
         .flatten()

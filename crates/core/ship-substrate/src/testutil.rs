@@ -2,7 +2,7 @@
 //!
 //! `init_project_minimal` creates just enough of a `.ship/` tree for DB
 //! tests to work (stable state-directory path derivation). It is intentionally
-//! thinner than `ship_application::project::init_project` — no config schemas, no
+//! thinner than `ship_platform::projects::init_project` — no config schemas, no
 //! skills directories, no registry calls.
 
 use anyhow::Result;

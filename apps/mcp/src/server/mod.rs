@@ -75,7 +75,7 @@ impl ShipServer {
             stability::finalize_router(r)
         };
         // Detect project from CWD at startup
-        let project_dir = ship_application::project::get_project_dir(None)
+        let project_dir = ship_substrate::project::get_project_dir(None)
             .ok()
             .map(|ship_dir| {
                 if ship_dir.file_name().and_then(|n| n.to_str()) == Some(".ship") {
@@ -124,7 +124,7 @@ impl ShipServer {
             Err(_) => return,
         };
 
-        let global_dir = match ship_application::project::get_global_dir() {
+        let global_dir = match ship_substrate::project::get_global_dir() {
             Ok(d) => d,
             Err(e) => {
                 tracing::warn!("failed to resolve global dir: {e}");

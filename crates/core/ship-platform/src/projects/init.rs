@@ -23,7 +23,7 @@ fn write_if_missing(path: &Path, content: &str) -> Result<()> {
 pub fn init_project(base_dir: impl AsRef<Path>) -> Result<PathBuf> {
     // Idempotent: install platform-level projection set + supervisor
     // hooks before any SqliteEventStore is constructed downstream.
-    ship_platform::install_defaults();
+    crate::install_defaults();
 
     let base_dir = base_dir.as_ref();
     let ship_path = base_dir.join(SHIP_DIR_NAME);
@@ -60,12 +60,12 @@ pub fn init_project(base_dir: impl AsRef<Path>) -> Result<PathBuf> {
 
     // Write ship.toml (with a stable project ID) BEFORE any DB access so that
     // project_db_key can read the ID and derive a stable state directory path.
-    if !ship_path.join(ship_platform::config::PRIMARY_CONFIG_FILE).exists() {
-        let config = ship_platform::config::ProjectConfig {
+    if !ship_path.join(crate::config::PRIMARY_CONFIG_FILE).exists() {
+        let config = crate::config::ProjectConfig {
             id: ship_substrate::gen_nanoid(),
             ..Default::default()
         };
-        ship_platform::config::save_config(&config, Some(ship_path.clone()))?;
+        crate::config::save_config(&config, Some(ship_path.clone()))?;
     }
 
     write_if_missing(
@@ -91,7 +91,7 @@ Vision -> Release -> Feature -> Spec -> Close Feature -> Ship Release
 "#,
     )?;
 
-    ship_platform::config::ensure_standard_dirs(&ship_path)?;
+    crate::config::ensure_standard_dirs(&ship_path)?;
     write_project_gitignore(base_dir.as_ref())?;
 
     Ok(ship_path)
@@ -172,13 +172,13 @@ pub fn init_project_with_registry(base_dir: PathBuf) -> Result<InitWithRegistryR
     let ship_dir = init_project(base_dir)?;
 
     // Seed default dependencies — idempotent, skips if deps already present.
-    let seed = ship_platform::registry::init_deps::seed_default_dependencies(&ship_dir)?;
+    let seed = crate::registry::init_deps::seed_default_dependencies(&ship_dir)?;
     let deps_seeded = seed.added;
 
     // Best-effort install. Failure is not an error — bare scaffold skills
     // remain as the offline fallback.
     let registry_installed =
-        ship_platform::registry::init_deps::try_install_init_deps(&ship_dir).unwrap_or_default();
+        crate::registry::init_deps::try_install_init_deps(&ship_dir).unwrap_or_default();
 
     Ok(InitWithRegistryResult {
         ship_dir,

@@ -11,7 +11,6 @@ path = "src/main.rs"
 
 [dependencies]
 compiler = { path = "../core/compiler", features = ["specta"] }
-ship-application = { path = "../core/ship-application" }
 ship-substrate = { path = "../core/ship-substrate" }
 ship-platform = { path = "../core/ship-platform", features = ["specta"] }
 ship-types = { path = "../core/ship-types", features = ["specta"] }

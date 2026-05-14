@@ -35,7 +35,7 @@ fn fields_records(s: &ship_platform::collections::schema::CollectionSchema) -> V
 
 fn load_schemas(state: &ApiState) -> Vec<ship_platform::collections::schema::CollectionSchema> {
     let ship_dir = state.ship_dir();
-    let project_dir = ship_application::project::get_project_dir(None).ok();
+    let project_dir = ship_substrate::project::get_project_dir(None).ok();
     let mut schemas = ship_platform::collections::builtin::user_schemas();
     schemas.extend(
         ship_platform::collections::schema::load_schemas_merged(ship_dir, project_dir.as_deref())

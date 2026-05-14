@@ -62,7 +62,7 @@ pub(super) fn try_dispatch(
             //    pidfile/port. These don't always register as kernel
             //    actors but they're the most important "Ship is doing
             //    this on your machine" rows.
-            let global_dir = ship_application::project::get_global_dir().unwrap_or_default();
+            let global_dir = ship_substrate::project::get_global_dir().unwrap_or_default();
             let home = ship_substrate::ShipHome::at(global_dir.clone());
             let daemon_pid: Option<i64> = std::fs::read_to_string(
                 home.daemon_file(ship_substrate::home::DaemonFile::Pid),

@@ -173,7 +173,7 @@ fn resolve_workspace_uri(uri: &str, ship_dir: &Path) -> Option<String> {
     if uri == "ship://agents" {
         return match get_config(Some(ship_dir.to_path_buf())) {
             Ok(config) => {
-                let active_agent = ship_application::project::ensure_project_id(ship_dir)
+                let active_agent = ship_substrate::project::ensure_project_id(ship_dir)
                     .ok()
                     .and_then(|pid| {
                         ship_platform::projections::compile_state::load(&pid)

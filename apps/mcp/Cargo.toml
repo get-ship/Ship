@@ -22,7 +22,6 @@ mcp-framework = { path = "../../crates/core/mcp-framework" }
 async-trait = { workspace = true }
 compiler = { path = "../../crates/core/compiler" }
 lint = { path = "../../crates/core/lint" }
-ship-application = { path = "../../crates/core/ship-application" }
 ship-substrate = { path = "../../crates/core/ship-substrate" }
 ship-platform = { path = "../../crates/core/ship-platform" }
 anyhow = { workspace = true }
@@ -38,7 +37,7 @@ reqwest = { workspace = true, features = ["json", "rustls-tls", "stream", "multi
 futures-util = { workspace = true }
 
 [features]
-unstable = ["ship-application/unstable"]
+unstable = ["ship-platform/unstable"]
 
 [dev-dependencies]
 tempfile = { workspace = true }

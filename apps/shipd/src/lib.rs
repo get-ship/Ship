@@ -107,7 +107,7 @@ pub async fn run_network(
     // but they can't flip the --dev flag on the daemon process they didn't start.
     let host = if dev { "127.0.0.1".to_string() } else { host };
     auth::pairing::set_dev_mode(dev);
-    let global_dir = ship_application::project::get_global_dir()?;
+    let global_dir = ship_substrate::project::get_global_dir()?;
     let init_started_at = std::time::Instant::now();
 
     // Per devx-04, pick the daemon IPC dir based on workspace cwd. A daemon
@@ -226,7 +226,7 @@ pub async fn run_network(
             }
             loop {
                 match events.recv().await {
-                    Ok(ship_application::bundler::BundlerEvent::ModuleChanged { target, out_path, bytes }) => {
+                    Ok(ship_platform::bundler::BundlerEvent::ModuleChanged { target, out_path, bytes }) => {
                         if mode == ship_sui::DaemonMode::Development {
                             views::sui_hmr::publish_bundle_event(views::sui_hmr::BundleModuleEvent {
                                 kind: views::sui_hmr::BundleModuleEventKind::ModuleChanged,
@@ -240,7 +240,7 @@ pub async fn run_network(
                             });
                         }
                     }
-                    Ok(ship_application::bundler::BundlerEvent::CompileError { target, message, line, col, file }) => {
+                    Ok(ship_platform::bundler::BundlerEvent::CompileError { target, message, line, col, file }) => {
                         if mode == ship_sui::DaemonMode::Development {
                             views::sui_hmr::publish_bundle_event(views::sui_hmr::BundleModuleEvent {
                                 kind: views::sui_hmr::BundleModuleEventKind::CompileError,
@@ -254,7 +254,7 @@ pub async fn run_network(
                             });
                         }
                     }
-                    Ok(ship_application::bundler::BundlerEvent::WorkerRestarted) => {
+                    Ok(ship_platform::bundler::BundlerEvent::WorkerRestarted) => {
                         tracing::info!("bundler: worker restarted");
                     }
                     Err(_) => break,

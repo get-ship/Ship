@@ -6,7 +6,6 @@ members = [
     "crates/core/lint",
     "crates/j2-lsp",
     "crates/core/mcp-framework",
-    "crates/core/ship-application",
     "crates/core/ship-substrate",
     "crates/core/ship-platform",
     "crates/core/ship-jobs",

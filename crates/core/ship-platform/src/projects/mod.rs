@@ -25,6 +25,14 @@ use crate::projections::projects;
 use ship_types::event_types::{PROJECT_ARCHIVED, PROJECT_REGISTERED, PROJECT_SEEN};
 use ship_types::payload::{ProjectArchived, ProjectRegistered, ProjectSeen};
 
+// Project bootstrap / registry-backed init flow. L1 because it depends on
+// config schemas and the package registry — see `init.rs` doc comment.
+mod init;
+pub use init::{InitWithRegistryResult, init_project, init_project_with_registry};
+
+#[cfg(test)]
+mod init_tests;
+
 /// Public-facing record. Backed by the `projects` projection row.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProjectRecord {

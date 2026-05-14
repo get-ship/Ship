@@ -45,7 +45,7 @@ pub fn view_search_dirs() -> Vec<ViewSearchDir> {
             source: "project",
         });
     }
-    if let Ok(global) = ship_application::project::get_global_dir() {
+    if let Ok(global) = ship_substrate::project::get_global_dir() {
         out.push(ViewSearchDir {
             path: global.join("views"),
             source: "global",
@@ -62,7 +62,7 @@ pub fn view_search_dirs() -> Vec<ViewSearchDir> {
 /// We normalize by stripping a trailing `.ship` segment so callers can
 /// reliably compose `<workspace>/views/` and `<workspace>/.ship/views/`.
 fn workspace_root() -> Option<std::path::PathBuf> {
-    let raw = ship_application::project::get_project_dir(None).ok()?;
+    let raw = ship_substrate::project::get_project_dir(None).ok()?;
     if raw.file_name().and_then(|s| s.to_str()) == Some(".ship") {
         raw.parent().map(|p| p.to_path_buf())
     } else {

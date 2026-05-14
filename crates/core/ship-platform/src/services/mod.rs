@@ -37,3 +37,17 @@ pub mod skills;
 pub mod path_tolerant;
 pub mod rules;
 pub mod sessions;
+
+// Cross-component integration tests spanning substrate + platform service
+// actors. They live here (rather than in a separate crate) so neither
+// substrate nor platform needs a dev-dependency on the other.
+#[cfg(test)]
+mod cross_component_tests;
+#[cfg(test)]
+mod integration_tests;
+#[cfg(test)]
+mod tests;
+#[cfg(test)]
+mod tests_drain;
+#[cfg(test)]
+mod tests_provider_adapter;

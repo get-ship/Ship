@@ -69,7 +69,7 @@ fn namespaces_from(events: &[String]) -> Vec<String> {
 
 fn view_roots(state: &ApiState) -> Vec<std::path::PathBuf> {
     let mut roots = Vec::new();
-    if let Ok(project_ship) = ship_application::project::get_project_dir(None) {
+    if let Ok(project_ship) = ship_substrate::project::get_project_dir(None) {
         let p = project_ship.join("views");
         if project_ship != state.ship_dir() && p.is_dir() {
             roots.push(p);

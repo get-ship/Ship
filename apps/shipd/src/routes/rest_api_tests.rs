@@ -241,7 +241,7 @@ async fn checkout_hook_with_valid_ship_dir() {
     std::fs::create_dir_all(&ship_dir).unwrap();
     ship_substrate::db::ensure_db_at(&ship_dir).unwrap();
     // init_project creates the markers that get_project_dir looks for.
-    let _ = ship_application::project::init_project(dir.path());
+    let _ = ship_platform::projects::init_project(dir.path());
 
     let resp = hooks_checkout(Json(CheckoutHookReq {
         branch: "main".into(),

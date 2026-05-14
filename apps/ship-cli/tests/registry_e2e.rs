@@ -202,7 +202,7 @@ fn install_writes_lock_with_correct_package_entry() {
 
 #[test]
 fn workspace_state_active_profile_round_trip() {
-    use ship_application::project::init_project;
+    use ship_platform::projects::init_project;
     use ship_platform::kv;
     use ship_substrate::db;
 

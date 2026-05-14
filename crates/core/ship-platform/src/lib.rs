@@ -2,6 +2,7 @@
 pub mod agents;
 pub mod artifacts;
 pub mod auth;
+pub mod bundler;
 pub mod collections;
 pub mod config;
 pub mod hooks;
@@ -11,6 +12,7 @@ pub mod projects;
 pub mod registry;
 pub mod services;
 pub mod sessions;
+pub mod toolchain;
 
 // Module aliases — sub-paths of agents that callers reference at crate root.
 pub use agents::permissions;

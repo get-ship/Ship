@@ -8,7 +8,6 @@ publish = false
 [dependencies]
 anyhow = { workspace = true }
 clap = { workspace = true }
-ship-application = { path = "../ship-application" }
 ship-substrate = { path = "../ship-substrate" }
 ship-platform = { path = "../ship-platform" }
 serde = { workspace = true }

@@ -52,7 +52,7 @@ use std::path::PathBuf;
 /// `SqliteEventStore` is constructed.
 fn try_init_kernel_router() {
     ship_platform::install_defaults();
-    if let Ok(dir) = ship_application::project::get_global_dir() {
+    if let Ok(dir) = ship_substrate::project::get_global_dir() {
         let _ = ship_substrate::events::init_kernel_router(dir);
     }
 }
@@ -264,7 +264,7 @@ fn run_rebuild_projections() -> Result<()> {
 
 #[cfg(feature = "unstable")]
 fn run_top() -> Result<()> {
-    let ship_dir = ship_application::project::get_project_dir(None)?;
+    let ship_dir = ship_substrate::project::get_project_dir(None)?;
     top::run(ship_dir)
 }
 
