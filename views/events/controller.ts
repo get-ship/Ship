@@ -5,26 +5,8 @@
 // source directly to `/_sui/data?expr=…` instead.
 
 import { controller, signal, derived, live, unwrap } from '@ship/sui-runtime'
-import type { LiveSignal, LiveSource } from '@ship/sui-runtime'
+import { liveExpr } from '@ship/sdk-client'
 import type { Scope } from './page.sui'
-
-function sseSource<T>(expr: string): LiveSource<T> {
-  return {
-    subscribe(sig: LiveSignal<T>): () => void {
-      const es = new EventSource(`/_sui/data?expr=${encodeURIComponent(expr)}`)
-      const onPatch = (ev: MessageEvent): void => {
-        try {
-          const patch = JSON.parse(ev.data as string) as { op: string; value: T }
-          if (patch.op === 'set') sig.set({ kind: 'ok', value: patch.value })
-        } catch (err) {
-          sig.set({ kind: 'error', error: err instanceof Error ? err : new Error(String(err)) })
-        }
-      }
-      es.addEventListener('patch', onPatch as EventListener)
-      return () => { es.close() }
-    },
-  }
-}
 
 interface EventsArgs {
   q?: string
@@ -52,7 +34,7 @@ export default controller<Scope>({
     const eventType = signal('')
     const actor = signal('')
     const entity = signal('')
-    const eventsData = live(() => sseSource<EventsValue>(eventsExpr({
+    const eventsData = live(() => liveExpr<EventsValue>(eventsExpr({
       q: q(),
       event_type: eventType(),
       actor: actor(),

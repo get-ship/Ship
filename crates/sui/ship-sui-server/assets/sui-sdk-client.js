@@ -1,10 +1,7 @@
-// src/index.ts
-import "@ship/sui-runtime";
-
 // src/http.ts
 async function mutateJson(baseUrl, method, path, body) {
   const init = { method, credentials: "same-origin" };
-  if (body !== void 0) {
+  if (body !== undefined) {
     init.headers = { "content-type": "application/json" };
     init.body = JSON.stringify(body);
   }
@@ -24,13 +21,15 @@ async function fetchBody(baseUrl, path, as) {
     let detail = `${resp.status} ${resp.statusText}`;
     try {
       const t = await resp.text();
-      if (t) detail = t;
-    } catch {
-    }
+      if (t)
+        detail = t;
+    } catch {}
     throw new Error(`[ship-sdk-client] GET ${path} failed: ${detail}`);
   }
-  if (as === "text") return await resp.text();
-  if (as === "blob") return await resp.blob();
+  if (as === "text")
+    return await resp.text();
+  if (as === "blob")
+    return await resp.blob();
   return await resp.json();
 }
 async function throwOnError(resp, method, path) {
@@ -38,20 +37,24 @@ async function throwOnError(resp, method, path) {
     let detail = `${resp.status} ${resp.statusText}`;
     try {
       const text = await resp.text();
-      if (text) detail = text;
-    } catch {
-    }
+      if (text)
+        detail = text;
+    } catch {}
     throw new Error(`[ship-sdk-client] ${method} ${path} failed: ${detail}`);
   }
-  if (resp.status === 204) return void 0;
+  if (resp.status === 204)
+    return;
   const ct = resp.headers.get("content-type") ?? "";
-  if (ct.includes("application/json")) return await resp.json();
-  return void 0;
+  if (ct.includes("application/json"))
+    return await resp.json();
+  return;
 }
 
 // src/sse.ts
-import "@ship/sui-runtime";
 import { applyPatch } from "@ship/sui-runtime/patch";
+function liveExpr(expr, ESCtor = globalThis.EventSource) {
+  return makeSseSource(`/_sui/data?expr=${encodeURIComponent(expr)}`, ESCtor);
+}
 function makeSseSource(url, ESCtor) {
   return {
     subscribe(sig) {
@@ -60,8 +63,7 @@ function makeSseSource(url, ESCtor) {
           kind: "error",
           error: new Error("[ship-set/sdk-client] no EventSource available")
         });
-        return () => {
-        };
+        return () => {};
       }
       const facade = makeFacade(sig);
       const es = new ESCtor(url);
@@ -108,20 +110,20 @@ function makeSseSource(url, ESCtor) {
   };
 }
 function makeFacade(sig) {
-  const reader = (() => {
+  const reader = () => {
     const v = sig();
-    return v.kind === "ok" ? v.value : void 0;
-  });
+    return v.kind === "ok" ? v.value : undefined;
+  };
   reader.set = (next) => {
     const cur = sig.__peek();
-    const prev = cur.kind === "ok" ? cur.value : void 0;
+    const prev = cur.kind === "ok" ? cur.value : undefined;
     const v = typeof next === "function" ? next(prev) : next;
     sig.set({ kind: "ok", value: v });
   };
   reader.__subs = sig.__subs;
   reader.__peek = () => {
     const v = sig.__peek();
-    return v.kind === "ok" ? v.value : void 0;
+    return v.kind === "ok" ? v.value : undefined;
   };
   return reader;
 }
@@ -132,12 +134,9 @@ function createClient(opts) {
   const baseUrl = (opts?.baseUrl ?? "").replace(/\/$/, "");
   const ESCtor = opts?.EventSource ?? globalThis.EventSource;
   const sse = (domain, op, args) => {
-    const argsLit = args === void 0 ? "" : JSON.stringify(args);
+    const argsLit = args === undefined ? "" : JSON.stringify(args);
     const expr = `ship.${domain}.${op}(${argsLit})`;
-    return makeSseSource(
-      `${baseUrl}/_sui/data?expr=${encodeURIComponent(expr)}`,
-      ESCtor
-    );
+    return makeSseSource(`${baseUrl}/_sui/data?expr=${encodeURIComponent(expr)}`, ESCtor);
   };
   const json = (method, path, body2) => mutateJson(baseUrl, method, path, body2);
   const form = (path, body2) => mutateForm(baseUrl, path, body2);
@@ -154,11 +153,7 @@ function createClient(opts) {
         id: args.id,
         doc: args.doc
       }),
-      update: (args) => json(
-        "PUT",
-        `/api/v1/agents/${encodeURIComponent(args.id)}`,
-        args.doc
-      )
+      update: (args) => json("PUT", `/api/v1/agents/${encodeURIComponent(args.id)}`, args.doc)
     },
     canvas: {
       doc: (args) => sse("canvas", "doc", args),
@@ -177,33 +172,16 @@ function createClient(opts) {
         name: args.name ?? args.id,
         fields: args.fields ?? {}
       }),
-      update_schema: (args) => json(
-        "PUT",
-        `/api/v1/collections/${encodeURIComponent(args.id)}/schema`,
-        { id: args.id, fields: args.fields }
-      ),
-      get_item: (args) => body(
-        `/api/v1/collections/${encodeURIComponent(args.collection)}/items/${encodeURIComponent(args.item_id)}`,
-        "json"
-      ),
+      update_schema: (args) => json("PUT", `/api/v1/collections/${encodeURIComponent(args.id)}/schema`, { id: args.id, fields: args.fields }),
+      get_item: (args) => body(`/api/v1/collections/${encodeURIComponent(args.collection)}/items/${encodeURIComponent(args.item_id)}`, "json"),
       create_item: (args) => {
         const b = { data: args.data };
-        if (args.id !== void 0) b.id = args.id;
-        return json(
-          "POST",
-          `/api/v1/collections/${encodeURIComponent(args.collection)}/items`,
-          b
-        );
+        if (args.id !== undefined)
+          b.id = args.id;
+        return json("POST", `/api/v1/collections/${encodeURIComponent(args.collection)}/items`, b);
       },
-      update_item: (args) => json(
-        "PUT",
-        `/api/v1/collections/${encodeURIComponent(args.collection)}/items/${encodeURIComponent(args.item_id)}`,
-        { data: args.data }
-      ),
-      delete_item: (args) => json(
-        "DELETE",
-        `/api/v1/collections/${encodeURIComponent(args.collection)}/items/${encodeURIComponent(args.item_id)}`
-      )
+      update_item: (args) => json("PUT", `/api/v1/collections/${encodeURIComponent(args.collection)}/items/${encodeURIComponent(args.item_id)}`, { data: args.data }),
+      delete_item: (args) => json("DELETE", `/api/v1/collections/${encodeURIComponent(args.collection)}/items/${encodeURIComponent(args.item_id)}`)
     },
     dashboard: {
       state: () => sse("dashboard", "state")
@@ -224,31 +202,25 @@ function createClient(opts) {
     },
     sessions: {
       list: () => sse("sessions", "list"),
-      start: (args) => json(
-        "POST",
-        "/api/v1/sessions/spawn",
-        args
-      ),
+      start: (args) => json("POST", "/api/v1/sessions/spawn", args),
       end: (args) => json("DELETE", `/api/v1/sessions/${encodeURIComponent(args.id)}`)
     },
     workspaces: {
       list: () => sse("workspaces", "list"),
       active: () => sse("workspaces", "active"),
-      activate: (args) => json(
-        "POST",
-        "/api/v1/projects/switch",
-        { id: args.id }
-      )
+      activate: (args) => json("POST", "/api/v1/projects/switch", { id: args.id })
     },
     artifacts: {
       list: (args) => sse("artifacts", "list", args),
-      get: ((args) => body(`/api/v1/artifacts/${encodeURIComponent(args.id)}`, args.as ?? "text")),
+      get: (args) => body(`/api/v1/artifacts/${encodeURIComponent(args.id)}`, args.as ?? "text"),
       upload: (args) => {
-        const fd = new FormData();
+        const fd = new FormData;
         const name = args.filename ?? (args.file instanceof File ? args.file.name : "upload.bin");
         fd.append("file", args.file, name);
-        if (args.collection_id) fd.append("collection_id", args.collection_id);
-        if (args.item_id) fd.append("item_id", args.item_id);
+        if (args.collection_id)
+          fd.append("collection_id", args.collection_id);
+        if (args.item_id)
+          fd.append("item_id", args.item_id);
         return form("/api/v1/artifacts", fd);
       }
     },
@@ -256,19 +228,16 @@ function createClient(opts) {
       list: () => sse("skills", "list"),
       summaries: (args) => sse("skills", "summaries", args),
       detail: (args) => sse("skills", "detail", args),
-      invoke: (args) => json(
-        "POST",
-        `/api/v1/skills/${encodeURIComponent(args.id)}/invoke`,
-        {
-          vars: args.vars,
-          workspace_id: args.workspace_id,
-          session_id: args.session_id
-        }
-      )
+      invoke: (args) => json("POST", `/api/v1/skills/${encodeURIComponent(args.id)}/invoke`, {
+        vars: args.vars,
+        workspace_id: args.workspace_id,
+        session_id: args.session_id
+      })
     }
   };
 }
 export {
-  createClient,
-  makeSseSource
+  makeSseSource,
+  liveExpr,
+  createClient
 };
