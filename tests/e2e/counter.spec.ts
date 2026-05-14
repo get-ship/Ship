@@ -1,9 +1,9 @@
 /**
- * Counter view e2e tests (tier-1, no controller).
+ * Counter view e2e tests (tier-1).
  *
- * The counter view (`views/counter/view.sui`) is the simplest Ship UI view:
- * pure declarative state, no controller, no live data subscription. It is
- * the primary confidence gate before mass porting.
+ * The counter view (`views/counter/page.sui`) is the simplest Ship view:
+ * declarative state via a minimal controller, no live data subscription.
+ * It is the primary confidence gate before mass porting.
  *
  * Three tiers of coverage:
  *   1. SSR structure — verifies the server produces correct HTML markers.
