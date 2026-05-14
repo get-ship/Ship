@@ -17,6 +17,18 @@ pub(super) fn emit_component_export(
         .expect("component_meta required for component mode");
     w.line(&format!("export default component({}, {{", js_string(&meta.name)));
     w.enter();
+    // Stamp the component config so the bundled artifact carries
+    // compiler identity. The runtime's `component()` factory ignores
+    // unknown fields; this travels with the default export and is
+    // therefore safe from tree-shaking.
+    let cv = crate::compiler_version();
+    w.line(&format!(
+        "_compilerVersion: {{ cargo: {}, git: {}, dirty: {}, builtAt: {} }},",
+        js_string(cv.cargo),
+        js_string(cv.git),
+        cv.dirty,
+        js_string(cv.built_at),
+    ));
     emit_props_object(w, &program.props);
     if meta.shadow {
         w.line("shadow: true,");

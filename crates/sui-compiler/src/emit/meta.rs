@@ -44,5 +44,8 @@ pub fn emit_meta(bindings: &BindingRegistry) -> Value {
             entry
         })
         .collect();
-    json!({ "bindings": entries })
+    json!({
+        "bindings": entries,
+        "_compilerVersion": crate::compiler_version().to_json(),
+    })
 }

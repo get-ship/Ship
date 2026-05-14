@@ -64,6 +64,22 @@ pub fn emit_module(
     mode: CompileMode,
 ) -> String {
     let mut w = Writer::new();
+    // Leading `_compilerVersion` legal comment. Lets the shell compare
+    // its loaded view bundle against the daemon's `/api/_meta` and
+    // surface drift loudly instead of silently rendering against a
+    // stale export surface (cf. the `fade` regression that prompted
+    // this).
+    //
+    // We also attach `_compilerVersion` to the default export inside
+    // `view.rs` / `component.rs` — that property travels through
+    // tree-shaking bundlers like Bun.build, which would otherwise drop
+    // unused top-level exports and module-level comments.
+    let cv = crate::compiler_version();
+    let stamp_json = format!(
+        "{{\"cargo\":\"{}\",\"git\":\"{}\",\"dirty\":{},\"builtAt\":\"{}\"}}",
+        cv.cargo, cv.git, cv.dirty, cv.built_at,
+    );
+    w.line(&format!("/*! _compilerVersion {stamp_json} */"));
     let islands = collect_islands(&program.template);
     if !islands.is_empty() {
         let list = islands

@@ -114,6 +114,21 @@ pub fn build_router(
         .route("/api/health", axum::routing::get(move || {
             health_check(health_rt)
         }))
+        // Drift-detection endpoint — returns daemon + compiler build
+        // identity so the shell can compare its loaded `_compilerVersion`
+        // marker against what the daemon was built with. Unauthenticated
+        // for the same reason `/api/health` is: shell needs it before
+        // any session exists.
+        .route("/api/_meta", axum::routing::get({
+            let bi = build_info::build_info!();
+            let dbi = ship_sui::DaemonBuildInfo {
+                cargo: env!("CARGO_PKG_VERSION"),
+                git: bi.git_sha,
+                dirty: bi.git_dirty,
+                built_at: bi.timestamp,
+            };
+            move || ship_sui::serve_meta(Some(axum::Extension(dbi)))
+        }))
         // Shared static assets — no user-specific data, safe to serve unauth.
         .ship_route(Route::AssetDatastarJs, views::serve_datastar_js)
         .ship_route(Route::AssetViewTokensCss, views::serve_view_tokens)

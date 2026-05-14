@@ -45,6 +45,48 @@ pub mod render;
 
 pub use diagnostics::{CompileError, Span};
 
+/// Identity stamp embedded in every emitted artifact (JS leading
+/// comment, CEM, schema, meta sidecar) so the daemon and runtime can
+/// detect drift between the compiled bundle and the running shell —
+/// e.g. a stale `view.js` that lacks an export the runtime expects.
+///
+/// Cargo version is the crate's `version` field; git sha + dirty flag
+/// + build timestamp come from `build.rs` via the shared `build_info`
+/// crate. On source-tarball builds without `.git`, `git` is the
+/// literal string `"unknown"`.
+#[derive(Debug, Clone, Copy)]
+pub struct CompilerVersion {
+    pub cargo: &'static str,
+    pub git: &'static str,
+    pub dirty: bool,
+    pub built_at: &'static str,
+}
+
+impl CompilerVersion {
+    /// Serialise as the JSON shape consumers (JS comment, CEM,
+    /// schema, meta, `/api/_meta`) all share. Single source of truth.
+    pub fn to_json(&self) -> serde_json::Value {
+        serde_json::json!({
+            "cargo": self.cargo,
+            "git": self.git,
+            "dirty": self.dirty,
+            "builtAt": self.built_at,
+        })
+    }
+}
+
+/// Return the compiler's identity stamp. Cheap (no allocation —
+/// every field is a `&'static str` resolved at compile time).
+pub fn compiler_version() -> CompilerVersion {
+    let bi = build_info::build_info!();
+    CompilerVersion {
+        cargo: env!("CARGO_PKG_VERSION"),
+        git: bi.git_sha,
+        dirty: bi.git_dirty,
+        built_at: bi.timestamp,
+    }
+}
+
 /// Compile mode.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CompileMode {

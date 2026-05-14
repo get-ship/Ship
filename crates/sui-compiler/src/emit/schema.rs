@@ -16,7 +16,11 @@ pub fn emit_schema(program: &Program, opts: &CompileOpts) -> Value {
         .collect();
     let component = opts.component_meta.as_ref().map(|m| component_value(&m.name, &program.props));
 
-    json!({ "data": data, "component": component })
+    json!({
+        "data": data,
+        "component": component,
+        "_compilerVersion": crate::compiler_version().to_json(),
+    })
 }
 
 fn component_value(tag: &str, props: &[PropDecl]) -> Value {

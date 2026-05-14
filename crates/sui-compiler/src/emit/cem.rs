@@ -52,6 +52,7 @@ pub fn emit_cem(program: &Program, opts: &CompileOpts) -> Value {
         "schemaVersion": "1.0.0",
         "readme": "",
         "modules": [module],
+        "_compilerVersion": crate::compiler_version().to_json(),
     })
 }
 

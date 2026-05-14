@@ -4814,6 +4814,7 @@ name = "sui-compiler"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "build-info",
  "clap",
  "libc",
  "serde",
