@@ -248,8 +248,24 @@ fn emit_setup_call(w: &mut Writer) {
     // `function setup(ctx)` author export. Compiler emits a single call
     // path; if a paired `.ts` returns a non-object, we ignore it instead
     // of letting it shadow the runtime's $scope.
+    //
+    // Expose `$scope` to the controller via `ctx.scope` BEFORE invoking
+    // its setup. The template's `$scope.<data>` is the live signal
+    // emitted by `emit_data_decls` (e.g. `$scope.agents = live(() =>
+    // ship.agents.summaries())`) — that's the signal the template's
+    // bindings (`bindWhileLoading`, `bindIf` over `$scope.agents()`)
+    // actually read. If the controller's `derived` section destructures
+    // the same name out of `ctx.scope`, it must resolve to that same
+    // signal, otherwise the controller computes against the inert
+    // mount-built copy (stuck at `{kind:'loading'}`) while the template
+    // sees the patched live signal. Mount.ts hands us `ctx.scope` as a
+    // snapshot of the SSR-built scope; we narrow it to `$scope` here so
+    // controller-and-template agree on a single source-of-truth signal
+    // per `<data>` declaration. Components already did this via
+    // `emit_component_setup_call`; views were lagging.
     w.line("if (setup && typeof setup.setup === \"function\") {");
     w.enter();
+    w.line("ctx.scope = $scope;");
     w.line("const __r = setup.setup(ctx);");
     w.line("if (__r && typeof __r === \"object\") Object.assign($scope, __r);");
     w.leave();

@@ -158,6 +158,7 @@ var page_default = view((ctx) => {
   $scope.navigate = navigate;
   $scope.agents = live2(() => ship.agents.summaries());
   if (controller_default && typeof controller_default.setup === "function") {
+    ctx.scope = $scope;
     const __r = controller_default.setup(ctx);
     if (__r && typeof __r === "object")
       Object.assign($scope, __r);
