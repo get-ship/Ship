@@ -474,12 +474,21 @@ function emit(msg: Response | Event) {
 
 // ── Main loop ─────────────────────────────────────────────────────────────────
 
-// CLI mode: `--all` runs build_all + exits without reading stdin. Used by
-// `just dev-build-all` so callers don't need to script stdin/stdout JSON
-// gymnastics for one-shot builds.
+// CLI mode: `--all` runs a one-shot build of the sui-* family + views and
+// exits. This is the asset set `crates/ship-sui-server/build.rs` requires
+// via its ASSETS const, so the root `pnpm build:bundles` script can fan out
+// here in CI without scripting the stdin/stdout JSON protocol.
+//
+// The `ship-*` (lit) targets are intentionally excluded — they belong to
+// `@ship/set`'s own build path (`pnpm -F @ship/set build` + `... icons`)
+// and depend on a generated lucide registry that lives outside this
+// bundler's dependency graph. Watch mode still rebuilds them on edit.
 if (process.argv.includes('--all')) {
   let failed = false
-  for (const target of TARGETS) {
+  const allTargets = TARGETS.filter(
+    (t) => t.name.startsWith('sui-') || t.name.startsWith('views/'),
+  )
+  for (const target of allTargets) {
     try {
       const { bytes } = await buildTarget(target)
       process.stdout.write(`✓ ${target.name} (${bytes} bytes)\n`)
