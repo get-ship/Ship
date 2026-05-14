@@ -213,6 +213,10 @@ session.
 
 ## References
 
+Two tiers. The `references/*.md` files are concise agent-facing overviews; the `references/docs/*.md` files are the docs-site deep dives shown on the public/internal site (collect-skill-docs walks the `docs/` subdir). They complement each other — different consumers, different granularities.
+
+### Agent-facing overviews (`references/`)
+
 | When you need | Read |
 |---|---|
 | Author a new view in one shot (agent-first checklist) | `references/agent-authoring.md` |
@@ -221,3 +225,18 @@ session.
 | Component vs view, controller shape, `<prop>`, scope typing, `bindHtml`, `bind:this` refs | `references/authoring-patterns.md` |
 | Reactive primitives, control flow, `<data live>` end-to-end, transitions, morph, error-boundary, portal, route signals | `references/runtime-primitives.md` |
 | sui-lsp, sui-build, UI Studio, devtools, `dispatch.sh`, scaffolds, MCP shims | `references/tooling.md` |
+
+### Docs-site deep dives (`references/docs/`)
+
+| When you need | Read |
+|---|---|
+| The three-role split (template / controller / data) + MVVM mapping | `references/docs/index.md` |
+| Full `.sui` directive surface — `<data>`, `<prop>`, control flow, bindings, slots | `references/docs/template.md` |
+| Paired `.ts` shape — three tiers, six sections, scope rules, mutation discipline | `references/docs/controller.md` |
+| `<data>` element semantics, live envelope, static `<data>`, mutation forms | `references/docs/data-subscriptions.md` |
+| Template hooks (`<use-*>`) vs controller hooks (`use:`) — when + how | `references/docs/hooks.md` |
+| Effect-scope cleanup ownership — `createScope`, dispose order, leak detection | `references/docs/effect-scope.md` |
+| Three canonical examples — counter, agents, settings form (tier progression) | `references/docs/examples.md` |
+| Rust IR render walker, attach-only client runtime, renderable expression subset | `references/docs/ssr-hydration.md` |
+| End-to-end test harness via Playwright | `references/docs/e2e-testing.md` |
+| Stability matrix — what's stable, what's active, what's not yet implemented | `references/docs/status.md` |
