@@ -15,6 +15,7 @@
 
 import { createClient, type ShipSDK } from '@ship/sdk-client'
 import { shipFetch, gitStatus } from '@ship/sdk'
+import { route as createRoute, defineRoutes } from '@ship/sui-runtime/route'
 import { KernelBridge } from './kernel-bridge'
 import { initHmr } from './hmr'
 
@@ -26,12 +27,44 @@ interface MountFn {
       cssScope?: 'adjacent' | 'document-head' | 'none'
       ship?: ShipSDK
       module?: unknown
+      route?: unknown
+      navigate?: (path: string) => void
     },
   ): Promise<{ dispose(): void; element: HTMLElement; scope: Record<string, unknown> }>
 }
 
 // Single SDK client instance, shared across every mounted view.
 const shipClient: ShipSDK = createClient()
+
+// Pre-register dynamic-route patterns the shell knows about. Views in
+// `views/<name>/[id]/` use these to read `route.params.id()`. Views
+// can also register their own at controller-import time, but those
+// registrations land in the view-bundle's copy of @ship/sui-runtime
+// (served via `/_sui/runtime.js`) — a separate module instance from
+// the shell's bundle of @ship/sui-runtime, so the shell's
+// `routeSignals` proxy never sees them. Registering here at the shell
+// layer means params get seeded against the SHAPES the shell knows.
+defineRoutes([
+  { pattern: '/agents/:id' },
+  { pattern: '/skills/:id' },
+  { pattern: '/collections/:id' },
+  { pattern: '/artifacts/:id' },
+  { pattern: '/workspaces/:id' },
+  { pattern: '/ship-ui-studio/:component' },
+])
+
+// Shared route signal. Views that declare dynamic params read
+// `route.params.id()`; the singleton updates on every popstate /
+// history.pushState the shell triggers.
+const routeSignals = createRoute()
+
+// `navigate(path)` passed to controllers — fire a same-origin link click
+// equivalent via history.pushState + the existing internal-anchor flow.
+function navigate(path: string): void {
+  history.pushState({}, '', path)
+  const next = readRouteFromUrl(location.pathname)
+  if (next) void mountRoute(next)
+}
 
 // ── window.ship API ──────────────────────────────────────────────────
 
@@ -203,6 +236,12 @@ async function mountRoute(r: Route, opts: { module?: unknown } = {}): Promise<vo
       // `ship` is undefined and the data lambda throws — visible
       // as views stuck on `Loading…` because the patch never lands.
       ship: shipClient,
+      // Shared `route` signal so views with `/x/:id`-style patterns
+      // can read `route.params.id()`. Without this, mount.ts wires
+      // `route: undefined` into setupCtx and dynamic-route controllers
+      // crash with `route is not a function`.
+      route: routeSignals,
+      navigate,
       // HMR path passes a cache-busted, freshly-imported view module.
       // Without this, dynamic-import returns the cached old module and
       // the rebuilt .sui never takes effect until a hard reload.

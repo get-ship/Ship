@@ -1,9 +1,11 @@
-import { controller, signal, derived, live } from '@ship/sui-runtime'
+import { controller, signal, derived, live, defineRoutes } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
+
+defineRoutes([{ pattern: '/skills/:id' }])
 
 export default controller<Scope>({
   scope: ({ ship, route }) => {
-    const skillId = derived(() => (route as any)().params.id)
+    const skillId = derived(() => route.params.id() ?? '')
     const q = signal('')
     const kind = signal('all')
     const tag = signal('')
@@ -22,7 +24,7 @@ export default controller<Scope>({
     },
   },
   mount: ({ state, route }) => {
-    const fileParam = (route as any)().query?.file
+    const fileParam = route.query.file()
     if (fileParam) state.selectedFile = fileParam
   },
 })

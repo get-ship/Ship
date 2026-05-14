@@ -10,9 +10,9 @@
             bind:value={q}
             on:input={(e) => q.set(e.target.value)} />
         </div>
-        {#if rail().kind === 'ok'}
+        {#if rail().kind === 'ok' && rail().value}
           <div class="se-filters" role="group" aria-label="Filter by kind">
-            {#for kc of rail().value.kind_counts key={kc.id}}
+            {#for kc of (rail().value.kind_counts || []) key={kc.id}}
               <button class="se-pill" class:is-active={kind() === kc.id}
                 on:click={() => kind.set(kc.id)}>
                 {kc.label} <span style="opacity:0.6;font-variant-numeric:tabular-nums">{kc.count}</span>
@@ -23,11 +23,11 @@
       </div>
 
       <div class="se-body" role="tree" aria-label="Skills tree">
-        {#if rail().kind === 'ok'}
-          {#if rail().value.groups.length === 0}
+        {#if rail().kind === 'ok' && rail().value}
+          {#if (rail().value.groups || []).length === 0}
             <div class="se-empty">{q() ? 'No skills match "' + q() + '".' : 'No skills discovered.'}</div>
           {:else}
-            {#for g of rail().value.groups key={g.source}}
+            {#for g of (rail().value.groups || []) key={g.source}}
               <div class="se-section">
                 <div class="se-section-head">
                   <span class="se-section-label">
@@ -78,7 +78,7 @@
     </aside>
 
     <div class="skills-editor">
-      {#if skill().kind === 'ok' && (selectedFile() || skill().value.body)}
+      {#if skill().kind === 'ok' && skill().value && (selectedFile() || skill().value.body)}
         <div class="se-toolbar">
           <div class="se-breadcrumb">
             <span>skills</span>
@@ -119,7 +119,7 @@
       {/if}
     </div>
 
-    {#if skill().kind === 'ok'}
+    {#if skill().kind === 'ok' && skill().value}
       <aside class="skills-info" aria-label="Skill info panel">
         <div class="si-header">
           <span class="si-skill-id">{skill().value.id}</span>
