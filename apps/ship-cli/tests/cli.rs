@@ -864,8 +864,17 @@ fn e2e_compile_with_dependency_skills() {
         tmp.path(),
         ".ship/ship.lock",
         &format!(
-            "version = 1\n\n[[package]]\npath = \"github.com/example/skills-pkg\"\n\
-             version = \"main\"\ncommit = \"{}\"\nhash = \"sha256:{}\"\n",
+            r#"{{
+  "version": 1,
+  "packages": [
+    {{
+      "path": "github.com/example/skills-pkg",
+      "version": "main",
+      "commit": "{}",
+      "hash": "sha256:{}"
+    }}
+  ]
+}}"#,
             "a".repeat(40),
             hex,
         ),
@@ -892,7 +901,7 @@ fn e2e_compile_with_dependency_skills() {
     );
 
     // Simulate installed package cache at $HOME/.ship/cache/objects/<hex>/
-    // The dep_skills resolver uses dirs::home_dir() for the cache path.
+    // The dep_skills resolver uses home::home_dir() for the cache path.
     // Set HOME to tmp so the cache is found at tmp/.ship/cache/objects/<hex>/
     write(
         tmp.path(),

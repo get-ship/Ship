@@ -1,5 +1,5 @@
 use super::*;
-use crate::skill_loader::parse_skill;
+use crate::skill::loader::parse_skill;
 use tempfile::TempDir;
 
 fn write(dir: &Path, rel: &str, content: &str) {
@@ -22,14 +22,19 @@ fn loads_stdio_mcp_server() {
     let tmp = TempDir::new().unwrap();
     write(
         tmp.path(),
-        "mcp.toml",
-        r#"
-[[servers]]
-id = "github"
-name = "GitHub"
-command = "npx"
-args = ["-y", "@mcp/github"]
-"#,
+        "mcp.jsonc",
+        r#"{
+  "mcp": {
+    "servers": {
+      "github": {
+        "id": "github",
+        "name": "GitHub",
+        "command": "npx",
+        "args": ["-y", "@mcp/github"]
+      }
+    }
+  }
+}"#,
     );
     let lib = load_library(tmp.path()).unwrap();
     assert_eq!(lib.mcp_servers.len(), 1);
@@ -46,12 +51,17 @@ fn loads_http_mcp_server_by_url() {
     let tmp = TempDir::new().unwrap();
     write(
         tmp.path(),
-        "mcp.toml",
-        r#"
-[[servers]]
-id = "remote"
-url = "https://api.example.com/mcp"
-"#,
+        "mcp.jsonc",
+        r#"{
+  "mcp": {
+    "servers": {
+      "remote": {
+        "id": "remote",
+        "url": "https://api.example.com/mcp"
+      }
+    }
+  }
+}"#,
     );
     let lib = load_library(tmp.path()).unwrap();
     assert!(matches!(
@@ -140,11 +150,12 @@ fn loads_permissions() {
     let tmp = TempDir::new().unwrap();
     write(
         tmp.path(),
-        "permissions.toml",
-        r#"
-[tools]
-deny = ["Bash(rm -rf *)"]
-"#,
+        "permissions.jsonc",
+        r#"{
+  "tools": {
+    "deny": ["Bash(rm -rf *)"]
+  }
+}"#,
     );
     let lib = load_library(tmp.path()).unwrap();
     assert!(
@@ -160,14 +171,12 @@ fn loads_hooks() {
     let tmp = TempDir::new().unwrap();
     write(
         tmp.path(),
-        "hooks.toml",
-        r#"
-[[hooks]]
-id = "check"
-trigger = "pre_tool_use"
-command = "ship hooks run"
-matcher = "Bash"
-"#,
+        "hooks.jsonc",
+        r#"{
+  "hooks": [
+    { "id": "check", "trigger": "pre_tool_use", "command": "ship hooks run", "matcher": "Bash" }
+  ]
+}"#,
     );
     let lib = load_library(tmp.path()).unwrap();
     assert_eq!(lib.hooks.len(), 1);
@@ -180,13 +189,12 @@ fn unknown_hook_trigger_skipped() {
     let tmp = TempDir::new().unwrap();
     write(
         tmp.path(),
-        "hooks.toml",
-        r#"
-[[hooks]]
-id = "bad"
-trigger = "unknown_event"
-command = "echo hi"
-"#,
+        "hooks.jsonc",
+        r#"{
+  "hooks": [
+    { "id": "bad", "trigger": "unknown_event", "command": "echo hi" }
+  ]
+}"#,
     );
     let lib = load_library(tmp.path()).unwrap();
     assert!(
@@ -200,16 +208,17 @@ fn load_permission_preset_reads_named_section() {
     let tmp = TempDir::new().unwrap();
     write(
         tmp.path(),
-        "permissions.toml",
-        r#"
-[ship-standard]
-default_mode = "acceptEdits"
-tools_ask = ["Bash(rm -rf*)"]
-tools_deny = ["Bash(git push --force*)"]
-
-[ship-elevated]
-default_mode = "dontAsk"
-"#,
+        "permissions.jsonc",
+        r#"{
+  "ship-standard": {
+    "default_mode": "acceptEdits",
+    "tools_ask": ["Bash(rm -rf*)"],
+    "tools_deny": ["Bash(git push --force*)"]
+  },
+  "ship-elevated": {
+    "default_mode": "dontAsk"
+  }
+}"#,
     );
     let preset = load_permission_preset(tmp.path(), "ship-standard").unwrap();
     assert_eq!(preset.default_mode.as_deref(), Some("acceptEdits"));
@@ -226,8 +235,8 @@ fn load_permission_preset_missing_section_returns_none() {
     let tmp = TempDir::new().unwrap();
     write(
         tmp.path(),
-        "permissions.toml",
-        "[ship-elevated]\ndefault_mode = \"dontAsk\"\n",
+        "permissions.jsonc",
+        r#"{ "ship-elevated": { "default_mode": "dontAsk" } }"#,
     );
     let result = load_permission_preset(tmp.path(), "nonexistent");
     assert!(result.is_none());
@@ -241,38 +250,28 @@ fn load_permission_preset_missing_file_returns_none() {
 }
 
 #[test]
-fn loads_agent_profiles_from_profiles_dir() {
+fn loads_agent_profiles_from_agents_dir() {
     let tmp = TempDir::new().unwrap();
     write(
         tmp.path(),
-        "agents/profiles/web-lane.toml",
-        r#"
-[profile]
-id = "web-lane"
-name = "Web Lane"
-providers = ["claude"]
-
-[skills]
-refs = ["tanstack-start"]
-
-[permissions]
-preset = "ship-standard"
-"#,
+        "agents/web-lane.jsonc",
+        r#"{
+  "agent": { "id": "web-lane", "name": "Web Lane", "providers": ["claude"] },
+  "skills": { "refs": ["tanstack-start"] },
+  "permissions": { "preset": "ship-standard" }
+}"#,
     );
     write(
         tmp.path(),
-        "agents/profiles/server-lane.toml",
-        r#"
-[profile]
-id = "server-lane"
-name = "Server Lane"
-providers = ["claude"]
-"#,
+        "agents/server-lane.jsonc",
+        r#"{
+  "agent": { "id": "server-lane", "name": "Server Lane", "providers": ["claude"] }
+}"#,
     );
     let lib = load_library(tmp.path()).unwrap();
     assert_eq!(lib.agent_profiles.len(), 2);
-    assert_eq!(lib.agent_profiles[0].profile.id, "server-lane");
-    assert_eq!(lib.agent_profiles[1].profile.id, "web-lane");
+    assert_eq!(lib.agent_profiles[0].agent.id, "server-lane");
+    assert_eq!(lib.agent_profiles[1].agent.id, "web-lane");
     assert_eq!(lib.agent_profiles[1].skills.refs, vec!["tanstack-start"]);
 }
 
@@ -284,25 +283,35 @@ fn agent_profiles_empty_when_dir_missing() {
 }
 
 #[test]
-fn agent_profiles_skips_invalid_toml() {
+fn agent_profiles_skips_invalid_jsonc() {
     let tmp = TempDir::new().unwrap();
     write(
         tmp.path(),
-        "agents/profiles/good.toml",
-        r#"
-[profile]
-id = "good"
-name = "Good"
-"#,
+        "agents/good.jsonc",
+        r#"{
+  "agent": { "id": "good", "name": "Good" }
+}"#,
     );
     write(
         tmp.path(),
-        "agents/profiles/bad.toml",
-        "this is not valid toml { { {",
+        "agents/bad.jsonc",
+        "this is not valid jsonc { { {",
     );
     let lib = load_library(tmp.path()).unwrap();
     assert_eq!(lib.agent_profiles.len(), 1);
-    assert_eq!(lib.agent_profiles[0].profile.id, "good");
+    assert_eq!(lib.agent_profiles[0].agent.id, "good");
+}
+
+#[test]
+fn agent_profiles_ignores_legacy_subdir() {
+    let tmp = TempDir::new().unwrap();
+    write(
+        tmp.path(),
+        "agents/profiles/legacy.jsonc",
+        r#"{ "agent": { "id": "legacy", "name": "Legacy" } }"#,
+    );
+    let lib = load_library(tmp.path()).unwrap();
+    assert!(lib.agent_profiles.is_empty());
 }
 
 #[test]
@@ -310,11 +319,12 @@ fn permissions_file_with_named_sections_falls_back_to_default() {
     let tmp = TempDir::new().unwrap();
     write(
         tmp.path(),
-        "permissions.toml",
-        r#"
-[ship-standard]
-default_mode = "acceptEdits"
-"#,
+        "permissions.jsonc",
+        r#"{
+  "ship-standard": {
+    "default_mode": "acceptEdits"
+  }
+}"#,
     );
     let lib = load_library(tmp.path()).unwrap();
     assert!(
@@ -323,7 +333,7 @@ default_mode = "acceptEdits"
                 .permissions
                 .tools
                 .allow
-                .contains(&"[ship-standard]".to_string())
+                .contains(&"ship-standard".to_string())
     );
     let preset = load_permission_preset(tmp.path(), "ship-standard").unwrap();
     assert_eq!(preset.default_mode.as_deref(), Some("acceptEdits"));

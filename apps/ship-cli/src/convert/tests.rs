@@ -42,26 +42,26 @@ fn extract_profile_id_empty_path_fails() {
 
 #[test]
 fn is_github_url_matches_owner_repo() {
-    assert!(convert_github::is_github_url(
+    assert!(super::github::is_github_url(
         "https://github.com/acme/my-repo"
     ));
-    assert!(convert_github::is_github_url(
+    assert!(super::github::is_github_url(
         "https://github.com/acme/my-repo.git"
     ));
-    assert!(convert_github::is_github_url(
+    assert!(super::github::is_github_url(
         "https://github.com/acme/my-repo/tree/main"
     ));
-    assert!(convert_github::is_github_url(
+    assert!(super::github::is_github_url(
         "http://github.com/acme/my-repo"
     ));
 }
 
 #[test]
 fn is_github_url_rejects_incomplete_paths() {
-    assert!(!convert_github::is_github_url("https://github.com/acme"));
-    assert!(!convert_github::is_github_url("https://github.com/"));
-    assert!(!convert_github::is_github_url("https://getship.dev/p/test"));
-    assert!(!convert_github::is_github_url(
+    assert!(!super::github::is_github_url("https://github.com/acme"));
+    assert!(!super::github::is_github_url("https://github.com/"));
+    assert!(!super::github::is_github_url("https://getship.dev/p/test"));
+    assert!(!super::github::is_github_url(
         "https://gitlab.com/acme/repo"
     ));
 }
@@ -71,7 +71,7 @@ fn is_github_url_rejects_incomplete_paths() {
 #[test]
 fn extract_github_slug_basic() {
     assert_eq!(
-        convert_github::extract_github_slug("https://github.com/acme/my-repo"),
+        super::github::extract_github_slug("https://github.com/acme/my-repo"),
         Some("github.com/acme/my-repo".to_string())
     );
 }
@@ -79,7 +79,7 @@ fn extract_github_slug_basic() {
 #[test]
 fn extract_github_slug_strips_git_suffix() {
     assert_eq!(
-        convert_github::extract_github_slug("https://github.com/acme/my-repo.git"),
+        super::github::extract_github_slug("https://github.com/acme/my-repo.git"),
         Some("github.com/acme/my-repo".to_string())
     );
 }
@@ -89,12 +89,12 @@ fn extract_github_slug_strips_git_suffix() {
 #[test]
 fn sanitize_filename_replaces_spaces_and_slashes() {
     assert_eq!(
-        convert_github::sanitize_filename("hello world"),
+        super::github::sanitize_filename("hello world"),
         "hello-world"
     );
-    assert_eq!(convert_github::sanitize_filename("path/name"), "path-name");
+    assert_eq!(super::github::sanitize_filename("path/name"), "path-name");
     assert_eq!(
-        convert_github::sanitize_filename("valid-name_123"),
+        super::github::sanitize_filename("valid-name_123"),
         "valid-name_123"
     );
 }
@@ -128,7 +128,7 @@ fn github_convert_writes_profiles_rules_and_mcp() {
         .create();
 
     run_in_tmp(|tmp| {
-        convert_github::convert_from_github_with_base(
+        super::github::convert_from_github_with_base(
             "https://github.com/acme/test-repo",
             &server.url(),
         )
@@ -161,7 +161,7 @@ fn github_convert_handles_server_error_field() {
         .create();
 
     run_in_tmp(|_| {
-        let err = convert_github::convert_from_github_with_base(
+        let err = super::github::convert_from_github_with_base(
             "https://github.com/acme/missing-repo",
             &server.url(),
         )
@@ -193,10 +193,10 @@ fn github_convert_skips_duplicate_mcp_servers() {
 
     run_in_tmp(|tmp| {
         let base = server.url();
-        convert_github::convert_from_github_with_base("https://github.com/acme/repo", &base)
+        super::github::convert_from_github_with_base("https://github.com/acme/repo", &base)
             .unwrap();
         // Second call should not duplicate the MCP entry
-        convert_github::convert_from_github_with_base("https://github.com/acme/repo", &base)
+        super::github::convert_from_github_with_base("https://github.com/acme/repo", &base)
             .unwrap();
 
         let mcp_path = ship_substrate::ShipHome::project_ship_dir(tmp).join("mcp.jsonc");

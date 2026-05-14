@@ -233,6 +233,19 @@ fn signal_job_completed(slug: &str) {
     }
 }
 
+/// Broadcast agent.session.ended via `ship mesh broadcast` CLI.
+/// Non-fatal — if ship is not available or mesh is down this is a no-op.
+fn broadcast_session_ended(actor_id: &str, workspace_id: &str) {
+    let payload = serde_json::json!({
+        "event_type": "agent.session.ended",
+        "from_agent_id": actor_id,
+        "payload": { "workspace_id": workspace_id }
+    });
+    let _ = std::process::Command::new("ship")
+        .args(["mesh", "broadcast", &payload.to_string()])
+        .status();
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -267,17 +280,4 @@ mod tests {
         assert_eq!(event["tool_name"], "Edit");
         assert_eq!(event["tool_input"]["path"], "f");
     }
-}
-
-/// Broadcast agent.session.ended via `ship mesh broadcast` CLI.
-/// Non-fatal — if ship is not available or mesh is down this is a no-op.
-fn broadcast_session_ended(actor_id: &str, workspace_id: &str) {
-    let payload = serde_json::json!({
-        "event_type": "agent.session.ended",
-        "from_agent_id": actor_id,
-        "payload": { "workspace_id": workspace_id }
-    });
-    let _ = std::process::Command::new("ship")
-        .args(["mesh", "broadcast", &payload.to_string()])
-        .status();
 }

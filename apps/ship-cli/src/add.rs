@@ -6,6 +6,9 @@
 //!
 //! On any error after modifying the manifest, the file is restored from backup.
 
+pub mod from;
+pub mod from_write;
+
 use std::path::Path;
 
 use anyhow::{Context, Result};
@@ -21,7 +24,7 @@ use ship_platform::registry::{
 /// Run `ship add <package>[@version]`.
 ///
 /// 1. Parse package spec (path[@version]).
-/// 2. Check dep not already in ship.toml.
+/// 2. Check dep not already in ship.jsonc.
 /// 3. Backup ship.jsonc.
 /// 4. Append dep to ship.jsonc dependencies.
 /// 5. Resolve + fetch the new dep only.
@@ -335,7 +338,7 @@ mod tests {
     }
 
     #[test]
-    fn add_no_ship_toml_errors() {
+    fn add_no_ship_jsonc_errors() {
         let tmp = TempDir::new().unwrap();
         std::fs::create_dir_all(ship_substrate::ShipHome::project_ship_dir(tmp.path())).unwrap();
         let err = run_add(tmp.path(), "github.com/owner/repo").unwrap_err();

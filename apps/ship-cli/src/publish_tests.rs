@@ -56,7 +56,7 @@ fn publish_without_token_errors() -> Result<()> {
 fn sample_hashes() -> ExportHashes {
     let mut per_export = BTreeMap::new();
     per_export.insert("agents/skills/foo".into(), "sha256:aaa".into());
-    per_export.insert("agents/profiles/bar.toml".into(), "sha256:bbb".into());
+    per_export.insert("agents/profiles/bar.jsonc".into(), "sha256:bbb".into());
     ExportHashes {
         combined: "sha256:abc123".into(),
         per_export,
@@ -64,19 +64,20 @@ fn sample_hashes() -> ExportHashes {
 }
 
 fn multi_export_manifest() -> ShipManifest {
-    ShipManifest::from_toml_str(
-        r#"
-[module]
-name = "github.com/test/pkg"
-version = "1.0.0"
-description = "A test"
-license = "MIT"
-authors = ["Alice"]
-
-[exports]
-skills = ["agents/skills/foo"]
-agents = ["agents/profiles/bar.toml"]
-"#,
+    ShipManifest::from_jsonc_str(
+        r#"{
+            "module": {
+                "name": "github.com/test/pkg",
+                "version": "1.0.0",
+                "description": "A test",
+                "license": "MIT",
+                "authors": ["Alice"]
+            },
+            "exports": {
+                "skills": ["agents/skills/foo"],
+                "agents": ["agents/profiles/bar.jsonc"]
+            }
+        }"#,
     )
     .unwrap()
 }
@@ -96,7 +97,7 @@ fn build_payload_includes_all_fields() {
     assert_eq!(payload["exports_skills"][0], "agents/skills/foo");
     assert_eq!(payload["export_hashes"]["agents/skills/foo"], "sha256:aaa");
     assert_eq!(
-        payload["export_hashes"]["agents/profiles/bar.toml"],
+        payload["export_hashes"]["agents/profiles/bar.jsonc"],
         "sha256:bbb"
     );
 }
@@ -128,12 +129,10 @@ fn dry_run_reads_jsonc_manifest() -> Result<()> {
 
 #[test]
 fn build_payload_omits_empty_export_hashes() {
-    let manifest = ShipManifest::from_toml_str(
-        r#"
-[module]
-name = "github.com/test/pkg"
-version = "1.0.0"
-"#,
+    let manifest = ShipManifest::from_jsonc_str(
+        r#"{
+            "module": { "name": "github.com/test/pkg", "version": "1.0.0" }
+        }"#,
     )
     .unwrap();
     let hashes = ExportHashes {
@@ -157,9 +156,9 @@ fn filter_exports_finds_skill() {
 #[test]
 fn filter_exports_finds_agent() {
     let manifest = multi_export_manifest();
-    let (skills, agents) = filter_exports(&manifest, "agents/profiles/bar.toml").unwrap();
+    let (skills, agents) = filter_exports(&manifest, "agents/profiles/bar.jsonc").unwrap();
     assert!(skills.is_empty());
-    assert_eq!(agents, vec!["agents/profiles/bar.toml"]);
+    assert_eq!(agents, vec!["agents/profiles/bar.jsonc"]);
 }
 
 #[test]
@@ -189,8 +188,8 @@ fn build_payload_filters_to_single_skill() {
 fn build_payload_filters_to_single_agent() {
     let manifest = multi_export_manifest();
     let hashes = sample_hashes();
-    let payload = build_payload(&manifest, &hashes, None, Some("agents/profiles/bar.toml"));
-    assert_eq!(payload["exports_agents"][0], "agents/profiles/bar.toml");
+    let payload = build_payload(&manifest, &hashes, None, Some("agents/profiles/bar.jsonc"));
+    assert_eq!(payload["exports_agents"][0], "agents/profiles/bar.jsonc");
     assert!(
         payload.get("exports_skills").is_none(),
         "skills should be excluded when filtering to an agent"

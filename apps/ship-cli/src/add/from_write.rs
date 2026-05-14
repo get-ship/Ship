@@ -5,7 +5,7 @@ use std::path::Path;
 
 use anyhow::{Context, Result};
 
-use crate::add_from::{AgentBundle, SkillBundle, TransferBundle};
+use crate::add::from::{AgentBundle, SkillBundle, TransferBundle};
 
 /// Write the transfer bundle to `.ship/`.
 pub fn write_bundle(project_root: &Path, bundle: &TransferBundle) -> Result<()> {

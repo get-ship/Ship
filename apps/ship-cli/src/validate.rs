@@ -4,12 +4,13 @@ use anyhow::Result;
 use serde::Serialize;
 use std::path::Path;
 
-use crate::agent_config::AgentConfig;
+use crate::profile::load_agent_profile;
 use crate::loader::load_permission_preset;
 use crate::mcp::{McpEntry, McpFile};
 use crate::profile::find_agent_file;
 
 #[cfg(test)]
+#[path = "validate_tests.rs"]
 mod tests;
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -165,14 +166,14 @@ fn validate_all(agents_dir: &Path, _project_root: &Path) -> Vec<AgentReport> {
 pub fn validate_agent(agent_id: &str, agent_path: &Path, agents_dir: &Path) -> AgentReport {
     let mut errors = Vec::new();
 
-    // 1. Parse config (JSONC or TOML based on extension)
-    let agent = match AgentConfig::load(agent_path) {
+    // 1. Parse JSONC config.
+    let agent = match load_agent_profile(agent_path) {
         Ok(p) => p,
         Err(e) => {
             errors.push(ValidationError {
                 agent: agent_id.to_string(),
                 file: agent_path.display().to_string(),
-                error: format!("config parse error: {}. Check JSON/TOML syntax", e),
+                error: format!("config parse error: {e}. Check JSONC syntax"),
             });
             return AgentReport {
                 agent_id: agent_id.to_string(),
@@ -198,21 +199,25 @@ pub fn validate_agent(agent_id: &str, agent_path: &Path, agents_dir: &Path) -> A
         }
     }
 
-    // 3. MCP server refs exist in mcp config AND have required fields
-    let mcp_jsonc = agents_dir.join("mcp.jsonc");
-    let mcp_path = if mcp_jsonc.exists() {
-        mcp_jsonc
-    } else {
-        agents_dir.join("mcp.toml")
-    };
+    // 3. MCP server refs exist in mcp config AND have required fields.
+    //    Canonical location: `.ship/mcp.jsonc` (one above the `agents/`
+    //    directory). Previously this used `agents_dir.join("mcp.jsonc")`,
+    //    which looked at `.ship/agents/mcp.jsonc` and silently never
+    //    found any servers — the validator was effectively a no-op for
+    //    MCP entries written via `ship mcp add`.
+    let ship_dir = agents_dir
+        .parent()
+        .map(|p| p.to_path_buf())
+        .unwrap_or_else(|| agents_dir.to_path_buf());
+    let mcp_path = ship_dir.join("mcp.jsonc");
     let mcp_file = load_mcp_file(&mcp_path);
     for server_id in &agent.mcp.servers {
         match mcp_file.servers.iter().find(|s| &s.id == server_id) {
             None => errors.push(ValidationError {
                 agent: agent_id.to_string(),
-                file: "agents/mcp.toml".to_string(),
+                file: "mcp.jsonc".to_string(),
                 error: format!(
-                    "mcp server '{}' not found in mcp.toml. Add it with `ship mcp add-stdio {} <command>`",
+                    "mcp server '{}' not found in mcp.jsonc. Add it with `ship mcp add-stdio {} <command>`",
                     server_id, server_id,
                 ),
             }),
@@ -220,7 +225,7 @@ pub fn validate_agent(agent_id: &str, agent_path: &Path, agents_dir: &Path) -> A
                 if let Some(e) = check_mcp_entry(s) {
                     errors.push(ValidationError {
                         agent: agent_id.to_string(),
-                        file: "agents/mcp.toml".to_string(),
+                        file: "mcp.jsonc".to_string(),
                         error: format!("mcp.servers.{} — {}", server_id, e),
                     });
                 }
@@ -228,12 +233,12 @@ pub fn validate_agent(agent_id: &str, agent_path: &Path, agents_dir: &Path) -> A
         }
     }
 
-    // 4. Validate all mcp.toml entries (regardless of agent refs)
+    // 4. Validate all mcp.jsonc entries (regardless of agent refs)
     for server in &mcp_file.servers {
         if let Some(e) = check_mcp_entry(server) {
             errors.push(ValidationError {
                 agent: agent_id.to_string(),
-                file: "agents/mcp.toml".to_string(),
+                file: "mcp.jsonc".to_string(),
                 error: format!("mcp.servers.{} — {}", server.id, e),
             });
         }
@@ -250,17 +255,12 @@ pub fn validate_agent(agent_id: &str, agent_path: &Path, agents_dir: &Path) -> A
                 error: "permissions.preset must be a non-empty string".to_string(),
             });
         } else {
-            let perm_jsonc = agents_dir.join("permissions.jsonc");
-            let perm_path = if perm_jsonc.exists() {
-                perm_jsonc
-            } else {
-                agents_dir.join("permissions.toml")
-            };
-            if perm_path.exists() && load_permission_preset(agents_dir, preset_name).is_none() {
+            let perm_path = ship_dir.join("permissions.jsonc");
+            if perm_path.exists() && load_permission_preset(&ship_dir, preset_name).is_none() {
                 errors.push(ValidationError {
                     agent: agent_id.to_string(),
-                    file: "agents/permissions.toml".to_string(),
-                    error: format!("preset '{}' not found in permissions.toml", preset_name),
+                    file: "permissions.jsonc".to_string(),
+                    error: format!("preset '{}' not found in permissions.jsonc", preset_name),
                 });
             }
         }

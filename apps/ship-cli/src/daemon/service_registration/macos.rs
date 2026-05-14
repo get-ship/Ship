@@ -68,7 +68,7 @@ pub fn uninstall() -> Result<ServiceReport> {
 }
 
 fn user_plist_path() -> Result<PathBuf> {
-    Ok(dirs::home_dir()
+    Ok(home::home_dir()
         .context("no $HOME")?
         .join("Library")
         .join("LaunchAgents")

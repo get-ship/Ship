@@ -142,12 +142,16 @@ fn skill_files_content(out: &CompileOutput) -> String {
 
 fn profile(id: &str, providers: &[&str], refs: &[&str]) -> AgentProfile {
     AgentProfile {
-        profile: ProfileMeta {
+        agent: ProfileMeta {
             id: id.into(),
             name: id.into(),
             version: None,
             description: None,
             providers: providers.iter().map(|s| s.to_string()).collect(),
+            role: None,
+            tags: vec![],
+            tools_preset: None,
+            active_tools: vec![],
             icon: None,
         },
         skills: SkillRefs {
@@ -160,6 +164,7 @@ fn profile(id: &str, providers: &[&str], refs: &[&str]) -> AgentProfile {
         },
         permissions: ProfilePermissions::default(),
         rules: ProfileRules::default(),
+        hooks: Default::default(),
         provider_settings: std::collections::HashMap::new(),
         apps: Default::default(),
     }

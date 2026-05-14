@@ -1,5 +1,5 @@
 use super::*;
-use crate::add_from_write::*;
+use crate::add::from_write::*;
 use tempfile::TempDir;
 
 fn make_bundle() -> TransferBundle {

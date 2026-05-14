@@ -6,10 +6,10 @@
 //! `ship status` and the daemon read from there. No filesystem state file
 //! and no per-project KV namespace.
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};
 
-use crate::agent_config::AgentConfig;
+use compiler::AgentProfile;
 use crate::compile::{CompileOptions, run_compile};
 
 // ── ProjectState ─────────────────────────────────────────────────────────────
@@ -95,11 +95,12 @@ pub fn activate_agent(
             }
         }
     };
-    let agent = AgentConfig::load(&agent_path)?;
+    let agent = load_agent_profile(&agent_path)?;
 
     let now_plugins: Vec<String> = agent.plugins.install.clone();
     let prev_plugins = state.plugins_installed.clone();
-    run_plugin_lifecycle(&now_plugins, &prev_plugins, &agent.plugins.scope);
+    let scope = agent.plugins.scope.as_deref().unwrap_or("project");
+    run_plugin_lifecycle(&now_plugins, &prev_plugins, scope);
 
     run_compile(CompileOptions {
         project_root,
@@ -148,58 +149,38 @@ fn run_plugin_lifecycle(now: &[String], prev: &[String], scope: &str) {
     }
 }
 
-/// Search order: agents/ → agents/profiles/ (compat) → agents/presets/ (compat) → modes/ (legacy), project then global.
-/// Within each directory, `.jsonc` is checked before `.toml`.
+/// Resolve `<agent_id>.jsonc` under `.ship/agents/` (project first, then
+/// user home). JSONC is the only accepted format — the TOML and
+/// `profiles/`, `presets/`, `modes/` compat paths were retired with the
+/// agent-schema unification.
 pub fn find_agent_file(agent_id: &str, project_root: &Path) -> Option<PathBuf> {
     let ship = ship_substrate::ShipHome::project_ship_dir(project_root);
-    let jsonc_file = format!("{}.jsonc", agent_id);
-    let toml_file = format!("{}.toml", agent_id);
+    let file = format!("{agent_id}.jsonc");
 
-    // Helper: check jsonc then toml in a directory
-    let check_dir = |dir: PathBuf| -> Option<PathBuf> {
-        let j = dir.join(&jsonc_file);
-        if j.exists() {
-            return Some(j);
-        }
-        let t = dir.join(&toml_file);
-        if t.exists() {
-            return Some(t);
-        }
-        None
-    };
+    let project_path = ship.join("agents").join(&file);
+    if project_path.exists() {
+        return Some(project_path);
+    }
 
-    // Primary: .ship/agents/<id>.{jsonc,toml}
-    if let Some(p) = check_dir(ship.join("agents")) {
-        return Some(p);
+    let home = home::home_dir()?;
+    let global_path = ship_substrate::ShipHome::project_ship_dir(home)
+        .join("agents")
+        .join(&file);
+    if global_path.exists() {
+        return Some(global_path);
     }
-    // Compat: .ship/agents/profiles/<id>.{jsonc,toml}
-    if let Some(p) = check_dir(ship.join("agents").join("profiles")) {
-        return Some(p);
-    }
-    // Compat: .ship/agents/presets/<id>.{jsonc,toml}
-    if let Some(p) = check_dir(ship.join("agents").join("presets")) {
-        return Some(p);
-    }
-    // Legacy: .ship/modes/<id>.{jsonc,toml}
-    if let Some(p) = check_dir(ship.join("modes")) {
-        return Some(p);
-    }
-    // Global dirs
-    let home = dirs::home_dir()?;
-    let global_ship = ship_substrate::ShipHome::project_ship_dir(home);
-    if let Some(p) = check_dir(global_ship.join("agents")) {
-        return Some(p);
-    }
-    if let Some(p) = check_dir(global_ship.join("agents").join("profiles")) {
-        return Some(p);
-    }
-    if let Some(p) = check_dir(global_ship.join("agents").join("presets")) {
-        return Some(p);
-    }
-    if let Some(p) = check_dir(global_ship.join("modes")) {
-        return Some(p);
-    }
+
     None
+}
+
+/// Load an agent profile from a single file. JSONC only — TOML has been
+/// retired. The schema matches `schemas/agent.schema.json` and is
+/// expressed by [`compiler::AgentProfile`].
+pub(crate) fn load_agent_profile(path: &Path) -> Result<AgentProfile> {
+    let content = std::fs::read_to_string(path)
+        .with_context(|| format!("read agent file: {}", path.display()))?;
+    compiler::jsonc::from_jsonc_str::<AgentProfile>(&content)
+        .map_err(|e| anyhow::anyhow!("invalid agent JSONC at {}: {}", path.display(), e))
 }
 
 /// List agent IDs available in .ship/agents/ (for error messages).
@@ -237,8 +218,8 @@ mod tests {
         let ship_dir = ship_substrate::ShipHome::project_ship_dir(tmp.path());
         std::fs::create_dir_all(&ship_dir).unwrap();
         std::fs::write(
-            ship_dir.join("ship.toml"),
-            "id = \"test-proj-id\"\nname = \"test\"\n",
+            ship_dir.join("ship.jsonc"),
+            r#"{ "id": "test-proj-id", "name": "test" }"#,
         )
         .unwrap();
         ship_dir
@@ -259,70 +240,45 @@ mod tests {
     // the round trip (see `ship-substrate::projections::compile_state::tests`).
 
     #[test]
-    fn find_agent_file_finds_new_location() {
+    fn find_agent_file_finds_canonical_location() {
+        let tmp = TempDir::new().unwrap();
+        write_file(
+            tmp.path(),
+            ".ship/agents/test.jsonc",
+            r#"{ "agent": { "id": "test", "name": "Test" } }"#,
+        );
+        let found = find_agent_file("test", tmp.path());
+        assert!(found.is_some());
+        assert!(found.unwrap().to_string_lossy().ends_with("/test.jsonc"));
+    }
+
+    #[test]
+    fn find_agent_file_ignores_toml() {
+        // TOML is retired — a `.toml` file alone must not resolve.
         let tmp = TempDir::new().unwrap();
         write_file(
             tmp.path(),
             ".ship/agents/test.toml",
             "[agent]\nname=\"Test\"\nid=\"test\"\n",
         );
-        let found = find_agent_file("test", tmp.path());
-        assert!(found.is_some());
-        assert!(
-            found
-                .unwrap()
-                .to_string_lossy()
-                .contains("agents/test.toml")
-        );
+        assert!(find_agent_file("test", tmp.path()).is_none());
     }
 
     #[test]
-    fn find_agent_file_compat_profiles_location() {
+    fn find_agent_file_ignores_legacy_profiles_subdir() {
+        // Legacy `agents/profiles/` is no longer searched.
         let tmp = TempDir::new().unwrap();
         write_file(
             tmp.path(),
-            ".ship/agents/profiles/test.toml",
-            "[agent]\nname=\"Test\"\nid=\"test\"\n",
+            ".ship/agents/profiles/test.jsonc",
+            r#"{ "agent": { "id": "test", "name": "Test" } }"#,
         );
-        let found = find_agent_file("test", tmp.path());
-        assert!(found.is_some());
-        assert!(found.unwrap().to_string_lossy().contains("agents/profiles"));
+        assert!(find_agent_file("test", tmp.path()).is_none());
     }
 
     #[test]
     fn find_agent_file_returns_none_for_missing() {
         let tmp = TempDir::new().unwrap();
         assert!(find_agent_file("nonexistent", tmp.path()).is_none());
-    }
-
-    #[test]
-    fn find_agent_file_prefers_jsonc() {
-        let tmp = TempDir::new().unwrap();
-        write_file(
-            tmp.path(),
-            ".ship/agents/test.toml",
-            "[agent]\nname=\"Test\"\n",
-        );
-        write_file(
-            tmp.path(),
-            ".ship/agents/test.jsonc",
-            r#"{ "agent": { "name": "Test" } }"#,
-        );
-        let found = find_agent_file("test", tmp.path());
-        assert!(found.is_some());
-        assert!(found.unwrap().to_string_lossy().ends_with(".jsonc"));
-    }
-
-    #[test]
-    fn find_agent_file_finds_jsonc_only() {
-        let tmp = TempDir::new().unwrap();
-        write_file(
-            tmp.path(),
-            ".ship/agents/test.jsonc",
-            r#"{ "agent": { "name": "Test" } }"#,
-        );
-        let found = find_agent_file("test", tmp.path());
-        assert!(found.is_some());
-        assert!(found.unwrap().to_string_lossy().ends_with(".jsonc"));
     }
 }

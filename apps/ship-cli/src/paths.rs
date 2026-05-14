@@ -1,5 +1,5 @@
 use ship_substrate::ShipHome;
-use ship_substrate::home::Vector;
+use ship_types::{Scope, Vector};
 use std::fs;
 use std::path::PathBuf;
 
@@ -14,12 +14,7 @@ pub fn global_dir() -> PathBuf {
 }
 
 pub fn global_skills_dir() -> PathBuf {
-    home().vector_dir(ship_substrate::home::Scope::User, Vector::Skills, None)
-}
-/// User-scope MCP config file: `~/.ship/library/mcp.jsonc`.
-#[allow(dead_code)]
-pub fn global_mcp_file() -> PathBuf {
-    home().library_dir().join("mcp.jsonc")
+    home().vector_dir(Scope::User, Vector::Skills, None)
 }
 pub fn global_cache_dir() -> PathBuf {
     home().machine_dir().join("cache")
@@ -38,13 +33,13 @@ pub fn project_dir() -> PathBuf {
     PathBuf::from(ShipHome::ship_dir_name())
 }
 pub fn agents_dir() -> PathBuf {
-    ShipHome::from_env().vector_dir(ship_substrate::home::Scope::Project, Vector::Agents, None)
+    ShipHome::from_env().vector_dir(Scope::Project, Vector::Agents, None)
 }
 pub fn rules_dir() -> PathBuf {
-    ShipHome::from_env().vector_dir(ship_substrate::home::Scope::Project, Vector::Rules, None)
+    ShipHome::from_env().vector_dir(Scope::Project, Vector::Rules, None)
 }
 pub fn skills_dir() -> PathBuf {
-    ShipHome::from_env().vector_dir(ship_substrate::home::Scope::Project, Vector::Skills, None)
+    ShipHome::from_env().vector_dir(Scope::Project, Vector::Skills, None)
 }
 /// Project-scope MCP config file: `<project>/.ship/mcp.jsonc`.
 ///

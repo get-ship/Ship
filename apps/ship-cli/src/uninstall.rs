@@ -21,7 +21,7 @@ use std::path::{Path, PathBuf};
 const PATH_SENTINEL: &str = "# ship-installer:path";
 
 pub fn run(yes: bool) -> Result<()> {
-    let home = dirs::home_dir().context("cannot resolve $HOME")?;
+    let home = home::home_dir().context("cannot resolve $HOME")?;
     let ship_home = ship_substrate::env::read_raw(ship_substrate::env::Var::Home)
         .ok()
         .map(PathBuf::from)

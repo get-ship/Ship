@@ -64,7 +64,7 @@ fn update_json_settings(
 
 /// Claude: write `mcp__ship__*` to `~/.claude/settings.json` permissions.allow.
 pub(crate) fn ensure_ship_mcp_allowed_claude() -> Result<()> {
-    let path = dirs::home_dir()
+    let path = home::home_dir()
         .context("could not determine home directory")?
         .join(".claude")
         .join("settings.json");
@@ -75,7 +75,7 @@ pub(crate) fn ensure_ship_mcp_allowed_claude() -> Result<()> {
 
 /// Gemini: write allow policy for ship MCP to `~/.gemini/policies/ship-mcp.toml`.
 pub(crate) fn ensure_ship_mcp_allowed_gemini() -> Result<()> {
-    let path = dirs::home_dir()
+    let path = home::home_dir()
         .context("could not determine home directory")?
         .join(".gemini")
         .join("policies")

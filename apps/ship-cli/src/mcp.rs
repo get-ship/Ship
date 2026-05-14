@@ -1,4 +1,4 @@
-//! MCP server management backed by `.ship/agents/mcp.toml`.
+//! MCP server management backed by `.ship/mcp.jsonc`.
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
@@ -63,35 +63,8 @@ impl McpFile {
         }
         let text = std::fs::read_to_string(path)?;
 
-        if crate::paths::is_jsonc_ext(path) {
-            // JSONC format: { "mcp": { "servers": { "<id>": {...} } } }
-            if let Ok(raw) = compiler::jsonc::from_jsonc_str::<RawMcpFile>(&text)
-                && !raw.mcp.servers.is_empty()
-            {
-                let servers = raw
-                    .mcp
-                    .servers
-                    .into_iter()
-                    .map(|(key, mut entry)| {
-                        if entry.id.is_empty() {
-                            entry.id = key;
-                        }
-                        entry
-                    })
-                    .collect();
-                return Ok(Self { servers });
-            }
-            if let Ok(legacy) = compiler::jsonc::from_jsonc_str::<LegacyMcpFile>(&text) {
-                return Ok(Self {
-                    servers: legacy.servers,
-                });
-            }
-            return Ok(Self::default());
-        }
-
-        // TOML format
-        // Try keyed table format first: [mcp.servers.<key>]
-        if let Ok(raw) = toml::from_str::<RawMcpFile>(&text)
+        // JSONC format: { "mcp": { "servers": { "<id>": {...} } } }
+        if let Ok(raw) = compiler::jsonc::from_jsonc_str::<RawMcpFile>(&text)
             && !raw.mcp.servers.is_empty()
         {
             let servers = raw
@@ -107,8 +80,7 @@ impl McpFile {
                 .collect();
             return Ok(Self { servers });
         }
-        // Fallback: flat array format { servers = [{...}] }
-        if let Ok(legacy) = toml::from_str::<LegacyMcpFile>(&text) {
+        if let Ok(legacy) = compiler::jsonc::from_jsonc_str::<LegacyMcpFile>(&text) {
             return Ok(Self {
                 servers: legacy.servers,
             });
@@ -120,33 +92,13 @@ impl McpFile {
         if let Some(p) = path.parent() {
             std::fs::create_dir_all(p)?;
         }
-
-        if crate::paths::is_jsonc_ext(path) {
-            // Write as JSONC: { "mcp": { "servers": { "<id>": {...} } } }
-            let mut servers_map = serde_json::Map::new();
-            for s in &self.servers {
-                let val = serde_json::to_value(s)?;
-                servers_map.insert(s.id.clone(), val);
-            }
-            let root = serde_json::json!({ "mcp": { "servers": servers_map } });
-            std::fs::write(path, serde_json::to_string_pretty(&root)?)?;
-            return Ok(());
-        }
-
-        // Write back in TOML keyed table format: [mcp.servers.<id>]
-        let mut map = HashMap::new();
+        let mut servers_map = serde_json::Map::new();
         for s in &self.servers {
-            map.insert(s.id.clone(), s.clone());
+            let val = serde_json::to_value(s)?;
+            servers_map.insert(s.id.clone(), val);
         }
-        let raw = toml::Value::Table({
-            let mut root = toml::map::Map::new();
-            let mut mcp = toml::map::Map::new();
-            let servers_val = toml::Value::try_from(map)?;
-            mcp.insert("servers".into(), servers_val);
-            root.insert("mcp".into(), toml::Value::Table(mcp));
-            root
-        });
-        std::fs::write(path, toml::to_string_pretty(&raw)?)?;
+        let root = serde_json::json!({ "mcp": { "servers": servers_map } });
+        std::fs::write(path, serde_json::to_string_pretty(&root)?)?;
         Ok(())
     }
 }
@@ -232,7 +184,7 @@ mod tests {
     use tempfile::TempDir;
 
     fn mcp_path(tmp: &TempDir) -> std::path::PathBuf {
-        tmp.path().join("mcp.toml")
+        tmp.path().join("mcp.jsonc")
     }
 
     #[test]
@@ -284,7 +236,7 @@ mod tests {
     #[test]
     fn load_empty_when_no_file() {
         let tmp = TempDir::new().unwrap();
-        let file = McpFile::load(&tmp.path().join("nonexistent.toml")).unwrap();
+        let file = McpFile::load(&tmp.path().join("nonexistent.jsonc")).unwrap();
         assert!(file.servers.is_empty());
     }
 }

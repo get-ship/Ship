@@ -7,7 +7,7 @@ use compiler::Skill;
 use std::collections::HashSet;
 use std::path::Path;
 
-pub use crate::skill_parse::parse_skill;
+pub use crate::skill::parse::parse_skill;
 
 pub fn load_skills(ship_dir: &Path) -> Result<Vec<Skill>> {
     let project_root = ship_dir.parent().unwrap_or(ship_dir);

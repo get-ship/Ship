@@ -5,17 +5,15 @@ use std::path::Path;
 
 use crate::profile;
 
-#[path = "convert_github.rs"]
-pub(crate) mod convert_github;
-#[path = "convert_mcp.rs"]
-mod convert_mcp;
+pub(crate) mod github;
+mod mcp;
 
 /// Run the convert command for the given source string.
 pub fn run_convert(source: &str) -> Result<()> {
     if is_getship_url(source) {
         convert_from_url(source)
-    } else if convert_github::is_github_url(source) {
-        convert_github::convert_from_github(source)
+    } else if github::is_github_url(source) {
+        github::convert_from_github(source)
     } else if Path::new(source).exists() {
         convert_from_path(source)
     } else if source.starts_with("http://") || source.starts_with("https://") {
@@ -80,14 +78,14 @@ fn convert_from_url(url: &str) -> Result<()> {
     let library: compiler::ProjectLibrary =
         serde_json::from_str(&body).context("Invalid agent data received from getship.dev")?;
 
-    // Serialize to TOML and write to agents directory
+    // Serialize to JSONC and write to agents directory
     let agents_out_dir = ship_dir.join("agents");
     std::fs::create_dir_all(&agents_out_dir)?;
-    let agent_path = agents_out_dir.join(format!("{}.toml", agent_id));
+    let agent_path = agents_out_dir.join(format!("{}.jsonc", agent_id));
 
-    let toml_content =
-        toml::to_string_pretty(&library).context("Failed to serialize agent to TOML")?;
-    std::fs::write(&agent_path, &toml_content)?;
+    let json_content =
+        serde_json::to_string_pretty(&library).context("Failed to serialize agent to JSON")?;
+    std::fs::write(&agent_path, &json_content)?;
 
     println!("  wrote {}", agent_path.display());
 
@@ -157,7 +155,7 @@ fn convert_from_path(source: &str) -> Result<()> {
     // ── mcp.jsonc — MCP server definitions ───────────────────────────────────
     if !library.mcp_servers.is_empty() {
         let mcp_jsonc = ship_dir.join("mcp.jsonc");
-        let servers = convert_mcp::serialize_mcp_servers(&library.mcp_servers);
+        let servers = mcp::serialize_mcp_servers(&library.mcp_servers);
         let mcp_obj = serde_json::json!({
             "$schema": "../schemas/mcp.schema.json",
             "mcp": { "servers": servers }
@@ -244,5 +242,4 @@ fn convert_from_path(source: &str) -> Result<()> {
 }
 
 #[cfg(test)]
-#[path = "convert_tests.rs"]
 mod tests;

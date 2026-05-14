@@ -62,7 +62,7 @@ pub fn run_add_from(url: &str) -> Result<()> {
         .build()?;
 
     let bundle = rt.block_on(fetch_bundle(url))?;
-    crate::add_from_write::write_bundle(&cwd, &bundle)?;
+    crate::add::from_write::write_bundle(&cwd, &bundle)?;
 
     let (agents, skills, deps) = (1, bundle.skills.len(), bundle.dependencies.len());
     println!(
@@ -228,5 +228,5 @@ fn scan_bundle_security(bundle: &TransferBundle) -> Result<()> {
 // ── Tests ───────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
-#[path = "add_from_tests.rs"]
+#[path = "from_tests.rs"]
 mod tests;
