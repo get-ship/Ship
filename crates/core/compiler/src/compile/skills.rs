@@ -61,9 +61,9 @@ fn build_runtime_vars(resolved: &ResolvedConfig) -> serde_json::Value {
         .iter()
         .map(|p| {
             serde_json::json!({
-                "id": p.profile.id,
-                "name": p.profile.name,
-                "description": p.profile.description,
+                "id": p.agent.id,
+                "name": p.agent.name,
+                "description": p.agent.description,
             })
         })
         .collect();

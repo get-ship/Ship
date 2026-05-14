@@ -4,12 +4,16 @@ use crate::types::agent_profile::*;
 
 fn make_profile(id: &str, name: &str, providers: &[&str]) -> AgentProfile {
     AgentProfile {
-        profile: ProfileMeta {
+        agent: ProfileMeta {
             id: id.to_string(),
             name: name.to_string(),
             version: None,
             description: Some(format!("{name} agent")),
             providers: providers.iter().map(|s| s.to_string()).collect(),
+            role: None,
+            tags: vec![],
+            tools_preset: None,
+            active_tools: vec![],
             icon: None,
         },
         skills: SkillRefs {
@@ -28,6 +32,7 @@ fn make_profile(id: &str, name: &str, providers: &[&str]) -> AgentProfile {
         rules: ProfileRules {
             inline: Some("You are a specialist.".to_string()),
         },
+        hooks: Default::default(),
         apps: Default::default(),
         provider_settings: Default::default(),
     }

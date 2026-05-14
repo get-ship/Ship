@@ -27,30 +27,32 @@ pub(super) fn parse_opencode_agent(name: &str, entry: &Json) -> Option<AgentProf
         .unwrap_or_default();
 
     // Collect unknown fields + model into provider_settings.opencode
-    let mut oc_settings = toml::map::Map::new();
+    let mut oc_settings = serde_json::Map::new();
     if let Some(Json::String(m)) = obj.get("model") {
-        oc_settings.insert("model".to_string(), toml::Value::String(m.clone()));
+        oc_settings.insert("model".to_string(), Json::String(m.clone()));
     }
     for (k, v) in obj {
-        if !KNOWN_AGENT_KEYS.contains(&k.as_str())
-            && let Some(tv) = json_to_toml(v)
-        {
-            oc_settings.insert(k.clone(), tv);
+        if !KNOWN_AGENT_KEYS.contains(&k.as_str()) {
+            oc_settings.insert(k.clone(), v.clone());
         }
     }
 
     let mut provider_settings = HashMap::new();
     if !oc_settings.is_empty() {
-        provider_settings.insert("opencode".to_string(), toml::Value::Table(oc_settings));
+        provider_settings.insert("opencode".to_string(), Json::Object(oc_settings));
     }
 
     Some(AgentProfile {
-        profile: ProfileMeta {
+        agent: ProfileMeta {
             id: name.to_string(),
             name: name.to_string(),
             version: None,
             description,
             providers: vec![],
+            role: None,
+            tags: vec![],
+            tools_preset: None,
+            active_tools: vec![],
             icon: None,
         },
         skills: SkillRefs::default(),
@@ -58,6 +60,7 @@ pub(super) fn parse_opencode_agent(name: &str, entry: &Json) -> Option<AgentProf
         plugins: PluginRefs::default(),
         permissions,
         rules: ProfileRules { inline: prompt },
+        hooks: Default::default(),
         apps: Default::default(),
         provider_settings,
     })
@@ -131,31 +134,3 @@ fn push_permission(perms: &mut ProfilePermissions, tool: &str, action: &str) {
     }
 }
 
-/// Convert a serde_json::Value to a toml::Value for provider_settings passthrough.
-fn json_to_toml(json: &Json) -> Option<toml::Value> {
-    match json {
-        Json::String(s) => Some(toml::Value::String(s.clone())),
-        Json::Number(n) => {
-            if let Some(i) = n.as_i64() {
-                Some(toml::Value::Integer(i))
-            } else {
-                n.as_f64().map(toml::Value::Float)
-            }
-        }
-        Json::Bool(b) => Some(toml::Value::Boolean(*b)),
-        Json::Array(arr) => {
-            let items: Vec<toml::Value> = arr.iter().filter_map(json_to_toml).collect();
-            Some(toml::Value::Array(items))
-        }
-        Json::Object(obj) => {
-            let mut table = toml::map::Map::new();
-            for (k, v) in obj {
-                if let Some(tv) = json_to_toml(v) {
-                    table.insert(k.clone(), tv);
-                }
-            }
-            Some(toml::Value::Table(table))
-        }
-        Json::Null => None,
-    }
-}

@@ -303,12 +303,16 @@ fn compile_and_resolve_are_pure_no_io() {
 
 fn make_agent_profile(id: &str, description: &str) -> AgentProfile {
     AgentProfile {
-        profile: ProfileMeta {
+        agent: ProfileMeta {
             id: id.to_string(),
             name: id.to_string(),
             version: None,
             description: Some(description.to_string()),
             providers: vec![],
+            role: None,
+            tags: vec![],
+            tools_preset: None,
+            active_tools: vec![],
             icon: None,
         },
         skills: SkillRefs::default(),
@@ -316,6 +320,7 @@ fn make_agent_profile(id: &str, description: &str) -> AgentProfile {
         plugins: PluginRefs::default(),
         permissions: ProfilePermissions::default(),
         rules: ProfileRules::default(),
+        hooks: Default::default(),
         apps: Default::default(),
         provider_settings: Default::default(),
     }

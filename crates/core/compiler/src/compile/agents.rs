@@ -28,7 +28,7 @@ pub fn compile_agent_profiles(
         if !profile_targets_provider(profile, provider_id) {
             continue;
         }
-        let path = match desc.agents_dir.agent_path(&profile.profile.id) {
+        let path = match desc.agents_dir.agent_path(&profile.agent.id) {
             Some(p) => p,
             None => continue,
         };
@@ -47,11 +47,11 @@ pub fn compile_agent_profiles(
 /// Check whether a profile should be emitted for a given provider.
 /// A profile with an empty providers list targets all providers.
 pub(super) fn profile_targets_provider(profile: &AgentProfile, provider_id: &str) -> bool {
-    if profile.profile.providers.is_empty() {
+    if profile.agent.providers.is_empty() {
         return true;
     }
     profile
-        .profile
+        .agent
         .providers
         .iter()
         .any(|p| p.eq_ignore_ascii_case(provider_id))
@@ -64,8 +64,8 @@ pub(super) fn profile_targets_provider(profile: &AgentProfile, provider_id: &str
 fn compile_claude_agent(profile: &AgentProfile) -> String {
     let mut fm = Vec::new();
     // Use id as name so Claude Code can match it as a subagent_type by filename
-    fm.push(format!("name: {}", profile.profile.id));
-    if let Some(desc) = &profile.profile.description {
+    fm.push(format!("name: {}", profile.agent.id));
+    if let Some(desc) = &profile.agent.description {
         fm.push(format!("description: {}", yaml_quote(desc)));
     }
 
@@ -115,8 +115,8 @@ fn compile_claude_agent(profile: &AgentProfile) -> String {
 
 fn compile_gemini_agent(profile: &AgentProfile) -> String {
     let mut fm = Vec::new();
-    fm.push(format!("name: {}", profile.profile.id));
-    if let Some(desc) = &profile.profile.description {
+    fm.push(format!("name: {}", profile.agent.id));
+    if let Some(desc) = &profile.agent.description {
         fm.push(format!("description: {}", yaml_quote(desc)));
     }
     fm.push("kind: local".to_string());
@@ -152,8 +152,8 @@ fn compile_gemini_agent(profile: &AgentProfile) -> String {
 
 fn compile_cursor_agent(profile: &AgentProfile) -> String {
     let mut fm = Vec::new();
-    fm.push(format!("name: {}", profile.profile.id));
-    if let Some(desc) = &profile.profile.description {
+    fm.push(format!("name: {}", profile.agent.id));
+    if let Some(desc) = &profile.agent.description {
         fm.push(format!("description: {}", yaml_quote(desc)));
     }
 
@@ -172,8 +172,8 @@ fn compile_cursor_agent(profile: &AgentProfile) -> String {
 
 fn compile_codex_agent(profile: &AgentProfile) -> String {
     let mut lines = Vec::new();
-    lines.push(format!("name = {}", toml_quote(&profile.profile.name)));
-    if let Some(desc) = &profile.profile.description {
+    lines.push(format!("name = {}", toml_quote(&profile.agent.name)));
+    if let Some(desc) = &profile.agent.description {
         lines.push(format!("description = {}", toml_quote(desc)));
     }
 
@@ -219,10 +219,9 @@ fn provider_setting(profile: &AgentProfile, provider: &str, key: &str) -> Option
         .get(provider)
         .and_then(|v| v.get(key))
         .and_then(|v| match v {
-            toml::Value::String(s) => Some(s.clone()),
-            toml::Value::Boolean(b) => Some(b.to_string()),
-            toml::Value::Integer(i) => Some(i.to_string()),
-            toml::Value::Float(f) => Some(f.to_string()),
+            serde_json::Value::String(s) => Some(s.clone()),
+            serde_json::Value::Bool(b) => Some(b.to_string()),
+            serde_json::Value::Number(n) => Some(n.to_string()),
             _ => None,
         })
 }

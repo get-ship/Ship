@@ -162,7 +162,7 @@ fn merge_into(target: &mut ProjectLibrary, source: ProjectLibrary, provider_id: 
         if !target
             .agent_profiles
             .iter()
-            .any(|p| p.profile.id == profile.profile.id)
+            .any(|p| p.agent.id == profile.agent.id)
         {
             target.agent_profiles.push(profile);
         }

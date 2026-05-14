@@ -157,9 +157,10 @@ pub(super) fn build_gemini_settings_patch(resolved: &ResolvedConfig) -> Option<J
 ///
 /// Gemini always gets command hooks (via `ship hook`).
 pub(super) fn inject_ship_lifecycle_hooks(patch: &mut Json) {
-    let hooks_obj = patch
-        .as_object_mut()
-        .unwrap()
+    let Some(obj) = patch.as_object_mut() else {
+        return;
+    };
+    let hooks_obj = obj
         .entry("hooks")
         .or_insert_with(|| serde_json::json!({}));
 

@@ -71,7 +71,9 @@ pub(super) fn inject_ship_lifecycle_hooks(patch: &mut Json) {
         ("sessionEnd", "ship hook session-end"),
     ];
 
-    let obj = patch.as_object_mut().expect("cursor hooks patch must be an object");
+    let Some(obj) = patch.as_object_mut() else {
+        return;
+    };
     for (event, command) in lifecycle {
         let entry = serde_json::json!({ "command": command });
         if let Some(arr) = obj.get_mut(event).and_then(|v| v.as_array_mut()) {

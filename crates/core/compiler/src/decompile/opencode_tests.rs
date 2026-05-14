@@ -40,9 +40,9 @@ fn opencode_agent_basic_fields() {
 
     assert_eq!(lib.agent_profiles.len(), 1);
     let agent = &lib.agent_profiles[0];
-    assert_eq!(agent.profile.id, "build");
-    assert_eq!(agent.profile.name, "build");
-    assert_eq!(agent.profile.description.as_deref(), Some("Build agent"));
+    assert_eq!(agent.agent.id, "build");
+    assert_eq!(agent.agent.name, "build");
+    assert_eq!(agent.agent.description.as_deref(), Some("Build agent"));
     assert_eq!(
         agent.rules.inline.as_deref(),
         Some("You are a build agent. Follow TDD.")
@@ -156,8 +156,8 @@ fn opencode_agent_unknown_fields_in_provider_settings() {
         .get("opencode")
         .unwrap();
     assert_eq!(oc.get("mode").and_then(|v| v.as_str()), Some("primary"));
-    assert_eq!(oc.get("temperature").and_then(|v| v.as_float()), Some(0.7));
-    assert_eq!(oc.get("steps").and_then(|v| v.as_integer()), Some(50));
+    assert_eq!(oc.get("temperature").and_then(|v| v.as_f64()), Some(0.7));
+    assert_eq!(oc.get("steps").and_then(|v| v.as_i64()), Some(50));
     assert_eq!(oc.get("hidden").and_then(|v| v.as_bool()), Some(true));
     assert_eq!(oc.get("color").and_then(|v| v.as_str()), Some("#ff0000"));
 }
@@ -194,7 +194,7 @@ fn opencode_multiple_agents() {
     let ids: Vec<&str> = lib
         .agent_profiles
         .iter()
-        .map(|a| a.profile.id.as_str())
+        .map(|a| a.agent.id.as_str())
         .collect();
     assert!(ids.contains(&"build"));
     assert!(ids.contains(&"review"));
