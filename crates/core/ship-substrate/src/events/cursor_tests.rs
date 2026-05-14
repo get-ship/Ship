@@ -83,8 +83,8 @@ mod cursor {
         let (_tmp, mut router) = setup();
 
         // Emit some events before spawning the actor.
-        router.route(ev("studio.feedback"), &runtime_ctx()).await.unwrap();
-        router.route(ev("studio.feedback"), &runtime_ctx()).await.unwrap();
+        router.emit(ev("studio.feedback"), &runtime_ctx()).await.unwrap();
+        router.emit(ev("studio.feedback"), &runtime_ctx()).await.unwrap();
 
         // First spawn — no cursor exists. Actor should NOT receive old events.
         let (_store, mut mb) = router
@@ -107,7 +107,7 @@ mod cursor {
             .unwrap();
 
         let ev1 = ev("studio.feedback");
-        router.route(ev1.clone(), &runtime_ctx()).await.unwrap();
+        router.emit(ev1.clone(), &runtime_ctx()).await.unwrap();
 
         let received = mb.try_recv().expect("must receive ev1");
         assert_eq!(received.id, ev1.id);
@@ -118,8 +118,8 @@ mod cursor {
         // Emit events while actor is offline.
         let ev2 = ev("studio.feedback");
         let ev3 = ev("studio.selection");
-        router.route(ev2.clone(), &runtime_ctx()).await.unwrap();
-        router.route(ev3.clone(), &runtime_ctx()).await.unwrap();
+        router.emit(ev2.clone(), &runtime_ctx()).await.unwrap();
+        router.emit(ev3.clone(), &runtime_ctx()).await.unwrap();
 
         // Restart — should replay ev2 and ev3.
         let (_store, mut mb) = router
@@ -145,8 +145,8 @@ mod cursor {
 
         let ev1 = ev("studio.feedback");
         let ev2 = ev("studio.feedback");
-        router.route(ev1.clone(), &runtime_ctx()).await.unwrap();
-        router.route(ev2.clone(), &runtime_ctx()).await.unwrap();
+        router.emit(ev1.clone(), &runtime_ctx()).await.unwrap();
+        router.emit(ev2.clone(), &runtime_ctx()).await.unwrap();
 
         // Process both events.
         let _ = mb.try_recv().unwrap();
@@ -182,8 +182,8 @@ mod cursor {
         // Events emitted while actor is offline.
         let ev1 = ev("studio.urgent");
         let ev2 = ev("studio.critical");
-        router.route(ev1.clone(), &runtime_ctx()).await.unwrap();
-        router.route(ev2.clone(), &runtime_ctx()).await.unwrap();
+        router.emit(ev1.clone(), &runtime_ctx()).await.unwrap();
+        router.emit(ev2.clone(), &runtime_ctx()).await.unwrap();
 
         // Restart — cursor was at start, so both events should replay.
         let (_store, mut mb) = router
@@ -225,8 +225,8 @@ mod cursor {
             .with_context(Some("ws-a"), None);
         let ev_b = ev("studio.feedback")
             .with_context(Some("ws-b"), None);
-        router.route(ev_a.clone(), &runtime_ctx()).await.unwrap();
-        router.route(ev_b, &runtime_ctx()).await.unwrap();
+        router.emit(ev_a.clone(), &runtime_ctx()).await.unwrap();
+        router.emit(ev_b, &runtime_ctx()).await.unwrap();
 
         // Restart — only ws-a events should replay.
         let (_store, mut mb) = router
@@ -260,9 +260,9 @@ mod cursor {
         let ev1 = ev("studio.first");
         let ev2 = ev("studio.second");
         let ev3 = ev("studio.third");
-        router.route(ev1.clone(), &runtime_ctx()).await.unwrap();
-        router.route(ev2.clone(), &runtime_ctx()).await.unwrap();
-        router.route(ev3.clone(), &runtime_ctx()).await.unwrap();
+        router.emit(ev1.clone(), &runtime_ctx()).await.unwrap();
+        router.emit(ev2.clone(), &runtime_ctx()).await.unwrap();
+        router.emit(ev3.clone(), &runtime_ctx()).await.unwrap();
 
         // Restart — events must replay in ULID order.
         let (_store, mut mb) = router

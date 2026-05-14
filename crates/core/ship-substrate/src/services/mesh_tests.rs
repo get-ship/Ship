@@ -404,7 +404,7 @@ fn send_to_agent_with_full_mailbox_returns_mailbox_full() {
     //
     // This test will pass once MeshService gains mailbox-capacity awareness.
     // For the initial TDD red phase, we verify the contract shape.
-    let mut events: Vec<EventEnvelope> = std::iter::from_fn(|| rx.try_recv().ok()).collect();
+    let events: Vec<EventEnvelope> = std::iter::from_fn(|| rx.try_recv().ok()).collect();
 
     // At minimum, the mesh.message should have been created
     assert!(

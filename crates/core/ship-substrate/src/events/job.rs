@@ -51,7 +51,7 @@ pub struct JobCreatedPayload {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub spec_content: Option<String>,
     /// Per-step spec bodies, indexed by step position. Populated by
-    /// `ensure_pipeline` from the pipeline YAML's `step_specs:` block when
+    /// `ensure_pipeline` from the pipeline JSONC's `step_specs:` block when
     /// present. Written to `.artifacts/pipeline/NN-<step_id>.md` at launch.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub step_specs: Option<Vec<String>>,

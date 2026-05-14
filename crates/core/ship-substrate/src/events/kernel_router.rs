@@ -197,7 +197,7 @@ impl KernelRouter {
         // mutex contention is bounded (six 10s buckets, single hashmap
         // lookup per actor reference).
         {
-            let mut counters = self.rate_counters.lock().unwrap();
+            let mut counters = self.rate_counters.lock().expect("rate_counters mutex poisoned");
             let originator = event.actor_id.as_deref().unwrap_or("");
             if !originator.is_empty() {
                 counters.entry(originator.to_string()).or_default().bump();
@@ -213,11 +213,13 @@ impl KernelRouter {
 
         #[cfg(feature = "unstable")]
         {
-            // Persist before delivery. Use raw_append directly since inner.route()
-            // would also deliver to inner's mailboxes (unstable uses its own
-            // scope-filtered delivery path via deliver_with_scope).
-            crate::persistence::actor_store::raw_append(&self.kernel_store_path, &event)?;
-            self.event_log.lock().unwrap().push(event.clone());
+            // Persist via inner.persist() so the projection bus fires
+            // (raw_append bypasses it and leaves SQL projections stale).
+            // inner.route() would also push to kernel mailboxes — we
+            // skip that because unstable owns scope-filtered delivery
+            // via deliver_with_scope.
+            self.inner.persist(&event)?;
+            self.event_log.lock().expect("event_log mutex poisoned").push(event.clone());
             return self.deliver_with_scope(&event).await;
         }
 
@@ -239,38 +241,10 @@ impl KernelRouter {
         self.inner.deliver(event);
     }
 
-    /// Delivery-only path — **deprecated**.
-    ///
-    /// Validators run (including EmitContext checks) but no persistence occurs.
-    /// Retained for test code in dependent crates. Use `emit()` for production.
-    /// Will be removed in a future release.
-    #[deprecated(note = "use emit() instead — route() skips persistence")]
-    pub async fn route(&self, event: EventEnvelope, ctx: &EmitContext) -> Result<()> {
-        for v in &self.validators {
-            v.validate(&event, ctx).map_err(|e| anyhow!("{e}"))?;
-        }
-        self.enforce_write_namespaces(&event, ctx)?;
-        #[cfg(feature = "unstable")]
-        self.enforce_emit_permissions(&event, ctx)?;
-
-        #[cfg(feature = "unstable")]
-        {
-            self.event_log.lock().unwrap().push(event.clone());
-            return self.deliver_with_scope(&event).await;
-        }
-
-        #[cfg(not(feature = "unstable"))]
-        {
-            // Delivery-only: use inner's deliver() without persistence.
-            self.inner.deliver(&event);
-            Ok(())
-        }
-    }
-
     pub fn stop_actor(&mut self, actor_id: &str) -> Result<(), KernelError> {
         #[cfg(feature = "unstable")]
         {
-            let log_len = self.event_log.lock().unwrap().len();
+            let log_len = self.event_log.lock().expect("event_log mutex poisoned").len();
             self.actor_cursors.insert(actor_id.to_string(), log_len);
             self.actor_meta.remove(actor_id);
             self.unstable_senders.remove(actor_id);

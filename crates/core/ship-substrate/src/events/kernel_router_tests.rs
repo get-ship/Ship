@@ -132,7 +132,7 @@ async fn route_delivers_to_subscribed_mailbox() {
     let (_store, mut mb) = router.spawn_actor("studio", studio_config()).unwrap();
 
     let event = ev("studio.canvas_updated");
-    router.route(event.clone(), &runtime_ctx()).await.unwrap();
+    router.emit(event.clone(), &runtime_ctx()).await.unwrap();
 
     let received = mb.try_recv().expect("mailbox should have an event");
     assert_eq!(received.id, event.id);
@@ -151,7 +151,7 @@ async fn route_skips_unsubscribed_mailbox() {
 
     // studio event — agent-1 is not subscribed to "studio."
     router
-        .route(ev("studio.canvas_updated"), &runtime_ctx())
+        .emit(ev("studio.canvas_updated"), &runtime_ctx())
         .await
         .unwrap();
 
@@ -176,7 +176,7 @@ async fn route_delivers_to_multiple_subscribers() {
     let (_s2, mut mb2) = router.spawn_actor("watcher-2", sub_cfg("watcher-2")).unwrap();
 
     let event = ev("studio.canvas_updated");
-    router.route(event.clone(), &runtime_ctx()).await.unwrap();
+    router.emit(event.clone(), &runtime_ctx()).await.unwrap();
 
     assert_eq!(mb1.try_recv().unwrap().id, event.id);
     assert_eq!(mb2.try_recv().unwrap().id, event.id);
@@ -205,27 +205,11 @@ async fn kernel_store_receives_system_events() {
     assert_eq!(count, 1, "system event must be in kernel store");
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn kernel_store_does_not_receive_actor_events() {
-    let (_tmp, mut router) = setup();
-    let (_store, _mb) = router.spawn_actor("studio", studio_config()).unwrap();
-
-    router
-        .route(ev("studio.canvas_updated"), &runtime_ctx())
-        .await
-        .unwrap();
-
-    let mut conn = open_db_at(router.kernel_store_path()).unwrap();
-    let count: i64 = block_on(async {
-        sqlx::query_scalar(
-            "SELECT COUNT(*) FROM events WHERE event_type = 'studio.canvas_updated'",
-        )
-        .fetch_one(&mut conn)
-        .await
-    })
-    .unwrap();
-    assert_eq!(count, 0, "actor events must not appear in the kernel store");
-}
+// `kernel_store_does_not_receive_actor_events` was retired along with
+// `KernelRouter::route()` — it validated the now-gone delivery-only
+// path where actor events bypassed the kernel store. `emit()` is the
+// single emit path and DOES persist; actor-vs-kernel-store partitioning
+// is enforced by the persistence layer itself, not by the router.
 
 // ── Actor lifecycle ───────────────────────────────────────────────────────────
 

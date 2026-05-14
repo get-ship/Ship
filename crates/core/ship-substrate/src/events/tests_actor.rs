@@ -9,7 +9,7 @@ use tempfile::tempdir;
 
 fn setup() -> (tempfile::TempDir, SqliteEventStore) {
     let tmp = tempdir().unwrap();
-    let _ship = init_project(tmp.path().to_path_buf()).unwrap();
+    let _ship = init_project(tmp.path()).unwrap();
     ensure_db().unwrap();
     let store = SqliteEventStore::new().unwrap();
     (tmp, store)

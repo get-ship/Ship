@@ -7,6 +7,7 @@ use anyhow::{Result, anyhow};
 use chrono::Utc;
 use sqlx::Row;
 
+use super::session::{SESSION_COLS, parse_session_row};
 use super::types::SessionDb;
 use super::{block_on, open_db};
 use crate::db::session_events::emit_session_drain_event;
@@ -14,47 +15,6 @@ use crate::events::types::{
     SessionDrainAborted, SessionDrainCompleted, SessionDrainStarted,
     SessionHeartbeat, SessionToolCountIncremented, event_types,
 };
-
-const S_COLS: &str =
-    "id, workspace_id, branch, project_id, kind, pipeline_run_id, \
-     chat_thread_id, status, started_at, ended_at, agent_id, primary_provider, \
-     goal, summary, updated_workspace_ids_json, tool_call_count, drained_at, \
-     last_activity_at, duration_secs, model, files_changed, lines_added, \
-     lines_removed, tool_calls, gate_result, exit_reason, created_at, updated_at";
-
-fn parse_row(row: &sqlx::sqlite::SqliteRow) -> SessionDb {
-    let uwids_json: String = row.get(14);
-    SessionDb {
-        id: row.get(0),
-        workspace_id: row.get(1),
-        branch: row.get(2),
-        project_id: row.get(3),
-        kind: row.get(4),
-        pipeline_run_id: row.get(5),
-        chat_thread_id: row.get(6),
-        status: row.get(7),
-        started_at: row.get(8),
-        ended_at: row.get(9),
-        agent_id: row.get(10),
-        primary_provider: row.get(11),
-        goal: row.get(12),
-        summary: row.get(13),
-        updated_workspace_ids: serde_json::from_str(&uwids_json).unwrap_or_default(),
-        tool_call_count: row.get(15),
-        drained_at: row.get(16),
-        last_activity_at: row.get(17),
-        duration_secs: row.get(18),
-        model: row.get(19),
-        files_changed: row.get(20),
-        lines_added: row.get(21),
-        lines_removed: row.get(22),
-        tool_calls: row.get(23),
-        gate_result: row.get(24),
-        exit_reason: row.get(25),
-        created_at: row.get(26),
-        updated_at: row.get(27),
-    }
-}
 
 /// Find a session in "draining" status for the given workspace + agent.
 pub fn find_draining_session(
@@ -64,7 +24,7 @@ pub fn find_draining_session(
     let mut conn = open_db()?;
     let row = block_on(async {
         sqlx::query(&format!(
-            "SELECT {S_COLS} FROM sessions \
+            "SELECT {SESSION_COLS} FROM sessions \
              WHERE workspace_id = ? AND agent_id = ? AND status = 'draining' \
              ORDER BY started_at DESC LIMIT 1"
         ))
@@ -73,7 +33,7 @@ pub fn find_draining_session(
         .fetch_optional(&mut conn)
         .await
     })?;
-    Ok(row.as_ref().map(parse_row))
+    Ok(row.as_ref().map(parse_session_row))
 }
 
 /// Transition an active session to "draining" status via event emission.
@@ -172,12 +132,12 @@ pub fn list_active_sessions() -> Result<Vec<SessionDb>> {
     let mut conn = open_db()?;
     let rows = block_on(async {
         sqlx::query(&format!(
-            "SELECT {S_COLS} FROM sessions WHERE status = 'active'"
+            "SELECT {SESSION_COLS} FROM sessions WHERE status = 'active'"
         ))
         .fetch_all(&mut conn)
         .await
     })?;
-    Ok(rows.iter().map(parse_row).collect())
+    Ok(rows.iter().map(parse_session_row).collect())
 }
 
 /// End a session directly with a given exit reason (used by daemon cleanup).

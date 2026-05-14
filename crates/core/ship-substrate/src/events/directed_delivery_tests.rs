@@ -70,7 +70,7 @@ mod directed_delivery {
 
         let mut directed = ev("studio.feedback");
         directed.target_actor_id = Some("agent.reviewer".into());
-        router.route(directed.clone(), &runtime_ctx()).await.unwrap();
+        router.emit(directed.clone(), &runtime_ctx()).await.unwrap();
 
         // Target receives the event.
         let received = mb_target.try_recv().expect("target must receive directed event");
@@ -105,7 +105,7 @@ mod directed_delivery {
         // No target_actor_id — broadcast.
         let event = ev("studio.feedback");
         assert!(event.target_actor_id.is_none());
-        router.route(event.clone(), &runtime_ctx()).await.unwrap();
+        router.emit(event.clone(), &runtime_ctx()).await.unwrap();
 
         assert_eq!(mb1.try_recv().unwrap().id, event.id);
         assert_eq!(mb2.try_recv().unwrap().id, event.id);
@@ -130,7 +130,7 @@ mod directed_delivery {
         directed.target_actor_id = Some("agent.ghost".into());
 
         // Must not crash — event is persisted but not delivered to anyone.
-        let result = router.route(directed, &runtime_ctx()).await;
+        let result = router.emit(directed, &runtime_ctx()).await;
         assert!(result.is_ok(), "directed to nonexistent actor must not crash");
 
         // The alive agent also does NOT receive it (it's directed to ghost).

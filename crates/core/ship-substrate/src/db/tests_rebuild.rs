@@ -1,6 +1,6 @@
 //! Tests for S5 and S6: projection rebuild from events, rebuild idempotency.
 
-use crate::db::{block_on, ensure_db_at, open_db_at, rebuild};
+use crate::db::{ensure_db_at, rebuild};
 use ship_types::envelope::EventEnvelope;
 use crate::persistence::event_store::{EventStore, SqliteEventStore};
 use crate::events::types::event_types;
@@ -9,7 +9,7 @@ use tempfile::tempdir;
 
 fn setup() -> (tempfile::TempDir, std::path::PathBuf) {
     let tmp = tempdir().unwrap();
-    let ship_dir = init_project(tmp.path().to_path_buf()).unwrap();
+    let ship_dir = init_project(tmp.path()).unwrap();
     ensure_db_at(&ship_dir).unwrap();
     (tmp, ship_dir)
 }

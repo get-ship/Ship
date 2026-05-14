@@ -185,7 +185,7 @@ pub fn spawn_actor(profile: ActorProfile) -> Result<ActorHandle> {
             emit_profile.workspace_id.as_deref(),
             emit_profile.parent_actor_id.as_deref(),
         ) {
-            tracing::debug!(actor_id = %emit_actor_id, "actor.created emit failed: {e}");
+            tracing::warn!(actor_id = %emit_actor_id, "actor.created emit failed: {e}");
         }
     });
 

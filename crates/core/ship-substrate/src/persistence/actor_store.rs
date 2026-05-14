@@ -141,38 +141,7 @@ impl ActorStore {
 /// so tests can target a temp DB.
 pub(crate) fn raw_append(db_path: &Path, event: &EventEnvelope) -> Result<()> {
     let mut conn = open_db_at(db_path)?;
-    let created_at = event.created_at.to_rfc3339();
-    block_on(async {
-        // Plain INSERT — the parallel-write workaround (`OR IGNORE`)
-        // was for the legacy `db::*_events::run_tx` path that wrote
-        // rows that `kernel.emit` would then re-write. After slice 02c
-        // canonicalized event writes through `SqliteEventStore::append`,
-        // each event id has exactly one writer.
-        sqlx::query(
-            "INSERT INTO events \
-             (id, event_type, entity_id, actor, payload_json, version, \
-              causation_id, project_id, session_id, \
-              actor_id, parent_actor_id, elevated, created_at, target_actor_id) \
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        )
-        .bind(&event.id)
-        .bind(&event.event_type)
-        .bind(&event.entity_id)
-        .bind(&event.actor)
-        .bind(&event.payload_json)
-        .bind(event.version as i64)
-        .bind(&event.causation_id)
-        .bind(&event.project_id)
-        .bind(&event.session_id)
-        .bind(&event.actor_id)
-        .bind(&event.parent_actor_id)
-        .bind(event.elevated as i64)
-        .bind(&created_at)
-        .bind(&event.target_actor_id)
-        .execute(&mut conn)
-        .await
-    })?;
-    Ok(())
+    crate::db::envelope::insert_event_row(event, &mut conn)
 }
 
 fn query_db(db_path: &Path, filter: &EventFilter) -> Result<Vec<EventEnvelope>> {

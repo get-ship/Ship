@@ -308,19 +308,6 @@ pub trait AgentPlatform: Send + Sync {
     /// Execute `git merge <branch>` in the repo directory. Returns true on success.
     fn git_merge(&self, branch: &str) -> Result<bool>;
 
-    /// Start a single-step exit signal handler (non-pipeline jobs).
-    fn start_exit_handler(
-        &self,
-        kernel: std::sync::Arc<tokio::sync::Mutex<crate::events::KernelRouter>>,
-        exit_rx: tokio::sync::mpsc::UnboundedReceiver<ExitSignal>,
-    );
-
-    /// Start periodic liveness monitoring.
-    fn start_liveness_sweep(
-        &self,
-        kernel: std::sync::Arc<tokio::sync::Mutex<crate::events::KernelRouter>>,
-    );
-
     /// Clean up orphaned worktrees from previous daemon runs.
     async fn cleanup_orphaned_worktrees(&self);
 }
@@ -347,6 +334,11 @@ pub trait ProcessRegistryPort: Send + Sync {
     /// has no captured PID. Used by the step monitor's subprocess-tree
     /// heartbeat probe — it needs a read-only root PID to walk children.
     async fn get_pid(&self, _slug: &str) -> Option<u32> { None }
+    /// Probe each registered handle via `executor.is_alive()`; remove and
+    /// return the slugs whose handles are no longer alive. Used by the
+    /// coherence sweep to evict dead handles before the drift checks run.
+    /// Default `vec![]` for registries that don't track handles.
+    async fn drain_dead(&self, _executor: &dyn JobExecutor) -> Vec<String> { vec![] }
 }
 
 /// Sample of the liveness state of a dispatched process tree.

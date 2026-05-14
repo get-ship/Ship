@@ -3,7 +3,7 @@ use sqlx::QueryBuilder;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use crate::db::envelope::envelope_from_row;
+use crate::db::envelope::{EVENT_COLS as COLS, envelope_from_row, insert_event_row};
 use crate::db::{block_on, db_path, ensure_db, ensure_db_at, open_db_at};
 use ship_types::envelope::EventEnvelope;
 use crate::events::EventFilter;
@@ -15,41 +15,6 @@ pub trait EventStore: Send + Sync {
     fn get(&self, id: &str) -> Result<Option<EventEnvelope>>;
     fn query(&self, filter: &EventFilter) -> Result<Vec<EventEnvelope>>;
     fn query_aggregate(&self, entity_id: &str) -> Result<Vec<EventEnvelope>>;
-}
-
-/// INSERT an event row using an existing connection — no transaction
-/// management, no projection dispatch. Building block for `append`.
-fn insert_event_row(
-    event: &EventEnvelope,
-    conn: &mut sqlx::SqliteConnection,
-) -> Result<()> {
-    let created_at = event.created_at.to_rfc3339();
-    block_on(async {
-        sqlx::query(
-            "INSERT INTO events \
-             (id, event_type, entity_id, actor, payload_json, version, \
-              causation_id, project_id, session_id, \
-              actor_id, parent_actor_id, elevated, created_at, target_actor_id) \
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        )
-        .bind(&event.id)
-        .bind(&event.event_type)
-        .bind(&event.entity_id)
-        .bind(&event.actor)
-        .bind(&event.payload_json)
-        .bind(event.version as i64)
-        .bind(&event.causation_id)
-        .bind(&event.project_id)
-        .bind(&event.session_id)
-        .bind(&event.actor_id)
-        .bind(&event.parent_actor_id)
-        .bind(event.elevated as i64)
-        .bind(&created_at)
-        .bind(&event.target_actor_id)
-        .execute(conn)
-        .await
-    })?;
-    Ok(())
 }
 
 /// Build the default projection bus (ActorProjection, SessionProjection,
@@ -109,10 +74,6 @@ impl SqliteEventStore {
         })
     }
 }
-
-const COLS: &str = "id, event_type, entity_id, actor, payload_json, version, \
-    causation_id, project_id, session_id, \
-    actor_id, parent_actor_id, elevated, created_at, target_actor_id";
 
 /// Query a single DB file with the given filter. Returns empty vec if the DB
 /// does not have an events table (e.g. an uninitialized file).

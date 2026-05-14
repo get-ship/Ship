@@ -10,6 +10,49 @@ use sqlx::Row;
 
 use ship_types::envelope::EventEnvelope;
 
+use crate::db::block_on;
+
+/// Canonical 14-column SELECT list for the `events` table.
+/// Order MUST match [`envelope_from_row`]'s column indices.
+pub const EVENT_COLS: &str = "id, event_type, entity_id, actor, payload_json, version, \
+    causation_id, project_id, session_id, \
+    actor_id, parent_actor_id, elevated, created_at, target_actor_id";
+
+/// INSERT a 14-column event row using an existing connection. No transaction
+/// management, no projection dispatch — that's the caller's job.
+pub(crate) fn insert_event_row(
+    event: &EventEnvelope,
+    conn: &mut sqlx::SqliteConnection,
+) -> Result<()> {
+    let created_at = event.created_at.to_rfc3339();
+    block_on(async {
+        sqlx::query(
+            "INSERT INTO events \
+             (id, event_type, entity_id, actor, payload_json, version, \
+              causation_id, project_id, session_id, \
+              actor_id, parent_actor_id, elevated, created_at, target_actor_id) \
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        )
+        .bind(&event.id)
+        .bind(&event.event_type)
+        .bind(&event.entity_id)
+        .bind(&event.actor)
+        .bind(&event.payload_json)
+        .bind(event.version as i64)
+        .bind(&event.causation_id)
+        .bind(&event.project_id)
+        .bind(&event.session_id)
+        .bind(&event.actor_id)
+        .bind(&event.parent_actor_id)
+        .bind(event.elevated as i64)
+        .bind(&created_at)
+        .bind(&event.target_actor_id)
+        .execute(conn)
+        .await
+    })?;
+    Ok(())
+}
+
 /// Deserialize a SQLite row into an `EventEnvelope`.
 ///
 /// `has_target_actor` controls whether column 13 (`target_actor_id`) is present.

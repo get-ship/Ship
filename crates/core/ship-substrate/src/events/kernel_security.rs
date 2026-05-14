@@ -93,7 +93,7 @@ impl KernelRouter {
 
         // Replay events since cursor, sorted by ULID for guaranteed ordering.
         if let Some(pos) = cursor_pos {
-            let log = self.event_log.lock().unwrap();
+            let log = self.event_log.lock().expect("event_log mutex poisoned");
             let mut replay: Vec<_> = log[pos..]
                 .iter()
                 .filter(|ev| self.should_deliver(ev, label))

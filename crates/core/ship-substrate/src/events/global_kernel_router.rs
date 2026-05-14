@@ -15,6 +15,16 @@ use crate::events::validator::{ElevatedValidator, NamespaceValidator, ReservedNa
 
 static KERNEL_ROUTER: OnceLock<Arc<Mutex<KernelRouter>>> = OnceLock::new();
 
+/// Build a KernelRouter rooted at `base_dir` with the standard validator chain
+/// (namespace + reserved-namespace + elevated + payload-schema).
+fn build_router(base_dir: PathBuf) -> anyhow::Result<KernelRouter> {
+    Ok(KernelRouter::new(base_dir)?
+        .with_validator(Box::new(NamespaceValidator))
+        .with_validator(Box::new(ReservedNamespaceValidator))
+        .with_validator(Box::new(ElevatedValidator))
+        .with_validator(Box::new(PayloadSchemaValidator)))
+}
+
 /// Initialize the global KernelRouter rooted at `base_dir`.
 ///
 /// Idempotent — returns the existing instance if already initialized.
@@ -24,12 +34,7 @@ pub fn init_kernel_router(base_dir: PathBuf) -> anyhow::Result<Arc<Mutex<KernelR
     if let Some(kr) = KERNEL_ROUTER.get() {
         return Ok(kr.clone());
     }
-    let router = KernelRouter::new(base_dir)?
-        .with_validator(Box::new(NamespaceValidator))
-        .with_validator(Box::new(ReservedNamespaceValidator))
-        .with_validator(Box::new(ElevatedValidator))
-        .with_validator(Box::new(PayloadSchemaValidator));
-    let arc = Arc::new(Mutex::new(router));
+    let arc = Arc::new(Mutex::new(build_router(base_dir)?));
     // Ignore failure — another thread may have won the race; take its value.
     let _ = KERNEL_ROUTER.set(arc);
     Ok(KERNEL_ROUTER.get().expect("just set").clone())
@@ -52,10 +57,5 @@ pub fn kernel_router() -> Option<Arc<Mutex<KernelRouter>>> {
 /// `unable to open database file` when they try to write.
 #[doc(hidden)]
 pub fn new_isolated_for_test(base_dir: PathBuf) -> anyhow::Result<Arc<Mutex<KernelRouter>>> {
-    let router = KernelRouter::new(base_dir)?
-        .with_validator(Box::new(NamespaceValidator))
-        .with_validator(Box::new(ReservedNamespaceValidator))
-        .with_validator(Box::new(ElevatedValidator))
-        .with_validator(Box::new(PayloadSchemaValidator));
-    Ok(Arc::new(Mutex::new(router)))
+    Ok(Arc::new(Mutex::new(build_router(base_dir)?)))
 }

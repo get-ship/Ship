@@ -5,7 +5,7 @@ use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use anyhow::{Context, Result, anyhow};
+use anyhow::{Result, anyhow};
 
 use super::SHIP_DIR_NAME;
 
@@ -159,10 +159,7 @@ fn main_worktree_root_for(dir: &Path) -> Option<PathBuf> {
 /// walk-up at `<root>` and skips the linked-worktree → main redirect.
 pub const BOUNDARY_FILE: &str = ".boundary";
 
-fn resolve_project_dir_from_start(
-    start_dir: &Path,
-    migrate_legacy: bool,
-) -> Result<Option<PathBuf>> {
+fn resolve_project_dir_from_start(start_dir: &Path) -> Result<Option<PathBuf>> {
     // 1. Walk up from CWD looking for .ship/ — this finds the current
     //    worktree's own .ship/ before reaching any parent.
     let mut current_dir = start_dir.to_path_buf();
@@ -211,15 +208,6 @@ fn resolve_project_dir_from_start(
             return Ok(Some(canonicalize_lossy(&ship_path)));
         }
 
-        if migrate_legacy {
-            let legacy_path = current_dir.join(".project");
-            if legacy_path.exists() && legacy_path.is_dir() {
-                fs::rename(&legacy_path, &ship_path)
-                    .context("Failed to migrate .project to .ship")?;
-                return Ok(Some(canonicalize_lossy(&ship_path)));
-            }
-        }
-
         if let Some(parent) = current_dir.parent() {
             current_dir = parent.to_path_buf();
         } else {
@@ -237,16 +225,13 @@ fn resolve_project_dir_from_start(
 }
 
 /// Resolve the canonical `.ship` directory for a given path without using env
-/// overrides and without mutating legacy folders.
+/// overrides.
 pub fn resolve_project_ship_dir(start_dir: &Path) -> Option<PathBuf> {
-    resolve_project_dir_from_start(start_dir, false)
-        .ok()
-        .flatten()
+    resolve_project_dir_from_start(start_dir).ok().flatten()
 }
 
-/// Resolves the .ship directory by searching upwards from the given directory.
-/// Also checks for legacy `.project` and migrates it to `.ship` if found.
-/// Supports `SHIP_DIR` environment variable override.
+/// Resolves the `.ship` directory by searching upwards from the given
+/// directory. Supports the `SHIP_DIR` environment variable override.
 pub fn get_project_dir(start_dir: Option<PathBuf>) -> Result<PathBuf> {
     // 1. Check for environment variable override
     if let Some(env_path) = crate::env::read(crate::env::Var::DevProjectDir) {
@@ -259,7 +244,7 @@ pub fn get_project_dir(start_dir: Option<PathBuf>) -> Result<PathBuf> {
     // 2. Traversal logic — any directory containing a .ship folder is a project.
     // If none is found, attempt git-worktree resolution back to the main checkout.
     let start = start_dir.unwrap_or(env::current_dir()?);
-    if let Some(project_dir) = resolve_project_dir_from_start(&start, true)? {
+    if let Some(project_dir) = resolve_project_dir_from_start(&start)? {
         return Ok(project_dir);
     }
 

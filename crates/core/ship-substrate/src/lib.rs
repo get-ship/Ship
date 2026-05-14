@@ -12,6 +12,8 @@ pub mod env;
 pub mod errors;
 pub mod events;
 pub mod fs_util;
+pub mod spawn_bounded;
+pub mod task_health;
 pub mod git;
 pub mod home;
 pub mod log;
@@ -32,7 +34,6 @@ pub use db::types::SessionDb;
 pub use log::{LogEntry, log_action, log_action_by, read_log, read_log_entries};
 pub use trash::{TrashEntry, list_trash, purge_old_trash, restore_file, trash_file};
 
-#[cfg(test)]
 pub mod testutil;
 
 /// Generate a monotonic ULID string. Thread-safe via thread-local generator.
