@@ -19,31 +19,12 @@ Every tool descriptor carries a stability marker — surfaced as a description p
 
 Stability is a **runtime** property. Every binary registers every tool; no compile-time `#[cfg(feature = "unstable")]` removes tools from the surface. (The `unstable` Cargo feature still gates internal runtime behaviour where appropriate.)
 
-## Aliases & deprecations
+## Naming convention
 
-A handful of tools were renamed to fit the verb-first convention. Each rename keeps a one-release alias that routes to the canonical handler with a `**DEPRECATED**` prefix. Aliases ship for one release after the rename and are removed in the following one. The complete map lives in `apps/mcp/src/tools/stability.rs` (see `RENAMES`).
-
-| Deprecated alias | Canonical name |
-| --- | --- |
-| `mesh_send` | `send_mesh_message` |
-| `mesh_broadcast` | `broadcast_mesh_message` |
-| `mesh_discover` | `discover_mesh_agents` |
-| `mesh_status` | `update_mesh_status` |
-| `ship_view_errors` | `get_view_errors` |
-| `ship_view_lint` | `lint_view` |
-| `ship_sdk_query` | `query_sdk` |
-| `ship_view_scaffold` | `scaffold_view` |
-| `artifact_upload` | `upload_artifact` |
-| `artifact_get` | `get_artifact` |
-| `artifact_list` | `list_artifacts` |
-| `artifact_delete` | `delete_artifact` |
-| `artifact_promote` | `promote_artifact` |
-| `view_open` | `open_view` |
-| `view_patch` | `patch_view` |
-| `view_append` | `append_view` |
-| `view_signal` | `signal_view` |
-| `view_close` | `close_view` |
-| `event` | `emit_event` |
+Tool names follow a verb-first convention (`verb_noun` / `verb_resource`).
+Pre-v1 has no installed-client surface to protect, so renames take effect
+immediately with no deprecation alias kept. The canonical list is the
+source — `apps/mcp/src/tools/stability.rs::RENAMES` is currently empty.
 
 ## ShipServer — agent-facing surface
 
@@ -129,8 +110,7 @@ Started by `ship studio`. These tools are not exposed to dispatched agents — t
 This page is hand-maintained alongside the Rust source. When adding or renaming a tool:
 
 1. Update `#[tool(name = "…", description = "…")]` in `apps/mcp/src/server/mod.rs` (or `studio_server.rs`).
-2. If the rename is one-release transitional, add it to `RENAMES` in `apps/mcp/src/tools/stability.rs`.
-3. Update the table on this page in the same commit.
-4. Update the entry in `tools.md` (the agent-facing detailed reference) so the parameter list stays in sync.
+2. Update the table on this page in the same commit.
+3. Update the entry in `tools.md` (the agent-facing detailed reference) so the parameter list stays in sync.
 
-The catalog test in `apps/mcp/src/server_tests.rs` (`registers_canonical_verb_first_tool_names`) fails the build if a tool is renamed without updating the canonical list. The alias test (`deprecated_aliases_resolve_to_canonical_names`) fails if an alias is dropped before its release window expires.
+The catalog test in `apps/mcp/src/server_tests.rs` (`registers_canonical_verb_first_tool_names`) fails the build if a tool is renamed without updating the canonical list.
