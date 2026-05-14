@@ -8,7 +8,9 @@ audience: internal
 
 # MCP Resources
 
-The full MCP server (not Studio) exposes read-only resources via the `ship://` URI scheme. Resources return project state without side effects. Use them for bulk reads instead of calling list tools repeatedly.
+> Note: the MCP tool surface is under active revision; tool/resource lists below may be out of date.
+
+`ShipServer` exposes read-only resources via the `ship://` URI scheme. Resources return project state without side effects. Use them for bulk reads instead of calling list tools repeatedly.
 
 Resources are registered in `resources.rs` and resolved in `resource_resolver.rs`.
 
@@ -88,10 +90,6 @@ If no URI matches, the resolver returns `None` and the server returns a "resourc
 ## Resource Notifications
 
 When tools modify state (push_bundle, set_skill_var, write_skill_file, delete_skill_file), the server calls `notify_resource_list_changed()` on the connected peer. This tells MCP clients to re-fetch resource lists.
-
-{% aside type="tip" %}
-Resources are only available on the full ShipServer. The StudioServer does not expose resources -- it uses tools exclusively.
-{% /aside %}
 
 ## Usage Patterns
 

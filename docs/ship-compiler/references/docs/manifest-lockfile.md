@@ -97,7 +97,7 @@ pub struct LockPackage {
 - `ShipLock::default()` — fresh lockfile with version=1 and empty packages.
 - Serialization goes through `toml` crate. Deterministic because `BTreeMap` orders keys and `Vec` preserves insertion order.
 
-Writers beyond the compiler live in `runtime::registry::install_helpers` (`load_lock_if_present`, `write_lock_atomic`, `should_write_lock`). See [Registry](/runtime/registry/).
+Writers beyond the compiler live in `ship_platform::registry::install_helpers` (`load_lock_if_present`, `write_lock_atomic`, `should_write_lock`). See [Registry](/runtime/registry/).
 
 ### Integrity path
 
@@ -133,9 +133,9 @@ Errors include the field path and the bad value. Not `serde_json::Error` at the 
 
 ## Not here
 
-- Dependency **resolution** (constraint → commit) lives in `runtime::registry::resolver`, not here. The compiler is pure — it can't do `git ls-remote`.
-- **Install** lives in `runtime::registry::install`. The compiler produces and validates lockfiles; it doesn't fetch bytes.
-- **Hash computation** lives in `runtime::registry::hash`. The compiler uses the hashes via lockfile entries but doesn't compute them.
+- Dependency **resolution** (constraint → commit) lives in `ship_platform::registry::resolver`, not here. The compiler is pure — it can't do `git ls-remote`.
+- **Install** lives in `ship_platform::registry::install`. The compiler produces and validates lockfiles; it doesn't fetch bytes.
+- **Hash computation** lives in `ship_platform::registry::hash`. The compiler uses the hashes via lockfile entries but doesn't compute them.
 
 The compiler's job is the format: parse manifests and lockfiles, serialize them back, validate them. The runtime's job is the network + filesystem I/O.
 

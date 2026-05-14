@@ -105,6 +105,7 @@ Resolve and install all dependencies from `.ship/ship.jsonc`, then compile.
 | Flag | Description |
 |------|-------------|
 | `--frozen` | Fail if lockfile would change (CI-safe) |
+| `--offline` | Skip install tracking; no network access |
 
 ### `ship add <package>`
 
@@ -146,6 +147,8 @@ ship whoami      # show current identity
 | `ship daemon restart [--host <addr>] [--dev]` | Stop + start (or `systemctl --user restart` under systemd). |
 | `ship daemon status` | Show pid, port, version, and supervision mode. Reads `~/.ship/shipd.pid` and `~/.ship/shipd.port`. |
 | `ship daemon cleanup` | Remove orphaned worktrees for merged or failed jobs. |
+| `ship daemon dir` | Print the daemon IPC directory for the current cwd. Used by `just` recipes and dev scripts to avoid hashing paths in shell. |
+| `ship daemon repair-migrations [--mark-applied <version>]` | Reconcile recorded migration checksums to the current files. Non-destructive — touches only `_sqlx_migrations`, never a data table. Use after merging branches that edited a baseline migration. |
 
 The daemon binds `127.0.0.1:9315` by default. If the port is occupied by a previous daemon that crashed, `ship daemon start` reclaims the pidfile automatically. If another process holds the port, the bind fails and the error names the offending pid.
 

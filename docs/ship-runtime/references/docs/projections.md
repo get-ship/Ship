@@ -8,26 +8,30 @@ audience: internal
 
 # Projections
 
-Location: `crates/core/runtime/src/projections/`. Read models maintained as SQL tables in `platform.db`, derived entirely from events. Drop any projection table and rebuild it from the log — projections are never the source of truth.
+Projections are split across two crates. Low-level projections (actor, process, session, spawn, registry) live in `crates/core/ship-substrate/src/projections/`; higher-level domain projections (auth, job, compile_state, projects) live in `crates/core/ship-platform/src/projections/`. Read models maintained as SQL tables in `platform.db`, derived entirely from events. Drop any projection table and rebuild it from the log — projections are never the source of truth.
 
 ```
-projections/
+ship-substrate/src/projections/
   mod.rs                — re-exports
   registry.rs           — Projection trait, EventBus
   async_projection.rs   — AsyncProjection trait, broadcast-consuming spawner
   spawn.rs              — spawn_with_failure_counter (Mailbox-based)
-  workspace.rs          — WorkspaceProjection (materialized)
   session.rs            — SessionProjection (materialized)
   actor.rs              — ActorProjection (materialized)
+  process.rs            — ProcessRecord, ProcessStatus (computed)
+
+ship-platform/src/projections/
+  mod.rs                — re-exports
+  auth.rs               — auth projection
   job.rs                — JobRecord, JobStatus, load_jobs, project (computed)
   job_transitions.rs    — state machine for job status transitions
-  process.rs            — ProcessRecord, ProcessStatus (computed)
-  workspace_handlers.rs — per-event-type apply helpers for workspace
+  compile_state.rs      — compile-state projection
+  projects.rs           — projects projection
 ```
 
 Two patterns live here:
 
-- **Materialized**: a projection writes to a SQL table on every applicable event. `Workspace`, `Session`, `Actor`. Table is a cache; truncated and replayed on rebuild.
+- **Materialized**: a projection writes to a SQL table on every applicable event. `Session`, `Actor`. Table is a cache; truncated and replayed on rebuild.
 - **Computed**: no table. `load_jobs()` / `load_processes()` reads events, folds them in memory, returns state. `Job`, `Process`.
 
 The two shapes coexist by design. Materialized projections earn their keep when the read load justifies a persistent index (list all workspaces, sort sessions by start time). Computed projections skip the table when the fold is cheap enough or the write volume is too noisy.
@@ -60,7 +64,7 @@ pub struct EventBus { projections: Vec<Box<dyn Projection>> }
 - `dispatch(event, conn)` — called synchronously after every event append in the live path. Each projection whose `event_types()` contains `event.event_type` gets `apply()` invoked. Handler errors are logged but do not fail the caller — the event is already persisted.
 - `rebuild(events, conn)` — truncate all registered projections, then replay the full event list through `apply`. Used by `db::rebuild::rebuild_projections`.
 
-The live-path call is synchronous so event append + projection update can share a single transaction. See `runtime::db::event_store::append_event_with_conn` for the transactional pattern.
+The live-path call is synchronous so event append + projection update can share a single transaction. See the `ship_substrate::db::session_events` helpers (e.g. `insert_session_with_started_event`) for the transactional pattern.
 
 ## AsyncProjection
 
@@ -80,29 +84,18 @@ Two spawner functions:
 - `async_projection::spawn_projection<P>(projection, broadcast::Receiver, db_opener)` — reads from a broadcast channel. Filters by `event_types()` before calling `apply`. Opens a fresh connection per event via `db_opener`. Logs `Lagged(n)` and continues (broadcast receivers can fall behind).
 - `spawn::spawn_with_failure_counter<P>(projection, Mailbox, db_opener)` — reads from a kernel `Mailbox`. Increments an atomic `AtomicU64` counter on every apply or db-open error. Returns a `ProjectionHandle { name, handle: JoinHandle<()>, failure_count }`. The daemon uses this to watch projection health.
 
-Concrete async implementations: `WorkspaceProjection`, `SessionProjection`, `ActorProjection` all implement both `Projection` (sync, for rebuild) and `AsyncProjection` (for live daemon operation). The daemon spawns them as async tasks; rebuild runs them as sync projections through the `EventBus`.
+Concrete async implementations: `SessionProjection`, `ActorProjection` implement both `Projection` (sync, for rebuild) and `AsyncProjection` (for live daemon operation). The daemon spawns them as async tasks; rebuild runs them as sync projections through the `EventBus`.
 
 ## Materialized projections
 
-### WorkspaceProjection
-
-Maintains `workspace` table in `platform.db`. Handles the full `workspace.*` taxonomy:
-
-```
-workspace.created, workspace.activated, workspace.compiled,
-workspace.compile_failed, workspace.archived, workspace.status_changed,
-workspace.agent_changed, workspace.reconciled, workspace.tmux_assigned,
-workspace.started, workspace.deleted
-```
-
-Per-event handlers live in `workspace_handlers.rs`: `apply_created`, `apply_compiled`, `apply_compile_failed`, `apply_agent_changed`, `apply_tmux_assigned`, `apply_started`, `apply_deleted`. Events handled but without a separate handler (`activated`, `archived`, `status_changed`, `reconciled`) return `Ok(())` — state changes they represent are tracked through other projections or don't need a table update.
-
 ### SessionProjection
 
-Maintains `workspace_session` table. Handles:
+Maintains the `sessions` table in `platform.db`. Handles:
 
 ```
-session.started (INSERT), session.attached, session.ended (UPDATE)
+session.started (INSERT), session.attached (no-op — row already exists),
+session.ended (UPDATE), session.drain_started, session.drain_completed,
+session.drain_aborted, session.tool_count_incremented, session.heartbeat
 ```
 
 `session.progress` is deliberately not handled — progress events don't affect the session row. If you need progress-level queries, read the event log.
@@ -162,13 +155,13 @@ Multiple records per slug — pipeline restarts, crashes, retries all produce di
 
 ## Rebuild path
 
-`runtime::db::rebuild::rebuild_projections(ship_dir)`:
+`ship_substrate::db::rebuild::rebuild_projections(ship_dir)`:
 
 1. Load all events from `platform.db` ordered by `id ASC`.
 2. Construct a fresh `EventBus`:
 
    ```rust
-   bus.register(Box::new(WorkspaceProjection::new()));
+   let mut bus = EventBus::new();
    bus.register(Box::new(SessionProjection::new()));
    bus.register(Box::new(ActorProjection::new()));
    ```
@@ -203,7 +196,7 @@ The sync `EventBus::dispatch` pattern is still used in paths that want event-app
 
 Per-projection tests: `tests.rs`, `tests_actor.rs`, `tests_async.rs`, `tests_daemon_events.rs`, `tests_job.rs`, `tests_process.rs`, `tests_session.rs`. Each constructs a temp DB, writes a sequence of events, runs the projection, asserts the derived state.
 
-Rebuild tests: `runtime/src/db/tests_rebuild.rs`. Pattern:
+Rebuild tests: `crates/core/ship-substrate/src/db/tests_rebuild.rs`. Pattern:
 
 1. Start with a known event log.
 2. Let projections build up tables.

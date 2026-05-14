@@ -1,6 +1,13 @@
+---
+group: Views
+order: 10
+title: Effect scopes — cleanup ownership
+description: The effect-scope primitive that releases a view's resources (EventSource, observers, timers, hook subscriptions) on unmount.
+---
+
 # Effect scopes — cleanup ownership
 
-Resources allocated during a view's `setup()` — `EventSource`,
+Resources allocated while a view's controller runs — `EventSource`,
 `MutationObserver`, `setInterval`, custom hook subscriptions — need
 to be released when the view unmounts. The runtime ships an effect
 scope primitive that handles this for you, so you can't accidentally
@@ -10,18 +17,21 @@ crashes during early shell2 development; commit `87cf3223`.)
 ## API
 
 ```ts
-import { onCleanup } from '@ship/ui-runtime'
+import { onCleanup } from '@ship/sui-runtime'
 ```
 
 `onCleanup(fn)` registers a teardown callback with the *current*
-scope. Inside a view's `setup()`, the current scope is the mount's
-scope, so registered cleanups run when the user navigates away.
+scope. Inside a controller's `scope:` factory or `mount`, the current
+scope is the mount's scope, so registered cleanups run when the user
+navigates away.
 
 ```ts
-export default view((ctx) => {
-  const ws = new WebSocket('wss://server/feed')
-  onCleanup(() => ws.close())
-  // … rest of setup
+export default controller<Scope>({
+  scope: () => {
+    const ws = new WebSocket('wss://server/feed')
+    onCleanup(() => ws.close())
+    return { /* signals … */ }
+  },
 })
 ```
 
@@ -33,19 +43,19 @@ any allocator.
 
 - `signal()` and `derived()` — auto-disposed when their last reader
   goes away. No cleanup required.
-- `effect()` — already returns a stop fn that the framework calls
-  on dispose if you `return` it from your view's `setup()`.
+- `effect()` — already returns a stop fn the framework calls on
+  dispose.
 - Resources allocated inside a controller's `mount(state, host)` and
   released via `return () => …`. The mount lifecycle wires that
   cleanup automatically.
 
 You DO need `onCleanup` for:
-- Allocator helpers like `live()`, `data()`, `useShellContext()` that
-  open subscriptions on the caller's behalf
+- Allocator helpers like `live()`, `data()` that open subscriptions
+  on the caller's behalf
 - Custom hooks that wrap browser APIs (intersection observers, web
   socket clients, broadcast channels)
-- One-off allocations inside `setup()` that don't return a disposer
-  to the framework
+- One-off allocations inside the `scope:` factory that don't return a
+  disposer to the framework
 
 ## Custom scopes
 
@@ -58,7 +68,7 @@ in-tree example is `mount.ts`), call `createScope()` and run user
 code inside `withScope(scope, () => userCode())`:
 
 ```ts
-import { createScope, withScope } from '@ship/ui-runtime'
+import { createScope, withScope } from '@ship/sui-runtime'
 
 const scope = createScope()
 withScope(scope, () => userCode())
@@ -73,7 +83,7 @@ the outer mount but should still get cleaned up if the mount goes
 away first, create a child scope:
 
 ```ts
-import { createChildScope, withScope } from '@ship/ui-runtime'
+import { createChildScope, withScope } from '@ship/sui-runtime'
 
 const child = createChildScope() // implicitly owned by the current scope
 withScope(child, () => {
@@ -89,7 +99,7 @@ Wire the leak detector during development to catch missing cleanups
 before they ship:
 
 ```ts
-import { enableLeakWarn } from '@ship/ui-runtime/dev'
+import { enableLeakWarn } from '@ship/sui-runtime/dev'
 
 // Top of your app entry, behind a dev-only branch:
 if (import.meta.env?.DEV) enableLeakWarn()
@@ -114,11 +124,3 @@ down).
 
 A throwing cleanup is logged and the others still run. No partial
 teardown.
-
-## What this primitive replaced
-
-This module subsumes the ad-hoc `owner.ts` that landed alongside the
-first `<data live>` leak fix. The old export names (`createOwner`,
-`withOwner`, `registerOwnerCleanup`) remain as deprecated aliases for
-one release; remove your imports the next time you touch a file
-that uses them.

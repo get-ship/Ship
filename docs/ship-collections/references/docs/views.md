@@ -116,4 +116,4 @@ padding: var(--space-3);
 
 ## Example
 
-See `.ship/views/data/index.html.j2` for a complete collection browser.
+See `.ship/views/collections/index.html.j2` for a complete collection browser.

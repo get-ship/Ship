@@ -10,7 +10,7 @@ audience: internal
 
 `apps/shipd/`. The Axum HTTP server hosting the runtime. Single process, binds `127.0.0.1:9315` by default, stays up across CLI invocations. Every transport (CLI, MCP, shell, Studio) talks to it over HTTP.
 
-Entry point: `shipd::run_network(host, port, dev, with_ui, workspace_dir)` in `apps/shipd/src/lib.rs`.
+Entry point: `shipd::run_network(host, port, dev, workspace_dir, daemon_mode)` in `apps/shipd/src/lib.rs`. `daemon_mode` controls cache headers, HMR route availability, and SSR caching — there is no `with_ui` flag.
 
 ## Startup sequence
 
@@ -27,22 +27,21 @@ Entry point: `shipd::run_network(host, port, dev, with_ui, workspace_dir)` in `a
 
    `ShipRuntime::new` initializes `platform.db`, sets up `KernelRouter` (wrapping `ship_kernel::KernelRouter` with `SqliteEventStore` as the `EventSink`), sets up the health registry and session registry.
 
-5. **Spawn mesh service**: `connections::spawn_mesh_service(kernel, health_registry)` returns a `SharedMeshRegistry`. `runtime.set_mesh_registry(registry)`.
-6. **Subscribe workspace events**: `supervisor::subscribe_workspace_events(kernel, global_dir, health_registry)` — workspace projection sync actor.
-7. **Init `JobManager`**: `managers::JobManager::init(...)` runs `subscribe_job_events` which spawns the orchestrator. Returns a `DispatchHandle`; runtime holds it via `set_dispatch_handle`.
-8. **Start session scanner**: `runtime.session_scanner()` — periodic task that detects abandoned sessions.
-9. **Spawn human gateway**: `human_gateway::spawn_human_gateway(kernel, health_registry)` (only if Telegram env vars are set).
-10. **Token management**:
-    - Read existing token from `{global_dir}/daemon.token` if present.
-    - Otherwise generate new token via `auth::generate_token`, write to file.
-11. **Write pidfile + portfile**: `daemon::write_port_file`, `daemon::write_pid_file`.
-12. **Spawn shutdown listener**: tokio task waiting for SIGINT/SIGTERM. Cancels a `CancellationToken`.
-13. **Hydrate paired sessions** (not in dev): `auth::hydrate_sessions(&session_registry)` restores sessions from prior daemon lifetimes.
-14. **Build router**: `router::build_router(runtime, token, session_registry, pairing_registry, attestation_verifier, child_token, with_ui)`.
-15. **Bind TCP**: `TcpListener::bind("{host}:{port}")`. On failure, emit `daemon.port_bind_failed` with `already_bound_by_pid` if another daemon holds the pidfile, then return error.
-16. **Emit `daemon.startup_completed`**: includes pid, port, version, commit_sha, event count at startup, latest event id, init duration.
-17. **Serve** until the cancellation token fires.
-18. On shutdown: emit `daemon.shutdown_completed`, clean up pidfile/portfile.
+5. **Spawn mesh service**: `transport::connections::spawn_mesh_service(kernel, health_registry)` returns a `SharedMeshRegistry`. `runtime.set_mesh_registry(registry)`.
+6. **Init `JobManager`**: `managers::JobManager::init(...)` runs `subscribe_job_events` which spawns the orchestrator. Returns a `DispatchHandle`; runtime holds it via `set_dispatch_handle`.
+7. **Start session scanner**: periodic task that detects abandoned sessions.
+8. **Spawn human gateway**: `daemon::human_gateway::spawn_human_gateway(kernel, health_registry)` (only if Telegram env vars are set).
+9. **Token management**: read existing token from `~/.ship/machine/daemon/` if present, otherwise generate a new one and write it.
+10. **Write pidfile + portfile**: under `~/.ship/machine/daemon/`.
+11. **Spawn shutdown listener**: tokio task waiting for SIGINT/SIGTERM. Cancels a `CancellationToken`.
+12. **Hydrate paired sessions** (not in dev): `auth::hydrate_sessions(&session_registry)` restores sessions from prior daemon lifetimes.
+13. **Build router**: `router::build_router(...)` with `daemon_mode`.
+14. **Bind TCP**: `TcpListener::bind("{host}:{port}")`. On failure, emit `daemon.port_bind_failed` with `already_bound_by_pid` if another daemon holds the pidfile, then return error.
+15. **Emit `daemon.startup_completed`**: includes pid, port, version, commit_sha, event count at startup, latest event id, init duration.
+16. **Serve** until the cancellation token fires.
+17. On shutdown: emit `daemon.shutdown_completed`, clean up pidfile/portfile.
+
+The `workspace` runtime primitive was retired — there is no workspace-event subscription step.
 
 ## ShipRuntime
 
@@ -53,7 +52,7 @@ Key fields:
 - `kernel: SharedKernel` — `Arc<Mutex<KernelRouter>>`. Single write path.
 - `mesh_registry` — `SharedMeshRegistry` for REST read access.
 - `agent_mailboxes` — map of mailboxes exposed to MCP bridge.
-- `pty_connections` — per-workspace PTY connection counter for rate limiting.
+- `pty_connections` — per-branch PTY connection counter for rate limiting.
 - `ship_dir: PathBuf` — global Ship dir.
 - `session_registry` — paired session tokens.
 - `health_registry` — supervised task health for all spawned actors.
@@ -66,26 +65,25 @@ Key fields:
 
 ## HTTP router
 
-`apps/shipd/src/router.rs` composes all route modules under `/api/*`:
+`apps/shipd/src/router.rs` composes all route modules from `apps/shipd/src/routes/*` under `/api/v1/*`:
 
-- `runtime_api.rs` — workspaces, sessions, jobs, events CRUD.
-- `actor_api.rs` — actor lifecycle.
+- `runtime_api.rs` — sessions, jobs, events.
+- `rest_api.rs` — mesh register/send/broadcast/discover/status.
+- `actor_api.rs`, `actors_api.rs` — actor lifecycle and listing.
 - `artifacts_api.rs` — artifact registry.
 - `collection_api.rs` — collections (`data.db`).
-- `specs_api.rs`, `settings_api.rs`, `project_api.rs` — domain APIs.
+- `specs_api.rs`, `settings_api.rs`, `projects_api.rs` — domain APIs.
 - `annotations_api.rs`, `feedback_api.rs` — canvas interaction.
-- `pty_handler.rs` — WebSocket PTY bridge.
-- `view_sessions_api.rs`, `views/*` — view rendering and manifest APIs.
+- `view_sessions_api.rs`, `view_errors_api.rs` — view rendering APIs.
 - `human_webhook.rs` — inbound replies from human gateway adapters.
-- `auth`, `pairing`, `attest` — session registration and capability grant.
-- `mcp_apps_bridge.rs` — MCP-over-HTTP endpoint.
-- `shell_assets` — serves bundled shell/Studio assets when `with_ui`.
+- `mcp_api.rs` — MCP-over-HTTP endpoint.
+- `shell_assets.rs` — serves bundled shell/Studio assets.
 
-Every handler runs through auth middleware that populates `AuthContext`. Scope checks are per-handler.
+The PTY WebSocket bridge is `apps/shipd/src/transport/pty.rs`; auth (`auth/api/pairing.rs`, `auth/api/attest.rs`, `auth/api/sessions.rs`) handles session registration and capability grant. Every handler runs through auth middleware that populates `AuthContext`. Scope checks are per-handler.
 
 ## Connections module
 
-`apps/shipd/src/connections.rs`. Spawns long-lived connection-backed services:
+`apps/shipd/src/transport/connections.rs`. Spawns long-lived connection-backed services:
 
 - `spawn_mesh_service(kernel, health_registry)` — launches `MeshService` as a service actor. Returns the `SharedMeshRegistry`.
 
@@ -99,7 +97,7 @@ PTY connection counts and agent mailbox bookkeeping live on `ShipRuntime` direct
 
 ## Daemon events
 
-`runtime::events::daemon`. The daemon emits its own lifecycle events:
+`ship_substrate::events::daemon`. The daemon emits its own lifecycle events:
 
 | Event | Meaning |
 |---|---|
@@ -114,7 +112,7 @@ These events go through the kernel like any others — they're in the `events` t
 
 ## Pidfile + portfile
 
-`{global_dir}/shipd.pid` and `{global_dir}/shipd.port`. Written at startup, cleaned at shutdown. `daemon::cleanup_stale_daemon_files` detects crashed prior daemons by checking if the pid in the file is still alive; if not, reclaims both files.
+Written under `~/.ship/machine/daemon/` (`pid` and `port`) at startup, cleaned at shutdown. `daemon::cleanup_stale_daemon_files` detects crashed prior daemons by checking if the pid in the file is still alive; if not, reclaims both files.
 
 `pidfile_pid_for_port(global_dir, port)` is the function used in the bind-failure path — it reads the pidfile to name whoever currently holds the port, so the error message is actionable.
 
@@ -165,4 +163,4 @@ Used by CLI subcommands (`ship daemon status`, `ship daemon stop`).
 - [Supervisor](/runtime/supervisor/) — everything the orchestrator needs from the host.
 - [Orchestrator](/runtime/orchestrator/) — started by `JobManager::init` → `subscribe_job_events`.
 - [Mesh](/runtime/mesh/) — spawned by `spawn_mesh_service`.
-- [PTY Bridge](/runtime/pty-bridge/) — `/api/workspaces/:id/pty` handler.
+- [PTY Bridge](/runtime/pty-bridge/) — `/api/v1/projects/:id/pty` handler.

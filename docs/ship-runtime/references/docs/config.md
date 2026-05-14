@@ -8,7 +8,7 @@ audience: internal
 
 # Config
 
-`crates/core/runtime/src/config/`. Everything that reads `.ship/ship.jsonc` and related files, normalizes the content, and serves it to the rest of the runtime. Config mutations happen here too — CRUD over the same on-disk shape.
+`crates/core/ship-platform/src/config/`. Everything that reads `.ship/ship.jsonc` and related files, normalizes the content, and serves it to the rest of the runtime. Config mutations happen here too — CRUD over the same on-disk shape.
 
 ```
 config/
@@ -24,7 +24,7 @@ config/
   git.rs              — GitConfig, generate_gitignore, is_category_committed
   catalog.rs          — CatalogEntry, CatalogKind, list_catalog, search_catalog
   security.rs         — security policy enforcement
-  hooks.rs            — RuntimeHooks trait (distinct from HookConfig/HookTrigger — see below)
+  types.rs            — HookConfig, HookTrigger, and other config data types
   discover.rs         — discover_projects (find Ship projects on disk)
   artifact_registry.rs — artifact metadata
 ```
@@ -89,7 +89,7 @@ No deep-field merging beyond the lists. Scalar overlap wins by last-apply (overl
 
 ## HookConfig + HookTrigger
 
-These are **user-authored lifecycle hooks** — the config that tells Ship to run a shell command on specific events (`PreToolUse`, `Stop`, `SessionEnd`, etc.). Distinct from `RuntimeHooks` (see below).
+These are **agent lifecycle hooks** — the config that tells a provider to run a shell command on specific events (`PreToolUse`, `Stop`, `SessionEnd`, etc.). They are compiled into provider-native config; Ship never executes them itself. Distinct from the platform reactive triggers in `ship_platform::hooks` (`HookDef` / `.ship/hooks/*.jsonc`) — see [Hooks](/runtime/hooks/).
 
 ```rust
 pub enum HookTrigger {
@@ -111,29 +111,9 @@ pub struct HookConfig {
 }
 ```
 
-19 triggers. `matcher` is a glob/regex on tool name — `"Bash"`, `"mcp__*"`, empty = all tools. `timeout_ms` caps runtime. The compiler translates these into each provider's native hook format (Claude's `PreToolUse`/`Stop`/etc.; Gemini's `BeforeTool`/`AfterTool`/etc.). Providers with different trigger vocabularies get mapped-or-dropped based on their schema.
+19 triggers. `matcher` is a glob/regex on tool name — `"Bash"`, `"mcp__*"`, empty = all tools. `timeout_ms` caps runtime. The compiler translates these into each provider's native hook format (Claude's `PreToolUse`/`Stop`/etc.; Gemini's `BeforeTool`/`AfterTool`/etc.) — the compiler's own narrower `HookTrigger` has only 6 variants. Providers with different trigger vocabularies get mapped-or-dropped based on their schema.
 
-`session_lifecycle::run_post_session_hooks` fires `SessionEnd` and `Stop` hooks on `end_workspace_session`. Other runtime triggers land via provider integration, not directly in runtime code.
-
-## RuntimeHooks (different thing)
-
-`runtime::config::hooks::RuntimeHooks` trait — **not** user hooks. It's an extension point for app layers to inject their own log sink:
-
-```rust
-pub trait RuntimeHooks: Send + Sync {
-    fn append_log(&self, ship_dir: &Path, action: &str, details: &str) -> Result<()>;
-}
-
-pub struct DefaultRuntimeHooks;
-
-impl RuntimeHooks for DefaultRuntimeHooks {
-    fn append_log(&self, ship_dir: &Path, action: &str, details: &str) -> Result<()> {
-        log_action(ship_dir, action, details)
-    }
-}
-```
-
-Tiny surface (one method). Lets alternate hosts (tests, other embedders) redirect the project action log. Most code just uses `log_action` directly and ignores this trait. See [Hooks](/runtime/hooks/) for the full breakdown.
+All triggers are provider-side. Ship doesn't observe or execute them — the provider runs them inside its execution loop. See [Hooks](/runtime/hooks/) for the full breakdown, including the separate platform reactive-trigger system.
 
 ## CRUD
 
@@ -199,6 +179,6 @@ Walks `.ship/skills/`, `.ship/rules/`, agent profiles, plugin entries in the pac
 
 ## Related
 
-- [Hooks](/runtime/hooks/) — the `RuntimeHooks` trait vs `HookConfig/HookTrigger` distinction in full.
+- [Hooks](/runtime/hooks/) — compiler lifecycle hooks vs platform reactive triggers, in full.
 - [Sessions](/runtime/sessions/) — fires `SessionEnd` and `Stop` hooks on session end.
 - [Compiler](/compiler/) — translates hooks into provider-native formats.

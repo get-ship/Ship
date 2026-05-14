@@ -30,22 +30,26 @@ server); the `error` field narrows it to the specific cause.
 | Code                    | HTTP | Meaning                                         | Common causes                                                   | Remediation                                                                      |
 | :---------------------- | :--: | :---------------------------------------------- | :-------------------------------------------------------------- | :------------------------------------------------------------------------------- |
 | `bad_request`           | 400  | Malformed request or invalid parameters.        | JSON parse failure, missing required field, wrong value type.   | Re-read the endpoint schema; validate payloads client-side before sending.       |
-| `validation_failed`     | 400  | Payload parsed but failed business validation.  | Empty required string, negative integer where positive expected.| Check the `details` object for per-field errors and correct the payload.         |
-| `unauthorized`          | 401  | Bearer token missing or invalid.                | No `Authorization` header; expired session; revoked token.      | Reload `~/.ship/daemon.token` or re-pair via `POST /auth/pair/init`.             |
 | `forbidden`             | 403  | Authenticated, but caller lacks required scope. | Session role maps to scopes that don't include the one needed.  | Issue a new session with a role that grants the missing scope (e.g. `lead`).     |
 | `not_found`             | 404  | Target resource does not exist.                 | Wrong id, deleted entity, spec-by-slug missing.                 | Verify the id/slug; list the parent collection to confirm the resource exists.   |
-| `conflict`              | 409  | State conflicts with the request.               | Creating an entity whose id is already taken; stale write.      | Fetch current state and retry with the correct version / different id.          |
-| `already_started`       | 409  | A one-shot operation was re-issued.             | Starting a workspace that's already running; re-spawning actor. | Treat the original operation as authoritative; skip the retry.                   |
-| `agent_not_registered`  | 409  | Mesh/actor operation targets an unknown agent.  | Sending a mesh message to an agent that hasn't registered.      | Call `POST /api/mesh/register` for the agent first, then retry.                  |
 | `rate_limited`          | 429  | Too many requests in the current window.        | MCP registry proxy; webhook ingress burst.                      | Back off (the response includes a `Retry-After` header when applicable).         |
 | `internal`              | 500  | Unhandled server-side failure.                  | DB error, panic caught by an axum handler, unexpected I/O.      | Capture `details` and the daemon logs; file a bug against the emitting handler. |
 
+In addition to the codes above, some handlers return a bare HTTP `409`
+status to signal a state conflict (e.g. re-registering an actor). The
+`401 unauthorized` category is reserved for token-gated endpoints.
+
 ### Per-endpoint extensions
 
-Some endpoints emit narrower codes documented on their individual pages:
+Some endpoints emit narrower codes or use a different response shape,
+documented on their individual pages:
 
-- `POST /auth/pair/confirm` returns `expired` / `unknown` in the `details`
-  block when the pairing code is invalid.
+- `POST /api/auth/pair/confirm` does not use the `ErrorResponse` shape. It
+  returns `PairConfirmResponse { ok, error }`. On failure `ok` is `false`,
+  `error` carries a human-readable message, and the HTTP status narrows the
+  cause: `404` for an unknown or already-used code, `410 Gone` for an
+  expired code, `403` when the daemon token is missing. There is no
+  `details` block.
 - `POST /api/hooks/webhook/{path}` returns a minimal `{ ok: true }` body on
   success; failures follow the `ErrorResponse` shape with `bad_request` or
   `not_found`.

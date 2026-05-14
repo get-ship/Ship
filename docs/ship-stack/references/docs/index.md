@@ -17,12 +17,14 @@ The stack exists to separate concerns that move at different speeds. A bug in th
 | Subsystem     | Location                          | Docs                                       |
 | ------------- | --------------------------------- | ------------------------------------------ |
 | Kernel        | `crates/core/ship-kernel/`        | [Kernel](/architecture/kernel/)      |
-| Runtime       | `crates/core/runtime/`            | [Runtime](/runtime/)                 |
-| Event store   | `runtime/persistence/`            | [Persistence](/runtime/persistence/) |
+| Substrate (L0) | `crates/core/ship-substrate/`    | [Runtime](/runtime/)                 |
+| Platform (L1) | `crates/core/ship-platform/`      | [Runtime](/runtime/)                 |
+| Application (L2) | `crates/core/ship-application/` | [Runtime](/runtime/)                 |
+| Event store   | `crates/core/ship-substrate/src/persistence/` | [Persistence](/runtime/persistence/) |
 | Daemon        | `apps/shipd/`                     | [Runtime](/runtime/)                 |
 | Compiler      | `crates/core/compiler/`, `packages/compiler/` | [Compiler](/compiler/)   |
 | Supervisor    | `apps/shipd/supervisor/`          | [Runtime](/runtime/)                 |
-| Mesh          | `runtime/services/mesh.rs`        | [Runtime](/runtime/)                 |
+| Mesh          | `crates/core/ship-substrate/src/services/mesh.rs` | [Runtime](/runtime/)     |
 | CLI transport | `apps/ship-cli/`                  | [CLI](/cli/)                         |
 | MCP transport | `apps/mcp/`                       | [MCP Tools](/mcp-tools/)             |
 

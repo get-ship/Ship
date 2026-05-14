@@ -14,13 +14,13 @@ Declarative event → action rules. A trigger is a JSONC file. The engine subscr
 
 ## Surface
 
-- **Types:** `HookDef`, `HookTrigger`, `HookAction`, `HookActionType` in `crates/core/runtime/src/hooks/def.rs`
+- **Types:** `HookDef`, `HookTrigger`, `HookAction`, `HookActionType` in `crates/core/ship-platform/src/hooks/def.rs`
 - **Actions (4 today):** `collection.insert`, `collection.update`, `event.emit`, `pipeline.trigger`
-- **Engine:** `HookEngine`, `HookService`, `spawn_hook_service` in `crates/core/runtime/src/hooks/engine.rs`
-- **Loader:** `load_hooks_dir`, `parse_hook`, `validate_hook` in `crates/core/runtime/src/hooks/loader.rs`
-- **Filter semantics:** `crates/core/runtime/src/hooks/filter.rs`
-- **Jinja rendering:** `crates/core/runtime/src/hooks/render.rs` (context: `event`, `workspace`, `actor`, `results`, `now()`)
-- **File watcher:** `crates/core/runtime/src/hooks/watcher.rs`
+- **Engine:** `HookEngine`, `HookService`, `spawn_hook_service` in `crates/core/ship-platform/src/hooks/engine.rs`
+- **Loader:** `load_hooks_dir`, `parse_hook`, `validate_hook` in `crates/core/ship-platform/src/hooks/loader.rs`
+- **Filter semantics:** `crates/core/ship-platform/src/hooks/filter.rs`
+- **Jinja rendering:** `crates/core/ship-platform/src/hooks/render.rs` (context: `event`, `workspace`, `actor`, `results`, `now()`)
+- **File watcher:** `crates/core/ship-platform/src/hooks/watcher.rs`
 - **Event taxonomy:** `crates/core/ship-types/src/event_types.rs` — any declared event type is a valid trigger
 
 ## File map
@@ -28,8 +28,8 @@ Declarative event → action rules. A trigger is a JSONC file. The engine subscr
 | Path | Role |
 |---|---|
 | `.ship/hooks/*.jsonc` | User-authored trigger definitions |
-| `crates/core/runtime/src/hooks/` | Engine, loader, executor, actions, rendering |
-| `crates/core/runtime/src/events/` | Event bus the engine subscribes to |
+| `crates/core/ship-platform/src/hooks/` | Engine, loader, executor, actions, rendering |
+| `crates/core/ship-substrate/src/events/` | Event bus the engine subscribes to |
 
 ## Guarantees
 

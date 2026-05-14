@@ -8,7 +8,7 @@ audience: internal
 
 # Mesh
 
-`crates/core/runtime/src/services/mesh.rs`. A registry + validator for inter-agent communication. The mesh does not route events itself — it validates addresses, constructs `EventEnvelope`s with `target_actor_id` set (or the broadcast set), and pushes them to an outbox channel. The caller drains the outbox through the kernel, so mesh messages go through persist-before-deliver like any other event.
+`crates/core/ship-substrate/src/services/mesh.rs`. A registry + validator for inter-agent communication. The mesh does not route events itself — it validates addresses, constructs `EventEnvelope`s with `target_actor_id` set (or the broadcast set), and pushes them to an outbox channel. The caller drains the outbox through the kernel, so mesh messages go through persist-before-deliver like any other event.
 
 The daemon runs `MeshService` as a service actor subscribed to `mesh.*`. See the daemon startup code for wiring.
 

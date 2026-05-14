@@ -1,5 +1,5 @@
 ---
-group: Ship UI
+group: Views
 order: 3
 title: The controller surface
 description: The optional `.ts` paired with a template. Three tiers, six sections, scope rules, mutation discipline.
@@ -7,7 +7,7 @@ description: The optional `.ts` paired with a template. Three tiers, six section
 
 # The controller surface
 
-A controller is an **optional** TypeScript file paired with a template by filename. `views/agents/view.sui` ↔ `views/agents/view.controller.ts`. No config, no import statement in the template, no manifest entry — convention is the wiring.
+A controller is an **optional** TypeScript file paired with a template by directory. `views/agents/page.sui` ↔ `views/agents/controller.ts`. No config, no import statement in the template, no manifest entry — convention is the wiring.
 
 The controller is the view's view-model: reactive state, derived values, event handlers, lifecycle, and composable hook bundles. Templates declare structure; controllers own everything reactive.
 
@@ -20,22 +20,22 @@ Graduated complexity. Use the smallest tier that fits.
 Pure declarative views. The template uses `<data>` for subscriptions and inline expressions for anything computed. **No reactive state** — the moment you need a local signal, graduate to tier 2 and add a paired controller.
 
 ```html
-<!-- views/static/view.sui -->
+<!-- views/static/page.sui -->
 <data name="overview" source="ship.git.overview()" live />
 
 <p>Branch: {overview().value?.branch}</p>
 ```
 
-No `view.controller.ts`. Most one-shot read-only views land here.
+No `controller.ts`. Most one-shot read-only views land here.
 
 ### Tier 2 — object-literal controller
 
 For views that need named handlers, derived values, or local reactive state:
 
 ```ts
-// views/settings/view.controller.ts
-import { controller, signal } from '@ship/ui-runtime'
-import type { Scope } from './view.sui'
+// views/settings/controller.ts
+import { controller, signal } from '@ship/sui-runtime'
+import type { Scope } from './page.sui'
 
 export default controller<Scope>({
   scope: () => ({
@@ -72,9 +72,9 @@ Per-section functions are how the controller pulls from the [shared view scope](
 The cheapest way to avoid annotating every section's destructure: declare the template-side identifiers once and pass them as the `controller<Scope>` generic. Sections inherit the type:
 
 ```ts
-import type { LiveSignal, Signal } from '@ship/ui-runtime'
-import type { GitOverview } from '@ship/ui-sdk-client'
-import type { Scope } from './view.sui'   // compiler-emitted .sui.d.ts
+import type { LiveSignal, Signal } from '@ship/sui-runtime'
+import type { GitOverview } from '@ship/sdk-client'
+import type { Scope } from './page.sui'   // compiler-emitted .sui.d.ts
 
 export default controller<Scope>({
   scope: () => ({ tab: signal<'changes' | 'history' | 'branches'>('changes') }),
@@ -98,8 +98,8 @@ The compiler emits a `<file>.sui.d.ts` declaration alongside each compiled templ
 For views that need to close over instantiation-time variables, share computed references across sections, or compose multiple controller hooks:
 
 ```ts
-// views/agents/view.controller.ts
-import { controller, signal, useFilteredList, useSelection } from '@ship/ui-runtime'
+// views/agents/controller.ts
+import { controller, signal, useFilteredList, useSelection } from '@ship/sui-runtime'
 
 export default controller(({ ship }) => ({
   scope: () => ({ searchOpen: signal(false) }),
@@ -172,35 +172,35 @@ Most common shape:
 
 ```
 views/<name>/
-  view.sui              # template (required)
-  view.controller.ts    # controller (optional)
-  view.css              # styles (optional)
+  page.sui              # template (required)
+  controller.ts         # controller (optional)
+  style.css             # styles (optional)
+  manifest.jsonc        # route descriptor (required for views)
 ```
 
-Component files use the same convention. The file IS the component; the directory name IS the tag; shadow is always on; `<prop>` directives at the top declare the element's API:
+The compiler emits `<file>.sui.d.ts` into the `.ship/sui-out/` mirror tree (not next to the source). Component files use the same directory-pairing convention. The file IS the component; the directory name IS the tag; shadow is always on; `<prop>` directives at the top declare the element's API:
 
 ```
 packages/ui-components/src/sui-button/
   sui-button.sui            # template + <prop> directives
-  sui-button.sui.d.ts       # compiler-emitted Scope declaration
   sui-button.controller.ts  # controller(def) (only if needed)
   sui-button.css            # extracted styles (optional)
 ```
 
-The compiler pairs by filename; no manifest, no metadata file. Adding a `<tag>.controller.ts` next to a `<tag>.sui` is the only signal the framework requires.
+The compiler pairs by directory; no manifest, no metadata file for components. Adding a `<tag>.controller.ts` next to a `<tag>.sui` is the only signal the framework requires.
 
 ## Tier-1 / tier-2 threshold rule
 
-The compiler enforces condition (1) of the threshold rule statically. A **multi-statement** `on:event` handler body in a tier-1 template (no paired `.controller.ts`) is a build-time error:
+The compiler enforces condition (1) of the threshold rule statically. A **multi-statement** `on:event` handler body in a tier-1 template (no paired `controller.ts`) is a build-time error:
 
 ```html
-<!-- ✗ fails without view.controller.ts -->
+<!-- ✗ fails without controller.ts -->
 <button on:click={() => { x.set(1); y.set(2) }}>Save</button>
 ```
 
 ```
-view.sui: line 1 col 30: [on:click handler]
-multi-statement handler — paired `<view>.controller.ts` required for tier-2 work
+page.sui: line 1 col 30: [on:click handler]
+multi-statement handler — paired `<view>.ts` controller required for tier-2 work
 ```
 
 A single-expression or single-statement block is fine at tier 1:
@@ -213,4 +213,4 @@ A single-expression or single-statement block is fine at tier 1:
 <button on:click={() => { count.set(count() + 1) }}>+</button>
 ```
 
-Once you add a paired `view.controller.ts` the check is skipped entirely — the controller owns complex handler logic. Conditions 2–5 of the threshold rule (multi-signal data thunks, `use:` compositions, lifecycle hooks, multi-statement state mutations) are not yet enforced statically but follow the same architectural boundary.
+Once you add a paired `controller.ts` the check is skipped entirely — the controller owns complex handler logic. Conditions 2–5 of the threshold rule (multi-signal data thunks, `use:` compositions, lifecycle hooks, multi-statement state mutations) are not yet enforced statically but follow the same architectural boundary.

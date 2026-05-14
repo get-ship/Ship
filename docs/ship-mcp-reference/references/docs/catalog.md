@@ -8,7 +8,9 @@ audience: internal
 
 # Tool Catalog
 
-This page is the canonical inventory of every MCP tool registered by `ship mcp serve` (ShipServer) and `ship studio` (StudioServer). Tools follow a **verb-first** naming convention (`verb_noun`).
+> Note: the MCP tool surface is under active revision; tool/resource lists below may be out of date.
+
+This page is the inventory of MCP tools registered by `ship mcp serve` (`ShipServer`). Tools follow a **verb-first** naming convention (`verb_noun`).
 
 ## Stability
 
@@ -78,9 +80,9 @@ Started by `ship mcp serve`. These tools are exposed to dispatched agents throug
 
 Request shapes are defined in `apps/mcp/src/requests/`. They're surfaced as JSON Schema in the tool descriptor and re-exported through `@ship/set` for typed client use.
 
-## StudioServer — Studio IDE surface
+## Studio IDE surface
 
-Started by `ship studio`. These tools are not exposed to dispatched agents — they back the Studio web IDE.
+These tools back the Studio web IDE and are not exposed to dispatched agents.
 
 | Tool | Stability | Summary |
 | --- | --- | --- |
@@ -109,7 +111,7 @@ Started by `ship studio`. These tools are not exposed to dispatched agents — t
 
 This page is hand-maintained alongside the Rust source. When adding or renaming a tool:
 
-1. Update `#[tool(name = "…", description = "…")]` in `apps/mcp/src/server/mod.rs` (or `studio_server.rs`).
+1. Update `#[tool(name = "…", description = "…")]` in `apps/mcp/src/server/mod.rs`.
 2. Update the table on this page in the same commit.
 3. Update the entry in `tools.md` (the agent-facing detailed reference) so the parameter list stays in sync.
 

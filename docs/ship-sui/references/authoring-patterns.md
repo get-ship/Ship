@@ -24,7 +24,7 @@ A view that wants reusable markup pulls a component in (`packages/ui-components/
 Two files, paired by directory + filename stem. The compiler reads both — the `.sui` template emits the render module, the `.controller.ts` types its `Scope` and contributes signals / lifecycle / handlers.
 
 ```ts
-// view.controller.ts
+// controller.ts
 import { controller, signal, derived, ref, shared, useShared,
          useFilteredList, unwrap } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'   // compiler-emitted .d.ts

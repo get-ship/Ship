@@ -115,7 +115,7 @@ structs via [specta](https://docs.rs/specta). Three files are produced:
 |--------|---------------------|-----------|
 | `packages/ship-set/src/generated.ts` | `collect_types()` | `@ship/set/types`, `@ship/sdk` |
 | `packages/cloud-types/src/generated.ts` | `build_cloud_types()` | Cloudflare worker, cloud event router |
-| `packages/ui-runtime/src/generated.ts` | `collect_framework_types()` | `@ship/ui-runtime`, `@ship/ui-sdk-client` |
+| `packages/sui-runtime/src/generated.ts` | `collect_framework_types()` | `@ship/sui-runtime`, `@ship/sdk-client` |
 
 **When you add a new Rust struct that crosses the daemon ↔ runtime
 boundary:**
@@ -131,8 +131,8 @@ boundary:**
 2. Register it in `crates/xtask/src/main.rs` — `collect_framework_types()`
    for daemon ↔ runtime data, `collect_types()` for project config.
 3. Run `cargo xtask gen-types` and commit the regenerated `.ts` file.
-4. Import the generated type in TS via `@ship/ui-runtime` (re-exported
-   from `packages/ui-runtime/src/index.ts`) — never hand-write a
+4. Import the generated type in TS via `@ship/sui-runtime` (re-exported
+   from `packages/sui-runtime/src/index.ts`) — never hand-write a
    parallel `interface`.
 
 **CI gating.** `just test` runs `cargo xtask gen-types --check` before

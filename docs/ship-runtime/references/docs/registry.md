@@ -8,7 +8,7 @@ audience: internal
 
 # Registry
 
-`crates/core/runtime/src/registry/`. Ship v0.1's dependency resolver plus a content-addressed cache at `~/.ship/cache/`. Packages are git repos at specific commits; the cache stores extracted content keyed by hash.
+`crates/core/ship-platform/src/registry/`. Ship v0.1's dependency resolver plus a content-addressed cache at `~/.ship/cache/`. Packages are git repos at specific commits; the cache stores extracted content keyed by hash.
 
 ```
 registry/
@@ -23,7 +23,7 @@ registry/
   verify.rs            — hash verification on install
   tracking.rs          — anonymous install telemetry
   init_deps.rs         — default dependencies seeded on `ship init`
-  types.rs             — ShipManifest, ShipLock, LockedPackage (stubs; compiler crate will eventually own these)
+  types.rs             — ShipManifest + lockfile diff helpers (lockfile types re-exported from `compiler::lockfile`)
 ```
 
 ## Public API
@@ -81,7 +81,7 @@ Cache never evicts today. Cleanup is manual (`rm -rf ~/.ship/cache`).
 
 ## Lockfile
 
-`types::ShipLock` — the lockfile shape. Today these are stubs pending the compiler crate exposing its own equivalents (per the mod.rs comment). `ShipManifest`, `LockedPackage` are the input-manifest and per-package record.
+`ShipLock` and `LockPackage` — the lockfile shape — are owned by `compiler::lockfile` and re-exported through `ship_platform::registry`. The registry module previously kept a parallel pair; that's gone, there is one source of truth. `ShipManifest` (the input manifest) lives in the registry's `types.rs`.
 
 - `parse_ship_lock(content)` — deserialize from the on-disk file.
 - `serialize_ship_lock(&lock)` — re-serialize, sorted deterministically.
@@ -110,4 +110,4 @@ Returns `SeedResult` indicating how many deps were seeded vs already present.
 ## Related
 
 - [Platform DB](/runtime/platform-db/) — `registry` module doesn't use the DB directly; it's purely on-filesystem.
-- [Compiler](/compiler/) — eventual owner of `ShipManifest` / `ShipLock` types (stubs here today).
+- [Compiler](/compiler/) — owns the `ShipLock` / `LockPackage` lockfile types the registry re-exports.

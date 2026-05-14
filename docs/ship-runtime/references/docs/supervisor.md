@@ -8,16 +8,14 @@ audience: internal
 
 # Supervisor
 
-`apps/shipd/src/supervisor/`. Platform-specific process management. The orchestrator (in the runtime crate) is transport-agnostic and calls through trait objects; the supervisor provides the concrete implementations for shipd — tmux, git worktrees, process spawning, liveness probing, orphan cleanup.
+The supervisor is its own crate: `crates/ship-supervisor/`. Platform-specific process management. The orchestrator (in `ship-platform`) is transport-agnostic and calls through trait objects; the supervisor provides the concrete implementations — tmux, git worktrees, process spawning, liveness probing, orphan cleanup.
 
-Split is explicit at the top of `supervisor/mod.rs`:
-
-> After the orchestrator extraction, this module contains ONLY platform-specific process management: executors, liveness monitoring, orphan cleanup, process registry, terminal launching, and the platform trait implementations. Job orchestration lives in `runtime::services::orchestrator`.
+`apps/shipd/src/supervisor/` is now just `mod.rs` plus integration tests — those tests need shipd internals (`ApiState`, `ShipRuntime`, the test harness) so they can't move into the supervisor crate. Production supervisor code lives entirely in `crates/ship-supervisor/src/`.
 
 ```
-supervisor/
-  mod.rs                — module tree, re-exports
-  platform.rs           — ShipdPlatform (AgentPlatform impl)
+crates/ship-supervisor/src/
+  lib.rs                — crate surface, re-exports
+  platform.rs           — ShipdPlatform (AgentPlatform impl), MockPlatform
   adapters.rs           — GitWorktreeIsolation, RegistryAdapter
   executors/
     mod.rs              — executor surface
@@ -25,17 +23,15 @@ supervisor/
     tmux_window.rs      — TmuxWindowExecutor (interactive default)
     process.rs          — ProcessExecutor (headless)
     server.rs           — ServerExecutor (long-lived session mode)
-  registry.rs           — ProcessRegistry (slug → ExecutorHandle)
-  liveness.rs           — start_exit_handler, start_liveness_sweep
   orphan_cleanup.rs     — cleanup_orphaned_worktrees
   agent_lifecycle.rs    — agent process lifecycle events
   process_events.rs     — process.* event emission helpers
-  terminal_launcher.rs  — open a terminal into a workspace
+  terminal_launcher.rs  — open a terminal into a session
   helpers.rs            — worktrees_dir, path helpers
-  job_dispatch.rs       — subscribe_job_events (public entry; spawns orchestrator)
-  workspace_api.rs      — start_workspace HTTP-adjacent API
-  workspace_sync.rs     — workspace event → projection sync
+  job_dispatch.rs       — subscribe_job_events (public entry; spawns orchestrator), DispatchHandle
 ```
+
+`ProcessRegistry` and `graceful_shutdown` live in `ship_platform::services::process_registry` (the supervisor re-exports `graceful_shutdown`). Liveness sweeps run from `ship_platform`'s orchestrator side; the supervisor provides the platform hook (`ShipdPlatform::start_liveness_sweep`). There is no `registry.rs`, `liveness.rs`, `workspace_api.rs`, or `workspace_sync.rs` — the `workspace` runtime primitive was retired.
 
 ## ShipdPlatform
 
@@ -75,7 +71,7 @@ One trait, multiple implementations. Routing picks per-job.
 
 ### Trait
 
-From `runtime::services::dispatch_ports::JobExecutor`:
+From `ship_substrate::services::dispatch_ports::JobExecutor`:
 
 ```rust
 pub trait JobExecutor: Send + Sync {
@@ -114,10 +110,10 @@ Long-lived session mode. Maintains a connection to a running provider server; ne
 
 ## ProcessRegistry
 
-`registry.rs`. `HashMap<slug, ExecutorHandle>`. Used for:
+`ship_platform::services::process_registry`. `HashMap<slug, ExecutorHandle>`. Used for:
 
 - Graceful shutdown (`graceful_shutdown(registry, executor)`): iterate handles, call `executor.stop(handle)` for each, await all.
-- Startup reconciliation: check `executor.is_alive(handle)` for every registered slug; dead handles get their jobs marked Failed via `liveness::drain_dead`.
+- Startup reconciliation: check `executor.is_alive(handle)` for every registered slug; dead handles get their jobs marked Failed.
 - Sending input to a running job (`executor.send(handle, input)`).
 
 Mutations (`register`, `unregister`, `drain_dead`) happen under `Arc<Mutex<_>>`.
@@ -128,7 +124,7 @@ Two mechanisms, both independent of the agent's own lifecycle events.
 
 ### Exit signal handler
 
-`liveness::start_exit_handler(kernel, registry, exit_rx)`. Each dispatched job gets an `UnboundedReceiver<ExitSignal>`. The executor's monitor thread sends on the paired sender when the process/session exits. The handler emits:
+Each dispatched job gets an `UnboundedReceiver<ExitSignal>`. The executor's monitor thread sends on the paired sender when the process/session exits. The handler emits:
 
 - `job.completed` — exit code 0 or unknown.
 - `job.failed` — non-zero exit.
@@ -168,12 +164,7 @@ These feed the Process projection (computed, no table) — `load_processes(slug)
 
 ## Terminal launcher
 
-`terminal_launcher.rs`. `launch_terminal(workspace, provider)` opens a terminal attached to the workspace's tmux session for interactive use. Called by `ship` CLI commands that need to drop the operator into an agent session.
-
-## Workspace API + sync
-
-- `workspace_api.rs` — `start_workspace(...)` HTTP-adjacent helper used by handlers that start a workspace's first session.
-- `workspace_sync.rs` — `subscribe_workspace_events(...)` spawns a workspace-sync actor subscribed to `workspace.*` that forwards events into the workspace projection.
+`terminal_launcher.rs`. Opens a terminal attached to a session's tmux session for interactive use. Called by `ship` CLI commands that need to drop the operator into an agent session.
 
 ## subscribe_job_events (public entry)
 

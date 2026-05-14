@@ -10,12 +10,13 @@ description: Ship's MCP server exposes runtime operations to AI agents via the M
 The full tool catalog and per-tool reference are being reworked. The shape below is current; detailed pages are temporarily internal-only.
 </ship-alert>
 
+> Note: the MCP tool surface is under active revision; tool/resource lists below may be out of date.
+
 Ship runs an MCP server (`apps/mcp/`) that exposes its runtime — workspaces, sessions, agents, jobs, and project state — to AI agents over the Model Context Protocol. Any MCP-aware tool can connect.
 
-## Two server variants
+## Server
 
-- **`ShipServer`** — the full surface. Started via `ship mcp serve` (stdio) or `ship mcp serve --http --port <N>` (HTTP). Used by agents.
-- **`StudioServer`** — a subset wired for the in-app browser UI. Started via `ship studio --port <N>`. Web-only, no tool gating.
+`ShipServer` is the MCP surface. Started via `ship mcp serve` (stdio) or `ship mcp serve --http --port <N>` (HTTP).
 
 ## How agents see it
 

@@ -112,8 +112,6 @@ ship config path                  # show config file path
 ship convert <source>             # convert provider configs to .ship/ format
 ship docs topics                  # list help topics
 ship docs <topic>                 # detailed help for a topic
-ship studio                       # launch Ship Studio visual IDE
-ship studio --open                # open Studio in default browser
 ship hook session-start           # provider hook: session start
 ship hook before-tool             # provider hook: before tool
 ship hook after-tool              # provider hook: after tool

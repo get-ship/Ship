@@ -254,10 +254,15 @@ Two paths out of transport: HTTP to the daemon, or a direct compile call. The da
 | `ship-types` | Shared type primitives. Zero internal deps. |
 | `ship-jobs` | Pipeline and job types. JSONC normalization. |
 | `ship-kernel` | Pure event routing. Actor model. |
-| `runtime` | State management. Persistence, services, projections, registry. |
+| `ship-substrate` (L0) | Persistence — kernel wrapper, event log, platform DB, home/env paths. |
+| `ship-platform` (L1) | Domain services — config, agents, collections, artifacts, registry, orchestrator, sessions. |
+| `ship-application` (L2) | Application layer — view bundler, Node toolchain, project. |
+| `ship-pipelines` | Pipeline DAG types and step resolution. |
 | `compiler` | Pure transformation. Native + WASM. |
 | `cli-framework` | Shared CLI metadata and lifecycle. |
 | `mcp-framework` | MCP protocol transport abstraction. |
+| `build-info` | Build-time version and git metadata. |
+| `lint` | Shared lint rules — module-DAG and file-cap checks. |
 
 **Apps** (`apps/`):
 
@@ -311,38 +316,41 @@ Two paths out of transport: HTTP to the daemon, or a direct compile call. The da
 
 `shipd` hosts several service actors. Each has a single responsibility and communicates via the kernel.
 
-**Orchestrator** (`runtime/services/orchestrator/`). Advances pipelines step-by-step. When a job completes, `advance_pipeline` finds newly unblocked steps and dispatches them. Handles gate retries (up to `max_retries`), step monitoring (watches process exit), `run` shell commands, and `human` pauses. `replay.rs` re-dispatches incomplete pipelines on daemon startup.
+**Orchestrator** (`crates/core/ship-platform/src/services/orchestrator/`). Advances pipelines step-by-step. When a job completes, `advance_pipeline` finds newly unblocked steps and dispatches them. Handles gate retries (up to `max_retries`), step monitoring (watches process exit), `run` shell commands, and `human` pauses. `replay.rs` re-dispatches incomplete pipelines on daemon startup.
 
-**Mesh** (`runtime/services/mesh.rs`). Inter-agent message routing via `SharedMeshRegistry`. Agents publish to namespaces; subscribers filter by capability scope. Namespaces are enforced at the `ActorStore` write boundary — an actor cannot emit events into a namespace it lacks write permission for.
+**Mesh** (`crates/core/ship-substrate/src/services/mesh.rs`). Inter-agent message routing via `SharedMeshRegistry`. Agents publish to namespaces; subscribers filter by capability scope. Namespaces are enforced at the `ActorStore` write boundary — an actor cannot emit events into a namespace it lacks write permission for.
 
 **Supervisor** (`apps/shipd/src/supervisor/`). Process dispatch, worktree setup, terminal launch, job lifecycle. Spawns agent processes in git worktrees, wires stdio to the kernel, monitors exit codes, and surfaces results to the orchestrator.
 
-**Human gateway** (`runtime/services/human_gateway.rs`). Pauses pipelines at `human:` steps until a human acknowledges. The web UI renders the pending prompt; acknowledgment advances the pipeline.
+**Human gateway** (`ship-substrate/src/services/human_gateway.rs`). Pauses pipelines at `human:` steps until a human acknowledges. The web UI renders the pending prompt; acknowledgment advances the pipeline.
 
 **PTY bridge** (`apps/shipd/pty_handler.rs`). WebSocket-to-tmux bridge. Studio opens a terminal session; the daemon proxies bytes between the browser WebSocket and a tmux pane.
 
 ## Runtime module map
 
-Top-level modules in `crates/core/runtime/src/lib.rs`:
+The runtime is split across three layered crates. Top-level modules:
 
-| Module | Owns |
-|---|---|
-| `actor` | Actor trait, supervisor, restart policies. |
-| `agents` | Agent profiles, export/import, permissions, rules, skills, skill paths, skill vars. |
-| `artifacts` | Artifact metadata, session artifact persistence. |
-| `collections` | Collection types and persistence. |
-| `config` | `.ship/` parsing — catalog, hooks, security, providers. |
-| `data` | Shared data types. |
-| `db` | SQLite connection pool, KV store, workspace/session/artifact persistence, schema migrations. |
-| `events` | Facade over `ship-kernel` + `ship-types` event types. |
-| `hooks` | `RuntimeHooks` trait for lifecycle events. |
-| `log` | File-based project action log. |
-| `persistence` | `EventStore` trait, `SqliteEventStore`, snapshots, cursors. |
-| `project` | Project init, directory resolution, worktree-aware path lookup. |
-| `projections` | Read models rebuilt from events (jobs, sessions, workspaces). |
-| `registry` | Package install, fetch, resolve, verify, tracking. |
-| `services` | Orchestrator, mesh, human gateway, provider adapters, dispatch ports. |
-| `workspace` | Workspace lifecycle, sessions, trash, artifact events, reconciliation. |
+| Crate | Module | Owns |
+|---|---|---|
+| `ship-substrate` (L0) | `events` | Facade over `ship-kernel` + `ship-types` event types. |
+| `ship-substrate` (L0) | `db` | SQLite connection pool, KV store, workspace/session/artifact persistence, schema migrations. |
+| `ship-substrate` (L0) | `persistence` | `EventStore` trait, `SqliteEventStore`, snapshots, cursors. |
+| `ship-substrate` (L0) | `home` / `env` | `~/.ship/` path resolution, `SHIP_*` env var access. |
+| `ship-substrate` (L0) | `data` | The data DB backing collections. |
+| `ship-substrate` (L0) | `project` | Project init, directory resolution, worktree-aware path lookup. |
+| `ship-substrate` (L0) | `supervisor` | Actor supervisor, restart policies. |
+| `ship-substrate` (L0) | `services` | Mesh, human gateway, dispatch ports. |
+| `ship-substrate` (L0) | `projections` | Low-level read models (actor, process, session, spawn, registry). |
+| `ship-platform` (L1) | `agents` | Agent profiles, export/import, permissions, rules, skills, skill paths, skill vars. |
+| `ship-platform` (L1) | `artifacts` | Artifact metadata, backends, session artifact persistence. |
+| `ship-platform` (L1) | `collections` | Collection types and persistence. |
+| `ship-platform` (L1) | `config` | `.ship/` parsing — catalog, hooks, security, providers. |
+| `ship-platform` (L1) | `hooks` | Trigger engine, loader, filter, rendering. |
+| `ship-platform` (L1) | `registry` | Package install, fetch, resolve, verify, tracking. |
+| `ship-platform` (L1) | `services` | Orchestrator, provider adapters. |
+| `ship-platform` (L1) | `sessions` | Workspace lifecycle, sessions, trash, artifact events, reconciliation. |
+| `ship-platform` (L1) | `projections` | High-level read models (auth, jobs, compile state, projects). |
+| `ship-application` (L2) | `bundler` / `toolchain` | View bundler worker supervisor, Node toolchain management. |
 
 ## Platform database
 
@@ -350,14 +358,14 @@ Path: `~/.ship/platform.db`. Relational state. Opened via `sqlx` with compile-ti
 
 | Table family | Concern |
 |---|---|
-| `workspaces`, `workspace_events` | Workspace records + event projection. |
-| `sessions`, `session_events` | Session records + event projection. |
-| `jobs`, `actor_events` | Job and actor lifecycle events. |
 | `events` | Shared event log. All actor events. `actor_id` column enforces logical isolation. |
-| `file_claims` | Per-file exclusive write locks across parallel agents. |
-| `artifact_registry` | Artifact metadata store. |
-| `kv`, `managed_state` | Generic key-value + state blobs. |
-| `adrs`, `branch_context` | Architecture decision records, branch-scoped docs. |
+| `sessions` | Session analytics rollup. Telemetry is inline; populated by the session projection. |
+| `actors` | One row per running or terminated kernel actor. |
+| `jobs` | Job projection — folded from `job.*` / `step.*` events. |
+| `projects`, `project_compile_state` | Project registry + last-compile state. |
+| `auth_sessions`, `daemon_owner` | Daemon-scoped bearer tokens + cloud-user binding. |
+| `daemon_settings` | Machine-wide daemon settings (ACID-alongside-events). |
+| `cursors` | Sync push/pull positions and per-projection rebuild bookmarks. |
 
 Tests get automatic isolation: `get_global_dir()` detects test binaries and returns a per-thread temp directory.
 
@@ -373,15 +381,15 @@ Every actor has: a `namespace`, permitted write/read/subscribe scopes, and a mai
 
 Routing contract: validate → persist → deliver. Direct messages short-circuit namespace fanout via `target_actor_id`. Broadcasts match by prefix on `event_type` against each subscriber's `subscribe_namespaces`.
 
-## Workspaces
+## Jobs and branches
 
-A workspace is an isolated unit of agent work, keyed by git branch today. The supervisor allocates a git worktree per workspace so parallel agents don't collide on the same files. File claims in the platform DB give per-file exclusive locks across agents sharing a workspace.
+A job is a unit of dispatched work. The supervisor allocates a git worktree per branch so parallel agents don't collide on the same files; the worktree path is resolved on demand from git, not stored as runtime state. Job state lives entirely in the event log, folded into a projection by `load_jobs()`.
 
-Sessions track agent time within a workspace — start, progress, end with summary. One active session per workspace.
+Sessions are an analytics rollup over actor activity — start, progress, end with summary. Telemetry is inline on the session row.
 
 ## Event flow internals
 
-`KernelRouter::route(event)`:
+`KernelRouter::emit(event, ctx)`:
 
 1. Run each registered validator. Fail = error, event discarded.
 2. `sink.persist(&event)` — synchronous. Durable before any delivery.

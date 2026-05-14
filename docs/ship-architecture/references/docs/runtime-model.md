@@ -34,22 +34,22 @@ event; every concrete table is a projection of those events.
 KernelRouter::emit(event) → events table → projection → platform.db row
 ```
 
-Projections live in `runtime::projections::*` and write into
+Projections live across `ship_substrate::projections::*` (low-level:
+actor, process, session) and `ship_platform::projections::*`
+(high-level: auth, job, compile_state, projects) and write into
 platform.db tables (or kv namespaces) that are *derived state*, not
 primary records:
 
 | Projection | Source events | Target |
 |---|---|---|
-| `projections::session` | `session.*` | `workspace_session` table |
+| `projections::session` | `session.*` | `sessions` table |
 | `projections::actor` | `actor.*` | `actors` table |
-| `projections::workspace` | `workspace.*` | `kv_state` namespace `worktree` (via `runtime::worktrees`) |
-| `projections::job` (in-memory) | `job.*` / `step.*` | `JobRecord` map, computed on demand |
+| `projections::job` | `job.*` / `step.*` | `jobs` table, folded on demand |
 
-The job projection is a fold-in-memory rather than a table — there's
-no `jobs` row to consult; `runtime::projections::job::load_jobs()`
-queries the event log directly. The workspace projection writes to
-kv-state instead of a table; worktrees are an attachment, not a
-runtime primitive (see Five Primitives below).
+The job projection is a fold rather than a hand-written table — there's
+no row to mutate; `ship_platform::projections::job::load_jobs()`
+queries the event log directly. Worktrees are not a primitive and not a
+projection target — see Four Primitives below.
 
 This is the canonical pattern. New runtime concerns ride it.
 
@@ -71,9 +71,9 @@ antipattern. Recent examples we've cleaned up:
   user-content row. Migrated into the `specs` collection.
 - `workspace` — projection table for a primitive that conflated
   session-identity, dev-worktree, tmux-attachment, and agent-sandbox.
-  Each of those jobs moved to its proper home (sessions table, kv
-  namespace `worktree`, actor row, actor row). Table dropped; the
-  workspace.* events now project to kv via `runtime::worktrees`.
+  Each of those jobs moved to its proper home (sessions table,
+  on-demand git worktree resolution, actor row, actor row). Table
+  dropped; the `workspace.*` events and projection are retired.
 - `workspace_session_record` — write-only mirror of session telemetry
   that was already (or could trivially be) on `workspace_session`.
   Collapsed.
@@ -145,7 +145,7 @@ concepts:
    A tagging primitive: views accept it as a filter, apps register
    against it. Not a context-switch — multiple projects can be
    visible at once. Path-hash keyed in `kv_state` namespace `project`
-   via `runtime::projects`. Default `personal` project lives at
+   via `ship_platform::projections::projects`. Default `personal` project lives at
    `~/.ship/`.
 
 2. **Actor** — a running thing. Owns isolation: `cwd`, `project_id`,
@@ -164,16 +164,18 @@ concepts:
 4. **Adapter** — in-process module that talks to the outside world
    (git, tmux, providers, future containers) and emits events into
    the runtime log. Adapters never write runtime projection tables.
-   Today: `runtime::git`, `runtime::supervisor`'s tmux + executor
-   transports.
+   Today: `ship_substrate::git` (the subprocess adapter),
+   `ship_platform::services::git` (the libgit2-direct GitService, whose
+   `state` module owns worktree resolution), and
+   `ship_substrate::supervisor`'s tmux + executor transports.
 
 ### Worktree is not a primitive
 
 Git worktrees are a git feature. The runtime doesn't track them as
 state — when a caller needs to know "what's the path for branch X",
-they shell out via `runtime::git` and ask `git worktree list`. There
-is no `runtime::worktrees` module, no kv namespace `worktree`, no
-`Worktree` struct. The actor row carries the `cwd` an agent runs in;
+`ship_platform::services::git::state` shells out to `git worktree list`
+and resolves it on demand. There is no `worktrees` module, no kv
+namespace `worktree`, no `Worktree` struct. The actor row carries the `cwd` an agent runs in;
 the supervisor sets it at spawn from whatever path the caller passed
 (or git worktree resolution, for dev flow).
 
@@ -187,9 +189,9 @@ us scope and filter without making it a context-lock.
 
 The legacy `workspace_session` table name is a vestige (it holds
 session analytics — rename to `sessions` mechanical). The
-`runtime::workspace` Rust module is similarly vestigial — it holds
-session lifecycle code (start_session / end_session / record_progress
-/ compile_session_context). Both rename in a follow-up.
+`ship_platform::sessions` Rust module holds session lifecycle code
+(start_session / end_session / record_progress /
+compile_session_context).
 
 ## Integrations are event-sourced
 
@@ -205,7 +207,7 @@ integration.credential_rotated
 integration.deregistered
 ```
 
-A `runtime::projections::integration` projects these into a current-
+A `ship_platform::projections::integration` projects these into a current-
 state table the registry can query. Same shape as `actors`,
 `sessions`, `jobs`. Uniform. Audit-able. Replay-able.
 

@@ -16,17 +16,17 @@ This document is for contributors. For user-facing docs, see
 
 ## Token types
 
-The daemon accepts four kinds of bearer tokens, each with distinct provenance and scopes:
+The daemon accepts three kinds of bearer tokens, each with distinct provenance and scopes:
 
 | Token | Format | Provenance | Default scopes |
 |-------|--------|------------|----------------|
-| **Daemon token** | 64-char hex in `~/.ship/daemon.token` | Generated on first run | `Scope::Full` |
-| **Hook token** | `ship_hook_` + 32-char hex in `~/.ship/hook.token` | Generated on first run, never rotates automatically | `EmitEvents`, `LogProgress` |
+| **Daemon token** | 64-char hex in `~/.ship/machine/daemon/token` | Generated on first run | `Scope::Full` |
 | **Session token** | `ship_sess_` + 32-char hex | Issued via pairing flow (see below) | `Scope::Full` (paired) or role-based (MCP) |
-| **SDK token** | `ship_` prefix | Matches daemon token | `Scope::Full` |
+| **SDK token** | `ship_` prefix | Matches the daemon token | `Scope::Full` |
 
-Only the daemon token file is readable by any process running as the user. The others
-are either request-specific (session) or purpose-specific (hook).
+The daemon token covers CLI, Studio, and hook callers. Only the daemon token file is
+readable by any process running as the user; session tokens are request-specific.
+The `ship_hook_` token class has been removed — tokens with that prefix are rejected.
 
 ## Auth middleware flow
 
@@ -36,10 +36,10 @@ On every request the middleware:
 2. On GET requests only, falls back to `?token=` query param (for browser
    EventSource/WebSocket, which can't set headers)
 3. Classifies by prefix and dispatches:
-   - `ship_hook_` → compared to `hook.token`, granted narrow scopes
    - `ship_sess_` → looked up in `SessionRegistry`, granted the scopes bound at creation
-   - 64 hex chars → compared to `daemon.token`, granted `Scope::Full`
-   - `ship_` prefix → legacy SDK token path, granted `Scope::Full`
+   - 64 hex chars → compared to the daemon token, granted `Scope::Full`
+   - `ship_` prefix → SDK token path, granted `Scope::Full`
+   - `ship_hook_` → rejected (the hook-token class is removed)
 4. Identity binding for session tokens: `agent_id` and `workspace_id` come from the
    session registry, **not** from client-supplied `x-ship-*` headers. This is intentional
    defense against session-token-wielding agents impersonating other agents.
@@ -140,12 +140,12 @@ settings (defaults to `https://getship.dev`). This enables:
 Used when server attestation isn't available (user not signed in, offline, self-hosted
 without getship.dev account).
 
-The browser can't read `~/.ship/daemon.token` (cross-origin, no filesystem access). The
-pairing flow proves physical control of the machine instead:
+The browser can't read `~/.ship/machine/daemon/token` (cross-origin, no filesystem
+access). The pairing flow proves physical control of the machine instead:
 
 1. **`POST /auth/pair/init`** (unauth) — daemon returns a short code (XXX-XXX) and a
    long random `claim_token`. Code is human-readable; claim_token is unguessable.
-2. **`POST /api/auth/pair/confirm`** (requires daemon token) — CLI reads daemon.token
+2. **`POST /api/auth/pair/confirm`** (requires daemon token) — CLI reads the daemon token
    from disk, posts the code. Daemon marks the code approved and issues a session token
    bound to the claim_token.
 3. **`GET /auth/pair/status?claim_token=...`** (unauth, but claim_token is secret) —
@@ -153,9 +153,9 @@ pairing flow proves physical control of the machine instead:
    single-use and the claim_token is consumed on the first successful status fetch.
 
 **Security properties:**
-- Agents without daemon.token access can't complete step 2. The pairing code is
+- Agents without daemon-token access can't complete step 2. The pairing code is
   meaningless without CLI confirmation.
-- Agents with daemon.token can complete step 2, but they already have `Scope::Full` —
+- Agents with the daemon token can complete step 2, but they already have `Scope::Full` —
   nothing is escalated.
 - Codes expire in 5 minutes, single-use. Claim tokens expire in 30 minutes.
 - Paired sessions last 30 days, persisted in `platform.db` via the KV layer.
@@ -203,8 +203,8 @@ Audit log rows (pair confirm, pair revoke) are written to the `auth.audit` names
 ## Known limitations (unresolved)
 
 ### Daemon token file access
-`~/.ship/daemon.token` is mode 0o600 but readable by any process running as the same
-user. We don't use OS keyrings yet. Consequence: a compromised agent running as your
+`~/.ship/machine/daemon/token` is mode 0o600 but readable by any process running as the
+same user. We don't use OS keyrings yet. Consequence: a compromised agent running as your
 user can read the daemon token and escalate to `Scope::Full`.
 
 **Mitigation path**: move to OS-keyring-backed storage (macOS Keychain, Linux Secret
@@ -221,10 +221,17 @@ request.
 
 ## File layout
 
-- `apps/shipd/src/auth.rs` — middleware, token types, pair/attest/session endpoints, audit log
-- `apps/shipd/src/scopes.rs` — `Scope` enum, `SessionRegistry`, persistence helpers
-- `apps/shipd/src/pairing.rs` — `PairingRegistry`, code generation, dev mode flag
-- `apps/shipd/src/attest.rs` — JWKS fetch+cache, JWT verify, daemon-owner binding
-- `apps/shipd/src/pairing_integration_tests.rs` — end-to-end pair flow tests
+Pure auth primitives live in `crates/core/ship-platform/src/auth/`; the axum-typed HTTP surface lives in `apps/shipd/src/auth/`.
+
+- `crates/core/ship-platform/src/auth.rs` — module root re-exporting the four submodules
+- `crates/core/ship-platform/src/auth/scopes.rs` — `Scope` enum, `SessionRegistry`, pure scope policy
+- `crates/core/ship-platform/src/auth/pairing.rs` — `PairingRegistry`, code generation, dev mode flag
+- `crates/core/ship-platform/src/auth/attest.rs` — JWKS fetch+cache, JWT verify, daemon-owner binding
+- `crates/core/ship-platform/src/auth/session.rs` — browser-session cookie generation/parsing/registry
+- `apps/shipd/src/auth.rs` — middleware, token types, re-exports of `attest`/`pairing`
+- `apps/shipd/src/auth/scopes.rs` — HTTP-coupled scope helpers + `/api/session/register` handler
+- `apps/shipd/src/auth/session.rs` — `POST /api/v1/runtime/session` issuance handler
+- `apps/shipd/src/auth/api/` — pairing, attest, and session-token HTTP routes
+- `apps/shipd/src/auth/pairing_integration_tests.rs` — end-to-end pair flow tests
 - `apps/gateway/src/lib/daemon-jwt.ts` — JWT signing (jose library), JWKS builder
 - `apps/gateway/src/routes/auth.ts` — `/api/jwks` endpoint and `/api/auth/daemon-attest` route

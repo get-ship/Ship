@@ -8,7 +8,7 @@ audience: internal
 
 # Scopes & Auth
 
-`apps/shipd/src/scopes.rs`, `apps/shipd/src/auth.rs`. Bearer-token auth with per-endpoint scope checks. The daemon never runs unauthenticated.
+`crates/core/ship-platform/src/auth/scopes.rs` (the `Scope` enum + session registry — pure capability policy), consumed by `apps/shipd/src/auth/` (the daemon's HTTP layer). Bearer-token auth with per-endpoint scope checks. The daemon never runs unauthenticated.
 
 ## Tokens
 
@@ -16,14 +16,16 @@ Four kinds. All formatted as bearer headers: `Authorization: Bearer <token>`.
 
 | Token | Format | Provenance | Default scopes |
 |---|---|---|---|
-| **Daemon token** | 64-char hex in `~/.ship/daemon.token` | Generated on first run | `Scope::Full` |
-| **Hook token** | `ship_hook_` + 32-char hex in `~/.ship/hook.token` | Generated on first run, never rotates automatically | `EmitEvents`, `LogProgress` |
+| **Daemon token** | 64-char hex under `~/.ship/machine/daemon/` | Generated on first run | `Scope::Full` |
+| **Hook token** | `ship_hook_` + 32-char hex under `~/.ship/machine/daemon/` | Generated on first run, never rotates automatically | `EmitEvents`, `LogProgress` |
 | **Session token** | `ship_sess_` + 32-char hex | Issued via pairing flow | `Full` (paired) or role-based (MCP) |
 | **SDK token** | `ship_` prefix | Matches daemon token | `Full` |
 
 The auth middleware reads the header, matches the prefix, and resolves to an `AuthContext` carrying agent id + granted scopes.
 
 ## Scope enum
+
+`crates/core/ship-platform/src/auth/scopes.rs`:
 
 ```rust
 pub enum Scope {
@@ -38,11 +40,16 @@ pub enum Scope {
     LogProgress,
     StepDone,
     AdminDaemon,
+    // Fine-grained artifact grants — granted in addition to workspace grants:
+    ReadArtifactsRun, WriteArtifactsRun, DeleteArtifactsRun,
+    ReadArtifactsProject, WriteArtifactsProject, DeleteArtifactsProject,
+    ReadArtifactsUser, WriteArtifactsUser, DeleteArtifactsUser,
+    PromoteArtifact,
     Full,  // bypasses all checks
 }
 ```
 
-Twelve scopes. Handlers call `require_scope(&auth, Scope::X)` at entry; middleware doesn't pre-filter. A failure returns 403 early.
+22 scopes — the original 12 (`ReadWorkspace` … `AdminDaemon` plus `Full`) plus 9 run/project/user artifact grants and `PromoteArtifact`. Handlers call `require_scope(&auth, Scope::X)` at entry; middleware doesn't pre-filter. A failure returns 403 early.
 
 `Scope::is_granted_by(granted)` returns true if `granted` contains the scope OR `Full`.
 
@@ -83,24 +90,17 @@ Session registry: `Arc<Mutex<HashMap<String /* token */, DaemonSession>>>`. Live
 
 ## Persistence
 
-Persisted sessions live in `platform.db`'s `kv_state` under namespace `auth.sessions`, keyed by token. Stored as JSON:
+Persisted sessions live in `platform.db`'s `auth_sessions` table — the auth-session projection materializes one row per session from `auth.session.*` events. Each row carries token, agent_id, scopes, workspace_id, and expiry.
 
-```rust
-struct PersistedSession {
-    token, agent_id, scopes, workspace_id,
-    created_at_unix, expires_at_unix,
-}
-```
-
-Ephemeral sessions are skipped. Sessions with `expires_at_unix: None` also skip (conservative — no expiry stored means no auto-cleanup, so don't persist).
+Ephemeral sessions are skipped. Sessions with no expiry also skip (conservative — no expiry stored means no auto-cleanup, so don't persist).
 
 `persist_session(&session)` — writes on pairing success.
 `remove_persisted_session(token)` — removes on logout.
-`hydrate_sessions(&registry)` — called at daemon startup (outside dev mode). Loads all persisted sessions, drops expired ones, stuffs the rest into the registry. Expired sessions are deleted from KV on the way through.
+`hydrate_sessions(&registry)` — called at daemon startup (outside dev mode). Loads all persisted sessions, drops expired ones, stuffs the rest into the registry.
 
 ## Pairing flow
 
-`apps/shipd/src/pairing.rs`. Browser clients (Studio) don't have access to the daemon token — they authenticate via pairing:
+`apps/shipd/src/auth/api/pairing.rs`. Browser clients (Studio) don't have access to the daemon token — they authenticate via pairing:
 
 1. Client requests a pairing code (`POST /api/pair/request`).
 2. Daemon generates code, stores pending pairing.
@@ -112,7 +112,7 @@ Dev mode (`run_network(dev=true)`) auto-pairs — new browser clients immediatel
 
 ## Attestation
 
-`apps/shipd/src/attest.rs`. `AttestationVerifier` handles cryptographic proofs for SDK tokens — SDK callers sign requests with a keypair, daemon verifies. Used when the SDK runs on an untrusted host and needs to prove provenance.
+`apps/shipd/src/auth/api/attest.rs`. `AttestationVerifier` handles cryptographic proofs for SDK tokens — SDK callers sign requests with a keypair, daemon verifies. Used when the SDK runs on an untrusted host and needs to prove provenance.
 
 ## Middleware
 
@@ -120,7 +120,7 @@ Every route goes through the auth layer, which:
 
 1. Reads `Authorization` header.
 2. Matches token prefix → token type.
-3. For daemon/hook tokens: compare against `~/.ship/*.token` bytes in constant time.
+3. For daemon/hook tokens: compare against the token files under `~/.ship/machine/daemon/` in constant time.
 4. For session tokens: look up in the session registry, check expiry.
 5. Build an `AuthContext { agent_id, scopes, ... }` and stash it in request extensions.
 6. Reject with 401 if no match, 403 if expired.
@@ -129,7 +129,7 @@ Handlers extract via `Extension(auth): Extension<AuthContext>` and call `require
 
 ## Invariants
 
-- Daemon token never expires. Rotate via `~/.ship/daemon.token` replace + daemon restart.
+- Daemon token never expires. Rotate by replacing the token file under `~/.ship/machine/daemon/` + daemon restart.
 - Hook token never rotates automatically. Pre-configured hooks rely on stable value.
 - Session tokens expire by policy. Expired = removed on access or by hydration.
 - `Scope::Full` is a single-word bypass — auditors should flag every token holding it.

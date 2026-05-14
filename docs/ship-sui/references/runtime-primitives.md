@@ -214,25 +214,22 @@ The compiler emits a side-effect import of `@ship/sui-runtime/template-hooks` in
 ## Routes — reactive URL state
 
 ```ts
-import { controller } from '@ship/sui-runtime'
-import { route, defineRoutes, navigate } from '@ship/sui-runtime/route'
+import { controller, derived } from '@ship/sui-runtime'
+import { defineRoutes, navigate } from '@ship/sui-runtime/route'
 import type { Scope } from './page.sui'
 
 defineRoutes([{ pattern: '/agents/:id' }])
 
 export default controller<Scope>({
-  scope: () => {
-    const r = route()
-    return {
-      agentId: r.params.id,    // Signal<string | undefined>
-      tab:     r.query.tab,    // Signal<string | undefined>
-      goHome:  () => navigate('/'),
-    }
-  },
+  scope: ({ route }) => ({
+    agentId: derived(() => route.params.id() ?? ''),
+    tab:     derived(() => route.query.tab() ?? ''),
+    goHome:  () => navigate('/'),
+  }),
 })
 ```
 
-`route().params.<name>` and `route().query.<name>` are signals — call them to read (and subscribe) inside `effect`, `derived`, or a `<data>` source thunk. `popstate` and `navigate` both fire the global updater so every attached `route()` instance re-evaluates.
+`route` is injected into every controller section's scope. `route.params.<name>` and `route.query.<name>` are signals — call them (`route.params.id()`) to read and subscribe inside `effect`, `derived`, or a `<data>` source thunk. `popstate` and `navigate` both fire the global updater so every attached view re-evaluates. (`route` is also importable as a `route()` factory from `@ship/sui-runtime/route` for non-controller code; the namespace form `route.params.id()` is the controller exemplar — see `views/agents/[id]/controller.ts`.)
 
 ## Mount API
 

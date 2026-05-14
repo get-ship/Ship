@@ -8,7 +8,7 @@ authors: [ship]
 
 # Ship Compiler (Agents)
 
-> **Boundary:** This is the **agent** compiler — it turns `.ship/agents/<id>.jsonc` into provider-native config (CLAUDE.md, AGENTS.md, etc.). For the **SUI** compiler that turns `.sui` templates into ESM modules, see `docs/ship-sui/SKILL.md`. Different crate (`crates/sui-compiler/`), different contract.
+> **Boundary:** This is the **agent** compiler — it turns `.ship/agents/<id>.jsonc` into provider-native config (CLAUDE.md, AGENTS.md, etc.). For the **SUI** compiler that turns `.sui` templates into ESM modules, see `docs/ship-sui/SKILL.md`. Different crate (`crates/sui/sui-compiler/`), different contract.
 
 Ship's agent compiler is a pure function: it reads `.ship/` configuration and emits provider-native config files. No filesystem access, no network, no database. The same logic runs in the CLI, MCP server, and browser (via WASM).
 

@@ -15,4 +15,5 @@ For detailed reference, read the pages in `references/docs/`:
 - [Overview](references/docs/index.md) — what collections are and when to use them
 - [Schemas](references/docs/schemas.md) — defining collection schemas
 - [Querying](references/docs/querying.md) — filter operators, sorting, pagination
+- [Nested types](references/docs/nested-types.md) — array and object field handling
 - [Views](references/docs/views.md) — building views that consume collections

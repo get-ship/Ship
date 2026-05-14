@@ -8,7 +8,7 @@ authors: [ship]
 
 # Ship Artifacts
 
-An artifact in Ship is a file Ship manages. Artifacts are the storage primitive — agents produce them, users consume them, and Ship controls where they live, how long they last, and how they sync. Three scopes: **ephemeral**, **project**, **global**. In the cloud, project and global artifacts back to S3.
+An artifact in Ship is a file Ship manages. Artifacts are the storage primitive — agents produce them, users consume them, and Ship controls where they live, how long they last, and how they sync. Three scopes: **run**, **project**, **user**. In the cloud, project and user artifacts back to S3.
 
 - **[Overview](/artifacts/)** — the intended model, three-scope split, current state, and what's aspirational vs implemented.
 

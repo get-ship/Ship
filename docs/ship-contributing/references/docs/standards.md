@@ -75,7 +75,7 @@ Error messages must be actionable and specific. No silent fallbacks. If somethin
 
 ## Code Organization
 
-- Rust domain logic in `crates/core/runtime/` (state) or `crates/core/compiler/` (transformation).
+- Rust domain logic in `crates/core/ship-substrate/`, `crates/core/ship-platform/`, or `crates/core/ship-application/` (state, layered L0/L1/L2) or `crates/core/compiler/` (transformation).
 - CLI and MCP stay thin -- map inputs, format outputs.
 - React component state and API contracts must be explicit and stable.
 - `@ship/primitives` for shared UI (shadcn). `@ship/set` for generated types. Import directly, no local wrappers.

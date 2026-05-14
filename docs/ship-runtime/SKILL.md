@@ -11,34 +11,29 @@ audience: internal
 
 > **Boundary:** This is the **daemon** runtime — shipd, the DB, kernel, event store, workspace state, pipelines. For the **SUI** runtime (signals, bindings, transitions, mount, attach), see `docs/ship-sui/SKILL.md` and `packages/sui-runtime/src/`. Different package, different concerns.
 
-Ship's runtime layer owns all persistent state, pipeline execution, and inter-agent communication. The core library lives in `crates/core/runtime/`; the daemon binary lives in `apps/shipd/`.
+Ship's runtime layer owns all persistent state, pipeline execution, and inter-agent communication. It is split across three layered crates — `crates/core/ship-substrate/` (L0: kernel, events, persistence, db, home, env, data, plus the `mesh` and `human_gateway` service actors and low-level projections), `crates/core/ship-platform/` (L1: config, collections, artifacts, registry, hooks, agents, the `orchestrator` service, sessions, and high-level projections), and `crates/core/ship-application/` (L2: bundler, toolchain, project). The daemon binary lives in `apps/shipd/`.
 
 ## Module Layout
 
-**`crates/core/runtime/src/`**:
-
-### persistence/
+### persistence/ — `crates/core/ship-substrate/src/persistence/`
 
 Event sourcing infrastructure. `EventStore` trait with `SqliteEventStore` implementation. Also contains `actor_store` (actor lifecycle persistence), `snapshot` (state snapshots), and `cursor` (replay position tracking).
 
-### workspace/
+### sessions/ — `crates/core/ship-platform/src/sessions/`
 
-Workspace and session management:
+Session lifecycle and analytics. The `workspace` runtime primitive was retired entirely — sessions are immutable analytics records over actor activity:
 
-- `lifecycle.rs` — workspace creation and archival
-- `session.rs`, `session_lifecycle.rs` — session start, progress, end
-- `crud.rs` — workspace CRUD operations
-- `trash.rs` — soft-delete and restore for workspace files (24h retention, auto-purge)
-- `artifact_events.rs` — session artifact persistence
-- `compile.rs` — triggers compiler for active agent config
-- `reconcile.rs` — workspace state reconciliation
-- `types.rs`, `types_session.rs` — `Workspace`, `WorkspaceSession`, `WorkspaceSessionRecord`, `TrashEntry`
+- `session.rs` — session queries, progress, artifact persistence
+- `session_lifecycle.rs` — `start_session` (idempotent), `end_session`
+- `compile.rs` — triggers compiler for active agent config at session start
+- `helpers.rs` — branch-key validation and provider-ref normalization
+- `types_session.rs` — `Session`, `SessionStatus`, `SessionLiveness`, `EndSessionRequest`
 
-### projections/
+### projections/ — `crates/core/ship-substrate/src/projections/` (low-level) + `crates/core/ship-platform/src/projections/` (high-level)
 
-Read models rebuilt from events. Projection handlers for jobs (`JobRecord`, `load_jobs`), sessions, workspaces, actors, and the package registry. Includes `async_projection` for background rebuilds and `spawn` for projection actor startup.
+Read models rebuilt from events. Projection handlers for jobs (`JobRecord`, `load_jobs`), sessions, actors, processes, and the package registry. Includes `async_projection` for background rebuilds and `spawn` for projection actor startup.
 
-### services/
+### services/ — `crates/core/ship-platform/src/services/` (orchestrator, providers) + `crates/core/ship-substrate/src/services/` (mesh, human_gateway, dispatch_ports)
 
 Service actors and coordination:
 
@@ -57,15 +52,14 @@ Service actors and coordination:
 - `dispatch_ports.rs` — trait abstraction for job dispatch
 - `provider_adapter.rs`, `providers/` — provider-specific adapters
 
-### config/
+### config/ — `crates/core/ship-platform/src/config/`
 
 Configuration loading from `.ship/`:
 
 - `catalog.rs` — `CatalogEntry`, `CatalogKind` for skill/agent discovery
-- `hooks.rs` — `RuntimeHooks` trait, `DefaultRuntimeHooks` for lifecycle events
 - `security.rs` — security policy enforcement
 
-### agents/
+### agents/ — `crates/core/ship-platform/src/agents/`
 
 Agent profile management:
 
@@ -76,7 +70,7 @@ Agent profile management:
 - `skill_paths.rs` — skill file resolution
 - `skill_vars.rs` — skill variable substitution
 
-### registry/
+### registry/ — `crates/core/ship-platform/src/registry/`
 
 Package registry client:
 
@@ -87,21 +81,19 @@ Package registry client:
 - `tracking.rs` — install tracking
 - `cache.rs` — local package cache
 
-### db/
+### db/ — `crates/core/ship-substrate/src/db/`
 
 SQLite database layer:
 
-- `schema/` — migration files
 - `pool.rs` — connection pool management
-- `kv.rs` — key-value store
-- `session.rs`, `session_drain.rs` — session persistence and cleanup
-- `workspace_db.rs` — per-workspace database
-- `workspace_state.rs` — workspace state queries
-- `artifact_registry.rs` — artifact metadata storage
-- `envelope.rs`, `events.rs` — event persistence
+- `session.rs`, `session_drain.rs`, `session_events.rs` — session persistence, drain, and transactional event inserts
+- `daemon_settings.rs` — daemon settings table access
+- `envelope.rs`, `events.rs`, `actor_events.rs` — event persistence
+- `cursors.rs` — replay cursor tracking
+- `integrity.rs`, `repair.rs`, `project_id_reconcile.rs` — integrity checks and repair
 - `rebuild.rs` — projection rebuild from event log
 
-### sync/
+### sync/ — `crates/core/ship-platform/src/sync/`
 
 Cloud replication:
 
@@ -109,14 +101,14 @@ Cloud replication:
 - `cursor.rs` — replication cursor tracking
 - `types.rs` — sync protocol types
 
-### actor/
+### supervisor/ — `crates/core/ship-substrate/src/supervisor/`
 
 Actor model primitives:
 
 - `mod.rs` — actor trait and lifecycle
 - `supervisor.rs` — actor supervision and restart policies
 
-### events/
+### events/ — `crates/core/ship-substrate/src/events/`
 
 Thin re-export facade combining types from `ship-kernel` and `ship-types`. Includes `KernelRouter` initialization (`init_kernel_router`), security extensions (`kernel_security`), event filtering, and payload schema validation.
 
@@ -125,13 +117,12 @@ Thin re-export facade combining types from `ship-kernel` and `ship-types`. Inclu
 The daemon binary (`apps/shipd/`) hosts the `ShipRuntime`:
 
 - `ship_runtime.rs` — `ShipRuntime` struct with lazy `OnceCell` managers
-- `rest_api.rs` — REST endpoints for mesh and workspace operations
-- `runtime_api.rs` — read-only API for Studio (workspaces, sessions, agents, SSE)
-- `supervisor/` — job dispatch, pipeline engine, workspace setup, terminal launcher
-- `pty_handler.rs` — WebSocket-to-tmux PTY bridge
-- `connections.rs` — per-connection lifecycle and cleanup
-- `scopes.rs` — `DaemonSession`, `Scope` enum, role-based capability enforcement
-- `auth.rs` — session registry and token management
+- `routes/` — all HTTP route modules (`rest_api.rs` for mesh, `runtime_api.rs` read-only API for Studio, plus per-domain APIs)
+- `supervisor/` — integration-test scaffolding only; production supervisor code lives in the `crates/ship-supervisor/` crate
+- `transport/pty.rs` — WebSocket-to-tmux PTY bridge
+- `transport/connections.rs` — per-connection lifecycle and the mesh service spawn
+- `auth/scopes.rs` — re-exports `DaemonSession`, `Scope` from `ship_platform::auth::scopes`; role-based capability enforcement
+- `auth.rs` / `auth/` — session registry and token management
 
 ## Key Subsystems
 
@@ -139,6 +130,4 @@ The daemon binary (`apps/shipd/`) hosts the `ShipRuntime`:
 
 **Persistence**: All state changes produce append-only events. `SqliteEventStore` persists to `platform.db`. Projections rebuild read models from the event log. The `rebuild` module can reconstruct all projection tables from scratch.
 
-**Workspace**: Simplified model — no status machine. Workspaces are created (with optional git worktree), hold sessions, and get archived. Trash provides soft-delete with 24-hour retention and auto-purge on daemon startup.
-
-**Session telemetry**: Sessions track agent work within a workspace. Each session records start time, progress notes, end summary, model used, files changed, and gate results. Session artifacts are persisted to disk.
+**Session telemetry**: Sessions are immutable analytics records over actor activity. Each session records start time, progress notes, end summary, model used, files changed, lines added/removed, tool calls, and gate results — end-of-session telemetry lands inline on the session row. Session artifacts are persisted to disk.

@@ -31,18 +31,20 @@ The `ship-kernel` crate defines event routing primitives with no persistence or 
 
 Delivery uses `try_send` — mailbox full = silent drop. No backpressure on the router.
 
-## Runtime wrapper (`runtime::events::kernel_router`)
+## Runtime wrapper (`ship_substrate::events::kernel_router`)
 
 Thin shell around `ship_kernel::KernelRouter`. Takes `base_dir: PathBuf`
 (e.g. `~/.ship/`), constructs a `SqliteEventStore` sink, and hands it to
 the inner router. The wrapper adds:
 
-- `emit(event, ctx)` — validates with `EmitContext`-aware validators, then
-  calls `inner.route()` (persist + deliver).
-- `route(event, ctx)` — deprecated delivery-only path. Validates but skips
-  persistence. Calls `inner.deliver()`.
-- `spawn_actor(id, config)` — delegates to `inner.spawn_actor()`, returns
-  `(ActorStore, Mailbox)` instead of just `Mailbox`.
+- `emit(event, ctx)` — validates with `EmitContext`-aware validators,
+  enforces write namespaces, then calls `inner.route()` (persist + deliver).
+- `deliver(&event)` — delivery-only path for callers that have already
+  persisted through a canonical writer. Calls `inner.deliver()`; runs no
+  validators and does not persist.
+- `spawn_actor(id, config)` — delegates registration to
+  `inner.spawn_actor()`, returns `(ActorStore, Mailbox)` instead of just
+  `Mailbox`.
 - `unstable` feature: `actor_meta`, `event_log`, `actor_cursors`,
   `spawn_actor_with_permissions*`, scope-filtered delivery.
 
@@ -53,6 +55,6 @@ boundary. No per-actor SQLite files.
 ## Key files
 
 - `crates/core/ship-kernel/src/{router,mailbox,sink,validator}.rs` — pure abstractions.
-- `crates/core/runtime/src/events/kernel_router.rs` — production router wrapper.
-- `crates/core/runtime/src/persistence/actor_store.rs` — namespace-scoped handle.
-- `crates/core/runtime/src/persistence/event_store.rs` — `SqliteEventStore`, implements `ship_kernel::EventSink`.
+- `crates/core/ship-substrate/src/events/kernel_router.rs` — production router wrapper.
+- `crates/core/ship-substrate/src/persistence/actor_store.rs` — namespace-scoped handle.
+- `crates/core/ship-substrate/src/persistence/event_store.rs` — `SqliteEventStore`, implements `ship_kernel::EventSink`.

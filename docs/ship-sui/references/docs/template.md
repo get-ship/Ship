@@ -1,5 +1,5 @@
 ---
-group: Ship UI
+group: Views
 order: 2
 title: The template surface
 description: Everything you can write in a `.sui` file — directives, control flow, bindings, hooks, slots, expressions.
@@ -7,7 +7,7 @@ description: Everything you can write in a `.sui` file — directives, control f
 
 # The template surface
 
-A `.sui` file is HTML with a small set of directive elements at the top, mustache control flow inside, and a few binding shorthands on attributes. There is no script block and no style block. Logic lives in a sibling `.ts` (paired by filename); styles live in a sibling `.css` linked by `<link rel="stylesheet">`.
+A `.sui` file is HTML with a small set of directive elements at the top, mustache control flow inside, and a few binding shorthands on attributes. There is no script block and no style block. Logic lives in a sibling `controller.ts` (paired by directory); styles live in a sibling `style.css` linked by `<link rel="stylesheet">`.
 
 ## Directive elements
 
@@ -18,9 +18,9 @@ These appear at the top of the file (before the rendered DOM). They declare reac
 Reactive component state lives in the paired controller — there is no `<state>` directive. Templates declare data subscriptions, slots, and props; controllers own the signals templates read.
 
 ```ts
-// view.controller.ts
-import { controller, signal } from '@ship/ui-runtime'
-import type { Scope } from './view.sui'
+// controller.ts
+import { controller, signal } from '@ship/sui-runtime'
+import type { Scope } from './page.sui'
 
 export default controller<Scope>({
   scope: () => ({
@@ -48,12 +48,12 @@ mount: ({ state }) => {
 
 ```html
 <data name="agents" source="ship.agents.summaries()" live />
-<data name="settings" source="ship.settings.read()" />
+<data name="settings" source="ship.settings.state()" />
 
 <!-- Reactive args via $scope: re-subscribes when selectedId changes.
      `selectedId` is a signal declared in the controller's `scope:`
      factory; the template just declares the subscription. -->
-<data name="agent" source="ship.agents.get({id: $scope.selectedId()})" live />
+<data name="agent" source="ship.agents.detail({id: $scope.selectedId()})" live />
 ```
 
 Subscribes to a `ship.*` SDK call. With `live`, the runtime opens an SSE channel and patches the signal as the daemon emits updates. Without `live`, the value is read once at mount.
@@ -72,13 +72,7 @@ The `source` expression is plain JS that runs inside `live()`'s tracked reactive
 <button disabled={disabled() || loading()}>{label()}</button>
 ```
 
-The file IS the component. `<prop>` appears at the top of a component `.sui` file alongside `<data>` — no wrapper element needed. The tag name and shadow flag come from the per-component metadata file (`<tag>.sui.json`):
-
-```json
-{ "component": "ship-button", "shadow": true }
-```
-
-The build pipeline reads this file and passes `--component-name` / `--component-shadow` to the compiler. If no metadata file is present the directory name is used as the tag name. Views (top-level page surfaces) do not use `<prop>`.
+The file IS the component. `<prop>` appears at the top of a component `.sui` file alongside `<data>` — no wrapper element needed. There is no per-component config file: the compiler takes the tag name and shadow flag via `CompileOpts.component_meta` (driven by `sui-build` from the directory name / build config). Convention is the contract — directory name is the tag name. Views (top-level page surfaces) do not use `<prop>`.
 
 Prop kinds: `string` (default), `bool`, `number`, `values="a|b|c"` (union). `reflect` mirrors the prop to the host element's attributes.
 
@@ -100,19 +94,19 @@ The `mutation` attribute is a `ship.*` SDK chain. `<form mutation>` is the write
 
 Progressive enhancement: when JS is absent the SSR walker injects `action="/_sui/mutation/{view}?form=bN"` and `method="post"` on the form. The daemon handles the POST and redirects back to `Referer`. See [data-subscriptions.md](data-subscriptions.md#mutations) for the full envelope shape and PE flow.
 
-**Threshold rule.** A template with no paired `.ts` (tier-1) may not have multi-statement `on:event` handler bodies. The compiler enforces this at build time:
+**Threshold rule.** A template with no paired `controller.ts` (tier-1) may not have multi-statement `on:event` handler bodies. The compiler enforces this at build time (`crates/sui/sui-compiler/src/check/handler_complexity.rs`):
 
 ```html
-<!-- fails without view.ts -->
+<!-- fails without controller.ts -->
 <button on:click={() => { x.set(1); y.set(2) }}>Save</button>
 ```
 
 ```
-view.sui: line 1 col 30: [on:click handler]
+page.sui: line 1 col 30: [on:click handler]
 multi-statement handler — paired `<view>.ts` controller required for tier-2 work
 ```
 
-Single-expression handlers and single-statement blocks are fine at tier 1. Add a paired `.ts` to lift the restriction. See [controller.md](controller.md#tier-1--tier-2-threshold-rule).
+Single-expression handlers and single-statement blocks are fine at tier 1. Add a paired `controller.ts` to lift the restriction. See [controller.md](controller.md#tier-1--tier-2-threshold-rule).
 
 ## Control flow
 
@@ -122,7 +116,7 @@ Mustache-style, directly in the template body:
 
 ```html
 {#if loading()}
-  <ship-spinner />
+  <sui-spinner />
 {:else if error()}
   <p>Failed: {error().message}</p>
 {:else}
@@ -134,7 +128,7 @@ Mustache-style, directly in the template body:
 
 ```html
 {#for a of agents().value.items key={a.id}}
-  <ship-card>{a.name}</ship-card>
+  <sui-card>{a.name}</sui-card>
 {/for}
 ```
 
@@ -145,7 +139,7 @@ Mustache-style, directly in the template body:
 ```html
 {#match status()}
   {:case 'idle'}    <p>Ready</p>
-  {:case 'loading'} <ship-spinner />
+  {:case 'loading'} <sui-spinner />
   {:case 'error'}   <p>Failed</p>
   {:default}        <p>Unknown</p>
 {/match}
@@ -214,7 +208,7 @@ The handler value is an arrow function whose body should be a single call expres
 <input type="checkbox" bind:checked={enabled} />
 ```
 
-The runtime wires both directions: signal → DOM and DOM → signal. Do not also write `on:input={...}` — `bind:` owns the listener. If you need a side effect on change, write a `derived` over the bound signal or an `effect` (when effects ship).
+The runtime wires both directions: signal → DOM and DOM → signal. Do not also write `on:input={...}` — `bind:` owns the listener. If you need a side effect on change, write a `derived` over the bound signal or an `effect`.
 
 ### Attribute interpolation
 
@@ -245,7 +239,7 @@ Authoring rule: hook **attributes** are bindings (`as="X"`, `bind:foo={ref}`), n
 Standard web-component slot semantics resolved in light DOM at mount time:
 
 ```html
-<!-- in ship-button.sui -->
+<!-- in sui-button.sui -->
 <button>
   <span class="content">
     <slot name="leading"></slot>
@@ -255,10 +249,10 @@ Standard web-component slot semantics resolved in light DOM at mount time:
 </button>
 
 <!-- in a consumer -->
-<ship-button>
-  <ship-icon slot="leading" name="plus" />
+<sui-button>
+  <sui-icon slot="leading" name="plus" />
   New agent
-</ship-button>
+</sui-button>
 ```
 
 Named slots, default slot, fallback content, scoped slots (`<slot name="x" item={x}>` + consumer `let:item`) all supported.

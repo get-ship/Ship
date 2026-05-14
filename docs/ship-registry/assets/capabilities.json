@@ -57,7 +57,7 @@
   {
     "id": "cli-install",
     "status": "stable",
-    "notes": "ship install command resolves dependencies via resolve_and_fetch() in crates/core/runtime/src/registry/install.rs. Features: incremental resolution, version constraint parsing (^/~/exact/branch/commit), transitive dep discovery, hash verification (advisory), conflict detection with clear error messages. Supports --frozen (fail on lock changes) and --offline (skip install tracking). Test coverage via registry_e2e.rs. Production-ready."
+    "notes": "ship install command resolves dependencies via resolve_and_fetch() in crates/core/ship-platform/src/registry/install.rs. Features: incremental resolution, version constraint parsing (^/~/exact/branch/commit), transitive dep discovery, hash verification (advisory), conflict detection with clear error messages. Supports --frozen (fail on lock changes) and --offline (skip install tracking). Test coverage via registry_e2e.rs. Production-ready."
   },
   {
     "id": "content-security-scanning",

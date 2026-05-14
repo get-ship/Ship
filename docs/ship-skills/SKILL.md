@@ -46,19 +46,20 @@ docs/{id}/
 | `name` | yes | Human-readable name. Lowercase, hyphens, digits. |
 | `stable-id` | no | Storage key. Pattern: `[a-z0-9][a-z0-9\-]*`. Defaults to directory name. |
 | `description` | yes | One sentence starting with "Use when..." for trigger matching. |
-| `artifacts` | no | Array of artifact types this skill produces: `html`, `pdf`, `markdown`, `image`, `adr`, `note`, `json`, `url`. |
-| `tags` | no | Category labels for discovery. |
-| `authors` | no | Who wrote the skill. |
+| `artifacts` | no | Array of artifact types this skill produces: `html`, `pdf`, `markdown`, `image`, `adr`, `note`, `json`, `url`, `svg`. |
+| `tags` | yes | Category labels for discovery. Non-empty array of kebab strings. |
+| `authors` | yes | Who wrote the skill. Non-empty array of strings. |
 | `allowed-tools` | no | Space-delimited MCP tool names the skill requires. |
 
 ## Artifacts
 
 Skills declare what they produce via the `artifacts` frontmatter field. The platform infers interaction capabilities from artifact types:
 
-- `html` — renders in iframe, supports annotation + feedback events
-- `pdf` — renders in PDF viewer, supports selection + feedback events
-- `markdown` — renders with syntax highlighting, supports feedback events
-- `image` — renders with zoom, supports annotation events
+- `html` — renders in iframe, supports feedback + selection events
+- `pdf` — renders in PDF viewer, supports feedback + selection events
+- `markdown` — renders with syntax highlighting, supports feedback + selection events
+- `image` — renders with zoom, supports feedback events
+- `svg` — renders as scalable vector graphic, supports feedback events
 - `adr` — structured architecture decision record with schema, syncs to cloud docs API
 - `note` — structured note with schema, syncs to cloud docs API
 - `url` — iframes a local server URL (e.g. `vitest --ui`, `storybook`)
@@ -70,7 +71,7 @@ Typed artifacts like `adr` and `note` have schemas the platform knows. Studio re
 
 Define variables in `assets/vars.json` with a type (`string`, `bool`, `enum`, `array`, `object`), a `storage-hint` scope (`global`, `local`, `project`), and optional `default`, `label`, `description`.
 
-Merge order: defaults, then global, then local, then project. Last wins.
+Each variable resolves from its `default`, then its single declared scope (the `storage-hint`). There is no cross-scope merge — every variable lives in exactly one place.
 
 SKILL.md is a MiniJinja template. Use `{{ var }}` for substitution, `{% if var %}` for conditionals, `{% for item in list %}` for loops. Undefined variables render as empty string.
 
