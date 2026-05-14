@@ -11,7 +11,7 @@
 //!
 //! No TypeScript type inference. Cross-file inference beyond the
 //! `.sui` ↔ `.controller.ts` pair is out of scope (see
-//! `crates/sui-compiler/EXPRESSIONS.md → LSP intelligence`).
+//! `crates/sui/sui-compiler/EXPRESSIONS.md → LSP intelligence`).
 
 use std::path::Path;
 

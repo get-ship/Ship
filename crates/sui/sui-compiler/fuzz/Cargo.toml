@@ -14,7 +14,7 @@ libfuzzer-sys = "0.4"
 path = ".."
 
 # Prevent this crate from being picked up by the workspace at
-# `crates/sui-compiler/..`. cargo-fuzz drives this Cargo.toml directly via
+# `crates/sui/sui-compiler/..`. cargo-fuzz drives this Cargo.toml directly via
 # `cargo +nightly fuzz run …`; the workspace must not try to compile it
 # under stable (libfuzzer-sys requires nightly).
 [workspace]

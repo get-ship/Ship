@@ -1,5 +1,5 @@
 //! End-to-end coverage for the five type-strengthening gaps closed
-//! in `crates/sui-compiler/src/check/{scope_member, key_identity,
+//! in `crates/sui/sui-compiler/src/check/{scope_member, key_identity,
 //! bind_this_target, on_callable, for_iterable}.rs`. Each test drives
 //! the full `compile()` pipeline so the wiring is exercised in
 //! addition to the unit tests inside each check module.

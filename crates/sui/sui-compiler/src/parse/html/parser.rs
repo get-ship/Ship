@@ -330,7 +330,7 @@ mod tests {
         // used to panic in `starts_with_ci`: it sliced
         // `rest[..needle.len()]` without checking that the byte index
         // landed on a char boundary. Surfaced by libfuzzer in
-        // crates/sui-compiler/fuzz/ — minimized input was `<style><-──`.
+        // crates/sui/sui-compiler/fuzz/ — minimized input was `<style><-──`.
         let _ = parse_fragment("<style><-──");
         let _ = parse_fragment("<script>x<─</script>");
         let _ = parse_fragment("<style>a<bc</style>");

@@ -65,7 +65,7 @@ pub fn run(
     if source_path.is_some() {
         scope_bound::check(program, controller.as_ref())?;
     }
-    // Type-strengthening passes — see crates/sui-compiler/EXPRESSIONS.md.
+    // Type-strengthening passes — see crates/sui/sui-compiler/EXPRESSIONS.md.
     // These run after scope_bound so the user gets the "name not declared"
     // error first (it's the more common authoring mistake) before the
     // shape mismatches surface.

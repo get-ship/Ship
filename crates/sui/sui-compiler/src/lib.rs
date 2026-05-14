@@ -23,7 +23,7 @@
 //! println!("{:?}", out.dts);
 //! ```
 //!
-//! See `crates/sui-compiler/src/parse/` for the parse pipeline,
+//! See `crates/sui/sui-compiler/src/parse/` for the parse pipeline,
 //! `src/lower/` for IR lowering, and `src/emit/` for JS / CEM
 //! generation. Diagnostics carry byte spans pointing at the user's
 //! source — see `src/diagnostics.rs`.

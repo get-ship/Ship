@@ -49,7 +49,7 @@ jobs:
         run: cargo build --features unstable -p ship-cli -p mcp -p shipd
       # Shape-conformance integration test runs as part of
       # `cargo test --workspace` (it's a normal integration test under
-      # `crates/sui-compiler/tests/shape_conformance.rs`). The tsc gate
+      # `crates/sui/sui-compiler/tests/shape_conformance.rs`). The tsc gate
       # inside that test depends on the earlier `bun install` step
       # populating `node_modules/.bin/tsc`.
       - name: Cargo test
@@ -70,7 +70,7 @@ jobs:
         run: bun run --filter '@ship/sui-runtime' bundle
       # SUI rendering fuzz gate. Three targets, 60s each — keeps PR
       # wall-time small while catching the panic class that surfaced
-      # six bugs in `crates/sui-compiler/src/{render/eval/lex,check/
+      # six bugs in `crates/sui/sui-compiler/src/{render/eval/lex,check/
       # expr_subset,emit/expr_rewrite,parse/template/blocks/for_header}.rs`.
       # Nightly Rust required (libfuzzer-sys).
       - name: Install Rust nightly for fuzz
@@ -78,8 +78,8 @@ jobs:
       - name: Install cargo-fuzz
         run: cargo install cargo-fuzz --locked --version 0.13.1 || true
       - name: Fuzz — sui-compiler parse_fragment (60s)
-        run: cd crates/sui-compiler/fuzz && cargo +nightly fuzz run parse_fragment -- -max_total_time=60
+        run: cd crates/sui/sui-compiler/fuzz && cargo +nightly fuzz run parse_fragment -- -max_total_time=60
       - name: Fuzz — sui-compiler compile_full (60s)
-        run: cd crates/sui-compiler/fuzz && cargo +nightly fuzz run compile_full -- -max_total_time=60
+        run: cd crates/sui/sui-compiler/fuzz && cargo +nightly fuzz run compile_full -- -max_total_time=60
       - name: Fuzz — sui-compiler bindings_build (60s)
-        run: cd crates/sui-compiler/fuzz && cargo +nightly fuzz run bindings_build -- -max_total_time=60
+        run: cd crates/sui/sui-compiler/fuzz && cargo +nightly fuzz run bindings_build -- -max_total_time=60

@@ -7,7 +7,7 @@
 //! source order; the registry pass records one `Binding` per key, the
 //! render pass emits the markers and consumes the registry by index.
 //!
-//! See `crates/sui-compiler/src/bindings/mod.rs` for the
+//! See `crates/sui/sui-compiler/src/bindings/mod.rs` for the
 //! traversal that builds the registry, and the `sui-marker-contract`
 //! ADR for the marker shapes that every kind here corresponds to.
 

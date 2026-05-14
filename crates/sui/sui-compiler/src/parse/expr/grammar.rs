@@ -1,6 +1,6 @@
 //! Recursive-descent parser for the constrained `{expr}` subset.
 //!
-//! Grammar lives in `crates/sui-compiler/EXPRESSIONS.md`. This module
+//! Grammar lives in `crates/sui/sui-compiler/EXPRESSIONS.md`. This module
 //! produces an [`Ast`] tree with byte-range spans pointing into the
 //! original `.sui` source. The caller passes a `base_offset` so spans
 //! are absolute in the file, not relative to the inner-of-brace slice.

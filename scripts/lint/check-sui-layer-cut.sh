@@ -61,9 +61,9 @@ done
 
 # Framework Rust crates.
 for d in \
-  crates/sui-compiler/src \
-  crates/sui-signals/src \
-  crates/sui-lint/src \
+  crates/sui/sui-compiler/src \
+  crates/sui/sui-signals/src \
+  crates/sui/sui-lint/src \
 ; do
   [ -d "$d" ] && check_rust "$d"
 done

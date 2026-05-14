@@ -1,6 +1,6 @@
 //! `sui-css-token` — `var(--xyz)` inside a `.sui` `<style>` block must
 //! resolve to either the canonical theme registry
-//! (`crates/sui-compiler/tokens.json`) or a custom property set
+//! (`crates/sui/sui-compiler/tokens.json`) or a custom property set
 //! locally inside the same `<style>` block.
 //!
 //! Catches typos that today fall through silently (the variable is
@@ -84,7 +84,7 @@ pub fn check(path: &Path, source: &str) -> Vec<Finding> {
 /// fix the typo.
 fn suggest_text(closest: Option<&str>) -> String {
     let mut s = String::from(
-        "Use a token from the theme registry (crates/sui-compiler/tokens.json) \
+        "Use a token from the theme registry (crates/sui/sui-compiler/tokens.json) \
          or define `--<name>: ...;` in this <style> block.",
     );
     if let Some(name) = closest {

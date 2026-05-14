@@ -10,7 +10,7 @@
 //!    so the runtime sees the same shape the validator approved.
 //!
 //! 2. [`grammar`] — a recursive-descent parser that produces an AST
-//!    for the subset documented in `crates/sui-compiler/EXPRESSIONS.md`.
+//!    for the subset documented in `crates/sui/sui-compiler/EXPRESSIONS.md`.
 //!    Downstream type-strengthening checks (`check::scope_member`,
 //!    `check::key_identity`, ...) and LSP intelligence walk the AST
 //!    rather than re-implementing the byte-level scan five more

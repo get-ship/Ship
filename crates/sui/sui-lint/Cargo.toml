@@ -22,7 +22,7 @@ oxc_allocator = "0.128"
 oxc_span      = "0.128"
 
 # Loading the canonical CSS-token registry from
-# crates/sui-compiler/tokens.json (compile-time `include_str!`).
+# crates/sui/sui-compiler/tokens.json (compile-time `include_str!`).
 serde_json = { workspace = true }
 
 [dev-dependencies]
