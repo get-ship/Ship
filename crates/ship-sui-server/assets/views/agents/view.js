@@ -283,6 +283,12 @@ var page_default = view((ctx) => {
         const __wireBoundary_b22 = (anchor2) => bindFor({
           anchor: anchor2,
           items: () => $scope2.a.providers.slice(0, 4),
+          key: (p, __i2) => {
+            const __child = Object.create($scope2);
+            __child.p = p;
+            __child.__i = __i2;
+            return (($scope3) => p)(__child);
+          },
           render: (p, __i2) => {
             const __childScope90 = Object.create($scope2);
             __childScope90.p = p;
@@ -476,6 +482,12 @@ var page_default = view((ctx) => {
         const __wireBoundary_b36 = (anchor2) => bindFor({
           anchor: anchor2,
           items: () => ($scope2.a.tags || []).slice(0, 2),
+          key: (t, __i2) => {
+            const __child = Object.create($scope2);
+            __child.t = t;
+            __child.__i = __i2;
+            return (($scope3) => t)(__child);
+          },
           render: (t, __i2) => {
             const __childScope122 = Object.create($scope2);
             __childScope122.t = t;

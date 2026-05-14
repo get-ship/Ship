@@ -72,7 +72,7 @@
                 </div>
                 {#if a.providers && a.providers.length > 0}
                   <div class="agents-card-providers" aria-label="Compiles to">
-                    {#for p of a.providers.slice(0, 4)}
+                    {#for p of a.providers.slice(0, 4) key={p}}
                       <sui-chip tone="muted" variant="outline" size="sm" title={p}>{p}</sui-chip>
                     {/for}
                     {#if a.providers.length > 4}
@@ -105,7 +105,7 @@
                       </sui-chip>
                     {/if}
                   {/if}
-                  {#for t of (a.tags || []).slice(0, 2)}
+                  {#for t of (a.tags || []).slice(0, 2) key={t}}
                     <sui-chip tone="muted" variant="soft" size="sm">{t}</sui-chip>
                   {/for}
                   {#if (a.tags || []).length > 2}
