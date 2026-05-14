@@ -7,8 +7,8 @@
 export const SLOT_COMPOSITIONS: Record<string, string> = {
   'sui-rail': `
     <sui-rail-section label="Section A">
-      <sui-rail-item data-view="counter">Counter</sui-rail-item>
       <sui-rail-item data-view="agents" active>Agents</sui-rail-item>
+      <sui-rail-item data-view="skills">Skills</sui-rail-item>
     </sui-rail-section>
     <sui-rail-section label="Section B">
       <sui-rail-item data-view="git">Git</sui-rail-item>
