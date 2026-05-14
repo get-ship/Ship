@@ -6,8 +6,6 @@ import { controller, effect, ref, signal } from '@ship/sui-runtime'
 import type { Scope } from './sui-rail.sui'
 import { setupProjectSwitcher, type Project } from './sui-rail-project-switcher'
 
-const SESSION_POLL_MS = 15000
-
 function routeToViewName(path: string): string {
   const seg = path.split('/').filter(Boolean)[0]
   return seg ?? 'dashboard'
@@ -29,7 +27,6 @@ export default controller<Scope>({
     const activeView = signal<string>(
       typeof location !== 'undefined' ? routeToViewName(location.pathname) : '',
     )
-    const sessionCount = signal(0)
     const projectInitial = (): string => {
       const list = projects()
       const cur = list.find((p) => p.id === activeProjectId()) ?? list[0]
@@ -44,18 +41,23 @@ export default controller<Scope>({
       projects,
       activeProjectId,
       activeView,
-      sessionCount,
       projectInitial,
       popoverEl: ref<HTMLElement>(),
       projectBadgeEl: ref<HTMLElement>(),
       launcherBtnEl: ref<HTMLElement>(),
       createBtnEl: ref<HTMLElement>(),
-      missionEl: ref<HTMLElement>(),
       navSlot: ref<HTMLSlotElement>(),
     }
   },
 
   mount(state, host) {
+    // Landmark a11y: declare the rail as a navigation region so assistive
+    // tech announces it as a landmark and `aria-label` distinguishes it
+    // from other nav landmarks (e.g. top-nav). Done in mount() rather
+    // than the template so it cannot be stripped by markup edits.
+    if (!host.hasAttribute('role')) host.setAttribute('role', 'navigation')
+    if (!host.hasAttribute('aria-label')) host.setAttribute('aria-label', 'Primary navigation')
+
     const switcher = setupProjectSwitcher({
       host,
       open: state.projectOpen,
@@ -89,28 +91,6 @@ export default controller<Scope>({
       return () => btn.removeEventListener('click', onCreateClick)
     })
 
-    const pollSessions = async (): Promise<void> => {
-      try {
-        const resp = await fetch('/api/v1/pty-sessions', { credentials: 'same-origin' })
-        if (!resp.ok) return
-        const body = (await resp.json()) as { sessions: Array<{ status: string }> }
-        const live = body.sessions.filter((s) => s.status !== 'ended').length
-        state.sessionCount.set(live)
-      } catch { /* leave previous count */ }
-    }
-
-    void pollSessions()
-    const poll = window.setInterval(() => void pollSessions(), SESSION_POLL_MS)
-    const onExternalChange = (): void => void pollSessions()
-    window.addEventListener('ship:session:changed', onExternalChange)
-
-    const stopBadgeEffect = effect(() => {
-      const item = state.missionEl()
-      if (!item) return
-      const n = state.sessionCount()
-      item.setAttribute('badge', n > 0 ? String(n) : '')
-    })
-
     const recomputeActive = (): void => {
       state.activeView.set(routeToViewName(location.pathname))
     }
@@ -125,23 +105,15 @@ export default controller<Scope>({
         if (item.dataset.view === name) item.setAttribute('active', '')
         else item.removeAttribute('active')
       }
-      const mc = state.missionEl()
-      if (mc) {
-        if (name === 'mesh') mc.setAttribute('active', '')
-        else mc.removeAttribute('active')
-      }
     })
 
     return () => {
       stopLauncherBind()
       stopCreateBind()
-      stopBadgeEffect()
       stopActiveSync()
       switcher.dispose()
       document.removeEventListener('sui:navigate', onNavigate)
       window.removeEventListener('popstate', onNavigate)
-      window.removeEventListener('ship:session:changed', onExternalChange)
-      window.clearInterval(poll)
     }
   },
 })

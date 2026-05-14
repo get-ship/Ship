@@ -21,13 +21,15 @@
   ─────────────────────────────────────────────────────────────────────────────
   Slots: (default) — accepts <sui-rail-item> and <sui-rail-section> children
   Parts: nav, footer, project-badge, project-popover, launcher-btn,
-         create-btn, mission-control
+         create-btn
+  ─────────────────────────────────────────────────────────────────────────────
+  ARIA: host carries role="navigation" + aria-label="Primary navigation"
+        (applied by the controller in mount()). Slotted <sui-rail-item>s
+        render as anchors and expose aria-current="page" when active.
   ─────────────────────────────────────────────────────────────────────────────
   Behavior (controller-owned):
     - Project switcher: portal-positioned popover; lists /api/v1/projects;
       adds new project via prompt; transition:fade on open/close.
-    - Session count badge: polls /api/v1/pty-sessions every 15s; badged on
-      the baked-in Mission Control rail item; suppressed when count = 0.
     - Active-view: listens to sui:navigate (and reads location.pathname);
       mirrors the first path segment onto slotted <sui-rail-item[data-view]>
       children as the `active` attribute.

@@ -33,7 +33,6 @@ describe('<sui-rail>', () => {
   beforeEach(() => {
     mockFetch({
       '/api/v1/projects': { projects: [], active: null },
-      '/api/v1/pty-sessions': { sessions: [] },
     })
   })
 
@@ -41,7 +40,7 @@ describe('<sui-rail>', () => {
     expect(customElements.get('sui-rail')).toBeDefined()
   })
 
-  it('renders nav, footer, project-badge, launcher, create, mission-control parts', async () => {
+  it('renders nav, footer, project-badge, launcher, create parts', async () => {
     const { el } = mount(reg, 'sui-rail')
     await flush()
     const s = shadow(el)
@@ -50,7 +49,24 @@ describe('<sui-rail>', () => {
     expect(s.querySelector('[part~="project-badge"]')).not.toBeNull()
     expect(s.querySelector('[part~="launcher-btn"]')).not.toBeNull()
     expect(s.querySelector('[part~="create-btn"]')).not.toBeNull()
-    expect(s.querySelector('[part~="mission-control"]')).not.toBeNull()
+  })
+
+  it('host exposes role=navigation + aria-label for assistive tech', async () => {
+    const { el } = mount(reg, 'sui-rail')
+    await flush()
+    expect(el.getAttribute('role')).toBe('navigation')
+    expect(el.getAttribute('aria-label')).toBe('Primary navigation')
+  })
+
+  it('active slotted item exposes aria-current=page on its anchor', async () => {
+    history.pushState({}, '', '/agents')
+    const html = '<sui-rail-item data-view="agents" label="Agents" icon="bot" href="/agents"></sui-rail-item>'
+    const { el } = mount(reg, 'sui-rail', {}, html)
+    await flush()
+    await flush()
+    const item = el.querySelector('sui-rail-item[data-view="agents"]') as HTMLElement
+    const anchor = item.shadowRoot!.querySelector('a.item')!
+    expect(anchor.getAttribute('aria-current')).toBe('page')
   })
 
   it('has no arrow toggle button — toggle is owned by the top-nav menu', async () => {
@@ -89,7 +105,6 @@ describe('<sui-rail> project switcher', () => {
         ],
         active: 'b',
       },
-      '/api/v1/pty-sessions': { sessions: [] },
     })
   })
 
@@ -152,46 +167,15 @@ describe('<sui-rail> project switcher', () => {
   })
 })
 
-// ─────────────────────────────────────────────────────────────────────────────
-describe('<sui-rail> Mission Control session badge', () => {
-  it('updates Mission Control badge from /api/v1/pty-sessions', async () => {
-    mockFetch({
-      '/api/v1/projects': { projects: [], active: null },
-      '/api/v1/pty-sessions': {
-        sessions: [
-          { status: 'running' },
-          { status: 'idle' },
-          { status: 'ended' },
-        ],
-      },
-    })
-    const { el } = mount(reg, 'sui-rail')
-    await flush()
-    await flush()
-    await flush()
-    const mc = shadow(el).querySelector<HTMLElement>('[part~="mission-control"]')!
-    expect(mc.getAttribute('badge')).toBe('2')
-  })
-
-  it('suppresses Mission Control badge when zero', async () => {
-    mockFetch({
-      '/api/v1/projects': { projects: [], active: null },
-      '/api/v1/pty-sessions': { sessions: [{ status: 'ended' }] },
-    })
-    const { el } = mount(reg, 'sui-rail')
-    await flush()
-    await flush()
-    const mc = shadow(el).querySelector<HTMLElement>('[part~="mission-control"]')!
-    expect(mc.getAttribute('badge') ?? '').toBe('')
-  })
-})
+// Mission Control rail item was removed in bb65d04c; the session-count
+// polling + badge wiring went with it in this commit. Future per-item
+// badges should be driven by props on slotted <sui-rail-item>s.
 
 // ─────────────────────────────────────────────────────────────────────────────
 describe('<sui-rail> launcher / create buttons', () => {
   beforeEach(() => {
     mockFetch({
       '/api/v1/projects': { projects: [], active: null },
-      '/api/v1/pty-sessions': { sessions: [] },
     })
   })
 
@@ -223,7 +207,6 @@ describe('<sui-rail> active-view tracking', () => {
   beforeEach(() => {
     mockFetch({
       '/api/v1/projects': { projects: [], active: null },
-      '/api/v1/pty-sessions': { sessions: [] },
     })
   })
 
@@ -257,11 +240,8 @@ describe('<sui-rail> active-view tracking', () => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 describe('<sui-rail-item>', () => {
-  it('registers the custom element', () => {
+  it('registers and renders an anchor with part=item in shadow DOM', () => {
     expect(customElements.get('sui-rail-item')).toBeDefined()
-  })
-
-  it('renders an anchor with part=item in shadow DOM', () => {
     const { el } = mount(reg, 'sui-rail-item', { label: 'Dashboard', icon: 'layout-dashboard', href: '/' })
     const a = shadow(el).querySelector('a.item')
     expect(a).not.toBeNull()
@@ -274,18 +254,11 @@ describe('<sui-rail-item>', () => {
     expect(a.getAttribute('href')).toBe('/pipelines')
   })
 
-  it('renders label text in .label span', async () => {
+  it('renders label text and mirrors it as native title tooltip', async () => {
     const { el } = mount(reg, 'sui-rail-item', { label: 'Agents', icon: 'bot', href: '/agents' })
     await flush()
-    const labelEl = shadow(el).querySelector('.label')!
-    expect(labelEl.textContent?.trim()).toBe('Agents')
-  })
-
-  it('sets the native title tooltip from label', async () => {
-    const { el } = mount(reg, 'sui-rail-item', { label: 'Agents', icon: 'bot', href: '/agents' })
-    await flush()
-    const a = shadow(el).querySelector<HTMLAnchorElement>('a.item')!
-    expect(a.getAttribute('title')).toBe('Agents')
+    expect(shadow(el).querySelector('.label')!.textContent?.trim()).toBe('Agents')
+    expect(shadow(el).querySelector<HTMLAnchorElement>('a.item')!.getAttribute('title')).toBe('Agents')
   })
 
   it('passes icon name to sui-icon', () => {
@@ -294,19 +267,13 @@ describe('<sui-rail-item>', () => {
     expect(icon.getAttribute('name')).toBe('settings')
   })
 
-  it('active=false by default — no aria-current', () => {
-    const { el } = mount(reg, 'sui-rail-item', { href: '/', label: 'Home', icon: 'home' })
-    const a = shadow(el).querySelector('a.item')!
-    expect(a.hasAttribute('aria-current')).toBe(false)
-    expect(el.hasAttribute('active')).toBe(false)
-  })
-
-  it('reflects [active] and sets aria-current=page on anchor', async () => {
-    const { el } = mount(reg, 'sui-rail-item', { href: '/', label: 'Home', icon: 'home', active: true })
+  it('active toggles aria-current=page on the anchor', async () => {
+    const off = mount(reg, 'sui-rail-item', { href: '/', label: 'Home', icon: 'home' })
+    expect(shadow(off.el).querySelector('a.item')!.hasAttribute('aria-current')).toBe(false)
+    const on = mount(reg, 'sui-rail-item', { href: '/', label: 'Home', icon: 'home', active: true })
     await flush()
-    expect(el.hasAttribute('active')).toBe(true)
-    const a = shadow(el).querySelector('a.item')!
-    expect(a.getAttribute('aria-current')).toBe('page')
+    expect(on.el.hasAttribute('active')).toBe(true)
+    expect(shadow(on.el).querySelector('a.item')!.getAttribute('aria-current')).toBe('page')
   })
 
   it('badge shows badge text when non-empty', async () => {
