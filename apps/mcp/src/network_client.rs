@@ -56,18 +56,28 @@ fn http_client() -> reqwest::Client {
         .unwrap_or_else(|_| reqwest::Client::new())
 }
 
-/// POST JSON to a REST endpoint, return the response body.
-async fn post(path: &str, body: Value) -> Result<String> {
+/// Shared request path used by every HTTP helper in this file. Adds the
+/// bearer token, optional `x-ship-agent-id` for ownership-attribution,
+/// the JSON body (if any), and translates non-2xx into a typed error.
+async fn request(
+    method: reqwest::Method,
+    path: &str,
+    body: Option<&Value>,
+    agent_id: Option<&str>,
+) -> Result<String> {
     let url = format!("{}{}", base_url()?, path);
     let token = get_effective_token().await?;
-    let resp = http_client()
-        .post(&url)
-        .bearer_auth(&token)
-        .json(&body)
+    let mut req = http_client().request(method, &url).bearer_auth(&token);
+    if let Some(id) = agent_id {
+        req = req.header("x-ship-agent-id", id);
+    }
+    if let Some(b) = body {
+        req = req.json(b);
+    }
+    let resp = req
         .send()
         .await
         .map_err(|e| anyhow!("ship daemon unavailable: {e}"))?;
-
     let status = resp.status();
     let text = resp.text().await.map_err(|e| anyhow!("failed to read response: {e}"))?;
     if !status.is_success() {
@@ -76,23 +86,14 @@ async fn post(path: &str, body: Value) -> Result<String> {
     Ok(text)
 }
 
+/// POST JSON to a REST endpoint, return the response body.
+async fn post(path: &str, body: Value) -> Result<String> {
+    request(reqwest::Method::POST, path, Some(&body), None).await
+}
+
 /// GET from a REST endpoint.
 async fn get(path: &str) -> Result<String> {
-    let url = format!("{}{}", base_url()?, path);
-    let token = get_effective_token().await?;
-    let resp = http_client()
-        .get(&url)
-        .bearer_auth(&token)
-        .send()
-        .await
-        .map_err(|e| anyhow!("ship daemon unavailable: {e}"))?;
-
-    let status = resp.status();
-    let text = resp.text().await.map_err(|e| anyhow!("failed to read response: {e}"))?;
-    if !status.is_success() {
-        return Err(anyhow!("ship daemon error ({}): {}", status, text));
-    }
-    Ok(text)
+    request(reqwest::Method::GET, path, None, None).await
 }
 
 pub async fn mesh_register(agent_id: &str, capabilities: Vec<String>) -> Result<String> {
@@ -191,40 +192,11 @@ pub async fn steer_agent_via_daemon(slug: &str, message: &str) -> Result<String>
 /// attributes the call to the calling agent (ownership enforcement). Used
 /// by the `view.*` tool family.
 async fn post_as_agent(path: &str, agent_id: &str, body: Value) -> Result<String> {
-    let url = format!("{}{}", base_url()?, path);
-    let token = get_effective_token().await?;
-    let resp = http_client()
-        .post(&url)
-        .bearer_auth(&token)
-        .header("x-ship-agent-id", agent_id)
-        .json(&body)
-        .send()
-        .await
-        .map_err(|e| anyhow!("ship daemon unavailable: {e}"))?;
-    let status = resp.status();
-    let text = resp.text().await.map_err(|e| anyhow!("failed to read response: {e}"))?;
-    if !status.is_success() {
-        return Err(anyhow!("ship daemon error ({}): {}", status, text));
-    }
-    Ok(text)
+    request(reqwest::Method::POST, path, Some(&body), Some(agent_id)).await
 }
 
 async fn delete_as_agent(path: &str, agent_id: &str) -> Result<String> {
-    let url = format!("{}{}", base_url()?, path);
-    let token = get_effective_token().await?;
-    let resp = http_client()
-        .delete(&url)
-        .bearer_auth(&token)
-        .header("x-ship-agent-id", agent_id)
-        .send()
-        .await
-        .map_err(|e| anyhow!("ship daemon unavailable: {e}"))?;
-    let status = resp.status();
-    let text = resp.text().await.map_err(|e| anyhow!("failed to read response: {e}"))?;
-    if !status.is_success() {
-        return Err(anyhow!("ship daemon error ({}): {}", status, text));
-    }
-    Ok(text)
+    request(reqwest::Method::DELETE, path, None, Some(agent_id)).await
 }
 
 pub async fn view_open(

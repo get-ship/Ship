@@ -185,7 +185,8 @@ pub async fn get_project_info(project_dir: &Path) -> String {
         }
     }
 
-    if let Ok(events) = read_recent_events(project_dir, 10)
+    let _ = project_dir;
+    if let Ok(events) = read_recent_events(10)
         && !events.is_empty()
     {
         out.push_str("\n## Recent Events\n");

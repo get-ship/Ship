@@ -134,11 +134,9 @@ fn resolve_jobs_list() -> Option<String> {
 }
 
 fn resolve_job_by_id(id: &str) -> Option<String> {
-    match load_jobs() {
-        Ok(jobs) => match jobs.get(id) {
-            Some(job) => serde_json::to_string_pretty(job).ok(),
-            None => Some(format!("Job '{}' not found", id)),
-        },
+    match ship_platform::projections::job::load_job_by_id(id) {
+        Ok(Some(job)) => serde_json::to_string_pretty(&job).ok(),
+        Ok(None) => Some(format!("Job '{}' not found", id)),
         Err(err) => Some(format!("Error: {}", err)),
     }
 }
