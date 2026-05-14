@@ -202,10 +202,26 @@ fn not_found(msg: &str) -> Response {
         .unwrap_or_else(|_| Response::new(Body::from("not found")))
 }
 
-fn is_valid_view_name(s: &str) -> bool {
-    !s.is_empty()
-        && s.len() <= 64
-        && s.chars().all(|c| c.is_ascii_lowercase() || c == '-')
+pub(crate) fn is_valid_view_name(s: &str) -> bool {
+    if s.is_empty() {
+        return false;
+    }
+    let segments: Vec<&str> = s.split('/').collect();
+    if segments.len() > 8 {
+        return false;
+    }
+    for seg in segments {
+        if seg.is_empty() || seg.len() > 64 {
+            return false;
+        }
+        if seg == ".." || seg.starts_with('.') || seg.starts_with('-') {
+            return false;
+        }
+        if !seg.chars().all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-') {
+            return false;
+        }
+    }
+    true
 }
 
 fn render_error(message: String, mode: DaemonMode) -> Response {
@@ -251,6 +267,49 @@ mod tests {
             }
         });
         ROOT.get().unwrap()
+    }
+
+    #[test]
+    fn view_name_accepts_digits_upper_under_dash() {
+        assert!(is_valid_view_name("v2"));
+        assert!(is_valid_view_name("MyView"));
+        assert!(is_valid_view_name("my_view"));
+        assert!(is_valid_view_name("my-view"));
+        assert!(is_valid_view_name("v2-dashboard"));
+        assert!(is_valid_view_name("agents"));
+    }
+
+    #[test]
+    fn view_name_rejects_traversal_and_dotted_prefixes() {
+        assert!(!is_valid_view_name("../etc"));
+        assert!(!is_valid_view_name(".."));
+        assert!(!is_valid_view_name(".hidden"));
+        assert!(!is_valid_view_name("-leading-dash"));
+    }
+
+    #[test]
+    fn view_name_rejects_empty_and_oversize() {
+        assert!(!is_valid_view_name(""));
+        let too_long: String = "a".repeat(65);
+        assert!(!is_valid_view_name(&too_long));
+        let max_ok: String = "a".repeat(64);
+        assert!(is_valid_view_name(&max_ok));
+    }
+
+    #[test]
+    fn view_name_rejects_invalid_chars() {
+        assert!(!is_valid_view_name("with space"));
+        assert!(!is_valid_view_name("with.dot"));
+        assert!(!is_valid_view_name("with$dollar"));
+    }
+
+    #[test]
+    fn view_name_segment_limits() {
+        assert!(is_valid_view_name("a/b/c"));
+        let too_deep = "a/b/c/d/e/f/g/h/i";
+        assert!(!is_valid_view_name(too_deep));
+        assert!(!is_valid_view_name("foo//bar"));
+        assert!(!is_valid_view_name("foo/../bar"));
     }
 
     #[tokio::test(flavor = "multi_thread")]

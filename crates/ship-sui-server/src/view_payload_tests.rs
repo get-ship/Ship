@@ -376,7 +376,7 @@ async fn unknown_view_returns_404_json() {
 async fn invalid_name_returns_404_json() {
     let tmp = tempfile::tempdir().unwrap();
     let _g = lock_with_dir(tmp.path());
-    let resp = serve_view_payload(None, Path("BadName".to_string())).await;
+    let resp = serve_view_payload(None, Path("..".to_string())).await;
     assert_eq!(resp.status(), StatusCode::NOT_FOUND);
     let v: serde_json::Value = serde_json::from_str(&body_str(resp).await).unwrap();
     assert!(v["error"]["invalid_name"].is_object(), "got: {v}");

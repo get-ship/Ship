@@ -29,7 +29,7 @@ pub async fn serve_view_payload_subpath(
 }
 
 fn serve(name: &str, sub_path: Option<&str>, mode: DaemonMode) -> Response {
-    if !is_valid_view_name(name) {
+    if !crate::view::is_valid_view_name(name) {
         return json_error(
             StatusCode::NOT_FOUND,
             PayloadErrorBody::InvalidName { name: name.to_string() },
@@ -217,8 +217,3 @@ fn json_error(status: StatusCode, body: PayloadErrorBody, _mode: DaemonMode) -> 
         .unwrap_or_else(|_| Response::new(Body::from("response build failed")))
 }
 
-fn is_valid_view_name(s: &str) -> bool {
-    !s.is_empty()
-        && s.len() <= 64
-        && s.chars().all(|c| c.is_ascii_lowercase() || c == '-')
-}
