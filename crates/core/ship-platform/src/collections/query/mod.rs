@@ -40,7 +40,19 @@ fn default_limit() -> u32 {
 
 /// Build a SELECT query for a collection table.
 /// Returns (sql_string, sea_query::Values) for parameterized execution.
+///
+/// # Panics
+///
+/// Panics if `req.collection` is not a safe SQL identifier. Callers must
+/// validate collection names against `is_safe_identifier` (or load via a
+/// validated `CollectionSchema`) before invoking — wire-facing handlers
+/// should reject unsafe names at the boundary.
 pub fn build_select(req: &QueryRequest) -> (String, sea_query::Values) {
+    assert!(
+        is_safe_identifier(&req.collection),
+        "build_select: unsafe collection name `{}` — handlers must reject earlier",
+        req.collection
+    );
     let table = collection_table(&req.collection);
     let mut query = Query::select();
     query.column(sea_query::Asterisk).from(table.clone());
@@ -87,7 +99,7 @@ pub fn collection_table(collection: &str) -> Alias {
 }
 
 /// Validate a field name is a safe SQL identifier.
-pub(crate) fn is_safe_identifier(name: &str) -> bool {
+pub fn is_safe_identifier(name: &str) -> bool {
     !name.is_empty()
         && name.len() <= 128
         && name

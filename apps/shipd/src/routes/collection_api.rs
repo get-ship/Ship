@@ -353,6 +353,16 @@ pub async fn query_items(
     if let Err(e) = require_scope(&auth, Scope::ReadWorkspace) {
         return e.into_response();
     }
+    if !ship_platform::collections::query::is_safe_identifier(&collection) {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(crate::wire::ErrorResponse {
+                error: "bad_request".into(),
+                message: format!("invalid collection name `{collection}`"),
+                details: None,
+            }),
+        ).into_response();
+    }
     req.collection = collection.clone();
     match collections(&state).query_items(&collection, req).await {
         Ok(items) => {
