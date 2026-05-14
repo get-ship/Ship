@@ -38,7 +38,8 @@
                 </div>
                 {#for s of g.skills key={s.id}}
                   <div role="treeitem">
-                    <button class="se-skill"
+                    <button class="se-skill" class:is-active={s.id === skillId()}
+                      aria-current={s.id === skillId() ? 'page' : null}
                       on:click={() => navigate('/skills/' + s.id)}
                       attr:title={s.description}>
                       <span class="se-chevron" aria-hidden="true">
@@ -60,11 +61,14 @@
                       {#for f of s.files key={f}}
                         <button class="se-file" class:is-active={selectedFile() === f}
                           role="treeitem"
+                          aria-current={selectedFile() === f ? 'true' : null}
                           on:click={() => selectFile(f)}
                           attr:title={f}>
-                          <sui-icon name="file" size="xs"
-                            attr:tone={f === 'SKILL.md' ? 'info' : f.slice(-5) === '.json' ? 'warning' : f.slice(-3) === '.md' ? 'success' : 'muted'}></sui-icon>
+                          <sui-icon size="xs"
+                            attr:name={fileMetas()[f] ? fileMetas()[f].icon : 'file'}
+                            attr:tone={fileMetas()[f] ? fileMetas()[f].tone : 'muted'}></sui-icon>
                           <span class="se-fname">{f}</span>
+                          <span class="se-fkind" aria-hidden="true">{fileMetas()[f] ? fileMetas()[f].kind : ''}</span>
                         </button>
                       {/for}
                     {/if}
