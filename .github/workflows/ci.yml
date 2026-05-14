@@ -17,22 +17,18 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-      - uses: pnpm/action-setup@v4
+      - uses: oven-sh/setup-bun@v2
         with:
-          version: 10
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          cache: pnpm
+          bun-version: latest
       - name: Install JS deps
-        run: pnpm install --frozen-lockfile
+        run: bun install --frozen-lockfile
       # Build sui-compiler upfront so build-bundles + precompile-sui find the
       # binary at target/debug/sui-compiler instead of paying `cargo run` per
       # `.sui` file. Required by scripts/precompile-sui.mjs.
       - name: Build sui-compiler
         run: cargo build -p sui-compiler
       - name: Build daemon asset bundles
-        run: pnpm build:bundles
+        run: bun run build:bundles
       - name: Check silent-error patterns
         run: bash scripts/lint/check-silent-errors.sh
       - name: Check SUI layer-cut (no framework -> host imports)
@@ -40,11 +36,11 @@ jobs:
       - name: Check SUI bundle sizes (within budget)
         run: bash scripts/lint/check-sui-bundle-size.sh
       - name: Check OpenAPI drift
-        run: cd apps/docs && pnpm run openapi:check-drift
+        run: cd apps/docs && bun run openapi:check-drift
       - name: Collect skill docs
-        run: cd apps/docs && AUDIENCE=internal pnpm run collect
+        run: cd apps/docs && AUDIENCE=internal bun run collect
       - name: Check skill-docs drift
-        run: cd apps/docs && pnpm run docs:check-drift
+        run: cd apps/docs && bun run docs:check-drift
       - name: Clippy
         run: cargo clippy --workspace --features unstable -- -D warnings
       - name: Build (stable)
@@ -54,7 +50,7 @@ jobs:
       # Shape-conformance integration test runs as part of
       # `cargo test --workspace` (it's a normal integration test under
       # `crates/sui-compiler/tests/shape_conformance.rs`). The tsc gate
-      # inside that test depends on the earlier `pnpm install` step
+      # inside that test depends on the earlier `bun install` step
       # populating `node_modules/.bin/tsc`.
       - name: Cargo test
         run: cargo test --workspace --features unstable
@@ -62,16 +58,16 @@ jobs:
       # jsdom with zero leaked EventSources / Observers / intervals.
       # See `tests/integration/resource-symmetry.test.ts`.
       - name: Integration test (resource symmetry)
-        run: pnpm exec vitest run --config tests/integration/vitest.config.ts
+        run: bunx vitest run --config tests/integration/vitest.config.ts
       # Runs `pretest` first (scripts/precompile-sui.mjs), which exercises
       # every framework check baked into the sui-compiler pipeline:
       # controller-purity, css-token, bind-this-ref, on-callable, and
       # the rest of the type-strengthening passes. The earlier
-      # `pnpm build:bundles` step covers the same checks for views/*.
+      # `bun run build:bundles` step covers the same checks for views/*.
       - name: JS tests (precompiles SUI via pretest hook)
-        run: pnpm -F @ship/ui-components test
+        run: bun run --filter '@ship/ui-components' test
       - name: Bundle sui-runtime
-        run: pnpm -F @ship/sui-runtime bundle
+        run: bun run --filter '@ship/sui-runtime' bundle
       # SUI rendering fuzz gate. Three targets, 60s each — keeps PR
       # wall-time small while catching the panic class that surfaced
       # six bugs in `crates/sui-compiler/src/{render/eval/lex,check/

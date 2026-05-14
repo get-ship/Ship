@@ -122,13 +122,4 @@ describe('SuiBundler interface', () => {
     expect(adapter.name).toBe('bun')
   })
 
-  it('accepts an esbuild-named adapter', () => {
-    const adapter: SuiBundler = {
-      name: 'esbuild',
-      async build() {
-        return { outputs: [], warnings: [], durationMs: 0 }
-      },
-    }
-    expect(adapter.name).toBe('esbuild')
-  })
 })

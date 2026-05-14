@@ -7,8 +7,8 @@
   "main": "src/index.ts",
   "types": "src/index.ts",
   "scripts": {
-    "build": "node node_modules/@ship/sui-build/bin/sui-build.mjs",
-    "pretest": "node node_modules/@ship/sui-build/bin/sui-build.mjs",
+    "build": "sui-build",
+    "pretest": "sui-build",
     "test": "vitest run",
     "test:watch": "vitest"
   },

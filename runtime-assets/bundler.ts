@@ -476,11 +476,11 @@ function emit(msg: Response | Event) {
 
 // CLI mode: `--all` runs a one-shot build of the sui-* family + views and
 // exits. This is the asset set `crates/ship-sui-server/build.rs` requires
-// via its ASSETS const, so the root `pnpm build:bundles` script can fan out
-// here in CI without scripting the stdin/stdout JSON protocol.
+// via its ASSETS const, so the root `bun run build:bundles` script can fan
+// out here in CI without scripting the stdin/stdout JSON protocol.
 //
 // The `ship-*` (lit) targets are intentionally excluded — they belong to
-// `@ship/set`'s own build path (`pnpm -F @ship/set build` + `... icons`)
+// `@ship/set`'s own build path (`bun run --filter '@ship/set' build` + `... icons`)
 // and depend on a generated lucide registry that lives outside this
 // bundler's dependency graph. Watch mode still rebuilds them on edit.
 if (process.argv.includes('--all')) {

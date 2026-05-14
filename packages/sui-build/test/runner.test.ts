@@ -29,7 +29,7 @@ const hasCdylib = existsSync(cdylibPath)
 
 function mockAdapter(warnings: string[] = []): SuiBundler {
   return {
-    name: 'esbuild',
+    name: 'bun',
     async build(_config, ctx) {
       return { outputs: [join(ctx.outdir, 'app.js')], warnings, durationMs: 1 }
     },
@@ -126,7 +126,7 @@ describe('runner', () => {
 
   it('calls the adapter after the compile phase', async () => {
     const buildFn = vi.fn().mockResolvedValue({ outputs: [], warnings: [], durationMs: 0 })
-    const adapter: SuiBundler = { name: 'esbuild', build: buildFn }
+    const adapter: SuiBundler = { name: 'bun', build: buildFn }
     await run(config, ctx, adapter, async () => {})
     expect(buildFn).toHaveBeenCalledOnce()
     expect(buildFn).toHaveBeenCalledWith(config, ctx)

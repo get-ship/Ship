@@ -16,7 +16,7 @@
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "bundle": "esbuild src/index.ts --bundle --format=esm --target=es2020 --external:@ship/sui-runtime --outfile=../../crates/ship-sui-server/assets/sui-dom.js --log-level=warning",
+    "bundle": "bun build src/index.ts --target=browser --format=esm --external=@ship/sui-runtime --outfile=../../crates/ship-sui-server/assets/sui-dom.js",
     "test": "vitest run",
     "test:watch": "vitest"
   },

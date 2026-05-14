@@ -158,12 +158,12 @@ echo "MCP config verified: $MCP_JSON"
 
 # ── Worktree dependency bootstrap ─────────────────────────────────────────────
 # Fresh worktrees ship empty node_modules and missing generated assets. Pre-stage
-# them here so the agent doesn't hit `pnpm install` (which can rewrite the
+# them here so the agent doesn't hit `bun install` (which can rewrite the
 # lockfile if there's drift) or a Rust build that include_str!s missing bundles.
-if [[ -f "$WORKTREE_PATH/pnpm-lock.yaml" ]]; then
-  echo "Installing dependencies (pnpm install --frozen-lockfile)"
-  if ! (cd "$WORKTREE_PATH" && pnpm install --frozen-lockfile 2>&1 | tail -5); then
-    echo "Warning: pnpm install --frozen-lockfile failed; agent may need to fix lockfile drift" >&2
+if [[ -f "$WORKTREE_PATH/bun.lock" ]]; then
+  echo "Installing dependencies (bun install --frozen-lockfile)"
+  if ! (cd "$WORKTREE_PATH" && bun install --frozen-lockfile 2>&1 | tail -5); then
+    echo "Warning: bun install --frozen-lockfile failed; agent may need to fix lockfile drift" >&2
   fi
 
   # Fast-path: copy gitignored generated bundles from the launching worktree.
@@ -173,14 +173,14 @@ if [[ -f "$WORKTREE_PATH/pnpm-lock.yaml" ]]; then
   # by the developer's running daemon; the slow rebuild path is a fallback.
   LAUNCH_REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || true)"
   if [[ -n "$LAUNCH_REPO_ROOT" ]]; then
-    # Lit `<ship-*>` bundles emitted by `pnpm -F @ship/set build` and embedded
+    # Lit `<ship-*>` bundles emitted by `bun run --filter '@ship/set' build` and embedded
     # by apps/shipd/src/views/assets.rs.
     if [[ -d "$LAUNCH_REPO_ROOT/apps/shipd/assets" ]]; then
       mkdir -p "$WORKTREE_PATH/apps/shipd/assets"
       cp "$LAUNCH_REPO_ROOT"/apps/shipd/assets/ship-*.js "$WORKTREE_PATH/apps/shipd/assets/" 2>/dev/null || true
     fi
     # SUI framework bundles + view bundles + lucide registry, emitted by the
-    # in-daemon Bun worker and `pnpm -F @ship/ui-components build`. Embedded
+    # in-daemon Bun worker and `bun run --filter '@ship/ui-components' build`. Embedded
     # by crates/ship-sui-server/src/assets.rs; build.rs panics if any are
     # missing or empty.
     if [[ -d "$LAUNCH_REPO_ROOT/crates/ship-sui-server/assets" ]]; then
@@ -226,16 +226,16 @@ if [[ -f "$WORKTREE_PATH/pnpm-lock.yaml" ]]; then
   if [[ ! -s "$WORKTREE_PATH/crates/ship-sui-server/assets/sui-runtime.js" ]]; then
     echo "Regenerating SUI framework bundles (slow path; launch-repo copy was unavailable)"
     (cd "$WORKTREE_PATH" && \
-       pnpm -F @ship/sui-runtime bundle && \
-       pnpm -F @ship/sui-dom bundle && \
-       pnpm -F @ship/sdk-client bundle && \
-       pnpm -F @ship/ui-components build && \
-       pnpm -F @ship/set build && \
-       pnpm -F @ship/set icons) 2>&1 | tail -20
+       bun run --filter '@ship/sui-runtime' bundle && \
+       bun run --filter '@ship/sui-dom' bundle && \
+       bun run --filter '@ship/sdk-client' bundle && \
+       bun run --filter '@ship/ui-components' build && \
+       bun run --filter '@ship/set' build && \
+       bun run --filter '@ship/set' icons) 2>&1 | tail -20
   fi
   if [[ ! -s "$WORKTREE_PATH/packages/sui-grammar/src/parser.c" ]]; then
     echo "Regenerating tree-sitter parser.c"
-    (cd "$WORKTREE_PATH/packages/sui-grammar" && pnpm exec tree-sitter generate) 2>&1 | tail -10
+    (cd "$WORKTREE_PATH/packages/sui-grammar" && bunx tree-sitter generate) 2>&1 | tail -10
   fi
   if [[ ! -s "$WORKTREE_PATH/packages/ship-set/sdk/sdk-macros.json" ]]; then
     echo "Regenerating SDK manifests (cargo run -p xtask -- gen-sdk)"

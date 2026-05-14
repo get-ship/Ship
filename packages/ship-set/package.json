@@ -18,7 +18,7 @@
     "./themes.css": "./src/themes.css"
   },
   "scripts": {
-    "build": "node node_modules/@ship/sui-build/bin/sui-build.mjs",
+    "build": "sui-build",
     "icons": "node scripts/generate-lucide-registry.mjs",
     "manifest": "custom-elements-manifest analyze --config custom-elements-manifest.config.mjs",
     "catalog": "node scripts/generate-catalog.mjs",
@@ -67,7 +67,6 @@
     "@custom-elements-manifest/analyzer": "^0.11.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.1.6",
-    "esbuild": "^0.27.0",
     "jsdom": "^28.1.0",
     "lit": "^3.2.0",
     "typescript": "~5.8.3",
