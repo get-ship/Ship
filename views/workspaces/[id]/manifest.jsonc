@@ -1,0 +1,10 @@
+// Route metadata for views/workspaces/[id]. Single workspace detail —
+// derives selection from `ship.workspaces.list()` and offers activation.
+{
+  "name": "workspaces-detail",
+  "path": "/workspaces/[id]",
+  "title": "Workspace",
+  "layout": "default",
+  "auth": "user",
+  "events": ["config.changed", "workspace.activated"]
+}
