@@ -61,7 +61,7 @@
   font-weight: var(--font-weight-semibold);
   color: var(--foreground);
 }
-.s-section-title ship-icon { color: var(--muted-foreground); width: 16px; height: 16px; }
+.s-section-title sui-icon { color: var(--muted-foreground); width: 16px; height: 16px; }
 
 .s-row-label {
   font-size: var(--text-sm);
@@ -121,9 +121,9 @@
 }
 .s-status-text { font-size: var(--text-xs); color: var(--foreground); }
 
-ship-input { width: 160px; }
+sui-input { width: 160px; }
 
 @media (max-width: 640px) {
   .s-row-trailing { width: 100%; flex-wrap: wrap; }
-  ship-input { width: 100%; }
+  sui-input { width: 100%; }
 }
