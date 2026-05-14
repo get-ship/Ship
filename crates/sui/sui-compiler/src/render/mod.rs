@@ -66,11 +66,12 @@ pub struct RenderSplit {
     pub html: String,
     /// Initial scope values as a JSON object. Same shape that the
     /// `<script id="__set_init__">` island carries in `RenderOutput.html`.
+    /// For `<data live />` views this includes the `__subscribe__` key
+    /// pointing at `/_sui/views/<name>/sse`.
     pub init: serde_json::Value,
     /// Whether `<data live />` was declared in the program. When true,
-    /// callers should subscribe to `/_sui/views/<name>/sse` for live
-    /// patches — the existing `RenderOutput` flow embeds the URL inside
-    /// `init`; the split flow leaves that decision to the caller.
+    /// `init` carries the `__subscribe__` SSE URL and callers should
+    /// expect the client runtime to open that channel.
     pub has_live_data: bool,
 }
 
@@ -90,25 +91,15 @@ pub fn render(
     registry: &BindingRegistry,
     opts: &RenderOpts,
 ) -> Result<RenderOutput, CompileError> {
-    // Body HTML + initial scope as separate values…
+    // Body HTML + initial scope as separate values. `render_split` already
+    // folds the `__subscribe__` URL into `init` for live-data views, so
+    // there is exactly one place that decides the seed's shape.
     let split = render_split(program, registry, opts)?;
-    // …then re-assemble: append the JSON-island script that the legacy
-    // attach() path reads on hydrate.
-    let init_json = if split.has_live_data {
-        let mut v = split.init.clone();
-        if let Some(obj) = v.as_object_mut() {
-            obj.insert(
-                "__subscribe__".to_string(),
-                serde_json::Value::String(format!("/_sui/views/{}/sse", opts.view_name)),
-            );
-        }
-        v
-    } else {
-        split.init.clone()
-    };
+    // …then re-assemble: append the JSON-island script the SSR host page
+    // and the marker contract expect after the body.
     let mut html = split.html;
-    html.push_str(&island::emit(&init_json));
-    Ok(RenderOutput { html, init: init_json })
+    html.push_str(&island::emit(&split.init));
+    Ok(RenderOutput { html, init: split.init })
 }
 
 /// Render to body HTML + initial scope, returned separately. Used by the
@@ -124,7 +115,21 @@ pub fn render_split(
     state.walk_block(&program.template);
     let html = state.into_html();
     let has_live_data = program.data.iter().any(|d| d.live);
-    Ok(RenderSplit { html, init: initial.init, has_live_data })
+    // A live-data view advertises its SSE channel through the initial
+    // scope: both the JSON-island seed (`render`) and the payload
+    // endpoint's `scope` field carry `__subscribe__` so the client
+    // runtime opens `/_sui/views/<name>/sse`. Injected here — the single
+    // owner of `init`'s shape — so every consumer sees it identically.
+    let mut init = initial.init;
+    if has_live_data
+        && let Some(obj) = init.as_object_mut()
+    {
+        obj.insert(
+            "__subscribe__".to_string(),
+            serde_json::Value::String(format!("/_sui/views/{}/sse", opts.view_name)),
+        );
+    }
+    Ok(RenderSplit { html, init, has_live_data })
 }
 
 /// Convenience wrapper that builds the registry inline. Used by tests

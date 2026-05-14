@@ -193,10 +193,12 @@ pub fn build_router(
             Route::SuiMutation_template(),
             views::sui_mutation::serve_sui_mutation,
         )
-        .ship_route(
-            Route::SuiPatchElements_template(),
-            views::sui_agent_push::serve_patch_elements,
-        )
+        // NOTE: `SuiPatchElements` is intentionally NOT registered here —
+        // its handler requires `Scope::Full` and extracts
+        // `Extension<AuthContext>`, so it must sit behind the auth
+        // middleware. A public registration left that extension
+        // unfulfilled and every POST 500'd. It is registered in
+        // `build_ship_routes` (the authenticated group) instead.
         .ship_route(Route::SuiSource_template(), views::sui_source::serve_sui_source)
         // HMR routes (SuiHmr / SuiHmrClientJs / SuiDevHmr) are NOT wired
         // here — they stay development-only and are merged into `root`
@@ -463,6 +465,14 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::ServeViewBundle_template(), views::serve_view_bundle)
         .ship_route(Route::ServeViewRaw_template(), views_raw::serve_view_raw)
         .ship_route(Route::ServeViewSse_template(), views::generic_sse::serve_view_sse)
+        // `POST /_sui/views/{name}/patch-elements` — agent-push DOM patches.
+        // Authenticated (requires `Scope::Full`); the rest of the `/_sui/*`
+        // surface is public and lives in `public_routes`. The handler takes
+        // no router state, so it composes cleanly into this stateful group.
+        .ship_route(
+            Route::SuiPatchElements_template(),
+            views::sui_agent_push::serve_patch_elements,
+        )
         // Agent-owned view sessions
         .ship_route(Route::OpenViewSession, view_sessions_api::open_session)
         .ship_route(Route::PatchViewSession_template(), view_sessions_api::patch_session)

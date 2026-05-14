@@ -16,6 +16,7 @@ use crate::resolver::resolve;
 
 const VIEW_HOST_SHELL: &str = include_str!("../assets/view-host.html");
 const SSR_PLACEHOLDER: &str = "<!-- SUI_SSR_CONTENT -->";
+const VIEW_NAME_PLACEHOLDER: &str = "<!-- SUI_VIEW_NAME -->";
 
 static SSR_CACHE: OnceLock<Mutex<HashMap<String, String>>> = OnceLock::new();
 
@@ -58,13 +59,20 @@ pub(crate) fn load_ssr_from_disk(name: &str) -> Option<String> {
 /// fallback when no precompiled mirror-tree `<stem>.ssr.html` exists yet
 /// — without this, the shell ships an empty `#sui-root` and the client
 /// has nothing to morph onto.
+///
+/// Uses the full `render()` so the body carries the `<script
+/// id="__set_init__">` seed island — the client runtime needs it to
+/// hydrate initial signal state, and `<data live>` views need its
+/// `__subscribe__` URL to open the SSE channel. The precompiled
+/// `<stem>.ssr.html` artifact (see `load_ssr_from_disk`) is emitted the
+/// same way, so dev live-emit and prod from-disk stay byte-identical.
 pub(crate) fn live_emit_ssr(name: &str) -> Option<String> {
     let resolved = resolve(name, None).ok()?;
     let program = parse::parse(&resolved.source).ok()?;
     let registry = bindings::build(&program);
     let opts = render::RenderOpts { view_name: name.to_string() };
-    let split = render::render_split(&program, &registry, &opts).ok()?;
-    Some(split.html)
+    let output = render::render(&program, &registry, &opts).ok()?;
+    Some(output.html)
 }
 
 pub async fn serve_view_host(
@@ -75,21 +83,28 @@ pub async fn serve_view_host(
     // Dev: always re-read from disk (no cache). Prod: use in-memory cache.
     // If no precompiled SSR exists, fall back to live-emit so the shell
     // never ships an empty #sui-root — the client morphs onto real markup.
-    let ssr_content = view_name_from_path(uri.path())
+    let view_name = view_name_from_path(uri.path());
+    let ssr_content = view_name
+        .as_deref()
         .map(|name| {
             let from_disk = if mode == DaemonMode::Production {
-                ssr_html_for_view(&name)
+                ssr_html_for_view(name)
             } else {
-                load_ssr_from_disk(&name).unwrap_or_default()
+                load_ssr_from_disk(name).unwrap_or_default()
             };
             if from_disk.is_empty() {
-                live_emit_ssr(&name).unwrap_or_default()
+                live_emit_ssr(name).unwrap_or_default()
             } else {
                 from_disk
             }
         })
         .unwrap_or_default();
-    let body = VIEW_HOST_SHELL.replace(SSR_PLACEHOLDER, &ssr_content);
+    let body = VIEW_HOST_SHELL
+        .replace(
+            VIEW_NAME_PLACEHOLDER,
+            &render::escape_attr_value(view_name.as_deref().unwrap_or_default()),
+        )
+        .replace(SSR_PLACEHOLDER, &ssr_content);
     let mut builder = Response::builder()
         .status(StatusCode::OK)
         .header(header::CONTENT_TYPE, "text/html; charset=utf-8")
@@ -153,9 +168,32 @@ mod tests {
         assert_eq!(resp.status(), StatusCode::OK);
         let bytes = axum::body::to_bytes(resp.into_body(), usize::MAX).await.unwrap();
         let body = std::str::from_utf8(&bytes).unwrap();
+        // The content placeholder collapses to empty, but the root keeps
+        // its `data-sui-root` / `data-view` scoping attributes.
         assert!(
-            body.contains("<div id=\"sui-root\"></div>"),
-            "placeholder must be replaced with empty string when no SSR file exists; got: {body}"
+            body.contains(
+                "<div id=\"sui-root\" data-sui-root data-view=\"no-such-view-xyzzy\"></div>"
+            ),
+            "content placeholder must collapse to empty while root attrs stay; got: {body}"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn root_carries_view_name_from_path() {
+        let resp = serve_view_host(None, make_uri("/view-host/some-view/sub")).await;
+        let bytes = axum::body::to_bytes(resp.into_body(), usize::MAX).await.unwrap();
+        let body = std::str::from_utf8(&bytes).unwrap();
+        assert!(
+            body.contains("data-sui-root data-view=\"some-view\""),
+            "root must advertise the resolved view name; got: {body}"
+        );
+        // The bare host landing (no view in URL) leaves the name empty.
+        let resp = serve_view_host(None, make_uri("/view-host")).await;
+        let bytes = axum::body::to_bytes(resp.into_body(), usize::MAX).await.unwrap();
+        let body = std::str::from_utf8(&bytes).unwrap();
+        assert!(
+            body.contains("data-sui-root data-view=\"\""),
+            "bare /view-host must leave data-view empty; got: {body}"
         );
     }
 
@@ -193,7 +231,7 @@ mod tests {
             "SSR content must be spliced into shell; got: {body}"
         );
         assert!(
-            body.contains("<div id=\"sui-root\">"),
+            body.contains("<div id=\"sui-root\""),
             "sui-root div must be present; got: {body}"
         );
     }
