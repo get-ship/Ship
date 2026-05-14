@@ -221,6 +221,9 @@ var page_default = view((ctx) => {
     const __e15 = document.createElement("div");
     __e15.setAttribute("class", "agents-grid");
     __e15.setAttribute("data-test", "loading");
+    __e15.setAttribute("role", "status");
+    __e15.setAttribute("aria-live", "polite");
+    __e15.setAttribute("aria-busy", "true");
     __e15.setAttribute("aria-label", "Loading agents");
     const __forAnchor16 = document.createComment("for");
     __e15.appendChild(__forAnchor16);
@@ -242,6 +245,8 @@ var page_default = view((ctx) => {
       const __e30 = document.createElement("sui-error-state");
       __e30.setAttribute("title", "Couldn't load agents");
       __e30.setAttribute("data-test", "error");
+      __e30.setAttribute("role", "alert");
+      __e30.setAttribute("aria-live", "assertive");
       const __t31 = document.createTextNode("");
       __e30.appendChild(__t31);
       __c29.push(bindText(__t31, () => $scope2.err.message));
@@ -734,6 +739,7 @@ var page_default = view((ctx) => {
         __e41.setAttribute("variant", "default");
         __e41.setAttribute("size", "sm");
         __e41.setAttribute("data-test", "empty");
+        __e41.setAttribute("role", "status");
         const __e42 = document.createElement("span");
         __e42.setAttribute("slot", "title");
         const __t43 = document.createTextNode("No agents yet");

@@ -1,4 +1,5 @@
 <div class="ship-view ship-view-skills">
+  <h1 class="sr-only">Skills</h1>
   <div class="skills-ide">
 
     <aside class="skills-explorer" aria-label="Skills file explorer">
@@ -24,7 +25,7 @@
 
       <div class="se-body" role="tree" aria-label="Skills tree">
         {#while-loading of rail}
-          <div class="se-skel" aria-busy="true" aria-label="Loading skills">
+          <div class="se-skel" role="status" aria-live="polite" aria-busy="true" aria-label="Loading skills">
             {#for n of [0, 1, 2, 3, 4, 5] key={n}}
               <div class="se-skel-row">
                 <sui-skeleton shape="line" size="md"></sui-skeleton>
@@ -33,7 +34,7 @@
           </div>
         {/while-loading}
         {#while-error err of rail}
-          <sui-error-state variant="inline" size="sm" title="Couldn't load skills">
+          <sui-error-state variant="inline" size="sm" title="Couldn't load skills" role="alert" aria-live="assertive">
             {err.message}
           </sui-error-state>
         {/while-error}
@@ -217,13 +218,13 @@
           {:else if tab() === 'runs'}
             <div class="se-editor-content sd-runs">
               {#while-loading of runs}
-                <div class="se-empty-state">
+                <div class="se-empty-state" role="status" aria-live="polite" aria-busy="true">
                   <sui-spinner size="md"></sui-spinner>
                   <span class="se-empty-desc">Loading runs…</span>
                 </div>
               {/while-loading}
               {#while-error err of runs}
-                <sui-error-state variant="inline" size="sm" title="Couldn't load runs">
+                <sui-error-state variant="inline" size="sm" title="Couldn't load runs" role="alert" aria-live="assertive">
                   {err.message}
                 </sui-error-state>
               {/while-error}

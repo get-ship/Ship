@@ -19,7 +19,7 @@
         </div>
       </div>
       {#if collections().kind === 'ok' && collections().value && collections().value.items.length === 0}
-        <sui-empty-state>
+        <sui-empty-state role="status">
           <span slot="title">No collections yet</span>
           <span slot="description">Click &ldquo;New collection&rdquo; or drop a .jsonc file in .ship/collections/ to get started.</span>
         </sui-empty-state>
@@ -70,7 +70,7 @@
           </span>
         </div>
         {#if collections().kind === 'ok' && collections().value}
-          {#if collections().value.items.length === 0}<div class="col-nav-empty"><span slot="title">No collections defined</span></div>{/if}
+          {#if collections().value.items.length === 0}<div class="col-nav-empty" role="status"><span slot="title">No collections defined</span></div>{/if}
           {#for c of collections().value.items key={c.id}}
             <a class="col-nav-row" class:is-active={c.id === activeId()}
               attr:href={'/collections?collection=' + c.id}
@@ -115,11 +115,11 @@
         {#if tab() === 'rows'}
           <div class="col-tab-panel rows-panel">
             {#while-loading of colDetail}
-              <div style="padding:var(--space-4);color:var(--muted-foreground)">Loading&hellip;</div>
+              <div role="status" aria-live="polite" aria-busy="true" style="padding:var(--space-4);color:var(--muted-foreground)">Loading&hellip;</div>
             {/while-loading}
             {#if colDetail().kind === 'ok' && colDetail().value}
               {#if colDetail().value.items.length === 0}
-                <sui-empty-state style="padding:var(--space-8)">
+                <sui-empty-state role="status" style="padding:var(--space-8)">
                   <span slot="title">No items in {colDetail().value.schema.name || activeId()}</span>
                 </sui-empty-state>
               {:else}

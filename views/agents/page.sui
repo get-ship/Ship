@@ -15,7 +15,7 @@
     </header>
 
     {#while-loading of agents}
-      <div class="agents-grid" data-test="loading" aria-label="Loading agents">
+      <div class="agents-grid" data-test="loading" role="status" aria-live="polite" aria-busy="true" aria-label="Loading agents">
         {#for n of [0,1,2,3,4,5] key={n}}
           <div class="agents-skel-card" aria-hidden="true">
             <sui-skeleton shape="block" size="md" class="agents-skel-icon"></sui-skeleton>
@@ -30,7 +30,7 @@
     {/while-loading}
 
     {#while-error err of agents}
-      <sui-error-state title="Couldn't load agents" data-test="error">
+      <sui-error-state title="Couldn't load agents" data-test="error" role="alert" aria-live="assertive">
         {err.message}
         <sui-button slot="action" tone="primary" variant="solid" on:click={() => window.location.reload()}>Retry</sui-button>
       </sui-error-state>
@@ -38,7 +38,7 @@
 
     {#if agents().kind === 'ok'}
       {#if items().length === 0}
-        <sui-empty-state icon="sparkles" variant="default" size="sm" data-test="empty">
+        <sui-empty-state icon="sparkles" variant="default" size="sm" data-test="empty" role="status">
           <span slot="title">No agents yet</span>
           Drop a JSONC file under
           <code class="agents-empty-code">.ship/agents/</code>

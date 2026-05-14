@@ -161,43 +161,43 @@ var page_default = view((ctx) => {
       return (($scope2) => kc.id)(__child);
     },
     render: (kc, __i) => {
-      const __childScope12 = Object.create($scope);
-      __childScope12.kc = kc;
-      __childScope12.__i = __i;
-      __childScope12.__v = signal2(0);
+      const __childScope14 = Object.create($scope);
+      __childScope14.kc = kc;
+      __childScope14.__i = __i;
+      __childScope14.__v = signal2(0);
       return (($scope2) => {
-        const __frag13 = document.createDocumentFragment();
-        const __c14 = [];
-        const __e15 = document.createElement("button");
-        __e15.setAttribute("class", "se-pill");
-        __c14.push(bindClass(__e15, "is-active", () => (void $scope2.__v(), $scope2.kind() === $scope2.kc.id)));
-        __c14.push(on(__e15, "click", function() {
+        const __frag15 = document.createDocumentFragment();
+        const __c16 = [];
+        const __e17 = document.createElement("button");
+        __e17.setAttribute("class", "se-pill");
+        __c16.push(bindClass(__e17, "is-active", () => (void $scope2.__v(), $scope2.kind() === $scope2.kc.id)));
+        __c16.push(on(__e17, "click", function() {
           const __h = () => $scope2.kind.set($scope2.kc.id);
           return typeof __h === "function" ? __h.bind(undefined) : () => {};
         }(), { modifiers: [] }));
-        const __t16 = document.createTextNode("");
-        __e15.appendChild(__t16);
-        __t16.textContent = $scope2.kc.label;
-        const __e17 = document.createElement("span");
-        __e17.setAttribute("style", "opacity:0.6;font-variant-numeric:tabular-nums");
         const __t18 = document.createTextNode("");
         __e17.appendChild(__t18);
-        __t18.textContent = $scope2.kc.count;
-        __e15.appendChild(__e17);
-        __frag13.appendChild(__e15);
-        return { nodes: Array.from(__frag13.childNodes), cleanup: () => {
-          for (const c of __c14)
+        __t18.textContent = $scope2.kc.label;
+        const __e19 = document.createElement("span");
+        __e19.setAttribute("style", "opacity:0.6;font-variant-numeric:tabular-nums");
+        const __t20 = document.createTextNode("");
+        __e19.appendChild(__t20);
+        __t20.textContent = $scope2.kc.count;
+        __e17.appendChild(__e19);
+        __frag15.appendChild(__e17);
+        return { nodes: Array.from(__frag15.childNodes), cleanup: () => {
+          for (const c of __c16)
             try {
               c();
             } catch (e) {}
-        }, update: (__new19, __newI20) => {
-          $scope2.kc = __new19;
-          $scope2.__i = __newI20;
-          __t16.textContent = $scope2.kc.label;
-          __t18.textContent = $scope2.kc.count;
+        }, update: (__new21, __newI22) => {
+          $scope2.kc = __new21;
+          $scope2.__i = __newI22;
+          __t18.textContent = $scope2.kc.label;
+          __t20.textContent = $scope2.kc.count;
           $scope2.__v.set((c) => c + 1);
         } };
-      })(__childScope12);
+      })(__childScope14);
     }
   });
   const __wireBoundary_b2 = (anchor) => bindIf({
@@ -209,18 +209,18 @@ var page_default = view((ctx) => {
     },
     branches: [
       () => {
-        const __frag8 = document.createDocumentFragment();
-        const __c9 = [];
-        const __e10 = document.createElement("div");
-        __e10.setAttribute("class", "se-filters");
-        __e10.setAttribute("role", "group");
-        __e10.setAttribute("aria-label", "Filter by kind");
-        const __forAnchor11 = document.createComment("for");
-        __e10.appendChild(__forAnchor11);
-        __c9.push(__wireBoundary_b3(__forAnchor11));
-        __frag8.appendChild(__e10);
-        return { nodes: Array.from(__frag8.childNodes), cleanup: () => {
-          for (const c of __c9)
+        const __frag10 = document.createDocumentFragment();
+        const __c11 = [];
+        const __e12 = document.createElement("div");
+        __e12.setAttribute("class", "se-filters");
+        __e12.setAttribute("role", "group");
+        __e12.setAttribute("aria-label", "Filter by kind");
+        const __forAnchor13 = document.createComment("for");
+        __e12.appendChild(__forAnchor13);
+        __c11.push(__wireBoundary_b3(__forAnchor13));
+        __frag10.appendChild(__e12);
+        return { nodes: Array.from(__frag10.childNodes), cleanup: () => {
+          for (const c of __c11)
             try {
               c();
             } catch (e) {}
@@ -238,67 +238,71 @@ var page_default = view((ctx) => {
       return (($scope2) => n)(__child);
     },
     render: (n, __i) => {
-      const __childScope26 = Object.create($scope);
-      __childScope26.n = n;
-      __childScope26.__i = __i;
+      const __childScope28 = Object.create($scope);
+      __childScope28.n = n;
+      __childScope28.__i = __i;
       return (($scope2) => {
-        const __frag27 = document.createDocumentFragment();
-        const __c28 = [];
-        const __e29 = document.createElement("div");
-        __e29.setAttribute("class", "se-skel-row");
-        const __e30 = document.createElement("sui-skeleton");
-        __e30.setAttribute("shape", "line");
-        __e30.setAttribute("size", "md");
-        __e29.appendChild(__e30);
-        __frag27.appendChild(__e29);
-        return { nodes: Array.from(__frag27.childNodes), cleanup: () => {
-          for (const c of __c28)
+        const __frag29 = document.createDocumentFragment();
+        const __c30 = [];
+        const __e31 = document.createElement("div");
+        __e31.setAttribute("class", "se-skel-row");
+        const __e32 = document.createElement("sui-skeleton");
+        __e32.setAttribute("shape", "line");
+        __e32.setAttribute("size", "md");
+        __e31.appendChild(__e32);
+        __frag29.appendChild(__e31);
+        return { nodes: Array.from(__frag29.childNodes), cleanup: () => {
+          for (const c of __c30)
             try {
               c();
             } catch (e) {}
         } };
-      })(__childScope26);
+      })(__childScope28);
     }
   });
   const __renderWhileLoading_0 = () => {
-    const __frag22 = document.createDocumentFragment();
-    const __c23 = [];
-    const __e24 = document.createElement("div");
-    __e24.setAttribute("class", "se-skel");
-    __e24.setAttribute("aria-busy", "true");
-    __e24.setAttribute("aria-label", "Loading skills");
-    const __forAnchor25 = document.createComment("for");
-    __e24.appendChild(__forAnchor25);
-    __c23.push(__wireBoundary_b9(__forAnchor25));
-    __frag22.appendChild(__e24);
-    return { nodes: Array.from(__frag22.childNodes), cleanup: () => {
-      for (const c of __c23)
+    const __frag24 = document.createDocumentFragment();
+    const __c25 = [];
+    const __e26 = document.createElement("div");
+    __e26.setAttribute("class", "se-skel");
+    __e26.setAttribute("role", "status");
+    __e26.setAttribute("aria-live", "polite");
+    __e26.setAttribute("aria-busy", "true");
+    __e26.setAttribute("aria-label", "Loading skills");
+    const __forAnchor27 = document.createComment("for");
+    __e26.appendChild(__forAnchor27);
+    __c25.push(__wireBoundary_b9(__forAnchor27));
+    __frag24.appendChild(__e26);
+    return { nodes: Array.from(__frag24.childNodes), cleanup: () => {
+      for (const c of __c25)
         try {
           c();
         } catch (e) {}
     } };
   };
   const __renderWhileError_0 = (err) => {
-    const __childScope32 = Object.create($scope);
-    __childScope32.err = err;
+    const __childScope34 = Object.create($scope);
+    __childScope34.err = err;
     return (($scope2) => {
-      const __frag33 = document.createDocumentFragment();
-      const __c34 = [];
-      const __e35 = document.createElement("sui-error-state");
-      __e35.setAttribute("variant", "inline");
-      __e35.setAttribute("size", "sm");
-      __e35.setAttribute("title", "Couldn't load skills");
-      const __t36 = document.createTextNode("");
-      __e35.appendChild(__t36);
-      __c34.push(bindText(__t36, () => $scope2.err.message));
-      __frag33.appendChild(__e35);
-      return { nodes: Array.from(__frag33.childNodes), cleanup: () => {
-        for (const c of __c34)
+      const __frag35 = document.createDocumentFragment();
+      const __c36 = [];
+      const __e37 = document.createElement("sui-error-state");
+      __e37.setAttribute("variant", "inline");
+      __e37.setAttribute("size", "sm");
+      __e37.setAttribute("title", "Couldn't load skills");
+      __e37.setAttribute("role", "alert");
+      __e37.setAttribute("aria-live", "assertive");
+      const __t38 = document.createTextNode("");
+      __e37.appendChild(__t38);
+      __c36.push(bindText(__t38, () => $scope2.err.message));
+      __frag35.appendChild(__e37);
+      return { nodes: Array.from(__frag35.childNodes), cleanup: () => {
+        for (const c of __c36)
           try {
             c();
           } catch (e) {}
       } };
-    })(__childScope32);
+    })(__childScope34);
   };
   const __wireBoundary_b15 = (anchor) => bindFor({
     anchor,
@@ -310,10 +314,10 @@ var page_default = view((ctx) => {
       return (($scope2) => g.source)(__child);
     },
     render: (g, __i) => {
-      const __childScope49 = Object.create($scope);
-      __childScope49.g = g;
-      __childScope49.__i = __i;
-      __childScope49.__v = signal2(0);
+      const __childScope51 = Object.create($scope);
+      __childScope51.g = g;
+      __childScope51.__i = __i;
+      __childScope51.__v = signal2(0);
       return (($scope2) => {
         const __wireBoundary_b20 = (anchor2) => bindFor({
           anchor: anchor2,
@@ -325,10 +329,10 @@ var page_default = view((ctx) => {
             return (($scope3) => s.id)(__child);
           },
           render: (s, __i2) => {
-            const __childScope69 = Object.create($scope2);
-            __childScope69.s = s;
-            __childScope69.__i = __i2;
-            __childScope69.__v = signal2(0);
+            const __childScope71 = Object.create($scope2);
+            __childScope71.s = s;
+            __childScope71.__i = __i2;
+            __childScope71.__v = signal2(0);
             return (($scope3) => {
               const __wireBoundary_b26 = (anchor3) => bindIf({
                 anchor: anchor3,
@@ -339,14 +343,14 @@ var page_default = view((ctx) => {
                 },
                 branches: [
                   () => {
-                    const __frag82 = document.createDocumentFragment();
-                    const __c83 = [];
-                    const __e84 = document.createElement("span");
-                    __e84.setAttribute("class", "se-dot vars");
-                    __e84.setAttribute("title", "Variables");
-                    __frag82.appendChild(__e84);
-                    return { nodes: Array.from(__frag82.childNodes), cleanup: () => {
-                      for (const c of __c83)
+                    const __frag84 = document.createDocumentFragment();
+                    const __c85 = [];
+                    const __e86 = document.createElement("span");
+                    __e86.setAttribute("class", "se-dot vars");
+                    __e86.setAttribute("title", "Variables");
+                    __frag84.appendChild(__e86);
+                    return { nodes: Array.from(__frag84.childNodes), cleanup: () => {
+                      for (const c of __c85)
                         try {
                           c();
                         } catch (e) {}
@@ -363,14 +367,14 @@ var page_default = view((ctx) => {
                 },
                 branches: [
                   () => {
-                    const __frag86 = document.createDocumentFragment();
-                    const __c87 = [];
-                    const __e88 = document.createElement("span");
-                    __e88.setAttribute("class", "se-dot refs");
-                    __e88.setAttribute("title", "Reference docs");
-                    __frag86.appendChild(__e88);
-                    return { nodes: Array.from(__frag86.childNodes), cleanup: () => {
-                      for (const c of __c87)
+                    const __frag88 = document.createDocumentFragment();
+                    const __c89 = [];
+                    const __e90 = document.createElement("span");
+                    __e90.setAttribute("class", "se-dot refs");
+                    __e90.setAttribute("title", "Reference docs");
+                    __frag88.appendChild(__e90);
+                    return { nodes: Array.from(__frag88.childNodes), cleanup: () => {
+                      for (const c of __c89)
                         try {
                           c();
                         } catch (e) {}
@@ -387,14 +391,14 @@ var page_default = view((ctx) => {
                 },
                 branches: [
                   () => {
-                    const __frag90 = document.createDocumentFragment();
-                    const __c91 = [];
-                    const __e92 = document.createElement("span");
-                    __e92.setAttribute("class", "se-dot evals");
-                    __e92.setAttribute("title", "Evals");
-                    __frag90.appendChild(__e92);
-                    return { nodes: Array.from(__frag90.childNodes), cleanup: () => {
-                      for (const c of __c91)
+                    const __frag92 = document.createDocumentFragment();
+                    const __c93 = [];
+                    const __e94 = document.createElement("span");
+                    __e94.setAttribute("class", "se-dot evals");
+                    __e94.setAttribute("title", "Evals");
+                    __frag92.appendChild(__e94);
+                    return { nodes: Array.from(__frag92.childNodes), cleanup: () => {
+                      for (const c of __c93)
                         try {
                           c();
                         } catch (e) {}
@@ -402,109 +406,109 @@ var page_default = view((ctx) => {
                   }
                 ]
               });
-              const __frag70 = document.createDocumentFragment();
-              const __c71 = [];
-              const __e72 = document.createElement("div");
-              __e72.setAttribute("role", "treeitem");
-              __e72.setAttribute("class", "se-skill-row");
-              __c71.push(bindAttr(__e72, "aria-selected", () => (void $scope3.__v(), $scope3.skillId() === $scope3.s.id ? "true" : "false")));
-              const __e73 = document.createElement("button");
-              __e73.setAttribute("class", "se-skill");
-              __c71.push(bindClass(__e73, "is-active", () => (void $scope3.__v(), $scope3.skillId() === $scope3.s.id)));
-              __c71.push(on(__e73, "click", function() {
+              const __frag72 = document.createDocumentFragment();
+              const __c73 = [];
+              const __e74 = document.createElement("div");
+              __e74.setAttribute("role", "treeitem");
+              __e74.setAttribute("class", "se-skill-row");
+              __c73.push(bindAttr(__e74, "aria-selected", () => (void $scope3.__v(), $scope3.skillId() === $scope3.s.id ? "true" : "false")));
+              const __e75 = document.createElement("button");
+              __e75.setAttribute("class", "se-skill");
+              __c73.push(bindClass(__e75, "is-active", () => (void $scope3.__v(), $scope3.skillId() === $scope3.s.id)));
+              __c73.push(on(__e75, "click", function() {
                 const __h = () => $scope3.skillId.set($scope3.s.id);
                 return typeof __h === "function" ? __h.bind(undefined) : () => {};
               }(), { modifiers: [] }));
               {
-                const __av74 = $scope3.s.description;
-                if (__av74 == null || __av74 === false || __av74 === "")
-                  __e73.removeAttribute("title");
+                const __av76 = $scope3.s.description;
+                if (__av76 == null || __av76 === false || __av76 === "")
+                  __e75.removeAttribute("title");
                 else
-                  __e73.setAttribute("title", __av74 === true ? "" : String(__av74));
+                  __e75.setAttribute("title", __av76 === true ? "" : String(__av76));
               }
-              const __e75 = document.createElement("span");
-              __e75.setAttribute("class", "se-chevron");
-              __e75.setAttribute("aria-hidden", "true");
-              const __e76 = document.createElement("sui-icon");
-              __e76.setAttribute("name", "chevron-right");
-              __e76.setAttribute("size", "xs");
-              __e75.appendChild(__e76);
-              __e73.appendChild(__e75);
-              const __e77 = document.createElement("sui-icon");
-              __e77.setAttribute("name", "zap");
-              __e77.setAttribute("size", "xs");
-              __e77.setAttribute("tone", "primary");
-              __e73.appendChild(__e77);
-              const __e78 = document.createElement("span");
-              __e78.setAttribute("class", "se-name");
-              const __t79 = document.createTextNode("");
-              __e78.appendChild(__t79);
-              __t79.textContent = $scope3.s.name;
-              __e73.appendChild(__e78);
+              const __e77 = document.createElement("span");
+              __e77.setAttribute("class", "se-chevron");
+              __e77.setAttribute("aria-hidden", "true");
+              const __e78 = document.createElement("sui-icon");
+              __e78.setAttribute("name", "chevron-right");
+              __e78.setAttribute("size", "xs");
+              __e77.appendChild(__e78);
+              __e75.appendChild(__e77);
+              const __e79 = document.createElement("sui-icon");
+              __e79.setAttribute("name", "zap");
+              __e79.setAttribute("size", "xs");
+              __e79.setAttribute("tone", "primary");
+              __e75.appendChild(__e79);
               const __e80 = document.createElement("span");
-              __e80.setAttribute("class", "se-dots");
-              const __ifAnchor81 = document.createComment("if");
-              __e80.appendChild(__ifAnchor81);
-              __c71.push(__wireBoundary_b26(__ifAnchor81));
-              const __ifAnchor85 = document.createComment("if");
-              __e80.appendChild(__ifAnchor85);
-              __c71.push(__wireBoundary_b27(__ifAnchor85));
-              const __ifAnchor89 = document.createComment("if");
-              __e80.appendChild(__ifAnchor89);
-              __c71.push(__wireBoundary_b28(__ifAnchor89));
-              __e73.appendChild(__e80);
-              __e72.appendChild(__e73);
-              const __e93 = document.createElement("button");
-              __e93.setAttribute("class", "se-invoke");
+              __e80.setAttribute("class", "se-name");
+              const __t81 = document.createTextNode("");
+              __e80.appendChild(__t81);
+              __t81.textContent = $scope3.s.name;
+              __e75.appendChild(__e80);
+              const __e82 = document.createElement("span");
+              __e82.setAttribute("class", "se-dots");
+              const __ifAnchor83 = document.createComment("if");
+              __e82.appendChild(__ifAnchor83);
+              __c73.push(__wireBoundary_b26(__ifAnchor83));
+              const __ifAnchor87 = document.createComment("if");
+              __e82.appendChild(__ifAnchor87);
+              __c73.push(__wireBoundary_b27(__ifAnchor87));
+              const __ifAnchor91 = document.createComment("if");
+              __e82.appendChild(__ifAnchor91);
+              __c73.push(__wireBoundary_b28(__ifAnchor91));
+              __e75.appendChild(__e82);
+              __e74.appendChild(__e75);
+              const __e95 = document.createElement("button");
+              __e95.setAttribute("class", "se-invoke");
               {
-                const __av94 = "Invoke " + $scope3.s.name;
-                if (__av94 == null || __av94 === false || __av94 === "")
-                  __e93.removeAttribute("aria-label");
+                const __av96 = "Invoke " + $scope3.s.name;
+                if (__av96 == null || __av96 === false || __av96 === "")
+                  __e95.removeAttribute("aria-label");
                 else
-                  __e93.setAttribute("aria-label", __av94 === true ? "" : String(__av94));
+                  __e95.setAttribute("aria-label", __av96 === true ? "" : String(__av96));
               }
-              __c71.push(bindProp(__e93, "disabled", () => (void $scope3.__v(), $scope3.invokeBusy() === $scope3.s.id)));
-              __c71.push(on(__e93, "click", function() {
+              __c73.push(bindProp(__e95, "disabled", () => (void $scope3.__v(), $scope3.invokeBusy() === $scope3.s.id)));
+              __c73.push(on(__e95, "click", function() {
                 const __h = () => $scope3.invoke($scope3.s.id);
                 return typeof __h === "function" ? __h.bind(undefined) : () => {};
               }(), { modifiers: [] }));
-              const __e95 = document.createElement("sui-icon");
-              __e95.setAttribute("name", "play");
-              __e95.setAttribute("size", "xs");
-              __e93.appendChild(__e95);
-              const __e96 = document.createElement("span");
-              const __t97 = document.createTextNode("");
-              __e96.appendChild(__t97);
-              __c71.push(bindText(__t97, () => (void $scope3.__v(), $scope3.invokeBusy() === $scope3.s.id ? "Invoking…" : "Invoke")));
-              __e93.appendChild(__e96);
-              __e72.appendChild(__e93);
-              __frag70.appendChild(__e72);
-              return { nodes: Array.from(__frag70.childNodes), cleanup: () => {
-                for (const c of __c71)
+              const __e97 = document.createElement("sui-icon");
+              __e97.setAttribute("name", "play");
+              __e97.setAttribute("size", "xs");
+              __e95.appendChild(__e97);
+              const __e98 = document.createElement("span");
+              const __t99 = document.createTextNode("");
+              __e98.appendChild(__t99);
+              __c73.push(bindText(__t99, () => (void $scope3.__v(), $scope3.invokeBusy() === $scope3.s.id ? "Invoking…" : "Invoke")));
+              __e95.appendChild(__e98);
+              __e74.appendChild(__e95);
+              __frag72.appendChild(__e74);
+              return { nodes: Array.from(__frag72.childNodes), cleanup: () => {
+                for (const c of __c73)
                   try {
                     c();
                   } catch (e) {}
-              }, update: (__new98, __newI99) => {
-                $scope3.s = __new98;
-                $scope3.__i = __newI99;
+              }, update: (__new100, __newI101) => {
+                $scope3.s = __new100;
+                $scope3.__i = __newI101;
                 {
-                  const __av74 = $scope3.s.description;
-                  if (__av74 == null || __av74 === false || __av74 === "")
-                    __e73.removeAttribute("title");
+                  const __av76 = $scope3.s.description;
+                  if (__av76 == null || __av76 === false || __av76 === "")
+                    __e75.removeAttribute("title");
                   else
-                    __e73.setAttribute("title", __av74 === true ? "" : String(__av74));
+                    __e75.setAttribute("title", __av76 === true ? "" : String(__av76));
                 }
-                __t79.textContent = $scope3.s.name;
+                __t81.textContent = $scope3.s.name;
                 {
-                  const __av94 = "Invoke " + $scope3.s.name;
-                  if (__av94 == null || __av94 === false || __av94 === "")
-                    __e93.removeAttribute("aria-label");
+                  const __av96 = "Invoke " + $scope3.s.name;
+                  if (__av96 == null || __av96 === false || __av96 === "")
+                    __e95.removeAttribute("aria-label");
                   else
-                    __e93.setAttribute("aria-label", __av94 === true ? "" : String(__av94));
+                    __e95.setAttribute("aria-label", __av96 === true ? "" : String(__av96));
                 }
                 $scope3.__v.set((c) => c + 1);
               } };
-            })(__childScope69);
+            })(__childScope71);
           }
         });
         const __wireBoundary_b18 = (anchor2) => bindIf({
@@ -516,29 +520,29 @@ var page_default = view((ctx) => {
           },
           branches: [
             () => {
-              const __frag62 = document.createDocumentFragment();
-              const __c63 = [];
-              const __e64 = document.createElement("div");
-              __e64.setAttribute("class", "se-empty");
-              const __t65 = document.createTextNode("");
-              __e64.appendChild(__t65);
-              __c63.push(bindText(__t65, () => (void $scope2.__v(), $scope2.q() ? "No matches." : "No skills yet.")));
-              __frag62.appendChild(__e64);
-              return { nodes: Array.from(__frag62.childNodes), cleanup: () => {
-                for (const c of __c63)
+              const __frag64 = document.createDocumentFragment();
+              const __c65 = [];
+              const __e66 = document.createElement("div");
+              __e66.setAttribute("class", "se-empty");
+              const __t67 = document.createTextNode("");
+              __e66.appendChild(__t67);
+              __c65.push(bindText(__t67, () => (void $scope2.__v(), $scope2.q() ? "No matches." : "No skills yet.")));
+              __frag64.appendChild(__e66);
+              return { nodes: Array.from(__frag64.childNodes), cleanup: () => {
+                for (const c of __c65)
                   try {
                     c();
                   } catch (e) {}
               } };
             },
             () => {
-              const __frag66 = document.createDocumentFragment();
-              const __c67 = [];
-              const __forAnchor68 = document.createComment("for");
-              __frag66.appendChild(__forAnchor68);
-              __c67.push(__wireBoundary_b20(__forAnchor68));
-              return { nodes: Array.from(__frag66.childNodes), cleanup: () => {
-                for (const c of __c67)
+              const __frag68 = document.createDocumentFragment();
+              const __c69 = [];
+              const __forAnchor70 = document.createComment("for");
+              __frag68.appendChild(__forAnchor70);
+              __c69.push(__wireBoundary_b20(__forAnchor70));
+              return { nodes: Array.from(__frag68.childNodes), cleanup: () => {
+                for (const c of __c69)
                   try {
                     c();
                   } catch (e) {}
@@ -546,51 +550,51 @@ var page_default = view((ctx) => {
             }
           ]
         });
-        const __frag50 = document.createDocumentFragment();
-        const __c51 = [];
-        const __e52 = document.createElement("div");
-        __e52.setAttribute("class", "se-section");
-        const __e53 = document.createElement("div");
-        __e53.setAttribute("class", "se-section-head");
-        const __e54 = document.createElement("span");
-        __e54.setAttribute("class", "se-section-label");
-        const __e55 = document.createElement("sui-icon");
-        __e55.setAttribute("name", "folder");
-        __e55.setAttribute("size", "xs");
-        __e55.setAttribute("tone", "muted");
+        const __frag52 = document.createDocumentFragment();
+        const __c53 = [];
+        const __e54 = document.createElement("div");
+        __e54.setAttribute("class", "se-section");
+        const __e55 = document.createElement("div");
+        __e55.setAttribute("class", "se-section-head");
+        const __e56 = document.createElement("span");
+        __e56.setAttribute("class", "se-section-label");
+        const __e57 = document.createElement("sui-icon");
+        __e57.setAttribute("name", "folder");
+        __e57.setAttribute("size", "xs");
+        __e57.setAttribute("tone", "muted");
+        __e56.appendChild(__e57);
+        const __t58 = document.createTextNode("");
+        __e56.appendChild(__t58);
+        __t58.textContent = $scope2.g.source === "PROJECT SKILLS" ? "Project Skills" : $scope2.g.source === "USER SKILLS" ? "Library" : $scope2.g.source;
+        const __e59 = document.createElement("span");
+        __e59.setAttribute("class", "count");
+        const __t60 = document.createTextNode("(");
+        __e59.appendChild(__t60);
+        const __t61 = document.createTextNode("");
+        __e59.appendChild(__t61);
+        __t61.textContent = $scope2.g.skills.length;
+        const __t62 = document.createTextNode(")");
+        __e59.appendChild(__t62);
+        __e56.appendChild(__e59);
+        __e55.appendChild(__e56);
         __e54.appendChild(__e55);
-        const __t56 = document.createTextNode("");
-        __e54.appendChild(__t56);
-        __t56.textContent = $scope2.g.source === "PROJECT SKILLS" ? "Project Skills" : $scope2.g.source === "USER SKILLS" ? "Library" : $scope2.g.source;
-        const __e57 = document.createElement("span");
-        __e57.setAttribute("class", "count");
-        const __t58 = document.createTextNode("(");
-        __e57.appendChild(__t58);
-        const __t59 = document.createTextNode("");
-        __e57.appendChild(__t59);
-        __t59.textContent = $scope2.g.skills.length;
-        const __t60 = document.createTextNode(")");
-        __e57.appendChild(__t60);
-        __e54.appendChild(__e57);
-        __e53.appendChild(__e54);
-        __e52.appendChild(__e53);
-        const __ifAnchor61 = document.createComment("if");
-        __e52.appendChild(__ifAnchor61);
-        __c51.push(__wireBoundary_b18(__ifAnchor61));
-        __frag50.appendChild(__e52);
-        return { nodes: Array.from(__frag50.childNodes), cleanup: () => {
-          for (const c of __c51)
+        const __ifAnchor63 = document.createComment("if");
+        __e54.appendChild(__ifAnchor63);
+        __c53.push(__wireBoundary_b18(__ifAnchor63));
+        __frag52.appendChild(__e54);
+        return { nodes: Array.from(__frag52.childNodes), cleanup: () => {
+          for (const c of __c53)
             try {
               c();
             } catch (e) {}
-        }, update: (__new100, __newI101) => {
-          $scope2.g = __new100;
-          $scope2.__i = __newI101;
-          __t56.textContent = $scope2.g.source === "PROJECT SKILLS" ? "Project Skills" : $scope2.g.source === "USER SKILLS" ? "Library" : $scope2.g.source;
-          __t59.textContent = $scope2.g.skills.length;
+        }, update: (__new102, __newI103) => {
+          $scope2.g = __new102;
+          $scope2.__i = __newI103;
+          __t58.textContent = $scope2.g.source === "PROJECT SKILLS" ? "Project Skills" : $scope2.g.source === "USER SKILLS" ? "Library" : $scope2.g.source;
+          __t61.textContent = $scope2.g.skills.length;
           $scope2.__v.set((c) => c + 1);
         } };
-      })(__childScope49);
+      })(__childScope51);
     }
   });
   const __wireBoundary_b13 = (anchor) => bindIf({
@@ -602,29 +606,29 @@ var page_default = view((ctx) => {
     },
     branches: [
       () => {
-        const __frag42 = document.createDocumentFragment();
-        const __c43 = [];
-        const __e44 = document.createElement("div");
-        __e44.setAttribute("class", "se-empty");
-        const __t45 = document.createTextNode("");
-        __e44.appendChild(__t45);
-        __c43.push(bindText(__t45, () => $scope.q() ? 'No skills match "' + $scope.q() + '".' : "No skills discovered."));
-        __frag42.appendChild(__e44);
-        return { nodes: Array.from(__frag42.childNodes), cleanup: () => {
-          for (const c of __c43)
+        const __frag44 = document.createDocumentFragment();
+        const __c45 = [];
+        const __e46 = document.createElement("div");
+        __e46.setAttribute("class", "se-empty");
+        const __t47 = document.createTextNode("");
+        __e46.appendChild(__t47);
+        __c45.push(bindText(__t47, () => $scope.q() ? 'No skills match "' + $scope.q() + '".' : "No skills discovered."));
+        __frag44.appendChild(__e46);
+        return { nodes: Array.from(__frag44.childNodes), cleanup: () => {
+          for (const c of __c45)
             try {
               c();
             } catch (e) {}
         } };
       },
       () => {
-        const __frag46 = document.createDocumentFragment();
-        const __c47 = [];
-        const __forAnchor48 = document.createComment("for");
-        __frag46.appendChild(__forAnchor48);
-        __c47.push(__wireBoundary_b15(__forAnchor48));
-        return { nodes: Array.from(__frag46.childNodes), cleanup: () => {
-          for (const c of __c47)
+        const __frag48 = document.createDocumentFragment();
+        const __c49 = [];
+        const __forAnchor50 = document.createComment("for");
+        __frag48.appendChild(__forAnchor50);
+        __c49.push(__wireBoundary_b15(__forAnchor50));
+        return { nodes: Array.from(__frag48.childNodes), cleanup: () => {
+          for (const c of __c49)
             try {
               c();
             } catch (e) {}
@@ -641,13 +645,13 @@ var page_default = view((ctx) => {
     },
     branches: [
       () => {
-        const __frag39 = document.createDocumentFragment();
-        const __c40 = [];
-        const __ifAnchor41 = document.createComment("if");
-        __frag39.appendChild(__ifAnchor41);
-        __c40.push(__wireBoundary_b13(__ifAnchor41));
-        return { nodes: Array.from(__frag39.childNodes), cleanup: () => {
-          for (const c of __c40)
+        const __frag41 = document.createDocumentFragment();
+        const __c42 = [];
+        const __ifAnchor43 = document.createComment("if");
+        __frag41.appendChild(__ifAnchor43);
+        __c42.push(__wireBoundary_b13(__ifAnchor43));
+        return { nodes: Array.from(__frag41.childNodes), cleanup: () => {
+          for (const c of __c42)
             try {
               c();
             } catch (e) {}
@@ -664,16 +668,16 @@ var page_default = view((ctx) => {
     },
     branches: [
       () => {
-        const __frag125 = document.createDocumentFragment();
-        const __c126 = [];
-        const __e127 = document.createElement("p");
-        __e127.setAttribute("class", "sd-description");
-        const __t128 = document.createTextNode("");
-        __e127.appendChild(__t128);
-        __c126.push(bindText(__t128, () => $scope.skill().value.description));
-        __frag125.appendChild(__e127);
-        return { nodes: Array.from(__frag125.childNodes), cleanup: () => {
-          for (const c of __c126)
+        const __frag127 = document.createDocumentFragment();
+        const __c128 = [];
+        const __e129 = document.createElement("p");
+        __e129.setAttribute("class", "sd-description");
+        const __t130 = document.createTextNode("");
+        __e129.appendChild(__t130);
+        __c128.push(bindText(__t130, () => $scope.skill().value.description));
+        __frag127.appendChild(__e129);
+        return { nodes: Array.from(__frag127.childNodes), cleanup: () => {
+          for (const c of __c128)
             try {
               c();
             } catch (e) {}
@@ -690,58 +694,58 @@ var page_default = view((ctx) => {
     },
     branches: [
       () => {
-        const __frag134 = document.createDocumentFragment();
-        const __c135 = [];
-        const __t136 = document.createTextNode(`
+        const __frag136 = document.createDocumentFragment();
+        const __c137 = [];
+        const __t138 = document.createTextNode(`
                 Invoked · run `);
-        __frag134.appendChild(__t136);
-        const __e137 = document.createElement("code");
-        const __t138 = document.createTextNode("");
-        __e137.appendChild(__t138);
-        __c135.push(bindText(__t138, () => $scope.invokeResult().run_id));
-        __frag134.appendChild(__e137);
-        const __t139 = document.createTextNode(" · session ");
-        __frag134.appendChild(__t139);
-        const __e140 = document.createElement("code");
-        const __t141 = document.createTextNode("");
-        __e140.appendChild(__t141);
-        __c135.push(bindText(__t141, () => $scope.invokeResult().session_id));
-        __frag134.appendChild(__e140);
-        const __e142 = document.createElement("button");
-        __e142.setAttribute("class", "sd-invoke-dismiss");
-        __e142.setAttribute("aria-label", "Dismiss");
-        __c135.push(on(__e142, "click", function() {
+        __frag136.appendChild(__t138);
+        const __e139 = document.createElement("code");
+        const __t140 = document.createTextNode("");
+        __e139.appendChild(__t140);
+        __c137.push(bindText(__t140, () => $scope.invokeResult().run_id));
+        __frag136.appendChild(__e139);
+        const __t141 = document.createTextNode(" · session ");
+        __frag136.appendChild(__t141);
+        const __e142 = document.createElement("code");
+        const __t143 = document.createTextNode("");
+        __e142.appendChild(__t143);
+        __c137.push(bindText(__t143, () => $scope.invokeResult().session_id));
+        __frag136.appendChild(__e142);
+        const __e144 = document.createElement("button");
+        __e144.setAttribute("class", "sd-invoke-dismiss");
+        __e144.setAttribute("aria-label", "Dismiss");
+        __c137.push(on(__e144, "click", function() {
           const __h = () => $scope.invokeResult.set(null);
           return typeof __h === "function" ? __h.bind(undefined) : () => {};
         }(), { modifiers: [] }));
-        const __t143 = document.createTextNode("×");
-        __e142.appendChild(__t143);
-        __frag134.appendChild(__e142);
-        return { nodes: Array.from(__frag134.childNodes), cleanup: () => {
-          for (const c of __c135)
+        const __t145 = document.createTextNode("×");
+        __e144.appendChild(__t145);
+        __frag136.appendChild(__e144);
+        return { nodes: Array.from(__frag136.childNodes), cleanup: () => {
+          for (const c of __c137)
             try {
               c();
             } catch (e) {}
         } };
       },
       () => {
-        const __frag144 = document.createDocumentFragment();
-        const __c145 = [];
-        const __t146 = document.createTextNode("");
-        __frag144.appendChild(__t146);
-        __c145.push(bindText(__t146, () => $scope.invokeResult().error));
-        const __e147 = document.createElement("button");
-        __e147.setAttribute("class", "sd-invoke-dismiss");
-        __e147.setAttribute("aria-label", "Dismiss");
-        __c145.push(on(__e147, "click", function() {
+        const __frag146 = document.createDocumentFragment();
+        const __c147 = [];
+        const __t148 = document.createTextNode("");
+        __frag146.appendChild(__t148);
+        __c147.push(bindText(__t148, () => $scope.invokeResult().error));
+        const __e149 = document.createElement("button");
+        __e149.setAttribute("class", "sd-invoke-dismiss");
+        __e149.setAttribute("aria-label", "Dismiss");
+        __c147.push(on(__e149, "click", function() {
           const __h = () => $scope.invokeResult.set(null);
           return typeof __h === "function" ? __h.bind(undefined) : () => {};
         }(), { modifiers: [] }));
-        const __t148 = document.createTextNode("×");
-        __e147.appendChild(__t148);
-        __frag144.appendChild(__e147);
-        return { nodes: Array.from(__frag144.childNodes), cleanup: () => {
-          for (const c of __c145)
+        const __t150 = document.createTextNode("×");
+        __e149.appendChild(__t150);
+        __frag146.appendChild(__e149);
+        return { nodes: Array.from(__frag146.childNodes), cleanup: () => {
+          for (const c of __c147)
             try {
               c();
             } catch (e) {}
@@ -758,17 +762,17 @@ var page_default = view((ctx) => {
     },
     branches: [
       () => {
-        const __frag130 = document.createDocumentFragment();
-        const __c131 = [];
-        const __e132 = document.createElement("sui-alert");
-        __c131.push(bindAttr(__e132, "tone", () => $scope.invokeResult().ok ? "success" : "warning"));
-        __e132.setAttribute("class", "sd-invoke-result");
-        const __ifAnchor133 = document.createComment("if");
-        __e132.appendChild(__ifAnchor133);
-        __c131.push(__wireBoundary_b49(__ifAnchor133));
-        __frag130.appendChild(__e132);
-        return { nodes: Array.from(__frag130.childNodes), cleanup: () => {
-          for (const c of __c131)
+        const __frag132 = document.createDocumentFragment();
+        const __c133 = [];
+        const __e134 = document.createElement("sui-alert");
+        __c133.push(bindAttr(__e134, "tone", () => $scope.invokeResult().ok ? "success" : "warning"));
+        __e134.setAttribute("class", "sd-invoke-result");
+        const __ifAnchor135 = document.createComment("if");
+        __e134.appendChild(__ifAnchor135);
+        __c133.push(__wireBoundary_b49(__ifAnchor135));
+        __frag132.appendChild(__e134);
+        return { nodes: Array.from(__frag132.childNodes), cleanup: () => {
+          for (const c of __c133)
             try {
               c();
             } catch (e) {}
@@ -785,31 +789,31 @@ var page_default = view((ctx) => {
     },
     branches: [
       () => {
-        const __frag166 = document.createDocumentFragment();
-        const __c167 = [];
-        const __e168 = document.createElement("pre");
-        __e168.setAttribute("class", "sd-raw");
-        const __e169 = document.createElement("code");
-        const __t170 = document.createTextNode("");
-        __e169.appendChild(__t170);
-        __c167.push(bindText(__t170, () => $scope.skill().value.body));
-        __e168.appendChild(__e169);
-        __frag166.appendChild(__e168);
-        return { nodes: Array.from(__frag166.childNodes), cleanup: () => {
-          for (const c of __c167)
+        const __frag168 = document.createDocumentFragment();
+        const __c169 = [];
+        const __e170 = document.createElement("pre");
+        __e170.setAttribute("class", "sd-raw");
+        const __e171 = document.createElement("code");
+        const __t172 = document.createTextNode("");
+        __e171.appendChild(__t172);
+        __c169.push(bindText(__t172, () => $scope.skill().value.body));
+        __e170.appendChild(__e171);
+        __frag168.appendChild(__e170);
+        return { nodes: Array.from(__frag168.childNodes), cleanup: () => {
+          for (const c of __c169)
             try {
               c();
             } catch (e) {}
         } };
       },
       () => {
-        const __frag171 = document.createDocumentFragment();
-        const __c172 = [];
-        const __e173 = document.createElement("sui-markdown-editor");
-        __c172.push(bindAttr(__e173, "value", () => $scope.skill().value.body));
-        __frag171.appendChild(__e173);
-        return { nodes: Array.from(__frag171.childNodes), cleanup: () => {
-          for (const c of __c172)
+        const __frag173 = document.createDocumentFragment();
+        const __c174 = [];
+        const __e175 = document.createElement("sui-markdown-editor");
+        __c174.push(bindAttr(__e175, "value", () => $scope.skill().value.body));
+        __frag173.appendChild(__e175);
+        return { nodes: Array.from(__frag173.childNodes), cleanup: () => {
+          for (const c of __c174)
             try {
               c();
             } catch (e) {}
@@ -826,37 +830,37 @@ var page_default = view((ctx) => {
     },
     branches: [
       () => {
-        const __frag163 = document.createDocumentFragment();
-        const __c164 = [];
-        const __ifAnchor165 = document.createComment("if");
-        __frag163.appendChild(__ifAnchor165);
-        __c164.push(__wireBoundary_b64(__ifAnchor165));
-        return { nodes: Array.from(__frag163.childNodes), cleanup: () => {
-          for (const c of __c164)
+        const __frag165 = document.createDocumentFragment();
+        const __c166 = [];
+        const __ifAnchor167 = document.createComment("if");
+        __frag165.appendChild(__ifAnchor167);
+        __c166.push(__wireBoundary_b64(__ifAnchor167));
+        return { nodes: Array.from(__frag165.childNodes), cleanup: () => {
+          for (const c of __c166)
             try {
               c();
             } catch (e) {}
         } };
       },
       () => {
-        const __frag174 = document.createDocumentFragment();
-        const __c175 = [];
-        const __e176 = document.createElement("div");
-        __e176.setAttribute("class", "se-empty-state");
-        __e176.setAttribute("style", "padding:40px 0");
-        const __e177 = document.createElement("sui-icon");
-        __e177.setAttribute("name", "file");
-        __e177.setAttribute("size", "xl");
-        __e177.setAttribute("tone", "muted");
-        __e176.appendChild(__e177);
-        const __e178 = document.createElement("span");
-        __e178.setAttribute("class", "se-empty-desc");
-        const __t179 = document.createTextNode("This skill has no SKILL.md content yet.");
-        __e178.appendChild(__t179);
-        __e176.appendChild(__e178);
-        __frag174.appendChild(__e176);
-        return { nodes: Array.from(__frag174.childNodes), cleanup: () => {
-          for (const c of __c175)
+        const __frag176 = document.createDocumentFragment();
+        const __c177 = [];
+        const __e178 = document.createElement("div");
+        __e178.setAttribute("class", "se-empty-state");
+        __e178.setAttribute("style", "padding:40px 0");
+        const __e179 = document.createElement("sui-icon");
+        __e179.setAttribute("name", "file");
+        __e179.setAttribute("size", "xl");
+        __e179.setAttribute("tone", "muted");
+        __e178.appendChild(__e179);
+        const __e180 = document.createElement("span");
+        __e180.setAttribute("class", "se-empty-desc");
+        const __t181 = document.createTextNode("This skill has no SKILL.md content yet.");
+        __e180.appendChild(__t181);
+        __e178.appendChild(__e180);
+        __frag176.appendChild(__e178);
+        return { nodes: Array.from(__frag176.childNodes), cleanup: () => {
+          for (const c of __c177)
             try {
               c();
             } catch (e) {}
@@ -873,19 +877,19 @@ var page_default = view((ctx) => {
     },
     branches: [
       () => {
-        const __frag198 = document.createDocumentFragment();
-        const __c199 = [];
-        const __e200 = document.createElement("dt");
-        const __t201 = document.createTextNode("description");
-        __e200.appendChild(__t201);
-        __frag198.appendChild(__e200);
-        const __e202 = document.createElement("dd");
-        const __t203 = document.createTextNode("");
+        const __frag200 = document.createDocumentFragment();
+        const __c201 = [];
+        const __e202 = document.createElement("dt");
+        const __t203 = document.createTextNode("description");
         __e202.appendChild(__t203);
-        __c199.push(bindText(__t203, () => $scope.skill().value.description));
-        __frag198.appendChild(__e202);
-        return { nodes: Array.from(__frag198.childNodes), cleanup: () => {
-          for (const c of __c199)
+        __frag200.appendChild(__e202);
+        const __e204 = document.createElement("dd");
+        const __t205 = document.createTextNode("");
+        __e204.appendChild(__t205);
+        __c201.push(bindText(__t205, () => $scope.skill().value.description));
+        __frag200.appendChild(__e204);
+        return { nodes: Array.from(__frag200.childNodes), cleanup: () => {
+          for (const c of __c201)
             try {
               c();
             } catch (e) {}
@@ -903,33 +907,33 @@ var page_default = view((ctx) => {
       return (($scope2) => t)(__child);
     },
     render: (t, __i) => {
-      const __childScope212 = Object.create($scope);
-      __childScope212.t = t;
-      __childScope212.__i = __i;
-      __childScope212.__v = signal2(0);
+      const __childScope214 = Object.create($scope);
+      __childScope214.t = t;
+      __childScope214.__i = __i;
+      __childScope214.__v = signal2(0);
       return (($scope2) => {
-        const __frag213 = document.createDocumentFragment();
-        const __c214 = [];
-        const __e215 = document.createElement("sui-chip");
-        __e215.setAttribute("variant", "soft");
-        __e215.setAttribute("size", "sm");
-        __e215.setAttribute("tone", "muted");
-        const __t216 = document.createTextNode("");
-        __e215.appendChild(__t216);
-        __t216.textContent = $scope2.t;
-        __frag213.appendChild(__e215);
-        return { nodes: Array.from(__frag213.childNodes), cleanup: () => {
-          for (const c of __c214)
+        const __frag215 = document.createDocumentFragment();
+        const __c216 = [];
+        const __e217 = document.createElement("sui-chip");
+        __e217.setAttribute("variant", "soft");
+        __e217.setAttribute("size", "sm");
+        __e217.setAttribute("tone", "muted");
+        const __t218 = document.createTextNode("");
+        __e217.appendChild(__t218);
+        __t218.textContent = $scope2.t;
+        __frag215.appendChild(__e217);
+        return { nodes: Array.from(__frag215.childNodes), cleanup: () => {
+          for (const c of __c216)
             try {
               c();
             } catch (e) {}
-        }, update: (__new217, __newI218) => {
-          $scope2.t = __new217;
-          $scope2.__i = __newI218;
-          __t216.textContent = $scope2.t;
+        }, update: (__new219, __newI220) => {
+          $scope2.t = __new219;
+          $scope2.__i = __newI220;
+          __t218.textContent = $scope2.t;
           $scope2.__v.set((c) => c + 1);
         } };
-      })(__childScope212);
+      })(__childScope214);
     }
   });
   const __wireBoundary_b72 = (anchor) => bindIf({
@@ -941,24 +945,24 @@ var page_default = view((ctx) => {
     },
     branches: [
       () => {
-        const __frag205 = document.createDocumentFragment();
-        const __c206 = [];
-        const __e207 = document.createElement("div");
-        __e207.setAttribute("class", "sd-meta-section");
-        const __e208 = document.createElement("div");
-        __e208.setAttribute("class", "sd-meta-label");
-        const __t209 = document.createTextNode("Tags");
-        __e208.appendChild(__t209);
-        __e207.appendChild(__e208);
+        const __frag207 = document.createDocumentFragment();
+        const __c208 = [];
+        const __e209 = document.createElement("div");
+        __e209.setAttribute("class", "sd-meta-section");
         const __e210 = document.createElement("div");
-        __e210.setAttribute("class", "sd-meta-chips");
-        const __forAnchor211 = document.createComment("for");
-        __e210.appendChild(__forAnchor211);
-        __c206.push(__wireBoundary_b73(__forAnchor211));
-        __e207.appendChild(__e210);
-        __frag205.appendChild(__e207);
-        return { nodes: Array.from(__frag205.childNodes), cleanup: () => {
-          for (const c of __c206)
+        __e210.setAttribute("class", "sd-meta-label");
+        const __t211 = document.createTextNode("Tags");
+        __e210.appendChild(__t211);
+        __e209.appendChild(__e210);
+        const __e212 = document.createElement("div");
+        __e212.setAttribute("class", "sd-meta-chips");
+        const __forAnchor213 = document.createComment("for");
+        __e212.appendChild(__forAnchor213);
+        __c208.push(__wireBoundary_b73(__forAnchor213));
+        __e209.appendChild(__e212);
+        __frag207.appendChild(__e209);
+        return { nodes: Array.from(__frag207.childNodes), cleanup: () => {
+          for (const c of __c208)
             try {
               c();
             } catch (e) {}
@@ -976,33 +980,33 @@ var page_default = view((ctx) => {
       return (($scope2) => a)(__child);
     },
     render: (a, __i) => {
-      const __childScope227 = Object.create($scope);
-      __childScope227.a = a;
-      __childScope227.__i = __i;
-      __childScope227.__v = signal2(0);
+      const __childScope229 = Object.create($scope);
+      __childScope229.a = a;
+      __childScope229.__i = __i;
+      __childScope229.__v = signal2(0);
       return (($scope2) => {
-        const __frag228 = document.createDocumentFragment();
-        const __c229 = [];
-        const __e230 = document.createElement("sui-chip");
-        __e230.setAttribute("variant", "soft");
-        __e230.setAttribute("size", "sm");
-        __e230.setAttribute("tone", "muted");
-        const __t231 = document.createTextNode("");
-        __e230.appendChild(__t231);
-        __t231.textContent = $scope2.a;
-        __frag228.appendChild(__e230);
-        return { nodes: Array.from(__frag228.childNodes), cleanup: () => {
-          for (const c of __c229)
+        const __frag230 = document.createDocumentFragment();
+        const __c231 = [];
+        const __e232 = document.createElement("sui-chip");
+        __e232.setAttribute("variant", "soft");
+        __e232.setAttribute("size", "sm");
+        __e232.setAttribute("tone", "muted");
+        const __t233 = document.createTextNode("");
+        __e232.appendChild(__t233);
+        __t233.textContent = $scope2.a;
+        __frag230.appendChild(__e232);
+        return { nodes: Array.from(__frag230.childNodes), cleanup: () => {
+          for (const c of __c231)
             try {
               c();
             } catch (e) {}
-        }, update: (__new232, __newI233) => {
-          $scope2.a = __new232;
-          $scope2.__i = __newI233;
-          __t231.textContent = $scope2.a;
+        }, update: (__new234, __newI235) => {
+          $scope2.a = __new234;
+          $scope2.__i = __newI235;
+          __t233.textContent = $scope2.a;
           $scope2.__v.set((c) => c + 1);
         } };
-      })(__childScope227);
+      })(__childScope229);
     }
   });
   const __wireBoundary_b75 = (anchor) => bindIf({
@@ -1014,24 +1018,24 @@ var page_default = view((ctx) => {
     },
     branches: [
       () => {
-        const __frag220 = document.createDocumentFragment();
-        const __c221 = [];
-        const __e222 = document.createElement("div");
-        __e222.setAttribute("class", "sd-meta-section");
-        const __e223 = document.createElement("div");
-        __e223.setAttribute("class", "sd-meta-label");
-        const __t224 = document.createTextNode("Authors");
-        __e223.appendChild(__t224);
-        __e222.appendChild(__e223);
+        const __frag222 = document.createDocumentFragment();
+        const __c223 = [];
+        const __e224 = document.createElement("div");
+        __e224.setAttribute("class", "sd-meta-section");
         const __e225 = document.createElement("div");
-        __e225.setAttribute("class", "sd-meta-chips");
-        const __forAnchor226 = document.createComment("for");
-        __e225.appendChild(__forAnchor226);
-        __c221.push(__wireBoundary_b76(__forAnchor226));
-        __e222.appendChild(__e225);
-        __frag220.appendChild(__e222);
-        return { nodes: Array.from(__frag220.childNodes), cleanup: () => {
-          for (const c of __c221)
+        __e225.setAttribute("class", "sd-meta-label");
+        const __t226 = document.createTextNode("Authors");
+        __e225.appendChild(__t226);
+        __e224.appendChild(__e225);
+        const __e227 = document.createElement("div");
+        __e227.setAttribute("class", "sd-meta-chips");
+        const __forAnchor228 = document.createComment("for");
+        __e227.appendChild(__forAnchor228);
+        __c223.push(__wireBoundary_b76(__forAnchor228));
+        __e224.appendChild(__e227);
+        __frag222.appendChild(__e224);
+        return { nodes: Array.from(__frag222.childNodes), cleanup: () => {
+          for (const c of __c223)
             try {
               c();
             } catch (e) {}
@@ -1049,32 +1053,32 @@ var page_default = view((ctx) => {
       return (($scope2) => v)(__child);
     },
     render: (v, __i) => {
-      const __childScope244 = Object.create($scope);
-      __childScope244.v = v;
-      __childScope244.__i = __i;
-      __childScope244.__v = signal2(0);
+      const __childScope246 = Object.create($scope);
+      __childScope246.v = v;
+      __childScope246.__i = __i;
+      __childScope246.__v = signal2(0);
       return (($scope2) => {
-        const __frag245 = document.createDocumentFragment();
-        const __c246 = [];
-        const __e247 = document.createElement("li");
-        const __e248 = document.createElement("code");
-        const __t249 = document.createTextNode("");
-        __e248.appendChild(__t249);
-        __t249.textContent = $scope2.v;
-        __e247.appendChild(__e248);
-        __frag245.appendChild(__e247);
-        return { nodes: Array.from(__frag245.childNodes), cleanup: () => {
-          for (const c of __c246)
+        const __frag247 = document.createDocumentFragment();
+        const __c248 = [];
+        const __e249 = document.createElement("li");
+        const __e250 = document.createElement("code");
+        const __t251 = document.createTextNode("");
+        __e250.appendChild(__t251);
+        __t251.textContent = $scope2.v;
+        __e249.appendChild(__e250);
+        __frag247.appendChild(__e249);
+        return { nodes: Array.from(__frag247.childNodes), cleanup: () => {
+          for (const c of __c248)
             try {
               c();
             } catch (e) {}
-        }, update: (__new250, __newI251) => {
-          $scope2.v = __new250;
-          $scope2.__i = __newI251;
-          __t249.textContent = $scope2.v;
+        }, update: (__new252, __newI253) => {
+          $scope2.v = __new252;
+          $scope2.__i = __newI253;
+          __t251.textContent = $scope2.v;
           $scope2.__v.set((c) => c + 1);
         } };
-      })(__childScope244);
+      })(__childScope246);
     }
   });
   const __wireBoundary_b79 = (anchor) => bindIf({
@@ -1086,31 +1090,31 @@ var page_default = view((ctx) => {
     },
     branches: [
       () => {
-        const __frag240 = document.createDocumentFragment();
-        const __c241 = [];
-        const __e242 = document.createElement("ul");
-        __e242.setAttribute("class", "sd-meta-vars");
-        const __forAnchor243 = document.createComment("for");
-        __e242.appendChild(__forAnchor243);
-        __c241.push(__wireBoundary_b80(__forAnchor243));
-        __frag240.appendChild(__e242);
-        return { nodes: Array.from(__frag240.childNodes), cleanup: () => {
-          for (const c of __c241)
+        const __frag242 = document.createDocumentFragment();
+        const __c243 = [];
+        const __e244 = document.createElement("ul");
+        __e244.setAttribute("class", "sd-meta-vars");
+        const __forAnchor245 = document.createComment("for");
+        __e244.appendChild(__forAnchor245);
+        __c243.push(__wireBoundary_b80(__forAnchor245));
+        __frag242.appendChild(__e244);
+        return { nodes: Array.from(__frag242.childNodes), cleanup: () => {
+          for (const c of __c243)
             try {
               c();
             } catch (e) {}
         } };
       },
       () => {
-        const __frag252 = document.createDocumentFragment();
-        const __c253 = [];
-        const __e254 = document.createElement("p");
-        __e254.setAttribute("class", "sd-meta-empty");
-        const __t255 = document.createTextNode("No variables defined.");
-        __e254.appendChild(__t255);
-        __frag252.appendChild(__e254);
-        return { nodes: Array.from(__frag252.childNodes), cleanup: () => {
-          for (const c of __c253)
+        const __frag254 = document.createDocumentFragment();
+        const __c255 = [];
+        const __e256 = document.createElement("p");
+        __e256.setAttribute("class", "sd-meta-empty");
+        const __t257 = document.createTextNode("No variables defined.");
+        __e256.appendChild(__t257);
+        __frag254.appendChild(__e256);
+        return { nodes: Array.from(__frag254.childNodes), cleanup: () => {
+          for (const c of __c255)
             try {
               c();
             } catch (e) {}
@@ -1128,76 +1132,81 @@ var page_default = view((ctx) => {
       return (($scope2) => f)(__child);
     },
     render: (f, __i) => {
-      const __childScope263 = Object.create($scope);
-      __childScope263.f = f;
-      __childScope263.__i = __i;
-      __childScope263.__v = signal2(0);
+      const __childScope265 = Object.create($scope);
+      __childScope265.f = f;
+      __childScope265.__i = __i;
+      __childScope265.__v = signal2(0);
       return (($scope2) => {
-        const __frag264 = document.createDocumentFragment();
-        const __c265 = [];
-        const __e266 = document.createElement("li");
-        const __e267 = document.createElement("code");
-        const __t268 = document.createTextNode("");
-        __e267.appendChild(__t268);
-        __t268.textContent = $scope2.f;
-        __e266.appendChild(__e267);
-        __frag264.appendChild(__e266);
-        return { nodes: Array.from(__frag264.childNodes), cleanup: () => {
-          for (const c of __c265)
+        const __frag266 = document.createDocumentFragment();
+        const __c267 = [];
+        const __e268 = document.createElement("li");
+        const __e269 = document.createElement("code");
+        const __t270 = document.createTextNode("");
+        __e269.appendChild(__t270);
+        __t270.textContent = $scope2.f;
+        __e268.appendChild(__e269);
+        __frag266.appendChild(__e268);
+        return { nodes: Array.from(__frag266.childNodes), cleanup: () => {
+          for (const c of __c267)
             try {
               c();
             } catch (e) {}
-        }, update: (__new269, __newI270) => {
-          $scope2.f = __new269;
-          $scope2.__i = __newI270;
-          __t268.textContent = $scope2.f;
+        }, update: (__new271, __newI272) => {
+          $scope2.f = __new271;
+          $scope2.__i = __newI272;
+          __t270.textContent = $scope2.f;
           $scope2.__v.set((c) => c + 1);
         } };
-      })(__childScope263);
+      })(__childScope265);
     }
   });
   const __renderWhileLoading_1 = () => {
-    const __frag274 = document.createDocumentFragment();
-    const __c275 = [];
-    const __e276 = document.createElement("div");
-    __e276.setAttribute("class", "se-empty-state");
-    const __e277 = document.createElement("sui-spinner");
-    __e277.setAttribute("size", "md");
-    __e276.appendChild(__e277);
-    const __e278 = document.createElement("span");
-    __e278.setAttribute("class", "se-empty-desc");
-    const __t279 = document.createTextNode("Loading runs…");
-    __e278.appendChild(__t279);
-    __e276.appendChild(__e278);
-    __frag274.appendChild(__e276);
-    return { nodes: Array.from(__frag274.childNodes), cleanup: () => {
-      for (const c of __c275)
+    const __frag276 = document.createDocumentFragment();
+    const __c277 = [];
+    const __e278 = document.createElement("div");
+    __e278.setAttribute("class", "se-empty-state");
+    __e278.setAttribute("role", "status");
+    __e278.setAttribute("aria-live", "polite");
+    __e278.setAttribute("aria-busy", "true");
+    const __e279 = document.createElement("sui-spinner");
+    __e279.setAttribute("size", "md");
+    __e278.appendChild(__e279);
+    const __e280 = document.createElement("span");
+    __e280.setAttribute("class", "se-empty-desc");
+    const __t281 = document.createTextNode("Loading runs…");
+    __e280.appendChild(__t281);
+    __e278.appendChild(__e280);
+    __frag276.appendChild(__e278);
+    return { nodes: Array.from(__frag276.childNodes), cleanup: () => {
+      for (const c of __c277)
         try {
           c();
         } catch (e) {}
     } };
   };
   const __renderWhileError_1 = (err) => {
-    const __childScope281 = Object.create($scope);
-    __childScope281.err = err;
+    const __childScope283 = Object.create($scope);
+    __childScope283.err = err;
     return (($scope2) => {
-      const __frag282 = document.createDocumentFragment();
-      const __c283 = [];
-      const __e284 = document.createElement("sui-error-state");
-      __e284.setAttribute("variant", "inline");
-      __e284.setAttribute("size", "sm");
-      __e284.setAttribute("title", "Couldn't load runs");
-      const __t285 = document.createTextNode("");
-      __e284.appendChild(__t285);
-      __c283.push(bindText(__t285, () => $scope2.err.message));
-      __frag282.appendChild(__e284);
-      return { nodes: Array.from(__frag282.childNodes), cleanup: () => {
-        for (const c of __c283)
+      const __frag284 = document.createDocumentFragment();
+      const __c285 = [];
+      const __e286 = document.createElement("sui-error-state");
+      __e286.setAttribute("variant", "inline");
+      __e286.setAttribute("size", "sm");
+      __e286.setAttribute("title", "Couldn't load runs");
+      __e286.setAttribute("role", "alert");
+      __e286.setAttribute("aria-live", "assertive");
+      const __t287 = document.createTextNode("");
+      __e286.appendChild(__t287);
+      __c285.push(bindText(__t287, () => $scope2.err.message));
+      __frag284.appendChild(__e286);
+      return { nodes: Array.from(__frag284.childNodes), cleanup: () => {
+        for (const c of __c285)
           try {
             c();
           } catch (e) {}
       } };
-    })(__childScope281);
+    })(__childScope283);
   };
   const __wireBoundary_b90 = (anchor) => bindFor({
     anchor,
@@ -1209,10 +1218,10 @@ var page_default = view((ctx) => {
       return (($scope2) => r.id)(__child);
     },
     render: (r, __i) => {
-      const __childScope306 = Object.create($scope);
-      __childScope306.r = r;
-      __childScope306.__i = __i;
-      __childScope306.__v = signal2(0);
+      const __childScope308 = Object.create($scope);
+      __childScope308.r = r;
+      __childScope308.__i = __i;
+      __childScope308.__v = signal2(0);
       return (($scope2) => {
         const __wireBoundary_b94 = (anchor2) => bindIf({
           anchor: anchor2,
@@ -1223,28 +1232,28 @@ var page_default = view((ctx) => {
           },
           branches: [
             () => {
-              const __frag317 = document.createDocumentFragment();
-              const __c318 = [];
-              const __e319 = document.createElement("span");
-              __e319.setAttribute("class", "sd-run-session");
+              const __frag319 = document.createDocumentFragment();
+              const __c320 = [];
+              const __e321 = document.createElement("span");
+              __e321.setAttribute("class", "sd-run-session");
               {
-                const __av320 = "Session " + $scope2.r.session_id;
-                if (__av320 == null || __av320 === false || __av320 === "")
-                  __e319.removeAttribute("title");
+                const __av322 = "Session " + $scope2.r.session_id;
+                if (__av322 == null || __av322 === false || __av322 === "")
+                  __e321.removeAttribute("title");
                 else
-                  __e319.setAttribute("title", __av320 === true ? "" : String(__av320));
+                  __e321.setAttribute("title", __av322 === true ? "" : String(__av322));
               }
-              const __e321 = document.createElement("sui-icon");
-              __e321.setAttribute("name", "link");
-              __e321.setAttribute("size", "xs");
-              __e321.setAttribute("tone", "muted");
-              __e319.appendChild(__e321);
-              const __t322 = document.createTextNode("");
-              __e319.appendChild(__t322);
-              __c318.push(bindText(__t322, () => (void $scope2.__v(), $scope2.r.session_id.slice(0, 8))));
-              __frag317.appendChild(__e319);
-              return { nodes: Array.from(__frag317.childNodes), cleanup: () => {
-                for (const c of __c318)
+              const __e323 = document.createElement("sui-icon");
+              __e323.setAttribute("name", "link");
+              __e323.setAttribute("size", "xs");
+              __e323.setAttribute("tone", "muted");
+              __e321.appendChild(__e323);
+              const __t324 = document.createTextNode("");
+              __e321.appendChild(__t324);
+              __c320.push(bindText(__t324, () => (void $scope2.__v(), $scope2.r.session_id.slice(0, 8))));
+              __frag319.appendChild(__e321);
+              return { nodes: Array.from(__frag319.childNodes), cleanup: () => {
+                for (const c of __c320)
                   try {
                     c();
                   } catch (e) {}
@@ -1252,78 +1261,78 @@ var page_default = view((ctx) => {
             }
           ]
         });
-        const __frag307 = document.createDocumentFragment();
-        const __c308 = [];
-        const __e309 = document.createElement("li");
-        __e309.setAttribute("class", "sd-run-row");
-        const __e310 = document.createElement("sui-icon");
-        __e310.setAttribute("name", "play");
-        __e310.setAttribute("size", "xs");
-        __e310.setAttribute("tone", "primary");
-        __e309.appendChild(__e310);
-        const __e311 = document.createElement("span");
-        __e311.setAttribute("class", "sd-run-time");
+        const __frag309 = document.createDocumentFragment();
+        const __c310 = [];
+        const __e311 = document.createElement("li");
+        __e311.setAttribute("class", "sd-run-row");
+        const __e312 = document.createElement("sui-icon");
+        __e312.setAttribute("name", "play");
+        __e312.setAttribute("size", "xs");
+        __e312.setAttribute("tone", "primary");
+        __e311.appendChild(__e312);
+        const __e313 = document.createElement("span");
+        __e313.setAttribute("class", "sd-run-time");
         {
-          const __av312 = $scope2.r.timestamp;
-          if (__av312 == null || __av312 === false || __av312 === "")
-            __e311.removeAttribute("title");
+          const __av314 = $scope2.r.timestamp;
+          if (__av314 == null || __av314 === false || __av314 === "")
+            __e313.removeAttribute("title");
           else
-            __e311.setAttribute("title", __av312 === true ? "" : String(__av312));
+            __e313.setAttribute("title", __av314 === true ? "" : String(__av314));
         }
-        const __t313 = document.createTextNode("");
-        __e311.appendChild(__t313);
-        __t313.textContent = $scope2.r.timestamp;
-        __e309.appendChild(__e311);
-        const __e314 = document.createElement("span");
-        __e314.setAttribute("class", "sd-run-actor");
         const __t315 = document.createTextNode("");
-        __e314.appendChild(__t315);
-        __t315.textContent = $scope2.r.actor;
-        __e309.appendChild(__e314);
-        const __ifAnchor316 = document.createComment("if");
-        __e309.appendChild(__ifAnchor316);
-        __c308.push(__wireBoundary_b94(__ifAnchor316));
-        const __e323 = document.createElement("code");
-        __e323.setAttribute("class", "sd-run-id");
+        __e313.appendChild(__t315);
+        __t315.textContent = $scope2.r.timestamp;
+        __e311.appendChild(__e313);
+        const __e316 = document.createElement("span");
+        __e316.setAttribute("class", "sd-run-actor");
+        const __t317 = document.createTextNode("");
+        __e316.appendChild(__t317);
+        __t317.textContent = $scope2.r.actor;
+        __e311.appendChild(__e316);
+        const __ifAnchor318 = document.createComment("if");
+        __e311.appendChild(__ifAnchor318);
+        __c310.push(__wireBoundary_b94(__ifAnchor318));
+        const __e325 = document.createElement("code");
+        __e325.setAttribute("class", "sd-run-id");
         {
-          const __av324 = $scope2.r.id;
-          if (__av324 == null || __av324 === false || __av324 === "")
-            __e323.removeAttribute("title");
+          const __av326 = $scope2.r.id;
+          if (__av326 == null || __av326 === false || __av326 === "")
+            __e325.removeAttribute("title");
           else
-            __e323.setAttribute("title", __av324 === true ? "" : String(__av324));
+            __e325.setAttribute("title", __av326 === true ? "" : String(__av326));
         }
-        const __t325 = document.createTextNode("");
-        __e323.appendChild(__t325);
-        __c308.push(bindText(__t325, () => (void $scope2.__v(), $scope2.r.id.slice(0, 12))));
-        __e309.appendChild(__e323);
-        __frag307.appendChild(__e309);
-        return { nodes: Array.from(__frag307.childNodes), cleanup: () => {
-          for (const c of __c308)
+        const __t327 = document.createTextNode("");
+        __e325.appendChild(__t327);
+        __c310.push(bindText(__t327, () => (void $scope2.__v(), $scope2.r.id.slice(0, 12))));
+        __e311.appendChild(__e325);
+        __frag309.appendChild(__e311);
+        return { nodes: Array.from(__frag309.childNodes), cleanup: () => {
+          for (const c of __c310)
             try {
               c();
             } catch (e) {}
-        }, update: (__new326, __newI327) => {
-          $scope2.r = __new326;
-          $scope2.__i = __newI327;
+        }, update: (__new328, __newI329) => {
+          $scope2.r = __new328;
+          $scope2.__i = __newI329;
           {
-            const __av312 = $scope2.r.timestamp;
-            if (__av312 == null || __av312 === false || __av312 === "")
-              __e311.removeAttribute("title");
+            const __av314 = $scope2.r.timestamp;
+            if (__av314 == null || __av314 === false || __av314 === "")
+              __e313.removeAttribute("title");
             else
-              __e311.setAttribute("title", __av312 === true ? "" : String(__av312));
+              __e313.setAttribute("title", __av314 === true ? "" : String(__av314));
           }
-          __t313.textContent = $scope2.r.timestamp;
-          __t315.textContent = $scope2.r.actor;
+          __t315.textContent = $scope2.r.timestamp;
+          __t317.textContent = $scope2.r.actor;
           {
-            const __av324 = $scope2.r.id;
-            if (__av324 == null || __av324 === false || __av324 === "")
-              __e323.removeAttribute("title");
+            const __av326 = $scope2.r.id;
+            if (__av326 == null || __av326 === false || __av326 === "")
+              __e325.removeAttribute("title");
             else
-              __e323.setAttribute("title", __av324 === true ? "" : String(__av324));
+              __e325.setAttribute("title", __av326 === true ? "" : String(__av326));
           }
           $scope2.__v.set((c) => c + 1);
         } };
-      })(__childScope306);
+      })(__childScope308);
     }
   });
   const __wireBoundary_b89 = (anchor) => bindIf({
@@ -1335,51 +1344,51 @@ var page_default = view((ctx) => {
     },
     branches: [
       () => {
-        const __frag291 = document.createDocumentFragment();
-        const __c292 = [];
-        const __e293 = document.createElement("div");
-        __e293.setAttribute("class", "se-empty-state");
-        __e293.setAttribute("style", "padding:40px 0");
-        const __e294 = document.createElement("sui-icon");
-        __e294.setAttribute("name", "zap");
-        __e294.setAttribute("size", "xl");
-        __e294.setAttribute("tone", "muted");
-        __e293.appendChild(__e294);
-        const __e295 = document.createElement("span");
-        __e295.setAttribute("class", "se-empty-title");
-        const __t296 = document.createTextNode("No invocations yet");
-        __e295.appendChild(__t296);
-        __e293.appendChild(__e295);
+        const __frag293 = document.createDocumentFragment();
+        const __c294 = [];
+        const __e295 = document.createElement("div");
+        __e295.setAttribute("class", "se-empty-state");
+        __e295.setAttribute("style", "padding:40px 0");
+        const __e296 = document.createElement("sui-icon");
+        __e296.setAttribute("name", "zap");
+        __e296.setAttribute("size", "xl");
+        __e296.setAttribute("tone", "muted");
+        __e295.appendChild(__e296);
         const __e297 = document.createElement("span");
-        __e297.setAttribute("class", "se-empty-desc");
-        const __t298 = document.createTextNode("Click ");
+        __e297.setAttribute("class", "se-empty-title");
+        const __t298 = document.createTextNode("No invocations yet");
         __e297.appendChild(__t298);
-        const __e299 = document.createElement("b");
-        const __t300 = document.createTextNode("Invoke");
+        __e295.appendChild(__e297);
+        const __e299 = document.createElement("span");
+        __e299.setAttribute("class", "se-empty-desc");
+        const __t300 = document.createTextNode("Click ");
         __e299.appendChild(__t300);
-        __e297.appendChild(__e299);
-        const __t301 = document.createTextNode(" to start a session attached to this skill.");
-        __e297.appendChild(__t301);
-        __e293.appendChild(__e297);
-        __frag291.appendChild(__e293);
-        return { nodes: Array.from(__frag291.childNodes), cleanup: () => {
-          for (const c of __c292)
+        const __e301 = document.createElement("b");
+        const __t302 = document.createTextNode("Invoke");
+        __e301.appendChild(__t302);
+        __e299.appendChild(__e301);
+        const __t303 = document.createTextNode(" to start a session attached to this skill.");
+        __e299.appendChild(__t303);
+        __e295.appendChild(__e299);
+        __frag293.appendChild(__e295);
+        return { nodes: Array.from(__frag293.childNodes), cleanup: () => {
+          for (const c of __c294)
             try {
               c();
             } catch (e) {}
         } };
       },
       () => {
-        const __frag302 = document.createDocumentFragment();
-        const __c303 = [];
-        const __e304 = document.createElement("ul");
-        __e304.setAttribute("class", "sd-runs-list");
-        const __forAnchor305 = document.createComment("for");
-        __e304.appendChild(__forAnchor305);
-        __c303.push(__wireBoundary_b90(__forAnchor305));
-        __frag302.appendChild(__e304);
-        return { nodes: Array.from(__frag302.childNodes), cleanup: () => {
-          for (const c of __c303)
+        const __frag304 = document.createDocumentFragment();
+        const __c305 = [];
+        const __e306 = document.createElement("ul");
+        __e306.setAttribute("class", "sd-runs-list");
+        const __forAnchor307 = document.createComment("for");
+        __e306.appendChild(__forAnchor307);
+        __c305.push(__wireBoundary_b90(__forAnchor307));
+        __frag304.appendChild(__e306);
+        return { nodes: Array.from(__frag304.childNodes), cleanup: () => {
+          for (const c of __c305)
             try {
               c();
             } catch (e) {}
@@ -1396,13 +1405,13 @@ var page_default = view((ctx) => {
     },
     branches: [
       () => {
-        const __frag288 = document.createDocumentFragment();
-        const __c289 = [];
-        const __ifAnchor290 = document.createComment("if");
-        __frag288.appendChild(__ifAnchor290);
-        __c289.push(__wireBoundary_b89(__ifAnchor290));
-        return { nodes: Array.from(__frag288.childNodes), cleanup: () => {
-          for (const c of __c289)
+        const __frag290 = document.createDocumentFragment();
+        const __c291 = [];
+        const __ifAnchor292 = document.createComment("if");
+        __frag290.appendChild(__ifAnchor292);
+        __c291.push(__wireBoundary_b89(__ifAnchor292));
+        return { nodes: Array.from(__frag290.childNodes), cleanup: () => {
+          for (const c of __c291)
             try {
               c();
             } catch (e) {}
@@ -1423,127 +1432,127 @@ var page_default = view((ctx) => {
     },
     branches: [
       () => {
-        const __frag159 = document.createDocumentFragment();
-        const __c160 = [];
-        const __e161 = document.createElement("div");
-        __e161.setAttribute("class", "se-editor-content");
-        const __ifAnchor162 = document.createComment("if");
-        __e161.appendChild(__ifAnchor162);
-        __c160.push(__wireBoundary_b63(__ifAnchor162));
-        __frag159.appendChild(__e161);
-        return { nodes: Array.from(__frag159.childNodes), cleanup: () => {
-          for (const c of __c160)
+        const __frag161 = document.createDocumentFragment();
+        const __c162 = [];
+        const __e163 = document.createElement("div");
+        __e163.setAttribute("class", "se-editor-content");
+        const __ifAnchor164 = document.createComment("if");
+        __e163.appendChild(__ifAnchor164);
+        __c162.push(__wireBoundary_b63(__ifAnchor164));
+        __frag161.appendChild(__e163);
+        return { nodes: Array.from(__frag161.childNodes), cleanup: () => {
+          for (const c of __c162)
             try {
               c();
             } catch (e) {}
         } };
       },
       () => {
-        const __frag180 = document.createDocumentFragment();
-        const __c181 = [];
-        const __e182 = document.createElement("div");
-        __e182.setAttribute("class", "se-editor-content sd-meta");
-        const __e183 = document.createElement("dl");
-        __e183.setAttribute("class", "sd-meta-list");
-        const __e184 = document.createElement("dt");
-        const __t185 = document.createTextNode("id");
-        __e184.appendChild(__t185);
-        __e183.appendChild(__e184);
-        const __e186 = document.createElement("dd");
-        const __e187 = document.createElement("code");
-        const __t188 = document.createTextNode("");
-        __e187.appendChild(__t188);
-        __c181.push(bindText(__t188, () => $scope.skill().value.id));
-        __e186.appendChild(__e187);
-        __e183.appendChild(__e186);
-        const __e189 = document.createElement("dt");
-        const __t190 = document.createTextNode("kind");
+        const __frag182 = document.createDocumentFragment();
+        const __c183 = [];
+        const __e184 = document.createElement("div");
+        __e184.setAttribute("class", "se-editor-content sd-meta");
+        const __e185 = document.createElement("dl");
+        __e185.setAttribute("class", "sd-meta-list");
+        const __e186 = document.createElement("dt");
+        const __t187 = document.createTextNode("id");
+        __e186.appendChild(__t187);
+        __e185.appendChild(__e186);
+        const __e188 = document.createElement("dd");
+        const __e189 = document.createElement("code");
+        const __t190 = document.createTextNode("");
         __e189.appendChild(__t190);
-        __e183.appendChild(__e189);
-        const __e191 = document.createElement("dd");
-        const __t192 = document.createTextNode("");
+        __c183.push(bindText(__t190, () => $scope.skill().value.id));
+        __e188.appendChild(__e189);
+        __e185.appendChild(__e188);
+        const __e191 = document.createElement("dt");
+        const __t192 = document.createTextNode("kind");
         __e191.appendChild(__t192);
-        __c181.push(bindText(__t192, () => $scope.skill().value.kind));
-        __e183.appendChild(__e191);
-        const __e193 = document.createElement("dt");
-        const __t194 = document.createTextNode("source");
+        __e185.appendChild(__e191);
+        const __e193 = document.createElement("dd");
+        const __t194 = document.createTextNode("");
         __e193.appendChild(__t194);
-        __e183.appendChild(__e193);
-        const __e195 = document.createElement("dd");
-        const __t196 = document.createTextNode("");
+        __c183.push(bindText(__t194, () => $scope.skill().value.kind));
+        __e185.appendChild(__e193);
+        const __e195 = document.createElement("dt");
+        const __t196 = document.createTextNode("source");
         __e195.appendChild(__t196);
-        __c181.push(bindText(__t196, () => $scope.skill().value.source));
-        __e183.appendChild(__e195);
-        const __ifAnchor197 = document.createComment("if");
-        __e183.appendChild(__ifAnchor197);
-        __c181.push(__wireBoundary_b70(__ifAnchor197));
-        __e182.appendChild(__e183);
-        const __ifAnchor204 = document.createComment("if");
-        __e182.appendChild(__ifAnchor204);
-        __c181.push(__wireBoundary_b72(__ifAnchor204));
-        const __ifAnchor219 = document.createComment("if");
-        __e182.appendChild(__ifAnchor219);
-        __c181.push(__wireBoundary_b75(__ifAnchor219));
-        const __e234 = document.createElement("div");
-        __e234.setAttribute("class", "sd-meta-section");
-        const __e235 = document.createElement("div");
-        __e235.setAttribute("class", "sd-meta-label");
-        const __t236 = document.createTextNode("Variables (");
-        __e235.appendChild(__t236);
-        const __t237 = document.createTextNode("");
-        __e235.appendChild(__t237);
-        __c181.push(bindText(__t237, () => $scope.skill().value.variables?.length ?? 0));
-        const __t238 = document.createTextNode(")");
-        __e235.appendChild(__t238);
-        __e234.appendChild(__e235);
-        const __ifAnchor239 = document.createComment("if");
-        __e234.appendChild(__ifAnchor239);
-        __c181.push(__wireBoundary_b79(__ifAnchor239));
-        __e182.appendChild(__e234);
-        const __e256 = document.createElement("div");
-        __e256.setAttribute("class", "sd-meta-section");
-        const __e257 = document.createElement("div");
-        __e257.setAttribute("class", "sd-meta-label");
-        const __t258 = document.createTextNode("Files (");
-        __e257.appendChild(__t258);
-        const __t259 = document.createTextNode("");
-        __e257.appendChild(__t259);
-        __c181.push(bindText(__t259, () => $scope.skill().value.files?.length ?? 0));
-        const __t260 = document.createTextNode(")");
-        __e257.appendChild(__t260);
-        __e256.appendChild(__e257);
-        const __e261 = document.createElement("ul");
-        __e261.setAttribute("class", "sd-meta-files");
-        const __forAnchor262 = document.createComment("for");
-        __e261.appendChild(__forAnchor262);
-        __c181.push(__wireBoundary_b83(__forAnchor262));
-        __e256.appendChild(__e261);
-        __e182.appendChild(__e256);
-        __frag180.appendChild(__e182);
-        return { nodes: Array.from(__frag180.childNodes), cleanup: () => {
-          for (const c of __c181)
+        __e185.appendChild(__e195);
+        const __e197 = document.createElement("dd");
+        const __t198 = document.createTextNode("");
+        __e197.appendChild(__t198);
+        __c183.push(bindText(__t198, () => $scope.skill().value.source));
+        __e185.appendChild(__e197);
+        const __ifAnchor199 = document.createComment("if");
+        __e185.appendChild(__ifAnchor199);
+        __c183.push(__wireBoundary_b70(__ifAnchor199));
+        __e184.appendChild(__e185);
+        const __ifAnchor206 = document.createComment("if");
+        __e184.appendChild(__ifAnchor206);
+        __c183.push(__wireBoundary_b72(__ifAnchor206));
+        const __ifAnchor221 = document.createComment("if");
+        __e184.appendChild(__ifAnchor221);
+        __c183.push(__wireBoundary_b75(__ifAnchor221));
+        const __e236 = document.createElement("div");
+        __e236.setAttribute("class", "sd-meta-section");
+        const __e237 = document.createElement("div");
+        __e237.setAttribute("class", "sd-meta-label");
+        const __t238 = document.createTextNode("Variables (");
+        __e237.appendChild(__t238);
+        const __t239 = document.createTextNode("");
+        __e237.appendChild(__t239);
+        __c183.push(bindText(__t239, () => $scope.skill().value.variables?.length ?? 0));
+        const __t240 = document.createTextNode(")");
+        __e237.appendChild(__t240);
+        __e236.appendChild(__e237);
+        const __ifAnchor241 = document.createComment("if");
+        __e236.appendChild(__ifAnchor241);
+        __c183.push(__wireBoundary_b79(__ifAnchor241));
+        __e184.appendChild(__e236);
+        const __e258 = document.createElement("div");
+        __e258.setAttribute("class", "sd-meta-section");
+        const __e259 = document.createElement("div");
+        __e259.setAttribute("class", "sd-meta-label");
+        const __t260 = document.createTextNode("Files (");
+        __e259.appendChild(__t260);
+        const __t261 = document.createTextNode("");
+        __e259.appendChild(__t261);
+        __c183.push(bindText(__t261, () => $scope.skill().value.files?.length ?? 0));
+        const __t262 = document.createTextNode(")");
+        __e259.appendChild(__t262);
+        __e258.appendChild(__e259);
+        const __e263 = document.createElement("ul");
+        __e263.setAttribute("class", "sd-meta-files");
+        const __forAnchor264 = document.createComment("for");
+        __e263.appendChild(__forAnchor264);
+        __c183.push(__wireBoundary_b83(__forAnchor264));
+        __e258.appendChild(__e263);
+        __e184.appendChild(__e258);
+        __frag182.appendChild(__e184);
+        return { nodes: Array.from(__frag182.childNodes), cleanup: () => {
+          for (const c of __c183)
             try {
               c();
             } catch (e) {}
         } };
       },
       () => {
-        const __frag271 = document.createDocumentFragment();
-        const __c272 = [];
-        const __e273 = document.createElement("div");
-        __e273.setAttribute("class", "se-editor-content sd-runs");
-        const __wlAnchor280 = document.createComment("while-loading");
-        __e273.appendChild(__wlAnchor280);
-        __c272.push(bindWhileLoading({ anchor: __wlAnchor280, signal: $scope.runs, render: __renderWhileLoading_1 }));
-        const __weAnchor286 = document.createComment("while-error");
-        __e273.appendChild(__weAnchor286);
-        __c272.push(bindWhileError({ anchor: __weAnchor286, signal: $scope.runs, render: __renderWhileError_1 }));
-        const __ifAnchor287 = document.createComment("if");
-        __e273.appendChild(__ifAnchor287);
-        __c272.push(__wireBoundary_b88(__ifAnchor287));
-        __frag271.appendChild(__e273);
-        return { nodes: Array.from(__frag271.childNodes), cleanup: () => {
-          for (const c of __c272)
+        const __frag273 = document.createDocumentFragment();
+        const __c274 = [];
+        const __e275 = document.createElement("div");
+        __e275.setAttribute("class", "se-editor-content sd-runs");
+        const __wlAnchor282 = document.createComment("while-loading");
+        __e275.appendChild(__wlAnchor282);
+        __c274.push(bindWhileLoading({ anchor: __wlAnchor282, signal: $scope.runs, render: __renderWhileLoading_1 }));
+        const __weAnchor288 = document.createComment("while-error");
+        __e275.appendChild(__weAnchor288);
+        __c274.push(bindWhileError({ anchor: __weAnchor288, signal: $scope.runs, render: __renderWhileError_1 }));
+        const __ifAnchor289 = document.createComment("if");
+        __e275.appendChild(__ifAnchor289);
+        __c274.push(__wireBoundary_b88(__ifAnchor289));
+        __frag273.appendChild(__e275);
+        return { nodes: Array.from(__frag273.childNodes), cleanup: () => {
+          for (const c of __c274)
             try {
               c();
             } catch (e) {}
@@ -1564,205 +1573,205 @@ var page_default = view((ctx) => {
     },
     branches: [
       () => {
-        const __frag104 = document.createDocumentFragment();
-        const __c105 = [];
-        const __e106 = document.createElement("header");
-        __e106.setAttribute("class", "sd-header");
-        const __e107 = document.createElement("div");
-        __e107.setAttribute("class", "sd-title-row");
-        const __e108 = document.createElement("div");
-        __e108.setAttribute("class", "sd-title-main");
-        const __e109 = document.createElement("h1");
-        __e109.setAttribute("class", "sd-name");
-        const __t110 = document.createTextNode("");
-        __e109.appendChild(__t110);
-        __c105.push(bindText(__t110, () => $scope.skill().value.name));
-        __e108.appendChild(__e109);
-        const __e111 = document.createElement("sui-chip");
-        __e111.setAttribute("variant", "soft");
-        __e111.setAttribute("size", "sm");
-        __c105.push(bindAttr(__e111, "tone", () => $scope.skill().value.kind === "smart" ? "primary" : $scope.skill().value.kind === "docs" ? "info" : $scope.skill().value.kind === "operator" ? "warning" : "muted"));
+        const __frag106 = document.createDocumentFragment();
+        const __c107 = [];
+        const __e108 = document.createElement("header");
+        __e108.setAttribute("class", "sd-header");
+        const __e109 = document.createElement("div");
+        __e109.setAttribute("class", "sd-title-row");
+        const __e110 = document.createElement("div");
+        __e110.setAttribute("class", "sd-title-main");
+        const __e111 = document.createElement("h1");
+        __e111.setAttribute("class", "sd-name");
         const __t112 = document.createTextNode("");
         __e111.appendChild(__t112);
-        __c105.push(bindText(__t112, () => $scope.skill().value.kind));
-        __e108.appendChild(__e111);
-        const __e113 = document.createElement("span");
-        __e113.setAttribute("class", "sd-source-label");
+        __c107.push(bindText(__t112, () => $scope.skill().value.name));
+        __e110.appendChild(__e111);
+        const __e113 = document.createElement("sui-chip");
+        __e113.setAttribute("variant", "soft");
+        __e113.setAttribute("size", "sm");
+        __c107.push(bindAttr(__e113, "tone", () => $scope.skill().value.kind === "smart" ? "primary" : $scope.skill().value.kind === "docs" ? "info" : $scope.skill().value.kind === "operator" ? "warning" : "muted"));
         const __t114 = document.createTextNode("");
         __e113.appendChild(__t114);
-        __c105.push(bindText(__t114, () => $scope.skill().value.source));
-        __e108.appendChild(__e113);
-        __e107.appendChild(__e108);
-        const __e115 = document.createElement("div");
-        __e115.setAttribute("class", "sd-title-actions");
-        const __e116 = document.createElement("button");
-        __e116.setAttribute("class", "sd-action sd-source-btn");
-        __c105.push(bindClass(__e116, "is-active", () => $scope.viewRaw()));
-        __c105.push(bindAttr(__e116, "aria-pressed", () => $scope.viewRaw() ? "true" : "false"));
-        __c105.push(on(__e116, "click", function() {
+        __c107.push(bindText(__t114, () => $scope.skill().value.kind));
+        __e110.appendChild(__e113);
+        const __e115 = document.createElement("span");
+        __e115.setAttribute("class", "sd-source-label");
+        const __t116 = document.createTextNode("");
+        __e115.appendChild(__t116);
+        __c107.push(bindText(__t116, () => $scope.skill().value.source));
+        __e110.appendChild(__e115);
+        __e109.appendChild(__e110);
+        const __e117 = document.createElement("div");
+        __e117.setAttribute("class", "sd-title-actions");
+        const __e118 = document.createElement("button");
+        __e118.setAttribute("class", "sd-action sd-source-btn");
+        __c107.push(bindClass(__e118, "is-active", () => $scope.viewRaw()));
+        __c107.push(bindAttr(__e118, "aria-pressed", () => $scope.viewRaw() ? "true" : "false"));
+        __c107.push(on(__e118, "click", function() {
           const __h = $scope.openSource;
           return typeof __h === "function" ? __h.bind(undefined) : () => {};
         }(), { modifiers: [] }));
-        const __e117 = document.createElement("sui-icon");
-        __e117.setAttribute("name", "file-code");
-        __e117.setAttribute("size", "xs");
-        __e116.appendChild(__e117);
-        const __e118 = document.createElement("span");
-        const __t119 = document.createTextNode("");
-        __e118.appendChild(__t119);
-        __c105.push(bindText(__t119, () => $scope.viewRaw() ? "Rendered" : "Source"));
-        __e116.appendChild(__e118);
-        __e115.appendChild(__e116);
-        const __e120 = document.createElement("button");
-        __e120.setAttribute("class", "sd-action sd-invoke-btn");
-        __c105.push(bindProp(__e120, "disabled", () => $scope.invokeBusy() === $scope.skill().value.id));
-        __c105.push(on(__e120, "click", function() {
+        const __e119 = document.createElement("sui-icon");
+        __e119.setAttribute("name", "file-code");
+        __e119.setAttribute("size", "xs");
+        __e118.appendChild(__e119);
+        const __e120 = document.createElement("span");
+        const __t121 = document.createTextNode("");
+        __e120.appendChild(__t121);
+        __c107.push(bindText(__t121, () => $scope.viewRaw() ? "Rendered" : "Source"));
+        __e118.appendChild(__e120);
+        __e117.appendChild(__e118);
+        const __e122 = document.createElement("button");
+        __e122.setAttribute("class", "sd-action sd-invoke-btn");
+        __c107.push(bindProp(__e122, "disabled", () => $scope.invokeBusy() === $scope.skill().value.id));
+        __c107.push(on(__e122, "click", function() {
           const __h = () => $scope.invoke($scope.skill().value.id);
           return typeof __h === "function" ? __h.bind(undefined) : () => {};
         }(), { modifiers: [] }));
-        const __e121 = document.createElement("sui-icon");
-        __e121.setAttribute("name", "play");
-        __e121.setAttribute("size", "xs");
-        __e120.appendChild(__e121);
-        const __e122 = document.createElement("span");
-        const __t123 = document.createTextNode("");
-        __e122.appendChild(__t123);
-        __c105.push(bindText(__t123, () => $scope.invokeBusy() === $scope.skill().value.id ? "Invoking…" : "Invoke"));
-        __e120.appendChild(__e122);
-        __e115.appendChild(__e120);
-        __e107.appendChild(__e115);
-        __e106.appendChild(__e107);
-        const __ifAnchor124 = document.createComment("if");
-        __e106.appendChild(__ifAnchor124);
-        __c105.push(__wireBoundary_b45(__ifAnchor124));
-        const __ifAnchor129 = document.createComment("if");
-        __e106.appendChild(__ifAnchor129);
-        __c105.push(__wireBoundary_b47(__ifAnchor129));
-        __frag104.appendChild(__e106);
-        const __e149 = document.createElement("div");
-        __e149.setAttribute("class", "sd-tabs-row");
-        const __e150 = document.createElement("sui-tabs");
-        __e150.setAttribute("variant", "underline");
-        const __e151 = document.createElement("sui-tab");
-        __e151.setAttribute("name", "content");
-        __c105.push(bindAttr(__e151, "active", () => $scope.tab() === "content"));
-        __c105.push(on(__e151, "click", function() {
+        const __e123 = document.createElement("sui-icon");
+        __e123.setAttribute("name", "play");
+        __e123.setAttribute("size", "xs");
+        __e122.appendChild(__e123);
+        const __e124 = document.createElement("span");
+        const __t125 = document.createTextNode("");
+        __e124.appendChild(__t125);
+        __c107.push(bindText(__t125, () => $scope.invokeBusy() === $scope.skill().value.id ? "Invoking…" : "Invoke"));
+        __e122.appendChild(__e124);
+        __e117.appendChild(__e122);
+        __e109.appendChild(__e117);
+        __e108.appendChild(__e109);
+        const __ifAnchor126 = document.createComment("if");
+        __e108.appendChild(__ifAnchor126);
+        __c107.push(__wireBoundary_b45(__ifAnchor126));
+        const __ifAnchor131 = document.createComment("if");
+        __e108.appendChild(__ifAnchor131);
+        __c107.push(__wireBoundary_b47(__ifAnchor131));
+        __frag106.appendChild(__e108);
+        const __e151 = document.createElement("div");
+        __e151.setAttribute("class", "sd-tabs-row");
+        const __e152 = document.createElement("sui-tabs");
+        __e152.setAttribute("variant", "underline");
+        const __e153 = document.createElement("sui-tab");
+        __e153.setAttribute("name", "content");
+        __c107.push(bindAttr(__e153, "active", () => $scope.tab() === "content"));
+        __c107.push(on(__e153, "click", function() {
           const __h = () => $scope.tab.set("content");
           return typeof __h === "function" ? __h.bind(undefined) : () => {};
         }(), { modifiers: [] }));
-        const __t152 = document.createTextNode("SKILL.md");
-        __e151.appendChild(__t152);
-        __e150.appendChild(__e151);
-        const __e153 = document.createElement("sui-tab");
-        __e153.setAttribute("name", "metadata");
-        __c105.push(bindAttr(__e153, "active", () => $scope.tab() === "metadata"));
-        __c105.push(on(__e153, "click", function() {
+        const __t154 = document.createTextNode("SKILL.md");
+        __e153.appendChild(__t154);
+        __e152.appendChild(__e153);
+        const __e155 = document.createElement("sui-tab");
+        __e155.setAttribute("name", "metadata");
+        __c107.push(bindAttr(__e155, "active", () => $scope.tab() === "metadata"));
+        __c107.push(on(__e155, "click", function() {
           const __h = () => $scope.tab.set("metadata");
           return typeof __h === "function" ? __h.bind(undefined) : () => {};
         }(), { modifiers: [] }));
-        const __t154 = document.createTextNode("Metadata");
-        __e153.appendChild(__t154);
-        __e150.appendChild(__e153);
-        const __e155 = document.createElement("sui-tab");
-        __e155.setAttribute("name", "runs");
-        __c105.push(bindAttr(__e155, "active", () => $scope.tab() === "runs"));
-        __c105.push(bindAttr(__e155, "count", () => $scope.runs().kind === "ok" ? $scope.runs().value.rows.length + "" : ""));
-        __c105.push(on(__e155, "click", function() {
+        const __t156 = document.createTextNode("Metadata");
+        __e155.appendChild(__t156);
+        __e152.appendChild(__e155);
+        const __e157 = document.createElement("sui-tab");
+        __e157.setAttribute("name", "runs");
+        __c107.push(bindAttr(__e157, "active", () => $scope.tab() === "runs"));
+        __c107.push(bindAttr(__e157, "count", () => $scope.runs().kind === "ok" ? $scope.runs().value.rows.length + "" : ""));
+        __c107.push(on(__e157, "click", function() {
           const __h = () => $scope.tab.set("runs");
           return typeof __h === "function" ? __h.bind(undefined) : () => {};
         }(), { modifiers: [] }));
-        const __t156 = document.createTextNode("Runs");
-        __e155.appendChild(__t156);
-        __e150.appendChild(__e155);
-        __e149.appendChild(__e150);
-        __frag104.appendChild(__e149);
-        const __e157 = document.createElement("div");
-        __e157.setAttribute("class", "sd-tab-body");
-        const __ifAnchor158 = document.createComment("if");
-        __e157.appendChild(__ifAnchor158);
-        __c105.push(__wireBoundary_b62(__ifAnchor158));
-        __frag104.appendChild(__e157);
-        return { nodes: Array.from(__frag104.childNodes), cleanup: () => {
-          for (const c of __c105)
+        const __t158 = document.createTextNode("Runs");
+        __e157.appendChild(__t158);
+        __e152.appendChild(__e157);
+        __e151.appendChild(__e152);
+        __frag106.appendChild(__e151);
+        const __e159 = document.createElement("div");
+        __e159.setAttribute("class", "sd-tab-body");
+        const __ifAnchor160 = document.createComment("if");
+        __e159.appendChild(__ifAnchor160);
+        __c107.push(__wireBoundary_b62(__ifAnchor160));
+        __frag106.appendChild(__e159);
+        return { nodes: Array.from(__frag106.childNodes), cleanup: () => {
+          for (const c of __c107)
             try {
               c();
             } catch (e) {}
         } };
       },
       () => {
-        const __frag328 = document.createDocumentFragment();
-        const __c329 = [];
-        const __e330 = document.createElement("div");
-        __e330.setAttribute("class", "se-empty-state");
-        const __e331 = document.createElement("sui-spinner");
-        __e331.setAttribute("size", "md");
-        __e330.appendChild(__e331);
-        const __e332 = document.createElement("span");
-        __e332.setAttribute("class", "se-empty-desc");
-        const __t333 = document.createTextNode("Loading skill…");
-        __e332.appendChild(__t333);
-        __e330.appendChild(__e332);
-        __frag328.appendChild(__e330);
-        return { nodes: Array.from(__frag328.childNodes), cleanup: () => {
-          for (const c of __c329)
+        const __frag330 = document.createDocumentFragment();
+        const __c331 = [];
+        const __e332 = document.createElement("div");
+        __e332.setAttribute("class", "se-empty-state");
+        const __e333 = document.createElement("sui-spinner");
+        __e333.setAttribute("size", "md");
+        __e332.appendChild(__e333);
+        const __e334 = document.createElement("span");
+        __e334.setAttribute("class", "se-empty-desc");
+        const __t335 = document.createTextNode("Loading skill…");
+        __e334.appendChild(__t335);
+        __e332.appendChild(__e334);
+        __frag330.appendChild(__e332);
+        return { nodes: Array.from(__frag330.childNodes), cleanup: () => {
+          for (const c of __c331)
             try {
               c();
             } catch (e) {}
         } };
       },
       () => {
-        const __frag334 = document.createDocumentFragment();
-        const __c335 = [];
-        const __e336 = document.createElement("div");
-        __e336.setAttribute("class", "se-empty-state");
-        const __e337 = document.createElement("sui-icon");
-        __e337.setAttribute("name", "alert-triangle");
-        __e337.setAttribute("size", "xl");
-        __e337.setAttribute("tone", "warning");
-        __e336.appendChild(__e337);
-        const __e338 = document.createElement("span");
-        __e338.setAttribute("class", "se-empty-title");
-        const __t339 = document.createTextNode("Couldn't load skill");
-        __e338.appendChild(__t339);
-        __e336.appendChild(__e338);
+        const __frag336 = document.createDocumentFragment();
+        const __c337 = [];
+        const __e338 = document.createElement("div");
+        __e338.setAttribute("class", "se-empty-state");
+        const __e339 = document.createElement("sui-icon");
+        __e339.setAttribute("name", "alert-triangle");
+        __e339.setAttribute("size", "xl");
+        __e339.setAttribute("tone", "warning");
+        __e338.appendChild(__e339);
         const __e340 = document.createElement("span");
-        __e340.setAttribute("class", "se-empty-desc");
-        const __t341 = document.createTextNode("");
+        __e340.setAttribute("class", "se-empty-title");
+        const __t341 = document.createTextNode("Couldn't load skill");
         __e340.appendChild(__t341);
-        __c335.push(bindText(__t341, () => $scope.skill().error.message));
-        __e336.appendChild(__e340);
-        __frag334.appendChild(__e336);
-        return { nodes: Array.from(__frag334.childNodes), cleanup: () => {
-          for (const c of __c335)
+        __e338.appendChild(__e340);
+        const __e342 = document.createElement("span");
+        __e342.setAttribute("class", "se-empty-desc");
+        const __t343 = document.createTextNode("");
+        __e342.appendChild(__t343);
+        __c337.push(bindText(__t343, () => $scope.skill().error.message));
+        __e338.appendChild(__e342);
+        __frag336.appendChild(__e338);
+        return { nodes: Array.from(__frag336.childNodes), cleanup: () => {
+          for (const c of __c337)
             try {
               c();
             } catch (e) {}
         } };
       },
       () => {
-        const __frag342 = document.createDocumentFragment();
-        const __c343 = [];
-        const __e344 = document.createElement("div");
-        __e344.setAttribute("class", "se-empty-state");
-        const __e345 = document.createElement("sui-icon");
-        __e345.setAttribute("name", "zap");
-        __e345.setAttribute("size", "xl");
-        __e345.setAttribute("class", "se-empty-icon");
-        __e345.setAttribute("tone", "muted");
-        __e344.appendChild(__e345);
-        const __e346 = document.createElement("span");
-        __e346.setAttribute("class", "se-empty-title");
-        const __t347 = document.createTextNode("No skill selected");
-        __e346.appendChild(__t347);
-        __e344.appendChild(__e346);
+        const __frag344 = document.createDocumentFragment();
+        const __c345 = [];
+        const __e346 = document.createElement("div");
+        __e346.setAttribute("class", "se-empty-state");
+        const __e347 = document.createElement("sui-icon");
+        __e347.setAttribute("name", "zap");
+        __e347.setAttribute("size", "xl");
+        __e347.setAttribute("class", "se-empty-icon");
+        __e347.setAttribute("tone", "muted");
+        __e346.appendChild(__e347);
         const __e348 = document.createElement("span");
-        __e348.setAttribute("class", "se-empty-desc");
-        const __t349 = document.createTextNode("Select a skill from the explorer to view its content and invoke it.");
+        __e348.setAttribute("class", "se-empty-title");
+        const __t349 = document.createTextNode("No skill selected");
         __e348.appendChild(__t349);
-        __e344.appendChild(__e348);
-        __frag342.appendChild(__e344);
-        return { nodes: Array.from(__frag342.childNodes), cleanup: () => {
-          for (const c of __c343)
+        __e346.appendChild(__e348);
+        const __e350 = document.createElement("span");
+        __e350.setAttribute("class", "se-empty-desc");
+        const __t351 = document.createTextNode("Select a skill from the explorer to view its content and invoke it.");
+        __e350.appendChild(__t351);
+        __e346.appendChild(__e350);
+        __frag344.appendChild(__e346);
+        return { nodes: Array.from(__frag344.childNodes), cleanup: () => {
+          for (const c of __c345)
             try {
               c();
             } catch (e) {}
@@ -1775,70 +1784,75 @@ var page_default = view((ctx) => {
       const __cleanups = [];
       const __e0 = document.createElement("div");
       __e0.setAttribute("class", "ship-view ship-view-skills");
-      const __e1 = document.createElement("div");
-      __e1.setAttribute("class", "skills-ide");
-      const __e2 = document.createElement("aside");
-      __e2.setAttribute("class", "skills-explorer");
-      __e2.setAttribute("aria-label", "Skills file explorer");
+      const __e1 = document.createElement("h1");
+      __e1.setAttribute("class", "sr-only");
+      const __t2 = document.createTextNode("Skills");
+      __e1.appendChild(__t2);
+      __e0.appendChild(__e1);
       const __e3 = document.createElement("div");
-      __e3.setAttribute("class", "se-head");
-      const __e4 = document.createElement("div");
-      __e4.setAttribute("class", "se-search");
-      const __e5 = document.createElement("sui-icon");
-      __e5.setAttribute("name", "search");
-      __e5.setAttribute("size", "sm");
-      __e5.setAttribute("tone", "muted");
-      __e4.appendChild(__e5);
-      const __e6 = document.createElement("input");
-      __e6.setAttribute("type", "text");
-      __e6.setAttribute("placeholder", "Search skills…");
-      __e6.setAttribute("spellcheck", "false");
-      __e6.setAttribute("aria-label", "Search skills");
-      __cleanups.push(bindValue(__e6, $scope.q));
-      __cleanups.push(on(__e6, "input", function() {
+      __e3.setAttribute("class", "skills-ide");
+      const __e4 = document.createElement("aside");
+      __e4.setAttribute("class", "skills-explorer");
+      __e4.setAttribute("aria-label", "Skills file explorer");
+      const __e5 = document.createElement("div");
+      __e5.setAttribute("class", "se-head");
+      const __e6 = document.createElement("div");
+      __e6.setAttribute("class", "se-search");
+      const __e7 = document.createElement("sui-icon");
+      __e7.setAttribute("name", "search");
+      __e7.setAttribute("size", "sm");
+      __e7.setAttribute("tone", "muted");
+      __e6.appendChild(__e7);
+      const __e8 = document.createElement("input");
+      __e8.setAttribute("type", "text");
+      __e8.setAttribute("placeholder", "Search skills…");
+      __e8.setAttribute("spellcheck", "false");
+      __e8.setAttribute("aria-label", "Search skills");
+      __cleanups.push(bindValue(__e8, $scope.q));
+      __cleanups.push(on(__e8, "input", function() {
         const __h = (e) => $scope.q.set(e.target.value);
         return typeof __h === "function" ? __h.bind(undefined) : () => {};
       }(), { modifiers: [] }));
-      __e4.appendChild(__e6);
+      __e6.appendChild(__e8);
+      __e5.appendChild(__e6);
+      const __ifAnchor9 = document.createComment("if");
+      __e5.appendChild(__ifAnchor9);
+      __cleanups.push(__wireBoundary_b2(__ifAnchor9));
+      __e4.appendChild(__e5);
+      const __e23 = document.createElement("div");
+      __e23.setAttribute("class", "se-body");
+      __e23.setAttribute("role", "tree");
+      __e23.setAttribute("aria-label", "Skills tree");
+      const __wlAnchor33 = document.createComment("while-loading");
+      __e23.appendChild(__wlAnchor33);
+      __cleanups.push(bindWhileLoading({ anchor: __wlAnchor33, signal: $scope.rail, render: __renderWhileLoading_0 }));
+      const __weAnchor39 = document.createComment("while-error");
+      __e23.appendChild(__weAnchor39);
+      __cleanups.push(bindWhileError({ anchor: __weAnchor39, signal: $scope.rail, render: __renderWhileError_0 }));
+      const __ifAnchor40 = document.createComment("if");
+      __e23.appendChild(__ifAnchor40);
+      __cleanups.push(__wireBoundary_b12(__ifAnchor40));
+      __e4.appendChild(__e23);
       __e3.appendChild(__e4);
-      const __ifAnchor7 = document.createComment("if");
-      __e3.appendChild(__ifAnchor7);
-      __cleanups.push(__wireBoundary_b2(__ifAnchor7));
-      __e2.appendChild(__e3);
-      const __e21 = document.createElement("div");
-      __e21.setAttribute("class", "se-body");
-      __e21.setAttribute("role", "tree");
-      __e21.setAttribute("aria-label", "Skills tree");
-      const __wlAnchor31 = document.createComment("while-loading");
-      __e21.appendChild(__wlAnchor31);
-      __cleanups.push(bindWhileLoading({ anchor: __wlAnchor31, signal: $scope.rail, render: __renderWhileLoading_0 }));
-      const __weAnchor37 = document.createComment("while-error");
-      __e21.appendChild(__weAnchor37);
-      __cleanups.push(bindWhileError({ anchor: __weAnchor37, signal: $scope.rail, render: __renderWhileError_0 }));
-      const __ifAnchor38 = document.createComment("if");
-      __e21.appendChild(__ifAnchor38);
-      __cleanups.push(__wireBoundary_b12(__ifAnchor38));
-      __e2.appendChild(__e21);
-      __e1.appendChild(__e2);
-      const __e102 = document.createElement("div");
-      __e102.setAttribute("class", "skills-editor");
-      const __ifAnchor103 = document.createComment("if");
-      __e102.appendChild(__ifAnchor103);
-      __cleanups.push(__wireBoundary_b33(__ifAnchor103));
-      __e1.appendChild(__e102);
-      __e0.appendChild(__e1);
-      const __e350 = document.createElement("div");
-      __e350.setAttribute("class", "skills-mobile");
-      const __e351 = document.createElement("sui-icon");
-      __e351.setAttribute("name", "monitor");
-      __e351.setAttribute("size", "xl");
-      __e351.setAttribute("tone", "muted");
-      __e350.appendChild(__e351);
-      const __e352 = document.createElement("span");
-      const __t353 = document.createTextNode("Best experienced on desktop");
-      __e352.appendChild(__t353);
-      __e350.appendChild(__e352);
-      __e0.appendChild(__e350);
+      const __e104 = document.createElement("div");
+      __e104.setAttribute("class", "skills-editor");
+      const __ifAnchor105 = document.createComment("if");
+      __e104.appendChild(__ifAnchor105);
+      __cleanups.push(__wireBoundary_b33(__ifAnchor105));
+      __e3.appendChild(__e104);
+      __e0.appendChild(__e3);
+      const __e352 = document.createElement("div");
+      __e352.setAttribute("class", "skills-mobile");
+      const __e353 = document.createElement("sui-icon");
+      __e353.setAttribute("name", "monitor");
+      __e353.setAttribute("size", "xl");
+      __e353.setAttribute("tone", "muted");
+      __e352.appendChild(__e353);
+      const __e354 = document.createElement("span");
+      const __t355 = document.createTextNode("Best experienced on desktop");
+      __e354.appendChild(__t355);
+      __e352.appendChild(__e354);
+      __e0.appendChild(__e352);
       container.appendChild(__e0);
       return () => {
         for (const c of __cleanups)
