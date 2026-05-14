@@ -1,5 +1,5 @@
 ---
-group: Ship UI
+group: Views
 order: 6
 title: SSR and the attach runtime
 description: How `shipd` renders `.sui` to HTML server-side, and how the client runtime attaches reactivity to the rendered DOM. Progressive enhancement first.
@@ -52,7 +52,7 @@ The IR is the single source of truth. Both the server render walker (Rust, in `s
 | `on:click={fn}` | Marker emitted; no listener attached server-side. |
 | `bind:value={sig}` | Marker emitted; client wires both directions. |
 | `<use-* />` | Marker emitted; client invokes the hook factory at mount. |
-| Custom elements (`<ship-button>`) | Emitted as their tag. Browser self-upgrades on parse via standard custom-element registration. |
+| Custom elements (`<sui-button>`) | Emitted as their tag. Browser self-upgrades on parse via standard custom-element registration. |
 
 ## The renderable expression subset
 
@@ -126,20 +126,20 @@ For the local-daemon case Ship targets, this matters less than for the public-we
 
 Two pieces of the previous (Phase 3) architecture are gone:
 
-- **Client-side template parser** — the client never parses `.sui` source on the production path. The parser lives in `@ship/ui-dom/legacy` and is used only by tests and the eval rig. The default `@ship/ui-dom` entry exports only `attach` and has zero parser code.
+- **Client-side template parser** — the client never parses `.sui` source on the production path. The parser lives in `@ship/sui-dom/legacy` and is used only by tests and the eval rig. The default `@ship/sui-dom` entry exports only `attach` and has zero parser code.
 - **The empty HTML shell** — `shipd` no longer serves an empty `<div id="root">` shell at `/sui/<view>`. It serves server-rendered HTML directly.
 
 Both follow from the IR-as-source-of-truth move. Two parsers (Rust + JS) and two emit shapes (empty shell + client-rendered DOM) become one parser (Rust) and one emit shape (rendered HTML).
 
 ## Import surface: default vs. legacy
 
-`@ship/ui-dom` exposes two import paths with distinct responsibilities:
+`@ship/sui-dom` exposes two import paths with distinct responsibilities:
 
 | Path | Exports | Who uses it |
 |---|---|---|
-| `from '@ship/ui-dom'` | `attach()`, `AttachOptions`, `loadSetup` | Production views, daemon asset bundles |
-| `from '@ship/ui-dom/legacy'` | `hydrate()`, `parseSetSource()`, `HydrateOptions` | Tests, eval harness |
+| `from '@ship/sui-dom'` | `attach()`, `AttachOptions`, `loadSetup` | Production views, daemon asset bundles |
+| `from '@ship/sui-dom/legacy'` | `hydrate()`, `parseSetSource()`, `HydrateOptions` | Tests, eval harness |
 
-The parser (`hydrate`, `parseSetSource`, `directives/`) lives exclusively in the `legacy` subpath. The default `@ship/ui-dom` bundle (`sui-dom.js`) contains zero parser code; its gzip budget is ≤ 9 KB and is enforced by the build-bundles.mjs CI gate.
+The parser (`hydrate`, `parseSetSource`, `directives/`) lives exclusively in the `legacy` subpath. The default `@ship/sui-dom` bundle (`sui-dom.js`) contains zero parser code; it sits at ≤ 4.8 KB gzip today, against a 9 KB ceiling enforced by the build-bundles.mjs CI gate.
 
-**Never import `@ship/ui-dom/legacy` from a production view.** Doing so would pull the full parser (~5 KB gzip) into the view bundle and violate the size budget. The build-bundles.mjs audit asserts zero references to `parseSetSource` in `sui-dom.js`.
+**Never import `@ship/sui-dom/legacy` from a production view.** Doing so would pull the full parser (~5 KB gzip) into the view bundle and violate the size budget. The build-bundles.mjs audit asserts zero references to `parseSetSource` in `sui-dom.js`.

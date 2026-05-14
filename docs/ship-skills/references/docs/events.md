@@ -9,36 +9,37 @@ order: 4
 
 # Platform Events
 
-Ship events are platform primitives. They are not declared by skills — they are inferred from artifact types. When a skill produces HTML artifacts, Studio automatically enables annotation and feedback events for that content.
+Ship events are platform primitives. They are not declared by skills — they are inferred from artifact types. When a skill produces HTML artifacts, Studio automatically enables feedback and selection events for that content.
 
 ## Ship built-in events
 
+Built-in events live in the `studio.*` namespace — they are emitted by Ship Studio, the first app actor. There is no `ship.*` event namespace.
+
 | Name | Direction | Triggered by |
 |------|-----------|--------------|
-| `ship.annotation` | in | User annotated an element on a rendered surface. Payload: note, x, y, selector, artifact. |
-| `ship.feedback` | in | User approved, rejected, or commented on an artifact. Payload: action (approve/reject/comment/request_changes), comment, artifact. |
-| `ship.selection` | in | User selected text or content. Payload: text, selector, artifact. |
-| `ship.artifact_created` | out | Agent created a new artifact file. Payload: filename, mime_type, title. |
-| `ship.artifact_deleted` | both | Artifact removed by human (rejection) or agent (cleanup). Payload: filename, reason. |
+| `studio.feedback` | in | User approved, rejected, or commented on an artifact. Payload: action (approve/reject/comment/request_changes), comment, artifact. |
+| `studio.selection` | in | User selected text or content on a rendered surface. Payload: text, selector, artifact. |
 
-Direction: `in` = human to agent, `out` = agent to human, `both` = either direction.
+Direction: `in` = human to agent. Agents already subscribe to `studio.*`, so they receive these without declaring any extra subscription.
 
-Full schemas for each built-in event are published at `https://getship.dev/schemas/ship-events.json`.
+Artifact lifecycle events — `artifact_created` and `artifact_deleted` — are **emit** topics, not subscription topics. An agent prefixes them with its skill ID at emit time (e.g. `canvas.artifact_created`); Studio subscribes to `{skill-id}.` to receive them. They are not part of an agent's inbound subscription set.
 
 ## Artifact type to event mapping
 
-The platform maps artifact types to applicable events automatically:
+The platform maps each artifact type to the `studio.*` events that are meaningful for it. This mapping (`events_for_artifact` in `crates/core/ship-platform/src/agents/skill/artifact_events.rs`) documents which Studio actions apply to each artifact — it does not generate new subscriptions, since agents already subscribe to `studio.*`.
 
-| Artifact type | Applicable events |
-|---------------|-------------------|
-| `html` | annotation, feedback, selection, artifact_created, artifact_deleted |
-| `pdf` | selection, feedback, artifact_created, artifact_deleted |
-| `markdown` | feedback, selection, artifact_created, artifact_deleted |
-| `image` | annotation, feedback, artifact_created, artifact_deleted |
-| `adr` | feedback, artifact_created, artifact_deleted |
-| `note` | feedback, artifact_created, artifact_deleted |
+| Artifact type | Applicable Studio events |
+|---------------|--------------------------|
+| `html` | feedback, selection |
+| `pdf` | feedback, selection |
+| `markdown` | feedback, selection |
+| `image` | feedback |
+| `adr` | feedback |
+| `note` | feedback |
 | `url` | feedback |
-| `json` | feedback, artifact_created, artifact_deleted |
+| `json` | feedback |
+
+`artifact_created` / `artifact_deleted` are intentionally absent here — they are emit topics, not subscription topics (see above).
 
 Skills do not opt into events. They declare what they produce via the `artifacts` frontmatter field. The platform handles the rest.
 
@@ -54,7 +55,7 @@ Events are routed through the KernelRouter. Each actor (agent, app, service) has
 4. KernelRouter routes the event to the agent's mailbox based on subscription.
 5. Agent receives a `ship/event` SSE notification with the full payload. No follow-up queries needed — payloads are self-contained.
 
-Agents do not have read access to the event store. They receive events through their mailbox only. The `list_events` MCP tool has been removed.
+Agents do not have read access to the event store. They receive events through their mailbox only.
 
 ### Namespace boundaries
 

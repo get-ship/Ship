@@ -30,21 +30,52 @@ Pure event routing with no persistence implementation. Defines `KernelRouter`, `
 
 Key types: `KernelRouter`, `EventSink`, `ActorConfig`, `Mailbox`, `KernelError`.
 
-### runtime
+### ship-substrate (L0)
 
-Platform state machine — the largest crate. Owns persistence, workspace management, services, configuration, and the package registry. Module layout:
+Substrate layer — persistence, the event log, and path resolution. Owns:
 
-- `persistence/` — `EventStore` trait, `SqliteEventStore`, actor store, snapshots, cursors
-- `workspace/` — lifecycle, sessions, CRUD, trash, artifact events, compilation
-- `projections/` — read models rebuilt from events (jobs, sessions, workspaces)
-- `services/` — orchestrator (pipeline execution), mesh, human gateway, dispatch ports
-- `config/` — `.ship/` config parsing, catalog, hooks, security
+- `events/` — `KernelRouter` wrapper over `ship-kernel`, validators
+- `persistence/` — `EventStore` trait, `SqliteEventStore`, actor store, cursors
+- `db/` — SQLite schema, connection pool, sessions, events, actor events, cursors
+- `projections/` — low-level read models (actor, process, session, spawn, registry)
+- `services/` — mesh, human gateway, dispatch ports
+- `home` / `env` — `~/.ship/` path resolution, `SHIP_*` env var access
+- `data` — the data DB (`data.db`) backing collections
+- `project` — project init, directory resolution, worktree-aware path lookup
+- `supervisor/` — actor supervisor, restart policies
+- `git` — git adapter (subprocess, returns pure data)
+
+### ship-platform (L1)
+
+Platform primitives — the domain services on top of substrate state. Owns:
+
+- `config/` — `.ship/` config parsing, catalog, security, providers
 - `agents/` — agent profiles, export, skill paths, skill vars, permissions, rules
+- `collections/` — collection types and persistence over `data.db`
+- `artifacts/` — artifact metadata, backends, session artifact persistence
 - `registry/` — package install, fetch, resolve, verify, tracking
-- `db/` — SQLite schema, connection pool, KV store, session drain, workspace state
+- `hooks/` — trigger engine, loader, filter, rendering
+- `services/` — orchestrator (pipeline execution), provider adapters, git service, files, sync
+- `sessions/` — session lifecycle, trash, artifact events, reconciliation
+- `projections/` — high-level read models (auth, jobs, compile state, projects)
+- `auth` / `kv` — auth primitives, key-value store
 - `sync/` — cloud replication client and cursor
-- `actor/` — actor model and supervision
-- `events/` — re-export facade combining ship-kernel and ship-types event types
+
+### ship-application (L2)
+
+Application layer — built-in apps consuming the same SDK as L3. Owns `bundler/` (view bundler worker supervisor), `toolchain/` (Node toolchain management), and `project/`.
+
+### ship-pipelines
+
+Pipeline DAG types and step resolution. The runtime walks the declared step graph.
+
+### build-info
+
+Build-time version and git metadata baked into the binary.
+
+### lint
+
+Shared lint rules — module-DAG and file-cap checks wired into CI.
 
 ### compiler
 
@@ -75,7 +106,7 @@ The Ship daemon — an Axum HTTP server that hosts the `ShipRuntime`. Responsibi
 
 ### mcp (MCP server)
 
-Stdio sidecar for AI agents. Exposes Ship's capabilities as MCP tools (`start_session`, `log_progress`, `end_session`, `create_workspace`, etc.). Connects to the daemon over HTTP.
+Stdio sidecar for AI agents. Exposes Ship's capabilities as MCP tools (`start_session`, `log_progress`, `end_session`, `step_done`, etc.). Connects to the daemon over HTTP.
 
 ### ship-cli
 
@@ -91,9 +122,9 @@ The kernel (`ship-kernel`) defines an `EventSink` trait but has no database depe
 
 `ShipRuntime` in `shipd` uses `tokio::sync::OnceCell` for lazy initialization of managers. `JobManager`, `MeshManager`, and `SessionScanner` are only created on first access. This avoids startup ordering issues and keeps initialization fast.
 
-### Workspace as resource container
+### Four runtime primitives
 
-A workspace is a branch-keyed container for sessions, agent config, and worktree state. It is not a state machine — workspaces are created, hold sessions, and get archived. Sessions track the actual work lifecycle.
+The runtime has four concepts — no `workspace` primitive. **Project** is a directory with `.ship/` inside it; a tagging/filter primitive, not a context-lock. **Actor** is a running thing — it owns isolation (`cwd`, `project_id`, permissions, transport, lifecycle, MCP tool gate) and is supervisor-managed. **Session** is an analytics rollup over actor activity, with a `kind` discriminator (`pipeline_step | chat_thread | direct_attach`); telemetry is inline, there is no live session row. **Adapter** is an in-process module that talks to the outside world (git, tmux, providers) and emits events into the runtime log. Git worktrees are a git feature, resolved on demand — not a runtime primitive.
 
 ### Simplified pipelines
 

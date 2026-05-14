@@ -1,13 +1,13 @@
 ---
-group: Ship UI
+group: Views
 order: 9
 title: E2E test suite
-description: Playwright-based end-to-end coverage for the three ported SUI views. How to run, what it covers, and how to interpret failures.
+description: Playwright-based end-to-end coverage for SUI views. How to run, what it covers, and how to interpret failures.
 ---
 
 # E2E test suite
 
-The `tests/e2e/` directory contains a Playwright-based end-to-end regression net for the three views ported to the Ship UI framework: **counter**, **agents**, and **git**. These tests exercise real-browser behavior — SSR correctness, client-side `attach()`, signal reactivity, and SSE-driven boundary swaps — things jsdom-based loop tests cannot catch.
+The `tests/e2e/` directory contains a Playwright-based end-to-end regression net. Seven spec files cover the SUI view surface: `agents`, `counter`, `git`, `git-live`, `patch-elements`, `shell2-rail`, and `studio`. These tests exercise real-browser behavior — SSR correctness, client-side `attach()`, signal reactivity, SSE-driven boundary swaps, and rail navigation — things jsdom-based loop tests cannot catch.
 
 ## Running the suite
 
@@ -17,7 +17,7 @@ Requires a running daemon. Start one with `just dev` then:
 # Install Playwright browsers (once)
 npx playwright install chromium
 
-# Run all three specs
+# Run the whole suite
 just qa-e2e
 
 # Or via bun directly
@@ -78,19 +78,22 @@ The daemon URL is auto-detected from `~/.ship/machine/daemons/<hash>/port` (devx
 
 **SSE resolution tests fail (agents/git stuck on loading)**: The `/_sui/data` SSE channel opened but the boundary swap did not complete. This indicates a bug in the control-flow swap pipeline (`/_sui/render-fragment/<view>`). The failure is intentional — surfacing it is the point of the suite.
 
-**Tab switching fails**: The `on:click` signal binding didn't wire up, or the signal update didn't re-render the panel. Check the `ui-dom` attach wire step.
+**Tab switching fails**: The `on:click` signal binding didn't wire up, or the signal update didn't re-render the panel. Check the `sui-dom` attach wire step.
 
 ## File layout
 
 ```
 tests/e2e/
-  _helpers.ts          shared utilities (getDaemonUrl, startDaemon, screenshot, waitForAttach)
-  playwright.config.ts chromium-only, 30s timeout, HTML reporter
-  counter.spec.ts      9 tests: SSR + PE + attach interactions
-  agents.spec.ts       7 tests: SSR + attach + SSE resolution
-  git.spec.ts          8 tests: SSR + attach + tab switching
-  screenshots/         debug captures (gitignored)
-  report/              HTML report (gitignored)
+  _helpers.ts            shared utilities (getDaemonUrl, startDaemon, screenshot, waitForAttach)
+  playwright.config.ts   chromium-only, 30s timeout, HTML reporter
+  agents.spec.ts         SSR + attach + SSE resolution
+  counter.spec.ts        SSR + PE + attach interactions
+  git.spec.ts            SSR + attach + tab switching
+  git-live.spec.ts       live SSE patch flow
+  patch-elements.spec.ts patch-elements channel
+  shell2-rail.spec.ts    shell2 rail navigation
+  studio.spec.ts         UI Studio catalog
+  visual/                visual-regression specs
+  screenshots/           debug captures (gitignored)
+  report/                HTML report (gitignored)
 ```
-
-Total: well under 600 LOC across all files.

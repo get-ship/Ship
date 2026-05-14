@@ -14,22 +14,24 @@ There are two types named `KernelRouter` in the codebase:
 
 | | Location | What it is | Used where |
 |---|---|---|---|
-| **Pure** | `crates/core/ship-kernel/src/router.rs` | Abstract routing core. Takes `Arc<dyn EventSink>`. No filesystem. | Not used in production. Tests only. |
-| **Production** | `crates/core/runtime/src/events/kernel_router.rs` | Concrete router. Takes `base_dir: PathBuf`. Opens `platform.db`. | Every real kernel operation. |
+| **Pure** | `crates/core/ship-kernel/src/router.rs` | Abstract routing core. Takes `Arc<dyn EventSink>`. No filesystem. | Composed inside the production wrapper as `self.inner`. |
+| **Production** | `crates/core/ship-substrate/src/events/kernel_router.rs` | Composition wrapper. Takes `base_dir: PathBuf`, builds a `SqliteEventStore` sink, hands it to the pure router. | Every real kernel operation. |
 
-The pure crate defines the abstractions (`Mailbox`, `EventSink`, `ActorConfig`, `EventValidator`) and a reference `KernelRouter` that composes them. The runtime re-implements the router directly against SQLite instead of going through the sink trait. The pure router is effectively dead code; the abstractions are live.
+The pure crate defines the abstractions (`Mailbox`, `EventSink`, `ActorConfig`, `EventValidator`) and a `KernelRouter` that composes them. The production wrapper does **not** reimplement the router — it owns the pure `KernelRouter` as `self.inner` and delegates actor registration, mailboxes, subscriptions, and persistence to it. The wrapper contributes `EmitContext`-aware validators, `ActorStore` construction, write-namespace enforcement, and (under the `unstable` feature) scope-filtered delivery. The pure router is live production code, not dead code.
 
-The rest of this page describes the *production* kernel in `runtime::events::kernel_router`. Where the pure crate's behaviour differs, it's called out explicitly.
+The rest of this page describes the *production* kernel in `ship_substrate::events::kernel_router`. Where the pure crate's behaviour differs, it's called out explicitly.
 
 ## The routing contract
 
-Every event that reaches the kernel flows through `route(event, ctx)`:
+The production entry point is `emit(event, ctx)` on the substrate wrapper. There is no `route` method on the wrapper — `emit` is the full validate-persist-deliver path, and `deliver(&event)` is the delivery-only path for callers that have already persisted through a canonical writer. `emit` runs:
 
-1. **Validate.** Each registered validator runs synchronously. First failure returns error — the event is neither persisted nor delivered.
-2. **Persist.** The event is appended to the shared `events` table in `platform.db`. This is synchronous and completes before any mailbox sees the event.
+1. **Validate.** Each registered validator runs synchronously, then write namespaces are enforced. First failure returns error — the event is neither persisted nor delivered.
+2. **Persist.** The event is appended to the shared `events` table in `platform.db` via the inner router's sink. This is synchronous and completes before any mailbox sees the event.
 3. **Deliver.**
    - If `event.target_actor_id` is set, the event goes to that actor's mailbox only (direct message).
    - Otherwise, the router fans out: for each registered subscription namespace, if `event.event_type` starts with the namespace, every subscribed actor's mailbox receives a clone.
+
+Under the hood `emit` calls `inner.route()` — the pure router's combined persist-then-deliver. (The `unstable` feature path instead calls `inner.persist()` plus a scope-filtered delivery.)
 
 The persist-before-deliver ordering is the kernel's central invariant. No actor reacts to an event that isn't already in the log. Crash recovery can replay from the log without risking a "we delivered but never persisted" state.
 
@@ -46,7 +48,7 @@ An actor is a logical identity. It has:
 | `read_namespaces` | Namespaces the actor may query via filtered reads. |
 | `subscribe_namespaces` | Namespaces the actor wants pushed to its mailbox. |
 
-`ActorConfig` lives in `ship-types::caller`, re-exported by both the pure crate and the runtime router. The runtime router exposes `spawn_actor(id, config)` and `spawn_actor_with_permissions(identity, perms)` — the permissions variant is the one service code uses and pulls namespaces from a higher-level `Permissions` type.
+`ActorConfig` lives in `ship-types::caller`, re-exported by both the pure crate and the runtime router. The runtime router exposes `spawn_actor(id, config)` always, and `spawn_actor_with_permissions(identity, perms)` under the `unstable` feature — the permissions variant pulls namespaces from a higher-level `Permissions` type and is what service code uses when the feature is enabled.
 
 `spawn_actor` returns a `Mailbox`. The caller is responsible for consuming it — typically by spawning a tokio task that loops on `mailbox.recv()`. The kernel does not run actor code; it only delivers events and hands out mailboxes.
 
@@ -84,7 +86,7 @@ pub trait EventSink: Send + Sync {
 
 The pure `KernelRouter` calls `sink.persist(&event)` during step 2 of route. Implementations decide where events go: SQLite, an in-memory vec for tests, a network appender, a multiplexer.
 
-The runtime's `SqliteEventStore` at `runtime::persistence::event_store` is the obvious production implementation. Today the runtime's `KernelRouter` writes to SQLite directly rather than through the `EventSink` trait — closing that gap (router delegates to sink, sink is injected) would let the pure router replace the duplicated one in the runtime.
+The substrate's `SqliteEventStore` at `ship_substrate::persistence::event_store` is the production implementation. The substrate's `KernelRouter` constructs a `SqliteEventStore`, hands it to the pure router as the sink, and persistence flows through the trait — `inner.route()` (or `inner.persist()` on the `unstable` path) calls `sink.persist()`. The trait is live, not bypassed.
 
 ## Validators
 
@@ -146,15 +148,13 @@ The kernel makes no policy decisions about what events mean. It is a message bus
 
 These are real constraints in the code today. Know them before designing against the kernel.
 
-**Abstraction drift.** The pure `ship_kernel::KernelRouter` is not used in production. The runtime reimplements the same HashMaps, route loop, and subscription matching in `runtime::events::kernel_router`. The `EventSink` trait is defined but never called by the production path.
-
 **Silent drops on full mailboxes.** `try_send` drops events when a receiver is saturated. No counter, no log, no metric. If an actor appears to be missing events, mailbox saturation is an invisible cause. No backpressure — the router returns `Ok(())` whether every mailbox accepted or none did.
 
 **Prefix-match subscription foot-gun.** Subscriptions match by string prefix on `event_type`. A subscription to `work` matches `workflow.*` events. Convention is to write namespaces ending in `.` (`workflow.`) but it's not enforced. No compile-time or runtime validation of namespace strings.
 
 **Global mailbox capacity.** `MAILBOX_CAPACITY = 256` is a module constant. Cannot be tuned per actor. A bursty high-volume actor gets the same queue size as a lazy one.
 
-**No actor supervision in the kernel.** If an actor's consumer task panics and drops its `Mailbox`, the router keeps calling `try_send` on the closed channel. Events intended for that actor drop silently until the router's `stop_actor` is called by someone else. Supervision policy (restart, escalate, drop) lives in `runtime::actor::supervisor` today, loosely coupled.
+**No actor supervision in the kernel.** If an actor's consumer task panics and drops its `Mailbox`, the router keeps calling `try_send` on the closed channel. Events intended for that actor drop silently until the router's `stop_actor` is called by someone else. Supervision policy (restart, escalate, drop) lives in `ship_substrate::supervisor` today, loosely coupled.
 
 **Only in-process routing.** All actors share the same process. No protocol for cross-process or cross-machine delivery. Multi-process Ship would need serialization, transport, and a distributed sink.
 
@@ -168,7 +168,7 @@ Where the kernel could grow as Ship's scope expands. None of this is committed �
 
 **Priority / scheduling.** Human-interaction events (UI clicks, feedback, approvals) shouldn't wait behind background sync. Priority lanes at the mailbox level would let the kernel schedule what an actor receives first when it drains.
 
-**Supervision in the kernel.** Lift `runtime::actor::supervisor` into `ship-kernel` as a first-class concept. Actors declare restart policies, the kernel owns the lifecycle. Gives the kernel enough power to actually be a kernel.
+**Supervision in the kernel.** Lift `ship_substrate::supervisor` into `ship-kernel` as a first-class concept. Actors declare restart policies, the kernel owns the lifecycle. Gives the kernel enough power to actually be a kernel.
 
 **Capability tokens.** Namespaces are strings today — fakeable, forgeable in tests, leaky. A browser/OS Ship wants capability objects: unforgeable handles issued by the kernel, delegated down to actors, revocable centrally. This is the substrate for real security posture.
 

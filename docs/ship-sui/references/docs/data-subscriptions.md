@@ -1,5 +1,5 @@
 ---
-group: Ship UI
+group: Views
 order: 5
 title: Data subscriptions
 description: `<data>` is the canonical bridge to the daemon. Live envelope shape, signal conventions, why hooks don't subscribe.
@@ -13,8 +13,8 @@ The Ship daemon (`shipd`) is the model. Views bridge to it via `<data>` elements
 
 ```html
 <data name="agents" source="ship.agents.summaries()" live />
-<data name="settings" source="ship.settings.read()" />
-<data name="agent" source="ship.agents.get({id: route.params.id()})" live />
+<data name="settings" source="ship.settings.state()" />
+<data name="agent" source="ship.agents.detail({id: route.params.id()})" live />
 ```
 
 Attributes:
@@ -32,7 +32,7 @@ The runtime exposes `<name>` as a signal in [view scope](index.md#the-shared-vie
 `live` signals always wrap the daemon's payload in a uniform envelope. The shape is contractual; hooks rely on it.
 
 ```ts
-// from @ship/ui-runtime — `live.ts`
+// from @ship/sui-runtime — `live.ts`
 type LiveState<T> =
   | { kind: 'loading' }
   | { kind: 'error'; error: Error }
@@ -75,12 +75,12 @@ Or use the convenience boundary blocks:
 
 ## Static `<data>` (no `live`)
 
-Without `live`, the SDK call runs once at mount; the result is exposed as a plain signal containing the resolved value (no envelope). Used for one-shot reads where streaming updates aren't relevant — config, schemas, lookups.
+Without `live`, the SDK call runs once at mount; the result is exposed as a plain signal containing the resolved value (no envelope). Used for one-shot reads where streaming updates aren't relevant — config, lookups.
 
 ```html
-<data name="schema" source="ship.schema.read('agents')" />
+<data name="settings" source="ship.settings.state()" />
 
-<p>Defined fields: {schema().fields.map(f => f.name).join(', ')}</p>
+<p>Theme: {settings().theme}</p>
 ```
 
 If the call is async, the runtime exposes the signal once it resolves; pre-resolution reads return `undefined`. For a loading state, add `live` to the `<data>` element and use `{#while-loading}` or discriminate by `kind`.
@@ -94,7 +94,7 @@ Concretely:
 ```html
 <!-- right: every subscription visible at the top of the file -->
 <data name="agents"   source="ship.agents.summaries()" live />
-<data name="settings" source="ship.settings.read()" />
+<data name="settings" source="ship.settings.state()" />
 
 <!-- wrong: subscriptions hidden behind a hook -->
 <!-- (don't author this) -->
@@ -144,8 +144,9 @@ This is why the envelope is contractual — hooks rely on the shape to unwrap co
 Concrete pattern — a `/agents/<id>` view:
 
 ```ts
-// view.ts
-import { defineRoutes, controller } from '@ship/ui-runtime'
+// controller.ts
+import { controller } from '@ship/sui-runtime'
+import { defineRoutes } from '@ship/sui-runtime/route'
 
 defineRoutes([{ pattern: '/agents/:id' }])
 
@@ -157,8 +158,8 @@ export default controller({
 ```
 
 ```html
-<!-- view.sui -->
-<data name="agent" source="ship.agents.get({id: route.params.id()})" live />
+<!-- page.sui -->
+<data name="agent" source="ship.agents.detail({id: route.params.id()})" live />
 
 <h1>{name()}</h1>
 {#if agent().kind === 'loading'}<p>Loading…</p>{/if}
@@ -167,7 +168,7 @@ export default controller({
 Navigation flow:
 
 1. The user lands on `/agents/42`. `route()` (called by the boot script) seeds `route.params.id` from the pathname-to-pattern match: `'42'`.
-2. `<data live>` evaluates `ship.agents.get({id: route.params.id()})`. `route.params.id()` is a signal read; `live()` records it as a dep. The SSE channel for agent 42 opens.
+2. `<data live>` evaluates `ship.agents.detail({id: route.params.id()})`. `route.params.id()` is a signal read; `live()` records it as a dep. The SSE channel for agent 42 opens.
 3. The user clicks a link to `/agents/99`. The view's click handler (or the framework's link interceptor) calls `navigate('/agents/99')`. That pushes history and triggers the global `__shipSetRouteUpdate`, which sets `route.params.id` to `'99'`.
 4. The `live()` dep fires. The agent-42 SSE channel disposes; a new one opens for agent 99. The signal flips through `loading → ok` exactly as on first mount.
 

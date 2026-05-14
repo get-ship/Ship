@@ -1,5 +1,5 @@
 ---
-group: Ship UI
+group: Views
 order: 1
 title: Architecture
 description: The three-role split, MVVM mapping, and the discipline that holds the framework's shape together. Read this before any other doc in this skill.
@@ -15,8 +15,8 @@ Every authoring decision lives in exactly one of three roles:
 
 | Role | File | Job |
 |---|---|---|
-| **Template** | `view.sui` | Structure + declarative wiring |
-| **Controller** | `view.ts` (optional) | Behavior — state, derived, handlers, lifecycle |
+| **Template** | `page.sui` | Structure + declarative wiring |
+| **Controller** | `controller.ts` (optional) | Behavior — state, derived, handlers, lifecycle |
 | **Data subscription** | `<data>` element in template | Bridge to the daemon's reactive surface |
 
 The three do not overlap. There is no fourth role, and there will not be a fourth role until a real edge case forces a deliberate widening of the framework. Adding a fourth role to accommodate a one-off case is the easiest way to lose the coherence the three-role split buys.

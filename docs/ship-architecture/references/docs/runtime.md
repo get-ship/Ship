@@ -2,87 +2,77 @@
 group: Architecture
 order: 2
 title: Runtime
-description: What the runtime owns -- workspaces, sessions, events, jobs, file claims, targets, capabilities, skill vars, skill paths, and the platform database.
+description: What the runtime owns -- sessions, events, jobs, actors, targets, capabilities, skill vars, skill paths, and the platform database.
 audience: internal
 ---
 
 # Runtime
 
-The runtime crate (`crates/core/runtime/`) owns all persistent state. It manages per-actor SQLite databases under `~/.ship/actors/` and the kernel store at `~/.ship/kernel/events.db`. Legacy state remains in `~/.ship/platform.db` during migration. No other layer touches the databases directly — all access goes through the KernelRouter and ActorStore.
+The runtime owns all persistent state, and is split across three layered crates. **`crates/core/ship-substrate/`** (L0) owns persistence itself — the kernel wrapper, the event log, the platform database, home/env path resolution, and the data DB. **`crates/core/ship-platform/`** (L1) owns the domain services that sit on top of that state — config, collections, artifacts, registry, hooks, agents, the orchestrator, and sessions. **`crates/core/ship-application/`** (L2) owns the application layer — bundler, toolchain, project. The platform database lives at `~/.ship/machine/db/platform.db`. There are **no per-actor SQLite files** and **no separate kernel event store** — every actor shares the single `events` table in `platform.db`, with logical isolation by `actor_id`. No other layer touches the database directly — all access goes through the KernelRouter and ActorStore.
 
 ## Module Map
 
-The runtime's `lib.rs` declares these top-level modules:
+Top-level modules across the three crates:
 
-| Module | Owns |
-|--------|------|
-| `workspace` | Workspace CRUD, session lifecycle, worktree management, status transitions |
-| `events` | Append-only event log, event queries by time/actor/entity/action |
-| `db` | Platform database schema, migrations, connections, all table modules |
-| `config` | Project config (`ship.jsonc`), agents, MCP servers, hooks, statuses, gitignore |
-| `agents` | Agent config, export/import, permissions, rules, skills |
-| `skill_vars` | Skill variable state (get, set, list, reset) |
-| `skill_paths` | Skill file path resolution |
-| `catalog` | Skill/rule catalog listing and search |
-| `project` | Project init, directory resolution, worktree-aware path lookup |
-| `hooks` | Runtime hook trait and default implementation |
-| `plugin` | Plugin trait, plugin registry |
-| `log` | Project action log (file-based) |
-| `security` | Security checks |
-| `registry` | Registry operations |
-| `fs_util` | Filesystem utilities |
+| Crate | Module | Owns |
+|-------|--------|------|
+| `ship-substrate` | `events` | `KernelRouter` wrapper over `ship-kernel`, `EmitContext`-aware validators |
+| `ship-substrate` | `db` | Platform database schema, migrations, connections, table modules |
+| `ship-substrate` | `persistence` | `EventStore` trait, `SqliteEventStore`, actor store, replay cursors |
+| `ship-substrate` | `projections` | Low-level read models (actor, process, session, spawn, registry) |
+| `ship-substrate` | `services` | Mesh, human gateway, dispatch ports |
+| `ship-substrate` | `home` / `env` | `~/.ship/` path resolution, `SHIP_*` env var access |
+| `ship-substrate` | `data` | The data DB (`data.db`) backing collections |
+| `ship-substrate` | `project` | Project directory resolution, worktree-aware path lookup |
+| `ship-substrate` | `git` | Git subprocess adapter — returns pure-data results |
+| `ship-substrate` | `supervisor` | Actor supervision and restart policies |
+| `ship-platform` | `sessions` | Session lifecycle — start, progress, end, reconciliation |
+| `ship-platform` | `services` | Orchestrator, provider adapters, GitService, files, sync |
+| `ship-platform` | `config` | Project config (`ship.jsonc`), agents, MCP servers, providers, gitignore |
+| `ship-platform` | `agents` | Agent config, export/import, permissions, rules, skills, skill vars/paths |
+| `ship-platform` | `collections` | Collection logic over the data DB |
+| `ship-platform` | `artifacts` | Artifact storage and backends |
+| `ship-platform` | `registry` | Registry operations, dependency resolution |
+| `ship-platform` | `hooks` | Trigger engine, loader, filter, rendering |
+| `ship-application` | `bundler` / `toolchain` | View bundler worker supervisor, Node toolchain management |
 
 ## Database Layer
 
-The `db` module contains all platform.db table access. One file per domain:
+The `db` module (`crates/core/ship-substrate/src/db/`) contains all platform.db access. One file per concern:
 
-| DB Module | Tables / Concerns |
-|-----------|-------------------|
-| `db::workspace_db` | Workspace records |
-| `db::workspace_state` | Workspace upsert operations |
-| `db::workspace_events` | Workspace event projections |
-| `db::session` | Session records |
-| `db::session_events` | Session event projections |
-| `db::session_drain` | Session drain operations |
+| DB Module | Concern |
+|-----------|---------|
+| `db::pool` | Connection pool, `ensure_db`, migration runner |
+| `db::events` | Event-stream persistence — the `events` table |
+| `db::envelope` | `EventEnvelope` row mapping |
 | `db::actor_events` | Actor lifecycle event persistence |
-| `db::artifact_registry` | Artifact registry |
-| `db::events` | Event stream persistence (platform.db) |
-| `db::adrs` | Architecture decision records |
-| `db::branch_context` | Branch docs and links |
-| `db::kv` | General key-value store |
-| `db::managed_state` | Managed state blobs |
-| `db::schema` | Schema definitions |
+| `db::session` | Session records — the `sessions` table |
+| `db::session_events` | Session event projection |
+| `db::session_drain` | Session drain operations |
+| `db::cursors` | Sync / rebuild cursor bookmarks |
+| `db::daemon_settings` | Machine-wide daemon settings |
+| `db::rebuild` | Projection rebuild from the event log |
+| `db::repair` / `db::integrity` | Schema integrity checks and repair |
+| `db::project_id_reconcile` | Project-id reconciliation |
 | `db::types` | Shared DB type definitions |
 
-The platform database path is `~/.ship/platform.db`. The `ensure_db()` function runs sqlx migrations idempotently, sets WAL journal mode and foreign keys, then opens a connection. Per-actor event stores live at `~/.ship/actors/{actor_id}/events.db` and are managed by the `KernelRouter` (see Actor Model below). The kernel's own event store lives at `~/.ship/kernel/events.db`.
+The platform database path is `~/.ship/machine/db/platform.db`. The `ensure_db()` function runs sqlx migrations idempotently, sets WAL journal mode and foreign keys, then opens a connection. There are no per-actor event stores and no separate kernel store — all actors share `platform.db`'s `events` table (see Actor Model below). The key-value store moved out of platform.db; KV now lives in its own `kv.db`, accessed via `ship_platform::kv` (a single `kv.rs` with a namespaced API).
 
 {% aside type="tip" %}
 Tests get automatic isolation. The `get_global_dir()` function detects test binaries and returns a per-thread temp directory instead of `~/.ship/`.
 {% /aside %}
 
-## Workspaces
-
-A workspace is a unit of parallel work keyed by git branch. Three kinds:
-
-- **imperative** -- creates a git worktree, pruned on completion
-- **declarative** -- creates a git worktree, kept on completion
-- **service** -- no worktree, for standing processes
-
-Workspace operations: `create_workspace`, `activate_workspace`, `delete_workspace`, `list_workspaces`, `get_workspace`, `upsert_workspace`, `sync_workspace`, `repair_workspace`, `transition_workspace_status`, `set_workspace_active_agent`.
-
-Workspaces resolve `.ship/` paths through the main checkout even when running in a worktree. The `get_project_dir` function follows `.git` file pointers to find the main repo's `.ship/` directory.
-
 ## Sessions
 
-A session is one agent visit to a workspace. Lifecycle: start, work (log progress), end with summary. One active session per workspace.
+A session is an analytics rollup over actor activity. Lifecycle: start, work (log progress), end with summary. It has a `kind` discriminator (`pipeline_step | chat_thread | direct_attach`) and context dimensions (`project_id`, `pipeline_run_id?`, `chat_thread_id?`, `branch?`).
 
-Session records include: start/end timestamps, model used, progress notes, summary, files changed count, and gate result (pass/fail for gated sessions).
+Session records carry start/end timestamps, model used, progress notes, summary, files-changed count, gate result, and exit reason — telemetry is inline on the row, set at `session.ended`. There is no live session row: "what's running" is an actor question; "what happened" is a session query.
 
-Key functions: `start_workspace_session`, `end_workspace_session`, `record_workspace_session_progress`, `get_active_workspace_session`, `list_workspace_sessions`, `get_workspace_session_record`.
+Session lifecycle code lives in `ship_platform::sessions` — `start_session`, `end_session`, `record_progress`, `compile_session_context`.
 
 ## Actor Model
 
-The runtime uses an actor model with per-actor isolation. Every entity on the runtime — agents, apps, services — is an actor with its own event store and mailbox. Actors communicate through kernel-routed messages, never shared storage.
+The runtime uses an actor model with **logical** per-actor isolation. Every entity on the runtime — agents, apps, services — is an actor with a mailbox and a scoped `ActorStore` handle. All actors share the single `events` table in `platform.db`; isolation is by `actor_id`, not by file. Actors communicate through kernel-routed messages, never shared storage.
 
 ### Actor types
 
@@ -94,22 +84,25 @@ The runtime uses an actor model with per-actor isolation. Every entity on the ru
 
 ### KernelRouter
 
-The `KernelRouter` manages actor lifecycles and message routing. It replaces the old `EventRouter` and `global_router` singleton.
+The substrate `KernelRouter` (`ship_substrate::events::kernel_router`) wraps the pure `ship_kernel::KernelRouter` — it delegates registration, mailboxes, and subscriptions to the inner router and adds `EmitContext`-aware validation, `ActorStore` construction, and write-namespace enforcement. Public methods:
 
-- `spawn_actor(id, config)` — creates actor directory, SQLite DB, mailbox. Returns `ActorStore` + `Mailbox`.
-- `route(event, ctx)` — validates, persists to kernel store, delivers to subscribed mailboxes.
-- `stop_actor(id)` — flushes WAL, drops mailbox, removes subscriptions.
-- `snapshot(id)` — read-only copy of actor state for migration.
-- `suspend(id)` — snapshot + stop.
-- `restore(snapshot)` — rebuild actor from portable snapshot.
+- `spawn_actor(id, config)` — delegates registration to the inner router; returns `(ActorStore, Mailbox)`.
+- `emit(event, ctx)` — validates, enforces write namespaces, persists, delivers.
+- `deliver(&event)` — pushes an already-persisted event to subscribed mailboxes (no validation, no persist).
+- `stop_actor(id)` — delegates to the inner router, then flushes WAL.
+- `with_validator(v)` — registers an `EmitContext`-aware validator (builder).
+- `has_actor`, `actor_count`, `list_actors`, `msg_rate` — introspection.
+- `kernel_store_path()` — path to `platform.db`.
+
+There is no `route`, `snapshot`, `suspend`, or `restore` method.
 
 ### ActorStore
 
-A scoped event handle bound to one actor's SQLite DB. Enforces namespace boundaries.
+A scoped event handle bound to one actor, backed by the shared `platform.db`. Enforces namespace boundaries.
 
 - Writes reject event types outside the actor's `write_namespaces`.
-- Reads reject filters targeting other namespaces.
-- Each actor's DB lives at `~/.ship/actors/{actor_id}/events.db`.
+- Reads filter by the `actor_id` column — an actor's queries only return its own events.
+- There is no per-actor file; isolation is the `ActorStore` API plus the `actor_id` column.
 
 Actors never construct their own store. The kernel creates it via `spawn_actor`.
 
@@ -121,33 +114,30 @@ Per-actor mpsc channel. The kernel delivers messages based on namespace subscrip
 
 Every event type is namespaced (e.g. `studio.message.visual`, `agent.task.completed`). `RESERVED_NAMESPACES` in `validator.rs` is the single source of truth. Agents cannot emit reserved prefixes through MCP tools.
 
-### Directory layout
+### Storage layout
 
 ```
-~/.ship/
-  kernel/
-    events.db           # System lifecycle events only
-  actors/
-    studio/
-      events.db         # Studio's domain events
-    agent-{id}/
-      events.db         # Agent's scoped events
+~/.ship/machine/db/
+  platform.db           # Single event log + projections — all actors
+  data.db               # Collections
 ```
+
+There are no `~/.ship/actors/{id}/events.db` files and no `~/.ship/kernel/events.db`. Every actor's events land in the one `events` table in `platform.db`, distinguished by the `actor_id` column.
 
 ### Event flow
 
 ```
-Agent emits event → Agent's ActorStore (persisted)
-                  → KernelRouter.route() (kernel store + routing)
-                  → Studio's Mailbox (delivered if subscribed)
-                  → Studio's EventRelay → SSE notification to UI
+Actor emits event → KernelRouter.emit() → validate
+                  → persist to platform.db (events table)
+                  → deliver to subscribed mailboxes
+                  → subscriber's EventRelay → SSE notification to UI
 ```
 
-Cross-actor queries do not exist at the actor level. The kernel can join across stores for admin/debug purposes only.
+Persist-before-deliver: nothing reacts to an event that isn't durable first. Reads through `ActorStore` are filtered by `actor_id`; unfiltered cross-actor queries are an admin/debug concern, not an actor-level capability.
 
 ## Events
 
-Events are immutable, append-only records. Each event has: id (ULID), event_type (namespaced), entity_id, actor, payload_json, version, correlation_id, causation_id, workspace_id, session_id, actor_id, parent_actor_id, elevated flag, and created_at timestamp.
+Events are immutable, append-only records. Each event has: id (ULID), event_type (namespaced), entity_id, actor, payload_json, version, causation_id, project_id, session_id, actor_id, parent_actor_id, job_id, agent_id, target_actor_id, elevated flag, and created_at timestamp. The `events` table has a `BEFORE UPDATE` trigger that hard-fails any mutation — append-only is enforced at the SQL layer.
 
 Skills declare artifact types in their SKILL.md frontmatter (`artifacts: [html, pdf, adr]`), not events. The platform infers applicable event types from artifact types. There is no `events.json` in skills.
 
@@ -158,10 +148,6 @@ Agents do not have read access to the event store. They receive events through t
 Jobs coordinate work across agents. Status lifecycle: `pending` -> `running` -> `complete` or `failed`. Jobs can be blocked by other jobs via `blocked_by`.
 
 Each job carries: kind, description, assignment, branch, file scope, touched files, acceptance criteria, capability link, priority, and a log.
-
-## File Claims
-
-File ownership prevents concurrent modification. `claim_files` is atomic and first-wins. `check_conflicts` validates before claiming. `list_claims` shows current ownership. `release_claims` frees files when a job completes.
 
 ## Targets and Capabilities
 
@@ -178,7 +164,7 @@ Runtime functions for skill variable state management:
 - `list_skill_vars(ship_dir)` -- all skills with configurable variables
 - `reset_skill_vars(ship_dir, skill_id)` -- clear all overrides for a skill
 
-Variable values are stored in the platform DB's KV store with keys like `skill_vars:{id}`, `skill_vars.local:{ctx}:{id}`, and `skill_vars.project:{ctx}:{id}`.
+Variable values are stored in the KV store (`kv.db`, via `ship_platform::kv`) with keys like `skill_vars:{id}`, `skill_vars.local:{ctx}:{id}`, and `skill_vars.project:{ctx}:{id}`.
 
 ## Skill Paths
 

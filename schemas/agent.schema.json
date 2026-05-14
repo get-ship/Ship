@@ -57,7 +57,7 @@
         },
         "role": {
           "type": "string",
-          "description": "Legacy role for tool gating defaults — 'worker', 'lead', or 'commander'. Prefer `tools_preset`."
+          "description": "Role for tool-gating defaults — 'worker', 'lead', or 'commander'. Maps to a `tools_preset` when that field is unset (worker → 'worker'; lead/commander → 'orchestrator'). `tools_preset` takes precedence when both are set."
         },
         "tools_preset": {
           "type": "string",
@@ -70,10 +70,6 @@
         }
       },
       "additionalProperties": false
-    },
-    "model": {
-      "type": "string",
-      "description": "Model override for this agent. Compiled to the provider's model field (e.g. model in .claude/settings.json, model.name in .gemini/settings.json, model in .codex/config.toml)."
     },
     "skills": {
       "type": "object",
@@ -156,7 +152,7 @@
     },
     "provider_settings": {
       "type": "object",
-      "description": "Per-agent provider-specific overrides. Merged on top of project-level provider_defaults from ship.jsonc (agent wins on conflict, deep merge). Keys are provider names. Values validated against upstream provider schemas, with Ship-managed keys excluded (use Ship's own fields for model, permissions, env, hooks, etc.).",
+      "description": "Per-agent provider-specific overrides. Merged on top of project-level provider_defaults from ship.jsonc (agent wins on conflict, deep merge). Keys are provider names. Values validated against upstream provider schemas, with Ship-managed keys excluded (use Ship's own fields for permissions, env, hooks, etc.). Set the model here, under the relevant provider key.",
       "properties": {
         "claude": {
           "allOf": [
@@ -165,7 +161,6 @@
               "properties": {
                 "permissions": false,
                 "hooks": false,
-                "model": false,
                 "env": false,
                 "availableModels": false,
                 "maxCostPerSession": false,
@@ -174,32 +169,30 @@
               }
             }
           ],
-          "description": "Claude Code settings pass-through. Ship-managed keys (permissions, hooks, model, env, availableModels, maxCostPerSession, maxTurns, autoMemoryEnabled) must be set via Ship's own fields."
+          "description": "Claude Code settings pass-through. Ship-managed keys (permissions, hooks, env, availableModels, maxCostPerSession, maxTurns, autoMemoryEnabled) must be set via Ship's own fields. Set `model` here."
         },
         "codex": {
           "allOf": [
             { "$ref": "https://raw.githubusercontent.com/openai/codex/main/codex-rs/core/config.schema.json" },
             {
               "properties": {
-                "model": false,
                 "mcp_servers": false
               }
             }
           ],
-          "description": "Codex CLI config pass-through. Ship-managed keys (model, mcp_servers) must be set via Ship's own fields."
+          "description": "Codex CLI config pass-through. Ship-managed keys (mcp_servers) must be set via Ship's own fields. Set `model` here."
         },
         "gemini": {
           "allOf": [
             { "$ref": "https://raw.githubusercontent.com/google-gemini/gemini-cli/main/schemas/settings.schema.json" },
             {
               "properties": {
-                "model": false,
                 "hooks": false,
                 "mcpServers": false
               }
             }
           ],
-          "description": "Gemini CLI settings pass-through. Ship-managed keys (model, hooks, mcpServers) must be set via Ship's own fields."
+          "description": "Gemini CLI settings pass-through. Ship-managed keys (hooks, mcpServers) must be set via Ship's own fields. Set `model` here (gemini uses `model.name`)."
         },
         "cursor": {
           "type": "object",
@@ -211,13 +204,12 @@
             { "$ref": "https://opencode.ai/config.json" },
             {
               "properties": {
-                "model": false,
                 "mcp": false,
                 "permission": false
               }
             }
           ],
-          "description": "OpenCode config pass-through. Ship-managed keys (model, mcp, permission) must be set via Ship's own fields."
+          "description": "OpenCode config pass-through. Ship-managed keys (mcp, permission) must be set via Ship's own fields. Set `model` here."
         }
       },
       "additionalProperties": false

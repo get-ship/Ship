@@ -8,24 +8,21 @@ audience: internal
 
 # Platform Database
 
-Runtime state. Path: `~/.ship/platform.db`. Lives at `crates/core/runtime/src/db/`.
+Runtime state. Path: `~/.ship/machine/db/platform.db`. Lives at `crates/core/ship-substrate/src/db/`.
 
-Ship has a second SQLite database — `~/.ship/data.db` — that holds user content collections (specs, ADRs, notes, feedback). `platform.db` and `data.db` are separate files with separate migrations and separate responsibilities. See [Collections](/runtime/collections/) for the data side.
+Ship has two other machine-local SQLite databases — `data.db` (user content collections) and `kv.db` (namespaced key-value state) — all under `~/.ship/machine/db/`. Each file has separate migrations and separate responsibilities. See [Data DB](/runtime/data-db/) for the collections side.
 
-## Two databases, clear split
+## Database split
 
 | File | Holds | Written by |
 |---|---|---|
-| `platform.db` | Runtime state: workspaces, sessions, jobs, events, kernel routing, actor registry, KV | Runtime code via `persistence` + `db` modules |
+| `platform.db` | Runtime state: sessions, jobs, events, kernel routing, actor registry, auth | Runtime code via `persistence` + `db` modules |
 | `data.db` | User content: collection items, schemas, attachments | Collections service only |
+| `kv.db` | Namespaced key-value state | `db::kv` |
 
-The rest of this page covers `platform.db`.
+The rest of this page covers `platform.db`. Every runtime row lives in one file: one backup target, one WAL, fewer file descriptors, joinable queries across domains. Cost: all runtime writers share a single write lock, so throughput depends on SQLite's WAL concurrency and busy_timeout behaviour.
 
-Historically Ship split `platform.db` further across multiple DBs (kernel events, per-actor events, workspace state). That's gone. Every non-collection row is now in `platform.db`. Benefits: one backup target for runtime state, one WAL, fewer file descriptors, joinable queries across domains. Cost: all runtime writers share a single write lock, so throughput depends on SQLite's WAL concurrency and busy_timeout behaviour.
-
-User content was migrated out of `platform.db` into `data.db` via a one-time migration in `collections::migration`. A completion flag in `data.db` makes the migration idempotent.
-
-Tests get automatic isolation via `runtime::project::get_global_dir()` — it detects test binaries and returns a per-thread temp directory. Any code that resolves paths through `db_path()` inherits that isolation.
+Tests get automatic isolation via `ship_substrate::project::get_global_dir()` — it detects test binaries and returns a per-thread temp directory. Any code that resolves paths through `db_path()` inherits that isolation.
 
 ## Connection PRAGMAs
 
@@ -41,11 +38,11 @@ Set on every call to `ensure_db_at_path`:
 
 ## Constructors
 
-`crates/core/runtime/src/db/mod.rs`:
+`crates/core/ship-substrate/src/db/mod.rs`:
 
 | Function | Purpose |
 |---|---|
-| `db_path() -> Result<PathBuf>` | Resolves `~/.ship/platform.db` (or test-thread temp dir). |
+| `db_path() -> Result<PathBuf>` | Resolves `~/.ship/machine/db/platform.db` (or test-thread temp dir). |
 | `ensure_db() -> Result<()>` | Runs migrations idempotently at `db_path()`. |
 | `ensure_db_at(ship_dir: &Path) -> Result<()>` | Same, but at an explicit ship_dir. Use in tests and handlers that take `ApiState`. |
 | `open_db() -> Result<SqliteConnection>` | Shortcut: `ensure_db()` then `connect()`. |
@@ -55,7 +52,7 @@ Migration failure causes `ensure_db` to refuse startup. The error message surfac
 
 ## Connection pool
 
-`crates/core/runtime/src/db/pool.rs`. Optional — used by the daemon for hot paths (event queries, KV reads, projection lookups). Not used by CLI invocations that open and close per-command.
+`crates/core/ship-substrate/src/db/pool.rs`. Optional — used by the daemon for hot paths (event queries, KV reads, projection lookups). Not used by CLI invocations that open and close per-command.
 
 - Size: `DEFAULT_POOL_SIZE = 5` (4 read + 1 write, per SQLite WAL semantics).
 - Acquisition: `platform_pool() -> &'static SqlitePool`. Lazy; initialized on first call via `OnceLock`.
@@ -65,66 +62,46 @@ Migration failure causes `ensure_db` to refuse startup. The error message surfac
 
 ## Migrations
 
-Two files in `crates/core/runtime/migrations/`:
+Three files in `crates/core/ship-substrate/migrations/`:
 
 | File | Contents |
 |---|---|
-| `0001_schema.sql` | Every table below. 283 lines. |
-| `0002_specs.sql` | The `spec` table (added later). 18 lines. |
+| `0001_schema.sql` | The core schema — all tables below. |
+| `0002_drop_kv_state.sql` | Drops `kv_state` — KV moved to `kv.db`. |
+| `202605121200_jobs_projection.sql` | The `jobs` projection table + its indexes. |
 
-Header comment in `0001_schema.sql`: *"Ship platform schema — single-file, pre-launch. When the schema changes, update this file and delete the DB."* The intent is to collapse everything back to a single migration before launch; adding `0002_specs.sql` was a reluctant exception.
+Header comment in `0001_schema.sql`: *"Ship platform schema — single-file, pre-launch."* The pre-launch convention is to fold schema changes into `0001` and wipe + recreate the DB rather than chain incremental migrations — Ship has no users, so there is nothing to preserve. New numbered/timestamped migrations land only when an incremental change is genuinely cheaper than a wipe.
 
 Migrations run via `sqlx::migrate!("./migrations")`. Tracking table: `_sqlx_migrations`. `ensure_db_at_path` invokes migrations on every call — the tracking table makes it idempotent.
 
-**Stale reference.** `crates/core/runtime/src/db/schema/mod.rs` says *"The canonical DDL lives in `migrations/0001_initial.sql`"* — the file is actually `0001_schema.sql`. Comment needs updating.
-
 ## Tables
 
-Organized as two layers in the source (`db/schema/platform.rs` and `db/schema/workflow.rs`), but all in the same DB.
-
-### Platform tables
-
-Portable runtime primitives.
+`0001_schema.sql` creates:
 
 | Table | Purpose |
 |---|---|
-| `kv_state` | Generic namespaced KV. `(namespace, key)` primary key; JSON values. |
-| `workspace` | Branch-keyed unit of work. One row per branch. |
-| `workspace_session` | Time-bounded work interval. Indexed by workspace + start time. |
-| `workspace_session_record` | Immutable end-of-session snapshot. One record per completed session. |
-| `branch_config` | Per-branch compiled agent config (preset, plugins). |
-| `branch_context` | Branch → linked entity pointers. |
-| `event_log` | Older audit trail. `action` + `entity_type` + `entity_id` + correlation fields. |
+| `kv_state` | Created here, then **dropped** by `0002_drop_kv_state.sql`. KV lives in `kv.db` now. |
+| `sessions` | Session analytics records. Indexed by branch + start time. |
 | `events` | Actor-scoped event bus. Used by kernel routing and `SqliteEventStore`. |
+| `cursors` | Replay/delivery position tracking. |
+| `daemon_settings` | Daemon-level settings. |
+| `auth_sessions` | Paired daemon session tokens (the auth-session projection). |
+| `daemon_owner` | Daemon-owner binding (which user paired this daemon). |
+| `projects` | Project registry — one row per known project path. |
+| `project_compile_state` | Last-compile state per project. |
 | `actors` | Actor registration metadata. |
-| `agent_artifact_registry` | Content-addressed artifact store. |
-| `managed_mcp_state` | Ship-managed MCP server tracking (PID, port, status). |
 
-### Workflow tables
-
-Opinionated planning layer.
+`202605121200_jobs_projection.sql` adds:
 
 | Table | Purpose |
 |---|---|
-| `target` | Named goals — milestones and surfaces. |
-| `capability` | Concrete requirements under a target. |
-| `jobs` | Agent work queue. |
-| `file_claim` | Batch-atomic file claims with workspace tracking. Per-file exclusive locks across parallel agents. |
-| `note` | Human-facing scratchpad. |
-| `adr` | Architecture decision records. |
-| `spec` | Feature specs (added in `0002_specs.sql`). |
+| `jobs` | Agent work queue / job projection. Indexed by status and slug. |
 
-## Two event-ish tables
+There is no `event_log` table. The kernel event bus is the single `events` table — every typed event goes there.
 
-`event_log` and `events` both exist. They are not the same thing.
+## The events table
 
-**`event_log`** — older audit trail. Columns: `action`, `entity_type`, `entity_id`, `workspace_id`, `session_id`, `job_id`, `correlation_id`, `causation_id`, `synced_at`. Populated by `log.rs` / projection helpers. Oriented around "who did what to which entity."
-
-**`events`** — the actor-scoped event bus backing the kernel. Columns: `event_type`, `entity_id`, `actor`, `actor_id`, `parent_actor_id`, `payload_json`, `causation_id`, `target_actor_id`, `elevated`, `job_id`, `agent_id`, `agent_version`. Populated by `SqliteEventStore::append` and `ActorStore::append`. Oriented around "actor X emitted this typed event at this version."
-
-Indexes on `events`: `(entity_id, event_type)`, `(workspace_id, created_at)`. On `event_log`: `workspace_id`, `session_id`, `job_id`, `(entity_type, entity_id)`.
-
-New code writes to `events`. Paths that still write to `event_log` are legacy; they may continue to exist for audit queries but shouldn't gain new writers.
+`events` is the actor-scoped event bus backing the kernel. Populated by `SqliteEventStore::append` and `ActorStore::append`. Oriented around "actor X emitted this typed event at this version." Indexes: `(entity_id, event_type)`, `(workspace_id, created_at)`.
 
 ## Blocking helpers
 
@@ -140,16 +117,11 @@ All three prefer `Handle::try_current()` + `block_in_place` when a Tokio runtime
 
 ## KV store
 
-`crates/core/runtime/src/db/kv.rs`. Namespaced key-value pairs with JSON values. Two API shapes:
-
-- **Raw**: `set(namespace, key, value)`, `get`, `list`, `delete`. Caller controls the namespace string.
-- **Scoped**: `scoped_set(workspace_id, namespace, key, value)` — prefixes namespace with `{workspace_id}::`. Workspace isolation becomes structural; a caller without the workspace_id cannot read another's data.
-
-Used throughout runtime: skill variable storage (`skill_vars:{id}`), managed state blobs, anywhere "write a JSON value against a key" fits.
+KV does not live in `platform.db` — it has its own file, `kv.db`, under `~/.ship/machine/db/`. The API is `crates/core/ship-platform/src/kv.rs`: `set(ns, key, value)`, `get`, `delete`, `list_keys`, `list_all`, all keyed by a typed `KvNamespace` enum. Used for skill variable storage, managed state blobs, anywhere "write a JSON value against a key" fits. `migrate_from_platform_db` is a one-time startup move that drained the old `kv_state` table into `kv.db` before `0002_drop_kv_state.sql` dropped it.
 
 ## Rebuild
 
-`crates/core/runtime/src/db/rebuild.rs` — projection rebuild from the event log. Drop projection tables (workspaces, sessions, jobs, etc.), replay `events` in insertion order, reconstruct them. Used on daemon startup when event-log integrity suggests projection drift. See [Projections](/runtime/projections/) for details.
+`crates/core/ship-substrate/src/db/rebuild.rs` — projection rebuild from the event log. Drop projection tables (sessions, actors), replay `events` in insertion order, reconstruct them. Used on daemon startup when event-log integrity suggests projection drift. See [Projections](/runtime/projections/) for details.
 
 ## Event log summary on startup
 
@@ -157,7 +129,7 @@ Used throughout runtime: skill variable storage (`skill_vars:{id}`), managed sta
 
 ## Testing
 
-The module ships `#[cfg(test) mod tests]` with three small tests (creates fresh, idempotent, returns connection). Deeper integration tests live in `tests_envelope.rs`, `tests_integrity.rs`, `tests_pool.rs`, `tests_rebuild.rs`, `tests_session_drain.rs` — one test module per concern, all covered by `cargo test -p runtime`.
+The module ships `#[cfg(test) mod tests]` with three small tests (creates fresh, idempotent, returns connection). Deeper integration tests live in `tests_envelope.rs`, `tests_integrity.rs`, `tests_pool.rs`, `tests_rebuild.rs`, `tests_session_drain.rs` — one test module per concern, all covered by `cargo test -p ship-substrate`.
 
 Test setup pattern:
 
@@ -173,9 +145,9 @@ ensure_db().unwrap();
 
 - Every SQL path sets WAL + busy_timeout + foreign_keys.
 - Migrations are idempotent, tracked in `_sqlx_migrations`. Failures refuse startup rather than corrupt state.
-- `~/.ship/platform.db` is never inside a project directory — it's machine-global.
+- `~/.ship/machine/db/platform.db` is never inside a project directory — it's machine-global.
 - User content (collection items, schemas) lives in `data.db`, not here. If you find yourself reaching for collection data in `platform.db`, you're in the wrong file — see the collections service.
-- New event writers target `events`, not `event_log`.
+- All typed events go to the single `events` table.
 - The pool is static; test isolation requires bypassing it.
 
 ## Related

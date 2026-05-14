@@ -8,7 +8,9 @@ audience: internal
 
 # Tool Reference
 
-The Ship MCP surface has two server variants: **ShipServer** (the standard agent-facing server, started by `ship mcp serve`) and **StudioServer** (the Studio IDE server, started by `ship studio`). Tools are registered on exactly one server.
+> Note: the MCP tool surface is under active revision; tool/resource lists below may be out of date.
+
+The Ship MCP surface is a single server, `ShipServer`, started by `ship mcp serve` (stdio) or `ship mcp serve --http` (HTTP).
 
 Stability is a runtime property — every binary registers every tool. Experimental tools carry an `**EXPERIMENTAL**` prefix in their description; their interfaces may change without notice.
 
@@ -120,9 +122,9 @@ These tools are registered on every binary; their descriptions carry an `**EXPER
 
 **close_view** -- `view_id` (string, required). Close a view session. Only the owning agent may close
 
-## StudioServer tools
+## Studio-facing tools
 
-These tools are registered on the StudioServer (`ship studio`), not the ShipServer. They are used by the Studio web IDE. All names already follow the verb-first convention so no aliases are required.
+These tools back the Studio web IDE. All names follow the verb-first convention so no aliases are required.
 
 **open_project** -- `path` (string, required). Set the active project for subsequent tool calls.
 

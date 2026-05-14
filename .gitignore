@@ -222,3 +222,6 @@ views/*/.compiled/
 # apps/shipd/src/routes/sdk_manifest.rs). Tracked so `cargo build` works
 # without first running `just gen-sdk`. Refresh with `just gen-sdk` after
 # touching the routes that the manifest reflects.
+
+# Per-worktree isolation marker — created by `just init-worktree`, never committed.
+.ship/.boundary

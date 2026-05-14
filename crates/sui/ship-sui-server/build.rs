@@ -44,7 +44,6 @@ const ASSETS: &[&str] = &[
     "sui-islands/sui-panel-dock.js",
     "sui-islands/sui-nav-top.js",
     "views/agents/view.js",
-    "views/counter/view.js",
     "views/git/view.js",
     "lucide-icons.json",
 ];

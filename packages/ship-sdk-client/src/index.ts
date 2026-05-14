@@ -24,7 +24,7 @@ import {
 import { fetchBody, mutateForm, mutateJson } from './http'
 import { makeSseSource } from './sse'
 
-export { makeSseSource } from './sse'
+export { makeSseSource, liveExpr } from './sse'
 
 export type {
   AgentSummary,

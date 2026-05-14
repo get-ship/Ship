@@ -180,7 +180,7 @@ Body is opaque markdown — it becomes the agent's spec content via `spec_conten
 
 ## Record types
 
-`record.rs`. Shapes shared with `runtime::projections::job`. `JobRecord` lives in projections (computed, no table) but the field shape is defined here since the crate that owns the payloads owns the record shape too. One source of truth for the job projection.
+`record.rs`. Shapes shared with `ship_platform::projections::job`. `JobRecord` lives in projections (computed, no table) but the field shape is defined here since the crate that owns the payloads owns the record shape too. One source of truth for the job projection.
 
 ## event_types.rs
 

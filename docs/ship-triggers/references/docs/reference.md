@@ -49,7 +49,7 @@ The `actions[].type` vocabulary is a **closed enum at v1**: only
 `pipeline.trigger` are accepted. Unknown action types fail schema
 validation at load time. Adding a new action type is a coordinated
 change across `schemas/trigger.schema.json`, the loader at
-`crates/core/runtime/src/hooks/`, and this page.
+`crates/core/ship-platform/src/hooks/`, and this page.
 
 ## External sources
 
@@ -161,7 +161,7 @@ Emitted event: `external.cron.<trigger_name>` · payload: `{ "scheduled_for", "f
 
 ## Action types
 
-Four today. All typed in `runtime::hooks::def::HookActionType`:
+Four today. All typed in `ship_platform::hooks::def::HookActionType`:
 
 | Type | Effect |
 |---|---|
@@ -187,18 +187,17 @@ Common patterns: `{{ event.entity_id }}`, `{{ event.payload.slug }}`, `{{ event.
 
 ## Lifecycle
 
-1. `runtime::hooks::loader::load_hooks_dir(ship_dir)` reads `.ship/hooks/*.jsonc` into `Vec<HookDef>`. Returns a `LoadReport` noting any parse errors — one bad file doesn't block the rest.
+1. `ship_platform::hooks::loader::load_hooks_dir(ship_dir)` reads `.ship/hooks/*.jsonc` into `Vec<HookDef>`. Returns a `LoadReport` noting any parse errors — one bad file doesn't block the rest.
 2. `HookEngine` holds the loaded set and subscribes to the kernel for all events.
 3. When an event fires, the engine finds matching triggers, renders actions against the template context, dispatches each in order.
-4. `runtime::hooks::watcher::start_watcher(engine, ship_dir)` watches `.ship/hooks/` for file changes and reloads the engine on add/remove/modify. No daemon restart needed.
+4. `ship_platform::hooks::watcher::start_watcher(engine, ship_dir)` watches `.ship/hooks/` for file changes and reloads the engine on add/remove/modify. No daemon restart needed.
 5. External source adapters (webhook, file, cron) are also notified on hot-reload and update their registered trigger sets.
 
 ## Not to be confused with
 
 - **User hooks in ship.jsonc** — the `hooks` array in `.ship/ship.jsonc` declares shell commands to run on provider lifecycle events (`PreToolUse`, `Stop`, etc.). Those are compiler-level — emitted into each provider's native config and run by the provider, not by Ship.
-- **Runtime hooks trait** — `runtime::config::hooks::RuntimeHooks` is an embedder extension point for log-sink injection. Different concept, same word.
 
-The name collision is real. See [Hooks](/runtime/hooks/) for the three meanings side by side.
+The name collision is real. See [Hooks](/runtime/hooks/) for both meanings side by side.
 
 ## Schema
 

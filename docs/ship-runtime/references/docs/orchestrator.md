@@ -8,7 +8,7 @@ audience: internal
 
 # Orchestrator
 
-`crates/core/runtime/src/services/orchestrator/`. The service actor that consumes `job.*` and `step.*` events, advances pipelines step by step, and dispatches agent processes. Transport-agnostic — it calls back to the host (shipd) through injected trait objects.
+`crates/core/ship-platform/src/services/orchestrator/`. The service actor that consumes `job.*` and `step.*` events, advances pipelines step by step, and dispatches agent processes. Transport-agnostic — it calls back to the host (shipd) through injected trait objects.
 
 ```
 orchestrator/
@@ -16,15 +16,21 @@ orchestrator/
   router.rs           — start_orchestrator + handle_job_event (event dispatch)
   dispatch.rs         — handle_job_created, dispatch_job_internal
   pipeline.rs         — advance_pipeline, step selection
-  pipeline_loader.rs  — ensure_pipeline (parse JSONC into the payload)
-  pipeline_vars.rs    — template-var interpolation in step commands/prompts
+  pipeline_loader/    — ensure_pipeline (parse JSONC into the payload)
   pipeline_specs.rs   — materialize .artifacts/pipeline/* inside the worktree
   prompt_composer.rs  — compose dispatch prompts for agents
   step_executor.rs    — drive a single step through the executor
+  step_io.rs          — step input/output plumbing
   step_monitor/       — watch process exit, emit step_completed/failed
   gate_rules.rs       — gate step logic (pass/fail/retry)
   review_retry.rs     — re-dispatch failed gated steps
   run_step.rs         — shell-command step type
+  fanout.rs           — fan-out step expansion
+  fanout_aggregate.rs — aggregate fan-out branch results
+  fanout_cancel.rs    — cancel outstanding fan-out branches
+  fanout_recover.rs   — recover fan-out state on restart
+  isolation.rs        — isolation-strategy helpers
+  exit_handler.rs     — process-exit handling for non-pipeline jobs
   replay.rs           — reconcile + replay on daemon startup
   pending.rs          — dependency-blocked job queue
   sweep.rs            — periodic coherence checks (30s)
@@ -56,7 +62,7 @@ Everything the orchestrator needs from the outside world is behind a trait. The 
 
 ## Ports
 
-Defined in `runtime::services::dispatch_ports`:
+Defined in `ship_substrate::services::dispatch_ports`:
 
 | Trait | Concrete implementation | Role |
 |---|---|---|
@@ -160,7 +166,7 @@ Failures at any step emit `job.spawn_failed` and exit without partial cleanup �
 
 ## advance_pipeline
 
-`pipeline.rs`. Given a completion event, find the next unblocked step. DAG traversal over `payload.steps` (`ship_jobs::pipeline::Pipeline`):
+`pipeline.rs`. Given a completion event, find the next unblocked step. DAG traversal over `payload.steps` — `Pipeline` and `StepType` come from `ship_substrate::events::job` (there is no separate `ship-jobs` crate):
 
 1. Update completed-steps set with the event's step id.
 2. Find steps whose `depends_on` is fully in completed-steps, not yet running, not yet completed.

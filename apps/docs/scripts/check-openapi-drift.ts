@@ -1,4 +1,4 @@
-#!/usr/bin/env -S bunx tsx
+#!/usr/bin/env bun
 /**
  * OpenAPI drift check.
  *
@@ -43,8 +43,8 @@ function runSpec(): string {
   // deterministic (fixed traversal order, no clock / rng) so this stays
   // exact.
   const augment = spawnSync(
-    "bunx",
-    ["tsx", AUGMENT],
+    "bun",
+    [AUGMENT],
     {
       cwd: REPO_ROOT,
       encoding: "utf8",

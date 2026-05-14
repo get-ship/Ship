@@ -1,38 +1,40 @@
 ---
-group: Ship UI
+group: Views
 order: 7
 title: Canonical examples
-description: Three example shapes to anchor the framework's discipline. Counter (no controller), agents (function controller + two hooks), form (controller hook + two-way binding).
+description: Three example shapes to anchor the framework's discipline. Home (minimal controller + live data), agents (object controller + a derived bundle), form (controller hook + two-way binding).
 ---
 
 # Canonical examples
 
 These three examples cover the discipline boundaries. Each tier has a representative; each example exercises a different combination of primitives.
 
-## Tier 1 — counter (minimal controller)
+## Tier 1 — home (minimal controller + live data)
 
-The smallest reactive shape: a single signal in the controller's `scope:` factory plus inline arrow handlers in the template.
+The smallest reactive shape: a single signal in the controller's `scope:` factory plus an inline arrow handler in the template, alongside one `<data live>` subscription. Worked exemplar in the repo: `views/home/`.
 
 ```html
-<!-- views/counter/view.sui -->
-<div class="counter">
-  <p>Count: <span data-test="value">{count()}</span></p>
-  <button on:click={() => count.set(count() + 1)}>+</button>
-  <button on:click={() => count.set(0)}>reset</button>
-</div>
+<!-- views/home/page.sui (excerpt) -->
+<data name="git" source="ship.git.overview()" live />
+
+<section class="counter">
+  <p>You've opened the home page <strong>{seen()}</strong> times this session.</p>
+  <sui-button size="sm" variant="outline" on:click={() => seen.set(seen() + 1)}>Bump</sui-button>
+</section>
 ```
 
 ```ts
-// views/counter/view.controller.ts
-import { controller, signal } from '@ship/ui-runtime'
-import type { Scope } from './view.sui'
+// views/home/controller.ts (excerpt)
+import { controller, signal } from '@ship/sui-runtime'
+import type { Scope } from './page.sui'
 
 export default controller<Scope>({
-  scope: () => ({ count: signal(0) }),
+  scope: () => ({ seen: signal(0) }),
+  // derived: { branch, clean, headShort, … } project the `git` envelope
 })
 ```
 
-What this exercises: `scope:` factory, expression interpolation, `on:click` with a call-only arrow body.
+What this exercises: `scope:` factory, expression interpolation, `on:click` with a call-only arrow body, a `<data live>` subscription.
 
 What this avoids: a full `derived` / `on` stanza for trivial state. Inline handlers cover the simplest mutations.
 
@@ -41,13 +43,13 @@ What this avoids: a full `derived` / `on` stanza for trivial state. Inline handl
 The actual working view in the repo today (`views/agents/`). Server data via `<data>`, two memos, one navigation handler. No hooks yet — the hook-based version is below.
 
 ```html
-<!-- views/agents/view.sui (excerpt) -->
+<!-- views/agents/page.sui (excerpt) -->
 <data name="agents" source="ship.agents.summaries()" live />
 
 <header class="agents-head">
   <h1>Agents</h1>
   <p>{total()} agent{total() === 1 ? '' : 's'}</p>
-  <ship-button tone="primary" on:click={newAgent}>New agent</ship-button>
+  <sui-button tone="primary" on:click={newAgent}>New agent</sui-button>
 </header>
 
 {#while-loading of agents}
@@ -60,11 +62,11 @@ The actual working view in the repo today (`views/agents/`). Server data via `<d
 
 {#if agents().kind === 'ok'}
   {#if items().length === 0}
-    <ship-empty-state>No agents yet.</ship-empty-state>
+    <sui-empty-state>No agents yet.</sui-empty-state>
   {:else}
     <div class="agents-grid">
       {#for a of items() key={a.id}}
-        <ship-list-tile navigable={'/agents/' + a.id}>{a.name}</ship-list-tile>
+        <sui-list-tile navigable={'/agents/' + a.id}>{a.name}</sui-list-tile>
       {/for}
     </div>
   {/if}
@@ -72,10 +74,10 @@ The actual working view in the repo today (`views/agents/`). Server data via `<d
 ```
 
 ```ts
-// views/agents/view.ts
-import { controller } from '@ship/ui-runtime'
-import type { LiveSignal } from '@ship/ui-runtime'
-import type { AgentsSummariesResponse, AgentSummary } from '@ship/ui-sdk-client'
+// views/agents/controller.ts
+import { controller } from '@ship/sui-runtime'
+import type { LiveSignal } from '@ship/sui-runtime'
+import type { AgentsSummariesResponse, AgentSummary } from '@ship/sdk-client'
 
 export default controller({
   derived: {
@@ -100,14 +102,14 @@ What this exercises:
 - `on` handler reading framework-injected `navigate` via the proxy fallthrough
 - `{#while-loading}` / `{#while-error err}` boundary blocks
 
-What this avoids: a `live:` section in the controller, a `view()` wrapper, calling `live()` from JS.
+What this avoids: a `live:` section in the controller, calling `live()` from JS.
 
-## Tier 3 — agents with hooks (target shape, lands when hooks ship)
+## Tier 3 — agents with hooks
 
-The same view, scaled with the v1 hooks (`useFilteredList`, `useSelection`, `<use-shell>`, `<use-kbd>`). Use this once the hooks are shipped — see [status.md](status.md) for what's currently available.
+The same view, scaled with the v1 hooks (`useFilteredList`, `useSelection`, `<use-shell>`, `<use-kbd>`) — all shipped, see [status.md](status.md).
 
 ```html
-<!-- views/agents/view.sui -->
+<!-- views/agents/page.sui -->
 <data name="agents" source="ship.agents.summaries()" live />
 
 <use-shell as="shell" />
@@ -122,7 +124,7 @@ The same view, scaled with the v1 hooks (`useFilteredList`, `useSelection`, `<us
   {#if shell.currentUser}
     <span class="agents-user">{shell.currentUser.name}</span>
   {/if}
-  <ship-button tone="primary" on:click={newAgent}>New agent</ship-button>
+  <sui-button tone="primary" on:click={newAgent}>New agent</sui-button>
 </header>
 
 {#if searchOpen()}
@@ -136,10 +138,10 @@ The same view, scaled with the v1 hooks (`useFilteredList`, `useSelection`, `<us
   <ul class="agents-grid">
     {#for a of filter.filtered() key={a.id}}
       <li>
-        <ship-list-tile
+        <sui-list-tile
           tone={sel.selected()?.id === a.id ? 'primary' : 'default'}
           on:click={() => sel.select(a.id)}
-        >{a.name}</ship-list-tile>
+        >{a.name}</sui-list-tile>
       </li>
     {/for}
   </ul>
@@ -149,8 +151,8 @@ The same view, scaled with the v1 hooks (`useFilteredList`, `useSelection`, `<us
 The search-toggle signal lives in the controller's `scope:` factory:
 
 ```ts
-// views/agents/view.controller.ts
-import { controller, signal, useFilteredList, useSelection } from '@ship/ui-runtime'
+// views/agents/controller.ts
+import { controller, signal, useFilteredList, useSelection } from '@ship/sui-runtime'
 
 export default controller({
   scope: () => ({ searchOpen: signal(false) }),
@@ -176,11 +178,11 @@ What this exercises beyond tier 2:
 
 ## Tier 3 — settings form (object controller + useForm hook)
 
-Forms exercise two-way binding, validation, and the `useForm` controller hook. Lands once `useForm` ships — see [status.md](status.md) for the current hook surface.
+Forms exercise two-way binding, validation, and the `useForm` controller hook — all shipped, see [status.md](status.md).
 
 ```html
-<!-- views/settings/view.sui -->
-<data name="settings" source="ship.settings.read()" />
+<!-- views/settings/page.sui -->
+<data name="settings" source="ship.settings.state()" />
 
 <form on:submit={form.submit}>
   <label>
@@ -210,8 +212,8 @@ Forms exercise two-way binding, validation, and the `useForm` controller hook. L
 ```
 
 ```ts
-// views/settings/view.ts
-import { controller, useForm } from '@ship/ui-runtime'
+// views/settings/controller.ts
+import { controller, useForm } from '@ship/sui-runtime'
 
 export default controller({
   use: ({ ship, settings }) => ({

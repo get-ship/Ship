@@ -8,26 +8,8 @@
 // that `@ship/sdk-client` requires.
 
 import { controller, derived, live, unwrap } from '@ship/sui-runtime'
-import type { LiveSignal, LiveSource } from '@ship/sui-runtime'
+import { liveExpr } from '@ship/sdk-client'
 import type { Scope } from './page.sui'
-
-function sseSource<T>(expr: string): LiveSource<T> {
-  return {
-    subscribe(sig: LiveSignal<T>): () => void {
-      const es = new EventSource(`/_sui/data?expr=${encodeURIComponent(expr)}`)
-      const onPatch = (ev: MessageEvent): void => {
-        try {
-          const patch = JSON.parse(ev.data as string) as { op: string; value: T }
-          if (patch.op === 'set') sig.set({ kind: 'ok', value: patch.value })
-        } catch (err) {
-          sig.set({ kind: 'error', error: err instanceof Error ? err : new Error(String(err)) })
-        }
-      }
-      es.addEventListener('patch', onPatch as EventListener)
-      return () => { es.close() }
-    },
-  }
-}
 
 function formatTs(raw: string | null | undefined): string {
   if (!raw) return '—'
@@ -47,7 +29,7 @@ type Actor = {
 
 export default controller<Scope>({
   scope: () => {
-    const snap = live(() => sseSource<{ actors?: Actor[] }>('ship.mesh.snapshot()'))
+    const snap = live(() => liveExpr<{ actors?: Actor[] }>('ship.mesh.snapshot()'))
     const actorsFormatted = derived(() => {
       const v = unwrap(snap)
       const list = v?.actors ?? []

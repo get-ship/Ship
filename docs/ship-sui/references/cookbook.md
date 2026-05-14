@@ -236,7 +236,7 @@ deps inside the `source=` expression. See `references/runtime-primitives.md`
 ## 4. Tabs / sub-routes
 
 Two flavors. **In-page tabs** (no URL change) use a signal. **Sub-routes**
-(URL changes; back button works) use `defineRoutes` + `route().params`.
+(URL changes; back button works) use `defineRoutes` + `route.params.<name>()`.
 
 ### 4a. In-page tabs
 
@@ -278,7 +278,7 @@ views/<name>/
     manifest.jsonc          # { path: "/<name>/[id]" }
 ```
 
-`[id]/controller.ts` reads the param (from `views/agents/[id]/controller.ts:4-7`):
+`[id]/controller.ts` reads the param (pattern from `views/agents/[id]/controller.ts`):
 
 ```ts
 import { controller, derived, live, unwrap } from '@ship/sui-runtime'
@@ -286,8 +286,8 @@ import type { Scope } from './page.sui'
 
 export default controller<Scope>({
   scope: ({ route, ship }) => {
-    const agentId = derived(() => route().params.id)
-    const ctx     = live(() => ship.agents.detail({ id: agentId() as string }))
+    const agentId = derived(() => route.params.id() ?? '')
+    const ctx     = live(() => ship.agents.wire({ id: agentId() }))
     const data    = derived(() => unwrap(ctx) ?? null)
     return { agentId, ctx, data }
   },
@@ -344,7 +344,8 @@ template.
 
 ## 6. Skeleton + empty + error states (canonical shape)
 
-Real chunk from `views/sessions/page.sui:27-90`. Same outer wrapper
+Real chunk from `views/sessions/page.sui` (the `{#while-loading}` →
+`{#while-error}` → `{#if … 'ok'}` block, ~line 27 onward). Same outer wrapper
 across all three branches so the layout doesn't reflow when state
 transitions.
 

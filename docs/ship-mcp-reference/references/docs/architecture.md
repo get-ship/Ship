@@ -18,13 +18,11 @@ apps/mcp/src/
   server/              — ShipServer + handler + tool_gate + notification_relay
   tools/               — one module per tool group (job, session, workspace, skills, etc.)
   http.rs              — Streamable HTTP transport
-  studio_server.rs     — Studio-specific MCP server (additional capabilities)
   requests/            — typed request / parameter structs
   resources.rs         — MCP resources (static URIs the client can subscribe to)
   resource_resolver.rs — resolve ship:// URIs
   network_client.rs    — HTTP client for talking to shipd from an MCP server
   push/                — push-notification outbound path
-  util.rs              — shared helpers
 ```
 
 ## Transports
@@ -32,7 +30,7 @@ apps/mcp/src/
 Two supported:
 
 - **stdio** — `ShipServer + stdio()` transport. Used by providers that spawn MCP servers (Claude Code, Cursor, Gemini). Entry: `server::run_server()`.
-- **HTTP** — `http::run_http_server(port)` + `http::run_studio_http_server(port)`. Streamable HTTP with SSE for server→client notifications. Used by Studio (browser) and any other client that can't or won't spawn a stdio process.
+- **HTTP** — `http::run_http_server(port)`. Streamable HTTP with SSE for server→client notifications. Used by browser clients and any other client that can't or won't spawn a stdio process.
 
 The stdio server is what `ship mcp serve` launches by default. `ship mcp serve --http --port N` launches the HTTP variant.
 
@@ -156,12 +154,6 @@ Three hops because MCP and shipd are separate processes. MCP could in theory col
 
 Resolver functions handle the URI → JSON payload mapping. Subscribing a resource causes the notification relay to send `resources/updated` whenever that resource's underlying data changes (via kernel event observation).
 
-## StudioServer
-
-`studio_server.rs`. Variant `ShipServer` exposed to Studio with an expanded tool set (view-authoring tools, canvas annotations, feedback). Factored into its own server to keep the stable stdio MCP surface minimal while giving Studio what it needs.
-
-Served over HTTP via `run_studio_http_server(port)`. Browser Studio connects via Streamable HTTP + SSE.
-
 ## Push module
 
 `push/`. Outbound path for server-initiated notifications that aren't tied to an MCP subscription — primarily "the user responded" events from webhooks (Telegram, Slack). The human gateway emits events; push module routes them to any connected MCP client that's registered interest in that correlation id.
@@ -178,7 +170,6 @@ Served over HTTP via `run_studio_http_server(port)`. Browser Studio connects via
 - `project_skills_tests.rs` — skill tool handlers.
 - `resource_tests.rs` — resource URI resolution.
 - `skill_file_tests.rs` — skill file I/O.
-- `studio_server_tests.rs` — Studio server surface.
 - `server_tests.rs` — general server behavior.
 - Per-tool module tests alongside each `tools::*.rs` as `*_tests.rs`.
 

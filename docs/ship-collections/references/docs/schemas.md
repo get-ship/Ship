@@ -32,7 +32,9 @@ A schema defines the shape of items in a collection. Schemas are JSONC files in 
 }
 ```
 
-## Top-level fields
+## User-facing top-level fields
+
+(An internal `system` boolean field also exists on schemas, used by built-in collections; it is not part of the user-authored format.)
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
@@ -50,7 +52,7 @@ A schema defines the shape of items in a collection. Schemas are JSONC files in 
 | `boolean` | BOOLEAN | true/false (stored as 0/1, coerced on read) |
 | `enum` | TEXT | Constrained to `values` list |
 | `date` | TEXT | ISO 8601 date string |
-| `file` | TEXT | Artifact ID (ULID). Resolves via `GET /api/artifacts/:id`. See [Artifacts](/artifacts/). |
+| `file` | TEXT | Artifact ID (ULID). Resolves via `GET /api/v1/artifacts/:id`. See [Artifacts](/artifacts/). |
 | `array` | TEXT | JSON array (stored as JSON string) |
 | `object` | TEXT | JSON object (stored as JSON string) |
 

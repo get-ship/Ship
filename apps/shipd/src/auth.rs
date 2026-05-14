@@ -1,7 +1,7 @@
 //! Bearer token authentication for the shipd daemon.
 //!
 //! On startup the daemon generates a random token and writes it to
-//! `~/.ship/daemon.token`. All HTTP endpoints require the token in the
+//! `~/.ship/machine/daemon/token`. All HTTP endpoints require the token in the
 //! `Authorization: Bearer <token>` header. Clients read the token file
 //! and include it in requests.
 //!

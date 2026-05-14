@@ -12,4 +12,4 @@ authors: [ship]
 
 - **[Overview](/http-api/)** — base URL, authentication, error handling.
 - **[Error Codes](/http-api/errors/)** — canonical `ErrorResponse` codes, HTTP statuses, and remediation.
-- **Operations** — auto-generated from `apps/docs/openapi.json` under `/http-api/operations/`.
+- **Operations** — auto-generated from `apps/docs/openapi.json` under `/api-reference/operations/`.

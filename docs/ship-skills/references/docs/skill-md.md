@@ -65,7 +65,7 @@ artifacts: [adr, markdown]
 
 ## How validation runs
 
-The runtime loads `SKILL.md` via `crates/core/runtime/src/agents/skill/storage.rs::parse_skill`. Each load:
+The runtime loads `SKILL.md` via `crates/core/ship-platform/src/agents/skill/storage.rs::parse_skill_spec`. Each load:
 
 1. Reads the file and splits the YAML frontmatter from the markdown body.
 2. Parses the YAML into a JSON value.

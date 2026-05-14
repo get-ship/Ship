@@ -43,17 +43,17 @@ Project `.ship/` mirrors the `library/` shape — no `library/` / `machine/` spl
   mcp.jsonc
   ship.jsonc                ← project manifest
   ship.lock
-  hooks.jsonc               ← agent hooks (pre/post-tool-use bridge — distinct from triggers/)
+  hooks/                    ← reactive triggers (.ship/hooks/*.jsonc — rename to triggers/ pending)
 ```
 
 **Precedence (lowest → highest):** built-in defaults → user (`~/.ship/library/`) → project (`<project>/.ship/`) → project-local overrides (gitignored).
 
 ## ShipHome — the only path accessor
 
-`crates/core/runtime/src/home/ship_home.rs`. Every path under `~/.ship/` resolves through one of these. Raw `home_dir().join(".ship")` is forbidden — `scripts/lint/check-raw-ship-paths.sh` hard-fails CI on regression.
+`crates/core/ship-substrate/src/home/ship_home.rs`. Every path under `~/.ship/` resolves through one of these. Raw `home_dir().join(".ship")` is forbidden — `scripts/lint/check-raw-ship-paths.sh` hard-fails CI on regression.
 
 ```rust
-use runtime::{ShipHome, DaemonFile, Db, Scope, Vector};
+use ship_substrate::{ShipHome, DaemonFile, Db, Scope, Vector};
 
 let home = ShipHome::from_env();           // production: reads SHIP_HOME or falls back to ~/.ship
 let test = ShipHome::for_test(tmp.path()); // test helper: <tmp>/.ship
@@ -77,11 +77,11 @@ ShipHome::project_ship_dir(&proj)   // <proj>/.ship/
 ShipHome::ship_dir_name()           // ".ship"
 ```
 
-Two helpers in `runtime::db`:
+Two helpers in `ship_substrate::db`:
 
 ```rust
-runtime::db::platform_db_path(ship_dir)   // <ship_dir>/machine/db/platform.db
-runtime::db::data_db_path(ship_dir)       // <ship_dir>/machine/db/data.db
+ship_substrate::db::platform_db_path(ship_dir)   // <ship_dir>/machine/db/platform.db
+ship_substrate::db::data_db_path(ship_dir)       // <ship_dir>/machine/db/data.db
 ```
 
 ## Vector enum
@@ -103,7 +103,7 @@ Adding a new directory-vector is a one-line enum change (plus matching `as_str()
 
 ## Project root resolution
 
-`runtime::project::resolve_project_ship_dir(start_dir)` is the canonical resolver. Returns `Option<PathBuf>` pointing at the `.ship/` directory.
+`ship_substrate::project::resolve_project_ship_dir(start_dir)` is the canonical resolver. Returns `Option<PathBuf>` pointing at the `.ship/` directory.
 
 Behavior:
 
@@ -111,7 +111,7 @@ Behavior:
 2. If the found `.ship/` lives inside a **linked git worktree**, redirect to the **main checkout's** `.ship/` so worktrees never register as separate projects in `~/.ship/machine/projects/`.
 3. Worktree dev opt-out: when `SHIP_RESPECT_WORKTREE=1` is set, the worktree's local `.ship/` wins (no redirect). Used by `scripts/dev-daemon.sh` and other dev tooling iterating per-worktree views/themes/agents.
 
-Higher-level wrapper `runtime::project::get_project_dir(start: Option<PathBuf>)`:
+Higher-level wrapper `ship_substrate::project::get_project_dir(start: Option<PathBuf>)`:
 
 - If `SHIP_DEV_PROJECT_DIR` is set, returns it directly (test/dev override).
 - Else delegates to `resolve_project_ship_dir`.
@@ -121,7 +121,7 @@ Higher-level wrapper `runtime::project::get_project_dir(start: Option<PathBuf>)`
 
 ## Env vars
 
-`crates/core/runtime/src/env.rs` is the single source of truth. Every `SHIP_*` env var the runtime reads has a `Var` variant; reads go through `env::read(Var::*)`. Raw `std::env::var("SHIP_*")` outside this file fails the `check-raw-env-reads.sh` lint guard.
+`crates/core/ship-substrate/src/env.rs` is the single source of truth. Every `SHIP_*` env var the runtime reads has a `Var` variant; reads go through `env::read(Var::*)`. Raw `std::env::var("SHIP_*")` outside this file fails the `check-raw-env-reads.sh` lint guard.
 
 | Var | Env name | Category | Purpose |
 |---|---|---|---|
@@ -144,7 +144,7 @@ Higher-level wrapper `runtime::project::get_project_dir(start: Option<PathBuf>)`
 **On `shipd` start** (`apps/shipd/src/ship_runtime.rs`):
 
 ```rust
-runtime::home::ensure_layout(&ShipHome::at(global_dir))?;
+ship_substrate::home::ensure_layout(&ShipHome::at(global_dir))?;
 ```
 
 `ensure_layout` `mkdir -p`'s the canonical bucket tree (`library/`, `machine/{db,daemon,logs,cache,sessions,actors,projects,crashes}/`) idempotently. No detection, no migration, no version marker — fresh installs and existing installs converge on the same shape.
@@ -164,23 +164,23 @@ runtime::home::ensure_layout(&ShipHome::at(global_dir))?;
 
 | Guard | What it catches | Hard-fail? |
 |---|---|---|
-| `scripts/lint/check-raw-ship-paths.sh` | Raw `.join(".ship")` or `home_dir().join(".ship/…")` outside `crates/core/runtime/src/home/` | Yes (via `just check-raw`) |
-| `scripts/lint/check-raw-env-reads.sh` | `env::var("SHIP_*")` outside `crates/core/runtime/src/env.rs` | Yes (via `just check-raw`) |
+| `scripts/lint/check-raw-ship-paths.sh` | Raw `.join(".ship")` or `home_dir().join(".ship/…")` outside `crates/core/ship-substrate/src/home/` | Yes (via `just check-raw`) |
+| `scripts/lint/check-raw-env-reads.sh` | `env::var("SHIP_*")` outside `crates/core/ship-substrate/src/env.rs` | Yes (via `just check-raw`) |
 
 Both lints exit non-zero on violations and run in CI. Both currently report **zero violations** across the workspace.
 
 Tests that previously set raw env vars (`std::env::set_var("SHIP_DEV_PROJECT_DIR", ...)`) should switch to typed accessors:
 
 ```rust
-unsafe { runtime::env::set(runtime::env::Var::DevProjectDir, path) };
-unsafe { runtime::env::remove(runtime::env::Var::DevProjectDir) };
+unsafe { ship_substrate::env::set(ship_substrate::env::Var::DevProjectDir, path) };
+unsafe { ship_substrate::env::remove(ship_substrate::env::Var::DevProjectDir) };
 ```
 
 ## Regression tests
 
 - `apps/shipd/src/daemon.rs::path_layout_tests` — pid/port/token/log paths land at the typed-accessor locations; no legacy root files.
 - `apps/shipd/tests/smoke.rs::fresh_daemon_writes_canonical_home_layout` — full e2e: spawn shipd against a fresh `SHIP_HOME`, assert the canonical bucket tree exists and zero legacy paths.
-- `crates/core/runtime/src/home/ensure.rs::tests` — `ensure_layout` is idempotent and preserves existing content.
+- `crates/core/ship-substrate/src/home/ensure.rs::tests` — `ensure_layout` is idempotent and preserves existing content.
 
 ## See also
 

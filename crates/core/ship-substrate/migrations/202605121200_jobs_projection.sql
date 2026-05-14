@@ -9,8 +9,14 @@
 -- standard `Projection` trait — `apply()` UPDATEs this table as job/step
 -- events flow. A one-shot hydration on first read backfills the table from
 -- the existing event log for installs that predate the projection.
+--
+-- Drop any pre-projection `jobs` table first: `CREATE TABLE IF NOT EXISTS`
+-- would silently no-op against an older-shaped table, then the `slug`
+-- index below would fail. The table is a pure projection — it rebuilds
+-- from the event log on first read — so dropping it loses no data.
+DROP TABLE IF EXISTS jobs;
 
-CREATE TABLE IF NOT EXISTS jobs (
+CREATE TABLE jobs (
   job_id              TEXT PRIMARY KEY,
   slug                TEXT NOT NULL,
   agent               TEXT NOT NULL,

@@ -10,12 +10,31 @@ import { type LiveSignal, type LiveSource } from '@ship/sui-runtime'
 import { applyPatch, type Patch } from '@ship/sui-runtime/patch'
 
 /**
+ * Wire a raw `ship.<domain>.<op>(...)` expression to a `LiveSource` over
+ * the daemon's `/_sui/data` SSE channel.
+ *
+ * View-host-mounted views (`/sui/<name>`) have no `ship` SDK client in
+ * ctx, so the compiler-emitted `<data live>` path sticks on `loading`.
+ * Their controllers call this directly — the one sanctioned way to open
+ * a live channel without `createClient`. Do not hand-roll `EventSource`.
+ */
+export function liveExpr<T>(
+  expr: string,
+  ESCtor: typeof globalThis.EventSource | undefined = globalThis.EventSource,
+): LiveSource<T> {
+  return makeSseSource<T>(
+    `/_sui/data?expr=${encodeURIComponent(expr)}`,
+    ESCtor,
+  )
+}
+
+/**
  * Wire one `_sui/data` SSE channel into a `LiveSource`. The first
  * `patch` event with `op === 'set'` flips the signal to ok; subsequent
  * events go through `applyPatch` against a façade.
  *
  * Visible for tests via the package main barrel — production code uses
- * `createClient` in `./index.ts`.
+ * `createClient` in `./index.ts` or `liveExpr` above.
  */
 export function makeSseSource<T>(
   url: string,

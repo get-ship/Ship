@@ -1,5 +1,5 @@
 ---
-group: Ship UI
+group: Views
 order: 4
 title: Hooks — template and controller
 description: Two categories of hook with different jobs and different syntax. Template hooks for host-side side effects; controller hooks for UI pattern bundles. When to reach for which.
@@ -80,14 +80,14 @@ Template hooks are TypeScript modules registered with the framework's hook regis
 - A child schema (which child elements / template fragments are accepted)
 - A factory that runs at mount and may register a `cleanup` for unmount
 
-Implementation contract is in active development. See [status.md](status.md).
+Template hooks v1 are stable — see [status.md](status.md) for the shipped registry.
 
 ### `<use-focus-trap>`
 
 Traps keyboard focus within a target container element until the hook is unmounted. Intercepts Tab and Shift+Tab to cycle through focusable descendants, preventing focus from escaping the container (useful for modals, dialogs, and drawers). Focuses the first focusable descendant on mount and restores the previously focused element on unmount.
 
 ```html
-<dialog bind:ref={dialogEl}>
+<dialog bind:this={dialogEl}>
   <use-focus-trap bind:target={dialogEl} />
   <input placeholder="Name" />
   <button on:click={save}>Save</button>
@@ -167,31 +167,32 @@ The `bind:on` callback receives the `IntersectionObserverEntry`. In environments
 
 ## Controller hooks
 
-Bundles of `state` / `derived` / `on` / `mount` returned from a factory function. Composed in the controller's `use:` section. Each result is namespaced by its key.
+Bundles of `scope` / `derived` / `on` / `mount` returned from a factory function. Composed in the controller's `use:` section. Each result is namespaced by its key.
 
 ### Authoring contract
 
 A controller hook is a function that returns the controller shape:
 
 ```ts
-// packages/ui-runtime/src/hooks/filtered-list.ts
-import type { ControllerHook } from '@ship/ui-runtime'
+// packages/sui-runtime/src/hooks/filtered-list.ts
+import { signal } from '@ship/sui-runtime'
+import type { ControllerHook } from '@ship/sui-runtime'
 
 export const useFilteredList = <T>(
   source: () => T[],
   predicate: (item: T, query: string) => boolean,
 ): ControllerHook<{ query: string }> => ({
-  state:   { query: '' },
+  scope:   () => ({ query: signal('') }),
   derived: { filtered: ({ query }) => source().filter(i => predicate(i, query)) },
   on:      { setQuery: (s, q: string) => { s.query = q } },
 })
 ```
 
-The hook's return shape matches the controller's six-section shape exactly. Use sites:
+The hook's return shape matches the controller's section shape exactly — reactive state lives in the `scope:` factory, never a `state` section. Use sites:
 
 ```ts
-// view.ts
-import { useFilteredList } from '@ship/ui-runtime'
+// controller.ts
+import { useFilteredList } from '@ship/sui-runtime'
 
 export default ({ ship }) => ({
   use: {
@@ -209,7 +210,7 @@ In the template, the hook's contributions are namespaced by `use:` key:
 ```html
 <input bind:value={list.query} on:input={list.setQuery} />
 {#for a of list.filtered key={a.id}}
-  <ship-card>{a.name}</ship-card>
+  <sui-card>{a.name}</sui-card>
 {/for}
 ```
 

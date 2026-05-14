@@ -20,19 +20,11 @@ Agent identity and metadata. Both `id` and `name` are required.
 | `version` | string | no | Semver version. Default: `"0.1.0"` |
 | `description` | string | no | What this agent does. Shown in listings and editor UI. |
 | `tags` | string[] | no | Searchable tags for registry discovery (e.g., `["frontend", "review"]`) |
+| `icon` | string | no | Display icon — emoji or icon name (e.g. `"🧪"`, `"test-tube"`). |
 | `providers` | string[] | no | Provider targets. Values: `claude`, `cursor`, `codex`, `gemini`, `opencode`. Overrides the project-level providers list when set. |
-
-## model
-
-Top-level string field. Overrides the default model for this agent.
-
-```jsonc
-{
-  "model": "claude-opus-4-20250514"
-}
-```
-
-Compiled to each provider's model field: `model` in Claude settings, `model.name` in Gemini settings, `model` in Codex config.
+| `role` | string | no | Role for tool-gating defaults — `worker`, `lead`, or `commander`. Maps to a `tools_preset` when unset. Prefer `tools_preset`. |
+| `tools_preset` | string | no | Tool preset name controlling which platform-shipped tools this agent sees. Known values: `worker`, `orchestrator`. When unset, falls back to the `role`-based default. |
+| `active_tools` | string[] | no | Explicit tool IDs visible to this agent. When non-empty, replaces the preset's tool list (escape hatch for custom agents). |
 
 ## skills
 
@@ -98,6 +90,7 @@ Permission configuration. Starts from a named preset and layers per-agent overri
 | `tools_allow` | ToolPattern[] | Additional tool patterns to allow |
 | `tools_deny` | ToolPattern[] | Additional tool patterns to deny |
 | `tools_ask` | ToolPattern[] | Tool patterns requiring user confirmation |
+| `default_mode` | string | Default permission mode. Values: `default` (ask for writes), `plan` (read-only), `acceptEdits` (auto-approve file edits), `dontAsk` (fully autonomous), `bypassPermissions` (no restrictions). |
 
 Overrides are merged onto the preset, not replacements. The deny list always wins over allow.
 
@@ -132,19 +125,41 @@ Inline rules appended to the compiled context file after shared `.ship/rules/*.m
 
 Shared rules from `.ship/rules/*.md` are automatically included for all agents. The `inline` field adds agent-specific rules on top.
 
+## hooks
+
+Hook commands declared on the agent. The compiler emits each into the active provider's hook registration (e.g. `.claude/settings.json:hooks`).
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `stop` | string | Command to run when the agent session ends (Claude Code `Stop` hook). |
+| `subagent_stop` | string | Command to run when a sub-agent session ends (Claude Code `SubagentStop` hook). |
+
+```jsonc
+{
+  "hooks": {
+    "stop": "ship session end",
+    "subagent_stop": "ship session end --subagent"
+  }
+}
+```
+
 ## provider_settings
 
 Per-provider configuration pass-through. Deep-merged on top of project-level `provider_defaults` from `ship.jsonc`. Agent values win on conflict.
 
 Keys are provider names: `claude`, `codex`, `gemini`, `cursor`, `opencode`.
 
+This is also where the model is set — there is no top-level `model` field. Set `model` under the relevant provider key (Gemini uses `model.name`).
+
 ```jsonc
 {
   "provider_settings": {
     "claude": {
+      "model": "claude-opus-4-20250514",
       "contextFileFormat": "markdown"
     },
     "gemini": {
+      "model": { "name": "gemini-2.5-pro" },
       "codeExecution": true
     }
   }
@@ -152,15 +167,15 @@ Keys are provider names: `claude`, `codex`, `gemini`, `cursor`, `opencode`.
 ```
 
 {% aside type="caution" %}
-Ship-managed fields cannot be set in `provider_settings`. Use Ship's own fields for: `permissions`, `hooks`, `model`, `env`, MCP servers. The schema enforces this -- setting a managed field here is a validation error.
+Ship-managed fields cannot be set in `provider_settings`. Use Ship's own fields for: `permissions`, `hooks`, `env`, MCP servers. The schema enforces this -- setting a managed field here is a validation error. (`model` is *not* Ship-managed — set it here.)
 {% /aside %}
 
 Provider-specific schemas are validated against upstream definitions:
-- **Claude** -- `schemastore.org/claude-code-settings.json` (excludes permissions, hooks, model, env, availableModels, maxCostPerSession, maxTurns, autoMemoryEnabled)
-- **Codex** -- upstream `config.schema.json` (excludes model, mcp_servers)
-- **Gemini** -- upstream `settings.schema.json` (excludes model, hooks, mcpServers)
+- **Claude** -- `schemastore.org/claude-code-settings.json` (excludes permissions, hooks, env, availableModels, maxCostPerSession, maxTurns, autoMemoryEnabled)
+- **Codex** -- upstream `config.schema.json` (excludes mcp_servers)
+- **Gemini** -- upstream `settings.schema.json` (excludes hooks, mcpServers)
 - **Cursor** -- no upstream schema; accepts any object
-- **OpenCode** -- upstream `config.json` (excludes model, mcp, permission)
+- **OpenCode** -- upstream `config.json` (excludes mcp, permission)
 
 ## Tool pattern syntax
 

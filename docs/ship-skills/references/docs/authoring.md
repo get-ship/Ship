@@ -46,10 +46,6 @@ A namespace directory contains sub-skill directories instead of a `SKILL.md` at 
 
 Namespace expansion applies to dep refs only. When a dep ref points to a directory without `SKILL.md` but containing sub-directories that each have `SKILL.md`, the resolver expands it to all leaf skills. Local skills in `.ship/skills/` are loaded individually -- each sub-directory with a `SKILL.md` becomes its own skill.
 
-## Flat format (legacy)
-
-A single `.md` file directly in the skills directory (e.g. `skills/my-skill.md`) also works. The filename minus extension becomes the id. Prefer the directory format for new skills -- it allows bundled resources.
-
 ## How skills get loaded
 
 ### Local refs

@@ -13,7 +13,7 @@ Query items with structured filters, sorting, and pagination.
 ## Endpoint
 
 ```
-POST /api/collections/{collection}/query
+POST /api/v1/collections/{collection}/query
 ```
 
 ## Request body
@@ -23,7 +23,7 @@ POST /api/collections/{collection}/query
   "collection": "task",
   "filter": {
     "status": "todo",
-    "priority": { "$gte": 2 }
+    "priority__gte": 2
   },
   "sort": { "priority": -1 },
   "limit": 50,
@@ -33,6 +33,9 @@ POST /api/collections/{collection}/query
 
 ## Filter operators
 
+Filters use Django-style suffix keys: the operator is appended to the field
+name with a double underscore (`field__op`). A bare field name means equality.
+
 ### Equality (implicit)
 
 ```json
@@ -41,35 +44,36 @@ POST /api/collections/{collection}/query
 
 ### Comparison
 
-| Operator | Meaning | Example |
+| Operator key | Meaning | Example |
 |----------|---------|---------|
-| `$gt` | Greater than | `{"priority": {"$gt": 2}}` |
-| `$gte` | Greater or equal | `{"priority": {"$gte": 2}}` |
-| `$lt` | Less than | `{"priority": {"$lt": 5}}` |
-| `$lte` | Less or equal | `{"priority": {"$lte": 5}}` |
-| `$ne` | Not equal | `{"status": {"$ne": "done"}}` |
+| `field__gt` | Greater than | `{"priority__gt": 2}` |
+| `field__gte` | Greater or equal | `{"priority__gte": 2}` |
+| `field__lt` | Less than | `{"priority__lt": 5}` |
+| `field__lte` | Less or equal | `{"priority__lte": 5}` |
+| `field__ne` | Not equal | `{"status__ne": "done"}` |
 
 ### Set membership
 
-| Operator | Meaning | Example |
+| Operator key | Meaning | Example |
 |----------|---------|---------|
-| `$in` | Value in set | `{"status": {"$in": ["todo", "doing"]}}` |
-| `$nin` | Value not in set | `{"status": {"$nin": ["done"]}}` |
+| `field__in` | Value in set | `{"status__in": ["todo", "doing"]}` |
+| `field__nin` | Value not in set | `{"status__nin": ["done"]}` |
 
 ### Existence
 
 ```json
-{ "assignee": { "$exists": true } }
-{ "assignee": { "$exists": false } }
+{ "assignee__exists": true }
+{ "assignee__exists": false }
 ```
 
 ### Text search
 
 ```json
-{ "title": { "$contains": "test" } }
+{ "title__contains": "test" }
 ```
 
-Performs a SQL LIKE `%term%` search. Case-sensitive.
+Performs a SQL LIKE `%term%` search. Case-insensitive (SQLite `LIKE` is
+case-insensitive for ASCII).
 
 ### Null
 
@@ -81,14 +85,16 @@ Performs a SQL LIKE `%term%` search. Case-sensitive.
 
 ```json
 {
-  "$or": [
+  "_or": [
     { "status": "todo" },
-    { "status": "doing" }
+    { "priority__gte": 3 }
   ]
 }
 ```
 
-Each condition in the `$or` array supports equality filters. Operator objects inside `$or` are not yet supported.
+Use the `_or` key (single underscore) with an array of filter objects. Each
+condition in the array supports the full `field__op` operator set — multiple
+keys within one condition object are AND-ed together.
 
 ## Sorting
 
@@ -129,5 +135,5 @@ Each condition in the `$or` array supports equality filters. Operator objects in
 Agents use the `query_docs` tool with the same filter/sort/limit parameters:
 
 ```
-query_docs(collection: "task", filter: {"status": "todo"}, sort: {"priority": -1}, limit: 20)
+query_docs(collection: "task", filter: {"status": "todo", "priority__gte": 2}, sort: {"priority": -1}, limit: 20)
 ```

@@ -8,7 +8,7 @@ audience: internal
 
 # MCP Registry Proxy
 
-`GET /api/mcp/servers`
+`GET /api/v1/mcp/servers`
 
 Proxies the [Model Context Protocol server registry](https://registry.modelcontextprotocol.io) with a 24-hour in-memory cache. When the upstream registry is unreachable, returns a curated fallback list of vetted servers.
 
@@ -58,10 +58,10 @@ Proxies the [Model Context Protocol server registry](https://registry.modelconte
 
 ## Curated fallback list
 
-The fallback list is maintained in `apps/shipd/src/mcp_registry/fallback.rs`. To update it:
+The fallback list is maintained in `apps/shipd/src/routes/mcp_registry/fallback.rs`. To update it:
 
 1. Edit `fallback.rs` — add, remove, or update `McpServer` structs.
-2. Update `VETTED_IDS` in `apps/shipd/src/mcp_registry/mod.rs` if vetted status changes.
+2. Update `VETTED_IDS` in `apps/shipd/src/routes/mcp_registry/mod.rs` if vetted status changes.
 3. Run `cargo test -p shipd` to confirm the fallback tests still pass.
 
 ### Current curated servers

@@ -42,7 +42,7 @@ Every doc page starts with YAML frontmatter:
 
 ```yaml
 ---
-group: My Skill Group
+group: Smart Skills
 title: Command Reference
 description: Complete list of commands and their options.
 audience: public

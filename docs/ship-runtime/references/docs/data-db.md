@@ -2,15 +2,15 @@
 group: Runtime
 order: 5
 title: Data DB (collections)
-description: ~/.ship/data.db — user content collections. DataService, built-in schemas, custom collections, the platform→data migration.
+description: ~/.ship/machine/db/data.db — user content collections. DataService, built-in schemas, custom collections.
 audience: internal
 ---
 
 # Data DB
 
-Path: `~/.ship/data.db`. Sibling to `platform.db`, different responsibility. Everything authored by the user — specs, ADRs, notes, feedback, annotations, plus any custom collections — lives here. Runtime state (workspaces, sessions, jobs, events) lives in `platform.db`.
+Path: `~/.ship/machine/db/data.db`. Sibling to `platform.db`, different responsibility. Everything authored by the user — specs, ADRs, notes, feedback, annotations, plus any custom collections — lives here. Runtime state (sessions, jobs, events) lives in `platform.db`.
 
-Managed by `runtime::data::DataService` (`crates/core/runtime/src/data.rs`). Collection logic on top at `runtime::collections::*`.
+Managed by `ship_substrate::data::DataService` (`crates/core/ship-substrate/src/data.rs`). Collection logic on top at `ship_platform::collections::*`.
 
 ## DataService
 
@@ -28,7 +28,7 @@ Two constructors:
 | Constructor | Use |
 |---|---|
 | `DataService::open(ship_dir)` | Production. Opens connection + runs startup. |
-| `DataService::open_raw(ship_dir)` | Opens without startup. Used by the migration module's own tests. |
+| `DataService::open_raw(ship_dir)` | Opens without startup. Used by tests that need the bare connection. |
 
 Connection PRAGMAs (set in `open_connection`): WAL, 5-second busy timeout. No foreign keys pragma here — collection tables are flat, no cross-collection FK constraints today.
 
@@ -80,9 +80,9 @@ Custom schemas live at `.ship/schemas/<id>.jsonc`, loaded via `schema::load_sche
 
 | ID | Schema fn | Purpose |
 |---|---|---|
-| `specs` | `specs_schema()` | Feature specs. Migrated from the legacy `spec` table on `platform.db`. |
-| `adrs` | `adrs_schema()` | Architecture decision records. Migrated from `adr`. |
-| `notes` | `notes_schema()` | Human scratchpad. Migrated from `note`. |
+| `specs` | `specs_schema()` | Feature specs. |
+| `adrs` | `adrs_schema()` | Architecture decision records. |
+| `notes` | `notes_schema()` | Human scratchpad. |
 | `feedback` | `feedback_schema()` | User feedback on views, canvases, artifacts. |
 | `annotations` | `annotations_schema()` | Inline annotations — comments/markers attached to artifacts and canvas sessions. |
 
@@ -133,33 +133,9 @@ Event types follow the pattern `collection.{action}` with item ID as `entity_id`
 
 Triggers and views subscribe to `collection.*` via the kernel to stay live.
 
-## Migration details
-
-`migrate_platform_to_collections` reads from `platform.db` (read-only connection via `open_platform_readonly`). For each legacy table:
-
-| Platform table | Target collection | Mapped fields |
-|---|---|---|
-| `spec` | `specs` | Standard + spec-specific fields |
-| `adr` | `adrs` | Status, decision, context |
-| `note` | `notes` | Body, associated workspace |
-
-Report fields:
-
-```rust
-pub struct MigrationReport {
-    pub already_migrated: bool,
-    pub source_missing: bool,          // no platform.db at all
-    pub notes_migrated: usize,
-    pub adrs_migrated: usize,
-    pub specs_migrated: usize,
-}
-```
-
-Completion flag: `migration_state` table in `data.db`, keyed by `MIGRATION_KEY = "platform_to_collections_v1"`. Only one migration key exists today; future migrations would add keys.
-
 ## Fresh-install detection
 
-`apps/shipd/src/first_run.rs::is_first_run(ship_dir)` checks `!ship_dir.join("data.db").exists()`. The presence of `data.db` is the canonical signal that Ship has been run at least once on this machine. Fresh installs skip migration (no source), populate built-in schemas, and mark the migration key complete immediately so subsequent startups don't probe the filesystem.
+`apps/shipd/src/daemon/first_run.rs::is_first_run(ship_dir)` checks whether `data.db` is absent. The presence of `data.db` is the canonical signal that Ship has been run at least once on this machine. Fresh installs populate built-in schemas on first startup.
 
 ## Why not one database
 
@@ -171,8 +147,6 @@ Two-file split is deliberate:
 
 ## Caveats
 
-- **Stale function name.** `collections::store::open_docs_db(ship_dir)` is still named `open_docs_db` despite the file being `data.db`. Returns a `DataService`. Renaming is a public API change; hasn't been done.
-- **Migration source rows remain.** The `spec`, `adr`, `note` tables in `platform.db` are populated AND the collections are populated after migration. Double-source is a safety net, not a feature — queries should hit collections, not the legacy tables.
 - **No FK constraints across collections.** A collection item can reference another item's ID in its data, but nothing enforces referential integrity. Callers validate or accept dangling refs.
 
 ## Related

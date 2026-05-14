@@ -7,20 +7,20 @@ Ship ships with a bundled JS toolchain at `~/.ship/runtime/`. It mirrors what `r
 ```
 ~/.ship/runtime/
   bun                 # Bun static binary (~100 MB)
-  sui-compiler        # Rust release build of crates/sui-compiler
+  sui-compiler        # Rust release build of crates/sui/sui-compiler
   bundler.ts          # Bun worker script — the asset bundler
 ```
 
 No `node_modules/`, no `package.json`, no lockfile. `bundler.ts` runs under Bun and calls Bun's built-in APIs (`Bun.build`, `Bun.plugin`) directly.
 
-The directory is owned by `crates/core/runtime/src/home/ship_home.rs` — every accessor lives there, no other code constructs paths under `~/.ship/runtime/` directly.
+The directory is owned by `crates/core/ship-substrate/src/home/ship_home.rs` — every accessor lives there, no other code constructs paths under `~/.ship/runtime/` directly.
 
 ## Why Bun-native bundling
 
 - **No node_modules tree.** The previous Vite-based pipeline required `npm install`-ing `vite` and `@ship/vite-plugin-sui` into `~/.ship/runtime/`. Now the runtime dir is three files.
 - **In-process API.** `Bun.build()` and `Bun.plugin()` are part of the Bun binary. There is nothing to install and nothing to resolve.
 - **Worker protocol.** `bundler.ts` is a long-lived subprocess supervised by `shipd`. Requests arrive on stdin as JSON lines; responses and push events go back on stdout. The daemon owns the process lifecycle — the bundler is not a server.
-- **Supervised restarts.** The Rust side (`crates/core/runtime/src/bundler/`) wraps the worker with exponential-backoff restarts (1 s → 30 s, max 20 restarts). A crashed worker does not take the daemon with it.
+- **Supervised restarts.** The Rust side (`crates/core/ship-application/src/bundler/`) wraps the worker with exponential-backoff restarts (1 s → 30 s, max 20 restarts). A crashed worker does not take the daemon with it.
 
 ## Components
 
@@ -30,13 +30,13 @@ Executes `bundler.ts`. Also used for ad-hoc dev scripts. Pinned to the Ship vers
 
 ### `sui-compiler`
 
-The Rust ahead-of-time compiler for `.sui` files. Invoked by `bundler.ts` via `Bun.spawn` to transform `.sui` source to JavaScript. Same binary as `crates/sui-compiler` ships under `target/release/sui-compiler` for in-repo dev.
+The Rust ahead-of-time compiler for `.sui` files. Invoked by `bundler.ts` via `Bun.spawn` to transform `.sui` source to JavaScript. Same binary as `crates/sui/sui-compiler` ships under `target/release/sui-compiler` for in-repo dev.
 
 ### `bundler.ts`
 
 The worker script installed from `runtime-assets/bundler.ts` in the repo. Receives JSON-line requests from the daemon (`build`, `build_all`, `watch_start`, `watch_stop`, `shutdown`) and replies with JSON-line responses (`bundle`, `ack`, `error`) or push events (`module_changed`, `compile_error`, `ready`).
 
-See `crates/core/runtime/src/bundler/proto.rs` for the Rust-side protocol types.
+See `crates/core/ship-application/src/bundler/proto.rs` for the Rust-side protocol types.
 
 ## Worker protocol
 
@@ -68,7 +68,7 @@ just dev-build-all         # run one-shot build via bundler.ts
 
 ## Errors
 
-Every error in `runtime::toolchain` carries a recovery hint in its `Display` impl:
+Every error in `ship_application::toolchain` carries a recovery hint in its `Display` impl:
 
 - **"Ship toolchain not installed at …"** → `ship runtime install`
 - **"Ship toolchain is incomplete: missing …"** → `ship runtime install` (idempotent; repairs partials)
@@ -78,6 +78,6 @@ Every error in `runtime::toolchain` carries a recovery hint in its `Display` imp
 ## See also
 
 - `docs/ship-sui/SKILL.md` — the `.sui` edit → browser update path via the Bun worker is documented under the Tooling section there.
-- `crates/core/runtime/src/toolchain/` — the Rust orchestration code.
-- `crates/core/runtime/src/bundler/` — the worker supervisor and IPC layer.
+- `crates/core/ship-application/src/toolchain/` — the Rust orchestration code.
+- `crates/core/ship-application/src/bundler/` — the worker supervisor and IPC layer.
 - `runtime-assets/bundler.ts` — the worker source.

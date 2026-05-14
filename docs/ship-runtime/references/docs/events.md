@@ -2,13 +2,13 @@
 group: Runtime
 order: 6
 title: Events
-description: EventEnvelope, namespaces (kernel vs platform-only vs reserved), validators, and the 63 typed event constants.
+description: EventEnvelope, namespaces (kernel vs platform-only vs reserved), validators, and the typed event constants.
 audience: internal
 ---
 
 # Events
 
-`crates/core/runtime/src/events/`. Everything routable through the kernel is an `EventEnvelope`. The runtime's events module re-exports types from `ship-kernel` and `ship-types`, defines domain-specific payload types, runs validators, and exposes the global kernel router.
+`crates/core/ship-substrate/src/events/`. Everything routable through the kernel is an `EventEnvelope`. The runtime's events module re-exports types from `ship-kernel` and `ship-types`, defines domain-specific payload types, runs validators, and exposes the global kernel router.
 
 ```
 events/
@@ -57,33 +57,47 @@ Constructor: `EventEnvelope::new(event_type, entity_id, &payload)` where payload
 
 ## Event type constants
 
-63 constants defined in `ship-types::event_types`, re-exported through `runtime::events::types::event_types`. Callers reference `event_types::JOB_CREATED` rather than writing `"job.created"` literally — the constant catches typos at compile time.
+~83 constants defined in `ship-types::event_types`, re-exported through `ship_substrate::events::types::event_types`. Callers reference `event_types::JOB_CREATED` rather than writing `"job.created"` literally — the constant catches typos at compile time.
 
 Complete list grouped by domain:
 
-**Workspace (15):** `WORKSPACE_CREATED`, `_DELETED`, `_STATUS_CHANGED`, `_ACTIVATED`, `_COMPILED`, `_COMPILE_FAILED`, `_ARCHIVED`, `_AGENT_CHANGED`, `_RECONCILED`, `_TMUX_ASSIGNED`, `_STARTED`, `_WORKTREE_ADDED`, `_WORKTREE_REMOVED`, `_BRANCH_SWITCHED`, `_CONFIG_CHANGED`.
+**Workspace (3):** `WORKSPACE_CREATED`, `_ACTIVATED`, `_ARCHIVED`. (The `workspace` runtime primitive was retired; only these three constants remain.)
 
-**Session (10):** `SESSION_STARTED`, `_PROGRESS`, `_ENDED`, `_RECORDED`, `_DRAIN_STARTED`, `_DRAIN_COMPLETED`, `_DRAIN_ABORTED`, `_TOOL_COUNT_INCREMENTED`, `_ATTACHED`, `_HEARTBEAT`.
+**Session (11):** `SESSION_STARTED`, `_PROGRESS`, `_ENDED`, `_DRAIN_STARTED`, `_DRAIN_COMPLETED`, `_DRAIN_ABORTED`, `_TOOL_COUNT_INCREMENTED`, `_ATTACHED`, `_HEARTBEAT`, `_STATUS_CHANGED`, `_TURN_FAILED`. There is no `SESSION_RECORDED` — end-of-session telemetry lands inline on `session.ended`.
 
 **Actor (5):** `ACTOR_CREATED`, `_WOKE`, `_SLEPT`, `_STOPPED`, `_CRASHED`.
 
 **Gate (2):** `GATE_PASSED`, `GATE_FAILED`.
 
-**Job (6):** `JOB_CREATED`, `_CLAIMED`, `_COMPLETED`, `_FAILED`, `_DISPATCHED`, `_UPDATE`. Note: pipeline step events (`job.step_completed`, `job.step_failed`, `job.cancelled`, `job.merged`, `job.spawn_failed`) live in `events/job.rs` as strings used directly — not yet lifted to `event_types` constants.
+**Job (10):** `JOB_CREATED`, `_COMPLETED`, `_FAILED`, `_DISPATCHED`, `_UPDATE`, `_STEP_COMPLETED`, `_STEP_FAILED`, `_CANCELLED`, `_MERGED`, `_SPAWN_FAILED`.
 
-**Skill (3):** `SKILL_STARTED`, `_COMPLETED`, `_FAILED`.
+**Skill (7):** `SKILL_STARTED`, `_COMPLETED`, `_FAILED`, `_ATTACHED_TO_SESSION`, `_CREATED`, `_UPDATED`, `_DELETED`.
 
-**Supervisor (4):** `SUPERVISOR_SHUTTING_DOWN`, `_SWEEP_STARTED`, `_SWEEP_COMPLETED`, `_DRIFT_DETECTED`, `SUPERVISOR_COHERENCE_RESTORED`.
+**Supervisor (5):** `SUPERVISOR_SHUTTING_DOWN`, `_SWEEP_STARTED`, `_SWEEP_COMPLETED`, `_DRIFT_DETECTED`, `_COHERENCE_RESTORED`.
 
 **Process (5):** `PROCESS_SPAWNED`, `_EXITED`, `_SIGNAL_SENT`, `_ORPHANED`, `_KILLED`.
 
-**Executor (4):** `EXECUTOR_SESSION_CREATED`, `_SESSION_DESTROYED`, `_WINDOW_CREATED`, `_WINDOW_DESTROYED`.
+**Executor (2):** `EXECUTOR_SESSION_DESTROYED`, `_WINDOW_DESTROYED`.
 
 **Daemon (6):** `DAEMON_STARTUP_COMPLETED`, `_SHUTDOWN_COMPLETED`, `_CRASHED`, `_PORT_BIND_FAILED`, `_PIDFILE_ACQUIRED`, `_PIDFILE_STALE_TAKEN`.
 
-**Other:** `CONFIG_CHANGED`, `PROJECT_LOG`.
+**Artifact (4):** `ARTIFACT_CREATED`, `_UPDATED`, `_MOVED`, `_DELETED`.
 
-A sentinel `ALL: &[&str]` enumerates every constant. Tests enforce uniqueness (`event_type_constants_are_unique`) and that `ALL.len()` tracks the real count (`all_constants_have_expected_count`) — adding a new constant requires updating `ALL` and bumping the test count in the same change.
+**Change events (8):** `CONFIG_CHANGED`, `AGENT_CHANGED`, `SKILL_CHANGED`, `VIEW_CHANGED`, `PIPELINE_CHANGED`, `RULE_CHANGED`, `PROJECT_CHANGED`, `PROJECT_LOG`.
+
+**Project registry (3):** `PROJECT_REGISTERED`, `PROJECT_SEEN`, `PROJECT_ARCHIVED`.
+
+**Auth (3):** `AUTH_SESSION_CREATED`, `_REVOKED`, `_EXPIRED`.
+
+**Daemon owner (2):** `DAEMON_OWNER_BOUND`, `_UNBOUND`.
+
+**Rule (3):** `RULE_CREATED`, `_UPDATED`, `_DELETED`.
+
+**Studio (2):** `STUDIO_CHAT_TURN`, `STUDIO_REPLY`.
+
+**Other:** `COMPILE_COMPLETED`, `PERMISSIONS_UPDATED`.
+
+A sentinel `ALL: &[&str]` enumerates every constant. One test enforces uniqueness (`event_type_constants_are_unique`). There is no count-tracking test — adding a constant requires appending it to `ALL`.
 
 ## Namespaces
 
@@ -178,7 +192,7 @@ Most production code accesses the router via the daemon's `ShipRuntime::kernel` 
 
 Each major event family has a module defining its payload types and sometimes event constants local to the domain:
 
-- `job.rs` — `JobCreatedPayload`, `Pipeline`, `PipelineStep`, `StepType`, step-event constants not in `event_types`.
+- `job.rs` — `JobCreatedPayload`, `Pipeline`, `PipelineStep`, `StepType`.
 - `process.rs` — `ProcessSpawnedPayload`, `ProcessExitedPayload`, etc.
 - `supervisor.rs` — `SupervisorSweepPayload`, drift detection payloads.
 - `executor.rs` — session/window lifecycle payloads.

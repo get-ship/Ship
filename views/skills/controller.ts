@@ -17,6 +17,7 @@
 // is out of scope here.
 
 import { controller, signal, live, type LiveSignal, type LiveSource } from '@ship/sui-runtime'
+import { liveExpr } from '@ship/sdk-client'
 import type { Scope } from './page.sui'
 
 interface EventRow {
@@ -49,24 +50,10 @@ interface InvokeErr {
 
 type InvokeResult = InvokeOk | InvokeErr
 
-function sseSource<T>(expr: string): LiveSource<T> {
-  return {
-    subscribe(sig: LiveSignal<T>): () => void {
-      const es = new EventSource(`/_sui/data?expr=${encodeURIComponent(expr)}`)
-      const onPatch = (ev: MessageEvent): void => {
-        try {
-          const patch = JSON.parse(ev.data as string) as { op: string; value: T }
-          if (patch.op === 'set') sig.set({ kind: 'ok', value: patch.value })
-        } catch (err) {
-          sig.set({ kind: 'error', error: err instanceof Error ? err : new Error(String(err)) })
-        }
-      }
-      es.addEventListener('patch', onPatch as EventListener)
-      return () => { es.close() }
-    },
-  }
-}
-
+// `runsSource` is a specialized source — it short-circuits to an empty
+// result when no skill is selected and flattens the daemon's grouped
+// `events.list` payload to a flat row list. The generic live channels
+// (`rail`, `skill`) use `liveExpr` from the SDK directly.
 function runsSource(skillId: string): LiveSource<{ rows: EventRow[] }> {
   const expr = `ship.events.list(${JSON.stringify({
     event_type: 'skill.started',
@@ -117,8 +104,8 @@ export default controller<Scope>({
     const viewRaw = signal(false)
     const invokeBusy = signal<string>('')
     const invokeResult = signal<InvokeResult | null>(null)
-    const rail = live(() => sseSource<unknown>(skillsExpr({ q: q(), kind: kind(), tag: tag() })))
-    const skill = live(() => sseSource<unknown>(
+    const rail = live(() => liveExpr<unknown>(skillsExpr({ q: q(), kind: kind(), tag: tag() })))
+    const skill = live(() => liveExpr<unknown>(
       `ship.skills.detail(${JSON.stringify({ id: skillId() || '__none__' })})`,
     ))
     const runs = live(() => runsSource(skillId()))

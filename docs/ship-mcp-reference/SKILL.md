@@ -8,6 +8,8 @@ authors: [ship]
 
 # Ship MCP Tools
 
+> Note: the MCP tool surface is under active revision; tool/resource lists below may be out of date.
+
 The Ship MCP server (`ship mcp serve`) exposes platform tools to agents via the Model Context Protocol. Never access the database directly -- always use these tools or the `ship` CLI.
 
 ## Three-Stage Workflow

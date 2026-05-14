@@ -2,7 +2,7 @@
 group: Runtime
 order: 18
 title: Hooks
-description: Two different concepts share the name. User-authored HookConfig (lifecycle triggers) vs the RuntimeHooks trait (log-sink injection point).
+description: Two different concepts share the name. Compiler lifecycle hooks (HookConfig, compiled into provider config) vs platform reactive triggers (HookDef, .ship/hooks/*.jsonc).
 audience: internal
 ---
 
@@ -10,9 +10,9 @@ audience: internal
 
 Two things in the Ship codebase are called "hooks" and the distinction matters. This page separates them.
 
-## 1. User hooks — `HookConfig` / `HookTrigger`
+## 1. Compiler lifecycle hooks — `HookConfig` / `HookTrigger`
 
-The thing most of the codebase means when it says "hook." Shell commands run on lifecycle events. Authored in `.ship/ship.jsonc`:
+Shell commands run on agent lifecycle events. Authored as part of agent config and **compiled into provider-native config** — Ship doesn't run them itself, the provider does.
 
 ```jsonc
 {
@@ -34,11 +34,11 @@ The thing most of the codebase means when it says "hook." Shell commands run on 
 }
 ```
 
-Types live in `runtime::config::types::{HookConfig, HookTrigger}`.
+Types live in `ship_platform::config::types::{HookConfig, HookTrigger}` (re-exported through `ship_platform::config`). The compiler has its own narrower `HookTrigger` in `crates/core/compiler/src/types/config.rs` — only 6 variants (`PreToolUse`, `PostToolUse`, `Notification`, `Stop`, `SubagentStop`, `PreCompact`) — that the platform triggers map down to per provider.
 
 ### Triggers
 
-19 variants in `HookTrigger`:
+19 variants in `ship_platform::config::types::HookTrigger`:
 
 | Trigger | When it fires |
 |---|---|
@@ -80,16 +80,7 @@ pub struct HookConfig {
 
 ### Where they fire
 
-- **Runtime-side**: `session_lifecycle::run_post_session_hooks` fires `SessionEnd` and `Stop` hooks when `end_workspace_session` runs. These go through the runtime synchronously.
-- **Provider-side**: most triggers (`PreToolUse`, `PostToolUse`, `Notification`, etc.) fire inside the provider's execution loop. The compiler emits them into provider-native hook config (e.g. `.claude/settings.json:hooks`), and the provider (Claude Code, Gemini CLI, etc.) runs them directly. Ship doesn't observe these — they run in the agent's process.
-
-### CRUD
-
-`runtime::config`:
-
-- `add_hook(ship_dir, hook)` — append a hook. Writes back atomically.
-- `remove_hook(ship_dir, hook_id)` — by id.
-- `list_hooks(ship_dir)` — current hooks.
+All triggers are **provider-side**. The compiler emits them into provider-native hook config (e.g. `.claude/settings.json:hooks`), and the provider (Claude Code, Gemini CLI, etc.) runs them directly inside its execution loop. Ship doesn't observe or execute these — they run in the agent's process. Triggers a provider doesn't support are dropped at compile time with a warning in the emit output.
 
 ### Example: commit-gating on Stop
 
@@ -105,47 +96,50 @@ pub struct HookConfig {
 
 A non-zero exit from the command signals hook failure. What the agent sees varies by provider (some refuse to exit; some pass the error through). The behavior is deliberately provider-dependent — Ship declares the hook; the provider enforces.
 
-## 2. Runtime hooks — the `RuntimeHooks` trait
+## 2. Platform reactive triggers — `HookDef` / `HookTrigger`
 
-The smaller, less-used thing. Lives in `runtime::config::hooks`:
+A different system that also lives under the "hooks" name (the code is still in `crates/core/ship-platform/src/hooks/` until the rename to "triggers" lands). These are reactive automation: a JSONC document in `.ship/hooks/*.jsonc` matches a Ship event (or an external source) and runs actions. Ship executes these itself — they are not compiled into provider config.
 
 ```rust
-pub trait RuntimeHooks: Send + Sync {
-    fn append_log(&self, ship_dir: &Path, action: &str, details: &str) -> Result<()>;
+// crates/core/ship-platform/src/hooks/def.rs
+pub struct HookDef {
+    pub name: String,
+    pub description: Option<String>,
+    pub trigger: HookTrigger,
+    pub actions: Vec<HookAction>,
 }
 
-pub struct DefaultRuntimeHooks;
-
-impl RuntimeHooks for DefaultRuntimeHooks {
-    fn append_log(&self, ship_dir: &Path, action: &str, details: &str) -> Result<()> {
-        log_action(ship_dir, action, details)
-    }
+pub struct HookTrigger {
+    /// Internal event type (e.g. "job.failed"). Mutually exclusive with `source`.
+    pub event: Option<String>,
+    /// External trigger source (webhook, file watch, cron). Mutually exclusive with `event`.
+    pub source: Option<TriggerSourceDef>,
+    /// Optional dot-path filter on the event payload.
+    pub filter: Option<serde_json::Value>,
 }
 ```
 
-One method. One default implementation. Purpose: let app layers (shipd, tests, alternate hosts) inject a custom sink for the project action log. `log_action` writes to the file-based project log at `.ship/log/`; a test could swap in an in-memory sink.
-
-Most runtime code calls `crate::log_action(ship_dir, action, details)` directly, bypassing the trait. The trait is dormant — ready if an app layer needs to redirect logging, unused in production today.
+Exactly one of `event` or `source` is set. Event triggers match a kernel event type directly; source triggers (`Webhook`, `File`, `Cron`) are surfaced as synthetic `external.<kind>.<name>` events. The `HookEngine` (`hooks/engine.rs`) loads the documents, watches for changes, and dispatches matching events to the actions. Distinct from the compiler lifecycle hooks above — those are an agent/provider concern, these are a runtime automation concern.
 
 ## Why the naming collision exists
 
-`HookConfig` is the user-facing lifecycle-hook vocabulary borrowed from Claude/Gemini — users know "hooks" as "shell commands on events." `RuntimeHooks` is the internal extension-point terminology common to embedder-friendly Rust crates. Both are entrenched.
+Both systems were named "hooks" independently:
+
+- `HookConfig` / `config::types::HookTrigger` — agent lifecycle hooks, the Claude/Gemini-style "shell commands on events" vocabulary. Compiled into provider config.
+- `HookDef` / `hooks::def::HookTrigger` — reactive triggers matching Ship events. Runtime-executed. The rename to "triggers" is planned but not yet landed.
 
 When reading code, disambiguate by context:
 
-- `HookConfig`, `HookTrigger`, "the hooks list," `.ship/ship.jsonc` → user lifecycle hooks.
-- `RuntimeHooks`, `DefaultRuntimeHooks`, `append_log` → embedder trait.
-
-When writing code, prefer `log_action` for project log writes unless you're specifically building a swappable embedding.
+- `HookConfig`, `config::types::HookTrigger`, agent config, "compiled into provider config" → compiler lifecycle hooks.
+- `HookDef`, `hooks::def::HookTrigger`, `HookEngine`, `.ship/hooks/*.jsonc` → platform reactive triggers.
 
 ## Invariants
 
-- User hooks are data. They live in `.ship/ship.jsonc` and compile into provider config. Runtime doesn't execute most of them — providers do.
-- `SessionEnd` / `Stop` hooks run synchronously during `end_workspace_session`. Long-running hook commands block session close.
-- `RuntimeHooks::append_log` has one default impl and no known alternates. Don't design against its plurality today.
+- Compiler lifecycle hooks are data. They compile into provider config; Ship never executes them — providers do.
+- Platform reactive triggers are runtime-executed. The `HookEngine` matches events and runs actions.
+- The two `HookTrigger` types are unrelated — one is a lifecycle enum, the other an event/source matcher struct.
 
 ## Related
 
 - [Config](/runtime/config/) — where `HookConfig` lives and the file format.
-- [Sessions](/runtime/sessions/) — post-session hook firing.
-- [Compiler](/compiler/) — hook translation per provider.
+- [Compiler](/compiler/) — lifecycle-hook translation per provider.

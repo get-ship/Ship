@@ -16,7 +16,7 @@ audience: internal
 apps/ship-cli/src/
   main.rs              — entry; calls dispatch(command)
   cli.rs               — clap Cli + Commands enum (top-level)
-  commands.rs          — subcommand enums (Hook/Events/Workspace/Mcp/Config)
+  commands.rs          — subcommand enums (Hook/Events/Workspace/Mcp)
   paths.rs             — global_dir(), project_dir() helpers
   daemon/              — daemon lifecycle (pidfile, supervision, service registration)
   compile/             — local compile command
@@ -69,7 +69,7 @@ pub enum Commands {
 }
 ```
 
-Subcommand-heavy groups (workspace, mcp, hook, events, config, daemon) nest their variants in `commands.rs`. This keeps `cli.rs` readable while `ship workspace trash` / `ship mcp add-stdio` stay discoverable.
+Subcommand-heavy groups (workspace, mcp, hook, events) nest their variants in `commands.rs`. `ConfigCommands` and `DaemonCommands` are defined alongside `Commands` in `cli.rs`. Either way, `ship workspace trash` / `ship mcp add-stdio` stay discoverable.
 
 ## Feature gating
 
@@ -106,7 +106,8 @@ These commands load `.ship/`, call the compiler crate directly, write bytes. No 
 - `ship convert` — decompile pathway (`compiler::decompile`).
 - `ship audit` — scans for Unicode hiding attacks.
 - `ship init` — scaffolds `.ship/` + writes defaults.
-- `ship install` / `ship add` — registry-backed, uses `runtime::registry` via direct function call (registry is sync, no daemon needed).
+- `ship install` / `ship add` — registry-backed, uses `ship_platform::registry` via direct function call (registry is sync, no daemon needed).
+- `ship events list` — reads the project event log locally via `ship_substrate::events::read_events()`. No daemon required.
 
 These commands emit events via the init-on-first-use `KernelRouter` — `try_init_kernel_router()` at startup best-efforts the router so audit events land in `platform.db` even without a running daemon. Silent fallback if the global dir is unavailable.
 
@@ -114,11 +115,10 @@ These commands emit events via the init-on-first-use `KernelRouter` — `try_ini
 
 These commands POST to `http://127.0.0.1:{port}` using the daemon token.
 
-- `ship run <pipeline>` — POSTs to `/api/runtime/jobs` (see [Architecture: ship run trace](/architecture/#ship-run-end-to-end-trace)).
-- `ship jobs` — GETs `/api/runtime/jobs` for the current projection.
-- `ship job <slug>` — single-job operations (status, cancel, tail).
+- `ship run <pipeline>` — POSTs to `/api/v1/jobs/dispatch` (see [Architecture: ship run trace](/architecture/#ship-run-end-to-end-trace)).
+- `ship jobs` — GETs `/api/v1/jobs` for the current projection.
+- `ship job <slug>` — single-job operations. The only subcommand today is `cancel` (POSTs `/api/v1/jobs/{slug}/cancel`).
 - `ship workspace *` — some subcommands go through the daemon for pipeline coordination.
-- `ship events list` — GETs `/api/events/stream` with filters.
 - `ship hook <trigger>` — emits hook events via daemon (for hook scripts invoked by providers).
 - `ship tail` — SSE / long-poll for live events.
 
@@ -132,7 +132,6 @@ These don't return — they're the process.
 
 - `ship daemon run` — spawns the daemon (`shipd::run_network`). The CLI's own `daemon` subcommand is the supervisor entry point.
 - `ship mcp serve` — starts an MCP stdio server in-process. Never returns to the shell.
-- `ship studio` — launches the web UI (typically opens a browser and supervises a background `shipd --with-ui`).
 
 ## Daemon lifecycle
 
@@ -160,11 +159,11 @@ For git-worktree-aware resolution (which is usually what you want — discover `
 
 ```rust
 pub fn project_ship_dir_required() -> Result<PathBuf> {
-    runtime::project::get_project_dir(None)
+    ship_substrate::project::get_project_dir(None)
 }
 ```
 
-The heavy lifting is in `runtime::project`; `paths.rs` is the CLI-only convenience layer on top.
+The heavy lifting is in `ship_substrate::project`; `paths.rs` is the CLI-only convenience layer on top.
 
 ## Logging
 
@@ -179,13 +178,13 @@ Error: ...
 
 ## Hook trigger scripts
 
-`hook.rs` implements `ship hook <trigger>` — the endpoint hook scripts invoke. Example: a provider's `Stop` hook fires `ship hook stop < payload.json`. The CLI reads stdin, parses the hook payload, constructs the appropriate event (`session.ended`, `skill.completed`, etc.), and POSTs to the daemon.
+`hook.rs` implements `ship hook <trigger>` — the endpoint hook scripts invoke. The `HookCommands` enum has four variants: `session-start`, `before-tool`, `after-tool`, `session-end`. Example: a provider's session-end hook fires `ship hook session-end < payload.json`. The CLI reads stdin, parses the hook payload, constructs the appropriate event (`session.ended`, `skill.completed`, etc.), and POSTs to the daemon.
 
 Used primarily for events that originate inside provider execution loops and can't be captured any other way.
 
 ## Tests
 
-Co-located per-module: `loader_tests.rs`, `convert_tests.rs`, `add_from_tests.rs`, `dep_skills_tests_resolve.rs`, etc. Each exercises the module's exported functions against synthetic inputs.
+Co-located per-module: `loader_tests.rs`, `convert/tests.rs`, `add/from_tests.rs`, etc. Each exercises the module's exported functions against synthetic inputs.
 
 CLI integration tests that need a daemon spawn shipd in-process under `tokio::test` — this is heavier than unit tests and lives in `crates/` rather than `apps/ship-cli/`.
 

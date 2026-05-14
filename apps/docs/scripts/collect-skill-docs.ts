@@ -28,12 +28,13 @@ const OUTPUT_DIR = join(SCRIPT_DIR, "../src/content/docs")
 // Output is treated as build artifact (gitignored). Override via
 // COLLECT_DOCS_OUT for the drift checker which collects into a tempdir.
 //
-// Default canonical target: `apps/docs/src/content/docs/reference`. The
-// drift checker walks the same dir, so per-group output lives directly
-// under it.
+// Default canonical target: `apps/docs/src/content/docs`. Per-group
+// output lands in `<group>/` subdirectories directly under it — the
+// astro.config.mjs topic `autogenerate` paths resolve against the same
+// flat layout. The drift checker walks the same dir.
 const GENERATED_DIR = process.env.COLLECT_DOCS_OUT
   ? resolve(process.env.COLLECT_DOCS_OUT)
-  : join(OUTPUT_DIR, "reference")
+  : OUTPUT_DIR
 const PUBLIC_DIR = join(SCRIPT_DIR, "../public")
 const SHIP_ELEMENTS_SRC = join(REPO_ROOT, "apps/shipd/assets/ship-elements.js")
 const SHIP_ELEMENTS_DEST = join(PUBLIC_DIR, "ship-elements.js")

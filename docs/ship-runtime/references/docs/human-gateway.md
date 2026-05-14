@@ -8,7 +8,7 @@ audience: internal
 
 # Human Gateway
 
-`crates/core/runtime/src/services/human_gateway.rs`. A service actor that watches for `job.blocked` events where the payload flags `needs_human: true`, formats a message, and hands it to a pluggable `NotificationAdapter`. Replies come back via webhook (handled in shipd) and are emitted as `human.response` events into the kernel.
+`crates/core/ship-substrate/src/services/human_gateway.rs` defines `HumanGatewayService`; `ship-platform` re-exports it as `ship_platform::services::human_gateway`, which is the path the daemon imports. A service actor that watches for `job.blocked` events where the payload flags `needs_human: true`, formats a message, and hands it to a pluggable `NotificationAdapter`. Replies come back via webhook (handled in shipd) and are emitted as `human.response` events into the kernel.
 
 Subscribes to `job.` namespace. Earlier framing of this service as a generic "human:" pipeline-step pauser is inaccurate — the current implementation is specifically a `job.blocked` notifier.
 
@@ -27,7 +27,7 @@ pub trait NotificationAdapter: Send + Sync {
     fn name(&self) -> &'static str;
 }
 
-pub struct HumanGateway {
+pub struct HumanGatewayService {
     adapter: Arc<dyn NotificationAdapter>,
     // ...
 }
@@ -46,7 +46,7 @@ The only built-in adapter today. Env-configured:
 
 ## Behavior
 
-`HumanGateway` implements `ServiceHandler`. The handle path:
+`HumanGatewayService` implements `ServiceHandler`. The handle path:
 
 1. Filter events — only `job.blocked`.
 2. Parse `JobBlockedPayload`. Skip if `needs_human != Some(true)`.

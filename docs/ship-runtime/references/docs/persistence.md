@@ -8,7 +8,7 @@ audience: internal
 
 # Persistence
 
-Location: `crates/core/runtime/src/persistence/`. Four files (plus `cursor.rs` behind the `unstable` feature).
+Location: `crates/core/ship-substrate/src/persistence/`. Four files (plus `cursor.rs` behind the `unstable` feature).
 
 ```
 persistence/
@@ -23,7 +23,7 @@ Public re-exports from `mod.rs`:
 
 ```rust
 pub use actor_store::ActorStore;
-pub use event_store::{EventStore, SqliteEventStore, append_event_with_conn};
+pub use event_store::{EventStore, SqliteEventStore};
 pub use snapshot::ActorSnapshot;
 ```
 
@@ -129,7 +129,7 @@ Constructed by the kernel via `KernelRouter::spawn_actor`. Actors never build th
 
 ## Logical vs physical isolation
 
-Historical Ship gave each actor its own SQLite file at `~/.ship/actors/{id}/events.db`. That's gone. Today, one `events` table holds every actor's events; isolation is enforced by:
+One `events` table holds every actor's events; isolation is enforced by:
 
 - `actor_id` column on every row — populated at the `ActorStore::append` boundary.
 - Read queries scoped by `actor_id` — unfiltered reads return only the actor's own events.
@@ -141,13 +141,9 @@ The guarantee is at the `ActorStore` API. Direct SQL bypasses it. Tests and migr
 
 `pub(crate) fn raw_append(db_path, event)` — the shared insert path without namespace enforcement. Used internally by `ActorStore::append` (after its checks) and by the kernel router for kernel-namespace events that aren't owned by any actor. Not part of the public API.
 
-## append_event_with_conn
+## Transactional event inserts
 
-```rust
-pub fn append_event_with_conn(event: &EventEnvelope, conn: &mut sqlx::SqliteConnection) -> Result<()>
-```
-
-Appends using a caller-supplied connection. Used by transactional callers that need to write an event and update a projection in the same transaction. Opens no new connection; commits on the caller's schedule.
+Callers that need to write an event and update a projection atomically use the domain helpers in `ship_substrate::db::session_events` — e.g. `insert_session_with_started_event`, `update_session_with_ended_event`. Each opens one connection, runs the INSERT/UPDATE plus the event append in a single transaction, and commits together.
 
 ## ActorSnapshot
 
@@ -165,9 +161,7 @@ pub struct ActorSnapshot {
 }
 ```
 
-`event_stats(db_path, actor_id)` counts events filtered by actor_id and returns the last event ID. Used by `KernelRouter::snapshot` to populate metadata.
-
-**Caveat on current state.** The `db_bytes` field documents as "the full SQLite DB file after a WAL checkpoint — all actor state lives in this file," which described the per-actor-DB era. Under shared-log architecture, the meaning of "this actor's DB bytes" is ambiguous — there is no per-actor file to copy. The struct is still defined; its population path needs to either extract an actor-filtered dump or the field needs to be retired. Verify before relying on snapshot/restore round-tripping.
+`event_stats(db_path, actor_id)` counts events filtered by actor_id and returns the last event ID. Used by `KernelRouter::snapshot` to populate metadata. `db_bytes` carries a serialized actor-scoped slice — there is no per-actor SQLite file; all events live in the shared `events` table of `platform.db`.
 
 ## ActorCursor (unstable)
 
@@ -187,13 +181,13 @@ pub struct ActorCursor {
 
 `init_cursor_table(kernel_db_path)` creates the `actor_cursors` table (primary key `actor_label`, value `last_event_id`). Feature-gated; not in the default build. Used by experimental replay logic to resume an actor's event stream from where it left off.
 
-The path argument is named `kernel_db_path` but in shared-log Ship there's no separate kernel DB — callers pass `platform.db`. Stale naming; function still works.
+There is no separate kernel database — events live in `platform.db` at `~/.ship/machine/db/platform.db`, and callers pass that path.
 
 ## Testing
 
 `new_at(ship_dir)` is the test-friendly constructor. Tests create a `tempdir()`, pass it in, and get full isolation without polluting `~/.ship`. The `#[cfg(test)] mod event_sink_tests` at the bottom of `event_store.rs` is the template — two tests verifying the `EventSink` trait impl writes to the events table and can be wrapped in `Arc<dyn EventSink>`.
 
-Global runtime test isolation goes further: `runtime::project::get_global_dir()` detects test binaries and returns a per-thread temp directory instead of `~/.ship`. Any code that resolves a path via `db_path()` (rather than `db_path_at(ship_dir)`) inherits that isolation.
+Global runtime test isolation goes further: `ship_substrate::project::get_global_dir()` detects test binaries and returns a per-thread temp directory instead of `~/.ship`. Any code that resolves a path via `db_path()` (rather than `db_path_at(ship_dir)`) inherits that isolation.
 
 ## Invariants
 

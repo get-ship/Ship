@@ -1,4 +1,4 @@
-#!/usr/bin/env -S bunx tsx
+#!/usr/bin/env bun
 /**
  * OpenAPI augmentation — x-codeSamples injection.
  *

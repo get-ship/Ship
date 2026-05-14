@@ -10,27 +10,10 @@
 // until the first daemon patch lands.
 
 import { controller, signal, derived, live, ref, unwrap } from '@ship/sui-runtime'
-import type { LiveSignal, LiveSource } from '@ship/sui-runtime'
+import type { LiveSignal } from '@ship/sui-runtime'
+import { liveExpr } from '@ship/sdk-client'
 import { route as routeFactory } from '@ship/sui-runtime/route'
 import type { Scope } from './page.sui'
-
-function sseSource<T>(expr: string): LiveSource<T> {
-  return {
-    subscribe(sig: LiveSignal<T>): () => void {
-      const es = new EventSource(`/_sui/data?expr=${encodeURIComponent(expr)}`)
-      const onPatch = (ev: MessageEvent): void => {
-        try {
-          const patch = JSON.parse(ev.data as string) as { op: string; value: T }
-          if (patch.op === 'set') sig.set({ kind: 'ok', value: patch.value })
-        } catch (err) {
-          sig.set({ kind: 'error', error: err instanceof Error ? err : new Error(String(err)) })
-        }
-      }
-      es.addEventListener('patch', onPatch as EventListener)
-      return () => { es.close() }
-    },
-  }
-}
 
 export default controller<Scope>({
   scope: () => {
@@ -40,12 +23,12 @@ export default controller<Scope>({
     const confirmDelete = signal(false)
     const filterInputEl = ref<HTMLElement>(null)
     const rail = live(() =>
-      sseSource<unknown>(
+      liveExpr<unknown>(
         `ship.specs.summaries(${JSON.stringify({ q: q(), selected: selectedId() })})`,
       ),
     )
     const selected = live(() =>
-      sseSource<unknown>(
+      liveExpr<unknown>(
         `ship.specs.detail(${JSON.stringify({ id: selectedId() })})`,
       ),
     )

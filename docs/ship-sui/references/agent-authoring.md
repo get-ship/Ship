@@ -154,8 +154,8 @@ Sections, each one job:
    `/sui/<name>` host does NOT inject `ship` into ctx, so the
    compiler-emitted `<data live>` form sticks on `loading`. Wire
    `live()` directly to `/_sui/data?expr=…` instead. The canonical
-   helper is in `views/skills/controller.ts:14-31` and
-   `views/git/controller.ts:14-30` — copy verbatim:
+   helper currently lives in `views/git/controller.ts` (`sseSource`,
+   around line 14) — copy verbatim:
 
 ```ts
 function sseSource<T>(expr: string): LiveSource<T> {
@@ -269,7 +269,7 @@ The `kind === 'ok'` guard is **mandatory** before reading
 | `settings` | `state()` |
 | `sessions` | `list()` (live); `start({workspace_id, kind})` / `end({id})` (mutate) |
 | `workspaces` | `list()`, `active()` (live); `activate({id})` (mutate) |
-| `skills` | `summaries({q?, kind?, tag?})`, `detail({id})`, `invoke({id, vars?, workspace_id?})` (mutate — **known gap:** server returns `not_implemented`; callers must handle as a first-class state, see `packages/ship-sdk-client/src/index.ts:126` and `views/skills/controller.ts:55-78`) |
+| `skills` | `list()`, `summaries({q?, kind?, tag?})`, `detail({id})`, `invoke({id, vars?, workspace_id?})` (mutate — **known gap:** the daemon route may return `not_implemented`; callers must handle that code as a first-class state, see the `skills.invoke` op in `packages/ship-sdk-client/src/index.ts`) |
 
 **Adding a new live source** requires three coordinated edits — see
 `references/runtime-primitives.md` § Live SSE end-to-end loop. The
@@ -376,13 +376,13 @@ Hard-won. Each one is from a real fix in this repo.
    `as any` in `views/agents/[id]/controller.ts:9` is a known
    leftover, not a pattern to copy.
 
-3. **`route()` vs `route.X()`.** `route()` is the call form: `const r
-   = route()` then `r.params.id` is `Signal<string|undefined>`. The
-   namespace-style `route.params.id()` ALSO works (the runtime
-   exposes both) — but agents mix them within one file. Pick one form
-   per controller and stick to it. The compiler-fix in `04ac3922
-   fix(runtime+icons): defineRoutes top-level export` enforces this at
-   the import boundary.
+3. **`route` access form.** `route` is injected into every controller
+   section's scope — destructure it (`scope: ({ route, ship }) => …`)
+   and read params with the namespace form `route.params.id()` (it
+   returns `Signal<string|undefined>`, so the trailing `()` is the
+   read). This is the form `views/agents/[id]/controller.ts` uses. A
+   `route()` factory is also importable from `@ship/sui-runtime/route`
+   for non-controller code; don't mix the two within one file.
 
 4. **`bind:this` inside a branch with no controller scope.** Used to
    throw `r.headerEl is not a function` at mount. Now safe — the

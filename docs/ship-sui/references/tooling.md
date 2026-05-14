@@ -4,8 +4,8 @@ The chain from `.sui` source on disk to a live, hot-reloaded view in the browser
 
 ## `sui-compiler` — the Rust ahead-of-time compiler
 
-- **Library:** `crates/sui-compiler/src/lib.rs`. Pure transformation; no filesystem walk, no daemon, no network. The `compile(source, opts) -> CompileOutput` entry is documented in `references/4-layer-overview.md` § Layer 1.
-- **Binary:** `crates/sui-compiler/src/bin/sui-compiler.rs` — the `sui-compiler` Cargo bin. One subcommand today: `build`.
+- **Library:** `crates/sui/sui-compiler/src/lib.rs`. Pure transformation; no filesystem walk, no daemon, no network. The `compile(source, opts) -> CompileOutput` entry is documented in `references/4-layer-overview.md` § Layer 1.
+- **Binary:** `crates/sui/sui-compiler/src/bin/sui-compiler.rs` — the `sui-compiler` Cargo bin. One subcommand today: `build`.
 
 ```sh
 # Compile a single file. Emits to the project mirror tree
@@ -21,7 +21,7 @@ cargo run -q -p sui-compiler -- build packages/ui-components/src/sui-button/sui-
   --styles packages/ui-components/src/sui-button/sui-button.css
 ```
 
-Flags (from `crates/sui-compiler/src/bin/sui-compiler.rs`):
+Flags (from `crates/sui/sui-compiler/src/bin/sui-compiler.rs`):
 
 | Flag | Purpose |
 |---|---|
@@ -86,12 +86,13 @@ VS Code: `apps/vscode/` auto-launches the server on `.sui` open (recommended via
 
 ## MCP shims — agents that don't speak LSP
 
-`apps/mcp/src/tools/sui_lsp.rs` bridges the LSP analyzers to MCP. Two tools:
+`apps/mcp/src/tools/sui_lsp.rs` bridges the LSP analyzers to MCP. Three tools:
 
 | MCP tool | What it returns |
 |---|---|
 | `mcp__ship__sui_diagnostics` | Compile-grammar issues + missing bindings + lint warnings for one file |
 | `mcp__ship__sui_hover` | Same content the VS Code extension shows for a `(line, col)` position |
+| `mcp__ship__sui_dependencies` | Per-view signal / tag / event dependency graph (`apps/mcp/src/tools/sui_lsp.rs:152`) |
 
 Both spawn `bun` against `packages/sui-lsp/src/cli.ts` and parse its JSON output. CLI path resolution: `SHIP_WORKSPACE` env var, else walks upward looking for `bun.lock`. Registration: `apps/mcp/src/server/mod.rs:783` (`sui_diagnostics`) and `:796` (`sui_hover`).
 

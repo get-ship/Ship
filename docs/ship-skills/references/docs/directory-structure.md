@@ -61,11 +61,11 @@ SKILL.md is the table of contents for the skill. Keep it focused. Long is fine i
 | `name` | yes | Human-readable name. Lowercase, hyphens, digits, 1-64 chars. |
 | `stable-id` | no | Storage key for variable state. Pattern: `[a-z0-9][a-z0-9\-]*`. Defaults to directory name. Survives renames. |
 | `description` | yes | One sentence starting with "Use when..." for trigger matching. |
-| `tags` | no | Category labels for discovery. YAML list. |
-| `authors` | no | Who wrote the skill. YAML list. |
+| `tags` | yes | Category labels for discovery. Non-empty YAML list. |
+| `authors` | yes | Who wrote the skill. Non-empty YAML list. |
 | `license` | no | SPDX identifier (e.g., `MIT`, `Apache-2.0`). |
 | `compatibility` | no | Comma-separated provider names. Omit for universal. |
-| `artifacts` | no | Array of artifact types: `html`, `pdf`, `markdown`, `image`, `adr`, `note`, `json`, `url`. |
+| `artifacts` | no | Array of artifact types: `html`, `pdf`, `markdown`, `image`, `adr`, `note`, `json`, `url`, `svg`. |
 | `allowed-tools` | no | Space-delimited MCP tool names the skill requires. |
 
 ## assets/

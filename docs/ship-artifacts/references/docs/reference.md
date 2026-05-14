@@ -26,14 +26,14 @@ All routes require a valid daemon token.
 
 | Method | Path | Description |
 |---|---|---|
-| `POST` | `/api/artifacts` | Upload (multipart). Required: `scope`. For `run`: also `run_id`. |
-| `GET` | `/api/artifacts/:id` | Download bytes. |
-| `HEAD` | `/api/artifacts/:id` | Metadata headers only (no body). |
-| `GET` | `/api/artifacts/:id/metadata` | JSON metadata record. |
-| `PATCH` | `/api/artifacts/:id` | Update `name`, `owner_actor`, `expires_at`. Bytes are immutable. |
-| `DELETE` | `/api/artifacts/:id` | Delete blob + metadata. |
-| `POST` | `/api/artifacts/:id/promote` | Promote to new scope. Body: `{ "target_scope": "project" \| "user" }`. |
-| `GET` | `/api/artifacts` | List with filters. |
+| `POST` | `/api/v1/artifacts` | Upload (multipart). Required: `scope`. For `run`: also `run_id`. |
+| `GET` | `/api/v1/artifacts/:id` | Download bytes. |
+| `HEAD` | `/api/v1/artifacts/:id` | Metadata headers only (no body). |
+| `GET` | `/api/v1/artifacts/:id/metadata` | JSON metadata record. |
+| `PATCH` | `/api/v1/artifacts/:id` | Update `name`, `owner_actor`, `expires_at`. Bytes are immutable. |
+| `DELETE` | `/api/v1/artifacts/:id` | Delete blob + metadata. |
+| `POST` | `/api/v1/artifacts/:id/promote` | Promote to new scope. Body: `{ "target_scope": "project" \| "user" }`. |
+| `GET` | `/api/v1/artifacts` | List with filters. |
 
 ### List filters
 
@@ -44,7 +44,7 @@ All routes require a valid daemon token.
 | Tool | Description |
 |---|---|
 | `upload_artifact` | Upload bytes (base64-encoded). Returns `{ id }`. |
-| `get_artifact` | Retrieve record + bytes. |
+| `get_artifact` | Retrieve metadata record (no bytes). |
 | `list_artifacts` | List with optional scope and filter JSON. |
 | `delete_artifact` | Delete by ID. |
 | `promote_artifact` | Promote to new scope. |
@@ -99,30 +99,22 @@ Pipeline agents (worker/lead/commander roles) receive `Read/Write/DeleteArtifact
 
 Each mutation also emits a `collection.item_*` event for the underlying metadata row.
 
-## Settings
+## Limits
 
-In `.ship/ship.jsonc`:
+There is no `artifacts` config block. The only limits are two hardcoded constants in `apps/shipd/src/routes/artifacts_api.rs`:
 
-```jsonc
-"artifacts": {
-  "run":     { "ttl_hours": 24, "size_max_mb": 50 },
-  "project": { "size_max_mb": 100, "total_max_gb": 5 },
-  "user":    { "size_max_mb": 100, "total_max_gb": 10 },
-  "mime_allowlist": null,
-  "mime_denylist":  ["application/x-msdownload", "application/x-executable"],
-  "sync": { "enabled": false }
-}
-```
-
-All values have defaults. The daemon validates the block at startup; negative sizes or zero TTLs are rejected.
+| Constant | Value | Effect |
+|---|---|---|
+| `MAX_UPLOAD_BYTES` | 50 MB | Upload rejected with 400 if exceeded. |
+| `RUN_SCOPE_DEFAULT_TTL_HOURS` | 24 | Default `expires_at` for run-scope uploads that don't set one. |
 
 ## GC
 
-Run-scope artifacts with `expires_at < now` are deleted on daemon startup and every hour. `expires_at` is set at upload time; callers can override per-upload. Default TTL is `run.ttl_hours` from settings (24 h).
+Run-scope artifacts with `expires_at < now` are deleted on daemon startup and every hour. `expires_at` is set at upload time; callers can override per-upload. Default TTL is `RUN_SCOPE_DEFAULT_TTL_HOURS` (24 h).
 
 ## Backend abstraction
 
-The `ArtifactBackend` trait in `crates/core/runtime/src/artifacts/backend.rs` decouples storage from logic. Phase 1 ships `LocalFsBackend`. Cloud (R2/S3) swap is phase 3 — no API changes required.
+The `ArtifactBackend` trait in `crates/core/ship-platform/src/artifacts/backend.rs` decouples storage from logic. Phase 1 ships `LocalFsBackend`. Cloud (R2/S3) swap is phase 3 — no API changes required.
 
 ## `compiled_asset_cache` (formerly `agent_artifact_registry`)
 
