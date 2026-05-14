@@ -231,25 +231,28 @@ async function aggregateCem(): Promise<void> {
     const modules = (cem as { modules?: unknown[] })?.modules
     if (Array.isArray(modules)) out.modules.push(...modules)
   }
-  const target = resolve(repoRoot, 'crates/ship-ui-framework/assets/sui-custom-elements.json')
+  const target = resolve(repoRoot, 'crates/sui/ship-ui-framework/assets/sui-custom-elements.json')
   mkdirSync(dirname(target), { recursive: true })
   await Bun.write(target, JSON.stringify(out))
 }
 
 // ── Bun plugin for .sui + virtual entries ────────────────────────────────────
 
+const componentsRoot = resolve(repoRoot, 'packages/ui-components/src')
+
 function detectMode(absPath: string): { mode: 'component' | 'view'; stem: string } {
   const stem = basename(absPath, '.sui')
   const parent = basename(dirname(absPath))
-  // Every `.sui` under `src/islands/<bundle>/` is a custom-element
-  // component. A bundle directory packs multiple tags (e.g. sui-command-bar
-  // + sui-command-palette + sui-command-chat) where only the tag matching
-  // the directory name satisfies `stem === parent` — the secondary tags
-  // would otherwise compile as views, never `customElements.define()`, and
-  // render as inert unknown elements. Grandparent === 'islands' classifies
-  // every island tag as a component regardless of its directory name.
-  const grandparent = basename(dirname(dirname(absPath)))
-  if (grandparent === 'islands') return { mode: 'component', stem }
+  // Every `.sui` under `packages/ui-components/src/` is a custom-element
+  // component, regardless of whether its filename matches its directory.
+  // Component directories routinely pack multiple tags (e.g. `sui-toast/`
+  // holds sui-toast + sui-toast-container, `sui-git-diff/` holds the diff
+  // plus -file/-hunk/-line) where only the tag matching the directory name
+  // satisfies `stem === parent`. The secondary tags would otherwise compile
+  // as views, never `customElements.define()`, and render as inert unknown
+  // elements. This subsumes the `src/islands/<bundle>/` case, whose bundle
+  // directories pack multiple tags the same way.
+  if (absPath.startsWith(componentsRoot + '/')) return { mode: 'component', stem }
   const mode: 'component' | 'view' = stem === parent && stem.length > 0 ? 'component' : 'view'
   return { mode, stem }
 }
