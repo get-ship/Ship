@@ -4,20 +4,12 @@
 //! Killing the child shipd alone triggers respawn; the supervisor holds
 //! the flock on `shipd.pid` and its exit is what releases that lock for
 //! the next start.
-//!
-//! Source of truth is the flock-based pidfile, not the legacy
-//! `daemon.pid`. The shipd child overwrites `daemon.pid` with its own pid
-//! during startup (see `apps/shipd/src/lib.rs::write_pid_file`), so trusting
-//! that file produced the original bug: `ship daemon stop` would SIGTERM
-//! the child, the supervisor would respawn a replacement, and the next
-//! `ship daemon start` would refuse with "already running" because the
-//! supervisor still held the pidfile lock.
 
 use anyhow::{Context, Result};
 use std::path::Path;
 
 use super::pidfile;
-use super::{is_process_alive, read_pid};
+use super::is_process_alive;
 
 /// Deadline for waiting on the supervisor to exit after SIGTERM before
 /// escalating to SIGKILL. The supervisor installs a signal handler that
@@ -36,20 +28,16 @@ const KILL_SETTLE: std::time::Duration = std::time::Duration::from_secs(1);
 /// `~/.ship/`. The production entry point (`daemon_stop_inner`) calls
 /// `discover_running_daemon` and passes its `dir`.
 pub fn daemon_stop_at(daemon_dir: &Path) -> Result<()> {
-    let legacy_pid_path = daemon_dir.join("pid");
-
-    let (pid, source) = match resolve_supervisor_pid(daemon_dir)? {
-        Some(v) => v,
+    let pid = match resolve_supervisor_pid(daemon_dir)? {
+        Some(p) => p,
         None => {
             println!("shipd not running");
-            let _ = std::fs::remove_file(&legacy_pid_path);
             return Ok(());
         }
     };
 
     if !is_process_alive(pid) {
-        println!("shipd not running (stale {source} pid {pid})");
-        let _ = std::fs::remove_file(&legacy_pid_path);
+        println!("shipd not running (stale supervisor pid {pid})");
         // A dead supervisor still leaves its pidfile on disk; remove it so
         // the next start is not confused by the artefact.
         let _ = std::fs::remove_file(pidfile::pidfile_path(daemon_dir));
@@ -66,23 +54,13 @@ pub fn daemon_stop_at(daemon_dir: &Path) -> Result<()> {
     // `ship daemon start` race the dying supervisor and refuse with
     // "already running".
     if wait_supervisor_gone(pid, daemon_dir, STOP_GRACE) {
-        let _ = std::fs::remove_file(&legacy_pid_path);
         println!("shipd stopped (supervisor pid {pid})");
         return Ok(());
     }
 
-    // Supervisor refused to exit in time. Escalate to SIGKILL on the
-    // supervisor and any still-live child to stop the respawn loop.
-    let child_pid = pidfile_child_pid(daemon_dir);
+    // Supervisor refused to exit in time. Escalate to SIGKILL.
     let _ = send_signal(pid, libc::SIGKILL);
-    if let Some(cp) = child_pid
-        && cp != pid && is_process_alive(cp) {
-            let _ = send_signal(cp, libc::SIGKILL);
-        }
-
     let _ = wait_supervisor_gone(pid, daemon_dir, KILL_SETTLE);
-
-    let _ = std::fs::remove_file(&legacy_pid_path);
     let _ = std::fs::remove_file(pidfile::pidfile_path(daemon_dir));
     println!("shipd stopped (supervisor pid {pid}, escalated to SIGKILL)");
     Ok(())
@@ -102,33 +80,20 @@ fn wait_supervisor_gone(pid: u32, daemon_dir: &Path, grace: std::time::Duration)
     false
 }
 
-/// Locate the live supervisor pid. Prefers the flock-based pidfile when
-/// the lock is held, because that record is the OS-enforced singleton
-/// identity; falls back to the legacy `daemon.pid` only when no pidfile
-/// record or lock is present (e.g. partial install or pre-upgrade state).
-fn resolve_supervisor_pid(daemon_dir: &Path) -> Result<Option<(u32, &'static str)>> {
+/// Locate the live supervisor pid via the flock-based pidfile. The lock is
+/// the OS-enforced singleton identity — if it's held, the recorded pid is
+/// the supervisor.
+fn resolve_supervisor_pid(daemon_dir: &Path) -> Result<Option<u32>> {
     if let Some((record, lock_held)) = pidfile::read(daemon_dir)?
         && lock_held {
-            return Ok(Some((record.pid, "supervisor")));
+            return Ok(Some(record.pid));
         }
-    let pid_path = daemon_dir.join("pid");
-    if let Some(pid) = read_pid(&pid_path)? {
-        return Ok(Some((pid, "daemon.pid")));
-    }
     Ok(None)
 }
 
 /// Non-blocking probe: is the pidfile lock currently held by any process?
 fn pidfile_lock_held(daemon_dir: &Path) -> bool {
     matches!(pidfile::read(daemon_dir), Ok(Some((_, true))))
-}
-
-/// Read the child pid that shipd wrote to `daemon.pid`, if it is still alive.
-/// Used only by the SIGKILL escalation path to ensure we do not leave
-/// orphaned shipd processes behind when the supervisor refuses to exit.
-fn pidfile_child_pid(daemon_dir: &Path) -> Option<u32> {
-    let pid = read_pid(&daemon_dir.join("pid")).ok().flatten()?;
-    if is_process_alive(pid) { Some(pid) } else { None }
 }
 
 #[cfg(unix)]

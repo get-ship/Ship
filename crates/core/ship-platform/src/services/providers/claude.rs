@@ -192,32 +192,6 @@ impl ProviderAdapter for ClaudeAdapter {
                 Some(ProviderEvent::TurnComplete { stop_reason: stop })
             }
 
-            // Legacy stream_event format — kept as a fallback.
-            "stream_event" => {
-                let event = v.get("event")?;
-                match event.get("type")?.as_str()? {
-                    "content_block_delta" => {
-                        let delta = event.get("delta")?;
-                        if delta.get("type")?.as_str()? == "text_delta" {
-                            Some(ProviderEvent::Message {
-                                text: delta.get("text")?.as_str()?.to_string(),
-                            })
-                        } else {
-                            None
-                        }
-                    }
-                    "message_delta" => {
-                        let u = event.get("usage")?;
-                        let output_tokens = u.get("output_tokens")?.as_u64()?;
-                        Some(ProviderEvent::Usage {
-                            input_tokens: 0,
-                            output_tokens,
-                        })
-                    }
-                    _ => None,
-                }
-            }
-
             _ => None,
         }
     }

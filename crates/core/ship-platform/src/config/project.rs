@@ -14,11 +14,10 @@ pub struct AgentProfile {
     pub name: String,
     #[serde(default)]
     pub description: Option<String>,
-    /// Legacy: role for tool gating defaults.
-    /// Retained for back-compat with existing profiles. New profiles should
-    /// use `tools_preset` instead. `role` values map as:
+    /// Role for tool gating defaults. Maps to a `tools_preset` when unset:
     ///   worker → preset "worker"
     ///   lead | commander → preset "orchestrator"
+    /// `tools_preset` takes precedence when both are set.
     #[serde(default)]
     pub role: Option<String>,
     /// Tool preset name. Controls which platform-shipped tools this agent
@@ -45,10 +44,6 @@ pub struct AgentProfile {
     /// names without the `.md` suffix.
     #[serde(default)]
     pub rules: Vec<String>,
-    /// Legacy field name for mode-level instruction skill selection.
-    /// This now references a skill ID.
-    #[serde(default)]
-    pub prompt_id: Option<String>,
     /// Hooks to apply when this mode is active
     #[serde(default)]
     pub hooks: Vec<HookConfig>,

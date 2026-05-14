@@ -36,10 +36,7 @@ pub fn infer_step_type(val: &serde_json::Value) -> &'static str {
         {
             return match t {
                 "agent" => "agent",
-                // `gate` is the legacy alias for `review` (agent-backed
-                // reviewer). A step's declarative diff-rule gate is the
-                // `gate:` attribute on any step, not a step type.
-                "review" | "gate" => "review",
+                "review" => "review",
                 "run" => "run",
                 _ => "agent",
             };

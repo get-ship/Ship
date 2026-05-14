@@ -27,7 +27,7 @@ mod tests {
     #[test]
     fn test_log_action() -> anyhow::Result<()> {
         let tmp = tempdir()?;
-        let project_dir = init_project(tmp.path().to_path_buf())?;
+        let project_dir = init_project(tmp.path())?;
         log_action(&project_dir, "test", "details")?;
         let entries = read_log_entries(&project_dir)?;
         assert_eq!(entries.len(), 1);
@@ -39,7 +39,7 @@ mod tests {
     #[test]
     fn test_log_action_by() -> anyhow::Result<()> {
         let tmp = tempdir()?;
-        let project_dir = init_project(tmp.path().to_path_buf())?;
+        let project_dir = init_project(tmp.path())?;
         log_action_by(&project_dir, "agent", "create", "issue-abc.md")?;
         let entries = read_log_entries(&project_dir)?;
         assert_eq!(entries.len(), 1);
@@ -50,7 +50,7 @@ mod tests {
     #[test]
     fn test_read_log_entries() -> anyhow::Result<()> {
         let tmp = tempdir()?;
-        let project_dir = init_project(tmp.path().to_path_buf())?;
+        let project_dir = init_project(tmp.path())?;
         log_action(&project_dir, "create", "first entry")?;
         log_action(&project_dir, "update", "second entry")?;
         let entries = read_log_entries(&project_dir)?;
@@ -61,7 +61,7 @@ mod tests {
     #[test]
     fn test_init_project() -> anyhow::Result<()> {
         let tmp = tempdir()?;
-        let ship_path = init_project(tmp.path().to_path_buf())?;
+        let ship_path = init_project(tmp.path())?;
         assert!(ship_path.exists());
         assert!(ship_path.join("project/specs").is_dir());
         assert!(ship_path.join("project/features").is_dir());
@@ -88,7 +88,7 @@ mod tests {
     #[test]
     fn test_init_project_idempotent() -> anyhow::Result<()> {
         let tmp = tempdir()?;
-        let ship_path = init_project(tmp.path().to_path_buf())?;
+        let ship_path = init_project(tmp.path())?;
         let project_skills_dir = crate::project::skills_dir(&ship_path);
         let custom_skill = project_skills_dir.join("custom/SKILL.md");
         fs::create_dir_all(custom_skill.parent().expect("custom skill dir"))?;
@@ -96,7 +96,7 @@ mod tests {
             &custom_skill,
             "---\nname: custom\ndescription: Custom test skill.\n---\n\nmy content",
         )?;
-        let ship_path2 = init_project(tmp.path().to_path_buf())?;
+        let ship_path2 = init_project(tmp.path())?;
         assert_eq!(ship_path, ship_path2);
         assert!(custom_skill.exists());
         assert_eq!(
@@ -110,7 +110,7 @@ mod tests {
     #[test]
     fn test_init_project_feature_template_has_rich_fields() -> anyhow::Result<()> {
         let tmp = tempdir()?;
-        let ship_path = init_project(tmp.path().to_path_buf())?;
+        let ship_path = init_project(tmp.path())?;
         let template = fs::read_to_string(ship_path.join("project/features/TEMPLATE.md"))?;
         assert!(template.contains("release_id"));
         assert!(template.contains("## Why"));
@@ -123,7 +123,7 @@ mod tests {
         use ship_substrate::persistence::event_store::{EventStore, SqliteEventStore};
         use ship_substrate::events::types::{WorkspaceActivated, event_types};
         let tmp = tempdir()?;
-        let ship_path = init_project(tmp.path().to_path_buf())?;
+        let ship_path = init_project(tmp.path())?;
         let before = chrono::Utc::now();
         let store = SqliteEventStore::new()?;
         store.append(&EventEnvelope::new(
@@ -131,7 +131,8 @@ mod tests {
             "feat-1",
             &WorkspaceActivated { agent_id: None, providers: vec![] },
         )?)?;
-        let events = list_events_since(&ship_path, &before, None)?;
+        let _ = &ship_path;
+        let events = list_events_since(&before, None)?;
         assert_eq!(events.len(), 1);
         assert_eq!(events[0].entity_id, "feat-1");
         Ok(())
@@ -142,30 +143,17 @@ mod tests {
         use ship_substrate::persistence::event_store::{EventStore, SqliteEventStore};
         use ship_substrate::events::types::{ProjectLog, event_types};
         let tmp = tempdir()?;
-        let ship_path = init_project(tmp.path().to_path_buf())?;
+        let ship_path = init_project(tmp.path())?;
         let store = SqliteEventStore::new()?;
         store.append(&EventEnvelope::new(
             event_types::PROJECT_LOG,
             "project",
             &ProjectLog { action: "export".to_string(), details: String::new() },
         )?)?;
-        let events = read_events(&ship_path)?;
+        let _ = &ship_path;
+        let events = read_events()?;
         assert_eq!(events.len(), 1);
         assert_eq!(events[0].event_type, event_types::PROJECT_LOG);
-        Ok(())
-    }
-
-    #[test]
-    fn test_legacy_migration() -> anyhow::Result<()> {
-        let tmp = tempdir()?;
-        let project_path = tmp.path().join(".project");
-        fs::create_dir_all(&project_path)?;
-        let project_dir = get_project_dir(Some(tmp.path().to_path_buf()))?;
-        assert!(!project_path.exists());
-        assert_eq!(
-            fs::canonicalize(project_dir)?,
-            fs::canonicalize(ShipHome::project_ship_dir(tmp.path()))?
-        );
         Ok(())
     }
 

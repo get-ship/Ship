@@ -222,7 +222,7 @@ pub enum Commands {
 
     /// Run a named pipeline (e.g. ship run tdd "implement auth")
     Run {
-        /// Pipeline name (loaded from .ship/pipelines/<name>.yaml)
+        /// Pipeline name (loaded from .ship/pipelines/<name>.jsonc)
         pipeline: String,
         /// Inline spec text describing the work
         #[arg(trailing_var_arg = false)]
@@ -239,10 +239,10 @@ pub enum Commands {
         /// Show the resolved pipeline without executing
         #[arg(long)]
         dry_run: bool,
-        /// Run steps headless (no tmux) — current CI behavior. Default is
-        /// to launch each step in a tmux PTY window so you can
-        /// `tmux attach` and watch the agent live.
-        #[arg(long, alias = "no-tmux")]
+        /// Run steps as direct child processes (no tmux PTY window). Default
+        /// is to launch each step in a tmux window so you can `tmux attach`
+        /// and watch the agent live.
+        #[arg(long)]
         headless: bool,
     },
 

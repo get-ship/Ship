@@ -33,7 +33,7 @@ fn install_active_agent(project_dir: &std::path::Path, agent: AgentProfile) {
 #[test]
 fn worker_role_allows_worker_tools() {
     let tmp = tempdir().expect("tempdir");
-    let project_dir = init_project(tmp.path().to_path_buf()).expect("init project");
+    let project_dir = init_project(tmp.path()).expect("init project");
 
     install_active_agent(
         &project_dir,
@@ -61,7 +61,7 @@ fn worker_role_allows_worker_tools() {
 #[test]
 fn worker_role_blocks_lead_tools() {
     let tmp = tempdir().expect("tempdir");
-    let project_dir = init_project(tmp.path().to_path_buf()).expect("init project");
+    let project_dir = init_project(tmp.path()).expect("init project");
 
     install_active_agent(
         &project_dir,
@@ -85,7 +85,7 @@ fn worker_role_blocks_lead_tools() {
 #[test]
 fn lead_role_allows_create_job() {
     let tmp = tempdir().expect("tempdir");
-    let project_dir = init_project(tmp.path().to_path_buf()).expect("init project");
+    let project_dir = init_project(tmp.path()).expect("init project");
 
     install_active_agent(
         &project_dir,
@@ -107,7 +107,7 @@ fn lead_role_allows_create_job() {
 #[test]
 fn commander_role_allows_mesh_discovery() {
     let tmp = tempdir().expect("tempdir");
-    let project_dir = init_project(tmp.path().to_path_buf()).expect("init project");
+    let project_dir = init_project(tmp.path()).expect("init project");
 
     install_active_agent(
         &project_dir,
@@ -120,10 +120,10 @@ fn commander_role_allows_mesh_discovery() {
         },
     );
 
-    ShipServer::enforce_mode_tool_gate(&project_dir, "mesh_discover")
-        .expect("mesh_discover allowed for commander");
-    ShipServer::enforce_mode_tool_gate(&project_dir, "mesh_status")
-        .expect("mesh_status allowed for commander");
+    ShipServer::enforce_mode_tool_gate(&project_dir, "discover_mesh_agents")
+        .expect("discover_mesh_agents allowed for commander");
+    ShipServer::enforce_mode_tool_gate(&project_dir, "update_mesh_status")
+        .expect("update_mesh_status allowed for commander");
     ShipServer::enforce_mode_tool_gate(&project_dir, "create_job")
         .expect("create_job allowed for commander (inherited)");
 }
@@ -131,7 +131,7 @@ fn commander_role_allows_mesh_discovery() {
 #[test]
 fn no_role_defaults_to_worker() {
     let tmp = tempdir().expect("tempdir");
-    let project_dir = init_project(tmp.path().to_path_buf()).expect("init project");
+    let project_dir = init_project(tmp.path()).expect("init project");
 
     install_active_agent(
         &project_dir,
@@ -155,7 +155,7 @@ fn no_role_defaults_to_worker() {
 #[test]
 fn explicit_active_tools_overrides_role_defaults() {
     let tmp = tempdir().expect("tempdir");
-    let project_dir = init_project(tmp.path().to_path_buf()).expect("init project");
+    let project_dir = init_project(tmp.path()).expect("init project");
 
     install_active_agent(
         &project_dir,
@@ -189,7 +189,7 @@ fn mesh_send_blocked_for_all_roles_without_explicit_active_tools() {
         ("commander", "mesh-c"),
     ] {
         let tmp = tempdir().expect("tempdir");
-        let project_dir = init_project(tmp.path().to_path_buf()).expect("init project");
+        let project_dir = init_project(tmp.path()).expect("init project");
 
         install_active_agent(
             &project_dir,
@@ -202,17 +202,17 @@ fn mesh_send_blocked_for_all_roles_without_explicit_active_tools() {
             },
         );
 
-        ShipServer::enforce_mode_tool_gate(&project_dir, "mesh_send")
-            .expect_err(&format!("mesh_send should be blocked for {role}"));
-        ShipServer::enforce_mode_tool_gate(&project_dir, "mesh_broadcast")
-            .expect_err(&format!("mesh_broadcast should be blocked for {role}"));
+        ShipServer::enforce_mode_tool_gate(&project_dir, "send_mesh_message")
+            .expect_err(&format!("send_mesh_message should be blocked for {role}"));
+        ShipServer::enforce_mode_tool_gate(&project_dir, "broadcast_mesh_message")
+            .expect_err(&format!("broadcast_mesh_message should be blocked for {role}"));
     }
 }
 
 #[test]
 fn mesh_send_allowed_with_explicit_active_tools() {
     let tmp = tempdir().expect("tempdir");
-    let project_dir = init_project(tmp.path().to_path_buf()).expect("init project");
+    let project_dir = init_project(tmp.path()).expect("init project");
 
     install_active_agent(
         &project_dir,
@@ -221,17 +221,17 @@ fn mesh_send_allowed_with_explicit_active_tools() {
             name: "Mesh Explicit".to_string(),
             role: Some("worker".to_string()),
             active_tools: vec![
-                "mesh_send".to_string(),
-                "mesh_broadcast".to_string(),
+                "send_mesh_message".to_string(),
+                "broadcast_mesh_message".to_string(),
             ],
             ..Default::default()
         },
     );
 
-    ShipServer::enforce_mode_tool_gate(&project_dir, "mesh_send")
-        .expect("mesh_send allowed with explicit active_tools");
-    ShipServer::enforce_mode_tool_gate(&project_dir, "mesh_broadcast")
-        .expect("mesh_broadcast allowed with explicit active_tools");
+    ShipServer::enforce_mode_tool_gate(&project_dir, "send_mesh_message")
+        .expect("send_mesh_message allowed with explicit active_tools");
+    ShipServer::enforce_mode_tool_gate(&project_dir, "broadcast_mesh_message")
+        .expect("broadcast_mesh_message allowed with explicit active_tools");
 }
 
 // ── emit_event integration gating ──────────────────────────────────
@@ -239,7 +239,7 @@ fn mesh_send_allowed_with_explicit_active_tools() {
 #[test]
 fn emit_event_is_core_and_callable_under_any_mode() {
     let tmp = tempdir().expect("tempdir");
-    let project_dir = init_project(tmp.path().to_path_buf()).expect("init project");
+    let project_dir = init_project(tmp.path()).expect("init project");
 
     install_active_agent(
         &project_dir,
@@ -255,9 +255,6 @@ fn emit_event_is_core_and_callable_under_any_mode() {
     // emit_event is core — bypasses mode gating regardless of active_tools.
     ShipServer::enforce_mode_tool_gate(&project_dir, "emit_event")
         .expect("emit_event must bypass mode gate as a core tool");
-    // The deprecated alias resolves to the same canonical name.
-    ShipServer::enforce_mode_tool_gate(&project_dir, "event")
-        .expect("`event` alias must resolve to canonical `emit_event` and bypass gate");
 }
 
 // ── canvas view tool gating (always registered, runtime-experimental) ─
@@ -265,7 +262,7 @@ fn emit_event_is_core_and_callable_under_any_mode() {
 #[test]
 fn worker_role_allows_view_tools_by_default() {
     let tmp = tempdir().expect("tempdir");
-    let project_dir = init_project(tmp.path().to_path_buf()).expect("init project");
+    let project_dir = init_project(tmp.path()).expect("init project");
     install_active_agent(
         &project_dir,
         AgentProfile {
@@ -281,17 +278,12 @@ fn worker_role_allows_view_tools_by_default() {
         ShipServer::enforce_mode_tool_gate(&project_dir, tool)
             .unwrap_or_else(|e| panic!("{tool} must be allowed for worker role: {e}"));
     }
-    // Deprecated aliases resolve to the canonical names through the gate.
-    for legacy in &["view_open", "view_patch", "view_append", "view_signal", "view_close"] {
-        ShipServer::enforce_mode_tool_gate(&project_dir, legacy)
-            .unwrap_or_else(|e| panic!("legacy alias {legacy} must still pass: {e}"));
-    }
 }
 
 #[test]
 fn explicit_active_tools_without_view_blocks_view_tools() {
     let tmp = tempdir().expect("tempdir");
-    let project_dir = init_project(tmp.path().to_path_buf()).expect("init project");
+    let project_dir = init_project(tmp.path()).expect("init project");
     // A "gate" mode declares its allowed tools explicitly — and omits view.*.
     install_active_agent(
         &project_dir,

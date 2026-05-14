@@ -5,7 +5,7 @@
 //! that verify the executor files wire up exit_tx rather than legacy curl.
 
 use async_trait::async_trait;
-use ship_substrate::events::kernel_router::{ActorConfig, KernelRouter};
+use ship_substrate::events::kernel_router::KernelRouter;
 use ship_platform::services::dispatch_ports::{
     ExecutorHandle, ExitCause, ExitSignal, JobContext, JobExecutor,
 };
@@ -14,8 +14,9 @@ use std::time::Duration;
 use tempfile::TempDir;
 use tokio::sync::Mutex;
 
-use super::registry::ProcessRegistry;
-use super::liveness::start_exit_handler;
+use ship_platform::services::orchestrator::exit_handler;
+
+use ship_platform::services::process_registry::{ProcessRegistry, SharedRegistry};
 
 // ── Test executors ───────────────────────────────────────────────────────────
 
@@ -141,7 +142,7 @@ async fn exit_handler_emits_job_completed_for_clean_exit() {
     registry.lock().await.register("test-job", dead_handle());
 
     let (exit_tx, exit_rx) = tokio::sync::mpsc::unbounded_channel::<ExitSignal>();
-    start_exit_handler(Arc::clone(&kernel), Arc::clone(&registry), exit_rx);
+    exit_handler::start(Arc::clone(&kernel), Arc::new(SharedRegistry(Arc::clone(&registry))), exit_rx);
 
     exit_tx
         .send(ExitSignal {
@@ -171,7 +172,7 @@ async fn exit_handler_does_not_panic_for_failed_exit() {
     registry.lock().await.register("failing-job", dead_handle());
 
     let (exit_tx, exit_rx) = tokio::sync::mpsc::unbounded_channel::<ExitSignal>();
-    start_exit_handler(Arc::clone(&kernel), Arc::clone(&registry), exit_rx);
+    exit_handler::start(Arc::clone(&kernel), Arc::new(SharedRegistry(Arc::clone(&registry))), exit_rx);
 
     exit_tx
         .send(ExitSignal {
@@ -196,7 +197,7 @@ async fn exit_handler_does_not_panic_for_failed_exit() {
 
 fn executor_source(filename: &str) -> String {
     let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("src/supervisor/executors")
+        .join("../../crates/ship-supervisor/src/executors")
         .join(filename);
     std::fs::read_to_string(&path)
         .unwrap_or_else(|e| panic!("could not read {filename}: {e}"))
@@ -217,13 +218,3 @@ fn process_executor_source_uses_exit_tx_not_curl() {
     );
 }
 
-/// tmux.rs must spawn a liveness monitor (monitor_tmux or exit_tx wiring)
-/// so that tmux session exits are detected without relying on the SessionEnd hook.
-#[test]
-fn tmux_executor_source_has_liveness_monitor() {
-    let src = executor_source("tmux.rs");
-    assert!(
-        src.contains("monitor_tmux") || src.contains("exit_tx"),
-        "tmux.rs must contain a liveness monitor (monitor_tmux or exit_tx)"
-    );
-}

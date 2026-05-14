@@ -13,7 +13,6 @@ use super::dispatch_ports::{LaunchCommand, LaunchProfile};
 pub enum ProviderEvent {
     ToolUse { tool: String, input_preview: String },
     Message { text: String },
-    Usage { input_tokens: u64, output_tokens: u64 },
     SessionStarted { session_id: String },
     TurnComplete { stop_reason: String },
     Custom {

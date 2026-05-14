@@ -34,31 +34,10 @@ fn empty_dir_returns_empty_vec() {
 }
 
 #[test]
-fn parses_flat_and_nested_shapes() {
+fn parses_canonical_nested_shape() {
     let tmp = tempdir().unwrap();
-    write_agent(
-        tmp.path(),
-        "coder",
-        r#"{
-            // flat shape
-            "name": "Coder",
-            "description": "Writes code.",
-            "skills": ["tdd", "refactor"],
-            "providers": ["claude", "codex"],
-            "mcp_servers": ["ship"]
-        }"#,
-    );
-    write_agent(
-        tmp.path(),
-        "reviewer",
-        r#"{
-            "agent": { "name": "Reviewer", "description": "Reviews PRs.", "providers": ["claude"] },
-            "skills": [{"id": "review"}, "style"],
-            "rules": ["kind", "clear"]
-        }"#,
-    );
-    // Project-shape config that nests collections under sub-objects.
-    // Mirrors .ship/agents/commander.jsonc.
+    // Mirrors .ship/agents/commander.jsonc — the canonical shape per
+    // schemas/agent.schema.json: `agent` wrapper, nested collections.
     write_agent(
         tmp.path(),
         "commander",
@@ -72,24 +51,21 @@ fn parses_flat_and_nested_shapes() {
     );
     let scopes = scopes_from(tmp.path(), None);
     let out = list_agents_with_scopes(&scopes);
-    assert_eq!(out.len(), 3);
-    let coder = out.iter().find(|a| a.name == "Coder").unwrap();
-    assert_eq!(coder.skills_count, 2);
-    assert_eq!(coder.providers_count, 2);
-    assert_eq!(coder.mcp_count, 1);
-    let reviewer = out.iter().find(|a| a.name == "Reviewer").unwrap();
-    assert_eq!(reviewer.skills_count, 2);
-    assert_eq!(reviewer.rules_count, 2);
-    let commander = out.iter().find(|a| a.name == "Commander").unwrap();
-    assert_eq!(commander.skills_count, 3, "nested skills.refs");
-    assert_eq!(commander.mcp_count, 2, "nested mcp.servers");
-    assert_eq!(commander.rules_count, 1, "nested rules.refs");
+    assert_eq!(out.len(), 1);
+    let commander = &out[0];
+    assert_eq!(commander.name, "Commander");
+    assert_eq!(commander.skills_count, 3);
+    assert_eq!(commander.mcp_count, 2);
+    assert_eq!(commander.rules_count, 1);
     assert_eq!(commander.providers_count, 2);
 
     let detail = load_agent_with_scopes(&scopes, "commander").unwrap();
     assert_eq!(detail.skills.len(), 3);
     assert_eq!(detail.mcp_servers, vec!["ship", "typescript"]);
     assert_eq!(detail.permissions_tier, "autonomous");
+    // default_provider derives from providers[0] — there is no standalone
+    // field on the schema.
+    assert_eq!(detail.default_provider.as_deref(), Some("claude"));
 }
 
 #[test]
@@ -105,13 +81,22 @@ fn load_agent_returns_detail_with_defaults() {
     write_agent(
         tmp.path(),
         "coder",
-        r#"{ "name": "Coder", "description": "Writes code." }"#,
+        r#"{ "agent": { "id": "coder", "name": "Coder", "description": "Writes code." } }"#,
     );
     let scopes = scopes_from(tmp.path(), None);
     let d = load_agent_with_scopes(&scopes, "coder").unwrap();
     assert_eq!(d.name, "Coder");
     assert_eq!(d.permissions_tier, "standard");
     assert_eq!(d.letter, "C");
+}
+
+#[test]
+fn malformed_files_without_agent_wrapper_are_skipped() {
+    let tmp = tempdir().unwrap();
+    write_agent(tmp.path(), "flat", r#"{ "name": "Flat" }"#);
+    let scopes = scopes_from(tmp.path(), None);
+    assert!(list_agents_with_scopes(&scopes).is_empty());
+    assert!(load_agent_with_scopes(&scopes, "flat").is_none());
 }
 
 #[test]
@@ -153,12 +138,12 @@ fn merges_project_and_global_scopes() {
     write_agent(
         &global_ship,
         "g-only",
-        r#"{ "name": "Globalist", "providers": ["claude"] }"#,
+        r#"{ "agent": { "id": "g-only", "name": "Globalist", "providers": ["claude"] } }"#,
     );
     write_agent(
         &global_ship,
         "shared",
-        r#"{ "name": "SharedGlobal", "description": "global copy" }"#,
+        r#"{ "agent": { "id": "shared", "name": "SharedGlobal", "description": "global copy" } }"#,
     );
 
     // Project ship_dir with one unique + one shared — project wins.
@@ -170,12 +155,12 @@ fn merges_project_and_global_scopes() {
     write_project_agent(
         &project_ship,
         "p-only",
-        r#"{ "name": "Projector", "providers": ["codex"] }"#,
+        r#"{ "agent": { "id": "p-only", "name": "Projector", "providers": ["codex"] } }"#,
     );
     write_project_agent(
         &project_ship,
         "shared",
-        r#"{ "name": "SharedProject", "description": "project copy" }"#,
+        r#"{ "agent": { "id": "shared", "name": "SharedProject", "description": "project copy" } }"#,
     );
 
     let scopes = scopes_from(&global_ship, Some(&project_ship));
@@ -206,7 +191,7 @@ fn merges_project_and_global_scopes() {
 #[test]
 fn scope_skipped_when_project_matches_global() {
     let tmp = tempdir().unwrap();
-    write_agent(tmp.path(), "solo", r#"{"name": "Solo"}"#);
+    write_agent(tmp.path(), "solo", r#"{ "agent": { "id": "solo", "name": "Solo" } }"#);
     let scopes = scopes_from(tmp.path(), Some(tmp.path()));
     let out = list_agents_with_scopes(&scopes);
     assert_eq!(out.len(), 1);

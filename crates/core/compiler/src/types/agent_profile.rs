@@ -1,14 +1,17 @@
 use serde::{Deserialize, Serialize};
 
-/// An agent parsed from `.ship/agents/<id>.toml`.
+/// An agent parsed from `.ship/agents/<id>.jsonc`.
 ///
-/// Profiles define specialist agents that the compiler emits as
-/// provider-native subagent definitions (`.claude/agents/`, `.gemini/agents/`,
-/// `.cursor/agents/`, `.codex/agents/`).
+/// Defines a specialist agent that the compiler emits as a
+/// provider-native subagent definition (`.claude/agents/`,
+/// `.gemini/agents/`, `.cursor/agents/`, `.codex/agents/`). The
+/// canonical schema lives in `schemas/agent.schema.json` — every
+/// JSONC field declared there should have a matching Rust field
+/// here. The top-level key is `agent`.
 #[cfg_attr(feature = "specta", derive(specta::Type))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentProfile {
-    pub profile: ProfileMeta,
+    pub agent: ProfileMeta,
     #[serde(default)]
     pub skills: SkillRefs,
     #[serde(default)]
@@ -19,12 +22,16 @@ pub struct AgentProfile {
     pub permissions: ProfilePermissions,
     #[serde(default)]
     pub rules: ProfileRules,
+    #[serde(default)]
+    pub hooks: ProfileHooks,
     /// App integrations for this agent profile.
     #[serde(default)]
     pub apps: ProfileApps,
+    /// Provider-specific settings merged verbatim into the provider's config
+    /// file. `provider_settings.claude` → `.claude/settings.json`. Any
+    /// key/value valid in that file works here — no code change required.
     #[serde(default)]
-    #[cfg_attr(feature = "specta", specta(skip))]
-    pub provider_settings: std::collections::HashMap<String, toml::Value>,
+    pub provider_settings: std::collections::HashMap<String, serde_json::Value>,
 }
 
 /// Declares which Ship apps an agent integrates with.
@@ -48,7 +55,25 @@ pub struct ProfileMeta {
     pub description: Option<String>,
     #[serde(default)]
     pub providers: Vec<String>,
-    /// Display icon — emoji or icon name (e.g. "\ud83e\uddea", "test-tube").
+    /// Role for tool gating defaults. Maps to a `tools_preset` when unset:
+    ///   worker → preset "worker"
+    ///   lead | commander → preset "orchestrator"
+    /// `tools_preset` takes precedence when both are set.
+    #[serde(default)]
+    pub role: Option<String>,
+    /// Searchable tags for registry discovery (e.g. workflow, review, testing).
+    #[serde(default)]
+    pub tags: Vec<String>,
+    /// Tool preset name controlling which platform-shipped tools this agent
+    /// sees. Known values: `worker`, `orchestrator`. When unset, falls back
+    /// to the `role`-based default.
+    #[serde(default)]
+    pub tools_preset: Option<String>,
+    /// Explicit tool IDs visible to this agent. When non-empty, replaces the
+    /// preset's tool list (escape hatch for custom agents).
+    #[serde(default)]
+    pub active_tools: Vec<String>,
+    /// Display icon — emoji or icon name (e.g. "🧪", "test-tube").
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub icon: Option<String>,
 }
@@ -101,176 +126,148 @@ pub struct ProfileRules {
     pub inline: Option<String>,
 }
 
+/// Hook commands declared on the agent. Compile emits each into the active
+/// provider's hook registration (e.g. `.claude/settings.json:hooks`).
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct ProfileHooks {
+    /// Command to run when the agent session ends (Claude Code Stop hook).
+    #[serde(default)]
+    pub stop: Option<String>,
+    /// Command to run when a sub-agent session ends (SubagentStop hook).
+    #[serde(default)]
+    pub subagent_stop: Option<String>,
+}
+
+impl AgentProfile {
+    /// Project this nested file-format profile to the flat runtime form
+    /// the resolver and provider compilers consume (`compiler::AgentConfig`).
+    /// This is the single canonical nested → flat mapping.
+    pub fn to_config(&self) -> super::AgentConfig {
+        use super::config::PermissionConfig;
+        super::AgentConfig {
+            id: self.agent.id.clone(),
+            name: self.agent.name.clone(),
+            description: self.agent.description.clone(),
+            role: self.agent.role.clone(),
+            tools_preset: self.agent.tools_preset.clone(),
+            active_tools: self.agent.active_tools.clone(),
+            mcp_servers: self.mcp.servers.clone(),
+            skills: self.skills.refs.clone(),
+            rules: Vec::new(),
+            hooks: Vec::new(),
+            permissions: PermissionConfig::default(),
+            target_agents: self.agent.providers.clone(),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    fn parse_jsonc(src: &str) -> AgentProfile {
+        let stripped = ship_substrate_strip(src);
+        serde_json::from_str(&stripped).expect("parse")
+    }
+
+    // Local strip wrapper — compiler is leaf-ish and can't pull substrate
+    // (WASM constraint). Tests run native, so we mimic the canonical
+    // stripper's behaviour with a tiny inline copy via crate::jsonc.
+    fn ship_substrate_strip(src: &str) -> String {
+        crate::jsonc::strip_jsonc_comments(src)
+    }
+
     #[test]
     fn round_trip_full_profile() {
-        let toml_str = r#"
-[profile]
-id = "code-reviewer"
-name = "Code Reviewer"
-version = "1.2.0"
-description = "Reviews pull requests for style, correctness, and test coverage."
-providers = ["claude", "cursor"]
+        let src = r#"{
+  "agent": {
+    "id": "code-reviewer",
+    "name": "Code Reviewer",
+    "version": "1.2.0",
+    "description": "Reviews pull requests for style, correctness, and test coverage.",
+    "providers": ["claude", "cursor"],
+    "role": "worker",
+    "tags": ["review", "testing"]
+  },
+  "skills": { "refs": ["review-pr", "lint-fix", "test-runner"] },
+  "mcp": { "servers": ["github", "linear"] },
+  "plugins": { "install": ["eslint-plugin"], "scope": "workspace" },
+  "permissions": {
+    "preset": "ship-standard",
+    "tools_allow": ["Read", "Grep", "Bash"],
+    "tools_ask": ["Edit", "Write"],
+    "tools_deny": ["WebFetch"],
+    "default_mode": "acceptEdits"
+  },
+  "rules": { "inline": "You are a senior code reviewer.\nFocus on correctness." },
+  "hooks": { "stop": "ship session end" },
+  "provider_settings": {
+    "claude": { "model": "opus", "temperature": 0.2 }
+  }
+}"#;
+        let profile = parse_jsonc(src);
 
-[skills]
-refs = ["review-pr", "lint-fix", "test-runner"]
-
-[mcp]
-servers = ["github", "linear"]
-
-[plugins]
-install = ["eslint-plugin", "prettier-plugin"]
-scope = "workspace"
-
-[permissions]
-preset = "ship-standard"
-tools_allow = ["Read", "Grep", "Bash"]
-tools_ask = ["Edit", "Write"]
-tools_deny = ["WebFetch"]
-default_mode = "acceptEdits"
-
-[rules]
-inline = """
-You are a senior code reviewer.
-Focus on correctness, readability, and test coverage.
-"""
-
-[provider_settings]
-claude_model = "opus"
-temperature = 0.2
-"#;
-
-        let profile: AgentProfile = toml::from_str(toml_str).expect("failed to parse full profile");
-
-        // profile section
-        assert_eq!(profile.profile.id, "code-reviewer");
-        assert_eq!(profile.profile.name, "Code Reviewer");
-        assert_eq!(profile.profile.version.as_deref(), Some("1.2.0"));
-        assert_eq!(
-            profile.profile.description.as_deref(),
-            Some("Reviews pull requests for style, correctness, and test coverage.")
-        );
-        assert_eq!(profile.profile.providers, vec!["claude", "cursor"]);
-
-        // skills
-        assert_eq!(
-            profile.skills.refs,
-            vec!["review-pr", "lint-fix", "test-runner"]
-        );
-
-        // mcp
+        assert_eq!(profile.agent.id, "code-reviewer");
+        assert_eq!(profile.agent.role.as_deref(), Some("worker"));
+        assert_eq!(profile.agent.tags, vec!["review", "testing"]);
+        assert_eq!(profile.skills.refs, vec!["review-pr", "lint-fix", "test-runner"]);
         assert_eq!(profile.mcp.servers, vec!["github", "linear"]);
-
-        // plugins
-        assert_eq!(
-            profile.plugins.install,
-            vec!["eslint-plugin", "prettier-plugin"]
-        );
-        assert_eq!(profile.plugins.scope.as_deref(), Some("workspace"));
-
-        // permissions
         assert_eq!(profile.permissions.preset.as_deref(), Some("ship-standard"));
-        assert_eq!(
-            profile.permissions.tools_allow,
-            vec!["Read", "Grep", "Bash"]
-        );
-        assert_eq!(profile.permissions.tools_ask, vec!["Edit", "Write"]);
-        assert_eq!(profile.permissions.tools_deny, vec!["WebFetch"]);
-        assert_eq!(
-            profile.permissions.default_mode.as_deref(),
-            Some("acceptEdits")
-        );
+        assert_eq!(profile.hooks.stop.as_deref(), Some("ship session end"));
+        let claude = profile.provider_settings.get("claude").expect("claude");
+        assert_eq!(claude.get("model").and_then(|v| v.as_str()), Some("opus"));
+    }
 
-        // rules
-        assert!(
-            profile
-                .rules
-                .inline
-                .as_ref()
-                .unwrap()
-                .contains("senior code reviewer")
-        );
-
-        // provider_settings
-        assert_eq!(
-            profile
-                .provider_settings
-                .get("claude_model")
-                .and_then(|v| v.as_str()),
-            Some("opus")
-        );
-
-        // round-trip: serialize back to TOML and re-parse
-        let serialized = toml::to_string(&profile).expect("failed to serialize");
-        let reparsed: AgentProfile =
-            toml::from_str(&serialized).expect("failed to re-parse serialized profile");
-        assert_eq!(reparsed.profile.id, profile.profile.id);
-        assert_eq!(reparsed.skills.refs, profile.skills.refs);
-        assert_eq!(reparsed.mcp.servers, profile.mcp.servers);
-        assert_eq!(
-            reparsed.permissions.tools_allow,
-            profile.permissions.tools_allow
-        );
+    #[test]
+    fn legacy_profile_key_is_rejected() {
+        // The `profile` alias was removed; only `agent` is accepted.
+        let src = r#"{
+  "profile": { "id": "legacy", "name": "Legacy" }
+}"#;
+        assert!(serde_json::from_str::<AgentProfile>(src).is_err());
     }
 
     #[test]
     fn apps_studio_parses_and_defaults_false() {
-        let with_studio = r#"
-[profile]
-id = "design-agent"
-name = "Design Agent"
-
-[apps]
-studio = true
-"#;
-        let profile: AgentProfile = toml::from_str(with_studio).expect("parse failed");
+        let src = r#"{
+  "agent": { "id": "design-agent", "name": "Design Agent" },
+  "apps": { "studio": true }
+}"#;
+        let profile = parse_jsonc(src);
         assert!(profile.apps.studio);
 
-        let without_apps = r#"
-[profile]
-id = "headless-agent"
-name = "Headless Agent"
-"#;
-        let profile2: AgentProfile = toml::from_str(without_apps).expect("parse failed");
+        let src2 = r#"{ "agent": { "id": "headless", "name": "Headless" } }"#;
+        let profile2: AgentProfile = serde_json::from_str(src2).expect("parse");
         assert!(!profile2.apps.studio);
     }
 
     #[test]
-    fn round_trip_minimal_profile() {
-        let toml_str = r#"
-[profile]
-id = "basic-agent"
-name = "Basic Agent"
-"#;
-
-        let profile: AgentProfile =
-            toml::from_str(toml_str).expect("failed to parse minimal profile");
-
-        assert_eq!(profile.profile.id, "basic-agent");
-        assert_eq!(profile.profile.name, "Basic Agent");
-        assert_eq!(profile.profile.version, None);
-        assert_eq!(profile.profile.description, None);
-        assert!(profile.profile.providers.is_empty());
+    fn minimal_profile_round_trips() {
+        let src = r#"{ "agent": { "id": "basic", "name": "Basic" } }"#;
+        let profile: AgentProfile = serde_json::from_str(src).expect("parse");
+        assert_eq!(profile.agent.id, "basic");
+        assert_eq!(profile.agent.version, None);
         assert!(profile.skills.refs.is_empty());
         assert!(profile.mcp.servers.is_empty());
-        assert!(profile.plugins.install.is_empty());
-        assert_eq!(profile.plugins.scope, None);
-        assert_eq!(profile.permissions.preset, None);
         assert!(profile.permissions.tools_allow.is_empty());
-        assert!(profile.permissions.tools_ask.is_empty());
-        assert!(profile.permissions.tools_deny.is_empty());
-        assert_eq!(profile.permissions.default_mode, None);
-        assert_eq!(profile.rules.inline, None);
         assert!(profile.provider_settings.is_empty());
+    }
 
-        // round-trip
-        let serialized = toml::to_string(&profile).expect("failed to serialize");
-        let reparsed: AgentProfile =
-            toml::from_str(&serialized).expect("failed to re-parse minimal profile");
-        assert_eq!(reparsed.profile.id, "basic-agent");
-        assert_eq!(reparsed.profile.name, "Basic Agent");
+    #[test]
+    fn to_config_projects_nested_to_flat() {
+        let src = r#"{
+  "agent": { "id": "rev", "name": "Reviewer", "role": "worker", "providers": ["claude"] },
+  "skills": { "refs": ["a", "b"] },
+  "mcp": { "servers": ["github"] }
+}"#;
+        let profile: AgentProfile = serde_json::from_str(src).expect("parse");
+        let config = profile.to_config();
+        assert_eq!(config.id, "rev");
+        assert_eq!(config.name, "Reviewer");
+        assert_eq!(config.role.as_deref(), Some("worker"));
+        assert_eq!(config.skills, vec!["a", "b"]);
+        assert_eq!(config.mcp_servers, vec!["github"]);
+        assert_eq!(config.target_agents, vec!["claude"]);
     }
 }

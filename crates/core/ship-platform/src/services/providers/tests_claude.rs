@@ -234,30 +234,6 @@ fn parse_tool_use_extracts_tool_name() {
 }
 
 #[test]
-fn parse_text_delta_extracts_text() {
-    let adapter = ClaudeAdapter;
-    let line = r#"{"type":"stream_event","event":{"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"Hello world"}},"uuid":"u3","session_id":"s1"}"#;
-    match adapter.parse_output(line) {
-        Some(ProviderEvent::Message { text }) => {
-            assert_eq!(text, "Hello world");
-        }
-        other => panic!("expected Message, got {other:?}"),
-    }
-}
-
-#[test]
-fn parse_message_delta_extracts_usage() {
-    let adapter = ClaudeAdapter;
-    let line = r#"{"type":"stream_event","event":{"type":"message_delta","delta":{"stop_reason":"end_turn"},"usage":{"output_tokens":147}},"uuid":"u4","session_id":"s1"}"#;
-    match adapter.parse_output(line) {
-        Some(ProviderEvent::Usage { output_tokens, .. }) => {
-            assert_eq!(output_tokens, 147);
-        }
-        other => panic!("expected Usage, got {other:?}"),
-    }
-}
-
-#[test]
 fn parse_system_event_becomes_custom() {
     let adapter = ClaudeAdapter;
     let line = r#"{"type":"system","subtype":"api_retry","attempt":1,"max_retries":3,"retry_delay_ms":1000,"error_status":429,"error":"rate_limit","uuid":"u5","session_id":"s1"}"#;
@@ -269,19 +245,6 @@ fn parse_system_event_becomes_custom() {
     }
 }
 
-#[test]
-fn parse_content_block_stop_returns_none() {
-    let adapter = ClaudeAdapter;
-    let line = r#"{"type":"stream_event","event":{"type":"content_block_stop","index":0},"uuid":"u6","session_id":"s1"}"#;
-    assert!(adapter.parse_output(line).is_none());
-}
-
-#[test]
-fn parse_message_stop_returns_none() {
-    let adapter = ClaudeAdapter;
-    let line = r#"{"type":"stream_event","event":{"type":"message_stop"},"uuid":"u7","session_id":"s1"}"#;
-    assert!(adapter.parse_output(line).is_none());
-}
 
 #[test]
 fn parse_malformed_json_returns_none() {
@@ -296,17 +259,12 @@ fn parse_empty_line_returns_none() {
 }
 
 #[test]
-fn parse_text_block_start_returns_none() {
+fn parse_unknown_top_level_type_returns_none() {
+    // Modern stream-json uses top-level `assistant`/`result`/`system` events.
+    // The wrapping `stream_event` shape is gone — anything that still emits it
+    // should be ignored rather than dispatched.
     let adapter = ClaudeAdapter;
-    let line = r#"{"type":"stream_event","event":{"type":"content_block_start","index":0,"content_block":{"type":"text","text":""}},"uuid":"u8","session_id":"s1"}"#;
-    assert!(adapter.parse_output(line).is_none());
-}
-
-#[test]
-fn parse_input_json_delta_returns_none() {
-    // Tool input deltas are partial JSON — not useful as standalone events.
-    let adapter = ClaudeAdapter;
-    let line = r#"{"type":"stream_event","event":{"type":"content_block_delta","index":0,"delta":{"type":"input_json_delta","partial_json":"{\"path\":"}},"uuid":"u9","session_id":"s1"}"#;
+    let line = r#"{"type":"stream_event","event":{"type":"content_block_delta"}}"#;
     assert!(adapter.parse_output(line).is_none());
 }
 

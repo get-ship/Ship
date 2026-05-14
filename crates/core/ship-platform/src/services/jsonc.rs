@@ -35,24 +35,15 @@ pub(crate) fn extract_str_array(v: &serde_json::Value) -> Vec<String> {
     v.as_array()
         .map(|arr| {
             arr.iter()
-                .filter_map(|item| match item {
-                    serde_json::Value::String(s) => Some(s.clone()),
-                    serde_json::Value::Object(map) => map
-                        .get("id")
-                        .or_else(|| map.get("name"))
-                        .and_then(|x| x.as_str())
-                        .map(|s| s.to_string()),
-                    _ => None,
-                })
+                .filter_map(|item| item.as_str().map(str::to_string))
                 .collect()
         })
         .unwrap_or_default()
 }
 
-/// Resolve a collection-ish field from an agent config, tolerating the two
-/// shapes Ship actually emits:
-///   1. Flat: `"skills": ["a", "b"]` or `[{"id": "a"}, {"name": "b"}]`
-///   2. Nested: `"skills": { "refs": [...] }` / `"mcp": { "servers": [...] }`
+/// Resolve a collection field from an agent config. Reads either the
+/// top-level array (when `nested_keys` is empty) or a nested sub-key
+/// (e.g. `skills.refs`, `mcp.servers`).
 ///
 /// The `nested_keys` parameter lists candidate sub-keys to inspect when the
 /// top-level value is an object; the first one that contains an array wins.

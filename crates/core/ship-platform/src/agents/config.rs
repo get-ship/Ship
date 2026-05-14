@@ -25,7 +25,7 @@ use std::path::Path;
 /// Fully resolved, in-memory provider settings for the current branch/feature.
 ///
 /// Not stored as a file. Computed by [`resolve_provider_settings`] from:
-/// 1. Project defaults (`ship.toml` + `agents/` directory)
+/// 1. Project defaults (`ship.jsonc` + `agents/` directory)
 /// 2. Active agent profile overrides
 /// 3. Feature `[agent]` block (thin overrides)
 ///
@@ -44,7 +44,7 @@ pub struct ProviderSettings {
     pub rules: Vec<Rule>,
     /// Resolved permissions from `agents/permissions.toml`.
     pub permissions: Permissions,
-    /// Active agent ID if one is set in `ship.toml`.
+    /// Active agent ID if one is set in `ship.jsonc`.
     pub active_agent: Option<String>,
 }
 
@@ -85,8 +85,8 @@ fn normalize_rule_id(id: &str) -> String {
 /// Resolve the effective [`ProviderSettings`] for the current project state.
 ///
 /// Resolution order (highest wins):
-/// 1. Project defaults (`ship.toml` + `agents/` directory)
-/// 2. Active agent profile overrides (profile's `mcp_servers` filter, instruction skill via `prompt_id`)
+/// 1. Project defaults (`ship.jsonc` + `agents/` directory)
+/// 2. Active agent profile overrides (profile's `mcp_servers` filter, skill refs, rules)
 /// 3. Feature `[agent]` block — thin overrides: `model`, `providers`, filtered server/skill IDs
 ///
 /// Pass `None` for `workspace_agent` when not on a feature branch.
@@ -125,7 +125,7 @@ pub fn resolve_provider_settings_with_agent_override(
     //    use the normalized result rather than falling back. An empty result from all-invalid
     //    providers propagates as a no-valid-providers error rather than silently using "claude".
     // 2. Agent profile target_agents — when an agent is active and specifies target agents.
-    // 3. Project-level providers from ship.toml.
+    // 3. Project-level providers from ship.jsonc.
     // 4. Default: ["claude"].
     let workspace_has_explicit_providers =
         workspace_agent.is_some_and(|wa| !wa.providers.is_empty());
@@ -244,7 +244,7 @@ mod tests {
     #[test]
     fn resolve_agent_config_feature_overrides_providers_model_and_skill_filter() -> Result<()> {
         let tmp = tempdir()?;
-        let ship_dir = init_project(tmp.path().to_path_buf())?;
+        let ship_dir = init_project(tmp.path())?;
 
         create_skill(&ship_dir, "rt-alpha-skill", "Alpha", "alpha body")?;
         create_skill(&ship_dir, "rt-beta-skill", "Beta", "beta body")?;
@@ -280,7 +280,7 @@ mod tests {
     #[test]
     fn resolve_agent_config_feature_skill_filter_ignores_missing_ids() -> Result<()> {
         let tmp = tempdir()?;
-        let ship_dir = init_project(tmp.path().to_path_buf())?;
+        let ship_dir = init_project(tmp.path())?;
 
         create_skill(&ship_dir, "rt-only-skill", "Only", "only body")?;
 
@@ -306,7 +306,7 @@ mod tests {
     #[test]
     fn resolve_agent_config_applies_mode_mcp_filter_without_feature_override() -> Result<()> {
         let tmp = tempdir()?;
-        let ship_dir = init_project(tmp.path().to_path_buf())?;
+        let ship_dir = init_project(tmp.path())?;
 
         let config = ProjectConfig {
             mcp_servers: vec![
@@ -334,7 +334,7 @@ mod tests {
     #[test]
     fn resolve_agent_config_merges_mcp_toml_and_overrides_duplicate_ids() -> Result<()> {
         let tmp = tempdir()?;
-        let ship_dir = init_project(tmp.path().to_path_buf())?;
+        let ship_dir = init_project(tmp.path())?;
 
         let config = ProjectConfig {
             mcp_servers: vec![stdio_server("github", "ship-toml-command")],
@@ -398,7 +398,7 @@ mod tests {
     #[test]
     fn resolve_agent_config_mode_and_feature_mcp_filters_intersect() -> Result<()> {
         let tmp = tempdir()?;
-        let ship_dir = init_project(tmp.path().to_path_buf())?;
+        let ship_dir = init_project(tmp.path())?;
 
         let config = ProjectConfig {
             mcp_servers: vec![
@@ -442,7 +442,7 @@ mod tests {
     fn resolve_agent_config_feature_without_provider_override_uses_project_providers() -> Result<()>
     {
         let tmp = tempdir()?;
-        let ship_dir = init_project(tmp.path().to_path_buf())?;
+        let ship_dir = init_project(tmp.path())?;
 
         // Providers are file-canonical in ship.jsonc — save_config doesn't
         // persist them (project identity only), so write them directly to
@@ -471,7 +471,7 @@ mod tests {
     #[test]
     fn resolve_agent_config_feature_providers_are_normalized_and_unknown_filtered() -> Result<()> {
         let tmp = tempdir()?;
-        let ship_dir = init_project(tmp.path().to_path_buf())?;
+        let ship_dir = init_project(tmp.path())?;
 
         let config = ProjectConfig {
             providers: vec!["gemini".to_string()],
@@ -502,7 +502,7 @@ mod tests {
     #[test]
     fn resolve_agent_config_invalid_feature_provider_returns_empty() -> Result<()> {
         let tmp = tempdir()?;
-        let ship_dir = init_project(tmp.path().to_path_buf())?;
+        let ship_dir = init_project(tmp.path())?;
 
         let config = ProjectConfig {
             providers: vec!["gemini".to_string(), "claude".to_string()],
@@ -527,7 +527,7 @@ mod tests {
     #[test]
     fn resolve_agent_config_invalid_project_providers_fall_back_to_claude() -> Result<()> {
         let tmp = tempdir()?;
-        let ship_dir = init_project(tmp.path().to_path_buf())?;
+        let ship_dir = init_project(tmp.path())?;
 
         let config = ProjectConfig {
             providers: vec!["unknown-provider".to_string(), "   ".to_string()],
@@ -543,7 +543,7 @@ mod tests {
     #[test]
     fn resolve_agent_config_mode_filters_skills_and_rules() -> Result<()> {
         let tmp = tempdir()?;
-        let ship_dir = init_project(tmp.path().to_path_buf())?;
+        let ship_dir = init_project(tmp.path())?;
 
         create_skill(&ship_dir, "rt-alpha-skill", "Alpha", "alpha body")?;
         create_skill(&ship_dir, "rt-beta-skill", "Beta", "beta body")?;
@@ -590,7 +590,7 @@ mod tests {
     #[test]
     fn resolve_agent_config_workspace_mode_override_takes_precedence() -> Result<()> {
         let tmp = tempdir()?;
-        let ship_dir = init_project(tmp.path().to_path_buf())?;
+        let ship_dir = init_project(tmp.path())?;
 
         create_skill(&ship_dir, "rt-plan-skill", "Plan Skill", "plan body")?;
         create_skill(&ship_dir, "rt-code-skill", "Code Skill", "code body")?;

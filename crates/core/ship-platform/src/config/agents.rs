@@ -6,6 +6,29 @@ use std::collections::HashSet;
 use std::fs;
 use std::path::Path;
 
+/// Project a canonical [`compiler::AgentProfile`] (nested file-format type)
+/// into the platform's flat [`AgentProfile`] (runtime/UI view). This is the
+/// single bridge between the file-canonical schema and the platform's
+/// in-memory shape. Lossy by design — the nested type carries fields the
+/// platform UI does not surface (`provider_settings`, `apps`, `plugins`,
+/// `rules.inline`, etc.).
+fn project_canonical(src: &compiler::AgentProfile) -> AgentProfile {
+    AgentProfile {
+        id: src.agent.id.clone(),
+        name: src.agent.name.clone(),
+        description: src.agent.description.clone(),
+        role: src.agent.role.clone(),
+        tools_preset: src.agent.tools_preset.clone(),
+        active_tools: src.agent.active_tools.clone(),
+        mcp_servers: src.mcp.servers.clone(),
+        skills: src.skills.refs.clone(),
+        rules: Vec::new(),
+        hooks: Vec::new(),
+        permissions: super::types::PermissionConfig::default(),
+        target_agents: src.agent.providers.clone(),
+    }
+}
+
 /// Strip the optional `NNNN-` numeric prefix and `.md` suffix from a rule
 /// reference so callers see canonical IDs (`rust` rather than `0001-rust.md`).
 fn normalize_rule_external_id(id: &str) -> String {
@@ -41,9 +64,23 @@ pub(super) fn get_agents_config(ship_dir: &Path) -> Result<Vec<AgentProfile>> {
         let raw = fs::read_to_string(&path)
             .with_context(|| format!("read {}", path.display()))?;
         let stripped = strip_jsonc_comments(&raw);
-        let profile: AgentProfile = serde_json::from_str(&stripped)
+        // Files are authored against the canonical schema (top-level `agent`
+        // block). Parse via `compiler::AgentProfile`, then project to the
+        // platform's flat runtime view.
+        let value: serde_json::Value = serde_json::from_str(&stripped)
             .with_context(|| format!("parse agent profile {}", path.display()))?;
-        agents.push(profile);
+        if value.get("agent").is_some() {
+            let canonical: compiler::AgentProfile = serde_json::from_value(value)
+                .with_context(|| format!("parse agent profile {}", path.display()))?;
+            agents.push(project_canonical(&canonical));
+        } else {
+            // Pre-canonical flat shape `{"id": ..., "name": ...}` written by
+            // an older `save_agents_config`. Kept for the round-trip path
+            // until every project re-saves into canonical form.
+            let flat: AgentProfile = serde_json::from_value(value)
+                .with_context(|| format!("parse agent profile {}", path.display()))?;
+            agents.push(flat);
+        }
     }
     agents.sort_by(|a, b| a.id.cmp(&b.id));
     Ok(agents)
@@ -80,105 +117,158 @@ pub(super) fn save_agents_config(ship_dir: &Path, agents: &[AgentProfile]) -> Re
             .iter()
             .map(|id| normalize_rule_external_id(id))
             .collect();
-        let json = serde_json::to_string_pretty(&profile)?;
         let path = agent_file(ship_dir, &agent.id);
-        fs::write(&path, format!("{json}\n"))
+        let content = render_agent_file(&path, &profile)?;
+        fs::write(&path, content)
             .with_context(|| format!("write {}", path.display()))?;
     }
     Ok(())
 }
 
-/// One-shot migration from the legacy `runtime::*` KV namespace into
-/// `<ship_dir>/agents/<id>.jsonc` files. Reads the legacy `agents` row
-/// from KV, decodes the row format used before file-canonical reads,
-/// writes one `.jsonc` per agent profile, and deletes the legacy KV row.
-/// Idempotent: re-running on a drained install is a no-op.
-pub fn drain_legacy_kv() -> Result<usize> {
-    use ship_substrate::db::{block_on, ensure_kv_db, open_kv_db};
-    use sqlx::Row;
+/// Render an agent profile to JSONC. When `path` already holds a canonical
+/// nested-shape file, the platform-managed fields are merged in and the
+/// remaining hand-authored content (`hooks`, `plugins`, `rules.inline`,
+/// `provider_settings`, `apps`, schema reference) is preserved. When the
+/// file is missing or in legacy flat form, the platform-managed fields are
+/// emitted as a minimal canonical nested file.
+fn render_agent_file(path: &Path, flat: &AgentProfile) -> Result<String> {
+    let existing = fs::read_to_string(path).ok();
+    let parsed: Option<serde_json::Value> = existing
+        .as_ref()
+        .map(|raw| strip_jsonc_comments(raw))
+        .and_then(|stripped| serde_json::from_str(&stripped).ok());
 
-    ensure_kv_db()?;
-    let mut conn = open_kv_db()?;
-    let rows = block_on(async {
-        sqlx::query(
-            "SELECT namespace, value_json FROM kv_state \
-             WHERE namespace LIKE 'runtime::%' AND key = 'agents'",
-        )
-        .fetch_all(&mut conn)
-        .await
-    })?;
-    if rows.is_empty() {
-        return Ok(0);
+    let canonical_doc = parsed.filter(|v| v.get("agent").is_some());
+
+    if let Some(mut doc) = canonical_doc {
+        merge_flat_into_canonical(&mut doc, flat);
+        let json = serde_json::to_string_pretty(&doc)?;
+        Ok(format!("{json}\n"))
+    } else {
+        // No existing canonical file — emit a minimal canonical document.
+        let mut agent_block = serde_json::json!({
+            "id": flat.id,
+            "name": flat.name,
+        });
+        if let Some(desc) = &flat.description {
+            agent_block["description"] = serde_json::Value::String(desc.clone());
+        }
+        if let Some(role) = &flat.role {
+            agent_block["role"] = serde_json::Value::String(role.clone());
+        }
+        if let Some(preset) = &flat.tools_preset {
+            agent_block["tools_preset"] = serde_json::Value::String(preset.clone());
+        }
+        if !flat.active_tools.is_empty() {
+            agent_block["active_tools"] = serde_json::Value::Array(
+                flat.active_tools
+                    .iter()
+                    .map(|s| serde_json::Value::String(s.clone()))
+                    .collect(),
+            );
+        }
+        if !flat.target_agents.is_empty() {
+            agent_block["providers"] = serde_json::Value::Array(
+                flat.target_agents
+                    .iter()
+                    .map(|s| serde_json::Value::String(s.clone()))
+                    .collect(),
+            );
+        }
+        let canonical = serde_json::json!({
+            "agent": agent_block,
+            "skills": { "refs": flat.skills },
+            "mcp": { "servers": flat.mcp_servers },
+        });
+        let json = serde_json::to_string_pretty(&canonical)?;
+        Ok(format!("{json}\n"))
     }
+}
 
-    let mut migrated = 0usize;
-    for row in &rows {
-        let namespace: String = row.get(0);
-        let json_str: String = row.get(1);
-        // Recover the per-project ship_dir from the namespace string —
-        // legacy shape was `format!("runtime::{}", ship_dir.display())`.
-        let Some(ship_dir_str) = namespace.strip_prefix("runtime::") else {
-            continue;
-        };
-        let ship_dir = Path::new(ship_dir_str);
-        let Ok(legacy_rows) = serde_json::from_str::<Vec<LegacyAgentRow>>(&json_str) else {
-            continue;
-        };
-        let profiles: Vec<AgentProfile> = legacy_rows
-            .into_iter()
-            .map(LegacyAgentRow::into_profile)
-            .collect();
-        if save_agents_config(ship_dir, &profiles).is_ok() {
-            migrated += profiles.len();
+/// Overlay the platform-managed fields of a flat [`AgentProfile`] onto a
+/// canonical nested JSONC document. Fields the platform does not own
+/// (`hooks`, `plugins`, `rules.inline`, `provider_settings`, `apps`) are
+/// left untouched.
+fn merge_flat_into_canonical(doc: &mut serde_json::Value, flat: &AgentProfile) {
+    let Some(root) = doc.as_object_mut() else {
+        return;
+    };
+    let agent_obj = root
+        .entry("agent".to_string())
+        .or_insert_with(|| serde_json::json!({}));
+    if let Some(a) = agent_obj.as_object_mut() {
+        a.insert("id".to_string(), serde_json::Value::String(flat.id.clone()));
+        a.insert(
+            "name".to_string(),
+            serde_json::Value::String(flat.name.clone()),
+        );
+        if let Some(desc) = &flat.description {
+            a.insert(
+                "description".to_string(),
+                serde_json::Value::String(desc.clone()),
+            );
+        }
+        if let Some(role) = &flat.role {
+            a.insert("role".to_string(), serde_json::Value::String(role.clone()));
+        }
+        if let Some(preset) = &flat.tools_preset {
+            a.insert(
+                "tools_preset".to_string(),
+                serde_json::Value::String(preset.clone()),
+            );
+        }
+        if !flat.active_tools.is_empty() {
+            a.insert(
+                "active_tools".to_string(),
+                serde_json::Value::Array(
+                    flat.active_tools
+                        .iter()
+                        .map(|s| serde_json::Value::String(s.clone()))
+                        .collect(),
+                ),
+            );
+        }
+        if !flat.target_agents.is_empty() {
+            a.insert(
+                "providers".to_string(),
+                serde_json::Value::Array(
+                    flat.target_agents
+                        .iter()
+                        .map(|s| serde_json::Value::String(s.clone()))
+                        .collect(),
+                ),
+            );
         }
     }
 
-    block_on(async {
-        sqlx::query(
-            "DELETE FROM kv_state WHERE namespace LIKE 'runtime::%' AND key = 'agents'",
-        )
-        .execute(&mut conn)
-        .await
-    })?;
-    Ok(migrated)
-}
+    let skills_obj = root
+        .entry("skills".to_string())
+        .or_insert_with(|| serde_json::json!({}));
+    if let Some(s) = skills_obj.as_object_mut() {
+        s.insert(
+            "refs".to_string(),
+            serde_json::Value::Array(
+                flat.skills
+                    .iter()
+                    .map(|v| serde_json::Value::String(v.clone()))
+                    .collect(),
+            ),
+        );
+    }
 
-/// Legacy KV row shape — kept here only to deserialize during the
-/// one-shot drain. Do not reference from new code.
-#[derive(serde::Deserialize)]
-struct LegacyAgentRow {
-    id: String,
-    name: String,
-    description: Option<String>,
-    role: Option<String>,
-    #[serde(default)]
-    tools_preset: Option<String>,
-    active_tools_json: String,
-    mcp_refs_json: String,
-    skill_refs_json: String,
-    rule_refs_json: String,
-    prompt_id: Option<String>,
-    hooks_json: String,
-    permissions_json: String,
-    target_agents_json: String,
-}
-
-impl LegacyAgentRow {
-    fn into_profile(self) -> AgentProfile {
-        AgentProfile {
-            id: self.id,
-            name: self.name,
-            description: self.description,
-            role: self.role,
-            tools_preset: self.tools_preset,
-            active_tools: serde_json::from_str(&self.active_tools_json).unwrap_or_default(),
-            mcp_servers: serde_json::from_str(&self.mcp_refs_json).unwrap_or_default(),
-            skills: serde_json::from_str(&self.skill_refs_json).unwrap_or_default(),
-            rules: serde_json::from_str(&self.rule_refs_json).unwrap_or_default(),
-            prompt_id: self.prompt_id,
-            hooks: serde_json::from_str(&self.hooks_json).unwrap_or_default(),
-            permissions: serde_json::from_str(&self.permissions_json).unwrap_or_default(),
-            target_agents: serde_json::from_str(&self.target_agents_json).unwrap_or_default(),
-        }
+    let mcp_obj = root
+        .entry("mcp".to_string())
+        .or_insert_with(|| serde_json::json!({}));
+    if let Some(m) = mcp_obj.as_object_mut() {
+        m.insert(
+            "servers".to_string(),
+            serde_json::Value::Array(
+                flat.mcp_servers
+                    .iter()
+                    .map(|v| serde_json::Value::String(v.clone()))
+                    .collect(),
+            ),
+        );
     }
 }
+

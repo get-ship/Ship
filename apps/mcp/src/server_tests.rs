@@ -31,7 +31,7 @@ fn install_active_agent(project_dir: &std::path::Path, agent: AgentProfile) {
 #[test]
 fn mode_gate_normalizes_and_blocks_disallowed_tools() {
     let tmp = tempdir().expect("tempdir");
-    let project_dir = init_project(tmp.path().to_path_buf()).expect("init project");
+    let project_dir = init_project(tmp.path()).expect("init project");
 
     install_active_agent(
         &project_dir,
@@ -61,7 +61,7 @@ fn mode_gate_normalizes_and_blocks_disallowed_tools() {
 #[tokio::test(flavor = "multi_thread")]
 async fn mcp_sessions_resource_returns_empty_for_unknown_branch() {
     let tmp = tempdir().expect("tempdir");
-    let project_dir = init_project(tmp.path().to_path_buf()).expect("init project");
+    let project_dir = init_project(tmp.path()).expect("init project");
 
     let server = ShipServer::new();
     *server.active_project.lock().await = Some(project_dir.clone());
@@ -252,12 +252,12 @@ fn registers_canonical_verb_first_tool_names() {
 }
 
 #[test]
-fn deprecated_aliases_resolve_to_canonical_names() {
-    // Aliases are kept for one release with a deprecation prefix in the
-    // description. They must be present alongside the canonical names.
+fn no_deprecated_aliases_registered() {
+    // Pre-v1 — RENAMES is empty (see tools::stability::RENAMES). All former
+    // aliases must be gone from the router; only the canonical names remain.
     let server = ShipServer::new();
     let names = server.registered_tool_names();
-    let aliases: &[&str] = &[
+    let former_aliases: &[&str] = &[
         "mesh_send",
         "mesh_broadcast",
         "mesh_discover",
@@ -278,10 +278,10 @@ fn deprecated_aliases_resolve_to_canonical_names() {
         "view_close",
         "event",
     ];
-    for alias in aliases {
+    for alias in former_aliases {
         assert!(
-            names.iter().any(|n| n == alias),
-            "deprecated alias {alias} missing — must register for one release"
+            !names.iter().any(|n| n == alias),
+            "former alias {alias} must not register — pre-v1 has no alias surface to protect"
         );
     }
 }
@@ -329,11 +329,6 @@ fn every_build_registers_emit_event() {
     assert!(
         names.iter().any(|n| n == "emit_event"),
         "emit_event must be registered on every build (runtime stability marker, not compile-time)"
-    );
-    // Deprecation alias still resolves for one release.
-    assert!(
-        names.iter().any(|n| n == "event"),
-        "deprecated alias `event` must still register"
     );
 }
 

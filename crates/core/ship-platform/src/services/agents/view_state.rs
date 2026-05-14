@@ -110,7 +110,7 @@ pub(crate) fn scopes_from(
     project_ship_dir: Option<&Path>,
 ) -> AgentScopes {
     let global_dir = ship_substrate::ShipHome::at(ship_dir.to_path_buf())
-        .vector_dir(ship_substrate::home::Scope::User, ship_substrate::home::Vector::Agents, None);
+        .vector_dir(ship_types::Scope::User, ship_types::Vector::Agents, None);
     let project_dir = project_ship_dir
         .filter(|p| *p != ship_dir)
         .map(|p| p.join("agents"));
@@ -127,7 +127,7 @@ fn scan_agents_dir(dir: &Path, source: &str) -> Vec<AgentSummary> {
             continue;
         }
         let Some((id, parsed)) = parse_file(&path) else { continue };
-        let agent_obj = parsed.get("agent").unwrap_or(&parsed);
+        let Some(agent_obj) = parsed.get("agent") else { continue };
         let name = agent_obj
             .get("name")
             .and_then(|v| v.as_str())
@@ -138,14 +138,12 @@ fn scan_agents_dir(dir: &Path, source: &str) -> Vec<AgentSummary> {
             .and_then(|v| v.as_str())
             .unwrap_or("")
             .to_string();
-        let skills = resolve_array_field(&parsed, &["skills"], &["refs", "ids"]);
-        let providers = resolve_array_field(agent_obj, &["providers"], &["ids"]);
-        let mcp = resolve_array_field(
-            &parsed,
-            &["mcp_servers", "mcpServers", "mcp"],
-            &["servers", "refs"],
-        );
-        let rules = resolve_array_field(&parsed, &["rules"], &["refs", "ids"]);
+        let skills = resolve_array_field(&parsed, &["skills"], &["refs"]);
+        let providers = resolve_array_field(agent_obj, &["providers"], &[]);
+        let mcp = resolve_array_field(&parsed, &["mcp"], &["servers"]);
+        // Schema/UI mismatch: schema says `rules.inline: string`; UI still
+        // wants a list. Reading `rules.refs` until the UI redesign lands.
+        let rules = resolve_array_field(&parsed, &["rules"], &["refs"]);
         let tags = resolve_array_field(agent_obj, &["tags"], &[]);
         let letter = first_letter(&name);
         out.push(AgentSummary {
@@ -173,7 +171,7 @@ fn load_from_dir(dir: &Path, id: &str, source: &str) -> Option<AgentDetail> {
             continue;
         }
         let (file_id, parsed) = parse_file(&path)?;
-        let agent_obj = parsed.get("agent").unwrap_or(&parsed);
+        let Some(agent_obj) = parsed.get("agent") else { continue };
         let name = agent_obj
             .get("name")
             .and_then(|v| v.as_str())
@@ -184,20 +182,13 @@ fn load_from_dir(dir: &Path, id: &str, source: &str) -> Option<AgentDetail> {
             .and_then(|v| v.as_str())
             .unwrap_or("")
             .to_string();
-        let skills = resolve_array_field(&parsed, &["skills"], &["refs", "ids"]);
-        let providers = resolve_array_field(agent_obj, &["providers"], &["ids"]);
-        let mcp_servers = resolve_array_field(
-            &parsed,
-            &["mcp_servers", "mcpServers", "mcp"],
-            &["servers", "refs"],
-        );
-        let rules = resolve_array_field(&parsed, &["rules"], &["refs", "ids"]);
-        let default_provider = agent_obj
-            .get("default_provider")
-            .or_else(|| agent_obj.get("defaultProvider"))
-            .or_else(|| agent_obj.get("provider"))
-            .and_then(|v| v.as_str())
-            .map(|s| s.to_string());
+        let skills = resolve_array_field(&parsed, &["skills"], &["refs"]);
+        let providers = resolve_array_field(agent_obj, &["providers"], &[]);
+        let mcp_servers = resolve_array_field(&parsed, &["mcp"], &["servers"]);
+        let rules = resolve_array_field(&parsed, &["rules"], &["refs"]);
+        // No standalone "default" field on the schema — first provider wins.
+        // The UI uses this to highlight the active provider in the panel.
+        let default_provider = providers.first().cloned();
         // Permissions tier lives under `permissions.tier` (flat) or — for
         // project configs that use the preset name — `permissions.preset`
         // with a `ship-<tier>` prefix. Strip the prefix to canonicalize.

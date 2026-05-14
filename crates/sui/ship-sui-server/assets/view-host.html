@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SUI View</title>
+
+  <!-- Design tokens (always-on for SUI components). -->
+  <link rel="stylesheet" href="/api/assets/view-tokens.css" />
+
+  <!-- Runtime imports.  All SUI hosts share this importmap shape; if you
+       host SUI views from another web app, copy this block. -->
+  <script type="importmap">
+    {
+      "imports": {
+        "@ship/ui-runtime":    "/_sui/runtime.js",
+        "@ship/ui-dom":        "/_sui/dom.js",
+        "@ship/ui-sdk-client": "/_sui/sdk-client.js"
+      }
+    }
+  </script>
+
+  <!-- Component primitives — side-effect import registers every <sui-*>
+       custom element before any view template tries to use one. -->
+  <script type="module" src="/_sui/components.js"></script>
+
+  <style>
+    html, body { height: 100%; margin: 0; padding: 0; background: var(--background, #fff); }
+    #sui-root { height: 100vh; display: flex; flex-direction: column; }
+    .view-host-error {
+      padding: 2rem; font-family: var(--font-mono, monospace);
+      color: var(--destructive-foreground, #fff);
+      background: var(--destructive, #c33);
+      white-space: pre-wrap;
+    }
+  </style>
+</head>
+<body>
+  <div id="sui-root"></div>
+
+  <!-- Mount script. The hosted view's name comes from the URL path
+       segments after the host prefix (e.g. `/view-host/ship-ui-studio/sui-button`
+       → name = "ship-ui-studio/sui-button"). The runtime fetches
+       /_sui/views/<that> and mounts the payload here. -->
+  <script type="module">
+    import { mount } from '@ship/sui-runtime'
+
+    function viewPathFromLocation() {
+      const path = location.pathname
+      // Strip the first path segment — the host prefix `/view-host` (or
+      // wherever this file is served from).
+      const m = path.match(/^\/[^/]+\/(.*)$/)
+      return m ? m[1] : ''
+    }
+
+    const target = document.getElementById('sui-root')
+    const viewPath = viewPathFromLocation()
+
+    if (!viewPath) {
+      target.innerHTML =
+        '<div class="view-host-error">No view in URL.\n\n' +
+        'Use /view-host/&lt;name&gt;[/&lt;sub&gt;] — e.g. /view-host/ship-ui-studio.</div>'
+    } else {
+      try {
+        const res = await fetch(`/_sui/views/${viewPath}`, { credentials: 'same-origin' })
+        if (!res.ok) {
+          const body = await res.text()
+          target.innerHTML =
+            `<div class="view-host-error">Failed to load /_sui/views/${viewPath}\n\n` +
+            `${res.status}: ${body}</div>`
+        } else {
+          const payload = await res.json()
+          await mount(target, payload)
+        }
+      } catch (err) {
+        target.innerHTML =
+          `<div class="view-host-error">Mount failed: ${err && err.message ? err.message : err}</div>`
+      }
+    }
+  </script>
+</body>
+</html>
