@@ -10,7 +10,7 @@ artifacts: [image, markdown]
 allowed-tools:
   - "Bash(playwright*)"
   - "Bash(npx playwright*)"
-  - "Bash(pnpm exec playwright*)"
+  - "Bash(bunx playwright*)"
 ---
 
 # Web QA

@@ -35,12 +35,10 @@ RUN curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain stable \
     && rustup target add wasm32-unknown-unknown \
     && curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
 
-# Node via fnm + pnpm
+# Node via fnm (still needed for vite + node test runners) + Bun
 RUN curl -fsSL https://fnm.vercel.app/install | bash -s -- --install-dir $HOME/.local/bin \
     && $HOME/.local/bin/fnm install --lts
-RUN curl -fsSL https://get.pnpm.io/install.sh | SHELL=bash sh -
-RUN $HOME/.local/share/pnpm/pnpm config set store-dir /home/dev/.local/share/pnpm/store \
-    && $HOME/.local/share/pnpm/pnpm config set virtual-store-dir-max-length 80
+RUN curl -fsSL https://bun.sh/install | bash
 
 # just
 RUN curl --proto '=https' --tlsv1.2 -sSf https://just.systems/install.sh \
@@ -114,8 +112,8 @@ RUN cat > $HOME/.ship-shell-init.sh <<'EOF'
 eval "$($HOME/.local/bin/fnm env)"
 eval "$(starship init zsh)"
 eval "$(zoxide init zsh)"
-export PNPM_HOME="$HOME/.local/share/pnpm"
-export PATH="$PNPM_HOME:$PATH"
+export BUN_INSTALL="$HOME/.bun"
+export PATH="$BUN_INSTALL/bin:$PATH"
 EOF
 
 # Default .zshrc (overridden if dotfiles mount a .zshrc)

@@ -1,7 +1,7 @@
 //! SUI component catalog exposed as `ship://components` MCP resources.
 //!
-//! The aggregated Custom Elements Manifest (CEM) is built by `pnpm -F
-//! @ship/ui-components build` (sui-build's `aggregateCemTo`) from
+//! The aggregated Custom Elements Manifest (CEM) is built by `bun run
+//! --filter @ship/ui-components build` (sui-build's `aggregateCemTo`) from
 //! `packages/ui-components/src/<tag>/<tag>.custom-elements.json` and
 //! written to `crates/ship-sui/assets/sui-custom-elements.json`. Both
 //! the daemon's HTTP endpoint and the MCP resource read from that same

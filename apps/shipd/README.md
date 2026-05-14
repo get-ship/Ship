@@ -16,9 +16,9 @@ These are **not committed** — they are built from source in
 `packages/ship-set/src/web-components/` by the top-level script:
 
 ```bash
-pnpm build:bundles           # build all (idempotent; skips unchanged)
-pnpm build:bundles -- --force    # rebuild everything
-pnpm build:bundles:watch     # rebuild on source change
+bun run build:bundles           # build all (idempotent; skips unchanged)
+bun run build:bundles -- --force    # rebuild everything
+bun run build:bundles:watch     # rebuild on source change
 ```
 
 Run this **before** `cargo build -p shipd`, `cargo test -p shipd`, or

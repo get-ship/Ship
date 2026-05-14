@@ -6,7 +6,7 @@
 //   4. Compare outerHTML.
 //
 // Prerequisites:
-//   - Workspace installed (pnpm install) so `@ship/sui-dom` and
+//   - Workspace installed (bun install) so `@ship/sui-dom` and
 //     `@ship/sui-runtime` resolve via TypeScript-aware loader (tsx).
 //   - jsdom installed.
 //
@@ -40,7 +40,7 @@ async function main() {
   }
   const { hydrate } = await import('@ship/sui-dom').catch(() => ({}))
   if (!hydrate) {
-    console.error('@ship/sui-dom not resolvable; run pnpm install')
+    console.error('@ship/sui-dom not resolvable; run bun install')
     process.exit(2)
   }
 

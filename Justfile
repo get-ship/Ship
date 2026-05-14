@@ -1,6 +1,6 @@
 # ── Ship Development ─────────────────────────────────────────────────────────
 #
-# Daily contributor flow runs through the recipes below. Raw cargo / pnpm /
+# Daily contributor flow runs through the recipes below. Raw cargo / bun /
 # bash invocations stay possible as escape hatches but are not recommended:
 # if you reach for one, ask whether a recipe should exist instead.
 #
@@ -16,7 +16,7 @@ default:
 # ── Daily ────────────────────────────────────────────────────────────────────
 
 # One-shot fresh-clone setup. Order matters: gen-types feeds the workspace,
-# ship-set icons feed @ship/set build, both pnpm builds populate the asset
+# ship-set icons feed @ship/set build, both bun builds populate the asset
 # trees that shipd's include_str! consumes, and dev-runtime-install copies
 # bun + sui-compiler + bundler.ts into ~/.ship/runtime/.
 [group('daily')]
@@ -24,13 +24,12 @@ bootstrap:
     #!/usr/bin/env bash
     set -euo pipefail
     command -v bun  >/dev/null || { echo "bun not on PATH — install via 'curl -fsSL https://bun.sh/install | bash'" >&2; exit 1; }
-    command -v pnpm >/dev/null || { echo "pnpm not on PATH" >&2; exit 1; }
     cargo run -p xtask --quiet -- gen-types
     cargo build -p ship-cli
-    pnpm install
-    pnpm -F @ship/set icons
-    pnpm -F @ship/set build
-    pnpm -F @ship/ui-components build
+    bun install
+    bun run --filter @ship/set icons
+    bun run --filter @ship/set build
+    bun run --filter @ship/ui-components build
     just dev-runtime-install
     echo "bootstrap complete — 'just dev' to start the daemon"
 
@@ -112,7 +111,7 @@ test:
 # baselines after a deliberate visual change.
 [group('daily')]
 visual *ARGS:
-    pnpm test:e2e:visual {{ARGS}}
+    bun run test:e2e:visual {{ARGS}}
 
 # Library tests only — skips integration suites for fast inner-loop feedback.
 [group('daily')]
@@ -214,42 +213,42 @@ lint-views:
 # crates/ship-sui/assets/sui-custom-elements.json which apps/shipd embeds.
 [group('occasional')]
 cem:
-    pnpm -F @ship/ui-components build
+    bun run --filter @ship/ui-components build
 
 # Build docs site (Astro static).
 [group('occasional')]
 docs:
-    cd apps/docs && npx tsx scripts/collect-skill-docs.ts && pnpm build
+    cd apps/docs && bun scripts/collect-skill-docs.ts && bun run build
 
 # Dev docs site.
 [group('occasional')]
 docs-dev:
-    cd apps/docs && pnpm dev --port 4321 --host
+    cd apps/docs && bun run dev --port 4321 --host
 
 # Regenerate the committed OpenAPI snapshot.
 [group('occasional')]
 openapi-regen:
-    cd apps/docs && pnpm run openapi:generate
+    cd apps/docs && bun run openapi:generate
 
 # Fail if the committed openapi.json disagrees with the live spec.
 [group('occasional')]
 openapi-check:
-    cd apps/docs && pnpm run openapi:check-drift
+    cd apps/docs && bun run openapi:check-drift
 
 # Regenerate the Astro reference tree from docs/<skill>/references/docs/.
 [group('occasional')]
 docs-regen:
-    cd apps/docs && AUDIENCE=internal pnpm run collect
+    cd apps/docs && AUDIENCE=internal bun run collect
 
 # Fail if the on-disk Astro reference tree disagrees with the collector.
 [group('occasional')]
 docs-check-drift:
-    cd apps/docs && pnpm run docs:check-drift
+    cd apps/docs && bun run docs:check-drift
 
 # Frontend dev server (Vite). Daemon must be running separately.
 [group('occasional')]
 shell-dev:
-    pnpm --filter shell dev
+    bun run --filter shell dev
 
 # One-shot production build: gen-types, ship-set + ui-components rebuilds,
 # cargo --release, then verify outputs. Equivalent to `ship build`.
@@ -257,15 +256,15 @@ shell-dev:
 build:
     #!/usr/bin/env bash
     set -euo pipefail
-    command -v pnpm >/dev/null || { echo "build: pnpm not on PATH" >&2; exit 1; }
+    command -v bun >/dev/null || { echo "build: bun not on PATH" >&2; exit 1; }
     echo "[1/6] gen-types"
     cargo run -p xtask --quiet -- gen-types
     echo "[2/6] ship-set icons"
-    pnpm -F @ship/set icons
+    bun run --filter @ship/set icons
     echo "[3/6] ship-set build (sui-build → apps/shipd/assets/)"
-    pnpm -F @ship/set build
+    bun run --filter @ship/set build
     echo "[4/6] ui-components build (sui-build → crates/ship-sui-server/assets/)"
-    pnpm -F @ship/ui-components build
+    bun run --filter @ship/ui-components build
     echo "[5/6] cargo build --release (ship-cli + shipd + mcp)"
     cargo build --release -p ship-cli -p shipd -p mcp
     echo "[6/6] verify outputs"
@@ -433,4 +432,4 @@ publish repo:
 # TypeScript type check (shell app).
 [group('occasional')]
 typecheck:
-    pnpm --filter shell exec tsc --noEmit
+    bun run --filter shell typecheck

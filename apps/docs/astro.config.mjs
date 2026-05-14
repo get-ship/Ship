@@ -5,7 +5,7 @@ import starlightSidebarTopics from "starlight-sidebar-topics";
 import starlightOpenAPI, { openAPISidebarGroups } from "starlight-openapi";
 
 // Internals visibility:
-//   - dev (pnpm dev): always on — contributors want access locally.
+//   - dev (bun run dev): always on — contributors want access locally.
 //   - build: off unless AUDIENCE=internal is set explicitly (for building an
 //     internal variant of the site).
 // The command arg is threaded in via defineConfig's functional form at bottom

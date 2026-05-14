@@ -46,7 +46,7 @@ pub(super) fn try_dispatch(
                 ("Bash(git reset*)", "Bash git · reset (destructive)"),
                 ("Bash(git push --force*)", "Bash git · force push (destructive)"),
                 ("Bash(npm *)", "Bash npm"),
-                ("Bash(pnpm *)", "Bash pnpm"),
+                ("Bash(bun *)", "Bash bun"),
                 ("Bash(cargo *)", "Bash cargo"),
                 ("Bash(ship *)", "Bash ship"),
                 ("Bash(just *)", "Bash just"),

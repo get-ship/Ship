@@ -16,8 +16,8 @@ backed by `ship lsp` (the Ship CLI's built-in language server).
 2. Install this extension. From source:
    ```bash
    cd apps/ship-views-j2-vscode
-   pnpm install
-   pnpm compile
+   bun install
+   bun run compile
    code --install-extension .
    ```
    (Or package with `vsce package` and install the `.vsix`.)

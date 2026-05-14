@@ -66,9 +66,9 @@ Skipping any step ships stale bytes. The `include_str!` call sites are `apps/shi
 | Surface | Command |
 |---|---|
 | Compiler | `cargo test -p sui-compiler` |
-| Runtime | `pnpm -F @ship/ui-runtime test` |
-| DOM / attach | `pnpm -F @ship/ui-dom test` |
-| LSP | `pnpm -F @ship/ui-lsp test` |
+| Runtime | `bun run --filter @ship/ui-runtime test` |
+| DOM / attach | `bun run --filter @ship/ui-dom test` |
+| LSP | `bun run --filter @ship/ui-lsp test` |
 | Browser smoke | `node .artifacts/sui-counter-probe.mjs` (Playwright probe; daemon must be up) |
 
 ## Generated artifacts (gitignored, emitted under `dist/`)

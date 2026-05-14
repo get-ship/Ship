@@ -29,27 +29,22 @@ if ! command -v wasm-pack &>/dev/null; then
 fi
 echo "==> wasm-pack: $(wasm-pack --version)"
 
-# ── 3. Node / pnpm ───────────────────────────────────────────────────────────
-if ! command -v node &>/dev/null; then
-  echo "ERROR: Node.js not found. Install Node 20+ from https://nodejs.org or via nvm/fnm"
-  exit 1
+# ── 3. Bun ───────────────────────────────────────────────────────────────────
+if ! command -v bun &>/dev/null; then
+  echo "==> Installing bun..."
+  curl -fsSL https://bun.sh/install | bash
+  export PATH="$HOME/.bun/bin:$PATH"
 fi
-echo "==> Node: $(node --version)"
-
-if ! command -v pnpm &>/dev/null; then
-  echo "==> Installing pnpm..."
-  npm install -g pnpm
-fi
-echo "==> pnpm: $(pnpm --version)"
+echo "==> bun: $(bun --version)"
 
 # ── 4. Install ship binary from source ───────────────────────────────────────
 echo "==> Building + installing ship binary..."
 cargo install --path "$REPO_ROOT/apps/ship-cli" --locked --force
 echo "==> ship: $(ship --version)"
 
-# ── 5. pnpm install ──────────────────────────────────────────────────────────
+# ── 5. bun install ───────────────────────────────────────────────────────────
 echo "==> Installing JS dependencies..."
-cd "$REPO_ROOT" && pnpm install
+cd "$REPO_ROOT" && bun install
 
 # ── 6. Claude Code plugins (superpowers + tools) ─────────────────────────────
 if command -v claude &>/dev/null; then

@@ -78,12 +78,12 @@ describe('<sui-pipeline-step-def>', () => {
   it('renders a <pre> command block when command is set', async () => {
     const { el } = mount(reg, 'sui-pipeline-step-def', {
       name: 'x',
-      command: '  pnpm test  ',
+      command: '  bun run test  ',
     })
     await flush()
     const pre = shadow(el).querySelector('pre')
     expect(pre).not.toBeNull()
-    expect(pre!.textContent).toBe('pnpm test')
+    expect(pre!.textContent).toBe('bun run test')
   })
 
   it('omits the command block when unset', async () => {

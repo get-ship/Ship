@@ -17,9 +17,8 @@
  * only validates the SFC composition.
  */
 // Playwright lives under apps/shell (the package that depends on it).
-// pnpm doesn't hoist by default; symlinking through shell's node_modules
-// keeps the spec independent of pnpm's content-address path which
-// changes on every version bump.
+// Importing through shell's node_modules keeps the spec independent of
+// where the workspace installer places the package.
 import { chromium } from '../../apps/shell/node_modules/playwright/index.mjs';
 import { readFileSync } from 'node:fs';
 import { homedir } from 'node:os';

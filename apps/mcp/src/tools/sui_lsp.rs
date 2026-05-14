@@ -14,7 +14,7 @@ use tokio::process::Command;
 ///
 /// Lookup order:
 ///   1. `SHIP_WORKSPACE` env var.
-///   2. Walk upward from CWD looking for `pnpm-workspace.yaml`.
+///   2. Walk upward from CWD looking for `bun.lock`.
 pub fn resolve_cli_path() -> Result<PathBuf> {
     if let Ok(ws) = std::env::var("SHIP_WORKSPACE") {
         let candidate = PathBuf::from(ws).join("packages/sui-lsp/src/cli.ts");
@@ -37,7 +37,7 @@ pub fn resolve_cli_path() -> Result<PathBuf> {
 fn find_workspace_root(start: &Path) -> Option<PathBuf> {
     let mut cur = start.to_path_buf();
     loop {
-        if cur.join("pnpm-workspace.yaml").is_file() {
+        if cur.join("bun.lock").is_file() {
             return Some(cur);
         }
         if !cur.pop() {

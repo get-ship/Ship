@@ -19,11 +19,11 @@ CONTAINER_NAME="ship"
 
 # --- Volumes (named = persist across rebuilds, bind = host dirs) ---
 VOLUMES=(
-  # Named volumes — cargo + pnpm caches
+  # Named volumes — cargo + bun caches
   -v shipdev-cargo-registry:/home/dev/.cargo/registry:Z
   -v shipdev-cargo-git:/home/dev/.cargo/git:Z
   -v shipdev-target:/workspaces/ship/target:Z
-  -v shipdev-pnpm-store:/home/dev/.local/share/pnpm/store:Z
+  -v shipdev-bun-cache:/home/dev/.bun/install/cache:Z
 
   # Bind mounts — repo + host config
   -v "$REPO_DIR:/workspaces/ship:Z"
@@ -104,13 +104,10 @@ cmd_start() {
     cd /workspaces/ship
     eval "$($HOME/.local/bin/fnm env)"
 
-    # Ensure pnpm global virtual store is disabled (Astro build incompatible)
-    pnpm config set enable-global-virtual-store false 2>/dev/null
-
-    # pnpm install (skip if node_modules looks fresh)
-    if [[ ! -d node_modules/.pnpm ]]; then
+    # bun install (skip if node_modules looks fresh)
+    if [[ ! -d node_modules ]]; then
       echo "Installing JS deps..."
-      CI=true pnpm install 2>&1 | tail -3
+      CI=true bun install 2>&1 | tail -3
     fi
 
     # install ship binary (skip if already on PATH)

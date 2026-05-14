@@ -172,7 +172,7 @@ fn write_tsconfig(temp_dir: &Path, repo: &Path) {
     fs::write(&path, serde_json::to_string_pretty(&cfg).unwrap()).expect("write tsconfig");
 }
 
-/// Discover `tsc`. Production CI runs `pnpm install --frozen-lockfile`
+/// Discover `tsc`. Production CI runs `bun install --frozen-lockfile`
 /// before tests; locally devs may run from a fresh clone. Skip the
 /// tsc-bound assertion (with a printed warning) when nothing's
 /// available — the structural check still gates.
@@ -409,11 +409,11 @@ fn every_sui_typechecks_against_runtime_dts() {
     let repo = repo_root();
 
     // Skip cleanly when tsc isn't available — local first-clone flow,
-    // not CI. CI runs `pnpm install` before tests.
+    // not CI. CI runs `bun install` before tests.
     let Some(tsc_bin) = find_tsc(&repo) else {
         eprintln!(
             "shape-conformance: tsc not found at node_modules/.bin/tsc — \
-             run `pnpm install` to enable the typecheck pass. Structural \
+             run `bun install` to enable the typecheck pass. Structural \
              check still gates."
         );
         return;

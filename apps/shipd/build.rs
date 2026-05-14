@@ -56,7 +56,7 @@ fn main() {
 
     // Ensure `apps/shell/dist/` exists so `include_dir!` in shell_assets.rs
     // can compile when the shell hasn't been built yet. Embeds an empty dir;
-    // shell_assets returns a friendly "run `pnpm -F shell build`" page in
+    // shell_assets returns a friendly "run `bun run --filter shell build`" page in
     // that case.
     let shell_dist = manifest_dir.join("..").join("shell").join("dist");
     if let Err(e) = fs::create_dir_all(&shell_dist) {

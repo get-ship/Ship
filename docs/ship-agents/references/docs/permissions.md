@@ -65,7 +65,7 @@ If the four built-ins don't fit, write your own in `.ship/permissions.jsonc`:
 {
   "my-ci-preset": {
     "default_mode": "dontAsk",
-    "tools_allow": ["Read", "Glob", "Grep", "Bash(pnpm *)"],
+    "tools_allow": ["Read", "Glob", "Grep", "Bash(bun *)"],
     "tools_deny":  ["Write(*)", "Edit(*)"]
   }
 }

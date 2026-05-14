@@ -11,4 +11,4 @@ audience: internal
 - Per-operation pages (request/response schemas, examples, code samples) are generated from the OpenAPI spec and live under [`/http-api/operations/`](/http-api/operations/).
 - Non-2xx responses all share a single envelope — see [Error Codes](/http-api/errors/) for the canonical list and client-side handling guidance.
 
-The spec is the source of truth: a drift check (`pnpm -C apps/docs run openapi:check-drift`) fails CI if the committed JSON diverges from what the running daemon advertises.
+The spec is the source of truth: a drift check (`cd apps/docs && bun run openapi:check-drift`) fails CI if the committed JSON diverges from what the running daemon advertises.

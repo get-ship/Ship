@@ -23,7 +23,7 @@ URL="http://localhost:{{ port }}/__vitest__/"
 if curl -sf "$URL" > /dev/null 2>&1; then
   echo "Vitest UI already running on port {{ port }}"
 else
-  pnpm exec vitest --ui --api.port={{ port }} --api.host={{ host }}{% if filter %} {{ filter }}{% endif %}{% if coverage %} --coverage{% endif %} &
+  bunx vitest --ui --api.port={{ port }} --api.host={{ host }}{% if filter %} {{ filter }}{% endif %}{% if coverage %} --coverage{% endif %} &
   for i in $(seq 1 15); do
     curl -sf "$URL" > /dev/null 2>&1 && break || sleep 1
   done
@@ -46,7 +46,7 @@ rm -f "$(git rev-parse --show-toplevel)/.artifacts/{{ stable_id }}.url"
 Pass a pattern to scope the run, or use the search box in the UI:
 
 ```bash
-pnpm exec vitest --ui --api.port={{ port }} --api.host={{ host }} src/auth &
+bunx vitest --ui --api.port={{ port }} --api.host={{ host }} src/auth &
 ```
 
 {% if coverage %}
@@ -55,6 +55,6 @@ pnpm exec vitest --ui --api.port={{ port }} --api.host={{ host }} src/auth &
 Coverage tab is enabled via the `coverage` var. Requires `@vitest/coverage-v8`:
 
 ```bash
-pnpm add -D @vitest/coverage-v8
+bun add -D @vitest/coverage-v8
 ```
 {% endif %}

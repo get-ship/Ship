@@ -7,7 +7,7 @@
 //   1. Extend root vitest.config.ts `include` with 'views/**/*.test.ts'
 //   2. Add the @ship/sui-runtime alias (see packages/ui-components/vitest.config.ts)
 // Until the view test pipeline is formalised, run them manually:
-//   pnpm -C packages/ui-components exec vitest run views/settings/page.test.ts
+//   cd packages/ui-components && bunx vitest run views/settings/page.test.ts
 
 import { describe, it, expect } from 'vitest'
 import { signal } from '@ship/sui-runtime'

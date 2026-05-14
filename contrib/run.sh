@@ -13,7 +13,7 @@ podman run -it --rm \
   -v ship-cargo-registry:/home/dev/.cargo/registry:Z \
   -v ship-cargo-git:/home/dev/.cargo/git:Z \
   -v ship-target:/workspaces/ship/target:Z \
-  -v ship-pnpm-store:/home/dev/.local/share/pnpm/store:Z \
+  -v ship-bun-cache:/home/dev/.bun/install/cache:Z \
   -w /workspaces/ship \
   -p 3000:3000 \
   -p 3001:3001 \

@@ -6,7 +6,7 @@ file is the do-now checklist.
 
 Throughout: file paths are relative to the repo root, every snippet is
 either lifted from a real view (cited inline) or testable in isolation
-against `pnpm -F @ship/sui-runtime test`.
+against `bun run --filter @ship/sui-runtime test`.
 
 ---
 

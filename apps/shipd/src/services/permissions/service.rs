@@ -64,7 +64,7 @@ const BASH_SHAPES: &[(&str, &str)] = &[
     ("Bash(git reset*)", "Bash git — reset (destructive)"),
     ("Bash(git push --force*)", "Bash git — force push (destructive)"),
     ("Bash(npm *)", "Bash npm — all npm subcommands"),
-    ("Bash(pnpm *)", "Bash pnpm"),
+    ("Bash(bun *)", "Bash bun — all bun subcommands"),
     ("Bash(cargo *)", "Bash cargo"),
     ("Bash(ship *)", "Bash ship — Ship CLI"),
     ("Bash(just *)", "Bash just"),

@@ -46,7 +46,7 @@ SQLite state.
   route handler.
 - **Drizzle ORM** over DO SQLite storage. Schema in
   `src/data/schema/**/*.ts`; migrations in `migrations/` (regen via
-  `pnpm --filter @ship-cloud/platform schema:generate`).
+  `bun run --filter @ship-cloud/platform schema:generate`).
 - **RPC facades** for DO method exposure — each DO class exports
   facade classes (SyncFacade, JobsFacade, etc.) that the gateway calls
   across the DO boundary.

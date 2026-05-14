@@ -1,7 +1,7 @@
 // Standalone vitest config for the integration suite.
 //
 // The root `vitest.config.ts` runs in node mode and doesn't see the
-// pnpm-workspace `@ship/*` packages (they're symlinked under each
+// bun workspace `@ship/*` packages (they're symlinked under each
 // workspace member's `node_modules`, not at the root). This config
 // aliases the runtime + ui-dom + ui-sdk-client packages directly to
 // their TS sources so the integration tests can import them, and

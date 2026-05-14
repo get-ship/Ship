@@ -175,7 +175,7 @@ Authors don't call `component()` directly — the compiler emits it.
 Before declaring a `.sui` edit done, call `mcp__ship__sui_diagnostics` with the
 component file path to catch parse errors, missing `<prop>`/`<state>`
 attributes, unbound identifiers, or invalid template expressions — feedback the
-agent would otherwise only see during `pnpm -F ui-components test` or
+agent would otherwise only see during `bun run --filter ui-components test` or
 `cargo test -p sui-compiler`. For a single position, `mcp__ship__sui_hover`
 returns the declaration source + setup return type for an identifier.
 
@@ -197,7 +197,7 @@ server. Two integration paths:
    the server when a `.sui` file is opened (`.vscode/extensions.json`
    recommends it). Other editors can launch the server directly over stdio:
    `node packages/sui-lsp/bin/sui-lsp.js --stdio` (build first with
-   `pnpm -F @ship/sui-lsp build`). Map the `sui` language ID to that command
+   `bun run --filter @ship/sui-lsp build`). Map the `sui` language ID to that command
    for files matching `*.sui`.
 
 ## What's available in a view

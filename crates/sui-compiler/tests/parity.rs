@@ -5,7 +5,7 @@
 //! The full DOM-level parity check (compile + interpret side-by-side
 //! in jsdom and compare serialized HTML) lives in
 //! `tests/parity_runner.mjs`. It is gated on `RUN_PARITY=1` because
-//! it requires the workspace to be installed (`pnpm install`) so the
+//! it requires the workspace to be installed (`bun install`) so the
 //! TypeScript sources of `@ship/sui-dom` and `@ship/sui-runtime`
 //! resolve at runtime.
 
@@ -156,7 +156,7 @@ fn for_iteration_emit_has_no_scope_tdz() {
 }
 
 /// Full hydrate-and-compare parity. Opt-in: requires the workspace's
-/// JS dependencies to be installed (`pnpm install`) so that
+/// JS dependencies to be installed (`bun install`) so that
 /// `@ship/sui-dom` and `@ship/sui-runtime` resolve.
 #[test]
 fn full_parity_with_interpreter() {

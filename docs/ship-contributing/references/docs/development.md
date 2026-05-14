@@ -33,7 +33,7 @@ Ship provides a Podman-based dev container via `contrib/ship-dev.sh`. It package
 
 ### Volumes
 
-Named volumes persist across container rebuilds: cargo registry, cargo git, build target directory, and pnpm store. The repo itself is bind-mounted from the host. Host config directories (`.ship`, `.claude`, `.config/gh`, `.gitconfig`) are also mounted.
+Named volumes persist across container rebuilds: cargo registry, cargo git, build target directory, and the bun install cache. The repo itself is bind-mounted from the host. Host config directories (`.ship`, `.claude`, `.config/gh`, `.gitconfig`) are also mounted.
 
 ### Ports
 
@@ -102,7 +102,7 @@ just cf-types           # Regenerate Cloudflare worker types from wrangler.jsonc
 
 ```bash
 just clean        # Remove cargo target/ and web dist/
-just rebuild      # Full rebuild: clean, build, wasm, pnpm install, db-migrate
+just rebuild      # Full rebuild: clean, build, wasm, bun install, db-migrate
 just check-gates  # Verify both stable and unstable configurations compile
 ```
 

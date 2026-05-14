@@ -6,15 +6,15 @@
 //! bootstraps fresh worktrees by copying from the launching repo (or
 //! rebuilding when that's empty). Producers:
 //!
-//!   * `pnpm -F @ship/sui-runtime bundle` — sui-runtime.js
-//!   * `pnpm -F @ship/sui-dom bundle`     — sui-dom.js
-//!   * `pnpm -F @ship/sdk-client bundle`  — sui-sdk-client.js
-//!   * `pnpm -F @ship/ui-components build` — sui-components.js,
+//!   * `bun --filter @ship/sui-runtime bundle` — sui-runtime.js
+//!   * `bun --filter @ship/sui-dom bundle`     — sui-dom.js
+//!   * `bun --filter @ship/sdk-client bundle`  — sui-sdk-client.js
+//!   * `bun --filter @ship/ui-components build` — sui-components.js,
 //!     sui-islands/*.js, sui-custom-elements.json (via sui-build)
 //!   * the in-daemon Bun worker at `~/.ship/runtime/bundler.ts` —
 //!     refreshes everything above plus views/*/view.js while shipd
 //!     runs in dev mode
-//!   * `pnpm -F @ship/set icons` — lucide-icons.json
+//!   * `bun --filter @ship/set icons` — lucide-icons.json
 //!
 //! What this build script DOES is verify the assets are populated.
 //! Pre-existing failure mode: `cargo build` on a fresh clone wrote
@@ -24,10 +24,10 @@
 //! actionable.
 //!
 //! On a fresh clone without dispatch.sh, run the producers above (the
-//! convenience aggregate `pnpm -F @ship/sui-runtime bundle && pnpm -F
-//! @ship/sui-dom bundle && pnpm -F @ship/sdk-client bundle && pnpm -F
-//! @ship/ui-components build && pnpm -F @ship/set build && pnpm -F
-//! @ship/set icons`) before `cargo build`.
+//! convenience aggregate `bun --filter @ship/sui-runtime bundle && bun
+//! --filter @ship/sui-dom bundle && bun --filter @ship/sdk-client bundle
+//! && bun --filter @ship/ui-components build && bun --filter @ship/set
+//! build && bun --filter @ship/set icons`) before `cargo build`.
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -109,13 +109,13 @@ fn main() {
              Every asset under crates/ship-sui-server/assets/ is gitignored.\n\
              On fresh worktrees, dispatch.sh bootstraps them automatically.\n\
              For a standalone cargo build, regenerate by running (in order):\n\n  \
-             pnpm install --frozen-lockfile\n  \
-             pnpm -F @ship/sui-runtime bundle\n  \
-             pnpm -F @ship/sui-dom bundle\n  \
-             pnpm -F @ship/sdk-client bundle\n  \
-             pnpm -F @ship/ui-components build\n  \
-             pnpm -F @ship/set build\n  \
-             pnpm -F @ship/set icons\n\n\
+             bun install --frozen-lockfile\n  \
+             bun --filter @ship/sui-runtime bundle\n  \
+             bun --filter @ship/sui-dom bundle\n  \
+             bun --filter @ship/sdk-client bundle\n  \
+             bun --filter @ship/ui-components build\n  \
+             bun --filter @ship/set build\n  \
+             bun --filter @ship/set icons\n\n\
              then re-run `cargo build`."
         );
     }

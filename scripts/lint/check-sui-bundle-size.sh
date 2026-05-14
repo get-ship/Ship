@@ -19,8 +19,8 @@ declare -A BUDGETS=(
 )
 
 # Run bundles. Output goes to crates/ship-sui-server/assets/ per the bundle scripts.
-pnpm -F @ship/sui-runtime bundle >/dev/null 2>&1
-pnpm -F @ship/sui-dom bundle >/dev/null 2>&1
+bun run --filter @ship/sui-runtime bundle >/dev/null 2>&1
+bun run --filter @ship/sui-dom bundle >/dev/null 2>&1
 
 failures=0
 echo "sui bundle sizes:"

@@ -1,4 +1,4 @@
-#!/usr/bin/env -S pnpm exec tsx
+#!/usr/bin/env -S bunx tsx
 /**
  * OpenAPI drift check.
  *
@@ -43,8 +43,8 @@ function runSpec(): string {
   // deterministic (fixed traversal order, no clock / rng) so this stays
   // exact.
   const augment = spawnSync(
-    "pnpm",
-    ["exec", "tsx", AUGMENT],
+    "bunx",
+    ["tsx", AUGMENT],
     {
       cwd: REPO_ROOT,
       encoding: "utf8",
@@ -88,7 +88,7 @@ function main() {
   console.error(
     `Committed: ${COMMITTED}\n` +
       "Regenerate with:\n" +
-      "  pnpm -C apps/docs run openapi:generate\n" +
+      "  cd apps/docs && bun run openapi:generate\n" +
       "then commit the updated openapi.json.\n",
   );
 

@@ -7,7 +7,7 @@ export function findMonorepoRoot(startDir?: string): string {
 
   while (currentDir !== path.parse(currentDir).root) {
     if (
-      fs.existsSync(path.join(currentDir, 'pnpm-workspace.yaml')) ||
+      fs.existsSync(path.join(currentDir, 'bun.lock')) ||
       fs.existsSync(path.join(currentDir, '.git'))
     ) {
       return currentDir;

@@ -1,4 +1,4 @@
-#!/usr/bin/env -S pnpm exec tsx
+#!/usr/bin/env -S bunx tsx
 /**
  * Skill-docs drift check.
  *
@@ -58,8 +58,8 @@ function walk(root: string): Map<string, string> {
 
 function runCollectorTo(outputDir: string): void {
   const res = spawnSync(
-    "pnpm",
-    ["exec", "tsx", COLLECTOR],
+    "bunx",
+    ["tsx", COLLECTOR],
     {
       cwd: REPO_ROOT,
       encoding: "utf8",
@@ -82,7 +82,7 @@ function main(): void {
   if (!existsSync(ACTUAL_DIR)) {
     fatal(
       `actual output dir missing: ${ACTUAL_DIR}\n` +
-        "Run `pnpm -C apps/docs run collect` (or `just docs-regen`) first.",
+        "Run `cd apps/docs && bun run collect` (or `just docs-regen`) first.",
     )
   }
   const tmp = mkdtempSync(join(tmpdir(), "ship-docs-drift-"))
@@ -116,7 +116,7 @@ function main(): void {
       `Source: docs/<skill>/references/docs/\n` +
         `Generated: ${ACTUAL_DIR}\n\n` +
         "Regenerate with:\n" +
-        "  pnpm -C apps/docs run collect\n" +
+        "  cd apps/docs && bun run collect\n" +
         "(or `just docs-regen`).\n",
     )
     if (missing.length > 0) {

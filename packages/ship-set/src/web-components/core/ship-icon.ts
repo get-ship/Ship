@@ -8,7 +8,7 @@
  *
  * Add a new icon: append its name to
  * `packages/ship-set/scripts/lucide-allowlist.json`, then
- * `pnpm -F @ship/set build`.
+ * `bun run --filter @ship/set build`.
  *
  * Attributes:
  *   - name: Lucide icon id, kebab-case (e.g. "chevron-right",

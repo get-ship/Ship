@@ -1,4 +1,4 @@
-#!/usr/bin/env -S pnpm exec tsx
+#!/usr/bin/env -S bunx tsx
 /**
  * OpenAPI generate pipeline.
  *
@@ -43,8 +43,8 @@ function main() {
   }
 
   const augment = spawnSync(
-    "pnpm",
-    ["exec", "tsx", AUGMENT, "--out", OUT],
+    "bunx",
+    ["tsx", AUGMENT, "--out", OUT],
     {
       cwd: REPO_ROOT,
       encoding: "utf8",

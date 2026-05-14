@@ -33,4 +33,4 @@ just shell-dev   # starts vite at http://127.0.0.1:3100/
 - `src/mount.ts` — `mountDaemonFragment` primitive (+ `openDaemonSSE`)
 - `src/main.ts` — Navigo router, command palette, view mounting
 
-Bundles are built by `pnpm build:bundles` (root) before `cargo build`.
+Bundles are built by `bun run build:bundles` (root) before `cargo build`.

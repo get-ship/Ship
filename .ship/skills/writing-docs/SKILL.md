@@ -73,7 +73,7 @@ audience: internal
 
 ## Audience tiers
 
-| Value | On public site (`pnpm build`) | On internal dev site (`pnpm dev`) | Agent-only context |
+| Value | On public site (`bun run build`) | On internal dev site (`bun run dev`) | Agent-only context |
 |---|---|---|---|
 | `public` (default) | visible | visible | visible |
 | `internal` | hidden | visible | visible |
@@ -110,14 +110,14 @@ Content works for both a human scanning and an agent retrieving.
 Regenerate the site content:
 
 ```bash
-pnpm -C apps/docs collect           # user mode
-AUDIENCE=internal pnpm -C apps/docs collect   # internal mode
+cd apps/docs && bun run collect           # user mode
+AUDIENCE=internal bash -c 'cd apps/docs && bun run collect'   # internal mode
 ```
 
 Dev server watches source files and re-collects automatically:
 
 ```bash
-pnpm -C apps/docs dev               # binds --host, AUDIENCE=internal
+cd apps/docs && bun run dev               # binds --host, AUDIENCE=internal
 ```
 
 Open `http://localhost:4321`. Any edit in `docs/ship-*/references/docs/*.md` triggers a re-collect within a couple hundred ms.

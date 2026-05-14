@@ -224,7 +224,7 @@ function run(): void {
     copyFileSync(SHIP_ELEMENTS_SRC, SHIP_ELEMENTS_DEST)
     console.log(`[collect-docs] Copied ship-elements.js to public/.`)
   } else {
-    console.log(`[collect-docs] ship-elements.js not found at ${SHIP_ELEMENTS_SRC}. Run 'pnpm -C packages/ui bundle:elements' first.`)
+    console.log(`[collect-docs] ship-elements.js not found at ${SHIP_ELEMENTS_SRC}. Run 'cd packages/ui && bun run bundle:elements' first.`)
   }
 }
 

@@ -1,4 +1,4 @@
-#!/usr/bin/env -S pnpm exec tsx
+#!/usr/bin/env -S bunx tsx
 /**
  * OpenAPI augmentation — x-codeSamples injection.
  *
@@ -17,7 +17,7 @@
  *                                           ▼
  *                             apps/docs/openapi.json (COMMITTED)
  *
- * Both `pnpm run openapi:generate` and `check-openapi-drift` run this
+ * Both `bun run openapi:generate` and `check-openapi-drift` run this
  * augmentation on the raw cargo output before writing / comparing. As long
  * as the script is deterministic (it is — fixed ordering, no clock / rng),
  * drift-check stays exact.

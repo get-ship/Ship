@@ -115,7 +115,7 @@ After the implementation agent completes:
 
 ```bash
 # Start the dev server in the implementation worktree
-(cd ~/dev/ship-worktrees/impl-<feature> && pnpm dev &)
+(cd ~/dev/ship-worktrees/impl-<feature> && bun run dev &)
 
 # Browse and compare
 /browse goto http://localhost:3000/<page>

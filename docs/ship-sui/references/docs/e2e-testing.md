@@ -20,11 +20,11 @@ npx playwright install chromium
 # Run all three specs
 just qa-e2e
 
-# Or via pnpm directly
-pnpm test:e2e
+# Or via bun directly
+bun run test:e2e
 
 # Run one spec
-pnpm test:e2e -- tests/e2e/counter.spec.ts
+bun run test:e2e -- tests/e2e/counter.spec.ts
 
 # Show the HTML report after a run
 npx playwright show-report tests/e2e/report

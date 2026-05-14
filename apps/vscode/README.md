@@ -67,8 +67,8 @@ Add the binary to your PATH, or point `sui.serverPath` at it:
 
 ```bash
 cd apps/vscode
-pnpm install
-pnpm run compile
+bun install
+bun run compile
 npx vsce package
 code --install-extension ship-ui-0.1.0.vsix
 ```
@@ -76,7 +76,7 @@ code --install-extension ship-ui-0.1.0.vsix
 ### Development load
 
 1. Open `apps/vscode/` in VS Code.
-2. `pnpm install` then `pnpm run compile` (or run the `watch`
+2. `bun install` then `bun run compile` (or run the `watch`
    script during development).
 3. Press `F5` ("Run Extension") to launch an Extension Development
    Host with the extension loaded.

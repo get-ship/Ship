@@ -59,7 +59,7 @@ Configuration: `<package>/sui.config.ts`. Each package opts in by adding a `buil
 Source: `packages/sui-lsp/`. Provides diagnostics, hover, and completions for `.sui` files.
 
 ```sh
-pnpm -F @ship/sui-lsp build           # compile TS to dist/
+bun run --filter @ship/sui-lsp build           # compile TS to dist/
 
 # Native LSP stdio (point a generic editor at this):
 node packages/sui-lsp/bin/sui-lsp.js --stdio
@@ -93,7 +93,7 @@ VS Code: `apps/vscode/` auto-launches the server on `.sui` open (recommended via
 | `mcp__ship__sui_diagnostics` | Compile-grammar issues + missing bindings + lint warnings for one file |
 | `mcp__ship__sui_hover` | Same content the VS Code extension shows for a `(line, col)` position |
 
-Both spawn `bun` against `packages/sui-lsp/src/cli.ts` and parse its JSON output. CLI path resolution: `SHIP_WORKSPACE` env var, else walks upward looking for `pnpm-workspace.yaml`. Registration: `apps/mcp/src/server/mod.rs:783` (`sui_diagnostics`) and `:796` (`sui_hover`).
+Both spawn `bun` against `packages/sui-lsp/src/cli.ts` and parse its JSON output. CLI path resolution: `SHIP_WORKSPACE` env var, else walks upward looking for `bun.lock`. Registration: `apps/mcp/src/server/mod.rs:783` (`sui_diagnostics`) and `:796` (`sui_hover`).
 
 ```ts
 // Before declaring a `.sui` edit done:
@@ -191,7 +191,7 @@ For a clean dev restart use `just dev-restart`. Visual regressions: `just visual
 
 ## Fresh-clone bootstrap
 
-`just bootstrap` runs the full first-time-setup sequence (verifies bun + pnpm on PATH, then `cargo xtask gen-types` → `cargo build -p ship-cli` → `pnpm install` → `pnpm -F @ship/set icons` → `pnpm -F @ship/set build` → `pnpm -F @ship/ui-components build` → `just dev-runtime-install`). After it completes, `just dev` brings up the daemon.
+`just bootstrap` runs the full first-time-setup sequence (verifies bun on PATH, then `cargo xtask gen-types` → `cargo build -p ship-cli` → `bun install` → `bun run --filter @ship/set icons` → `bun run --filter @ship/set build` → `bun run --filter @ship/ui-components build` → `just dev-runtime-install`). After it completes, `just dev` brings up the daemon.
 
 ## Development vs production modes
 

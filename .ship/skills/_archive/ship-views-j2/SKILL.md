@@ -736,7 +736,7 @@ reference:
   grouped by category, with a table of contents.
 
 Both are generated from the macro source by
-`scripts/build-jinja-docs.mjs` (`pnpm build:jinja-docs`) and embedded
+`scripts/build-jinja-docs.mjs` (`bun run build:jinja-docs`) and embedded
 into the daemon at compile time — they never drift from the template.
 
 ## See also

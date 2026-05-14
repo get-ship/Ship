@@ -419,7 +419,7 @@ Three recipes guard runtime + visual surface before a PR:
 Before declaring a `.sui` edit done, call `mcp__ship__sui_diagnostics` with the
 file path to surface compile-grammar issues, missing bindings, or unstable-key
 warnings. This catches syntax errors that would only otherwise surface during
-`pnpm -F ui-components test` or `cargo test -p sui-compiler`. For type +
+`bun run --filter ui-components test` or `cargo test -p sui-compiler`. For type +
 binding info at a point, `mcp__ship__sui_hover` returns the same content the
 VS Code extension shows.
 
@@ -441,7 +441,7 @@ server. Two integration paths:
    the server when a `.sui` file is opened (`.vscode/extensions.json`
    recommends it). Other editors can launch the server directly over stdio:
    `node packages/sui-lsp/bin/sui-lsp.js --stdio` (build the package first
-   with `pnpm -F @ship/sui-lsp build`). Configure your client to map the
+   with `bun run --filter @ship/sui-lsp build`). Configure your client to map the
    `sui` language ID to that command for files matching `*.sui`.
 
 ## Components

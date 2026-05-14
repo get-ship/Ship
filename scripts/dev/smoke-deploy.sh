@@ -16,26 +16,26 @@ pass "cargo build"
 
 # Specta-driven type bindings: ship-set/cloud-types/sui-runtime each
 # import a sibling `generated.ts` that is .gitignored and produced by
-# the xtask. Without it the pnpm build fails to resolve.
+# the xtask. Without it the bun build fails to resolve.
 step "gen-types"
 cargo run -p xtask --quiet -- gen-types || fail "gen-types"
 pass "gen-types"
 
-step "pnpm install"
-pnpm install --frozen-lockfile || fail "pnpm install"
-pass "pnpm install"
+step "bun install"
+bun install --frozen-lockfile || fail "bun install"
+pass "bun install"
 
 # Lucide registry: ship-icon/ship-empty-state/ship-error-state import
-# `./lucide-icons.generated` (gitignored, produced by `pnpm -F @ship/set
+# `./lucide-icons.generated` (gitignored, produced by `bun run --filter @ship/set
 # icons`). Run before `@ship/set build` or esbuild can't resolve it.
 step "ship-set icons"
-pnpm -F @ship/set icons || fail "ship-set icons"
+bun run --filter @ship/set icons || fail "ship-set icons"
 pass "ship-set icons"
 
 step "ship-set/ui-components build"
-pnpm -F @ship/set build || fail "ship-set build"
-pnpm -F @ship/ui-components build || fail "ui-components build"
-pass "pnpm build"
+bun run --filter @ship/set build || fail "ship-set build"
+bun run --filter @ship/ui-components build || fail "ui-components build"
+pass "bun build"
 
 step "daemon restart"
 just dev-restart || fail "daemon restart"
@@ -54,7 +54,7 @@ node scripts/dev/smoke-views.mjs --port "$port" || fail "view smoke"
 pass "view smoke"
 
 step "playwright visual"
-pnpm test:e2e:visual || fail "visual"
+bun run test:e2e:visual || fail "visual"
 pass "visual"
 
 printf '\n\033[32m✓ smoke-deploy passed\033[0m\n'

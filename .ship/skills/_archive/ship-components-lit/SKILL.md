@@ -401,7 +401,7 @@ yesterday's first pass.
 9. **No components without a header comment** describing: what it is,
    its attrs, its slots, its events. One block comment at the top of
    the file. Used by documentation generators and by future agents.
-10. **No new pnpm workspace packages** without explicit design approval.
+10. **No new bun workspace packages** without explicit design approval.
     Everything web-component lives in `@ship/set`.
 
 ## Polish pass — bringing an existing component to shadcn/Radix quality
@@ -441,10 +441,10 @@ pattern from the ship-button polish (see git history for `ship-button.ts`).
 
 After changes, run the full loop:
 
-1. **Unit tests**: `cd packages/ship-set && pnpm test <component>`
+1. **Unit tests**: `cd packages/ship-set && bun run test <component>`
 2. **Bundle + reload daemon:**
    ```bash
-   /workspaces/ship/node_modules/.pnpm/@esbuild+linux-x64@0.25.12/node_modules/@esbuild/linux-x64/bin/esbuild \
+   bunx esbuild \
      packages/ship-set/src/web-components/index.ts --bundle --format=esm --target=es2020 \
      --outfile=apps/shipd/assets/ship-elements.js --log-level=warning
    cp apps/shipd/assets/ship-elements.js apps/shell/public/vendor/ship-elements.js
@@ -592,9 +592,9 @@ attribute autocomplete and type checking.
 Both files regenerate from source automatically on build:
 
 ```
-pnpm -F @ship/set build      # full pipeline: tsc → manifest → catalog
-pnpm -F @ship/set manifest   # CEM only
-pnpm -F @ship/set catalog    # compact catalog only (requires fresh CEM)
+bun run --filter @ship/set build      # full pipeline: tsc → manifest → catalog
+bun run --filter @ship/set manifest   # CEM only
+bun run --filter @ship/set catalog    # compact catalog only (requires fresh CEM)
 ```
 
 ## Daemon-rendered views (minijinja + Datastar SSE)

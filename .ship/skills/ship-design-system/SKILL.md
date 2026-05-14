@@ -370,8 +370,8 @@ spec for every token declared in `tokens.css` (plus the dynamic
 `--tone-*` contract set by `util.toneVars()`). One entry per token
 with its `layer`, `intent`, `type`, `default`, and `themable` flag.
 Use it to generate Figma tokens, IDE autocomplete, or any design-asset
-exporter. Keep it in sync with the CSS — the `pnpm -C packages/ship-set
-lint:tokens` script (defined in `packages/ship-set/scripts/lint-tokens.mjs`)
+exporter. Keep it in sync with the CSS — the `cd packages/ship-set &&
+bun run lint:tokens` script (defined in `packages/ship-set/scripts/lint-tokens.mjs`)
 fails on drift in either direction, on hardcoded `rgba` / `oklch` / hex
 literals inside component CSS, on `var(--X)` references that name a
 token not in the schema, and warns on `color-mix(... var(--tone) 14%, transparent)`

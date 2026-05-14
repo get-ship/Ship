@@ -41,7 +41,7 @@ schemas/
 
 ### Option 1: Dev Container (recommended)
 
-The dev container includes all dependencies pre-installed: Rust toolchain, Node via fnm, pnpm, wasm-pack, just, and standard dev tools. Uses Podman (Docker-compatible).
+The dev container includes all dependencies pre-installed: Rust toolchain, Node via fnm, bun, wasm-pack, just, and standard dev tools. Uses Podman (Docker-compatible).
 
 ```bash
 cp contrib/ship-dev.sh ~/bin/ship-dev
@@ -55,12 +55,12 @@ The container mounts the repo at `/workspaces/ship` and exposes ports for Studio
 
 ### Option 2: Local Setup
 
-Prerequisites: Rust (rustup + stable), Node.js (via fnm or nvm), pnpm, wasm-pack, just, git.
+Prerequisites: Rust (rustup + stable), Node.js (via fnm or nvm), bun, wasm-pack, just, git.
 
 ```bash
 git clone https://github.com/madvib/ship.git
 cd ship
-pnpm install
+bun install
 cargo build --features unstable -p ship-cli -p mcp
 ```
 

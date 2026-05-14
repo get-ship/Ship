@@ -1,5 +1,5 @@
 {
-  "_comment": "Curated icon set bundled into ship-elements. Add a name here when a view starts using it. Names must exist in lucide-static/icons. Run `pnpm -F @ship/set build` to regenerate the runtime registry.",
+  "_comment": "Curated icon set bundled into ship-elements. Add a name here when a view starts using it. Names must exist in lucide-static/icons. Run `bun run --filter @ship/set build` to regenerate the runtime registry.",
   "icons": [
     "activity",
     "app-window",

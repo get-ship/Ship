@@ -231,11 +231,11 @@ h1{font-size:18px}</style></head><body>
 <h1>Ship shell bundle not found</h1>
 <p>The daemon was built without a populated <code>apps/shell/dist/</code>.
 Run:</p>
-<pre><code>pnpm -F shell build</code></pre>
+<pre><code>bun run --filter shell build</code></pre>
 <p>then rebuild the daemon:</p>
 <pre><code>cargo build -p shipd --bin shipd</code></pre>
 <p>Or use the dev proxy — in one terminal start Vite:</p>
-<pre><code>pnpm -F shell dev</code></pre>
+<pre><code>bun run --filter shell dev</code></pre>
 <p>then run the daemon with <code>SHIP_SHELL_DEV_URL=http://127.0.0.1:3100</code>.</p>
 </body></html>"#;
     Response::builder()

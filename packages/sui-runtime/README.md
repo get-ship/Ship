@@ -149,5 +149,5 @@ See `.artifacts/specs/ship-set/03-runtime-architecture.md` for the full design.
 ## Tests
 
 ```
-pnpm test
+bun run test
 ```

@@ -140,13 +140,13 @@ Commit message rules:
 
 ## Test commands
 
-When the spec requires running tests, use **pnpm** (this is a pnpm-only
-workspace) and **always wrap with a timeout** so a hung test fails
-fast instead of pinning CPU for hours:
+When the spec requires running tests, use **bun** (this is a bun-only
+workspace — `bun.lock` is the lockfile) and **always wrap with a
+timeout** so a hung test fails fast instead of pinning CPU for hours:
 
 ```
-timeout 120 pnpm -F @ship/<package> test --run
+timeout 120 bun run --filter @ship/<package> test --run
 ```
 
 Never use `npx vitest run` — npx pulls dependencies through npm and
-creates a `package-lock.json` orphan. The repo uses pnpm; respect it.
+creates a `package-lock.json` orphan. The repo uses bun; respect it.

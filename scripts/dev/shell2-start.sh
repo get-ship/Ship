@@ -12,7 +12,7 @@ pf=$(vite_pid_file)
 kill_vite
 
 # Launch vite in the foreground but track its PID so dev-stop can reap it.
-pnpm --filter shell2 dev &
+bun run --filter shell2 dev &
 vite_pid=$!
 echo "$vite_pid" > "$pf"
 
