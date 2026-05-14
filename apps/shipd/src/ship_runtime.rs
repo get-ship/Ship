@@ -537,6 +537,13 @@ impl ShipRuntime {
     /// The worker process is spawned on first call and supervised thereafter.
     /// The repo root defaults to the workspace dir (or cwd as fallback) since
     /// that's where `packages/` and `views/` live.
+    ///
+    /// Dev-mode override: if the workspace contains a checked-in
+    /// `runtime-assets/bundler.ts`, point the worker at *that* copy instead of
+    /// the one stashed under `~/.ship/runtime/`. Without this, contributors
+    /// editing `runtime-assets/bundler.ts` in the repo see no effect until
+    /// they re-run `ship runtime install` — a footgun that has bitten more
+    /// than one debugging session.
     pub fn bundler(&self) -> &ship_application::bundler::Bundler {
         self.bundler.get_or_init(|| {
             let home = ship_substrate::ShipHome::at(self.ship_dir.clone());
@@ -545,7 +552,20 @@ impl ShipRuntime {
                 .clone()
                 .or_else(|| std::env::current_dir().ok())
                 .unwrap_or_else(|| self.ship_dir.clone());
-            ship_application::bundler::Bundler::start(&home, repo_root)
+            let bundler_override = repo_root.join("runtime-assets").join("bundler.ts");
+            if bundler_override.is_file() {
+                tracing::info!(
+                    path = %bundler_override.display(),
+                    "bundler: using in-repo bundler.ts (dev override)"
+                );
+                ship_application::bundler::Bundler::start_with_script(
+                    &home,
+                    repo_root,
+                    bundler_override,
+                )
+            } else {
+                ship_application::bundler::Bundler::start(&home, repo_root)
+            }
         })
     }
 

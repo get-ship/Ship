@@ -9,7 +9,7 @@
 // Start:  bun run ~/.ship/runtime/bundler.ts
 // Stop:   send { id, kind: 'shutdown' } or close stdin
 
-import { existsSync, mkdirSync, readdirSync, watch } from 'node:fs'
+import { existsSync, lstatSync, mkdirSync, readdirSync, watch } from 'node:fs'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { homedir, tmpdir } from 'node:os'
 import { basename, dirname, isAbsolute, join, resolve } from 'node:path'
@@ -345,7 +345,7 @@ async function buildTarget(
 // ── File watcher ──────────────────────────────────────────────────────────────
 
 type FSWatcher = ReturnType<typeof watch>
-let activeWatcher: FSWatcher | null = null
+let activeWatchers: FSWatcher[] = []
 
 // Debounce: skip rebuild requests within 150ms of the last one per target
 const rebuildDebounce = new Map<string, ReturnType<typeof setTimeout>>()
@@ -370,8 +370,55 @@ function targetsForFile(absPath: string): BundleTarget[] {
   })
 }
 
+// Per-directory watch. We deliberately avoid `recursive: true` because Bun's
+// Linux implementation walks symlinks and aborts the entire subtree the first
+// time it hits a broken one — common in monorepos with stale `node_modules/`
+// symlinks. Walking real subdirectories ourselves keeps each watcher isolated.
+function watchDirRecursive(root: string, onFile: (absPath: string) => void) {
+  const SKIP = new Set(['node_modules', '.git', '.ship', 'target', 'dist', '.cache'])
+
+  function attach(dir: string) {
+    let entries: import('node:fs').Dirent[]
+    try {
+      entries = readdirSync(dir, { withFileTypes: true })
+    } catch {
+      return
+    }
+    let w: FSWatcher
+    try {
+      w = watch(dir, (event, filename) => {
+        if (!filename) return
+        const child = join(dir, filename)
+        // New directory created? Attach a watcher to it too.
+        if (event === 'rename') {
+          try {
+            const st = lstatSync(child)
+            if (st.isDirectory() && !SKIP.has(filename)) attach(child)
+          } catch {
+            // child was deleted between event and stat — ignore
+          }
+        }
+        onFile(child)
+      })
+    } catch {
+      return
+    }
+    w.on('error', (err: unknown) => {
+      const msg = err instanceof Error ? err.message : String(err)
+      process.stderr.write(`[bundler] watch error on ${dir}: ${msg}\n`)
+    })
+    activeWatchers.push(w)
+    for (const e of entries) {
+      if (!e.isDirectory()) continue
+      if (SKIP.has(e.name)) continue
+      attach(join(dir, e.name))
+    }
+  }
+  attach(root)
+}
+
 function startWatching() {
-  if (activeWatcher) return
+  if (activeWatchers.length > 0) return
 
   const watchDirs: string[] = []
   for (const d of ['packages', 'views', '.ship/views']) {
@@ -381,12 +428,10 @@ function startWatching() {
   if (watchDirs.length === 0) return
 
   for (const dir of watchDirs) {
-    const w = watch(dir, { recursive: true }, (_event, filename) => {
-      if (!filename) return
-      const ext = filename.split('.').pop()
+    watchDirRecursive(dir, (absPath) => {
+      const ext = absPath.split('.').pop()
       if (!['ts', 'tsx', 'js', 'sui'].includes(ext ?? '')) return
 
-      const absPath = join(dir, filename)
       const affected = targetsForFile(absPath)
       const toRebuild = affected.length > 0 ? affected : TARGETS
 
@@ -409,16 +454,14 @@ function startWatching() {
         })
       }
     })
-    // keep the last watcher handle (we'll close all on stop)
-    activeWatcher = w
   }
 }
 
 function stopWatching() {
-  if (activeWatcher) {
-    activeWatcher.close()
-    activeWatcher = null
+  for (const w of activeWatchers) {
+    try { w.close() } catch {}
   }
+  activeWatchers = []
   for (const t of rebuildDebounce.values()) clearTimeout(t)
   rebuildDebounce.clear()
 }

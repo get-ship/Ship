@@ -125,11 +125,17 @@ const MAX_RESTARTS: u32 = 20;
 /// Start the supervised worker. Returns a handle immediately; the worker
 /// process is spawned in the background.
 pub fn start(home: &ShipHome, repo_root: PathBuf) -> WorkerHandle {
+    start_with_script(home, repo_root, home.runtime_bundler_ts())
+}
+
+/// Like `start`, but uses `bundler_ts` as the path to the bundler script
+/// instead of `~/.ship/runtime/bundler.ts`. Bun is still sourced from the
+/// installed runtime.
+pub fn start_with_script(home: &ShipHome, repo_root: PathBuf, bundler_ts: PathBuf) -> WorkerHandle {
     let (cmd_tx, cmd_rx) = mpsc::channel::<PendingCall>(64);
     let (event_tx, _) = broadcast::channel::<BundlerEvent>(128);
 
     let bun = home.runtime_bun();
-    let bundler_ts = home.runtime_bundler_ts();
     let event_tx2 = event_tx.clone();
     let cmd_rx = Arc::new(Mutex::new(cmd_rx));
 
