@@ -13,12 +13,13 @@ members = [
     "crates/core/ship-kernel",
     "crates/core/ship-pipelines",
     "crates/core/ship-types",
-    "crates/sui-compiler",
-    "crates/ship-sui-host",
-    "crates/sui-lint",
-    "crates/ship-sui-server",
-    "crates/sui-signals",
-    "crates/ship-sui",
+    "crates/ship-supervisor",
+    "crates/sui/sui-compiler",
+    "crates/sui/ship-sui-host",
+    "crates/sui/sui-lint",
+    "crates/sui/ship-sui-server",
+    "crates/sui/sui-signals",
+    "crates/sui/ship-sui",
     "crates/xtask",
     "packages/sui-grammar",
     "apps/mcp",
@@ -66,7 +67,7 @@ tracing-subscriber = "0.3"
 tracing-appender = "0.2"
 
 # Filesystem / paths
-dirs = "6"
+home = "0.5"
 tempfile = "3"
 notify = { version = "7", default-features = false, features = ["macos_fsevent"] }
 

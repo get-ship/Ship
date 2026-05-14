@@ -1,5 +1,5 @@
 // packages/ui-components/src/islands/sui-command-bar/sui-command-bar.sui
-import { adoptSuiSheets, attachRef, bindIf, bindText, component, effect as effect2, on, prop } from "@ship/sui-runtime";
+import { adoptSuiSheets, attachRef, bindIf, bindText, component, effect as effect2, on, prop, signal as signal2 } from "@ship/sui-runtime";
 
 // packages/ui-components/src/islands/sui-command-bar/sui-command-bar.controller.ts
 import { controller, signal, derived, effect, ref, shared } from "@ship/sui-runtime";
@@ -506,7 +506,9 @@ var sui_command_bar_controller_default = controller({
 });
 
 // packages/ui-components/src/islands/sui-command-bar/sui-command-bar.sui
+/*! _compilerVersion {"cargo":"0.1.0","git":"d4751a31","dirty":true,"builtAt":"2026-05-14T02:37:23Z"} */
 var sui_command_bar_default = component("sui-command-bar", {
+  _compilerVersion: { cargo: "0.1.0", git: "d4751a31", dirty: true, builtAt: "2026-05-14T02:37:23Z" },
   props: {
     open: prop.bool({ default: false, reflect: true }),
     mode: prop.string({ default: "ai", reflect: true })
@@ -583,6 +585,7 @@ var sui_command_bar_default = component("sui-command-bar", {
     const $scope = Object.create(null);
     $scope.open = props.open;
     $scope.mode = props.mode;
+    $scope["dialogRef"] = signal2(null);
     let __r = null;
     if (sui_command_bar_controller_default && typeof sui_command_bar_controller_default.setup === "function") {
       ctx.scope = $scope;
@@ -709,7 +712,8 @@ var sui_command_bar_default = component("sui-command-bar", {
 });
 
 // packages/ui-components/src/islands/sui-command-bar/sui-command-chat.sui
-import { adoptSuiSheets as adoptSuiSheets2, bindAttr, bindClass, bindFor, bindIf as bindIf2, bindText as bindText2, bindValue, component as component2, effect as effect3, on as on2 } from "@ship/sui-runtime";
+import { bindAttr, bindClass, bindFor, bindIf as bindIf2, bindText as bindText2, bindValue, effect as effect3, on as on2, signal as signal3, view } from "@ship/sui-runtime";
+import { collectElementMarkers, collectTextOpens, hydrateAttr, hydrateBindValue, hydrateOn, hydrateStyle, hydrateText } from "@ship/sui-dom";
 
 // packages/ui-components/src/islands/sui-command-bar/sui-command-chat.controller.ts
 import { controller as controller2, derived as derived2, useShared } from "@ship/sui-runtime";
@@ -798,557 +802,455 @@ var sui_command_chat_controller_default = controller2({
 });
 
 // packages/ui-components/src/islands/sui-command-bar/sui-command-chat.sui
-var sui_command_chat_default = component2("sui-command-chat", {
-  shadow: true,
-  styles: `
-  :host { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; }
-
-  /* ── Header ───────────────────────────────────────────────────── */
-  .cb-chat-header {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 10px 14px;
-    border-bottom: 1px solid var(--border);
-    flex: 0 0 auto;
+/*! _compilerVersion {"cargo":"0.1.0","git":"d4751a31","dirty":true,"builtAt":"2026-05-14T02:37:23Z"} */
+var sui_command_chat_default = Object.assign(view((ctx) => {
+  const { ship, route, navigate } = ctx;
+  const $scope = Object.create(null);
+  $scope.ship = ship;
+  $scope.route = route;
+  $scope.navigate = navigate;
+  if (sui_command_chat_controller_default && typeof sui_command_chat_controller_default.setup === "function") {
+    ctx.scope = $scope;
+    const __r = sui_command_chat_controller_default.setup(ctx);
+    if (__r && typeof __r === "object")
+      Object.assign($scope, __r);
   }
-  .cb-dot {
-    width: 8px; height: 8px;
-    border-radius: 999px;
-    flex-shrink: 0;
-  }
-  .cb-chat-header .title { font-size: 13px; font-weight: 600; }
-  .cb-chat-header .sub { font-size: 11px; color: var(--muted-foreground); }
-  .cb-chip-wrap { position: relative; flex-shrink: 0; }
-  .cb-session-chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    padding: 2px 8px;
-    border: 1px solid var(--border);
-    border-radius: 999px;
-    font-size: 11px;
-    color: var(--muted-foreground);
-    cursor: pointer;
-    user-select: none;
-  }
-  .cb-session-chip:hover { background: var(--muted); }
-  .cb-esc {
-    font-family: var(--font-mono);
-    font-size: 10px;
-    padding: 1px 5px;
-    border: 1px solid var(--border);
-    border-radius: 3px;
-    background: var(--muted);
-    color: var(--muted-foreground);
-  }
-
-  /* ── Session picker ───────────────────────────────────────────── */
-  .cb-session-popover {
-    position: absolute;
-    top: calc(100% + 4px);
-    right: 0;
-    min-width: 280px;
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-md, 6px);
-    box-shadow: var(--shadow-lg);
-    z-index: 10;
-    padding: 4px 0;
-  }
-  .cb-session-row {
-    display: grid;
-    grid-template-columns: 14px 1fr auto;
-    align-items: center;
-    gap: 8px;
-    padding: 7px 12px;
-    cursor: pointer;
-    font-size: 12px;
-  }
-  .cb-session-row:hover { background: var(--muted); }
-  .cb-session-row.current { background: color-mix(in oklch, var(--primary) 8%, transparent); }
-  .cb-session-row .meta { color: var(--muted-foreground); font-size: 11px; }
-  .cb-session-end {
-    background: transparent; border: none; cursor: pointer;
-    color: var(--muted-foreground); font-size: 14px; padding: 0 2px;
-  }
-  .cb-session-end:hover { color: var(--destructive, red); }
-  .cb-session-sep { height: 1px; background: var(--border); margin: 4px 0; }
-  .cb-session-action {
-    display: flex; align-items: center; gap: 8px;
-    padding: 7px 12px; cursor: pointer; font-size: 12px;
-    color: var(--muted-foreground);
-  }
-  .cb-session-action:hover { background: var(--muted); color: var(--foreground); }
-
-  /* ── Messages ─────────────────────────────────────────────────── */
-  .cb-chat-messages {
-    flex: 1;
-    min-height: 0;
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    scrollbar-width: thin;
-    padding: 12px 14px;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-  .cb-chat-empty { color: var(--muted-foreground); font-size: 13px; text-align: center; margin-top: 24px; }
-  .cb-chat-turn { display: flex; flex-direction: column; }
-  .cb-chat-turn[data-sender='user'] { align-items: flex-end; }
-  .cb-chat-turn[data-sender='agent'] { align-items: flex-start; }
-  .cb-chat-turn[data-sender='system'] { align-items: center; }
-  .cb-chat-bubble {
-    max-width: 80%;
-    padding: 7px 10px;
-    border-radius: var(--radius-md, 6px);
-    font-size: 13px;
-    line-height: 1.5;
-    white-space: pre-wrap;
-    word-break: break-word;
-  }
-  .cb-chat-turn[data-sender='user'] .cb-chat-bubble {
-    background: var(--primary);
-    color: var(--primary-foreground, #fff);
-  }
-  .cb-chat-turn[data-sender='agent'] .cb-chat-bubble {
-    background: var(--muted);
-    color: var(--foreground);
-  }
-  .cb-chat-turn[data-sender='system'] .cb-chat-bubble {
-    background: transparent;
-    color: var(--muted-foreground);
-    font-size: 11px;
-    font-family: var(--font-mono);
-  }
-
-  /* ── Composer ─────────────────────────────────────────────────── */
-  .cb-chat-composer {
-    display: flex;
-    gap: 8px;
-    align-items: flex-end;
-    padding: 10px 14px;
-    border-top: 1px solid var(--border);
-    flex: 0 0 auto;
-  }
-  .cb-chat-input {
-    flex: 1;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm, 4px);
-    background: var(--background);
-    color: var(--foreground);
-    font: inherit;
-    font-size: 13px;
-    padding: 6px 8px;
-    resize: none;
-    line-height: 1.4;
-  }
-  .cb-chat-input:focus { outline: none; border-color: var(--primary); }
-  .cb-chat-send {
-    height: 32px;
-    padding: 0 14px;
-    border: none;
-    border-radius: var(--radius-sm, 4px);
-    background: var(--primary);
-    color: var(--primary-foreground, #fff);
-    font: inherit;
-    font-size: 13px;
-    cursor: pointer;
-    flex-shrink: 0;
-    align-self: flex-end;
-  }
-  .cb-chat-send:disabled { opacity: 0.5; cursor: not-allowed; }
-`,
-  setup(ctx) {
-    const { props, host } = ctx;
-    if (!ctx.cleanups)
-      ctx.cleanups = [];
-    const __cleanups = ctx.cleanups;
-    const $scope = Object.create(null);
-    let __r = null;
-    if (sui_command_chat_controller_default && typeof sui_command_chat_controller_default.setup === "function") {
-      ctx.scope = $scope;
-      __r = sui_command_chat_controller_default.setup(ctx);
-      if (__r && typeof __r === "object")
-        Object.assign($scope, __r);
+  const __wireBoundary_b6 = (anchor) => bindFor({
+    anchor,
+    items: () => $scope.activeSessions(),
+    key: (s, __i) => {
+      const __child = Object.create($scope);
+      __child.s = s;
+      __child.__i = __i;
+      return (($scope2) => s.id)(__child);
+    },
+    render: (s, __i) => {
+      const __childScope18 = Object.create($scope);
+      __childScope18.s = s;
+      __childScope18.__i = __i;
+      __childScope18.__v = signal3(0);
+      return (($scope2) => {
+        const __frag19 = document.createDocumentFragment();
+        const __c20 = [];
+        const __e21 = document.createElement("div");
+        __e21.setAttribute("class", "cb-session-row");
+        __c20.push(bindClass(__e21, "current", () => (void $scope2.__v(), $scope2.bar.session()?.id === $scope2.s.id)));
+        __e21.setAttribute("role", "option");
+        __c20.push(on2(__e21, "click", function() {
+          const __h = () => $scope2.selectSession($scope2.s.id);
+          return typeof __h === "function" ? __h.bind(undefined) : () => {};
+        }(), { modifiers: [] }));
+        const __e22 = document.createElement("span");
+        __e22.setAttribute("class", "cb-dot");
+        __c20.push(effect3(() => {
+          $scope2.__v();
+          const __v = $scope2.s.status === "thinking" ? "var(--warning,#d97706)" : "var(--success,#16a34a)";
+          if (__v == null)
+            __e22.style.removeProperty("background");
+          else
+            __e22.style.setProperty("background", String(__v));
+        }));
+        __e21.appendChild(__e22);
+        const __e23 = document.createElement("span");
+        const __e24 = document.createElement("strong");
+        const __t25 = document.createTextNode("");
+        __e24.appendChild(__t25);
+        __c20.push(bindText2(__t25, () => (void $scope2.__v(), $scope2.s.agent_id ?? "")));
+        __e23.appendChild(__e24);
+        const __e26 = document.createElement("span");
+        __e26.setAttribute("class", "meta");
+        const __t27 = document.createTextNode(" · ");
+        __e26.appendChild(__t27);
+        const __t28 = document.createTextNode("");
+        __e26.appendChild(__t28);
+        __c20.push(bindText2(__t28, () => (void $scope2.__v(), $scope2.s.provider ?? "")));
+        const __t29 = document.createTextNode(" · ");
+        __e26.appendChild(__t29);
+        const __t30 = document.createTextNode("");
+        __e26.appendChild(__t30);
+        __t30.textContent = $scope2.s.workspace_id;
+        __e23.appendChild(__e26);
+        __e21.appendChild(__e23);
+        const __e31 = document.createElement("button");
+        __e31.setAttribute("class", "cb-session-end");
+        __e31.setAttribute("type", "button");
+        __e31.setAttribute("aria-label", "End session");
+        __c20.push(on2(__e31, "click", function() {
+          const __h = (e) => {
+            e.stopPropagation();
+            $scope2.endSession($scope2.s.id);
+          };
+          return typeof __h === "function" ? __h.bind(undefined) : () => {};
+        }(), { modifiers: [] }));
+        const __t32 = document.createTextNode("×");
+        __e31.appendChild(__t32);
+        __e21.appendChild(__e31);
+        __frag19.appendChild(__e21);
+        return { nodes: Array.from(__frag19.childNodes), cleanup: () => {
+          for (const c of __c20)
+            try {
+              c();
+            } catch (e) {}
+        }, update: (__new33, __newI34) => {
+          $scope2.s = __new33;
+          $scope2.__i = __newI34;
+          __t30.textContent = $scope2.s.workspace_id;
+          $scope2.__v.set((c) => c + 1);
+        } };
+      })(__childScope18);
     }
-    const __wireBoundary_b6 = (anchor) => bindFor({
-      anchor,
-      items: () => $scope.activeSessions(),
-      key: (s, __i) => {
-        const __child = Object.create($scope);
-        __child.s = s;
-        __child.__i = __i;
-        return (($scope2) => s.id)(__child);
-      },
-      render: (s, __i) => {
-        const __childScope18 = Object.create($scope);
-        __childScope18.s = s;
-        __childScope18.__i = __i;
-        return (($scope2) => {
-          const __frag19 = document.createDocumentFragment();
-          const __c20 = [];
-          const __e21 = document.createElement("div");
-          __e21.setAttribute("class", "cb-session-row");
-          __c20.push(bindClass(__e21, "current", () => $scope2.bar.session()?.id === $scope2.s.id));
-          __e21.setAttribute("role", "option");
-          __c20.push(on2(__e21, "click", function() {
-            const __h = () => $scope2.selectSession($scope2.s.id);
-            return typeof __h === "function" ? __h.bind(undefined) : () => {};
-          }(), { modifiers: [] }));
-          const __e22 = document.createElement("span");
-          __e22.setAttribute("class", "cb-dot");
-          __c20.push(effect3(() => {
-            const __v = $scope2.s.status === "thinking" ? "var(--warning,#d97706)" : "var(--success,#16a34a)";
-            if (__v == null)
-              __e22.style.removeProperty("background");
+  });
+  const __wireBoundary_b14 = (anchor) => bindIf2({
+    anchor,
+    test: () => {
+      if ($scope.activeSessions().length === 0)
+        return 0;
+      return -1;
+    },
+    branches: [
+      () => {
+        const __frag36 = document.createDocumentFragment();
+        const __c37 = [];
+        const __e38 = document.createElement("div");
+        __e38.setAttribute("class", "cb-session-row");
+        const __e39 = document.createElement("span");
+        __e38.appendChild(__e39);
+        const __e40 = document.createElement("span");
+        __e40.setAttribute("class", "meta");
+        const __t41 = document.createTextNode("No active sessions");
+        __e40.appendChild(__t41);
+        __e38.appendChild(__e40);
+        const __e42 = document.createElement("span");
+        __e38.appendChild(__e42);
+        __frag36.appendChild(__e38);
+        return { nodes: Array.from(__frag36.childNodes), cleanup: () => {
+          for (const c of __c37)
+            try {
+              c();
+            } catch (e) {}
+        } };
+      }
+    ]
+  });
+  const __wireBoundary_b5 = (anchor) => bindIf2({
+    anchor,
+    test: () => {
+      if ($scope.bar.sessionPickerOpen())
+        return 0;
+      return -1;
+    },
+    branches: [
+      () => {
+        const __frag14 = document.createDocumentFragment();
+        const __c15 = [];
+        const __e16 = document.createElement("div");
+        __e16.setAttribute("class", "cb-session-popover");
+        __e16.setAttribute("role", "listbox");
+        __e16.setAttribute("aria-label", "Sessions");
+        const __forAnchor17 = document.createComment("for");
+        __e16.appendChild(__forAnchor17);
+        __c15.push(__wireBoundary_b6(__forAnchor17));
+        const __ifAnchor35 = document.createComment("if");
+        __e16.appendChild(__ifAnchor35);
+        __c15.push(__wireBoundary_b14(__ifAnchor35));
+        const __e43 = document.createElement("div");
+        __e43.setAttribute("class", "cb-session-sep");
+        __e43.setAttribute("role", "separator");
+        __e16.appendChild(__e43);
+        const __e44 = document.createElement("div");
+        __e44.setAttribute("class", "cb-session-action");
+        __c15.push(on2(__e44, "click", function() {
+          const __h = $scope.startNewSession;
+          return typeof __h === "function" ? __h.bind(undefined) : () => {};
+        }(), { modifiers: [] }));
+        const __e45 = document.createElement("sui-icon");
+        __e45.setAttribute("name", "plus");
+        __e45.setAttribute("size", "sm");
+        __e45.setAttribute("aria-hidden", "true");
+        __e44.appendChild(__e45);
+        const __e46 = document.createElement("span");
+        const __t47 = document.createTextNode("Start new session");
+        __e46.appendChild(__t47);
+        __e44.appendChild(__e46);
+        __e16.appendChild(__e44);
+        const __e48 = document.createElement("div");
+        __e48.setAttribute("class", "cb-session-action");
+        __c15.push(on2(__e48, "click", function() {
+          const __h = $scope.viewChats;
+          return typeof __h === "function" ? __h.bind(undefined) : () => {};
+        }(), { modifiers: [] }));
+        const __e49 = document.createElement("sui-icon");
+        __e49.setAttribute("name", "columns");
+        __e49.setAttribute("size", "sm");
+        __e49.setAttribute("aria-hidden", "true");
+        __e48.appendChild(__e49);
+        const __e50 = document.createElement("span");
+        const __t51 = document.createTextNode("View all chats");
+        __e50.appendChild(__t51);
+        __e48.appendChild(__e50);
+        __e16.appendChild(__e48);
+        __frag14.appendChild(__e16);
+        return { nodes: Array.from(__frag14.childNodes), cleanup: () => {
+          for (const c of __c15)
+            try {
+              c();
+            } catch (e) {}
+        } };
+      }
+    ]
+  });
+  const __wireBoundary_b18 = (anchor) => bindFor({
+    anchor,
+    items: () => $scope.bar.thread(),
+    key: (msg, __i) => {
+      const __child = Object.create($scope);
+      __child.msg = msg;
+      __child.__i = __i;
+      return (($scope2) => msg.id)(__child);
+    },
+    render: (msg, __i) => {
+      const __childScope63 = Object.create($scope);
+      __childScope63.msg = msg;
+      __childScope63.__i = __i;
+      __childScope63.__v = signal3(0);
+      return (($scope2) => {
+        const __frag64 = document.createDocumentFragment();
+        const __c65 = [];
+        const __e66 = document.createElement("div");
+        __e66.setAttribute("class", "cb-chat-turn");
+        {
+          const __av67 = $scope2.msg.sender;
+          if (__av67 == null || __av67 === false || __av67 === "")
+            __e66.removeAttribute("data-sender");
+          else
+            __e66.setAttribute("data-sender", __av67 === true ? "" : String(__av67));
+        }
+        const __e68 = document.createElement("div");
+        __e68.setAttribute("class", "cb-chat-bubble");
+        const __t69 = document.createTextNode("");
+        __e68.appendChild(__t69);
+        __t69.textContent = $scope2.msg.text;
+        __e66.appendChild(__e68);
+        __frag64.appendChild(__e66);
+        return { nodes: Array.from(__frag64.childNodes), cleanup: () => {
+          for (const c of __c65)
+            try {
+              c();
+            } catch (e) {}
+        }, update: (__new70, __newI71) => {
+          $scope2.msg = __new70;
+          $scope2.__i = __newI71;
+          {
+            const __av67 = $scope2.msg.sender;
+            if (__av67 == null || __av67 === false || __av67 === "")
+              __e66.removeAttribute("data-sender");
             else
-              __e22.style.setProperty("background", String(__v));
-          }));
-          __e21.appendChild(__e22);
-          const __e23 = document.createElement("span");
-          const __e24 = document.createElement("strong");
-          const __t25 = document.createTextNode("");
-          __e24.appendChild(__t25);
-          __c20.push(bindText2(__t25, () => $scope2.s.agent_id ?? ""));
-          __e23.appendChild(__e24);
-          const __e26 = document.createElement("span");
-          __e26.setAttribute("class", "meta");
-          const __t27 = document.createTextNode(" · ");
-          __e26.appendChild(__t27);
-          const __t28 = document.createTextNode("");
-          __e26.appendChild(__t28);
-          __c20.push(bindText2(__t28, () => $scope2.s.provider ?? ""));
-          const __t29 = document.createTextNode(" · ");
-          __e26.appendChild(__t29);
-          const __t30 = document.createTextNode("");
-          __e26.appendChild(__t30);
-          __c20.push(bindText2(__t30, () => $scope2.s.workspace_id));
-          __e23.appendChild(__e26);
-          __e21.appendChild(__e23);
-          const __e31 = document.createElement("button");
-          __e31.setAttribute("class", "cb-session-end");
-          __e31.setAttribute("type", "button");
-          __e31.setAttribute("aria-label", "End session");
-          __c20.push(on2(__e31, "click", function() {
-            const __h = (e) => {
-              e.stopPropagation();
-              $scope2.endSession($scope2.s.id);
-            };
-            return typeof __h === "function" ? __h.bind(undefined) : () => {};
-          }(), { modifiers: [] }));
-          const __t32 = document.createTextNode("×");
-          __e31.appendChild(__t32);
-          __e21.appendChild(__e31);
-          __frag19.appendChild(__e21);
-          return { nodes: Array.from(__frag19.childNodes), cleanup: () => {
-            for (const c of __c20)
-              try {
-                c();
-              } catch (e) {}
-          } };
-        })(__childScope18);
-      }
-    });
-    const __wireBoundary_b14 = (anchor) => bindIf2({
-      anchor,
-      test: () => {
-        if ($scope.activeSessions().length === 0)
-          return 0;
-        return -1;
-      },
-      branches: [
-        () => {
-          const __frag34 = document.createDocumentFragment();
-          const __c35 = [];
-          const __e36 = document.createElement("div");
-          __e36.setAttribute("class", "cb-session-row");
-          const __e37 = document.createElement("span");
-          __e36.appendChild(__e37);
-          const __e38 = document.createElement("span");
-          __e38.setAttribute("class", "meta");
-          const __t39 = document.createTextNode("No active sessions");
-          __e38.appendChild(__t39);
-          __e36.appendChild(__e38);
-          const __e40 = document.createElement("span");
-          __e36.appendChild(__e40);
-          __frag34.appendChild(__e36);
-          return { nodes: Array.from(__frag34.childNodes), cleanup: () => {
-            for (const c of __c35)
-              try {
-                c();
-              } catch (e) {}
-          } };
-        }
-      ]
-    });
-    const __wireBoundary_b5 = (anchor) => bindIf2({
-      anchor,
-      test: () => {
-        if ($scope.bar.sessionPickerOpen())
-          return 0;
-        return -1;
-      },
-      branches: [
-        () => {
-          const __frag14 = document.createDocumentFragment();
-          const __c15 = [];
-          const __e16 = document.createElement("div");
-          __e16.setAttribute("class", "cb-session-popover");
-          __e16.setAttribute("role", "listbox");
-          __e16.setAttribute("aria-label", "Sessions");
-          const __forAnchor17 = document.createComment("for");
-          __e16.appendChild(__forAnchor17);
-          __c15.push(__wireBoundary_b6(__forAnchor17));
-          const __ifAnchor33 = document.createComment("if");
-          __e16.appendChild(__ifAnchor33);
-          __c15.push(__wireBoundary_b14(__ifAnchor33));
-          const __e41 = document.createElement("div");
-          __e41.setAttribute("class", "cb-session-sep");
-          __e41.setAttribute("role", "separator");
-          __e16.appendChild(__e41);
-          const __e42 = document.createElement("div");
-          __e42.setAttribute("class", "cb-session-action");
-          __c15.push(on2(__e42, "click", function() {
-            const __h = $scope.startNewSession;
-            return typeof __h === "function" ? __h.bind(undefined) : () => {};
-          }(), { modifiers: [] }));
-          const __e43 = document.createElement("sui-icon");
-          __e43.setAttribute("name", "plus");
-          __e43.setAttribute("size", "sm");
-          __e43.setAttribute("aria-hidden", "true");
-          __e42.appendChild(__e43);
-          const __e44 = document.createElement("span");
-          const __t45 = document.createTextNode("Start new session");
-          __e44.appendChild(__t45);
-          __e42.appendChild(__e44);
-          __e16.appendChild(__e42);
-          const __e46 = document.createElement("div");
-          __e46.setAttribute("class", "cb-session-action");
-          __c15.push(on2(__e46, "click", function() {
-            const __h = $scope.viewChats;
-            return typeof __h === "function" ? __h.bind(undefined) : () => {};
-          }(), { modifiers: [] }));
-          const __e47 = document.createElement("sui-icon");
-          __e47.setAttribute("name", "columns");
-          __e47.setAttribute("size", "sm");
-          __e47.setAttribute("aria-hidden", "true");
-          __e46.appendChild(__e47);
-          const __e48 = document.createElement("span");
-          const __t49 = document.createTextNode("View all chats");
-          __e48.appendChild(__t49);
-          __e46.appendChild(__e48);
-          __e16.appendChild(__e46);
-          __frag14.appendChild(__e16);
-          return { nodes: Array.from(__frag14.childNodes), cleanup: () => {
-            for (const c of __c15)
-              try {
-                c();
-              } catch (e) {}
-          } };
-        }
-      ]
-    });
-    const __wireBoundary_b18 = (anchor) => bindFor({
-      anchor,
-      items: () => $scope.bar.thread(),
-      key: (msg, __i) => {
-        const __child = Object.create($scope);
-        __child.msg = msg;
-        __child.__i = __i;
-        return (($scope2) => msg.id)(__child);
-      },
-      render: (msg, __i) => {
-        const __childScope61 = Object.create($scope);
-        __childScope61.msg = msg;
-        __childScope61.__i = __i;
-        return (($scope2) => {
-          const __frag62 = document.createDocumentFragment();
-          const __c63 = [];
-          const __e64 = document.createElement("div");
-          __e64.setAttribute("class", "cb-chat-turn");
-          __c63.push(bindAttr(__e64, "data-sender", () => $scope2.msg.sender));
-          const __e65 = document.createElement("div");
-          __e65.setAttribute("class", "cb-chat-bubble");
-          const __t66 = document.createTextNode("");
-          __e65.appendChild(__t66);
-          __c63.push(bindText2(__t66, () => $scope2.msg.text));
-          __e64.appendChild(__e65);
-          __frag62.appendChild(__e64);
-          return { nodes: Array.from(__frag62.childNodes), cleanup: () => {
-            for (const c of __c63)
-              try {
-                c();
-              } catch (e) {}
-          } };
-        })(__childScope61);
-      }
-    });
-    const __wireBoundary_b17 = (anchor) => bindIf2({
-      anchor,
-      test: () => {
-        if ($scope.bar.thread().length === 0)
-          return 0;
-        return 1;
-      },
-      branches: [
-        () => {
-          const __frag54 = document.createDocumentFragment();
-          const __c55 = [];
-          const __e56 = document.createElement("div");
-          __e56.setAttribute("class", "cb-chat-empty");
-          const __t57 = document.createTextNode("Type below and press Enter. The agent's replies land here.");
-          __e56.appendChild(__t57);
-          __frag54.appendChild(__e56);
-          return { nodes: Array.from(__frag54.childNodes), cleanup: () => {
-            for (const c of __c55)
-              try {
-                c();
-              } catch (e) {}
-          } };
-        },
-        () => {
-          const __frag58 = document.createDocumentFragment();
-          const __c59 = [];
-          const __forAnchor60 = document.createComment("for");
-          __frag58.appendChild(__forAnchor60);
-          __c59.push(__wireBoundary_b18(__forAnchor60));
-          return { nodes: Array.from(__frag58.childNodes), cleanup: () => {
-            for (const c of __c59)
-              try {
-                c();
-              } catch (e) {}
-          } };
-        }
-      ]
-    });
-    const __root = host.shadowRoot ?? host;
-    adoptSuiSheets2(__root);
-    const __e0 = document.createElement("div");
-    __e0.setAttribute("class", "cb-chat-header");
-    const __e1 = document.createElement("span");
-    __e1.setAttribute("class", "cb-dot");
-    __cleanups.push(effect3(() => {
-      const __v = $scope.headerDotBg();
-      if (__v == null)
-        __e1.style.removeProperty("background");
-      else
-        __e1.style.setProperty("background", String(__v));
-    }));
-    __e1.setAttribute("aria-hidden", "true");
-    __e0.appendChild(__e1);
-    const __e2 = document.createElement("div");
-    __e2.setAttribute("style", "display:grid;line-height:1.25");
-    const __e3 = document.createElement("span");
-    __e3.setAttribute("class", "title");
-    const __t4 = document.createTextNode("");
-    __e3.appendChild(__t4);
-    __cleanups.push(bindText2(__t4, () => $scope.bar.session()?.agent_id ?? ""));
-    __e2.appendChild(__e3);
-    const __e5 = document.createElement("span");
-    __e5.setAttribute("class", "sub");
-    const __t6 = document.createTextNode("");
-    __e5.appendChild(__t6);
-    __cleanups.push(bindText2(__t6, () => $scope.bar.session()?.provider ?? "â"));
-    const __t7 = document.createTextNode(" · ");
-    __e5.appendChild(__t7);
-    const __t8 = document.createTextNode("");
-    __e5.appendChild(__t8);
-    __cleanups.push(bindText2(__t8, () => $scope.bar.session()?.workspace_id ?? ""));
-    __e2.appendChild(__e5);
-    __e0.appendChild(__e2);
-    const __e9 = document.createElement("span");
-    __e9.setAttribute("style", "flex:1");
-    __e0.appendChild(__e9);
-    const __e10 = document.createElement("div");
-    __e10.setAttribute("class", "cb-chip-wrap");
-    const __e11 = document.createElement("span");
-    __e11.setAttribute("class", "cb-session-chip");
-    __e11.setAttribute("role", "button");
-    __e11.setAttribute("aria-haspopup", "listbox");
-    __cleanups.push(on2(__e11, "click", function() {
-      const __h = $scope.toggleSessionPicker;
-      return typeof __h === "function" ? __h.bind(undefined) : () => {};
-    }(), { modifiers: [] }));
-    const __t12 = document.createTextNode("Switch");
-    __e11.appendChild(__t12);
-    __e10.appendChild(__e11);
-    const __ifAnchor13 = document.createComment("if");
-    __e10.appendChild(__ifAnchor13);
-    __cleanups.push(__wireBoundary_b5(__ifAnchor13));
-    __e0.appendChild(__e10);
-    const __e50 = document.createElement("kbd");
-    __e50.setAttribute("class", "cb-esc");
-    __e50.setAttribute("aria-label", "Escape to close");
-    const __t51 = document.createTextNode("esc");
-    __e50.appendChild(__t51);
-    __e0.appendChild(__e50);
-    __root.appendChild(__e0);
-    const __e52 = document.createElement("div");
-    __e52.setAttribute("class", "cb-chat-messages");
-    const __ifAnchor53 = document.createComment("if");
-    __e52.appendChild(__ifAnchor53);
-    __cleanups.push(__wireBoundary_b17(__ifAnchor53));
-    __root.appendChild(__e52);
-    const __e67 = document.createElement("div");
-    __e67.setAttribute("class", "cb-chat-composer");
-    const __e68 = document.createElement("textarea");
-    __e68.setAttribute("class", "cb-chat-input");
-    __e68.setAttribute("rows", "2");
-    __e68.setAttribute("placeholder", "Message the agent…");
-    __cleanups.push(bindValue(__e68, $scope.bar.value));
-    __cleanups.push(on2(__e68, "keydown", function() {
-      const __h = $scope.onComposerKeydown;
-      return typeof __h === "function" ? __h.bind(undefined) : () => {};
-    }(), { modifiers: [] }));
-    __e67.appendChild(__e68);
-    const __e69 = document.createElement("button");
-    __e69.setAttribute("class", "cb-chat-send");
-    __e69.setAttribute("type", "button");
-    __cleanups.push(bindAttr(__e69, "disabled", () => !$scope.bar.value().trim()));
-    __cleanups.push(on2(__e69, "click", function() {
-      const __h = $scope.sendMessage;
-      return typeof __h === "function" ? __h.bind(undefined) : () => {};
-    }(), { modifiers: [] }));
-    const __t70 = document.createTextNode("Send");
-    __e69.appendChild(__t70);
-    __e67.appendChild(__e69);
-    __root.appendChild(__e67);
-    if (__r != null) {
-      const __lc = Object.getOwnPropertyDescriptor(__r, "__shipSetLifecycle")?.value;
-      if (__lc) {
-        const __sp = new Proxy($scope, {
-          get(t, k) {
-            return t[k];
-          },
-          set(t, k, v) {
-            const s = t[k];
-            if (s != null && typeof s.set === "function") {
-              if (typeof v === "function") {
-                s.set(() => v);
-              } else {
-                s.set(v);
-              }
-              return true;
-            }
-            return false;
+              __e66.setAttribute("data-sender", __av67 === true ? "" : String(__av67));
           }
-        });
-        if (__lc.mount) {
-          const __mc = __lc.mount(__sp, host);
-          if (typeof __mc === "function")
-            __cleanups.push(__mc);
-        }
-        if (__lc.unmount)
-          __cleanups.push(() => __lc.unmount(__sp));
-      }
+          __t69.textContent = $scope2.msg.text;
+          $scope2.__v.set((c) => c + 1);
+        } };
+      })(__childScope63);
     }
-    return $scope;
-  }
-});
+  });
+  const __wireBoundary_b17 = (anchor) => bindIf2({
+    anchor,
+    test: () => {
+      if ($scope.bar.thread().length === 0)
+        return 0;
+      return 1;
+    },
+    branches: [
+      () => {
+        const __frag56 = document.createDocumentFragment();
+        const __c57 = [];
+        const __e58 = document.createElement("div");
+        __e58.setAttribute("class", "cb-chat-empty");
+        const __t59 = document.createTextNode("Type below and press Enter. The agent's replies land here.");
+        __e58.appendChild(__t59);
+        __frag56.appendChild(__e58);
+        return { nodes: Array.from(__frag56.childNodes), cleanup: () => {
+          for (const c of __c57)
+            try {
+              c();
+            } catch (e) {}
+        } };
+      },
+      () => {
+        const __frag60 = document.createDocumentFragment();
+        const __c61 = [];
+        const __forAnchor62 = document.createComment("for");
+        __frag60.appendChild(__forAnchor62);
+        __c61.push(__wireBoundary_b18(__forAnchor62));
+        return { nodes: Array.from(__frag60.childNodes), cleanup: () => {
+          for (const c of __c61)
+            try {
+              c();
+            } catch (e) {}
+        } };
+      }
+    ]
+  });
+  return Object.assign({}, $scope, {
+    __mount(container) {
+      const __cleanups = [];
+      const __e0 = document.createElement("div");
+      __e0.setAttribute("class", "cb-chat-header");
+      const __e1 = document.createElement("span");
+      __e1.setAttribute("class", "cb-dot");
+      __cleanups.push(effect3(() => {
+        const __v = $scope.headerDotBg();
+        if (__v == null)
+          __e1.style.removeProperty("background");
+        else
+          __e1.style.setProperty("background", String(__v));
+      }));
+      __e1.setAttribute("aria-hidden", "true");
+      __e0.appendChild(__e1);
+      const __e2 = document.createElement("div");
+      __e2.setAttribute("style", "display:grid;line-height:1.25");
+      const __e3 = document.createElement("span");
+      __e3.setAttribute("class", "title");
+      const __t4 = document.createTextNode("");
+      __e3.appendChild(__t4);
+      __cleanups.push(bindText2(__t4, () => $scope.bar.session()?.agent_id ?? ""));
+      __e2.appendChild(__e3);
+      const __e5 = document.createElement("span");
+      __e5.setAttribute("class", "sub");
+      const __t6 = document.createTextNode("");
+      __e5.appendChild(__t6);
+      __cleanups.push(bindText2(__t6, () => $scope.bar.session()?.provider ?? "—"));
+      const __t7 = document.createTextNode(" · ");
+      __e5.appendChild(__t7);
+      const __t8 = document.createTextNode("");
+      __e5.appendChild(__t8);
+      __cleanups.push(bindText2(__t8, () => $scope.bar.session()?.workspace_id ?? ""));
+      __e2.appendChild(__e5);
+      __e0.appendChild(__e2);
+      const __e9 = document.createElement("span");
+      __e9.setAttribute("style", "flex:1");
+      __e0.appendChild(__e9);
+      const __e10 = document.createElement("div");
+      __e10.setAttribute("class", "cb-chip-wrap");
+      const __e11 = document.createElement("span");
+      __e11.setAttribute("class", "cb-session-chip");
+      __e11.setAttribute("role", "button");
+      __e11.setAttribute("aria-haspopup", "listbox");
+      __cleanups.push(on2(__e11, "click", function() {
+        const __h = $scope.toggleSessionPicker;
+        return typeof __h === "function" ? __h.bind(undefined) : () => {};
+      }(), { modifiers: [] }));
+      const __t12 = document.createTextNode("Switch");
+      __e11.appendChild(__t12);
+      __e10.appendChild(__e11);
+      const __ifAnchor13 = document.createComment("if");
+      __e10.appendChild(__ifAnchor13);
+      __cleanups.push(__wireBoundary_b5(__ifAnchor13));
+      __e0.appendChild(__e10);
+      const __e52 = document.createElement("kbd");
+      __e52.setAttribute("class", "cb-esc");
+      __e52.setAttribute("aria-label", "Escape to close");
+      const __t53 = document.createTextNode("esc");
+      __e52.appendChild(__t53);
+      __e0.appendChild(__e52);
+      container.appendChild(__e0);
+      const __e54 = document.createElement("div");
+      __e54.setAttribute("class", "cb-chat-messages");
+      const __ifAnchor55 = document.createComment("if");
+      __e54.appendChild(__ifAnchor55);
+      __cleanups.push(__wireBoundary_b17(__ifAnchor55));
+      container.appendChild(__e54);
+      const __e72 = document.createElement("div");
+      __e72.setAttribute("class", "cb-chat-composer");
+      const __e73 = document.createElement("textarea");
+      __e73.setAttribute("class", "cb-chat-input");
+      __e73.setAttribute("rows", "2");
+      __e73.setAttribute("placeholder", "Message the agent…");
+      __cleanups.push(bindValue(__e73, $scope.bar.value));
+      __cleanups.push(on2(__e73, "keydown", function() {
+        const __h = $scope.onComposerKeydown;
+        return typeof __h === "function" ? __h.bind(undefined) : () => {};
+      }(), { modifiers: [] }));
+      __e72.appendChild(__e73);
+      const __e74 = document.createElement("button");
+      __e74.setAttribute("class", "cb-chat-send");
+      __e74.setAttribute("type", "button");
+      __cleanups.push(bindAttr(__e74, "disabled", () => !$scope.bar.value().trim()));
+      __cleanups.push(on2(__e74, "click", function() {
+        const __h = $scope.sendMessage;
+        return typeof __h === "function" ? __h.bind(undefined) : () => {};
+      }(), { modifiers: [] }));
+      const __t75 = document.createTextNode("Send");
+      __e74.appendChild(__t75);
+      __e72.appendChild(__e74);
+      container.appendChild(__e72);
+      return () => {
+        for (const c of __cleanups)
+          try {
+            c();
+          } catch (e) {}
+      };
+    },
+    hydrate(root, ctx2) {
+      const __cleanups = [];
+      const __t = collectTextOpens(root);
+      const __m = collectElementMarkers(root);
+      if (__m["b0"])
+        __cleanups.push(hydrateStyle(__m["b0"], "background", () => $scope.headerDotBg()));
+      if (__t["b1"])
+        __cleanups.push(hydrateText(__t["b1"], () => $scope.bar.session()?.agent_id ?? ""));
+      if (__t["b2"])
+        __cleanups.push(hydrateText(__t["b2"], () => $scope.bar.session()?.provider ?? "—"));
+      if (__t["b3"])
+        __cleanups.push(hydrateText(__t["b3"], () => $scope.bar.session()?.workspace_id ?? ""));
+      if (__m["b4"])
+        __cleanups.push(hydrateOn(__m["b4"], "click", function() {
+          const __h = $scope.toggleSessionPicker;
+          return typeof __h === "function" ? __h.bind(undefined) : () => {};
+        }(), []));
+      if (__m["b5"]) {
+        const __t2 = __m["b5"];
+        const __doc = __t2.ownerDocument ?? document;
+        const __anchor = __t2.nodeType === 1 ? __doc.createComment("if") : __t2;
+        if (__t2.nodeType === 1 && __t2.parentNode)
+          __t2.parentNode.replaceChild(__anchor, __t2);
+        __cleanups.push(__wireBoundary_b5(__anchor));
+      }
+      if (__m["b17"]) {
+        const __t2 = __m["b17"];
+        const __doc = __t2.ownerDocument ?? document;
+        const __anchor = __t2.nodeType === 1 ? __doc.createComment("if") : __t2;
+        if (__t2.nodeType === 1 && __t2.parentNode)
+          __t2.parentNode.replaceChild(__anchor, __t2);
+        __cleanups.push(__wireBoundary_b17(__anchor));
+      }
+      if (__m["b21"])
+        __cleanups.push(hydrateBindValue(__m["b21"], $scope.bar.value));
+      if (__m["b22"])
+        __cleanups.push(hydrateOn(__m["b22"], "keydown", function() {
+          const __h = $scope.onComposerKeydown;
+          return typeof __h === "function" ? __h.bind(undefined) : () => {};
+        }(), []));
+      if (__m["b23"])
+        __cleanups.push(hydrateAttr(__m["b23"], "disabled", () => !$scope.bar.value().trim()));
+      if (__m["b24"])
+        __cleanups.push(hydrateOn(__m["b24"], "click", function() {
+          const __h = $scope.sendMessage;
+          return typeof __h === "function" ? __h.bind(undefined) : () => {};
+        }(), []));
+      return () => {
+        for (const c of __cleanups)
+          try {
+            c();
+          } catch (e) {}
+      };
+    }
+  });
+}), { _compilerVersion: { cargo: "0.1.0", git: "d4751a31", dirty: true, builtAt: "2026-05-14T02:37:23Z" } });
 
 // packages/ui-components/src/islands/sui-command-bar/sui-command-palette.sui
-import { adoptSuiSheets as adoptSuiSheets3, bindAttr as bindAttr2, bindClass as bindClass2, bindFor as bindFor2, bindIf as bindIf3, bindText as bindText3, bindValue as bindValue2, component as component3, effect as effect4, on as on3 } from "@ship/sui-runtime";
+import { bindAttr as bindAttr2, bindClass as bindClass2, bindFor as bindFor2, bindIf as bindIf3, bindText as bindText3, bindValue as bindValue2, effect as effect4, on as on3, signal as signal4, view as view2 } from "@ship/sui-runtime";
+import { collectElementMarkers as collectElementMarkers2, collectTextOpens as collectTextOpens2, hydrateAttr as hydrateAttr2, hydrateBindValue as hydrateBindValue2, hydrateClass, hydrateOn as hydrateOn2, hydrateStyle as hydrateStyle2, hydrateText as hydrateText2 } from "@ship/sui-dom";
 
 // packages/ui-components/src/islands/sui-command-bar/sui-command-palette.controller.ts
 import { controller as controller3, derived as derived3, useShared as useShared2 } from "@ship/sui-runtime";
@@ -1594,1316 +1496,1260 @@ var sui_command_palette_controller_default = controller3({
 });
 
 // packages/ui-components/src/islands/sui-command-bar/sui-command-palette.sui
-var sui_command_palette_default = component3("sui-command-palette", {
-  shadow: true,
-  styles: `
-  :host { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; }
-
-  /* ── Input row ────────────────────────────────────────────────── */
-  .cb-input-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 10px 14px;
-    border-bottom: 1px solid var(--border);
-    flex: 0 0 auto;
+/*! _compilerVersion {"cargo":"0.1.0","git":"d4751a31","dirty":true,"builtAt":"2026-05-14T02:37:23Z"} */
+var sui_command_palette_default = Object.assign(view2((ctx) => {
+  const { ship, route, navigate } = ctx;
+  const $scope = Object.create(null);
+  $scope.ship = ship;
+  $scope.route = route;
+  $scope.navigate = navigate;
+  if (sui_command_palette_controller_default && typeof sui_command_palette_controller_default.setup === "function") {
+    ctx.scope = $scope;
+    const __r = sui_command_palette_controller_default.setup(ctx);
+    if (__r && typeof __r === "object")
+      Object.assign($scope, __r);
   }
-  .cb-mode-glyph {
-    font-family: var(--font-mono);
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--muted-foreground);
-    flex-shrink: 0;
-    min-width: 16px;
-    text-align: center;
-  }
-  .cb-mode-glyph.ai {
-    font-size: 10px;
-    padding: 1px 4px;
-    border: 1px solid var(--border);
-    border-radius: 3px;
-    background: var(--muted);
-  }
-  .cb-search {
-    flex: 1;
-    border: none;
-    outline: none;
-    background: transparent;
-    font: inherit;
-    font-size: 14px;
-    color: var(--foreground);
-    caret-color: var(--foreground);
-  }
-  .cb-search::placeholder { color: var(--muted-foreground); }
-  .cb-esc {
-    font-family: var(--font-mono);
-    font-size: 10px;
-    padding: 1px 5px;
-    border: 1px solid var(--border);
-    border-radius: 3px;
-    background: var(--muted);
-    color: var(--muted-foreground);
-    flex-shrink: 0;
-  }
-
-  /* ── Session chip ─────────────────────────────────────────────── */
-  .cb-chip-wrap { position: relative; flex-shrink: 0; }
-  .cb-session-chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    padding: 2px 8px;
-    border: 1px solid var(--border);
-    border-radius: 999px;
-    font-size: 11px;
-    color: var(--muted-foreground);
-    cursor: pointer;
-    user-select: none;
-    max-width: 140px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .cb-session-chip:hover { background: var(--muted); }
-  .cb-dot {
-    width: 6px; height: 6px;
-    border-radius: 999px;
-    flex-shrink: 0;
-    display: inline-block;
-  }
-
-  /* ── Session popover ──────────────────────────────────────────── */
-  .cb-session-popover {
-    position: absolute;
-    top: calc(100% + 4px);
-    right: 0;
-    min-width: 280px;
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-md, 6px);
-    box-shadow: var(--shadow-lg);
-    z-index: 10;
-    padding: 4px 0;
-    overflow: hidden;
-  }
-  .cb-session-row {
-    display: grid;
-    grid-template-columns: 14px 1fr auto;
-    align-items: center;
-    gap: 8px;
-    padding: 7px 12px;
-    cursor: pointer;
-    font-size: 12px;
-  }
-  .cb-session-row:hover { background: var(--muted); }
-  .cb-session-row.current { background: color-mix(in oklch, var(--primary) 8%, transparent); }
-  .cb-session-row .meta { color: var(--muted-foreground); font-size: 11px; }
-  .cb-session-end {
-    background: transparent; border: none; cursor: pointer;
-    color: var(--muted-foreground); font-size: 14px; padding: 0 2px;
-  }
-  .cb-session-end:hover { color: var(--destructive, red); }
-  .cb-session-sep { height: 1px; background: var(--border); margin: 4px 0; }
-  .cb-session-action {
-    display: flex; align-items: center; gap: 8px;
-    padding: 7px 12px; cursor: pointer; font-size: 12px;
-    color: var(--muted-foreground);
-  }
-  .cb-session-action:hover { background: var(--muted); color: var(--foreground); }
-
-  /* ── Body / list ──────────────────────────────────────────────── */
-  .cb-body {
-    flex: 1;
-    min-height: 0;
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    scrollbar-width: thin;
-    padding: 6px 0;
-  }
-  .cb-mode-hint {
-    padding: 4px 14px 2px;
-    font-size: 11px;
-    font-weight: 600;
-    color: var(--muted-foreground);
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-  }
-  .cb-list { padding: 2px 6px; }
-  .cb-item {
-    display: grid;
-    grid-template-columns: 16px 1fr auto;
-    align-items: center;
-    gap: 8px;
-    padding: 7px 8px;
-    border-radius: var(--radius-sm, 4px);
-    cursor: pointer;
-    font-size: 13px;
-  }
-  .cb-item:hover,
-  .cb-item[aria-selected='true'] { background: var(--muted); }
-  .cb-item .hint {
-    color: var(--muted-foreground);
-    font-size: 11px;
-    font-family: var(--font-mono);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .cb-empty {
-    padding: 24px 16px;
-    text-align: center;
-    color: var(--muted-foreground);
-    font-size: 13px;
-  }
-
-  /* ── Create form ──────────────────────────────────────────────── */
-  .cb-create-surfaces {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    padding: 8px 14px;
-  }
-  .cb-surface-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    padding: 4px 10px;
-    border: 1px solid var(--border);
-    border-radius: 999px;
-    background: transparent;
-    font: inherit;
-    font-size: 12px;
-    color: var(--muted-foreground);
-    cursor: pointer;
-  }
-  .cb-surface-btn[aria-pressed='true'] {
-    background: var(--primary);
-    color: var(--primary-foreground, #fff);
-    border-color: var(--primary);
-  }
-  .cb-surface-btn:hover:not([aria-pressed='true']) { background: var(--muted); }
-  .cb-create-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
-    padding: 0 14px 10px;
-  }
-  .cb-create-grid label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted-foreground); }
-  .cb-create-grid input,
-  .cb-create-grid select {
-    height: 30px;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm, 4px);
-    background: var(--background);
-    color: var(--foreground);
-    font: inherit;
-    font-size: 13px;
-    padding: 0 8px;
-  }
-  .span-2 { grid-column: span 2; }
-  .cb-create-error { padding: 0 14px 6px; font-size: 12px; color: var(--destructive, red); }
-  .cb-create-actions { padding: 0 14px 14px; display: flex; justify-content: flex-end; }
-  .cb-create-submit {
-    height: 32px;
-    padding: 0 16px;
-    border: none;
-    border-radius: var(--radius-sm, 4px);
-    background: var(--primary);
-    color: var(--primary-foreground, #fff);
-    font: inherit;
-    font-size: 13px;
-    cursor: pointer;
-  }
-  .cb-create-submit:disabled { opacity: 0.5; cursor: not-allowed; }
-
-  /* ── AI spawn card ────────────────────────────────────────────── */
-  .cb-spawn-card {
-    margin: 20px 16px;
-    padding: 16px;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-md, 6px);
-    background: var(--muted);
-  }
-  .cb-spawn-title { font-weight: 600; font-size: 13px; margin-bottom: 12px; }
-  .cb-spawn-row {
-    display: grid;
-    grid-template-columns: 64px 1fr;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 8px;
-  }
-  .cb-spawn-row label { font-size: 12px; color: var(--muted-foreground); }
-  .cb-spawn-row select {
-    height: 30px;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm, 4px);
-    background: var(--background);
-    color: var(--foreground);
-    font: inherit;
-    font-size: 13px;
-    padding: 0 6px;
-  }
-  .cb-spawn-error { font-size: 12px; color: var(--destructive, red); margin-bottom: 8px; }
-  .cb-spawn-start {
-    margin-top: 4px;
-    height: 32px;
-    width: 100%;
-    border: none;
-    border-radius: var(--radius-sm, 4px);
-    background: var(--primary);
-    color: var(--primary-foreground, #fff);
-    font: inherit;
-    font-size: 13px;
-    cursor: pointer;
-  }
-  .cb-spawn-start:disabled { opacity: 0.5; cursor: not-allowed; }
-`,
-  setup(ctx) {
-    const { props, host } = ctx;
-    if (!ctx.cleanups)
-      ctx.cleanups = [];
-    const __cleanups = ctx.cleanups;
-    const $scope = Object.create(null);
-    let __r = null;
-    if (sui_command_palette_controller_default && typeof sui_command_palette_controller_default.setup === "function") {
-      ctx.scope = $scope;
-      __r = sui_command_palette_controller_default.setup(ctx);
-      if (__r && typeof __r === "object")
-        Object.assign($scope, __r);
+  const __wireBoundary_b9 = (anchor) => bindFor2({
+    anchor,
+    items: () => $scope.activeSessions(),
+    key: (s, __i) => {
+      const __child = Object.create($scope);
+      __child.s = s;
+      __child.__i = __i;
+      return (($scope2) => s.id)(__child);
+    },
+    render: (s, __i) => {
+      const __childScope16 = Object.create($scope);
+      __childScope16.s = s;
+      __childScope16.__i = __i;
+      __childScope16.__v = signal4(0);
+      return (($scope2) => {
+        const __frag17 = document.createDocumentFragment();
+        const __c18 = [];
+        const __e19 = document.createElement("div");
+        __e19.setAttribute("class", "cb-session-row");
+        __c18.push(bindClass2(__e19, "current", () => (void $scope2.__v(), $scope2.bar.session()?.id === $scope2.s.id)));
+        __e19.setAttribute("role", "option");
+        __c18.push(on3(__e19, "click", function() {
+          const __h = () => $scope2.selectSession($scope2.s.id);
+          return typeof __h === "function" ? __h.bind(undefined) : () => {};
+        }(), { modifiers: [] }));
+        const __e20 = document.createElement("span");
+        __e20.setAttribute("class", "cb-dot");
+        __c18.push(effect4(() => {
+          $scope2.__v();
+          const __v = $scope2.s.status === "thinking" ? "var(--warning,#d97706)" : "var(--success,#16a34a)";
+          if (__v == null)
+            __e20.style.removeProperty("background");
+          else
+            __e20.style.setProperty("background", String(__v));
+        }));
+        __e19.appendChild(__e20);
+        const __e21 = document.createElement("span");
+        const __e22 = document.createElement("strong");
+        const __t23 = document.createTextNode("");
+        __e22.appendChild(__t23);
+        __c18.push(bindText3(__t23, () => (void $scope2.__v(), $scope2.s.agent_id ?? "")));
+        __e21.appendChild(__e22);
+        const __e24 = document.createElement("span");
+        __e24.setAttribute("class", "meta");
+        const __t25 = document.createTextNode(" · ");
+        __e24.appendChild(__t25);
+        const __t26 = document.createTextNode("");
+        __e24.appendChild(__t26);
+        __c18.push(bindText3(__t26, () => (void $scope2.__v(), $scope2.s.provider ?? "")));
+        const __t27 = document.createTextNode(" · ");
+        __e24.appendChild(__t27);
+        const __t28 = document.createTextNode("");
+        __e24.appendChild(__t28);
+        __t28.textContent = $scope2.s.workspace_id;
+        __e21.appendChild(__e24);
+        __e19.appendChild(__e21);
+        const __e29 = document.createElement("button");
+        __e29.setAttribute("class", "cb-session-end");
+        __e29.setAttribute("type", "button");
+        __e29.setAttribute("aria-label", "End session");
+        __c18.push(on3(__e29, "click", function() {
+          const __h = (e) => {
+            e.stopPropagation();
+            $scope2.endSession($scope2.s.id);
+          };
+          return typeof __h === "function" ? __h.bind(undefined) : () => {};
+        }(), { modifiers: [] }));
+        const __t30 = document.createTextNode("×");
+        __e29.appendChild(__t30);
+        __e19.appendChild(__e29);
+        __frag17.appendChild(__e19);
+        return { nodes: Array.from(__frag17.childNodes), cleanup: () => {
+          for (const c of __c18)
+            try {
+              c();
+            } catch (e) {}
+        }, update: (__new31, __newI32) => {
+          $scope2.s = __new31;
+          $scope2.__i = __newI32;
+          __t28.textContent = $scope2.s.workspace_id;
+          $scope2.__v.set((c) => c + 1);
+        } };
+      })(__childScope16);
     }
-    const __wireBoundary_b9 = (anchor) => bindFor2({
-      anchor,
-      items: () => $scope.activeSessions(),
-      key: (s, __i) => {
-        const __child = Object.create($scope);
-        __child.s = s;
-        __child.__i = __i;
-        return (($scope2) => s.id)(__child);
-      },
-      render: (s, __i) => {
-        const __childScope16 = Object.create($scope);
-        __childScope16.s = s;
-        __childScope16.__i = __i;
-        return (($scope2) => {
-          const __frag17 = document.createDocumentFragment();
-          const __c18 = [];
-          const __e19 = document.createElement("div");
-          __e19.setAttribute("class", "cb-session-row");
-          __c18.push(bindClass2(__e19, "current", () => $scope2.bar.session()?.id === $scope2.s.id));
-          __e19.setAttribute("role", "option");
-          __c18.push(on3(__e19, "click", function() {
-            const __h = () => $scope2.selectSession($scope2.s.id);
-            return typeof __h === "function" ? __h.bind(undefined) : () => {};
-          }(), { modifiers: [] }));
-          const __e20 = document.createElement("span");
-          __e20.setAttribute("class", "cb-dot");
-          __c18.push(effect4(() => {
-            const __v = $scope2.s.status === "thinking" ? "var(--warning,#d97706)" : "var(--success,#16a34a)";
-            if (__v == null)
-              __e20.style.removeProperty("background");
+  });
+  const __wireBoundary_b17 = (anchor) => bindIf3({
+    anchor,
+    test: () => {
+      if ($scope.activeSessions().length === 0)
+        return 0;
+      return -1;
+    },
+    branches: [
+      () => {
+        const __frag34 = document.createDocumentFragment();
+        const __c35 = [];
+        const __e36 = document.createElement("div");
+        __e36.setAttribute("class", "cb-session-row");
+        const __e37 = document.createElement("span");
+        __e36.appendChild(__e37);
+        const __e38 = document.createElement("span");
+        __e38.setAttribute("class", "meta");
+        const __t39 = document.createTextNode("No active sessions");
+        __e38.appendChild(__t39);
+        __e36.appendChild(__e38);
+        const __e40 = document.createElement("span");
+        __e36.appendChild(__e40);
+        __frag34.appendChild(__e36);
+        return { nodes: Array.from(__frag34.childNodes), cleanup: () => {
+          for (const c of __c35)
+            try {
+              c();
+            } catch (e) {}
+        } };
+      }
+    ]
+  });
+  const __wireBoundary_b8 = (anchor) => bindIf3({
+    anchor,
+    test: () => {
+      if ($scope.bar.sessionPickerOpen())
+        return 0;
+      return -1;
+    },
+    branches: [
+      () => {
+        const __frag12 = document.createDocumentFragment();
+        const __c13 = [];
+        const __e14 = document.createElement("div");
+        __e14.setAttribute("class", "cb-session-popover");
+        __e14.setAttribute("role", "listbox");
+        __e14.setAttribute("aria-label", "Sessions");
+        const __forAnchor15 = document.createComment("for");
+        __e14.appendChild(__forAnchor15);
+        __c13.push(__wireBoundary_b9(__forAnchor15));
+        const __ifAnchor33 = document.createComment("if");
+        __e14.appendChild(__ifAnchor33);
+        __c13.push(__wireBoundary_b17(__ifAnchor33));
+        const __e41 = document.createElement("div");
+        __e41.setAttribute("class", "cb-session-sep");
+        __e41.setAttribute("role", "separator");
+        __e14.appendChild(__e41);
+        const __e42 = document.createElement("div");
+        __e42.setAttribute("class", "cb-session-action");
+        __c13.push(on3(__e42, "click", function() {
+          const __h = $scope.startNewSession;
+          return typeof __h === "function" ? __h.bind(undefined) : () => {};
+        }(), { modifiers: [] }));
+        const __e43 = document.createElement("sui-icon");
+        __e43.setAttribute("name", "plus");
+        __e43.setAttribute("size", "sm");
+        __e43.setAttribute("aria-hidden", "true");
+        __e42.appendChild(__e43);
+        const __e44 = document.createElement("span");
+        const __t45 = document.createTextNode("Start new session");
+        __e44.appendChild(__t45);
+        __e42.appendChild(__e44);
+        __e14.appendChild(__e42);
+        const __e46 = document.createElement("div");
+        __e46.setAttribute("class", "cb-session-action");
+        __c13.push(on3(__e46, "click", function() {
+          const __h = $scope.viewChats;
+          return typeof __h === "function" ? __h.bind(undefined) : () => {};
+        }(), { modifiers: [] }));
+        const __e47 = document.createElement("sui-icon");
+        __e47.setAttribute("name", "columns");
+        __e47.setAttribute("size", "sm");
+        __e47.setAttribute("aria-hidden", "true");
+        __e46.appendChild(__e47);
+        const __e48 = document.createElement("span");
+        const __t49 = document.createTextNode("View all chats");
+        __e48.appendChild(__t49);
+        __e46.appendChild(__e48);
+        __e14.appendChild(__e46);
+        __frag12.appendChild(__e14);
+        return { nodes: Array.from(__frag12.childNodes), cleanup: () => {
+          for (const c of __c13)
+            try {
+              c();
+            } catch (e) {}
+        } };
+      }
+    ]
+  });
+  const __wireBoundary_b22 = (anchor) => bindFor2({
+    anchor,
+    items: () => $scope.findItems(),
+    key: (item, __i) => {
+      const __child = Object.create($scope);
+      __child.item = item;
+      __child.__i = __i;
+      return (($scope2) => item.path)(__child);
+    },
+    render: (item, __i) => {
+      const __childScope61 = Object.create($scope);
+      __childScope61.item = item;
+      __childScope61.__i = __i;
+      __childScope61.__v = signal4(0);
+      return (($scope2) => {
+        const __frag62 = document.createDocumentFragment();
+        const __c63 = [];
+        const __e64 = document.createElement("div");
+        __e64.setAttribute("class", "cb-item");
+        __e64.setAttribute("role", "option");
+        __c63.push(bindAttr2(__e64, "aria-selected", () => (void $scope2.__v(), $scope2.bar.selectedIdx() === $scope2.item.idx ? "true" : "false")));
+        {
+          const __av65 = $scope2.item.path;
+          if (__av65 == null || __av65 === false || __av65 === "")
+            __e64.removeAttribute("data-path");
+          else
+            __e64.setAttribute("data-path", __av65 === true ? "" : String(__av65));
+        }
+        __c63.push(on3(__e64, "click", function() {
+          const __h = () => $scope2.activateNavItem($scope2.item.path);
+          return typeof __h === "function" ? __h.bind(undefined) : () => {};
+        }(), { modifiers: [] }));
+        const __e66 = document.createElement("sui-icon");
+        {
+          const __av67 = $scope2.item.icon;
+          if (__av67 == null || __av67 === false || __av67 === "")
+            __e66.removeAttribute("name");
+          else
+            __e66.setAttribute("name", __av67 === true ? "" : String(__av67));
+        }
+        __e66.setAttribute("size", "sm");
+        __e66.setAttribute("aria-hidden", "true");
+        __e64.appendChild(__e66);
+        const __e68 = document.createElement("span");
+        const __t69 = document.createTextNode("");
+        __e68.appendChild(__t69);
+        __t69.textContent = $scope2.item.label;
+        __e64.appendChild(__e68);
+        const __e70 = document.createElement("span");
+        __e70.setAttribute("class", "hint");
+        const __t71 = document.createTextNode("");
+        __e70.appendChild(__t71);
+        __t71.textContent = $scope2.item.path;
+        __e64.appendChild(__e70);
+        __frag62.appendChild(__e64);
+        return { nodes: Array.from(__frag62.childNodes), cleanup: () => {
+          for (const c of __c63)
+            try {
+              c();
+            } catch (e) {}
+        }, update: (__new72, __newI73) => {
+          $scope2.item = __new72;
+          $scope2.__i = __newI73;
+          {
+            const __av65 = $scope2.item.path;
+            if (__av65 == null || __av65 === false || __av65 === "")
+              __e64.removeAttribute("data-path");
             else
-              __e20.style.setProperty("background", String(__v));
-          }));
-          __e19.appendChild(__e20);
-          const __e21 = document.createElement("span");
-          const __e22 = document.createElement("strong");
-          const __t23 = document.createTextNode("");
-          __e22.appendChild(__t23);
-          __c18.push(bindText3(__t23, () => $scope2.s.agent_id ?? ""));
-          __e21.appendChild(__e22);
-          const __e24 = document.createElement("span");
-          __e24.setAttribute("class", "meta");
-          const __t25 = document.createTextNode(" · ");
-          __e24.appendChild(__t25);
-          const __t26 = document.createTextNode("");
-          __e24.appendChild(__t26);
-          __c18.push(bindText3(__t26, () => $scope2.s.provider ?? ""));
-          const __t27 = document.createTextNode(" · ");
-          __e24.appendChild(__t27);
-          const __t28 = document.createTextNode("");
-          __e24.appendChild(__t28);
-          __c18.push(bindText3(__t28, () => $scope2.s.workspace_id));
-          __e21.appendChild(__e24);
-          __e19.appendChild(__e21);
-          const __e29 = document.createElement("button");
-          __e29.setAttribute("class", "cb-session-end");
-          __e29.setAttribute("type", "button");
-          __e29.setAttribute("aria-label", "End session");
-          __c18.push(on3(__e29, "click", function() {
-            const __h = (e) => {
-              e.stopPropagation();
-              $scope2.endSession($scope2.s.id);
-            };
-            return typeof __h === "function" ? __h.bind(undefined) : () => {};
-          }(), { modifiers: [] }));
-          const __t30 = document.createTextNode("×");
-          __e29.appendChild(__t30);
-          __e19.appendChild(__e29);
-          __frag17.appendChild(__e19);
-          return { nodes: Array.from(__frag17.childNodes), cleanup: () => {
-            for (const c of __c18)
-              try {
-                c();
-              } catch (e) {}
-          } };
-        })(__childScope16);
-      }
-    });
-    const __wireBoundary_b17 = (anchor) => bindIf3({
-      anchor,
-      test: () => {
-        if ($scope.activeSessions().length === 0)
-          return 0;
-        return -1;
-      },
-      branches: [
-        () => {
-          const __frag32 = document.createDocumentFragment();
-          const __c33 = [];
-          const __e34 = document.createElement("div");
-          __e34.setAttribute("class", "cb-session-row");
-          const __e35 = document.createElement("span");
-          __e34.appendChild(__e35);
-          const __e36 = document.createElement("span");
-          __e36.setAttribute("class", "meta");
-          const __t37 = document.createTextNode("No active sessions");
-          __e36.appendChild(__t37);
-          __e34.appendChild(__e36);
-          const __e38 = document.createElement("span");
-          __e34.appendChild(__e38);
-          __frag32.appendChild(__e34);
-          return { nodes: Array.from(__frag32.childNodes), cleanup: () => {
-            for (const c of __c33)
-              try {
-                c();
-              } catch (e) {}
-          } };
-        }
-      ]
-    });
-    const __wireBoundary_b8 = (anchor) => bindIf3({
-      anchor,
-      test: () => {
-        if ($scope.bar.sessionPickerOpen())
-          return 0;
-        return -1;
-      },
-      branches: [
-        () => {
-          const __frag12 = document.createDocumentFragment();
-          const __c13 = [];
-          const __e14 = document.createElement("div");
-          __e14.setAttribute("class", "cb-session-popover");
-          __e14.setAttribute("role", "listbox");
-          __e14.setAttribute("aria-label", "Sessions");
-          const __forAnchor15 = document.createComment("for");
-          __e14.appendChild(__forAnchor15);
-          __c13.push(__wireBoundary_b9(__forAnchor15));
-          const __ifAnchor31 = document.createComment("if");
-          __e14.appendChild(__ifAnchor31);
-          __c13.push(__wireBoundary_b17(__ifAnchor31));
-          const __e39 = document.createElement("div");
-          __e39.setAttribute("class", "cb-session-sep");
-          __e39.setAttribute("role", "separator");
-          __e14.appendChild(__e39);
-          const __e40 = document.createElement("div");
-          __e40.setAttribute("class", "cb-session-action");
-          __c13.push(on3(__e40, "click", function() {
-            const __h = $scope.startNewSession;
-            return typeof __h === "function" ? __h.bind(undefined) : () => {};
-          }(), { modifiers: [] }));
-          const __e41 = document.createElement("sui-icon");
-          __e41.setAttribute("name", "plus");
-          __e41.setAttribute("size", "sm");
-          __e41.setAttribute("aria-hidden", "true");
-          __e40.appendChild(__e41);
-          const __e42 = document.createElement("span");
-          const __t43 = document.createTextNode("Start new session");
-          __e42.appendChild(__t43);
-          __e40.appendChild(__e42);
-          __e14.appendChild(__e40);
-          const __e44 = document.createElement("div");
-          __e44.setAttribute("class", "cb-session-action");
-          __c13.push(on3(__e44, "click", function() {
-            const __h = $scope.viewChats;
-            return typeof __h === "function" ? __h.bind(undefined) : () => {};
-          }(), { modifiers: [] }));
-          const __e45 = document.createElement("sui-icon");
-          __e45.setAttribute("name", "columns");
-          __e45.setAttribute("size", "sm");
-          __e45.setAttribute("aria-hidden", "true");
-          __e44.appendChild(__e45);
-          const __e46 = document.createElement("span");
-          const __t47 = document.createTextNode("View all chats");
-          __e46.appendChild(__t47);
-          __e44.appendChild(__e46);
-          __e14.appendChild(__e44);
-          __frag12.appendChild(__e14);
-          return { nodes: Array.from(__frag12.childNodes), cleanup: () => {
-            for (const c of __c13)
-              try {
-                c();
-              } catch (e) {}
-          } };
-        }
-      ]
-    });
-    const __wireBoundary_b22 = (anchor) => bindFor2({
-      anchor,
-      items: () => $scope.findItems(),
-      key: (item, __i) => {
-        const __child = Object.create($scope);
-        __child.item = item;
-        __child.__i = __i;
-        return (($scope2) => item.path)(__child);
-      },
-      render: (item, __i) => {
-        const __childScope59 = Object.create($scope);
-        __childScope59.item = item;
-        __childScope59.__i = __i;
-        return (($scope2) => {
-          const __frag60 = document.createDocumentFragment();
-          const __c61 = [];
-          const __e62 = document.createElement("div");
-          __e62.setAttribute("class", "cb-item");
-          __e62.setAttribute("role", "option");
-          __c61.push(bindAttr2(__e62, "aria-selected", () => $scope2.bar.selectedIdx() === $scope2.item.idx ? "true" : "false"));
-          __c61.push(bindAttr2(__e62, "data-path", () => $scope2.item.path));
-          __c61.push(on3(__e62, "click", function() {
-            const __h = () => $scope2.activateNavItem($scope2.item.path);
-            return typeof __h === "function" ? __h.bind(undefined) : () => {};
-          }(), { modifiers: [] }));
-          const __e63 = document.createElement("sui-icon");
-          __c61.push(bindAttr2(__e63, "name", () => $scope2.item.icon));
-          __e63.setAttribute("size", "sm");
-          __e63.setAttribute("aria-hidden", "true");
-          __e62.appendChild(__e63);
-          const __e64 = document.createElement("span");
-          const __t65 = document.createTextNode("");
-          __e64.appendChild(__t65);
-          __c61.push(bindText3(__t65, () => $scope2.item.label));
-          __e62.appendChild(__e64);
-          const __e66 = document.createElement("span");
-          __e66.setAttribute("class", "hint");
-          const __t67 = document.createTextNode("");
-          __e66.appendChild(__t67);
-          __c61.push(bindText3(__t67, () => $scope2.item.path));
-          __e62.appendChild(__e66);
-          __frag60.appendChild(__e62);
-          return { nodes: Array.from(__frag60.childNodes), cleanup: () => {
-            for (const c of __c61)
-              try {
-                c();
-              } catch (e) {}
-          } };
-        })(__childScope59);
-      }
-    });
-    const __wireBoundary_b21 = (anchor) => bindIf3({
-      anchor,
-      test: () => {
-        if ($scope.findItems().length > 0)
-          return 0;
-        return 1;
-      },
-      branches: [
-        () => {
-          const __frag53 = document.createDocumentFragment();
-          const __c54 = [];
-          const __e55 = document.createElement("div");
-          __e55.setAttribute("class", "cb-mode-hint");
-          const __t56 = document.createTextNode("Jump to");
-          __e55.appendChild(__t56);
-          __frag53.appendChild(__e55);
-          const __e57 = document.createElement("div");
-          __e57.setAttribute("class", "cb-list");
-          __e57.setAttribute("role", "listbox");
-          const __forAnchor58 = document.createComment("for");
-          __e57.appendChild(__forAnchor58);
-          __c54.push(__wireBoundary_b22(__forAnchor58));
-          __frag53.appendChild(__e57);
-          return { nodes: Array.from(__frag53.childNodes), cleanup: () => {
-            for (const c of __c54)
-              try {
-                c();
-              } catch (e) {}
-          } };
-        },
-        () => {
-          const __frag68 = document.createDocumentFragment();
-          const __c69 = [];
-          const __e70 = document.createElement("div");
-          __e70.setAttribute("class", "cb-empty");
-          const __t71 = document.createTextNode("No matches.");
-          __e70.appendChild(__t71);
-          __frag68.appendChild(__e70);
-          return { nodes: Array.from(__frag68.childNodes), cleanup: () => {
-            for (const c of __c69)
-              try {
-                c();
-              } catch (e) {}
-          } };
-        }
-      ]
-    });
-    const __wireBoundary_b30 = (anchor) => bindFor2({
-      anchor,
-      items: () => $scope.cmdItems(),
-      key: (item, __i) => {
-        const __child = Object.create($scope);
-        __child.item = item;
-        __child.__i = __i;
-        return (($scope2) => item.key)(__child);
-      },
-      render: (item, __i) => {
-        const __childScope81 = Object.create($scope);
-        __childScope81.item = item;
-        __childScope81.__i = __i;
-        return (($scope2) => {
-          const __frag82 = document.createDocumentFragment();
-          const __c83 = [];
-          const __e84 = document.createElement("div");
-          __e84.setAttribute("class", "cb-item");
-          __e84.setAttribute("role", "option");
-          __c83.push(bindAttr2(__e84, "aria-selected", () => $scope2.bar.selectedIdx() === $scope2.item.idx ? "true" : "false"));
-          __c83.push(bindAttr2(__e84, "data-cmd", () => $scope2.item.key));
-          __c83.push(on3(__e84, "click", function() {
-            const __h = () => $scope2.activateCmd($scope2.item.key);
-            return typeof __h === "function" ? __h.bind(undefined) : () => {};
-          }(), { modifiers: [] }));
-          const __e85 = document.createElement("span");
-          __e85.setAttribute("style", "font-family:var(--font-mono)");
-          const __t86 = document.createTextNode("");
-          __e85.appendChild(__t86);
-          __c83.push(bindText3(__t86, () => $scope2.item.label));
-          __e84.appendChild(__e85);
-          const __e87 = document.createElement("span");
-          __e84.appendChild(__e87);
-          const __e88 = document.createElement("span");
-          __e88.setAttribute("class", "hint");
-          const __t89 = document.createTextNode("");
-          __e88.appendChild(__t89);
-          __c83.push(bindText3(__t89, () => $scope2.item.hint));
-          __e84.appendChild(__e88);
-          __frag82.appendChild(__e84);
-          return { nodes: Array.from(__frag82.childNodes), cleanup: () => {
-            for (const c of __c83)
-              try {
-                c();
-              } catch (e) {}
-          } };
-        })(__childScope81);
-      }
-    });
-    const __wireBoundary_b29 = (anchor) => bindIf3({
-      anchor,
-      test: () => {
-        if ($scope.cmdItems().length > 0)
-          return 0;
-        return 1;
-      },
-      branches: [
-        () => {
-          const __frag75 = document.createDocumentFragment();
-          const __c76 = [];
-          const __e77 = document.createElement("div");
-          __e77.setAttribute("class", "cb-mode-hint");
-          const __t78 = document.createTextNode("Actions");
-          __e77.appendChild(__t78);
-          __frag75.appendChild(__e77);
-          const __e79 = document.createElement("div");
-          __e79.setAttribute("class", "cb-list");
-          __e79.setAttribute("role", "listbox");
-          const __forAnchor80 = document.createComment("for");
-          __e79.appendChild(__forAnchor80);
-          __c76.push(__wireBoundary_b30(__forAnchor80));
-          __frag75.appendChild(__e79);
-          return { nodes: Array.from(__frag75.childNodes), cleanup: () => {
-            for (const c of __c76)
-              try {
-                c();
-              } catch (e) {}
-          } };
-        },
-        () => {
-          const __frag90 = document.createDocumentFragment();
-          const __c91 = [];
-          const __e92 = document.createElement("div");
-          __e92.setAttribute("class", "cb-empty");
-          const __t93 = document.createTextNode("No commands match.");
-          __e92.appendChild(__t93);
-          __frag90.appendChild(__e92);
-          return { nodes: Array.from(__frag90.childNodes), cleanup: () => {
-            for (const c of __c91)
-              try {
-                c();
-              } catch (e) {}
-          } };
-        }
-      ]
-    });
-    const __wireBoundary_b37 = (anchor) => bindFor2({
-      anchor,
-      items: () => $scope.mentionItems(),
-      key: (item, __i) => {
-        const __child = Object.create($scope);
-        __child.item = item;
-        __child.__i = __i;
-        return (($scope2) => item.id + item.kind)(__child);
-      },
-      render: (item, __i) => {
-        const __childScope103 = Object.create($scope);
-        __childScope103.item = item;
-        __childScope103.__i = __i;
-        return (($scope2) => {
-          const __frag104 = document.createDocumentFragment();
-          const __c105 = [];
-          const __e106 = document.createElement("div");
-          __e106.setAttribute("class", "cb-item");
-          __e106.setAttribute("role", "option");
-          __c105.push(bindAttr2(__e106, "aria-selected", () => $scope2.bar.selectedIdx() === $scope2.item.idx ? "true" : "false"));
-          __c105.push(bindAttr2(__e106, "data-mention-kind", () => $scope2.item.kind));
-          __c105.push(bindAttr2(__e106, "data-mention-id", () => $scope2.item.id));
-          __c105.push(on3(__e106, "click", function() {
-            const __h = () => $scope2.activateMention($scope2.item);
-            return typeof __h === "function" ? __h.bind(undefined) : () => {};
-          }(), { modifiers: [] }));
-          const __e107 = document.createElement("sui-icon");
-          __c105.push(bindAttr2(__e107, "name", () => $scope2.item.icon));
-          __e107.setAttribute("size", "sm");
-          __e107.setAttribute("aria-hidden", "true");
-          __e106.appendChild(__e107);
-          const __e108 = document.createElement("span");
-          const __t109 = document.createTextNode("");
-          __e108.appendChild(__t109);
-          __c105.push(bindText3(__t109, () => $scope2.item.label));
-          __e106.appendChild(__e108);
-          const __e110 = document.createElement("span");
-          __e110.setAttribute("class", "hint");
-          const __t111 = document.createTextNode("");
-          __e110.appendChild(__t111);
-          __c105.push(bindText3(__t111, () => $scope2.item.kind));
-          __e106.appendChild(__e110);
-          __frag104.appendChild(__e106);
-          return { nodes: Array.from(__frag104.childNodes), cleanup: () => {
-            for (const c of __c105)
-              try {
-                c();
-              } catch (e) {}
-          } };
-        })(__childScope103);
-      }
-    });
-    const __wireBoundary_b36 = (anchor) => bindIf3({
-      anchor,
-      test: () => {
-        if ($scope.mentionItems().length > 0)
-          return 0;
-        return 1;
-      },
-      branches: [
-        () => {
-          const __frag97 = document.createDocumentFragment();
-          const __c98 = [];
-          const __e99 = document.createElement("div");
-          __e99.setAttribute("class", "cb-mode-hint");
-          const __t100 = document.createTextNode("Reference");
-          __e99.appendChild(__t100);
-          __frag97.appendChild(__e99);
-          const __e101 = document.createElement("div");
-          __e101.setAttribute("class", "cb-list");
-          __e101.setAttribute("role", "listbox");
-          const __forAnchor102 = document.createComment("for");
-          __e101.appendChild(__forAnchor102);
-          __c98.push(__wireBoundary_b37(__forAnchor102));
-          __frag97.appendChild(__e101);
-          return { nodes: Array.from(__frag97.childNodes), cleanup: () => {
-            for (const c of __c98)
-              try {
-                c();
-              } catch (e) {}
-          } };
-        },
-        () => {
-          const __frag112 = document.createDocumentFragment();
-          const __c113 = [];
-          const __e114 = document.createElement("div");
-          __e114.setAttribute("class", "cb-empty");
-          const __t115 = document.createTextNode("No matching views or agents.");
-          __e114.appendChild(__t115);
-          __frag112.appendChild(__e114);
-          return { nodes: Array.from(__frag112.childNodes), cleanup: () => {
-            for (const c of __c113)
-              try {
-                c();
-              } catch (e) {}
-          } };
-        }
-      ]
-    });
-    const __wireBoundary_b45 = (anchor) => bindFor2({
-      anchor,
-      items: () => $scope.createSurfaces(),
-      key: (surf, __i) => {
-        const __child = Object.create($scope);
-        __child.surf = surf;
-        __child.__i = __i;
-        return (($scope2) => surf.id)(__child);
-      },
-      render: (surf, __i) => {
-        const __childScope122 = Object.create($scope);
-        __childScope122.surf = surf;
-        __childScope122.__i = __i;
-        return (($scope2) => {
-          const __frag123 = document.createDocumentFragment();
-          const __c124 = [];
-          const __e125 = document.createElement("button");
-          __e125.setAttribute("class", "cb-surface-btn");
-          __e125.setAttribute("type", "button");
-          __c124.push(bindAttr2(__e125, "aria-pressed", () => $scope2.bar.createSurface() === $scope2.surf.id ? "true" : "false"));
-          __c124.push(on3(__e125, "click", function() {
-            const __h = () => $scope2.selectSurface($scope2.surf.id);
-            return typeof __h === "function" ? __h.bind(undefined) : () => {};
-          }(), { modifiers: [] }));
-          const __e126 = document.createElement("sui-icon");
-          __c124.push(bindAttr2(__e126, "name", () => $scope2.surf.icon));
-          __e126.setAttribute("aria-hidden", "true");
-          __e125.appendChild(__e126);
-          const __e127 = document.createElement("span");
-          const __t128 = document.createTextNode("");
-          __e127.appendChild(__t128);
-          __c124.push(bindText3(__t128, () => $scope2.surf.label));
-          __e125.appendChild(__e127);
-          __frag123.appendChild(__e125);
-          return { nodes: Array.from(__frag123.childNodes), cleanup: () => {
-            for (const c of __c124)
-              try {
-                c();
-              } catch (e) {}
-          } };
-        })(__childScope122);
-      }
-    });
-    const __wireBoundary_b54 = (anchor) => bindFor2({
-      anchor,
-      items: () => $scope.currentSurfaceDef().shapes,
-      key: (sh, __i) => {
-        const __child = Object.create($scope);
-        __child.sh = sh;
-        __child.__i = __i;
-        return (($scope2) => sh)(__child);
-      },
-      render: (sh, __i) => {
-        const __childScope139 = Object.create($scope);
-        __childScope139.sh = sh;
-        __childScope139.__i = __i;
-        return (($scope2) => {
-          const __frag140 = document.createDocumentFragment();
-          const __c141 = [];
-          const __e142 = document.createElement("option");
-          __c141.push(bindAttr2(__e142, "value", () => $scope2.sh));
-          const __t143 = document.createTextNode("");
-          __e142.appendChild(__t143);
-          __c141.push(bindText3(__t143, () => $scope2.sh));
-          __frag140.appendChild(__e142);
-          return { nodes: Array.from(__frag140.childNodes), cleanup: () => {
-            for (const c of __c141)
-              try {
-                c();
-              } catch (e) {}
-          } };
-        })(__childScope139);
-      }
-    });
-    const __wireBoundary_b58 = (anchor) => bindIf3({
-      anchor,
-      test: () => {
-        if ($scope.bar.createError())
-          return 0;
-        return -1;
-      },
-      branches: [
-        () => {
-          const __frag149 = document.createDocumentFragment();
-          const __c150 = [];
-          const __e151 = document.createElement("div");
-          __e151.setAttribute("class", "cb-create-error");
-          const __t152 = document.createTextNode("");
-          __e151.appendChild(__t152);
-          __c150.push(bindText3(__t152, () => $scope.bar.createError()));
-          __frag149.appendChild(__e151);
-          return { nodes: Array.from(__frag149.childNodes), cleanup: () => {
-            for (const c of __c150)
-              try {
-                c();
-              } catch (e) {}
-          } };
-        }
-      ]
-    });
-    const __wireBoundary_b65 = (anchor) => bindFor2({
-      anchor,
-      items: () => $scope.bar.agents(),
-      key: (a, __i) => {
-        const __child = Object.create($scope);
-        __child.a = a;
-        __child.__i = __i;
-        return (($scope2) => a.id)(__child);
-      },
-      render: (a, __i) => {
-        const __childScope173 = Object.create($scope);
-        __childScope173.a = a;
-        __childScope173.__i = __i;
-        return (($scope2) => {
-          const __frag174 = document.createDocumentFragment();
-          const __c175 = [];
-          const __e176 = document.createElement("option");
-          __c175.push(bindAttr2(__e176, "value", () => $scope2.a.id));
-          const __t177 = document.createTextNode("");
-          __e176.appendChild(__t177);
-          __c175.push(bindText3(__t177, () => $scope2.a.name ?? $scope2.a.label ?? $scope2.a.id));
-          __frag174.appendChild(__e176);
-          return { nodes: Array.from(__frag174.childNodes), cleanup: () => {
-            for (const c of __c175)
-              try {
-                c();
-              } catch (e) {}
-          } };
-        })(__childScope173);
-      }
-    });
-    const __wireBoundary_b64 = (anchor) => bindIf3({
-      anchor,
-      test: () => {
-        if ($scope.bar.agents().length === 0)
-          return 0;
-        return 1;
-      },
-      branches: [
-        () => {
-          const __frag166 = document.createDocumentFragment();
-          const __c167 = [];
-          const __e168 = document.createElement("option");
-          __e168.setAttribute("value", "");
-          const __t169 = document.createTextNode("No agents found");
-          __e168.appendChild(__t169);
-          __frag166.appendChild(__e168);
-          return { nodes: Array.from(__frag166.childNodes), cleanup: () => {
-            for (const c of __c167)
-              try {
-                c();
-              } catch (e) {}
-          } };
-        },
-        () => {
-          const __frag170 = document.createDocumentFragment();
-          const __c171 = [];
-          const __forAnchor172 = document.createComment("for");
-          __frag170.appendChild(__forAnchor172);
-          __c171.push(__wireBoundary_b65(__forAnchor172));
-          return { nodes: Array.from(__frag170.childNodes), cleanup: () => {
-            for (const c of __c171)
-              try {
-                c();
-              } catch (e) {}
-          } };
-        }
-      ]
-    });
-    const __wireBoundary_b70 = (anchor) => bindFor2({
-      anchor,
-      items: () => $scope.bar.providers(),
-      key: (p, __i) => {
-        const __child = Object.create($scope);
-        __child.p = p;
-        __child.__i = __i;
-        return (($scope2) => p)(__child);
-      },
-      render: (p, __i) => {
-        const __childScope190 = Object.create($scope);
-        __childScope190.p = p;
-        __childScope190.__i = __i;
-        return (($scope2) => {
-          const __frag191 = document.createDocumentFragment();
-          const __c192 = [];
-          const __e193 = document.createElement("option");
-          __c192.push(bindAttr2(__e193, "value", () => $scope2.p));
-          const __t194 = document.createTextNode("");
-          __e193.appendChild(__t194);
-          __c192.push(bindText3(__t194, () => $scope2.p));
-          __frag191.appendChild(__e193);
-          return { nodes: Array.from(__frag191.childNodes), cleanup: () => {
-            for (const c of __c192)
-              try {
-                c();
-              } catch (e) {}
-          } };
-        })(__childScope190);
-      }
-    });
-    const __wireBoundary_b69 = (anchor) => bindIf3({
-      anchor,
-      test: () => {
-        if ($scope.bar.providers().length === 0)
-          return 0;
-        return 1;
-      },
-      branches: [
-        () => {
-          const __frag183 = document.createDocumentFragment();
-          const __c184 = [];
-          const __e185 = document.createElement("option");
-          __e185.setAttribute("value", "");
-          const __t186 = document.createTextNode("No providers installed");
-          __e185.appendChild(__t186);
-          __frag183.appendChild(__e185);
-          return { nodes: Array.from(__frag183.childNodes), cleanup: () => {
-            for (const c of __c184)
-              try {
-                c();
-              } catch (e) {}
-          } };
-        },
-        () => {
-          const __frag187 = document.createDocumentFragment();
-          const __c188 = [];
-          const __forAnchor189 = document.createComment("for");
-          __frag187.appendChild(__forAnchor189);
-          __c188.push(__wireBoundary_b70(__forAnchor189));
-          return { nodes: Array.from(__frag187.childNodes), cleanup: () => {
-            for (const c of __c188)
-              try {
-                c();
-              } catch (e) {}
-          } };
-        }
-      ]
-    });
-    const __wireBoundary_b73 = (anchor) => bindIf3({
-      anchor,
-      test: () => {
-        if ($scope.bar.spawnError())
-          return 0;
-        return -1;
-      },
-      branches: [
-        () => {
-          const __frag196 = document.createDocumentFragment();
-          const __c197 = [];
-          const __e198 = document.createElement("div");
-          __e198.setAttribute("class", "cb-spawn-error");
-          const __t199 = document.createTextNode("");
-          __e198.appendChild(__t199);
-          __c197.push(bindText3(__t199, () => $scope.bar.spawnError()));
-          __frag196.appendChild(__e198);
-          return { nodes: Array.from(__frag196.childNodes), cleanup: () => {
-            for (const c of __c197)
-              try {
-                c();
-              } catch (e) {}
-          } };
-        }
-      ]
-    });
-    const __wireBoundary_b20 = (anchor) => bindIf3({
-      anchor,
-      test: () => {
-        const __d = $scope.bar.mode();
-        if (__d === "find")
-          return 0;
-        if (__d === "command")
-          return 1;
-        if (__d === "mention")
-          return 2;
-        if (__d === "create")
-          return 3;
-        return 4;
-      },
-      branches: [
-        () => {
-          const __frag50 = document.createDocumentFragment();
-          const __c51 = [];
-          const __ifAnchor52 = document.createComment("if");
-          __frag50.appendChild(__ifAnchor52);
-          __c51.push(__wireBoundary_b21(__ifAnchor52));
-          return { nodes: Array.from(__frag50.childNodes), cleanup: () => {
-            for (const c of __c51)
-              try {
-                c();
-              } catch (e) {}
-          } };
-        },
-        () => {
-          const __frag72 = document.createDocumentFragment();
-          const __c73 = [];
-          const __ifAnchor74 = document.createComment("if");
-          __frag72.appendChild(__ifAnchor74);
-          __c73.push(__wireBoundary_b29(__ifAnchor74));
-          return { nodes: Array.from(__frag72.childNodes), cleanup: () => {
-            for (const c of __c73)
-              try {
-                c();
-              } catch (e) {}
-          } };
-        },
-        () => {
-          const __frag94 = document.createDocumentFragment();
-          const __c95 = [];
-          const __ifAnchor96 = document.createComment("if");
-          __frag94.appendChild(__ifAnchor96);
-          __c95.push(__wireBoundary_b36(__ifAnchor96));
-          return { nodes: Array.from(__frag94.childNodes), cleanup: () => {
-            for (const c of __c95)
-              try {
-                c();
-              } catch (e) {}
-          } };
-        },
-        () => {
-          const __frag116 = document.createDocumentFragment();
-          const __c117 = [];
-          const __e118 = document.createElement("div");
-          __e118.setAttribute("class", "cb-mode-hint");
-          const __t119 = document.createTextNode("Create");
-          __e118.appendChild(__t119);
-          __frag116.appendChild(__e118);
-          const __e120 = document.createElement("div");
-          __e120.setAttribute("class", "cb-create-surfaces");
-          __e120.setAttribute("role", "group");
-          __e120.setAttribute("aria-label", "Surface type");
-          const __forAnchor121 = document.createComment("for");
-          __e120.appendChild(__forAnchor121);
-          __c117.push(__wireBoundary_b45(__forAnchor121));
-          __frag116.appendChild(__e120);
-          const __e129 = document.createElement("div");
-          __e129.setAttribute("class", "cb-create-grid");
-          const __e130 = document.createElement("label");
-          const __e131 = document.createElement("span");
-          const __t132 = document.createTextNode("Name (kebab-case)");
-          __e131.appendChild(__t132);
-          __e130.appendChild(__e131);
-          const __e133 = document.createElement("input");
-          __e133.setAttribute("type", "text");
-          __e133.setAttribute("class", "cb-create-name");
-          __c117.push(bindAttr2(__e133, "placeholder", () => "my-" + $scope.bar.createSurface()));
-          __c117.push(bindValue2(__e133, $scope.bar.createName));
-          __e133.setAttribute("autocomplete", "off");
-          __e130.appendChild(__e133);
-          __e129.appendChild(__e130);
-          const __e134 = document.createElement("label");
-          const __e135 = document.createElement("span");
-          const __t136 = document.createTextNode("");
-          __e135.appendChild(__t136);
-          __c117.push(bindText3(__t136, () => $scope.currentSurfaceDef().shapeLabel));
-          __e134.appendChild(__e135);
-          const __e137 = document.createElement("select");
-          __e137.setAttribute("class", "cb-create-shape");
-          __c117.push(bindValue2(__e137, $scope.bar.createShape));
-          const __forAnchor138 = document.createComment("for");
-          __e137.appendChild(__forAnchor138);
-          __c117.push(__wireBoundary_b54(__forAnchor138));
-          __e134.appendChild(__e137);
-          __e129.appendChild(__e134);
-          const __e144 = document.createElement("label");
-          __e144.setAttribute("class", "span-2");
-          const __e145 = document.createElement("span");
-          const __t146 = document.createTextNode("Purpose (optional)");
-          __e145.appendChild(__t146);
-          __e144.appendChild(__e145);
-          const __e147 = document.createElement("input");
-          __e147.setAttribute("type", "text");
-          __e147.setAttribute("class", "cb-create-purpose");
-          __e147.setAttribute("placeholder", "One-line description");
-          __c117.push(bindValue2(__e147, $scope.bar.createPurpose));
-          __e147.setAttribute("autocomplete", "off");
-          __e144.appendChild(__e147);
-          __e129.appendChild(__e144);
-          __frag116.appendChild(__e129);
-          const __ifAnchor148 = document.createComment("if");
-          __frag116.appendChild(__ifAnchor148);
-          __c117.push(__wireBoundary_b58(__ifAnchor148));
-          const __e153 = document.createElement("div");
-          __e153.setAttribute("class", "cb-create-actions");
-          const __e154 = document.createElement("button");
-          __e154.setAttribute("class", "cb-create-submit");
-          __e154.setAttribute("type", "button");
-          __c117.push(bindAttr2(__e154, "disabled", () => $scope.bar.createSubmitting() || !$scope.createNameValid()));
-          __c117.push(on3(__e154, "click", function() {
-            const __h = $scope.submitCreate;
-            return typeof __h === "function" ? __h.bind(undefined) : () => {};
-          }(), { modifiers: [] }));
-          const __t155 = document.createTextNode("");
-          __e154.appendChild(__t155);
-          __c117.push(bindText3(__t155, () => $scope.bar.createSubmitting() ? "Creatingâ¦" : "Create " + $scope.currentSurfaceDef().label));
-          __e153.appendChild(__e154);
-          __frag116.appendChild(__e153);
-          return { nodes: Array.from(__frag116.childNodes), cleanup: () => {
-            for (const c of __c117)
-              try {
-                c();
-              } catch (e) {}
-          } };
-        },
-        () => {
-          const __frag156 = document.createDocumentFragment();
-          const __c157 = [];
-          const __e158 = document.createElement("div");
-          __e158.setAttribute("class", "cb-spawn-card");
-          const __e159 = document.createElement("div");
-          __e159.setAttribute("class", "cb-spawn-title");
-          const __t160 = document.createTextNode("Start a session");
-          __e159.appendChild(__t160);
-          __e158.appendChild(__e159);
-          const __e161 = document.createElement("div");
-          __e161.setAttribute("class", "cb-spawn-row");
-          const __e162 = document.createElement("label");
-          const __t163 = document.createTextNode("Agent");
-          __e162.appendChild(__t163);
-          __e161.appendChild(__e162);
-          const __e164 = document.createElement("select");
-          __e164.setAttribute("class", "cb-spawn-agent");
-          __c157.push(bindValue2(__e164, $scope.bar.spawnAgent));
-          const __ifAnchor165 = document.createComment("if");
-          __e164.appendChild(__ifAnchor165);
-          __c157.push(__wireBoundary_b64(__ifAnchor165));
-          __e161.appendChild(__e164);
-          __e158.appendChild(__e161);
-          const __e178 = document.createElement("div");
-          __e178.setAttribute("class", "cb-spawn-row");
-          const __e179 = document.createElement("label");
-          const __t180 = document.createTextNode("Provider");
-          __e179.appendChild(__t180);
-          __e178.appendChild(__e179);
-          const __e181 = document.createElement("select");
-          __e181.setAttribute("class", "cb-spawn-provider");
-          __c157.push(bindValue2(__e181, $scope.bar.spawnProvider));
-          const __ifAnchor182 = document.createComment("if");
-          __e181.appendChild(__ifAnchor182);
-          __c157.push(__wireBoundary_b69(__ifAnchor182));
-          __e178.appendChild(__e181);
-          __e158.appendChild(__e178);
-          const __ifAnchor195 = document.createComment("if");
-          __e158.appendChild(__ifAnchor195);
-          __c157.push(__wireBoundary_b73(__ifAnchor195));
-          const __e200 = document.createElement("button");
-          __e200.setAttribute("class", "cb-spawn-start");
-          __e200.setAttribute("type", "button");
-          __c157.push(bindAttr2(__e200, "disabled", () => $scope.bar.spawning() || !$scope.bar.spawnAgent() || !$scope.bar.spawnProvider()));
-          __c157.push(on3(__e200, "click", function() {
-            const __h = $scope.spawnSession;
-            return typeof __h === "function" ? __h.bind(undefined) : () => {};
-          }(), { modifiers: [] }));
-          const __t201 = document.createTextNode("");
-          __e200.appendChild(__t201);
-          __c157.push(bindText3(__t201, () => $scope.bar.spawning() ? "Startingâ¦" : "Start session"));
-          __e158.appendChild(__e200);
-          __frag156.appendChild(__e158);
-          return { nodes: Array.from(__frag156.childNodes), cleanup: () => {
-            for (const c of __c157)
-              try {
-                c();
-              } catch (e) {}
-          } };
-        }
-      ]
-    });
-    const __root = host.shadowRoot ?? host;
-    adoptSuiSheets3(__root);
-    const __e0 = document.createElement("div");
-    __e0.setAttribute("class", "cb-input-row");
-    const __e1 = document.createElement("span");
-    __e1.setAttribute("class", "cb-mode-glyph");
-    __cleanups.push(bindClass2(__e1, "ai", () => $scope.bar.mode() === "ai"));
-    const __t2 = document.createTextNode("");
-    __e1.appendChild(__t2);
-    __cleanups.push(bindText3(__t2, () => $scope.modeGlyph()));
-    __e0.appendChild(__e1);
-    const __e3 = document.createElement("input");
-    __e3.setAttribute("class", "cb-search");
-    __e3.setAttribute("type", "text");
-    __e3.setAttribute("autocomplete", "off");
-    __e3.setAttribute("spellcheck", "false");
-    __cleanups.push(bindAttr2(__e3, "placeholder", () => $scope.searchPlaceholder()));
-    __cleanups.push(bindValue2(__e3, $scope.bar.value));
-    __e3.setAttribute("aria-label", "Command bar search");
-    __e3.setAttribute("aria-autocomplete", "list");
-    __cleanups.push(on3(__e3, "input", function() {
-      const __h = $scope.onInput;
-      return typeof __h === "function" ? __h.bind(undefined) : () => {};
-    }(), { modifiers: [] }));
-    __e0.appendChild(__e3);
-    const __e4 = document.createElement("kbd");
-    __e4.setAttribute("class", "cb-esc");
-    __e4.setAttribute("aria-label", "Escape to close");
-    const __t5 = document.createTextNode("esc");
-    __e4.appendChild(__t5);
-    __e0.appendChild(__e4);
-    const __e6 = document.createElement("div");
-    __e6.setAttribute("class", "cb-chip-wrap");
-    const __e7 = document.createElement("span");
-    __e7.setAttribute("class", "cb-session-chip");
-    __e7.setAttribute("role", "button");
-    __e7.setAttribute("aria-haspopup", "listbox");
-    __cleanups.push(on3(__e7, "click", function() {
-      const __h = $scope.toggleSessionPicker;
-      return typeof __h === "function" ? __h.bind(undefined) : () => {};
-    }(), { modifiers: [] }));
-    const __e8 = document.createElement("span");
-    __e8.setAttribute("class", "cb-dot");
-    __cleanups.push(effect4(() => {
-      const __v = $scope.chipDotBg();
-      if (__v == null)
-        __e8.style.removeProperty("background");
-      else
-        __e8.style.setProperty("background", String(__v));
-    }));
-    __e7.appendChild(__e8);
-    const __e9 = document.createElement("span");
-    const __t10 = document.createTextNode("");
-    __e9.appendChild(__t10);
-    __cleanups.push(bindText3(__t10, () => $scope.chipLabel()));
-    __e7.appendChild(__e9);
-    __e6.appendChild(__e7);
-    const __ifAnchor11 = document.createComment("if");
-    __e6.appendChild(__ifAnchor11);
-    __cleanups.push(__wireBoundary_b8(__ifAnchor11));
-    __e0.appendChild(__e6);
-    __root.appendChild(__e0);
-    const __e48 = document.createElement("div");
-    __e48.setAttribute("class", "cb-body");
-    const __matchAnchor49 = document.createComment("match");
-    __e48.appendChild(__matchAnchor49);
-    __cleanups.push(__wireBoundary_b20(__matchAnchor49));
-    __root.appendChild(__e48);
-    if (__r != null) {
-      const __lc = Object.getOwnPropertyDescriptor(__r, "__shipSetLifecycle")?.value;
-      if (__lc) {
-        const __sp = new Proxy($scope, {
-          get(t, k) {
-            return t[k];
-          },
-          set(t, k, v) {
-            const s = t[k];
-            if (s != null && typeof s.set === "function") {
-              if (typeof v === "function") {
-                s.set(() => v);
-              } else {
-                s.set(v);
-              }
-              return true;
-            }
-            return false;
+              __e64.setAttribute("data-path", __av65 === true ? "" : String(__av65));
           }
-        });
-        if (__lc.mount) {
-          const __mc = __lc.mount(__sp, host);
-          if (typeof __mc === "function")
-            __cleanups.push(__mc);
-        }
-        if (__lc.unmount)
-          __cleanups.push(() => __lc.unmount(__sp));
-      }
+          {
+            const __av67 = $scope2.item.icon;
+            if (__av67 == null || __av67 === false || __av67 === "")
+              __e66.removeAttribute("name");
+            else
+              __e66.setAttribute("name", __av67 === true ? "" : String(__av67));
+          }
+          __t69.textContent = $scope2.item.label;
+          __t71.textContent = $scope2.item.path;
+          $scope2.__v.set((c) => c + 1);
+        } };
+      })(__childScope61);
     }
-    return $scope;
-  }
-});
+  });
+  const __wireBoundary_b21 = (anchor) => bindIf3({
+    anchor,
+    test: () => {
+      if ($scope.findItems().length > 0)
+        return 0;
+      return 1;
+    },
+    branches: [
+      () => {
+        const __frag55 = document.createDocumentFragment();
+        const __c56 = [];
+        const __e57 = document.createElement("div");
+        __e57.setAttribute("class", "cb-mode-hint");
+        const __t58 = document.createTextNode("Jump to");
+        __e57.appendChild(__t58);
+        __frag55.appendChild(__e57);
+        const __e59 = document.createElement("div");
+        __e59.setAttribute("class", "cb-list");
+        __e59.setAttribute("role", "listbox");
+        const __forAnchor60 = document.createComment("for");
+        __e59.appendChild(__forAnchor60);
+        __c56.push(__wireBoundary_b22(__forAnchor60));
+        __frag55.appendChild(__e59);
+        return { nodes: Array.from(__frag55.childNodes), cleanup: () => {
+          for (const c of __c56)
+            try {
+              c();
+            } catch (e) {}
+        } };
+      },
+      () => {
+        const __frag74 = document.createDocumentFragment();
+        const __c75 = [];
+        const __e76 = document.createElement("div");
+        __e76.setAttribute("class", "cb-empty");
+        const __t77 = document.createTextNode("No matches.");
+        __e76.appendChild(__t77);
+        __frag74.appendChild(__e76);
+        return { nodes: Array.from(__frag74.childNodes), cleanup: () => {
+          for (const c of __c75)
+            try {
+              c();
+            } catch (e) {}
+        } };
+      }
+    ]
+  });
+  const __wireBoundary_b30 = (anchor) => bindFor2({
+    anchor,
+    items: () => $scope.cmdItems(),
+    key: (item, __i) => {
+      const __child = Object.create($scope);
+      __child.item = item;
+      __child.__i = __i;
+      return (($scope2) => item.key)(__child);
+    },
+    render: (item, __i) => {
+      const __childScope87 = Object.create($scope);
+      __childScope87.item = item;
+      __childScope87.__i = __i;
+      __childScope87.__v = signal4(0);
+      return (($scope2) => {
+        const __frag88 = document.createDocumentFragment();
+        const __c89 = [];
+        const __e90 = document.createElement("div");
+        __e90.setAttribute("class", "cb-item");
+        __e90.setAttribute("role", "option");
+        __c89.push(bindAttr2(__e90, "aria-selected", () => (void $scope2.__v(), $scope2.bar.selectedIdx() === $scope2.item.idx ? "true" : "false")));
+        {
+          const __av91 = $scope2.item.key;
+          if (__av91 == null || __av91 === false || __av91 === "")
+            __e90.removeAttribute("data-cmd");
+          else
+            __e90.setAttribute("data-cmd", __av91 === true ? "" : String(__av91));
+        }
+        __c89.push(on3(__e90, "click", function() {
+          const __h = () => $scope2.activateCmd($scope2.item.key);
+          return typeof __h === "function" ? __h.bind(undefined) : () => {};
+        }(), { modifiers: [] }));
+        const __e92 = document.createElement("span");
+        __e92.setAttribute("style", "font-family:var(--font-mono)");
+        const __t93 = document.createTextNode("");
+        __e92.appendChild(__t93);
+        __t93.textContent = $scope2.item.label;
+        __e90.appendChild(__e92);
+        const __e94 = document.createElement("span");
+        __e90.appendChild(__e94);
+        const __e95 = document.createElement("span");
+        __e95.setAttribute("class", "hint");
+        const __t96 = document.createTextNode("");
+        __e95.appendChild(__t96);
+        __t96.textContent = $scope2.item.hint;
+        __e90.appendChild(__e95);
+        __frag88.appendChild(__e90);
+        return { nodes: Array.from(__frag88.childNodes), cleanup: () => {
+          for (const c of __c89)
+            try {
+              c();
+            } catch (e) {}
+        }, update: (__new97, __newI98) => {
+          $scope2.item = __new97;
+          $scope2.__i = __newI98;
+          {
+            const __av91 = $scope2.item.key;
+            if (__av91 == null || __av91 === false || __av91 === "")
+              __e90.removeAttribute("data-cmd");
+            else
+              __e90.setAttribute("data-cmd", __av91 === true ? "" : String(__av91));
+          }
+          __t93.textContent = $scope2.item.label;
+          __t96.textContent = $scope2.item.hint;
+          $scope2.__v.set((c) => c + 1);
+        } };
+      })(__childScope87);
+    }
+  });
+  const __wireBoundary_b29 = (anchor) => bindIf3({
+    anchor,
+    test: () => {
+      if ($scope.cmdItems().length > 0)
+        return 0;
+      return 1;
+    },
+    branches: [
+      () => {
+        const __frag81 = document.createDocumentFragment();
+        const __c82 = [];
+        const __e83 = document.createElement("div");
+        __e83.setAttribute("class", "cb-mode-hint");
+        const __t84 = document.createTextNode("Actions");
+        __e83.appendChild(__t84);
+        __frag81.appendChild(__e83);
+        const __e85 = document.createElement("div");
+        __e85.setAttribute("class", "cb-list");
+        __e85.setAttribute("role", "listbox");
+        const __forAnchor86 = document.createComment("for");
+        __e85.appendChild(__forAnchor86);
+        __c82.push(__wireBoundary_b30(__forAnchor86));
+        __frag81.appendChild(__e85);
+        return { nodes: Array.from(__frag81.childNodes), cleanup: () => {
+          for (const c of __c82)
+            try {
+              c();
+            } catch (e) {}
+        } };
+      },
+      () => {
+        const __frag99 = document.createDocumentFragment();
+        const __c100 = [];
+        const __e101 = document.createElement("div");
+        __e101.setAttribute("class", "cb-empty");
+        const __t102 = document.createTextNode("No commands match.");
+        __e101.appendChild(__t102);
+        __frag99.appendChild(__e101);
+        return { nodes: Array.from(__frag99.childNodes), cleanup: () => {
+          for (const c of __c100)
+            try {
+              c();
+            } catch (e) {}
+        } };
+      }
+    ]
+  });
+  const __wireBoundary_b37 = (anchor) => bindFor2({
+    anchor,
+    items: () => $scope.mentionItems(),
+    key: (item, __i) => {
+      const __child = Object.create($scope);
+      __child.item = item;
+      __child.__i = __i;
+      return (($scope2) => item.id + item.kind)(__child);
+    },
+    render: (item, __i) => {
+      const __childScope112 = Object.create($scope);
+      __childScope112.item = item;
+      __childScope112.__i = __i;
+      __childScope112.__v = signal4(0);
+      return (($scope2) => {
+        const __frag113 = document.createDocumentFragment();
+        const __c114 = [];
+        const __e115 = document.createElement("div");
+        __e115.setAttribute("class", "cb-item");
+        __e115.setAttribute("role", "option");
+        __c114.push(bindAttr2(__e115, "aria-selected", () => (void $scope2.__v(), $scope2.bar.selectedIdx() === $scope2.item.idx ? "true" : "false")));
+        {
+          const __av116 = $scope2.item.kind;
+          if (__av116 == null || __av116 === false || __av116 === "")
+            __e115.removeAttribute("data-mention-kind");
+          else
+            __e115.setAttribute("data-mention-kind", __av116 === true ? "" : String(__av116));
+        }
+        {
+          const __av117 = $scope2.item.id;
+          if (__av117 == null || __av117 === false || __av117 === "")
+            __e115.removeAttribute("data-mention-id");
+          else
+            __e115.setAttribute("data-mention-id", __av117 === true ? "" : String(__av117));
+        }
+        __c114.push(on3(__e115, "click", function() {
+          const __h = () => $scope2.activateMention($scope2.item);
+          return typeof __h === "function" ? __h.bind(undefined) : () => {};
+        }(), { modifiers: [] }));
+        const __e118 = document.createElement("sui-icon");
+        {
+          const __av119 = $scope2.item.icon;
+          if (__av119 == null || __av119 === false || __av119 === "")
+            __e118.removeAttribute("name");
+          else
+            __e118.setAttribute("name", __av119 === true ? "" : String(__av119));
+        }
+        __e118.setAttribute("size", "sm");
+        __e118.setAttribute("aria-hidden", "true");
+        __e115.appendChild(__e118);
+        const __e120 = document.createElement("span");
+        const __t121 = document.createTextNode("");
+        __e120.appendChild(__t121);
+        __t121.textContent = $scope2.item.label;
+        __e115.appendChild(__e120);
+        const __e122 = document.createElement("span");
+        __e122.setAttribute("class", "hint");
+        const __t123 = document.createTextNode("");
+        __e122.appendChild(__t123);
+        __t123.textContent = $scope2.item.kind;
+        __e115.appendChild(__e122);
+        __frag113.appendChild(__e115);
+        return { nodes: Array.from(__frag113.childNodes), cleanup: () => {
+          for (const c of __c114)
+            try {
+              c();
+            } catch (e) {}
+        }, update: (__new124, __newI125) => {
+          $scope2.item = __new124;
+          $scope2.__i = __newI125;
+          {
+            const __av116 = $scope2.item.kind;
+            if (__av116 == null || __av116 === false || __av116 === "")
+              __e115.removeAttribute("data-mention-kind");
+            else
+              __e115.setAttribute("data-mention-kind", __av116 === true ? "" : String(__av116));
+          }
+          {
+            const __av117 = $scope2.item.id;
+            if (__av117 == null || __av117 === false || __av117 === "")
+              __e115.removeAttribute("data-mention-id");
+            else
+              __e115.setAttribute("data-mention-id", __av117 === true ? "" : String(__av117));
+          }
+          {
+            const __av119 = $scope2.item.icon;
+            if (__av119 == null || __av119 === false || __av119 === "")
+              __e118.removeAttribute("name");
+            else
+              __e118.setAttribute("name", __av119 === true ? "" : String(__av119));
+          }
+          __t121.textContent = $scope2.item.label;
+          __t123.textContent = $scope2.item.kind;
+          $scope2.__v.set((c) => c + 1);
+        } };
+      })(__childScope112);
+    }
+  });
+  const __wireBoundary_b36 = (anchor) => bindIf3({
+    anchor,
+    test: () => {
+      if ($scope.mentionItems().length > 0)
+        return 0;
+      return 1;
+    },
+    branches: [
+      () => {
+        const __frag106 = document.createDocumentFragment();
+        const __c107 = [];
+        const __e108 = document.createElement("div");
+        __e108.setAttribute("class", "cb-mode-hint");
+        const __t109 = document.createTextNode("Reference");
+        __e108.appendChild(__t109);
+        __frag106.appendChild(__e108);
+        const __e110 = document.createElement("div");
+        __e110.setAttribute("class", "cb-list");
+        __e110.setAttribute("role", "listbox");
+        const __forAnchor111 = document.createComment("for");
+        __e110.appendChild(__forAnchor111);
+        __c107.push(__wireBoundary_b37(__forAnchor111));
+        __frag106.appendChild(__e110);
+        return { nodes: Array.from(__frag106.childNodes), cleanup: () => {
+          for (const c of __c107)
+            try {
+              c();
+            } catch (e) {}
+        } };
+      },
+      () => {
+        const __frag126 = document.createDocumentFragment();
+        const __c127 = [];
+        const __e128 = document.createElement("div");
+        __e128.setAttribute("class", "cb-empty");
+        const __t129 = document.createTextNode("No matching views or agents.");
+        __e128.appendChild(__t129);
+        __frag126.appendChild(__e128);
+        return { nodes: Array.from(__frag126.childNodes), cleanup: () => {
+          for (const c of __c127)
+            try {
+              c();
+            } catch (e) {}
+        } };
+      }
+    ]
+  });
+  const __wireBoundary_b45 = (anchor) => bindFor2({
+    anchor,
+    items: () => $scope.createSurfaces(),
+    key: (surf, __i) => {
+      const __child = Object.create($scope);
+      __child.surf = surf;
+      __child.__i = __i;
+      return (($scope2) => surf.id)(__child);
+    },
+    render: (surf, __i) => {
+      const __childScope136 = Object.create($scope);
+      __childScope136.surf = surf;
+      __childScope136.__i = __i;
+      __childScope136.__v = signal4(0);
+      return (($scope2) => {
+        const __frag137 = document.createDocumentFragment();
+        const __c138 = [];
+        const __e139 = document.createElement("button");
+        __e139.setAttribute("class", "cb-surface-btn");
+        __e139.setAttribute("type", "button");
+        __c138.push(bindAttr2(__e139, "aria-pressed", () => (void $scope2.__v(), $scope2.bar.createSurface() === $scope2.surf.id ? "true" : "false")));
+        __c138.push(on3(__e139, "click", function() {
+          const __h = () => $scope2.selectSurface($scope2.surf.id);
+          return typeof __h === "function" ? __h.bind(undefined) : () => {};
+        }(), { modifiers: [] }));
+        const __e140 = document.createElement("sui-icon");
+        {
+          const __av141 = $scope2.surf.icon;
+          if (__av141 == null || __av141 === false || __av141 === "")
+            __e140.removeAttribute("name");
+          else
+            __e140.setAttribute("name", __av141 === true ? "" : String(__av141));
+        }
+        __e140.setAttribute("aria-hidden", "true");
+        __e139.appendChild(__e140);
+        const __e142 = document.createElement("span");
+        const __t143 = document.createTextNode("");
+        __e142.appendChild(__t143);
+        __t143.textContent = $scope2.surf.label;
+        __e139.appendChild(__e142);
+        __frag137.appendChild(__e139);
+        return { nodes: Array.from(__frag137.childNodes), cleanup: () => {
+          for (const c of __c138)
+            try {
+              c();
+            } catch (e) {}
+        }, update: (__new144, __newI145) => {
+          $scope2.surf = __new144;
+          $scope2.__i = __newI145;
+          {
+            const __av141 = $scope2.surf.icon;
+            if (__av141 == null || __av141 === false || __av141 === "")
+              __e140.removeAttribute("name");
+            else
+              __e140.setAttribute("name", __av141 === true ? "" : String(__av141));
+          }
+          __t143.textContent = $scope2.surf.label;
+          $scope2.__v.set((c) => c + 1);
+        } };
+      })(__childScope136);
+    }
+  });
+  const __wireBoundary_b54 = (anchor) => bindFor2({
+    anchor,
+    items: () => $scope.currentSurfaceDef().shapes,
+    key: (sh, __i) => {
+      const __child = Object.create($scope);
+      __child.sh = sh;
+      __child.__i = __i;
+      return (($scope2) => sh)(__child);
+    },
+    render: (sh, __i) => {
+      const __childScope156 = Object.create($scope);
+      __childScope156.sh = sh;
+      __childScope156.__i = __i;
+      __childScope156.__v = signal4(0);
+      return (($scope2) => {
+        const __frag157 = document.createDocumentFragment();
+        const __c158 = [];
+        const __e159 = document.createElement("option");
+        {
+          const __av160 = $scope2.sh;
+          if (__av160 == null || __av160 === false || __av160 === "")
+            __e159.removeAttribute("value");
+          else
+            __e159.setAttribute("value", __av160 === true ? "" : String(__av160));
+        }
+        const __t161 = document.createTextNode("");
+        __e159.appendChild(__t161);
+        __t161.textContent = $scope2.sh;
+        __frag157.appendChild(__e159);
+        return { nodes: Array.from(__frag157.childNodes), cleanup: () => {
+          for (const c of __c158)
+            try {
+              c();
+            } catch (e) {}
+        }, update: (__new162, __newI163) => {
+          $scope2.sh = __new162;
+          $scope2.__i = __newI163;
+          {
+            const __av160 = $scope2.sh;
+            if (__av160 == null || __av160 === false || __av160 === "")
+              __e159.removeAttribute("value");
+            else
+              __e159.setAttribute("value", __av160 === true ? "" : String(__av160));
+          }
+          __t161.textContent = $scope2.sh;
+          $scope2.__v.set((c) => c + 1);
+        } };
+      })(__childScope156);
+    }
+  });
+  const __wireBoundary_b58 = (anchor) => bindIf3({
+    anchor,
+    test: () => {
+      if ($scope.bar.createError())
+        return 0;
+      return -1;
+    },
+    branches: [
+      () => {
+        const __frag169 = document.createDocumentFragment();
+        const __c170 = [];
+        const __e171 = document.createElement("div");
+        __e171.setAttribute("class", "cb-create-error");
+        const __t172 = document.createTextNode("");
+        __e171.appendChild(__t172);
+        __c170.push(bindText3(__t172, () => $scope.bar.createError()));
+        __frag169.appendChild(__e171);
+        return { nodes: Array.from(__frag169.childNodes), cleanup: () => {
+          for (const c of __c170)
+            try {
+              c();
+            } catch (e) {}
+        } };
+      }
+    ]
+  });
+  const __wireBoundary_b65 = (anchor) => bindFor2({
+    anchor,
+    items: () => $scope.bar.agents(),
+    key: (a, __i) => {
+      const __child = Object.create($scope);
+      __child.a = a;
+      __child.__i = __i;
+      return (($scope2) => a.id)(__child);
+    },
+    render: (a, __i) => {
+      const __childScope193 = Object.create($scope);
+      __childScope193.a = a;
+      __childScope193.__i = __i;
+      __childScope193.__v = signal4(0);
+      return (($scope2) => {
+        const __frag194 = document.createDocumentFragment();
+        const __c195 = [];
+        const __e196 = document.createElement("option");
+        {
+          const __av197 = $scope2.a.id;
+          if (__av197 == null || __av197 === false || __av197 === "")
+            __e196.removeAttribute("value");
+          else
+            __e196.setAttribute("value", __av197 === true ? "" : String(__av197));
+        }
+        const __t198 = document.createTextNode("");
+        __e196.appendChild(__t198);
+        __c195.push(bindText3(__t198, () => (void $scope2.__v(), $scope2.a.name ?? $scope2.a.label ?? $scope2.a.id)));
+        __frag194.appendChild(__e196);
+        return { nodes: Array.from(__frag194.childNodes), cleanup: () => {
+          for (const c of __c195)
+            try {
+              c();
+            } catch (e) {}
+        }, update: (__new199, __newI200) => {
+          $scope2.a = __new199;
+          $scope2.__i = __newI200;
+          {
+            const __av197 = $scope2.a.id;
+            if (__av197 == null || __av197 === false || __av197 === "")
+              __e196.removeAttribute("value");
+            else
+              __e196.setAttribute("value", __av197 === true ? "" : String(__av197));
+          }
+          $scope2.__v.set((c) => c + 1);
+        } };
+      })(__childScope193);
+    }
+  });
+  const __wireBoundary_b64 = (anchor) => bindIf3({
+    anchor,
+    test: () => {
+      if ($scope.bar.agents().length === 0)
+        return 0;
+      return 1;
+    },
+    branches: [
+      () => {
+        const __frag186 = document.createDocumentFragment();
+        const __c187 = [];
+        const __e188 = document.createElement("option");
+        __e188.setAttribute("value", "");
+        const __t189 = document.createTextNode("No agents found");
+        __e188.appendChild(__t189);
+        __frag186.appendChild(__e188);
+        return { nodes: Array.from(__frag186.childNodes), cleanup: () => {
+          for (const c of __c187)
+            try {
+              c();
+            } catch (e) {}
+        } };
+      },
+      () => {
+        const __frag190 = document.createDocumentFragment();
+        const __c191 = [];
+        const __forAnchor192 = document.createComment("for");
+        __frag190.appendChild(__forAnchor192);
+        __c191.push(__wireBoundary_b65(__forAnchor192));
+        return { nodes: Array.from(__frag190.childNodes), cleanup: () => {
+          for (const c of __c191)
+            try {
+              c();
+            } catch (e) {}
+        } };
+      }
+    ]
+  });
+  const __wireBoundary_b70 = (anchor) => bindFor2({
+    anchor,
+    items: () => $scope.bar.providers(),
+    key: (p, __i) => {
+      const __child = Object.create($scope);
+      __child.p = p;
+      __child.__i = __i;
+      return (($scope2) => p)(__child);
+    },
+    render: (p, __i) => {
+      const __childScope213 = Object.create($scope);
+      __childScope213.p = p;
+      __childScope213.__i = __i;
+      __childScope213.__v = signal4(0);
+      return (($scope2) => {
+        const __frag214 = document.createDocumentFragment();
+        const __c215 = [];
+        const __e216 = document.createElement("option");
+        {
+          const __av217 = $scope2.p;
+          if (__av217 == null || __av217 === false || __av217 === "")
+            __e216.removeAttribute("value");
+          else
+            __e216.setAttribute("value", __av217 === true ? "" : String(__av217));
+        }
+        const __t218 = document.createTextNode("");
+        __e216.appendChild(__t218);
+        __t218.textContent = $scope2.p;
+        __frag214.appendChild(__e216);
+        return { nodes: Array.from(__frag214.childNodes), cleanup: () => {
+          for (const c of __c215)
+            try {
+              c();
+            } catch (e) {}
+        }, update: (__new219, __newI220) => {
+          $scope2.p = __new219;
+          $scope2.__i = __newI220;
+          {
+            const __av217 = $scope2.p;
+            if (__av217 == null || __av217 === false || __av217 === "")
+              __e216.removeAttribute("value");
+            else
+              __e216.setAttribute("value", __av217 === true ? "" : String(__av217));
+          }
+          __t218.textContent = $scope2.p;
+          $scope2.__v.set((c) => c + 1);
+        } };
+      })(__childScope213);
+    }
+  });
+  const __wireBoundary_b69 = (anchor) => bindIf3({
+    anchor,
+    test: () => {
+      if ($scope.bar.providers().length === 0)
+        return 0;
+      return 1;
+    },
+    branches: [
+      () => {
+        const __frag206 = document.createDocumentFragment();
+        const __c207 = [];
+        const __e208 = document.createElement("option");
+        __e208.setAttribute("value", "");
+        const __t209 = document.createTextNode("No providers installed");
+        __e208.appendChild(__t209);
+        __frag206.appendChild(__e208);
+        return { nodes: Array.from(__frag206.childNodes), cleanup: () => {
+          for (const c of __c207)
+            try {
+              c();
+            } catch (e) {}
+        } };
+      },
+      () => {
+        const __frag210 = document.createDocumentFragment();
+        const __c211 = [];
+        const __forAnchor212 = document.createComment("for");
+        __frag210.appendChild(__forAnchor212);
+        __c211.push(__wireBoundary_b70(__forAnchor212));
+        return { nodes: Array.from(__frag210.childNodes), cleanup: () => {
+          for (const c of __c211)
+            try {
+              c();
+            } catch (e) {}
+        } };
+      }
+    ]
+  });
+  const __wireBoundary_b73 = (anchor) => bindIf3({
+    anchor,
+    test: () => {
+      if ($scope.bar.spawnError())
+        return 0;
+      return -1;
+    },
+    branches: [
+      () => {
+        const __frag222 = document.createDocumentFragment();
+        const __c223 = [];
+        const __e224 = document.createElement("div");
+        __e224.setAttribute("class", "cb-spawn-error");
+        const __t225 = document.createTextNode("");
+        __e224.appendChild(__t225);
+        __c223.push(bindText3(__t225, () => $scope.bar.spawnError()));
+        __frag222.appendChild(__e224);
+        return { nodes: Array.from(__frag222.childNodes), cleanup: () => {
+          for (const c of __c223)
+            try {
+              c();
+            } catch (e) {}
+        } };
+      }
+    ]
+  });
+  const __wireBoundary_b20 = (anchor) => bindIf3({
+    anchor,
+    test: () => {
+      const __d = $scope.bar.mode();
+      if (__d === "find")
+        return 0;
+      if (__d === "command")
+        return 1;
+      if (__d === "mention")
+        return 2;
+      if (__d === "create")
+        return 3;
+      return 4;
+    },
+    branches: [
+      () => {
+        const __frag52 = document.createDocumentFragment();
+        const __c53 = [];
+        const __ifAnchor54 = document.createComment("if");
+        __frag52.appendChild(__ifAnchor54);
+        __c53.push(__wireBoundary_b21(__ifAnchor54));
+        return { nodes: Array.from(__frag52.childNodes), cleanup: () => {
+          for (const c of __c53)
+            try {
+              c();
+            } catch (e) {}
+        } };
+      },
+      () => {
+        const __frag78 = document.createDocumentFragment();
+        const __c79 = [];
+        const __ifAnchor80 = document.createComment("if");
+        __frag78.appendChild(__ifAnchor80);
+        __c79.push(__wireBoundary_b29(__ifAnchor80));
+        return { nodes: Array.from(__frag78.childNodes), cleanup: () => {
+          for (const c of __c79)
+            try {
+              c();
+            } catch (e) {}
+        } };
+      },
+      () => {
+        const __frag103 = document.createDocumentFragment();
+        const __c104 = [];
+        const __ifAnchor105 = document.createComment("if");
+        __frag103.appendChild(__ifAnchor105);
+        __c104.push(__wireBoundary_b36(__ifAnchor105));
+        return { nodes: Array.from(__frag103.childNodes), cleanup: () => {
+          for (const c of __c104)
+            try {
+              c();
+            } catch (e) {}
+        } };
+      },
+      () => {
+        const __frag130 = document.createDocumentFragment();
+        const __c131 = [];
+        const __e132 = document.createElement("div");
+        __e132.setAttribute("class", "cb-mode-hint");
+        const __t133 = document.createTextNode("Create");
+        __e132.appendChild(__t133);
+        __frag130.appendChild(__e132);
+        const __e134 = document.createElement("div");
+        __e134.setAttribute("class", "cb-create-surfaces");
+        __e134.setAttribute("role", "group");
+        __e134.setAttribute("aria-label", "Surface type");
+        const __forAnchor135 = document.createComment("for");
+        __e134.appendChild(__forAnchor135);
+        __c131.push(__wireBoundary_b45(__forAnchor135));
+        __frag130.appendChild(__e134);
+        const __e146 = document.createElement("div");
+        __e146.setAttribute("class", "cb-create-grid");
+        const __e147 = document.createElement("label");
+        const __e148 = document.createElement("span");
+        const __t149 = document.createTextNode("Name (kebab-case)");
+        __e148.appendChild(__t149);
+        __e147.appendChild(__e148);
+        const __e150 = document.createElement("input");
+        __e150.setAttribute("type", "text");
+        __e150.setAttribute("class", "cb-create-name");
+        __c131.push(bindAttr2(__e150, "placeholder", () => "my-" + $scope.bar.createSurface()));
+        __c131.push(bindValue2(__e150, $scope.bar.createName));
+        __e150.setAttribute("autocomplete", "off");
+        __e147.appendChild(__e150);
+        __e146.appendChild(__e147);
+        const __e151 = document.createElement("label");
+        const __e152 = document.createElement("span");
+        const __t153 = document.createTextNode("");
+        __e152.appendChild(__t153);
+        __c131.push(bindText3(__t153, () => $scope.currentSurfaceDef().shapeLabel));
+        __e151.appendChild(__e152);
+        const __e154 = document.createElement("select");
+        __e154.setAttribute("class", "cb-create-shape");
+        __c131.push(bindValue2(__e154, $scope.bar.createShape));
+        const __forAnchor155 = document.createComment("for");
+        __e154.appendChild(__forAnchor155);
+        __c131.push(__wireBoundary_b54(__forAnchor155));
+        __e151.appendChild(__e154);
+        __e146.appendChild(__e151);
+        const __e164 = document.createElement("label");
+        __e164.setAttribute("class", "span-2");
+        const __e165 = document.createElement("span");
+        const __t166 = document.createTextNode("Purpose (optional)");
+        __e165.appendChild(__t166);
+        __e164.appendChild(__e165);
+        const __e167 = document.createElement("input");
+        __e167.setAttribute("type", "text");
+        __e167.setAttribute("class", "cb-create-purpose");
+        __e167.setAttribute("placeholder", "One-line description");
+        __c131.push(bindValue2(__e167, $scope.bar.createPurpose));
+        __e167.setAttribute("autocomplete", "off");
+        __e164.appendChild(__e167);
+        __e146.appendChild(__e164);
+        __frag130.appendChild(__e146);
+        const __ifAnchor168 = document.createComment("if");
+        __frag130.appendChild(__ifAnchor168);
+        __c131.push(__wireBoundary_b58(__ifAnchor168));
+        const __e173 = document.createElement("div");
+        __e173.setAttribute("class", "cb-create-actions");
+        const __e174 = document.createElement("button");
+        __e174.setAttribute("class", "cb-create-submit");
+        __e174.setAttribute("type", "button");
+        __c131.push(bindAttr2(__e174, "disabled", () => $scope.bar.createSubmitting() || !$scope.createNameValid()));
+        __c131.push(on3(__e174, "click", function() {
+          const __h = $scope.submitCreate;
+          return typeof __h === "function" ? __h.bind(undefined) : () => {};
+        }(), { modifiers: [] }));
+        const __t175 = document.createTextNode("");
+        __e174.appendChild(__t175);
+        __c131.push(bindText3(__t175, () => $scope.bar.createSubmitting() ? "Creating…" : "Create " + $scope.currentSurfaceDef().label));
+        __e173.appendChild(__e174);
+        __frag130.appendChild(__e173);
+        return { nodes: Array.from(__frag130.childNodes), cleanup: () => {
+          for (const c of __c131)
+            try {
+              c();
+            } catch (e) {}
+        } };
+      },
+      () => {
+        const __frag176 = document.createDocumentFragment();
+        const __c177 = [];
+        const __e178 = document.createElement("div");
+        __e178.setAttribute("class", "cb-spawn-card");
+        const __e179 = document.createElement("div");
+        __e179.setAttribute("class", "cb-spawn-title");
+        const __t180 = document.createTextNode("Start a session");
+        __e179.appendChild(__t180);
+        __e178.appendChild(__e179);
+        const __e181 = document.createElement("div");
+        __e181.setAttribute("class", "cb-spawn-row");
+        const __e182 = document.createElement("label");
+        const __t183 = document.createTextNode("Agent");
+        __e182.appendChild(__t183);
+        __e181.appendChild(__e182);
+        const __e184 = document.createElement("select");
+        __e184.setAttribute("class", "cb-spawn-agent");
+        __c177.push(bindValue2(__e184, $scope.bar.spawnAgent));
+        const __ifAnchor185 = document.createComment("if");
+        __e184.appendChild(__ifAnchor185);
+        __c177.push(__wireBoundary_b64(__ifAnchor185));
+        __e181.appendChild(__e184);
+        __e178.appendChild(__e181);
+        const __e201 = document.createElement("div");
+        __e201.setAttribute("class", "cb-spawn-row");
+        const __e202 = document.createElement("label");
+        const __t203 = document.createTextNode("Provider");
+        __e202.appendChild(__t203);
+        __e201.appendChild(__e202);
+        const __e204 = document.createElement("select");
+        __e204.setAttribute("class", "cb-spawn-provider");
+        __c177.push(bindValue2(__e204, $scope.bar.spawnProvider));
+        const __ifAnchor205 = document.createComment("if");
+        __e204.appendChild(__ifAnchor205);
+        __c177.push(__wireBoundary_b69(__ifAnchor205));
+        __e201.appendChild(__e204);
+        __e178.appendChild(__e201);
+        const __ifAnchor221 = document.createComment("if");
+        __e178.appendChild(__ifAnchor221);
+        __c177.push(__wireBoundary_b73(__ifAnchor221));
+        const __e226 = document.createElement("button");
+        __e226.setAttribute("class", "cb-spawn-start");
+        __e226.setAttribute("type", "button");
+        __c177.push(bindAttr2(__e226, "disabled", () => $scope.bar.spawning() || !$scope.bar.spawnAgent() || !$scope.bar.spawnProvider()));
+        __c177.push(on3(__e226, "click", function() {
+          const __h = $scope.spawnSession;
+          return typeof __h === "function" ? __h.bind(undefined) : () => {};
+        }(), { modifiers: [] }));
+        const __t227 = document.createTextNode("");
+        __e226.appendChild(__t227);
+        __c177.push(bindText3(__t227, () => $scope.bar.spawning() ? "Starting…" : "Start session"));
+        __e178.appendChild(__e226);
+        __frag176.appendChild(__e178);
+        return { nodes: Array.from(__frag176.childNodes), cleanup: () => {
+          for (const c of __c177)
+            try {
+              c();
+            } catch (e) {}
+        } };
+      }
+    ]
+  });
+  return Object.assign({}, $scope, {
+    __mount(container) {
+      const __cleanups = [];
+      const __e0 = document.createElement("div");
+      __e0.setAttribute("class", "cb-input-row");
+      const __e1 = document.createElement("span");
+      __e1.setAttribute("class", "cb-mode-glyph");
+      __cleanups.push(bindClass2(__e1, "ai", () => $scope.bar.mode() === "ai"));
+      const __t2 = document.createTextNode("");
+      __e1.appendChild(__t2);
+      __cleanups.push(bindText3(__t2, () => $scope.modeGlyph()));
+      __e0.appendChild(__e1);
+      const __e3 = document.createElement("input");
+      __e3.setAttribute("class", "cb-search");
+      __e3.setAttribute("type", "text");
+      __e3.setAttribute("autocomplete", "off");
+      __e3.setAttribute("spellcheck", "false");
+      __cleanups.push(bindAttr2(__e3, "placeholder", () => $scope.searchPlaceholder()));
+      __cleanups.push(bindValue2(__e3, $scope.bar.value));
+      __e3.setAttribute("aria-label", "Command bar search");
+      __e3.setAttribute("aria-autocomplete", "list");
+      __cleanups.push(on3(__e3, "input", function() {
+        const __h = $scope.onInput;
+        return typeof __h === "function" ? __h.bind(undefined) : () => {};
+      }(), { modifiers: [] }));
+      __e0.appendChild(__e3);
+      const __e4 = document.createElement("kbd");
+      __e4.setAttribute("class", "cb-esc");
+      __e4.setAttribute("aria-label", "Escape to close");
+      const __t5 = document.createTextNode("esc");
+      __e4.appendChild(__t5);
+      __e0.appendChild(__e4);
+      const __e6 = document.createElement("div");
+      __e6.setAttribute("class", "cb-chip-wrap");
+      const __e7 = document.createElement("span");
+      __e7.setAttribute("class", "cb-session-chip");
+      __e7.setAttribute("role", "button");
+      __e7.setAttribute("aria-haspopup", "listbox");
+      __cleanups.push(on3(__e7, "click", function() {
+        const __h = $scope.toggleSessionPicker;
+        return typeof __h === "function" ? __h.bind(undefined) : () => {};
+      }(), { modifiers: [] }));
+      const __e8 = document.createElement("span");
+      __e8.setAttribute("class", "cb-dot");
+      __cleanups.push(effect4(() => {
+        const __v = $scope.chipDotBg();
+        if (__v == null)
+          __e8.style.removeProperty("background");
+        else
+          __e8.style.setProperty("background", String(__v));
+      }));
+      __e7.appendChild(__e8);
+      const __e9 = document.createElement("span");
+      const __t10 = document.createTextNode("");
+      __e9.appendChild(__t10);
+      __cleanups.push(bindText3(__t10, () => $scope.chipLabel()));
+      __e7.appendChild(__e9);
+      __e6.appendChild(__e7);
+      const __ifAnchor11 = document.createComment("if");
+      __e6.appendChild(__ifAnchor11);
+      __cleanups.push(__wireBoundary_b8(__ifAnchor11));
+      __e0.appendChild(__e6);
+      container.appendChild(__e0);
+      const __e50 = document.createElement("div");
+      __e50.setAttribute("class", "cb-body");
+      const __matchAnchor51 = document.createComment("match");
+      __e50.appendChild(__matchAnchor51);
+      __cleanups.push(__wireBoundary_b20(__matchAnchor51));
+      container.appendChild(__e50);
+      return () => {
+        for (const c of __cleanups)
+          try {
+            c();
+          } catch (e) {}
+      };
+    },
+    hydrate(root, ctx2) {
+      const __cleanups = [];
+      const __t = collectTextOpens2(root);
+      const __m = collectElementMarkers2(root);
+      if (__m["b0"])
+        __cleanups.push(hydrateClass(__m["b0"], "ai", () => $scope.bar.mode() === "ai"));
+      if (__t["b1"])
+        __cleanups.push(hydrateText2(__t["b1"], () => $scope.modeGlyph()));
+      if (__m["b2"])
+        __cleanups.push(hydrateAttr2(__m["b2"], "placeholder", () => $scope.searchPlaceholder()));
+      if (__m["b3"])
+        __cleanups.push(hydrateBindValue2(__m["b3"], $scope.bar.value));
+      if (__m["b4"])
+        __cleanups.push(hydrateOn2(__m["b4"], "input", function() {
+          const __h = $scope.onInput;
+          return typeof __h === "function" ? __h.bind(undefined) : () => {};
+        }(), []));
+      if (__m["b5"])
+        __cleanups.push(hydrateOn2(__m["b5"], "click", function() {
+          const __h = $scope.toggleSessionPicker;
+          return typeof __h === "function" ? __h.bind(undefined) : () => {};
+        }(), []));
+      if (__m["b6"])
+        __cleanups.push(hydrateStyle2(__m["b6"], "background", () => $scope.chipDotBg()));
+      if (__t["b7"])
+        __cleanups.push(hydrateText2(__t["b7"], () => $scope.chipLabel()));
+      if (__m["b8"]) {
+        const __t2 = __m["b8"];
+        const __doc = __t2.ownerDocument ?? document;
+        const __anchor = __t2.nodeType === 1 ? __doc.createComment("if") : __t2;
+        if (__t2.nodeType === 1 && __t2.parentNode)
+          __t2.parentNode.replaceChild(__anchor, __t2);
+        __cleanups.push(__wireBoundary_b8(__anchor));
+      }
+      if (__m["b20"]) {
+        const __t2 = __m["b20"];
+        const __doc = __t2.ownerDocument ?? document;
+        const __anchor = __t2.nodeType === 1 ? __doc.createComment("match") : __t2;
+        if (__t2.nodeType === 1 && __t2.parentNode)
+          __t2.parentNode.replaceChild(__anchor, __t2);
+        __cleanups.push(__wireBoundary_b20(__anchor));
+      }
+      return () => {
+        for (const c of __cleanups)
+          try {
+            c();
+          } catch (e) {}
+      };
+    }
+  });
+}), { _compilerVersion: { cargo: "0.1.0", git: "d4751a31", dirty: true, builtAt: "2026-05-14T02:37:23Z" } });

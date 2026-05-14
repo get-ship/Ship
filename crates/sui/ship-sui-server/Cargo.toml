@@ -17,7 +17,7 @@ specta = ["dep:specta", "ship-sui-host/specta"]
 ship-sui-host = { path = "../ship-sui-host" }
 sui-compiler = { path = "../sui-compiler" }
 sui-signals = { path = "../sui-signals" }
-ship-substrate = { path = "../core/ship-substrate" }
+ship-substrate = { path = "../../core/ship-substrate" }
 
 axum = { workspace = true, features = ["http1", "tokio", "ws"] }
 tokio = { workspace = true, features = ["full"] }

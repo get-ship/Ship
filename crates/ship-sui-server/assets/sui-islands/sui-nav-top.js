@@ -1,5 +1,5 @@
 // packages/ui-components/src/islands/sui-nav-top/sui-nav-top.sui
-import { adoptSuiSheets, bindAttr, bindFor, bindIf, bindText, component, on, prop } from "@ship/sui-runtime";
+import { adoptSuiSheets, bindAttr, bindFor, bindIf, bindText, component, on, prop, signal as signal2 } from "@ship/sui-runtime";
 
 // packages/ui-components/src/islands/sui-nav-top/sui-nav-top.controller.ts
 import { controller, derived, signal } from "@ship/sui-runtime";
@@ -115,7 +115,9 @@ var sui_nav_top_controller_default = controller({
 });
 
 // packages/ui-components/src/islands/sui-nav-top/sui-nav-top.sui
+/*! _compilerVersion {"cargo":"0.1.0","git":"d4751a31","dirty":true,"builtAt":"2026-05-14T02:37:23Z"} */
 var sui_nav_top_default = component("sui-nav-top", {
+  _compilerVersion: { cargo: "0.1.0", git: "d4751a31", dirty: true, builtAt: "2026-05-14T02:37:23Z" },
   props: {
     path: prop.string({ default: "" })
   },
@@ -241,6 +243,7 @@ var sui_nav_top_default = component("sui-nav-top", {
         const __childScope5 = Object.create($scope);
         __childScope5.c = c;
         __childScope5.__i = __i;
+        __childScope5.__v = signal2(0);
         return (($scope2) => {
           const __wireBoundary_b2 = (anchor2) => bindIf({
             anchor: anchor2,
@@ -258,7 +261,7 @@ var sui_nav_top_default = component("sui-nav-top", {
                 __e11.setAttribute("id", "breadcrumbs-title");
                 const __t12 = document.createTextNode("");
                 __e11.appendChild(__t12);
-                __c10.push(bindText(__t12, () => $scope2.c.label));
+                __t12.textContent = $scope2.c.label;
                 __frag9.appendChild(__e11);
                 return { nodes: Array.from(__frag9.childNodes), cleanup: () => {
                   for (const c2 of __c10)
@@ -271,21 +274,27 @@ var sui_nav_top_default = component("sui-nav-top", {
                 const __frag13 = document.createDocumentFragment();
                 const __c14 = [];
                 const __e15 = document.createElement("a");
-                __c14.push(bindAttr(__e15, "href", () => $scope2.c.href));
+                {
+                  const __av16 = $scope2.c.href;
+                  if (__av16 == null || __av16 === false || __av16 === "")
+                    __e15.removeAttribute("href");
+                  else
+                    __e15.setAttribute("href", __av16 === true ? "" : String(__av16));
+                }
                 __c14.push(on(__e15, "click", function() {
                   const __h = (e) => $scope2.onCrumbClick(e, $scope2.c.href);
                   return typeof __h === "function" ? __h.bind(undefined) : () => {};
                 }(), { modifiers: [] }));
-                const __t16 = document.createTextNode("");
-                __e15.appendChild(__t16);
-                __c14.push(bindText(__t16, () => $scope2.c.label));
+                const __t17 = document.createTextNode("");
+                __e15.appendChild(__t17);
+                __t17.textContent = $scope2.c.label;
                 __frag13.appendChild(__e15);
-                const __e17 = document.createElement("span");
-                __e17.setAttribute("class", "chevron");
-                __e17.setAttribute("aria-hidden", "true");
-                const __t18 = document.createTextNode("›");
-                __e17.appendChild(__t18);
-                __frag13.appendChild(__e17);
+                const __e18 = document.createElement("span");
+                __e18.setAttribute("class", "chevron");
+                __e18.setAttribute("aria-hidden", "true");
+                const __t19 = document.createTextNode("›");
+                __e18.appendChild(__t19);
+                __frag13.appendChild(__e18);
                 return { nodes: Array.from(__frag13.childNodes), cleanup: () => {
                   for (const c2 of __c14)
                     try {
@@ -305,6 +314,10 @@ var sui_nav_top_default = component("sui-nav-top", {
               try {
                 c2();
               } catch (e) {}
+          }, update: (__new20, __newI21) => {
+            $scope2.c = __new20;
+            $scope2.__i = __newI21;
+            $scope2.__v.set((c2) => c2 + 1);
           } };
         })(__childScope5);
       }
@@ -340,104 +353,104 @@ var sui_nav_top_default = component("sui-nav-top", {
     __e3.appendChild(__forAnchor4);
     __cleanups.push(__wireBoundary_b1(__forAnchor4));
     __root.appendChild(__e3);
-    const __e19 = document.createElement("span");
-    __e19.setAttribute("class", "view-actions");
-    const __e20 = document.createElement("slot");
-    __e20.setAttribute("name", "actions");
-    __e19.appendChild(__e20);
-    __root.appendChild(__e19);
-    const __e21 = document.createElement("span");
-    __e21.setAttribute("class", "spacer");
-    __root.appendChild(__e21);
     const __e22 = document.createElement("span");
-    __e22.setAttribute("class", "cmd-slot");
+    __e22.setAttribute("class", "view-actions");
     const __e23 = document.createElement("slot");
-    __e23.setAttribute("name", "command-bar");
+    __e23.setAttribute("name", "actions");
     __e22.appendChild(__e23);
     __root.appendChild(__e22);
     const __e24 = document.createElement("span");
     __e24.setAttribute("class", "spacer");
     __root.appendChild(__e24);
-    const __e25 = document.createElement("sui-button");
-    __e25.setAttribute("variant", "ghost");
-    __e25.setAttribute("size", "sm");
-    __e25.setAttribute("part", "rail-toggle");
-    __e25.setAttribute("title", "Toggle navigation (⌘B)");
-    __e25.setAttribute("aria-label", "Toggle navigation");
-    __cleanups.push(on(__e25, "click", function() {
+    const __e25 = document.createElement("span");
+    __e25.setAttribute("class", "cmd-slot");
+    const __e26 = document.createElement("slot");
+    __e26.setAttribute("name", "command-bar");
+    __e25.appendChild(__e26);
+    __root.appendChild(__e25);
+    const __e27 = document.createElement("span");
+    __e27.setAttribute("class", "spacer");
+    __root.appendChild(__e27);
+    const __e28 = document.createElement("sui-button");
+    __e28.setAttribute("variant", "ghost");
+    __e28.setAttribute("size", "sm");
+    __e28.setAttribute("part", "rail-toggle");
+    __e28.setAttribute("title", "Toggle navigation (⌘B)");
+    __e28.setAttribute("aria-label", "Toggle navigation");
+    __cleanups.push(on(__e28, "click", function() {
       const __h = $scope.onRailToggle;
       return typeof __h === "function" ? __h.bind(undefined) : () => {};
     }(), { modifiers: [] }));
-    const __e26 = document.createElement("sui-icon");
-    __e26.setAttribute("slot", "leading");
-    __e26.setAttribute("name", "menu");
-    __e25.appendChild(__e26);
-    __root.appendChild(__e25);
-    const __e27 = document.createElement("sui-button");
-    __e27.setAttribute("variant", "ghost");
-    __e27.setAttribute("size", "sm");
-    __e27.setAttribute("part", "studio");
-    __e27.setAttribute("title", "Open UI Studio");
-    __e27.setAttribute("aria-label", "Open UI Studio");
-    __cleanups.push(on(__e27, "click", function() {
-      const __h = $scope.onStudio;
-      return typeof __h === "function" ? __h.bind(undefined) : () => {};
-    }(), { modifiers: [] }));
-    const __e28 = document.createElement("sui-icon");
-    __e28.setAttribute("slot", "leading");
-    __e28.setAttribute("name", "columns");
-    __e27.appendChild(__e28);
-    __root.appendChild(__e27);
-    const __e29 = document.createElement("sui-theme-picker");
-    __e29.setAttribute("placement", "bottom-end");
-    __e29.setAttribute("part", "theme-picker");
-    __root.appendChild(__e29);
+    const __e29 = document.createElement("sui-icon");
+    __e29.setAttribute("slot", "leading");
+    __e29.setAttribute("name", "menu");
+    __e28.appendChild(__e29);
+    __root.appendChild(__e28);
     const __e30 = document.createElement("sui-button");
     __e30.setAttribute("variant", "ghost");
     __e30.setAttribute("size", "sm");
-    __e30.setAttribute("part", "dock-toggle");
-    __e30.setAttribute("title", "Toggle panel dock (⌘J)");
-    __e30.setAttribute("aria-label", "Toggle panel dock");
-    __cleanups.push(bindAttr(__e30, "aria-pressed", () => $scope.dockOpen() ? "true" : "false"));
+    __e30.setAttribute("part", "studio");
+    __e30.setAttribute("title", "Open UI Studio");
+    __e30.setAttribute("aria-label", "Open UI Studio");
     __cleanups.push(on(__e30, "click", function() {
-      const __h = $scope.onDockToggle;
+      const __h = $scope.onStudio;
       return typeof __h === "function" ? __h.bind(undefined) : () => {};
     }(), { modifiers: [] }));
     const __e31 = document.createElement("sui-icon");
     __e31.setAttribute("slot", "leading");
-    __e31.setAttribute("name", "terminal");
+    __e31.setAttribute("name", "columns");
     __e30.appendChild(__e31);
     __root.appendChild(__e30);
-    const __e32 = document.createElement("sui-button");
-    __e32.setAttribute("variant", "ghost");
-    __e32.setAttribute("size", "sm");
-    __e32.setAttribute("part", "fullscreen");
-    __e32.setAttribute("title", "Fullscreen (F11)");
-    __e32.setAttribute("aria-label", "Toggle fullscreen");
-    __cleanups.push(on(__e32, "click", function() {
+    const __e32 = document.createElement("sui-theme-picker");
+    __e32.setAttribute("placement", "bottom-end");
+    __e32.setAttribute("part", "theme-picker");
+    __root.appendChild(__e32);
+    const __e33 = document.createElement("sui-button");
+    __e33.setAttribute("variant", "ghost");
+    __e33.setAttribute("size", "sm");
+    __e33.setAttribute("part", "dock-toggle");
+    __e33.setAttribute("title", "Toggle panel dock (⌘J)");
+    __e33.setAttribute("aria-label", "Toggle panel dock");
+    __cleanups.push(bindAttr(__e33, "aria-pressed", () => $scope.dockOpen() ? "true" : "false"));
+    __cleanups.push(on(__e33, "click", function() {
+      const __h = $scope.onDockToggle;
+      return typeof __h === "function" ? __h.bind(undefined) : () => {};
+    }(), { modifiers: [] }));
+    const __e34 = document.createElement("sui-icon");
+    __e34.setAttribute("slot", "leading");
+    __e34.setAttribute("name", "terminal");
+    __e33.appendChild(__e34);
+    __root.appendChild(__e33);
+    const __e35 = document.createElement("sui-button");
+    __e35.setAttribute("variant", "ghost");
+    __e35.setAttribute("size", "sm");
+    __e35.setAttribute("part", "fullscreen");
+    __e35.setAttribute("title", "Fullscreen (F11)");
+    __e35.setAttribute("aria-label", "Toggle fullscreen");
+    __cleanups.push(on(__e35, "click", function() {
       const __h = $scope.onFullscreen;
       return typeof __h === "function" ? __h.bind(undefined) : () => {};
     }(), { modifiers: [] }));
-    const __e33 = document.createElement("sui-icon");
-    __e33.setAttribute("slot", "leading");
-    __e33.setAttribute("name", "maximize");
-    __e32.appendChild(__e33);
-    __root.appendChild(__e32);
-    const __e34 = document.createElement("sui-button");
-    __e34.setAttribute("variant", "ghost");
-    __e34.setAttribute("size", "sm");
-    __e34.setAttribute("part", "chat-toggle");
-    __e34.setAttribute("title", "Toggle chat drawer");
-    __e34.setAttribute("aria-label", "Toggle chat drawer");
-    __cleanups.push(on(__e34, "click", function() {
+    const __e36 = document.createElement("sui-icon");
+    __e36.setAttribute("slot", "leading");
+    __e36.setAttribute("name", "maximize");
+    __e35.appendChild(__e36);
+    __root.appendChild(__e35);
+    const __e37 = document.createElement("sui-button");
+    __e37.setAttribute("variant", "ghost");
+    __e37.setAttribute("size", "sm");
+    __e37.setAttribute("part", "chat-toggle");
+    __e37.setAttribute("title", "Toggle chat drawer");
+    __e37.setAttribute("aria-label", "Toggle chat drawer");
+    __cleanups.push(on(__e37, "click", function() {
       const __h = $scope.onChatToggle;
       return typeof __h === "function" ? __h.bind(undefined) : () => {};
     }(), { modifiers: [] }));
-    const __e35 = document.createElement("sui-icon");
-    __e35.setAttribute("slot", "leading");
-    __e35.setAttribute("name", "message-square");
-    __e34.appendChild(__e35);
-    __root.appendChild(__e34);
+    const __e38 = document.createElement("sui-icon");
+    __e38.setAttribute("slot", "leading");
+    __e38.setAttribute("name", "message-square");
+    __e37.appendChild(__e38);
+    __root.appendChild(__e37);
     if (__r != null) {
       const __lc = Object.getOwnPropertyDescriptor(__r, "__shipSetLifecycle")?.value;
       if (__lc) {

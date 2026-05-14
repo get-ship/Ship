@@ -1,6 +1,6 @@
-// packages/ui-components/src/sui-status-dot/sui-status-dot.sui
+// packages/ui-components/src/sui-status-dot/dist/sui-status-dot.compiled.js
 import { adoptSuiSheets, bindAttr, component, prop } from "@ship/sui-runtime";
-var sui_status_dot_default = component("sui-status-dot", {
+var sui_status_dot_compiled_default = component("sui-status-dot", {
   props: {
     tone: prop.union(["default", "primary", "info", "success", "warning", "destructive", "accent", "muted"], { default: "success", reflect: true }),
     pulse: prop.bool({ default: false, reflect: true }),
@@ -61,9 +61,9 @@ var sui_status_dot_default = component("sui-status-dot", {
   }
 });
 
-// packages/ui-components/src/sui-spinner/sui-spinner.sui
+// packages/ui-components/src/sui-spinner/dist/sui-spinner.compiled.js
 import { adoptSuiSheets as adoptSuiSheets2, bindAttr as bindAttr2, component as component2, prop as prop2 } from "@ship/sui-runtime";
-var sui_spinner_default = component2("sui-spinner", {
+var sui_spinner_compiled_default = component2("sui-spinner", {
   props: {
     size: prop2.union(["xs", "sm", "md", "lg"], { default: "md", reflect: true }),
     tone: prop2.union(["default", "primary", "info", "success", "warning", "destructive", "accent", "muted"], { default: "default", reflect: true }),
@@ -117,9 +117,9 @@ var sui_spinner_default = component2("sui-spinner", {
   }
 });
 
-// packages/ui-components/src/sui-badge/sui-badge.sui
+// packages/ui-components/src/sui-badge/dist/sui-badge.compiled.js
 import { adoptSuiSheets as adoptSuiSheets3, component as component3, prop as prop3 } from "@ship/sui-runtime";
-var sui_badge_default = component3("sui-badge", {
+var sui_badge_compiled_default = component3("sui-badge", {
   props: {
     tone: prop3.union(["default", "primary", "info", "success", "warning", "destructive", "accent", "muted"], { default: "default", reflect: true }),
     variant: prop3.union(["solid", "soft", "outline"], { default: "soft", reflect: true }),
@@ -245,7 +245,7 @@ var sui_badge_default = component3("sui-badge", {
   }
 });
 
-// packages/ui-components/src/sui-chip/sui-chip.sui
+// packages/ui-components/src/sui-chip/dist/sui-chip.compiled.js
 import { adoptSuiSheets as adoptSuiSheets4, attachRef, bindIf, component as component4, prop as prop4 } from "@ship/sui-runtime";
 
 // packages/ui-components/src/sui-chip/sui-chip.controller.ts
@@ -305,8 +305,8 @@ var sui_chip_controller_default = controller({
   }
 });
 
-// packages/ui-components/src/sui-chip/sui-chip.sui
-var sui_chip_default = component4("sui-chip", {
+// packages/ui-components/src/sui-chip/dist/sui-chip.compiled.js
+var sui_chip_compiled_default = component4("sui-chip", {
   props: {
     tone: prop4.union(["default", "primary", "info", "success", "warning", "destructive", "accent", "muted"], { default: "muted", reflect: true }),
     variant: prop4.union(["solid", "soft", "outline", "ghost"], { default: "soft", reflect: true }),
@@ -581,7 +581,7 @@ var sui_chip_default = component4("sui-chip", {
   }
 });
 
-// packages/ui-components/src/sui-card/sui-card.sui
+// packages/ui-components/src/sui-card/dist/sui-card.compiled.js
 import { adoptSuiSheets as adoptSuiSheets5, bindSlotEmpty, component as component5, prop as prop5 } from "@ship/sui-runtime";
 
 // packages/ui-components/src/sui-card/sui-card.controller.ts
@@ -616,8 +616,8 @@ var sui_card_controller_default = controller2({
   }
 });
 
-// packages/ui-components/src/sui-card/sui-card.sui
-var sui_card_default = component5("sui-card", {
+// packages/ui-components/src/sui-card/dist/sui-card.compiled.js
+var sui_card_compiled_default = component5("sui-card", {
   props: {
     tone: prop5.union(["default", "primary", "info", "success", "warning", "destructive", "accent", "muted"], { default: "default", reflect: true }),
     variant: prop5.union(["default", "outline"], { default: "default", reflect: true }),
@@ -814,9 +814,9 @@ var sui_card_default = component5("sui-card", {
   }
 });
 
-// packages/ui-components/src/sui-link/sui-link.sui
+// packages/ui-components/src/sui-link/dist/sui-link.compiled.js
 import { adoptSuiSheets as adoptSuiSheets6, bindAttr as bindAttr3, bindIf as bindIf2, component as component6, prop as prop6 } from "@ship/sui-runtime";
-var sui_link_default = component6("sui-link", {
+var sui_link_compiled_default = component6("sui-link", {
   props: {
     href: prop6.string({ default: "" }),
     external: prop6.bool({ default: false, reflect: true }),
@@ -957,9 +957,9 @@ var sui_link_default = component6("sui-link", {
   }
 });
 
-// packages/ui-components/src/sui-divider/sui-divider.sui
+// packages/ui-components/src/sui-divider/dist/sui-divider.compiled.js
 import { adoptSuiSheets as adoptSuiSheets7, bindAttr as bindAttr4, component as component7, prop as prop7 } from "@ship/sui-runtime";
-var sui_divider_default = component7("sui-divider", {
+var sui_divider_compiled_default = component7("sui-divider", {
   props: {
     orientation: prop7.union(["horizontal", "vertical"], { default: "horizontal", reflect: true }),
     variant: prop7.union(["solid", "dashed"], { default: "solid", reflect: true }),
@@ -1032,9 +1032,9 @@ var sui_divider_default = component7("sui-divider", {
   }
 });
 
-// packages/ui-components/src/sui-skeleton/sui-skeleton.sui
+// packages/ui-components/src/sui-skeleton/dist/sui-skeleton.compiled.js
 import { adoptSuiSheets as adoptSuiSheets8, component as component8, prop as prop8 } from "@ship/sui-runtime";
-var sui_skeleton_default = component8("sui-skeleton", {
+var sui_skeleton_compiled_default = component8("sui-skeleton", {
   props: {
     shape: prop8.union(["text", "line", "block", "circle"], { default: "text", reflect: true }),
     size: prop8.union(["sm", "md", "lg"], { default: "md", reflect: true })
@@ -1106,7 +1106,7 @@ var sui_skeleton_default = component8("sui-skeleton", {
   }
 });
 
-// packages/ui-components/src/sui-stat/sui-stat.sui
+// packages/ui-components/src/sui-stat/dist/sui-stat.compiled.js
 import { adoptSuiSheets as adoptSuiSheets9, component as component9, prop as prop9 } from "@ship/sui-runtime";
 
 // packages/ui-components/src/sui-stat/sui-stat.controller.ts
@@ -1142,8 +1142,8 @@ var sui_stat_controller_default = controller3({
   }
 });
 
-// packages/ui-components/src/sui-stat/sui-stat.sui
-var sui_stat_default = component9("sui-stat", {
+// packages/ui-components/src/sui-stat/dist/sui-stat.compiled.js
+var sui_stat_compiled_default = component9("sui-stat", {
   props: {
     tone: prop9.union(["default", "primary", "info", "success", "warning", "destructive", "accent"], { default: "default", reflect: true }),
     interactive: prop9.bool({ default: false, reflect: true }),
@@ -1293,9 +1293,9 @@ var sui_stat_default = component9("sui-stat", {
   }
 });
 
-// packages/ui-components/src/sui-mark/sui-mark.sui
+// packages/ui-components/src/sui-mark/dist/sui-mark.compiled.js
 import { adoptSuiSheets as adoptSuiSheets10, component as component10, prop as prop10 } from "@ship/sui-runtime";
-var sui_mark_default = component10("sui-mark", {
+var sui_mark_compiled_default = component10("sui-mark", {
   props: {
     tone: prop10.union(["default", "primary", "info", "success", "warning", "destructive", "accent", "muted"], { default: "warning", reflect: true })
   },
@@ -1331,7 +1331,7 @@ var sui_mark_default = component10("sui-mark", {
   }
 });
 
-// packages/ui-components/src/sui-kbd/sui-kbd.sui
+// packages/ui-components/src/sui-kbd/dist/sui-kbd.compiled.js
 import { adoptSuiSheets as adoptSuiSheets11, component as component11, prop as prop11 } from "@ship/sui-runtime";
 
 // packages/ui-components/src/sui-kbd/sui-kbd.controller.ts
@@ -1352,8 +1352,8 @@ var sui_kbd_controller_default = controller4({
   }
 });
 
-// packages/ui-components/src/sui-kbd/sui-kbd.sui
-var sui_kbd_default = component11("sui-kbd", {
+// packages/ui-components/src/sui-kbd/dist/sui-kbd.compiled.js
+var sui_kbd_compiled_default = component11("sui-kbd", {
   props: {
     keys: prop11.string({ default: "" }),
     size: prop11.union(["sm", "md"], { default: "md", reflect: true })
@@ -1443,9 +1443,9 @@ var sui_kbd_default = component11("sui-kbd", {
   }
 });
 
-// packages/ui-components/src/sui-avatar/sui-avatar.sui
+// packages/ui-components/src/sui-avatar/dist/sui-avatar.compiled.js
 import { adoptSuiSheets as adoptSuiSheets12, bindAttr as bindAttr5, bindIf as bindIf3, bindText, component as component12, prop as prop12 } from "@ship/sui-runtime";
-var sui_avatar_default = component12("sui-avatar", {
+var sui_avatar_compiled_default = component12("sui-avatar", {
   props: {
     src: prop12.string({ default: "" }),
     name: prop12.string({ default: "" }),
@@ -1585,9 +1585,9 @@ var sui_avatar_default = component12("sui-avatar", {
   }
 });
 
-// packages/ui-components/src/sui-progress/sui-progress.sui
+// packages/ui-components/src/sui-progress/dist/sui-progress.compiled.js
 import { adoptSuiSheets as adoptSuiSheets13, bindAttr as bindAttr6, component as component13, prop as prop13 } from "@ship/sui-runtime";
-var sui_progress_default = component13("sui-progress", {
+var sui_progress_compiled_default = component13("sui-progress", {
   props: {
     value: prop13.number({ default: 0 }),
     max: prop13.number({ default: 100 }),
@@ -1670,9 +1670,9 @@ var sui_progress_default = component13("sui-progress", {
   }
 });
 
-// packages/ui-components/src/sui-button/sui-button.sui
+// packages/ui-components/src/sui-button/dist/sui-button.compiled.js
 import { adoptSuiSheets as adoptSuiSheets14, bindAttr as bindAttr7, bindIf as bindIf4, bindSlotEmpty as bindSlotEmpty2, component as component14, prop as prop14 } from "@ship/sui-runtime";
-var sui_button_default = component14("sui-button", {
+var sui_button_compiled_default = component14("sui-button", {
   props: {
     tone: prop14.union(["default", "primary", "info", "success", "warning", "destructive", "accent", "muted"], { default: "default", reflect: true }),
     variant: prop14.union(["solid", "soft", "outline", "ghost", "default"], { default: "default", reflect: true }),
@@ -1936,7 +1936,7 @@ var sui_button_default = component14("sui-button", {
   }
 });
 
-// packages/ui-components/src/sui-tabs/sui-tabs.sui
+// packages/ui-components/src/sui-tabs/dist/sui-tabs.compiled.js
 import { adoptSuiSheets as adoptSuiSheets15, attachRef as attachRef2, bindAttr as bindAttr8, component as component15, prop as prop15 } from "@ship/sui-runtime";
 
 // packages/ui-components/src/sui-tabs/sui-tabs.controller.ts
@@ -2055,8 +2055,8 @@ var sui_tabs_controller_default = controller5({
   }
 });
 
-// packages/ui-components/src/sui-tabs/sui-tabs.sui
-var sui_tabs_default = component15("sui-tabs", {
+// packages/ui-components/src/sui-tabs/dist/sui-tabs.compiled.js
+var sui_tabs_compiled_default = component15("sui-tabs", {
   props: {
     active: prop15.string({ default: "", reflect: true }),
     variant: prop15.union(["underline", "pill", "enclosed"], { default: "underline", reflect: true }),
@@ -2170,7 +2170,7 @@ var sui_tabs_default = component15("sui-tabs", {
   }
 });
 
-// packages/ui-components/src/sui-tab/sui-tab.sui
+// packages/ui-components/src/sui-tab/dist/sui-tab.compiled.js
 import { adoptSuiSheets as adoptSuiSheets16, attachRef as attachRef3, bindAttr as bindAttr9, bindIf as bindIf5, bindText as bindText2, component as component16, prop as prop16 } from "@ship/sui-runtime";
 
 // packages/ui-components/src/sui-tab/sui-tab.controller.ts
@@ -2190,8 +2190,8 @@ var sui_tab_controller_default = controller6({
   }
 });
 
-// packages/ui-components/src/sui-tab/sui-tab.sui
-var sui_tab_default = component16("sui-tab", {
+// packages/ui-components/src/sui-tab/dist/sui-tab.compiled.js
+var sui_tab_compiled_default = component16("sui-tab", {
   props: {
     name: prop16.string({ default: "", reflect: true }),
     label: prop16.string({ default: "", reflect: true }),
@@ -2389,9 +2389,9 @@ var sui_tab_default = component16("sui-tab", {
   }
 });
 
-// packages/ui-components/src/sui-empty-state/sui-empty-state.sui
+// packages/ui-components/src/sui-empty-state/dist/sui-empty-state.compiled.js
 import { adoptSuiSheets as adoptSuiSheets17, bindAttr as bindAttr10, bindSlotEmpty as bindSlotEmpty3, component as component17, prop as prop17 } from "@ship/sui-runtime";
-var sui_empty_state_default = component17("sui-empty-state", {
+var sui_empty_state_compiled_default = component17("sui-empty-state", {
   props: {
     variant: prop17.union(["default", "inline", "placeholder", "connecting"], { default: "default", reflect: true }),
     size: prop17.union(["sm", "md", "lg"], { default: "md", reflect: true }),
@@ -2602,7 +2602,7 @@ var sui_empty_state_default = component17("sui-empty-state", {
   }
 });
 
-// packages/ui-components/src/sui-input/sui-input.sui
+// packages/ui-components/src/sui-input/dist/sui-input.compiled.js
 import { adoptSuiSheets as adoptSuiSheets18, attachRef as attachRef4, bindAttr as bindAttr12, bindIf as bindIf6, bindSlotEmpty as bindSlotEmpty4, bindText as bindText3, bindValue, component as component18, prop as prop18 } from "@ship/sui-runtime";
 
 // packages/ui-components/src/sui-input/sui-input.controller.ts
@@ -2644,8 +2644,8 @@ var sui_input_controller_default = controller7({
   }
 });
 
-// packages/ui-components/src/sui-input/sui-input.sui
-var sui_input_default = component18("sui-input", {
+// packages/ui-components/src/sui-input/dist/sui-input.compiled.js
+var sui_input_compiled_default = component18("sui-input", {
   props: {
     type: prop18.union(["text", "search", "email", "url", "tel", "password", "number"], { default: "text", reflect: true }),
     value: prop18.string({ default: "" }),
@@ -2928,7 +2928,7 @@ var sui_input_default = component18("sui-input", {
   }
 });
 
-// packages/ui-components/src/sui-icon/sui-icon.sui
+// packages/ui-components/src/sui-icon/dist/sui-icon.compiled.js
 import { adoptSuiSheets as adoptSuiSheets19, component as component19, prop as prop19 } from "@ship/sui-runtime";
 
 // packages/ui-components/src/sui-icon/sui-icon.controller.ts
@@ -3064,8 +3064,8 @@ var sui_icon_controller_default = controller8({
   }
 });
 
-// packages/ui-components/src/sui-icon/sui-icon.sui
-var sui_icon_default = component19("sui-icon", {
+// packages/ui-components/src/sui-icon/dist/sui-icon.compiled.js
+var sui_icon_compiled_default = component19("sui-icon", {
   props: {
     name: prop19.string({ default: "", reflect: true }),
     size: prop19.union(["sm", "md", "lg"], { default: "md", reflect: true }),
@@ -3150,9 +3150,9 @@ var sui_icon_default = component19("sui-icon", {
   }
 });
 
-// packages/ui-components/src/sui-separator/sui-separator.sui
+// packages/ui-components/src/sui-separator/dist/sui-separator.compiled.js
 import { adoptSuiSheets as adoptSuiSheets20, bindAttr as bindAttr13, component as component20, prop as prop20 } from "@ship/sui-runtime";
-var sui_separator_default = component20("sui-separator", {
+var sui_separator_compiled_default = component20("sui-separator", {
   props: {
     orientation: prop20.union(["horizontal", "vertical"], { default: "horizontal", reflect: true }),
     variant: prop20.union(["solid", "dashed"], { default: "solid", reflect: true })
@@ -3222,7 +3222,7 @@ var sui_separator_default = component20("sui-separator", {
   }
 });
 
-// packages/ui-components/src/sui-label/sui-label.sui
+// packages/ui-components/src/sui-label/dist/sui-label.compiled.js
 import { adoptSuiSheets as adoptSuiSheets21, attachRef as attachRef5, bindIf as bindIf7, component as component21, prop as prop21 } from "@ship/sui-runtime";
 
 // packages/ui-components/src/sui-label/sui-label.controller.ts
@@ -3242,8 +3242,8 @@ var sui_label_controller_default = controller9({
   }
 });
 
-// packages/ui-components/src/sui-label/sui-label.sui
-var sui_label_default = component21("sui-label", {
+// packages/ui-components/src/sui-label/dist/sui-label.compiled.js
+var sui_label_compiled_default = component21("sui-label", {
   props: {
     for: prop21.string({ default: "" }),
     size: prop21.union(["sm", "md"], { default: "sm", reflect: true }),
@@ -3360,7 +3360,7 @@ var sui_label_default = component21("sui-label", {
   }
 });
 
-// packages/ui-components/src/sui-alert/sui-alert.sui
+// packages/ui-components/src/sui-alert/dist/sui-alert.compiled.js
 import { adoptSuiSheets as adoptSuiSheets22, attachRef as attachRef6, bindAttr as bindAttr14, component as component22, prop as prop22 } from "@ship/sui-runtime";
 
 // packages/ui-components/src/sui-alert/sui-alert.controller.ts
@@ -3387,8 +3387,8 @@ var sui_alert_controller_default = controller10({
   }
 });
 
-// packages/ui-components/src/sui-alert/sui-alert.sui
-var sui_alert_default = component22("sui-alert", {
+// packages/ui-components/src/sui-alert/dist/sui-alert.compiled.js
+var sui_alert_compiled_default = component22("sui-alert", {
   props: {
     tone: prop22.union(["info", "success", "warning", "destructive", "muted"], { default: "info", reflect: true }),
     dismissible: prop22.bool({ default: false, reflect: true })
@@ -3552,7 +3552,7 @@ var sui_alert_default = component22("sui-alert", {
   }
 });
 
-// packages/ui-components/src/sui-tooltip/sui-tooltip.sui
+// packages/ui-components/src/sui-tooltip/dist/sui-tooltip.compiled.js
 import { adoptSuiSheets as adoptSuiSheets23, attachRef as attachRef7, component as component23, prop as prop23 } from "@ship/sui-runtime";
 
 // packages/ui-components/src/sui-tooltip/sui-tooltip.controller.ts
@@ -3600,8 +3600,8 @@ var sui_tooltip_controller_default = controller11({
   }
 });
 
-// packages/ui-components/src/sui-tooltip/sui-tooltip.sui
-var sui_tooltip_default = component23("sui-tooltip", {
+// packages/ui-components/src/sui-tooltip/dist/sui-tooltip.compiled.js
+var sui_tooltip_compiled_default = component23("sui-tooltip", {
   props: {
     placement: prop23.union(["top", "bottom", "left", "right"], { default: "top", reflect: true })
   },
@@ -3721,7 +3721,7 @@ var sui_tooltip_default = component23("sui-tooltip", {
   }
 });
 
-// packages/ui-components/src/sui-collapsible/sui-collapsible.sui
+// packages/ui-components/src/sui-collapsible/dist/sui-collapsible.compiled.js
 import { adoptSuiSheets as adoptSuiSheets24, attachRef as attachRef8, component as component24, prop as prop24 } from "@ship/sui-runtime";
 
 // packages/ui-components/src/sui-collapsible/sui-collapsible.controller.ts
@@ -3800,8 +3800,8 @@ var sui_collapsible_controller_default = controller12({
   }
 });
 
-// packages/ui-components/src/sui-collapsible/sui-collapsible.sui
-var sui_collapsible_default = component24("sui-collapsible", {
+// packages/ui-components/src/sui-collapsible/dist/sui-collapsible.compiled.js
+var sui_collapsible_compiled_default = component24("sui-collapsible", {
   props: {
     open: prop24.bool({ default: false, reflect: true }),
     disabled: prop24.bool({ default: false, reflect: true })
@@ -3909,7 +3909,7 @@ var sui_collapsible_default = component24("sui-collapsible", {
   }
 });
 
-// packages/ui-components/src/sui-checkbox/sui-checkbox.sui
+// packages/ui-components/src/sui-checkbox/dist/sui-checkbox.compiled.js
 import { adoptSuiSheets as adoptSuiSheets25, attachRef as attachRef9, bindAttr as bindAttr15, bindChecked, component as component25, prop as prop25 } from "@ship/sui-runtime";
 
 // packages/ui-components/src/sui-checkbox/sui-checkbox.controller.ts
@@ -3945,8 +3945,8 @@ var sui_checkbox_controller_default = controller13({
   }
 });
 
-// packages/ui-components/src/sui-checkbox/sui-checkbox.sui
-var sui_checkbox_default = component25("sui-checkbox", {
+// packages/ui-components/src/sui-checkbox/dist/sui-checkbox.compiled.js
+var sui_checkbox_compiled_default = component25("sui-checkbox", {
   props: {
     checked: prop25.bool({ default: false, reflect: true }),
     indeterminate: prop25.bool({ default: false, reflect: true }),
@@ -4238,7 +4238,7 @@ var sui_checkbox_default = component25("sui-checkbox", {
   }
 });
 
-// packages/ui-components/src/sui-switch/sui-switch.sui
+// packages/ui-components/src/sui-switch/dist/sui-switch.compiled.js
 import { adoptSuiSheets as adoptSuiSheets26, attachRef as attachRef10, bindAttr as bindAttr16, bindChecked as bindChecked2, component as component26, prop as prop26 } from "@ship/sui-runtime";
 
 // packages/ui-components/src/sui-switch/sui-switch.controller.ts
@@ -4264,8 +4264,8 @@ var sui_switch_controller_default = controller14({
   }
 });
 
-// packages/ui-components/src/sui-switch/sui-switch.sui
-var sui_switch_default = component26("sui-switch", {
+// packages/ui-components/src/sui-switch/dist/sui-switch.compiled.js
+var sui_switch_compiled_default = component26("sui-switch", {
   props: {
     checked: prop26.bool({ default: false, reflect: true }),
     disabled: prop26.bool({ default: false, reflect: true }),
@@ -4509,7 +4509,7 @@ var sui_switch_default = component26("sui-switch", {
   }
 });
 
-// packages/ui-components/src/sui-textarea/sui-textarea.sui
+// packages/ui-components/src/sui-textarea/dist/sui-textarea.compiled.js
 import { adoptSuiSheets as adoptSuiSheets27, attachRef as attachRef11, bindAttr as bindAttr17, bindValue as bindValue2, component as component27, effect as effect15, prop as prop27 } from "@ship/sui-runtime";
 
 // packages/ui-components/src/sui-textarea/sui-textarea.controller.ts
@@ -4551,8 +4551,8 @@ var sui_textarea_controller_default = controller15({
   }
 });
 
-// packages/ui-components/src/sui-textarea/sui-textarea.sui
-var sui_textarea_default = component27("sui-textarea", {
+// packages/ui-components/src/sui-textarea/dist/sui-textarea.compiled.js
+var sui_textarea_compiled_default = component27("sui-textarea", {
   props: {
     value: prop27.string({ default: "" }),
     placeholder: prop27.string({ default: "" }),
@@ -4766,7 +4766,7 @@ var sui_textarea_default = component27("sui-textarea", {
   }
 });
 
-// packages/ui-components/src/sui-field/sui-field.sui
+// packages/ui-components/src/sui-field/dist/sui-field.compiled.js
 import { adoptSuiSheets as adoptSuiSheets28, attachRef as attachRef12, component as component28, prop as prop28 } from "@ship/sui-runtime";
 
 // packages/ui-components/src/sui-field/sui-field.controller.ts
@@ -4820,8 +4820,8 @@ var sui_field_controller_default = controller16({
   }
 });
 
-// packages/ui-components/src/sui-field/sui-field.sui
-var sui_field_default = component28("sui-field", {
+// packages/ui-components/src/sui-field/dist/sui-field.compiled.js
+var sui_field_compiled_default = component28("sui-field", {
   props: {
     invalid: prop28.bool({ default: false, reflect: true })
   },
@@ -4916,7 +4916,7 @@ var sui_field_default = component28("sui-field", {
   }
 });
 
-// packages/ui-components/src/sui-toast/sui-toast.sui
+// packages/ui-components/src/sui-toast/dist/sui-toast.compiled.js
 import { adoptSuiSheets as adoptSuiSheets29, attachRef as attachRef13, bindAttr as bindAttr18, bindIf as bindIf8, component as component29, prop as prop29 } from "@ship/sui-runtime";
 
 // packages/ui-components/src/sui-toast/sui-toast.controller.ts
@@ -5071,8 +5071,8 @@ var sui_toast_controller_default = controller17({
   }
 });
 
-// packages/ui-components/src/sui-toast/sui-toast.sui
-var sui_toast_default = component29("sui-toast", {
+// packages/ui-components/src/sui-toast/dist/sui-toast.compiled.js
+var sui_toast_compiled_default = component29("sui-toast", {
   props: {
     tone: prop29.union(["default", "info", "success", "warning", "destructive", "accent", "muted", "primary"], { default: "default", reflect: true }),
     size: prop29.union(["sm", "md", "lg"], { default: "md", reflect: true }),
@@ -5687,7 +5687,7 @@ var sui_toast_default = component29("sui-toast", {
   }
 });
 
-// packages/ui-components/src/sui-toast/sui-toast-container.sui
+// packages/ui-components/src/sui-toast/dist/sui-toast-container.compiled.js
 import { adoptSuiSheets as adoptSuiSheets30, attachRef as attachRef14, component as component30, prop as prop30 } from "@ship/sui-runtime";
 
 // packages/ui-components/src/sui-toast/sui-toast-container.controller.ts
@@ -5785,8 +5785,8 @@ var sui_toast_container_controller_default = controller18({
   }
 });
 
-// packages/ui-components/src/sui-toast/sui-toast-container.sui
-var sui_toast_container_default = component30("sui-toast-container", {
+// packages/ui-components/src/sui-toast/dist/sui-toast-container.compiled.js
+var sui_toast_container_compiled_default = component30("sui-toast-container", {
   props: {
     position: prop30.union(["top-left", "top-center", "top-right", "bottom-left", "bottom-center", "bottom-right"], { default: "bottom-right", reflect: true }),
     "max-visible": prop30.number({ default: 5, reflect: true })
@@ -5917,7 +5917,7 @@ var sui_toast_container_default = component30("sui-toast-container", {
   }
 });
 
-// packages/ui-components/src/sui-breadcrumb/sui-breadcrumb.sui
+// packages/ui-components/src/sui-breadcrumb/dist/sui-breadcrumb.compiled.js
 import { adoptSuiSheets as adoptSuiSheets31, bindAttr as bindAttr19, bindFor, bindIf as bindIf9, bindText as bindText4, component as component31, prop as prop31 } from "@ship/sui-runtime";
 
 // packages/ui-components/src/sui-breadcrumb/sui-breadcrumb.controller.ts
@@ -5949,8 +5949,8 @@ var sui_breadcrumb_controller_default = controller19({
   }
 });
 
-// packages/ui-components/src/sui-breadcrumb/sui-breadcrumb.sui
-var sui_breadcrumb_default = component31("sui-breadcrumb", {
+// packages/ui-components/src/sui-breadcrumb/dist/sui-breadcrumb.compiled.js
+var sui_breadcrumb_compiled_default = component31("sui-breadcrumb", {
   props: {
     separator: prop31.string({ default: "/", reflect: true })
   },
@@ -6124,9 +6124,9 @@ var sui_breadcrumb_default = component31("sui-breadcrumb", {
   }
 });
 
-// packages/ui-components/src/sui-breadcrumb/sui-breadcrumb-item.sui
+// packages/ui-components/src/sui-breadcrumb/dist/sui-breadcrumb-item.compiled.js
 import { adoptSuiSheets as adoptSuiSheets32, bindAttr as bindAttr20, bindIf as bindIf10, component as component32, prop as prop32 } from "@ship/sui-runtime";
-var sui_breadcrumb_item_default = component32("sui-breadcrumb-item", {
+var sui_breadcrumb_item_compiled_default = component32("sui-breadcrumb-item", {
   props: {
     href: prop32.string({ default: "", reflect: true }),
     active: prop32.bool({ default: false, reflect: true })
@@ -6220,7 +6220,7 @@ var sui_breadcrumb_item_default = component32("sui-breadcrumb-item", {
   }
 });
 
-// packages/ui-components/src/sui-pagination/sui-pagination.sui
+// packages/ui-components/src/sui-pagination/dist/sui-pagination.compiled.js
 import { adoptSuiSheets as adoptSuiSheets33, attachRef as attachRef15, bindAttr as bindAttr21, bindText as bindText5, component as component33, prop as prop33 } from "@ship/sui-runtime";
 
 // packages/ui-components/src/sui-pagination/sui-pagination.controller.ts
@@ -6285,8 +6285,8 @@ var sui_pagination_controller_default = controller20({
   }
 });
 
-// packages/ui-components/src/sui-pagination/sui-pagination.sui
-var sui_pagination_default = component33("sui-pagination", {
+// packages/ui-components/src/sui-pagination/dist/sui-pagination.compiled.js
+var sui_pagination_compiled_default = component33("sui-pagination", {
   props: {
     page: prop33.number({ default: 1, reflect: true }),
     total: prop33.number({ default: 0, reflect: true }),
@@ -6421,7 +6421,7 @@ var sui_pagination_default = component33("sui-pagination", {
   }
 });
 
-// packages/ui-components/src/sui-timestamp/sui-timestamp.sui
+// packages/ui-components/src/sui-timestamp/dist/sui-timestamp.compiled.js
 import { adoptSuiSheets as adoptSuiSheets34, bindAttr as bindAttr22, bindIf as bindIf11, bindText as bindText6, component as component34, prop as prop34 } from "@ship/sui-runtime";
 
 // packages/ui-components/src/sui-timestamp/sui-timestamp.controller.ts
@@ -6488,8 +6488,8 @@ var sui_timestamp_controller_default = controller21({
   }
 });
 
-// packages/ui-components/src/sui-timestamp/sui-timestamp.sui
-var sui_timestamp_default = component34("sui-timestamp", {
+// packages/ui-components/src/sui-timestamp/dist/sui-timestamp.compiled.js
+var sui_timestamp_compiled_default = component34("sui-timestamp", {
   props: {
     value: prop34.string({ default: "", reflect: true }),
     format: prop34.union(["relative", "absolute", "both"], { default: "relative", reflect: true })
@@ -6654,9 +6654,9 @@ var sui_timestamp_default = component34("sui-timestamp", {
   }
 });
 
-// packages/ui-components/src/sui-metachip/sui-metachip.sui
+// packages/ui-components/src/sui-metachip/dist/sui-metachip.compiled.js
 import { adoptSuiSheets as adoptSuiSheets35, bindText as bindText7, component as component35, prop as prop35 } from "@ship/sui-runtime";
-var sui_metachip_default = component35("sui-metachip", {
+var sui_metachip_compiled_default = component35("sui-metachip", {
   props: {
     label: prop35.string({ default: "", reflect: true }),
     value: prop35.string({ default: "", reflect: true })
@@ -6721,7 +6721,7 @@ var sui_metachip_default = component35("sui-metachip", {
   }
 });
 
-// packages/ui-components/src/sui-popover/sui-popover.sui
+// packages/ui-components/src/sui-popover/dist/sui-popover.compiled.js
 import { adoptSuiSheets as adoptSuiSheets36, attachRef as attachRef16, component as component36, prop as prop36 } from "@ship/sui-runtime";
 
 // packages/ui-components/src/sui-popover/sui-popover.controller.ts
@@ -6842,8 +6842,8 @@ var sui_popover_controller_default = controller22({
   }
 });
 
-// packages/ui-components/src/sui-popover/sui-popover.sui
-var sui_popover_default = component36("sui-popover", {
+// packages/ui-components/src/sui-popover/dist/sui-popover.compiled.js
+var sui_popover_compiled_default = component36("sui-popover", {
   props: {
     open: prop36.bool({ default: false, reflect: true }),
     placement: prop36.union(["top", "top-end", "bottom", "bottom-end", "left", "left-end", "right", "right-end"], { default: "bottom", reflect: true })
@@ -7009,7 +7009,7 @@ var sui_popover_default = component36("sui-popover", {
   }
 });
 
-// packages/ui-components/src/sui-theme-picker/sui-theme-picker.sui
+// packages/ui-components/src/sui-theme-picker/dist/sui-theme-picker.compiled.js
 import { adoptSuiSheets as adoptSuiSheets37, attachRef as attachRef17, bindAttr as bindAttr23, bindFor as bindFor2, bindText as bindText8, component as component37, effect as effect23, on, prop as prop37 } from "@ship/sui-runtime";
 
 // packages/ui-components/src/sui-theme-picker/sui-theme-picker.controller.ts
@@ -7308,8 +7308,8 @@ var sui_theme_picker_controller_default = controller23({
   }
 });
 
-// packages/ui-components/src/sui-theme-picker/sui-theme-picker.sui
-var sui_theme_picker_default = component37("sui-theme-picker", {
+// packages/ui-components/src/sui-theme-picker/dist/sui-theme-picker.compiled.js
+var sui_theme_picker_compiled_default = component37("sui-theme-picker", {
   props: {
     placement: prop37.union(["top", "top-end", "bottom", "bottom-end", "left", "left-end", "right", "right-end"], { default: "bottom-end", reflect: true }),
     "label-style": prop37.union(["text", "compact"], { default: "text", reflect: true }),
@@ -7854,8 +7854,8 @@ var sui_theme_picker_default = component37("sui-theme-picker", {
   }
 });
 
-// packages/ui-components/src/sui-rail/sui-rail.sui
-import { adoptSuiSheets as adoptSuiSheets38, attachRef as attachRef18, component as component38, prop as prop38 } from "@ship/sui-runtime";
+// packages/ui-components/src/sui-rail/dist/sui-rail.compiled.js
+import { adoptSuiSheets as adoptSuiSheets38, component as component38, prop as prop38 } from "@ship/sui-runtime";
 
 // packages/ui-components/src/sui-rail/sui-rail.controller.ts
 import { controller as controller24, effect as effect24 } from "@ship/sui-runtime";
@@ -7891,8 +7891,8 @@ var sui_rail_controller_default = controller24({
   }
 });
 
-// packages/ui-components/src/sui-rail/sui-rail.sui
-var sui_rail_default = component38("sui-rail", {
+// packages/ui-components/src/sui-rail/dist/sui-rail.compiled.js
+var sui_rail_compiled_default = component38("sui-rail", {
   props: {
     collapsed: prop38.bool({ default: false, reflect: true })
   },
@@ -7909,17 +7909,15 @@ var sui_rail_default = component38("sui-rail", {
     overflow: hidden;
     user-select: none;
     -webkit-user-select: none;
-    /* Inherited custom props consumed by slotted children */
     --rail-label-display: flex;
     --rail-item-justify: flex-start;
   }
   :host([collapsed]) {
-    width: 32px;
+    width: 48px;
     --rail-label-display: none;
     --rail-item-justify: center;
   }
-  :host([collapsed]) .rail-nav { display: none; }
-  :host([collapsed]) .rail-footer { padding: 4px; justify-content: center; }
+  :host([collapsed]) .rail-footer { padding: 4px; }
 
   .rail-nav {
     flex: 1;
@@ -7937,11 +7935,79 @@ var sui_rail_default = component38("sui-rail", {
 
   .rail-footer {
     display: flex;
+    flex-direction: column;
     align-items: center;
-    justify-content: flex-end;
+    gap: 4px;
     padding: var(--space-2, 8px);
     border-top: 1px solid var(--border);
     flex-shrink: 0;
+  }
+  :host([collapsed]) .rail-footer {
+    gap: 4px;
+  }
+
+  .project-badge {
+    appearance: none;
+    background: var(--primary);
+    color: var(--primary-foreground, white);
+    border: none;
+    border-radius: 6px;
+    width: 28px;
+    height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color var(--duration-fast, 100ms) var(--ease-out, ease-out);
+  }
+  .project-badge:hover {
+    background: color-mix(in oklch, var(--primary) 80%, black);
+  }
+  .project-badge:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px color-mix(in oklch, var(--primary, #3b82f6) 50%, transparent);
+  }
+
+  .footer-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 4px;
+    width: 100%;
+  }
+  :host([collapsed]) .footer-actions {
+    flex-direction: column;
+    width: auto;
+  }
+
+  .footer-btn {
+    appearance: none;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm, 4px);
+    padding: 4px;
+    color: var(--muted-foreground);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    transition:
+      background-color var(--duration-fast, 100ms) var(--ease-out, ease-out),
+      border-color var(--duration-fast, 100ms) var(--ease-out, ease-out),
+      color var(--duration-fast, 100ms) var(--ease-out, ease-out);
+  }
+  .footer-btn:hover {
+    background: color-mix(in oklch, var(--foreground) 8%, transparent);
+    border-color: var(--border);
+    color: var(--foreground);
+  }
+  .footer-btn:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px color-mix(in oklch, var(--primary, #3b82f6) 50%, transparent);
   }
 
   .toggle-btn {
@@ -7974,6 +8040,76 @@ var sui_rail_default = component38("sui-rail", {
   .toggle-btn::before { content: '◀'; font-size: 10px; line-height: 1; }
   :host([collapsed]) .toggle-btn::before { content: '▶'; }
 
+  .project-popover-container {
+    position: relative;
+  }
+
+  .project-popover {
+    position: absolute;
+    bottom: 100%;
+    left: 8px;
+    margin-bottom: 4px;
+    min-width: 200px;
+    background: var(--popover, var(--card, white));
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md, 8px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    z-index: 100;
+    overflow: hidden;
+  }
+  .project-popover[hidden] {
+    display: none;
+  }
+  .project-popover-title {
+    padding: 8px 12px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--muted-foreground);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .project-popover-row {
+    padding: 8px 12px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    transition: background-color var(--duration-fast, 100ms) var(--ease-out, ease-out);
+  }
+  .project-popover-row:hover {
+    background: color-mix(in oklch, var(--foreground) 6%, transparent);
+  }
+  .project-popover-row.active {
+    background: color-mix(in oklch, var(--primary) 12%, transparent);
+    color: var(--primary);
+  }
+  .project-popover-row-name {
+    font-size: 13px;
+    font-weight: 500;
+  }
+  .project-popover-row-path {
+    font-size: 11px;
+    color: var(--muted-foreground);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .project-popover-sep {
+    height: 1px;
+    background: var(--border);
+    margin: 4px 0;
+  }
+  .project-popover-row.add {
+    color: var(--primary);
+    font-weight: 500;
+  }
+  .project-popover-empty {
+    padding: 12px;
+    text-align: center;
+    font-size: 12px;
+    color: var(--muted-foreground);
+  }
+
   @media (prefers-reduced-motion: reduce) {
     :host { transition: none; }
   }
@@ -7998,7 +8134,6 @@ var sui_rail_default = component38("sui-rail", {
     __e0.setAttribute("class", "rail-nav");
     __e0.setAttribute("part", "nav");
     const __e1 = document.createElement("slot");
-    attachRef18($scope, "navSlot", __e1);
     __e0.appendChild(__e1);
     __root.appendChild(__e0);
     const __e2 = document.createElement("div");
@@ -8006,11 +8141,71 @@ var sui_rail_default = component38("sui-rail", {
     __e2.setAttribute("part", "footer");
     const __e3 = document.createElement("button");
     __e3.setAttribute("type", "button");
-    __e3.setAttribute("class", "toggle-btn");
-    __e3.setAttribute("part", "toggle");
-    attachRef18($scope, "toggleBtn", __e3);
-    __e3.setAttribute("aria-label", "Collapse rail");
+    __e3.setAttribute("class", "project-badge");
+    __e3.setAttribute("part", "project-badge");
+    __e3.setAttribute("data-rail", "project-badge");
+    __e3.setAttribute("aria-label", "Switch project");
     __e2.appendChild(__e3);
+    const __e4 = document.createElement("div");
+    __e4.setAttribute("class", "project-popover-container");
+    const __e5 = document.createElement("div");
+    __e5.setAttribute("class", "project-popover");
+    __e5.setAttribute("part", "project-popover");
+    __e5.setAttribute("data-rail", "project-popover");
+    __e5.setAttribute("hidden", "");
+    const __e6 = document.createElement("div");
+    __e6.setAttribute("class", "project-popover-title");
+    const __t7 = document.createTextNode("Projects");
+    __e6.appendChild(__t7);
+    __e5.appendChild(__e6);
+    const __e8 = document.createElement("div");
+    __e8.setAttribute("data-rail", "project-list");
+    __e5.appendChild(__e8);
+    const __e9 = document.createElement("div");
+    __e9.setAttribute("class", "project-popover-sep");
+    __e5.appendChild(__e9);
+    const __e10 = document.createElement("div");
+    __e10.setAttribute("class", "project-popover-row add");
+    __e10.setAttribute("data-rail", "add-project");
+    const __e11 = document.createElement("span");
+    const __t12 = document.createTextNode("+ Add project");
+    __e11.appendChild(__t12);
+    __e10.appendChild(__e11);
+    __e5.appendChild(__e10);
+    __e4.appendChild(__e5);
+    __e2.appendChild(__e4);
+    const __e13 = document.createElement("div");
+    __e13.setAttribute("class", "footer-actions");
+    const __e14 = document.createElement("button");
+    __e14.setAttribute("type", "button");
+    __e14.setAttribute("class", "footer-btn");
+    __e14.setAttribute("part", "launcher-btn");
+    __e14.setAttribute("data-rail", "launcher");
+    __e14.setAttribute("aria-label", "Open launcher");
+    const __e15 = document.createElement("sui-icon");
+    __e15.setAttribute("name", "folder");
+    __e15.setAttribute("size", "sm");
+    __e14.appendChild(__e15);
+    __e13.appendChild(__e14);
+    const __e16 = document.createElement("button");
+    __e16.setAttribute("type", "button");
+    __e16.setAttribute("class", "footer-btn");
+    __e16.setAttribute("part", "create-btn");
+    __e16.setAttribute("data-rail", "create");
+    __e16.setAttribute("aria-label", "Create new");
+    const __e17 = document.createElement("sui-icon");
+    __e17.setAttribute("name", "plus");
+    __e17.setAttribute("size", "sm");
+    __e16.appendChild(__e17);
+    __e13.appendChild(__e16);
+    const __e18 = document.createElement("button");
+    __e18.setAttribute("type", "button");
+    __e18.setAttribute("class", "toggle-btn");
+    __e18.setAttribute("part", "toggle");
+    __e18.setAttribute("data-rail", "toggle");
+    __e18.setAttribute("aria-label", "Collapse rail");
+    __e13.appendChild(__e18);
+    __e2.appendChild(__e13);
     __root.appendChild(__e2);
     if (__r != null) {
       const __lc = Object.getOwnPropertyDescriptor(__r, "__shipSetLifecycle")?.value;
@@ -8045,9 +8240,9 @@ var sui_rail_default = component38("sui-rail", {
   }
 });
 
-// packages/ui-components/src/sui-rail/sui-rail-item.sui
-import { adoptSuiSheets as adoptSuiSheets39, attachRef as attachRef19, bindAttr as bindAttr24, bindText as bindText9, component as component39, prop as prop39 } from "@ship/sui-runtime";
-var sui_rail_item_default = component39("sui-rail-item", {
+// packages/ui-components/src/sui-rail/dist/sui-rail-item.compiled.js
+import { adoptSuiSheets as adoptSuiSheets39, attachRef as attachRef18, bindAttr as bindAttr24, bindText as bindText9, component as component39, prop as prop39 } from "@ship/sui-runtime";
+var sui_rail_item_compiled_default = component39("sui-rail-item", {
   props: {
     href: prop39.string({ default: "" }),
     label: prop39.string({ default: "" }),
@@ -8160,7 +8355,7 @@ var sui_rail_item_default = component39("sui-rail-item", {
     const __e0 = document.createElement("a");
     __e0.setAttribute("class", "item");
     __e0.setAttribute("part", "item");
-    attachRef19($scope, "itemEl", __e0);
+    attachRef18($scope, "itemEl", __e0);
     __cleanups.push(bindAttr24(__e0, "href", () => $scope.href() || "#"));
     __cleanups.push(bindAttr24(__e0, "aria-current", () => $scope.active() ? "page" : null));
     __cleanups.push(bindAttr24(__e0, "aria-disabled", () => $scope.disabled() ? "true" : null));
@@ -8183,7 +8378,7 @@ var sui_rail_item_default = component39("sui-rail-item", {
     const __e5 = document.createElement("span");
     __e5.setAttribute("class", "badge");
     __e5.setAttribute("part", "badge");
-    attachRef19($scope, "badgeEl", __e5);
+    attachRef18($scope, "badgeEl", __e5);
     const __t6 = document.createTextNode("");
     __e5.appendChild(__t6);
     __cleanups.push(bindText9(__t6, () => $scope.badge()));
@@ -8193,9 +8388,9 @@ var sui_rail_item_default = component39("sui-rail-item", {
   }
 });
 
-// packages/ui-components/src/sui-rail/sui-rail-section.sui
+// packages/ui-components/src/sui-rail/dist/sui-rail-section.compiled.js
 import { adoptSuiSheets as adoptSuiSheets40, bindText as bindText10, component as component40, prop as prop40 } from "@ship/sui-runtime";
-var sui_rail_section_default = component40("sui-rail-section", {
+var sui_rail_section_compiled_default = component40("sui-rail-section", {
   props: {
     label: prop40.string({ default: "" })
   },
@@ -8244,9 +8439,9 @@ var sui_rail_section_default = component40("sui-rail-section", {
   }
 });
 
-// packages/ui-components/src/sui-status-bar/sui-status-bar.sui
+// packages/ui-components/src/sui-status-bar/dist/sui-status-bar.compiled.js
 import { adoptSuiSheets as adoptSuiSheets41, bindText as bindText11, component as component41, prop as prop41 } from "@ship/sui-runtime";
-var sui_status_bar_default = component41("sui-status-bar", {
+var sui_status_bar_compiled_default = component41("sui-status-bar", {
   props: {
     branch: prop41.string({ default: "" }),
     theme: prop41.string({ default: "" }),
@@ -8356,8 +8551,8 @@ var sui_status_bar_default = component41("sui-status-bar", {
   }
 });
 
-// packages/ui-components/src/sui-dialog/sui-dialog.sui
-import { adoptSuiSheets as adoptSuiSheets42, attachRef as attachRef20, component as component42, prop as prop42 } from "@ship/sui-runtime";
+// packages/ui-components/src/sui-dialog/dist/sui-dialog.compiled.js
+import { adoptSuiSheets as adoptSuiSheets42, attachRef as attachRef19, component as component42, prop as prop42 } from "@ship/sui-runtime";
 
 // packages/ui-components/src/sui-dialog/sui-dialog.controller.ts
 import { controller as controller25, effect as effect25 } from "@ship/sui-runtime";
@@ -8559,8 +8754,8 @@ var sui_dialog_controller_default = controller25({
   }
 });
 
-// packages/ui-components/src/sui-dialog/sui-dialog.sui
-var sui_dialog_default = component42("sui-dialog", {
+// packages/ui-components/src/sui-dialog/dist/sui-dialog.compiled.js
+var sui_dialog_compiled_default = component42("sui-dialog", {
   props: {
     open: prop42.bool({ default: false, reflect: true }),
     size: prop42.union(["sm", "md", "lg", "full"], { default: "md", reflect: true }),
@@ -8712,19 +8907,19 @@ var sui_dialog_default = component42("sui-dialog", {
     adoptSuiSheets42(__root);
     const __e0 = document.createElement("dialog");
     __e0.setAttribute("part", "dialog");
-    attachRef20($scope, "dialogEl", __e0);
+    attachRef19($scope, "dialogEl", __e0);
     const __e1 = document.createElement("span");
     __e1.setAttribute("tabindex", "0");
     __e1.setAttribute("class", "sentinel");
     __e1.setAttribute("aria-hidden", "true");
-    attachRef20($scope, "sentinelStart", __e1);
+    attachRef19($scope, "sentinelStart", __e1);
     __e0.appendChild(__e1);
     const __e2 = document.createElement("button");
     __e2.setAttribute("class", "close");
     __e2.setAttribute("part", "close");
     __e2.setAttribute("type", "button");
     __e2.setAttribute("aria-label", "Close dialog");
-    attachRef20($scope, "closeBtn", __e2);
+    attachRef19($scope, "closeBtn", __e2);
     const __e3 = document.createElement("svg");
     __e3.setAttribute("viewbox", "0 0 16 16");
     __e3.setAttribute("fill", "none");
@@ -8742,7 +8937,7 @@ var sui_dialog_default = component42("sui-dialog", {
     const __e5 = document.createElement("div");
     __e5.setAttribute("class", "header");
     __e5.setAttribute("part", "header");
-    attachRef20($scope, "headerEl", __e5);
+    attachRef19($scope, "headerEl", __e5);
     const __e6 = document.createElement("slot");
     __e6.setAttribute("name", "header");
     __e5.appendChild(__e6);
@@ -8750,7 +8945,7 @@ var sui_dialog_default = component42("sui-dialog", {
     const __e7 = document.createElement("div");
     __e7.setAttribute("class", "body");
     __e7.setAttribute("part", "body");
-    attachRef20($scope, "bodyEl", __e7);
+    attachRef19($scope, "bodyEl", __e7);
     const __e8 = document.createElement("slot");
     __e7.appendChild(__e8);
     __e0.appendChild(__e7);
@@ -8765,7 +8960,7 @@ var sui_dialog_default = component42("sui-dialog", {
     __e11.setAttribute("tabindex", "0");
     __e11.setAttribute("class", "sentinel");
     __e11.setAttribute("aria-hidden", "true");
-    attachRef20($scope, "sentinelEnd", __e11);
+    attachRef19($scope, "sentinelEnd", __e11);
     __e0.appendChild(__e11);
     __root.appendChild(__e0);
     if (__r != null) {
@@ -8801,8 +8996,8 @@ var sui_dialog_default = component42("sui-dialog", {
   }
 });
 
-// packages/ui-components/src/sui-drawer/sui-drawer.sui
-import { adoptSuiSheets as adoptSuiSheets43, attachRef as attachRef21, component as component43, prop as prop43 } from "@ship/sui-runtime";
+// packages/ui-components/src/sui-drawer/dist/sui-drawer.compiled.js
+import { adoptSuiSheets as adoptSuiSheets43, attachRef as attachRef20, component as component43, prop as prop43 } from "@ship/sui-runtime";
 
 // packages/ui-components/src/sui-drawer/sui-drawer.controller.ts
 import { controller as controller26, effect as effect26 } from "@ship/sui-runtime";
@@ -8921,8 +9116,8 @@ var sui_drawer_controller_default = controller26({
   }
 });
 
-// packages/ui-components/src/sui-drawer/sui-drawer.sui
-var sui_drawer_default = component43("sui-drawer", {
+// packages/ui-components/src/sui-drawer/dist/sui-drawer.compiled.js
+var sui_drawer_compiled_default = component43("sui-drawer", {
   props: {
     open: prop43.bool({ default: false, reflect: true }),
     side: prop43.union(["right", "left"], { default: "right", reflect: true }),
@@ -9063,17 +9258,17 @@ var sui_drawer_default = component43("sui-drawer", {
     __e0.setAttribute("part", "dialog");
     __e0.setAttribute("role", "dialog");
     __e0.setAttribute("aria-modal", "true");
-    attachRef21($scope, "dialogEl", __e0);
+    attachRef20($scope, "dialogEl", __e0);
     const __e1 = document.createElement("span");
     __e1.setAttribute("tabindex", "0");
     __e1.setAttribute("class", "sentinel");
     __e1.setAttribute("aria-hidden", "true");
-    attachRef21($scope, "sentinelStart", __e1);
+    attachRef20($scope, "sentinelStart", __e1);
     __e0.appendChild(__e1);
     const __e2 = document.createElement("div");
     __e2.setAttribute("class", "header");
     __e2.setAttribute("part", "header");
-    attachRef21($scope, "headerEl", __e2);
+    attachRef20($scope, "headerEl", __e2);
     const __e3 = document.createElement("div");
     __e3.setAttribute("class", "header-content");
     const __e4 = document.createElement("div");
@@ -9094,7 +9289,7 @@ var sui_drawer_default = component43("sui-drawer", {
     __e8.setAttribute("part", "close");
     __e8.setAttribute("type", "button");
     __e8.setAttribute("aria-label", "Close drawer");
-    attachRef21($scope, "closeBtn", __e8);
+    attachRef20($scope, "closeBtn", __e8);
     const __e9 = document.createElement("svg");
     __e9.setAttribute("viewbox", "0 0 16 16");
     __e9.setAttribute("fill", "none");
@@ -9113,7 +9308,7 @@ var sui_drawer_default = component43("sui-drawer", {
     const __e11 = document.createElement("div");
     __e11.setAttribute("class", "body");
     __e11.setAttribute("part", "body");
-    attachRef21($scope, "bodyEl", __e11);
+    attachRef20($scope, "bodyEl", __e11);
     const __e12 = document.createElement("slot");
     __e11.appendChild(__e12);
     __e0.appendChild(__e11);
@@ -9128,7 +9323,7 @@ var sui_drawer_default = component43("sui-drawer", {
     __e15.setAttribute("tabindex", "0");
     __e15.setAttribute("class", "sentinel");
     __e15.setAttribute("aria-hidden", "true");
-    attachRef21($scope, "sentinelEnd", __e15);
+    attachRef20($scope, "sentinelEnd", __e15);
     __e0.appendChild(__e15);
     __root.appendChild(__e0);
     if (__r != null) {
@@ -9164,8 +9359,8 @@ var sui_drawer_default = component43("sui-drawer", {
   }
 });
 
-// packages/ui-components/src/sui-dropdown-menu/sui-dropdown-menu.sui
-import { adoptSuiSheets as adoptSuiSheets44, attachRef as attachRef22, component as component44, prop as prop44 } from "@ship/sui-runtime";
+// packages/ui-components/src/sui-dropdown-menu/dist/sui-dropdown-menu.compiled.js
+import { adoptSuiSheets as adoptSuiSheets44, attachRef as attachRef21, component as component44, prop as prop44 } from "@ship/sui-runtime";
 
 // packages/ui-components/src/sui-dropdown-menu/sui-dropdown-menu.controller.ts
 import { controller as controller27, effect as effect27, bindNativeEvent as bindNativeEvent3 } from "@ship/sui-runtime";
@@ -9325,8 +9520,8 @@ var sui_dropdown_menu_controller_default = controller27({
   }
 });
 
-// packages/ui-components/src/sui-dropdown-menu/sui-dropdown-menu.sui
-var sui_dropdown_menu_default = component44("sui-dropdown-menu", {
+// packages/ui-components/src/sui-dropdown-menu/dist/sui-dropdown-menu.compiled.js
+var sui_dropdown_menu_compiled_default = component44("sui-dropdown-menu", {
   props: {
     open: prop44.bool({ default: false, reflect: true })
   },
@@ -9399,10 +9594,10 @@ var sui_dropdown_menu_default = component44("sui-dropdown-menu", {
     adoptSuiSheets44(__root);
     const __e0 = document.createElement("span");
     __e0.setAttribute("class", "trigger-wrap");
-    attachRef22($scope, "triggerWrap", __e0);
+    attachRef21($scope, "triggerWrap", __e0);
     const __e1 = document.createElement("slot");
     __e1.setAttribute("name", "trigger");
-    attachRef22($scope, "triggerSlot", __e1);
+    attachRef21($scope, "triggerSlot", __e1);
     __e0.appendChild(__e1);
     __root.appendChild(__e0);
     const __e2 = document.createElement("div");
@@ -9410,9 +9605,9 @@ var sui_dropdown_menu_default = component44("sui-dropdown-menu", {
     __e2.setAttribute("part", "panel");
     __e2.setAttribute("popover", "auto");
     __e2.setAttribute("role", "menu");
-    attachRef22($scope, "panelEl", __e2);
+    attachRef21($scope, "panelEl", __e2);
     const __e3 = document.createElement("slot");
-    attachRef22($scope, "itemSlot", __e3);
+    attachRef21($scope, "itemSlot", __e3);
     __e2.appendChild(__e3);
     __root.appendChild(__e2);
     if (__r != null) {
@@ -9448,8 +9643,8 @@ var sui_dropdown_menu_default = component44("sui-dropdown-menu", {
   }
 });
 
-// packages/ui-components/src/sui-context-menu/sui-context-menu.sui
-import { adoptSuiSheets as adoptSuiSheets45, attachRef as attachRef23, component as component45, prop as prop45 } from "@ship/sui-runtime";
+// packages/ui-components/src/sui-context-menu/dist/sui-context-menu.compiled.js
+import { adoptSuiSheets as adoptSuiSheets45, attachRef as attachRef22, component as component45, prop as prop45 } from "@ship/sui-runtime";
 
 // packages/ui-components/src/sui-context-menu/sui-context-menu.controller.ts
 import { controller as controller28, effect as effect28, bindNativeEvent as bindNativeEvent4 } from "@ship/sui-runtime";
@@ -9605,8 +9800,8 @@ var sui_context_menu_controller_default = controller28({
   }
 });
 
-// packages/ui-components/src/sui-context-menu/sui-context-menu.sui
-var sui_context_menu_default = component45("sui-context-menu", {
+// packages/ui-components/src/sui-context-menu/dist/sui-context-menu.compiled.js
+var sui_context_menu_compiled_default = component45("sui-context-menu", {
   props: {
     open: prop45.bool({ default: false, reflect: true })
   },
@@ -9679,7 +9874,7 @@ var sui_context_menu_default = component45("sui-context-menu", {
     adoptSuiSheets45(__root);
     const __e0 = document.createElement("slot");
     __e0.setAttribute("name", "trigger");
-    attachRef23($scope, "triggerSlot", __e0);
+    attachRef22($scope, "triggerSlot", __e0);
     __root.appendChild(__e0);
     const __e1 = document.createElement("div");
     __e1.setAttribute("class", "panel");
@@ -9687,9 +9882,9 @@ var sui_context_menu_default = component45("sui-context-menu", {
     __e1.setAttribute("popover", "auto");
     __e1.setAttribute("role", "menu");
     __e1.setAttribute("aria-label", "Context menu");
-    attachRef23($scope, "panelEl", __e1);
+    attachRef22($scope, "panelEl", __e1);
     const __e2 = document.createElement("slot");
-    attachRef23($scope, "itemSlot", __e2);
+    attachRef22($scope, "itemSlot", __e2);
     __e1.appendChild(__e2);
     __root.appendChild(__e1);
     if (__r != null) {
@@ -9725,8 +9920,8 @@ var sui_context_menu_default = component45("sui-context-menu", {
   }
 });
 
-// packages/ui-components/src/sui-hover-card/sui-hover-card.sui
-import { adoptSuiSheets as adoptSuiSheets46, attachRef as attachRef24, component as component46, prop as prop46 } from "@ship/sui-runtime";
+// packages/ui-components/src/sui-hover-card/dist/sui-hover-card.compiled.js
+import { adoptSuiSheets as adoptSuiSheets46, attachRef as attachRef23, component as component46, prop as prop46 } from "@ship/sui-runtime";
 
 // packages/ui-components/src/sui-hover-card/sui-hover-card.controller.ts
 import { controller as controller29, effect as effect29 } from "@ship/sui-runtime";
@@ -9850,8 +10045,8 @@ var sui_hover_card_controller_default = controller29({
   }
 });
 
-// packages/ui-components/src/sui-hover-card/sui-hover-card.sui
-var sui_hover_card_default = component46("sui-hover-card", {
+// packages/ui-components/src/sui-hover-card/dist/sui-hover-card.compiled.js
+var sui_hover_card_compiled_default = component46("sui-hover-card", {
   props: {
     open: prop46.bool({ default: false, reflect: true }),
     placement: prop46.union(["top", "bottom", "left", "right"], { default: "bottom", reflect: true }),
@@ -9916,13 +10111,13 @@ var sui_hover_card_default = component46("sui-hover-card", {
     adoptSuiSheets46(__root);
     const __e0 = document.createElement("slot");
     __e0.setAttribute("name", "trigger");
-    attachRef24($scope, "triggerSlot", __e0);
+    attachRef23($scope, "triggerSlot", __e0);
     __root.appendChild(__e0);
     const __e1 = document.createElement("div");
     __e1.setAttribute("class", "panel");
     __e1.setAttribute("part", "panel");
     __e1.setAttribute("popover", "auto");
-    attachRef24($scope, "panelEl", __e1);
+    attachRef23($scope, "panelEl", __e1);
     const __e2 = document.createElement("slot");
     __e1.appendChild(__e2);
     __root.appendChild(__e1);
@@ -9959,7 +10154,7 @@ var sui_hover_card_default = component46("sui-hover-card", {
   }
 });
 
-// packages/ui-components/src/sui-accordion/sui-accordion.sui
+// packages/ui-components/src/sui-accordion/dist/sui-accordion.compiled.js
 import { adoptSuiSheets as adoptSuiSheets47, component as component47, prop as prop47 } from "@ship/sui-runtime";
 
 // packages/ui-components/src/sui-accordion/sui-accordion.controller.ts
@@ -10047,8 +10242,8 @@ var sui_accordion_controller_default = controller30({
   }
 });
 
-// packages/ui-components/src/sui-accordion/sui-accordion.sui
-var sui_accordion_default = component47("sui-accordion", {
+// packages/ui-components/src/sui-accordion/dist/sui-accordion.compiled.js
+var sui_accordion_compiled_default = component47("sui-accordion", {
   props: {
     type: prop47.string({ default: "single", reflect: true }),
     value: prop47.string({ default: "", reflect: true })
@@ -10109,8 +10304,8 @@ var sui_accordion_default = component47("sui-accordion", {
   }
 });
 
-// packages/ui-components/src/sui-accordion/sui-accordion-item.sui
-import { adoptSuiSheets as adoptSuiSheets48, attachRef as attachRef25, bindAttr as bindAttr25, component as component48, prop as prop48 } from "@ship/sui-runtime";
+// packages/ui-components/src/sui-accordion/dist/sui-accordion-item.compiled.js
+import { adoptSuiSheets as adoptSuiSheets48, attachRef as attachRef24, bindAttr as bindAttr25, component as component48, prop as prop48 } from "@ship/sui-runtime";
 
 // packages/ui-components/src/sui-accordion/sui-accordion-item.controller.ts
 import { controller as controller31, effect as effect31 } from "@ship/sui-runtime";
@@ -10183,8 +10378,8 @@ var sui_accordion_item_controller_default = controller31({
   }
 });
 
-// packages/ui-components/src/sui-accordion/sui-accordion-item.sui
-var sui_accordion_item_default = component48("sui-accordion-item", {
+// packages/ui-components/src/sui-accordion/dist/sui-accordion-item.compiled.js
+var sui_accordion_item_compiled_default = component48("sui-accordion-item", {
   props: {
     value: prop48.string({ default: "", reflect: true }),
     disabled: prop48.bool({ default: false, reflect: true }),
@@ -10270,7 +10465,7 @@ var sui_accordion_item_default = component48("sui-accordion-item", {
     const __e0 = document.createElement("button");
     __e0.setAttribute("class", "trigger");
     __e0.setAttribute("part", "trigger");
-    attachRef25($scope, "triggerBtn", __e0);
+    attachRef24($scope, "triggerBtn", __e0);
     __cleanups.push(bindAttr25(__e0, "disabled", () => $scope.disabled()));
     const __e1 = document.createElement("span");
     __e1.setAttribute("class", "trigger-label");
@@ -10296,7 +10491,7 @@ var sui_accordion_item_default = component48("sui-accordion-item", {
     const __e5 = document.createElement("div");
     __e5.setAttribute("class", "content-wrap");
     __e5.setAttribute("part", "content");
-    attachRef25($scope, "contentWrap", __e5);
+    attachRef24($scope, "contentWrap", __e5);
     __e5.setAttribute("role", "region");
     const __e6 = document.createElement("div");
     __e6.setAttribute("class", "content-inner");
@@ -10340,8 +10535,8 @@ var sui_accordion_item_default = component48("sui-accordion-item", {
   }
 });
 
-// packages/ui-components/src/sui-list-tile/sui-list-tile.sui
-import { adoptSuiSheets as adoptSuiSheets49, attachRef as attachRef26, bindAttr as bindAttr26, bindIf as bindIf12, component as component49, prop as prop49 } from "@ship/sui-runtime";
+// packages/ui-components/src/sui-list-tile/dist/sui-list-tile.compiled.js
+import { adoptSuiSheets as adoptSuiSheets49, attachRef as attachRef25, bindAttr as bindAttr26, bindIf as bindIf12, component as component49, prop as prop49 } from "@ship/sui-runtime";
 
 // packages/ui-components/src/sui-list-tile/sui-list-tile.controller.ts
 import { controller as controller32, effect as effect32 } from "@ship/sui-runtime";
@@ -10457,8 +10652,8 @@ var sui_list_tile_controller_default = controller32({
   }
 });
 
-// packages/ui-components/src/sui-list-tile/sui-list-tile.sui
-var sui_list_tile_default = component49("sui-list-tile", {
+// packages/ui-components/src/sui-list-tile/dist/sui-list-tile.compiled.js
+var sui_list_tile_compiled_default = component49("sui-list-tile", {
   props: {
     variant: prop49.string({ default: "row", reflect: true }),
     interactive: prop49.bool({ default: false, reflect: true }),
@@ -10655,7 +10850,7 @@ var sui_list_tile_default = component49("sui-list-tile", {
           const __e3 = document.createElement("a");
           __e3.setAttribute("class", "tile");
           __e3.setAttribute("part", "button");
-          attachRef26($scope, "tileEl", __e3);
+          attachRef25($scope, "tileEl", __e3);
           __c2.push(bindAttr26(__e3, "href", () => $scope.navigable()));
           __c2.push(bindAttr26(__e3, "target", () => $scope.target() || null));
           __c2.push(bindAttr26(__e3, "rel", () => $scope.rel() || null));
@@ -10699,7 +10894,7 @@ var sui_list_tile_default = component49("sui-list-tile", {
           const __e14 = document.createElement("div");
           __e14.setAttribute("class", "tile");
           __e14.setAttribute("part", "button");
-          attachRef26($scope, "tileEl", __e14);
+          attachRef25($scope, "tileEl", __e14);
           const __e15 = document.createElement("div");
           __e15.setAttribute("class", "row");
           __e15.setAttribute("part", "row");
@@ -10774,8 +10969,8 @@ var sui_list_tile_default = component49("sui-list-tile", {
   }
 });
 
-// packages/ui-components/src/sui-error-state/sui-error-state.sui
-import { adoptSuiSheets as adoptSuiSheets50, attachRef as attachRef27, bindAttr as bindAttr27, bindText as bindText12, component as component50, prop as prop50 } from "@ship/sui-runtime";
+// packages/ui-components/src/sui-error-state/dist/sui-error-state.compiled.js
+import { adoptSuiSheets as adoptSuiSheets50, attachRef as attachRef26, bindAttr as bindAttr27, bindText as bindText12, component as component50, prop as prop50 } from "@ship/sui-runtime";
 
 // packages/ui-components/src/sui-error-state/sui-error-state.controller.ts
 import { controller as controller33, effect as effect33 } from "@ship/sui-runtime";
@@ -10845,8 +11040,8 @@ var sui_error_state_controller_default = controller33({
   }
 });
 
-// packages/ui-components/src/sui-error-state/sui-error-state.sui
-var sui_error_state_default = component50("sui-error-state", {
+// packages/ui-components/src/sui-error-state/dist/sui-error-state.compiled.js
+var sui_error_state_compiled_default = component50("sui-error-state", {
   props: {
     title: prop50.string({ default: "" }),
     body: prop50.string({ default: "" }),
@@ -11056,15 +11251,15 @@ var sui_error_state_default = component50("sui-error-state", {
     __e3.appendChild(__e7);
     const __e10 = document.createElement("button");
     __e10.setAttribute("class", "details-toggle");
-    attachRef27($scope, "detailsToggleBtn", __e10);
+    attachRef26($scope, "detailsToggleBtn", __e10);
     __e10.setAttribute("type", "button");
     __e3.appendChild(__e10);
     const __e11 = document.createElement("div");
     __e11.setAttribute("class", "details");
-    attachRef27($scope, "detailsPanel", __e11);
+    attachRef26($scope, "detailsPanel", __e11);
     const __e12 = document.createElement("slot");
     __e12.setAttribute("name", "details");
-    attachRef27($scope, "detailsSlot", __e12);
+    attachRef26($scope, "detailsSlot", __e12);
     __e11.appendChild(__e12);
     __e3.appendChild(__e11);
     __e0.appendChild(__e3);
@@ -11073,7 +11268,7 @@ var sui_error_state_default = component50("sui-error-state", {
     __e13.setAttribute("part", "actions");
     const __e14 = document.createElement("slot");
     __e14.setAttribute("name", "action");
-    attachRef27($scope, "actionSlot", __e14);
+    attachRef26($scope, "actionSlot", __e14);
     __e13.appendChild(__e14);
     __e0.appendChild(__e13);
     __root.appendChild(__e0);
@@ -11110,8 +11305,8 @@ var sui_error_state_default = component50("sui-error-state", {
   }
 });
 
-// packages/ui-components/src/sui-stepper/sui-stepper.sui
-import { adoptSuiSheets as adoptSuiSheets51, attachRef as attachRef28, component as component51, prop as prop51 } from "@ship/sui-runtime";
+// packages/ui-components/src/sui-stepper/dist/sui-stepper.compiled.js
+import { adoptSuiSheets as adoptSuiSheets51, attachRef as attachRef27, component as component51, prop as prop51 } from "@ship/sui-runtime";
 
 // packages/ui-components/src/sui-stepper/sui-stepper.controller.ts
 import { controller as controller34, effect as effect34 } from "@ship/sui-runtime";
@@ -11151,8 +11346,8 @@ var sui_stepper_controller_default = controller34({
   }
 });
 
-// packages/ui-components/src/sui-stepper/sui-stepper.sui
-var sui_stepper_default = component51("sui-stepper", {
+// packages/ui-components/src/sui-stepper/dist/sui-stepper.compiled.js
+var sui_stepper_compiled_default = component51("sui-stepper", {
   props: {
     total: prop51.number({ default: 4, reflect: true }),
     current: prop51.number({ default: 1, reflect: true }),
@@ -11235,7 +11430,7 @@ var sui_stepper_default = component51("sui-stepper", {
     adoptSuiSheets51(__root);
     const __e0 = document.createElement("div");
     __e0.setAttribute("class", "dots");
-    attachRef28($scope, "dotsEl", __e0);
+    attachRef27($scope, "dotsEl", __e0);
     __root.appendChild(__e0);
     if (__r != null) {
       const __lc = Object.getOwnPropertyDescriptor(__r, "__shipSetLifecycle")?.value;
@@ -11270,7 +11465,7 @@ var sui_stepper_default = component51("sui-stepper", {
   }
 });
 
-// packages/ui-components/src/sui-timeline/sui-timeline.sui
+// packages/ui-components/src/sui-timeline/dist/sui-timeline.compiled.js
 import { adoptSuiSheets as adoptSuiSheets52, component as component52 } from "@ship/sui-runtime";
 
 // packages/ui-components/src/sui-timeline/sui-timeline.controller.ts
@@ -11282,8 +11477,8 @@ var sui_timeline_controller_default = controller35({
   }
 });
 
-// packages/ui-components/src/sui-timeline/sui-timeline.sui
-var sui_timeline_default = component52("sui-timeline", {
+// packages/ui-components/src/sui-timeline/dist/sui-timeline.compiled.js
+var sui_timeline_compiled_default = component52("sui-timeline", {
   shadow: true,
   styles: `
   :host { display: block; position: relative; }
@@ -11343,7 +11538,7 @@ var sui_timeline_default = component52("sui-timeline", {
   }
 });
 
-// packages/ui-components/src/sui-timeline/sui-timeline-item.sui
+// packages/ui-components/src/sui-timeline/dist/sui-timeline-item.compiled.js
 import { adoptSuiSheets as adoptSuiSheets53, bindIf as bindIf13, bindText as bindText13, component as component53, prop as prop52 } from "@ship/sui-runtime";
 
 // packages/ui-components/src/sui-timeline/sui-timeline-item.controller.ts
@@ -11388,8 +11583,8 @@ var sui_timeline_item_controller_default = controller36({
   }
 });
 
-// packages/ui-components/src/sui-timeline/sui-timeline-item.sui
-var sui_timeline_item_default = component53("sui-timeline-item", {
+// packages/ui-components/src/sui-timeline/dist/sui-timeline-item.compiled.js
+var sui_timeline_item_compiled_default = component53("sui-timeline-item", {
   props: {
     tone: prop52.string({ default: "default", reflect: true }),
     at: prop52.string({ default: "", reflect: true }),
@@ -11588,8 +11783,8 @@ var sui_timeline_item_default = component53("sui-timeline-item", {
   }
 });
 
-// packages/ui-components/src/sui-loading/sui-loading.sui
-import { adoptSuiSheets as adoptSuiSheets54, attachRef as attachRef29, component as component54, prop as prop53 } from "@ship/sui-runtime";
+// packages/ui-components/src/sui-loading/dist/sui-loading.compiled.js
+import { adoptSuiSheets as adoptSuiSheets54, attachRef as attachRef28, component as component54, prop as prop53 } from "@ship/sui-runtime";
 
 // packages/ui-components/src/sui-loading/sui-loading.controller.ts
 import { controller as controller37 } from "@ship/sui-runtime";
@@ -11626,8 +11821,8 @@ var sui_loading_controller_default = controller37({
   }
 });
 
-// packages/ui-components/src/sui-loading/sui-loading.sui
-var sui_loading_default = component54("sui-loading", {
+// packages/ui-components/src/sui-loading/dist/sui-loading.compiled.js
+var sui_loading_compiled_default = component54("sui-loading", {
   props: {
     messages: prop53.string({ default: "" }),
     compact: prop53.bool({ default: false, reflect: true })
@@ -11844,7 +12039,7 @@ var sui_loading_default = component54("sui-loading", {
     const __e13 = document.createElement("div");
     __e13.setAttribute("class", "message");
     __e13.setAttribute("part", "message");
-    attachRef29($scope, "msgEl", __e13);
+    attachRef28($scope, "msgEl", __e13);
     __root.appendChild(__e13);
     if (__r != null) {
       const __lc = Object.getOwnPropertyDescriptor(__r, "__shipSetLifecycle")?.value;
@@ -11879,8 +12074,8 @@ var sui_loading_default = component54("sui-loading", {
   }
 });
 
-// packages/ui-components/src/sui-edit-overlay/sui-edit-overlay.sui
-import { adoptSuiSheets as adoptSuiSheets55, attachRef as attachRef30, component as component55 } from "@ship/sui-runtime";
+// packages/ui-components/src/sui-edit-overlay/dist/sui-edit-overlay.compiled.js
+import { adoptSuiSheets as adoptSuiSheets55, attachRef as attachRef29, component as component55 } from "@ship/sui-runtime";
 
 // packages/ui-components/src/sui-edit-overlay/sui-edit-overlay.controller.ts
 import { controller as controller38 } from "@ship/sui-runtime";
@@ -12007,8 +12202,8 @@ var sui_edit_overlay_controller_default = controller38({
   }
 });
 
-// packages/ui-components/src/sui-edit-overlay/sui-edit-overlay.sui
-var sui_edit_overlay_default = component55("sui-edit-overlay", {
+// packages/ui-components/src/sui-edit-overlay/dist/sui-edit-overlay.compiled.js
+var sui_edit_overlay_compiled_default = component55("sui-edit-overlay", {
   shadow: true,
   styles: `
   :host {
@@ -12087,12 +12282,12 @@ var sui_edit_overlay_default = component55("sui-edit-overlay", {
     const __e0 = document.createElement("div");
     __e0.setAttribute("class", "box");
     __e0.setAttribute("part", "box");
-    attachRef30($scope, "boxEl", __e0);
+    attachRef29($scope, "boxEl", __e0);
     __root.appendChild(__e0);
     const __e1 = document.createElement("div");
     __e1.setAttribute("class", "label");
     __e1.setAttribute("part", "label");
-    attachRef30($scope, "labelEl", __e1);
+    attachRef29($scope, "labelEl", __e1);
     __root.appendChild(__e1);
     const __e2 = document.createElement("div");
     __e2.setAttribute("class", "hint");
@@ -12142,8 +12337,8 @@ var sui_edit_overlay_default = component55("sui-edit-overlay", {
   }
 });
 
-// packages/ui-components/src/sui-annotation/sui-annotation-layer.sui
-import { adoptSuiSheets as adoptSuiSheets56, attachRef as attachRef31, bindAttr as bindAttr28, bindFor as bindFor3, bindIf as bindIf14, bindProp, bindValue as bindValue3, component as component56, on as on2, prop as prop54 } from "@ship/sui-runtime";
+// packages/ui-components/src/sui-annotation/dist/sui-annotation-layer.compiled.js
+import { adoptSuiSheets as adoptSuiSheets56, attachRef as attachRef30, bindAttr as bindAttr28, bindFor as bindFor3, bindIf as bindIf14, bindProp, bindValue as bindValue3, component as component56, on as on2, prop as prop54 } from "@ship/sui-runtime";
 
 // packages/ui-components/src/sui-annotation/sui-annotation-layer.controller.ts
 import { controller as controller39, signal as signal9, derived as derived3, ref as ref4 } from "@ship/sui-runtime";
@@ -12425,8 +12620,8 @@ var sui_annotation_layer_controller_default = controller39({
   }
 });
 
-// packages/ui-components/src/sui-annotation/sui-annotation-layer.sui
-var sui_annotation_layer_default = component56("sui-annotation-layer", {
+// packages/ui-components/src/sui-annotation/dist/sui-annotation-layer.compiled.js
+var sui_annotation_layer_compiled_default = component56("sui-annotation-layer", {
   props: {
     "view-id": prop54.string({ default: "" }),
     mode: prop54.union(["off", "point", "region"], { default: "off", reflect: true }),
@@ -12656,7 +12851,7 @@ var sui_annotation_layer_default = component56("sui-annotation-layer", {
     const __e2 = document.createElement("div");
     __e2.setAttribute("class", "overlay");
     __e2.setAttribute("part", "overlay");
-    attachRef31($scope, "overlayEl", __e2);
+    attachRef30($scope, "overlayEl", __e2);
     const __ifAnchor3 = document.createComment("if");
     __e2.appendChild(__ifAnchor3);
     __cleanups.push(__wireBoundary_b1(__ifAnchor3));
@@ -12701,8 +12896,8 @@ var sui_annotation_layer_default = component56("sui-annotation-layer", {
   }
 });
 
-// packages/ui-components/src/sui-annotation/sui-annotation-marker.sui
-import { adoptSuiSheets as adoptSuiSheets57, attachRef as attachRef32, component as component57, prop as prop55 } from "@ship/sui-runtime";
+// packages/ui-components/src/sui-annotation/dist/sui-annotation-marker.compiled.js
+import { adoptSuiSheets as adoptSuiSheets57, attachRef as attachRef31, component as component57, prop as prop55 } from "@ship/sui-runtime";
 
 // packages/ui-components/src/sui-annotation/sui-annotation-marker.controller.ts
 import { controller as controller40, effect as effect36 } from "@ship/sui-runtime";
@@ -12733,8 +12928,8 @@ var sui_annotation_marker_controller_default = controller40({
   }
 });
 
-// packages/ui-components/src/sui-annotation/sui-annotation-marker.sui
-var sui_annotation_marker_default = component57("sui-annotation-marker", {
+// packages/ui-components/src/sui-annotation/dist/sui-annotation-marker.compiled.js
+var sui_annotation_marker_compiled_default = component57("sui-annotation-marker", {
   props: {
     kind: prop55.union(["point", "region"], { default: "point", reflect: true }),
     x: prop55.number({ default: 0 }),
@@ -12815,13 +13010,13 @@ var sui_annotation_marker_default = component57("sui-annotation-marker", {
     __e0.setAttribute("part", "pin");
     __e0.setAttribute("role", "button");
     __e0.setAttribute("tabindex", "0");
-    attachRef32($scope, "pinEl", __e0);
+    attachRef31($scope, "pinEl", __e0);
     __root.appendChild(__e0);
     const __e1 = document.createElement("div");
     __e1.setAttribute("part", "box");
     __e1.setAttribute("role", "button");
     __e1.setAttribute("tabindex", "0");
-    attachRef32($scope, "boxEl", __e1);
+    attachRef31($scope, "boxEl", __e1);
     __root.appendChild(__e1);
     if (__r != null) {
       const __lc = Object.getOwnPropertyDescriptor(__r, "__shipSetLifecycle")?.value;
@@ -12856,7 +13051,7 @@ var sui_annotation_marker_default = component57("sui-annotation-marker", {
   }
 });
 
-// packages/ui-components/src/sui-annotation/sui-annotation-list.sui
+// packages/ui-components/src/sui-annotation/dist/sui-annotation-list.compiled.js
 import { adoptSuiSheets as adoptSuiSheets58, bindAttr as bindAttr29, bindFor as bindFor4, bindIf as bindIf15, bindText as bindText14, component as component58, on as on3 } from "@ship/sui-runtime";
 
 // packages/ui-components/src/sui-annotation/sui-annotation-list.controller.ts
@@ -12887,8 +13082,8 @@ var sui_annotation_list_controller_default = controller41({
   }
 });
 
-// packages/ui-components/src/sui-annotation/sui-annotation-list.sui
-var sui_annotation_list_default = component58("sui-annotation-list", {
+// packages/ui-components/src/sui-annotation/dist/sui-annotation-list.compiled.js
+var sui_annotation_list_compiled_default = component58("sui-annotation-list", {
   shadow: true,
   styles: `
   :host {
@@ -13091,8 +13286,8 @@ var sui_annotation_list_default = component58("sui-annotation-list", {
   }
 });
 
-// packages/ui-components/src/sui-radio-group/sui-radio.sui
-import { adoptSuiSheets as adoptSuiSheets59, attachRef as attachRef33, bindAttr as bindAttr30, bindChecked as bindChecked3, component as component59, prop as prop56 } from "@ship/sui-runtime";
+// packages/ui-components/src/sui-radio-group/dist/sui-radio.compiled.js
+import { adoptSuiSheets as adoptSuiSheets59, attachRef as attachRef32, bindAttr as bindAttr30, bindChecked as bindChecked3, component as component59, prop as prop56 } from "@ship/sui-runtime";
 
 // packages/ui-components/src/sui-radio-group/sui-radio.controller.ts
 import { controller as controller42, effect as effect37 } from "@ship/sui-runtime";
@@ -13139,8 +13334,8 @@ var sui_radio_controller_default = controller42({
   }
 });
 
-// packages/ui-components/src/sui-radio-group/sui-radio.sui
-var sui_radio_default = component59("sui-radio", {
+// packages/ui-components/src/sui-radio-group/dist/sui-radio.compiled.js
+var sui_radio_compiled_default = component59("sui-radio", {
   props: {
     value: prop56.string({ default: "", reflect: true }),
     disabled: prop56.bool({ default: false, reflect: true }),
@@ -13304,7 +13499,7 @@ var sui_radio_default = component59("sui-radio", {
     __cleanups.push(bindAttr30(__e2, "disabled", () => $scope.disabled()));
     __cleanups.push(bindAttr30(__e2, "aria-checked", () => $scope.checked() ? "true" : "false"));
     __cleanups.push(bindAttr30(__e2, "tabindex", () => $scope.checked() ? "0" : "-1"));
-    attachRef33($scope, "inputEl", __e2);
+    attachRef32($scope, "inputEl", __e2);
     __e1.appendChild(__e2);
     const __e3 = document.createElement("span");
     __e3.setAttribute("class", "dot");
@@ -13348,7 +13543,7 @@ var sui_radio_default = component59("sui-radio", {
   }
 });
 
-// packages/ui-components/src/sui-radio-group/sui-radio-group.sui
+// packages/ui-components/src/sui-radio-group/dist/sui-radio-group.compiled.js
 import { adoptSuiSheets as adoptSuiSheets60, component as component60, prop as prop57 } from "@ship/sui-runtime";
 
 // packages/ui-components/src/sui-radio-group/sui-radio-group.controller.ts
@@ -13439,8 +13634,8 @@ var sui_radio_group_controller_default = controller43({
   }
 });
 
-// packages/ui-components/src/sui-radio-group/sui-radio-group.sui
-var sui_radio_group_default = component60("sui-radio-group", {
+// packages/ui-components/src/sui-radio-group/dist/sui-radio-group.compiled.js
+var sui_radio_group_compiled_default = component60("sui-radio-group", {
   props: {
     value: prop57.string({ default: "", reflect: true }),
     disabled: prop57.bool({ default: false, reflect: true }),
@@ -13515,8 +13710,8 @@ var sui_radio_group_default = component60("sui-radio-group", {
   }
 });
 
-// packages/ui-components/src/sui-slider/sui-slider.sui
-import { adoptSuiSheets as adoptSuiSheets61, attachRef as attachRef34, bindAttr as bindAttr31, component as component61, prop as prop58 } from "@ship/sui-runtime";
+// packages/ui-components/src/sui-slider/dist/sui-slider.compiled.js
+import { adoptSuiSheets as adoptSuiSheets61, attachRef as attachRef33, bindAttr as bindAttr31, component as component61, prop as prop58 } from "@ship/sui-runtime";
 
 // packages/ui-components/src/sui-slider/sui-slider.controller.ts
 import { controller as controller44, effect as effect39 } from "@ship/sui-runtime";
@@ -13645,8 +13840,8 @@ var sui_slider_controller_default = controller44({
   }
 });
 
-// packages/ui-components/src/sui-slider/sui-slider.sui
-var sui_slider_default = component61("sui-slider", {
+// packages/ui-components/src/sui-slider/dist/sui-slider.compiled.js
+var sui_slider_compiled_default = component61("sui-slider", {
   props: {
     value: prop58.number({ default: 0, reflect: true }),
     min: prop58.number({ default: 0 }),
@@ -13770,15 +13965,15 @@ var sui_slider_default = component61("sui-slider", {
     adoptSuiSheets61(__root);
     const __e0 = document.createElement("div");
     __e0.setAttribute("class", "container");
-    attachRef34($scope, "containerEl", __e0);
+    attachRef33($scope, "containerEl", __e0);
     const __e1 = document.createElement("div");
     __e1.setAttribute("class", "track");
     __e1.setAttribute("part", "track");
-    attachRef34($scope, "trackEl", __e1);
+    attachRef33($scope, "trackEl", __e1);
     const __e2 = document.createElement("div");
     __e2.setAttribute("class", "fill");
     __e2.setAttribute("part", "fill");
-    attachRef34($scope, "fillEl", __e2);
+    attachRef33($scope, "fillEl", __e2);
     __e1.appendChild(__e2);
     __e0.appendChild(__e1);
     const __e3 = document.createElement("div");
@@ -13791,7 +13986,7 @@ var sui_slider_default = component61("sui-slider", {
     __cleanups.push(bindAttr31(__e3, "aria-valuenow", () => $scope.value()));
     __cleanups.push(bindAttr31(__e3, "aria-label", () => $scope.label() || "slider"));
     __cleanups.push(bindAttr31(__e3, "aria-disabled", () => $scope.disabled() ? "true" : "false"));
-    attachRef34($scope, "thumbEl", __e3);
+    attachRef33($scope, "thumbEl", __e3);
     __e0.appendChild(__e3);
     __root.appendChild(__e0);
     if (__r != null) {
@@ -13827,9 +14022,9 @@ var sui_slider_default = component61("sui-slider", {
   }
 });
 
-// packages/ui-components/src/sui-segmented/sui-segmented-option.sui
+// packages/ui-components/src/sui-segmented/dist/sui-segmented-option.compiled.js
 import { adoptSuiSheets as adoptSuiSheets62, component as component62, prop as prop59 } from "@ship/sui-runtime";
-var sui_segmented_option_default = component62("sui-segmented-option", {
+var sui_segmented_option_compiled_default = component62("sui-segmented-option", {
   props: {
     value: prop59.string({ default: "", reflect: true }),
     icon: prop59.string({ default: "", reflect: true }),
@@ -13871,8 +14066,8 @@ var sui_segmented_option_default = component62("sui-segmented-option", {
   }
 });
 
-// packages/ui-components/src/sui-segmented/sui-segmented.sui
-import { adoptSuiSheets as adoptSuiSheets63, attachRef as attachRef35, bindAttr as bindAttr32, bindFor as bindFor5, bindIf as bindIf16, bindProp as bindProp2, bindText as bindText15, component as component63, prop as prop60 } from "@ship/sui-runtime";
+// packages/ui-components/src/sui-segmented/dist/sui-segmented.compiled.js
+import { adoptSuiSheets as adoptSuiSheets63, attachRef as attachRef34, bindAttr as bindAttr32, bindFor as bindFor5, bindIf as bindIf16, bindProp as bindProp2, bindText as bindText15, component as component63, prop as prop60 } from "@ship/sui-runtime";
 
 // packages/ui-components/src/sui-segmented/sui-segmented.controller.ts
 import { controller as controller45, signal as signal11, effect as effect40, ref as ref5 } from "@ship/sui-runtime";
@@ -13983,8 +14178,8 @@ var sui_segmented_controller_default = controller45({
   }
 });
 
-// packages/ui-components/src/sui-segmented/sui-segmented.sui
-var sui_segmented_default = component63("sui-segmented", {
+// packages/ui-components/src/sui-segmented/dist/sui-segmented.compiled.js
+var sui_segmented_compiled_default = component63("sui-segmented", {
   props: {
     value: prop60.string({ default: "", reflect: true }),
     size: prop60.union(["sm", "md"], { default: "md", reflect: true }),
@@ -14155,7 +14350,7 @@ var sui_segmented_default = component63("sui-segmented", {
     const __e0 = document.createElement("div");
     __e0.setAttribute("class", "container");
     __e0.setAttribute("part", "container");
-    attachRef35($scope, "containerEl", __e0);
+    attachRef34($scope, "containerEl", __e0);
     const __forAnchor1 = document.createComment("for");
     __e0.appendChild(__forAnchor1);
     __cleanups.push(__wireBoundary_b1(__forAnchor1));
@@ -14193,8 +14388,8 @@ var sui_segmented_default = component63("sui-segmented", {
   }
 });
 
-// packages/ui-components/src/sui-toggle-group/sui-toggle.sui
-import { adoptSuiSheets as adoptSuiSheets64, attachRef as attachRef36, bindAttr as bindAttr33, component as component64, prop as prop61 } from "@ship/sui-runtime";
+// packages/ui-components/src/sui-toggle-group/dist/sui-toggle.compiled.js
+import { adoptSuiSheets as adoptSuiSheets64, attachRef as attachRef35, bindAttr as bindAttr33, component as component64, prop as prop61 } from "@ship/sui-runtime";
 
 // packages/ui-components/src/sui-toggle-group/sui-toggle.controller.ts
 import { controller as controller46, effect as effect41 } from "@ship/sui-runtime";
@@ -14226,8 +14421,8 @@ var sui_toggle_controller_default = controller46({
   }
 });
 
-// packages/ui-components/src/sui-toggle-group/sui-toggle.sui
-var sui_toggle_default = component64("sui-toggle", {
+// packages/ui-components/src/sui-toggle-group/dist/sui-toggle.compiled.js
+var sui_toggle_compiled_default = component64("sui-toggle", {
   props: {
     pressed: prop61.bool({ default: false, reflect: true }),
     disabled: prop61.bool({ default: false, reflect: true }),
@@ -14318,7 +14513,7 @@ var sui_toggle_default = component64("sui-toggle", {
     __e0.setAttribute("type", "button");
     __cleanups.push(bindAttr33(__e0, "aria-pressed", () => $scope.pressed() ? "true" : "false"));
     __cleanups.push(bindAttr33(__e0, "disabled", () => $scope.disabled()));
-    attachRef36($scope, "buttonEl", __e0);
+    attachRef35($scope, "buttonEl", __e0);
     const __e1 = document.createElement("slot");
     __e0.appendChild(__e1);
     __root.appendChild(__e0);
@@ -14355,8 +14550,8 @@ var sui_toggle_default = component64("sui-toggle", {
   }
 });
 
-// packages/ui-components/src/sui-toggle-group/sui-toggle-group.sui
-import { adoptSuiSheets as adoptSuiSheets65, attachRef as attachRef37, component as component65, prop as prop62 } from "@ship/sui-runtime";
+// packages/ui-components/src/sui-toggle-group/dist/sui-toggle-group.compiled.js
+import { adoptSuiSheets as adoptSuiSheets65, attachRef as attachRef36, component as component65, prop as prop62 } from "@ship/sui-runtime";
 
 // packages/ui-components/src/sui-toggle-group/sui-toggle-group.controller.ts
 import { controller as controller47, effect as effect42 } from "@ship/sui-runtime";
@@ -14465,8 +14660,8 @@ var sui_toggle_group_controller_default = controller47({
   }
 });
 
-// packages/ui-components/src/sui-toggle-group/sui-toggle-group.sui
-var sui_toggle_group_default = component65("sui-toggle-group", {
+// packages/ui-components/src/sui-toggle-group/dist/sui-toggle-group.compiled.js
+var sui_toggle_group_compiled_default = component65("sui-toggle-group", {
   props: {
     type: prop62.union(["single", "multiple"], { default: "single", reflect: true }),
     value: prop62.string({ default: "", reflect: true }),
@@ -14507,7 +14702,7 @@ var sui_toggle_group_default = component65("sui-toggle-group", {
     const __root = host.shadowRoot ?? host;
     adoptSuiSheets65(__root);
     const __e0 = document.createElement("slot");
-    attachRef37($scope, "defaultSlotEl", __e0);
+    attachRef36($scope, "defaultSlotEl", __e0);
     __root.appendChild(__e0);
     if (__r != null) {
       const __lc = Object.getOwnPropertyDescriptor(__r, "__shipSetLifecycle")?.value;
@@ -14542,9 +14737,9 @@ var sui_toggle_group_default = component65("sui-toggle-group", {
   }
 });
 
-// packages/ui-components/src/sui-code/sui-code.sui
+// packages/ui-components/src/sui-code/dist/sui-code.compiled.js
 import { adoptSuiSheets as adoptSuiSheets66, bindAttr as bindAttr34, bindIf as bindIf17, bindText as bindText16, component as component66, prop as prop63 } from "@ship/sui-runtime";
-var sui_code_default = component66("sui-code", {
+var sui_code_compiled_default = component66("sui-code", {
   props: {
     lang: prop63.string({ default: "", reflect: true }),
     block: prop63.bool({ default: false, reflect: true })
@@ -14687,8 +14882,8 @@ var sui_code_default = component66("sui-code", {
   }
 });
 
-// packages/ui-components/src/sui-copy-button/sui-copy-button.sui
-import { adoptSuiSheets as adoptSuiSheets67, attachRef as attachRef38, bindAttr as bindAttr35, bindIf as bindIf18, bindSlotEmpty as bindSlotEmpty5, bindText as bindText17, component as component67, prop as prop64 } from "@ship/sui-runtime";
+// packages/ui-components/src/sui-copy-button/dist/sui-copy-button.compiled.js
+import { adoptSuiSheets as adoptSuiSheets67, attachRef as attachRef37, bindAttr as bindAttr35, bindIf as bindIf18, bindSlotEmpty as bindSlotEmpty5, bindText as bindText17, component as component67, prop as prop64 } from "@ship/sui-runtime";
 
 // packages/ui-components/src/sui-copy-button/sui-copy-button.controller.ts
 import { controller as controller48, effect as effect43 } from "@ship/sui-runtime";
@@ -14736,8 +14931,8 @@ var sui_copy_button_controller_default = controller48({
   }
 });
 
-// packages/ui-components/src/sui-copy-button/sui-copy-button.sui
-var sui_copy_button_default = component67("sui-copy-button", {
+// packages/ui-components/src/sui-copy-button/dist/sui-copy-button.compiled.js
+var sui_copy_button_compiled_default = component67("sui-copy-button", {
   props: {
     value: prop64.string({ default: "", reflect: true }),
     label: prop64.string({ default: "Copy", reflect: true }),
@@ -14856,7 +15051,7 @@ var sui_copy_button_default = component67("sui-copy-button", {
     __e0.setAttribute("part", "button");
     __e0.setAttribute("type", "button");
     __cleanups.push(bindAttr35(__e0, "aria-label", () => $scope.label()));
-    attachRef38($scope, "buttonEl", __e0);
+    attachRef37($scope, "buttonEl", __e0);
     const __ifAnchor1 = document.createComment("if");
     __e0.appendChild(__ifAnchor1);
     __cleanups.push(__wireBoundary_b2(__ifAnchor1));
@@ -14903,8 +15098,8 @@ var sui_copy_button_default = component67("sui-copy-button", {
   }
 });
 
-// packages/ui-components/src/sui-json-view/sui-json-view.sui
-import { adoptSuiSheets as adoptSuiSheets68, attachRef as attachRef39, component as component68, prop as prop65 } from "@ship/sui-runtime";
+// packages/ui-components/src/sui-json-view/dist/sui-json-view.compiled.js
+import { adoptSuiSheets as adoptSuiSheets68, attachRef as attachRef38, component as component68, prop as prop65 } from "@ship/sui-runtime";
 
 // packages/ui-components/src/sui-json-view/sui-json-view.controller.ts
 import { controller as controller49, bindHtml as bindHtml2 } from "@ship/sui-runtime";
@@ -14962,8 +15157,8 @@ var sui_json_view_controller_default = controller49({
   }
 });
 
-// packages/ui-components/src/sui-json-view/sui-json-view.sui
-var sui_json_view_default = component68("sui-json-view", {
+// packages/ui-components/src/sui-json-view/dist/sui-json-view.compiled.js
+var sui_json_view_compiled_default = component68("sui-json-view", {
   props: {
     data: prop65.string({ default: "", reflect: true }),
     expanded: prop65.bool({ default: false, reflect: true }),
@@ -15029,7 +15224,7 @@ var sui_json_view_default = component68("sui-json-view", {
     adoptSuiSheets68(__root);
     const __e0 = document.createElement("div");
     __e0.setAttribute("class", "json-root");
-    attachRef39($scope, "contentEl", __e0);
+    attachRef38($scope, "contentEl", __e0);
     __root.appendChild(__e0);
     if (__r != null) {
       const __lc = Object.getOwnPropertyDescriptor(__r, "__shipSetLifecycle")?.value;
@@ -15064,8 +15259,8 @@ var sui_json_view_default = component68("sui-json-view", {
   }
 });
 
-// packages/ui-components/src/sui-diff/sui-diff.sui
-import { adoptSuiSheets as adoptSuiSheets69, attachRef as attachRef40, component as component69, prop as prop66 } from "@ship/sui-runtime";
+// packages/ui-components/src/sui-diff/dist/sui-diff.compiled.js
+import { adoptSuiSheets as adoptSuiSheets69, attachRef as attachRef39, component as component69, prop as prop66 } from "@ship/sui-runtime";
 
 // packages/ui-components/src/sui-diff/sui-diff.controller.ts
 import { controller as controller50, bindHtml as bindHtml3 } from "@ship/sui-runtime";
@@ -15153,8 +15348,8 @@ var sui_diff_controller_default = controller50({
   }
 });
 
-// packages/ui-components/src/sui-diff/sui-diff.sui
-var sui_diff_default = component69("sui-diff", {
+// packages/ui-components/src/sui-diff/dist/sui-diff.compiled.js
+var sui_diff_compiled_default = component69("sui-diff", {
   props: {
     from: prop66.string({ default: "", reflect: true }),
     to: prop66.string({ default: "", reflect: true }),
@@ -15207,7 +15402,7 @@ var sui_diff_default = component69("sui-diff", {
     adoptSuiSheets69(__root);
     const __e0 = document.createElement("div");
     __e0.setAttribute("class", "diff-root");
-    attachRef40($scope, "contentEl", __e0);
+    attachRef39($scope, "contentEl", __e0);
     __root.appendChild(__e0);
     if (__r != null) {
       const __lc = Object.getOwnPropertyDescriptor(__r, "__shipSetLifecycle")?.value;
@@ -15242,8 +15437,8 @@ var sui_diff_default = component69("sui-diff", {
   }
 });
 
-// packages/ui-components/src/sui-markdown/sui-markdown.sui
-import { adoptSuiSheets as adoptSuiSheets70, attachRef as attachRef41, component as component70, prop as prop67 } from "@ship/sui-runtime";
+// packages/ui-components/src/sui-markdown/dist/sui-markdown.compiled.js
+import { adoptSuiSheets as adoptSuiSheets70, attachRef as attachRef40, component as component70, prop as prop67 } from "@ship/sui-runtime";
 
 // packages/ui-components/src/sui-markdown/sui-markdown.controller.ts
 import { controller as controller51, bindHtml as bindHtml4 } from "@ship/sui-runtime";
@@ -15334,8 +15529,8 @@ var sui_markdown_controller_default = controller51({
   }
 });
 
-// packages/ui-components/src/sui-markdown/sui-markdown.sui
-var sui_markdown_default = component70("sui-markdown", {
+// packages/ui-components/src/sui-markdown/dist/sui-markdown.compiled.js
+var sui_markdown_compiled_default = component70("sui-markdown", {
   props: {
     value: prop67.string({ default: "", reflect: true })
   },
@@ -15407,7 +15602,7 @@ var sui_markdown_default = component70("sui-markdown", {
     adoptSuiSheets70(__root);
     const __e0 = document.createElement("div");
     __e0.setAttribute("class", "md-root");
-    attachRef41($scope, "contentEl", __e0);
+    attachRef40($scope, "contentEl", __e0);
     __root.appendChild(__e0);
     if (__r != null) {
       const __lc = Object.getOwnPropertyDescriptor(__r, "__shipSetLifecycle")?.value;
@@ -15442,8 +15637,8 @@ var sui_markdown_default = component70("sui-markdown", {
   }
 });
 
-// packages/ui-components/src/sui-toolbar/sui-toolbar.sui
-import { adoptSuiSheets as adoptSuiSheets71, attachRef as attachRef42, component as component71, prop as prop68 } from "@ship/sui-runtime";
+// packages/ui-components/src/sui-toolbar/dist/sui-toolbar.compiled.js
+import { adoptSuiSheets as adoptSuiSheets71, attachRef as attachRef41, component as component71, prop as prop68 } from "@ship/sui-runtime";
 
 // packages/ui-components/src/sui-toolbar/sui-toolbar.controller.ts
 import { controller as controller52 } from "@ship/sui-runtime";
@@ -15476,8 +15671,8 @@ var sui_toolbar_controller_default = controller52({
   }
 });
 
-// packages/ui-components/src/sui-toolbar/sui-toolbar.sui
-var sui_toolbar_default = component71("sui-toolbar", {
+// packages/ui-components/src/sui-toolbar/dist/sui-toolbar.compiled.js
+var sui_toolbar_compiled_default = component71("sui-toolbar", {
   props: {
     justify: prop68.union(["start", "center", "end", "between"], { default: "start", reflect: true }),
     align: prop68.union(["center", "start", "end", "baseline"], { default: "center", reflect: true }),
@@ -15528,7 +15723,7 @@ var sui_toolbar_default = component71("sui-toolbar", {
     __e0.setAttribute("name", "spacer");
     __root.appendChild(__e0);
     const __e1 = document.createElement("slot");
-    attachRef42($scope, "defaultSlot", __e1);
+    attachRef41($scope, "defaultSlot", __e1);
     __root.appendChild(__e1);
     if (__r != null) {
       const __lc = Object.getOwnPropertyDescriptor(__r, "__shipSetLifecycle")?.value;
@@ -15563,8 +15758,8 @@ var sui_toolbar_default = component71("sui-toolbar", {
   }
 });
 
-// packages/ui-components/src/sui-app-icon/sui-app-icon.sui
-import { adoptSuiSheets as adoptSuiSheets72, attachRef as attachRef43, component as component72, prop as prop69 } from "@ship/sui-runtime";
+// packages/ui-components/src/sui-app-icon/dist/sui-app-icon.compiled.js
+import { adoptSuiSheets as adoptSuiSheets72, attachRef as attachRef42, component as component72, prop as prop69 } from "@ship/sui-runtime";
 
 // packages/ui-components/src/sui-app-icon/sui-app-icon.controller.ts
 import { controller as controller53, effect as effect44 } from "@ship/sui-runtime";
@@ -15615,8 +15810,8 @@ var sui_app_icon_controller_default = controller53({
   }
 });
 
-// packages/ui-components/src/sui-app-icon/sui-app-icon.sui
-var sui_app_icon_default = component72("sui-app-icon", {
+// packages/ui-components/src/sui-app-icon/dist/sui-app-icon.compiled.js
+var sui_app_icon_compiled_default = component72("sui-app-icon", {
   props: {
     name: prop69.string({ default: "", reflect: true }),
     variant: prop69.union(["glyph", "tile", "solid"], { default: "glyph", reflect: true }),
@@ -15732,7 +15927,7 @@ var sui_app_icon_default = component72("sui-app-icon", {
     __e0.setAttribute("part", "frame");
     const __e1 = document.createElement("slot");
     const __e2 = document.createElement("sui-icon");
-    attachRef43($scope, "glyphEl", __e2);
+    attachRef42($scope, "glyphEl", __e2);
     __e2.setAttribute("part", "glyph");
     __e2.setAttribute("aria-hidden", "true");
     __e1.appendChild(__e2);
@@ -15771,7 +15966,7 @@ var sui_app_icon_default = component72("sui-app-icon", {
   }
 });
 
-// packages/ui-components/src/sui-tree-view/sui-tree-view.sui
+// packages/ui-components/src/sui-tree-view/dist/sui-tree-view.compiled.js
 import { adoptSuiSheets as adoptSuiSheets73, bindFor as bindFor6, bindIf as bindIf19, bindProp as bindProp3, component as component73 } from "@ship/sui-runtime";
 
 // packages/ui-components/src/sui-tree-view/sui-tree-view.controller.ts
@@ -15797,8 +15992,8 @@ var sui_tree_view_controller_default = controller54({
   }
 });
 
-// packages/ui-components/src/sui-tree-view/sui-tree-view.sui
-var sui_tree_view_default = component73("sui-tree-view", {
+// packages/ui-components/src/sui-tree-view/dist/sui-tree-view.compiled.js
+var sui_tree_view_compiled_default = component73("sui-tree-view", {
   shadow: true,
   styles: `
   :host {
@@ -15926,8 +16121,8 @@ var sui_tree_view_default = component73("sui-tree-view", {
   }
 });
 
-// packages/ui-components/src/sui-tree-view/sui-tree-item.sui
-import { adoptSuiSheets as adoptSuiSheets74, attachRef as attachRef44, bindFor as bindFor7, bindIf as bindIf20, bindProp as bindProp4, bindText as bindText18, component as component74, prop as prop70 } from "@ship/sui-runtime";
+// packages/ui-components/src/sui-tree-view/dist/sui-tree-item.compiled.js
+import { adoptSuiSheets as adoptSuiSheets74, attachRef as attachRef43, bindFor as bindFor7, bindIf as bindIf20, bindProp as bindProp4, bindText as bindText18, component as component74, prop as prop70 } from "@ship/sui-runtime";
 
 // packages/ui-components/src/sui-tree-view/sui-tree-item.controller.ts
 import { controller as controller55, signal as signal13, derived as derived4, effect as effect45, ref as ref6 } from "@ship/sui-runtime";
@@ -16033,8 +16228,8 @@ var sui_tree_item_controller_default = controller55({
   }
 });
 
-// packages/ui-components/src/sui-tree-view/sui-tree-item.sui
-var sui_tree_item_default = component74("sui-tree-item", {
+// packages/ui-components/src/sui-tree-view/dist/sui-tree-item.compiled.js
+var sui_tree_item_compiled_default = component74("sui-tree-item", {
   props: {
     label: prop70.string({ default: "", reflect: true }),
     expanded: prop70.bool({ default: false, reflect: true }),
@@ -16184,7 +16379,7 @@ var sui_tree_item_default = component74("sui-tree-item", {
     __e0.setAttribute("class", "row");
     __e0.setAttribute("part", "row");
     __e0.setAttribute("tabindex", "0");
-    attachRef44($scope, "rowEl", __e0);
+    attachRef43($scope, "rowEl", __e0);
     const __e1 = document.createElement("span");
     __e1.setAttribute("class", "caret");
     __e1.setAttribute("part", "caret");
@@ -16257,7 +16452,7 @@ var sui_tree_item_default = component74("sui-tree-item", {
   }
 });
 
-// packages/ui-components/src/sui-table/sui-table.sui
+// packages/ui-components/src/sui-table/dist/sui-table.compiled.js
 import { adoptSuiSheets as adoptSuiSheets75, bindAttr as bindAttr36, bindClass, bindFor as bindFor8, bindIf as bindIf21, bindText as bindText19, component as component75, on as on4, prop as prop71 } from "@ship/sui-runtime";
 
 // packages/ui-components/src/sui-table/sui-table.controller.ts
@@ -16614,8 +16809,8 @@ var SUI_TABLE_LIGHT_DOM_CSS = `
   }
 `;
 
-// packages/ui-components/src/sui-table/sui-table.sui
-var sui_table_default = component75("sui-table", {
+// packages/ui-components/src/sui-table/dist/sui-table.compiled.js
+var sui_table_compiled_default = component75("sui-table", {
   props: {
     variant: prop71.union(["slot", "native", "data"], { default: "slot", reflect: true }),
     density: prop71.union(["compact", "default", "comfortable"], { default: "default", reflect: true }),
@@ -16962,8 +17157,8 @@ var sui_table_default = component75("sui-table", {
   }
 });
 
-// packages/ui-components/src/sui-graph-canvas/sui-graph-canvas.sui
-import { adoptSuiSheets as adoptSuiSheets76, attachRef as attachRef45, component as component76, prop as prop72 } from "@ship/sui-runtime";
+// packages/ui-components/src/sui-graph-canvas/dist/sui-graph-canvas.compiled.js
+import { adoptSuiSheets as adoptSuiSheets76, attachRef as attachRef44, component as component76, prop as prop72 } from "@ship/sui-runtime";
 
 // packages/ui-components/src/sui-graph-canvas/sui-graph-canvas.controller.ts
 import { controller as controller57, bindHtml as bindHtml5 } from "@ship/sui-runtime";
@@ -17140,8 +17335,8 @@ var sui_graph_canvas_controller_default = controller57({
   }
 });
 
-// packages/ui-components/src/sui-graph-canvas/sui-graph-canvas.sui
-var sui_graph_canvas_default = component76("sui-graph-canvas", {
+// packages/ui-components/src/sui-graph-canvas/dist/sui-graph-canvas.compiled.js
+var sui_graph_canvas_compiled_default = component76("sui-graph-canvas", {
   props: {
     nodes: prop72.string({ default: "" }),
     edges: prop72.string({ default: "" }),
@@ -17283,7 +17478,7 @@ var sui_graph_canvas_default = component76("sui-graph-canvas", {
     const __e0 = document.createElement("div");
     __e0.setAttribute("class", "canvas");
     __e0.setAttribute("part", "canvas");
-    attachRef45($scope, "canvasEl", __e0);
+    attachRef44($scope, "canvasEl", __e0);
     __root.appendChild(__e0);
     const __e1 = document.createElement("slot");
     __e1.setAttribute("name", "node");

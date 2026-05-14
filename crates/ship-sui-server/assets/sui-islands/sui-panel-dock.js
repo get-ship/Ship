@@ -1,5 +1,5 @@
 // packages/ui-components/src/islands/sui-panel-dock/sui-panel-dock.sui
-import { adoptSuiSheets, attachRef, bindAttr, bindFor, bindIf, bindProp, bindText, component, on, prop } from "@ship/sui-runtime";
+import { adoptSuiSheets, attachRef, bindAttr, bindFor, bindIf, bindProp, bindText, component, on, prop, signal as signal2 } from "@ship/sui-runtime";
 
 // packages/ui-components/src/islands/sui-panel-dock/sui-panel-dock.controller.ts
 import { controller, signal, ref } from "@ship/sui-runtime";
@@ -171,7 +171,9 @@ var sui_panel_dock_controller_default = controller({
 });
 
 // packages/ui-components/src/islands/sui-panel-dock/sui-panel-dock.sui
+/*! _compilerVersion {"cargo":"0.1.0","git":"d4751a31","dirty":true,"builtAt":"2026-05-14T02:37:23Z"} */
 var sui_panel_dock_default = component("sui-panel-dock", {
+  _compilerVersion: { cargo: "0.1.0", git: "d4751a31", dirty: true, builtAt: "2026-05-14T02:37:23Z" },
   props: {
     "active-tab": prop.string({ default: "terminal", reflect: true }),
     "storage-key": prop.string({ default: "ship-dock" }),
@@ -332,6 +334,7 @@ var sui_panel_dock_default = component("sui-panel-dock", {
     $scope.activeTab = props.activeTab;
     $scope.storageKey = props.storageKey;
     $scope.resizing = props.resizing;
+    $scope["resizeHandle"] = signal2(null);
     let __r = null;
     if (sui_panel_dock_controller_default && typeof sui_panel_dock_controller_default.setup === "function") {
       ctx.scope = $scope;
@@ -352,6 +355,7 @@ var sui_panel_dock_default = component("sui-panel-dock", {
         const __childScope3 = Object.create($scope);
         __childScope3.t = t;
         __childScope3.__i = __i;
+        __childScope3.__v = signal2(0);
         return (($scope2) => {
           const __wireBoundary_b8 = (anchor2) => bindIf({
             anchor: anchor2,
@@ -362,14 +366,14 @@ var sui_panel_dock_default = component("sui-panel-dock", {
             },
             branches: [
               () => {
-                const __frag11 = document.createDocumentFragment();
-                const __c12 = [];
-                const __e13 = document.createElement("span");
-                __e13.setAttribute("class", "live-dot");
-                __e13.setAttribute("aria-hidden", "true");
-                __frag11.appendChild(__e13);
-                return { nodes: Array.from(__frag11.childNodes), cleanup: () => {
-                  for (const c of __c12)
+                const __frag12 = document.createDocumentFragment();
+                const __c13 = [];
+                const __e14 = document.createElement("span");
+                __e14.setAttribute("class", "live-dot");
+                __e14.setAttribute("aria-hidden", "true");
+                __frag12.appendChild(__e14);
+                return { nodes: Array.from(__frag12.childNodes), cleanup: () => {
+                  for (const c of __c13)
                     try {
                       c();
                     } catch (e) {}
@@ -386,16 +390,16 @@ var sui_panel_dock_default = component("sui-panel-dock", {
             },
             branches: [
               () => {
-                const __frag15 = document.createDocumentFragment();
-                const __c16 = [];
-                const __e17 = document.createElement("span");
-                __e17.setAttribute("class", "count");
-                const __t18 = document.createTextNode("");
-                __e17.appendChild(__t18);
-                __c16.push(bindText(__t18, () => $scope2.t.count.toLocaleString()));
-                __frag15.appendChild(__e17);
-                return { nodes: Array.from(__frag15.childNodes), cleanup: () => {
-                  for (const c of __c16)
+                const __frag16 = document.createDocumentFragment();
+                const __c17 = [];
+                const __e18 = document.createElement("span");
+                __e18.setAttribute("class", "count");
+                const __t19 = document.createTextNode("");
+                __e18.appendChild(__t19);
+                __c17.push(bindText(__t19, () => (void $scope2.__v(), $scope2.t.count.toLocaleString())));
+                __frag16.appendChild(__e18);
+                return { nodes: Array.from(__frag16.childNodes), cleanup: () => {
+                  for (const c of __c17)
                     try {
                       c();
                     } catch (e) {}
@@ -409,34 +413,53 @@ var sui_panel_dock_default = component("sui-panel-dock", {
           __e6.setAttribute("class", "tab");
           __e6.setAttribute("role", "tab");
           __e6.setAttribute("type", "button");
-          __c5.push(bindAttr(__e6, "aria-selected", () => $scope2.t.id === $scope2.activeTab() ? "true" : "false"));
-          __c5.push(bindAttr(__e6, "tabindex", () => $scope2.t.id === $scope2.activeTab() ? "0" : "-1"));
-          __c5.push(bindAttr(__e6, "data-tab", () => $scope2.t.id));
+          __c5.push(bindAttr(__e6, "aria-selected", () => (void $scope2.__v(), $scope2.t.id === $scope2.activeTab() ? "true" : "false")));
+          __c5.push(bindAttr(__e6, "tabindex", () => (void $scope2.__v(), $scope2.t.id === $scope2.activeTab() ? "0" : "-1")));
+          {
+            const __av7 = $scope2.t.id;
+            if (__av7 == null || __av7 === false || __av7 === "")
+              __e6.removeAttribute("data-tab");
+            else
+              __e6.setAttribute("data-tab", __av7 === true ? "" : String(__av7));
+          }
           __c5.push(on(__e6, "click", function() {
             const __h = () => $scope2.activate($scope2.t.id);
             return typeof __h === "function" ? __h.bind(undefined) : () => {};
           }(), { modifiers: [] }));
-          const __e7 = document.createElement("sui-icon");
-          __c5.push(bindProp(__e7, "name", () => $scope2.t.icon));
-          __e7.setAttribute("size", "sm");
-          __e6.appendChild(__e7);
-          const __e8 = document.createElement("span");
-          const __t9 = document.createTextNode("");
-          __e8.appendChild(__t9);
-          __c5.push(bindText(__t9, () => $scope2.t.label));
+          const __e8 = document.createElement("sui-icon");
+          __e8["name"] = $scope2.t.icon;
+          __e8.setAttribute("size", "sm");
           __e6.appendChild(__e8);
-          const __ifAnchor10 = document.createComment("if");
-          __e6.appendChild(__ifAnchor10);
-          __c5.push(__wireBoundary_b8(__ifAnchor10));
-          const __ifAnchor14 = document.createComment("if");
-          __e6.appendChild(__ifAnchor14);
-          __c5.push(__wireBoundary_b9(__ifAnchor14));
+          const __e9 = document.createElement("span");
+          const __t10 = document.createTextNode("");
+          __e9.appendChild(__t10);
+          __t10.textContent = $scope2.t.label;
+          __e6.appendChild(__e9);
+          const __ifAnchor11 = document.createComment("if");
+          __e6.appendChild(__ifAnchor11);
+          __c5.push(__wireBoundary_b8(__ifAnchor11));
+          const __ifAnchor15 = document.createComment("if");
+          __e6.appendChild(__ifAnchor15);
+          __c5.push(__wireBoundary_b9(__ifAnchor15));
           __frag4.appendChild(__e6);
           return { nodes: Array.from(__frag4.childNodes), cleanup: () => {
             for (const c of __c5)
               try {
                 c();
               } catch (e) {}
+          }, update: (__new20, __newI21) => {
+            $scope2.t = __new20;
+            $scope2.__i = __newI21;
+            {
+              const __av7 = $scope2.t.id;
+              if (__av7 == null || __av7 === false || __av7 === "")
+                __e6.removeAttribute("data-tab");
+              else
+                __e6.setAttribute("data-tab", __av7 === true ? "" : String(__av7));
+            }
+            __e8["name"] = $scope2.t.icon;
+            __t10.textContent = $scope2.t.label;
+            $scope2.__v.set((c) => c + 1);
           } };
         })(__childScope3);
       }
@@ -456,130 +479,130 @@ var sui_panel_dock_default = component("sui-panel-dock", {
     const __forAnchor2 = document.createComment("for");
     __e1.appendChild(__forAnchor2);
     __cleanups.push(__wireBoundary_b1(__forAnchor2));
-    const __e19 = document.createElement("span");
-    __e19.setAttribute("class", "tools");
-    const __e20 = document.createElement("button");
-    __e20.setAttribute("class", "tool");
-    __e20.setAttribute("type", "button");
-    __e20.setAttribute("aria-label", "Clear");
-    __e20.setAttribute("title", "Clear");
-    __e20.setAttribute("data-action", "clear");
-    __cleanups.push(on(__e20, "click", function() {
+    const __e22 = document.createElement("span");
+    __e22.setAttribute("class", "tools");
+    const __e23 = document.createElement("button");
+    __e23.setAttribute("class", "tool");
+    __e23.setAttribute("type", "button");
+    __e23.setAttribute("aria-label", "Clear");
+    __e23.setAttribute("title", "Clear");
+    __e23.setAttribute("data-action", "clear");
+    __cleanups.push(on(__e23, "click", function() {
       const __h = $scope.onClear;
       return typeof __h === "function" ? __h.bind(undefined) : () => {};
     }(), { modifiers: [] }));
-    const __e21 = document.createElement("sui-icon");
-    __e21.setAttribute("name", "refresh-ccw");
-    __e21.setAttribute("size", "sm");
-    __e20.appendChild(__e21);
-    __e19.appendChild(__e20);
-    const __e22 = document.createElement("button");
-    __e22.setAttribute("class", "tool");
-    __e22.setAttribute("type", "button");
-    __e22.setAttribute("aria-label", "Pop out");
-    __e22.setAttribute("title", "Pop out");
-    __e22.setAttribute("data-action", "popout");
-    __cleanups.push(on(__e22, "click", function() {
+    const __e24 = document.createElement("sui-icon");
+    __e24.setAttribute("name", "refresh-ccw");
+    __e24.setAttribute("size", "sm");
+    __e23.appendChild(__e24);
+    __e22.appendChild(__e23);
+    const __e25 = document.createElement("button");
+    __e25.setAttribute("class", "tool");
+    __e25.setAttribute("type", "button");
+    __e25.setAttribute("aria-label", "Pop out");
+    __e25.setAttribute("title", "Pop out");
+    __e25.setAttribute("data-action", "popout");
+    __cleanups.push(on(__e25, "click", function() {
       const __h = $scope.onPopout;
       return typeof __h === "function" ? __h.bind(undefined) : () => {};
     }(), { modifiers: [] }));
-    const __e23 = document.createElement("sui-icon");
-    __e23.setAttribute("name", "maximize-2");
-    __e23.setAttribute("size", "sm");
-    __e22.appendChild(__e23);
-    __e19.appendChild(__e22);
-    const __e24 = document.createElement("button");
-    __e24.setAttribute("class", "tool");
-    __e24.setAttribute("type", "button");
-    __e24.setAttribute("aria-label", "Close panel");
-    __e24.setAttribute("title", "Close (⌘J)");
-    __e24.setAttribute("data-action", "close");
-    __cleanups.push(on(__e24, "click", function() {
+    const __e26 = document.createElement("sui-icon");
+    __e26.setAttribute("name", "maximize-2");
+    __e26.setAttribute("size", "sm");
+    __e25.appendChild(__e26);
+    __e22.appendChild(__e25);
+    const __e27 = document.createElement("button");
+    __e27.setAttribute("class", "tool");
+    __e27.setAttribute("type", "button");
+    __e27.setAttribute("aria-label", "Close panel");
+    __e27.setAttribute("title", "Close (⌘J)");
+    __e27.setAttribute("data-action", "close");
+    __cleanups.push(on(__e27, "click", function() {
       const __h = $scope.onClose;
       return typeof __h === "function" ? __h.bind(undefined) : () => {};
     }(), { modifiers: [] }));
-    const __e25 = document.createElement("sui-icon");
-    __e25.setAttribute("name", "x");
-    __e25.setAttribute("size", "sm");
-    __e24.appendChild(__e25);
-    __e19.appendChild(__e24);
-    __e1.appendChild(__e19);
+    const __e28 = document.createElement("sui-icon");
+    __e28.setAttribute("name", "x");
+    __e28.setAttribute("size", "sm");
+    __e27.appendChild(__e28);
+    __e22.appendChild(__e27);
+    __e1.appendChild(__e22);
     __root.appendChild(__e1);
-    const __e26 = document.createElement("div");
-    __e26.setAttribute("class", "toolbar");
-    __e26.setAttribute("data-toolbar", "terminal");
-    __cleanups.push(bindAttr(__e26, "hidden", () => $scope.activeTab() !== "terminal"));
-    const __e27 = document.createElement("slot");
-    __e27.setAttribute("name", "toolbar:terminal");
-    __e26.appendChild(__e27);
-    __root.appendChild(__e26);
-    const __e28 = document.createElement("div");
-    __e28.setAttribute("class", "toolbar");
-    __e28.setAttribute("data-toolbar", "source");
-    __cleanups.push(bindAttr(__e28, "hidden", () => $scope.activeTab() !== "source"));
-    const __e29 = document.createElement("slot");
-    __e29.setAttribute("name", "toolbar:source");
-    __e28.appendChild(__e29);
-    __root.appendChild(__e28);
-    const __e30 = document.createElement("div");
-    __e30.setAttribute("class", "toolbar");
-    __e30.setAttribute("data-toolbar", "signals");
-    __cleanups.push(bindAttr(__e30, "hidden", () => $scope.activeTab() !== "signals"));
-    const __e31 = document.createElement("slot");
-    __e31.setAttribute("name", "toolbar:signals");
-    __e30.appendChild(__e31);
-    __root.appendChild(__e30);
-    const __e32 = document.createElement("div");
-    __e32.setAttribute("class", "toolbar");
-    __e32.setAttribute("data-toolbar", "lint");
-    __cleanups.push(bindAttr(__e32, "hidden", () => $scope.activeTab() !== "lint"));
-    const __e33 = document.createElement("slot");
-    __e33.setAttribute("name", "toolbar:lint");
-    __e32.appendChild(__e33);
-    __root.appendChild(__e32);
-    const __e34 = document.createElement("div");
-    __e34.setAttribute("class", "toolbar");
-    __e34.setAttribute("data-toolbar", "schema");
-    __cleanups.push(bindAttr(__e34, "hidden", () => $scope.activeTab() !== "schema"));
-    const __e35 = document.createElement("slot");
-    __e35.setAttribute("name", "toolbar:schema");
-    __e34.appendChild(__e35);
-    __root.appendChild(__e34);
-    const __e36 = document.createElement("div");
-    __e36.setAttribute("class", "toolbar");
-    __e36.setAttribute("data-toolbar", "components");
-    __cleanups.push(bindAttr(__e36, "hidden", () => $scope.activeTab() !== "components"));
-    const __e37 = document.createElement("slot");
-    __e37.setAttribute("name", "toolbar:components");
-    __e36.appendChild(__e37);
-    __root.appendChild(__e36);
-    const __e38 = document.createElement("div");
-    __e38.setAttribute("class", "bodies");
-    const __e39 = document.createElement("slot");
-    __e39.setAttribute("name", "terminal");
-    __cleanups.push(bindAttr(__e39, "data-active", () => $scope.activeTab() === "terminal"));
-    __e38.appendChild(__e39);
+    const __e29 = document.createElement("div");
+    __e29.setAttribute("class", "toolbar");
+    __e29.setAttribute("data-toolbar", "terminal");
+    __cleanups.push(bindAttr(__e29, "hidden", () => $scope.activeTab() !== "terminal"));
+    const __e30 = document.createElement("slot");
+    __e30.setAttribute("name", "toolbar:terminal");
+    __e29.appendChild(__e30);
+    __root.appendChild(__e29);
+    const __e31 = document.createElement("div");
+    __e31.setAttribute("class", "toolbar");
+    __e31.setAttribute("data-toolbar", "source");
+    __cleanups.push(bindAttr(__e31, "hidden", () => $scope.activeTab() !== "source"));
+    const __e32 = document.createElement("slot");
+    __e32.setAttribute("name", "toolbar:source");
+    __e31.appendChild(__e32);
+    __root.appendChild(__e31);
+    const __e33 = document.createElement("div");
+    __e33.setAttribute("class", "toolbar");
+    __e33.setAttribute("data-toolbar", "signals");
+    __cleanups.push(bindAttr(__e33, "hidden", () => $scope.activeTab() !== "signals"));
+    const __e34 = document.createElement("slot");
+    __e34.setAttribute("name", "toolbar:signals");
+    __e33.appendChild(__e34);
+    __root.appendChild(__e33);
+    const __e35 = document.createElement("div");
+    __e35.setAttribute("class", "toolbar");
+    __e35.setAttribute("data-toolbar", "lint");
+    __cleanups.push(bindAttr(__e35, "hidden", () => $scope.activeTab() !== "lint"));
+    const __e36 = document.createElement("slot");
+    __e36.setAttribute("name", "toolbar:lint");
+    __e35.appendChild(__e36);
+    __root.appendChild(__e35);
+    const __e37 = document.createElement("div");
+    __e37.setAttribute("class", "toolbar");
+    __e37.setAttribute("data-toolbar", "schema");
+    __cleanups.push(bindAttr(__e37, "hidden", () => $scope.activeTab() !== "schema"));
+    const __e38 = document.createElement("slot");
+    __e38.setAttribute("name", "toolbar:schema");
+    __e37.appendChild(__e38);
+    __root.appendChild(__e37);
+    const __e39 = document.createElement("div");
+    __e39.setAttribute("class", "toolbar");
+    __e39.setAttribute("data-toolbar", "components");
+    __cleanups.push(bindAttr(__e39, "hidden", () => $scope.activeTab() !== "components"));
     const __e40 = document.createElement("slot");
-    __e40.setAttribute("name", "source");
-    __cleanups.push(bindAttr(__e40, "data-active", () => $scope.activeTab() === "source"));
-    __e38.appendChild(__e40);
-    const __e41 = document.createElement("slot");
-    __e41.setAttribute("name", "signals");
-    __cleanups.push(bindAttr(__e41, "data-active", () => $scope.activeTab() === "signals"));
-    __e38.appendChild(__e41);
+    __e40.setAttribute("name", "toolbar:components");
+    __e39.appendChild(__e40);
+    __root.appendChild(__e39);
+    const __e41 = document.createElement("div");
+    __e41.setAttribute("class", "bodies");
     const __e42 = document.createElement("slot");
-    __e42.setAttribute("name", "lint");
-    __cleanups.push(bindAttr(__e42, "data-active", () => $scope.activeTab() === "lint"));
-    __e38.appendChild(__e42);
+    __e42.setAttribute("name", "terminal");
+    __cleanups.push(bindAttr(__e42, "data-active", () => $scope.activeTab() === "terminal"));
+    __e41.appendChild(__e42);
     const __e43 = document.createElement("slot");
-    __e43.setAttribute("name", "schema");
-    __cleanups.push(bindAttr(__e43, "data-active", () => $scope.activeTab() === "schema"));
-    __e38.appendChild(__e43);
+    __e43.setAttribute("name", "source");
+    __cleanups.push(bindAttr(__e43, "data-active", () => $scope.activeTab() === "source"));
+    __e41.appendChild(__e43);
     const __e44 = document.createElement("slot");
-    __e44.setAttribute("name", "components");
-    __cleanups.push(bindAttr(__e44, "data-active", () => $scope.activeTab() === "components"));
-    __e38.appendChild(__e44);
-    __root.appendChild(__e38);
+    __e44.setAttribute("name", "signals");
+    __cleanups.push(bindAttr(__e44, "data-active", () => $scope.activeTab() === "signals"));
+    __e41.appendChild(__e44);
+    const __e45 = document.createElement("slot");
+    __e45.setAttribute("name", "lint");
+    __cleanups.push(bindAttr(__e45, "data-active", () => $scope.activeTab() === "lint"));
+    __e41.appendChild(__e45);
+    const __e46 = document.createElement("slot");
+    __e46.setAttribute("name", "schema");
+    __cleanups.push(bindAttr(__e46, "data-active", () => $scope.activeTab() === "schema"));
+    __e41.appendChild(__e46);
+    const __e47 = document.createElement("slot");
+    __e47.setAttribute("name", "components");
+    __cleanups.push(bindAttr(__e47, "data-active", () => $scope.activeTab() === "components"));
+    __e41.appendChild(__e47);
+    __root.appendChild(__e41);
     if (__r != null) {
       const __lc = Object.getOwnPropertyDescriptor(__r, "__shipSetLifecycle")?.value;
       if (__lc) {
