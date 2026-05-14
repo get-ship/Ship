@@ -11,6 +11,7 @@ pub mod daemon_settings;
 pub mod envelope;
 pub mod events;
 pub mod integrity;
+pub mod project_id_reconcile;
 pub mod repair;
 #[cfg(test)]
 mod events_tests;
@@ -167,6 +168,17 @@ fn ensure_db_at_path(path: &std::path::Path) -> Result<()> {
     block_on(async { sqlx::query("PRAGMA journal_mode = WAL").execute(&mut conn).await })?;
     block_on(async { sqlx::query("PRAGMA busy_timeout = 5000").execute(&mut conn).await })?;
     block_on(async { sqlx::query("PRAGMA foreign_keys = ON").execute(&mut conn).await })?;
+
+    // Pre-migration column reconcile. `events.workspace_id` was renamed to
+    // `events.project_id` in commit 0b52fa28 by patching the 0001 baseline
+    // in place rather than introducing a new migration. DBs created before
+    // that patch still carry the old column name and silently break event
+    // writes. Detect and rename here, before sqlx_migrate inspects schema,
+    // so the canonical insert path (`INSERT INTO events (... project_id ...)`)
+    // succeeds on existing installs without touching user data.
+    project_id_reconcile::reconcile_events_project_id_column(&mut conn).with_context(|| {
+        format!("events.project_id reconcile failed on {}", path.display())
+    })?;
 
     // Run migrations. If they fail, refuse to start — never delete user data.
     if let Err(e) = block_on_migrate(async {
