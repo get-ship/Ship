@@ -100,7 +100,7 @@ Signal access in markup uses `$name`:
 | Macro | Purpose |
 |---|---|
 | `on(event, action)` | Shorthand for `data-on-{event}` Datastar attribute. |
-| `attr(name, expr)` | Compute an attribute value from signals. |
+| `attr_if(expr, name)` | Reactive attribute binding (mirrors `class_if`). |
 | `get(url, signal)` | Fire a GET on event; optionally store response in a signal. |
 | `post(url, body_signal, response_signal)` | Same for POST. |
 | `put(url, body_signal, response_signal)` | Same for PUT. |

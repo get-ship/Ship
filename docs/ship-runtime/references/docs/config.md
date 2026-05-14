@@ -68,7 +68,7 @@ The merged result of project + agent-active layer + mode overlay. Produced by `g
 
 Both take `Option<PathBuf>`. `None` means global config at `get_global_dir()`. `Some(dir)` means the project's `.ship/`.
 
-Reads cascade: primary JSONC → legacy JSON (migrated once on the way through) → `ProjectConfig::default()`.
+Reads cascade: primary JSONC → `ProjectConfig::default()`.
 
 ## Merge order
 
@@ -195,7 +195,7 @@ Walks `.ship/skills/`, `.ship/rules/`, agent profiles, plugin entries in the pac
 - Every write goes through `write_atomic`. No partial writes observed by readers.
 - JSONC comments round-trip on CRUD. User-added comments survive config mutations.
 - `get_effective_config` never touches `data.db` — it only reads JSONC files and runtime settings.
-- Primary config is `ship.jsonc`; `config.json` (legacy) is read-only and migrated-once.
+- Primary config is `ship.jsonc`.
 
 ## Related
 

@@ -57,7 +57,7 @@ The browser fetches the module on view load and the custom element is registered
 
 ### Option B: pack declaration in manifest (forthcoming)
 
-Long-term the view's `manifest.yaml` will declare `packs:` that include component bundles. Today, packs cover the core element library only — author-defined components use the per-view script tag pattern.
+Long-term the view's `manifest.jsonc` will declare `packs:` that include component bundles. Today, packs cover the core element library only — author-defined components use the per-view script tag pattern.
 
 ## Slots
 

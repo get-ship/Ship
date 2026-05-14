@@ -134,9 +134,9 @@ body), Datastar emits a `datastar-fetch` document event with
 - **Global debugging:** the shell's error reporter posts every
   uncaught error, view render failure, and fetch failure to
   `POST /api/view-errors`. Agents retrieve these via the
-  `ship_view_errors` MCP tool (see the Authoring loop page).
+  `get_view_errors` MCP tool (see the Authoring loop page).
 
 The daemon also validates each render. A missing signal, a malformed
 macro call, or a template syntax error renders a structured error
 payload on the response and posts an entry to `view-errors` so the
-next `ship_view_errors` call surfaces it.
+next `get_view_errors` call surfaces it.

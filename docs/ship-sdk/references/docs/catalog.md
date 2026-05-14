@@ -28,7 +28,8 @@ examples — see [Primitives](./primitives.md).
 | `signals` | `signals(fields)` | Declare many signals from a dict. Emits type metadata for AST-lint. |
 | `show` | `show(expr)` | Hide element until expr truthy. No flash. |
 | `toggle_class` | `toggle_class(cls, expr)` | Reactive single-class toggle. |
-| `attr` | `attr(name, expr)` | Reactive attribute value. |
+| `class_if` | `class_if(expr, cls)` | Reactive class binding (condition first). |
+| `attr_if` | `attr_if(expr, name)` | Reactive attribute binding (condition first). |
 
 ## SSE and live updates
 

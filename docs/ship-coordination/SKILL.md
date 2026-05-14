@@ -51,9 +51,10 @@ discover_mesh_agents    — find agents listening on a topic
 update_mesh_status      — flip own status active|busy|idle
 ```
 
-The old `mesh_send` / `mesh_broadcast` / `mesh_discover` / `mesh_status`
-are deprecated aliases and currently still route to the canonical
-names. New code should use the verb-first canonical form above.
+The verb-first canonical names above are the only routes — pre-v1 has
+no installed-client surface to protect, so the older shapes
+(`mesh_send`, `mesh_broadcast`, `mesh_discover`, `mesh_status`) no
+longer exist.
 
 ## Documents (durable handoffs)
 
@@ -76,8 +77,6 @@ query_sdk          — look up SDK contracts (routes, types, etc.)
 scaffold_view      — scaffold a new view
 ```
 
-(Old `ship_view_errors` / `ship_view_lint` / `ship_sdk_query` /
-`ship_view_scaffold` are deprecated aliases.)
 
 ## Artifacts
 
@@ -85,8 +84,6 @@ scaffold_view      — scaffold a new view
 upload_artifact / get_artifact / list_artifacts / delete_artifact / promote_artifact
 ```
 
-(Old `artifact_upload` / `artifact_get` / `artifact_list` /
-`artifact_delete` / `artifact_promote` are deprecated aliases.)
 
 ## What to log
 

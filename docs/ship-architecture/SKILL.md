@@ -22,7 +22,7 @@ Shared types used across all crates. Zero internal dependencies. Defines `EventE
 
 ### ship-jobs
 
-Job and pipeline types. Defines `Pipeline`, `PipelineMeta`, pipeline YAML normalization (`normalize_pipeline_yaml`), and step type parsing. Handles both short-form (`agents: [...]`) and long-form (`steps: [...]`) pipeline YAML.
+Job and pipeline types. Defines `Pipeline`, `PipelineMeta`, pipeline JSONC normalization (`normalize_pipeline`), and step type parsing. Handles both short-form (`agents: [...]`) and long-form (`steps: [...]`) pipeline JSONC.
 
 ### ship-kernel
 
@@ -97,7 +97,7 @@ A workspace is a branch-keyed container for sessions, agent config, and worktree
 
 ### Simplified pipelines
 
-Pipelines use a simplified YAML format. The short form (`agents: [...]`) auto-chains agents into sequential steps. The long form (`steps: [...]`) supports mixed step types: agent strings, `run:` commands, `human:` pauses, and `parallel:` fan-out groups. Template variables (`{{ var }}`) are interpolated at dispatch time.
+Pipelines use a simplified JSONC format. The short form (`agents: [...]`) auto-chains agents into sequential steps. The long form (`steps: [...]`) supports mixed step types: agent strings, `run:` commands, `human:` pauses, and `parallel:` fan-out groups. Template variables (`{{ var }}`) are interpolated at dispatch time.
 
 ### Session scopes
 
