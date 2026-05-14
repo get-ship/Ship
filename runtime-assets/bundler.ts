@@ -241,6 +241,15 @@ async function aggregateCem(): Promise<void> {
 function detectMode(absPath: string): { mode: 'component' | 'view'; stem: string } {
   const stem = basename(absPath, '.sui')
   const parent = basename(dirname(absPath))
+  // Every `.sui` under `src/islands/<bundle>/` is a custom-element
+  // component. A bundle directory packs multiple tags (e.g. sui-command-bar
+  // + sui-command-palette + sui-command-chat) where only the tag matching
+  // the directory name satisfies `stem === parent` — the secondary tags
+  // would otherwise compile as views, never `customElements.define()`, and
+  // render as inert unknown elements. Grandparent === 'islands' classifies
+  // every island tag as a component regardless of its directory name.
+  const grandparent = basename(dirname(dirname(absPath)))
+  if (grandparent === 'islands') return { mode: 'component', stem }
   const mode: 'component' | 'view' = stem === parent && stem.length > 0 ? 'component' : 'view'
   return { mode, stem }
 }

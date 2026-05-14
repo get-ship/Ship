@@ -12,6 +12,7 @@ const config: SuiBuildConfig = {
     'sui-launcher':        'src/islands/sui-launcher/index.ts',
     'sui-nav-top':         'src/islands/sui-nav-top/index.ts',
     'sui-panel-dock':      'src/islands/sui-panel-dock/index.ts',
+    'sui-rail':            'src/islands/sui-rail/index.ts',
     'sui-devtools':        'src/islands/sui-devtools/index.ts',
   },
   outdir: '../../crates/sui/ship-sui-server/assets',

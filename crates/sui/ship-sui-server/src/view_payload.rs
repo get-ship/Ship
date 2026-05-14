@@ -75,6 +75,7 @@ fn serve(name: &str, sub_path: Option<&str>, mode: DaemonMode) -> Response {
         scope: split.init,
         module_url,
         islands: island_bundles,
+        params: resolved.params,
     };
     json_ok(&payload, mode)
 }
