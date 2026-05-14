@@ -253,7 +253,7 @@ pub fn run_auth_status() -> Result<()> {
     }
 
     let now = chrono::Utc::now().timestamp();
-    println!("{:<18}  {:<20}  {:<10}  {}", "TOKEN", "AGENT", "KIND", "EXPIRES");
+    println!("{:<18}  {:<20}  {:<10}  EXPIRES", "TOKEN", "AGENT", "KIND");
     for s in sessions {
         let prefix = s.get("token_prefix").and_then(|v| v.as_str()).unwrap_or("");
         let agent = s.get("agent_id").and_then(|v| v.as_str()).unwrap_or("");
@@ -323,11 +323,10 @@ pub fn run_logout() -> Result<()> {
             ship_substrate::events::types::event_types::DAEMON_OWNER_UNBOUND,
             &prior,
             &payload,
-        ) {
-            if let Ok(store) = ship_substrate::persistence::event_store::SqliteEventStore::new() {
+        )
+            && let Ok(store) = ship_substrate::persistence::event_store::SqliteEventStore::new() {
                 let _ = ship_substrate::persistence::event_store::EventStore::append(&store, &envelope);
             }
-        }
     }
     println!("Logged out.");
     Ok(())

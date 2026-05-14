@@ -5,22 +5,15 @@
 //!
 //! Canonical services architecture doc: `.artifacts/daemon-services.md`.
 
-pub mod files;
-pub mod jsonc;
+// FilesService relocated to ship_platform::services::files (Phase 2).
+// `jsonc` keeps the agent-config-specific helpers (parse_file, resolve_array_field,
+// first_letter); strip_jsonc delegates to ship_substrate::fs_util::strip_jsonc_comments.
+
 pub mod launcher;
-pub mod path_tolerant;
 pub mod registry;
 pub mod schema;
 pub mod ship_ns;
-pub mod agents;
 pub mod pipelines;
-pub mod skills;
-pub mod rules;
-pub mod mcp;
-pub mod permissions;
-pub mod git;
 pub mod specs;
 pub mod settings;
 pub mod chat;
-pub mod collections;
-pub mod artifacts;

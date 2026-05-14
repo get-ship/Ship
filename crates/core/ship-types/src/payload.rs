@@ -229,27 +229,10 @@ pub struct GateFailed {
     pub evidence: String,
 }
 
-// -- Job aggregate -------------------------------------------------------------
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct JobCreated {
-    pub title: Option<String>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct JobCompleted {
-    pub summary: Option<String>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct JobFailed {
-    pub reason: Option<String>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct JobDispatched {
-    pub agent_id: Option<String>,
-}
+// Job event payloads (job.created, job.completed, job.failed, job.dispatched,
+// step.*, gate.*) carry the runtime pipeline shape and live in substrate at
+// `ship_substrate::events::job` since they reference `ship-pipelines` types.
+// ship-types is a leaf crate and cannot pull in `ship-pipelines`.
 
 // -- Artifact events -----------------------------------------------------------
 

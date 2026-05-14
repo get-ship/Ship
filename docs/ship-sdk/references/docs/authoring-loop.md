@@ -43,7 +43,7 @@ Views live at `.ship/views/<name>/`:
 
 ```
 .ship/views/tasks/
-  manifest.yaml
+  manifest.jsonc
   index.html.j2
   partials/content.html.j2     # optional — rendered on SSE re-render
   _components/*.j2             # optional — view-local Jinja partials
@@ -113,7 +113,7 @@ curl -s http://localhost:3000/api/view-errors | jq .
 curl -s -X DELETE http://localhost:3000/api/view-errors
 ```
 
-**MCP tool (preferred for agent loops):** `ship_view_errors`. Returns
+**MCP tool (preferred for agent loops):** `get_view_errors`. Returns
 the buffered errors as an agent-readable blob. The shell's
 `error-reporter.ts` also POSTs client-side exceptions into this buffer
 so runtime-only bugs surface without a browser devtools round-trip.
@@ -125,7 +125,7 @@ The loop in practice:
 1. `curl /api/sdk/query?q=<concept>` — find the macro.
 2. Edit `.ship/views/<name>/index.html.j2`.
 3. Refresh the browser (or dispatch an `@get` in the shell).
-4. If the render fails visibly → `ship_view_errors`.
+4. If the render fails visibly → `get_view_errors`.
 5. If it renders but behaves wrong → `?__dry-run=1` to inspect context.
 6. Before commit → `lint_view` (or `ship lint views`).
 

@@ -178,21 +178,21 @@ fn collect_framework_types() -> TypeCollection {
     c.register::<shipd::views::resolve::ManifestRail>();
 
     // shipd::services::git — overview, diff, status buckets.
-    c.register::<shipd::services::git::state::CommitSummary>();
-    c.register::<shipd::services::git::state::StatusFile>();
-    c.register::<shipd::services::git::state::StatusBuckets>();
-    c.register::<shipd::services::git::state::BranchSummary>();
-    c.register::<shipd::services::git::state::GitOverview>();
-    c.register::<shipd::services::git::state::GitDiff>();
-    c.register::<shipd::services::git::state::GitDiffArgs>();
-    c.register::<shipd::services::git::diff::DiffLine>();
-    c.register::<shipd::services::git::diff::DiffHunk>();
-    c.register::<shipd::services::git::diff::DiffFileView>();
-    c.register::<shipd::services::git::diff::ParsedDiff>();
+    c.register::<ship_platform::services::git::state::CommitSummary>();
+    c.register::<ship_platform::services::git::state::StatusFile>();
+    c.register::<ship_platform::services::git::state::StatusBuckets>();
+    c.register::<ship_platform::services::git::state::BranchSummary>();
+    c.register::<ship_platform::services::git::state::GitOverview>();
+    c.register::<ship_platform::services::git::state::GitDiff>();
+    c.register::<ship_platform::services::git::state::GitDiffArgs>();
+    c.register::<ship_platform::services::git::diff::DiffLine>();
+    c.register::<ship_platform::services::git::diff::DiffHunk>();
+    c.register::<ship_platform::services::git::diff::DiffFileView>();
+    c.register::<ship_platform::services::git::diff::ParsedDiff>();
 
     // shipd::services::agents — summary list payload.
-    c.register::<shipd::services::agents::view_state::AgentSummary>();
-    c.register::<shipd::services::agents::view_state::AgentsSummariesResponse>();
+    c.register::<ship_platform::services::agents::view_state::AgentSummary>();
+    c.register::<ship_platform::services::agents::view_state::AgentsSummariesResponse>();
 
     // shipd::routes::lint_api — POST /api/v1/lint/view.
     c.register::<shipd::routes::lint_api::LintViewRequest>();

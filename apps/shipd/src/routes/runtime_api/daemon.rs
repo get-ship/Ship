@@ -73,9 +73,9 @@ pub async fn daemon_status(State(state): State<ApiState>) -> impl IntoResponse {
     path = "/api/v1/rebuild-projections",
     responses(
         (status = 200, body = MeshResponse),
-        (status = 401, description = "unauthorized", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 409, description = "rebuild already running", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 500, description = "server error", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 401, description = "unauthorized", body = crate::wire::ErrorResponse),
+        (status = 409, description = "rebuild already running", body = crate::wire::ErrorResponse),
+        (status = 500, description = "server error", body = crate::wire::ErrorResponse),
     ),
     tag = "runtime"
 )]

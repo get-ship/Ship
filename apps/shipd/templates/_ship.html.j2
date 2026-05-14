@@ -110,20 +110,6 @@ data-signals:{{ name }}="{% if default is string %}'{{ default }}'{% elif defaul
 -#}
 {% macro toggle_class(cls, expr) %}data-class:{{ cls }}="{{ expr }}"{% endmacro %}
 
-{#-
-  attr(name, expr)
-
-  Reactively bind an HTML attribute's value to a Datastar expression.
-
-  Args:
-    name: Attribute name (e.g. `selected`, `disabled`, `aria-pressed`).
-    expr: Datastar expression producing the attribute value.
-
-  Example:
-    <ship-chip {{ attr('selected', '$status == "active"') }}>Active</ship-chip>
--#}
-{% macro attr(name, expr) %}data-attr:{{ name }}="{{ expr }}"{% endmacro %}
-
 {#- === SSE & Live Updates === -#}
 
 {#-
@@ -304,9 +290,8 @@ data-signals:{{ name }}="{% if default is string %}'{{ default }}'{% elif defaul
 {#-
   attr_if(expr, name)
 
-  Reactively toggle/bind an HTML attribute. Natural argument order
-  (condition first, name second) — mirrors `class_if`. For the
-  legacy name-first form see `attr(name, expr)`.
+  Reactively toggle/bind an HTML attribute. Argument order mirrors
+  `class_if`: condition first, attribute name second.
 
   Example:
     <ship-button {{ attr_if('$_saving', 'disabled') }}>Save</ship-button>

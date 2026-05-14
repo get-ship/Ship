@@ -417,3 +417,8 @@ mod path_layout_tests {
         assert!(home.worktree_daemon_dir(hash).join("workspace").exists());
     }
 }
+
+// First-run UX + Telegram human-gateway bootstrap — both are daemon-
+// startup concerns folded under this module for layout coherence.
+pub mod first_run;
+pub mod human_gateway;

@@ -28,7 +28,7 @@ use crate::access::RuntimeAccess;
 use crate::auth::{AuthContext, Scope};
 use crate::routes::rest_api::ApiState;
 use crate::auth::scopes::{can_delete_artifacts, can_read_artifacts, can_write_artifacts, require_scope};
-use crate::services::artifacts::service::{
+use ship_platform::services::artifacts::service::{
     ArtifactsService, Error as ArtifactsError, PatchArgs, StoreArgs,
 };
 use ship_platform::artifacts::{ARTIFACTS_COLLECTION_ID, ArtifactScope};
@@ -94,10 +94,10 @@ pub struct UploadQuery {
     request_body(content_type = "multipart/form-data", description = "File upload with optional collection_id, item_id, expires_at fields"),
     responses(
         (status = 201, description = "Artifact uploaded"),
-        (status = 400, description = "Invalid scope or multipart payload", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 401, description = "Unauthenticated", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 403, description = "Insufficient scope", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 500, description = "Server error", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 400, description = "Invalid scope or multipart payload", body = crate::wire::ErrorResponse),
+        (status = 401, description = "Unauthenticated", body = crate::wire::ErrorResponse),
+        (status = 403, description = "Insufficient scope", body = crate::wire::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::wire::ErrorResponse),
     ),
     tag = "artifacts"
 )]
@@ -163,17 +163,19 @@ pub async fn upload_artifact(
         .or_else(|| mime_from_name(&name))
         .unwrap_or_else(|| "application/octet-stream".to_string());
 
-    // TTL expiry for run-scope when not explicitly provided.
-    let computed_expires = if expires_at.is_none() {
-        if let ArtifactScope::Run { .. } = &scope {
-            let ttl_hours = 24u64; // default; TODO: read from config
-            let exp = chrono::Utc::now() + chrono::Duration::hours(ttl_hours as i64);
+    // Default TTL for run-scope artifacts when the caller didn't supply
+    // an explicit `expires_at`. Per design, run-scope is ephemeral and
+    // garbage-collected after the run is done. 24h gives enough overlap
+    // for debug attach, promote, and download flows. Project/user-scope
+    // artifacts are kept until explicitly deleted.
+    const RUN_SCOPE_DEFAULT_TTL_HOURS: i64 = 24;
+    let computed_expires = match (expires_at, &scope) {
+        (Some(t), _) => Some(t),
+        (None, ArtifactScope::Run { .. }) => {
+            let exp = chrono::Utc::now() + chrono::Duration::hours(RUN_SCOPE_DEFAULT_TTL_HOURS);
             Some(exp.to_rfc3339())
-        } else {
-            None
         }
-    } else {
-        expires_at
+        (None, _) => None,
     };
 
     let args = StoreArgs {
@@ -205,10 +207,10 @@ pub async fn upload_artifact(
     params(("id" = String, Path, description = "Artifact id")),
     responses(
         (status = 200, description = "Artifact bytes stream", content_type = "application/octet-stream"),
-        (status = 401, description = "Unauthenticated", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 403, description = "Insufficient scope", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 404, description = "Artifact not found", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 500, description = "Server error", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 401, description = "Unauthenticated", body = crate::wire::ErrorResponse),
+        (status = 403, description = "Insufficient scope", body = crate::wire::ErrorResponse),
+        (status = 404, description = "Artifact not found", body = crate::wire::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::wire::ErrorResponse),
     ),
     tag = "artifacts"
 )]
@@ -251,10 +253,10 @@ pub async fn download_artifact(
     params(("id" = String, Path, description = "Artifact id")),
     responses(
         (status = 200, description = "Metadata-only response; body empty, headers carry size/mime/scope/hash"),
-        (status = 401, description = "Unauthenticated", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 403, description = "Insufficient scope", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 404, description = "Artifact not found", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 500, description = "Server error", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 401, description = "Unauthenticated", body = crate::wire::ErrorResponse),
+        (status = 403, description = "Insufficient scope", body = crate::wire::ErrorResponse),
+        (status = 404, description = "Artifact not found", body = crate::wire::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::wire::ErrorResponse),
     ),
     tag = "artifacts"
 )]
@@ -290,10 +292,10 @@ pub async fn head_artifact(
     params(("id" = String, Path, description = "Artifact id")),
     responses(
         (status = 200, description = "Artifact metadata as JSON"),
-        (status = 401, description = "Unauthenticated", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 403, description = "Insufficient scope", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 404, description = "Artifact not found", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 500, description = "Server error", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 401, description = "Unauthenticated", body = crate::wire::ErrorResponse),
+        (status = 403, description = "Insufficient scope", body = crate::wire::ErrorResponse),
+        (status = 404, description = "Artifact not found", body = crate::wire::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::wire::ErrorResponse),
     ),
     tag = "artifacts"
 )]
@@ -335,10 +337,10 @@ pub struct PatchBody {
     request_body = PatchBody,
     responses(
         (status = 200, description = "Artifact metadata patched"),
-        (status = 401, description = "Unauthenticated", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 403, description = "Insufficient scope", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 404, description = "Artifact not found", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 500, description = "Server error", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 401, description = "Unauthenticated", body = crate::wire::ErrorResponse),
+        (status = 403, description = "Insufficient scope", body = crate::wire::ErrorResponse),
+        (status = 404, description = "Artifact not found", body = crate::wire::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::wire::ErrorResponse),
     ),
     tag = "artifacts"
 )]
@@ -375,10 +377,10 @@ pub async fn patch_artifact(
     params(("id" = String, Path, description = "Artifact id")),
     responses(
         (status = 200, description = "Artifact soft-deleted"),
-        (status = 401, description = "Unauthenticated", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 403, description = "Insufficient scope", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 404, description = "Artifact not found", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 500, description = "Server error", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 401, description = "Unauthenticated", body = crate::wire::ErrorResponse),
+        (status = 403, description = "Insufficient scope", body = crate::wire::ErrorResponse),
+        (status = 404, description = "Artifact not found", body = crate::wire::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::wire::ErrorResponse),
     ),
     tag = "artifacts"
 )]
@@ -423,11 +425,11 @@ pub struct PromoteBody {
     request_body = PromoteBody,
     responses(
         (status = 200, description = "Artifact promoted to target scope"),
-        (status = 400, description = "Invalid target scope", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 401, description = "Unauthenticated", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 403, description = "Insufficient scope", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 404, description = "Artifact not found", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 500, description = "Server error", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 400, description = "Invalid target scope", body = crate::wire::ErrorResponse),
+        (status = 401, description = "Unauthenticated", body = crate::wire::ErrorResponse),
+        (status = 403, description = "Insufficient scope", body = crate::wire::ErrorResponse),
+        (status = 404, description = "Artifact not found", body = crate::wire::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::wire::ErrorResponse),
     ),
     tag = "artifacts"
 )]
@@ -473,9 +475,9 @@ pub struct ListQuery {
     params(ListQuery),
     responses(
         (status = 200, description = "Filtered, paginated list of artifacts"),
-        (status = 401, description = "Unauthenticated", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 403, description = "Insufficient scope", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 500, description = "Server error", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 401, description = "Unauthenticated", body = crate::wire::ErrorResponse),
+        (status = 403, description = "Insufficient scope", body = crate::wire::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::wire::ErrorResponse),
     ),
     tag = "artifacts"
 )]

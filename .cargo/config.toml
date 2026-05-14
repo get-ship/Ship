@@ -9,3 +9,7 @@
 
 [build]
 target-dir = "target"
+
+# Cargo subcommand alias — `cargo xtask <task>` runs the workspace xtask bin.
+[alias]
+xtask = "run --quiet -p xtask --"

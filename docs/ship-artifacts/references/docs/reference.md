@@ -43,11 +43,11 @@ All routes require a valid daemon token.
 
 | Tool | Description |
 |---|---|
-| `artifact_upload` | Upload bytes (base64-encoded). Returns `{ id }`. |
-| `artifact_get` | Retrieve record + bytes. |
-| `artifact_list` | List with optional scope and filter JSON. |
-| `artifact_delete` | Delete by ID. |
-| `artifact_promote` | Promote to new scope. |
+| `upload_artifact` | Upload bytes (base64-encoded). Returns `{ id }`. |
+| `get_artifact` | Retrieve record + bytes. |
+| `list_artifacts` | List with optional scope and filter JSON. |
+| `delete_artifact` | Delete by ID. |
+| `promote_artifact` | Promote to new scope. |
 
 ## Metadata schema
 
@@ -132,4 +132,4 @@ The internal table that indexes compiled skills, rules, and MCP configs is `comp
 
 - [Collections](/collections/) — the `artifacts` collection stores metadata rows. `File` field types in collection schemas resolve to artifact IDs.
 - [Pipelines](/pipelines/) — step I/O via artifact produce/consume/promote is a phase-2 deliverable.
-- [Views](/views/) — canvas views use project-scope artifacts via `artifact_upload`.
+- [Views](/views/) — canvas views use project-scope artifacts via `upload_artifact`.

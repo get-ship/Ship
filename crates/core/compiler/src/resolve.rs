@@ -212,31 +212,19 @@ pub struct ProjectLibrary {
     pub studio_port: Option<u16>,
 }
 
-/// Deep-merge two JSON values. `override_val` wins on key conflicts.
-/// Arrays are replaced, not concatenated.
-fn merge_json(base: &serde_json::Value, override_val: &serde_json::Value) -> serde_json::Value {
-    match (base, override_val) {
-        (serde_json::Value::Object(b), serde_json::Value::Object(o)) => {
-            let mut merged = b.clone();
-            for (k, v) in o {
-                let entry = merged.entry(k.clone()).or_insert(serde_json::Value::Null);
-                *entry = merge_json(entry, v);
-            }
-            serde_json::Value::Object(merged)
-        }
-        // Non-object: override wins
-        (_, o) => o.clone(),
-    }
-}
-
 /// Merge provider_defaults (base) with *_settings_extra (agent override).
-/// Returns the merged value, or None if both are None.
+/// Returns the merged value, or None if both are None. Deep-merge logic is
+/// delegated to [`crate::output::merge_json`] — single canonical impl.
 fn merge_provider_extra(
     defaults: Option<&serde_json::Value>,
     agent_extra: Option<&serde_json::Value>,
 ) -> Option<serde_json::Value> {
     match (defaults, agent_extra) {
-        (Some(d), Some(a)) => Some(merge_json(d, a)),
+        (Some(d), Some(a)) => {
+            let mut merged = d.clone();
+            crate::output::merge_json(&mut merged, a);
+            Some(merged)
+        }
         (Some(d), None) => Some(d.clone()),
         (None, Some(a)) => Some(a.clone()),
         (None, None) => None,
@@ -328,7 +316,7 @@ pub fn resolve_library(
     let studio_active = library
         .agent_profiles
         .iter()
-        .any(|p| p.profile.id == active_id && p.apps.studio);
+        .any(|p| p.agent.id == active_id && p.apps.studio);
     if studio_active {
         let port = library.studio_port.unwrap_or(51741);
         resolved.studio_mcp_url = Some(format!("http://localhost:{port}/agent"));
@@ -945,12 +933,16 @@ mod tests {
             },
             claude_settings_extra: Some(serde_json::json!({"customKey": true})),
             agent_profiles: vec![AgentProfile {
-                profile: ProfileMeta {
+                agent: ProfileMeta {
                     id: "test-agent".to_string(),
                     name: "Test Agent".to_string(),
                     version: None,
                     description: None,
                     providers: vec![],
+                    role: None,
+                    tags: vec![],
+                    tools_preset: None,
+                    active_tools: vec![],
                     icon: None,
                 },
                 skills: SkillRefs::default(),
@@ -958,6 +950,7 @@ mod tests {
                 plugins: PluginRefs::default(),
                 permissions: ProfilePermissions::default(),
                 rules: ProfileRules::default(),
+                hooks: Default::default(),
                 apps: Default::default(),
                 provider_settings: Default::default(),
             }],
@@ -977,7 +970,7 @@ mod tests {
         assert_eq!(resolved.plugins.install[0].id, "test-plugin");
         assert!(resolved.claude_settings_extra.is_some());
         assert_eq!(resolved.agent_profiles.len(), 1);
-        assert_eq!(resolved.agent_profiles[0].profile.id, "test-agent");
+        assert_eq!(resolved.agent_profiles[0].agent.id, "test-agent");
         assert_eq!(resolved.claude_team_agents.len(), 1);
         assert_eq!(resolved.claude_team_agents[0].0, "team-lead.md");
         assert_eq!(resolved.env.get("KEY").map(String::as_str), Some("VALUE"));

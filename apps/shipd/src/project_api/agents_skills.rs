@@ -4,93 +4,7 @@ use axum::{Json, extract::{Path, State}, http::StatusCode};
 
 use crate::routes::rest_api::{ApiState, MeshResponse};
 
-use super::{err_response, ok_response, resolve_worktree};
-
-/// Strip JSONC comments (// and /* */) and trailing commas to produce valid JSON.
-fn strip_jsonc_comments(input: &str) -> String {
-    let mut out = String::with_capacity(input.len());
-    let mut in_block_comment = false;
-    let mut in_string = false;
-    let mut chars = input.chars().peekable();
-
-    while let Some(c) = chars.next() {
-        if in_block_comment {
-            if c == '*' && chars.peek() == Some(&'/') {
-                chars.next();
-                in_block_comment = false;
-            }
-            continue;
-        }
-
-        if in_string {
-            out.push(c);
-            if c == '\\' {
-                if let Some(&next) = chars.peek() {
-                    out.push(next);
-                    chars.next();
-                }
-            } else if c == '"' {
-                in_string = false;
-            }
-            continue;
-        }
-
-        if c == '"' {
-            in_string = true;
-            out.push(c);
-            continue;
-        }
-
-        if c == '/' {
-            match chars.peek() {
-                Some(&'/') => {
-                    // Line comment — skip to end of line
-                    for rest in chars.by_ref() {
-                        if rest == '\n' {
-                            out.push('\n');
-                            break;
-                        }
-                    }
-                    continue;
-                }
-                Some(&'*') => {
-                    chars.next();
-                    in_block_comment = true;
-                    continue;
-                }
-                _ => {}
-            }
-        }
-
-        out.push(c);
-    }
-
-    // Strip trailing commas before } or ] (JSONC allows them, JSON does not)
-    strip_trailing_commas(&out)
-}
-
-fn strip_trailing_commas(input: &str) -> String {
-    let bytes = input.as_bytes();
-    let mut result = String::with_capacity(input.len());
-    let mut i = 0;
-    while i < bytes.len() {
-        if bytes[i] == b',' {
-            // Look ahead past whitespace for } or ]
-            let mut j = i + 1;
-            while j < bytes.len() && bytes[j].is_ascii_whitespace() {
-                j += 1;
-            }
-            if j < bytes.len() && (bytes[j] == b'}' || bytes[j] == b']') {
-                // Skip the comma, keep the whitespace
-                i += 1;
-                continue;
-            }
-        }
-        result.push(bytes[i] as char);
-        i += 1;
-    }
-    result
-}
+use super::{err_response, ok_response};
 
 /// GET /api/v1/projects/{id}/agents
 #[utoipa::path(
@@ -100,9 +14,9 @@ fn strip_trailing_commas(input: &str) -> String {
     params(("id" = String, Path, description = "Workspace id")),
     responses(
         (status = 200, description = "Agents discovered in .ship/agents/", body = MeshResponse),
-        (status = 401, description = "Unauthenticated", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 404, description = "Workspace not found", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 500, description = "Server error", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 401, description = "Unauthenticated", body = crate::wire::ErrorResponse),
+        (status = 404, description = "Workspace not found", body = crate::wire::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::wire::ErrorResponse),
     ),
     tag = "project"
 )]
@@ -110,7 +24,7 @@ pub async fn list_agents(
     State(state): State<ApiState>,
     Path(id): Path<String>,
 ) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
-    let worktree = resolve_worktree(state.ship_dir(), &id)?;
+    let worktree = state.resolve_worktree(&id)?;
     let agents_dir = ship_substrate::ShipHome::project_ship_dir(&worktree).join("agents");
 
     if !agents_dir.exists() {
@@ -147,7 +61,7 @@ pub async fn list_agents(
             Err(_) => continue,
         };
 
-        let json_str = strip_jsonc_comments(&raw);
+        let json_str = ship_substrate::fs_util::strip_jsonc_comments(&raw);
         let parsed: serde_json::Value = match serde_json::from_str(&json_str) {
             Ok(v) => v,
             Err(_) => continue,
@@ -175,9 +89,9 @@ pub async fn list_agents(
     params(("id" = String, Path, description = "Workspace id")),
     responses(
         (status = 200, description = "Skills discovered in .ship/skills/", body = MeshResponse),
-        (status = 401, description = "Unauthenticated", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 404, description = "Workspace not found", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 500, description = "Server error", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 401, description = "Unauthenticated", body = crate::wire::ErrorResponse),
+        (status = 404, description = "Workspace not found", body = crate::wire::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::wire::ErrorResponse),
     ),
     tag = "project"
 )]
@@ -185,7 +99,7 @@ pub async fn list_skills(
     State(state): State<ApiState>,
     Path(id): Path<String>,
 ) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
-    let worktree = resolve_worktree(state.ship_dir(), &id)?;
+    let worktree = state.resolve_worktree(&id)?;
     let ship_dir = ship_substrate::ShipHome::project_ship_dir(&worktree);
 
     // Use read_skill_paths to discover all skill directories (respects skill_paths config)
@@ -336,37 +250,3 @@ fn parse_yaml_list(val: &str) -> Vec<String> {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn strip_line_comments() {
-        let input = r#"{
-    // This is a comment
-    "name": "test"
-}"#;
-        let result = strip_jsonc_comments(input);
-        let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
-        assert_eq!(parsed["name"], "test");
-    }
-
-    #[test]
-    fn strip_block_comments() {
-        let input = r#"{
-    /* block comment */
-    "name": "test"
-}"#;
-        let result = strip_jsonc_comments(input);
-        let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
-        assert_eq!(parsed["name"], "test");
-    }
-
-    #[test]
-    fn preserve_strings_with_slashes() {
-        let input = r#"{"url": "https://example.com"}"#;
-        let result = strip_jsonc_comments(input);
-        let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
-        assert_eq!(parsed["url"], "https://example.com");
-    }
-}

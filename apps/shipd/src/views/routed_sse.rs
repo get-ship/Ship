@@ -22,7 +22,7 @@ use ship_substrate::gen_ulid;
 use std::collections::HashMap;
 use std::time::Duration;
 
-use crate::routes::rest_api::ApiState;
+use crate::ship_runtime::ApiState;
 use crate::views::router::match_path;
 use crate::views::stream::{ViewSse, ViewStream};
 
@@ -32,9 +32,10 @@ use crate::views::stream::{ViewSse, ViewStream};
 /// the main content area.
 const DEFAULT_PATCH_SELECTOR: &str = "#ship-view-root";
 
-/// Resolve the nearest `manifest.{jsonc,yaml}` walking up from the
+/// Resolve the nearest `manifest.{jsonc,yaml,json}` walking up from the
 /// template file to any view-root parent. Returns the parsed events
-/// list when present.
+/// list when present. Manifest parsing delegates to
+/// [`super::resolve::read_raw_manifest`] — single canonical reader.
 fn resolve_events(template: &std::path::Path, roots: &[std::path::PathBuf]) -> Vec<String> {
     let mut dir = template.parent();
     while let Some(d) = dir {
@@ -42,36 +43,14 @@ fn resolve_events(template: &std::path::Path, roots: &[std::path::PathBuf]) -> V
         if !roots.iter().any(|r| d.starts_with(r) || d == r.as_path()) {
             break;
         }
-        for fname in ["manifest.jsonc", "manifest.yaml", "manifest.json"] {
-            let p = d.join(fname);
-            if p.is_file()
-                && let Some(evs) = parse_manifest_events(&p) {
-                    return evs;
-                }
+        if let Some(m) = super::resolve::read_raw_manifest(d)
+            && let Some(evs) = m.events
+        {
+            return evs;
         }
         dir = d.parent();
     }
     Vec::new()
-}
-
-fn parse_manifest_events(path: &std::path::Path) -> Option<Vec<String>> {
-    let raw = std::fs::read_to_string(path).ok()?;
-    let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
-    let value: serde_json::Value = match ext {
-        "yaml" | "yml" => serde_yaml::from_str(&raw).ok()?,
-        _ => {
-            let stripped = crate::services::jsonc::strip_jsonc(&raw);
-            serde_json::from_str(&stripped).ok()?
-        }
-    };
-    value
-        .get("events")
-        .and_then(|v| v.as_array())
-        .map(|arr| {
-            arr.iter()
-                .filter_map(|v| v.as_str().map(String::from))
-                .collect()
-        })
 }
 
 /// Derive kernel subscription namespaces from fully-qualified event
@@ -173,7 +152,7 @@ pub async fn serve_view_sse_routed(
                 None
             }
         };
-        let _guard = crate::routes::runtime_api::ActorGuard {
+        let _guard = crate::ship_runtime::ActorGuard {
             actor_id,
             kernel: state.kernel().clone(),
         };

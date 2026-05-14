@@ -36,62 +36,55 @@ fn test_branch(name: &str) -> String {
 }
 
 /// Set up a project_api test environment. Returns `(branch, ApiState)`.
-/// Initialises a git repo at the project root and creates the test
-/// branch so the project_api handlers' workspace gate
-/// (resolve_workspace_root in mod.rs) can match the branch against the
-/// current git HEAD. Without this the handlers reject with 404.
+/// Injects a `WorktreeResolver` that maps the test branch name to the
+/// tempdir root — handlers' `state.resolve_worktree(id)` gate succeeds
+/// without any git/cwd coupling.
 fn create_test_workspace(dir: &TempDir) -> (String, crate::routes::rest_api::ApiState) {
     let ship_dir = ship_substrate::ShipHome::project_ship_dir(dir.path());
-    std::fs::create_dir_all(&ship_dir).unwrap();
-    ship_substrate::db::ensure_db_at(&ship_dir).unwrap();
     let branch = test_branch("ws");
-    init_git_with_branch(dir.path(), &branch);
-    (branch, make_api_state_with_dir(&ship_dir))
-}
-
-/// Initialise a minimal git repo at `root` and check out `branch`
-/// (creating it as an orphan branch so we don't need any commits).
-fn init_git_with_branch(root: &std::path::Path, branch: &str) {
-    use std::process::Command;
-    let _ = Command::new("git").args(["init", "-q"]).current_dir(root).status();
-    let _ = Command::new("git")
-        .args(["config", "user.email", "test@example.com"])
-        .current_dir(root)
-        .status();
-    let _ = Command::new("git")
-        .args(["config", "user.name", "test"])
-        .current_dir(root)
-        .status();
-    // Create an empty commit so we can switch branches deterministically.
-    let _ = Command::new("git")
-        .args(["commit", "--allow-empty", "-q", "-m", "init"])
-        .current_dir(root)
-        .status();
-    let _ = Command::new("git")
-        .args(["checkout", "-q", "-b", branch])
-        .current_dir(root)
-        .status();
+    let state = make_api_state_with_resolver(&ship_dir, &branch, dir.path());
+    (branch, state)
 }
 
 fn make_api_state(dir: &TempDir) -> crate::routes::rest_api::ApiState {
     let ship_dir = ship_substrate::ShipHome::project_ship_dir(dir.path());
-    make_api_state_with_dir(&ship_dir)
+    std::fs::create_dir_all(&ship_dir).unwrap();
+    ship_substrate::db::ensure_db_at(&ship_dir).unwrap();
+    let kernel = ship_substrate::events::init_kernel_router(ship_dir.clone()).unwrap();
+    std::sync::Arc::new(crate::ship_runtime::ShipRuntime::new_test(
+        ship_dir,
+        kernel,
+    ))
 }
 
-fn make_api_state_with_dir(ship_dir: &std::path::Path) -> crate::routes::rest_api::ApiState {
+/// Construct an ApiState whose `WorktreeResolver` returns `project_root`
+/// for `branch` and None otherwise.
+fn make_api_state_with_resolver(
+    ship_dir: &std::path::Path,
+    branch: &str,
+    project_root: &std::path::Path,
+) -> crate::routes::rest_api::ApiState {
     std::fs::create_dir_all(ship_dir).unwrap();
     ship_substrate::db::ensure_db_at(ship_dir).unwrap();
     let kernel = ship_substrate::events::init_kernel_router(ship_dir.to_path_buf()).unwrap();
-    std::sync::Arc::new(crate::ship_runtime::ShipRuntime::new_test(
-        ship_dir.to_path_buf(),
-        kernel,
-    ))
+    let branch = branch.to_string();
+    let root = project_root.to_path_buf();
+    let resolver: crate::ship_runtime::WorktreeResolver = std::sync::Arc::new(move |id: &str| {
+        if id == branch { Some(root.clone()) } else { None }
+    });
+    std::sync::Arc::new(
+        crate::ship_runtime::ShipRuntime::new_test_with_worktree_resolver(
+            ship_dir.to_path_buf(),
+            kernel,
+            resolver,
+        ),
+    )
 }
 
 // ---- Session files ----
 
 #[tokio::test(flavor = "multi_thread")]
-#[ignore]
+
 async fn list_session_files_empty() {
     let dir = TempDir::new().unwrap();
     let (branch, state) = create_test_workspace(&dir);
@@ -102,7 +95,7 @@ async fn list_session_files_empty() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-#[ignore]
+
 async fn list_session_files_with_files() {
     let dir = TempDir::new().unwrap();
     let session_dir = dir.path().join(".artifacts");
@@ -128,7 +121,7 @@ async fn list_session_files_with_files() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-#[ignore]
+
 async fn read_session_file_exists() {
     let dir = TempDir::new().unwrap();
     let session_dir = dir.path().join(".artifacts");
@@ -143,7 +136,7 @@ async fn read_session_file_exists() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-#[ignore]
+
 async fn read_session_file_not_found() {
     let dir = TempDir::new().unwrap();
     let (branch, state) = create_test_workspace(&dir);
@@ -156,7 +149,7 @@ async fn read_session_file_not_found() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-#[ignore]
+
 async fn write_session_file_creates() {
     let dir = TempDir::new().unwrap();
     let (branch, state) = create_test_workspace(&dir);
@@ -180,7 +173,7 @@ async fn write_session_file_creates() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-#[ignore]
+
 async fn write_session_file_creates_directory() {
     let dir = TempDir::new().unwrap();
     let (branch, state) = create_test_workspace(&dir);
@@ -205,7 +198,7 @@ async fn write_session_file_creates_directory() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-#[ignore]
+
 async fn delete_session_file() {
     let dir = TempDir::new().unwrap();
     let session_dir = dir.path().join(".artifacts");
@@ -228,7 +221,7 @@ async fn delete_session_file() {
 // ---- Agents ----
 
 #[tokio::test(flavor = "multi_thread")]
-#[ignore]
+
 async fn list_agents_empty() {
     let dir = TempDir::new().unwrap();
     let (branch, state) = create_test_workspace(&dir);
@@ -239,7 +232,7 @@ async fn list_agents_empty() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-#[ignore]
+
 async fn list_agents_reads_jsonc() {
     let dir = TempDir::new().unwrap();
     let agents_dir = ship_substrate::ShipHome::project_ship_dir(dir.path()).join("agents");
@@ -270,7 +263,7 @@ async fn list_agents_reads_jsonc() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-#[ignore]
+
 async fn list_agents_strips_comments() {
     let dir = TempDir::new().unwrap();
     let agents_dir = ship_substrate::ShipHome::project_ship_dir(dir.path()).join("agents");
@@ -300,7 +293,7 @@ async fn list_agents_strips_comments() {
 // ---- Event emit ----
 
 #[tokio::test(flavor = "multi_thread")]
-#[ignore]
+#[ignore = "kernel DB open fails in tempdir setup; unrelated to project_api gate — needs separate fix"]
 async fn emit_event_routes_to_kernel() {
     let dir = TempDir::new().unwrap();
     let state = make_api_state(&dir);
@@ -329,7 +322,7 @@ async fn emit_event_routes_to_kernel() {
 
 /// Path traversal via `..` must be blocked by canonicalization in safe_resolve.
 #[tokio::test(flavor = "multi_thread")]
-#[ignore]
+
 async fn session_file_path_traversal_blocked() {
     let dir = TempDir::new().unwrap();
     let session_dir = dir.path().join(".artifacts");

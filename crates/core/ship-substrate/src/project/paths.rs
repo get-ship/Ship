@@ -4,7 +4,6 @@
 use std::path::{Path, PathBuf};
 
 use super::global::get_global_dir;
-use super::identity::{legacy_path_slug_from_ship_dir, project_slug_from_ship_dir};
 
 /// `.ship/project/` — specs, features, releases, notes, ADRs
 pub fn project_ns(ship_dir: &Path) -> PathBuf {
@@ -85,42 +84,3 @@ pub fn project_skills_dir(ship_dir: &Path) -> PathBuf {
     ship_dir.join("skills")
 }
 
-/// Legacy skills path from pre-flatten layout: `.ship/agents/skills/`
-pub fn legacy_agents_skills_dir(ship_dir: &Path) -> PathBuf {
-    agents_ns(ship_dir).join("skills")
-}
-
-/// Legacy project-scoped skills store used by pre-release builds:
-/// `~/.ship/projects/<project-slug>/skills/`
-pub fn legacy_project_skills_dir(ship_dir: &Path) -> PathBuf {
-    legacy_project_skills_dir_candidates(ship_dir)
-        .into_iter()
-        .next()
-        .unwrap_or_else(|| {
-            PathBuf::from(".ship")
-                .join("projects")
-                .join("unknown-project")
-                .join("skills")
-        })
-}
-
-/// Candidate legacy project skill roots in preferred order.
-/// First candidate is the new sync-safe namespace key.
-/// Second candidate (if different) preserves migration from historic path-derived slugs.
-pub fn legacy_project_skills_dir_candidates(ship_dir: &Path) -> Vec<PathBuf> {
-    let global_dir = get_global_dir().unwrap_or_else(|_| PathBuf::from(".ship"));
-    let preferred = global_dir
-        .join("projects")
-        .join(project_slug_from_ship_dir(ship_dir))
-        .join("skills");
-    let legacy = global_dir
-        .join("projects")
-        .join(legacy_path_slug_from_ship_dir(ship_dir))
-        .join("skills");
-
-    if preferred == legacy {
-        vec![preferred]
-    } else {
-        vec![preferred, legacy]
-    }
-}

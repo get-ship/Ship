@@ -125,19 +125,9 @@ fn dispatched_context_detects_filesystem_marker() {
     fs::create_dir_all(wt.join(".artifacts")).unwrap();
     fs::write(wt.join(".artifacts/.dispatched"), "ship-dev-testslug").unwrap();
 
-    let prev_cwd = std::env::current_dir().ok();
-    let prev_env = ship_substrate::env::read_raw(ship_substrate::env::Var::ActorId).ok();
-    // SAFETY: tests run sequentially per test binary; modifying env/cwd
-    // here is benign — restored before assertion.
-    unsafe { ship_substrate::env::remove(ship_substrate::env::Var::ActorId); }
-    std::env::set_current_dir(&wt).unwrap();
-    let detected = ShipServer::is_dispatched_context();
-    if let Some(p) = prev_cwd {
-        let _ = std::env::set_current_dir(p);
-    }
-    if let Some(v) = prev_env {
-        unsafe { ship_substrate::env::set(ship_substrate::env::Var::ActorId, v); }
-    }
+    let _env =
+        ship_substrate::testutil::EnvGuard::unset(ship_substrate::env::Var::ActorId);
+    let detected = ShipServer::is_dispatched_context_at(Some(&wt));
     assert!(
         detected,
         "dispatched context must be detected via .artifacts/.dispatched marker \
@@ -156,17 +146,9 @@ fn dispatched_context_ignores_artifacts_without_marker() {
     fs::write(wt.join(".artifacts/spec.md"), "random spec").unwrap();
     fs::write(wt.join(".artifacts/job-spec.md"), "old job spec").unwrap();
 
-    let prev_cwd = std::env::current_dir().ok();
-    let prev_env = ship_substrate::env::read_raw(ship_substrate::env::Var::ActorId).ok();
-    unsafe { ship_substrate::env::remove(ship_substrate::env::Var::ActorId); }
-    std::env::set_current_dir(&wt).unwrap();
-    let detected = ShipServer::is_dispatched_context();
-    if let Some(p) = prev_cwd {
-        let _ = std::env::set_current_dir(p);
-    }
-    if let Some(v) = prev_env {
-        unsafe { ship_substrate::env::set(ship_substrate::env::Var::ActorId, v); }
-    }
+    let _env =
+        ship_substrate::testutil::EnvGuard::unset(ship_substrate::env::Var::ActorId);
+    let detected = ShipServer::is_dispatched_context_at(Some(&wt));
     assert!(
         !detected,
         "presence of .artifacts/ alone must not trigger dispatched mode — \
@@ -185,11 +167,6 @@ fn emit_event_is_core_so_it_bypasses_mode_gate() {
     assert!(
         ShipServer::is_core_tool("emit_event"),
         "emit_event should be core (bypasses mode gating)"
-    );
-    // Old alias resolves to canonical and is also treated as core.
-    assert!(
-        ShipServer::is_core_tool("event"),
-        "deprecated `event` alias must still resolve to core"
     );
 }
 

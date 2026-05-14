@@ -14,6 +14,10 @@ import starlightOpenAPI, { openAPISidebarGroups } from "starlight-openapi";
 // Directories that belong exclusively to the Internals topic.
 // In public builds they get no sidebar topic (we exclude them from topic
 // resolution so they still render at their URL with no topic navigation).
+//
+// `pipelines` and `triggers` are power-user / experimental surfaces — kept
+// here so the content stays reachable internally but no public navigation
+// promises them. Promote out of this list when they ship publicly.
 const INTERNALS_DIRS = [
   "architecture",
   "ship-architecture",
@@ -22,6 +26,8 @@ const INTERNALS_DIRS = [
   "ship-stack",
   "http-api",
   "contributing",
+  "pipelines",
+  "triggers",
 ];
 
 // Build the topics array. Internals is conditionally included via buildTopics(isInternal).
@@ -70,10 +76,6 @@ function buildTopics(isInternal) {
         autogenerate: { directory: "views" },
       },
       {
-        label: "Pipelines",
-        autogenerate: { directory: "pipelines" },
-      },
-      {
         label: "Artifacts",
         autogenerate: { directory: "artifacts" },
       },
@@ -81,10 +83,9 @@ function buildTopics(isInternal) {
         label: "Collections",
         autogenerate: { directory: "collections" },
       },
-      {
-        label: "Triggers",
-        autogenerate: { directory: "triggers" },
-      },
+      // Pipelines + Triggers are experimental power-user surfaces — hidden
+      // from the public Extensions sidebar. Content stays reachable
+      // internally via the Internals topic (see INTERNALS_DIRS).
       {
         label: "Components",
         autogenerate: { directory: "components" },
@@ -186,6 +187,14 @@ function buildTopics(isInternal) {
             {
               label: "Ship Stack",
               autogenerate: { directory: "ship-stack" },
+            },
+            {
+              label: "Pipelines (experimental)",
+              autogenerate: { directory: "pipelines" },
+            },
+            {
+              label: "Triggers (experimental)",
+              autogenerate: { directory: "triggers" },
             },
             {
               label: "Contributing",

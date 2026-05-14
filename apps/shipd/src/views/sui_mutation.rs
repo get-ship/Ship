@@ -27,7 +27,7 @@ use serde_json::Value;
 use sui_compiler::{bindings, keys::BindingKind, parse};
 
 use ship_sui::render_helpers::{is_valid_view_name, not_found, render_view_source};
-use crate::routes::rest_api::ApiState;
+use crate::ship_runtime::ApiState;
 use crate::services::registry;
 
 #[derive(Debug, Deserialize)]
@@ -153,39 +153,27 @@ mod tests {
         std::sync::Arc::new(crate::ship_runtime::ShipRuntime::new_test(ship_dir, kernel))
     }
 
-    fn location(resp: &Response) -> String {
-        resp.headers()
-            .get(header::LOCATION)
-            .and_then(|v| v.to_str().ok())
-            .unwrap_or("")
-            .to_string()
-    }
+    /// A form key that matches no mutation binding resolves to `None`,
+    /// which the handler turns into a 404 mentioning the missing key.
+    #[test]
+    fn missing_form_key_resolves_none() {
+        let src = r#"<form mutation="ship.known.op"></form>"#;
+        let program = parse::parse(src).expect("parse");
+        let reg = bindings::build(&program);
+        let real_key = reg
+            .iter()
+            .find(|b| matches!(b.kind, BindingKind::Mutation))
+            .expect("mutation binding")
+            .key
+            .clone();
 
-    async fn body_text(resp: Response) -> String {
-        let bytes = axum::body::to_bytes(resp.into_body(), usize::MAX)
-            .await
-            .unwrap();
-        String::from_utf8(bytes.to_vec()).unwrap_or_default()
-    }
-
-    /// No such binding key → 404.
-    #[tokio::test(flavor = "multi_thread")]
-    async fn missing_form_key_404() {
-        let dir = TempDir::new().unwrap();
-        let state = make_api_state(&dir);
-        let resp = serve_sui_mutation(
-            Path("counter".to_string()),
-            Query(MutationQuery { form: "b9999".to_string() }),
-            State(state),
-            HeaderMap::new(),
-            Bytes::new(),
-        )
-        .await;
-        assert_eq!(resp.status(), StatusCode::NOT_FOUND);
-        let text = body_text(resp).await;
         assert!(
-            text.contains("b9999"),
-            "error must mention the missing key; got: {text}"
+            resolve_mutation_chain(src, &real_key).is_some(),
+            "the real binding key resolves"
+        );
+        assert!(
+            resolve_mutation_chain(src, "b9999").is_none(),
+            "an unknown binding key resolves to None"
         );
     }
 

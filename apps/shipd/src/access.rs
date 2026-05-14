@@ -21,15 +21,15 @@ use std::sync::Arc;
 pub use ship_substrate::access::{ConfigAccess, KernelAccess, MeshAccess, SharedKernel};
 
 use crate::auth::SessionRegistry;
-use crate::services::agents::service::AgentsService;
-use crate::services::artifacts::service::ArtifactsService;
-use crate::services::collections::service::CollectionsService;
-use crate::services::git::service::GitService;
-use crate::services::mcp::service::McpService;
-use crate::services::permissions::service::PermissionsService;
-use crate::services::pipelines::service::PipelinesService;
-use crate::services::rules::service::RulesService;
-use crate::services::skills::service::SkillsService;
+use ship_platform::services::agents::service::AgentsService;
+use ship_platform::services::artifacts::service::ArtifactsService;
+use ship_platform::services::collections::service::CollectionsService;
+use ship_platform::services::git::service::GitService;
+use ship_platform::services::mcp::service::McpService;
+use ship_platform::services::permissions::service::PermissionsService;
+use ship_platform::services::pipelines::service::PipelinesService;
+use ship_platform::services::rules::service::RulesService;
+use ship_platform::services::skills::service::SkillsService;
 use crate::ship_runtime::ShipRuntime;
 
 /// Per-domain service surface. Each migrated mr-02 service appears here

@@ -117,7 +117,7 @@ Convert `config.toml` → `settings.jsonc` (portable keys) and `local.jsonc` (ma
 - Source of truth: `crates/core/runtime/src/env.rs` — typed constants for every `SHIP_*` variable plus a `read(Var)` accessor.
 - Reference page: `apps/docs/src/content/docs/env-vars.md` — published catalog with category, type, default, and stability notes.
 - Enforcement: lint rule `runtime-raw-env-var` flags `env::var("SHIP_*")` outside `env.rs`.
-- Category taxonomy: configuration (`SHIP_HOME`, `SHIP_API_URL`); runtime identity (`SHIP_AGENT_ID`, `SHIP_WORKSPACE_ID`, `SHIP_SESSION_ID`, `SHIP_MESH_ID`, `SHIP_ACTOR_ID`); dev/debug (`SHIP_EXECUTOR`, `SHIP_TMUX_TESTS`, `SHIP_DEFAULT_TERMINAL`); provider detection (read-only: `CODEX_*`, `GEMINI_*`, `CURSOR_*`).
+- Category taxonomy: configuration (`SHIP_HOME`, `SHIP_API_URL`); runtime identity (`SHIP_AGENT_ID`, `SHIP_WORKSPACE_ID`, `SHIP_SESSION_ID`, `SHIP_MESH_ID`, `SHIP_ACTOR_ID`); dev/debug (`SHIP_TMUX_TESTS`, `SHIP_DEFAULT_TERMINAL`); provider detection (read-only: `CODEX_*`, `GEMINI_*`, `CURSOR_*`).
 
 `SHIP_HOME` is the single root override. No per-bucket `SHIP_LIBRARY_DIR` / `SHIP_MACHINE_DIR` — splitting buckets defeats the shape discipline the layout exists to enforce. Opt-in overrides can land later if sandbox scenarios require them.
 

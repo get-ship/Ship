@@ -13,6 +13,11 @@
 //! `@returns` / `@body`, missing `@route`) is a compile-time panic that
 //! names the offending variant.
 
+// Build scripts panic on error by design — that fails the build with a
+// targeted message. The runtime-only clippy posture (no unwrap/expect/panic
+// in production code) doesn't apply here.
+#![allow(clippy::expect_used, clippy::unwrap_used, clippy::panic)]
+
 use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};

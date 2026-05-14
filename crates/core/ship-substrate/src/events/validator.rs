@@ -12,11 +12,6 @@ pub enum ValidationError {
     ReservedNamespace { namespace: String },
     DirectionViolation { event_type: String, direction: String },
     SchemaViolation { event_type: String, error: String },
-    /// Deferred to RT-03 (daemon security). Requires counters, windows, and
-    /// per-producer tracking that belong in the daemon layer, not event
-    /// validation. Kept here so the error type is ready when that work lands.
-    #[allow(dead_code)]
-    RateLimited { producer: String },
 }
 
 impl fmt::Display for ValidationError {
@@ -36,9 +31,6 @@ impl fmt::Display for ValidationError {
             }
             Self::SchemaViolation { event_type, error } => {
                 write!(f, "schema violation for '{event_type}': {error}")
-            }
-            Self::RateLimited { producer } => {
-                write!(f, "rate limited: producer '{producer}'")
             }
         }
     }

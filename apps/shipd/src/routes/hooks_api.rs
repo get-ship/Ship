@@ -77,9 +77,9 @@ fn resolve_session(event: &ShipHookEvent, auth: &AuthContext) -> Option<String> 
     request_body = ShipHookEvent,
     responses(
         (status = 200, description = "Hook processed", body = HookResponse),
-        (status = 400, description = "Invalid payload", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 401, description = "Unauthenticated", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 500, description = "Server error", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 400, description = "Invalid payload", body = crate::wire::ErrorResponse),
+        (status = 401, description = "Unauthenticated", body = crate::wire::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::wire::ErrorResponse),
     ),
     tag = "hooks"
 )]
@@ -108,9 +108,9 @@ pub async fn hook_session_start(
     request_body = ShipHookEvent,
     responses(
         (status = 200, description = "Hook allow or block decision", body = HookResponse),
-        (status = 400, description = "Invalid payload", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 401, description = "Unauthenticated", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 500, description = "Server error", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 400, description = "Invalid payload", body = crate::wire::ErrorResponse),
+        (status = 401, description = "Unauthenticated", body = crate::wire::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::wire::ErrorResponse),
     ),
     tag = "hooks"
 )]
@@ -152,7 +152,7 @@ pub async fn hook_before_tool(
             let env = env.with_target(&actor).with_actor_id(&actor);
             let ctx = auth.to_daemon_emit_context();
             if let Err(e) = state.kernel().lock().await.emit(env, &ctx).await {
-                tracing::debug!(actor, "hook.tool_use_started emit failed: {e}");
+                tracing::warn!(actor, "hook.tool_use_started emit failed: {e}");
             }
         }
     }
@@ -198,9 +198,9 @@ fn broadcast_tool_use(
     request_body = ShipHookEvent,
     responses(
         (status = 200, description = "Hook processed", body = HookResponse),
-        (status = 400, description = "Invalid payload", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 401, description = "Unauthenticated", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 500, description = "Server error", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 400, description = "Invalid payload", body = crate::wire::ErrorResponse),
+        (status = 401, description = "Unauthenticated", body = crate::wire::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::wire::ErrorResponse),
     ),
     tag = "hooks"
 )]
@@ -239,7 +239,7 @@ pub async fn hook_after_tool(
             let env = env.with_target(&actor).with_actor_id(&actor);
             let ctx = auth.to_daemon_emit_context();
             if let Err(e) = state.kernel().lock().await.emit(env, &ctx).await {
-                tracing::debug!(actor, "hook.tool_use_completed emit failed: {e}");
+                tracing::warn!(actor, "hook.tool_use_completed emit failed: {e}");
             }
         }
     }
@@ -255,9 +255,9 @@ pub async fn hook_after_tool(
     request_body = ShipHookEvent,
     responses(
         (status = 200, description = "Hook processed", body = HookResponse),
-        (status = 400, description = "Invalid payload", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 401, description = "Unauthenticated", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 500, description = "Server error", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 400, description = "Invalid payload", body = crate::wire::ErrorResponse),
+        (status = 401, description = "Unauthenticated", body = crate::wire::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::wire::ErrorResponse),
     ),
     tag = "hooks"
 )]

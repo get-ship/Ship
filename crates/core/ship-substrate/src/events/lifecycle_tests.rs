@@ -76,22 +76,16 @@ fn crash_retains_event_store() {
     assert!(db_path.exists(), "actor event store must be retained after crash");
 }
 
-#[test]
-fn crash_removes_subscriptions() {
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn crash_removes_subscriptions() {
     let (_tmp, mut router) = setup();
     router.spawn_actor("dispatch", agent_config("dispatch")).unwrap();
 
     router.handle_actor_crash("dispatch", "panic").unwrap();
 
     // Routing to the dead actor's namespace should not panic or deliver.
-    let rt = tokio::runtime::Builder::new_current_thread()
-        .enable_all()
-        .build()
-        .unwrap();
-    rt.block_on(async {
-        let result = router.route(ev("dispatch.event"), &runtime_ctx()).await;
-        assert!(result.is_ok(), "routing after crash cleanup must succeed");
-    });
+    let result = router.emit(ev("dispatch.event"), &runtime_ctx()).await;
+    assert!(result.is_ok(), "routing after crash cleanup must succeed");
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -158,11 +152,11 @@ async fn stable_path_mailbox_full_drops_silently() {
             &serde_json::json!({ "seq": i }),
         )
         .unwrap();
-        router.route(event, &runtime_ctx()).await.unwrap();
+        router.emit(event, &runtime_ctx()).await.unwrap();
     }
 
     // Overflow event: route() returns Ok (delivery-only, best-effort — drop on full).
     let overflow = ev("studio.overflow");
-    let result = router.route(overflow, &runtime_ctx()).await;
+    let result = router.emit(overflow, &runtime_ctx()).await;
     assert!(result.is_ok(), "route() must not error on mailbox full (best-effort delivery)");
 }

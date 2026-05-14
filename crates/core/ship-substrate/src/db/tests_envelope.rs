@@ -4,7 +4,7 @@
 //! The job projection query omits `target_actor_id` (13-col SELECT).
 //! A shared `envelope_from_row` must handle both schemas correctly.
 
-use crate::db::{block_on, ensure_db, open_db};
+use crate::db::ensure_db;
 use ship_types::envelope::EventEnvelope;
 use crate::persistence::event_store::{EventStore, SqliteEventStore};
 use crate::testutil::init_project_minimal as init_project;
@@ -12,7 +12,7 @@ use tempfile::tempdir;
 
 fn setup() -> (tempfile::TempDir, std::path::PathBuf) {
     let tmp = tempdir().unwrap();
-    let ship_dir = init_project(tmp.path().to_path_buf()).unwrap();
+    let ship_dir = init_project(tmp.path()).unwrap();
     ensure_db().unwrap();
     (tmp, ship_dir)
 }

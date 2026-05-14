@@ -9,7 +9,7 @@ use tempfile::tempdir;
 
 fn setup() -> (tempfile::TempDir, std::path::PathBuf, std::path::PathBuf) {
     let tmp = tempdir().unwrap();
-    let ship_dir = init_project(tmp.path().to_path_buf()).unwrap();
+    let ship_dir = init_project(tmp.path()).unwrap();
     let project_dir = ship_dir.parent().unwrap().to_path_buf();
     ensure_db().unwrap();
     (tmp, ship_dir, project_dir)
@@ -18,7 +18,7 @@ fn setup() -> (tempfile::TempDir, std::path::PathBuf, std::path::PathBuf) {
 /// Setup with explicit ship_dir DB (avoids thread-local env var issues).
 fn setup_with_db() -> (tempfile::TempDir, std::path::PathBuf) {
     let tmp = tempdir().unwrap();
-    let ship_dir = init_project(tmp.path().to_path_buf()).unwrap();
+    let ship_dir = init_project(tmp.path()).unwrap();
     ensure_db().unwrap();
     ensure_db_at(&ship_dir).unwrap();
     (tmp, ship_dir)

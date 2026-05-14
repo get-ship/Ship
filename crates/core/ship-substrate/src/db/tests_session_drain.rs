@@ -9,7 +9,7 @@ use crate::events::types::SessionStarted;
 
 fn init() -> (tempfile::TempDir, std::path::PathBuf) {
     let tmp = tempdir().unwrap();
-    let ship_dir = crate::testutil::init_project_minimal(tmp.path().to_path_buf()).unwrap();
+    let ship_dir = crate::testutil::init_project_minimal(tmp.path()).unwrap();
     (tmp, ship_dir)
 }
 

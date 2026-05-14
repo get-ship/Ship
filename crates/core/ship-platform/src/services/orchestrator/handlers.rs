@@ -78,13 +78,17 @@ pub async fn handle_job_cleanup(
 
     let slug = if !payload_slug.is_empty() {
         payload_slug.to_string()
-    } else if let Ok(jobs) = crate::projections::job::load_jobs() {
-        jobs.values()
-            .find(|j| j.job_id == job_id || j.job_id == envelope.entity_id)
-            .map(|j| j.slug.clone())
-            .unwrap_or_else(|| job_id.to_string())
     } else {
-        job_id.to_string()
+        crate::projections::job::load_job_by_id(job_id)
+            .ok()
+            .flatten()
+            .or_else(|| {
+                crate::projections::job::load_job_by_id(&envelope.entity_id)
+                    .ok()
+                    .flatten()
+            })
+            .map(|j| j.slug)
+            .unwrap_or_else(|| job_id.to_string())
     };
 
     let branch = format!("job/{slug}");
@@ -109,13 +113,9 @@ pub async fn finalize_pipeline_if_done(
         None => return,
     };
 
-    let jobs = match crate::projections::job::load_jobs() {
-        Ok(j) => j,
-        Err(_) => return,
-    };
-    let job = match jobs.values().find(|j| j.job_id == job_id) {
-        Some(j) => j.clone(),
-        None => return,
+    let job = match crate::projections::job::load_job_by_id(&job_id) {
+        Ok(Some(j)) => j,
+        _ => return,
     };
 
     let all_done = match job.steps {
@@ -188,13 +188,10 @@ pub async fn handle_job_cancelled(
 
     // Ensure tmux session + worktree are gone. Look up branch from the
     // projection so delete_branch can run.
-    let branch = crate::projections::job::load_jobs()
+    let branch = crate::projections::job::load_job_by_slug(&slug)
         .ok()
-        .and_then(|jobs| {
-            jobs.values()
-                .find(|j| j.slug == slug)
-                .map(|j| j.branch.clone())
-        })
+        .flatten()
+        .map(|j| j.branch)
         .unwrap_or_default();
     octx.platform.cleanup_job(&slug, &branch).await;
 

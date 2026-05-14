@@ -23,7 +23,7 @@ use ship_substrate::project::{get_registry_path, load_registry};
 
 use super::RegistryError;
 use crate::routes::rest_api::ApiState;
-use crate::services::files::FilesService;
+use ship_platform::services::files::FilesService;
 
 #[allow(unused_imports, unused_variables)]
 pub(super) fn try_dispatch(

@@ -431,14 +431,14 @@ mod tests {
     #[test]
     fn test_ensure_db_creates_fresh() {
         let tmp = tempdir().unwrap();
-        let _ship_dir = init_project(tmp.path().to_path_buf()).unwrap();
+        let _ship_dir = init_project(tmp.path()).unwrap();
         ensure_db().unwrap();
     }
 
     #[test]
     fn test_ensure_db_idempotent() {
         let tmp = tempdir().unwrap();
-        let _ship_dir = init_project(tmp.path().to_path_buf()).unwrap();
+        let _ship_dir = init_project(tmp.path()).unwrap();
         ensure_db().unwrap();
         ensure_db().unwrap();
     }
@@ -446,7 +446,7 @@ mod tests {
     #[test]
     fn test_open_db_returns_connection() {
         let tmp = tempdir().unwrap();
-        let _ship_dir = init_project(tmp.path().to_path_buf()).unwrap();
+        let _ship_dir = init_project(tmp.path()).unwrap();
         let conn = open_db();
         assert!(conn.is_ok());
     }

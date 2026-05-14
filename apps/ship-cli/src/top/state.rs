@@ -103,9 +103,10 @@ fn refresh_sessions(state: &mut TopState) {
 }
 
 fn refresh_events(state: &mut TopState, ship_dir: &Path) {
+    let _ = ship_dir;
     // First load: get recent events. Subsequent: incremental via cursor.
     if state.event_cursor.is_none() {
-        match ship_substrate::events::read_recent_events(ship_dir, MAX_EVENTS) {
+        match ship_substrate::events::read_recent_events(MAX_EVENTS) {
             Ok(events) => {
                 for e in events {
                     let id = e.id.clone();

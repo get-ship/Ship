@@ -13,9 +13,9 @@ path = "src/main.rs"
 compiler = { path = "../core/compiler", features = ["specta"] }
 ship-application = { path = "../core/ship-application" }
 ship-substrate = { path = "../core/ship-substrate" }
-ship-platform = { path = "../core/ship-platform" }
+ship-platform = { path = "../core/ship-platform", features = ["specta"] }
 ship-types = { path = "../core/ship-types", features = ["specta"] }
-ship-sui = { path = "../ship-sui", features = ["specta"] }
+ship-sui = { path = "../sui/ship-sui", features = ["specta"] }
 shipd = { path = "../../apps/shipd", features = ["specta"] }
 specta = { workspace = true, features = ["chrono", "serde_json"] }
 specta-typescript = "0.0.9"
@@ -24,3 +24,6 @@ serde_json = { workspace = true }
 regex = { workspace = true }
 anyhow = { workspace = true }
 utoipa = { version = "5", features = ["axum_extras"] }
+
+[lints]
+workspace = true

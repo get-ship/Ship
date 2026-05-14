@@ -21,35 +21,6 @@ async fn body_string(resp: Response) -> String {
     String::from_utf8(bytes.to_vec()).unwrap()
 }
 
-// Test stale: written when settings/chat/events views shipped a static
-// index.html in their view dir. The current architecture serves those
-// from .j2 templates through a different handler — `serve_view_raw`
-// only handles legacy plain-HTML user views. The test should either
-// migrate to the templated path or be replaced by a contract test
-// against the .j2 handler. Until then, ignored.
-#[ignore = "stale: SDK views migrated from static index.html to .j2 templates"]
-#[tokio::test(flavor = "multi_thread")]
-async fn each_sdk_view_renders_its_root() {
-    let dir = TempDir::new().unwrap();
-    let state = make_api_state(&dir);
-
-    for (name, marker) in [
-        ("settings", "id=\"settings-"),
-        ("chat", "id=\"chat-root\""),
-        ("events", "id=\"events-root\""),
-    ] {
-        let resp =
-            serve_view_raw(State(state.clone()), AxPath(name.into())).await;
-        assert_eq!(resp.status(), StatusCode::OK, "view {name} status");
-        let body = body_string(resp).await;
-        assert!(
-            body.contains(marker),
-            "view {name} must render its root marker `{marker}`\nbody head: {}",
-            &body.chars().take(300).collect::<String>()
-        );
-    }
-}
-
 #[tokio::test(flavor = "multi_thread")]
 async fn invalid_name_rejected() {
     let dir = TempDir::new().unwrap();
@@ -76,9 +47,10 @@ async fn user_view_fallback_reads_index_html() {
     std::fs::write(view_dir.join("index.html"), "<p>legacy body</p>").unwrap();
     ship_substrate::db::ensure_db_at(&ship_dir).unwrap();
 
-    unsafe {
-        std::env::set_var("SHIP_DEV_PROJECT_DIR", ship_dir.to_str().unwrap());
-    }
+    let _env = ship_substrate::testutil::EnvGuard::set(
+        ship_substrate::env::Var::DevProjectDir,
+        ship_dir.to_str().unwrap(),
+    );
     let kernel = std::sync::Arc::new(tokio::sync::Mutex::new(
         ship_substrate::events::KernelRouter::new(ship_dir.clone()).unwrap(),
     ));
@@ -86,9 +58,6 @@ async fn user_view_fallback_reads_index_html() {
         std::sync::Arc::new(crate::ship_runtime::ShipRuntime::new_test(ship_dir, kernel));
 
     let resp = serve_view_raw(State(state), AxPath("custom".into())).await;
-    unsafe {
-        std::env::remove_var("SHIP_DEV_PROJECT_DIR");
-    }
     assert_eq!(resp.status(), StatusCode::OK);
     let body = body_string(resp).await;
     assert!(body.contains("<p>legacy body</p>"));

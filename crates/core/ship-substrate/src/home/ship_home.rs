@@ -9,11 +9,8 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 
 use super::daemon::DaemonFile;
-use super::scope::Scope;
-use super::vector::Vector;
-
-const SHIP_DIR_NAME: &str = ".ship";
-const SHIP_HOME_ENV: &str = "SHIP_HOME";
+use ship_types::{Scope, Vector};
+use crate::project::SHIP_DIR_NAME;
 const LIBRARY_DIR: &str = "library";
 const MACHINE_DIR: &str = "machine";
 const MACHINE_DB_DIR: &str = "db";
@@ -59,9 +56,7 @@ impl ShipHome {
     /// Construct from the `SHIP_HOME` environment variable, falling back to
     /// `~/.ship`. This is the production constructor.
     pub fn from_env() -> Self {
-        if let Ok(raw) = std::env::var(SHIP_HOME_ENV)
-            && !raw.is_empty()
-        {
+        if let Some(raw) = crate::env::read(crate::env::Var::Home) {
             return Self { root: PathBuf::from(raw) };
         }
         let base = home::home_dir().unwrap_or_else(|| PathBuf::from("."));

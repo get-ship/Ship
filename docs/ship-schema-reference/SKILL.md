@@ -1,7 +1,7 @@
 ---
 name: ship-schema-reference
 stable-id: ship-schema-reference
-description: Use when the user asks about Ship configuration format, available fields, valid values, or how to structure their .ship/ directory. Covers ship.jsonc manifest, agent profile JSONC, permissions.jsonc, mcp.jsonc, skill frontmatter, vars.json, pipeline YAML, and ship.lock schemas.
+description: Use when the user asks about Ship configuration format, available fields, valid values, or how to structure their .ship/ directory. Covers ship.jsonc manifest, agent profile JSONC, permissions.jsonc, mcp.jsonc, skill frontmatter, vars.json, pipeline JSONC, and ship.lock schemas.
 tags: [reference, schema, configuration, documentation]
 authors: [ship]
 ---
@@ -19,5 +19,5 @@ For detailed field-level documentation, read the reference pages in `references/
 - [MCP Servers](references/docs/mcp.md) — `.ship/mcp.jsonc`
 - [Skill Frontmatter](references/docs/skill.md) — `SKILL.md` YAML frontmatter
 - [Skill Variables](references/docs/vars.md) — `assets/vars.json`
-- [Pipelines](references/docs/pipeline.md) — `.ship/pipelines/<name>.yaml`
+- [Pipelines](references/docs/pipeline.md) — `.ship/pipelines/<name>.jsonc`
 - [Lockfile](references/docs/lockfile.md) — `ship.lock`

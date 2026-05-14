@@ -366,7 +366,7 @@ mod kernel_security {
             .unwrap();
 
         let targeted = ev("mesh.message").with_target("agent.b");
-        router.deliver_with_scope(&targeted).await;
+        router.deliver_with_scope(&targeted).await.unwrap();
 
         assert!(mb_a.try_recv().is_err(), "non-target must not receive");
         let received = mb_b.try_recv().expect("target must receive");
@@ -396,7 +396,7 @@ mod kernel_security {
             .unwrap();
 
         let event = ev("workspace.activated").with_context(Some("ws-alpha"), None);
-        router.deliver_with_scope(&event).await;
+        router.deliver_with_scope(&event).await.unwrap();
 
         let received = mb_a.try_recv().expect("workspace-matching actor must receive");
         assert_eq!(received.id, event.id);
@@ -421,7 +421,7 @@ mod kernel_security {
             .unwrap();
 
         let event = ev("workspace.created").with_context(Some("ws-1"), None);
-        router.route(event.clone(), &runtime_ctx()).await.unwrap();
+        router.emit(event.clone(), &runtime_ctx()).await.unwrap();
 
         let received = mb.try_recv().expect("permission actor must receive routed event");
         assert_eq!(received.id, event.id);
@@ -555,7 +555,7 @@ mod kernel_security_edge_cases {
 
         // Runtime caller with no actor_id on the event — bypasses check.
         let event = ev("studio.anything");
-        let result = router.route(event, &runtime_ctx()).await;
+        let result = router.emit(event, &runtime_ctx()).await;
         assert!(result.is_ok(), "runtime caller with no actor_id must bypass emit check");
     }
 
@@ -572,7 +572,7 @@ mod kernel_security_edge_cases {
 
         // MCP caller with actor_id not in actor_meta — no meta means no restriction.
         let event = ev("studio.hack").with_actor_id("agent.unknown");
-        let result = router.route(event, &mcp_ctx()).await;
+        let result = router.emit(event, &mcp_ctx()).await;
         assert!(result.is_ok(), "unknown actor_id with no meta must pass through");
     }
 
@@ -583,7 +583,7 @@ mod kernel_security_edge_cases {
         // MCP caller, no actor_id on the event — the enforce_emit_permissions
         // only checks when actor_id is Some.
         let event = ev("custom.event");
-        let result = router.route(event, &mcp_ctx()).await;
+        let result = router.emit(event, &mcp_ctx()).await;
         assert!(result.is_ok(), "MCP caller with no actor_id must pass through");
     }
 
@@ -602,9 +602,9 @@ mod kernel_security_edge_cases {
         let ev2 = ev("agent.started").with_actor_id("agent.multi");
         let ev3 = ev("session.started").with_actor_id("agent.multi");
 
-        assert!(router.route(ev1, &mcp_ctx()).await.is_ok());
-        assert!(router.route(ev2, &mcp_ctx()).await.is_ok());
-        assert!(router.route(ev3, &mcp_ctx()).await.is_err(), "must reject namespace outside both emit lists");
+        assert!(router.emit(ev1, &mcp_ctx()).await.is_ok());
+        assert!(router.emit(ev2, &mcp_ctx()).await.is_ok());
+        assert!(router.emit(ev3, &mcp_ctx()).await.is_err(), "must reject namespace outside both emit lists");
     }
 
     // ── should_deliver / event_matches_actor_scope edge cases ────────────────
@@ -631,16 +631,16 @@ mod kernel_security_edge_cases {
 
         // Global studio event — should be delivered.
         let studio_ev = ev("studio.feedback");
-        router.route(studio_ev.clone(), &runtime_ctx()).await.unwrap();
+        router.emit(studio_ev.clone(), &runtime_ctx()).await.unwrap();
 
         // Undirected agent event — should NOT be delivered (directed scope).
         let agent_ev = ev("agent.task_started");
-        router.route(agent_ev, &runtime_ctx()).await.unwrap();
+        router.emit(agent_ev, &runtime_ctx()).await.unwrap();
 
         // Directed agent event TO this actor — should be delivered.
         let mut directed = ev("agent.message");
         directed.target_actor_id = Some("agent.multi_sub".into());
-        router.route(directed.clone(), &runtime_ctx()).await.unwrap();
+        router.emit(directed.clone(), &runtime_ctx()).await.unwrap();
 
         let r1 = mb.try_recv().expect("must receive global studio event");
         assert_eq!(r1.id, studio_ev.id);
@@ -664,7 +664,7 @@ mod kernel_security_edge_cases {
             .unwrap();
 
         // Route an event in a namespace the actor isn't subscribed to.
-        router.route(ev("config.changed"), &runtime_ctx()).await.unwrap();
+        router.emit(ev("config.changed"), &runtime_ctx()).await.unwrap();
 
         assert!(mb.try_recv().is_err(), "event outside subscribed namespaces must not be delivered");
     }
@@ -694,12 +694,12 @@ mod kernel_security_edge_cases {
                 &serde_json::json!({ "seq": i }),
             )
             .unwrap();
-            router.route(event, &runtime_ctx()).await.unwrap();
+            router.emit(event, &runtime_ctx()).await.unwrap();
         }
 
         // Next event should fail with mailbox full error.
         let overflow = ev("studio.overflow");
-        let result = router.route(overflow, &runtime_ctx()).await;
+        let result = router.emit(overflow, &runtime_ctx()).await;
         assert!(result.is_err(), "must return error when mailbox is full");
         let err_msg = result.unwrap_err().to_string();
         assert!(err_msg.contains("mailbox full"), "error must mention mailbox full: {err_msg}");
@@ -744,13 +744,13 @@ mod kernel_security_edge_cases {
             )
             .unwrap();
             // Drain B to keep it with capacity.
-            let _ = router.route(event, &runtime_ctx()).await;
+            let _ = router.emit(event, &runtime_ctx()).await;
             let _ = mb_b.try_recv();
         }
 
         // Route one more — A is full, B has capacity.
         let event = ev("studio.final");
-        let result = router.route(event.clone(), &runtime_ctx()).await;
+        let result = router.emit(event.clone(), &runtime_ctx()).await;
         assert!(result.is_err(), "must error because A is full");
 
         // But B still received the event.

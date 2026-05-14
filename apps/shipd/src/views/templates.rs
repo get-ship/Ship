@@ -315,20 +315,16 @@ pub fn render_view_source<C: Serialize>(name: &str, source: &str, ctx: &C) -> Re
     for (tpl_name, tpl_src) in TEMPLATES {
         let _ = local_env.add_template(tpl_name, tpl_src);
     }
-    // Leak sibling template strings so they satisfy Environment<'static>
-    // lifetime. The cache holds the Environment for the process lifetime,
-    // so the memory is reused across requests (not actually leaked per call).
+    // Use add_template_owned so the env owns the strings. When the env
+    // is evicted from cache and the last Arc drops, the memory is freed
+    // — important during dev where every edit produces a new cache key.
     for (n, s) in sibling_sources {
-        let leaked_n: &'static str = Box::leak(n.into_boxed_str());
-        let leaked_s: &'static str = Box::leak(s.into_boxed_str());
-        let _ = local_env.add_template(leaked_n, leaked_s);
+        let _ = local_env.add_template_owned(n, s);
     }
     // Add the view source as a named template. The SDK-prelude-injected
     // form is what minijinja parses; the original `source` is retained for
     // error overlays so line numbers line up with what the author wrote.
-    let leaked_source: &'static str = Box::leak(effective.to_string().into_boxed_str());
-    let leaked_name: &'static str = Box::leak(name.to_string().into_boxed_str());
-    if let Err(e) = local_env.add_template(leaked_name, leaked_source) {
+    if let Err(e) = local_env.add_template_owned(name.to_string(), effective.to_string()) {
         let msg = format!("view '{name}' template parse error: {e}");
         tracing::warn!(view = %name, "{msg}");
         return Ok(super::error_overlay::render_error_overlay(name, source, &msg));

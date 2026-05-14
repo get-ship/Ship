@@ -9,8 +9,9 @@
 //! modular-runtime-04: scopes, session, pairing, attest. Their tests
 //! sit alongside.
 
-pub mod attest;
-pub mod pairing;
+// Pure auth primitives live in `ship_platform::auth`. These re-exports
+// preserve the `crate::auth::{attest,pairing}` paths the daemon uses.
+pub use ship_platform::auth::{attest, pairing};
 pub mod scopes;
 pub mod session;
 
@@ -19,6 +20,7 @@ mod auth_tests;
 #[cfg(test)]
 mod scope_tests;
 #[cfg(test)]
+#[path = "auth/pairing_integration_tests.rs"]
 mod pairing_integration_tests;
 
 use axum::{
@@ -149,9 +151,9 @@ pub async fn auth_middleware(
     next: Next,
 ) -> Response {
     // 1. Cookie check — browser sessions.
-    if let Some(cookie_header) = req.headers().get("cookie").and_then(|v| v.to_str().ok()) {
-        if let Some(session_id) = crate::auth::session::parse_session_cookie(cookie_header) {
-            if crate::auth::session::is_browser_session_id(&session_id) {
+    if let Some(cookie_header) = req.headers().get("cookie").and_then(|v| v.to_str().ok())
+        && let Some(session_id) = crate::auth::session::parse_session_cookie(cookie_header)
+            && crate::auth::session::is_browser_session_id(&session_id) {
                 match crate::auth::session::lookup_browser_session(&session_registry, &session_id).await {
                     Some(session) => {
                         let auth = AuthContext {
@@ -170,8 +172,6 @@ pub async fn auth_middleware(
                     }
                 }
             }
-        }
-    }
 
     let header_token = req
         .headers()

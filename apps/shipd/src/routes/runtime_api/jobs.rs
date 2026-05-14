@@ -54,6 +54,17 @@ pub struct CreateJobRequest {
     pub headless: bool,
 }
 
+/// Strict slug validator — used to gate `create_job` before the slug
+/// lands in a worktree path / branch name / log filename. Without this
+/// a caller could pass `../../tmp/escape` and bust out of `worktrees_dir`.
+fn is_safe_slug(slug: &str) -> bool {
+    !slug.is_empty()
+        && slug.len() <= 128
+        && slug
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+}
+
 /// GET /api/v1/runtime/jobs
 ///
 /// Returns each `JobRecord` with two operator-visibility annotations:
@@ -69,8 +80,8 @@ pub struct CreateJobRequest {
     path = "/api/v1/jobs",
     responses(
         (status = 200, body = MeshResponse),
-        (status = 401, description = "unauthorized", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 500, description = "server error", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 401, description = "unauthorized", body = crate::wire::ErrorResponse),
+        (status = 500, description = "server error", body = crate::wire::ErrorResponse),
     ),
     tag = "runtime"
 )]
@@ -238,9 +249,9 @@ pub struct EventSummary {
     path = "/api/v1/jobs/{job_id}",
     responses(
         (status = 200, body = MeshResponse),
-        (status = 401, description = "unauthorized", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 404, description = "job not found", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 500, description = "server error", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 401, description = "unauthorized", body = crate::wire::ErrorResponse),
+        (status = 404, description = "job not found", body = crate::wire::ErrorResponse),
+        (status = 500, description = "server error", body = crate::wire::ErrorResponse),
     ),
     tag = "runtime"
 )]
@@ -252,25 +263,21 @@ pub async fn get_job_detail(
     if let Err(e) = require_scope(&auth, Scope::ReadJobs) {
         return e.into_response();
     }
-    let jobs = match ship_platform::projections::job::load_jobs_at(state.ship_dir()) {
-        Ok(j) => j,
-        Err(e) => {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(MeshResponse { ok: false, data: serde_json::json!(e.to_string()) }),
-            ).into_response();
-        }
-    };
-
-    let job = match jobs.get(&job_id) {
-        Some(j) => j.clone(),
-        None => {
+    let job = match ship_platform::projections::job::load_job_by_id_at(state.ship_dir(), &job_id) {
+        Ok(Some(j)) => j,
+        Ok(None) => {
             return (
                 StatusCode::NOT_FOUND,
                 Json(MeshResponse {
                     ok: false,
                     data: serde_json::json!(format!("job '{job_id}' not found")),
                 }),
+            ).into_response();
+        }
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(MeshResponse { ok: false, data: serde_json::json!(e.to_string()) }),
             ).into_response();
         }
     };
@@ -332,10 +339,10 @@ pub async fn get_job_detail(
     request_body = CreateJobRequest,
     responses(
         (status = 200, body = MeshResponse),
-        (status = 400, description = "bad request", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 401, description = "unauthorized", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 409, description = "job slug already exists", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 500, description = "server error", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 400, description = "bad request", body = crate::wire::ErrorResponse),
+        (status = 401, description = "unauthorized", body = crate::wire::ErrorResponse),
+        (status = 409, description = "job slug already exists", body = crate::wire::ErrorResponse),
+        (status = 500, description = "server error", body = crate::wire::ErrorResponse),
     ),
     tag = "runtime"
 )]
@@ -346,6 +353,17 @@ pub async fn create_job(
 ) -> impl IntoResponse {
     if let Err(e) = require_scope(&auth, Scope::CreateJobs) {
         return e;
+    }
+    if !is_safe_slug(&req.slug) {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(MeshResponse {
+                ok: false,
+                data: serde_json::json!(
+                    "slug must be 1..=128 chars and contain only ASCII alphanumerics, '-', or '_'"
+                ),
+            }),
+        );
     }
     let job_id = ship_substrate::gen_ulid();
     let baseline_sha = super::resolve_project_head_sha();
@@ -436,11 +454,11 @@ pub(crate) fn default_cancel_reason() -> String {
     request_body = CancelJobRequest,
     responses(
         (status = 200, body = MeshResponse),
-        (status = 400, description = "bad request", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 401, description = "unauthorized", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 404, description = "job not found", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 409, description = "job already finished", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 500, description = "server error", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 400, description = "bad request", body = crate::wire::ErrorResponse),
+        (status = 401, description = "unauthorized", body = crate::wire::ErrorResponse),
+        (status = 404, description = "job not found", body = crate::wire::ErrorResponse),
+        (status = 409, description = "job already finished", body = crate::wire::ErrorResponse),
+        (status = 500, description = "server error", body = crate::wire::ErrorResponse),
     ),
     tag = "runtime"
 )]
@@ -454,25 +472,21 @@ pub async fn cancel_job(
         return e;
     }
 
-    let jobs = match ship_platform::projections::job::load_jobs_at(state.ship_dir()) {
-        Ok(j) => j,
-        Err(e) => {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(MeshResponse { ok: false, data: serde_json::json!(e.to_string()) }),
-            );
-        }
-    };
-
-    let job = match jobs.values().find(|j| j.slug == slug) {
-        Some(j) => j.clone(),
-        None => {
+    let job = match ship_platform::projections::job::load_job_by_slug_at(state.ship_dir(), &slug) {
+        Ok(Some(j)) => j,
+        Ok(None) => {
             return (
                 StatusCode::NOT_FOUND,
                 Json(MeshResponse {
                     ok: false,
                     data: serde_json::json!(format!("no job with slug '{slug}'")),
                 }),
+            );
+        }
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(MeshResponse { ok: false, data: serde_json::json!(e.to_string()) }),
             );
         }
     };
@@ -553,9 +567,9 @@ pub struct JobEndRequest {
     request_body = JobEndRequest,
     responses(
         (status = 200, body = MeshResponse),
-        (status = 400, description = "bad request", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 401, description = "unauthorized", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 500, description = "server error", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 400, description = "bad request", body = crate::wire::ErrorResponse),
+        (status = 401, description = "unauthorized", body = crate::wire::ErrorResponse),
+        (status = 500, description = "server error", body = crate::wire::ErrorResponse),
     ),
     tag = "runtime"
 )]
@@ -567,25 +581,31 @@ pub async fn end_job(
     if let Err(e) = require_scope(&auth, Scope::ManageJobs) {
         return e;
     }
-    let jobs = match ship_platform::projections::job::load_jobs() {
-        Ok(j) => j,
+    // Slug isn't unique across job lifetimes, but the SQL projection
+    // returns the most-recently-updated row — that's the live one when a
+    // dispatched job exists. Filter by status to confirm before steering.
+    let job = match ship_platform::projections::job::load_job_by_slug(&req.slug) {
+        Ok(Some(j))
+            if j.status == ship_platform::projections::job::JobStatus::Dispatched =>
+        {
+            j
+        }
+        Ok(_) => {
+            return (
+                StatusCode::NOT_FOUND,
+                Json(MeshResponse {
+                    ok: false,
+                    data: serde_json::json!(format!(
+                        "no dispatched job with slug '{}'",
+                        req.slug
+                    )),
+                }),
+            );
+        }
         Err(e) => {
             return (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 Json(MeshResponse { ok: false, data: serde_json::json!(e.to_string()) }),
-            );
-        }
-    };
-
-    let job = match jobs.values()
-        .filter(|j| j.slug == req.slug)
-        .find(|j| j.status == ship_platform::projections::job::JobStatus::Dispatched)
-    {
-        Some(j) => j.clone(),
-        None => {
-            return (
-                StatusCode::NOT_FOUND,
-                Json(MeshResponse { ok: false, data: serde_json::json!(format!("no dispatched job with slug '{}'", req.slug)) }),
             );
         }
     };

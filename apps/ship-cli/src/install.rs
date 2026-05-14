@@ -24,7 +24,7 @@ use crate::profile::ProjectState;
 
 /// Run `ship install [--frozen] [--offline]`.
 ///
-/// 1. Parse `.ship/ship.toml` as a registry manifest.
+/// 1. Parse `.ship/ship.jsonc` as a registry manifest.
 /// 2. Resolve and fetch all declared dependencies.
 /// 3. Write updated `.ship/ship.lock`.
 /// 4. Compile resolved packages into provider targets.
@@ -63,7 +63,7 @@ pub fn run_install(project_root: &Path, frozen: bool, offline: bool) -> Result<(
     })
     .context("compiling after install")?;
 
-    // Determine provider list from compile output (approximated from providers in ship.toml).
+    // Determine provider list from compile output (approximated from providers in ship.jsonc).
     let providers = detect_providers_from_project(project_root);
     let n = result.packages.len();
 
@@ -108,29 +108,20 @@ fn compiler_to_registry_manifest(m: &ShipManifest) -> RegistryManifest {
 /// Detect configured providers from the project's manifest (best-effort).
 fn detect_providers_from_project(project_root: &Path) -> String {
     let path = ship_substrate::ShipHome::project_ship_dir(project_root).join("ship.jsonc");
-    if let Ok(content) = std::fs::read_to_string(&path)
-        && let Ok(val) = toml::from_str::<toml::Value>(&content)
-    {
-        // Try [defaults].providers first
-        if let Some(providers) = val
-            .get("defaults")
-            .and_then(|d| d.get("providers"))
-            .and_then(|p| p.as_array())
-        {
-            let ids: Vec<&str> = providers.iter().filter_map(|v| v.as_str()).collect();
-            if !ids.is_empty() {
-                return ids.join(", ");
-            }
-        }
-        // Try [project].providers
-        if let Some(providers) = val
-            .get("project")
-            .and_then(|d| d.get("providers"))
-            .and_then(|p| p.as_array())
-        {
-            let ids: Vec<&str> = providers.iter().filter_map(|v| v.as_str()).collect();
-            if !ids.is_empty() {
-                return ids.join(", ");
+    if let Ok(content) = std::fs::read_to_string(&path) {
+        let stripped = ship_substrate::fs_util::strip_jsonc_comments(&content);
+        if let Ok(val) = serde_json::from_str::<serde_json::Value>(&stripped) {
+            for section in ["defaults", "project"] {
+                if let Some(providers) = val
+                    .get(section)
+                    .and_then(|d| d.get("providers"))
+                    .and_then(|p| p.as_array())
+                {
+                    let ids: Vec<&str> = providers.iter().filter_map(|v| v.as_str()).collect();
+                    if !ids.is_empty() {
+                        return ids.join(", ");
+                    }
+                }
             }
         }
     }
@@ -151,7 +142,7 @@ mod tests {
     }
 
     #[test]
-    fn install_no_ship_toml_errors() {
+    fn install_no_ship_jsonc_errors() {
         let tmp = TempDir::new().unwrap();
         std::fs::create_dir_all(ship_substrate::ShipHome::project_ship_dir(tmp.path())).unwrap();
         let err = run_install(tmp.path(), false, false).unwrap_err();
@@ -165,7 +156,7 @@ mod tests {
     #[test]
     fn install_without_module_section_succeeds() {
         let tmp = TempDir::new().unwrap();
-        // Project-config style ship.toml (no [module]) should work for install
+        // Project-config style ship.jsonc (no module section) should work for install
         write(
             tmp.path(),
             ".ship/ship.jsonc",
@@ -200,7 +191,7 @@ mod tests {
             let lock_path = ship_substrate::ShipHome::project_ship_dir(tmp.path()).join("ship.lock");
             assert!(lock_path.exists(), "ship.lock must be written");
             let content = std::fs::read_to_string(&lock_path).unwrap();
-            assert!(content.contains("version = 1"));
+            assert!(content.contains("\"version\": 1"));
         }
         // If compile failed due to missing providers config, that's acceptable for this unit test
     }
@@ -215,7 +206,7 @@ mod tests {
             "{\"module\": {\"name\": \"github.com/test/repo\", \"version\": \"0.1.0\"}, \"dependencies\": {\"github.com/owner/pkg\": \"main\"}}\n",
         );
         // Write an empty lock (out of sync — dep is in manifest but not lock)
-        write(tmp.path(), ".ship/ship.lock", "version = 1\n");
+        write(tmp.path(), ".ship/ship.lock", "{\"version\": 1, \"packages\": []}\n");
         let err = run_install(tmp.path(), true, false).unwrap_err();
         // The error chain contains the frozen/out-of-sync message from the registry;
         // our context wraps it so check the full chain.
@@ -228,16 +219,14 @@ mod tests {
 
     #[test]
     fn compiler_manifest_conversion_round_trips_deps() {
-        let toml_str = r#"
-[module]
-name = "github.com/test/mylib"
-version = "1.0.0"
-
-[dependencies]
-"github.com/a/b" = "^1.0.0"
-"github.com/c/d" = { version = "main", grant = ["Bash"] }
-"#;
-        let manifest = ShipManifest::from_toml_str(toml_str).unwrap();
+        let jsonc = r#"{
+            "module": { "name": "github.com/test/mylib", "version": "1.0.0" },
+            "dependencies": {
+                "github.com/a/b": "^1.0.0",
+                "github.com/c/d": { "version": "main", "grant": ["Bash"] }
+            }
+        }"#;
+        let manifest = ShipManifest::from_jsonc_str(jsonc).unwrap();
         let reg = compiler_to_registry_manifest(&manifest);
         assert_eq!(reg.dependencies.len(), 2);
         let dep_ab = reg.dependencies.get("github.com/a/b").unwrap();

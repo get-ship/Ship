@@ -3346,7 +3346,7 @@
               "string",
               "null"
             ],
-            "description": "Provider override; when `None`, each step uses whatever the\npipeline YAML declared (or falls back to claude)."
+            "description": "Provider override; when `None`, each step uses whatever the\npipeline file declared (or falls back to claude)."
           },
           "slug": {
             "type": [
@@ -3454,7 +3454,7 @@
       },
       "ErrorResponse": {
         "type": "object",
-        "description": "Canonical error body returned by non-2xx responses.\n\nHandlers today emit `{\"ok\": false, \"error\": \"...\"}` or\n`{\"ok\": false, \"data\": \"...\"}`. The spec standardizes on this richer\nshape so SDK consumers can branch on a machine-readable `error` code\nwithout parsing the human-readable message.\n\nSee the [errors reference](/reference/http-api/errors/) for the full\nset of codes emitted by the daemon and their remediation.",
+        "description": "Structured error body. Returned with non-2xx HTTP statuses; OpenAPI\nannotations on routes reference this for the schema.",
         "required": [
           "error",
           "message"
@@ -3688,6 +3688,7 @@
       },
       "MeshResponse": {
         "type": "object",
+        "description": "Envelope returned by every handler under `/api/v1/*` that isn't a\nraw bytes / SSE / stream response. `ok` flags success; `data` is\neither the payload or a structured error description.",
         "required": [
           "ok",
           "data"

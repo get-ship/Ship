@@ -71,7 +71,7 @@ mod permissions {
             .spawn_actor_with_permissions(identity("studio"), perms)
             .unwrap();
 
-        let result = router.route(ev("studio.feedback"), &runtime_ctx()).await;
+        let result = router.emit(ev("studio.feedback"), &runtime_ctx()).await;
         assert!(result.is_ok(), "actor with studio.* emit should succeed");
     }
 
@@ -91,7 +91,7 @@ mod permissions {
         // Agent tries to emit into studio.* — should be rejected.
         let event = ev("studio.feedback")
             .with_actor_id("agent.reviewer");
-        let result = router.route(event, &mcp_ctx()).await;
+        let result = router.emit(event, &mcp_ctx()).await;
         assert!(result.is_err(), "actor without studio.* emit must be rejected");
     }
 
@@ -113,7 +113,7 @@ mod permissions {
 
         let event = ev("agent.task_started")
             .with_actor_id("agent.readonly");
-        let result = router.route(event, &mcp_ctx()).await;
+        let result = router.emit(event, &mcp_ctx()).await;
         assert!(
             result.is_err(),
             "actor with empty emit list must not emit any events"
@@ -134,7 +134,7 @@ mod permissions {
             .unwrap();
 
         // CLI is superuser — bypasses all emit restrictions.
-        let result = router.route(ev("session.started"), &cli_ctx()).await;
+        let result = router.emit(ev("session.started"), &cli_ctx()).await;
         assert!(
             result.is_ok(),
             "CallerKind::Cli must bypass emit restrictions"
@@ -186,7 +186,7 @@ mod permissions {
 
         // Route a session event — agent is NOT subscribed.
         router
-            .route(ev("session.started"), &runtime_ctx())
+            .emit(ev("session.started"), &runtime_ctx())
             .await
             .unwrap();
 
@@ -198,7 +198,7 @@ mod permissions {
         // Route a studio event — agent IS subscribed.
         let studio_event = ev("studio.feedback");
         router
-            .route(studio_event.clone(), &runtime_ctx())
+            .emit(studio_event.clone(), &runtime_ctx())
             .await
             .unwrap();
 

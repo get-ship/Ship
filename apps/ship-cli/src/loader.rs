@@ -31,18 +31,12 @@ pub fn load_library(ship_dir: &Path) -> Result<ProjectLibrary> {
 // ── MCP servers ───────────────────────────────────────────────────────────────
 
 fn load_mcp_servers(agents_dir: &Path) -> Result<Vec<McpServerConfig>> {
-    // Prefer mcp.jsonc over mcp.toml
-    let jsonc_path = agents_dir.join("mcp.jsonc");
-    let path = if jsonc_path.exists() {
-        jsonc_path
-    } else {
-        agents_dir.join("mcp.toml")
-    };
+    let path = agents_dir.join("mcp.jsonc");
     let file = crate::mcp::McpFile::load(&path)?;
     // Warn if the MCP file exists but produced no servers (likely a parse error)
     if path.exists() && file.servers.is_empty() {
         eprintln!(
-            "warning: {} exists but no MCP servers were loaded. Check JSON/TOML syntax.",
+            "warning: {} exists but no MCP servers were loaded. Check JSONC syntax.",
             path.display()
         );
     }
@@ -86,8 +80,8 @@ fn load_mcp_servers(agents_dir: &Path) -> Result<Vec<McpServerConfig>> {
 
 // ── Permissions ───────────────────────────────────────────────────────────────
 
-/// A named permission preset section from `agents/permissions.toml`.
-/// Matches the `[ship-standard]`, `[ship-autonomous]`, etc. blocks.
+/// A named permission preset section from `agents/permissions.jsonc`.
+/// Matches the `"ship-standard"`, `"ship-autonomous"`, etc. keys.
 #[derive(Deserialize, Default, Clone)]
 pub struct PermissionPreset {
     #[serde(default)]
@@ -101,13 +95,7 @@ pub struct PermissionPreset {
 }
 
 fn load_permissions(agents_dir: &Path) -> Result<Permissions> {
-    // Prefer permissions.jsonc over permissions.toml
-    let jsonc_path = agents_dir.join("permissions.jsonc");
-    let path = if jsonc_path.exists() {
-        jsonc_path
-    } else {
-        agents_dir.join("permissions.toml")
-    };
+    let path = agents_dir.join("permissions.jsonc");
     if !path.exists() {
         return Ok(Permissions::default());
     }
@@ -115,41 +103,19 @@ fn load_permissions(agents_dir: &Path) -> Result<Permissions> {
     // Try flat Permissions first, fall back to default on parse error.
     // The named-preset sections are ignored here —
     // they are resolved via load_permission_preset() when a profile activates.
-    if crate::paths::is_jsonc_ext(&path) {
-        match compiler::jsonc::from_jsonc_str::<Permissions>(&s) {
-            Ok(p) => Ok(p),
-            Err(_) => Ok(Permissions::default()),
-        }
-    } else {
-        match toml::from_str::<Permissions>(&s) {
-            Ok(p) => Ok(p),
-            Err(_) => Ok(Permissions::default()),
-        }
-    }
+    Ok(compiler::jsonc::from_jsonc_str::<Permissions>(&s).unwrap_or_default())
 }
 
-/// Load a named permission preset section (e.g. `[ship-standard]` / `"ship-standard"`)
-/// from `agents/permissions.{jsonc,toml}`. Returns `None` if the file or section is absent.
-pub fn load_permission_preset(agents_dir: &Path, preset_name: &str) -> Option<PermissionPreset> {
-    // Prefer permissions.jsonc over permissions.toml
-    let jsonc_path = agents_dir.join("permissions.jsonc");
-    let path = if jsonc_path.exists() {
-        jsonc_path
-    } else {
-        agents_dir.join("permissions.toml")
-    };
+/// Load a named permission preset section (e.g. `"ship-standard"`) from
+/// `<ship_dir>/permissions.jsonc`. Returns `None` if the file or section
+/// is absent.
+pub fn load_permission_preset(ship_dir: &Path, preset_name: &str) -> Option<PermissionPreset> {
+    let path = ship_dir.join("permissions.jsonc");
     if !path.exists() {
         return None;
     }
     let s = std::fs::read_to_string(&path).ok()?;
-
-    let val: serde_json::Value = if crate::paths::is_jsonc_ext(&path) {
-        compiler::jsonc::from_jsonc_str(&s).ok()?
-    } else {
-        // Parse TOML then convert to serde_json::Value
-        let tv: toml::Value = toml::from_str(&s).ok()?;
-        serde_json::to_value(&tv).ok()?
-    };
+    let val: serde_json::Value = compiler::jsonc::from_jsonc_str(&s).ok()?;
 
     let section = val.get(preset_name)?.as_object()?;
 
@@ -195,22 +161,12 @@ struct HookEntry {
 }
 
 fn load_hooks(agents_dir: &Path) -> Result<Vec<HookConfig>> {
-    // Prefer hooks.jsonc over hooks.toml
-    let jsonc_path = agents_dir.join("hooks.jsonc");
-    let path = if jsonc_path.exists() {
-        jsonc_path
-    } else {
-        agents_dir.join("hooks.toml")
-    };
+    let path = agents_dir.join("hooks.jsonc");
     if !path.exists() {
         return Ok(vec![]);
     }
     let s = std::fs::read_to_string(&path)?;
-    let file: HooksFile = if crate::paths::is_jsonc_ext(&path) {
-        compiler::jsonc::from_jsonc_str(&s)?
-    } else {
-        toml::from_str(&s)?
-    };
+    let file: HooksFile = compiler::jsonc::from_jsonc_str(&s)?;
     Ok(file
         .hooks
         .into_iter()
@@ -296,39 +252,40 @@ fn parse_rule(file_name: &str, raw: &str) -> Rule {
 
 // ── Skills ────────────────────────────────────────────────────────────────────
 
-use crate::skill_loader::load_skills;
+use crate::skill::loader::load_skills;
 
 // ── Agent profiles ────────────────────────────────────────────────────────────
 
 fn load_agent_profiles(ship_dir: &Path) -> Result<Vec<AgentProfile>> {
-    // Profiles live under agents/profiles/ in the .ship/ directory
-    let profiles_dir = ship_dir.join("agents").join("profiles");
-    if !profiles_dir.exists() {
+    // Canonical layout: each agent is a single JSONC file at
+    // `.ship/agents/<id>.jsonc`. The legacy `agents/profiles/` subdir is no
+    // longer read. TOML is no longer accepted.
+    let agents_dir = ship_dir.join("agents");
+    if !agents_dir.exists() {
         return Ok(vec![]);
     }
     let mut profiles = Vec::new();
-    for entry in std::fs::read_dir(&profiles_dir)?.flatten() {
+    for entry in std::fs::read_dir(&agents_dir)?.flatten() {
         let path = entry.path();
-        if crate::paths::is_config_ext(&path) {
-            let content = std::fs::read_to_string(&path)?;
-            let result: Result<AgentProfile, String> = if crate::paths::is_jsonc_ext(&path) {
-                compiler::jsonc::from_jsonc_str(&content).map_err(|e| e.to_string())
-            } else {
-                toml::from_str(&content).map_err(|e| e.to_string())
-            };
-            match result {
-                Ok(profile) => profiles.push(profile),
-                Err(e) => {
-                    eprintln!(
-                        "warning: skipping {}: {}",
-                        path.file_name().unwrap_or_default().to_string_lossy(),
-                        e,
-                    );
-                }
+        if !path.is_file() {
+            continue;
+        }
+        if path.extension().and_then(|s| s.to_str()) != Some("jsonc") {
+            continue;
+        }
+        let content = std::fs::read_to_string(&path)?;
+        match compiler::jsonc::from_jsonc_str::<AgentProfile>(&content) {
+            Ok(profile) => profiles.push(profile),
+            Err(e) => {
+                eprintln!(
+                    "warning: skipping {}: {}",
+                    path.file_name().unwrap_or_default().to_string_lossy(),
+                    e,
+                );
             }
         }
     }
-    profiles.sort_by(|a, b| a.profile.id.cmp(&b.profile.id));
+    profiles.sort_by(|a, b| a.agent.id.cmp(&b.agent.id));
     Ok(profiles)
 }
 

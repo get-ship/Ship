@@ -263,7 +263,7 @@ build:
     bun run --filter @ship/set icons
     echo "[3/6] ship-set build (sui-build → apps/shipd/assets/)"
     bun run --filter @ship/set build
-    echo "[4/6] ui-components build (sui-build → crates/ship-sui-server/assets/)"
+    echo "[4/6] ui-components build (sui-build → crates/sui/ship-sui-server/assets/)"
     bun run --filter @ship/ui-components build
     echo "[5/6] cargo build --release (ship-cli + shipd + mcp)"
     cargo build --release -p ship-cli -p shipd -p mcp
@@ -278,7 +278,7 @@ build:
             echo "  ✓ $target_dir/release/$bin"
         fi
     done
-    for asset in crates/ship-sui-server/assets/sui-runtime.js crates/ship-sui-server/assets/sui-components.js apps/shipd/assets/ship-elements.js; do
+    for asset in crates/sui/ship-sui-server/assets/sui-runtime.js crates/sui/ship-sui-server/assets/sui-components.js apps/shipd/assets/ship-elements.js; do
         if [ ! -s "$asset" ]; then
             echo "  ✗ $asset missing or empty" >&2
             missing=1

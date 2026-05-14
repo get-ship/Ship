@@ -4,15 +4,15 @@
 use serde_json::{Value, json};
 
 use super::RegistryError;
-use crate::routes::rest_api::ApiState;
-use crate::services::files::FilesService;
+use crate::ship_runtime::ApiState;
+use ship_platform::services::files::FilesService;
 
-#[allow(unused_imports, unused_variables)]
+
 pub(super) fn try_dispatch(
     name: &str,
-    args: &Value,
+    _args: &Value,
     state: &ApiState,
-    files: &FilesService,
+    _files: &FilesService,
 ) -> Result<Option<Value>, RegistryError> {
     let value: Result<Value, RegistryError> = match name {
         "mesh.snapshot" => {
@@ -88,8 +88,8 @@ pub(super) fn try_dispatch(
                         .find(|l| l.starts_with("PPid:"))
                         .and_then(|l| l.split_whitespace().nth(1))
                         .and_then(|s| s.parse().ok());
-                    if let Some(pp) = ppid {
-                        if pp > 1 {
+                    if let Some(pp) = ppid
+                        && pp > 1 {
                             processes.push(json!({
                                 "name": "ship daemon supervisor",
                                 "role": "supervisor",
@@ -97,7 +97,6 @@ pub(super) fn try_dispatch(
                                 "alive": pid_alive(pp),
                             }));
                         }
-                    }
                 }
             }
 

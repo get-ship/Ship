@@ -89,7 +89,7 @@ mod tests_io;
 
 pub use types::{
     AgentLayerConfig, HookConfig, HookTrigger,
-    LEGACY_CONFIG_FILE, PRIMARY_CONFIG_FILE, PermissionConfig,
+    PRIMARY_CONFIG_FILE, PermissionConfig,
 };
 
 pub use project::{

@@ -114,26 +114,35 @@ impl ShipServer {
     /// Dispatched agents always get PLATFORM_TOOLS regardless of
     /// KV-stored active_agent state — dispatch context is the truth.
     pub fn is_dispatched_context() -> bool {
+        Self::is_dispatched_context_at(std::env::current_dir().ok().as_deref())
+    }
+
+    /// Same as [`is_dispatched_context`], but resolves the worktree marker
+    /// against an explicit starting directory instead of process cwd.
+    /// Tests use this to avoid mutating the global cwd; production code
+    /// passes `std::env::current_dir().ok()` via [`is_dispatched_context`].
+    pub fn is_dispatched_context_at(start: Option<&std::path::Path>) -> bool {
         if ship_substrate::env::read_raw(ship_substrate::env::Var::ActorId)
             .map(|v| !v.is_empty())
             .unwrap_or(false)
         {
             return true;
         }
-        Self::cwd_is_dispatched_worktree()
+        match start {
+            Some(p) => Self::path_is_dispatched_worktree(p),
+            None => false,
+        }
     }
 
-    /// Walk up from cwd looking for the explicit `.artifacts/.dispatched`
+    /// Walk up from `start` looking for the explicit `.artifacts/.dispatched`
     /// marker file. Stops at the first match or at the filesystem root.
     /// The marker is only written by the isolation adapter during job
     /// dispatch, so the project root won't match even if it has
     /// `.artifacts/` artifacts from prior runs.
     pub(crate) const DISPATCH_MARKER: &str = ".artifacts/.dispatched";
 
-    fn cwd_is_dispatched_worktree() -> bool {
-        let Ok(mut cur) = std::env::current_dir() else {
-            return false;
-        };
+    fn path_is_dispatched_worktree(start: &std::path::Path) -> bool {
+        let mut cur = start.to_path_buf();
         loop {
             if cur.join(Self::DISPATCH_MARKER).is_file() {
                 return true;

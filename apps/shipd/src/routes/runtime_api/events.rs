@@ -36,8 +36,8 @@ pub struct EventsPollQuery {
     params(EventsPollQuery),
     responses(
         (status = 200, body = MeshResponse),
-        (status = 401, description = "unauthorized", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 500, description = "server error", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 401, description = "unauthorized", body = crate::wire::ErrorResponse),
+        (status = 500, description = "server error", body = crate::wire::ErrorResponse),
     ),
     tag = "runtime"
 )]
@@ -103,20 +103,9 @@ pub async fn poll_events(
     )
 }
 
-pub(crate) struct ActorGuard {
-    pub(crate) actor_id: String,
-    pub(crate) kernel: crate::routes::rest_api::SharedKernel,
-}
-
-impl Drop for ActorGuard {
-    fn drop(&mut self) {
-        let actor_id = self.actor_id.clone();
-        let kernel = self.kernel.clone();
-        tokio::spawn(async move {
-            let _ = kernel.lock().await.stop_actor(&actor_id);
-        });
-    }
-}
+// `ActorGuard` moved to `ship_runtime` (alongside `SharedKernel`) so
+// views can use it without violating the module DAG (views → routes is
+// banned by check-module-dag).
 
 /// GET /api/v1/runtime/events — SSE stream of all kernel events.
 #[utoipa::path(
@@ -125,8 +114,8 @@ impl Drop for ActorGuard {
     path = "/api/v1/events",
     responses(
         (status = 200, description = "SSE stream of kernel events"),
-        (status = 401, description = "unauthorized", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 500, description = "server error", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 401, description = "unauthorized", body = crate::wire::ErrorResponse),
+        (status = 500, description = "server error", body = crate::wire::ErrorResponse),
     ),
     tag = "runtime"
 )]
@@ -160,7 +149,7 @@ pub async fn event_stream(
         })?
     };
 
-    let guard = ActorGuard {
+    let guard = crate::ship_runtime::ActorGuard {
         actor_id,
         kernel: state.kernel().clone(),
     };

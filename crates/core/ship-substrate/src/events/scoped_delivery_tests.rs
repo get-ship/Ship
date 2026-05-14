@@ -64,16 +64,16 @@ mod scoped_delivery {
         // Event from workspace A.
         let ev_a = ev("studio.feedback")
             .with_context(Some("ws-a"), None);
-        router.route(ev_a.clone(), &runtime_ctx()).await.unwrap();
+        router.emit(ev_a.clone(), &runtime_ctx()).await.unwrap();
 
         // Event from workspace B.
         let ev_b = ev("studio.feedback")
             .with_context(Some("ws-b"), None);
-        router.route(ev_b.clone(), &runtime_ctx()).await.unwrap();
+        router.emit(ev_b.clone(), &runtime_ctx()).await.unwrap();
 
         // Event with no workspace.
         let ev_c = ev("studio.selection");
-        router.route(ev_c.clone(), &runtime_ctx()).await.unwrap();
+        router.emit(ev_c.clone(), &runtime_ctx()).await.unwrap();
 
         let r1 = mb.try_recv().expect("must receive ev_a");
         let r2 = mb.try_recv().expect("must receive ev_b");
@@ -109,12 +109,12 @@ mod scoped_delivery {
         // Event from the agent's workspace — should be delivered.
         let ev_match = ev("studio.feedback")
             .with_context(Some("feature/login"), None);
-        router.route(ev_match.clone(), &runtime_ctx()).await.unwrap();
+        router.emit(ev_match.clone(), &runtime_ctx()).await.unwrap();
 
         // Event from a different workspace — should NOT be delivered.
         let ev_other = ev("studio.feedback")
             .with_context(Some("feature/signup"), None);
-        router.route(ev_other, &runtime_ctx()).await.unwrap();
+        router.emit(ev_other, &runtime_ctx()).await.unwrap();
 
         let received = mb.try_recv().expect("must receive matching workspace event");
         assert_eq!(received.id, ev_match.id);
@@ -142,14 +142,14 @@ mod scoped_delivery {
 
         // Only other-workspace events.
         router
-            .route(
+            .emit(
                 ev("studio.feedback").with_context(Some("ws-other"), None),
                 &runtime_ctx(),
             )
             .await
             .unwrap();
         router
-            .route(
+            .emit(
                 ev("studio.feedback").with_context(Some("ws-another"), None),
                 &runtime_ctx(),
             )
@@ -185,11 +185,11 @@ mod scoped_delivery {
         // Directed event targeting this actor.
         let mut targeted = ev("studio.feedback");
         targeted.target_actor_id = Some("agent.reviewer".into());
-        router.route(targeted.clone(), &runtime_ctx()).await.unwrap();
+        router.emit(targeted.clone(), &runtime_ctx()).await.unwrap();
 
         // Untargeted event in the same namespace.
         let untargeted = ev("studio.feedback");
-        router.route(untargeted, &runtime_ctx()).await.unwrap();
+        router.emit(untargeted, &runtime_ctx()).await.unwrap();
 
         let received = mb.try_recv().expect("must receive directed event");
         assert_eq!(received.id, targeted.id);
@@ -219,7 +219,7 @@ mod scoped_delivery {
 
         let mut targeted = ev("studio.feedback");
         targeted.target_actor_id = Some("agent.reviewer".into());
-        router.route(targeted, &runtime_ctx()).await.unwrap();
+        router.emit(targeted, &runtime_ctx()).await.unwrap();
 
         assert!(
             mb.try_recv().is_err(),
@@ -249,13 +249,13 @@ mod scoped_delivery {
 
         // Non-elevated event — should not be delivered.
         router
-            .route(ev("studio.feedback"), &runtime_ctx())
+            .emit(ev("studio.feedback"), &runtime_ctx())
             .await
             .unwrap();
 
         // Elevated event — should be delivered.
         let elevated = ev("studio.config_changed").elevate();
-        router.route(elevated.clone(), &runtime_ctx()).await.unwrap();
+        router.emit(elevated.clone(), &runtime_ctx()).await.unwrap();
 
         let received = mb.try_recv().expect("must receive elevated event");
         assert_eq!(received.id, elevated.id);

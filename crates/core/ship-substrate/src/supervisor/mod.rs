@@ -119,8 +119,8 @@ pub fn spawn_actor(profile: ActorProfile) -> Result<ActorHandle> {
     // For Shells / Pipelines / Services there is no MCP child, so
     // the supervisor is the only one who can register them.
     let pre_register = !matches!(profile.kind, ActorKind::Agent);
-    if pre_register {
-        if let Some(kr) = crate::events::kernel_router() {
+    if pre_register
+        && let Some(kr) = crate::events::kernel_router() {
         let kernel_config = crate::events::ActorConfig {
             namespace: actor_id.clone(),
             write_namespaces: vec!["".to_string()],
@@ -142,17 +142,16 @@ pub fn spawn_actor(profile: ActorProfile) -> Result<ActorHandle> {
             tracing::warn!(actor_id = %actor_id, "kernel spawn_actor failed: {e}");
         }
         }
-    }
 
     // For now there is exactly one transport. The match here gates
     // future transports without changing the call site.
     let child = match profile.transport {
         TransportKind::Pty => {
-            PtyTransport::default().spawn(&actor_id, &profile)
+            PtyTransport.spawn(&actor_id, &profile)
                 .with_context(|| format!("pty spawn for {actor_id}"))?
         }
         TransportKind::Headless => {
-            HeadlessTransport::default().spawn(&actor_id, &profile)
+            HeadlessTransport.spawn(&actor_id, &profile)
                 .with_context(|| format!("headless spawn for {actor_id}"))?
         }
     };
@@ -186,7 +185,7 @@ pub fn spawn_actor(profile: ActorProfile) -> Result<ActorHandle> {
             emit_profile.workspace_id.as_deref(),
             emit_profile.parent_actor_id.as_deref(),
         ) {
-            tracing::debug!(actor_id = %emit_actor_id, "actor.created emit failed: {e}");
+            tracing::warn!(actor_id = %emit_actor_id, "actor.created emit failed: {e}");
         }
     });
 

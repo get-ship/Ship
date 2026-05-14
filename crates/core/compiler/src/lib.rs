@@ -1,4 +1,3 @@
-pub mod agent_parser;
 pub mod compile;
 pub mod decompile;
 pub mod events;
@@ -6,7 +5,6 @@ pub mod jsonc;
 pub mod lockfile;
 pub mod manifest;
 pub mod output;
-pub mod permissions;
 pub mod resolve;
 pub mod schemas;
 pub mod types;

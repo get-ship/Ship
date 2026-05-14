@@ -6,7 +6,6 @@ use std::path::{Path, PathBuf};
 
 use super::helpers::*;
 
-
 // ---- Agent config resolution -----------------------------------------------
 
 pub(crate) fn resolve_session_agent_config(

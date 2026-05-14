@@ -98,7 +98,7 @@ async fn job_created_delivered_to_subscriber() {
         }),
     );
 
-    router.route(event.clone(), &runtime_ctx()).await.unwrap();
+    router.emit(event.clone(), &runtime_ctx()).await.unwrap();
 
     let received = mb
         .try_recv()
@@ -125,7 +125,7 @@ async fn job_update_delivered_to_subscriber() {
         }),
     );
 
-    router.route(event.clone(), &runtime_ctx()).await.unwrap();
+    router.emit(event.clone(), &runtime_ctx()).await.unwrap();
 
     let received = mb
         .try_recv()
@@ -153,7 +153,7 @@ async fn job_completed_delivered_to_subscriber() {
         serde_json::json!({"job_id": "j-comp-1", "slug": "auth-tests"}),
     );
 
-    router.route(event.clone(), &runtime_ctx()).await.unwrap();
+    router.emit(event.clone(), &runtime_ctx()).await.unwrap();
 
     let received = mb
         .try_recv()
@@ -174,7 +174,7 @@ async fn job_merged_delivered_to_subscriber() {
         serde_json::json!({"job_id": "j-merged-1", "slug": "auth-tests"}),
     );
 
-    router.route(event.clone(), &runtime_ctx()).await.unwrap();
+    router.emit(event.clone(), &runtime_ctx()).await.unwrap();
 
     let received = mb
         .try_recv()
@@ -195,7 +195,7 @@ async fn non_job_events_not_delivered_to_subscriber() {
         serde_json::json!({ "branch": "main", "worktree_path": "/tmp/test" }),
     );
 
-    router.route(event, &runtime_ctx()).await.unwrap();
+    router.emit(event, &runtime_ctx()).await.unwrap();
 
     assert!(
         mb.try_recv().is_err(),
@@ -538,7 +538,7 @@ mod ports {
 
         let mut router = KernelRouter::new(ship_substrate::ShipHome::project_ship_dir(dir.path())).unwrap();
         let (_s, _mb) = router
-            .spawn_actor("service.job-dispatch", super::job_dispatch_config())
+            .spawn_actor("service.job-dispatch", ship_supervisor::job_dispatch_config())
             .unwrap();
         let kernel = Arc::new(tokio::sync::Mutex::new(router));
 
@@ -983,7 +983,7 @@ async fn single_dispatch_path_one_subscriber() {
         }),
     );
 
-    router.route(event.clone(), &runtime_ctx()).await.unwrap();
+    router.emit(event.clone(), &runtime_ctx()).await.unwrap();
 
     // Exactly one delivery
     let received = mb
@@ -1166,7 +1166,7 @@ mod reliability {
         let mut router =
             ship_substrate::events::kernel_router::KernelRouter::new(ship_dir.clone()).unwrap();
         let (_s, _mb) = router
-            .spawn_actor("service.job-dispatch", super::job_dispatch_config())
+            .spawn_actor("service.job-dispatch", ship_supervisor::job_dispatch_config())
             .unwrap();
         let kernel = Arc::new(tokio::sync::Mutex::new(router));
 
@@ -1212,7 +1212,7 @@ mod reliability {
         let mut router =
             ship_substrate::events::kernel_router::KernelRouter::new(ship_dir.clone()).unwrap();
         let (_s, _mb) = router
-            .spawn_actor("service.job-dispatch", super::job_dispatch_config())
+            .spawn_actor("service.job-dispatch", ship_supervisor::job_dispatch_config())
             .unwrap();
         let kernel = Arc::new(tokio::sync::Mutex::new(router));
 
@@ -1267,7 +1267,7 @@ mod reliability {
         let mut router =
             ship_substrate::events::kernel_router::KernelRouter::new(ship_dir.clone()).unwrap();
         let (_s, _mb) = router
-            .spawn_actor("service.job-dispatch", super::job_dispatch_config())
+            .spawn_actor("service.job-dispatch", ship_supervisor::job_dispatch_config())
             .unwrap();
         let kernel = Arc::new(tokio::sync::Mutex::new(router));
 
@@ -1326,7 +1326,7 @@ mod reliability {
         let mut router =
             ship_substrate::events::kernel_router::KernelRouter::new(ship_dir.clone()).unwrap();
         let (_s, _mb) = router
-            .spawn_actor("service.job-dispatch", super::job_dispatch_config())
+            .spawn_actor("service.job-dispatch", ship_supervisor::job_dispatch_config())
             .unwrap();
         let kernel = Arc::new(tokio::sync::Mutex::new(router));
 

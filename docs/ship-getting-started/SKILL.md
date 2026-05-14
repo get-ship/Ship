@@ -45,7 +45,7 @@ This scaffolds a `.ship/` directory with default configuration:
 .ship/
   agents/         # agent profiles (.jsonc)
   skills/         # skill definitions
-  pipelines/      # pipeline YAML files
+  pipelines/      # pipeline JSONC files
   ship.toml       # project manifest
 ```
 
@@ -116,7 +116,7 @@ Pipelines define multi-step agent workflows. Ship includes built-in pipelines (`
 ship run tdd "implement user authentication" --var impl_agent=rust-lane
 ```
 
-This loads `.ship/pipelines/tdd.yaml`, interpolates variables, and dispatches each step sequentially. The `tdd` pipeline runs: `test-writer` -> `impl_agent` -> `reviewer`.
+This loads `.ship/pipelines/tdd.jsonc`, interpolates variables, and dispatches each step sequentially. The `tdd` pipeline runs: `test-writer` -> `impl_agent` -> `reviewer`.
 
 To preview the resolved pipeline without executing:
 

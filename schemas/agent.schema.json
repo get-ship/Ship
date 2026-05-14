@@ -54,6 +54,19 @@
             "enum": ["claude", "cursor", "codex", "gemini", "opencode"]
           },
           "description": "Provider targets for this agent. Overrides the project-level providers list."
+        },
+        "role": {
+          "type": "string",
+          "description": "Legacy role for tool gating defaults — 'worker', 'lead', or 'commander'. Prefer `tools_preset`."
+        },
+        "tools_preset": {
+          "type": "string",
+          "description": "Tool preset name controlling which platform-shipped tools this agent sees. Known values: 'worker', 'orchestrator'."
+        },
+        "active_tools": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Explicit tool IDs visible to this agent. When non-empty, replaces the preset's tool list (escape hatch for custom agents)."
         }
       },
       "additionalProperties": false

@@ -110,4 +110,4 @@ Failed lanes are silently skipped — the judge sees only the lanes that produce
 - **Judge-as-primitive.** The judge is a normal `review` step. No special step type.
 - **Automatic merging.** The judge agent decides: pick, merge, or synthesize. Ship does not auto-merge lane outputs.
 - **Cross-pipeline fanout.** All lanes share the pipeline run. Cross-pipeline orchestration is out of scope.
-- **Dynamic lane count.** Lanes are declared statically in the pipeline YAML.
+- **Dynamic lane count.** Lanes are declared statically in the pipeline JSONC.

@@ -46,6 +46,7 @@ pub fn get_global_dir() -> Result<PathBuf> {
         if !path.as_os_str().is_empty() {
             // Guard: reject production paths from test code. Developers must
             // either unset SHIP_HOME or point it at a temp directory.
+            #[allow(clippy::panic, reason = "intentional fail-loud guard: a test must never write into ~/.ship")]
             if is_test_ctx && !path.starts_with(std::env::temp_dir()) {
                 panic!(
                     "Test attempted to use production database via SHIP_HOME={}. \
@@ -60,6 +61,7 @@ pub fn get_global_dir() -> Result<PathBuf> {
     // Safety net: if auto_test_global_dir() returned None but we are still in a
     // test context, refuse to return the production path.
     #[cfg(debug_assertions)]
+    #[allow(clippy::panic, reason = "intentional fail-loud guard: test without isolation must not touch ~/.ship")]
     if is_test_ctx {
         panic!(
             "Test binary detected without explicit DB isolation. \

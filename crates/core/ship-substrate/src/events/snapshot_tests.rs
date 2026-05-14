@@ -203,7 +203,7 @@ async fn restored_actor_receives_new_messages() {
         project_id: None,
         session_id: None,
     };
-    router.route(inbox_event.clone(), &ctx).await.unwrap();
+    router.emit(inbox_event.clone(), &ctx).await.unwrap();
 
     let received = mb.try_recv().expect("restored actor mailbox must receive event");
     assert_eq!(received.id, inbox_event.id);

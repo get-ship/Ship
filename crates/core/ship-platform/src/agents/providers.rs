@@ -219,31 +219,16 @@ fn resolve_binary_path(binary: &str) -> Option<PathBuf> {
     None
 }
 
-#[cfg(target_os = "macos")]
+#[cfg(not(windows))]
 fn fallback_binary_dirs() -> Vec<PathBuf> {
-    let mut dirs = vec![
-        PathBuf::from("/opt/homebrew/bin"),
-        PathBuf::from("/usr/local/bin"),
-        PathBuf::from("/opt/local/bin"),
-        PathBuf::from("/usr/bin"),
-        PathBuf::from("/bin"),
-    ];
-    if let Some(home) = std::env::var_os("HOME") {
-        let home = PathBuf::from(home);
-        dirs.push(home.join(".cargo/bin"));
-        dirs.push(home.join(".local/bin"));
-        dirs.push(home.join("bin"));
-    }
-    dirs
-}
-
-#[cfg(all(not(target_os = "macos"), not(windows)))]
-fn fallback_binary_dirs() -> Vec<PathBuf> {
-    let mut dirs = vec![
-        PathBuf::from("/usr/local/bin"),
-        PathBuf::from("/usr/bin"),
-        PathBuf::from("/bin"),
-    ];
+    let mut dirs: Vec<PathBuf> = Vec::new();
+    #[cfg(target_os = "macos")]
+    dirs.push(PathBuf::from("/opt/homebrew/bin"));
+    dirs.push(PathBuf::from("/usr/local/bin"));
+    #[cfg(target_os = "macos")]
+    dirs.push(PathBuf::from("/opt/local/bin"));
+    dirs.push(PathBuf::from("/usr/bin"));
+    dirs.push(PathBuf::from("/bin"));
     if let Some(home) = std::env::var_os("HOME") {
         let home = PathBuf::from(home);
         dirs.push(home.join(".cargo/bin"));

@@ -13,16 +13,11 @@ fn write(dir: &Path, rel: &str, content: &str) {
 fn write_agent_with_skill_filter(dir: &Path) {
     write(
         dir,
-        ".ship/agents/rust-lane.toml",
-        r#"
-[agent]
-name = "Rust Lane"
-id = "rust-lane"
-providers = ["claude"]
-
-[skills]
-refs = ["base-skill"]
-"#,
+        ".ship/agents/rust-lane.jsonc",
+        r#"{
+  "agent": { "id": "rust-lane", "name": "Rust Lane", "providers": ["claude"] },
+  "skills": { "refs": ["base-skill"] }
+}"#,
     );
     write(
         dir,

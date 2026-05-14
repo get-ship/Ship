@@ -18,21 +18,26 @@ fn install_test_platform_defaults() {
 pub mod access;
 pub mod sessions;
 pub mod auth;
+pub mod wire;
 pub mod transport;
 mod daemon;
-mod first_run;
 pub mod services;
-mod human_gateway;
 pub mod managers;
 pub mod project_api;
 pub mod routes;
 pub mod router;
-pub mod mcp;
+// (former shipd/integrations/ — apps_bridge → views/mcp_apps_embed; registry → routes/mcp_registry)
 pub mod views;
 pub mod ship_runtime;
-pub mod spawn_bounded;
-pub mod task_health;
-pub mod supervisor;
+// Production supervisor code lives in the `ship-supervisor` crate. The
+// existing `crate::supervisor::*` import path across shipd resolves
+// through this re-export so call sites don't churn.
+pub use ship_supervisor as supervisor;
+// Tests for supervisor + shipd-internal integration (use ApiState,
+// ShipRuntime, etc.) live under `apps/shipd/src/supervisor/`.
+#[cfg(test)]
+#[path = "supervisor/mod.rs"]
+mod supervisor_tests;
 
 #[cfg(test)]
 pub mod test_harness;
@@ -203,11 +208,9 @@ pub async fn run_network(
     }
     // Start the abandoned session scanner.
     rt.session_scanner().await;
-    // One-shot: rehash legacy artifact rows that predate content_hash.
-    rt.backfill_artifact_content_hashes().await;
     // Start the artifact GC loop (runs now then every hour).
     rt.start_artifact_gc();
-    human_gateway::spawn_human_gateway(rt.kernel(), rt.health_registry()).await;
+    daemon::human_gateway::spawn_human_gateway(rt.kernel(), rt.health_registry()).await;
     rt.start_hook_engine().await;
     rt.start_config_watcher();
 
@@ -262,11 +265,10 @@ pub async fn run_network(
 
     // Register the launch-time project (if any) into the project registry
     // so the launcher / shell sees it on first list. Idempotent.
-    if let Some(root) = project_root.as_ref() {
-        if let Err(e) = ship_platform::projects::register(root.path(), None) {
+    if let Some(root) = project_root.as_ref()
+        && let Err(e) = ship_platform::projects::register(root.path(), None) {
             tracing::warn!(path = %root.path().display(), "failed to register project on startup: {e}");
         }
-    }
 
     let token = match auth::read_token(&daemon_dir) {
         Ok(existing) if !existing.is_empty() => Arc::new(existing),
@@ -419,7 +421,7 @@ pub async fn run_network(
     // First-run UX: if `data.db` doesn't exist yet, open the default
     // browser at `/setup` once the listener is bound. Harmless no-op on
     // subsequent starts; suppressible via `SHIP_NO_BROWSER=1`.
-    first_run::maybe_open_setup(&global_dir, port);
+    daemon::first_run::maybe_open_setup(&global_dir, port);
 
     axum::serve(listener, app)
         .with_graceful_shutdown(async move { ct.cancelled_owned().await })

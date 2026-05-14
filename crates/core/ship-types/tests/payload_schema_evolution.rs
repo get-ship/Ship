@@ -189,25 +189,9 @@ fn gate_failed_v1_round_trips() {
     let _: GateFailed = parse(r#"{"evidence": "missing test"}"#, "GateFailed");
 }
 
-#[test]
-fn job_created_v1_round_trips() {
-    let _: JobCreated = parse(r#"{"title": "build"}"#, "JobCreated");
-}
-
-#[test]
-fn job_completed_v1_round_trips() {
-    let _: JobCompleted = parse(r#"{"summary": "done"}"#, "JobCompleted");
-}
-
-#[test]
-fn job_failed_v1_round_trips() {
-    let _: JobFailed = parse(r#"{"reason": "non-zero exit"}"#, "JobFailed");
-}
-
-#[test]
-fn job_dispatched_v1_round_trips() {
-    let _: JobDispatched = parse(r#"{"agent_id": "worker-1"}"#, "JobDispatched");
-}
+// Job event payload evolution is pinned in `ship-substrate/src/events/job.rs`
+// where the canonical 18-field structs live (they reference `ship-pipelines`,
+// which `ship-types` as a leaf crate cannot depend on).
 
 // ── Artifact aggregate ──────────────────────────────────────────────────────
 

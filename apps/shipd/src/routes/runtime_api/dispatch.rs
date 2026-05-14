@@ -15,16 +15,16 @@ use crate::routes::rest_api::{ApiState, MeshResponse};
 
 #[derive(Deserialize, utoipa::ToSchema)]
 pub struct DispatchRequest {
-    /// Pipeline name (file in `.ship/pipelines/<name>.{yaml,yml,jsonc,json}`).
+    /// Pipeline name (file in `.ship/pipelines/<name>.jsonc`).
     pub pipeline: String,
     /// Inline spec body describing what the run should do.
     #[serde(default)]
     pub spec: Option<String>,
     /// Provider override; when `None`, each step uses whatever the
-    /// pipeline YAML declared (or falls back to claude).
+    /// pipeline file declared (or falls back to claude).
     #[serde(default)]
     pub provider: Option<String>,
-    /// Model override (e.g. "sonnet"). When `None`, step YAML decides.
+    /// Model override (e.g. "sonnet"). When `None`, the pipeline step decides.
     #[serde(default)]
     pub model: Option<String>,
     /// Pipeline `{{ var }}` overrides.
@@ -79,21 +79,18 @@ pub async fn dispatch_pipeline(
         return e;
     }
 
-    // Walk up from the daemon's CWD to find `.ship/pipelines/<name>.{yaml,yml,jsonc,json}`.
-    // Matches ship_platform::services::orchestrator::pipeline_loader::load_pipeline_file's
+    // Walk up from the daemon's CWD to find `.ship/pipelines/<name>.jsonc`.
+    // Matches `ship_platform::services::orchestrator::pipeline_loader::load_pipeline_file`'s
     // resolution strategy so ensure_pipeline (called below) will find the same file.
     let pipeline_path = {
         let mut dir = std::env::current_dir().ok();
         let mut found = None;
         while let Some(d) = dir.as_ref() {
-            let pipelines_dir = ship_substrate::ShipHome::project_ship_dir(&d).join("pipelines");
+            let pipelines_dir = ship_substrate::ShipHome::project_ship_dir(d).join("pipelines");
             if pipelines_dir.is_dir() {
-                for ext in ["yaml", "yml", "jsonc", "json"] {
-                    let candidate = pipelines_dir.join(format!("{}.{ext}", req.pipeline));
-                    if candidate.exists() {
-                        found = Some(candidate);
-                        break;
-                    }
+                let candidate = pipelines_dir.join(format!("{}.jsonc", req.pipeline));
+                if candidate.exists() {
+                    found = Some(candidate);
                 }
                 break;
             }
@@ -122,7 +119,7 @@ pub async fn dispatch_pipeline(
             );
         }
     };
-    let (normalized, meta) = match ship_jobs::pipeline::normalize_pipeline_yaml(&raw) {
+    let (normalized, meta) = match ship_jobs::pipeline::normalize_pipeline(&raw) {
         Ok(n) => n,
         Err(e) => {
             return (

@@ -62,10 +62,10 @@ The Ship MCP server (`ship mcp serve`) exposes platform tools to agents via the 
 - `list_session_files` -- list files in .artifacts/
 
 ### Mesh
-- `mesh_send` -- send a directed message to another agent
-- `mesh_broadcast` -- broadcast a message to all agents
-- `mesh_discover` -- discover agents on the mesh
-- `mesh_status` -- update this agent's mesh status
+- `send_mesh_message` -- send a directed message to another agent
+- `broadcast_mesh_message` -- broadcast a message to all agents
+- `discover_mesh_agents` -- discover agents on the mesh
+- `update_mesh_status` -- update this agent's mesh status
 
 ### Dispatch
 - `dispatch_agent` -- spawn an agent in a git worktree

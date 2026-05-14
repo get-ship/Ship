@@ -216,7 +216,7 @@ pub fn to_run_view(job: &JobRecord, include_stats: bool) -> RunView {
 pub fn current_project_workspace_id() -> Option<String> {
     let project_ship = ship_application::project::get_project_dir(None).ok()?;
     let root = project_ship.parent()?;
-    let out = crate::spawn_bounded::Cmd::new("git")
+    let out = ship_substrate::spawn_bounded::Cmd::new("git")
         .args(["rev-parse", "--abbrev-ref", "HEAD"])
         .current_dir(root)
         .output()
@@ -229,7 +229,7 @@ pub fn current_project_workspace_id() -> Option<String> {
 }
 
 /// Locate a pipeline file on disk by walking up from CWD looking for
-/// `.ship/pipelines/<name>.<ext>`. Prefers yaml/yml/jsonc/json.
+/// `.ship/pipelines/<name>.jsonc`. JSONC only.
 pub fn find_pipeline_file(name: &str) -> Option<std::path::PathBuf> {
     let mut walker = std::env::current_dir().ok()?;
     loop {

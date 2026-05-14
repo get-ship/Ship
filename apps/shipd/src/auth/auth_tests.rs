@@ -173,7 +173,7 @@ fn router_with_session(token: &str) -> (Router, SessionRegistry) {
     let router = Router::new()
         .route("/test", axum::routing::get(ok_handler))
         .route(
-            "/api/v1/session",
+                "/api/v1/session",
             axum::routing::post(move |auth: axum::Extension<AuthContext>| {
                 let reg = reg_for_endpoint.clone();
                 async move { session::issue_session_handler(reg, auth.0).await }
@@ -292,7 +292,7 @@ async fn query_token_accepted_on_raw_view_path() {
     ));
     let router = Router::new()
         .route(
-            "/api/v1/view/{name}/raw",
+                "/api/v1/view/{name}/raw",
             axum::routing::get(ok_handler),
         )
         .layer(middleware::from_fn({

@@ -21,8 +21,8 @@ use std::sync::Arc;
 use tempfile::TempDir;
 use tokio::sync::Mutex;
 
-use super::platform::{MockPlatform, RegistryAdapter};
-use super::registry::ProcessRegistry;
+use ship_supervisor::platform::MockPlatform;
+use ship_platform::services::process_registry::{ProcessRegistry, SharedRegistry};
 
 // ── Mock infrastructure ─────────────────────────────────────────────────────
 
@@ -195,7 +195,7 @@ async fn pipeline_advances_through_all_steps() {
         isolation: Arc::new(MockIsolation { work_dir: worktree_path.clone() }),
         executor: executor.clone(),
         platform: Arc::new(MockPlatform),
-        registry: Arc::new(RegistryAdapter(Arc::new(Mutex::new(ProcessRegistry::new())))),
+        registry: Arc::new(SharedRegistry(Arc::new(Mutex::new(ProcessRegistry::new())))),
         probe: Arc::new(ship_platform::services::process_tree_probe::SysinfoProcessTreeProbe::new()),
         done_flags: Arc::new(Mutex::new(std::collections::HashMap::new())),
         activity_txs: Arc::new(Mutex::new(std::collections::HashMap::new())),
@@ -443,7 +443,7 @@ async fn run_step_advances_to_agent_step() {
         isolation: Arc::new(MockIsolation { work_dir: worktree_path.clone() }),
         executor: executor.clone(),
         platform: Arc::new(MockPlatform),
-        registry: Arc::new(RegistryAdapter(Arc::new(Mutex::new(ProcessRegistry::new())))),
+        registry: Arc::new(SharedRegistry(Arc::new(Mutex::new(ProcessRegistry::new())))),
         probe: Arc::new(ship_platform::services::process_tree_probe::SysinfoProcessTreeProbe::new()),
         done_flags: Arc::new(Mutex::new(std::collections::HashMap::new())),
         activity_txs: Arc::new(Mutex::new(std::collections::HashMap::new())),
@@ -532,7 +532,7 @@ async fn first_step_run_executes_without_agent() {
         isolation: Arc::new(MockIsolation { work_dir: worktree_path.clone() }),
         executor: executor.clone(),
         platform: Arc::new(MockPlatform),
-        registry: Arc::new(RegistryAdapter(Arc::new(Mutex::new(ProcessRegistry::new())))),
+        registry: Arc::new(SharedRegistry(Arc::new(Mutex::new(ProcessRegistry::new())))),
         probe: Arc::new(ship_platform::services::process_tree_probe::SysinfoProcessTreeProbe::new()),
         done_flags: Arc::new(Mutex::new(std::collections::HashMap::new())),
         activity_txs: Arc::new(Mutex::new(std::collections::HashMap::new())),

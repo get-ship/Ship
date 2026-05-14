@@ -252,7 +252,7 @@ Two paths out of transport: HTTP to the daemon, or a direct compile call. The da
 | Crate | Role |
 |---|---|
 | `ship-types` | Shared type primitives. Zero internal deps. |
-| `ship-jobs` | Pipeline and job types. YAML normalization. |
+| `ship-jobs` | Pipeline and job types. JSONC normalization. |
 | `ship-kernel` | Pure event routing. Actor model. |
 | `runtime` | State management. Persistence, services, projections, registry. |
 | `compiler` | Pure transformation. Native + WASM. |

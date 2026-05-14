@@ -44,7 +44,7 @@ Service actors and coordination:
 
 - `orchestrator/` — pipeline execution engine:
   - `pipeline.rs` — `advance_pipeline` (finds unblocked steps, dispatches next)
-  - `pipeline_loader.rs` — `ensure_pipeline` (loads and normalizes YAML)
+  - `pipeline_loader.rs` — `ensure_pipeline` (loads and normalizes JSONC)
   - `pipeline_vars.rs` — template variable interpolation
   - `gate_retry.rs` — re-dispatches failed gate steps up to `max_retries`
   - `step_monitor.rs` — watches agent process exit, sets done flag

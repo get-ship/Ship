@@ -101,10 +101,10 @@ impl FeedbackGuard {
     request_body(content_type = "application/json", description = "FeedbackEvent — kind, author_kind, target, payload"),
     responses(
         (status = 200, description = "Feedback accepted"),
-        (status = 400, description = "Invalid feedback payload", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 401, description = "Unauthenticated", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 429, description = "Rate limited", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 500, description = "Server error", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 400, description = "Invalid feedback payload", body = crate::wire::ErrorResponse),
+        (status = 401, description = "Unauthenticated", body = crate::wire::ErrorResponse),
+        (status = 429, description = "Rate limited", body = crate::wire::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::wire::ErrorResponse),
     ),
     tag = "runtime"
 )]
@@ -185,9 +185,13 @@ async fn emit_kernel(
     let envelope = EventEnvelope::new("studio.feedback.created", entity_id, &payload)
         .map_err(|e| err(StatusCode::BAD_REQUEST, "envelope_invalid", &e.to_string()))?;
     let ctx = auth.to_daemon_emit_context();
-    #[allow(deprecated)] // route() preserved here; emit() migration tracked separately
-    let route_result = state.kernel().lock().await.route(envelope, &ctx).await;
-    route_result.map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, "route_failed", &e.to_string()))
+    state
+        .kernel()
+        .lock()
+        .await
+        .emit(envelope, &ctx)
+        .await
+        .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, "route_failed", &e.to_string()))
 }
 
 // ───────────────────────── Validation ─────────────────────────

@@ -40,13 +40,13 @@ All tool names are **verb-first** (`verb_noun`). Tools renamed during the launch
 
 ### Mesh
 
-**send_mesh_message** -- `to` (string, required), `body` (JSON, required). Send a directed message to another agent on the mesh. _Alias: `mesh_send`._
+**send_mesh_message** -- `to` (string, required), `body` (JSON, required). Send a directed message to another agent on the mesh
 
-**broadcast_mesh_message** -- `body` (JSON, required), `capability_filter` (optional). Broadcast a message to all agents, optionally filtered by capability. _Alias: `mesh_broadcast`._
+**broadcast_mesh_message** -- `body` (JSON, required), `capability_filter` (optional). Broadcast a message to all agents, optionally filtered by capability
 
-**discover_mesh_agents** -- no params. Discover agents on the mesh. _Alias: `mesh_discover`._
+**discover_mesh_agents** -- no params. Discover agents on the mesh
 
-**update_mesh_status** -- `status` (string, required). Update this agent's status on the mesh (active, busy, idle). _Alias: `mesh_status`._
+**update_mesh_status** -- `status` (string, required). Update this agent's status on the mesh (active, busy, idle)
 
 ### Jobs
 
@@ -70,25 +70,25 @@ All tool names are **verb-first** (`verb_noun`). Tools renamed during the launch
 
 ### Views (lint / scaffold / errors / SDK)
 
-**lint_view** -- `name` (string, optional, lint a saved view) or `source` (string, optional, lint an in-flight draft). _Alias: `ship_view_lint`._
+**lint_view** -- `name` (string, optional, lint a saved view) or `source` (string, optional, lint an in-flight draft)
 
-**scaffold_view** -- `name` (string, required), `collection` (required for list/form/detail shapes), `shape` (`blank`/`list`/`list-edit-delete`/`form`/`detail`/`tabs`, default `blank`). _Alias: `ship_view_scaffold`._
+**scaffold_view** -- `name` (string, required), `collection` (required for list/form/detail shapes), `shape` (`blank`/`list`/`list-edit-delete`/`form`/`detail`/`tabs`, default `blank`)
 
-**get_view_errors** -- `since` (id floor, optional), `view` (filter, optional), `limit` (default 50, max 200), `clear_after` (boolean, optional). _Alias: `ship_view_errors`._
+**get_view_errors** -- `since` (id floor, optional), `view` (filter, optional), `limit` (default 50, max 200), `clear_after` (boolean, optional)
 
-**query_sdk** -- `query` (string, required), `limit` (default 20), `kind` (`macro`/`route`/`view`/`collection`/`trigger`, optional). _Alias: `ship_sdk_query`._
+**query_sdk** -- `query` (string, required), `limit` (default 20), `kind` (`macro`/`route`/`view`/`collection`/`trigger`, optional)
 
 ### Artifacts
 
-**upload_artifact** -- `scope` (run/project/user), `run_id` (required when scope=run), `bytes_b64` (string, required), `name` (string, required), `mime` (optional), `expires_at` (optional). _Alias: `artifact_upload`._
+**upload_artifact** -- `scope` (run/project/user), `run_id` (required when scope=run), `bytes_b64` (string, required), `name` (string, required), `mime` (optional), `expires_at` (optional)
 
-**get_artifact** -- `id` (string, required). _Alias: `artifact_get`._
+**get_artifact** -- `id` (string, required)
 
-**list_artifacts** -- `scope` (optional, default project), `filter_json` (optional). _Alias: `artifact_list`._
+**list_artifacts** -- `scope` (optional, default project), `filter_json` (optional)
 
-**delete_artifact** -- `id` (string, required). _Alias: `artifact_delete`._
+**delete_artifact** -- `id` (string, required)
 
-**promote_artifact** -- `id` (string, required), `target_scope` (project/user). _Alias: `artifact_promote`._
+**promote_artifact** -- `id` (string, required), `target_scope` (project/user)
 
 ## ShipServer — experimental tools
 
@@ -106,19 +106,19 @@ These tools are registered on every binary; their descriptions carry an `**EXPER
 
 ### Events
 
-**emit_event** -- `event_type` (string, required, namespaced with dot e.g. "deployment.completed"), `payload` (JSON, required), `elevated` (boolean, optional, default false). Emit a domain event. Reserved prefixes (actor.*, session.*, skill.*, workspace.*, gate.*, job.*, config.*, project.*) are rejected. Actor and workspace are injected from connection context. _Alias: `event`._
+**emit_event** -- `event_type` (string, required, namespaced with dot e.g. "deployment.completed"), `payload` (JSON, required), `elevated` (boolean, optional, default false). Emit a domain event. Reserved prefixes (actor.*, session.*, skill.*, workspace.*, gate.*, job.*, config.*, project.*) are rejected. Actor and workspace are injected from connection context
 
 ### Views (canvas)
 
-**open_view** -- `template` (string, required), `title` (optional), `initial_context` (optional JSON). Open a new agent-owned view session. Returns `view_id` and `url`. _Alias: `view_open`._
+**open_view** -- `template` (string, required), `title` (optional), `initial_context` (optional JSON). Open a new agent-owned view session. Returns `view_id` and `url`
 
-**patch_view** -- `view_id` (string, required), `selector` (string, required), `html` (string, required). Patch (morph) a selector inside an open view session with new HTML. _Alias: `view_patch`._
+**patch_view** -- `view_id` (string, required), `selector` (string, required), `html` (string, required). Patch (morph) a selector inside an open view session with new HTML
 
-**append_view** -- `view_id` (string, required), `selector` (string, required), `html` (string, required). Append HTML at a selector. _Alias: `view_append`._
+**append_view** -- `view_id` (string, required), `selector` (string, required), `html` (string, required). Append HTML at a selector
 
-**signal_view** -- `view_id` (string, required), `name` (string, required), `value` (JSON, required). Set a reactive signal in an open view session. _Alias: `view_signal`._
+**signal_view** -- `view_id` (string, required), `name` (string, required), `value` (JSON, required). Set a reactive signal in an open view session
 
-**close_view** -- `view_id` (string, required). Close a view session. Only the owning agent may close. _Alias: `view_close`._
+**close_view** -- `view_id` (string, required). Close a view session. Only the owning agent may close
 
 ## StudioServer tools
 

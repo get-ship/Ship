@@ -22,7 +22,7 @@
 use axum::Json;
 use serde::Serialize;
 
-use crate::routes::rest_api::MeshResponse;
+use crate::wire::MeshResponse;
 
 /// `GET /api/v1/ship/schema` — catalog of every `ship.<domain>.<op>` the
 /// registry exposes. Consumers:

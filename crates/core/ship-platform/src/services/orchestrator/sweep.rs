@@ -38,6 +38,34 @@ pub async fn run_sweep(
     let start = std::time::Instant::now();
 
     let jobs = load_jobs()?;
+
+    // Evict dead handles from the registry before reading live_slugs. The
+    // registry tracks "what was registered"; this drains anything the
+    // executor reports as no-longer-alive so the drift checks below see
+    // truth. Each drained slug becomes a job.failed below — that was
+    // previously the job of `liveness::sweep_registered` in shipd, folded
+    // here so a single sweep owns the coherence story.
+    let dead_drained = octx.registry.drain_dead(&*octx.executor).await;
+    for slug in &dead_drained {
+        if let Some(job) = jobs.values().find(|j| &j.slug == slug) {
+            let fail_payload = JobFailedPayload {
+                job_id: job.job_id.clone(),
+                error: "coherence sweep: process died without completing".to_string(),
+            };
+            if let Ok(env) =
+                EventEnvelope::new(job_events::JOB_FAILED, &job.job_id, &fail_payload)
+            {
+                let env = env.with_actor_id("service.coherence-sweep");
+                persist_and_route(kernel, env, &job.slug, None).await;
+            }
+        } else {
+            tracing::warn!(
+                slug,
+                "coherence sweep: drained dead handle has no matching job"
+            );
+        }
+    }
+
     let live_slugs = octx.registry.live_slugs().await;
 
     // Emit sweep_started
@@ -71,9 +99,10 @@ pub async fn run_sweep(
         }
 
         // Registry is the authoritative "is this process alive?" signal.
-        // resume_handle is tmux-only today (headless ProcessExecutor returns
-        // None unconditionally — routing.rs), so relying on it alone drift-
-        // fails every live headless agent within one sweep tick.
+        // resume_handle is TmuxWindow-only — headless ProcessExecutor and
+        // ServerExecutor return None unconditionally (routing.rs), so
+        // relying on it alone would drift-fail every live headless agent
+        // within one sweep tick.
         if live_slugs.iter().any(|s| s == &job.slug) {
             continue;
         }

@@ -5,7 +5,6 @@
 
 pub const SHIP_DIR_NAME: &str = ".ship";
 pub const PRIMARY_CONFIG_FILE: &str = "ship.jsonc";
-pub const LEGACY_CONFIG_FILE: &str = "ship.toml";
 
 mod app_state;
 mod discovery;
@@ -24,8 +23,7 @@ pub use identity::{
     ensure_project_id, get_project_name, project_slug_from_ship_dir, sanitize_file_name,
 };
 pub use paths::{
-    adrs_dir, agents_ns, features_dir, legacy_agents_skills_dir, legacy_project_skills_dir,
-    legacy_project_skills_dir_candidates, mcp_config_path, modes_dir, notes_dir,
+    adrs_dir, agents_ns, features_dir, mcp_config_path, modes_dir, notes_dir,
     permissions_config_path, project_ns, project_skills_dir, releases_dir, rules_dir, skills_dir,
     teams_dir, upcoming_releases_dir, user_skills_dir, vision_doc_path,
     vision_template_path,

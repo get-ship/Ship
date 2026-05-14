@@ -251,23 +251,37 @@ pub fn get_permissions(ship_dir: PathBuf) -> Result<Permissions> {
         return Ok(Permissions::default());
     }
     let content = fs::read_to_string(&path)?;
-    // permissions.jsonc is JSONC; legacy .toml files may still exist.
-    let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
-    if ext == "jsonc" || ext == "json" {
-        Ok(serde_json::from_str(&ship_substrate::fs_util::strip_jsonc_comments(&content))?)
-    } else {
-        // Legacy TOML path
-        if is_named_preset_format(&content) {
-            return Ok(Permissions::default());
-        }
-        Ok(toml::from_str(&content)?)
-    }
+    let stripped = ship_substrate::fs_util::strip_jsonc_comments(&content);
+    // Named-preset files keep a flat top-level map of preset name → settings and
+    // do not deserialize as flat `Permissions`. Return defaults rather than
+    // erroring; preset resolution happens elsewhere via `load_permission_preset`.
+    Ok(serde_json::from_str(&stripped).unwrap_or_default())
 }
 
-/// Returns true when the TOML content appears to be a named-preset file
-/// (top-level keys like `[ship-standard]`) rather than the flat permissions format
-/// (top-level keys like `[tools]`, `[commands]`, `[filesystem]`, `[network]`, `[agent]`).
-fn is_named_preset_format(content: &str) -> bool {
+pub fn save_permissions(ship_dir: PathBuf, permissions: &Permissions) -> Result<()> {
+    let path = permissions_path(&ship_dir);
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    // Do not overwrite a human-authored named-preset file with a flat permissions
+    // struct. The named-preset format ("ship-standard", "ship-autonomous", etc.) is
+    // a user-maintained reference that the compile path reads via profile presets.
+    if path.exists()
+        && let Ok(existing) = fs::read_to_string(&path)
+        && is_named_preset_file(&existing)
+    {
+        return Ok(());
+    }
+    let json = serde_json::to_string_pretty(permissions)?;
+    write_atomic(&path, &json)?;
+    emit_permissions_updated(&ship_dir, &json);
+    Ok(())
+}
+
+/// Returns true when the content appears to be a named-preset permissions file
+/// (top-level map of preset name → settings) rather than a flat `Permissions`
+/// (top-level keys like `tools`, `commands`, `filesystem`, `network`, `agent`).
+fn is_named_preset_file(content: &str) -> bool {
     let flat_keys = [
         "tools",
         "commands",
@@ -277,41 +291,17 @@ fn is_named_preset_format(content: &str) -> bool {
         "default_mode",
         "additional_directories",
     ];
-    let Ok(value) = toml::from_str::<toml::Value>(content) else {
+    let stripped = ship_substrate::fs_util::strip_jsonc_comments(content);
+    let Ok(value) = serde_json::from_str::<serde_json::Value>(&stripped) else {
         return false;
     };
-    let Some(table) = value.as_table() else {
+    let Some(obj) = value.as_object() else {
         return false;
     };
-    if table.is_empty() {
+    if obj.is_empty() {
         return false;
     }
-    // If none of the top-level keys are recognized flat-format keys,
-    // the file is in named-preset format.
-    !table.keys().any(|k| flat_keys.contains(&k.as_str()))
-}
-
-pub fn save_permissions(ship_dir: PathBuf, permissions: &Permissions) -> Result<()> {
-    let path = permissions_path(&ship_dir);
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent)?;
-    }
-    // Do not overwrite a human-authored named-preset file with a flat permissions
-    // struct. The named-preset format ([ship-standard], [ship-autonomous], etc.) is
-    // a user-maintained reference that the compile path reads via profile presets.
-    // Overwriting it would destroy the named sections on every `ship use`.
-    if path.exists()
-        && let Ok(existing) = fs::read_to_string(&path)
-        && is_named_preset_format(&existing)
-    {
-        return Ok(());
-    }
-    // permissions_config_path returns *.jsonc — write JSON to match the reader
-    // dispatch in get_permissions (which parses .jsonc as JSON, not TOML).
-    let json = serde_json::to_string_pretty(permissions)?;
-    write_atomic(&path, &json)?;
-    emit_permissions_updated(&ship_dir, &json);
-    Ok(())
+    !obj.keys().any(|k| flat_keys.contains(&k.as_str()))
 }
 
 fn canonical_tool_ids() -> Vec<String> {

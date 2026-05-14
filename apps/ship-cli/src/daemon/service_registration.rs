@@ -70,7 +70,7 @@ pub fn install_service(opts: InstallOptions) -> Result<ServiceReport> {
         .context("locate shipd binary")?;
     #[cfg(target_os = "linux")]
     {
-        return linux::install(&shipd, &opts);
+        linux::install(&shipd, &opts)
     }
     #[cfg(target_os = "macos")]
     {
@@ -93,7 +93,7 @@ pub fn install_service(opts: InstallOptions) -> Result<ServiceReport> {
 pub fn uninstall_service() -> Result<ServiceReport> {
     #[cfg(target_os = "linux")]
     {
-        return linux::uninstall();
+        linux::uninstall()
     }
     #[cfg(target_os = "macos")]
     {
@@ -169,7 +169,7 @@ fn default_paths() -> Vec<PathBuf> {
         vec![
             PathBuf::from("/usr/bin/shipd"),
             PathBuf::from("/usr/local/bin/shipd"),
-            dirs::home_dir()
+            home::home_dir()
                 .map(|h| ship_substrate::ShipHome::project_ship_dir(h).join("bin").join("shipd"))
                 .unwrap_or_default(),
         ]
@@ -179,7 +179,7 @@ fn default_paths() -> Vec<PathBuf> {
         vec![
             PathBuf::from("/usr/local/bin/shipd"),
             PathBuf::from("/opt/homebrew/bin/shipd"),
-            dirs::home_dir()
+            home::home_dir()
                 .map(|h| ship_substrate::ShipHome::project_ship_dir(h).join("bin").join("shipd"))
                 .unwrap_or_default(),
         ]
@@ -188,7 +188,7 @@ fn default_paths() -> Vec<PathBuf> {
     {
         vec![
             PathBuf::from(r"C:\Program Files\Ship\shipd.exe"),
-            dirs::home_dir()
+            home::home_dir()
                 .map(|h| ship_substrate::ShipHome::project_ship_dir(h).join("bin").join("shipd.exe"))
                 .unwrap_or_default(),
         ]

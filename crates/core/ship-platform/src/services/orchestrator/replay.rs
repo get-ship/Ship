@@ -214,3 +214,7 @@ async fn reconcile_dispatched_inner(
     tracing::info!("job-dispatch: reconciliation complete");
 }
 
+// (Dead `emit_step_failed` removed — `super::emit::emit_step_failed` is the
+// canonical helper. The local variant also double-emitted via both
+// SqliteEventStore::append AND KernelRouter::emit, which would duplicate the
+// row had it ever been called.)

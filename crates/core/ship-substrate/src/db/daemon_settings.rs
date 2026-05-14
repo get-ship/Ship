@@ -92,7 +92,7 @@ mod tests {
 
     fn setup() -> tempfile::TempDir {
         let tmp = tempdir().unwrap();
-        init_project(tmp.path().to_path_buf()).unwrap();
+        init_project(tmp.path()).unwrap();
         ensure_db().unwrap();
         tmp
     }

@@ -50,6 +50,21 @@ pub struct AgentConfig {
     pub name: String,
     #[serde(default)]
     pub description: Option<String>,
+    /// Legacy role for tool gating defaults (`worker`, `lead`, `commander`).
+    /// Retained for back-compat with profiles that haven't migrated to
+    /// `tools_preset`. Mapping:
+    ///   worker → preset "worker"
+    ///   lead | commander → preset "orchestrator"
+    /// `tools_preset` takes precedence when both are set.
+    #[serde(default)]
+    pub role: Option<String>,
+    /// Tool preset name. Controls which platform-shipped tools this agent
+    /// sees before `active_tools` is applied. Known presets:
+    ///   "worker" → platform protocol tools only
+    ///   "orchestrator" → worker tools + create_job + mesh_* tools
+    /// Unset falls back to `role` mapping, then to "worker".
+    #[serde(default)]
+    pub tools_preset: Option<String>,
     #[serde(default)]
     pub active_tools: Vec<String>,
     #[serde(default)]
@@ -58,8 +73,6 @@ pub struct AgentConfig {
     pub skills: Vec<String>,
     #[serde(default)]
     pub rules: Vec<String>,
-    #[serde(default)]
-    pub prompt_id: Option<String>,
     #[serde(default)]
     pub hooks: Vec<HookConfig>,
     #[serde(default)]

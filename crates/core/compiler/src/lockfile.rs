@@ -2,6 +2,7 @@
 //!
 //! `ship.lock` is the registry dependency lockfile (`.ship/ship.lock`).
 //! It records direct resolved dependencies — path, version, commit, and content hash.
+//! On disk, the file is JSON (with deterministic key ordering for stable diffs).
 //!
 //! NOTE: `.ship/ship.state` (formerly `.ship/ship.lock`) stores workspace state
 //! (active_profile, compiled_at). These are completely separate files.
@@ -40,7 +41,7 @@ pub struct ShipLock {
     /// Lockfile format version. Must be `1` for v0.1.
     pub version: u32,
     /// Locked packages, one entry per direct dependency.
-    #[serde(rename = "package", default)]
+    #[serde(default)]
     pub packages: Vec<LockPackage>,
 }
 
@@ -58,42 +59,31 @@ impl ShipLock {
     pub fn from_file(path: &Path) -> anyhow::Result<Self> {
         let content = std::fs::read_to_string(path)
             .with_context(|| format!("Cannot read {}", path.display()))?;
-        let lock: ShipLock = toml::from_str(&content)
-            .with_context(|| format!("Failed to parse {}", path.display()))?;
-        Ok(lock)
+        Self::from_json_str(&content)
+            .with_context(|| format!("Failed to parse {}", path.display()))
     }
 
-    /// Serialize to a deterministic TOML string.
-    ///
-    /// Packages are sorted by path. Fields are emitted in a fixed order
-    /// (path, version, commit, hash) so the output is byte-identical for
-    /// the same logical content.
-    pub fn to_toml_string(&self) -> String {
-        let mut pkgs = self.packages.clone();
-        pkgs.sort_by(|a, b| a.path.cmp(&b.path));
+    /// Parse a `ship.lock` JSON string.
+    pub fn from_json_str(s: &str) -> anyhow::Result<Self> {
+        serde_json::from_str(s).map_err(Into::into)
+    }
 
-        let mut out = format!("version = {}\n", self.version);
-        for pkg in &pkgs {
-            out.push('\n');
-            out.push_str("[[package]]\n");
-            out.push_str(&format!("path = {:?}\n", pkg.path));
-            out.push_str(&format!("version = {:?}\n", pkg.version));
-            out.push_str(&format!("commit = {:?}\n", pkg.commit));
-            out.push_str(&format!("hash = {:?}\n", pkg.hash));
-            if !pkg.export_hashes.is_empty() {
-                out.push_str("\n[package.export_hashes]\n");
-                for (k, v) in &pkg.export_hashes {
-                    out.push_str(&format!("{:?} = {:?}\n", k, v));
-                }
-            }
-        }
-        out
+    /// Serialize to a deterministic JSON string.
+    ///
+    /// Packages are sorted by path so the output is byte-identical for the
+    /// same logical content.
+    pub fn to_json_string(&self) -> anyhow::Result<String> {
+        let mut sorted = self.clone();
+        sorted.packages.sort_by(|a, b| a.path.cmp(&b.path));
+        let mut s = serde_json::to_string_pretty(&sorted)?;
+        s.push('\n');
+        Ok(s)
     }
 
     /// Atomically write the lockfile: write to `<path>.tmp` then rename.
     pub fn write_atomic(&self, path: &Path) -> anyhow::Result<()> {
         let tmp = path.with_extension("lock.tmp");
-        let content = self.to_toml_string();
+        let content = self.to_json_string()?;
         std::fs::write(&tmp, &content)
             .with_context(|| format!("Cannot write temp lockfile {}", tmp.display()))?;
         std::fs::rename(&tmp, path)
@@ -154,48 +144,25 @@ mod tests {
         }
     }
 
+    fn minimal_manifest_jsonc() -> &'static str {
+        r#"{
+            "module": { "name": "github.com/x/y", "version": "1.0.0" }
+        }"#
+    }
+
     #[test]
-    fn to_toml_string_is_sorted() {
+    fn to_json_string_is_sorted() {
         let lock = sample_lock();
-        let s = lock.to_toml_string();
+        let s = lock.to_json_string().unwrap();
         let a_pos = s.find("github.com/a/first").unwrap();
         let b_pos = s.find("github.com/b/second").unwrap();
         assert!(a_pos < b_pos, "packages should be sorted by path");
     }
 
     #[test]
-    fn to_toml_string_fixed_field_order() {
-        let lock = ShipLock {
-            version: 1,
-            packages: vec![LockPackage {
-                path: "github.com/x/y".into(),
-                version: "1.0.0".into(),
-                commit: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".into(),
-                hash: "sha256:cafe".into(),
-                export_hashes: BTreeMap::new(),
-            }],
-        };
-        let s = lock.to_toml_string();
-        // Find the [[package]] block start, then check field order within it
-        let pkg_block_start = s.find("[[package]]").unwrap();
-        let block = &s[pkg_block_start..];
-        let path_pos = block.find("path =").unwrap();
-        // Find version = after path = (skip the top-level "version = 1")
-        let ver_pos = block.find("version =").unwrap();
-        let commit_pos = block.find("commit =").unwrap();
-        let hash_pos = block.find("hash =").unwrap();
-        assert!(path_pos < ver_pos, "path before version in package block");
-        assert!(
-            ver_pos < commit_pos,
-            "version before commit in package block"
-        );
-        assert!(commit_pos < hash_pos, "commit before hash in package block");
-    }
-
-    #[test]
-    fn to_toml_string_deterministic() {
+    fn to_json_string_deterministic() {
         let lock = sample_lock();
-        assert_eq!(lock.to_toml_string(), lock.to_toml_string());
+        assert_eq!(lock.to_json_string().unwrap(), lock.to_json_string().unwrap());
     }
 
     #[test]
@@ -205,7 +172,6 @@ mod tests {
         let path = dir.path().join("ship.lock");
         lock.write_atomic(&path).unwrap();
         let loaded = ShipLock::from_file(&path).unwrap();
-        // Both must contain same packages (order may differ after toml re-parse)
         assert_eq!(loaded.version, 1);
         let mut names: Vec<_> = loaded.packages.iter().map(|p| p.path.as_str()).collect();
         names.sort();
@@ -221,13 +187,7 @@ mod tests {
     #[test]
     fn check_sync_both_empty() {
         let lock = ShipLock::default();
-        let manifest = ShipManifest::from_toml_str(
-            r#"[module]
-name = "github.com/x/y"
-version = "1.0.0"
-"#,
-        )
-        .unwrap();
+        let manifest = ShipManifest::from_jsonc_str(minimal_manifest_jsonc()).unwrap();
         let (added, removed) = lock.check_sync(&manifest);
         assert!(added.is_empty());
         assert!(removed.is_empty());
@@ -236,15 +196,11 @@ version = "1.0.0"
     #[test]
     fn check_sync_added_dep() {
         let lock = ShipLock::default();
-        let manifest = ShipManifest::from_toml_str(
-            r#"
-[module]
-name = "github.com/x/y"
-version = "1.0.0"
-
-[dependencies]
-"github.com/a/b" = "^1.0.0"
-"#,
+        let manifest = ShipManifest::from_jsonc_str(
+            r#"{
+                "module": { "name": "github.com/x/y", "version": "1.0.0" },
+                "dependencies": { "github.com/a/b": "^1.0.0" }
+            }"#,
         )
         .unwrap();
         let (added, removed) = lock.check_sync(&manifest);
@@ -264,13 +220,7 @@ version = "1.0.0"
                 export_hashes: BTreeMap::new(),
             }],
         };
-        let manifest = ShipManifest::from_toml_str(
-            r#"[module]
-name = "github.com/x/y"
-version = "1.0.0"
-"#,
-        )
-        .unwrap();
+        let manifest = ShipManifest::from_jsonc_str(minimal_manifest_jsonc()).unwrap();
         let (added, removed) = lock.check_sync(&manifest);
         assert!(added.is_empty());
         assert_eq!(removed, vec!["github.com/a/b"]);
@@ -283,13 +233,13 @@ version = "1.0.0"
         assert!(!path.exists());
         ShipLock::default().write_atomic(&path).unwrap();
         assert!(path.exists());
-        // Ensure tmp file is cleaned up
         assert!(!dir.path().join("ship.lock.tmp").exists());
     }
 
     #[test]
     fn version_field_is_written() {
-        let s = ShipLock::default().to_toml_string();
-        assert!(s.starts_with("version = 1"), "got: {s}");
+        let s = ShipLock::default().to_json_string().unwrap();
+        let v: serde_json::Value = serde_json::from_str(&s).unwrap();
+        assert_eq!(v.get("version").and_then(|x| x.as_u64()), Some(1));
     }
 }

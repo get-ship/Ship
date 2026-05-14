@@ -41,10 +41,7 @@ pub(super) fn rule_pack_declarations(
         }
     }
 
-    let declared = match read_manifest_packs(&view.dir) {
-        Ok(list) => list,
-        Err(_) => Vec::new(),
-    };
+    let declared = read_manifest_packs(&view.dir).unwrap_or_default();
 
     if enabled.contains(&RULE_MISSING_PACK_DECLARATION) {
         for &(pack, tags) in PACKS {
@@ -127,7 +124,7 @@ fn read_manifest_packs(view_dir: &std::path::Path) -> anyhow::Result<Vec<String>
     }
     if jsonc.exists() {
         let raw = std::fs::read_to_string(&jsonc)?;
-        let stripped = strip_jsonc_comments(&raw);
+        let stripped = ship_substrate::fs_util::strip_jsonc_comments(&raw);
         let parsed: serde_json::Value = serde_json::from_str(&stripped)?;
         return Ok(extract_packs(&parsed));
     }
@@ -155,54 +152,6 @@ fn value_from_yaml(v: &serde_yaml::Value) -> serde_json::Value {
     serde_json::to_value(v).unwrap_or(serde_json::Value::Null)
 }
 
-fn strip_jsonc_comments(src: &str) -> String {
-    let bytes = src.as_bytes();
-    let mut out = String::with_capacity(src.len());
-    let mut i = 0;
-    let mut in_string = false;
-    let mut string_delim = b'"';
-    while i < bytes.len() {
-        let c = bytes[i];
-        if in_string {
-            out.push(c as char);
-            if c == b'\\' && i + 1 < bytes.len() {
-                out.push(bytes[i + 1] as char);
-                i += 2;
-                continue;
-            }
-            if c == string_delim {
-                in_string = false;
-            }
-            i += 1;
-            continue;
-        }
-        if c == b'"' || c == b'\'' {
-            in_string = true;
-            string_delim = c;
-            out.push(c as char);
-            i += 1;
-            continue;
-        }
-        if c == b'/' && i + 1 < bytes.len() && bytes[i + 1] == b'/' {
-            while i < bytes.len() && bytes[i] != b'\n' {
-                i += 1;
-            }
-            continue;
-        }
-        if c == b'/' && i + 1 < bytes.len() && bytes[i + 1] == b'*' {
-            i += 2;
-            while i + 1 < bytes.len() && !(bytes[i] == b'*' && bytes[i + 1] == b'/') {
-                i += 1;
-            }
-            i = (i + 2).min(bytes.len());
-            continue;
-        }
-        out.push(c as char);
-        i += 1;
-    }
-    out
-}
-
 fn manifest_filename(view_dir: &std::path::Path) -> &'static str {
     if view_dir.join("manifest.yaml").exists() {
         "manifest.yaml"
@@ -210,5 +159,39 @@ fn manifest_filename(view_dir: &std::path::Path) -> &'static str {
         "manifest.jsonc"
     } else {
         "manifest.json"
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::read_manifest_packs;
+    use tempfile::tempdir;
+
+    /// JSONC manifests round-trip through the shared
+    /// `ship_substrate::fs_util::strip_jsonc_comments` path: line and block
+    /// comments are erased, trailing commas are dropped, and string contents
+    /// (including URLs that contain `//`) survive untouched.
+    #[test]
+    fn jsonc_manifest_with_comments_and_trailing_commas() {
+        let dir = tempdir().unwrap();
+        let manifest = dir.path().join("manifest.jsonc");
+        std::fs::write(
+            &manifest,
+            r#"{
+  // line comment with // inside
+  /* block
+     comment */
+  "docs": "https://example.com/manifest", // trailing line comment
+  "packs": [
+    "ship-code-editor",
+    "ship-terminal", // trailing comma below
+  ],
+}
+"#,
+        )
+        .unwrap();
+
+        let packs = read_manifest_packs(dir.path()).expect("parses");
+        assert_eq!(packs, vec!["ship-code-editor", "ship-terminal"]);
     }
 }

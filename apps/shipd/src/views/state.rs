@@ -8,7 +8,7 @@
 //!
 //! R0a ships only what the pipelines pilot (R0b) will consume. That is:
 //!
-//! - Pipeline definitions from `.ship/pipelines/*.yaml`
+//! - Pipeline definitions from `.ship/pipelines/*.jsonc`
 //! - Pipeline runs (via `ship_platform::projections::job::load_jobs`)
 //! - A shared [`Filter`] struct for query-string-driven view filters
 //!
@@ -19,11 +19,11 @@
 // Agents + Skills state lives in sibling modules to respect the 300-line
 // cap on this file. Re-exports let callers use `views::state::list_agents`
 // without knowing about the split.
-pub use crate::services::agents::view_state::{
+pub use ship_platform::services::agents::view_state::{
     AgentCatalogs, AgentDetail, AgentSummary, CatalogEntry, Permissions,
     ToolPatternEntry, list_agent_catalogs, list_agents, load_agent,
 };
-pub use crate::services::skills::view_state::{
+pub use ship_platform::services::skills::view_state::{
     SkillDetail, SkillKind, SkillSummary, list_skills, load_skill,
     load_skill_file,
 };
@@ -34,7 +34,7 @@ use std::collections::HashMap;
 use std::io::ErrorKind;
 use std::path::Path;
 
-/// Definition of a pipeline parsed from a `.ship/pipelines/*.yaml` file,
+/// Definition of a pipeline parsed from a `.ship/pipelines/*.jsonc` file,
 /// plus usage stats aggregated from JobRecords referencing it.
 #[derive(Clone, Debug, Serialize)]
 pub struct PipelineDef {
@@ -190,7 +190,7 @@ pub fn list_pipeline_defs(ship_dir: &Path) -> Vec<PipelineDef> {
     let mut walker = std::env::current_dir().ok();
     let mut project_local = None;
     while let Some(d) = walker.as_ref() {
-        let cand = ship_substrate::ShipHome::project_ship_dir(&d).join("pipelines");
+        let cand = ship_substrate::ShipHome::project_ship_dir(d).join("pipelines");
         if cand.is_dir() {
             project_local = Some(cand);
             break;

@@ -19,7 +19,7 @@ mod tests {
 
     fn setup() -> tempfile::TempDir {
         let tmp = tempfile::tempdir().unwrap();
-        crate::testutil::init_project_minimal(tmp.path().to_path_buf()).unwrap();
+        crate::testutil::init_project_minimal(tmp.path()).unwrap();
         ensure_db().unwrap();
         tmp
     }

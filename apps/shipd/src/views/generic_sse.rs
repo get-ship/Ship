@@ -11,7 +11,7 @@ use ship_substrate::gen_ulid;
 use std::collections::HashMap;
 use std::time::Duration;
 
-use crate::routes::rest_api::ApiState;
+use crate::ship_runtime::ApiState;
 use crate::services::ship_ns::ShipNs;
 use crate::views::stream::{ViewSse, ViewStream};
 
@@ -100,8 +100,8 @@ fn render_partial(
     params(("name" = String, Path, description = "View name")),
     responses(
         (status = 200, description = "Server-sent-event stream of view fragments", content_type = "text/event-stream"),
-        (status = 401, description = "Unauthenticated", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 404, description = "View not found", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 401, description = "Unauthenticated", body = crate::wire::ErrorResponse),
+        (status = 404, description = "View not found", body = crate::wire::ErrorResponse),
     ),
     tag = "views"
 )]
@@ -112,7 +112,7 @@ pub async fn serve_view_sse(
 ) -> ViewSse {
     let (vs, sse) = ViewStream::new();
 
-    let view_dir_opt = super::resolve_view_dir(&name);
+    let view_dir_opt = super::resolve_view_dir(&name, None);
 
     let actor_id = format!("view-sse-{name}-{}", gen_ulid());
 
@@ -166,7 +166,7 @@ pub async fn serve_view_sse(
                 None
             }
         };
-        let _guard = crate::routes::runtime_api::ActorGuard {
+        let _guard = crate::ship_runtime::ActorGuard {
             actor_id,
             kernel: state.kernel().clone(),
         };

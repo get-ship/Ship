@@ -11,7 +11,7 @@ use std::path::{Path, PathBuf};
 pub fn init_project(base_dir: impl AsRef<Path>) -> Result<PathBuf> {
     crate::install_defaults();
     let base_dir = base_dir.as_ref();
-    let ship_dir = base_dir.join(".ship");
+    let ship_dir = ship_substrate::ShipHome::project_ship_dir(base_dir);
     std::fs::create_dir_all(&ship_dir)?;
     let id = ship_substrate::gen_nanoid();
     std::fs::write(

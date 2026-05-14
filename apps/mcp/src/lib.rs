@@ -7,7 +7,6 @@ mod resource_resolver;
 mod resources;
 mod server;
 mod tools;
-mod util;
 
 use anyhow::Result;
 use async_trait::async_trait;

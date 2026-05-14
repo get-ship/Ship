@@ -3,7 +3,7 @@
 // The lucide table itself is curated in
 // `packages/ship-set/src/web-components/core/lucide-icons.generated.ts`
 // and emitted alongside as a JSON asset
-// (`crates/ship-sui-server/assets/lucide-icons.json`) served at
+// (`crates/sui/ship-sui-server/assets/lucide-icons.json`) served at
 // `/_sui/lucide-icons.json`. R4 of the components-bundle audit moved
 // the SVG paths out of `sui-components.js` to drop ~13 KB raw / ~2 KB
 // gz off the every-page bundle.

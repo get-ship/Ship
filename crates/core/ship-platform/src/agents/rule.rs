@@ -214,7 +214,7 @@ mod tests {
     #[test]
     fn create_get_update_delete_rule_round_trip() -> Result<()> {
         let tmp = tempdir()?;
-        let ship_dir = init_project(tmp.path().to_path_buf())?;
+        let ship_dir = init_project(tmp.path())?;
 
         let created = create_rule(ship_dir.clone(), "runtime-hardening", "# Initial\n")?;
         assert_eq!(created.file_name, "runtime-hardening.md");
@@ -238,7 +238,7 @@ mod tests {
     #[test]
     fn rule_crud_rejects_invalid_file_names() -> Result<()> {
         let tmp = tempdir()?;
-        let ship_dir = init_project(tmp.path().to_path_buf())?;
+        let ship_dir = init_project(tmp.path())?;
 
         for invalid in ["", "README.md", "../escape.md", "nested/rule.md", "bad.txt"] {
             assert!(

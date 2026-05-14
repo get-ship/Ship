@@ -63,39 +63,19 @@ fn humanize(id: &str) -> String {
         .join(" ")
 }
 
-/// Legacy manifest `data:` declarations, consumed by
+/// Manifest `data:` declarations, consumed by
 /// `views::context::build_generic_context` for views still on the old
 /// injection pathway (canvas, setup, overview). File-routed views on
-/// the `ship.*` SDK ignore this block. Only `collections` is read
-/// today — the other fields were loaders for pre-framework views that
-/// have since migrated; kept here so older manifests still parse.
-#[allow(dead_code)]
+/// the `ship.*` SDK ignore this block. Today only `collections` is
+/// read; older manifests with extra keys (`items`, `settings`,
+/// `agents`, …) still parse because `#[serde(deny_unknown_fields)]`
+/// is absent — they're silently ignored.
 #[derive(Deserialize, Clone)]
 pub(crate) struct ManifestData {
     pub collections: Option<ManifestCollections>,
-    #[serde(default)]
-    pub items: Option<String>,
-    // Legacy fields — ignored at runtime. Remove once no in-tree manifest
-    // declares them.
-    #[serde(default, skip_serializing)]
-    pub settings: Option<bool>,
-    #[serde(default, skip_serializing)]
-    pub agents: Option<bool>,
-    #[serde(default, skip_serializing)]
-    pub skills: Option<bool>,
-    #[serde(default, skip_serializing)]
-    pub events_data: Option<bool>,
-    #[serde(default, skip_serializing)]
-    pub chat: Option<bool>,
-    #[serde(default, skip_serializing)]
-    pub specs: Option<bool>,
-    #[serde(default, skip_serializing)]
-    pub pipelines: Option<bool>,
-    #[serde(default, skip_serializing)]
-    pub git: Option<bool>,
 }
 
-#[allow(dead_code)] // serde parse target; inner values unused but kept for untagged parsing
+#[allow(dead_code)] // Deserialized into but only the variant tag matters.
 #[derive(Deserialize, Clone)]
 #[serde(untagged)]
 pub(crate) enum ManifestCollections {
@@ -107,15 +87,28 @@ pub(crate) fn is_valid_view_name(name: &str) -> bool {
     !name.is_empty() && !name.contains("..") && !name.contains('/') && !name.contains('\\')
 }
 
-/// Resolve a view directory by name. Walks the same priority order as
-/// `view_search_dirs` — workspace `views/` first, then `.ship/views/`,
-/// then global. First hit wins so workspace-scoped views can shadow
-/// built-ins without renaming.
-pub(crate) fn resolve_view_dir(name: &str) -> Option<(PathBuf, &'static str)> {
+/// Resolve a view directory by name. Checks project then global dirs.
+///
+/// `global_override` lets callers (typically write-side handlers that
+/// carry runtime state) use the daemon's configured `ship_dir` instead
+/// of the process-wide `get_global_dir()` — keeps test isolation
+/// honest when the daemon runs in a tempdir.
+pub(crate) fn resolve_view_dir(
+    name: &str,
+    global_override: Option<&std::path::Path>,
+) -> Option<(PathBuf, &'static str)> {
     if !is_valid_view_name(name) { return None; }
-    for d in super::discovery::view_search_dirs() {
-        let c = d.path.join(name);
-        if c.is_dir() { return Some((c, d.source)); }
+    if let Ok(d) = ship_application::project::get_project_dir(None) {
+        let c = d.join("views").join(name);
+        if c.is_dir() { return Some((c, "project")); }
+    }
+    let global = match global_override {
+        Some(p) => Some(p.to_path_buf()),
+        None => ship_application::project::get_global_dir().ok(),
+    };
+    if let Some(d) = global {
+        let c = d.join("views").join(name);
+        if c.is_dir() { return Some((c, "global")); }
     }
     None
 }
@@ -191,19 +184,12 @@ pub(super) fn read_manifest_file(dir: &PathBuf, name: &str) -> Option<ViewManife
 }
 
 fn detect_view_type(dir: &PathBuf) -> Option<String> {
-    if dir.join("manifest.yaml").exists()
+    if (dir.join("manifest.yaml").exists()
         || dir.join("manifest.jsonc").exists()
-        || dir.join("manifest.json").exists()
-    {
-        if let Some(m) = read_manifest_file(dir, "unknown") { return Some(m.view_type); }
-    }
+        || dir.join("manifest.json").exists())
+        && let Some(m) = read_manifest_file(dir, "unknown") { return Some(m.view_type); }
     if dir.join("index.html").exists() { return Some("html".into()); }
     if dir.join("index.js").exists() { return Some("component".into()); }
-    // SUI-authored views — both layouts. Recognized without a manifest so
-    // user apps don't need ceremonial config to appear in `/api/v1/views`.
-    if dir.join("page.sui").exists() || dir.join("index.sui").exists() {
-        return Some("sui".into());
-    }
     None
 }
 

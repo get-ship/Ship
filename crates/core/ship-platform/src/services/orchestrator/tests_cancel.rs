@@ -15,7 +15,7 @@ use ship_substrate::events::process::event_types as process_event_types;
 use ship_substrate::events::process::ProcessKilledPayload;
 use ship_substrate::events::EventEnvelope;
 use crate::services::dispatch_ports::{
-    AgentPlatform, ExecutorHandle, ExitSignal, JobContext, JobExecutor, ProcessRegistryPort,
+    AgentPlatform, ExecutorHandle, JobContext, JobExecutor, ProcessRegistryPort,
 };
 use crate::services::orchestrator::router::handle_job_event;
 use crate::services::orchestrator::OrchestratorContext;
@@ -52,12 +52,6 @@ impl AgentPlatform for RecordingPlatform {
         self.cleanup_calls.fetch_add(1, Ordering::SeqCst);
     }
     fn git_merge(&self, _: &str) -> anyhow::Result<bool> { Ok(true) }
-    fn start_exit_handler(
-        &self,
-        _k: Arc<Mutex<KernelRouter>>,
-        _rx: tokio::sync::mpsc::UnboundedReceiver<ExitSignal>,
-    ) {}
-    fn start_liveness_sweep(&self, _k: Arc<Mutex<KernelRouter>>) {}
     async fn cleanup_orphaned_worktrees(&self) {}
 }
 

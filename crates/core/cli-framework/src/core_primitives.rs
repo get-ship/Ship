@@ -260,7 +260,8 @@ pub fn handle_skill_action(action: SkillAction, project_dir: Option<&Path>) -> R
 pub fn handle_event_action(action: EventAction, project_dir: &Path) -> Result<()> {
     match action {
         EventAction::List { limit } => {
-            let events = ship_substrate::events::read_recent_events(project_dir, limit)?;
+            let _ = project_dir;
+            let events = ship_substrate::events::read_recent_events(limit)?;
             if events.is_empty() {
                 println!("No events found.");
             } else {

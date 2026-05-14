@@ -140,60 +140,6 @@ pub fn touch(id: &str) -> Result<bool> {
     Ok(true)
 }
 
-/// One-shot drain of legacy KV `project` namespace into the events log.
-/// For each persisted row, emit `project.registered` (with the recorded
-/// created_at) and `project.seen` (with last_seen_at) so the projection
-/// materializes equivalent state. Idempotent: re-running on a drained
-/// install is a no-op (KV namespace is empty after drain).
-pub fn drain_legacy_kv() -> Result<usize> {
-    use ship_substrate::db::{block_on, ensure_kv_db, open_kv_db};
-    use sqlx::Row;
-
-    ensure_kv_db()?;
-    let mut conn = open_kv_db()?;
-    let rows = block_on(async {
-        sqlx::query("SELECT key, value_json FROM kv_state WHERE namespace = 'project'")
-            .fetch_all(&mut conn)
-            .await
-    })?;
-    if rows.is_empty() {
-        return Ok(0);
-    }
-
-    let store = SqliteEventStore::new()?;
-    let mut migrated = 0usize;
-    for row in &rows {
-        let id: String = row.get(0);
-        let json_str: String = row.get(1);
-        let Ok(record) = serde_json::from_str::<ProjectRecord>(&json_str) else {
-            continue;
-        };
-        // Emit the registered event with the original timestamps so the
-        // projection's created_at reflects original install.
-        let registered = ProjectRegistered {
-            path: record.path.clone(),
-            name: record.name.clone(),
-            label: None,
-            created_at: record.created_at.clone(),
-        };
-        let env = EventEnvelope::new(PROJECT_REGISTERED, &id, &registered)?;
-        let _ = store.append(&env);
-        // Then emit seen with the persisted last_seen_at to preserve order.
-        let seen = ProjectSeen {
-            seen_at: record.last_seen_at.clone(),
-        };
-        let env = EventEnvelope::new(PROJECT_SEEN, &id, &seen)?;
-        let _ = store.append(&env);
-        migrated += 1;
-    }
-
-    block_on(async {
-        sqlx::query("DELETE FROM kv_state WHERE namespace = 'project'")
-            .execute(&mut conn)
-            .await
-    })?;
-    Ok(migrated)
-}
 
 fn derive_name(path: &Path) -> String {
     path.file_name()
@@ -211,7 +157,7 @@ mod tests {
         let tmp = TempDir::new().unwrap();
         let ship_dir = ship_substrate::ShipHome::project_ship_dir(tmp.path());
         std::fs::create_dir_all(&ship_dir).unwrap();
-        crate::testutil::init_project(tmp.path().to_path_buf()).unwrap();
+        crate::testutil::init_project(tmp.path()).unwrap();
         ship_substrate::db::ensure_db().unwrap();
         tmp
     }

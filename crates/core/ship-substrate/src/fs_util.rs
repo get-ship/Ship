@@ -29,36 +29,47 @@ pub fn strip_jsonc_comments(input: &str) -> String {
         }
         stage.push(c);
     }
-    // Phase 2: remove trailing commas (`,` followed only by whitespace then `]` or `}`).
-    let mut out = String::with_capacity(stage.len());
-    let bytes = stage.as_bytes();
+    // Phase 2: remove trailing commas (`,` followed only by whitespace then
+    // `]` or `}`). Walk as bytes for cheap peek-ahead, but copy non-ASCII
+    // bytes verbatim — `bytes[i] as char` would mangle multi-byte UTF-8
+    // (e.g. an emdash 0xE2 0x80 0x94 turns into three U+00E2/U+0080/U+0094
+    // chars when push'd to a String).
+    let src = stage.as_bytes();
+    let mut cleaned: Vec<u8> = Vec::with_capacity(src.len());
     let mut i = 0;
-    in_string = false;
-    escape = false;
-    while i < bytes.len() {
-        let c = bytes[i] as char;
-        if in_string {
-            out.push(c);
-            if escape { escape = false; } else if c == '\\' { escape = true; } else if c == '"' { in_string = false; }
+    let mut in_string2 = false;
+    let mut escape2 = false;
+    while i < src.len() {
+        let b = src[i];
+        if in_string2 {
+            cleaned.push(b);
+            if escape2 {
+                escape2 = false;
+            } else if b == b'\\' {
+                escape2 = true;
+            } else if b == b'"' {
+                in_string2 = false;
+            }
             i += 1;
             continue;
         }
-        if c == '"' { in_string = true; out.push(c); i += 1; continue; }
-        if c == ',' {
-            // Look ahead past whitespace — if we hit `]` or `}`, drop the comma.
+        if b == b'"' { in_string2 = true; cleaned.push(b); i += 1; continue; }
+        if b == b',' {
             let mut j = i + 1;
-            while j < bytes.len() && (bytes[j] == b' ' || bytes[j] == b'\t' || bytes[j] == b'\r' || bytes[j] == b'\n') {
+            while j < src.len() && (src[j] == b' ' || src[j] == b'\t' || src[j] == b'\r' || src[j] == b'\n') {
                 j += 1;
             }
-            if j < bytes.len() && (bytes[j] == b']' || bytes[j] == b'}') {
+            if j < src.len() && (src[j] == b']' || src[j] == b'}') {
                 i += 1;
                 continue;
             }
         }
-        out.push(c);
+        cleaned.push(b);
         i += 1;
     }
-    out
+    // Safe: we only dropped ASCII commas at valid char boundaries; every
+    // other byte was copied verbatim from the original UTF-8 String.
+    String::from_utf8(cleaned).unwrap_or_else(|e| String::from_utf8_lossy(e.as_bytes()).into_owned())
 }
 
 /// Write `content` to `path` atomically by writing to a sibling temp file first,

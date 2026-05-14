@@ -1,9 +1,9 @@
 //! Shared loading + tokenization helpers for the rule implementations.
 
-use once_cell::sync::Lazy;
 use regex::Regex;
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
+use std::sync::LazyLock;
 
 pub struct Source {
     pub path: PathBuf,
@@ -78,28 +78,44 @@ pub fn strip_jinja_comments(raw: &str) -> Vec<String> {
     out
 }
 
-// ── Regex builders (Lazy so they're compiled once per process) ─────────────────
+// ── Regex builders (LazyLock so they're compiled once per process) ────────────
+//
+// Each pattern is a compile-time literal — Regex::new can't fail at runtime.
+// `expect` carries the panic message instead of `unwrap` per the codebase's
+// expect-with-context convention.
 
-static SCRIPT_OPEN_RE: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r"(?i)<script(\s[^>]*)?>").unwrap());
-static STYLE_OPEN_RE: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r"(?i)<style(\s[^>]*)?>").unwrap());
-static STYLE_CLOSE_RE: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r"(?i)</style\s*>").unwrap());
-static SIGNAL_MACRO_RE: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r#"\bsignal\s*\(\s*['"]([A-Za-z_][A-Za-z0-9_]*)['"]"#).unwrap());
-static DATA_SIGNALS_ATTR_RE: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r"\bdata-signals[-:]([A-Za-z_][A-Za-z0-9_]*)\s*=").unwrap());
-static DATA_SIGNALS_OBJ_RE: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r#"\bdata-signals\s*=\s*['"](\{[^'"]*\})['"]"#).unwrap());
-static OBJECT_KEY_RE: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r#"(?:^|[\{,]\s*)['"]?([A-Za-z_][A-Za-z0-9_]*)['"]?\s*:"#).unwrap());
-static QUOTED_ATTR_VALUE_RE: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r#"=\s*"([^"]*)""#).unwrap());
-static SIGNAL_REF_RE: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r"(?:^|[^A-Za-z0-9_])\$([A-Za-z_][A-Za-z0-9_]*)").unwrap());
-static SIGNALS_OK_RE: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r"\{#-?\s*@lint:signals-ok:\s*([^#]*?)\s*-?#\}").unwrap());
+static SCRIPT_OPEN_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?i)<script(\s[^>]*)?>").expect("SCRIPT_OPEN_RE literal valid"));
+static STYLE_OPEN_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?i)<style(\s[^>]*)?>").expect("STYLE_OPEN_RE literal valid"));
+static STYLE_CLOSE_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?i)</style\s*>").expect("STYLE_CLOSE_RE literal valid"));
+static SIGNAL_MACRO_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r#"\bsignal\s*\(\s*['"]([A-Za-z_][A-Za-z0-9_]*)['"]"#)
+        .expect("SIGNAL_MACRO_RE literal valid")
+});
+static DATA_SIGNALS_ATTR_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"\bdata-signals[-:]([A-Za-z_][A-Za-z0-9_]*)\s*=")
+        .expect("DATA_SIGNALS_ATTR_RE literal valid")
+});
+static DATA_SIGNALS_OBJ_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r#"\bdata-signals\s*=\s*['"](\{[^'"]*\})['"]"#)
+        .expect("DATA_SIGNALS_OBJ_RE literal valid")
+});
+static OBJECT_KEY_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r#"(?:^|[\{,]\s*)['"]?([A-Za-z_][A-Za-z0-9_]*)['"]?\s*:"#)
+        .expect("OBJECT_KEY_RE literal valid")
+});
+static QUOTED_ATTR_VALUE_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r#"=\s*"([^"]*)""#).expect("QUOTED_ATTR_VALUE_RE literal valid"));
+static SIGNAL_REF_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?:^|[^A-Za-z0-9_])\$([A-Za-z_][A-Za-z0-9_]*)")
+        .expect("SIGNAL_REF_RE literal valid")
+});
+static SIGNALS_OK_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"\{#-?\s*@lint:signals-ok:\s*([^#]*?)\s*-?#\}")
+        .expect("SIGNALS_OK_RE literal valid")
+});
 
 pub fn script_open_regex() -> &'static Regex { &SCRIPT_OPEN_RE }
 pub fn style_open_regex() -> &'static Regex { &STYLE_OPEN_RE }

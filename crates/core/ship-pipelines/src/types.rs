@@ -112,8 +112,8 @@ fn default_min_successful_lanes() -> usize {
 
 /// A single step in a pipeline DAG.
 ///
-/// Custom `Deserialize` allows YAML shorthand: `run: <command>` implies
-/// `type: run` and `name:` is accepted as an alias for `id:`.
+/// Custom `Deserialize` implements the JSONC shorthand: a step with a `run`
+/// key but no explicit `type` is inferred as `type: run`.
 #[derive(Debug, Clone, Serialize)]
 #[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct PipelineStep {
@@ -137,8 +137,8 @@ pub struct PipelineStep {
     /// Provider override for this step.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub provider: Option<String>,
-    /// Shell command to run (populated for StepType::Run).
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    /// Shell command to run (populated for StepType::Run). Wire name: `run`.
+    #[serde(default, rename = "run", skip_serializing_if = "Option::is_none")]
     pub command: Option<String>,
     /// Maximum number of retries when a gate fails on this step.
     /// `None` or `0` means no retries — gate failure is terminal.
@@ -170,7 +170,6 @@ impl<'de> serde::Deserialize<'de> for PipelineStep {
     fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
         #[derive(serde::Deserialize)]
         struct Raw {
-            #[serde(alias = "name")]
             id: String,
             #[serde(rename = "type", default)]
             step_type: Option<StepType>,
@@ -184,8 +183,7 @@ impl<'de> serde::Deserialize<'de> for PipelineStep {
             model: Option<String>,
             #[serde(default)]
             provider: Option<String>,
-            /// Accept both `run:` (YAML shorthand) and `command:`.
-            #[serde(alias = "run", default)]
+            #[serde(rename = "run", default)]
             command: Option<String>,
             #[serde(default)]
             max_retries: Option<u32>,
@@ -294,21 +292,25 @@ mod tests {
 
     #[test]
     fn run_shorthand_infers_step_type() {
-        let yaml = r#"id: build
-run: cargo build"#;
-        let s: PipelineStep = serde_yaml::from_str(yaml).unwrap();
+        let json = r#"{ "id": "build", "run": "cargo build" }"#;
+        let s: PipelineStep = serde_json::from_str(json).unwrap();
         assert_eq!(s.step_type, StepType::Run);
         assert_eq!(s.command.as_deref(), Some("cargo build"));
     }
 
     #[test]
-    fn name_alias_resolves_to_id() {
-        let yaml = r#"name: review
-type: review
-agent: reviewer"#;
-        let s: PipelineStep = serde_yaml::from_str(yaml).unwrap();
-        assert_eq!(s.id, "review");
-        assert_eq!(s.step_type, StepType::Review);
+    fn legacy_command_key_is_rejected() {
+        // The `command` wire key is gone; only `run` is canonical.
+        let json = r#"{ "id": "build", "type": "run", "command": "cargo build" }"#;
+        let s: PipelineStep = serde_json::from_str(json).unwrap();
+        assert!(s.command.is_none(), "command key must not deserialize: {s:?}");
+    }
+
+    #[test]
+    fn legacy_name_key_is_rejected() {
+        // `name` alias on the id field is gone; `id` is required.
+        let json = r#"{ "name": "review", "type": "review", "agent": "reviewer" }"#;
+        assert!(serde_json::from_str::<PipelineStep>(json).is_err());
     }
 
     fn step(id: &str, after: &[&str]) -> PipelineStep {

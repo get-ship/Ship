@@ -1,10 +1,15 @@
-//! Agent profile application — merging agent config into the project library.
+//! Agent profile application — merging an active agent's overrides into the
+//! project library. The library has already been populated with every
+//! `.ship/agents/*.jsonc` by [`crate::loader::load_library`]; this step
+//! pulls the active one out and merges its permissions / hooks / plugins /
+//! provider settings, then injects a flat `AgentConfig` so `resolve()` can
+//! filter providers and MCP/skill refs against it.
 
 use anyhow::Result;
 use compiler::{HookConfig, HookTrigger, PluginEntry, PluginsManifest, ProjectLibrary};
 use std::path::Path;
 
-use crate::agent_config::{AgentConfig, apply_agent_permissions};
+use super::permissions::apply_agent_permissions;
 
 // ── Agent → library ──────────────────────────────────────────────────────────
 
@@ -13,23 +18,26 @@ pub(crate) fn apply_agent_to_library(
     agent_id: &str,
     project_root: &Path,
 ) -> Result<()> {
-    let Some(path) = find_agent_file(agent_id, project_root) else {
+    let Some(profile) = library
+        .agent_profiles
+        .iter()
+        .find(|p| p.agent.id == agent_id)
+        .cloned()
+    else {
         return Ok(());
     };
 
-    let profile = AgentConfig::load(&path)?;
     let ship_dir = ship_substrate::ShipHome::project_ship_dir(project_root);
 
-    // Permission overrides — pass ship_dir so preset sections from permissions.jsonc are resolved
     library.permissions =
         apply_agent_permissions(library.permissions.clone(), &profile, Some(&ship_dir));
 
-    // Inline rules → append as a synthetic rule file
+    // Inline rules → append as a synthetic rule file.
     if let Some(inline) = &profile.rules.inline {
         let trimmed = inline.trim();
         if !trimmed.is_empty() {
             library.rules.push(compiler::Rule {
-                file_name: format!("{}.md", agent_id),
+                file_name: format!("{agent_id}.md"),
                 content: trimmed.to_string(),
                 always_apply: true,
                 globs: vec![],
@@ -38,19 +46,15 @@ pub(crate) fn apply_agent_to_library(
         }
     }
 
-    // If agent declares a provider list, inject an AgentConfig so resolve() applies it
-    if !profile.meta.providers.is_empty() {
-        library.agents.push(compiler::AgentConfig {
-            id: agent_id.to_string(),
-            name: profile.meta.name.clone(),
-            target_agents: profile.meta.providers.clone(),
-            mcp_servers: profile.mcp.servers.clone(),
-            skills: profile.skills.refs.clone(),
-            ..Default::default()
-        });
+    // If the agent declares a provider list, inject a flat AgentConfig so
+    // resolve() can apply target-agent / MCP / skill filtering.
+    if !profile.agent.providers.is_empty() {
+        let mut cfg = profile.to_config();
+        cfg.id = agent_id.to_string();
+        library.agents.push(cfg);
     }
 
-    // Plugins — convert agent's Vec<String> install list into PluginsManifest
+    // Plugins — convert install list into PluginsManifest.
     if !profile.plugins.install.is_empty() {
         library.plugins = PluginsManifest {
             install: profile
@@ -62,39 +66,22 @@ pub(crate) fn apply_agent_to_library(
                     provider: "claude".to_string(),
                 })
                 .collect(),
-            scope: profile.plugins.scope.clone(),
+            scope: profile.plugins.scope.clone().unwrap_or_else(|| "project".to_string()),
         };
     }
 
-    // Hooks declared in [hooks] section of agent TOML
     if let Some(cmd) = &profile.hooks.stop {
-        let id = format!("{}-stop", agent_id);
-        if !library.hooks.iter().any(|h| h.id == id) {
-            library.hooks.push(HookConfig {
-                id,
-                trigger: HookTrigger::Stop,
-                command: cmd.clone(),
-                matcher: None,
-                cursor_event: None,
-                gemini_event: None,
-            });
-        }
+        push_hook(library, format!("{agent_id}-stop"), HookTrigger::Stop, cmd);
     }
     if let Some(cmd) = &profile.hooks.subagent_stop {
-        let id = format!("{}-subagent-stop", agent_id);
-        if !library.hooks.iter().any(|h| h.id == id) {
-            library.hooks.push(HookConfig {
-                id,
-                trigger: HookTrigger::SubagentStop,
-                command: cmd.clone(),
-                matcher: None,
-                cursor_event: None,
-                gemini_event: None,
-            });
-        }
+        push_hook(
+            library,
+            format!("{agent_id}-subagent-stop"),
+            HookTrigger::SubagentStop,
+            cmd,
+        );
     }
 
-    // Provider-specific settings pass-through (all providers)
     if let Some(v) = profile.provider_settings.get("claude") {
         library.claude_settings_extra = Some(v.clone());
     }
@@ -108,10 +95,23 @@ pub(crate) fn apply_agent_to_library(
         library.cursor_settings_extra = Some(v.clone());
     }
 
-    // Team agents from .ship/agents/teams/<provider>/*.md
     library.claude_team_agents = load_team_agents(project_root, "claude");
 
     Ok(())
+}
+
+fn push_hook(library: &mut ProjectLibrary, id: String, trigger: HookTrigger, command: &str) {
+    if library.hooks.iter().any(|h| h.id == id) {
+        return;
+    }
+    library.hooks.push(HookConfig {
+        id,
+        trigger,
+        command: command.to_string(),
+        matcher: None,
+        cursor_event: None,
+        gemini_event: None,
+    });
 }
 
 // ── Team agents ──────────────────────────────────────────────────────────────
@@ -142,19 +142,15 @@ fn load_team_agents(project_root: &Path, provider_id: &str) -> Vec<(String, Stri
     agents
 }
 
-// Re-use the canonical find_agent_file from profile.rs (supports JSONC + TOML, all compat paths).
-use crate::profile::find_agent_file;
-
 // ── Dep skill ref collection ─────────────────────────────────────────────────
 
 /// Collect all skill refs declared in agent profiles and mode configs within
 /// `library`. Only dep refs (those starting with `github.com/`) will be resolved
 /// by the caller; local refs are included in the list but filtered in
-/// [`resolve_dep_skills`](crate::dep_skills::resolve_dep_skills).
+/// [`resolve_dep_skills`](ship_platform::registry::dep_skills::resolve_dep_skills).
 pub(crate) fn collect_all_skill_refs(library: &ProjectLibrary) -> Vec<String> {
     let mut refs: Vec<String> = Vec::new();
 
-    // From agent profiles: [skills] refs = [...]
     for profile in &library.agent_profiles {
         for r in &profile.skills.refs {
             if !refs.contains(r) {
@@ -163,7 +159,6 @@ pub(crate) fn collect_all_skill_refs(library: &ProjectLibrary) -> Vec<String> {
         }
     }
 
-    // From agent configs: skills = [...] filter list
     for agent in &library.agents {
         for r in &agent.skills {
             if !refs.contains(r) {
@@ -174,3 +169,4 @@ pub(crate) fn collect_all_skill_refs(library: &ProjectLibrary) -> Vec<String> {
 
     refs
 }
+

@@ -50,7 +50,7 @@ sui-build --mode development       # passes through to compile flags + bundler e
 
 Entry: `packages/sui-build/bin/sui-build.mjs` → `dist/cli.js` via Bun. The runner (`src/runner.ts`) walks the configured source globs, invokes `sui-compiler` (preferring the in-repo FFI build of `libsui_compiler`, falling back to `target/debug/sui-compiler` or `cargo run --quiet -p sui-compiler`), and feeds the emitted JS / CSS / CEM through the chosen bundler adapter (`adapters/bun.ts`, `adapters/esbuild.ts`).
 
-Configuration: `<package>/sui.config.ts`. Each package opts in by adding a `build` script — currently `packages/ui-components/` (writes `crates/ship-sui-server/assets/`) and `packages/ship-set/` (writes `apps/shipd/assets/`).
+Configuration: `<package>/sui.config.ts`. Each package opts in by adding a `build` script — currently `packages/ui-components/` (writes `crates/sui/ship-sui-server/assets/`) and `packages/ship-set/` (writes `apps/shipd/assets/`).
 
 **Role.** `@ship/sui-build` is the CI / pre-merge bundler — it's what `smoke-deploy.sh` runs and what `just cem` invokes. It is *not* what shipd uses at dev time. The dev-time bundler is `runtime-assets/bundler.ts`, a Bun worker spawned by the daemon (see [end-to-end dev loop](#end-to-end-edit-loop-in-dev) below). Both pipelines target the same on-disk asset trees that the release binary later `include_str!`s.
 
@@ -178,7 +178,7 @@ Both scaffolds emit the manifest / template / controller / style files documente
 just dev                              # daemon + embedded Bun bundler worker
 # (optional) just shell2-dev          # vite outer shell at :3200, proxies to daemon
 # edit views/home/page.sui or controller.ts
-#  → bundler.ts re-runs Bun.build, writes to crates/ship-sui-server/assets/...
+#  → bundler.ts re-runs Bun.build, writes to crates/sui/ship-sui-server/assets/...
 #  → emits module_changed over JSON stdout to shipd
 #  → shipd republishes on /_sui/dev/hmr (SSE)
 #  → apps/shell2/src/hmr.ts cache-busts /_sui/views/home/view.js
@@ -217,4 +217,4 @@ just build       # one-shot: gen-types → ship-set icons → ship-set build →
 ship build       # equivalent CLI wrapper for users without `just` installed
 ```
 
-Both write release binaries to `target/release/{ship,shipd,mcp}` and rebuild the front-end asset trees that shipd's `include_str!` directives consume (`crates/ship-sui-server/assets/`, `apps/shipd/assets/`). After `just build`, run `shipd --mode production` to serve them.
+Both write release binaries to `target/release/{ship,shipd,mcp}` and rebuild the front-end asset trees that shipd's `include_str!` directives consume (`crates/sui/ship-sui-server/assets/`, `apps/shipd/assets/`). After `just build`, run `shipd --mode production` to serve them.

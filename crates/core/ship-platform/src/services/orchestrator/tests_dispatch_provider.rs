@@ -16,7 +16,7 @@ use ship_substrate::events::job::{
 };
 use ship_substrate::events::kernel_router::{ActorConfig, KernelRouter};
 use crate::services::dispatch_ports::{
-    AgentPlatform, ExecutorHandle, ExitSignal, IsolationStrategy, JobContext, JobExecutor,
+    AgentPlatform, ExecutorHandle, IsolationStrategy, JobContext, JobExecutor,
     ProcessRegistryPort,
 };
 use crate::services::orchestrator::dispatch::dispatch_job_internal;
@@ -62,12 +62,6 @@ impl AgentPlatform for TestPlatform {
     async fn graceful_agent_exit(&self, _: &str, _: Option<&str>) {}
     async fn cleanup_job(&self, _: &str, _: &str) {}
     fn git_merge(&self, _: &str) -> anyhow::Result<bool> { Ok(true) }
-    fn start_exit_handler(
-        &self,
-        _: Arc<Mutex<KernelRouter>>,
-        _: tokio::sync::mpsc::UnboundedReceiver<ExitSignal>,
-    ) {}
-    fn start_liveness_sweep(&self, _: Arc<Mutex<KernelRouter>>) {}
     async fn cleanup_orphaned_worktrees(&self) {}
 }
 

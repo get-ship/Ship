@@ -8,8 +8,10 @@
 
 use anyhow::{Context, Result, anyhow};
 use serde::Serialize;
+use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
+use std::sync::Mutex as StdMutex;
 use tokio::sync::Mutex;
 
 use crate::collections::query::QueryRequest;
@@ -41,20 +43,31 @@ pub struct ArtifactRecord {
 }
 
 impl ArtifactRecord {
-    fn from_item(item: &crate::collections::store::Item) -> Self {
+    /// Project a stored row into a record. All schema-required fields
+    /// (`name`, `path`, `mime`, `size`, `scope`) error on absence —
+    /// schema validation rejects insertion of rows that lack them, so a
+    /// malformed row signals a bug. Numbers read as u64-or-f64 because
+    /// SQLite REAL columns roundtrip integers through floats.
+    fn from_item(item: &crate::collections::store::Item) -> Result<Self> {
         let d = &item.data;
-        let str_field = |k: &str| d.get(k).and_then(|v| v.as_str()).unwrap_or("").to_string();
+        let require_str = |k: &str| -> Result<String> {
+            d.get(k)
+                .and_then(|v| v.as_str())
+                .map(str::to_string)
+                .ok_or_else(|| anyhow!("artifact row {} missing required field `{}`", item.id, k))
+        };
         let opt_str = |k: &str| d.get(k).and_then(|v| v.as_str()).map(str::to_string);
-        Self {
+        let size = d
+            .get("size")
+            .and_then(|v| v.as_u64().or_else(|| v.as_f64().map(|f| f as u64)))
+            .ok_or_else(|| anyhow!("artifact row {} missing required field `size`", item.id))?;
+        Ok(Self {
             id: item.id.clone(),
-            name: str_field("name"),
-            mime: d.get("mime").and_then(|v| v.as_str())
-                .unwrap_or("application/octet-stream").to_string(),
-            size: d.get("size").and_then(|v| v.as_u64())
-                .or_else(|| d.get("size").and_then(|v| v.as_f64()).map(|f| f as u64))
-                .unwrap_or(0),
-            path: str_field("path"),
-            scope: d.get("scope").and_then(|v| v.as_str()).unwrap_or("project").to_string(),
+            name: require_str("name")?,
+            mime: require_str("mime")?,
+            size,
+            path: require_str("path")?,
+            scope: require_str("scope")?,
             project_id: opt_str("project_id"),
             run_id: opt_str("run_id"),
             user_id: opt_str("user_id"),
@@ -64,16 +77,22 @@ impl ArtifactRecord {
             collection_id: opt_str("collection_id"),
             item_id: opt_str("item_id"),
             created_at: item.created_at.clone(),
-        }
+        })
     }
 }
 
 /// Blob store + metadata service for artifacts.
 ///
 /// Constructed with only the global ship dir — scope is a per-call argument.
+///
+/// Concurrency: `store` and `promote` take a per-scope async lock so that
+/// concurrent writes of identical bytes into the same scope can't both
+/// miss the dedup check and produce divergent paths. Reads (`get`,
+/// `get_record`, `list`) are lock-free.
 pub struct ArtifactService {
     backend: Box<dyn ArtifactBackend>,
     global_dir: std::path::PathBuf,
+    scope_locks: StdMutex<HashMap<String, Arc<Mutex<()>>>>,
 }
 
 impl ArtifactService {
@@ -82,6 +101,7 @@ impl ArtifactService {
         Self {
             backend: Box::new(LocalFsBackend::new(global_ship_dir.to_path_buf())),
             global_dir: global_ship_dir.to_path_buf(),
+            scope_locks: StdMutex::new(HashMap::new()),
         }
     }
 
@@ -90,7 +110,15 @@ impl ArtifactService {
         Self {
             backend,
             global_dir: global_ship_dir.to_path_buf(),
+            scope_locks: StdMutex::new(HashMap::new()),
         }
+    }
+
+    /// Return the per-scope async lock, creating it on first use.
+    fn scope_lock(&self, scope: &ArtifactScope) -> Arc<Mutex<()>> {
+        let key = scope.lock_key();
+        let mut map = self.scope_locks.lock().expect("scope_locks poisoned");
+        map.entry(key).or_insert_with(|| Arc::new(Mutex::new(()))).clone()
     }
 
     /// Store a new artifact. Generates a ULID, writes the blob, and inserts a
@@ -113,6 +141,12 @@ impl ArtifactService {
         expires_at: Option<&str>,
     ) -> Result<ArtifactRecord> {
         ensure_artifacts_collection(svc)?;
+
+        // Per-scope lock serializes dedup-check + blob-write + metadata-insert,
+        // so concurrent stores of identical bytes can't both miss the dedup
+        // check and produce orphaned blobs.
+        let lock = self.scope_lock(scope);
+        let _guard = lock.lock().await;
 
         let id = ship_substrate::gen_ulid();
         let content_hash = sha256_hex(bytes);
@@ -175,7 +209,7 @@ impl ArtifactService {
             }
         };
 
-        let record = ArtifactRecord::from_item(&item);
+        let record = ArtifactRecord::from_item(&item)?;
 
         // Emit artifact-specific event alongside the collection event.
         emit_artifact_event(kernel, "artifact.created", &id, serde_json::json!({
@@ -204,7 +238,7 @@ impl ArtifactService {
         let Some(item) = collection_service::get_item(svc, &schema, id)? else {
             return Ok(None);
         };
-        let record = ArtifactRecord::from_item(&item);
+        let record = ArtifactRecord::from_item(&item)?;
         // Under dedup a row's blob may live at another row's id-derived
         // path. Resolve from the record's stored relative path, not from
         // this row's id.
@@ -226,9 +260,10 @@ impl ArtifactService {
     pub fn get_record(&self, svc: &mut DataService, id: &str) -> Result<Option<ArtifactRecord>> {
         ensure_artifacts_collection(svc)?;
         let schema = artifacts_schema();
-        Ok(collection_service::get_item(svc, &schema, id)?
+        collection_service::get_item(svc, &schema, id)?
             .as_ref()
-            .map(ArtifactRecord::from_item))
+            .map(ArtifactRecord::from_item)
+            .transpose()
     }
 
     /// Delete an artifact. Returns `false` when the metadata row doesn't
@@ -242,7 +277,7 @@ impl ArtifactService {
         ensure_artifacts_collection(svc)?;
         let schema = artifacts_schema();
         let record = match collection_service::get_item(svc, &schema, id)? {
-            Some(item) => ArtifactRecord::from_item(&item),
+            Some(item) => ArtifactRecord::from_item(&item)?,
             None => return Ok(false),
         };
         let scope = record_to_scope(&record)?;
@@ -304,7 +339,7 @@ impl ArtifactService {
             changed["expires_at"] = serde_json::Value::String(exp.to_string());
         }
         let updated = collection_service::update_item(svc, kernel, &schema, id, &data).await?;
-        let record = ArtifactRecord::from_item(&updated);
+        let record = ArtifactRecord::from_item(&updated)?;
         emit_artifact_event(kernel, "artifact.updated", id, serde_json::json!({
             "id": id,
             "scope": record.scope,
@@ -334,9 +369,28 @@ impl ArtifactService {
         let Some(existing_item) = collection_service::get_item(svc, &schema, id)? else {
             return Err(anyhow!("artifact '{id}' not found"));
         };
-        let old_record = ArtifactRecord::from_item(&existing_item);
+        let old_record = ArtifactRecord::from_item(&existing_item)?;
         let from_scope = record_to_scope(&old_record)?;
         let old_rel_path = old_record.path.clone();
+
+        // Acquire both scope locks in deterministic order (sorted by lock_key)
+        // so two concurrent promotes between the same pair of scopes can't
+        // deadlock. Same-scope promotes acquire one lock only.
+        let from_key = from_scope.lock_key();
+        let to_key = target_scope.lock_key();
+        let (first_lock, second_lock) = if from_key == to_key {
+            (self.scope_lock(&from_scope), None)
+        } else if from_key < to_key {
+            (self.scope_lock(&from_scope), Some(self.scope_lock(&target_scope)))
+        } else {
+            (self.scope_lock(&target_scope), Some(self.scope_lock(&from_scope)))
+        };
+        let _g1 = first_lock.lock().await;
+        let _g2 = if let Some(l) = second_lock {
+            Some(l.lock_owned().await)
+        } else {
+            None
+        };
 
         // Read bytes from the record's stored path (may differ from the
         // id-derived path when this row was a dedup'd reference).
@@ -386,16 +440,30 @@ impl ArtifactService {
             }
         };
 
-        // 3. Delete old metadata.
-        let _ = collection_service::delete_item(svc, kernel, ARTIFACTS_COLLECTION_ID, id).await;
+        // 3. Delete old metadata. Critical: a failure here leaves two rows
+        // pointing at the same content with different scopes — silently
+        // duplicated. Surface the error so the caller can retry.
+        collection_service::delete_item(svc, kernel, ARTIFACTS_COLLECTION_ID, id)
+            .await
+            .with_context(|| format!("promote: deleting old metadata row for {id}"))?;
 
-        // 4. Delete old blob only if no other metadata row in the source
-        // scope still references it (dedup refcount).
+        // 4. Best-effort old-blob GC. Tolerated to fail: orphaned bytes can
+        // be reclaimed by `collect_expired` / future GC. NotFound is fine
+        // (already gone or never existed for a dedup'd row).
         if count_refs_to_path(svc, &from_scope, &old_rel_path)? == 0 {
-            let _ = std::fs::remove_file(self.global_dir.join(&old_rel_path));
+            let abs = self.global_dir.join(&old_rel_path);
+            match std::fs::remove_file(&abs) {
+                Ok(()) => {}
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+                Err(e) => tracing::warn!(
+                    artifact = id,
+                    path = %abs.display(),
+                    "promote: old blob removal failed (orphan, will GC): {e}"
+                ),
+            }
         }
 
-        let new_record = ArtifactRecord::from_item(&new_item);
+        let new_record = ArtifactRecord::from_item(&new_item)?;
         emit_artifact_event(kernel, "artifact.moved", &new_id, serde_json::json!({
             "id": new_id,
             "from_scope": old_record.scope,
@@ -411,7 +479,7 @@ impl ArtifactService {
         req.collection = ARTIFACTS_COLLECTION_ID.to_string();
         let schema = artifacts_schema();
         let items = collection_service::query_items(svc, &schema, &req)?;
-        Ok(items.iter().map(ArtifactRecord::from_item).collect())
+        items.iter().map(ArtifactRecord::from_item).collect()
     }
 }
 
@@ -425,15 +493,20 @@ fn record_to_scope(record: &ArtifactRecord) -> Result<ArtifactScope> {
                 .ok_or_else(|| anyhow!("run-scope artifact missing run_id"))?;
             Ok(ArtifactScope::Run { project_id, run_id })
         }
+        "project" => {
+            let project_id = record.project_id.clone()
+                .ok_or_else(|| anyhow!("project-scope artifact missing project_id"))?;
+            Ok(ArtifactScope::Project { project_id })
+        }
         "user" => {
             let user_id = record.user_id.clone()
                 .ok_or_else(|| anyhow!("user-scope artifact missing user_id"))?;
             Ok(ArtifactScope::User { user_id })
         }
-        _ => {
-            let project_id = record.project_id.clone().unwrap_or_default();
-            Ok(ArtifactScope::Project { project_id })
-        }
+        other => Err(anyhow!(
+            "artifact {} has invalid scope `{}` (expected run|project|user)",
+            record.id, other
+        )),
     }
 }
 

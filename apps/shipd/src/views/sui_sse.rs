@@ -29,7 +29,7 @@ use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 use sui_signals;
 
-use crate::routes::rest_api::ApiState;
+use crate::ship_runtime::ApiState;
 use super::sui_data_resolvers::{parse_expr, resolve as resolve_value, subscribe_namespaces};
 use super::sui_patch_channel;
 use super::sui_patches::format_patch_signals;
@@ -198,7 +198,7 @@ async fn run_data_source(
             None
         }
     };
-    let _guard = crate::routes::runtime_api::ActorGuard {
+    let _guard = crate::ship_runtime::ActorGuard {
         actor_id,
         kernel: state.kernel().clone(),
     };
@@ -327,7 +327,6 @@ mod tests {
     /// uses to push SSE frames.
     #[tokio::test]
     async fn signal_update_notifies_bridge() {
-        use std::sync::Arc;
         use sui_signals::{Signal, effect};
         use tokio::sync::mpsc;
 

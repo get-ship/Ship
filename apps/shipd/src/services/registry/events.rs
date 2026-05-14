@@ -4,15 +4,15 @@
 use serde_json::{Value, json};
 
 use super::{RegistryError, optional_usize};
-use crate::routes::rest_api::ApiState;
-use crate::services::files::FilesService;
+use crate::ship_runtime::ApiState;
+use ship_platform::services::files::FilesService;
 
-#[allow(unused_imports, unused_variables)]
+
 pub(super) fn try_dispatch(
     name: &str,
     args: &Value,
     state: &ApiState,
-    files: &FilesService,
+    _files: &FilesService,
 ) -> Result<Option<Value>, RegistryError> {
     let value: Result<Value, RegistryError> = match name {
         "events.list" => {

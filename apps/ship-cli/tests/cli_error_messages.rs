@@ -115,8 +115,17 @@ fn validate_mcp_stdio_missing_command_shows_fix_hint() {
     let tmp = TempDir::new().unwrap();
     write(
         tmp.path(),
-        ".ship/agents/mcp.toml",
-        "[[servers]]\nid = \"broken-server\"\nserver_type = \"stdio\"\n",
+        ".ship/mcp.jsonc",
+        r#"{
+  "mcp": {
+    "servers": {
+      "broken-server": {
+        "id": "broken-server",
+        "server_type": "stdio"
+      }
+    }
+  }
+}"#,
     );
     write(
         tmp.path(),
@@ -215,7 +224,7 @@ fn install_frozen_out_of_sync_suggests_run_without_frozen() {
         ".ship/ship.jsonc",
         "{\"module\": {\"name\": \"github.com/test/repo\", \"version\": \"0.1.0\"}, \"dependencies\": {\"github.com/owner/pkg\": \"main\"}}\n",
     );
-    write(tmp.path(), ".ship/ship.lock", "version = 1\n");
+    write(tmp.path(), ".ship/ship.lock", "{\"version\": 1, \"packages\": []}\n");
 
     let output = ship()
         .args(["install", "--frozen"])

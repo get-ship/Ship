@@ -14,7 +14,7 @@ const config: SuiBuildConfig = {
     'sui-panel-dock':      'src/islands/sui-panel-dock/index.ts',
     'sui-devtools':        'src/islands/sui-devtools/index.ts',
   },
-  outdir: '../../crates/ship-sui-server/assets',
+  outdir: '../../crates/sui/ship-sui-server/assets',
   // Islands are code-split bundles loaded on demand by sui-runtime; keep
   // them under `sui-islands/` so the always-loaded framework bundles
   // (sui-components.js etc.) at the top of `assets/` stay distinguishable.

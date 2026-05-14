@@ -4,11 +4,11 @@
 use serde_json::{Value, json};
 
 use super::{RegistryError, parse_scope, required_str};
-use crate::routes::rest_api::ApiState;
-use crate::services::files::FilesService;
+use crate::ship_runtime::ApiState;
+use ship_platform::services::files::FilesService;
 use std::path::Path;
 
-#[allow(unused_imports, unused_variables)]
+
 pub(super) fn try_dispatch(
     name: &str,
     args: &Value,
@@ -17,19 +17,19 @@ pub(super) fn try_dispatch(
 ) -> Result<Option<Value>, RegistryError> {
     let value: Result<Value, RegistryError> = match name {
         "permissions.list" => Ok(json!({
-            "items": crate::services::permissions::state::list(&files),
+            "items": ship_platform::services::permissions::state::list(files),
         })),
         "permissions.get" => {
             let id = required_str(args, "id")?;
             let scope = parse_scope(args)?;
-            let (resolved, entry) = crate::services::permissions::state::load_entry(&files, id, scope)
+            let (resolved, entry) = ship_platform::services::permissions::state::load_entry(files, id, scope)
                 .map_err(|e| match e {
-                    crate::services::permissions::state::Error::NotFound(m) => RegistryError::not_found(m),
+                    ship_platform::services::permissions::state::Error::NotFound(m) => RegistryError::not_found(m),
                     other => RegistryError::service(other.to_string()),
                 })?;
             Ok(json!({
                 "id": id,
-                "scope": crate::services::permissions::state::ScopeTag::from(resolved),
+                "scope": ship_platform::services::permissions::state::ScopeTag::from(resolved),
                 "entry": entry,
             }))
         }

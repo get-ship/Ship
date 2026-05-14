@@ -22,6 +22,11 @@ use ship_substrate::ShipHome;
 
 use super::proto::{BundleManifest, WorkerEvent, WorkerLine, WorkerRequest, WorkerResponse};
 
+/// Map from in-flight request id to the oneshot channel waiting for that
+/// request's response. Shared between the request-dispatch task (which
+/// inserts) and the worker-output reader (which removes + completes).
+type PendingMap = Arc<Mutex<HashMap<String, oneshot::Sender<Result<WorkerResponse, WorkerError>>>>>;
+
 // ── Events emitted by the worker ─────────────────────────────────────────────
 
 #[derive(Debug, Clone)]
@@ -225,8 +230,7 @@ async fn run_worker_io(
     let mut lines = reader.lines();
 
     // Pending requests waiting for correlated response
-    let pending: Arc<Mutex<HashMap<String, oneshot::Sender<Result<WorkerResponse, WorkerError>>>>> =
-        Arc::new(Mutex::new(HashMap::new()));
+    let pending: PendingMap = Arc::new(Mutex::new(HashMap::new()));
 
     // Wait for the initial 'ready' event before accepting requests
     match tokio::time::timeout(Duration::from_secs(30), lines.next_line()).await {
@@ -295,7 +299,7 @@ async fn run_worker_io(
 
 async fn handle_worker_line(
     line: &str,
-    pending: &Arc<Mutex<HashMap<String, oneshot::Sender<Result<WorkerResponse, WorkerError>>>>>,
+    pending: &PendingMap,
     event_tx: &broadcast::Sender<BundlerEvent>,
 ) {
     let parsed: WorkerLine = match serde_json::from_str(line) {

@@ -3,13 +3,9 @@
 use anyhow::Result;
 use chrono::{DateTime, Utc};
 
-use crate::db::envelope::envelope_from_row;
+use crate::db::envelope::{EVENT_COLS as COLS, envelope_from_row};
 use crate::db::{block_on, db_path, ensure_db, open_db_at};
 use ship_types::envelope::EventEnvelope;
-
-const COLS: &str = "id, event_type, entity_id, actor, payload_json, version, \
-    causation_id, project_id, session_id, \
-    actor_id, parent_actor_id, elevated, created_at, target_actor_id";
 
 pub fn list_all_events() -> Result<Vec<EventEnvelope>> {
     ensure_db()?;

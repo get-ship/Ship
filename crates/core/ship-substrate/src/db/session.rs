@@ -6,13 +6,16 @@ use sqlx::Row;
 use super::types::SessionDb;
 use super::{block_on, open_db};
 
-const SESSION_COLS: &str = "id, workspace_id, branch, project_id, kind, \
+/// 28-column SELECT list for the `sessions` table. Shared with
+/// `session_drain.rs` — order must match [`parse_session_row`].
+pub(super) const SESSION_COLS: &str = "id, workspace_id, branch, project_id, kind, \
     pipeline_run_id, chat_thread_id, status, started_at, ended_at, agent_id, \
     primary_provider, goal, summary, updated_workspace_ids_json, tool_call_count, \
     drained_at, last_activity_at, duration_secs, model, files_changed, lines_added, \
     lines_removed, tool_calls, gate_result, exit_reason, created_at, updated_at";
 
-fn parse_session_row(row: &sqlx::sqlite::SqliteRow) -> SessionDb {
+/// Deserialize a row from `SELECT {SESSION_COLS} FROM sessions` into [`SessionDb`].
+pub(super) fn parse_session_row(row: &sqlx::sqlite::SqliteRow) -> SessionDb {
     let updated_workspace_ids_json: String = row.get(14);
     let updated_workspace_ids =
         serde_json::from_str(&updated_workspace_ids_json).unwrap_or_default();

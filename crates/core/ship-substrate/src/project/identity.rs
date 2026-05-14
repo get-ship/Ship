@@ -53,22 +53,13 @@ struct ProjectIdentity {
 }
 
 fn read_project_identity(ship_dir: &Path) -> Option<ProjectIdentity> {
-    let primary = ship_dir.join(crate::project::PRIMARY_CONFIG_FILE);
-    let legacy = ship_dir.join(crate::project::LEGACY_CONFIG_FILE);
-    let (path, is_jsonc) = if primary.exists() {
-        (primary, true)
-    } else if legacy.exists() {
-        (legacy, false)
-    } else {
+    let path = ship_dir.join(crate::project::PRIMARY_CONFIG_FILE);
+    if !path.exists() {
         return None;
-    };
+    }
     let content = fs::read_to_string(path).ok()?;
-    let parsed: serde_json::Value = if is_jsonc {
-        serde_json::from_str(&crate::fs_util::strip_jsonc_comments(&content)).ok()?
-    } else {
-        let tv: toml::Value = toml::from_str(&content).ok()?;
-        serde_json::to_value(&tv).ok()?
-    };
+    let parsed: serde_json::Value =
+        serde_json::from_str(&crate::fs_util::strip_jsonc_comments(&content)).ok()?;
 
     let id = parsed
         .get("id")
@@ -116,7 +107,7 @@ fn project_id_token(ship_dir: &Path, configured_id: Option<&str>) -> String {
         .map(str::trim)
         .filter(|value| !value.is_empty())
         .map(ToOwned::to_owned)
-        .unwrap_or_else(|| legacy_path_slug_from_ship_dir(ship_dir));
+        .unwrap_or_else(|| path_slug_from_ship_dir(ship_dir));
 
     let mut token = sanitize_file_name(&raw);
     if token.len() > 16 {
@@ -176,7 +167,9 @@ pub(crate) fn is_transient_project_root(project_root: &Path) -> bool {
         || contains_component_sequence(&canonical, &["target", "tmp"])
 }
 
-pub(crate) fn legacy_path_slug_from_ship_dir(ship_dir: &Path) -> String {
+/// Derive a slug-form identifier from a project path. Used when no
+/// explicit `id` is configured in `ship.jsonc`.
+fn path_slug_from_ship_dir(ship_dir: &Path) -> String {
     let project_root = project_root_from_ship_dir(ship_dir);
     let canonical =
         std::fs::canonicalize(project_root).unwrap_or_else(|_| project_root.to_path_buf());

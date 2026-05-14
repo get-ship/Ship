@@ -22,6 +22,7 @@
 //!   `apps/shipd/templates/` via the `loader` feature, plus `render`
 //!   convenience helpers.
 
+pub mod mcp_apps_embed;
 pub mod router;
 pub mod routed_handler;
 pub mod routed_sse;
@@ -62,7 +63,6 @@ pub mod discovery;
 pub mod error_overlay;
 pub mod generic_sse;
 pub mod handlers;
-mod lint_overlay;
 pub(crate) mod packs;
 pub mod resolve;
 pub mod view_filters;
@@ -83,7 +83,7 @@ use std::path::PathBuf;
 use axum::{Json, http::StatusCode};
 use serde::Serialize;
 
-use crate::routes::rest_api::MeshResponse;
+use crate::wire::MeshResponse;
 
 pub use assets::{
     serve_code_editor, serve_datastar_js, serve_elements_catalog, serve_elements_manifest,
@@ -147,3 +147,4 @@ pub(crate) fn mesh_err(status: StatusCode, msg: impl Into<String>) -> MeshResult
 }
 
 // views_tests handled at line 62 via the relocated path.
+pub mod themes;

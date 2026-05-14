@@ -4,10 +4,10 @@
 use serde_json::{Value, json};
 
 use super::{RegistryError, html_escape, parse_scope, required_str};
-use crate::routes::rest_api::ApiState;
-use crate::services::files::FilesService;
+use crate::ship_runtime::ApiState;
+use ship_platform::services::files::FilesService;
 
-#[allow(unused_imports, unused_variables)]
+
 pub(super) fn try_dispatch(
     name: &str,
     args: &Value,
@@ -16,7 +16,7 @@ pub(super) fn try_dispatch(
 ) -> Result<Option<Value>, RegistryError> {
     let value: Result<Value, RegistryError> = match name {
         "skills.list" => Ok(json!({
-            "items": crate::services::skills::state::list(&files),
+            "items": ship_platform::services::skills::state::list(files),
         })),
         "skills.summaries" => {
             let all = crate::views::state::list_skills(state.ship_dir());
@@ -29,7 +29,7 @@ pub(super) fn try_dispatch(
             let mut docs = 0usize;
             let mut tag_set: std::collections::BTreeSet<String> = Default::default();
             for s in &all {
-                match serde_json::to_value(&s.kind).ok().and_then(|v| v.as_str().map(String::from)).as_deref() {
+                match serde_json::to_value(s.kind).ok().and_then(|v| v.as_str().map(String::from)).as_deref() {
                     Some("smart") => smart += 1,
                     Some("docs") => docs += 1,
                     _ => {}
@@ -37,7 +37,7 @@ pub(super) fn try_dispatch(
                 for t in &s.tags { tag_set.insert(t.clone()); }
             }
             let filtered: Vec<_> = all.iter().filter(|s| {
-                let k = serde_json::to_value(&s.kind).ok().and_then(|v| v.as_str().map(String::from)).unwrap_or_default();
+                let k = serde_json::to_value(s.kind).ok().and_then(|v| v.as_str().map(String::from)).unwrap_or_default();
                 let kind_ok = kind == "all" || kind == k;
                 let hay = format!("{} {}", s.name, s.description).to_lowercase();
                 let q_ok = needle.is_empty() || hay.contains(&needle);
@@ -93,9 +93,9 @@ pub(super) fn try_dispatch(
         "skills.get" => {
             let id = required_str(args, "id")?;
             let scope = parse_scope(args)?;
-            let detail = crate::services::skills::state::load(&files, id, scope)
+            let detail = ship_platform::services::skills::state::load(files, id, scope)
                 .map_err(|e| match e {
-                    crate::services::skills::state::Error::NotFound(m) => RegistryError::not_found(m),
+                    ship_platform::services::skills::state::Error::NotFound(m) => RegistryError::not_found(m),
                     other => RegistryError::service(other.to_string()),
                 })?;
             Ok(serde_json::to_value(&detail).map_err(|e| RegistryError::service(e.to_string()))?)

@@ -5,7 +5,6 @@
 //! version skew, missing layout, and daemon connectivity.
 
 use anyhow::Result;
-use std::path::Path;
 use std::time::Duration;
 
 use crate::http::daemon_client;
@@ -141,10 +140,3 @@ fn kv(key: &str, val: &str) {
     println!("  {key:14} {val}");
 }
 
-#[allow(dead_code)]
-fn dir_size_summary(path: &Path) -> String {
-    if !path.exists() {
-        return "missing".to_string();
-    }
-    "present".to_string()
-}

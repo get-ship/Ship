@@ -1,8 +1,74 @@
 //! Helpers for emitting job dispatch events to the store and kernel.
+//!
+//! Every emit function follows the same envelope-build → log-on-failure →
+//! persist-and-route pattern. Three private helpers consolidate that
+//! boilerplate, one per service-actor-id family.
 
 use ship_substrate::events::{CallerKind, EmitContext, EventEnvelope};
 use std::sync::Arc;
 use tokio::sync::Mutex;
+
+// ── Generic typed emit helpers ────────────────────────────────────────────────
+
+/// Build + persist an event under the `service.job-dispatch` actor.
+/// Logs failures at WARN; failures don't propagate (most orchestrator
+/// callers can't recover from an emit failure).
+async fn emit_job_dispatch_event<P: serde::Serialize>(
+    kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
+    event_type: &str,
+    job_id: &str,
+    slug: &str,
+    payload: &P,
+    ship_dir: Option<&std::path::Path>,
+) {
+    let envelope = match EventEnvelope::new(event_type, job_id, payload) {
+        Ok(e) => e.with_actor_id("service.job-dispatch"),
+        Err(e) => {
+            tracing::warn!(
+                slug, event_type,
+                "job-dispatch: failed to build envelope: {e}"
+            );
+            return;
+        }
+    };
+    persist_and_route(kernel, envelope, slug, ship_dir).await;
+}
+
+/// Build + persist a `process.*` event under `service.process-lifecycle`.
+async fn emit_process_event<P: serde::Serialize>(
+    kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
+    event_type: &str,
+    slug: &str,
+    payload: &P,
+) {
+    let envelope = match EventEnvelope::new(event_type, slug, payload) {
+        Ok(e) => e.with_actor_id("service.process-lifecycle"),
+        Err(e) => {
+            tracing::warn!(slug, event_type, "process-events: failed to build envelope: {e}");
+            return;
+        }
+    };
+    persist_and_route(kernel, envelope, slug, None).await;
+}
+
+/// Build + persist an `executor.*` event under `service.executor-lifecycle`.
+async fn emit_executor_event<P: serde::Serialize>(
+    kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
+    event_type: &str,
+    slug: &str,
+    payload: &P,
+) {
+    let envelope = match EventEnvelope::new(event_type, slug, payload) {
+        Ok(e) => e.with_actor_id("service.executor-lifecycle"),
+        Err(e) => {
+            tracing::warn!(slug, event_type, "executor-events: failed to build envelope: {e}");
+            return;
+        }
+    };
+    persist_and_route(kernel, envelope, slug, None).await;
+}
+
+// ── Public job-lifecycle emitters ─────────────────────────────────────────────
 
 /// Emit a `job.dispatched` event using the default store path.
 pub async fn emit_job_dispatched(
@@ -24,25 +90,21 @@ pub async fn emit_job_dispatched_with_meta(
     provider_meta: Option<serde_json::Value>,
     ship_dir: Option<&std::path::Path>,
 ) {
-    let dispatched_payload = ship_substrate::events::job::JobDispatchedPayload {
+    let payload = ship_substrate::events::job::JobDispatchedPayload {
         job_id: job_id.to_string(),
         worktree: worktree_path.to_string_lossy().into_owned(),
         pid: None,
         provider_meta,
     };
-    let dispatched_envelope = match EventEnvelope::new(
+    emit_job_dispatch_event(
+        kernel,
         ship_substrate::events::job::event_types::JOB_DISPATCHED,
         job_id,
-        &dispatched_payload,
-    ) {
-        Ok(e) => e.with_actor_id("service.job-dispatch"),
-        Err(e) => {
-            tracing::warn!(slug, "pipeline: failed to build job.dispatched event: {e}");
-            return;
-        }
-    };
-
-    persist_and_route(kernel, dispatched_envelope, slug, ship_dir).await;
+        slug,
+        &payload,
+        ship_dir,
+    )
+    .await;
     tracing::info!(slug, "pipeline: job dispatched successfully");
 }
 
@@ -64,18 +126,15 @@ pub async fn emit_spawn_failed(
         stage: stage.to_string(),
         error: format!("{err:#}"),
     };
-    let envelope = match EventEnvelope::new(
+    emit_job_dispatch_event(
+        kernel,
         ship_substrate::events::job::event_types::JOB_SPAWN_FAILED,
         job_id,
+        slug,
         &payload,
-    ) {
-        Ok(e) => e.with_actor_id("service.job-dispatch"),
-        Err(e) => {
-            tracing::warn!(slug, "pipeline: failed to build job.spawn_failed event: {e}");
-            return;
-        }
-    };
-    persist_and_route(kernel, envelope, slug, None).await;
+        None,
+    )
+    .await;
 }
 
 /// Emit a `job.step_dispatched` event for a specific pipeline step.
@@ -91,19 +150,15 @@ pub async fn emit_step_dispatched_event(
         "job_id": job_id, "slug": slug,
         "step_id": step_id, "step_type": step_type,
     });
-    let envelope = match EventEnvelope::new(
+    emit_job_dispatch_event(
+        kernel,
         ship_substrate::events::job::event_types::STEP_DISPATCHED,
         job_id,
+        slug,
         &payload,
-    ) {
-        Ok(e) => e.with_actor_id("service.job-dispatch"),
-        Err(e) => {
-            tracing::warn!(slug, "pipeline: failed to build step_dispatched: {e}");
-            return;
-        }
-    };
-
-    persist_and_route(kernel, envelope, slug, ship_dir).await;
+        ship_dir,
+    )
+    .await;
 }
 
 /// Emit `job.step_failed` + `job.failed` for a pipeline step error.
@@ -121,18 +176,12 @@ pub async fn emit_step_failed(
         step_id: step_id.to_string(),
         error: reason.to_string(),
     };
-    if let Ok(env) = EventEnvelope::new(event_types::STEP_FAILED, job_id, &step_fail) {
-        let env = env.with_actor_id("service.job-dispatch");
-        persist_and_route(kernel, env, slug, None).await;
-    }
+    emit_job_dispatch_event(kernel, event_types::STEP_FAILED, job_id, slug, &step_fail, None).await;
     let job_fail = JobFailedPayload {
         job_id: job_id.to_string(),
         error: format!("step `{step_id}` failed: {reason}"),
     };
-    if let Ok(env) = EventEnvelope::new(event_types::JOB_FAILED, job_id, &job_fail) {
-        let env = env.with_actor_id("service.job-dispatch");
-        persist_and_route(kernel, env, slug, None).await;
-    }
+    emit_job_dispatch_event(kernel, event_types::JOB_FAILED, job_id, slug, &job_fail, None).await;
 }
 
 /// Emit a `job.failed` event when a job cannot be dispatched or encounters a fatal error.
@@ -146,19 +195,15 @@ pub async fn emit_job_failed(
         job_id: job_id.to_string(),
         error: error.to_string(),
     };
-    let envelope = match EventEnvelope::new(
+    emit_job_dispatch_event(
+        kernel,
         ship_substrate::events::job::event_types::JOB_FAILED,
         job_id,
+        slug,
         &payload,
-    ) {
-        Ok(e) => e.with_actor_id("service.job-dispatch"),
-        Err(e) => {
-            tracing::error!(slug, "emit_job_failed: failed to build event: {e}");
-            return;
-        }
-    };
-
-    persist_and_route(kernel, envelope, slug, None).await;
+        None,
+    )
+    .await;
     tracing::error!(slug, error, "job failed");
 }
 
@@ -177,7 +222,9 @@ pub async fn emit_process_spawned(
     executor_kind: &str,
     step_id: Option<&str>,
 ) {
-    use ship_substrate::events::process::{sanitize_argv, filter_env_keys, ProcessSpawnedPayload, event_types};
+    use ship_substrate::events::process::{
+        ProcessSpawnedPayload, event_types, filter_env_keys, sanitize_argv,
+    };
     let payload = ProcessSpawnedPayload {
         slug: slug.to_string(),
         job_id: job_id.to_string(),
@@ -234,22 +281,6 @@ pub async fn emit_process_signal_sent(
     emit_process_event(kernel, event_types::PROCESS_SIGNAL_SENT, slug, &payload).await;
 }
 
-async fn emit_process_event(
-    kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
-    event_type: &str,
-    slug: &str,
-    payload: &impl serde::Serialize,
-) {
-    let envelope = match EventEnvelope::new(event_type, slug, payload) {
-        Ok(e) => e.with_actor_id("service.process-lifecycle"),
-        Err(e) => {
-            tracing::warn!(slug, event_type, "process-events: failed to build envelope: {e}");
-            return;
-        }
-    };
-    persist_and_route(kernel, envelope, slug, None).await;
-}
-
 // ── Executor substrate event emitters ─────────────────────────────────────────
 
 /// Emit `executor.session_destroyed` when a tmux session (or equivalent
@@ -295,21 +326,7 @@ pub async fn emit_executor_window_destroyed(
     emit_executor_event(kernel, EXECUTOR_WINDOW_DESTROYED, slug, &payload).await;
 }
 
-async fn emit_executor_event(
-    kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
-    event_type: &str,
-    slug: &str,
-    payload: &impl serde::Serialize,
-) {
-    let envelope = match EventEnvelope::new(event_type, slug, payload) {
-        Ok(e) => e.with_actor_id("service.executor-lifecycle"),
-        Err(e) => {
-            tracing::warn!(slug, event_type, "executor-events: failed to build envelope: {e}");
-            return;
-        }
-    };
-    persist_and_route(kernel, envelope, slug, None).await;
-}
+// ── Routing ───────────────────────────────────────────────────────────────────
 
 /// Persist an event to platform.db and deliver it through the kernel.
 ///

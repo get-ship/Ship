@@ -28,7 +28,7 @@ pub mod types {
             // (skill.{created,updated,deleted}, rule.{created,updated,
             // deleted}, permissions.updated). event-coverage/02 added 2 (session.status_changed, session.turn_failed) for 82 total.
             // Adjust this when adding/removing event types.
-            assert_eq!(ALL.len(), 82, "exactly 82 event type constants required");
+            assert_eq!(ALL.len(), 83, "exactly 83 event type constants required");
         }
     }
 }
@@ -114,21 +114,19 @@ mod tests_mesh_scope;
 
 use anyhow::Result;
 use chrono::{DateTime, Utc};
-use std::path::Path;
 
-pub fn read_events(_ship_dir: &Path) -> Result<Vec<EventEnvelope>> {
+pub fn read_events() -> Result<Vec<EventEnvelope>> {
     crate::db::events::list_all_events()
 }
 
 pub fn list_events_since(
-    _ship_dir: &Path,
     since: &DateTime<Utc>,
     limit: Option<usize>,
 ) -> Result<Vec<EventEnvelope>> {
     crate::db::events::list_events_since_time(since, limit)
 }
 
-pub fn read_recent_events(_ship_dir: &Path, limit: usize) -> Result<Vec<EventEnvelope>> {
+pub fn read_recent_events(limit: usize) -> Result<Vec<EventEnvelope>> {
     crate::db::events::list_recent_events(limit)
 }
 

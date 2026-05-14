@@ -99,7 +99,7 @@ impl TestDaemon {
             )
             .route(
                 "/sessions",
-                axum::routing::get(crate::routes::runtime_api::list_sessions),
+                axum::routing::get(crate::routes::runtime_api::list_workspace_sessions),
             )
             .route(
                 "/agents/active",

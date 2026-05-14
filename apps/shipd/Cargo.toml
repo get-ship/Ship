@@ -21,14 +21,15 @@ path = "src/main.rs"
 ship-application = { path = "../../crates/core/ship-application" }
 ship-substrate = { path = "../../crates/core/ship-substrate" }
 ship-platform = { path = "../../crates/core/ship-platform" }
+ship-supervisor = { path = "../../crates/ship-supervisor" }
 ship-types = { path = "../../crates/core/ship-types" }
 lint = { path = "../../crates/core/lint" }
 compiler = { path = "../../crates/core/compiler" }
 ship-jobs = { path = "../../crates/core/ship-jobs" }
 build-info = { path = "../../crates/core/build-info" }
-ship-sui = { path = "../../crates/ship-sui" }
-sui-compiler = { path = "../../crates/sui-compiler" }
-sui-signals = { path = "../../crates/sui-signals" }
+ship-sui = { path = "../../crates/sui/ship-sui" }
+sui-compiler = { path = "../../crates/sui/sui-compiler" }
+sui-signals = { path = "../../crates/sui/sui-signals" }
 chrono = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 tokio-util = { workspace = true, features = ["full"] }
@@ -37,7 +38,6 @@ futures-util = { workspace = true }
 anyhow = { workspace = true }
 getrandom = { workspace = true }
 libc = { workspace = true }
-dirs = { workspace = true }
 serde = { workspace = true }
 base64 = { workspace = true }
 serde_yaml = { workspace = true }
@@ -99,3 +99,7 @@ chrono = { workspace = true }
 reqwest = { workspace = true, features = ["json"] }
 tokio = { workspace = true, features = ["full", "test-util"] }
 serde_json = { workspace = true }
+ship-pipelines = { path = "../../crates/core/ship-pipelines" }
+
+[lints]
+workspace = true

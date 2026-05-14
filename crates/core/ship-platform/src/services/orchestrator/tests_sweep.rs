@@ -11,7 +11,7 @@ use ship_substrate::events::kernel_router::{ActorConfig, KernelRouter};
 use ship_substrate::events::supervisor::event_types as sup_events;
 use ship_substrate::events::EventEnvelope;
 use crate::services::dispatch_ports::{
-    AgentPlatform, ExecutorHandle, ExitSignal, IsolationStrategy, JobContext, JobExecutor,
+    AgentPlatform, ExecutorHandle, IsolationStrategy, JobContext, JobExecutor,
     ProcessRegistryPort,
 };
 use crate::services::orchestrator::sweep::run_sweep;
@@ -38,12 +38,6 @@ impl AgentPlatform for NoopPlatform {
     async fn graceful_agent_exit(&self, _: &str, _: Option<&str>) {}
     async fn cleanup_job(&self, _: &str, _: &str) {}
     fn git_merge(&self, _: &str) -> anyhow::Result<bool> { Ok(true) }
-    fn start_exit_handler(
-        &self,
-        _: Arc<Mutex<KernelRouter>>,
-        _: tokio::sync::mpsc::UnboundedReceiver<ExitSignal>,
-    ) {}
-    fn start_liveness_sweep(&self, _: Arc<Mutex<KernelRouter>>) {}
     async fn cleanup_orphaned_worktrees(&self) {}
 }
 

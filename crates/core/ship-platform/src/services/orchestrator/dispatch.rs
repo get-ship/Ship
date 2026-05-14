@@ -215,7 +215,7 @@ pub async fn dispatch_job_internal(
             activity_rx,
         );
     } else {
-        octx.platform.start_exit_handler(kernel.clone(), exit_rx);
+        super::exit_handler::start(kernel.clone(), octx.registry.clone(), exit_rx);
     }
 
     emit_job_dispatched(kernel, &payload.job_id, &worktree_path, slug).await;

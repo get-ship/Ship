@@ -44,9 +44,6 @@ Parameters use `data::SqlParam`. Callers do not open SQLite connections directly
 `DataService::open` calls `open_raw` then `run_startup(ship_dir)`. Startup is idempotent:
 
 1. **Register built-in schemas** — `collections::builtin::register_builtin_schemas(svc)` ensures the 5 built-in collection tables exist: `specs`, `adrs`, `notes`, `feedback`, `annotations`. Registration is `CREATE TABLE IF NOT EXISTS`, safe to call repeatedly.
-2. **Migrate legacy content** — `collections::migration::migrate_platform_to_collections(svc, platform_db_path)` copies notes, ADRs, and specs from legacy dedicated tables in `platform.db` into the corresponding collections. Gated by a completion flag (`platform_to_collections_v1`) stored in `data.db`'s `migration_state` table. Runs once, skips on subsequent startups.
-
-Source rows in `platform.db` are not deleted by the migration. They remain as a safety net. A future release will prune them once migration is considered settled.
 
 ## Collections
 

@@ -29,7 +29,7 @@ On shutdown, PID and port files are removed.
 
 ### MCP endpoint (`/mcp`)
 
-Streamable HTTP via the `rmcp` library. Each HTTP session gets its own `NetworkServer` instance sharing a single `KernelRouter`. MCP tools: `mesh_register`, `mesh_send`, `mesh_broadcast`, `mesh_discover`, `mesh_inbox`, `mesh_status`.
+Streamable HTTP via the `rmcp` library. Each HTTP session gets its own `NetworkServer` instance sharing a single `KernelRouter`. MCP tools: `register_mesh_agent`, `send_mesh_message`, `broadcast_mesh_message`, `discover_mesh_agents`, `read_mesh_inbox`, `update_mesh_status`.
 
 ### REST mesh API (`/api/mesh/*`)
 

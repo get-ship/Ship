@@ -20,7 +20,7 @@ use axum::response::{IntoResponse, Response};
 use minijinja::Value;
 use std::collections::HashMap;
 
-use crate::routes::rest_api::ApiState;
+use crate::ship_runtime::ApiState;
 use crate::services::ship_ns::ShipNs;
 use crate::views::router::match_path;
 
@@ -61,7 +61,12 @@ fn build_context(
         .and_then(|s| serde_json::from_str::<serde_json::Value>(s).ok())
         .unwrap_or_else(|| serde_json::json!({}));
 
-    let session = serde_json::json!({});  // TODO: populate from auth context
+    // Session payload is intentionally empty for now — file-routed views
+    // don't have auth-context wired through yet; templates that depend on
+    // session state should fall back to a logged-out shape. Populating
+    // this requires plumbing AuthContext through routed_handler, which is
+    // a separate slice (see views/routed_handler.rs callers).
+    let session = serde_json::json!({});
     let workspace = serde_json::json!({
         "id": headers.get("x-workspace-id").and_then(|v| v.to_str().ok()).unwrap_or(""),
     });
@@ -321,14 +326,12 @@ pub(crate) fn render_source(
         let _ = env.add_template(n, s);
     }
 
-    // Sibling partials on disk. Leak strings into 'static so the env
-    // satisfies Environment<'static> — transient env, strings freed
-    // with the env drop (technically leak, but per-request so fine).
+    // Sibling partials on disk. Use add_template_owned so the env owns
+    // the strings — they're freed with the env at end of request rather
+    // than leaked into 'static (which would grow memory per request).
     let top = view_name.split('/').next().unwrap_or(view_name);
     for (n, s) in crate::views::templates::collect_siblings(top) {
-        let leaked_n: &'static str = Box::leak(n.into_boxed_str());
-        let leaked_s: &'static str = Box::leak(s.into_boxed_str());
-        let _ = env.add_template(leaked_n, leaked_s);
+        let _ = env.add_template_owned(n, s);
     }
 
     // Add the main source under a stable name.

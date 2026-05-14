@@ -24,7 +24,7 @@ impl JobManager {
     pub async fn init(
         kernel: Arc<Mutex<ship_substrate::events::KernelRouter>>,
         ship_dir: PathBuf,
-        health_registry: &crate::task_health::HealthRegistry,
+        health_registry: &ship_substrate::task_health::HealthRegistry,
     ) -> Self {
         let dispatch_handle =
             job_dispatch::subscribe_job_events(kernel, ship_dir, health_registry).await;

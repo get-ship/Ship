@@ -17,11 +17,10 @@ fn main() -> anyhow::Result<()> {
 
     // Rotate log file if >10 MB.
     let log_path = logs_dir.join("shipd.log");
-    if let Ok(meta) = std::fs::metadata(&log_path) {
-        if meta.len() > 10 * 1024 * 1024 {
+    if let Ok(meta) = std::fs::metadata(&log_path)
+        && meta.len() > 10 * 1024 * 1024 {
             let _ = std::fs::rename(&log_path, logs_dir.join("shipd.log.old"));
         }
-    }
 
     // File appender — JSON-structured logs for crash forensics.
     let file_appender = tracing_appender::rolling::never(&logs_dir, "shipd.log");
@@ -55,12 +54,11 @@ fn main() -> anyhow::Result<()> {
     // Project resolution:
     //   1. `--dev-worktree <path>` (dev-only; routes the daemon into a
     //      per-worktree IPC dir + hash-derived port so multiple Ship-dev
-    //      worktrees can run side-by-side without colliding).
-    //   2. `--workspace <path>` is the deprecated alias kept for dev scripts.
-    //   3. Otherwise walk up from CWD looking for `.ship/`, like git discovers
-    //      the repo root.
+    //      worktrees can run side-by-side without colliding). Hidden
+    //      behind the `dev` semantics — not a user-facing flag.
+    //   2. Otherwise walk up from CWD looking for `.ship/`, like git
+    //      discovers the repo root.
     let workspace = extract_str_arg(&args, "--dev-worktree")
-        .or_else(|| extract_str_arg(&args, "--workspace"))
         .map(std::path::PathBuf::from)
         .or_else(discover_workspace);
 

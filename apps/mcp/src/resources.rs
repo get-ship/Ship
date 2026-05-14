@@ -98,7 +98,8 @@ pub fn static_resource_template_list() -> Vec<rmcp::model::Annotated<RawResource
 }
 
 pub fn render_events_resource(project_dir: &Path, limit: usize) -> Option<String> {
-    match read_recent_events(project_dir, limit) {
+    let _ = project_dir;
+    match read_recent_events(limit) {
         Ok(events) => {
             if events.is_empty() {
                 return Some("No events found.".to_string());

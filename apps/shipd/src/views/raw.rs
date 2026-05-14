@@ -15,17 +15,8 @@ use axum::{
     http::StatusCode,
     response::Response,
 };
-use serde::Serialize;
 
-use crate::routes::rest_api::ApiState;
-use crate::views::templates;
-
-#[allow(dead_code)] // used by wrap() which is called from the raw view handler below
-#[derive(Serialize)]
-struct RawCtx<'a> {
-    title: &'a str,
-    inner: &'a str,
-}
+use crate::ship_runtime::ApiState;
 
 fn err(status: StatusCode, msg: String) -> Response {
     Response::builder()
@@ -55,11 +46,6 @@ fn html_ok(body: String, cookie: String) -> Response {
         .unwrap()
 }
 
-#[allow(dead_code)] // used via serve_view_raw handler (route registered in router.rs)
-fn wrap(title: &str, inner: &str) -> Option<String> {
-    templates::render("_raw_shell.html.j2", &RawCtx { title, inner }).ok()
-}
-
 /// GET `/api/v1/view/{name}/raw`
 ///
 /// Cookie-first auth: mints a `ship_session` cookie scoped to
@@ -73,9 +59,9 @@ fn wrap(title: &str, inner: &str) -> Option<String> {
     params(("name" = String, Path, description = "View name")),
     responses(
         (status = 200, description = "Raw view shell HTML with session cookie", content_type = "text/html"),
-        (status = 400, description = "Invalid view name", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 401, description = "Unauthenticated", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 404, description = "View not found", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 400, description = "Invalid view name", body = crate::wire::ErrorResponse),
+        (status = 401, description = "Unauthenticated", body = crate::wire::ErrorResponse),
+        (status = 404, description = "View not found", body = crate::wire::ErrorResponse),
     ),
     tag = "views"
 )]
@@ -89,7 +75,7 @@ pub async fn serve_view_raw(
 
     // Static `index.html` fallback for third-party views that ship a
     // plain HTML doc. File-routed (`.j2`) views use `/api/v1/v/{*path}`.
-    let (view_dir, _) = match crate::views::resolve_view_dir(&name) {
+    let (view_dir, _) = match crate::views::resolve_view_dir(&name, None) {
         Some(v) => v,
         None => return err(StatusCode::NOT_FOUND, format!("view '{name}' not found")),
     };

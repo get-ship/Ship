@@ -40,6 +40,9 @@ pub async fn stream_job_log(
     State(_state): State<ApiState>,
     Path(slug): Path<String>,
 ) -> Result<Sse<impl Stream<Item = Result<Event, std::convert::Infallible>>>, (StatusCode, String)> {
+    if !is_valid_slug(&slug) {
+        return Err((StatusCode::BAD_REQUEST, "invalid slug".to_string()));
+    }
     let log_path = worktrees_dir()
         .join(&slug)
         .join(".artifacts")
@@ -53,7 +56,7 @@ pub async fn stream_job_log(
     }
 
     let stream = async_stream::stream! {
-        let mut pos = seek_initial(&log_path).await;
+        let mut pos = 0u64;
 
         // Emit the initial tail.
         if let Some(chunk) = read_chunk(&log_path, 0, pos).await {
@@ -86,23 +89,13 @@ pub async fn stream_job_log(
     Ok(Sse::new(stream).keep_alive(KeepAlive::new().interval(Duration::from_secs(30))))
 }
 
-/// Resolve the initial seek position: either 0 (file small enough to
-/// send entirely) or `size - INITIAL_TAIL_BYTES` (send only the tail).
-async fn seek_initial(path: &PathBuf) -> u64 {
-    let size = tokio::fs::metadata(path).await.map(|m| m.len()).unwrap_or(0);
-    // Both branches return 0: seek-to-tail happens inside read_chunk via the
-    // from/to pair; this function just marks the start for subsequent reads.
-    #[allow(clippy::if_same_then_else)]
-    if size > INITIAL_TAIL_BYTES {
-        0 // large file: read_chunk will seek to tail on first call
-    } else {
-        0 // small file: send the whole thing
-    }
-    // NB: seek-to-tail logic happens inside the first read_chunk via
-    // the from/to pair below. This function returns the starting pos
-    // for *subsequent* tail reads, which is the file size at send time.
-    // Simpler: just return 0 and let the first chunk be the whole file
-    // when it's under the cap. See read_chunk below.
+/// Slug component must be a safe filename — alphanumeric/dash/underscore
+/// only. Without this guard a caller could pass `../../etc/passwd` and
+/// escape the worktrees dir via the `worktrees_dir().join(slug)` step.
+fn is_valid_slug(slug: &str) -> bool {
+    !slug.is_empty()
+        && slug.len() <= 128
+        && slug.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
 }
 
 /// Read bytes `[from, to)` from the file. Returns None on IO error or

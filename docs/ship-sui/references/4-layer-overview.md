@@ -8,7 +8,7 @@ SUI splits cleanly into four layers. Each owns one concern and exposes a narrow 
 .js + .sui.d.ts + .ssr.html  (compiler output — gitignored under dist/)
     ↓ packages/sui-runtime/  (reactive primitives + DOM bindings + attach())
 runtime in the browser       (signals, control-flow, transitions, error-boundary)
-    ↓ crates/ship-sui-server (daemon view-host — resolver + assets + SSR + SSE)
+    ↓ crates/sui/ship-sui-server (daemon view-host — resolver + assets + SSR + SSE)
 HTTP /_sui/* + /view-host    (apps/shipd routes wire it together)
 ```
 
@@ -67,9 +67,9 @@ The dev-only leak detector lives at the subpath `@ship/sui-runtime/dev` so it do
 
 `<sui-if>`, `<sui-for>`, `<sui-match>` custom elements register on module load (`import './boundary-elements'` at the bottom of `index.ts`).
 
-## Layer 3 — Daemon view-host (`crates/ship-sui-server/`, `apps/shipd/`)
+## Layer 3 — Daemon view-host (`crates/sui/ship-sui-server/`, `apps/shipd/`)
 
-Crate layout (`crates/ship-sui-server/src/`):
+Crate layout (`crates/sui/ship-sui-server/src/`):
 
 | File | Owns |
 |---|---|
@@ -87,10 +87,10 @@ Daemon-side route table (`apps/shipd/src/routes.rs:139` onwards) mounts the surf
 
 | Route | Handler |
 |---|---|
-| `GET /_sui/runtime.js` / `dom.js` / `sdk-client.js` / `components.js` / `lucide-icons.json` | `crates/ship-sui-server/src/assets.rs` |
+| `GET /_sui/runtime.js` / `dom.js` / `sdk-client.js` / `components.js` / `lucide-icons.json` | `crates/sui/ship-sui-server/src/assets.rs` |
 | `GET /_sui/islands/{tag}/island.js` | islands bundle |
-| `GET /_sui/views/{name}/view.sui` / `view.js` / `view.css` | `crates/ship-sui-server/src/view.rs` |
-| `GET /_sui/views/{name}` | `crates/ship-sui-server/src/view_payload.rs` |
+| `GET /_sui/views/{name}/view.sui` / `view.js` / `view.css` | `crates/sui/ship-sui-server/src/view.rs` |
+| `GET /_sui/views/{name}` | `crates/sui/ship-sui-server/src/view_payload.rs` |
 | `GET /_sui/views/{name}/sse` | `apps/shipd/src/views/sui_patch_channel.rs` |
 | `GET /_sui/hmr` / `hmr-client.js` / `dev/hmr` | `apps/shipd/src/views/sui_hmr.rs` |
 | `GET /_sui/data` | `apps/shipd/src/views/sui_data.rs` (the `<data live>` SSE channel) |

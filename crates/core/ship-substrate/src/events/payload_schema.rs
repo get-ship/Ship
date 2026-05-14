@@ -67,11 +67,11 @@ fn schema_for_event_type(
         // gate
         "gate.passed" => Some(check::<GatePassed>),
         "gate.failed" => Some(check::<GateFailed>),
-        // job
-        "job.created" => Some(check::<JobCreated>),
-        "job.completed" => Some(check::<JobCompleted>),
-        "job.failed" => Some(check::<JobFailed>),
-        "job.dispatched" => Some(check::<JobDispatched>),
+        // job — canonical 18-field payloads live in `crate::events::job`
+        "job.created" => Some(check::<crate::events::job::JobCreatedPayload>),
+        "job.completed" => Some(check::<crate::events::job::JobCompletedPayload>),
+        "job.failed" => Some(check::<crate::events::job::JobFailedPayload>),
+        "job.dispatched" => Some(check::<crate::events::job::JobDispatchedPayload>),
         ship_types::event_types::JOB_STEP_COMPLETED => Some(check::<crate::events::job::StepCompletedPayload>),
         ship_types::event_types::JOB_STEP_FAILED => Some(check::<crate::events::job::StepFailedPayload>),
         ship_types::event_types::JOB_CANCELLED => Some(check::<crate::events::job::JobCancelledPayload>),

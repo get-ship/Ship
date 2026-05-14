@@ -131,8 +131,7 @@ pub async fn post_annotation(
         }
     };
     let ctx = auth.to_daemon_emit_context();
-    #[allow(deprecated)] // TODO: migrate to emit() — requires confirming persistence semantics for annotations
-    if let Err(e) = state.kernel().lock().await.route(envelope, &ctx).await {
+    if let Err(e) = state.kernel().lock().await.emit(envelope, &ctx).await {
         return err(
             StatusCode::INTERNAL_SERVER_ERROR,
             "route_failed",

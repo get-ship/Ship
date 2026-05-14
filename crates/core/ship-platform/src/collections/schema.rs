@@ -160,10 +160,22 @@ fn validate_schema(schema: &CollectionSchema) -> anyhow::Result<()> {
     if schema.id.is_empty() {
         anyhow::bail!("schema id is required");
     }
+    if !super::query::is_safe_identifier(&schema.id) {
+        anyhow::bail!(
+            "schema id '{}' is not a safe SQL identifier (alphanumeric, `_`, `-`, `.` only)",
+            schema.id
+        );
+    }
     if schema.fields.is_empty() {
         anyhow::bail!("schema must have at least one field");
     }
     for (name, field) in &schema.fields {
+        if !super::query::is_safe_identifier(name) {
+            anyhow::bail!(
+                "field name '{}' is not a safe SQL identifier (alphanumeric, `_`, `-`, `.` only)",
+                name
+            );
+        }
         validate_field_def(name, field)?;
     }
     Ok(())

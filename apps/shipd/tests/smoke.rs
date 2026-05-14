@@ -157,20 +157,6 @@ async fn openapi_spec_is_valid_json() {
     assert!(body.get("paths").is_some(), "missing 'paths' key");
 }
 
-// The workspace primitive was retired in commit a5d580e6
-// (refactor(runtime): delete workspace primitive entirely). The
-// endpoint no longer exists; CORS preflight below targets the same
-// path but only asserts headers, not response code, so it still works.
-#[tokio::test]
-#[ignore]
-async fn list_workspaces_returns_ok() {
-    let d = TestDaemon::start().await;
-    let res = d.authed().get(d.url("/api/v1/workspaces")).send().await.unwrap();
-    assert_eq!(res.status(), 200);
-    let body: serde_json::Value = res.json().await.unwrap();
-    assert_eq!(body["ok"], true);
-}
-
 #[tokio::test]
 async fn list_jobs_returns_ok() {
     let d = TestDaemon::start().await;

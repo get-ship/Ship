@@ -148,7 +148,7 @@ pub fn lint_ast(view_name: &str, source: &str, path: &std::path::Path) -> Vec<Fi
     let stmt = match parse(
         source,
         view_name,
-        SyntaxConfig::default(),
+        SyntaxConfig,
         WhitespaceConfig::default(),
     ) {
         Ok(s) => s,
@@ -455,13 +455,11 @@ impl<'a> Visitor<'a> {
                             imp.used = true;
                         }
                     }
-                    if name == "signal" {
-                        if let Some(CallArg::Pos(Expr::Const(c))) = e.args.first() {
-                            if let Some(s) = c.value.as_str() {
+                    if name == "signal"
+                        && let Some(CallArg::Pos(Expr::Const(c))) = e.args.first()
+                            && let Some(s) = c.value.as_str() {
                                 self.declared_signals.insert(s.to_string());
                             }
-                        }
-                    }
                     // R1 — unknown macro call (only flag names that look like
                     // ship SDK macros i.e. short snake_case and not built-in
                     // jinja/minijinja constructs). We skip unknown globals to
@@ -469,8 +467,8 @@ impl<'a> Visitor<'a> {
                     let _ = name; // names already filtered via import tracking
                 }
                 // R7 — unknown `ship.<domain>.<op>` or `ship.try.<domain>.<op>`.
-                if let Some((op, span)) = ship_op_chain(&e.expr) {
-                    if !self.sdk.ship_ops.contains(&op) {
+                if let Some((op, span)) = ship_op_chain(&e.expr)
+                    && !self.sdk.ship_ops.contains(&op) {
                         let suggestion =
                             closest(&op, self.sdk.ship_ops.iter().map(|s| s.as_str()));
                         self.findings.push(Finding {
@@ -491,7 +489,6 @@ impl<'a> Visitor<'a> {
                                 .map(|s| format!("call `ship.{s}` instead of `ship.{op}`")),
                         });
                     }
-                }
                 self.walk_expr(&e.expr);
                 for a in &e.args {
                     self.walk_callarg(a);
@@ -638,11 +635,10 @@ fn route_matches(needle: &str, pool: &HashSet<String>) -> bool {
 }
 
 fn is_from_ship_sdk(expr: &Expr<'_>) -> bool {
-    if let Expr::Const(c) = expr {
-        if let Some(s) = c.value.as_str() {
+    if let Expr::Const(c) = expr
+        && let Some(s) = c.value.as_str() {
             return s.ends_with("_ship.html.j2");
         }
-    }
     false
 }
 

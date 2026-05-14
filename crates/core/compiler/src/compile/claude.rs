@@ -163,9 +163,10 @@ pub fn build_claude_settings_patch(
 /// to the daemon using the local `~/.ship/daemon.token`, so provider settings
 /// stay stable across daemon restarts.
 pub fn inject_ship_lifecycle_hooks(patch: &mut Json) {
-    let hooks_obj = patch
-        .as_object_mut()
-        .unwrap()
+    let Some(obj) = patch.as_object_mut() else {
+        return;
+    };
+    let hooks_obj = obj
         .entry("hooks")
         .or_insert_with(|| serde_json::json!({}));
 

@@ -139,7 +139,7 @@ branch refs/heads/feature/fix-x
         std::env::set_current_dir(repo_dir.path())?;
 
         let tmp = tempdir()?;
-        let ship_dir = crate::testutil::init_project(tmp.path().to_path_buf())?;
+        let ship_dir = crate::testutil::init_project(tmp.path())?;
         let result = activate_workspace(&ship_dir, branch);
 
         std::env::set_current_dir(original_dir)?;

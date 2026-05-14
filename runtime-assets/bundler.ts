@@ -45,7 +45,7 @@ interface BundleManifest {
 
 const repoRoot = process.env.SHIP_REPO_ROOT ?? process.cwd()
 const litAssetsDir = resolve(repoRoot, 'apps/shipd/assets')
-const suiAssetsDir = resolve(repoRoot, 'crates/ship-sui-server/assets')
+const suiAssetsDir = resolve(repoRoot, 'crates/sui/ship-sui-server/assets')
 
 function assetsDirFor(name: string): string {
   if (name.startsWith('sui-') || name.startsWith('views/')) return suiAssetsDir
@@ -475,7 +475,7 @@ function emit(msg: Response | Event) {
 // ── Main loop ─────────────────────────────────────────────────────────────────
 
 // CLI mode: `--all` runs a one-shot build of the sui-* family + views and
-// exits. This is the asset set `crates/ship-sui-server/build.rs` requires
+// exits. This is the asset set `crates/sui/ship-sui-server/build.rs` requires
 // via its ASSETS const, so the root `bun run build:bundles` script can fan
 // out here in CI without scripting the stdin/stdout JSON protocol.
 //

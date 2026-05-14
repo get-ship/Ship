@@ -31,8 +31,8 @@ pub fn artifacts_schema() -> CollectionSchema {
     let mut fields: IndexMap<String, FieldDef> = IndexMap::new();
     fields.insert("name".into(), def(FieldType::String, true, false));
     fields.insert("path".into(), def(FieldType::String, true, false));
-    fields.insert("mime".into(), def(FieldType::String, false, true));
-    fields.insert("size".into(), def(FieldType::Number, false, false));
+    fields.insert("mime".into(), def(FieldType::String, true, true));
+    fields.insert("size".into(), def(FieldType::Number, true, false));
     fields.insert("collection_id".into(), def(FieldType::String, false, true));
     fields.insert("item_id".into(), def(FieldType::String, false, false));
     // Three-scope model fields
@@ -40,7 +40,7 @@ pub fn artifacts_schema() -> CollectionSchema {
         "scope".into(),
         FieldDef {
             values: Some(vec!["run".into(), "project".into(), "user".into()]),
-            ..def(FieldType::String, false, true)
+            ..def(FieldType::String, true, true)
         },
     );
     fields.insert("project_id".into(), def(FieldType::String, false, true));
@@ -59,20 +59,9 @@ pub fn artifacts_schema() -> CollectionSchema {
 }
 
 /// Ensure the `artifacts` collection table exists, adding any missing columns
-/// from the current schema. Also backfills `scope = "project"` for existing
-/// rows that pre-date the three-scope model.
+/// from the current schema.
 pub fn ensure_artifacts_collection(svc: &mut DataService) -> Result<()> {
     store::ensure_collection_table(svc, &artifacts_schema())?;
-    backfill_legacy_rows(svc)?;
-    Ok(())
-}
-
-/// Set scope = "project" on rows inserted before the three-scope migration.
-fn backfill_legacy_rows(svc: &mut DataService) -> Result<()> {
-    svc.execute(
-        "UPDATE collection_artifacts SET scope = 'project' WHERE scope IS NULL",
-        &[],
-    )?;
     Ok(())
 }
 

@@ -37,7 +37,7 @@ impl PushAdapter for RecordingAdapter {
 /// Create a KernelRouter in a temp dir.
 fn temp_kernel() -> KernelRouter {
     let dir = tempfile::tempdir().unwrap();
-    KernelRouter::new(dir.into_path()).unwrap()
+    KernelRouter::new(dir.keep()).unwrap()
 }
 
 /// Wire: spawn actor → create relay with adapter → return (relay handle, log).
@@ -116,7 +116,7 @@ async fn studio_event_reaches_agent_via_push_adapter() {
         project_id: Some("v0.2.0".to_string()),
         session_id: None,
     };
-    kr.route(event.clone(), &ctx).await.unwrap();
+    kr.emit(event.clone(), &ctx).await.unwrap();
 
     // Give the relay task time to process
     tokio::time::sleep(std::time::Duration::from_millis(50)).await;
@@ -171,7 +171,7 @@ async fn mesh_message_reaches_target_agent() {
         project_id: Some("v0.2.0".to_string()),
         session_id: None,
     };
-    kr.route(msg, &ctx).await.unwrap();
+    kr.emit(msg, &ctx).await.unwrap();
 
     tokio::time::sleep(std::time::Duration::from_millis(50)).await;
 
@@ -248,7 +248,7 @@ async fn studio_event_fans_out_to_multiple_agents() {
         project_id: None,
         session_id: None,
     };
-    kr.route(event, &ctx).await.unwrap();
+    kr.emit(event, &ctx).await.unwrap();
 
     tokio::time::sleep(std::time::Duration::from_millis(50)).await;
 
@@ -402,7 +402,7 @@ async fn escalated_progress_event_reaches_push_adapter() {
         project_id: Some("feature/arch".to_string()),
         session_id: Some("sess-escalation-test".to_string()),
     };
-    kr.route(event, &ctx).await.unwrap();
+    kr.emit(event, &ctx).await.unwrap();
 
     tokio::time::sleep(std::time::Duration::from_millis(50)).await;
 
@@ -484,8 +484,8 @@ async fn agents_auto_register_discover_and_communicate() {
     .unwrap()
     .with_actor_id("agent.react-designer");
 
-    kr.route(reg_a, &ctx).await.unwrap();
-    kr.route(reg_b, &ctx).await.unwrap();
+    kr.emit(reg_a, &ctx).await.unwrap();
+    kr.emit(reg_b, &ctx).await.unwrap();
     tokio::time::sleep(std::time::Duration::from_millis(50)).await;
 
     // Both agents receive register events (broadcast to mesh subscribers)
@@ -511,7 +511,7 @@ async fn agents_auto_register_discover_and_communicate() {
     .unwrap()
     .with_actor_id("agent.rust-lane");
 
-    kr.route(msg, &ctx).await.unwrap();
+    kr.emit(msg, &ctx).await.unwrap();
     tokio::time::sleep(std::time::Duration::from_millis(50)).await;
 
     // VERIFY B RECEIVES: No polling, no tool calls. Just appears in mailbox → relay → adapter.

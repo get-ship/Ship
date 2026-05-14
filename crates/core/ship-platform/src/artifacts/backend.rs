@@ -50,6 +50,16 @@ impl ArtifactScope {
             _ => None,
         }
     }
+
+    /// Stable identifier for locking + keying. `run:<project>:<run>` /
+    /// `project:<project>` / `user:<user>`.
+    pub fn lock_key(&self) -> String {
+        match self {
+            ArtifactScope::Run { project_id, run_id } => format!("run:{project_id}:{run_id}"),
+            ArtifactScope::Project { project_id } => format!("project:{project_id}"),
+            ArtifactScope::User { user_id } => format!("user:{user_id}"),
+        }
+    }
 }
 
 /// Blob storage backend.

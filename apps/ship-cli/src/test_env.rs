@@ -4,8 +4,9 @@
 //! coordination they race each other (parallel test runner) and leak
 //! state into later tests. `isolated_ship_home` serializes via
 //! `SHIP_HOME_LOCK` and restores the prior value on drop.
-
-#![cfg(test)]
+//!
+//! Module-level `#[cfg(test)]` is applied at the declaring site
+//! (`main.rs`); no inner `#![cfg(test)]` needed.
 
 use std::ffi::OsString;
 use std::sync::{Mutex, MutexGuard};

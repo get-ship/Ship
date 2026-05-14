@@ -34,7 +34,7 @@ mod mesh_scope {
         let (_, mut mc) = r.spawn_actor_with_permissions(id("c"), p).unwrap();
 
         let msg = ev("mesh.hello").with_target("b");
-        r.route(msg.clone(), &rt()).await.unwrap();
+        r.emit(msg.clone(), &rt()).await.unwrap();
 
         assert!(ma.try_recv().is_err(), "A must not receive targeted message");
         assert_eq!(mb.try_recv().expect("B must receive").id, msg.id);
@@ -49,7 +49,7 @@ mod mesh_scope {
         let (_, mut mb) = r.spawn_actor_with_permissions(id("b"), p).unwrap();
 
         let msg = ev("mesh.update");
-        r.route(msg.clone(), &rt()).await.unwrap();
+        r.emit(msg.clone(), &rt()).await.unwrap();
 
         assert_eq!(ma.try_recv().unwrap().id, msg.id);
         assert_eq!(mb.try_recv().unwrap().id, msg.id);
@@ -61,7 +61,7 @@ mod mesh_scope {
         r.spawn_actor_with_permissions(id("a"), perms(&["mesh.a."], vec![])).unwrap();
 
         let event = ev("mesh.b.hello").with_actor_id("a");
-        let result = r.route(event, &mcp()).await;
+        let result = r.emit(event, &mcp()).await;
         assert!(result.is_err(), "must reject write outside permitted namespace");
         assert!(result.unwrap_err().to_string().contains("not permitted"));
     }
@@ -71,7 +71,7 @@ mod mesh_scope {
         let (_t, mut r) = setup();
         r.spawn_actor_with_permissions(id("a"), perms(&["mesh.a."], vec![])).unwrap();
 
-        let result = r.route(ev("mesh.a.hello").with_actor_id("a"), &mcp()).await;
+        let result = r.emit(ev("mesh.a.hello").with_actor_id("a"), &mcp()).await;
         assert!(result.is_ok(), "must allow write to own namespace");
     }
 
@@ -82,7 +82,7 @@ mod mesh_scope {
 
         let targeted = ev("mesh.ping").with_target("nonexistent");
         // Must not panic — either Ok (silently dropped) or Err with a clear message.
-        let result = r.route(targeted, &rt()).await;
+        let result = r.emit(targeted, &rt()).await;
         assert!(result.is_ok() || !result.unwrap_err().to_string().is_empty());
     }
 
@@ -92,11 +92,11 @@ mod mesh_scope {
         let (_, mut ma) = r.spawn_actor_with_permissions(id("a"), perms(&[], vec![sub("mesh.team-a.", DeliveryScope::Global)])).unwrap();
         let (_, mut mb) = r.spawn_actor_with_permissions(id("b"), perms(&[], vec![sub("mesh.team-b.", DeliveryScope::Global)])).unwrap();
 
-        r.route(ev("mesh.team-a.update"), &rt()).await.unwrap();
+        r.emit(ev("mesh.team-a.update"), &rt()).await.unwrap();
         assert!(ma.try_recv().is_ok(), "A must receive team-a event");
         assert!(mb.try_recv().is_err(), "B must not receive team-a event");
 
-        r.route(ev("mesh.team-b.update"), &rt()).await.unwrap();
+        r.emit(ev("mesh.team-b.update"), &rt()).await.unwrap();
         assert!(mb.try_recv().is_ok(), "B must receive team-b event");
         assert!(ma.try_recv().is_err(), "A must not receive team-b event");
     }

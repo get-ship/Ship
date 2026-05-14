@@ -1,9 +1,9 @@
-//! Ship manifest parser (JSONC primary, TOML legacy).
+//! Ship manifest parser. JSONC only.
 //!
 //! Parses and validates the three-section manifest format:
-//! - [module]  — package identity (name, version, description, license)
-//! - [dependencies] — direct dependency map (path → version or full table)
-//! - [exports]  — skills and agent paths this module exports
+//! - `module`        — package identity (name, version, description, license)
+//! - `dependencies`  — direct dependency map (path → version or full object)
+//! - `exports`       — skills and agent paths this module exports
 //!
 //! The compiler is pure (no I/O) except for `from_file`.
 //! Validation is eager and returns actionable errors.
@@ -98,7 +98,7 @@ pub struct ManifestExports {
     /// Skill directory paths relative to `.ship/` (must contain SKILL.md).
     #[serde(default)]
     pub skills: Vec<String>,
-    /// Agent TOML paths relative to `.ship/` (must end in .toml).
+    /// Agent file paths relative to `.ship/` (must end in .jsonc).
     #[serde(default)]
     pub agents: Vec<String>,
 }
@@ -131,13 +131,6 @@ pub struct ShipManifest {
 }
 
 impl ShipManifest {
-    /// Parse from a TOML string and validate required fields and semver.
-    pub fn from_toml_str(s: &str) -> anyhow::Result<Self> {
-        let raw: RawShipManifest =
-            toml::from_str(s).map_err(|e| anyhow::anyhow!("Failed to parse ship manifest: {e}"))?;
-        Self::from_raw(raw)
-    }
-
     /// Return the module section, or error if absent.
     /// Use this in paths that require a publishable package (e.g. `ship publish`).
     pub fn require_module(&self) -> anyhow::Result<&ManifestModule> {
@@ -225,17 +218,11 @@ impl ShipManifest {
         Self::from_raw(raw)
     }
 
-    /// Read and parse from a file path. Dispatches to JSONC (preferred) or TOML
-    /// based on extension. TOML is retained for backwards compatibility with
-    /// cached registry packages that may still use ship.toml.
+    /// Read and parse a `ship.jsonc` file from a path.
     pub fn from_file(path: &std::path::Path) -> anyhow::Result<Self> {
         let content = std::fs::read_to_string(path)
             .map_err(|e| anyhow::anyhow!("Cannot read {}: {e}", path.display()))?;
-        if crate::jsonc::is_jsonc_path(path) {
-            Self::from_jsonc_str(&content)
-        } else {
-            Self::from_toml_str(&content)
-        }
+        Self::from_jsonc_str(&content)
     }
 
     /// Iterate resolved (full-form) dependencies.

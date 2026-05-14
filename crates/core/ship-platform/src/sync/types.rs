@@ -57,8 +57,10 @@ mod tests {
         };
         let json = serde_json::to_string(&req).unwrap();
         assert!(json.contains("workspace.created"));
-        // project_id is in the header, not the body
-        assert!(!json.contains("project_id"));
+        // project_id is in the envelope body (post-workspace_id→project_id
+        // rename). Sync wire-format reviewers: this is the canonical
+        // attribution field, not a duplicate of any header.
+        assert!(json.contains("project_id"));
     }
 
     #[test]

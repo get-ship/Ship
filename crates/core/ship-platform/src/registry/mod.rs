@@ -7,10 +7,12 @@
 //! - [`constraint::parse_constraint`] / [`constraint::VersionConstraint`] — constraint parsing.
 //! - [`resolver::resolve_version`] — git tag → exact commit resolution.
 //! - [`hash::compute_tree_hash`] / [`hash::compute_file_hash`] — deterministic SHA-256 hashing.
-//! - [`types`] — stub `ShipManifest`, `ShipLock`, `LockedPackage` until compiler crate exposes its types.
+//! - [`types`] — minimal `ShipManifest`/`Dependency` view for the install
+//!   pipeline; the full lockfile types live in `compiler::lockfile`.
 
 pub mod cache;
 pub mod constraint;
+pub mod dep_skills;
 pub mod fetch;
 pub mod hash;
 pub mod init_deps;
@@ -29,7 +31,7 @@ pub use init_deps::{
 };
 pub use install::{InstallOptions, InstallResult, resolve_and_fetch};
 pub use resolver::{ResolvedVersion, resolve_alias, resolve_version};
-pub use types::{
-    Dependency, LockedPackage, ShipLock, ShipManifest, SyncStatus, parse_ship_lock,
-    serialize_ship_lock,
-};
+pub use types::{Dependency, ShipManifest, SyncStatus, diff_manifest_against_lock};
+// Canonical lockfile types live in `compiler::lockfile`; re-export the names
+// callers expect at this crate path.
+pub use compiler::lockfile::{LockPackage, ShipLock};

@@ -52,7 +52,6 @@ fn kernel_error_display_is_readable() {
 // ── WorkspaceError ───────────────────────────────────────────────────────────
 
 #[test]
-#[test]
 fn workspace_error_display_is_readable() {
     let err = WorkspaceError::NotFound { branch: "feat/x".into() };
     assert_eq!(err.to_string(), "Workspace not found for branch 'feat/x'");

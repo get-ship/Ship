@@ -4,31 +4,31 @@
 use serde_json::{Value, json};
 
 use super::{RegistryError, parse_scope, required_str};
-use crate::routes::rest_api::ApiState;
-use crate::services::files::FilesService;
+use crate::ship_runtime::ApiState;
+use ship_platform::services::files::FilesService;
 
-#[allow(unused_imports, unused_variables)]
+
 pub(super) fn try_dispatch(
     name: &str,
     args: &Value,
-    state: &ApiState,
+    _state: &ApiState,
     files: &FilesService,
 ) -> Result<Option<Value>, RegistryError> {
     let value: Result<Value, RegistryError> = match name {
         "mcp.list" => Ok(json!({
-            "items": crate::services::mcp::state::list(&files),
+            "items": ship_platform::services::mcp::state::list(files),
         })),
         "mcp.get" => {
             let id = required_str(args, "id")?;
             let scope = parse_scope(args)?;
-            let (resolved, entry) = crate::services::mcp::state::load_entry(&files, id, scope)
+            let (resolved, entry) = ship_platform::services::mcp::state::load_entry(files, id, scope)
                 .map_err(|e| match e {
-                    crate::services::mcp::state::Error::NotFound(m) => RegistryError::not_found(m),
+                    ship_platform::services::mcp::state::Error::NotFound(m) => RegistryError::not_found(m),
                     other => RegistryError::service(other.to_string()),
                 })?;
             Ok(json!({
                 "id": id,
-                "scope": crate::services::mcp::state::ScopeTag::from(resolved),
+                "scope": ship_platform::services::mcp::state::ScopeTag::from(resolved),
                 "entry": entry,
             }))
         }

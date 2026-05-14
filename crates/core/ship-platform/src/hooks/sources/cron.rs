@@ -50,12 +50,12 @@ impl TriggerSource for CronSource {
         kernel: std::sync::Arc<tokio::sync::Mutex<KernelRouter>>,
     ) -> tokio::task::JoinHandle<()> {
         let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
-        *self.reload_tx.lock().unwrap() = Some(tx);
+        *self.reload_tx.lock().expect("CronSource reload_tx mutex poisoned") = Some(tx);
         tokio::spawn(cron_source_task(rx, kernel))
     }
 
     fn reload(&self, new_defs: &[HookDef]) {
-        if let Some(tx) = self.reload_tx.lock().unwrap().as_ref() {
+        if let Some(tx) = self.reload_tx.lock().expect("CronSource reload_tx mutex poisoned").as_ref() {
             let _ = tx.send(new_defs.to_vec());
         }
     }

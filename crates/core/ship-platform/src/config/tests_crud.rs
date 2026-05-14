@@ -8,7 +8,7 @@ use tempfile::tempdir;
 #[test]
 fn add_and_list_mcp_server() -> anyhow::Result<()> {
     let tmp = tempdir()?;
-    let dir = init_project(tmp.path().to_path_buf())?;
+    let dir = init_project(tmp.path())?;
     let server = McpServerConfig {
         id: "github".to_string(),
         name: "GitHub".to_string(),
@@ -31,7 +31,7 @@ fn add_and_list_mcp_server() -> anyhow::Result<()> {
 #[test]
 fn remove_mcp_server_works() -> anyhow::Result<()> {
     let tmp = tempdir()?;
-    let dir = init_project(tmp.path().to_path_buf())?;
+    let dir = init_project(tmp.path())?;
     let server = McpServerConfig {
         id: "to-remove".to_string(),
         name: "Remove Me".to_string(),
@@ -54,7 +54,7 @@ fn remove_mcp_server_works() -> anyhow::Result<()> {
 #[test]
 fn duplicate_mcp_server_rejected() -> anyhow::Result<()> {
     let tmp = tempdir()?;
-    let dir = init_project(tmp.path().to_path_buf())?;
+    let dir = init_project(tmp.path())?;
     let server = McpServerConfig {
         id: "dup".to_string(),
         name: "Dup".to_string(),
@@ -87,7 +87,7 @@ fn duplicate_mcp_server_rejected() -> anyhow::Result<()> {
 #[test]
 fn mcp_server_type_serialization_round_trips() -> anyhow::Result<()> {
     let tmp = tempdir()?;
-    let dir = init_project(tmp.path().to_path_buf())?;
+    let dir = init_project(tmp.path())?;
     let http_server = McpServerConfig {
         id: "http-svc".to_string(),
         name: "HTTP".to_string(),

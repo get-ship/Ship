@@ -1,7 +1,4 @@
 mod add;
-mod add_from;
-mod add_from_write;
-mod agent_config;
 mod audit;
 mod auth;
 mod build;
@@ -13,7 +10,6 @@ mod convert;
 #[cfg(test)]
 mod test_env;
 mod daemon;
-mod dep_skills;
 mod events_cmd;
 #[cfg(feature = "unstable")]
 mod top;
@@ -32,12 +28,11 @@ mod tail;
 mod loader;
 mod logging;
 mod uninstall;
-mod skill_loader;
-mod skill_parse;
 mod mcp;
 mod mcp_serve;
 mod paths;
 mod profile;
+mod skill;
 mod publish;
 mod ship_run;
 mod validate;
@@ -145,7 +140,7 @@ fn dispatch(command: Option<Commands>) -> Result<()> {
                 install::run_install(&root, frozen, offline)
             }
             Commands::Add { package, from } => match (package, from) {
-                (_, Some(url)) => add_from::run_add_from(&url),
+                (_, Some(url)) => add::from::run_add_from(&url),
                 (Some(pkg), None) => {
                     let root = std::env::current_dir()?;
                     add::run_add(&root, &pkg)

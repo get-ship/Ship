@@ -275,15 +275,12 @@ pub async fn dispatch_fanout_step(
 /// Returns `false` when the projection can't be loaded so we never
 /// swallow a genuine fanout failure.
 fn parent_job_is_terminal(job_id: &str) -> bool {
-    use crate::projections::job::{load_jobs, JobStatus};
-    match load_jobs() {
-        Ok(jobs) => jobs.values().any(|j| {
-            j.job_id == job_id
-                && matches!(
-                    j.status,
-                    JobStatus::Cancelled | JobStatus::Failed | JobStatus::Merged
-                )
-        }),
-        Err(_) => false,
+    use crate::projections::job::{JobStatus, load_job_by_id};
+    match load_job_by_id(job_id) {
+        Ok(Some(job)) => matches!(
+            job.status,
+            JobStatus::Cancelled | JobStatus::Failed | JobStatus::Merged
+        ),
+        _ => false,
     }
 }

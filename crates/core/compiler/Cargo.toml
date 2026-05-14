@@ -35,3 +35,6 @@ getrandom = { workspace = true, features = ["js"] }
 [dev-dependencies]
 serde_json = { workspace = true, features = ["preserve_order"] }
 tempfile = { workspace = true }
+
+[lints]
+workspace = true

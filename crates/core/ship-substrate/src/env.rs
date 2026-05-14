@@ -40,7 +40,6 @@ pub enum Var {
     // ── Dev / debug ──────────────────────────────────────────────────────
     Dev,
     DefaultTerminal,
-    Executor,
     TmuxTests,
     ShellDevUrl,
     DaemonPath,
@@ -75,7 +74,6 @@ impl Var {
             Var::MeshId => "SHIP_MESH_ID",
             Var::Dev => "SHIP_DEV",
             Var::DefaultTerminal => "SHIP_DEFAULT_TERMINAL",
-            Var::Executor => "SHIP_EXECUTOR",
             Var::TmuxTests => "SHIP_TMUX_TESTS",
             Var::ShellDevUrl => "SHIP_SHELL_DEV_URL",
             Var::DaemonPath => "SHIPD_PATH",
@@ -101,7 +99,6 @@ impl Var {
             | Var::MeshId => Category::RuntimeIdentity,
             Var::Dev
             | Var::DefaultTerminal
-            | Var::Executor
             | Var::TmuxTests
             | Var::ShellDevUrl
             | Var::DaemonPath
@@ -218,7 +215,6 @@ mod tests {
             Var::MeshId,
             Var::Dev,
             Var::DefaultTerminal,
-            Var::Executor,
             Var::TmuxTests,
             Var::ShellDevUrl,
             Var::DaemonPath,

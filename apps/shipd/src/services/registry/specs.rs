@@ -6,8 +6,8 @@
 use serde_json::{Value, json};
 
 use super::{RegistryError, required_str};
-use crate::routes::rest_api::ApiState;
-use crate::services::files::FilesService;
+use crate::ship_runtime::ApiState;
+use ship_platform::services::files::FilesService;
 use crate::services::specs::shape::{Spec, load_body, spec_from_item};
 use crate::services::specs::view_state;
 
@@ -15,12 +15,12 @@ use ship_platform::collections::builtin::{SPECS_ID, specs_schema};
 use ship_platform::collections::query::QueryRequest;
 use ship_platform::collections::store;
 
-#[allow(unused_imports, unused_variables)]
+
 pub(super) fn try_dispatch(
     name: &str,
     args: &Value,
     state: &ApiState,
-    files: &FilesService,
+    _files: &FilesService,
 ) -> Result<Option<Value>, RegistryError> {
     let value: Result<Value, RegistryError> = match name {
         "specs.list" => {

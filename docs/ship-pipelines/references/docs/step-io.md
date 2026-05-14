@@ -65,9 +65,9 @@ user → anything  ✗  (rejected)
 
 When a step declares `produces`:
 
-1. Upload artifacts via `artifact_upload`:
+1. Upload artifacts via `upload_artifact`:
    ```
-   artifact_upload(
+   upload_artifact(
      scope: "run",
      name: "failing_tests",
      bytes: <base64>,

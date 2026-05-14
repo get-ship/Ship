@@ -11,7 +11,7 @@ use tokio::sync::Mutex;
 
 use ship_substrate::events::kernel_router::{ActorConfig, KernelRouter};
 use crate::services::dispatch_ports::{
-    AgentPlatform, ExecutorHandle, ExitSignal, IsolationStrategy, JobContext, JobExecutor,
+    AgentPlatform, ExecutorHandle, IsolationStrategy, JobContext, JobExecutor,
     ProcessRegistryPort,
 };
 use crate::services::orchestrator::fanout_cancel::cancel_job_fanout_lanes;
@@ -31,11 +31,6 @@ impl AgentPlatform for RecordingPlatform {
         self.cleanup_slugs.lock().await.push((slug.to_string(), branch.to_string()));
     }
     fn git_merge(&self, _: &str) -> anyhow::Result<bool> { Ok(true) }
-    fn start_exit_handler(
-        &self, _: Arc<Mutex<KernelRouter>>,
-        _: tokio::sync::mpsc::UnboundedReceiver<ExitSignal>,
-    ) {}
-    fn start_liveness_sweep(&self, _: Arc<Mutex<KernelRouter>>) {}
     async fn cleanup_orphaned_worktrees(&self) {}
 }
 

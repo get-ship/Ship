@@ -18,7 +18,7 @@ fn test_frozen_fails_on_added_dep() -> anyhow::Result<()> {
     // Write an empty lock.
     let empty_lock = ShipLock {
         version: 1,
-        package: vec![],
+        packages: vec![],
     };
     write_lock_atomic(&lock_path, &empty_lock)?;
 
@@ -61,7 +61,7 @@ fn test_no_lock_no_deps_writes_empty_lock() -> anyhow::Result<()> {
     assert!(result.lockfile_written);
     assert!(lock_path.exists());
     let content = std::fs::read_to_string(&lock_path)?;
-    assert!(content.contains("version = 1"));
+    assert!(content.contains("\"version\": 1"));
     Ok(())
 }
 
@@ -84,11 +84,12 @@ fn test_install_aborts_on_hash_mismatch() -> anyhow::Result<()> {
     // Write a lockfile with the WRONG hash — the real hash won't match.
     let lock = ShipLock {
         version: 1,
-        package: vec![LockedPackage {
+        packages: vec![LockPackage {
             path: "github.com/owner/pkg".into(),
             version: "v1.0.0".into(),
             commit: "a".repeat(40),
             hash: "sha256:0000000000000000000000000000000000000000000000000000000000000000".into(),
+            export_hashes: Default::default(),
         }],
     };
     write_lock_atomic(&lock_path, &lock)?;
@@ -123,7 +124,7 @@ fn test_in_sync_lock_no_deps_no_write() -> anyhow::Result<()> {
     // Write an already-correct lock.
     let lock = ShipLock {
         version: 1,
-        package: vec![],
+        packages: vec![],
     };
     write_lock_atomic(&lock_path, &lock)?;
     let mtime_before = std::fs::metadata(&lock_path)?.modified()?;
@@ -159,15 +160,11 @@ fn test_discover_manifest_with_deps() -> anyhow::Result<()> {
     let tmp = tempdir()?;
     write_file(
         tmp.path(),
-        "ship.toml",
-        r#"
-[module]
-name = "github.com/a/b"
-version = "1.0.0"
-
-[dependencies]
-"github.com/c/d" = "^1.0.0"
-"#,
+        "ship.jsonc",
+        r#"{
+            "module": { "name": "github.com/a/b", "version": "1.0.0" },
+            "dependencies": { "github.com/c/d": "^1.0.0" }
+        }"#,
     );
 
     let deps = discover_transitive_deps(tmp.path(), "github.com/a/b", &[])?;
@@ -182,12 +179,10 @@ fn test_discover_manifest_no_deps() -> anyhow::Result<()> {
     let tmp = tempdir()?;
     write_file(
         tmp.path(),
-        "ship.toml",
-        r#"
-[module]
-name = "github.com/a/b"
-version = "1.0.0"
-"#,
+        "ship.jsonc",
+        r#"{
+            "module": { "name": "github.com/a/b", "version": "1.0.0" }
+        }"#,
     );
 
     let deps = discover_transitive_deps(tmp.path(), "github.com/a/b", &[])?;
@@ -201,18 +196,14 @@ fn test_discover_cycle_detection() -> anyhow::Result<()> {
     // B depends on A, and A is an ancestor.
     write_file(
         tmp.path(),
-        "ship.toml",
-        r#"
-[module]
-name = "github.com/b/pkg"
-version = "1.0.0"
-
-[dependencies]
-"github.com/a/pkg" = "^1.0.0"
-"#,
+        "ship.jsonc",
+        r#"{
+            "module": { "name": "github.com/b/pkg", "version": "1.0.0" },
+            "dependencies": { "github.com/a/pkg": "^1.0.0" }
+        }"#,
     );
 
-    let ancestors = vec!["ship.toml".into(), "github.com/a/pkg".into()];
+    let ancestors = vec!["ship.jsonc".into(), "github.com/a/pkg".into()];
     let result = discover_transitive_deps(tmp.path(), "github.com/b/pkg", &ancestors);
     assert!(result.is_err());
     let msg = result.unwrap_err().to_string();

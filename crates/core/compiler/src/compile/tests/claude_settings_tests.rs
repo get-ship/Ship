@@ -210,12 +210,16 @@ fn agent_profiles_compiled_into_agent_files() {
     use crate::types::agent_profile::*;
 
     let profile = AgentProfile {
-        profile: ProfileMeta {
+        agent: ProfileMeta {
             id: "reviewer".to_string(),
             name: "Code Reviewer".to_string(),
             version: None,
             description: Some("Reviews code".to_string()),
             providers: vec!["claude".to_string()],
+            role: None,
+            tags: vec![],
+            tools_preset: None,
+            active_tools: vec![],
             icon: None,
         },
         skills: SkillRefs::default(),
@@ -225,6 +229,7 @@ fn agent_profiles_compiled_into_agent_files() {
         rules: ProfileRules {
             inline: Some("Review carefully.".to_string()),
         },
+        hooks: Default::default(),
         apps: Default::default(),
         provider_settings: Default::default(),
     };

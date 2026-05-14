@@ -19,11 +19,10 @@ pub fn write_output(root: &Path, provider_id: &str, output: &CompileOutput) -> R
     {
         println!("  {} {}", provider_id, file_name);
     }
-    if let Some(ref mcp_path) = output.mcp_config_path {
-        if provider_id != "codex" {
+    if let Some(ref mcp_path) = output.mcp_config_path
+        && provider_id != "codex" {
             println!("  {} {}", provider_id, mcp_path);
         }
-    }
     for path in output.skill_files.keys() {
         println!("  {} {}", provider_id, path);
     }
@@ -42,10 +41,7 @@ pub fn write_output(root: &Path, provider_id: &str, output: &CompileOutput) -> R
     if output.codex_hooks_json.is_some() {
         println!("  {} .codex/hooks.json", provider_id);
     }
-    match &output.codex_policy_content {
-        Some(_) => println!("  {} .codex/rules/ship.rules", provider_id),
-        None => {}
-    }
+    if output.codex_policy_content.is_some() { println!("  {} .codex/rules/ship.rules", provider_id) }
     if output.gemini_policy_patch.is_some() {
         println!("  {} .gemini/policies/ship.toml", provider_id);
     }

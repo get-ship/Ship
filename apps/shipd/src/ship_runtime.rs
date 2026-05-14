@@ -13,7 +13,7 @@ use tokio::sync::Mutex;
 
 use crate::auth::SessionRegistry;
 use crate::managers::{JobManager, MeshManager, SessionScanner};
-use crate::task_health::HealthRegistry;
+use ship_substrate::task_health::HealthRegistry;
 use crate::supervisor::job_dispatch::DispatchHandle;
 
 // ---- Config types ----
@@ -56,6 +56,10 @@ pub struct AppMetadata {
 
 /// Type alias used as axum shared state.
 pub type AppState = Arc<ShipRuntime>;
+
+/// Canonical name for the axum shared state. Both `ApiState` and
+/// `AppState` refer to the same `Arc<ShipRuntime>` handle.
+pub type ApiState = Arc<ShipRuntime>;
 
 // Re-export for backward compat in handlers.
 pub type SharedKernel = Arc<Mutex<ship_substrate::events::KernelRouter>>;
@@ -117,28 +121,80 @@ pub struct ShipRuntime {
     /// service-layer pattern. HTTP handlers in `services::rules` go
     /// through this trait so the cloud worker / browser embed / unit
     /// tests can swap implementations without standing up an HTTP server.
-    rules: std::sync::Arc<dyn crate::services::rules::service::RulesService>,
+    rules: std::sync::Arc<dyn ship_platform::services::rules::service::RulesService>,
     /// `PermissionsService` impl — second mr-02 pilot, includes the
     /// cross-domain `tool_patterns` composition.
-    permissions: std::sync::Arc<dyn crate::services::permissions::service::PermissionsService>,
+    permissions: std::sync::Arc<dyn ship_platform::services::permissions::service::PermissionsService>,
     /// `McpService` impl — third mr-02 pilot.
-    mcp: std::sync::Arc<dyn crate::services::mcp::service::McpService>,
+    mcp: std::sync::Arc<dyn ship_platform::services::mcp::service::McpService>,
     /// `SkillsService` impl — fourth mr-02 migration.
-    skills: std::sync::Arc<dyn crate::services::skills::service::SkillsService>,
+    skills: std::sync::Arc<dyn ship_platform::services::skills::service::SkillsService>,
     /// `AgentsService` impl — fifth mr-02 migration.
-    agents: std::sync::Arc<dyn crate::services::agents::service::AgentsService>,
+    agents: std::sync::Arc<dyn ship_platform::services::agents::service::AgentsService>,
     /// `PipelinesService` impl — sixth mr-02 migration (definition CRUD only;
     /// dispatch / cancel / runs still flow through `runtime_api`).
-    pipelines: std::sync::Arc<dyn crate::services::pipelines::service::PipelinesService>,
+    pipelines: std::sync::Arc<dyn ship_platform::services::pipelines::service::PipelinesService>,
     /// `GitService` impl — seventh mr-02 migration. Project-bound; the
     /// SSE handler in `git/mod.rs` stays separate.
-    git: std::sync::Arc<dyn crate::services::git::service::GitService>,
+    git: std::sync::Arc<dyn ship_platform::services::git::service::GitService>,
     /// `CollectionsService` impl — eighth mr-02 migration. Db-bound;
     /// shares the `data_service` Arc with the runtime.
-    collections: std::sync::Arc<dyn crate::services::collections::service::CollectionsService>,
+    collections: std::sync::Arc<dyn ship_platform::services::collections::service::CollectionsService>,
     /// `ArtifactsService` impl — ninth mr-02 migration. Db-bound;
     /// shares the `data_service` Arc with the runtime.
-    artifacts: std::sync::Arc<dyn crate::services::artifacts::service::ArtifactsService>,
+    artifacts: std::sync::Arc<dyn ship_platform::services::artifacts::service::ArtifactsService>,
+    /// Worktree resolver — production uses `git worktree list`; tests
+    /// override with an in-memory map. See `resolve_worktree` method and
+    /// `new_test_with_worktree_resolver` test ctor.
+    worktree_resolver: WorktreeResolver,
+}
+
+/// Resolves a workspace-id (branch name) to its filesystem worktree path.
+/// Returns None if the id doesn't match a known worktree.
+pub type WorktreeResolver = Arc<dyn Fn(&str) -> Option<PathBuf> + Send + Sync>;
+
+/// RAII guard that stops a kernel actor when dropped. Used by SSE
+/// handlers (`routes::runtime_api`, `views::*`) so disconnect/cancel
+/// cleans up the spawned actor without leaking mailbox state.
+///
+/// Lives here next to `SharedKernel` so consumers across `routes/`,
+/// `views/`, and any future SSE-producing module can reach it without
+/// the module-DAG-violating `views → routes` import path.
+pub struct ActorGuard {
+    pub actor_id: String,
+    pub kernel: SharedKernel,
+}
+
+impl Drop for ActorGuard {
+    fn drop(&mut self) {
+        let actor_id = self.actor_id.clone();
+        let kernel = self.kernel.clone();
+        tokio::spawn(async move {
+            let _ = kernel.lock().await.stop_actor(&actor_id);
+        });
+    }
+}
+
+/// Production worktree resolver: branch name → worktree path via
+/// `git worktree list`, falling back to the current project root if the
+/// id matches the current branch. Replaces the legacy free function
+/// `crate::project_api::resolve_worktree` lookup; both share the
+/// `worktree_path_for_branch` + `current_branch_at` helpers in
+/// `project_api/mod.rs`.
+pub fn default_worktree_resolver() -> WorktreeResolver {
+    Arc::new(|id: &str| {
+        if let Some(path) = crate::project_api::worktree_path_for_branch(id) {
+            return Some(path);
+        }
+        if let Ok(project_ship) = ship_application::project::get_project_dir(None)
+            && let Some(root) = project_ship.parent()
+            && let Some(current_branch) = crate::project_api::current_branch_at(root)
+            && current_branch == id
+        {
+            return Some(root.to_path_buf());
+        }
+        None
+    })
 }
 
 impl ShipRuntime {
@@ -221,47 +277,6 @@ impl ShipRuntime {
             ship_platform::kv::migrate_from_platform_db(&dir)
                 .context("kv migration from platform.db")?;
             ship_substrate::db::ensure_db_at(&dir)?;
-            // Self-heal: if `_sqlx_migrations` claims 0001 is applied but the
-            // baseline tables are missing (post-`repair-migrations` foot-gun),
-            // re-execute the idempotent CREATE TABLE IF NOT EXISTS block.
-            // No-op on a healthy DB.
-            match ship_substrate::db::reconcile_baseline_schema(&dir) {
-                Ok(0) => {}
-                Ok(n) => tracing::warn!(
-                    "platform.db baseline schema reconciled ({n} statements); \
-                     `projects` table was missing despite migrations recorded as applied"
-                ),
-                Err(e) => tracing::warn!("platform schema reconcile failed: {e}"),
-            }
-            // One-shot drain of the legacy `settings` KV namespace into the
-            // daemon_settings table. Idempotent and inexpensive on every boot.
-            if let Err(e) = ship_platform::config::drain_legacy_settings_kv() {
-                tracing::warn!("settings drain from legacy KV: {e}");
-            }
-            // One-shot drain of legacy per-project `runtime::*` KV rows. The
-            // ProjectConfig variant is gone; rows are deleted. (Providers
-            // now lives in ship.jsonc only.)
-            if let Err(e) = ship_platform::config::drain_legacy_project_config_kv() {
-                tracing::warn!("project config drain from legacy KV: {e}");
-            }
-            // One-shot drain of the legacy `project` KV namespace into
-            // project.registered / project.seen events. Idempotent.
-            if let Err(e) = ship_platform::projects::drain_legacy_kv() {
-                tracing::warn!("projects drain from legacy KV: {e}");
-            }
-            // One-shot drain of legacy auth.sessions and auth.daemon_owner
-            // KV namespaces into events. Idempotent.
-            if let Err(e) = ship_platform::projections::auth::drain_legacy_sessions_kv() {
-                tracing::warn!("auth sessions drain from legacy KV: {e}");
-            }
-            if let Err(e) = ship_platform::projections::auth::drain_legacy_owner_kv() {
-                tracing::warn!("auth owner drain from legacy KV: {e}");
-            }
-            // One-shot drain of legacy `runtime::*` agents KV rows into
-            // `<ship_dir>/agents/<id>.jsonc` files. Idempotent.
-            if let Err(e) = ship_platform::config::agents::drain_legacy_kv() {
-                tracing::warn!("agents drain from legacy KV: {e}");
-            }
             ship_substrate::events::init_kernel_router(dir)
                 .map_err(|e| anyhow!("failed to initialize KernelRouter: {e}"))
         })
@@ -292,12 +307,12 @@ impl ShipRuntime {
         let data_service: Arc<tokio::sync::Mutex<Option<ship_substrate::data::DataService>>> =
             Arc::new(tokio::sync::Mutex::new(None));
         let collections =
-            crate::services::collections::service::CollectionsServiceImpl::arc(
+            ship_platform::services::collections::service::CollectionsServiceImpl::arc(
                 global_dir.clone(),
                 kernel.clone(),
                 data_service.clone(),
             );
-        let artifacts = crate::services::artifacts::service::ArtifactsServiceImpl::arc(
+        let artifacts = ship_platform::services::artifacts::service::ArtifactsServiceImpl::arc(
             global_dir.clone(),
             kernel.clone(),
             data_service.clone(),
@@ -344,26 +359,26 @@ impl ShipRuntime {
             view_sessions: Arc::new(crate::views::session::ViewSessionRegistry::default()),
             pty_sessions: crate::sessions::SessionRegistry::new(),
             actor_sessions: crate::sessions::ActorRegistry::new(),
-            rules: crate::services::rules::service::RulesServiceImpl::arc(global_dir.clone()),
+            rules: ship_platform::services::rules::service::RulesServiceImpl::arc(global_dir.clone()),
             permissions: {
                 // PermissionsServiceImpl needs an Arc<dyn McpService> for
                 // tool_patterns; build the same impl the runtime exposes
                 // so HTTP and trait-to-trait paths see one catalog.
                 let mcp_for_perms =
-                    crate::services::mcp::service::McpServiceImpl::arc(global_dir.clone());
+                    ship_platform::services::mcp::service::McpServiceImpl::arc(global_dir.clone());
                 std::sync::Arc::new(
-                    crate::services::permissions::service::PermissionsServiceImpl::with_roots(
+                    ship_platform::services::permissions::service::PermissionsServiceImpl::with_roots(
                         global_dir.clone(),
                         None,
                         mcp_for_perms,
                     ),
                 )
             },
-            mcp: crate::services::mcp::service::McpServiceImpl::arc(global_dir.clone()),
-            skills: crate::services::skills::service::SkillsServiceImpl::arc(global_dir.clone()),
-            agents: crate::services::agents::service::AgentsServiceImpl::arc(global_dir.clone()),
-            pipelines: crate::services::pipelines::service::PipelinesServiceImpl::arc(global_dir.clone()),
-            git: crate::services::git::service::GitServiceImpl::arc(global_dir.clone()),
+            mcp: ship_platform::services::mcp::service::McpServiceImpl::arc(global_dir.clone()),
+            skills: ship_platform::services::skills::service::SkillsServiceImpl::arc(global_dir.clone()),
+            agents: ship_platform::services::agents::service::AgentsServiceImpl::arc(global_dir.clone()),
+            pipelines: ship_platform::services::pipelines::service::PipelinesServiceImpl::arc(global_dir.clone()),
+            git: ship_platform::services::git::service::GitServiceImpl::arc(global_dir.clone()),
             collections,
             artifacts,
             workspace_dir,
@@ -371,6 +386,25 @@ impl ShipRuntime {
             hook_engine: std::sync::OnceLock::new(),
             config_watcher: std::sync::OnceLock::new(),
             bundler: std::sync::OnceLock::new(),
+            worktree_resolver: default_worktree_resolver(),
+        })
+    }
+
+    /// Resolve a workspace-id (branch name) to its worktree path.
+    /// Wraps the configured `worktree_resolver` with a 404 response on miss.
+    pub fn resolve_worktree(
+        &self,
+        id: &str,
+    ) -> Result<PathBuf, (axum::http::StatusCode, axum::Json<crate::wire::MeshResponse>)>
+    {
+        (self.worktree_resolver)(id).ok_or_else(|| {
+            (
+                axum::http::StatusCode::NOT_FOUND,
+                axum::Json(crate::wire::MeshResponse {
+                    ok: false,
+                    data: serde_json::json!(format!("workspace '{id}' not found")),
+                }),
+            )
         })
     }
 
@@ -412,54 +446,54 @@ impl ShipRuntime {
     /// `RulesService` accessor — pilot for the modular-runtime spec 02
     /// service-layer pattern. HTTP handlers in `services::rules::*`
     /// call through this rather than reaching into runtime state.
-    pub fn rules(&self) -> &dyn crate::services::rules::service::RulesService {
+    pub fn rules(&self) -> &dyn ship_platform::services::rules::service::RulesService {
         &*self.rules
     }
 
     /// `PermissionsService` accessor — second mr-02 pilot.
     pub fn permissions(
         &self,
-    ) -> &dyn crate::services::permissions::service::PermissionsService {
+    ) -> &dyn ship_platform::services::permissions::service::PermissionsService {
         &*self.permissions
     }
 
     /// `McpService` accessor — third mr-02 pilot.
-    pub fn mcp(&self) -> &dyn crate::services::mcp::service::McpService {
+    pub fn mcp(&self) -> &dyn ship_platform::services::mcp::service::McpService {
         &*self.mcp
     }
 
     /// `SkillsService` accessor.
-    pub fn skills(&self) -> &dyn crate::services::skills::service::SkillsService {
+    pub fn skills(&self) -> &dyn ship_platform::services::skills::service::SkillsService {
         &*self.skills
     }
 
     /// `AgentsService` accessor.
-    pub fn agents(&self) -> &dyn crate::services::agents::service::AgentsService {
+    pub fn agents(&self) -> &dyn ship_platform::services::agents::service::AgentsService {
         &*self.agents
     }
 
     /// `PipelinesService` accessor — definition CRUD; dispatch / cancel /
     /// runs still go through `runtime_api`.
-    pub fn pipelines(&self) -> &dyn crate::services::pipelines::service::PipelinesService {
+    pub fn pipelines(&self) -> &dyn ship_platform::services::pipelines::service::PipelinesService {
         &*self.pipelines
     }
 
     /// `GitService` accessor — every git op except SSE goes through this.
-    pub fn git(&self) -> &dyn crate::services::git::service::GitService {
+    pub fn git(&self) -> &dyn ship_platform::services::git::service::GitService {
         &*self.git
     }
 
     /// `CollectionsService` accessor — db-bound CRUD + query.
     pub fn collections(
         &self,
-    ) -> &dyn crate::services::collections::service::CollectionsService {
+    ) -> &dyn ship_platform::services::collections::service::CollectionsService {
         &*self.collections
     }
 
     /// `ArtifactsService` accessor — db-bound CRUD + scope promotion.
     pub fn artifacts(
         &self,
-    ) -> &dyn crate::services::artifacts::service::ArtifactsService {
+    ) -> &dyn ship_platform::services::artifacts::service::ArtifactsService {
         &*self.artifacts
     }
 
@@ -506,7 +540,7 @@ impl ShipRuntime {
     /// On first call, registers built-in collections (currently `artifacts`)
     /// so they are guaranteed present without requiring a schema file.
     pub async fn data_service(&self) -> Result<tokio::sync::MutexGuard<'_, Option<ship_substrate::data::DataService>>> {
-        ensure_data_service(&self.data_service, &self.ship_dir).await
+        ship_platform::services::data::ensure_data_service(&self.data_service, &self.ship_dir).await
     }
 
     /// Arc handle to the shared `DataService` mutex — passed to service
@@ -612,24 +646,6 @@ impl ShipRuntime {
             .await
     }
 
-    /// Rehash blobs for legacy artifact metadata rows that predate the
-    /// content_hash column. One-shot; idempotent. Logged on failure but
-    /// doesn't block startup.
-    pub async fn backfill_artifact_content_hashes(&self) {
-        let ship_dir = self.ship_dir.clone();
-        tokio::task::spawn_blocking(move || {
-            match ship_substrate::data::DataService::open(&ship_dir) {
-                Ok(mut svc) => {
-                    if let Err(e) = ship_platform::artifacts::gc::backfill_content_hashes(&ship_dir, &mut svc) {
-                        tracing::warn!("artifact content_hash backfill failed: {e}");
-                    }
-                }
-                Err(e) => tracing::warn!("artifact backfill: failed to open DataService: {e}"),
-            }
-        })
-        .await
-        .ok();
-    }
 
     /// Spawn the artifact GC loop. Runs immediately on startup then every hour.
     ///
@@ -637,7 +653,7 @@ impl ShipRuntime {
     pub fn start_artifact_gc(&self) {
         let ship_dir = self.ship_dir.clone();
         let kernel = self.kernel.clone();
-        crate::task_health::spawn_supervised(
+        ship_substrate::task_health::spawn_supervised(
             &self.health_registry,
             "artifact-gc",
             move || {
@@ -751,22 +767,22 @@ impl ShipRuntime {
     pub fn new_test(ship_dir: std::path::PathBuf, kernel: SharedKernel) -> Self {
         let workspace_dir = ship_dir.parent().map(|p| p.to_path_buf());
         let daemon_dir = ship_substrate::ShipHome::at(ship_dir.clone()).daemon_dir();
-        let rules = crate::services::rules::service::RulesServiceImpl::arc(ship_dir.clone());
-        let mcp = crate::services::mcp::service::McpServiceImpl::arc(ship_dir.clone());
-        let skills = crate::services::skills::service::SkillsServiceImpl::arc(ship_dir.clone());
-        let agents = crate::services::agents::service::AgentsServiceImpl::arc(ship_dir.clone());
+        let rules = ship_platform::services::rules::service::RulesServiceImpl::arc(ship_dir.clone());
+        let mcp = ship_platform::services::mcp::service::McpServiceImpl::arc(ship_dir.clone());
+        let skills = ship_platform::services::skills::service::SkillsServiceImpl::arc(ship_dir.clone());
+        let agents = ship_platform::services::agents::service::AgentsServiceImpl::arc(ship_dir.clone());
         let pipelines =
-            crate::services::pipelines::service::PipelinesServiceImpl::arc(ship_dir.clone());
-        let git = crate::services::git::service::GitServiceImpl::arc(ship_dir.clone());
+            ship_platform::services::pipelines::service::PipelinesServiceImpl::arc(ship_dir.clone());
+        let git = ship_platform::services::git::service::GitServiceImpl::arc(ship_dir.clone());
         let data_service: Arc<tokio::sync::Mutex<Option<ship_substrate::data::DataService>>> =
             Arc::new(tokio::sync::Mutex::new(None));
         let collections =
-            crate::services::collections::service::CollectionsServiceImpl::arc(
+            ship_platform::services::collections::service::CollectionsServiceImpl::arc(
                 ship_dir.clone(),
                 kernel.clone(),
                 data_service.clone(),
             );
-        let artifacts = crate::services::artifacts::service::ArtifactsServiceImpl::arc(
+        let artifacts = ship_platform::services::artifacts::service::ArtifactsServiceImpl::arc(
             ship_dir.clone(),
             kernel.clone(),
             data_service.clone(),
@@ -774,9 +790,9 @@ impl ShipRuntime {
         // Permissions reaches into Mcp via the trait for tool_patterns.
         // Wire the same arc both places so HTTP and trait-to-trait paths
         // observe the same catalog.
-        let permissions: std::sync::Arc<dyn crate::services::permissions::service::PermissionsService> =
+        let permissions: std::sync::Arc<dyn ship_platform::services::permissions::service::PermissionsService> =
             std::sync::Arc::new(
-                crate::services::permissions::service::PermissionsServiceImpl::with_roots(
+                ship_platform::services::permissions::service::PermissionsServiceImpl::with_roots(
                     ship_dir.clone(),
                     None,
                     mcp.clone(),
@@ -814,6 +830,7 @@ impl ShipRuntime {
             hook_engine: std::sync::OnceLock::new(),
             config_watcher: std::sync::OnceLock::new(),
             bundler: std::sync::OnceLock::new(),
+            worktree_resolver: default_worktree_resolver(),
         }
     }
 
@@ -826,22 +843,22 @@ impl ShipRuntime {
     ) -> Self {
         let workspace_dir = ship_dir.parent().map(|p| p.to_path_buf());
         let daemon_dir = ship_substrate::ShipHome::at(ship_dir.clone()).daemon_dir();
-        let rules = crate::services::rules::service::RulesServiceImpl::arc(ship_dir.clone());
-        let mcp = crate::services::mcp::service::McpServiceImpl::arc(ship_dir.clone());
-        let skills = crate::services::skills::service::SkillsServiceImpl::arc(ship_dir.clone());
-        let agents = crate::services::agents::service::AgentsServiceImpl::arc(ship_dir.clone());
+        let rules = ship_platform::services::rules::service::RulesServiceImpl::arc(ship_dir.clone());
+        let mcp = ship_platform::services::mcp::service::McpServiceImpl::arc(ship_dir.clone());
+        let skills = ship_platform::services::skills::service::SkillsServiceImpl::arc(ship_dir.clone());
+        let agents = ship_platform::services::agents::service::AgentsServiceImpl::arc(ship_dir.clone());
         let pipelines =
-            crate::services::pipelines::service::PipelinesServiceImpl::arc(ship_dir.clone());
-        let git = crate::services::git::service::GitServiceImpl::arc(ship_dir.clone());
+            ship_platform::services::pipelines::service::PipelinesServiceImpl::arc(ship_dir.clone());
+        let git = ship_platform::services::git::service::GitServiceImpl::arc(ship_dir.clone());
         let data_service: Arc<tokio::sync::Mutex<Option<ship_substrate::data::DataService>>> =
             Arc::new(tokio::sync::Mutex::new(None));
         let collections =
-            crate::services::collections::service::CollectionsServiceImpl::arc(
+            ship_platform::services::collections::service::CollectionsServiceImpl::arc(
                 ship_dir.clone(),
                 kernel.clone(),
                 data_service.clone(),
             );
-        let artifacts = crate::services::artifacts::service::ArtifactsServiceImpl::arc(
+        let artifacts = ship_platform::services::artifacts::service::ArtifactsServiceImpl::arc(
             ship_dir.clone(),
             kernel.clone(),
             data_service.clone(),
@@ -849,9 +866,9 @@ impl ShipRuntime {
         // Permissions reaches into Mcp via the trait for tool_patterns.
         // Wire the same arc both places so HTTP and trait-to-trait paths
         // observe the same catalog.
-        let permissions: std::sync::Arc<dyn crate::services::permissions::service::PermissionsService> =
+        let permissions: std::sync::Arc<dyn ship_platform::services::permissions::service::PermissionsService> =
             std::sync::Arc::new(
-                crate::services::permissions::service::PermissionsServiceImpl::with_roots(
+                ship_platform::services::permissions::service::PermissionsServiceImpl::with_roots(
                     ship_dir.clone(),
                     None,
                     mcp.clone(),
@@ -889,7 +906,22 @@ impl ShipRuntime {
             hook_engine: std::sync::OnceLock::new(),
             config_watcher: std::sync::OnceLock::new(),
             bundler: std::sync::OnceLock::new(),
+            worktree_resolver: default_worktree_resolver(),
         }
+    }
+
+    /// Test ctor variant — accepts a custom `WorktreeResolver` so tests
+    /// can map workspace ids to their tempdir paths instead of consulting
+    /// the daemon's CWD via `git worktree list`. See `project_api/tests.rs`.
+    #[cfg(test)]
+    pub fn new_test_with_worktree_resolver(
+        ship_dir: std::path::PathBuf,
+        kernel: SharedKernel,
+        worktree_resolver: WorktreeResolver,
+    ) -> Self {
+        let mut rt = Self::new_test(ship_dir, kernel);
+        rt.worktree_resolver = worktree_resolver;
+        rt
     }
 
     /// Clean up daemon files on shutdown.
@@ -938,24 +970,9 @@ impl ShipRuntime {
     }
 }
 
-/// Lazy-init helper for the shared `DataService` handle.
-///
-/// `data_service_arc` and `ShipRuntime::data_service` both go through
-/// here so the registration of the built-in artifacts collection happens
-/// exactly once regardless of who holds the mutex first.
-pub(crate) async fn ensure_data_service<'a>(
-    handle: &'a Arc<tokio::sync::Mutex<Option<ship_substrate::data::DataService>>>,
-    ship_dir: &Path,
-) -> Result<tokio::sync::MutexGuard<'a, Option<ship_substrate::data::DataService>>> {
-    let mut guard = handle.lock().await;
-    if guard.is_none() {
-        let mut svc = ship_substrate::data::DataService::open(ship_dir)?;
-        ship_platform::artifacts::ensure_artifacts_collection(&mut svc)
-            .context("registering built-in artifacts collection")?;
-        *guard = Some(svc);
-    }
-    Ok(guard)
-}
+// `ensure_data_service` moved to `ship_platform::services::data::ensure_data_service`
+// so the migrated CollectionsService + ArtifactsService can call it without
+// a back-reference to shipd. ShipRuntime's accessor below delegates.
 
 /// End all previously-active sessions on daemon startup.
 ///

@@ -73,7 +73,7 @@ pub fn uninstall() -> Result<ServiceReport> {
 fn user_unit_path() -> Result<PathBuf> {
     let config_home = std::env::var_os("XDG_CONFIG_HOME")
         .map(PathBuf::from)
-        .or_else(|| dirs::home_dir().map(|h| h.join(".config")))
+        .or_else(|| home::home_dir().map(|h| h.join(".config")))
         .context("no $HOME or $XDG_CONFIG_HOME")?;
     Ok(config_home.join("systemd").join("user").join(UNIT_FILENAME))
 }

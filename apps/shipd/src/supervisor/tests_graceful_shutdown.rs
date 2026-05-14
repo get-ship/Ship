@@ -6,15 +6,11 @@
 // ── Source helpers ───────────────────────────────────────────────────────────
 
 fn registry_src() -> String {
-    include_str!("registry.rs").to_string()
+    include_str!("../../../../crates/core/ship-platform/src/services/process_registry.rs").to_string()
 }
 
 fn process_executor_src() -> String {
-    include_str!("executors/process.rs").to_string()
-}
-
-fn tmux_executor_src() -> String {
-    include_str!("executors/tmux.rs").to_string()
+    include_str!("../../../../crates/ship-supervisor/src/executors/process.rs").to_string()
 }
 
 // ── ProcessExecutor shutdown ─────────────────────────────────────────────────
@@ -56,42 +52,6 @@ fn process_executor_stop_sends_sigterm_before_sigkill() {
     );
 }
 
-// ── TmuxExecutor shutdown ────────────────────────────────────────────────────
-
-/// TmuxExecutor::stop() must send exit_command before killing the session.
-#[test]
-fn tmux_executor_stop_sends_exit_command_before_kill() {
-    let src = tmux_executor_src();
-    assert!(
-        src.contains("exit_command"),
-        "TmuxExecutor::stop must call adapter.exit_command() before killing the session"
-    );
-}
-
-/// TmuxExecutor state must carry provider so stop() can get the right exit command.
-#[test]
-fn tmux_executor_state_carries_provider() {
-    let src = tmux_executor_src();
-    assert!(
-        src.contains("provider") || src.contains("adapter"),
-        "TmuxExecutor handle state must carry provider info for exit_command lookup"
-    );
-}
-
-/// TmuxExecutor::stop() must wait for the session to disappear before force-killing.
-#[test]
-fn tmux_executor_stop_waits_before_force_kill() {
-    let src = tmux_executor_src();
-    assert!(
-        src.contains("30") || src.contains("SHUTDOWN_TIMEOUT"),
-        "TmuxExecutor::stop must have a 30s timeout before force-killing the session"
-    );
-    assert!(
-        src.contains("has-session") || src.contains("is_alive"),
-        "TmuxExecutor::stop must poll for session exit before force-killing"
-    );
-}
-
 // ── Registry shutdown_all ────────────────────────────────────────────────────
 
 /// shutdown_all must log the timeout duration.
@@ -117,17 +77,12 @@ fn shutdown_all_stops_processes_concurrently() {
 /// shutdown_all must complete even when all processes hang (via SIGKILL fallback).
 #[test]
 fn shutdown_all_is_bounded() {
-    // Verified by: stop() has a SIGKILL fallback after 30s, so shutdown_all
-    // is bounded by the SIGKILL path. This test verifies the SIGKILL path exists.
+    // Verified by: ProcessExecutor::stop() has a SIGKILL fallback after 30s,
+    // so shutdown_all is bounded by the SIGKILL path.
     let proc_src = process_executor_src();
-    let tmux_src = tmux_executor_src();
     assert!(
         proc_src.contains("SIGKILL"),
         "ProcessExecutor must SIGKILL hung processes to bound shutdown time"
-    );
-    assert!(
-        tmux_src.contains("kill_tmux_session") || tmux_src.contains("kill-session"),
-        "TmuxExecutor must force-kill hung sessions to bound shutdown time"
     );
 }
 

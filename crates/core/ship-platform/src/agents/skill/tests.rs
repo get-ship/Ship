@@ -12,7 +12,7 @@ use tempfile::tempdir;
     #[test]
     fn create_and_get_round_trip() -> Result<()> {
         let tmp = tempdir()?;
-        let project_dir = crate::testutil::init_project(tmp.path().to_path_buf())?;
+        let project_dir = crate::testutil::init_project(tmp.path())?;
         let s = create_skill(
             &project_dir,
             "review",
@@ -186,7 +186,7 @@ Body.
     #[test]
     fn list_returns_all_skills() -> Result<()> {
         let tmp = tempdir()?;
-        let project_dir = crate::testutil::init_project(tmp.path().to_path_buf())?;
+        let project_dir = crate::testutil::init_project(tmp.path())?;
         create_skill(&project_dir, "a", "A", "content a")?;
         create_skill(&project_dir, "b", "B", "content b")?;
         let skills = list_skills(&project_dir)?;
@@ -205,7 +205,7 @@ Body.
     #[test]
     fn update_skill_persists() -> Result<()> {
         let tmp = tempdir()?;
-        let project_dir = crate::testutil::init_project(tmp.path().to_path_buf())?;
+        let project_dir = crate::testutil::init_project(tmp.path())?;
         create_skill(&project_dir, "s", "Old", "old")?;
         update_skill(&project_dir, "s", Some("New"), Some("new $ARGUMENTS"))?;
         let reloaded = get_skill(&project_dir, "s")?;
@@ -217,7 +217,7 @@ Body.
     #[test]
     fn delete_removes_skill() -> Result<()> {
         let tmp = tempdir()?;
-        let project_dir = crate::testutil::init_project(tmp.path().to_path_buf())?;
+        let project_dir = crate::testutil::init_project(tmp.path())?;
         create_skill(&project_dir, "gone", "Gone", "x")?;
         delete_skill(&project_dir, "gone")?;
         assert!(get_skill(&project_dir, "gone").is_err());
@@ -227,50 +227,9 @@ Body.
     #[test]
     fn duplicate_rejected() -> Result<()> {
         let tmp = tempdir()?;
-        let project_dir = crate::testutil::init_project(tmp.path().to_path_buf())?;
+        let project_dir = crate::testutil::init_project(tmp.path())?;
         create_skill(&project_dir, "dup", "Dup", "x")?;
         assert!(create_skill(&project_dir, "dup", "Dup2", "y").is_err());
-        Ok(())
-    }
-
-    #[test]
-    fn migrates_legacy_global_project_skills_into_repo_local_storage() -> Result<()> {
-        let tmp = tempdir()?;
-        let project_dir = crate::testutil::init_project(tmp.path().to_path_buf())?;
-
-        let legacy_skill_dir =
-            ship_substrate::project::legacy_project_skills_dir(&project_dir).join("legacy-skill");
-        fs::create_dir_all(&legacy_skill_dir)?;
-        write_atomic(
-            &legacy_skill_dir.join("SKILL.md"),
-            r#"---
-name: legacy-skill
-stable-id: legacy-skill
-description: Legacy skill migrated into repo-local project storage.
-tags: [legacy]
-authors: [ship]
-metadata:
-  display_name: Legacy Skill
-  source: imported
----
-
-Legacy body.
-"#,
-        )?;
-
-        let skills = list_skills(&project_dir)?;
-        assert!(skills.iter().any(|skill| skill.id == "legacy-skill"));
-        assert!(
-            ship_substrate::project::skills_dir(&project_dir)
-                .join("legacy-skill")
-                .join("SKILL.md")
-                .is_file()
-        );
-        assert!(
-            !ship_substrate::project::legacy_project_skills_dir(&project_dir)
-                .join("legacy-skill")
-                .exists()
-        );
         Ok(())
     }
 
@@ -439,7 +398,7 @@ body
                 continue;
             }
             checked += 1;
-            if let Err(err) = super::storage::parse_skill(&path) {
+            if let Err(err) = super::storage::parse_skill_spec(&path) {
                 failures.push(format!("{name}: {err}"));
             }
         }

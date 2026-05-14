@@ -377,11 +377,10 @@ pub(crate) fn ensure_within(base: &Path, candidate: &Path) -> std::io::Result<()
 
 /// Load the pipeline for a job from the projection (for promote resolution).
 fn load_pipeline_for_job(job_id: &str) -> Option<ship_substrate::events::job::Pipeline> {
-    crate::projections::job::load_jobs()
-        .ok()?
-        .into_iter()
-        .find(|(_, j)| j.job_id == job_id)
-        .and_then(|(_, j)| j.steps)
+    crate::projections::job::load_job_by_id(job_id)
+        .ok()
+        .flatten()
+        .and_then(|j| j.steps)
 }
 
 /// Resolve the artifact ID for a promoted name that is consumed (not produced) by
@@ -427,7 +426,7 @@ fn output_scope_to_artifact_scope(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ship_substrate::events::job::{OutputScope, StepOutput, StepPromote};
+    use ship_substrate::events::job::{OutputScope, StepOutput};
 
     #[test]
     fn check_required_outputs_passes_when_present() {

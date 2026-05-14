@@ -1,85 +1,61 @@
-//! Supervisor — process management for shipd.
+//! Test scaffolding for the supervisor crate.
 //!
-//! After the orchestrator extraction, this module contains ONLY platform-specific
-//! process management: executors, liveness monitoring, orphan cleanup, process
-//! registry, terminal launching, and the platform trait implementations.
+//! Production supervisor code lives in `crates/ship-supervisor/`. This
+//! module declares the integration tests that exercise the supervisor
+//! together with shipd internals (`ApiState`, `ShipRuntime`, test
+//! harness, etc.) — those tests can't move to the supervisor crate
+//! because they depend on shipd surface.
 //!
-//! Job orchestration (pipeline advancement, step dispatch, event routing) lives
-//! in `ship_platform::services::orchestrator`.
+//! Tests that don't need shipd internals belong inside the supervisor
+//! crate itself (move them when added).
+//!
+//! `#[cfg(test)]` is applied at the declaring site (`lib.rs`); no
+//! inner `#![cfg(test)]` needed.
 
-pub mod adapters;
-pub(crate) mod agent_lifecycle;
-pub(crate) mod executors;
-pub mod helpers;
-pub mod job_dispatch;
-pub(crate) mod liveness;
-pub(crate) mod process_events;
-pub(crate) mod orphan_cleanup;
-pub(crate) mod platform;
-pub(crate) mod registry;
-pub mod terminal_launcher;
-
-pub(crate) use registry::graceful_shutdown;
-
-#[cfg(test)]
+#[path = "tests_service_architecture.rs"]
 mod tests_service_architecture;
 
-#[cfg(test)]
 #[path = "tests_executor.rs"]
 mod tests_executor;
 
-#[cfg(test)]
 #[path = "tests_cleanup_lifecycle.rs"]
 mod tests_cleanup_lifecycle;
 
-#[cfg(test)]
 #[path = "tests_concurrency.rs"]
 mod tests_concurrency;
 
-#[cfg(test)]
 #[path = "tests_daemon_startup.rs"]
 mod tests_daemon_startup;
 
-#[cfg(test)]
 #[path = "tests_orphan_cleanup.rs"]
 mod tests_orphan_cleanup;
 
-#[cfg(test)]
 #[path = "tests_event_integrity.rs"]
 mod tests_event_integrity;
 
-#[cfg(test)]
 #[path = "tests_e2e_reliability.rs"]
 mod tests_e2e_reliability;
 
-#[cfg(test)]
 #[path = "tests_graceful_shutdown.rs"]
 mod tests_graceful_shutdown;
 
-#[cfg(test)]
 #[path = "tests_process_exit.rs"]
 mod tests_process_exit;
 
-#[cfg(test)]
 #[path = "tests_executor_events.rs"]
 mod tests_executor_events;
 
-#[cfg(test)]
 #[path = "tests_pipeline_e2e.rs"]
 mod tests_pipeline_e2e;
 
-#[cfg(test)]
 #[path = "tests_pipeline_vars.rs"]
 mod tests_pipeline_vars;
 
-#[cfg(test)]
 #[path = "tests_actor_registration.rs"]
 mod tests_actor_registration;
 
-#[cfg(test)]
 #[path = "tests_step_tracking.rs"]
 mod tests_step_tracking;
 
-#[cfg(test)]
 #[path = "tests_pipeline_reliability.rs"]
 mod tests_pipeline_reliability;

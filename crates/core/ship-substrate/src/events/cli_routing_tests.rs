@@ -79,7 +79,7 @@ async fn session_event_delivered_to_subscribed_mailbox() {
     let (_store, mut mailbox) = router.spawn_actor("agent.mcp", agent_config()).unwrap();
 
     let event = ev(event_types::SESSION_STARTED);
-    router.route(event.clone(), &runtime_ctx()).await.unwrap();
+    router.emit(event.clone(), &runtime_ctx()).await.unwrap();
 
     let received = mailbox.try_recv().expect("session event must reach subscribed actor mailbox");
     assert_eq!(received.id, event.id);
@@ -118,7 +118,7 @@ async fn gate_outcome_delivered_to_subscribed_mailbox() {
     let (_store, mut mailbox) = router.spawn_actor("agent.mcp", agent_config()).unwrap();
 
     let event = ev(event_types::GATE_PASSED);
-    router.route(event.clone(), &cli_ctx()).await.unwrap();
+    router.emit(event.clone(), &cli_ctx()).await.unwrap();
 
     let received = mailbox.try_recv().expect("gate event must reach subscribed actor mailbox");
     assert_eq!(received.id, event.id);
@@ -137,7 +137,7 @@ fn event_persisted_to_platform_db_without_router() {
     use crate::testutil::init_project_minimal as init_project;
 
     let tmp = tempdir().unwrap();
-    let _ship_dir = init_project(tmp.path().to_path_buf()).unwrap();
+    let _ship_dir = init_project(tmp.path()).unwrap();
     ensure_db().unwrap();
 
     let store = SqliteEventStore::new().unwrap();

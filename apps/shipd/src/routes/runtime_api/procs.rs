@@ -7,6 +7,7 @@ use axum::{
     response::IntoResponse,
 };
 use serde::Deserialize;
+
 use crate::routes::rest_api::{ApiState, MeshResponse};
 
 // ---- Procs / events / daemon status (slice 6) ----
@@ -29,8 +30,8 @@ pub struct ProcsQuery {
     params(ProcsQuery),
     responses(
         (status = 200, body = MeshResponse),
-        (status = 401, description = "unauthorized", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 500, description = "server error", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 401, description = "unauthorized", body = crate::wire::ErrorResponse),
+        (status = 500, description = "server error", body = crate::wire::ErrorResponse),
     ),
     tag = "runtime"
 )]

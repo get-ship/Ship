@@ -65,14 +65,13 @@ async fn studio_visual_message_reaches_agent_mailbox() {
     let tmp = tempdir().unwrap();
     let mut router = KernelRouter::new(crate::ShipHome::project_ship_dir(tmp.path())).unwrap();
 
-    let (studio_store, _studio_mb) = router.spawn_actor("studio", studio_config()).unwrap();
+    let (_studio_store, _studio_mb) = router.spawn_actor("studio", studio_config()).unwrap();
     let (_agent_store, mut agent_mb) =
         router.spawn_actor("agent.mcp", agent_config("agent.mcp")).unwrap();
 
     // Studio appends and routes a visual message.
     let event = ev("studio.message.visual");
-    studio_store.append(&event).unwrap();
-    router.route(event.clone(), &mcp_ctx()).await.unwrap();
+    router.emit(event.clone(), &mcp_ctx()).await.unwrap();
 
     let received = agent_mb.try_recv().expect("agent mailbox must receive studio event");
     assert_eq!(received.id, event.id);
@@ -87,14 +86,13 @@ async fn agent_event_reaches_studio_mailbox() {
     let mut router = KernelRouter::new(crate::ShipHome::project_ship_dir(tmp.path())).unwrap();
 
     let (_studio_store, mut studio_mb) = router.spawn_actor("studio", studio_config()).unwrap();
-    let (agent_store, _agent_mb) =
+    let (_agent_store, _agent_mb) =
         router.spawn_actor("agent.mcp", agent_config("agent.mcp")).unwrap();
 
     // Agent emits an event in its own namespace (simulating the event tool).
     // write_namespaces is [""] so any event_type is accepted.
     let event = ev("agent.task_started");
-    agent_store.append(&event).unwrap();
-    router.route(event.clone(), &mcp_ctx()).await.unwrap();
+    router.emit(event.clone(), &mcp_ctx()).await.unwrap();
 
     let received = studio_mb.try_recv().expect("studio mailbox must receive agent event");
     assert_eq!(received.id, event.id);
@@ -159,7 +157,7 @@ async fn workspace_system_event_reaches_agent_mailbox() {
 
     // System event emitted (e.g. by db/workspace_events.rs).
     let event = ev("workspace.activated");
-    router.route(event.clone(), &runtime_ctx()).await.unwrap();
+    router.emit(event.clone(), &runtime_ctx()).await.unwrap();
 
     let received = agent_mb.try_recv().expect("agent mailbox must receive workspace events");
     assert_eq!(received.id, event.id);
@@ -176,7 +174,7 @@ async fn studio_does_not_receive_unsubscribed_events() {
 
     // workspace.* is NOT in studio's subscribe_namespaces.
     router
-        .route(ev("workspace.activated"), &runtime_ctx())
+        .emit(ev("workspace.activated"), &runtime_ctx())
         .await
         .unwrap();
 
@@ -210,13 +208,12 @@ async fn agent_skill_event_reaches_studio_mailbox() {
         ],
     };
     let (_studio_store, mut studio_mb) = router.spawn_actor("studio", studio_cfg).unwrap();
-    let (agent_store, _agent_mb) =
+    let (_agent_store, _agent_mb) =
         router.spawn_actor("agent.mcp", agent_config("agent.mcp")).unwrap();
 
     // Agent emits canvas.artifact_created (prefixed with skill id at emit time).
     let event = ev("canvas.artifact_created");
-    agent_store.append(&event).unwrap();
-    router.route(event.clone(), &mcp_ctx()).await.unwrap();
+    router.emit(event.clone(), &mcp_ctx()).await.unwrap();
 
     let received = studio_mb
         .try_recv()
@@ -235,13 +232,12 @@ async fn studio_feedback_reaches_agent_mailbox() {
     let tmp = tempdir().unwrap();
     let mut router = KernelRouter::new(crate::ShipHome::project_ship_dir(tmp.path())).unwrap();
 
-    let (studio_store, _studio_mb) = router.spawn_actor("studio", studio_config()).unwrap();
+    let (_studio_store, _studio_mb) = router.spawn_actor("studio", studio_config()).unwrap();
     let (_agent_store, mut agent_mb) =
         router.spawn_actor("agent.mcp", agent_config("agent.mcp")).unwrap();
 
     let event = ev("studio.feedback");
-    studio_store.append(&event).unwrap();
-    router.route(event.clone(), &mcp_ctx()).await.unwrap();
+    router.emit(event.clone(), &mcp_ctx()).await.unwrap();
 
     let received = agent_mb
         .try_recv()

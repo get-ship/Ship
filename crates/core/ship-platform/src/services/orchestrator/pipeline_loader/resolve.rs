@@ -4,7 +4,7 @@
 //! file-size enforcement.
 
 use ship_substrate::events::job::{JobCreatedPayload, Pipeline, PipelineStep, StepType};
-use super::{load_pipeline_file, merge_meta_vars, parse_pipeline_content};
+use super::{load_pipeline_file, merge_meta_vars};
 
 pub(super) fn resolve_steps(payload: &mut JobCreatedPayload) {
     if payload.steps.is_some() {
@@ -68,19 +68,6 @@ pub(super) fn resolve_steps(payload: &mut JobCreatedPayload) {
         }
     }
 
-    // Try inline steps from frontmatter
-    if let Some(pipeline) = parse_steps_from_frontmatter(&spec_content)
-        && !pipeline.steps.is_empty()
-    {
-        tracing::info!(
-            slug = payload.slug,
-            steps = pipeline.steps.len(),
-            "pipeline: loaded inline steps from spec frontmatter"
-        );
-        payload.steps = Some(pipeline);
-        return;
-    }
-
     // No pipeline declared anywhere — construct a single Agent step from the
     // job's declared agent. No review, no merge, no hardcoded model.
     tracing::info!(
@@ -111,6 +98,12 @@ pub(super) fn resolve_steps(payload: &mut JobCreatedPayload) {
 
 /// Substitute `{{ var }}` references in every step field using `payload.vars`.
 
+/// Parse a spec markdown file's YAML frontmatter and return the value of
+/// the `pipeline` key, if present. Spec frontmatter is YAML per markdown
+/// convention; the value at `pipeline:` references a pipeline by name
+/// (resolved against `.ship/pipelines/<name>.jsonc`). Inline pipeline
+/// definitions in spec frontmatter are not supported — put the pipeline
+/// in its own file.
 fn parse_pipeline_name_from_frontmatter(content: &str) -> Option<String> {
     let content = content.trim();
     if !content.starts_with("---") {
@@ -151,24 +144,3 @@ fn read_spec_content(spec_path: &str) -> String {
 }
 
 
-fn parse_steps_from_frontmatter(content: &str) -> Option<Pipeline> {
-    let content = content.trim();
-    if !content.starts_with("---") {
-        return None;
-    }
-    let rest = &content[3..];
-    let end = rest.find("\n---")?;
-    let yaml_str = &rest[..end];
-
-    let fm: serde_json::Value = serde_yaml::from_str(yaml_str).ok()?;
-
-    // Try new format first (has agents: or steps: with new-style entries)
-    if fm.get("agents").is_some() || fm.get("steps").is_some() {
-        let (pipeline, _) = parse_pipeline_content(yaml_str).ok()?;
-        return Some(pipeline);
-    }
-
-    // Fallback: old format with bare steps array
-    let steps_val = fm.get("steps")?;
-    serde_json::from_value(steps_val.clone()).ok()
-}

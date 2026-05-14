@@ -1,49 +1,28 @@
-//! Write endpoints for agent configs and skill files/vars.
+//! Write endpoints for skill files / vars under workspace-scoped `.ship/`.
 //!
-//! All mutations are workspace-scoped: resolve worktree first, then operate
-//! within `{worktree}/.ship/`.
+//! Mutations resolve the worktree first, then delegate to
+//! `ship_platform::services::skills::state` (file ops) or
+//! `ship_platform::agents::skill_vars` (per-skill vars). No raw `std::fs`
+//! calls in this layer; path-safety + JSONC handling live in platform.
+//!
+//! Phase 16 removed the legacy `POST /api/v1/projects/{id}/agents`
+//! handler. It had no callers, its request shape predated the canonical
+//! AgentProfile (Phase 8), and writes produced files the canonical
+//! loader silently rejected. Re-introduce a canonical-shape variant
+//! when there's an actual caller for it.
 
 use axum::{Json, extract::{Path, State}, http::StatusCode};
 use serde::Deserialize;
 use serde_json::json;
-use std::path::PathBuf;
 
 use crate::auth::{AuthContext, Scope, require_scope};
 use crate::routes::rest_api::{ApiState, MeshResponse};
-use super::{err_response, ok_response, resolve_worktree, safe_resolve};
+use super::{err_response, ok_response};
 
-// ── Path safety ──────────────────────────────────────────────────────────────
-
-/// Resolve `relative` under `base`, refusing any path that escapes `base`
-/// via `..` components or symlinks. Creates `base` if it doesn't exist.
-fn safe_join(base: &std::path::Path, relative: &str) -> Result<PathBuf, (StatusCode, Json<MeshResponse>)> {
-    std::fs::create_dir_all(base).map_err(|e| {
-        err_response(StatusCode::INTERNAL_SERVER_ERROR, &format!("failed to ensure base dir: {e}"))
-    })?;
-    let joined = base.join(relative);
-    safe_resolve(base, &joined)
-}
+use ship_platform::services::files::{FilesService, Scope as FsScope};
+use ship_platform::services::skills::state as skills_state;
 
 // ── Request bodies ────────────────────────────────────────────────────────────
-
-#[derive(Deserialize, utoipa::ToSchema)]
-#[schema(example = json!({
-    "id": "writer",
-    "profile": { "name": "writer", "provider": "claude" },
-    "skills": ["ship:planning", "ship:writing"],
-    "mcpServers": [],
-    "rules": ["no-placeholders", "cite-sources"],
-    "hooks": { "onStart": "ship.read:context" }
-}))]
-pub struct WriteAgentReq {
-    pub id: String,
-    pub profile: serde_json::Value,
-    pub skills: serde_json::Value,
-    #[serde(rename = "mcpServers")]
-    pub mcp_servers: serde_json::Value,
-    pub rules: serde_json::Value,
-    pub hooks: serde_json::Value,
-}
 
 #[derive(Deserialize, utoipa::ToSchema)]
 pub struct WriteFileReq {
@@ -60,76 +39,7 @@ pub struct SetVarReq {
 
 // ── Endpoints ─────────────────────────────────────────────────────────────────
 
-/// POST /api/v1/projects/{id}/agents
-///
-/// Write an agent transfer bundle to `{worktree}/.ship/agents/{agent_id}.jsonc`.
-#[utoipa::path(
-    operation_id = "writeAgent",
-    post,
-    path = "/api/v1/projects/{id}/agents",
-    params(("id" = String, Path, description = "Workspace id")),
-    request_body = WriteAgentReq,
-    responses(
-        (status = 200, description = "Agent bundle written", body = MeshResponse),
-        (status = 400, description = "Invalid agent id", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 401, description = "Unauthenticated", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 403, description = "Insufficient scope", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 404, description = "Workspace not found", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 500, description = "Server error", body = crate::routes::openapi_types::ErrorResponse),
-    ),
-    tag = "project"
-)]
-pub async fn write_agent(
-    State(state): State<ApiState>,
-    axum::Extension(auth): axum::Extension<AuthContext>,
-    Path(id): Path<String>,
-    Json(body): Json<WriteAgentReq>,
-) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
-    require_scope(&auth, Scope::WriteWorkspace)?;
-    let worktree = resolve_worktree(state.ship_dir(), &id)?;
-    let agents_dir = ship_substrate::ShipHome::project_ship_dir(&worktree).join("agents");
-
-    std::fs::create_dir_all(&agents_dir).map_err(|e| {
-        err_response(
-            StatusCode::INTERNAL_SERVER_ERROR,
-            &format!("failed to create agents dir: {e}"),
-        )
-    })?;
-
-    // Validate agent id before using it as a filename
-    if body.id.is_empty() || body.id.contains('/') || body.id.contains("..") {
-        return Err(err_response(StatusCode::BAD_REQUEST, "invalid agent id"));
-    }
-
-    let bundle = json!({
-        "agent": body.profile,
-        "skills": body.skills,
-        "mcpServers": body.mcp_servers,
-        "rules": body.rules,
-        "hooks": body.hooks,
-    });
-
-    let content = serde_json::to_string_pretty(&bundle).map_err(|e| {
-        err_response(
-            StatusCode::INTERNAL_SERVER_ERROR,
-            &format!("failed to serialize agent config: {e}"),
-        )
-    })?;
-
-    let dest = agents_dir.join(format!("{}.jsonc", body.id));
-    std::fs::write(&dest, content).map_err(|e| {
-        err_response(
-            StatusCode::INTERNAL_SERVER_ERROR,
-            &format!("failed to write agent file: {e}"),
-        )
-    })?;
-
-    Ok(ok_response(json!({ "id": body.id })))
-}
-
 /// PUT /api/v1/projects/{id}/skills/{skillId}/files/{*path}
-///
-/// Write content to `{worktree}/.ship/skills/{skillId}/{path}`.
 #[utoipa::path(
     operation_id = "writeSkillFile",
     put,
@@ -142,11 +52,11 @@ pub async fn write_agent(
     request_body = WriteFileReq,
     responses(
         (status = 200, description = "File written", body = MeshResponse),
-        (status = 400, description = "Invalid skill id or path", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 401, description = "Unauthenticated", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 403, description = "Insufficient scope", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 404, description = "Workspace not found", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 500, description = "Server error", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 400, description = "Invalid skill id or path", body = crate::wire::ErrorResponse),
+        (status = 401, description = "Unauthenticated", body = crate::wire::ErrorResponse),
+        (status = 403, description = "Insufficient scope", body = crate::wire::ErrorResponse),
+        (status = 404, description = "Workspace not found", body = crate::wire::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::wire::ErrorResponse),
     ),
     tag = "project"
 )]
@@ -157,35 +67,22 @@ pub async fn write_skill_file(
     Json(body): Json<WriteFileReq>,
 ) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
     require_scope(&auth, Scope::WriteWorkspace)?;
-    let worktree = resolve_worktree(state.ship_dir(), &id)?;
-
-    validate_skill_id(&skill_id)?;
-
-    let skill_dir = ship_substrate::ShipHome::project_ship_dir(&worktree).join("skills").join(&skill_id);
-    let dest = safe_join(&skill_dir, &file_path)?;
-
-    if let Some(parent) = dest.parent() {
-        std::fs::create_dir_all(parent).map_err(|e| {
-            err_response(
-                StatusCode::INTERNAL_SERVER_ERROR,
-                &format!("failed to create parent dirs: {e}"),
-            )
-        })?;
-    }
-
-    std::fs::write(&dest, &body.content).map_err(|e| {
-        err_response(
-            StatusCode::INTERNAL_SERVER_ERROR,
-            &format!("failed to write skill file: {e}"),
-        )
-    })?;
-
+    let worktree = state.resolve_worktree(&id)?;
+    let files = FilesService::resolve_roots(
+        &ship_substrate::ShipHome::project_ship_dir(&worktree),
+    );
+    skills_state::write_file(
+        &files,
+        &skill_id,
+        Some(FsScope::Project),
+        &file_path,
+        body.content.as_bytes(),
+    )
+    .map_err(skills_err_to_http)?;
     Ok(ok_response(json!({})))
 }
 
 /// DELETE /api/v1/projects/{id}/skills/{skillId}/files/{*path}
-///
-/// Delete `{worktree}/.ship/skills/{skillId}/{path}`.
 #[utoipa::path(
     operation_id = "deleteSkillFile",
     delete,
@@ -197,11 +94,11 @@ pub async fn write_skill_file(
     ),
     responses(
         (status = 200, description = "File deleted", body = MeshResponse),
-        (status = 400, description = "Invalid skill id or path", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 401, description = "Unauthenticated", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 403, description = "Insufficient scope", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 404, description = "File not found", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 500, description = "Server error", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 400, description = "Invalid skill id or path", body = crate::wire::ErrorResponse),
+        (status = 401, description = "Unauthenticated", body = crate::wire::ErrorResponse),
+        (status = 403, description = "Insufficient scope", body = crate::wire::ErrorResponse),
+        (status = 404, description = "File not found", body = crate::wire::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::wire::ErrorResponse),
     ),
     tag = "project"
 )]
@@ -211,30 +108,16 @@ pub async fn delete_skill_file(
     Path((id, skill_id, file_path)): Path<(String, String, String)>,
 ) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
     require_scope(&auth, Scope::WriteWorkspace)?;
-    let worktree = resolve_worktree(state.ship_dir(), &id)?;
-
-    validate_skill_id(&skill_id)?;
-
-    let skill_dir = ship_substrate::ShipHome::project_ship_dir(&worktree).join("skills").join(&skill_id);
-    let target = safe_join(&skill_dir, &file_path)?;
-
-    if !target.exists() {
-        return Err(err_response(StatusCode::NOT_FOUND, "file not found"));
-    }
-
-    std::fs::remove_file(&target).map_err(|e| {
-        err_response(
-            StatusCode::INTERNAL_SERVER_ERROR,
-            &format!("failed to delete skill file: {e}"),
-        )
-    })?;
-
+    let worktree = state.resolve_worktree(&id)?;
+    let files = FilesService::resolve_roots(
+        &ship_substrate::ShipHome::project_ship_dir(&worktree),
+    );
+    skills_state::delete_file(&files, &skill_id, Some(FsScope::Project), &file_path)
+        .map_err(skills_err_to_http)?;
     Ok(ok_response(json!({})))
 }
 
 /// GET /api/v1/projects/{id}/skills/{skillId}/vars
-///
-/// Return merged skill variable state. Uses the worktree `.ship` dir as context.
 #[utoipa::path(
     operation_id = "getSkillVars",
     get,
@@ -245,10 +128,10 @@ pub async fn delete_skill_file(
     ),
     responses(
         (status = 200, description = "Merged skill vars", body = MeshResponse),
-        (status = 400, description = "Invalid skill id", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 401, description = "Unauthenticated", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 404, description = "Workspace not found", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 500, description = "Server error", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 400, description = "Invalid skill id", body = crate::wire::ErrorResponse),
+        (status = 401, description = "Unauthenticated", body = crate::wire::ErrorResponse),
+        (status = 404, description = "Workspace not found", body = crate::wire::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::wire::ErrorResponse),
     ),
     tag = "project"
 )]
@@ -256,17 +139,18 @@ pub async fn get_skill_vars(
     State(state): State<ApiState>,
     Path((id, skill_id)): Path<(String, String)>,
 ) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
-    let worktree = resolve_worktree(state.ship_dir(), &id)?;
+    let worktree = state.resolve_worktree(&id)?;
     let ship_dir = ship_substrate::ShipHome::project_ship_dir(&worktree);
 
     validate_skill_id(&skill_id)?;
 
-    let vars = ship_platform::agents::skill_vars::get_skill_vars(&ship_dir, &skill_id).map_err(|e| {
-        err_response(
-            StatusCode::INTERNAL_SERVER_ERROR,
-            &format!("failed to read skill vars: {e}"),
-        )
-    })?;
+    let vars = ship_platform::agents::skill_vars::get_skill_vars(&ship_dir, &skill_id)
+        .map_err(|e| {
+            err_response(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                &format!("failed to read skill vars: {e}"),
+            )
+        })?;
 
     match vars {
         Some(map) => {
@@ -279,8 +163,6 @@ pub async fn get_skill_vars(
 }
 
 /// PUT /api/v1/projects/{id}/skills/{skillId}/vars/{key}
-///
-/// Set a single skill variable. Body: `{ value_json: "<json-encoded-value>" }`.
 #[utoipa::path(
     operation_id = "setSkillVar",
     put,
@@ -293,11 +175,11 @@ pub async fn get_skill_vars(
     request_body = SetVarReq,
     responses(
         (status = 200, description = "Variable set", body = MeshResponse),
-        (status = 400, description = "Invalid payload", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 401, description = "Unauthenticated", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 403, description = "Insufficient scope", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 404, description = "Unknown variable or skill", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 500, description = "Server error", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 400, description = "Invalid payload", body = crate::wire::ErrorResponse),
+        (status = 401, description = "Unauthenticated", body = crate::wire::ErrorResponse),
+        (status = 403, description = "Insufficient scope", body = crate::wire::ErrorResponse),
+        (status = 404, description = "Unknown variable or skill", body = crate::wire::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::wire::ErrorResponse),
     ),
     tag = "project"
 )]
@@ -308,7 +190,7 @@ pub async fn set_skill_var(
     Json(body): Json<SetVarReq>,
 ) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
     require_scope(&auth, Scope::WriteWorkspace)?;
-    let worktree = resolve_worktree(state.ship_dir(), &id)?;
+    let worktree = state.resolve_worktree(&id)?;
     let ship_dir = ship_substrate::ShipHome::project_ship_dir(&worktree);
 
     validate_skill_id(&skill_id)?;
@@ -342,102 +224,23 @@ fn validate_skill_id(skill_id: &str) -> Result<(), (StatusCode, Json<MeshRespons
     Ok(())
 }
 
+fn skills_err_to_http(
+    e: ship_platform::services::skills::state::Error,
+) -> (StatusCode, Json<MeshResponse>) {
+    use ship_platform::services::skills::state::Error;
+    match e {
+        Error::NotFound(msg) => err_response(StatusCode::NOT_FOUND, &msg),
+        Error::BadId(msg) | Error::BadPath(msg) => err_response(StatusCode::BAD_REQUEST, &msg),
+        Error::AlreadyExists(msg) => err_response(StatusCode::CONFLICT, &msg),
+        _ => err_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()),
+    }
+}
+
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use axum::extract::{Path, State};
-    use crate::routes::rest_api::ApiState;
-
-    fn make_test_state() -> (ApiState, tempfile::TempDir) {
-        let dir = tempfile::TempDir::new().unwrap();
-        let ship_dir = ship_substrate::ShipHome::project_ship_dir(dir.path());
-        std::fs::create_dir_all(&ship_dir).unwrap();
-        ship_substrate::db::ensure_db_at(&ship_dir).unwrap();
-        let kernel = ship_substrate::events::init_kernel_router(ship_dir.clone()).unwrap();
-        let state = std::sync::Arc::new(
-            crate::ship_runtime::ShipRuntime::new_test(ship_dir, kernel),
-        );
-        (state, dir)
-    }
-
-    // ── Path safety ──────────────────────────────────────────────────────────
-
-    #[test]
-    fn safe_join_rejects_escape() {
-        let base = tempfile::tempdir().unwrap();
-        let base_path = base.path().to_path_buf();
-        // Need base to exist for canonicalize
-        let result = safe_join(&base_path, "../etc/passwd");
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn safe_join_accepts_valid_path() {
-        let base = tempfile::tempdir().unwrap();
-        let base_path = base.path().to_path_buf();
-        let result = safe_join(&base_path, "subdir/file.md");
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    #[cfg(unix)]
-    fn safe_join_rejects_symlink_escape() {
-        use std::os::unix::fs::symlink;
-        let outside = tempfile::tempdir().unwrap();
-        let secret = outside.path().join("secret.txt");
-        std::fs::write(&secret, "leaked").unwrap();
-
-        let base = tempfile::tempdir().unwrap();
-        // Plant a symlink inside base that points to a file outside base.
-        symlink(&secret, base.path().join("trap")).unwrap();
-
-        // Attempting to resolve through the symlink must fail.
-        let result = safe_join(&base.path().to_path_buf(), "trap");
-        assert!(result.is_err(), "symlink targeting outside base must be rejected");
-    }
-
-    // ── write_agent ───────────────────────────────────────────────────────────
-
-    fn full_auth() -> axum::Extension<AuthContext> {
-        axum::Extension(AuthContext {
-            caller_kind: ship_substrate::events::CallerKind::Cli,
-            agent_id: None,
-            workspace_id: None,
-            session_id: None,
-            scopes: vec![Scope::Full],
-        })
-    }
-
-    #[tokio::test(flavor = "multi_thread")]
-    async fn write_agent_nonexistent_workspace_returns_404() {
-        let (state, _dir) = make_test_state();
-        let req = WriteAgentReq {
-            id: "test-agent".to_string(),
-            profile: json!({"name": "Test"}),
-            skills: json!([]),
-            mcp_servers: json!([]),
-            rules: json!([]),
-            hooks: json!([]),
-        };
-        let result = write_agent(State(state), full_auth(), Path("no-such-ws".to_string()), Json(req)).await;
-        let (status, _) = result.unwrap_err();
-        assert_eq!(status, StatusCode::NOT_FOUND);
-    }
-
-    #[test]
-    fn write_agent_rejects_invalid_id() {
-        // Sync check — validate_skill_id equivalent for agent
-        let bad_ids = ["", "../sneaky", "path/with/slash"];
-        for bad in bad_ids {
-            let id_str = bad.to_string();
-            let is_bad = id_str.is_empty() || id_str.contains('/') || id_str.contains("..");
-            assert!(is_bad, "expected '{bad}' to be rejected");
-        }
-    }
-
-    // ── validate_skill_id ─────────────────────────────────────────────────────
 
     #[test]
     fn validate_skill_id_rejects_empty() {
@@ -459,8 +262,6 @@ mod tests {
         assert!(validate_skill_id("my-skill").is_ok());
         assert!(validate_skill_id("skill_v2").is_ok());
     }
-
-    // ── set_skill_var body parsing ────────────────────────────────────────────
 
     #[test]
     fn set_var_req_parses_string_value_json() {

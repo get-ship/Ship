@@ -449,3 +449,39 @@ fn load_schemas_merged_no_project_equals_global() {
     let merged = load_schemas_merged(&global_dir, None).unwrap();
     assert_eq!(merged.len(), 1);
 }
+
+// ── robustness: unsafe identifiers ───────────────────────────────────────────
+
+#[test]
+fn schema_with_unsafe_id_is_rejected() {
+    // Schema ids embed directly into table names — must be SQL-safe.
+    let raw = r#"{
+        "id": "users; DROP TABLE users--",
+        "fields": { "name": { "type": "string" } }
+    }"#;
+    let err = parse_schema(raw).unwrap_err();
+    let s = err.to_string();
+    assert!(s.contains("safe SQL identifier"), "got: {s}");
+}
+
+#[test]
+fn schema_with_unsafe_field_name_is_rejected() {
+    // Field names embed into column names — must be SQL-safe.
+    let raw = r#"{
+        "id": "ok",
+        "fields": { "name) VALUES (--": { "type": "string" } }
+    }"#;
+    let err = parse_schema(raw).unwrap_err();
+    let s = err.to_string();
+    assert!(s.contains("safe SQL identifier"), "got: {s}");
+}
+
+#[test]
+fn schema_id_alphanumeric_dash_dot_underscore_accepted() {
+    // All four character classes that is_safe_identifier permits.
+    let raw = r#"{
+        "id": "my-collection.v2_3",
+        "fields": { "name": { "type": "string" } }
+    }"#;
+    assert!(parse_schema(raw).is_ok());
+}

@@ -1,5 +1,5 @@
 use anyhow::{Result, bail};
-use ship_jobs::pipeline::normalize_pipeline_yaml;
+use ship_jobs::pipeline::normalize_pipeline;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
@@ -17,8 +17,8 @@ pub struct RunOptions {
 }
 
 pub fn run(opts: RunOptions) -> Result<()> {
-    let (pipeline_yaml, pipeline_path) = load_pipeline_yaml(&opts.pipeline_name)?;
-    let (normalized, meta) = normalize_pipeline_yaml(&pipeline_yaml)
+    let (pipeline_src, pipeline_path) = load_pipeline_file(&opts.pipeline_name)?;
+    let (normalized, meta) = normalize_pipeline(&pipeline_src)
         .map_err(|e| anyhow::anyhow!("pipeline parse error: {e}"))?;
 
     let steps = normalized
@@ -131,13 +131,13 @@ pub fn run(opts: RunOptions) -> Result<()> {
     Ok(())
 }
 
-/// Load pipeline YAML from .ship/pipelines/<name>.yaml.
-fn load_pipeline_yaml(name: &str) -> Result<(String, PathBuf)> {
+/// Load a pipeline JSONC file from `.ship/pipelines/<name>.jsonc`.
+fn load_pipeline_file(name: &str) -> Result<(String, PathBuf)> {
     let mut dir = std::env::current_dir()?;
     loop {
         let ship_dir = ship_substrate::ShipHome::project_ship_dir(&dir);
         if ship_dir.is_dir() {
-            let path = ship_dir.join("pipelines").join(format!("{name}.yaml"));
+            let path = ship_dir.join("pipelines").join(format!("{name}.jsonc"));
             if path.exists() {
                 let content = std::fs::read_to_string(&path)?;
                 return Ok((content, path));
@@ -164,7 +164,7 @@ fn list_pipelines(ship_dir: &Path) -> String {
                 .filter_map(|e| e.ok())
                 .filter_map(|e| {
                     let name = e.file_name().to_string_lossy().to_string();
-                    name.strip_suffix(".yaml").map(str::to_string)
+                    name.strip_suffix(".jsonc").map(str::to_string)
                 })
                 .collect::<Vec<_>>()
                 .join(", ")
@@ -219,7 +219,7 @@ fn format_step_label(step: &serde_json::Value, vars: &HashMap<String, String>) -
             "run"
         } else if step.get("agent").is_some() {
             "agent"
-        } else if step.get("human").is_some() || step.get("goal").is_some() {
+        } else if step.get("goal").is_some() {
             "human"
         } else {
             "agent"
@@ -231,19 +231,11 @@ fn format_step_label(step: &serde_json::Value, vars: &HashMap<String, String>) -
             format!("[{step_type}] {}", interpolate_simple(agent, vars))
         }
         "run" => {
-            let cmd = step
-                .get("command")
-                .or_else(|| step.get("run"))
-                .and_then(|v| v.as_str())
-                .unwrap_or("?");
+            let cmd = step.get("run").and_then(|v| v.as_str()).unwrap_or("?");
             format!("[run] {cmd}")
         }
         "human" => {
-            let goal = step
-                .get("goal")
-                .or_else(|| step.get("human"))
-                .and_then(|v| v.as_str())
-                .unwrap_or("?");
+            let goal = step.get("goal").and_then(|v| v.as_str()).unwrap_or("?");
             format!("[human] {goal}")
         }
         _ => format!("[{step_type}]"),

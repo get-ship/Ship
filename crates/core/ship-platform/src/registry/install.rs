@@ -2,6 +2,7 @@ use std::collections::{HashSet, VecDeque};
 use std::path::Path;
 
 use anyhow::Context;
+use compiler::lockfile::{LockPackage, ShipLock};
 
 use super::cache::{CachedPackage, PackageCache};
 use super::constraint::parse_constraint;
@@ -9,7 +10,7 @@ use super::constraint::parse_constraint;
 pub(crate) use super::install_helpers::write_lock_atomic;
 use super::install_helpers::{fetch_and_store, load_lock_if_present, should_write_lock};
 use super::resolver::{resolve_alias, resolve_version};
-use super::types::{LockedPackage, ShipLock, ShipManifest};
+use super::types::{ShipManifest, diff_manifest_against_lock};
 use super::verify::check_registry_hash;
 
 /// Options passed to `resolve_and_fetch`.
@@ -48,10 +49,10 @@ pub fn resolve_and_fetch(
             manifest.dependencies.keys().cloned().collect()
         }
         Some(lock) => {
-            let sync = lock.check_sync(manifest);
+            let sync = diff_manifest_against_lock(manifest, lock);
             if opts.frozen && !sync.is_in_sync() {
                 anyhow::bail!(
-                    "lockfile is out of sync with ship.toml (--frozen):\n  added: {:?}\n  removed: {:?}\nRun `ship install` to update.",
+                    "lockfile is out of sync with ship.jsonc (--frozen):\n  added: {:?}\n  removed: {:?}\nRun `ship install` to update.",
                     sync.added,
                     sync.removed
                 );
@@ -65,10 +66,10 @@ pub fn resolve_and_fetch(
     };
 
     // Start from the existing lock entries (for deps that haven't changed).
-    let mut locked: Vec<LockedPackage> = match &existing_lock {
+    let mut locked: Vec<LockPackage> = match &existing_lock {
         Some(lock) => {
-            let sync = lock.check_sync(manifest);
-            lock.package
+            let sync = diff_manifest_against_lock(manifest, lock);
+            lock.packages
                 .iter()
                 .filter(|p| !sync.removed.contains(&p.path))
                 .cloned()
@@ -80,7 +81,7 @@ pub fn resolve_and_fetch(
     let deps_to_resolve = collect_deps_to_resolve(manifest, &existing_lock, &need_resolve);
     let mut queue: VecDeque<(String, String, Vec<String>)> = deps_to_resolve
         .iter()
-        .map(|(k, v)| ((*k).clone(), v.version.clone(), vec!["ship.toml".into()]))
+        .map(|(k, v)| ((*k).clone(), v.version.clone(), vec!["ship.jsonc".into()]))
         .collect();
 
     let mut visited: HashSet<String> = HashSet::new();
@@ -110,7 +111,7 @@ pub fn resolve_and_fetch(
         // registry's published hash. Advisory only -- warns but does not block.
         let in_existing_lock = existing_lock
             .as_ref()
-            .is_some_and(|lock| lock.package.iter().any(|p| p.path == dep_path));
+            .is_some_and(|lock| lock.packages.iter().any(|p| p.path == dep_path));
         if !in_existing_lock
             && let Some(warning) =
                 check_registry_hash(&dep_path, &resolved.tag, &cached.hash, opts.offline)
@@ -119,11 +120,12 @@ pub fn resolve_and_fetch(
         }
 
         locked.retain(|p| p.path != dep_path);
-        locked.push(LockedPackage {
+        locked.push(LockPackage {
             path: dep_path.clone(),
             version: resolved.tag.clone(),
             commit: resolved.commit.clone(),
             hash: cached.hash.clone(),
+            export_hashes: Default::default(),
         });
 
         let mut child_ancestors = ancestors.clone();
@@ -138,7 +140,7 @@ pub fn resolve_and_fetch(
 
     let new_lock = ShipLock {
         version: 1,
-        package: locked,
+        packages: locked,
     };
     let lockfile_written = should_write_lock(&existing_lock, &new_lock);
     if lockfile_written {
@@ -203,7 +205,7 @@ fn fetch_or_use_cache(
 
 /// Ensure all locked packages are in the cache and verify hashes.
 fn verify_locked_packages(
-    locked: &[LockedPackage],
+    locked: &[LockPackage],
     cache: &PackageCache,
     opts: &InstallOptions,
 ) -> anyhow::Result<Vec<CachedPackage>> {
@@ -258,22 +260,15 @@ fn discover_transitive_deps(
     parent_path: &str,
     ancestors: &[String],
 ) -> anyhow::Result<Vec<(String, String)>> {
-    let (manifest_path, is_toml) = if cached_dir.join("ship.jsonc").exists() {
-        (cached_dir.join("ship.jsonc"), false)
-    } else if cached_dir.join("ship.toml").exists() {
-        (cached_dir.join("ship.toml"), true)
-    } else {
+    let manifest_path = cached_dir.join("ship.jsonc");
+    if !manifest_path.exists() {
         return Ok(vec![]);
-    };
+    }
     let raw = std::fs::read_to_string(&manifest_path)
         .with_context(|| format!("reading manifest in transitive dep {parent_path}"))?;
-    let sub_manifest: SubManifestDeps = if is_toml {
-        toml::from_str(&raw)
-            .with_context(|| format!("parsing manifest in transitive dep {parent_path}"))?
-    } else {
+    let sub_manifest: SubManifestDeps =
         serde_json::from_str(&ship_substrate::fs_util::strip_jsonc_comments(&raw))
-            .with_context(|| format!("parsing manifest in transitive dep {parent_path}"))?
-    };
+            .with_context(|| format!("parsing manifest in transitive dep {parent_path}"))?;
     let mut deps = Vec::new();
     for (path, dep_val) in sub_manifest.dependencies {
         if ancestors.contains(&path) {

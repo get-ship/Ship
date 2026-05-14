@@ -16,7 +16,7 @@
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "bundle": "bun build src/index.ts --target=browser --format=esm --external=@ship/sui-runtime --outfile=../../crates/ship-sui-server/assets/sui-dom.js",
+    "bundle": "bun build src/index.ts --target=browser --format=esm --external=@ship/sui-runtime --outfile=../../crates/sui/ship-sui-server/assets/sui-dom.js",
     "test": "vitest run",
     "test:watch": "vitest"
   },
