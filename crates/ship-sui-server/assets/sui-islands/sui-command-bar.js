@@ -1,14 +1,518 @@
-var $0=Symbol.for("sui:error-boundary");function IJ(J){let X=J;while(X){if(X instanceof Element){let z=X[$0];if(z)return z}let Z=X.parentNode;if(Z){X=Z;continue}let Q=X;if(Q.host){X=Q.host;continue}X=null}return null}function RJ(J,X,Z){try{return Z()}catch(Q){let z=IJ(J);if(z){z.catch(Q,X);return}console.error("[sui] uncaught throw (no error boundary):",Q);return}}var UJ=null,BJ=null,f0=0,g0=new Set,SJ=[];function eJ(J,X){SJ.push(J);try{return X()}finally{SJ.pop()}}function m0(){return SJ.length>0?SJ[SJ.length-1]:null}function D0(J){if(UJ===null)return;if(J.has(UJ))return;let X=UJ;if(J.add(X),BJ!==null)BJ.push(()=>J.delete(X))}function x(J){let X=J,Z=new Set,Q=()=>{return D0(Z),X};return Q.set=(z)=>{let G=typeof z==="function"?z(X):z;if(Object.is(G,X))return;if(X=G,f0>0)for(let F of Z)g0.add(F);else for(let F of[...Z])F()},Q.__subs=Z,Q.__peek=()=>X,Q}function ZJ(J){let X,Z=!0,Q=new Set,z=[],G=()=>{if(Z)return;if(Z=!0,Q.size===0)return;let I=X;if(F(),Object.is(I,X))return;for(let H of[...Q])H()},F=()=>{for(let w of z)w();z=[];let I=UJ,H=BJ;UJ=G,BJ=z;try{X=J()}finally{UJ=I,BJ=H}Z=!1},O=()=>{if(D0(Q),Z)F();return X};return O.set=()=>{throw Error("cannot set on a derived; mutate its dependencies instead")},O.__subs=Q,O.__peek=()=>{if(Z)F();return X},O}function h(J){let X=void 0,Z=!0,Q=[],z=m0(),G=()=>{if(!Z)return;if(X){try{X()}catch(I){console.error("[sui] effect cleanup threw:",I)}X=void 0}for(let I of Q)I();Q=[];let F=UJ,O=BJ;UJ=G,BJ=Q;try{X=J()}catch(I){let H=z?IJ(z):null;if(H)H.catch(I,"effect");else console.error("[sui] effect threw:",I)}finally{UJ=F,BJ=O}};return G(),()=>{Z=!1;for(let F of Q)F();if(Q=[],X){try{X()}catch(F){console.error("[sui] effect cleanup threw:",F)}X=void 0}}}var lJ=null;function bJ(J,X){let Z=lJ;lJ=J;try{return X()}finally{lJ=Z}}function yJ(J){let X=lJ;if(!X)return;X.cleanup(J)}function $J(){let J=[],X=!1;return{cleanup(Q){if(X){try{Q()}catch(z){console.error("[sui/scope] late cleanup threw:",z)}return}J.push(Q)},dispose(){if(X)return;X=!0;for(let Q=J.length-1;Q>=0;Q--)try{J[Q]()}catch(z){console.error("[sui/scope] cleanup threw:",z)}J.length=0},get disposed(){return X}}}var H0=Symbol("sui.shared");function _(J){return J[H0]=!0,J}function K0(J){return!!J?.[H0]}function J0(J,X,Z){J[`__sui_ctx_${X}`]=Z}function fJ(J,X){let Z=J;while(Z){let Q=Z[`__sui_ctx_${X}`];if(Q!==void 0)return Q;let z=Z.parentElement;if(z){Z=z;continue}let G=Z.getRootNode();Z=G instanceof ShadowRoot?G.host:null}return null}function X0(J){let X={};for(let Z in J)if(Object.prototype.hasOwnProperty.call(J,Z)&&K0(J[Z]))X[Z]=J[Z];return X}function Z0(J=null){return x(null)}function z0(J,X,Z){let Q=J[X];if(typeof Q==="function"&&typeof Q.set==="function")return Q.set(Z),Q;let z=x(Z);return J[X]=z,z}function VJ(J,X){let Z;return h(()=>{let Q=X(),z=Q==null?"":String(Q);if(z===Z)return;if(Z===void 0&&J.textContent===z){Z=z;return}J.textContent=z,Z=z})}function FJ(J,X,Z){let Q,z=!1;return h(()=>{let G=Z();if(z&&G===Q)return;let F=G==null||G===!1||G===""?null:G===!0?"":String(G);if(z||J.getAttribute(X)!==F)if(F===null)J.removeAttribute(X);else J.setAttribute(X,F);Q=G,z=!0})}function AJ(J,X,Z){let Q;return h(()=>{let z=!!Z();if(z===Q)return;if(Q===void 0&&z===J.classList.contains(X)){Q=z;return}if(z)J.classList.add(X);else J.classList.remove(X);Q=z})}function PJ(J,X,Z){let Q=h(()=>{let G=X();if(J.value!==G)J.value=G}),z=()=>{let G=J.value;if(X.set(G),Z)Z(G)};return J.addEventListener("input",z),()=>{Q(),J.removeEventListener("input",z)}}function e(J,X,Z,Q={}){let z=Q.modifiers??[],G,F=!0,O=(H)=>{for(let C of z)switch(C.kind){case"preventDefault":H.preventDefault();break;case"stopPropagation":H.stopPropagation();break;case"stopImmediatePropagation":H.stopImmediatePropagation();break;case"self":if(H.target!==J)return;break;case"trusted":if(!H.isTrusted)return;break;case"key":{if(!P0(H,C.arg??""))return;break}}let w=z.find((C)=>C.kind==="debounce"),$=z.find((C)=>C.kind==="throttle");if(w){let C=Number(w.arg)||0;if(G!==void 0)clearTimeout(G);G=setTimeout(()=>{G=void 0,Z(H)},C);return}if($){let C=Number($.arg)||0;if(!F)return;F=!1,Z(H),G=setTimeout(()=>{F=!0},C);return}Z(H)},I={};if(Q.capture)I.capture=!0;if(Q.passive)I.passive=!0;if(Q.once)I.once=!0;return J.addEventListener(X,O,I),()=>{if(J.removeEventListener(X,O,I),G!==void 0)clearTimeout(G)}}function P0(J,X){let Z=X.split("+").map((w)=>w.toLowerCase()),Q=Z.pop()??"",z=Z.includes("meta")||Z.includes("cmd"),G=Z.includes("ctrl")||Z.includes("control"),F=Z.includes("shift"),O=Z.includes("alt")||Z.includes("option"),I=Z.includes("mod"),H=typeof navigator<"u"&&/Mac|iPhone|iPad|iPod/i.test(navigator.platform||navigator.userAgent||"");if(z&&!J.metaKey)return!1;if(G&&!J.ctrlKey)return!1;if(F&&!J.shiftKey)return!1;if(O&&!J.altKey)return!1;if(I&&!(H?J.metaKey:J.ctrlKey))return!1;return J.key.toLowerCase()===Q}function U0(J,X,Z){J.dispatchEvent(new CustomEvent(X,{detail:Z,bubbles:!0,composed:!0}))}function B0(J,X){let Z=J,Q=Object.keys(X);for(let z of Q)Z[z]=X[z];yJ(()=>{for(let z of Q)if(Z[z]===X[z])try{delete Z[z]}catch{Z[z]=void 0}})}function pJ(J){let X=J;X.emit=function(Z,Q){U0(J,Z,Q)},X.expose=function(Z){B0(J,Z)}}var v0=Symbol("sui:transition");function iJ(J){return J[v0]}function u0(){if(typeof window>"u"||typeof window.matchMedia!=="function")return!1;try{return window.matchMedia("(prefers-reduced-motion: reduce)").matches}catch{return!1}}function O0(J){if(!u0())return J;return{...J,duration:0,delay:0}}function N0(J){let X=iJ(J);if(!X?.inT?.in)return;X.current?.cancel();let Z=X.inT.in(J,O0(X.inOpts));return X.current=Z,Z}function I0(J){let X=iJ(J);if(!X?.outT?.out)return;X.current?.cancel();let Z=X.outT.out(J,O0(X.outOpts));return X.current=Z,Z}function Y0(J){if(J.nodeType!==1)return;let X=J;if(X.hasAttribute("data-sui-transition")){let Z=iJ(X);if(Z?.current?.cancel(),Z)Z.current=void 0}for(let Z of X.querySelectorAll("[data-sui-transition]")){let Q=iJ(Z);if(Q?.current?.cancel(),Q)Q.current=void 0}}function C0(J,X){for(let Z of J){if(Z.nodeType!==1)continue;let Q=Z;if(Q.hasAttribute("data-sui-transition"))X(Q);for(let z of Q.querySelectorAll("[data-sui-transition]"))X(z)}}function wJ(J){C0(J,(X)=>{N0(X)})}function gJ(J){let X=[];if(C0(J,(Z)=>{let Q=I0(Z);if(Q)X.push(Q.finished.catch(()=>{}))}),X.length===0)return null;return Promise.all(X).then(()=>{return})}function h0(J,X,Z,Q,z){if(Z.fill(0,0,X),X===0)return;let G=0;for(let O=0;O<X;O++){let I=J[2*O+1],H=0,w=G;while(H<w){let $=H+w>>>1;if(J[2*z[$]+1]<I)H=$+1;else w=$}if(Q[O]=H>0?z[H-1]:-1,z[H]=O,H===G)G++}let F=z[G-1];while(F>=0)Z[F]=1,F=Q[F]}function DJ(J){let{anchor:X,items:Z,key:Q,render:z}=J,G=[],F=!0,O=new Set,I=new Map,H=new Map,w=new Map,$=new Set,C=[],k=[],n=new Int32Array(0),l=new Uint8Array(0),a=new Int32Array(0),WJ=new Int32Array(0),c=(d)=>{for(let p of d.nodes)try{p.parentNode?.removeChild(p)}catch{}d.cleanup?.()},GJ=null,zJ=h(()=>{if(!F)return;let d=Z();if(d===GJ)return;GJ=d;let p=d.length;if(n.length<p*2)n=new Int32Array(Math.max(n.length*2,p*2,16));if(l.length<p){let P=Math.max(l.length*2,p,8);l=new Uint8Array(P),a=new Int32Array(P),WJ=new Int32Array(P)}for(let P=0;P<p;P++){let S=d[P],r=Q(S,P);if(I.has(r))console.warn("[sui] {#for}: duplicate key",r,"at index",P,"(prior at",I.get(r),"); the earlier item will be dropped from the rendered output.","Fix the key function so each item maps to a unique value.");I.set(r,P)}for(let P of G)H.set(P.key,P);for(let P of G){if(I.has(P.key))continue;let S=gJ(P.nodes);if(S===null){c(P);continue}O.add(P),S.then(()=>{if(!O.delete(P))return;c(P)})}k.length=0,C.length=0;let JJ=!1;for(let P=0;P<p;P++){let S=d[P],r=Q(S,P),o=H.get(r),s;if(o){if(JJ=!0,o.item!==S||o.__i!==P)o.item=S,o.__i=P,RJ(X,"render",()=>o.update?.(S,P));s=o}else{let jJ=RJ(X,"render",()=>z(S,P));if(!jJ)continue;s={key:r,item:S,__i:P,nodes:jJ.nodes,...jJ.cleanup&&{cleanup:jJ.cleanup},...jJ.update&&{update:jJ.update}},C.push(...jJ.nodes)}k.push(s)}let QJ=0;if(JJ){for(let P=0;P<G.length;P++)w.set(G[P].key,P);for(let P=0;P<k.length;P++){let S=w.get(k[P].key);if(S!==void 0)n[2*QJ]=P,n[2*QJ+1]=S,QJ++}h0(n,QJ,l,a,WJ);for(let P=0;P<QJ;P++)if(l[P])$.add(n[2*P])}let A=X.parentNode;if(A&&QJ===0&&k.length>0){let P=document.createDocumentFragment();for(let S=0;S<k.length;S++){let r=k[S].nodes;for(let o=0;o<r.length;o++)P.appendChild(r[o])}A.insertBefore(P,X.nextSibling)}else{let P=X;for(let S=0;S<k.length;S++){if(!A)break;let r=k[S];if($.has(S))P=r.nodes[r.nodes.length-1]??P;else for(let o of r.nodes)A.insertBefore(o,P.nextSibling),P=o}}let f=G;if(G=k,k=f,C.length>0)wJ(C);I.clear(),H.clear(),w.clear(),$.clear(),C.length=0});return()=>{F=!1,zJ();for(let d of G)c(d);for(let d of O)c(d);O.clear(),G=[],k.length=0,GJ=null}}function MJ(J){let{anchor:X}=J,{test:Z,branches:Q}=d0(J)?{test:J.test,branches:J.branches}:l0(J),z=null,G=-2,F=null,O=(H)=>{for(let w of H)try{w.parentNode?.removeChild(w)}catch{}},I=h(()=>{let H=Z();if(z&&H===G)return;if(F&&H===F.idx&&H>=0&&H<Q.length){let C=F;F=null;for(let k of C.nodes)Y0(k);z={nodes:C.nodes,...C.cleanup&&{cleanup:C.cleanup}},G=H,wJ(z.nodes);return}if(z){let C={idx:G,nodes:z.nodes,...z.cleanup&&{cleanup:z.cleanup}},k=gJ(C.nodes);if(z=null,k===null)O(C.nodes),C.cleanup?.();else F=C,k.then(()=>{if(F!==C)return;O(C.nodes),C.cleanup?.(),F=null})}if(G=H,H<0||H>=Q.length)return;let w=RJ(X,"render",()=>Q[H]());if(!w)return;z=w;let $=X.parentNode;if(!$)return;for(let C of z.nodes)$.insertBefore(C,X);wJ(z.nodes)});return()=>{if(I(),z)O(z.nodes),z.cleanup?.(),z=null;if(F)O(F.nodes),F.cleanup?.(),F=null}}function d0(J){return typeof J.test==="function"}function l0(J){let{cond:X,then_:Z,else_:Q}=J;return{test:()=>X()?0:Q?1:-1,branches:Q?[Z,Q]:[Z]}}var W0=(J)=>J??"",G0=(J)=>{if(J===null||J==="")return NaN;return Number(J)},j0=(J)=>{if(J===null)return!1;if(J.toLowerCase()==="false")return!1;return!0};function nJ(J){return(X)=>{if(X===null||X==="")return J;try{return JSON.parse(X)}catch{return J}}}function L0(J,X){let Z=new Set(J);return(Q)=>Q!==null&&Z.has(Q)?Q:X}var cJ=(J)=>{switch(J.type){case"string":return W0;case"bool":return j0;case"number":return G0;case"union":{let X=J.values??[],Z=J.default??X[0]??"";return L0(X,Z)}case"object":return nJ(J.default);case"array":return nJ(J.default??[])}};function E0(J,X,Z,Q){if(!X)return;let z={},G,F=Z.formValue;if(F!==void 0){let{sig:I,propDef:H}=T0(Z,Q,F,"formValue"),w=H.default,$=cJ(H);G=h(()=>{let C=I();X.setFormValue(p0(C))}),z.reset=()=>{I.set(w)},z.restore=(C)=>{I.set($(C))}}let O=Z.formDisabled;if(O!==void 0){let{sig:I,propDef:H}=T0(Z,Q,O,"formDisabled");if(H.type!=="bool")throw Error(`[sui-runtime] formDisabled: "${O}" must be a bool-typed prop`);z.disabled=(w)=>{I.set(!!w)}}if(J.__shipSetFormHooks=z,G)J.__shipSetFormValueCleanup=G;return G}function R0(J){let X=J;delete X.__shipSetFormHooks,delete X.__shipSetFormValueCleanup}function p0(J){if(J===null||J===void 0)return"";if(typeof J==="boolean")return J?"on":"";return String(J)}function T0(J,X,Z,Q){let z=J.props[Z];if(!z)throw Error(`[sui-runtime] ${Q}: "${Z}" — no matching prop on this component`);let G=X[xJ(Z)];if(!G)throw Error(`[sui-runtime] ${Q}: "${Z}" — prop signal missing`);return{sig:G,propDef:z}}var mJ={string(J={}){return{type:"string",...J}},bool(J={}){return{type:"bool",...J}},number(J={}){return{type:"number",...J}},union(J,X={}){return{type:"union",values:J,...X}},object(J={}){return{type:"object",...J}},array(J={}){return{type:"array",...J}}},i0=(J,X)=>{if(X===void 0||X===null)return null;switch(J.type){case"string":return X===""?null:String(X);case"number":return Number.isNaN(X)?null:String(X);case"bool":return X?"":null;case"union":return String(X);case"object":case"array":try{return JSON.stringify(X)}catch{return null}}},n0=(J,X)=>{let Z=`ship-set-style-${J}`;if(document.getElementById(Z))return;let Q=document.createElement("style");Q.id=Z,Q.textContent=`[data-component="${J}"] { ${X} }`,document.head.appendChild(Q)},c0=(J,X,Z,Q)=>{let z=J.getAttribute(X),G=z!==null?Q(z):Z.default;return x(G)},r0=(J)=>{let X=[],Z={};for(let[G,F]of Object.entries(J.props??{}))X.push(G),Z[G]={camel:xJ(G),decode:cJ(F)};let Q=J.formAssociated===!0||J.formValue!==void 0||J.formDisabled!==void 0,z={observedAttrs:X,props:Z};if(Q)z.formAssociated=!0;return z};function OJ(J,X){let Z=r0(X),Q=Object.entries(X.props??{});V0(J,Z,(z,G,F)=>{let O=null;if(X.shadow){if(O=z.shadowRoot??z.attachShadow({mode:"open"}),X.styles){let H=document.createElement("style");H.textContent=X.styles,O.appendChild(H)}}else if(X.styles)n0(J,X.styles);let I=[];for(let[H,w]of Q){let $=xJ(H),C=Z.props[H].decode,k=c0(z,H,w,C);if(G[$]=k,w.reflect){let n=!0,l=h(()=>{let a=k();if(n){n=!1;return}let WJ=i0(w,a);if(WJ===null)z.removeAttribute(H);else z.setAttribute(H,WJ)});I.push(l)}}if(X.formValue!==void 0||X.formDisabled!==void 0){let H=E0(z,F,X,G);if(typeof H==="function")I.push(H)}if(X.setup){let H={props:G,host:z,cleanups:I};if(F)H.internals=F;X.setup(H)}return()=>{R0(z);for(let H of I.splice(0))try{H()}catch(w){console.error(`[ship-set:${J}] cleanup threw:`,w)}}})}var A0=new Set;function V0(J,X,Z){if(customElements.get(J)){if(!A0.has(J))A0.add(J),console.warn(`[sui-runtime] customElements.define("${J}", …) called twice. `+"The first registration wins; this call is a no-op. Likely cause: two modules independently registering the same tag.");return}if(X.formAssociated){class z extends HTMLElement{static formAssociated=!0;static get observedAttributes(){return X.observedAttrs}cleanup;scope;propSignals={};internals;constructor(){super();this.internals=this.attachInternals()}connectedCallback(){this.dataset.component=J,pJ(this),this.scope=$J();try{this.cleanup=bJ(this.scope,()=>eJ(this,()=>Z(this,this.propSignals,this.internals)))}catch(G){let F=IJ(this.parentNode);if(F)F.catch(G,"mount");else console.error(`[ship-set:${J}] setup threw:`,G)}}disconnectedCallback(){try{this.cleanup?.()}catch(G){console.error(`[ship-set:${J}] cleanup threw:`,G)}this.cleanup=void 0;try{this.scope?.dispose()}catch(G){console.error(`[ship-set:${J}] scope dispose threw:`,G)}this.scope=void 0}attributeChangedCallback(G,F,O){let I=X.props[G];if(!I)return;let H=this.propSignals[I.camel];if(H)H.set(I.decode(O))}formResetCallback(){let G=this.__shipSetFormHooks;try{G?.reset?.()}catch(F){console.error(`[ship-set:${J}] formResetCallback threw:`,F)}this.dispatchEvent(new CustomEvent("ship-set:form-reset"))}formStateRestoreCallback(G,F){let O=this.__shipSetFormHooks;try{O?.restore?.(G)}catch(I){console.error(`[ship-set:${J}] formStateRestoreCallback threw:`,I)}this.dispatchEvent(new CustomEvent("ship-set:form-restore",{detail:{state:G,mode:F}}))}formDisabledCallback(G){let F=this.__shipSetFormHooks;try{F?.disabled?.(G)}catch(O){console.error(`[ship-set:${J}] formDisabledCallback threw:`,O)}this.dispatchEvent(new CustomEvent("ship-set:form-disabled",{detail:{disabled:G}}))}}customElements.define(J,z);return}class Q extends HTMLElement{static get observedAttributes(){return X.observedAttrs}cleanup;scope;propSignals={};connectedCallback(){this.dataset.component=J,pJ(this),this.scope=$J();try{this.cleanup=bJ(this.scope,()=>eJ(this,()=>Z(this,this.propSignals)))}catch(z){let G=IJ(this.parentNode);if(G)G.catch(z,"mount");else console.error(`[ship-set:${J}] setup threw:`,z)}}disconnectedCallback(){try{this.cleanup?.()}catch(z){console.error(`[ship-set:${J}] cleanup threw:`,z)}this.cleanup=void 0;try{this.scope?.dispose()}catch(z){console.error(`[ship-set:${J}] scope dispose threw:`,z)}this.scope=void 0}attributeChangedCallback(z,G,F){let O=X.props[z];if(!O)return;let I=this.propSignals[O.camel];if(I)I.set(O.decode(F))}}customElements.define(J,Q)}function xJ(J){return J.replace(/-([a-z])/g,(X,Z)=>Z.toUpperCase())}function M0(J,X,Z){let Q=s0(J.state,{ship:X.ship,...Z}),z={};for(let[C,k]of Object.entries(Q))z[C]=x(k);let G={ship:X.ship,route:X.route??{},navigate:X.navigate??((C)=>{}),...Z,...z},F=t0(z,G),O={...G},I={};for(let[C,k]of Object.entries(J.derived??{}))I[C]=ZJ(()=>k(O));Object.assign(O,I);let H={};for(let[C,k]of Object.entries(J.on??{}))H[C]=(...n)=>k(F,...n);let w={},$=typeof J.use==="function"?J.use(O):J.use??{};for(let[C,k]of Object.entries($))w[C]=M0(k,X,O);return{...z,...I,...H,...w}}function s0(J,X){if(J===void 0)return{};if(typeof J==="function")return J(X);return J}function t0(J,X){return new Proxy({},{get(Z,Q){if(Q in J)return J[Q]();return X[Q]},set(Z,Q,z){if(Q in J)return J[Q].set(z),!0;return console.warn(`[ship-set] hook handler tried to write s.${Q} = … but ${Q} is not a hook state key. The assignment was ignored.`),!0},has(Z,Q){return Q in J||Q in X},ownKeys(){return Object.keys(J)},getOwnPropertyDescriptor(Z,Q){if(Q in J)return{configurable:!0,enumerable:!0,writable:!0,value:J[Q]()};return}})}var w0="__shipSetLifecycle";function x0(J,X){let Z=_0(J,X),Q={ship:X.ship,route:X.route??{},navigate:X.navigate??((C)=>{}),...X.scope??{}},z=Z.scope?Z.scope(Q,X.host):{};Object.assign(Q,z);let G=e0(Q,X.stateKeys,z),F=JX(G,Q),O={...Q},I=XX(Z,O);Object.assign(O,I);let H=zX(Z,O,X);for(let[C,k]of Object.entries(H))O[C]=k;let w=ZX(Z,F),$={...z,...I,...w,...H};if(Object.keys(z).length>0&&X.host){let C=X0(z);if(Object.keys(C).length>0){let k=X.host,n=k.tagName.toLowerCase();J0(k,n,C)}}if(Z.mount||Z.unmount){let C={state:F};if(Z.mount)C.mount=Z.mount;if(Z.unmount)C.unmount=Z.unmount;Object.defineProperty($,w0,{value:C,enumerable:!0,configurable:!0,writable:!1})}return $}function _0(J,X){if(typeof J==="function")return J({ship:X.ship});return J}function e0(J,X,Z){let Q={},z=X!==void 0,G=Z?Object.keys(Z):[];if(z||G.length>0){if(X)for(let F of X){let O=J[F];if(q0(O))Q[F]=O}for(let F of G){if(F in Q)continue;let O=J[F];if(q0(O))Q[F]=O}return Q}for(let[F,O]of Object.entries(J))if(q0(O))Q[F]=O;return Q}function q0(J){return typeof J==="function"&&"set"in J&&typeof J.set==="function"}function JX(J,X){return new Proxy({},{get(Z,Q){if(Q in J)return J[Q]();return X[Q]},set(Z,Q,z){if(Q in J){if(typeof z==="function")J[Q].set(()=>z);else J[Q].set(z);return!0}return console.warn(`[ship-set] handler tried to write s.${Q} = … but ${Q} is not declared as <state name="${Q}"> in the template. The assignment was ignored.`),!0},has(Z,Q){return Q in J||Q in X},ownKeys(){return Object.keys(J)},getOwnPropertyDescriptor(Z,Q){if(Q in J)return{configurable:!0,enumerable:!0,writable:!0,value:J[Q]()};return}})}function XX(J,X){let Z=J.derived??{},Q={};for(let[z,G]of Object.entries(Z))Q[z]=ZJ(()=>G(X));return Q}function ZX(J,X){let Z=J.on??{},Q={};for(let[z,G]of Object.entries(Z))Q[z]=(...F)=>G(X,...F);return Q}function zX(J,X,Z){if(J.use===void 0)return{};let Q=typeof J.use==="function"?J.use(X):J.use,z={};for(let[G,F]of Object.entries(Q))z[G]=M0(F,Z,X);return z}function CJ(J){return{setup:(X)=>x0(J,X),__def:J}}if(typeof customElements<"u"){for(let J of["sui-if","sui-for","sui-match","sui-while-loading","sui-while-error"])if(!customElements.get(J))customElements.define(J,class extends HTMLElement{})}var GX=`:host([tone='default'])     { --tone: var(--foreground);       --tone-fg: var(--foreground);       --tone-contrast: var(--background); }
-:host([tone='primary'])     { --tone: var(--primary);          --tone-fg: var(--primary);          --tone-contrast: var(--primary-foreground); }
-:host([tone='info'])        { --tone: var(--info);             --tone-fg: var(--info);             --tone-contrast: var(--info-foreground); }
-:host([tone='success'])     { --tone: var(--success);          --tone-fg: var(--success);          --tone-contrast: var(--success-foreground); }
-:host([tone='warning'])     { --tone: var(--warning);          --tone-fg: var(--warning);          --tone-contrast: var(--warning-foreground); }
-:host([tone='destructive']) { --tone: var(--destructive);      --tone-fg: var(--destructive);      --tone-contrast: var(--destructive-foreground); }
-:host([tone='accent'])      { --tone: var(--accent);           --tone-fg: var(--accent);           --tone-contrast: var(--accent-foreground); }
-:host([tone='muted'])       { --tone: var(--muted-foreground); --tone-fg: var(--muted-foreground); --tone-contrast: var(--background); }
-`,jX=`:host([hidden]) { display: none !important; }
-@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
-`;function k0(J){if(typeof CSSStyleSheet>"u")return null;try{let X=new CSSStyleSheet;return X.replaceSync(J),X}catch{return null}}var S0=k0(GX),b0=k0(jX);function TJ(J){if(typeof ShadowRoot>"u")return;if(!(J instanceof ShadowRoot))return;let X=[b0,S0].filter((Z)=>Z!=null);if(X.length===0)return;try{J.adoptedStyleSheets=[...X,...J.adoptedStyleSheets??[]]}catch{}}var rJ=[{id:"view",label:"View",icon:"file",shapes:["list","form","detail","dashboard","tabs","blank"],shapeLabel:"Starting shape"},{id:"skill",label:"Skill",icon:"sparkles",shapes:["task","reference","workflow"],shapeLabel:"Skill kind"},{id:"agent",label:"Agent",icon:"users",shapes:["specialist","generalist","reviewer"],shapeLabel:"Agent kind"},{id:"pipeline",label:"Pipeline",icon:"play",shapes:["sequential","fanout","review-gated"],shapeLabel:"Topology"},{id:"trigger",label:"Trigger",icon:"zap",shapes:["webhook","schedule","file-change"],shapeLabel:"Kind"},{id:"theme",label:"Theme",icon:"palette",shapes:["light","dark","brand-accent","high-contrast"],shapeLabel:"Starting shape"}],vJ=[{label:"Dashboard",path:"/dashboard",icon:"sparkles",keywords:"home overview"},{label:"Pipelines",path:"/pipelines",icon:"play",keywords:"workflows runs jobs"},{label:"Agents",path:"/agents",icon:"users",keywords:"configure profiles"},{label:"Skills",path:"/skills",icon:"zap",keywords:"browse edit files"},{label:"Git",path:"/git",icon:"git",keywords:"status diff commit branch"},{label:"Collections",path:"/collections",icon:"folder",keywords:"data items query"},{label:"Canvas",path:"/canvas",icon:"image",keywords:"docs visual feedback"},{label:"Events",path:"/events",icon:"sparkles",keywords:"stream log kernel"},{label:"Settings",path:"/settings",icon:"settings",keywords:"config theme provider"},{label:"Chat",path:"/chat",icon:"message-square-plus",keywords:"agent conversation"},{label:"Specs",path:"/specs",icon:"file",keywords:"features design"},{label:"Theme Studio",path:"/theme-studio",icon:"palette",keywords:"design tokens"},{label:"Chats (Mission Control)",path:"/chats",icon:"messages-square",keywords:"sessions active"}],aJ=[{key:"new",label:"/new",hint:"Scaffold a view, skill, agent, …"},{key:"chats",label:"/chats",hint:"Open Mission Control"},{key:"settings",label:"/settings",hint:"Jump to settings"},{key:"lint",label:"/lint",hint:"Run lint on the current view"},{key:"end",label:"/end",hint:"End the current session"},{key:"close",label:"/close",hint:"Close the command bar"}],LX=/^[a-z][a-z0-9-]{0,48}$/;function y0(J){return LX.test(J)}function uJ(J,X){if(J.startsWith("/"))return"command";if(J.startsWith(">"))return"find";if(J.startsWith("+"))return"create";if(J.trim().length===0)return X;if(/(^|\s)@[^\s@]*$/.test(J))return"mention";return"ai"}async function KJ(J){let X=window;if(X.ship?.navigate){X.ship.navigate(J);return}history.pushState({},"",J),document.dispatchEvent(new CustomEvent("sui:navigate",{detail:{to:J}}))}var oJ=CJ({scope:(J)=>{let X=J,Z=_(X.open),Q=_(X.mode),z=_(x("")),G=_(x(null)),F=_(x([])),O=_(x([])),I=_(x([])),H=_(x([])),w=_(x(0)),$=_(x(!1)),C=_(x("")),k=_(x("")),n=_(x(!1)),l=_(x(null)),a=_(x([])),WJ=_(x("main")),c=_(x("view")),GJ=_(x("")),zJ=_(x("")),d=_(x("list")),p=_(x(!1)),JJ=_(x(null)),QJ=_(ZJ(()=>Q()==="ai"&&G()!==null)),A=Z0(null);return{open:Z,mode:Q,value:z,session:G,agents:F,providers:O,allSessions:I,views:H,selectedIdx:w,sessionPickerOpen:$,spawnAgent:C,spawnProvider:k,spawning:n,spawnError:l,thread:a,workspaceId:WJ,createSurface:c,createName:GJ,createPurpose:zJ,createShape:d,createSubmitting:p,createError:JJ,isChat:QJ,dialogRef:A}},derived:{triggerLabel:(J)=>{let X=J.session();return X?`Ask ${X.agent_id??"Ship"} or jump to…`:"Ask Ship or jump to…"},dotBg:(J)=>{let X=J.session();if(X?.status==="thinking")return"var(--warning,#d97706)";if(X)return"var(--success,#16a34a)";return"var(--muted-foreground)"}},on:{openFind:(J)=>{J.mode="find",J.value="",J.selectedIdx=0,J.open=!0}},mount:(J,X)=>{let Z=J,Q=Z.open,z=Z.mode,G=Z.value,F=Z.session,O=Z.agents,I=Z.providers,H=Z.allSessions,w=Z.views,$=Z.selectedIdx,C=Z.spawnAgent,k=Z.spawnProvider,n=Z.spawning,l=Z.spawnError,a=Z.thread,WJ=Z.workspaceId,c=Z.createSurface,GJ=Z.createName,zJ=Z.createPurpose,d=Z.createShape,p=Z.createSubmitting,JJ=Z.createError,QJ=Z.dialogRef?.(),A=null,f=0,P=h(()=>{let M=Q();if(X.setAttribute("data-state",M?"open":"closed"),M){if(typeof QJ?.show==="function")QJ.show();queueMicrotask(()=>{X.shadowRoot?.querySelector("sui-command-palette")?.shadowRoot?.querySelector(".cb-search")?.focus()})}else{if(typeof QJ?.close==="function")QJ.close();X.dispatchEvent(new CustomEvent("sui-command:cancel",{detail:{mode:z()},bubbles:!0,composed:!0}))}});X.show=(M,U)=>{if(M)z.set(M);if(typeof U==="string")G.set(U);Q.set(!0)},X.hide=()=>Q.set(!1),X.toggle=(M)=>{if(Q())Q.set(!1);else{if(M)z.set(M);Q.set(!0)}},X.setMode=(M)=>z.set(M);function S(M){r();let U=new AbortController;A=U;let q=new EventSource(`/api/v1/sessions/${M}/events`,{withCredentials:!0}),R=null;q.addEventListener("provider",(D)=>{let u;try{u=JSON.parse(D.data)}catch{return}switch(u.kind){case"message":{let B=u.text??"";if(!B)return;if(R)a.set(a().map((YJ)=>YJ.id===R?{...YJ,text:YJ.text+B}:YJ));else{let YJ=String(Date.now()+Math.random());R=YJ,a.set([...a(),{id:YJ,sender:"agent",text:B}])}break}case"tool_use":a.set([...a(),{id:String(Date.now()+Math.random()),sender:"system",text:`→ tool: ${u.tool??"?"}`}]);break;case"turn_complete":R=null;break}}),q.onerror=()=>{if(!U.signal.aborted)q.close()},U.signal.addEventListener("abort",()=>q.close())}function r(){A?.abort(),A=null}let o=h(()=>{let M=F();if(M?.id)S(M.id);else r()});async function s(){try{let M=await fetch("/api/v1/pty-sessions",{credentials:"same-origin"});if(M.ok){let U=await M.json();H.set(U.sessions);let q=U.sessions.find((R)=>R.status!=="ended"&&R.agent_id);if(q&&q.id!==F()?.id)F.set(q),a.set([]);else if(!q)F.set(null)}}catch{}if(O().length===0)jJ();if(I().length===0)kJ();if(w().length===0)v()}async function jJ(){try{let M=await fetch("/api/v1/agents",{credentials:"same-origin"});if(!M.ok)return;let q=((await M.json()).items??[]).map((R)=>({id:R.id}));if(O.set(q),!C()&&q.length>0)C.set(q[0].id)}catch{}}async function kJ(){try{let M=await fetch("/api/v1/providers/installed",{credentials:"same-origin"});if(!M.ok)return;let U=await M.json();if(I.set(U.providers),!k()&&U.providers.length>0)k.set(U.providers[0])}catch{}}async function v(){try{let M=await fetch("/api/v1/views",{credentials:"same-origin"});if(!M.ok)return;let U=await M.json(),q=U.data?.views??U.views??[];w.set(q.map((R)=>R.name).sort())}catch{}}function g(){return X.shadowRoot?.querySelector("sui-command-palette")?.shadowRoot?.querySelectorAll(".cb-item")}function m(M){let U=g();if(!U?.length)return;$.set(Math.max(0,Math.min(U.length-1,$()+M)))}function b(){let M=z(),U=G(),R=g()?.[$()];if(R){let D=R.dataset.path;if(D)KJ(D),G.set(""),Q.set(!1);let u=R.dataset.cmd;if(u)G.set(""),y("/"+u);let B=R.dataset.mentionKind,YJ=R.dataset.mentionId;if(B&&YJ){let LJ=B==="view"?`@${YJ}`:`@${B}:${YJ}`;G.set(U.replace(/@[^@\s]*$/,`${LJ} `)),z.set(uJ(G(),M))}X.dispatchEvent(new CustomEvent("sui-command:select",{detail:{mode:M,item:R.dataset},bubbles:!0,composed:!0}));return}if(M==="command")y(U);else if(M==="find")t(U)}function y(M){let U=M.replace(/^\/+\s*/,"").toLowerCase(),q=aJ.find((R)=>R.key===U||R.key.startsWith(U));if(!q)return;switch(q.key){case"new":z.set("create"),G.set("");break;case"chats":KJ("/chats"),Q.set(!1);break;case"settings":KJ("/settings"),Q.set(!1);break;case"end":if(F())XJ(F().id);Q.set(!1);break;case"close":Q.set(!1);break;case"lint":i();break}}function t(M){let U=M.replace(/^>+\s*/,"").toLowerCase().trim(),q=vJ.find((R)=>R.label.toLowerCase().includes(U)||R.keywords.toLowerCase().includes(U)||R.path.toLowerCase().includes(U));if(q)KJ(q.path),G.set(""),Q.set(!1)}async function XJ(M){try{await fetch(`/api/v1/sessions/${M}`,{method:"DELETE",credentials:"same-origin"})}catch{}if(F()?.id===M)F.set(null);await s()}async function i(){let U=window.ship?.current?.()?.path?.replace(/^\/+/,"").split("/")[0]??"";if(!U)return;try{let q=await fetch("/api/v1/lint/view",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:U})});if(q.ok){let D=(await q.json()).data?.findings?.length??0;console.log(D===0?`${U}: no lint findings`:`${U}: ${D} lint findings`)}}catch{}Q.set(!1)}let E=(M)=>{if(M.key==="Escape"&&Q()){Q.set(!1);return}if(M.key===" "&&!Q()){let U=M.target;if(U&&(U.tagName==="INPUT"||U.tagName==="TEXTAREA"||U.isContentEditable))return;let q=performance.now();if(q-f<350)f=0,M.preventDefault(),z.set("ai"),G.set(""),Q.set(!0);else f=q}},j=(M)=>{if(M.key==="ArrowDown")M.preventDefault(),m(1);else if(M.key==="ArrowUp")M.preventDefault(),m(-1);else if(M.key==="Enter")M.preventDefault(),b()};X.addEventListener("keydown",j),document.addEventListener("keydown",E);let L=()=>{if(Q())Q.set(!1)};QJ?.addEventListener("sui-close",L);let W=()=>void s(),Y=(M)=>{let U=M;if(U.detail?.mode)z.set(U.detail.mode);if(typeof U.detail?.prefill==="string")G.set(U.detail.prefill);Q.set(!0)},K=()=>{z.set("create"),Q.set(!0)};window.addEventListener("ship:session:changed",W);let N=document.querySelector("ship-shell")??document.querySelector("sui-shell");N?.addEventListener("ship:bar:open",Y),N?.addEventListener("ship:create:open",K);let T=X["__sui_ctx_sui-command-bar"];if(T)T.endSession=XJ,T.loadCurrentSession=s;return s(),()=>{if(document.removeEventListener("keydown",E),X.removeEventListener("keydown",j),window.removeEventListener("ship:session:changed",W),N?.removeEventListener("ship:bar:open",Y),N?.removeEventListener("ship:create:open",K),QJ)QJ.removeEventListener("sui-close",L);o(),P()}}});var BQ=OJ("sui-command-bar",{props:{open:mJ.bool({default:!1,reflect:!0}),mode:mJ.string({default:"ai",reflect:!0})},shadow:!0,styles:`
+// packages/ui-components/src/islands/sui-command-bar/sui-command-bar.sui
+import { adoptSuiSheets, attachRef, bindIf, bindText, component, effect as effect2, on, prop, signal as signal2 } from "@ship/sui-runtime";
+
+// packages/ui-components/src/islands/sui-command-bar/sui-command-bar.controller.ts
+import { controller, signal, derived, effect, ref, shared } from "@ship/sui-runtime";
+
+// packages/ui-components/src/islands/sui-command-bar/types.ts
+var CREATE_SURFACES = [
+  { id: "view", label: "View", icon: "file", shapes: ["list", "form", "detail", "dashboard", "tabs", "blank"], shapeLabel: "Starting shape" },
+  { id: "skill", label: "Skill", icon: "sparkles", shapes: ["task", "reference", "workflow"], shapeLabel: "Skill kind" },
+  { id: "agent", label: "Agent", icon: "users", shapes: ["specialist", "generalist", "reviewer"], shapeLabel: "Agent kind" },
+  { id: "pipeline", label: "Pipeline", icon: "play", shapes: ["sequential", "fanout", "review-gated"], shapeLabel: "Topology" },
+  { id: "trigger", label: "Trigger", icon: "zap", shapes: ["webhook", "schedule", "file-change"], shapeLabel: "Kind" },
+  { id: "theme", label: "Theme", icon: "palette", shapes: ["light", "dark", "brand-accent", "high-contrast"], shapeLabel: "Starting shape" }
+];
+var NAV_DESTINATIONS = [
+  { label: "Dashboard", path: "/dashboard", icon: "sparkles", keywords: "home overview" },
+  { label: "Pipelines", path: "/pipelines", icon: "play", keywords: "workflows runs jobs" },
+  { label: "Agents", path: "/agents", icon: "users", keywords: "configure profiles" },
+  { label: "Skills", path: "/skills", icon: "zap", keywords: "browse edit files" },
+  { label: "Git", path: "/git", icon: "git", keywords: "status diff commit branch" },
+  { label: "Collections", path: "/collections", icon: "folder", keywords: "data items query" },
+  { label: "Canvas", path: "/canvas", icon: "image", keywords: "docs visual feedback" },
+  { label: "Events", path: "/events", icon: "sparkles", keywords: "stream log kernel" },
+  { label: "Settings", path: "/settings", icon: "settings", keywords: "config theme provider" },
+  { label: "Chat", path: "/chat", icon: "message-square-plus", keywords: "agent conversation" },
+  { label: "Specs", path: "/specs", icon: "file", keywords: "features design" },
+  { label: "Theme Studio", path: "/theme-studio", icon: "palette", keywords: "design tokens" },
+  { label: "Chats (Mission Control)", path: "/chats", icon: "messages-square", keywords: "sessions active" }
+];
+var SLASH_COMMANDS = [
+  { key: "new", label: "/new", hint: "Scaffold a view, skill, agent, …" },
+  { key: "chats", label: "/chats", hint: "Open Mission Control" },
+  { key: "settings", label: "/settings", hint: "Jump to settings" },
+  { key: "lint", label: "/lint", hint: "Run lint on the current view" },
+  { key: "end", label: "/end", hint: "End the current session" },
+  { key: "close", label: "/close", hint: "Close the command bar" }
+];
+var KEBAB_RE = /^[a-z][a-z0-9-]{0,48}$/;
+function isKebab(s) {
+  return KEBAB_RE.test(s);
+}
+function detectMode(value, fallback) {
+  if (value.startsWith("/"))
+    return "command";
+  if (value.startsWith(">"))
+    return "find";
+  if (value.startsWith("+"))
+    return "create";
+  if (value.trim().length === 0)
+    return fallback;
+  if (/(^|\s)@[^\s@]*$/.test(value))
+    return "mention";
+  return "ai";
+}
+async function navigateTo(path) {
+  const w = window;
+  if (w.ship?.navigate) {
+    w.ship.navigate(path);
+    return;
+  }
+  history.pushState({}, "", path);
+  document.dispatchEvent(new CustomEvent("sui:navigate", { detail: { to: path } }));
+}
+
+// packages/ui-components/src/islands/sui-command-bar/sui-command-bar.controller.ts
+var sui_command_bar_controller_default = controller({
+  scope: (init) => {
+    const initAny = init;
+    const open = shared(initAny.open);
+    const mode = shared(initAny.mode);
+    const value = shared(signal(""));
+    const session = shared(signal(null));
+    const agents = shared(signal([]));
+    const providers = shared(signal([]));
+    const allSessions = shared(signal([]));
+    const views = shared(signal([]));
+    const selectedIdx = shared(signal(0));
+    const sessionPickerOpen = shared(signal(false));
+    const spawnAgent = shared(signal(""));
+    const spawnProvider = shared(signal(""));
+    const spawning = shared(signal(false));
+    const spawnError = shared(signal(null));
+    const thread = shared(signal([]));
+    const workspaceId = shared(signal("main"));
+    const createSurface = shared(signal("view"));
+    const createName = shared(signal(""));
+    const createPurpose = shared(signal(""));
+    const createShape = shared(signal("list"));
+    const createSubmitting = shared(signal(false));
+    const createError = shared(signal(null));
+    const isChat = shared(derived(() => mode() === "ai" && session() !== null));
+    const dialogRef = ref(null);
+    return {
+      open,
+      mode,
+      value,
+      session,
+      agents,
+      providers,
+      allSessions,
+      views,
+      selectedIdx,
+      sessionPickerOpen,
+      spawnAgent,
+      spawnProvider,
+      spawning,
+      spawnError,
+      thread,
+      workspaceId,
+      createSurface,
+      createName,
+      createPurpose,
+      createShape,
+      createSubmitting,
+      createError,
+      isChat,
+      dialogRef
+    };
+  },
+  derived: {
+    triggerLabel: (s) => {
+      const sess = s.session();
+      return sess ? `Ask ${sess.agent_id ?? "Ship"} or jump to…` : "Ask Ship or jump to…";
+    },
+    dotBg: (s) => {
+      const sess = s.session();
+      if (sess?.status === "thinking")
+        return "var(--warning,#d97706)";
+      if (sess)
+        return "var(--success,#16a34a)";
+      return "var(--muted-foreground)";
+    }
+  },
+  on: {
+    openFind: (s) => {
+      s.mode = "find";
+      s.value = "";
+      s.selectedIdx = 0;
+      s.open = true;
+    }
+  },
+  mount: (state, host) => {
+    const st = state;
+    const open = st.open;
+    const mode = st.mode;
+    const value = st.value;
+    const session = st.session;
+    const agents = st.agents;
+    const providers = st.providers;
+    const allSessions = st.allSessions;
+    const views = st.views;
+    const selectedIdx = st.selectedIdx;
+    const spawnAgent = st.spawnAgent;
+    const spawnProvider = st.spawnProvider;
+    const spawning = st.spawning;
+    const spawnError = st.spawnError;
+    const thread = st.thread;
+    const workspaceId = st.workspaceId;
+    const createSurface = st.createSurface;
+    const createName = st.createName;
+    const createPurpose = st.createPurpose;
+    const createShape = st.createShape;
+    const createSubmitting = st.createSubmitting;
+    const createError = st.createError;
+    const dialogRef = st.dialogRef?.();
+    let streamAbort = null;
+    let lastSpaceAt = 0;
+    const stopOpenSync = effect(() => {
+      const isOpen = open();
+      host.setAttribute("data-state", isOpen ? "open" : "closed");
+      if (isOpen) {
+        if (typeof dialogRef?.show === "function")
+          dialogRef.show();
+        queueMicrotask(() => {
+          const pal = host.shadowRoot?.querySelector("sui-command-palette");
+          const inp = pal?.shadowRoot?.querySelector(".cb-search");
+          inp?.focus();
+        });
+      } else {
+        if (typeof dialogRef?.close === "function")
+          dialogRef.close();
+        host.dispatchEvent(new CustomEvent("sui-command:cancel", {
+          detail: { mode: mode() },
+          bubbles: true,
+          composed: true
+        }));
+      }
+    });
+    host.show = (m, q) => {
+      if (m)
+        mode.set(m);
+      if (typeof q === "string")
+        value.set(q);
+      open.set(true);
+    };
+    host.hide = () => open.set(false);
+    host.toggle = (m) => {
+      if (open()) {
+        open.set(false);
+      } else {
+        if (m)
+          mode.set(m);
+        open.set(true);
+      }
+    };
+    host.setMode = (m) => mode.set(m);
+    function attachStream(sessionId) {
+      detachStream();
+      const ac = new AbortController;
+      streamAbort = ac;
+      const es = new EventSource(`/api/v1/sessions/${sessionId}/events`, { withCredentials: true });
+      let currentAgentId = null;
+      es.addEventListener("provider", (ev) => {
+        let parsed;
+        try {
+          parsed = JSON.parse(ev.data);
+        } catch {
+          return;
+        }
+        switch (parsed.kind) {
+          case "message": {
+            const chunk = parsed.text ?? "";
+            if (!chunk)
+              return;
+            if (currentAgentId) {
+              thread.set(thread().map((m) => m.id === currentAgentId ? { ...m, text: m.text + chunk } : m));
+            } else {
+              const id = String(Date.now() + Math.random());
+              currentAgentId = id;
+              thread.set([...thread(), { id, sender: "agent", text: chunk }]);
+            }
+            break;
+          }
+          case "tool_use":
+            thread.set([...thread(), { id: String(Date.now() + Math.random()), sender: "system", text: `→ tool: ${parsed.tool ?? "?"}` }]);
+            break;
+          case "turn_complete":
+            currentAgentId = null;
+            break;
+        }
+      });
+      es.onerror = () => {
+        if (!ac.signal.aborted)
+          es.close();
+      };
+      ac.signal.addEventListener("abort", () => es.close());
+    }
+    function detachStream() {
+      streamAbort?.abort();
+      streamAbort = null;
+    }
+    const stopStreamSync = effect(() => {
+      const s = session();
+      if (s?.id)
+        attachStream(s.id);
+      else
+        detachStream();
+    });
+    async function loadCurrentSession() {
+      try {
+        const resp = await fetch("/api/v1/pty-sessions", { credentials: "same-origin" });
+        if (resp.ok) {
+          const body = await resp.json();
+          allSessions.set(body.sessions);
+          const active = body.sessions.find((s) => s.status !== "ended" && s.agent_id);
+          if (active && active.id !== session()?.id) {
+            session.set(active);
+            thread.set([]);
+          } else if (!active) {
+            session.set(null);
+          }
+        }
+      } catch {}
+      if (agents().length === 0)
+        loadAgents();
+      if (providers().length === 0)
+        loadProviders();
+      if (views().length === 0)
+        loadViews();
+    }
+    async function loadAgents() {
+      try {
+        const resp = await fetch("/api/v1/agents", { credentials: "same-origin" });
+        if (!resp.ok)
+          return;
+        const body = await resp.json();
+        const list = (body.items ?? []).map((a) => ({ id: a.id }));
+        agents.set(list);
+        if (!spawnAgent() && list.length > 0)
+          spawnAgent.set(list[0].id);
+      } catch {}
+    }
+    async function loadProviders() {
+      try {
+        const resp = await fetch("/api/v1/providers/installed", { credentials: "same-origin" });
+        if (!resp.ok)
+          return;
+        const body = await resp.json();
+        providers.set(body.providers);
+        if (!spawnProvider() && body.providers.length > 0)
+          spawnProvider.set(body.providers[0]);
+      } catch {}
+    }
+    async function loadViews() {
+      try {
+        const resp = await fetch("/api/v1/views", { credentials: "same-origin" });
+        if (!resp.ok)
+          return;
+        const body = await resp.json();
+        const list = body.data?.views ?? body.views ?? [];
+        views.set(list.map((v) => v.name).sort());
+      } catch {}
+    }
+    function getPaletteItems() {
+      const pal = host.shadowRoot?.querySelector("sui-command-palette");
+      return pal?.shadowRoot?.querySelectorAll(".cb-item");
+    }
+    function moveSelection(dir) {
+      const items = getPaletteItems();
+      if (!items?.length)
+        return;
+      selectedIdx.set(Math.max(0, Math.min(items.length - 1, selectedIdx() + dir)));
+    }
+    function confirmSelection() {
+      const m = mode();
+      const v = value();
+      const items = getPaletteItems();
+      const active = items?.[selectedIdx()];
+      if (active) {
+        const path = active.dataset["path"];
+        if (path) {
+          navigateTo(path);
+          value.set("");
+          open.set(false);
+        }
+        const cmd = active.dataset["cmd"];
+        if (cmd) {
+          value.set("");
+          runSlashCommand("/" + cmd);
+        }
+        const mKind = active.dataset["mentionKind"];
+        const mId = active.dataset["mentionId"];
+        if (mKind && mId) {
+          const ref2 = mKind === "view" ? `@${mId}` : `@${mKind}:${mId}`;
+          value.set(v.replace(/@[^@\s]*$/, `${ref2} `));
+          mode.set(detectMode(value(), m));
+        }
+        host.dispatchEvent(new CustomEvent("sui-command:select", {
+          detail: { mode: m, item: active.dataset },
+          bubbles: true,
+          composed: true
+        }));
+        return;
+      }
+      if (m === "command")
+        runSlashCommand(v);
+      else if (m === "find")
+        navigateFirst(v);
+    }
+    function runSlashCommand(v) {
+      const needle = v.replace(/^\/+\s*/, "").toLowerCase();
+      const cmd = SLASH_COMMANDS.find((c) => c.key === needle || c.key.startsWith(needle));
+      if (!cmd)
+        return;
+      switch (cmd.key) {
+        case "new":
+          mode.set("create");
+          value.set("");
+          break;
+        case "chats":
+          navigateTo("/chats");
+          open.set(false);
+          break;
+        case "settings":
+          navigateTo("/settings");
+          open.set(false);
+          break;
+        case "end":
+          if (session())
+            endSession(session().id);
+          open.set(false);
+          break;
+        case "close":
+          open.set(false);
+          break;
+        case "lint":
+          runLint();
+          break;
+      }
+    }
+    function navigateFirst(v) {
+      const needle = v.replace(/^>+\s*/, "").toLowerCase().trim();
+      const dest = NAV_DESTINATIONS.find((d) => d.label.toLowerCase().includes(needle) || d.keywords.toLowerCase().includes(needle) || d.path.toLowerCase().includes(needle));
+      if (dest) {
+        navigateTo(dest.path);
+        value.set("");
+        open.set(false);
+      }
+    }
+    async function endSession(id) {
+      try {
+        await fetch(`/api/v1/sessions/${id}`, { method: "DELETE", credentials: "same-origin" });
+      } catch {}
+      if (session()?.id === id) {
+        session.set(null);
+      }
+      await loadCurrentSession();
+    }
+    async function runLint() {
+      const current = window.ship?.current?.();
+      const name = current?.path?.replace(/^\/+/, "").split("/")[0] ?? "";
+      if (!name)
+        return;
+      try {
+        const resp = await fetch("/api/v1/lint/view", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name })
+        });
+        if (resp.ok) {
+          const body = await resp.json();
+          const count = body.data?.findings?.length ?? 0;
+          console.log(count === 0 ? `${name}: no lint findings` : `${name}: ${count} lint findings`);
+        }
+      } catch {}
+      open.set(false);
+    }
+    const onDocKeydown = (e) => {
+      if (e.key === "Escape" && open()) {
+        open.set(false);
+        return;
+      }
+      if (e.key === " " && !open()) {
+        const t = e.target;
+        if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable))
+          return;
+        const now = performance.now();
+        if (now - lastSpaceAt < 350) {
+          lastSpaceAt = 0;
+          e.preventDefault();
+          mode.set("ai");
+          value.set("");
+          open.set(true);
+        } else {
+          lastSpaceAt = now;
+        }
+      }
+    };
+    const onPaletteKeydown = (e) => {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        moveSelection(1);
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        moveSelection(-1);
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        confirmSelection();
+      }
+    };
+    host.addEventListener("keydown", onPaletteKeydown);
+    document.addEventListener("keydown", onDocKeydown);
+    const onDialogClose = () => {
+      if (open())
+        open.set(false);
+    };
+    dialogRef?.addEventListener("sui-close", onDialogClose);
+    const onSessionChanged = () => void loadCurrentSession();
+    const onBarOpen = (e) => {
+      const ce = e;
+      if (ce.detail?.mode)
+        mode.set(ce.detail.mode);
+      if (typeof ce.detail?.prefill === "string")
+        value.set(ce.detail.prefill);
+      open.set(true);
+    };
+    const onCreateOpen = () => {
+      mode.set("create");
+      open.set(true);
+    };
+    window.addEventListener("ship:session:changed", onSessionChanged);
+    const shell = document.querySelector("ship-shell") ?? document.querySelector("sui-shell");
+    shell?.addEventListener("ship:bar:open", onBarOpen);
+    shell?.addEventListener("ship:create:open", onCreateOpen);
+    const ctxKey = "__sui_ctx_sui-command-bar";
+    const ctx = host[ctxKey];
+    if (ctx) {
+      ctx["endSession"] = endSession;
+      ctx["loadCurrentSession"] = loadCurrentSession;
+    }
+    loadCurrentSession();
+    return () => {
+      document.removeEventListener("keydown", onDocKeydown);
+      host.removeEventListener("keydown", onPaletteKeydown);
+      window.removeEventListener("ship:session:changed", onSessionChanged);
+      shell?.removeEventListener("ship:bar:open", onBarOpen);
+      shell?.removeEventListener("ship:create:open", onCreateOpen);
+      if (dialogRef)
+        dialogRef.removeEventListener("sui-close", onDialogClose);
+      stopStreamSync();
+      stopOpenSync();
+    };
+  }
+});
+
+// packages/ui-components/src/islands/sui-command-bar/sui-command-bar.sui
+var sui_command_bar_default = component("sui-command-bar", {
+  props: {
+    open: prop.bool({ default: false, reflect: true }),
+    mode: prop.string({ default: "ai", reflect: true })
+  },
+  shadow: true,
+  styles: `
   /* Host participates in layout so the trigger pill carries its own
      box (probes asserting commandBar.offsetWidth need a non-zero
      measurement). Inline-flex keeps the pill sized to its content
@@ -80,423 +584,2323 @@ var $0=Symbol.for("sui:error-boundary");function IJ(J){let X=J;while(X){if(X ins
     min-height: 0;
     overflow: hidden;
   }
-`,setup(J){let{props:X,host:Z}=J;if(!J.cleanups)J.cleanups=[];let Q=J.cleanups,z=Object.create(null);z.open=X.open,z.mode=X.mode,z.dialogRef=x(null);let G=null;if(oJ&&typeof oJ.setup==="function"){if(J.scope=z,G=oJ.setup(J),G&&typeof G==="object")Object.assign(z,G)}let F=(c)=>MJ({anchor:c,test:()=>{if(z.isChat())return 0;return 1},branches:[()=>{let GJ=document.createDocumentFragment(),zJ=[],d=document.createElement("sui-command-chat");return GJ.appendChild(d),{nodes:Array.from(GJ.childNodes),cleanup:()=>{for(let p of zJ)try{p()}catch(JJ){}}}},()=>{let GJ=document.createDocumentFragment(),zJ=[],d=document.createElement("sui-command-palette");return GJ.appendChild(d),{nodes:Array.from(GJ.childNodes),cleanup:()=>{for(let p of zJ)try{p()}catch(JJ){}}}}]}),O=Z.shadowRoot??Z;TJ(O);let I=document.createElement("button");I.setAttribute("class","cb-trigger"),I.setAttribute("type","button"),I.setAttribute("aria-label","Open command bar"),Q.push(e(I,"click",function(){let c=z.openFind;return typeof c==="function"?c.bind(void 0):()=>{}}(),{modifiers:[]}));let H=document.createElement("sui-icon");H.setAttribute("name","search"),H.setAttribute("size","sm"),I.appendChild(H);let w=document.createElement("span");w.setAttribute("class","cb-label");let $=document.createTextNode("");w.appendChild($),Q.push(VJ($,()=>z.triggerLabel())),I.appendChild(w);let C=document.createElement("span");C.setAttribute("class","cb-dot"),Q.push(h(()=>{let c=z.dotBg();if(c==null)C.style.removeProperty("background");else C.style.setProperty("background",String(c))})),I.appendChild(C);let k=document.createElement("kbd"),n=document.createTextNode("⌘K");k.appendChild(n),I.appendChild(k),O.appendChild(I);let l=document.createElement("sui-dialog");l.setAttribute("class","cb-dialog"),l.setAttribute("no-header",""),l.setAttribute("no-footer",""),l.setAttribute("no-close-button",""),l.setAttribute("backdrop","blur"),l.setAttribute("size","full"),l.setAttribute("style","--dlg-max-w: min(840px, 94vw)"),z0(z,"dialogRef",l);let a=document.createElement("div");a.setAttribute("class","cb-wrap");let WJ=document.createComment("if");if(a.appendChild(WJ),Q.push(F(WJ)),l.appendChild(a),O.appendChild(l),G!=null){let c=Object.getOwnPropertyDescriptor(G,"__shipSetLifecycle")?.value;if(c){let GJ=new Proxy(z,{get(zJ,d){return zJ[d]},set(zJ,d,p){let JJ=zJ[d];if(JJ!=null&&typeof JJ.set==="function"){if(typeof p==="function")JJ.set(()=>p);else JJ.set(p);return!0}return!1}});if(c.mount){let zJ=c.mount(GJ,Z);if(typeof zJ==="function")Q.push(zJ)}if(c.unmount)Q.push(()=>c.unmount(GJ))}}return z}});var sJ=CJ({scope:(J,X)=>{let Z=fJ(X,"sui-command-bar"),Q=ZJ(()=>{if(Z.session()?.status==="thinking")return"var(--warning,#d97706)";return"var(--success,#16a34a)"}),z=ZJ(()=>Z.allSessions().filter((H)=>H.status!=="ended"&&H.agent_id));function G(H){if(fetch(`/api/v1/sessions/${H}`,{method:"DELETE",credentials:"same-origin"}).catch(()=>{}),Z.session()?.id===H)Z.session.set(null);Z.sessionPickerOpen.set(!1)}function F(H){let w=Z.allSessions().find(($)=>$.id===H);if(w)Z.session.set(w),Z.thread.set([]);Z.sessionPickerOpen.set(!1)}function O(){Z.sessionPickerOpen.set(!1),Z.mode.set("ai"),Z.session.set(null)}function I(){Z.sessionPickerOpen.set(!1),KJ("/chats"),Z.open.set(!1)}return{bar:Z,headerDotBg:Q,activeSessions:z,endSession:G,selectSession:F,startNewSession:O,viewChats:I}},on:{toggleSessionPicker:(J)=>{J.bar.sessionPickerOpen.set(!J.bar.sessionPickerOpen())},sendMessage:async(J)=>{let X=J.bar.value().trim();if(!X||!J.bar.session())return;let Z=J.bar.session().id;J.bar.thread.set([...J.bar.thread(),{id:String(Date.now()+Math.random()),sender:"user",text:X}]),J.bar.value.set("");try{await fetch(`/api/v1/sessions/${Z}/message`,{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({text:X})})}catch{}},onComposerKeydown:async(J,X)=>{if(X.key==="Enter"&&!X.shiftKey){X.preventDefault();let Z=J.bar.value().trim();if(!Z||!J.bar.session())return;let Q=J.bar.session().id;J.bar.thread.set([...J.bar.thread(),{id:String(Date.now()+Math.random()),sender:"user",text:Z}]),J.bar.value.set("");try{await fetch(`/api/v1/sessions/${Q}/message`,{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({text:Z})})}catch{}}}}});var RQ=OJ("sui-command-chat",{shadow:!0,styles:`
-  :host { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; }
+`,
+  setup(ctx) {
+    const { props, host } = ctx;
+    if (!ctx.cleanups)
+      ctx.cleanups = [];
+    const __cleanups = ctx.cleanups;
+    const $scope = Object.create(null);
+    $scope.open = props.open;
+    $scope.mode = props.mode;
+    $scope["dialogRef"] = signal2(null);
+    let __r = null;
+    if (sui_command_bar_controller_default && typeof sui_command_bar_controller_default.setup === "function") {
+      ctx.scope = $scope;
+      __r = sui_command_bar_controller_default.setup(ctx);
+      if (__r && typeof __r === "object")
+        Object.assign($scope, __r);
+    }
+    const __wireBoundary_b4 = (anchor) => bindIf({
+      anchor,
+      test: () => {
+        if ($scope.isChat())
+          return 0;
+        return 1;
+      },
+      branches: [
+        () => {
+          const __frag10 = document.createDocumentFragment();
+          const __c11 = [];
+          const __e12 = document.createElement("sui-command-chat");
+          __frag10.appendChild(__e12);
+          return { nodes: Array.from(__frag10.childNodes), cleanup: () => {
+            for (const c of __c11)
+              try {
+                c();
+              } catch (e) {}
+          } };
+        },
+        () => {
+          const __frag13 = document.createDocumentFragment();
+          const __c14 = [];
+          const __e15 = document.createElement("sui-command-palette");
+          __frag13.appendChild(__e15);
+          return { nodes: Array.from(__frag13.childNodes), cleanup: () => {
+            for (const c of __c14)
+              try {
+                c();
+              } catch (e) {}
+          } };
+        }
+      ]
+    });
+    const __root = host.shadowRoot ?? host;
+    adoptSuiSheets(__root);
+    const __e0 = document.createElement("button");
+    __e0.setAttribute("class", "cb-trigger");
+    __e0.setAttribute("type", "button");
+    __e0.setAttribute("aria-label", "Open command bar");
+    __cleanups.push(on(__e0, "click", function() {
+      const __h = $scope.openFind;
+      return typeof __h === "function" ? __h.bind(undefined) : () => {};
+    }(), { modifiers: [] }));
+    const __e1 = document.createElement("sui-icon");
+    __e1.setAttribute("name", "search");
+    __e1.setAttribute("size", "sm");
+    __e0.appendChild(__e1);
+    const __e2 = document.createElement("span");
+    __e2.setAttribute("class", "cb-label");
+    const __t3 = document.createTextNode("");
+    __e2.appendChild(__t3);
+    __cleanups.push(bindText(__t3, () => $scope.triggerLabel()));
+    __e0.appendChild(__e2);
+    const __e4 = document.createElement("span");
+    __e4.setAttribute("class", "cb-dot");
+    __cleanups.push(effect2(() => {
+      const __v = $scope.dotBg();
+      if (__v == null)
+        __e4.style.removeProperty("background");
+      else
+        __e4.style.setProperty("background", String(__v));
+    }));
+    __e0.appendChild(__e4);
+    const __e5 = document.createElement("kbd");
+    const __t6 = document.createTextNode("⌘K");
+    __e5.appendChild(__t6);
+    __e0.appendChild(__e5);
+    __root.appendChild(__e0);
+    const __e7 = document.createElement("sui-dialog");
+    __e7.setAttribute("class", "cb-dialog");
+    __e7.setAttribute("no-header", "");
+    __e7.setAttribute("no-footer", "");
+    __e7.setAttribute("no-close-button", "");
+    __e7.setAttribute("backdrop", "blur");
+    __e7.setAttribute("size", "full");
+    __e7.setAttribute("style", "--dlg-max-w: min(840px, 94vw)");
+    attachRef($scope, "dialogRef", __e7);
+    const __e8 = document.createElement("div");
+    __e8.setAttribute("class", "cb-wrap");
+    const __ifAnchor9 = document.createComment("if");
+    __e8.appendChild(__ifAnchor9);
+    __cleanups.push(__wireBoundary_b4(__ifAnchor9));
+    __e7.appendChild(__e8);
+    __root.appendChild(__e7);
+    if (__r != null) {
+      const __lc = Object.getOwnPropertyDescriptor(__r, "__shipSetLifecycle")?.value;
+      if (__lc) {
+        const __sp = new Proxy($scope, {
+          get(t, k) {
+            return t[k];
+          },
+          set(t, k, v) {
+            const s = t[k];
+            if (s != null && typeof s.set === "function") {
+              if (typeof v === "function") {
+                s.set(() => v);
+              } else {
+                s.set(v);
+              }
+              return true;
+            }
+            return false;
+          }
+        });
+        if (__lc.mount) {
+          const __mc = __lc.mount(__sp, host);
+          if (typeof __mc === "function")
+            __cleanups.push(__mc);
+        }
+        if (__lc.unmount)
+          __cleanups.push(() => __lc.unmount(__sp));
+      }
+    }
+    return $scope;
+  }
+});
 
-  /* ── Header ───────────────────────────────────────────────────── */
-  .cb-chat-header {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 10px 14px;
-    border-bottom: 1px solid var(--border);
-    flex: 0 0 auto;
-  }
-  .cb-dot {
-    width: 8px; height: 8px;
-    border-radius: 999px;
-    flex-shrink: 0;
-  }
-  .cb-chat-header .title { font-size: 13px; font-weight: 600; }
-  .cb-chat-header .sub { font-size: 11px; color: var(--muted-foreground); }
-  .cb-chip-wrap { position: relative; flex-shrink: 0; }
-  .cb-session-chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    padding: 2px 8px;
-    border: 1px solid var(--border);
-    border-radius: 999px;
-    font-size: 11px;
-    color: var(--muted-foreground);
-    cursor: pointer;
-    user-select: none;
-  }
-  .cb-session-chip:hover { background: var(--muted); }
-  .cb-esc {
-    font-family: var(--font-mono);
-    font-size: 10px;
-    padding: 1px 5px;
-    border: 1px solid var(--border);
-    border-radius: 3px;
-    background: var(--muted);
-    color: var(--muted-foreground);
-  }
+// packages/ui-components/src/islands/sui-command-bar/sui-command-chat.sui
+import { bindAttr, bindClass, bindFor, bindIf as bindIf2, bindText as bindText2, bindValue, effect as effect3, on as on2, signal as signal3, view } from "@ship/sui-runtime";
+import { collectElementMarkers, collectTextOpens, hydrateAttr, hydrateBindValue, hydrateOn, hydrateStyle, hydrateText } from "@ship/sui-dom";
 
-  /* ── Session picker ───────────────────────────────────────────── */
-  .cb-session-popover {
-    position: absolute;
-    top: calc(100% + 4px);
-    right: 0;
-    min-width: 280px;
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-md, 6px);
-    box-shadow: var(--shadow-lg);
-    z-index: 10;
-    padding: 4px 0;
+// packages/ui-components/src/islands/sui-command-bar/sui-command-chat.controller.ts
+import { controller as controller2, derived as derived2, useShared } from "@ship/sui-runtime";
+var sui_command_chat_controller_default = controller2({
+  scope: (_, host) => {
+    const bar = useShared(host, "sui-command-bar");
+    const headerDotBg = derived2(() => {
+      const s = bar.session();
+      if (s?.status === "thinking")
+        return "var(--warning,#d97706)";
+      return "var(--success,#16a34a)";
+    });
+    const activeSessions = derived2(() => bar.allSessions().filter((s) => s.status !== "ended" && s.agent_id));
+    function endSession(id) {
+      fetch(`/api/v1/sessions/${id}`, { method: "DELETE", credentials: "same-origin" }).catch(() => {});
+      if (bar.session()?.id === id)
+        bar.session.set(null);
+      bar.sessionPickerOpen.set(false);
+    }
+    function selectSession(id) {
+      const s = bar.allSessions().find((x) => x.id === id);
+      if (s) {
+        bar.session.set(s);
+        bar.thread.set([]);
+      }
+      bar.sessionPickerOpen.set(false);
+    }
+    function startNewSession() {
+      bar.sessionPickerOpen.set(false);
+      bar.mode.set("ai");
+      bar.session.set(null);
+    }
+    function viewChats() {
+      bar.sessionPickerOpen.set(false);
+      navigateTo("/chats");
+      bar.open.set(false);
+    }
+    return { bar, headerDotBg, activeSessions, endSession, selectSession, startNewSession, viewChats };
+  },
+  on: {
+    toggleSessionPicker: (s) => {
+      s.bar.sessionPickerOpen.set(!s.bar.sessionPickerOpen());
+    },
+    sendMessage: async (s) => {
+      const text = s.bar.value().trim();
+      if (!text || !s.bar.session())
+        return;
+      const sessionId = s.bar.session().id;
+      s.bar.thread.set([
+        ...s.bar.thread(),
+        { id: String(Date.now() + Math.random()), sender: "user", text }
+      ]);
+      s.bar.value.set("");
+      try {
+        await fetch(`/api/v1/sessions/${sessionId}/message`, {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text })
+        });
+      } catch {}
+    },
+    onComposerKeydown: async (s, e) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        const text = s.bar.value().trim();
+        if (!text || !s.bar.session())
+          return;
+        const sessionId = s.bar.session().id;
+        s.bar.thread.set([
+          ...s.bar.thread(),
+          { id: String(Date.now() + Math.random()), sender: "user", text }
+        ]);
+        s.bar.value.set("");
+        try {
+          await fetch(`/api/v1/sessions/${sessionId}/message`, {
+            method: "POST",
+            credentials: "same-origin",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text })
+          });
+        } catch {}
+      }
+    }
   }
-  .cb-session-row {
-    display: grid;
-    grid-template-columns: 14px 1fr auto;
-    align-items: center;
-    gap: 8px;
-    padding: 7px 12px;
-    cursor: pointer;
-    font-size: 12px;
-  }
-  .cb-session-row:hover { background: var(--muted); }
-  .cb-session-row.current { background: color-mix(in oklch, var(--primary) 8%, transparent); }
-  .cb-session-row .meta { color: var(--muted-foreground); font-size: 11px; }
-  .cb-session-end {
-    background: transparent; border: none; cursor: pointer;
-    color: var(--muted-foreground); font-size: 14px; padding: 0 2px;
-  }
-  .cb-session-end:hover { color: var(--destructive, red); }
-  .cb-session-sep { height: 1px; background: var(--border); margin: 4px 0; }
-  .cb-session-action {
-    display: flex; align-items: center; gap: 8px;
-    padding: 7px 12px; cursor: pointer; font-size: 12px;
-    color: var(--muted-foreground);
-  }
-  .cb-session-action:hover { background: var(--muted); color: var(--foreground); }
+});
 
-  /* ── Messages ─────────────────────────────────────────────────── */
-  .cb-chat-messages {
-    flex: 1;
-    min-height: 0;
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    scrollbar-width: thin;
-    padding: 12px 14px;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
+// packages/ui-components/src/islands/sui-command-bar/sui-command-chat.sui
+var sui_command_chat_default = view((ctx) => {
+  const { ship, route, navigate } = ctx;
+  const $scope = Object.create(null);
+  $scope.ship = ship;
+  $scope.route = route;
+  $scope.navigate = navigate;
+  if (sui_command_chat_controller_default && typeof sui_command_chat_controller_default.setup === "function") {
+    ctx.scope = $scope;
+    const __r = sui_command_chat_controller_default.setup(ctx);
+    if (__r && typeof __r === "object")
+      Object.assign($scope, __r);
   }
-  .cb-chat-empty { color: var(--muted-foreground); font-size: 13px; text-align: center; margin-top: 24px; }
-  .cb-chat-turn { display: flex; flex-direction: column; }
-  .cb-chat-turn[data-sender='user'] { align-items: flex-end; }
-  .cb-chat-turn[data-sender='agent'] { align-items: flex-start; }
-  .cb-chat-turn[data-sender='system'] { align-items: center; }
-  .cb-chat-bubble {
-    max-width: 80%;
-    padding: 7px 10px;
-    border-radius: var(--radius-md, 6px);
-    font-size: 13px;
-    line-height: 1.5;
-    white-space: pre-wrap;
-    word-break: break-word;
-  }
-  .cb-chat-turn[data-sender='user'] .cb-chat-bubble {
-    background: var(--primary);
-    color: var(--primary-foreground, #fff);
-  }
-  .cb-chat-turn[data-sender='agent'] .cb-chat-bubble {
-    background: var(--muted);
-    color: var(--foreground);
-  }
-  .cb-chat-turn[data-sender='system'] .cb-chat-bubble {
-    background: transparent;
-    color: var(--muted-foreground);
-    font-size: 11px;
-    font-family: var(--font-mono);
-  }
+  const __wireBoundary_b6 = (anchor) => bindFor({
+    anchor,
+    items: () => $scope.activeSessions(),
+    key: (s, __i) => {
+      const __child = Object.create($scope);
+      __child.s = s;
+      __child.__i = __i;
+      return (($scope2) => s.id)(__child);
+    },
+    render: (s, __i) => {
+      const __childScope18 = Object.create($scope);
+      __childScope18.s = s;
+      __childScope18.__i = __i;
+      __childScope18.__v = signal3(0);
+      return (($scope2) => {
+        const __frag19 = document.createDocumentFragment();
+        const __c20 = [];
+        const __e21 = document.createElement("div");
+        __e21.setAttribute("class", "cb-session-row");
+        __c20.push(bindClass(__e21, "current", () => (void $scope2.__v(), $scope2.bar.session()?.id === $scope2.s.id)));
+        __e21.setAttribute("role", "option");
+        __c20.push(on2(__e21, "click", function() {
+          const __h = () => $scope2.selectSession($scope2.s.id);
+          return typeof __h === "function" ? __h.bind(undefined) : () => {};
+        }(), { modifiers: [] }));
+        const __e22 = document.createElement("span");
+        __e22.setAttribute("class", "cb-dot");
+        __c20.push(effect3(() => {
+          $scope2.__v();
+          const __v = $scope2.s.status === "thinking" ? "var(--warning,#d97706)" : "var(--success,#16a34a)";
+          if (__v == null)
+            __e22.style.removeProperty("background");
+          else
+            __e22.style.setProperty("background", String(__v));
+        }));
+        __e21.appendChild(__e22);
+        const __e23 = document.createElement("span");
+        const __e24 = document.createElement("strong");
+        const __t25 = document.createTextNode("");
+        __e24.appendChild(__t25);
+        __c20.push(bindText2(__t25, () => (void $scope2.__v(), $scope2.s.agent_id ?? "")));
+        __e23.appendChild(__e24);
+        const __e26 = document.createElement("span");
+        __e26.setAttribute("class", "meta");
+        const __t27 = document.createTextNode(" · ");
+        __e26.appendChild(__t27);
+        const __t28 = document.createTextNode("");
+        __e26.appendChild(__t28);
+        __c20.push(bindText2(__t28, () => (void $scope2.__v(), $scope2.s.provider ?? "")));
+        const __t29 = document.createTextNode(" · ");
+        __e26.appendChild(__t29);
+        const __t30 = document.createTextNode("");
+        __e26.appendChild(__t30);
+        __t30.textContent = $scope2.s.workspace_id;
+        __e23.appendChild(__e26);
+        __e21.appendChild(__e23);
+        const __e31 = document.createElement("button");
+        __e31.setAttribute("class", "cb-session-end");
+        __e31.setAttribute("type", "button");
+        __e31.setAttribute("aria-label", "End session");
+        __c20.push(on2(__e31, "click", function() {
+          const __h = (e) => {
+            e.stopPropagation();
+            $scope2.endSession($scope2.s.id);
+          };
+          return typeof __h === "function" ? __h.bind(undefined) : () => {};
+        }(), { modifiers: [] }));
+        const __t32 = document.createTextNode("×");
+        __e31.appendChild(__t32);
+        __e21.appendChild(__e31);
+        __frag19.appendChild(__e21);
+        return { nodes: Array.from(__frag19.childNodes), cleanup: () => {
+          for (const c of __c20)
+            try {
+              c();
+            } catch (e) {}
+        }, update: (__new33, __newI34) => {
+          $scope2.s = __new33;
+          $scope2.__i = __newI34;
+          __t30.textContent = $scope2.s.workspace_id;
+          $scope2.__v.set((c) => c + 1);
+        } };
+      })(__childScope18);
+    }
+  });
+  const __wireBoundary_b14 = (anchor) => bindIf2({
+    anchor,
+    test: () => {
+      if ($scope.activeSessions().length === 0)
+        return 0;
+      return -1;
+    },
+    branches: [
+      () => {
+        const __frag36 = document.createDocumentFragment();
+        const __c37 = [];
+        const __e38 = document.createElement("div");
+        __e38.setAttribute("class", "cb-session-row");
+        const __e39 = document.createElement("span");
+        __e38.appendChild(__e39);
+        const __e40 = document.createElement("span");
+        __e40.setAttribute("class", "meta");
+        const __t41 = document.createTextNode("No active sessions");
+        __e40.appendChild(__t41);
+        __e38.appendChild(__e40);
+        const __e42 = document.createElement("span");
+        __e38.appendChild(__e42);
+        __frag36.appendChild(__e38);
+        return { nodes: Array.from(__frag36.childNodes), cleanup: () => {
+          for (const c of __c37)
+            try {
+              c();
+            } catch (e) {}
+        } };
+      }
+    ]
+  });
+  const __wireBoundary_b5 = (anchor) => bindIf2({
+    anchor,
+    test: () => {
+      if ($scope.bar.sessionPickerOpen())
+        return 0;
+      return -1;
+    },
+    branches: [
+      () => {
+        const __frag14 = document.createDocumentFragment();
+        const __c15 = [];
+        const __e16 = document.createElement("div");
+        __e16.setAttribute("class", "cb-session-popover");
+        __e16.setAttribute("role", "listbox");
+        __e16.setAttribute("aria-label", "Sessions");
+        const __forAnchor17 = document.createComment("for");
+        __e16.appendChild(__forAnchor17);
+        __c15.push(__wireBoundary_b6(__forAnchor17));
+        const __ifAnchor35 = document.createComment("if");
+        __e16.appendChild(__ifAnchor35);
+        __c15.push(__wireBoundary_b14(__ifAnchor35));
+        const __e43 = document.createElement("div");
+        __e43.setAttribute("class", "cb-session-sep");
+        __e43.setAttribute("role", "separator");
+        __e16.appendChild(__e43);
+        const __e44 = document.createElement("div");
+        __e44.setAttribute("class", "cb-session-action");
+        __c15.push(on2(__e44, "click", function() {
+          const __h = $scope.startNewSession;
+          return typeof __h === "function" ? __h.bind(undefined) : () => {};
+        }(), { modifiers: [] }));
+        const __e45 = document.createElement("sui-icon");
+        __e45.setAttribute("name", "plus");
+        __e45.setAttribute("size", "sm");
+        __e45.setAttribute("aria-hidden", "true");
+        __e44.appendChild(__e45);
+        const __e46 = document.createElement("span");
+        const __t47 = document.createTextNode("Start new session");
+        __e46.appendChild(__t47);
+        __e44.appendChild(__e46);
+        __e16.appendChild(__e44);
+        const __e48 = document.createElement("div");
+        __e48.setAttribute("class", "cb-session-action");
+        __c15.push(on2(__e48, "click", function() {
+          const __h = $scope.viewChats;
+          return typeof __h === "function" ? __h.bind(undefined) : () => {};
+        }(), { modifiers: [] }));
+        const __e49 = document.createElement("sui-icon");
+        __e49.setAttribute("name", "columns");
+        __e49.setAttribute("size", "sm");
+        __e49.setAttribute("aria-hidden", "true");
+        __e48.appendChild(__e49);
+        const __e50 = document.createElement("span");
+        const __t51 = document.createTextNode("View all chats");
+        __e50.appendChild(__t51);
+        __e48.appendChild(__e50);
+        __e16.appendChild(__e48);
+        __frag14.appendChild(__e16);
+        return { nodes: Array.from(__frag14.childNodes), cleanup: () => {
+          for (const c of __c15)
+            try {
+              c();
+            } catch (e) {}
+        } };
+      }
+    ]
+  });
+  const __wireBoundary_b18 = (anchor) => bindFor({
+    anchor,
+    items: () => $scope.bar.thread(),
+    key: (msg, __i) => {
+      const __child = Object.create($scope);
+      __child.msg = msg;
+      __child.__i = __i;
+      return (($scope2) => msg.id)(__child);
+    },
+    render: (msg, __i) => {
+      const __childScope63 = Object.create($scope);
+      __childScope63.msg = msg;
+      __childScope63.__i = __i;
+      __childScope63.__v = signal3(0);
+      return (($scope2) => {
+        const __frag64 = document.createDocumentFragment();
+        const __c65 = [];
+        const __e66 = document.createElement("div");
+        __e66.setAttribute("class", "cb-chat-turn");
+        {
+          const __av67 = $scope2.msg.sender;
+          if (__av67 == null || __av67 === false || __av67 === "")
+            __e66.removeAttribute("data-sender");
+          else
+            __e66.setAttribute("data-sender", __av67 === true ? "" : String(__av67));
+        }
+        const __e68 = document.createElement("div");
+        __e68.setAttribute("class", "cb-chat-bubble");
+        const __t69 = document.createTextNode("");
+        __e68.appendChild(__t69);
+        __t69.textContent = $scope2.msg.text;
+        __e66.appendChild(__e68);
+        __frag64.appendChild(__e66);
+        return { nodes: Array.from(__frag64.childNodes), cleanup: () => {
+          for (const c of __c65)
+            try {
+              c();
+            } catch (e) {}
+        }, update: (__new70, __newI71) => {
+          $scope2.msg = __new70;
+          $scope2.__i = __newI71;
+          {
+            const __av67 = $scope2.msg.sender;
+            if (__av67 == null || __av67 === false || __av67 === "")
+              __e66.removeAttribute("data-sender");
+            else
+              __e66.setAttribute("data-sender", __av67 === true ? "" : String(__av67));
+          }
+          __t69.textContent = $scope2.msg.text;
+          $scope2.__v.set((c) => c + 1);
+        } };
+      })(__childScope63);
+    }
+  });
+  const __wireBoundary_b17 = (anchor) => bindIf2({
+    anchor,
+    test: () => {
+      if ($scope.bar.thread().length === 0)
+        return 0;
+      return 1;
+    },
+    branches: [
+      () => {
+        const __frag56 = document.createDocumentFragment();
+        const __c57 = [];
+        const __e58 = document.createElement("div");
+        __e58.setAttribute("class", "cb-chat-empty");
+        const __t59 = document.createTextNode("Type below and press Enter. The agent's replies land here.");
+        __e58.appendChild(__t59);
+        __frag56.appendChild(__e58);
+        return { nodes: Array.from(__frag56.childNodes), cleanup: () => {
+          for (const c of __c57)
+            try {
+              c();
+            } catch (e) {}
+        } };
+      },
+      () => {
+        const __frag60 = document.createDocumentFragment();
+        const __c61 = [];
+        const __forAnchor62 = document.createComment("for");
+        __frag60.appendChild(__forAnchor62);
+        __c61.push(__wireBoundary_b18(__forAnchor62));
+        return { nodes: Array.from(__frag60.childNodes), cleanup: () => {
+          for (const c of __c61)
+            try {
+              c();
+            } catch (e) {}
+        } };
+      }
+    ]
+  });
+  return Object.assign({}, $scope, {
+    __mount(container) {
+      const __cleanups = [];
+      const __e0 = document.createElement("div");
+      __e0.setAttribute("class", "cb-chat-header");
+      const __e1 = document.createElement("span");
+      __e1.setAttribute("class", "cb-dot");
+      __cleanups.push(effect3(() => {
+        const __v = $scope.headerDotBg();
+        if (__v == null)
+          __e1.style.removeProperty("background");
+        else
+          __e1.style.setProperty("background", String(__v));
+      }));
+      __e1.setAttribute("aria-hidden", "true");
+      __e0.appendChild(__e1);
+      const __e2 = document.createElement("div");
+      __e2.setAttribute("style", "display:grid;line-height:1.25");
+      const __e3 = document.createElement("span");
+      __e3.setAttribute("class", "title");
+      const __t4 = document.createTextNode("");
+      __e3.appendChild(__t4);
+      __cleanups.push(bindText2(__t4, () => $scope.bar.session()?.agent_id ?? ""));
+      __e2.appendChild(__e3);
+      const __e5 = document.createElement("span");
+      __e5.setAttribute("class", "sub");
+      const __t6 = document.createTextNode("");
+      __e5.appendChild(__t6);
+      __cleanups.push(bindText2(__t6, () => $scope.bar.session()?.provider ?? "—"));
+      const __t7 = document.createTextNode(" · ");
+      __e5.appendChild(__t7);
+      const __t8 = document.createTextNode("");
+      __e5.appendChild(__t8);
+      __cleanups.push(bindText2(__t8, () => $scope.bar.session()?.workspace_id ?? ""));
+      __e2.appendChild(__e5);
+      __e0.appendChild(__e2);
+      const __e9 = document.createElement("span");
+      __e9.setAttribute("style", "flex:1");
+      __e0.appendChild(__e9);
+      const __e10 = document.createElement("div");
+      __e10.setAttribute("class", "cb-chip-wrap");
+      const __e11 = document.createElement("span");
+      __e11.setAttribute("class", "cb-session-chip");
+      __e11.setAttribute("role", "button");
+      __e11.setAttribute("aria-haspopup", "listbox");
+      __cleanups.push(on2(__e11, "click", function() {
+        const __h = $scope.toggleSessionPicker;
+        return typeof __h === "function" ? __h.bind(undefined) : () => {};
+      }(), { modifiers: [] }));
+      const __t12 = document.createTextNode("Switch");
+      __e11.appendChild(__t12);
+      __e10.appendChild(__e11);
+      const __ifAnchor13 = document.createComment("if");
+      __e10.appendChild(__ifAnchor13);
+      __cleanups.push(__wireBoundary_b5(__ifAnchor13));
+      __e0.appendChild(__e10);
+      const __e52 = document.createElement("kbd");
+      __e52.setAttribute("class", "cb-esc");
+      __e52.setAttribute("aria-label", "Escape to close");
+      const __t53 = document.createTextNode("esc");
+      __e52.appendChild(__t53);
+      __e0.appendChild(__e52);
+      container.appendChild(__e0);
+      const __e54 = document.createElement("div");
+      __e54.setAttribute("class", "cb-chat-messages");
+      const __ifAnchor55 = document.createComment("if");
+      __e54.appendChild(__ifAnchor55);
+      __cleanups.push(__wireBoundary_b17(__ifAnchor55));
+      container.appendChild(__e54);
+      const __e72 = document.createElement("div");
+      __e72.setAttribute("class", "cb-chat-composer");
+      const __e73 = document.createElement("textarea");
+      __e73.setAttribute("class", "cb-chat-input");
+      __e73.setAttribute("rows", "2");
+      __e73.setAttribute("placeholder", "Message the agent…");
+      __cleanups.push(bindValue(__e73, $scope.bar.value));
+      __cleanups.push(on2(__e73, "keydown", function() {
+        const __h = $scope.onComposerKeydown;
+        return typeof __h === "function" ? __h.bind(undefined) : () => {};
+      }(), { modifiers: [] }));
+      __e72.appendChild(__e73);
+      const __e74 = document.createElement("button");
+      __e74.setAttribute("class", "cb-chat-send");
+      __e74.setAttribute("type", "button");
+      __cleanups.push(bindAttr(__e74, "disabled", () => !$scope.bar.value().trim()));
+      __cleanups.push(on2(__e74, "click", function() {
+        const __h = $scope.sendMessage;
+        return typeof __h === "function" ? __h.bind(undefined) : () => {};
+      }(), { modifiers: [] }));
+      const __t75 = document.createTextNode("Send");
+      __e74.appendChild(__t75);
+      __e72.appendChild(__e74);
+      container.appendChild(__e72);
+      return () => {
+        for (const c of __cleanups)
+          try {
+            c();
+          } catch (e) {}
+      };
+    },
+    hydrate(root, ctx2) {
+      const __cleanups = [];
+      const __t = collectTextOpens(root);
+      const __m = collectElementMarkers(root);
+      if (__m["b0"])
+        __cleanups.push(hydrateStyle(__m["b0"], "background", () => $scope.headerDotBg()));
+      if (__t["b1"])
+        __cleanups.push(hydrateText(__t["b1"], () => $scope.bar.session()?.agent_id ?? ""));
+      if (__t["b2"])
+        __cleanups.push(hydrateText(__t["b2"], () => $scope.bar.session()?.provider ?? "—"));
+      if (__t["b3"])
+        __cleanups.push(hydrateText(__t["b3"], () => $scope.bar.session()?.workspace_id ?? ""));
+      if (__m["b4"])
+        __cleanups.push(hydrateOn(__m["b4"], "click", function() {
+          const __h = $scope.toggleSessionPicker;
+          return typeof __h === "function" ? __h.bind(undefined) : () => {};
+        }(), []));
+      if (__m["b5"]) {
+        const __t2 = __m["b5"];
+        const __doc = __t2.ownerDocument ?? document;
+        const __anchor = __t2.nodeType === 1 ? __doc.createComment("if") : __t2;
+        if (__t2.nodeType === 1 && __t2.parentNode)
+          __t2.parentNode.replaceChild(__anchor, __t2);
+        __cleanups.push(__wireBoundary_b5(__anchor));
+      }
+      if (__m["b17"]) {
+        const __t2 = __m["b17"];
+        const __doc = __t2.ownerDocument ?? document;
+        const __anchor = __t2.nodeType === 1 ? __doc.createComment("if") : __t2;
+        if (__t2.nodeType === 1 && __t2.parentNode)
+          __t2.parentNode.replaceChild(__anchor, __t2);
+        __cleanups.push(__wireBoundary_b17(__anchor));
+      }
+      if (__m["b21"])
+        __cleanups.push(hydrateBindValue(__m["b21"], $scope.bar.value));
+      if (__m["b22"])
+        __cleanups.push(hydrateOn(__m["b22"], "keydown", function() {
+          const __h = $scope.onComposerKeydown;
+          return typeof __h === "function" ? __h.bind(undefined) : () => {};
+        }(), []));
+      if (__m["b23"])
+        __cleanups.push(hydrateAttr(__m["b23"], "disabled", () => !$scope.bar.value().trim()));
+      if (__m["b24"])
+        __cleanups.push(hydrateOn(__m["b24"], "click", function() {
+          const __h = $scope.sendMessage;
+          return typeof __h === "function" ? __h.bind(undefined) : () => {};
+        }(), []));
+      return () => {
+        for (const c of __cleanups)
+          try {
+            c();
+          } catch (e) {}
+      };
+    }
+  });
+});
 
-  /* ── Composer ─────────────────────────────────────────────────── */
-  .cb-chat-composer {
-    display: flex;
-    gap: 8px;
-    align-items: flex-end;
-    padding: 10px 14px;
-    border-top: 1px solid var(--border);
-    flex: 0 0 auto;
-  }
-  .cb-chat-input {
-    flex: 1;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm, 4px);
-    background: var(--background);
-    color: var(--foreground);
-    font: inherit;
-    font-size: 13px;
-    padding: 6px 8px;
-    resize: none;
-    line-height: 1.4;
-  }
-  .cb-chat-input:focus { outline: none; border-color: var(--primary); }
-  .cb-chat-send {
-    height: 32px;
-    padding: 0 14px;
-    border: none;
-    border-radius: var(--radius-sm, 4px);
-    background: var(--primary);
-    color: var(--primary-foreground, #fff);
-    font: inherit;
-    font-size: 13px;
-    cursor: pointer;
-    flex-shrink: 0;
-    align-self: flex-end;
-  }
-  .cb-chat-send:disabled { opacity: 0.5; cursor: not-allowed; }
-`,setup(J){let{props:X,host:Z}=J;if(!J.cleanups)J.cleanups=[];let Q=J.cleanups,z=Object.create(null),G=null;if(sJ&&typeof sJ.setup==="function"){if(J.scope=z,G=sJ.setup(J),G&&typeof G==="object")Object.assign(z,G)}let F=(v)=>DJ({anchor:v,items:()=>z.activeSessions(),key:(g,m)=>{let b=Object.create(z);return b.s=g,b.__i=m,((y)=>g.id)(b)},render:(g,m)=>{let b=Object.create(z);return b.s=g,b.__i=m,b.__v=x(0),((y)=>{let t=document.createDocumentFragment(),XJ=[],i=document.createElement("div");i.setAttribute("class","cb-session-row"),XJ.push(AJ(i,"current",()=>(y.__v(),y.bar.session()?.id===y.s.id))),i.setAttribute("role","option"),XJ.push(e(i,"click",function(){let q=()=>y.selectSession(y.s.id);return typeof q==="function"?q.bind(void 0):()=>{}}(),{modifiers:[]}));let E=document.createElement("span");E.setAttribute("class","cb-dot"),XJ.push(h(()=>{y.__v();let q=y.s.status==="thinking"?"var(--warning,#d97706)":"var(--success,#16a34a)";if(q==null)E.style.removeProperty("background");else E.style.setProperty("background",String(q))})),i.appendChild(E);let j=document.createElement("span"),L=document.createElement("strong"),W=document.createTextNode("");L.appendChild(W),XJ.push(VJ(W,()=>(y.__v(),y.s.agent_id??""))),j.appendChild(L);let Y=document.createElement("span");Y.setAttribute("class","meta");let K=document.createTextNode(" · ");Y.appendChild(K);let N=document.createTextNode("");Y.appendChild(N),XJ.push(VJ(N,()=>(y.__v(),y.s.provider??"")));let V=document.createTextNode(" · ");Y.appendChild(V);let T=document.createTextNode("");Y.appendChild(T),T.textContent=y.s.workspace_id,j.appendChild(Y),i.appendChild(j);let M=document.createElement("button");M.setAttribute("class","cb-session-end"),M.setAttribute("type","button"),M.setAttribute("aria-label","End session"),XJ.push(e(M,"click",function(){let q=(R)=>{R.stopPropagation(),y.endSession(y.s.id)};return typeof q==="function"?q.bind(void 0):()=>{}}(),{modifiers:[]}));let U=document.createTextNode("×");return M.appendChild(U),i.appendChild(M),t.appendChild(i),{nodes:Array.from(t.childNodes),cleanup:()=>{for(let q of XJ)try{q()}catch(R){}},update:(q,R)=>{y.s=q,y.__i=R,T.textContent=y.s.workspace_id,y.__v.set((D)=>D+1)}}})(b)}}),O=(v)=>MJ({anchor:v,test:()=>{if(z.activeSessions().length===0)return 0;return-1},branches:[()=>{let g=document.createDocumentFragment(),m=[],b=document.createElement("div");b.setAttribute("class","cb-session-row");let y=document.createElement("span");b.appendChild(y);let t=document.createElement("span");t.setAttribute("class","meta");let XJ=document.createTextNode("No active sessions");t.appendChild(XJ),b.appendChild(t);let i=document.createElement("span");return b.appendChild(i),g.appendChild(b),{nodes:Array.from(g.childNodes),cleanup:()=>{for(let E of m)try{E()}catch(j){}}}}]}),I=(v)=>MJ({anchor:v,test:()=>{if(z.bar.sessionPickerOpen())return 0;return-1},branches:[()=>{let g=document.createDocumentFragment(),m=[],b=document.createElement("div");b.setAttribute("class","cb-session-popover"),b.setAttribute("role","listbox"),b.setAttribute("aria-label","Sessions");let y=document.createComment("for");b.appendChild(y),m.push(F(y));let t=document.createComment("if");b.appendChild(t),m.push(O(t));let XJ=document.createElement("div");XJ.setAttribute("class","cb-session-sep"),XJ.setAttribute("role","separator"),b.appendChild(XJ);let i=document.createElement("div");i.setAttribute("class","cb-session-action"),m.push(e(i,"click",function(){let V=z.startNewSession;return typeof V==="function"?V.bind(void 0):()=>{}}(),{modifiers:[]}));let E=document.createElement("sui-icon");E.setAttribute("name","plus"),E.setAttribute("size","sm"),E.setAttribute("aria-hidden","true"),i.appendChild(E);let j=document.createElement("span"),L=document.createTextNode("Start new session");j.appendChild(L),i.appendChild(j),b.appendChild(i);let W=document.createElement("div");W.setAttribute("class","cb-session-action"),m.push(e(W,"click",function(){let V=z.viewChats;return typeof V==="function"?V.bind(void 0):()=>{}}(),{modifiers:[]}));let Y=document.createElement("sui-icon");Y.setAttribute("name","columns"),Y.setAttribute("size","sm"),Y.setAttribute("aria-hidden","true"),W.appendChild(Y);let K=document.createElement("span"),N=document.createTextNode("View all chats");return K.appendChild(N),W.appendChild(K),b.appendChild(W),g.appendChild(b),{nodes:Array.from(g.childNodes),cleanup:()=>{for(let V of m)try{V()}catch(T){}}}}]}),H=(v)=>DJ({anchor:v,items:()=>z.bar.thread(),key:(g,m)=>{let b=Object.create(z);return b.msg=g,b.__i=m,((y)=>g.id)(b)},render:(g,m)=>{let b=Object.create(z);return b.msg=g,b.__i=m,b.__v=x(0),((y)=>{let t=document.createDocumentFragment(),XJ=[],i=document.createElement("div");i.setAttribute("class","cb-chat-turn");{let L=y.msg.sender;if(L==null||L===!1||L==="")i.removeAttribute("data-sender");else i.setAttribute("data-sender",L===!0?"":String(L))}let E=document.createElement("div");E.setAttribute("class","cb-chat-bubble");let j=document.createTextNode("");return E.appendChild(j),j.textContent=y.msg.text,i.appendChild(E),t.appendChild(i),{nodes:Array.from(t.childNodes),cleanup:()=>{for(let L of XJ)try{L()}catch(W){}},update:(L,W)=>{y.msg=L,y.__i=W;{let Y=y.msg.sender;if(Y==null||Y===!1||Y==="")i.removeAttribute("data-sender");else i.setAttribute("data-sender",Y===!0?"":String(Y))}j.textContent=y.msg.text,y.__v.set((Y)=>Y+1)}}})(b)}}),w=(v)=>MJ({anchor:v,test:()=>{if(z.bar.thread().length===0)return 0;return 1},branches:[()=>{let g=document.createDocumentFragment(),m=[],b=document.createElement("div");b.setAttribute("class","cb-chat-empty");let y=document.createTextNode("Type below and press Enter. The agent's replies land here.");return b.appendChild(y),g.appendChild(b),{nodes:Array.from(g.childNodes),cleanup:()=>{for(let t of m)try{t()}catch(XJ){}}}},()=>{let g=document.createDocumentFragment(),m=[],b=document.createComment("for");return g.appendChild(b),m.push(H(b)),{nodes:Array.from(g.childNodes),cleanup:()=>{for(let y of m)try{y()}catch(t){}}}}]}),$=Z.shadowRoot??Z;TJ($);let C=document.createElement("div");C.setAttribute("class","cb-chat-header");let k=document.createElement("span");k.setAttribute("class","cb-dot"),Q.push(h(()=>{let v=z.headerDotBg();if(v==null)k.style.removeProperty("background");else k.style.setProperty("background",String(v))})),k.setAttribute("aria-hidden","true"),C.appendChild(k);let n=document.createElement("div");n.setAttribute("style","display:grid;line-height:1.25");let l=document.createElement("span");l.setAttribute("class","title");let a=document.createTextNode("");l.appendChild(a),Q.push(VJ(a,()=>z.bar.session()?.agent_id??"")),n.appendChild(l);let WJ=document.createElement("span");WJ.setAttribute("class","sub");let c=document.createTextNode("");WJ.appendChild(c),Q.push(VJ(c,()=>z.bar.session()?.provider??"—"));let GJ=document.createTextNode(" · ");WJ.appendChild(GJ);let zJ=document.createTextNode("");WJ.appendChild(zJ),Q.push(VJ(zJ,()=>z.bar.session()?.workspace_id??"")),n.appendChild(WJ),C.appendChild(n);let d=document.createElement("span");d.setAttribute("style","flex:1"),C.appendChild(d);let p=document.createElement("div");p.setAttribute("class","cb-chip-wrap");let JJ=document.createElement("span");JJ.setAttribute("class","cb-session-chip"),JJ.setAttribute("role","button"),JJ.setAttribute("aria-haspopup","listbox"),Q.push(e(JJ,"click",function(){let v=z.toggleSessionPicker;return typeof v==="function"?v.bind(void 0):()=>{}}(),{modifiers:[]}));let QJ=document.createTextNode("Switch");JJ.appendChild(QJ),p.appendChild(JJ);let A=document.createComment("if");p.appendChild(A),Q.push(I(A)),C.appendChild(p);let f=document.createElement("kbd");f.setAttribute("class","cb-esc"),f.setAttribute("aria-label","Escape to close");let P=document.createTextNode("esc");f.appendChild(P),C.appendChild(f),$.appendChild(C);let S=document.createElement("div");S.setAttribute("class","cb-chat-messages");let r=document.createComment("if");S.appendChild(r),Q.push(w(r)),$.appendChild(S);let o=document.createElement("div");o.setAttribute("class","cb-chat-composer");let s=document.createElement("textarea");s.setAttribute("class","cb-chat-input"),s.setAttribute("rows","2"),s.setAttribute("placeholder","Message the agent…"),Q.push(PJ(s,z.bar.value)),Q.push(e(s,"keydown",function(){let v=z.onComposerKeydown;return typeof v==="function"?v.bind(void 0):()=>{}}(),{modifiers:[]})),o.appendChild(s);let jJ=document.createElement("button");jJ.setAttribute("class","cb-chat-send"),jJ.setAttribute("type","button"),Q.push(FJ(jJ,"disabled",()=>!z.bar.value().trim())),Q.push(e(jJ,"click",function(){let v=z.sendMessage;return typeof v==="function"?v.bind(void 0):()=>{}}(),{modifiers:[]}));let kJ=document.createTextNode("Send");if(jJ.appendChild(kJ),o.appendChild(jJ),$.appendChild(o),G!=null){let v=Object.getOwnPropertyDescriptor(G,"__shipSetLifecycle")?.value;if(v){let g=new Proxy(z,{get(m,b){return m[b]},set(m,b,y){let t=m[b];if(t!=null&&typeof t.set==="function"){if(typeof y==="function")t.set(()=>y);else t.set(y);return!0}return!1}});if(v.mount){let m=v.mount(g,Z);if(typeof m==="function")Q.push(m)}if(v.unmount)Q.push(()=>v.unmount(g))}}return z}});var tJ=CJ({scope:(J,X)=>{let Z=fJ(X,"sui-command-bar"),Q=ZJ(()=>{return{command:"/",find:">",mention:"@",create:"+",ai:"ai"}[Z.mode()]??">"}),z=ZJ(()=>{return{command:"Run a Ship action…",find:"Jump to a view…",mention:"Reference an agent, view, file…",create:"Create a view, skill, agent…",ai:"Ask Ship or type / for actions"}[Z.mode()]??"Search…"}),G=ZJ(()=>Z.session()?.agent_id??"No session"),F=ZJ(()=>{let A=Z.session();if(A?.status==="thinking")return"var(--warning,#d97706)";if(A)return"var(--success,#16a34a)";return"var(--muted-foreground)"}),O=ZJ(()=>Z.allSessions().filter((A)=>A.status!=="ended"&&A.agent_id));function I(A){if(A==="view")return"app-window";if(A==="agent")return"bot";return"message-square-plus"}let H=ZJ(()=>{let A=Z.value().replace(/^>+\s*/,"").toLowerCase().trim();return vJ.filter((f)=>!A||f.label.toLowerCase().includes(A)||f.keywords.toLowerCase().includes(A)||f.path.toLowerCase().includes(A)).map((f,P)=>({...f,idx:P}))}),w=ZJ(()=>{let A=Z.value().replace(/^>+\s*/,"").toLowerCase().trim(),f=H().length,P=new Set(vJ.map((S)=>S.path));return Z.views().filter((S)=>!P.has("/"+S)).filter((S)=>!A||S.toLowerCase().includes(A)).map((S,r)=>({name:S,label:S.replace(/-/g," ").replace(/\b\w/g,(o)=>o.toUpperCase()),path:"/"+S,icon:"app-window",idx:f+r}))}),$=ZJ(()=>{let A=Z.value().replace(/^\/+\s*/,"").toLowerCase().trim();return aJ.filter((f)=>!A||f.key.includes(A)||f.label.toLowerCase().includes(A)||f.hint.toLowerCase().includes(A)).map((f,P)=>({...f,idx:P}))}),C=ZJ(()=>{let A=Z.value().replace(/^@+/,"").toLowerCase().trim();return[...Z.views().map((P)=>({kind:"view",id:P,label:P})),...Z.agents().map((P)=>({kind:"agent",id:P.id,label:P.id})),...Z.allSessions().filter((P)=>P.status!=="ended"&&P.agent_id).map((P)=>({kind:"session",id:P.id,label:`${P.agent_id} (session)`}))].filter((P)=>!A||P.id.toLowerCase().includes(A)).slice(0,40).map((P,S)=>({...P,idx:S,icon:I(P.kind)}))}),k=ZJ(()=>rJ),n=ZJ(()=>rJ.find((A)=>A.id===Z.createSurface())),l=ZJ(()=>y0(Z.createName()));function a(A){fetch(`/api/v1/sessions/${A}`,{method:"DELETE",credentials:"same-origin"}).catch(()=>{}).then(()=>{if(Z.session()?.id===A)Z.session.set(null);QJ()}),Z.sessionPickerOpen.set(!1)}function WJ(A){let f=Z.allSessions().find((P)=>P.id===A);if(f)Z.session.set(f),Z.thread.set([]);Z.sessionPickerOpen.set(!1)}function c(){Z.sessionPickerOpen.set(!1),Z.mode.set("ai"),Z.session.set(null)}function GJ(){Z.sessionPickerOpen.set(!1),KJ("/chats"),Z.open.set(!1)}let zJ=X;function d(A){zJ?.dispatchEvent(new CustomEvent("sui-command:select",{detail:{mode:"find",item:{path:A}},bubbles:!0,composed:!0})),KJ(A),Z.value.set(""),Z.open.set(!1)}function p(A){switch(Z.value.set(""),A){case"new":Z.mode.set("create");break;case"chats":KJ("/chats"),Z.open.set(!1);break;case"settings":KJ("/settings"),Z.open.set(!1);break;case"end":if(Z.session())a(Z.session().id);Z.open.set(!1);break;case"close":Z.open.set(!1);break}}function JJ(A){let f=A.kind==="view"?`@${A.id}`:`@${A.kind}:${A.id}`,P=Z.value();Z.value.set(P.replace(/@[^@\s]*$/,`${f} `)),Z.mode.set(uJ(Z.value(),Z.mode()))}async function QJ(){try{let A=await fetch("/api/v1/pty-sessions",{credentials:"same-origin"});if(A.ok){let f=await A.json();Z.allSessions.set(f.sessions);let P=f.sessions.find((S)=>S.status!=="ended"&&S.agent_id);if(P&&P.id!==Z.session()?.id)Z.session.set(P),Z.thread.set([]);else if(!P)Z.session.set(null)}}catch{}}return{bar:Z,modeGlyph:Q,searchPlaceholder:z,chipLabel:G,chipDotBg:F,activeSessions:O,findItems:H,viewItems:w,cmdItems:$,mentionItems:C,createSurfaces:k,currentSurfaceDef:n,createNameValid:l,endSession:a,selectSession:WJ,startNewSession:c,viewChats:GJ,activateNavItem:d,activateCmd:p,activateMention:JJ}},on:{onInput:(J,X)=>{let Z=X.target.value;J.bar.value.set(Z),J.bar.mode.set(uJ(Z,J.bar.mode())),J.bar.selectedIdx.set(0)},toggleSessionPicker:(J)=>{J.bar.sessionPickerOpen.set(!J.bar.sessionPickerOpen())},selectSurface:(J,X)=>{J.bar.createSurface.set(X);let Z=rJ.find((Q)=>Q.id===X);if(Z?.shapes[0])J.bar.createShape.set(Z.shapes[0])},spawnSession:async(J)=>{let X=J.bar.spawnAgent(),Z=J.bar.spawnProvider();if(!X||!Z)return;J.bar.spawning.set(!0),J.bar.spawnError.set(null);try{let Q=await fetch("/api/v1/sessions",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({agent_id:X,provider:Z})});if(!Q.ok){let z=await Q.json().catch(()=>({}));J.bar.spawnError.set(z.error??`HTTP ${Q.status}`)}else J.bar.mode.set("ai")}catch(Q){J.bar.spawnError.set(Q instanceof Error?Q.message:"Unknown error")}finally{J.bar.spawning.set(!1)}},submitCreate:async(J)=>{if(!J.createNameValid()||J.bar.createSubmitting())return;J.bar.createSubmitting.set(!0),J.bar.createError.set(null);try{let X=await fetch("/api/v1/scaffold",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({surface:J.bar.createSurface(),name:J.bar.createName(),shape:J.bar.createShape(),purpose:J.bar.createPurpose()})});if(!X.ok){let Z=await X.json().catch(()=>({}));J.bar.createError.set(Z.error??`HTTP ${X.status}`)}else J.bar.createName.set(""),J.bar.createPurpose.set(""),J.bar.open.set(!1)}catch(X){J.bar.createError.set(X instanceof Error?X.message:"Unknown error")}finally{J.bar.createSubmitting.set(!1)}}}});var yQ=OJ("sui-command-palette",{shadow:!0,styles:`
-  :host { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; }
+// packages/ui-components/src/islands/sui-command-bar/sui-command-palette.sui
+import { bindAttr as bindAttr2, bindClass as bindClass2, bindFor as bindFor2, bindIf as bindIf3, bindText as bindText3, bindValue as bindValue2, effect as effect4, on as on3, signal as signal4, view as view2 } from "@ship/sui-runtime";
+import { collectElementMarkers as collectElementMarkers2, collectTextOpens as collectTextOpens2, hydrateAttr as hydrateAttr2, hydrateBindValue as hydrateBindValue2, hydrateClass, hydrateOn as hydrateOn2, hydrateStyle as hydrateStyle2, hydrateText as hydrateText2 } from "@ship/sui-dom";
 
-  /* ── Input row ────────────────────────────────────────────────── */
-  .cb-input-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 10px 14px;
-    border-bottom: 1px solid var(--border);
-    flex: 0 0 auto;
+// packages/ui-components/src/islands/sui-command-bar/sui-command-palette.controller.ts
+import { controller as controller3, derived as derived3, useShared as useShared2 } from "@ship/sui-runtime";
+var sui_command_palette_controller_default = controller3({
+  scope: (_, host) => {
+    const bar = useShared2(host, "sui-command-bar");
+    const modeGlyph = derived3(() => {
+      const glyphs = {
+        command: "/",
+        find: ">",
+        mention: "@",
+        create: "+",
+        ai: "ai"
+      };
+      return glyphs[bar.mode()] ?? ">";
+    });
+    const searchPlaceholder = derived3(() => {
+      const placeholders = {
+        command: "Run a Ship action…",
+        find: "Jump to a view…",
+        mention: "Reference an agent, view, file…",
+        create: "Create a view, skill, agent…",
+        ai: "Ask Ship or type / for actions"
+      };
+      return placeholders[bar.mode()] ?? "Search…";
+    });
+    const chipLabel = derived3(() => bar.session()?.agent_id ?? "No session");
+    const chipDotBg = derived3(() => {
+      const s = bar.session();
+      if (s?.status === "thinking")
+        return "var(--warning,#d97706)";
+      if (s)
+        return "var(--success,#16a34a)";
+      return "var(--muted-foreground)";
+    });
+    const activeSessions = derived3(() => bar.allSessions().filter((s) => s.status !== "ended" && s.agent_id));
+    function mentionIcon(kind) {
+      if (kind === "view")
+        return "app-window";
+      if (kind === "agent")
+        return "bot";
+      return "message-square-plus";
+    }
+    const findItems = derived3(() => {
+      const needle = bar.value().replace(/^>+\s*/, "").toLowerCase().trim();
+      return NAV_DESTINATIONS.filter((d) => !needle || d.label.toLowerCase().includes(needle) || d.keywords.toLowerCase().includes(needle) || d.path.toLowerCase().includes(needle)).map((d, i) => ({ ...d, idx: i }));
+    });
+    const viewItems = derived3(() => {
+      const needle = bar.value().replace(/^>+\s*/, "").toLowerCase().trim();
+      const offset = findItems().length;
+      const navPaths = new Set(NAV_DESTINATIONS.map((d) => d.path));
+      return bar.views().filter((name) => !navPaths.has("/" + name)).filter((name) => !needle || name.toLowerCase().includes(needle)).map((name, i) => ({
+        name,
+        label: name.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+        path: "/" + name,
+        icon: "app-window",
+        idx: offset + i
+      }));
+    });
+    const cmdItems = derived3(() => {
+      const needle = bar.value().replace(/^\/+\s*/, "").toLowerCase().trim();
+      return SLASH_COMMANDS.filter((c) => !needle || c.key.includes(needle) || c.label.toLowerCase().includes(needle) || c.hint.toLowerCase().includes(needle)).map((c, i) => ({ ...c, idx: i }));
+    });
+    const mentionItems = derived3(() => {
+      const needle = bar.value().replace(/^@+/, "").toLowerCase().trim();
+      const refs = [
+        ...bar.views().map((v) => ({ kind: "view", id: v, label: v })),
+        ...bar.agents().map((a) => ({ kind: "agent", id: a.id, label: a.id })),
+        ...bar.allSessions().filter((s) => s.status !== "ended" && s.agent_id).map((s) => ({ kind: "session", id: s.id, label: `${s.agent_id} (session)` }))
+      ];
+      return refs.filter((r) => !needle || r.id.toLowerCase().includes(needle)).slice(0, 40).map((r, i) => ({ ...r, idx: i, icon: mentionIcon(r.kind) }));
+    });
+    const createSurfaces = derived3(() => CREATE_SURFACES);
+    const currentSurfaceDef = derived3(() => CREATE_SURFACES.find((s) => s.id === bar.createSurface()));
+    const createNameValid = derived3(() => isKebab(bar.createName()));
+    function endSession(id) {
+      fetch(`/api/v1/sessions/${id}`, { method: "DELETE", credentials: "same-origin" }).catch(() => {}).then(() => {
+        if (bar.session()?.id === id)
+          bar.session.set(null);
+        reloadSessions();
+      });
+      bar.sessionPickerOpen.set(false);
+    }
+    function selectSession(id) {
+      const s = bar.allSessions().find((x) => x.id === id);
+      if (s) {
+        bar.session.set(s);
+        bar.thread.set([]);
+      }
+      bar.sessionPickerOpen.set(false);
+    }
+    function startNewSession() {
+      bar.sessionPickerOpen.set(false);
+      bar.mode.set("ai");
+      bar.session.set(null);
+    }
+    function viewChats() {
+      bar.sessionPickerOpen.set(false);
+      navigateTo("/chats");
+      bar.open.set(false);
+    }
+    const hostEl = host;
+    function activateNavItem(path) {
+      hostEl?.dispatchEvent(new CustomEvent("sui-command:select", {
+        detail: { mode: "find", item: { path } },
+        bubbles: true,
+        composed: true
+      }));
+      navigateTo(path);
+      bar.value.set("");
+      bar.open.set(false);
+    }
+    function activateCmd(key) {
+      bar.value.set("");
+      switch (key) {
+        case "new":
+          bar.mode.set("create");
+          break;
+        case "chats":
+          navigateTo("/chats");
+          bar.open.set(false);
+          break;
+        case "settings":
+          navigateTo("/settings");
+          bar.open.set(false);
+          break;
+        case "end":
+          if (bar.session())
+            endSession(bar.session().id);
+          bar.open.set(false);
+          break;
+        case "close":
+          bar.open.set(false);
+          break;
+      }
+    }
+    function activateMention(item) {
+      const ref2 = item.kind === "view" ? `@${item.id}` : `@${item.kind}:${item.id}`;
+      const v = bar.value();
+      bar.value.set(v.replace(/@[^@\s]*$/, `${ref2} `));
+      bar.mode.set(detectMode(bar.value(), bar.mode()));
+    }
+    async function reloadSessions() {
+      try {
+        const resp = await fetch("/api/v1/pty-sessions", { credentials: "same-origin" });
+        if (resp.ok) {
+          const body = await resp.json();
+          bar.allSessions.set(body.sessions);
+          const active = body.sessions.find((s) => s.status !== "ended" && s.agent_id);
+          if (active && active.id !== bar.session()?.id) {
+            bar.session.set(active);
+            bar.thread.set([]);
+          } else if (!active) {
+            bar.session.set(null);
+          }
+        }
+      } catch {}
+    }
+    return {
+      bar,
+      modeGlyph,
+      searchPlaceholder,
+      chipLabel,
+      chipDotBg,
+      activeSessions,
+      findItems,
+      viewItems,
+      cmdItems,
+      mentionItems,
+      createSurfaces,
+      currentSurfaceDef,
+      createNameValid,
+      endSession,
+      selectSession,
+      startNewSession,
+      viewChats,
+      activateNavItem,
+      activateCmd,
+      activateMention
+    };
+  },
+  on: {
+    onInput: (s, e) => {
+      const v = e.target.value;
+      s.bar.value.set(v);
+      s.bar.mode.set(detectMode(v, s.bar.mode()));
+      s.bar.selectedIdx.set(0);
+    },
+    toggleSessionPicker: (s) => {
+      s.bar.sessionPickerOpen.set(!s.bar.sessionPickerOpen());
+    },
+    selectSurface: (s, id) => {
+      s.bar.createSurface.set(id);
+      const def = CREATE_SURFACES.find((x) => x.id === id);
+      if (def?.shapes[0])
+        s.bar.createShape.set(def.shapes[0]);
+    },
+    spawnSession: async (s) => {
+      const agent = s.bar.spawnAgent();
+      const provider = s.bar.spawnProvider();
+      if (!agent || !provider)
+        return;
+      s.bar.spawning.set(true);
+      s.bar.spawnError.set(null);
+      try {
+        const resp = await fetch("/api/v1/sessions", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ agent_id: agent, provider })
+        });
+        if (!resp.ok) {
+          const err = await resp.json().catch(() => ({}));
+          s.bar.spawnError.set(err.error ?? `HTTP ${resp.status}`);
+        } else {
+          s.bar.mode.set("ai");
+        }
+      } catch (err) {
+        s.bar.spawnError.set(err instanceof Error ? err.message : "Unknown error");
+      } finally {
+        s.bar.spawning.set(false);
+      }
+    },
+    submitCreate: async (s) => {
+      if (!s.createNameValid() || s.bar.createSubmitting())
+        return;
+      s.bar.createSubmitting.set(true);
+      s.bar.createError.set(null);
+      try {
+        const resp = await fetch("/api/v1/scaffold", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            surface: s.bar.createSurface(),
+            name: s.bar.createName(),
+            shape: s.bar.createShape(),
+            purpose: s.bar.createPurpose()
+          })
+        });
+        if (!resp.ok) {
+          const err = await resp.json().catch(() => ({}));
+          s.bar.createError.set(err.error ?? `HTTP ${resp.status}`);
+        } else {
+          s.bar.createName.set("");
+          s.bar.createPurpose.set("");
+          s.bar.open.set(false);
+        }
+      } catch (err) {
+        s.bar.createError.set(err instanceof Error ? err.message : "Unknown error");
+      } finally {
+        s.bar.createSubmitting.set(false);
+      }
+    }
   }
-  .cb-mode-glyph {
-    font-family: var(--font-mono);
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--muted-foreground);
-    flex-shrink: 0;
-    min-width: 16px;
-    text-align: center;
-  }
-  .cb-mode-glyph.ai {
-    font-size: 10px;
-    padding: 1px 4px;
-    border: 1px solid var(--border);
-    border-radius: 3px;
-    background: var(--muted);
-  }
-  .cb-search {
-    flex: 1;
-    border: none;
-    outline: none;
-    background: transparent;
-    font: inherit;
-    font-size: 14px;
-    color: var(--foreground);
-    caret-color: var(--foreground);
-  }
-  .cb-search::placeholder { color: var(--muted-foreground); }
-  .cb-esc {
-    font-family: var(--font-mono);
-    font-size: 10px;
-    padding: 1px 5px;
-    border: 1px solid var(--border);
-    border-radius: 3px;
-    background: var(--muted);
-    color: var(--muted-foreground);
-    flex-shrink: 0;
-  }
+});
 
-  /* ── Session chip ─────────────────────────────────────────────── */
-  .cb-chip-wrap { position: relative; flex-shrink: 0; }
-  .cb-session-chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    padding: 2px 8px;
-    border: 1px solid var(--border);
-    border-radius: 999px;
-    font-size: 11px;
-    color: var(--muted-foreground);
-    cursor: pointer;
-    user-select: none;
-    max-width: 140px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+// packages/ui-components/src/islands/sui-command-bar/sui-command-palette.sui
+var sui_command_palette_default = view2((ctx) => {
+  const { ship, route, navigate } = ctx;
+  const $scope = Object.create(null);
+  $scope.ship = ship;
+  $scope.route = route;
+  $scope.navigate = navigate;
+  if (sui_command_palette_controller_default && typeof sui_command_palette_controller_default.setup === "function") {
+    ctx.scope = $scope;
+    const __r = sui_command_palette_controller_default.setup(ctx);
+    if (__r && typeof __r === "object")
+      Object.assign($scope, __r);
   }
-  .cb-session-chip:hover { background: var(--muted); }
-  .cb-dot {
-    width: 6px; height: 6px;
-    border-radius: 999px;
-    flex-shrink: 0;
-    display: inline-block;
-  }
-
-  /* ── Session popover ──────────────────────────────────────────── */
-  .cb-session-popover {
-    position: absolute;
-    top: calc(100% + 4px);
-    right: 0;
-    min-width: 280px;
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-md, 6px);
-    box-shadow: var(--shadow-lg);
-    z-index: 10;
-    padding: 4px 0;
-    overflow: hidden;
-  }
-  .cb-session-row {
-    display: grid;
-    grid-template-columns: 14px 1fr auto;
-    align-items: center;
-    gap: 8px;
-    padding: 7px 12px;
-    cursor: pointer;
-    font-size: 12px;
-  }
-  .cb-session-row:hover { background: var(--muted); }
-  .cb-session-row.current { background: color-mix(in oklch, var(--primary) 8%, transparent); }
-  .cb-session-row .meta { color: var(--muted-foreground); font-size: 11px; }
-  .cb-session-end {
-    background: transparent; border: none; cursor: pointer;
-    color: var(--muted-foreground); font-size: 14px; padding: 0 2px;
-  }
-  .cb-session-end:hover { color: var(--destructive, red); }
-  .cb-session-sep { height: 1px; background: var(--border); margin: 4px 0; }
-  .cb-session-action {
-    display: flex; align-items: center; gap: 8px;
-    padding: 7px 12px; cursor: pointer; font-size: 12px;
-    color: var(--muted-foreground);
-  }
-  .cb-session-action:hover { background: var(--muted); color: var(--foreground); }
-
-  /* ── Body / list ──────────────────────────────────────────────── */
-  .cb-body {
-    flex: 1;
-    min-height: 0;
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    scrollbar-width: thin;
-    padding: 6px 0;
-  }
-  .cb-mode-hint {
-    padding: 4px 14px 2px;
-    font-size: 11px;
-    font-weight: 600;
-    color: var(--muted-foreground);
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-  }
-  .cb-list { padding: 2px 6px; }
-  .cb-item {
-    display: grid;
-    grid-template-columns: 16px 1fr auto;
-    align-items: center;
-    gap: 8px;
-    padding: 7px 8px;
-    border-radius: var(--radius-sm, 4px);
-    cursor: pointer;
-    font-size: 13px;
-  }
-  .cb-item:hover,
-  .cb-item[aria-selected='true'] { background: var(--muted); }
-  .cb-item .hint {
-    color: var(--muted-foreground);
-    font-size: 11px;
-    font-family: var(--font-mono);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .cb-empty {
-    padding: 24px 16px;
-    text-align: center;
-    color: var(--muted-foreground);
-    font-size: 13px;
-  }
-
-  /* ── Create form ──────────────────────────────────────────────── */
-  .cb-create-surfaces {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    padding: 8px 14px;
-  }
-  .cb-surface-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    padding: 4px 10px;
-    border: 1px solid var(--border);
-    border-radius: 999px;
-    background: transparent;
-    font: inherit;
-    font-size: 12px;
-    color: var(--muted-foreground);
-    cursor: pointer;
-  }
-  .cb-surface-btn[aria-pressed='true'] {
-    background: var(--primary);
-    color: var(--primary-foreground, #fff);
-    border-color: var(--primary);
-  }
-  .cb-surface-btn:hover:not([aria-pressed='true']) { background: var(--muted); }
-  .cb-create-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
-    padding: 0 14px 10px;
-  }
-  .cb-create-grid label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted-foreground); }
-  .cb-create-grid input,
-  .cb-create-grid select {
-    height: 30px;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm, 4px);
-    background: var(--background);
-    color: var(--foreground);
-    font: inherit;
-    font-size: 13px;
-    padding: 0 8px;
-  }
-  .span-2 { grid-column: span 2; }
-  .cb-create-error { padding: 0 14px 6px; font-size: 12px; color: var(--destructive, red); }
-  .cb-create-actions { padding: 0 14px 14px; display: flex; justify-content: flex-end; }
-  .cb-create-submit {
-    height: 32px;
-    padding: 0 16px;
-    border: none;
-    border-radius: var(--radius-sm, 4px);
-    background: var(--primary);
-    color: var(--primary-foreground, #fff);
-    font: inherit;
-    font-size: 13px;
-    cursor: pointer;
-  }
-  .cb-create-submit:disabled { opacity: 0.5; cursor: not-allowed; }
-
-  /* ── AI spawn card ────────────────────────────────────────────── */
-  .cb-spawn-card {
-    margin: 20px 16px;
-    padding: 16px;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-md, 6px);
-    background: var(--muted);
-  }
-  .cb-spawn-title { font-weight: 600; font-size: 13px; margin-bottom: 12px; }
-  .cb-spawn-row {
-    display: grid;
-    grid-template-columns: 64px 1fr;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 8px;
-  }
-  .cb-spawn-row label { font-size: 12px; color: var(--muted-foreground); }
-  .cb-spawn-row select {
-    height: 30px;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm, 4px);
-    background: var(--background);
-    color: var(--foreground);
-    font: inherit;
-    font-size: 13px;
-    padding: 0 6px;
-  }
-  .cb-spawn-error { font-size: 12px; color: var(--destructive, red); margin-bottom: 8px; }
-  .cb-spawn-start {
-    margin-top: 4px;
-    height: 32px;
-    width: 100%;
-    border: none;
-    border-radius: var(--radius-sm, 4px);
-    background: var(--primary);
-    color: var(--primary-foreground, #fff);
-    font: inherit;
-    font-size: 13px;
-    cursor: pointer;
-  }
-  .cb-spawn-start:disabled { opacity: 0.5; cursor: not-allowed; }
-`,setup(J){let{props:X,host:Z}=J;if(!J.cleanups)J.cleanups=[];let Q=J.cleanups,z=Object.create(null),G=null;if(tJ&&typeof tJ.setup==="function"){if(J.scope=z,G=tJ.setup(J),G&&typeof G==="object")Object.assign(z,G)}let F=(E)=>DJ({anchor:E,items:()=>z.activeSessions(),key:(j,L)=>{let W=Object.create(z);return W.s=j,W.__i=L,((Y)=>j.id)(W)},render:(j,L)=>{let W=Object.create(z);return W.s=j,W.__i=L,W.__v=x(0),((Y)=>{let K=document.createDocumentFragment(),N=[],V=document.createElement("div");V.setAttribute("class","cb-session-row"),N.push(AJ(V,"current",()=>(Y.__v(),Y.bar.session()?.id===Y.s.id))),V.setAttribute("role","option"),N.push(e(V,"click",function(){let qJ=()=>Y.selectSession(Y.s.id);return typeof qJ==="function"?qJ.bind(void 0):()=>{}}(),{modifiers:[]}));let T=document.createElement("span");T.setAttribute("class","cb-dot"),N.push(h(()=>{Y.__v();let qJ=Y.s.status==="thinking"?"var(--warning,#d97706)":"var(--success,#16a34a)";if(qJ==null)T.style.removeProperty("background");else T.style.setProperty("background",String(qJ))})),V.appendChild(T);let M=document.createElement("span"),U=document.createElement("strong"),q=document.createTextNode("");U.appendChild(q),N.push(VJ(q,()=>(Y.__v(),Y.s.agent_id??""))),M.appendChild(U);let R=document.createElement("span");R.setAttribute("class","meta");let D=document.createTextNode(" · ");R.appendChild(D);let u=document.createTextNode("");R.appendChild(u),N.push(VJ(u,()=>(Y.__v(),Y.s.provider??"")));let B=document.createTextNode(" · ");R.appendChild(B);let YJ=document.createTextNode("");R.appendChild(YJ),YJ.textContent=Y.s.workspace_id,M.appendChild(R),V.appendChild(M);let LJ=document.createElement("button");LJ.setAttribute("class","cb-session-end"),LJ.setAttribute("type","button"),LJ.setAttribute("aria-label","End session"),N.push(e(LJ,"click",function(){let qJ=(HJ)=>{HJ.stopPropagation(),Y.endSession(Y.s.id)};return typeof qJ==="function"?qJ.bind(void 0):()=>{}}(),{modifiers:[]}));let NJ=document.createTextNode("×");return LJ.appendChild(NJ),V.appendChild(LJ),K.appendChild(V),{nodes:Array.from(K.childNodes),cleanup:()=>{for(let qJ of N)try{qJ()}catch(HJ){}},update:(qJ,HJ)=>{Y.s=qJ,Y.__i=HJ,YJ.textContent=Y.s.workspace_id,Y.__v.set((hJ)=>hJ+1)}}})(W)}}),O=(E)=>MJ({anchor:E,test:()=>{if(z.activeSessions().length===0)return 0;return-1},branches:[()=>{let j=document.createDocumentFragment(),L=[],W=document.createElement("div");W.setAttribute("class","cb-session-row");let Y=document.createElement("span");W.appendChild(Y);let K=document.createElement("span");K.setAttribute("class","meta");let N=document.createTextNode("No active sessions");K.appendChild(N),W.appendChild(K);let V=document.createElement("span");return W.appendChild(V),j.appendChild(W),{nodes:Array.from(j.childNodes),cleanup:()=>{for(let T of L)try{T()}catch(M){}}}}]}),I=(E)=>MJ({anchor:E,test:()=>{if(z.bar.sessionPickerOpen())return 0;return-1},branches:[()=>{let j=document.createDocumentFragment(),L=[],W=document.createElement("div");W.setAttribute("class","cb-session-popover"),W.setAttribute("role","listbox"),W.setAttribute("aria-label","Sessions");let Y=document.createComment("for");W.appendChild(Y),L.push(F(Y));let K=document.createComment("if");W.appendChild(K),L.push(O(K));let N=document.createElement("div");N.setAttribute("class","cb-session-sep"),N.setAttribute("role","separator"),W.appendChild(N);let V=document.createElement("div");V.setAttribute("class","cb-session-action"),L.push(e(V,"click",function(){let B=z.startNewSession;return typeof B==="function"?B.bind(void 0):()=>{}}(),{modifiers:[]}));let T=document.createElement("sui-icon");T.setAttribute("name","plus"),T.setAttribute("size","sm"),T.setAttribute("aria-hidden","true"),V.appendChild(T);let M=document.createElement("span"),U=document.createTextNode("Start new session");M.appendChild(U),V.appendChild(M),W.appendChild(V);let q=document.createElement("div");q.setAttribute("class","cb-session-action"),L.push(e(q,"click",function(){let B=z.viewChats;return typeof B==="function"?B.bind(void 0):()=>{}}(),{modifiers:[]}));let R=document.createElement("sui-icon");R.setAttribute("name","columns"),R.setAttribute("size","sm"),R.setAttribute("aria-hidden","true"),q.appendChild(R);let D=document.createElement("span"),u=document.createTextNode("View all chats");return D.appendChild(u),q.appendChild(D),W.appendChild(q),j.appendChild(W),{nodes:Array.from(j.childNodes),cleanup:()=>{for(let B of L)try{B()}catch(YJ){}}}}]}),H=(E)=>DJ({anchor:E,items:()=>z.findItems(),key:(j,L)=>{let W=Object.create(z);return W.item=j,W.__i=L,((Y)=>j.path)(W)},render:(j,L)=>{let W=Object.create(z);return W.item=j,W.__i=L,W.__v=x(0),((Y)=>{let K=document.createDocumentFragment(),N=[],V=document.createElement("div");V.setAttribute("class","cb-item"),V.setAttribute("role","option"),N.push(FJ(V,"aria-selected",()=>(Y.__v(),Y.bar.selectedIdx()===Y.item.idx?"true":"false")));{let D=Y.item.path;if(D==null||D===!1||D==="")V.removeAttribute("data-path");else V.setAttribute("data-path",D===!0?"":String(D))}N.push(e(V,"click",function(){let D=()=>Y.activateNavItem(Y.item.path);return typeof D==="function"?D.bind(void 0):()=>{}}(),{modifiers:[]}));let T=document.createElement("sui-icon");{let D=Y.item.icon;if(D==null||D===!1||D==="")T.removeAttribute("name");else T.setAttribute("name",D===!0?"":String(D))}T.setAttribute("size","sm"),T.setAttribute("aria-hidden","true"),V.appendChild(T);let M=document.createElement("span"),U=document.createTextNode("");M.appendChild(U),U.textContent=Y.item.label,V.appendChild(M);let q=document.createElement("span");q.setAttribute("class","hint");let R=document.createTextNode("");return q.appendChild(R),R.textContent=Y.item.path,V.appendChild(q),K.appendChild(V),{nodes:Array.from(K.childNodes),cleanup:()=>{for(let D of N)try{D()}catch(u){}},update:(D,u)=>{Y.item=D,Y.__i=u;{let B=Y.item.path;if(B==null||B===!1||B==="")V.removeAttribute("data-path");else V.setAttribute("data-path",B===!0?"":String(B))}{let B=Y.item.icon;if(B==null||B===!1||B==="")T.removeAttribute("name");else T.setAttribute("name",B===!0?"":String(B))}U.textContent=Y.item.label,R.textContent=Y.item.path,Y.__v.set((B)=>B+1)}}})(W)}}),w=(E)=>MJ({anchor:E,test:()=>{if(z.findItems().length>0)return 0;return-1},branches:[()=>{let j=document.createDocumentFragment(),L=[],W=document.createElement("div");W.setAttribute("class","cb-mode-hint");let Y=document.createTextNode("Jump to");W.appendChild(Y),j.appendChild(W);let K=document.createElement("div");K.setAttribute("class","cb-list"),K.setAttribute("role","listbox");let N=document.createComment("for");return K.appendChild(N),L.push(H(N)),j.appendChild(K),{nodes:Array.from(j.childNodes),cleanup:()=>{for(let V of L)try{V()}catch(T){}}}}]}),$=(E)=>DJ({anchor:E,items:()=>z.viewItems(),key:(j,L)=>{let W=Object.create(z);return W.item=j,W.__i=L,((Y)=>j.path)(W)},render:(j,L)=>{let W=Object.create(z);return W.item=j,W.__i=L,W.__v=x(0),((Y)=>{let K=document.createDocumentFragment(),N=[],V=document.createElement("div");V.setAttribute("class","cb-item"),V.setAttribute("role","option"),N.push(FJ(V,"aria-selected",()=>(Y.__v(),Y.bar.selectedIdx()===Y.item.idx?"true":"false")));{let D=Y.item.path;if(D==null||D===!1||D==="")V.removeAttribute("data-path");else V.setAttribute("data-path",D===!0?"":String(D))}N.push(e(V,"click",function(){let D=()=>Y.activateNavItem(Y.item.path);return typeof D==="function"?D.bind(void 0):()=>{}}(),{modifiers:[]}));let T=document.createElement("sui-icon");{let D=Y.item.icon;if(D==null||D===!1||D==="")T.removeAttribute("name");else T.setAttribute("name",D===!0?"":String(D))}T.setAttribute("size","sm"),T.setAttribute("aria-hidden","true"),V.appendChild(T);let M=document.createElement("span"),U=document.createTextNode("");M.appendChild(U),U.textContent=Y.item.label,V.appendChild(M);let q=document.createElement("span");q.setAttribute("class","hint");let R=document.createTextNode("");return q.appendChild(R),R.textContent=Y.item.path,V.appendChild(q),K.appendChild(V),{nodes:Array.from(K.childNodes),cleanup:()=>{for(let D of N)try{D()}catch(u){}},update:(D,u)=>{Y.item=D,Y.__i=u;{let B=Y.item.path;if(B==null||B===!1||B==="")V.removeAttribute("data-path");else V.setAttribute("data-path",B===!0?"":String(B))}{let B=Y.item.icon;if(B==null||B===!1||B==="")T.removeAttribute("name");else T.setAttribute("name",B===!0?"":String(B))}U.textContent=Y.item.label,R.textContent=Y.item.path,Y.__v.set((B)=>B+1)}}})(W)}}),C=(E)=>MJ({anchor:E,test:()=>{if(z.viewItems().length>0)return 0;return-1},branches:[()=>{let j=document.createDocumentFragment(),L=[],W=document.createElement("div");W.setAttribute("class","cb-mode-hint");let Y=document.createTextNode("Views");W.appendChild(Y),j.appendChild(W);let K=document.createElement("div");K.setAttribute("class","cb-list"),K.setAttribute("role","listbox");let N=document.createComment("for");return K.appendChild(N),L.push($(N)),j.appendChild(K),{nodes:Array.from(j.childNodes),cleanup:()=>{for(let V of L)try{V()}catch(T){}}}}]}),k=(E)=>MJ({anchor:E,test:()=>{if(z.findItems().length===0&&z.viewItems().length===0)return 0;return-1},branches:[()=>{let j=document.createDocumentFragment(),L=[],W=document.createElement("div");W.setAttribute("class","cb-empty");let Y=document.createTextNode("No matches.");return W.appendChild(Y),j.appendChild(W),{nodes:Array.from(j.childNodes),cleanup:()=>{for(let K of L)try{K()}catch(N){}}}}]}),n=(E)=>DJ({anchor:E,items:()=>z.cmdItems(),key:(j,L)=>{let W=Object.create(z);return W.item=j,W.__i=L,((Y)=>j.key)(W)},render:(j,L)=>{let W=Object.create(z);return W.item=j,W.__i=L,W.__v=x(0),((Y)=>{let K=document.createDocumentFragment(),N=[],V=document.createElement("div");V.setAttribute("class","cb-item"),V.setAttribute("role","option"),N.push(FJ(V,"aria-selected",()=>(Y.__v(),Y.bar.selectedIdx()===Y.item.idx?"true":"false")));{let D=Y.item.key;if(D==null||D===!1||D==="")V.removeAttribute("data-cmd");else V.setAttribute("data-cmd",D===!0?"":String(D))}N.push(e(V,"click",function(){let D=()=>Y.activateCmd(Y.item.key);return typeof D==="function"?D.bind(void 0):()=>{}}(),{modifiers:[]}));let T=document.createElement("span");T.setAttribute("style","font-family:var(--font-mono)");let M=document.createTextNode("");T.appendChild(M),M.textContent=Y.item.label,V.appendChild(T);let U=document.createElement("span");V.appendChild(U);let q=document.createElement("span");q.setAttribute("class","hint");let R=document.createTextNode("");return q.appendChild(R),R.textContent=Y.item.hint,V.appendChild(q),K.appendChild(V),{nodes:Array.from(K.childNodes),cleanup:()=>{for(let D of N)try{D()}catch(u){}},update:(D,u)=>{Y.item=D,Y.__i=u;{let B=Y.item.key;if(B==null||B===!1||B==="")V.removeAttribute("data-cmd");else V.setAttribute("data-cmd",B===!0?"":String(B))}M.textContent=Y.item.label,R.textContent=Y.item.hint,Y.__v.set((B)=>B+1)}}})(W)}}),l=(E)=>MJ({anchor:E,test:()=>{if(z.cmdItems().length>0)return 0;return 1},branches:[()=>{let j=document.createDocumentFragment(),L=[],W=document.createElement("div");W.setAttribute("class","cb-mode-hint");let Y=document.createTextNode("Actions");W.appendChild(Y),j.appendChild(W);let K=document.createElement("div");K.setAttribute("class","cb-list"),K.setAttribute("role","listbox");let N=document.createComment("for");return K.appendChild(N),L.push(n(N)),j.appendChild(K),{nodes:Array.from(j.childNodes),cleanup:()=>{for(let V of L)try{V()}catch(T){}}}},()=>{let j=document.createDocumentFragment(),L=[],W=document.createElement("div");W.setAttribute("class","cb-empty");let Y=document.createTextNode("No commands match.");return W.appendChild(Y),j.appendChild(W),{nodes:Array.from(j.childNodes),cleanup:()=>{for(let K of L)try{K()}catch(N){}}}}]}),a=(E)=>DJ({anchor:E,items:()=>z.mentionItems(),key:(j,L)=>{let W=Object.create(z);return W.item=j,W.__i=L,((Y)=>j.id+j.kind)(W)},render:(j,L)=>{let W=Object.create(z);return W.item=j,W.__i=L,W.__v=x(0),((Y)=>{let K=document.createDocumentFragment(),N=[],V=document.createElement("div");V.setAttribute("class","cb-item"),V.setAttribute("role","option"),N.push(FJ(V,"aria-selected",()=>(Y.__v(),Y.bar.selectedIdx()===Y.item.idx?"true":"false")));{let D=Y.item.kind;if(D==null||D===!1||D==="")V.removeAttribute("data-mention-kind");else V.setAttribute("data-mention-kind",D===!0?"":String(D))}{let D=Y.item.id;if(D==null||D===!1||D==="")V.removeAttribute("data-mention-id");else V.setAttribute("data-mention-id",D===!0?"":String(D))}N.push(e(V,"click",function(){let D=()=>Y.activateMention(Y.item);return typeof D==="function"?D.bind(void 0):()=>{}}(),{modifiers:[]}));let T=document.createElement("sui-icon");{let D=Y.item.icon;if(D==null||D===!1||D==="")T.removeAttribute("name");else T.setAttribute("name",D===!0?"":String(D))}T.setAttribute("size","sm"),T.setAttribute("aria-hidden","true"),V.appendChild(T);let M=document.createElement("span"),U=document.createTextNode("");M.appendChild(U),U.textContent=Y.item.label,V.appendChild(M);let q=document.createElement("span");q.setAttribute("class","hint");let R=document.createTextNode("");return q.appendChild(R),R.textContent=Y.item.kind,V.appendChild(q),K.appendChild(V),{nodes:Array.from(K.childNodes),cleanup:()=>{for(let D of N)try{D()}catch(u){}},update:(D,u)=>{Y.item=D,Y.__i=u;{let B=Y.item.kind;if(B==null||B===!1||B==="")V.removeAttribute("data-mention-kind");else V.setAttribute("data-mention-kind",B===!0?"":String(B))}{let B=Y.item.id;if(B==null||B===!1||B==="")V.removeAttribute("data-mention-id");else V.setAttribute("data-mention-id",B===!0?"":String(B))}{let B=Y.item.icon;if(B==null||B===!1||B==="")T.removeAttribute("name");else T.setAttribute("name",B===!0?"":String(B))}U.textContent=Y.item.label,R.textContent=Y.item.kind,Y.__v.set((B)=>B+1)}}})(W)}}),WJ=(E)=>MJ({anchor:E,test:()=>{if(z.mentionItems().length>0)return 0;return 1},branches:[()=>{let j=document.createDocumentFragment(),L=[],W=document.createElement("div");W.setAttribute("class","cb-mode-hint");let Y=document.createTextNode("Reference");W.appendChild(Y),j.appendChild(W);let K=document.createElement("div");K.setAttribute("class","cb-list"),K.setAttribute("role","listbox");let N=document.createComment("for");return K.appendChild(N),L.push(a(N)),j.appendChild(K),{nodes:Array.from(j.childNodes),cleanup:()=>{for(let V of L)try{V()}catch(T){}}}},()=>{let j=document.createDocumentFragment(),L=[],W=document.createElement("div");W.setAttribute("class","cb-empty");let Y=document.createTextNode("No matching views or agents.");return W.appendChild(Y),j.appendChild(W),{nodes:Array.from(j.childNodes),cleanup:()=>{for(let K of L)try{K()}catch(N){}}}}]}),c=(E)=>DJ({anchor:E,items:()=>z.createSurfaces(),key:(j,L)=>{let W=Object.create(z);return W.surf=j,W.__i=L,((Y)=>j.id)(W)},render:(j,L)=>{let W=Object.create(z);return W.surf=j,W.__i=L,W.__v=x(0),((Y)=>{let K=document.createDocumentFragment(),N=[],V=document.createElement("button");V.setAttribute("class","cb-surface-btn"),V.setAttribute("type","button"),N.push(FJ(V,"aria-pressed",()=>(Y.__v(),Y.bar.createSurface()===Y.surf.id?"true":"false"))),N.push(e(V,"click",function(){let q=()=>Y.selectSurface(Y.surf.id);return typeof q==="function"?q.bind(void 0):()=>{}}(),{modifiers:[]}));let T=document.createElement("sui-icon");{let q=Y.surf.icon;if(q==null||q===!1||q==="")T.removeAttribute("name");else T.setAttribute("name",q===!0?"":String(q))}T.setAttribute("aria-hidden","true"),V.appendChild(T);let M=document.createElement("span"),U=document.createTextNode("");return M.appendChild(U),U.textContent=Y.surf.label,V.appendChild(M),K.appendChild(V),{nodes:Array.from(K.childNodes),cleanup:()=>{for(let q of N)try{q()}catch(R){}},update:(q,R)=>{Y.surf=q,Y.__i=R;{let D=Y.surf.icon;if(D==null||D===!1||D==="")T.removeAttribute("name");else T.setAttribute("name",D===!0?"":String(D))}U.textContent=Y.surf.label,Y.__v.set((D)=>D+1)}}})(W)}}),GJ=(E)=>DJ({anchor:E,items:()=>z.currentSurfaceDef().shapes,key:(j,L)=>{let W=Object.create(z);return W.sh=j,W.__i=L,((Y)=>j)(W)},render:(j,L)=>{let W=Object.create(z);return W.sh=j,W.__i=L,W.__v=x(0),((Y)=>{let K=document.createDocumentFragment(),N=[],V=document.createElement("option");{let M=Y.sh;if(M==null||M===!1||M==="")V.removeAttribute("value");else V.setAttribute("value",M===!0?"":String(M))}let T=document.createTextNode("");return V.appendChild(T),T.textContent=Y.sh,K.appendChild(V),{nodes:Array.from(K.childNodes),cleanup:()=>{for(let M of N)try{M()}catch(U){}},update:(M,U)=>{Y.sh=M,Y.__i=U;{let q=Y.sh;if(q==null||q===!1||q==="")V.removeAttribute("value");else V.setAttribute("value",q===!0?"":String(q))}T.textContent=Y.sh,Y.__v.set((q)=>q+1)}}})(W)}}),zJ=(E)=>MJ({anchor:E,test:()=>{if(z.bar.createError())return 0;return-1},branches:[()=>{let j=document.createDocumentFragment(),L=[],W=document.createElement("div");W.setAttribute("class","cb-create-error");let Y=document.createTextNode("");return W.appendChild(Y),L.push(VJ(Y,()=>z.bar.createError())),j.appendChild(W),{nodes:Array.from(j.childNodes),cleanup:()=>{for(let K of L)try{K()}catch(N){}}}}]}),d=(E)=>DJ({anchor:E,items:()=>z.bar.agents(),key:(j,L)=>{let W=Object.create(z);return W.a=j,W.__i=L,((Y)=>j.id)(W)},render:(j,L)=>{let W=Object.create(z);return W.a=j,W.__i=L,W.__v=x(0),((Y)=>{let K=document.createDocumentFragment(),N=[],V=document.createElement("option");{let M=Y.a.id;if(M==null||M===!1||M==="")V.removeAttribute("value");else V.setAttribute("value",M===!0?"":String(M))}let T=document.createTextNode("");return V.appendChild(T),N.push(VJ(T,()=>(Y.__v(),Y.a.name??Y.a.label??Y.a.id))),K.appendChild(V),{nodes:Array.from(K.childNodes),cleanup:()=>{for(let M of N)try{M()}catch(U){}},update:(M,U)=>{Y.a=M,Y.__i=U;{let q=Y.a.id;if(q==null||q===!1||q==="")V.removeAttribute("value");else V.setAttribute("value",q===!0?"":String(q))}Y.__v.set((q)=>q+1)}}})(W)}}),p=(E)=>MJ({anchor:E,test:()=>{if(z.bar.agents().length===0)return 0;return 1},branches:[()=>{let j=document.createDocumentFragment(),L=[],W=document.createElement("option");W.setAttribute("value","");let Y=document.createTextNode("No agents found");return W.appendChild(Y),j.appendChild(W),{nodes:Array.from(j.childNodes),cleanup:()=>{for(let K of L)try{K()}catch(N){}}}},()=>{let j=document.createDocumentFragment(),L=[],W=document.createComment("for");return j.appendChild(W),L.push(d(W)),{nodes:Array.from(j.childNodes),cleanup:()=>{for(let Y of L)try{Y()}catch(K){}}}}]}),JJ=(E)=>DJ({anchor:E,items:()=>z.bar.providers(),key:(j,L)=>{let W=Object.create(z);return W.p=j,W.__i=L,((Y)=>j)(W)},render:(j,L)=>{let W=Object.create(z);return W.p=j,W.__i=L,W.__v=x(0),((Y)=>{let K=document.createDocumentFragment(),N=[],V=document.createElement("option");{let M=Y.p;if(M==null||M===!1||M==="")V.removeAttribute("value");else V.setAttribute("value",M===!0?"":String(M))}let T=document.createTextNode("");return V.appendChild(T),T.textContent=Y.p,K.appendChild(V),{nodes:Array.from(K.childNodes),cleanup:()=>{for(let M of N)try{M()}catch(U){}},update:(M,U)=>{Y.p=M,Y.__i=U;{let q=Y.p;if(q==null||q===!1||q==="")V.removeAttribute("value");else V.setAttribute("value",q===!0?"":String(q))}T.textContent=Y.p,Y.__v.set((q)=>q+1)}}})(W)}}),QJ=(E)=>MJ({anchor:E,test:()=>{if(z.bar.providers().length===0)return 0;return 1},branches:[()=>{let j=document.createDocumentFragment(),L=[],W=document.createElement("option");W.setAttribute("value","");let Y=document.createTextNode("No providers installed");return W.appendChild(Y),j.appendChild(W),{nodes:Array.from(j.childNodes),cleanup:()=>{for(let K of L)try{K()}catch(N){}}}},()=>{let j=document.createDocumentFragment(),L=[],W=document.createComment("for");return j.appendChild(W),L.push(JJ(W)),{nodes:Array.from(j.childNodes),cleanup:()=>{for(let Y of L)try{Y()}catch(K){}}}}]}),A=(E)=>MJ({anchor:E,test:()=>{if(z.bar.spawnError())return 0;return-1},branches:[()=>{let j=document.createDocumentFragment(),L=[],W=document.createElement("div");W.setAttribute("class","cb-spawn-error");let Y=document.createTextNode("");return W.appendChild(Y),L.push(VJ(Y,()=>z.bar.spawnError())),j.appendChild(W),{nodes:Array.from(j.childNodes),cleanup:()=>{for(let K of L)try{K()}catch(N){}}}}]}),f=(E)=>MJ({anchor:E,test:()=>{let j=z.bar.mode();if(j==="find")return 0;if(j==="command")return 1;if(j==="mention")return 2;if(j==="create")return 3;return 4},branches:[()=>{let j=document.createDocumentFragment(),L=[],W=document.createComment("if");j.appendChild(W),L.push(w(W));let Y=document.createComment("if");j.appendChild(Y),L.push(C(Y));let K=document.createComment("if");return j.appendChild(K),L.push(k(K)),{nodes:Array.from(j.childNodes),cleanup:()=>{for(let N of L)try{N()}catch(V){}}}},()=>{let j=document.createDocumentFragment(),L=[],W=document.createComment("if");return j.appendChild(W),L.push(l(W)),{nodes:Array.from(j.childNodes),cleanup:()=>{for(let Y of L)try{Y()}catch(K){}}}},()=>{let j=document.createDocumentFragment(),L=[],W=document.createComment("if");return j.appendChild(W),L.push(WJ(W)),{nodes:Array.from(j.childNodes),cleanup:()=>{for(let Y of L)try{Y()}catch(K){}}}},()=>{let j=document.createDocumentFragment(),L=[],W=document.createElement("div");W.setAttribute("class","cb-mode-hint");let Y=document.createTextNode("Create");W.appendChild(Y),j.appendChild(W);let K=document.createElement("div");K.setAttribute("class","cb-create-surfaces"),K.setAttribute("role","group"),K.setAttribute("aria-label","Surface type");let N=document.createComment("for");K.appendChild(N),L.push(c(N)),j.appendChild(K);let V=document.createElement("div");V.setAttribute("class","cb-create-grid");let T=document.createElement("label"),M=document.createElement("span"),U=document.createTextNode("Name (kebab-case)");M.appendChild(U),T.appendChild(M);let q=document.createElement("input");q.setAttribute("type","text"),q.setAttribute("class","cb-create-name"),L.push(FJ(q,"placeholder",()=>"my-"+z.bar.createSurface())),L.push(PJ(q,z.bar.createName)),q.setAttribute("autocomplete","off"),T.appendChild(q),V.appendChild(T);let R=document.createElement("label"),D=document.createElement("span"),u=document.createTextNode("");D.appendChild(u),L.push(VJ(u,()=>z.currentSurfaceDef().shapeLabel)),R.appendChild(D);let B=document.createElement("select");B.setAttribute("class","cb-create-shape"),L.push(PJ(B,z.bar.createShape));let YJ=document.createComment("for");B.appendChild(YJ),L.push(GJ(YJ)),R.appendChild(B),V.appendChild(R);let LJ=document.createElement("label");LJ.setAttribute("class","span-2");let NJ=document.createElement("span"),qJ=document.createTextNode("Purpose (optional)");NJ.appendChild(qJ),LJ.appendChild(NJ);let HJ=document.createElement("input");HJ.setAttribute("type","text"),HJ.setAttribute("class","cb-create-purpose"),HJ.setAttribute("placeholder","One-line description"),L.push(PJ(HJ,z.bar.createPurpose)),HJ.setAttribute("autocomplete","off"),LJ.appendChild(HJ),V.appendChild(LJ),j.appendChild(V);let hJ=document.createComment("if");j.appendChild(hJ),L.push(zJ(hJ));let _J=document.createElement("div");_J.setAttribute("class","cb-create-actions");let EJ=document.createElement("button");EJ.setAttribute("class","cb-create-submit"),EJ.setAttribute("type","button"),L.push(FJ(EJ,"disabled",()=>z.bar.createSubmitting()||!z.createNameValid())),L.push(e(EJ,"click",function(){let dJ=z.submitCreate;return typeof dJ==="function"?dJ.bind(void 0):()=>{}}(),{modifiers:[]}));let F0=document.createTextNode("");return EJ.appendChild(F0),L.push(VJ(F0,()=>z.bar.createSubmitting()?"Creating…":"Create "+z.currentSurfaceDef().label)),_J.appendChild(EJ),j.appendChild(_J),{nodes:Array.from(j.childNodes),cleanup:()=>{for(let dJ of L)try{dJ()}catch(VX){}}}},()=>{let j=document.createDocumentFragment(),L=[],W=document.createElement("div");W.setAttribute("class","cb-spawn-card");let Y=document.createElement("div");Y.setAttribute("class","cb-spawn-title");let K=document.createTextNode("Start a session");Y.appendChild(K),W.appendChild(Y);let N=document.createElement("div");N.setAttribute("class","cb-spawn-row");let V=document.createElement("label"),T=document.createTextNode("Agent");V.appendChild(T),N.appendChild(V);let M=document.createElement("select");M.setAttribute("class","cb-spawn-agent"),L.push(PJ(M,z.bar.spawnAgent));let U=document.createComment("if");M.appendChild(U),L.push(p(U)),N.appendChild(M),W.appendChild(N);let q=document.createElement("div");q.setAttribute("class","cb-spawn-row");let R=document.createElement("label"),D=document.createTextNode("Provider");R.appendChild(D),q.appendChild(R);let u=document.createElement("select");u.setAttribute("class","cb-spawn-provider"),L.push(PJ(u,z.bar.spawnProvider));let B=document.createComment("if");u.appendChild(B),L.push(QJ(B)),q.appendChild(u),W.appendChild(q);let YJ=document.createComment("if");W.appendChild(YJ),L.push(A(YJ));let LJ=document.createElement("button");LJ.setAttribute("class","cb-spawn-start"),LJ.setAttribute("type","button"),L.push(FJ(LJ,"disabled",()=>z.bar.spawning()||!z.bar.spawnAgent()||!z.bar.spawnProvider())),L.push(e(LJ,"click",function(){let qJ=z.spawnSession;return typeof qJ==="function"?qJ.bind(void 0):()=>{}}(),{modifiers:[]}));let NJ=document.createTextNode("");return LJ.appendChild(NJ),L.push(VJ(NJ,()=>z.bar.spawning()?"Starting…":"Start session")),W.appendChild(LJ),j.appendChild(W),{nodes:Array.from(j.childNodes),cleanup:()=>{for(let qJ of L)try{qJ()}catch(HJ){}}}}]}),P=Z.shadowRoot??Z;TJ(P);let S=document.createElement("div");S.setAttribute("class","cb-input-row");let r=document.createElement("span");r.setAttribute("class","cb-mode-glyph"),Q.push(AJ(r,"ai",()=>z.bar.mode()==="ai"));let o=document.createTextNode("");r.appendChild(o),Q.push(VJ(o,()=>z.modeGlyph())),S.appendChild(r);let s=document.createElement("input");s.setAttribute("class","cb-search"),s.setAttribute("type","text"),s.setAttribute("autocomplete","off"),s.setAttribute("spellcheck","false"),Q.push(FJ(s,"placeholder",()=>z.searchPlaceholder())),Q.push(PJ(s,z.bar.value)),s.setAttribute("aria-label","Command bar search"),s.setAttribute("aria-autocomplete","list"),Q.push(e(s,"input",function(){let E=z.onInput;return typeof E==="function"?E.bind(void 0):()=>{}}(),{modifiers:[]})),S.appendChild(s);let jJ=document.createElement("kbd");jJ.setAttribute("class","cb-esc"),jJ.setAttribute("aria-label","Escape to close");let kJ=document.createTextNode("esc");jJ.appendChild(kJ),S.appendChild(jJ);let v=document.createElement("div");v.setAttribute("class","cb-chip-wrap");let g=document.createElement("span");g.setAttribute("class","cb-session-chip"),g.setAttribute("role","button"),g.setAttribute("aria-haspopup","listbox"),Q.push(e(g,"click",function(){let E=z.toggleSessionPicker;return typeof E==="function"?E.bind(void 0):()=>{}}(),{modifiers:[]}));let m=document.createElement("span");m.setAttribute("class","cb-dot"),Q.push(h(()=>{let E=z.chipDotBg();if(E==null)m.style.removeProperty("background");else m.style.setProperty("background",String(E))})),g.appendChild(m);let b=document.createElement("span"),y=document.createTextNode("");b.appendChild(y),Q.push(VJ(y,()=>z.chipLabel())),g.appendChild(b),v.appendChild(g);let t=document.createComment("if");v.appendChild(t),Q.push(I(t)),S.appendChild(v),P.appendChild(S);let XJ=document.createElement("div");XJ.setAttribute("class","cb-body");let i=document.createComment("match");if(XJ.appendChild(i),Q.push(f(i)),P.appendChild(XJ),G!=null){let E=Object.getOwnPropertyDescriptor(G,"__shipSetLifecycle")?.value;if(E){let j=new Proxy(z,{get(L,W){return L[W]},set(L,W,Y){let K=L[W];if(K!=null&&typeof K.set==="function"){if(typeof Y==="function")K.set(()=>Y);else K.set(Y);return!0}return!1}});if(E.mount){let L=E.mount(j,Z);if(typeof L==="function")Q.push(L)}if(E.unmount)Q.push(()=>E.unmount(j))}}return z}});
+  const __wireBoundary_b9 = (anchor) => bindFor2({
+    anchor,
+    items: () => $scope.activeSessions(),
+    key: (s, __i) => {
+      const __child = Object.create($scope);
+      __child.s = s;
+      __child.__i = __i;
+      return (($scope2) => s.id)(__child);
+    },
+    render: (s, __i) => {
+      const __childScope16 = Object.create($scope);
+      __childScope16.s = s;
+      __childScope16.__i = __i;
+      __childScope16.__v = signal4(0);
+      return (($scope2) => {
+        const __frag17 = document.createDocumentFragment();
+        const __c18 = [];
+        const __e19 = document.createElement("div");
+        __e19.setAttribute("class", "cb-session-row");
+        __c18.push(bindClass2(__e19, "current", () => (void $scope2.__v(), $scope2.bar.session()?.id === $scope2.s.id)));
+        __e19.setAttribute("role", "option");
+        __c18.push(on3(__e19, "click", function() {
+          const __h = () => $scope2.selectSession($scope2.s.id);
+          return typeof __h === "function" ? __h.bind(undefined) : () => {};
+        }(), { modifiers: [] }));
+        const __e20 = document.createElement("span");
+        __e20.setAttribute("class", "cb-dot");
+        __c18.push(effect4(() => {
+          $scope2.__v();
+          const __v = $scope2.s.status === "thinking" ? "var(--warning,#d97706)" : "var(--success,#16a34a)";
+          if (__v == null)
+            __e20.style.removeProperty("background");
+          else
+            __e20.style.setProperty("background", String(__v));
+        }));
+        __e19.appendChild(__e20);
+        const __e21 = document.createElement("span");
+        const __e22 = document.createElement("strong");
+        const __t23 = document.createTextNode("");
+        __e22.appendChild(__t23);
+        __c18.push(bindText3(__t23, () => (void $scope2.__v(), $scope2.s.agent_id ?? "")));
+        __e21.appendChild(__e22);
+        const __e24 = document.createElement("span");
+        __e24.setAttribute("class", "meta");
+        const __t25 = document.createTextNode(" · ");
+        __e24.appendChild(__t25);
+        const __t26 = document.createTextNode("");
+        __e24.appendChild(__t26);
+        __c18.push(bindText3(__t26, () => (void $scope2.__v(), $scope2.s.provider ?? "")));
+        const __t27 = document.createTextNode(" · ");
+        __e24.appendChild(__t27);
+        const __t28 = document.createTextNode("");
+        __e24.appendChild(__t28);
+        __t28.textContent = $scope2.s.workspace_id;
+        __e21.appendChild(__e24);
+        __e19.appendChild(__e21);
+        const __e29 = document.createElement("button");
+        __e29.setAttribute("class", "cb-session-end");
+        __e29.setAttribute("type", "button");
+        __e29.setAttribute("aria-label", "End session");
+        __c18.push(on3(__e29, "click", function() {
+          const __h = (e) => {
+            e.stopPropagation();
+            $scope2.endSession($scope2.s.id);
+          };
+          return typeof __h === "function" ? __h.bind(undefined) : () => {};
+        }(), { modifiers: [] }));
+        const __t30 = document.createTextNode("×");
+        __e29.appendChild(__t30);
+        __e19.appendChild(__e29);
+        __frag17.appendChild(__e19);
+        return { nodes: Array.from(__frag17.childNodes), cleanup: () => {
+          for (const c of __c18)
+            try {
+              c();
+            } catch (e) {}
+        }, update: (__new31, __newI32) => {
+          $scope2.s = __new31;
+          $scope2.__i = __newI32;
+          __t28.textContent = $scope2.s.workspace_id;
+          $scope2.__v.set((c) => c + 1);
+        } };
+      })(__childScope16);
+    }
+  });
+  const __wireBoundary_b17 = (anchor) => bindIf3({
+    anchor,
+    test: () => {
+      if ($scope.activeSessions().length === 0)
+        return 0;
+      return -1;
+    },
+    branches: [
+      () => {
+        const __frag34 = document.createDocumentFragment();
+        const __c35 = [];
+        const __e36 = document.createElement("div");
+        __e36.setAttribute("class", "cb-session-row");
+        const __e37 = document.createElement("span");
+        __e36.appendChild(__e37);
+        const __e38 = document.createElement("span");
+        __e38.setAttribute("class", "meta");
+        const __t39 = document.createTextNode("No active sessions");
+        __e38.appendChild(__t39);
+        __e36.appendChild(__e38);
+        const __e40 = document.createElement("span");
+        __e36.appendChild(__e40);
+        __frag34.appendChild(__e36);
+        return { nodes: Array.from(__frag34.childNodes), cleanup: () => {
+          for (const c of __c35)
+            try {
+              c();
+            } catch (e) {}
+        } };
+      }
+    ]
+  });
+  const __wireBoundary_b8 = (anchor) => bindIf3({
+    anchor,
+    test: () => {
+      if ($scope.bar.sessionPickerOpen())
+        return 0;
+      return -1;
+    },
+    branches: [
+      () => {
+        const __frag12 = document.createDocumentFragment();
+        const __c13 = [];
+        const __e14 = document.createElement("div");
+        __e14.setAttribute("class", "cb-session-popover");
+        __e14.setAttribute("role", "listbox");
+        __e14.setAttribute("aria-label", "Sessions");
+        const __forAnchor15 = document.createComment("for");
+        __e14.appendChild(__forAnchor15);
+        __c13.push(__wireBoundary_b9(__forAnchor15));
+        const __ifAnchor33 = document.createComment("if");
+        __e14.appendChild(__ifAnchor33);
+        __c13.push(__wireBoundary_b17(__ifAnchor33));
+        const __e41 = document.createElement("div");
+        __e41.setAttribute("class", "cb-session-sep");
+        __e41.setAttribute("role", "separator");
+        __e14.appendChild(__e41);
+        const __e42 = document.createElement("div");
+        __e42.setAttribute("class", "cb-session-action");
+        __c13.push(on3(__e42, "click", function() {
+          const __h = $scope.startNewSession;
+          return typeof __h === "function" ? __h.bind(undefined) : () => {};
+        }(), { modifiers: [] }));
+        const __e43 = document.createElement("sui-icon");
+        __e43.setAttribute("name", "plus");
+        __e43.setAttribute("size", "sm");
+        __e43.setAttribute("aria-hidden", "true");
+        __e42.appendChild(__e43);
+        const __e44 = document.createElement("span");
+        const __t45 = document.createTextNode("Start new session");
+        __e44.appendChild(__t45);
+        __e42.appendChild(__e44);
+        __e14.appendChild(__e42);
+        const __e46 = document.createElement("div");
+        __e46.setAttribute("class", "cb-session-action");
+        __c13.push(on3(__e46, "click", function() {
+          const __h = $scope.viewChats;
+          return typeof __h === "function" ? __h.bind(undefined) : () => {};
+        }(), { modifiers: [] }));
+        const __e47 = document.createElement("sui-icon");
+        __e47.setAttribute("name", "columns");
+        __e47.setAttribute("size", "sm");
+        __e47.setAttribute("aria-hidden", "true");
+        __e46.appendChild(__e47);
+        const __e48 = document.createElement("span");
+        const __t49 = document.createTextNode("View all chats");
+        __e48.appendChild(__t49);
+        __e46.appendChild(__e48);
+        __e14.appendChild(__e46);
+        __frag12.appendChild(__e14);
+        return { nodes: Array.from(__frag12.childNodes), cleanup: () => {
+          for (const c of __c13)
+            try {
+              c();
+            } catch (e) {}
+        } };
+      }
+    ]
+  });
+  const __wireBoundary_b22 = (anchor) => bindFor2({
+    anchor,
+    items: () => $scope.findItems(),
+    key: (item, __i) => {
+      const __child = Object.create($scope);
+      __child.item = item;
+      __child.__i = __i;
+      return (($scope2) => item.path)(__child);
+    },
+    render: (item, __i) => {
+      const __childScope61 = Object.create($scope);
+      __childScope61.item = item;
+      __childScope61.__i = __i;
+      __childScope61.__v = signal4(0);
+      return (($scope2) => {
+        const __frag62 = document.createDocumentFragment();
+        const __c63 = [];
+        const __e64 = document.createElement("div");
+        __e64.setAttribute("class", "cb-item");
+        __e64.setAttribute("role", "option");
+        __c63.push(bindAttr2(__e64, "aria-selected", () => (void $scope2.__v(), $scope2.bar.selectedIdx() === $scope2.item.idx ? "true" : "false")));
+        {
+          const __av65 = $scope2.item.path;
+          if (__av65 == null || __av65 === false || __av65 === "")
+            __e64.removeAttribute("data-path");
+          else
+            __e64.setAttribute("data-path", __av65 === true ? "" : String(__av65));
+        }
+        __c63.push(on3(__e64, "click", function() {
+          const __h = () => $scope2.activateNavItem($scope2.item.path);
+          return typeof __h === "function" ? __h.bind(undefined) : () => {};
+        }(), { modifiers: [] }));
+        const __e66 = document.createElement("sui-icon");
+        {
+          const __av67 = $scope2.item.icon;
+          if (__av67 == null || __av67 === false || __av67 === "")
+            __e66.removeAttribute("name");
+          else
+            __e66.setAttribute("name", __av67 === true ? "" : String(__av67));
+        }
+        __e66.setAttribute("size", "sm");
+        __e66.setAttribute("aria-hidden", "true");
+        __e64.appendChild(__e66);
+        const __e68 = document.createElement("span");
+        const __t69 = document.createTextNode("");
+        __e68.appendChild(__t69);
+        __t69.textContent = $scope2.item.label;
+        __e64.appendChild(__e68);
+        const __e70 = document.createElement("span");
+        __e70.setAttribute("class", "hint");
+        const __t71 = document.createTextNode("");
+        __e70.appendChild(__t71);
+        __t71.textContent = $scope2.item.path;
+        __e64.appendChild(__e70);
+        __frag62.appendChild(__e64);
+        return { nodes: Array.from(__frag62.childNodes), cleanup: () => {
+          for (const c of __c63)
+            try {
+              c();
+            } catch (e) {}
+        }, update: (__new72, __newI73) => {
+          $scope2.item = __new72;
+          $scope2.__i = __newI73;
+          {
+            const __av65 = $scope2.item.path;
+            if (__av65 == null || __av65 === false || __av65 === "")
+              __e64.removeAttribute("data-path");
+            else
+              __e64.setAttribute("data-path", __av65 === true ? "" : String(__av65));
+          }
+          {
+            const __av67 = $scope2.item.icon;
+            if (__av67 == null || __av67 === false || __av67 === "")
+              __e66.removeAttribute("name");
+            else
+              __e66.setAttribute("name", __av67 === true ? "" : String(__av67));
+          }
+          __t69.textContent = $scope2.item.label;
+          __t71.textContent = $scope2.item.path;
+          $scope2.__v.set((c) => c + 1);
+        } };
+      })(__childScope61);
+    }
+  });
+  const __wireBoundary_b21 = (anchor) => bindIf3({
+    anchor,
+    test: () => {
+      if ($scope.findItems().length > 0)
+        return 0;
+      return -1;
+    },
+    branches: [
+      () => {
+        const __frag55 = document.createDocumentFragment();
+        const __c56 = [];
+        const __e57 = document.createElement("div");
+        __e57.setAttribute("class", "cb-mode-hint");
+        const __t58 = document.createTextNode("Jump to");
+        __e57.appendChild(__t58);
+        __frag55.appendChild(__e57);
+        const __e59 = document.createElement("div");
+        __e59.setAttribute("class", "cb-list");
+        __e59.setAttribute("role", "listbox");
+        const __forAnchor60 = document.createComment("for");
+        __e59.appendChild(__forAnchor60);
+        __c56.push(__wireBoundary_b22(__forAnchor60));
+        __frag55.appendChild(__e59);
+        return { nodes: Array.from(__frag55.childNodes), cleanup: () => {
+          for (const c of __c56)
+            try {
+              c();
+            } catch (e) {}
+        } };
+      }
+    ]
+  });
+  const __wireBoundary_b30 = (anchor) => bindFor2({
+    anchor,
+    items: () => $scope.viewItems(),
+    key: (item, __i) => {
+      const __child = Object.create($scope);
+      __child.item = item;
+      __child.__i = __i;
+      return (($scope2) => item.path)(__child);
+    },
+    render: (item, __i) => {
+      const __childScope81 = Object.create($scope);
+      __childScope81.item = item;
+      __childScope81.__i = __i;
+      __childScope81.__v = signal4(0);
+      return (($scope2) => {
+        const __frag82 = document.createDocumentFragment();
+        const __c83 = [];
+        const __e84 = document.createElement("div");
+        __e84.setAttribute("class", "cb-item");
+        __e84.setAttribute("role", "option");
+        __c83.push(bindAttr2(__e84, "aria-selected", () => (void $scope2.__v(), $scope2.bar.selectedIdx() === $scope2.item.idx ? "true" : "false")));
+        {
+          const __av85 = $scope2.item.path;
+          if (__av85 == null || __av85 === false || __av85 === "")
+            __e84.removeAttribute("data-path");
+          else
+            __e84.setAttribute("data-path", __av85 === true ? "" : String(__av85));
+        }
+        __c83.push(on3(__e84, "click", function() {
+          const __h = () => $scope2.activateNavItem($scope2.item.path);
+          return typeof __h === "function" ? __h.bind(undefined) : () => {};
+        }(), { modifiers: [] }));
+        const __e86 = document.createElement("sui-icon");
+        {
+          const __av87 = $scope2.item.icon;
+          if (__av87 == null || __av87 === false || __av87 === "")
+            __e86.removeAttribute("name");
+          else
+            __e86.setAttribute("name", __av87 === true ? "" : String(__av87));
+        }
+        __e86.setAttribute("size", "sm");
+        __e86.setAttribute("aria-hidden", "true");
+        __e84.appendChild(__e86);
+        const __e88 = document.createElement("span");
+        const __t89 = document.createTextNode("");
+        __e88.appendChild(__t89);
+        __t89.textContent = $scope2.item.label;
+        __e84.appendChild(__e88);
+        const __e90 = document.createElement("span");
+        __e90.setAttribute("class", "hint");
+        const __t91 = document.createTextNode("");
+        __e90.appendChild(__t91);
+        __t91.textContent = $scope2.item.path;
+        __e84.appendChild(__e90);
+        __frag82.appendChild(__e84);
+        return { nodes: Array.from(__frag82.childNodes), cleanup: () => {
+          for (const c of __c83)
+            try {
+              c();
+            } catch (e) {}
+        }, update: (__new92, __newI93) => {
+          $scope2.item = __new92;
+          $scope2.__i = __newI93;
+          {
+            const __av85 = $scope2.item.path;
+            if (__av85 == null || __av85 === false || __av85 === "")
+              __e84.removeAttribute("data-path");
+            else
+              __e84.setAttribute("data-path", __av85 === true ? "" : String(__av85));
+          }
+          {
+            const __av87 = $scope2.item.icon;
+            if (__av87 == null || __av87 === false || __av87 === "")
+              __e86.removeAttribute("name");
+            else
+              __e86.setAttribute("name", __av87 === true ? "" : String(__av87));
+          }
+          __t89.textContent = $scope2.item.label;
+          __t91.textContent = $scope2.item.path;
+          $scope2.__v.set((c) => c + 1);
+        } };
+      })(__childScope81);
+    }
+  });
+  const __wireBoundary_b29 = (anchor) => bindIf3({
+    anchor,
+    test: () => {
+      if ($scope.viewItems().length > 0)
+        return 0;
+      return -1;
+    },
+    branches: [
+      () => {
+        const __frag75 = document.createDocumentFragment();
+        const __c76 = [];
+        const __e77 = document.createElement("div");
+        __e77.setAttribute("class", "cb-mode-hint");
+        const __t78 = document.createTextNode("Views");
+        __e77.appendChild(__t78);
+        __frag75.appendChild(__e77);
+        const __e79 = document.createElement("div");
+        __e79.setAttribute("class", "cb-list");
+        __e79.setAttribute("role", "listbox");
+        const __forAnchor80 = document.createComment("for");
+        __e79.appendChild(__forAnchor80);
+        __c76.push(__wireBoundary_b30(__forAnchor80));
+        __frag75.appendChild(__e79);
+        return { nodes: Array.from(__frag75.childNodes), cleanup: () => {
+          for (const c of __c76)
+            try {
+              c();
+            } catch (e) {}
+        } };
+      }
+    ]
+  });
+  const __wireBoundary_b37 = (anchor) => bindIf3({
+    anchor,
+    test: () => {
+      if ($scope.findItems().length === 0 && $scope.viewItems().length === 0)
+        return 0;
+      return -1;
+    },
+    branches: [
+      () => {
+        const __frag95 = document.createDocumentFragment();
+        const __c96 = [];
+        const __e97 = document.createElement("div");
+        __e97.setAttribute("class", "cb-empty");
+        const __t98 = document.createTextNode("No matches.");
+        __e97.appendChild(__t98);
+        __frag95.appendChild(__e97);
+        return { nodes: Array.from(__frag95.childNodes), cleanup: () => {
+          for (const c of __c96)
+            try {
+              c();
+            } catch (e) {}
+        } };
+      }
+    ]
+  });
+  const __wireBoundary_b39 = (anchor) => bindFor2({
+    anchor,
+    items: () => $scope.cmdItems(),
+    key: (item, __i) => {
+      const __child = Object.create($scope);
+      __child.item = item;
+      __child.__i = __i;
+      return (($scope2) => item.key)(__child);
+    },
+    render: (item, __i) => {
+      const __childScope108 = Object.create($scope);
+      __childScope108.item = item;
+      __childScope108.__i = __i;
+      __childScope108.__v = signal4(0);
+      return (($scope2) => {
+        const __frag109 = document.createDocumentFragment();
+        const __c110 = [];
+        const __e111 = document.createElement("div");
+        __e111.setAttribute("class", "cb-item");
+        __e111.setAttribute("role", "option");
+        __c110.push(bindAttr2(__e111, "aria-selected", () => (void $scope2.__v(), $scope2.bar.selectedIdx() === $scope2.item.idx ? "true" : "false")));
+        {
+          const __av112 = $scope2.item.key;
+          if (__av112 == null || __av112 === false || __av112 === "")
+            __e111.removeAttribute("data-cmd");
+          else
+            __e111.setAttribute("data-cmd", __av112 === true ? "" : String(__av112));
+        }
+        __c110.push(on3(__e111, "click", function() {
+          const __h = () => $scope2.activateCmd($scope2.item.key);
+          return typeof __h === "function" ? __h.bind(undefined) : () => {};
+        }(), { modifiers: [] }));
+        const __e113 = document.createElement("span");
+        __e113.setAttribute("style", "font-family:var(--font-mono)");
+        const __t114 = document.createTextNode("");
+        __e113.appendChild(__t114);
+        __t114.textContent = $scope2.item.label;
+        __e111.appendChild(__e113);
+        const __e115 = document.createElement("span");
+        __e111.appendChild(__e115);
+        const __e116 = document.createElement("span");
+        __e116.setAttribute("class", "hint");
+        const __t117 = document.createTextNode("");
+        __e116.appendChild(__t117);
+        __t117.textContent = $scope2.item.hint;
+        __e111.appendChild(__e116);
+        __frag109.appendChild(__e111);
+        return { nodes: Array.from(__frag109.childNodes), cleanup: () => {
+          for (const c of __c110)
+            try {
+              c();
+            } catch (e) {}
+        }, update: (__new118, __newI119) => {
+          $scope2.item = __new118;
+          $scope2.__i = __newI119;
+          {
+            const __av112 = $scope2.item.key;
+            if (__av112 == null || __av112 === false || __av112 === "")
+              __e111.removeAttribute("data-cmd");
+            else
+              __e111.setAttribute("data-cmd", __av112 === true ? "" : String(__av112));
+          }
+          __t114.textContent = $scope2.item.label;
+          __t117.textContent = $scope2.item.hint;
+          $scope2.__v.set((c) => c + 1);
+        } };
+      })(__childScope108);
+    }
+  });
+  const __wireBoundary_b38 = (anchor) => bindIf3({
+    anchor,
+    test: () => {
+      if ($scope.cmdItems().length > 0)
+        return 0;
+      return 1;
+    },
+    branches: [
+      () => {
+        const __frag102 = document.createDocumentFragment();
+        const __c103 = [];
+        const __e104 = document.createElement("div");
+        __e104.setAttribute("class", "cb-mode-hint");
+        const __t105 = document.createTextNode("Actions");
+        __e104.appendChild(__t105);
+        __frag102.appendChild(__e104);
+        const __e106 = document.createElement("div");
+        __e106.setAttribute("class", "cb-list");
+        __e106.setAttribute("role", "listbox");
+        const __forAnchor107 = document.createComment("for");
+        __e106.appendChild(__forAnchor107);
+        __c103.push(__wireBoundary_b39(__forAnchor107));
+        __frag102.appendChild(__e106);
+        return { nodes: Array.from(__frag102.childNodes), cleanup: () => {
+          for (const c of __c103)
+            try {
+              c();
+            } catch (e) {}
+        } };
+      },
+      () => {
+        const __frag120 = document.createDocumentFragment();
+        const __c121 = [];
+        const __e122 = document.createElement("div");
+        __e122.setAttribute("class", "cb-empty");
+        const __t123 = document.createTextNode("No commands match.");
+        __e122.appendChild(__t123);
+        __frag120.appendChild(__e122);
+        return { nodes: Array.from(__frag120.childNodes), cleanup: () => {
+          for (const c of __c121)
+            try {
+              c();
+            } catch (e) {}
+        } };
+      }
+    ]
+  });
+  const __wireBoundary_b46 = (anchor) => bindFor2({
+    anchor,
+    items: () => $scope.mentionItems(),
+    key: (item, __i) => {
+      const __child = Object.create($scope);
+      __child.item = item;
+      __child.__i = __i;
+      return (($scope2) => item.id + item.kind)(__child);
+    },
+    render: (item, __i) => {
+      const __childScope133 = Object.create($scope);
+      __childScope133.item = item;
+      __childScope133.__i = __i;
+      __childScope133.__v = signal4(0);
+      return (($scope2) => {
+        const __frag134 = document.createDocumentFragment();
+        const __c135 = [];
+        const __e136 = document.createElement("div");
+        __e136.setAttribute("class", "cb-item");
+        __e136.setAttribute("role", "option");
+        __c135.push(bindAttr2(__e136, "aria-selected", () => (void $scope2.__v(), $scope2.bar.selectedIdx() === $scope2.item.idx ? "true" : "false")));
+        {
+          const __av137 = $scope2.item.kind;
+          if (__av137 == null || __av137 === false || __av137 === "")
+            __e136.removeAttribute("data-mention-kind");
+          else
+            __e136.setAttribute("data-mention-kind", __av137 === true ? "" : String(__av137));
+        }
+        {
+          const __av138 = $scope2.item.id;
+          if (__av138 == null || __av138 === false || __av138 === "")
+            __e136.removeAttribute("data-mention-id");
+          else
+            __e136.setAttribute("data-mention-id", __av138 === true ? "" : String(__av138));
+        }
+        __c135.push(on3(__e136, "click", function() {
+          const __h = () => $scope2.activateMention($scope2.item);
+          return typeof __h === "function" ? __h.bind(undefined) : () => {};
+        }(), { modifiers: [] }));
+        const __e139 = document.createElement("sui-icon");
+        {
+          const __av140 = $scope2.item.icon;
+          if (__av140 == null || __av140 === false || __av140 === "")
+            __e139.removeAttribute("name");
+          else
+            __e139.setAttribute("name", __av140 === true ? "" : String(__av140));
+        }
+        __e139.setAttribute("size", "sm");
+        __e139.setAttribute("aria-hidden", "true");
+        __e136.appendChild(__e139);
+        const __e141 = document.createElement("span");
+        const __t142 = document.createTextNode("");
+        __e141.appendChild(__t142);
+        __t142.textContent = $scope2.item.label;
+        __e136.appendChild(__e141);
+        const __e143 = document.createElement("span");
+        __e143.setAttribute("class", "hint");
+        const __t144 = document.createTextNode("");
+        __e143.appendChild(__t144);
+        __t144.textContent = $scope2.item.kind;
+        __e136.appendChild(__e143);
+        __frag134.appendChild(__e136);
+        return { nodes: Array.from(__frag134.childNodes), cleanup: () => {
+          for (const c of __c135)
+            try {
+              c();
+            } catch (e) {}
+        }, update: (__new145, __newI146) => {
+          $scope2.item = __new145;
+          $scope2.__i = __newI146;
+          {
+            const __av137 = $scope2.item.kind;
+            if (__av137 == null || __av137 === false || __av137 === "")
+              __e136.removeAttribute("data-mention-kind");
+            else
+              __e136.setAttribute("data-mention-kind", __av137 === true ? "" : String(__av137));
+          }
+          {
+            const __av138 = $scope2.item.id;
+            if (__av138 == null || __av138 === false || __av138 === "")
+              __e136.removeAttribute("data-mention-id");
+            else
+              __e136.setAttribute("data-mention-id", __av138 === true ? "" : String(__av138));
+          }
+          {
+            const __av140 = $scope2.item.icon;
+            if (__av140 == null || __av140 === false || __av140 === "")
+              __e139.removeAttribute("name");
+            else
+              __e139.setAttribute("name", __av140 === true ? "" : String(__av140));
+          }
+          __t142.textContent = $scope2.item.label;
+          __t144.textContent = $scope2.item.kind;
+          $scope2.__v.set((c) => c + 1);
+        } };
+      })(__childScope133);
+    }
+  });
+  const __wireBoundary_b45 = (anchor) => bindIf3({
+    anchor,
+    test: () => {
+      if ($scope.mentionItems().length > 0)
+        return 0;
+      return 1;
+    },
+    branches: [
+      () => {
+        const __frag127 = document.createDocumentFragment();
+        const __c128 = [];
+        const __e129 = document.createElement("div");
+        __e129.setAttribute("class", "cb-mode-hint");
+        const __t130 = document.createTextNode("Reference");
+        __e129.appendChild(__t130);
+        __frag127.appendChild(__e129);
+        const __e131 = document.createElement("div");
+        __e131.setAttribute("class", "cb-list");
+        __e131.setAttribute("role", "listbox");
+        const __forAnchor132 = document.createComment("for");
+        __e131.appendChild(__forAnchor132);
+        __c128.push(__wireBoundary_b46(__forAnchor132));
+        __frag127.appendChild(__e131);
+        return { nodes: Array.from(__frag127.childNodes), cleanup: () => {
+          for (const c of __c128)
+            try {
+              c();
+            } catch (e) {}
+        } };
+      },
+      () => {
+        const __frag147 = document.createDocumentFragment();
+        const __c148 = [];
+        const __e149 = document.createElement("div");
+        __e149.setAttribute("class", "cb-empty");
+        const __t150 = document.createTextNode("No matching views or agents.");
+        __e149.appendChild(__t150);
+        __frag147.appendChild(__e149);
+        return { nodes: Array.from(__frag147.childNodes), cleanup: () => {
+          for (const c of __c148)
+            try {
+              c();
+            } catch (e) {}
+        } };
+      }
+    ]
+  });
+  const __wireBoundary_b54 = (anchor) => bindFor2({
+    anchor,
+    items: () => $scope.createSurfaces(),
+    key: (surf, __i) => {
+      const __child = Object.create($scope);
+      __child.surf = surf;
+      __child.__i = __i;
+      return (($scope2) => surf.id)(__child);
+    },
+    render: (surf, __i) => {
+      const __childScope157 = Object.create($scope);
+      __childScope157.surf = surf;
+      __childScope157.__i = __i;
+      __childScope157.__v = signal4(0);
+      return (($scope2) => {
+        const __frag158 = document.createDocumentFragment();
+        const __c159 = [];
+        const __e160 = document.createElement("button");
+        __e160.setAttribute("class", "cb-surface-btn");
+        __e160.setAttribute("type", "button");
+        __c159.push(bindAttr2(__e160, "aria-pressed", () => (void $scope2.__v(), $scope2.bar.createSurface() === $scope2.surf.id ? "true" : "false")));
+        __c159.push(on3(__e160, "click", function() {
+          const __h = () => $scope2.selectSurface($scope2.surf.id);
+          return typeof __h === "function" ? __h.bind(undefined) : () => {};
+        }(), { modifiers: [] }));
+        const __e161 = document.createElement("sui-icon");
+        {
+          const __av162 = $scope2.surf.icon;
+          if (__av162 == null || __av162 === false || __av162 === "")
+            __e161.removeAttribute("name");
+          else
+            __e161.setAttribute("name", __av162 === true ? "" : String(__av162));
+        }
+        __e161.setAttribute("aria-hidden", "true");
+        __e160.appendChild(__e161);
+        const __e163 = document.createElement("span");
+        const __t164 = document.createTextNode("");
+        __e163.appendChild(__t164);
+        __t164.textContent = $scope2.surf.label;
+        __e160.appendChild(__e163);
+        __frag158.appendChild(__e160);
+        return { nodes: Array.from(__frag158.childNodes), cleanup: () => {
+          for (const c of __c159)
+            try {
+              c();
+            } catch (e) {}
+        }, update: (__new165, __newI166) => {
+          $scope2.surf = __new165;
+          $scope2.__i = __newI166;
+          {
+            const __av162 = $scope2.surf.icon;
+            if (__av162 == null || __av162 === false || __av162 === "")
+              __e161.removeAttribute("name");
+            else
+              __e161.setAttribute("name", __av162 === true ? "" : String(__av162));
+          }
+          __t164.textContent = $scope2.surf.label;
+          $scope2.__v.set((c) => c + 1);
+        } };
+      })(__childScope157);
+    }
+  });
+  const __wireBoundary_b63 = (anchor) => bindFor2({
+    anchor,
+    items: () => $scope.currentSurfaceDef().shapes,
+    key: (sh, __i) => {
+      const __child = Object.create($scope);
+      __child.sh = sh;
+      __child.__i = __i;
+      return (($scope2) => sh)(__child);
+    },
+    render: (sh, __i) => {
+      const __childScope177 = Object.create($scope);
+      __childScope177.sh = sh;
+      __childScope177.__i = __i;
+      __childScope177.__v = signal4(0);
+      return (($scope2) => {
+        const __frag178 = document.createDocumentFragment();
+        const __c179 = [];
+        const __e180 = document.createElement("option");
+        {
+          const __av181 = $scope2.sh;
+          if (__av181 == null || __av181 === false || __av181 === "")
+            __e180.removeAttribute("value");
+          else
+            __e180.setAttribute("value", __av181 === true ? "" : String(__av181));
+        }
+        const __t182 = document.createTextNode("");
+        __e180.appendChild(__t182);
+        __t182.textContent = $scope2.sh;
+        __frag178.appendChild(__e180);
+        return { nodes: Array.from(__frag178.childNodes), cleanup: () => {
+          for (const c of __c179)
+            try {
+              c();
+            } catch (e) {}
+        }, update: (__new183, __newI184) => {
+          $scope2.sh = __new183;
+          $scope2.__i = __newI184;
+          {
+            const __av181 = $scope2.sh;
+            if (__av181 == null || __av181 === false || __av181 === "")
+              __e180.removeAttribute("value");
+            else
+              __e180.setAttribute("value", __av181 === true ? "" : String(__av181));
+          }
+          __t182.textContent = $scope2.sh;
+          $scope2.__v.set((c) => c + 1);
+        } };
+      })(__childScope177);
+    }
+  });
+  const __wireBoundary_b67 = (anchor) => bindIf3({
+    anchor,
+    test: () => {
+      if ($scope.bar.createError())
+        return 0;
+      return -1;
+    },
+    branches: [
+      () => {
+        const __frag190 = document.createDocumentFragment();
+        const __c191 = [];
+        const __e192 = document.createElement("div");
+        __e192.setAttribute("class", "cb-create-error");
+        const __t193 = document.createTextNode("");
+        __e192.appendChild(__t193);
+        __c191.push(bindText3(__t193, () => $scope.bar.createError()));
+        __frag190.appendChild(__e192);
+        return { nodes: Array.from(__frag190.childNodes), cleanup: () => {
+          for (const c of __c191)
+            try {
+              c();
+            } catch (e) {}
+        } };
+      }
+    ]
+  });
+  const __wireBoundary_b74 = (anchor) => bindFor2({
+    anchor,
+    items: () => $scope.bar.agents(),
+    key: (a, __i) => {
+      const __child = Object.create($scope);
+      __child.a = a;
+      __child.__i = __i;
+      return (($scope2) => a.id)(__child);
+    },
+    render: (a, __i) => {
+      const __childScope214 = Object.create($scope);
+      __childScope214.a = a;
+      __childScope214.__i = __i;
+      __childScope214.__v = signal4(0);
+      return (($scope2) => {
+        const __frag215 = document.createDocumentFragment();
+        const __c216 = [];
+        const __e217 = document.createElement("option");
+        {
+          const __av218 = $scope2.a.id;
+          if (__av218 == null || __av218 === false || __av218 === "")
+            __e217.removeAttribute("value");
+          else
+            __e217.setAttribute("value", __av218 === true ? "" : String(__av218));
+        }
+        const __t219 = document.createTextNode("");
+        __e217.appendChild(__t219);
+        __c216.push(bindText3(__t219, () => (void $scope2.__v(), $scope2.a.name ?? $scope2.a.label ?? $scope2.a.id)));
+        __frag215.appendChild(__e217);
+        return { nodes: Array.from(__frag215.childNodes), cleanup: () => {
+          for (const c of __c216)
+            try {
+              c();
+            } catch (e) {}
+        }, update: (__new220, __newI221) => {
+          $scope2.a = __new220;
+          $scope2.__i = __newI221;
+          {
+            const __av218 = $scope2.a.id;
+            if (__av218 == null || __av218 === false || __av218 === "")
+              __e217.removeAttribute("value");
+            else
+              __e217.setAttribute("value", __av218 === true ? "" : String(__av218));
+          }
+          $scope2.__v.set((c) => c + 1);
+        } };
+      })(__childScope214);
+    }
+  });
+  const __wireBoundary_b73 = (anchor) => bindIf3({
+    anchor,
+    test: () => {
+      if ($scope.bar.agents().length === 0)
+        return 0;
+      return 1;
+    },
+    branches: [
+      () => {
+        const __frag207 = document.createDocumentFragment();
+        const __c208 = [];
+        const __e209 = document.createElement("option");
+        __e209.setAttribute("value", "");
+        const __t210 = document.createTextNode("No agents found");
+        __e209.appendChild(__t210);
+        __frag207.appendChild(__e209);
+        return { nodes: Array.from(__frag207.childNodes), cleanup: () => {
+          for (const c of __c208)
+            try {
+              c();
+            } catch (e) {}
+        } };
+      },
+      () => {
+        const __frag211 = document.createDocumentFragment();
+        const __c212 = [];
+        const __forAnchor213 = document.createComment("for");
+        __frag211.appendChild(__forAnchor213);
+        __c212.push(__wireBoundary_b74(__forAnchor213));
+        return { nodes: Array.from(__frag211.childNodes), cleanup: () => {
+          for (const c of __c212)
+            try {
+              c();
+            } catch (e) {}
+        } };
+      }
+    ]
+  });
+  const __wireBoundary_b79 = (anchor) => bindFor2({
+    anchor,
+    items: () => $scope.bar.providers(),
+    key: (p, __i) => {
+      const __child = Object.create($scope);
+      __child.p = p;
+      __child.__i = __i;
+      return (($scope2) => p)(__child);
+    },
+    render: (p, __i) => {
+      const __childScope234 = Object.create($scope);
+      __childScope234.p = p;
+      __childScope234.__i = __i;
+      __childScope234.__v = signal4(0);
+      return (($scope2) => {
+        const __frag235 = document.createDocumentFragment();
+        const __c236 = [];
+        const __e237 = document.createElement("option");
+        {
+          const __av238 = $scope2.p;
+          if (__av238 == null || __av238 === false || __av238 === "")
+            __e237.removeAttribute("value");
+          else
+            __e237.setAttribute("value", __av238 === true ? "" : String(__av238));
+        }
+        const __t239 = document.createTextNode("");
+        __e237.appendChild(__t239);
+        __t239.textContent = $scope2.p;
+        __frag235.appendChild(__e237);
+        return { nodes: Array.from(__frag235.childNodes), cleanup: () => {
+          for (const c of __c236)
+            try {
+              c();
+            } catch (e) {}
+        }, update: (__new240, __newI241) => {
+          $scope2.p = __new240;
+          $scope2.__i = __newI241;
+          {
+            const __av238 = $scope2.p;
+            if (__av238 == null || __av238 === false || __av238 === "")
+              __e237.removeAttribute("value");
+            else
+              __e237.setAttribute("value", __av238 === true ? "" : String(__av238));
+          }
+          __t239.textContent = $scope2.p;
+          $scope2.__v.set((c) => c + 1);
+        } };
+      })(__childScope234);
+    }
+  });
+  const __wireBoundary_b78 = (anchor) => bindIf3({
+    anchor,
+    test: () => {
+      if ($scope.bar.providers().length === 0)
+        return 0;
+      return 1;
+    },
+    branches: [
+      () => {
+        const __frag227 = document.createDocumentFragment();
+        const __c228 = [];
+        const __e229 = document.createElement("option");
+        __e229.setAttribute("value", "");
+        const __t230 = document.createTextNode("No providers installed");
+        __e229.appendChild(__t230);
+        __frag227.appendChild(__e229);
+        return { nodes: Array.from(__frag227.childNodes), cleanup: () => {
+          for (const c of __c228)
+            try {
+              c();
+            } catch (e) {}
+        } };
+      },
+      () => {
+        const __frag231 = document.createDocumentFragment();
+        const __c232 = [];
+        const __forAnchor233 = document.createComment("for");
+        __frag231.appendChild(__forAnchor233);
+        __c232.push(__wireBoundary_b79(__forAnchor233));
+        return { nodes: Array.from(__frag231.childNodes), cleanup: () => {
+          for (const c of __c232)
+            try {
+              c();
+            } catch (e) {}
+        } };
+      }
+    ]
+  });
+  const __wireBoundary_b82 = (anchor) => bindIf3({
+    anchor,
+    test: () => {
+      if ($scope.bar.spawnError())
+        return 0;
+      return -1;
+    },
+    branches: [
+      () => {
+        const __frag243 = document.createDocumentFragment();
+        const __c244 = [];
+        const __e245 = document.createElement("div");
+        __e245.setAttribute("class", "cb-spawn-error");
+        const __t246 = document.createTextNode("");
+        __e245.appendChild(__t246);
+        __c244.push(bindText3(__t246, () => $scope.bar.spawnError()));
+        __frag243.appendChild(__e245);
+        return { nodes: Array.from(__frag243.childNodes), cleanup: () => {
+          for (const c of __c244)
+            try {
+              c();
+            } catch (e) {}
+        } };
+      }
+    ]
+  });
+  const __wireBoundary_b20 = (anchor) => bindIf3({
+    anchor,
+    test: () => {
+      const __d = $scope.bar.mode();
+      if (__d === "find")
+        return 0;
+      if (__d === "command")
+        return 1;
+      if (__d === "mention")
+        return 2;
+      if (__d === "create")
+        return 3;
+      return 4;
+    },
+    branches: [
+      () => {
+        const __frag52 = document.createDocumentFragment();
+        const __c53 = [];
+        const __ifAnchor54 = document.createComment("if");
+        __frag52.appendChild(__ifAnchor54);
+        __c53.push(__wireBoundary_b21(__ifAnchor54));
+        const __ifAnchor74 = document.createComment("if");
+        __frag52.appendChild(__ifAnchor74);
+        __c53.push(__wireBoundary_b29(__ifAnchor74));
+        const __ifAnchor94 = document.createComment("if");
+        __frag52.appendChild(__ifAnchor94);
+        __c53.push(__wireBoundary_b37(__ifAnchor94));
+        return { nodes: Array.from(__frag52.childNodes), cleanup: () => {
+          for (const c of __c53)
+            try {
+              c();
+            } catch (e) {}
+        } };
+      },
+      () => {
+        const __frag99 = document.createDocumentFragment();
+        const __c100 = [];
+        const __ifAnchor101 = document.createComment("if");
+        __frag99.appendChild(__ifAnchor101);
+        __c100.push(__wireBoundary_b38(__ifAnchor101));
+        return { nodes: Array.from(__frag99.childNodes), cleanup: () => {
+          for (const c of __c100)
+            try {
+              c();
+            } catch (e) {}
+        } };
+      },
+      () => {
+        const __frag124 = document.createDocumentFragment();
+        const __c125 = [];
+        const __ifAnchor126 = document.createComment("if");
+        __frag124.appendChild(__ifAnchor126);
+        __c125.push(__wireBoundary_b45(__ifAnchor126));
+        return { nodes: Array.from(__frag124.childNodes), cleanup: () => {
+          for (const c of __c125)
+            try {
+              c();
+            } catch (e) {}
+        } };
+      },
+      () => {
+        const __frag151 = document.createDocumentFragment();
+        const __c152 = [];
+        const __e153 = document.createElement("div");
+        __e153.setAttribute("class", "cb-mode-hint");
+        const __t154 = document.createTextNode("Create");
+        __e153.appendChild(__t154);
+        __frag151.appendChild(__e153);
+        const __e155 = document.createElement("div");
+        __e155.setAttribute("class", "cb-create-surfaces");
+        __e155.setAttribute("role", "group");
+        __e155.setAttribute("aria-label", "Surface type");
+        const __forAnchor156 = document.createComment("for");
+        __e155.appendChild(__forAnchor156);
+        __c152.push(__wireBoundary_b54(__forAnchor156));
+        __frag151.appendChild(__e155);
+        const __e167 = document.createElement("div");
+        __e167.setAttribute("class", "cb-create-grid");
+        const __e168 = document.createElement("label");
+        const __e169 = document.createElement("span");
+        const __t170 = document.createTextNode("Name (kebab-case)");
+        __e169.appendChild(__t170);
+        __e168.appendChild(__e169);
+        const __e171 = document.createElement("input");
+        __e171.setAttribute("type", "text");
+        __e171.setAttribute("class", "cb-create-name");
+        __c152.push(bindAttr2(__e171, "placeholder", () => "my-" + $scope.bar.createSurface()));
+        __c152.push(bindValue2(__e171, $scope.bar.createName));
+        __e171.setAttribute("autocomplete", "off");
+        __e168.appendChild(__e171);
+        __e167.appendChild(__e168);
+        const __e172 = document.createElement("label");
+        const __e173 = document.createElement("span");
+        const __t174 = document.createTextNode("");
+        __e173.appendChild(__t174);
+        __c152.push(bindText3(__t174, () => $scope.currentSurfaceDef().shapeLabel));
+        __e172.appendChild(__e173);
+        const __e175 = document.createElement("select");
+        __e175.setAttribute("class", "cb-create-shape");
+        __c152.push(bindValue2(__e175, $scope.bar.createShape));
+        const __forAnchor176 = document.createComment("for");
+        __e175.appendChild(__forAnchor176);
+        __c152.push(__wireBoundary_b63(__forAnchor176));
+        __e172.appendChild(__e175);
+        __e167.appendChild(__e172);
+        const __e185 = document.createElement("label");
+        __e185.setAttribute("class", "span-2");
+        const __e186 = document.createElement("span");
+        const __t187 = document.createTextNode("Purpose (optional)");
+        __e186.appendChild(__t187);
+        __e185.appendChild(__e186);
+        const __e188 = document.createElement("input");
+        __e188.setAttribute("type", "text");
+        __e188.setAttribute("class", "cb-create-purpose");
+        __e188.setAttribute("placeholder", "One-line description");
+        __c152.push(bindValue2(__e188, $scope.bar.createPurpose));
+        __e188.setAttribute("autocomplete", "off");
+        __e185.appendChild(__e188);
+        __e167.appendChild(__e185);
+        __frag151.appendChild(__e167);
+        const __ifAnchor189 = document.createComment("if");
+        __frag151.appendChild(__ifAnchor189);
+        __c152.push(__wireBoundary_b67(__ifAnchor189));
+        const __e194 = document.createElement("div");
+        __e194.setAttribute("class", "cb-create-actions");
+        const __e195 = document.createElement("button");
+        __e195.setAttribute("class", "cb-create-submit");
+        __e195.setAttribute("type", "button");
+        __c152.push(bindAttr2(__e195, "disabled", () => $scope.bar.createSubmitting() || !$scope.createNameValid()));
+        __c152.push(on3(__e195, "click", function() {
+          const __h = $scope.submitCreate;
+          return typeof __h === "function" ? __h.bind(undefined) : () => {};
+        }(), { modifiers: [] }));
+        const __t196 = document.createTextNode("");
+        __e195.appendChild(__t196);
+        __c152.push(bindText3(__t196, () => $scope.bar.createSubmitting() ? "Creating…" : "Create " + $scope.currentSurfaceDef().label));
+        __e194.appendChild(__e195);
+        __frag151.appendChild(__e194);
+        return { nodes: Array.from(__frag151.childNodes), cleanup: () => {
+          for (const c of __c152)
+            try {
+              c();
+            } catch (e) {}
+        } };
+      },
+      () => {
+        const __frag197 = document.createDocumentFragment();
+        const __c198 = [];
+        const __e199 = document.createElement("div");
+        __e199.setAttribute("class", "cb-spawn-card");
+        const __e200 = document.createElement("div");
+        __e200.setAttribute("class", "cb-spawn-title");
+        const __t201 = document.createTextNode("Start a session");
+        __e200.appendChild(__t201);
+        __e199.appendChild(__e200);
+        const __e202 = document.createElement("div");
+        __e202.setAttribute("class", "cb-spawn-row");
+        const __e203 = document.createElement("label");
+        const __t204 = document.createTextNode("Agent");
+        __e203.appendChild(__t204);
+        __e202.appendChild(__e203);
+        const __e205 = document.createElement("select");
+        __e205.setAttribute("class", "cb-spawn-agent");
+        __c198.push(bindValue2(__e205, $scope.bar.spawnAgent));
+        const __ifAnchor206 = document.createComment("if");
+        __e205.appendChild(__ifAnchor206);
+        __c198.push(__wireBoundary_b73(__ifAnchor206));
+        __e202.appendChild(__e205);
+        __e199.appendChild(__e202);
+        const __e222 = document.createElement("div");
+        __e222.setAttribute("class", "cb-spawn-row");
+        const __e223 = document.createElement("label");
+        const __t224 = document.createTextNode("Provider");
+        __e223.appendChild(__t224);
+        __e222.appendChild(__e223);
+        const __e225 = document.createElement("select");
+        __e225.setAttribute("class", "cb-spawn-provider");
+        __c198.push(bindValue2(__e225, $scope.bar.spawnProvider));
+        const __ifAnchor226 = document.createComment("if");
+        __e225.appendChild(__ifAnchor226);
+        __c198.push(__wireBoundary_b78(__ifAnchor226));
+        __e222.appendChild(__e225);
+        __e199.appendChild(__e222);
+        const __ifAnchor242 = document.createComment("if");
+        __e199.appendChild(__ifAnchor242);
+        __c198.push(__wireBoundary_b82(__ifAnchor242));
+        const __e247 = document.createElement("button");
+        __e247.setAttribute("class", "cb-spawn-start");
+        __e247.setAttribute("type", "button");
+        __c198.push(bindAttr2(__e247, "disabled", () => $scope.bar.spawning() || !$scope.bar.spawnAgent() || !$scope.bar.spawnProvider()));
+        __c198.push(on3(__e247, "click", function() {
+          const __h = $scope.spawnSession;
+          return typeof __h === "function" ? __h.bind(undefined) : () => {};
+        }(), { modifiers: [] }));
+        const __t248 = document.createTextNode("");
+        __e247.appendChild(__t248);
+        __c198.push(bindText3(__t248, () => $scope.bar.spawning() ? "Starting…" : "Start session"));
+        __e199.appendChild(__e247);
+        __frag197.appendChild(__e199);
+        return { nodes: Array.from(__frag197.childNodes), cleanup: () => {
+          for (const c of __c198)
+            try {
+              c();
+            } catch (e) {}
+        } };
+      }
+    ]
+  });
+  return Object.assign({}, $scope, {
+    __mount(container) {
+      const __cleanups = [];
+      const __e0 = document.createElement("div");
+      __e0.setAttribute("class", "cb-input-row");
+      const __e1 = document.createElement("span");
+      __e1.setAttribute("class", "cb-mode-glyph");
+      __cleanups.push(bindClass2(__e1, "ai", () => $scope.bar.mode() === "ai"));
+      const __t2 = document.createTextNode("");
+      __e1.appendChild(__t2);
+      __cleanups.push(bindText3(__t2, () => $scope.modeGlyph()));
+      __e0.appendChild(__e1);
+      const __e3 = document.createElement("input");
+      __e3.setAttribute("class", "cb-search");
+      __e3.setAttribute("type", "text");
+      __e3.setAttribute("autocomplete", "off");
+      __e3.setAttribute("spellcheck", "false");
+      __cleanups.push(bindAttr2(__e3, "placeholder", () => $scope.searchPlaceholder()));
+      __cleanups.push(bindValue2(__e3, $scope.bar.value));
+      __e3.setAttribute("aria-label", "Command bar search");
+      __e3.setAttribute("aria-autocomplete", "list");
+      __cleanups.push(on3(__e3, "input", function() {
+        const __h = $scope.onInput;
+        return typeof __h === "function" ? __h.bind(undefined) : () => {};
+      }(), { modifiers: [] }));
+      __e0.appendChild(__e3);
+      const __e4 = document.createElement("kbd");
+      __e4.setAttribute("class", "cb-esc");
+      __e4.setAttribute("aria-label", "Escape to close");
+      const __t5 = document.createTextNode("esc");
+      __e4.appendChild(__t5);
+      __e0.appendChild(__e4);
+      const __e6 = document.createElement("div");
+      __e6.setAttribute("class", "cb-chip-wrap");
+      const __e7 = document.createElement("span");
+      __e7.setAttribute("class", "cb-session-chip");
+      __e7.setAttribute("role", "button");
+      __e7.setAttribute("aria-haspopup", "listbox");
+      __cleanups.push(on3(__e7, "click", function() {
+        const __h = $scope.toggleSessionPicker;
+        return typeof __h === "function" ? __h.bind(undefined) : () => {};
+      }(), { modifiers: [] }));
+      const __e8 = document.createElement("span");
+      __e8.setAttribute("class", "cb-dot");
+      __cleanups.push(effect4(() => {
+        const __v = $scope.chipDotBg();
+        if (__v == null)
+          __e8.style.removeProperty("background");
+        else
+          __e8.style.setProperty("background", String(__v));
+      }));
+      __e7.appendChild(__e8);
+      const __e9 = document.createElement("span");
+      const __t10 = document.createTextNode("");
+      __e9.appendChild(__t10);
+      __cleanups.push(bindText3(__t10, () => $scope.chipLabel()));
+      __e7.appendChild(__e9);
+      __e6.appendChild(__e7);
+      const __ifAnchor11 = document.createComment("if");
+      __e6.appendChild(__ifAnchor11);
+      __cleanups.push(__wireBoundary_b8(__ifAnchor11));
+      __e0.appendChild(__e6);
+      container.appendChild(__e0);
+      const __e50 = document.createElement("div");
+      __e50.setAttribute("class", "cb-body");
+      const __matchAnchor51 = document.createComment("match");
+      __e50.appendChild(__matchAnchor51);
+      __cleanups.push(__wireBoundary_b20(__matchAnchor51));
+      container.appendChild(__e50);
+      return () => {
+        for (const c of __cleanups)
+          try {
+            c();
+          } catch (e) {}
+      };
+    },
+    hydrate(root, ctx2) {
+      const __cleanups = [];
+      const __t = collectTextOpens2(root);
+      const __m = collectElementMarkers2(root);
+      if (__m["b0"])
+        __cleanups.push(hydrateClass(__m["b0"], "ai", () => $scope.bar.mode() === "ai"));
+      if (__t["b1"])
+        __cleanups.push(hydrateText2(__t["b1"], () => $scope.modeGlyph()));
+      if (__m["b2"])
+        __cleanups.push(hydrateAttr2(__m["b2"], "placeholder", () => $scope.searchPlaceholder()));
+      if (__m["b3"])
+        __cleanups.push(hydrateBindValue2(__m["b3"], $scope.bar.value));
+      if (__m["b4"])
+        __cleanups.push(hydrateOn2(__m["b4"], "input", function() {
+          const __h = $scope.onInput;
+          return typeof __h === "function" ? __h.bind(undefined) : () => {};
+        }(), []));
+      if (__m["b5"])
+        __cleanups.push(hydrateOn2(__m["b5"], "click", function() {
+          const __h = $scope.toggleSessionPicker;
+          return typeof __h === "function" ? __h.bind(undefined) : () => {};
+        }(), []));
+      if (__m["b6"])
+        __cleanups.push(hydrateStyle2(__m["b6"], "background", () => $scope.chipDotBg()));
+      if (__t["b7"])
+        __cleanups.push(hydrateText2(__t["b7"], () => $scope.chipLabel()));
+      if (__m["b8"]) {
+        const __t2 = __m["b8"];
+        const __doc = __t2.ownerDocument ?? document;
+        const __anchor = __t2.nodeType === 1 ? __doc.createComment("if") : __t2;
+        if (__t2.nodeType === 1 && __t2.parentNode)
+          __t2.parentNode.replaceChild(__anchor, __t2);
+        __cleanups.push(__wireBoundary_b8(__anchor));
+      }
+      if (__m["b20"]) {
+        const __t2 = __m["b20"];
+        const __doc = __t2.ownerDocument ?? document;
+        const __anchor = __t2.nodeType === 1 ? __doc.createComment("match") : __t2;
+        if (__t2.nodeType === 1 && __t2.parentNode)
+          __t2.parentNode.replaceChild(__anchor, __t2);
+        __cleanups.push(__wireBoundary_b20(__anchor));
+      }
+      return () => {
+        for (const c of __cleanups)
+          try {
+            c();
+          } catch (e) {}
+      };
+    }
+  });
+});

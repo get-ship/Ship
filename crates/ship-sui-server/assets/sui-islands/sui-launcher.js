@@ -1,14 +1,434 @@
-var nJ=Symbol.for("sui:error-boundary");function d(J){let X=J;while(X){if(X instanceof Element){let z=X[nJ];if(z)return z}let Z=X.parentNode;if(Z){X=Z;continue}let Q=X;if(Q.host){X=Q.host;continue}X=null}return null}var k=null,m=null,oJ=0,sJ=new Set,n=[];function YJ(J,X){n.push(J);try{return X()}finally{n.pop()}}function rJ(){return n.length>0?n[n.length-1]:null}function DJ(J){if(k===null)return;if(J.has(k))return;let X=k;if(J.add(X),m!==null)m.push(()=>J.delete(X))}function M(J){let X=J,Z=new Set,Q=()=>{return DJ(Z),X};return Q.set=(z)=>{let Y=typeof z==="function"?z(X):z;if(Object.is(Y,X))return;if(X=Y,oJ>0)for(let G of Z)sJ.add(G);else for(let G of[...Z])G()},Q.__subs=Z,Q.__peek=()=>X,Q}function o(J){let X,Z=!0,Q=new Set,z=[],Y=()=>{if(Z)return;if(Z=!0,Q.size===0)return;let $=X;if(G(),Object.is($,X))return;for(let j of[...Q])j()},G=()=>{for(let V of z)V();z=[];let $=k,j=m;k=Y,m=z;try{X=J()}finally{k=$,m=j}Z=!1},W=()=>{if(DJ(Q),Z)G();return X};return W.set=()=>{throw Error("cannot set on a derived; mutate its dependencies instead")},W.__subs=Q,W.__peek=()=>{if(Z)G();return X},W}function A(J){let X=void 0,Z=!0,Q=[],z=rJ(),Y=()=>{if(!Z)return;if(X){try{X()}catch($){console.error("[sui] effect cleanup threw:",$)}X=void 0}for(let $ of Q)$();Q=[];let G=k,W=m;k=Y,m=Q;try{X=J()}catch($){let j=z?d(z):null;if(j)j.catch($,"effect");else console.error("[sui] effect threw:",$)}finally{k=G,m=W}};return Y(),()=>{Z=!1;for(let G of Q)G();if(Q=[],X){try{X()}catch(G){console.error("[sui] effect cleanup threw:",G)}X=void 0}}}var a=null;function s(J,X){let Z=a;a=J;try{return X()}finally{a=Z}}function p(J){let X=a;if(!X)return;X.cleanup(J)}function r(){let J=[],X=!1;return{cleanup(Q){if(X){try{Q()}catch(z){console.error("[sui/scope] late cleanup threw:",z)}return}J.push(Q)},dispose(){if(X)return;X=!0;for(let Q=J.length-1;Q>=0;Q--)try{J[Q]()}catch(z){console.error("[sui/scope] cleanup threw:",z)}J.length=0},get disposed(){return X}}}var aJ=Symbol("sui.shared");function PJ(J){return!!J?.[aJ]}function GJ(J,X,Z){J[`__sui_ctx_${X}`]=Z}function WJ(J){let X={};for(let Z in J)if(Object.prototype.hasOwnProperty.call(J,Z)&&PJ(J[Z]))X[Z]=J[Z];return X}function y(J,X,Z){let Q=J[X];if(typeof Q==="function"&&typeof Q.set==="function")return Q.set(Z),Q;let z=M(Z);return J[X]=z,z}function AJ(J,X,Z){J.dispatchEvent(new CustomEvent(X,{detail:Z,bubbles:!0,composed:!0}))}function OJ(J,X){let Z=J,Q=Object.keys(X);for(let z of Q)Z[z]=X[z];p(()=>{for(let z of Q)if(Z[z]===X[z])try{delete Z[z]}catch{Z[z]=void 0}})}function t(J){let X=J;X.emit=function(Z,Q){AJ(J,Z,Q)},X.expose=function(Z){OJ(J,Z)}}function g(J,X,Z,Q){J.addEventListener(X,Z,Q),p(()=>J.removeEventListener(X,Z,Q))}var cX=Symbol("sui:transition");var jJ=(J)=>J??"",FJ=(J)=>{if(J===null||J==="")return NaN;return Number(J)},LJ=(J)=>{if(J===null)return!1;if(J.toLowerCase()==="false")return!1;return!0};function e(J){return(X)=>{if(X===null||X==="")return J;try{return JSON.parse(X)}catch{return J}}}function VJ(J,X){let Z=new Set(J);return(Q)=>Q!==null&&Z.has(Q)?Q:X}var JJ=(J)=>{switch(J.type){case"string":return jJ;case"bool":return LJ;case"number":return FJ;case"union":{let X=J.values??[],Z=J.default??X[0]??"";return VJ(X,Z)}case"object":return e(J.default);case"array":return e(J.default??[])}};function EJ(J,X,Z,Q){if(!X)return;let z={},Y,G=Z.formValue;if(G!==void 0){let{sig:$,propDef:j}=RJ(Z,Q,G,"formValue"),V=j.default,U=JJ(j);Y=A(()=>{let F=$();X.setFormValue(JX(F))}),z.reset=()=>{$.set(V)},z.restore=(F)=>{$.set(U(F))}}let W=Z.formDisabled;if(W!==void 0){let{sig:$,propDef:j}=RJ(Z,Q,W,"formDisabled");if(j.type!=="bool")throw Error(`[sui-runtime] formDisabled: "${W}" must be a bool-typed prop`);z.disabled=(V)=>{$.set(!!V)}}if(J.__shipSetFormHooks=z,Y)J.__shipSetFormValueCleanup=Y;return Y}function wJ(J){let X=J;delete X.__shipSetFormHooks,delete X.__shipSetFormValueCleanup}function JX(J){if(J===null||J===void 0)return"";if(typeof J==="boolean")return J?"on":"";return String(J)}function RJ(J,X,Z,Q){let z=J.props[Z];if(!z)throw Error(`[sui-runtime] ${Q}: "${Z}" — no matching prop on this component`);let Y=X[l(Z)];if(!Y)throw Error(`[sui-runtime] ${Q}: "${Z}" — prop signal missing`);return{sig:Y,propDef:z}}var XJ={string(J={}){return{type:"string",...J}},bool(J={}){return{type:"bool",...J}},number(J={}){return{type:"number",...J}},union(J,X={}){return{type:"union",values:J,...X}},object(J={}){return{type:"object",...J}},array(J={}){return{type:"array",...J}}},XX=(J,X)=>{if(X===void 0||X===null)return null;switch(J.type){case"string":return X===""?null:String(X);case"number":return Number.isNaN(X)?null:String(X);case"bool":return X?"":null;case"union":return String(X);case"object":case"array":try{return JSON.stringify(X)}catch{return null}}},ZX=(J,X)=>{let Z=`ship-set-style-${J}`;if(document.getElementById(Z))return;let Q=document.createElement("style");Q.id=Z,Q.textContent=`[data-component="${J}"] { ${X} }`,document.head.appendChild(Q)},QX=(J,X,Z,Q)=>{let z=J.getAttribute(X),Y=z!==null?Q(z):Z.default;return M(Y)},zX=(J)=>{let X=[],Z={};for(let[Y,G]of Object.entries(J.props??{}))X.push(Y),Z[Y]={camel:l(Y),decode:JJ(G)};let Q=J.formAssociated===!0||J.formValue!==void 0||J.formDisabled!==void 0,z={observedAttrs:X,props:Z};if(Q)z.formAssociated=!0;return z};function ZJ(J,X){let Z=zX(X),Q=Object.entries(X.props??{});qJ(J,Z,(z,Y,G)=>{let W=null;if(X.shadow){if(W=z.shadowRoot??z.attachShadow({mode:"open"}),X.styles){let j=document.createElement("style");j.textContent=X.styles,W.appendChild(j)}}else if(X.styles)ZX(J,X.styles);let $=[];for(let[j,V]of Q){let U=l(j),F=Z.props[j].decode,H=QX(z,j,V,F);if(Y[U]=H,V.reflect){let I=!0,B=A(()=>{let O=H();if(I){I=!1;return}let P=XX(V,O);if(P===null)z.removeAttribute(j);else z.setAttribute(j,P)});$.push(B)}}if(X.formValue!==void 0||X.formDisabled!==void 0){let j=EJ(z,G,X,Y);if(typeof j==="function")$.push(j)}if(X.setup){let j={props:Y,host:z,cleanups:$};if(G)j.internals=G;X.setup(j)}return()=>{wJ(z);for(let j of $.splice(0))try{j()}catch(V){console.error(`[ship-set:${J}] cleanup threw:`,V)}}})}var xJ=new Set;function qJ(J,X,Z){if(customElements.get(J)){if(!xJ.has(J))xJ.add(J),console.warn(`[sui-runtime] customElements.define("${J}", …) called twice. `+"The first registration wins; this call is a no-op. Likely cause: two modules independently registering the same tag.");return}if(X.formAssociated){class z extends HTMLElement{static formAssociated=!0;static get observedAttributes(){return X.observedAttrs}cleanup;scope;propSignals={};internals;constructor(){super();this.internals=this.attachInternals()}connectedCallback(){this.dataset.component=J,t(this),this.scope=r();try{this.cleanup=s(this.scope,()=>YJ(this,()=>Z(this,this.propSignals,this.internals)))}catch(Y){let G=d(this.parentNode);if(G)G.catch(Y,"mount");else console.error(`[ship-set:${J}] setup threw:`,Y)}}disconnectedCallback(){try{this.cleanup?.()}catch(Y){console.error(`[ship-set:${J}] cleanup threw:`,Y)}this.cleanup=void 0;try{this.scope?.dispose()}catch(Y){console.error(`[ship-set:${J}] scope dispose threw:`,Y)}this.scope=void 0}attributeChangedCallback(Y,G,W){let $=X.props[Y];if(!$)return;let j=this.propSignals[$.camel];if(j)j.set($.decode(W))}formResetCallback(){let Y=this.__shipSetFormHooks;try{Y?.reset?.()}catch(G){console.error(`[ship-set:${J}] formResetCallback threw:`,G)}this.dispatchEvent(new CustomEvent("ship-set:form-reset"))}formStateRestoreCallback(Y,G){let W=this.__shipSetFormHooks;try{W?.restore?.(Y)}catch($){console.error(`[ship-set:${J}] formStateRestoreCallback threw:`,$)}this.dispatchEvent(new CustomEvent("ship-set:form-restore",{detail:{state:Y,mode:G}}))}formDisabledCallback(Y){let G=this.__shipSetFormHooks;try{G?.disabled?.(Y)}catch(W){console.error(`[ship-set:${J}] formDisabledCallback threw:`,W)}this.dispatchEvent(new CustomEvent("ship-set:form-disabled",{detail:{disabled:Y}}))}}customElements.define(J,z);return}class Q extends HTMLElement{static get observedAttributes(){return X.observedAttrs}cleanup;scope;propSignals={};connectedCallback(){this.dataset.component=J,t(this),this.scope=r();try{this.cleanup=s(this.scope,()=>YJ(this,()=>Z(this,this.propSignals)))}catch(z){let Y=d(this.parentNode);if(Y)Y.catch(z,"mount");else console.error(`[ship-set:${J}] setup threw:`,z)}}disconnectedCallback(){try{this.cleanup?.()}catch(z){console.error(`[ship-set:${J}] cleanup threw:`,z)}this.cleanup=void 0;try{this.scope?.dispose()}catch(z){console.error(`[ship-set:${J}] scope dispose threw:`,z)}this.scope=void 0}attributeChangedCallback(z,Y,G){let W=X.props[z];if(!W)return;let $=this.propSignals[W.camel];if($)$.set(W.decode(G))}}customElements.define(J,Q)}function l(J){return J.replace(/-([a-z])/g,(X,Z)=>Z.toUpperCase())}function MJ(J,X,Z){let Q=WX(J.state,{ship:X.ship,...Z}),z={};for(let[F,H]of Object.entries(Q))z[F]=M(H);let Y={ship:X.ship,route:X.route??{},navigate:X.navigate??((F)=>{}),...Z,...z},G=$X(z,Y),W={...Y},$={};for(let[F,H]of Object.entries(J.derived??{}))$[F]=o(()=>H(W));Object.assign(W,$);let j={};for(let[F,H]of Object.entries(J.on??{}))j[F]=(...I)=>H(G,...I);let V={},U=typeof J.use==="function"?J.use(W):J.use??{};for(let[F,H]of Object.entries(U))V[F]=MJ(H,X,W);return{...z,...$,...j,...V}}function WX(J,X){if(J===void 0)return{};if(typeof J==="function")return J(X);return J}function $X(J,X){return new Proxy({},{get(Z,Q){if(Q in J)return J[Q]();return X[Q]},set(Z,Q,z){if(Q in J)return J[Q].set(z),!0;return console.warn(`[ship-set] hook handler tried to write s.${Q} = … but ${Q} is not a hook state key. The assignment was ignored.`),!0},has(Z,Q){return Q in J||Q in X},ownKeys(){return Object.keys(J)},getOwnPropertyDescriptor(Z,Q){if(Q in J)return{configurable:!0,enumerable:!0,writable:!0,value:J[Q]()};return}})}var _J="__shipSetLifecycle";function SJ(J,X){let Z=jX(J,X),Q={ship:X.ship,route:X.route??{},navigate:X.navigate??((F)=>{}),...X.scope??{}},z=Z.scope?Z.scope(Q,X.host):{};Object.assign(Q,z);let Y=FX(Q,X.stateKeys,z),G=LX(Y,Q),W={...Q},$=VX(Z,W);Object.assign(W,$);let j=MX(Z,W,X);for(let[F,H]of Object.entries(j))W[F]=H;let V=qX(Z,G),U={...z,...$,...V,...j};if(Object.keys(z).length>0&&X.host){let F=WJ(z);if(Object.keys(F).length>0){let H=X.host,I=H.tagName.toLowerCase();GJ(H,I,F)}}if(Z.mount||Z.unmount){let F={state:G};if(Z.mount)F.mount=Z.mount;if(Z.unmount)F.unmount=Z.unmount;Object.defineProperty(U,_J,{value:F,enumerable:!0,configurable:!0,writable:!1})}return U}function jX(J,X){if(typeof J==="function")return J({ship:X.ship});return J}function FX(J,X,Z){let Q={},z=X!==void 0,Y=Z?Object.keys(Z):[];if(z||Y.length>0){if(X)for(let G of X){let W=J[G];if(HJ(W))Q[G]=W}for(let G of Y){if(G in Q)continue;let W=J[G];if(HJ(W))Q[G]=W}return Q}for(let[G,W]of Object.entries(J))if(HJ(W))Q[G]=W;return Q}function HJ(J){return typeof J==="function"&&"set"in J&&typeof J.set==="function"}function LX(J,X){return new Proxy({},{get(Z,Q){if(Q in J)return J[Q]();return X[Q]},set(Z,Q,z){if(Q in J){if(typeof z==="function")J[Q].set(()=>z);else J[Q].set(z);return!0}return console.warn(`[ship-set] handler tried to write s.${Q} = … but ${Q} is not declared as <state name="${Q}"> in the template. The assignment was ignored.`),!0},has(Z,Q){return Q in J||Q in X},ownKeys(){return Object.keys(J)},getOwnPropertyDescriptor(Z,Q){if(Q in J)return{configurable:!0,enumerable:!0,writable:!0,value:J[Q]()};return}})}function VX(J,X){let Z=J.derived??{},Q={};for(let[z,Y]of Object.entries(Z))Q[z]=o(()=>Y(X));return Q}function qX(J,X){let Z=J.on??{},Q={};for(let[z,Y]of Object.entries(Z))Q[z]=(...G)=>Y(X,...G);return Q}function MX(J,X,Z){if(J.use===void 0)return{};let Q=typeof J.use==="function"?J.use(X):J.use,z={};for(let[Y,G]of Object.entries(Q))z[Y]=MJ(G,Z,X);return z}function BJ(J){return{setup:(X)=>SJ(J,X),__def:J}}if(typeof customElements<"u"){for(let J of["sui-if","sui-for","sui-match","sui-while-loading","sui-while-error"])if(!customElements.get(J))customElements.define(J,class extends HTMLElement{})}var UX=`:host([tone='default'])     { --tone: var(--foreground);       --tone-fg: var(--foreground);       --tone-contrast: var(--background); }
-:host([tone='primary'])     { --tone: var(--primary);          --tone-fg: var(--primary);          --tone-contrast: var(--primary-foreground); }
-:host([tone='info'])        { --tone: var(--info);             --tone-fg: var(--info);             --tone-contrast: var(--info-foreground); }
-:host([tone='success'])     { --tone: var(--success);          --tone-fg: var(--success);          --tone-contrast: var(--success-foreground); }
-:host([tone='warning'])     { --tone: var(--warning);          --tone-fg: var(--warning);          --tone-contrast: var(--warning-foreground); }
-:host([tone='destructive']) { --tone: var(--destructive);      --tone-fg: var(--destructive);      --tone-contrast: var(--destructive-foreground); }
-:host([tone='accent'])      { --tone: var(--accent);           --tone-fg: var(--accent);           --tone-contrast: var(--accent-foreground); }
-:host([tone='muted'])       { --tone: var(--muted-foreground); --tone-fg: var(--muted-foreground); --tone-contrast: var(--background); }
-`,IX=`:host([hidden]) { display: none !important; }
-@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
-`;function bJ(J){if(typeof CSSStyleSheet>"u")return null;try{let X=new CSSStyleSheet;return X.replaceSync(J),X}catch{return null}}var kJ=bJ(UX),yJ=bJ(IX);function KJ(J){if(typeof ShadowRoot>"u")return;if(!(J instanceof ShadowRoot))return;let X=[yJ,kJ].filter((Z)=>Z!=null);if(X.length===0)return;try{J.adoptedStyleSheets=[...X,...J.adoptedStyleSheets??[]]}catch{}}var DX=new Set(["dashboard","pipelines","agents","skills","git","collections","canvas","settings","chat","events","specs","theme","theme-studio","setup","overview","mesh"]);function UJ(J){return J.replace(/-/g," ").split(" ").map((X)=>X?X[0].toUpperCase()+X.slice(1):X).join(" ")}function vJ(J,X){J.innerHTML="";let Z=document.createElement("sui-icon");Z.setAttribute("name","settings"),Z.setAttribute("size","md"),Z.setAttribute("aria-hidden","true");let Q=document.createElement("span");Q.className="launcher-title",Q.style.cssText="font-weight:600;font-size:14px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;",Q.textContent=X?.label??X?.name??"Ship";let z=document.createElement("span");z.className="launcher-ws",z.style.cssText="font-size:11px;color:var(--muted-foreground,#888);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:160px;",z.textContent=X?.path??"",J.append(Z,Q,z)}function mJ(J){J.innerHTML="";let X=document.createElement("a");X.className="launcher-add",X.href="#",X.style.cssText="display:inline-flex;align-items:center;gap:4px;color:var(--muted-foreground,#888);text-decoration:none;font-size:12px;",X.addEventListener("click",(z)=>z.preventDefault());let Z=document.createElement("sui-icon");Z.setAttribute("name","plus"),Z.setAttribute("size","sm"),X.appendChild(Z),X.appendChild(Object.assign(document.createElement("span"),{textContent:"Install view"}));let Q=Object.assign(document.createElement("span"),{style:"flex:1"});J.append(X,Q);for(let z of["⌘","⇧","P"]){let Y=document.createElement("sui-kbd");Y.textContent=z,J.appendChild(Y)}}function gJ(J,X,Z,Q,z,Y,G,W,$,j,V,U,F){if(J.innerHTML="",X.length+Z.length===0){let I=document.createElement("div");I.style.cssText="padding:24px;text-align:center;color:var(--muted-foreground,#888);font-size:13px;",I.textContent="No views match.",J.appendChild(I);return}if(X.length>0)J.appendChild(fJ("Pinned to rail",X,0,!0,Q,z,Y,G,W,$,j,V,U,F));if(Z.length>0)J.appendChild(fJ("All views",Z,X.length,!1,Q,z,Y,G,W,$,j,V,U,F))}function fJ(J,X,Z,Q,z,Y,G,W,$,j,V,U,F,H){let I=document.createElement("div");I.style.cssText="padding-bottom:4px;";let B=document.createElement("div");if(B.style.cssText="display:flex;align-items:center;gap:4px;padding:8px 12px 4px;font-size:11px;font-weight:600;color:var(--muted-foreground,#888);text-transform:uppercase;letter-spacing:.04em;",Q){let P=document.createElement("sui-icon");P.setAttribute("name","pin"),P.setAttribute("size","sm"),B.appendChild(P)}B.appendChild(Object.assign(document.createElement("span"),{textContent:J}));let O=Object.assign(document.createElement("span"),{style:"flex:1"});if(B.appendChild(O),Q)B.appendChild(Object.assign(document.createElement("span"),{textContent:"drag to reorder",style:"font-size:10px;font-weight:400;color:var(--muted-foreground,#888);"}));return I.appendChild(B),X.forEach((P,b)=>{I.appendChild(PX(P,Z+b,Q,z,Y,G,W,$,j,V,U,F,H))}),I}function PX(J,X,Z,Q,z,Y,G,W,$,j,V,U,F){let H=J.rail?.label??UJ(J.name),I=J.rail?.icon??"app-window",B=DX.has(J.name),O=z.includes(J.name),P=X===Q,b=U===J.name,T=F===J.name,D=document.createElement("div");if(D.className=["launcher-row",P?"is-cursor":"",b?"is-drag-over":"",T?"is-dragging":""].filter(Boolean).join(" "),D.setAttribute("role","button"),D.setAttribute("tabindex","-1"),Z)D.setAttribute("draggable","true");D.style.cssText=["display:flex;align-items:center;gap:var(--space-2,8px);padding:6px 12px;cursor:pointer;",P?"background:var(--accent,color-mix(in oklch,var(--foreground)8%,transparent));":"",b?"outline:2px solid var(--primary,#3b82f6);outline-offset:-2px;":"",T?"opacity:0.5;":""].join("");let x=document.createElement(B?"sui-icon":"sui-icon");x.setAttribute("name",B?I:I),x.setAttribute("size","md");let E=document.createElement("span");E.style.cssText="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px;";let i=document.createElement("span");i.style.cssText="font-size:13px;color:var(--foreground,#111);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;",i.textContent=H;let h=document.createElement("span");h.style.cssText="font-size:11px;color:var(--muted-foreground,#888);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;",h.textContent=J.source,E.append(i,h);let N=document.createElement("button");N.className="launcher-pin"+(O?" is-pinned":""),N.type="button",N.setAttribute("aria-label",O?"Unpin from rail":"Pin to rail"),N.title=O?"Unpin from rail":"Pin to rail",N.style.cssText="appearance:none;background:transparent;border:none;padding:2px;color:var(--muted-foreground,#888);cursor:pointer;display:inline-flex;align-items:center;opacity:"+(O?"1":"0")+";flex-shrink:0;";let f=document.createElement("sui-icon");if(f.setAttribute("name","pin"),f.setAttribute("size","sm"),N.appendChild(f),D.append(x,E,N),D.addEventListener("click",()=>Y(J.name)),D.addEventListener("mouseenter",()=>{}),N.addEventListener("click",(_)=>{_.stopPropagation(),G(_,J.name)}),Z)D.addEventListener("dragstart",(_)=>W(_,J.name)),D.addEventListener("dragover",(_)=>$(_,J.name)),D.addEventListener("drop",(_)=>j(_,J.name)),D.addEventListener("dragend",()=>V());return D.addEventListener("mouseenter",()=>{N.style.opacity="1"}),D.addEventListener("mouseleave",()=>{if(!O)N.style.opacity="0"}),D}var uJ="shell.rail.pinned",IJ=["dashboard","pipelines","agents","skills","git"];async function AX(){try{let J=await fetch("/api/v1/settings",{credentials:"same-origin"});if(!J.ok)return IJ;let Z=(await J.json()).data?.[uJ];if(typeof Z==="string")try{let Q=JSON.parse(Z);if(Array.isArray(Q)&&Q.every((z)=>typeof z==="string"))return Q}catch{}else if(Array.isArray(Z)&&Z.every((Q)=>typeof Q==="string"))return Z;return IJ}catch{return IJ}}async function hJ(J){try{await fetch("/api/v1/settings",{method:"PUT",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({key:uJ,value:JSON.stringify(J)})})}catch{}}async function OX(){try{let J=await fetch("/api/v1/views",{credentials:"same-origin"});if(!J.ok)return[];return(await J.json()).data?.views??[]}catch{return[]}}async function CX(){try{let J=await fetch("/api/v1/projects",{credentials:"same-origin"});if(!J.ok)return null;let X=await J.json();return X.projects.find((Z)=>Z.id===X.active)??X.projects[0]??null}catch{return null}}function QJ(J,X){let Z=X.trim().toLowerCase();if(!Z)return!0;return(J.rail?.label??UJ(J.name)).toLowerCase().includes(Z)||J.source.toLowerCase().includes(Z)}var zJ=BJ({mount(J,X){let Z=J,Q=M([]),z=M([]),Y=M(null),G=M(""),W=M(0),$=null,j=null,V=null,U=Z.headEl(),F=Z.bodyEl(),H=Z.footEl(),I=Z.countEl(),B=Z.filterInput(),O=Z.maskEl();if(H)mJ(H);let P=A(()=>{if(U)vJ(U,Y())}),b=A(()=>{let L=Q(),K=z(),C=G(),R=W(),S=K.map((q)=>L.find((w)=>w.name===q)).filter((q)=>!!q&&QJ(q,C)),u=new Set(K),v=L.filter((q)=>!u.has(q.name)&&QJ(q,C)),c=S.length+v.length;if(I)I.textContent=String(c);if(F)gJ(F,S,v,R,K,(q)=>h(q),(q,w)=>void N(q,w),(q,w)=>_(q,w),(q,w)=>cJ(q,w),(q,w)=>void dJ(q,w),()=>pJ(),j,$)}),T=!1,D=A(()=>{let L=Z.open();if(L&&!T)W.set(0),G.set(""),i();else if(!L&&T){if(G.set(""),B)B.value=""}T=L});if(O)g(O,"click",()=>f());if(B)g(B,"input",()=>{if(V)clearTimeout(V);V=setTimeout(()=>{G.set(B.value),W.set(0)},80)});if(B)g(B,"keydown",(L)=>{if(["ArrowDown","ArrowUp","Enter","Escape"].includes(L.key))x(L)});function x(L){if(!Z.open())return;if(L.key==="Escape"){L.preventDefault(),f();return}if(L.key==="/"&&document.activeElement!==B){L.preventDefault(),B?.focus();return}let K=Q(),C=z(),R=G(),S=C.map((q)=>K.find((w)=>w.name===q)).filter((q)=>!!q&&QJ(q,R)),u=new Set(C),v=K.filter((q)=>!u.has(q.name)&&QJ(q,R)),c=[...S,...v];if(L.key==="ArrowDown")L.preventDefault(),W.set(Math.min(c.length-1,W()+1)),E();else if(L.key==="ArrowUp")L.preventDefault(),W.set(Math.max(0,W()-1)),E();else if(L.key==="Enter"){let q=c[W()];if(!q)return;if(L.preventDefault(),L.metaKey||L.ctrlKey)X.emit("sui:launcher:open-pane",{name:q.name});h(q.name)}}g(document,"keydown",x);function E(){requestAnimationFrame(()=>{F?.querySelector(".launcher-row.is-cursor")?.scrollIntoView({block:"nearest"})})}async function i(){let[L,K]=await Promise.all([AX(),CX(),OX().then((C)=>Q.set(C))]);z.set(L),Y.set(K),requestAnimationFrame(()=>B?.focus())}function h(L){let K="/"+(L==="dashboard"?"":L);history.pushState({},"",K),document.dispatchEvent(new CustomEvent("sui:navigate",{detail:{to:K}})),f()}async function N(L,K){L.stopPropagation();let C=z(),R=C.includes(K)?C.filter((S)=>S!==K):[...C,K];z.set(R),await hJ(R),X.emit("sui:rail:pins-changed",{pins:R})}function f(){Z.open.set(!1)}function _(L,K){if($=K,L.dataTransfer?.setData("text/plain",K),L.dataTransfer)L.dataTransfer.effectAllowed="move"}function cJ(L,K){if(!$)return;if(L.preventDefault(),L.dataTransfer)L.dataTransfer.dropEffect="move";j=K}async function dJ(L,K){L.preventDefault();let C=$;if($=null,j=null,!C||C===K)return;let R=z();if(!R.includes(C)||!R.includes(K))return;let S=R.filter((c)=>c!==C),u=S.indexOf(K),v=[...S.slice(0,u),C,...S.slice(u)];z.set(v),await hJ(v),X.emit("sui:rail:pins-changed",{pins:v})}function pJ(){$=null,j=null}let lJ=()=>Z.open.set(!0),iJ=()=>f();return g(document,"sui:launcher:open",lJ),g(document,"sui:launcher:close",iJ),()=>{if(P(),b(),D(),V)clearTimeout(V)}}});var dQ=ZJ("sui-launcher",{props:{open:XJ.bool({default:!1,reflect:!0})},shadow:!0,styles:`
+// packages/ui-components/src/islands/sui-launcher/sui-launcher.sui
+import { adoptSuiSheets, attachRef, component, prop, signal as signal2 } from "@ship/sui-runtime";
+
+// packages/ui-components/src/islands/sui-launcher/sui-launcher.controller.ts
+import { controller, effect, signal, bindNativeEvent } from "@ship/sui-runtime";
+
+// packages/ui-components/src/islands/sui-launcher/render.ts
+var KNOWN_APP_NAMES = new Set([
+  "dashboard",
+  "pipelines",
+  "agents",
+  "skills",
+  "git",
+  "collections",
+  "canvas",
+  "settings",
+  "chat",
+  "events",
+  "specs",
+  "theme",
+  "theme-studio",
+  "setup",
+  "overview",
+  "mesh"
+]);
+function humanize(id) {
+  return id.replace(/-/g, " ").split(" ").map((w) => w ? w[0].toUpperCase() + w.slice(1) : w).join(" ");
+}
+function renderHead(el, project) {
+  el.innerHTML = "";
+  const icon = document.createElement("sui-icon");
+  icon.setAttribute("name", "settings");
+  icon.setAttribute("size", "md");
+  icon.setAttribute("aria-hidden", "true");
+  const title = document.createElement("span");
+  title.className = "launcher-title";
+  title.style.cssText = "font-weight:600;font-size:14px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
+  title.textContent = project?.label ?? project?.name ?? "Ship";
+  const ws = document.createElement("span");
+  ws.className = "launcher-ws";
+  ws.style.cssText = "font-size:11px;color:var(--muted-foreground,#888);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:160px;";
+  ws.textContent = project?.path ?? "";
+  el.append(icon, title, ws);
+}
+function renderFoot(el) {
+  el.innerHTML = "";
+  const add = document.createElement("a");
+  add.className = "launcher-add";
+  add.href = "#";
+  add.style.cssText = "display:inline-flex;align-items:center;gap:4px;color:var(--muted-foreground,#888);text-decoration:none;font-size:12px;";
+  add.addEventListener("click", (e) => e.preventDefault());
+  const addIcon = document.createElement("sui-icon");
+  addIcon.setAttribute("name", "plus");
+  addIcon.setAttribute("size", "sm");
+  add.appendChild(addIcon);
+  add.appendChild(Object.assign(document.createElement("span"), { textContent: "Install view" }));
+  const spacer = Object.assign(document.createElement("span"), { style: "flex:1" });
+  el.append(add, spacer);
+  for (const k of ["⌘", "⇧", "P"]) {
+    const kbd = document.createElement("sui-kbd");
+    kbd.textContent = k;
+    el.appendChild(kbd);
+  }
+}
+function renderBody(el, pinned, others, cursor, pins, onNavigate, onTogglePin, onDragStart, onDragOver, onDrop, onDragEnd, dragOverName, draggingName) {
+  el.innerHTML = "";
+  const total = pinned.length + others.length;
+  if (total === 0) {
+    const empty = document.createElement("div");
+    empty.style.cssText = "padding:24px;text-align:center;color:var(--muted-foreground,#888);font-size:13px;";
+    empty.textContent = "No views match.";
+    el.appendChild(empty);
+    return;
+  }
+  if (pinned.length > 0) {
+    el.appendChild(buildSection("Pinned to rail", pinned, 0, true, cursor, pins, onNavigate, onTogglePin, onDragStart, onDragOver, onDrop, onDragEnd, dragOverName, draggingName));
+  }
+  if (others.length > 0) {
+    el.appendChild(buildSection("All views", others, pinned.length, false, cursor, pins, onNavigate, onTogglePin, onDragStart, onDragOver, onDrop, onDragEnd, dragOverName, draggingName));
+  }
+}
+function buildSection(label, rows, indexBase, isPinned, cursor, pins, onNavigate, onTogglePin, onDragStart, onDragOver, onDrop, onDragEnd, dragOverName, draggingName) {
+  const section = document.createElement("div");
+  section.style.cssText = "padding-bottom:4px;";
+  const header = document.createElement("div");
+  header.style.cssText = "display:flex;align-items:center;gap:4px;padding:8px 12px 4px;font-size:11px;font-weight:600;color:var(--muted-foreground,#888);text-transform:uppercase;letter-spacing:.04em;";
+  if (isPinned) {
+    const pinIcon = document.createElement("sui-icon");
+    pinIcon.setAttribute("name", "pin");
+    pinIcon.setAttribute("size", "sm");
+    header.appendChild(pinIcon);
+  }
+  header.appendChild(Object.assign(document.createElement("span"), { textContent: label }));
+  const spacer = Object.assign(document.createElement("span"), { style: "flex:1" });
+  header.appendChild(spacer);
+  if (isPinned) {
+    header.appendChild(Object.assign(document.createElement("span"), {
+      textContent: "drag to reorder",
+      style: "font-size:10px;font-weight:400;color:var(--muted-foreground,#888);"
+    }));
+  }
+  section.appendChild(header);
+  rows.forEach((v, i) => {
+    section.appendChild(buildRow(v, indexBase + i, isPinned, cursor, pins, onNavigate, onTogglePin, onDragStart, onDragOver, onDrop, onDragEnd, dragOverName, draggingName));
+  });
+  return section;
+}
+function buildRow(v, idx, isPinned, cursor, pins, onNavigate, onTogglePin, onDragStart, onDragOver, onDrop, onDragEnd, dragOverName, draggingName) {
+  const label = v.rail?.label ?? humanize(v.name);
+  const fallbackIcon = v.rail?.icon ?? "app-window";
+  const known = KNOWN_APP_NAMES.has(v.name);
+  const pinned = pins.includes(v.name);
+  const isCursor = idx === cursor;
+  const isDragOver = dragOverName === v.name;
+  const isDragging = draggingName === v.name;
+  const row = document.createElement("div");
+  row.className = ["launcher-row", isCursor ? "is-cursor" : "", isDragOver ? "is-drag-over" : "", isDragging ? "is-dragging" : ""].filter(Boolean).join(" ");
+  row.setAttribute("role", "button");
+  row.setAttribute("tabindex", "-1");
+  if (isPinned)
+    row.setAttribute("draggable", "true");
+  row.style.cssText = [
+    "display:flex;align-items:center;gap:var(--space-2,8px);padding:6px 12px;cursor:pointer;",
+    isCursor ? "background:var(--accent,color-mix(in oklch,var(--foreground)8%,transparent));" : "",
+    isDragOver ? "outline:2px solid var(--primary,#3b82f6);outline-offset:-2px;" : "",
+    isDragging ? "opacity:0.5;" : ""
+  ].join("");
+  const iconEl = document.createElement(known ? "sui-icon" : "sui-icon");
+  iconEl.setAttribute("name", known ? fallbackIcon : fallbackIcon);
+  iconEl.setAttribute("size", "md");
+  const nameWrap = document.createElement("span");
+  nameWrap.style.cssText = "flex:1;min-width:0;display:flex;flex-direction:column;gap:1px;";
+  const labelEl = document.createElement("span");
+  labelEl.style.cssText = "font-size:13px;color:var(--foreground,#111);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
+  labelEl.textContent = label;
+  const pathEl = document.createElement("span");
+  pathEl.style.cssText = "font-size:11px;color:var(--muted-foreground,#888);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
+  pathEl.textContent = v.source;
+  nameWrap.append(labelEl, pathEl);
+  const pinBtn = document.createElement("button");
+  pinBtn.className = "launcher-pin" + (pinned ? " is-pinned" : "");
+  pinBtn.type = "button";
+  pinBtn.setAttribute("aria-label", pinned ? "Unpin from rail" : "Pin to rail");
+  pinBtn.title = pinned ? "Unpin from rail" : "Pin to rail";
+  pinBtn.style.cssText = "appearance:none;background:transparent;border:none;padding:2px;color:var(--muted-foreground,#888);cursor:pointer;display:inline-flex;align-items:center;opacity:" + (pinned ? "1" : "0") + ";flex-shrink:0;";
+  const pinIcon = document.createElement("sui-icon");
+  pinIcon.setAttribute("name", "pin");
+  pinIcon.setAttribute("size", "sm");
+  pinBtn.appendChild(pinIcon);
+  row.append(iconEl, nameWrap, pinBtn);
+  row.addEventListener("click", () => onNavigate(v.name));
+  row.addEventListener("mouseenter", () => {});
+  pinBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    onTogglePin(e, v.name);
+  });
+  if (isPinned) {
+    row.addEventListener("dragstart", (e) => onDragStart(e, v.name));
+    row.addEventListener("dragover", (e) => onDragOver(e, v.name));
+    row.addEventListener("drop", (e) => onDrop(e, v.name));
+    row.addEventListener("dragend", () => onDragEnd());
+  }
+  row.addEventListener("mouseenter", () => {
+    pinBtn.style.opacity = "1";
+  });
+  row.addEventListener("mouseleave", () => {
+    if (!pinned)
+      pinBtn.style.opacity = "0";
+  });
+  return row;
+}
+
+// packages/ui-components/src/islands/sui-launcher/sui-launcher.controller.ts
+var SETTING_KEY = "shell.rail.pinned";
+var DEFAULT_PINS = ["dashboard", "pipelines", "agents", "skills", "git"];
+async function fetchPins() {
+  try {
+    const resp = await fetch("/api/v1/settings", { credentials: "same-origin" });
+    if (!resp.ok)
+      return DEFAULT_PINS;
+    const body = await resp.json();
+    const raw = body.data?.[SETTING_KEY];
+    if (typeof raw === "string") {
+      try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.every((v) => typeof v === "string"))
+          return parsed;
+      } catch {}
+    } else if (Array.isArray(raw) && raw.every((v) => typeof v === "string")) {
+      return raw;
+    }
+    return DEFAULT_PINS;
+  } catch {
+    return DEFAULT_PINS;
+  }
+}
+async function savePins(pins) {
+  try {
+    await fetch("/api/v1/settings", {
+      method: "PUT",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ key: SETTING_KEY, value: JSON.stringify(pins) })
+    });
+  } catch {}
+}
+async function fetchViews() {
+  try {
+    const resp = await fetch("/api/v1/views", { credentials: "same-origin" });
+    if (!resp.ok)
+      return [];
+    const body = await resp.json();
+    return body.data?.views ?? [];
+  } catch {
+    return [];
+  }
+}
+async function fetchProject() {
+  try {
+    const resp = await fetch("/api/v1/projects", { credentials: "same-origin" });
+    if (!resp.ok)
+      return null;
+    const body = await resp.json();
+    return body.projects.find((p) => p.id === body.active) ?? body.projects[0] ?? null;
+  } catch {
+    return null;
+  }
+}
+function matchView(v, filterVal) {
+  const f = filterVal.trim().toLowerCase();
+  if (!f)
+    return true;
+  const label = (v.rail?.label ?? humanize(v.name)).toLowerCase();
+  return label.includes(f) || v.source.toLowerCase().includes(f);
+}
+var sui_launcher_controller_default = controller({
+  mount(state, host) {
+    const scope = state;
+    const views = signal([]);
+    const pins = signal([]);
+    const project = signal(null);
+    const filter = signal("");
+    const cursor = signal(0);
+    let dragName = null;
+    let dragOver = null;
+    let filterTimer = null;
+    const headEl = scope.headEl();
+    const bodyEl = scope.bodyEl();
+    const footEl = scope.footEl();
+    const countEl = scope.countEl();
+    const filterInput = scope.filterInput();
+    const maskEl = scope.maskEl();
+    if (footEl)
+      renderFoot(footEl);
+    const stopHead = effect(() => {
+      if (headEl)
+        renderHead(headEl, project());
+    });
+    const stopBody = effect(() => {
+      const allViews = views();
+      const allPins = pins();
+      const f = filter();
+      const cur = cursor();
+      const pinned = allPins.map((n) => allViews.find((v) => v.name === n)).filter((v) => !!v && matchView(v, f));
+      const pinSet = new Set(allPins);
+      const others = allViews.filter((v) => !pinSet.has(v.name) && matchView(v, f));
+      const total = pinned.length + others.length;
+      if (countEl)
+        countEl.textContent = String(total);
+      if (bodyEl) {
+        renderBody(bodyEl, pinned, others, cur, allPins, (name) => navigate(name), (e, name) => void togglePin(e, name), (e, name) => onDragStart(e, name), (e, name) => onDragOver(e, name), (e, name) => void onDrop(e, name), () => onDragEnd(), dragOver, dragName);
+      }
+    });
+    let wasOpen = false;
+    const stopOpen = effect(() => {
+      const isOpen = scope.open();
+      if (isOpen && !wasOpen) {
+        cursor.set(0);
+        filter.set("");
+        load();
+      } else if (!isOpen && wasOpen) {
+        filter.set("");
+        if (filterInput)
+          filterInput.value = "";
+      }
+      wasOpen = isOpen;
+    });
+    if (maskEl)
+      bindNativeEvent(maskEl, "click", () => doClose());
+    if (filterInput)
+      bindNativeEvent(filterInput, "input", () => {
+        if (filterTimer)
+          clearTimeout(filterTimer);
+        filterTimer = setTimeout(() => {
+          filter.set(filterInput.value);
+          cursor.set(0);
+        }, 80);
+      });
+    if (filterInput)
+      bindNativeEvent(filterInput, "keydown", (e) => {
+        if (["ArrowDown", "ArrowUp", "Enter", "Escape"].includes(e.key))
+          onGlobalKey(e);
+      });
+    function onGlobalKey(e) {
+      if (!scope.open())
+        return;
+      if (e.key === "Escape") {
+        e.preventDefault();
+        doClose();
+        return;
+      }
+      if (e.key === "/" && document.activeElement !== filterInput) {
+        e.preventDefault();
+        filterInput?.focus();
+        return;
+      }
+      const allViews = views();
+      const allPins = pins();
+      const f = filter();
+      const pinned = allPins.map((n) => allViews.find((v) => v.name === n)).filter((v) => !!v && matchView(v, f));
+      const pinSet = new Set(allPins);
+      const others = allViews.filter((v) => !pinSet.has(v.name) && matchView(v, f));
+      const visible = [...pinned, ...others];
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        cursor.set(Math.min(visible.length - 1, cursor() + 1));
+        scrollCursor();
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        cursor.set(Math.max(0, cursor() - 1));
+        scrollCursor();
+      } else if (e.key === "Enter") {
+        const row = visible[cursor()];
+        if (!row)
+          return;
+        e.preventDefault();
+        if (e.metaKey || e.ctrlKey) {
+          host.emit("sui:launcher:open-pane", { name: row.name });
+        }
+        navigate(row.name);
+      }
+    }
+    bindNativeEvent(document, "keydown", onGlobalKey);
+    function scrollCursor() {
+      requestAnimationFrame(() => {
+        bodyEl?.querySelector(".launcher-row.is-cursor")?.scrollIntoView({ block: "nearest" });
+      });
+    }
+    async function load() {
+      const [loadedPins, loadedProject] = await Promise.all([
+        fetchPins(),
+        fetchProject(),
+        fetchViews().then((v) => views.set(v))
+      ]);
+      pins.set(loadedPins);
+      project.set(loadedProject);
+      requestAnimationFrame(() => filterInput?.focus());
+    }
+    function navigate(name) {
+      const path = "/" + (name === "dashboard" ? "" : name);
+      history.pushState({}, "", path);
+      document.dispatchEvent(new CustomEvent("sui:navigate", { detail: { to: path } }));
+      doClose();
+    }
+    async function togglePin(e, name) {
+      e.stopPropagation();
+      const cur = pins();
+      const next = cur.includes(name) ? cur.filter((n) => n !== name) : [...cur, name];
+      pins.set(next);
+      await savePins(next);
+      host.emit("sui:rail:pins-changed", { pins: next });
+    }
+    function doClose() {
+      scope.open.set(false);
+    }
+    function onDragStart(e, name) {
+      dragName = name;
+      e.dataTransfer?.setData("text/plain", name);
+      if (e.dataTransfer)
+        e.dataTransfer.effectAllowed = "move";
+    }
+    function onDragOver(e, name) {
+      if (!dragName)
+        return;
+      e.preventDefault();
+      if (e.dataTransfer)
+        e.dataTransfer.dropEffect = "move";
+      dragOver = name;
+    }
+    async function onDrop(e, target) {
+      e.preventDefault();
+      const src = dragName;
+      dragName = null;
+      dragOver = null;
+      if (!src || src === target)
+        return;
+      const cur = pins();
+      if (!cur.includes(src) || !cur.includes(target))
+        return;
+      const without = cur.filter((n) => n !== src);
+      const idx = without.indexOf(target);
+      const next = [...without.slice(0, idx), src, ...without.slice(idx)];
+      pins.set(next);
+      await savePins(next);
+      host.emit("sui:rail:pins-changed", { pins: next });
+    }
+    function onDragEnd() {
+      dragName = null;
+      dragOver = null;
+    }
+    const onExtOpen = () => scope.open.set(true);
+    const onExtClose = () => doClose();
+    bindNativeEvent(document, "sui:launcher:open", onExtOpen);
+    bindNativeEvent(document, "sui:launcher:close", onExtClose);
+    return () => {
+      stopHead();
+      stopBody();
+      stopOpen();
+      if (filterTimer)
+        clearTimeout(filterTimer);
+    };
+  }
+});
+
+// packages/ui-components/src/islands/sui-launcher/sui-launcher.sui
+var sui_launcher_default = component("sui-launcher", {
+  props: {
+    open: prop.bool({ default: false, reflect: true })
+  },
+  shadow: true,
+  styles: `
   :host { display: contents; }
 
   :host(:not([open])) .launcher-mask,
@@ -111,4 +531,109 @@ var nJ=Symbol.for("sui:error-boundary");function d(J){let X=J;while(X){if(X inst
   @media (prefers-reduced-motion: reduce) {
     .launcher-mask, .launcher-panel { animation: none; }
   }
-`,setup(J){let{props:X,host:Z}=J;if(!J.cleanups)J.cleanups=[];let Q=J.cleanups,z=Object.create(null);z.open=X.open,z.bodyEl=M(null),z.countEl=M(null),z.filterInput=M(null),z.footEl=M(null),z.headEl=M(null),z.maskEl=M(null),z.panelEl=M(null);let Y=null;if(zJ&&typeof zJ.setup==="function"){if(J.scope=z,Y=zJ.setup(J),Y&&typeof Y==="object")Object.assign(z,Y)}let G=Z.shadowRoot??Z;KJ(G);let W=document.createElement("div");W.setAttribute("class","launcher-mask"),W.setAttribute("part","mask"),y(z,"maskEl",W),G.appendChild(W);let $=document.createElement("div");$.setAttribute("class","launcher-panel"),$.setAttribute("role","dialog"),$.setAttribute("aria-label","App launcher"),$.setAttribute("aria-modal","true"),$.setAttribute("part","panel"),y(z,"panelEl",$);let j=document.createElement("div");j.setAttribute("class","launcher-head"),j.setAttribute("part","head"),y(z,"headEl",j),$.appendChild(j);let V=document.createElement("div");V.setAttribute("class","launcher-filter"),V.setAttribute("part","filter");let U=document.createElement("sui-icon");U.setAttribute("name","search"),U.setAttribute("size","sm"),U.setAttribute("aria-hidden","true"),V.appendChild(U);let F=document.createElement("input");F.setAttribute("type","text"),F.setAttribute("class","launcher-filter-input"),F.setAttribute("placeholder","Filter views…"),F.setAttribute("aria-label","Filter views"),y(z,"filterInput",F),V.appendChild(F);let H=document.createElement("span");H.setAttribute("class","launcher-count"),y(z,"countEl",H);let I=document.createTextNode("0");H.appendChild(I),V.appendChild(H),$.appendChild(V);let B=document.createElement("div");B.setAttribute("class","launcher-body"),B.setAttribute("part","body"),y(z,"bodyEl",B),$.appendChild(B);let O=document.createElement("div");if(O.setAttribute("class","launcher-foot"),O.setAttribute("part","foot"),y(z,"footEl",O),$.appendChild(O),G.appendChild($),Y!=null){let P=Object.getOwnPropertyDescriptor(Y,"__shipSetLifecycle")?.value;if(P){let b=new Proxy(z,{get(T,D){return T[D]},set(T,D,x){let E=T[D];if(E!=null&&typeof E.set==="function"){if(typeof x==="function")E.set(()=>x);else E.set(x);return!0}return!1}});if(P.mount){let T=P.mount(b,Z);if(typeof T==="function")Q.push(T)}if(P.unmount)Q.push(()=>P.unmount(b))}}return z}});
+`,
+  setup(ctx) {
+    const { props, host } = ctx;
+    if (!ctx.cleanups)
+      ctx.cleanups = [];
+    const __cleanups = ctx.cleanups;
+    const $scope = Object.create(null);
+    $scope.open = props.open;
+    $scope["bodyEl"] = signal2(null);
+    $scope["countEl"] = signal2(null);
+    $scope["filterInput"] = signal2(null);
+    $scope["footEl"] = signal2(null);
+    $scope["headEl"] = signal2(null);
+    $scope["maskEl"] = signal2(null);
+    $scope["panelEl"] = signal2(null);
+    let __r = null;
+    if (sui_launcher_controller_default && typeof sui_launcher_controller_default.setup === "function") {
+      ctx.scope = $scope;
+      __r = sui_launcher_controller_default.setup(ctx);
+      if (__r && typeof __r === "object")
+        Object.assign($scope, __r);
+    }
+    const __root = host.shadowRoot ?? host;
+    adoptSuiSheets(__root);
+    const __e0 = document.createElement("div");
+    __e0.setAttribute("class", "launcher-mask");
+    __e0.setAttribute("part", "mask");
+    attachRef($scope, "maskEl", __e0);
+    __root.appendChild(__e0);
+    const __e1 = document.createElement("div");
+    __e1.setAttribute("class", "launcher-panel");
+    __e1.setAttribute("role", "dialog");
+    __e1.setAttribute("aria-label", "App launcher");
+    __e1.setAttribute("aria-modal", "true");
+    __e1.setAttribute("part", "panel");
+    attachRef($scope, "panelEl", __e1);
+    const __e2 = document.createElement("div");
+    __e2.setAttribute("class", "launcher-head");
+    __e2.setAttribute("part", "head");
+    attachRef($scope, "headEl", __e2);
+    __e1.appendChild(__e2);
+    const __e3 = document.createElement("div");
+    __e3.setAttribute("class", "launcher-filter");
+    __e3.setAttribute("part", "filter");
+    const __e4 = document.createElement("sui-icon");
+    __e4.setAttribute("name", "search");
+    __e4.setAttribute("size", "sm");
+    __e4.setAttribute("aria-hidden", "true");
+    __e3.appendChild(__e4);
+    const __e5 = document.createElement("input");
+    __e5.setAttribute("type", "text");
+    __e5.setAttribute("class", "launcher-filter-input");
+    __e5.setAttribute("placeholder", "Filter views…");
+    __e5.setAttribute("aria-label", "Filter views");
+    attachRef($scope, "filterInput", __e5);
+    __e3.appendChild(__e5);
+    const __e6 = document.createElement("span");
+    __e6.setAttribute("class", "launcher-count");
+    attachRef($scope, "countEl", __e6);
+    const __t7 = document.createTextNode("0");
+    __e6.appendChild(__t7);
+    __e3.appendChild(__e6);
+    __e1.appendChild(__e3);
+    const __e8 = document.createElement("div");
+    __e8.setAttribute("class", "launcher-body");
+    __e8.setAttribute("part", "body");
+    attachRef($scope, "bodyEl", __e8);
+    __e1.appendChild(__e8);
+    const __e9 = document.createElement("div");
+    __e9.setAttribute("class", "launcher-foot");
+    __e9.setAttribute("part", "foot");
+    attachRef($scope, "footEl", __e9);
+    __e1.appendChild(__e9);
+    __root.appendChild(__e1);
+    if (__r != null) {
+      const __lc = Object.getOwnPropertyDescriptor(__r, "__shipSetLifecycle")?.value;
+      if (__lc) {
+        const __sp = new Proxy($scope, {
+          get(t, k) {
+            return t[k];
+          },
+          set(t, k, v) {
+            const s = t[k];
+            if (s != null && typeof s.set === "function") {
+              if (typeof v === "function") {
+                s.set(() => v);
+              } else {
+                s.set(v);
+              }
+              return true;
+            }
+            return false;
+          }
+        });
+        if (__lc.mount) {
+          const __mc = __lc.mount(__sp, host);
+          if (typeof __mc === "function")
+            __cleanups.push(__mc);
+        }
+        if (__lc.unmount)
+          __cleanups.push(() => __lc.unmount(__sp));
+      }
+    }
+    return $scope;
+  }
+});

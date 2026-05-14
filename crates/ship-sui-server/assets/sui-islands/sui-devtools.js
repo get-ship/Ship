@@ -1,321 +1,2504 @@
-var CJ=Symbol.for("sui:error-boundary");function M0(J){let Z=J;while(Z){if(Z instanceof Element){let X=Z[CJ];if(X)return X}let z=Z.parentNode;if(z){Z=z;continue}let Q=Z;if(Q.host){Z=Q.host;continue}Z=null}return null}function q0(J,Z,z){try{return z()}catch(Q){let X=M0(J);if(X){X.catch(Q,Z);return}console.error("[sui] uncaught throw (no error boundary):",Q);return}}var Q0=null,G0=null,TJ=0,EJ=new Set,P0=[];function y0(J,Z){P0.push(J);try{return Z()}finally{P0.pop()}}function AJ(){return P0.length>0?P0[P0.length-1]:null}function e0(J){if(Q0===null)return;if(J.has(Q0))return;let Z=Q0;if(J.add(Z),G0!==null)G0.push(()=>J.delete(Z))}function w(J){let Z=J,z=new Set,Q=()=>{return e0(z),Z};return Q.set=(X)=>{let Y=typeof X==="function"?X(Z):X;if(Object.is(Y,Z))return;if(Z=Y,TJ>0)for(let j of z)EJ.add(j);else for(let j of[...z])j()},Q.__subs=z,Q.__peek=()=>Z,Q}function d(J){let Z,z=!0,Q=new Set,X=[],Y=()=>{if(z)return;if(z=!0,Q.size===0)return;let H=Z;if(j(),Object.is(H,Z))return;for(let P of[...Q])P()},j=()=>{for(let K of X)K();X=[];let H=Q0,P=G0;Q0=Y,G0=X;try{Z=J()}finally{Q0=H,G0=P}z=!1},D=()=>{if(e0(Q),z)j();return Z};return D.set=()=>{throw Error("cannot set on a derived; mutate its dependencies instead")},D.__subs=Q,D.__peek=()=>{if(z)j();return Z},D}function l(J){let Z=void 0,z=!0,Q=[],X=AJ(),Y=()=>{if(!z)return;if(Z){try{Z()}catch(H){console.error("[sui] effect cleanup threw:",H)}Z=void 0}for(let H of Q)H();Q=[];let j=Q0,D=G0;Q0=Y,G0=Q;try{Z=J()}catch(H){let P=X?M0(X):null;if(P)P.catch(H,"effect");else console.error("[sui] effect threw:",H)}finally{Q0=j,G0=D}};return Y(),()=>{z=!1;for(let j of Q)j();if(Q=[],Z){try{Z()}catch(j){console.error("[sui] effect cleanup threw:",j)}Z=void 0}}}var C0=null;function K0(J,Z){let z=C0;C0=J;try{return Z()}finally{C0=z}}function U0(J){let Z=C0;if(!Z)return;Z.cleanup(J)}function B0(){let J=[],Z=!1;return{cleanup(Q){if(Z){try{Q()}catch(X){console.error("[sui/scope] late cleanup threw:",X)}return}J.push(Q)},dispose(){if(Z)return;Z=!0;for(let Q=J.length-1;Q>=0;Q--)try{J[Q]()}catch(X){console.error("[sui/scope] cleanup threw:",X)}J.length=0},get disposed(){return Z}}}var RJ=Symbol("sui.shared");function JJ(J){return!!J?.[RJ]}function v0(J,Z,z){J[`__sui_ctx_${Z}`]=z}function m0(J){let Z={};for(let z in J)if(Object.prototype.hasOwnProperty.call(J,z)&&JJ(J[z]))Z[z]=J[z];return Z}function j0(J=null){return w(null)}function F0(J,Z,z){let Q=J[Z];if(typeof Q==="function"&&typeof Q.set==="function")return Q.set(z),Q;let X=w(z);return J[Z]=X,X}function v(J,Z){let z;return l(()=>{let Q=Z(),X=Q==null?"":String(Q);if(X===z)return;if(z===void 0&&J.textContent===X){z=X;return}J.textContent=X,z=X})}function Z0(J,Z,z){let Q,X=!1;return l(()=>{let Y=z();if(X&&Y===Q)return;let j=Y==null||Y===!1||Y===""?null:Y===!0?"":String(Y);if(X||J.getAttribute(Z)!==j)if(j===null)J.removeAttribute(Z);else J.setAttribute(Z,j);Q=Y,X=!0})}function I0(J,Z,z){let Q=l(()=>{let Y=Z();if(J.value!==Y)J.value=Y}),X=()=>{let Y=J.value;if(Z.set(Y),z)z(Y)};return J.addEventListener("input",X),()=>{Q(),J.removeEventListener("input",X)}}function XJ(J,Z,z){J.dispatchEvent(new CustomEvent(Z,{detail:z,bubbles:!0,composed:!0}))}function ZJ(J,Z){let z=J,Q=Object.keys(Z);for(let X of Q)z[X]=Z[X];U0(()=>{for(let X of Q)if(z[X]===Z[X])try{delete z[X]}catch{z[X]=void 0}})}function T0(J){let Z=J;Z.emit=function(z,Q){XJ(J,z,Q)},Z.expose=function(z){ZJ(J,z)}}var g0=Symbol("sui:transition");function E0(J){return J[g0]}function wJ(J){let Z=J,z=Z[g0];if(!z)z={inOpts:{},outOpts:{}},Z[g0]=z;return z}function u0(J,Z,z={},Q="both"){let X=wJ(J);if(Q==="in"||Q==="both")X.inT=Z,X.inOpts=z;if(Q==="out"||Q==="both")X.outT=Z,X.outOpts=z;if(!J.hasAttribute("data-sui-transition"))J.setAttribute("data-sui-transition","")}function xJ(){if(typeof window>"u"||typeof window.matchMedia!=="function")return!1;try{return window.matchMedia("(prefers-reduced-motion: reduce)").matches}catch{return!1}}function GJ(J){if(!xJ())return J;return{...J,duration:0,delay:0}}function WJ(J){let Z=E0(J);if(!Z?.inT?.in)return;Z.current?.cancel();let z=Z.inT.in(J,GJ(Z.inOpts));return Z.current=z,z}function LJ(J){let Z=E0(J);if(!Z?.outT?.out)return;Z.current?.cancel();let z=Z.outT.out(J,GJ(Z.outOpts));return Z.current=z,z}function h0(J){if(J.nodeType!==1)return;let Z=J;if(Z.hasAttribute("data-sui-transition")){let z=E0(Z);if(z?.current?.cancel(),z)z.current=void 0}for(let z of Z.querySelectorAll("[data-sui-transition]")){let Q=E0(z);if(Q?.current?.cancel(),Q)Q.current=void 0}}function MJ(J,Z){for(let z of J){if(z.nodeType!==1)continue;let Q=z;if(Q.hasAttribute("data-sui-transition"))Z(Q);for(let X of Q.querySelectorAll("[data-sui-transition]"))Z(X)}}function D0(J){MJ(J,(Z)=>{WJ(Z)})}function O0(J){let Z=[];if(MJ(J,(z)=>{let Q=LJ(z);if(Q)Z.push(Q.finished.catch(()=>{}))}),Z.length===0)return null;return Promise.all(Z).then(()=>{return})}var SJ=200,$J="cubic-bezier(0.4, 0, 0.2, 1)",kJ=0;function zJ(J){return{duration:typeof J.duration==="number"?J.duration:SJ,easing:typeof J.easing==="string"?J.easing:$J,delay:typeof J.delay==="number"?J.delay:kJ,fill:"both"}}function QJ(J,Z,z){let Q=J.animate;if(typeof Q!=="function")return;return Q.call(J,Z,z)}function YJ(J,Z){let z=J==="y"?"translateY(-100%)":"translateX(-100%)",Q="translate(0, 0)";return Z==="in"?[{opacity:0,transform:z},{opacity:1,transform:"translate(0, 0)"}]:[{opacity:1,transform:"translate(0, 0)"},{opacity:0,transform:z}]}var d0={in:(J,Z)=>{let z=Z.axis==="x"?"x":"y";return QJ(J,YJ(z,"in"),zJ(Z))},out:(J,Z)=>{let z=Z.axis==="x"?"x":"y";return QJ(J,YJ(z,"out"),zJ(Z))}};function bJ(J,Z,z,Q,X){if(z.fill(0,0,Z),Z===0)return;let Y=0;for(let D=0;D<Z;D++){let H=J[2*D+1],P=0,K=Y;while(P<K){let A=P+K>>>1;if(J[2*X[A]+1]<H)P=A+1;else K=A}if(Q[D]=P>0?X[P-1]:-1,X[P]=D,P===Y)Y++}let j=X[Y-1];while(j>=0)z[j]=1,j=Q[j]}function t(J){let{anchor:Z,items:z,key:Q,render:X}=J,Y=[],j=!0,D=new Set,H=new Map,P=new Map,K=new Map,A=new Set,I=[],E=[],S=new Int32Array(0),R=new Uint8Array(0),x=new Int32Array(0),N=new Int32Array(0),U=(F)=>{for(let M of F.nodes)try{M.parentNode?.removeChild(M)}catch{}F.cleanup?.()},C=null,O=l(()=>{if(!j)return;let F=z();if(F===C)return;C=F;let M=F.length;if(S.length<M*2)S=new Int32Array(Math.max(S.length*2,M*2,16));if(R.length<M){let V=Math.max(R.length*2,M,8);R=new Uint8Array(V),x=new Int32Array(V),N=new Int32Array(V)}for(let V=0;V<M;V++){let B=F[V],T=Q(B,V);if(H.has(T))console.warn("[sui] {#for}: duplicate key",T,"at index",V,"(prior at",H.get(T),"); the earlier item will be dropped from the rendered output.","Fix the key function so each item maps to a unique value.");H.set(T,V)}for(let V of Y)P.set(V.key,V);for(let V of Y){if(H.has(V.key))continue;let B=O0(V.nodes);if(B===null){U(V);continue}D.add(V),B.then(()=>{if(!D.delete(V))return;U(V)})}E.length=0,I.length=0;let L=!1;for(let V=0;V<M;V++){let B=F[V],T=Q(B,V),$=P.get(T),b;if($){if(L=!0,$.item!==B||$.__i!==V)$.item=B,$.__i=V,q0(Z,"render",()=>$.update?.(B,V));b=$}else{let f=q0(Z,"render",()=>X(B,V));if(!f)continue;b={key:T,item:B,__i:V,nodes:f.nodes,...f.cleanup&&{cleanup:f.cleanup},...f.update&&{update:f.update}},I.push(...f.nodes)}E.push(b)}let G=0;if(L){for(let V=0;V<Y.length;V++)K.set(Y[V].key,V);for(let V=0;V<E.length;V++){let B=K.get(E[V].key);if(B!==void 0)S[2*G]=V,S[2*G+1]=B,G++}bJ(S,G,R,x,N);for(let V=0;V<G;V++)if(R[V])A.add(S[2*V])}let W=Z.parentNode;if(W&&G===0&&E.length>0){let V=document.createDocumentFragment();for(let B=0;B<E.length;B++){let T=E[B].nodes;for(let $=0;$<T.length;$++)V.appendChild(T[$])}W.insertBefore(V,Z.nextSibling)}else{let V=Z;for(let B=0;B<E.length;B++){if(!W)break;let T=E[B];if(A.has(B))V=T.nodes[T.nodes.length-1]??V;else for(let $ of T.nodes)W.insertBefore($,V.nextSibling),V=$}}let q=Y;if(Y=E,E=q,I.length>0)D0(I);H.clear(),P.clear(),K.clear(),A.clear(),I.length=0});return()=>{j=!1,O();for(let F of Y)U(F);for(let F of D)U(F);D.clear(),Y=[],E.length=0,C=null}}function m(J){let{anchor:Z}=J,{test:z,branches:Q}=yJ(J)?{test:J.test,branches:J.branches}:vJ(J),X=null,Y=-2,j=null,D=(P)=>{for(let K of P)try{K.parentNode?.removeChild(K)}catch{}},H=l(()=>{let P=z();if(X&&P===Y)return;if(j&&P===j.idx&&P>=0&&P<Q.length){let I=j;j=null;for(let E of I.nodes)h0(E);X={nodes:I.nodes,...I.cleanup&&{cleanup:I.cleanup}},Y=P,D0(X.nodes);return}if(X){let I={idx:Y,nodes:X.nodes,...X.cleanup&&{cleanup:X.cleanup}},E=O0(I.nodes);if(X=null,E===null)D(I.nodes),I.cleanup?.();else j=I,E.then(()=>{if(j!==I)return;D(I.nodes),I.cleanup?.(),j=null})}if(Y=P,P<0||P>=Q.length)return;let K=q0(Z,"render",()=>Q[P]());if(!K)return;X=K;let A=Z.parentNode;if(!A)return;for(let I of X.nodes)A.insertBefore(I,Z);D0(X.nodes)});return()=>{if(H(),X)D(X.nodes),X.cleanup?.(),X=null;if(j)D(j.nodes),j.cleanup?.(),j=null}}function yJ(J){return typeof J.test==="function"}function vJ(J){let{cond:Z,then_:z,else_:Q}=J;return{test:()=>Z()?0:Q?1:-1,branches:Q?[z,Q]:[z]}}var l0=(J)=>J??"",p0=(J)=>{if(J===null||J==="")return NaN;return Number(J)},i0=(J)=>{if(J===null)return!1;if(J.toLowerCase()==="false")return!1;return!0};function A0(J){return(Z)=>{if(Z===null||Z==="")return J;try{return JSON.parse(Z)}catch{return J}}}function n0(J,Z){let z=new Set(J);return(Q)=>Q!==null&&z.has(Q)?Q:Z}var R0=(J)=>{switch(J.type){case"string":return l0;case"bool":return i0;case"number":return p0;case"union":{let Z=J.values??[],z=J.default??Z[0]??"";return n0(Z,z)}case"object":return A0(J.default);case"array":return A0(J.default??[])}};function FJ(J,Z,z,Q){if(!Z)return;let X={},Y,j=z.formValue;if(j!==void 0){let{sig:H,propDef:P}=jJ(z,Q,j,"formValue"),K=P.default,A=R0(P);Y=l(()=>{let I=H();Z.setFormValue(mJ(I))}),X.reset=()=>{H.set(K)},X.restore=(I)=>{H.set(A(I))}}let D=z.formDisabled;if(D!==void 0){let{sig:H,propDef:P}=jJ(z,Q,D,"formDisabled");if(P.type!=="bool")throw Error(`[sui-runtime] formDisabled: "${D}" must be a bool-typed prop`);X.disabled=(K)=>{H.set(!!K)}}if(J.__shipSetFormHooks=X,Y)J.__shipSetFormValueCleanup=Y;return Y}function qJ(J){let Z=J;delete Z.__shipSetFormHooks,delete Z.__shipSetFormValueCleanup}function mJ(J){if(J===null||J===void 0)return"";if(typeof J==="boolean")return J?"on":"";return String(J)}function jJ(J,Z,z,Q){let X=J.props[z];if(!X)throw Error(`[sui-runtime] ${Q}: "${z}" — no matching prop on this component`);let Y=Z[V0(z)];if(!Y)throw Error(`[sui-runtime] ${Q}: "${z}" — prop signal missing`);return{sig:Y,propDef:X}}var fJ=(J,Z)=>{if(Z===void 0||Z===null)return null;switch(J.type){case"string":return Z===""?null:String(Z);case"number":return Number.isNaN(Z)?null:String(Z);case"bool":return Z?"":null;case"union":return String(Z);case"object":case"array":try{return JSON.stringify(Z)}catch{return null}}},gJ=(J,Z)=>{let z=`ship-set-style-${J}`;if(document.getElementById(z))return;let Q=document.createElement("style");Q.id=z,Q.textContent=`[data-component="${J}"] { ${Z} }`,document.head.appendChild(Q)},uJ=(J,Z,z,Q)=>{let X=J.getAttribute(Z),Y=X!==null?Q(X):z.default;return w(Y)},hJ=(J)=>{let Z=[],z={};for(let[Y,j]of Object.entries(J.props??{}))Z.push(Y),z[Y]={camel:V0(Y),decode:R0(j)};let Q=J.formAssociated===!0||J.formValue!==void 0||J.formDisabled!==void 0,X={observedAttrs:Z,props:z};if(Q)X.formAssociated=!0;return X};function e(J,Z){let z=hJ(Z),Q=Object.entries(Z.props??{});c0(J,z,(X,Y,j)=>{let D=null;if(Z.shadow){if(D=X.shadowRoot??X.attachShadow({mode:"open"}),Z.styles){let P=document.createElement("style");P.textContent=Z.styles,D.appendChild(P)}}else if(Z.styles)gJ(J,Z.styles);let H=[];for(let[P,K]of Q){let A=V0(P),I=z.props[P].decode,E=uJ(X,P,K,I);if(Y[A]=E,K.reflect){let S=!0,R=l(()=>{let x=E();if(S){S=!1;return}let N=fJ(K,x);if(N===null)X.removeAttribute(P);else X.setAttribute(P,N)});H.push(R)}}if(Z.formValue!==void 0||Z.formDisabled!==void 0){let P=FJ(X,j,Z,Y);if(typeof P==="function")H.push(P)}if(Z.setup){let P={props:Y,host:X,cleanups:H};if(j)P.internals=j;Z.setup(P)}return()=>{qJ(X);for(let P of H.splice(0))try{P()}catch(K){console.error(`[ship-set:${J}] cleanup threw:`,K)}}})}var DJ=new Set;function c0(J,Z,z){if(customElements.get(J)){if(!DJ.has(J))DJ.add(J),console.warn(`[sui-runtime] customElements.define("${J}", …) called twice. `+"The first registration wins; this call is a no-op. Likely cause: two modules independently registering the same tag.");return}if(Z.formAssociated){class X extends HTMLElement{static formAssociated=!0;static get observedAttributes(){return Z.observedAttrs}cleanup;scope;propSignals={};internals;constructor(){super();this.internals=this.attachInternals()}connectedCallback(){this.dataset.component=J,T0(this),this.scope=B0();try{this.cleanup=K0(this.scope,()=>y0(this,()=>z(this,this.propSignals,this.internals)))}catch(Y){let j=M0(this.parentNode);if(j)j.catch(Y,"mount");else console.error(`[ship-set:${J}] setup threw:`,Y)}}disconnectedCallback(){try{this.cleanup?.()}catch(Y){console.error(`[ship-set:${J}] cleanup threw:`,Y)}this.cleanup=void 0;try{this.scope?.dispose()}catch(Y){console.error(`[ship-set:${J}] scope dispose threw:`,Y)}this.scope=void 0}attributeChangedCallback(Y,j,D){let H=Z.props[Y];if(!H)return;let P=this.propSignals[H.camel];if(P)P.set(H.decode(D))}formResetCallback(){let Y=this.__shipSetFormHooks;try{Y?.reset?.()}catch(j){console.error(`[ship-set:${J}] formResetCallback threw:`,j)}this.dispatchEvent(new CustomEvent("ship-set:form-reset"))}formStateRestoreCallback(Y,j){let D=this.__shipSetFormHooks;try{D?.restore?.(Y)}catch(H){console.error(`[ship-set:${J}] formStateRestoreCallback threw:`,H)}this.dispatchEvent(new CustomEvent("ship-set:form-restore",{detail:{state:Y,mode:j}}))}formDisabledCallback(Y){let j=this.__shipSetFormHooks;try{j?.disabled?.(Y)}catch(D){console.error(`[ship-set:${J}] formDisabledCallback threw:`,D)}this.dispatchEvent(new CustomEvent("ship-set:form-disabled",{detail:{disabled:Y}}))}}customElements.define(J,X);return}class Q extends HTMLElement{static get observedAttributes(){return Z.observedAttrs}cleanup;scope;propSignals={};connectedCallback(){this.dataset.component=J,T0(this),this.scope=B0();try{this.cleanup=K0(this.scope,()=>y0(this,()=>z(this,this.propSignals)))}catch(X){let Y=M0(this.parentNode);if(Y)Y.catch(X,"mount");else console.error(`[ship-set:${J}] setup threw:`,X)}}disconnectedCallback(){try{this.cleanup?.()}catch(X){console.error(`[ship-set:${J}] cleanup threw:`,X)}this.cleanup=void 0;try{this.scope?.dispose()}catch(X){console.error(`[ship-set:${J}] scope dispose threw:`,X)}this.scope=void 0}attributeChangedCallback(X,Y,j){let D=Z.props[X];if(!D)return;let H=this.propSignals[D.camel];if(H)H.set(D.decode(j))}}customElements.define(J,Q)}function V0(J){return J.replace(/-([a-z])/g,(Z,z)=>z.toUpperCase())}function r0(J,Z,z){let Q=iJ(J.state,{ship:Z.ship,...z}),X={};for(let[I,E]of Object.entries(Q))X[I]=w(E);let Y={ship:Z.ship,route:Z.route??{},navigate:Z.navigate??((I)=>{}),...z,...X},j=nJ(X,Y),D={...Y},H={};for(let[I,E]of Object.entries(J.derived??{}))H[I]=d(()=>E(D));Object.assign(D,H);let P={};for(let[I,E]of Object.entries(J.on??{}))P[I]=(...S)=>E(j,...S);let K={},A=typeof J.use==="function"?J.use(D):J.use??{};for(let[I,E]of Object.entries(A))K[I]=r0(E,Z,D);return{...X,...H,...P,...K}}function iJ(J,Z){if(J===void 0)return{};if(typeof J==="function")return J(Z);return J}function nJ(J,Z){return new Proxy({},{get(z,Q){if(Q in J)return J[Q]();return Z[Q]},set(z,Q,X){if(Q in J)return J[Q].set(X),!0;return console.warn(`[ship-set] hook handler tried to write s.${Q} = … but ${Q} is not a hook state key. The assignment was ignored.`),!0},has(z,Q){return Q in J||Q in Z},ownKeys(){return Object.keys(J)},getOwnPropertyDescriptor(z,Q){if(Q in J)return{configurable:!0,enumerable:!0,writable:!0,value:J[Q]()};return}})}var VJ="__shipSetLifecycle";function HJ(J,Z){let z=cJ(J,Z),Q={ship:Z.ship,route:Z.route??{},navigate:Z.navigate??((I)=>{}),...Z.scope??{}},X=z.scope?z.scope(Q,Z.host):{};Object.assign(Q,X);let Y=rJ(Q,Z.stateKeys,X),j=oJ(Y,Q),D={...Q},H=aJ(z,D);Object.assign(D,H);let P=sJ(z,D,Z);for(let[I,E]of Object.entries(P))D[I]=E;let K=_J(z,j),A={...X,...H,...K,...P};if(Object.keys(X).length>0&&Z.host){let I=m0(X);if(Object.keys(I).length>0){let E=Z.host,S=E.tagName.toLowerCase();v0(E,S,I)}}if(z.mount||z.unmount){let I={state:j};if(z.mount)I.mount=z.mount;if(z.unmount)I.unmount=z.unmount;Object.defineProperty(A,VJ,{value:I,enumerable:!0,configurable:!0,writable:!1})}return A}function cJ(J,Z){if(typeof J==="function")return J({ship:Z.ship});return J}function rJ(J,Z,z){let Q={},X=Z!==void 0,Y=z?Object.keys(z):[];if(X||Y.length>0){if(Z)for(let j of Z){let D=J[j];if(o0(D))Q[j]=D}for(let j of Y){if(j in Q)continue;let D=J[j];if(o0(D))Q[j]=D}return Q}for(let[j,D]of Object.entries(J))if(o0(D))Q[j]=D;return Q}function o0(J){return typeof J==="function"&&"set"in J&&typeof J.set==="function"}function oJ(J,Z){return new Proxy({},{get(z,Q){if(Q in J)return J[Q]();return Z[Q]},set(z,Q,X){if(Q in J){if(typeof X==="function")J[Q].set(()=>X);else J[Q].set(X);return!0}return console.warn(`[ship-set] handler tried to write s.${Q} = … but ${Q} is not declared as <state name="${Q}"> in the template. The assignment was ignored.`),!0},has(z,Q){return Q in J||Q in Z},ownKeys(){return Object.keys(J)},getOwnPropertyDescriptor(z,Q){if(Q in J)return{configurable:!0,enumerable:!0,writable:!0,value:J[Q]()};return}})}function aJ(J,Z){let z=J.derived??{},Q={};for(let[X,Y]of Object.entries(z))Q[X]=d(()=>Y(Z));return Q}function _J(J,Z){let z=J.on??{},Q={};for(let[X,Y]of Object.entries(z))Q[X]=(...j)=>Y(Z,...j);return Q}function sJ(J,Z,z){if(J.use===void 0)return{};let Q=typeof J.use==="function"?J.use(Z):J.use,X={};for(let[Y,j]of Object.entries(Q))X[Y]=r0(j,z,Z);return X}function J0(J){return{setup:(Z)=>HJ(J,Z),__def:J}}if(typeof customElements<"u"){for(let J of["sui-if","sui-for","sui-match","sui-while-loading","sui-while-error"])if(!customElements.get(J))customElements.define(J,class extends HTMLElement{})}var XX=`:host([tone='default'])     { --tone: var(--foreground);       --tone-fg: var(--foreground);       --tone-contrast: var(--background); }
-:host([tone='primary'])     { --tone: var(--primary);          --tone-fg: var(--primary);          --tone-contrast: var(--primary-foreground); }
-:host([tone='info'])        { --tone: var(--info);             --tone-fg: var(--info);             --tone-contrast: var(--info-foreground); }
-:host([tone='success'])     { --tone: var(--success);          --tone-fg: var(--success);          --tone-contrast: var(--success-foreground); }
-:host([tone='warning'])     { --tone: var(--warning);          --tone-fg: var(--warning);          --tone-contrast: var(--warning-foreground); }
-:host([tone='destructive']) { --tone: var(--destructive);      --tone-fg: var(--destructive);      --tone-contrast: var(--destructive-foreground); }
-:host([tone='accent'])      { --tone: var(--accent);           --tone-fg: var(--accent);           --tone-contrast: var(--accent-foreground); }
-:host([tone='muted'])       { --tone: var(--muted-foreground); --tone-fg: var(--muted-foreground); --tone-contrast: var(--background); }
-`,ZX=`:host([hidden]) { display: none !important; }
-@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
-`;function PJ(J){if(typeof CSSStyleSheet>"u")return null;try{let Z=new CSSStyleSheet;return Z.replaceSync(J),Z}catch{return null}}var KJ=PJ(XX),UJ=PJ(ZX);function X0(J){if(typeof ShadowRoot>"u")return;if(!(J instanceof ShadowRoot))return;let Z=[UJ,KJ].filter((z)=>z!=null);if(Z.length===0)return;try{J.adoptedStyleSheets=[...Z,...J.adoptedStyleSheets??[]]}catch{}}function zX(J){if(!J)return"";if(J.endsWith(".yaml")||J.endsWith(".yml"))return"yaml";if(J.endsWith(".jsonc"))return"jsonc";return"json"}function QX(){if(customElements.get("sui-code-editor"))return;if(document.querySelector("script[data-sui-code-editor]"))return;let J=document.createElement("script");J.type="module",J.src="/_sui/islands/sui-code-editor/island.js",J.dataset.suiCodeEditor="1",document.head.appendChild(J)}var a0=null,N0=null;async function YX(){if(a0)return a0;if(N0)return N0;N0=(async()=>{let[J,Z]=await Promise.all([fetch("/api/assets/jinja-macros.json",{credentials:"same-origin"}).then((X)=>X.ok?X.json():null).catch(()=>null),fetch("/api/v1/ship/schema",{credentials:"same-origin"}).then((X)=>X.ok?X.json():null).catch(()=>null)]),z=[];if(Array.isArray(J)){let X=J.map((Y)=>({label:Y.name,...Y.signature!==void 0?{detail:Y.signature}:{},...Y.summary!==void 0||Y.description!==void 0?{info:Y.summary??Y.description??""}:{},insert:`${Y.name}()`}));z.push({trigger:"{{ ",items:X},{trigger:"{% ",items:X})}let Q=Z?.data?.ops;if(Array.isArray(Q)){let X=Q.map((Y)=>({label:Y.name,detail:`→ ${Y.returns??"?"}`,info:`${Y.description??""}
+// packages/ui-components/src/islands/sui-devtools/sui-devtools-components.sui
+import { attachRef, bindAttr, bindFor, bindIf, bindText, bindValue, signal as signal2, view } from "@ship/sui-runtime";
+import { collectElementMarkers, collectTextOpens, hydrateBindValue, hydrateRef, hydrateText } from "@ship/sui-dom";
 
-args: ${Y.args?.map((j)=>`${j.name}${j.required?"":"?"}: ${j.kind}`).join(", ")??""}
-perm: ${Y.permission??"?"}`,insert:`${Y.name}()`}));z.push({trigger:"ship.",items:X},{trigger:"ship.try.",items:X})}return a0=z,z})();try{return await N0}finally{N0=null}}function IJ(J,Z){if(!J?.setDiagnostics)return;J.setDiagnostics(Z.map((z)=>({line:z.line,column:z.col,severity:z.severity==="warn"||z.severity==="warning"?"warning":z.severity==="info"?"info":"error",message:z.message,source:z.rule})))}var w0=J0({scope:()=>{let J=w(null),Z=w(null),z=w(!1),Q=w([]),X=w(null),Y=w(!1),j=w(null),D=d(()=>Z()!==null&&Z()!==J()?.template),H=d(()=>Q().length>0||X()!==null),P=d(()=>Z()??J()?.template??""),K=d(()=>J()?.scope!=="global"),A=d(()=>zX(J()?.manifest_filename??null)),I=d(()=>{let x=J();if(!x)return"index.html.j2";let N=`/views/${x.view_name.split(".")[0]}/`,U=x.template_path.indexOf(N);return U<0?"index.html.j2":x.template_path.slice(U+N.length)}),E=j0(null),S=j0(null),R=j0(null);return{src:J,draft:Z,saving:z,diagnostics:Q,diagMsg:X,loading:Y,loadError:j,isDirty:D,showDiag:H,editorValue:P,editorReadonly:K,manifestLangVal:A,templateRelPath:I,headerEl:E,templateEditorEl:S,manifestEditorEl:R}},mount(J,Z){let z=J;QX();let{src:Q,editorValue:X,templateRelPath:Y,templateEditorEl:j,manifestEditorEl:D,headerEl:H,draft:P}=z,K=null,A=!1,I=l(()=>{let L=j(),G=X();if(L&&L.value!==G)L.value=G;if(L&&L!==K){if(K=L,L.addEventListener("sui-change",(W)=>{let q=W.detail?.value;if(typeof q==="string")z.draft=q}),L.addEventListener("sui-save",(W)=>{let q=W.detail?.value;if(typeof q==="string")z.draft=q;U()}),!A&&Q()?.scope==="global")A=!0,YX().then((W)=>L.setCompletions?.(W)).catch(()=>{})}}),E=l(()=>{let L=D(),G=Q();if(L&&G?.manifest!=null&&L.value!==G.manifest)L.value=G.manifest}),S=null,R=l(()=>{let L=Q();if(!L||L.scope!=="global")return;let G=L.view_name.split(".")[0];if(G===S)return;S=G;let W=L.template_path;(async()=>{try{let q=await fetch("/api/v1/lint/view",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:G})});if(!q.ok||S!==G)return;let B=(await q.json()).data?.findings??[],T=W.split("/").pop()??"",$=B.filter((b)=>{let f=b.file??"";return W.endsWith(f)||T&&f.endsWith(T)});requestAnimationFrame(()=>IJ(j(),$))}catch{}})()}),x=H();if(x)x.addEventListener("click",(L)=>{let G=L.target.closest("[data-action]");if(!G)return;if(G.dataset.action==="save")U();else if(G.dataset.action==="fork")C()});function N(L){let G=L.match(/^\/api\/v\/(.+)$/);return G?G[1]:L.replace(/^\/+/,"")}async function U(){let L=Q(),G=P();if(!L||L.scope!=="global"||G===null||G===L.template)return;z.saving=!0,z.diagnostics=[],z.diagMsg=null;try{let W=L.view_name.split(".")[0],q=Y(),V=await fetch(`/api/v1/views/${encodeURIComponent(W)}/template`,{method:"PUT",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({file:q,content:G})});if(V.status===422){let $=(await V.json()).findings??[];z.diagnostics=$,IJ(j(),$),z.diagMsg="Lint errors — fix before saving.";return}if(!V.ok){z.diagMsg=`save failed: ${V.status}`;return}z.src={...L,template:G},z.diagnostics=[],j()?.setDiagnostics?.([]),Z.dispatchEvent(new CustomEvent("sui:notify",{detail:{tone:"success",title:"Saved"},bubbles:!0,composed:!0}));let B=window.ship?.current();if(B?.path)window.ship.navigate(B.path,{replace:!0})}catch(W){z.diagMsg=`error: ${W.message}`}finally{z.saving=!1}}async function C(){let L=Q();if(!L||L.scope!=="project")return;z.saving=!0,z.diagMsg=null;try{let G=L.view_name.split(".")[0],W=await fetch(`/api/v1/views/${encodeURIComponent(G)}/fork`,{method:"POST",credentials:"same-origin"});if(!W.ok){z.diagMsg=`fork failed: ${W.status}`;return}Z.dispatchEvent(new CustomEvent("sui:notify",{detail:{tone:"success",title:`${G} forked — now editable`},bubbles:!0,composed:!0})),O=null,await F()}catch(G){z.diagMsg=G.message}finally{z.saving=!1}}let O=null;async function F(){let G=window.ship?.current()?.path??location.pathname,W=N(G);if(!W){z.src=null,z.draft=null,z.diagnostics=[],z.loadError=null,z.loading=!1;return}if(W===O&&Q())return;O=W,z.draft=null,z.diagnostics=[],z.loading=!0,z.loadError=null;try{let q=await fetch(`/api/v1/view-source/${encodeURI(W)}`,{credentials:"same-origin"});if(q.status===404){z.src=null;return}if(!q.ok){z.loadError=`fetch failed: ${q.status}`;return}z.src=await q.json()}catch(q){z.loadError=q.message}finally{z.loading=!1}}let M=()=>{O=null,F()};return document.addEventListener("sui:navigate",M),F(),Object.defineProperty(Z,"refresh",{value:()=>{O=null,F()},configurable:!0}),()=>{I(),E(),R(),document.removeEventListener("sui:navigate",M)}}});var BQ=e("sui-devtools-source",{shadow:!0,styles:`
-  :host {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    min-height: 0;
-    font-size: var(--text-sm);
-  }
-  .header {
-    display: flex;
-    align-items: center;
-    gap: var(--space-3, 12px);
-    padding: var(--space-2, 8px) var(--space-3, 12px);
-    border-bottom: 1px solid var(--border);
-    color: var(--muted-foreground);
-    font-size: var(--text-xs);
-    flex-shrink: 0;
-  }
-  .split {
-    flex: 1;
-    min-height: 0;
-    display: flex;
-    flex-direction: column;
-  }
-  .pane { min-height: 0; display: flex; flex-direction: column; flex: 1; }
-  .pane-head {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2, 8px);
-    padding: 4px var(--space-3, 12px);
-    background: var(--sidebar);
-    border-bottom: 1px solid var(--border);
-    color: var(--muted-foreground);
-    font-size: var(--text-xs);
-    font-family: var(--font-mono);
-    flex-shrink: 0;
-  }
-  .pane-head.manifest { border-top: 1px solid var(--border); }
-  .pane-editor { flex: 1; min-height: 0; display: flex; flex-direction: column; }
-  .pane-editor sui-code-editor { flex: 1; min-height: 0; }
-  .diagnostics {
-    padding: 4px var(--space-3, 12px);
-    background: color-mix(in oklch, var(--destructive) 10%, transparent);
-    color: var(--destructive);
-    font-size: var(--text-xs);
-    font-family: var(--font-mono);
-    border-top: 1px solid var(--destructive);
-    max-height: 120px;
-    overflow: auto;
-    flex-shrink: 0;
-  }
-  .dirty-dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 999px;
-    background: var(--primary);
-    display: inline-block;
-    flex-shrink: 0;
-  }
-  .edit-action {
-    appearance: none;
-    font: inherit;
-    font-size: var(--text-xs);
-    padding: 2px 10px;
-    border-radius: var(--radius-sm, 4px);
-    border: 1px solid var(--border);
-    background: var(--background);
-    color: var(--foreground);
-    cursor: pointer;
-  }
-  .edit-action.primary { background: var(--primary); color: var(--primary-foreground, #fff); border-color: var(--primary); }
-  .edit-action:disabled { opacity: 0.5; cursor: not-allowed; }
-`,setup(J){let{props:Z,host:z}=J;if(!J.cleanups)J.cleanups=[];let Q=J.cleanups,X=Object.create(null);X.headerEl=w(null),X.manifestEditorEl=w(null),X.templateEditorEl=w(null);let Y=null;if(w0&&typeof w0.setup==="function"){if(J.scope=X,Y=w0.setup(J),Y&&typeof Y==="object")Object.assign(X,Y)}let j=(F)=>m({anchor:F,test:()=>{if(X.isDirty())return 0;return-1},branches:[()=>{let M=document.createDocumentFragment(),L=[],G=document.createElement("span");return G.setAttribute("class","dirty-dot"),G.setAttribute("title","Unsaved changes"),M.appendChild(G),{nodes:Array.from(M.childNodes),cleanup:()=>{for(let W of L)try{W()}catch(q){}}}}]}),D=(F)=>m({anchor:F,test:()=>{if(X.src().scope==="project")return 0;return-1},branches:[()=>{let M=document.createDocumentFragment(),L=[],G=document.createElement("button");G.setAttribute("class","edit-action primary"),G.setAttribute("data-action","fork"),L.push(Z0(G,"disabled",()=>X.saving()));let W=document.createTextNode("Fork to edit");return G.appendChild(W),M.appendChild(G),{nodes:Array.from(M.childNodes),cleanup:()=>{for(let q of L)try{q()}catch(V){}}}}]}),H=(F)=>m({anchor:F,test:()=>{if(X.src().scope==="global")return 0;return-1},branches:[()=>{let M=document.createDocumentFragment(),L=[],G=document.createElement("button");G.setAttribute("class","edit-action primary"),G.setAttribute("data-action","save"),L.push(Z0(G,"disabled",()=>X.saving()||!X.isDirty())),G.setAttribute("title","Save (⌘/Ctrl+S)");let W=document.createTextNode("");return G.appendChild(W),L.push(v(W,()=>X.saving()?"Saving…":"Save")),M.appendChild(G),{nodes:Array.from(M.childNodes),cleanup:()=>{for(let q of L)try{q()}catch(V){}}}}]}),P=(F)=>m({anchor:F,test:()=>{if(X.src())return 0;return-1},branches:[()=>{let M=document.createDocumentFragment(),L=[],G=document.createElement("span");G.setAttribute("style","color:var(--foreground);font-weight:var(--font-weight-medium,500)");let W=document.createTextNode("");G.appendChild(W),L.push(v(W,()=>X.src().view_name)),M.appendChild(G);let q=document.createElement("span");q.setAttribute("style","padding:1px 6px;border:1px solid var(--border);border-radius:999px;text-transform:uppercase;letter-spacing:.04em;font-size:10px");let V=document.createTextNode("");q.appendChild(V),L.push(v(V,()=>X.src().scope)),M.appendChild(q);let B=document.createComment("if");M.appendChild(B),L.push(j(B));let T=document.createElement("span");T.setAttribute("style","flex:1"),M.appendChild(T);let $=document.createElement("span"),b=document.createTextNode("");$.appendChild(b),L.push(v(b,()=>X.src().template_path)),M.appendChild($);let f=document.createElement("span");f.setAttribute("style","display:inline-flex;align-items:center;gap:6px");let _=document.createComment("if");f.appendChild(_),L.push(D(_));let p=document.createComment("if");return f.appendChild(p),L.push(H(p)),M.appendChild(f),{nodes:Array.from(M.childNodes),cleanup:()=>{for(let k of L)try{k()}catch(u){}}}}]}),K=(F)=>m({anchor:F,test:()=>{if(X.src().manifest)return 0;return-1},branches:[()=>{let M=document.createDocumentFragment(),L=[],G=document.createElement("div");G.setAttribute("class","pane-head manifest");let W=document.createTextNode("");G.appendChild(W),L.push(v(W,()=>X.src().manifest_filename)),M.appendChild(G);let q=document.createElement("div");q.setAttribute("class","pane");let V=document.createElement("div");V.setAttribute("class","pane-editor");let B=document.createElement("sui-code-editor");return L.push(Z0(B,"language",()=>X.manifestLangVal())),F0(X,"manifestEditorEl",B),B.setAttribute("readonly",""),V.appendChild(B),q.appendChild(V),M.appendChild(q),{nodes:Array.from(M.childNodes),cleanup:()=>{for(let T of L)try{T()}catch($){}}}}]}),A=(F)=>m({anchor:F,test:()=>{if(X.loading())return 0;if(X.loadError())return 1;if(X.src())return 2;return 3},branches:[()=>{let M=document.createDocumentFragment(),L=[],G=document.createElement("sui-empty-state"),W=document.createElement("sui-icon");W.setAttribute("slot","icon"),W.setAttribute("name","file-code"),G.appendChild(W);let q=document.createElement("span");q.setAttribute("slot","title");let V=document.createTextNode("Loading source…");q.appendChild(V),G.appendChild(q);let B=document.createTextNode(`
-      Fetching the view template from the daemon.
-    `);return G.appendChild(B),M.appendChild(G),{nodes:Array.from(M.childNodes),cleanup:()=>{for(let T of L)try{T()}catch($){}}}},()=>{let M=document.createDocumentFragment(),L=[],G=document.createElement("sui-empty-state"),W=document.createElement("sui-icon");W.setAttribute("slot","icon"),W.setAttribute("name","alert-triangle"),G.appendChild(W);let q=document.createElement("span");q.setAttribute("slot","title");let V=document.createTextNode("Source error");q.appendChild(V),G.appendChild(q);let B=document.createTextNode("");return G.appendChild(B),L.push(v(B,()=>X.loadError())),M.appendChild(G),{nodes:Array.from(M.childNodes),cleanup:()=>{for(let T of L)try{T()}catch($){}}}},()=>{let M=document.createDocumentFragment(),L=[],G=document.createElement("div");G.setAttribute("class","pane");let W=document.createElement("div");W.setAttribute("class","pane-head");let q=document.createTextNode("");W.appendChild(q),L.push(v(q,()=>X.templateRelPath())),G.appendChild(W);let V=document.createElement("div");V.setAttribute("class","pane-editor");let B=document.createElement("sui-code-editor");B.setAttribute("language","html"),F0(X,"templateEditorEl",B),L.push(Z0(B,"readonly",()=>X.editorReadonly())),V.appendChild(B),G.appendChild(V),M.appendChild(G);let T=document.createComment("if");return M.appendChild(T),L.push(K(T)),{nodes:Array.from(M.childNodes),cleanup:()=>{for(let $ of L)try{$()}catch(b){}}}},()=>{let M=document.createDocumentFragment(),L=[],G=document.createElement("sui-empty-state"),W=document.createElement("sui-icon");W.setAttribute("slot","icon"),W.setAttribute("name","file-code"),G.appendChild(W);let q=document.createElement("span");q.setAttribute("slot","title");let V=document.createTextNode("No source available");q.appendChild(V),G.appendChild(q);let B=document.createTextNode(`
-      This path is not served by a file-routed view.
-    `);return G.appendChild(B),M.appendChild(G),{nodes:Array.from(M.childNodes),cleanup:()=>{for(let T of L)try{T()}catch($){}}}}]}),I=(F)=>t({anchor:F,items:()=>X.diagnostics(),key:(M,L)=>{let G=Object.create(X);return G.d=M,G.__i=L,((W)=>M.line+":"+M.col+":"+M.rule)(G)},render:(M,L)=>{let G=Object.create(X);return G.d=M,G.__i=L,G.__v=w(0),((W)=>{let q=document.createDocumentFragment(),V=[],B=document.createElement("div"),T=document.createTextNode("");B.appendChild(T),T.textContent=W.d.line;let $=document.createTextNode(":");B.appendChild($);let b=document.createTextNode("");B.appendChild(b),b.textContent=W.d.col;let f=document.createTextNode(" [");B.appendChild(f);let _=document.createTextNode("");B.appendChild(_),_.textContent=W.d.rule;let p=document.createTextNode("] ");B.appendChild(p);let k=document.createTextNode("");return B.appendChild(k),k.textContent=W.d.message,q.appendChild(B),{nodes:Array.from(q.childNodes),cleanup:()=>{for(let u of V)try{u()}catch(y){}},update:(u,y)=>{W.d=u,W.__i=y,T.textContent=W.d.line,b.textContent=W.d.col,_.textContent=W.d.rule,k.textContent=W.d.message,W.__v.set((h)=>h+1)}}})(G)}}),E=(F)=>m({anchor:F,test:()=>{if(X.diagMsg())return 0;return 1},branches:[()=>{let M=document.createDocumentFragment(),L=[],G=document.createTextNode("");return M.appendChild(G),L.push(v(G,()=>X.diagMsg())),{nodes:Array.from(M.childNodes),cleanup:()=>{for(let W of L)try{W()}catch(q){}}}},()=>{let M=document.createDocumentFragment(),L=[],G=document.createComment("for");return M.appendChild(G),L.push(I(G)),{nodes:Array.from(M.childNodes),cleanup:()=>{for(let W of L)try{W()}catch(q){}}}}]}),S=(F)=>m({anchor:F,test:()=>{if(X.showDiag())return 0;return-1},branches:[()=>{let M=document.createDocumentFragment(),L=[],G=document.createElement("div");G.setAttribute("class","diagnostics"),u0(G,d0,{duration:180},"both");let W=document.createComment("if");return G.appendChild(W),L.push(E(W)),M.appendChild(G),{nodes:Array.from(M.childNodes),cleanup:()=>{for(let q of L)try{q()}catch(V){}}}}]}),R=z.shadowRoot??z;X0(R);let x=document.createElement("div");x.setAttribute("class","header"),F0(X,"headerEl",x);let N=document.createComment("if");x.appendChild(N),Q.push(P(N)),R.appendChild(x);let U=document.createElement("div");U.setAttribute("class","split");let C=document.createComment("if");U.appendChild(C),Q.push(A(C)),R.appendChild(U);let O=document.createComment("if");if(R.appendChild(O),Q.push(S(O)),Y!=null){let F=Object.getOwnPropertyDescriptor(Y,"__shipSetLifecycle")?.value;if(F){let M=new Proxy(X,{get(L,G){return L[G]},set(L,G,W){let q=L[G];if(q!=null&&typeof q.set==="function"){if(typeof W==="function")q.set(()=>W);else q.set(W);return!0}return!1}});if(F.mount){let L=F.mount(M,z);if(typeof L==="function")Q.push(L)}if(F.unmount)Q.push(()=>F.unmount(M))}}return X}});var GX="/api/assets/sui-custom-elements.json";function WX(J){let Z=[];for(let z of J??[])for(let Q of z.declarations??[]){if(!Q.customElement||!Q.tagName)continue;let X=(Q.description??"").trim(),Y=Q.attributes??[],j=Q.slots??[],D=Y.slice(0,3).filter((K)=>!K.default||K.default==="false").map((K)=>(K.type?.text??"").includes("boolean")?` ${K.name}`:` ${K.name}="…"`).join(""),P=j.some((K)=>!K.name||K.name==="")?`<${Q.tagName}${D}>
+// packages/ui-components/src/islands/sui-devtools/sui-devtools-components.controller.ts
+import { controller, signal, derived, ref } from "@ship/sui-runtime";
+var SUI_CEM_URL = "/api/assets/sui-custom-elements.json";
+function flattenCem(modules) {
+  const out = [];
+  for (const m of modules ?? []) {
+    for (const d of m.declarations ?? []) {
+      if (!d.customElement || !d.tagName)
+        continue;
+      const description = (d.description ?? "").trim();
+      const attributes = d.attributes ?? [];
+      const slots = d.slots ?? [];
+      const snipAttrs = attributes.slice(0, 3).filter((a) => !a.default || a.default === "false").map((a) => (a.type?.text ?? "").includes("boolean") ? ` ${a.name}` : ` ${a.name}="…"`).join("");
+      const hasDefault = slots.some((sl) => !sl.name || sl.name === "");
+      const snippet = hasDefault ? `<${d.tagName}${snipAttrs}>
   
-</${Q.tagName}>`:`<${Q.tagName}${D}></${Q.tagName}>`;Z.push({tag:Q.tagName,description:X,firstDesc:X.split(`
-`)[0]??"",snippet:P,slotsLabel:j.map((K)=>K.name||"(default)").join(", "),attributes:Y,slots:j})}return Z.sort((z,Q)=>z.tag.localeCompare(Q.tag))}var x0=J0({scope:()=>{let J=w([]),Z=w(""),z=d(()=>{let X=J(),Y=Z().toLowerCase();return Y?X.filter((j)=>j.tag.toLowerCase().includes(Y)||j.description.toLowerCase().includes(Y)):X}),Q=j0(null);return{entries:J,filter:Z,shown:z,bodyEl:Q}},mount(J,Z){let z=J,Q=!1;async function X(){if(Q)return;Q=!0;try{let D=await fetch(GX,{credentials:"same-origin"});if(!D.ok)return;let H=await D.json();z.entries=WX(H.modules??[])}catch{}}let Y=z.bodyEl,j=typeof Y==="function"?Y():null;if(j)j.addEventListener("click",(D)=>{let H=D.target.closest(".copy[data-tag]");if(!H)return;D.preventDefault(),D.stopPropagation();let P=H.dataset.tag??"",K=z.entries.find((A)=>A.tag===P);if(!K)return;navigator.clipboard.writeText(K.snippet).then(()=>Z.dispatchEvent(new CustomEvent("sui:notify",{detail:{tone:"success",title:"Copied"},bubbles:!0,composed:!0})),()=>Z.dispatchEvent(new CustomEvent("sui:notify",{detail:{tone:"warning",title:"Copy failed"},bubbles:!0,composed:!0})))});Object.defineProperty(Z,"refresh",{value:()=>{Q=!1,z.entries=[],X()},configurable:!0}),X()}});var EQ=e("sui-devtools-components",{shadow:!0,styles:`
-  :host {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    min-height: 0;
-    font-size: var(--text-sm);
+</${d.tagName}>` : `<${d.tagName}${snipAttrs}></${d.tagName}>`;
+      out.push({
+        tag: d.tagName,
+        description,
+        firstDesc: description.split(`
+`)[0] ?? "",
+        snippet,
+        slotsLabel: slots.map((sl) => sl.name || "(default)").join(", "),
+        attributes,
+        slots
+      });
+    }
   }
-  .toolbar {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2, 8px);
-    padding: 4px var(--space-3, 12px);
-    border-bottom: 1px solid var(--border);
-    background: var(--sidebar);
-    color: var(--muted-foreground);
-    font-size: var(--text-xs);
-    flex-shrink: 0;
+  return out.sort((a, b) => a.tag.localeCompare(b.tag));
+}
+var sui_devtools_components_controller_default = controller({
+  scope: () => {
+    const entries = signal([]);
+    const filter = signal("");
+    const shown = derived(() => {
+      const all = entries();
+      const needle = filter().toLowerCase();
+      return needle ? all.filter((e) => e.tag.toLowerCase().includes(needle) || e.description.toLowerCase().includes(needle)) : all;
+    });
+    const bodyEl = ref(null);
+    return { entries, filter, shown, bodyEl };
+  },
+  mount(state, host) {
+    const s = state;
+    let loaded = false;
+    async function load() {
+      if (loaded)
+        return;
+      loaded = true;
+      try {
+        const resp = await fetch(SUI_CEM_URL, { credentials: "same-origin" });
+        if (!resp.ok)
+          return;
+        const cem = await resp.json();
+        s["entries"] = flattenCem(cem.modules ?? []);
+      } catch {}
+    }
+    const bodyRefFn = s["bodyEl"];
+    const bodyEl = typeof bodyRefFn === "function" ? bodyRefFn() : null;
+    if (bodyEl) {
+      bodyEl.addEventListener("click", (e) => {
+        const btn = e.target.closest(".copy[data-tag]");
+        if (!btn)
+          return;
+        e.preventDefault();
+        e.stopPropagation();
+        const tag = btn.dataset.tag ?? "";
+        const entry = s["entries"].find((x) => x.tag === tag);
+        if (!entry)
+          return;
+        navigator.clipboard.writeText(entry.snippet).then(() => host.dispatchEvent(new CustomEvent("sui:notify", { detail: { tone: "success", title: "Copied" }, bubbles: true, composed: true })), () => host.dispatchEvent(new CustomEvent("sui:notify", { detail: { tone: "warning", title: "Copy failed" }, bubbles: true, composed: true })));
+      });
+    }
+    Object.defineProperty(host, "refresh", {
+      value: () => {
+        loaded = false;
+        s["entries"] = [];
+        load();
+      },
+      configurable: true
+    });
+    load();
   }
-  .toolbar input {
-    appearance: none;
-    background: var(--background);
-    color: var(--foreground);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm, 4px);
-    padding: 2px 8px;
-    font: inherit;
-    flex: 1;
-    max-width: 280px;
+});
+
+// packages/ui-components/src/islands/sui-devtools/sui-devtools-components.sui
+var sui_devtools_components_default = view((ctx) => {
+  const { ship, route, navigate } = ctx;
+  const $scope = Object.create(null);
+  $scope.ship = ship;
+  $scope.route = route;
+  $scope.navigate = navigate;
+  $scope["bodyEl"] = signal2(null);
+  if (sui_devtools_components_controller_default && typeof sui_devtools_components_controller_default.setup === "function") {
+    ctx.scope = $scope;
+    const __r = sui_devtools_components_controller_default.setup(ctx);
+    if (__r && typeof __r === "object")
+      Object.assign($scope, __r);
   }
-  .body { flex: 1; overflow: auto; }
-  details { border-bottom: 1px solid color-mix(in oklch, var(--border) 40%, transparent); }
-  summary {
-    list-style: none;
-    cursor: pointer;
-    padding: 6px var(--space-3, 12px);
-    display: grid;
-    grid-template-columns: auto 1fr auto;
-    gap: var(--space-3, 12px);
-    align-items: baseline;
-    font-size: var(--text-xs);
-  }
-  summary::-webkit-details-marker { display: none; }
-  .tag { font-family: var(--font-mono); color: var(--primary); }
-  .desc { color: var(--muted-foreground); }
-  .copy {
-    appearance: none;
-    background: transparent;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm, 4px);
-    padding: 1px 8px;
-    font: inherit;
-    font-size: 10px;
-    color: var(--muted-foreground);
-    cursor: pointer;
-  }
-  .copy:hover { color: var(--foreground); }
-  .panel {
-    padding: 0 var(--space-3, 12px) 10px calc(var(--space-3, 12px) + 14px);
-    display: grid;
-    gap: 8px;
-    font-size: var(--text-xs);
-    color: var(--muted-foreground);
-  }
-  .panel pre {
-    margin: 0;
-    padding: 6px 10px;
-    background: var(--muted);
-    color: var(--foreground);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm, 4px);
-    font-family: var(--font-mono);
-    font-size: 11px;
-    overflow-x: auto;
-  }
-  .attrs { display: grid; grid-template-columns: auto 1fr; gap: 2px 12px; }
-  .attrs dt { font-family: var(--font-mono); color: var(--foreground); }
-  .attrs dd { margin: 0; }
-`,setup(J){let{props:Z,host:z}=J;if(!J.cleanups)J.cleanups=[];let Q=J.cleanups,X=Object.create(null);X.bodyEl=w(null);let Y=null;if(x0&&typeof x0.setup==="function"){if(J.scope=X,Y=x0.setup(J),Y&&typeof Y==="object")Object.assign(X,Y)}let j=(N)=>t({anchor:N,items:()=>X.shown(),key:(U,C)=>{let O=Object.create(X);return O.entry=U,O.__i=C,((F)=>U.tag)(O)},render:(U,C)=>{let O=Object.create(X);return O.entry=U,O.__i=C,O.__v=w(0),((F)=>{let M=(g)=>t({anchor:g,items:()=>F.entry.attributes,key:(i,n)=>{let c=Object.create(F);return c.attr=i,c.__i=n,((o)=>i.name)(c)},render:(i,n)=>{let c=Object.create(F);return c.attr=i,c.__i=n,c.__v=w(0),((o)=>{let W0=document.createDocumentFragment(),Y0=[],z0=document.createElement("dt"),L0=document.createTextNode("");z0.appendChild(L0),L0.textContent=o.attr.name;let H0=document.createTextNode("");z0.appendChild(H0),H0.textContent=o.attr.default?"="+o.attr.default:"",W0.appendChild(z0);let _0=document.createElement("dd"),s0=document.createTextNode("");return _0.appendChild(s0),Y0.push(v(s0,()=>(o.__v(),o.attr.description??""))),W0.appendChild(_0),{nodes:Array.from(W0.childNodes),cleanup:()=>{for(let b0 of Y0)try{b0()}catch(t0){}},update:(b0,t0)=>{o.attr=b0,o.__i=t0,L0.textContent=o.attr.name,H0.textContent=o.attr.default?"="+o.attr.default:"",o.__v.set((NJ)=>NJ+1)}}})(c)}}),L=(g)=>m({anchor:g,test:()=>{if(F.entry.attributes.length>0)return 0;return-1},branches:[()=>{let i=document.createDocumentFragment(),n=[],c=document.createElement("div"),o=document.createElement("strong"),W0=document.createTextNode("Attributes");o.appendChild(W0),c.appendChild(o);let Y0=document.createElement("dl");Y0.setAttribute("class","attrs");let z0=document.createComment("for");return Y0.appendChild(z0),n.push(M(z0)),c.appendChild(Y0),i.appendChild(c),{nodes:Array.from(i.childNodes),cleanup:()=>{for(let L0 of n)try{L0()}catch(H0){}}}}]}),G=(g)=>m({anchor:g,test:()=>{if(F.entry.slots.length>0)return 0;return-1},branches:[()=>{let i=document.createDocumentFragment(),n=[],c=document.createElement("div"),o=document.createElement("strong"),W0=document.createTextNode("Slots");o.appendChild(W0),c.appendChild(o);let Y0=document.createTextNode(": ");c.appendChild(Y0);let z0=document.createTextNode("");return c.appendChild(z0),z0.textContent=F.entry.slotsLabel,i.appendChild(c),{nodes:Array.from(i.childNodes),cleanup:()=>{for(let L0 of n)try{L0()}catch(H0){}}}}]}),W=document.createDocumentFragment(),q=[],V=document.createElement("details"),B=document.createElement("summary"),T=document.createElement("span");T.setAttribute("class","tag");let $=document.createTextNode("<");T.appendChild($);let b=document.createTextNode("");T.appendChild(b),b.textContent=F.entry.tag;let f=document.createTextNode(">");T.appendChild(f),B.appendChild(T);let _=document.createElement("span");_.setAttribute("class","desc");let p=document.createTextNode("");_.appendChild(p),p.textContent=F.entry.firstDesc,B.appendChild(_);let k=document.createElement("button");k.setAttribute("class","copy");{let g=F.entry.tag;if(g==null||g===!1||g==="")k.removeAttribute("data-tag");else k.setAttribute("data-tag",g===!0?"":String(g))}k.setAttribute("title","Copy snippet");let u=document.createTextNode("Copy");k.appendChild(u),B.appendChild(k),V.appendChild(B);let y=document.createElement("div");y.setAttribute("class","panel");let h=document.createElement("pre"),r=document.createTextNode("");h.appendChild(r),r.textContent=F.entry.snippet,y.appendChild(h);let a=document.createComment("if");y.appendChild(a),q.push(L(a));let s=document.createComment("if");return y.appendChild(s),q.push(G(s)),V.appendChild(y),W.appendChild(V),{nodes:Array.from(W.childNodes),cleanup:()=>{for(let g of q)try{g()}catch(i){}},update:(g,i)=>{F.entry=g,F.__i=i,b.textContent=F.entry.tag,p.textContent=F.entry.firstDesc;{let n=F.entry.tag;if(n==null||n===!1||n==="")k.removeAttribute("data-tag");else k.setAttribute("data-tag",n===!0?"":String(n))}r.textContent=F.entry.snippet,F.__v.set((n)=>n+1)}}})(O)}}),D=(N)=>m({anchor:N,test:()=>{if(X.entries().length===0)return 0;if(X.shown().length===0)return 1;return 2},branches:[()=>{let U=document.createDocumentFragment(),C=[],O=document.createElement("sui-empty-state"),F=document.createElement("sui-icon");F.setAttribute("slot","icon"),F.setAttribute("name","package"),O.appendChild(F);let M=document.createElement("span");M.setAttribute("slot","title");let L=document.createTextNode("Loading sui-* components…");M.appendChild(L),O.appendChild(M);let G=document.createTextNode(`
+  const __wireBoundary_b5 = (anchor) => bindFor({
+    anchor,
+    items: () => $scope.shown(),
+    key: (entry, __i) => {
+      const __child = Object.create($scope);
+      __child.entry = entry;
+      __child.__i = __i;
+      return (($scope2) => entry.tag)(__child);
+    },
+    render: (entry, __i) => {
+      const __childScope25 = Object.create($scope);
+      __childScope25.entry = entry;
+      __childScope25.__i = __i;
+      __childScope25.__v = signal2(0);
+      return (($scope2) => {
+        const __wireBoundary_b11 = (anchor2) => bindFor({
+          anchor: anchor2,
+          items: () => $scope2.entry.attributes,
+          key: (attr, __i2) => {
+            const __child = Object.create($scope2);
+            __child.attr = attr;
+            __child.__i = __i2;
+            return (($scope3) => attr.name)(__child);
+          },
+          render: (attr, __i2) => {
+            const __childScope50 = Object.create($scope2);
+            __childScope50.attr = attr;
+            __childScope50.__i = __i2;
+            __childScope50.__v = signal2(0);
+            return (($scope3) => {
+              const __frag51 = document.createDocumentFragment();
+              const __c52 = [];
+              const __e53 = document.createElement("dt");
+              const __t54 = document.createTextNode("");
+              __e53.appendChild(__t54);
+              __t54.textContent = $scope3.attr.name;
+              const __t55 = document.createTextNode("");
+              __e53.appendChild(__t55);
+              __t55.textContent = $scope3.attr.default ? "=" + $scope3.attr.default : "";
+              __frag51.appendChild(__e53);
+              const __e56 = document.createElement("dd");
+              const __t57 = document.createTextNode("");
+              __e56.appendChild(__t57);
+              __c52.push(bindText(__t57, () => (void $scope3.__v(), $scope3.attr.description ?? "")));
+              __frag51.appendChild(__e56);
+              return { nodes: Array.from(__frag51.childNodes), cleanup: () => {
+                for (const c of __c52)
+                  try {
+                    c();
+                  } catch (e) {}
+              }, update: (__new58, __newI59) => {
+                $scope3.attr = __new58;
+                $scope3.__i = __newI59;
+                __t54.textContent = $scope3.attr.name;
+                __t55.textContent = $scope3.attr.default ? "=" + $scope3.attr.default : "";
+                $scope3.__v.set((c) => c + 1);
+              } };
+            })(__childScope50);
+          }
+        });
+        const __wireBoundary_b10 = (anchor2) => bindIf({
+          anchor: anchor2,
+          test: () => {
+            if ($scope2.entry.attributes.length > 0)
+              return 0;
+            return -1;
+          },
+          branches: [
+            () => {
+              const __frag43 = document.createDocumentFragment();
+              const __c44 = [];
+              const __e45 = document.createElement("div");
+              const __e46 = document.createElement("strong");
+              const __t47 = document.createTextNode("Attributes");
+              __e46.appendChild(__t47);
+              __e45.appendChild(__e46);
+              const __e48 = document.createElement("dl");
+              __e48.setAttribute("class", "attrs");
+              const __forAnchor49 = document.createComment("for");
+              __e48.appendChild(__forAnchor49);
+              __c44.push(__wireBoundary_b11(__forAnchor49));
+              __e45.appendChild(__e48);
+              __frag43.appendChild(__e45);
+              return { nodes: Array.from(__frag43.childNodes), cleanup: () => {
+                for (const c of __c44)
+                  try {
+                    c();
+                  } catch (e) {}
+              } };
+            }
+          ]
+        });
+        const __wireBoundary_b15 = (anchor2) => bindIf({
+          anchor: anchor2,
+          test: () => {
+            if ($scope2.entry.slots.length > 0)
+              return 0;
+            return -1;
+          },
+          branches: [
+            () => {
+              const __frag61 = document.createDocumentFragment();
+              const __c62 = [];
+              const __e63 = document.createElement("div");
+              const __e64 = document.createElement("strong");
+              const __t65 = document.createTextNode("Slots");
+              __e64.appendChild(__t65);
+              __e63.appendChild(__e64);
+              const __t66 = document.createTextNode(": ");
+              __e63.appendChild(__t66);
+              const __t67 = document.createTextNode("");
+              __e63.appendChild(__t67);
+              __t67.textContent = $scope2.entry.slotsLabel;
+              __frag61.appendChild(__e63);
+              return { nodes: Array.from(__frag61.childNodes), cleanup: () => {
+                for (const c of __c62)
+                  try {
+                    c();
+                  } catch (e) {}
+              } };
+            }
+          ]
+        });
+        const __frag26 = document.createDocumentFragment();
+        const __c27 = [];
+        const __e28 = document.createElement("details");
+        const __e29 = document.createElement("summary");
+        const __e30 = document.createElement("span");
+        __e30.setAttribute("class", "tag");
+        const __t31 = document.createTextNode("<");
+        __e30.appendChild(__t31);
+        const __t32 = document.createTextNode("");
+        __e30.appendChild(__t32);
+        __t32.textContent = $scope2.entry.tag;
+        const __t33 = document.createTextNode(">");
+        __e30.appendChild(__t33);
+        __e29.appendChild(__e30);
+        const __e34 = document.createElement("span");
+        __e34.setAttribute("class", "desc");
+        const __t35 = document.createTextNode("");
+        __e34.appendChild(__t35);
+        __t35.textContent = $scope2.entry.firstDesc;
+        __e29.appendChild(__e34);
+        const __e36 = document.createElement("button");
+        __e36.setAttribute("class", "copy");
+        {
+          const __av37 = $scope2.entry.tag;
+          if (__av37 == null || __av37 === false || __av37 === "")
+            __e36.removeAttribute("data-tag");
+          else
+            __e36.setAttribute("data-tag", __av37 === true ? "" : String(__av37));
+        }
+        __e36.setAttribute("title", "Copy snippet");
+        const __t38 = document.createTextNode("Copy");
+        __e36.appendChild(__t38);
+        __e29.appendChild(__e36);
+        __e28.appendChild(__e29);
+        const __e39 = document.createElement("div");
+        __e39.setAttribute("class", "panel");
+        const __e40 = document.createElement("pre");
+        const __t41 = document.createTextNode("");
+        __e40.appendChild(__t41);
+        __t41.textContent = $scope2.entry.snippet;
+        __e39.appendChild(__e40);
+        const __ifAnchor42 = document.createComment("if");
+        __e39.appendChild(__ifAnchor42);
+        __c27.push(__wireBoundary_b10(__ifAnchor42));
+        const __ifAnchor60 = document.createComment("if");
+        __e39.appendChild(__ifAnchor60);
+        __c27.push(__wireBoundary_b15(__ifAnchor60));
+        __e28.appendChild(__e39);
+        __frag26.appendChild(__e28);
+        return { nodes: Array.from(__frag26.childNodes), cleanup: () => {
+          for (const c of __c27)
+            try {
+              c();
+            } catch (e) {}
+        }, update: (__new68, __newI69) => {
+          $scope2.entry = __new68;
+          $scope2.__i = __newI69;
+          __t32.textContent = $scope2.entry.tag;
+          __t35.textContent = $scope2.entry.firstDesc;
+          {
+            const __av37 = $scope2.entry.tag;
+            if (__av37 == null || __av37 === false || __av37 === "")
+              __e36.removeAttribute("data-tag");
+            else
+              __e36.setAttribute("data-tag", __av37 === true ? "" : String(__av37));
+          }
+          __t41.textContent = $scope2.entry.snippet;
+          $scope2.__v.set((c) => c + 1);
+        } };
+      })(__childScope25);
+    }
+  });
+  const __wireBoundary_b4 = (anchor) => bindIf({
+    anchor,
+    test: () => {
+      if ($scope.entries().length === 0)
+        return 0;
+      if ($scope.shown().length === 0)
+        return 1;
+      return 2;
+    },
+    branches: [
+      () => {
+        const __frag8 = document.createDocumentFragment();
+        const __c9 = [];
+        const __e10 = document.createElement("sui-empty-state");
+        const __e11 = document.createElement("sui-icon");
+        __e11.setAttribute("slot", "icon");
+        __e11.setAttribute("name", "package");
+        __e10.appendChild(__e11);
+        const __e12 = document.createElement("span");
+        __e12.setAttribute("slot", "title");
+        const __t13 = document.createTextNode("Loading sui-* components…");
+        __e12.appendChild(__t13);
+        __e10.appendChild(__e12);
+        const __t14 = document.createTextNode(`
       Fetching the SUI inventory from /api/assets/sui-custom-elements.json.
       Empty after load means sui-build hasn't emitted a CEM yet — run \`just build\`.
-    `);return O.appendChild(G),U.appendChild(O),{nodes:Array.from(U.childNodes),cleanup:()=>{for(let W of C)try{W()}catch(q){}}}},()=>{let U=document.createDocumentFragment(),C=[],O=document.createElement("sui-empty-state"),F=document.createElement("sui-icon");F.setAttribute("slot","icon"),F.setAttribute("name","search"),O.appendChild(F);let M=document.createElement("span");M.setAttribute("slot","title");let L=document.createTextNode("No matches");M.appendChild(L),O.appendChild(M);let G=document.createTextNode(`
+    `);
+        __e10.appendChild(__t14);
+        __frag8.appendChild(__e10);
+        return { nodes: Array.from(__frag8.childNodes), cleanup: () => {
+          for (const c of __c9)
+            try {
+              c();
+            } catch (e) {}
+        } };
+      },
+      () => {
+        const __frag15 = document.createDocumentFragment();
+        const __c16 = [];
+        const __e17 = document.createElement("sui-empty-state");
+        const __e18 = document.createElement("sui-icon");
+        __e18.setAttribute("slot", "icon");
+        __e18.setAttribute("name", "search");
+        __e17.appendChild(__e18);
+        const __e19 = document.createElement("span");
+        __e19.setAttribute("slot", "title");
+        const __t20 = document.createTextNode("No matches");
+        __e19.appendChild(__t20);
+        __e17.appendChild(__e19);
+        const __t21 = document.createTextNode(`
       No components match the current filter.
-    `);return O.appendChild(G),U.appendChild(O),{nodes:Array.from(U.childNodes),cleanup:()=>{for(let W of C)try{W()}catch(q){}}}},()=>{let U=document.createDocumentFragment(),C=[],O=document.createComment("for");return U.appendChild(O),C.push(j(O)),{nodes:Array.from(U.childNodes),cleanup:()=>{for(let F of C)try{F()}catch(M){}}}}]}),H=z.shadowRoot??z;X0(H);let P=document.createElement("div");P.setAttribute("class","toolbar");let K=document.createElement("input");K.setAttribute("type","text"),K.setAttribute("placeholder","Filter components…"),Q.push(I0(K,X.filter)),P.appendChild(K);let A=document.createElement("span"),I=document.createTextNode("");A.appendChild(I),Q.push(v(I,()=>X.shown().length));let E=document.createTextNode(" / ");A.appendChild(E);let S=document.createTextNode("");A.appendChild(S),Q.push(v(S,()=>X.entries().length)),P.appendChild(A),H.appendChild(P);let R=document.createElement("div");R.setAttribute("class","body"),F0(X,"bodyEl",R);let x=document.createComment("if");if(R.appendChild(x),Q.push(D(x)),H.appendChild(R),Y!=null){let N=Object.getOwnPropertyDescriptor(Y,"__shipSetLifecycle")?.value;if(N){let U=new Proxy(X,{get(C,O){return C[O]},set(C,O,F){let M=C[O];if(M!=null&&typeof M.set==="function"){if(typeof F==="function")M.set(()=>F);else M.set(F);return!0}return!1}});if(N.mount){let C=N.mount(U,z);if(typeof C==="function")Q.push(C)}if(N.unmount)Q.push(()=>N.unmount(U))}}return X}});var S0=J0({scope:()=>{let J=w([]),Z=w("all"),z=w(null),Q=w(!1),X=w(null),Y=d(()=>J().filter((H)=>H.severity==="error").length),j=d(()=>J().filter((H)=>H.severity==="warn").length),D=d(()=>{let H=Z(),P=[...J()].sort((K,A)=>{let I=(S)=>S==="error"?0:S==="warn"?1:2,E=I(K.severity)-I(A.severity);if(E!==0)return E;if(K.file!==A.file)return K.file.localeCompare(A.file);return K.line!==A.line?K.line-A.line:K.col-A.col});if(H==="all")return P;return P.filter((K)=>K.severity===H)});return{findings:J,filter:Z,viewName:z,loading:Q,errorMsg:X,errCount:Y,warnCount:j,filteredFindings:D}},mount(J,Z){let z=J;function Q(){let D=window.ship?.current().path??location.pathname,H=D.match(/^\/api\/v\/([^/]+)/);if(H)return H[1];return D.replace(/^\/+/,"").split("/")[0]||null}async function X(){let D=Q();if(z.viewName=D,!D){z.findings=[],z.errorMsg=null;return}z.loading=!0,z.errorMsg=null;try{let H=await fetch("/api/v1/lint/view",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:D})});if(H.status===404){z.findings=[];return}if(!H.ok){z.errorMsg=`lint failed: ${H.status}`;return}let P=await H.json();z.findings=P.data?.findings??[]}catch(H){z.errorMsg=H.message}finally{z.loading=!1}}let Y=()=>void X(),j=(D)=>{if(D.detail?.tab==="lint")X()};return document.addEventListener("sui:navigate",Y),Z.closest("sui-panel-dock")?.addEventListener("sui:dock:activate",j),Object.defineProperty(Z,"refresh",{value:()=>void X(),configurable:!0}),X(),()=>{document.removeEventListener("sui:navigate",Y),Z.closest("sui-panel-dock")?.removeEventListener("sui:dock:activate",j)}}});var $Q=e("sui-devtools-lint",{shadow:!0,styles:`
-  :host {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    min-height: 0;
-    font-size: var(--text-sm);
+    `);
+        __e17.appendChild(__t21);
+        __frag15.appendChild(__e17);
+        return { nodes: Array.from(__frag15.childNodes), cleanup: () => {
+          for (const c of __c16)
+            try {
+              c();
+            } catch (e) {}
+        } };
+      },
+      () => {
+        const __frag22 = document.createDocumentFragment();
+        const __c23 = [];
+        const __forAnchor24 = document.createComment("for");
+        __frag22.appendChild(__forAnchor24);
+        __c23.push(__wireBoundary_b5(__forAnchor24));
+        return { nodes: Array.from(__frag22.childNodes), cleanup: () => {
+          for (const c of __c23)
+            try {
+              c();
+            } catch (e) {}
+        } };
+      }
+    ]
+  });
+  return Object.assign({}, $scope, {
+    __mount(container) {
+      const __cleanups = [];
+      const __e0 = document.createElement("div");
+      __e0.setAttribute("class", "toolbar");
+      const __e1 = document.createElement("input");
+      __e1.setAttribute("type", "text");
+      __e1.setAttribute("placeholder", "Filter components…");
+      __cleanups.push(bindValue(__e1, $scope.filter));
+      __e0.appendChild(__e1);
+      const __e2 = document.createElement("span");
+      const __t3 = document.createTextNode("");
+      __e2.appendChild(__t3);
+      __cleanups.push(bindText(__t3, () => $scope.shown().length));
+      const __t4 = document.createTextNode(" / ");
+      __e2.appendChild(__t4);
+      const __t5 = document.createTextNode("");
+      __e2.appendChild(__t5);
+      __cleanups.push(bindText(__t5, () => $scope.entries().length));
+      __e0.appendChild(__e2);
+      container.appendChild(__e0);
+      const __e6 = document.createElement("div");
+      __e6.setAttribute("class", "body");
+      attachRef($scope, "bodyEl", __e6);
+      const __ifAnchor7 = document.createComment("if");
+      __e6.appendChild(__ifAnchor7);
+      __cleanups.push(__wireBoundary_b4(__ifAnchor7));
+      container.appendChild(__e6);
+      return () => {
+        for (const c of __cleanups)
+          try {
+            c();
+          } catch (e) {}
+      };
+    },
+    hydrate(root, ctx2) {
+      const __cleanups = [];
+      const __t = collectTextOpens(root);
+      const __m = collectElementMarkers(root);
+      if (__m["b0"])
+        __cleanups.push(hydrateBindValue(__m["b0"], $scope.filter));
+      if (__t["b1"])
+        __cleanups.push(hydrateText(__t["b1"], () => $scope.shown().length));
+      if (__t["b2"])
+        __cleanups.push(hydrateText(__t["b2"], () => $scope.entries().length));
+      if (__m["b3"])
+        __cleanups.push(hydrateRef(__m["b3"], $scope, "bodyEl"));
+      if (__m["b4"]) {
+        const __t2 = __m["b4"];
+        const __doc = __t2.ownerDocument ?? document;
+        const __anchor = __t2.nodeType === 1 ? __doc.createComment("if") : __t2;
+        if (__t2.nodeType === 1 && __t2.parentNode)
+          __t2.parentNode.replaceChild(__anchor, __t2);
+        __cleanups.push(__wireBoundary_b4(__anchor));
+      }
+      return () => {
+        for (const c of __cleanups)
+          try {
+            c();
+          } catch (e) {}
+      };
+    }
+  });
+});
+
+// packages/ui-components/src/islands/sui-devtools/sui-devtools-lint.sui
+import { bindClass, bindFor as bindFor2, bindIf as bindIf2, bindText as bindText2, signal as signal4, view as view2 } from "@ship/sui-runtime";
+import { collectElementMarkers as collectElementMarkers2 } from "@ship/sui-dom";
+
+// packages/ui-components/src/islands/sui-devtools/sui-devtools-lint.controller.ts
+import { controller as controller2, signal as signal3, derived as derived2 } from "@ship/sui-runtime";
+var sui_devtools_lint_controller_default = controller2({
+  scope: () => {
+    const findings = signal3([]);
+    const filter = signal3("all");
+    const viewName = signal3(null);
+    const loading = signal3(false);
+    const errorMsg = signal3(null);
+    const errCount = derived2(() => findings().filter((f) => f.severity === "error").length);
+    const warnCount = derived2(() => findings().filter((f) => f.severity === "warn").length);
+    const filteredFindings = derived2(() => {
+      const f = filter();
+      const sorted = [...findings()].sort((a, b) => {
+        const sv = (s) => s === "error" ? 0 : s === "warn" ? 1 : 2;
+        const d = sv(a.severity) - sv(b.severity);
+        if (d !== 0)
+          return d;
+        if (a.file !== b.file)
+          return a.file.localeCompare(b.file);
+        return a.line !== b.line ? a.line - b.line : a.col - b.col;
+      });
+      if (f === "all")
+        return sorted;
+      return sorted.filter((x) => x.severity === f);
+    });
+    return { findings, filter, viewName, loading, errorMsg, errCount, warnCount, filteredFindings };
+  },
+  mount(state, host) {
+    const s = state;
+    function topLevelName() {
+      const p = window.ship?.current().path ?? location.pathname;
+      const m = p.match(/^\/api\/v\/([^/]+)/);
+      if (m)
+        return m[1];
+      const seg = p.replace(/^\/+/, "").split("/")[0];
+      return seg || null;
+    }
+    async function refresh() {
+      const name = topLevelName();
+      s["viewName"] = name;
+      if (!name) {
+        s["findings"] = [];
+        s["errorMsg"] = null;
+        return;
+      }
+      s["loading"] = true;
+      s["errorMsg"] = null;
+      try {
+        const resp = await fetch("/api/v1/lint/view", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name })
+        });
+        if (resp.status === 404) {
+          s["findings"] = [];
+          return;
+        }
+        if (!resp.ok) {
+          s["errorMsg"] = `lint failed: ${resp.status}`;
+          return;
+        }
+        const body = await resp.json();
+        s["findings"] = body.data?.findings ?? [];
+      } catch (e) {
+        s["errorMsg"] = e.message;
+      } finally {
+        s["loading"] = false;
+      }
+    }
+    const onNavigate = () => void refresh();
+    const onDockActivate = (ev) => {
+      if (ev.detail?.tab === "lint")
+        refresh();
+    };
+    document.addEventListener("sui:navigate", onNavigate);
+    host.closest("sui-panel-dock")?.addEventListener("sui:dock:activate", onDockActivate);
+    Object.defineProperty(host, "refresh", { value: () => void refresh(), configurable: true });
+    refresh();
+    return () => {
+      document.removeEventListener("sui:navigate", onNavigate);
+      host.closest("sui-panel-dock")?.removeEventListener("sui:dock:activate", onDockActivate);
+    };
   }
-  .toolbar {
-    display: flex;
-    align-items: center;
-    gap: var(--space-3, 12px);
-    padding: 4px var(--space-3, 12px);
-    border-bottom: 1px solid var(--border);
-    color: var(--muted-foreground);
-    background: var(--sidebar);
-    flex-shrink: 0;
-    font-size: var(--text-xs);
+});
+
+// packages/ui-components/src/islands/sui-devtools/sui-devtools-lint.sui
+var sui_devtools_lint_default = view2((ctx) => {
+  const { ship, route, navigate } = ctx;
+  const $scope = Object.create(null);
+  $scope.ship = ship;
+  $scope.route = route;
+  $scope.navigate = navigate;
+  if (sui_devtools_lint_controller_default && typeof sui_devtools_lint_controller_default.setup === "function") {
+    ctx.scope = $scope;
+    const __r = sui_devtools_lint_controller_default.setup(ctx);
+    if (__r && typeof __r === "object")
+      Object.assign($scope, __r);
   }
-  .body {
-    flex: 1;
-    overflow: auto;
-    font-family: var(--font-mono);
-    font-size: var(--text-xs);
-  }
-  .row {
-    display: grid;
-    grid-template-columns: auto auto 1fr;
-    gap: 12px;
-    padding: 4px var(--space-3, 12px);
-    align-items: baseline;
-    border-bottom: 1px solid color-mix(in oklch, var(--border) 30%, transparent);
-  }
-  .sev { width: 52px; text-transform: uppercase; font-size: 10px; letter-spacing: 0.06em; }
-  .sev.err { color: var(--destructive); }
-  .sev.warn { color: var(--warning, var(--muted-foreground)); }
-  .loc { color: var(--muted-foreground); white-space: nowrap; }
-  .rule { color: var(--primary); margin-right: 8px; }
-  .count {
-    padding: 1px 6px;
-    border-radius: 999px;
-    font-size: 10px;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-  }
-  .count.err { color: var(--destructive); border: 1px solid var(--destructive); }
-  .count.warn { color: var(--warning, var(--muted-foreground)); border: 1px solid color-mix(in oklch, var(--warning, var(--muted-foreground)) 60%, transparent); }
-`,setup(J){let{props:Z,host:z}=J;if(!J.cleanups)J.cleanups=[];let Q=J.cleanups,X=Object.create(null),Y=null;if(S0&&typeof S0.setup==="function"){if(J.scope=X,Y=S0.setup(J),Y&&typeof Y==="object")Object.assign(X,Y)}let j=(F)=>m({anchor:F,test:()=>{if(X.viewName())return 0;return 1},branches:[()=>{let M=document.createDocumentFragment(),L=[],G=document.createElement("span");G.setAttribute("style","color:var(--foreground);font-weight:var(--font-weight-medium,500)");let W=document.createTextNode("");return G.appendChild(W),L.push(v(W,()=>X.viewName())),M.appendChild(G),{nodes:Array.from(M.childNodes),cleanup:()=>{for(let q of L)try{q()}catch(V){}}}},()=>{let M=document.createDocumentFragment(),L=[],G=document.createElement("span"),W=document.createTextNode("No view");return G.appendChild(W),M.appendChild(G),{nodes:Array.from(M.childNodes),cleanup:()=>{for(let q of L)try{q()}catch(V){}}}}]}),D=(F)=>m({anchor:F,test:()=>{if(X.errCount()>0)return 0;return-1},branches:[()=>{let M=document.createDocumentFragment(),L=[],G=document.createElement("span");G.setAttribute("class","count err");let W=document.createTextNode("");G.appendChild(W),L.push(v(W,()=>X.errCount()));let q=document.createTextNode(" error");return G.appendChild(q),M.appendChild(G),{nodes:Array.from(M.childNodes),cleanup:()=>{for(let V of L)try{V()}catch(B){}}}}]}),H=(F)=>m({anchor:F,test:()=>{if(X.warnCount()>0)return 0;return-1},branches:[()=>{let M=document.createDocumentFragment(),L=[],G=document.createElement("span");G.setAttribute("class","count warn");let W=document.createTextNode("");G.appendChild(W),L.push(v(W,()=>X.warnCount()));let q=document.createTextNode(" warn");return G.appendChild(q),M.appendChild(G),{nodes:Array.from(M.childNodes),cleanup:()=>{for(let V of L)try{V()}catch(B){}}}}]}),P=(F)=>m({anchor:F,test:()=>{if(X.loading())return 0;return-1},branches:[()=>{let M=document.createDocumentFragment(),L=[],G=document.createElement("span"),W=document.createTextNode("Linting…");return G.appendChild(W),M.appendChild(G),{nodes:Array.from(M.childNodes),cleanup:()=>{for(let q of L)try{q()}catch(V){}}}}]}),K=(F)=>t({anchor:F,items:()=>X.filteredFindings(),key:(M,L)=>{let G=Object.create(X);return G.f=M,G.__i=L,((W)=>M.rule+M.line+M.col)(G)},render:(M,L)=>{let G=Object.create(X);return G.f=M,G.__i=L,G.__v=w(0),((W)=>{let q=document.createDocumentFragment(),V=[],B=document.createElement("div");B.setAttribute("class","row");let T=document.createElement("span");if(T.setAttribute("class","sev"),W.f.severity==="error")T.classList.add("err");else T.classList.remove("err");if(W.f.severity!=="error")T.classList.add("warn");else T.classList.remove("warn");let $=document.createTextNode("");T.appendChild($),$.textContent=W.f.severity,B.appendChild(T);let b=document.createElement("span");b.setAttribute("class","loc");let f=document.createTextNode("");b.appendChild(f),f.textContent=W.f.file;let _=document.createTextNode(":");b.appendChild(_);let p=document.createTextNode("");b.appendChild(p),p.textContent=W.f.line;let k=document.createTextNode(":");b.appendChild(k);let u=document.createTextNode("");b.appendChild(u),u.textContent=W.f.col,B.appendChild(b);let y=document.createElement("span"),h=document.createElement("span");h.setAttribute("class","rule");let r=document.createTextNode("[");h.appendChild(r);let a=document.createTextNode("");h.appendChild(a),a.textContent=W.f.rule;let s=document.createTextNode("]");h.appendChild(s),y.appendChild(h);let g=document.createTextNode("");return y.appendChild(g),g.textContent=W.f.message,B.appendChild(y),q.appendChild(B),{nodes:Array.from(q.childNodes),cleanup:()=>{for(let i of V)try{i()}catch(n){}},update:(i,n)=>{if(W.f=i,W.__i=n,W.f.severity==="error")T.classList.add("err");else T.classList.remove("err");if(W.f.severity!=="error")T.classList.add("warn");else T.classList.remove("warn");$.textContent=W.f.severity,f.textContent=W.f.file,p.textContent=W.f.line,u.textContent=W.f.col,a.textContent=W.f.rule,g.textContent=W.f.message,W.__v.set((c)=>c+1)}}})(G)}}),A=(F)=>m({anchor:F,test:()=>{if(X.errorMsg())return 0;if(!X.viewName()&&!X.loading())return 1;if(X.filteredFindings().length===0&&!X.loading())return 2;return 3},branches:[()=>{let M=document.createDocumentFragment(),L=[],G=document.createElement("div");G.setAttribute("style","padding:20px;color:var(--muted-foreground)");let W=document.createTextNode("");return G.appendChild(W),L.push(v(W,()=>X.errorMsg())),M.appendChild(G),{nodes:Array.from(M.childNodes),cleanup:()=>{for(let q of L)try{q()}catch(V){}}}},()=>{let M=document.createDocumentFragment(),L=[],G=document.createElement("sui-empty-state"),W=document.createElement("sui-icon");W.setAttribute("slot","icon"),W.setAttribute("name","check-circle"),G.appendChild(W);let q=document.createElement("span");q.setAttribute("slot","title");let V=document.createTextNode("No view");q.appendChild(V),G.appendChild(q);let B=document.createTextNode(`
+  const __wireBoundary_b0 = (anchor) => bindIf2({
+    anchor,
+    test: () => {
+      if ($scope.viewName())
+        return 0;
+      return 1;
+    },
+    branches: [
+      () => {
+        const __frag2 = document.createDocumentFragment();
+        const __c3 = [];
+        const __e4 = document.createElement("span");
+        __e4.setAttribute("style", "color:var(--foreground);font-weight:var(--font-weight-medium,500)");
+        const __t5 = document.createTextNode("");
+        __e4.appendChild(__t5);
+        __c3.push(bindText2(__t5, () => $scope.viewName()));
+        __frag2.appendChild(__e4);
+        return { nodes: Array.from(__frag2.childNodes), cleanup: () => {
+          for (const c of __c3)
+            try {
+              c();
+            } catch (e) {}
+        } };
+      },
+      () => {
+        const __frag6 = document.createDocumentFragment();
+        const __c7 = [];
+        const __e8 = document.createElement("span");
+        const __t9 = document.createTextNode("No view");
+        __e8.appendChild(__t9);
+        __frag6.appendChild(__e8);
+        return { nodes: Array.from(__frag6.childNodes), cleanup: () => {
+          for (const c of __c7)
+            try {
+              c();
+            } catch (e) {}
+        } };
+      }
+    ]
+  });
+  const __wireBoundary_b2 = (anchor) => bindIf2({
+    anchor,
+    test: () => {
+      if ($scope.errCount() > 0)
+        return 0;
+      return -1;
+    },
+    branches: [
+      () => {
+        const __frag12 = document.createDocumentFragment();
+        const __c13 = [];
+        const __e14 = document.createElement("span");
+        __e14.setAttribute("class", "count err");
+        const __t15 = document.createTextNode("");
+        __e14.appendChild(__t15);
+        __c13.push(bindText2(__t15, () => $scope.errCount()));
+        const __t16 = document.createTextNode(" error");
+        __e14.appendChild(__t16);
+        __frag12.appendChild(__e14);
+        return { nodes: Array.from(__frag12.childNodes), cleanup: () => {
+          for (const c of __c13)
+            try {
+              c();
+            } catch (e) {}
+        } };
+      }
+    ]
+  });
+  const __wireBoundary_b4 = (anchor) => bindIf2({
+    anchor,
+    test: () => {
+      if ($scope.warnCount() > 0)
+        return 0;
+      return -1;
+    },
+    branches: [
+      () => {
+        const __frag18 = document.createDocumentFragment();
+        const __c19 = [];
+        const __e20 = document.createElement("span");
+        __e20.setAttribute("class", "count warn");
+        const __t21 = document.createTextNode("");
+        __e20.appendChild(__t21);
+        __c19.push(bindText2(__t21, () => $scope.warnCount()));
+        const __t22 = document.createTextNode(" warn");
+        __e20.appendChild(__t22);
+        __frag18.appendChild(__e20);
+        return { nodes: Array.from(__frag18.childNodes), cleanup: () => {
+          for (const c of __c19)
+            try {
+              c();
+            } catch (e) {}
+        } };
+      }
+    ]
+  });
+  const __wireBoundary_b6 = (anchor) => bindIf2({
+    anchor,
+    test: () => {
+      if ($scope.loading())
+        return 0;
+      return -1;
+    },
+    branches: [
+      () => {
+        const __frag24 = document.createDocumentFragment();
+        const __c25 = [];
+        const __e26 = document.createElement("span");
+        const __t27 = document.createTextNode("Linting…");
+        __e26.appendChild(__t27);
+        __frag24.appendChild(__e26);
+        return { nodes: Array.from(__frag24.childNodes), cleanup: () => {
+          for (const c of __c25)
+            try {
+              c();
+            } catch (e) {}
+        } };
+      }
+    ]
+  });
+  const __wireBoundary_b9 = (anchor) => bindFor2({
+    anchor,
+    items: () => $scope.filteredFindings(),
+    key: (f, __i) => {
+      const __child = Object.create($scope);
+      __child.f = f;
+      __child.__i = __i;
+      return (($scope2) => f.rule + f.line + f.col)(__child);
+    },
+    render: (f, __i) => {
+      const __childScope51 = Object.create($scope);
+      __childScope51.f = f;
+      __childScope51.__i = __i;
+      __childScope51.__v = signal4(0);
+      return (($scope2) => {
+        const __frag52 = document.createDocumentFragment();
+        const __c53 = [];
+        const __e54 = document.createElement("div");
+        __e54.setAttribute("class", "row");
+        const __e55 = document.createElement("span");
+        __e55.setAttribute("class", "sev");
+        if ($scope2.f.severity === "error")
+          __e55.classList.add("err");
+        else
+          __e55.classList.remove("err");
+        if ($scope2.f.severity !== "error")
+          __e55.classList.add("warn");
+        else
+          __e55.classList.remove("warn");
+        const __t56 = document.createTextNode("");
+        __e55.appendChild(__t56);
+        __t56.textContent = $scope2.f.severity;
+        __e54.appendChild(__e55);
+        const __e57 = document.createElement("span");
+        __e57.setAttribute("class", "loc");
+        const __t58 = document.createTextNode("");
+        __e57.appendChild(__t58);
+        __t58.textContent = $scope2.f.file;
+        const __t59 = document.createTextNode(":");
+        __e57.appendChild(__t59);
+        const __t60 = document.createTextNode("");
+        __e57.appendChild(__t60);
+        __t60.textContent = $scope2.f.line;
+        const __t61 = document.createTextNode(":");
+        __e57.appendChild(__t61);
+        const __t62 = document.createTextNode("");
+        __e57.appendChild(__t62);
+        __t62.textContent = $scope2.f.col;
+        __e54.appendChild(__e57);
+        const __e63 = document.createElement("span");
+        const __e64 = document.createElement("span");
+        __e64.setAttribute("class", "rule");
+        const __t65 = document.createTextNode("[");
+        __e64.appendChild(__t65);
+        const __t66 = document.createTextNode("");
+        __e64.appendChild(__t66);
+        __t66.textContent = $scope2.f.rule;
+        const __t67 = document.createTextNode("]");
+        __e64.appendChild(__t67);
+        __e63.appendChild(__e64);
+        const __t68 = document.createTextNode("");
+        __e63.appendChild(__t68);
+        __t68.textContent = $scope2.f.message;
+        __e54.appendChild(__e63);
+        __frag52.appendChild(__e54);
+        return { nodes: Array.from(__frag52.childNodes), cleanup: () => {
+          for (const c of __c53)
+            try {
+              c();
+            } catch (e) {}
+        }, update: (__new69, __newI70) => {
+          $scope2.f = __new69;
+          $scope2.__i = __newI70;
+          if ($scope2.f.severity === "error")
+            __e55.classList.add("err");
+          else
+            __e55.classList.remove("err");
+          if ($scope2.f.severity !== "error")
+            __e55.classList.add("warn");
+          else
+            __e55.classList.remove("warn");
+          __t56.textContent = $scope2.f.severity;
+          __t58.textContent = $scope2.f.file;
+          __t60.textContent = $scope2.f.line;
+          __t62.textContent = $scope2.f.col;
+          __t66.textContent = $scope2.f.rule;
+          __t68.textContent = $scope2.f.message;
+          $scope2.__v.set((c) => c + 1);
+        } };
+      })(__childScope51);
+    }
+  });
+  const __wireBoundary_b7 = (anchor) => bindIf2({
+    anchor,
+    test: () => {
+      if ($scope.errorMsg())
+        return 0;
+      if (!$scope.viewName() && !$scope.loading())
+        return 1;
+      if ($scope.filteredFindings().length === 0 && !$scope.loading())
+        return 2;
+      return 3;
+    },
+    branches: [
+      () => {
+        const __frag30 = document.createDocumentFragment();
+        const __c31 = [];
+        const __e32 = document.createElement("div");
+        __e32.setAttribute("style", "padding:20px;color:var(--muted-foreground)");
+        const __t33 = document.createTextNode("");
+        __e32.appendChild(__t33);
+        __c31.push(bindText2(__t33, () => $scope.errorMsg()));
+        __frag30.appendChild(__e32);
+        return { nodes: Array.from(__frag30.childNodes), cleanup: () => {
+          for (const c of __c31)
+            try {
+              c();
+            } catch (e) {}
+        } };
+      },
+      () => {
+        const __frag34 = document.createDocumentFragment();
+        const __c35 = [];
+        const __e36 = document.createElement("sui-empty-state");
+        const __e37 = document.createElement("sui-icon");
+        __e37.setAttribute("slot", "icon");
+        __e37.setAttribute("name", "check-circle");
+        __e36.appendChild(__e37);
+        const __e38 = document.createElement("span");
+        __e38.setAttribute("slot", "title");
+        const __t39 = document.createTextNode("No view");
+        __e38.appendChild(__t39);
+        __e36.appendChild(__e38);
+        const __t40 = document.createTextNode(`
       Navigate to a view to lint it.
-    `);return G.appendChild(B),M.appendChild(G),{nodes:Array.from(M.childNodes),cleanup:()=>{for(let T of L)try{T()}catch($){}}}},()=>{let M=document.createDocumentFragment(),L=[],G=document.createElement("sui-empty-state"),W=document.createElement("sui-icon");W.setAttribute("slot","icon"),W.setAttribute("name","check-circle"),G.appendChild(W);let q=document.createElement("span");q.setAttribute("slot","title");let V=document.createTextNode("Clean");q.appendChild(V),G.appendChild(q);let B=document.createTextNode(`
+    `);
+        __e36.appendChild(__t40);
+        __frag34.appendChild(__e36);
+        return { nodes: Array.from(__frag34.childNodes), cleanup: () => {
+          for (const c of __c35)
+            try {
+              c();
+            } catch (e) {}
+        } };
+      },
+      () => {
+        const __frag41 = document.createDocumentFragment();
+        const __c42 = [];
+        const __e43 = document.createElement("sui-empty-state");
+        const __e44 = document.createElement("sui-icon");
+        __e44.setAttribute("slot", "icon");
+        __e44.setAttribute("name", "check-circle");
+        __e43.appendChild(__e44);
+        const __e45 = document.createElement("span");
+        __e45.setAttribute("slot", "title");
+        const __t46 = document.createTextNode("Clean");
+        __e45.appendChild(__t46);
+        __e43.appendChild(__e45);
+        const __t47 = document.createTextNode(`
       No lint errors in current view.
-    `);return G.appendChild(B),M.appendChild(G),{nodes:Array.from(M.childNodes),cleanup:()=>{for(let T of L)try{T()}catch($){}}}},()=>{let M=document.createDocumentFragment(),L=[],G=document.createComment("for");return M.appendChild(G),L.push(K(G)),{nodes:Array.from(M.childNodes),cleanup:()=>{for(let W of L)try{W()}catch(q){}}}}]}),I=z.shadowRoot??z;X0(I);let E=document.createElement("div");E.setAttribute("class","toolbar");let S=document.createComment("if");E.appendChild(S),Q.push(j(S));let R=document.createElement("span");R.setAttribute("style","flex:1"),E.appendChild(R);let x=document.createComment("if");E.appendChild(x),Q.push(D(x));let N=document.createComment("if");E.appendChild(N),Q.push(H(N));let U=document.createComment("if");E.appendChild(U),Q.push(P(U)),I.appendChild(E);let C=document.createElement("div");C.setAttribute("class","body");let O=document.createComment("if");if(C.appendChild(O),Q.push(A(O)),I.appendChild(C),Y!=null){let F=Object.getOwnPropertyDescriptor(Y,"__shipSetLifecycle")?.value;if(F){let M=new Proxy(X,{get(L,G){return L[G]},set(L,G,W){let q=L[G];if(q!=null&&typeof q.set==="function"){if(typeof W==="function")q.set(()=>W);else q.set(W);return!0}return!1}});if(F.mount){let L=F.mount(M,z);if(typeof L==="function")Q.push(L)}if(F.unmount)Q.push(()=>F.unmount(M))}}return X}});var OJ=/ship\.(try\.)?([a-z_][a-z0-9_]*)\.([a-z_][a-z0-9_]*)/gi;function LX(J,Z){let z=new Map,Q;OJ.lastIndex=0;while((Q=OJ.exec(J))!==null){let X=!!Q[1],Y=`${Q[2]}.${Q[3]}`,j=`${X?"try:":""}${Y}`;if(z.has(j))continue;let D=Z.get(Y);z.set(j,{op:Y,soft:X,known:Z.has(Y),description:D?.description??"(not in catalog)",permission:D?.permission??"",args:D?D.args:null,argsSummary:D?D.args.map((H)=>`${H.name}${H.required?"":"?"}:${H.kind}`).join(" "):"",returns:D?.returns??null,sensitive:D?.sensitive??!1})}return[...z.values()].sort((X,Y)=>X.op.localeCompare(Y.op))}var $0=J0({scope:()=>{let J=w([]),Z=w(null),z=d(()=>J().filter((Q)=>Q.known).length);return{refs:J,errorMsg:Z,knownCount:z}},mount(J,Z){let z=J,Q=new Map,X=null;async function Y(){if(Q.size>0)return;try{let K=await fetch("/api/v1/ship/schema",{credentials:"same-origin"});if(!K.ok)return;let A=await K.json();Q=new Map(A.data.ops.map((I)=>[I.name,I]))}catch{}}function j(K){let A=K.match(/^\/api\/v\/(.+)$/);return A?A[1]:K.replace(/^\/+/,"")}async function D(){let A=window.ship?.current()?.path??location.pathname,I=j(A);if(!I){z.refs=[],z.errorMsg=null;return}if(I===X)return;X=I,z.errorMsg=null,await Y();try{let E=await fetch(`/api/v1/view-source/${encodeURI(I)}`,{credentials:"same-origin"});if(E.status===404){z.refs=[];return}if(!E.ok){z.errorMsg=`fetch failed: ${E.status}`;return}let S=await E.json();z.refs=LX(`${S.template}
-${S.manifest??""}`,Q)}catch(E){z.errorMsg=E.message}}let H=()=>{X=null,D()},P=(K)=>{if(K.detail?.tab==="schema")X=null,D()};return document.addEventListener("sui:navigate",H),Z.closest("sui-panel-dock")?.addEventListener("sui:dock:activate",P),Object.defineProperty(Z,"refresh",{value:()=>{X=null,D()},configurable:!0}),D(),()=>{document.removeEventListener("sui:navigate",H),Z.closest("sui-panel-dock")?.removeEventListener("sui:dock:activate",P)}}});var fQ=e("sui-devtools-schema",{shadow:!0,styles:`
-  :host {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    min-height: 0;
-    font-size: var(--text-sm);
+    `);
+        __e43.appendChild(__t47);
+        __frag41.appendChild(__e43);
+        return { nodes: Array.from(__frag41.childNodes), cleanup: () => {
+          for (const c of __c42)
+            try {
+              c();
+            } catch (e) {}
+        } };
+      },
+      () => {
+        const __frag48 = document.createDocumentFragment();
+        const __c49 = [];
+        const __forAnchor50 = document.createComment("for");
+        __frag48.appendChild(__forAnchor50);
+        __c49.push(__wireBoundary_b9(__forAnchor50));
+        return { nodes: Array.from(__frag48.childNodes), cleanup: () => {
+          for (const c of __c49)
+            try {
+              c();
+            } catch (e) {}
+        } };
+      }
+    ]
+  });
+  return Object.assign({}, $scope, {
+    __mount(container) {
+      const __cleanups = [];
+      const __e0 = document.createElement("div");
+      __e0.setAttribute("class", "toolbar");
+      const __ifAnchor1 = document.createComment("if");
+      __e0.appendChild(__ifAnchor1);
+      __cleanups.push(__wireBoundary_b0(__ifAnchor1));
+      const __e10 = document.createElement("span");
+      __e10.setAttribute("style", "flex:1");
+      __e0.appendChild(__e10);
+      const __ifAnchor11 = document.createComment("if");
+      __e0.appendChild(__ifAnchor11);
+      __cleanups.push(__wireBoundary_b2(__ifAnchor11));
+      const __ifAnchor17 = document.createComment("if");
+      __e0.appendChild(__ifAnchor17);
+      __cleanups.push(__wireBoundary_b4(__ifAnchor17));
+      const __ifAnchor23 = document.createComment("if");
+      __e0.appendChild(__ifAnchor23);
+      __cleanups.push(__wireBoundary_b6(__ifAnchor23));
+      container.appendChild(__e0);
+      const __e28 = document.createElement("div");
+      __e28.setAttribute("class", "body");
+      const __ifAnchor29 = document.createComment("if");
+      __e28.appendChild(__ifAnchor29);
+      __cleanups.push(__wireBoundary_b7(__ifAnchor29));
+      container.appendChild(__e28);
+      return () => {
+        for (const c of __cleanups)
+          try {
+            c();
+          } catch (e) {}
+      };
+    },
+    hydrate(root, ctx2) {
+      const __cleanups = [];
+      const __m = collectElementMarkers2(root);
+      if (__m["b0"]) {
+        const __t = __m["b0"];
+        const __doc = __t.ownerDocument ?? document;
+        const __anchor = __t.nodeType === 1 ? __doc.createComment("if") : __t;
+        if (__t.nodeType === 1 && __t.parentNode)
+          __t.parentNode.replaceChild(__anchor, __t);
+        __cleanups.push(__wireBoundary_b0(__anchor));
+      }
+      if (__m["b2"]) {
+        const __t = __m["b2"];
+        const __doc = __t.ownerDocument ?? document;
+        const __anchor = __t.nodeType === 1 ? __doc.createComment("if") : __t;
+        if (__t.nodeType === 1 && __t.parentNode)
+          __t.parentNode.replaceChild(__anchor, __t);
+        __cleanups.push(__wireBoundary_b2(__anchor));
+      }
+      if (__m["b4"]) {
+        const __t = __m["b4"];
+        const __doc = __t.ownerDocument ?? document;
+        const __anchor = __t.nodeType === 1 ? __doc.createComment("if") : __t;
+        if (__t.nodeType === 1 && __t.parentNode)
+          __t.parentNode.replaceChild(__anchor, __t);
+        __cleanups.push(__wireBoundary_b4(__anchor));
+      }
+      if (__m["b6"]) {
+        const __t = __m["b6"];
+        const __doc = __t.ownerDocument ?? document;
+        const __anchor = __t.nodeType === 1 ? __doc.createComment("if") : __t;
+        if (__t.nodeType === 1 && __t.parentNode)
+          __t.parentNode.replaceChild(__anchor, __t);
+        __cleanups.push(__wireBoundary_b6(__anchor));
+      }
+      if (__m["b7"]) {
+        const __t = __m["b7"];
+        const __doc = __t.ownerDocument ?? document;
+        const __anchor = __t.nodeType === 1 ? __doc.createComment("if") : __t;
+        if (__t.nodeType === 1 && __t.parentNode)
+          __t.parentNode.replaceChild(__anchor, __t);
+        __cleanups.push(__wireBoundary_b7(__anchor));
+      }
+      return () => {
+        for (const c of __cleanups)
+          try {
+            c();
+          } catch (e) {}
+      };
+    }
+  });
+});
+
+// packages/ui-components/src/islands/sui-devtools/sui-devtools-schema.sui
+import { bindClass as bindClass2, bindFor as bindFor3, bindIf as bindIf3, bindText as bindText3, signal as signal6, view as view3 } from "@ship/sui-runtime";
+import { collectElementMarkers as collectElementMarkers3 } from "@ship/sui-dom";
+
+// packages/ui-components/src/islands/sui-devtools/sui-devtools-schema.controller.ts
+import { controller as controller3, signal as signal5, derived as derived3 } from "@ship/sui-runtime";
+var SHIP_OP_RE = /ship\.(try\.)?([a-z_][a-z0-9_]*)\.([a-z_][a-z0-9_]*)/gi;
+function collectRefs(src, ops) {
+  const seen = new Map;
+  let m;
+  SHIP_OP_RE.lastIndex = 0;
+  while ((m = SHIP_OP_RE.exec(src)) !== null) {
+    const soft = !!m[1];
+    const name = `${m[2]}.${m[3]}`;
+    const key = `${soft ? "try:" : ""}${name}`;
+    if (seen.has(key))
+      continue;
+    const desc = ops.get(name);
+    seen.set(key, {
+      op: name,
+      soft,
+      known: ops.has(name),
+      description: desc?.description ?? "(not in catalog)",
+      permission: desc?.permission ?? "",
+      args: desc ? desc.args : null,
+      argsSummary: desc ? desc.args.map((a) => `${a.name}${a.required ? "" : "?"}:${a.kind}`).join(" ") : "",
+      returns: desc?.returns ?? null,
+      sensitive: desc?.sensitive ?? false
+    });
   }
-  .toolbar {
-    display: flex;
-    align-items: center;
-    gap: var(--space-3, 12px);
-    padding: 4px var(--space-3, 12px);
-    border-bottom: 1px solid var(--border);
-    background: var(--sidebar);
-    color: var(--muted-foreground);
-    font-size: var(--text-xs);
-    flex-shrink: 0;
+  return [...seen.values()].sort((a, b) => a.op.localeCompare(b.op));
+}
+var sui_devtools_schema_controller_default = controller3({
+  scope: () => {
+    const refs = signal5([]);
+    const errorMsg = signal5(null);
+    const knownCount = derived3(() => refs().filter((r) => r.known).length);
+    return { refs, errorMsg, knownCount };
+  },
+  mount(state, host) {
+    const s = state;
+    let ops = new Map;
+    let lastPath = null;
+    async function loadOps() {
+      if (ops.size > 0)
+        return;
+      try {
+        const resp = await fetch("/api/v1/ship/schema", { credentials: "same-origin" });
+        if (!resp.ok)
+          return;
+        const body = await resp.json();
+        ops = new Map(body.data.ops.map((op) => [op.name, op]));
+      } catch {}
+    }
+    function stripPrefix(path) {
+      const m = path.match(/^\/api\/v\/(.+)$/);
+      return m ? m[1] : path.replace(/^\/+/, "");
+    }
+    async function refresh() {
+      const current = window.ship?.current();
+      const path = current?.path ?? location.pathname;
+      const stripped = stripPrefix(path);
+      if (!stripped) {
+        s["refs"] = [];
+        s["errorMsg"] = null;
+        return;
+      }
+      if (stripped === lastPath)
+        return;
+      lastPath = stripped;
+      s["errorMsg"] = null;
+      await loadOps();
+      try {
+        const resp = await fetch(`/api/v1/view-source/${encodeURI(stripped)}`, { credentials: "same-origin" });
+        if (resp.status === 404) {
+          s["refs"] = [];
+          return;
+        }
+        if (!resp.ok) {
+          s["errorMsg"] = `fetch failed: ${resp.status}`;
+          return;
+        }
+        const src = await resp.json();
+        s["refs"] = collectRefs(`${src.template}
+${src.manifest ?? ""}`, ops);
+      } catch (e) {
+        s["errorMsg"] = e.message;
+      }
+    }
+    const onNavigate = () => {
+      lastPath = null;
+      refresh();
+    };
+    const onDockActivate = (ev) => {
+      if (ev.detail?.tab === "schema") {
+        lastPath = null;
+        refresh();
+      }
+    };
+    document.addEventListener("sui:navigate", onNavigate);
+    host.closest("sui-panel-dock")?.addEventListener("sui:dock:activate", onDockActivate);
+    Object.defineProperty(host, "refresh", { value: () => {
+      lastPath = null;
+      refresh();
+    }, configurable: true });
+    refresh();
+    return () => {
+      document.removeEventListener("sui:navigate", onNavigate);
+      host.closest("sui-panel-dock")?.removeEventListener("sui:dock:activate", onDockActivate);
+    };
   }
-  .body { flex: 1; overflow: auto; }
-  details { border-bottom: 1px solid color-mix(in oklch, var(--border) 40%, transparent); }
-  details > summary {
-    list-style: none;
-    cursor: pointer;
-    padding: 6px var(--space-3, 12px);
-    display: grid;
-    grid-template-columns: auto 1fr auto;
-    gap: var(--space-3, 12px);
-    align-items: baseline;
-    font-family: var(--font-mono);
-    font-size: var(--text-xs);
+});
+
+// packages/ui-components/src/islands/sui-devtools/sui-devtools-schema.sui
+var sui_devtools_schema_default = view3((ctx) => {
+  const { ship, route, navigate } = ctx;
+  const $scope = Object.create(null);
+  $scope.ship = ship;
+  $scope.route = route;
+  $scope.navigate = navigate;
+  if (sui_devtools_schema_controller_default && typeof sui_devtools_schema_controller_default.setup === "function") {
+    ctx.scope = $scope;
+    const __r = sui_devtools_schema_controller_default.setup(ctx);
+    if (__r && typeof __r === "object")
+      Object.assign($scope, __r);
   }
-  details > summary::-webkit-details-marker { display: none; }
-  .op { color: var(--primary); }
-  .op.soft::before { content: 'try · '; color: var(--muted-foreground); }
-  .op.unknown { color: var(--destructive); }
-  .perm { color: var(--muted-foreground); }
-  .desc { color: var(--muted-foreground); }
-  .detail {
-    padding: 4px var(--space-3, 12px) 10px calc(var(--space-3, 12px) + 14px);
-    font-size: var(--text-xs);
-    color: var(--muted-foreground);
-    display: grid;
-    gap: 4px;
-    font-family: var(--font-mono);
-  }
-  .detail code { color: var(--foreground); }
-`,setup(J){let{props:Z,host:z}=J;if(!J.cleanups)J.cleanups=[];let Q=J.cleanups,X=Object.create(null),Y=null;if($0&&typeof $0.setup==="function"){if(J.scope=X,Y=$0.setup(J),Y&&typeof Y==="object")Object.assign(X,Y)}let j=(S)=>m({anchor:S,test:()=>{if(X.refs().length>0)return 0;return 1},branches:[()=>{let R=document.createDocumentFragment(),x=[],N=document.createElement("span"),U=document.createTextNode("");N.appendChild(U),x.push(v(U,()=>X.refs().length));let C=document.createTextNode(" ops referenced");N.appendChild(C),R.appendChild(N);let O=document.createElement("span");O.setAttribute("style","flex:1"),R.appendChild(O);let F=document.createElement("span"),M=document.createTextNode("");F.appendChild(M),x.push(v(M,()=>X.knownCount()));let L=document.createTextNode(" known · ");F.appendChild(L);let G=document.createTextNode("");F.appendChild(G),x.push(v(G,()=>X.refs().length-X.knownCount()));let W=document.createTextNode(" unknown");return F.appendChild(W),R.appendChild(F),{nodes:Array.from(R.childNodes),cleanup:()=>{for(let q of x)try{q()}catch(V){}}}},()=>{let R=document.createDocumentFragment(),x=[],N=document.createElement("span");return R.appendChild(N),{nodes:Array.from(R.childNodes),cleanup:()=>{for(let U of x)try{U()}catch(C){}}}}]}),D=(S)=>t({anchor:S,items:()=>X.refs(),key:(R,x)=>{let N=Object.create(X);return N.r=R,N.__i=x,((U)=>R.op+(R.soft?"-soft":""))(N)},render:(R,x)=>{let N=Object.create(X);return N.r=R,N.__i=x,N.__v=w(0),((U)=>{let C=(p)=>m({anchor:p,test:()=>{if(U.r.args.length>0)return 0;return 1},branches:[()=>{let k=document.createDocumentFragment(),u=[],y=document.createElement("div"),h=document.createTextNode("args: ");y.appendChild(h);let r=document.createTextNode("");return y.appendChild(r),r.textContent=U.r.argsSummary,k.appendChild(y),{nodes:Array.from(k.childNodes),cleanup:()=>{for(let a of u)try{a()}catch(s){}}}},()=>{let k=document.createDocumentFragment(),u=[],y=document.createElement("div"),h=document.createTextNode("args: ");y.appendChild(h);let r=document.createElement("em"),a=document.createTextNode("none");return r.appendChild(a),y.appendChild(r),k.appendChild(y),{nodes:Array.from(k.childNodes),cleanup:()=>{for(let s of u)try{s()}catch(g){}}}}]}),O=(p)=>m({anchor:p,test:()=>{if(U.r.sensitive)return 0;return-1},branches:[()=>{let k=document.createDocumentFragment(),u=[],y=document.createElement("div"),h=document.createElement("strong"),r=document.createTextNode("sensitive");return h.appendChild(r),y.appendChild(h),k.appendChild(y),{nodes:Array.from(k.childNodes),cleanup:()=>{for(let a of u)try{a()}catch(s){}}}}]}),F=(p)=>m({anchor:p,test:()=>{if(U.r.args!==null)return 0;return 1},branches:[()=>{let k=document.createDocumentFragment(),u=[],y=document.createComment("if");k.appendChild(y),u.push(C(y));let h=document.createElement("div"),r=document.createTextNode("returns: ");h.appendChild(r);let a=document.createElement("code"),s=document.createTextNode("");a.appendChild(s),s.textContent=U.r.returns,h.appendChild(a),k.appendChild(h);let g=document.createComment("if");return k.appendChild(g),u.push(O(g)),{nodes:Array.from(k.childNodes),cleanup:()=>{for(let i of u)try{i()}catch(n){}}}},()=>{let k=document.createDocumentFragment(),u=[],y=document.createElement("div"),h=document.createTextNode("Not registered in ");y.appendChild(h);let r=document.createElement("code"),a=document.createTextNode("/api/ship/schema");r.appendChild(a),y.appendChild(r);let s=document.createTextNode(".");return y.appendChild(s),k.appendChild(y),{nodes:Array.from(k.childNodes),cleanup:()=>{for(let g of u)try{g()}catch(i){}}}}]}),M=document.createDocumentFragment(),L=[],G=document.createElement("details"),W=document.createElement("summary"),q=document.createElement("span");if(q.setAttribute("class","op"),U.r.soft)q.classList.add("soft");else q.classList.remove("soft");if(!U.r.known)q.classList.add("unknown");else q.classList.remove("unknown");let V=document.createTextNode("");q.appendChild(V),V.textContent=U.r.op,W.appendChild(q);let B=document.createElement("span");B.setAttribute("class","desc");let T=document.createTextNode("");B.appendChild(T),T.textContent=U.r.description,W.appendChild(B);let $=document.createElement("span");$.setAttribute("class","perm");let b=document.createTextNode("");$.appendChild(b),b.textContent=U.r.permission,W.appendChild($),G.appendChild(W);let f=document.createElement("div");f.setAttribute("class","detail");let _=document.createComment("if");return f.appendChild(_),L.push(F(_)),G.appendChild(f),M.appendChild(G),{nodes:Array.from(M.childNodes),cleanup:()=>{for(let p of L)try{p()}catch(k){}},update:(p,k)=>{if(U.r=p,U.__i=k,U.r.soft)q.classList.add("soft");else q.classList.remove("soft");if(!U.r.known)q.classList.add("unknown");else q.classList.remove("unknown");V.textContent=U.r.op,T.textContent=U.r.description,b.textContent=U.r.permission,U.__v.set((u)=>u+1)}}})(N)}}),H=(S)=>m({anchor:S,test:()=>{if(X.errorMsg())return 0;if(X.refs().length===0)return 1;return 2},branches:[()=>{let R=document.createDocumentFragment(),x=[],N=document.createElement("div");N.setAttribute("style","padding:20px;color:var(--muted-foreground)");let U=document.createTextNode("");return N.appendChild(U),x.push(v(U,()=>X.errorMsg())),R.appendChild(N),{nodes:Array.from(R.childNodes),cleanup:()=>{for(let C of x)try{C()}catch(O){}}}},()=>{let R=document.createDocumentFragment(),x=[],N=document.createElement("sui-empty-state"),U=document.createElement("sui-icon");U.setAttribute("slot","icon"),U.setAttribute("name","network"),N.appendChild(U);let C=document.createElement("span");C.setAttribute("slot","title");let O=document.createTextNode("No schema references");C.appendChild(O),N.appendChild(C);let F=document.createTextNode(`
+  const __wireBoundary_b0 = (anchor) => bindIf3({
+    anchor,
+    test: () => {
+      if ($scope.refs().length > 0)
+        return 0;
+      return 1;
+    },
+    branches: [
+      () => {
+        const __frag2 = document.createDocumentFragment();
+        const __c3 = [];
+        const __e4 = document.createElement("span");
+        const __t5 = document.createTextNode("");
+        __e4.appendChild(__t5);
+        __c3.push(bindText3(__t5, () => $scope.refs().length));
+        const __t6 = document.createTextNode(" ops referenced");
+        __e4.appendChild(__t6);
+        __frag2.appendChild(__e4);
+        const __e7 = document.createElement("span");
+        __e7.setAttribute("style", "flex:1");
+        __frag2.appendChild(__e7);
+        const __e8 = document.createElement("span");
+        const __t9 = document.createTextNode("");
+        __e8.appendChild(__t9);
+        __c3.push(bindText3(__t9, () => $scope.knownCount()));
+        const __t10 = document.createTextNode(" known · ");
+        __e8.appendChild(__t10);
+        const __t11 = document.createTextNode("");
+        __e8.appendChild(__t11);
+        __c3.push(bindText3(__t11, () => $scope.refs().length - $scope.knownCount()));
+        const __t12 = document.createTextNode(" unknown");
+        __e8.appendChild(__t12);
+        __frag2.appendChild(__e8);
+        return { nodes: Array.from(__frag2.childNodes), cleanup: () => {
+          for (const c of __c3)
+            try {
+              c();
+            } catch (e) {}
+        } };
+      },
+      () => {
+        const __frag13 = document.createDocumentFragment();
+        const __c14 = [];
+        const __e15 = document.createElement("span");
+        __frag13.appendChild(__e15);
+        return { nodes: Array.from(__frag13.childNodes), cleanup: () => {
+          for (const c of __c14)
+            try {
+              c();
+            } catch (e) {}
+        } };
+      }
+    ]
+  });
+  const __wireBoundary_b6 = (anchor) => bindFor3({
+    anchor,
+    items: () => $scope.refs(),
+    key: (r, __i) => {
+      const __child = Object.create($scope);
+      __child.r = r;
+      __child.__i = __i;
+      return (($scope2) => r.op + (r.soft ? "-soft" : ""))(__child);
+    },
+    render: (r, __i) => {
+      const __childScope32 = Object.create($scope);
+      __childScope32.r = r;
+      __childScope32.__i = __i;
+      __childScope32.__v = signal6(0);
+      return (($scope2) => {
+        const __wireBoundary_b13 = (anchor2) => bindIf3({
+          anchor: anchor2,
+          test: () => {
+            if ($scope2.r.args.length > 0)
+              return 0;
+            return 1;
+          },
+          branches: [
+            () => {
+              const __frag48 = document.createDocumentFragment();
+              const __c49 = [];
+              const __e50 = document.createElement("div");
+              const __t51 = document.createTextNode("args: ");
+              __e50.appendChild(__t51);
+              const __t52 = document.createTextNode("");
+              __e50.appendChild(__t52);
+              __t52.textContent = $scope2.r.argsSummary;
+              __frag48.appendChild(__e50);
+              return { nodes: Array.from(__frag48.childNodes), cleanup: () => {
+                for (const c of __c49)
+                  try {
+                    c();
+                  } catch (e) {}
+              } };
+            },
+            () => {
+              const __frag53 = document.createDocumentFragment();
+              const __c54 = [];
+              const __e55 = document.createElement("div");
+              const __t56 = document.createTextNode("args: ");
+              __e55.appendChild(__t56);
+              const __e57 = document.createElement("em");
+              const __t58 = document.createTextNode("none");
+              __e57.appendChild(__t58);
+              __e55.appendChild(__e57);
+              __frag53.appendChild(__e55);
+              return { nodes: Array.from(__frag53.childNodes), cleanup: () => {
+                for (const c of __c54)
+                  try {
+                    c();
+                  } catch (e) {}
+              } };
+            }
+          ]
+        });
+        const __wireBoundary_b16 = (anchor2) => bindIf3({
+          anchor: anchor2,
+          test: () => {
+            if ($scope2.r.sensitive)
+              return 0;
+            return -1;
+          },
+          branches: [
+            () => {
+              const __frag64 = document.createDocumentFragment();
+              const __c65 = [];
+              const __e66 = document.createElement("div");
+              const __e67 = document.createElement("strong");
+              const __t68 = document.createTextNode("sensitive");
+              __e67.appendChild(__t68);
+              __e66.appendChild(__e67);
+              __frag64.appendChild(__e66);
+              return { nodes: Array.from(__frag64.childNodes), cleanup: () => {
+                for (const c of __c65)
+                  try {
+                    c();
+                  } catch (e) {}
+              } };
+            }
+          ]
+        });
+        const __wireBoundary_b12 = (anchor2) => bindIf3({
+          anchor: anchor2,
+          test: () => {
+            if ($scope2.r.args !== null)
+              return 0;
+            return 1;
+          },
+          branches: [
+            () => {
+              const __frag45 = document.createDocumentFragment();
+              const __c46 = [];
+              const __ifAnchor47 = document.createComment("if");
+              __frag45.appendChild(__ifAnchor47);
+              __c46.push(__wireBoundary_b13(__ifAnchor47));
+              const __e59 = document.createElement("div");
+              const __t60 = document.createTextNode("returns: ");
+              __e59.appendChild(__t60);
+              const __e61 = document.createElement("code");
+              const __t62 = document.createTextNode("");
+              __e61.appendChild(__t62);
+              __t62.textContent = $scope2.r.returns;
+              __e59.appendChild(__e61);
+              __frag45.appendChild(__e59);
+              const __ifAnchor63 = document.createComment("if");
+              __frag45.appendChild(__ifAnchor63);
+              __c46.push(__wireBoundary_b16(__ifAnchor63));
+              return { nodes: Array.from(__frag45.childNodes), cleanup: () => {
+                for (const c of __c46)
+                  try {
+                    c();
+                  } catch (e) {}
+              } };
+            },
+            () => {
+              const __frag69 = document.createDocumentFragment();
+              const __c70 = [];
+              const __e71 = document.createElement("div");
+              const __t72 = document.createTextNode("Not registered in ");
+              __e71.appendChild(__t72);
+              const __e73 = document.createElement("code");
+              const __t74 = document.createTextNode("/api/ship/schema");
+              __e73.appendChild(__t74);
+              __e71.appendChild(__e73);
+              const __t75 = document.createTextNode(".");
+              __e71.appendChild(__t75);
+              __frag69.appendChild(__e71);
+              return { nodes: Array.from(__frag69.childNodes), cleanup: () => {
+                for (const c of __c70)
+                  try {
+                    c();
+                  } catch (e) {}
+              } };
+            }
+          ]
+        });
+        const __frag33 = document.createDocumentFragment();
+        const __c34 = [];
+        const __e35 = document.createElement("details");
+        const __e36 = document.createElement("summary");
+        const __e37 = document.createElement("span");
+        __e37.setAttribute("class", "op");
+        if ($scope2.r.soft)
+          __e37.classList.add("soft");
+        else
+          __e37.classList.remove("soft");
+        if (!$scope2.r.known)
+          __e37.classList.add("unknown");
+        else
+          __e37.classList.remove("unknown");
+        const __t38 = document.createTextNode("");
+        __e37.appendChild(__t38);
+        __t38.textContent = $scope2.r.op;
+        __e36.appendChild(__e37);
+        const __e39 = document.createElement("span");
+        __e39.setAttribute("class", "desc");
+        const __t40 = document.createTextNode("");
+        __e39.appendChild(__t40);
+        __t40.textContent = $scope2.r.description;
+        __e36.appendChild(__e39);
+        const __e41 = document.createElement("span");
+        __e41.setAttribute("class", "perm");
+        const __t42 = document.createTextNode("");
+        __e41.appendChild(__t42);
+        __t42.textContent = $scope2.r.permission;
+        __e36.appendChild(__e41);
+        __e35.appendChild(__e36);
+        const __e43 = document.createElement("div");
+        __e43.setAttribute("class", "detail");
+        const __ifAnchor44 = document.createComment("if");
+        __e43.appendChild(__ifAnchor44);
+        __c34.push(__wireBoundary_b12(__ifAnchor44));
+        __e35.appendChild(__e43);
+        __frag33.appendChild(__e35);
+        return { nodes: Array.from(__frag33.childNodes), cleanup: () => {
+          for (const c of __c34)
+            try {
+              c();
+            } catch (e) {}
+        }, update: (__new76, __newI77) => {
+          $scope2.r = __new76;
+          $scope2.__i = __newI77;
+          if ($scope2.r.soft)
+            __e37.classList.add("soft");
+          else
+            __e37.classList.remove("soft");
+          if (!$scope2.r.known)
+            __e37.classList.add("unknown");
+          else
+            __e37.classList.remove("unknown");
+          __t38.textContent = $scope2.r.op;
+          __t40.textContent = $scope2.r.description;
+          __t42.textContent = $scope2.r.permission;
+          $scope2.__v.set((c) => c + 1);
+        } };
+      })(__childScope32);
+    }
+  });
+  const __wireBoundary_b4 = (anchor) => bindIf3({
+    anchor,
+    test: () => {
+      if ($scope.errorMsg())
+        return 0;
+      if ($scope.refs().length === 0)
+        return 1;
+      return 2;
+    },
+    branches: [
+      () => {
+        const __frag18 = document.createDocumentFragment();
+        const __c19 = [];
+        const __e20 = document.createElement("div");
+        __e20.setAttribute("style", "padding:20px;color:var(--muted-foreground)");
+        const __t21 = document.createTextNode("");
+        __e20.appendChild(__t21);
+        __c19.push(bindText3(__t21, () => $scope.errorMsg()));
+        __frag18.appendChild(__e20);
+        return { nodes: Array.from(__frag18.childNodes), cleanup: () => {
+          for (const c of __c19)
+            try {
+              c();
+            } catch (e) {}
+        } };
+      },
+      () => {
+        const __frag22 = document.createDocumentFragment();
+        const __c23 = [];
+        const __e24 = document.createElement("sui-empty-state");
+        const __e25 = document.createElement("sui-icon");
+        __e25.setAttribute("slot", "icon");
+        __e25.setAttribute("name", "network");
+        __e24.appendChild(__e25);
+        const __e26 = document.createElement("span");
+        __e26.setAttribute("slot", "title");
+        const __t27 = document.createTextNode("No schema references");
+        __e26.appendChild(__t27);
+        __e24.appendChild(__e26);
+        const __t28 = document.createTextNode(`
       No ship.* calls detected in this view.
-    `);return N.appendChild(F),R.appendChild(N),{nodes:Array.from(R.childNodes),cleanup:()=>{for(let M of x)try{M()}catch(L){}}}},()=>{let R=document.createDocumentFragment(),x=[],N=document.createComment("for");return R.appendChild(N),x.push(D(N)),{nodes:Array.from(R.childNodes),cleanup:()=>{for(let U of x)try{U()}catch(C){}}}}]}),P=z.shadowRoot??z;X0(P);let K=document.createElement("div");K.setAttribute("class","toolbar");let A=document.createComment("if");K.appendChild(A),Q.push(j(A)),P.appendChild(K);let I=document.createElement("div");I.setAttribute("class","body");let E=document.createComment("if");if(I.appendChild(E),Q.push(H(E)),P.appendChild(I),Y!=null){let S=Object.getOwnPropertyDescriptor(Y,"__shipSetLifecycle")?.value;if(S){let R=new Proxy(X,{get(x,N){return x[N]},set(x,N,U){let C=x[N];if(C!=null&&typeof C.set==="function"){if(typeof U==="function")C.set(()=>U);else C.set(U);return!0}return!1}});if(S.mount){let x=S.mount(R,z);if(typeof x==="function")Q.push(x)}if(S.unmount)Q.push(()=>S.unmount(R))}}return X}});var MX=new Set(["ship","route","navigate"]);function jX(J){return typeof J==="function"&&typeof J.__peek==="function"}function FX(){let J=window.__suiCurrentScope;if(!J)return{};let Z={};for(let[z,Q]of Object.entries(J)){if(MX.has(z))continue;if(jX(Q)){try{Z[z]=Q.__peek()}catch{}continue}if(typeof Q==="function")continue;Z[z]=Q}return Z}function qX(J){if(J===void 0)return"undefined";if(typeof J==="string")return J.length>80?`"${J.slice(0,77)}…"`:`"${J}"`;if(typeof J==="function")return"<fn>";try{return JSON.stringify(J)}catch{return String(J)}}var k0=J0({scope:()=>{let J=w({}),Z=w(""),z=d(()=>Object.keys(J()).length),Q=d(()=>{let X=J(),Y=Z().toLowerCase(),j=Object.keys(X).sort();return(Y?j.filter((H)=>H.toLowerCase().includes(Y)):j).map((H)=>({key:H,value:qX(X[H])}))});return{sigs:J,filter:Z,allCount:z,shownEntries:Q}},mount(J,Z){let z=J,Q=null;function X(){z.sigs=FX()}function Y(){if(Q)return;X(),Q=setInterval(X,500)}function j(){if(!Q)return;clearInterval(Q),Q=null}let D=(K)=>{if(K.detail?.tab==="signals")Y();else j()},H=()=>X(),P=Z.closest("sui-panel-dock");if(P?.addEventListener("sui:dock:activate",D),document.addEventListener("sui:scope:change",H),P?.getAttribute("active-tab")==="signals")Y();return Object.defineProperty(Z,"refresh",{value:()=>X(),configurable:!0}),()=>{j(),P?.removeEventListener("sui:dock:activate",D),document.removeEventListener("sui:scope:change",H)}}});var pQ=e("sui-devtools-signals",{shadow:!0,styles:`
-  :host {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    min-height: 0;
-    font-size: var(--text-xs);
+    `);
+        __e24.appendChild(__t28);
+        __frag22.appendChild(__e24);
+        return { nodes: Array.from(__frag22.childNodes), cleanup: () => {
+          for (const c of __c23)
+            try {
+              c();
+            } catch (e) {}
+        } };
+      },
+      () => {
+        const __frag29 = document.createDocumentFragment();
+        const __c30 = [];
+        const __forAnchor31 = document.createComment("for");
+        __frag29.appendChild(__forAnchor31);
+        __c30.push(__wireBoundary_b6(__forAnchor31));
+        return { nodes: Array.from(__frag29.childNodes), cleanup: () => {
+          for (const c of __c30)
+            try {
+              c();
+            } catch (e) {}
+        } };
+      }
+    ]
+  });
+  return Object.assign({}, $scope, {
+    __mount(container) {
+      const __cleanups = [];
+      const __e0 = document.createElement("div");
+      __e0.setAttribute("class", "toolbar");
+      const __ifAnchor1 = document.createComment("if");
+      __e0.appendChild(__ifAnchor1);
+      __cleanups.push(__wireBoundary_b0(__ifAnchor1));
+      container.appendChild(__e0);
+      const __e16 = document.createElement("div");
+      __e16.setAttribute("class", "body");
+      const __ifAnchor17 = document.createComment("if");
+      __e16.appendChild(__ifAnchor17);
+      __cleanups.push(__wireBoundary_b4(__ifAnchor17));
+      container.appendChild(__e16);
+      return () => {
+        for (const c of __cleanups)
+          try {
+            c();
+          } catch (e) {}
+      };
+    },
+    hydrate(root, ctx2) {
+      const __cleanups = [];
+      const __m = collectElementMarkers3(root);
+      if (__m["b0"]) {
+        const __t = __m["b0"];
+        const __doc = __t.ownerDocument ?? document;
+        const __anchor = __t.nodeType === 1 ? __doc.createComment("if") : __t;
+        if (__t.nodeType === 1 && __t.parentNode)
+          __t.parentNode.replaceChild(__anchor, __t);
+        __cleanups.push(__wireBoundary_b0(__anchor));
+      }
+      if (__m["b4"]) {
+        const __t = __m["b4"];
+        const __doc = __t.ownerDocument ?? document;
+        const __anchor = __t.nodeType === 1 ? __doc.createComment("if") : __t;
+        if (__t.nodeType === 1 && __t.parentNode)
+          __t.parentNode.replaceChild(__anchor, __t);
+        __cleanups.push(__wireBoundary_b4(__anchor));
+      }
+      return () => {
+        for (const c of __cleanups)
+          try {
+            c();
+          } catch (e) {}
+      };
+    }
+  });
+});
+
+// packages/ui-components/src/islands/sui-devtools/sui-devtools-signals.sui
+import { bindAttr as bindAttr2, bindFor as bindFor4, bindIf as bindIf4, bindText as bindText4, bindValue as bindValue2, signal as signal8, view as view4 } from "@ship/sui-runtime";
+import { collectElementMarkers as collectElementMarkers4, collectTextOpens as collectTextOpens2, hydrateBindValue as hydrateBindValue2, hydrateText as hydrateText2 } from "@ship/sui-dom";
+
+// packages/ui-components/src/islands/sui-devtools/sui-devtools-signals.controller.ts
+import { controller as controller4, signal as signal7, derived as derived4 } from "@ship/sui-runtime";
+var FRAMEWORK_KEYS = new Set(["ship", "route", "navigate"]);
+function isSignalGetter(v) {
+  return typeof v === "function" && typeof v.__peek === "function";
+}
+function collectSignals() {
+  const scope = window.__suiCurrentScope;
+  if (!scope)
+    return {};
+  const out = {};
+  for (const [k, v] of Object.entries(scope)) {
+    if (FRAMEWORK_KEYS.has(k))
+      continue;
+    if (isSignalGetter(v)) {
+      try {
+        out[k] = v.__peek();
+      } catch {}
+      continue;
+    }
+    if (typeof v === "function")
+      continue;
+    out[k] = v;
   }
-  .toolbar {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2, 8px);
-    padding: 4px var(--space-3, 12px);
-    border-bottom: 1px solid var(--border);
-    color: var(--muted-foreground);
-    background: var(--sidebar);
-    flex-shrink: 0;
+  return out;
+}
+function renderValue(v) {
+  if (v === undefined)
+    return "undefined";
+  if (typeof v === "string")
+    return v.length > 80 ? `"${v.slice(0, 77)}…"` : `"${v}"`;
+  if (typeof v === "function")
+    return "<fn>";
+  try {
+    return JSON.stringify(v);
+  } catch {
+    return String(v);
   }
-  .toolbar input {
-    appearance: none;
-    background: var(--background);
-    color: var(--foreground);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm, 4px);
-    padding: 2px 8px;
-    font: inherit;
-    flex: 1;
-    max-width: 320px;
+}
+var sui_devtools_signals_controller_default = controller4({
+  scope: () => {
+    const sigs = signal7({});
+    const filter = signal7("");
+    const allCount = derived4(() => Object.keys(sigs()).length);
+    const shownEntries = derived4(() => {
+      const s = sigs();
+      const needle = filter().toLowerCase();
+      const keys = Object.keys(s).sort();
+      const filtered = needle ? keys.filter((k) => k.toLowerCase().includes(needle)) : keys;
+      return filtered.map((k) => ({ key: k, value: renderValue(s[k]) }));
+    });
+    return { sigs, filter, allCount, shownEntries };
+  },
+  mount(state, host) {
+    const s = state;
+    let timer = null;
+    function sample() {
+      s["sigs"] = collectSignals();
+    }
+    function start() {
+      if (timer)
+        return;
+      sample();
+      timer = setInterval(sample, 500);
+    }
+    function stop() {
+      if (!timer)
+        return;
+      clearInterval(timer);
+      timer = null;
+    }
+    const onDockActivate = (ev) => {
+      const tab = ev.detail?.tab;
+      if (tab === "signals")
+        start();
+      else
+        stop();
+    };
+    const onScopeChange = () => sample();
+    const dock = host.closest("sui-panel-dock");
+    dock?.addEventListener("sui:dock:activate", onDockActivate);
+    document.addEventListener("sui:scope:change", onScopeChange);
+    if (dock?.getAttribute("active-tab") === "signals")
+      start();
+    Object.defineProperty(host, "refresh", { value: () => sample(), configurable: true });
+    return () => {
+      stop();
+      dock?.removeEventListener("sui:dock:activate", onDockActivate);
+      document.removeEventListener("sui:scope:change", onScopeChange);
+    };
   }
-  .body {
-    flex: 1;
-    overflow: auto;
-    font-family: var(--font-mono);
+});
+
+// packages/ui-components/src/islands/sui-devtools/sui-devtools-signals.sui
+var sui_devtools_signals_default = view4((ctx) => {
+  const { ship, route, navigate } = ctx;
+  const $scope = Object.create(null);
+  $scope.ship = ship;
+  $scope.route = route;
+  $scope.navigate = navigate;
+  if (sui_devtools_signals_controller_default && typeof sui_devtools_signals_controller_default.setup === "function") {
+    ctx.scope = $scope;
+    const __r = sui_devtools_signals_controller_default.setup(ctx);
+    if (__r && typeof __r === "object")
+      Object.assign($scope, __r);
   }
-  .row {
-    display: flex;
-    gap: 12px;
-    padding: 4px var(--space-3, 12px);
-    border-bottom: 1px solid color-mix(in oklch, var(--border) 40%, transparent);
-    align-items: baseline;
+  const __wireBoundary_b7 = (anchor) => bindFor4({
+    anchor,
+    items: () => $scope.shownEntries(),
+    key: (entry, __i) => {
+      const __child = Object.create($scope);
+      __child.entry = entry;
+      __child.__i = __i;
+      return (($scope2) => entry.key)(__child);
+    },
+    render: (entry, __i) => {
+      const __childScope18 = Object.create($scope);
+      __childScope18.entry = entry;
+      __childScope18.__i = __i;
+      __childScope18.__v = signal8(0);
+      return (($scope2) => {
+        const __frag19 = document.createDocumentFragment();
+        const __c20 = [];
+        const __e21 = document.createElement("div");
+        __e21.setAttribute("class", "row");
+        const __e22 = document.createElement("span");
+        __e22.setAttribute("class", "k");
+        const __t23 = document.createTextNode("");
+        __e22.appendChild(__t23);
+        __t23.textContent = $scope2.entry.key;
+        __e21.appendChild(__e22);
+        const __e24 = document.createElement("span");
+        __e24.setAttribute("class", "v");
+        const __t25 = document.createTextNode("");
+        __e24.appendChild(__t25);
+        __t25.textContent = $scope2.entry.value;
+        __e21.appendChild(__e24);
+        __frag19.appendChild(__e21);
+        return { nodes: Array.from(__frag19.childNodes), cleanup: () => {
+          for (const c of __c20)
+            try {
+              c();
+            } catch (e) {}
+        }, update: (__new26, __newI27) => {
+          $scope2.entry = __new26;
+          $scope2.__i = __newI27;
+          __t23.textContent = $scope2.entry.key;
+          __t25.textContent = $scope2.entry.value;
+          $scope2.__v.set((c) => c + 1);
+        } };
+      })(__childScope18);
+    }
+  });
+  const __wireBoundary_b3 = (anchor) => bindIf4({
+    anchor,
+    test: () => {
+      if ($scope.shownEntries().length === 0)
+        return 0;
+      return 1;
+    },
+    branches: [
+      () => {
+        const __frag8 = document.createDocumentFragment();
+        const __c9 = [];
+        const __e10 = document.createElement("sui-empty-state");
+        const __e11 = document.createElement("sui-icon");
+        __e11.setAttribute("slot", "icon");
+        __c9.push(bindAttr2(__e11, "name", () => $scope.filter() ? "search" : "radio"));
+        __e10.appendChild(__e11);
+        const __e12 = document.createElement("span");
+        __e12.setAttribute("slot", "title");
+        const __t13 = document.createTextNode("");
+        __e12.appendChild(__t13);
+        __c9.push(bindText4(__t13, () => $scope.filter() ? "No matches" : "No signals"));
+        __e10.appendChild(__e12);
+        const __t14 = document.createTextNode("");
+        __e10.appendChild(__t14);
+        __c9.push(bindText4(__t14, () => $scope.filter() ? "No signals match the current filter." : "Mount a view — its scope appears here. SUI publishes window.__suiCurrentScope on every navigation."));
+        __frag8.appendChild(__e10);
+        return { nodes: Array.from(__frag8.childNodes), cleanup: () => {
+          for (const c of __c9)
+            try {
+              c();
+            } catch (e) {}
+        } };
+      },
+      () => {
+        const __frag15 = document.createDocumentFragment();
+        const __c16 = [];
+        const __forAnchor17 = document.createComment("for");
+        __frag15.appendChild(__forAnchor17);
+        __c16.push(__wireBoundary_b7(__forAnchor17));
+        return { nodes: Array.from(__frag15.childNodes), cleanup: () => {
+          for (const c of __c16)
+            try {
+              c();
+            } catch (e) {}
+        } };
+      }
+    ]
+  });
+  return Object.assign({}, $scope, {
+    __mount(container) {
+      const __cleanups = [];
+      const __e0 = document.createElement("div");
+      __e0.setAttribute("class", "toolbar");
+      const __e1 = document.createElement("input");
+      __e1.setAttribute("type", "text");
+      __e1.setAttribute("placeholder", "Filter signals…");
+      __cleanups.push(bindValue2(__e1, $scope.filter));
+      __e0.appendChild(__e1);
+      const __e2 = document.createElement("span");
+      const __t3 = document.createTextNode("");
+      __e2.appendChild(__t3);
+      __cleanups.push(bindText4(__t3, () => $scope.shownEntries().length));
+      const __t4 = document.createTextNode(" / ");
+      __e2.appendChild(__t4);
+      const __t5 = document.createTextNode("");
+      __e2.appendChild(__t5);
+      __cleanups.push(bindText4(__t5, () => $scope.allCount()));
+      __e0.appendChild(__e2);
+      container.appendChild(__e0);
+      const __e6 = document.createElement("div");
+      __e6.setAttribute("class", "body");
+      const __ifAnchor7 = document.createComment("if");
+      __e6.appendChild(__ifAnchor7);
+      __cleanups.push(__wireBoundary_b3(__ifAnchor7));
+      container.appendChild(__e6);
+      return () => {
+        for (const c of __cleanups)
+          try {
+            c();
+          } catch (e) {}
+      };
+    },
+    hydrate(root, ctx2) {
+      const __cleanups = [];
+      const __t = collectTextOpens2(root);
+      const __m = collectElementMarkers4(root);
+      if (__m["b0"])
+        __cleanups.push(hydrateBindValue2(__m["b0"], $scope.filter));
+      if (__t["b1"])
+        __cleanups.push(hydrateText2(__t["b1"], () => $scope.shownEntries().length));
+      if (__t["b2"])
+        __cleanups.push(hydrateText2(__t["b2"], () => $scope.allCount()));
+      if (__m["b3"]) {
+        const __t2 = __m["b3"];
+        const __doc = __t2.ownerDocument ?? document;
+        const __anchor = __t2.nodeType === 1 ? __doc.createComment("if") : __t2;
+        if (__t2.nodeType === 1 && __t2.parentNode)
+          __t2.parentNode.replaceChild(__anchor, __t2);
+        __cleanups.push(__wireBoundary_b3(__anchor));
+      }
+      return () => {
+        for (const c of __cleanups)
+          try {
+            c();
+          } catch (e) {}
+      };
+    }
+  });
+});
+
+// packages/ui-components/src/islands/sui-devtools/sui-devtools-source.sui
+import { attachRef as attachRef2, bindAttr as bindAttr3, bindFor as bindFor5, bindIf as bindIf5, bindText as bindText5, registerTransition, signal as signal10, slide, view as view5 } from "@ship/sui-runtime";
+import { collectElementMarkers as collectElementMarkers5, hydrateRef as hydrateRef2 } from "@ship/sui-dom";
+
+// packages/ui-components/src/islands/sui-devtools/sui-devtools-source.controller.ts
+import { controller as controller5, signal as signal9, derived as derived5, effect, ref as ref2 } from "@ship/sui-runtime";
+function manifestLang(name) {
+  if (!name)
+    return "";
+  if (name.endsWith(".yaml") || name.endsWith(".yml"))
+    return "yaml";
+  if (name.endsWith(".jsonc"))
+    return "jsonc";
+  return "json";
+}
+function ensureCodeEditorLoaded() {
+  if (customElements.get("sui-code-editor"))
+    return;
+  if (document.querySelector("script[data-sui-code-editor]"))
+    return;
+  const s = document.createElement("script");
+  s.type = "module";
+  s.src = "/_sui/islands/sui-code-editor/island.js";
+  s.dataset["suiCodeEditor"] = "1";
+  document.head.appendChild(s);
+}
+var cachedCompletions = null;
+var inflightCompletions = null;
+async function loadCompletionSources() {
+  if (cachedCompletions)
+    return cachedCompletions;
+  if (inflightCompletions)
+    return inflightCompletions;
+  inflightCompletions = (async () => {
+    const [macros, schema] = await Promise.all([
+      fetch("/api/assets/jinja-macros.json", { credentials: "same-origin" }).then((r) => r.ok ? r.json() : null).catch(() => null),
+      fetch("/api/v1/ship/schema", { credentials: "same-origin" }).then((r) => r.ok ? r.json() : null).catch(() => null)
+    ]);
+    const sources = [];
+    if (Array.isArray(macros)) {
+      const items = macros.map((m) => ({
+        label: m.name,
+        ...m.signature !== undefined ? { detail: m.signature } : {},
+        ...m.summary !== undefined || m.description !== undefined ? { info: m.summary ?? m.description ?? "" } : {},
+        insert: `${m.name}()`
+      }));
+      sources.push({ trigger: "{{ ", items }, { trigger: "{% ", items });
+    }
+    const ops = schema?.data?.ops;
+    if (Array.isArray(ops)) {
+      const items = ops.map((op) => ({
+        label: op.name,
+        detail: `→ ${op.returns ?? "?"}`,
+        info: `${op.description ?? ""}
+
+args: ${op.args?.map((a) => `${a.name}${a.required ? "" : "?"}: ${a.kind}`).join(", ") ?? ""}
+perm: ${op.permission ?? "?"}`,
+        insert: `${op.name}()`
+      }));
+      sources.push({ trigger: "ship.", items }, { trigger: "ship.try.", items });
+    }
+    cachedCompletions = sources;
+    return sources;
+  })();
+  try {
+    return await inflightCompletions;
+  } finally {
+    inflightCompletions = null;
   }
-  .row:last-child { border-bottom: none; }
-  .k { color: var(--primary); white-space: nowrap; flex-shrink: 0; font-weight: var(--font-weight-medium, 500); }
-  .v { color: var(--muted-foreground); overflow-wrap: anywhere; }
-`,setup(J){let{props:Z,host:z}=J;if(!J.cleanups)J.cleanups=[];let Q=J.cleanups,X=Object.create(null),Y=null;if(k0&&typeof k0.setup==="function"){if(J.scope=X,Y=k0.setup(J),Y&&typeof Y==="object")Object.assign(X,Y)}let j=(N)=>t({anchor:N,items:()=>X.shownEntries(),key:(U,C)=>{let O=Object.create(X);return O.entry=U,O.__i=C,((F)=>U.key)(O)},render:(U,C)=>{let O=Object.create(X);return O.entry=U,O.__i=C,O.__v=w(0),((F)=>{let M=document.createDocumentFragment(),L=[],G=document.createElement("div");G.setAttribute("class","row");let W=document.createElement("span");W.setAttribute("class","k");let q=document.createTextNode("");W.appendChild(q),q.textContent=F.entry.key,G.appendChild(W);let V=document.createElement("span");V.setAttribute("class","v");let B=document.createTextNode("");return V.appendChild(B),B.textContent=F.entry.value,G.appendChild(V),M.appendChild(G),{nodes:Array.from(M.childNodes),cleanup:()=>{for(let T of L)try{T()}catch($){}},update:(T,$)=>{F.entry=T,F.__i=$,q.textContent=F.entry.key,B.textContent=F.entry.value,F.__v.set((b)=>b+1)}}})(O)}}),D=(N)=>m({anchor:N,test:()=>{if(X.shownEntries().length===0)return 0;return 1},branches:[()=>{let U=document.createDocumentFragment(),C=[],O=document.createElement("sui-empty-state"),F=document.createElement("sui-icon");F.setAttribute("slot","icon"),C.push(Z0(F,"name",()=>X.filter()?"search":"radio")),O.appendChild(F);let M=document.createElement("span");M.setAttribute("slot","title");let L=document.createTextNode("");M.appendChild(L),C.push(v(L,()=>X.filter()?"No matches":"No signals")),O.appendChild(M);let G=document.createTextNode("");return O.appendChild(G),C.push(v(G,()=>X.filter()?"No signals match the current filter.":"Mount a view — its scope appears here. SUI publishes window.__suiCurrentScope on every navigation.")),U.appendChild(O),{nodes:Array.from(U.childNodes),cleanup:()=>{for(let W of C)try{W()}catch(q){}}}},()=>{let U=document.createDocumentFragment(),C=[],O=document.createComment("for");return U.appendChild(O),C.push(j(O)),{nodes:Array.from(U.childNodes),cleanup:()=>{for(let F of C)try{F()}catch(M){}}}}]}),H=z.shadowRoot??z;X0(H);let P=document.createElement("div");P.setAttribute("class","toolbar");let K=document.createElement("input");K.setAttribute("type","text"),K.setAttribute("placeholder","Filter signals…"),Q.push(I0(K,X.filter)),P.appendChild(K);let A=document.createElement("span"),I=document.createTextNode("");A.appendChild(I),Q.push(v(I,()=>X.shownEntries().length));let E=document.createTextNode(" / ");A.appendChild(E);let S=document.createTextNode("");A.appendChild(S),Q.push(v(S,()=>X.allCount())),P.appendChild(A),H.appendChild(P);let R=document.createElement("div");R.setAttribute("class","body");let x=document.createComment("if");if(R.appendChild(x),Q.push(D(x)),H.appendChild(R),Y!=null){let N=Object.getOwnPropertyDescriptor(Y,"__shipSetLifecycle")?.value;if(N){let U=new Proxy(X,{get(C,O){return C[O]},set(C,O,F){let M=C[O];if(M!=null&&typeof M.set==="function"){if(typeof F==="function")M.set(()=>F);else M.set(F);return!0}return!1}});if(N.mount){let C=N.mount(U,z);if(typeof C==="function")Q.push(C)}if(N.unmount)Q.push(()=>N.unmount(U))}}return X}});
+}
+function pushEditorDiagnostics(el, findings) {
+  if (!el?.setDiagnostics)
+    return;
+  el.setDiagnostics(findings.map((f) => ({
+    line: f.line,
+    column: f.col,
+    severity: f.severity === "warn" || f.severity === "warning" ? "warning" : f.severity === "info" ? "info" : "error",
+    message: f.message,
+    source: f.rule
+  })));
+}
+var sui_devtools_source_controller_default = controller5({
+  scope: () => {
+    const src = signal9(null);
+    const draft = signal9(null);
+    const saving = signal9(false);
+    const diagnostics = signal9([]);
+    const diagMsg = signal9(null);
+    const loading = signal9(false);
+    const loadError = signal9(null);
+    const isDirty = derived5(() => draft() !== null && draft() !== src()?.template);
+    const showDiag = derived5(() => diagnostics().length > 0 || diagMsg() !== null);
+    const editorValue = derived5(() => draft() ?? src()?.template ?? "");
+    const editorReadonly = derived5(() => src()?.scope !== "global");
+    const manifestLangVal = derived5(() => manifestLang(src()?.manifest_filename ?? null));
+    const templateRelPath = derived5(() => {
+      const s = src();
+      if (!s)
+        return "index.html.j2";
+      const marker = `/views/${s.view_name.split(".")[0]}/`;
+      const idx = s.template_path.indexOf(marker);
+      return idx < 0 ? "index.html.j2" : s.template_path.slice(idx + marker.length);
+    });
+    const headerEl = ref2(null);
+    const templateEditorEl = ref2(null);
+    const manifestEditorEl = ref2(null);
+    return { src, draft, saving, diagnostics, diagMsg, loading, loadError, isDirty, showDiag, editorValue, editorReadonly, manifestLangVal, templateRelPath, headerEl, templateEditorEl, manifestEditorEl };
+  },
+  mount(state, host) {
+    const s = state;
+    ensureCodeEditorLoaded();
+    const srcSig = s["src"];
+    const editorValueSig = s["editorValue"];
+    const templateRelPathSig = s["templateRelPath"];
+    const templateEditorRef = s["templateEditorEl"];
+    const manifestEditorRef = s["manifestEditorEl"];
+    const headerRef = s["headerEl"];
+    const draftSig = s["draft"];
+    let editorWired = null;
+    let completionsApplied = false;
+    const stopSync = effect(() => {
+      const el = templateEditorRef();
+      const v = editorValueSig();
+      if (el && el.value !== v)
+        el.value = v;
+      if (el && el !== editorWired) {
+        editorWired = el;
+        el.addEventListener("sui-change", (e) => {
+          const val = e.detail?.value;
+          if (typeof val === "string")
+            s["draft"] = val;
+        });
+        el.addEventListener("sui-save", (e) => {
+          const val = e.detail?.value;
+          if (typeof val === "string")
+            s["draft"] = val;
+          save();
+        });
+        if (!completionsApplied && srcSig()?.scope === "global") {
+          completionsApplied = true;
+          loadCompletionSources().then((srcs) => el.setCompletions?.(srcs)).catch(() => {});
+        }
+      }
+    });
+    const stopManifestSync = effect(() => {
+      const el = manifestEditorRef();
+      const srcObj = srcSig();
+      if (el && srcObj?.manifest != null && el.value !== srcObj.manifest)
+        el.value = srcObj.manifest;
+    });
+    let lintViewName = null;
+    const stopLint = effect(() => {
+      const srcObj = srcSig();
+      if (!srcObj || srcObj.scope !== "global")
+        return;
+      const viewName = srcObj.view_name.split(".")[0];
+      if (viewName === lintViewName)
+        return;
+      lintViewName = viewName;
+      const templatePath = srcObj.template_path;
+      (async () => {
+        try {
+          const resp = await fetch("/api/v1/lint/view", {
+            method: "POST",
+            credentials: "same-origin",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name: viewName })
+          });
+          if (!resp.ok || lintViewName !== viewName)
+            return;
+          const body = await resp.json();
+          const findings = body.data?.findings ?? [];
+          const tail = templatePath.split("/").pop() ?? "";
+          const relevant = findings.filter((f) => {
+            const file = f.file ?? "";
+            return templatePath.endsWith(file) || tail && file.endsWith(tail);
+          });
+          requestAnimationFrame(() => pushEditorDiagnostics(templateEditorRef(), relevant));
+        } catch {}
+      })();
+    });
+    const headerEl = headerRef();
+    if (headerEl) {
+      headerEl.addEventListener("click", (e) => {
+        const btn = e.target.closest("[data-action]");
+        if (!btn)
+          return;
+        if (btn.dataset["action"] === "save")
+          save();
+        else if (btn.dataset["action"] === "fork")
+          fork();
+      });
+    }
+    function stripPrefix(path) {
+      const m = path.match(/^\/api\/v\/(.+)$/);
+      return m ? m[1] : path.replace(/^\/+/, "");
+    }
+    async function save() {
+      const srcObj = srcSig();
+      const draftVal = draftSig();
+      if (!srcObj || srcObj.scope !== "global" || draftVal === null || draftVal === srcObj.template)
+        return;
+      s["saving"] = true;
+      s["diagnostics"] = [];
+      s["diagMsg"] = null;
+      try {
+        const viewName = srcObj.view_name.split(".")[0];
+        const relPath = templateRelPathSig();
+        const resp = await fetch(`/api/v1/views/${encodeURIComponent(viewName)}/template`, {
+          method: "PUT",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ file: relPath, content: draftVal })
+        });
+        if (resp.status === 422) {
+          const body = await resp.json();
+          const findings = body.findings ?? [];
+          s["diagnostics"] = findings;
+          pushEditorDiagnostics(templateEditorRef(), findings);
+          s["diagMsg"] = "Lint errors — fix before saving.";
+          return;
+        }
+        if (!resp.ok) {
+          s["diagMsg"] = `save failed: ${resp.status}`;
+          return;
+        }
+        s["src"] = { ...srcObj, template: draftVal };
+        s["diagnostics"] = [];
+        templateEditorRef()?.setDiagnostics?.([]);
+        host.dispatchEvent(new CustomEvent("sui:notify", { detail: { tone: "success", title: "Saved" }, bubbles: true, composed: true }));
+        const current = window.ship?.current();
+        if (current?.path)
+          window.ship.navigate(current.path, { replace: true });
+      } catch (e) {
+        s["diagMsg"] = `error: ${e.message}`;
+      } finally {
+        s["saving"] = false;
+      }
+    }
+    async function fork() {
+      const srcObj = srcSig();
+      if (!srcObj || srcObj.scope !== "project")
+        return;
+      s["saving"] = true;
+      s["diagMsg"] = null;
+      try {
+        const viewName = srcObj.view_name.split(".")[0];
+        const resp = await fetch(`/api/v1/views/${encodeURIComponent(viewName)}/fork`, { method: "POST", credentials: "same-origin" });
+        if (!resp.ok) {
+          s["diagMsg"] = `fork failed: ${resp.status}`;
+          return;
+        }
+        host.dispatchEvent(new CustomEvent("sui:notify", { detail: { tone: "success", title: `${viewName} forked — now editable` }, bubbles: true, composed: true }));
+        lastPath = null;
+        await load();
+      } catch (e) {
+        s["diagMsg"] = e.message;
+      } finally {
+        s["saving"] = false;
+      }
+    }
+    let lastPath = null;
+    async function load() {
+      const current = window.ship?.current();
+      const path = current?.path ?? location.pathname;
+      const stripped = stripPrefix(path);
+      if (!stripped) {
+        s["src"] = null;
+        s["draft"] = null;
+        s["diagnostics"] = [];
+        s["loadError"] = null;
+        s["loading"] = false;
+        return;
+      }
+      if (stripped === lastPath && srcSig())
+        return;
+      lastPath = stripped;
+      s["draft"] = null;
+      s["diagnostics"] = [];
+      s["loading"] = true;
+      s["loadError"] = null;
+      try {
+        const resp = await fetch(`/api/v1/view-source/${encodeURI(stripped)}`, { credentials: "same-origin" });
+        if (resp.status === 404) {
+          s["src"] = null;
+          return;
+        }
+        if (!resp.ok) {
+          s["loadError"] = `fetch failed: ${resp.status}`;
+          return;
+        }
+        s["src"] = await resp.json();
+      } catch (e) {
+        s["loadError"] = e.message;
+      } finally {
+        s["loading"] = false;
+      }
+    }
+    const onNavigate = () => {
+      lastPath = null;
+      load();
+    };
+    document.addEventListener("sui:navigate", onNavigate);
+    load();
+    Object.defineProperty(host, "refresh", { value: () => {
+      lastPath = null;
+      load();
+    }, configurable: true });
+    return () => {
+      stopSync();
+      stopManifestSync();
+      stopLint();
+      document.removeEventListener("sui:navigate", onNavigate);
+    };
+  }
+});
+
+// packages/ui-components/src/islands/sui-devtools/sui-devtools-source.sui
+var sui_devtools_source_default = view5((ctx) => {
+  const { ship, route, navigate } = ctx;
+  const $scope = Object.create(null);
+  $scope.ship = ship;
+  $scope.route = route;
+  $scope.navigate = navigate;
+  $scope["headerEl"] = signal10(null);
+  $scope["manifestEditorEl"] = signal10(null);
+  $scope["templateEditorEl"] = signal10(null);
+  if (sui_devtools_source_controller_default && typeof sui_devtools_source_controller_default.setup === "function") {
+    ctx.scope = $scope;
+    const __r = sui_devtools_source_controller_default.setup(ctx);
+    if (__r && typeof __r === "object")
+      Object.assign($scope, __r);
+  }
+  const __wireBoundary_b4 = (anchor) => bindIf5({
+    anchor,
+    test: () => {
+      if ($scope.isDirty())
+        return 0;
+      return -1;
+    },
+    branches: [
+      () => {
+        const __frag9 = document.createDocumentFragment();
+        const __c10 = [];
+        const __e11 = document.createElement("span");
+        __e11.setAttribute("class", "dirty-dot");
+        __e11.setAttribute("title", "Unsaved changes");
+        __frag9.appendChild(__e11);
+        return { nodes: Array.from(__frag9.childNodes), cleanup: () => {
+          for (const c of __c10)
+            try {
+              c();
+            } catch (e) {}
+        } };
+      }
+    ]
+  });
+  const __wireBoundary_b6 = (anchor) => bindIf5({
+    anchor,
+    test: () => {
+      if ($scope.src().scope === "project")
+        return 0;
+      return -1;
+    },
+    branches: [
+      () => {
+        const __frag17 = document.createDocumentFragment();
+        const __c18 = [];
+        const __e19 = document.createElement("button");
+        __e19.setAttribute("class", "edit-action primary");
+        __e19.setAttribute("data-action", "fork");
+        __c18.push(bindAttr3(__e19, "disabled", () => $scope.saving()));
+        const __t20 = document.createTextNode("Fork to edit");
+        __e19.appendChild(__t20);
+        __frag17.appendChild(__e19);
+        return { nodes: Array.from(__frag17.childNodes), cleanup: () => {
+          for (const c of __c18)
+            try {
+              c();
+            } catch (e) {}
+        } };
+      }
+    ]
+  });
+  const __wireBoundary_b8 = (anchor) => bindIf5({
+    anchor,
+    test: () => {
+      if ($scope.src().scope === "global")
+        return 0;
+      return -1;
+    },
+    branches: [
+      () => {
+        const __frag22 = document.createDocumentFragment();
+        const __c23 = [];
+        const __e24 = document.createElement("button");
+        __e24.setAttribute("class", "edit-action primary");
+        __e24.setAttribute("data-action", "save");
+        __c23.push(bindAttr3(__e24, "disabled", () => $scope.saving() || !$scope.isDirty()));
+        __e24.setAttribute("title", "Save (⌘/Ctrl+S)");
+        const __t25 = document.createTextNode("");
+        __e24.appendChild(__t25);
+        __c23.push(bindText5(__t25, () => $scope.saving() ? "Saving…" : "Save"));
+        __frag22.appendChild(__e24);
+        return { nodes: Array.from(__frag22.childNodes), cleanup: () => {
+          for (const c of __c23)
+            try {
+              c();
+            } catch (e) {}
+        } };
+      }
+    ]
+  });
+  const __wireBoundary_b1 = (anchor) => bindIf5({
+    anchor,
+    test: () => {
+      if ($scope.src())
+        return 0;
+      return -1;
+    },
+    branches: [
+      () => {
+        const __frag2 = document.createDocumentFragment();
+        const __c3 = [];
+        const __e4 = document.createElement("span");
+        __e4.setAttribute("style", "color:var(--foreground);font-weight:var(--font-weight-medium,500)");
+        const __t5 = document.createTextNode("");
+        __e4.appendChild(__t5);
+        __c3.push(bindText5(__t5, () => $scope.src().view_name));
+        __frag2.appendChild(__e4);
+        const __e6 = document.createElement("span");
+        __e6.setAttribute("style", "padding:1px 6px;border:1px solid var(--border);border-radius:999px;text-transform:uppercase;letter-spacing:.04em;font-size:10px");
+        const __t7 = document.createTextNode("");
+        __e6.appendChild(__t7);
+        __c3.push(bindText5(__t7, () => $scope.src().scope));
+        __frag2.appendChild(__e6);
+        const __ifAnchor8 = document.createComment("if");
+        __frag2.appendChild(__ifAnchor8);
+        __c3.push(__wireBoundary_b4(__ifAnchor8));
+        const __e12 = document.createElement("span");
+        __e12.setAttribute("style", "flex:1");
+        __frag2.appendChild(__e12);
+        const __e13 = document.createElement("span");
+        const __t14 = document.createTextNode("");
+        __e13.appendChild(__t14);
+        __c3.push(bindText5(__t14, () => $scope.src().template_path));
+        __frag2.appendChild(__e13);
+        const __e15 = document.createElement("span");
+        __e15.setAttribute("style", "display:inline-flex;align-items:center;gap:6px");
+        const __ifAnchor16 = document.createComment("if");
+        __e15.appendChild(__ifAnchor16);
+        __c3.push(__wireBoundary_b6(__ifAnchor16));
+        const __ifAnchor21 = document.createComment("if");
+        __e15.appendChild(__ifAnchor21);
+        __c3.push(__wireBoundary_b8(__ifAnchor21));
+        __frag2.appendChild(__e15);
+        return { nodes: Array.from(__frag2.childNodes), cleanup: () => {
+          for (const c of __c3)
+            try {
+              c();
+            } catch (e) {}
+        } };
+      }
+    ]
+  });
+  const __wireBoundary_b16 = (anchor) => bindIf5({
+    anchor,
+    test: () => {
+      if ($scope.src().manifest)
+        return 0;
+      return -1;
+    },
+    branches: [
+      () => {
+        const __frag50 = document.createDocumentFragment();
+        const __c51 = [];
+        const __e52 = document.createElement("div");
+        __e52.setAttribute("class", "pane-head manifest");
+        const __t53 = document.createTextNode("");
+        __e52.appendChild(__t53);
+        __c51.push(bindText5(__t53, () => $scope.src().manifest_filename));
+        __frag50.appendChild(__e52);
+        const __e54 = document.createElement("div");
+        __e54.setAttribute("class", "pane");
+        const __e55 = document.createElement("div");
+        __e55.setAttribute("class", "pane-editor");
+        const __e56 = document.createElement("sui-code-editor");
+        __c51.push(bindAttr3(__e56, "language", () => $scope.manifestLangVal()));
+        attachRef2($scope, "manifestEditorEl", __e56);
+        __e56.setAttribute("readonly", "");
+        __e55.appendChild(__e56);
+        __e54.appendChild(__e55);
+        __frag50.appendChild(__e54);
+        return { nodes: Array.from(__frag50.childNodes), cleanup: () => {
+          for (const c of __c51)
+            try {
+              c();
+            } catch (e) {}
+        } };
+      }
+    ]
+  });
+  const __wireBoundary_b11 = (anchor) => bindIf5({
+    anchor,
+    test: () => {
+      if ($scope.loading())
+        return 0;
+      if ($scope.loadError())
+        return 1;
+      if ($scope.src())
+        return 2;
+      return 3;
+    },
+    branches: [
+      () => {
+        const __frag28 = document.createDocumentFragment();
+        const __c29 = [];
+        const __e30 = document.createElement("sui-empty-state");
+        const __e31 = document.createElement("sui-icon");
+        __e31.setAttribute("slot", "icon");
+        __e31.setAttribute("name", "file-code");
+        __e30.appendChild(__e31);
+        const __e32 = document.createElement("span");
+        __e32.setAttribute("slot", "title");
+        const __t33 = document.createTextNode("Loading source…");
+        __e32.appendChild(__t33);
+        __e30.appendChild(__e32);
+        const __t34 = document.createTextNode(`
+      Fetching the view template from the daemon.
+    `);
+        __e30.appendChild(__t34);
+        __frag28.appendChild(__e30);
+        return { nodes: Array.from(__frag28.childNodes), cleanup: () => {
+          for (const c of __c29)
+            try {
+              c();
+            } catch (e) {}
+        } };
+      },
+      () => {
+        const __frag35 = document.createDocumentFragment();
+        const __c36 = [];
+        const __e37 = document.createElement("sui-empty-state");
+        const __e38 = document.createElement("sui-icon");
+        __e38.setAttribute("slot", "icon");
+        __e38.setAttribute("name", "alert-triangle");
+        __e37.appendChild(__e38);
+        const __e39 = document.createElement("span");
+        __e39.setAttribute("slot", "title");
+        const __t40 = document.createTextNode("Source error");
+        __e39.appendChild(__t40);
+        __e37.appendChild(__e39);
+        const __t41 = document.createTextNode("");
+        __e37.appendChild(__t41);
+        __c36.push(bindText5(__t41, () => $scope.loadError()));
+        __frag35.appendChild(__e37);
+        return { nodes: Array.from(__frag35.childNodes), cleanup: () => {
+          for (const c of __c36)
+            try {
+              c();
+            } catch (e) {}
+        } };
+      },
+      () => {
+        const __frag42 = document.createDocumentFragment();
+        const __c43 = [];
+        const __e44 = document.createElement("div");
+        __e44.setAttribute("class", "pane");
+        const __e45 = document.createElement("div");
+        __e45.setAttribute("class", "pane-head");
+        const __t46 = document.createTextNode("");
+        __e45.appendChild(__t46);
+        __c43.push(bindText5(__t46, () => $scope.templateRelPath()));
+        __e44.appendChild(__e45);
+        const __e47 = document.createElement("div");
+        __e47.setAttribute("class", "pane-editor");
+        const __e48 = document.createElement("sui-code-editor");
+        __e48.setAttribute("language", "html");
+        attachRef2($scope, "templateEditorEl", __e48);
+        __c43.push(bindAttr3(__e48, "readonly", () => $scope.editorReadonly()));
+        __e47.appendChild(__e48);
+        __e44.appendChild(__e47);
+        __frag42.appendChild(__e44);
+        const __ifAnchor49 = document.createComment("if");
+        __frag42.appendChild(__ifAnchor49);
+        __c43.push(__wireBoundary_b16(__ifAnchor49));
+        return { nodes: Array.from(__frag42.childNodes), cleanup: () => {
+          for (const c of __c43)
+            try {
+              c();
+            } catch (e) {}
+        } };
+      },
+      () => {
+        const __frag57 = document.createDocumentFragment();
+        const __c58 = [];
+        const __e59 = document.createElement("sui-empty-state");
+        const __e60 = document.createElement("sui-icon");
+        __e60.setAttribute("slot", "icon");
+        __e60.setAttribute("name", "file-code");
+        __e59.appendChild(__e60);
+        const __e61 = document.createElement("span");
+        __e61.setAttribute("slot", "title");
+        const __t62 = document.createTextNode("No source available");
+        __e61.appendChild(__t62);
+        __e59.appendChild(__e61);
+        const __t63 = document.createTextNode(`
+      This path is not served by a file-routed view.
+    `);
+        __e59.appendChild(__t63);
+        __frag57.appendChild(__e59);
+        return { nodes: Array.from(__frag57.childNodes), cleanup: () => {
+          for (const c of __c58)
+            try {
+              c();
+            } catch (e) {}
+        } };
+      }
+    ]
+  });
+  const __wireBoundary_b23 = (anchor) => bindFor5({
+    anchor,
+    items: () => $scope.diagnostics(),
+    key: (d, __i) => {
+      const __child = Object.create($scope);
+      __child.d = d;
+      __child.__i = __i;
+      return (($scope2) => d.line + ":" + d.col + ":" + d.rule)(__child);
+    },
+    render: (d, __i) => {
+      const __childScope75 = Object.create($scope);
+      __childScope75.d = d;
+      __childScope75.__i = __i;
+      __childScope75.__v = signal10(0);
+      return (($scope2) => {
+        const __frag76 = document.createDocumentFragment();
+        const __c77 = [];
+        const __e78 = document.createElement("div");
+        const __t79 = document.createTextNode("");
+        __e78.appendChild(__t79);
+        __t79.textContent = $scope2.d.line;
+        const __t80 = document.createTextNode(":");
+        __e78.appendChild(__t80);
+        const __t81 = document.createTextNode("");
+        __e78.appendChild(__t81);
+        __t81.textContent = $scope2.d.col;
+        const __t82 = document.createTextNode(" [");
+        __e78.appendChild(__t82);
+        const __t83 = document.createTextNode("");
+        __e78.appendChild(__t83);
+        __t83.textContent = $scope2.d.rule;
+        const __t84 = document.createTextNode("] ");
+        __e78.appendChild(__t84);
+        const __t85 = document.createTextNode("");
+        __e78.appendChild(__t85);
+        __t85.textContent = $scope2.d.message;
+        __frag76.appendChild(__e78);
+        return { nodes: Array.from(__frag76.childNodes), cleanup: () => {
+          for (const c of __c77)
+            try {
+              c();
+            } catch (e) {}
+        }, update: (__new86, __newI87) => {
+          $scope2.d = __new86;
+          $scope2.__i = __newI87;
+          __t79.textContent = $scope2.d.line;
+          __t81.textContent = $scope2.d.col;
+          __t83.textContent = $scope2.d.rule;
+          __t85.textContent = $scope2.d.message;
+          $scope2.__v.set((c) => c + 1);
+        } };
+      })(__childScope75);
+    }
+  });
+  const __wireBoundary_b21 = (anchor) => bindIf5({
+    anchor,
+    test: () => {
+      if ($scope.diagMsg())
+        return 0;
+      return 1;
+    },
+    branches: [
+      () => {
+        const __frag69 = document.createDocumentFragment();
+        const __c70 = [];
+        const __t71 = document.createTextNode("");
+        __frag69.appendChild(__t71);
+        __c70.push(bindText5(__t71, () => $scope.diagMsg()));
+        return { nodes: Array.from(__frag69.childNodes), cleanup: () => {
+          for (const c of __c70)
+            try {
+              c();
+            } catch (e) {}
+        } };
+      },
+      () => {
+        const __frag72 = document.createDocumentFragment();
+        const __c73 = [];
+        const __forAnchor74 = document.createComment("for");
+        __frag72.appendChild(__forAnchor74);
+        __c73.push(__wireBoundary_b23(__forAnchor74));
+        return { nodes: Array.from(__frag72.childNodes), cleanup: () => {
+          for (const c of __c73)
+            try {
+              c();
+            } catch (e) {}
+        } };
+      }
+    ]
+  });
+  const __wireBoundary_b20 = (anchor) => bindIf5({
+    anchor,
+    test: () => {
+      if ($scope.showDiag())
+        return 0;
+      return -1;
+    },
+    branches: [
+      () => {
+        const __frag65 = document.createDocumentFragment();
+        const __c66 = [];
+        const __e67 = document.createElement("div");
+        __e67.setAttribute("class", "diagnostics");
+        registerTransition(__e67, slide, { duration: 180 }, "both");
+        const __ifAnchor68 = document.createComment("if");
+        __e67.appendChild(__ifAnchor68);
+        __c66.push(__wireBoundary_b21(__ifAnchor68));
+        __frag65.appendChild(__e67);
+        return { nodes: Array.from(__frag65.childNodes), cleanup: () => {
+          for (const c of __c66)
+            try {
+              c();
+            } catch (e) {}
+        } };
+      }
+    ]
+  });
+  return Object.assign({}, $scope, {
+    __mount(container) {
+      const __cleanups = [];
+      const __e0 = document.createElement("div");
+      __e0.setAttribute("class", "header");
+      attachRef2($scope, "headerEl", __e0);
+      const __ifAnchor1 = document.createComment("if");
+      __e0.appendChild(__ifAnchor1);
+      __cleanups.push(__wireBoundary_b1(__ifAnchor1));
+      container.appendChild(__e0);
+      const __e26 = document.createElement("div");
+      __e26.setAttribute("class", "split");
+      const __ifAnchor27 = document.createComment("if");
+      __e26.appendChild(__ifAnchor27);
+      __cleanups.push(__wireBoundary_b11(__ifAnchor27));
+      container.appendChild(__e26);
+      const __ifAnchor64 = document.createComment("if");
+      container.appendChild(__ifAnchor64);
+      __cleanups.push(__wireBoundary_b20(__ifAnchor64));
+      return () => {
+        for (const c of __cleanups)
+          try {
+            c();
+          } catch (e) {}
+      };
+    },
+    hydrate(root, ctx2) {
+      const __cleanups = [];
+      const __m = collectElementMarkers5(root);
+      if (__m["b0"])
+        __cleanups.push(hydrateRef2(__m["b0"], $scope, "headerEl"));
+      if (__m["b1"]) {
+        const __t = __m["b1"];
+        const __doc = __t.ownerDocument ?? document;
+        const __anchor = __t.nodeType === 1 ? __doc.createComment("if") : __t;
+        if (__t.nodeType === 1 && __t.parentNode)
+          __t.parentNode.replaceChild(__anchor, __t);
+        __cleanups.push(__wireBoundary_b1(__anchor));
+      }
+      if (__m["b11"]) {
+        const __t = __m["b11"];
+        const __doc = __t.ownerDocument ?? document;
+        const __anchor = __t.nodeType === 1 ? __doc.createComment("if") : __t;
+        if (__t.nodeType === 1 && __t.parentNode)
+          __t.parentNode.replaceChild(__anchor, __t);
+        __cleanups.push(__wireBoundary_b11(__anchor));
+      }
+      if (__m["b20"]) {
+        const __t = __m["b20"];
+        const __doc = __t.ownerDocument ?? document;
+        const __anchor = __t.nodeType === 1 ? __doc.createComment("if") : __t;
+        if (__t.nodeType === 1 && __t.parentNode)
+          __t.parentNode.replaceChild(__anchor, __t);
+        __cleanups.push(__wireBoundary_b20(__anchor));
+      }
+      return () => {
+        for (const c of __cleanups)
+          try {
+            c();
+          } catch (e) {}
+      };
+    }
+  });
+});

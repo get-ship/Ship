@@ -1,14 +1,11 @@
-var GZ=Symbol.for("sui:error-boundary");function i(Z){let X=Z;while(X){if(X instanceof Element){let Y=X[GZ];if(Y)return Y}let J=X.parentNode;if(J){X=J;continue}let Q=X;if(Q.host){X=Q.host;continue}X=null}return null}function o(Z,X,J){try{return J()}catch(Q){let Y=i(Z);if(Y){Y.catch(Q,X);return}console.error("[sui] uncaught throw (no error boundary):",Q);return}}var h=null,c=null,VZ=0,LZ=new Set,Z0=[];function I0(Z,X){Z0.push(Z);try{return X()}finally{Z0.pop()}}function qZ(){return Z0.length>0?Z0[Z0.length-1]:null}function u0(Z){if(h===null)return;if(Z.has(h))return;let X=h;if(Z.add(X),c!==null)c.push(()=>Z.delete(X))}function N(Z){let X=Z,J=new Set,Q=()=>{return u0(J),X};return Q.set=(Y)=>{let j=typeof Y==="function"?Y(X):Y;if(Object.is(j,X))return;if(X=j,VZ>0)for(let W of J)LZ.add(W);else for(let W of[...J])W()},Q.__subs=J,Q.__peek=()=>X,Q}function X0(Z){let X,J=!0,Q=new Set,Y=[],j=()=>{if(J)return;if(J=!0,Q.size===0)return;let F=X;if(W(),Object.is(F,X))return;for(let z of[...Q])z()},W=()=>{for(let B of Y)B();Y=[];let F=h,z=c;h=j,c=Y;try{X=Z()}finally{h=F,c=z}J=!1},L=()=>{if(u0(Q),J)W();return X};return L.set=()=>{throw Error("cannot set on a derived; mutate its dependencies instead")},L.__subs=Q,L.__peek=()=>{if(J)W();return X},L}function x(Z){let X=void 0,J=!0,Q=[],Y=qZ(),j=()=>{if(!J)return;if(X){try{X()}catch(F){console.error("[sui] effect cleanup threw:",F)}X=void 0}for(let F of Q)F();Q=[];let W=h,L=c;h=j,c=Q;try{X=Z()}catch(F){let z=Y?i(Y):null;if(z)z.catch(F,"effect");else console.error("[sui] effect threw:",F)}finally{h=W,c=L}};return j(),()=>{J=!1;for(let W of Q)W();if(Q=[],X){try{X()}catch(W){console.error("[sui] effect cleanup threw:",W)}X=void 0}}}var V0=null;function J0(Z,X){let J=V0;V0=Z;try{return X()}finally{V0=J}}function Q0(Z){let X=V0;if(!X)return;X.cleanup(Z)}function Y0(){let Z=[],X=!1;return{cleanup(Q){if(X){try{Q()}catch(Y){console.error("[sui/scope] late cleanup threw:",Y)}return}Z.push(Q)},dispose(){if(X)return;X=!0;for(let Q=Z.length-1;Q>=0;Q--)try{Z[Q]()}catch(Y){console.error("[sui/scope] cleanup threw:",Y)}Z.length=0},get disposed(){return X}}}var FZ=Symbol("sui.shared");function h0(Z){return!!Z?.[FZ]}function O0(Z,X,J){Z[`__sui_ctx_${X}`]=J}function U0(Z){let X={};for(let J in Z)if(Object.prototype.hasOwnProperty.call(Z,J)&&h0(Z[J]))X[J]=Z[J];return X}function H0(Z=null){return N(null)}function N0(Z,X,J){let Q=Z[X];if(typeof Q==="function"&&typeof Q.set==="function")return Q.set(J),Q;let Y=N(J);return Z[X]=Y,Y}function L0(Z,X){let J;return x(()=>{let Q=X(),Y=Q==null?"":String(Q);if(Y===J)return;if(J===void 0&&Z.textContent===Y){J=Y;return}Z.textContent=Y,J=Y})}function n(Z,X,J){let Q,Y=!1;return x(()=>{let j=J();if(Y&&j===Q)return;let W=j==null||j===!1||j===""?null:j===!0?"":String(j);if(Y||Z.getAttribute(X)!==W)if(W===null)Z.removeAttribute(X);else Z.setAttribute(X,W);Q=j,Y=!0})}function r(Z,X,J,Q={}){let Y=Q.modifiers??[],j,W=!0,L=(z)=>{for(let V of Y)switch(V.kind){case"preventDefault":z.preventDefault();break;case"stopPropagation":z.stopPropagation();break;case"stopImmediatePropagation":z.stopImmediatePropagation();break;case"self":if(z.target!==Z)return;break;case"trusted":if(!z.isTrusted)return;break;case"key":{if(!d0(z,V.arg??""))return;break}}let B=Y.find((V)=>V.kind==="debounce"),I=Y.find((V)=>V.kind==="throttle");if(B){let V=Number(B.arg)||0;if(j!==void 0)clearTimeout(j);j=setTimeout(()=>{j=void 0,J(z)},V);return}if(I){let V=Number(I.arg)||0;if(!W)return;W=!1,J(z),j=setTimeout(()=>{W=!0},V);return}J(z)},F={};if(Q.capture)F.capture=!0;if(Q.passive)F.passive=!0;if(Q.once)F.once=!0;return Z.addEventListener(X,L,F),()=>{if(Z.removeEventListener(X,L,F),j!==void 0)clearTimeout(j)}}function d0(Z,X){let J=X.split("+").map((B)=>B.toLowerCase()),Q=J.pop()??"",Y=J.includes("meta")||J.includes("cmd"),j=J.includes("ctrl")||J.includes("control"),W=J.includes("shift"),L=J.includes("alt")||J.includes("option"),F=J.includes("mod"),z=typeof navigator<"u"&&/Mac|iPhone|iPad|iPod/i.test(navigator.platform||navigator.userAgent||"");if(Y&&!Z.metaKey)return!1;if(j&&!Z.ctrlKey)return!1;if(W&&!Z.shiftKey)return!1;if(L&&!Z.altKey)return!1;if(F&&!(z?Z.metaKey:Z.ctrlKey))return!1;return Z.key.toLowerCase()===Q}function p0(Z,X,J){Z.dispatchEvent(new CustomEvent(X,{detail:J,bubbles:!0,composed:!0}))}function c0(Z,X){let J=Z,Q=Object.keys(X);for(let Y of Q)J[Y]=X[Y];Q0(()=>{for(let Y of Q)if(J[Y]===X[Y])try{delete J[Y]}catch{J[Y]=void 0}})}function q0(Z){let X=Z;X.emit=function(J,Q){p0(Z,J,Q)},X.expose=function(J){c0(Z,J)}}var $0=Symbol("sui:transition");function F0(Z){return Z[$0]}function MZ(Z){let X=Z,J=X[$0];if(!J)J={inOpts:{},outOpts:{}},X[$0]=J;return J}function A0(Z,X,J={},Q="both"){let Y=MZ(Z);if(Q==="in"||Q==="both")Y.inT=X,Y.inOpts=J;if(Q==="out"||Q==="both")Y.outT=X,Y.outOpts=J;if(!Z.hasAttribute("data-sui-transition"))Z.setAttribute("data-sui-transition","")}function DZ(){if(typeof window>"u"||typeof window.matchMedia!=="function")return!1;try{return window.matchMedia("(prefers-reduced-motion: reduce)").matches}catch{return!1}}function n0(Z){if(!DZ())return Z;return{...Z,duration:0,delay:0}}function o0(Z){let X=F0(Z);if(!X?.inT?.in)return;X.current?.cancel();let J=X.inT.in(Z,n0(X.inOpts));return X.current=J,J}function r0(Z){let X=F0(Z);if(!X?.outT?.out)return;X.current?.cancel();let J=X.outT.out(Z,n0(X.outOpts));return X.current=J,J}function T0(Z){if(Z.nodeType!==1)return;let X=Z;if(X.hasAttribute("data-sui-transition")){let J=F0(X);if(J?.current?.cancel(),J)J.current=void 0}for(let J of X.querySelectorAll("[data-sui-transition]")){let Q=F0(J);if(Q?.current?.cancel(),Q)Q.current=void 0}}function a0(Z,X){for(let J of Z){if(J.nodeType!==1)continue;let Q=J;if(Q.hasAttribute("data-sui-transition"))X(Q);for(let Y of Q.querySelectorAll("[data-sui-transition]"))X(Y)}}function a(Z){a0(Z,(X)=>{o0(X)})}function j0(Z){let X=[];if(a0(Z,(J)=>{let Q=r0(J);if(Q)X.push(Q.finished.catch(()=>{}))}),X.length===0)return null;return Promise.all(X).then(()=>{return})}var BZ=200,PZ="cubic-bezier(0.4, 0, 0.2, 1)",KZ=0;function l0(Z){return{duration:typeof Z.duration==="number"?Z.duration:BZ,easing:typeof Z.easing==="string"?Z.easing:PZ,delay:typeof Z.delay==="number"?Z.delay:KZ,fill:"both"}}function i0(Z,X,J){let Q=Z.animate;if(typeof Q!=="function")return;return Q.call(Z,X,J)}var R0={in:(Z,X)=>i0(Z,[{opacity:0},{opacity:1}],l0(X)),out:(Z,X)=>i0(Z,[{opacity:1},{opacity:0}],l0(X))};function IZ(Z,X,J,Q,Y){if(J.fill(0,0,X),X===0)return;let j=0;for(let L=0;L<X;L++){let F=Z[2*L+1],z=0,B=j;while(z<B){let I=z+B>>>1;if(Z[2*Y[I]+1]<F)z=I+1;else B=I}if(Q[L]=z>0?Y[z-1]:-1,Y[z]=L,z===j)j++}let W=Y[j-1];while(W>=0)J[W]=1,W=Q[W]}function W0(Z){let{anchor:X,items:J,key:Q,render:Y}=Z,j=[],W=!0,L=new Set,F=new Map,z=new Map,B=new Map,I=new Set,V=[],P=[],H=new Int32Array(0),$=new Uint8Array(0),_=new Int32Array(0),S=new Int32Array(0),u=(w)=>{for(let K of w.nodes)try{K.parentNode?.removeChild(K)}catch{}w.cleanup?.()},f=null,d=x(()=>{if(!W)return;let w=J();if(w===f)return;f=w;let K=w.length;if(H.length<K*2)H=new Int32Array(Math.max(H.length*2,K*2,16));if($.length<K){let G=Math.max($.length*2,K,8);$=new Uint8Array(G),_=new Int32Array(G),S=new Int32Array(G)}for(let G=0;G<K;G++){let D=w[G],M=Q(D,G);if(F.has(M))console.warn("[sui] {#for}: duplicate key",M,"at index",G,"(prior at",F.get(M),"); the earlier item will be dropped from the rendered output.","Fix the key function so each item maps to a unique value.");F.set(M,G)}for(let G of j)z.set(G.key,G);for(let G of j){if(F.has(G.key))continue;let D=j0(G.nodes);if(D===null){u(G);continue}L.add(G),D.then(()=>{if(!L.delete(G))return;u(G)})}P.length=0,V.length=0;let A=!1;for(let G=0;G<K;G++){let D=w[G],M=Q(D,G),q=z.get(M),E;if(q){if(A=!0,q.item!==D||q.__i!==G)q.item=D,q.__i=G,o(X,"render",()=>q.update?.(D,G));E=q}else{let b=o(X,"render",()=>Y(D,G));if(!b)continue;E={key:M,item:D,__i:G,nodes:b.nodes,...b.cleanup&&{cleanup:b.cleanup},...b.update&&{update:b.update}},V.push(...b.nodes)}P.push(E)}let T=0;if(A){for(let G=0;G<j.length;G++)B.set(j[G].key,G);for(let G=0;G<P.length;G++){let D=B.get(P[G].key);if(D!==void 0)H[2*T]=G,H[2*T+1]=D,T++}IZ(H,T,$,_,S);for(let G=0;G<T;G++)if($[G])I.add(H[2*G])}let v=X.parentNode;if(v&&T===0&&P.length>0){let G=document.createDocumentFragment();for(let D=0;D<P.length;D++){let M=P[D].nodes;for(let q=0;q<M.length;q++)G.appendChild(M[q])}v.insertBefore(G,X.nextSibling)}else{let G=X;for(let D=0;D<P.length;D++){if(!v)break;let M=P[D];if(I.has(D))G=M.nodes[M.nodes.length-1]??G;else for(let q of M.nodes)v.insertBefore(q,G.nextSibling),G=q}}let U=j;if(j=P,P=U,V.length>0)a(V);F.clear(),z.clear(),B.clear(),I.clear(),V.length=0});return()=>{W=!1,d();for(let w of j)u(w);for(let w of L)u(w);L.clear(),j=[],P.length=0,f=null}}function z0(Z){let{anchor:X}=Z,{test:J,branches:Q}=OZ(Z)?{test:Z.test,branches:Z.branches}:UZ(Z),Y=null,j=-2,W=null,L=(z)=>{for(let B of z)try{B.parentNode?.removeChild(B)}catch{}},F=x(()=>{let z=J();if(Y&&z===j)return;if(W&&z===W.idx&&z>=0&&z<Q.length){let V=W;W=null;for(let P of V.nodes)T0(P);Y={nodes:V.nodes,...V.cleanup&&{cleanup:V.cleanup}},j=z,a(Y.nodes);return}if(Y){let V={idx:j,nodes:Y.nodes,...Y.cleanup&&{cleanup:Y.cleanup}},P=j0(V.nodes);if(Y=null,P===null)L(V.nodes),V.cleanup?.();else W=V,P.then(()=>{if(W!==V)return;L(V.nodes),V.cleanup?.(),W=null})}if(j=z,z<0||z>=Q.length)return;let B=o(X,"render",()=>Q[z]());if(!B)return;Y=B;let I=X.parentNode;if(!I)return;for(let V of Y.nodes)I.insertBefore(V,X);a(Y.nodes)});return()=>{if(F(),Y)L(Y.nodes),Y.cleanup?.(),Y=null;if(W)L(W.nodes),W.cleanup?.(),W=null}}function OZ(Z){return typeof Z.test==="function"}function UZ(Z){let{cond:X,then_:J,else_:Q}=Z;return{test:()=>X()?0:Q?1:-1,branches:Q?[J,Q]:[J]}}var w0=(Z)=>Z??"",E0=(Z)=>{if(Z===null||Z==="")return NaN;return Number(Z)},x0=(Z)=>{if(Z===null)return!1;if(Z.toLowerCase()==="false")return!1;return!0};function M0(Z){return(X)=>{if(X===null||X==="")return Z;try{return JSON.parse(X)}catch{return Z}}}function S0(Z,X){let J=new Set(Z);return(Q)=>Q!==null&&J.has(Q)?Q:X}var D0=(Z)=>{switch(Z.type){case"string":return w0;case"bool":return x0;case"number":return E0;case"union":{let X=Z.values??[],J=Z.default??X[0]??"";return S0(X,J)}case"object":return M0(Z.default);case"array":return M0(Z.default??[])}};function t0(Z,X,J,Q){if(!X)return;let Y={},j,W=J.formValue;if(W!==void 0){let{sig:F,propDef:z}=s0(J,Q,W,"formValue"),B=z.default,I=D0(z);j=x(()=>{let V=F();X.setFormValue(HZ(V))}),Y.reset=()=>{F.set(B)},Y.restore=(V)=>{F.set(I(V))}}let L=J.formDisabled;if(L!==void 0){let{sig:F,propDef:z}=s0(J,Q,L,"formDisabled");if(z.type!=="bool")throw Error(`[sui-runtime] formDisabled: "${L}" must be a bool-typed prop`);Y.disabled=(B)=>{F.set(!!B)}}if(Z.__shipSetFormHooks=Y,j)Z.__shipSetFormValueCleanup=j;return j}function e0(Z){let X=Z;delete X.__shipSetFormHooks,delete X.__shipSetFormValueCleanup}function HZ(Z){if(Z===null||Z===void 0)return"";if(typeof Z==="boolean")return Z?"on":"";return String(Z)}function s0(Z,X,J,Q){let Y=Z.props[J];if(!Y)throw Error(`[sui-runtime] ${Q}: "${J}" — no matching prop on this component`);let j=X[s(J)];if(!j)throw Error(`[sui-runtime] ${Q}: "${J}" — prop signal missing`);return{sig:j,propDef:Y}}var t={string(Z={}){return{type:"string",...Z}},bool(Z={}){return{type:"bool",...Z}},number(Z={}){return{type:"number",...Z}},union(Z,X={}){return{type:"union",values:Z,...X}},object(Z={}){return{type:"object",...Z}},array(Z={}){return{type:"array",...Z}}},NZ=(Z,X)=>{if(X===void 0||X===null)return null;switch(Z.type){case"string":return X===""?null:String(X);case"number":return Number.isNaN(X)?null:String(X);case"bool":return X?"":null;case"union":return String(X);case"object":case"array":try{return JSON.stringify(X)}catch{return null}}},CZ=(Z,X)=>{let J=`ship-set-style-${Z}`;if(document.getElementById(J))return;let Q=document.createElement("style");Q.id=J,Q.textContent=`[data-component="${Z}"] { ${X} }`,document.head.appendChild(Q)},$Z=(Z,X,J,Q)=>{let Y=Z.getAttribute(X),j=Y!==null?Q(Y):J.default;return N(j)},AZ=(Z)=>{let X=[],J={};for(let[j,W]of Object.entries(Z.props??{}))X.push(j),J[j]={camel:s(j),decode:D0(W)};let Q=Z.formAssociated===!0||Z.formValue!==void 0||Z.formDisabled!==void 0,Y={observedAttrs:X,props:J};if(Q)Y.formAssociated=!0;return Y};function B0(Z,X){let J=AZ(X),Q=Object.entries(X.props??{});b0(Z,J,(Y,j,W)=>{let L=null;if(X.shadow){if(L=Y.shadowRoot??Y.attachShadow({mode:"open"}),X.styles){let z=document.createElement("style");z.textContent=X.styles,L.appendChild(z)}}else if(X.styles)CZ(Z,X.styles);let F=[];for(let[z,B]of Q){let I=s(z),V=J.props[z].decode,P=$Z(Y,z,B,V);if(j[I]=P,B.reflect){let H=!0,$=x(()=>{let _=P();if(H){H=!1;return}let S=NZ(B,_);if(S===null)Y.removeAttribute(z);else Y.setAttribute(z,S)});F.push($)}}if(X.formValue!==void 0||X.formDisabled!==void 0){let z=t0(Y,W,X,j);if(typeof z==="function")F.push(z)}if(X.setup){let z={props:j,host:Y,cleanups:F};if(W)z.internals=W;X.setup(z)}return()=>{e0(Y);for(let z of F.splice(0))try{z()}catch(B){console.error(`[ship-set:${Z}] cleanup threw:`,B)}}})}var ZZ=new Set;function b0(Z,X,J){if(customElements.get(Z)){if(!ZZ.has(Z))ZZ.add(Z),console.warn(`[sui-runtime] customElements.define("${Z}", …) called twice. `+"The first registration wins; this call is a no-op. Likely cause: two modules independently registering the same tag.");return}if(X.formAssociated){class Y extends HTMLElement{static formAssociated=!0;static get observedAttributes(){return X.observedAttrs}cleanup;scope;propSignals={};internals;constructor(){super();this.internals=this.attachInternals()}connectedCallback(){this.dataset.component=Z,q0(this),this.scope=Y0();try{this.cleanup=J0(this.scope,()=>I0(this,()=>J(this,this.propSignals,this.internals)))}catch(j){let W=i(this.parentNode);if(W)W.catch(j,"mount");else console.error(`[ship-set:${Z}] setup threw:`,j)}}disconnectedCallback(){try{this.cleanup?.()}catch(j){console.error(`[ship-set:${Z}] cleanup threw:`,j)}this.cleanup=void 0;try{this.scope?.dispose()}catch(j){console.error(`[ship-set:${Z}] scope dispose threw:`,j)}this.scope=void 0}attributeChangedCallback(j,W,L){let F=X.props[j];if(!F)return;let z=this.propSignals[F.camel];if(z)z.set(F.decode(L))}formResetCallback(){let j=this.__shipSetFormHooks;try{j?.reset?.()}catch(W){console.error(`[ship-set:${Z}] formResetCallback threw:`,W)}this.dispatchEvent(new CustomEvent("ship-set:form-reset"))}formStateRestoreCallback(j,W){let L=this.__shipSetFormHooks;try{L?.restore?.(j)}catch(F){console.error(`[ship-set:${Z}] formStateRestoreCallback threw:`,F)}this.dispatchEvent(new CustomEvent("ship-set:form-restore",{detail:{state:j,mode:W}}))}formDisabledCallback(j){let W=this.__shipSetFormHooks;try{W?.disabled?.(j)}catch(L){console.error(`[ship-set:${Z}] formDisabledCallback threw:`,L)}this.dispatchEvent(new CustomEvent("ship-set:form-disabled",{detail:{disabled:j}}))}}customElements.define(Z,Y);return}class Q extends HTMLElement{static get observedAttributes(){return X.observedAttrs}cleanup;scope;propSignals={};connectedCallback(){this.dataset.component=Z,q0(this),this.scope=Y0();try{this.cleanup=J0(this.scope,()=>I0(this,()=>J(this,this.propSignals)))}catch(Y){let j=i(this.parentNode);if(j)j.catch(Y,"mount");else console.error(`[ship-set:${Z}] setup threw:`,Y)}}disconnectedCallback(){try{this.cleanup?.()}catch(Y){console.error(`[ship-set:${Z}] cleanup threw:`,Y)}this.cleanup=void 0;try{this.scope?.dispose()}catch(Y){console.error(`[ship-set:${Z}] scope dispose threw:`,Y)}this.scope=void 0}attributeChangedCallback(Y,j,W){let L=X.props[Y];if(!L)return;let F=this.propSignals[L.camel];if(F)F.set(L.decode(W))}}customElements.define(Z,Q)}function s(Z){return Z.replace(/-([a-z])/g,(X,J)=>J.toUpperCase())}function k0(Z,X,J){let Q=wZ(Z.state,{ship:X.ship,...J}),Y={};for(let[V,P]of Object.entries(Q))Y[V]=N(P);let j={ship:X.ship,route:X.route??{},navigate:X.navigate??((V)=>{}),...J,...Y},W=EZ(Y,j),L={...j},F={};for(let[V,P]of Object.entries(Z.derived??{}))F[V]=X0(()=>P(L));Object.assign(L,F);let z={};for(let[V,P]of Object.entries(Z.on??{}))z[V]=(...H)=>P(W,...H);let B={},I=typeof Z.use==="function"?Z.use(L):Z.use??{};for(let[V,P]of Object.entries(I))B[V]=k0(P,X,L);return{...Y,...F,...z,...B}}function wZ(Z,X){if(Z===void 0)return{};if(typeof Z==="function")return Z(X);return Z}function EZ(Z,X){return new Proxy({},{get(J,Q){if(Q in Z)return Z[Q]();return X[Q]},set(J,Q,Y){if(Q in Z)return Z[Q].set(Y),!0;return console.warn(`[ship-set] hook handler tried to write s.${Q} = … but ${Q} is not a hook state key. The assignment was ignored.`),!0},has(J,Q){return Q in Z||Q in X},ownKeys(){return Object.keys(Z)},getOwnPropertyDescriptor(J,Q){if(Q in Z)return{configurable:!0,enumerable:!0,writable:!0,value:Z[Q]()};return}})}var XZ="__shipSetLifecycle";function JZ(Z,X){let J=xZ(Z,X),Q={ship:X.ship,route:X.route??{},navigate:X.navigate??((V)=>{}),...X.scope??{}},Y=J.scope?J.scope(Q,X.host):{};Object.assign(Q,Y);let j=SZ(Q,X.stateKeys,Y),W=bZ(j,Q),L={...Q},F=kZ(J,L);Object.assign(L,F);let z=fZ(J,L,X);for(let[V,P]of Object.entries(z))L[V]=P;let B=yZ(J,W),I={...Y,...F,...B,...z};if(Object.keys(Y).length>0&&X.host){let V=U0(Y);if(Object.keys(V).length>0){let P=X.host,H=P.tagName.toLowerCase();O0(P,H,V)}}if(J.mount||J.unmount){let V={state:W};if(J.mount)V.mount=J.mount;if(J.unmount)V.unmount=J.unmount;Object.defineProperty(I,XZ,{value:V,enumerable:!0,configurable:!0,writable:!1})}return I}function xZ(Z,X){if(typeof Z==="function")return Z({ship:X.ship});return Z}function SZ(Z,X,J){let Q={},Y=X!==void 0,j=J?Object.keys(J):[];if(Y||j.length>0){if(X)for(let W of X){let L=Z[W];if(y0(L))Q[W]=L}for(let W of j){if(W in Q)continue;let L=Z[W];if(y0(L))Q[W]=L}return Q}for(let[W,L]of Object.entries(Z))if(y0(L))Q[W]=L;return Q}function y0(Z){return typeof Z==="function"&&"set"in Z&&typeof Z.set==="function"}function bZ(Z,X){return new Proxy({},{get(J,Q){if(Q in Z)return Z[Q]();return X[Q]},set(J,Q,Y){if(Q in Z){if(typeof Y==="function")Z[Q].set(()=>Y);else Z[Q].set(Y);return!0}return console.warn(`[ship-set] handler tried to write s.${Q} = … but ${Q} is not declared as <state name="${Q}"> in the template. The assignment was ignored.`),!0},has(J,Q){return Q in Z||Q in X},ownKeys(){return Object.keys(Z)},getOwnPropertyDescriptor(J,Q){if(Q in Z)return{configurable:!0,enumerable:!0,writable:!0,value:Z[Q]()};return}})}function kZ(Z,X){let J=Z.derived??{},Q={};for(let[Y,j]of Object.entries(J))Q[Y]=X0(()=>j(X));return Q}function yZ(Z,X){let J=Z.on??{},Q={};for(let[Y,j]of Object.entries(J))Q[Y]=(...W)=>j(X,...W);return Q}function fZ(Z,X,J){if(Z.use===void 0)return{};let Q=typeof Z.use==="function"?Z.use(X):Z.use,Y={};for(let[j,W]of Object.entries(Q))Y[j]=k0(W,J,X);return Y}function f0(Z){return{setup:(X)=>JZ(Z,X),__def:Z}}if(typeof customElements<"u"){for(let Z of["sui-if","sui-for","sui-match","sui-while-loading","sui-while-error"])if(!customElements.get(Z))customElements.define(Z,class extends HTMLElement{})}var _Z=`:host([tone='default'])     { --tone: var(--foreground);       --tone-fg: var(--foreground);       --tone-contrast: var(--background); }
-:host([tone='primary'])     { --tone: var(--primary);          --tone-fg: var(--primary);          --tone-contrast: var(--primary-foreground); }
-:host([tone='info'])        { --tone: var(--info);             --tone-fg: var(--info);             --tone-contrast: var(--info-foreground); }
-:host([tone='success'])     { --tone: var(--success);          --tone-fg: var(--success);          --tone-contrast: var(--success-foreground); }
-:host([tone='warning'])     { --tone: var(--warning);          --tone-fg: var(--warning);          --tone-contrast: var(--warning-foreground); }
-:host([tone='destructive']) { --tone: var(--destructive);      --tone-fg: var(--destructive);      --tone-contrast: var(--destructive-foreground); }
-:host([tone='accent'])      { --tone: var(--accent);           --tone-fg: var(--accent);           --tone-contrast: var(--accent-foreground); }
-:host([tone='muted'])       { --tone: var(--muted-foreground); --tone-fg: var(--muted-foreground); --tone-contrast: var(--background); }
-`,uZ=`:host([hidden]) { display: none !important; }
-@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
-`;function QZ(Z){if(typeof CSSStyleSheet>"u")return null;try{let X=new CSSStyleSheet;return X.replaceSync(Z),X}catch{return null}}var YZ=QZ(_Z),jZ=QZ(uZ);function v0(Z){if(typeof ShadowRoot>"u")return;if(!(Z instanceof ShadowRoot))return;let X=[jZ,YZ].filter((J)=>J!=null);if(X.length===0)return;try{Z.adoptedStyleSheets=[...X,...Z.adoptedStyleSheets??[]]}catch{}}var WZ=!1;function zZ(){if(WZ)return;if(typeof document>"u")return;WZ=!0;let Z=document.createElement("style");Z.setAttribute("data-sui-panel-dock",""),Z.textContent=`
+// packages/ui-components/src/islands/sui-panel-dock/sui-panel-dock.sui
+import { adoptSuiSheets, attachRef, bindAttr, bindFor, bindIf, bindProp, bindText, component, fade, on, prop, registerTransition, signal as signal2 } from "@ship/sui-runtime";
+
+// packages/ui-components/src/islands/sui-panel-dock/sui-panel-dock.controller.ts
+import { controller, signal, ref } from "@ship/sui-runtime";
+
+// packages/ui-components/src/islands/sui-panel-dock/resize-pill-styles.ts
+var RESIZE_PILL_STYLES = `
 .sui-dock-resize-pill {
   position: fixed;
   left: 50%;
@@ -27,7 +24,239 @@ var GZ=Symbol.for("sui:error-boundary");function i(Z){let X=Z;while(X){if(X inst
   pointer-events: none;
   user-select: none;
 }
-`,document.head.appendChild(Z)}var dZ="/_sui/islands/sui-terminal/island.js";function pZ(){if(customElements.get("sui-terminal"))return;if(document.querySelector("script[data-sui-terminal-island]"))return;let Z=document.createElement("script");Z.type="module",Z.src=dZ,Z.dataset.suiTerminalIsland="1",document.head.appendChild(Z)}function cZ(Z){if(Z.querySelector(':scope > [slot="terminal"]'))return;let J=document.createElement("sui-terminal");J.setAttribute("slot","terminal"),J.setAttribute("fit",""),Z.appendChild(J),pZ()}var lZ=[{id:"terminal",label:"Terminal",icon:"terminal",live:!0},{id:"source",label:"Source",icon:"file-code"},{id:"signals",label:"Signals",icon:"radio",live:!0},{id:"lint",label:"Lint",icon:"list"},{id:"schema",label:"Schema",icon:"network"},{id:"components",label:"Components",icon:"package"}],e=240,iZ=120,P0=f0({scope:(Z,X)=>{let J=N(lZ),Q=N(e),Y=H0(null),j=X,W=Z,L=(V,P)=>{try{localStorage.setItem(`${W.storageKey()}-${V}`,P)}catch{}};function F(V){if(!J().some((P)=>P.id===V))return;if(W.activeTab()===V)return;W.activeTab.set(V),L("active",V),j?.dispatchEvent(new CustomEvent("sui:dock:activate",{detail:{tab:V},bubbles:!0,composed:!0}))}function z(){j?.dispatchEvent(new CustomEvent("sui:dock:clear",{detail:{tab:W.activeTab()},bubbles:!0,composed:!0}))}function B(){j?.dispatchEvent(new CustomEvent("sui:dock:popout",{detail:{tab:W.activeTab()},bubbles:!0,composed:!0}))}function I(){j?.dispatchEvent(new CustomEvent("sui:dock:close",{bubbles:!0,composed:!0}))}return{tabs:J,dragHeight:Q,resizeHandle:Y,activate:F,onClear:z,onPopout:B,onClose:I}},mount(Z,X){let J=Z,Q=J.tabs,Y=J.activeTab,j=J.resizing,W=J.dragHeight,L=J.storageKey,F=J.activate,z=J.resizeHandle();zZ(),cZ(X);let B=(K)=>{try{return localStorage.getItem(`${L()}-${K}`)}catch{return null}},I=(K,A)=>{try{localStorage.setItem(`${L()}-${K}`,A)}catch{}},V=(K)=>{document.documentElement.style.setProperty("--ship-dock-height",`${K}px`),W.set(K)},P=()=>{let K=getComputedStyle(document.documentElement).getPropertyValue("--ship-dock-height"),A=Number.parseInt(K,10);return Number.isFinite(A)?A:e},H=B("active");if(H&&Q().some((K)=>K.id===H))Y.set(H);let $=Number.parseInt(B("height")??"",10);V(Number.isFinite($)?$:e);let _=X.shadowRoot,S=[],u=(K)=>{let A=K.querySelector("slot");if(!A)return;let T=()=>{let v=A.assignedElements({flatten:!0}).length>0;K.classList.toggle("has-content",v)};A.addEventListener("slotchange",T),queueMicrotask(T),S.push(()=>A.removeEventListener("slotchange",T))};for(let K of _.querySelectorAll("[data-toolbar]"))u(K);let f=new MutationObserver((K)=>{for(let A of K)for(let T of A.addedNodes){if(T.nodeType!==1)continue;let v=T;if(v.matches?.("[data-toolbar]"))u(v)}});f.observe(_,{childList:!0,subtree:!0});let d=(K)=>{K.preventDefault();let A=K.clientY,T=P();j.set(!0),z.setPointerCapture(K.pointerId);let v=(G)=>{let D=Math.round(window.innerHeight*0.5);V(Math.min(D,Math.max(iZ,T+(A-G.clientY))))},U=(G)=>{j.set(!1),z.releasePointerCapture(G.pointerId),z.removeEventListener("pointermove",v),z.removeEventListener("pointerup",U),z.removeEventListener("pointercancel",U);let D=P();I("height",String(D)),X.dispatchEvent(new CustomEvent("sui:dock:resize",{detail:{height:D},bubbles:!0,composed:!0}))};z.addEventListener("pointermove",v),z.addEventListener("pointerup",U),z.addEventListener("pointercancel",U)},w=()=>{V(e),I("height",String(e)),X.dispatchEvent(new CustomEvent("sui:dock:resize",{detail:{height:e},bubbles:!0,composed:!0}))};return z.addEventListener("pointerdown",d),z.addEventListener("dblclick",w),Object.defineProperty(X,"activate",{value:F,configurable:!0}),Object.defineProperty(X,"show",{value:()=>document.body.classList.add("dock-open"),configurable:!0}),Object.defineProperty(X,"hide",{value:()=>document.body.classList.remove("dock-open"),configurable:!0}),Object.defineProperty(X,"toggle",{value:()=>document.body.classList.toggle("dock-open"),configurable:!0}),Object.defineProperty(X,"tabs",{get:()=>Q(),set:(K)=>Q.set(K),configurable:!0}),()=>{for(let K of S)K();f.disconnect(),z.removeEventListener("pointerdown",d),z.removeEventListener("dblclick",w)}}});var X1=B0("sui-panel-dock",{props:{"active-tab":t.string({default:"terminal",reflect:!0}),"storage-key":t.string({default:"ship-dock"}),resizing:t.bool({default:!1,reflect:!0})},shadow:!0,styles:`
+`;
+var stylesInstalled = false;
+function ensureResizePillStyles() {
+  if (stylesInstalled)
+    return;
+  if (typeof document === "undefined")
+    return;
+  stylesInstalled = true;
+  const el = document.createElement("style");
+  el.setAttribute("data-sui-panel-dock", "");
+  el.textContent = RESIZE_PILL_STYLES;
+  document.head.appendChild(el);
+}
+
+// packages/ui-components/src/islands/sui-panel-dock/sui-panel-dock.controller.ts
+var SUI_TERMINAL_BUNDLE = "/_sui/islands/sui-terminal/island.js";
+function ensureTerminalLoaded() {
+  if (customElements.get("sui-terminal"))
+    return;
+  if (document.querySelector("script[data-sui-terminal-island]"))
+    return;
+  const s = document.createElement("script");
+  s.type = "module";
+  s.src = SUI_TERMINAL_BUNDLE;
+  s.dataset["suiTerminalIsland"] = "1";
+  document.head.appendChild(s);
+}
+function ensureTerminalSlotFilled(host) {
+  const existing = host.querySelector(':scope > [slot="terminal"]');
+  if (existing)
+    return;
+  const term = document.createElement("sui-terminal");
+  term.setAttribute("slot", "terminal");
+  term.setAttribute("fit", "");
+  host.appendChild(term);
+  ensureTerminalLoaded();
+}
+var DEFAULT_TABS = [
+  { id: "terminal", label: "Terminal", icon: "terminal", live: true },
+  { id: "source", label: "Source", icon: "file-code" },
+  { id: "signals", label: "Signals", icon: "radio", live: true },
+  { id: "lint", label: "Lint", icon: "list" },
+  { id: "schema", label: "Schema", icon: "network" },
+  { id: "components", label: "Components", icon: "package" }
+];
+var DEFAULT_HEIGHT = 240;
+var MIN_HEIGHT = 120;
+var sui_panel_dock_controller_default = controller({
+  scope: (state, host) => {
+    const tabs = signal(DEFAULT_TABS);
+    const dragHeight = signal(DEFAULT_HEIGHT);
+    const resizeHandle = ref(null);
+    const hostEl = host;
+    const s = state;
+    const writeStored = (suffix, val) => {
+      try {
+        localStorage.setItem(`${s.storageKey()}-${suffix}`, val);
+      } catch {}
+    };
+    function activate(id) {
+      if (!tabs().some((t) => t.id === id))
+        return;
+      if (s.activeTab() === id)
+        return;
+      s.activeTab.set(id);
+      writeStored("active", id);
+      hostEl?.dispatchEvent(new CustomEvent("sui:dock:activate", {
+        detail: { tab: id },
+        bubbles: true,
+        composed: true
+      }));
+    }
+    function onClear() {
+      hostEl?.dispatchEvent(new CustomEvent("sui:dock:clear", {
+        detail: { tab: s.activeTab() },
+        bubbles: true,
+        composed: true
+      }));
+    }
+    function onPopout() {
+      hostEl?.dispatchEvent(new CustomEvent("sui:dock:popout", {
+        detail: { tab: s.activeTab() },
+        bubbles: true,
+        composed: true
+      }));
+    }
+    function onClose() {
+      hostEl?.dispatchEvent(new CustomEvent("sui:dock:close", { bubbles: true, composed: true }));
+    }
+    return { tabs, dragHeight, resizeHandle, activate, onClear, onPopout, onClose };
+  },
+  mount(state, host) {
+    const scope = state;
+    const tabsSig = scope.tabs;
+    const activeTabSig = scope.activeTab;
+    const resizingSig = scope.resizing;
+    const dragHeightSig = scope.dragHeight;
+    const storageKey = scope.storageKey;
+    const activate = scope.activate;
+    const resizeHandle = scope.resizeHandle();
+    ensureResizePillStyles();
+    ensureTerminalSlotFilled(host);
+    const readStored = (suffix) => {
+      try {
+        return localStorage.getItem(`${storageKey()}-${suffix}`);
+      } catch {
+        return null;
+      }
+    };
+    const writeStored = (suffix, val) => {
+      try {
+        localStorage.setItem(`${storageKey()}-${suffix}`, val);
+      } catch {}
+    };
+    const applyHeight = (px) => {
+      document.documentElement.style.setProperty("--ship-dock-height", `${px}px`);
+      dragHeightSig.set(px);
+    };
+    const currentHeight = () => {
+      const v = getComputedStyle(document.documentElement).getPropertyValue("--ship-dock-height");
+      const n = Number.parseInt(v, 10);
+      return Number.isFinite(n) ? n : DEFAULT_HEIGHT;
+    };
+    const lastActive = readStored("active");
+    if (lastActive && tabsSig().some((t) => t.id === lastActive)) {
+      activeTabSig.set(lastActive);
+    }
+    const h = Number.parseInt(readStored("height") ?? "", 10);
+    applyHeight(Number.isFinite(h) ? h : DEFAULT_HEIGHT);
+    const sr = host.shadowRoot;
+    const toolbarCleanups = [];
+    const trackToolbar = (tb) => {
+      const slot = tb.querySelector("slot");
+      if (!slot)
+        return;
+      const sync = () => {
+        const has = slot.assignedElements({ flatten: true }).length > 0;
+        tb.classList.toggle("has-content", has);
+      };
+      slot.addEventListener("slotchange", sync);
+      queueMicrotask(sync);
+      toolbarCleanups.push(() => slot.removeEventListener("slotchange", sync));
+    };
+    for (const tb of sr.querySelectorAll("[data-toolbar]"))
+      trackToolbar(tb);
+    const mo = new MutationObserver((records) => {
+      for (const r of records) {
+        for (const n of r.addedNodes) {
+          if (n.nodeType !== 1)
+            continue;
+          const el = n;
+          if (el.matches?.("[data-toolbar]"))
+            trackToolbar(el);
+        }
+      }
+    });
+    mo.observe(sr, { childList: true, subtree: true });
+    const onPointerDown = (ev) => {
+      ev.preventDefault();
+      const startY = ev.clientY;
+      const startH = currentHeight();
+      resizingSig.set(true);
+      resizeHandle.setPointerCapture(ev.pointerId);
+      const onMove = (e) => {
+        const max = Math.round(window.innerHeight * 0.5);
+        applyHeight(Math.min(max, Math.max(MIN_HEIGHT, startH + (startY - e.clientY))));
+      };
+      const onUp = (e) => {
+        resizingSig.set(false);
+        resizeHandle.releasePointerCapture(e.pointerId);
+        resizeHandle.removeEventListener("pointermove", onMove);
+        resizeHandle.removeEventListener("pointerup", onUp);
+        resizeHandle.removeEventListener("pointercancel", onUp);
+        const final = currentHeight();
+        writeStored("height", String(final));
+        host.dispatchEvent(new CustomEvent("sui:dock:resize", {
+          detail: { height: final },
+          bubbles: true,
+          composed: true
+        }));
+      };
+      resizeHandle.addEventListener("pointermove", onMove);
+      resizeHandle.addEventListener("pointerup", onUp);
+      resizeHandle.addEventListener("pointercancel", onUp);
+    };
+    const onDblClick = () => {
+      applyHeight(DEFAULT_HEIGHT);
+      writeStored("height", String(DEFAULT_HEIGHT));
+      host.dispatchEvent(new CustomEvent("sui:dock:resize", {
+        detail: { height: DEFAULT_HEIGHT },
+        bubbles: true,
+        composed: true
+      }));
+    };
+    resizeHandle.addEventListener("pointerdown", onPointerDown);
+    resizeHandle.addEventListener("dblclick", onDblClick);
+    Object.defineProperty(host, "activate", { value: activate, configurable: true });
+    Object.defineProperty(host, "show", {
+      value: () => document.body.classList.add("dock-open"),
+      configurable: true
+    });
+    Object.defineProperty(host, "hide", {
+      value: () => document.body.classList.remove("dock-open"),
+      configurable: true
+    });
+    Object.defineProperty(host, "toggle", {
+      value: () => document.body.classList.toggle("dock-open"),
+      configurable: true
+    });
+    Object.defineProperty(host, "tabs", {
+      get: () => tabsSig(),
+      set: (val) => tabsSig.set(val),
+      configurable: true
+    });
+    return () => {
+      for (const cleanup of toolbarCleanups)
+        cleanup();
+      mo.disconnect();
+      resizeHandle.removeEventListener("pointerdown", onPointerDown);
+      resizeHandle.removeEventListener("dblclick", onDblClick);
+    };
+  }
+});
+
+// packages/ui-components/src/islands/sui-panel-dock/sui-panel-dock.sui
+var sui_panel_dock_default = component("sui-panel-dock", {
+  props: {
+    "active-tab": prop.string({ default: "terminal", reflect: true }),
+    "storage-key": prop.string({ default: "ship-dock" }),
+    resizing: prop.bool({ default: false, reflect: true })
+  },
+  shadow: true,
+  styles: `
   :host {
     display: flex;
     flex-direction: column;
@@ -171,5 +400,396 @@ var GZ=Symbol.for("sui:error-boundary");function i(Z){let X=Z;while(X){if(X inst
   @media (prefers-reduced-motion: reduce) {
     .tab, .tool, .resize::before { transition: none; }
   }
-`,setup(Z){let{props:X,host:J}=Z;if(!Z.cleanups)Z.cleanups=[];let Q=Z.cleanups,Y=Object.create(null);Y.activeTab=X.activeTab,Y.storageKey=X.storageKey,Y.resizing=X.resizing,Y.resizeHandle=N(null);let j=null;if(P0&&typeof P0.setup==="function"){if(Z.scope=Y,j=P0.setup(Z),j&&typeof j==="object")Object.assign(Y,j)}let W=(U)=>W0({anchor:U,items:()=>Y.tabs(),key:(G,D)=>{let M=Object.create(Y);return M.t=G,M.__i=D,((q)=>G.id)(M)},render:(G,D)=>{let M=Object.create(Y);return M.t=G,M.__i=D,M.__v=N(0),((q)=>{let E=(y)=>z0({anchor:y,test:()=>{if(q.t.live&&q.t.id===q.activeTab())return 0;return-1},branches:[()=>{let p=document.createDocumentFragment(),g=[],l=document.createElement("span");return l.setAttribute("class","live-dot"),l.setAttribute("aria-hidden","true"),p.appendChild(l),{nodes:Array.from(p.childNodes),cleanup:()=>{for(let G0 of g)try{G0()}catch(_0){}}}}]}),b=(y)=>z0({anchor:y,test:()=>{if(q.t.count!=null)return 0;return-1},branches:[()=>{let p=document.createDocumentFragment(),g=[],l=document.createElement("span");l.setAttribute("class","count");let G0=document.createTextNode("");return l.appendChild(G0),g.push(L0(G0,()=>(q.__v(),q.t.count.toLocaleString()))),p.appendChild(l),{nodes:Array.from(p.childNodes),cleanup:()=>{for(let _0 of g)try{_0()}catch(nZ){}}}}]}),R=document.createDocumentFragment(),C=[],O=document.createElement("button");O.setAttribute("class","tab"),O.setAttribute("role","tab"),O.setAttribute("type","button"),C.push(n(O,"aria-selected",()=>(q.__v(),q.t.id===q.activeTab()?"true":"false"))),C.push(n(O,"tabindex",()=>(q.__v(),q.t.id===q.activeTab()?"0":"-1")));{let y=q.t.id;if(y==null||y===!1||y==="")O.removeAttribute("data-tab");else O.setAttribute("data-tab",y===!0?"":String(y))}C.push(r(O,"click",function(){let y=()=>q.activate(q.t.id);return typeof y==="function"?y.bind(void 0):()=>{}}(),{modifiers:[]}));let m=document.createElement("sui-icon");m.name=q.t.icon,m.setAttribute("size","sm"),O.appendChild(m);let k=document.createElement("span"),K0=document.createTextNode("");k.appendChild(K0),K0.textContent=q.t.label,O.appendChild(k);let m0=document.createComment("if");O.appendChild(m0),C.push(E(m0));let g0=document.createComment("if");return O.appendChild(g0),C.push(b(g0)),R.appendChild(O),{nodes:Array.from(R.childNodes),cleanup:()=>{for(let y of C)try{y()}catch(p){}},update:(y,p)=>{q.t=y,q.__i=p;{let g=q.t.id;if(g==null||g===!1||g==="")O.removeAttribute("data-tab");else O.setAttribute("data-tab",g===!0?"":String(g))}m.name=q.t.icon,K0.textContent=q.t.label,q.__v.set((g)=>g+1)}}})(M)}}),L=(U)=>W0({anchor:U,items:()=>Y.tabs(),key:(G,D)=>{let M=Object.create(Y);return M.t=G,M.__i=D,((q)=>G.id)(M)},render:(G,D)=>{let M=Object.create(Y);return M.t=G,M.__i=D,M.__v=N(0),((q)=>{let E=document.createDocumentFragment(),b=[],R=document.createElement("div");R.setAttribute("class","toolbar");{let O=q.t.id;if(O==null||O===!1||O==="")R.removeAttribute("data-toolbar");else R.setAttribute("data-toolbar",O===!0?"":String(O))}b.push(n(R,"hidden",()=>(q.__v(),q.t.id!==q.activeTab())));let C=document.createElement("slot");{let O="toolbar:"+q.t.id;if(O==null||O===!1||O==="")C.removeAttribute("name");else C.setAttribute("name",O===!0?"":String(O))}return R.appendChild(C),E.appendChild(R),{nodes:Array.from(E.childNodes),cleanup:()=>{for(let O of b)try{O()}catch(m){}},update:(O,m)=>{q.t=O,q.__i=m;{let k=q.t.id;if(k==null||k===!1||k==="")R.removeAttribute("data-toolbar");else R.setAttribute("data-toolbar",k===!0?"":String(k))}{let k="toolbar:"+q.t.id;if(k==null||k===!1||k==="")C.removeAttribute("name");else C.setAttribute("name",k===!0?"":String(k))}q.__v.set((k)=>k+1)}}})(M)}}),F=(U)=>W0({anchor:U,items:()=>Y.tabs(),key:(G,D)=>{let M=Object.create(Y);return M.t=G,M.__i=D,((q)=>G.id)(M)},render:(G,D)=>{let M=Object.create(Y);return M.t=G,M.__i=D,M.__v=N(0),((q)=>{let E=document.createDocumentFragment(),b=[],R=document.createElement("slot");{let C=q.t.id;if(C==null||C===!1||C==="")R.removeAttribute("name");else R.setAttribute("name",C===!0?"":String(C))}return b.push(n(R,"data-active",()=>(q.__v(),q.t.id===q.activeTab()))),E.appendChild(R),{nodes:Array.from(E.childNodes),cleanup:()=>{for(let C of b)try{C()}catch(O){}},update:(C,O)=>{q.t=C,q.__i=O;{let m=q.t.id;if(m==null||m===!1||m==="")R.removeAttribute("name");else R.setAttribute("name",m===!0?"":String(m))}q.__v.set((m)=>m+1)}}})(M)}}),z=(U)=>z0({anchor:U,test:()=>{if(Y.resizing())return 0;return-1},branches:[()=>{let G=document.createDocumentFragment(),D=[],M=document.createElement("div");M.setAttribute("class","sui-dock-resize-pill"),M.setAttribute("part","resize-pill"),A0(M,R0,{duration:120},"both");let q=document.createTextNode("");M.appendChild(q),D.push(L0(q,()=>Y.dragHeight()));let E=document.createTextNode(`px
-    `);return M.appendChild(E),G.appendChild(M),{nodes:Array.from(G.childNodes),cleanup:()=>{for(let b of D)try{b()}catch(R){}}}}]}),B=J.shadowRoot??J;v0(B);let I=document.createElement("div");I.setAttribute("class","resize"),I.setAttribute("role","separator"),I.setAttribute("aria-orientation","horizontal"),I.setAttribute("aria-label","Resize panel"),N0(Y,"resizeHandle",I),B.appendChild(I);let V=document.createElement("div");V.setAttribute("class","tabstrip"),V.setAttribute("role","tablist");let P=document.createComment("for");V.appendChild(P),Q.push(W(P));let H=document.createElement("span");H.setAttribute("class","tools");let $=document.createElement("button");$.setAttribute("class","tool"),$.setAttribute("type","button"),$.setAttribute("aria-label","Clear"),$.setAttribute("title","Clear"),$.setAttribute("data-action","clear"),Q.push(r($,"click",function(){let U=Y.onClear;return typeof U==="function"?U.bind(void 0):()=>{}}(),{modifiers:[]}));let _=document.createElement("sui-icon");_.setAttribute("name","refresh-cw"),_.setAttribute("size","sm"),$.appendChild(_),H.appendChild($);let S=document.createElement("button");S.setAttribute("class","tool"),S.setAttribute("type","button"),S.setAttribute("aria-label","Pop out"),S.setAttribute("title","Pop out"),S.setAttribute("data-action","popout"),Q.push(r(S,"click",function(){let U=Y.onPopout;return typeof U==="function"?U.bind(void 0):()=>{}}(),{modifiers:[]}));let u=document.createElement("sui-icon");u.setAttribute("name","maximize"),u.setAttribute("size","sm"),S.appendChild(u),H.appendChild(S);let f=document.createElement("button");f.setAttribute("class","tool"),f.setAttribute("type","button"),f.setAttribute("aria-label","Close panel"),f.setAttribute("title","Close (⌘J)"),f.setAttribute("data-action","close"),Q.push(r(f,"click",function(){let U=Y.onClose;return typeof U==="function"?U.bind(void 0):()=>{}}(),{modifiers:[]}));let d=document.createElement("sui-icon");d.setAttribute("name","x"),d.setAttribute("size","sm"),f.appendChild(d),H.appendChild(f),V.appendChild(H),B.appendChild(V);let w=document.createComment("for");B.appendChild(w),Q.push(L(w));let K=document.createElement("div");K.setAttribute("class","bodies");let A=document.createComment("for");K.appendChild(A),Q.push(F(A)),B.appendChild(K);let T=document.createElement("sui-portal");T.setAttribute("target","body");let v=document.createComment("if");if(T.appendChild(v),Q.push(z(v)),B.appendChild(T),j!=null){let U=Object.getOwnPropertyDescriptor(j,"__shipSetLifecycle")?.value;if(U){let G=new Proxy(Y,{get(D,M){return D[M]},set(D,M,q){let E=D[M];if(E!=null&&typeof E.set==="function"){if(typeof q==="function")E.set(()=>q);else E.set(q);return!0}return!1}});if(U.mount){let D=U.mount(G,J);if(typeof D==="function")Q.push(D)}if(U.unmount)Q.push(()=>U.unmount(G))}}return Y}});
+`,
+  setup(ctx) {
+    const { props, host } = ctx;
+    if (!ctx.cleanups)
+      ctx.cleanups = [];
+    const __cleanups = ctx.cleanups;
+    const $scope = Object.create(null);
+    $scope.activeTab = props.activeTab;
+    $scope.storageKey = props.storageKey;
+    $scope.resizing = props.resizing;
+    $scope["resizeHandle"] = signal2(null);
+    let __r = null;
+    if (sui_panel_dock_controller_default && typeof sui_panel_dock_controller_default.setup === "function") {
+      ctx.scope = $scope;
+      __r = sui_panel_dock_controller_default.setup(ctx);
+      if (__r && typeof __r === "object")
+        Object.assign($scope, __r);
+    }
+    const __wireBoundary_b1 = (anchor) => bindFor({
+      anchor,
+      items: () => $scope.tabs(),
+      key: (t, __i) => {
+        const __child = Object.create($scope);
+        __child.t = t;
+        __child.__i = __i;
+        return (($scope2) => t.id)(__child);
+      },
+      render: (t, __i) => {
+        const __childScope3 = Object.create($scope);
+        __childScope3.t = t;
+        __childScope3.__i = __i;
+        __childScope3.__v = signal2(0);
+        return (($scope2) => {
+          const __wireBoundary_b8 = (anchor2) => bindIf({
+            anchor: anchor2,
+            test: () => {
+              if ($scope2.t.live && $scope2.t.id === $scope2.activeTab())
+                return 0;
+              return -1;
+            },
+            branches: [
+              () => {
+                const __frag12 = document.createDocumentFragment();
+                const __c13 = [];
+                const __e14 = document.createElement("span");
+                __e14.setAttribute("class", "live-dot");
+                __e14.setAttribute("aria-hidden", "true");
+                __frag12.appendChild(__e14);
+                return { nodes: Array.from(__frag12.childNodes), cleanup: () => {
+                  for (const c of __c13)
+                    try {
+                      c();
+                    } catch (e) {}
+                } };
+              }
+            ]
+          });
+          const __wireBoundary_b9 = (anchor2) => bindIf({
+            anchor: anchor2,
+            test: () => {
+              if ($scope2.t.count != null)
+                return 0;
+              return -1;
+            },
+            branches: [
+              () => {
+                const __frag16 = document.createDocumentFragment();
+                const __c17 = [];
+                const __e18 = document.createElement("span");
+                __e18.setAttribute("class", "count");
+                const __t19 = document.createTextNode("");
+                __e18.appendChild(__t19);
+                __c17.push(bindText(__t19, () => (void $scope2.__v(), $scope2.t.count.toLocaleString())));
+                __frag16.appendChild(__e18);
+                return { nodes: Array.from(__frag16.childNodes), cleanup: () => {
+                  for (const c of __c17)
+                    try {
+                      c();
+                    } catch (e) {}
+                } };
+              }
+            ]
+          });
+          const __frag4 = document.createDocumentFragment();
+          const __c5 = [];
+          const __e6 = document.createElement("button");
+          __e6.setAttribute("class", "tab");
+          __e6.setAttribute("role", "tab");
+          __e6.setAttribute("type", "button");
+          __c5.push(bindAttr(__e6, "aria-selected", () => (void $scope2.__v(), $scope2.t.id === $scope2.activeTab() ? "true" : "false")));
+          __c5.push(bindAttr(__e6, "tabindex", () => (void $scope2.__v(), $scope2.t.id === $scope2.activeTab() ? "0" : "-1")));
+          {
+            const __av7 = $scope2.t.id;
+            if (__av7 == null || __av7 === false || __av7 === "")
+              __e6.removeAttribute("data-tab");
+            else
+              __e6.setAttribute("data-tab", __av7 === true ? "" : String(__av7));
+          }
+          __c5.push(on(__e6, "click", function() {
+            const __h = () => $scope2.activate($scope2.t.id);
+            return typeof __h === "function" ? __h.bind(undefined) : () => {};
+          }(), { modifiers: [] }));
+          const __e8 = document.createElement("sui-icon");
+          __e8["name"] = $scope2.t.icon;
+          __e8.setAttribute("size", "sm");
+          __e6.appendChild(__e8);
+          const __e9 = document.createElement("span");
+          const __t10 = document.createTextNode("");
+          __e9.appendChild(__t10);
+          __t10.textContent = $scope2.t.label;
+          __e6.appendChild(__e9);
+          const __ifAnchor11 = document.createComment("if");
+          __e6.appendChild(__ifAnchor11);
+          __c5.push(__wireBoundary_b8(__ifAnchor11));
+          const __ifAnchor15 = document.createComment("if");
+          __e6.appendChild(__ifAnchor15);
+          __c5.push(__wireBoundary_b9(__ifAnchor15));
+          __frag4.appendChild(__e6);
+          return { nodes: Array.from(__frag4.childNodes), cleanup: () => {
+            for (const c of __c5)
+              try {
+                c();
+              } catch (e) {}
+          }, update: (__new20, __newI21) => {
+            $scope2.t = __new20;
+            $scope2.__i = __newI21;
+            {
+              const __av7 = $scope2.t.id;
+              if (__av7 == null || __av7 === false || __av7 === "")
+                __e6.removeAttribute("data-tab");
+              else
+                __e6.setAttribute("data-tab", __av7 === true ? "" : String(__av7));
+            }
+            __e8["name"] = $scope2.t.icon;
+            __t10.textContent = $scope2.t.label;
+            $scope2.__v.set((c) => c + 1);
+          } };
+        })(__childScope3);
+      }
+    });
+    const __wireBoundary_b14 = (anchor) => bindFor({
+      anchor,
+      items: () => $scope.tabs(),
+      key: (t, __i) => {
+        const __child = Object.create($scope);
+        __child.t = t;
+        __child.__i = __i;
+        return (($scope2) => t.id)(__child);
+      },
+      render: (t, __i) => {
+        const __childScope30 = Object.create($scope);
+        __childScope30.t = t;
+        __childScope30.__i = __i;
+        __childScope30.__v = signal2(0);
+        return (($scope2) => {
+          const __frag31 = document.createDocumentFragment();
+          const __c32 = [];
+          const __e33 = document.createElement("div");
+          __e33.setAttribute("class", "toolbar");
+          {
+            const __av34 = $scope2.t.id;
+            if (__av34 == null || __av34 === false || __av34 === "")
+              __e33.removeAttribute("data-toolbar");
+            else
+              __e33.setAttribute("data-toolbar", __av34 === true ? "" : String(__av34));
+          }
+          __c32.push(bindAttr(__e33, "hidden", () => (void $scope2.__v(), $scope2.t.id !== $scope2.activeTab())));
+          const __e35 = document.createElement("slot");
+          {
+            const __av36 = "toolbar:" + $scope2.t.id;
+            if (__av36 == null || __av36 === false || __av36 === "")
+              __e35.removeAttribute("name");
+            else
+              __e35.setAttribute("name", __av36 === true ? "" : String(__av36));
+          }
+          __e33.appendChild(__e35);
+          __frag31.appendChild(__e33);
+          return { nodes: Array.from(__frag31.childNodes), cleanup: () => {
+            for (const c of __c32)
+              try {
+                c();
+              } catch (e) {}
+          }, update: (__new37, __newI38) => {
+            $scope2.t = __new37;
+            $scope2.__i = __newI38;
+            {
+              const __av34 = $scope2.t.id;
+              if (__av34 == null || __av34 === false || __av34 === "")
+                __e33.removeAttribute("data-toolbar");
+              else
+                __e33.setAttribute("data-toolbar", __av34 === true ? "" : String(__av34));
+            }
+            {
+              const __av36 = "toolbar:" + $scope2.t.id;
+              if (__av36 == null || __av36 === false || __av36 === "")
+                __e35.removeAttribute("name");
+              else
+                __e35.setAttribute("name", __av36 === true ? "" : String(__av36));
+            }
+            $scope2.__v.set((c) => c + 1);
+          } };
+        })(__childScope30);
+      }
+    });
+    const __wireBoundary_b18 = (anchor) => bindFor({
+      anchor,
+      items: () => $scope.tabs(),
+      key: (t, __i) => {
+        const __child = Object.create($scope);
+        __child.t = t;
+        __child.__i = __i;
+        return (($scope2) => t.id)(__child);
+      },
+      render: (t, __i) => {
+        const __childScope41 = Object.create($scope);
+        __childScope41.t = t;
+        __childScope41.__i = __i;
+        __childScope41.__v = signal2(0);
+        return (($scope2) => {
+          const __frag42 = document.createDocumentFragment();
+          const __c43 = [];
+          const __e44 = document.createElement("slot");
+          {
+            const __av45 = $scope2.t.id;
+            if (__av45 == null || __av45 === false || __av45 === "")
+              __e44.removeAttribute("name");
+            else
+              __e44.setAttribute("name", __av45 === true ? "" : String(__av45));
+          }
+          __c43.push(bindAttr(__e44, "data-active", () => (void $scope2.__v(), $scope2.t.id === $scope2.activeTab())));
+          __frag42.appendChild(__e44);
+          return { nodes: Array.from(__frag42.childNodes), cleanup: () => {
+            for (const c of __c43)
+              try {
+                c();
+              } catch (e) {}
+          }, update: (__new46, __newI47) => {
+            $scope2.t = __new46;
+            $scope2.__i = __newI47;
+            {
+              const __av45 = $scope2.t.id;
+              if (__av45 == null || __av45 === false || __av45 === "")
+                __e44.removeAttribute("name");
+              else
+                __e44.setAttribute("name", __av45 === true ? "" : String(__av45));
+            }
+            $scope2.__v.set((c) => c + 1);
+          } };
+        })(__childScope41);
+      }
+    });
+    const __wireBoundary_b21 = (anchor) => bindIf({
+      anchor,
+      test: () => {
+        if ($scope.resizing())
+          return 0;
+        return -1;
+      },
+      branches: [
+        () => {
+          const __frag50 = document.createDocumentFragment();
+          const __c51 = [];
+          const __e52 = document.createElement("div");
+          __e52.setAttribute("class", "sui-dock-resize-pill");
+          __e52.setAttribute("part", "resize-pill");
+          registerTransition(__e52, fade, { duration: 120 }, "both");
+          const __t53 = document.createTextNode("");
+          __e52.appendChild(__t53);
+          __c51.push(bindText(__t53, () => $scope.dragHeight()));
+          const __t54 = document.createTextNode(`px
+    `);
+          __e52.appendChild(__t54);
+          __frag50.appendChild(__e52);
+          return { nodes: Array.from(__frag50.childNodes), cleanup: () => {
+            for (const c of __c51)
+              try {
+                c();
+              } catch (e) {}
+          } };
+        }
+      ]
+    });
+    const __root = host.shadowRoot ?? host;
+    adoptSuiSheets(__root);
+    const __e0 = document.createElement("div");
+    __e0.setAttribute("class", "resize");
+    __e0.setAttribute("role", "separator");
+    __e0.setAttribute("aria-orientation", "horizontal");
+    __e0.setAttribute("aria-label", "Resize panel");
+    attachRef($scope, "resizeHandle", __e0);
+    __root.appendChild(__e0);
+    const __e1 = document.createElement("div");
+    __e1.setAttribute("class", "tabstrip");
+    __e1.setAttribute("role", "tablist");
+    const __forAnchor2 = document.createComment("for");
+    __e1.appendChild(__forAnchor2);
+    __cleanups.push(__wireBoundary_b1(__forAnchor2));
+    const __e22 = document.createElement("span");
+    __e22.setAttribute("class", "tools");
+    const __e23 = document.createElement("button");
+    __e23.setAttribute("class", "tool");
+    __e23.setAttribute("type", "button");
+    __e23.setAttribute("aria-label", "Clear");
+    __e23.setAttribute("title", "Clear");
+    __e23.setAttribute("data-action", "clear");
+    __cleanups.push(on(__e23, "click", function() {
+      const __h = $scope.onClear;
+      return typeof __h === "function" ? __h.bind(undefined) : () => {};
+    }(), { modifiers: [] }));
+    const __e24 = document.createElement("sui-icon");
+    __e24.setAttribute("name", "refresh-cw");
+    __e24.setAttribute("size", "sm");
+    __e23.appendChild(__e24);
+    __e22.appendChild(__e23);
+    const __e25 = document.createElement("button");
+    __e25.setAttribute("class", "tool");
+    __e25.setAttribute("type", "button");
+    __e25.setAttribute("aria-label", "Pop out");
+    __e25.setAttribute("title", "Pop out");
+    __e25.setAttribute("data-action", "popout");
+    __cleanups.push(on(__e25, "click", function() {
+      const __h = $scope.onPopout;
+      return typeof __h === "function" ? __h.bind(undefined) : () => {};
+    }(), { modifiers: [] }));
+    const __e26 = document.createElement("sui-icon");
+    __e26.setAttribute("name", "maximize");
+    __e26.setAttribute("size", "sm");
+    __e25.appendChild(__e26);
+    __e22.appendChild(__e25);
+    const __e27 = document.createElement("button");
+    __e27.setAttribute("class", "tool");
+    __e27.setAttribute("type", "button");
+    __e27.setAttribute("aria-label", "Close panel");
+    __e27.setAttribute("title", "Close (⌘J)");
+    __e27.setAttribute("data-action", "close");
+    __cleanups.push(on(__e27, "click", function() {
+      const __h = $scope.onClose;
+      return typeof __h === "function" ? __h.bind(undefined) : () => {};
+    }(), { modifiers: [] }));
+    const __e28 = document.createElement("sui-icon");
+    __e28.setAttribute("name", "x");
+    __e28.setAttribute("size", "sm");
+    __e27.appendChild(__e28);
+    __e22.appendChild(__e27);
+    __e1.appendChild(__e22);
+    __root.appendChild(__e1);
+    const __forAnchor29 = document.createComment("for");
+    __root.appendChild(__forAnchor29);
+    __cleanups.push(__wireBoundary_b14(__forAnchor29));
+    const __e39 = document.createElement("div");
+    __e39.setAttribute("class", "bodies");
+    const __forAnchor40 = document.createComment("for");
+    __e39.appendChild(__forAnchor40);
+    __cleanups.push(__wireBoundary_b18(__forAnchor40));
+    __root.appendChild(__e39);
+    const __e48 = document.createElement("sui-portal");
+    __e48.setAttribute("target", "body");
+    const __ifAnchor49 = document.createComment("if");
+    __e48.appendChild(__ifAnchor49);
+    __cleanups.push(__wireBoundary_b21(__ifAnchor49));
+    __root.appendChild(__e48);
+    if (__r != null) {
+      const __lc = Object.getOwnPropertyDescriptor(__r, "__shipSetLifecycle")?.value;
+      if (__lc) {
+        const __sp = new Proxy($scope, {
+          get(t, k) {
+            return t[k];
+          },
+          set(t, k, v) {
+            const s = t[k];
+            if (s != null && typeof s.set === "function") {
+              if (typeof v === "function") {
+                s.set(() => v);
+              } else {
+                s.set(v);
+              }
+              return true;
+            }
+            return false;
+          }
+        });
+        if (__lc.mount) {
+          const __mc = __lc.mount(__sp, host);
+          if (typeof __mc === "function")
+            __cleanups.push(__mc);
+        }
+        if (__lc.unmount)
+          __cleanups.push(() => __lc.unmount(__sp));
+      }
+    }
+    return $scope;
+  }
+});
