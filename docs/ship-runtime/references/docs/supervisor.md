@@ -22,7 +22,6 @@ supervisor/
   executors/
     mod.rs              — executor surface
     routing.rs          — RoutingExecutor (per-job executor selection)
-    tmux.rs             — TmuxExecutor (legacy single-session)
     tmux_window.rs      — TmuxWindowExecutor (interactive default)
     process.rs          — ProcessExecutor (headless)
     server.rs           — ServerExecutor (long-lived session mode)
@@ -109,10 +108,6 @@ Interactive. Creates a tmux session `ship-{slug}` if missing, opens a window ins
 
 Headless. Plain `tokio::process::Command::spawn`. stdout/stderr piped to the kernel via `process_events`. No PTY. No tmux. Used when `--headless` or when tmux isn't available.
 
-### TmuxExecutor (legacy)
-
-Old single-session interactive mode. Kept behind `SHIP_EXECUTOR=tmux` for users pairing with an agent in a workspace session. One session, all jobs share it. Superseded by TmuxWindowExecutor (window-per-job).
-
 ### ServerExecutor
 
 Long-lived session mode. Maintains a connection to a running provider server; new jobs route as requests rather than new processes. Currently scaffolding — registry is empty for every provider; real bindings land in `provider-codex-02` / `provider-opencode-02` per the routing.rs docstring.
@@ -182,7 +177,7 @@ These feed the Process projection (computed, no table) — `load_processes(slug)
 
 ## subscribe_job_events (public entry)
 
-`job_dispatch.rs`. The daemon calls `subscribe_job_events(kernel, ship_dir, health_registry)` at startup. Builds an executor (`RoutingExecutor` by default, or `TmuxExecutor` if `SHIP_EXECUTOR=tmux`), constructs an `OrchestratorContext` with shipd's concrete traits, and spawns the orchestrator:
+`job_dispatch.rs`. The daemon calls `subscribe_job_events(kernel, ship_dir, health_registry)` at startup. Builds a `RoutingExecutor`, constructs an `OrchestratorContext` with shipd's concrete traits, and spawns the orchestrator:
 
 ```rust
 let octx = Arc::new(OrchestratorContext {

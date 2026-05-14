@@ -45,7 +45,7 @@ interface BundleManifest {
 
 const repoRoot = process.env.SHIP_REPO_ROOT ?? process.cwd()
 const litAssetsDir = resolve(repoRoot, 'apps/shipd/assets')
-const suiAssetsDir = resolve(repoRoot, 'crates/ship-ui-framework/assets')
+const suiAssetsDir = resolve(repoRoot, 'crates/sui/ship-ui-framework/assets')
 
 function assetsDirFor(name: string): string {
   if (name.startsWith('sui-') || name.startsWith('views/')) return suiAssetsDir
@@ -214,7 +214,7 @@ async function aggregateCem(): Promise<void> {
     const modules = (cem as { modules?: unknown[] })?.modules
     if (Array.isArray(modules)) out.modules.push(...modules)
   }
-  const target = resolve(repoRoot, 'crates/ship-ui-framework/assets/sui-custom-elements.json')
+  const target = resolve(repoRoot, 'crates/sui/ship-ui-framework/assets/sui-custom-elements.json')
   mkdirSync(dirname(target), { recursive: true })
   await Bun.write(target, JSON.stringify(out))
 }

@@ -40,7 +40,7 @@ ship run tdd "task" --workspace my-branch
 ship run tdd "task" --dry-run     # show resolved pipeline without executing
 ```
 
-Pipelines are loaded from `.ship/pipelines/<name>.yaml`. Built-in pipelines: `simple`, `standard`, `tdd`.
+Pipelines are loaded from `.ship/pipelines/<name>.jsonc`. Built-in pipelines: `simple`, `standard`, `tdd`.
 
 ## Workspace
 

@@ -5,9 +5,9 @@ section: reference
 order: 8
 ---
 
-# Pipeline Schema — pipelines/*.yaml
+# Pipeline Schema — pipelines/*.jsonc
 
-**Location**: `.ship/pipelines/<name>.yaml`
+**Location**: `.ship/pipelines/<name>.jsonc`
 **Schema**: `pipeline.schema.json`
 
 Workflow templates defining a DAG of steps for job execution. Pipelines coordinate multiple agents through a sequence of work, review, and merge steps.
@@ -16,7 +16,7 @@ Workflow templates defining a DAG of steps for job execution. Pipelines coordina
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `name` | string | yes | Pipeline identifier. Matches filename without `.yaml`. Pattern: `^[a-z0-9][a-z0-9-]*$` |
+| `name` | string | yes | Pipeline identifier. Matches filename without `.jsonc`. Pattern: `^[a-z0-9][a-z0-9-]*$` |
 | `description` | string | no | What this pipeline does |
 | `agents` | string[] | mutually exclusive with `steps` | Short form: sequential agent list |
 | `steps` | array | mutually exclusive with `agents` | Ordered list of steps forming a DAG. At least one required. |
@@ -46,19 +46,20 @@ Workflow templates defining a DAG of steps for job execution. Pipelines coordina
 
 ## Example
 
-```yaml
-name: feature
-description: Standard feature pipeline with specialist, review, and auto-merge.
-auto_merge: true
-
-steps:
-  - id: implement
-    type: agent
-    agent: rust-runtime
-
-  - id: review
-    type: review
-    agent: reviewer
-    after: [implement]
-    model: opus
+```jsonc
+{
+  "name": "feature",
+  "description": "Standard feature pipeline with specialist, review, and auto-merge.",
+  "auto_merge": true,
+  "steps": [
+    { "id": "implement", "type": "agent", "agent": "rust-runtime" },
+    {
+      "id": "review",
+      "type": "review",
+      "agent": "reviewer",
+      "after": ["implement"],
+      "model": "opus"
+    }
+  ]
+}
 ```

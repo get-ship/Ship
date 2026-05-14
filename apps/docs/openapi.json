@@ -3346,7 +3346,7 @@
               "string",
               "null"
             ],
-            "description": "Provider override; when `None`, each step uses whatever the\npipeline YAML declared (or falls back to claude)."
+            "description": "Provider override; when `None`, each step uses whatever the\npipeline file declared (or falls back to claude)."
           },
           "slug": {
             "type": [

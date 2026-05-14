@@ -16,7 +16,7 @@ orchestrator/
   router.rs           — start_orchestrator + handle_job_event (event dispatch)
   dispatch.rs         — handle_job_created, dispatch_job_internal
   pipeline.rs         — advance_pipeline, step selection
-  pipeline_loader.rs  — ensure_pipeline (parse YAML into the payload)
+  pipeline_loader.rs  — ensure_pipeline (parse JSONC into the payload)
   pipeline_vars.rs    — template-var interpolation in step commands/prompts
   pipeline_specs.rs   — materialize .artifacts/pipeline/* inside the worktree
   prompt_composer.rs  — compose dispatch prompts for agents
@@ -41,7 +41,7 @@ Bundle of injected strategies. Host (shipd) constructs it; orchestrator reads it
 ```rust
 pub struct OrchestratorContext {
     pub isolation: Arc<dyn IsolationStrategy>,     // GitWorktreeIsolation
-    pub executor: Arc<dyn JobExecutor>,            // RoutingExecutor / TmuxExecutor
+    pub executor: Arc<dyn JobExecutor>,            // RoutingExecutor / TmuxWindowExecutor
     pub platform: Arc<dyn AgentPlatform>,          // ShipdPlatform
     pub registry: Arc<dyn ProcessRegistryPort>,    // RegistryAdapter
     pub probe: Arc<dyn ProcessTreeProbe>,          // SysinfoProcessTreeProbe
@@ -61,7 +61,7 @@ Defined in `runtime::services::dispatch_ports`:
 | Trait | Concrete implementation | Role |
 |---|---|---|
 | `IsolationStrategy` | `GitWorktreeIsolation` | `prepare(JobContext) -> PathBuf`, creates a git worktree for the job. |
-| `JobExecutor` | `RoutingExecutor`, `TmuxExecutor`, `TmuxWindowExecutor`, `ProcessExecutor` | `spawn(JobContext) -> ExecutorHandle`. Launches the agent process. |
+| `JobExecutor` | `RoutingExecutor`, `TmuxWindowExecutor`, `ProcessExecutor` | `spawn(JobContext) -> ExecutorHandle`. Launches the agent process. |
 | `AgentPlatform` | `ShipdPlatform` | Host-side capabilities: worktrees dir, liveness sweep, orphan cleanup, kernel access. |
 | `ProcessRegistryPort` | `RegistryAdapter` | Register/unregister running processes for query and cleanup. |
 | `ProcessTreeProbe` | `SysinfoProcessTreeProbe` | Sample a process's entire tree for liveness + orphan detection. |
@@ -199,7 +199,7 @@ Also consumes `StepActivity` from `octx.activity_txs` — Stop hooks from provid
 
 `pipeline_vars.rs`. Interpolates `{{ var }}` expressions in step commands and prompts. Variables come from three sources merged in order:
 
-1. Pipeline defaults (`pipeline.vars` in the YAML).
+1. Pipeline defaults (`pipeline.vars` in the pipeline file).
 2. CLI flags at dispatch (`ship run --var k=v`).
 3. Job-level vars baked into the `JobCreatedPayload`.
 

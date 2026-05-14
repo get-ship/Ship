@@ -41,7 +41,7 @@ A `PtyConnectionGuard` decrements the counter on drop so client disconnects free
 - Scrollback: tmux already buffers history, so new connectors see the context.
 - Standard behavior: operators can also attach from a local terminal with `tmux attach -t {name}` and get the same state.
 
-The session is created by the `TmuxWindowExecutor` (or legacy `TmuxExecutor`) when it spawns an interactive job. The PTY handler just hooks existing sessions — it doesn't create them.
+The session is created by the `TmuxWindowExecutor` when it spawns an interactive job. The PTY handler just hooks existing sessions — it doesn't create them.
 
 ## Connection limit
 

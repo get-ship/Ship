@@ -5,7 +5,7 @@ title: Pipelines
 description: Multi-step work as a declarative DAG. Steps can run in parallel, gates pause for review, runs are resumable.
 ---
 
-A pipeline is a YAML file that describes multi-step work — who does what, what waits on what, and where humans review. You author it once in `.ship/pipelines/<name>.yaml`; the runtime walks the steps, dispatches each agent, and routes completion signals downstream.
+A pipeline is a JSONC file that describes multi-step work — who does what, what waits on what, and where humans review. You author it once at `.ship/pipelines/<name>.jsonc`; the runtime walks the steps, dispatches each agent, and routes completion signals downstream.
 
 ## When to reach for a pipeline
 
@@ -28,24 +28,18 @@ If a single agent run is enough, skip the pipeline. Pipelines pay off when you h
 
 ## A small example
 
-`.ship/pipelines/tdd.yaml`:
+`.ship/pipelines/tdd.jsonc`:
 
-```yaml
-name: tdd
-description: Test-driven development
-
-steps:
-  - id: test
-    agent: test-writer
-
-  - id: impl
-    agent: rust-runtime
-    after: [test]
-
-  - id: review
-    type: gate
-    agent: reviewer
-    after: [impl]
+```jsonc
+{
+  "name": "tdd",
+  "description": "Test-driven development",
+  "steps": [
+    { "id": "test", "agent": "test-writer" },
+    { "id": "impl", "agent": "rust-runtime", "after": ["test"] },
+    { "id": "review", "type": "gate", "agent": "reviewer", "after": ["impl"] }
+  ]
+}
 ```
 
 Run it:
@@ -60,9 +54,11 @@ The runtime allocates an isolated workspace, runs the test agent, then the imple
 
 When every step is an agent run and they're strictly sequential, drop the `steps` array and list agents:
 
-```yaml
-name: quick
-agents: [planner, coder, reviewer]
+```jsonc
+{
+  "name": "quick",
+  "agents": ["planner", "coder", "reviewer"]
+}
 ```
 
 This expands to three sequential steps. Use the explicit `steps` form when you need branches, gates, or parallel work.

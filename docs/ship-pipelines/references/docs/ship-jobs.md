@@ -2,7 +2,7 @@
 group: Pipelines
 order: 3
 title: ship-jobs crate
-description: The ship-jobs crate — Pipeline, PipelineStep, StepType, JobSpec, normalize_pipeline, short/long YAML forms.
+description: The ship-jobs crate — Pipeline, PipelineStep, StepType, JobSpec, normalize_pipeline, short/long pipeline forms.
 audience: internal
 ---
 
@@ -89,38 +89,35 @@ Extracted during `normalize_pipeline` separately from the step list.
 
 ```rust
 pub fn normalize_pipeline(input: &str) -> Result<(Value, PipelineMeta), String>
-pub fn normalize_pipeline_yaml(input: &str) -> Result<(Value, PipelineMeta), String>   // alias
 ```
 
-Takes a pipeline definition string and returns `(normalized_steps_as_json, meta)`. Detects format: JSONC first (primary), YAML fallback (legacy, still supported). Both produce the same normalized output.
+Takes a pipeline definition string (JSONC) and returns `(normalized_steps_as_json, meta)`. JSONC is the only supported format — YAML is not accepted.
 
 Accepts two shapes:
 
 ### Short form
 
-```yaml
-name: tdd
-agents: [planner, implementer, reviewer]
+```jsonc
+{
+  "name": "tdd",
+  "agents": ["planner", "implementer", "reviewer"]
+}
 ```
 
 Expands to three sequential steps. Handled by `agents_to_steps`.
 
 ### Long form
 
-```yaml
-name: fan-out
-steps:
-  - id: plan
-    agent: planner
-  - id: build-a
-    agent: coder
-    after: [plan]
-  - id: build-b
-    agent: coder
-    after: [plan]
-  - id: review
-    agent: reviewer
-    after: [build-a, build-b]
+```jsonc
+{
+  "name": "fan-out",
+  "steps": [
+    { "id": "plan", "agent": "planner" },
+    { "id": "build-a", "agent": "coder", "after": ["plan"] },
+    { "id": "build-b", "agent": "coder", "after": ["plan"] },
+    { "id": "review", "agent": "reviewer", "after": ["build-a", "build-b"] }
+  ]
+}
 ```
 
 Each entry is either a string (shorthand for `{ id: <str>, agent: <str>, after: [prev] }`) or a map with explicit fields. Mixed lists work.
@@ -199,7 +196,7 @@ String constants for pipeline step events. Historically local to this crate; ste
 
 ## Where the pipeline gets consumed
 
-1. **CLI** (`ship run`): loads YAML, calls `normalize_pipeline`, POSTs `JobCreatedPayload` with normalized form.
+1. **CLI** (`ship run`): loads the JSONC pipeline file, calls `normalize_pipeline`, POSTs `JobCreatedPayload` with normalized form.
 2. **Daemon** (`runtime_api::create_job`): runs `orchestrator::pipeline_loader::ensure_pipeline` (idempotent) to deserialize into the payload's `steps` field, then persists the event.
 3. **Orchestrator**: consumes `JobCreatedPayload`, reads `steps` as a `Pipeline`, runs `advance_pipeline` to dispatch.
 
@@ -209,5 +206,5 @@ Same `Pipeline` type, shared via ship-jobs, used by all three.
 
 - [Orchestrator](/runtime/orchestrator/) — runtime execution of a pipeline.
 - [Pipelines Overview](/pipelines/) — user-facing concept.
-- [Pipelines Reference](/pipelines/) — YAML format + schema.
+- [Pipelines Reference](/pipelines/) — file format + schema.
 - [Architecture Overview](/architecture/) — where ship-jobs sits.

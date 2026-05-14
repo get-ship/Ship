@@ -1,19 +1,21 @@
 ---
 group: Pipelines
 order: 2
-title: YAML Reference
-description: Pipeline YAML format — every field, every step type, resolution order, and the official schema.
+title: Pipeline Reference
+description: Pipeline JSONC format — every field, every step type, resolution order, and the official schema.
 audience: internal
 ---
 
-Pipelines are YAML. Two shapes — short (agents list) and long (explicit steps). Both parse into the same normalized form before dispatch.
+Pipelines are JSONC files at `.ship/pipelines/<name>.jsonc`. Two shapes — short (agents list) and long (explicit steps). Both parse into the same normalized form before dispatch.
 
-The official schema is at [`schemas/pipeline.schema.json`](https://raw.githubusercontent.com/madvib/ship/main/schemas/pipeline.schema.json). Add `# yaml-language-server: $schema=...` to your file for editor autocompletion:
+The official schema is at [`schemas/pipeline.schema.json`](https://raw.githubusercontent.com/madvib/ship/main/schemas/pipeline.schema.json). Add the `$schema` key at the top of your file for editor autocompletion:
 
-```yaml
-# yaml-language-server: $schema=https://raw.githubusercontent.com/madvib/ship/main/schemas/pipeline.schema.json
-name: my-pipeline
-...
+```jsonc
+{
+  "$schema": "https://raw.githubusercontent.com/madvib/ship/main/schemas/pipeline.schema.json",
+  "name": "my-pipeline",
+  // …
+}
 ```
 
 ## File-level fields
@@ -32,9 +34,11 @@ name: my-pipeline
 
 ## Short form
 
-```yaml
-name: quick
-agents: [planner, coder, reviewer]
+```jsonc
+{
+  "name": "quick",
+  "agents": ["planner", "coder", "reviewer"]
+}
 ```
 
 Expands to three steps sequentially dependent on each other:
@@ -49,20 +53,16 @@ Short form is for linear agent pipelines. Any branching, non-agent steps, or gat
 
 ## Long form — `steps`
 
-```yaml
-name: fan-out
-steps:
-  - id: setup
-    agent: default
-  - id: web
-    agent: web-lane
-    after: [setup]
-  - id: api
-    agent: rust-runtime
-    after: [setup]
-  - id: integration
-    agent: test-writer
-    after: [web, api]
+```jsonc
+{
+  "name": "fan-out",
+  "steps": [
+    { "id": "setup", "agent": "default" },
+    { "id": "web", "agent": "web-lane", "after": ["setup"] },
+    { "id": "api", "agent": "rust-runtime", "after": ["setup"] },
+    { "id": "integration", "agent": "test-writer", "after": ["web", "api"] }
+  ]
+}
 ```
 
 Each entry is either a shorthand string (just an agent id) or a step object.
@@ -81,7 +81,7 @@ Each entry is either a shorthand string (just an agent id) or a step object.
 | `run` | required for `run` type | string | Shell command to execute. Replaces `agent`. |
 | `gate` | no | object | Diff-rule gate on this step. See "Gates" below. |
 
-Shorthand rule: a string entry in `steps` is equivalent to `{ id: <string>, agent: <string>, after: [<previous step>] }`. Useful for linear mid-pipeline sections.
+Shorthand rule: a string entry in `steps` is equivalent to `{ "id": <string>, "agent": <string>, "after": [<previous step>] }`. Useful for linear mid-pipeline sections.
 
 ## Step types
 
@@ -89,34 +89,35 @@ Shorthand rule: a string entry in `steps` is equivalent to `{ id: <string>, agen
 
 The default. Spawns the named agent in the worktree. The agent reads the job spec and performs work. Emits `job.step_completed` on clean exit, `job.step_failed` on non-zero.
 
-```yaml
-- id: implement
-  type: agent
-  agent: rust-runtime
-  model: opus
+```jsonc
+{ "id": "implement", "type": "agent", "agent": "rust-runtime", "model": "opus" }
 ```
 
 ### `review` (alias: `gate`)
 
 Agent-backed reviewer of the previous step. Same mechanics as `agent` but semantically read-only — the review agent sees the diff and passes or fails. Often paired with `auto_merge: true` so a passing review triggers merge.
 
-```yaml
-- id: review
-  type: review
-  agent: reviewer
-  model: sonnet
-  after: [implement]
+```jsonc
+{
+  "id": "review",
+  "type": "review",
+  "agent": "reviewer",
+  "model": "sonnet",
+  "after": ["implement"]
+}
 ```
 
 ### `run`
 
 Plain shell command. No agent process. Used for build/test/lint steps that don't need an LLM.
 
-```yaml
-- id: check
-  type: run
-  run: cargo test --workspace
-  after: [implement]
+```jsonc
+{
+  "id": "check",
+  "type": "run",
+  "run": "cargo test --workspace",
+  "after": ["implement"]
+}
 ```
 
 Non-zero exit = `job.step_failed`; pipeline halts.
@@ -138,30 +139,31 @@ The review step type produces an agent-flavored yes/no. The gate attribute does 
 
 `require_changed` and `forbid_changed` are **lists of rule objects**. Each rule's `match`/`not_match` are **lists of glob strings**. The legacy single-object and pipe-separated string shorthands were removed in the v1 contract freeze; the loader rejects them.
 
-```yaml
-gate:
-  require_changed:
-    - match: ["**/*.rs"]
-      not_match: ["**/tests/**"]
-      min: 1
-  forbid_changed:
-    - match: [".artifacts/**", "Cargo.lock"]
-      min: 0
+```jsonc
+{
+  "gate": {
+    "require_changed": [
+      { "match": ["**/*.rs"], "not_match": ["**/tests/**"], "min": 1 }
+    ],
+    "forbid_changed": [
+      { "match": [".artifacts/**", "Cargo.lock"], "min": 0 }
+    ]
+  }
+}
 ```
 
 ## DAG dependencies
 
 Steps with no `after` are root steps — they run first. Multiple root steps run in parallel. A step runs when every id in its `after` has completed.
 
-```yaml
-steps:
-  - id: a           # root, runs first
-    agent: planner
-  - id: b           # root, runs in parallel with a
-    agent: researcher
-  - id: c
-    agent: writer
-    after: [a, b]   # waits for both
+```jsonc
+{
+  "steps": [
+    { "id": "a", "agent": "planner" },
+    { "id": "b", "agent": "researcher" },
+    { "id": "c", "agent": "writer", "after": ["a", "b"] }
+  ]
+}
 ```
 
 DAG validation happens in the orchestrator, not at parse time. A cycle (`after` refs form a loop) surfaces at dispatch as a runtime error. Dangling refs (after referencing an id that doesn't exist) also fail at dispatch.
@@ -174,14 +176,18 @@ Step `goal`, `run`, and prompt text support MiniJinja interpolation. Variables c
 2. CLI flags (`ship run --var k=v`).
 3. Job-level vars set in the spec's frontmatter.
 
-```yaml
-name: per-feature
-vars:
-  branch_prefix: feat
-steps:
-  - id: impl
-    agent: rust-runtime
-    goal: "Implement feature on {{ branch_prefix }}/{{ feature_slug }}"
+```jsonc
+{
+  "name": "per-feature",
+  "vars": { "branch_prefix": "feat" },
+  "steps": [
+    {
+      "id": "impl",
+      "agent": "rust-runtime",
+      "goal": "Implement feature on {{ branch_prefix }}/{{ feature_slug }}"
+    }
+  ]
+}
 ```
 
 ## auto_merge
@@ -195,27 +201,27 @@ Without `auto_merge`, the job sits in Completed after the last step. A human or 
 When `ship run <pipeline-or-spec>` fires, the runtime resolves the pipeline in this order:
 
 1. Job payload has inline `steps` → use them (MCP dispatch path).
-2. Spec frontmatter has `pipeline: <name>` → load `.ship/pipelines/<name>.yaml`.
-3. Spec frontmatter has inline `steps:` → use them.
-4. None → default pipeline: `implement (job's agent) → review (reviewer, sonnet) → merge`.
+2. Spec frontmatter has `pipeline: <name>` → load `.ship/pipelines/<name>.jsonc`.
+3. None → default pipeline: `implement (job's agent) → review (reviewer, sonnet) → merge`.
 
-The default pipeline exists so `ship run` works without authoring any YAML.
+The default pipeline exists so `ship run` works without authoring any pipeline file. Spec frontmatter cannot define inline pipelines; put them in `.ship/pipelines/`.
 
 ## Step specs
 
 For pipelines where each step needs its own tailored spec body (not a shared one), author `step_specs:` as a list indexed by step position:
 
-```yaml
-name: multi-spec
-steps:
-  - id: plan
-    agent: planner
-  - id: build
-    agent: coder
-    after: [plan]
-step_specs:
-  - "# Plan\n\nResearch the problem space, write options."
-  - "# Build\n\nImplement option 1 from the plan."
+```jsonc
+{
+  "name": "multi-spec",
+  "steps": [
+    { "id": "plan", "agent": "planner" },
+    { "id": "build", "agent": "coder", "after": ["plan"] }
+  ],
+  "step_specs": [
+    "# Plan\n\nResearch the problem space, write options.",
+    "# Build\n\nImplement option 1 from the plan."
+  ]
+}
 ```
 
 At dispatch, the orchestrator writes each entry to `.artifacts/pipeline/00-plan.md`, `01-build.md`, and so on inside the worktree. Each agent's dispatch prompt points at its own step file rather than a shared one.
@@ -245,6 +251,6 @@ Documented in the source as aspirations but not available today:
 ## Related
 
 - [Overview](/reference/pipelines/) — concept + example.
-- [ship-jobs crate](/reference/pipelines/ship-jobs/) — types backing the YAML.
+- [ship-jobs crate](/reference/pipelines/ship-jobs/) — types backing the pipeline file.
 - [Orchestrator](/reference/runtime/orchestrator/) — runtime execution.
 - [Triggers](/reference/triggers/) — a trigger can dispatch a pipeline via `pipeline.trigger` action.
