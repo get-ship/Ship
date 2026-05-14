@@ -4,12 +4,11 @@ set -euo pipefail
 cd "$(dirname "$0")/../.."
 . scripts/dev/_lib.sh
 
-# Best-effort stop. Ignore failures (daemon may not be running).
-"$(ship_bin)" daemon stop || true
-
-# Wait for the pid file to drop so we don't race the next start.
-d=$(daemon_dir)
-deadline=$(( $(date +%s) + 5 ))
-while [ -f "$d/pid" ] && [ "$(date +%s)" -lt "$deadline" ]; do sleep 0.1; done
+# Stop the running dev daemon. start.sh launches shipd directly, so we stop
+# it by its `pid` handshake file — `ship daemon stop` only targets a
+# supervisor process this dev loop never spawns, and would exit 0 without
+# stopping anything. kill_daemon waits for shipd's graceful shutdown and
+# clears the liveness files, so start.sh below sees a clean slate.
+kill_daemon
 
 exec scripts/dev/start.sh

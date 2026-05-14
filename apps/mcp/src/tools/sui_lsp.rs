@@ -7,17 +7,21 @@
 
 use anyhow::{Result, anyhow};
 use serde_json::Value;
+use ship_substrate::env::{self, Var};
 use std::path::{Path, PathBuf};
 use tokio::process::Command;
 
 /// Locate `packages/sui-lsp/src/cli.ts` relative to the project workspace.
 ///
 /// Lookup order:
-///   1. `SHIP_WORKSPACE` env var.
+///   1. `SHIP_REPO_DIR` env var (`Var::RepoDir`) — the repo root override
+///      already used by the supervisor and `daemon cleanup`; the sui-lsp
+///      packages live at that root, so no separate `SHIP_WORKSPACE` var is
+///      warranted.
 ///   2. Walk upward from CWD looking for `bun.lock`.
 pub fn resolve_cli_path() -> Result<PathBuf> {
-    if let Ok(ws) = std::env::var("SHIP_WORKSPACE") {
-        let candidate = PathBuf::from(ws).join("packages/sui-lsp/src/cli.ts");
+    if let Some(repo) = env::read(Var::RepoDir) {
+        let candidate = PathBuf::from(repo).join("packages/sui-lsp/src/cli.ts");
         if candidate.exists() {
             return Ok(candidate);
         }
@@ -30,7 +34,7 @@ pub fn resolve_cli_path() -> Result<PathBuf> {
         }
     }
     Err(anyhow!(
-        "sui-lsp CLI not found; set SHIP_WORKSPACE to the repo root, or run from a directory inside the workspace"
+        "sui-lsp CLI not found; set SHIP_REPO_DIR to the repo root, or run from a directory inside the workspace"
     ))
 }
 
