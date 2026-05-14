@@ -153,14 +153,6 @@ mod tests {
         std::sync::Arc::new(crate::ship_runtime::ShipRuntime::new_test(ship_dir, kernel))
     }
 
-    fn location(resp: &Response) -> String {
-        resp.headers()
-            .get(header::LOCATION)
-            .and_then(|v| v.to_str().ok())
-            .unwrap_or("")
-            .to_string()
-    }
-
     async fn body_text(resp: Response) -> String {
         let bytes = axum::body::to_bytes(resp.into_body(), usize::MAX)
             .await

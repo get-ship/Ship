@@ -22,6 +22,7 @@
 //!   `apps/shipd/templates/` via the `loader` feature, plus `render`
 //!   convenience helpers.
 
+pub mod mcp_apps_embed;
 pub mod router;
 pub mod routed_handler;
 pub mod routed_sse;
@@ -60,7 +61,6 @@ pub mod context;
 pub mod error_overlay;
 pub mod generic_sse;
 pub mod handlers;
-mod lint_overlay;
 pub(crate) mod packs;
 pub mod resolve;
 pub mod view_filters;

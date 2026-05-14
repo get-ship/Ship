@@ -152,7 +152,7 @@ pub async fn hook_before_tool(
             let env = env.with_target(&actor).with_actor_id(&actor);
             let ctx = auth.to_daemon_emit_context();
             if let Err(e) = state.kernel().lock().await.emit(env, &ctx).await {
-                tracing::debug!(actor, "hook.tool_use_started emit failed: {e}");
+                tracing::warn!(actor, "hook.tool_use_started emit failed: {e}");
             }
         }
     }
@@ -239,7 +239,7 @@ pub async fn hook_after_tool(
             let env = env.with_target(&actor).with_actor_id(&actor);
             let ctx = auth.to_daemon_emit_context();
             if let Err(e) = state.kernel().lock().await.emit(env, &ctx).await {
-                tracing::debug!(actor, "hook.tool_use_completed emit failed: {e}");
+                tracing::warn!(actor, "hook.tool_use_completed emit failed: {e}");
             }
         }
     }

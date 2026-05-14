@@ -51,7 +51,7 @@ pub fn list_themes() -> Vec<ThemeMeta> {
     // Global themes — user-scope live under library/.
     if let Ok(global_dir) = ship_application::project::get_global_dir() {
         let dir = ship_substrate::ShipHome::at(global_dir)
-            .vector_dir(ship_substrate::home::Scope::User, ship_substrate::home::Vector::Themes, None);
+            .vector_dir(ship_types::Scope::User, ship_types::Vector::Themes, None);
         collect_dir_themes(&dir, ThemeSource::Global, &mut themes);
     }
 
@@ -84,7 +84,7 @@ fn resolve_css_by_name(name: &str) -> String {
     // Global > project (last-write-wins for overrides).
     if let Ok(global_dir) = ship_application::project::get_global_dir() {
         let dir = ship_substrate::ShipHome::at(global_dir)
-            .vector_dir(ship_substrate::home::Scope::User, ship_substrate::home::Vector::Themes, None);
+            .vector_dir(ship_types::Scope::User, ship_types::Vector::Themes, None);
         let path = dir.join(format!("{name}.css"));
         if let Ok(css) = std::fs::read_to_string(&path) {
             return css;

@@ -13,8 +13,7 @@ pub use jobs_status::{JobStatusReq, StepDoneReq, job_step_done, update_job_statu
 
 pub use agents_skills::{list_agents, list_skills};
 pub use agents_skills_write::{
-    SetVarReq, WriteAgentReq, delete_skill_file, get_skill_vars, set_skill_var, write_agent,
-    write_skill_file,
+    SetVarReq, delete_skill_file, get_skill_vars, set_skill_var, write_skill_file,
 };
 pub use session_files::{
     delete_session_file, list_session_files, read_session_file, write_session_file,
@@ -49,7 +48,7 @@ use crate::routes::rest_api::{ApiState, MeshResponse};
 /// Read the current branch name at `root` via `git rev-parse`. None on any
 /// failure (not a git repo, detached HEAD, git missing).
 pub(crate) fn current_branch_at(root: &std::path::Path) -> Option<String> {
-    let output = crate::spawn_bounded::Cmd::new("git")
+    let output = ship_substrate::spawn_bounded::Cmd::new("git")
         .args(["rev-parse", "--abbrev-ref", "HEAD"])
         .current_dir(root)
         .output()
@@ -66,7 +65,7 @@ pub(crate) fn current_branch_at(root: &std::path::Path) -> Option<String> {
 pub(crate) fn worktree_path_for_branch(branch: &str) -> Option<PathBuf> {
     let project_ship = ship_application::project::get_project_dir(None).ok()?;
     let project_root = project_ship.parent()?;
-    let output = crate::spawn_bounded::Cmd::new("git")
+    let output = ship_substrate::spawn_bounded::Cmd::new("git")
         .args(["worktree", "list", "--porcelain"])
         .current_dir(project_root)
         .output()

@@ -13,27 +13,27 @@ use crate::ship_runtime::ShipRuntime;
 fn router_for(state: ApiState, auth: AuthContext) -> Router {
     Router::new()
         .route(
-            "/api/v1/view-sessions",
+                "/api/v1/view-sessions",
             axum::routing::post(super::open_session),
         )
         .route(
-            "/api/v1/view-sessions/{id}",
+                "/api/v1/view-sessions/{id}",
             axum::routing::get(super::subscribe_session).delete(super::close_session),
         )
         .route(
-            "/api/v1/view-sessions/{id}/patch",
+                "/api/v1/view-sessions/{id}/patch",
             axum::routing::post(super::patch_session),
         )
         .route(
-            "/api/v1/view-sessions/{id}/append",
+                "/api/v1/view-sessions/{id}/append",
             axum::routing::post(super::append_session),
         )
         .route(
-            "/api/v1/view-sessions/{id}/signal",
+                "/api/v1/view-sessions/{id}/signal",
             axum::routing::post(super::signal_session),
         )
         .route(
-            "/api/v1/view-sessions/{id}/raw",
+                "/api/v1/view-sessions/{id}/raw",
             axum::routing::get(super::raw_session),
         )
         .with_state(state)

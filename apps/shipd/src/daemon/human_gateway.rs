@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use crate::task_health;
+use ship_substrate::task_health;
 
 /// Spawn `HumanGatewayService` if Telegram env vars are present.
 /// Silently skips if `SHIP_TELEGRAM_TOKEN` or `SHIP_TELEGRAM_CHAT_ID` is absent.
@@ -55,8 +55,7 @@ pub async fn spawn_human_gateway(
             session_id: None,
         };
         while let Some(event) = outbox_rx.recv().await {
-            #[allow(deprecated)] // route() preserved here; emit() migration tracked separately
-            if let Err(e) = kr.lock().await.route(event, &ctx).await {
+            if let Err(e) = kr.lock().await.emit(event, &ctx).await {
                 tracing::warn!("human-gateway outbox routing error: {e}");
             }
         }

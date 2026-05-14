@@ -47,9 +47,10 @@ async fn user_view_fallback_reads_index_html() {
     std::fs::write(view_dir.join("index.html"), "<p>legacy body</p>").unwrap();
     ship_substrate::db::ensure_db_at(&ship_dir).unwrap();
 
-    unsafe {
-        std::env::set_var("SHIP_DEV_PROJECT_DIR", ship_dir.to_str().unwrap());
-    }
+    let _env = ship_substrate::testutil::EnvGuard::set(
+        ship_substrate::env::Var::DevProjectDir,
+        ship_dir.to_str().unwrap(),
+    );
     let kernel = std::sync::Arc::new(tokio::sync::Mutex::new(
         ship_substrate::events::KernelRouter::new(ship_dir.clone()).unwrap(),
     ));
@@ -57,9 +58,6 @@ async fn user_view_fallback_reads_index_html() {
         std::sync::Arc::new(crate::ship_runtime::ShipRuntime::new_test(ship_dir, kernel));
 
     let resp = serve_view_raw(State(state), AxPath("custom".into())).await;
-    unsafe {
-        std::env::remove_var("SHIP_DEV_PROJECT_DIR");
-    }
     assert_eq!(resp.status(), StatusCode::OK);
     let body = body_string(resp).await;
     assert!(body.contains("<p>legacy body</p>"));

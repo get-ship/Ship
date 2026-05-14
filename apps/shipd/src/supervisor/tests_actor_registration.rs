@@ -79,7 +79,7 @@ async fn stop_removes_from_subscriptions() {
     kernel.stop_actor("agent.sub").unwrap();
 
     let ev = EventEnvelope::new("mesh.test", "src", &serde_json::json!({})).unwrap();
-    let _ = kernel.route(ev, &cli_ctx()).await;
+    let _ = kernel.emit(ev, &cli_ctx()).await;
 
     assert!(
         mailbox.try_recv().is_err(),
@@ -217,7 +217,7 @@ async fn stop_actor_cleans_subscriptions_completely() {
     let (_store, mut mailbox) = kernel.spawn_actor("agent.dup", config).unwrap();
 
     let ev = EventEnvelope::new("mesh.ping", "src", &serde_json::json!({})).unwrap();
-    let _ = kernel.route(ev, &cli_ctx()).await;
+    let _ = kernel.emit(ev, &cli_ctx()).await;
 
     let mut count = 0u32;
     while mailbox.try_recv().is_ok() {

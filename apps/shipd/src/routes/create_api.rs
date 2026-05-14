@@ -143,8 +143,9 @@ pub async fn create_surface(
                     project_id: None,
                     session_id: None,
                 };
-                #[allow(deprecated)] // route() preserved for create_api path; emit() migration tracked separately
-                let _ = state.kernel().lock().await.route(envelope, &ctx).await;
+                if let Err(e) = state.kernel().lock().await.emit(envelope, &ctx).await {
+                    tracing::warn!(error = %e, surface = %surface, name = %name, "create_api: failed to emit agent.task.complete");
+                }
             }
         });
     }

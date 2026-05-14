@@ -169,7 +169,7 @@ pub async fn actor_spawn(
             None,
             None,
         ) {
-            tracing::debug!(actor_id = %emit_actor_id, "actor.created emit failed: {e}");
+            tracing::warn!(actor_id = %emit_actor_id, "actor.created emit failed: {e}");
         }
     });
 

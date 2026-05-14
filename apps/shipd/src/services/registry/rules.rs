@@ -7,11 +7,11 @@ use super::{RegistryError, parse_scope, required_str};
 use crate::ship_runtime::ApiState;
 use ship_platform::services::files::FilesService;
 
-#[allow(unused_imports, unused_variables)]
+
 pub(super) fn try_dispatch(
     name: &str,
     args: &Value,
-    state: &ApiState,
+    _state: &ApiState,
     files: &FilesService,
 ) -> Result<Option<Value>, RegistryError> {
     let value: Result<Value, RegistryError> = match name {

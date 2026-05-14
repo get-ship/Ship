@@ -38,13 +38,10 @@ async fn unregistered_tools_return_error() {
     let kernel = make_kernel(&dir);
     let server = NetworkServer::new(kernel);
 
-    // No mesh_register called — all other tools must return Error
-    let result = {
-        use rmcp::handler::server::wrapper::Parameters;
-        // We can't call the private tool methods directly, but actor_id() returning None
-        // is the precondition. Test it via the public accessor pattern.
-        server.actor_id().await
-    };
+    // No mesh_register called — all other tools must return Error.
+    // We can't call the private tool methods directly, but actor_id() returning None
+    // is the precondition. Test it via the public accessor pattern.
+    let result = server.actor_id().await;
     assert!(result.is_none(), "actor_id should be None before mesh_register");
 }
 
@@ -53,7 +50,7 @@ async fn mesh_register_sets_actor_id() {
     let dir = TempDir::new().unwrap();
     let kernel = make_kernel(&dir);
     // Spawn mesh service for routing to work
-    let hr = crate::task_health::HealthRegistry::new();
+    let hr = ship_substrate::task_health::HealthRegistry::new();
     crate::transport::connections::spawn_mesh_service(&kernel, &hr).await.unwrap();
 
     let server = NetworkServer::new(kernel);

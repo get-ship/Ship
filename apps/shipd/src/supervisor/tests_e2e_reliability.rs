@@ -88,7 +88,7 @@ fn cleanup_resolves_slug_from_event_payload() {
 /// (idempotent cleanup).
 #[test]
 fn cleanup_is_idempotent() {
-    let source = include_str!("../supervisor/helpers.rs");
+    let source = include_str!("../../../../crates/ship-supervisor/src/helpers.rs");
     assert!(
         source.contains("exists()"),
         "remove_worktree must check existence — cleanup must be idempotent"
@@ -140,7 +140,7 @@ fn orphan_worktrees_detectable_from_projection() {
 /// Shutdown must have a timeout — it cannot hang indefinitely.
 #[test]
 fn shutdown_has_bounded_timeout() {
-    let registry_src = include_str!("registry.rs");
+    let registry_src = include_str!("../../../../crates/core/ship-platform/src/services/process_registry.rs");
     assert!(
         registry_src.contains("timeout") || registry_src.contains("Duration"),
         "shutdown_all must have a timeout to prevent hanging on unresponsive agents"
@@ -152,19 +152,15 @@ fn shutdown_has_bounded_timeout() {
 fn shutdown_sends_exit_before_kill() {
     // The executor's stop() should use the adapter's exit_command
     // before resorting to SIGTERM/SIGKILL.
-    let tmux_src = std::fs::read_to_string(
-        concat!(env!("CARGO_MANIFEST_DIR"), "/src/supervisor/executors/tmux.rs")
-    ).unwrap();
     let process_src = std::fs::read_to_string(
-        concat!(env!("CARGO_MANIFEST_DIR"), "/src/supervisor/executors/process.rs")
+        concat!(env!("CARGO_MANIFEST_DIR"), "/../../crates/ship-supervisor/src/executors/process.rs")
     ).unwrap();
     let lifecycle_src = std::fs::read_to_string(
-        concat!(env!("CARGO_MANIFEST_DIR"), "/src/supervisor/agent_lifecycle.rs")
+        concat!(env!("CARGO_MANIFEST_DIR"), "/../../crates/ship-supervisor/src/agent_lifecycle.rs")
     ).unwrap();
 
     // At least one path must use the adapter's exit command
     let uses_exit = lifecycle_src.contains("exit_command")
-        || tmux_src.contains("exit_command")
         || process_src.contains("exit_command");
     assert!(uses_exit, "shutdown path must use adapter.exit_command() for graceful exit");
 }
@@ -179,7 +175,7 @@ fn shutdown_sends_exit_before_kill() {
 #[test]
 fn process_executor_monitors_child() {
     let source = std::fs::read_to_string(
-        concat!(env!("CARGO_MANIFEST_DIR"), "/src/supervisor/executors/process.rs")
+        concat!(env!("CARGO_MANIFEST_DIR"), "/../../crates/ship-supervisor/src/executors/process.rs")
     ).unwrap();
     assert!(
         source.contains("wait()") || source.contains("child.wait"),
@@ -192,7 +188,7 @@ fn process_executor_monitors_child() {
 #[test]
 fn process_executor_signals_on_exit() {
     let source = std::fs::read_to_string(
-        concat!(env!("CARGO_MANIFEST_DIR"), "/src/supervisor/executors/process.rs")
+        concat!(env!("CARGO_MANIFEST_DIR"), "/../../crates/ship-supervisor/src/executors/process.rs")
     ).unwrap();
     assert!(
         source.contains("job") && (source.contains("end") || source.contains("completed") || source.contains("failed")),
@@ -200,17 +196,6 @@ fn process_executor_signals_on_exit() {
     );
 }
 
-/// TmuxExecutor must have a way to check if the session is still alive.
-#[test]
-fn tmux_executor_has_liveness_check() {
-    let source = std::fs::read_to_string(
-        concat!(env!("CARGO_MANIFEST_DIR"), "/src/supervisor/executors/tmux.rs")
-    ).unwrap();
-    assert!(
-        source.contains("has-session") || source.contains("is_alive"),
-        "TmuxExecutor must be able to check if the tmux session is alive"
-    );
-}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // DAEMON RESTART RECOVERY (E2E-1)
@@ -393,19 +378,27 @@ fn auth_token_is_per_instance() {
 /// Dead process reconciliation must leave an observable event trail.
 ///
 /// Reconcile records a single `executor.session_destroyed` observation;
-/// the liveness sweep later emits `job.failed` once the stale threshold
-/// elapses. Either signal is sufficient — nothing is swallowed silently.
+/// the coherence sweep drains dead handles + emits `job.failed`; the
+/// exit handler emits `job.failed` for non-zero exits. Either signal is
+/// sufficient — nothing is swallowed silently.
 #[test]
 fn dead_process_recovery_is_observable() {
     let replay = include_str!("../../../../crates/core/ship-platform/src/services/orchestrator/replay.rs");
-    let liveness = include_str!("liveness.rs");
+    let sweep = include_str!("../../../../crates/core/ship-platform/src/services/orchestrator/sweep.rs");
+    let exit_handler = include_str!(
+        "../../../../crates/core/ship-platform/src/services/orchestrator/exit_handler.rs"
+    );
     assert!(
         replay.contains("emit_executor_session_destroyed"),
         "reconcile must record an observation event when no live process is found"
     );
     assert!(
-        liveness.contains("job.failed") || liveness.contains("JOB_FAILED"),
-        "liveness sweep must emit job.failed for genuinely missing processes"
+        sweep.contains("drain_dead") && sweep.contains("JOB_FAILED"),
+        "coherence sweep must drain dead handles and emit job.failed"
+    );
+    assert!(
+        exit_handler.contains("JOB_FAILED"),
+        "exit handler must emit job.failed for non-zero process exits"
     );
 }
 

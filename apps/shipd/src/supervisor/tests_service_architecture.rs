@@ -11,7 +11,7 @@ const LINE_LIMIT: usize = 400;
 
 #[test]
 fn adapters_module_under_line_limit() {
-    let lines = include_str!("adapters.rs").lines().count();
+    let lines = include_str!("../../../../crates/ship-supervisor/src/adapters.rs").lines().count();
     assert!(
         lines <= LINE_LIMIT,
         "adapters.rs has {lines} lines (limit {LINE_LIMIT})"
@@ -37,11 +37,11 @@ fn dispatch_replay_under_line_limit() {
 }
 
 #[test]
-fn supervisor_mod_under_line_limit() {
-    let lines = include_str!("mod.rs").lines().count();
+fn supervisor_lib_under_line_limit() {
+    let lines = include_str!("../../../../crates/ship-supervisor/src/lib.rs").lines().count();
     assert!(
         lines <= LINE_LIMIT,
-        "supervisor/mod.rs has {lines} lines (limit {LINE_LIMIT})"
+        "ship-supervisor/src/lib.rs has {lines} lines (limit {LINE_LIMIT})"
     );
 }
 
@@ -58,7 +58,7 @@ fn dispatch_handlers_under_line_limit() {
 
 #[test]
 fn helpers_under_line_limit() {
-    let lines = include_str!("helpers.rs").lines().count();
+    let lines = include_str!("../../../../crates/ship-supervisor/src/helpers.rs").lines().count();
     assert!(
         lines <= LINE_LIMIT,
         "helpers.rs has {lines} lines (limit {LINE_LIMIT})"
@@ -67,7 +67,7 @@ fn helpers_under_line_limit() {
 
 #[test]
 fn job_dispatch_under_line_limit() {
-    let lines = include_str!("job_dispatch.rs").lines().count();
+    let lines = include_str!("../../../../crates/ship-supervisor/src/job_dispatch.rs").lines().count();
     assert!(
         lines <= LINE_LIMIT,
         "job_dispatch.rs has {lines} lines (limit {LINE_LIMIT})"
@@ -78,19 +78,10 @@ fn job_dispatch_under_line_limit() {
 
 #[test]
 fn executors_mod_under_line_limit() {
-    let lines = include_str!("executors/mod.rs").lines().count();
+    let lines = include_str!("../../../../crates/ship-supervisor/src/executors/mod.rs").lines().count();
     assert!(
         lines <= LINE_LIMIT,
         "executors/mod.rs has {lines} lines (limit {LINE_LIMIT})"
-    );
-}
-
-#[test]
-fn executors_tmux_under_line_limit() {
-    let lines = include_str!("executors/tmux.rs").lines().count();
-    assert!(
-        lines <= LINE_LIMIT,
-        "executors/tmux.rs has {lines} lines (limit {LINE_LIMIT})"
     );
 }
 
@@ -107,7 +98,7 @@ fn pipeline_loader_under_line_limit() {
 
 #[test]
 fn agent_lifecycle_under_line_limit() {
-    let lines = include_str!("agent_lifecycle.rs").lines().count();
+    let lines = include_str!("../../../../crates/ship-supervisor/src/agent_lifecycle.rs").lines().count();
     assert!(
         lines <= LINE_LIMIT,
         "agent_lifecycle.rs has {lines} lines (limit {LINE_LIMIT})"
@@ -127,7 +118,7 @@ fn pending_dispatch_under_line_limit() {
 
 #[test]
 fn orphan_cleanup_under_line_limit() {
-    let lines = include_str!("orphan_cleanup.rs").lines().count();
+    let lines = include_str!("../../../../crates/ship-supervisor/src/orphan_cleanup.rs").lines().count();
     assert!(
         lines <= LINE_LIMIT,
         "orphan_cleanup.rs has {lines} lines (limit {LINE_LIMIT})"

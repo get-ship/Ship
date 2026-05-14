@@ -72,8 +72,7 @@ pub async fn send_message(
         project_id: req.workspace_id.clone(),
         session_id: None,
     };
-    #[allow(deprecated)] // route() preserved here; emit() migration tracked separately
-    if let Err(e) = state.kernel().lock().await.route(envelope, &ctx).await {
+    if let Err(e) = state.kernel().lock().await.emit(envelope, &ctx).await {
         return (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(MeshResponse {

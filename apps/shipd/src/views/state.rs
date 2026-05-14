@@ -8,7 +8,7 @@
 //!
 //! R0a ships only what the pipelines pilot (R0b) will consume. That is:
 //!
-//! - Pipeline definitions from `.ship/pipelines/*.yaml`
+//! - Pipeline definitions from `.ship/pipelines/*.jsonc`
 //! - Pipeline runs (via `ship_platform::projections::job::load_jobs`)
 //! - A shared [`Filter`] struct for query-string-driven view filters
 //!
@@ -34,7 +34,7 @@ use std::collections::HashMap;
 use std::io::ErrorKind;
 use std::path::Path;
 
-/// Definition of a pipeline parsed from a `.ship/pipelines/*.yaml` file,
+/// Definition of a pipeline parsed from a `.ship/pipelines/*.jsonc` file,
 /// plus usage stats aggregated from JobRecords referencing it.
 #[derive(Clone, Debug, Serialize)]
 pub struct PipelineDef {

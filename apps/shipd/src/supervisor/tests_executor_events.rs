@@ -15,8 +15,9 @@ use std::time::Duration;
 use tempfile::TempDir;
 use tokio::sync::Mutex;
 
-use super::liveness::start_exit_handler;
-use super::registry::ProcessRegistry;
+use ship_platform::services::orchestrator::exit_handler;
+
+use ship_platform::services::process_registry::{ProcessRegistry, SharedRegistry};
 
 fn setup() -> (TempDir, std::path::PathBuf, Arc<Mutex<KernelRouter>>) {
     let dir = TempDir::new().unwrap();
@@ -36,8 +37,10 @@ async fn drive_single_signal(
     signal: ExitSignal,
 ) {
     let registry = Arc::new(Mutex::new(ProcessRegistry::new()));
+    let port: Arc<dyn ship_platform::services::dispatch_ports::ProcessRegistryPort> =
+        Arc::new(SharedRegistry(registry));
     let (tx, rx) = tokio::sync::mpsc::unbounded_channel::<ExitSignal>();
-    start_exit_handler(kernel, registry, rx);
+    exit_handler::start(kernel, port, rx);
     tx.send(signal).expect("channel accepts signal");
     tokio::time::sleep(Duration::from_millis(150)).await;
 }
@@ -214,11 +217,10 @@ impl JobExecutor for NoopJobExecutor {
     async fn send(&self, _handle: &ExecutorHandle, _msg: &str) -> anyhow::Result<()> { Ok(()) }
 }
 
-fn build_platform(kernel: Arc<Mutex<KernelRouter>>) -> super::platform::ShipdPlatform {
-    super::platform::ShipdPlatform {
+fn build_platform(kernel: Arc<Mutex<KernelRouter>>) -> ship_supervisor::platform::ShipdPlatform {
+    ship_supervisor::platform::ShipdPlatform {
         registry: Arc::new(Mutex::new(ProcessRegistry::new())),
         executor: Arc::new(NoopJobExecutor),
-        health_registry: crate::task_health::HealthRegistry::new(),
         kernel,
     }
 }
@@ -254,7 +256,7 @@ async fn cleanup_job_emits_executor_session_destroyed() {
 async fn cleanup_orphan_emits_executor_session_destroyed() {
     let (_dir, base, kernel) = setup();
 
-    super::orphan_cleanup::tests_only::cleanup_orphan_for_test("orphan-emit", &kernel).await;
+    ship_supervisor::orphan_cleanup::tests_only::cleanup_orphan_for_test("orphan-emit", &kernel).await;
 
     let events = list_recent_events_at(&base, 50).unwrap();
     let destroyed = events

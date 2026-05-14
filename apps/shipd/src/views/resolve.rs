@@ -63,35 +63,16 @@ fn humanize(id: &str) -> String {
         .join(" ")
 }
 
-/// Legacy manifest `data:` declarations, consumed by
+/// Manifest `data:` declarations, consumed by
 /// `views::context::build_generic_context` for views still on the old
 /// injection pathway (canvas, setup, overview). File-routed views on
-/// the `ship.*` SDK ignore this block. Only `collections` is read
-/// today — the other fields were loaders for pre-framework views that
-/// have since migrated; kept here so older manifests still parse.
-#[allow(dead_code)] // Legacy fields ignored at runtime; kept so older
-                    // manifests still deserialise without rejecting unknown keys.
+/// the `ship.*` SDK ignore this block. Today only `collections` is
+/// read; older manifests with extra keys (`items`, `settings`,
+/// `agents`, …) still parse because `#[serde(deny_unknown_fields)]`
+/// is absent — they're silently ignored.
 #[derive(Deserialize, Clone)]
 pub(crate) struct ManifestData {
     pub collections: Option<ManifestCollections>,
-    #[serde(default)]
-    pub items: Option<String>,
-    #[serde(default, skip_serializing)]
-    pub settings: Option<bool>,
-    #[serde(default, skip_serializing)]
-    pub agents: Option<bool>,
-    #[serde(default, skip_serializing)]
-    pub skills: Option<bool>,
-    #[serde(default, skip_serializing)]
-    pub events_data: Option<bool>,
-    #[serde(default, skip_serializing)]
-    pub chat: Option<bool>,
-    #[serde(default, skip_serializing)]
-    pub specs: Option<bool>,
-    #[serde(default, skip_serializing)]
-    pub pipelines: Option<bool>,
-    #[serde(default, skip_serializing)]
-    pub git: Option<bool>,
 }
 
 #[allow(dead_code)] // Deserialized into but only the variant tag matters.

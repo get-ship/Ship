@@ -8,7 +8,7 @@ use crate::ship_runtime::ApiState;
 use ship_platform::services::files::FilesService;
 use std::path::Path;
 
-#[allow(unused_imports, unused_variables)]
+
 pub(super) fn try_dispatch(
     name: &str,
     args: &Value,

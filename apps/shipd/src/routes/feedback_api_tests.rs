@@ -15,13 +15,13 @@ use crate::ship_runtime::ShipRuntime;
 fn router_for(state: ApiState, auth: AuthContext) -> Router {
     Router::new()
         .route(
-            "/api/v1/feedback",
+                "/api/v1/feedback",
             axum::routing::post(super::post_feedback),
         )
         // A view-session route is included so tests can open a session to
         // exercise the view-scoped routing branch through the same harness.
         .route(
-            "/api/v1/view-sessions",
+                "/api/v1/view-sessions",
             axum::routing::post(crate::routes::view_sessions_api::open_session),
         )
         .with_state(state)

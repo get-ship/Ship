@@ -6,92 +6,6 @@ use crate::routes::rest_api::{ApiState, MeshResponse};
 
 use super::{err_response, ok_response};
 
-/// Strip JSONC comments (// and /* */) and trailing commas to produce valid JSON.
-fn strip_jsonc_comments(input: &str) -> String {
-    let mut out = String::with_capacity(input.len());
-    let mut in_block_comment = false;
-    let mut in_string = false;
-    let mut chars = input.chars().peekable();
-
-    while let Some(c) = chars.next() {
-        if in_block_comment {
-            if c == '*' && chars.peek() == Some(&'/') {
-                chars.next();
-                in_block_comment = false;
-            }
-            continue;
-        }
-
-        if in_string {
-            out.push(c);
-            if c == '\\' {
-                if let Some(&next) = chars.peek() {
-                    out.push(next);
-                    chars.next();
-                }
-            } else if c == '"' {
-                in_string = false;
-            }
-            continue;
-        }
-
-        if c == '"' {
-            in_string = true;
-            out.push(c);
-            continue;
-        }
-
-        if c == '/' {
-            match chars.peek() {
-                Some(&'/') => {
-                    // Line comment — skip to end of line
-                    for rest in chars.by_ref() {
-                        if rest == '\n' {
-                            out.push('\n');
-                            break;
-                        }
-                    }
-                    continue;
-                }
-                Some(&'*') => {
-                    chars.next();
-                    in_block_comment = true;
-                    continue;
-                }
-                _ => {}
-            }
-        }
-
-        out.push(c);
-    }
-
-    // Strip trailing commas before } or ] (JSONC allows them, JSON does not)
-    strip_trailing_commas(&out)
-}
-
-fn strip_trailing_commas(input: &str) -> String {
-    let bytes = input.as_bytes();
-    let mut result = String::with_capacity(input.len());
-    let mut i = 0;
-    while i < bytes.len() {
-        if bytes[i] == b',' {
-            // Look ahead past whitespace for } or ]
-            let mut j = i + 1;
-            while j < bytes.len() && bytes[j].is_ascii_whitespace() {
-                j += 1;
-            }
-            if j < bytes.len() && (bytes[j] == b'}' || bytes[j] == b']') {
-                // Skip the comma, keep the whitespace
-                i += 1;
-                continue;
-            }
-        }
-        result.push(bytes[i] as char);
-        i += 1;
-    }
-    result
-}
-
 /// GET /api/v1/projects/{id}/agents
 #[utoipa::path(
     operation_id = "listAgents",
@@ -147,7 +61,7 @@ pub async fn list_agents(
             Err(_) => continue,
         };
 
-        let json_str = strip_jsonc_comments(&raw);
+        let json_str = ship_substrate::fs_util::strip_jsonc_comments(&raw);
         let parsed: serde_json::Value = match serde_json::from_str(&json_str) {
             Ok(v) => v,
             Err(_) => continue,
@@ -336,37 +250,3 @@ fn parse_yaml_list(val: &str) -> Vec<String> {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn strip_line_comments() {
-        let input = r#"{
-    // This is a comment
-    "name": "test"
-}"#;
-        let result = strip_jsonc_comments(input);
-        let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
-        assert_eq!(parsed["name"], "test");
-    }
-
-    #[test]
-    fn strip_block_comments() {
-        let input = r#"{
-    /* block comment */
-    "name": "test"
-}"#;
-        let result = strip_jsonc_comments(input);
-        let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
-        assert_eq!(parsed["name"], "test");
-    }
-
-    #[test]
-    fn preserve_strings_with_slashes() {
-        let input = r#"{"url": "https://example.com"}"#;
-        let result = strip_jsonc_comments(input);
-        let parsed: serde_json::Value = serde_json::from_str(&result).unwrap();
-        assert_eq!(parsed["url"], "https://example.com");
-    }
-}

@@ -5,11 +5,15 @@
 
 use axum::{
     Extension, Json,
-    extract::{Path, Query, State},
+    extract::{Query, State},
     http::StatusCode,
     response::IntoResponse,
 };
+#[cfg(test)]
+use axum::extract::Path;
+#[cfg(test)]
 use ship_substrate::events::EventEnvelope;
+#[cfg(test)]
 use ship_substrate::events::job::event_types;
 use serde::Deserialize;
 
@@ -37,9 +41,15 @@ pub(super) fn resolve_project_head_sha() -> Option<String> {
     ship_platform::services::orchestrator::git_helpers::resolve_head_sha(project_root)
 }
 
-/// GET /api/v1/runtime/sessions[?workspace_id=<id>]
+/// GET /api/v1/sessions[?workspace_id=<id>]
+///
+/// Lists *workspace* sessions (event-sourced runtime sessions per
+/// branch). Distinct from the PTY-session registry
+/// (`sessions::api::list_pty_sessions` on `/api/v1/pty-sessions`) and
+/// the auth-session token registry (`auth::api::list_auth_sessions` on
+/// `/api/v1/auth/sessions`).
 #[utoipa::path(
-    operation_id = "listSessions",
+    operation_id = "listWorkspaceSessions",
     get,
     path = "/api/v1/sessions",
     params(SessionsQuery),
@@ -50,7 +60,7 @@ pub(super) fn resolve_project_head_sha() -> Option<String> {
     ),
     tag = "runtime"
 )]
-pub async fn list_sessions(
+pub async fn list_workspace_sessions(
     State(_state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
     Query(params): Query<SessionsQuery>,
@@ -126,10 +136,7 @@ pub use procs::{ProcsQuery, list_procs};
 
 // Helpers re-exported for the in-file test mod below.
 #[cfg(test)]
-pub(crate) use jobs::{
-    annotate_job, drift_active_for_slug, list_processes_at, load_recent_events_by_type,
-    truncate,
-};
+pub(crate) use jobs::drift_active_for_slug;
 
 
 #[cfg(test)]
@@ -169,11 +176,11 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread")]
-    async fn list_sessions_returns_ok_no_workspace_id() {
+    async fn list_workspace_sessions_returns_ok_no_workspace_id() {
         let dir = TempDir::new().unwrap();
         let state = make_api_state(&dir);
         let query = Query(SessionsQuery { workspace_id: None });
-        let response = list_sessions(State(state), test_auth(), query).await.into_response();
+        let response = list_workspace_sessions(State(state), test_auth(), query).await.into_response();
         assert_eq!(response.status(), axum::http::StatusCode::OK);
         let val = collect_body(response).await;
         assert_eq!(val["ok"], serde_json::json!(true));
@@ -181,13 +188,13 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread")]
-    async fn list_sessions_returns_ok_with_workspace_id() {
+    async fn list_workspace_sessions_returns_ok_with_workspace_id() {
         let dir = TempDir::new().unwrap();
         let state = make_api_state(&dir);
         let query = Query(SessionsQuery {
             workspace_id: Some("nonexistent-workspace".to_string()),
         });
-        let response = list_sessions(State(state), test_auth(), query).await.into_response();
+        let response = list_workspace_sessions(State(state), test_auth(), query).await.into_response();
         assert_eq!(response.status(), axum::http::StatusCode::OK);
         let val = collect_body(response).await;
         assert_eq!(val["ok"], serde_json::json!(true));
@@ -313,7 +320,7 @@ mod tests {
         assert!(val["data"]["step_observations"].is_array());
         assert!(val["data"]["recent_events"].is_array());
         // The job.created event should appear in recent_events
-        assert!(val["data"]["recent_events"].as_array().unwrap().len() >= 1);
+        assert!(!val["data"]["recent_events"].as_array().unwrap().is_empty());
     }
 
     async fn emit_job_created(state: &ApiState, slug: &str) -> String {

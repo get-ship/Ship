@@ -14,7 +14,7 @@ use crate::ship_runtime::ShipRuntime;
 fn router_for(state: ApiState, auth: AuthContext) -> Router {
     Router::new()
         .route(
-            "/api/v1/annotations",
+                "/api/v1/annotations",
             axum::routing::post(super::post_annotation),
         )
         .with_state(state)

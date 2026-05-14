@@ -163,17 +163,19 @@ pub async fn upload_artifact(
         .or_else(|| mime_from_name(&name))
         .unwrap_or_else(|| "application/octet-stream".to_string());
 
-    // TTL expiry for run-scope when not explicitly provided.
-    let computed_expires = if expires_at.is_none() {
-        if let ArtifactScope::Run { .. } = &scope {
-            let ttl_hours = 24u64; // default; TODO: read from config
-            let exp = chrono::Utc::now() + chrono::Duration::hours(ttl_hours as i64);
+    // Default TTL for run-scope artifacts when the caller didn't supply
+    // an explicit `expires_at`. Per design, run-scope is ephemeral and
+    // garbage-collected after the run is done. 24h gives enough overlap
+    // for debug attach, promote, and download flows. Project/user-scope
+    // artifacts are kept until explicitly deleted.
+    const RUN_SCOPE_DEFAULT_TTL_HOURS: i64 = 24;
+    let computed_expires = match (expires_at, &scope) {
+        (Some(t), _) => Some(t),
+        (None, ArtifactScope::Run { .. }) => {
+            let exp = chrono::Utc::now() + chrono::Duration::hours(RUN_SCOPE_DEFAULT_TTL_HOURS);
             Some(exp.to_rfc3339())
-        } else {
-            None
         }
-    } else {
-        expires_at
+        (None, _) => None,
     };
 
     let args = StoreArgs {

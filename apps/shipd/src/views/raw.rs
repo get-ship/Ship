@@ -15,17 +15,8 @@ use axum::{
     http::StatusCode,
     response::Response,
 };
-use serde::Serialize;
 
 use crate::ship_runtime::ApiState;
-use crate::views::templates;
-
-#[allow(dead_code)] // used by wrap() which is called from the raw view handler below
-#[derive(Serialize)]
-struct RawCtx<'a> {
-    title: &'a str,
-    inner: &'a str,
-}
 
 fn err(status: StatusCode, msg: String) -> Response {
     Response::builder()
@@ -53,11 +44,6 @@ fn html_ok(body: String, cookie: String) -> Response {
         .header(axum::http::header::SET_COOKIE, cookie)
         .body(axum::body::Body::from(body))
         .unwrap()
-}
-
-#[allow(dead_code)] // used via serve_view_raw handler (route registered in router.rs)
-fn wrap(title: &str, inner: &str) -> Option<String> {
-    templates::render("_raw_shell.html.j2", &RawCtx { title, inner }).ok()
 }
 
 /// GET `/api/v1/view/{name}/raw`

@@ -40,6 +40,7 @@
 
 pub mod actor_api;
 pub mod actors_api;
+pub mod mcp_registry;
 pub mod agents_api;
 pub mod annotations_api;
 pub mod artifacts_api;
@@ -523,9 +524,6 @@ pub enum Route {
 
     /// @route GET "/api/v1/projects/{id}/agents"
     ListProjectAgents { id: String },
-
-    /// @route POST "/api/v1/projects/{id}/agents"
-    WriteProjectAgent { id: String },
 
     // ── GitService — canonical `/api/git/*` surface ──────────────────────
 

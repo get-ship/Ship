@@ -9,8 +9,9 @@
 //! modular-runtime-04: scopes, session, pairing, attest. Their tests
 //! sit alongside.
 
-pub mod attest;
-pub mod pairing;
+// Pure auth primitives live in `ship_platform::auth`. These re-exports
+// preserve the `crate::auth::{attest,pairing}` paths the daemon uses.
+pub use ship_platform::auth::{attest, pairing};
 pub mod scopes;
 pub mod session;
 
@@ -19,6 +20,7 @@ mod auth_tests;
 #[cfg(test)]
 mod scope_tests;
 #[cfg(test)]
+#[path = "auth/pairing_integration_tests.rs"]
 mod pairing_integration_tests;
 
 use axum::{

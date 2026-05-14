@@ -327,7 +327,6 @@ mod tests {
     /// uses to push SSE frames.
     #[tokio::test]
     async fn signal_update_notifies_bridge() {
-        use std::sync::Arc;
         use sui_signals::{Signal, effect};
         use tokio::sync::mpsc;
 

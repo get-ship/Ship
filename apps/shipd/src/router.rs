@@ -26,7 +26,7 @@ use crate::routes::{
 };
 use crate::auth::{attest, pairing, session};
 use crate::transport::{cors, pty as pty_handler};
-use crate::mcp::registry as mcp_registry;
+use crate::routes::mcp_registry as mcp_registry;
 use crate::views::{morph_target as view_morph_target, raw as views_raw};
 use axum::routing;
 
@@ -163,7 +163,7 @@ pub fn build_router(
         .route(
             "/auth/sessions",
             axum::routing::get(move |auth_ext: axum::Extension<auth::AuthContext>| {
-                auth::list_sessions(list_sessions_registry.clone(), auth_ext)
+                auth::list_auth_sessions(list_sessions_registry.clone(), auth_ext)
             }),
         )
         .route(
@@ -315,7 +315,7 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         // Capabilities (no state required; ok against a stateful router)
         .ship_route(Route::Capabilities, rest_api::capabilities)
         // Runtime
-        .ship_route(Route::ListSessions, runtime_api::list_sessions)
+        .ship_route(Route::ListSessions, runtime_api::list_workspace_sessions)
         .ship_route(Route::ListAgents, runtime_api::list_agents)
         .ship_route(Route::StopAgent_template(), runtime_api::stop_agent)
         .ship_route(Route::SteerAgent_template(), runtime_api::steer_agent)
@@ -342,7 +342,7 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::ForkView_template(), views::write_api::fork_view)
         .ship_route(Route::ThemeContrast, themes_api::theme_contrast)
         .ship_route(Route::SpawnPtySession, sessions::api::spawn_session)
-        .ship_route(Route::ListPtySessions, sessions::api::list_sessions)
+        .ship_route(Route::ListPtySessions, sessions::api::list_pty_sessions)
         .ship_route(Route::GetPtySession_template(), sessions::api::get_session)
         .ship_route(Route::StopPtySession_template(), sessions::api::stop_session)
         .ship_route(Route::PtySessionInput_template(), sessions::api::session_input)
@@ -450,7 +450,6 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         // Project
         .ship_route(Route::ListSessionFiles_template(), project_api::list_session_files)
         .ship_route(Route::ListProjectAgents_template(), project_api::list_agents)
-        .ship_route(Route::WriteProjectAgent_template(), project_api::write_agent)
         // GitService — canonical `/api/v1/git/*` surface. Consolidates the
         // old workspace- and project-scoped git endpoints into one.
         .ship_route(Route::GitStatus, git_api::status_handler)

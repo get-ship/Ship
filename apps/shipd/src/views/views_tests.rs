@@ -64,9 +64,11 @@ async fn list_views_finds_html_view() {
     let view_dir = setup_project_view(&dir, "dashboard");
     std::fs::write(view_dir.join("index.html"), "<h1>hi</h1>").unwrap();
 
-    unsafe { std::env::set_var("SHIP_DEV_PROJECT_DIR", ship_substrate::ShipHome::project_ship_dir(dir.path()).to_str().unwrap()) };
+    let _env = ship_substrate::testutil::EnvGuard::set(
+        ship_substrate::env::Var::DevProjectDir,
+        ship_substrate::ShipHome::project_ship_dir(dir.path()).to_str().unwrap(),
+    );
     let response = list_views().await.into_response();
-    unsafe { std::env::remove_var("SHIP_DEV_PROJECT_DIR") };
 
     let val = collect_body(response).await;
     let views = val["data"]["views"].as_array().unwrap();
@@ -74,15 +76,16 @@ async fn list_views_finds_html_view() {
 }
 
 #[tokio::test]
-#[ignore = "parallel-test SHIP_DEV_PROJECT_DIR env race; passes in isolation"]
 async fn list_views_finds_component_view() {
     let dir = TempDir::new().unwrap();
     let view_dir = setup_project_view(&dir, "monitor");
     std::fs::write(view_dir.join("index.js"), "export default class {}").unwrap();
 
-    unsafe { std::env::set_var("SHIP_DEV_PROJECT_DIR", ship_substrate::ShipHome::project_ship_dir(dir.path()).to_str().unwrap()) };
+    let _env = ship_substrate::testutil::EnvGuard::set(
+        ship_substrate::env::Var::DevProjectDir,
+        ship_substrate::ShipHome::project_ship_dir(dir.path()).to_str().unwrap(),
+    );
     let response = list_views().await.into_response();
-    unsafe { std::env::remove_var("SHIP_DEV_PROJECT_DIR") };
 
     let val = collect_body(response).await;
     let views = val["data"]["views"].as_array().unwrap();
@@ -93,7 +96,6 @@ async fn list_views_finds_component_view() {
 // ---- serve_view_manifest ----
 
 #[tokio::test]
-#[ignore = "parallel-test SHIP_DEV_PROJECT_DIR env race; passes in isolation"]
 async fn manifest_from_yaml() {
     let dir = TempDir::new().unwrap();
     let view_dir = setup_project_view(&dir, "pipe-mon");
@@ -103,9 +105,11 @@ async fn manifest_from_yaml() {
     ).unwrap();
     std::fs::write(view_dir.join("index.js"), "// js").unwrap();
 
-    unsafe { std::env::set_var("SHIP_DEV_PROJECT_DIR", ship_substrate::ShipHome::project_ship_dir(dir.path()).to_str().unwrap()) };
+    let _env = ship_substrate::testutil::EnvGuard::set(
+        ship_substrate::env::Var::DevProjectDir,
+        ship_substrate::ShipHome::project_ship_dir(dir.path()).to_str().unwrap(),
+    );
     let response = serve_view_manifest(Path("pipe-mon".to_string())).await.into_response();
-    unsafe { std::env::remove_var("SHIP_DEV_PROJECT_DIR") };
 
     assert_eq!(response.status(), StatusCode::OK);
     let val = collect_body(response).await;
@@ -116,30 +120,32 @@ async fn manifest_from_yaml() {
 }
 
 #[tokio::test]
-#[ignore = "parallel-test SHIP_DEV_PROJECT_DIR env race; passes in isolation"]
 async fn manifest_inferred_html() {
     let dir = TempDir::new().unwrap();
     let view_dir = setup_project_view(&dir, "simple");
     std::fs::write(view_dir.join("index.html"), "<p>hi</p>").unwrap();
 
-    unsafe { std::env::set_var("SHIP_DEV_PROJECT_DIR", ship_substrate::ShipHome::project_ship_dir(dir.path()).to_str().unwrap()) };
+    let _env = ship_substrate::testutil::EnvGuard::set(
+        ship_substrate::env::Var::DevProjectDir,
+        ship_substrate::ShipHome::project_ship_dir(dir.path()).to_str().unwrap(),
+    );
     let response = serve_view_manifest(Path("simple".to_string())).await.into_response();
-    unsafe { std::env::remove_var("SHIP_DEV_PROJECT_DIR") };
 
     let val = collect_body(response).await;
     assert_eq!(val["data"]["type"], "html");
 }
 
 #[tokio::test]
-#[ignore = "parallel-test SHIP_DEV_PROJECT_DIR env race; passes in isolation"]
 async fn manifest_inferred_component() {
     let dir = TempDir::new().unwrap();
     let view_dir = setup_project_view(&dir, "widget");
     std::fs::write(view_dir.join("index.js"), "class Widget {}").unwrap();
 
-    unsafe { std::env::set_var("SHIP_DEV_PROJECT_DIR", ship_substrate::ShipHome::project_ship_dir(dir.path()).to_str().unwrap()) };
+    let _env = ship_substrate::testutil::EnvGuard::set(
+        ship_substrate::env::Var::DevProjectDir,
+        ship_substrate::ShipHome::project_ship_dir(dir.path()).to_str().unwrap(),
+    );
     let response = serve_view_manifest(Path("widget".to_string())).await.into_response();
-    unsafe { std::env::remove_var("SHIP_DEV_PROJECT_DIR") };
 
     let val = collect_body(response).await;
     assert_eq!(val["data"]["type"], "component");
@@ -155,15 +161,16 @@ async fn manifest_not_found() {
 // ---- serve_view_bundle ----
 
 #[tokio::test]
-#[ignore = "parallel-test SHIP_DEV_PROJECT_DIR env race; passes in isolation"]
 async fn bundle_serves_js() {
     let dir = TempDir::new().unwrap();
     let view_dir = setup_project_view(&dir, "comp");
     std::fs::write(view_dir.join("index.js"), "console.log('hello');").unwrap();
 
-    unsafe { std::env::set_var("SHIP_DEV_PROJECT_DIR", ship_substrate::ShipHome::project_ship_dir(dir.path()).to_str().unwrap()) };
+    let _env = ship_substrate::testutil::EnvGuard::set(
+        ship_substrate::env::Var::DevProjectDir,
+        ship_substrate::ShipHome::project_ship_dir(dir.path()).to_str().unwrap(),
+    );
     let response = serve_view_bundle(Path("comp".to_string())).await;
-    unsafe { std::env::remove_var("SHIP_DEV_PROJECT_DIR") };
 
     assert_eq!(response.status(), StatusCode::OK);
     assert_eq!(
@@ -179,7 +186,6 @@ async fn bundle_serves_js() {
 }
 
 #[tokio::test]
-#[ignore = "parallel-test SHIP_DEV_PROJECT_DIR env race; passes in isolation"]
 async fn bundle_uses_manifest_entry() {
     let dir = TempDir::new().unwrap();
     let view_dir = setup_project_view(&dir, "custom");
@@ -189,9 +195,11 @@ async fn bundle_uses_manifest_entry() {
     ).unwrap();
     std::fs::write(view_dir.join("bundle.js"), "// custom bundle").unwrap();
 
-    unsafe { std::env::set_var("SHIP_DEV_PROJECT_DIR", ship_substrate::ShipHome::project_ship_dir(dir.path()).to_str().unwrap()) };
+    let _env = ship_substrate::testutil::EnvGuard::set(
+        ship_substrate::env::Var::DevProjectDir,
+        ship_substrate::ShipHome::project_ship_dir(dir.path()).to_str().unwrap(),
+    );
     let response = serve_view_bundle(Path("custom".to_string())).await;
-    unsafe { std::env::remove_var("SHIP_DEV_PROJECT_DIR") };
 
     assert_eq!(response.status(), StatusCode::OK);
     let body = collect_raw(response).await;

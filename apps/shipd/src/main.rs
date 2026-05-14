@@ -45,12 +45,9 @@ fn main() -> anyhow::Result<()> {
     //      per-worktree IPC dir + hash-derived port so multiple Ship-dev
     //      worktrees can run side-by-side without colliding). Hidden
     //      behind the `dev` semantics — not a user-facing flag.
-    //   2. `--workspace <path>` is the deprecated alias kept for the
-    //      handful of dev scripts that still pass it.
-    //   3. Otherwise walk up from CWD looking for `.ship/`, like git
+    //   2. Otherwise walk up from CWD looking for `.ship/`, like git
     //      discovers the repo root.
     let workspace = extract_str_arg(&args, "--dev-worktree")
-        .or_else(|| extract_str_arg(&args, "--workspace"))
         .map(std::path::PathBuf::from)
         .or_else(discover_workspace);
 
