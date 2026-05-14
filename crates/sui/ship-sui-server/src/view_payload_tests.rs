@@ -116,7 +116,7 @@ async fn view_host_splices_precompiled_ssr() {
         "view-host must splice SSR content into shell; got: {body}"
     );
     assert!(
-        body.contains("<div id=\"sui-root\">"),
+        body.contains("<div id=\"sui-root\""),
         "sui-root div must be present in shell; got: {body}"
     );
 }
@@ -140,7 +140,8 @@ async fn view_host_without_ssr_live_emits_from_source() {
         "shell must be valid HTML; got: {body}"
     );
     assert!(
-        body.contains("<div id=\"sui-root\">") && !body.contains("<div id=\"sui-root\"></div>"),
+        body.contains("<div id=\"sui-root\"")
+            && !body.contains("data-view=\"ssr-host-test-empty\"></div>"),
         "live-emit must populate sui-root when no .ssr.html exists; got: {body}"
     );
     assert!(

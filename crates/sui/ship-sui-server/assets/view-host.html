@@ -38,7 +38,12 @@
   </style>
 </head>
 <body>
-  <div id="sui-root"><!-- SUI_SSR_CONTENT --></div>
+  <!-- `data-sui-root` + `data-view` scope the mount root: the runtime's
+       patch-elements applier queries `[data-sui-root][data-view="<name>"]`
+       so out-of-band DOM patches can't escape the hosted view, and the
+       SSR markup advertises which view it is. The daemon fills the name
+       from the URL path (empty for the bare `/view-host` landing). -->
+  <div id="sui-root" data-sui-root data-view="<!-- SUI_VIEW_NAME -->"><!-- SUI_SSR_CONTENT --></div>
 
   <!-- Mount script. The hosted view's name comes from the URL path
        segments after the host prefix (e.g. `/view-host/ship-ui-studio/sui-button`
@@ -72,7 +77,13 @@
             `${res.status}: ${body}</div>`
         } else {
           const payload = await res.json()
-          await mount(target, payload)
+          // mount() morphs onto the SSR markup already inside #sui-root
+          // (seeded by the daemon, including the __set_init__ island),
+          // then returns a handle. Expose its disposer as
+          // window.__suiDispose — hosts and e2e probes treat that
+          // property as the "attach complete" signal.
+          const handle = await mount(target, payload)
+          window.__suiDispose = () => handle.dispose()
         }
       } catch (err) {
         target.innerHTML =
