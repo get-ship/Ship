@@ -1,9 +1,9 @@
 //! MCP bridge for the `@ship/sui-lsp` TypeScript analyzers.
 //!
-//! Two tools — `sui_diagnostics` + `sui_hover` — spawn `bun` against the
-//! one-shot CLI at `packages/sui-lsp/src/cli.ts` and parse its JSON output.
-//! Agents that can't speak LSP get the same feedback the VS Code extension
-//! surfaces without embedding an LSP client.
+//! Tools — `sui_diagnostics`, `sui_hover`, `sui_dependencies` — spawn `bun`
+//! against the one-shot CLI at `packages/sui-lsp/src/cli.ts` and parse its
+//! JSON output. Agents that can't speak LSP get the same feedback the VS
+//! Code extension surfaces without embedding an LSP client.
 
 use anyhow::{Result, anyhow};
 use serde_json::Value;
@@ -146,6 +146,23 @@ async fn hover_inner(file: &str, line: u32, col: u32) -> Result<String> {
     Ok(serde_json::to_string_pretty(&value).unwrap_or_else(|_| value.to_string()))
 }
 
+/// Report the surface a `.sui` view depends on: custom-element tags,
+/// signal/scope references, on:* events, bind:* targets, and the resolved
+/// paired-controller path.
+pub async fn sui_dependencies(file: &str) -> String {
+    match dependencies_inner(file).await {
+        Ok(s) => s,
+        Err(e) => format!("Error: {e}"),
+    }
+}
+
+async fn dependencies_inner(file: &str) -> Result<String> {
+    let (abs, _) = validate_file(file)?;
+    let abs_str = abs.to_string_lossy().to_string();
+    let value = run_cli(&["dependencies", &abs_str]).await?;
+    Ok(serde_json::to_string_pretty(&value).unwrap_or_else(|_| value.to_string()))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -189,5 +206,23 @@ mod tests {
         assert!(!out.starts_with("Error:"), "expected JSON output, got: {out}");
         let v: Value = serde_json::from_str(&out).expect("output parses as JSON");
         assert!(v.get("diagnostics").is_some(), "missing diagnostics key in {out}");
+    }
+
+    #[tokio::test]
+    async fn dependencies_returns_tags_and_events() {
+        // views/agents/page.sui depends on many sui-* tags + handles events.
+        let out = sui_dependencies("views/agents/page.sui").await;
+        assert!(!out.starts_with("Error:"), "expected JSON output, got: {out}");
+        let v: Value = serde_json::from_str(&out).expect("output parses as JSON");
+        let tags = v.get("tags").and_then(|t| t.as_array()).expect("tags array");
+        assert!(
+            tags.iter().any(|t| t.as_str() == Some("sui-button")),
+            "expected sui-button in tags, got: {out}"
+        );
+        let events = v.get("events").and_then(|e| e.as_array()).expect("events array");
+        assert!(
+            events.iter().any(|e| e.as_str() == Some("click")),
+            "expected click in events, got: {out}"
+        );
     }
 }

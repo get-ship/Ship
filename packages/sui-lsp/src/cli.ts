@@ -8,11 +8,12 @@
 // Usage:
 //   bun packages/sui-lsp/src/cli.ts diagnostics <file.sui>
 //   bun packages/sui-lsp/src/cli.ts hover <file.sui> --line <n> --col <n>
+//   bun packages/sui-lsp/src/cli.ts dependencies <file.sui>
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as url from 'node:url';
-import { parse } from './parse';
+import { parse, type Node } from './parse';
 import { diagnose } from './diagnostics';
 import { hover } from './hover';
 import { analyzeSetup, loadSetup, type SetupInfo } from './setup';
@@ -26,7 +27,11 @@ interface ParsedArgs {
 
 function parseArgs(argv: string[]): ParsedArgs {
   const subcommand = argv[0];
-  if (!subcommand) throw new Error('usage: diagnostics <file> | hover <file> --line N --col N');
+  if (!subcommand) {
+    throw new Error(
+      'usage: diagnostics <file> | hover <file> --line N --col N | dependencies <file>',
+    );
+  }
   const file = argv[1];
   if (!file) throw new Error('missing <file> argument');
   let line: number | undefined;
@@ -109,6 +114,131 @@ function runHover(file: string, line: number, col: number): void {
   }) + '\n');
 }
 
+// ── dependencies ──────────────────────────────────────────────────────
+//
+// Surface the SUI surface a `.sui` view depends on: custom-element tags
+// (sui-*, ship-*, third-party), event/binding directives, and identifier
+// references partitioned against the paired controller's setup. Lets
+// agents answer "what does this view touch?" without re-parsing.
+
+const IDENT_RE = /[A-Za-z_$][A-Za-z0-9_$]*/g;
+const SKIP_IDENTS = new Set([
+  'true', 'false', 'null', 'undefined', 'this',
+  'item', 'index', 'i', 'event', 'e', 'value',
+  'String', 'Number', 'Boolean', 'Array', 'Object', 'Math', 'JSON', 'Date',
+]);
+
+interface DepReport {
+  file: string;
+  tags: string[];
+  signals: string[];        // setup-backed identifiers referenced by the view
+  scope_unknown: string[];  // identifiers referenced but not in setup
+  events: string[];         // on:* event names
+  bindings: string[];       // bind:* target names
+  namespaces: string[];     // use:* aliases referenced
+  controller: string | null;
+}
+
+function runDependencies(file: string): void {
+  if (!fs.existsSync(file)) {
+    process.stderr.write(JSON.stringify({ error: `file not found: ${file}` }) + '\n');
+    process.exit(2);
+  }
+  const source = fs.readFileSync(file, 'utf8');
+  const parsed = parse(source);
+  const setup = resolveSetup(file);
+  const report = collectDependencies(file, parsed.nodes, setup);
+  process.stdout.write(JSON.stringify(report) + '\n');
+}
+
+function collectDependencies(
+  file: string, nodes: Node[], setup: SetupInfo | null,
+): DepReport {
+  const tags = new Set<string>();
+  const events = new Set<string>();
+  const bindings = new Set<string>();
+  const exprTexts: string[] = [];
+  for (const n of nodes) {
+    if (n.kind === 'element-open') {
+      if (n.tag.includes('-')) tags.add(n.tag);
+      for (const a of n.attrs) {
+        if (a.kind === 'on') events.add(a.name);
+        if (a.kind === 'bind') bindings.add(a.name);
+        if (a.value?.kind === 'expr') exprTexts.push(a.value.text);
+        if (a.nameExpr) exprTexts.push(a.nameExpr.text);
+      }
+    } else if (n.kind === 'interpolation') {
+      exprTexts.push(n.text);
+    } else if (n.kind === 'block-open') {
+      if (n.expr) exprTexts.push(n.expr.text);
+      if (n.iter) exprTexts.push(n.iter.text);
+      if (n.key) exprTexts.push(n.key.text);
+      if (n.bind) exprTexts.push(n.bind.text);
+    } else if (n.kind === 'block-tag') {
+      if (n.expr) exprTexts.push(n.expr.text);
+    }
+  }
+  const setupMembers = new Set((setup?.members ?? []).map(m => m.name));
+  const namespaceAliases = new Set((setup?.namespaces ?? []).map(ns => ns.alias));
+  const blockLocals = collectBlockLocals(nodes);
+  const signals = new Set<string>();
+  const namespaces = new Set<string>();
+  const unknown = new Set<string>();
+  for (const txt of exprTexts) {
+    for (const ident of extractIdents(txt)) {
+      if (SKIP_IDENTS.has(ident)) continue;
+      if (blockLocals.has(ident)) continue;
+      if (namespaceAliases.has(ident)) { namespaces.add(ident); continue; }
+      if (setupMembers.has(ident)) { signals.add(ident); continue; }
+      unknown.add(ident);
+    }
+  }
+  return {
+    file,
+    tags: [...tags].sort(),
+    signals: [...signals].sort(),
+    scope_unknown: [...unknown].sort(),
+    events: [...events].sort(),
+    bindings: [...bindings].sort(),
+    namespaces: [...namespaces].sort(),
+    controller: setup?.uri && setup.uri !== file ? setup.uri : null,
+  };
+}
+
+function collectBlockLocals(nodes: Node[]): Set<string> {
+  const locals = new Set<string>();
+  for (const n of nodes) {
+    if (n.kind === 'block-open' && n.block === 'for' && n.pattern) {
+      for (const id of n.pattern.idents) locals.add(id);
+    }
+    if (n.kind === 'block-open' && n.block === 'while-error' && n.errorVar) {
+      locals.add(n.errorVar.text);
+    }
+    if (n.kind === 'element-open') {
+      for (const a of n.attrs) {
+        if (a.kind === 'let') locals.add(a.name);
+      }
+    }
+  }
+  return locals;
+}
+
+function extractIdents(expr: string): string[] {
+  // Strip string literals so `'$selected'` doesn't leak `selected`.
+  const stripped = expr
+    .replace(/'(?:[^'\\]|\\.)*'/g, "''")
+    .replace(/"(?:[^"\\]|\\.)*"/g, '""')
+    .replace(/`(?:[^`\\]|\\.)*`/g, '``');
+  const out: string[] = [];
+  let m: RegExpExecArray | null;
+  IDENT_RE.lastIndex = 0;
+  while ((m = IDENT_RE.exec(stripped)) !== null) {
+    if (m.index > 0 && stripped[m.index - 1] === '.') continue;
+    out.push(m[0]);
+  }
+  return out;
+}
+
 function main(): void {
   let parsed: ParsedArgs;
   try {
@@ -129,6 +259,9 @@ function main(): void {
         return;
       }
       runHover(resolveFile(parsed.file), parsed.line, parsed.col);
+      break;
+    case 'dependencies':
+      runDependencies(resolveFile(parsed.file));
       break;
     default:
       process.stderr.write(JSON.stringify({ error: `unknown subcommand: ${parsed.subcommand}` }) + '\n');
@@ -174,4 +307,4 @@ if (require.main === module) {
   main();
 }
 
-export { parseArgs, runDiagnostics, runHover };
+export { parseArgs, runDiagnostics, runHover, runDependencies, collectDependencies };

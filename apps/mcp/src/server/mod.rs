@@ -800,6 +800,21 @@ impl ShipServer {
         sui_lsp_tools::sui_hover(&req.file, req.line, req.col).await
     }
 
+    #[tool(
+        description = "Report the surface a `.sui` view depends on: custom-element tags \
+        (sui-*, ship-*, third-party), `on:*` event names, `bind:*` targets, identifier \
+        references partitioned into setup-backed signals vs unknown-scope, namespace \
+        aliases (`use:*`), and the resolved paired-controller path. Use before editing \
+        a view to map blast radius — which tags to register, which signals to preserve. \
+        Args: file (absolute path or workspace-relative)."
+    )]
+    async fn sui_dependencies(
+        &self,
+        Parameters(req): Parameters<crate::requests::SuiDependenciesRequest>,
+    ) -> String {
+        sui_lsp_tools::sui_dependencies(&req.file).await
+    }
+
     // ---- Artifacts ----
 
     #[tool(
