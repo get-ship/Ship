@@ -129,8 +129,21 @@
     appearance: none;
     -webkit-appearance: none;
     cursor: inherit;
+    border-radius: var(--radius-md);
   }
   select option { color: var(--foreground); background: var(--background); }
+
+  /* Keyboard-only focus ring — drawn on the native <select> so it is
+   * visible to AT/keyboard users even when the host's :focus-within
+   * tint is suppressed. Mirrors the sui-button pattern: 2px outline +
+   * 2px offset, tone-tinted. */
+  select:focus-visible {
+    outline: 2px solid color-mix(in oklch, var(--tone) 70%, var(--ring-color, var(--primary)));
+    outline-offset: 2px;
+  }
+  :host([invalid]) select:focus-visible {
+    outline-color: var(--destructive);
+  }
 
   .value {
     display: inline-block;

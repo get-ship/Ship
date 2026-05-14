@@ -153,6 +153,18 @@
   input::placeholder { color: var(--muted-foreground); }
   input:disabled { cursor: not-allowed; }
 
+  /* Keyboard-only focus ring — drawn on the inner input so it is
+   * visible even when the wrap container's :focus-within tint is
+   * suppressed by themes that flatten ring tokens. Mirrors the
+   * sui-button pattern: 2px outline + 2px offset, tone-tinted. */
+  input:focus-visible {
+    outline: 2px solid var(--tone-ring, var(--ring-color, var(--primary)));
+    outline-offset: 2px;
+  }
+  @media (forced-colors: active) {
+    input:focus-visible { outline: 2px solid CanvasText; outline-offset: 2px; }
+  }
+
   ::slotted([slot='leading']),
   ::slotted([slot='trailing']) {
     display: inline-flex;
