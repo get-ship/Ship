@@ -71,10 +71,17 @@ export function initHmr(deps: HmrDeps): { close(): void } | null {
 }
 
 function isDev(): boolean {
-  // Vite inlines `import.meta.env.DEV` as a literal at build time. Cast
-  // because shell2's tsconfig doesn't include `vite/client` types.
-  const meta = import.meta as ImportMeta & { env?: { DEV?: boolean } }
-  if (meta.env?.DEV === true) return true
+  // Vite's define-replace plugin rewrites the exact string
+  // `import.meta.env.DEV` to a literal `true` / `false`. Aliasing
+  // through a local (`const m = import.meta; m.env?.DEV`) defeats the
+  // string match, leaving `env` undefined at runtime — so the previous
+  // form silently never enabled HMR under Vite. Read the property
+  // directly. `(import.meta as Any).env.DEV` is rewritten by Vite
+  // because the literal `import.meta.env.DEV` substring is present in
+  // the cast expression's text. Cast because shell2's tsconfig doesn't
+  // include `vite/client` types.
+  type V = ImportMeta & { env: { DEV: boolean } }
+  if ((import.meta as V).env.DEV === true) return true
   const w = window as Window & { __SHIP_DAEMON_MODE?: string }
   return w.__SHIP_DAEMON_MODE === 'development'
 }
