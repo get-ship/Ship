@@ -107,6 +107,12 @@ Full surface (control flow, transitions, slots, refs, `<data live>`): `reference
 <prop name="tone" values="default|primary" default="default" reflect />
 <use-shell as="shell" />
 
+<!-- dynamic routes — read params from the shared route signal -->
+<!-- (host must pre-register the pattern via defineRoutes([{pattern:'/x/:id'}])) -->
+<!-- controller: const id = derived(() => route.params.id() ?? '') -->
+<!-- controller: const detail = live(() => ship.x.detail({id: id()})) -->
+<!-- template: {#if detail().kind === 'ok' && detail().value}{detail().value.name}{/if} -->
+
 <!-- control flow — block syntax -->
 {#if loading()}…{:else if error()}…{:else}…{/if}
 {#for a of items() key={a.id}}<li>{a.name}</li>{/for}
@@ -157,7 +163,8 @@ Mutations are HTTP POST/DELETE through the same client (e.g. `ship.sessions.star
 | UI Studio | Browse and exercise every registered component with prop knobs, slot compositions, deep links. | `views/ship-ui-studio/` (mounted at `/ship-ui-studio`) |
 | Devtools panes | In-page panels: template source, components tree, signals, lint, schema. | `packages/ui-components/src/islands/sui-devtools/` |
 | `dispatch.sh` | Worktree + job-spec + agent compile + terminal-open script. | `.ship/skills/spawn-agent/scripts/dispatch.sh` |
-| MCP shims | `mcp__ship__sui_diagnostics`, `mcp__ship__sui_hover` — surface LSP findings for agents that don't speak LSP. | `apps/mcp/src/` |
+| MCP shims | `mcp__ship__sui_diagnostics`, `mcp__ship__sui_hover`, `mcp__ship__sui_dependencies` — surface LSP findings + per-view signal/tag/event graph for agents that don't speak LSP. | `apps/mcp/src/` |
+| Drift detection | `GET /api/_meta` returns `{compilerVersion, daemonVersion, builtAt, git, dirty}`. Every compiled artifact carries a `_compilerVersion` marker (leading `/*! */` comment in JS, sidecar field in CEM/schema/meta). Shell compares its loaded bundle against the daemon to surface stale-bundle drift. | `crates/ship-sui-server/src/meta.rs` |
 
 Detail: `references/tooling.md`.
 
@@ -173,6 +180,8 @@ Detail: `references/tooling.md`.
 8. **No `el.innerHTML / .outerHTML / .insertAdjacentHTML`** in `*.controller.ts`. Use `bindHtml()`.
 9. **`{#for}` blocks declare `key={EXPR}`.** Without a stable key DOM identity is lost on reorder. `sui-for-key` lint warns when missing.
 10. **`on:<event>` event names match the platform whitelist** (DOM events, `sui-*` / `ship-*` custom events, `tag:event` cross-component). `sui-event-name` lint warns on typos.
+11. **Guard live-signal `.value` for null in detail/get ops.** `ship.<domain>.detail({id})` returns `null` on miss — `unwrap(sig)` resolves to `null`, so a bare `sig().value.name` crashes. Use `{#if sig().kind === 'ok' && sig().value}` or pre-compute via `derived(() => unwrap(sig)?.name ?? '')` in the controller.
+12. **Dynamic routes need `defineRoutes` at shell startup.** Views under `views/<name>/[id]/` only see `route.params.id()` if the host registered the pattern via `defineRoutes([{pattern: '/<name>/:id'}])`. View-bundle imports of `@ship/sui-runtime/route` live in a different module instance from the shell's, so per-controller `defineRoutes` calls don't reach the shell's signal proxy.
 
 ## Before declaring an edit done
 
