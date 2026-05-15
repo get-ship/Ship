@@ -39,10 +39,11 @@ dev:
     @scripts/dev/start.sh
 
 # Frontend dev server for shell2 (vite). Proxies /api, /_sui, /sui, /view-host
-# to the daemon — `just dev` must already be running.
+# to the daemon — `just dev` must already be running. vite.config.ts writes
+# its pid to <daemon_dir>/vite.pid so `just dev-stop` can reap it.
 [group('daily')]
 shell2-dev:
-    @scripts/dev/shell2-start.sh
+    @bun run --filter shell2 dev
 
 # Force a one-shot rebuild of every asset bundle served by the daemon
 # (sui-runtime, sui-dom, sui-components, islands, ship-elements, views/*).
