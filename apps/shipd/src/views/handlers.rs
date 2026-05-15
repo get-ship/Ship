@@ -15,7 +15,7 @@ use super::{ViewListEntry, ViewManifest, mesh_err, mesh_ok};
     path = "/api/v1/views",
     responses(
         (status = 200, description = "Catalog of available views"),
-        (status = 401, description = "Unauthenticated", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 401, description = "Unauthenticated", body = crate::wire::ErrorResponse),
     ),
     tag = "views"
 )]
@@ -79,8 +79,8 @@ pub async fn serve_view_asset(Path((name, file)): Path<(String, String)>) -> axu
     params(("name" = String, Path, description = "View name")),
     responses(
         (status = 200, description = "View manifest JSON"),
-        (status = 401, description = "Unauthenticated", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 404, description = "View not found", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 401, description = "Unauthenticated", body = crate::wire::ErrorResponse),
+        (status = 404, description = "View not found", body = crate::wire::ErrorResponse),
     ),
     tag = "views"
 )]
@@ -123,8 +123,8 @@ pub async fn serve_view_manifest(Path(name): Path<String>) -> impl IntoResponse 
     params(("name" = String, Path, description = "View name")),
     responses(
         (status = 200, description = "View module bundle (JavaScript)", content_type = "application/javascript"),
-        (status = 401, description = "Unauthenticated", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 404, description = "View not found", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 401, description = "Unauthenticated", body = crate::wire::ErrorResponse),
+        (status = 404, description = "View not found", body = crate::wire::ErrorResponse),
     ),
     tag = "views"
 )]
