@@ -62,7 +62,7 @@ fn launch_view_ops_are_registered() {
     }
 }
 
-fn temp_state() -> crate::routes::rest_api::ApiState {
+fn temp_state() -> crate::ship_runtime::ApiState {
     let dir = tempfile::TempDir::new().unwrap();
     let ship_dir = ship_substrate::ShipHome::project_ship_dir(dir.path());
     std::fs::create_dir_all(&ship_dir).unwrap();
