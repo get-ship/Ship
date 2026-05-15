@@ -80,15 +80,21 @@ async fn embedded_response(state: &ShellState, req: Request) -> Response {
     // `/shell/devtools/` → devtools.html; everything else is a file lookup.
     let (rel, is_html_entry) = resolve_path(path);
 
-    let file = match rel.as_deref().and_then(|p| SHELL_DIST.get_file(p)) {
-        Some(f) => f,
-        None if is_html_entry => {
-            return missing_bundle_page();
-        }
-        None => {
-            return (StatusCode::NOT_FOUND, format!("shell: {path} not found")).into_response();
-        }
+    // SPA fallback: paths without an extension (`/shell/agents`,
+    // `/shell/skills/foo`) are client-side routes — navigo reads them off
+    // location.pathname. The dist has no file at those paths, so we serve
+    // `index.html` and let the shell's router take over after hydration.
+    // Asset paths (with extensions) still 404 honestly.
+    let (file, served_html) = match rel.as_deref().and_then(|p| SHELL_DIST.get_file(p)) {
+        Some(f) => (f, is_html_entry),
+        None if is_html_entry => return missing_bundle_page(),
+        None if !path_looks_like_asset(path) => match SHELL_DIST.get_file("index.html") {
+            Some(f) => (f, true),
+            None => return missing_bundle_page(),
+        },
+        None => return (StatusCode::NOT_FOUND, format!("shell: {path} not found")).into_response(),
     };
+    let is_html_entry = served_html;
 
     let content_type = guess_mime(file.path().to_str().unwrap_or(""));
     let mut builder = Response::builder()
@@ -126,6 +132,14 @@ fn resolve_path(path: &str) -> (Option<String>, bool) {
             (Some(trimmed), false)
         }
     }
+}
+
+/// True when the path's last segment carries a file extension we'd ship
+/// as a static asset. SPA routes (`/shell/agents`, `/shell/skills/[id]`)
+/// have no extension and fall through to index.html.
+fn path_looks_like_asset(path: &str) -> bool {
+    let last = path.rsplit('/').next().unwrap_or("");
+    last.contains('.')
 }
 
 fn has_session_cookie(req: &Request) -> bool {
