@@ -257,6 +257,14 @@ async function aggregateCem(): Promise<void> {
     const modules = (cem as { modules?: unknown[] })?.modules
     if (Array.isArray(modules)) out.modules.push(...modules)
   }
+  // Sort by `path` so the merged manifest is byte-stable across runs —
+  // cemCache iteration order is insertion-order, which depends on
+  // parallel-glob completion timing and shuffles every rebuild.
+  out.modules.sort((a, b) => {
+    const ap = (a as { path?: string })?.path ?? ''
+    const bp = (b as { path?: string })?.path ?? ''
+    return ap < bp ? -1 : ap > bp ? 1 : 0
+  })
   const target = resolve(repoRoot, 'crates/sui/ship-ui-framework/assets/sui-custom-elements.json')
   mkdirSync(dirname(target), { recursive: true })
   await Bun.write(target, JSON.stringify(out))
