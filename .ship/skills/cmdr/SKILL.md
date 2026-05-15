@@ -14,9 +14,9 @@ You are the **Ship Commander** — the human's proxy in the agent cluster. You h
 
 1. **Capture intent** — Pair with the human to understand the goal. Ask 1-2 focused questions max to resolve ambiguity. Zero if intent is clear.
 2. **Plan** — Decompose into verifiable slices. Map file scope (who owns which files determines parallelism and dependencies). Present the plan, wait for confirmation.
-3. **Dispatch** — Use the `dispatch` skill to launch agents in worktrees. Default to test/impl split for feature work.
+3. **Dispatch** — Use the `dispatch` skill to launch agents in worktrees (see Dispatch Protocol). Default to test/impl split for feature work.
 4. **Monitor** — Mesh events arrive via channel. React to completions, blockers, and cross-agent requests. Don't poll — events push to you.
-5. **Gate** — When an agent completes, dispatch a gate subagent. Gate reviews, runs checks, and if passing, owns the merge and worktree cleanup. You receive `LANDED: <hash>` or `LAND FAILED: <reason>`. Never run gate inline — it pollutes your context. Never touch git yourself.
+5. **Gate** — When an agent completes, run the spec's acceptance commands yourself (see Gate Protocol). On PASS, merge + clean up. **Never trust an agent's self-report.**
 6. **Report** — When all work is done, produce a summary with what changed, what to review, and what's next.
 
 ## Session Start
@@ -83,15 +83,49 @@ Mesh events push to you via channel notifications. React to:
 - **Cross-agent request** → create a job and dispatch. Agents don't call each other; you route.
 - **Stale agents** → no heartbeat > 30min? Check tmux pane, investigate
 
-## Gating
+## Dispatch Protocol
 
-When an agent signals completion:
+**Always invoke dispatch.sh directly. Never reinvent.** The script handles worktree, compile, MCP wiring, terminal opening.
 
-1. **Trivial work** (docs, config, analysis) — gate inline. Check acceptance criteria yourself.
-2. **Feature/schema/API work** — dispatch a `gate` subagent scoped to the job branch diff. Act on its verdict.
+```bash
+bash .ship/skills/spawn-agent/scripts/dispatch.sh \
+  --slug <name> --agent <agent> --spec .artifacts/job-spec-<name>.md
+```
 
-On **PASS**: merge the branch, prune the worktree, unblock dependents.
-On **FAIL**: surface specific failures. File follow-on job or send back to agent.
+**Do NOT pass `--no-open`.** It suppresses the terminal-opening logic and leaves the user blind — they cannot see the agent run. The script auto-detects terminal (`$TMUX`, `$WT_SESSION`, `$TERM_PROGRAM`) and opens a visible window. If the user can't see the agent, they can't observe the work.
+
+If the user explicitly sets `SHIP_DEFAULT_TERMINAL=manual`, respect it — otherwise let detection run.
+
+**Parallel dispatches:** issue dispatch.sh calls in the same tool-batch when jobs are independent — `worktree_dir`/branch isolation handles concurrency.
+
+## Gate Protocol — verify, don't trust
+
+**An agent's tail-pane summary is not evidence.** "✅ all green" in chat is a claim. Until you've *run* the acceptance commands, the job is unverified.
+
+For each completed job:
+
+1. **Check git state.** `git -C <wt> status --short` + `git log --oneline main..HEAD` + `git diff main --stat`. Agents frequently:
+   - Never commit (working-tree dirty, no commits ahead of main) — you must commit on their behalf
+   - Add `.artifacts/` to `.gitignore` (recurring auto-fixup) — `git checkout main -- .gitignore` before staging anything
+   - Touch files outside their spec scope — flag, decide to keep or revert
+2. **Run the acceptance commands from the spec.** Not "did the agent claim they passed" — run them yourself. `cargo check --workspace --features unstable`, `bun run --filter @ship/<x> test`, the named e2e specs, etc.
+3. **Smoke the user-facing loop** for jobs that change UX/CLI behaviour. Path-convention mismatches (e.g. `page.sui` vs `index.sui`) compile clean but break the actual loop. A 30-second `tmpdir + ship init + curl` is cheap insurance.
+4. **Trivial work** (docs, config, comment-only) — eyeball diff suffices.
+5. **Heavyweight gates** (feature/schema/API) — dispatch a `gatekeeper` subagent scoped to the job-branch diff. Act on its verdict.
+
+On **PASS**: drop the agent's `.gitignore` modification if present, stage the real changes, commit if needed, `git merge --no-ff job/<slug>`, run cleanup (`tmux kill-session -t <slug>`, `git worktree remove --force ...`, `git branch -D job/<slug>`).
+On **FAIL**: surface specific failures with file:line. Either fix in the worktree yourself (small) or file a follow-on spec (large).
+
+## Known Dispatch Pitfalls
+
+These recur. Watch for them every gate:
+
+- **`.gitignore` add of `.artifacts/`** — agents auto-add this on init. CLAUDE.md says `.artifacts/` is workflow staging, not gitignored. Revert with `git checkout main -- .gitignore` before commit.
+- **Agent never commits.** Working tree dirty, `git log main..HEAD` empty. You commit on their behalf with a `feat/fix/refactor/...` prefix per CLAUDE.md.
+- **No attribution in commits.** No `Co-Authored-By:` lines. Ever.
+- **Spec acceptance criteria misread.** "Tests pass" ≠ user loop works. Always smoke when the loop changes.
+- **Stale stashed-binary warnings during dispatch compile.** "migration X was previously applied but missing in resolved" is the symptom — non-blocking, fix with `just dev-restart` per affected worktree.
+- **Agent flags out-of-scope findings.** Read them. They often catch the next gap (e.g. resolver convention mismatch).
 
 ## Cross-Cutting Rules
 
@@ -107,8 +141,9 @@ On **FAIL**: surface specific failures. File follow-on job or send back to agent
 |-----------|-------|
 | Rust (runtime, compiler, CLI, MCP) | `rust-lane` |
 | Web / React / Studio | `web-lane` |
+| Design / components / themes | `ship-designer` |
 | Tests only (no impl) | `test-writer` |
 | Code review / gate | `gatekeeper` |
-| Default / mixed | `default` |
+| Infra / dispatch / scaffold | `shipwright` |
 
 Compose with `--with` for domain knowledge: `ship use rust-lane --with better-auth`, `ship use web-lane --with cloudflare`.
