@@ -20,18 +20,21 @@ type WorkerProc = {
   kill: () => void
 }
 
-async function spawnWorker(env?: Record<string, string>): Promise<WorkerProc> {
+async function spawnWorker(opts?: {
+  env?: Record<string, string>
+  args?: string[]
+}): Promise<WorkerProc> {
   // Use the bun binary that's running this test rather than searching PATH —
   // CI / fresh-clone environments may not have bun globally installed but
   // they do have the one that just spawned the test runner.
   const bunBin = process.execPath
   const proc = Bun.spawn({
-    cmd: [bunBin, 'run', workerPath],
+    cmd: [bunBin, 'run', workerPath, ...(opts?.args ?? [])],
     stdin: 'pipe',
     stdout: 'pipe',
     stderr: 'pipe',
     cwd: repoRoot,
-    env: { ...process.env, SHIP_REPO_ROOT: repoRoot, ...env },
+    env: { ...process.env, SHIP_REPO_ROOT: repoRoot, ...(opts?.env ?? {}) },
   })
 
   const lines: string[] = []
@@ -159,13 +162,59 @@ describe('bundler worker', () => {
     expect(code).toBe(0)
   }, 15_000)
 
+  test('--workspace overlay: edit `<workspace>/views/<name>/page.sui` → module_changed', async () => {
+    // End-user scenario: shipd is attached to a project outside the
+    // contributor monorepo. The bundler is still rooted at the monorepo
+    // for built-ins (sui-runtime, etc.) but must additionally watch the
+    // workspace's `views/` so HMR fires for the project the daemon serves.
+    const wsDir = mkdtempSync(join(tmpdir(), 'bundler-ws-'))
+    const viewDir = join(wsDir, 'views', 'probe')
+    const pageSui = join(viewDir, 'page.sui')
+    mkdirSync(viewDir, { recursive: true })
+    // Minimal SUI template — no controller, no data block, just a static
+    // element so sui-compiler emits a valid bundle.
+    writeFileSync(pageSui, '<div class="probe">probe</div>\n')
+
+    const worker = await spawnWorker({ args: ['--workspace', wsDir] })
+    try {
+      worker.send({ id: 'w1', kind: 'watch_start' })
+      const ack = await worker.next() as any
+      expect(ack.kind).toBe('ack')
+
+      // Touch the file. mtime change + node:fs watch fires `change`.
+      writeFileSync(pageSui, '<div class="probe">probe v2</div>\n')
+
+      const event = await Promise.race([
+        (async () => {
+          while (true) {
+            const msg = (await worker.next()) as any
+            if (msg.kind === 'module_changed' && msg.target === 'views/probe/view') return msg
+            if (msg.kind === 'compile_error' && msg.target === 'views/probe/view') {
+              throw new Error(`compile_error for views/probe/view: ${msg.message}`)
+            }
+          }
+        })(),
+        new Promise<never>((_, rej) =>
+          setTimeout(() => rej(new Error('module_changed timeout')), 30_000),
+        ),
+      ]) as any
+
+      expect(event.kind).toBe('module_changed')
+      expect(event.target).toBe('views/probe/view')
+      expect(event.bytes).toBeGreaterThan(0)
+    } finally {
+      worker.kill()
+      rmSync(wsDir, { recursive: true, force: true })
+    }
+  }, 60_000)
+
   test('edit a .sui source → module_changed event arrives within 2s', async () => {
     // Create a throwaway .sui view in a temp dir and point a minimal worker
     // at a repo with just the sui-runtime target modified to watch our temp file.
     //
     // This test requires the daemon to actually be watching, so we use a real
     // source file in the views tree that already exists.
-    const suiFile = resolve(repoRoot, 'views/counter/page.sui')
+    const suiFile = resolve(repoRoot, 'views/home/page.sui')
     const worker = await spawnWorker()
 
     try {

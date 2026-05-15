@@ -129,14 +129,25 @@ const MAX_RESTARTS: u32 = 20;
 
 /// Start the supervised worker. Returns a handle immediately; the worker
 /// process is spawned in the background.
-pub fn start(home: &ShipHome, repo_root: PathBuf) -> WorkerHandle {
-    start_with_script(home, repo_root, home.runtime_bundler_ts())
+///
+/// `workspace` is the user-project directory the daemon was launched
+/// against — distinct from `repo_root` (the ship monorepo / source-of-built-ins
+/// directory) when shipd serves a project outside the contributor checkout.
+/// `None` collapses to `repo_root` inside the worker, preserving prior
+/// behavior for contributor / no-`--workspace` invocations.
+pub fn start(home: &ShipHome, repo_root: PathBuf, workspace: Option<PathBuf>) -> WorkerHandle {
+    start_with_script(home, repo_root, home.runtime_bundler_ts(), workspace)
 }
 
 /// Like `start`, but uses `bundler_ts` as the path to the bundler script
 /// instead of `~/.ship/runtime/bundler.ts`. Bun is still sourced from the
 /// installed runtime.
-pub fn start_with_script(home: &ShipHome, repo_root: PathBuf, bundler_ts: PathBuf) -> WorkerHandle {
+pub fn start_with_script(
+    home: &ShipHome,
+    repo_root: PathBuf,
+    bundler_ts: PathBuf,
+    workspace: Option<PathBuf>,
+) -> WorkerHandle {
     let (cmd_tx, cmd_rx) = mpsc::channel::<PendingCall>(64);
     let (event_tx, _) = broadcast::channel::<BundlerEvent>(128);
 
@@ -145,7 +156,7 @@ pub fn start_with_script(home: &ShipHome, repo_root: PathBuf, bundler_ts: PathBu
     let cmd_rx = Arc::new(Mutex::new(cmd_rx));
 
     tokio::spawn(async move {
-        run_supervisor(bun, bundler_ts, repo_root, cmd_rx, event_tx2).await;
+        run_supervisor(bun, bundler_ts, repo_root, workspace, cmd_rx, event_tx2).await;
     });
 
     WorkerHandle { cmd_tx, event_tx }
@@ -155,6 +166,7 @@ async fn run_supervisor(
     bun: PathBuf,
     bundler_ts: PathBuf,
     repo_root: PathBuf,
+    workspace: Option<PathBuf>,
     cmd_rx: Arc<Mutex<mpsc::Receiver<PendingCall>>>,
     event_tx: broadcast::Sender<BundlerEvent>,
 ) {
@@ -177,7 +189,7 @@ async fn run_supervisor(
     let mut restarts = 0u32;
 
     loop {
-        match spawn_worker(&bun, &bundler_ts, &repo_root).await {
+        match spawn_worker(&bun, &bundler_ts, &repo_root, workspace.as_ref()).await {
             Err(e) => {
                 error!(error = %e, "bundler: failed to spawn worker");
             }
@@ -203,11 +215,22 @@ async fn run_supervisor(
     }
 }
 
-async fn spawn_worker(bun: &PathBuf, bundler_ts: &PathBuf, repo_root: &PathBuf) -> std::io::Result<Child> {
-    Command::new(bun)
-        .arg("run")
-        .arg(bundler_ts)
-        .env("SHIP_REPO_ROOT", repo_root)
+async fn spawn_worker(
+    bun: &PathBuf,
+    bundler_ts: &PathBuf,
+    repo_root: &PathBuf,
+    workspace: Option<&PathBuf>,
+) -> std::io::Result<Child> {
+    let mut cmd = Command::new(bun);
+    cmd.arg("run").arg(bundler_ts);
+    // Pass the user-project workspace explicitly so the worker can watch
+    // `<workspace>/views/*/page.sui` on top of the contributor monorepo
+    // built-ins. Skipped when shipd has no project attached — the worker
+    // then collapses workspace = repo_root internally.
+    if let Some(ws) = workspace {
+        cmd.arg("--workspace").arg(ws);
+    }
+    cmd.env("SHIP_REPO_ROOT", repo_root)
         .current_dir(repo_root)
         .stdin(std::process::Stdio::piped())
         .stdout(std::process::Stdio::piped())

@@ -26,11 +26,16 @@ impl Bundler {
     /// Start the supervised Bun bundler worker.
     ///
     /// `repo_root` is the working directory for the worker — the directory
-    /// containing `packages/`, `views/`, etc. Typically the project workspace
-    /// root. The worker is spawned asynchronously; this call returns
-    /// immediately.
-    pub fn start(home: &ShipHome, repo_root: PathBuf) -> Self {
-        Self { inner: worker_start(home, repo_root) }
+    /// containing the ship monorepo's `packages/`, `views/`, etc. Used as
+    /// `SHIP_REPO_ROOT` inside the worker.
+    ///
+    /// `workspace` is the user-project the daemon was launched against
+    /// (`ship daemon start --workspace <path>`); forwarded as a `--workspace`
+    /// CLI arg so the worker watches `<workspace>/views/` on top of the
+    /// monorepo built-ins. `None` when shipd has no project attached — the
+    /// worker then collapses workspace = repo_root internally.
+    pub fn start(home: &ShipHome, repo_root: PathBuf, workspace: Option<PathBuf>) -> Self {
+        Self { inner: worker_start(home, repo_root, workspace) }
     }
 
     /// Like `start`, but uses `script` as the `bundler.ts` path instead of
@@ -38,8 +43,13 @@ impl Bundler {
     /// from the installed runtime. Used in dev mode so edits to the in-repo
     /// `runtime-assets/bundler.ts` take effect on daemon restart without an
     /// extra `ship runtime install`.
-    pub fn start_with_script(home: &ShipHome, repo_root: PathBuf, script: PathBuf) -> Self {
-        Self { inner: worker_start_with_script(home, repo_root, script) }
+    pub fn start_with_script(
+        home: &ShipHome,
+        repo_root: PathBuf,
+        script: PathBuf,
+        workspace: Option<PathBuf>,
+    ) -> Self {
+        Self { inner: worker_start_with_script(home, repo_root, script, workspace) }
     }
 
     /// Build a single named target (e.g. `"sui-runtime"`, `"views/git/view"`).

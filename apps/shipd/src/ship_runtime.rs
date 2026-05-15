@@ -581,8 +581,15 @@ impl ShipRuntime {
     pub fn bundler(&self) -> &ship_platform::bundler::Bundler {
         self.bundler.get_or_init(|| {
             let home = ship_substrate::ShipHome::at(self.ship_dir.clone());
-            let repo_root = self
-                .workspace_dir
+            // `repo_root` is the bundler's CWD + `SHIP_REPO_ROOT` — where
+            // it looks for monorepo built-ins (`packages/`, contributor
+            // `views/`). When the daemon has no attached project, fall
+            // back to cwd so contributor-mode invocations behave as
+            // before. `workspace` is the explicit user-project path
+            // forwarded as `--workspace`; the bundler watches its
+            // `views/*/page.sui` tree on top of the built-ins.
+            let workspace = self.workspace_dir.clone();
+            let repo_root = workspace
                 .clone()
                 .or_else(|| std::env::current_dir().ok())
                 .unwrap_or_else(|| self.ship_dir.clone());
@@ -596,9 +603,10 @@ impl ShipRuntime {
                     &home,
                     repo_root,
                     bundler_override,
+                    workspace,
                 )
             } else {
-                ship_platform::bundler::Bundler::start(&home, repo_root)
+                ship_platform::bundler::Bundler::start(&home, repo_root, workspace)
             }
         })
     }
