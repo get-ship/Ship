@@ -161,8 +161,72 @@ Check daemon status:
 ship daemon status
 ```
 
+## Build a UI with Views
+
+The same daemon that compiles agent configuration also hosts the Ship UI. A view is a SUI template — a `.sui` file declaring markup, optionally paired with a `controller.ts` that owns reactive state and event handlers. The compiler emits a hydratable ESM module; the daemon serves an SSR snapshot, the browser hydrates it. The bundler scans two layouts under the workspace root:
+
+```
+views/<name>/page.sui          # top-level
+.ship/views/<name>/index.sui   # colocated with .ship/ config (top-level wins on name collision)
+```
+
+`ship init` does not yet scaffold a `views/` directory — create one by hand.
+
+A minimal view at `views/hello/page.sui`:
+
+```html
+<div class="hello">
+  <h1>Hello from Ship</h1>
+  <p>Clicked {count()} time{count() === 1 ? '' : 's'}.</p>
+  <button on:click={() => count.set(count() + 1)}>Click</button>
+</div>
+```
+
+And the paired `views/hello/controller.ts`:
+
+```ts
+import { controller, signal } from '@ship/sui-runtime'
+import type { Scope } from './page.sui'
+
+export default controller<Scope>({
+  scope: () => ({ count: signal(0) }),
+})
+```
+
+The bundler that compiles `.sui` files runs out of `~/.ship/runtime/` (Bun + the SUI compiler). Install it once per machine:
+
+```bash
+ship runtime install
+```
+
+Then start the daemon and read the bound URL:
+
+```bash
+ship daemon start
+ship daemon status
+```
+
+`ship daemon start` prints a hardcoded `http://127.0.0.1:9315`, but the daemon auto-derives a per-worktree port — `ship daemon status` is what reports the actual `port:`. Visit `http://<host>:<port>/sui/hello` to mount the view directly through the view-host endpoint. The root path (`/`) redirects to `/setup` on a fresh install, or to `/shell/` once a workspace exists (`apps/shipd/src/views/setup.rs:83`).
+
+## Live Edits
+
+The daemon runs in `--mode development` by default (`apps/shipd/src/main.rs:50`), which exposes two SSE channels the browser subscribes to:
+
+- **`/_sui/dev/hmr`** — forwarded from the bundler worker. Editing `views/<name>/page.sui` or its `controller.ts` re-emits the view bundle; if that view is currently mounted, the shell cache-busts the import and re-mounts it in place without a page reload. Editing a component, island, or the SUI runtime triggers a full reload (custom-element re-registration without reload is out of scope today).
+- **`/_sui/hmr`** — file-watcher for `.set` files under `.ship/sui/` (ship-set component authoring). Always full reload.
+
+Compile errors are streamed on the same `/_sui/dev/hmr` channel and logged to the browser console with `file:line`; the last good mount stays on screen until the next successful build.
+
+## If Live Edits Don't Work
+
+- **`~/.ship/runtime/` is missing.** No bundler, no rebuilds. Run `ship runtime install`.
+- **Daemon is in production mode.** HMR routes are wired only when `daemon_mode == Development`; in production they return 404 by design. Since `ship daemon start` doesn't accept `--mode`, this only happens if `SHIP_DAEMON_MODE=production` is set in the environment (or `shipd` was launched directly with `--mode production`). Unset and restart.
+- **The view directory was created after the daemon started.** The bundler computes its target list at startup, so brand-new top-level view directories aren't bundled until the daemon restarts.
+- **The file isn't where the bundler looks.** Only `views/<name>/page.sui` and `.ship/views/<name>/index.sui` are scanned — other paths are invisible.
+
 ## Next Steps
 
+- **`docs/ship-sui/SKILL.md`** — SUI deep dive: compiler, runtime, controllers, the four layers
 - **`ship docs topics`** — list available help topics
 - **`ship docs <topic>`** — detailed help on agents, skills, providers, pipelines
 - **`ship convert <source>`** — import existing provider configs into `.ship/` format
