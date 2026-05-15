@@ -210,6 +210,28 @@ const compilerPath = locateCompiler()
 // repeat compiles overwrite cleanly.
 const cemCache = new Map<string, unknown>()
 
+// `@ship/sui-build`'s aggregator owns the merge/sort/dedup + pretty-print
+// pipeline (the at-build-time path uses it too). Loaded lazily by absolute
+// path because this script ships to `~/.ship/runtime/bundler.ts` outside
+// the workspace's node_modules — the aggregator file itself only depends
+// on `node:` modules, so a direct path import keeps both call sites on
+// the same code.
+interface AggregateCemLib {
+  aggregateLoadedCem(
+    files: Array<{ filePath: string; modules: unknown[] }>,
+    opts?: { warn?: (msg: string) => void; schemaVersion?: string; readme?: string },
+  ): { schemaVersion: string; readme: string; modules: unknown[] }
+  stringifyCem(root: { schemaVersion: string; readme: string; modules: unknown[] }): string
+}
+let aggregateCemLib: AggregateCemLib | null = null
+async function loadAggregateCemLib(): Promise<AggregateCemLib> {
+  if (!aggregateCemLib) {
+    const mod = await import(resolve(repoRoot, 'packages/sui-build/src/aggregate-cem.ts'))
+    aggregateCemLib = mod as AggregateCemLib
+  }
+  return aggregateCemLib
+}
+
 async function compileSuiFile(
   filePath: string,
   mode: 'component' | 'view',
@@ -250,24 +272,27 @@ async function compileSuiFile(
 
 // Merge every cached CEM into one document the daemon serves as
 // /api/assets/custom-elements.json. Empty modules array is a valid
-// fallback when no components have been compiled yet.
+// fallback when no components have been compiled yet. The merge,
+// sort-by-path, dedup-on-tagName + pretty-print pipeline lives in
+// `@ship/sui-build` so this path and the `bun run build` path produce
+// byte-identical output.
 async function aggregateCem(): Promise<void> {
-  const out = { schemaVersion: '1.0.0', readme: '', modules: [] as unknown[] }
-  for (const cem of cemCache.values()) {
+  const { aggregateLoadedCem, stringifyCem } = await loadAggregateCemLib()
+  const files: Array<{ filePath: string; modules: unknown[] }> = []
+  for (const [filePath, cem] of cemCache.entries()) {
     const modules = (cem as { modules?: unknown[] })?.modules
-    if (Array.isArray(modules)) out.modules.push(...modules)
+    if (Array.isArray(modules)) files.push({ filePath, modules })
   }
-  // Sort by `path` so the merged manifest is byte-stable across runs —
-  // cemCache iteration order is insertion-order, which depends on
-  // parallel-glob completion timing and shuffles every rebuild.
-  out.modules.sort((a, b) => {
-    const ap = (a as { path?: string })?.path ?? ''
-    const bp = (b as { path?: string })?.path ?? ''
-    return ap < bp ? -1 : ap > bp ? 1 : 0
-  })
-  const target = resolve(repoRoot, 'crates/sui/ship-ui-framework/assets/sui-custom-elements.json')
+  const root = aggregateLoadedCem(files)
+  // Write target mirrors `packages/ui-components/sui.config.ts::aggregateCemTo`
+  // so the dev-loop and at-build-time pipelines update the same file — the
+  // one `crates/sui/ship-sui-server` actually consumes. Pointing at
+  // `ship-ui-framework/` was the same path-typo class the sui.config.ts fix
+  // already cleaned up; leaving the bundler diverged kept the file
+  // git-flip-flopping between the two writers.
+  const target = resolve(repoRoot, 'crates/sui/ship-sui-server/assets/sui-custom-elements.json')
   mkdirSync(dirname(target), { recursive: true })
-  await Bun.write(target, JSON.stringify(out))
+  await Bun.write(target, stringifyCem(root))
 }
 
 // ── Bun plugin for .sui + virtual entries ────────────────────────────────────

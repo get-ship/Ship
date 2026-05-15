@@ -3,7 +3,7 @@ import { mkdtemp, mkdir, writeFile } from 'node:fs/promises'
 import { rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { aggregateCem, stringifyCem } from '../src/aggregate-cem.js'
+import { aggregateCem, aggregateLoadedCem, stringifyCem } from '../src/aggregate-cem.js'
 
 interface ScratchDir {
   root: string
@@ -132,6 +132,53 @@ describe('aggregateCem', () => {
 
     const root = await aggregateCem({ sources: [s.root] })
     expect(root.modules.map((m) => m.path)).toEqual(['sui-real.sui'])
+  })
+
+  it('aggregateLoadedCem matches filesystem-walk output byte-for-byte', async () => {
+    const s = await mkScratch('preloaded-parity')
+    const aPath = await s.write(
+      'sui-a/sui-a.custom-elements.json',
+      cemFile(moduleFor('sui-a')),
+    )
+    const bPath = await s.write(
+      'sui-b/sui-b.custom-elements.json',
+      cemFile(moduleFor('sui-b')),
+    )
+    const cPath = await s.write(
+      'sui-c/sui-c.custom-elements.json',
+      cemFile(moduleFor('sui-c')),
+    )
+
+    const fromFs = stringifyCem(await aggregateCem({ sources: [s.root] }))
+
+    // Pre-loaded variant, deliberately unsorted to prove the function sorts
+    // before deduping/merging.
+    const preloaded = stringifyCem(
+      aggregateLoadedCem([
+        { filePath: cPath, modules: [moduleFor('sui-c')] },
+        { filePath: aPath, modules: [moduleFor('sui-a')] },
+        { filePath: bPath, modules: [moduleFor('sui-b')] },
+      ]),
+    )
+
+    expect(preloaded).toBe(fromFs)
+  })
+
+  it('aggregateLoadedCem warns on duplicate tagName and keeps first-path', () => {
+    const warnings: string[] = []
+    const root = aggregateLoadedCem(
+      [
+        { filePath: '/tmp/z-second/sui-dupe.sui', modules: [moduleFor('sui-dupe', 'Second')] },
+        { filePath: '/tmp/a-first/sui-dupe.sui', modules: [moduleFor('sui-dupe', 'First')] },
+      ],
+      { warn: (m) => warnings.push(m) },
+    )
+
+    expect(root.modules).toHaveLength(1)
+    expect(root.modules[0]?.declarations?.[0]?.name).toBe('First')
+    expect(warnings).toHaveLength(1)
+    expect(warnings[0]).toMatch(/duplicate tagName "sui-dupe"/)
+    expect(warnings[0]).toContain('z-second')
   })
 
   it('honors schemaVersion and readme overrides', async () => {
