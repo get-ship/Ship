@@ -6,8 +6,17 @@
 // (per-row patches via `merge` / `append`) lights up without an SDK
 // change.
 
-import { type LiveSignal, type LiveSource } from '@ship/sui-runtime'
-import { applyPatch, type Patch } from '@ship/sui-runtime/patch'
+import {
+  applyPatch,
+  type LiveSignal,
+  type LiveSource,
+  type Patch,
+} from '@ship/sui-runtime'
+// Note: `applyPatch` / `Patch` are re-exported from the runtime barrel
+// (see packages/sui-runtime/src/index.ts). Importing from the bare
+// specifier — not the `@ship/sui-runtime/patch` subpath — keeps the
+// bundled `_sui/sdk-client.js` resolvable under the view-host importmap
+// which only maps the bare specifier, not the subpath.
 
 /**
  * Wire a raw `ship.<domain>.<op>(...)` expression to a `LiveSource` over

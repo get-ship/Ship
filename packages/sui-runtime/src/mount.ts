@@ -250,16 +250,44 @@ export async function mount<Scope = Record<string, unknown>>(
   }
 
   // 9. Open live SSE channel if the payload declared one.
+  //
+  // SSE frames must patch the signals the *template* reads. The compiled
+  // view (see crates/sui/sui-compiler/src/emit/js/setup.rs::emit_data_decls)
+  // emits `$scope.<name> = live(() => …)` for every `<data live>` and
+  // returns those signals flattened into `setupRet` via
+  // `Object.assign({}, $scope, { __mount, hydrate })`. That `$scope.<name>`
+  // is the signal `bindWhileLoading` / `bindIf` close over; the mount-built
+  // copy in `built.scope.<name>` is a server-rendered seed nobody reads.
+  // Patching the seed leaves the template stuck on `loading` while the
+  // view's signal idles in `error` (view-host: `ship` is undefined, the
+  // live thunk throws synchronously) or in whatever state the in-view SDK
+  // subscription happens to drive (shell2). Target the view's signals so
+  // the patch-signals channel resolves the template's loading branches.
   const subscribeUrl = pluckSubscribe(payload.scope as Record<string, unknown>)
   let liveSource: EventSource | null = null
   if (subscribeUrl && built.liveKeys.size > 0) {
+    const liveScope = pickLiveSignals(
+      setupRet,
+      built.scope as Record<string, Signal<unknown>>,
+      built.liveKeys,
+    )
     liveSource = openLiveChannel(
       subscribeUrl,
-      built.scope as Record<string, Signal<unknown>>,
+      liveScope,
       built.liveKeys,
       target,
     )
     cleanups.push(() => liveSource?.close())
+    // Gate the mount handle on the SSE channel reaching OPEN. Hosts and
+    // e2e probes treat `__suiDispose` as the "channel is live" signal —
+    // if a patch-elements POST hits the daemon before its per-view
+    // broadcast registry has registered this connection's subscriber
+    // (`apps/shipd/src/views/sui_patch_channel.rs::publish` does not
+    // retain frames for late subscribers), the frame is silently
+    // dropped. Capped at 3s so a wedged daemon path (the SSE handler
+    // can stall before flushing headers if a live-data initial resolve
+    // hangs) doesn't stall mount indefinitely.
+    await awaitChannelOpen(liveSource, 3000)
   }
 
   // 10. Build the handle.
@@ -398,6 +426,64 @@ function pluckSubscribe(payloadScope: Record<string, unknown>): string | undefin
   return typeof v === 'string' ? v : undefined
 }
 
+/**
+ * Resolve `EventSource.readyState === OPEN` (or fall back at `timeoutMs`).
+ * Used to gate the mount handle on the live channel actually existing on
+ * the daemon side — `EventSource` connects asynchronously, and the SSE
+ * handler does not register its broadcast subscriber until the request
+ * arrives, so a publish that beats the registration is dropped.
+ */
+function awaitChannelOpen(es: EventSource, timeoutMs: number): Promise<void> {
+  // readyState: 0 CONNECTING, 1 OPEN, 2 CLOSED.
+  if (es.readyState === 1) return Promise.resolve()
+  return new Promise((resolve) => {
+    let settled = false
+    const settle = (): void => {
+      if (settled) return
+      settled = true
+      es.removeEventListener('open', settle)
+      es.removeEventListener('error', settle)
+      resolve()
+    }
+    es.addEventListener('open', settle)
+    // EventSource emits `error` on transport errors and also when the
+    // browser closes the channel during reconnect — either way the
+    // initial connect attempt has finished. Don't keep mount() waiting.
+    es.addEventListener('error', settle)
+    if (timeoutMs > 0) {
+      setTimeout(settle, timeoutMs)
+    }
+  })
+}
+
+/**
+ * Resolve which signals the SSE patch-signals channel should target for
+ * each declared live key. Prefers the signal the compiled view's setup
+ * exposed (the one the template's hydrate bindings actually read), and
+ * falls back to the SSR-built seed when setup did not surface one — keeps
+ * legacy / hand-rolled view modules that don't flatten `$scope` working.
+ */
+function pickLiveSignals(
+  setupRet: Record<string, unknown> | undefined,
+  fallback: Record<string, Signal<unknown>>,
+  liveKeys: ReadonlySet<string>,
+): Record<string, Signal<unknown>> {
+  const out: Record<string, Signal<unknown>> = {}
+  for (const k of liveKeys) {
+    const fromSetup = setupRet?.[k]
+    if (
+      typeof fromSetup === 'function' &&
+      'set' in (fromSetup as object) &&
+      typeof (fromSetup as { set: unknown }).set === 'function'
+    ) {
+      out[k] = fromSetup as Signal<unknown>
+    } else if (fallback[k]) {
+      out[k] = fallback[k]!
+    }
+  }
+  return out
+}
+
 function isLiveStateEnvelope(v: unknown): v is LiveState<unknown> {
   if (!v || typeof v !== 'object') return false
   const k = (v as { kind?: unknown }).kind
@@ -450,7 +536,7 @@ function openLiveChannel(
   url: string,
   scope: Record<string, Signal<unknown>>,
   liveKeys: Set<string>,
-  _root: HTMLElement,
+  root: HTMLElement,
 ): EventSource {
   const es = new EventSource(url)
   es.addEventListener('patch-signals', (event: MessageEvent) => {
@@ -467,15 +553,124 @@ function openLiveChannel(
     if (!sig) return
     ;(sig as Signal<LiveState<unknown>>).set(value)
   })
-  // NOTE: no listener for `patch-elements` events. The current SSE
-  // protocol pushes element patches under that name (see
-  // `apps/shipd/src/views/sui_patch_channel.rs`); EventSource silently
-  // drops events without a matching listener. Wiring a handler is
-  // pending the `applyPatchElements` port into ui-runtime — until then,
-  // agent-push of DOM diffs is a no-op on the client. `patch-signals`
-  // above is the supported live-state channel.
+  es.addEventListener('patch-elements', (event: MessageEvent) => {
+    applyPatchElementsFrame(root, event.data as string)
+  })
   es.addEventListener('error', () => {
     // Built-in EventSource reconnect handles transient drops.
   })
   return es
+}
+
+// ── patch-elements applier ────────────────────────────────────────────
+//
+// Out-of-band DOM patches pushed by the daemon's
+// `/_sui/views/<name>/patch-elements` endpoint. The trust boundary is the
+// SSE auth in shipd's `sui_agent_push.rs` — by the time a frame reaches
+// here it's already a trusted caller. The runtime's only job is to scope
+// the selector to the view root: `[data-sui-root][data-view="<name>"]`
+// is the mount target, so anything outside is silently dropped (with a
+// console warning) — patches can't escape the hosted view even if a
+// publisher sends `body` or `html`.
+
+interface PatchElementsPayload {
+  selector: string
+  mode: 'replace' | 'append' | 'prepend' | 'before' | 'after' | 'morph'
+  html: string
+  settle?: number
+}
+
+function applyPatchElementsFrame(root: HTMLElement, raw: string): void {
+  let payload: PatchElementsPayload
+  try {
+    payload = JSON.parse(raw) as PatchElementsPayload
+  } catch {
+    console.warn('[sui/mount] patch-elements: malformed payload', raw)
+    return
+  }
+  const { selector, mode, html } = payload
+  if (typeof selector !== 'string' || selector.trim() === '') {
+    console.warn('[sui/mount] patch-elements: empty selector')
+    return
+  }
+  let target: Element | null = null
+  try {
+    target = root.querySelector(selector)
+  } catch (err) {
+    console.warn(
+      `[sui/mount] patch-elements: invalid selector ${selector!}:`,
+      err,
+    )
+    return
+  }
+  if (!target) {
+    // Either no match anywhere, or the match lives outside the view
+    // root. The view-host shell tagged the root with
+    // `data-sui-root[data-view]` precisely so external publishers can't
+    // mutate the rest of the page through this channel.
+    console.warn(
+      `[sui/mount] patch-elements: selector ${selector!} matched no element inside the view root; dropped`,
+    )
+    return
+  }
+  applyPatchElementsTarget(target, mode, html)
+}
+
+function applyPatchElementsTarget(
+  target: Element,
+  mode: PatchElementsPayload['mode'],
+  html: string,
+): void {
+  const doc = target.ownerDocument ?? document
+  switch (mode) {
+    case 'replace':
+      target.outerHTML = html
+      return
+    case 'append': {
+      const tmpl = doc.createElement('template')
+      tmpl.innerHTML = html
+      target.append(...Array.from(tmpl.content.childNodes))
+      return
+    }
+    case 'prepend': {
+      const tmpl = doc.createElement('template')
+      tmpl.innerHTML = html
+      target.prepend(...Array.from(tmpl.content.childNodes))
+      return
+    }
+    case 'before': {
+      const tmpl = doc.createElement('template')
+      tmpl.innerHTML = html
+      target.before(...Array.from(tmpl.content.childNodes))
+      return
+    }
+    case 'after': {
+      const tmpl = doc.createElement('template')
+      tmpl.innerHTML = html
+      target.after(...Array.from(tmpl.content.childNodes))
+      return
+    }
+    case 'morph': {
+      // Parse the HTML as a single top-level element, then morph the
+      // existing `target` toward it — preserves the node identity (and
+      // focus/selection/CE state) when tags match. Falls back to
+      // outerHTML replace when tags differ or no source element is
+      // present.
+      const tmpl = doc.createElement('template')
+      tmpl.innerHTML = html
+      const source = tmpl.content.firstElementChild
+      if (!source) {
+        console.warn('[sui/mount] patch-elements: morph with no source element')
+        return
+      }
+      if (source.tagName !== target.tagName) {
+        target.outerHTML = html
+        return
+      }
+      morph(target, source)
+      return
+    }
+    default:
+      console.warn(`[sui/mount] patch-elements: unknown mode ${String(mode)}`)
+  }
 }

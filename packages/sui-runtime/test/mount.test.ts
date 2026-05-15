@@ -13,19 +13,33 @@ import type { ViewPayload } from '../src/index'
 class FakeEventSource {
   url: string
   closed = false
-  listeners = new Map<string, (e: MessageEvent) => void>()
+  // 1 = OPEN. Mount blocks on `readyState === OPEN` before resolving so the
+  // stub starts already open — none of the existing tests care about the
+  // OPEN handshake, only the patch-signals delivery.
+  readyState = 1
+  listeners = new Map<string, Set<(e: MessageEvent) => void>>()
   constructor(url: string) {
     this.url = url
   }
   addEventListener(name: string, fn: (e: MessageEvent) => void) {
-    this.listeners.set(name, fn)
+    let set = this.listeners.get(name)
+    if (!set) {
+      set = new Set()
+      this.listeners.set(name, set)
+    }
+    set.add(fn)
+  }
+  removeEventListener(name: string, fn: (e: MessageEvent) => void) {
+    this.listeners.get(name)?.delete(fn)
   }
   close() {
     this.closed = true
   }
   emit(name: string, data: unknown) {
-    const fn = this.listeners.get(name)
-    if (fn) fn({ data: JSON.stringify(data) } as MessageEvent)
+    const set = this.listeners.get(name)
+    if (!set) return
+    const ev = { data: JSON.stringify(data) } as MessageEvent
+    for (const fn of set) fn(ev)
   }
 }
 ;(globalThis as unknown as { EventSource: unknown }).EventSource = FakeEventSource
