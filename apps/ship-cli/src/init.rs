@@ -211,6 +211,8 @@ fn run_project(provider: Option<String>) -> Result<()> {
         )?;
     }
 
+    let home_view_scaffolded = scaffold_home_view()?;
+
     install_post_checkout_hook(&project_root);
 
     let effective_providers = if let Some(ref d) = detected {
@@ -223,6 +225,11 @@ fn run_project(provider: Option<String>) -> Result<()> {
     println!("  providers: {}", effective_providers);
     if detected.is_some() {
         println!("  imported existing provider configs into .ship/");
+    }
+    if home_view_scaffolded {
+        println!(
+            "  created .ship/views/home/index.sui — edit it and run `ship daemon start`"
+        );
     }
 
     // Auto-activate the dev agent if we just scaffolded it.
@@ -244,6 +251,27 @@ fn run_project(provider: Option<String>) -> Result<()> {
         println!("  ship compile            re-compile current agent");
     }
     Ok(())
+}
+
+/// Embedded scaffold for `.ship/views/home/index.sui`. Smallest valid template
+/// — no controller, no live data. Gives `ship init` users a real artifact to
+/// edit so the "where do my views live?" question has a one-line answer.
+const HOME_PAGE_SUI_TEMPLATE: &str = include_str!("assets/home-page.sui");
+
+/// Drop `.ship/views/home/index.sui` if absent. Returns true when the file was
+/// newly written, so the caller can print the next-step line only on first
+/// init. Re-running `ship init` is idempotent: existing scaffolds are left
+/// alone.
+fn scaffold_home_view() -> Result<bool> {
+    let target = paths::views_dir().join("home").join("index.sui");
+    if target.exists() {
+        return Ok(false);
+    }
+    if let Some(parent) = target.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    std::fs::write(&target, HOME_PAGE_SUI_TEMPLATE)?;
+    Ok(true)
 }
 
 /// Install a git post-checkout hook that notifies shipd of branch changes.
@@ -296,6 +324,62 @@ curl -sf -X POST "http://127.0.0.1:${PORT}/api/v1/hooks/checkout" \
             let _ = std::fs::set_permissions(&hook_path, std::fs::Permissions::from_mode(0o755));
         }
         println!("  installed .git/hooks/post-checkout");
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::Mutex;
+
+    // Cwd is process-global, so serialize tests that mutate it.
+    static CWD_LOCK: Mutex<()> = Mutex::new(());
+
+    fn with_tempdir<F: FnOnce(&std::path::Path)>(f: F) {
+        let _g = CWD_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let prev = std::env::current_dir().expect("cwd");
+        std::env::set_current_dir(tmp.path()).expect("chdir");
+        f(tmp.path());
+        std::env::set_current_dir(prev).expect("restore cwd");
+    }
+
+    #[test]
+    fn scaffold_home_view_writes_template_when_absent() {
+        with_tempdir(|root| {
+            let target = root.join(".ship/views/home/index.sui");
+            assert!(!target.exists());
+
+            let created = scaffold_home_view().expect("scaffold");
+            assert!(created, "first scaffold should report `created`");
+
+            let contents = std::fs::read_to_string(&target).expect("read scaffold");
+            assert_eq!(contents, HOME_PAGE_SUI_TEMPLATE);
+        });
+    }
+
+    #[test]
+    fn scaffold_home_view_is_idempotent() {
+        with_tempdir(|root| {
+            let target = root.join(".ship/views/home/index.sui");
+            std::fs::create_dir_all(target.parent().unwrap()).unwrap();
+            std::fs::write(&target, "<p>user edits</p>\n").unwrap();
+
+            let created = scaffold_home_view().expect("scaffold");
+            assert!(!created, "second scaffold must not report `created`");
+            let contents = std::fs::read_to_string(&target).expect("read scaffold");
+            assert_eq!(contents, "<p>user edits</p>\n", "user edits preserved");
+        });
+    }
+
+    #[test]
+    fn scaffold_template_is_non_empty_and_mentions_path() {
+        // Cheap sanity check — the scaffold is the user's first edit target.
+        // If it ever becomes empty or stops referencing its own on-disk path
+        // (which the next-step println also points at), the "edit it" advice
+        // becomes a dead end.
+        assert!(!HOME_PAGE_SUI_TEMPLATE.trim().is_empty());
+        assert!(HOME_PAGE_SUI_TEMPLATE.contains(".ship/views/home/index.sui"));
     }
 }
 
