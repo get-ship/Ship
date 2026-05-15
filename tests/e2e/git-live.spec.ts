@@ -11,10 +11,14 @@ import { test, expect } from '@playwright/test'
 import { waitForAttach, screenshot } from './_helpers'
 
 test('live-data: SSR island contains __subscribe__ URL', async ({ request }) => {
-  const res = await request.get('/_sui/render/git?format=json')
-  expect(res.status()).toBe(200)
-  const body = await res.json() as { init: Record<string, unknown> }
-  expect(body.init.__subscribe__).toBe('/_sui/views/git/sse')
+  // The `/_sui/render/{name}?format=json` endpoint was retired in d80493c5;
+  // the seed now ships as a `<script id="__set_init__">` island in the
+  // page HTML. Parse it and assert the SSE URL is present.
+  const body = await (await request.get('/sui/git')).text()
+  const match = body.match(/<script[^>]*id="__set_init__"[^>]*>([^<]*)<\/script>/)
+  expect(match, 'expected __set_init__ island in SSR HTML').not.toBeNull()
+  const init = JSON.parse(match![1]) as Record<string, unknown>
+  expect(init.__subscribe__).toBe('/_sui/views/git/sse')
 })
 
 test('live-data: /_sui/views/git/sse returns patch-signals event with ok value', async ({ page, baseURL }) => {

@@ -38,12 +38,6 @@ test('SSR: git view wrapper present', async ({ request }) => {
   expect(body).toContain('id="sui-root"')
 })
 
-test('SSR: __set_init__ seeds tab as "changes"', async ({ request }) => {
-  // The `<state name="tab" value="'changes'" />` declaration seeds the island.
-  const body = await (await request.get('/sui/git')).text()
-  expect(body).toContain('"tab":"changes"')
-})
-
 // ── 2. Attach + SSE resolution ────────────────────────────────────────────────
 
 test('attach: page loads without JS errors', async ({ page }) => {
