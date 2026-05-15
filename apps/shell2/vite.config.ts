@@ -1,6 +1,6 @@
-import { defineConfig, loadEnv } from "vite";
+import { defineConfig, loadEnv, type Plugin } from "vite";
 import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync, unlinkSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
@@ -40,6 +40,42 @@ function resolveDaemonDir(): string | null {
 
 function readSmall(path: string): string {
   try { return readFileSync(path, "utf8").trim(); } catch { return ""; }
+}
+
+/**
+ * Write `<daemon_dir>/vite.pid` while this vite process is alive so
+ * `kill_vite()` in `scripts/dev/_lib.sh` (consumed by `just dev-stop` /
+ * `just dev-restart`) can reap us. Removes the file on graceful shutdown
+ * (closeBundle) and on SIGINT/SIGTERM/exit. No-op when the daemon binary
+ * isn't built yet — `daemonDir` is null and there's nothing to coordinate.
+ */
+function vitePidPlugin(daemonDir: string | null): Plugin {
+  const pidFile = daemonDir ? join(daemonDir, "vite.pid") : null;
+  let written = false;
+  const remove = () => {
+    if (!pidFile || !written) return;
+    try { unlinkSync(pidFile); } catch { /* already gone */ }
+    written = false;
+  };
+  const write = () => {
+    if (!pidFile || written) return;
+    try {
+      writeFileSync(pidFile, String(process.pid));
+      written = true;
+    } catch { /* daemon dir vanished — best-effort */ }
+  };
+  return {
+    name: "ship:vite-pid",
+    apply: "serve",
+    configureServer() {
+      write();
+      const onSignal = () => { remove(); process.exit(0); };
+      process.once("SIGINT", onSignal);
+      process.once("SIGTERM", onSignal);
+      process.once("exit", remove);
+    },
+    closeBundle() { remove(); },
+  };
 }
 
 export default defineConfig(({ mode }) => {
@@ -92,7 +128,7 @@ export default defineConfig(({ mode }) => {
 
   return {
     base: "/",
-    plugins: [],
+    plugins: [vitePidPlugin(daemonDir)],
     server: {
       port: vitePort,
       strictPort: true,
