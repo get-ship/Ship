@@ -47,6 +47,28 @@ const repoRoot = process.env.SHIP_REPO_ROOT ?? process.cwd()
 const litAssetsDir = resolve(repoRoot, 'apps/shipd/assets')
 const suiAssetsDir = resolve(repoRoot, 'crates/sui/ship-sui-server/assets')
 
+// User-project workspace, distinct from `repoRoot` for end-user installs.
+// `repoRoot` is the ship monorepo (where `packages/`, framework sources, and
+// the contributor's own `views/` live); `workspaceRoot` is the directory the
+// daemon was launched against (`ship daemon start --workspace …`). When the
+// daemon runs inside the monorepo they're the same path; for end-user
+// installs they diverge — the bundler then needs to discover + watch the
+// user's `views/*/page.sui` tree on top of the monorepo built-ins so HMR
+// fires for the project the daemon actually serves.
+function workspaceArg(): string | undefined {
+  const argv = process.argv
+  const i = argv.indexOf('--workspace')
+  if (i !== -1 && i + 1 < argv.length) return argv[i + 1]
+  const env = process.env.SHIP_WORKSPACE_DIR
+  return env && env.length > 0 ? env : undefined
+}
+const workspaceRoot = resolve(workspaceArg() ?? repoRoot)
+
+// Unique source roots — `repoRoot` and `workspaceRoot` collapse to one entry
+// in contributor mode where both point at the same checkout, so view
+// discovery + watch attachment don't run twice for the same directory.
+const sourceRoots: string[] = workspaceRoot === repoRoot ? [repoRoot] : [repoRoot, workspaceRoot]
+
 function assetsDirFor(name: string): string {
   if (name.startsWith('sui-') || name.startsWith('views/')) return suiAssetsDir
   return litAssetsDir
@@ -103,21 +125,25 @@ function discoverIslandBundles(): BundleTarget[] {
 // resulting `import setup from "./controller.ts"` resolves to the .sui's
 // own directory.
 //
-// Two layouts are honored, both rooted at the workspace (SHIP_REPO_ROOT
-// is the daemon's attached workspace, NOT the Ship repo):
+// Two layouts are honored, scanned under every source root (`repoRoot` +
+// `workspaceRoot`, deduped):
 //
-// - `<workspace>/views/<name>/page.sui`        — top-level app convention
-// - `<workspace>/.ship/views/<name>/index.sui` — colocated with .ship/ config
+// - `<root>/views/<name>/page.sui`        — top-level app convention
+// - `<root>/.ship/views/<name>/index.sui` — colocated with .ship/ config
 //
 // Top-level wins when both exist (mirrors the resolver's priority order,
-// which lets workspace `views/` shadow `.ship/views/` by name).
+// which lets `views/` shadow `.ship/views/` by name). The contributor
+// monorepo wins over the workspace overlay when a view name appears in
+// both — built-in views (e.g. `agents`, `git`) keep their own source even
+// if a user project happens to define a same-named directory.
 function discoverViewBundles(): BundleTarget[] {
   const out: BundleTarget[] = []
   const seen = new Set<string>()
-  const candidates: Array<{ dir: string; leaf: string }> = [
-    { dir: resolve(repoRoot, 'views'), leaf: 'page.sui' },
-    { dir: resolve(repoRoot, '.ship', 'views'), leaf: 'index.sui' },
-  ]
+  const candidates: Array<{ dir: string; leaf: string }> = []
+  for (const root of sourceRoots) {
+    candidates.push({ dir: resolve(root, 'views'), leaf: 'page.sui' })
+    candidates.push({ dir: resolve(root, '.ship', 'views'), leaf: 'index.sui' })
+  }
   for (const { dir, leaf } of candidates) {
     if (!existsSync(dir)) continue
     for (const e of readdirSync(dir, { withFileTypes: true })) {
@@ -433,9 +459,16 @@ function startWatching() {
   if (activeWatchers.length > 0) return
 
   const watchDirs: string[] = []
-  for (const d of ['packages', 'views', '.ship/views']) {
-    const abs = resolve(repoRoot, d)
-    if (existsSync(abs)) watchDirs.push(abs)
+  const watchSeen = new Set<string>()
+  for (const root of sourceRoots) {
+    for (const d of ['packages', 'views', '.ship/views']) {
+      const abs = resolve(root, d)
+      if (watchSeen.has(abs)) continue
+      if (existsSync(abs)) {
+        watchDirs.push(abs)
+        watchSeen.add(abs)
+      }
+    }
   }
   if (watchDirs.length === 0) return
 
