@@ -98,12 +98,16 @@ pub fn run_daemon(cmd: DaemonCommand) -> Result<()> {
         DaemonCommand::Start { host, dev } => {
             let ctx = start_context(host, dev)?;
             check_version_mismatch(&ctx.global_dir)?;
-            supervision::select().start(&ctx)
+            supervision::select().start(&ctx)?;
+            announce_daemon_url();
+            Ok(())
         }
         DaemonCommand::Stop => supervision::select().stop(),
         DaemonCommand::Restart { host, dev } => {
             let ctx = start_context(host, dev)?;
-            supervision::select().restart(&ctx)
+            supervision::select().restart(&ctx)?;
+            announce_daemon_url();
+            Ok(())
         }
         DaemonCommand::Status => daemon_status(),
         DaemonCommand::Dir => {
@@ -928,6 +932,28 @@ pub fn ensure_daemon() -> Result<(u16, String)> {
     }
 
     anyhow::bail!("shipd: daemon started but did not become healthy within 5 seconds")
+}
+
+/// Print the daemon URL after a successful `ship daemon start`/`restart`.
+///
+/// The daemon binds to a per-worktree port written into
+/// `~/.ship/machine/daemons/<hash>/port` *after* the supervisor has spawned
+/// shipd and shipd has bound its socket. We poll the discover-daemon helper
+/// for up to ~5s so the URL is the actual bound port, not the legacy
+/// `SHIPD_PORT` constant. Token is deliberately omitted — pairing is the
+/// canonical auth path; tokens on stdout would leak into shell history.
+fn announce_daemon_url() {
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+    while std::time::Instant::now() < deadline {
+        if let Some((port, _token)) = daemon_info_if_healthy() {
+            println!("→ http://localhost:{port}/");
+            return;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(200));
+    }
+    eprintln!(
+        "shipd: started but not yet healthy — run `ship daemon status` for the URL"
+    );
 }
 
 /// Try to read daemon info and verify it responds to /api/v1/health.

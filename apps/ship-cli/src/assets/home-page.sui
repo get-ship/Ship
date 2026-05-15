@@ -1,0 +1,5 @@
+<div class="home-scaffold">
+  <h1>Welcome to your Ship project</h1>
+  <p>Edit <code>.ship/views/home/index.sui</code> and refresh to see your changes.</p>
+  <p>Next: add a controller next door (<code>controller.ts</code>) to wire state.</p>
+</div>

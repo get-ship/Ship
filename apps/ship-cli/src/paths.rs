@@ -42,6 +42,9 @@ pub fn rules_dir() -> PathBuf {
 pub fn skills_dir() -> PathBuf {
     ShipHome::from_env().vector_dir(ship_substrate::home::Scope::Project, Vector::Skills, None)
 }
+pub fn views_dir() -> PathBuf {
+    project_dir().join("views")
+}
 /// Project-scope MCP config file: `<project>/.ship/mcp.jsonc`.
 ///
 /// MCP is intentionally a file at every scope (per ADR cleanup; see
@@ -84,6 +87,7 @@ pub fn ensure_project_dirs() -> anyhow::Result<()> {
         agents_dir(),
         rules_dir(),
         skills_dir(),
+        views_dir(),
     ] {
         fs::create_dir_all(dir)?;
     }
@@ -106,6 +110,7 @@ mod tests {
     fn project_paths_are_relative() {
         assert_eq!(project_dir(), PathBuf::from(".ship"));
         assert_eq!(agents_dir(), PathBuf::from(".ship/agents"));
+        assert_eq!(views_dir(), PathBuf::from(".ship/views"));
         assert_eq!(mcp_path(), PathBuf::from(".ship/mcp.jsonc"));
     }
 }
