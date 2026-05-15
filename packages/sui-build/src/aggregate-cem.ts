@@ -34,8 +34,8 @@ interface CemDeclaration {
   [key: string]: unknown
 }
 
-interface CemFile {
-  /** Absolute path to the per-component CEM file. */
+export interface CemFile {
+  /** Absolute path to the per-component CEM source (used for dedup-warning provenance and stable ordering). */
   filePath: string
   modules: CemModule[]
 }
@@ -83,10 +83,6 @@ async function readCemFile(filePath: string): Promise<CemFile> {
  * across runs and platforms.
  */
 export async function aggregateCem(opts: AggregateOptions): Promise<CemRoot> {
-  const warn = opts.warn ?? ((msg) => console.warn(msg))
-  const schemaVersion = opts.schemaVersion ?? '1.0.0'
-  const readme = opts.readme ?? ''
-
   const filePaths: string[] = []
   for (const src of opts.sources) {
     await walkCemFiles(src, filePaths)
@@ -98,9 +94,32 @@ export async function aggregateCem(opts: AggregateOptions): Promise<CemRoot> {
     files.push(await readCemFile(p))
   }
 
+  return aggregateLoadedCem(files, opts)
+}
+
+/**
+ * Merge + sort + dedup pipeline for already-parsed per-component CEMs. Use
+ * this when the caller has the CEM payloads in memory (e.g. the dev-loop
+ * bundler caches them as components are compiled) and just needs the same
+ * deterministic merge guarantee as the filesystem-walk variant.
+ *
+ * `files[]` is sorted by `filePath` so first-path-wins dedup is stable
+ * regardless of caller-supplied order. The final `modules[]` is sorted by
+ * each module's own `path`.
+ */
+export function aggregateLoadedCem(
+  files: CemFile[],
+  opts: Partial<AggregateOptions> = {},
+): CemRoot {
+  const warn = opts.warn ?? ((msg) => console.warn(msg))
+  const schemaVersion = opts.schemaVersion ?? '1.0.0'
+  const readme = opts.readme ?? ''
+
+  const sorted = [...files].sort((a, b) => a.filePath.localeCompare(b.filePath))
+
   const seenTags = new Map<string, string>()
   const modules: CemModule[] = []
-  for (const file of files) {
+  for (const file of sorted) {
     for (const mod of file.modules) {
       const tags = collectTagNames(mod)
       const dupes = tags.filter((t) => seenTags.has(t))
