@@ -5,7 +5,70 @@ use super::super::writer::{js_string, Writer};
 use super::TemplateEmitter;
 use crate::ir::*;
 
+/// SVG attribute names that require camelCase preservation. The HTML
+/// parser lowercases all attribute names (mirroring DOMParser), but
+/// SVG's `viewBox`, `preserveAspectRatio`, `gradientUnits`, etc. are
+/// case-sensitive — the browser only honors them when set in their
+/// canonical camelCase form via setAttribute on an SVG-namespaced
+/// element. Map the lowercase parse-time name back to the canonical
+/// form at emit time when inside an SVG subtree.
+fn svg_camel_case(lower: &str) -> Option<&'static str> {
+    match lower {
+        "viewbox" => Some("viewBox"),
+        "preserveaspectratio" => Some("preserveAspectRatio"),
+        "gradientunits" => Some("gradientUnits"),
+        "gradienttransform" => Some("gradientTransform"),
+        "patternunits" => Some("patternUnits"),
+        "patterntransform" => Some("patternTransform"),
+        "clippathunits" => Some("clipPathUnits"),
+        "maskunits" => Some("maskUnits"),
+        "maskcontentunits" => Some("maskContentUnits"),
+        "markerunits" => Some("markerUnits"),
+        "markerwidth" => Some("markerWidth"),
+        "markerheight" => Some("markerHeight"),
+        "spreadmethod" => Some("spreadMethod"),
+        "tablevalues" => Some("tableValues"),
+        "stddeviation" => Some("stdDeviation"),
+        "stoplocations" => Some("stopLocations"),
+        "stitchtiles" => Some("stitchTiles"),
+        "lengthadjust" => Some("lengthAdjust"),
+        "textlength" => Some("textLength"),
+        "startoffset" => Some("startOffset"),
+        "pathlength" => Some("pathLength"),
+        "refx" => Some("refX"),
+        "refy" => Some("refY"),
+        "diffuseconstant" => Some("diffuseConstant"),
+        "specularconstant" => Some("specularConstant"),
+        "specularexponent" => Some("specularExponent"),
+        "surfacescale" => Some("surfaceScale"),
+        "kernelmatrix" => Some("kernelMatrix"),
+        "kernelunitlength" => Some("kernelUnitLength"),
+        "filterunits" => Some("filterUnits"),
+        "primitiveunits" => Some("primitiveUnits"),
+        "baseprofile" => Some("baseProfile"),
+        "xchannelselector" => Some("xChannelSelector"),
+        "ychannelselector" => Some("yChannelSelector"),
+        "lightingcolor" => Some("lightingColor"),
+        "edgemode" => Some("edgeMode"),
+        "limitingconeangle" => Some("limitingConeAngle"),
+        "pointsatx" => Some("pointsAtX"),
+        "pointsaty" => Some("pointsAtY"),
+        "pointsatz" => Some("pointsAtZ"),
+        "specularconstant" => Some("specularConstant"),
+        _ => None,
+    }
+}
+
 impl TemplateEmitter {
+    fn attr_name_for_emit(&self, name: &str) -> String {
+        if self.svg_depth > 0
+            && let Some(canonical) = svg_camel_case(name)
+        {
+            return canonical.to_string();
+        }
+        name.to_string()
+    }
+
     pub(in crate::emit) fn emit_element(
         &mut self,
         w: &mut Writer,
@@ -40,11 +103,14 @@ impl TemplateEmitter {
                 js_string(&el.tag)
             ));
         }
-        for a in &el.attrs {
-            self.emit_attr(w, a, &v, cleanups_var);
-        }
+        // Bump svg_depth BEFORE emitting attrs so that the <svg> root's
+        // own attrs (viewBox, preserveAspectRatio, etc.) get camelCase
+        // canonicalization. attr_name_for_emit guards on svg_depth > 0.
         if is_svg_root {
             self.svg_depth += 1;
+        }
+        for a in &el.attrs {
+            self.emit_attr(w, a, &v, cleanups_var);
         }
         self.emit_children(w, &el.children, &v, cleanups_var);
         if is_svg_root {
@@ -62,9 +128,10 @@ impl TemplateEmitter {
     ) {
         match a {
             AttrInstr::Static { name, value, .. } => {
+                let emit_name = self.attr_name_for_emit(name);
                 w.line(&format!(
                     "{el_var}.setAttribute({}, {});",
-                    js_string(name),
+                    js_string(&emit_name),
                     js_string(value)
                 ));
             }
@@ -78,17 +145,19 @@ impl TemplateEmitter {
                     // `update()` callback so keyed-row reuse refreshes
                     // the attribute when the row instance changes.
                     let v = self.fresh("av");
+                    let emit_name = self.attr_name_for_emit(name);
                     let stmt = format!(
                         "{{ const {v} = ({rw}); if ({v} == null || {v} === false || {v} === \"\") {el_var}.removeAttribute({n}); else {el_var}.setAttribute({n}, {v} === true ? \"\" : String({v})); }}",
-                        n = js_string(name)
+                        n = js_string(&emit_name)
                     );
                     w.line(&stmt);
                     self.inline_update_stmts.push(stmt);
                 } else {
                     let fv = self.for_version_comma();
+                    let emit_name = self.attr_name_for_emit(name);
                     w.line(&format!(
                         "{cleanups_var}.push(bindAttr({el_var}, {n}, () => ({fv}{rw})));",
-                        n = js_string(name)
+                        n = js_string(&emit_name)
                     ));
                 }
                 if self.is_view && self.boundary_depth == 0 {
