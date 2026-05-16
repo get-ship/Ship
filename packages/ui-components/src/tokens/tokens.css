@@ -450,8 +450,17 @@ body::after {
   --secondary-foreground: oklch(0.9 0.02 300);
   --muted: oklch(0.2 0.01 50);
   --muted-foreground: oklch(0.75 0.015 50);
-  --accent: oklch(0.3 0.05 300);
-  --accent-foreground: oklch(0.9 0.02 300);
+  /*
+   * --accent in dark mode must be readable AS A FOREGROUND COLOR — it's
+   * used as text in syntax highlighting (attribute names, type names,
+   * function calls in sui-code-editor) and as link/select tone foregrounds
+   * via the --tone-accent-fg alias in tokens.css. The prior value
+   * (oklch 0.3 lightness) was too close to the 0.22 card background and
+   * surfaced as illegible text in dark mode — flagged by user QA on the
+   * dev-panel Source tab.
+   */
+  --accent: oklch(0.74 0.13 295);
+  --accent-foreground: oklch(0.2 0.02 295);
   --destructive: oklch(0.6 0.2 25);
   --border: oklch(1 0 0 / 12%);
   --input: oklch(1 0 0 / 12%);
