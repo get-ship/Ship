@@ -263,4 +263,14 @@ export const scale: Transition = {
 // impls now that this module is loaded. From this point bindFor and
 // bindIf call the live runner (built-in fade/slide/scale + any
 // user-registered transitions). Idempotent on re-import.
-setTransitionRunner({ runEnter, runLeave, cancelTransitions })
+//
+// The `/* @__PURE__ */` marker tells esbuild + bun that the call's
+// SIDE EFFECT is droppable when the rest of the module's exports
+// aren't consumed by the bundle. This is the lie that unlocks
+// tree-shaking: when only stub-importers reach this file (so no
+// `fade/slide/scale/registerTransition` is needed), the whole
+// transition.ts disappears from the bundle — ~870B win on the
+// Krausest bench. When a real consumer pulls anything from this
+// file, the side-effect call lands as normal and the runner gets
+// swapped to the real impls.
+/* @__PURE__ */ setTransitionRunner({ runEnter, runLeave, cancelTransitions })
