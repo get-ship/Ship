@@ -21,11 +21,11 @@ mod view_contexts;
 const VERSION: &str = "0.1.0";
 const HEADER: &str = "just gen-sdk — DO NOT EDIT";
 
-/// Entry point. Creates `packages/ship-set/sdk/` if missing and writes all six
-/// JSON artifacts. Each is a complete top-level object with `_generated`,
-/// `version`, and `$schema`.
+/// Entry point. Creates `packages/sdk/src/generated/` if missing and writes
+/// all eight JSON artifacts alongside the typed TS bindings. Each is a
+/// complete top-level object with `_generated`, `version`, and `$schema`.
 pub fn run(repo_root: &Path) -> Result<()> {
-    let out_dir = repo_root.join("packages/ship-set/sdk");
+    let out_dir = repo_root.join("packages/sdk/src/generated");
     fs::create_dir_all(&out_dir)
         .with_context(|| format!("create {}", out_dir.display()))?;
 
@@ -78,23 +78,20 @@ pub fn run(repo_root: &Path) -> Result<()> {
 
     // Typed TS bindings for the OPS catalog — set authors get IDE
     // completion + (phase 2) compile-time validation of `data ship.*`.
-    let generated_dir = repo_root.join("packages/sdk/src/generated");
-    fs::create_dir_all(&generated_dir)
-        .with_context(|| format!("create {}", generated_dir.display()))?;
-    let data_ts_path = generated_dir.join("data.ts");
+    // Land alongside the JSONs in the same generated/ dir.
+    let data_ts_path = out_dir.join("data.ts");
     fs::write(&data_ts_path, data_ts::emit()?)
         .with_context(|| format!("write {}", data_ts_path.display()))?;
 
     // Typed framework manifest — `FrameworkManifest` interface +
     // `FRAMEWORK` const. Pairs with the JSON for TS-side consumers.
-    let framework_ts_path = generated_dir.join("framework.ts");
+    let framework_ts_path = out_dir.join("framework.ts");
     fs::write(&framework_ts_path, framework::emit_ts(repo_root)?)
         .with_context(|| format!("write {}", framework_ts_path.display()))?;
 
     eprintln!(
-        "gen-sdk: wrote 8 files to {} + 2 TS files to {}",
-        out_dir.display(),
-        generated_dir.display()
+        "gen-sdk: wrote 8 JSON + 2 TS files to {}",
+        out_dir.display()
     );
     Ok(())
 }

@@ -45,13 +45,13 @@ pub const AST_RULES: &[&str] = &[
 // ── Embedded SDK manifest ─────────────────────────────────────────────────────
 
 const SDK_MACROS_JSON: &str =
-    include_str!("../../../../../packages/ship-set/sdk/sdk-macros.json");
+    include_str!("../../../../../packages/sdk/src/generated/sdk-macros.json");
 const SDK_VIEW_CTX_JSON: &str =
-    include_str!("../../../../../packages/ship-set/sdk/sdk-view-contexts.json");
+    include_str!("../../../../../packages/sdk/src/generated/sdk-view-contexts.json");
 const SDK_URLS_JSON: &str =
-    include_str!("../../../../../packages/ship-set/sdk/sdk-urls.json");
+    include_str!("../../../../../packages/sdk/src/generated/sdk-urls.json");
 const SDK_SHIP_OPS_JSON: &str =
-    include_str!("../../../../../packages/ship-set/sdk/sdk-ship-ops.json");
+    include_str!("../../../../../packages/sdk/src/generated/sdk-ship-ops.json");
 
 pub struct Sdk {
     pub macros: HashSet<String>,
