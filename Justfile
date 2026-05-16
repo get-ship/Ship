@@ -325,6 +325,14 @@ install: build-release
 wasm:
     wasm-pack build crates/core/compiler --target web --out-dir ../../../packages/compiler --out-name compiler -- --features wasm
 
+# Rebuild the in-browser SUI template compiler (wasm-pack output
+# under packages/sui-compiler-wasm/). Used by the docs site playground
+# to compile .sui edits without a server round-trip. ~640KB wasm
+# blob, ~9KB JS shim — gzip-encoded by any reasonable host.
+[group('occasional')]
+sui-wasm:
+    wasm-pack build crates/sui/sui-compiler --target web --out-dir ../../../packages/sui-compiler-wasm --out-name sui_compiler -- --features wasm
+
 # Regenerate Specta types (Rust → packages/ship-set/src/generated.ts).
 [group('occasional')]
 gen-types:
