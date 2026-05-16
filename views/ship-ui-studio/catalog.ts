@@ -119,27 +119,36 @@ async function loadSuiComponents(): Promise<CatalogEntry[]> {
     }))
 }
 
-// Fetch the daemon's aggregated SUI CEM and project it down to the prop
-// shape the studio's prop panel renders. Empty map on any error so the
-// catalog still renders even if the endpoint is unreachable.
+// Fetch the daemon's workspace catalog (emitted by @ship/sui-catalog)
+// and project it down to the prop shape the studio's prop panel
+// renders. Empty map on any error so the catalog still renders even
+// if the endpoint is unreachable.
+interface CatalogEntryWire {
+  tagName: string
+  attributes?: Array<{
+    name: string
+    type?: { text?: string }
+    default?: string
+    description?: string
+    values?: unknown
+  }>
+}
 async function loadSuiPropMap(): Promise<Record<string, PropEntry[]>> {
   try {
-    const res = await fetch('/api/assets/sui-custom-elements.json', { credentials: 'same-origin' })
+    const res = await fetch('/api/sui/catalog/workspace', { credentials: 'same-origin' })
     if (!res.ok) return {}
-    const cem = await res.json() as CemRoot
+    const doc = await res.json() as { entries?: CatalogEntryWire[] }
     const out: Record<string, PropEntry[]> = {}
-    for (const mod of cem.modules ?? []) {
-      for (const decl of mod.declarations ?? []) {
-        if (decl.kind !== 'class' || !decl.tagName) continue
-        const attrs = decl.attributes ?? []
-        out[decl.tagName] = attrs.map(a => ({
-          name: a.name,
-          type: a.type?.text ?? 'string',
-          default: a.default,
-          description: a.description,
-          values: Array.isArray(a.values) ? a.values : undefined,
-        }))
-      }
+    for (const e of doc.entries ?? []) {
+      if (!e.tagName) continue
+      const attrs = e.attributes ?? []
+      out[e.tagName] = attrs.map(a => ({
+        name: a.name,
+        type: a.type?.text ?? 'string',
+        default: a.default,
+        description: a.description,
+        values: Array.isArray(a.values) ? a.values as string[] : undefined,
+      }))
     }
     return out
   } catch {
