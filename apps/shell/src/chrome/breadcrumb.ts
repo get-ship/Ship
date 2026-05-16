@@ -1,7 +1,7 @@
 // Chrome breadcrumb slot — renders the items dispatched via
 // `chrome.breadcrumb.set([...])`. The slot lives just below the top nav
 // so views can stamp page-level context without taking control of the
-// nav itself. Plain anchors keep shell2's existing internal-link click
+// nav itself. Plain anchors keep shell's existing internal-link click
 // delegate working (no extra routing here).
 
 interface BreadcrumbItem {

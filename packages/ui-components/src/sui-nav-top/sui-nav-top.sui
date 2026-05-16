@@ -26,7 +26,7 @@
   ─────────────────────────────────────────────────────────────────────────────
   Slots:
     actions      per-view action buttons injected by the mounted view
-    command-bar  command palette host — shell2 slots <sui-command-bar> here
+    command-bar  command palette host — shell slots <sui-command-bar> here
   ─────────────────────────────────────────────────────────────────────────────
   Parts: brand, crumbs, rail-toggle, theme-picker, dock-toggle, fullscreen
   ─────────────────────────────────────────────────────────────────────────────
@@ -37,9 +37,9 @@
     #topbar-brand              → part="brand"               ✓
     #breadcrumbs               → part="crumbs" + {#for} crumbs()  ✓
     #view-topbar-actions       → slot name="actions"        ✓
-    <ship-command-bar>         → slot name="command-bar"    ✓ (filled by shell2)
+    <ship-command-bar>         → slot name="command-bar"    ✓ (filled by shell)
     #toggle-rail               → part="rail-toggle"         ✓
-    #open-ui-studio            → removed (shell2 dropped the UI Studio button)
+    #open-ui-studio            → removed (shell dropped the UI Studio button)
     <ship-popover#theme-picker>→ <sui-theme-picker>         ✓ (runtime-exceed:
                                                               sui-popover uses
                                                               sui-portal + a

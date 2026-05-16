@@ -1,5 +1,5 @@
 /**
- * shell2 global keyboard shortcuts.
+ * shell global keyboard shortcuts.
  *
  * main.ts wires a document-level keydown handler that maps
  * `Ctrl/Cmd + B/J/K` to the rail, panel dock, and command bar. This
@@ -8,14 +8,14 @@
  * Uses `Control` on Linux/CI; the handler matches `metaKey || ctrlKey`,
  * so `Control` exercises the same path on every platform.
  *
- * Runs against shell2's vite dev server; skipped when unreachable.
+ * Runs against shell's vite dev server; skipped when unreachable.
  */
 import { test, expect } from '@playwright/test'
-import { SHELL2_URL, skipUnlessShell2 } from './_shell2'
+import { SHELL2_URL, skipUnlessShell2 } from './_shell'
 
 const MOD = process.platform === 'darwin' ? 'Meta' : 'Control'
 
-test.describe('shell2 keyboard shortcuts', () => {
+test.describe('shell keyboard shortcuts', () => {
   skipUnlessShell2()
 
   test.beforeEach(async ({ page }) => {

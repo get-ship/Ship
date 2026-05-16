@@ -1,9 +1,9 @@
 /**
- * Shared helpers for shell2 (vite dev server) e2e specs.
+ * Shared helpers for shell (vite dev server) e2e specs.
  *
- * shell2 is the SUI-native shell served by its own vite dev server, on a
+ * shell is the SUI-native shell served by its own vite dev server, on a
  * port derived from this worktree's daemon port (vite = daemon + offset,
- * per apps/shell2/vite.config.ts). Specs that drive shell2 in a real
+ * per apps/shell/vite.config.ts). Specs that drive shell in a real
  * browser skip themselves when the dev server isn't reachable, so
  * `bun run test:e2e` keeps passing on machines that only run the daemon.
  */
@@ -13,7 +13,7 @@ import crypto from 'node:crypto'
 import os from 'node:os'
 import { test } from '@playwright/test'
 
-/** Resolve shell2's vite dev-server base URL for this worktree. */
+/** Resolve shell's vite dev-server base URL for this worktree. */
 export function resolveShell2Url(): string {
   if (process.env.SHELL2_URL) return process.env.SHELL2_URL
   const workspaceRoot = path.resolve(__dirname, '..', '..')
@@ -33,8 +33,8 @@ export function resolveShell2Url(): string {
 
 export const SHELL2_URL = resolveShell2Url()
 
-/** True when shell2's vite dev server answers on its derived port. */
-export async function shell2Reachable(): Promise<boolean> {
+/** True when shell's vite dev server answers on its derived port. */
+export async function shellReachable(): Promise<boolean> {
   try {
     const res = await fetch(SHELL2_URL, { signal: AbortSignal.timeout(1500) })
     return res.ok || res.status === 304
@@ -44,15 +44,15 @@ export async function shell2Reachable(): Promise<boolean> {
 }
 
 /**
- * `beforeAll` guard: skip the whole describe block when shell2's dev
+ * `beforeAll` guard: skip the whole describe block when shell's dev
  * server isn't up. Call inside `test.describe(...)`.
  */
 export function skipUnlessShell2(): void {
   test.beforeAll(async () => {
-    if (!(await shell2Reachable())) {
+    if (!(await shellReachable())) {
       test.skip(
         true,
-        `shell2 vite not reachable at ${SHELL2_URL} — start it with \`bun -F shell2 dev\``,
+        `shell vite not reachable at ${SHELL2_URL} — start it with \`bun -F shell dev\``,
       )
     }
   })

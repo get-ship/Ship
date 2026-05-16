@@ -22,7 +22,7 @@ function manifestLang(name: string | null): string {
   return 'json'
 }
 
-// shell2 loads the sui-devtools island eagerly but not sui-code-editor —
+// shell loads the sui-devtools island eagerly but not sui-code-editor —
 // fetch it the first time the source tab needs it.
 function ensureCodeEditorLoaded(): void {
   if (customElements.get('sui-code-editor')) return

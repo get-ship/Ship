@@ -4,13 +4,13 @@
  * Opens the command bar in create mode, picks the Skill tile, fills name +
  * shape, submits, then verifies the daemon scaffolded the SKILL.md by
  * reading it back via GET /api/v1/skills/<id>. Cleans up the skill after,
- * since this writes into the live ship dir of whatever daemon shell2 is
+ * since this writes into the live ship dir of whatever daemon shell is
  * pointed at.
  *
- * Skipped when shell2's vite dev server isn't reachable.
+ * Skipped when shell's vite dev server isn't reachable.
  */
 import { test, expect } from '@playwright/test'
-import { SHELL2_URL, skipUnlessShell2 } from './_shell2'
+import { SHELL2_URL, skipUnlessShell2 } from './_shell'
 import { getDaemonUrl } from './_helpers'
 
 test.describe('cmdk create-mode → skill scaffold', () => {
@@ -25,7 +25,7 @@ test.describe('cmdk create-mode → skill scaffold', () => {
     await page.goto(`${SHELL2_URL}/`, { waitUntil: 'load' })
 
     // Open the bar in create mode through the same imperative surface
-    // the rail "+" button uses (see apps/shell2/src/main.ts:646).
+    // the rail "+" button uses (see apps/shell/src/main.ts:646).
     await page.waitForFunction(() => !!document.querySelector('sui-command-bar'))
     await page.evaluate(() => {
       const bar = document.querySelector('sui-command-bar') as (HTMLElement & { show: (m: string) => void }) | null

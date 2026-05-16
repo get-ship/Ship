@@ -2,7 +2,7 @@
 <!--
   <sui-devtools-signals> — Live tree of the mounted view's scope.
   Polls window.__suiCurrentScope every 500ms while the tab is active and
-  re-samples on `sui:scope:change`. apps/shell2/src/main.ts publishes the
+  re-samples on `sui:scope:change`. apps/shell/src/main.ts publishes the
   current MountHandle's scope after each successful mountRoute. Framework
   helpers (`ship`, `route`, `navigate`) are hidden; signal getters are
   read via `__peek()` so the readout stays out of any ambient observer.

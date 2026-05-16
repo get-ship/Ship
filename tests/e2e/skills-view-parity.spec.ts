@@ -11,10 +11,10 @@
  * with live counts, list rows are real anchors (so right-click open
  * works), and routing to /skills/:id wires up the IDE shell.
  *
- * Runs against shell2's vite dev server; skipped when unreachable.
+ * Runs against shell's vite dev server; skipped when unreachable.
  */
 import { test, expect } from '@playwright/test'
-import { SHELL2_URL, skipUnlessShell2 } from './_shell2'
+import { SHELL2_URL, skipUnlessShell2 } from './_shell'
 import { getDaemonUrl } from './_helpers'
 
 test.describe('skills view parity', () => {

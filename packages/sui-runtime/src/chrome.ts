@@ -2,7 +2,7 @@
 //
 // Replaces the ad-hoc `dispatchEvent(new CustomEvent('sui:notify'…))`
 // pattern with a single typed API. Every call lands on `document` as a
-// CustomEvent; shell2 owns the listeners (see apps/shell2/src/chrome/
+// CustomEvent; shell owns the listeners (see apps/shell/src/chrome/
 // registry.ts). Old event names still fire — chrome continues to listen
 // to the raw shapes identically, so legacy call sites keep working
 // during migration.
@@ -22,7 +22,7 @@
 //   State-bearing slots (breadcrumb, status, theme, focus) stamp each
 //   call with the caller's view id. Shell2 maintains a `viewId → claims`
 //   registry and clears claims when the mount handle disposes. The view
-//   id is read from `window.__suiCurrentViewId`, which shell2 updates as
+//   id is read from `window.__suiCurrentViewId`, which shell updates as
 //   the mounted route changes. Callers can override with `{ viewId }` on
 //   any state-bearing call.
 
@@ -101,7 +101,7 @@ function stamp<T extends object>(detail: T, opts?: ScopeOpt): T & { viewId?: str
 
 // ── Modal response wiring ───────────────────────────────────────────
 //
-// `chrome.modal.request` returns a Promise that resolves when shell2's
+// `chrome.modal.request` returns a Promise that resolves when shell's
 // modal renderer dispatches `sui:modal:respond` with the matching id.
 // The map is module-local so request ids stay unique within a runtime.
 
@@ -214,7 +214,7 @@ export const chrome = {
 
 /** Shell-side helper: announces that a view unmounted so the chrome
  *  registry can release per-view claims (breadcrumb, status keys, theme
- *  tokens, focus push). Not for view authors — shell2's mountRoute calls
+ *  tokens, focus push). Not for view authors — shell's mountRoute calls
  *  this from its dispose path. */
 export function notifyViewUnmount(viewId: string): void {
   emit('sui:view:unmount', { viewId })

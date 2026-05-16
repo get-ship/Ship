@@ -261,7 +261,7 @@ export async function mount<Scope = Record<string, unknown>>(
   // Patching the seed leaves the template stuck on `loading` while the
   // view's signal idles in `error` (view-host: `ship` is undefined, the
   // live thunk throws synchronously) or in whatever state the in-view SDK
-  // subscription happens to drive (shell2). Target the view's signals so
+  // subscription happens to drive (shell). Target the view's signals so
   // the patch-signals channel resolves the template's loading branches.
   const subscribeUrl = pluckSubscribe(payload.scope as Record<string, unknown>)
   let liveSource: EventSource | null = null

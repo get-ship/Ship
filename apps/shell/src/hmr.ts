@@ -1,5 +1,5 @@
 // Dev-only HMR glue between `@ship/sui-runtime/dev`'s subscribeHmr and
-// shell2's mount lifecycle.
+// shell's mount lifecycle.
 //
 // Bundler target shape (see runtime-assets/bundler.ts):
 //   views/<name>/view      → one bundle per views/<name>/page.sui
@@ -78,7 +78,7 @@ function isDev(): boolean {
   // form silently never enabled HMR under Vite. Read the property
   // directly. `(import.meta as Any).env.DEV` is rewritten by Vite
   // because the literal `import.meta.env.DEV` substring is present in
-  // the cast expression's text. Cast because shell2's tsconfig doesn't
+  // the cast expression's text. Cast because shell's tsconfig doesn't
   // include `vite/client` types.
   type V = ImportMeta & { env: { DEV: boolean } }
   if ((import.meta as V).env.DEV === true) return true

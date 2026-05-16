@@ -1,7 +1,7 @@
 /**
  * Behavioral coverage for the theme-aware brand mark and favicon swap.
  *
- * The shell2 top bar renders <sui-brand-mark> inside <sui-nav-top>'s
+ * The shell top bar renders <sui-brand-mark> inside <sui-nav-top>'s
  * shadow root. The mark's inline SVG paints its fills from `--primary`
  * and `--background` via `color-mix`, so every theme renders the logo
  * in its own palette without swapping SVG assets. The browser-tab
@@ -16,12 +16,12 @@
  *   - the SVG favicon href flips between primary / secondary on
  *     dark / light theme application.
  *
- * Runs against shell2's vite dev server. Skipped when that server isn't
+ * Runs against shell's vite dev server. Skipped when that server isn't
  * reachable so `bun run test:e2e` keeps passing on machines that
  * haven't started it.
  */
 import { test, expect } from '@playwright/test'
-import { SHELL2_URL, skipUnlessShell2 } from './_shell2'
+import { SHELL2_URL, skipUnlessShell2 } from './_shell'
 
 type FillProbe = { fill: string | null; primary: string | null; background: string | null }
 

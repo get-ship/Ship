@@ -146,4 +146,4 @@ A request for `/agents` resolves end-to-end:
 3. Shell loads `/_sui/views/agents/view.js` → compiled ESM module.
 4. Module imports from `/_sui/runtime.js` (the SUI runtime barrel) and `/_sui/sdk-client.js`.
 5. `attach()` walks the SSR DOM, binds reactive identifiers from the module's controller, opens `<data live>` SSE channels to `/_sui/data?expr=…`.
-6. Edits in dev mode emit `module-changed` on `/_sui/dev/hmr`; `apps/shell2/src/hmr.ts` cache-busts the rebuilt `view.js` and re-mounts in place.
+6. Edits in dev mode emit `module-changed` on `/_sui/dev/hmr`; `apps/shell/src/hmr.ts` cache-busts the rebuilt `view.js` and re-mounts in place.

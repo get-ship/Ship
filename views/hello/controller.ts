@@ -20,7 +20,7 @@ export default controller<Scope>({
         return
       }
       // Fallback: the SUI shell exposes `ship.command()` which dispatches
-      // the same open event that the cmdk listens for; in shell2 the AI
+      // the same open event that the cmdk listens for; in shell the AI
       // prefix is typed by the user after open.
       w.ship?.command?.()
       document.dispatchEvent(

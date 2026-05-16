@@ -1,5 +1,5 @@
 /**
- * shell2 agent-detail route — `/agents/:id`.
+ * shell agent-detail route — `/agents/:id`.
  *
  * The detail view (`views/agents/[id]/page.sui`) reads `route.params.id()`
  * via the shared route signal the shell wires into mount opts. An earlier
@@ -11,13 +11,13 @@
  * This spec locks that in: a known agent renders its detail panel, and an
  * unknown id renders the not-found state (NOT a blank "id ''" panel).
  *
- * Ported from `agent-detail-probe.mjs`. Runs against shell2's vite dev
+ * Ported from `agent-detail-probe.mjs`. Runs against shell's vite dev
  * server; skipped when unreachable.
  */
 import { test, expect } from '@playwright/test'
-import { SHELL2_URL, skipUnlessShell2 } from './_shell2'
+import { SHELL2_URL, skipUnlessShell2 } from './_shell'
 
-test.describe('shell2 agent detail route', () => {
+test.describe('shell agent detail route', () => {
   skipUnlessShell2()
 
   test('/agents/commander renders the detail panel for a real agent', async ({ page }) => {

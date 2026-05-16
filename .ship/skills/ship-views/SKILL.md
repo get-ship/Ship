@@ -546,7 +546,7 @@ controller handle features (project switcher, session-count badge,
 launcher / create, active-view tracking, click-outside dismiss).
 
 ```html
-<!-- apps/shell2/index.html — single static instance -->
+<!-- apps/shell/index.html — single static instance -->
 <sui-rail id="ship-rail">
   <sui-rail-item icon="layout-dashboard" label="Dashboard" href="/" data-view="dashboard"></sui-rail-item>
   <sui-rail-item icon="bot" label="Agents" href="/agents" data-view="agents"></sui-rail-item>
@@ -620,12 +620,12 @@ tag-plus-position (no content-similarity heuristics).
 ## Hot reload
 
 In dev mode, `.sui` and `.controller.ts` edits trigger an in-place view
-re-mount without a full page reload. shell2's boot calls
-`initHmr()` (apps/shell2/src/hmr.ts), which uses
+re-mount without a full page reload. shell's boot calls
+`initHmr()` (apps/shell/src/hmr.ts), which uses
 `subscribeHmr` from `@ship/sui-runtime/dev` to listen on shipd's
 `/_sui/dev/hmr` SSE channel. When the Bun bundler emits
 `module-changed` for `views/<name>/view` and `<name>` matches the
-current route, shell2 cache-busts the rebuilt `view.js` and re-mounts
+current route, shell cache-busts the rebuilt `view.js` and re-mounts
 through the existing `mount()` lifecycle.
 
 Other bundles (sui-components, sui-components/*, sui-runtime, sui-dom,

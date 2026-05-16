@@ -5,7 +5,7 @@
  *   1. Daemon API — the new endpoints (POST /activate, GET /active, GET
  *      /sessions/active-across-projects) behave correctly and the
  *      `project.switched` event reaches SSE subscribers.
- *   2. Chrome subscription — when shell2's vite dev server is reachable,
+ *   2. Chrome subscription — when shell's vite dev server is reachable,
  *      switching the active project re-mounts the current view and the
  *      cross-project indicator chip surfaces in <sui-status-bar>.
  *   3. The legacy POST /api/v1/projects/switch surface still works
@@ -22,7 +22,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 
 import { getDaemonUrl } from './_helpers'
-import { SHELL2_URL, shell2Reachable } from './_shell2'
+import { SHELL2_URL, shellReachable } from './_shell'
 
 const DAEMON = getDaemonUrl()
 
@@ -141,7 +141,7 @@ test.describe('project switch — daemon API', () => {
     await activate(request, a.id)
 
     // Listen on the events stream from the browser context so the
-    // cookie-auth + EventSource semantics match shell2's runtime.
+    // cookie-auth + EventSource semantics match shell's runtime.
     await page.goto(`${DAEMON}/api/health`).catch(() => {})
 
     const received = page.evaluate(async (expectedId) => {
@@ -183,10 +183,10 @@ test.describe('project switch — daemon API', () => {
 
 test.describe('project switch — chrome surface', () => {
   test.beforeAll(async () => {
-    if (!(await shell2Reachable())) {
+    if (!(await shellReachable())) {
       test.skip(
         true,
-        `shell2 vite not reachable at ${SHELL2_URL} — start it with \`bun -F shell2 dev\``,
+        `shell vite not reachable at ${SHELL2_URL} — start it with \`bun -F shell dev\``,
       )
     }
   })

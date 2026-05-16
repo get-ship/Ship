@@ -79,7 +79,7 @@ export default controller<Scope>({
     // Authoritative subroute slug — seeded from `location.pathname` at
     // mount() rather than `route.params.name()`. The shell pre-registers
     // the dynamic pattern as `/ship-ui-studio/:component` (see
-    // apps/shell2/src/main.ts), so the view's own `defineRoutes` call
+    // apps/shell/src/main.ts), so the view's own `defineRoutes` call
     // above lands in a different runtime instance and the shell's
     // shared `route` proxy never seeds `params.name`. Reading the
     // pathname sidesteps that mismatch entirely — every catalog click

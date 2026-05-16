@@ -157,7 +157,7 @@ export function setupProjectSwitcher(ctx: SwitcherCtx): SwitcherHandle {
       }
       // The kernel-bus `project.switched` event drives the chrome's
       // view-remount + status-bar refresh path; chrome subscribes in
-      // shell2/src/main.ts. Keep the legacy DOM event so any existing
+      // shell/src/main.ts. Keep the legacy DOM event so any existing
       // listeners (rail tests, devtools) continue to fire.
       dispatchBubble(host, 'ship:project:change', { id })
     } catch {

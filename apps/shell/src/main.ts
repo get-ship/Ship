@@ -119,7 +119,7 @@ declare global {
      *  `@ship/sui-runtime/chrome`'s wrapper API to stamp per-view claims
      *  (breadcrumb, status keys, theme overrides, focus push). Set on
      *  each mountRoute and cleared on landing/dispose so claims auto-
-     *  clear when shell2 fires `sui:view:unmount`. */
+     *  clear when shell fires `sui:view:unmount`. */
     __suiCurrentViewId?: string | null
   }
 }
@@ -649,7 +649,7 @@ document.addEventListener('sui:dock:close', () => getDock()?.hide(), true)
 // Bridges component-dispatched events from <sui-nav-top> and <sui-rail>
 // to the corresponding chrome elements that already live in the shell.
 // Without these, clicking the menu / CLI / launcher / "+" buttons fired
-// the event but no surface listened (pre-fix shell2 had no plumbing).
+// the event but no surface listened (pre-fix shell had no plumbing).
 
 // Top-nav CLI / debug-panel button → toggle the panel-dock. The dock's
 // `toggle()` method flips `body.dock-open`, which layout.css uses to
@@ -667,7 +667,7 @@ document.addEventListener('ship:launcher:open', () => {
 
 // Rail "+" button → open the command bar in create mode. Parity with
 // apps/shell where ship-command-bar listens for `ship:create:open` and
-// calls openBar('create'). In shell2 the bar is `<sui-command-bar>`,
+// calls openBar('create'). In shell the bar is `<sui-command-bar>`,
 // which exposes the same imperative surface (`show(mode)`).
 document.addEventListener('ship:create:open', () => {
   getCommandBar()?.show('create')

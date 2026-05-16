@@ -3,7 +3,7 @@
 // chrome surfaces.
 //
 // Per-view claims are tracked by `viewId` (stamped onto the event detail
-// by the wrapper from `window.__suiCurrentViewId`). When shell2 disposes
+// by the wrapper from `window.__suiCurrentViewId`). When shell disposes
 // the previous mount it dispatches `sui:view:unmount` with the outgoing
 // viewId; the registry then walks each claim map and clears whatever the
 // view set so chrome doesn't leak stale state into the next view.

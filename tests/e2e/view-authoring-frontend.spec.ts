@@ -1,9 +1,9 @@
 /**
  * View-authoring frontend e2e — covers the dev-panel surfaces wired in
- * `apps/shell2/src/chrome/edit-mode.ts`, the new view-authoring island
+ * `apps/shell/src/chrome/edit-mode.ts`, the new view-authoring island
  * tabs, the shared component picker, and the annotation pin overlay.
  *
- * Strategy: drive shell2's vite dev server through Playwright. Each
+ * Strategy: drive shell's vite dev server through Playwright. Each
  * spec scopes its work to a sample view (`/agents` is always
  * registered) so we don't depend on a scaffold flow that may not yet
  * exist server-side. Edit-mode is per-view, persisted in localStorage,
@@ -15,7 +15,7 @@
  *   - the 5s background annotation timer (left running, not asserted)
  */
 import { test, expect } from '@playwright/test'
-import { SHELL2_URL, skipUnlessShell2 } from './_shell2'
+import { SHELL2_URL, skipUnlessShell2 } from './_shell'
 
 const MOD = process.platform === 'darwin' ? 'Meta' : 'Control'
 

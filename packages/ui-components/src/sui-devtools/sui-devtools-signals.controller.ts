@@ -2,7 +2,7 @@ import { controller, signal, derived } from '@ship/sui-runtime'
 import type { Scope } from './sui-devtools-signals.sui'
 
 // The signal tree reads from `window.__suiCurrentScope`, published by
-// apps/shell2/src/main.ts after every successful mountRoute. The handle's
+// apps/shell/src/main.ts after every successful mountRoute. The handle's
 // scope is a record of signal getters + plain values + framework helpers
 // (`ship`, `route`, `navigate`); we surface the signal/value entries and
 // hide the helpers (callable framework objects without `__peek`).

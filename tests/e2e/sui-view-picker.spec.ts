@@ -3,12 +3,12 @@
  * port-forward of OG j2 shell's combined rail-customizer + view-browser
  * + install entry popover.
  *
- * Tests drive the chrome surface (shell2 vite dev server). They skip
+ * Tests drive the chrome surface (shell vite dev server). They skip
  * if the dev server isn't reachable so `bun run test:e2e` keeps
  * passing on machines that haven't started it.
  */
 import { test, expect, type Page } from '@playwright/test'
-import { SHELL2_URL, skipUnlessShell2 } from './_shell2'
+import { SHELL2_URL, skipUnlessShell2 } from './_shell'
 
 async function openPicker(page: Page): Promise<void> {
   await page.waitForFunction(() => Boolean(customElements.get('sui-view-picker')))
