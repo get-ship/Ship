@@ -21,7 +21,7 @@ use crate::routes::{
     actor_api, actors_api, agents_api, annotations_api, artifacts_api, collection_api,
     commands_api, create_api, feedback_api, git_api, hooks_api, human_webhook, lint_api, logs_api,
     mcp_api, openapi, permissions_api, pipelines_api, projects_api, rest_api, rules_api,
-    runtime_api, sdk_manifest, settings_api, shell_assets, skills_api, specs_api,
+    runtime_api, sdk_manifest, search_api, settings_api, shell_assets, skills_api, specs_api,
     themes_api, view_errors_api, view_sessions_api, webhook_ext,
 };
 use crate::auth::{attest, pairing, session};
@@ -619,6 +619,8 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::LintView, lint_api::lint_view)
         // Command bar registry
         .ship_route(Route::ListCommands, commands_api::list_commands)
+        // Unified search — cmdk find mode consumer.
+        .ship_route(Route::SearchAll, search_api::search)
         // SDK manifest (read-side)
         .ship_route(Route::ViewMeta_template(), sdk_manifest::get_view_meta)
         .ship_route(Route::SdkRoot, sdk_manifest::get_sdk_root)

@@ -8,6 +8,52 @@ import { createContainerRegistry, flush, mount } from '../src/test-utils'
 const reg = createContainerRegistry()
 afterEach(() => reg.cleanup())
 
+// Stub /api/v1/search + other GETs the bar fires on open so find mode
+// always has a deterministic result set. The find-mode UI is now async
+// (200ms debounce → fetch → render), so tests need a settled response
+// before asserting on item DOM.
+const SEARCH_FIXTURE = {
+  ok: true,
+  data: {
+    hits: [
+      { kind: 'view',  id: 'dashboard', label: 'Dashboard', path: '/dashboard', icon: 'sparkles', score: 1000 },
+      { kind: 'view',  id: 'settings',  label: 'Settings',  path: '/settings',  icon: 'settings', score: 800 },
+      { kind: 'agent', id: 'writer',    label: 'Writer',    path: '/agents?id=writer', icon: 'bot', score: 500 },
+    ],
+    total: 3,
+  },
+}
+let _originalFetch: typeof fetch | undefined
+beforeEach(() => {
+  _originalFetch = globalThis.fetch
+  // Always return a successful empty/stub for the endpoints the bar
+  // calls on open + the unified search call we drive in find mode.
+  globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {
+    const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url
+    if (url.startsWith('/api/v1/search')) {
+      return new Response(JSON.stringify(SEARCH_FIXTURE), { status: 200, headers: { 'content-type': 'application/json' } })
+    }
+    if (url.startsWith('/api/v1/commands')) {
+      // Empty response so the bar falls back to the seeded SLASH_COMMANDS
+      // constant. Returning [] would clear the seeded list.
+      return new Response('{"ok":false}', { status: 500, headers: { 'content-type': 'application/json' } })
+    }
+    // Everything else: empty success.
+    return new Response('{"ok":true}', { status: 200, headers: { 'content-type': 'application/json' } })
+  }) as typeof fetch
+})
+afterEach(() => {
+  if (_originalFetch) globalThis.fetch = _originalFetch
+})
+
+// Wait long enough for the find-mode debounce (200ms) + a fetch
+// microtask to resolve, then flush DOM updates.
+async function waitSearch() {
+  await new Promise((r) => setTimeout(r, 240))
+  await flush()
+  await flush()
+}
+
 type CB = HTMLElement & {
   show(mode?: string, query?: string): void
   hide(): void
@@ -240,15 +286,15 @@ describe('<sui-command-bar>', () => {
   })
 
   describe('find mode', () => {
-    it('renders nav destinations', async () => {
+    it('renders search hits from /api/v1/search', async () => {
       const { el } = makeBar()
       ;(el as CB).show('find')
-      await flush()
+      await waitSearch()
       const items = palItems(el)
       expect(items?.length).toBeGreaterThan(0)
     })
 
-    it('filters nav destinations by query', async () => {
+    it('filters by query (server-side via /api/v1/search)', async () => {
       const { el } = makeBar()
       ;(el as CB).show('find', '>dashboard')
       await flush()
@@ -256,16 +302,18 @@ describe('<sui-command-bar>', () => {
       if (!input) return
       input.value = '>dashboard'
       input.dispatchEvent(new Event('input'))
-      await flush()
+      await waitSearch()
       const items = palItems(el)
       const labels = Array.from(items ?? []).map((i) => i.querySelector('span')?.textContent ?? '')
+      // SEARCH_FIXTURE always returns Dashboard so any non-empty render
+      // proves the wiring goes through searchHits, not NAV_DESTINATIONS.
       expect(labels.some((l) => l.toLowerCase().includes('dashboard'))).toBe(true)
     })
 
     it('ArrowDown increments selected index', async () => {
       const { el } = makeBar()
       ;(el as CB).show('find')
-      await flush()
+      await waitSearch()
       // Dispatch on bar host — onPaletteKeydown listens there.
       el.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, composed: true }))
       await flush()
@@ -276,7 +324,7 @@ describe('<sui-command-bar>', () => {
     it('ArrowUp clamps at 0', async () => {
       const { el } = makeBar()
       ;(el as CB).show('find')
-      await flush()
+      await waitSearch()
       el.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true, composed: true }))
       await flush()
       const items = palItems(el)
@@ -359,7 +407,7 @@ describe('<sui-command-bar>', () => {
     it('item click dispatches sui-command:select from palette', async () => {
       const { el } = makeBar()
       ;(el as CB).show('find')
-      await flush()
+      await waitSearch()
       const events: CustomEvent[] = []
       el.addEventListener('sui-command:select', (e) => events.push(e as CustomEvent))
       const item = palShadow(el)?.querySelector('.cb-item') as HTMLElement | null
@@ -378,7 +426,7 @@ describe('<sui-command-bar>', () => {
     it('clicking a find item dispatches sui:navigate with detail.to', async () => {
       const { el } = makeBar()
       ;(el as CB).show('find')
-      await flush()
+      await waitSearch()
       const events: CustomEvent[] = []
       const onNav = (e: Event) => {
         const ce = e as CustomEvent<{ to?: string }>
@@ -400,7 +448,7 @@ describe('<sui-command-bar>', () => {
     it('Enter on a find result dispatches sui:navigate with detail.to', async () => {
       const { el } = makeBar()
       ;(el as CB).show('find')
-      await flush()
+      await waitSearch()
       const events: CustomEvent[] = []
       const onNav = (e: Event) => {
         const ce = e as CustomEvent<{ to?: string }>

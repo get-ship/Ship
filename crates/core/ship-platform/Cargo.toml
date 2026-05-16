@@ -37,6 +37,7 @@ sqlx = { version = "0.8", default-features = false, features = ["sqlite", "runti
 tokio = { workspace = true, features = ["rt", "rt-multi-thread", "time", "sync", "macros", "process", "io-util"] }
 async-trait = { workspace = true }
 sha2 = { workspace = true }
+base64 = { workspace = true }
 semver = { workspace = true, features = ["serde"] }
 tempfile = { workspace = true }
 ureq = { workspace = true, features = ["json"] }

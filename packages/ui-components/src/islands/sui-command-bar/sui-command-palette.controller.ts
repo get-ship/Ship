@@ -2,8 +2,8 @@ import { controller, derived, useShared } from '@ship/sui-runtime'
 import type { Scope } from './sui-command-palette.sui'
 import type { Scope as BarScope } from './sui-command-bar.sui'
 import {
-  type CreateSurface, type SessionSummary,
-  NAV_DESTINATIONS, CREATE_SURFACES,
+  type CreateSurface, type SessionSummary, type SearchHit, type SearchEntityKind,
+  CREATE_SURFACES, SEARCH_KIND_LABELS,
   detectMode, isKebab, navigateTo,
 } from './types'
 
@@ -48,39 +48,33 @@ export default controller<Scope>({
       return 'message-square-plus'
     }
 
-    const findItems = derived(() => {
-      const needle = bar!.value().replace(/^>+\s*/, '').toLowerCase().trim()
-      return NAV_DESTINATIONS
-        .filter((d) =>
-          !needle ||
-          d.label.toLowerCase().includes(needle) ||
-          d.keywords.toLowerCase().includes(needle) ||
-          d.path.toLowerCase().includes(needle)
-        )
-        .map((d, i) => ({ ...d, idx: i }))
-    })
-
-    // Installed views from /api/v1/views — anything not already in
-    // NAV_DESTINATIONS, listed as a second "Views" section so the user can
-    // jump to views the curated nav doesn't cover (custom views, examples
-    // like `counter`, etc.). Indices are offset past findItems so the
-    // shared selectedIdx + getPaletteItems() walk in DOM order stays in
-    // sync — ArrowDown/Enter use a single document-order query.
-    const viewItems = derived(() => {
-      const needle = bar!.value().replace(/^>+\s*/, '').toLowerCase().trim()
-      const offset = findItems().length
-      const navPaths = new Set(NAV_DESTINATIONS.map((d) => d.path))
-      return bar!.views()
-        .filter((name: string) => !navPaths.has('/' + name))
-        .filter((name: string) => !needle || name.toLowerCase().includes(needle))
-        .map((name: string, i: number) => ({
-          name,
-          label: name.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
-          path: '/' + name,
-          icon: 'app-window',
-          idx: offset + i,
+    // Sections of /api/v1/search hits grouped by kind. The bar controller
+    // populates bar.searchHits on a 200ms debounce; we render the groups
+    // in their preserved server order with monotonically-assigned indices
+    // so selectedIdx (shared with cmd/mention modes) maps to a unique
+    // listbox row.
+    const KIND_ORDER: SearchEntityKind[] = [
+      'view', 'collection', 'agent', 'skill', 'session', 'collection_item', 'artifact',
+    ]
+    const searchGroups = derived(() => {
+      const groups: Record<SearchEntityKind, SearchHit[]> = {
+        view: [], collection: [], collection_item: [],
+        agent: [], skill: [], session: [], artifact: [],
+      }
+      for (const hit of bar!.searchHits()) {
+        groups[hit.kind].push(hit)
+      }
+      let nextIdx = 0
+      return KIND_ORDER
+        .filter((k) => groups[k].length > 0)
+        .map((k) => ({
+          kind: k,
+          label: SEARCH_KIND_LABELS[k],
+          items: groups[k].map((hit) => ({ ...hit, idx: nextIdx++ })),
         }))
     })
+    const findHasResults = derived(() => bar!.searchHits().length > 0)
+    const findSearching = derived(() => bar!.searching())
 
     const cmdItems = derived(() => {
       const needle = bar!.value().replace(/^\/+\s*/, '').toLowerCase().trim()
@@ -210,7 +204,8 @@ export default controller<Scope>({
       modeGlyph, searchPlaceholder,
       chipLabel, chipDotBg,
       activeSessions,
-      findItems, viewItems, cmdItems, mentionItems,
+      searchGroups, findHasResults, findSearching,
+      cmdItems, mentionItems,
       activeDescendantId,
       createSurfaces, currentSurfaceDef, createNameValid,
       endSession, selectSession, startNewSession, viewChats,
