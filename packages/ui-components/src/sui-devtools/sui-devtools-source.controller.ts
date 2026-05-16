@@ -132,11 +132,18 @@ export default controller<Scope>({
     let editorWired: CodeEditor | null = null
     let completionsApplied = false
 
-    const stopSync = effect(() => {
+    // Two-phase sync. Phase 1 reacts to ref attachment + value derivation
+    // changes (both are signals). Phase 2 forces a microtask-deferred
+    // re-check because the {#if src()} branch and the bind:this ref
+    // attach can land in the same microtask, leaving the effect snapshot
+    // with el=null even though v already has the template string. Without
+    // the deferred re-check the editor stays empty after first load.
+    function tryAssignValue(): void {
       const el = templateEditorRef() as CodeEditor | null
       const v = editorValueSig()
-      if (el && el.value !== v) el.value = v
-      if (el && el !== editorWired) {
+      if (!el) return
+      if (el.value !== v) el.value = v
+      if (el !== editorWired) {
         editorWired = el
         el.addEventListener('sui-change', (e: Event) => {
           const val = (e as CustomEvent<{ value: string }>).detail?.value
@@ -152,12 +159,30 @@ export default controller<Scope>({
           void loadCompletionSources().then(srcs => el.setCompletions?.(srcs)).catch(() => {})
         }
       }
+    }
+
+    const stopSync = effect(() => {
+      // Track the signals so subsequent updates re-fire this effect.
+      templateEditorRef()
+      editorValueSig()
+      tryAssignValue()
+      // Deferred second pass — handles the case where the template's
+      // bind:this attaches in the same tick as the value change.
+      queueMicrotask(tryAssignValue)
     })
 
     const stopManifestSync = effect(() => {
       const el = manifestEditorRef() as CodeEditor | null
       const srcObj = srcSig()
-      if (el && srcObj?.manifest != null && el.value !== srcObj.manifest) el.value = srcObj.manifest
+      if (!el) return
+      const desired = srcObj?.manifest ?? ''
+      if (el.value !== desired) el.value = desired
+      // Same deferred-pass for the manifest editor.
+      queueMicrotask(() => {
+        const el2 = manifestEditorRef() as CodeEditor | null
+        const s2 = srcSig()
+        if (el2 && s2?.manifest != null && el2.value !== s2.manifest) el2.value = s2.manifest
+      })
     })
 
     const headerEl = headerRef()
