@@ -205,34 +205,36 @@ export default controller<Scope>({
   },
 
   mount(state: unknown) {
+    // The runtime's scope proxy auto-unwraps signals on read, so we
+    // assign to mutate (proxy intercepts SET → calls signal.set).
     const scope = state as {
-      packDefaults: { set: (v: Record<string, string>) => void }
-      overrides: { set: (v: Record<string, string>) => void } & (() => Record<string, string>)
-      savedSnapshot: { set: (v: OverridePayload | null) => void }
-      activePack: { set: (id: ThemeId) => void } & (() => ThemeId)
+      packDefaults: Record<string, string>
+      overrides: Record<string, string>
+      savedSnapshot: OverridePayload | null
+      activePack: ThemeId
     }
 
     // Initial snapshot of the active pack's computed token values so
     // editor inputs aren't blank on first paint.
-    scope.packDefaults.set(snapshotPack())
+    scope.packDefaults = snapshotPack()
 
     // Pull any saved overrides from the daemon and apply them.
     void loadOverrides().then((saved) => {
       if (!saved) return
-      scope.savedSnapshot.set(saved)
-      if (saved.pack !== scope.activePack()) {
+      scope.savedSnapshot = saved
+      if (saved.pack !== scope.activePack) {
         applyTheme(saved.pack)
-        scope.activePack.set(saved.pack)
-        requestAnimationFrame(() => scope.packDefaults.set(snapshotPack()))
+        scope.activePack = saved.pack
+        requestAnimationFrame(() => { scope.packDefaults = snapshotPack() })
       }
-      scope.overrides.set({ ...saved.values })
+      scope.overrides = { ...saved.values }
       for (const [k, v] of Object.entries(saved.values)) chrome.theme.set(k, v)
     })
 
     // Re-snapshot pack defaults whenever the document theme changes
     // out-of-band (e.g. via the top-bar theme picker).
     const onThemeChange = () => {
-      requestAnimationFrame(() => scope.packDefaults.set(snapshotPack()))
+      requestAnimationFrame(() => { scope.packDefaults = snapshotPack() })
     }
     document.addEventListener('ship:theme:change', onThemeChange)
 

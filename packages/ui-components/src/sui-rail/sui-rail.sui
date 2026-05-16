@@ -242,6 +242,7 @@
     >
       <sui-icon name="plus" size="sm"></sui-icon>
     </button>
+    <slot name="footer"></slot>
   </div>
 </div>
 

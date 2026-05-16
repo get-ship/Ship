@@ -11,6 +11,7 @@
 -->
 
 <prop name="size" values="sm|md|lg" default="md" reflect />
+<prop name="label" type="string" default="" />
 
 <style>
   :host {

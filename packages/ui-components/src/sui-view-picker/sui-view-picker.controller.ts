@@ -161,6 +161,21 @@ export default controller<Scope>({
       if (open !== scope.open()) scope.open.set(open)
     })
 
+    // Trigger click → toggle open. The composed sui-popover's
+    // popovertarget wiring relies on slot.assignedElements() which
+    // doesn't follow double-slotted triggers (rail → view-picker →
+    // popover trigger slot), so the rail's button click never fires
+    // the native popover toggle. Forward the click manually.
+    bindNativeEvent(host, 'click', (e) => {
+      const path = (e as Event).composedPath()
+      const onTrigger = path.some((n) => {
+        const el = n as HTMLElement | null
+        return el?.getAttribute?.('slot') === 'trigger'
+      })
+      if (!onTrigger) return
+      scope.open.set(!scope.open())
+    })
+
     host.expose!({
       open: () => scope.open.set(true),
       close: () => scope.open.set(false),
