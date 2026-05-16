@@ -748,10 +748,42 @@ async function syncNavTopProject(): Promise<void> {
     const name = body.active?.label || body.active?.name || ''
     const navTop = document.getElementById('ship-nav-top')
     if (navTop) navTop.setAttribute('project', name)
+    // Status bar mirrors the project label per status-bar intent (left-side
+    // glance slot, clickable for switcher).
+    if (statusBar) statusBar.setAttribute('project', name)
   } catch { /* breadcrumb stays without project prefix; no-op */ }
 }
 void syncNavTopProject()
 document.addEventListener('project.switched', () => void syncNavTopProject())
+
+// Status-bar click bridges (dot/theme/project) — per status-bar intent
+// the bar is glance-only but each slot opens its corresponding surface.
+// The rail's <sui-view-picker> holds the project switcher; the nav-top's
+// <sui-theme-picker> holds the theme panel. Each exposes a `toggle()`
+// host API via host.expose() in its controller, so the status-bar's
+// click events bridge into those imperative handles rather than
+// synthesising clicks into shadow DOM (which the popover trigger doesn't
+// proxy through slot composition).
+interface OpenableHost extends HTMLElement {
+  toggle?: () => void
+  open?: () => void
+}
+document.addEventListener('sui:project-switcher:open', () => {
+  const rail = document.getElementById('ship-rail') as HTMLElement | null
+  const picker = rail?.shadowRoot?.querySelector<OpenableHost>('sui-view-picker')
+  picker?.toggle?.() ?? picker?.open?.()
+})
+document.addEventListener('sui:theme-picker:open', () => {
+  const navTop = document.getElementById('ship-nav-top')
+  const picker = navTop?.shadowRoot?.querySelector<OpenableHost>('sui-theme-picker')
+  if (picker?.toggle) { picker.toggle(); return }
+  // sui-theme-picker doesn't expose an imperative API yet — fall back to
+  // clicking its internal `.trigger` button. The trigger is anchored
+  // inside the picker's shadow root so a direct `.click()` reaches the
+  // native popover toggle wiring.
+  const trigger = picker?.shadowRoot?.querySelector<HTMLButtonElement>('.trigger')
+  trigger?.click()
+})
 
 // First-run check: if setup hasn't been completed, rewrite the URL to
 // `/setup` so the wizard takes over. `ensureSetupOrRedirect` returns
