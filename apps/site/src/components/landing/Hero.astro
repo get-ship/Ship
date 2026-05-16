@@ -16,18 +16,18 @@ import HeroPlate from './HeroPlate.astro';
       <h1 class="display" id="landing-headline"></h1>
       <p class="sub" id="landing-sub"></p>
       <div class="ctas">
-        <ship-button size="lg">
+        <sui-button size="lg">
           <a href="/download" class="cta-inner">
             Download SHIP
             <svg class="caret" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>
           </a>
-        </ship-button>
-        <ship-button size="lg" variant="outline">
+        </sui-button>
+        <sui-button size="lg" variant="outline">
           <a href="#cluster-views" class="cta-inner">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
             See it in action
           </a>
-        </ship-button>
+        </sui-button>
       </div>
       <div class="workswith">
         <div class="workswith-label">Works with</div>
@@ -131,5 +131,5 @@ import HeroPlate from './HeroPlate.astro';
     display: inline-flex; align-items: center; gap: 10px;
   }
   .cta-inner .caret { transition: transform 180ms var(--ease-out); }
-  ship-button:hover .cta-inner .caret { transform: translateX(3px); }
+  sui-button:hover .cta-inner .caret { transform: translateX(3px); }
 </style>

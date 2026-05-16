@@ -1,7 +1,7 @@
 ---
 import '../styles/global.css';
 import AuthModal from '../components/AuthModal.astro';
-import { THEMES, DEFAULT_THEME, THEME_STORAGE_KEY } from '@ship/set/themes';
+import { THEMES, DEFAULT_THEME, THEME_STORAGE_KEY } from '../lib/themes';
 
 interface Props {
   title: string;
@@ -19,7 +19,7 @@ const {
   ownAuthModal = false,
 } = Astro.props;
 
-// Serialize the @ship/set theme catalog into the FOUC-prevention inline
+// Serialize the local theme catalog into the FOUC-prevention inline
 // script. Single source of truth — if THEMES changes, this updates.
 const themePreloadPayload = JSON.stringify({
   key: THEME_STORAGE_KEY,
@@ -62,12 +62,24 @@ const themePreloadPayload = JSON.stringify({
         root.classList.add('js');
       })();
     </script>
+
+    <!--
+      SUI bundles import the runtime by bare specifier. The importmap
+      must precede the module script that loads `/sui-components.js`.
+    -->
+    <script is:inline type="importmap" set:html={JSON.stringify({
+      imports: {
+        '@ship/sui-runtime': '/sui-runtime.js',
+        '@ship/sui-runtime/route': '/sui-runtime.js',
+        '@ship/sui-runtime/template-hooks': '/sui-runtime.js',
+        '@ship/sui-dom': '/sui-dom.js',
+        '@ship/sdk-client': '/sui-sdk-client.js',
+      },
+    })}></script>
+    <script is:inline type="module" src="/sui-components.js"></script>
   </head>
   <body class={bodyClass}>
     <slot />
     {!ownAuthModal && <AuthModal />}
-    <script>
-      import '../scripts/register-elements';
-    </script>
   </body>
 </html>

@@ -26,18 +26,18 @@ const links = [
       <div class="site-nav-theme">
         <ThemeSwitcher />
       </div>
-      <ship-button
+      <sui-button
         variant="ghost"
         size="md"
         class="site-nav-signin"
         onclick="(window.ship && window.ship.openAuth)?window.ship.openAuth('sign-in'):location.href='/sign-in'"
-      >Sign in</ship-button>
-      <ship-button
+      >Sign in</sui-button>
+      <sui-button
         tone="primary"
         variant="solid"
         size="md"
         onclick="location.href='/download'"
-      >Download</ship-button>
+      >Download</sui-button>
     </div>
   </div>
 </header>

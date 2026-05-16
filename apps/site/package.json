@@ -4,7 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "predev": "bun run scripts/copy-sui-assets.ts",
     "dev": "astro dev",
+    "prebuild": "bun run scripts/copy-sui-assets.ts",
     "build": "astro build",
     "preview": "astro preview",
     "deploy": "astro build && wrangler deploy",
@@ -14,7 +16,6 @@
     "@astrojs/check": "^0.9.4",
     "@fontsource-variable/dm-sans": "^5.2.8",
     "@fontsource-variable/syne": "^5.2.7",
-    "@ship/set": "workspace:*",
     "astro": "^6.1.1"
   },
   "devDependencies": {

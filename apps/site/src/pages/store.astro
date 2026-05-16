@@ -20,7 +20,7 @@ const kinds = [
   <Navbar />
   <main class="store-page">
     <header class="store-hero site-container">
-      <ship-badge tone="muted" variant="soft" size="sm">Coming at launch</ship-badge>
+      <sui-badge tone="muted" variant="soft" size="sm">Coming at launch</sui-badge>
       <h1>A home for things you&rsquo;ve shipped.</h1>
       <p class="store-lede">
         When SHIP goes live, the store is where pipelines, skills,
@@ -29,24 +29,24 @@ const kinds = [
         it&rsquo;s a plan. Leave your email if you want the store
         (and a publish key) the moment it opens.
       </p>
-      <ship-toolbar gap="md" justify="start" class="store-ctas">
-        <ship-button
+      <sui-toolbar gap="md" justify="start" class="store-ctas">
+        <sui-button
           tone="primary"
           variant="solid"
           size="md"
           onclick="location.href='/sign-up'"
-        >Notify me at launch</ship-button>
-        <ship-button
+        >Notify me at launch</sui-button>
+        <sui-button
           variant="ghost"
           size="md"
           onclick="location.href='https://docs.getship.dev'"
-        >Publishing guide &rarr;</ship-button>
-      </ship-toolbar>
+        >Publishing guide &rarr;</sui-button>
+      </sui-toolbar>
     </header>
 
     <section class="store-what site-container">
       <div class="store-what-head">
-        <ship-badge tone="primary" variant="soft" size="sm">What you&rsquo;ll find there</ship-badge>
+        <sui-badge tone="primary" variant="soft" size="sm">What you&rsquo;ll find there</sui-badge>
       </div>
       <div class="store-grid">
         {kinds.map((k) => (

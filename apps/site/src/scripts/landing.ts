@@ -4,9 +4,9 @@
  * One script owns:
  *   - plate scene auto-morph (4.2s) + tab override + 1/2/3 keys
  *   - headline copy variants (4) with default "vibe"
- *   - vibe-chip swatches + `t` key: both go through @ship/set/themes so
- *     localStorage stays canonical, then dispatch `ship-theme-change` so
- *     <ThemeSwitcher> updates its trigger label/active state.
+ *   - vibe-chip swatches + `t` key: both go through ../lib/themes so
+ *     localStorage stays canonical. applyTheme fires `ship:theme:change`
+ *     which <sui-theme-picker> listens to for active-state sync.
  *   - tweaks panel (hidden; opened via Claude artifact postMessage)
  */
 
@@ -17,7 +17,7 @@ import {
   readStoredTheme,
   isValidTheme,
   type ThemeId,
-} from '@ship/set/themes';
+} from '../lib/themes';
 
 type SceneKey = 'session' | 'pipeline' | 'view';
 type HeadlineKey = 'vibe' | 'build' | 'thirty' | 'reactive';
@@ -144,15 +144,18 @@ function setTheme(id: string) {
   const next = applyTheme(id);
   persistTheme(next);
   paintThemeLabel(next);
-  document.dispatchEvent(new CustomEvent('ship-theme-change', { detail: { id: next } }));
+  // applyTheme already dispatches `ship:theme:change`, which the
+  // <sui-theme-picker> listens to for active-state sync — no extra
+  // event needed.
 }
 
 // Paint initial state from the stored value (the inline FOUC script has
 // already applied the theme to <html>; we just reflect it in UI).
 paintThemeLabel(readStoredTheme());
 
-// Keep the plate pill in sync when the ThemeSwitcher fires a change.
-document.addEventListener('ship-theme-change', (e) => {
+// Keep the plate pill in sync when any control (sui-theme-picker, this
+// script's own `t` key) applies a theme.
+document.addEventListener('ship:theme:change', (e) => {
   const id = (e as CustomEvent<{ id: ThemeId }>).detail?.id;
   if (id) paintThemeLabel(id);
 });

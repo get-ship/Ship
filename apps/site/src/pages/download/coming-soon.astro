@@ -8,9 +8,9 @@ import Footer from '../../components/Footer.astro';
   <Navbar />
   <main class="soon-page">
     <div class="site-container soon-inner">
-      <ship-badge tone="accent" variant="soft" size="md">
+      <sui-badge tone="accent" variant="soft" size="md">
         Installers landing soon
-      </ship-badge>
+      </sui-badge>
       <h1>Almost there.</h1>
       <p class="site-muted">
         SHIP installers are being packaged for release. Leave your
@@ -24,24 +24,24 @@ import Footer from '../../components/Footer.astro';
         onsubmit="event.preventDefault();document.getElementById('notify-thanks').toggleAttribute('hidden',false);this.reset();"
       >
         <input type="email" required placeholder="you@company.com" aria-label="Email" />
-        <ship-button tone="accent" variant="solid" size="md" type="submit">
+        <sui-button tone="accent" variant="solid" size="md" type="submit">
           Notify me
-        </ship-button>
+        </sui-button>
       </form>
 
-      <ship-alert tone="success" id="notify-thanks" class="soon-thanks" hidden>
+      <sui-alert tone="success" id="notify-thanks" class="soon-thanks" hidden>
         <span slot="title">You&rsquo;re on the list.</span>
         We&rsquo;ll email you as soon as installers land.
-      </ship-alert>
+      </sui-alert>
 
-      <ship-toolbar justify="center" class="soon-actions">
-        <ship-button variant="ghost" size="sm" onclick="location.href='/'">
+      <sui-toolbar justify="center" class="soon-actions">
+        <sui-button variant="ghost" size="sm" onclick="location.href='/'">
           &larr; Back to the homepage
-        </ship-button>
-        <ship-button variant="ghost" size="sm" onclick="location.href='https://docs.getship.dev'">
+        </sui-button>
+        <sui-button variant="ghost" size="sm" onclick="location.href='https://docs.getship.dev'">
           Read the docs &rarr;
-        </ship-button>
-      </ship-toolbar>
+        </sui-button>
+      </sui-toolbar>
     </div>
   </main>
   <Footer />

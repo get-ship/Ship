@@ -50,7 +50,7 @@ const features = [
 
     <!-- Hero (retained — best descriptor) -------------------------- -->
     <header class="fx-hero site-container">
-      <ship-badge tone="primary" variant="soft" size="sm">Build on SHIP</ship-badge>
+      <sui-badge tone="primary" variant="soft" size="sm">Build on SHIP</sui-badge>
       <h1>The platform for AI&#8209;native apps.</h1>
       <p class="fx-lede">
         SHIP isn&rsquo;t a library. It&rsquo;s a runtime, an SDK, a
@@ -59,41 +59,41 @@ const features = [
         use. Start free on your laptop, talk to us when you&rsquo;re
         ready for a team or production.
       </p>
-      <ship-toolbar gap="md" justify="start" class="fx-ctas">
-        <ship-button
+      <sui-toolbar gap="md" justify="start" class="fx-ctas">
+        <sui-button
           tone="primary"
           variant="solid"
           size="lg"
           onclick="location.href='/download'"
-        >Download SHIP</ship-button>
-        <ship-button
+        >Download SHIP</sui-button>
+        <sui-button
           variant="ghost"
           size="lg"
           onclick="location.href='https://docs.getship.dev'"
-        >Read the docs &rarr;</ship-button>
-      </ship-toolbar>
+        >Read the docs &rarr;</sui-button>
+      </sui-toolbar>
     </header>
 
     <!-- Feature stack — five cards with real content -->
     <section class="fx-stack site-container" aria-label="Features">
       {features.map((f, i) => (
-        <ship-card variant="outline" padding="lg" class="fx-card" data-tone={f.tone}>
+        <sui-card variant="outline" padding="lg" class="fx-card" data-tone={f.tone}>
           <div class="fx-card-rail" aria-hidden="true">
             <span class="fx-card-num">{String(i + 1).padStart(2, '0')}</span>
-            <ship-badge tone={f.tone} variant="soft" size="sm">{f.kind}</ship-badge>
+            <sui-badge tone={f.tone} variant="soft" size="sm">{f.kind}</sui-badge>
           </div>
           <div class="fx-card-body-wrap">
             <h3 class="fx-card-title">{f.title}</h3>
             <p class="fx-card-body">{f.body}</p>
             <code class="fx-card-tag">{f.tag}</code>
           </div>
-        </ship-card>
+        </sui-card>
       ))}
     </section>
 
     <!-- CTA card -------------------------------------------------- -->
     <section class="fx-cta site-container">
-      <ship-card variant="outline" padding="lg" class="fx-cta-card">
+      <sui-card variant="outline" padding="lg" class="fx-cta-card">
         <div class="fx-cta-copy">
           <h2>Install it. See for yourself.</h2>
           <p>
@@ -103,20 +103,20 @@ const features = [
             skills, views, and pipelines.
           </p>
         </div>
-        <ship-toolbar slot="footer" gap="md" justify="end">
-          <ship-button
+        <sui-toolbar slot="footer" gap="md" justify="end">
+          <sui-button
             variant="ghost"
             size="md"
             onclick="location.href='https://docs.getship.dev'"
-          >Read the docs</ship-button>
-          <ship-button
+          >Read the docs</sui-button>
+          <sui-button
             tone="primary"
             variant="solid"
             size="md"
             onclick="location.href='/download'"
-          >Download SHIP</ship-button>
-        </ship-toolbar>
-      </ship-card>
+          >Download SHIP</sui-button>
+        </sui-toolbar>
+      </sui-card>
     </section>
   </main>
   <Footer />

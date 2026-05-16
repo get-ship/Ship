@@ -1,13 +1,16 @@
 /*
- * Ship site global styles.
+ * Ship marketing-site global styles.
+ *
  * Loads canonical Ship tokens + Syne/DM Sans (matching Studio + docs).
- * No invented fonts. No invented color ramps. Everything flows through
- * @ship/set/tokens.css.
+ * Tokens and per-theme overrides live in `./tokens.css` + `./themes.css`,
+ * mirrored from the docs site so the marketing surface ships its own
+ * copy without depending on @ship/set.
  */
 
 @import '@fontsource-variable/syne';
 @import '@fontsource-variable/dm-sans';
 @import './tokens.css';
+@import './themes.css';
 
 *,
 *::before,
@@ -109,12 +112,12 @@ p {
 }
 
 /*
- * Fallback styles while ship-* custom elements are un-upgraded.
- * Keeps the first paint usable when the Lit bundle is still idle-loading.
- * Each `:defined` drops these rules once the element is registered.
+ * Fallback styles while sui-* custom elements are un-upgraded.
+ * Keeps the first paint usable while the SUI bundle is still loading.
+ * Each `:defined` drops these rules once the element registers.
  */
 
-ship-button:not(:defined) {
+sui-button:not(:defined) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -129,48 +132,40 @@ ship-button:not(:defined) {
   transition: transform 120ms ease;
   line-height: 1;
 }
-ship-button[tone='accent']:not(:defined) {
+sui-button[tone='accent']:not(:defined) {
   background: var(--accent);
   color: var(--accent-foreground);
 }
-ship-button[tone='primary']:not(:defined) {
+sui-button[tone='primary']:not(:defined) {
   background: var(--primary);
   color: var(--primary-foreground);
 }
-ship-button[variant='ghost']:not(:defined) {
+sui-button[variant='ghost']:not(:defined) {
   background: transparent;
   color: var(--foreground);
 }
-ship-button[size='lg']:not(:defined) {
+sui-button[size='lg']:not(:defined) {
   padding: 14px 22px;
   font-size: 15px;
 }
-ship-button:not(:defined):hover {
+sui-button:not(:defined):hover {
   transform: translateY(-1px);
 }
 
-/*
- * ship-card pre-upgrade fallback. Matches the shadow-DOM padding
- * matrix closely enough that a fresh navigation doesn't look cramped
- * during the brief window before ship-card registers. Padding values
- * mirror the size channel in ship-card.styles.ts.
- */
-ship-card:not(:defined) {
+sui-card:not(:defined) {
   display: block;
   border: 1px solid color-mix(in oklch, var(--border) 60%, transparent);
   border-radius: var(--radius-lg);
   background: var(--card);
   padding: var(--space-4) var(--space-5);
 }
-ship-card[padding='none']:not(:defined) { padding: 0; }
-ship-card[padding='sm']:not(:defined)   { padding: var(--space-3); }
-ship-card[padding='md']:not(:defined)   { padding: var(--space-4) var(--space-5); }
-ship-card[padding='lg']:not(:defined)   { padding: var(--space-5) var(--space-6); }
-ship-card[variant='outline']:not(:defined) { box-shadow: none; }
+sui-card[padding='none']:not(:defined) { padding: 0; }
+sui-card[padding='sm']:not(:defined)   { padding: var(--space-3); }
+sui-card[padding='md']:not(:defined)   { padding: var(--space-4) var(--space-5); }
+sui-card[padding='lg']:not(:defined)   { padding: var(--space-5) var(--space-6); }
+sui-card[variant='outline']:not(:defined) { box-shadow: none; }
 
-/* Neutral pill baseline. Specific tones override so pre-upgrade contrast
- * always clears WCAG AA, matching the real Lit shadow output. */
-ship-badge:not(:defined) {
+sui-badge:not(:defined) {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -183,22 +178,22 @@ ship-badge:not(:defined) {
   font-weight: 600;
   border: 1px solid color-mix(in oklch, var(--border) 60%, transparent);
 }
-ship-badge[tone='accent']:not(:defined) {
+sui-badge[tone='accent']:not(:defined) {
   background: var(--accent);
   color: var(--accent-foreground);
   border-color: var(--accent);
 }
-ship-badge[tone='accent'][variant='soft']:not(:defined) {
+sui-badge[tone='accent'][variant='soft']:not(:defined) {
   background: color-mix(in oklch, var(--accent) 18%, var(--card));
   color: var(--foreground);
   border-color: color-mix(in oklch, var(--accent) 45%, transparent);
 }
-ship-badge[variant='outline']:not(:defined) {
+sui-badge[variant='outline']:not(:defined) {
   background: transparent;
   color: var(--foreground);
 }
 
-ship-status-dot:not(:defined) {
+sui-status-dot:not(:defined) {
   display: inline-block;
   width: 8px;
   height: 8px;
@@ -206,55 +201,19 @@ ship-status-dot:not(:defined) {
   background: oklch(0.7 0.15 150);
 }
 
-ship-separator:not(:defined) {
+sui-separator:not(:defined) {
   display: block;
   height: 1px;
   background: color-mix(in oklch, var(--border) 60%, transparent);
 }
 
-/* Render a closed-select shaped pill so the dropdown options don't spill
- * into the document flow before Lit upgrades ship-select. */
-ship-select:not(:defined) {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 26px 4px 10px;
-  height: 28px;
-  border: 1px solid color-mix(in oklch, var(--border) 70%, transparent);
-  border-radius: 8px;
-  background: var(--card);
-  color: var(--foreground);
-  font-family: var(--font-body);
-  font-size: 12px;
-  font-weight: 500;
-  position: relative;
-  cursor: default;
-  min-width: 120px;
-}
-ship-select:not(:defined)::after {
-  content: '';
-  position: absolute;
-  right: 10px;
-  top: 50%;
-  width: 6px;
-  height: 6px;
-  border-right: 1.5px solid var(--muted-foreground);
-  border-bottom: 1.5px solid var(--muted-foreground);
-  transform: translateY(-65%) rotate(45deg);
-}
-ship-select:not(:defined) * { display: none; }
-ship-select:not(:defined)::before {
-  content: attr(data-placeholder);
-  color: var(--foreground);
-}
-
-ship-toolbar:not(:defined) {
+sui-toolbar:not(:defined) {
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-ship-alert:not(:defined) {
+sui-alert:not(:defined) {
   display: block;
   padding: 12px 14px;
   border-radius: var(--radius-lg);
@@ -264,16 +223,27 @@ ship-alert:not(:defined) {
   font-size: 13px;
 }
 
-ship-dialog:not(:defined),
-ship-auth-dialog:not(:defined) {
+sui-dialog:not(:defined),
+sui-auth-dialog:not(:defined) {
   display: none;
 }
 
-/* Un-upgraded popover: render only the trigger slot. Any default-slot
- * children (the panel body) stay hidden until ship-popover takes over. */
-ship-popover:not(:defined) {
+/* Un-upgraded popover/theme-picker: render only the trigger. Default-slot
+ * children (the panel body) stay hidden until the element registers. */
+sui-popover:not(:defined) {
   display: inline-flex;
 }
-ship-popover:not(:defined) > *:not([slot='trigger']) {
+sui-popover:not(:defined) > *:not([slot='trigger']) {
   display: none;
+}
+
+sui-theme-picker:not(:defined) {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  color: var(--foreground);
+  font-size: 13px;
+  min-height: 28px;
 }
