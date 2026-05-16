@@ -98,7 +98,7 @@
     transition: background-color var(--duration-fast, 100ms) var(--ease-out, ease-out);
   }
   .brand-mark {
-    --ship-mark-size: 18px;
+    --ship-mark-size: 28px;
     display: block;
   }
   .brand:hover { background: color-mix(in oklch, var(--foreground) 8%, transparent); }
