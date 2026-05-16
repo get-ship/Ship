@@ -6,6 +6,7 @@ order: 1
 slug: "01-hello-signal"
 prev: null
 next: "02-derived"
+chapter: "reactivity"
 ---
 
 A **signal** is the smallest reactive primitive in SUI — a callable

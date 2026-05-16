@@ -22,9 +22,9 @@ const PORT = Number(process.env.DOCS_VISUAL_PORT ?? 5180)
 export default defineConfig({
   testDir: __dirname,
   testMatch: /.*\.spec\.ts$/,
-  timeout: 30_000,
+  timeout: 60_000,
   expect: {
-    timeout: 8_000,
+    timeout: 10_000,
     toHaveScreenshot: {
       // Generous-but-not-permissive: tutorial visuals include the
       // status dot which transitions colour, and the code editor

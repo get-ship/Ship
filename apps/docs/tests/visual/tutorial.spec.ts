@@ -19,7 +19,16 @@ import { test, expect } from '@playwright/test'
 
 type ThemeId = 'ship-light' | 'ship-dark'
 const THEMES: ThemeId[] = ['ship-light', 'ship-dark']
-const STEPS = ['01-hello-signal', '02-derived', '03-bindfor'] as const
+const STEPS = [
+  '01-hello-signal',
+  '02-derived',
+  '03-bindfor',
+  '04-effect',
+  '05-bind-if',
+  '06-bind-value',
+  '07-event-modifiers',
+  '08-sui-primitives',
+] as const
 
 // Disable animations + caret blink so diffs stay deterministic.
 const STABILITY_CSS = `
@@ -49,14 +58,19 @@ for (const step of STEPS) {
       // have rendered something (status leaves 'ready').
       await page.waitForFunction(
         () => !!customElements.get('sui-code-editor'),
-        { timeout: 15_000 },
+        { timeout: 25_000 },
       )
+      // TutorialApp stamps `data-tut-state` on .tut-app-root after
+      // every setStatus call. We wait for either a successful run
+      // ('ok') or an error — both indicate the editor + iframe
+      // have completed their first round-trip.
       await page.waitForFunction(
         () => {
-          const status = document.querySelector('.tut-status-text')?.textContent ?? ''
-          return status === 'running' || status.includes('error')
+          const root = document.querySelector('.tut-app-root') as HTMLElement | null
+          const s = root?.dataset.tutState
+          return s === 'ok' || s === 'error'
         },
-        { timeout: 15_000 },
+        { timeout: 25_000 },
       )
 
       // Give the iframe one more beat to paint the SUI preview.

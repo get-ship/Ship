@@ -1,10 +1,14 @@
 ---
 /*
-  Tutorial index — landing page that lists every step with prev/next
-  hooks for quick scan. Pulls metadata from each step's index.md
-  frontmatter under docs/ship-sui/references/tutorial/<NN-slug>/.
+  Tutorial index — landing page that groups every step under its
+  chapter (frontmatter `chapter` field). Pulls metadata from each
+  step's index.md under docs/ship-sui/references/tutorial/<NN-slug>/.
   Prose source of truth stays in the skill; the app (this route +
   the step pages) lives here under apps/docs/.
+
+  Chapter chrome uses Ship primitives: <sui-chip> for chapter labels,
+  <sui-card> per step, <sui-button> for the "start" CTA — keeps the
+  index visually aligned with what the user is about to read.
 */
 import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro'
 import { readFileSync, readdirSync } from 'node:fs'
@@ -20,6 +24,7 @@ interface Step {
   title: string
   description: string | null
   order: number
+  chapter: string
 }
 
 function parseFm(text: string): Record<string, string | null> {
@@ -47,9 +52,36 @@ const steps: Step[] = readdirSync(tutorialDir, { withFileTypes: true })
       title: fm.title ?? e.name,
       description: fm.description ?? null,
       order: Number(fm.order ?? 999),
+      chapter: fm.chapter ?? 'other',
     }
   })
   .sort((a, b) => a.order - b.order)
+
+// Order chapters by the order of their first step.
+const chapterOrder: string[] = []
+const byChapter = new Map<string, Step[]>()
+for (const s of steps) {
+  if (!byChapter.has(s.chapter)) {
+    byChapter.set(s.chapter, [])
+    chapterOrder.push(s.chapter)
+  }
+  byChapter.get(s.chapter)!.push(s)
+}
+
+const chapterTitles: Record<string, string> = {
+  reactivity: 'Reactivity',
+  templating: 'Templating',
+  components: 'Components',
+  other: 'Other',
+}
+
+const chapterDescriptions: Record<string, string> = {
+  reactivity: 'Signals, derived, effects, lists — the reactive graph.',
+  templating: 'Branches, bindings, events — what shape your DOM takes.',
+  components: 'Composing with the built-in Ship UI primitives.',
+}
+
+const firstSlug = steps[0]?.slug
 ---
 
 <StarlightPage
@@ -60,52 +92,95 @@ const steps: Step[] = readdirSync(tutorialDir, { withFileTypes: true })
     tableOfContents: false,
   }}
 >
-  <p>
-    Each step is short. Read the prose on the left; edit the code
-    on the right; the preview re-renders as you type. Show the
-    solution when stuck.
+  <p class="tut-lead">
+    Eight steps across three chapters. Read the prose on the left,
+    edit the code on the right, the preview re-renders as you type.
+    Show the solution when stuck.
   </p>
-  <ol class="tut-index">
-    {steps.map((s) => (
-      <li>
-        <a href={`/tutorial/${s.slug}/`}>
-          <span class="num">{String(s.order).padStart(2, '0')}</span>
-          <span class="meta">
-            <strong>{s.title}</strong>
-            {s.description && <span class="desc">{s.description}</span>}
-          </span>
-        </a>
-      </li>
-    ))}
-  </ol>
+
+  {firstSlug && (
+    <p>
+      <a href={`/tutorial/${firstSlug}/`} class="tut-cta-link">
+        <sui-button variant="solid" tone="primary" size="md">
+          Start with step 01 →
+        </sui-button>
+      </a>
+    </p>
+  )}
+
+  {chapterOrder.map((chap) => (
+    <section class="tut-chapter">
+      <header class="tut-chap-head">
+        <sui-chip tone="primary" variant="soft" size="sm" pill>
+          {chapterTitles[chap] ?? chap}
+        </sui-chip>
+        {chapterDescriptions[chap] && (
+          <span class="tut-chap-desc">{chapterDescriptions[chap]}</span>
+        )}
+      </header>
+      <div class="tut-chap-grid">
+        {byChapter.get(chap)!.map((s) => (
+          <a href={`/tutorial/${s.slug}/`} class="tut-card-link">
+            <sui-card padding="md" interactive>
+              <div class="tut-card-row">
+                <span class="tut-num">{String(s.order).padStart(2, '0')}</span>
+                <div class="tut-card-meta">
+                  <strong>{s.title}</strong>
+                  {s.description && <span class="tut-desc">{s.description}</span>}
+                </div>
+              </div>
+            </sui-card>
+          </a>
+        ))}
+      </div>
+    </section>
+  ))}
 </StarlightPage>
 
 <style>
-  .tut-index {
-    list-style: none;
-    padding: 0;
-    margin: 1.5rem 0 0;
+  .tut-lead {
+    color: var(--sl-color-gray-2);
+    font-size: 1rem;
+    line-height: 1.6;
+  }
+  .tut-cta-link { text-decoration: none; display: inline-block; }
+
+  .tut-chapter {
+    margin: 2rem 0 1rem;
+  }
+  .tut-chap-head {
+    display: flex;
+    align-items: baseline;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+    flex-wrap: wrap;
+  }
+  .tut-chap-desc {
+    color: var(--sl-color-gray-3);
+    font-size: 0.875rem;
+  }
+  .tut-chap-grid {
     display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr));
     gap: 0.5rem;
   }
-  .tut-index a {
+  .tut-card-link {
+    text-decoration: none;
+    color: inherit;
+    display: block;
+  }
+  .tut-card-row {
     display: flex;
     align-items: center;
-    gap: 1rem;
-    padding: 0.75rem 1rem;
-    border: 1px solid var(--sl-color-hairline-shade);
-    border-radius: 0.5rem;
-    text-decoration: none;
-    color: var(--sl-color-text);
-    transition: border-color 120ms ease;
+    gap: 0.75rem;
   }
-  .tut-index a:hover { border-color: var(--sl-color-text-accent); }
-  .num {
+  .tut-num {
     font-family: var(--sl-font-system-mono);
-    font-size: 0.75rem;
-    color: var(--sl-color-gray-3);
+    font-size: 0.875rem;
+    color: var(--muted-foreground, var(--sl-color-gray-3));
     width: 2ch;
+    text-align: right;
   }
-  .meta { display: flex; flex-direction: column; gap: 2px; }
-  .desc { font-size: 0.875rem; color: var(--sl-color-gray-3); }
+  .tut-card-meta { display: flex; flex-direction: column; gap: 2px; }
+  .tut-desc { font-size: 0.8125rem; color: var(--sl-color-gray-3); }
 </style>

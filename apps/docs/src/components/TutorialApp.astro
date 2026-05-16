@@ -1,24 +1,19 @@
 ---
 /*
-  TutorialApp — editor + preview pane using SUI's own <sui-code-editor>
-  component (no extra CodeMirror dep in the docs bundle, no separate
-  syntax highlighting story, no second theme palette to keep in sync).
-  The component is registered globally by /sui-components.js, which
-  Astro already loads in the docs layout's <head>.
+  TutorialApp — editor + preview pane wired entirely from Ship's own
+  SUI components: <sui-tabs> / <sui-tab> / <sui-tab-panel> for pane
+  switching, <sui-button> for actions, <sui-status-dot> for the live
+  status, <sui-code-editor> for editing, <sui-diff> for the "what
+  changed vs. solution" view, <sui-alert> for compile errors. The
+  base component set is registered globally by the layout's
+  <script type="module" src="/sui-components.js">; the editor + diff
+  chunks lazy-load on first reference.
 
   Author flow on every edit:
-    edit fires `sui-change` (debounced 150ms inside sui-code-editor)
-      → tutorial-app's listener reads e.detail.value
-      → sui-compiler (wasm) compiles the .sui → JS module
-      → controller (.ts) regex-stripped to plain JS in-browser
-      → both modules posted to the iframe host via postMessage;
-        the host injects them as blob URLs, rewrites the template
-        module's setup-import to the controller blob, and re-mounts
-        the custom element under a fresh tag per run.
-
-  Lives wholly inside `apps/docs/`; the per-step prose stays in
-  `docs/ship-sui/references/tutorial/<NN-slug>/index.md` and is
-  rendered separately by the route page.
+    sui-change (debounced 150ms inside sui-code-editor)
+      → compile via wasm
+      → controller TS→JS regex strip
+      → postMessage to iframe host → blob URL injection → re-mount.
 */
 interface Props {
   slug: string
@@ -38,54 +33,73 @@ const { slug, starterTemplate, starterController, solvedTemplate, solvedControll
   data-solved-template={solvedTemplate}
   data-solved-controller={solvedController}
 >
-  <div class="tut-pane tut-pane--editor">
-    <div class="tut-pane-bar">
-      <div class="tut-tabs">
-        <button class="tut-tab" data-tab="template" aria-selected="true">
-          <span class="tut-tab-icon">⟨/⟩</span> template.sui
-        </button>
-        <button class="tut-tab" data-tab="controller">
-          <span class="tut-tab-icon">{}</span> controller.ts
-        </button>
-      </div>
+  <sui-card padding="none" class="tut-pane tut-pane--editor">
+    <div class="tut-pane-bar" slot="header">
+      <sui-tabs active="template" variant="pill" size="sm" class="tut-tabs">
+        <sui-tab name="template">
+          <span class="tut-tab-icon" aria-hidden="true">⟨/⟩</span> template.sui
+        </sui-tab>
+        <sui-tab name="controller">
+          <span class="tut-tab-icon" aria-hidden="true">{}</span> controller.ts
+        </sui-tab>
+        <sui-tab name="diff">
+          <span class="tut-tab-icon" aria-hidden="true">±</span> diff
+        </sui-tab>
+      </sui-tabs>
       <div class="tut-actions">
-        <button class="tut-action" data-action="reset" title="Reset to starter code">
-          <span aria-hidden="true">↺</span> Reset
-        </button>
-        <button class="tut-action tut-action--accent" data-action="solution" title="Replace with the answer">
+        <sui-button data-action="reset" variant="ghost" size="sm" title="Reset to starter code">
+          ↺ Reset
+        </sui-button>
+        <sui-button data-action="solution" variant="soft" tone="primary" size="sm" title="Replace with the answer">
           Show solution
-        </button>
+        </sui-button>
       </div>
     </div>
     <div class="tut-editor-host">
-      <sui-code-editor
-        class="tut-editor"
-        data-pane="template"
-        language="html"
-        size="sm"
-        value={starterTemplate}
-      ></sui-code-editor>
-      <sui-code-editor
-        class="tut-editor"
-        data-pane="controller"
-        language="typescript"
-        size="sm"
-        value={starterController}
-        hidden
-      ></sui-code-editor>
+      <sui-tab-panel name="template" active>
+        <sui-code-editor
+          class="tut-editor"
+          data-pane="template"
+          language="html"
+          size="md"
+          value={starterTemplate}
+        ></sui-code-editor>
+      </sui-tab-panel>
+      <sui-tab-panel name="controller">
+        <sui-code-editor
+          class="tut-editor"
+          data-pane="controller"
+          language="typescript"
+          size="md"
+          value={starterController}
+        ></sui-code-editor>
+      </sui-tab-panel>
+      <sui-tab-panel name="diff">
+        <div class="tut-diff-wrap">
+          <div class="tut-diff-row">
+            <div class="tut-diff-label">template.sui</div>
+            <sui-diff class="tut-diff" data-pane="template" from={starterTemplate} to={solvedTemplate}></sui-diff>
+          </div>
+          <div class="tut-diff-row">
+            <div class="tut-diff-label">controller.ts</div>
+            <sui-diff class="tut-diff" data-pane="controller" from={starterController} to={solvedController}></sui-diff>
+          </div>
+        </div>
+      </sui-tab-panel>
     </div>
-  </div>
+  </sui-card>
 
-  <div class="tut-pane tut-pane--preview">
+  <sui-card padding="none" class="tut-pane tut-pane--preview">
     <div class="tut-pane-bar">
-      <div class="tut-status">
-        <span class="tut-status-dot" data-state="idle"></span>
-        <span class="tut-status-text">ready</span>
-      </div>
-      <button class="tut-action" data-action="run" title="Re-run with current code">
-        <span aria-hidden="true">↻</span> Run
-      </button>
+      <sui-status-dot class="tut-status-dot" tone="muted" size="sm" label="ready"></sui-status-dot>
+      <sui-button data-action="run" variant="ghost" size="sm" title="Re-run with current code">
+        ↻ Run
+      </sui-button>
     </div>
+    <sui-alert class="tut-error" tone="destructive" hidden>
+      <span slot="title">Compile error</span>
+      <pre class="tut-error-msg"></pre>
+    </sui-alert>
     <div class="tut-preview-host">
       <iframe
         class="tut-preview"
@@ -94,11 +108,10 @@ const { slug, starterTemplate, starterController, solvedTemplate, solvedControll
         sandbox="allow-scripts allow-same-origin"
       ></iframe>
     </div>
-  </div>
+  </sui-card>
 </div>
 
 <script>
-  // WASM compiler load — Vite bundles these as static imports.
   import initWasm, { compile as wasmCompile } from '@ship/sui-compiler-wasm'
   import wasmUrl from '@ship/sui-compiler-wasm/sui_compiler_bg.wasm?url'
 
@@ -108,25 +121,28 @@ const { slug, starterTemplate, starterController, solvedTemplate, solvedControll
     return wasmReady
   }
 
-  // The Ship code editor lives at /sui-components/sui-code-editor.js
-  // — pre-bundled by `bun --filter @ship/ui-components build`, copied
-  // into apps/docs/public/sui-components/, self-registers on import.
-  let editorLoad: Promise<unknown> | null = null
+  // sui-components.js + sui-components/sui-code-editor.js are loaded
+  // globally by the docs layout's <head>. We just wait for the
+  // custom-element definition to land before booting.
   function ensureEditorCE(): Promise<unknown> {
     if (typeof customElements === 'undefined') return Promise.resolve()
-    if (!editorLoad) {
-      // String concat keeps the URL opaque to Rollup so it doesn't try
-      // to resolve `/sui-components/...` at build time.
-      const url = '/sui-components/' + 'sui-code-editor.js'
-      editorLoad = import(/* @vite-ignore */ url)
-        .then(() => customElements.whenDefined('sui-code-editor'))
-    }
-    return editorLoad
+    return customElements.whenDefined('sui-code-editor')
   }
 
-  interface EditorEl extends HTMLElement {
-    value: string
+  // Wait for the base set (sui-button, sui-tabs, sui-status-dot,
+  // sui-diff, sui-alert, sui-card) to be defined too — they ship in
+  // sui-components.js which is loaded asynchronously by the layout.
+  function ensureBaseCE(): Promise<unknown> {
+    if (typeof customElements === 'undefined') return Promise.resolve()
+    return Promise.all([
+      'sui-button', 'sui-tabs', 'sui-tab', 'sui-tab-panel',
+      'sui-status-dot', 'sui-diff', 'sui-alert', 'sui-card',
+    ].map((tag) => customElements.whenDefined(tag)))
   }
+
+  interface EditorEl extends HTMLElement { value: string }
+  interface DiffEl extends HTMLElement { from: string; to: string }
+  interface StatusDotEl extends HTMLElement { tone: string; pulse: boolean; label: string }
 
   function bootApp(root: HTMLElement): void {
     const slug = root.dataset.slug ?? ''
@@ -142,45 +158,38 @@ const { slug, starterTemplate, starterController, solvedTemplate, solvedControll
 
     const tplEl = root.querySelector<EditorEl>('sui-code-editor[data-pane="template"]')!
     const ctrlEl = root.querySelector<EditorEl>('sui-code-editor[data-pane="controller"]')!
+    const tplDiff = root.querySelector<DiffEl>('sui-diff[data-pane="template"]')!
+    const ctrlDiff = root.querySelector<DiffEl>('sui-diff[data-pane="controller"]')!
 
-    // sui-change comes pre-debounced (150ms) — listen and recompile.
     tplEl.addEventListener('sui-change', (e) => {
       const v = (e as CustomEvent<{ value: string }>).detail.value
       currentTemplate = v
-      scheduleRun()
+      tplDiff.from = v
+      runNow()
     })
     ctrlEl.addEventListener('sui-change', (e) => {
       const v = (e as CustomEvent<{ value: string }>).detail.value
       currentController = v
-      scheduleRun()
+      ctrlDiff.from = v
+      runNow()
     })
-    // Also schedule on the lower-level `input` event so the UI's
-    // "editing…" status appears immediately on keystroke instead of
-    // waiting for the 150ms debounce window inside sui-code-editor.
     tplEl.addEventListener('input', () => setStatus('typing', 'editing…'))
     ctrlEl.addEventListener('input', () => setStatus('typing', 'editing…'))
 
-    // Tab switching — hide the inactive editor, keep both mounted so
-    // the value state survives toggling.
-    root.querySelectorAll<HTMLButtonElement>('.tut-tab').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const which = btn.dataset.tab
-        if (!which) return
-        root.querySelectorAll<HTMLButtonElement>('.tut-tab').forEach((b) => {
-          b.setAttribute('aria-selected', String(b.dataset.tab === which))
-        })
-        root.querySelectorAll<HTMLElement>('sui-code-editor').forEach((p) => {
-          p.hidden = p.dataset.pane !== which
-        })
-      })
+    // sui-tabs orchestrates panel visibility itself; we just listen
+    // for sui-tab-change in case we need to react (currently no-op,
+    // but kept as a hook for later analytics).
+    root.querySelector('sui-tabs')!.addEventListener('sui-tab-change', () => {
+      // intentionally empty
     })
 
-    // Action buttons.
     root.querySelector('[data-action="reset"]')!.addEventListener('click', () => {
       currentTemplate = starterTemplate
       currentController = starterController
       tplEl.value = starterTemplate
       ctrlEl.value = starterController
+      tplDiff.from = starterTemplate
+      ctrlDiff.from = starterController
       runNow()
     })
     root.querySelector('[data-action="solution"]')!.addEventListener('click', () => {
@@ -188,19 +197,41 @@ const { slug, starterTemplate, starterController, solvedTemplate, solvedControll
       currentController = solvedController
       tplEl.value = solvedTemplate
       ctrlEl.value = solvedController
+      tplDiff.from = solvedTemplate
+      ctrlDiff.from = solvedController
       runNow()
     })
     root.querySelector('[data-action="run"]')!.addEventListener('click', () => runNow())
 
-    // Status.
     const statusDot = root.querySelector<HTMLElement>('.tut-status-dot')!
-    const statusText = root.querySelector<HTMLElement>('.tut-status-text')!
+    const errorAlert = root.querySelector<HTMLElement>('.tut-error')!
+    const errorMsg = root.querySelector<HTMLElement>('.tut-error-msg')!
+    // Write attributes (not JS properties) so external observers
+    // (visual tests, MutationObserver consumers) see the update —
+    // the `label` prop on sui-status-dot doesn't reflect, and
+    // attribute writes also propagate through the reflect-prop
+    // setters that do.
     function setStatus(state: string, text: string): void {
-      statusDot.dataset.state = state
-      statusText.textContent = text
+      const toneMap: Record<string, string> = {
+        idle: 'muted', typing: 'info', running: 'warning',
+        ok: 'success', error: 'destructive',
+      }
+      statusDot.setAttribute('tone', toneMap[state] ?? 'muted')
+      if (state === 'typing' || state === 'running') {
+        statusDot.setAttribute('pulse', '')
+      } else {
+        statusDot.removeAttribute('pulse')
+      }
+      statusDot.setAttribute('label', text)
+      root.dataset.tutState = state
+      if (state === 'error') {
+        errorMsg.textContent = text
+        errorAlert.hidden = false
+      } else {
+        errorAlert.hidden = true
+      }
     }
 
-    // Iframe + theme sync.
     let iframeReady = false
     const iframe = root.querySelector<HTMLIFrameElement>('.tut-preview')!
     function resolvedTheme(): 'dark' | 'light' {
@@ -270,16 +301,9 @@ const { slug, starterTemplate, starterController, solvedTemplate, solvedControll
         setStatus('error', e instanceof Error ? e.message : String(e))
       }
     }
-
-    function scheduleRun(): void {
-      runNow()
-    }
   }
 
-  // Boot once the WASM compiler AND the <sui-code-editor> definition
-  // are both available. Apps are idempotent — `data-booted` guards
-  // re-runs if the page re-hydrates.
-  Promise.all([ensureWasm(), ensureEditorCE()])
+  Promise.all([ensureWasm(), ensureEditorCE(), ensureBaseCE()])
     .then(() => {
       document.querySelectorAll<HTMLElement>('.tut-app-root').forEach((root) => {
         if (root.dataset.booted === '1') return
@@ -310,148 +334,139 @@ const { slug, starterTemplate, starterController, solvedTemplate, solvedControll
     flex-direction: column;
     flex: 1 1 0;
     min-height: 0;
-    background: var(--sl-color-bg-sidebar);
-    border: 1px solid var(--sl-color-hairline-shade);
-    border-radius: 10px;
-    overflow: hidden;
   }
-  .tut-pane--editor { flex-basis: 60%; }
-  .tut-pane--preview { flex-basis: 40%; }
+  /* sui-card sets its own border + bg; we want it to fill height. */
+  sui-card.tut-pane::part(card) {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    padding: 0 !important;
+  }
+  .tut-pane--editor { flex: 1 1 0; min-height: 0; }
+  .tut-pane--preview { flex: 0 0 38%; min-height: 0; }
+  @media (min-width: 1600px) {
+    .tut-pane--preview { flex: 0 0 34%; }
+  }
 
   .tut-pane-bar {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 0.5rem;
-    padding: 6px 10px;
-    background: var(--sl-color-bg-sidebar);
-    border-bottom: 1px solid var(--sl-color-hairline-shade);
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--border, var(--sl-color-hairline-shade));
     flex-shrink: 0;
-    min-height: 38px;
+    min-height: 40px;
   }
-
-  .tut-tabs { display: flex; gap: 2px; }
-  .tut-tab {
-    background: transparent;
-    color: var(--sl-color-gray-2);
-    border: 1px solid transparent;
-    padding: 4px 10px;
-    font: inherit;
-    font-family: var(--sl-font-system-mono);
-    font-size: 0.75rem;
-    border-radius: 6px;
-    cursor: pointer;
+  /* Starlight's content reset gives every direct child of <article>
+     a margin-top — when sui-tabs renders inside it, the first sui-tab
+     inherits that, pushing the tablist down. Force-reset all chrome
+     descendants. */
+  .tut-pane-bar > *,
+  .tut-pane-bar *:first-child {
+    margin: 0 !important;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+  }
+  .tut-pane-bar sui-tabs,
+  .tut-pane-bar sui-tab,
+  .tut-pane-bar sui-button {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    transition: color 120ms ease, background-color 120ms ease;
+    line-height: 1;
   }
-  .tut-tab:hover {
-    color: var(--sl-color-text);
-    background: color-mix(in oklch, var(--sl-color-text) 4%, transparent);
+
+  .tut-tabs {
+    /* sui-tabs ships with its own pill chrome; tighten the strip. */
+    --tone: var(--primary);
+    align-self: stretch;
+    display: flex;
+    align-items: center;
   }
-  .tut-tab[aria-selected="true"] {
-    color: var(--sl-color-text-accent);
-    background: color-mix(in oklch, var(--sl-color-text-accent) 10%, transparent);
-    border-color: color-mix(in oklch, var(--sl-color-text-accent) 30%, transparent);
+  .tut-tabs::part(strip) {
+    padding: 2px;
+    background: transparent;
+    border-bottom: 0 !important;
+    align-items: center;
   }
   .tut-tab-icon {
-    font-family: var(--sl-font-system-mono);
-    color: var(--sl-color-gray-3);
+    font-family: var(--font-mono, var(--sl-font-system-mono));
+    color: var(--muted-foreground);
     font-size: 0.7rem;
-  }
-  .tut-tab[aria-selected="true"] .tut-tab-icon {
-    color: var(--sl-color-text-accent);
+    margin-right: 4px;
   }
 
-  .tut-actions { display: flex; gap: 6px; }
-  .tut-action {
-    background: transparent;
-    border: 1px solid var(--sl-color-hairline-shade);
-    color: var(--sl-color-gray-2);
-    padding: 4px 10px;
-    border-radius: 6px;
-    font: inherit;
-    font-family: var(--sl-font-system-mono);
-    font-size: 0.7rem;
-    cursor: pointer;
-    transition: all 120ms ease;
+  .tut-actions {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+    align-self: center;
+  }
+  /* Pin the action buttons to the same height as a sui-tab so the
+     pane bar reads as a single horizontal rail. */
+  .tut-actions sui-button {
+    --button-height: 26px;
     display: inline-flex;
     align-items: center;
-    gap: 4px;
+    height: 26px;
   }
-  .tut-action:hover {
-    border-color: var(--sl-color-text-accent);
-    color: var(--sl-color-text-accent);
-    background: color-mix(in oklch, var(--sl-color-text-accent) 8%, transparent);
-  }
-  .tut-action--accent {
-    border-color: color-mix(in oklch, var(--sl-color-text-accent) 50%, transparent);
-    color: var(--sl-color-text-accent);
-  }
-  .tut-action--accent:hover {
-    background: var(--sl-color-text-accent);
-    color: var(--sl-color-bg);
-    border-color: var(--sl-color-text-accent);
+  .tut-actions sui-button::part(button) {
+    height: 26px;
+    min-height: 0;
+    padding-block: 0;
   }
 
   .tut-editor-host {
     flex: 1 1 auto;
     min-height: 0;
     display: flex;
+    flex-direction: column;
     position: relative;
+    overflow: hidden;
+  }
+  .tut-editor-host > sui-tab-panel {
+    flex: 1;
+    min-height: 0;
+    height: 100%;
+  }
+  .tut-editor-host > sui-tab-panel[active] {
+    display: flex;
+    flex-direction: column;
   }
   .tut-editor {
     flex: 1;
     min-width: 0;
     min-height: 0;
     display: block;
-    /* sui-code-editor sets border + radius on :host; we already have
-       a chrome around it from .tut-pane, so flatten its own. */
     border: none !important;
     border-radius: 0 !important;
     background: transparent !important;
   }
-  .tut-editor[hidden] { display: none; }
 
-  .tut-status {
+  .tut-diff-wrap {
+    flex: 1;
+    min-height: 0;
     display: flex;
-    align-items: center;
+    flex-direction: column;
     gap: 8px;
-    font-family: var(--sl-font-system-mono);
+    padding: 10px;
+    overflow-y: auto;
+  }
+  .tut-diff-row {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .tut-diff-label {
+    font-family: var(--font-mono, var(--sl-font-system-mono));
     font-size: 0.7rem;
-    color: var(--sl-color-gray-3);
-    min-width: 0;
-    flex: 1;
+    color: var(--muted-foreground);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
   }
-  .tut-status-dot {
-    width: 8px; height: 8px; border-radius: 50%;
-    background: var(--sl-color-gray-4);
-    flex-shrink: 0;
-    transition: background 200ms ease, box-shadow 200ms ease;
-  }
-  .tut-status-dot[data-state="ok"] {
-    background: var(--sl-color-green-high);
-    box-shadow: 0 0 0 3px color-mix(in oklch, var(--sl-color-green-high) 18%, transparent);
-  }
-  .tut-status-dot[data-state="running"] { background: var(--sl-color-orange-high); }
-  .tut-status-dot[data-state="typing"] {
-    background: var(--sl-color-blue-high);
-    animation: tut-pulse 1.2s ease-in-out infinite;
-  }
-  .tut-status-dot[data-state="error"] {
-    background: var(--sl-color-red-high);
-    box-shadow: 0 0 0 3px color-mix(in oklch, var(--sl-color-red-high) 22%, transparent);
-  }
-  @keyframes tut-pulse {
-    0%, 100% { opacity: 1 }
-    50% { opacity: 0.4 }
-  }
-  .tut-status-text {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    flex: 1;
+  .tut-diff {
+    max-height: 240px;
+    overflow-y: auto;
   }
 
   .tut-preview-host {
@@ -463,6 +478,20 @@ const { slug, starterTemplate, starterController, solvedTemplate, solvedControll
     flex: 1;
     width: 100%;
     border: none;
-    background: var(--sl-color-bg);
+    background: var(--background, var(--sl-color-bg));
+  }
+
+  .tut-error {
+    margin: 8px 10px 0;
+    flex-shrink: 0;
+  }
+  .tut-error-msg {
+    margin: 0;
+    font-family: var(--font-mono, var(--sl-font-system-mono));
+    font-size: 0.75rem;
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 120px;
+    overflow-y: auto;
   }
 </style>

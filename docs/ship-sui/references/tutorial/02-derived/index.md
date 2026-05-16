@@ -6,6 +6,7 @@ order: 2
 slug: "02-derived"
 prev: "01-hello-signal"
 next: "03-bindfor"
+chapter: "reactivity"
 ---
 
 A **derived** is a computed value over one or more signals. It

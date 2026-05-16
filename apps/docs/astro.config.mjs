@@ -147,12 +147,34 @@ function buildTopics(isInternal) {
     link: "/tutorial/",
     items: [
       // Each tutorial step is an Astro page (not a doc collection
-      // entry), so the sidebar entries are hand-listed here. Order
-      // matters: ascending step number.
+      // entry), so the sidebar entries are hand-listed here. Group
+      // by chapter; order within each chapter is ascending step
+      // number. Keep in sync with the `chapter` frontmatter in
+      // docs/ship-sui/references/tutorial/<NN-slug>/index.md.
       { label: "Overview", link: "/tutorial/" },
-      { label: "01 · Signals", link: "/tutorial/01-hello-signal/" },
-      { label: "02 · Derived", link: "/tutorial/02-derived/" },
-      { label: "03 · Lists", link: "/tutorial/03-bindfor/" },
+      {
+        label: "Reactivity",
+        items: [
+          { label: "01 · Signals", link: "/tutorial/01-hello-signal/" },
+          { label: "02 · Derived", link: "/tutorial/02-derived/" },
+          { label: "03 · Lists", link: "/tutorial/03-bindfor/" },
+          { label: "04 · Effects", link: "/tutorial/04-effect/" },
+        ],
+      },
+      {
+        label: "Templating",
+        items: [
+          { label: "05 · Conditional rendering", link: "/tutorial/05-bind-if/" },
+          { label: "06 · Two-way binding", link: "/tutorial/06-bind-value/" },
+          { label: "07 · Event modifiers", link: "/tutorial/07-event-modifiers/" },
+        ],
+      },
+      {
+        label: "Components",
+        items: [
+          { label: "08 · UI primitives", link: "/tutorial/08-sui-primitives/" },
+        ],
+      },
     ],
   },
   {
@@ -326,6 +348,14 @@ export default defineConfig({
         {
           tag: "script",
           attrs: { type: "module", src: "/sui-components.js" },
+        },
+        // sui-code-editor is a lazy chunk under /sui-components/; nothing
+        // in the main bundle imports it. Load it here so the tutorial
+        // (and any other page that uses <sui-code-editor>) doesn't have
+        // to side-load it itself.
+        {
+          tag: "script",
+          attrs: { type: "module", src: "/sui-components/sui-code-editor.js" },
         },
         // Ship theme ownership.
         //

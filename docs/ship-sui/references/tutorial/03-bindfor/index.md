@@ -5,7 +5,8 @@ group: "Tutorial"
 order: 3
 slug: "03-bindfor"
 prev: "02-derived"
-next: null
+next: "04-effect"
+chapter: "reactivity"
 ---
 
 `{#for}` renders a reactive array as a sequence of DOM nodes. Each
