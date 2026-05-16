@@ -1,0 +1,7 @@
+{
+  "name": "harness-lab-forms",
+  "path": "/harness/lab/forms",
+  "title": "Harness — Lab / Forms",
+  "layout": "default",
+  "auth": "public"
+}

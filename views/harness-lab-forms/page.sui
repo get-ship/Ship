@@ -1,0 +1,89 @@
+<div class="ship-view hl-view hf-view">
+  <header class="hl-head">
+    <a class="hl-back" href="/harness" on:click={(e) => goNav(e, '/harness')}>
+      <sui-icon name="chevron-left" size="14"></sui-icon> Harness
+    </a>
+    <h1 class="hl-title">Lab · Forms cathedral</h1>
+    <span class="hl-tag">every input × every state</span>
+  </header>
+
+  <section class="hl-room">
+    <h2 class="hl-room-title">Inputs</h2>
+    <div class="hf-grid">
+      <sui-field label="Plain text">
+        <sui-input prop:value={text()} on:sui-input={(e) => set('text', e.detail.value)} placeholder="type anything"></sui-input>
+      </sui-field>
+      <sui-field label="Email (validated)" attr:hint={emailError() || 'looks ok'}>
+        <sui-input type="email" prop:value={email()}
+          attr:invalid={emailError() ? '' : null}
+          on:sui-input={(e) => set('email', e.detail.value)} placeholder="you@host"></sui-input>
+      </sui-field>
+      <sui-field label="Number">
+        <sui-input type="number" prop:value={num()} on:sui-input={(e) => set('num', e.detail.value)}></sui-input>
+      </sui-field>
+      <sui-field label="Password (async check)" attr:hint={asyncMsg()}>
+        <sui-input type="password" prop:value={pw()} on:sui-input={(e) => onPw(e.detail.value)}></sui-input>
+      </sui-field>
+      <sui-field label="Multiline">
+        <sui-textarea prop:value={notes()} on:sui-input={(e) => set('notes', e.detail.value)}></sui-textarea>
+      </sui-field>
+      <sui-field label="Select">
+        <sui-select prop:value={choice()} on:sui-change={(e) => set('choice', e.detail.value)}>
+          <option value="a">Alpha</option>
+          <option value="b">Beta</option>
+          <option value="c">Gamma</option>
+        </sui-select>
+      </sui-field>
+    </div>
+  </section>
+
+  <section class="hl-room">
+    <h2 class="hl-room-title">Toggles &amp; choices</h2>
+    <div class="hf-grid">
+      <sui-field label="Notifications">
+        <sui-switch attr:checked={notify() ? '' : null} on:sui-change={(e) => set('notify', e.detail.checked)}></sui-switch>
+      </sui-field>
+      <sui-field label="Accept terms">
+        <sui-checkbox attr:checked={terms() ? '' : null} on:sui-change={(e) => set('terms', e.detail.checked)}>
+          I read the fine print
+        </sui-checkbox>
+      </sui-field>
+      <sui-field label="Priority">
+        <sui-radio-group prop:value={priority()} on:sui-change={(e) => set('priority', e.detail.value)}>
+          <sui-radio value="low">Low</sui-radio>
+          <sui-radio value="normal">Normal</sui-radio>
+          <sui-radio value="high">High</sui-radio>
+        </sui-radio-group>
+      </sui-field>
+      <sui-field label="Volume">
+        <sui-slider min="0" max="100" prop:value={vol()} on:sui-change={(e) => set('vol', e.detail.value)}></sui-slider>
+        <span class="hf-meta">{vol()}%</span>
+      </sui-field>
+    </div>
+  </section>
+
+  <section class="hl-room">
+    <h2 class="hl-room-title">Submission state</h2>
+    <p class="hl-room-hint">Idle → submitting → ok | error. Disabled controls during submit. Inline retry.</p>
+    <div class="hl-controls">
+      <sui-button size="sm" tone="primary" variant="solid"
+        attr:disabled={canSubmit() ? null : ''} attr:loading={submitState() === 'submitting' ? '' : null}
+        on:click={submit}>
+        {submitState() === 'submitting' ? 'Submitting…' : 'Submit'}
+      </sui-button>
+      <sui-button size="sm" variant="ghost" on:click={reset}>Reset</sui-button>
+      {#if submitState() === 'ok'}
+        <sui-badge tone="success" variant="soft" size="sm" in:scale={{ from: 0.7, duration: 220 }}>Saved</sui-badge>
+      {/if}
+      {#if submitState() === 'error'}
+        <sui-badge tone="danger" variant="soft" size="sm" in:slide={{ axis: 'x', duration: 160 }}>{submitError()}</sui-badge>
+      {/if}
+    </div>
+  </section>
+
+  <section class="hl-room">
+    <h2 class="hl-room-title">Current value (serialized)</h2>
+    <pre class="hf-snap">{snapshot()}</pre>
+  </section>
+
+</div>

@@ -1,0 +1,57 @@
+<div class="ship-view hl-view hc-view">
+  <header class="hl-head">
+    <a class="hl-back" href="/harness" on:click={(e) => goNav(e, '/harness')}>
+      <sui-icon name="chevron-left" size="14"></sui-icon> Harness
+    </a>
+    <h1 class="hl-title">Lab · Chart zoo</h1>
+    <span class="hl-tag">live mutation · {hz()}Hz · tick {tick()}</span>
+  </header>
+
+  <section class="hl-room">
+    <div class="hl-controls">
+      <sui-button size="sm" variant="outline" attr:tone={streaming() ? 'danger' : 'primary'} on:click={toggle}>
+        {streaming() ? 'Stop' : 'Start'}
+      </sui-button>
+      <sui-button size="sm" variant="ghost" on:click={() => setHz(2)}>2 Hz</sui-button>
+      <sui-button size="sm" variant="ghost" on:click={() => setHz(10)}>10 Hz</sui-button>
+      <sui-button size="sm" variant="ghost" on:click={() => setHz(60)}>60 Hz</sui-button>
+      <sui-button size="sm" variant="ghost" on:click={reset}>Reset series</sui-button>
+    </div>
+  </section>
+
+  <div class="hc-grid">
+
+    <div class="hc-tile">
+      <h3 class="hc-title">sparkline</h3>
+      <sui-sparkline attr:data={csv()} tone="primary" prop:width={280} prop:height={40}></sui-sparkline>
+      <div class="hc-meta">last: <strong>{lastVal()}</strong> · n={count()}</div>
+    </div>
+
+    <div class="hc-tile">
+      <h3 class="hc-title">sparkline · area</h3>
+      <sui-sparkline attr:data={csv()} tone="accent" variant="area" width="280" height="40"></sui-sparkline>
+    </div>
+
+    <div class="hc-tile">
+      <h3 class="hc-title">bar-chart</h3>
+      <sui-bar-chart attr:data={csvWindow()} labels="" tone="info" width="280" height="120"></sui-bar-chart>
+    </div>
+
+    <div class="hc-tile">
+      <h3 class="hc-title">line-chart (2 series)</h3>
+      <sui-line-chart attr:series={seriesJson()} width="280" height="140" points></sui-line-chart>
+    </div>
+
+    <div class="hc-tile">
+      <h3 class="hc-title">gauge</h3>
+      <sui-gauge attr:value={lastVal()} min="0" max="100" tone="success"></sui-gauge>
+    </div>
+
+    <div class="hc-tile">
+      <h3 class="hc-title">progress + ring</h3>
+      <sui-progress attr:value={lastVal()} max="100"></sui-progress>
+      <div class="hc-meta">{lastVal()}%</div>
+    </div>
+
+  </div>
+</div>

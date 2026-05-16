@@ -1,0 +1,90 @@
+<div class="ship-view hl-view">
+  <header class="hl-head">
+    <a class="hl-back" href="/harness" on:click={(e) => goNav(e, '/harness')}>
+      <sui-icon name="chevron-left" size="14"></sui-icon> Harness
+    </a>
+    <h1 class="hl-title">Lab · Modal labyrinth</h1>
+    <span class="hl-tag">stack ordering · focus · escape</span>
+  </header>
+
+  <section class="hl-room">
+    <h2 class="hl-room-title">Dialogs</h2>
+    <p class="hl-room-hint">Open dialog 1 → opens dialog 2 → opens dialog 3. Each layer should trap focus and pop on Escape.</p>
+    <div class="hl-controls">
+      <sui-button size="sm" tone="primary" variant="solid" on:click={() => open(1)}>Open dialog 1</sui-button>
+      <sui-button size="sm" variant="outline" on:click={() => openChromeModal()}>chrome.modal.request()</sui-button>
+      <sui-button size="sm" variant="outline" on:click={openAlert}>Open alert</sui-button>
+      <sui-badge tone="muted" variant="soft" size="sm">stack depth: {depth()}</sui-badge>
+    </div>
+  </section>
+
+  <section class="hl-room">
+    <h2 class="hl-room-title">Drawer + popovers</h2>
+    <p class="hl-room-hint">Open the drawer, then trigger a tooltip / dropdown inside it.</p>
+    <div class="hl-controls">
+      <sui-button size="sm" variant="outline" on:click={() => drawer.set(true)}>Open drawer</sui-button>
+      <sui-tooltip>
+        <sui-button slot="trigger" size="sm" variant="ghost">Tooltip trigger</sui-button>
+        <span>Tooltips render in a portal — should escape any scroll/overflow parents.</span>
+      </sui-tooltip>
+    </div>
+  </section>
+
+  <section class="hl-room">
+    <h2 class="hl-room-title">Context menu</h2>
+    <p class="hl-room-hint">Right-click the target. Menu closes on escape, blur, click-outside.</p>
+    <div class="hl-controls">
+      <sui-context-menu>
+        <div slot="trigger" class="hl-ctx-target">right-click here</div>
+        <sui-context-menu-item>Inspect</sui-context-menu-item>
+        <sui-context-menu-item>Duplicate</sui-context-menu-item>
+        <sui-context-menu-item>Delete</sui-context-menu-item>
+      </sui-context-menu>
+    </div>
+  </section>
+
+  <sui-dialog attr:open={d1() ? '' : null} on:sui-dialog-close={() => close(1)}>
+    <span slot="title">Layer 1</span>
+    <div class="hm-pad">
+      <p>You're at depth 1. Try Escape — should close just this layer.</p>
+      <sui-button on:click={() => open(2)}>Open layer 2</sui-button>
+    </div>
+  </sui-dialog>
+
+  <sui-dialog attr:open={d2() ? '' : null} on:sui-dialog-close={() => close(2)}>
+    <span slot="title">Layer 2</span>
+    <div class="hm-pad">
+      <p>Depth 2. Focus should be trapped inside this dialog.</p>
+      <sui-button on:click={() => open(3)}>Open layer 3</sui-button>
+    </div>
+  </sui-dialog>
+
+  <sui-dialog attr:open={d3() ? '' : null} on:sui-dialog-close={() => close(3)}>
+    <span slot="title">Layer 3</span>
+    <div class="hm-pad">
+      <p>Depth 3. Escape should pop layers in reverse. Click outside should close just the top.</p>
+      <sui-input placeholder="focus traps me here"></sui-input>
+    </div>
+  </sui-dialog>
+
+  <sui-alert-dialog attr:open={alert() ? '' : null} on:sui-alert-dialog-close={() => alert.set(false)}>
+    <span slot="title">Destructive action</span>
+    <span slot="description">This will simulate destroying nothing. Confirmation only.</span>
+    <sui-button slot="cancel" variant="ghost" on:click={() => alert.set(false)}>Cancel</sui-button>
+    <sui-button slot="action" tone="danger" variant="solid" on:click={() => alert.set(false)}>Delete</sui-button>
+  </sui-alert-dialog>
+
+  <sui-drawer attr:open={drawer() ? '' : null} side="right" size="md" on:sui-drawer-close={() => drawer.set(false)}>
+    <span slot="title">Drawer</span>
+    <div class="hm-pad">
+      <p>Drawer with a focus trap. Tab should cycle within. Open a dropdown to test stacking.</p>
+      <sui-dropdown-menu>
+        <sui-button slot="trigger" size="sm" variant="outline">Open dropdown</sui-button>
+        <sui-dropdown-menu-item>One</sui-dropdown-menu-item>
+        <sui-dropdown-menu-item>Two</sui-dropdown-menu-item>
+        <sui-dropdown-menu-item>Three</sui-dropdown-menu-item>
+      </sui-dropdown-menu>
+    </div>
+  </sui-drawer>
+
+</div>
