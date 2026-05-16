@@ -70,8 +70,11 @@
   {:else if refs().length === 0}
     <sui-empty-state>
       <sui-icon slot="icon" name="network"></sui-icon>
-      <span slot="title">No schema references</span>
-      No ship.* calls detected in this view.
+      <span slot="title">No data operations referenced</span>
+      This tab lists every `ship.*` operation the active view calls
+      (e.g. `ship.dashboard.state()`, `ship.git.overview()`) — the
+      view's data dependencies, cross-linked to /api/v1/ship/schema.
+      The current view doesn't reference any.
     </sui-empty-state>
   {:else}
     {#for r of refs() key={r.op + (r.soft ? '-soft' : '')}}

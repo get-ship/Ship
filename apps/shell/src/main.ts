@@ -23,6 +23,7 @@ import { initProjectSwitch } from './project-switch'
 import { initChromeRegistry } from './chrome/registry'
 import { initEditModeChrome, setEditModeView, toggleEditMode, toggleAnnotationMode } from './chrome/edit-mode'
 import { ensureSetupOrRedirect } from './setup-wizard'
+import { bridgeDockTerminal } from './chrome/terminal-bridge'
 
 interface MountFn {
   (
@@ -671,6 +672,29 @@ document.addEventListener('sui:dock:close', () => getDock()?.hide(), true)
 // `toggle()` method flips `body.dock-open`, which layout.css uses to
 // reveal the dock surface.
 document.addEventListener('sui:dock:toggle', () => getDock()?.toggle())
+
+// First time the user opens the dock OR activates the Terminal tab,
+// spawn a real shell PTY session via /api/v1/sessions/spawn + wire
+// the EventSource ↔ sui-terminal IO. Idempotent — only spawns once.
+// Listening on both because the dock may boot already-open OR already
+// pointed at the terminal tab (persisted state), in which case
+// `sui:dock:activate` won't refire.
+function maybeBridgeTerm(): void {
+  const dock = document.getElementById('ship-panel-dock') as (HTMLElement & { tabs?: Array<{id:string}> }) | null
+  if (!dock?.hasAttribute('data-active') && !document.body.classList.contains('dock-open')) return
+  // Spawn now whether terminal is active or not — connection is cheap
+  // and the user can switch to Terminal expecting a live shell.
+  void bridgeDockTerminal()
+}
+document.addEventListener('sui:dock:activate', (e) => {
+  const tab = (e as CustomEvent<{ tab?: string }>).detail?.tab
+  if (tab === 'terminal') void bridgeDockTerminal()
+})
+document.body.addEventListener('classList' as never, maybeBridgeTerm) // placeholder; real trigger below
+const dockClassObserver = new MutationObserver(() => {
+  if (document.body.classList.contains('dock-open')) void bridgeDockTerminal()
+})
+dockClassObserver.observe(document.body, { attributes: true, attributeFilter: ['class'] })
 
 // Rail launcher button → open <sui-launcher>. The launcher listens for
 // `sui:launcher:open` on document; the rail dispatches the legacy
