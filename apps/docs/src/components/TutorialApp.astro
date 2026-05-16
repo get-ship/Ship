@@ -140,9 +140,104 @@ const { slug, starterTemplate, starterController, solvedTemplate, solvedControll
     ].map((tag) => customElements.whenDefined(tag)))
   }
 
-  interface EditorEl extends HTMLElement { value: string }
+  interface SuiDiagnostic {
+    line: number
+    column?: number
+    severity: 'error' | 'warning' | 'info'
+    message: string
+    source?: string
+  }
+  interface SuiCompletionSource {
+    trigger: string
+    items: Array<{ label: string; detail?: string; info?: string; insert?: string }>
+  }
+  interface EditorEl extends HTMLElement {
+    value: string
+    setDiagnostics?: (d: SuiDiagnostic[]) => void
+    setCompletions?: (s: SuiCompletionSource[]) => void
+  }
   interface DiffEl extends HTMLElement { from: string; to: string }
   interface StatusDotEl extends HTMLElement { tone: string; pulse: boolean; label: string }
+
+  // Static SUI completion sources — covers the directives, event
+  // modifiers, and block keywords the wasm compiler accepts today.
+  // Source of truth: crates/sui/sui-compiler/src/parse/template/attrs.rs
+  // for modifiers; the lower/bindings + emit for directives.
+  const SUI_TEMPLATE_COMPLETIONS: SuiCompletionSource[] = [
+    {
+      trigger: 'on:',
+      items: [
+        { label: 'click', detail: 'event' },
+        { label: 'input', detail: 'event' },
+        { label: 'change', detail: 'event' },
+        { label: 'submit', detail: 'event' },
+        { label: 'keydown', detail: 'event' },
+        { label: 'keyup', detail: 'event' },
+        { label: 'focus', detail: 'event' },
+        { label: 'blur', detail: 'event' },
+        { label: 'mouseenter', detail: 'event' },
+        { label: 'mouseleave', detail: 'event' },
+        { label: 'sui-change', detail: 'custom event (sui-code-editor, sui-input)' },
+        { label: 'sui-tab-change', detail: 'custom event (sui-tabs)' },
+      ],
+    },
+    {
+      trigger: '|',
+      items: [
+        { label: 'preventDefault', detail: 'modifier', info: 'Calls e.preventDefault() before handler' },
+        { label: 'stopPropagation', detail: 'modifier', info: 'Calls e.stopPropagation() before handler' },
+        { label: 'stopImmediatePropagation', detail: 'modifier' },
+        { label: 'self', detail: 'modifier', info: 'Only fires when e.target === currentTarget' },
+        { label: 'trusted', detail: 'modifier', info: 'Only fires when e.isTrusted' },
+        { label: 'key:Enter', detail: 'key filter', insert: 'key:Enter' },
+        { label: 'key:Escape', detail: 'key filter', insert: 'key:Escape' },
+        { label: 'key:Tab', detail: 'key filter', insert: 'key:Tab' },
+        { label: 'key:ArrowUp', detail: 'key filter', insert: 'key:ArrowUp' },
+        { label: 'key:ArrowDown', detail: 'key filter', insert: 'key:ArrowDown' },
+        { label: 'debounce:150', detail: 'modifier', insert: 'debounce:150', info: 'Trailing-edge debounce in ms' },
+        { label: 'throttle:150', detail: 'modifier', insert: 'throttle:150', info: 'Leading-edge throttle in ms' },
+      ],
+    },
+    {
+      trigger: 'bind:',
+      items: [
+        { label: 'value', detail: 'two-way bind to {signal}' },
+        { label: 'checked', detail: 'two-way bind to {signal} (checkbox/radio)' },
+        { label: 'this', detail: 'capture element ref into {signal}' },
+        { label: 'group', detail: 'two-way bind for radio group / select multiple' },
+      ],
+    },
+    {
+      trigger: 'prop:',
+      items: [
+        { label: 'value', detail: 'one-way set DOM property' },
+        { label: 'checked', detail: 'one-way set DOM property' },
+        { label: 'disabled', detail: 'one-way set DOM property' },
+      ],
+    },
+    {
+      trigger: 'class:',
+      items: [
+        { label: 'active', detail: 'class toggle: {signal} truthy → class on' },
+      ],
+    },
+    {
+      trigger: '{#',
+      items: [
+        { label: 'if', detail: 'block', insert: 'if condition}\n  \n{/if}' },
+        { label: 'for', detail: 'block', insert: 'for item of items() key={item.id}}\n  \n{/for}' },
+        { label: 'while-loading', detail: 'data block', insert: 'while-loading of data}\n  \n{/while-loading}' },
+        { label: 'while-error', detail: 'data block', insert: 'while-error err of data}\n  \n{/while-error}' },
+      ],
+    },
+    {
+      trigger: '{:',
+      items: [
+        { label: 'else', detail: 'else branch', insert: 'else}' },
+        { label: 'else if', detail: 'else-if branch', insert: 'else if condition}' },
+      ],
+    },
+  ]
 
   function bootApp(root: HTMLElement): void {
     const slug = root.dataset.slug ?? ''
@@ -292,6 +387,20 @@ const { slug, starterTemplate, starterController, solvedTemplate, solvedControll
       return s
     }
 
+    // Apply diagnostics to the template editor so compile errors
+    // render as inline squiggles (in addition to the alert panel).
+    // Wasm errors carry 1-based line/col — the same convention the
+    // editor's setDiagnostics() expects.
+    function clearDiagnostics(): void {
+      tplEl.setDiagnostics?.([])
+      ctrlEl.setDiagnostics?.([])
+    }
+    function emitDiagnostic(target: EditorEl, line: number, col: number, message: string): void {
+      target.setDiagnostics?.([
+        { line, column: col, severity: 'error', message, source: 'sui-compiler' },
+      ])
+    }
+
     async function runNow(): Promise<void> {
       if (!iframeReady) return
       setStatus('running', 'compiling…')
@@ -300,11 +409,17 @@ const { slug, starterTemplate, starterController, solvedTemplate, solvedControll
         const result = wasmCompile(
           currentTemplate,
           JSON.stringify({ componentName: tag, shadow: false, setupUrl: `./${tag}.controller.ts` }),
-        ) as { kind: 'ok'; js: string } | { kind: 'err'; message: string }
+        ) as {
+          kind: 'ok'; js: string
+        } | {
+          kind: 'err'; message: string; line?: number; col?: number
+        }
         if (result.kind === 'err') {
+          emitDiagnostic(tplEl, result.line ?? 1, result.col ?? 1, result.message)
           setStatus('error', result.message)
           return
         }
+        clearDiagnostics()
         const controllerJs = tsToEsm(currentController)
         iframe.contentWindow!.postMessage(
           { kind: 'tutorial:run', template: result.js, controller: controllerJs, tag },
@@ -315,6 +430,10 @@ const { slug, starterTemplate, starterController, solvedTemplate, solvedControll
         setStatus('error', e instanceof Error ? e.message : String(e))
       }
     }
+
+    // Register static completions on the template editor (controller
+    // gets only the default TS completions from the editor itself).
+    tplEl.setCompletions?.(SUI_TEMPLATE_COMPLETIONS)
   }
 
   Promise.all([ensureWasm(), ensureEditorCE(), ensureBaseCE()])
