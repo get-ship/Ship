@@ -109,11 +109,47 @@ export default controller<Scope>({
       }
     })
 
+    // Arrow-key nav — Up/Down cycle focus through rail items, Home/End
+    // jump to first/last. Enter activates (browser handles since <a>).
+    // Per OG harvest AVOID list — rail had no keyboard nav previously.
+    const focusableItems = (): HTMLAnchorElement[] => {
+      const list: HTMLAnchorElement[] = []
+      for (const item of host.querySelectorAll<HTMLElement>('sui-rail-item')) {
+        if (item.hasAttribute('disabled')) continue
+        const link = item.shadowRoot?.querySelector('a.item') as HTMLAnchorElement | null
+        if (link) list.push(link)
+      }
+      return list
+    }
+    const onKeydown = (e: KeyboardEvent): void => {
+      const inRail = (e.target as Node | null) && host.contains(e.target as Node)
+      if (!inRail) return
+      const list = focusableItems()
+      if (list.length === 0) return
+      const active = host.shadowRoot?.activeElement
+      const fromSlotted = list.findIndex((a) => a.matches(':focus'))
+      const idx = fromSlotted >= 0 ? fromSlotted : 0
+      let next: number | null = null
+      switch (e.key) {
+        case 'ArrowDown': next = (idx + 1) % list.length; break
+        case 'ArrowUp': next = (idx - 1 + list.length) % list.length; break
+        case 'Home': next = 0; break
+        case 'End': next = list.length - 1; break
+        default: return
+      }
+      if (next == null) return
+      e.preventDefault()
+      list[next]?.focus()
+      void active // satisfy TS unused-var
+    }
+    host.addEventListener('keydown', onKeydown)
+
     return () => {
       stopLauncherBind()
       stopCreateBind()
       stopActiveSync()
       switcher.dispose()
+      host.removeEventListener('keydown', onKeydown)
       document.removeEventListener('sui:navigate', onNavigate)
       window.removeEventListener('popstate', onNavigate)
     }
