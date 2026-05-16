@@ -15,6 +15,7 @@ pub mod search;
 pub mod services;
 pub mod sessions;
 pub mod toolchain;
+pub mod view_authoring;
 
 // Module aliases — sub-paths of agents that callers reference at crate root.
 pub use agents::permissions;
