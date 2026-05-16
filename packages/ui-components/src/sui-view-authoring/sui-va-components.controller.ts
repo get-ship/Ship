@@ -11,6 +11,20 @@ declare global {
   }
 }
 
+// Read source via the chrome's view-MCP bridge, retrying once on
+// failure to absorb the natural race between edit-mode/enter (grants
+// capability) and the VA components' first auto-refresh.
+async function readSourceWithRetry(mcp: ViewMcp, name: string): Promise<string> {
+  try {
+    const r = await mcp.readSource(name)
+    return r.source
+  } catch {
+    await new Promise((r) => setTimeout(r, 200))
+    const r = await mcp.readSource(name)
+    return r.source
+  }
+}
+
 interface ComponentRef { tag: string; count: number }
 
 /** Cheap scan: count <sui-*> opening tags in the source string. The
@@ -87,9 +101,15 @@ export default controller<Scope>({
       const mcp = window.__viewMcp
       if (!mcp) return
       try {
-        const res = await mcp.readSource(name)
-        s.inView.set(scanComponents(res.source))
-      } catch { s.inView.set([]) }
+        const source = await readSourceWithRetry(mcp, name)
+        s.inView.set(scanComponents(source))
+      } catch {
+        // Reset the guard so a subsequent view switch (or a manual
+        // re-mount of the tab) can re-attempt — otherwise an early
+        // failure leaves the chips section permanently empty.
+        loadedFor = null
+        s.inView.set([])
+      }
     }
 
     const stopEffect = effect(() => {

@@ -23,6 +23,7 @@ import {
   effect,
   type Signal,
 } from '@ship/sui-runtime'
+import { installViewMcp, viewMcp } from './view-mcp'
 
 const VA_ISLAND_URL = '/_sui/sui-components/sui-view-authoring.js'
 const PICKER_ISLAND_URL = '/_sui/sui-components/sui-component-picker.js'
@@ -52,13 +53,17 @@ const VA_TABS: DockTabDef[] = [
   { id: 'terminal',      label: 'Terminal',   icon: 'terminal' },
 ]
 
+// Non-edit-mode tabs: debug surfaces only. The Components tab is
+// authoring-specific — it lives in VA_TABS so the dev panel surfaces
+// it only when the user has flipped edit-mode on for the view. The
+// canonical browse-all-components reference is the ship-ui-studio
+// view; outside edit mode we don't duplicate it here.
 const DEFAULT_TABS: DockTabDef[] = [
   { id: 'terminal',   label: 'Terminal',   icon: 'terminal', live: true },
   { id: 'source',     label: 'Source',     icon: 'file-code' },
   { id: 'signals',    label: 'Signals',    icon: 'radio', live: true },
   { id: 'lint',       label: 'Lint',       icon: 'list' },
   { id: 'schema',     label: 'Schema',     icon: 'network' },
-  { id: 'components', label: 'Components', icon: 'package' },
 ]
 
 interface VaWindow extends Window {
@@ -135,11 +140,17 @@ function applyEditMode(on: boolean): void {
   const dock = getDock()
   if (!dock) return
 
+  // Pill visibility tracks the *existence* of a view, not the on/off
+  // state — users need it visible in BOTH states to toggle between
+  // them. Pre-fix the pill only appeared once edit mode was already on,
+  // which made it un-discoverable.
+  if (currentView) dock.setAttribute('edit-mode-pill', '')
+  else dock.removeAttribute('edit-mode-pill')
+
   if (on) {
     ensureIslandLoaded(PICKER_ISLAND_URL, 'sui-component-picker')
     ensureIslandLoaded(VA_ISLAND_URL, 'sui-view-authoring')
     ensureVaSlots(currentView ?? '')
-    dock.setAttribute('edit-mode-pill', '')
     dock.setAttribute('edit-mode-on', '')
     dock.tabs = VA_TABS
     // Activate Source tab by default so the user lands in the editor.
@@ -147,16 +158,24 @@ function applyEditMode(on: boolean): void {
     dock.show()
     document.body.classList.add('edit-mode')
     ensurePinLayer().removeAttribute('hidden')
+    // Grant our chrome session the view.* tools (capability is scoped
+    // per (session, view) on the daemon). Errors are non-fatal — the
+    // UI surfaces them, and the VA components degrade to read-only.
+    if (currentView) {
+      void viewMcp.enterEditMode(currentView).catch((e) => {
+        console.warn('[edit-mode] enter failed:', e)
+      })
+    }
   } else {
     dock.removeAttribute('edit-mode-on')
-    // Keep the pill visible so the user can toggle back on; only hide
-    // it when no view is active.
-    if (!currentView) dock.removeAttribute('edit-mode-pill')
     dock.tabs = DEFAULT_TABS
     removeVaSlots()
     document.body.classList.remove('edit-mode')
     const pins = getPinLayer()
     if (pins) pins.setAttribute('hidden', '')
+    if (currentView) {
+      void viewMcp.exitEditMode(currentView).catch(() => { /* idempotent */ })
+    }
   }
 }
 
@@ -211,6 +230,11 @@ export function setEditModeView(view: string | null): void {
 }
 
 export function initEditModeChrome(): void {
+  // Expose window.__viewMcp so VA components (sui-va-source,
+  // sui-va-components, sui-va-compile) can hit the backend tools
+  // without each duplicating fetch wiring. Pre-fix the shell shipped
+  // without this and the VA components silently no-op'd.
+  installViewMcp()
   document.addEventListener('sui:dock:edit-mode-toggle', onPillToggle)
   document.addEventListener('sui:edit-mode:change', onEditModeChange)
 }

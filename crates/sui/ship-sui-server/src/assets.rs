@@ -26,6 +26,14 @@ fn is_known_island(name: &str) -> bool {
             | "sui-rail"
             | "sui-code-editor"
             | "sui-markdown-editor"
+            // View-authoring islands — both shipped as lazy bundles by
+            // the asset pipeline (sui-view-authoring rolls up source /
+            // components / activity / compile / annotation-pins; the
+            // picker is the catalog primitive used in the Components
+            // tab). The chrome edit-mode controller lazy-loads them on
+            // first toggle into edit mode.
+            | "sui-view-authoring"
+            | "sui-component-picker"
     )
 }
 
@@ -155,24 +163,36 @@ pub async fn serve_sui_island(mode: Option<Extension<DaemonMode>>, Path(file): P
     if !is_known_island(&bundle) {
         return not_found("unknown island");
     }
-    let embedded: &'static str = match bundle.as_str() {
-        "sui-terminal" => SUI_TERMINAL_ISLAND_JS,
-        "sui-command-bar" => SUI_COMMAND_BAR_ISLAND_JS,
-        "sui-devtools" => SUI_DEVTOOLS_ISLAND_JS,
-        "sui-launcher" => SUI_LAUNCHER_ISLAND_JS,
-        "sui-panel-dock" => SUI_PANEL_DOCK_ISLAND_JS,
-        "sui-nav-top" => SUI_NAV_TOP_ISLAND_JS,
-        "sui-rail" => SUI_RAIL_ISLAND_JS,
-        "sui-code-editor" => SUI_CODE_EDITOR_ISLAND_JS,
-        "sui-markdown-editor" => SUI_MARKDOWN_EDITOR_ISLAND_JS,
-        _ => return not_found("unknown island"),
-    };
     // Single canonical path: `assets/sui-components/<bundle>.js`. Both
-    // writers (runtime-assets bundler + packages/sui-build) target it;
-    // fall back to the baked-in copy when the on-disk file is missing.
+    // writers (runtime-assets bundler + packages/sui-build) target it.
+    // Try the on-disk bundle first — that's the live-rebuilt artifact in
+    // development and the canonical install layout in production.
     let rel = format!("sui-components/{bundle}.js");
-    let js = read_asset(&rel).unwrap_or_else(|| embedded.to_string());
-    js_response_mode(js, mode)
+    if let Some(js) = read_asset(&rel) {
+        return js_response_mode(js, mode);
+    }
+    // Fall back to the baked-in copies for islands that have an
+    // `include_str!` constant. Islands added to the allowlist after the
+    // initial bake-in (e.g. sui-view-authoring, sui-component-picker)
+    // rely on the on-disk path above and reach this arm only if the
+    // bundler hasn't emitted the file yet — surface a 404 with a hint
+    // rather than silently masking.
+    let embedded: Option<&'static str> = match bundle.as_str() {
+        "sui-terminal" => Some(SUI_TERMINAL_ISLAND_JS),
+        "sui-command-bar" => Some(SUI_COMMAND_BAR_ISLAND_JS),
+        "sui-devtools" => Some(SUI_DEVTOOLS_ISLAND_JS),
+        "sui-launcher" => Some(SUI_LAUNCHER_ISLAND_JS),
+        "sui-panel-dock" => Some(SUI_PANEL_DOCK_ISLAND_JS),
+        "sui-nav-top" => Some(SUI_NAV_TOP_ISLAND_JS),
+        "sui-rail" => Some(SUI_RAIL_ISLAND_JS),
+        "sui-code-editor" => Some(SUI_CODE_EDITOR_ISLAND_JS),
+        "sui-markdown-editor" => Some(SUI_MARKDOWN_EDITOR_ISLAND_JS),
+        _ => None,
+    };
+    match embedded {
+        Some(js) => js_response_mode(js.to_string(), mode),
+        None => not_found("island bundle missing — run `bun run runtime-assets/bundler.ts --all`"),
+    }
 }
 
 // Response helpers
