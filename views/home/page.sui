@@ -139,8 +139,8 @@
                     <span class="home-job-name">{run.slug ?? run.id}</span>
                     <span slot="trailing" class="home-job-trailing">
                       {#if run.agent}
-                        <sui-avatar size="sm" prop:name={run.agent}
-                          prop:initials={run.agent.slice(0, 1).toUpperCase()}></sui-avatar>
+                        <sui-avatar size="sm" attr:name={run.agent}
+                          attr:initials={run.agent.slice(0, 1).toUpperCase()}></sui-avatar>
                         <span class="home-job-agent">{run.agent}</span>
                       {:else}
                         <span class="home-job-agent">&mdash;</span>
@@ -179,8 +179,8 @@
                       prop:navigable={'/agents/' + agent.id}
                       class="home-agent-tile" data-test="home-agent">
                       <sui-avatar slot="leading" size="md" shape="square"
-                        prop:name={agent.name ?? agent.id}
-                        prop:initials={agent.initials}></sui-avatar>
+                        attr:name={agent.name ?? agent.id}
+                        attr:initials={agent.initials}></sui-avatar>
                       <div class="home-agent-body">
                         <span class="home-agent-name">{agent.name ?? agent.id}</span>
                         {#if agent.description}
@@ -223,8 +223,8 @@
                       <span class="home-event-type">{r.event_type}</span>
                       <span class="home-event-actor">
                         {#if r.actor}
-                          <sui-avatar size="sm" prop:name={r.actor}
-                            prop:initials={r.actor.slice(0, 1).toUpperCase()}></sui-avatar>
+                          <sui-avatar size="sm" attr:name={r.actor}
+                            attr:initials={r.actor.slice(0, 1).toUpperCase()}></sui-avatar>
                           <span>{r.actor}</span>
                         {:else}
                           <span>&mdash;</span>
