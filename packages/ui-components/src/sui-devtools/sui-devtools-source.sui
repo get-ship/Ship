@@ -151,6 +151,30 @@
     background: color-mix(in oklab, var(--success, #16a34a) 22%, var(--muted));
     color: var(--foreground);
   }
+  /* Compile chip — appears next to .state when the bundler is busy
+     or has reported a result for this view via the SSE bridge. */
+  .editor-head .compile-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 10.5px;
+    padding: 1px 6px;
+    border-radius: var(--radius-sm);
+    font-family: var(--font-mono);
+  }
+  .editor-head .compile-chip sui-icon { width: 11px; height: 11px; }
+  .editor-head .compile-chip[data-status="compiling"] {
+    background: color-mix(in oklab, var(--warning, #d97706) 18%, var(--muted));
+    color: var(--warning, #d97706);
+  }
+  .editor-head .compile-chip[data-status="compiled"] {
+    background: color-mix(in oklab, var(--success, #16a34a) 22%, var(--muted));
+    color: var(--success, #16a34a);
+  }
+  .editor-head .compile-chip[data-status="errored"] {
+    background: color-mix(in oklab, var(--destructive) 22%, var(--muted));
+    color: var(--destructive);
+  }
   .save-btn {
     appearance: none;
     font: inherit;
@@ -236,6 +260,13 @@
       <span class="state" data-saved={saved() ? 'true' : 'false'}>
         {isDirty() ? 'unsaved' : (saved() ? 'saved' : 'clean')}
       </span>
+      {#if compileStatus() !== 'idle'}
+        <span class="compile-chip" data-status={compileStatus()} title={compileError() ?? ''}>
+          {#if compileStatus() === 'compiling'}<sui-icon name="loader" size="sm"></sui-icon> Compiling…{/if}
+          {#if compileStatus() === 'compiled'}<sui-icon name="check" size="sm"></sui-icon> Compiled{/if}
+          {#if compileStatus() === 'errored'}<sui-icon name="alert-triangle" size="sm"></sui-icon> Compile error{/if}
+        </span>
+      {/if}
       <button class="save-btn" type="button"
         on:click={onSave}
         disabled={saving() || !isDirty()}
@@ -249,8 +280,8 @@
         on:sui-save={onSave}>
       </sui-code-editor>
     </div>
-    {#if errorMsg()}
-      <div class="diagnostics" transition:slide={{ duration: 180 }}>{errorMsg()}</div>
+    {#if errorMsg() || compileError()}
+      <div class="diagnostics" transition:slide={{ duration: 180 }}>{errorMsg() ?? compileError()}</div>
     {/if}
   {:else}
     <div class="empty">

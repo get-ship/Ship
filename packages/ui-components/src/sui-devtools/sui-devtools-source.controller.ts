@@ -65,6 +65,11 @@ export default controller<Scope>({
     const loading = signal(false)
     const loadError = signal<string | null>(null)
     const editorEl = ref<CodeEditor>(null)
+    // Compile feedback from the per-view SSE bridge (chrome opens the
+    // EventSource on edit-mode-enter; events arrive on document).
+    // 'idle' | 'compiling' | 'compiled' | 'errored'
+    const compileStatus = signal<'idle' | 'compiling' | 'compiled' | 'errored'>('idle')
+    const compileError = signal<string | null>(null)
 
     const selectedFile = derived<ViewFile | null>(() => {
       const p = selectedPath()
@@ -116,6 +121,8 @@ export default controller<Scope>({
       if (!file || typeof draft !== 'string' || draft === file.content || !name) return
       saving.set(true)
       errorMsg.set(null)
+      compileStatus.set('compiling')
+      compileError.set(null)
       try {
         const resp = await fetch(
           `/api/v1/views/${encodeURIComponent(name)}/template`,
@@ -150,6 +157,7 @@ export default controller<Scope>({
       loading, loadError, editorEl,
       selectedFile, editorLang, editorValue, isDirty,
       onPickFile, onChange, onSave,
+      compileStatus, compileError,
     }
   },
 
@@ -265,6 +273,35 @@ export default controller<Scope>({
     document.addEventListener('sui:navigate', onNav)
     window.addEventListener('popstate', onNav)
 
+    // ── Compile feedback from per-view SSE bridge ────────────────
+    const matchesView = (detail: unknown): boolean => {
+      const d = detail as { view_name?: string; view?: string } | undefined
+      const name = (state as unknown as { viewName: () => string }).viewName()
+      const v = d?.view_name ?? d?.view
+      return !v || v === name
+    }
+    const compileStatusSig = (state as unknown as { compileStatus: { set(v: string): void; (): string } }).compileStatus
+    const compileErrorSig = (state as unknown as { compileError: { set(v: string | null): void; (): string | null } }).compileError
+    const onCompiled = (e: Event): void => {
+      const d = (e as CustomEvent).detail
+      if (!matchesView(d)) return
+      compileStatusSig.set('compiled')
+      compileErrorSig.set(null)
+      // Auto-revert to idle so the saved chip doesn't linger forever.
+      window.setTimeout(() => {
+        if (compileStatusSig() === 'compiled') compileStatusSig.set('idle')
+      }, 2500)
+    }
+    const onErrored = (e: Event): void => {
+      const d = (e as CustomEvent).detail as { message?: string; line?: number; col?: number; file?: string } | undefined
+      if (!matchesView(d)) return
+      const loc = d?.line ? `:${d.line}${d?.col ? `:${d.col}` : ''}` : ''
+      compileStatusSig.set('errored')
+      compileErrorSig.set(`${d?.file ?? 'view'}${loc} — ${d?.message ?? 'compile failed'}`)
+    }
+    document.addEventListener('sui:view:compiled', onCompiled)
+    document.addEventListener('sui:view:errored', onErrored)
+
     Object.defineProperty(host, 'refresh', {
       configurable: true,
       value: () => { lastLoadedView = null; void loadFiles(s.viewName()) },
@@ -274,6 +311,8 @@ export default controller<Scope>({
       stopSync()
       document.removeEventListener('sui:navigate', onNav)
       window.removeEventListener('popstate', onNav)
+      document.removeEventListener('sui:view:compiled', onCompiled)
+      document.removeEventListener('sui:view:errored', onErrored)
     }
   },
 })
