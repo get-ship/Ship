@@ -47,6 +47,8 @@ pub mod artifacts_api;
 pub mod collection_api;
 pub mod commands_api;
 pub mod create_api;
+#[cfg(test)]
+mod create_api_tests;
 pub mod feedback_api;
 pub mod git_api;
 pub mod hooks_api;

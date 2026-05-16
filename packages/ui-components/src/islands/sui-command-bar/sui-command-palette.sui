@@ -188,7 +188,19 @@
     color: var(--primary-foreground, #fff);
     border-color: var(--primary);
   }
-  .cb-surface-btn:hover:not([aria-pressed='true']) { background: var(--muted); }
+  .cb-surface-btn:hover:not([aria-pressed='true']):not([disabled]) { background: var(--muted); }
+  .cb-surface-btn[disabled] {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+  .cb-surface-hint {
+    font-size: 10px;
+    font-family: var(--font-mono);
+    color: var(--muted-foreground);
+    padding-left: 4px;
+    border-left: 1px solid var(--border);
+    margin-left: 2px;
+  }
   .cb-create-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -404,11 +416,18 @@
           <button
             class="cb-surface-btn"
             type="button"
+            data-surface={surf.id}
             aria-pressed={bar.createSurface() === surf.id ? 'true' : 'false'}
+            aria-disabled={surf.disabled ? 'true' : 'false'}
+            disabled={surf.disabled}
+            title={surf.disabled ? 'post-launch' : surf.label}
             on:click={() => selectSurface(surf.id)}
           >
             <sui-icon name={surf.icon} aria-hidden="true"></sui-icon>
             <span>{surf.label}</span>
+            {#if surf.disabled}
+              <span class="cb-surface-hint">post-launch</span>
+            {/if}
           </button>
         {/for}
       </div>
