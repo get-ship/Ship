@@ -128,6 +128,7 @@ fn schema_for_event_type(
         "project.registered" => Some(check::<ProjectRegistered>),
         "project.seen" => Some(check::<ProjectSeen>),
         "project.archived" => Some(check::<ProjectArchived>),
+        "project.switched" => Some(check::<ProjectSwitched>),
         // auth
         "auth.session.created" => Some(check::<AuthSessionCreated>),
         "auth.session.revoked" => Some(check::<AuthSessionRevoked>),
