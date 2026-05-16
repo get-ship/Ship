@@ -56,10 +56,12 @@ export function resetSetupWizard(): void {
  * "skip the original mountRoute" signal if needed).
  */
 export function ensureSetupOrRedirect(): boolean {
-  if (setupCompleted()) return false
-  if (isAllowed(location.pathname)) return false
-  history.replaceState({}, '', SETUP_PATH)
-  return true
+  // Setup wizard is incomplete — does not advance past Identity, Skip
+  // doesn't work, traps users in a redirect loop. Disabled until the
+  // wizard is properly wired. Users start at / and navigate freely.
+  // To re-enable: restore the body of this function. To force-clear a
+  // user out of setup: localStorage.setItem('ship-setup-completed', '1').
+  return false
 }
 
 // Settings re-entry: a `ship:setup:rerun` window event clears completion
