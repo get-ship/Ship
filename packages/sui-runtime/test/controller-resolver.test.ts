@@ -164,6 +164,39 @@ describe('derived — memoized over scope', () => {
     agents.set(['ba', 'cb', 'd'])
     expect(b.filtered!()).toEqual(['ba', 'cb'])
   })
+
+  it('derived that shadows a scope key reads the scope original, not itself', () => {
+    // Pre-fix: `derived: { x: ({x}) => x() * 2 }` closed over a
+    // declScope where `x` was the derived, so the memo recursed
+    // into itself on first read and stack-overflowed silently.
+    const count: Signal<number> = signal(3)
+    const ctx = withState({}, { count })
+    const b = resolveController(
+      {
+        derived: { count: ({ count }: { count: () => number }) => count() * 2 },
+      },
+      ctx,
+    ) as Record<string, () => number>
+    expect(b.count!()).toBe(6)
+    count.set(5)
+    expect(b.count!()).toBe(10)
+  })
+
+  it('non-shadowing derived still see other derived (chained derived works)', () => {
+    const ctx = withState({ first: 'Ada', last: 'Lovelace' })
+    const b = resolveController(
+      {
+        derived: {
+          full: ({ first, last }: { first: () => string; last: () => string }) =>
+            `${first()} ${last()}`,
+          greeting: ({ full }: { full: () => string }) => `hi ${full()}`,
+        },
+      },
+      ctx,
+    ) as Record<string, () => string>
+    expect(b.full!()).toBe('Ada Lovelace')
+    expect(b.greeting!()).toBe('hi Ada Lovelace')
+  })
 })
 
 describe('use — hooks compose under namespaced keys', () => {

@@ -83,7 +83,7 @@ export function resolveController(
 
   const declScope: Record<string, unknown> = { ...baseScope }
 
-  const deriveds = buildDeriveds(shape, declScope)
+  const deriveds = buildDeriveds(shape, declScope, baseScope)
   Object.assign(declScope, deriveds)
 
   const useResults = buildUseResults(shape, declScope, ctx)
@@ -240,11 +240,30 @@ function buildWritableProxy(
 function buildDeriveds(
   shape: ControllerShape<object>,
   declScope: Record<string, unknown>,
+  baseScope: Record<string, unknown>,
 ): Record<string, ReadonlyView<unknown>> {
   const section = shape.derived ?? {}
   const out: Record<string, ReadonlyView<unknown>> = {}
   for (const [k, fn] of Object.entries(section)) {
-    out[k] = memo(() => (fn as (s: unknown) => unknown)(declScope))
+    // Shadow-protection: if a derived's body destructures its own
+    // key, that read MUST resolve to the underlying scope signal,
+    // not the derived itself. Otherwise `derived: { x: ({x}) => x() }`
+    // closes over a declScope where `x` is the derived, and the
+    // memo recurses into itself the first time anything consumes it.
+    // The bug compiles cleanly, mounts cleanly, and renders nothing
+    // — pre-fix it took a stack-overflow probe to surface.
+    const shadowsScope = k in baseScope
+    const scopeView = shadowsScope
+      ? new Proxy(declScope, {
+          get(target, prop) {
+            return prop === k ? baseScope[k] : Reflect.get(target, prop)
+          },
+          has(target, prop) {
+            return prop in baseScope || prop in target
+          },
+        })
+      : declScope
+    out[k] = memo(() => (fn as (s: unknown) => unknown)(scopeView))
   }
   return out
 }
