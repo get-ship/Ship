@@ -5,11 +5,18 @@
 // call on the element at construction time. The {#if} / {#for}
 // runtimes then call `runEnter` after inserting nodes and `runLeave`
 // before removing them (deferring DOM removal until the out-animation
-// completes).
+// completes) — they reach those via the `transition-runner.ts`
+// indirection, which holds stubs by default. This module's top-level
+// `setTransitionRunner` call (bottom of file) swaps the stubs for
+// the real impls as a side effect of being imported. Apps that don't
+// touch transitions can tree-shake this whole module out of their
+// bundle — only the ~80B stubs from transition-runner survive.
 //
 // Built-ins (`fade`, `slide`, `scale`) use the Web Animations API
 // (`Element.animate`) so there's no JS interpolation cost. Custom
 // transitions export an object matching the `Transition` interface.
+
+import { setTransitionRunner } from './transition-runner'
 
 /** Per-call configuration. Built-ins read `duration`/`easing`/`delay`
  *  plus their own extra options (e.g. `slide.axis`, `scale.from`). */
@@ -251,3 +258,9 @@ export const scale: Transition = {
     return animateSafe(node, scaleFrames(from, 'out'), timing(o))
   },
 }
+
+// Side-effect register: swap transition-runner's stubs for the real
+// impls now that this module is loaded. From this point bindFor and
+// bindIf call the live runner (built-in fade/slide/scale + any
+// user-registered transitions). Idempotent on re-import.
+setTransitionRunner({ runEnter, runLeave, cancelTransitions })

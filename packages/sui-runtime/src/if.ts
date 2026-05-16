@@ -24,7 +24,7 @@
 import { effect } from './signal'
 import type { Disposer } from './bind'
 import { runProtected } from './error-boundary'
-import { runEnter, runLeave, cancelTransitions } from './transition'
+import { runEnter, runLeave, cancelTransitions } from './transition-runner'
 
 /**
  * One branch's rendered nodes plus an optional teardown. Returned by

@@ -10,7 +10,7 @@
 import { effect, type Signal } from './signal'
 import type { Disposer } from './bind'
 import { runProtected } from './error-boundary'
-import { runEnter, runLeave } from './transition'
+import { runEnter, runLeave } from './transition-runner'
 
 /**
  * Inputs to `bindFor` — what to iterate, how to identify items, and

@@ -88,13 +88,19 @@ export {
   registerTransition,
   runIn,
   runOut,
-  runEnter,
-  runLeave,
-  cancelTransitions,
   fade,
   slide,
   scale,
 } from './transition'
+// runEnter / runLeave / cancelTransitions go through the tiny
+// transition-runner indirection (stubs by default). Apps that don't
+// use `transition:` directives nor import the named transition
+// helpers (`registerTransition`, `fade`, `slide`, `scale`) tree-shake
+// `./transition` out entirely — saving ~870 bytes on the Krausest
+// bench bundle. When ANY transition export is consumed, transition.ts
+// loads + its top-level setTransitionRunner() swaps the stubs for
+// the real Web-Animations-API runner.
+export { runEnter, runLeave, cancelTransitions } from './transition-runner'
 export type {
   Transition,
   TransitionConfig,
