@@ -177,7 +177,6 @@ export const NAV_DESTINATIONS: NavDest[] = [
   { label: 'Canvas',                path: '/canvas',     icon: 'image',             keywords: 'docs visual feedback'    },
   { label: 'Events',                path: '/events',     icon: 'sparkles',          keywords: 'stream log kernel'       },
   { label: 'Settings',              path: '/settings',   icon: 'settings',          keywords: 'config theme provider'   },
-  { label: 'Chat',                  path: '/chat',       icon: 'message-square-plus', keywords: 'agent conversation'  },
   { label: 'Specs',                 path: '/specs',      icon: 'file',              keywords: 'features design'         },
   { label: 'Theme Studio',          path: '/theme-studio', icon: 'palette',         keywords: 'design tokens'           },
   { label: 'Chats (Mission Control)', path: '/chats',   icon: 'messages-square',   keywords: 'sessions active'         },

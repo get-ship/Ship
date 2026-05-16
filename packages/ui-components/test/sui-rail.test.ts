@@ -277,7 +277,7 @@ describe('<sui-rail-item>', () => {
   })
 
   it('badge shows badge text when non-empty', async () => {
-    const { el } = mount(reg, 'sui-rail-item', { label: 'Chat', icon: 'message-square', href: '/chat', badge: '3' })
+    const { el } = mount(reg, 'sui-rail-item', { label: 'Inbox', icon: 'inbox', href: '/inbox', badge: '3' })
     await flush()
     const badge = shadow(el).querySelector('.badge')!
     expect(badge.textContent?.trim()).toBe('3')

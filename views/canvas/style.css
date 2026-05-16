@@ -87,15 +87,6 @@
 .canvas-feedback-author { font-weight: var(--font-weight-medium); color: var(--foreground); }
 .canvas-feedback-time { font-size: 10px; opacity: 0.6; }
 .canvas-feedback-empty { font-size: var(--text-xs); color: var(--muted-foreground); font-style: italic; }
-.canvas-rail-cta { padding: var(--space-3); border-top: 1px solid var(--border); }
-.canvas-rail-cta a {
-  font-size: var(--text-xs);
-  color: var(--muted-foreground);
-  text-decoration: none;
-  cursor: pointer;
-  transition: color var(--duration-fast) var(--ease-out);
-}
-.canvas-rail-cta a:hover { color: var(--primary); }
 .canvas-main { overflow: hidden; background: var(--background); position: relative; }
 .canvas-doc { padding: var(--space-6); height: 100%; overflow-y: auto; }
 .canvas-empty {
