@@ -1055,6 +1055,150 @@ impl ShipServer {
         let actor_id = self.resolve_actor_id().await;
         crate::tools::view::view_close(&actor_id, req).await
     }
+
+    // ---- View authoring (chrome edit-mode tools) ----
+    //
+    // Each tool dispatches to the daemon, which enforces the per-session
+    // edit-mode capability set up by chrome's `enter`/`exit` calls.
+
+    #[tool(
+        description = "Read the on-disk `.sui` source of a view. Requires the calling \
+        session to be in view-edit mode for the requested view. Returns the source \
+        and its sha256 content hash."
+    )]
+    async fn view_read_source(
+        &self,
+        Parameters(req): Parameters<crate::requests::view_authoring::ViewName>,
+    ) -> String {
+        let session_id = self.session_id.lock().await.clone();
+        crate::tools::view_authoring::view_read_source(session_id.as_deref(), req).await
+    }
+
+    #[tool(
+        description = "Atomically write new `.sui` source for a view. Snapshots the new \
+        source, runs `compile_check`, and either keeps the snapshot (on success) or \
+        reverts the file and discards the snapshot (on failure). Returns the new \
+        snapshot id, content hash, and any compile errors."
+    )]
+    async fn view_write_source(
+        &self,
+        Parameters(req): Parameters<crate::requests::view_authoring::ViewWriteSource>,
+    ) -> String {
+        let session_id = self.session_id.lock().await.clone();
+        crate::tools::view_authoring::view_write_source(session_id.as_deref(), req).await
+    }
+
+    #[tool(
+        description = "Bundler dry-run against the current on-disk view source. Does not \
+        write. Returns `{ ok, errors? }`."
+    )]
+    async fn view_compile_check(
+        &self,
+        Parameters(req): Parameters<crate::requests::view_authoring::ViewName>,
+    ) -> String {
+        let session_id = self.session_id.lock().await.clone();
+        crate::tools::view_authoring::view_compile_check(session_id.as_deref(), req).await
+    }
+
+    #[tool(
+        description = "Return collection schemas visible in the project. Pass `id` to fetch \
+        a single schema; omit for the full list."
+    )]
+    async fn view_collections_schema(
+        &self,
+        Parameters(req): Parameters<crate::requests::view_authoring::ViewCollectionsSchema>,
+    ) -> String {
+        let session_id = self.session_id.lock().await.clone();
+        crate::tools::view_authoring::view_collections_schema(
+            session_id.as_deref(),
+            req,
+            None,
+        )
+        .await
+    }
+
+    #[tool(
+        description = "List sibling views in the active project. Each entry includes the \
+        view name, on-disk path to its `page.sui`, and any `summary` from its manifest."
+    )]
+    async fn view_list_siblings(
+        &self,
+        Parameters(req): Parameters<crate::requests::view_authoring::ViewName>,
+    ) -> String {
+        let session_id = self.session_id.lock().await.clone();
+        crate::tools::view_authoring::view_list_siblings(
+            session_id.as_deref(),
+            crate::requests::view_authoring::ViewNoArgs::default(),
+            &req.view,
+        )
+        .await
+    }
+
+    #[tool(
+        description = "Return the current theme's CSS custom properties as a `name → value` \
+        map (e.g. `{ \"--bg\": \"#0a0a0a\" }`). Empty when the default `ship` theme is active."
+    )]
+    async fn view_theme_tokens(
+        &self,
+        Parameters(req): Parameters<crate::requests::view_authoring::ViewName>,
+    ) -> String {
+        let session_id = self.session_id.lock().await.clone();
+        crate::tools::view_authoring::view_theme_tokens(
+            session_id.as_deref(),
+            crate::requests::view_authoring::ViewNoArgs::default(),
+            &req.view,
+        )
+        .await
+    }
+
+    #[tool(
+        description = "Server-render the view and return its serialized HTML. Use this to \
+        inspect the current preview without subscribing to the SSE channel."
+    )]
+    async fn view_preview_snapshot(
+        &self,
+        Parameters(req): Parameters<crate::requests::view_authoring::ViewName>,
+    ) -> String {
+        let session_id = self.session_id.lock().await.clone();
+        crate::tools::view_authoring::view_preview_snapshot(session_id.as_deref(), req).await
+    }
+
+    #[tool(
+        description = "Pin an ephemeral annotation on a selector inside a view. Broadcasts \
+        via SSE to chrome edit-mode UI. Auto-clears N seconds after the next \
+        `view_write_source` on the same view."
+    )]
+    async fn view_annotate(
+        &self,
+        Parameters(req): Parameters<crate::requests::view_authoring::ViewAnnotate>,
+    ) -> String {
+        let session_id = self.session_id.lock().await.clone();
+        crate::tools::view_authoring::view_annotate(session_id.as_deref(), req).await
+    }
+
+    #[tool(
+        description = "List prior snapshots of a view, newest first. Paginate with \
+        `cursor` returned from a previous page (empty when on the tail)."
+    )]
+    async fn view_list_snapshots(
+        &self,
+        Parameters(req): Parameters<crate::requests::view_authoring::ViewListSnapshotsArgs>,
+    ) -> String {
+        let session_id = self.session_id.lock().await.clone();
+        crate::tools::view_authoring::view_list_snapshots(session_id.as_deref(), req).await
+    }
+
+    #[tool(
+        description = "Restore a view to a prior snapshot. Atomic — runs `compile_check` \
+        on the restored bytes; the restore itself becomes a new snapshot."
+    )]
+    async fn view_restore_snapshot(
+        &self,
+        Parameters(req): Parameters<crate::requests::view_authoring::ViewRestoreSnapshotArgs>,
+    ) -> String {
+        let session_id = self.session_id.lock().await.clone();
+        crate::tools::view_authoring::view_restore_snapshot(session_id.as_deref(), req).await
+    }
 }
 
 

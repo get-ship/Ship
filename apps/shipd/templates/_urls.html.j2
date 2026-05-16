@@ -219,3 +219,6 @@
 {%- macro list_view_errors() -%}/api/v1/view-errors{%- endmacro -%}
 {%- macro clear_view_errors() -%}/api/v1/view-errors{%- endmacro -%}
 {%- macro mcp_servers() -%}/api/v1/mcp/servers{%- endmacro -%}
+{%- macro enter_view_edit_mode(name) -%}/api/v1/views/{{ name }}/edit-mode/enter{%- endmacro -%}
+{%- macro exit_view_edit_mode(name) -%}/api/v1/views/{{ name }}/edit-mode/exit{%- endmacro -%}
+{%- macro dispatch_view_edit_tool(name) -%}/api/v1/views/{{ name }}/edit/tool{%- endmacro -%}

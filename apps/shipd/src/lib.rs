@@ -231,6 +231,29 @@ pub async fn run_network(
             loop {
                 match events.recv().await {
                     Ok(ship_platform::bundler::BundlerEvent::ModuleChanged { target, out_path, bytes }) => {
+                        // Mirror view-targeted compiles onto the per-view
+                        // SSE channel so view-edit-mode UI can flash a
+                        // "saved" indicator without subscribing to /_sui/dev/hmr.
+                        if let Some(view_name) =
+                            views::sui_view_edit_sse::view_name_from_bundler_target(&target)
+                        {
+                            let payload = views::sui_view_edit_sse::CompileEventPayload {
+                                view_name: view_name.to_string(),
+                                timestamp: chrono::Utc::now().to_rfc3339(),
+                                message: None,
+                                line: None,
+                                col: None,
+                                file: None,
+                            };
+                            let view_name_owned = view_name.to_string();
+                            tokio::spawn(async move {
+                                views::sui_view_edit_sse::publish_compiled(
+                                    &view_name_owned,
+                                    &payload,
+                                )
+                                .await;
+                            });
+                        }
                         if mode == ship_sui::DaemonMode::Development {
                             views::sui_hmr::publish_bundle_event(views::sui_hmr::BundleModuleEvent {
                                 kind: views::sui_hmr::BundleModuleEventKind::ModuleChanged,
@@ -245,6 +268,26 @@ pub async fn run_network(
                         }
                     }
                     Ok(ship_platform::bundler::BundlerEvent::CompileError { target, message, line, col, file }) => {
+                        if let Some(view_name) =
+                            views::sui_view_edit_sse::view_name_from_bundler_target(&target)
+                        {
+                            let payload = views::sui_view_edit_sse::CompileEventPayload {
+                                view_name: view_name.to_string(),
+                                timestamp: chrono::Utc::now().to_rfc3339(),
+                                message: Some(message.clone()),
+                                line,
+                                col,
+                                file: file.clone(),
+                            };
+                            let view_name_owned = view_name.to_string();
+                            tokio::spawn(async move {
+                                views::sui_view_edit_sse::publish_errored(
+                                    &view_name_owned,
+                                    &payload,
+                                )
+                                .await;
+                            });
+                        }
                         if mode == ship_sui::DaemonMode::Development {
                             views::sui_hmr::publish_bundle_event(views::sui_hmr::BundleModuleEvent {
                                 kind: views::sui_hmr::BundleModuleEventKind::CompileError,

@@ -72,6 +72,8 @@ pub mod settings_api;
 pub mod shell_assets;
 pub mod specs_api;
 pub mod themes_api;
+pub mod view_edit_mode_api;
+pub mod view_edit_tool_api;
 pub mod view_errors_api;
 pub mod view_sessions_api;
 pub mod webhook_ext;
@@ -796,6 +798,17 @@ pub enum Route {
 
     /// @route GET "/api/v1/mcp/servers"
     McpServers,
+
+    // ── View authoring (chrome edit-mode + agent tool dispatch) ──────────
+
+    /// @route POST "/api/v1/views/{name}/edit-mode/enter"
+    EnterViewEditMode { name: String },
+
+    /// @route POST "/api/v1/views/{name}/edit-mode/exit"
+    ExitViewEditMode { name: String },
+
+    /// @route POST "/api/v1/views/{name}/edit/tool"
+    DispatchViewEditTool { name: String },
 }
 
 #[cfg(test)]

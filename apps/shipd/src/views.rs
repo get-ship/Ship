@@ -50,6 +50,7 @@ pub mod sui_sse;
 pub mod git_signal;
 pub mod sui_patches;
 pub mod sui_patch_channel;
+pub mod sui_view_edit_sse;
 pub mod sui_agent_push;
 pub mod setup;
 pub mod templates;
