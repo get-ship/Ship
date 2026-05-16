@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SUI tutorial host</title>
+  <script>
+    (function () {
+      var p = new URLSearchParams(location.search)
+      var t = p.get('theme')
+      if (t === 'dark' || t === 'light') document.documentElement.dataset.theme = t
+    })()
+  </script>
+  <style>
+    :root {
+      --bg: #0c0d10; --fg: #e6e6e6; --muted: #8a8c92; --border: #232529;
+      --card: #14161a; --primary: #7aa2f7; --success: #9ece6a;
+      --warning: #e0af68; --danger: #f7768e; --accent: #bb9af7;
+      --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+    :root[data-theme="light"] {
+      --bg: #fafafa; --fg: #1a1a1c; --muted: #6a6c72; --border: #e2e3e6;
+      --card: #ffffff; --primary: #335cca; --success: #2e8050; --warning: #8a5a0c;
+      --danger: #c43c5a; --accent: #6c45c5;
+    }
+    @media (prefers-color-scheme: light) {
+      :root:not([data-theme]) {
+        --bg: #fafafa; --fg: #1a1a1c; --muted: #6a6c72; --border: #e2e3e6;
+        --card: #ffffff; --primary: #335cca; --success: #2e8050; --warning: #8a5a0c;
+        --danger: #c43c5a; --accent: #6c45c5;
+      }
+    }
+    body {
+      margin: 0; font-family: system-ui, -apple-system, sans-serif;
+      background: var(--bg); color: var(--fg); min-height: 100vh;
+      padding: 24px;
+    }
+    .err {
+      font-family: var(--mono); font-size: 13px;
+      background: color-mix(in oklch, var(--danger) 15%, transparent);
+      color: var(--danger); padding: 12px; border-radius: 6px;
+      border-left: 3px solid var(--danger);
+      white-space: pre-wrap;
+    }
+    /* Tutorial example styles */
+    .counter, .card, .todo {
+      display: flex; flex-direction: column; gap: 12px;
+      padding: 16px; background: var(--card); border: 1px solid var(--border);
+      border-radius: 10px; max-width: 32rem;
+    }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .counter p, .card p { margin: 0; }
+    .counter strong, .card strong { font-family: var(--mono); }
+    button, input {
+      background: transparent; color: inherit;
+      border: 1px solid var(--border); padding: 6px 12px;
+      border-radius: 6px; font: inherit; font-size: 14px; cursor: pointer;
+    }
+    input { cursor: text; min-width: 200px; }
+    button:hover { border-color: var(--primary); }
+    .todo ul { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 4px; }
+    .todo li { padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px; cursor: pointer; transition: opacity 120ms; }
+    .todo li.done { opacity: 0.5; text-decoration: line-through; }
+    .todo li.empty { cursor: default; opacity: 0.6; font-style: italic; }
+    .todo form { display: flex; gap: 8px; }
+    .todo form input { flex: 1; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <div id="err" class="err" hidden></div>
+
+  <!-- Importmap so compiled output's `import { ... } from "@ship/sui-runtime"` resolves. -->
+  <script type="importmap">
+    {
+      "imports": {
+        "@ship/sui-runtime": "/sui-runtime.js",
+        "@ship/sui-runtime/route": "/sui-runtime.js",
+        "@ship/sui-runtime/template-hooks": "/sui-runtime.js"
+      }
+    }
+  </script>
+
+  <script type="module">
+    // Wait for a 'tutorial:run' postMessage from the parent containing
+    // the compiled JS modules (template + controller). Inject them as
+    // blob URLs so they import normally through the importmap.
+    let lastBlobs = []
+    function freeBlobs() {
+      for (const b of lastBlobs) URL.revokeObjectURL(b)
+      lastBlobs = []
+    }
+    function makeBlobUrl(code) {
+      const blob = new Blob([code], { type: 'application/javascript' })
+      const url = URL.createObjectURL(blob)
+      lastBlobs.push(url)
+      return url
+    }
+
+    window.addEventListener('message', async (e) => {
+      if (!e.data || e.data.kind !== 'tutorial:run') return
+      const { template, controller, tag } = e.data
+      const errEl = document.getElementById('err')
+      const root = document.getElementById('root')
+      errEl.hidden = true
+      errEl.textContent = ''
+
+      // Drop any previous custom-element registration: blow away the
+      // root and unregister the tag isn't possible (CE registrations
+      // are permanent), so we instead use a fresh tag name per run
+      // — the compiled module includes `component('<tag>', …)` with
+      // a unique tag passed in by the parent.
+      while (root.firstChild) root.removeChild(root.firstChild)
+      freeBlobs()
+
+      try {
+        // The controller module references './template.sui' as the
+        // type-import target. Compiled output imports the .ts file as
+        // the setup module. We rewrite the controller to import from
+        // a blob URL pointing at a sibling module that re-exports
+        // signal/derived from @ship/sui-runtime (already in importmap).
+        // For tutorial purposes we just inline the controller into the
+        // template module since the compiled template has
+        //   import setup from "../<stem>.controller.ts"
+        // pointing at a path that doesn't exist. We pre-process the
+        // template to point its setup import at a blob URL of the
+        // compiled controller.
+        const controllerBlob = makeBlobUrl(controller)
+        const templateRewritten = template.replace(
+          /from\s+["'][^"']*\.controller\.ts["']/,
+          `from ${JSON.stringify(controllerBlob)}`,
+        )
+        const templateBlob = makeBlobUrl(templateRewritten)
+
+        await import(templateBlob)
+        // Mount: append a fresh instance of the custom element.
+        const el = document.createElement(tag)
+        root.appendChild(el)
+      } catch (err) {
+        errEl.hidden = false
+        errEl.textContent = String(err && err.message || err)
+      }
+    })
+
+    // Tell parent we're ready to receive runs.
+    window.parent?.postMessage({ kind: 'tutorial:ready' }, '*')
+  </script>
+</body>
+</html>

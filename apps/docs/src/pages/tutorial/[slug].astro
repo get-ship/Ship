@@ -1,0 +1,288 @@
+---
+/*
+  Per-step tutorial page. Pulls prose from
+  docs/ship-sui/references/tutorial/<NN-slug>/index.md (skill is the
+  single source of truth for prose) and starter/solved code from
+  apps/docs/tutorial-examples/<slug>/. Renders the canvas layout —
+  prose on the left, editor + preview on the right.
+
+  The route is a dynamic static-paths route: getStaticPaths walks
+  the tutorial dir at build time and registers one path per step.
+*/
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro'
+import TutorialApp from '../../components/TutorialApp.astro'
+import { readFileSync, readdirSync, existsSync } from 'node:fs'
+import { resolve, dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+const __dirname = dirname(fileURLToPath(import.meta.url))
+const repoRoot = resolve(__dirname, '../../../../../')
+const tutorialDir = join(repoRoot, 'docs/ship-sui/references/tutorial')
+const codeDir = join(repoRoot, 'apps/docs/tutorial-examples')
+
+interface FM {
+  title: string
+  description: string | null
+  order: number
+  slug: string
+  prev: string | null
+  next: string | null
+}
+
+function parseFm(text: string): FM {
+  const m = text.match(/^---\n([\s\S]*?)\n---/)
+  const fm: Record<string, string | null> = {}
+  if (m) {
+    for (const line of m[1].split('\n')) {
+      const kv = line.match(/^(\w+):\s*(.+)$/)
+      if (!kv) continue
+      let v = kv[2].trim()
+      if (v === 'null') { fm[kv[1]] = null; continue }
+      v = v.replace(/^["']|["']$/g, '')
+      fm[kv[1]] = v
+    }
+  }
+  return {
+    title: fm.title ?? '',
+    description: fm.description ?? null,
+    order: Number(fm.order ?? 999),
+    slug: fm.slug ?? '',
+    prev: fm.prev ?? null,
+    next: fm.next ?? null,
+  }
+}
+
+function stripFm(text: string): string {
+  return text.replace(/^---\n[\s\S]*?\n---\n*/, '')
+}
+
+export async function getStaticPaths() {
+  // Inline path resolution — `tutorialDir` from the module scope
+  // isn't reachable when Astro hoists this function to its
+  // pre-render chunk. Same for `parseFm` — duplicate here to keep
+  // the function self-contained.
+  const here = dirname(fileURLToPath(import.meta.url))
+  const root = resolve(here, '../../../../../')
+  const dir = join(root, 'docs/ship-sui/references/tutorial')
+  const fmOf = (text: string): { slug: string } => {
+    const m = text.match(/^---\n([\s\S]*?)\n---/)
+    if (!m) return { slug: '' }
+    const out: { slug: string } = { slug: '' }
+    for (const line of m[1].split('\n')) {
+      const kv = line.match(/^slug:\s*(.+)$/)
+      if (kv) out.slug = kv[1].trim().replace(/^["']|["']$/g, '')
+    }
+    return out
+  }
+  const dirs = readdirSync(dir, { withFileTypes: true })
+    .filter((e) => e.isDirectory())
+  return dirs.map((d) => {
+    const indexPath = join(dir, d.name, 'index.md')
+    const fm = fmOf(readFileSync(indexPath, 'utf8'))
+    return { params: { slug: fm.slug || d.name }, props: { dirname: d.name } }
+  })
+}
+
+const { slug } = Astro.params
+const { dirname: stepDir } = Astro.props as { dirname: string }
+const indexPath = join(tutorialDir, stepDir, 'index.md')
+const text = readFileSync(indexPath, 'utf8')
+const fm = parseFm(text)
+const body = stripFm(text)
+
+const codeStepDir = join(codeDir, stepDir)
+function loadCode(variant: 'starter' | 'solved') {
+  const tplPath = join(codeStepDir, variant, 'template.sui')
+  const ctrlPath = join(codeStepDir, variant, 'controller.ts')
+  if (!existsSync(tplPath) || !existsSync(ctrlPath)) return null
+  return {
+    template: readFileSync(tplPath, 'utf8'),
+    controller: readFileSync(ctrlPath, 'utf8'),
+  }
+}
+const starter = loadCode('starter')
+const solved = loadCode('solved')
+if (!starter || !solved) {
+  throw new Error(`tutorial step "${stepDir}": missing starter/ or solved/ code under ${codeStepDir}`)
+}
+
+// Render markdown body server-side via Astro's built-in markdown
+// renderer (the docs collection uses markdoc but plain pages here
+// use a tiny render — for the tutorial scope this is just headings,
+// paragraphs, code-fences, lists. Keep it simple: pass-through to a
+// `<Fragment set:html>` after a minimal transform, OR just dump it
+// inside a div with .markdown-body styling.
+//
+// Astro doesn't expose its markdown compiler trivially from .astro
+// files. For v1 of this scaffold we'll render raw markdown via a
+// regex pass that handles fences + paragraphs. Good enough for the
+// three steps we have — and a TODO is to plug Astro's MD compiler
+// in once the surrounding shape is locked in.
+function renderMarkdown(md: string): string {
+  let out = md
+  // Code fences ```lang\n...\n```
+  out = out.replace(/```([\w-]*)\n([\s\S]*?)\n```/g, (_m, lang, code) => {
+    const escaped = code.replace(/[<>&]/g, (c: string) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' })[c]!)
+    return `<pre class="tut-prose-code"><code data-lang="${lang}">${escaped}</code></pre>`
+  })
+  // Headings
+  out = out.replace(/^(#{1,4})\s+(.+)$/gm, (_m, hashes, title) => {
+    const level = hashes.length
+    return `<h${level}>${title}</h${level}>`
+  })
+  // Inline code
+  out = out.replace(/`([^`]+)`/g, '<code>$1</code>')
+  // Bold + italic
+  out = out.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+  out = out.replace(/(?<![\*\w])\*([^*]+)\*(?!\w)/g, '<em>$1</em>')
+  // Numbered lists (very minimal)
+  out = out.replace(/(^\d+\.\s+.+(\n\s+.+)*\n?)+/gm, (m) => {
+    const items = m.split(/\n(?=\d+\.\s)/).map(l => l.replace(/^\d+\.\s+/, '').trim()).filter(Boolean)
+    return '<ol>' + items.map(i => `<li>${i}</li>`).join('') + '</ol>'
+  })
+  // Paragraphs (split on blank lines, skip lines that are already blocks)
+  const blocks: string[] = []
+  for (const para of out.split(/\n{2,}/)) {
+    const trimmed = para.trim()
+    if (!trimmed) continue
+    if (/^<(pre|h\d|ol|ul|blockquote)/.test(trimmed)) blocks.push(trimmed)
+    else blocks.push(`<p>${trimmed.replace(/\n/g, ' ')}</p>`)
+  }
+  return blocks.join('\n')
+}
+
+const proseHtml = renderMarkdown(body)
+---
+
+<StarlightPage
+  frontmatter={{
+    title: fm.title,
+    description: fm.description ?? '',
+    template: 'splash',
+    tableOfContents: false,
+  }}
+>
+  <div class="tut-root">
+    <header class="tut-head">
+      <div class="tut-head-meta">
+        <span class="tut-pill">Tutorial · {String(fm.order).padStart(2, '0')}</span>
+      </div>
+      <nav class="tut-nav">
+        {fm.prev && <a href={`/tutorial/${fm.prev}/`} class="tut-nav-link">← prev</a>}
+        <a href="/tutorial/" class="tut-nav-link">overview</a>
+        {fm.next && <a href={`/tutorial/${fm.next}/`} class="tut-nav-link">next →</a>}
+      </nav>
+    </header>
+
+    <div class="tut-split">
+      <article class="tut-prose" set:html={proseHtml} />
+      <div class="tut-app">
+        <TutorialApp
+          slug={slug ?? stepDir}
+          starterTemplate={starter.template}
+          starterController={starter.controller}
+          solvedTemplate={solved.template}
+          solvedController={solved.controller}
+        />
+      </div>
+    </div>
+  </div>
+</StarlightPage>
+
+<style is:global>
+  body:has(.tut-root) main > .sl-container,
+  body:has(.tut-root) .main-pane .sl-container {
+    max-width: none;
+  }
+  body:has(.tut-root) .hero { display: none; }
+
+  .tut-root {
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - var(--sl-nav-height));
+    padding: 1rem 1.5rem;
+    gap: 0.75rem;
+    box-sizing: border-box;
+  }
+  .tut-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--sl-color-hairline-shade);
+  }
+  .tut-pill {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: var(--sl-color-bg-accent);
+    color: var(--sl-color-text-accent);
+    font-family: var(--sl-font-system-mono);
+    font-size: 0.625rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .tut-nav { display: flex; gap: 0.75rem; }
+  .tut-nav-link {
+    font-family: var(--sl-font-system-mono);
+    font-size: 0.75rem;
+    color: var(--sl-color-text);
+    text-decoration: none;
+    padding: 2px 8px;
+    border-radius: 4px;
+    border: 1px solid transparent;
+  }
+  .tut-nav-link:hover { border-color: var(--sl-color-text-accent); color: var(--sl-color-text-accent); }
+
+  .tut-split {
+    display: grid;
+    grid-template-columns: minmax(0, 32rem) 1fr;
+    gap: 1rem;
+    flex: 1;
+    min-height: 0;
+  }
+  @media (max-width: 900px) {
+    .tut-split { grid-template-columns: 1fr; height: auto; }
+  }
+
+  .tut-prose {
+    overflow-y: auto;
+    padding: 0 1rem 1rem 0;
+    color: var(--sl-color-text);
+    line-height: 1.6;
+  }
+  .tut-prose h1, .tut-prose h2 {
+    margin-top: 1.5rem;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+  }
+  .tut-prose h1 { font-size: 1.25rem; }
+  .tut-prose h2 { font-size: 1rem; }
+  .tut-prose p, .tut-prose li { margin: 0.5rem 0; font-size: 0.95rem; }
+  .tut-prose ol, .tut-prose ul { padding-left: 1.25rem; }
+  .tut-prose code {
+    font-family: var(--sl-font-system-mono);
+    font-size: 0.875em;
+    background: var(--sl-color-bg-inline-code);
+    padding: 1px 4px;
+    border-radius: 3px;
+  }
+  .tut-prose pre.tut-prose-code {
+    background: var(--sl-color-bg-sidebar);
+    border: 1px solid var(--sl-color-hairline-shade);
+    border-radius: 6px;
+    padding: 12px;
+    overflow-x: auto;
+    font-size: 0.8rem;
+  }
+  .tut-prose pre code {
+    background: none;
+    padding: 0;
+  }
+
+  .tut-app {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+</style>

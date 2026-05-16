@@ -1,0 +1,111 @@
+---
+/*
+  Tutorial index — landing page that lists every step with prev/next
+  hooks for quick scan. Pulls metadata from each step's index.md
+  frontmatter under docs/ship-sui/references/tutorial/<NN-slug>/.
+  Prose source of truth stays in the skill; the app (this route +
+  the step pages) lives here under apps/docs/.
+*/
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro'
+import { readFileSync, readdirSync } from 'node:fs'
+import { resolve, dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+const __dirname = dirname(fileURLToPath(import.meta.url))
+const repoRoot = resolve(__dirname, '../../../../../')
+const tutorialDir = join(repoRoot, 'docs/ship-sui/references/tutorial')
+
+interface Step {
+  slug: string
+  title: string
+  description: string | null
+  order: number
+}
+
+function parseFm(text: string): Record<string, string | null> {
+  const m = text.match(/^---\n([\s\S]*?)\n---/)
+  if (!m) return {}
+  const out: Record<string, string | null> = {}
+  for (const line of m[1].split('\n')) {
+    const kv = line.match(/^(\w+):\s*(.+)$/)
+    if (!kv) continue
+    let v = kv[2].trim()
+    if (v === 'null') { out[kv[1]] = null; continue }
+    v = v.replace(/^["']|["']$/g, '')
+    out[kv[1]] = v
+  }
+  return out
+}
+
+const steps: Step[] = readdirSync(tutorialDir, { withFileTypes: true })
+  .filter((e) => e.isDirectory())
+  .map((e) => {
+    const indexPath = join(tutorialDir, e.name, 'index.md')
+    const fm = parseFm(readFileSync(indexPath, 'utf8'))
+    return {
+      slug: fm.slug ?? e.name,
+      title: fm.title ?? e.name,
+      description: fm.description ?? null,
+      order: Number(fm.order ?? 999),
+    }
+  })
+  .sort((a, b) => a.order - b.order)
+---
+
+<StarlightPage
+  frontmatter={{
+    title: 'SUI Tutorial',
+    description: 'Learn SUI step by step. Edit code, see it run.',
+    template: 'doc',
+    tableOfContents: false,
+  }}
+>
+  <p>
+    Each step is short. Read the prose on the left; edit the code
+    on the right; the preview re-renders as you type. Show the
+    solution when stuck.
+  </p>
+  <ol class="tut-index">
+    {steps.map((s) => (
+      <li>
+        <a href={`/tutorial/${s.slug}/`}>
+          <span class="num">{String(s.order).padStart(2, '0')}</span>
+          <span class="meta">
+            <strong>{s.title}</strong>
+            {s.description && <span class="desc">{s.description}</span>}
+          </span>
+        </a>
+      </li>
+    ))}
+  </ol>
+</StarlightPage>
+
+<style>
+  .tut-index {
+    list-style: none;
+    padding: 0;
+    margin: 1.5rem 0 0;
+    display: grid;
+    gap: 0.5rem;
+  }
+  .tut-index a {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--sl-color-hairline-shade);
+    border-radius: 0.5rem;
+    text-decoration: none;
+    color: var(--sl-color-text);
+    transition: border-color 120ms ease;
+  }
+  .tut-index a:hover { border-color: var(--sl-color-text-accent); }
+  .num {
+    font-family: var(--sl-font-system-mono);
+    font-size: 0.75rem;
+    color: var(--sl-color-gray-3);
+    width: 2ch;
+  }
+  .meta { display: flex; flex-direction: column; gap: 2px; }
+  .desc { font-size: 0.875rem; color: var(--sl-color-gray-3); }
+</style>

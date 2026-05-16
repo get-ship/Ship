@@ -141,6 +141,21 @@ function buildTopics(isInternal) {
     ],
   },
   {
+    id: "tutorial",
+    label: "Tutorial",
+    icon: "open-book",
+    link: "/tutorial/",
+    items: [
+      // Each tutorial step is an Astro page (not a doc collection
+      // entry), so the sidebar entries are hand-listed here. Order
+      // matters: ascending step number.
+      { label: "Overview", link: "/tutorial/" },
+      { label: "01 · Signals", link: "/tutorial/01-hello-signal/" },
+      { label: "02 · Derived", link: "/tutorial/02-derived/" },
+      { label: "03 · Lists", link: "/tutorial/03-bindfor/" },
+    ],
+  },
+  {
     id: "reference",
     label: "Reference",
     icon: "document",
@@ -372,6 +387,7 @@ export default defineConfig({
             // renders with named labels on "/" instead of numeric fallbacks.
             "getting-started": ["/"],
             components: ["/components/**", "/components"],
+            tutorial: ["/tutorial/**", "/tutorial"],
             ...(isInternal
               ? {
                   internals: [
