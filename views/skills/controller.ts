@@ -1,39 +1,23 @@
-// Skills view controller — owns the rail, the selected-skill detail,
-// recent invocation rows for the Runs tab, and the invoke mutation.
+// Skills index controller — explorer rail only.
 //
-// View-host (`/sui/<name>`) mounts views without a `ship` SDK client in
-// ctx, so reaching the daemon via `ctx.ship.skills.…` sticks on
-// `loading`. Wire the live sources directly to `/_sui/data?expr=…`
-// instead. `skill` / `runs` only fire once a skillId is selected — both
-// expressions short-circuit to `__none__` until then so the daemon
-// returns empty results instead of erroring. `invoke` posts to the REST
-// mutation endpoint and writes the parsed response (run_id +
-// session_id) or the error into `invokeResult` for the inline banner.
+// The index mirrors the OG j2 shell: a filterable explorer on the left
+// and an empty editor pane on the right. Selecting a skill is a
+// navigation (`<a href="/skills/:id">`) rather than an in-page tab
+// switch — that satisfies the harvest's AVOID rule about list rows
+// needing real anchors so right-click "open in new tab" + URL copy work.
 //
-// The Source button toggles an in-pane raw view of SKILL.md. Wiring
-// SKILL.md into the dock's Source tab is a separate concern documented
-// in `.artifacts/sui-arc/skills-detail-pane.md` — the dock currently
-// hard-binds to the active view's template path and refactoring that
-// is out of scope here.
+// We keep an in-row Invoke button on each skill so the explorer can
+// kick off a library-skill run without leaving the index. The mutation
+// posts to `/api/v1/skills/{id}/invoke` and surfaces the result in an
+// inline banner above the empty editor.
+//
+// `liveExpr` is used directly (rather than `ctx.ship.skills.*`) because
+// the view-host (`/sui/<name>`) mounts views without an SDK client in
+// ctx; the SSE channel reaches the daemon's data registry directly.
 
-import { controller, signal, live, type LiveSignal, type LiveSource } from '@ship/sui-runtime'
+import { controller, signal, live } from '@ship/sui-runtime'
 import { liveExpr } from '@ship/sdk-client'
 import type { Scope } from './page.sui'
-
-interface EventRow {
-  id: string
-  event_type: string
-  entity_id: string
-  actor: string
-  workspace_id: string
-  session_id: string
-  timestamp: string
-  payload_pretty: string
-}
-
-interface EventsValue {
-  groups: Array<{ entity_id: string; rows: EventRow[] }>
-}
 
 interface InvokeOk {
   ok: true
@@ -50,41 +34,6 @@ interface InvokeErr {
 
 type InvokeResult = InvokeOk | InvokeErr
 
-// `runsSource` is a specialized source — it short-circuits to an empty
-// result when no skill is selected and flattens the daemon's grouped
-// `events.list` payload to a flat row list. The generic live channels
-// (`rail`, `skill`) use `liveExpr` from the SDK directly.
-function runsSource(skillId: string): LiveSource<{ rows: EventRow[] }> {
-  const expr = `ship.events.list(${JSON.stringify({
-    event_type: 'skill.started',
-    entity: skillId || '__none__',
-    limit: 20,
-  })})`
-  return {
-    subscribe(sig: LiveSignal<{ rows: EventRow[] }>): () => void {
-      if (!skillId) {
-        sig.set({ kind: 'ok', value: { rows: [] } })
-        return () => {}
-      }
-      const es = new EventSource(`/_sui/data?expr=${encodeURIComponent(expr)}`)
-      const onPatch = (ev: MessageEvent): void => {
-        try {
-          const patch = JSON.parse(ev.data as string) as { op: string; value: EventsValue }
-          if (patch.op === 'set') {
-            const groups = patch.value?.groups ?? []
-            const rows = groups.flatMap((g) => g.rows ?? [])
-            sig.set({ kind: 'ok', value: { rows } })
-          }
-        } catch (err) {
-          sig.set({ kind: 'error', error: err instanceof Error ? err : new Error(String(err)) })
-        }
-      }
-      es.addEventListener('patch', onPatch as EventListener)
-      return () => { es.close() }
-    },
-  }
-}
-
 function skillsExpr(args: { q?: string; kind?: string; tag?: string }): string {
   const filtered: Record<string, string> = {}
   for (const [k, v] of Object.entries(args)) {
@@ -99,21 +48,9 @@ export default controller<Scope>({
     const q = signal('')
     const kind = signal('all')
     const tag = signal('')
-    const skillId = signal('')
-    const tab = signal('content')
-    const viewRaw = signal(false)
     const invokeBusy = signal<string>('')
     const invokeResult = signal<InvokeResult | null>(null)
     const rail = live(() => liveExpr<unknown>(skillsExpr({ q: q(), kind: kind(), tag: tag() })))
-    const skill = live(() => liveExpr<unknown>(
-      `ship.skills.detail(${JSON.stringify({ id: skillId() || '__none__' })})`,
-    ))
-    const runs = live(() => runsSource(skillId()))
-
-    function openSource(): void {
-      viewRaw.set(!viewRaw())
-      if (viewRaw()) tab.set('content')
-    }
 
     async function invoke(id: string): Promise<void> {
       invokeBusy.set(id)
@@ -153,10 +90,6 @@ export default controller<Scope>({
       }
     }
 
-    return {
-      q, kind, tag, skillId, tab, viewRaw,
-      rail, skill, runs,
-      invoke, invokeBusy, invokeResult, openSource,
-    }
+    return { q, kind, tag, rail, invoke, invokeBusy, invokeResult }
   },
 })

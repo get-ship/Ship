@@ -1,4 +1,5 @@
 <div class="ship-view ship-view-skills">
+  <h1 class="sr-only">Skill</h1>
   <div class="skills-ide">
 
     <aside class="skills-explorer" aria-label="Skills file explorer">
@@ -23,6 +24,20 @@
       </div>
 
       <div class="se-body" role="tree" aria-label="Skills tree">
+        {#while-loading of rail}
+          <div class="se-skel" role="status" aria-live="polite" aria-busy="true" aria-label="Loading skills">
+            {#for n of [0, 1, 2, 3, 4, 5] key={n}}
+              <div class="se-skel-row">
+                <sui-skeleton shape="line" size="md"></sui-skeleton>
+              </div>
+            {/for}
+          </div>
+        {/while-loading}
+        {#while-error err of rail}
+          <sui-error-state variant="inline" size="sm" title="Couldn't load skills" role="alert" aria-live="assertive">
+            {err.message}
+          </sui-error-state>
+        {/while-error}
         {#if rail().kind === 'ok' && rail().value}
           {#if (rail().value.groups || []).length === 0}
             <div class="se-empty">{q() ? 'No skills match "' + q() + '".' : 'No skills discovered.'}</div>
@@ -37,10 +52,10 @@
                   </span>
                 </div>
                 {#for s of g.skills key={s.id}}
-                  <div role="treeitem">
-                    <button class="se-skill" class:is-active={s.id === skillId()}
-                      aria-current={s.id === skillId() ? 'page' : null}
-                      on:click={() => navigate('/skills/' + s.id)}
+                  <div role="treeitem"
+                    attr:aria-selected={s.id === skillId() ? 'true' : 'false'}>
+                    <a class="se-skill" class:is-active={s.id === skillId()}
+                      attr:href={'/skills/' + s.id}
                       attr:title={s.description}>
                       <span class="se-chevron" aria-hidden="true">
                         {#if s.id === skillId()}
@@ -56,20 +71,20 @@
                         {#if s.has_refs}<span class="se-dot refs" title="Reference docs"></span>{/if}
                         {#if s.has_evals}<span class="se-dot evals" title="Evals"></span>{/if}
                       </span>
-                    </button>
+                    </a>
                     {#if s.id === skillId() && s.files && s.files.length > 0}
                       {#for f of s.files key={f}}
-                        <button class="se-file" class:is-active={selectedFile() === f}
+                        <a class="se-file" class:is-active={selectedFile() === f}
                           role="treeitem"
-                          aria-current={selectedFile() === f ? 'true' : null}
-                          on:click={() => selectFile(f)}
+                          attr:aria-current={selectedFile() === f ? 'true' : null}
+                          attr:href={fileHref(s.id, f)}
                           attr:title={f}>
                           <sui-icon size="xs"
                             attr:name={fileMetas()[f] ? fileMetas()[f].icon : 'file'}
                             attr:tone={fileMetas()[f] ? fileMetas()[f].tone : 'muted'}></sui-icon>
                           <span class="se-fname">{f}</span>
                           <span class="se-fkind" aria-hidden="true">{fileMetas()[f] ? fileMetas()[f].kind : ''}</span>
-                        </button>
+                        </a>
                       {/for}
                     {/if}
                   </div>
@@ -82,43 +97,86 @@
     </aside>
 
     <div class="skills-editor">
-      {#if skill().kind === 'ok' && skill().value && (selectedFile() || skill().value.body)}
+      {#if skill().kind === 'ok' && skill().value}
         <div class="se-toolbar">
           <div class="se-breadcrumb">
-            <span>skills</span>
+            <a attr:href="/skills">skills</a>
             <span class="sep">/</span>
             <span>{skill().value.name}</span>
-            {#if selectedFile() && fileContent().kind === 'ok'}
+            {#if selectedFile()}
               <span class="sep">/</span>
-              <span class="active">{fileContent().value.name}</span>
+              <span class="active">{selectedFile().split('/').pop()}</span>
+            {/if}
+          </div>
+          <div class="se-toolbar-actions">
+            {#if activeIsEditable()}
+              <button class="sd-action sd-save-btn" data-testid="skill-save"
+                prop:disabled={!dirty() || saving()}
+                on:click={save}>
+                <sui-icon name="save" size="xs"></sui-icon>
+                <span>{saving() ? 'Saving…' : dirty() ? 'Save' : 'Saved'}</span>
+              </button>
             {/if}
           </div>
         </div>
+        {#if saveBanner()}
+          <sui-alert tone={saveBanner().ok ? 'success' : 'destructive'} class="sd-save-banner">
+            {saveBanner().msg}
+          </sui-alert>
+        {/if}
         <div class="se-editor-body">
-          {#if selectedFile() && fileContent().kind === 'ok'}
+          {#while-loading of fileContent}
+            {#if selectedFile()}
+              <div class="se-empty-state" role="status" aria-live="polite" aria-busy="true">
+                <sui-spinner size="md"></sui-spinner>
+                <span class="se-empty-desc">Loading file…</span>
+              </div>
+            {/if}
+          {/while-loading}
+          {#while-error err of fileContent}
+            {#if selectedFile()}
+              <sui-error-state variant="inline" size="sm" title="Couldn't load file" role="alert" aria-live="assertive">
+                {err.message}
+              </sui-error-state>
+            {/if}
+          {/while-error}
+          {#if selectedFile() && fileContent().kind === 'ok' && fileContent().value && fileContent().value.path === selectedFile()}
             <div class="se-editor-content">
               {#if fileContent().value.ext === 'md'}
-                <sui-markdown-editor attr:value={fileContent().value.content}></sui-markdown-editor>
+                <sui-markdown-editor data-testid="skill-editor"
+                  attr:value={draft()}
+                  on:sui-change={onEditorInput}
+                  on:input={onEditorInput}></sui-markdown-editor>
               {:else}
-                <pre class="se-code-view">{fileContent().value.content}</pre>
+                <pre class="se-code-view">{draft()}</pre>
               {/if}
             </div>
-          {:else if skill().value.body}
-            <div class="se-editor-content">
-              <sui-markdown-editor attr:value={skill().value.body}></sui-markdown-editor>
-            </div>
-          {:else}
-            <div class="se-empty-state" style="padding:40px 0">
-              <sui-icon name="file" size="xl" tone="muted"></sui-icon>
-              <span class="se-empty-desc">This skill has no SKILL.md content yet.</span>
-            </div>
+          {:else if !selectedFile()}
+            {#if skill().value.body || dirty()}
+              <div class="se-editor-content">
+                <sui-markdown-editor data-testid="skill-editor"
+                  attr:value={draft()}
+                  on:sui-change={onEditorInput}
+                  on:input={onEditorInput}></sui-markdown-editor>
+              </div>
+            {:else}
+              <div class="se-empty-state" style="padding:40px 0">
+                <sui-icon name="file" size="xl" tone="muted"></sui-icon>
+                <span class="se-empty-desc">This skill has no SKILL.md content yet.</span>
+              </div>
+            {/if}
           {/if}
         </div>
-      {:else}
+      {:else if skill().kind === 'loading'}
+        <div class="se-empty-state" role="status" aria-live="polite" aria-busy="true">
+          <sui-spinner size="md"></sui-spinner>
+          <span class="se-empty-desc">Loading skill…</span>
+        </div>
+      {:else if skill().kind === 'error'}
         <div class="se-empty-state">
-          <sui-icon name="zap" size="xl" class="se-empty-icon" tone="muted"></sui-icon>
-          <span class="se-empty-title">No file open</span>
-          <span class="se-empty-desc">Select a file from the explorer.</span>
+          <sui-icon name="alert-triangle" size="xl" tone="warning"></sui-icon>
+          <span class="se-empty-title">Couldn't load skill</span>
+          <span class="se-empty-desc">{skill().error.message}</span>
         </div>
       {/if}
     </div>
