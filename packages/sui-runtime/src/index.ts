@@ -225,7 +225,10 @@ export { chrome, notifyViewUnmount } from './chrome'
 
 // Per-view edit-mode UI state. Used by the dev panel + chrome to gate
 // view-authoring tabs and annotation rendering. See edit-mode.ts.
-export { editModeForView, toggleEditMode, setEditMode } from './edit-mode'
+export {
+  editModeForView, toggleEditMode, setEditMode,
+  annotationModeForView, toggleAnnotationMode, setAnnotationMode,
+} from './edit-mode'
 export type {
   BreadcrumbItem,
   ModalAction,

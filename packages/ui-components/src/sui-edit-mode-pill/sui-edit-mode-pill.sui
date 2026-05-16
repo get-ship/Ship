@@ -1,38 +1,34 @@
 <!--
-  <sui-edit-mode-pill> — persistent corner indicator for view edit mode.
+  <sui-edit-mode-pill> — persistent top-right corner indicator + control
+  for view edit mode + annotation sub-mode.
 
-  Lives in light DOM at fixed top-right of the viewport. Rendered only
-  when `[on]` attribute is set. The shell sets `on` + `view` via
-  apps/shell/src/chrome/edit-mode.ts so the pill mirrors the per-view
-  edit-mode signal.
+  Layout (when on):
+    [● dot] Editing [<view>] [⌖ annotate] [N queued · Send] [×]
 
-  No screen real estate when off (display: none). When on, sits above
-  the page content but below modals. Click the X dispatches
-  `sui:edit-mode:exit` which the chrome's edit-mode subscriber catches
-  to flip the signal off.
+  Buttons:
+    × (close)      — exits edit mode entirely (dispatches sui:edit-mode:exit)
+    ⌖ (annotate)   — toggles annotation mode (sui:annotation-mode:toggle)
+    Send           — appears when queue has items; opens cmdk AI with
+                     annotations bundled as prefill (sui:annotations:send)
 
   Prop surface
   ─────────────────────────────────────────────────────────────────────
-  on     (bool, false, reflect)  — drives display + class
-  view   (string, '')            — the view name shown after "Editing"
-  ─────────────────────────────────────────────────────────────────────
-  Events:
-    sui:edit-mode:exit  {}  — user clicked the close button
-  Parts: pill, dot, label, close
+  on          (bool, false, reflect)  edit mode on
+  annotating  (bool, false, reflect)  annotation mode on (only valid when on)
+  view        (string, '')            view name
+  count       (int, 0, reflect)       captured annotations queued
   ─────────────────────────────────────────────────────────────────────
 -->
 
 <prop name="on" type="bool" default="false" reflect />
+<prop name="annotating" type="bool" default="false" reflect />
 <prop name="view" type="string" default="" />
+<prop name="count" type="number" default="0" reflect />
 
 <style>
   :host {
     display: none;
     position: fixed;
-    /* Sits just below the 40px nav-top with an 8px gap so it doesn't
-     * collide with the theme picker / fullscreen / dock-toggle buttons
-     * the nav-top right-aligns. Right-pinned with the same 8px gap.
-     * z-index above content + below modals. */
     top: calc(var(--ship-top-bar-h, 40px) + 8px);
     right: 8px;
     z-index: var(--z-toast, 1100);
@@ -44,9 +40,9 @@
     pointer-events: auto;
     display: inline-flex;
     align-items: center;
-    gap: 8px;
-    height: 26px;
-    padding: 0 6px 0 10px;
+    gap: 6px;
+    height: 28px;
+    padding: 0 4px 0 10px;
     border-radius: 999px;
     background: color-mix(in oklch, var(--warning, #d97706) 14%, var(--card, #fff));
     color: var(--warning, #d97706);
@@ -55,12 +51,6 @@
     font-size: 11px;
     line-height: 1;
     box-shadow: var(--shadow-md, 0 4px 12px rgba(0,0,0,0.18));
-    transition:
-      background-color var(--duration-fast, 120ms) var(--ease-out, ease-out),
-      box-shadow var(--duration-fast, 120ms) var(--ease-out, ease-out);
-  }
-  .pill:hover {
-    background: color-mix(in oklch, var(--warning, #d97706) 20%, var(--card, #fff));
   }
 
   .dot {
@@ -75,6 +65,7 @@
     0%, 100% { opacity: 1; transform: scale(1); }
     50%      { opacity: 0.45; transform: scale(0.78); }
   }
+  @media (prefers-reduced-motion: reduce) { .dot { animation: none; } }
 
   .label {
     font-weight: 500;
@@ -89,7 +80,14 @@
     border-radius: var(--radius-sm, 4px);
   }
 
-  .close {
+  .sep {
+    width: 1px;
+    align-self: stretch;
+    background: color-mix(in oklch, var(--warning, #d97706) 28%, transparent);
+    margin: 4px 2px;
+  }
+
+  .btn {
     appearance: none;
     background: transparent;
     border: 0;
@@ -100,17 +98,51 @@
     padding: 0 6px;
     height: 22px;
     border-radius: 999px;
-    opacity: 0.7;
-    transition: opacity var(--duration-fast, 120ms);
+    opacity: 0.85;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    transition:
+      background-color var(--duration-fast, 120ms) var(--ease-out, ease-out),
+      opacity var(--duration-fast, 120ms) var(--ease-out, ease-out);
   }
-  .close:hover { opacity: 1; background: color-mix(in oklch, var(--foreground) 10%, transparent); }
-  .close:focus-visible {
+  .btn:hover {
+    opacity: 1;
+    background: color-mix(in oklch, var(--foreground) 10%, transparent);
+  }
+  .btn:focus-visible {
     outline: none;
     box-shadow: 0 0 0 2px color-mix(in oklch, var(--warning, #d97706) 50%, transparent);
   }
+  .btn[aria-pressed="true"] {
+    background: var(--warning, #d97706);
+    color: var(--warning-foreground, var(--card, #fff));
+    opacity: 1;
+  }
 
-  @media (prefers-reduced-motion: reduce) {
-    .dot { animation: none; }
+  .send {
+    background: var(--primary, #3b82f6);
+    color: var(--primary-foreground, #fff);
+    opacity: 1;
+    padding: 0 10px;
+    height: 22px;
+    font-weight: 500;
+  }
+  .send:hover { background: color-mix(in oklch, var(--primary) 80%, white); }
+
+  .qcount {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    padding: 1px 5px;
+    background: color-mix(in oklch, var(--primary) 22%, transparent);
+    color: var(--primary);
+    border-radius: var(--radius-sm, 4px);
+  }
+
+  .close-btn {
+    padding: 0 8px;
+    font-size: 14px;
+    line-height: 1;
   }
 </style>
 
@@ -119,7 +151,24 @@
   <span class="label" part="label">
     Editing<span class="view" part="view">{view() || 'view'}</span>
   </span>
-  <button class="close" part="close" type="button"
+  <span class="sep" aria-hidden="true"></span>
+  <button class="btn" part="annotate" type="button"
+    aria-pressed={annotating() ? 'true' : 'false'}
+    title={annotating() ? 'Stop annotating (Shift+Alt+E)' : 'Start annotating (Shift+Alt+E)'}
+    aria-label={annotating() ? 'Stop annotating' : 'Start annotating'}
+    on:click={onAnnotateToggle}>
+    <sui-icon name="crosshair" size="sm"></sui-icon>
+  </button>
+  {#if count() > 0}
+    <button class="btn send" part="send" type="button"
+      title="Send {count()} annotation{count() === 1 ? '' : 's'} to active chat"
+      aria-label="Send annotations to agent"
+      on:click={onSend}>
+      <span class="qcount" style="background:rgba(255,255,255,0.18);color:inherit">{count()}</span>
+      <span>Send</span>
+    </button>
+  {/if}
+  <button class="btn close-btn" part="close" type="button"
     title="Exit edit mode (Alt+E)"
     aria-label="Exit edit mode"
     on:click={onExit}>×</button>

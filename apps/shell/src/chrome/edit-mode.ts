@@ -20,6 +20,9 @@ import {
   editModeForView,
   toggleEditMode,
   setEditMode,
+  annotationModeForView,
+  toggleAnnotationMode,
+  setAnnotationMode,
   effect,
   type Signal,
 } from '@ship/sui-runtime'
@@ -201,21 +204,39 @@ function applyEditMode(on: boolean): void {
     dock.tabs = DEFAULT_TABS
     removeVaSlots()
     document.body.classList.remove('edit-mode')
+    document.body.classList.remove('annotation-mode')
     const pins = getPinLayer()
     if (pins) pins.setAttribute('hidden', '')
     pill.removeAttribute('on')
+    pill.removeAttribute('annotating')
+    // Exiting edit mode forces annotation mode off too — they are
+    // a parent/child pair, never independent.
+    if (currentView) setAnnotationMode(currentView, false)
     if (currentView) {
       void viewMcp.exitEditMode(currentView).catch(() => { /* idempotent */ })
     }
   }
 }
 
+function applyAnnotationMode(on: boolean): void {
+  const pill = document.getElementById('ship-edit-pill')
+  if (on) {
+    document.body.classList.add('annotation-mode')
+    pill?.setAttribute('annotating', '')
+  } else {
+    document.body.classList.remove('annotation-mode')
+    pill?.removeAttribute('annotating')
+  }
+}
+
 function subscribeFor(view: string): void {
   activeStopEffect?.()
   lastApplied = null
-  const sig: Signal<boolean> = editModeForView(view)
+  const editSig: Signal<boolean> = editModeForView(view)
+  const annSig: Signal<boolean> = annotationModeForView(view)
   activeStopEffect = effect(() => {
-    applyEditMode(sig())
+    applyEditMode(editSig())
+    applyAnnotationMode(annSig())
   })
 }
 
@@ -260,6 +281,76 @@ export function setEditModeView(view: string | null): void {
   if (w.__suiCurrentViewId) w.__suiCurrentViewId = w.__suiCurrentViewId
 }
 
+// ── Annotation queue (per-edit-session) ──────────────────────────────
+//
+// Each captured annotation (from sui-edit-overlay's sui:chat:annotate
+// event) lives here until the user sends to agent or clears the queue.
+// Cleared whenever edit-mode flips off (D2 — per-edit-session).
+
+interface AnnotationCapture {
+  id: string
+  tag: string
+  selector: string
+  preview: string
+  ts: number
+}
+
+interface PillWithQueue extends HTMLElement {
+  annotations?: AnnotationCapture[]
+}
+
+const annotations: AnnotationCapture[] = []
+let nextId = 1
+
+function syncPillQueue(): void {
+  const pill = document.getElementById('ship-edit-pill') as PillWithQueue | null
+  if (!pill) return
+  pill.annotations = annotations.slice()
+  if (annotations.length > 0) pill.setAttribute('count', String(annotations.length))
+  else pill.removeAttribute('count')
+}
+
+function clearAnnotations(): void {
+  annotations.length = 0
+  syncPillQueue()
+}
+
+function onCapture(e: Event): void {
+  // Annotations are only meaningful when annotation mode is on and
+  // edit mode is on for the current view. The overlay only fires the
+  // event when those conditions hold (it binds via body class), but
+  // belt-and-braces guard here.
+  if (!currentView) return
+  if (!document.body.classList.contains('annotation-mode')) return
+  const d = (e as CustomEvent).detail as { tag?: string; selector?: string; preview?: string } | undefined
+  if (!d?.tag) return
+  annotations.push({
+    id: `ann-${nextId++}`,
+    tag: d.tag,
+    selector: d.selector ?? d.tag,
+    preview: d.preview ?? '',
+    ts: Date.now(),
+  })
+  syncPillQueue()
+}
+
+function sendAnnotationsToAgent(): void {
+  if (annotations.length === 0) return
+  const lines = annotations.map((a, i) => {
+    const head = `${i + 1}. \`${a.selector}\``
+    return a.preview ? `${head} — "${a.preview}"` : head
+  })
+  const prefill = `Annotations on view \`${currentView ?? '(none)'}\`:\n${lines.join('\n')}\n\n`
+  // Open cmdk in AI mode with the prefill. The bar lands in the
+  // active commander session if one is already attached (per C3);
+  // otherwise the spawn picker opens and the prefill survives the
+  // transition.
+  document.dispatchEvent(new CustomEvent('ship:bar:open', {
+    detail: { mode: 'ai', prefill }, bubbles: true,
+  }))
+  clearAnnotations()
+}
+
 export function initEditModeChrome(): void {
   // Expose window.__viewMcp so VA components (sui-va-source,
   // sui-va-components, sui-va-compile) can hit the backend tools
@@ -273,7 +364,16 @@ export function initEditModeChrome(): void {
   document.addEventListener('sui:edit-mode:exit', () => {
     if (currentView) setEditMode(currentView, false)
   })
+  // Annotation mode toggle from pill's crosshair button or keyboard.
+  document.addEventListener('sui:annotation-mode:toggle', () => {
+    if (currentView) toggleAnnotationMode(currentView)
+  })
+  // Capture annotations dispatched by sui-edit-overlay.
+  document.addEventListener('sui:chat:annotate', onCapture)
+  // Pill's "Send to agent" button.
+  document.addEventListener('sui:annotations:send', sendAnnotationsToAgent)
+  document.addEventListener('sui:annotations:clear', clearAnnotations)
 }
 
 // Re-export for keyboard handler in main.ts.
-export { toggleEditMode }
+export { toggleEditMode, toggleAnnotationMode }

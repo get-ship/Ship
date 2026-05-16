@@ -21,7 +21,7 @@ import { KernelBridge } from './kernel-bridge'
 import { initHmr } from './hmr'
 import { initProjectSwitch } from './project-switch'
 import { initChromeRegistry } from './chrome/registry'
-import { initEditModeChrome, setEditModeView, toggleEditMode } from './chrome/edit-mode'
+import { initEditModeChrome, setEditModeView, toggleEditMode, toggleAnnotationMode } from './chrome/edit-mode'
 import { ensureSetupOrRedirect } from './setup-wizard'
 
 interface MountFn {
@@ -628,6 +628,15 @@ document.addEventListener('keydown', (e: KeyboardEvent) => {
     // Alt+E replaced the prior ⌘⇧E/Ctrl+Shift+E binding because of
     // browser collisions (Firefox tab search, Chrome devtools toggle).
     if (currentRoute) toggleEditMode(currentRoute.view)
+    return
+  }
+
+  if (e.altKey && e.shiftKey && !mod && key === 'e') {
+    e.preventDefault()
+    // Annotation mode (sub-toggle inside edit mode). No-op when edit
+    // mode is off — the runtime guards this; the keyboard binding
+    // just relays.
+    if (currentRoute) toggleAnnotationMode(currentRoute.view)
     return
   }
 

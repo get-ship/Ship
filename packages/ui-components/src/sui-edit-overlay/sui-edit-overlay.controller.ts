@@ -107,7 +107,11 @@ export default controller<Scope>({
     }
 
     function applyActive() {
-      const on = document.body.classList.contains('edit-mode')
+      // Overlay binds only when ANNOTATION mode is on (the sub-toggle
+      // inside edit mode). Edit mode alone leaves the view fully
+      // interactive — see chrome/edit-mode.ts for the parent/child
+      // signal pair.
+      const on = document.body.classList.contains('annotation-mode')
       host.classList.toggle('active', on)
       if (on) setupListeners()
       else {

@@ -99,9 +99,15 @@ body.rail-hidden #ship-rail {
   display: none;
 }
 
-/* body.edit-mode — sui-edit-overlay watches this via MutationObserver.
-   The class is toggled by Alt+E and also by edit-overlay's own close button. */
-body.edit-mode {
+/* body.edit-mode — set when edit mode is on for the active view.
+   Does NOT change cursor: the view is fully interactive in edit mode.
+   The class is toggled by Alt+E. */
+body.edit-mode {}
+
+/* body.annotation-mode — sub-toggle inside edit mode. sui-edit-overlay
+   watches this via MutationObserver and binds hover/click handlers.
+   Toggled by Shift+Alt+E or the crosshair button on the corner pill. */
+body.annotation-mode {
   cursor: crosshair;
 }
 
