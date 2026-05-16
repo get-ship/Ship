@@ -1,0 +1,23 @@
+<div class="ship-view hello-view" data-test="hello-view">
+  <div class="hello-wrap">
+    <sui-card padding="lg">
+      <h1 class="hello-title">Welcome to Ship</h1>
+      <p class="hello-lede">
+        This is your first view — scaffolded by the setup wizard. Edit
+        <sui-code>views/hello/page.sui</sui-code> to make it yours.
+      </p>
+      <p class="hello-lede">
+        Ready to do something? Hand it to your agent — describe what you
+        want and watch it run locally.
+      </p>
+      <div class="hello-actions">
+        <sui-button tone="primary" variant="solid" size="md"
+          data-test="hello-talk-agent"
+          on:click={openAgent}>
+          Talk to your agent
+          <sui-icon slot="trailing" name="arrow-right"></sui-icon>
+        </sui-button>
+      </div>
+    </sui-card>
+  </div>
+</div>

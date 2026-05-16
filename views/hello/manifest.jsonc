@@ -1,0 +1,8 @@
+// Route metadata for views/hello/. Sample app scaffolded by the setup wizard.
+{
+  "name": "hello",
+  "path": "/hello",
+  "title": "Welcome to Ship",
+  "layout": "default",
+  "auth": "public"
+}

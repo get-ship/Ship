@@ -67,4 +67,20 @@ export default controller<Scope>({
     ship: { settings: { update: settingsUpdate } },
     settings: live(() => liveExpr<unknown>('ship.settings.state()')),
   }),
+  on: {
+    // Settings → About → Run setup again. Clears the wizard's
+    // completion flag and dispatches `ship:setup:rerun` so shell2's
+    // setup-wizard hook routes to /setup. Standalone callers (no
+    // shell2) get a direct location assignment as a fallback.
+    rerunSetup: () => {
+      try {
+        localStorage.removeItem('ship-setup-completed')
+        localStorage.removeItem('ship-setup-state')
+      } catch { /* best-effort */ }
+      window.dispatchEvent(new CustomEvent('ship:setup:rerun'))
+      if (!window.location.pathname.startsWith('/setup')) {
+        window.location.href = '/setup'
+      }
+    },
+  },
 })
