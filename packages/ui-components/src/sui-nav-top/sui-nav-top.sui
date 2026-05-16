@@ -165,7 +165,7 @@
 </a>
 <span class="sep" aria-hidden="true"></span>
 <nav class="crumbs" part="crumbs" aria-label="Breadcrumbs">
-  {#for c of crumbs() key={c.href}}
+  {#for c of crumbs() key={c.key}}
     {#if c.isLast}
       <span class="current" id="breadcrumbs-title" transition:fade={{ duration: 120 }}>{c.label}</span>
     {:else}
