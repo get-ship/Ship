@@ -23,24 +23,24 @@ const platforms = [
         <div class="platform-body">
           <div class="platform-name">
             {p.label}
-            <ship-badge tone="accent" variant="soft" size="sm" class="platform-recommend">
+            <sui-badge tone="accent" variant="soft" size="sm" class="platform-recommend">
               For your Mac
-            </ship-badge>
-            <ship-badge tone="accent" variant="soft" size="sm" class="platform-recommend-win">
+            </sui-badge>
+            <sui-badge tone="accent" variant="soft" size="sm" class="platform-recommend-win">
               For your PC
-            </ship-badge>
-            <ship-badge tone="accent" variant="soft" size="sm" class="platform-recommend-linux">
+            </sui-badge>
+            <sui-badge tone="accent" variant="soft" size="sm" class="platform-recommend-linux">
               For this machine
-            </ship-badge>
+            </sui-badge>
           </div>
           <div class="platform-min">{p.min}</div>
         </div>
-        <ship-button
+        <sui-button
           tone="primary"
           variant="solid"
           size="md"
           onclick={`location.href='${p.href}'`}
-        >Download</ship-button>
+        >Download</sui-button>
       </div>
     ))}
   </div>
@@ -148,6 +148,6 @@ const platforms = [
 
   @media (max-width: 520px) {
     .platform { grid-template-columns: 28px 1fr; row-gap: 8px; }
-    .platform > ship-button { grid-column: 1 / -1; }
+    .platform > sui-button { grid-column: 1 / -1; }
   }
 </style>
