@@ -1,15 +1,12 @@
 //! Canonical Ship route registry.
 //!
-//! Parsed at build time by `apps/shipd/build.rs` to emit three artifacts:
+//! Parsed at build time by `apps/shipd/build.rs` to emit two artifacts:
 //!
 //! - `$OUT_DIR/routes_generated.rs` — Rust URL builders (`Route::method()`,
 //!   `Route::full_path()`) and the `ShipRouterExt::ship_route(Route, handler)`
 //!   trait extension used by `lib.rs` to register routes.
 //! - `packages/sdk/src/generated/routes.ts` — typed TypeScript route
 //!   catalog for SDK / web consumers. Relative URLs (cookie-authenticated).
-//! - `apps/shipd/templates/_urls.html.j2` — minijinja macros (one per route
-//!   variant). Templates import the ones they need:
-//!   `{% from '_urls.html.j2' import view_pipelines, list_jobs %}`.
 //!
 //! # Variant syntax
 //!
@@ -71,7 +68,6 @@ pub mod search_api;
 #[cfg(test)]
 mod search_api_tests;
 pub mod settings_api;
-pub mod shell_assets;
 pub mod specs_api;
 pub mod themes_api;
 pub mod view_edit_mode_api;
@@ -166,8 +162,8 @@ pub enum Route {
     /// @route GET "/_sui/lucide-icons.json"
     SuiLucideIconsJson,
 
-    /// @route GET "/_sui/sui-components/{name}.js"
-    SuiComponentBundle { name: String },
+    /// @route GET "/_sui/sui-components/{file}"
+    SuiComponentBundle { file: String },
 
     /// @route GET "/_sui/views/{name}/view.sui"
     SuiViewTemplate { name: String },
@@ -384,12 +380,6 @@ pub enum Route {
     /// @route GET "/api/v1/ship/schema"
     ShipSchema,
 
-    /// @route GET "/api/v1/v/{*path}"
-    ServeViewRouted { path: String },
-
-    /// @route GET "/api/v1/sse/{*path}"
-    ServeViewSseRouted { path: String },
-
     /// @route GET "/api/v1/view-source/{*path}"
     ServeViewSource { path: String },
 
@@ -465,12 +455,6 @@ pub enum Route {
     /// @route GET "/api/v1/view/{name}/bundle"
     ServeViewBundle { name: String },
 
-    /// @route GET "/api/v1/view/{name}/raw"
-    ServeViewRaw { name: String },
-
-    /// @route GET "/api/v1/view/{name}/sse"
-    ServeViewSse { name: String },
-
     // ── Agent-owned view sessions (Phase 1 canvas framework) ─────────────
 
     /// @route POST "/api/v1/view-sessions"
@@ -490,9 +474,6 @@ pub enum Route {
 
     /// @route GET "/api/v1/view-sessions/{id}"
     SubscribeViewSession { id: String },
-
-    /// @route GET "/api/v1/view-sessions/{id}/raw"
-    ViewSessionRaw { id: String },
 
     // ── Feedback (agent-designed feedback ingress) ────────────────────────
 

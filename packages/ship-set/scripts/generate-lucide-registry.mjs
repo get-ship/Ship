@@ -66,7 +66,7 @@ console.log(`wrote ${dest} with ${entries.length} icons`)
 // `cargo build`-time content hash only changes when the icon set
 // actually changes.
 const jsonDest = join(
-  root, '..', '..', 'crates', 'ship-sui-server', 'assets', 'lucide-icons.json',
+  root, '..', '..', 'crates', 'sui', 'ship-sui-server', 'assets', 'lucide-icons.json',
 )
 const jsonObj = Object.fromEntries(
   [...entries].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)),

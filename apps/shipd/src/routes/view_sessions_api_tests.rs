@@ -32,10 +32,6 @@ fn router_for(state: ApiState, auth: AuthContext) -> Router {
                 "/api/v1/view-sessions/{id}/signal",
             axum::routing::post(super::signal_session),
         )
-        .route(
-                "/api/v1/view-sessions/{id}/raw",
-            axum::routing::get(super::raw_session),
-        )
         .with_state(state)
         .layer(axum::Extension(auth))
 }

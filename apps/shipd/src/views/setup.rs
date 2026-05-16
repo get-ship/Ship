@@ -6,10 +6,10 @@
 //! redirects away from `/setup` so the wizard can't accidentally wipe
 //! state on an existing install.
 //!
-//! The real wizard UI is filled in by a `.ship/views/setup/` template
-//! authored by the web lane. This handler only owns the routing +
-//! first-run detection and a minimal placeholder served when no user
-//! view has been authored yet.
+//! The setup wizard UI now lives at the SUI view `setup`; the legacy
+//! `.ship/views/setup/index.html.j2` render path was retired with the
+//! j2 view shell. PLACEHOLDER_HTML remains as a fallback for the brief
+//! window between daemon boot and the SUI runtime mounting.
 
 use axum::{
     body::Body,
@@ -17,8 +17,8 @@ use axum::{
     response::Response,
 };
 
-/// Placeholder HTML returned when no workspaces exist and the web lane
-/// has not yet dropped a `.ship/views/setup/index.html.j2` on disk.
+/// Placeholder HTML served when the SUI runtime hasn't mounted yet on a
+/// fresh install. Real wizard UI lives at `/sui/setup`.
 const PLACEHOLDER_HTML: &str = r#"<!doctype html>
 <html lang="en">
 <head>
@@ -44,7 +44,7 @@ const PLACEHOLDER_HTML: &str = r#"<!doctype html>
 "#;
 
 /// `GET /setup` — serve the setup wizard if no workspaces exist, otherwise
-/// redirect to `/` so the user lands on the dashboard.
+/// redirect to `/` so the user lands on the home view.
 #[utoipa::path(
     operation_id = "setupHandler",
     get,
@@ -61,20 +61,17 @@ pub async fn setup_handler() -> Response {
     if has_any_workspace() {
         return redirect("/");
     }
-    match render_user_view() {
-        Some(html) => html_response(html),
-        None => html_response(PLACEHOLDER_HTML.to_string()),
-    }
+    html_response(PLACEHOLDER_HTML.to_string())
 }
 
-/// `GET /` — redirect to `/setup` on a fresh install, or to `/shell/` once
-/// at least one workspace is configured.
+/// `GET /` — redirect to `/setup` on a fresh install, or to the SUI home
+/// view once at least one workspace is configured.
 #[utoipa::path(
     operation_id = "indexHandler",
     get,
     path = "/",
     responses(
-        (status = 303, description = "Redirect to /setup or /shell/ depending on first-run state"),
+        (status = 303, description = "Redirect to /setup or /sui/home depending on first-run state"),
         (status = 500, description = "server error", body = crate::wire::ErrorResponse),
     ),
     security(),
@@ -82,7 +79,7 @@ pub async fn setup_handler() -> Response {
 )]
 pub async fn index_handler() -> Response {
     if has_any_workspace() {
-        redirect("/shell/")
+        redirect("/sui/home")
     } else {
         redirect("/setup")
     }
@@ -92,40 +89,6 @@ fn has_any_workspace() -> bool {
     ship_platform::projects::list()
         .map(|projects| !projects.is_empty())
         .unwrap_or(false)
-}
-
-/// Render the web-lane-authored `.ship/views/setup/index.html.j2` if it
-/// exists. Returns `None` when the view has not been created yet (or fails
-/// to parse) so the handler can fall back to the built-in placeholder.
-fn render_user_view() -> Option<String> {
-    let source = read_setup_view_source()?;
-    match crate::views::templates::render_view_source(
-        "setup/index.html.j2",
-        &source,
-        &serde_json::json!({}),
-    ) {
-        Ok(html) => Some(html),
-        Err(e) => {
-            tracing::warn!(error = %e, "setup view render failed; using placeholder");
-            None
-        }
-    }
-}
-
-fn read_setup_view_source() -> Option<String> {
-    for dir in [
-        ship_substrate::project::get_project_dir(None).ok(),
-        ship_substrate::project::get_global_dir().ok(),
-    ]
-    .into_iter()
-    .flatten()
-    {
-        let path = dir.join("views").join("setup").join("index.html.j2");
-        if let Ok(s) = std::fs::read_to_string(&path) {
-            return Some(s);
-        }
-    }
-    None
 }
 
 fn html_response(body: String) -> Response {
@@ -152,9 +115,6 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn setup_handler_returns_html() {
         let resp = setup_handler().await;
-        // Either a 200 with HTML (no workspaces in the test harness
-        // scratch dir) or a redirect (if one happens to exist). Both
-        // are legal states — the handler's contract is "never panics".
         let status = resp.status();
         assert!(
             status == StatusCode::OK || status == StatusCode::SEE_OTHER,
@@ -168,7 +128,7 @@ mod tests {
         assert_eq!(resp.status(), StatusCode::SEE_OTHER);
         let location = resp.headers().get(header::LOCATION).unwrap();
         let loc_str = location.to_str().unwrap();
-        assert!(loc_str == "/setup" || loc_str == "/shell/");
+        assert!(loc_str == "/setup" || loc_str == "/sui/home");
     }
 
     #[test]

@@ -12,8 +12,11 @@
 
 use serde_json::{Value, json};
 
-/// Stable resource URI scheme for an agent-opened canvas. Resolves to the
-/// same HTML that `/api/v1/view-sessions/:id/raw` serves.
+/// Stable resource URI scheme for an agent-opened canvas. Hosts subscribe
+/// to the corresponding `/api/v1/view-sessions/{id}` SSE stream to receive
+/// `datastar-patch-*` events; rendering of the shell itself is handled by
+/// the host (e.g. a SUI view in the daemon's own UI, or an external MCP
+/// Apps client).
 pub const RESOURCE_URI_PREFIX: &str = "ui://ship/view-session/";
 
 /// Content-Security-Policy applied to iframe shell responses. Script-src is

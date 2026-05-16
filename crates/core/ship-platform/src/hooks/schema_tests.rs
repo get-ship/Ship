@@ -78,35 +78,7 @@ fn view_manifest_schema_is_valid_json_schema() {
     validator_for(&schema).expect("view-manifest.schema.json must be a valid JSON Schema");
 }
 
-#[test]
-fn committed_view_manifests_validate_against_view_manifest_schema() {
-    let root = workspace_root();
-    let schema_path = root.join("schemas/view-manifest.schema.json").to_string_lossy().into_owned();
-    let schema = load_json(&schema_path);
-    let validator = validator_for(&schema).expect("view-manifest schema must compile");
-
-    let views_dir = ship_substrate::ShipHome::project_ship_dir(root).join("views");
-    let entries = std::fs::read_dir(&views_dir)
-        .unwrap_or_else(|e| panic!("cannot read {}: {e}", views_dir.display()));
-
-    let mut validated = 0usize;
-    for entry in entries.flatten() {
-        if !entry.file_type().map(|t| t.is_dir()).unwrap_or(false) {
-            continue;
-        }
-        let manifest_path = entry.path().join("manifest.json");
-        if !manifest_path.exists() {
-            continue;
-        }
-        let doc = load_json(&manifest_path.to_string_lossy());
-        let errors: Vec<_> = validator.iter_errors(&doc).collect();
-        assert!(
-            errors.is_empty(),
-            "{} failed view-manifest schema validation:\n{}",
-            manifest_path.display(),
-            errors.iter().map(|e| format!("  - {e}")).collect::<Vec<_>>().join("\n")
-        );
-        validated += 1;
-    }
-    assert!(validated > 0, "expected at least one view manifest.json to validate");
-}
+// The `committed_view_manifests_validate_against_view_manifest_schema`
+// test was retired with the j2 view shell — `.ship/views/<name>/manifest.json`
+// is the j2-era contract. SUI views carry `manifest.jsonc` under `views/`
+// with a different schema (validated by the SUI lint suite).
