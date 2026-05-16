@@ -38,35 +38,49 @@ const { slug, starterTemplate, starterController, solvedTemplate, solvedControll
   data-solved-template={solvedTemplate}
   data-solved-controller={solvedController}
 >
-  <div class="tut-app-bar">
-    <div class="tut-tabs">
-      <button class="tut-tab" data-tab="template" aria-selected="true">template.sui</button>
-      <button class="tut-tab" data-tab="controller">controller.ts</button>
+  <div class="tut-pane tut-pane--editor">
+    <div class="tut-pane-bar">
+      <div class="tut-tabs">
+        <button class="tut-tab" data-tab="template" aria-selected="true">
+          <span class="tut-tab-icon">⟨/⟩</span> template.sui
+        </button>
+        <button class="tut-tab" data-tab="controller">
+          <span class="tut-tab-icon">{}</span> controller.ts
+        </button>
+      </div>
+      <div class="tut-actions">
+        <button class="tut-action" data-action="reset" title="Reset to starter code">
+          <span aria-hidden="true">↺</span> Reset
+        </button>
+        <button class="tut-action tut-action--accent" data-action="solution" title="Replace with the answer">
+          Show solution
+        </button>
+      </div>
     </div>
-    <div class="tut-actions">
-      <button class="tut-action" data-action="reset" title="Reset to starter code">↺ reset</button>
-      <button class="tut-action" data-action="solution">show solution</button>
-      <button class="tut-action" data-action="run" title="Force re-run">▶ run</button>
+    <div class="tut-editor-host">
+      <div class="tut-editor" data-pane="template"></div>
+      <div class="tut-editor" data-pane="controller" hidden></div>
     </div>
   </div>
 
-  <div class="tut-editor-wrap">
-    <div class="tut-editor" data-pane="template"></div>
-    <div class="tut-editor" data-pane="controller" hidden></div>
-  </div>
-
-  <div class="tut-status" id={`tut-status-${slug}`}>
-    <span class="tut-status-dot" data-state="idle"></span>
-    <span class="tut-status-text">ready</span>
-  </div>
-
-  <div class="tut-preview-wrap">
-    <iframe
-      class="tut-preview"
-      data-base-src="/tutorial/host.html"
-      title="Tutorial preview"
-      sandbox="allow-scripts allow-same-origin"
-    ></iframe>
+  <div class="tut-pane tut-pane--preview">
+    <div class="tut-pane-bar">
+      <div class="tut-status" id={`tut-status-${slug}`}>
+        <span class="tut-status-dot" data-state="idle"></span>
+        <span class="tut-status-text">ready</span>
+      </div>
+      <button class="tut-action" data-action="run" title="Re-run with current code">
+        <span aria-hidden="true">↻</span> Run
+      </button>
+    </div>
+    <div class="tut-preview-host">
+      <iframe
+        class="tut-preview"
+        data-base-src="/tutorial/host.html"
+        title="Tutorial preview"
+        sandbox="allow-scripts allow-same-origin"
+      ></iframe>
+    </div>
   </div>
 </div>
 
@@ -329,94 +343,183 @@ const { slug, starterTemplate, starterController, solvedTemplate, solvedControll
   .tut-app-root {
     display: flex;
     flex-direction: column;
+    gap: 0.75rem;
     min-height: 0;
     flex: 1;
+  }
+
+  .tut-pane {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 0;
+    min-height: 240px;
     background: var(--sl-color-bg-sidebar);
     border: 1px solid var(--sl-color-hairline-shade);
-    border-radius: 0.5rem;
+    border-radius: 10px;
     overflow: hidden;
+    box-shadow: 0 1px 0 color-mix(in oklch, var(--sl-color-white) 5%, transparent) inset;
   }
-  .tut-app-bar {
+  .tut-pane--editor { flex-basis: 55%; }
+  .tut-pane--preview { flex-basis: 45%; }
+
+  .tut-pane-bar {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 4px 8px;
-    background: var(--sl-color-bg-sidebar);
+    gap: 0.5rem;
+    padding: 6px 8px 6px 10px;
+    background: linear-gradient(
+      to bottom,
+      color-mix(in oklch, var(--sl-color-bg-sidebar) 88%, var(--sl-color-bg) 12%),
+      var(--sl-color-bg-sidebar)
+    );
     border-bottom: 1px solid var(--sl-color-hairline-shade);
+    flex-shrink: 0;
+    min-height: 36px;
   }
-  .tut-tabs { display: flex; gap: 1px; }
+
+  .tut-tabs {
+    display: flex;
+    gap: 2px;
+  }
   .tut-tab {
     background: transparent;
-    color: var(--sl-color-text);
-    border: none;
-    padding: 6px 12px;
+    color: var(--sl-color-gray-2);
+    border: 1px solid transparent;
+    padding: 4px 10px;
     font: inherit;
     font-family: var(--sl-font-system-mono);
     font-size: 0.75rem;
+    border-radius: 6px;
     cursor: pointer;
-    border-bottom: 2px solid transparent;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: color 120ms ease, background-color 120ms ease;
+  }
+  .tut-tab:hover {
+    color: var(--sl-color-text);
+    background: color-mix(in oklch, var(--sl-color-text) 4%, transparent);
   }
   .tut-tab[aria-selected="true"] {
     color: var(--sl-color-text-accent);
-    border-bottom-color: var(--sl-color-text-accent);
+    background: color-mix(in oklch, var(--sl-color-text-accent) 10%, transparent);
+    border-color: color-mix(in oklch, var(--sl-color-text-accent) 30%, transparent);
   }
-  .tut-actions { display: flex; gap: 6px; }
+  .tut-tab-icon {
+    font-family: var(--sl-font-system-mono);
+    color: var(--sl-color-gray-3);
+    font-size: 0.7rem;
+  }
+  .tut-tab[aria-selected="true"] .tut-tab-icon {
+    color: var(--sl-color-text-accent);
+  }
+
+  .tut-actions {
+    display: flex;
+    gap: 6px;
+  }
   .tut-action {
-    background: none;
+    background: transparent;
     border: 1px solid var(--sl-color-hairline-shade);
-    color: var(--sl-color-text);
-    padding: 3px 10px;
-    border-radius: 4px;
+    color: var(--sl-color-gray-2);
+    padding: 4px 10px;
+    border-radius: 6px;
     font: inherit;
-    font-size: 0.75rem;
+    font-family: var(--sl-font-system-mono);
+    font-size: 0.7rem;
     cursor: pointer;
+    transition: all 120ms ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
   }
   .tut-action:hover {
     border-color: var(--sl-color-text-accent);
     color: var(--sl-color-text-accent);
+    background: color-mix(in oklch, var(--sl-color-text-accent) 8%, transparent);
+  }
+  .tut-action--accent {
+    border-color: color-mix(in oklch, var(--sl-color-text-accent) 50%, transparent);
+    color: var(--sl-color-text-accent);
+  }
+  .tut-action--accent:hover {
+    background: var(--sl-color-text-accent);
+    color: var(--sl-color-bg);
+    border-color: var(--sl-color-text-accent);
   }
 
-  .tut-editor-wrap {
-    flex: 1 1 50%;
-    min-height: 200px;
-    overflow: hidden;
-    border-bottom: 1px solid var(--sl-color-hairline-shade);
+  .tut-editor-host {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
   }
   .tut-editor {
+    flex: 1;
+    min-width: 0;
     height: 100%;
   }
   .tut-editor .cm-editor {
     height: 100%;
+    background: transparent !important;
   }
   .tut-editor .cm-scroller {
     font-family: var(--sl-font-system-mono);
-    font-size: 0.875rem;
+    font-size: 0.8125rem;
+  }
+  .tut-editor .cm-gutters {
+    background: transparent !important;
+    border-right: 1px solid var(--sl-color-hairline-shade) !important;
   }
 
   .tut-status {
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 4px 12px;
-    background: var(--sl-color-bg);
-    border-bottom: 1px solid var(--sl-color-hairline-shade);
     font-family: var(--sl-font-system-mono);
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     color: var(--sl-color-gray-3);
+    min-width: 0;
+    flex: 1;
   }
   .tut-status-dot {
     width: 8px; height: 8px; border-radius: 50%;
     background: var(--sl-color-gray-4);
+    flex-shrink: 0;
+    transition: background 200ms ease, box-shadow 200ms ease;
   }
-  .tut-status-dot[data-state="ok"] { background: var(--sl-color-green); }
-  .tut-status-dot[data-state="running"] { background: var(--sl-color-orange); }
-  .tut-status-dot[data-state="typing"] { background: var(--sl-color-blue); }
-  .tut-status-dot[data-state="error"] { background: var(--sl-color-red); }
+  .tut-status-dot[data-state="ok"] {
+    background: var(--sl-color-green-high);
+    box-shadow: 0 0 0 3px color-mix(in oklch, var(--sl-color-green-high) 18%, transparent);
+  }
+  .tut-status-dot[data-state="running"] { background: var(--sl-color-orange-high); }
+  .tut-status-dot[data-state="typing"] {
+    background: var(--sl-color-blue-high);
+    animation: tut-pulse 1.2s ease-in-out infinite;
+  }
+  .tut-status-dot[data-state="error"] {
+    background: var(--sl-color-red-high);
+    box-shadow: 0 0 0 3px color-mix(in oklch, var(--sl-color-red-high) 22%, transparent);
+  }
+  @keyframes tut-pulse {
+    0%, 100% { opacity: 1 }
+    50% { opacity: 0.4 }
+  }
+  .tut-status-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+  }
 
-  .tut-preview-wrap {
-    flex: 1 1 50%;
-    min-height: 200px;
+  .tut-preview-host {
+    flex: 1 1 auto;
+    min-height: 0;
     display: flex;
+    background:
+      linear-gradient(45deg, transparent 49.5%, var(--sl-color-hairline-shade) 49.5% 50.5%, transparent 50.5%) 0 0/12px 12px,
+      linear-gradient(-45deg, transparent 49.5%, var(--sl-color-hairline-shade) 49.5% 50.5%, transparent 50.5%) 0 0/12px 12px;
+    /* Subtle hairline texture so the iframe's bg has a visible edge */
   }
   .tut-preview {
     flex: 1;

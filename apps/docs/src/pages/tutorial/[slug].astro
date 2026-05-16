@@ -165,12 +165,13 @@ const proseHtml = renderMarkdown(body)
   <div class="tut-root">
     <header class="tut-head">
       <div class="tut-head-meta">
-        <span class="tut-pill">Tutorial · {String(fm.order).padStart(2, '0')}</span>
+        <span class="tut-pill">{String(fm.order).padStart(2, '0')} · Tutorial</span>
+        <h2>{fm.title}</h2>
       </div>
       <nav class="tut-nav">
-        {fm.prev && <a href={`/tutorial/${fm.prev}/`} class="tut-nav-link">← prev</a>}
-        <a href="/tutorial/" class="tut-nav-link">overview</a>
-        {fm.next && <a href={`/tutorial/${fm.next}/`} class="tut-nav-link">next →</a>}
+        {fm.prev && <a href={`/tutorial/${fm.prev}/`} class="tut-nav-link" aria-label="Previous step">← prev</a>}
+        <a href="/tutorial/" class="tut-nav-link">all steps</a>
+        {fm.next && <a href={`/tutorial/${fm.next}/`} class="tut-nav-link" aria-label="Next step">next →</a>}
       </nav>
     </header>
 
@@ -190,17 +191,29 @@ const proseHtml = renderMarkdown(body)
 </StarlightPage>
 
 <style is:global>
+  /* Splash template still emits a full-bleed <h1> from frontmatter
+     `title`. Suppress on tutorial routes — the pill in tut-head gives
+     equivalent info without eating 100+ px of viewport. */
   body:has(.tut-root) main > .sl-container,
   body:has(.tut-root) .main-pane .sl-container {
     max-width: none;
+    padding-top: 0 !important;
   }
-  body:has(.tut-root) .hero { display: none; }
+  body:has(.tut-root) .hero,
+  body:has(.tut-root) main h1#_top,
+  body:has(.tut-root) main h1 {
+    display: none !important;
+  }
+  /* Starlight's content-panel adds its own top padding; squash it
+     so the canvas fills the visible viewport below the nav. */
+  body:has(.tut-root) .content-panel { padding: 0 !important; }
+  body:has(.tut-root) .page > .main-frame { padding-top: var(--sl-nav-height) !important; }
 
   .tut-root {
     display: flex;
     flex-direction: column;
-    height: calc(100vh - var(--sl-nav-height));
-    padding: 1rem 1.5rem;
+    height: calc(100dvh - var(--sl-nav-height));
+    padding: 1rem 1.5rem 1.5rem;
     gap: 0.75rem;
     box-sizing: border-box;
   }
@@ -208,37 +221,50 @@ const proseHtml = renderMarkdown(body)
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding-bottom: 0.5rem;
-    border-bottom: 1px solid var(--sl-color-hairline-shade);
+    gap: 1rem;
+    flex-shrink: 0;
   }
+  .tut-head-meta { display: flex; align-items: center; gap: 0.75rem; }
   .tut-pill {
     display: inline-block;
-    padding: 2px 8px;
+    padding: 3px 10px;
     border-radius: 999px;
-    background: var(--sl-color-bg-accent);
+    background: color-mix(in oklch, var(--sl-color-text-accent) 14%, transparent);
     color: var(--sl-color-text-accent);
     font-family: var(--sl-font-system-mono);
-    font-size: 0.625rem;
+    font-size: 0.6875rem;
     text-transform: uppercase;
     letter-spacing: 0.08em;
+    font-weight: 600;
   }
-  .tut-nav { display: flex; gap: 0.75rem; }
+  .tut-head h2 {
+    margin: 0;
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--sl-color-white);
+  }
+  .tut-nav { display: flex; gap: 0.25rem; align-items: center; }
   .tut-nav-link {
     font-family: var(--sl-font-system-mono);
     font-size: 0.75rem;
-    color: var(--sl-color-text);
+    color: var(--sl-color-gray-2);
     text-decoration: none;
-    padding: 2px 8px;
-    border-radius: 4px;
-    border: 1px solid transparent;
+    padding: 4px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--sl-color-hairline-shade);
+    transition: border-color 120ms ease, color 120ms ease, background-color 120ms ease;
   }
-  .tut-nav-link:hover { border-color: var(--sl-color-text-accent); color: var(--sl-color-text-accent); }
+  .tut-nav-link:hover {
+    border-color: var(--sl-color-text-accent);
+    color: var(--sl-color-text-accent);
+    background: color-mix(in oklch, var(--sl-color-text-accent) 8%, transparent);
+  }
 
   .tut-split {
     display: grid;
-    grid-template-columns: minmax(0, 32rem) 1fr;
-    gap: 1rem;
-    flex: 1;
+    grid-template-columns: minmax(0, 30rem) 1fr;
+    gap: 1.25rem;
+    flex: 1 1 auto;
     min-height: 0;
   }
   @media (max-width: 900px) {
@@ -247,42 +273,61 @@ const proseHtml = renderMarkdown(body)
 
   .tut-prose {
     overflow-y: auto;
-    padding: 0 1rem 1rem 0;
+    padding-right: 0.5rem;
     color: var(--sl-color-text);
-    line-height: 1.6;
+    line-height: 1.65;
+    min-width: 0;
   }
+  /* Subtle scroll affordance instead of a default ugly scrollbar. */
+  .tut-prose::-webkit-scrollbar { width: 6px; }
+  .tut-prose::-webkit-scrollbar-thumb {
+    background: var(--sl-color-hairline-shade);
+    border-radius: 999px;
+  }
+
   .tut-prose h1, .tut-prose h2 {
-    margin-top: 1.5rem;
-    margin-bottom: 0.5rem;
+    margin: 1.25rem 0 0.5rem;
     font-weight: 600;
+    color: var(--sl-color-white);
   }
-  .tut-prose h1 { font-size: 1.25rem; }
-  .tut-prose h2 { font-size: 1rem; }
-  .tut-prose p, .tut-prose li { margin: 0.5rem 0; font-size: 0.95rem; }
-  .tut-prose ol, .tut-prose ul { padding-left: 1.25rem; }
+  .tut-prose h1 { font-size: 1.05rem; }
+  .tut-prose h2 {
+    font-size: 0.8125rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--sl-color-gray-2);
+  }
+  .tut-prose p, .tut-prose li { margin: 0.5rem 0; font-size: 0.925rem; }
+  .tut-prose ol, .tut-prose ul { padding-left: 1.5rem; }
+  .tut-prose li { padding-left: 0.25rem; }
   .tut-prose code {
     font-family: var(--sl-font-system-mono);
-    font-size: 0.875em;
+    font-size: 0.85em;
     background: var(--sl-color-bg-inline-code);
-    padding: 1px 4px;
-    border-radius: 3px;
+    color: var(--sl-color-text-accent);
+    padding: 1px 5px;
+    border-radius: 4px;
   }
   .tut-prose pre.tut-prose-code {
     background: var(--sl-color-bg-sidebar);
     border: 1px solid var(--sl-color-hairline-shade);
-    border-radius: 6px;
-    padding: 12px;
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
     overflow-x: auto;
-    font-size: 0.8rem;
+    font-size: 0.8125rem;
+    line-height: 1.5;
+    margin: 0.75rem 0;
   }
   .tut-prose pre code {
     background: none;
     padding: 0;
+    color: var(--sl-color-text);
   }
 
   .tut-app {
     display: flex;
     flex-direction: column;
     min-height: 0;
+    min-width: 0;
   }
 </style>
