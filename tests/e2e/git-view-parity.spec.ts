@@ -183,4 +183,4 @@ test('AVOID: navigation to /sui/git produces fresh content, not stale state', as
 async function text(loc: Locator): Promise<string> {
   return (await loc.textContent())?.trim() ?? ''
 }
-void text // exported for parity with shell2 helpers; unused here
+void text // exported for parity with shell helpers; unused here

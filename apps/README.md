@@ -13,7 +13,7 @@ and both coexist over this same directory.
 | `docs/` | TS | Astro-based docs site at getship.dev/docs. Consumes `docs/` content via `apps/docs/src/content/`. |
 | `site/` | TS | Marketing site at getship.dev. |
 | `shell/` | TS | Web shell — the daemon-served UI shell that hosts views. |
-| `shell2/` | TS | Next-gen shell (work in progress). |
+| `shell/` | TS | Next-gen shell (work in progress). |
 | `gateway/` | TS | Public ingress for Ship Cloud — auth, routing, billing. |
 | `workers/` | TS | Cloudflare Workers monorepo. Per-worker subdirs. |
 | `vscode/` | TS | VS Code extension for `.ship/` config editing. |

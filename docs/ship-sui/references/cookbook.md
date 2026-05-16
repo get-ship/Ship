@@ -398,7 +398,7 @@ transitions.
 ```
 
 The `data-test="…"` hooks let the probe at
-`apps/shell2/inventory-probe.mjs:89-103` classify each view's state
+`apps/shell/inventory-probe.mjs:89-103` classify each view's state
 without relying on text content (skeletons have no visible text — the
 probe's `hasSkeleton` flag is true).
 

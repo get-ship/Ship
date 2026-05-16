@@ -147,7 +147,7 @@ semver bump. Treat the absence of an export from `src/index.ts` as a
 Typed wrapper around the shell-owned chrome surfaces. Replaces the
 ad-hoc `dispatchEvent(new CustomEvent('sui:notify', …))` pattern with a
 single discoverable API. Every call dispatches a `CustomEvent` on
-`document`; the shell (`apps/shell2/src/chrome/registry.ts`) owns the
+`document`; the shell (`apps/shell/src/chrome/registry.ts`) owns the
 listeners. Old event shapes still fire — the shell handles raw +
 wrapper-emitted events identically, so legacy call sites keep working.
 

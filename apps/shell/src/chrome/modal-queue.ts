@@ -3,7 +3,7 @@
 // One dialog at a time; further requests queue and open when the
 // previous one closes.
 //
-// Why native <dialog> rather than <sui-dialog>: this runs from shell2's
+// Why native <dialog> rather than <sui-dialog>: this runs from shell's
 // main bundle (not a SUI controller) and must work even when the SUI
 // island bundles are still loading. Native <dialog> ships top-layer +
 // ::backdrop + focus return + ESC handling out of the box, which is

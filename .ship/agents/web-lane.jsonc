@@ -1,12 +1,12 @@
 {
-  // Web Lane agent — web-facing application code (apps/shell2, apps/site, apps/docs).
+  // Web Lane agent — web-facing application code (apps/shell, apps/site, apps/docs).
   "$schema": "../../schemas/agent.schema.json",
   "agent": {
     "id": "web-lane",
     "name": "Web Lane",
     "icon": "simpleicons:javascript",
     "version": "0.2.0",
-    "description": "Web-facing app code: apps/shell2, apps/site, apps/docs. Uses SUI views and components but doesn't author them — that's ship-designer's lane.",
+    "description": "Web-facing app code: apps/shell, apps/site, apps/docs. Uses SUI views and components but doesn't author them — that's ship-designer's lane.",
     "providers": ["claude", "codex", "cursor", "gemini", "opencode"],
   },
   "skills": {
@@ -26,6 +26,6 @@
     "tools_deny": ["Bash(rm -rf *)", "Bash(git reset --hard*)", "Bash(* ~/.ship/*)"],
   },
   "rules": {
-    "inline": "Scope: web-facing application code — apps/shell2, apps/site, apps/docs, packages/sdk. Compose existing SUI components and views; new components/views are ship-designer's lane (hand off if a job requires authoring a component). Data comes from the daemon API — no direct runtime calls. Never touch: bun.lock, routeTree.gen.ts, Rust source. When you must touch a SUI component (e.g., to remove a button), do the surgical change only — don't introduce controller-purity violations (no innerHTML/outerHTML/insertAdjacentHTML in *.controller.ts; use bindHtml for HTML-blob cases). Job spec overrides scope when it lists a specific file scope.",
+    "inline": "Scope: web-facing application code — apps/shell, apps/site, apps/docs, packages/sdk. Compose existing SUI components and views; new components/views are ship-designer's lane (hand off if a job requires authoring a component). Data comes from the daemon API — no direct runtime calls. Never touch: bun.lock, routeTree.gen.ts, Rust source. When you must touch a SUI component (e.g., to remove a button), do the surgical change only — don't introduce controller-purity violations (no innerHTML/outerHTML/insertAdjacentHTML in *.controller.ts; use bindHtml for HTML-blob cases). Job spec overrides scope when it lists a specific file scope.",
   },
 }

@@ -1,6 +1,6 @@
 //! Inject daemon-mode meta tag into served HTML shells.
 //!
-//! shell2's index.html ships a static <meta name="ship-mode"
+//! shell's index.html ships a static <meta name="ship-mode"
 //! content="development"> tag. When shipd serves the same HTML in
 //! production mode it rewrites that tag via `inject_mode_meta` so the
 //! shell's status bar can render the DEV badge appropriately.

@@ -130,7 +130,7 @@ Use it to find a component, browse its props (including enum values from `<prop 
 | `<sui-devtools-schema>` | Prop schema for selected component |
 | `<sui-devtools-signals>` | Live signal values; subscribes + repaints on change |
 
-`apps/shell2/src/main.ts:139` (`// Notify devtools tabs of navigation`) wires navigation events into the panes so they refresh on route changes.
+`apps/shell/src/main.ts:139` (`// Notify devtools tabs of navigation`) wires navigation events into the panes so they refresh on route changes.
 
 ## `dispatch.sh` — worktree + job-spec + agent spawn
 
@@ -177,16 +177,16 @@ Both scaffolds emit the manifest / template / controller / style files documente
 
 ```sh
 just dev                              # daemon + embedded Bun bundler worker
-# (optional) just shell2-dev          # vite outer shell at :3200, proxies to daemon
+# (optional) just shell-dev          # vite outer shell at :3200, proxies to daemon
 # edit views/home/page.sui or controller.ts
 #  → bundler.ts re-runs Bun.build, writes to crates/sui/ship-sui-server/assets/...
 #  → emits module_changed over JSON stdout to shipd
 #  → shipd republishes on /_sui/dev/hmr (SSE)
-#  → apps/shell2/src/hmr.ts cache-busts /_sui/views/home/view.js
+#  → apps/shell/src/hmr.ts cache-busts /_sui/views/home/view.js
 #  → mount() re-runs in place; SSR snapshot stays, no full reload
 ```
 
-`just dev` starts only the daemon (`scripts/dev/start.sh`); the bundler worker is spawned by shipd itself (`apps/shipd/src/lib.rs:214`). To hit the daemon through the shell2 outer shell, run `just shell2-dev` in a second terminal — it proxies `/api`, `/_sui`, `^/sui/.*`, and `/view-host` to the daemon. To force-rebuild every served asset without editing, run `just dev-build-all` (runs `bundler.ts --all` for a one-shot full rebuild).
+`just dev` starts only the daemon (`scripts/dev/start.sh`); the bundler worker is spawned by shipd itself (`apps/shipd/src/lib.rs:214`). To hit the daemon through the shell outer shell, run `just shell-dev` in a second terminal — it proxies `/api`, `/_sui`, `^/sui/.*`, and `/view-host` to the daemon. To force-rebuild every served asset without editing, run `just dev-build-all` (runs `bundler.ts --all` for a one-shot full rebuild).
 
 For a clean dev restart use `just dev-restart`. Visual regressions: `just visual` (Playwright vs committed PNGs; pass `--update-snapshots` to refresh after a deliberate change). Perf regressions: `just bench-check` (fails on >15% vs the latest committed baseline; override via `BENCH_REGRESSION_THRESHOLD`).
 
@@ -200,15 +200,15 @@ Shipd has two operating modes, selected via `--mode <development|production>` (o
 
 | Aspect | Development (default) | Production |
 |---|---|---|
-| Frontend serving | Vite dev server (`just shell2-dev`) at 3200 +offset, proxying `/api`, `/_sui`, `/view-host` to the daemon | Daemon serves prebuilt shell HTML directly; no Vite, no proxy, no second port |
+| Frontend serving | Vite dev server (`just shell-dev`) at 3200 +offset, proxying `/api`, `/_sui`, `/view-host` to the daemon | Daemon serves prebuilt shell HTML directly; no Vite, no proxy, no second port |
 | Bundler | Bun worker spawned by shipd watches sources and rewrites the asset trees on edit | Pre-bundled by `just build`; daemon `include_str!`s the static output |
-| HMR | `/_sui/dev/hmr` SSE channel; `apps/shell2/src/hmr.ts` cache-busts view modules and re-runs `mount()` in place | Disabled — HMR routes are not registered in production |
+| HMR | `/_sui/dev/hmr` SSE channel; `apps/shell/src/hmr.ts` cache-busts view modules and re-runs `mount()` in place | Disabled — HMR routes are not registered in production |
 | Cache headers | `Cache-Control: no-cache` on every asset and view artifact; no ETag | `Cache-Control: public, immutable, max-age=31536000` on framework bundles, `must-revalidate` on view artifacts; ETag on every response |
 | SSR cache | Bypassed every request (sources may have changed under us) | Memoized on first hit and reused until the daemon restarts |
 | Error detail | Full error bodies | Redacted; only the kind of failure leaks to the client |
 | Status bar | `<sui-status-bar mode="development">` shows a hairline `DEV` badge between the connection dot and the branch | Badge hidden; same component, no chrome |
 
-The mode is exposed to the browser via `<meta name="ship-mode">` in the shell HTML. shell2's `main.ts` reads it into `window.__shipMode` (`'Production'` | `'Development'`) at boot and reflects it onto the status bar's `mode` attribute. When shipd serves the prebuilt shell itself, `ship_sui::inject_mode_meta` rewrites the meta to match the daemon's actual mode; the static default in `apps/shell2/index.html` is `development` so the Vite dev server doesn't need any special handling.
+The mode is exposed to the browser via `<meta name="ship-mode">` in the shell HTML. shell's `main.ts` reads it into `window.__shipMode` (`'Production'` | `'Development'`) at boot and reflects it onto the status bar's `mode` attribute. When shipd serves the prebuilt shell itself, `ship_sui::inject_mode_meta` rewrites the meta to match the daemon's actual mode; the static default in `apps/shell/index.html` is `development` so the Vite dev server doesn't need any special handling.
 
 Producing a deployable artifact set:
 

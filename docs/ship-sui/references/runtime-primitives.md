@@ -240,4 +240,4 @@ const handle: MountHandle = mount(target, payload, opts)
 // later: handle.dispose()
 ```
 
-`mount(target, payload, opts)` is the single entry hosts call to put a view on screen — used by the daemon view-host and by `apps/shell2/src/main.ts` for route-driven mounts. The HMR layer disposes and re-mounts through the same call.
+`mount(target, payload, opts)` is the single entry hosts call to put a view on screen — used by the daemon view-host and by `apps/shell/src/main.ts` for route-driven mounts. The HMR layer disposes and re-mounts through the same call.

@@ -177,7 +177,7 @@ function sseSource<T>(expr: string): LiveSource<T> {
 }
 ```
 
-Default to the template form (path 1) when authoring inside shell2.
+Default to the template form (path 1) when authoring inside shell.
 Adopt the `sseSource` helper if the view will also be linked to
 directly via `/sui/<name>`.
 
@@ -312,7 +312,7 @@ immediately — **don't** also call a manual refresh.
 
 ---
 
-## 6. Registering in shell2
+## 6. Registering in shell
 
 Two places, both required:
 
@@ -335,8 +335,8 @@ Two places, both required:
    include `[param]` segments for sub-routes — see
    `views/agents/[id]/manifest.jsonc`.
 
-2. **`apps/shell2/index.html` `<sui-rail>` block** — the shell's rail
-   is currently a static list at `apps/shell2/index.html:103-113`. Add
+2. **`apps/shell/index.html` `<sui-rail>` block** — the shell's rail
+   is currently a static list at `apps/shell/index.html:103-113`. Add
    your view:
 
    ```html
@@ -344,10 +344,10 @@ Two places, both required:
    ```
 
    The label flows through to the anchor's `title` for collapsed-icon
-   hover text (`apps/shell2/index.html:99-102` comment). The manifest's
-   `rail` block is read by the daemon's view-host page; shell2 reads
+   hover text (`apps/shell/index.html:99-102` comment). The manifest's
+   `rail` block is read by the daemon's view-host page; shell reads
    the hardcoded list. **Both must agree** — drift here is a frequent
-   probe failure (see `.artifacts/sui-arc/shell2-probe-evidence.md` § Rail
+   probe failure (see `.artifacts/sui-arc/shell-probe-evidence.md` § Rail
    inventory bugs).
 
 `icon` is a lucide-icons name. The full table is fetched on demand by
@@ -414,7 +414,7 @@ Hard-won. Each one is from a real fix in this repo.
 8. **Compiler-emitted `<data live>` sticks on `loading` under
    `/sui/<name>`.** The daemon's view-host mounts views without
    injecting `ship` into ctx. If the view will be linked to directly
-   (not just through shell2), hand-wire the live source with
+   (not just through shell), hand-wire the live source with
    `sseSource(...)` (see § 3 above and `views/skills/controller.ts`,
    `views/git/controller.ts`).
 
@@ -424,7 +424,7 @@ Hard-won. Each one is from a real fix in this repo.
    (`tasks-row`, `agents-card`) — see
    `references/4-layer-overview.md` § Layer 4 rule 5.
 
-10. **Manifest rail vs `apps/shell2/index.html` rail.** They are NOT
+10. **Manifest rail vs `apps/shell/index.html` rail.** They are NOT
     auto-synced. § 6 above.
 
 ---
@@ -445,14 +445,14 @@ mcp__ship__sui_hover({ file: "views/<name>/page.sui", line: 12, col: 4 })
 just smoke-deploy
 ```
 
-Then exercise the view in a real browser. `apps/shell2/inventory-probe.mjs`
+Then exercise the view in a real browser. `apps/shell/inventory-probe.mjs`
 walks every registered view and screenshots each one:
 
 ```sh
-just dev                                  # daemon + bundler + shell2 watch
-node apps/shell2/inventory-probe.mjs      # writes /tmp/shell2-inventory/
-cat /tmp/shell2-inventory/report.json     # per-view: status, els, hasError, errors[]
-ls  /tmp/shell2-inventory/view_<name>.png # per-view screenshot
+just dev                                  # daemon + bundler + shell watch
+node apps/shell/inventory-probe.mjs      # writes /tmp/shell-inventory/
+cat /tmp/shell-inventory/report.json     # per-view: status, els, hasError, errors[]
+ls  /tmp/shell-inventory/view_<name>.png # per-view screenshot
 ```
 
 A healthy view in the probe report has `status === '200'`,
@@ -462,10 +462,10 @@ A healthy view in the probe report has `status === '200'`,
 800 ms settle window means the view is stuck on `'Loading…'` text —
 fix the live-data wire-up (§ 5, § 7-8).
 
-Direct-mount path (skips shell2's router):
+Direct-mount path (skips shell's router):
 `http://localhost:$PORT/sui/<name>` — confirms the view-host serves
 the compiled bundle and SSR snapshot. Useful when bisecting
-shell2-routing bugs vs view-content bugs.
+shell-routing bugs vs view-content bugs.
 
 ---
 

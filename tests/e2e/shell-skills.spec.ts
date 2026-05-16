@@ -1,5 +1,5 @@
 /**
- * shell2 Skills view.
+ * shell Skills view.
  *
  * `views/skills/page.sui` renders a list of `.se-skill` entries; picking
  * one populates a detail pane (`.sd-name`, description, an invoke button,
@@ -8,12 +8,12 @@
  * count (the probe assumed exactly five — the live workspace has many
  * more).
  *
- * Runs against shell2's vite dev server; skipped when unreachable.
+ * Runs against shell's vite dev server; skipped when unreachable.
  */
 import { test, expect } from '@playwright/test'
-import { SHELL2_URL, skipUnlessShell2 } from './_shell2'
+import { SHELL2_URL, skipUnlessShell2 } from './_shell'
 
-test.describe('shell2 skills view', () => {
+test.describe('shell skills view', () => {
   skipUnlessShell2()
 
   test('skills list renders and selecting one populates the detail pane', async ({ page }) => {

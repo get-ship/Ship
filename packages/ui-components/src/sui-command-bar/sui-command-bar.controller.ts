@@ -387,10 +387,10 @@ export default controller<Scope>({
     }
 
     // ── Global keyboard listener ───────────────────────────────────
-    // Cmd/Ctrl+K is owned by the shell (apps/shell2/src/main.ts) which
+    // Cmd/Ctrl+K is owned by the shell (apps/shell/src/main.ts) which
     // calls `host.toggle('find')` on this element. Both listeners
     // running together raced — the cb listener flipped open=true,
-    // then shell2's listener (also seeing the same keypress) called
+    // then shell's listener (also seeing the same keypress) called
     // toggle() which flipped it straight back to false 23ms later.
     // Keep Escape (close) and double-space (open in AI mode) here
     // since those are intrinsic to the bar, not shell-wide bindings.

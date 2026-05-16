@@ -118,7 +118,7 @@ Written under `~/.ship/machine/daemon/` (`pid` and `port`) at startup, cleaned a
 
 ## Per-worktree Vite isolation
 
-Each worktree runs its own Vite dev server on a distinct port (`3200 + (daemon_port - 9315)`). The launcher script `scripts/dev/shell2-start.sh` (invoked by `just shell2-dev`) records the Vite process PID at `{daemon_dir}/vite.pid` alongside the daemon's own `pid` and `port` files.
+Each worktree runs its own Vite dev server on a distinct port (`3200 + (daemon_port - 9315)`). The launcher script `scripts/dev/shell-start.sh` (invoked by `just shell-dev`) records the Vite process PID at `{daemon_dir}/vite.pid` alongside the daemon's own `pid` and `port` files.
 
 This enables coordinated cleanup:
 

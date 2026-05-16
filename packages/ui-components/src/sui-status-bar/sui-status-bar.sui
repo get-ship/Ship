@@ -84,7 +84,7 @@
   /* DEV badge. Rendered when [mode="development"]; mirrors apps/shell
      parity where shipd-served HTML rewrites the meta to "production"
      and the badge disappears. The mode attribute is set on this host
-     by apps/shell2/src/main.ts at boot; without this rule the
+     by apps/shell/src/main.ts at boot; without this rule the
      attribute was inert. */
   .mode {
     display: none;

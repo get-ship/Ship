@@ -50,7 +50,7 @@ declare global {
   interface Window {
     __viewMcp?: ViewMcpStubs
     __viewMcpAnnotationTimer?: number
-    /** Re-declared from apps/shell2/src/main.ts so the annotation event
+    /** Re-declared from apps/shell/src/main.ts so the annotation event
      *  can stamp the current view-id without importing the shell module
      *  (which would create a circular dep). */
     __suiCurrentViewId?: string | null

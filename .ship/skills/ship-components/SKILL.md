@@ -295,7 +295,7 @@ Full treatment: `ship-views` § Routes.
 ### HMR
 
 In dev mode, `.sui` and `.controller.ts` edits trigger an in-place re-mount.
-shell2's boot calls `initHmr()` (`apps/shell2/src/hmr.ts`), which uses
+shell's boot calls `initHmr()` (`apps/shell/src/hmr.ts`), which uses
 `subscribeHmr` from `@ship/sui-runtime/dev` to listen on shipd's
 `/_sui/dev/hmr` SSE channel. Component-tag changes still need a full
 reload (custom-element re-registration isn't yet supported); compile

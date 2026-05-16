@@ -2,7 +2,7 @@
   <sui-brand-mark> — SUI port of <ship-mark>.
   The SHIP brand mark, painted from `--primary` and `--background` via
   `color-mix` so every theme renders the logo in its own palette
-  without swapping SVG assets. Replaces shell2's previous static
+  without swapping SVG assets. Replaces shell's previous static
   `<img src="/ship-logo.svg">` (which always showed the gold variant).
 
   Prop / event surface

@@ -167,7 +167,7 @@ describe('<sui-command-bar>', () => {
     expect(input?.value).toBe('>dashboard')
   })
 
-  // ⌘K binding lives in the shell (apps/shell2/src/main.ts), not in
+  // ⌘K binding lives in the shell (apps/shell/src/main.ts), not in
   // the cb controller. Two listeners fighting over the same key flipped
   // the bar open and back to closed within ~23ms — see commit
   // e538a6ec. The shell now owns ⌘K; the bar exposes `host.toggle()`
@@ -419,7 +419,7 @@ describe('<sui-command-bar>', () => {
   })
 
   describe('navigation contract — shell listens for sui:navigate', () => {
-    // The shell (apps/shell2/src/main.ts) wires the actual mountRoute call
+    // The shell (apps/shell/src/main.ts) wires the actual mountRoute call
     // off sui:navigate-with-detail. The bar's job is to dispatch that event
     // with the chosen path — without it, selecting a result updated the URL
     // silently and the page kept showing the old view.

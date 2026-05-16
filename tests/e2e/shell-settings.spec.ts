@@ -1,5 +1,5 @@
 /**
- * shell2 Settings view.
+ * shell Settings view.
  *
  * `views/settings/page.sui` renders a `<data live>` settings document as
  * a column of `<sui-card>` section forms. This spec ports the load-bearing
@@ -7,12 +7,12 @@
  * is labelled, and the theme choice persists across a reload (the theme
  * picker lives in the top bar and owns `data-theme` on `<html>`).
  *
- * Runs against shell2's vite dev server; skipped when unreachable.
+ * Runs against shell's vite dev server; skipped when unreachable.
  */
 import { test, expect } from '@playwright/test'
-import { SHELL2_URL, skipUnlessShell2 } from './_shell2'
+import { SHELL2_URL, skipUnlessShell2 } from './_shell'
 
-test.describe('shell2 settings view', () => {
+test.describe('shell settings view', () => {
   skipUnlessShell2()
 
   test('renders settings section cards once the live doc resolves', async ({ page }) => {

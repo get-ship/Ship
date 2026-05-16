@@ -69,9 +69,9 @@ export default controller<Scope>({
   }),
   on: {
     // Settings → About → Run setup again. Clears the wizard's
-    // completion flag and dispatches `ship:setup:rerun` so shell2's
+    // completion flag and dispatches `ship:setup:rerun` so shell's
     // setup-wizard hook routes to /setup. Standalone callers (no
-    // shell2) get a direct location assignment as a fallback.
+    // shell) get a direct location assignment as a fallback.
     rerunSetup: () => {
       try {
         localStorage.removeItem('ship-setup-completed')

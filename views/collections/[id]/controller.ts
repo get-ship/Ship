@@ -1,7 +1,7 @@
 // Collection detail view — `/collections/:id`.
 //
 // Reads `route.params.id()` (the shell pre-registers `/collections/:id`
-// in apps/shell2/src/main.ts so the param resolves on first paint).
+// in apps/shell/src/main.ts so the param resolves on first paint).
 // Pulls the collection schema + items via `ship.collections.detail`.
 // Tabs: Schema (field list), Rows (table of stored data), JSONC (raw
 // pretty-printed schema). New-row writes through the documented REST

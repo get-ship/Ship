@@ -7,7 +7,7 @@ description: Playwright-based end-to-end coverage for SUI views. How to run, wha
 
 # E2E test suite
 
-The `tests/e2e/` directory contains a Playwright-based end-to-end regression net. Seven spec files cover the SUI view surface: `agents`, `counter`, `git`, `git-live`, `patch-elements`, `shell2-rail`, and `studio`. These tests exercise real-browser behavior — SSR correctness, client-side `attach()`, signal reactivity, SSE-driven boundary swaps, and rail navigation — things jsdom-based loop tests cannot catch.
+The `tests/e2e/` directory contains a Playwright-based end-to-end regression net. Seven spec files cover the SUI view surface: `agents`, `counter`, `git`, `git-live`, `patch-elements`, `shell-rail`, and `studio`. These tests exercise real-browser behavior — SSR correctness, client-side `attach()`, signal reactivity, SSE-driven boundary swaps, and rail navigation — things jsdom-based loop tests cannot catch.
 
 ## Running the suite
 
@@ -91,7 +91,7 @@ tests/e2e/
   git.spec.ts            SSR + attach + tab switching
   git-live.spec.ts       live SSE patch flow
   patch-elements.spec.ts patch-elements channel
-  shell2-rail.spec.ts    shell2 rail navigation
+  shell-rail.spec.ts    shell rail navigation
   studio.spec.ts         UI Studio catalog
   visual/                visual-regression specs
   screenshots/           debug captures (gitignored)

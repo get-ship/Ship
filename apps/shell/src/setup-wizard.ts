@@ -1,4 +1,4 @@
-// First-run setup wizard hook for shell2.
+// First-run setup wizard hook for shell.
 //
 // On boot, check localStorage for setup completion. If incomplete AND
 // the user is landing on a path other than `/setup` (or one of the

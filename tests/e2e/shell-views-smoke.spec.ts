@@ -1,5 +1,5 @@
 /**
- * shell2 view smoke suite — every view in the left rail (plus the
+ * shell view smoke suite — every view in the left rail (plus the
  * legacy direct-route views) must mount in a real browser without
  * throwing an uncaught page error, and must render real DOM into
  * `main#ship-content`.
@@ -11,12 +11,12 @@
  * Ported from the `inventory-probe.mjs` / `probe.mjs` ad-hoc scripts,
  * which walked the same view list but only logged a report.
  *
- * Runs against shell2's vite dev server; skipped when unreachable.
+ * Runs against shell's vite dev server; skipped when unreachable.
  */
 import { test, expect } from '@playwright/test'
-import { SHELL2_URL, skipUnlessShell2 } from './_shell2'
+import { SHELL2_URL, skipUnlessShell2 } from './_shell'
 
-// Every view shell2 can route to. The first seven are the rail items;
+// Every view shell can route to. The first seven are the rail items;
 // the rest are direct-route views without a rail entry.
 const VIEWS = [
   'home', 'agents', 'skills', 'collections', 'artifacts', 'workspaces',
@@ -29,7 +29,7 @@ const VIEWS = [
 // or view defect. Mirrors the filter in tests/e2e/agents.spec.ts.
 const IGNORED = /ResizeObserver|Non-Error promise rejection/
 
-test.describe('shell2 view smoke', () => {
+test.describe('shell view smoke', () => {
   skipUnlessShell2()
 
   for (const view of VIEWS) {

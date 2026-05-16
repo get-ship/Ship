@@ -24,7 +24,7 @@
  * it shows the full landing layout. Both are exercised here.
  */
 import { test, expect, type Page } from '@playwright/test'
-import { SHELL2_URL, skipUnlessShell2 } from './_shell2'
+import { SHELL2_URL, skipUnlessShell2 } from './_shell'
 
 async function gotoHome(page: Page): Promise<void> {
   await page.goto(`${SHELL2_URL}/home`, { waitUntil: 'load' })
@@ -124,7 +124,7 @@ test.describe('home view parity', () => {
 
   test('AVOID: /dashboard and /overview no longer mount their own SUI view', async ({ page }) => {
     // After consolidation those routes have no registered view.
-    // shell2 renders its "Page not found" error block.
+    // shell renders its "Page not found" error block.
     const dashRes = await page.goto(`${SHELL2_URL}/dashboard`, { waitUntil: 'load' })
     expect(dashRes?.status() ?? 200).toBeLessThan(500)
     await expect(page.locator('.shell-error, [data-test="home-title"]')).toBeVisible({ timeout: 10_000 })

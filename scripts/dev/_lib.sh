@@ -81,7 +81,7 @@ build_sha() {
     git rev-parse --short=8 HEAD 2>/dev/null || echo "unknown"
 }
 
-# Path to the vite.pid file for the current daemon dir. shell2-start.sh
+# Path to the vite.pid file for the current daemon dir. shell-start.sh
 # records the per-worktree vite PID here so dev-stop can reap it.
 vite_pid_file() {
     echo "$(daemon_dir)/vite.pid"

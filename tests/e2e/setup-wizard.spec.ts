@@ -1,9 +1,9 @@
 /**
  * Behavioral coverage for the first-run setup wizard.
  *
- * Drives shell2 (vite dev server) so we exercise the SUI-mounted
- * `views/setup/` view + the shell2 `setup-wizard.ts` first-run hook
- * in a real browser. Skips when shell2 isn't reachable.
+ * Drives shell (vite dev server) so we exercise the SUI-mounted
+ * `views/setup/` view + the shell `setup-wizard.ts` first-run hook
+ * in a real browser. Skips when shell isn't reachable.
  *
  * The wizard talks to two daemon endpoints:
  *   - GET /api/v1/providers/installed  (provider validation)
@@ -13,7 +13,7 @@
  * regardless of what's actually installed on the test machine.
  */
 import { test, expect, type Page } from '@playwright/test'
-import { SHELL2_URL, skipUnlessShell2 } from './_shell2'
+import { SHELL2_URL, skipUnlessShell2 } from './_shell'
 
 const COMPLETED_KEY = 'ship-setup-completed'
 const STATE_KEY = 'ship-setup-state'
@@ -116,7 +116,7 @@ test.describe('setup wizard — first-run flow', () => {
     // Step 5 → 6
     await page.click('[data-test="step-sample-next"]')
     await page.waitForSelector('[data-test="step-done"]', { timeout: 5_000 })
-    // Step 6 → finish, lands on Home (`/` resolves to /agents in shell2)
+    // Step 6 → finish, lands on Home (`/` resolves to /agents in shell)
     await page.click('[data-test="step-done-finish"]')
     await page.waitForFunction(() => !location.pathname.startsWith('/setup'), null, { timeout: 5_000 })
     const completed = await page.evaluate((k) => localStorage.getItem(k), COMPLETED_KEY)

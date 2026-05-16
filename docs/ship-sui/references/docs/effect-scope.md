@@ -12,7 +12,7 @@ Resources allocated while a view's controller runs — `EventSource`,
 to be released when the view unmounts. The runtime ships an effect
 scope primitive that handles this for you, so you can't accidentally
 leak. (Forgotten cleanups were the root cause of multiple OOM
-crashes during early shell2 development; commit `87cf3223`.)
+crashes during early shell development; commit `87cf3223`.)
 
 ## API
 

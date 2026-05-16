@@ -134,7 +134,7 @@ export default defineConfig(({ mode }) => {
       strictPort: true,
       // Proxy keys are path prefixes by default — `/sui` would also catch
       // shell-routed paths like `/sui-demo` (a SUI view served via /sui-demo
-      // → shell2 mounts /_sui/views/sui-demo). Anchor the daemon-only
+      // → shell mounts /_sui/views/sui-demo). Anchor the daemon-only
       // standalone host at `^/sui/` so the prefix doesn't shadow shell views
       // whose name happens to start with `sui`.
       proxy: {

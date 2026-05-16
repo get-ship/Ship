@@ -1,11 +1,11 @@
 /**
- * Behavioral coverage for shell2's left rail and view router.
+ * Behavioral coverage for shell's left rail and view router.
  *
  * `<sui-rail>` reads its `<sui-rail-item>` light-DOM children as config
  * and each item upgrades into a custom element whose shadow root holds
  * the actual clickable `<a class="item">`. Both `sui-rail` and
  * `sui-rail-item` are defined by the `/_sui/sui-components/sui-rail.js`
- * bundle — shell2's `index.html` must load it explicitly (it is not in
+ * bundle — shell's `index.html` must load it explicitly (it is not in
  * `/_sui/components.js`). When that bundle is missing, `sui-rail-item`
  * never upgrades, every item renders at height 0, and the rail shows
  * no navigation at all.
@@ -18,14 +18,14 @@
  *   - rail-item labels surface as native `title` tooltips,
  *   - the top-nav has no chat-toggle button.
  *
- * Runs against shell2's vite dev server. Skipped when that server isn't
+ * Runs against shell's vite dev server. Skipped when that server isn't
  * reachable so `bun run test:e2e` keeps passing on machines that
  * haven't started it.
  */
 import { test, expect } from '@playwright/test'
-import { SHELL2_URL, skipUnlessShell2 } from './_shell2'
+import { SHELL2_URL, skipUnlessShell2 } from './_shell'
 
-test.describe('shell2 rail + nav fundamentals', () => {
+test.describe('shell rail + nav fundamentals', () => {
   skipUnlessShell2()
 
   test('rail-item upgrades into a custom element with a clickable shadow <a>', async ({ page }) => {

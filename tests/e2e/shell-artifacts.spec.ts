@@ -1,5 +1,5 @@
 /**
- * shell2 Artifacts view.
+ * shell Artifacts view.
  *
  * `views/artifacts/page.sui` renders a header with an upload button and a
  * primary surface that is one of: a table, an empty state, an error
@@ -7,12 +7,12 @@
  * closes on Escape. This spec ports the load-bearing checks from
  * `artifacts-probe.mjs`.
  *
- * Runs against shell2's vite dev server; skipped when unreachable.
+ * Runs against shell's vite dev server; skipped when unreachable.
  */
 import { test, expect } from '@playwright/test'
-import { SHELL2_URL, skipUnlessShell2 } from './_shell2'
+import { SHELL2_URL, skipUnlessShell2 } from './_shell'
 
-test.describe('shell2 artifacts view', () => {
+test.describe('shell artifacts view', () => {
   skipUnlessShell2()
 
   test('renders the header and a primary surface (table / empty / error)', async ({ page }) => {

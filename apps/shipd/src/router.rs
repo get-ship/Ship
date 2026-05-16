@@ -146,7 +146,7 @@ pub fn build_router(
         //
         // Restored after the phase2-substrate-split merge dropped the
         // wiring originally added in 30313c8f; without it every `/_sui/*`
-        // request 404s and shell2 cannot boot.
+        // request 404s and shell cannot boot.
         .ship_route(
             Route::AssetSuiCustomElementsManifest,
             views::serve_sui_elements_manifest,
