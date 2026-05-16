@@ -9,6 +9,10 @@ export default controller<Scope>({
 
     if (!host.hasAttribute('role')) host.setAttribute('role', 'group')
 
+    const stopAriaOrientation = effect(() => {
+      host.setAttribute('aria-orientation', scope.orientation() as string)
+    })
+
     // Light-DOM hidden input for form participation.
     const hiddenInput = document.createElement('input')
     hiddenInput.type = 'hidden'
@@ -72,14 +76,17 @@ export default controller<Scope>({
     }
 
     const onKeydown = (e: KeyboardEvent) => {
-      if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return
+      const vertical = (scope.orientation() as string) === 'vertical'
+      const nextKey = vertical ? 'ArrowDown' : 'ArrowRight'
+      const prevKey = vertical ? 'ArrowUp' : 'ArrowLeft'
+      if (e.key !== nextKey && e.key !== prevKey) return
       const items = enabledToggles()
       if (!items.length) return
       const current = (e.composedPath() as Element[]).find(
         el => items.includes(el as ToggleEl),
       ) as ToggleEl | null
       const i = current ? items.indexOf(current) : -1
-      const next = e.key === 'ArrowRight'
+      const next = e.key === nextKey
         ? (i + 1) % items.length
         : (i - 1 + items.length) % items.length
       items[next]?.focusButton?.()
@@ -113,6 +120,7 @@ export default controller<Scope>({
       stopSync()
       stopSlot()
       stopHidden()
+      stopAriaOrientation()
       host.removeEventListener('sui-toggle', onToggle)
       host.removeEventListener('keydown', onKeydown)
       hiddenInput.remove()

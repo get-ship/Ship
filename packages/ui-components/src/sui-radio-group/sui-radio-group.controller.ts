@@ -51,6 +51,12 @@ export default controller<Scope>({
       else host.removeAttribute('aria-label')
     })
 
+    const stopRequired = effect(() => {
+      const required = scope.required() as boolean
+      if (required) host.setAttribute('aria-required', 'true')
+      else host.removeAttribute('aria-required')
+    })
+
     const onSelect = (e: Event) => {
       const ce = e as CustomEvent
       ce.stopPropagation()
@@ -97,6 +103,7 @@ export default controller<Scope>({
     return () => {
       stopSync()
       stopLabel()
+      stopRequired()
       host.removeEventListener('sui-radio-select', onSelect)
       host.removeEventListener('sui-radio-nav', onNav)
       hiddenInput.remove()

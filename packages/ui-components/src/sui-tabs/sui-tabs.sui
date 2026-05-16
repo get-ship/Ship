@@ -75,6 +75,7 @@
 <prop name="tone" values="default|primary|info|success|warning|destructive|accent|muted" default="default" reflect />
 <prop name="sticky" type="bool" default="false" reflect />
 <prop name="orientation" values="horizontal|vertical" default="horizontal" reflect />
+<prop name="activation-mode" values="automatic|manual" default="automatic" reflect />
 
 <style>
   :host {
