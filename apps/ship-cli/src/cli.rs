@@ -133,9 +133,6 @@ pub enum Commands {
         action: LintCommands,
     },
 
-    /// Run the Ship language server (LSP) over stdio. Editors invoke this.
-    Lsp,
-
     /// Manage MCP servers (serve, add, list, remove)
     Mcp {
         #[command(subcommand)]

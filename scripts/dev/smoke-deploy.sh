@@ -25,15 +25,7 @@ step "bun install"
 bun install --frozen-lockfile || fail "bun install"
 pass "bun install"
 
-# Lucide registry: ship-icon/ship-empty-state/ship-error-state import
-# `./lucide-icons.generated` (gitignored, produced by `bun run --filter @ship/set
-# icons`). Run before `@ship/set build` or esbuild can't resolve it.
-step "ship-set icons"
-bun run --filter @ship/set icons || fail "ship-set icons"
-pass "ship-set icons"
-
-step "ship-set/ui-components build"
-bun run --filter @ship/set build || fail "ship-set build"
+step "ui-components build"
 bun run --filter @ship/ui-components build || fail "ui-components build"
 pass "bun build"
 

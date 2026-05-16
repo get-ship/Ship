@@ -40,8 +40,6 @@ pub fn run(dry_run: bool) -> anyhow::Result<()> {
     let steps: &[(&str, &[&str])] = &[
         ("cargo", &["run", "-p", "xtask", "--quiet", "--", "gen-types"]),
         ("bun", &["install", "--frozen-lockfile"]),
-        ("bun", &["run", "--filter", "@ship/set", "icons"]),
-        ("bun", &["run", "--filter", "@ship/set", "build"]),
         ("bun", &["run", "--filter", "@ship/ui-components", "build"]),
         ("cargo", &["build", "--release"]),
     ];

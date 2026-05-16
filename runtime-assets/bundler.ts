@@ -566,10 +566,10 @@ function emit(msg: Response | Event) {
 // via its ASSETS const, so the root `bun run build:bundles` script can fan
 // out here in CI without scripting the stdin/stdout JSON protocol.
 //
-// The `ship-*` (lit) targets are intentionally excluded — they belong to
-// `@ship/set`'s own build path (`bun run --filter '@ship/set' build` + `... icons`)
-// and depend on a generated lucide registry that lives outside this
-// bundler's dependency graph. Watch mode still rebuilds them on edit.
+// The `ship-*` (lit) targets are intentionally excluded — they have their
+// own build path and depend on a generated lucide registry that lives
+// outside this bundler's dependency graph. Watch mode still rebuilds them
+// on edit.
 if (process.argv.includes('--all')) {
   let failed = false
   const allTargets = TARGETS.filter(

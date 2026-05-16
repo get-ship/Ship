@@ -31,15 +31,15 @@ pub struct GateSpec {
 
 /// A single gate rule. `match` and `not_match` are lists of glob patterns.
 ///
-/// Canonical YAML/JSON shape:
-/// ```yaml
-/// match: ["**/*.rs", "**/*.toml"]
-/// not_match: ["**/tests/**"]
-/// min: 1
-/// ```
+/// Canonical YAML/JSON shape (e.g. match all `.rs` files, exclude tests,
+/// require at least one change):
 ///
-/// Earlier revisions accepted a pipe-separated string for `match`/`not_match`
-/// and a single rule object for `require_changed`/`forbid_changed`; both
+///   match:     two-star slash star-dot-rs and star-dot-toml
+///   not_match: two-star slash tests slash two-star
+///   min:       1
+///
+/// Earlier revisions accepted a pipe-separated string for match/not_match
+/// and a single rule object for require_changed/forbid_changed; both
 /// shorthand forms are rejected at load time.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "specta", derive(specta::Type))]
