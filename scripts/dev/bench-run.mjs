@@ -36,8 +36,8 @@ import {
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..')
 
-const FRAMEWORKS = ['keyed/sui', 'keyed/solid', 'keyed/svelte', 'keyed/vue', 'keyed/vanillajs']
-const FRAMEWORK_KEYS = ['sui', 'solid', 'svelte', 'vue', 'vanillajs']
+const FRAMEWORKS = ['keyed/sui', 'keyed/solid', 'keyed/svelte', 'keyed/vue', 'keyed/vanillajs', 'keyed/lit']
+const FRAMEWORK_KEYS = ['sui', 'solid', 'svelte', 'vue', 'vanillajs', 'lit']
 
 const label = parseLabel(process.argv.slice(2))
 

@@ -36,6 +36,7 @@ export const FRAMEWORK_PREFIX = {
   vue: 'vue-v',
   vanillajs: 'vanillajs-keyed',
   react: 'react-hooks-v',
+  lit: 'lit-v',
 }
 
 // Find the result file for a framework + op. Returns absolute path or null.
