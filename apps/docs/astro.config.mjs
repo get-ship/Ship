@@ -259,8 +259,15 @@ export default defineConfig({
         // dark Ship surfaces too. Switch on `html.dark` (toggled by our
         // pre-paint script), not prefers-color-scheme.
         themes: ["night-owl", "light-plus"],
+        // expressive-code concatenates `:root` directly with this
+        // value (no descendant combinator), so a bare `html.dark`
+        // returned here produces invalid `:roothtml.dark`. Workaround:
+        // return a class selector that the theme-switcher script also
+        // toggles on <body>. expressive-code then emits
+        // `:root.<class>` / `:root:not(.<class>)` — both are valid
+        // since they're attribute matches on the same element.
         themeCssSelector: (theme) =>
-          theme.name === "night-owl" ? "html.dark" : "html:not(.dark)",
+          theme.name === "night-owl" ? ".dark" : ":not(.dark)",
         useDarkModeMediaQuery: false,
       },
       customCss: [
@@ -273,6 +280,12 @@ export default defineConfig({
         SiteTitle: "./src/components/SiteTitle.astro",
         ThemeProvider: "./src/components/ThemeProvider.astro",
         ThemeSelect: "./src/components/ThemeProvider.astro",
+        // Custom PageFrame switches to a no-sidebar full-canvas layout
+        // for pages with frontmatter `template: 'sui-canvas'` — used by
+        // playground + component-reference pages where the prose chrome
+        // would compete with the live preview. Other pages get the
+        // upstream behaviour byte-for-byte.
+        PageFrame: "./src/components/PageFrame.astro",
       },
       head: [
         {
