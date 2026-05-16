@@ -19,6 +19,7 @@ import { route as createRoute, defineRoutes } from '@ship/sui-runtime/route'
 import { KernelBridge } from './kernel-bridge'
 import { initHmr } from './hmr'
 import { initProjectSwitch } from './project-switch'
+import { ensureSetupOrRedirect } from './setup-wizard'
 
 interface MountFn {
   (
@@ -658,6 +659,11 @@ initHmr({
 setInterval(() => void updateStatus(), 15000)
 void updateStatus()
 
+// First-run check: if setup hasn't been completed, rewrite the URL to
+// `/setup` so the wizard takes over. `ensureSetupOrRedirect` returns
+// true when it applied a redirect, in which case the boot route is
+// recomputed before mount.
+ensureSetupOrRedirect()
 const initial = readRoute()
 if (initial) {
   // Bare `/` resolves to the agents view; rewrite the URL so the rail

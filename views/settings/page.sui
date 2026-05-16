@@ -235,6 +235,16 @@
                 <sui-link prop:href={settings().value.about.source} external>GitHub</sui-link>
               </span>
             </sui-list-tile>
+            <sui-list-tile density="compact">
+              <span class="s-row-label">First-run setup</span>
+              <span slot="meta">Run the welcome wizard again</span>
+              <span slot="trailing">
+                <sui-button variant="outline" size="sm" data-test="settings-rerun-setup"
+                  on:click={rerunSetup}>
+                  Run setup again
+                </sui-button>
+              </span>
+            </sui-list-tile>
           </div>
         </sui-card>
 
