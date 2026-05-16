@@ -136,3 +136,8 @@ import './sui-git-diff/sui-git-diff-line.compiled.js'
 //   - sui-launcher       — global app launcher chrome
 //   - sui-panel-dock     — bottom panel-dock chrome
 //   - sui-nav-top        — top nav chrome
+
+// Cross-surface registries — single sources of truth used by
+// pickers (sui-component-picker, ship-ui-studio catalog, cmdk insert).
+export { PICKER_HIDDEN_TAGS, isPickerHidden } from './picker-hidden-tags'
+export { SLOT_COMPOSITIONS } from './picker-slot-compositions'

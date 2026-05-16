@@ -122,15 +122,25 @@
   }
 
   .tile-preview {
-    min-height: 32px;
-    display: grid;
-    place-items: center;
-    color: var(--muted-foreground);
-    background: color-mix(in oklab, var(--muted) 50%, var(--background));
+    min-height: 56px;
+    max-height: 88px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--foreground);
+    background: color-mix(in oklab, var(--muted) 30%, var(--background));
     border-radius: var(--radius-sm);
-    padding: 6px;
+    padding: 8px;
     overflow: hidden;
     pointer-events: none;
+    /* Reset font-size + line-height so tile previews look uniform
+       regardless of where the picker is mounted. */
+    font-size: 12px;
+    line-height: 1.2;
+  }
+  .tile-preview > * {
+    max-width: 100%;
+    max-height: 100%;
   }
   .tile-tag {
     font-family: var(--mono-font, var(--font-mono));
@@ -219,9 +229,7 @@
               aria-pressed={queue().includes(entry.tag) ? 'true' : 'false'}
               title={entry.description}
               on:click={() => onTileClick(entry.tag)}>
-              <div class="tile-preview" part="preview" data-tag={entry.tag}>
-                <sui-icon name={entry.icon} size="md"></sui-icon>
-              </div>
+              <div class="tile-preview" part="preview" data-tag={entry.tag}></div>
               <span class="tile-tag">&lt;{entry.tag}&gt;</span>
               <span class="tile-desc">{entry.firstDesc}</span>
             </button>

@@ -1,5 +1,75 @@
-import { controller, signal, derived, ref } from '@ship/sui-runtime'
+import { controller, signal, derived, ref, effect } from '@ship/sui-runtime'
 import type { Scope } from './sui-component-picker.sui'
+import { isPickerHidden } from '../picker-hidden-tags'
+import { SLOT_COMPOSITIONS } from '../picker-slot-compositions'
+
+// Default text label per atomic component when no composition is
+// declared. Keyed by tag for components whose default-slot doesn't
+// accept arbitrary text or needs specific attrs.
+const DEFAULT_ATTRS: Record<string, Record<string, string>> = {
+  'sui-icon':      { name: 'package',  size: 'md' },
+  'sui-app-icon':  { name: 'dashboard', size: 'md' },
+  'sui-avatar':    { initials: 'AB' },
+  'sui-badge':     {},
+  'sui-button':    {},
+  'sui-status-dot':{ tone: 'success' },
+  'sui-skeleton':  { width: '60px', height: '12px' },
+  'sui-stat':      { label: 'Stat', value: '42' },
+  'sui-progress':  { value: '60' },
+  'sui-spinner':   {},
+  'sui-kbd':       {},
+  'sui-tag':       {},
+  'sui-chip':      {},
+  'sui-divider':   {},
+  'sui-separator': {},
+}
+
+const DEFAULT_TEXT: Record<string, string> = {
+  'sui-badge': 'NEW',
+  'sui-button': 'Click me',
+  'sui-tag': 'tag',
+  'sui-chip': 'chip',
+  'sui-kbd': '⌘K',
+  'sui-link': 'link',
+  'sui-alert': 'Heads up — this is an alert.',
+  'sui-error-state': 'Something went wrong',
+  'sui-empty-state': 'No items yet',
+  'sui-loading': 'Loading…',
+}
+
+// Parse a slot composition HTML blob into a DocumentFragment via
+// DOMParser. Lint-clean (no innerHTML writes) and the parsed
+// document is detached so no mutations happen on the live tree.
+function parseFragment(html: string): DocumentFragment {
+  const doc = new DOMParser().parseFromString(`<body>${html}</body>`, 'text/html')
+  const frag = document.createDocumentFragment()
+  const body = doc.body
+  while (body.firstChild) frag.appendChild(body.firstChild)
+  return frag
+}
+
+function populatePreview(container: HTMLElement, tag: string): void {
+  // Clear prior render so re-renders don't double-stack.
+  while (container.firstChild) container.removeChild(container.firstChild)
+  if (!customElements.get(tag)) {
+    // Element not registered yet — fall back to the tag name as text.
+    const label = document.createElement('code')
+    label.textContent = `<${tag}>`
+    label.style.opacity = '0.6'
+    container.appendChild(label)
+    return
+  }
+  const el = document.createElement(tag)
+  const attrs = DEFAULT_ATTRS[tag] ?? {}
+  for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v)
+  const comp = SLOT_COMPOSITIONS[tag]
+  if (comp) {
+    el.appendChild(parseFragment(comp))
+  } else {
+    el.textContent = DEFAULT_TEXT[tag] ?? 'Example'
+  }
+  container.appendChild(el)
+}
 
 const FALLBACK_CATALOG = '/api/assets/sui-custom-elements.json'
 
@@ -61,6 +131,9 @@ function flattenCem(modules: CemModule[]): PickerEntry[] {
   for (const m of modules ?? []) {
     for (const d of m.declarations ?? []) {
       if (!d.customElement || !d.tagName) continue
+      // Hide chrome / container tags — they don't render standalone
+      // and confuse users browsing for primitives to insert.
+      if (isPickerHidden(d.tagName)) continue
       if (seen.has(d.tagName)) continue
       seen.add(d.tagName)
       const description = (d.description ?? '').trim()
@@ -198,6 +271,28 @@ export default controller<Scope>({
       configurable: true,
       value: () => { h.open = false },
     })
+
+    // Live preview population. Watches the shadow root for any
+    // `.tile-preview[data-tag]` element appearing/disappearing and
+    // populates with a real <tag> instance. Survives template
+    // re-renders driven by filter/search changes.
+    const root = host.shadowRoot
+    if (root) {
+      const populate = (): void => {
+        for (const el of root.querySelectorAll<HTMLElement>('.tile-preview[data-tag]')) {
+          if (el.dataset['previewed'] === '1') continue
+          const tag = el.dataset['tag']
+          if (!tag) continue
+          populatePreview(el, tag)
+          el.dataset['previewed'] = '1'
+        }
+      }
+      const obs = new MutationObserver(populate)
+      obs.observe(root, { childList: true, subtree: true })
+      // Initial pass after the first paint so any tiles already
+      // present (modal mode renders immediately) get filled.
+      requestAnimationFrame(populate)
+    }
 
     void load()
   },

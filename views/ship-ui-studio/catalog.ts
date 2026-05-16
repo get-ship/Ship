@@ -22,29 +22,11 @@ export interface PropEntry {
 
 // Tags that are owned by chrome / island bundles loaded only when needed
 // (devtools panes, command-bar slots, panel-dock children) and that
-// don't render in isolation in the studio. Keep them out of the
-// catalog so the studio doesn't try to instantiate them with a stub
-// host element that has no slot / shared context.
-const STUDIO_HIDE_TAGS = new Set<string>([
-  'sui-command-bar',
-  'sui-command-palette',
-  'sui-command-chat',
-  'sui-launcher',
-  'sui-panel-dock',
-  'sui-panel-dock-tab',
-  'sui-nav-top',
-  'sui-rail',
-  'sui-rail-item',
-  'sui-rail-section',
-  'sui-status-bar',
-  'sui-toast',
-  'sui-toast-container',
-  'sui-terminal',
-  'sui-devtools-source',
-  'sui-devtools-signals',
-  'sui-devtools-schema',
-  'sui-devtools-components',
-])
+// don't render in isolation in the studio. Source: shared
+// PICKER_HIDDEN_TAGS so the studio, the component picker primitive,
+// and any future "insert component" UX all use the same list.
+import { PICKER_HIDDEN_TAGS } from '../../packages/ui-components/src/picker-hidden-tags'
+const STUDIO_HIDE_TAGS = PICKER_HIDDEN_TAGS
 
 // Baked SUI views not surfaced by /api/v1/views. The endpoint currently
 // reports every view as `type: "html"`, so the kind=='sui' filter in
