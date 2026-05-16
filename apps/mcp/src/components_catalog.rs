@@ -3,14 +3,14 @@
 //! The aggregated Custom Elements Manifest (CEM) is built by `bun run
 //! --filter @ship/ui-components build` (sui-build's `aggregateCemTo`) from
 //! `packages/ui-components/src/<tag>/<tag>.custom-elements.json` and
-//! written to `crates/sui/ship-sui/assets/sui-custom-elements.json`. Both
-//! the daemon's HTTP endpoint and the MCP resource read from that same
+//! written to `crates/sui/ship-sui-server/assets/sui-custom-elements.json`.
+//! Both the daemon's HTTP endpoint and the MCP resource read from that same
 //! compile-time embedded string so the two contracts can never drift.
 
 use serde_json::Value;
 
 const SUI_ELEMENTS_MANIFEST: &str =
-    include_str!("../../../crates/sui/ship-sui/assets/sui-custom-elements.json");
+    include_str!("../../../crates/sui/ship-sui-server/assets/sui-custom-elements.json");
 
 pub fn full_catalog() -> &'static str {
     SUI_ELEMENTS_MANIFEST

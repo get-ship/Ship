@@ -438,9 +438,9 @@ function persistRailOpen(open: boolean): void {
 //   ship-logo.svg            — amber/gold (light themes)
 //   ship-logo-secondary.svg  — purple     (dark themes)
 //
-// applyTheme() (in @ship/set/themes) dispatches `ship:theme:change`
-// with { dark } on every theme application — including the boot-time
-// call from <sui-theme-picker>. We only need to listen.
+// applyTheme() dispatches `ship:theme:change` with { dark } on every
+// theme application — including the boot-time call from
+// <sui-theme-picker>. We only need to listen.
 
 function initFavicon(): void {
   const link = document.querySelector<HTMLLinkElement>('link[rel="icon"][type="image/svg+xml"]')

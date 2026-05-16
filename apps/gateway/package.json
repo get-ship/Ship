@@ -12,7 +12,7 @@
   },
   "dependencies": {
     "@ship-cloud/types": "workspace:*",
-    "@ship/set": "workspace:*",
+    "@ship/sdk": "workspace:*",
     "better-auth": "^1.5.3",
     "drizzle-orm": "catalog:",
     "hono": "catalog:",

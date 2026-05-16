@@ -4,7 +4,7 @@
  * Loads canonical Ship tokens + Syne/DM Sans (matching Studio + docs).
  * Tokens and per-theme overrides live in `./tokens.css` + `./themes.css`,
  * mirrored from the docs site so the marketing surface ships its own
- * copy without depending on @ship/set.
+ * standalone copy.
  */
 
 @import '@fontsource-variable/syne';

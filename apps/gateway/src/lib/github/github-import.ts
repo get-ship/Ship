@@ -1,4 +1,4 @@
-import type { McpServerConfig, ProjectLibrary, Rule, Skill } from '@ship/set'
+import type { McpServerConfig, ProjectLibrary, Rule, Skill } from '@ship/sdk'
 
 export interface GithubRepo {
   owner: string

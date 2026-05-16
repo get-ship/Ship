@@ -4002,7 +4002,6 @@ dependencies = [
  "crossterm",
  "getrandom 0.2.17",
  "home",
- "j2-lsp",
  "libc",
  "lint",
  "mcp",
