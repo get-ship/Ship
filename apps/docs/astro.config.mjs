@@ -241,8 +241,8 @@ export default defineConfig({
       title: "Ship",
       social: [],
       customCss: [
-        "@ship/set/tokens.css",
-        "@ship/set/themes.css",
+        "./src/styles/tokens.css",
+        "./src/styles/themes.css",
         "./src/styles/ship-theme.css",
       ],
       components: {
@@ -256,9 +256,25 @@ export default defineConfig({
           tag: "link",
           attrs: { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" },
         },
+        // SUI bundles import the runtime by bare specifier. The importmap
+        // must precede any module script that loads `/sui-components.js`,
+        // so it is emitted first via head.unshift order: importmap → bundle.
         {
           tag: "script",
-          attrs: { type: "module", src: "/ship-elements.js" },
+          attrs: { type: "importmap" },
+          content: JSON.stringify({
+            imports: {
+              "@ship/sui-runtime": "/sui-runtime.js",
+              "@ship/sui-runtime/route": "/sui-runtime.js",
+              "@ship/sui-runtime/template-hooks": "/sui-runtime.js",
+              "@ship/sui-dom": "/sui-dom.js",
+              "@ship/sdk-client": "/sui-sdk-client.js",
+            },
+          }),
+        },
+        {
+          tag: "script",
+          attrs: { type: "module", src: "/sui-components.js" },
         },
         // Ship theme ownership.
         //

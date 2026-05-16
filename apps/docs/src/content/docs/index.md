@@ -6,43 +6,43 @@ description: Ship — the multi-agent coordination runtime. Compile declarative 
 The multi-agent coordination runtime. Declarative config compiles to provider-native artifacts; pipelines run across git worktrees; events coordinate everything.
 
 <div style="display: flex; gap: 0.75rem; margin: 1rem 0 2rem;">
-  <a href="/getting-started/"><ship-button tone="primary">Get Started →</ship-button></a>
-  <a href="https://getship.dev/registry"><ship-button variant="outline">Registry</ship-button></a>
+  <a href="/getting-started/"><sui-button tone="primary">Get Started →</sui-button></a>
+  <a href="https://getship.dev/registry"><sui-button variant="outline">Registry</sui-button></a>
 </div>
 
 ## What Ship gives you
 
 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem; margin: 1.5rem 0;">
 
-<ship-card padding="md">
+<sui-card padding="md">
 <strong slot="header">Smart Skills</strong>
 Instruction sets with typed variables. One skill, personalized output per user and project.
-</ship-card>
+</sui-card>
 
-<ship-card padding="md">
+<sui-card padding="md">
 <strong slot="header">Agent Profiles</strong>
 Compose skills, MCP servers, permissions, and rules into portable configs for every provider.
-</ship-card>
+</sui-card>
 
-<ship-card padding="md">
+<sui-card padding="md">
 <strong slot="header">Pipelines</strong>
 YAML DAGs of agent steps. Gates, retries, worktree isolation, resumable on crash.
-</ship-card>
+</sui-card>
 
-<ship-card padding="md">
+<sui-card padding="md">
 <strong slot="header">Views</strong>
 Author live-updating HTML surfaces for your data in `.ship/views/*`. Zero build step.
-</ship-card>
+</sui-card>
 
-<ship-card padding="md">
+<sui-card padding="md">
 <strong slot="header">Collections</strong>
 Schema-backed structured data. Specs, ADRs, notes, anything — queryable and event-driven.
-</ship-card>
+</sui-card>
 
-<ship-card padding="md">
+<sui-card padding="md">
 <strong slot="header">Triggers</strong>
 Reactive JSONC that matches events and runs actions. Automation without writing code.
-</ship-card>
+</sui-card>
 
 </div>
 
@@ -52,25 +52,25 @@ The docs are split by audience — pick the one that matches what you're doing.
 
 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 0.75rem; margin: 1.5rem 0;">
 
-<ship-card padding="md" interactive>
+<sui-card padding="md" interactive>
 <strong slot="header"><a href="/getting-started/" style="text-decoration: none; color: inherit;">Guide →</a></strong>
 Install, init, your first project. How skills, agents, and pipelines fit together.
-</ship-card>
+</sui-card>
 
-<ship-card padding="md" interactive>
+<sui-card padding="md" interactive>
 <strong slot="header"><a href="/cli/" style="text-decoration: none; color: inherit;">Reference →</a></strong>
 CLI commands, MCP tools, schemas, config shape. Look things up.
-</ship-card>
+</sui-card>
 
-<ship-card padding="md" interactive>
+<sui-card padding="md" interactive>
 <strong slot="header"><a href="/smart-skills/" style="text-decoration: none; color: inherit;">Extensions →</a></strong>
 Build on Ship. Seven extension mechanisms: skills, agents, views, pipelines, artifacts, collections, triggers.
-</ship-card>
+</sui-card>
 
-<ship-card padding="md" interactive>
+<sui-card padding="md" interactive>
 <strong slot="header"><a href="/components/" style="text-decoration: none; color: inherit;">Components →</a></strong>
-The ship-elements library. Tokens, primitives, themes, cookbook.
-</ship-card>
+The SUI components library. Tokens, primitives, themes, cookbook.
+</sui-card>
 
 </div>
 
@@ -91,7 +91,47 @@ ship init
 ship studio --open
 ```
 
-<ship-alert tone="info">
+<sui-alert tone="info">
 <strong slot="title">Migrating from existing provider config?</strong>
 Ship converts <code>CLAUDE.md</code>, <code>.cursor/rules</code>, and other provider configs into <code>.ship/</code> format. Run <code>ship convert .</code> in your project root.
-</ship-alert>
+</sui-alert>
+
+## SUI, live
+
+The docs site renders with the same component runtime it documents. Every tag below is a real `<sui-*>` element, registered globally by `/sui-components.js` — pick a theme, drive the controls, watch it react.
+
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:1.25rem;margin:1.5rem 0;">
+
+<sui-card variant="outline" padding="lg">
+<strong slot="header" style="font-weight:700;font-size:15px;">Theme</strong>
+<p style="color:var(--muted-foreground);font-size:13px;line-height:1.5;margin:0 0 12px;">The picker writes the same <code>data-theme</code> attribute the rest of the site reacts to.</p>
+<sui-theme-picker label-style="text"></sui-theme-picker>
+</sui-card>
+
+<sui-card variant="outline" padding="lg">
+<strong slot="header" style="font-weight:700;font-size:15px;">Form primitives</strong>
+<div style="display:flex;flex-direction:column;gap:8px;margin:8px 0 12px;">
+  <sui-input placeholder="agent name"></sui-input>
+  <sui-select>
+    <option>plan</option>
+    <option selected>review</option>
+    <option>qa</option>
+  </sui-select>
+</div>
+<sui-toolbar justify="end">
+  <sui-button variant="ghost" size="sm">Cancel</sui-button>
+  <sui-button tone="primary" variant="solid" size="sm">Dispatch</sui-button>
+</sui-toolbar>
+</sui-card>
+
+<sui-card variant="outline" padding="lg">
+<strong slot="header" style="font-weight:700;font-size:15px;">Pipeline status</strong>
+<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:8px 0 0;">
+  <sui-pipeline-step name="collect" step-type="run" state="completed" agent="git log"></sui-pipeline-step>
+  <sui-pipeline-step name="review" step-type="agent" state="completed" agent="Claude"></sui-pipeline-step>
+  <sui-pipeline-step name="gate" step-type="gate" state="running" agent="acceptance"></sui-pipeline-step>
+  <sui-pipeline-step name="merge" step-type="merge" state="pending" agent="fast-forward"></sui-pipeline-step>
+</div>
+</sui-card>
+
+</div>

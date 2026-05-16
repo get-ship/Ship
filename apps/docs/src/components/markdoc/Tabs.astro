@@ -1,11 +1,11 @@
 ---
 ---
-<div class="ship-tabs" data-tabs>
+<div class="md-tabs" data-tabs>
   <slot />
 </div>
 
 <style>
-  .ship-tabs {
+  .md-tabs {
     border: 1px solid var(--sl-color-gray-5);
     border-radius: 0.5rem;
     overflow: hidden;
@@ -20,7 +20,7 @@
 
     // Create tab bar
     const bar = document.createElement('div');
-    bar.className = 'ship-tab-bar';
+    bar.className = 'md-tab-bar';
     bar.style.cssText = 'display:flex;border-bottom:1px solid var(--sl-color-gray-5);background:var(--sl-color-gray-6)';
 
     panels.forEach((panel, i) => {

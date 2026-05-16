@@ -5,75 +5,75 @@ const recipes = [
   {
     id: 'sign-in-card',
     title: 'Sign-in card',
-    blurb: 'ship-card as a shell, ship-input for email/password, ship-button for submit + provider.',
-    html: `<ship-card variant="outline" padding="lg" style="max-width:380px;">
+    blurb: 'sui-card as a shell, sui-input for email/password, sui-button for submit + provider.',
+    html: `<sui-card variant="outline" padding="lg" style="max-width:380px;">
   <div slot="header" style="font-weight:700;font-size:18px;">Welcome back</div>
   <div style="display:flex;flex-direction:column;gap:10px;margin:10px 0 14px;">
-    <ship-input placeholder="you@company.com" type="email"></ship-input>
-    <ship-input placeholder="Password" type="password"></ship-input>
+    <sui-input placeholder="you@company.com" type="email"></sui-input>
+    <sui-input placeholder="Password" type="password"></sui-input>
   </div>
-  <ship-toolbar slot="footer" justify="between">
-    <ship-button variant="outline" size="sm">GitHub</ship-button>
-    <ship-button tone="primary" variant="solid" size="sm">Sign in</ship-button>
-  </ship-toolbar>
-</ship-card>`,
+  <sui-toolbar slot="footer" justify="between">
+    <sui-button variant="outline" size="sm">GitHub</sui-button>
+    <sui-button tone="primary" variant="solid" size="sm">Sign in</sui-button>
+  </sui-toolbar>
+</sui-card>`,
   },
   {
     id: 'dashboard-tile',
     title: 'Dashboard tile',
     blurb: 'Stat + sparkline + status badge. Two minutes to ship.',
-    html: `<ship-card variant="outline" padding="lg" style="max-width:320px;">
+    html: `<sui-card variant="outline" padding="lg" style="max-width:320px;">
   <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;">
     <div>
       <div style="font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted-foreground);">Runs this week</div>
       <div style="font-weight:800;font-size:32px;margin-top:4px;">58</div>
     </div>
-    <ship-badge tone="success" variant="soft" size="sm">on budget</ship-badge>
+    <sui-badge tone="success" variant="soft" size="sm">on budget</sui-badge>
   </div>
-  <ship-sparkline data="3,7,5,11,8,14,10" tone="accent" width="280" height="36"></ship-sparkline>
-</ship-card>`,
+  <sui-sparkline data="3,7,5,11,8,14,10" tone="accent" width="280" height="36"></sui-sparkline>
+</sui-card>`,
   },
   {
     id: 'filtered-row',
     title: 'Filter bar',
-    blurb: 'Search + select + toggle group in a ship-toolbar.',
-    html: `<ship-toolbar gap="sm" style="padding:8px 10px;border:1px solid color-mix(in oklch,var(--border) 55%,transparent);border-radius:var(--radius-lg);background:var(--card);">
-  <ship-input placeholder="Filter…" style="flex:1;min-width:160px;"></ship-input>
-  <ship-select size="sm">
+    blurb: 'Search + select + toggle group in a sui-toolbar.',
+    html: `<sui-toolbar gap="sm" style="padding:8px 10px;border:1px solid color-mix(in oklch,var(--border) 55%,transparent);border-radius:var(--radius-lg);background:var(--card);">
+  <sui-input placeholder="Filter…" style="flex:1;min-width:160px;"></sui-input>
+  <sui-select size="sm">
     <option>All</option>
     <option>Active</option>
     <option>Archived</option>
-  </ship-select>
-  <ship-toggle-group>
+  </sui-select>
+  <sui-toggle-group>
     <button data-value="list" aria-pressed="true">List</button>
     <button data-value="grid">Grid</button>
-  </ship-toggle-group>
-</ship-toolbar>`,
+  </sui-toggle-group>
+</sui-toolbar>`,
   },
   {
     id: 'pipeline-status',
     title: 'Pipeline status',
-    blurb: 'ship-pipeline-dag + ship-pipeline-step with live states.',
-    html: `<ship-pipeline-dag>
-  <ship-pipeline-step name="collect" step-type="run" state="completed" agent="git log"></ship-pipeline-step>
+    blurb: 'sui-pipeline-dag + sui-pipeline-step with live states.',
+    html: `<sui-pipeline-dag>
+  <sui-pipeline-step name="collect" step-type="run" state="completed" agent="git log"></sui-pipeline-step>
   <span class="arrow">&rarr;</span>
-  <ship-pipeline-step name="review" step-type="agent" state="completed" agent="Claude"></ship-pipeline-step>
+  <sui-pipeline-step name="review" step-type="agent" state="completed" agent="Claude"></sui-pipeline-step>
   <span class="arrow">&rarr;</span>
-  <ship-pipeline-step name="gate" step-type="gate" state="running" agent="acceptance"></ship-pipeline-step>
+  <sui-pipeline-step name="gate" step-type="gate" state="running" agent="acceptance"></sui-pipeline-step>
   <span class="arrow">&rarr;</span>
-  <ship-pipeline-step name="merge" step-type="merge" state="pending" agent="fast-forward"></ship-pipeline-step>
-</ship-pipeline-dag>`,
+  <sui-pipeline-step name="merge" step-type="merge" state="pending" agent="fast-forward"></sui-pipeline-step>
+</sui-pipeline-dag>`,
   },
   {
     id: 'chat-row',
     title: 'Chat row',
-    blurb: 'ship-avatar + agent badge + body. Drop into any conversation view.',
+    blurb: 'sui-avatar + agent badge + body. Drop into any conversation view.',
     html: `<div style="display:grid;grid-template-columns:auto 1fr;gap:12px;max-width:560px;padding:10px 12px;border:1px solid color-mix(in oklch,var(--border) 45%,transparent);border-radius:var(--radius-lg);background:var(--card);">
-  <ship-avatar name="Claude" tone="accent"></ship-avatar>
+  <sui-avatar name="Claude" tone="accent"></sui-avatar>
   <div>
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
       <strong style="font-size:13px;">Claude</strong>
-      <ship-badge tone="accent" variant="soft" size="sm">agent</ship-badge>
+      <sui-badge tone="accent" variant="soft" size="sm">agent</sui-badge>
       <span style="font-family:var(--font-mono);font-size:11px;color:var(--muted-foreground);">09:14</span>
     </div>
     <div style="font-size:14px;line-height:1.55;color:var(--foreground);">

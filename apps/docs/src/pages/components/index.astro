@@ -16,6 +16,58 @@ const populated = CATEGORY_ORDER.filter((c) => buckets[c].length > 0);
 <StarlightPage
   frontmatter={{ title: 'Components', description: `${COMPONENTS.length} web components for AI-native apps.` }}
 >
+  <section class="idx-hero">
+    <div class="idx-hero-copy">
+      <h2 class="idx-hero-title">Live, in the page you're reading.</h2>
+      <p class="idx-hero-blurb">
+        Every <code>&lt;sui-*&gt;</code> tag in these docs is a real
+        custom element registered globally by <code>/sui-components.js</code>.
+        Try the controls — they react with the same runtime the
+        Ship daemon ships.
+      </p>
+    </div>
+    <div class="idx-hero-demo">
+      <sui-tabs active="primitives" variant="segmented" size="sm">
+        <sui-tab name="primitives" label="Primitives"></sui-tab>
+        <sui-tab name="form" label="Form"></sui-tab>
+        <sui-tab name="status" label="Status"></sui-tab>
+
+        <sui-tab-panel name="primitives">
+          <div class="idx-hero-row">
+            <sui-button tone="primary" variant="solid" size="sm">Primary</sui-button>
+            <sui-button variant="outline" size="sm">Outline</sui-button>
+            <sui-button variant="ghost" size="sm">Ghost</sui-button>
+            <sui-badge tone="accent" variant="soft" size="sm">accent</sui-badge>
+            <sui-badge tone="success" variant="soft" size="sm">ok</sui-badge>
+            <sui-chip tone="info">mcp</sui-chip>
+          </div>
+        </sui-tab-panel>
+
+        <sui-tab-panel name="form">
+          <div class="idx-hero-form">
+            <sui-input placeholder="agent name" style="flex:1;min-width:160px;"></sui-input>
+            <sui-select size="sm">
+              <option>plan</option>
+              <option selected>review</option>
+              <option>qa</option>
+            </sui-select>
+            <sui-switch checked></sui-switch>
+            <sui-button tone="primary" variant="solid" size="sm">Save</sui-button>
+          </div>
+        </sui-tab-panel>
+
+        <sui-tab-panel name="status">
+          <div class="idx-hero-row">
+            <sui-status-dot tone="success" pulse label="live"></sui-status-dot>
+            <sui-spinner tone="accent"></sui-spinner>
+            <sui-progress value="62" max="100" tone="primary" label="62%" style="width:160px;"></sui-progress>
+            <sui-kbd keys="⌘ K"></sui-kbd>
+          </div>
+        </sui-tab-panel>
+      </sui-tabs>
+    </div>
+  </section>
+
   <section class="idx-head">
     <p class="idx-sub">
       {COMPONENTS.length} web components, grouped. Click any card for
@@ -141,6 +193,61 @@ const populated = CATEGORY_ORDER.filter((c) => buckets[c].length > 0);
 </script>
 
 <style>
+  .idx-hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 18px;
+    padding: 4px 0 24px;
+    border-bottom: 1px solid color-mix(in oklch, var(--sl-color-gray-5) 60%, transparent);
+    margin-bottom: 18px;
+  }
+  @media (min-width: 60rem) {
+    .idx-hero { grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); align-items: start; }
+  }
+  .idx-hero-title {
+    font-size: clamp(20px, 2vw, 26px);
+    letter-spacing: -0.015em;
+    margin: 0 0 6px;
+    border: none;
+    padding: 0;
+    color: var(--sl-color-white);
+  }
+  .idx-hero-blurb {
+    color: var(--sl-color-gray-2);
+    font-size: 14px;
+    line-height: 1.55;
+    margin: 0;
+    max-width: 56ch;
+  }
+  .idx-hero-blurb code {
+    font-family: var(--sl-font-mono, monospace);
+    font-size: 12px;
+    padding: 1px 5px;
+    border-radius: 4px;
+    background: color-mix(in oklch, var(--sl-color-gray-5) 35%, transparent);
+    color: var(--sl-color-white);
+  }
+  .idx-hero-demo {
+    padding: 14px;
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 12px;
+    background: var(--sl-color-black);
+  }
+  .idx-hero-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px 12px;
+    padding: 12px 4px 4px;
+  }
+  .idx-hero-form {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 4px 4px;
+  }
+
   .idx-head {
     padding: 0 0 16px;
     display: flex;

@@ -1,24 +1,13 @@
 /**
- * Build-time loader over packages/ship-set/custom-elements.json.
+ * Build-time loader over the aggregated SUI custom-elements manifest.
  *
- * Extracts every class declaration with `kind === 'class'` that has a
- * customElement tagName. Returns a typed record per component with
- * everything the docs site needs: tag, summary, attributes, slots,
- * events, parts, CSS custom properties, and the source file.
- *
- * Groups are derived from the source file path:
- *   web-components/core/    → primitives (subdivided per tag below)
- *   web-components/domain/  → 'domain'
- *   web-components/viz/     → 'charts'
- *   web-components/islands/ → 'layout' (heavy editors live with primitives)
- *
- * The shell's old `GROUPS` array separated primitives into topic
- * buckets (Typography, Actions, Forms, Status, Data, Layout, Utility,
- * Overlays). Finer-grained buckets are annotated inline on a per-tag
- * basis here — if a tag isn't listed it stays in `primitives`.
+ * Reads `crates/sui/ship-sui-server/assets/sui-custom-elements.json` —
+ * the canonical CEM produced by `@ship/sui-build` for the entire
+ * `packages/ui-components/src/` tree — and emits the typed record per
+ * `<sui-*>` primitive that the docs site renders.
  */
 
-import cem from '../../../../packages/ship-set/custom-elements.json' with { type: 'json' };
+import cem from '../../../../crates/sui/ship-sui-server/assets/sui-custom-elements.json' with { type: 'json' };
 
 export type ComponentCategory =
   | 'typography'
@@ -78,90 +67,131 @@ export interface ComponentDoc {
   cssProperties: ComponentCssProp[];
 }
 
-// Fine-grained buckets for primitives. Anything not listed stays in
-// `primitives` which we surface as "Layout" — CEM-only tags show up
-// in the index but don't get a bespoke category.
 const CATEGORY_BY_TAG: Record<string, ComponentCategory> = {
-  // Typography / heading surface
-  'ship-label': 'typography',
+  // Typography
+  'sui-label': 'typography',
 
   // Actions
-  'ship-button': 'actions',
-  'ship-toolbar': 'actions',
-  'ship-theme-toggle': 'actions',
+  'sui-button': 'actions',
+  'sui-toolbar': 'actions',
+  'sui-theme-toggle': 'actions',
+  'sui-theme-picker': 'actions',
 
   // Forms
-  'ship-checkbox': 'forms',
-  'ship-field': 'forms',
-  'ship-file-upload': 'forms',
-  'ship-input': 'forms',
-  'ship-radio-group': 'forms',
-  'ship-select': 'forms',
-  'ship-slider': 'forms',
-  'ship-switch': 'forms',
-  'ship-textarea': 'forms',
-  'ship-toggle-group': 'forms',
+  'sui-checkbox': 'forms',
+  'sui-field': 'forms',
+  'sui-file-upload': 'forms',
+  'sui-input': 'forms',
+  'sui-radio-group': 'forms',
+  'sui-radio': 'forms',
+  'sui-select': 'forms',
+  'sui-slider': 'forms',
+  'sui-switch': 'forms',
+  'sui-textarea': 'forms',
+  'sui-toggle-group': 'forms',
+  'sui-toggle': 'forms',
+  'sui-segmented': 'forms',
+  'sui-segmented-option': 'forms',
 
   // Status
-  'ship-alert': 'status',
-  'ship-badge': 'status',
-  'ship-progress': 'status',
-  'ship-spinner': 'status',
-  'ship-stat': 'status',
-  'ship-status-dot': 'status',
+  'sui-alert': 'status',
+  'sui-badge': 'status',
+  'sui-progress': 'status',
+  'sui-progress-ring': 'status',
+  'sui-spinner': 'status',
+  'sui-stat': 'status',
+  'sui-status-dot': 'status',
+  'sui-loading': 'status',
+  'sui-error-state': 'status',
+  'sui-status-bar': 'status',
 
   // Data / lists
-  'ship-accordion': 'data',
-  'ship-accordion-item': 'data',
-  'ship-collapsible': 'data',
-  'ship-empty-state': 'data',
-  'ship-list-tile': 'data',
-  'ship-pagination': 'data',
-  'ship-tabs': 'data',
-  'ship-tab': 'data',
-  'ship-tab-panel': 'data',
+  'sui-accordion': 'data',
+  'sui-accordion-item': 'data',
+  'sui-collapsible': 'data',
+  'sui-empty-state': 'data',
+  'sui-list-tile': 'data',
+  'sui-pagination': 'data',
+  'sui-tabs': 'data',
+  'sui-tab': 'data',
+  'sui-tab-panel': 'data',
+  'sui-stepper': 'data',
 
   // Layout
-  'ship-card': 'layout',
-  'ship-scroll-area': 'layout',
-  'ship-separator': 'layout',
-  'ship-navigation-menu': 'layout',
+  'sui-card': 'layout',
+  'sui-scroll-area': 'layout',
+  'sui-separator': 'layout',
+  'sui-divider': 'layout',
+  'sui-navigation-menu': 'layout',
+  'sui-view-chrome': 'layout',
+  'sui-portal': 'layout',
+  'sui-error-boundary': 'layout',
 
   // Overlays
-  'ship-alert-dialog': 'overlays',
-  'ship-context-menu': 'overlays',
-  'ship-dialog': 'overlays',
-  'ship-dropdown-menu': 'overlays',
-  'ship-hover-card': 'overlays',
-  'ship-popover': 'overlays',
-  'ship-tooltip': 'overlays',
+  'sui-alert-dialog': 'overlays',
+  'sui-context-menu': 'overlays',
+  'sui-dialog': 'overlays',
+  'sui-drawer': 'overlays',
+  'sui-dropdown-menu': 'overlays',
+  'sui-hover-card': 'overlays',
+  'sui-popover': 'overlays',
+  'sui-tooltip': 'overlays',
+  'sui-edit-overlay': 'overlays',
 
-  // Utility primitives (formerly under web-components/utility/)
-  'ship-avatar': 'utility',
-  'ship-breadcrumb': 'utility',
-  'ship-chip': 'utility',
-  'ship-icon': 'utility',
-  'ship-kbd': 'utility',
-  'ship-link': 'utility',
-  'ship-metachip': 'utility',
-  'ship-skeleton': 'utility',
-  'ship-step-segments': 'utility',
-  'ship-toast': 'utility',
-  'ship-toast-container': 'utility',
+  // Utility
+  'sui-avatar': 'utility',
+  'sui-breadcrumb': 'utility',
+  'sui-breadcrumb-item': 'utility',
+  'sui-chip': 'utility',
+  'sui-icon': 'utility',
+  'sui-kbd': 'utility',
+  'sui-link': 'utility',
+  'sui-mark': 'utility',
+  'sui-metachip': 'utility',
+  'sui-skeleton': 'utility',
+  'sui-step-segments': 'utility',
+  'sui-toast': 'utility',
+  'sui-toast-container': 'utility',
+  'sui-toast-host': 'utility',
 
-  // Observability primitives (formerly under web-components/observability/)
-  'ship-code': 'observability',
-  'ship-copy-button': 'observability',
-  'ship-diff': 'observability',
-  'ship-json-view': 'observability',
-  'ship-log-stream': 'observability',
-  'ship-markdown': 'observability',
-  'ship-table': 'observability',
-  'ship-timeline': 'observability',
-  'ship-timeline-item': 'observability',
-  'ship-timestamp': 'observability',
-  'ship-tree-view': 'observability',
-  'ship-tree-node': 'observability',
+  // Charts
+  'sui-area-chart': 'charts',
+  'sui-bar-chart': 'charts',
+  'sui-line-chart': 'charts',
+  'sui-sparkline': 'charts',
+  'sui-donut': 'charts',
+  'sui-gauge': 'charts',
+  'sui-meter': 'charts',
+  'sui-heatmap': 'charts',
+
+  // Observability
+  'sui-code': 'observability',
+  'sui-copy-button': 'observability',
+  'sui-diff': 'observability',
+  'sui-git-diff': 'observability',
+  'sui-history-row': 'observability',
+  'sui-json-view': 'observability',
+  'sui-log-stream': 'observability',
+  'sui-markdown': 'observability',
+  'sui-table': 'observability',
+  'sui-timeline': 'observability',
+  'sui-timeline-item': 'observability',
+  'sui-timestamp': 'observability',
+  'sui-tree-view': 'observability',
+  'sui-annotation-layer': 'observability',
+  'sui-annotation-marker': 'observability',
+  'sui-annotation-list': 'observability',
+
+  // Domain
+  'sui-app-icon': 'domain',
+  'sui-auth-dialog': 'domain',
+  'sui-pipeline-dag': 'domain',
+  'sui-pipeline-step': 'domain',
+  'sui-pipeline-step-def': 'domain',
+  'sui-pipeline-definition': 'domain',
+  'sui-pipeline-run': 'domain',
+  'sui-graph-canvas': 'domain',
+  'sui-provider-blob': 'domain',
 };
 
 export const CATEGORY_LABELS: Record<ComponentCategory, string> = {
@@ -192,11 +222,8 @@ export const CATEGORY_ORDER: ComponentCategory[] = [
   'domain',
 ];
 
-function deriveCategory(tag: string, path: string): ComponentCategory {
-  if (CATEGORY_BY_TAG[tag]) return CATEGORY_BY_TAG[tag];
-  if (path.includes('/viz/')) return 'charts';
-  if (path.includes('/domain/')) return 'domain';
-  return 'layout';
+function deriveCategory(tag: string): ComponentCategory {
+  return CATEGORY_BY_TAG[tag] ?? 'layout';
 }
 
 function takeFirstSentence(s: string): string {
@@ -246,7 +273,7 @@ function toComponent(mod: CemModule, d: CemDeclaration): ComponentDoc | null {
     summary,
     description: d.description ?? '',
     path,
-    category: deriveCategory(d.tagName, path),
+    category: deriveCategory(d.tagName),
     attributes: (d.attributes ?? []).map((a) => ({
       name: a.name ?? '',
       description: a.description,

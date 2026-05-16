@@ -36,8 +36,16 @@ const GENERATED_DIR = process.env.COLLECT_DOCS_OUT
   ? resolve(process.env.COLLECT_DOCS_OUT)
   : OUTPUT_DIR
 const PUBLIC_DIR = join(SCRIPT_DIR, "../public")
-const SHIP_ELEMENTS_SRC = join(REPO_ROOT, "apps/shipd/assets/ship-elements.js")
-const SHIP_ELEMENTS_DEST = join(PUBLIC_DIR, "ship-elements.js")
+// SUI bundles served as static assets. Mirror the names the daemon uses
+// under `/api/assets/` so the importmap in astro.config.mjs resolves the
+// same way against either the docs site or the daemon.
+const SUI_ASSETS_DIR = join(REPO_ROOT, "crates/sui/ship-sui-server/assets")
+const SUI_BUNDLES = [
+  "sui-runtime.js",
+  "sui-dom.js",
+  "sui-sdk-client.js",
+  "sui-components.js",
+] as const
 // `agent-only` files never ship to any site. `internal` files are hidden from
 // the public (user) build but rendered in internal mode so contributors can
 // view internal-audience docs locally.
@@ -229,13 +237,18 @@ function run(): void {
 
   console.log(`[collect-docs] Total: ${total} pages collected.`)
 
-  if (existsSync(SHIP_ELEMENTS_SRC)) {
-    mkdirSync(PUBLIC_DIR, { recursive: true })
-    copyFileSync(SHIP_ELEMENTS_SRC, SHIP_ELEMENTS_DEST)
-    console.log(`[collect-docs] Copied ship-elements.js to public/.`)
-  } else {
-    console.log(`[collect-docs] ship-elements.js not found at ${SHIP_ELEMENTS_SRC}. Run 'cd packages/ui && bun run bundle:elements' first.`)
+  mkdirSync(PUBLIC_DIR, { recursive: true })
+  let copied = 0
+  for (const name of SUI_BUNDLES) {
+    const src = join(SUI_ASSETS_DIR, name)
+    if (!existsSync(src)) {
+      console.log(`[collect-docs] ${name} not found at ${src}. Run 'cd packages/ui-components && bun run build' first.`)
+      continue
+    }
+    copyFileSync(src, join(PUBLIC_DIR, name))
+    copied++
   }
+  if (copied > 0) console.log(`[collect-docs] Copied ${copied}/${SUI_BUNDLES.length} SUI bundles to public/.`)
 }
 
 run()
