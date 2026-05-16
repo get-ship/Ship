@@ -14,6 +14,8 @@ const config: SuiBuildConfig = {
     'sui-panel-dock':      'src/islands/sui-panel-dock/index.ts',
     'sui-rail':            'src/islands/sui-rail/index.ts',
     'sui-devtools':        'src/islands/sui-devtools/index.ts',
+    'sui-component-picker': 'src/islands/sui-component-picker/index.ts',
+    'sui-view-authoring':  'src/islands/sui-view-authoring/index.ts',
   },
   outdir: '../../crates/sui/ship-sui-server/assets',
   // Islands are code-split bundles loaded on demand by sui-runtime; keep

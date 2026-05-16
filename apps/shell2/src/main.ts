@@ -21,7 +21,9 @@ import { KernelBridge } from './kernel-bridge'
 import { initHmr } from './hmr'
 import { initProjectSwitch } from './project-switch'
 import { initChromeRegistry } from './chrome/registry'
+import { initEditModeChrome, setEditModeView, toggleEditMode } from './chrome/edit-mode'
 import { ensureSetupOrRedirect } from './setup-wizard'
+import { initViewMocks } from './mocks'
 
 interface MountFn {
   (
@@ -287,6 +289,10 @@ async function mountRoute(r: Route, opts: { module?: unknown } = {}): Promise<vo
     currentRoute = r
     currentViewId = nextViewId
     publishScope(handle.scope as unknown as Record<string, unknown>)
+    // View-authoring chrome subscribes per (project, view). Pass the
+    // view name; the chrome reads the persisted edit-mode signal and
+    // shows the dev panel + tabs if it's on for this view.
+    setEditModeView(r.view)
     // The new mount has replaced slot.innerHTML, so the previous view's
     // DOM nodes are detached. Run its dispose to close SSE + remove the
     // stale <style> element. Dispose is idempotent.
@@ -585,7 +591,10 @@ document.addEventListener('keydown', (e: KeyboardEvent) => {
 
   if (mod && e.shiftKey && key === 'e') {
     e.preventDefault()
-    document.body.classList.toggle('edit-mode')
+    // Per-view edit mode: flip the persisted signal for the current
+    // view. The edit-mode chrome (see chrome/edit-mode.ts) reacts and
+    // swaps the dock tabs + projects the view-authoring surfaces.
+    if (currentRoute) toggleEditMode(currentRoute.view)
     return
   }
 
@@ -675,6 +684,10 @@ document.addEventListener('sui:navigate', (e: Event) => {
 })
 
 initChromeRegistry()
+// View-authoring MCP stubs. Delete this call (and the `mocks/` dir)
+// once `job/view-authoring-backend` ships the real MCP surface.
+initViewMocks()
+initEditModeChrome()
 initShipApi()
 initRail()
 initHmr({
