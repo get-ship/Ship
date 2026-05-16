@@ -89,7 +89,7 @@ Daemon-side route table (`apps/shipd/src/router.rs`) mounts the surface:
 | Route | Handler |
 |---|---|
 | `GET /_sui/runtime.js` / `dom.js` / `sdk-client.js` / `components.js` / `lucide-icons.json` | `crates/sui/ship-sui-server/src/assets.rs` |
-| `GET /_sui/islands/{tag}/island.js` | islands bundle |
+| `GET /_sui/sui-components/{name}.js` | separate-bundle component |
 | `GET /_sui/views/{name}/view.sui` / `view.js` / `view.css` | `crates/sui/ship-sui-server/src/view.rs` (route segment stems are `view.*` regardless of on-disk `page.sui`/`controller.ts`/`style.css`) |
 | `GET /_sui/views/{name}` | `crates/sui/ship-sui-server/src/view_payload.rs` |
 | `GET /_sui/views/{name}/sse` | `apps/shipd/src/views/sui_patch_channel.rs` |
@@ -123,7 +123,8 @@ packages/ui-components/src/<tag>/   # first-party components
   <tag>.controller.ts            # optional
   <tag>.css                      # optional
 
-packages/ui-components/src/islands/<tag>/  # island-bundled (lazy) components
+packages/ui-components/src/<tag>/   # separate-bundle (lazy) components also live here;
+                                    # they opt in via `<bundle separate />` in their .sui
 ```
 
 Five rules carried over from the `ship-views` skill:

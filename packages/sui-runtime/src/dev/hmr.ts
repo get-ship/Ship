@@ -102,7 +102,7 @@ export function subscribeHmr(opts?: {
 async function defaultOnChanged(event: ModuleChangedEvent): Promise<void> {
   // Re-import the updated bundle with a cache-bust, then remount.
   // The daemon serves bundles at `/_sui/views/<name>/view.js` for views
-  // and at `/_sui/islands/<bundle>.js` for islands.
+  // and at `/_sui/sui-components/<bundle>.js` for separate-bundle components.
   const urlBase = targetToUrl(event.target)
   if (!urlBase) {
     // Unknown target — fall back to full reload.
@@ -126,10 +126,10 @@ function targetToUrl(target: string): string | null {
     // views/agents/view → /_sui/views/agents/view.js
     return `/_sui/${target}.js`
   }
-  if (target.startsWith('sui-islands/')) {
-    // sui-islands/sui-nav-top → /_sui/islands/sui-nav-top.js
-    const name = target.slice('sui-islands/'.length)
-    return `/_sui/islands/${name}.js`
+  if (target.startsWith('sui-components/')) {
+    // sui-components/sui-nav-top → /_sui/sui-components/sui-nav-top.js
+    const name = target.slice('sui-components/'.length)
+    return `/_sui/sui-components/${name}.js`
   }
   return null
 }

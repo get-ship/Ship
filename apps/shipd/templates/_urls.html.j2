@@ -28,7 +28,7 @@
 {%- macro sui_sdk_client_js() -%}/_sui/sdk-client.js{%- endmacro -%}
 {%- macro sui_components_js() -%}/_sui/components.js{%- endmacro -%}
 {%- macro sui_lucide_icons_json() -%}/_sui/lucide-icons.json{%- endmacro -%}
-{%- macro sui_island(tag) -%}/_sui/islands/{{ tag }}/island.js{%- endmacro -%}
+{%- macro sui_component_bundle(name) -%}/_sui/sui-components/{{ name }}.js{%- endmacro -%}
 {%- macro sui_view_template(name) -%}/_sui/views/{{ name }}/view.sui{%- endmacro -%}
 {%- macro sui_view_setup(name) -%}/_sui/views/{{ name }}/view.js{%- endmacro -%}
 {%- macro sui_view_payload(name) -%}/_sui/views/{{ name }}{%- endmacro -%}

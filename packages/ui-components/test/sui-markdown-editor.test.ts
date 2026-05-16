@@ -9,7 +9,7 @@
  */
 
 import { afterEach, describe, expect, it } from 'vitest'
-import '../src/islands/sui-markdown-editor/sui-markdown-editor.compiled.js'
+import '../src/sui-markdown-editor/sui-markdown-editor.compiled.js'
 import { createContainerRegistry, flush, mount } from '../src/test-utils'
 
 const reg = createContainerRegistry()

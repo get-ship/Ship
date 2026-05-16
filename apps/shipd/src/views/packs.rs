@@ -7,9 +7,9 @@
 //! core bundles (`datastar.js`, `ship-elements.js`); every island bundle
 //! arrives per-view.
 //!
-//! Note: SUI island bundles (/_sui/islands/<tag>.js) are a separate channel
-//! for SUI views — auto-detected from tag usage by the compiler, not declared
-//! in view manifests. This module is for j2 views only.
+//! Note: SUI separate-bundle components (/_sui/sui-components/<name>.js) are a
+//! separate channel for SUI views — auto-detected from tag usage by the
+//! compiler, not declared in view manifests. This module is for j2 views only.
 //!
 //! ## Closed enum (v1)
 //!

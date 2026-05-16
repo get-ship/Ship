@@ -1,0 +1,138 @@
+<bundle separate />
+<!--
+  <sui-devtools-components> — SUI inventory browser.
+  Reads /api/assets/sui-custom-elements.json (CEM emitted by sui-build for
+  packages/ui-components/src/sui-*) and renders an attribute/slot reference
+  with a copy-to-clipboard snippet. Read-only. The legacy lit `<ship-*>`
+  catalog at /api/assets/custom-elements.json is intentionally NOT shown
+  here — apps/shell (j2) keeps that surface.
+-->
+
+<style>
+  :host {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+    font-size: var(--text-sm);
+  }
+  :host([hidden]) { display: none; }
+  .toolbar {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2, 8px);
+    padding: 4px var(--space-3, 12px);
+    border-bottom: 1px solid var(--border);
+    background: var(--sidebar);
+    color: var(--muted-foreground);
+    font-size: var(--text-xs);
+    flex-shrink: 0;
+  }
+  .toolbar input {
+    appearance: none;
+    background: var(--background);
+    color: var(--foreground);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm, 4px);
+    padding: 2px 8px;
+    font: inherit;
+    flex: 1;
+    max-width: 280px;
+  }
+  .body { flex: 1; overflow: auto; }
+  details { border-bottom: 1px solid color-mix(in oklch, var(--border) 40%, transparent); }
+  summary {
+    list-style: none;
+    cursor: pointer;
+    padding: 6px var(--space-3, 12px);
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: var(--space-3, 12px);
+    align-items: baseline;
+    font-size: var(--text-xs);
+  }
+  summary::-webkit-details-marker { display: none; }
+  .tag { font-family: var(--font-mono); color: var(--primary); }
+  .desc { color: var(--muted-foreground); }
+  .copy {
+    appearance: none;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm, 4px);
+    padding: 1px 8px;
+    font: inherit;
+    font-size: 10px;
+    color: var(--muted-foreground);
+    cursor: pointer;
+  }
+  .copy:hover { color: var(--foreground); }
+  .panel {
+    padding: 0 var(--space-3, 12px) 10px calc(var(--space-3, 12px) + 14px);
+    display: grid;
+    gap: 8px;
+    font-size: var(--text-xs);
+    color: var(--muted-foreground);
+  }
+  .panel pre {
+    margin: 0;
+    padding: 6px 10px;
+    background: var(--muted);
+    color: var(--foreground);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm, 4px);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    overflow-x: auto;
+  }
+  .attrs { display: grid; grid-template-columns: auto 1fr; gap: 2px 12px; }
+  .attrs dt { font-family: var(--font-mono); color: var(--foreground); }
+  .attrs dd { margin: 0; }
+</style>
+
+<div class="toolbar">
+  <input type="text" placeholder="Filter components…" bind:value={filter} />
+  <span>{shown().length} / {entries().length}</span>
+</div>
+<div class="body" bind:this={bodyEl}>
+  {#if entries().length === 0}
+    <sui-empty-state>
+      <sui-icon slot="icon" name="package"></sui-icon>
+      <span slot="title">Loading sui-* components…</span>
+      Fetching the SUI inventory from /api/assets/sui-custom-elements.json.
+      Empty after load means sui-build hasn't emitted a CEM yet — run `just build`.
+    </sui-empty-state>
+  {:else if shown().length === 0}
+    <sui-empty-state>
+      <sui-icon slot="icon" name="search"></sui-icon>
+      <span slot="title">No matches</span>
+      No components match the current filter.
+    </sui-empty-state>
+  {:else}
+    {#for entry of shown() key={entry.tag}}
+      <details>
+        <summary>
+          <span class="tag">&lt;{entry.tag}&gt;</span>
+          <span class="desc">{entry.firstDesc}</span>
+          <button class="copy" data-tag={entry.tag} title="Copy snippet">Copy</button>
+        </summary>
+        <div class="panel">
+          <pre>{entry.snippet}</pre>
+          {#if entry.attributes.length > 0}
+            <div>
+              <strong>Attributes</strong>
+              <dl class="attrs">
+                {#for attr of entry.attributes key={attr.name}}
+                  <dt>{attr.name}{attr.default ? '=' + attr.default : ''}</dt>
+                  <dd>{attr.description ?? ''}</dd>
+                {/for}
+              </dl>
+            </div>
+          {/if}
+          {#if entry.slots.length > 0}
+            <div><strong>Slots</strong>: {entry.slotsLabel}</div>
+          {/if}
+        </div>
+      </details>
+    {/for}
+  {/if}
+</div>

@@ -628,7 +628,7 @@ re-mount without a full page reload. shell2's boot calls
 current route, shell2 cache-busts the rebuilt `view.js` and re-mounts
 through the existing `mount()` lifecycle.
 
-Other bundles (sui-components, sui-islands/*, sui-runtime, sui-dom,
+Other bundles (sui-components, sui-components/*, sui-runtime, sui-dom,
 ship-elements) trigger a full reload — custom-element re-registration
 without reload isn't yet supported. Compile errors are logged to the
 browser console with `file:line`. Production builds inline

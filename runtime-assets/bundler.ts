@@ -9,7 +9,7 @@
 // Start:  bun run ~/.ship/runtime/bundler.ts
 // Stop:   send { id, kind: 'shutdown' } or close stdin
 
-import { existsSync, lstatSync, mkdirSync, readdirSync, watch } from 'node:fs'
+import { existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, watch } from 'node:fs'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { homedir, tmpdir } from 'node:os'
 import { basename, dirname, isAbsolute, join, resolve } from 'node:path'
@@ -89,32 +89,40 @@ interface BundleTarget {
   virtualEntry?: string
 }
 
-// Islands aggregate one bundle per directory under packages/ui-components/src/islands/.
+// Separate-bundle discovery. Walks every top-level `packages/ui-components/src/<tag>/`
+// directory and opts that directory into its own code-split bundle when any
+// `.sui` file inside it carries the top-of-file `<bundle separate />` directive.
+// Without the directive, the component lives inside the aggregate
+// `sui-components.js` bundle (re-exported via `packages/ui-components/src/index.ts`).
 // The bundle is built from a synthetic entry that imports every .sui in the
 // directory by absolute path — Bun.build's plugin handles each .sui via onLoad,
 // and the relative `import setup from "./<stem>.controller.ts"` inside each
 // compiled output resolves against the .sui's own directory. No precompile-to-
 // disk step is needed.
-function discoverIslandBundles(): BundleTarget[] {
-  const islandsDir = resolve(repoRoot, 'packages/ui-components/src/islands')
-  if (!existsSync(islandsDir)) return []
+const BUNDLE_SEPARATE_RE = /<bundle\s+separate(\s|\/|>)/
+function discoverSeparateBundles(): BundleTarget[] {
+  const componentsDir = resolve(repoRoot, 'packages/ui-components/src')
+  if (!existsSync(componentsDir)) return []
   const out: BundleTarget[] = []
-  for (const e of readdirSync(islandsDir, { withFileTypes: true })) {
+  for (const e of readdirSync(componentsDir, { withFileTypes: true })) {
     if (!e.isDirectory()) continue
-    const dir = resolve(islandsDir, e.name)
+    if (!e.name.startsWith('sui-')) continue
+    const dir = resolve(componentsDir, e.name)
     const suiPaths = readdirSync(dir, { withFileTypes: true })
       .filter((f) => f.isFile() && f.name.endsWith('.sui'))
       .map((f) => resolve(dir, f.name))
       .sort()
     if (suiPaths.length === 0) continue
+    const separate = suiPaths.some((p) => BUNDLE_SEPARATE_RE.test(readFileSync(p, 'utf-8')))
+    if (!separate) continue
     out.push({
-      name: `sui-islands/${e.name}`,
+      name: `sui-components/${e.name}`,
       // virtualEntry contents are written to a tmp file at build time. The
       // imports use absolute paths so the tmp location is irrelevant.
       entry: '<virtual>',
       virtualEntry: suiPaths.map((p) => `import ${JSON.stringify(p)}`).join('\n') + '\n',
       external: ['@ship/sui-runtime', '@ship/sui-dom'],
-      outFile: `sui-islands/${e.name}.js`,
+      outFile: `sui-components/${e.name}.js`,
     })
   }
   return out
@@ -176,7 +184,7 @@ const TARGETS: BundleTarget[] = [
     entry: 'packages/ui-components/src/index.ts',
     external: ['@ship/sui-runtime'],
   },
-  ...discoverIslandBundles(),
+  ...discoverSeparateBundles(),
   ...discoverViewBundles(),
 ]
 
@@ -309,8 +317,9 @@ function detectMode(absPath: string): { mode: 'component' | 'view'; stem: string
   // plus -file/-hunk/-line) where only the tag matching the directory name
   // satisfies `stem === parent`. The secondary tags would otherwise compile
   // as views, never `customElements.define()`, and render as inert unknown
-  // elements. This subsumes the `src/islands/<bundle>/` case, whose bundle
-  // directories pack multiple tags the same way.
+  // elements. This subsumes the separate-bundle `<tag>/` case (opted in via
+  // `<bundle separate />`), whose bundle directories pack multiple tags the
+  // same way.
   if (absPath.startsWith(componentsRoot + '/')) return { mode: 'component', stem }
   const mode: 'component' | 'view' = stem === parent && stem.length > 0 ? 'component' : 'view'
   return { mode, stem }
@@ -354,7 +363,7 @@ async function buildTarget(
   const outPath = join(outDir, outFile)
   mkdirSync(dirname(outPath), { recursive: true })
 
-  // Synthetic entries (sui-islands aggregates) need a real on-disk file so
+  // Synthetic entries (separate-bundle component aggregates) need a real on-disk file so
   // Bun.build can derive a root directory. We write the virtual contents to
   // a temp dir; the imports inside use absolute paths so the temp location
   // is irrelevant to resolution.

@@ -42,7 +42,8 @@ fn read_asset(rel: &str) -> Option<String> {
 //   * top-level (`assets/<name>.js`) — always-loaded framework bundles
 //     (sui-runtime, sui-dom, sui-sdk-client, sui-components) and
 //     out-of-band assets (lucide-icons.json, sui-custom-elements.json).
-//   * `assets/sui-islands/<name>.js` — every code-split island bundle.
+//   * `assets/sui-components/<name>.js` — every code-split component bundle
+//     (opted in via `<bundle separate />` in the component's .sui source).
 //     Both writers (runtime-assets/bundler.ts and packages/sui-build via
 //     ui-components/sui.config.ts `lazyOutSubdir`) emit here. Adding a
 //     second location is forbidden; see job/bundle-output-canonical.
@@ -53,16 +54,16 @@ const SUI_DOM_JS: &str = include_str!("../assets/sui-dom.js");
 const SUI_SDK_CLIENT_JS: &str = include_str!("../assets/sui-sdk-client.js");
 const SUI_COMPONENTS_JS: &str = include_str!("../assets/sui-components.js");
 const SUI_LUCIDE_ICONS_JSON: &str = include_str!("../assets/lucide-icons.json");
-const SUI_TERMINAL_ISLAND_JS: &str = include_str!("../assets/sui-islands/sui-terminal.js");
-const SUI_COMMAND_BAR_ISLAND_JS: &str = include_str!("../assets/sui-islands/sui-command-bar.js");
-const SUI_DEVTOOLS_ISLAND_JS: &str = include_str!("../assets/sui-islands/sui-devtools.js");
-const SUI_LAUNCHER_ISLAND_JS: &str = include_str!("../assets/sui-islands/sui-launcher.js");
-const SUI_PANEL_DOCK_ISLAND_JS: &str = include_str!("../assets/sui-islands/sui-panel-dock.js");
-const SUI_NAV_TOP_ISLAND_JS: &str = include_str!("../assets/sui-islands/sui-nav-top.js");
-const SUI_RAIL_ISLAND_JS: &str = include_str!("../assets/sui-islands/sui-rail.js");
-const SUI_CODE_EDITOR_ISLAND_JS: &str = include_str!("../assets/sui-islands/sui-code-editor.js");
+const SUI_TERMINAL_ISLAND_JS: &str = include_str!("../assets/sui-components/sui-terminal.js");
+const SUI_COMMAND_BAR_ISLAND_JS: &str = include_str!("../assets/sui-components/sui-command-bar.js");
+const SUI_DEVTOOLS_ISLAND_JS: &str = include_str!("../assets/sui-components/sui-devtools.js");
+const SUI_LAUNCHER_ISLAND_JS: &str = include_str!("../assets/sui-components/sui-launcher.js");
+const SUI_PANEL_DOCK_ISLAND_JS: &str = include_str!("../assets/sui-components/sui-panel-dock.js");
+const SUI_NAV_TOP_ISLAND_JS: &str = include_str!("../assets/sui-components/sui-nav-top.js");
+const SUI_RAIL_ISLAND_JS: &str = include_str!("../assets/sui-components/sui-rail.js");
+const SUI_CODE_EDITOR_ISLAND_JS: &str = include_str!("../assets/sui-components/sui-code-editor.js");
 const SUI_MARKDOWN_EDITOR_ISLAND_JS: &str =
-    include_str!("../assets/sui-islands/sui-markdown-editor.js");
+    include_str!("../assets/sui-components/sui-markdown-editor.js");
 
 // Baked view JS + CSS for first-party views (production fallback).
 
@@ -162,10 +163,10 @@ pub async fn serve_sui_island(mode: Option<Extension<DaemonMode>>, Path(bundle):
         "sui-markdown-editor" => SUI_MARKDOWN_EDITOR_ISLAND_JS,
         _ => return not_found("unknown island"),
     };
-    // Single canonical path: `assets/sui-islands/<bundle>.js`. Both
+    // Single canonical path: `assets/sui-components/<bundle>.js`. Both
     // writers (runtime-assets bundler + packages/sui-build) target it;
     // fall back to the baked-in copy when the on-disk file is missing.
-    let rel = format!("sui-islands/{bundle}.js");
+    let rel = format!("sui-components/{bundle}.js");
     let js = read_asset(&rel).unwrap_or_else(|| embedded.to_string());
     js_response_mode(js, mode)
 }

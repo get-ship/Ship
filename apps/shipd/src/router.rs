@@ -166,7 +166,7 @@ pub fn build_router(
         .ship_route(Route::SuiSdkClientJs, ship_sui::serve_sui_sdk_client)
         .ship_route(Route::SuiComponentsJs, ship_sui::serve_sui_components)
         .ship_route(Route::SuiLucideIconsJson, ship_sui::serve_sui_lucide_icons)
-        .ship_route(Route::SuiIsland_template(), ship_sui::serve_sui_island)
+        .ship_route(Route::SuiComponentBundle_template(), ship_sui::serve_sui_island)
         .ship_route(
             Route::SuiViewTemplate_template(),
             ship_sui::serve_sui_view_template,

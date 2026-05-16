@@ -2,8 +2,8 @@ use std::collections::BTreeSet;
 
 use crate::ir::Instr;
 
-/// Compile-time map of `<sui-*>` island tags to their bundle name —
-/// each bundle ships as a separate `/_sui/islands/<bundle>/island.js`
+/// Compile-time map of `<sui-*>` separate-bundle tags to their bundle name
+/// — each bundle ships as a separate `/_sui/sui-components/<bundle>.js`
 /// file rather than inlined into `sui-components.js`.
 ///
 /// Most tags are their own bundle (`tag == bundle`). Family bundles
@@ -12,8 +12,9 @@ use crate::ir::Instr;
 /// daemon serve one file regardless of which family member appears in
 /// a template.
 ///
-/// Adding a new island: drop the source under
-/// `packages/ui-components/src/islands/<bundle>/`, list its tag here,
+/// Adding a new separate-bundle component: drop the source under
+/// `packages/ui-components/src/<bundle>/`, mark its `.sui` source with a
+/// top-of-file `<bundle separate />` directive, list its tag here, and
 /// rebuild. The daemon route handler and build pipeline pick it up
 /// automatically.
 pub const SUI_ISLANDS: &[(&str, &str)] = &[

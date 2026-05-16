@@ -372,9 +372,9 @@ async function loadViewIslands(bundles: string[] | undefined): Promise<void> {
     bundles
       .filter((bundle) => !customElements.get(bundle))
       .map((bundle) =>
-        import(/* @vite-ignore */ `/_sui/islands/${bundle}/island.js`).catch(
+        import(/* @vite-ignore */ `/_sui/sui-components/${bundle}.js`).catch(
           (err) => {
-            console.error(`[sui/mount] failed to load island ${bundle}:`, err)
+            console.error(`[sui/mount] failed to load component bundle ${bundle}:`, err)
           },
         ),
       ),
