@@ -1,24 +1,24 @@
 ---
 /*
-  TutorialApp — the editor + preview pane.
+  TutorialApp — editor + preview pane using SUI's own <sui-code-editor>
+  component (no extra CodeMirror dep in the docs bundle, no separate
+  syntax highlighting story, no second theme palette to keep in sync).
+  The component is registered globally by /sui-components.js, which
+  Astro already loads in the docs layout's <head>.
 
-  Astro-rendered shell + a client-side `<script>` that wires
-  CodeMirror, the WASM sui-compiler, and the preview iframe.
-
-  Source flow on every edit:
-    template (.sui) + controller (.ts) in editor
+  Author flow on every edit:
+    edit fires `sui-change` (debounced 150ms inside sui-code-editor)
+      → tutorial-app's listener reads e.detail.value
       → sui-compiler (wasm) compiles the .sui → JS module
-      → controller stays as TypeScript source; we strip TS-only
-        syntax in the browser via a small regex pass (no full TS
-        compile — tutorial scope is signal/derived/effect with
-        explicit annotations the regex handles).
+      → controller (.ts) regex-stripped to plain JS in-browser
       → both modules posted to the iframe host via postMessage;
-        the iframe injects them as blob URLs and re-mounts the
-        custom element with a fresh tag name (so the registration
-        is unique per run — CE definitions are permanent).
+        the host injects them as blob URLs, rewrites the template
+        module's setup-import to the controller blob, and re-mounts
+        the custom element under a fresh tag per run.
 
-  Edit is debounced ~250ms so each keystroke doesn't trigger a
-  recompile.
+  Lives wholly inside `apps/docs/`; the per-step prose stays in
+  `docs/ship-sui/references/tutorial/<NN-slug>/index.md` and is
+  rendered separately by the route page.
 */
 interface Props {
   slug: string
@@ -58,14 +58,27 @@ const { slug, starterTemplate, starterController, solvedTemplate, solvedControll
       </div>
     </div>
     <div class="tut-editor-host">
-      <div class="tut-editor" data-pane="template"></div>
-      <div class="tut-editor" data-pane="controller" hidden></div>
+      <sui-code-editor
+        class="tut-editor"
+        data-pane="template"
+        language="html"
+        size="sm"
+        value={starterTemplate}
+      ></sui-code-editor>
+      <sui-code-editor
+        class="tut-editor"
+        data-pane="controller"
+        language="typescript"
+        size="sm"
+        value={starterController}
+        hidden
+      ></sui-code-editor>
     </div>
   </div>
 
   <div class="tut-pane tut-pane--preview">
     <div class="tut-pane-bar">
-      <div class="tut-status" id={`tut-status-${slug}`}>
+      <div class="tut-status">
         <span class="tut-status-dot" data-state="idle"></span>
         <span class="tut-status-text">ready</span>
       </div>
@@ -85,117 +98,112 @@ const { slug, starterTemplate, starterController, solvedTemplate, solvedControll
 </div>
 
 <script>
-  // Top-level static imports so Vite bundles them; the runtime
-  // code reads its per-instance config off `[data-slug]` data
-  // attributes on the component root, NOT off `define:vars` (which
-  // would force `await import(...)` and break Vite's bundling of
-  // bare specifiers like `codemirror`).
-  import { EditorView, basicSetup } from 'codemirror'
-  import { html } from '@codemirror/lang-html'
-  import { javascript } from '@codemirror/lang-javascript'
-  import { oneDark } from '@codemirror/theme-one-dark'
+  // WASM compiler load — Vite bundles these as static imports.
   import initWasm, { compile as wasmCompile } from '@ship/sui-compiler-wasm'
   import wasmUrl from '@ship/sui-compiler-wasm/sui_compiler_bg.wasm?url'
 
-  // Initialize the wasm module once for the whole page; subsequent
-  // TutorialApp instances share it. wasm-pack's web target accepts
-  // a URL (or fetch-able value) and resolves when ready.
-  let wasmReadyPromise: Promise<unknown> | null = null
+  let wasmReady: Promise<unknown> | null = null
   function ensureWasm() {
-    if (!wasmReadyPromise) wasmReadyPromise = initWasm(wasmUrl)
-    return wasmReadyPromise
+    if (!wasmReady) wasmReady = initWasm(wasmUrl)
+    return wasmReady
   }
 
-  function bootApp(root: HTMLElement) {
+  // The Ship code editor lives at /sui-components/sui-code-editor.js
+  // — pre-bundled by `bun --filter @ship/ui-components build`, copied
+  // into apps/docs/public/sui-components/, self-registers on import.
+  let editorLoad: Promise<unknown> | null = null
+  function ensureEditorCE(): Promise<unknown> {
+    if (typeof customElements === 'undefined') return Promise.resolve()
+    if (!editorLoad) {
+      // String concat keeps the URL opaque to Rollup so it doesn't try
+      // to resolve `/sui-components/...` at build time.
+      const url = '/sui-components/' + 'sui-code-editor.js'
+      editorLoad = import(/* @vite-ignore */ url)
+        .then(() => customElements.whenDefined('sui-code-editor'))
+    }
+    return editorLoad
+  }
+
+  interface EditorEl extends HTMLElement {
+    value: string
+  }
+
+  function bootApp(root: HTMLElement): void {
     const slug = root.dataset.slug ?? ''
     const starterTemplate = root.dataset.starterTemplate ?? ''
     const starterController = root.dataset.starterController ?? ''
     const solvedTemplate = root.dataset.solvedTemplate ?? ''
     const solvedController = root.dataset.solvedController ?? ''
 
-    // State.
     let currentTemplate = starterTemplate
     let currentController = starterController
     const tagBase = `tut-${slug.replace(/[^a-z0-9-]/gi, '')}-`
     let tagSeq = 0
 
-    // Build editors. CodeMirror 6 — basicSetup gives line numbers,
-    // history, selection, etc. Theme matches the docs dark theme;
-    // light theme inherits CodeMirror's default light styling via
-    // omitting oneDark when docs are light.
-    const tplPane = root.querySelector('[data-pane="template"]')
-    const ctrlPane = root.querySelector('[data-pane="controller"]')
+    const tplEl = root.querySelector<EditorEl>('sui-code-editor[data-pane="template"]')!
+    const ctrlEl = root.querySelector<EditorEl>('sui-code-editor[data-pane="controller"]')!
 
-    const tplView = new EditorView({
-      doc: currentTemplate,
-      extensions: [
-        basicSetup,
-        html({ matchClosingTags: true }),
-        oneDark,
-        EditorView.updateListener.of((u) => {
-          if (!u.docChanged) return
-          currentTemplate = u.state.doc.toString()
-          scheduleRun()
-        }),
-      ],
-      parent: tplPane,
+    // sui-change comes pre-debounced (150ms) — listen and recompile.
+    tplEl.addEventListener('sui-change', (e) => {
+      const v = (e as CustomEvent<{ value: string }>).detail.value
+      currentTemplate = v
+      scheduleRun()
     })
-
-    const ctrlView = new EditorView({
-      doc: currentController,
-      extensions: [
-        basicSetup,
-        javascript({ typescript: true }),
-        oneDark,
-        EditorView.updateListener.of((u) => {
-          if (!u.docChanged) return
-          currentController = u.state.doc.toString()
-          scheduleRun()
-        }),
-      ],
-      parent: ctrlPane,
+    ctrlEl.addEventListener('sui-change', (e) => {
+      const v = (e as CustomEvent<{ value: string }>).detail.value
+      currentController = v
+      scheduleRun()
     })
+    // Also schedule on the lower-level `input` event so the UI's
+    // "editing…" status appears immediately on keystroke instead of
+    // waiting for the 150ms debounce window inside sui-code-editor.
+    tplEl.addEventListener('input', () => setStatus('typing', 'editing…'))
+    ctrlEl.addEventListener('input', () => setStatus('typing', 'editing…'))
 
-    // Tab switching.
-    root.querySelectorAll('.tut-tab').forEach((b) => {
-      b.addEventListener('click', () => {
-        const which = b.dataset.tab
-        root.querySelectorAll('.tut-tab').forEach((bb) => {
-          bb.setAttribute('aria-selected', String(bb.dataset.tab === which))
+    // Tab switching — hide the inactive editor, keep both mounted so
+    // the value state survives toggling.
+    root.querySelectorAll<HTMLButtonElement>('.tut-tab').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const which = btn.dataset.tab
+        if (!which) return
+        root.querySelectorAll<HTMLButtonElement>('.tut-tab').forEach((b) => {
+          b.setAttribute('aria-selected', String(b.dataset.tab === which))
         })
-        root.querySelectorAll('.tut-editor').forEach((p) => {
+        root.querySelectorAll<HTMLElement>('sui-code-editor').forEach((p) => {
           p.hidden = p.dataset.pane !== which
         })
       })
     })
 
     // Action buttons.
-    root.querySelector('[data-action="reset"]').addEventListener('click', () => {
+    root.querySelector('[data-action="reset"]')!.addEventListener('click', () => {
       currentTemplate = starterTemplate
       currentController = starterController
-      tplView.dispatch({ changes: { from: 0, to: tplView.state.doc.length, insert: starterTemplate } })
-      ctrlView.dispatch({ changes: { from: 0, to: ctrlView.state.doc.length, insert: starterController } })
+      tplEl.value = starterTemplate
+      ctrlEl.value = starterController
+      runNow()
     })
-    root.querySelector('[data-action="solution"]').addEventListener('click', () => {
+    root.querySelector('[data-action="solution"]')!.addEventListener('click', () => {
       currentTemplate = solvedTemplate
       currentController = solvedController
-      tplView.dispatch({ changes: { from: 0, to: tplView.state.doc.length, insert: solvedTemplate } })
-      ctrlView.dispatch({ changes: { from: 0, to: ctrlView.state.doc.length, insert: solvedController } })
+      tplEl.value = solvedTemplate
+      ctrlEl.value = solvedController
+      runNow()
     })
-    root.querySelector('[data-action="run"]').addEventListener('click', () => runNow())
+    root.querySelector('[data-action="run"]')!.addEventListener('click', () => runNow())
 
     // Status.
-    const statusDot = root.querySelector('.tut-status-dot')
-    const statusText = root.querySelector('.tut-status-text')
-    function setStatus(state, text) {
+    const statusDot = root.querySelector<HTMLElement>('.tut-status-dot')!
+    const statusText = root.querySelector<HTMLElement>('.tut-status-text')!
+    function setStatus(state: string, text: string): void {
       statusDot.dataset.state = state
       statusText.textContent = text
     }
 
-    // Compile + post to iframe.
+    // Iframe + theme sync.
     let iframeReady = false
-    const iframe = root.querySelector('.tut-preview')
-    function resolvedTheme() {
+    const iframe = root.querySelector<HTMLIFrameElement>('.tut-preview')!
+    function resolvedTheme(): 'dark' | 'light' {
       if (document.documentElement.classList.contains('dark')) return 'dark'
       const t = document.documentElement.dataset.theme
       if (t === 'dark' || t === 'light') return t
@@ -203,140 +211,89 @@ const { slug, starterTemplate, starterController, solvedTemplate, solvedControll
       if (t && t.includes('light')) return 'light'
       return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
     }
-    function syncIframeTheme() {
-      const base = iframe.dataset.baseSrc
+    function syncIframeTheme(): void {
+      const base = iframe.dataset.baseSrc!
       iframe.src = `${base}?theme=${resolvedTheme()}&_=${Date.now()}`
       iframeReady = false
     }
     new MutationObserver(syncIframeTheme).observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ['data-theme', 'class'],
+      attributes: true, attributeFilter: ['data-theme', 'class'],
     })
     syncIframeTheme()
 
-    window.addEventListener('message', (e) => {
+    window.addEventListener('message', (e: MessageEvent) => {
       if (e.source === iframe.contentWindow && e.data?.kind === 'tutorial:ready') {
         iframeReady = true
         runNow()
       }
     })
 
-    let debounceTimer = 0
-    function scheduleRun() {
-      clearTimeout(debounceTimer)
-      setStatus('typing', 'editing…')
-      debounceTimer = window.setTimeout(runNow, 250)
-    }
-
-    /**
-     * Translate the TS controller source into plain ES that runs in
-     * the browser. The tutorial scope is small — strip `import type`
-     * statements, `interface` declarations, type annotations on
-     * params + variables. Not a real TS compile (no SWC); good
-     * enough for the tutorial code shapes we author. If a learner
-     * pastes pathological TS the iframe surfaces a JS error, which
-     * is correct feedback for a tutorial.
-     */
-    function tsToEsm(src) {
+    function tsToEsm(src: string): string {
       let s = src
-      // import type { … } from '…' → drop
       s = s.replace(/^\s*import\s+type\s+\{[^}]*\}\s+from\s+["'][^"']+["']\s*;?\s*$/gm, '')
-      // import { type T, x, type U } from '…' → import { x } from '…'
-      s = s.replace(/import\s+\{([^}]+)\}\s+from/g, (_m, inner) => {
-        const cleaned = inner.split(',')
-          .map(p => p.trim())
-          .filter(p => p && !p.startsWith('type '))
-          .join(', ')
+      s = s.replace(/import\s+\{([^}]+)\}\s+from/g, (_m, inner: string) => {
+        const cleaned = inner.split(',').map((p) => p.trim()).filter((p) => p && !p.startsWith('type ')).join(', ')
         return `import { ${cleaned} } from`
       })
-      // `interface Foo { … }` → drop block (multi-line, simple-brace)
       s = s.replace(/^\s*interface\s+\w+(\s+extends\s+[^\{]+)?\s*\{[^}]*\}\s*/gm, '')
-      // `type Foo = …;` → drop (single-line)
       s = s.replace(/^\s*type\s+\w+\s*=\s*[^;]+;\s*/gm, '')
-      // function params: `(name: Type, name2: Type2)` → `(name, name2)`
-      // and arrow `(name: Type): Ret =>` → `(name) =>`.
-      //
-      // `[^()]*` (not `[^)]*`) is load-bearing: it prevents the match
-      // from crossing nested parens. Without that, the regex would
-      // greedily eat `controller(...{...scope: ()...` and corrupt the
-      // result. Limits us to flat arrow signatures — fine for the
-      // tutorial scope, where the only nested-paren case is generic
-      // annotations like `Map<K, V>` which the tutorial code avoids.
-      s = s.replace(/\(([^()]*)\)\s*(:\s*[^=>{;,)]+)?\s*=>/g, (_m, params) => {
-        const cleaned = params.split(',').map(p => p.split(':')[0].trim()).filter(Boolean).join(', ')
+      s = s.replace(/\(([^()]*)\)\s*(:\s*[^=>{;,)]+)?\s*=>/g, (_m, params: string) => {
+        const cleaned = params.split(',').map((p) => p.split(':')[0].trim()).filter(Boolean).join(', ')
         return `(${cleaned}) =>`
       })
-      // Generic angle-brackets on calls: `signal<Foo>(...)` → `signal(...)`
       s = s.replace(/(\w+)<[^<>()]*>\(/g, '$1(')
-      // `as Foo` casts → drop
       s = s.replace(/\s+as\s+[\w<>\[\]\|\s.,]+(?=[;,)\]\}])/g, '')
-      // `: Type` annotations on `const x: Type = …` → drop
       s = s.replace(/(\bconst\s+\w+|\blet\s+\w+|\bvar\s+\w+)\s*:\s*[^=;,]+/g, '$1')
       return s
     }
 
-    async function runNow() {
+    async function runNow(): Promise<void> {
       if (!iframeReady) return
-      clearTimeout(debounceTimer)
       setStatus('running', 'compiling…')
       const tag = `${tagBase}${++tagSeq}`
       try {
-        // setupUrl tells the compiler to emit `import setup from "<url>"`
-        // at the top of the template module — that's what wires the
-        // controller scope into $scope. The host page rewrites the
-        // value to a blob URL of the (TS-stripped) controller before
-        // importing the template. The literal we pass here just has to
-        // be unique + rewritable; the rewrite key is the `.controller.ts`
-        // suffix the compiler appends.
         const result = wasmCompile(
           currentTemplate,
-          JSON.stringify({
-            componentName: tag,
-            shadow: false,
-            setupUrl: `./${tag}.controller.ts`,
-          }),
+          JSON.stringify({ componentName: tag, shadow: false, setupUrl: `./${tag}.controller.ts` }),
         ) as { kind: 'ok'; js: string } | { kind: 'err'; message: string }
         if (result.kind === 'err') {
           setStatus('error', result.message)
           return
         }
-        // Compiled template imports the controller from './<tag>.controller.ts'
-        // by default — the host page rewrites that import to a blob URL of
-        // the JS-transpiled controller. We pass both modules over.
         const controllerJs = tsToEsm(currentController)
-        iframe.contentWindow.postMessage(
-          {
-            kind: 'tutorial:run',
-            template: result.js,
-            controller: controllerJs,
-            tag,
-          },
+        iframe.contentWindow!.postMessage(
+          { kind: 'tutorial:run', template: result.js, controller: controllerJs, tag },
           '*',
         )
         setStatus('ok', 'running')
       } catch (e: unknown) {
-        const msg = e instanceof Error ? e.message : String(e)
-        setStatus('error', msg)
+        setStatus('error', e instanceof Error ? e.message : String(e))
       }
+    }
+
+    function scheduleRun(): void {
+      runNow()
     }
   }
 
-  // Wire every TutorialApp on the page once the WASM compiler is
-  // ready. Idempotent — re-running bootApp on the same root is a
-  // no-op because the editors already exist.
-  ensureWasm().then(() => {
-    document.querySelectorAll<HTMLElement>('.tut-app-root').forEach((root) => {
-      if (root.dataset.booted === '1') return
-      root.dataset.booted = '1'
-      try {
-        bootApp(root)
-      } catch (e) {
-        console.error('[tutorial] bootApp failed:', e)
-      }
+  // Boot once the WASM compiler AND the <sui-code-editor> definition
+  // are both available. Apps are idempotent — `data-booted` guards
+  // re-runs if the page re-hydrates.
+  Promise.all([ensureWasm(), ensureEditorCE()])
+    .then(() => {
+      document.querySelectorAll<HTMLElement>('.tut-app-root').forEach((root) => {
+        if (root.dataset.booted === '1') return
+        root.dataset.booted = '1'
+        try {
+          bootApp(root)
+        } catch (e) {
+          console.error('[tutorial] bootApp failed:', e)
+        }
+      })
     })
-  }).catch((e) => {
-    console.error('[tutorial] wasm init failed:', e)
-  })
+    .catch((e) => {
+      console.error('[tutorial] init failed:', e)
+    })
 </script>
 
 <style is:global>
@@ -352,36 +309,28 @@ const { slug, starterTemplate, starterController, solvedTemplate, solvedControll
     display: flex;
     flex-direction: column;
     flex: 1 1 0;
-    min-height: 240px;
+    min-height: 0;
     background: var(--sl-color-bg-sidebar);
     border: 1px solid var(--sl-color-hairline-shade);
     border-radius: 10px;
     overflow: hidden;
-    box-shadow: 0 1px 0 color-mix(in oklch, var(--sl-color-white) 5%, transparent) inset;
   }
-  .tut-pane--editor { flex-basis: 55%; }
-  .tut-pane--preview { flex-basis: 45%; }
+  .tut-pane--editor { flex-basis: 60%; }
+  .tut-pane--preview { flex-basis: 40%; }
 
   .tut-pane-bar {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 0.5rem;
-    padding: 6px 8px 6px 10px;
-    background: linear-gradient(
-      to bottom,
-      color-mix(in oklch, var(--sl-color-bg-sidebar) 88%, var(--sl-color-bg) 12%),
-      var(--sl-color-bg-sidebar)
-    );
+    padding: 6px 10px;
+    background: var(--sl-color-bg-sidebar);
     border-bottom: 1px solid var(--sl-color-hairline-shade);
     flex-shrink: 0;
-    min-height: 36px;
+    min-height: 38px;
   }
 
-  .tut-tabs {
-    display: flex;
-    gap: 2px;
-  }
+  .tut-tabs { display: flex; gap: 2px; }
   .tut-tab {
     background: transparent;
     color: var(--sl-color-gray-2);
@@ -415,10 +364,7 @@ const { slug, starterTemplate, starterController, solvedTemplate, solvedControll
     color: var(--sl-color-text-accent);
   }
 
-  .tut-actions {
-    display: flex;
-    gap: 6px;
-  }
+  .tut-actions { display: flex; gap: 6px; }
   .tut-action {
     background: transparent;
     border: 1px solid var(--sl-color-hairline-shade);
@@ -453,24 +399,20 @@ const { slug, starterTemplate, starterController, solvedTemplate, solvedControll
     flex: 1 1 auto;
     min-height: 0;
     display: flex;
+    position: relative;
   }
   .tut-editor {
     flex: 1;
     min-width: 0;
-    height: 100%;
-  }
-  .tut-editor .cm-editor {
-    height: 100%;
+    min-height: 0;
+    display: block;
+    /* sui-code-editor sets border + radius on :host; we already have
+       a chrome around it from .tut-pane, so flatten its own. */
+    border: none !important;
+    border-radius: 0 !important;
     background: transparent !important;
   }
-  .tut-editor .cm-scroller {
-    font-family: var(--sl-font-system-mono);
-    font-size: 0.8125rem;
-  }
-  .tut-editor .cm-gutters {
-    background: transparent !important;
-    border-right: 1px solid var(--sl-color-hairline-shade) !important;
-  }
+  .tut-editor[hidden] { display: none; }
 
   .tut-status {
     display: flex;
@@ -516,10 +458,6 @@ const { slug, starterTemplate, starterController, solvedTemplate, solvedControll
     flex: 1 1 auto;
     min-height: 0;
     display: flex;
-    background:
-      linear-gradient(45deg, transparent 49.5%, var(--sl-color-hairline-shade) 49.5% 50.5%, transparent 50.5%) 0 0/12px 12px,
-      linear-gradient(-45deg, transparent 49.5%, var(--sl-color-hairline-shade) 49.5% 50.5%, transparent 50.5%) 0 0/12px 12px;
-    /* Subtle hairline texture so the iframe's bg has a visible edge */
   }
   .tut-preview {
     flex: 1;

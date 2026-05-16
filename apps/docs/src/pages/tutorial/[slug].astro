@@ -197,24 +197,37 @@ const proseHtml = renderMarkdown(body)
   body:has(.tut-root) main > .sl-container,
   body:has(.tut-root) .main-pane .sl-container {
     max-width: none;
-    padding-top: 0 !important;
+    padding: 0 !important;
   }
   body:has(.tut-root) .hero,
   body:has(.tut-root) main h1#_top,
   body:has(.tut-root) main h1 {
     display: none !important;
   }
-  /* Starlight's content-panel adds its own top padding; squash it
-     so the canvas fills the visible viewport below the nav. */
-  body:has(.tut-root) .content-panel { padding: 0 !important; }
+  /* Full-screen canvas: the page owns scrolling inside its own
+     panes, the body never scrolls. */
+  html:has(.tut-root), body:has(.tut-root) {
+    overflow: hidden;
+    height: 100dvh;
+  }
+  body:has(.tut-root) .content-panel { padding: 0 !important; border: none !important; }
+  body:has(.tut-root) .content-panel + .content-panel { border-top: 0 !important; }
   body:has(.tut-root) .page > .main-frame { padding-top: var(--sl-nav-height) !important; }
+  body:has(.tut-root) main { padding: 0 !important; }
+  body:has(.tut-root) .main-frame {
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;
+  }
+  body:has(.tut-root) main { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  body:has(.tut-root) .sl-container { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 
   .tut-root {
     display: flex;
     flex-direction: column;
     height: calc(100dvh - var(--sl-nav-height));
-    padding: 1rem 1.5rem 1.5rem;
-    gap: 0.75rem;
+    padding: 0.875rem 1.25rem 1.25rem;
+    gap: 0.875rem;
     box-sizing: border-box;
   }
   .tut-head {

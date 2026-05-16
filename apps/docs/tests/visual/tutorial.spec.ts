@@ -44,13 +44,17 @@ for (const step of STEPS) {
       await page.goto(`/tutorial/${step}/`, { waitUntil: 'load' })
       await page.addStyleTag({ content: STABILITY_CSS })
 
-      // Wait for the editor + iframe to be mounted and the preview
-      // to have rendered something (status leaves 'ready').
-      await page.waitForSelector('.cm-editor', { state: 'attached' })
+      // Wait for the Ship code editor custom element to upgrade
+      // (light-DOM tag, not shadow internals) and the preview to
+      // have rendered something (status leaves 'ready').
+      await page.waitForFunction(
+        () => !!customElements.get('sui-code-editor'),
+        { timeout: 15_000 },
+      )
       await page.waitForFunction(
         () => {
           const status = document.querySelector('.tut-status-text')?.textContent ?? ''
-          return status === 'running' || status.startsWith('opts JSON') || status.includes('error')
+          return status === 'running' || status.includes('error')
         },
         { timeout: 15_000 },
       )
