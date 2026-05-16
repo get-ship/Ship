@@ -171,6 +171,8 @@ crates/sui/ship-sui-server/assets/sui-custom-elements.json
 # crates/sui/ship-sui-server/assets/ exclusively. Keep ignored in case
 # any stale tooling tries to write here.
 crates/sui/ship-ui-framework/
+# Same — bundler used to mis-target this path; nothing consumes it.
+crates/sui/ship-sui/assets/
 
 # Stale sui-* dupes that used to be emitted into apps/shipd/assets/ — the
 # bundle scripts now target crates/sui/ship-sui-server/assets/ exclusively.
