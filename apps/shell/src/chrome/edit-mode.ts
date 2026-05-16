@@ -107,6 +107,19 @@ function ensurePinLayer(): HTMLElement {
   return el
 }
 
+// Edit-mode pill — persistent top-right indicator so users always see
+// "Editing: <view>" without consuming layout real estate. Lives in
+// light DOM at body level, position:fixed, hidden by default until the
+// shell flips `[on]` to true.
+function ensureEditPill(): HTMLElement {
+  let el = document.getElementById('ship-edit-pill')
+  if (el) return el
+  el = document.createElement('sui-edit-mode-pill')
+  el.id = 'ship-edit-pill'
+  document.body.appendChild(el)
+  return el
+}
+
 function ensureVaSlots(view: string): void {
   const dock = getDock()
   if (!dock) return
@@ -154,6 +167,10 @@ function applyEditMode(on: boolean): void {
   if (currentView) dock.setAttribute('edit-mode-pill', '')
   else dock.removeAttribute('edit-mode-pill')
 
+  const pill = ensureEditPill()
+  if (currentView) pill.setAttribute('view', currentView)
+  else pill.removeAttribute('view')
+
   if (on) {
     ensureIslandLoaded(PICKER_ISLAND_URL, 'sui-component-picker')
     ensureIslandLoaded(VA_ISLAND_URL, 'sui-view-authoring')
@@ -165,6 +182,7 @@ function applyEditMode(on: boolean): void {
     dock.show()
     document.body.classList.add('edit-mode')
     ensurePinLayer().removeAttribute('hidden')
+    pill.setAttribute('on', '')
     // Grant our chrome session the view.* tools (capability is scoped
     // per (session, view) on the daemon). Errors are non-fatal — the
     // UI surfaces them, and the VA components degrade to read-only.
@@ -180,6 +198,7 @@ function applyEditMode(on: boolean): void {
     document.body.classList.remove('edit-mode')
     const pins = getPinLayer()
     if (pins) pins.setAttribute('hidden', '')
+    pill.removeAttribute('on')
     if (currentView) {
       void viewMcp.exitEditMode(currentView).catch(() => { /* idempotent */ })
     }
@@ -244,6 +263,11 @@ export function initEditModeChrome(): void {
   installViewMcp()
   document.addEventListener('sui:dock:edit-mode-toggle', onPillToggle)
   document.addEventListener('sui:edit-mode:change', onEditModeChange)
+  // Corner pill's close button bubbles `sui:edit-mode:exit` — same
+  // effect as toggling the dock pill while edit-mode is on.
+  document.addEventListener('sui:edit-mode:exit', () => {
+    if (currentView) setEditMode(currentView, false)
+  })
 }
 
 // Re-export for keyboard handler in main.ts.

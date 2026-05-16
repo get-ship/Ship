@@ -1,0 +1,126 @@
+<!--
+  <sui-edit-mode-pill> — persistent corner indicator for view edit mode.
+
+  Lives in light DOM at fixed top-right of the viewport. Rendered only
+  when `[on]` attribute is set. The shell sets `on` + `view` via
+  apps/shell/src/chrome/edit-mode.ts so the pill mirrors the per-view
+  edit-mode signal.
+
+  No screen real estate when off (display: none). When on, sits above
+  the page content but below modals. Click the X dispatches
+  `sui:edit-mode:exit` which the chrome's edit-mode subscriber catches
+  to flip the signal off.
+
+  Prop surface
+  ─────────────────────────────────────────────────────────────────────
+  on     (bool, false, reflect)  — drives display + class
+  view   (string, '')            — the view name shown after "Editing"
+  ─────────────────────────────────────────────────────────────────────
+  Events:
+    sui:edit-mode:exit  {}  — user clicked the close button
+  Parts: pill, dot, label, close
+  ─────────────────────────────────────────────────────────────────────
+-->
+
+<prop name="on" type="bool" default="false" reflect />
+<prop name="view" type="string" default="" />
+
+<style>
+  :host {
+    display: none;
+    position: fixed;
+    /* Sits just below the 40px nav-top with an 8px gap so it doesn't
+     * collide with the theme picker / fullscreen / dock-toggle buttons
+     * the nav-top right-aligns. Right-pinned with the same 8px gap.
+     * z-index above content + below modals. */
+    top: calc(var(--ship-top-bar-h, 40px) + 8px);
+    right: 8px;
+    z-index: var(--z-toast, 1100);
+    pointer-events: none;
+  }
+  :host([on]) { display: block; }
+
+  .pill {
+    pointer-events: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    height: 26px;
+    padding: 0 6px 0 10px;
+    border-radius: 999px;
+    background: color-mix(in oklch, var(--warning, #d97706) 14%, var(--card, #fff));
+    color: var(--warning, #d97706);
+    border: 1px solid color-mix(in oklch, var(--warning, #d97706) 36%, transparent);
+    font-family: var(--font-body, system-ui);
+    font-size: 11px;
+    line-height: 1;
+    box-shadow: var(--shadow-md, 0 4px 12px rgba(0,0,0,0.18));
+    transition:
+      background-color var(--duration-fast, 120ms) var(--ease-out, ease-out),
+      box-shadow var(--duration-fast, 120ms) var(--ease-out, ease-out);
+  }
+  .pill:hover {
+    background: color-mix(in oklch, var(--warning, #d97706) 20%, var(--card, #fff));
+  }
+
+  .dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 999px;
+    background: var(--warning, #d97706);
+    flex-shrink: 0;
+    animation: edit-pulse 1.6s var(--ease-in-out, ease-in-out) infinite;
+  }
+  @keyframes edit-pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50%      { opacity: 0.45; transform: scale(0.78); }
+  }
+
+  .label {
+    font-weight: 500;
+    letter-spacing: 0.01em;
+  }
+  .label .view {
+    font-family: var(--font-mono, ui-monospace, monospace);
+    font-size: 10.5px;
+    padding: 1px 5px;
+    margin-left: 4px;
+    background: color-mix(in oklch, var(--warning, #d97706) 22%, transparent);
+    border-radius: var(--radius-sm, 4px);
+  }
+
+  .close {
+    appearance: none;
+    background: transparent;
+    border: 0;
+    color: inherit;
+    cursor: pointer;
+    font: inherit;
+    line-height: 1;
+    padding: 0 6px;
+    height: 22px;
+    border-radius: 999px;
+    opacity: 0.7;
+    transition: opacity var(--duration-fast, 120ms);
+  }
+  .close:hover { opacity: 1; background: color-mix(in oklch, var(--foreground) 10%, transparent); }
+  .close:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px color-mix(in oklch, var(--warning, #d97706) 50%, transparent);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .dot { animation: none; }
+  }
+</style>
+
+<div class="pill" part="pill" role="status" aria-live="polite">
+  <span class="dot" part="dot" aria-hidden="true"></span>
+  <span class="label" part="label">
+    Editing<span class="view" part="view">{view() || 'view'}</span>
+  </span>
+  <button class="close" part="close" type="button"
+    title="Exit edit mode (Alt+E)"
+    aria-label="Exit edit mode"
+    on:click={onExit}>×</button>
+</div>
