@@ -8,34 +8,15 @@
 
 <div class="ship-view git-view">
   {#while-loading of overview}
-    <div class="git-skel" data-test="loading" aria-busy="true" aria-label="Loading repo overview">
-      <div class="git-skel-head">
-        <div class="git-skel-titles">
-          <sui-skeleton shape="line" size="lg" style="width:96px"></sui-skeleton>
-          <sui-skeleton shape="line" size="sm" style="width:180px"></sui-skeleton>
-        </div>
-        <sui-skeleton shape="line" size="md" style="width:80px"></sui-skeleton>
-      </div>
-      <div class="git-skel-tabs">
-        <sui-skeleton shape="line" size="md" style="width:80px"></sui-skeleton>
-        <sui-skeleton shape="line" size="md" style="width:80px"></sui-skeleton>
-        <sui-skeleton shape="line" size="md" style="width:80px"></sui-skeleton>
-      </div>
-      <div class="git-skel-card">
-        {#for n of [0, 1, 2] key={n}}
-          <div class="git-skel-row">
-            <sui-skeleton shape="circle" size="sm"></sui-skeleton>
-            <sui-skeleton shape="line" size="md"></sui-skeleton>
-          </div>
-        {/for}
-      </div>
+    <div class="git-skel" data-test="loading" aria-busy="true">
+      <sui-skeleton shape="line" size="lg"></sui-skeleton>
+      {#for n of [0, 1, 2] key={n}}
+        <sui-skeleton shape="line" size="md"></sui-skeleton>
+      {/for}
     </div>
   {/while-loading}
-
   {#while-error err of overview}
-    <sui-error-state variant="default" size="md" title="Couldn't load repo" data-test="error">
-      {err.message}
-    </sui-error-state>
+    <sui-error-state size="md" title="Couldn't load repo" data-test="error">{err.message}</sui-error-state>
   {/while-error}
 
   {#if overview().kind === 'ok'}
@@ -51,25 +32,24 @@
         </p>
       </div>
       <div class="git-head-actions">
-        <sui-button variant="ghost" size="sm" aria-label="Refresh"
-          on:click={() => window.location.reload()}>
+        <sui-button variant="ghost" size="sm" aria-label="Refresh" data-test="git-refresh" on:click={refresh}>
           <sui-icon name="refresh-cw" size="sm"></sui-icon>
         </sui-button>
-        <sui-chip tone={clean() ? 'success' : 'warning'} variant="soft" size="sm">
-          {clean() ? 'clean' : totalChanged() + ' changed'}
-        </sui-chip>
+        <sui-chip tone={clean() ? 'success' : 'warning'} variant="soft" size="sm">{clean() ? 'clean' : totalChanged() + ' changed'}</sui-chip>
       </div>
     </header>
 
     <div class="git-tabs-row">
       <sui-tabs variant="underline">
-        <sui-tab name="changes"  active={tab() === 'changes'}  count={totalChanged() + ''}
-                 on:click={() => tab.set('changes')}>Changes</sui-tab>
-        <sui-tab name="history"  active={tab() === 'history'}  count={commitsCount() + ''}
-                 on:click={() => tab.set('history')}>History</sui-tab>
-        <sui-tab name="branches" active={tab() === 'branches'} count={branchesCount() + ''}
-                 on:click={() => tab.set('branches')}>Branches</sui-tab>
+        <sui-tab name="changes"  active={tab() === 'changes'}  count={totalChanged() + ''}  on:click={() => tab.set('changes')}>Changes</sui-tab>
+        <sui-tab name="history"  active={tab() === 'history'}  count={commitsCount() + ''}  on:click={() => tab.set('history')}>History</sui-tab>
+        <sui-tab name="branches" active={tab() === 'branches'} count={branchesCount() + ''} on:click={() => tab.set('branches')}>Branches</sui-tab>
       </sui-tabs>
+      <div class="git-tabs-right">
+        <sui-button variant="ghost" size="sm" on:click={() => navigate('/pipelines')}>
+          <sui-icon slot="leading" name="play" size="xs"></sui-icon>Run checks
+        </sui-button>
+      </div>
     </div>
 
     <div class="git-body">
@@ -77,9 +57,7 @@
         {#if clean()}
           <div class="git-clean">
             <div class="git-hero">
-              <div class="git-halo">
-                <sui-icon name="check" size="md"></sui-icon>
-              </div>
+              <div class="git-halo"><sui-icon name="check" size="md"></sui-icon></div>
               <div>
                 <h2 class="git-hero-title">Working tree is clean.</h2>
                 <p class="git-hero-sub">
@@ -94,94 +72,124 @@
             <div class="git-two-col">
               <section class="git-sec">
                 <h3>Recent on this branch</h3>
-                {#if recentCommits().length === 0}
-                  <p class="git-empty">No commits yet.</p>
-                {:else}
-                  {#for c of recentCommits() key={c.sha}}
-                    <div class="git-row">
-                      <sui-avatar size="sm" shape="round" name={c.author}></sui-avatar>
-                      <div class="git-row-body">
-                        <div class="git-row-title">{c.subject}</div>
-                        <div class="git-row-sub">{c.short_sha} &middot; {c.author} &middot; {c.date}</div>
-                      </div>
-                      <div class="git-deltas">
-                        <span class="git-add">+{c.additions}</span>
-                        <span class="git-del">&minus;{c.deletions}</span>
-                      </div>
+                {#if recentCommits().length === 0}<p class="git-empty">No commits yet.</p>{/if}
+                {#for c of recentCommits() key={c.sha}}
+                  <div class="git-row">
+                    <sui-avatar size="sm" shape="round" name={c.author}></sui-avatar>
+                    <div class="git-row-body">
+                      <div class="git-row-title">{c.subject}</div>
+                      <div class="git-row-sub">{c.short_sha} &middot; {c.author} &middot; {c.date}</div>
                     </div>
-                  {/for}
-                {/if}
+                    <div class="git-deltas">
+                      <span class="git-add">+{c.additions}</span>
+                      <span class="git-del">&minus;{c.deletions}</span>
+                    </div>
+                  </div>
+                {/for}
               </section>
-
               <section class="git-sec">
                 <h3>Branches</h3>
-                {#if recentBranches().length === 0}
-                  <p class="git-empty">No branches.</p>
-                {:else}
-                  {#for b of recentBranches() key={b.name}}
-                    <div class="git-row">
-                      <sui-icon name="git-branch" size="xs" class={b.active ? 'git-icon-active' : 'git-icon-muted'}></sui-icon>
-                      <div class="git-row-body">
-                        <div class="git-row-title git-mono">{b.name}</div>
-                        <div class="git-row-sub">{b.upstream ? b.upstream : 'local only'}</div>
-                      </div>
-                      <div class="git-deltas">
-                        {b.ahead > 0 ? '↑' + b.ahead : ''}
-                        {b.behind > 0 ? ' ↓' + b.behind : ''}
-                      </div>
+                {#if recentBranches().length === 0}<p class="git-empty">No branches.</p>{/if}
+                {#for b of recentBranches() key={b.name}}
+                  <div class="git-row">
+                    <sui-icon name="git-branch" size="xs" class={b.active ? 'git-icon-active' : 'git-icon-muted'}></sui-icon>
+                    <div class="git-row-body">
+                      <div class="git-row-title git-mono">{b.name}</div>
+                      <div class="git-row-sub">{b.upstream ? b.upstream : 'local only'}</div>
                     </div>
-                  {/for}
-                {/if}
+                    <div class="git-deltas">
+                      {b.ahead > 0 ? '↑' + b.ahead : ''}
+                      {b.behind > 0 ? ' ↓' + b.behind : ''}
+                    </div>
+                  </div>
+                {/for}
               </section>
             </div>
           </div>
         {:else}
-          <div class="git-changes">
-            {#if staged().length > 0}
-              <section class="git-filegroup">
-                <h3>Staged ({staged().length})</h3>
-                {#for f of staged() key={f.path}}
-                  <div class="git-fileline git-mono">{f.path}</div>
+          <div class="git-split">
+            <aside class="git-left" aria-label="Changed files">
+              <sui-toolbar variant="bordered" class="git-left-head">
+                <sui-icon name="git-branch" size="xs"></sui-icon>
+                <strong class="git-left-title">Changes</strong>
+                <span slot="spacer"></span>
+                <span class="git-mono">{totalChanged()} files</span>
+              </sui-toolbar>
+              <div class="git-chips-row">
+                {#for g of fileGroups() key={g.key}}
+                  <sui-chip tone={g.tone} variant={g.variant} size="sm">{g.items.length} {g.key}</sui-chip>
                 {/for}
-              </section>
-            {/if}
-            {#if modified().length > 0}
-              <section class="git-filegroup">
-                <h3>Modified ({modified().length})</h3>
-                {#for f of modified() key={f.path}}
-                  <div class="git-fileline git-mono">{f.path}</div>
+              </div>
+              <sui-scroll-area class="git-file-list">
+                {#for g of fileGroups() key={g.key}}
+                  <div class="git-file-group-head">{g.label}</div>
+                  {#for f of g.items key={f.path}}
+                    <button class="git-file-row git-mono" type="button"
+                      data-test="git-file-row"
+                      attr:data-active={selectedFile() === f.path ? '' : null}
+                      on:click={() => selectFile(f)}>
+                      <span class="git-file-status">{g.glyph || f.status}</span>{f.path}
+                    </button>
+                  {/for}
                 {/for}
-              </section>
-            {/if}
-            {#if untracked().length > 0}
-              <section class="git-filegroup">
-                <h3>Untracked ({untracked().length})</h3>
-                {#for f of untracked() key={f.path}}
-                  <div class="git-fileline git-mono">{f.path}</div>
-                {/for}
-              </section>
-            {/if}
+              </sui-scroll-area>
+            </aside>
+
+            <section class="git-right" aria-label="Diff">
+              {#if !selectedCommit()}
+                <sui-empty-state tone="muted" size="md" class="git-diff-empty">
+                  <span slot="title">Select a file</span>
+                  Pick a file on the left to view its diff.
+                </sui-empty-state>
+              {:else if !diffReady()}
+                <div class="git-diff-loading" data-test="diff-loading">Loading diff&hellip;</div>
+              {:else if diffFiles().length === 0}
+                <sui-empty-state tone="muted" size="md" class="git-diff-empty">
+                  <span slot="title">No changes in this diff</span>
+                </sui-empty-state>
+              {:else}
+                <sui-toolbar variant="bordered" class="git-diff-toolbar">
+                  <sui-badge tone="warning" variant="soft" size="sm">diff</sui-badge>
+                  <span class="git-mono git-diff-path" data-test="diff-path">{diffFiles()[0].path}</span>
+                  <span slot="spacer"></span>
+                  <span class="git-mono"><span class="git-add">+{diffFiles()[0].additions}</span> <span class="git-del">&minus;{diffFiles()[0].deletions}</span></span>
+                  <sui-segmented value={diffMode()} size="sm" on:sui-change={(e) => setDiffMode(e.detail.value)}>
+                    <sui-segmented-option value="unified">Unified</sui-segmented-option>
+                    <sui-segmented-option value="split">Split</sui-segmented-option>
+                  </sui-segmented>
+                </sui-toolbar>
+                {#if diffIsWorking()}
+                  <sui-alert tone="muted" class="git-diff-banner"><sui-icon slot="icon" name="git-commit" size="xs"></sui-icon>Viewing working tree changes vs HEAD.</sui-alert>
+                {/if}
+                <sui-scroll-area class="git-diff-scroll" data-test="diff-body">
+                  {#for file of diffFiles() key={file.path}}
+                    <sui-git-diff files="1">
+                      <sui-git-diff-file path={file.path}
+                        additions={file.additions + ''}
+                        deletions={file.deletions + ''}>
+                        {#for hunk of file.hunks key={hunk.header}}
+                          <sui-git-diff-hunk header={hunk.header}></sui-git-diff-hunk>
+                          {#for line of hunk.lines key={(line.old_num || 0) + ':' + (line.new_num || 0)}}
+                            <sui-git-diff-line
+                              type={line.kind}
+                              attr:old={line.old_num ? (line.old_num + '') : null}
+                              attr:new={line.new_num ? (line.new_num + '') : null}>{line.content}</sui-git-diff-line>
+                          {/for}
+                        {/for}
+                      </sui-git-diff-file>
+                    </sui-git-diff>
+                  {/for}
+                </sui-scroll-area>
+              {/if}
+            </section>
           </div>
         {/if}
-        <div class="git-diff-pane">
-          {#if totalChanged() === 0}
-            <sui-empty-state tone="muted" size="md" style="flex:1">
-              <span slot="title">No changes in this diff</span>
-            </sui-empty-state>
-          {:else}
-            <sui-empty-state tone="muted" size="md" style="flex:1">
-              <span slot="title">Select a file</span>
-            </sui-empty-state>
-          {/if}
-        </div>
       {/if}
 
       {#if tab() === 'history'}
         <div class="git-history">
           <div class="git-history-search">
-            <input
-              class="git-search"
-              placeholder="Filter by subject, sha, or author"
+            <input class="git-search" placeholder="Filter by subject, sha, or author"
               bind:value={commitFilter.query} />
             <span class="git-history-count">{commitFilter.filtered().length} of {commitsCount()}</span>
           </div>
@@ -194,19 +202,17 @@
               {/if}
             </sui-empty-state>
           {:else}
-            <div class="git-history-rows">
+            <div class="git-history-rows" data-test="history-rows">
               {#for c of commitFilter.filtered() key={c.sha}}
-                <div class="git-history-row">
-                  <sui-avatar size="sm" shape="round" name={c.author}></sui-avatar>
-                  <div class="git-row-body">
-                    <div class="git-row-title">{c.subject}</div>
-                    <div class="git-row-sub git-mono">{c.short_sha} &middot; {c.author} &middot; {c.date}</div>
-                  </div>
-                  <div class="git-deltas">
-                    <span class="git-add">+{c.additions}</span>
-                    <span class="git-del">&minus;{c.deletions}</span>
-                  </div>
-                </div>
+                <sui-history-row
+                  sha={c.short_sha}
+                  subject={c.subject}
+                  author={c.author}
+                  timestamp={c.date}
+                  additions={c.additions + ''}
+                  deletions={c.deletions + ''}
+                  on:sui-select={() => selectCommit(c.sha)}>
+                </sui-history-row>
               {/for}
             </div>
           {/if}
@@ -214,29 +220,78 @@
       {/if}
 
       {#if tab() === 'branches'}
-        <div class="git-branches">
-          {#if branches().length === 0}
-            <sui-empty-state tone="muted" size="md">
-              <span slot="title">No branches</span>
-            </sui-empty-state>
-          {:else}
-            <div class="git-history-rows">
-              {#for b of branches() key={b.name}}
-                <div class="git-history-row">
-                  <sui-icon name="git-branch" size="sm" class={b.active ? 'git-icon-active' : 'git-icon-muted'}></sui-icon>
-                  <div class="git-row-body">
-                    <div class="git-row-title git-mono">{b.name}{b.active ? ' (HEAD)' : ''}</div>
-                    <div class="git-row-sub">{b.upstream ? b.upstream : 'local only'}</div>
-                  </div>
-                  <div class="git-deltas">
-                    {b.ahead > 0 ? '↑' + b.ahead : ''}
-                    {b.behind > 0 ? ' ↓' + b.behind : ''}
+        {#if branches().length === 0}
+          <sui-empty-state tone="muted" size="md">
+            <span slot="title">No branches</span>
+          </sui-empty-state>
+        {:else}
+          <div class="git-branches-split">
+            <aside class="git-bleft" aria-label="Branches">
+              <sui-scroll-area class="git-branches-rail">
+                {#for b of branches() key={b.name}}
+                  <sui-list-tile interactive density="compact"
+                    data-test="git-branch-tile"
+                    attr:tone={b.active ? 'accent' : null}
+                    attr:selected={activeBranchName() === b.name ? '' : null}
+                    on:sui-select={() => selectBranch(b.name)}>
+                    <sui-status-dot slot="leading"
+                      attr:tone={b.active ? 'success' : 'muted'}
+                      attr:pulse={b.active ? '' : null}></sui-status-dot>
+                    <span class="git-mono git-branch-name">{b.name}</span>
+                    <span slot="meta">{b.upstream ? b.upstream : 'local only'}</span>
+                    <span slot="trailing" class="git-mono git-branch-deltas">
+                      {b.ahead > 0 ? '↑' + b.ahead : ''}
+                      {b.behind > 0 ? ' ↓' + b.behind : ''}
+                    </span>
+                  </sui-list-tile>
+                {/for}
+              </sui-scroll-area>
+            </aside>
+            <section class="git-bright" aria-label="Branch detail">
+              {#if activeBranch()}
+                <div class="git-branch-detail" data-test="git-branch-detail">
+                  <sui-toolbar justify="between" class="git-branch-head">
+                    <div>
+                      <div class="git-mono git-branch-detail-name">{activeBranch().name}</div>
+                      <div class="git-branch-detail-sub">
+                        {activeBranch().upstream ? 'tracking ' + activeBranch().upstream : 'no upstream'}
+                      </div>
+                    </div>
+                    <sui-toolbar>
+                      <sui-button size="sm" variant="ghost">Compare</sui-button>
+                      {#if !activeBranch().active}
+                        <sui-button size="sm" variant="solid" tone="primary">Checkout</sui-button>
+                      {/if}
+                    </sui-toolbar>
+                  </sui-toolbar>
+                  <div class="git-branch-grid">
+                    <sui-card>
+                      <div slot="header" class="git-card-head">Status</div>
+                      <sui-metachip label="Head" value={activeBranch().name}></sui-metachip>
+                      {#if activeBranch().upstream}
+                        <sui-metachip label="Upstream" value={activeBranch().upstream}></sui-metachip>
+                      {/if}
+                      <sui-metachip label="Divergence"
+                        value={'↑' + activeBranch().ahead + ' ↓' + activeBranch().behind}></sui-metachip>
+                    </sui-card>
+                    <sui-card>
+                      <div slot="header" class="git-card-head">Actions</div>
+                      <sui-button variant="ghost" size="sm">
+                        <sui-icon slot="leading" name="arrow-down" size="xs"></sui-icon>Pull latest
+                      </sui-button>
+                      <sui-button variant="ghost" size="sm">
+                        <sui-icon slot="leading" name="arrow-up" size="xs"></sui-icon>Push changes
+                      </sui-button>
+                      <sui-button variant="ghost" size="sm">
+                        <sui-icon slot="leading" name="git-merge" size="xs"></sui-icon>Rebase on main
+                      </sui-button>
+                    </sui-card>
                   </div>
                 </div>
-              {/for}
-            </div>
-          {/if}
-        </div>
+              {/if}
+            </section>
+          </div>
+        {/if}
       {/if}
     </div>
   {/if}
