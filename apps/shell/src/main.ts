@@ -580,7 +580,8 @@ function getDock(): PanelDock | null {
 // ⌘K/Ctrl+K  → command-bar toggle (find mode)
 // ⌘P/Ctrl+P  → command-bar search (find mode)
 // ⌘J/Ctrl+J  → panel-dock toggle
-// ⌘⇧E/Ctrl+Shift+E → body.edit-mode toggle (sui-edit-overlay listens)
+// Alt+E → per-view edit-mode toggle (was ⌘⇧E; collided with browser
+//   tab-search / devtools shortcuts on multiple platforms).
 // ⌘B/Ctrl+B  → rail toggle (via sui:rail:toggle)
 // Esc        → close open sui-dialog / sui-drawer (backstop)
 
@@ -599,8 +600,7 @@ document.addEventListener('keydown', (e: KeyboardEvent) => {
   // `e.key` reports the produced character: Chromium yields lowercase
   // 'b' for Ctrl+B without Shift, but some automation drivers (and a few
   // platform keyboard layouts) emit uppercase. Normalize so the
-  // shortcuts trigger regardless of caller. Keep ⌘⇧E gated on Shift via
-  // its dedicated branch below.
+  // shortcuts trigger regardless of caller.
   const key = e.key.toLowerCase()
 
   if (mod && key === 'j') {
@@ -621,11 +621,13 @@ document.addEventListener('keydown', (e: KeyboardEvent) => {
     return
   }
 
-  if (mod && e.shiftKey && key === 'e') {
+  if (e.altKey && !mod && !e.shiftKey && key === 'e') {
     e.preventDefault()
     // Per-view edit mode: flip the persisted signal for the current
     // view. The edit-mode chrome (see chrome/edit-mode.ts) reacts and
     // swaps the dock tabs + projects the view-authoring surfaces.
+    // Alt+E replaced the prior ⌘⇧E/Ctrl+Shift+E binding because of
+    // browser collisions (Firefox tab search, Chrome devtools toggle).
     if (currentRoute) toggleEditMode(currentRoute.view)
     return
   }

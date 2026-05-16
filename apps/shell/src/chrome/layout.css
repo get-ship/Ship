@@ -100,7 +100,7 @@ body.rail-hidden #ship-rail {
 }
 
 /* body.edit-mode — sui-edit-overlay watches this via MutationObserver.
-   The class is toggled by ⌘⇧E and also by edit-overlay's own close button. */
+   The class is toggled by Alt+E and also by edit-overlay's own close button. */
 body.edit-mode {
   cursor: crosshair;
 }
