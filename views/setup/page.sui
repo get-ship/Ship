@@ -1,12 +1,12 @@
 <div class="ship-view setup-view" data-test="setup-view">
   <sui-dialog
-    prop:open={open()}
+    attr:open={open() ? '' : null}
     backdrop="blur"
     size="lg"
     no-close-button
     no-header
     no-footer
-    prop:dismissible={false}>
+    dismissible="false">
 
     <div class="setup-wizard" data-test="setup-wizard" attr:data-step={step()}>
 
@@ -257,7 +257,7 @@
   </sui-dialog>
 
   <sui-alert-dialog
-    prop:open={confirmingExit()}
+    attr:open={confirmingExit() ? '' : null}
     tone="default"
     confirm-label="Skip setup"
     cancel-label="Keep going"
