@@ -46,6 +46,8 @@ export default controller<Scope>({
       projectBadgeEl: ref<HTMLElement>(),
       launcherBtnEl: ref<HTMLElement>(),
       createBtnEl: ref<HTMLElement>(),
+      viewPickerEl: ref<HTMLElement>(),
+      viewPickerBtnEl: ref<HTMLElement>(),
       navSlot: ref<HTMLSlotElement>(),
     }
   },

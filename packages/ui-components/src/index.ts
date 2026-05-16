@@ -62,6 +62,7 @@ import './sui-pagination/sui-pagination.compiled.js'
 import './sui-timestamp/sui-timestamp.compiled.js'
 import './sui-metachip/sui-metachip.compiled.js'
 import './sui-popover/sui-popover.compiled.js'
+import './sui-view-picker/sui-view-picker.compiled.js'
 import './sui-theme-picker/sui-theme-picker.compiled.js'
 // sui-rail is island-bundled; see islands/sui-rail/.
 import './sui-status-bar/sui-status-bar.compiled.js'

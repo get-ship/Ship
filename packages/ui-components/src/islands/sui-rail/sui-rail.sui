@@ -18,6 +18,7 @@
     ship:launcher:open      { anchor }      — launcher-button click
     ship:create:open        { }             — create-button click
     ship:project:change     { id }          — project-switcher selection
+    sui:view-picker:navigate { name }       — view-picker row click (forwarded)
   ─────────────────────────────────────────────────────────────────────────────
   Slots: (default) — accepts <sui-rail-item> and <sui-rail-section> children
   Parts: nav, footer, project-badge, project-popover, launcher-btn,
@@ -57,6 +58,50 @@
   :host([collapsed]),
   :host([hidden]) { display: none; }
   .rail-footer { padding: 4px; }
+
+  /* Top tile area — opens the view-picker (rail customizer + view
+     browser). Mirrors the project-tile area in the OG j2 shell, just
+     in icon-rail form. */
+  .rail-top {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: var(--space-2, 8px);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .rail-top-btn {
+    appearance: none;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm, 4px);
+    padding: 4px;
+    color: var(--muted-foreground);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    transition:
+      background-color var(--duration-fast, 100ms) var(--ease-out, ease-out),
+      border-color var(--duration-fast, 100ms) var(--ease-out, ease-out),
+      color var(--duration-fast, 100ms) var(--ease-out, ease-out);
+  }
+  .rail-top-btn:hover {
+    background: color-mix(in oklch, var(--foreground) 8%, transparent);
+    border-color: var(--border);
+    color: var(--foreground);
+  }
+  .rail-top-btn[aria-expanded='true'] {
+    background: color-mix(in oklch, var(--primary, #f97316) 14%, transparent);
+    color: var(--primary, #f97316);
+  }
+  .rail-top-btn:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px color-mix(in oklch, var(--primary, #3b82f6) 50%, transparent);
+  }
 
   .rail-nav {
     flex: 1;
@@ -147,6 +192,21 @@
   }
 </style>
 
+<div class="rail-top" part="top">
+  <sui-view-picker placement="right" bind:this={viewPickerEl}>
+    <button
+      slot="trigger"
+      type="button"
+      class="rail-top-btn"
+      part="view-picker-btn"
+      title="Pinned views + browser"
+      aria-label="Open view picker"
+      bind:this={viewPickerBtnEl}
+    >
+      <sui-icon name="layout-grid" size="sm"></sui-icon>
+    </button>
+  </sui-view-picker>
+</div>
 <nav class="rail-nav" part="nav">
   <slot bind:this={navSlot}></slot>
 </nav>

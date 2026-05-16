@@ -1,3 +1,5 @@
+import '../../sui-popover/sui-popover.compiled.js'
+import '../../sui-view-picker/sui-view-picker.compiled.js'
 import './sui-rail.compiled.js'
 import './sui-rail-item.compiled.js'
 import './sui-rail-section.compiled.js'
