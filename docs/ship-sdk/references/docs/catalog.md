@@ -17,7 +17,7 @@ examples — see [Primitives](./primitives.md).
 
 | Macro | Signature | Purpose |
 |---|---|---|
-| `head` | `head(title='Ship View')` | Standard `<head>` contents (meta, title, tokens, Datastar, ship-elements). Emits nothing in fragment mode. |
+| `head` | `head(title='Ship View')` | Standard `<head>` contents (meta, title, tokens, Datastar, sui-components). Emits nothing in fragment mode. |
 | `styles` | `styles()` | Shared utility styles used by `form()` and `table()`. Place once in `<head>` when rendering an auto-form or auto-table. |
 
 ## Signals and reactivity
@@ -124,7 +124,7 @@ examples — see [Primitives](./primitives.md).
 |---|---|---|
 | `confirm` | `confirm(message, action_expr)` | Browser `confirm()` → run expression. |
 | `confirm_delete` | `confirm_delete(collection, id)` | Browser `confirm()` → DELETE item. |
-| `confirm_dialog` | `confirm_dialog(id, title, description, action_attrs)` | Ship-styled `<ship-alert-dialog>`. |
+| `confirm_dialog` | `confirm_dialog(id, title, description, action_attrs)` | Ship-styled `<sui-alert-dialog>`. |
 | `confirm_trigger` | `confirm_trigger(id)` | Open a `confirm_dialog()` by id. |
 
 ## Fetch error handling
@@ -153,14 +153,14 @@ examples — see [Primitives](./primitives.md).
 
 | Macro | Signature | Purpose |
 |---|---|---|
-| `section` | `section(title, icon=none, link_href=none, link_label=none)` | Open `<ship-card>` with standardized header row. |
+| `section` | `section(title, icon=none, link_href=none, link_label=none)` | Open `<sui-card>` with standardized header row. |
 | `endsection` | `endsection()` | Close `section()`. |
 
 ## Toast notifications
 
 | Macro | Signature | Purpose |
 |---|---|---|
-| `toast_container` | `toast_container()` | Mount `<ship-toast-container>` (bottom-right). Place once per page. |
+| `toast_container` | `toast_container()` | Mount `<sui-toast-host>` (bottom-right). Place once per page. |
 | `toast_action` | `toast_action(message, tone='default', duration=3000)` | Click handler that dispatches a toast. |
 
 ---

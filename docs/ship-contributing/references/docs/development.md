@@ -113,7 +113,7 @@ structs via [specta](https://docs.rs/specta). Three files are produced:
 
 | Output | Source registration | Consumers |
 |--------|---------------------|-----------|
-| `packages/ship-set/src/generated.ts` | `collect_types()` | `@ship/set/types`, `@ship/sdk` |
+| `packages/ship-set/src/generated.ts` | `collect_types()` | `@ship/ui-components/types`, `@ship/sdk` |
 | `packages/cloud-types/src/generated.ts` | `build_cloud_types()` | Cloudflare worker, cloud event router |
 | `packages/sui-runtime/src/generated.ts` | `collect_framework_types()` | `@ship/sui-runtime`, `@ship/sdk-client` |
 

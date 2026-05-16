@@ -192,7 +192,7 @@ For a clean dev restart use `just dev-restart`. Visual regressions: `just visual
 
 ## Fresh-clone bootstrap
 
-`just bootstrap` runs the full first-time-setup sequence (verifies bun on PATH, then `cargo xtask gen-types` → `cargo build -p ship-cli` → `bun install` → `bun run --filter @ship/set icons` → `bun run --filter @ship/set build` → `bun run --filter @ship/ui-components build` → `just dev-runtime-install`). After it completes, `just dev` brings up the daemon.
+`just bootstrap` runs the full first-time-setup sequence (verifies bun on PATH, then `cargo xtask gen-types` → `cargo build -p ship-cli` → `bun install` → `bun run --filter @ship/ui-components icons` → `bun run --filter @ship/ui-components build` → `bun run --filter @ship/ui-components build` → `just dev-runtime-install`). After it completes, `just dev` brings up the daemon.
 
 ## Development vs production modes
 

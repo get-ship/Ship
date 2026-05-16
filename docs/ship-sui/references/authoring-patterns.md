@@ -202,7 +202,7 @@ The daemon persists this workspace into `~/.ship/machine/daemons/<hash>/workspac
 
 ## Hot reload in dev
 
-`.sui` and `.controller.ts` edits trigger an in-place view re-mount without a full page reload. `apps/shell2/src/hmr.ts` subscribes to `shipd`'s `/_sui/dev/hmr` SSE channel. When the bundler emits `module-changed` for `views/<name>/view`, shell2 cache-busts the rebuilt `view.js` and re-mounts through `mount()`. Other bundles (sui-components, islands, sui-runtime, sui-dom, ship-elements) trigger a full reload — custom-element re-registration without reload is not yet supported.
+`.sui` and `.controller.ts` edits trigger an in-place view re-mount without a full page reload. `apps/shell2/src/hmr.ts` subscribes to `shipd`'s `/_sui/dev/hmr` SSE channel. When the bundler emits `module-changed` for `views/<name>/view`, shell2 cache-busts the rebuilt `view.js` and re-mounts through `mount()`. Other bundles (sui-components, islands, sui-runtime, sui-dom, sui-components) trigger a full reload — custom-element re-registration without reload is not yet supported.
 
 Production builds inline `import.meta.env.DEV` to `false`, so HMR is a no-op and no EventSource opens.
 

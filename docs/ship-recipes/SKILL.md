@@ -26,7 +26,7 @@ actually wire X."
 - [Create + inline-append](./references/docs/create-inline-append.md) — `create` + a signals-patch listener.
 - [Loading indicator](./references/docs/loading-indicator.md) — `loading` + `spinner` around an action.
 - [Toast after action](./references/docs/toast-after-action.md) — `toast_container` + `toast_action`.
-- [Fetch-error surfacing](./references/docs/fetch-error-surfacing.md) — `on_fetch_error` into a `<ship-alert>`.
+- [Fetch-error surfacing](./references/docs/fetch-error-surfacing.md) — `on_fetch_error` into a `<sui-alert>`.
 - [Modal create](./references/docs/modal-create.md) — `confirm_dialog` as a create form host.
 - [Two-pane detail view](./references/docs/two-pane-detail.md) — signal-driven selection across a `layout_sidebar`.
 - [Infinite-scroll list](./references/docs/infinite-scroll.md) — `data-on:intersect` as the sanctioned raw-Datastar escape.

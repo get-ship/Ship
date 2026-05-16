@@ -9,20 +9,20 @@ An **artifact** is a file the runtime tracks for you. Agents produce them, pipel
 
 ## Three scopes
 
-<ship-card padding="md">
+<sui-card padding="md">
 <strong slot="header">Run</strong>
 The default scope for agent and pipeline output. Auto-deleted after a TTL. Use for step output, scratch, logs.
-</ship-card>
+</sui-card>
 
-<ship-card padding="md">
+<sui-card padding="md">
 <strong slot="header">Project</strong>
 Persists for the life of the project. Use for documents, designs, and anything you want to keep across runs.
-</ship-card>
+</sui-card>
 
-<ship-card padding="md">
+<sui-card padding="md">
 <strong slot="header">User</strong>
 Personal storage that follows you across projects. Use for cross-project assets.
-</ship-card>
+</sui-card>
 
 You can promote a run-scope artifact to project or user scope when it's worth keeping.
 

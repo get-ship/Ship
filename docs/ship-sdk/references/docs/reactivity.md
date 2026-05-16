@@ -130,7 +130,7 @@ body), Datastar emits a `datastar-fetch` document event with
 `{type: 'error', el, argsRaw: {status}}`. Two ways to surface it:
 
 - **Per-element:** `{{ on_fetch_error('signal') }}` writes a
-  signal-scoped error message. Pair with a `<ship-alert>`.
+  signal-scoped error message. Pair with a `<sui-alert>`.
 - **Global debugging:** the shell's error reporter posts every
   uncaught error, view render failure, and fetch failure to
   `POST /api/view-errors`. Agents retrieve these via the

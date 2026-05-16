@@ -15,14 +15,14 @@ immediately; the server catches up on the next debounce window.
 {% from '_ship.html.j2' import signal, bind, put_on_change %}
 
 <div class="ship-view" {{ signal('theme', theme) }}>
-  <ship-form-field label="Theme">
-    <ship-select {{ bind('theme') }}
+  <sui-field label="Theme">
+    <sui-select {{ bind('theme') }}
                  {{ put_on_change('/api/settings', '{theme: $theme}') }}>
       <option value="system">System</option>
       <option value="light">Light</option>
       <option value="dark">Dark</option>
-    </ship-select>
-  </ship-form-field>
+    </sui-select>
+  </sui-field>
 </div>
 ```
 

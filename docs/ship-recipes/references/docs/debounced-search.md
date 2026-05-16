@@ -15,16 +15,16 @@ list.
 {% from '_ship.html.j2' import signal, live, search %}
 
 <div class="ship-view" {{ signal('q', '') }}>
-  <ship-input {{ search('q', 'tasks', '500ms') }}
+  <sui-input {{ search('q', 'tasks', '500ms') }}
               placeholder="Search tasks..."
-              aria-label="Search"></ship-input>
+              aria-label="Search"></sui-input>
 
   <div {{ live('tasks') }}>
     <div id="tasks-content">
       {% for item in ship_items('task', q=q) %}
-        <ship-list-tile>
+        <sui-list-tile>
           <span slot="title">{{ item.data.title }}</span>
-        </ship-list-tile>
+        </sui-list-tile>
       {% endfor %}
     </div>
   </div>

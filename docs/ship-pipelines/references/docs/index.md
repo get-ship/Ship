@@ -9,20 +9,20 @@ A pipeline is a JSONC file that describes multi-step work — who does what, wha
 
 ## When to reach for a pipeline
 
-<ship-card padding="md">
+<sui-card padding="md">
 <strong slot="header">Distinct phases</strong>
 Write → review → merge. Each phase wants a different agent, possibly a different model.
-</ship-card>
+</sui-card>
 
-<ship-card padding="md">
+<sui-card padding="md">
 <strong slot="header">Parallel work</strong>
 Two branches that can run independently after some shared setup, then converge.
-</ship-card>
+</sui-card>
 
-<ship-card padding="md">
+<sui-card padding="md">
 <strong slot="header">Gates and approvals</strong>
 A reviewer agent (or a human) decides whether the work moves on.
-</ship-card>
+</sui-card>
 
 If a single agent run is enough, skip the pipeline. Pipelines pay off when you have orchestration to express.
 

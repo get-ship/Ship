@@ -42,9 +42,9 @@ Import typed endpoint builders:
 Use in Datastar actions:
 
 ```html
-{% raw %}<ship-button data-on:click="@delete('{{ delete_collection_item(active_collection, item.id) }}')">
+{% raw %}<sui-button data-on:click="@delete('{{ delete_collection_item(active_collection, item.id) }}')">
   Delete
-</ship-button>{% endraw %}
+</sui-button>{% endraw %}
 ```
 
 Available macros:
@@ -62,13 +62,13 @@ Available macros:
 
 ```html
 {% raw %}{% if field_def.field_type == "enum" %}
-  <ship-chip>{{ val }}</ship-chip>
+  <sui-chip>{{ val }}</sui-chip>
 {% elif field_def.field_type == "boolean" %}
-  <ship-badge variant="{{ 'success' if val else 'secondary' }}">{{ "Yes" if val else "No" }}</ship-badge>
+  <sui-badge variant="{{ 'success' if val else 'secondary' }}">{{ "Yes" if val else "No" }}</sui-badge>
 {% elif field_def.field_type == "number" %}
   <span class="mono">{{ val }}</span>
 {% elif field_def.field_type == "array" and val is iterable and val is not string %}
-  {% for v in val[:4] %}<ship-chip>{{ v }}</ship-chip> {% endfor %}
+  {% for v in val[:4] %}<sui-chip>{{ v }}</sui-chip> {% endfor %}
 {% else %}
   {{ val }}
 {% endif %}{% endraw %}
@@ -81,13 +81,13 @@ Ship-elements for typed inputs, Datastar `@post` for submission:
 ```html
 {% raw %}<form data-on:submit__prevent="@post('{{ create_collection_item(active_collection) }}',
   {contentType:'json', body: JSON.stringify({data: Object.fromEntries(new FormData(this))})})">
-  <ship-input name="title" placeholder="Title"></ship-input>
-  <ship-select name="status">
+  <sui-input name="title" placeholder="Title"></sui-input>
+  <sui-select name="status">
     {% for v in schema.fields.status.values %}
-    <ship-option value="{{ v }}">{{ v }}</ship-option>
+    <sui-option value="{{ v }}">{{ v }}</sui-option>
     {% endfor %}
-  </ship-select>
-  <ship-button type="submit">Create</ship-button>
+  </sui-select>
+  <sui-button type="submit">Create</sui-button>
 </form>{% endraw %}
 ```
 

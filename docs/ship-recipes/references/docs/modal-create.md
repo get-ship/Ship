@@ -16,9 +16,9 @@ closes.
 {% from '_ship.html.j2' import signals, bind, create, confirm_dialog, confirm_trigger %}
 
 <div class="ship-view" {{ signals({'form': {}}) }}>
-  <ship-button variant="primary" {{ confirm_trigger('new-task') }}>
+  <sui-button variant="primary" {{ confirm_trigger('new-task') }}>
     New task
-  </ship-button>
+  </sui-button>
 
   {{ confirm_dialog(
        'new-task',
@@ -26,18 +26,18 @@ closes.
        'Give it a title and priority.',
        create('task', '$form')) }}
 
-  <ship-alert-dialog-slot slot="body" for="confirm-new-task">
-    <ship-form-field label="Title">
-      <ship-input {{ bind('form.title') }}></ship-input>
-    </ship-form-field>
-    <ship-form-field label="Priority">
-      <ship-select {{ bind('form.priority') }}>
+  <sui-alert-dialog-slot slot="body" for="confirm-new-task">
+    <sui-field label="Title">
+      <sui-input {{ bind('form.title') }}></sui-input>
+    </sui-field>
+    <sui-field label="Priority">
+      <sui-select {{ bind('form.priority') }}>
         <option value="low">Low</option>
         <option value="normal">Normal</option>
         <option value="high">High</option>
-      </ship-select>
-    </ship-form-field>
-  </ship-alert-dialog-slot>
+      </sui-select>
+    </sui-field>
+  </sui-alert-dialog-slot>
 </div>
 ```
 

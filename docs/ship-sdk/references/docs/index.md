@@ -3,13 +3,13 @@ group: SDK
 title: SDK
 section: reference
 order: 1
-description: Ship View SDK — the zero-JS, zero-CSS view-authoring surface. Jinja + Datastar + ship-elements, wrapped in ~15 primitives.
+description: Ship View SDK — the zero-JS, zero-CSS view-authoring surface. Jinja + Datastar + sui-components, wrapped in ~15 primitives.
 ---
 
 Ship views are server-rendered reactive HTML. You drop
 `.ship/views/<name>/index.html.j2` on disk, the daemon compiles it with
 Minijinja, the browser hydrates it with Datastar, and the
-`<ship-*>` component library styles and behaves it.
+`<sui-*>` component library styles and behaves it.
 
 The thesis: **zero raw JavaScript, zero raw CSS**. The framework gives
 you primitives that cover 95% of view authoring. The remaining 5% is a
@@ -24,7 +24,7 @@ Every view is a composition across three layers. Keep them separate.
 |---|---|---|
 | Jinja (Minijinja) | Structure, loops, partials, server-side data access. Runs on the daemon, once per render. | `{% for %}`, `{% if %}`, `ship_items()`, `ship_query()`, `ship_schema()`. |
 | Datastar | Client reactivity: signals, expressions, attribute bindings, SSE patches. Runs in the browser on every interaction. | SDK macros only: `signal()`, `show()`, `bind()`, `on()`, `live()`, `get()`/`post()`/… |
-| ship-elements | Visual + behavioral components. Style, focus, a11y are owned by the element. | `<ship-button>`, `<ship-card>`, `<ship-list-tile>`, `<ship-input>`, `<ship-select>`, … |
+| sui-components | Visual + behavioral components. Style, focus, a11y are owned by the element. | `<sui-button>`, `<sui-card>`, `<sui-list-tile>`, `<sui-input>`, `<sui-select>`, … |
 
 When you want an action, you almost never write `data-on:click=...`
 directly. You call a macro — `create()`, `navigate()`, `emit()`,

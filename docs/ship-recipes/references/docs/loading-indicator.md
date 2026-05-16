@@ -15,14 +15,14 @@ shows; the button stays on screen.
 {% from '_ship.html.j2' import signals, create_job, loading, spinner %}
 
 <div class="ship-view" {{ signals({'_running': false, 'selectedAgent': 'reviewer'}) }}>
-  <ship-button-group>
-    <ship-button variant="primary"
+  <sui-toggle-group>
+    <sui-button variant="primary"
                  {{ create_job('$selectedAgent', 'review') }}
                  {{ loading('_running') }}>
       Run review
-    </ship-button>
+    </sui-button>
     {{ spinner('_running') }}
-  </ship-button-group>
+  </sui-toggle-group>
 </div>
 ```
 

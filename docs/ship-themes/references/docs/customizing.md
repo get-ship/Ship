@@ -20,7 +20,7 @@ Every Ship token is a CSS custom property at `:root`. A stylesheet loaded *after
 Global override (applies under every theme):
 
 ```css
-/* integrator-overrides.css — loaded after @ship/set styles */
+/* integrator-overrides.css — loaded after @ship/ui-components styles */
 :root {
   --radius-lg: 20px;
   --duration-fast: 220ms;
@@ -112,7 +112,7 @@ A theme that only bends the palette is a recolor. To earn a slot in the catalog,
 
 ### 5. Rebuild and verify
 
-Rebuild the `@ship/set` package so the `ThemeId` union and theme export refresh, then reload the shell. The new theme appears in the picker automatically — the UI is driven off the `THEMES` array.
+Rebuild the `@ship/ui-components` package so the `ThemeId` union and theme export refresh, then reload the shell. The new theme appears in the picker automatically — the UI is driven off the `THEMES` array.
 
 ## Going deeper
 

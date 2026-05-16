@@ -9,20 +9,20 @@ A **collection** is a typed dataset. You declare its shape in a small JSONC file
 
 ## When to reach for a collection
 
-<ship-card padding="md">
+<sui-card padding="md">
 <strong slot="header">Structured records</strong>
 Tasks, ADRs, customer interviews, content drafts — anything you'd otherwise put in a Notion database or an Airtable base.
-</ship-card>
+</sui-card>
 
-<ship-card padding="md">
+<sui-card padding="md">
 <strong slot="header">Data your views display</strong>
 A view's template can read collection items directly. List, filter, edit — no API plumbing required.
-</ship-card>
+</sui-card>
 
-<ship-card padding="md">
+<sui-card padding="md">
 <strong slot="header">A target for triggers</strong>
 A trigger can insert into or update a collection in response to an event, turning automation into structured records.
-</ship-card>
+</sui-card>
 
 ## A small example
 

@@ -15,12 +15,12 @@ step.
 A view template contains no `<script>` tag. If you find yourself
 reaching for one, the destination is one of:
 
-- A macro or `<ship-*>` element. Start with
+- A macro or `<sui-*>` element. Start with
   `GET /api/sdk/query?q=<concept>`.
 - A reactive `data-effect="…"` expression for idempotent side effects
   (canvas redraws, syncing a third-party widget). See the impl skill
   for the exact rules.
-- A custom web component in `@ship/set`. That's the
+- A custom web component in `@ship/ui-components`. That's the
   `ship-components` skill's charter.
 
 ## No inline `<style>`
@@ -37,15 +37,15 @@ pattern: flex/grid scaffolding for the view's shell, nothing visual.
 
 ## No raw HTML when a ship-element exists
 
-Don't type a `<button>` when `<ship-button>` exists. Don't write a
-`<div class="card">` when `<ship-card>` exists. The full catalog is:
+Don't type a `<button>` when `<sui-button>` exists. Don't write a
+`<div class="card">` when `<sui-card>` exists. The full catalog is:
 
 ```bash
 curl -s http://localhost:3000/api/assets/custom-elements.json | jq .
 ```
 
 For list rows, tiles, and cards — the most common need — the answer
-is always `<ship-list-tile>` with its `leading` / `meta` / `trailing`
+is always `<sui-list-tile>` with its `leading` / `meta` / `trailing`
 slots. Do not invent a new element for a one-off composition.
 
 ## No hardcoded colors, radii, or motion
@@ -63,7 +63,7 @@ skill is the full tour.
 ## Declare packs explicitly
 
 Heavy island bundles — code editors, terminals, pack-specific
-components like `<ship-git-view>` — are gated behind `packs:` in the
+components like `<sui-git-diff>` — are gated behind `packs:` in the
 view manifest. The linter fires `pkg-missing-pack-declaration` when a
 template uses a pack-only tag without the declaration, and
 `pkg-stale-pack-declaration` when a declared pack has no matching tag.
@@ -71,7 +71,7 @@ template uses a pack-only tag without the declaration, and
 ```yaml
 # .ship/views/skills/manifest.yaml
 packs:
-  - editor   # provides <ship-code-editor>, <ship-markdown-editor>
+  - editor   # provides <sui-code>, <sui-markdown>
 ```
 
 Only declare what you use. Don't copy pack lists between views.
@@ -95,7 +95,7 @@ The gap becomes a lint warning and a ticket for extending the SDK.
 ## The escape hatch
 
 If none of the above fits your need, you're past the view layer. The
-answer is to author a web component in `@ship/set`. That is a
+answer is to author a web component in `@ship/ui-components`. That is a
 different skill (`ship-components`) with its own rules. A view never
 contains the escape-hatch code; it imports the element.
 

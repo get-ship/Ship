@@ -15,20 +15,20 @@ author no client-side append logic.
 {% from '_ship.html.j2' import signals, bind, live, create, loading, spinner %}
 
 <div class="ship-view" {{ signals({'form': {}, '_creating': false}) }}>
-  <ship-card>
-    <ship-input {{ bind('form.title') }} placeholder="New task title"></ship-input>
-    <ship-button variant="primary"
+  <sui-card>
+    <sui-input {{ bind('form.title') }} placeholder="New task title"></sui-input>
+    <sui-button variant="primary"
                  {{ create('task', '$form') }}
                  {{ loading('_creating') }}>
       Add
-    </ship-button>
+    </sui-button>
     {{ spinner('_creating') }}
-  </ship-card>
+  </sui-card>
 
   <div {{ live('tasks') }}>
     <div id="tasks-content">
       {% for item in ship_items('task') %}
-        <ship-list-tile><span slot="title">{{ item.data.title }}</span></ship-list-tile>
+        <sui-list-tile><span slot="title">{{ item.data.title }}</span></sui-list-tile>
       {% endfor %}
     </div>
   </div>

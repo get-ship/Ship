@@ -78,7 +78,7 @@ Started by `ship mcp serve`. These tools are exposed to dispatched agents throug
 | `signal_view` | Set a reactive signal in an open view | `ViewSignalRequest` |
 | `close_view` | Close an open view (owner only) | `ViewCloseRequest` |
 
-Request shapes are defined in `apps/mcp/src/requests/`. They're surfaced as JSON Schema in the tool descriptor and re-exported through `@ship/set` for typed client use.
+Request shapes are defined in `apps/mcp/src/requests/`. They're surfaced as JSON Schema in the tool descriptor and re-exported through `@ship/ui-components` for typed client use.
 
 ## Studio IDE surface
 

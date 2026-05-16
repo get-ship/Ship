@@ -19,13 +19,13 @@ the keyword signal. No custom click handlers, no hand-written fetches.
 {% from '_ship.html.j2' import signals, live, chip, chip_all, search %}
 
 <div class="ship-view" {{ signals({'status': '', 'q': ''}) }}>
-  <ship-toolbar>
-    <ship-chip {{ chip_all('status', 'tasks') }}>All</ship-chip>
-    <ship-chip {{ chip('status', 'active', 'tasks') }}>Active</ship-chip>
-    <ship-chip {{ chip('status', 'blocked', 'tasks') }}>Blocked</ship-chip>
-    <ship-chip {{ chip('status', 'done', 'tasks') }}>Done</ship-chip>
-    <ship-input {{ search('q', 'tasks') }} placeholder="Search tasks..."></ship-input>
-  </ship-toolbar>
+  <sui-toolbar>
+    <sui-chip {{ chip_all('status', 'tasks') }}>All</sui-chip>
+    <sui-chip {{ chip('status', 'active', 'tasks') }}>Active</sui-chip>
+    <sui-chip {{ chip('status', 'blocked', 'tasks') }}>Blocked</sui-chip>
+    <sui-chip {{ chip('status', 'done', 'tasks') }}>Done</sui-chip>
+    <sui-input {{ search('q', 'tasks') }} placeholder="Search tasks..."></sui-input>
+  </sui-toolbar>
 
   <div {{ live('tasks') }}>
     <div id="tasks-content">Loading...</div>
