@@ -45,6 +45,9 @@ interface PanelDock extends HTMLElement {
   tabs?: DockTabDef[]
 }
 
+// VA_TABS — what the dock surfaces when edit mode is on for the current view.
+// Terminal is intentionally last; it inherits the same render state as the
+// default-mode terminal (currently empty, F-002 in the same QA run).
 const VA_TABS: DockTabDef[] = [
   { id: 'va-source',     label: 'Source',     icon: 'file-code', badge: 'EDIT' },
   { id: 'va-components', label: 'Components', icon: 'package' },
@@ -58,11 +61,15 @@ const VA_TABS: DockTabDef[] = [
 // it only when the user has flipped edit-mode on for the view. The
 // canonical browse-all-components reference is the ship-ui-studio
 // view; outside edit mode we don't duplicate it here.
+// `lint` was here historically but the dock never had a slot child for it —
+// it rendered an active tab with an empty body, surfaced by the first
+// web-qa run on this surface (F-003, .artifacts/web-qa/chrome/dev-panel/
+// edit-mode/2026-05-16T17-57/report.md). Drop until a real
+// `<sui-devtools-lint>` component lands.
 const DEFAULT_TABS: DockTabDef[] = [
   { id: 'terminal',   label: 'Terminal',   icon: 'terminal', live: true },
   { id: 'source',     label: 'Source',     icon: 'file-code' },
   { id: 'signals',    label: 'Signals',    icon: 'radio', live: true },
-  { id: 'lint',       label: 'Lint',       icon: 'list' },
   { id: 'schema',     label: 'Schema',     icon: 'network' },
 ]
 

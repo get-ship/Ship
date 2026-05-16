@@ -52,7 +52,7 @@ Before touching the browser, write `$QA_DIR/plan.md` declaring:
 1. **Surface name** — `dev-panel/edit-mode/components-tab`, `views/agents/list`, etc. Use slashes for hierarchy.
 2. **Inventory** — every interactive element on the surface (button, input, tab, link, drag handle, keyboard shortcut). One per row. Include declared aria-labels.
 3. **States** — every state the surface can be in (empty, loading, populated, error, hover, focused, disabled, overflow). One per row.
-4. **Theme matrix** — at minimum `ship-light`, `ship-dark`, `ship-console`. Add any project theme that ships.
+4. **Theme matrix** — at minimum `ship-light`, `ship-dark`, `console`. Other registered themes: `paper`, `halo`, `contrast`, `glass` (see `packages/ui-components/src/tokens/themes.ts`). Add a theme to the matrix when the surface has theme-conditional CSS.
 5. **Viewport matrix** — at minimum `1280x720` (desktop) and `375x812` (mobile-narrow). Add others when the surface is responsive-specific.
 
 If you cannot declare these without invention, you don't understand the surface
@@ -64,7 +64,7 @@ For every element × every state × every theme:
 
 ```bash
 # 1. Set theme (project-specific — themes are toggled via localStorage)
-$PW localstorage-set ship-theme "$THEME"
+$PW localstorage-set ship-site-theme "$THEME"
 $PW reload
 
 # 2. Pre-press evidence
@@ -130,9 +130,12 @@ heartbeats. "Looks fine" is not a reason.
 For each theme in the matrix:
 
 ```bash
-for THEME in ship-light ship-dark ship-console; do
-  $PW localstorage-set ship-theme "$THEME"
+for THEME in ship-light ship-dark console; do
+  $PW localstorage-set ship-site-theme "$THEME"
   $PW reload
+  # Confirm the switch took — silently-not-applied is a class of failure
+  APPLIED=$($PW --raw eval "document.documentElement.dataset.theme")
+  [ "$APPLIED" = "\"$THEME\"" ] || echo "WARN: theme did not apply: set=$THEME got=$APPLIED" >&2
   $PW screenshot --filename="$QA_DIR/screenshots/_baseline-$THEME.png"
   # ... full per-element protocol above ...
 done
@@ -188,7 +191,7 @@ For each failing probe:
 - **Evidence:** screenshots/e15-populated-ship-dark-after.png
 - **Reproduction:**
   1. `playwright-cli goto http://localhost:3270/dev-panel`
-  2. `playwright-cli localstorage-set ship-theme ship-dark`
+  2. `playwright-cli localstorage-set ship-site-theme ship-dark`
   3. `playwright-cli reload`
   4. `playwright-cli click e3` (open Components tab)
   5. Observe: tab has slot content but content has zero size
