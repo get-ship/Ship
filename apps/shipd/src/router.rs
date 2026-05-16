@@ -133,7 +133,6 @@ pub fn build_router(
         }))
         // Shared static assets — no user-specific data, safe to serve unauth.
         .ship_route(Route::AssetViewTokensCss, views::serve_view_tokens)
-        .ship_route(Route::AssetSuiElementsManifest, views::serve_sui_elements_manifest)
         .ship_route(Route::AssetThemeCss, views::serve_theme_css)
         .ship_route(Route::ListThemes, views::serve_themes_list)
         // SUI framework hosting — runtime/dom/sdk/components bundles +

@@ -13,7 +13,7 @@
 // Round-trip is plain JSON so Export/Import use the same shape.
 
 import { controller, signal, derived, chrome } from '@ship/sui-runtime'
-import { applyTheme, readStoredTheme, persistTheme, isValidTheme, type ThemeId } from '../../packages/ship-set/src/themes'
+import { applyTheme, readStoredTheme, persistTheme, isValidTheme, type ThemeId } from '../../packages/ui-components/src/tokens/themes'
 import type { Scope } from './page.sui'
 import { LAYERS, THEME_PACKS, ALL_TOKENS } from './token-catalog'
 
@@ -73,15 +73,22 @@ export default controller<Scope>({
     const layers = derived(() => LAYERS)
     const packs = derived(() => THEME_PACKS)
 
-    // Resolved value for an input: override wins, then pack default,
-    // then the computed style (covers tokens we haven't snapshotted yet).
-    const valueOf = (token: string): string => {
+    // Resolved-value lookup table for inputs: override wins, then pack
+    // default, then the computed style (covers tokens we haven't snapshotted
+    // yet). Re-derives whenever overrides or pack-defaults change. Templates
+    // read via `values()[tok.name]` — sui-compiler rejects parameterised
+    // function calls inside expressions, so we materialise the whole map.
+    const values = derived<Record<string, string>>(() => {
       const o = overrides()
-      if (token in o) return o[token] ?? ''
       const d = packDefaults()
-      if (token in d) return d[token] ?? ''
-      return readResolved(token)
-    }
+      const out: Record<string, string> = {}
+      for (const t of ALL_TOKENS) {
+        if (t.name in o) out[t.name] = o[t.name] ?? ''
+        else if (t.name in d) out[t.name] = d[t.name] ?? ''
+        else out[t.name] = readResolved(t.name)
+      }
+      return out
+    })
 
     function setToken(token: string, value: string): void {
       const next = { ...overrides(), [token]: value }
@@ -186,7 +193,7 @@ export default controller<Scope>({
       status,
       layers,
       packs,
-      valueOf,
+      values,
       setToken,
       selectPack,
       resetToPack,

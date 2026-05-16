@@ -105,9 +105,6 @@ pub enum Route {
     /// @route GET "/api/assets/view-tokens.css"
     AssetViewTokensCss,
 
-    /// @route GET "/api/assets/sui-custom-elements.json"
-    AssetSuiElementsManifest,
-
     /// @route GET "/api/assets/theme.css"
     AssetThemeCss,
 

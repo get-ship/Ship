@@ -121,7 +121,6 @@ fn api_v1_prefix_invariants() {
             ("Setup", Route::Setup.full_path()),
             ("IssueSession", Route::IssueSession.full_path()),
             ("AssetViewTokensCss", Route::AssetViewTokensCss.full_path()),
-            ("AssetSuiElementsManifest", Route::AssetSuiElementsManifest.full_path()),
             ("AssetThemeCss", Route::AssetThemeCss.full_path()),
             ("ListThemes", Route::ListThemes.full_path()),
             ("ListJobs", Route::ListJobs.full_path()),

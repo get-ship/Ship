@@ -48,7 +48,6 @@ const DEFAULT_TABS: DockTabDef[] = [
   { id: 'terminal', label: 'Terminal', icon: 'terminal', live: true },
   { id: 'source', label: 'Source', icon: 'file-code' },
   { id: 'signals', label: 'Signals', icon: 'radio', live: true },
-  { id: 'lint', label: 'Lint', icon: 'list' },
   { id: 'schema', label: 'Schema', icon: 'network' },
   { id: 'components', label: 'Components', icon: 'package' },
 ]

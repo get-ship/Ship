@@ -42,7 +42,6 @@ const STUDIO_HIDE_TAGS = new Set<string>([
   'sui-terminal',
   'sui-devtools-source',
   'sui-devtools-signals',
-  'sui-devtools-lint',
   'sui-devtools-schema',
   'sui-devtools-components',
 ])

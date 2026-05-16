@@ -160,36 +160,6 @@ export default controller<Scope>({
       if (el && srcObj?.manifest != null && el.value !== srcObj.manifest) el.value = srcObj.manifest
     })
 
-    // Pre-save lint markers: surface findings in the editor gutter as soon as
-    // the source loads. Re-fires when the user navigates to a different view.
-    let lintViewName: string | null = null
-    const stopLint = effect(() => {
-      const srcObj = srcSig()
-      if (!srcObj || srcObj.scope !== 'global') return
-      const viewName = srcObj.view_name.split('.')[0]!
-      if (viewName === lintViewName) return
-      lintViewName = viewName
-      const templatePath = srcObj.template_path
-      void (async () => {
-        try {
-          const resp = await fetch('/api/v1/lint/view', {
-            method: 'POST', credentials: 'same-origin',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name: viewName }),
-          })
-          if (!resp.ok || lintViewName !== viewName) return
-          const body = await resp.json() as { ok: boolean; data?: { findings: Diagnostic[] } }
-          const findings = body.data?.findings ?? []
-          const tail = templatePath.split('/').pop() ?? ''
-          const relevant = findings.filter(f => {
-            const file = f.file ?? ''
-            return templatePath.endsWith(file) || (tail && file.endsWith(tail))
-          })
-          requestAnimationFrame(() => pushEditorDiagnostics(templateEditorRef() as CodeEditor | null, relevant))
-        } catch { /* best-effort */ }
-      })()
-    })
-
     const headerEl = headerRef()
     if (headerEl) {
       headerEl.addEventListener('click', (e: MouseEvent) => {
@@ -280,7 +250,7 @@ export default controller<Scope>({
     Object.defineProperty(host, 'refresh', { value: () => { lastPath = null; void load() }, configurable: true })
 
     return () => {
-      stopSync(); stopManifestSync(); stopLint()
+      stopSync(); stopManifestSync()
       document.removeEventListener('sui:navigate', onNavigate)
     }
   },

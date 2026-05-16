@@ -352,7 +352,6 @@ export default controller<Scope>({
         case 'settings': void navigateTo('/settings'); open.set(false); break
         case 'end': if (session()) void endSession(session()!.id); open.set(false); break
         case 'close': open.set(false); break
-        case 'lint': void runLint(); break
       }
     }
 
@@ -365,25 +364,6 @@ export default controller<Scope>({
       try { await fetch(`/api/v1/sessions/${id}`, { method: 'DELETE', credentials: 'same-origin' }) } catch { /* best-effort */ }
       if (session()?.id === id) { session.set(null) }
       await loadCurrentSession()
-    }
-
-    async function runLint(): Promise<void> {
-      const current = (window as Record<string, unknown> & { ship?: { current?: () => { path?: string } } }).ship?.current?.()
-      const name = current?.path?.replace(/^\/+/, '').split('/')[0] ?? ''
-      if (!name) return
-      try {
-        const resp = await fetch('/api/v1/lint/view', {
-          method: 'POST', credentials: 'same-origin',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name }),
-        })
-        if (resp.ok) {
-          const body = await resp.json() as { data?: { findings?: unknown[] } }
-          const count = body.data?.findings?.length ?? 0
-          console.log(count === 0 ? `${name}: no lint findings` : `${name}: ${count} lint findings`)
-        }
-      } catch { /* silent */ }
-      open.set(false)
     }
 
     // ── Global keyboard listener ───────────────────────────────────

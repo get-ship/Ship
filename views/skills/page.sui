@@ -57,7 +57,7 @@
                   <div class="se-empty">{q() ? 'No matches.' : 'No skills yet.'}</div>
                 {:else}
                   {#for s of g.skills key={s.id}}
-                    <div role="treeitem" class="se-skill-row" attr:aria-selected="false">
+                    <div role="treeitem" class="se-skill-row" aria-selected="false">
                       <a class="se-skill"
                         attr:href={'/skills/' + s.id}
                         attr:title={s.description}>

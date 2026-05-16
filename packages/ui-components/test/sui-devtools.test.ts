@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, it, vi, beforeEach } from 'vitest'
 import '../src/sui-devtools/sui-devtools-source.compiled.js'
 import '../src/sui-devtools/sui-devtools-components.compiled.js'
-import '../src/sui-devtools/sui-devtools-lint.compiled.js'
 import '../src/sui-devtools/sui-devtools-schema.compiled.js'
 import '../src/sui-devtools/sui-devtools-signals.compiled.js'
 import { createContainerRegistry, flush, mount } from '../src/test-utils'
@@ -87,35 +86,6 @@ describe('<sui-devtools-source>', () => {
     ;(window as unknown as { ship: unknown }).ship = origShip
   })
 
-  it('triggers /api/v1/ship/schema + jinja-macros fetch for global-scope sources', async () => {
-    const origShip = (window as unknown as { ship?: unknown }).ship
-    ;(window as unknown as { ship: unknown }).ship = { current: () => ({ path: '/api/v/myview2' }) }
-    const origFetch = globalThis.fetch
-    const calls: string[] = []
-    globalThis.fetch = vi.fn().mockImplementation((url: string) => {
-      calls.push(url)
-      if (url.startsWith('/api/v1/view-source')) {
-        return Promise.resolve({ ok: true, json: () => Promise.resolve({
-          view_name: 'myview2.j2',
-          template_path: '/abs/views/myview2/index.html.j2',
-          template: '',
-          manifest_filename: null,
-          manifest: null,
-          scope: 'global',
-        }) })
-      }
-      return Promise.resolve({ ok: true, json: () => Promise.resolve({ ok: true, data: { ops: [], findings: [] } }) })
-    }) as unknown as typeof fetch
-    mount(reg, 'sui-devtools-source')
-    await flush(); await flush(); await flush(); await flush()
-    // editor wiring is gated on the lazy sui-code-editor island; what we
-    // can observe is the lint + completion fetches firing for global scope.
-    expect(calls.some(u => u.includes('/api/v1/lint/view'))).toBe(true)
-    expect(calls.some(u => u.includes('/api/v1/ship/schema'))).toBe(true)
-    expect(calls.some(u => u.includes('/api/assets/jinja-macros.json'))).toBe(true)
-    globalThis.fetch = origFetch
-    ;(window as unknown as { ship: unknown }).ship = origShip
-  })
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -202,57 +172,6 @@ describe('<sui-devtools-components>', () => {
     expect(calledUrl).toContain('/api/assets/sui-custom-elements.json')
     expect(calledUrl).not.toBe('/api/assets/custom-elements.json')
     globalThis.fetch = origFetch
-  })
-})
-
-// ─────────────────────────────────────────────────────────────────────────────
-describe('<sui-devtools-lint>', () => {
-  it('registers as a custom element', () => {
-    expect(customElements.get('sui-devtools-lint')).toBeDefined()
-  })
-
-  it('renders toolbar and body containers in shadow DOM', () => {
-    const { el } = mount(reg, 'sui-devtools-lint')
-    expect(shadow(el).querySelector('.toolbar')).not.toBeNull()
-    expect(shadow(el).querySelector('.body')).not.toBeNull()
-  })
-
-  it('shows clean empty-state when no findings', async () => {
-    const fetchSpy = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({ ok: true, data: { findings: [] } }),
-    })
-    const origFetch = globalThis.fetch
-    globalThis.fetch = fetchSpy
-    const { el } = mount(reg, 'sui-devtools-lint')
-    await flush(); await flush()
-    expect(body(el).innerHTML).toContain('sui-empty-state')
-    globalThis.fetch = origFetch
-  })
-
-  it('renders finding rows when findings are returned (with view path)', async () => {
-    const fetchSpy = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({ ok: true, data: { findings: [
-        { file: 'index.html.j2', line: 5, col: 3, rule: 'missing-slot', severity: 'error', message: 'Slot not found' },
-      ]}}),
-    })
-    const origFetch = globalThis.fetch
-    const origShip = (window as unknown as { ship?: unknown }).ship
-    ;(window as unknown as { ship: unknown }).ship = { current: () => ({ path: '/api/v/myview' }) }
-    globalThis.fetch = fetchSpy
-    const { el } = mount(reg, 'sui-devtools-lint')
-    await flush(); await flush(); await flush()
-    expect(body(el).querySelector('.row')).not.toBeNull()
-    expect(body(el).innerHTML).toContain('missing-slot')
-    globalThis.fetch = origFetch
-    ;(window as unknown as { ship: unknown }).ship = origShip
-  })
-
-  it('refresh() method is exposed on host', async () => {
-    const { el } = mount(reg, 'sui-devtools-lint')
-    await flush()
-    expect(typeof (el as unknown as { refresh?: unknown }).refresh).toBe('function')
   })
 })
 

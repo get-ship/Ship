@@ -241,7 +241,6 @@ const ISLAND_TAGS = new Set([
   'sui-command-chat',
   'sui-command-palette',
   'sui-devtools-components',
-  'sui-devtools-lint',
   'sui-devtools-schema',
   'sui-devtools-signals',
   'sui-devtools-source',

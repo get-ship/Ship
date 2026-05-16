@@ -59,12 +59,12 @@
                 <span class="ts-row-intent">{tok.intent}</span>
               </label>
               {#if tok.type === 'color'}
-                <span class="ts-swatch" style:background={valueOf(tok.name)} aria-hidden="true"></span>
+                <span class="ts-swatch" style:background={values()[tok.name]} aria-hidden="true"></span>
               {/if}
               <input class="ts-input" type="text"
                 attr:id={'ts-in-' + tok.name}
                 attr:aria-label={tok.name}
-                attr:value={valueOf(tok.name)}
+                attr:value={values()[tok.name]}
                 on:input={(e) => setToken(tok.name, e.target.value)} />
             </div>
           {/for}

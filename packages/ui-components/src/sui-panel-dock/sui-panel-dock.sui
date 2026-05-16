@@ -18,7 +18,7 @@
   ─────────────────────────────────────────────────────────────────────────────
   Methods: show(), hide(), toggle(), activate(tab)
   ─────────────────────────────────────────────────────────────────────────────
-  Slots: <id> — body for tab id (terminal, source, signals, lint, schema, components)
+  Slots: <id> — body for tab id (terminal, source, signals, schema, components)
          toolbar:<id> — slim toolbar row for tab id (optional)
 
   Runtime-exceed notes
