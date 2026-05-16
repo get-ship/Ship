@@ -70,6 +70,13 @@ export default controller<Scope>({
     // 'idle' | 'compiling' | 'compiled' | 'errored'
     const compileStatus = signal<'idle' | 'compiling' | 'compiled' | 'errored'>('idle')
     const compileError = signal<string | null>(null)
+    // Snapshot history — list pulled via __viewMcp.listSnapshots when
+    // the user opens the History popover. Empty until first open.
+    interface Snap { snapshot_id: string; timestamp: string; label?: string; agent_id: string }
+    const snapshots = signal<Snap[]>([])
+    const snapshotsLoading = signal(false)
+    const snapshotsOpen = signal(false)
+    const snapshotsError = signal<string | null>(null)
 
     const selectedFile = derived<ViewFile | null>(() => {
       const p = selectedPath()
@@ -152,12 +159,56 @@ export default controller<Scope>({
       }
     }
 
+    async function onOpenSnapshots(): Promise<void> {
+      const name = viewName()
+      if (!name) return
+      snapshotsOpen.set(!snapshotsOpen())
+      if (!snapshotsOpen()) return
+      snapshotsLoading.set(true)
+      snapshotsError.set(null)
+      const mcp = (window as unknown as { __viewMcp?: typeof import('../../../../apps/shell/src/chrome/view-mcp').viewMcp }).__viewMcp
+      if (!mcp) {
+        snapshotsError.set('MCP not available — enter edit mode first.')
+        snapshotsLoading.set(false)
+        return
+      }
+      try {
+        const r = await mcp.listSnapshots(name, 50)
+        snapshots.set(r.snapshots ?? [])
+      } catch (e) {
+        snapshotsError.set((e as Error).message)
+      } finally {
+        snapshotsLoading.set(false)
+      }
+    }
+
+    async function onRestoreSnapshot(snapshot_id: string): Promise<void> {
+      const name = viewName()
+      const mcp = (window as unknown as { __viewMcp?: typeof import('../../../../apps/shell/src/chrome/view-mcp').viewMcp }).__viewMcp
+      if (!name || !mcp) return
+      try {
+        await mcp.restoreSnapshot(name, snapshot_id)
+        snapshotsOpen.set(false)
+        // Refresh files to pull restored content into the editor.
+        const enriched = files().map((f) => ({ ...f }))
+        files.set(enriched)
+        // Force a reload of files (lastLoadedView reset in refresh).
+        ;(window as unknown as { dispatchEvent: typeof document.dispatchEvent }).dispatchEvent(
+          new CustomEvent('sui:navigate', { detail: { to: location.pathname } }),
+        )
+      } catch (e) {
+        snapshotsError.set((e as Error).message)
+      }
+    }
+
     return {
       viewName, files, selectedPath, drafts, saving, saved, errorMsg,
       loading, loadError, editorEl,
       selectedFile, editorLang, editorValue, isDirty,
       onPickFile, onChange, onSave,
       compileStatus, compileError,
+      snapshots, snapshotsLoading, snapshotsOpen, snapshotsError,
+      onOpenSnapshots, onRestoreSnapshot,
     }
   },
 

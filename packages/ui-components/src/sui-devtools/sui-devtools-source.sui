@@ -186,6 +186,82 @@
     color: var(--primary-foreground, #fff);
     cursor: pointer;
   }
+  .hist-btn {
+    appearance: none;
+    font: inherit;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--muted-foreground);
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: var(--radius-sm);
+    height: 22px;
+    display: inline-flex;
+    align-items: center;
+  }
+  .hist-btn:hover { color: var(--foreground); background: color-mix(in oklch, var(--foreground) 8%, transparent); }
+  .hist-btn[aria-expanded="true"] { color: var(--primary); border-color: var(--primary); }
+
+  .snap-panel {
+    border-top: 1px solid var(--border);
+    background: var(--sidebar, var(--card));
+    max-height: 220px;
+    overflow: auto;
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+  }
+  .snap-head {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 12px;
+    font-size: var(--text-xs);
+    color: var(--muted-foreground);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    border-bottom: 1px solid var(--border);
+  }
+  .snap-head .snap-count {
+    margin-left: auto;
+    font-family: var(--font-mono);
+    text-transform: none;
+    letter-spacing: 0;
+  }
+  .snap-empty { padding: 12px; text-align: center; color: var(--muted-foreground); font-size: 11px; }
+  .snap-empty.snap-error { color: var(--destructive); }
+  .snap-list { list-style: none; margin: 0; padding: 4px 0; }
+  .snap-row {
+    display: grid;
+    grid-template-columns: 160px 1fr auto auto;
+    gap: 8px;
+    align-items: center;
+    padding: 3px 12px;
+    font-size: 11px;
+    color: var(--foreground);
+  }
+  .snap-row:hover { background: color-mix(in oklch, var(--foreground) 6%, transparent); }
+  .snap-row .snap-ts { font-family: var(--font-mono); color: var(--muted-foreground); }
+  .snap-row .snap-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .snap-row .snap-agent {
+    font-size: 10px;
+    color: var(--muted-foreground);
+    background: var(--muted);
+    padding: 1px 5px;
+    border-radius: var(--radius-sm);
+  }
+  .snap-restore {
+    appearance: none;
+    font: inherit;
+    font-size: 10.5px;
+    padding: 1px 8px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--primary);
+    cursor: pointer;
+  }
+  .snap-restore:hover { background: color-mix(in oklch, var(--primary) 12%, transparent); }
   .save-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
   .editor-pane {
@@ -267,11 +343,45 @@
           {#if compileStatus() === 'errored'}<sui-icon name="alert-triangle" size="sm"></sui-icon> Compile error{/if}
         </span>
       {/if}
+      <button class="hist-btn" type="button"
+        on:click={onOpenSnapshots}
+        title="Snapshot history"
+        aria-label="Snapshot history"
+        aria-expanded={snapshotsOpen() ? 'true' : 'false'}>
+        <sui-icon name="history" size="sm"></sui-icon>
+      </button>
       <button class="save-btn" type="button"
         on:click={onSave}
         disabled={saving() || !isDirty()}
         title="Save (⌘/Ctrl+S)">{saving() ? 'Saving…' : 'Save'}</button>
     </div>
+    {#if snapshotsOpen()}
+      <div class="snap-panel" transition:slide={{ duration: 160 }} part="snapshots">
+        <div class="snap-head">
+          <sui-icon name="history" size="sm"></sui-icon>
+          <span>Snapshot history</span>
+          <span class="snap-count">{snapshots().length}</span>
+        </div>
+        {#if snapshotsLoading()}
+          <div class="snap-empty">Loading…</div>
+        {:else if snapshotsError()}
+          <div class="snap-empty snap-error">{snapshotsError()}</div>
+        {:else if snapshots().length === 0}
+          <div class="snap-empty">No snapshots yet. Every save creates one.</div>
+        {:else}
+          <ul class="snap-list" role="listbox" aria-label="Snapshots">
+            {#for s of snapshots() key={s.snapshot_id}}
+              <li class="snap-row" role="option" data-snap-id={s.snapshot_id}>
+                <span class="snap-ts">{s.timestamp}</span>
+                <span class="snap-label">{s.label || '(unlabeled)'}</span>
+                <span class="snap-agent">{s.agent_id}</span>
+                <button class="snap-restore" type="button" on:click={() => onRestoreSnapshot(s.snapshot_id)} title="Restore this snapshot">Restore</button>
+              </li>
+            {/for}
+          </ul>
+        {/if}
+      </div>
+    {/if}
     <div class="editor-pane">
       <sui-code-editor
         bind:this={editorEl}
