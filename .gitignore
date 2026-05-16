@@ -149,8 +149,11 @@ apps/shipd/assets/ship-elements.js
 apps/shipd/assets/ship-code-editor.js
 apps/shipd/assets/ship-markdown-editor.js
 apps/shipd/assets/ship-terminal.js
+apps/shipd/assets/ship-git.js
 apps/shipd/assets/custom-elements.json
 apps/shipd/assets/ship-elements.md
+apps/docs/public/ship-elements.js
+apps/docs/public/ship-*.js
 # SUI framework + view bundles are generated build outputs, consumed by
 # `cargo build -p shipd` via include_str! in crates/sui/ship-sui-server/src/assets.rs
 # (build.rs panics if missing). NOT tracked — produced on demand by:
