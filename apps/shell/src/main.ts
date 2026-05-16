@@ -737,6 +737,22 @@ initHmr({
 setInterval(() => void updateStatus(), 15000)
 void updateStatus()
 
+// Wire active project name into nav-top so the breadcrumb shows
+// `project / view` per top-nav intent. Refreshes on `project.switched`
+// chrome events so the breadcrumb updates without reload.
+async function syncNavTopProject(): Promise<void> {
+  try {
+    const resp = await fetch('/api/v1/projects/active', { credentials: 'same-origin' })
+    if (!resp.ok) return
+    const body = (await resp.json()) as { active?: { name?: string; label?: string } | null }
+    const name = body.active?.label || body.active?.name || ''
+    const navTop = document.getElementById('ship-nav-top')
+    if (navTop) navTop.setAttribute('project', name)
+  } catch { /* breadcrumb stays without project prefix; no-op */ }
+}
+void syncNavTopProject()
+document.addEventListener('project.switched', () => void syncNavTopProject())
+
 // First-run check: if setup hasn't been completed, rewrite the URL to
 // `/setup` so the wizard takes over. `ensureSetupOrRedirect` returns
 // true when it applied a redirect, in which case the boot route is
