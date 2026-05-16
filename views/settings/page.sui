@@ -39,12 +39,15 @@
             </h2>
           </div>
           <div class="s-section-body">
-            <sui-empty-state icon="palette" tone="muted" size="sm" style="padding: var(--space-4) 0">
-              <span slot="title">Theme lives in the top bar</span>
-              Open the palette icon in the top-right to pick a theme. Every
-              Ship theme bundles a full aesthetic — palette, motion, radii,
-              shadows, typography — not just color.
-            </sui-empty-state>
+            <sui-list-tile density="compact">
+              <span class="s-row-label">Customize design tokens</span>
+              <span slot="meta">Tweak palette, surfaces, motion, typography — overrides ride on top of the active pack.</span>
+              <span slot="trailing" class="s-row-trailing">
+                <sui-link href="/theme-studio" data-test="settings-theme-studio-link">
+                  Open Theme Studio
+                </sui-link>
+              </span>
+            </sui-list-tile>
           </div>
         </sui-card>
 

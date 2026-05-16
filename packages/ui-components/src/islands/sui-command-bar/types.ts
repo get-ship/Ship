@@ -187,6 +187,7 @@ export const SLASH_COMMANDS: SlashCommand[] = [
   { key: 'new',      label: '/new',      hint: 'Scaffold a view, skill, agent, …' },
   { key: 'chats',    label: '/chats',    hint: 'Open Mission Control'              },
   { key: 'settings', label: '/settings', hint: 'Jump to settings'                 },
+  { key: 'theme',    label: '/theme',    hint: 'Open Theme Studio',          handler_kind: 'navigate' },
   { key: 'lint',     label: '/lint',     hint: 'Run lint on the current view'      },
   { key: 'end',      label: '/end',      hint: 'End the current session'           },
   { key: 'close',    label: '/close',    hint: 'Close the command bar'             },
