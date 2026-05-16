@@ -18,6 +18,7 @@ import { shipFetch, gitStatus } from '@ship/sdk'
 import { route as createRoute, defineRoutes } from '@ship/sui-runtime/route'
 import { KernelBridge } from './kernel-bridge'
 import { initHmr } from './hmr'
+import { initProjectSwitch } from './project-switch'
 
 interface MountFn {
   (
@@ -603,6 +604,12 @@ document.addEventListener('ship:launcher:open', () => {
 // which exposes the same imperative surface (`show(mode)`).
 document.addEventListener('ship:create:open', () => {
   getCommandBar()?.show('create')
+})
+
+initProjectSwitch(kernelBridge, {
+  statusBar,
+  remount: () => { if (currentRoute) void mountRoute(currentRoute) },
+  refreshStatus: () => updateStatus(),
 })
 
 document.addEventListener('click', onAnchorClick)

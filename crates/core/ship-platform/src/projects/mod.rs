@@ -30,6 +30,9 @@ use ship_types::payload::{ProjectArchived, ProjectRegistered, ProjectSeen};
 mod init;
 pub use init::{InitWithRegistryResult, init_project, init_project_with_registry};
 
+mod active;
+pub use active::{get_active, get_active_id, switch_to};
+
 #[cfg(test)]
 mod init_tests;
 

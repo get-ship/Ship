@@ -91,6 +91,10 @@ pub const PROJECT_REGISTERED: &str = "project.registered";
 pub const PROJECT_SEEN: &str = "project.seen";
 /// Project registry — user removed the project from their registry.
 pub const PROJECT_ARCHIVED: &str = "project.archived";
+/// Active-project switch. `entity_id` is the newly-active project_id.
+/// Payload carries the new + previous ids so chrome subscribers can
+/// distinguish a no-op set from a true context change.
+pub const PROJECT_SWITCHED: &str = "project.switched";
 
 /// Auth — a daemon session (CLI / MCP / Studio-local) was issued.
 /// `entity_id` is the session token. The auth_sessions projection
@@ -208,6 +212,7 @@ pub const ALL: &[&str] = &[
     PROJECT_REGISTERED,
     PROJECT_SEEN,
     PROJECT_ARCHIVED,
+    PROJECT_SWITCHED,
     AUTH_SESSION_CREATED,
     AUTH_SESSION_REVOKED,
     AUTH_SESSION_EXPIRED,

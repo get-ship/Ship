@@ -111,6 +111,86 @@ pub async fn list_workspace_sessions(
 }
 
 
+/// GET /api/v1/sessions/active-across-projects
+///
+/// Returns the running sessions visible across every project the
+/// daemon knows about, each row labeled with `project_id` + project
+/// `name`. Chrome consumes this to surface "N agents running in other
+/// projects" without forcing it to fan-out per-project queries.
+#[utoipa::path(
+    operation_id = "listSessionsAcrossProjects",
+    get,
+    path = "/api/v1/sessions/active-across-projects",
+    responses(
+        (status = 200, body = MeshResponse),
+        (status = 401, description = "unauthorized", body = crate::wire::ErrorResponse),
+        (status = 500, description = "server error", body = crate::wire::ErrorResponse),
+    ),
+    tag = "runtime"
+)]
+pub async fn list_sessions_across_projects(
+    State(_state): State<ApiState>,
+    Extension(auth): Extension<AuthContext>,
+) -> impl IntoResponse {
+    if let Err(e) = require_scope(&auth, Scope::ReadWorkspace) {
+        return e.into_response();
+    }
+    let sessions = match ship_substrate::db::session_drain::list_active_sessions() {
+        Ok(rows) => rows,
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(MeshResponse {
+                    ok: false,
+                    data: serde_json::json!(e.to_string()),
+                }),
+            )
+                .into_response();
+        }
+    };
+
+    // Index projects so we can attach a display name per session without
+    // hitting the registry on every row.
+    let by_id: std::collections::HashMap<String, ship_platform::projects::ProjectRecord> =
+        ship_platform::projects::list()
+            .unwrap_or_default()
+            .into_iter()
+            .map(|p| (p.id.clone(), p))
+            .collect();
+
+    let data: Vec<serde_json::Value> = sessions
+        .into_iter()
+        .map(|s| {
+            let project_name = s
+                .project_id
+                .as_deref()
+                .and_then(|id| by_id.get(id))
+                .map(|p| p.name.clone());
+            serde_json::json!({
+                "id": s.id,
+                "workspace_id": s.workspace_id,
+                "branch": s.branch,
+                "project_id": s.project_id,
+                "project_name": project_name,
+                "status": s.status,
+                "agent_id": s.agent_id,
+                "started_at": s.started_at,
+                "last_activity_at": s.last_activity_at,
+                "goal": s.goal,
+            })
+        })
+        .collect();
+    (
+        StatusCode::OK,
+        Json(MeshResponse {
+            ok: true,
+            data: serde_json::json!({ "sessions": data }),
+        }),
+    )
+        .into_response()
+}
+
+
 // ── mr-04 follow-up: per-handler submodules ──────────────────────────
 //
 // Each submodule owns one logical chunk of the runtime read API. The
