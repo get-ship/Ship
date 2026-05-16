@@ -1,6 +1,6 @@
 //! Emit the framework manifest as both JSON and TypeScript.
 //!
-//! - `packages/ship-set/sdk/sdk-framework.json` — tooling/agent-prompt
+//! - `packages/sdk/src/generated/sdk-framework.json` — tooling/agent-prompt
 //!   consumption. Sits alongside the other generated SDK artefacts.
 //! - `packages/sdk/src/generated/framework.ts` — typed
 //!   `FrameworkManifest` interface + `FRAMEWORK` const for IDE-side

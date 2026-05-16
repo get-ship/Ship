@@ -254,7 +254,7 @@ fn main() {
             eprintln!("Commands:");
             eprintln!("  gen-types          Regenerate packages/sdk/src/generated.ts");
             eprintln!("  gen-types --check  Verify generated file is up-to-date (CI)");
-            eprintln!("  gen-sdk            Emit packages/ship-set/sdk/*.json");
+            eprintln!("  gen-sdk            Emit packages/sdk/src/generated/sdk-*.json + TS bindings");
             eprintln!("  lint-layers        Verify substrate/platform/application boundaries");
         }
         other => {
