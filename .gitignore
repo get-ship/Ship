@@ -160,9 +160,14 @@ apps/shipd/assets/ship-elements.md
 # `view-host.html` is hand-authored source and stays tracked.
 crates/sui/ship-sui-server/assets/*.js
 crates/sui/ship-sui-server/assets/sui-components/
+crates/sui/ship-sui-server/assets/sui-islands/
 crates/sui/ship-sui-server/assets/views/
 crates/sui/ship-sui-server/assets/lucide-icons.json
 crates/sui/ship-sui-server/assets/sui-custom-elements.json
+# Stale dir retired by islands-rename — bundler now emits to
+# crates/sui/ship-sui-server/assets/ exclusively. Keep ignored in case
+# any stale tooling tries to write here.
+crates/sui/ship-ui-framework/
 
 # Stale sui-* dupes that used to be emitted into apps/shipd/assets/ — the
 # bundle scripts now target crates/sui/ship-sui-server/assets/ exclusively.
