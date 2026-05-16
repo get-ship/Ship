@@ -125,6 +125,15 @@
 .ad-detail-perm-label { font-size: var(--text-xs); color: var(--muted-foreground); min-width: 80px; }
 .ad-detail-path { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--foreground); background: var(--muted); padding: 2px var(--space-2); border-radius: var(--radius-sm); }
 
+.ad-detail-provider-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-2); }
+@media (min-width: 640px) { .ad-detail-provider-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.ad-detail-provider-row { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-md); background: var(--surface-1); min-width: 0; }
+.ad-detail-provider-name-col { display: flex; align-items: center; gap: var(--space-2); flex: 1; min-width: 0; }
+.ad-detail-provider-name { font-size: 12px; font-weight: var(--font-weight-medium); color: var(--foreground); text-transform: capitalize;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ad-detail-provider-sub { display: inline-flex; align-items: center; gap: var(--radius-md); font-size: var(--text-xs); color: var(--muted-foreground); flex-shrink: 0; }
+
 /* ── Picker ── */
 .ad-picker-body { min-width: 320px; max-height: 360px; overflow-y: auto; }
 .ad-picker-list { display: flex; flex-direction: column; gap: 2px; }

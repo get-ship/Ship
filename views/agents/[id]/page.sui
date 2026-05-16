@@ -176,6 +176,33 @@
         </div>
       </section>
 
+      <section class="ad-detail-section" data-test="section-providers">
+        <div class="ad-detail-section-head">
+          <h2 class="ad-detail-section-title"><sui-icon name="sliders" size="sm"></sui-icon>Providers <span class="ad-detail-section-count">{providerList().length}</span></h2>
+        </div>
+        {#if providerList().length === 0}
+          <div class="ad-detail-empty">No providers configured. Add one under <code>agent.providers</code> to run this agent.</div>
+        {:else}
+          <div class="ad-detail-provider-grid">
+            {#for p of providerList() key={p.id}}
+              <div class="ad-detail-provider-row" data-test="provider-row" attr:data-id={p.id}>
+                <sui-provider-blob attr:provider={p.id} size="md" variant="tile" attr:title={p.label}></sui-provider-blob>
+                <div class="ad-detail-provider-name-col">
+                  <span class="ad-detail-provider-name">{p.label}</span>
+                  {#if p.isDefault}
+                    <sui-badge tone="accent" variant="soft" size="sm" data-test="provider-default">default</sui-badge>
+                  {/if}
+                </div>
+                <span class="ad-detail-provider-sub">
+                  <sui-status-dot tone="success" size="sm"></sui-status-dot>
+                  defaults
+                </span>
+              </div>
+            {/for}
+          </div>
+        {/if}
+      </section>
+
       <section class="ad-detail-section ad-detail-meta" data-test="section-meta">
         <div class="ad-detail-section-head">
           <h2 class="ad-detail-section-title"><sui-icon name="info" size="sm"></sui-icon>Source</h2>

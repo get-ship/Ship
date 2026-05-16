@@ -1,19 +1,26 @@
-/* Page-level typography — the view header precedes any ship-card, so the
-   shell container owns font + color context. */
-.agents-view { color: var(--foreground); font-family: var(--font-body); }
+.agents-view {
+  color: var(--foreground);
+  font-family: var(--font-body);
+  /* Containing block — prevents wide card content (long provider names,
+     tags, etc.) from forcing the host viewport to scroll horizontally.
+     The shell's main panel already supplies vertical scroll. */
+  width: 100%;
+  min-width: 0;
+  overflow-x: hidden;
+}
 
-/* Outer wrap. The agents view sits inside the shell's main panel
-   (overflow:auto, no horizontal clip). 1024px clamp + symmetric padding
-   match the React parity. var(--space-6) gives the card hover-shadow
-   room to breathe inside the wrap without touching the scrollbar. */
-.agents-wrap { max-width: 1024px; margin: 0 auto; padding: 32px var(--space-6); }
+.agents-wrap {
+  max-width: 1024px;
+  margin: 0 auto;
+  padding: 32px var(--space-6);
+  box-sizing: border-box;
+  min-width: 0;
+}
 
-/* Title row — display-family heading left, primary CTA right. No
-   ship-element covers a heading-with-subtitle + action layout; kept
-   view-local. */
 .agents-head {
   display: flex; align-items: flex-start; justify-content: space-between;
   gap: var(--space-4); margin-bottom: var(--space-6);
+  min-width: 0;
 }
 .agents-title {
   font-family: var(--heading-font);
@@ -24,7 +31,7 @@
   margin: 0 0 var(--space-1);
   color: var(--foreground);
 }
-.agents-head-titles { position: relative; }
+.agents-head-titles { position: relative; min-width: 0; }
 .agents-head-titles::after {
   content: '';
   display: block;
@@ -36,14 +43,38 @@
 }
 .agents-sub { font-size: 14px; color: var(--muted-foreground); margin: 0; }
 
-/* Grid layout — breakpoints mirror the React parity (1/2/3 cols). */
+/* Grid layout — 1 / 2 / 3 columns. `minmax(0, 1fr)` is the key fix:
+   bare `1fr` resolves to `minmax(auto, 1fr)`, and `auto` lets a track
+   grow past its share if its content's min-content is wider. Long
+   provider names, source paths, or untruncated tags then push the row
+   past the viewport, producing the horizontal-scroll bug. `minmax(0,
+   1fr)` forces each track to honour its share so children with
+   `min-width: 0` actually shrink. */
 .agents-grid {
-  display: grid; grid-template-columns: 1fr; gap: var(--space-3);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-3);
   align-items: stretch;
   grid-auto-rows: 1fr;
+  min-width: 0;
+}
+@media (min-width: 768px) {
+  .agents-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (min-width: 1024px) {
+  .agents-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 
-.agents-card-tile .agents-card-body { display: flex; flex-direction: column; gap: 6px; min-width: 0; flex: 1; }
+/* Grid children must allow shrink below min-content so flex truncation
+   inside the tile (title ellipsis, desc clamp) takes effect. */
+.agents-grid > sui-list-tile { min-width: 0; }
+ship-list-tile.agents-card-tile::part(primary),
+sui-list-tile.agents-card-tile::part(primary) { min-width: 0; }
+
+.agents-card-tile .agents-card-body {
+  display: flex; flex-direction: column; gap: 6px;
+  min-width: 0; flex: 1;
+}
 .agents-card-tile .agents-card-head { min-width: 0; }
 .agents-card-tile .agents-card-title {
   font-weight: var(--font-weight-semibold);
@@ -70,6 +101,7 @@
   gap: 6px;
   font-size: 10.5px;
   color: var(--muted-foreground);
+  flex-wrap: wrap;
 }
 .agents-card-tile .agents-card-sep { color: var(--border); }
 .agents-card-tile .agents-card-providers { min-height: 12px; }
@@ -80,12 +112,6 @@
   flex-wrap: wrap;
   min-height: 22px;
   margin-top: auto;
-}
-@media (min-width: 768px) {
-  .agents-grid { grid-template-columns: repeat(2, 1fr); }
-}
-@media (min-width: 1024px) {
-  .agents-grid { grid-template-columns: repeat(3, 1fr); }
 }
 
 .agents-card-body {
@@ -113,17 +139,15 @@
 .agents-card-stats {
   display: flex; align-items: center; gap: var(--space-2);
   font-size: 10px; color: var(--muted-foreground);
+  flex-wrap: wrap;
 }
 .agents-card-sep { color: var(--border); }
 
 .agents-card-badges {
   display: flex; align-items: center; gap: var(--radius-md);
+  flex-wrap: wrap; margin-top: auto;
 }
 
-ship-list-tile.agents-card-tile::part(primary) { min-width: 0; }
-
-/* Registry-icon leading tile — mirrors ship-avatar[shape=square,
-   size=lg, tone=primary] dimensions. */
 .agents-card-icon-tile {
   display: inline-flex; align-items: center; justify-content: center;
   width: 40px; height: 40px;
@@ -133,7 +157,7 @@ ship-list-tile.agents-card-tile::part(primary) { min-width: 0; }
   flex-shrink: 0;
   font-weight: var(--font-weight-semibold);
 }
-.agents-card-icon-tile ship-icon { width: 20px; height: 20px; }
+.agents-card-icon-tile sui-icon { width: 20px; height: 20px; }
 .agents-card-letter {
   font-size: 18px;
   line-height: 1;
@@ -151,6 +175,7 @@ ship-list-tile.agents-card-tile::part(primary) { min-width: 0; }
   border-radius: var(--radius-md);
   background: var(--card);
   min-height: 120px;
+  min-width: 0;
 }
 .agents-skel-icon { width: 40px; height: 40px; border-radius: var(--radius-sm); flex-shrink: 0; }
 .agents-skel-body { display: flex; flex-direction: column; gap: 8px; flex: 1; min-width: 0; }
@@ -159,9 +184,8 @@ ship-list-tile.agents-card-tile::part(primary) { min-width: 0; }
 .agents-card-providers {
   display: inline-flex; align-items: center; gap: 4px;
   margin-top: 2px;
+  flex-wrap: wrap;
 }
-
-.agents-card-badges { flex-wrap: wrap; margin-top: auto; }
 
 .agents-empty-code {
   font-family: var(--font-mono);
