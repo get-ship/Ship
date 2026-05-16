@@ -320,6 +320,97 @@ export function effect(fn: () => void | (() => void)): () => void {
 }
 
 /**
+ * Membership selector — a derived-shaped accessor returning whether
+ * `key` matches `source()`'s current value. The point: when the
+ * source changes, only the two affected buckets (the OLD value and
+ * the NEW value) re-notify their subscribers. Other keys are left
+ * alone — no re-evaluation, no DOM thrash.
+ *
+ * The Krausest motivation: SUI's bench has
+ *
+ *   class:danger={row.id === selected()}
+ *
+ * For 1000 rows this puts 1000 effects in `selected`'s subscriber
+ * set; a `selected.set(newId)` notifies all 1000, every one
+ * re-evaluates the comparison. The framework matches Solid on the
+ * 04_select1k microbench by sheer effect speed, but the pattern
+ * scales linearly with row count — a thousand effects becoming a
+ * million on a real grid.
+ *
+ * With `selector`:
+ *
+ *   const isSelected = selector(selected)
+ *   // template: class:danger={isSelected(row.id)}
+ *
+ * Each row's effect subscribes to its OWN per-id bucket inside the
+ * selector. `selected.set(newId)` notifies only the previously-
+ * selected row's bucket and the newly-selected row's bucket — two
+ * effects fire, not a thousand.
+ *
+ * Implementation: one ambient effect subscribes to `source`, tracks
+ * its current value, and on change re-notifies the affected buckets
+ * via the batch-aware `PENDING`/synchronous path. Per-call accessor
+ * registers the current observer in the bucket for `key`, and
+ * untracks on observer re-run (same lifecycle as `signal()`'s
+ * `track`).
+ *
+ * @example
+ * ```ts
+ * const selected = signal<string | null>(null)
+ * const isSelected = selector(selected)
+ *
+ * for (const item of items()) {
+ *   effect(() => {
+ *     // re-runs only when item.id's selection membership flips,
+ *     // not when ANY other item is selected/deselected.
+ *     if (isSelected(item.id)) console.log('me!')
+ *   })
+ * }
+ * ```
+ */
+export function selector<T>(source: Signal<T>): (key: T) => boolean {
+  const buckets = new Map<T, Set<Subscriber>>()
+  let current = source.__peek()
+  // Single ambient effect subscribes to source. On change, notify
+  // exactly the two affected buckets (old + new) and advance current.
+  effect(() => {
+    const next = source()
+    if (Object.is(next, current)) return
+    notifyBucket(buckets.get(current))
+    notifyBucket(buckets.get(next))
+    current = next
+  })
+  return (key: T): boolean => {
+    if (CURRENT_OBSERVER !== null) {
+      let bucket = buckets.get(key)
+      if (!bucket) {
+        bucket = new Set()
+        buckets.set(key, bucket)
+      }
+      const obs = CURRENT_OBSERVER
+      if (!bucket.has(obs)) {
+        bucket.add(obs)
+        if (CURRENT_UNTRACKS !== null) {
+          CURRENT_UNTRACKS.push(() => bucket!.delete(obs))
+        }
+      }
+    }
+    return Object.is(key, current)
+  }
+}
+
+function notifyBucket(set: Set<Subscriber> | undefined): void {
+  if (!set || set.size === 0) return
+  if (BATCH_DEPTH > 0) {
+    for (const s of set) PENDING.add(s)
+  } else {
+    // Snapshot — re-entrant unsubscribes during notify mustn't
+    // disturb iteration.
+    for (const s of [...set]) s()
+  }
+}
+
+/**
  * Group multiple signal writes into one notification cycle. Subscribers
  * are queued during `fn` and flushed exactly once when the outermost
  * `batch` returns.

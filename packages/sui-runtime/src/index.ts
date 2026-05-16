@@ -31,7 +31,7 @@
  * @packageDocumentation
  */
 
-export { signal, derived, effect, batch, untrack } from './signal'
+export { signal, derived, effect, batch, untrack, selector } from './signal'
 export type { Signal, Derived } from './signal'
 
 export {
