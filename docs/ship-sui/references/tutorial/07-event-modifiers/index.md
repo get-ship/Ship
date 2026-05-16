@@ -1,6 +1,6 @@
 ---
 title: "Event modifiers"
-description: "preventDefault, stopPropagation, once, key filters."
+description: "preventDefault, stopPropagation, key filters, debounce."
 group: "Tutorial"
 order: 7
 slug: "07-event-modifiers"
@@ -10,41 +10,42 @@ chapter: "templating"
 ---
 
 `on:event` attributes accept pipe-separated modifiers that tweak how
-the handler is registered or what it receives — saving you a line of
+the handler runs or what it receives — saving you a line of
 `e.preventDefault()` and friends inside every handler body.
 
 ```sui
 <form on:submit|preventDefault={handle}>…</form>
-<button on:click|once={initOnce}>Init</button>
 <div on:click|stopPropagation={onCardClick}>…</div>
-<input on:keydown|enter={submit} />
+<div on:click|self={() => dismiss()}>…</div>
+<input on:keydown|key:Enter={submit} />
 ```
 
 The modifiers SUI ships out of the box:
 
 | Modifier | What it does |
 |---|---|
-| `preventDefault` | Calls `e.preventDefault()` before your handler runs |
-| `stopPropagation` | Calls `e.stopPropagation()` before your handler runs |
-| `once` | Removes the listener after the first dispatch |
-| `capture` | Registers the listener in capture phase |
-| `passive` | Registers the listener as passive (touch/scroll perf) |
-| `self` | Only fires when `e.target === currentTarget` |
-| `enter` / `escape` / `tab` / `space` | Key filters on `keydown` / `keyup` / `keypress` |
+| `preventDefault` (or `prevent`) | Calls `e.preventDefault()` before your handler runs |
+| `stopPropagation` (or `stop`) | Calls `e.stopPropagation()` before your handler runs |
+| `stopImmediatePropagation` | Same, and skips remaining listeners on this element |
+| `self` | Only fires when `e.target === e.currentTarget` |
+| `trusted` | Only fires when `e.isTrusted` (real user input, not scripted) |
+| `key:<KeyName>` | Filters keyboard events to a specific `e.key` value |
+| `debounce:<ms>` | Trailing-edge debounce; suppresses calls within the window |
+| `throttle:<ms>` | Leading-edge throttle; one call per window |
 
-Modifiers compose: `on:click|preventDefault|once|stopPropagation`
-gives you all three. They're checked at compile time — typos like
+Modifiers compose: `on:click|preventDefault|stopPropagation` gives
+you both. They're parsed at compile time — typos like
 `on:click|prevenDefault` are a compile error, not a silent no-op.
 
 ## Try it
 
-The chat input fires on Enter via `on:keydown|enter`. Try:
+The chat input fires on Enter via `on:keydown|key:Enter`. Try:
 
-1. **Click-outside to dismiss.** The "edit" button reveals an inline
-   text box. Wrap the outer card in `on:click|self={() => dismiss()}`
-   so clicking the card (but not its children) closes the editor.
-2. **One-shot init.** Add an `on:click|once={firstAction}` button that
-   only fires once. Click it twice — the second click should do
-   nothing (and the button should visibly disable).
-3. **Escape closes.** Add `on:keydown|escape={dismiss}` on the edit
-   input so pressing escape exits without saving.
+1. **Click-outside to dismiss.** The starter has an outer card; wrap
+   it in `on:click|self={() => dismiss()}` so clicking the card
+   (but not its children) clears the draft.
+2. **Escape closes too.** Add `on:keydown|key:Escape={() => dismiss()}`
+   on the input so pressing escape exits without saving.
+3. **Debounce a search.** Add `on:input|debounce:250={onSearch}` to
+   another input — observe that rapid typing only fires `onSearch`
+   once the user pauses for 250ms.

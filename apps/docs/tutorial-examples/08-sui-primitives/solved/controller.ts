@@ -5,9 +5,10 @@ export default controller<Scope>({
   scope: () => {
     const errorRate = signal(2.3)
     const alarming = derived(() => errorRate() > 5)
+    const rateText = derived(() => errorRate().toFixed(1))
 
     return {
-      errorRate, alarming,
+      errorRate, alarming, rateText,
       bumpRate: (n: number): void => errorRate.set(Math.max(0, errorRate() + n)),
       reset: (): void => errorRate.set(0),
     }

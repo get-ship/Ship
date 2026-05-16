@@ -5,7 +5,7 @@
     <h3 style="margin: 0 0 8px;">request rate</h3>
     <sui-stat tone={alarming() ? 'destructive' : 'default'} size="lg">
       <span slot="label">errors / sec</span>
-      {errorRate().toFixed(1)}
+      {rateText()}
       <span slot="hint">over the last 60s</span>
     </sui-stat>
 
@@ -22,7 +22,7 @@
     {#if alarming()}
       <sui-alert tone="destructive">
         <span slot="title">rate limit exceeded</span>
-        error rate is {errorRate().toFixed(1)}/s — investigate upstream.
+        error rate is {rateText()}/s — investigate upstream.
       </sui-alert>
     {/if}
 

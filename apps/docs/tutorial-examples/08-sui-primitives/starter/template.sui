@@ -5,7 +5,7 @@
     <h3 style="margin: 0 0 8px;">request rate</h3>
     <sui-stat tone="default" size="lg">
       <span slot="label">errors / sec</span>
-      {errorRate().toFixed(1)}
+      {rateText()}
       <span slot="hint">over the last 60s</span>
     </sui-stat>
 
