@@ -20,7 +20,7 @@ import { SHELL2_URL, skipUnlessShell2 } from './_shell2'
 // the rest are direct-route views without a rail entry.
 const VIEWS = [
   'home', 'agents', 'skills', 'collections', 'artifacts', 'workspaces',
-  'settings', 'ship-ui-studio', 'dashboard', 'overview', 'sessions',
+  'settings', 'ship-ui-studio', 'sessions',
   'chat', 'mesh', 'events', 'git', 'canvas', 'specs', 'pipelines',
   'pipelines-board', 'theme-studio', 'setup',
 ] as const
