@@ -1,16 +1,16 @@
 ---
-// Custom SiteTitle. Theme-aware <ship-mark> web component (registered by
-// /ship-elements.js loaded in head). Image fallback inside the element shows
+// Custom SiteTitle. Theme-aware <sui-mark> web component (registered by
+// /sui-components.js loaded in head). Image fallback inside the element shows
 // before custom-element upgrade and is hidden by shadow DOM after upgrade
-// (since ship-mark renders no <slot>). The "Private Beta" badge lives on the
+// (since sui-mark renders no <slot>). The "Private Beta" badge lives on the
 // right side of the nav (see Header.astro), not here.
 import logo from "../assets/logo.svg";
 ---
 
 <a href="/" class="site-title">
-  <ship-mark size="md" aria-hidden="true">
+  <sui-mark size="md" aria-hidden="true">
     <img src={logo.src} alt="" class="site-mark-fallback" />
-  </ship-mark>
+  </sui-mark>
   <span class="site-title-text">SHIP</span>
 </a>
 
@@ -24,7 +24,7 @@ import logo from "../assets/logo.svg";
     font-weight: 700;
     line-height: 1;
   }
-  .site-title ship-mark {
+  .site-title sui-mark {
     width: 28px;
     height: 28px;
     flex: none;

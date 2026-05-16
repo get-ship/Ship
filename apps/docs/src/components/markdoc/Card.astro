@@ -1,15 +1,15 @@
 ---
 const { title, icon } = Astro.props;
 ---
-<div class="ship-card">
-  <div class="ship-card-title">
-    {icon && <span class="ship-card-icon">{icon}</span>}{title}
+<div class="md-card">
+  <div class="md-card-title">
+    {icon && <span class="md-card-icon">{icon}</span>}{title}
   </div>
-  <div class="ship-card-body"><slot /></div>
+  <div class="md-card-body"><slot /></div>
 </div>
 
 <style>
-  .ship-card {
+  .md-card {
     background: var(--sl-color-gray-6);
     border: 1px solid var(--sl-color-gray-5);
     border-radius: 0.5rem;
@@ -19,25 +19,25 @@ const { title, icon } = Astro.props;
     display: flex;
     flex-direction: column;
   }
-  .ship-card:hover {
+  .md-card:hover {
     border-color: var(--sl-color-accent);
   }
-  .ship-card-title {
+  .md-card-title {
     font-weight: 700;
     font-size: 0.95rem;
     margin-bottom: 0.5rem;
     color: var(--sl-color-white);
   }
-  .ship-card-icon {
+  .md-card-icon {
     margin-right: 0.5rem;
     font-size: 1.2rem;
   }
-  .ship-card-body {
+  .md-card-body {
     font-size: 0.85rem;
     color: var(--sl-color-gray-2);
     flex: 1;
   }
-  .ship-card-body :global(p) {
+  .md-card-body :global(p) {
     margin: 0;
   }
 </style>
