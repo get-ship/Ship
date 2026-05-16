@@ -46,10 +46,13 @@ interface PanelDock extends HTMLElement {
 }
 
 // VA_TABS — what the dock surfaces when edit mode is on for the current view.
-// Terminal is intentionally last; it inherits the same render state as the
-// default-mode terminal (currently empty, F-002 in the same QA run).
+// `source` is the SAME tab in the same position regardless of mode (per user
+// feedback); the explorer-style sui-devtools-source works for view + edit
+// (it now serves the active view's file tree + single editor either way).
+// `components`, `activity`, `compile` slot the VA-only surfaces; `terminal`
+// closes out the tab strip.
 const VA_TABS: DockTabDef[] = [
-  { id: 'va-source',     label: 'Source',     icon: 'file-code', badge: 'EDIT' },
+  { id: 'source',        label: 'Source',     icon: 'file-code', badge: 'EDIT' },
   { id: 'va-components', label: 'Components', icon: 'package' },
   { id: 'va-activity',   label: 'Activity',   icon: 'activity', live: true },
   { id: 'va-compile',    label: 'Compile',    icon: 'check-circle-2' },
@@ -124,14 +127,16 @@ function ensureVaSlots(view: string): void {
   const dock = getDock()
   if (!dock) return
   for (const tab of VA_TABS) {
-    if (tab.id === 'terminal') continue
+    // `terminal` is supplied by the dock controller; `source` is
+    // the same sui-devtools-source from default mode and is already
+    // slotted by the shell, so VA enter shouldn't try to re-mount it.
+    if (tab.id === 'terminal' || tab.id === 'source') continue
     if (dock.querySelector(`:scope > [slot="${tab.id}"]`)) {
       const existing = dock.querySelector(`:scope > [slot="${tab.id}"]`) as HTMLElement
       existing.setAttribute('view', view)
       continue
     }
     const tagFor: Record<string, string> = {
-      'va-source':     'sui-va-source',
       'va-components': 'sui-va-components',
       'va-activity':   'sui-va-activity',
       'va-compile':    'sui-va-compile',
@@ -178,7 +183,7 @@ function applyEditMode(on: boolean): void {
     dock.setAttribute('edit-mode-on', '')
     dock.tabs = VA_TABS
     // Activate Source tab by default so the user lands in the editor.
-    dock.activate('va-source')
+    dock.activate('source')
     dock.show()
     document.body.classList.add('edit-mode')
     ensurePinLayer().removeAttribute('hidden')

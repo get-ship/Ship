@@ -279,7 +279,6 @@
         <span>{editModeOn() ? 'Editing' : 'Edit'}</span>
       </button>
     {/if}
-    <button class="tool" type="button" aria-label="Clear" title="Clear" data-action="clear" on:click={onClear}><sui-icon name="refresh-cw" size="sm"></sui-icon></button>
     <button class="tool" type="button" aria-label="Pop out" title="Pop out" data-action="popout" on:click={onPopout}><sui-icon name="maximize" size="sm"></sui-icon></button>
     <button class="tool" type="button" aria-label="Close panel" title="Close (⌘J)" data-action="close" on:click={onClose}><sui-icon name="x" size="sm"></sui-icon></button>
   </span>

@@ -23,7 +23,6 @@ import { initProjectSwitch } from './project-switch'
 import { initChromeRegistry } from './chrome/registry'
 import { initEditModeChrome, setEditModeView, toggleEditMode } from './chrome/edit-mode'
 import { ensureSetupOrRedirect } from './setup-wizard'
-import { initViewMocks } from './mocks'
 
 interface MountFn {
   (
@@ -718,9 +717,10 @@ document.addEventListener('sui:navigate', (e: Event) => {
 })
 
 initChromeRegistry()
-// View-authoring MCP stubs. Delete this call (and the `mocks/` dir)
-// once `job/view-authoring-backend` ships the real MCP surface.
-initViewMocks()
+// View-authoring chrome — installs the real __viewMcp + edit-mode
+// signal wiring. The prior initViewMocks() + mocks/ dir was deleted
+// when the backend (view_edit_tool_api) shipped — its leftover
+// setInterval was firing a fake annotation every 5s.
 initEditModeChrome()
 initShipApi()
 initRail()
