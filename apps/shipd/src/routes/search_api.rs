@@ -146,13 +146,13 @@ fn snapshot_views() -> Vec<ViewSnapshot> {
             if !entry.file_type().map(|t| t.is_dir()).unwrap_or(false) { continue }
             let name = entry.file_name().to_string_lossy().to_string();
             if !seen.insert(name.clone()) { continue }
-            // Pull the rail label as the searchable "description" — the
-            // manifest schema doesn't carry a free-text description today,
-            // and the rail label is the closest human-readable string.
-            let description = read_raw_manifest(&entry.path())
-                .and_then(|m| m.rail)
-                .and_then(|r| r.label);
-            out.push(ViewSnapshot { name, description });
+            // Pull rail.label as the searchable "description" + rail.icon
+            // so cmdk find-mode shows each view's actual icon (not the
+            // generic app-window fallback).
+            let rail = read_raw_manifest(&entry.path()).and_then(|m| m.rail);
+            let description = rail.as_ref().and_then(|r| r.label.clone());
+            let icon = rail.and_then(|r| r.icon);
+            out.push(ViewSnapshot { name, description, icon });
         }
     }
     out

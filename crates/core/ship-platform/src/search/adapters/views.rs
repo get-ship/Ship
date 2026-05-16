@@ -14,6 +14,10 @@ use crate::search::types::{EntityKind, EntityKindFilter, SearchHit, SearchOpts};
 pub struct ViewSnapshot {
     pub name: String,
     pub description: Option<String>,
+    /// Per-view icon from the manifest (rail.icon). Surfaces in cmdk
+    /// find-mode so each view shows its proper icon instead of every
+    /// hit getting the generic `app-window` fallback.
+    pub icon: Option<String>,
 }
 
 pub struct ViewsAdapter {
@@ -41,7 +45,7 @@ impl EntitySearchAdapter for ViewsAdapter {
                     id: v.name.clone(),
                     label: v.name.clone(),
                     path: format!("/{}", v.name),
-                    icon: Some("app-window".into()),
+                    icon: Some(v.icon.clone().unwrap_or_else(|| "app-window".into())),
                     snippet: v.description.clone(),
                     score,
                 }))

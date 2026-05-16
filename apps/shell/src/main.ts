@@ -168,7 +168,12 @@ interface Route {
 // dashboard. Pre-shift this returned `{ view: 'dashboard' }`.
 function readRoute(): Route | null {
   const segs = location.pathname.split('/').filter(Boolean)
-  if (segs.length === 0) return { view: 'agents' }
+  // `/` is home — the brand mark in nav-top links here. No separate
+  // /home URL needed; the home view is mounted at the root path.
+  if (segs.length === 0) return { view: 'home' }
+  // Legacy `/home` URLs (and the redirect from the daemon) still need
+  // to map to the home view, just rendered at the same surface.
+  if (segs[0] === 'home' && segs.length === 1) return { view: 'home' }
   return { view: segs[0]!, ...(segs.length > 1 ? { sub: segs.slice(1).join('/') } : {}) }
 }
 
@@ -374,7 +379,8 @@ function onAnchorClick(e: MouseEvent): void {
 
 function readRouteFromUrl(pathname: string): Route | null {
   const segs = pathname.split('/').filter(Boolean)
-  if (segs.length === 0) return { view: 'agents' }
+  if (segs.length === 0) return { view: 'home' }
+  if (segs[0] === 'home' && segs.length === 1) return { view: 'home' }
   return { view: segs[0]!, ...(segs.length > 1 ? { sub: segs.slice(1).join('/') } : {}) }
 }
 
@@ -738,13 +744,9 @@ void updateStatus()
 ensureSetupOrRedirect()
 const initial = readRoute()
 if (initial) {
-  // Bare `/` resolves to the agents view; rewrite the URL so the rail
-  // (which derives the active item from `location.pathname`) can
-  // highlight Agents on first paint. Use replaceState so back-button
-  // history doesn't pick up the synthetic redirect.
-  if (location.pathname === '/' || location.pathname === '') {
-    history.replaceState({}, '', '/' + initial.view)
-  }
+  // `/` IS home — keep the URL bare. The rail no longer carries a
+  // separate Home item (the brand mark in nav-top is the home affordance),
+  // so there's no rail-tile to highlight for the home route.
   void mountRoute(initial)
 } else {
   const slot = document.getElementById('ship-content')
