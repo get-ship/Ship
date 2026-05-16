@@ -18,6 +18,7 @@ use std::collections::BTreeSet;
 pub mod bindings;
 pub mod directives;
 pub mod for_uses_row;
+pub mod row_field_uses;
 pub mod template;
 
 #[derive(Debug, Clone, Default)]

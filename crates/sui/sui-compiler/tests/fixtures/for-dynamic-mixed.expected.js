@@ -29,7 +29,7 @@ __e6.appendChild(__t7);
 __t7.textContent = ($scope.row.label);
 __e5.appendChild(__e6);
 __frag3.appendChild(__e5);
-      return { nodes: Array.from(__frag3.childNodes), cleanup: () => { for (const c of __c4) try { c(); } catch (e) {} }, update: (__new8, __newI9) => { $scope.row = __new8; $scope.__i = __newI9; __t7.textContent = ($scope.row.label); $scope.__v.set(c => c + 1); } };
+      return { nodes: Array.from(__frag3.childNodes), cleanup: () => { for (const c of __c4) try { c(); } catch (e) {} }, update: (__new8, __newI9) => { const __old = $scope.row; $scope.row = __new8; $scope.__i = __newI9; if (__old.label !== $scope.row.label) { __t7.textContent = ($scope.row.label); } $scope.__v.set(c => c + 1); } };
     })(__childScope2);
   },
 });

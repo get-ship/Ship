@@ -28,7 +28,7 @@ const __t8 = document.createTextNode("cell");
 __e7.appendChild(__t8);
 __e5.appendChild(__e7);
 __frag3.appendChild(__e5);
-      return { nodes: Array.from(__frag3.childNodes), cleanup: () => { for (const c of __c4) try { c(); } catch (e) {} }, update: (__new9, __newI10) => { $scope.row = __new9; $scope.__i = __newI10; { const __av6 = ($scope.row.id); if (__av6 == null || __av6 === false || __av6 === "") __e5.removeAttribute("id"); else __e5.setAttribute("id", __av6 === true ? "" : String(__av6)); } $scope.__v.set(c => c + 1); } };
+      return { nodes: Array.from(__frag3.childNodes), cleanup: () => { for (const c of __c4) try { c(); } catch (e) {} }, update: (__new9, __newI10) => { const __old = $scope.row; $scope.row = __new9; $scope.__i = __newI10; if (__old.id !== $scope.row.id) { { const __av6 = ($scope.row.id); if (__av6 == null || __av6 === false || __av6 === "") __e5.removeAttribute("id"); else __e5.setAttribute("id", __av6 === true ? "" : String(__av6)); } } $scope.__v.set(c => c + 1); } };
     })(__childScope2);
   },
 });

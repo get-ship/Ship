@@ -92,13 +92,28 @@ pub struct TemplateEmitter {
     /// When set, reactive binding closures void-read `$scope.__v` to
     /// track the per-row version signal and re-run when `update` fires.
     pub(super) for_in_scope: bool,
+    /// The row binder of the innermost enclosing `{#for}`. Used by
+    /// per-field diff gating to attribute `<row>.<field>` reads in
+    /// inline-update statements to a specific row binder. None when
+    /// not inside any for-loop body.
+    pub(super) for_var_name: Option<String>,
+    /// The index binder of the innermost enclosing `{#for}` (default
+    /// `__i`, or whatever the author named it). An inline-update stmt
+    /// that references the index can't be gated on row-field diffs —
+    /// the index may have shifted while every row field stayed put —
+    /// so a hit here escalates the row-use to `Whole` (always re-fire).
+    pub(super) for_idx_name: Option<String>,
     /// D5: statements that re-execute an inlined static assignment
     /// (`__t.textContent = $scope.row.label;`, …). Accumulated while
     /// emitting the current `{#for}` row body; spliced into that for's
     /// `update()` callback so keyed-row reuse refreshes the inlined
-    /// DOM. `emit_for` saves/restores this list around its body walk
-    /// to scope it per for-loop.
-    pub(super) inline_update_stmts: Vec<String>,
+    /// DOM. Each entry carries the row-field usage of its source
+    /// expression so the for-emitter can wrap mutually-independent
+    /// stmts in per-field `if (oldRow.f !== newRow.f) {…}` guards —
+    /// the bench's `update` (label-only changes) saves ~3 writes per
+    /// row by skipping id-bound stmts entirely. `emit_for` saves /
+    /// restores this list around its body walk to scope it per for-loop.
+    pub(super) inline_update_stmts: Vec<(String, crate::lower::row_field_uses::RowUse)>,
     /// Depth into an `<svg>` subtree. Bumped by `emit_element` around
     /// its child walk when the tag is `svg` (or already inside one).
     /// While > 0, `emit_element` emits `createElementNS(SVG_NS, tag)`
@@ -123,6 +138,8 @@ impl TemplateEmitter {
             keys: KeyAllocator::default(),
             is_view,
             for_in_scope: false,
+            for_var_name: None,
+            for_idx_name: None,
             inline_update_stmts: Vec::new(),
             svg_depth: 0,
         }
@@ -171,6 +188,33 @@ impl TemplateEmitter {
     /// Used as a leading statement inside `effect(() => { … })` bodies.
     pub(super) fn for_version_stmt(&self) -> &'static str {
         if self.for_in_scope { "void $scope.__v(); " } else { "" }
+    }
+
+    /// Classify how `source` references the current `{#for}` row
+    /// binder, for per-field diff gating in the for's `update()` body.
+    /// Returns `RowUse::None` when not inside a for-loop (gating
+    /// doesn't apply outside).
+    ///
+    /// Index reads escalate to `Whole`: a `__i % 2 === 0` class
+    /// binding has no row-field dep at all, but the index may still
+    /// have shifted on reorder, so the stmt must re-fire — gating it
+    /// would leave stale DOM after a swap.
+    pub(super) fn row_use_for_source(
+        &self,
+        source: &str,
+    ) -> crate::lower::row_field_uses::RowUse {
+        let var = match &self.for_var_name {
+            Some(v) => v,
+            None => return crate::lower::row_field_uses::RowUse::None,
+        };
+        let base = crate::lower::row_field_uses::analyze_source(source, var);
+        if let Some(idx) = &self.for_idx_name
+            && crate::lower::row_field_uses::analyze_source(source, idx)
+                != crate::lower::row_field_uses::RowUse::None
+        {
+            return crate::lower::row_field_uses::RowUse::Whole;
+        }
+        base
     }
 
     /// D5: classify a binding-expression source as "static enough to
@@ -259,7 +303,8 @@ impl TemplateEmitter {
                     // the DOM when the row instance changes.
                     let stmt = format!("{v}.textContent = ({rw});");
                     w.line(&stmt);
-                    self.inline_update_stmts.push(stmt);
+                    let use_ = self.row_use_for_source(&expr.source);
+                    self.inline_update_stmts.push((stmt, use_));
                 } else {
                     let fv = self.for_version_comma();
                     w.line(&format!(

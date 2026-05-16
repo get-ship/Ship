@@ -26,6 +26,144 @@ use super::super::writer::{js_string, Writer};
 use super::TemplateEmitter;
 use crate::ir::*;
 use crate::lower::for_uses_row::body_references_for_vars;
+use crate::lower::row_field_uses::RowUse;
+
+/// Partition the for-loop's inline-update statements into per-field
+/// diff-guarded groups. Returns:
+///
+/// - `(Some(body), _)` when every stmt's row-use is `FieldsOnly` or
+///   `None`. Body groups stmts by their (sorted) field set and wraps
+///   each group in `if (__old.f !== $scope.var.f) {…}`. `None` stmts
+///   are dropped entirely from `update()` — a constant expression's
+///   textContent assignment is idempotent and never needs re-firing.
+/// - `(None, body)` when any stmt uses the row in a non-decomposable
+///   shape (`row` bare, `row[…]`, `row?.id`, spread, fn-call arg) —
+///   we can't prove a particular field change is sufficient, so the
+///   for-emitter falls back to the unguarded join (always re-fire).
+///
+/// The bench's hot path matches the gated arm: every D5 inline stmt
+/// reads `row.id` or `row.label` cleanly, so the bench's
+/// `update()`-every-10th-row benchmark skips the id-bound textContent
+/// and setAttribute calls when the id is unchanged.
+pub(super) fn partition_inline_updates(
+    updates: &[(String, RowUse)],
+    var: &str,
+) -> (Option<String>, String) {
+    let fallback = updates
+        .iter()
+        .map(|(s, _)| s.as_str())
+        .collect::<Vec<_>>()
+        .join(" ");
+
+    if updates.iter().any(|(_, u)| matches!(u, RowUse::Whole)) {
+        return (None, fallback);
+    }
+
+    // Group stmts by their sorted field set. `None`-row stmts (constants
+    // like `{42}` that classify as static-row-expr but don't touch the
+    // row binder) are dropped — they're idempotent on update.
+    let mut groups: Vec<(Vec<String>, Vec<&str>)> = Vec::new();
+    for (stmt, use_) in updates {
+        match use_ {
+            RowUse::None => continue,
+            RowUse::Whole => unreachable!("filtered above"),
+            RowUse::FieldsOnly(fs) => {
+                let mut key = fs.clone();
+                key.sort();
+                if let Some(slot) = groups.iter_mut().find(|(k, _)| k == &key) {
+                    slot.1.push(stmt.as_str());
+                } else {
+                    groups.push((key, vec![stmt.as_str()]));
+                }
+            }
+        }
+    }
+
+    if groups.is_empty() {
+        // All stmts were None-row constants. Nothing to re-fire in update().
+        return (Some(String::new()), fallback);
+    }
+
+    let body = groups
+        .into_iter()
+        .map(|(fields, stmts)| {
+            let cond = fields
+                .iter()
+                .map(|f| format!("__old.{f} !== $scope.{var}.{f}"))
+                .collect::<Vec<_>>()
+                .join(" || ");
+            let stmts_joined = stmts.join(" ");
+            format!("if ({cond}) {{ {stmts_joined} }}")
+        })
+        .collect::<Vec<_>>()
+        .join(" ");
+    (Some(body), fallback)
+}
+
+#[cfg(test)]
+mod partition_tests {
+    use super::*;
+
+    #[test]
+    fn whole_row_falls_back() {
+        let u = vec![
+            (
+                "t1".into(),
+                RowUse::FieldsOnly(vec!["id".into()]),
+            ),
+            ("t2".into(), RowUse::Whole),
+        ];
+        let (gated, fallback) = partition_inline_updates(&u, "row");
+        assert!(gated.is_none());
+        assert!(fallback.contains("t1") && fallback.contains("t2"));
+    }
+
+    #[test]
+    fn fields_only_groups_by_field_set() {
+        let u = vec![
+            ("set_id_text".into(), RowUse::FieldsOnly(vec!["id".into()])),
+            (
+                "set_label_text".into(),
+                RowUse::FieldsOnly(vec!["label".into()]),
+            ),
+            (
+                "set_id_attr".into(),
+                RowUse::FieldsOnly(vec!["id".into()]),
+            ),
+        ];
+        let (gated, _) = partition_inline_updates(&u, "row");
+        let body = gated.unwrap();
+        // id-group fires id stmts together
+        assert!(body.contains("__old.id !== $scope.row.id"));
+        assert!(body.contains("__old.label !== $scope.row.label"));
+        // id stmts share their guard
+        let id_section = body
+            .split("__old.id !== $scope.row.id")
+            .nth(1)
+            .unwrap_or("");
+        assert!(id_section.contains("set_id_text"));
+        assert!(id_section.contains("set_id_attr"));
+    }
+
+    #[test]
+    fn multi_field_stmt_disjunction() {
+        let u = vec![(
+            "concat".into(),
+            RowUse::FieldsOnly(vec!["id".into(), "label".into()]),
+        )];
+        let body = partition_inline_updates(&u, "row").0.unwrap();
+        assert!(body.contains("__old.id !== $scope.row.id || __old.label !== $scope.row.label"));
+    }
+
+    #[test]
+    fn none_stmts_dropped() {
+        // A `{42}` constant inside a for body classifies as None.
+        // It's idempotent on update — never needs re-firing.
+        let u = vec![("set_const".into(), RowUse::None)];
+        let body = partition_inline_updates(&u, "row").0.unwrap();
+        assert!(body.is_empty());
+    }
+}
 
 impl TemplateEmitter {
     pub(in crate::emit) fn emit_if(
@@ -183,11 +321,18 @@ impl TemplateEmitter {
         let hoist_snapshot = self.boundary_hoists.len();
         self.boundary_depth += 1;
         let outer_for = std::mem::replace(&mut self.for_in_scope, body_needs_v);
+        let outer_var = std::mem::replace(&mut self.for_var_name, Some(var.clone()));
+        let outer_idx = std::mem::replace(
+            &mut self.for_idx_name,
+            Some(idx_name.to_string()),
+        );
         // D5: scope inline-update statements per for-loop so a nested
         // for inside this one collects into its own bucket, not ours.
         let outer_inline = std::mem::take(&mut self.inline_update_stmts);
         self.emit_children(&mut body_w, &instr.body, &frag, &cl);
         self.for_in_scope = outer_for;
+        self.for_var_name = outer_var;
+        self.for_idx_name = outer_idx;
         let inline_updates = std::mem::replace(&mut self.inline_update_stmts, outer_inline);
         self.boundary_depth -= 1;
         let captured_hoists = self.boundary_hoists.split_off_from(hoist_snapshot);
@@ -205,14 +350,40 @@ impl TemplateEmitter {
             // so keyed-row reuse refreshes the DOM when bindFor
             // reassigns the row instance. `__v.set` only fires when a
             // reactive binding (a `()` call in source) is present.
-            let inline_run = inline_updates.join(" ");
+            //
+            // Per-field diff gating: when every inline stmt's row-use
+            // is `FieldsOnly`, partition stmts by field and wrap each
+            // group in `if (oldRow.<field> !== newRow.<field>) {…}`.
+            // For the Krausest update benchmark (only `label` changes
+            // across 100 rows), this skips the id-bound textContent +
+            // setAttribute calls entirely. Falls back to the unguarded
+            // join when any stmt has `Whole` or `None` usage — that
+            // means we can't prove the stmt is safe to skip on a swap.
+            let (gated, fallback) = partition_inline_updates(&inline_updates, var);
+            let inline_run = if let Some(body) = gated {
+                body
+            } else {
+                fallback
+            };
             let v_bump = if body_needs_v {
                 " $scope.__v.set(c => c + 1);"
             } else {
                 ""
             };
+            // `const __old = ...` is only needed when at least one
+            // gated stmt actually reads it — i.e. when we kept a
+            // FieldsOnly-driven `if (__old.f !== ...)` guard. Empty
+            // gated body (every stmt was None-row) or fallback (no
+            // gating possible) both skip the capture, keeping the
+            // emit byte-identical to pre-spike output for those rows.
+            let needs_old_capture = inline_run.contains("__old.");
+            let old_capture = if needs_old_capture {
+                format!("const __old = $scope.{var}; ")
+            } else {
+                String::new()
+            };
             h.line(&format!(
-                "return {{ nodes: Array.from({frag}.childNodes), cleanup: () => {{ for (const c of {cl}) try {{ c(); }} catch (e) {{}} }}, update: ({new_var}, {new_idx}) => {{ $scope.{var} = {new_var}; $scope.{idx_name} = {new_idx}; {inline_run}{v_bump} }} }};"
+                "return {{ nodes: Array.from({frag}.childNodes), cleanup: () => {{ for (const c of {cl}) try {{ c(); }} catch (e) {{}} }}, update: ({new_var}, {new_idx}) => {{ {old_capture}$scope.{var} = {new_var}; $scope.{idx_name} = {new_idx}; {inline_run}{v_bump} }} }};"
             ));
         } else {
             // No body expression reads the row/index — bindFor's

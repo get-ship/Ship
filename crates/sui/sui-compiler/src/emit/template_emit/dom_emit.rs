@@ -151,7 +151,8 @@ impl TemplateEmitter {
                         n = js_string(&emit_name)
                     );
                     w.line(&stmt);
-                    self.inline_update_stmts.push(stmt);
+                    let use_ = self.row_use_for_source(&expr.source);
+                    self.inline_update_stmts.push((stmt, use_));
                 } else {
                     let fv = self.for_version_comma();
                     let emit_name = self.attr_name_for_emit(name);
@@ -263,7 +264,8 @@ impl TemplateEmitter {
                         n = js_string(name)
                     );
                     w.line(&stmt);
-                    self.inline_update_stmts.push(stmt);
+                    let use_ = self.row_use_for_source(&expr.source);
+                    self.inline_update_stmts.push((stmt, use_));
                 } else {
                     let fv = self.for_version_comma();
                     w.line(&format!(
@@ -294,7 +296,8 @@ impl TemplateEmitter {
                         "{{ const {v} = ({rw}); if ({v} == null) {el_var}.style.removeProperty({prop}); else {el_var}.style.setProperty({prop}, String({v})); }}"
                     );
                     w.line(&stmt);
-                    self.inline_update_stmts.push(stmt);
+                    let use_ = self.row_use_for_source(&expr.source);
+                    self.inline_update_stmts.push((stmt, use_));
                 } else {
                     let fvs = self.for_version_stmt();
                     w.line(&format!(
@@ -322,7 +325,8 @@ impl TemplateEmitter {
                         n = js_string(name)
                     );
                     w.line(&stmt);
-                    self.inline_update_stmts.push(stmt);
+                    let use_ = self.row_use_for_source(&expr.source);
+                    self.inline_update_stmts.push((stmt, use_));
                 } else {
                     let fv = self.for_version_comma();
                     w.line(&format!(
