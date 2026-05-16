@@ -246,7 +246,18 @@ fn for_static_body_omits_v_sentinel() {
 /// (no row-field reference) must still emit `__v` — reorders shift the
 /// index for surviving keys, so the binding has to re-fire.
 #[test]
-fn for_body_referencing_index_keeps_v_sentinel() {
+fn for_body_referencing_index_refreshes_on_row_reuse() {
+    // Index-only bodies (`{i}` text, no row-field reads) used to
+    // allocate a whole-row `__v` signal and bump it on every update.
+    // After per-field __v split, no reactive binding subscribes to a
+    // per-row signal here (the `{i}` text takes D5's inline path, not
+    // bindText), so the per-row signal would be dead weight. What
+    // STILL matters: the `update()` callback must re-fire the inline
+    // textContent assignment when bindFor reuses the row at a new
+    // index. Index reads escalate to RowUse::Whole in the analyzer,
+    // which makes partition_inline_updates fall back to the unguarded
+    // join — so the inline stmt always runs on update, no per-field
+    // diff needed.
     use sui_compiler::compile;
     let src = r#"<data name="rows" source="ship.rows()" live />
 <ul>
@@ -266,13 +277,18 @@ fn for_body_referencing_index_keeps_v_sentinel() {
     };
     let out = compile(src, opts).expect("compile");
     assert!(
-        out.js.contains("__v = signal(0)"),
-        "index-only body still needs __v: \n{}",
+        out.js.contains("update:"),
+        "expected an `update:` callback so row-reuse refreshes the index DOM, got:\n{}",
         out.js
     );
+    // The inline textContent assignment must appear in BOTH the
+    // initial render (where it sets the text on row creation) and the
+    // update body (where it re-sets when the row is reused at a new
+    // index). Two occurrences is the contract.
+    let occurrences = out.js.matches("textContent = ($scope.i)").count();
     assert!(
-        out.js.contains("$scope.__v.set(c => c + 1)"),
-        "index-only body still needs __v.set: \n{}",
+        occurrences >= 2,
+        "expected textContent assignment in both render + update bodies, got {occurrences} in:\n{}",
         out.js
     );
 }
@@ -420,13 +436,19 @@ fn for_render_closure_emits_update_field() {
         "expected per-row version signal, got:\n{}",
         out.js
     );
+    // After per-field __v split, fixture's `{row.label.toUpperCase()}`
+    // body reads only `row.label` reactively — so the closure subscribes
+    // to `__v_label` (per-field) instead of the legacy whole-row `__v`.
+    // Accept either form for forward-compat; both shapes preserve the
+    // reactive-on-row-update contract.
     assert!(
-        out.js.contains("void $scope.__v()"),
-        "expected void $scope.__v() in binding closure, got:\n{}",
+        out.js.contains("void $scope.__v(") || out.js.contains("void $scope.__v_label("),
+        "expected per-row __v subscription in binding closure, got:\n{}",
         out.js
     );
     assert!(
-        out.js.contains("$scope.__v.set(c => c + 1)"),
+        out.js.contains("$scope.__v.set(c => c + 1)")
+            || out.js.contains("$scope.__v_label.set(c => c + 1)"),
         "expected version signal increment in update, got:\n{}",
         out.js
     );

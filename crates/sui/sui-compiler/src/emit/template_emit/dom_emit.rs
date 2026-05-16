@@ -154,7 +154,7 @@ impl TemplateEmitter {
                     let use_ = self.row_use_for_source(&expr.source);
                     self.inline_update_stmts.push((stmt, use_));
                 } else {
-                    let fv = self.for_version_comma();
+                    let fv = self.for_version_comma(&expr.source);
                     let emit_name = self.attr_name_for_emit(name);
                     w.line(&format!(
                         "{cleanups_var}.push(bindAttr({el_var}, {n}, () => ({fv}{rw})));",
@@ -267,7 +267,7 @@ impl TemplateEmitter {
                     let use_ = self.row_use_for_source(&expr.source);
                     self.inline_update_stmts.push((stmt, use_));
                 } else {
-                    let fv = self.for_version_comma();
+                    let fv = self.for_version_comma(&expr.source);
                     w.line(&format!(
                         "{cleanups_var}.push(bindClass({el_var}, {n}, () => ({fv}{rw})));",
                         n = js_string(name)
@@ -299,7 +299,7 @@ impl TemplateEmitter {
                     let use_ = self.row_use_for_source(&expr.source);
                     self.inline_update_stmts.push((stmt, use_));
                 } else {
-                    let fvs = self.for_version_stmt();
+                    let fvs = self.for_version_stmt(&expr.source);
                     w.line(&format!(
                         "{cleanups_var}.push(effect(() => {{ {fvs}const __v = ({rw}); if (__v == null) {el_var}.style.removeProperty({prop}); else {el_var}.style.setProperty({prop}, String(__v)); }}));"
                     ));
@@ -328,7 +328,7 @@ impl TemplateEmitter {
                     let use_ = self.row_use_for_source(&expr.source);
                     self.inline_update_stmts.push((stmt, use_));
                 } else {
-                    let fv = self.for_version_comma();
+                    let fv = self.for_version_comma(&expr.source);
                     w.line(&format!(
                         "{cleanups_var}.push(bindProp({el_var}, {n}, () => ({fv}{rw})));",
                         n = js_string(name)
@@ -387,7 +387,12 @@ impl TemplateEmitter {
         let n_rw = rewrite_for_scope(&name_expr.source, &[]);
         let v_rw = rewrite_for_scope(&value_expr.source, &[]);
         let prev = self.fresh("prevAttr");
-        let fvs = self.for_version_stmt();
+        // Dynamic attr: subscribe to row-deps of BOTH the name and
+        // value expressions (the effect re-runs when either changes).
+        // Conservative — same field-set logic applies; if either
+        // expression has Whole-row use, the whole effect escalates.
+        let combined_source = format!("{} ; {}", name_expr.source, value_expr.source);
+        let fvs = self.for_version_stmt(&combined_source);
         w.line(&format!("{{ let {prev} = null;"));
         w.line(&format!("  {cleanups_var}.push(effect(() => {{"));
         w.line(&format!("    {fvs}const __n = String({n_rw});"));

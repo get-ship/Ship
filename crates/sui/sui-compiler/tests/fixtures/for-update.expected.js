@@ -17,16 +17,16 @@ const __wireBoundary_b0 = (anchor) => bindFor({
     const __childScope2 = Object.create($scope);
     __childScope2.row = row;
     __childScope2.__i = __i;
-    __childScope2.__v = signal(0);
     return (($scope) => {
+      __childScope2.__v_label = signal(0);
 const __frag3 = document.createDocumentFragment();
 const __c4 = [];
 const __e5 = document.createElement("li");
 const __t6 = document.createTextNode("");
 __e5.appendChild(__t6);
-__c4.push(bindText(__t6, () => (void $scope.__v(), $scope.row.label.toUpperCase())));
+__c4.push(bindText(__t6, () => (void $scope.__v_label(), $scope.row.label.toUpperCase())));
 __frag3.appendChild(__e5);
-      return { nodes: Array.from(__frag3.childNodes), cleanup: () => { for (const c of __c4) try { c(); } catch (e) {} }, update: (__new7, __newI8) => { $scope.row = __new7; $scope.__i = __newI8;  $scope.__v.set(c => c + 1); } };
+      return { nodes: Array.from(__frag3.childNodes), cleanup: () => { for (const c of __c4) try { c(); } catch (e) {} }, update: (__new7, __newI8) => { const __old = $scope.row; $scope.row = __new7; $scope.__i = __newI8;  if (__old.label !== $scope.row.label) { $scope.__v_label.set(c => c + 1); } } };
     })(__childScope2);
   },
 });

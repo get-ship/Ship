@@ -290,14 +290,10 @@ impl TemplateEmitter {
         h.line(&format!("const {child_scope} = Object.create($scope);"));
         h.line(&format!("{child_scope}.{var} = {var};"));
         h.line(&format!("{child_scope}.{idx_name} = {idx_name};"));
-        if body_needs_v {
-            // Per-row version signal. Incremented by `update` to force
-            // all reactive binding closures inside this row to
-            // re-evaluate, picking up the new item value from
-            // $scope.{var}. Skipped when the body holds no expression
-            // that reads the row or index — there's nothing to refresh.
-            h.line(&format!("{child_scope}.__v = signal(0);"));
-        }
+        // Per-row version signals are emitted AFTER the body walk —
+        // we need to know which fields reactive bindings touched before
+        // we can decide whether to allocate `__v` (legacy whole-row),
+        // per-field `__v_<f>`, or no signal at all.
         // Wrap the body in an IIFE that takes `$scope` as a parameter so
         // the iteration's child scope shadows the outer `$scope` without
         // a same-block `const $scope` declaration (which would TDZ on
@@ -329,27 +325,79 @@ impl TemplateEmitter {
         // D5: scope inline-update statements per for-loop so a nested
         // for inside this one collects into its own bucket, not ours.
         let outer_inline = std::mem::take(&mut self.inline_update_stmts);
+        // Reactive uses also scope per-loop. Bindings inside the body
+        // call `for_version_comma`/`for_version_stmt` which unions into
+        // self.reactive_row_use; we read the union back AFTER the walk
+        // to decide what signals to allocate at the top of the IIFE.
+        let outer_reactive = std::mem::replace(
+            &mut self.reactive_row_use,
+            RowUse::None,
+        );
         self.emit_children(&mut body_w, &instr.body, &frag, &cl);
         self.for_in_scope = outer_for;
         self.for_var_name = outer_var;
         self.for_idx_name = outer_idx;
         let inline_updates = std::mem::replace(&mut self.inline_update_stmts, outer_inline);
+        let reactive_use = std::mem::replace(&mut self.reactive_row_use, outer_reactive);
         self.boundary_depth -= 1;
         let captured_hoists = self.boundary_hoists.split_off_from(hoist_snapshot);
+        // Emit per-row version-signal allocations based on the union of
+        // reactive subscriptions the body actually requested. Three
+        // shapes:
+        //   - RowUse::None    — no reactive subscription touches the
+        //                       row binder (bindings read only outer
+        //                       signals like `selected()`). No signal
+        //                       needed; nothing to bump on update.
+        //   - RowUse::Whole   — at least one reactive binding can't be
+        //                       decomposed into a field set (bare `row`,
+        //                       computed access, index read, etc.). Fall
+        //                       back to the legacy `__v` whole-row
+        //                       signal, bumped unconditionally on update.
+        //   - RowUse::FieldsOnly(fs) — every reactive binding reads
+        //                       only `row.<field>` patterns. Allocate
+        //                       one `__v_<field>` signal per field;
+        //                       each binding closure subscribes to just
+        //                       the signals for the fields it reads;
+        //                       `update()` bumps only the per-field
+        //                       signals whose value actually changed.
+        //                       This is the path that drops Krausest's
+        //                       update-every-10th cost — the `class:
+        //                       danger={row.id === selected()}` binding
+        //                       subscribes to `__v_id`, which never
+        //                       fires when only `label` changes.
+        // Splice signal allocs at the current indent (inside the IIFE,
+        // before captured hoists / body emit) so any nested boundary's
+        // render closure can see them via `$scope.__v_<f>`. They run
+        // before any binding closure fires because closures only
+        // execute on their own events, not at IIFE-init time.
+        match &reactive_use {
+            RowUse::None => {}
+            RowUse::Whole => {
+                h.line(&format!("{child_scope}.__v = signal(0);"));
+            }
+            RowUse::FieldsOnly(fields) => {
+                let mut sorted = fields.clone();
+                sorted.sort();
+                for f in &sorted {
+                    h.line(&format!("{child_scope}.__v_{f} = signal(0);"));
+                }
+            }
+        }
         if !captured_hoists.is_empty() {
             // Captured hoist text was generated at indent=0; placing it
             // inside the IIFE leaves it left-aligned (ugly but valid JS).
             h.push_str(&captured_hoists);
         }
         h.push_str(&body_w.into_string());
-        let needs_update = body_needs_v || !inline_updates.is_empty();
+        let reactive_needs_update = !matches!(reactive_use, RowUse::None);
+        let needs_update = reactive_needs_update || !inline_updates.is_empty();
         if needs_update {
             let new_var = self.fresh("new");
             let new_idx = self.fresh("newI");
-            // The update body re-runs each inlined static assignment
-            // so keyed-row reuse refreshes the DOM when bindFor
-            // reassigns the row instance. `__v.set` only fires when a
-            // reactive binding (a `()` call in source) is present.
+            // The update body re-runs each inlined static assignment so
+            // keyed-row reuse refreshes the DOM when bindFor reassigns
+            // the row instance, and bumps the per-row version signal(s)
+            // so reactive bindings re-evaluate against the new item.
             //
             // Per-field diff gating: when every inline stmt's row-use
             // is `FieldsOnly`, partition stmts by field and wrap each
@@ -357,27 +405,39 @@ impl TemplateEmitter {
             // For the Krausest update benchmark (only `label` changes
             // across 100 rows), this skips the id-bound textContent +
             // setAttribute calls entirely. Falls back to the unguarded
-            // join when any stmt has `Whole` or `None` usage — that
-            // means we can't prove the stmt is safe to skip on a swap.
+            // join when any stmt has `Whole` or `None` usage.
             let (gated, fallback) = partition_inline_updates(&inline_updates, var);
             let inline_run = if let Some(body) = gated {
                 body
             } else {
                 fallback
             };
-            let v_bump = if body_needs_v {
-                " $scope.__v.set(c => c + 1);"
-            } else {
-                ""
+            // Reactive bumps: same three-way split as signal alloc.
+            let v_bump: String = match &reactive_use {
+                RowUse::None => String::new(),
+                RowUse::Whole => " $scope.__v.set(c => c + 1);".to_string(),
+                RowUse::FieldsOnly(fields) => {
+                    let mut sorted = fields.clone();
+                    sorted.sort();
+                    sorted
+                        .iter()
+                        .map(|f| {
+                            format!(
+                                " if (__old.{f} !== $scope.{var}.{f}) {{ $scope.__v_{f}.set(c => c + 1); }}"
+                            )
+                        })
+                        .collect::<Vec<_>>()
+                        .join("")
+                }
             };
-            // `const __old = ...` is only needed when at least one
-            // gated stmt actually reads it — i.e. when we kept a
-            // FieldsOnly-driven `if (__old.f !== ...)` guard. Empty
-            // gated body (every stmt was None-row) or fallback (no
-            // gating possible) both skip the capture, keeping the
+            // `const __old = ...` is needed when EITHER inline gating
+            // references __old.f OR reactive bumps gate per-field.
+            // Whole-row bumps and fallback inline-runs both work
+            // without __old, so we skip the capture there to keep the
             // emit byte-identical to pre-spike output for those rows.
-            let needs_old_capture = inline_run.contains("__old.");
-            let old_capture = if needs_old_capture {
+            let inline_uses_old = inline_run.contains("__old.");
+            let reactive_uses_old = matches!(reactive_use, RowUse::FieldsOnly(_));
+            let old_capture = if inline_uses_old || reactive_uses_old {
                 format!("const __old = $scope.{var}; ")
             } else {
                 String::new()

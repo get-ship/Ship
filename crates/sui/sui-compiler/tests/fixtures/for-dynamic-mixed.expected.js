@@ -17,19 +17,18 @@ const __wireBoundary_b0 = (anchor) => bindFor({
     const __childScope2 = Object.create($scope);
     __childScope2.row = row;
     __childScope2.__i = __i;
-    __childScope2.__v = signal(0);
     return (($scope) => {
 const __frag3 = document.createDocumentFragment();
 const __c4 = [];
 const __e5 = document.createElement("tr");
-__c4.push(bindClass(__e5, "active", () => (void $scope.__v(), $scope.rows().value.length > 0)));
+__c4.push(bindClass(__e5, "active", () => ($scope.rows().value.length > 0)));
 const __e6 = document.createElement("td");
 const __t7 = document.createTextNode("");
 __e6.appendChild(__t7);
 __t7.textContent = ($scope.row.label);
 __e5.appendChild(__e6);
 __frag3.appendChild(__e5);
-      return { nodes: Array.from(__frag3.childNodes), cleanup: () => { for (const c of __c4) try { c(); } catch (e) {} }, update: (__new8, __newI9) => { const __old = $scope.row; $scope.row = __new8; $scope.__i = __newI9; if (__old.label !== $scope.row.label) { __t7.textContent = ($scope.row.label); } $scope.__v.set(c => c + 1); } };
+      return { nodes: Array.from(__frag3.childNodes), cleanup: () => { for (const c of __c4) try { c(); } catch (e) {} }, update: (__new8, __newI9) => { const __old = $scope.row; $scope.row = __new8; $scope.__i = __newI9; if (__old.label !== $scope.row.label) { __t7.textContent = ($scope.row.label); } } };
     })(__childScope2);
   },
 });

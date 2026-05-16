@@ -114,6 +114,15 @@ pub struct TemplateEmitter {
     /// row by skipping id-bound stmts entirely. `emit_for` saves /
     /// restores this list around its body walk to scope it per for-loop.
     pub(super) inline_update_stmts: Vec<(String, crate::lower::row_field_uses::RowUse)>,
+    /// Accumulated row-field usage across REACTIVE binding closures
+    /// in the current `{#for}` row body (bindClass / bindAttr-effect
+    /// / bindProp / etc. — anything that subscribes via for_version_*
+    /// prefixes). emit_for reads this to decide which per-field `__v_<f>`
+    /// signals to allocate and which to bump in `update()`. Defaults
+    /// to `RowUse::None`; a single Whole-row binding escalates the
+    /// whole loop to the legacy `__v` whole-row signal so we never
+    /// silently miss a reactive update. Save/restored per for-loop.
+    pub(super) reactive_row_use: crate::lower::row_field_uses::RowUse,
     /// Depth into an `<svg>` subtree. Bumped by `emit_element` around
     /// its child walk when the tag is `svg` (or already inside one).
     /// While > 0, `emit_element` emits `createElementNS(SVG_NS, tag)`
@@ -141,6 +150,7 @@ impl TemplateEmitter {
             for_var_name: None,
             for_idx_name: None,
             inline_update_stmts: Vec::new(),
+            reactive_row_use: crate::lower::row_field_uses::RowUse::None,
             svg_depth: 0,
         }
     }
@@ -177,17 +187,69 @@ impl TemplateEmitter {
         self.hydrate_uses_markers
     }
 
-    /// Returns `"void $scope.__v(), "` when inside a `{#for}` IIFE body,
-    /// so reactive getter closures track the per-row version signal.
-    /// Used as a prefix inside `() => (…)` style closures.
-    pub(super) fn for_version_comma(&self) -> &'static str {
-        if self.for_in_scope { "void $scope.__v(), " } else { "" }
+    /// Comma-form subscription prefix for a reactive binding closure
+    /// inside a `{#for}` row body. Returns the empty string when not
+    /// in a for-loop. When `source` reads only specific row fields,
+    /// emits a `void $scope.__v_<field>()` per field — narrowing the
+    /// effect's per-row dep so an `update()` that only changes a
+    /// different field doesn't re-fire it. Whole-row reads escalate
+    /// to the legacy `void $scope.__v()` whole-row signal.
+    ///
+    /// Side effect: unions the source's row-use into
+    /// `self.reactive_row_use` so `emit_for` knows which per-field
+    /// signals to allocate and bump.
+    pub(super) fn for_version_comma(&mut self, source: &str) -> String {
+        self.for_version_subscription(source, ", ")
     }
 
-    /// Returns `"void $scope.__v(); "` when inside a `{#for}` IIFE body.
-    /// Used as a leading statement inside `effect(() => { … })` bodies.
-    pub(super) fn for_version_stmt(&self) -> &'static str {
-        if self.for_in_scope { "void $scope.__v(); " } else { "" }
+    /// Statement-form ("`...; `") version for use inside
+    /// `effect(() => { … })` bodies. Same semantics as the
+    /// comma form; suffix differs so the emitted code parses.
+    pub(super) fn for_version_stmt(&mut self, source: &str) -> String {
+        self.for_version_subscription(source, "; ")
+    }
+
+    fn for_version_subscription(&mut self, source: &str, sep: &str) -> String {
+        if !self.for_in_scope {
+            return String::new();
+        }
+        let use_ = self.row_use_for_source(source);
+        use crate::lower::row_field_uses::RowUse;
+        match &use_ {
+            RowUse::None => {
+                // Binding doesn't read the row at all (e.g. reads only
+                // outer-scope signals like `selected()`). No per-row
+                // re-fire needed — the outer-scope sub keeps it live.
+                self.reactive_row_use = std::mem::replace(
+                    &mut self.reactive_row_use,
+                    RowUse::None,
+                )
+                .union(use_);
+                String::new()
+            }
+            RowUse::Whole => {
+                // Escalates the whole loop to the legacy __v signal.
+                self.reactive_row_use = std::mem::replace(
+                    &mut self.reactive_row_use,
+                    RowUse::None,
+                )
+                .union(use_);
+                format!("void $scope.__v(){sep}")
+            }
+            RowUse::FieldsOnly(fields) => {
+                let prefix = fields
+                    .iter()
+                    .map(|f| format!("void $scope.__v_{f}()"))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                self.reactive_row_use = std::mem::replace(
+                    &mut self.reactive_row_use,
+                    RowUse::None,
+                )
+                .union(use_);
+                format!("{prefix}{sep}")
+            }
+        }
     }
 
     /// Classify how `source` references the current `{#for}` row
@@ -306,7 +368,7 @@ impl TemplateEmitter {
                     let use_ = self.row_use_for_source(&expr.source);
                     self.inline_update_stmts.push((stmt, use_));
                 } else {
-                    let fv = self.for_version_comma();
+                    let fv = self.for_version_comma(&expr.source);
                     w.line(&format!(
                         "{cleanups_var}.push(bindText({v}, () => ({fv}{rw})));"
                     ));
