@@ -1,4 +1,4 @@
-import { controller, derived, signal } from '@ship/sui-runtime'
+import { chrome, controller, derived, signal } from '@ship/sui-runtime'
 import type { Signal } from '@ship/sui-runtime'
 import type { Scope } from './sui-nav-top.sui'
 
@@ -37,10 +37,7 @@ async function fetchViewLabels(): Promise<Map<string, string>> {
 }
 
 function navigateDoc(to: string): void {
-  history.pushState({}, '', to)
-  document.dispatchEvent(
-    new CustomEvent('sui:navigate', { detail: { to } }),
-  )
+  chrome.navigate(to)
 }
 
 export default controller<Scope>({
@@ -95,9 +92,7 @@ export default controller<Scope>({
       )
     }
     function onDockToggle(): void {
-      hostEl?.dispatchEvent(
-        new CustomEvent('sui:dock:toggle', { bubbles: true, composed: true }),
-      )
+      chrome.dock.toggle()
     }
     function onFullscreen(): void {
       if (document.fullscreenElement) void document.exitFullscreen()

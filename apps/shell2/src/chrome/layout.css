@@ -190,3 +190,86 @@ body.dock-open.dock-popout #ship-panel-dock {
 .shell-empty a:hover {
   text-decoration: underline;
 }
+
+/* Chrome IPC breadcrumb slot — populated by `chrome.breadcrumb.set(...)`.
+   Hidden when no items are claimed. */
+#ship-breadcrumb-slot {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: var(--space-1, 4px);
+  padding: 0 var(--space-3, 12px);
+  height: 24px;
+  font-size: 12px;
+  color: var(--muted-foreground, #666);
+  border-bottom: 1px solid var(--border, #e5e5e5);
+  background: var(--background, #fff);
+}
+#ship-breadcrumb-slot[hidden] { display: none; }
+.ship-breadcrumb-sep { opacity: 0.55; }
+.ship-breadcrumb-link {
+  color: var(--muted-foreground, #666);
+  text-decoration: none;
+}
+.ship-breadcrumb-link:hover { color: var(--foreground, #111); }
+.ship-breadcrumb-current { color: var(--foreground, #111); font-weight: 500; }
+
+/* Focus mode — `chrome.focus.enter()` hides rail + status, letting the
+   active view take the whole chrome canvas. */
+body.focus-mode #ship-rail,
+body.focus-mode #ship-status-bar,
+body.focus-mode #ship-breadcrumb-slot {
+  display: none;
+}
+
+/* Chrome modal queue — minimal native <dialog> rendered by
+   `chrome.modal.request(...)`. */
+.ship-modal-queue {
+  border: 1px solid var(--border, #e5e5e5);
+  border-radius: var(--radius-lg, 8px);
+  background: var(--card, #fff);
+  color: var(--card-foreground, #111);
+  padding: 20px 24px;
+  max-width: 460px;
+  width: calc(100vw - 32px);
+  box-shadow: var(--shadow-xl, 0 20px 60px rgba(0,0,0,0.3));
+}
+.ship-modal-queue::backdrop { background: hsl(0 0% 0% / 0.5); }
+.ship-modal-title {
+  margin: 0 0 8px;
+  font-size: 16px;
+  font-weight: 600;
+}
+.ship-modal-description {
+  margin: 0 0 16px;
+  color: var(--muted-foreground, #555);
+}
+.ship-modal-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+.ship-modal-action {
+  appearance: none;
+  border: 1px solid var(--border, #e5e5e5);
+  background: var(--background, #fff);
+  color: var(--foreground, #111);
+  padding: 6px 14px;
+  font: inherit;
+  font-size: 13px;
+  border-radius: var(--radius-md, 6px);
+  cursor: pointer;
+}
+.ship-modal-action:hover { background: var(--muted, #f5f5f5); }
+.ship-modal-action--primary {
+  background: var(--primary, #c46);
+  color: var(--primary-foreground, #fff);
+  border-color: var(--primary, #c46);
+}
+.ship-modal-action--primary:hover { filter: brightness(1.05); }
+.ship-modal-action--destructive {
+  background: var(--destructive, #c33);
+  color: var(--destructive-foreground, #fff);
+  border-color: var(--destructive, #c33);
+}
+.ship-modal-action--destructive:hover { filter: brightness(1.05); }

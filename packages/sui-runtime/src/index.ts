@@ -218,6 +218,21 @@ export { suiTonesSheet, suiBaseSheet, adoptSuiSheets } from './styles/index'
 export { mount } from './mount'
 export type { ViewPayload, MountOptions, MountHandle } from './mount'
 
+// Chrome IPC — typed wrapper around the shell's event-driven chrome
+// surfaces (toasts, dock, command-bar, breadcrumb, status, theme,
+// focus mode, modal queue). See packages/sui-runtime/src/chrome.ts.
+export { chrome, notifyViewUnmount } from './chrome'
+export type {
+  BreadcrumbItem,
+  ModalAction,
+  ModalRequestOpts,
+  NavigateOpts,
+  NotifyOpts,
+  NotifyTone,
+  ScopeOpt,
+  StatusValue,
+} from './chrome'
+
 // Re-export route surface so the bundled `@ship/sui-runtime/route`
 // importmap entry (which points at the single runtime.js bundle)
 // resolves to the actual symbols. Authors continue to use the subpath

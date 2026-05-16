@@ -16,6 +16,7 @@
 // directly to that project (when only one other project has runs) or
 // surface the breakdown as a toast.
 
+import { chrome } from '@ship/sui-runtime'
 import type { KernelBridge } from './kernel-bridge'
 
 interface CrossSession {
@@ -149,13 +150,10 @@ function onCrossIndicatorClick(byProject: Map<string, { name: string; count: num
   const summary = Array.from(byProject.values())
     .map(({ name, count }) => `${name} (${count})`)
     .join(', ')
-  document.dispatchEvent(new CustomEvent('sui:notify', {
-    detail: {
-      tone: 'info',
-      title: 'Agents running in other projects',
-      description: summary,
-      duration: 6000,
-    },
-    bubbles: true,
-  }))
+  chrome.notify({
+    tone: 'info',
+    title: 'Agents running in other projects',
+    description: summary,
+    duration: 6000,
+  })
 }

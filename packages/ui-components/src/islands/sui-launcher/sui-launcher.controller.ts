@@ -1,4 +1,4 @@
-import { controller, effect, signal, bindNativeEvent } from '@ship/sui-runtime'
+import { chrome, controller, effect, signal, bindNativeEvent } from '@ship/sui-runtime'
 import type { Scope } from './sui-launcher.sui'
 import { type ApiView, type Project, humanize, renderHead, renderFoot, renderBody } from './render'
 
@@ -200,8 +200,7 @@ export default controller<Scope>({
     // ── actions ───────────────────────────────────────────────
     function navigate(name: string): void {
       const path = '/' + (name === 'dashboard' ? '' : name)
-      history.pushState({}, '', path)
-      document.dispatchEvent(new CustomEvent('sui:navigate', { detail: { to: path } }))
+      chrome.navigate(path)
       doClose()
     }
 
