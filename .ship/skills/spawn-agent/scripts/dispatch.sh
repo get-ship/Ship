@@ -184,23 +184,27 @@ if [[ -f "$WORKTREE_PATH/bun.lock" ]]; then
     # by crates/sui/ship-sui-server/src/assets.rs; build.rs panics if any are
     # missing or empty.
     if [[ -d "$LAUNCH_REPO_ROOT/crates/sui/ship-sui-server/assets" ]]; then
-      mkdir -p "$WORKTREE_PATH/crates/sui/ship-sui-server/assets/sui-islands" \
+      mkdir -p "$WORKTREE_PATH/crates/sui/ship-sui-server/assets/sui-components" \
                "$WORKTREE_PATH/crates/sui/ship-sui-server/assets/views"
       cp "$LAUNCH_REPO_ROOT"/crates/sui/ship-sui-server/assets/sui-*.js \
          "$LAUNCH_REPO_ROOT"/crates/sui/ship-sui-server/assets/sui-custom-elements.json \
          "$LAUNCH_REPO_ROOT"/crates/sui/ship-sui-server/assets/lucide-icons.json \
          "$WORKTREE_PATH/crates/sui/ship-sui-server/assets/" 2>/dev/null || true
-      cp -r "$LAUNCH_REPO_ROOT"/crates/sui/ship-sui-server/assets/sui-islands/. \
-            "$WORKTREE_PATH/crates/sui/ship-sui-server/assets/sui-islands/" 2>/dev/null || true
+      # Code-split component bundles — sui-components/ replaced the old
+      # sui-islands/ dir after the islands-rename merge. Copy whichever
+      # one(s) exist in the launch repo (defensive against half-migrated
+      # checkouts).
+      if [[ -d "$LAUNCH_REPO_ROOT/crates/sui/ship-sui-server/assets/sui-components" ]]; then
+        cp -r "$LAUNCH_REPO_ROOT"/crates/sui/ship-sui-server/assets/sui-components/. \
+              "$WORKTREE_PATH/crates/sui/ship-sui-server/assets/sui-components/" 2>/dev/null || true
+      fi
+      if [[ -d "$LAUNCH_REPO_ROOT/crates/sui/ship-sui-server/assets/sui-islands" ]]; then
+        mkdir -p "$WORKTREE_PATH/crates/sui/ship-sui-server/assets/sui-islands"
+        cp -r "$LAUNCH_REPO_ROOT"/crates/sui/ship-sui-server/assets/sui-islands/. \
+              "$WORKTREE_PATH/crates/sui/ship-sui-server/assets/sui-islands/" 2>/dev/null || true
+      fi
       cp -r "$LAUNCH_REPO_ROOT"/crates/sui/ship-sui-server/assets/views/. \
             "$WORKTREE_PATH/crates/sui/ship-sui-server/assets/views/" 2>/dev/null || true
-    fi
-    # CEM aggregated by sui-build's aggregateCemTo into ship-sui (the facade
-    # crate), embedded by apps/shipd/src/views/assets.rs.
-    if [[ -f "$LAUNCH_REPO_ROOT/crates/ship-sui/assets/sui-custom-elements.json" ]]; then
-      mkdir -p "$WORKTREE_PATH/crates/ship-sui/assets"
-      cp "$LAUNCH_REPO_ROOT/crates/ship-sui/assets/sui-custom-elements.json" \
-         "$WORKTREE_PATH/crates/ship-sui/assets/" 2>/dev/null || true
     fi
     # SDK manifests emitted by `cargo run -p xtask -- gen-sdk`, embedded by
     # apps/shipd/src/routes/sdk_manifest.rs.
@@ -237,7 +241,10 @@ if [[ -f "$WORKTREE_PATH/bun.lock" ]]; then
     echo "Regenerating tree-sitter parser.c"
     (cd "$WORKTREE_PATH/packages/sui-grammar" && bunx tree-sitter generate) 2>&1 | tail -10
   fi
-  if [[ ! -s "$WORKTREE_PATH/packages/sdk/src/generated/sdk-macros.json" ]]; then
+  # sdk-urls.json is the sentinel — sdk-macros.json was retired in the
+  # j2-vestigials sweep (macros pipeline deleted). Regenerate only when
+  # urls is missing AND we couldn't copy from the launch repo.
+  if [[ ! -s "$WORKTREE_PATH/packages/sdk/src/generated/sdk-urls.json" ]]; then
     echo "Regenerating SDK manifests (cargo run -p xtask -- gen-sdk)"
     (cd "$WORKTREE_PATH" && cargo run -p xtask --quiet -- gen-sdk) 2>&1 | tail -10
   fi
