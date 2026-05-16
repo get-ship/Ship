@@ -1,4 +1,4 @@
-import { controller, signal, derived, effect, ref } from '@ship/sui-runtime'
+import { controller, signal, derived, effect, ref, chrome } from '@ship/sui-runtime'
 import type { Signal } from '@ship/sui-runtime'
 import {
   THEMES,
@@ -96,6 +96,11 @@ export default controller<Scope>({
     const triggerBtn = ref<HTMLButtonElement>(null)
     const panelEl = ref<HTMLDivElement>(null)
 
+    function openCustomize(): void {
+      internals.panel?.hidePopover?.()
+      chrome.navigate('/theme-studio')
+    }
+
     return {
       activeTheme,
       panelOpen,
@@ -104,6 +109,7 @@ export default controller<Scope>({
       triggerLabel,
       togglePanel,
       selectTheme,
+      openCustomize,
       triggerBtn,
       panelEl,
       _internals: internals,
