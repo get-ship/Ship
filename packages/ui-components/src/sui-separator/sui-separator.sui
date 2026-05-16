@@ -16,6 +16,11 @@
   role="separator" set via JS  role="separator" on      ✓ static attr on inner
     on host in render()          inner <hr>               <hr>; host is block
   aria-orientation set on host aria-orientation on hr   ✓
+  (none)                       decorative (bool, false) Radix-parity addition —
+                                                        when true, role=none and
+                                                        aria-orientation dropped
+                                                        (purely visual divider,
+                                                        invisible to AT).
   ─────────────────────────────────────────────────────────────────────────────
   parts: (none)                part="sep"               SUI adds part for
                                                         targeted styling
@@ -24,6 +29,7 @@
 
 <prop name="orientation" values="horizontal|vertical" default="horizontal" reflect />
 <prop name="variant" values="solid|dashed" default="solid" reflect />
+<prop name="decorative" type="bool" default="false" reflect />
 
 <style>
   :host {
@@ -71,4 +77,6 @@
   }
 </style>
 
-<hr class="sep" part="sep" role="separator" aria-orientation={orientation()} />
+<hr class="sep" part="sep"
+    role={decorative() ? 'none' : 'separator'}
+    aria-orientation={decorative() ? null : orientation()} />

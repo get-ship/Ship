@@ -70,15 +70,31 @@ export default controller<Scope>({
       const navKeys = [nextKey, prevKey, 'Home', 'End']
       const activateKeys = ['Enter', ' ']
 
-      if (!navKeys.includes(e.key) && !activateKeys.includes(e.key)) return
-      e.preventDefault()
+      const isNav = navKeys.includes(e.key)
+      const isActivate = activateKeys.includes(e.key)
+      if (!isNav && !isActivate) return
 
       const tabs = getTabs().filter(t => !t.hasAttribute('disabled'))
       if (!tabs.length) return
-
       const names = tabs.map(t => t.getAttribute('name') ?? '')
-      const current = scope.active()
-      const i = Math.max(0, names.indexOf(current))
+
+      // Radix-parity: manual activation moves focus without changing the
+      // active panel. Enter/Space on the focused tab activates it.
+      const manual = scope.activationMode() === 'manual'
+      const focusedTab = (e.target as Element).closest('sui-tab')
+        ?? tabs.find(t => t.getAttribute('name') === scope.active())
+        ?? tabs[0]
+      const focusedName = focusedTab?.getAttribute('name') ?? ''
+
+      if (isActivate) {
+        e.preventDefault()
+        activate(focusedName)
+        return
+      }
+
+      e.preventDefault()
+      const refName = manual ? focusedName : scope.active()
+      const i = Math.max(0, names.indexOf(refName))
       let next = i
 
       if (e.key === nextKey) next = (i + 1) % names.length
@@ -87,11 +103,21 @@ export default controller<Scope>({
       else if (e.key === 'End') next = names.length - 1
 
       const targetName = names[next]!
-      activate(targetName)
+      if (!manual) activate(targetName)
 
       queueMicrotask(() => {
         const targetTab = tabs[next] as HTMLElement
         const btn = targetTab.shadowRoot?.querySelector<HTMLElement>('button')
+        // In manual mode the candidate tab isn't `active`, so its inner
+        // button stays at tabindex=-1 by default. Bump it to 0 so Tab
+        // away/back returns to the focused candidate (roving tabindex).
+        if (manual && btn) {
+          for (const t of tabs) {
+            const b = (t as HTMLElement).shadowRoot?.querySelector<HTMLElement>('button')
+            if (b) b.tabIndex = -1
+          }
+          btn.tabIndex = 0
+        }
         btn ? btn.focus() : targetTab.focus()
       })
     }

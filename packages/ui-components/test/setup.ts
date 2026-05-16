@@ -2,14 +2,23 @@
 // Intentionally minimal — these suppress uncaught errors without simulating
 // real behavior. Tests only care about DOM structure / ARIA / event flow.
 
-// Prime the lucide icon registry from the generated source. Production
+// Prime the lucide icon registry from the on-disk asset. Production
 // `<sui-icon>` lazy-fetches the registry from `/_sui/lucide-icons.json`
 // (R4 of the components-bundle audit); tests don't have that endpoint
 // and assert synchronously, so we inject the same map at startup so
-// resolution is sync.
-import { LUCIDE_ICONS } from '../../ship-set/src/web-components/core/lucide-icons.generated'
+// resolution is sync. The JSON is the canonical source — the prior
+// generated `.ts` re-export was removed when the bundle moved out.
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { setIconRegistry } from '../src/sui-icon/registry'
-setIconRegistry(LUCIDE_ICONS)
+
+// Vitest runs from the package root; the bundle asset is checked into
+// the Rust server crate alongside the rest of the SUI bundle.
+const ICON_REGISTRY_PATH = resolve(
+  process.cwd(),
+  '../../crates/sui/ship-sui-server/assets/lucide-icons.json',
+)
+setIconRegistry(JSON.parse(readFileSync(ICON_REGISTRY_PATH, 'utf8')))
 
 
 if (typeof ResizeObserver === 'undefined') {

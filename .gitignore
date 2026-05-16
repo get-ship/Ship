@@ -120,6 +120,8 @@ AGENTS.md
 skills-lock.json
 .gstack/
 .artifacts/*
+!.artifacts/launch-arc/
+!.artifacts/launch-arc/**
 .cursor/
 .opencode/
 opencode.json

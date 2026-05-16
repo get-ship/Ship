@@ -24,11 +24,11 @@
                                                          compute conic-gradient
                                                          inline style; template-
                                                          only divergence.
-  _errored (private state)     OMITTED                  Image error → initials
-                                                         fallback requires
-                                                         controller; template-
-                                                         only port shows broken
-                                                         img element on error.
+  _errored (private state)     errored (scope signal)   Radix-parity: img.onerror
+                                                         flips `errored=true`, the
+                                                         template falls back to
+                                                         initials. Resets when src
+                                                         changes (controller).
   updated() → data-initials    OMITTED                  No host attr toggling
                                                          without controller.
   ─────────────────────────────────────────────────────────────────────────────
@@ -117,7 +117,7 @@
 <span class="root" part="root"
       role="img"
       aria-label={name() || initials() || 'avatar'}>
-  {#if iconSlug() || src()}
+  {#if (iconSlug() || src()) && !errored()}
     <img part="img"
          src={iconSlug() ? 'https://cdn.simpleicons.org/' + iconSlug() : src()}
          alt={name()} />
