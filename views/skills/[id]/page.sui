@@ -100,7 +100,7 @@
       {#if skill().kind === 'ok' && skill().value}
         <div class="se-toolbar">
           <div class="se-breadcrumb">
-            <a attr:href="/skills">skills</a>
+            <a href="/skills">skills</a>
             <span class="sep">/</span>
             <span>{skill().value.name}</span>
             {#if selectedFile()}
