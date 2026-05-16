@@ -324,6 +324,16 @@ export function bindFor<T>(opts: BindForOptions<T>): Disposer {
 
     // Drop scratch contents so we don't pin references (records, items,
     // keys) between renders. The Maps/Sets themselves are reused.
+    // Pre-fix, `nextRecords` was left holding the previous render's
+    // record objects (item refs, detached DOM nodes, cleanup/update
+    // closures) until the next render's line `nextRecords.length = 0`
+    // dropped them. After a `clear()` that emptied the list, no next
+    // render arrived — and Krausest's 25_run-clear-memory measured
+    // 2.7MB of residual where Solid/Svelte sat at 0.7–0.9MB. The
+    // records were already flushed (DOM removed, cleanup called), but
+    // the JS objects pinning `item` payloads + the detached <tr>
+    // subtrees stayed referenced through the scratch array.
+    nextRecords.length = 0
     nextKeys.clear()
     prevByKey.clear()
     prevPos.clear()
