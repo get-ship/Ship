@@ -76,13 +76,22 @@ export async function savePins(settingsUrl: string, key: string, pins: string[])
   } catch { /* fire-and-forget */ }
 }
 
+// Views the launch shell never surfaces — wizard, samples, dashboards we
+// haven't shipped. Filtered out of /api/v1/views before render so the
+// picker only shows the curated launch surface.
+const HIDDEN_VIEWS = new Set([
+  'setup', 'hello', 'sui-demo', 'demos', 'counter',
+  'dashboard', 'overview', 'sessions', 'mesh', 'specs', 'workspaces',
+  'pipelines-board',
+])
+
 export async function fetchViews(url: string): Promise<ApiView[]> {
   try {
     const resp = await fetch(url, { credentials: 'same-origin' })
     if (!resp.ok) return []
     const body = (await resp.json()) as { data?: { views?: ApiView[] } } | { views?: ApiView[] }
     const inferred = 'data' in body ? (body.data?.views ?? []) : (body.views ?? [])
-    return inferred ?? []
+    return (inferred ?? []).filter((v) => !HIDDEN_VIEWS.has(v.name))
   } catch { return [] }
 }
 

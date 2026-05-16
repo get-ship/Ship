@@ -193,21 +193,6 @@
   }
 </style>
 
-<div class="rail-top" part="top">
-  <sui-view-picker placement="right" bind:this={viewPickerEl}>
-    <button
-      slot="trigger"
-      type="button"
-      class="rail-top-btn"
-      part="view-picker-btn"
-      title="Pinned views + browser"
-      aria-label="Open view picker"
-      bind:this={viewPickerBtnEl}
-    >
-      <sui-icon name="layout-grid" size="sm"></sui-icon>
-    </button>
-  </sui-view-picker>
-</div>
 <nav class="rail-nav" part="nav">
   <slot bind:this={navSlot}></slot>
 </nav>
