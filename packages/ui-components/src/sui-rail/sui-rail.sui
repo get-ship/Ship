@@ -60,9 +60,11 @@
   :host([hidden]) { display: none; }
   .rail-footer { padding: 4px; }
 
-  /* Project switcher region — sits at the TOP per rail intent: the
-     monogram tile is the "what project am I in" surface, distinct from
-     navigation. Click → project picker popover. */
+  /* Rail-top region — hosts the unified project + view picker trigger.
+     A four-cell grid icon (not a user/account-style monogram avatar —
+     which the previous project-badge looked like) signals "browse what
+     this Ship has". Click opens the view-picker popover; project
+     switching surfaces inside the same popover. */
   .rail-top {
     display: flex;
     flex-direction: column;
@@ -73,32 +75,34 @@
     flex-shrink: 0;
   }
 
-  .project-badge {
+  .picker-btn {
     appearance: none;
-    background: var(--primary);
-    color: var(--primary-foreground, white);
-    border: none;
-    border-radius: 8px;
+    background: transparent;
+    color: var(--muted-foreground);
+    border: 1px solid transparent;
+    border-radius: 6px;
     width: 32px;
     height: 32px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    font-size: 14px;
-    font-weight: 700;
-    line-height: 1;
     cursor: pointer;
     transition:
       background-color 120ms var(--ease-out, ease-out),
-      box-shadow 120ms var(--ease-out, ease-out),
-      transform 120ms var(--ease-out, ease-out);
+      color 120ms var(--ease-out, ease-out),
+      border-color 120ms var(--ease-out, ease-out);
   }
-  .project-badge:hover {
-    background: color-mix(in oklch, var(--primary) 88%, var(--foreground));
-    transform: translateY(-1px);
+  .picker-btn:hover {
+    background: color-mix(in oklch, var(--foreground) 8%, transparent);
+    color: var(--foreground);
+    border-color: color-mix(in oklch, var(--foreground) 12%, transparent);
   }
-  .project-badge:active { transform: translateY(0); }
-  .project-badge:focus-visible {
+  .picker-btn[aria-expanded='true'] {
+    background: color-mix(in oklch, var(--primary) 14%, transparent);
+    color: var(--primary);
+    border-color: color-mix(in oklch, var(--primary) 30%, transparent);
+  }
+  .picker-btn:focus-visible {
     outline: none;
     box-shadow: 0 0 0 2px var(--background), 0 0 0 4px color-mix(in oklch, var(--primary) 60%, transparent);
   }
@@ -167,15 +171,19 @@
 </style>
 
 <div class="rail-top" part="top">
-  <button
-    type="button"
-    class="project-badge"
-    part="project-badge"
-    aria-label="Switch project"
-    aria-haspopup="dialog"
-    title="Switch project"
-    bind:this={projectBadgeEl}
-  >{projectInitial()}</button>
+  <sui-view-picker placement="right" bind:this={viewPickerEl}>
+    <button
+      slot="trigger"
+      type="button"
+      class="picker-btn"
+      part="picker-btn"
+      title="Pinned views + project switcher"
+      aria-label="Open picker"
+      bind:this={viewPickerBtnEl}
+    >
+      <sui-icon name="grid-2x2" size="md"></sui-icon>
+    </button>
+  </sui-view-picker>
 </div>
 <nav class="rail-nav" part="nav">
   <slot bind:this={navSlot}></slot>

@@ -8,6 +8,16 @@ use axum::{extract::Path, http::StatusCode, response::IntoResponse};
 use super::resolve::{is_valid_view_name, read_manifest_file, resolve_view_dir, scan_views_dir};
 use super::{ViewListEntry, ViewManifest, mesh_err, mesh_ok};
 
+/// Views hidden from user-facing pickers (cmdk find, view-picker).
+/// Mirrors `HIDDEN_FROM_PICKERS` in routes/search_api.rs — both
+/// endpoints feed the same picker surfaces so the lists must agree.
+/// When a `hidden: true` manifest field lands, this moves to per-view.
+const HIDDEN_FROM_PICKERS: &[&str] = &[
+    "setup",
+    "sessions", "mesh", "events",
+    "specs",
+];
+
 /// GET /api/v1/views
 #[utoipa::path(
     operation_id = "listViews",
@@ -24,6 +34,7 @@ pub async fn list_views() -> impl IntoResponse {
     for d in super::discovery::view_search_dirs() {
         scan_views_dir(&d.path, d.source, &mut views);
     }
+    views.retain(|name, _| !HIDDEN_FROM_PICKERS.contains(&name.as_str()));
     let mut list: Vec<ViewListEntry> = views.into_values().collect();
     list.sort_by(|a, b| a.name.cmp(&b.name));
     mesh_ok(serde_json::json!({ "views": list }))

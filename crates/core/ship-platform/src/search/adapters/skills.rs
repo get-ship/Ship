@@ -52,7 +52,7 @@ impl EntitySearchAdapter for SkillsAdapter {
                     kind: EntityKind::Skill,
                     id: s.id.clone(),
                     label: s.name.clone().unwrap_or_else(|| s.id.clone()),
-                    path: format!("/skills?id={}", s.id),
+                    path: format!("/skills/{}", s.id),
                     icon: Some("sparkles".into()),
                     snippet: s.description.clone(),
                     score,
