@@ -63,7 +63,7 @@ pub fn revoke_session(session_id: &str) {
 }
 
 /// Snapshot for tests / observability. Returns the current set of grants.
-pub fn snapshot() -> Vec<ViewEditCapability> {
+pub fn grants_snapshot() -> Vec<ViewEditCapability> {
     let guard = registry().lock().expect("view-edit capability poisoned");
     guard.iter().cloned().collect()
 }

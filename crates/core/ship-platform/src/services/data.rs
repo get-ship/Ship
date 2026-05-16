@@ -23,6 +23,8 @@ pub async fn ensure_data_service<'a>(
         let mut svc = DataService::open(ship_dir)?;
         crate::artifacts::ensure_artifacts_collection(&mut svc)
             .context("registering built-in artifacts collection")?;
+        crate::view_authoring::ensure_view_snapshots_collection(&mut svc)
+            .context("registering built-in view_snapshots collection")?;
         *guard = Some(svc);
     }
     Ok(guard)

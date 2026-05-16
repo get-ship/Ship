@@ -16,9 +16,11 @@ pub mod types;
 #[cfg(test)]
 mod tests;
 
-pub use capability::{ViewEditCapability, grant, has_grant, revoke};
+pub use capability::{
+    ViewEditCapability, grant, grants_snapshot, has_grant, revoke, revoke_session,
+};
 pub use snapshot::{
-    VIEW_SNAPSHOTS_COLLECTION_ID, ensure_view_snapshots_collection, list_snapshots, read_snapshot,
-    snapshot_view, view_snapshots_schema,
+    VIEW_SNAPSHOTS_COLLECTION_ID, delete_snapshot, ensure_view_snapshots_collection,
+    list_snapshots, read_snapshot, snapshot_view, view_snapshots_schema,
 };
 pub use types::*;

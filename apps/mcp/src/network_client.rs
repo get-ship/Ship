@@ -597,3 +597,24 @@ pub async fn artifact_promote(id: &str, target_scope: &str) -> Result<String> {
     )
     .await
 }
+
+// ── View authoring (chrome edit-mode + agent tool dispatch) ─────────────────
+
+/// Dispatch a `view.*` tool through the daemon. The daemon enforces the
+/// per-session edit-mode capability and returns the tool's JSON response.
+pub async fn view_edit_tool(
+    name: &str,
+    session_id: &str,
+    op: &str,
+    args: Value,
+) -> Result<String> {
+    post(
+        &format!("/views/{name}/edit/tool"),
+        serde_json::json!({
+            "session_id": session_id,
+            "op": op,
+            "args": args,
+        }),
+    )
+    .await
+}

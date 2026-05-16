@@ -101,6 +101,54 @@ async fn delete_snapshot_removes_row_and_blob() {
     assert!(err.to_string().contains("not found"), "got: {err}");
 }
 
+/// Mirror of the `view.write_source` atomic-rollback semantics: snapshot
+/// the candidate source, simulate a compile failure, ensure the snapshot
+/// is purged and the prior source still resolves cleanly. The real
+/// bundler invocation is out of scope for a unit test — this exercises
+/// the snapshot side that the route's rollback path depends on.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn atomic_write_rollback_purges_snapshot_on_failure() {
+    let (_tmp, mut svc, kernel, artifacts) = fixture().await;
+    // Pretend the agent took a snapshot for the candidate source.
+    let candidate = snapshot_view(
+        &mut svc, &kernel, &artifacts, "p", "v", "broken-src", "t1", "agt", Some("bad write"),
+    )
+    .await
+    .unwrap();
+
+    // Compile fails -> route deletes the snapshot.
+    let removed = delete_snapshot(&mut svc, &kernel, &artifacts, &candidate.snapshot_id)
+        .await
+        .unwrap();
+    assert!(removed, "rollback must remove the candidate snapshot");
+
+    // Subsequent list reflects the rollback.
+    let (snaps, _) = list_snapshots(&mut svc, "v", 10, None).unwrap();
+    assert!(
+        snaps.is_empty(),
+        "list_snapshots must not return the rolled-back snapshot, got {snaps:?}"
+    );
+}
+
+/// The atomic happy path: snapshot the new source, leave it in place
+/// when compile succeeds. The route returns the snapshot id to the agent.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn atomic_write_happy_path_persists_snapshot_on_success() {
+    let (_tmp, mut svc, kernel, artifacts) = fixture().await;
+    let meta = snapshot_view(
+        &mut svc, &kernel, &artifacts, "p", "v", "good-src", "t1", "agt", Some("good write"),
+    )
+    .await
+    .unwrap();
+
+    // Compile succeeds -> snapshot stays.
+    let (snaps, _) = list_snapshots(&mut svc, "v", 10, None).unwrap();
+    assert_eq!(snaps.len(), 1);
+    assert_eq!(snaps[0].snapshot_id, meta.snapshot_id);
+    let bytes = read_snapshot(&mut svc, &artifacts, &meta.snapshot_id).unwrap();
+    assert_eq!(bytes, "good-src");
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn list_snapshots_paginates_via_cursor() {
     let (_tmp, mut svc, kernel, artifacts) = fixture().await;

@@ -15,6 +15,7 @@ mod project;
 mod session;
 mod sui_lsp;
 mod view;
+pub mod view_authoring;
 
 pub use dispatch::*;
 pub use job::*;

@@ -22,7 +22,8 @@ use crate::routes::{
     commands_api, create_api, feedback_api, git_api, hooks_api, human_webhook, lint_api, logs_api,
     mcp_api, openapi, permissions_api, pipelines_api, projects_api, rest_api, rules_api,
     runtime_api, sdk_manifest, search_api, settings_api, shell_assets, skills_api, specs_api,
-    themes_api, view_errors_api, view_sessions_api, webhook_ext,
+    themes_api, view_edit_mode_api, view_edit_tool_api, view_errors_api, view_sessions_api,
+    webhook_ext,
 };
 use crate::auth::{attest, pairing, session};
 use crate::transport::{cors, pty as pty_handler};
@@ -487,6 +488,13 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         // Feedback ingress
         .ship_route(Route::PostFeedback, feedback_api::post_feedback)
         .ship_route(Route::PostAnnotation, annotations_api::post_annotation)
+        // View authoring — chrome edit-mode handshake + agent tool dispatch.
+        .ship_route(Route::EnterViewEditMode_template(), view_edit_mode_api::enter_edit_mode)
+        .ship_route(Route::ExitViewEditMode_template(), view_edit_mode_api::exit_edit_mode)
+        .ship_route(
+            Route::DispatchViewEditTool_template(),
+            view_edit_tool_api::dispatch_tool,
+        )
         // AgentService — generic CRUD + lifecycle. First-party and
         // third-party views use this surface equally.
         .ship_route(Route::AgentsList, agents_api::list)
