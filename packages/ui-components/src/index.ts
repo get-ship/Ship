@@ -64,7 +64,7 @@ import './sui-metachip/sui-metachip.compiled.js'
 import './sui-popover/sui-popover.compiled.js'
 import './sui-view-picker/sui-view-picker.compiled.js'
 import './sui-theme-picker/sui-theme-picker.compiled.js'
-// sui-rail is island-bundled; see islands/sui-rail/.
+// sui-rail opts into its own separate bundle via `<bundle separate />`; see sui-rail/.
 import './sui-status-bar/sui-status-bar.compiled.js'
 import './sui-dialog/sui-dialog.compiled.js'
 import './sui-drawer/sui-drawer.compiled.js'
@@ -99,7 +99,7 @@ import './sui-json-view/sui-json-view.compiled.js'
 import './sui-diff/sui-diff.compiled.js'
 import './sui-markdown/sui-markdown.compiled.js'
 import "./sui-view-chrome/sui-view-chrome.compiled.js"
-// sui-nav-top + sui-launcher are island-bundled; see islands/.
+// sui-nav-top + sui-launcher opt into separate bundles via `<bundle separate />`.
 import "./sui-navigation-menu/sui-navigation-menu.compiled.js"
 import "./sui-navigation-menu/sui-navigation-item.compiled.js"
 import "./sui-scroll-area/sui-scroll-area.compiled.js"
@@ -123,10 +123,11 @@ import './sui-git-diff/sui-git-diff.compiled.js'
 import './sui-git-diff/sui-git-diff-file.compiled.js'
 import './sui-git-diff/sui-git-diff-hunk.compiled.js'
 import './sui-git-diff/sui-git-diff-line.compiled.js'
-// sui-panel-dock is island-bundled; see islands/sui-panel-dock/.
-// sui-devtools-* are island-bundled; see islands/sui-devtools/.
-// Island bundles — loaded on demand by hosts that need them. See
-// packages/ui-components/src/islands/<bundle>/:
+// sui-panel-dock opts into its own separate bundle via `<bundle separate />`.
+// sui-devtools-* opt into a shared separate bundle via `<bundle separate />`.
+// Separate bundles — loaded on demand by hosts that need them. Each lives at
+// packages/ui-components/src/<tag>/ with a top-of-file `<bundle separate />`
+// directive on its `.sui` source:
 //   - sui-terminal       — the terminal pane
 //   - sui-command-bar    — command-bar + command-palette + command-chat
 //   - sui-devtools       — devtools-source + -components + -lint + -schema + -signals

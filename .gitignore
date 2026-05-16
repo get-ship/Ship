@@ -159,7 +159,7 @@ apps/shipd/assets/ship-elements.md
 #   * `dispatch.sh`, which bootstraps fresh worktrees from the launching repo
 # `view-host.html` is hand-authored source and stays tracked.
 crates/sui/ship-sui-server/assets/*.js
-crates/sui/ship-sui-server/assets/sui-islands/
+crates/sui/ship-sui-server/assets/sui-components/
 crates/sui/ship-sui-server/assets/views/
 crates/sui/ship-sui-server/assets/lucide-icons.json
 crates/sui/ship-sui-server/assets/sui-custom-elements.json
@@ -180,7 +180,7 @@ apps/shipd/assets/sui-markdown-editor.js
 apps/shipd/assets/sui-nav-top.js
 apps/shipd/assets/sui-panel-dock.js
 apps/shipd/assets/sui-terminal.js
-apps/shipd/assets/sui-islands/
+apps/shipd/assets/sui-components/
 apps/shipd/assets/views/
 apps/shipd/assets/.cache/
 
@@ -225,3 +225,4 @@ views/*/.compiled/
 
 # Per-worktree isolation marker — created by `just init-worktree`, never committed.
 .ship/.boundary
+.artifacts/

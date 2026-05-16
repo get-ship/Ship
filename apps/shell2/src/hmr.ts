@@ -2,8 +2,8 @@
 // shell2's mount lifecycle.
 //
 // Bundler target shape (see runtime-assets/bundler.ts):
-//   views/<name>/view   → one bundle per views/<name>/page.sui
-//   sui-islands/<name>  → component island bundle
+//   views/<name>/view      → one bundle per views/<name>/page.sui
+//   sui-components/<name>  → separate-bundle component
 //   sui-runtime, sui-dom, sui-components, ship-elements, …
 //
 // Behavior:
@@ -55,7 +55,7 @@ export function initHmr(deps: HmrDeps): { close(): void } | null {
         }
         return
       }
-      // Component / runtime / island bundle changed — full reload.
+      // Component / runtime / separate-bundle changed — full reload.
       console.info(`[sui:hmr] ${target} changed; reload`)
       window.location.reload()
     },

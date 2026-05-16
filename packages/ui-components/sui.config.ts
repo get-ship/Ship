@@ -5,23 +5,25 @@ const config: SuiBuildConfig = {
     'sui-components': 'src/index.ts',
   },
   lazyBundles: {
-    'sui-terminal':        'src/islands/sui-terminal/index.ts',
-    'sui-code-editor':     'src/islands/sui-code-editor/index.ts',
-    'sui-markdown-editor': 'src/islands/sui-markdown-editor/index.ts',
-    'sui-command-bar':     'src/islands/sui-command-bar/index.ts',
-    'sui-launcher':        'src/islands/sui-launcher/index.ts',
-    'sui-nav-top':         'src/islands/sui-nav-top/index.ts',
-    'sui-panel-dock':      'src/islands/sui-panel-dock/index.ts',
-    'sui-rail':            'src/islands/sui-rail/index.ts',
-    'sui-devtools':        'src/islands/sui-devtools/index.ts',
-    'sui-component-picker': 'src/islands/sui-component-picker/index.ts',
-    'sui-view-authoring':  'src/islands/sui-view-authoring/index.ts',
+    'sui-terminal':        'src/sui-terminal/index.ts',
+    'sui-code-editor':     'src/sui-code-editor/index.ts',
+    'sui-markdown-editor': 'src/sui-markdown-editor/index.ts',
+    'sui-command-bar':     'src/sui-command-bar/index.ts',
+    'sui-launcher':        'src/sui-launcher/index.ts',
+    'sui-nav-top':         'src/sui-nav-top/index.ts',
+    'sui-panel-dock':      'src/sui-panel-dock/index.ts',
+    'sui-rail':            'src/sui-rail/index.ts',
+    'sui-devtools':        'src/sui-devtools/index.ts',
+    'sui-component-picker': 'src/sui-component-picker/index.ts',
+    'sui-view-authoring':  'src/sui-view-authoring/index.ts',
   },
   outdir: '../../crates/sui/ship-sui-server/assets',
-  // Islands are code-split bundles loaded on demand by sui-runtime; keep
-  // them under `sui-islands/` so the always-loaded framework bundles
-  // (sui-components.js etc.) at the top of `assets/` stay distinguishable.
-  lazyOutSubdir: 'sui-islands',
+  // Separate-bundle components (opted in via the `<bundle separate />`
+  // directive in their `.sui` source) are code-split and loaded on demand by
+  // sui-runtime; keep them under `sui-components/` so the always-loaded
+  // framework aggregate (`sui-components.js`) at the top of `assets/` stays
+  // distinguishable.
+  lazyOutSubdir: 'sui-components',
   // Aggregate CEM lands next to the bundles in `outdir` so the crate that
   // bakes it in (`crates/sui/ship-sui-server`, via `build.rs` +
   // `src/assets.rs`) reads a fresh table. A post-fold typo pointed this at

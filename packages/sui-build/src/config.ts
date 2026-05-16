@@ -15,8 +15,8 @@ export interface SuiBuildConfig {
 
   /** Subdirectory of `outdir` for `lazyBundles` outputs. When omitted,
    *  lazy bundles share `outdir` with `entries`. Used to keep
-   *  code-split islands segregated from always-loaded framework bundles
-   *  (e.g. `sui-islands/`). */
+   *  code-split components segregated from always-loaded framework bundles
+   *  (e.g. `sui-components/`). */
   lazyOutSubdir?: string
 
   /** Build mode. Defaults to 'production'. CLI sets to 'development'

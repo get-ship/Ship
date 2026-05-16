@@ -10,7 +10,7 @@
 //!   * `bun --filter @ship/sui-dom bundle`     — sui-dom.js
 //!   * `bun --filter @ship/sdk-client bundle`  — sui-sdk-client.js
 //!   * `bun --filter @ship/ui-components build` — sui-components.js,
-//!     sui-islands/*.js, sui-custom-elements.json (via sui-build)
+//!     sui-components/*.js, sui-custom-elements.json (via sui-build)
 //!   * the in-daemon Bun worker at `~/.ship/runtime/bundler.ts` —
 //!     refreshes everything above plus views/*/view.js while shipd
 //!     runs in dev mode
@@ -37,12 +37,12 @@ const ASSETS: &[&str] = &[
     "sui-dom.js",
     "sui-sdk-client.js",
     "sui-components.js",
-    "sui-islands/sui-terminal.js",
-    "sui-islands/sui-command-bar.js",
-    "sui-islands/sui-devtools.js",
-    "sui-islands/sui-launcher.js",
-    "sui-islands/sui-panel-dock.js",
-    "sui-islands/sui-nav-top.js",
+    "sui-components/sui-terminal.js",
+    "sui-components/sui-command-bar.js",
+    "sui-components/sui-devtools.js",
+    "sui-components/sui-launcher.js",
+    "sui-components/sui-panel-dock.js",
+    "sui-components/sui-nav-top.js",
     "views/agents/view.js",
     "views/git/view.js",
     "lucide-icons.json",
@@ -71,8 +71,8 @@ fn main() {
         .expect("repo root (three levels above crates/sui/ship-sui-server)")
         .to_path_buf();
 
-    fs::create_dir_all(assets.join("sui-islands"))
-        .unwrap_or_else(|e| panic!("build.rs: mkdir sui-islands: {e}"));
+    fs::create_dir_all(assets.join("sui-components"))
+        .unwrap_or_else(|e| panic!("build.rs: mkdir sui-components: {e}"));
     fs::create_dir_all(assets.join("views"))
         .unwrap_or_else(|e| panic!("build.rs: mkdir views: {e}"));
 

@@ -82,6 +82,14 @@ pub fn parse(source: &str) -> Result<Program, CompileError> {
                     pending_jsdoc = None;
                     continue;
                 }
+                // Top-level `<bundle separate />` is a bundler hint (read by
+                // runtime-assets/bundler.ts to opt the component into its own
+                // code-split bundle). The compiler lifts it out so it never
+                // reaches the template emit path.
+                "bundle" => {
+                    pending_jsdoc = None;
+                    continue;
+                }
                 _ => {}
             },
             _ => {}

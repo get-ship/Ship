@@ -166,8 +166,8 @@ pub enum Route {
     /// @route GET "/_sui/lucide-icons.json"
     SuiLucideIconsJson,
 
-    /// @route GET "/_sui/islands/{tag}/island.js"
-    SuiIsland { tag: String },
+    /// @route GET "/_sui/sui-components/{name}.js"
+    SuiComponentBundle { name: String },
 
     /// @route GET "/_sui/views/{name}/view.sui"
     SuiViewTemplate { name: String },

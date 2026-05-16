@@ -227,9 +227,10 @@ function deriveCategory(tag: string): ComponentCategory {
 }
 
 /**
- * Tags shipped from `packages/ui-components/src/islands/` — bundled
- * separately and loaded on-demand by the shell (not in the main
- * `sui-components.js` bundle the docs site links from the layout).
+ * Tags that opt into their own bundle via the `<bundle separate />`
+ * directive on their `.sui` source — bundled separately and loaded
+ * on-demand by the shell (not in the main `sui-components.js` bundle
+ * the docs site links from the layout).
  * Excluded from the per-component pages because their custom elements
  * are not registered at the URL these docs serve from, so any preview
  * would render an undefined-element husk.

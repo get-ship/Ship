@@ -24,8 +24,8 @@ import {
   type Signal,
 } from '@ship/sui-runtime'
 
-const VA_ISLAND_URL = '/_sui/islands/sui-view-authoring/island.js'
-const PICKER_ISLAND_URL = '/_sui/islands/sui-component-picker/island.js'
+const VA_ISLAND_URL = '/_sui/sui-components/sui-view-authoring.js'
+const PICKER_ISLAND_URL = '/_sui/sui-components/sui-component-picker.js'
 
 interface DockTabDef {
   id: string

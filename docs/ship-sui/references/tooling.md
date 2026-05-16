@@ -120,7 +120,7 @@ Use it to find a component, browse its props (including enum values from `<prop 
 
 ## Devtools panes — in-page introspection
 
-`packages/ui-components/src/islands/sui-devtools/` ships five island-bundled panes. Each is a `.sui` + `.controller.ts` pair, lazy-loaded on first mount via the islands bundle.
+`packages/ui-components/src/sui-devtools/` ships five panes that share a separate bundle (opted in via `<bundle separate />` in each `.sui` source). Each is a `.sui` + `.controller.ts` pair, lazy-loaded on first mount via the `sui-devtools.js` bundle.
 
 | Tag | What it shows |
 |---|---|

@@ -34,14 +34,14 @@ let sharedFrame: HTMLIFrameElement | null = null
 let sharedNode: HTMLElement | null = null
 let sharedNodeTag: string | null = null
 
-// Components shipped as their own island bundle at
-// `/_sui/islands/<tag>/island.js`. The daemon normally injects these into the
+// Components shipped as their own separate bundle at
+// `/_sui/sui-components/<tag>.js`. The daemon normally injects these into the
 // host page by static-scanning view templates for the tag, but the
 // studio creates host nodes via `document.createElement(tag)` at
-// runtime — the daemon can't see those, so the island module never
+// runtime — the daemon can't see those, so the bundle module never
 // runs and the host never upgrades. Eagerly fetch the bundle when the
-// studio is about to render one of these tags. The other island tags
-// (panel-dock, nav-top, command-bar, rail, terminal, launcher,
+// studio is about to render one of these tags. The other separate-bundle
+// tags (panel-dock, nav-top, command-bar, rail, terminal, launcher,
 // devtools) live on STUDIO_HIDE_TAGS in catalog.ts so they don't
 // reach this code path.
 const ISLAND_TAGS = new Set<string>([
@@ -59,7 +59,7 @@ function ensureIsland(tag: string): void {
   // Fire-and-forget. The host node is already in the DOM; once the
   // module evaluates it calls customElements.define and the existing
   // element upgrades in place — no need to re-create the host.
-  import(/* @vite-ignore */ `/_sui/islands/${tag}/island.js`).catch(() => {
+  import(/* @vite-ignore */ `/_sui/sui-components/${tag}.js`).catch(() => {
     // Leave the host un-upgraded on failure so the studio visibly
     // fails for the offending tag rather than silently pretending the
     // component is present.

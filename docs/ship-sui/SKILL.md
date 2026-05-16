@@ -161,7 +161,7 @@ Mutations are HTTP POST/DELETE through the same client (e.g. `ship.sessions.star
 | `@ship/sui-build` | Project bundler — discovers `.sui` sources, calls the compiler, runs Bun/esbuild adapter, optional `--watch`. | `packages/sui-build/bin/sui-build.mjs` |
 | `@ship/sui-lsp` | LSP server — diagnostics + hover for `.sui`. Used by `apps/vscode/`. Stdio: `node packages/sui-lsp/bin/sui-lsp.js --stdio`. | `packages/sui-lsp/src/` |
 | UI Studio | Browse and exercise every registered component with prop knobs, slot compositions, deep links. | `views/ship-ui-studio/` (mounted at `/ship-ui-studio`) |
-| Devtools panes | In-page panels: template source, components tree, signals, lint, schema. | `packages/ui-components/src/islands/sui-devtools/` |
+| Devtools panes | In-page panels: template source, components tree, signals, lint, schema. | `packages/ui-components/src/sui-devtools/` |
 | `dispatch.sh` | Worktree + job-spec + agent compile + terminal-open script. | `.ship/skills/spawn-agent/scripts/dispatch.sh` |
 | MCP shims | `mcp__ship__sui_diagnostics`, `mcp__ship__sui_hover`, `mcp__ship__sui_dependencies` — surface LSP findings + per-view signal/tag/event graph for agents that don't speak LSP. | `apps/mcp/src/` |
 | Drift detection | `GET /api/_meta` returns `{compilerVersion, daemonVersion, builtAt, git, dirty}`. Every compiled artifact carries a `_compilerVersion` marker (leading `/*! */` comment in JS, sidecar field in CEM/schema/meta). Shell compares its loaded bundle against the daemon to surface stale-bundle drift. | `crates/sui/ship-sui-server/src/meta.rs` |
