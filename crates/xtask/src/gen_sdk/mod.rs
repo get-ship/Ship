@@ -13,7 +13,6 @@ use serde_json::{json, Map, Value};
 mod data_ts;
 mod framework;
 mod jsonc;
-mod macros;
 mod ship_ops;
 mod urls;
 mod view_contexts;
@@ -22,18 +21,13 @@ const VERSION: &str = "0.1.0";
 const HEADER: &str = "just gen-sdk — DO NOT EDIT";
 
 /// Entry point. Creates `packages/sdk/src/generated/` if missing and writes
-/// all eight JSON artifacts alongside the typed TS bindings. Each is a
-/// complete top-level object with `_generated`, `version`, and `$schema`.
+/// the JSON artifacts alongside the typed TS bindings. Each is a complete
+/// top-level object with `_generated`, `version`, and `$schema`.
 pub fn run(repo_root: &Path) -> Result<()> {
     let out_dir = repo_root.join("packages/sdk/src/generated");
     fs::create_dir_all(&out_dir)
         .with_context(|| format!("create {}", out_dir.display()))?;
 
-    write_doc(
-        &out_dir.join("sdk-macros.json"),
-        "sdk-macros",
-        macros::extract(repo_root)?,
-    )?;
     write_doc(
         &out_dir.join("sdk-urls.json"),
         "sdk-urls",
@@ -90,7 +84,7 @@ pub fn run(repo_root: &Path) -> Result<()> {
         .with_context(|| format!("write {}", framework_ts_path.display()))?;
 
     eprintln!(
-        "gen-sdk: wrote 8 JSON + 2 TS files to {}",
+        "gen-sdk: wrote 7 JSON + 2 TS files to {}",
         out_dir.display()
     );
     Ok(())

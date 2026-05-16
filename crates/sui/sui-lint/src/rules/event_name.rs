@@ -16,7 +16,7 @@
 
 use std::path::Path;
 
-use lint::report::{Finding, Severity};
+use crate::report::{Finding, Severity};
 
 pub const RULE_ID: &str = "sui-event-name";
 

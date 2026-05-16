@@ -36,7 +36,7 @@ use std::collections::HashSet;
 use std::path::Path;
 use std::sync::OnceLock;
 
-use lint::report::{Finding, Severity};
+use crate::report::{Finding, Severity};
 
 pub const RULE_ID: &str = "sui-css-token";
 

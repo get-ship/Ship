@@ -15,18 +15,18 @@
     }
   ],
   "paths": {
-    "/api/assets/custom-elements.json": {
+    "/api/assets/theme.css": {
       "get": {
         "tags": [
           "views"
         ],
-        "summary": "Serve Elements Manifest",
-        "operationId": "serveElementsManifest",
+        "summary": "Serve Theme Css",
+        "operationId": "serveThemeCss",
         "responses": {
           "200": {
-            "description": "Custom Elements Manifest (CEM)",
+            "description": "Active theme CSS overrides",
             "content": {
-              "application/json": {}
+              "text/css": {}
             }
           },
           "500": {
@@ -41,356 +41,17 @@
           }
         },
         "security": [],
-        "description": "GET /api/v1/runtime/assets/custom-elements.json",
+        "description": "GET /api/v1/runtime/assets/theme.css\nReturns the active theme's CSS overrides. No-cache so theme changes apply immediately.",
         "x-codeSamples": [
           {
             "lang": "bash",
             "label": "curl",
-            "source": "curl -X GET http://localhost:9315/api/assets/custom-elements.json"
+            "source": "curl -X GET http://localhost:9315/api/assets/theme.css"
           },
           {
             "lang": "javascript",
             "label": "fetch",
-            "source": "const res = await fetch(\"http://localhost:9315/api/assets/custom-elements.json\", {\n  method: \"GET\",\n});\nconst data = await res.json();"
-          }
-        ]
-      }
-    },
-    "/api/assets/datastar.js": {
-      "get": {
-        "tags": [
-          "views"
-        ],
-        "summary": "Serve Datastar Js",
-        "operationId": "serveDatastarJs",
-        "responses": {
-          "200": {
-            "description": "Datastar client bundle",
-            "content": {
-              "application/javascript": {}
-            }
-          },
-          "500": {
-            "description": "server error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        },
-        "security": [],
-        "description": "GET /api/v1/runtime/assets/datastar.js",
-        "x-codeSamples": [
-          {
-            "lang": "bash",
-            "label": "curl",
-            "source": "curl -X GET http://localhost:9315/api/assets/datastar.js"
-          },
-          {
-            "lang": "javascript",
-            "label": "fetch",
-            "source": "const res = await fetch(\"http://localhost:9315/api/assets/datastar.js\", {\n  method: \"GET\",\n});\nconst data = await res.json();"
-          }
-        ]
-      }
-    },
-    "/api/assets/jinja-macros.json": {
-      "get": {
-        "tags": [
-          "views"
-        ],
-        "summary": "Serve Jinja Macros Json",
-        "operationId": "serveJinjaMacrosJson",
-        "responses": {
-          "200": {
-            "description": "Jinja SDK macro manifest (JSON)",
-            "content": {
-              "application/json": {}
-            }
-          }
-        },
-        "security": [],
-        "description": "GET /api/assets/jinja-macros.json",
-        "x-codeSamples": [
-          {
-            "lang": "bash",
-            "label": "curl",
-            "source": "curl -X GET http://localhost:9315/api/assets/jinja-macros.json"
-          },
-          {
-            "lang": "javascript",
-            "label": "fetch",
-            "source": "const res = await fetch(\"http://localhost:9315/api/assets/jinja-macros.json\", {\n  method: \"GET\",\n});\nconst data = await res.json();"
-          }
-        ]
-      }
-    },
-    "/api/assets/jinja-macros.md": {
-      "get": {
-        "tags": [
-          "views"
-        ],
-        "summary": "Serve Jinja Macros Md",
-        "operationId": "serveJinjaMacrosMd",
-        "responses": {
-          "200": {
-            "description": "Jinja SDK macro manifest (human-readable)",
-            "content": {
-              "text/markdown": {}
-            }
-          }
-        },
-        "security": [],
-        "description": "GET /api/assets/jinja-macros.md",
-        "x-codeSamples": [
-          {
-            "lang": "bash",
-            "label": "curl",
-            "source": "curl -X GET http://localhost:9315/api/assets/jinja-macros.md"
-          },
-          {
-            "lang": "javascript",
-            "label": "fetch",
-            "source": "const res = await fetch(\"http://localhost:9315/api/assets/jinja-macros.md\", {\n  method: \"GET\",\n});\nconst data = await res.json();"
-          }
-        ]
-      }
-    },
-    "/api/assets/ship-code-editor.js": {
-      "get": {
-        "tags": [
-          "views"
-        ],
-        "summary": "Serve Code Editor",
-        "operationId": "serveCodeEditor",
-        "responses": {
-          "200": {
-            "description": "Code editor island bundle",
-            "content": {
-              "application/javascript": {}
-            }
-          },
-          "500": {
-            "description": "server error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        },
-        "security": [],
-        "description": "GET /api/v1/runtime/assets/ship-code-editor.js",
-        "x-codeSamples": [
-          {
-            "lang": "bash",
-            "label": "curl",
-            "source": "curl -X GET http://localhost:9315/api/assets/ship-code-editor.js"
-          },
-          {
-            "lang": "javascript",
-            "label": "fetch",
-            "source": "const res = await fetch(\"http://localhost:9315/api/assets/ship-code-editor.js\", {\n  method: \"GET\",\n});\nconst data = await res.json();"
-          }
-        ]
-      }
-    },
-    "/api/assets/ship-elements.js": {
-      "get": {
-        "tags": [
-          "views"
-        ],
-        "summary": "Serve Ship Elements",
-        "operationId": "serveShipElements",
-        "responses": {
-          "200": {
-            "description": "Web-component element bundle",
-            "content": {
-              "application/javascript": {}
-            }
-          },
-          "500": {
-            "description": "server error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        },
-        "security": [],
-        "description": "GET /api/v1/runtime/assets/ship-elements.js",
-        "x-codeSamples": [
-          {
-            "lang": "bash",
-            "label": "curl",
-            "source": "curl -X GET http://localhost:9315/api/assets/ship-elements.js"
-          },
-          {
-            "lang": "javascript",
-            "label": "fetch",
-            "source": "const res = await fetch(\"http://localhost:9315/api/assets/ship-elements.js\", {\n  method: \"GET\",\n});\nconst data = await res.json();"
-          }
-        ]
-      }
-    },
-    "/api/assets/ship-elements.md": {
-      "get": {
-        "tags": [
-          "views"
-        ],
-        "summary": "Serve Elements Catalog",
-        "operationId": "serveElementsCatalog",
-        "responses": {
-          "200": {
-            "description": "Compact element catalog for agent context",
-            "content": {
-              "text/markdown": {}
-            }
-          },
-          "500": {
-            "description": "server error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        },
-        "security": [],
-        "description": "GET /api/v1/runtime/assets/ship-elements.md\nCompact, token-efficient catalog for agent context.",
-        "x-codeSamples": [
-          {
-            "lang": "bash",
-            "label": "curl",
-            "source": "curl -X GET http://localhost:9315/api/assets/ship-elements.md"
-          },
-          {
-            "lang": "javascript",
-            "label": "fetch",
-            "source": "const res = await fetch(\"http://localhost:9315/api/assets/ship-elements.md\", {\n  method: \"GET\",\n});\nconst data = await res.json();"
-          }
-        ]
-      }
-    },
-    "/api/assets/ship-git.js": {
-      "get": {
-        "tags": [
-          "views"
-        ],
-        "summary": "Serve Git Js",
-        "operationId": "serveGitJs",
-        "responses": {
-          "200": {
-            "description": "Git-view island bundle",
-            "content": {
-              "application/javascript": {}
-            }
-          }
-        },
-        "security": [],
-        "description": "GET /api/assets/ship-git.js",
-        "x-codeSamples": [
-          {
-            "lang": "bash",
-            "label": "curl",
-            "source": "curl -X GET http://localhost:9315/api/assets/ship-git.js"
-          },
-          {
-            "lang": "javascript",
-            "label": "fetch",
-            "source": "const res = await fetch(\"http://localhost:9315/api/assets/ship-git.js\", {\n  method: \"GET\",\n});\nconst data = await res.json();"
-          }
-        ]
-      }
-    },
-    "/api/assets/ship-markdown-editor.js": {
-      "get": {
-        "tags": [
-          "views"
-        ],
-        "summary": "Serve Markdown Editor",
-        "operationId": "serveMarkdownEditor",
-        "responses": {
-          "200": {
-            "description": "Markdown editor island bundle",
-            "content": {
-              "application/javascript": {}
-            }
-          },
-          "500": {
-            "description": "server error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        },
-        "security": [],
-        "description": "GET /api/v1/runtime/assets/ship-markdown-editor.js",
-        "x-codeSamples": [
-          {
-            "lang": "bash",
-            "label": "curl",
-            "source": "curl -X GET http://localhost:9315/api/assets/ship-markdown-editor.js"
-          },
-          {
-            "lang": "javascript",
-            "label": "fetch",
-            "source": "const res = await fetch(\"http://localhost:9315/api/assets/ship-markdown-editor.js\", {\n  method: \"GET\",\n});\nconst data = await res.json();"
-          }
-        ]
-      }
-    },
-    "/api/assets/ship-terminal.js": {
-      "get": {
-        "tags": [
-          "views"
-        ],
-        "summary": "Serve Terminal",
-        "operationId": "serveTerminal",
-        "responses": {
-          "200": {
-            "description": "Terminal island bundle",
-            "content": {
-              "application/javascript": {}
-            }
-          },
-          "500": {
-            "description": "server error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        },
-        "security": [],
-        "description": "GET /api/v1/runtime/assets/ship-terminal.js",
-        "x-codeSamples": [
-          {
-            "lang": "bash",
-            "label": "curl",
-            "source": "curl -X GET http://localhost:9315/api/assets/ship-terminal.js"
-          },
-          {
-            "lang": "javascript",
-            "label": "fetch",
-            "source": "const res = await fetch(\"http://localhost:9315/api/assets/ship-terminal.js\", {\n  method: \"GET\",\n});\nconst data = await res.json();"
+            "source": "const res = await fetch(\"http://localhost:9315/api/assets/theme.css\", {\n  method: \"GET\",\n});\nconst data = await res.json();"
           }
         ]
       }
@@ -2694,42 +2355,43 @@
         ]
       }
     },
-    "/api/v1/sse/{path}": {
+    "/api/v1/themes": {
       "get": {
         "tags": [
-          "framework"
+          "views"
         ],
-        "operationId": "serveViewSseRouted",
-        "parameters": [
-          {
-            "name": "path",
-            "in": "path",
-            "description": "View path; matches the /api/v1/v/{path} tree",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
+        "summary": "Serve Themes List",
+        "operationId": "serveThemesList",
         "responses": {
           "200": {
-            "description": "Datastar SSE stream of view re-renders on subscribed kernel events",
+            "description": "Available themes",
             "content": {
-              "text/event-stream": {}
+              "application/json": {}
+            }
+          },
+          "500": {
+            "description": "server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
             }
           }
         },
-        "summary": "Serve View Sse Routed",
+        "security": [],
+        "description": "GET /api/v1/runtime/themes\nReturns JSON list of all available themes.",
         "x-codeSamples": [
           {
             "lang": "bash",
             "label": "curl",
-            "source": "curl -X GET http://localhost:9315/api/v1/sse/webhook-example \\\n  -H \"Authorization: Bearer $SHIP_TOKEN\""
+            "source": "curl -X GET http://localhost:9315/api/v1/themes"
           },
           {
             "lang": "javascript",
             "label": "fetch",
-            "source": "const res = await fetch(\"http://localhost:9315/api/v1/sse/webhook-example\", {\n  method: \"GET\",\n  headers: {\n    \"Authorization\": `Bearer ${process.env.SHIP_TOKEN}`,\n  },\n});\nconst data = await res.json();"
+            "source": "const res = await fetch(\"http://localhost:9315/api/v1/themes\", {\n  method: \"GET\",\n});\nconst data = await res.json();"
           }
         ]
       }
@@ -2777,52 +2439,6 @@
         ]
       }
     },
-    "/api/v1/v/{path}": {
-      "get": {
-        "tags": [
-          "framework"
-        ],
-        "operationId": "serveViewRouted",
-        "parameters": [
-          {
-            "name": "path",
-            "in": "path",
-            "description": "Dotted view path matched against .ship/views/ tree",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Rendered view HTML",
-            "content": {
-              "text/html": {}
-            }
-          },
-          "404": {
-            "description": "No view matches the given path"
-          },
-          "500": {
-            "description": "Template render failed"
-          }
-        },
-        "summary": "Serve View Routed",
-        "x-codeSamples": [
-          {
-            "lang": "bash",
-            "label": "curl",
-            "source": "curl -X GET http://localhost:9315/api/v1/v/webhook-example \\\n  -H \"Authorization: Bearer $SHIP_TOKEN\""
-          },
-          {
-            "lang": "javascript",
-            "label": "fetch",
-            "source": "const res = await fetch(\"http://localhost:9315/api/v1/v/webhook-example\", {\n  method: \"GET\",\n  headers: {\n    \"Authorization\": `Bearer ${process.env.SHIP_TOKEN}`,\n  },\n});\nconst data = await res.json();"
-          }
-        ]
-      }
-    },
     "/api/v1/view-source/{path}": {
       "get": {
         "tags": [
@@ -2833,7 +2449,7 @@
           {
             "name": "path",
             "in": "path",
-            "description": "View path; matches /api/v1/v/{path}",
+            "description": "View path; matches a SUI view name",
             "required": true,
             "schema": {
               "type": "string"
@@ -4173,11 +3789,11 @@
           },
           "scope": {
             "type": "string",
-            "description": "Scope the view was resolved from: `project` | `global`. Bundled\nfirst-party views live in the user-global `.ship/views/` today so\nsurface `global` here; `bundled` is reserved for a later policy\npass (editability tiers)."
+            "description": "Scope the view was resolved from. Always `sui` post-j2-deletion."
           },
           "template": {
             "type": "string",
-            "description": "Template file contents (`index.html.j2`)."
+            "description": "Template file contents (`page.sui`)."
           },
           "template_path": {
             "type": "string",

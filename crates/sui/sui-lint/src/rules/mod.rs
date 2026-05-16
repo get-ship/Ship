@@ -8,7 +8,7 @@
 //! Adding a rule = create the module, add the entry to the registry below.
 
 use std::path::Path;
-use lint::report::Finding;
+use crate::report::Finding;
 
 pub mod controller_purity;
 pub mod css_token;

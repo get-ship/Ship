@@ -52,9 +52,9 @@ const SUI_BUNDLES = [
 // resolves against the same canonical tokens the daemon serves at
 // runtime. The concat order must match apps/shipd/src/views/assets.rs.
 const VIEW_TOKENS_SOURCES = [
-  join(REPO_ROOT, "packages/ship-set/src/tokens.css"),
+  join(REPO_ROOT, "packages/ui-components/src/tokens/tokens.css"),
   join(REPO_ROOT, "apps/shipd/assets/view-tokens.css"),
-  join(REPO_ROOT, "packages/ship-set/src/themes.css"),
+  join(REPO_ROOT, "packages/ui-components/src/tokens/themes.css"),
 ] as const
 // `agent-only` files never ship to any site. `internal` files are hidden from
 // the public (user) build but rendered in internal mode so contributors can

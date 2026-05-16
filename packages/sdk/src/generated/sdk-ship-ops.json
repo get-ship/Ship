@@ -586,6 +586,96 @@
       "permission": "ship.collections.read",
       "sensitive": false
     },
+    "collections.list": {
+      "name": "collections.list",
+      "description": "Collection summaries with field records (id, name, fields[name,type,required]).",
+      "args": [],
+      "returns": "{items: [CollectionSummary]}",
+      "permission": "ship.collections.read",
+      "sensitive": false
+    },
+    "collections.detail": {
+      "name": "collections.detail",
+      "description": "Single collection: schema + items + total count.",
+      "args": [
+        {
+          "name": "id",
+          "kind": "string",
+          "required": true
+        }
+      ],
+      "returns": "{schema, items, total_items}",
+      "permission": "ship.collections.read",
+      "sensitive": false
+    },
+    "collections.items": {
+      "name": "collections.items",
+      "description": "Rows for a single collection.",
+      "args": [
+        {
+          "name": "collection",
+          "kind": "string",
+          "required": true
+        }
+      ],
+      "returns": "{items, total_items}",
+      "permission": "ship.collections.read",
+      "sensitive": false
+    },
+    "artifacts.list": {
+      "name": "artifacts.list",
+      "description": "Artifact metadata records, filterable by scope/mime/collection/item/owner.",
+      "args": [
+        {
+          "name": "scope",
+          "kind": "string?",
+          "required": false
+        },
+        {
+          "name": "mime",
+          "kind": "string?",
+          "required": false
+        },
+        {
+          "name": "collection_id",
+          "kind": "string?",
+          "required": false
+        },
+        {
+          "name": "item_id",
+          "kind": "string?",
+          "required": false
+        },
+        {
+          "name": "owner_actor",
+          "kind": "string?",
+          "required": false
+        },
+        {
+          "name": "content_hash",
+          "kind": "string?",
+          "required": false
+        },
+        {
+          "name": "sort",
+          "kind": "string?",
+          "required": false
+        },
+        {
+          "name": "limit",
+          "kind": "number?",
+          "required": false
+        },
+        {
+          "name": "offset",
+          "kind": "number?",
+          "required": false
+        }
+      ],
+      "returns": "{items: [ArtifactRecord], count, scope}",
+      "permission": "ship.artifacts.read",
+      "sensitive": false
+    },
     "chat.state": {
       "name": "chat.state",
       "description": "Recent messages for the chat drawer, scoped by workspace.",
@@ -606,6 +696,22 @@
       "args": [],
       "returns": "{items: [SessionMeta]}",
       "permission": "ship.sessions.read",
+      "sensitive": false
+    },
+    "workspaces.list": {
+      "name": "workspaces.list",
+      "description": "Known project workspaces with active flag per row.",
+      "args": [],
+      "returns": "{items: [WorkspaceSummary], active: string?}",
+      "permission": "ship.workspaces.read",
+      "sensitive": false
+    },
+    "workspaces.active": {
+      "name": "workspaces.active",
+      "description": "Currently-active workspace id (null if none).",
+      "args": [],
+      "returns": "{id: string?}",
+      "permission": "ship.workspaces.read",
       "sensitive": false
     }
   }

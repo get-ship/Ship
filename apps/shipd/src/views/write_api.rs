@@ -147,24 +147,6 @@ pub async fn write_view_template(
     };
     let target = view_dir.join(&rel_path);
 
-    // Lint the proposed content. Block on any error-severity finding.
-    let findings = lint::lint_view_source(&name, &req.content);
-    let errors: Vec<LintFinding> = findings
-        .iter()
-        .filter(|f| f.severity == lint::Severity::Error)
-        .map(finding_to_lint)
-        .collect();
-    if !errors.is_empty() {
-        return (
-            StatusCode::UNPROCESSABLE_ENTITY,
-            Json(WriteDiagnostics {
-                ok: false,
-                findings: errors,
-            }),
-        )
-            .into_response();
-    }
-
     if let Some(parent) = target.parent()
         && let Err(e) = std::fs::create_dir_all(parent) {
             return json_err(StatusCode::INTERNAL_SERVER_ERROR, e.to_string());
@@ -181,17 +163,6 @@ pub async fn write_view_template(
         }),
     )
         .into_response()
-}
-
-fn finding_to_lint(f: &lint::Finding) -> LintFinding {
-    LintFinding {
-        file: f.file.display().to_string(),
-        line: f.line,
-        col: f.col,
-        rule: f.rule.to_string(),
-        severity: f.severity.as_str().to_string(),
-        message: f.message.clone(),
-    }
 }
 
 #[utoipa::path(

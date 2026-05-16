@@ -1,0 +1,8 @@
+<div class="ship-view ship-view-{{NAME}}">
+  <header>
+    <h1>{{TITLE}}</h1>
+  </header>
+  <main>
+    <p>Replace this with the view content.</p>
+  </main>
+</div>

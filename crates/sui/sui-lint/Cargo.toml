@@ -9,9 +9,7 @@ name = "sui_lint"
 path = "src/lib.rs"
 
 [dependencies]
-# Re-use the j2 lint crate's report types — Finding/Severity/Category
-# are stack-agnostic and shared across all Ship lint surfaces.
-lint = { path = "../../core/lint" }
+serde = { workspace = true, features = ["derive"] }
 
 # Rust-native TS/JS parsing — Solid-shaped fine-grained AST. Walks via
 # the Visit trait. No tsc dependency.

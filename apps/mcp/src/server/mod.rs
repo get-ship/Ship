@@ -687,8 +687,6 @@ impl ShipServer {
         crate::tools::view_errors::view_errors(req).await
     }
 
-    // ---- View linting ----
-
     #[tool(
         description = "Post a plain-text reply into a Ship command-bar chat actor. \
         This is how Shipwright (and other agents) address the user in the Ship UI — \
@@ -707,40 +705,6 @@ impl ShipServer {
             Ok(_) => "ok".to_string(),
             Err(e) => format!("Error: {e}"),
         }
-    }
-
-    #[tool(
-        description = "Lint a Ship view (.j2 template) against the Ship view authoring rules. \
-        Checks for: inline <script> tags (forbidden), inline style budget, undefined Datastar \
-        signals, missing pack declarations, stale pack declarations, unknown macros/filters/routes, \
-        and undefined context fields. AGENTS MUST call this before declaring a view-editing task done. \
-        Pass 'name' to lint a saved view by name, or 'source' to lint an in-flight draft. \
-        Output groups errors before warnings and includes fix hints (`→ suggest: …`) when available."
-    )]
-    async fn lint_view(&self, Parameters(req): Parameters<LintViewRequest>) -> String {
-        let project_dir = match self.get_effective_project_dir().await {
-            Ok(d) => d,
-            Err(e) => return e,
-        };
-
-        let findings: Vec<lint::Finding> = if let Some(source) = req.source {
-            let label = req.name.as_deref().unwrap_or("inline");
-            lint::lint_view_source(label, &source)
-        } else if let Some(name) = req.name {
-            let views_dir = ship_substrate::ShipHome::project_ship_dir(project_dir).join("views").join(&name);
-            if !views_dir.exists() {
-                return format!("Error: view '{}' not found under .ship/views/", name);
-            }
-            lint::lint_view_dir(&views_dir)
-        } else {
-            return "Error: provide 'name' or 'source'".to_string();
-        };
-
-        if findings.is_empty() {
-            return "clean — no findings".to_string();
-        }
-
-        format_findings(&findings)
     }
 
     #[tool(
@@ -879,62 +843,6 @@ impl ShipServer {
     ) -> String {
         artifact_tools::artifact_promote(&req.id, &req.target_scope).await
     }
-}
-
-/// Format a list of lint findings: errors first, warnings after, each with
-/// file:line:col [rule] message and an optional `→ suggest` line.
-fn format_findings(findings: &[lint::Finding]) -> String {
-    let mut errors: Vec<&lint::Finding> = findings
-        .iter()
-        .filter(|f| f.severity == lint::Severity::Error)
-        .collect();
-    let mut warns: Vec<&lint::Finding> = findings
-        .iter()
-        .filter(|f| f.severity == lint::Severity::Warn)
-        .collect();
-    // Deterministic order within a severity — by file, then line, then col.
-    let sort_key = |f: &&lint::Finding| (f.file.clone(), f.line, f.col);
-    errors.sort_by_key(sort_key);
-    warns.sort_by_key(sort_key);
-
-    let mut out = String::new();
-    let render = |out: &mut String, f: &lint::Finding| {
-        out.push_str(&format!(
-            "{}:{}:{} [{}] {}\n",
-            f.file.display(),
-            f.line,
-            f.col,
-            f.rule,
-            f.message,
-        ));
-        if let Some(s) = &f.suggest
-            && !s.is_empty()
-        {
-            out.push_str(&format!("  → suggest: {s}\n"));
-        }
-    };
-
-    if !errors.is_empty() {
-        out.push_str(&format!("-- {} error(s) --\n", errors.len()));
-        for f in &errors {
-            render(&mut out, f);
-        }
-    }
-    if !warns.is_empty() {
-        if !errors.is_empty() {
-            out.push('\n');
-        }
-        out.push_str(&format!("-- {} warning(s) --\n", warns.len()));
-        for f in &warns {
-            render(&mut out, f);
-        }
-    }
-    out.push_str(&format!(
-        "\n{} error(s), {} warning(s)",
-        errors.len(),
-        warns.len(),
-    ));
-    out
 }
 
 // ---- Experimental tool registration ----

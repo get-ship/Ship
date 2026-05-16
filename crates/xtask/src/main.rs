@@ -193,9 +193,6 @@ fn collect_framework_types() -> TypeCollection {
     c.register::<ship_platform::services::agents::view_state::AgentSummary>();
     c.register::<ship_platform::services::agents::view_state::AgentsSummariesResponse>();
 
-    // shipd::routes::lint_api — POST /api/v1/lint/view.
-    c.register::<shipd::routes::lint_api::LintViewRequest>();
-
     // view-authoring — contract types shared with the chrome edit-mode UI.
     c.register::<ship_platform::view_authoring::CompileError>();
     c.register::<ship_platform::view_authoring::SnapshotMeta>();

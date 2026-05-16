@@ -3,8 +3,6 @@ members = [
     "crates/core/build-info",
     "crates/core/cli-framework",
     "crates/core/compiler",
-    "crates/core/lint",
-    "crates/j2-lsp",
     "crates/core/mcp-framework",
     "crates/core/ship-substrate",
     "crates/core/ship-platform",

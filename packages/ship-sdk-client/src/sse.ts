@@ -54,7 +54,7 @@ export function makeSseSource<T>(
       if (!ESCtor) {
         sig.set({
           kind: 'error',
-          error: new Error('[ship-set/sdk-client] no EventSource available'),
+          error: new Error('[@ship/sdk-client] no EventSource available'),
         })
         return () => {}
       }
@@ -92,7 +92,7 @@ export function makeSseSource<T>(
         if (!firstSeen) {
           sig.set({
             kind: 'error',
-            error: new Error('[ship-set/sdk-client] SSE connection error'),
+            error: new Error('[@ship/sdk-client] SSE connection error'),
           })
         }
       }
