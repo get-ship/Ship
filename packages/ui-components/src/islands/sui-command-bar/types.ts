@@ -39,6 +39,71 @@ export interface NavDest {
   keywords: string
 }
 
+// ── Unified search ─────────────────────────────────────────────────
+
+export type SearchEntityKind =
+  | 'view'
+  | 'collection'
+  | 'collection_item'
+  | 'agent'
+  | 'skill'
+  | 'session'
+  | 'artifact'
+
+export interface SearchHit {
+  kind: SearchEntityKind
+  /** Present only when kind === 'collection_item'. */
+  collection_id?: string
+  id: string
+  label: string
+  path: string
+  icon?: string
+  snippet?: string
+  score: number
+}
+
+export interface SearchResponse {
+  ok: boolean
+  data: {
+    hits: SearchHit[]
+    total: number
+    cursor?: string
+  }
+}
+
+/** Friendly section header for each kind. */
+export const SEARCH_KIND_LABELS: Record<SearchEntityKind, string> = {
+  view: 'Views',
+  collection: 'Collections',
+  collection_item: 'Items',
+  agent: 'Agents',
+  skill: 'Skills',
+  session: 'Sessions',
+  artifact: 'Artifacts',
+}
+
+/** Call the unified search endpoint. Returns `null` on network error. */
+export async function searchEntities(
+  q: string,
+  opts: { limit?: number; types?: SearchEntityKind[]; cursor?: string; signal?: AbortSignal } = {},
+): Promise<SearchResponse | null> {
+  const params = new URLSearchParams()
+  if (q) params.set('q', q)
+  if (opts.limit != null) params.set('limit', String(opts.limit))
+  if (opts.types?.length) params.set('types', opts.types.join(','))
+  if (opts.cursor) params.set('cursor', opts.cursor)
+  try {
+    const resp = await fetch(`/api/v1/search?${params.toString()}`, {
+      credentials: 'same-origin',
+      signal: opts.signal,
+    })
+    if (!resp.ok) return null
+    return await resp.json() as SearchResponse
+  } catch {
+    return null
+  }
+}
+
 export interface SlashCommand {
   key: string
   label: string

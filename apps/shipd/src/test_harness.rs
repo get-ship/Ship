@@ -159,6 +159,13 @@ impl TestDaemon {
             )
             .with_state(api_state.clone());
 
+        let search_routes = Router::new()
+            .route(
+                "/search",
+                axum::routing::get(crate::routes::search_api::search),
+            )
+            .with_state(api_state.clone());
+
         // Inject a default CLI AuthContext so handlers can extract it.
         // Mount under /api/v1 to match the production router (apps/shipd/
         // src/router.rs); the test paths in artifacts_api_tests and
@@ -170,6 +177,7 @@ impl TestDaemon {
             .nest("/api/v1", collection_routes)
             .nest("/api/v1", artifacts_routes)
             .nest("/api/v1", runtime_routes)
+            .nest("/api/v1", search_routes)
             .layer(axum::Extension(default_auth));
 
         Self {

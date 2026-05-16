@@ -322,45 +322,31 @@
 <div class="cb-body">
   {#match bar.mode()}
     {:case 'find'}
-      {#if findItems().length > 0}
-        <div class="cb-mode-hint">Jump to</div>
-        <div class="cb-list" role="listbox">
-          {#for item of findItems() key={item.path}}
+      {#for group of searchGroups() key={group.kind}}
+        <div class="cb-mode-hint">{group.label}</div>
+        <div class="cb-list" role="listbox" aria-label={group.label}>
+          {#for item of group.items key={item.kind + ':' + item.id}}
             <div
               class="cb-item"
               role="option"
               id={'cb-item-' + item.idx}
               aria-selected={bar.selectedIdx() === item.idx ? 'true' : 'false'}
               data-path={item.path}
+              data-kind={item.kind}
+              data-id={item.id}
               on:click={() => activateNavItem(item.path)}
             >
-              <sui-icon name={item.icon} size="sm" aria-hidden="true"></sui-icon>
+              <sui-icon name={item.icon ?? 'app-window'} size="sm" aria-hidden="true"></sui-icon>
               <span>{item.label}</span>
-              <span class="hint">{item.path}</span>
+              <span class="hint">{group.label}</span>
             </div>
           {/for}
         </div>
+      {/for}
+      {#if !findHasResults() && findSearching()}
+        <div class="cb-empty">Searching…</div>
       {/if}
-      {#if viewItems().length > 0}
-        <div class="cb-mode-hint">Views</div>
-        <div class="cb-list" role="listbox">
-          {#for item of viewItems() key={item.path}}
-            <div
-              class="cb-item"
-              role="option"
-              id={'cb-item-' + item.idx}
-              aria-selected={bar.selectedIdx() === item.idx ? 'true' : 'false'}
-              data-path={item.path}
-              on:click={() => activateNavItem(item.path)}
-            >
-              <sui-icon name={item.icon} size="sm" aria-hidden="true"></sui-icon>
-              <span>{item.label}</span>
-              <span class="hint">{item.path}</span>
-            </div>
-          {/for}
-        </div>
-      {/if}
-      {#if findItems().length === 0 && viewItems().length === 0}
+      {#if !findHasResults() && !findSearching()}
         <div class="cb-empty">No matches.</div>
       {/if}
 

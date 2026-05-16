@@ -3,9 +3,10 @@ import type { Scope } from './sui-command-bar.sui'
 import type { Signal } from '@ship/sui-runtime'
 import {
   type BarMode, type SessionSummary, type AgentSummary, type ThreadLine, type CreateSurface,
-  type SlashCommand,
-  NAV_DESTINATIONS, SLASH_COMMANDS, CREATE_SURFACES,
+  type SlashCommand, type SearchHit,
+  SLASH_COMMANDS, CREATE_SURFACES,
   loadSlashCommands, cachedSlashCommands, slashCacheAge, SLASH_CACHE_TTL_MS,
+  searchEntities,
   detectMode, isKebab, navigateTo,
 } from './types'
 
@@ -23,6 +24,7 @@ type BarState = {
   createShape: Signal<string>; createSubmitting: Signal<boolean>
   createError: Signal<string | null>; dialogRef: Signal<HTMLElement | null>
   slashCommands: Signal<SlashCommand[]>; sendKey: Signal<'enter' | 'cmd+enter'>
+  searchHits: Signal<SearchHit[]>; searching: Signal<boolean>
 }
 
 export default controller<Scope>({
@@ -54,6 +56,8 @@ export default controller<Scope>({
     const createError    = shared(signal<string | null>(null))
     const slashCommands  = shared(signal<SlashCommand[]>(cachedSlashCommands()))
     const sendKey        = shared(signal<'enter' | 'cmd+enter'>('enter'))
+    const searchHits     = shared(signal<SearchHit[]>([]))
+    const searching      = shared(signal(false))
 
     const isChat = shared(derived(() => mode() === 'ai' && session() !== null))
 
@@ -64,7 +68,7 @@ export default controller<Scope>({
       selectedIdx, sessionPickerOpen, spawnAgent, spawnProvider, spawning,
       spawnError, thread, workspaceId, createSurface, createName, createPurpose,
       createShape, createSubmitting, createError, isChat, dialogRef,
-      slashCommands, sendKey,
+      slashCommands, sendKey, searchHits, searching,
     }
   },
 
@@ -111,6 +115,8 @@ export default controller<Scope>({
     const createError      = st.createError
     const slashCommands    = st.slashCommands
     const sendKey          = st.sendKey
+    const searchHits       = st.searchHits
+    const searching        = st.searching
 
     const dialogRef = st.dialogRef?.() as (HTMLElement & { show(): void; close(): void }) | null
 
@@ -216,6 +222,39 @@ export default controller<Scope>({
       else detachStream()
     })
 
+    // ── Find-mode unified search ───────────────────────────────────
+    // Debounce 200ms so each keystroke doesn't fire a request. Cancel
+    // any in-flight search on a new keystroke. Cleared when the bar
+    // closes or the mode flips away from 'find'.
+    let searchTimer: ReturnType<typeof setTimeout> | null = null
+    let searchAbort: AbortController | null = null
+    function cancelSearch(): void {
+      if (searchTimer) { clearTimeout(searchTimer); searchTimer = null }
+      if (searchAbort) { searchAbort.abort(); searchAbort = null }
+    }
+    async function runSearch(query: string): Promise<void> {
+      cancelSearch()
+      const ac = new AbortController()
+      searchAbort = ac
+      searching.set(true)
+      const resp = await searchEntities(query, { limit: 30, signal: ac.signal })
+      if (ac.signal.aborted) return
+      searching.set(false)
+      searchAbort = null
+      searchHits.set(resp?.data?.hits ?? [])
+    }
+    const stopSearchSync = effect(() => {
+      const isOpen = open()
+      const currentMode = mode()
+      const q = value().replace(/^>+\s*/, '').trim()
+      if (!isOpen || currentMode !== 'find') {
+        cancelSearch()
+        return
+      }
+      if (searchTimer) clearTimeout(searchTimer)
+      searchTimer = setTimeout(() => { void runSearch(q) }, 200)
+    })
+
     // ── Async data loading ─────────────────────────────────────────
     async function loadCurrentSession(): Promise<void> {
       try {
@@ -299,7 +338,7 @@ export default controller<Scope>({
         return
       }
       if (m === 'command') runSlashCommand(v)
-      else if (m === 'find') navigateFirst(v)
+      else if (m === 'find') navigateFirstHit()
     }
 
     function runSlashCommand(v: string): void {
@@ -317,14 +356,9 @@ export default controller<Scope>({
       }
     }
 
-    function navigateFirst(v: string): void {
-      const needle = v.replace(/^>+\s*/, '').toLowerCase().trim()
-      const dest = NAV_DESTINATIONS.find((d) =>
-        d.label.toLowerCase().includes(needle) ||
-        d.keywords.toLowerCase().includes(needle) ||
-        d.path.toLowerCase().includes(needle)
-      )
-      if (dest) { void navigateTo(dest.path); value.set(''); open.set(false) }
+    function navigateFirstHit(): void {
+      const top = searchHits()[0]
+      if (top) { void navigateTo(top.path); value.set(''); open.set(false) }
     }
 
     async function endSession(id: string): Promise<void> {
@@ -432,7 +466,9 @@ export default controller<Scope>({
       shell?.removeEventListener('ship:bar:open', onBarOpen)
       shell?.removeEventListener('ship:create:open', onCreateOpen)
       if (dialogRef) dialogRef.removeEventListener('sui-close', onDialogClose)
+      cancelSearch()
       stopStreamSync()
+      stopSearchSync()
       stopOpenSync()
     }
   },
