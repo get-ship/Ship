@@ -222,6 +222,10 @@ export type { ViewPayload, MountOptions, MountHandle } from './mount'
 // surfaces (toasts, dock, command-bar, breadcrumb, status, theme,
 // focus mode, modal queue). See packages/sui-runtime/src/chrome.ts.
 export { chrome, notifyViewUnmount } from './chrome'
+
+// Per-view edit-mode UI state. Used by the dev panel + chrome to gate
+// view-authoring tabs and annotation rendering. See edit-mode.ts.
+export { editModeForView, toggleEditMode, setEditMode } from './edit-mode'
 export type {
   BreadcrumbItem,
   ModalAction,

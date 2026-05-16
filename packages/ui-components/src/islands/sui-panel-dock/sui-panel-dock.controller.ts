@@ -39,6 +39,9 @@ export interface DockTabDef {
   icon: string
   live?: boolean
   count?: number | null
+  /** Short label rendered as a chip to the right of `count`. Used for
+   *  "MOCK" / "EDIT" / etc. labels surfaced by view-authoring tabs. */
+  badge?: string
 }
 
 const DEFAULT_TABS: DockTabDef[] = [
@@ -57,6 +60,8 @@ interface DockScope {
   activeTab: Signal<string>
   storageKey: () => string
   resizing: Signal<boolean>
+  editModePill: () => boolean
+  editModeOn: Signal<boolean>
 }
 
 export default controller<Scope>({
@@ -102,8 +107,20 @@ export default controller<Scope>({
         new CustomEvent('sui:dock:close', { bubbles: true, composed: true }),
       )
     }
+    function onEditModeToggle(): void {
+      const next = !s.editModeOn()
+      s.editModeOn.set(next)
+      hostEl?.dispatchEvent(
+        new CustomEvent('sui:dock:edit-mode-toggle', {
+          detail: { on: next }, bubbles: true, composed: true,
+        }),
+      )
+    }
 
-    return { tabs, dragHeight, resizeHandle, activate, onClear, onPopout, onClose }
+    return {
+      tabs, dragHeight, resizeHandle,
+      activate, onClear, onPopout, onClose, onEditModeToggle,
+    }
   },
 
   mount(state, host) {

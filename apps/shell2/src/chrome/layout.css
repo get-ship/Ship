@@ -273,3 +273,14 @@ body.focus-mode #ship-breadcrumb-slot {
   border-color: var(--destructive, #c33);
 }
 .ship-modal-action--destructive:hover { filter: brightness(1.05); }
+
+/* View-authoring: chip-click highlight in the mounted view. The
+   Components tab applies `data-va-highlight` to all instances of the
+   tag for ~1.4s; this paints a brief accent outline so the user can
+   see the matches. */
+#ship-content [data-va-highlight] {
+  outline: 2px solid var(--accent, #f97316);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm, 4px);
+  transition: outline-color var(--duration-fast, 150ms) var(--ease-out, ease-out);
+}

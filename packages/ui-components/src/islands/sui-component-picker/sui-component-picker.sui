@@ -1,0 +1,281 @@
+<!--
+  <sui-component-picker> — view-authoring component browser.
+  Grid of available `<sui-*>` primitives with live mini-previews,
+  fuzzy filter, and single- or multi-select.
+
+  Prop / event / method surface
+  ─────────────────────────────────────────────────────────────────────────────
+  Props:
+    mode           ('modal'|'inline', 'inline', reflect) — render style
+    open           (bool, false, reflect)                — modal visibility
+    select-mode    ('single'|'multi', 'single', reflect) — interaction model
+    catalog-url    (string, '/api/assets/sui-custom-elements.json')
+    placeholder    (string, 'Search components…')        — input placeholder
+    category-filter(string, '')                          — restrict to CEM "category" tag
+  ─────────────────────────────────────────────────────────────────────────────
+  Events (bubbles, composed):
+    sui:component:picked  { tags: string[] }   — pick committed
+    sui:component:hover   { tag: string }      — tile hovered (multi-select preview)
+  ─────────────────────────────────────────────────────────────────────────────
+  Methods: open(), close(), refresh()
+  Slots:
+    browse-link — replaces the default "Browse full catalog" link
+  ─────────────────────────────────────────────────────────────────────────────
+-->
+
+<prop name="mode" values="modal|inline" default="inline" reflect />
+<prop name="open" type="bool" default="false" reflect />
+<prop name="select-mode" values="single|multi" default="single" reflect />
+<prop name="catalog-url" type="string" default="/api/assets/sui-custom-elements.json" />
+<prop name="placeholder" type="string" default="Search components…" />
+<prop name="category-filter" type="string" default="" />
+
+<style>
+  :host { display: block; height: 100%; min-height: 0; }
+  :host([hidden]) { display: none; }
+  :host([mode="modal"]) { display: contents; }
+
+  .root {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+    background: var(--card);
+    color: var(--foreground);
+    font-size: var(--text-sm);
+    border-radius: var(--radius-md);
+  }
+  :host([mode="inline"]) .root {
+    border: 1px solid var(--border-subtle, var(--border));
+  }
+
+  .toolbar {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2, 8px);
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border-subtle, var(--border));
+    background: var(--sidebar, var(--card));
+    flex: none;
+  }
+  .toolbar input {
+    appearance: none;
+    background: var(--background);
+    color: var(--foreground);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 4px 8px;
+    font: inherit;
+    flex: 1;
+    min-width: 0;
+  }
+  .toolbar input:focus { outline: none; border-color: var(--ring); box-shadow: 0 0 0 2px var(--ring); }
+  .count {
+    font-family: var(--mono-font, var(--font-mono));
+    font-size: 11px;
+    color: var(--muted-foreground);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .grid {
+    flex: 1;
+    overflow: auto;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 8px;
+    padding: 10px;
+    align-content: start;
+  }
+
+  .tile {
+    appearance: none;
+    background: var(--background);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    text-align: left;
+    cursor: pointer;
+    font: inherit;
+    color: var(--foreground);
+    min-height: 78px;
+    transition: border-color var(--duration-fast) var(--ease-out),
+      background var(--duration-fast) var(--ease-out),
+      transform var(--duration-fast) var(--ease-out);
+  }
+  .tile:hover {
+    border-color: color-mix(in oklab, var(--primary) 60%, var(--border));
+    background: color-mix(in oklab, var(--primary) 5%, var(--background));
+    transform: translateY(-1px);
+  }
+  .tile:focus-visible {
+    outline: none;
+    border-color: var(--ring);
+    box-shadow: 0 0 0 2px var(--ring);
+  }
+  .tile[data-selected="true"] {
+    border-color: var(--primary);
+    background: color-mix(in oklab, var(--primary) 12%, var(--background));
+  }
+
+  .tile-preview {
+    min-height: 32px;
+    display: grid;
+    place-items: center;
+    color: var(--muted-foreground);
+    background: color-mix(in oklab, var(--muted) 50%, var(--background));
+    border-radius: var(--radius-sm);
+    padding: 6px;
+    overflow: hidden;
+    pointer-events: none;
+  }
+  .tile-tag {
+    font-family: var(--mono-font, var(--font-mono));
+    font-size: 11px;
+    color: var(--primary);
+    font-weight: var(--font-weight-medium, 500);
+    word-break: break-all;
+  }
+  .tile-desc {
+    font-size: 10.5px;
+    color: var(--muted-foreground);
+    line-height: 1.35;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px 12px;
+    border-top: 1px solid var(--border-subtle, var(--border));
+    background: var(--sidebar, var(--card));
+    flex: none;
+    font-size: 11px;
+    color: var(--muted-foreground);
+  }
+  .footer .queue {
+    font-family: var(--mono-font, var(--font-mono));
+    color: var(--foreground);
+  }
+  .footer button {
+    appearance: none;
+    background: var(--primary);
+    color: var(--primary-foreground, #fff);
+    border: 0;
+    padding: 4px 10px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font: inherit;
+    font-size: 11px;
+  }
+  .footer button[disabled] {
+    background: var(--muted);
+    color: var(--muted-foreground);
+    cursor: not-allowed;
+  }
+  .browse-link a, ::slotted(a) {
+    color: var(--primary);
+    text-decoration: none;
+  }
+  .browse-link a:hover, ::slotted(a:hover) { text-decoration: underline; }
+
+  .empty {
+    grid-column: 1 / -1;
+    padding: 24px;
+    text-align: center;
+    color: var(--muted-foreground);
+    font-size: 12px;
+  }
+</style>
+
+{#if mode() === 'modal'}
+  <sui-dialog prop:open={open()} size="lg" on:sui-close={onDialogClose}>
+    <span slot="header">Pick a component</span>
+    <div class="root" part="root" style="height: 60vh">
+      <div class="toolbar">
+        <input type="text" bind:value={filter} placeholder={placeholder()} aria-label="Filter components" />
+        <span class="count">{shown().length} / {entries().length}</span>
+      </div>
+      <div class="grid" bind:this={gridEl}>
+        {#if entries().length === 0}
+          <div class="empty">Loading components…</div>
+        {:else if shown().length === 0}
+          <div class="empty">No matches.</div>
+        {:else}
+          {#for entry of shown() key={entry.tag}}
+            <button
+              class="tile"
+              type="button"
+              data-tag={entry.tag}
+              data-selected={queue().includes(entry.tag) ? 'true' : 'false'}
+              aria-pressed={queue().includes(entry.tag) ? 'true' : 'false'}
+              title={entry.description}
+              on:click={() => onTileClick(entry.tag)}>
+              <div class="tile-preview" part="preview" data-tag={entry.tag}>
+                <sui-icon name={entry.icon} size="md"></sui-icon>
+              </div>
+              <span class="tile-tag">&lt;{entry.tag}&gt;</span>
+              <span class="tile-desc">{entry.firstDesc}</span>
+            </button>
+          {/for}
+        {/if}
+      </div>
+      <div class="footer">
+        <span class="browse-link">
+          <slot name="browse-link"><a href="/ship-ui-studio">Browse full catalog →</a></slot>
+        </span>
+        {#if selectMode() === 'multi'}
+          <span class="queue">{queue().length} queued</span>
+          <button type="button" disabled={queue().length === 0} on:click={commit}>Add</button>
+        {/if}
+      </div>
+    </div>
+  </sui-dialog>
+{:else}
+  <div class="root" part="root">
+    <div class="toolbar">
+      <input type="text" bind:value={filter} placeholder={placeholder()} aria-label="Filter components" />
+      <span class="count">{shown().length} / {entries().length}</span>
+    </div>
+    <div class="grid" bind:this={gridEl}>
+      {#if entries().length === 0}
+        <div class="empty">Loading components…</div>
+      {:else if shown().length === 0}
+        <div class="empty">No matches.</div>
+      {:else}
+        {#for entry of shown() key={entry.tag}}
+          <button
+            class="tile"
+            type="button"
+            data-tag={entry.tag}
+            data-selected={queue().includes(entry.tag) ? 'true' : 'false'}
+            aria-pressed={queue().includes(entry.tag) ? 'true' : 'false'}
+            title={entry.description}
+            on:click={() => onTileClick(entry.tag)}>
+            <div class="tile-preview" part="preview" data-tag={entry.tag}>
+              <sui-icon name={entry.icon} size="md"></sui-icon>
+            </div>
+            <span class="tile-tag">&lt;{entry.tag}&gt;</span>
+            <span class="tile-desc">{entry.firstDesc}</span>
+          </button>
+        {/for}
+      {/if}
+    </div>
+    <div class="footer">
+      <span class="browse-link">
+        <slot name="browse-link"><a href="/ship-ui-studio">Browse full catalog →</a></slot>
+      </span>
+      {#if selectMode() === 'multi'}
+        <span class="queue">{queue().length} queued</span>
+        <button type="button" disabled={queue().length === 0} on:click={commit}>Add</button>
+      {/if}
+    </div>
+  </div>
+{/if}

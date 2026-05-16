@@ -1,0 +1,59 @@
+<!--
+  <sui-va-source> — Source tab content for the view-authoring dev panel.
+  Wraps <sui-code-editor>, loads source for the current view via the
+  MCP shim `window.__viewMcp.readSource()`, and saves on Cmd+S via
+  `writeSource()`. Compile errors arrive on `sui:view:errored` events
+  and surface as gutter diagnostics.
+-->
+
+<prop name="view" type="string" default="" reflect />
+
+<style>
+  :host { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+  :host([hidden]) { display: none; }
+  .header {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 12px;
+    border-bottom: 1px solid var(--border-subtle, var(--border));
+    background: var(--sidebar, var(--card));
+    font-size: 11px;
+    color: var(--muted-foreground);
+  }
+  .header .path { font-family: var(--font-mono); color: var(--foreground); }
+  .header .state {
+    margin-left: auto;
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    padding: 1px 6px;
+    border-radius: var(--radius-sm);
+    background: var(--muted);
+    color: var(--muted-foreground);
+  }
+  .header .state[data-dirty="true"] {
+    background: color-mix(in oklab, var(--warning, #ca8a04) 24%, var(--muted));
+    color: var(--foreground);
+  }
+  .header .state[data-saved="true"] {
+    background: color-mix(in oklab, var(--success, #16a34a) 22%, var(--muted));
+    color: var(--foreground);
+  }
+  .editor-host { flex: 1; min-height: 0; display: flex; }
+  sui-code-editor { flex: 1; min-height: 0; }
+</style>
+
+<div class="header">
+  <span>view:</span>
+  <span class="path">{view() || '(no view active)'}</span>
+  <span class="state" data-dirty={dirty() ? 'true' : 'false'} data-saved={saved() ? 'true' : 'false'}>
+    {dirty() ? 'unsaved' : (saved() ? 'saved' : 'clean')}
+  </span>
+</div>
+<div class="editor-host">
+  <sui-code-editor
+    bind:this={editorEl}
+    language="html"
+    prop:value={source()}
+    on:sui-change={onChange}
+    on:sui-save={onSave}>
+  </sui-code-editor>
+</div>
