@@ -13,6 +13,9 @@
     "./route": "./src/route/index.ts",
     "./patch": "./src/patch.ts"
   },
+  "sideEffects": [
+    "./src/boundary-elements.ts"
+  ],
   "files": [
     "src",
     "dist"
