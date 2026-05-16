@@ -104,6 +104,7 @@ import "./sui-navigation-menu/sui-navigation-item.compiled.js"
 import "./sui-scroll-area/sui-scroll-area.compiled.js"
 import './sui-toolbar/sui-toolbar.compiled.js'
 import './sui-app-icon/sui-app-icon.compiled.js'
+import './sui-brand-mark/sui-brand-mark.compiled.js'
 import './sui-tree-view/sui-tree-view.compiled.js'
 import './sui-tree-view/sui-tree-item.compiled.js'
 import './sui-table/sui-table.compiled.js'
