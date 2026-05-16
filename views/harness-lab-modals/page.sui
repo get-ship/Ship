@@ -12,7 +12,7 @@
     <p class="hl-room-hint">Open dialog 1 → opens dialog 2 → opens dialog 3. Each layer should trap focus and pop on Escape.</p>
     <div class="hl-controls">
       <sui-button size="sm" tone="primary" variant="solid" on:click={() => open(1)}>Open dialog 1</sui-button>
-      <sui-button size="sm" variant="outline" on:click={() => openChromeModal()}>chrome.modal.request()</sui-button>
+      <sui-button size="sm" variant="outline" on:click={openChromeModal}>chrome.modal.request()</sui-button>
       <sui-button size="sm" variant="outline" on:click={openAlert}>Open alert</sui-button>
       <sui-badge tone="muted" variant="soft" size="sm">stack depth: {depth()}</sui-badge>
     </div>
