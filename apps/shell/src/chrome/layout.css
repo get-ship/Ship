@@ -106,9 +106,26 @@ body.edit-mode {}
 
 /* body.annotation-mode — sub-toggle inside edit mode. sui-edit-overlay
    watches this via MutationObserver and binds hover/click handlers.
-   Toggled by Shift+Alt+E or the crosshair button on the corner pill. */
-body.annotation-mode {
-  cursor: crosshair;
+   Toggled by Shift+Alt+E or the crosshair button on the corner pill.
+
+   Crosshair is SCOPED to #ship-content (the view area) so the rail,
+   nav-top, dock, status bar, and corner pill keep their normal
+   pointers — pre-fix the crosshair leaked over chrome and confused
+   users about what was annotatable. */
+body.annotation-mode #ship-content,
+body.annotation-mode #ship-content * {
+  cursor: crosshair !important;
+}
+
+/* Annotation mode also paints a subtle inner outline on the view
+   content area so the boundary between "thing I can annotate" and
+   "chrome" is unmistakable. */
+body.annotation-mode #ship-content {
+  outline: 2px dashed color-mix(in oklch, var(--warning, #d97706) 60%, transparent);
+  outline-offset: -2px;
+  background:
+    linear-gradient(color-mix(in oklch, var(--warning, #d97706) 4%, transparent),
+                    color-mix(in oklch, var(--warning, #d97706) 4%, transparent));
 }
 
 body.dock-open.dock-popout #ship-panel-dock {

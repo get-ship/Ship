@@ -72,11 +72,15 @@ const VA_TABS: DockTabDef[] = [
 // web-qa run on this surface (F-003, .artifacts/web-qa/chrome/dev-panel/
 // edit-mode/2026-05-16T17-57/report.md). Drop until a real
 // `<sui-devtools-lint>` component lands.
+// Source FIRST + Terminal LAST in both DEFAULT_TABS and VA_TABS so
+// the two tabs that exist in both modes stay in the same on-screen
+// position when the user toggles edit. Pre-fix, Terminal moved 0→4
+// and Source moved 1→0 across modes — flagged as maddening.
 const DEFAULT_TABS: DockTabDef[] = [
-  { id: 'terminal',   label: 'Terminal',   icon: 'terminal', live: true },
   { id: 'source',     label: 'Source',     icon: 'file-code' },
   { id: 'signals',    label: 'Signals',    icon: 'radio', live: true },
   { id: 'schema',     label: 'Schema',     icon: 'network' },
+  { id: 'terminal',   label: 'Terminal',   icon: 'terminal', live: true },
 ]
 
 interface VaWindow extends Window {
@@ -334,22 +338,26 @@ interface AnnotationCapture {
   tag: string
   selector: string
   preview: string
+  comment?: string
   ts: number
-}
-
-interface PillWithQueue extends HTMLElement {
-  annotations?: AnnotationCapture[]
 }
 
 const annotations: AnnotationCapture[] = []
 let nextId = 1
 
 function syncPillQueue(): void {
-  const pill = document.getElementById('ship-edit-pill') as PillWithQueue | null
+  const pill = document.getElementById('ship-edit-pill')
   if (!pill) return
-  pill.annotations = annotations.slice()
-  if (annotations.length > 0) pill.setAttribute('count', String(annotations.length))
-  else pill.removeAttribute('count')
+  if (annotations.length > 0) {
+    pill.setAttribute('count', String(annotations.length))
+    pill.setAttribute('queue-json', JSON.stringify(annotations.map((a) => ({
+      id: a.id, tag: a.tag, selector: a.selector, preview: a.preview, comment: a.comment ?? '',
+    }))))
+  } else {
+    pill.removeAttribute('count')
+    pill.setAttribute('queue-json', '[]')
+    pill.removeAttribute('expanded')
+  }
 }
 
 function clearAnnotations(): void {
@@ -380,7 +388,9 @@ function sendAnnotationsToAgent(): void {
   if (annotations.length === 0) return
   const lines = annotations.map((a, i) => {
     const head = `${i + 1}. \`${a.selector}\``
-    return a.preview ? `${head} — "${a.preview}"` : head
+    const preview = a.preview ? ` — "${a.preview}"` : ''
+    const comment = a.comment?.trim() ? `\n   comment: ${a.comment.trim()}` : ''
+    return `${head}${preview}${comment}`
   })
   const prefill = `Annotations on view \`${currentView ?? '(none)'}\`:\n${lines.join('\n')}\n\n`
   // Open cmdk in AI mode with the prefill. The bar lands in the
@@ -391,6 +401,21 @@ function sendAnnotationsToAgent(): void {
     detail: { mode: 'ai', prefill }, bubbles: true,
   }))
   clearAnnotations()
+}
+
+function removeAnnotation(id: string): void {
+  const idx = annotations.findIndex((a) => a.id === id)
+  if (idx >= 0) annotations.splice(idx, 1)
+  syncPillQueue()
+}
+
+function updateAnnotationComment(id: string, comment: string): void {
+  const a = annotations.find((x) => x.id === id)
+  if (!a) return
+  a.comment = comment
+  // Don't re-serialize queue here — the user is typing in the field,
+  // re-serializing would replace innerHTML and lose cursor position.
+  // The pill's textarea is the source of truth until Send is clicked.
 }
 
 export function initEditModeChrome(): void {
@@ -415,6 +440,14 @@ export function initEditModeChrome(): void {
   // Pill's "Send to agent" button.
   document.addEventListener('sui:annotations:send', sendAnnotationsToAgent)
   document.addEventListener('sui:annotations:clear', clearAnnotations)
+  document.addEventListener('sui:annotations:remove', (e) => {
+    const id = (e as CustomEvent<{ id?: string }>).detail?.id
+    if (id) removeAnnotation(id)
+  })
+  document.addEventListener('sui:annotations:comment-update', (e) => {
+    const d = (e as CustomEvent<{ id?: string; comment?: string }>).detail
+    if (d?.id && typeof d.comment === 'string') updateAnnotationComment(d.id, d.comment)
+  })
 }
 
 // Re-export for keyboard handler in main.ts.
