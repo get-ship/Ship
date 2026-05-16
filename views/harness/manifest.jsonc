@@ -1,0 +1,10 @@
+// Test harness — not a product surface. Reachable only via /harness URL.
+// Exercises SUI ergonomics, animations, virtualization, modals, live data,
+// and shipd round-trips. No rail entry on purpose.
+{
+  "name": "harness",
+  "path": "/harness",
+  "title": "SUI Harness",
+  "layout": "default",
+  "auth": "public"
+}

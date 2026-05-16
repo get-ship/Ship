@@ -1,0 +1,7 @@
+{
+  "name": "harness-board",
+  "path": "/harness/board",
+  "title": "Harness — Board",
+  "layout": "default",
+  "auth": "public"
+}

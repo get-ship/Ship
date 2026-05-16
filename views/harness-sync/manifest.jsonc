@@ -1,0 +1,7 @@
+{
+  "name": "harness-sync",
+  "path": "/harness/sync",
+  "title": "Harness — Sync",
+  "layout": "default",
+  "auth": "public"
+}

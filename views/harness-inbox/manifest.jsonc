@@ -1,0 +1,7 @@
+{
+  "name": "harness-inbox",
+  "path": "/harness/inbox",
+  "title": "Harness — Inbox",
+  "layout": "default",
+  "auth": "public"
+}
