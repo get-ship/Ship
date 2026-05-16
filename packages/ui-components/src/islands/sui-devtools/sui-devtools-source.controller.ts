@@ -1,4 +1,4 @@
-import { controller, signal, derived, effect, ref } from '@ship/sui-runtime'
+import { chrome, controller, signal, derived, effect, ref } from '@ship/sui-runtime'
 import type { Scope } from './sui-devtools-source.sui'
 
 interface ViewSource { view_name: string; template_path: string; template: string; manifest_filename: string | null; manifest: string | null; scope: string }
@@ -230,7 +230,7 @@ export default controller<Scope>({
         s['src'] = { ...srcObj, template: draftVal }
         s['diagnostics'] = []
         ;(templateEditorRef() as CodeEditor | null)?.setDiagnostics?.([])
-        host.dispatchEvent(new CustomEvent('sui:notify', { detail: { tone: 'success', title: 'Saved' }, bubbles: true, composed: true }))
+        chrome.notify({ tone: 'success', title: 'Saved' })
         const current = (window as unknown as { ship?: { current(): { path: string }; navigate(p: string, o?: unknown): void } }).ship?.current()
         if (current?.path) (window as unknown as { ship: { navigate(p: string, o?: unknown): void } }).ship.navigate(current.path, { replace: true })
       } catch (e) {
@@ -246,7 +246,7 @@ export default controller<Scope>({
         const viewName = srcObj.view_name.split('.')[0]!
         const resp = await fetch(`/api/v1/views/${encodeURIComponent(viewName)}/fork`, { method: 'POST', credentials: 'same-origin' })
         if (!resp.ok) { s['diagMsg'] = `fork failed: ${resp.status}`; return }
-        host.dispatchEvent(new CustomEvent('sui:notify', { detail: { tone: 'success', title: `${viewName} forked — now editable` }, bubbles: true, composed: true }))
+        chrome.notify({ tone: 'success', title: `${viewName} forked — now editable` })
         lastPath = null; await load()
       } catch (e) {
         s['diagMsg'] = (e as Error).message

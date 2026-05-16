@@ -6,7 +6,7 @@
 // and the singleton <style> injection for the portaled popover (whose
 // nodes <sui-portal> teleports out of shadow-DOM reach).
 
-import { effect, type Signal } from '@ship/sui-runtime'
+import { chrome, effect, type Signal } from '@ship/sui-runtime'
 
 export interface Project {
   id: string
@@ -149,7 +149,7 @@ export function setupProjectSwitcher(ctx: SwitcherCtx): SwitcherHandle {
       )
       if (!resp.ok) {
         activeProjectId.set(previousActive)
-        dispatchBubble(host, 'sui:notify', {
+        chrome.notify({
           tone: 'destructive',
           title: `Switch failed (${resp.status})`,
         })
@@ -178,16 +178,16 @@ export function setupProjectSwitcher(ctx: SwitcherCtx): SwitcherHandle {
       })
       if (!resp.ok) {
         const err = await resp.text().catch(() => '')
-        dispatchBubble(host, 'sui:notify', {
+        chrome.notify({
           tone: 'warning',
           title: `Add failed: ${err || resp.status}`,
         })
         return
       }
       await loadProjects()
-      dispatchBubble(host, 'sui:notify', { tone: 'success', title: 'Project added.' })
+      chrome.notify({ tone: 'success', title: 'Project added.' })
     } catch (e) {
-      dispatchBubble(host, 'sui:notify', {
+      chrome.notify({
         tone: 'destructive',
         title: String((e as Error).message ?? e),
       })

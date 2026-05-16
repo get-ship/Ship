@@ -1,4 +1,4 @@
-import { controller, signal, derived, ref } from '@ship/sui-runtime'
+import { chrome, controller, signal, derived, ref } from '@ship/sui-runtime'
 import type { Scope } from './sui-devtools-components.sui'
 
 // The dock's Components tab inspects the SUI inventory, not the legacy
@@ -95,8 +95,8 @@ export default controller<Scope>({
         const entry = (s['entries'] as Entry[]).find(x => x.tag === tag)
         if (!entry) return
         void navigator.clipboard.writeText(entry.snippet).then(
-          () => host.dispatchEvent(new CustomEvent('sui:notify', { detail: { tone: 'success', title: 'Copied' }, bubbles: true, composed: true })),
-          () => host.dispatchEvent(new CustomEvent('sui:notify', { detail: { tone: 'warning', title: 'Copy failed' }, bubbles: true, composed: true })),
+          () => chrome.notify({ tone: 'success', title: 'Copied' }),
+          () => chrome.notify({ tone: 'warning', title: 'Copy failed' }),
         )
       })
     }

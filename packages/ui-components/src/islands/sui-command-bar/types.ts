@@ -1,5 +1,7 @@
 // Shared types, constants, and utilities for the sui-command-bar component family.
 
+import { chrome } from '@ship/sui-runtime'
+
 export type BarMode = 'ai' | 'command' | 'find' | 'mention' | 'create'
 
 export type CreateSurface = 'view' | 'skill' | 'agent' | 'pipeline' | 'trigger' | 'theme'
@@ -140,6 +142,5 @@ export function detectMode(value: string, fallback: BarMode): BarMode {
 export async function navigateTo(path: string): Promise<void> {
   const w = window as Record<string, unknown> & { ship?: { navigate?: (p: string) => void } }
   if (w.ship?.navigate) { w.ship.navigate(path); return }
-  history.pushState({}, '', path)
-  document.dispatchEvent(new CustomEvent('sui:navigate', { detail: { to: path } }))
+  chrome.navigate(path)
 }

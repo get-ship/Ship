@@ -16,9 +16,11 @@
 import { createClient, type ShipSDK } from '@ship/sdk-client'
 import { shipFetch, gitStatus } from '@ship/sdk'
 import { route as createRoute, defineRoutes } from '@ship/sui-runtime/route'
+import { chrome, notifyViewUnmount } from '@ship/sui-runtime'
 import { KernelBridge } from './kernel-bridge'
 import { initHmr } from './hmr'
 import { initProjectSwitch } from './project-switch'
+import { initChromeRegistry } from './chrome/registry'
 
 interface MountFn {
   (
@@ -74,21 +76,17 @@ const kernelBridge = new KernelBridge()
 function initShipApi(): void {
   window.ship = {
     navigate(path: string) {
-      history.pushState({}, '', path)
-      document.dispatchEvent(new CustomEvent('sui:navigate', { detail: { to: path } }))
+      chrome.navigate(path)
     },
     back() { history.back() },
     current() { return { path: location.pathname } },
     notify(message: string, tone?: 'success' | 'warning' | 'error' | 'info') {
-      document.dispatchEvent(new CustomEvent('sui:notify', {
-        detail: { title: message, tone, duration: 5000 },
-        bubbles: true,
-      }))
+      const opts: Parameters<typeof chrome.notify>[0] = { title: message, duration: 5000 }
+      if (tone) opts.tone = tone
+      chrome.notify(opts)
     },
     subscribe: kernelBridge.subscribe.bind(kernelBridge),
-    command() {
-      document.dispatchEvent(new CustomEvent('ship:bar:open', { bubbles: true }))
-    },
+    command() { chrome.bar.open() },
   }
 }
 
@@ -114,6 +112,12 @@ declare global {
      *  un-rewritten static index). The status bar renders a DEV badge
      *  whenever this is `'Development'`. */
     __shipMode?: 'Production' | 'Development'
+    /** Identifier for the currently-mounted view. Read by
+     *  `@ship/sui-runtime/chrome`'s wrapper API to stamp per-view claims
+     *  (breadcrumb, status keys, theme overrides, focus push). Set on
+     *  each mountRoute and cleared on landing/dispose so claims auto-
+     *  clear when shell2 fires `sui:view:unmount`. */
+    __suiCurrentViewId?: string | null
   }
 }
 
@@ -183,6 +187,22 @@ function payloadUrl(r: Route): string {
 let currentHandle: { dispose(): void; scope?: Record<string, unknown> } | null = null
 let latestMountToken = 0
 let currentRoute: Route | null = null
+let currentViewId: string | null = null
+let viewIdSeq = 0
+
+function nextId(): string {
+  viewIdSeq += 1
+  return `view-${viewIdSeq}`
+}
+
+function disposeCurrentMount(): void {
+  const prevId = currentViewId
+  currentHandle?.dispose()
+  currentHandle = null
+  currentViewId = null
+  window.__suiCurrentViewId = null
+  if (prevId) notifyViewUnmount(prevId)
+}
 
 async function mountRoute(r: Route, opts: { module?: unknown } = {}): Promise<void> {
   const slot = document.getElementById('ship-content')
@@ -196,8 +216,7 @@ async function mountRoute(r: Route, opts: { module?: unknown } = {}): Promise<vo
   if (!r) {
     // Landing page replaces the slot directly — dispose the previous
     // SUI handle since its bindings reference DOM we're about to wipe.
-    currentHandle?.dispose()
-    currentHandle = null
+    disposeCurrentMount()
     publishScope(null)
     return showLanding(slot)
   }
@@ -209,8 +228,7 @@ async function mountRoute(r: Route, opts: { module?: unknown } = {}): Promise<vo
   try {
     const res = await fetch(payloadUrl(r), { credentials: 'same-origin' })
     if (!res.ok) {
-      currentHandle?.dispose()
-      currentHandle = null
+      disposeCurrentMount()
       const viewPath = escapeHtml(`${r.view}${r.sub ? '/' + r.sub : ''}`)
       slot.innerHTML = `<div class="shell-error">
   <h2>Page not found</h2>
@@ -230,6 +248,9 @@ async function mountRoute(r: Route, opts: { module?: unknown } = {}): Promise<vo
     // old DOM unstyled until the fetch + mount completed — visible as
     // CSS-loss flicker on every navigation, especially under load.)
     const previous = currentHandle
+    const previousViewId = currentViewId
+    const nextViewId = nextId()
+    window.__suiCurrentViewId = nextViewId
     const handle = await runtime.mount(slot, payload, {
       cssScope: 'adjacent',
       // SUI views call `ship.<domain>.<op>()` inside `<data live>`
@@ -256,17 +277,27 @@ async function mountRoute(r: Route, opts: { module?: unknown } = {}): Promise<vo
     // would leak unless we dispose right now.
     if (token !== latestMountToken) {
       handle.dispose()
+      // Superseded mid-flight — the later mountRoute call has already
+      // bumped __suiCurrentViewId to its own id, so don't touch it here.
       return
     }
 
     currentHandle = handle
     currentRoute = r
+    currentViewId = nextViewId
     publishScope(handle.scope as unknown as Record<string, unknown>)
     // The new mount has replaced slot.innerHTML, so the previous view's
     // DOM nodes are detached. Run its dispose to close SSE + remove the
     // stale <style> element. Dispose is idempotent.
     previous?.dispose()
+    if (previousViewId) notifyViewUnmount(previousViewId)
   } catch (err) {
+    // Mount failed: release the viewId we reserved so the registry
+    // doesn't keep claims from a half-mounted view alive.
+    if (window.__suiCurrentViewId === nextViewId) {
+      window.__suiCurrentViewId = currentViewId
+    }
+    notifyViewUnmount(nextViewId)
     slot.innerHTML = `<div class="shell-error">
   <h2>Mount failed</h2>
   <p>${escapeHtml((err as Error).message)}</p>
@@ -642,6 +673,7 @@ document.addEventListener('sui:navigate', (e: Event) => {
   void mountRoute(next)
 })
 
+initChromeRegistry()
 initShipApi()
 initRail()
 initHmr({

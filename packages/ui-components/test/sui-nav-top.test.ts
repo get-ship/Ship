@@ -107,15 +107,20 @@ describe('<sui-nav-top>', () => {
     expect(events).toHaveLength(1)
   })
 
-  it('dock-toggle button dispatches sui:dock:toggle when clicked', async () => {
+  it('dock-toggle button dispatches sui:dock:toggle on document via chrome.dock.toggle', async () => {
     const { el } = mount(reg, 'sui-nav-top')
     await flush()
     const events: Event[] = []
-    el.addEventListener('sui:dock:toggle', (e) => events.push(e))
-    const btn = shadow(el).querySelector<HTMLElement>('[part~="dock-toggle"]')!
-    btn.click()
-    await flush()
-    expect(events).toHaveLength(1)
+    const onDoc = (e: Event): void => { events.push(e) }
+    document.addEventListener('sui:dock:toggle', onDoc)
+    try {
+      const btn = shadow(el).querySelector<HTMLElement>('[part~="dock-toggle"]')!
+      btn.click()
+      await flush()
+      expect(events).toHaveLength(1)
+    } finally {
+      document.removeEventListener('sui:dock:toggle', onDoc)
+    }
   })
 
   it('dispatches sui:nav-top:ready on connect', async () => {
