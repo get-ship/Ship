@@ -199,7 +199,12 @@ const proseHtml = renderMarkdown(body)
 
     <div class="tut-split">
       <article class="tut-prose" set:html={proseHtml} />
-      <div class="tut-app">
+      {/* `not-content` is Starlight's documented opt-out — disables
+          the `:not(inline) + :not(inline) { margin-top }` rule that
+          otherwise pushes our second flex pane down by 16px and
+          breaks tight stacking. See apps/docs/src/styles/ship-theme.css
+          comment around the homepage card grids. */}
+      <div class="tut-app not-content">
         <TutorialApp
           slug={slug ?? stepDir}
           starterTemplate={starter.template}
@@ -260,8 +265,8 @@ const proseHtml = renderMarkdown(body)
     display: flex;
     flex-direction: column;
     height: calc(100dvh - var(--sl-nav-height));
-    padding: 6px 10px 10px;
-    gap: 6px;
+    padding: 4px 8px 8px;
+    gap: 4px;
     box-sizing: border-box;
   }
   .tut-head {
@@ -270,7 +275,14 @@ const proseHtml = renderMarkdown(body)
     justify-content: space-between;
     gap: 1rem;
     flex-shrink: 0;
-    height: 32px;
+    height: 28px;
+  }
+  .tut-head h2 {
+    margin: 0 !important;
+    padding: 0 !important;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    line-height: 1;
   }
   .tut-head-meta { display: flex; align-items: center; gap: 0.75rem; }
   .tut-head h2 {

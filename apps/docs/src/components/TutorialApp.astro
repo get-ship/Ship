@@ -176,11 +176,25 @@ const { slug, starterTemplate, starterController, solvedTemplate, solvedControll
     tplEl.addEventListener('input', () => setStatus('typing', 'editing…'))
     ctrlEl.addEventListener('input', () => setStatus('typing', 'editing…'))
 
-    // sui-tabs orchestrates panel visibility itself; we just listen
-    // for sui-tab-change in case we need to react (currently no-op,
-    // but kept as a hook for later analytics).
-    root.querySelector('sui-tabs')!.addEventListener('sui-tab-change', () => {
-      // intentionally empty
+    // sui-tabs only auto-toggles `:scope > sui-tab-panel` direct
+    // children; our panels live in a sibling .tut-editor-host so
+    // we wire the switching ourselves on `sui-tab-change`.
+    const panels = Array.from(root.querySelectorAll<HTMLElement>('sui-tab-panel'))
+    function showPanel(name: string): void {
+      for (const panel of panels) {
+        const match = panel.getAttribute('name') === name
+        if (match) {
+          panel.setAttribute('active', '')
+          panel.removeAttribute('hidden')
+        } else {
+          panel.removeAttribute('active')
+          panel.setAttribute('hidden', '')
+        }
+      }
+    }
+    root.querySelector('sui-tabs')!.addEventListener('sui-tab-change', (e) => {
+      const name = (e as CustomEvent<{ name: string }>).detail?.name
+      if (name) showPanel(name)
     })
 
     root.querySelector('[data-action="reset"]')!.addEventListener('click', () => {
