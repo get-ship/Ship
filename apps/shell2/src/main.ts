@@ -429,6 +429,32 @@ function persistRailOpen(open: boolean): void {
   } catch { /* best-effort */ }
 }
 
+// ── Favicon theme swap ───────────────────────────────────────────────
+//
+// The in-app brand mark (<sui-brand-mark> in the top bar) is token-
+// painted, so it tracks every theme automatically. The browser-tab
+// favicon lives outside any CSS scope, so we swap its `href` between
+// the two available SVG variants on each theme change:
+//   ship-logo.svg            — amber/gold (light themes)
+//   ship-logo-secondary.svg  — purple     (dark themes)
+//
+// applyTheme() (in @ship/set/themes) dispatches `ship:theme:change`
+// with { dark } on every theme application — including the boot-time
+// call from <sui-theme-picker>. We only need to listen.
+
+function initFavicon(): void {
+  const link = document.querySelector<HTMLLinkElement>('link[rel="icon"][type="image/svg+xml"]')
+  if (!link) return
+  const apply = (dark: boolean) => {
+    const href = dark ? '/ship-logo-secondary.svg' : '/ship-logo.svg'
+    if (link.getAttribute('href') !== href) link.setAttribute('href', href)
+  }
+  document.addEventListener('ship:theme:change', (e: Event) => {
+    const detail = (e as CustomEvent).detail as { dark?: boolean } | undefined
+    if (typeof detail?.dark === 'boolean') apply(detail.dark)
+  })
+}
+
 // ── Status bar ───────────────────────────────────────────────────────
 //
 // Polls /api/v1/workspaces every 15s and updates <sui-status-bar> props.
@@ -690,6 +716,7 @@ initViewMocks()
 initEditModeChrome()
 initShipApi()
 initRail()
+initFavicon()
 initHmr({
   getCurrentView: () => currentRoute?.view ?? null,
   // mountRoute re-fetches the payload (dev mode bypasses SSR cache) and,
