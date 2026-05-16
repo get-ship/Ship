@@ -350,14 +350,6 @@ pub async fn run_network(
     }
     let pairing_registry = auth::pairing::new_shared();
     let attestation_verifier = auth::attest::AttestationVerifier::new();
-    // Log the `.ship` components discovered at startup. The compile cache
-    // is lazy (first-request-per-tag); this scan is purely diagnostic so
-    // operators can see at a glance whether the components dir is wired.
-    let comps = views::components::discover_components();
-    tracing::info!(count = comps.len(), "shipd: .ship components discovered");
-    for (tag, path) in &comps {
-        tracing::info!(tag = %tag, path = %path.display(), "  component registered");
-    }
     let app = router::build_router(
         rt.clone(),
         token,

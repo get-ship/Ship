@@ -4,37 +4,22 @@
 //! optional manifests). Resolution checks project `.ship/views/` first, then
 //! falls back to global `~/.ship/views/`.
 //!
-//! ## R0a foundation submodules
+//! ## SSE + state submodules
 //!
-//! The `stream`, `state`, and `templates` submodules provide infrastructure
-//! for daemon-rendered views built on minijinja + Datastar SSE. They are
-//! scaffolding for the pipelines pilot (R0b) and subsequent view rewrites.
-//! R0a intentionally does not change any existing route behavior.
+//! The `stream` and `state` submodules carry the Datastar SSE plumbing
+//! used by SUI views and agent-canvas view sessions.
 //!
 //! - [`stream`] — `ViewStream` helper wrapping Datastar's `PatchElements` /
 //!   `PatchSignals` with an `mpsc`-backed SSE response.
 //! - [`state`] — read helpers that centralize runtime state access for views.
-//!   R0a ships only the subset the pipelines pilot will need (pipelines +
-//!   workspace resolution). Helpers for specs, git, and settings are
-//!   deliberately not included yet — they will be added by the agents that
-//!   implement those pilots, alongside the handlers that consume them.
-//! - [`templates`] — minijinja `Environment` loaded from
-//!   `apps/shipd/templates/` via the `loader` feature, plus `render`
-//!   convenience helpers.
 
 pub mod mcp_apps_embed;
-pub mod router;
-pub mod routed_handler;
-pub mod routed_sse;
 pub mod source_api;
 pub mod write_api;
 pub mod stream;
 pub mod state;
 pub mod chat_state;
 pub mod events_state;
-pub mod sdk_macros;
-pub mod sfc;
-pub mod components;
 // Daemon-coupled SUI handlers — still here because they reach into
 // ApiState, services::registry, auth, and scopes (all daemon-internal).
 // Moving them needs a `ship-runtime` extraction first; tracked separately.
@@ -53,25 +38,18 @@ pub mod sui_patch_channel;
 pub mod sui_view_edit_sse;
 pub mod sui_agent_push;
 pub mod setup;
-pub mod templates;
 pub mod session;
 pub mod session_types;
 pub mod sanitize;
 
 pub mod assets;
-pub mod context;
 pub mod discovery;
 pub mod error_overlay;
-pub mod generic_sse;
 pub mod handlers;
-pub(crate) mod packs;
 pub mod resolve;
-pub mod view_filters;
-pub mod view_filters_list;
 
 // modular-runtime-04 PR 5: view-adjacent files migrated under views/.
 pub mod morph_target;
-pub mod raw;
 
 #[cfg(test)]
 #[path = "views/views_tests.rs"]
@@ -95,7 +73,7 @@ pub use assets::{
 pub use handlers::{
     list_views, serve_view_asset, serve_view_bundle, serve_view_manifest,
 };
-pub(crate) use resolve::{is_valid_view_name, read_raw_manifest, resolve_view_dir};
+pub(crate) use resolve::resolve_view_dir;
 
 #[derive(Serialize, Clone)]
 #[cfg_attr(feature = "specta", derive(specta::Type))]

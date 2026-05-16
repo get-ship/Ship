@@ -153,10 +153,10 @@ mod env_guard_tests {
 
     #[test]
     fn restores_to_unset_when_no_prior_value() {
-        let name = Var::ShellDevUrl.as_str();
+        let name = Var::TmuxTests.as_str();
         unsafe { std::env::remove_var(name) };
         {
-            let _g = EnvGuard::set(Var::ShellDevUrl, "tmp");
+            let _g = EnvGuard::set(Var::TmuxTests, "tmp");
             assert_eq!(std::env::var(name).unwrap(), "tmp");
         }
         assert!(std::env::var(name).is_err());

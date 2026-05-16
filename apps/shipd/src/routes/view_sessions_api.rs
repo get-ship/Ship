@@ -1,6 +1,6 @@
 //! REST handlers for agent-owned view sessions.
 //!
-//! Seven routes (spec §Daemon REST endpoints):
+//! Six routes (spec §Daemon REST endpoints):
 //!
 //! - `POST   /api/v1/view-sessions`              — open
 //! - `POST   /api/v1/view-sessions/{id}/patch`   — patch
@@ -8,10 +8,11 @@
 //! - `POST   /api/v1/view-sessions/{id}/signal`  — signal
 //! - `DELETE /api/v1/view-sessions/{id}`         — close
 //! - `GET    /api/v1/view-sessions/{id}`         — subscribe (SSE)
-//! - `GET    /api/v1/view-sessions/{id}/raw`     — iframe HTML shell
 //!
 //! Authentication/ownership: the caller's `AuthContext.agent_id` must be
-//! present; mutating routes require the caller to own the session.
+//! present; mutating routes require the caller to own the session. The
+//! iframe HTML shell endpoint (`/raw`) was retired with the j2 view shell;
+//! agents that want to render their own canvas open a SUI view instead.
 
 use axum::{
     Extension, Json,
@@ -273,59 +274,6 @@ pub async fn subscribe_session(
     match state.view_sessions().subscribe(&id).await {
         Ok(sse) => sse.into_response(),
         Err(e) => session_err(e),
-    }
-}
-
-/// Iframe shell HTML. Renders the session's template via the static minijinja
-/// env, exposing `{view_id, title, context}` plus `{{SHIP_TOKEN}}` scrubbed
-/// for cookie-auth parity with `views::serve_view_raw`.
-#[utoipa::path(
-    operation_id = "rawSession",
-    get,
-    path = "/api/v1/view-sessions/{id}/raw",
-    params(("id" = String, Path, description = "View session id")),
-    responses(
-        (status = 200, description = "Rendered iframe shell HTML", content_type = "text/html"),
-        (status = 401, description = "Unauthenticated", body = crate::wire::ErrorResponse),
-        (status = 404, description = "Session not found", body = crate::wire::ErrorResponse),
-    ),
-    tag = "views"
-)]
-pub async fn raw_session(
-    State(state): State<ApiState>,
-    Path(id): Path<String>,
-) -> Response {
-    let (template, title, context) = match state.view_sessions().shell_context(&id).await {
-        Ok(v) => v,
-        Err(e) => return session_err(e),
-    };
-    #[derive(serde::Serialize)]
-    struct Ctx {
-        view_id: String,
-        title: Option<String>,
-        context: Value,
-    }
-    let ctx = Ctx { view_id: id, title, context };
-    match crate::views::templates::render(&template, &ctx) {
-        Ok(html) => {
-            let html = html.replace("{{SHIP_TOKEN}}", "");
-            Response::builder()
-                .status(StatusCode::OK)
-                .header(axum::http::header::CONTENT_TYPE, "text/html; charset=utf-8")
-                .header(axum::http::header::CACHE_CONTROL, "no-cache")
-                // CSP shared with `_meta.ui.csp` in the MCP Apps bridge so
-                // local iframe and external host renderings align.
-                .header("content-security-policy", crate::views::mcp_apps_embed::IFRAME_CSP)
-                .body(axum::body::Body::from(html))
-                // Infallible: status + static header names/values above are
-                // all valid; `Response::builder` only errors on malformed
-                // header construction, none of which applies here.
-                .unwrap()
-        }
-        Err(msg) => err_json(
-            StatusCode::INTERNAL_SERVER_ERROR,
-            serde_json::json!({"code": "render_failed", "message": msg}),
-        ),
     }
 }
 

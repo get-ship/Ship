@@ -146,8 +146,12 @@ pub async fn serve_sui_lucide_icons(mode: Option<Extension<DaemonMode>>) -> Resp
     builder.body(Body::from(body)).unwrap_or_else(|_| Response::new(Body::from("response build failed")))
 }
 
-pub async fn serve_sui_island(mode: Option<Extension<DaemonMode>>, Path(bundle): Path<String>) -> Response {
+pub async fn serve_sui_island(mode: Option<Extension<DaemonMode>>, Path(file): Path<String>) -> Response {
     let mode = mode_from_ext(mode);
+    // The route captures the whole filename (`sui-rail.js`) because axum 0.8
+    // forbids mixing path-params with literal suffixes in the same segment.
+    // Strip the `.js` to recover the bundle name.
+    let bundle = file.strip_suffix(".js").unwrap_or(&file).to_string();
     if !is_known_island(&bundle) {
         return not_found("unknown island");
     }

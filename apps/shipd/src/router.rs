@@ -21,14 +21,14 @@ use crate::routes::{
     actor_api, actors_api, agents_api, annotations_api, artifacts_api, collection_api,
     commands_api, create_api, feedback_api, git_api, hooks_api, human_webhook, lint_api, logs_api,
     mcp_api, openapi, permissions_api, pipelines_api, projects_api, rest_api, rules_api,
-    runtime_api, sdk_manifest, search_api, settings_api, shell_assets, skills_api, specs_api,
+    runtime_api, sdk_manifest, search_api, settings_api, skills_api, specs_api,
     themes_api, view_edit_mode_api, view_edit_tool_api, view_errors_api, view_sessions_api,
     webhook_ext,
 };
 use crate::auth::{attest, pairing, session};
 use crate::transport::{cors, pty as pty_handler};
 use crate::routes::mcp_registry as mcp_registry;
-use crate::views::{morph_target as view_morph_target, raw as views_raw};
+use crate::views::morph_target as view_morph_target;
 use axum::routing;
 
 /// Build the full Axum router with all route groups, auth, and CORS.
@@ -223,14 +223,6 @@ pub fn build_router(
         // install can reach the setup wizard before any browser is paired.
         .ship_route(Route::Index, views::setup::index_handler)
         .ship_route(Route::Setup, views::setup::setup_handler)
-        // `.ship/components/*.ship` compiled to ES modules. Public so
-        // the browser can pull the script tag without a bearer; the
-        // file scope is `.ship/components/` only and the served body is
-        // generated JS, not user secrets.
-        .route(
-            "/_ship/components/{file}",
-            axum::routing::get(views::components::serve_component_js),
-        )
         // SUI state-using handlers (sui_sse, sui_data, sui_mutation,
         // sui_agent_push) extract `State<ApiState>`. Bind the state here
         // so the resulting `Router<()>` merges cleanly with the root
@@ -275,7 +267,6 @@ pub fn build_router(
             auth::session_register(register_registry, auth_ext, body)
         }));
 
-    let shell_registry = auth_registry.clone();
     let session_issue_registry = auth_registry.clone();
     let session_issue_handler = move |auth: axum::Extension<auth::AuthContext>| {
         let reg = session_issue_registry.clone();
@@ -315,10 +306,6 @@ pub fn build_router(
             Json(openapi::ApiDoc::openapi())
         }))
         .merge(authenticated_routes);
-    // Shell routes are registered OUTSIDE the auth middleware — the
-    // initial `/shell/` GET is what mints the browser cookie that
-    // everything else uses. The shell IS the app; it always mounts.
-    root = root.merge(shell_assets::router(shell_registry));
     // HMR routes are development-only; not registered in production mode.
     if daemon_mode == ship_sui::DaemonMode::Development {
         let hmr_routes: Router<()> = Router::new()
@@ -440,8 +427,6 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         // Views
         .ship_route(Route::ListViews, views::list_views)
         .ship_route(Route::ShipSchema, services::schema::serve_schema)
-        .ship_route(Route::ServeViewRouted_template(), views::routed_handler::serve_view_routed)
-        .ship_route(Route::ServeViewSseRouted_template(), views::routed_sse::serve_view_sse_routed)
         .ship_route(Route::ServeViewSource_template(), views::source_api::serve_view_source)
         .ship_route(Route::CreateSurface_template(), create_api::create_surface)
         .ship_route(Route::WriteViewTemplate_template(), views::write_api::write_view_template)
@@ -467,8 +452,6 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::ListSessionsAcrossProjects, runtime_api::list_sessions_across_projects)
         .ship_route(Route::ServeViewManifest_template(), views::serve_view_manifest)
         .ship_route(Route::ServeViewBundle_template(), views::serve_view_bundle)
-        .ship_route(Route::ServeViewRaw_template(), views_raw::serve_view_raw)
-        .ship_route(Route::ServeViewSse_template(), views::generic_sse::serve_view_sse)
         // `POST /_sui/views/{name}/patch-elements` — agent-push DOM patches.
         // Authenticated (requires `Scope::Full`); the rest of the `/_sui/*`
         // surface is public and lives in `public_routes`. The handler takes
@@ -484,7 +467,6 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::SignalViewSession_template(), view_sessions_api::signal_session)
         .ship_route(Route::CloseViewSession_template(), view_sessions_api::close_session)
         .ship_route(Route::SubscribeViewSession_template(), view_sessions_api::subscribe_session)
-        .ship_route(Route::ViewSessionRaw_template(), view_sessions_api::raw_session)
         // Feedback ingress
         .ship_route(Route::PostFeedback, feedback_api::post_feedback)
         .ship_route(Route::PostAnnotation, annotations_api::post_annotation)

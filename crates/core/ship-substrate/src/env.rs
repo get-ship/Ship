@@ -47,7 +47,6 @@ pub enum Var {
     Dev,
     DefaultTerminal,
     TmuxTests,
-    ShellDevUrl,
     DaemonPath,
     ManagedHooks,
     HooksBin,
@@ -92,7 +91,6 @@ impl Var {
             Var::Dev => "SHIP_DEV",
             Var::DefaultTerminal => "SHIP_DEFAULT_TERMINAL",
             Var::TmuxTests => "SHIP_TMUX_TESTS",
-            Var::ShellDevUrl => "SHIP_SHELL_DEV_URL",
             Var::DaemonPath => "SHIPD_PATH",
             Var::ManagedHooks => "SHIP_MANAGED_HOOKS",
             Var::HooksBin => "SHIP_HOOKS_BIN",
@@ -120,7 +118,6 @@ impl Var {
             Var::Dev
             | Var::DefaultTerminal
             | Var::TmuxTests
-            | Var::ShellDevUrl
             | Var::DaemonPath
             | Var::ManagedHooks
             | Var::HooksBin
@@ -239,7 +236,6 @@ mod tests {
             Var::Dev,
             Var::DefaultTerminal,
             Var::TmuxTests,
-            Var::ShellDevUrl,
             Var::DaemonPath,
             Var::ManagedHooks,
             Var::HooksBin,

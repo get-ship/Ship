@@ -168,18 +168,16 @@ export const CREATE_SURFACES: CreateSurfaceDef[] = [
 ]
 
 export const NAV_DESTINATIONS: NavDest[] = [
-  { label: 'Dashboard',             path: '/dashboard',  icon: 'sparkles',          keywords: 'home overview'           },
-  { label: 'Pipelines',             path: '/pipelines',  icon: 'play',              keywords: 'workflows runs jobs'     },
-  { label: 'Agents',                path: '/agents',     icon: 'users',             keywords: 'configure profiles'      },
-  { label: 'Skills',                path: '/skills',     icon: 'zap',               keywords: 'browse edit files'       },
-  { label: 'Git',                   path: '/git',        icon: 'git',               keywords: 'status diff commit branch' },
-  { label: 'Collections',           path: '/collections',icon: 'folder',            keywords: 'data items query'        },
-  { label: 'Canvas',                path: '/canvas',     icon: 'image',             keywords: 'docs visual feedback'    },
-  { label: 'Events',                path: '/events',     icon: 'sparkles',          keywords: 'stream log kernel'       },
-  { label: 'Settings',              path: '/settings',   icon: 'settings',          keywords: 'config theme provider'   },
-  { label: 'Specs',                 path: '/specs',      icon: 'file',              keywords: 'features design'         },
-  { label: 'Theme Studio',          path: '/theme-studio', icon: 'palette',         keywords: 'design tokens'           },
-  { label: 'Chats (Mission Control)', path: '/chats',   icon: 'messages-square',   keywords: 'sessions active'         },
+  { label: 'Home',                  path: '/home',         icon: 'home',     keywords: 'overview dashboard start'  },
+  { label: 'Canvas',                path: '/canvas',       icon: 'image',    keywords: 'docs visual feedback'      },
+  { label: 'Collections',           path: '/collections',  icon: 'folder',   keywords: 'data items query'          },
+  { label: 'Artifacts',             path: '/artifacts',    icon: 'file',     keywords: 'outputs files exports'     },
+  { label: 'Agents',                path: '/agents',       icon: 'users',    keywords: 'configure profiles'        },
+  { label: 'Skills',                path: '/skills',       icon: 'zap',      keywords: 'browse edit files'         },
+  { label: 'Git',                   path: '/git',          icon: 'git',      keywords: 'status diff commit branch' },
+  { label: 'UI Studio',             path: '/ship-ui-studio', icon: 'sparkles', keywords: 'components design tokens' },
+  { label: 'Settings',              path: '/settings',     icon: 'settings', keywords: 'config theme provider'     },
+  { label: 'Theme Studio',          path: '/theme-studio', icon: 'palette',  keywords: 'design tokens'             },
 ]
 
 export const SLASH_COMMANDS: SlashCommand[] = [

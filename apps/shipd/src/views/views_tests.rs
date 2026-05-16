@@ -1,4 +1,5 @@
 use super::*;
+use super::resolve::is_valid_view_name;
 use axum::extract::Path;
 use axum::response::IntoResponse;
 use tempfile::TempDir;
