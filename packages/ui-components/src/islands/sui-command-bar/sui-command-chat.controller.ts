@@ -67,24 +67,32 @@ export default controller<Scope>({
       } catch { /* stream delivers reply; ignore send errors */ }
     },
     onComposerKeydown: async (s: any, e: KeyboardEvent) => {
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault()
-        const text = s.bar.value().trim()
-        if (!text || !s.bar.session()) return
-        const sessionId = s.bar.session()!.id
-        s.bar.thread.set([
-          ...s.bar.thread(),
-          { id: String(Date.now() + Math.random()), sender: 'user', text },
-        ])
-        s.bar.value.set('')
-        try {
-          await fetch(`/api/v1/sessions/${sessionId}/message`, {
-            method: 'POST', credentials: 'same-origin',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ text }),
-          })
-        } catch { /* ignore */ }
-      }
+      // `cmdk.send_key` controls Enter semantics in ai mode. Default
+      // "enter" sends on plain Enter, newline on Shift+Enter (preserves
+      // the OG j2 muscle memory). "cmd+enter" inverts: Enter inserts a
+      // newline (native), Cmd/Ctrl+Enter sends — useful for users who
+      // type multi-line prompts and don't want to send mid-thought.
+      const sendKey = s.bar.sendKey?.() ?? 'enter'
+      const isSubmit = sendKey === 'cmd+enter'
+        ? (e.key === 'Enter' && (e.metaKey || e.ctrlKey))
+        : (e.key === 'Enter' && !e.shiftKey && !e.metaKey && !e.ctrlKey)
+      if (!isSubmit) return
+      e.preventDefault()
+      const text = s.bar.value().trim()
+      if (!text || !s.bar.session()) return
+      const sessionId = s.bar.session()!.id
+      s.bar.thread.set([
+        ...s.bar.thread(),
+        { id: String(Date.now() + Math.random()), sender: 'user', text },
+      ])
+      s.bar.value.set('')
+      try {
+        await fetch(`/api/v1/sessions/${sessionId}/message`, {
+          method: 'POST', credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text }),
+        })
+      } catch { /* ignore */ }
     },
   },
 })

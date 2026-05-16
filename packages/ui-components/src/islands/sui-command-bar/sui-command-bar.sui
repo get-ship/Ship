@@ -88,7 +88,15 @@
   }
 </style>
 
-<button class="cb-trigger" type="button" aria-label="Open command bar" on:click={openFind}>
+<button
+  class="cb-trigger"
+  type="button"
+  aria-label="Open command bar"
+  aria-haspopup="dialog"
+  aria-controls="cb-dialog-root"
+  aria-expanded={open() ? 'true' : 'false'}
+  on:click={openFind}
+>
   <sui-icon name="search" size="sm"></sui-icon>
   <span class="cb-label">{triggerLabel()}</span>
   <span class="cb-dot" style:background={dotBg()}></span>
@@ -97,6 +105,7 @@
 
 <sui-dialog
   class="cb-dialog"
+  id="cb-dialog-root"
   no-header
   no-footer
   no-close-button

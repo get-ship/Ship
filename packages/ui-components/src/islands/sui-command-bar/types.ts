@@ -43,7 +43,53 @@ export interface SlashCommand {
   key: string
   label: string
   hint: string
+  handler_kind?: 'mode' | 'navigate' | 'endpoint' | 'local'
 }
+
+// Session-level cache for the slash registry. The bar refreshes when the
+// cached snapshot crosses MAX_AGE_MS at the moment the user opens cmdk —
+// no background polling. Falls back to the seeded constant on fetch error
+// so the palette is never empty.
+const SLASH_CACHE_MAX_AGE_MS = 60_000
+let slashCache: { at: number; commands: SlashCommand[] } | null = null
+let slashInFlight: Promise<SlashCommand[]> | null = null
+
+export async function loadSlashCommands(force = false): Promise<SlashCommand[]> {
+  const now = performance.now()
+  if (!force && slashCache && now - slashCache.at < SLASH_CACHE_MAX_AGE_MS) {
+    return slashCache.commands
+  }
+  if (slashInFlight) return slashInFlight
+  slashInFlight = (async () => {
+    try {
+      const resp = await fetch('/api/v1/commands', { credentials: 'same-origin' })
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
+      const body = await resp.json() as { commands?: SlashCommand[] }
+      const commands = body.commands ?? []
+      slashCache = { at: performance.now(), commands }
+      return commands
+    } catch {
+      // Hold previous cache if any, else fall back to the seeded constant
+      // so the bar is usable when the daemon is unreachable.
+      if (slashCache) return slashCache.commands
+      slashCache = { at: performance.now(), commands: SLASH_COMMANDS }
+      return SLASH_COMMANDS
+    } finally {
+      slashInFlight = null
+    }
+  })()
+  return slashInFlight
+}
+
+export function cachedSlashCommands(): SlashCommand[] {
+  return slashCache?.commands ?? SLASH_COMMANDS
+}
+
+export function slashCacheAge(): number {
+  return slashCache ? performance.now() - slashCache.at : Number.POSITIVE_INFINITY
+}
+
+export const SLASH_CACHE_TTL_MS = SLASH_CACHE_MAX_AGE_MS
 
 export const CREATE_SURFACES: CreateSurfaceDef[] = [
   { id: 'view',     label: 'View',     icon: 'file',           shapes: ['list', 'form', 'detail', 'dashboard', 'tabs', 'blank'],    shapeLabel: 'Starting shape' },

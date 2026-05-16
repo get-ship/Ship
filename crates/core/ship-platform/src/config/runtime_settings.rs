@@ -22,6 +22,9 @@ pub fn setting_default(key: &str) -> Option<&'static str> {
     match key {
         "terminal.program" => Some("tmux"),
         "daemon.port" => Some("9315"),
+        // Command bar send key: "enter" sends on Enter (newline via Shift+Enter);
+        // "cmd+enter" inserts newline on Enter and sends on Cmd/Ctrl+Enter.
+        "cmdk.send_key" => Some("enter"),
         _ => None,
     }
 }
@@ -74,6 +77,7 @@ pub fn get_all_settings() -> Result<HashMap<String, serde_json::Value>> {
     for (key, default) in &[
         ("terminal.program", "tmux"),
         ("daemon.port", "9315"),
+        ("cmdk.send_key", "enter"),
     ] {
         map.insert(
             (*key).to_string(),

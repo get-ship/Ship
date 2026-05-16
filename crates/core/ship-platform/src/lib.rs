@@ -4,6 +4,7 @@ pub mod artifacts;
 pub mod auth;
 pub mod bundler;
 pub mod collections;
+pub mod commands;
 pub mod config;
 pub mod hooks;
 pub mod kv;
@@ -43,4 +44,5 @@ pub fn install_defaults() {
     ship_substrate::supervisor::install_project_id_resolver(Box::new(|path| {
         projects::find_by_path(path).ok().flatten().map(|p| p.id)
     }));
+    commands::seed_builtins();
 }

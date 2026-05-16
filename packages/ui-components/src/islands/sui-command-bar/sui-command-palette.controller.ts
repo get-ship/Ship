@@ -3,7 +3,7 @@ import type { Scope } from './sui-command-palette.sui'
 import type { Scope as BarScope } from './sui-command-bar.sui'
 import {
   type CreateSurface, type SessionSummary,
-  NAV_DESTINATIONS, SLASH_COMMANDS, CREATE_SURFACES,
+  NAV_DESTINATIONS, CREATE_SURFACES,
   detectMode, isKebab, navigateTo,
 } from './types'
 
@@ -84,7 +84,7 @@ export default controller<Scope>({
 
     const cmdItems = derived(() => {
       const needle = bar!.value().replace(/^\/+\s*/, '').toLowerCase().trim()
-      return SLASH_COMMANDS
+      return bar!.slashCommands()
         .filter((c) =>
           !needle ||
           c.key.includes(needle) ||
@@ -111,6 +111,17 @@ export default controller<Scope>({
     })
 
     const createSurfaces = derived(() => CREATE_SURFACES)
+
+    // ARIA combobox: input.aria-activedescendant points at the currently
+    // selected listbox item's id. Items are rendered with id `cb-item-${idx}`
+    // and idx is monotonically assigned per mode (findItems offset 0,
+    // viewItems offset past findItems, etc.) so a single bar.selectedIdx
+    // resolves to a unique id in the current shadow tree.
+    const activeDescendantId = derived(() => {
+      const idx = bar!.selectedIdx()
+      if (idx < 0) return ''
+      return `cb-item-${idx}`
+    })
 
     const currentSurfaceDef = derived(() =>
       CREATE_SURFACES.find((s) => s.id === bar!.createSurface())!
@@ -200,6 +211,7 @@ export default controller<Scope>({
       chipLabel, chipDotBg,
       activeSessions,
       findItems, viewItems, cmdItems, mentionItems,
+      activeDescendantId,
       createSurfaces, currentSurfaceDef, createNameValid,
       endSession, selectSession, startNewSession, viewChats,
       activateNavItem, activateCmd, activateMention,
@@ -250,23 +262,26 @@ export default controller<Scope>({
       s.bar.createSubmitting.set(true)
       s.bar.createError.set(null)
       try {
-        const resp = await fetch('/api/v1/scaffold', {
+        const surface = s.bar.createSurface() as string
+        const resp = await fetch(`/api/v1/create/${encodeURIComponent(surface)}`, {
           method: 'POST', credentials: 'same-origin',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            surface: s.bar.createSurface(),
             name: s.bar.createName(),
             shape: s.bar.createShape(),
-            purpose: s.bar.createPurpose(),
+            purpose: s.bar.createPurpose() || undefined,
           }),
         })
         if (!resp.ok) {
           const err = await resp.json().catch(() => ({})) as { error?: string }
           s.bar.createError.set(err.error ?? `HTTP ${resp.status}`)
         } else {
+          const body = await resp.json().catch(() => ({})) as { data?: { route?: string | null; path?: string } }
           s.bar.createName.set('')
           s.bar.createPurpose.set('')
           s.bar.open.set(false)
+          const route = body.data?.route
+          if (route) void navigateTo(route)
         }
       } catch (err) {
         s.bar.createError.set(err instanceof Error ? err.message : 'Unknown error')

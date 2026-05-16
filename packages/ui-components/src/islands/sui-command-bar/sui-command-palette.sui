@@ -278,6 +278,7 @@
     bind:value={bar.value}
     aria-label="Command bar search"
     aria-autocomplete="list"
+    aria-activedescendant={activeDescendantId()}
     on:input={onInput}
   />
   <kbd class="cb-esc" aria-label="Escape to close">esc</kbd>
@@ -328,6 +329,7 @@
             <div
               class="cb-item"
               role="option"
+              id={'cb-item-' + item.idx}
               aria-selected={bar.selectedIdx() === item.idx ? 'true' : 'false'}
               data-path={item.path}
               on:click={() => activateNavItem(item.path)}
@@ -346,6 +348,7 @@
             <div
               class="cb-item"
               role="option"
+              id={'cb-item-' + item.idx}
               aria-selected={bar.selectedIdx() === item.idx ? 'true' : 'false'}
               data-path={item.path}
               on:click={() => activateNavItem(item.path)}
@@ -369,6 +372,7 @@
             <div
               class="cb-item"
               role="option"
+              id={'cb-item-' + item.idx}
               aria-selected={bar.selectedIdx() === item.idx ? 'true' : 'false'}
               data-cmd={item.key}
               on:click={() => activateCmd(item.key)}
@@ -391,6 +395,7 @@
             <div
               class="cb-item"
               role="option"
+              id={'cb-item-' + item.idx}
               aria-selected={bar.selectedIdx() === item.idx ? 'true' : 'false'}
               data-mention-kind={item.kind}
               data-mention-id={item.id}
