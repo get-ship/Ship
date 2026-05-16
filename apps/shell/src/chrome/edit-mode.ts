@@ -198,6 +198,7 @@ function applyEditMode(on: boolean): void {
       void viewMcp.enterEditMode(currentView).catch((e) => {
         console.warn('[edit-mode] enter failed:', e)
       })
+      openViewSse(currentView)
     }
   } else {
     dock.removeAttribute('edit-mode-on')
@@ -215,7 +216,48 @@ function applyEditMode(on: boolean): void {
     if (currentView) {
       void viewMcp.exitEditMode(currentView).catch(() => { /* idempotent */ })
     }
+    closeViewSse()
   }
+}
+
+// ── View-authoring SSE bridge ────────────────────────────────────────
+//
+// While edit mode is on, subscribe to /_sui/views/<name>/sse and
+// re-dispatch view-authoring events as document-level events so
+// sui-va-activity + sui-va-compile receive them via their existing
+// addEventListener calls. Closes on edit-mode exit.
+
+let viewSse: EventSource | null = null
+let viewSseView: string | null = null
+
+function openViewSse(view: string): void {
+  if (viewSseView === view && viewSse) return
+  closeViewSse()
+  viewSseView = view
+  try {
+    viewSse = new EventSource(`/_sui/views/${encodeURIComponent(view)}/sse`)
+  } catch (err) {
+    console.warn('[edit-mode] SSE open failed:', err)
+    return
+  }
+  const dispatch = (kind: string) => (e: MessageEvent) => {
+    let payload: unknown = null
+    try { payload = JSON.parse(e.data) } catch { /* ignore */ }
+    document.dispatchEvent(new CustomEvent(kind, {
+      detail: payload,
+      bubbles: true,
+    }))
+  }
+  viewSse.addEventListener('sui:view:annotation', dispatch('sui:view:annotation'))
+  viewSse.addEventListener('sui:view:annotation:clear', dispatch('sui:view:annotation:clear'))
+  viewSse.addEventListener('sui:view:compiled', dispatch('sui:view:compiled'))
+  viewSse.addEventListener('sui:view:errored', dispatch('sui:view:errored'))
+}
+
+function closeViewSse(): void {
+  viewSse?.close()
+  viewSse = null
+  viewSseView = null
 }
 
 function applyAnnotationMode(on: boolean): void {
