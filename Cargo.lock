@@ -1915,23 +1915,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8f42a60cbdf9a97f5d2305f08a87dc4e09308d1276d28c869c684d7777685682"
 
 [[package]]
-name = "j2-lsp"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "crossbeam-channel",
- "lint",
- "lsp-server",
- "lsp-types",
- "serde",
- "serde_json",
- "sui-compiler",
- "sui-lint",
- "tempfile",
- "tracing",
-]
-
-[[package]]
 name = "jobserver"
 version = "0.1.34"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2128,20 +2111,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "lint"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "minijinja",
- "regex",
- "serde",
- "serde_json",
- "serde_yaml",
- "ship-substrate",
- "tempfile",
-]
-
-[[package]]
 name = "linux-raw-sys"
 version = "0.4.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2194,32 +2163,6 @@ name = "lru-slab"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "112b39cec0b298b6c1999fee3e31427f74f676e4cb9879ed1a121b43661a4154"
-
-[[package]]
-name = "lsp-server"
-version = "0.7.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7d6ada348dbc2703cbe7637b2dda05cff84d3da2819c24abcb305dd613e0ba2e"
-dependencies = [
- "crossbeam-channel",
- "log",
- "serde",
- "serde_derive",
- "serde_json",
-]
-
-[[package]]
-name = "lsp-types"
-version = "0.95.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8e34d33a8e9b006cd3fc4fe69a921affa097bae4bb65f76271f4644f9a334365"
-dependencies = [
- "bitflags 1.3.2",
- "serde",
- "serde_json",
- "serde_repr",
- "url",
-]
 
 [[package]]
 name = "mac"
@@ -2283,7 +2226,6 @@ dependencies = [
  "compiler",
  "futures-util",
  "home",
- "lint",
  "mcp-framework",
  "reqwest 0.12.28",
  "rmcp",
@@ -3884,17 +3826,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "serde_repr"
-version = "0.1.20"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "175ee3e80ae9982737ca543e96133087cbd9a485eecc3bc4de9c1a37b47ea59c"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
-]
-
-[[package]]
 name = "serde_spanned"
 version = "0.6.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4003,7 +3934,6 @@ dependencies = [
  "getrandom 0.2.17",
  "home",
  "libc",
- "lint",
  "mcp",
  "mockito",
  "predicates",
@@ -4254,7 +4184,6 @@ dependencies = [
  "jsonschema",
  "jsonwebtoken",
  "libc",
- "lint",
  "minijinja",
  "notify",
  "portable-pty",
@@ -4768,12 +4697,12 @@ dependencies = [
 name = "sui-lint"
 version = "0.1.0"
 dependencies = [
- "lint",
  "oxc_allocator",
  "oxc_ast",
  "oxc_ast_visit",
  "oxc_parser",
  "oxc_span",
+ "serde",
  "serde_json",
  "tempfile",
 ]
@@ -5463,7 +5392,6 @@ dependencies = [
  "idna",
  "percent-encoding",
  "serde",
- "serde_derive",
 ]
 
 [[package]]

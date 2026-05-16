@@ -21,7 +21,6 @@ mod init;
 mod install;
 mod job;
 mod jobs;
-mod lint;
 mod procs;
 mod runtime_cmd;
 mod tail;
@@ -41,7 +40,7 @@ mod openapi;
 mod trash_cmd;
 
 use anyhow::Result;
-use cli::{Cli, Commands, ConfigCommands, EventsCommands, HookCommands, LintCommands, McpCommands, OpenapiCommands, WorkspaceCommands};
+use cli::{Cli, Commands, ConfigCommands, EventsCommands, HookCommands, McpCommands, OpenapiCommands, WorkspaceCommands};
 use std::path::PathBuf;
 
 /// Initialize the global KernelRouter for CLI commands that emit events.
@@ -122,7 +121,6 @@ fn dispatch(command: Option<Commands>) -> Result<()> {
                 path,
             } => run_compile_cmd(provider.as_deref(), dry_run, path),
             Commands::Workspace { action } => dispatch_workspace(action),
-            Commands::Lint { action } => dispatch_lint(action),
             Commands::Mcp { action } => dispatch_mcp(action),
             Commands::Convert { source } => convert::run_convert(&source),
             Commands::Docs { topic } => help_topics::run(topic.as_deref()),
@@ -405,34 +403,6 @@ fn dispatch_workspace(action: WorkspaceCommands) -> Result<()> {
         }
         WorkspaceCommands::Restore { filename, dest } => {
             trash_cmd::run_restore(&filename, dest)
-        }
-    }
-}
-
-// ── Lint ─────────────────────────────────────────────────────────────────────
-
-fn dispatch_lint(action: LintCommands) -> Result<()> {
-    match action {
-        LintCommands::Views {
-            view,
-            rules,
-            format,
-            path,
-        } => {
-            let project_root = path
-                .as_deref()
-                .map(std::fs::canonicalize)
-                .transpose()?
-                .unwrap_or_else(|| std::env::current_dir().unwrap());
-            let fmt = match format.as_str() {
-                "json" => lint::OutputFormat::Json,
-                "human" => lint::OutputFormat::Human,
-                other => anyhow::bail!(
-                    "unknown --format '{}'. Valid: human, json",
-                    other
-                ),
-            };
-            lint::run_views(&project_root, view.as_deref(), &rules, fmt)
         }
     }
 }

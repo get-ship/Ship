@@ -15,12 +15,12 @@ use std::path::Path;
 
 // ── Built-in themes ──────────────────────────────────────────────────
 //
-// The canonical theme catalog lives in `packages/ship-set/src/themes.css`
-// (`ship-light`, `ship-dark`, `paper`, `halo`, `console`, `contrast`) and
-// ships to the browser via `view-tokens.css`. The daemon-side theme.css
-// endpoint is now a power-user override hook — project/global CSS files
-// merge with the ship-set catalog. No compile-time built-ins overlay the
-// shell catalog anymore.
+// The canonical theme catalog lives in
+// `packages/ui-components/src/tokens/themes.css` (`ship-light`,
+// `ship-dark`, `paper`, `halo`, `console`, `contrast`) and ships to the
+// browser via `view-tokens.css`. The daemon-side theme.css endpoint is a
+// power-user override hook — project/global CSS files merge with the
+// shipped catalog. No compile-time built-ins overlay the catalog.
 
 /// Metadata for a discovered theme.
 #[derive(Debug, Clone, Serialize)]

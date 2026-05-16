@@ -19,7 +19,7 @@ use crate::{
 };
 use crate::routes::{
     actor_api, actors_api, agents_api, annotations_api, artifacts_api, collection_api,
-    commands_api, create_api, feedback_api, git_api, hooks_api, human_webhook, lint_api, logs_api,
+    commands_api, create_api, feedback_api, git_api, hooks_api, human_webhook, logs_api,
     mcp_api, openapi, permissions_api, pipelines_api, projects_api, rest_api, rules_api,
     runtime_api, sdk_manifest, search_api, settings_api, skills_api, specs_api,
     themes_api, view_edit_mode_api, view_edit_tool_api, view_errors_api, view_sessions_api,
@@ -28,7 +28,6 @@ use crate::routes::{
 use crate::auth::{attest, pairing, session};
 use crate::transport::{cors, pty as pty_handler};
 use crate::routes::mcp_registry as mcp_registry;
-use crate::views::morph_target as view_morph_target;
 use axum::routing;
 
 /// Build the full Axum router with all route groups, auth, and CORS.
@@ -133,17 +132,8 @@ pub fn build_router(
             move || ship_sui::serve_meta(Some(axum::Extension(dbi)))
         }))
         // Shared static assets — no user-specific data, safe to serve unauth.
-        .ship_route(Route::AssetDatastarJs, views::serve_datastar_js)
         .ship_route(Route::AssetViewTokensCss, views::serve_view_tokens)
-        .ship_route(Route::AssetShipElementsJs, views::serve_ship_elements)
-        .ship_route(Route::AssetCodeEditorJs, views::serve_code_editor)
-        .ship_route(Route::AssetMarkdownEditorJs, views::serve_markdown_editor)
-        .ship_route(Route::AssetTerminalJs, views::serve_terminal)
-        .ship_route(Route::AssetGitJs, views::serve_git)
-        .ship_route(Route::AssetElementsManifest, views::serve_elements_manifest)
-        .ship_route(Route::AssetElementsCatalog, views::serve_elements_catalog)
-        .ship_route(Route::AssetJinjaMacrosJson, views::serve_jinja_macros_json)
-        .ship_route(Route::AssetJinjaMacrosMd, views::serve_jinja_macros_md)
+        .ship_route(Route::AssetSuiElementsManifest, views::serve_sui_elements_manifest)
         .ship_route(Route::AssetThemeCss, views::serve_theme_css)
         .ship_route(Route::ListThemes, views::serve_themes_list)
         // SUI framework hosting — runtime/dom/sdk/components bundles +
@@ -322,9 +312,6 @@ pub fn build_router(
         // CLI/shell/browser read this to detect daemon-vs-client skew.
         .layer(axum::middleware::from_fn(build_header_middleware))
         .layer(axum::middleware::from_fn(cors::cors_middleware))
-        // Tag view responses with Datastar morph-target headers so cross-view
-        // navigation inside the shell doesn't wipe shell chrome.
-        .layer(axum::middleware::from_fn(view_morph_target::view_morph_target_middleware))
         // Outer request body cap. 50 MB matches the files-API upload limit.
         // JSON / Form extractors still enforce axum's `DefaultBodyLimit`
         // (2 MB) on their own — this layer only sets the outer ceiling.
@@ -605,8 +592,6 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::UpdateCollectionItem_template(), collection_api::update_item)
         .ship_route(Route::DeleteCollectionItem_template(), collection_api::delete_item)
         .ship_route(Route::QueryCollection_template(), collection_api::query_items)
-        // Lint
-        .ship_route(Route::LintView, lint_api::lint_view)
         // Command bar registry
         .ship_route(Route::ListCommands, commands_api::list_commands)
         // Unified search — cmdk find mode consumer.

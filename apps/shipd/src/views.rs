@@ -48,9 +48,6 @@ pub mod error_overlay;
 pub mod handlers;
 pub mod resolve;
 
-// modular-runtime-04 PR 5: view-adjacent files migrated under views/.
-pub mod morph_target;
-
 #[cfg(test)]
 #[path = "views/views_tests.rs"]
 mod views_tests;
@@ -65,10 +62,7 @@ use serde::Serialize;
 use crate::wire::MeshResponse;
 
 pub use assets::{
-    serve_code_editor, serve_datastar_js, serve_elements_catalog, serve_elements_manifest,
-    serve_git, serve_jinja_macros_json, serve_jinja_macros_md, serve_markdown_editor,
-    serve_ship_elements, serve_sui_elements_manifest, serve_terminal, serve_theme_css,
-    serve_themes_list, serve_view_tokens,
+    serve_sui_elements_manifest, serve_theme_css, serve_themes_list, serve_view_tokens,
 };
 pub use handlers::{
     list_views, serve_view_asset, serve_view_bundle, serve_view_manifest,

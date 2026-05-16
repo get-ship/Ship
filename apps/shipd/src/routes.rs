@@ -50,7 +50,6 @@ pub mod feedback_api;
 pub mod git_api;
 pub mod hooks_api;
 pub mod human_webhook;
-pub mod lint_api;
 pub mod logs_api;
 pub mod mcp_api;
 pub mod openapi;
@@ -103,38 +102,11 @@ pub enum Route {
 
     // ── Shared assets (unauthenticated) ──────────────────────────────────
 
-    /// @route GET "/api/assets/datastar.js"
-    AssetDatastarJs,
-
     /// @route GET "/api/assets/view-tokens.css"
     AssetViewTokensCss,
 
-    /// @route GET "/api/assets/ship-elements.js"
-    AssetShipElementsJs,
-
-    /// @route GET "/api/assets/ship-code-editor.js"
-    AssetCodeEditorJs,
-
-    /// @route GET "/api/assets/ship-markdown-editor.js"
-    AssetMarkdownEditorJs,
-
-    /// @route GET "/api/assets/ship-terminal.js"
-    AssetTerminalJs,
-
-    /// @route GET "/api/assets/ship-git.js"
-    AssetGitJs,
-
-    /// @route GET "/api/assets/custom-elements.json"
-    AssetElementsManifest,
-
-    /// @route GET "/api/assets/ship-elements.md"
-    AssetElementsCatalog,
-
-    /// @route GET "/api/assets/jinja-macros.json"
-    AssetJinjaMacrosJson,
-
-    /// @route GET "/api/assets/jinja-macros.md"
-    AssetJinjaMacrosMd,
+    /// @route GET "/api/assets/sui-custom-elements.json"
+    AssetSuiElementsManifest,
 
     /// @route GET "/api/assets/theme.css"
     AssetThemeCss,
@@ -739,11 +711,6 @@ pub enum Route {
 
     /// @route GET "/api/v1/capabilities"
     Capabilities,
-
-    // ── Lint ─────────────────────────────────────────────────────────────
-
-    /// @route POST "/api/v1/lint/view"
-    LintView,
 
     // ── Command bar registry ─────────────────────────────────────────────
 

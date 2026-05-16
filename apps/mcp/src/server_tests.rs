@@ -238,7 +238,6 @@ fn registers_canonical_verb_first_tool_names() {
         "list_agents",
         "stop_agent",
         "steer_agent",
-        "lint_view",
         "scaffold_view",
         "query_sdk",
         "get_view_errors",

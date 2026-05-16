@@ -82,18 +82,10 @@ impl Modify for SecurityAndServer {
         crate::routes::projects_api::list_projects,
         crate::routes::projects_api::add_project,
         crate::routes::projects_api::switch_project,
-        // Static assets + lazy island bundles.
-        crate::views::assets::serve_datastar_js,
+        // SUI-era shared assets.
         crate::views::assets::serve_view_tokens,
-        crate::views::assets::serve_ship_elements,
-        crate::views::assets::serve_elements_manifest,
-        crate::views::assets::serve_elements_catalog,
-        crate::views::assets::serve_code_editor,
-        crate::views::assets::serve_markdown_editor,
-        crate::views::assets::serve_terminal,
-        crate::views::assets::serve_git,
-        crate::views::assets::serve_jinja_macros_json,
-        crate::views::assets::serve_jinja_macros_md,
+        crate::views::assets::serve_theme_css,
+        crate::views::assets::serve_themes_list,
     ),
     components(schemas(
         crate::routes::rest_api::MeshRegisterReq,

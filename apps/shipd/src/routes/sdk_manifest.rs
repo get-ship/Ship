@@ -15,7 +15,6 @@ use crate::auth::{AuthContext, Scope, require_scope};
 
 // ── Embedded manifest ───────────────────────────────────────────────────────
 
-const SDK_MACROS: &str = include_str!("../../../../packages/sdk/src/generated/sdk-macros.json");
 const SDK_URLS: &str = include_str!("../../../../packages/sdk/src/generated/sdk-urls.json");
 const SDK_VIEW_CONTEXTS: &str =
     include_str!("../../../../packages/sdk/src/generated/sdk-view-contexts.json");
@@ -25,7 +24,6 @@ const SDK_TRIGGERS: &str = include_str!("../../../../packages/sdk/src/generated/
 
 /// Parsed cache. Parse-on-first-access, reused for the life of the process.
 struct Parsed {
-    macros: Value,
     urls: Value,
     view_contexts: Value,
     views: Value,
@@ -36,7 +34,6 @@ struct Parsed {
 fn parsed() -> &'static Parsed {
     static P: OnceLock<Parsed> = OnceLock::new();
     P.get_or_init(|| Parsed {
-        macros: serde_json::from_str(SDK_MACROS).unwrap_or_else(|_| Value::Null),
         urls: serde_json::from_str(SDK_URLS).unwrap_or_else(|_| Value::Null),
         view_contexts: serde_json::from_str(SDK_VIEW_CONTEXTS).unwrap_or_else(|_| Value::Null),
         views: serde_json::from_str(SDK_VIEWS).unwrap_or_else(|_| Value::Null),
@@ -73,7 +70,6 @@ pub struct ViewMeta {
 
 #[derive(Serialize, utoipa::ToSchema)]
 pub struct SdkRoot {
-    pub macros: Value,
     pub routes: Value,
     pub view_contexts: Value,
     pub views: Value,
@@ -272,7 +268,6 @@ pub async fn get_sdk_root(
     unauthorized_or(&auth, || {
         let p = parsed();
         Json(SdkRoot {
-            macros: p.macros.clone(),
             routes: p.urls.clone(),
             view_contexts: p.view_contexts.clone(),
             views: p.views.clone(),
@@ -322,17 +317,6 @@ fn search(q: &str, p: &Parsed) -> Vec<SdkSearchHit> {
         }
     };
 
-    if let Some(m) = entries(&p.macros) {
-        for (id, v) in m {
-            let summary = v
-                .get("description")
-                .and_then(|x| x.as_str())
-                .or_else(|| v.get("signature").and_then(|x| x.as_str()))
-                .unwrap_or("")
-                .to_string();
-            push("macro", id, summary, format!("sdk-macros.json#{id}"));
-        }
-    }
     if let Some(m) = entries(&p.urls) {
         for (id, v) in m {
             let summary = v

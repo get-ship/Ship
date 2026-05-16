@@ -3,13 +3,14 @@
 //! Lints `*.controller.ts` (paired SUI controllers) and `*.sui` templates.
 //! Rule IDs are prefixed `sui-<descriptor>`.
 
+pub mod report;
 pub mod rules;
 pub mod source;
 
 #[cfg(test)]
 mod tests;
 
-pub use lint::report::{Finding, Severity, Category};
+pub use report::{Category, Finding, Severity};
 
 /// All rule IDs defined by this crate. Generated from the registry.
 pub fn all_rule_ids() -> Vec<&'static str> {

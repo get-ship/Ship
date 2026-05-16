@@ -127,12 +127,6 @@ pub enum Commands {
         action: WorkspaceCommands,
     },
 
-    /// Lint Ship configuration — views today, more later
-    Lint {
-        #[command(subcommand)]
-        action: LintCommands,
-    },
-
     /// Manage MCP servers (serve, add, list, remove)
     Mcp {
         #[command(subcommand)]
@@ -326,26 +320,6 @@ pub enum OpenapiCommands {
         /// Pretty-print the JSON output
         #[arg(long)]
         pretty: bool,
-    },
-}
-
-#[derive(Subcommand, Debug)]
-pub enum LintCommands {
-    /// Lint `.ship/views/` for inline scripts, style budget, undefined signals
-    Views {
-        /// Lint only this view (directory name under `.ship/views/`)
-        view: Option<String>,
-        /// Restrict to a single rule (repeatable). All rule IDs are
-        /// category-prefixed: `style-*`, `views-*`, `pkg-*`, `ast-*`.
-        /// See `lint::ALL_RULES` for the full set.
-        #[arg(long = "rule", value_name = "RULE")]
-        rules: Vec<String>,
-        /// Output format: human (default) or json
-        #[arg(long, default_value = "human")]
-        format: String,
-        /// Path to project root (defaults to current directory)
-        #[arg(long)]
-        path: Option<PathBuf>,
     },
 }
 

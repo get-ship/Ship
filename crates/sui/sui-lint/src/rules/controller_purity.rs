@@ -11,7 +11,7 @@
 
 use std::path::{Path, PathBuf};
 
-use lint::report::{Finding, Severity};
+use crate::report::{Finding, Severity};
 
 use oxc_allocator::Allocator;
 use oxc_ast::ast::*;

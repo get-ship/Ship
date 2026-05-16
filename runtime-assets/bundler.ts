@@ -172,10 +172,6 @@ function discoverViewBundles(): BundleTarget[] {
 }
 
 const TARGETS: BundleTarget[] = [
-  { name: 'ship-elements', entry: 'packages/ship-set/src/web-components/index.ts' },
-  { name: 'ship-code-editor', entry: 'packages/ship-set/src/web-components/islands/ship-code-editor.ts' },
-  { name: 'ship-markdown-editor', entry: 'packages/ship-set/src/web-components/islands/ship-markdown-editor.ts' },
-  { name: 'ship-terminal', entry: 'packages/ship-set/src/web-components/islands/ship-terminal.ts' },
   { name: 'sui-runtime', entry: 'packages/sui-runtime/src/index.ts' },
   { name: 'sui-dom', entry: 'packages/sui-dom/src/index.ts', external: ['@ship/sui-runtime'] },
   { name: 'sui-sdk-client', entry: 'packages/ship-sdk-client/src/index.ts', external: ['@ship/sui-runtime'] },

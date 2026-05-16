@@ -1,9 +1,6 @@
 {
   "$schema": "https://raw.githubusercontent.com/madvib/ship/main/schemas/view-manifest.schema.json",
-  "type": "component",
-  "rail": {
-    "label": "{{TITLE}}",
-    "icon": "list"
-  },
-  "events": ["config.agent.updated"]
+  "name": "{{NAME}}",
+  "title": "{{TITLE}}",
+  "type": "sui"
 }

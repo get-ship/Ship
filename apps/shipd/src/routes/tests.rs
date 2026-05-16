@@ -7,8 +7,8 @@ fn unit_variant_full_path_is_literal() {
     assert_eq!(Route::ListJobs.full_path(), "/api/v1/jobs");
     assert_eq!(Route::IssueSession.full_path(), "/api/v1/session");
     assert_eq!(
-        Route::AssetDatastarJs.full_path(),
-        "/api/assets/datastar.js"
+        Route::AssetViewTokensCss.full_path(),
+        "/api/assets/view-tokens.css"
     );
 }
 
@@ -120,17 +120,8 @@ fn api_v1_prefix_invariants() {
             ("Index", Route::Index.full_path()),
             ("Setup", Route::Setup.full_path()),
             ("IssueSession", Route::IssueSession.full_path()),
-            ("AssetDatastarJs", Route::AssetDatastarJs.full_path()),
             ("AssetViewTokensCss", Route::AssetViewTokensCss.full_path()),
-            ("AssetShipElementsJs", Route::AssetShipElementsJs.full_path()),
-            ("AssetCodeEditorJs", Route::AssetCodeEditorJs.full_path()),
-            ("AssetMarkdownEditorJs", Route::AssetMarkdownEditorJs.full_path()),
-            ("AssetTerminalJs", Route::AssetTerminalJs.full_path()),
-            ("AssetGitJs", Route::AssetGitJs.full_path()),
-            ("AssetElementsManifest", Route::AssetElementsManifest.full_path()),
-            ("AssetElementsCatalog", Route::AssetElementsCatalog.full_path()),
-            ("AssetJinjaMacrosJson", Route::AssetJinjaMacrosJson.full_path()),
-            ("AssetJinjaMacrosMd", Route::AssetJinjaMacrosMd.full_path()),
+            ("AssetSuiElementsManifest", Route::AssetSuiElementsManifest.full_path()),
             ("AssetThemeCss", Route::AssetThemeCss.full_path()),
             ("ListThemes", Route::ListThemes.full_path()),
             ("ListJobs", Route::ListJobs.full_path()),
