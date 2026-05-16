@@ -20,14 +20,36 @@ impl TemplateEmitter {
             return;
         }
         let v = self.fresh("e");
-        w.line(&format!(
-            "const {v} = document.createElement({});",
-            js_string(&el.tag)
-        ));
+        // SVG-namespace elements must be created via createElementNS;
+        // otherwise the browser parses them as HTML and they render
+        // blank (no SVG layout, no viewBox honored). The `<svg>` root
+        // bumps `svg_depth` and every descendant inherits the SVG
+        // namespace for the duration of its subtree walk. `<foreignObject>`
+        // contents switch back to HTML — call sites can extend this
+        // when that need lands.
+        let is_svg_root = lower == "svg";
+        let in_svg = self.svg_depth > 0 || is_svg_root;
+        if in_svg {
+            w.line(&format!(
+                "const {v} = document.createElementNS(\"http://www.w3.org/2000/svg\", {});",
+                js_string(&el.tag)
+            ));
+        } else {
+            w.line(&format!(
+                "const {v} = document.createElement({});",
+                js_string(&el.tag)
+            ));
+        }
         for a in &el.attrs {
             self.emit_attr(w, a, &v, cleanups_var);
         }
+        if is_svg_root {
+            self.svg_depth += 1;
+        }
         self.emit_children(w, &el.children, &v, cleanups_var);
+        if is_svg_root {
+            self.svg_depth -= 1;
+        }
         w.line(&format!("{parent_var}.appendChild({v});"));
     }
 

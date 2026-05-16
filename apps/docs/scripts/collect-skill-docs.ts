@@ -46,6 +46,16 @@ const SUI_BUNDLES = [
   "sui-sdk-client.js",
   "sui-components.js",
 ] as const
+// Mirror the daemon's `/api/assets/view-tokens.css` concatenation so any
+// SUI primitive that links to that URL from its shadow root (notably
+// `<sui-theme-picker>`, which is on every docs page via the header)
+// resolves against the same canonical tokens the daemon serves at
+// runtime. The concat order must match apps/shipd/src/views/assets.rs.
+const VIEW_TOKENS_SOURCES = [
+  join(REPO_ROOT, "packages/ship-set/src/tokens.css"),
+  join(REPO_ROOT, "apps/shipd/assets/view-tokens.css"),
+  join(REPO_ROOT, "packages/ship-set/src/themes.css"),
+] as const
 // `agent-only` files never ship to any site. `internal` files are hidden from
 // the public (user) build but rendered in internal mode so contributors can
 // view internal-audience docs locally.
@@ -249,6 +259,37 @@ function run(): void {
     copied++
   }
   if (copied > 0) console.log(`[collect-docs] Copied ${copied}/${SUI_BUNDLES.length} SUI bundles to public/.`)
+
+  const apiAssetsDir = join(PUBLIC_DIR, "api", "assets")
+  mkdirSync(apiAssetsDir, { recursive: true })
+  const tokensParts: string[] = []
+  let missingTokens = false
+  for (const src of VIEW_TOKENS_SOURCES) {
+    if (!existsSync(src)) {
+      console.log(`[collect-docs] view-tokens source missing: ${src}`)
+      missingTokens = true
+      continue
+    }
+    tokensParts.push(readFileSync(src, "utf8"))
+  }
+  if (!missingTokens) {
+    writeFileSync(join(apiAssetsDir, "view-tokens.css"), tokensParts.join("\n"))
+    console.log(`[collect-docs] Emitted /api/assets/view-tokens.css.`)
+  }
+  for (const name of SUI_BUNDLES) {
+    const src = join(SUI_ASSETS_DIR, name)
+    if (existsSync(src)) copyFileSync(src, join(apiAssetsDir, name))
+  }
+
+  // `<sui-icon>` fetches its lucide registry from `/_sui/lucide-icons.json`
+  // at first mount. Without it every icon renders an empty shadow root.
+  const sUiDir = join(PUBLIC_DIR, "_sui")
+  mkdirSync(sUiDir, { recursive: true })
+  const lucideSrc = join(SUI_ASSETS_DIR, "lucide-icons.json")
+  if (existsSync(lucideSrc)) {
+    copyFileSync(lucideSrc, join(sUiDir, "lucide-icons.json"))
+    console.log(`[collect-docs] Emitted /_sui/lucide-icons.json.`)
+  }
 }
 
 run()

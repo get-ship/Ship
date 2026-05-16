@@ -5,6 +5,7 @@ import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
 <StarlightPage
   frontmatter={{ title: 'Installing', description: 'Embed the SUI primitives in any page served alongside the Ship daemon.' }}
 >
+  <div class="not-content">
   <p class="in-sub">
     SUI components ship with the Ship daemon. Every <code>&lt;sui-*&gt;</code>
     primitive is bundled into <code>sui-components.js</code> and served at
@@ -94,6 +95,7 @@ import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
       <sui-theme-picker></sui-theme-picker>
     </div>
   </section>
+  </div>
 </StarlightPage>
 
 <script>

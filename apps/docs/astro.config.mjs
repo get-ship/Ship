@@ -119,6 +119,10 @@ function buildTopics(isInternal) {
         link: "/components/",
       },
       {
+        label: "What is SUI",
+        link: "/components/framework/",
+      },
+      {
         label: "Installing",
         link: "/components/installing/",
       },
@@ -240,6 +244,25 @@ export default defineConfig({
     starlight({
       title: "Ship",
       social: [],
+      // Starlight's Expressive Code defaults to `prefers-color-scheme`
+      // to switch between its dark and light shiki themes — that ignores
+      // Ship's own `data-theme` choices (ship-light/ship-dark/paper/halo/
+      // console/contrast). Switch instead on the `.dark` class our
+      // pre-paint script toggles for inherently-dark Ship themes, so the
+      // code block tint follows the theme picker.
+      expressiveCode: {
+        // `github-light` washes out against our cream-tinted Ship surfaces
+        // (comments ~#6e7781 on `--background` give ~3:1 contrast, below
+        // WCAG AA). `light-plus` keeps higher chroma on identifiers and
+        // pushes comments to a readable mid-tone. Pair with the saturated
+        // `night-owl` for dark so syntax tokens stay distinct against the
+        // dark Ship surfaces too. Switch on `html.dark` (toggled by our
+        // pre-paint script), not prefers-color-scheme.
+        themes: ["night-owl", "light-plus"],
+        themeCssSelector: (theme) =>
+          theme.name === "night-owl" ? "html.dark" : "html:not(.dark)",
+        useDarkModeMediaQuery: false,
+      },
       customCss: [
         "./src/styles/tokens.css",
         "./src/styles/themes.css",
@@ -292,7 +315,7 @@ export default defineConfig({
                 'halo':1,'console':1,'contrast':1
               };
               var DARK = {
-                'ship-dark':1,'contrast':1
+                'ship-dark':1,'console':1,'contrast':1
               };
               function apply(id) {
                 if (!VALID[id]) return false;

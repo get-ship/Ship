@@ -226,6 +226,65 @@ function deriveCategory(tag: string): ComponentCategory {
   return CATEGORY_BY_TAG[tag] ?? 'layout';
 }
 
+/**
+ * Tags shipped from `packages/ui-components/src/islands/` — bundled
+ * separately and loaded on-demand by the shell (not in the main
+ * `sui-components.js` bundle the docs site links from the layout).
+ * Excluded from the per-component pages because their custom elements
+ * are not registered at the URL these docs serve from, so any preview
+ * would render an undefined-element husk.
+ */
+const ISLAND_TAGS = new Set([
+  'sui-code-editor',
+  'sui-command-bar',
+  'sui-command-chat',
+  'sui-command-palette',
+  'sui-devtools-components',
+  'sui-devtools-lint',
+  'sui-devtools-schema',
+  'sui-devtools-signals',
+  'sui-devtools-source',
+  'sui-launcher',
+  'sui-markdown-editor',
+  'sui-nav-top',
+  'sui-panel-dock',
+  'sui-rail',
+  'sui-rail-item',
+  'sui-rail-section',
+  'sui-terminal',
+]);
+
+/**
+ * Tags that are deprecated or strictly internal — excluded from the
+ * docs inventory so the gallery doesn't promote them. `sui-theme-toggle`
+ * is superseded by `<sui-theme-picker>` (full brand palette); the
+ * sub-element composites only render inside their parent and have a
+ * shot on the parent's page.
+ */
+const HIDDEN_TAGS = new Set([
+  'sui-theme-toggle',
+  // Composite-child elements that only render meaningfully inside a
+  // specific parent — keep them documented inside the parent's preview
+  // rather than as standalone pages where they'd render an empty
+  // husk or duplicate the parent's example verbatim.
+  'sui-segmented-option',
+  'sui-tab',
+  'sui-tab-panel',
+  'sui-tree-item',
+  'sui-accordion-item',
+  'sui-breadcrumb-item',
+  'sui-navigation-item',
+  'sui-pipeline-step-def',
+  'sui-timeline-item',
+  'sui-git-diff-file',
+  'sui-git-diff-hunk',
+  'sui-git-diff-line',
+  'sui-toast-host',
+  'sui-annotation-layer',
+  'sui-annotation-marker',
+  'sui-annotation-list',
+]);
+
 function takeFirstSentence(s: string): string {
   const trimmed = s.trim();
   if (!trimmed) return '';
@@ -265,6 +324,8 @@ interface CemModule {
 
 function toComponent(mod: CemModule, d: CemDeclaration): ComponentDoc | null {
   if (!d.tagName || !d.customElement) return null;
+  if (ISLAND_TAGS.has(d.tagName)) return null;
+  if (HIDDEN_TAGS.has(d.tagName)) return null;
   const path = mod.path ?? '';
   const summary = takeFirstSentence(d.summary ?? d.description ?? '');
   return {
