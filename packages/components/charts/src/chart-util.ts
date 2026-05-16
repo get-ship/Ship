@@ -11,8 +11,10 @@ export type ChartTone =
   | 'accent'
   | 'muted'
 
+const DEFAULT_TONE = 'var(--foreground)'
+
 const TONE_VARS: Record<string, string> = {
-  default: 'var(--foreground)',
+  default: DEFAULT_TONE,
   primary: 'var(--primary)',
   info: 'var(--info)',
   success: 'var(--success)',
@@ -23,8 +25,8 @@ const TONE_VARS: Record<string, string> = {
 }
 
 export function toneColor(tone: string | undefined | null): string {
-  if (!tone) return TONE_VARS.default
-  return TONE_VARS[tone] ?? TONE_VARS.default
+  if (!tone) return DEFAULT_TONE
+  return TONE_VARS[tone] ?? DEFAULT_TONE
 }
 
 export function parseNums(s: string | null | undefined): number[] {

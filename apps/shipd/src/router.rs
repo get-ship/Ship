@@ -146,10 +146,19 @@ pub fn build_router(
         // Restored after the phase2-substrate-split merge dropped the
         // wiring originally added in 30313c8f; without it every `/_sui/*`
         // request 404s and shell cannot boot.
-        .ship_route(
-            Route::AssetSuiCustomElementsManifest,
-            views::serve_sui_elements_manifest,
-        )
+        // Workspace catalog endpoints — replace the retired
+        // `/api/assets/sui-custom-elements.json` umbrella. Two
+        // projections (workspace = every component, published = only
+        // non-private packaged components) emitted by
+        // `bun packages/sui-catalog/src/cli.ts` to
+        // `.ship/sui-out/catalogs/{workspace,published}.json`.
+        .ship_route(Route::SuiCatalogWorkspace, ship_sui::serve_catalog_workspace)
+        .ship_route(Route::SuiCatalogPublished, ship_sui::serve_catalog_published)
+        // Generalized pack-bundle handler — serves
+        // `/_sui/packs/<pack-id>/<bundle>` for any workspace package
+        // with a `customElements` field in package.json. Index built
+        // lazily by walking the root workspaces glob.
+        .ship_route(Route::SuiPackAsset_template(), ship_sui::serve_pack_asset)
         .ship_route(Route::SuiRuntimeJs, ship_sui::serve_sui_runtime)
         .ship_route(Route::SuiDomJs, ship_sui::serve_sui_dom)
         .ship_route(Route::SuiSdkClientJs, ship_sui::serve_sui_sdk_client)

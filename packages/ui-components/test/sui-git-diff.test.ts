@@ -3,7 +3,8 @@ import '../src/sui-git-diff/sui-git-diff.compiled.js'
 import '../src/sui-git-diff/sui-git-diff-file.compiled.js'
 import '../src/sui-git-diff/sui-git-diff-hunk.compiled.js'
 import '../src/sui-git-diff/sui-git-diff-line.compiled.js'
-import '../src/sui-icon/sui-icon.compiled.js'
+// sui-icon lives in @ship/primitives.
+import '@ship/primitives'
 import { createContainerRegistry, flush, mount } from '../src/test-utils'
 
 const reg = createContainerRegistry()

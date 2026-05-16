@@ -1,16 +1,19 @@
 import { chrome, controller, signal, derived, ref } from '@ship/sui-runtime'
 import type { Scope } from './sui-devtools-components.sui'
 
-// The dock's Components tab inspects the SUI inventory, not the legacy
-// lit `ship-*` catalog. `/api/assets/sui-custom-elements.json` is the
-// CEM emitted by sui-build for every `<sui-*>` in
-// packages/ui-components/src; the older `/api/assets/custom-elements.json`
-// is the lit-element catalog used by apps/shell (j2).
-const SUI_CEM_URL = '/api/assets/sui-custom-elements.json'
+// The dock's Components tab inspects the workspace SUI catalog —
+// `/api/sui/catalog/workspace` returns every `<sui-*>` the monorepo
+// knows about (packaged pack components + non-packaged shell/view
+// locals). Emitted by `@ship/sui-catalog`.
+const SUI_CATALOG_URL = '/api/sui/catalog/workspace'
 
 interface CemAttr { name: string; description?: string; type?: { text?: string }; default?: string }
-interface CemDecl { kind: string; name: string; tagName?: string; customElement?: boolean; description?: string; attributes?: CemAttr[]; slots?: Array<{ name: string; description?: string }> }
-interface CemModule { kind: string; path: string; declarations?: CemDecl[] }
+interface CatalogEntryWire {
+  tagName: string
+  description?: string
+  attributes?: CemAttr[]
+  slots?: Array<{ name: string; description?: string }>
+}
 
 interface Entry {
   tag: string
@@ -22,32 +25,30 @@ interface Entry {
   slots: Array<{ name: string; description?: string }>
 }
 
-function flattenCem(modules: CemModule[]): Entry[] {
+function flattenCatalog(entries: CatalogEntryWire[]): Entry[] {
   const out: Entry[] = []
-  for (const m of modules ?? []) {
-    for (const d of m.declarations ?? []) {
-      if (!d.customElement || !d.tagName) continue
-      const description = (d.description ?? '').trim()
-      const attributes = d.attributes ?? []
-      const slots = d.slots ?? []
-      const snipAttrs = attributes.slice(0, 3)
-        .filter(a => !a.default || a.default === 'false')
-        .map(a => (a.type?.text ?? '').includes('boolean') ? ` ${a.name}` : ` ${a.name}="…"`)
-        .join('')
-      const hasDefault = slots.some(sl => !sl.name || sl.name === '')
-      const snippet = hasDefault
-        ? `<${d.tagName}${snipAttrs}>\n  \n</${d.tagName}>`
-        : `<${d.tagName}${snipAttrs}></${d.tagName}>`
-      out.push({
-        tag: d.tagName,
-        description,
-        firstDesc: description.split('\n')[0] ?? '',
-        snippet,
-        slotsLabel: slots.map(sl => sl.name || '(default)').join(', '),
-        attributes,
-        slots,
-      })
-    }
+  for (const e of entries ?? []) {
+    if (!e.tagName) continue
+    const description = (e.description ?? '').trim()
+    const attributes = e.attributes ?? []
+    const slots = e.slots ?? []
+    const snipAttrs = attributes.slice(0, 3)
+      .filter(a => !a.default || a.default === 'false')
+      .map(a => (a.type?.text ?? '').includes('boolean') ? ` ${a.name}` : ` ${a.name}="…"`)
+      .join('')
+    const hasDefault = slots.some(sl => !sl.name || sl.name === '')
+    const snippet = hasDefault
+      ? `<${e.tagName}${snipAttrs}>\n  \n</${e.tagName}>`
+      : `<${e.tagName}${snipAttrs}></${e.tagName}>`
+    out.push({
+      tag: e.tagName,
+      description,
+      firstDesc: description.split('\n')[0] ?? '',
+      snippet,
+      slotsLabel: slots.map(sl => sl.name || '(default)').join(', '),
+      attributes,
+      slots,
+    })
   }
   return out.sort((a, b) => a.tag.localeCompare(b.tag))
 }
@@ -75,10 +76,10 @@ export default controller<Scope>({
       if (loaded) return
       loaded = true
       try {
-        const resp = await fetch(SUI_CEM_URL, { credentials: 'same-origin' })
+        const resp = await fetch(SUI_CATALOG_URL, { credentials: 'same-origin' })
         if (!resp.ok) return
-        const cem = await resp.json() as { modules?: CemModule[] }
-        s['entries'] = flattenCem(cem.modules ?? [])
+        const doc = await resp.json() as { entries?: CatalogEntryWire[] }
+        s['entries'] = flattenCatalog(doc.entries ?? [])
       } catch { /* best-effort */ }
     }
 

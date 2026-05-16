@@ -1,8 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import '../src/sui-popover/sui-popover.compiled.js'
-import '../src/sui-portal/sui-portal.compiled.js'
-import '../src/sui-icon/sui-icon.compiled.js'
-import '../src/sui-app-icon/sui-app-icon.compiled.js'
+// sui-popover / sui-portal / sui-icon / sui-app-icon live in @ship/primitives.
+import '@ship/primitives'
 import '../src/sui-view-picker/sui-view-picker.compiled.js'
 import { createContainerRegistry, flush, mount } from '../src/test-utils'
 

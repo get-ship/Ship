@@ -113,8 +113,14 @@ pub enum Route {
 
     // ── SUI framework hosting (ship-sui-server handlers) ──
 
-    /// @route GET "/api/assets/sui-custom-elements.json"
-    AssetSuiCustomElementsManifest,
+    /// @route GET "/api/sui/catalog/workspace"
+    SuiCatalogWorkspace,
+
+    /// @route GET "/api/sui/catalog/published"
+    SuiCatalogPublished,
+
+    /// @route GET "/_sui/packs/{pack_id}/{file}"
+    SuiPackAsset { pack_id: String, file: String },
 
     /// @route GET "/_sui/runtime.js"
     SuiRuntimeJs,

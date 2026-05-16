@@ -1,6 +1,5 @@
 import { controller, signal, derived, ref, effect } from '@ship/sui-runtime'
 import type { Scope } from './sui-component-picker.sui'
-import { isPickerHidden } from '../picker-hidden-tags'
 import { SLOT_COMPOSITIONS } from '../picker-slot-compositions'
 
 // Default text label per atomic component when no composition is
@@ -71,19 +70,21 @@ function populatePreview(container: HTMLElement, tag: string): void {
   container.appendChild(el)
 }
 
-const FALLBACK_CATALOG = '/api/assets/sui-custom-elements.json'
+const FALLBACK_CATALOG = '/api/sui/catalog/workspace'
 
-interface CemAttr { name: string; description?: string; type?: { text?: string }; default?: string }
-interface CemDecl {
-  kind: string
-  name: string
-  tagName?: string
-  customElement?: boolean
-  description?: string
-  attributes?: CemAttr[]
+interface CatalogAttr { name: string; description?: string; type?: { text?: string }; default?: string }
+interface CatalogEntryWire {
+  tagName: string
+  package: string
+  private: boolean
+  sourcePath: string
+  bundleUrl: string
+  manifestUrl: string
+  description: string
+  firstDesc: string
+  attributes?: CatalogAttr[]
   slots?: Array<{ name: string; description?: string }>
 }
-interface CemModule { kind: string; path: string; declarations?: CemDecl[] }
 
 export interface PickerEntry {
   tag: string
@@ -94,6 +95,13 @@ export interface PickerEntry {
    *  the same heuristic so the picker UI stays consistent with it. */
   icon: string
   category: string
+  /** Origin package — `@ship/charts`, `@ship/ui-components`,
+   *  `app:shell`, `view:<name>`, etc. Used directly for pack grouping;
+   *  the regex-based `categoryOf` heuristic stays only for the icon. */
+  pack: string
+  /** Whether the origin package is private (private: true OR a
+   *  non-packaged origin). Drives the Published/All filter chip. */
+  private: boolean
 }
 
 const CATEGORY_ICON: Record<string, string> = {
@@ -125,26 +133,23 @@ function iconFor(tag: string): string {
   return CATEGORY_ICON[categoryOf(tag)] ?? 'package'
 }
 
-function flattenCem(modules: CemModule[]): PickerEntry[] {
+function flattenCatalog(entries: CatalogEntryWire[]): PickerEntry[] {
   const out: PickerEntry[] = []
   const seen = new Set<string>()
-  for (const m of modules ?? []) {
-    for (const d of m.declarations ?? []) {
-      if (!d.customElement || !d.tagName) continue
-      // Hide chrome / container tags — they don't render standalone
-      // and confuse users browsing for primitives to insert.
-      if (isPickerHidden(d.tagName)) continue
-      if (seen.has(d.tagName)) continue
-      seen.add(d.tagName)
-      const description = (d.description ?? '').trim()
-      out.push({
-        tag: d.tagName,
-        description,
-        firstDesc: description.split('\n')[0] ?? '',
-        icon: iconFor(d.tagName),
-        category: categoryOf(d.tagName),
-      })
-    }
+  for (const e of entries ?? []) {
+    if (!e.tagName) continue
+    if (seen.has(e.tagName)) continue
+    seen.add(e.tagName)
+    const description = (e.description ?? '').trim()
+    out.push({
+      tag: e.tagName,
+      description,
+      firstDesc: e.firstDesc ?? description.split('\n')[0] ?? '',
+      icon: iconFor(e.tagName),
+      category: categoryOf(e.tagName),
+      pack: e.package || 'unknown',
+      private: e.private !== false,
+    })
   }
   return out.sort((a, b) => a.tag.localeCompare(b.tag))
 }
@@ -174,6 +179,10 @@ export default controller<Scope>({
     const entries = signal<PickerEntry[]>([])
     const filter = signal('')
     const queue = signal<string[]>([])
+    /** Published/All filter. Defaults to All — a dev tool should surface
+     *  every component the workspace knows about, not only published
+     *  packs. Toggled by the chip above the search input. */
+    const publishedOnly = signal<boolean>(false)
     const gridEl = ref<HTMLDivElement>(null)
     const s = state as unknown as {
       categoryFilter: () => string
@@ -184,42 +193,46 @@ export default controller<Scope>({
       const all = entries()
       const needle = filter().trim()
       const cat = s.categoryFilter().trim().toLowerCase()
+      const pubOnly = publishedOnly()
       return all.filter((e) => {
+        if (pubOnly && e.private) return false
         if (cat && e.category !== cat) return false
         if (!needle) return true
         return fuzzyMatch(needle, e.tag) || fuzzyMatch(needle, e.description)
       })
     })
 
-    // Group shown entries by category (the existing categoryOf
-    // heuristic). User asked for pack-grouping — categories are the
-    // closest declarative pack hint available without per-component
-    // frontmatter. Order matches the picker's intent doc: most
-    // common first.
-    const PACK_ORDER = ['display', 'layout', 'form', 'data', 'feedback', 'navigation', 'overlay', 'chart', 'text', 'media']
-    const PACK_LABEL: Record<string, string> = {
-      display: 'Display', layout: 'Layout', form: 'Form', data: 'Data',
-      feedback: 'Feedback', navigation: 'Navigation', overlay: 'Overlay',
-      chart: 'Charts', text: 'Text', media: 'Media',
+    // Group by origin package (`package` field from the workspace
+    // catalog). One bucket per pack — `@ship/charts`, `@ship/ui-components`,
+    // `app:shell`, `view:<name>`, etc. Order: published packs first
+    // (alphabetical), then private packages, then shell + view origins.
+    function packLabel(id: string): string {
+      if (id.startsWith('@')) return id
+      if (id.startsWith('app:')) return id.slice(4) + ' (app)'
+      if (id.startsWith('view:')) return id.slice(5) + ' (view)'
+      if (id.startsWith('workspace:')) return id.slice(10) + ' (workspace)'
+      return id
+    }
+    function packSortKey(id: string): string {
+      // 0 = scoped/public package, 1 = bare name, 2 = app:, 3 = view:, 4 = other
+      if (id.startsWith('@')) return '0:' + id
+      if (id.startsWith('app:')) return '2:' + id
+      if (id.startsWith('view:')) return '3:' + id
+      if (id.startsWith('workspace:')) return '4:' + id
+      return '1:' + id
     }
     interface Group { id: string; label: string; entries: PickerEntry[] }
     const grouped = derived<Group[]>(() => {
       const buckets = new Map<string, PickerEntry[]>()
       for (const e of shown()) {
-        const k = e.category || 'display'
+        const k = e.pack || 'unknown'
         if (!buckets.has(k)) buckets.set(k, [])
         buckets.get(k)!.push(e)
       }
-      const out: Group[] = []
-      for (const k of PACK_ORDER) {
-        if (buckets.has(k)) {
-          out.push({ id: k, label: PACK_LABEL[k] ?? k, entries: buckets.get(k)! })
-          buckets.delete(k)
-        }
-      }
-      // Any leftover unknown categories at the end.
-      for (const [k, v] of buckets) out.push({ id: k, label: PACK_LABEL[k] ?? k, entries: v })
-      return out
+      const keys = Array.from(buckets.keys()).sort((a, b) =>
+        packSortKey(a).localeCompare(packSortKey(b)),
+      )
+      return keys.map((k) => ({ id: k, label: packLabel(k), entries: buckets.get(k)! }))
     })
     // Use string[] (not Set) — SUI templates restrict method calls
     // to a renderable allowlist that includes .includes() but not
@@ -260,9 +273,14 @@ export default controller<Scope>({
 
     function onDialogClose(): void { h.open = false }
 
+    function togglePublishedOnly(): void {
+      publishedOnly.set(!publishedOnly())
+    }
+
     return {
       entries, filter, queue, gridEl, shown, isSelected,
       grouped, collapsed, toggleGroup,
+      publishedOnly, togglePublishedOnly,
       onTileClick, commit, onDialogClose,
     }
   },
@@ -285,8 +303,8 @@ export default controller<Scope>({
           const url = s.catalogUrl() || FALLBACK_CATALOG
           const resp = await fetch(url, { credentials: 'same-origin' })
           if (!resp.ok) return
-          const cem = await resp.json() as { modules?: CemModule[] }
-          s.entries.set(flattenCem(cem.modules ?? []))
+          const doc = await resp.json() as { entries?: CatalogEntryWire[] }
+          s.entries.set(flattenCatalog(doc.entries ?? []))
           loaded = true
         } catch { /* best-effort */ }
         finally { inflight = null }

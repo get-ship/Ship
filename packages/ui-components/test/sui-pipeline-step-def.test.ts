@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import '../src/sui-pipeline-step-def/sui-pipeline-step-def.compiled.js'
-import '../src/sui-chip/sui-chip.compiled.js'
+// sui-chip lives in @ship/primitives — umbrella import registers it.
+import '@ship/primitives'
 import { createContainerRegistry, flush, mount } from '../src/test-utils'
 
 const reg = createContainerRegistry()

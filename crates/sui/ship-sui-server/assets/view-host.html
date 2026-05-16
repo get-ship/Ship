@@ -26,6 +26,32 @@
        custom element before any view template tries to use one. -->
   <script type="module" src="/_sui/components.js"></script>
 
+  <!-- Pack bundles — load every workspace pack the daemon advertises
+       in the published catalog (`/api/sui/catalog/published`). One
+       `<script type="module">` per pack ensures the pack's tags are
+       defined before any view that uses them mounts. Transitional:
+       once views declare their pack dependencies explicitly, this
+       loader switches to a per-view list. -->
+  <script>
+    (async () => {
+      try {
+        const res = await fetch('/api/sui/catalog/published', { credentials: 'same-origin' })
+        if (!res.ok) return
+        const doc = await res.json()
+        const urls = new Set()
+        for (const e of doc.entries || []) {
+          if (e && e.bundleUrl) urls.add(e.bundleUrl)
+        }
+        for (const url of urls) {
+          const s = document.createElement('script')
+          s.type = 'module'
+          s.src = url
+          document.head.appendChild(s)
+        }
+      } catch { /* pack loading is best-effort */ }
+    })()
+  </script>
+
   <style>
     html, body { height: 100%; margin: 0; padding: 0; background: var(--background, #fff); }
     #sui-root { height: 100vh; display: flex; flex-direction: column; }

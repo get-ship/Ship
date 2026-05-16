@@ -15,6 +15,29 @@
 
 import { createClient, type ShipSDK } from '@ship/sdk-client'
 import { shipFetch, gitStatus } from '@ship/sdk'
+// Charts pack — single workspace import registers every <sui-*-chart>,
+// <sui-sparkline>, <sui-donut>, <sui-gauge>, <sui-meter>, <sui-heatmap>
+// before the first view mounts. Charts moved out of @ship/ui-components
+// into @ship/charts (packages/components/charts/) as the first pack
+// extracted under the multi-pack architecture; consumers depend on the
+// pack via standard workspace deps, exactly the same shape any future
+// first- or third-party pack will use.
+//
+// The `/bundle` subpath points at sui-build's pre-built artifact
+// (`dist/sui-charts.js`) — the same shape the daemon uses to serve
+// `<script src="/_sui/components.js">` for the umbrella. Importing
+// `@ship/charts` directly would route through the source tree's
+// `.compiled.js` virtual imports, which only the sui-build / vitest
+// resolvers understand. The bundle path is a real on-disk module
+// Vite can ship as-is. Requires `bun run --filter @ship/charts build`
+// to have produced `dist/sui-charts.js`.
+import '@ship/charts/bundle'
+// Primitives pack — generic `<sui-*>` UI elements (button, input, dialog,
+// popover, tooltip, tabs, etc.). Same shape as charts: pre-built bundle
+// served by the daemon; one workspace import registers every primitive
+// before the first view mounts. Requires `bun run --filter @ship/primitives
+// build` to have produced `dist/sui-primitives.js`.
+import '@ship/primitives/bundle'
 import { route as createRoute, defineRoutes } from '@ship/sui-runtime/route'
 import { chrome, notifyViewUnmount } from '@ship/sui-runtime'
 import { KernelBridge } from './kernel-bridge'
