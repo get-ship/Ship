@@ -5,10 +5,10 @@ title: MCP Tools
 description: Ship's MCP server exposes runtime operations to AI agents via the Model Context Protocol.
 ---
 
-<ship-alert tone="warning">
+<sui-alert tone="warning">
 <span slot="title">Reference under revision</span>
 The full tool catalog and per-tool reference are being reworked. The shape below is current; detailed pages are temporarily internal-only.
-</ship-alert>
+</sui-alert>
 
 > Note: the MCP tool surface is under active revision; tool/resource lists below may be out of date.
 

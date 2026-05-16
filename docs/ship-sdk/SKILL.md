@@ -10,7 +10,7 @@ authors: [ship]
 
 The Ship View SDK is how you build UI on Ship. You write a single
 `.html.j2` file per view, import macros from `_ship.html.j2`, and
-compose `<ship-*>` elements. The SDK hides Datastar and design tokens
+compose `<sui-*>` elements. The SDK hides Datastar and design tokens
 behind named primitives so a view never contains raw `<script>`, raw
 `<style>`, or hand-rolled `data-signals:`/`data-on:*` strings.
 
@@ -21,7 +21,7 @@ live template rules.
 ## Reference pages
 
 - [Overview](./references/docs/index.md) — thesis and the three-layer
-  mental model (Jinja structure, Datastar reactivity, ship-elements
+  mental model (Jinja structure, Datastar reactivity, sui-components
   components).
 - [Primitives](./references/docs/primitives.md) — the ~15 macros that
   cover 95% of view authoring. What each does, when to reach for it,

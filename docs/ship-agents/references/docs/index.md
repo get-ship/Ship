@@ -8,25 +8,25 @@ An **agent** is a profile that tells an AI assistant how to behave in your proje
 
 ## What goes into an agent
 
-<ship-card padding="md">
+<sui-card padding="md">
 <strong slot="header">Identity</strong>
 A name, a description, and the providers this agent should compile to. One agent can target several providers from the same source.
-</ship-card>
+</sui-card>
 
-<ship-card padding="md">
+<sui-card padding="md">
 <strong slot="header">Skills</strong>
 Instruction sets that teach the agent how to do specific things. Pick from your local skills, from installed packages, or both.
-</ship-card>
+</sui-card>
 
-<ship-card padding="md">
+<sui-card padding="md">
 <strong slot="header">MCP servers</strong>
 External tools the agent connects to via Model Context Protocol — your own services, GitHub, anything MCP-aware.
-</ship-card>
+</sui-card>
 
-<ship-card padding="md">
+<sui-card padding="md">
 <strong slot="header">Permissions</strong>
 A preset that controls what the agent can do without asking — read-only, interactive, autonomous, or elevated. See <a href="./permissions/">Permissions</a>.
-</ship-card>
+</sui-card>
 
 ## A small agent
 

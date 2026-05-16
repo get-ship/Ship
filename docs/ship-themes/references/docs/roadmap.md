@@ -14,11 +14,11 @@ Known gaps in the design system today. Captured so no one re-invents a workaroun
 
 ## 2. Density channel has no consumers — non-blocking
 
-The `--density-*` token channel (`--density-row-py`, `--density-row-px`, `--density-row-gap`, `--density-text`, `--density-icon`) is structurally live: `tokens.css` exposes defaults and `:root[data-density='compact'|'spacious']` overrides them. But no shipped component reads from the channel yet, so toggling `data-density` on `<html>` currently has no visible effect. **Fix:** migrate `ship-list-tile` first — it's the canonical row primitive and every other row/tile in the library composes through it. Once the tile reads `--density-row-py/-px` and `--density-icon` instead of the base `--space-*` scale, density immediately propagates to every list in the app. Non-blocking; density is an opt-in power-user feature.
+The `--density-*` token channel (`--density-row-py`, `--density-row-px`, `--density-row-gap`, `--density-text`, `--density-icon`) is structurally live: `tokens.css` exposes defaults and `:root[data-density='compact'|'spacious']` overrides them. But no shipped component reads from the channel yet, so toggling `data-density` on `<html>` currently has no visible effect. **Fix:** migrate `sui-list-tile` first — it's the canonical row primitive and every other row/tile in the library composes through it. Once the tile reads `--density-row-py/-px` and `--density-icon` instead of the base `--space-*` scale, density immediately propagates to every list in the app. Non-blocking; density is an opt-in power-user feature.
 
-## 3. `ship-theme-toggle` is dead code — non-blocking
+## 3. `sui-theme-toggle` is dead code — non-blocking
 
-`ship-theme-toggle` (a simple light/dark flipper) predates the theme picker. The picker is now the canonical UI and covers all six themes flatly; a two-state toggle is both redundant and misleading (it can't represent `paper` vs `halo` vs `console`). **Fix:** delete the component, or repurpose it as a one-click shortcut that flips between the user's last light theme and last dark theme (a preset wrapper over the picker). Non-blocking — the component is not wired into the shell.
+`sui-theme-toggle` (a simple light/dark flipper) predates the theme picker. The picker is now the canonical UI and covers all six themes flatly; a two-state toggle is both redundant and misleading (it can't represent `paper` vs `halo` vs `console`). **Fix:** delete the component, or repurpose it as a one-click shortcut that flips between the user's last light theme and last dark theme (a preset wrapper over the picker). Non-blocking — the component is not wired into the shell.
 
 ## 4. Theme cards nest awkwardly in the picker popover — non-blocking
 

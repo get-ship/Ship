@@ -45,14 +45,6 @@ The canonical UI is the **theme picker** in the shell topbar.
 - **Persistence** — the choice is saved to `localStorage` under `ship-site-theme` and re-applied on reload. There is no server-side sync yet: each browser remembers its own selection.
 - **Scope** — per-browser, per-origin. Clearing site data resets to `ship-light` (the default).
 
-If you are embedding Ship or wiring a custom host, the TS entry point is `@ship/set/themes`:
+If you are embedding Ship or wiring a custom host, drop a `<sui-theme-picker>` (or `<sui-theme-toggle>`) into the page chrome — the primitive owns load / persist / apply and dispatches `sui-theme-change` on the root so other UI can react.
 
-```ts
-import { applyTheme, persistTheme, readStoredTheme } from '@ship/set/themes'
-
-const active = applyTheme(readStoredTheme())  // on boot — SSR-safe
-applyTheme('paper')
-persistTheme('paper')
-```
-
-`applyTheme(id)` sets `data-theme` on the root and toggles `.dark`. It returns the effective id (falls back to `ship-light` on invalid input).
+> **TODO: SUI equivalent pending.** The previous `applyTheme` / `persistTheme` / `readStoredTheme` functions lived on the legacy ship-set themes module. A public TS surface for the same primitives on `@ship/ui-components` has not landed yet; until it does, embed via the components above and listen for `sui-theme-change` events. Track the gap before consuming this API in integrator code.

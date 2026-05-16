@@ -21,7 +21,7 @@ rather than inlining raw `data-on:*`.
 ## `head(title)`
 
 Emits the standard `<head>` contents — meta, title, design tokens,
-Datastar, the `ship-elements` bundle. In fragment mode (loaded inside
+Datastar, the `sui-components` bundle. In fragment mode (loaded inside
 the shell) the macro emits nothing because the shell already owns
 those assets. Use once at the top of every full-page view.
 
@@ -54,7 +54,7 @@ Hides an element until a Datastar expression is truthy. Emits
 `display:none` as an inline style so nothing flashes before hydration.
 
 ```jinja
-<ship-card {{ show('$_showForm') }}>…</ship-card>
+<sui-card {{ show('$_showForm') }}>…</sui-card>
 ```
 
 Prefer this to `data-show` directly — the flash-of-unstyled-content
@@ -84,7 +84,7 @@ Two-way binds an input's value to a signal. Dotted paths work when the
 parent is an object (`form.title` into the `form` signal).
 
 ```jinja
-<ship-input {{ bind('form.title') }} placeholder="Title"></ship-input>
+<sui-input {{ bind('form.title') }} placeholder="Title"></sui-input>
 ```
 
 ## `on(event, expr)`
@@ -94,9 +94,9 @@ Generic event listener. Reach for this for ship-element custom events
 in scope in the expression.
 
 ```jinja
-<ship-select {{ on('ship-change', '$status = evt.detail.value') }}>
+<sui-select {{ on('ship-change', '$status = evt.detail.value') }}>
   <option value="todo">To do</option>
-</ship-select>
+</sui-select>
 ```
 
 **Anti-pattern:** using `on('click', '@post(…)')` when the
@@ -109,9 +109,9 @@ signal while the fetch is in flight; `spinner()` renders the visible
 indicator watching the same signal.
 
 ```jinja
-<ship-button {{ create('task', '$form') }} {{ loading('_creating') }}>
+<sui-button {{ create('task', '$form') }} {{ loading('_creating') }}>
   Create
-</ship-button>
+</sui-button>
 {{ spinner('_creating') }}
 ```
 
@@ -122,9 +122,9 @@ PUTs, or DELETEs to the runtime. `data` is a Datastar expression —
 typically `$form`.
 
 ```jinja
-<ship-button {{ create('task', '$form') }}>Create</ship-button>
-<ship-button {{ update('task', item.id, '$form') }}>Save</ship-button>
-<ship-button {{ delete('task', item.id) }}>Delete</ship-button>
+<sui-button {{ create('task', '$form') }}>Create</sui-button>
+<sui-button {{ update('task', item.id, '$form') }}>Save</sui-button>
+<sui-button {{ delete('task', item.id) }}>Delete</sui-button>
 ```
 
 The write never needs to render — the SSE read stream pushes the new
@@ -136,8 +136,8 @@ item, re-fetch"). The read stream does it for you. Let it.
 ## `form(schema, collection)`
 
 Auto-generates a labelled input per schema field. Enum fields become
-`<ship-select>`, boolean becomes `<ship-switch>`, markdown becomes
-`<ship-textarea>`, numbers become numeric `<ship-input>`. Each field
+`<sui-select>`, boolean becomes `<sui-switch>`, markdown becomes
+`<sui-textarea>`, numbers become numeric `<sui-input>`. Each field
 two-way-binds under the `form` signal (or the `form_signal` you
 supply).
 
@@ -155,7 +155,7 @@ used for in-page morphs. For shell-level navigation (changing the
 route), reach for `nav(path)` or `view(name)` instead.
 
 ```jinja
-<ship-button {{ navigate('/api/view/pipelines') }}>Pipelines</ship-button>
+<sui-button {{ navigate('/api/view/pipelines') }}>Pipelines</sui-button>
 ```
 
 ## `tab(signal, value)` / `tab_panel(signal, value)`
@@ -164,8 +164,8 @@ Tab UI without a plugin. `tab()` flips the signal and exposes
 `aria-selected`; `tab_panel()` shows only when the signal matches.
 
 ```jinja
-<ship-tab {{ tab('activeTab', 'details') }}>Details</ship-tab>
-<ship-tab {{ tab('activeTab', 'history') }}>History</ship-tab>
+<sui-tab {{ tab('activeTab', 'details') }}>Details</sui-tab>
+<sui-tab {{ tab('activeTab', 'history') }}>History</sui-tab>
 
 <div {{ tab_panel('activeTab', 'details') }}>…</div>
 ```
@@ -177,9 +177,9 @@ triggers an SSE refresh so the server reruns the query. `chip_all()`
 is the companion that clears the filter.
 
 ```jinja
-<ship-chip {{ chip_all('status', 'tasks') }}>All</ship-chip>
-<ship-chip {{ chip('status', 'active', 'tasks') }}>Active</ship-chip>
-<ship-chip {{ chip('status', 'done',   'tasks') }}>Done</ship-chip>
+<sui-chip {{ chip_all('status', 'tasks') }}>All</sui-chip>
+<sui-chip {{ chip('status', 'active', 'tasks') }}>Active</sui-chip>
+<sui-chip {{ chip('status', 'done',   'tasks') }}>Done</sui-chip>
 ```
 
 **Anti-pattern:** filtering client-side across a full dataset. Chips

@@ -18,4 +18,4 @@ The scope is comparable to Material or Apple's Human Interface Guidelines: switc
 - **[Tokens](./tokens)** — the four-layer token system that makes theming cohesive: semantic surfaces, tone ramps, role tokens, primitives.
 - **[Customizing](./customizing)** — two paths: override individual CSS custom properties, or author a full custom theme.
 
-If you are building `<ship-*>` components or editing `tokens.css` / `themes.css` directly, also read the impl skill at `.ship/skills/ship-design-system/SKILL.md` for the authoring rules and anti-smells.
+If you are building `<sui-*>` components or editing `tokens.css` / `themes.css` directly, also read the impl skill at `.ship/skills/ship-design-system/SKILL.md` for the authoring rules and anti-smells.

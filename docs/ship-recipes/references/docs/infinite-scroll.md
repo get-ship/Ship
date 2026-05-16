@@ -23,7 +23,7 @@ reach for raw `data-*` for anything else.
   <div {{ live('tasks') }}>
     <div id="tasks-content">
       {% for item in ship_items('task') %}
-        <ship-list-tile><span slot="title">{{ item.data.title }}</span></ship-list-tile>
+        <sui-list-tile><span slot="title">{{ item.data.title }}</span></sui-list-tile>
       {% endfor %}
     </div>
 

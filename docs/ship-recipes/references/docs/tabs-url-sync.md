@@ -17,11 +17,11 @@ listeners.
 <div class="ship-view"
      {{ signal('activeTab', 'details') }}
      {{ on('load', "$activeTab = (location.hash || '#details').slice(1)") }}>
-  <ship-tabs {{ on('ship-change', "location.hash = '#' + $activeTab") }}>
-    <ship-tab {{ tab('activeTab', 'details') }}>Details</ship-tab>
-    <ship-tab {{ tab('activeTab', 'history') }}>History</ship-tab>
-    <ship-tab {{ tab('activeTab', 'logs') }}>Logs</ship-tab>
-  </ship-tabs>
+  <sui-tabs {{ on('ship-change', "location.hash = '#' + $activeTab") }}>
+    <sui-tab {{ tab('activeTab', 'details') }}>Details</sui-tab>
+    <sui-tab {{ tab('activeTab', 'history') }}>History</sui-tab>
+    <sui-tab {{ tab('activeTab', 'logs') }}>Logs</sui-tab>
+  </sui-tabs>
 
   <div {{ tab_panel('activeTab', 'details') }}>...details...</div>
   <div {{ tab_panel('activeTab', 'history') }}>...history...</div>

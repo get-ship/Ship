@@ -15,10 +15,10 @@ actually want, and the toast fires alongside.
 {% from '_ship.html.j2' import signal, bind, toast_container, toast_action %}
 
 <div class="ship-view" {{ signal('value', '') }}>
-  <ship-input {{ bind('value') }} placeholder="Anything"></ship-input>
-  <ship-button {{ toast_action('Saved!', 'success', 2500) }}>
+  <sui-input {{ bind('value') }} placeholder="Anything"></sui-input>
+  <sui-button {{ toast_action('Saved!', 'success', 2500) }}>
     Pretend save
-  </ship-button>
+  </sui-button>
 </div>
 
 {{ toast_container() }}

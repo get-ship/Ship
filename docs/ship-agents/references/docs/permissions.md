@@ -8,25 +8,25 @@ Permissions decide which tools your agent can use without pausing to ask. Ship s
 
 ## The four presets
 
-<ship-card padding="md">
+<sui-card padding="md">
 <strong slot="header">ship-readonly</strong>
 The agent can read, search, and call read-only Ship tools. It can't modify files or run destructive commands. Right for reviewers, gate agents, and audits.
-</ship-card>
+</sui-card>
 
-<ship-card padding="md">
+<sui-card padding="md">
 <strong slot="header">ship-standard</strong>
 The default for hands-on work. The agent can read and write; the provider asks before risky operations. Right for interactive sessions paired with a human.
-</ship-card>
+</sui-card>
 
-<ship-card padding="md">
+<sui-card padding="md">
 <strong slot="header">ship-autonomous</strong>
 For agents working alone, typically in a separate worktree. File operations and most shell commands run without confirmation. Pushing, publishing, and destructive resets are still blocked. Right for dispatched specialists.
-</ship-card>
+</sui-card>
 
-<ship-card padding="md">
+<sui-card padding="md">
 <strong slot="header">ship-elevated</strong>
 Like autonomous but unlocks <code>git push</code> and publish. Only force-push and hard resets remain blocked. Right for CI and release automation.
-</ship-card>
+</sui-card>
 
 ## Picking a preset
 

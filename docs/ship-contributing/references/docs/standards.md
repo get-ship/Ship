@@ -56,7 +56,7 @@ Maximum 300 lines per file. If a module needs more, split it. Applies to Rust, T
 
 Types come from exactly two places:
 
-1. **`@ship/set`** -- generated from the Rust compiler via Specta. Source of truth for agent, compiler, and config types. Import directly where needed.
+1. **`@ship/ui-components`** -- generated from the Rust compiler via Specta. Source of truth for agent, compiler, and config types. Import directly where needed.
 2. **`#/db/schema`** -- Drizzle D1 schema. Source of truth for server-side data (packages, profiles, workflows).
 
 Rules:
@@ -78,7 +78,7 @@ Error messages must be actionable and specific. No silent fallbacks. If somethin
 - Rust domain logic in `crates/core/ship-substrate/`, `crates/core/ship-platform/`, or `crates/core/ship-application/` (state, layered L0/L1/L2) or `crates/core/compiler/` (transformation).
 - CLI and MCP stay thin -- map inputs, format outputs.
 - React component state and API contracts must be explicit and stable.
-- `@ship/primitives` for shared UI (shadcn). `@ship/set` for generated types. Import directly, no local wrappers.
+- `@ship/primitives` for shared UI (shadcn). `@ship/ui-components` for generated types. Import directly, no local wrappers.
 
 ## Review Checklist
 

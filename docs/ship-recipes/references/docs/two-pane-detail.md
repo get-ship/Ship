@@ -17,21 +17,21 @@ toggle richer content). The whole thing is one view, no routing.
   {{ layout_sidebar('280px') }}
     <aside>
       {% for item in ship_items('task') %}
-        <ship-list-tile
+        <sui-list-tile
           {{ on('click', "$selected = '" ~ item.id ~ "'") }}
           {{ attr('data-active', "$selected == '" ~ item.id ~ "'") }}>
           <span slot="title">{{ item.data.title }}</span>
-        </ship-list-tile>
+        </sui-list-tile>
       {% endfor %}
     </aside>
 
     <main>
-      <ship-empty-state {{ show('!$selected') }}>
+      <sui-empty-state {{ show('!$selected') }}>
         Select a task on the left.
-      </ship-empty-state>
-      <ship-card {{ show('$selected') }}>
+      </sui-empty-state>
+      <sui-card {{ show('$selected') }}>
         <h2>Task <span data-text="$selected"></span></h2>
-      </ship-card>
+      </sui-card>
     </main>
   {{ layout_end() }}
 </div>

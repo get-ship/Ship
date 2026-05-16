@@ -18,20 +18,20 @@ single `create()` button POSTs the whole `$form` object.
 <head>{{ head('New task') }}{{ styles() }}</head>
 <body>
 <div class="ship-view" {{ signals({'form': {}, '_creating': false}) }}>
-  <ship-card style="max-width: 40rem;">
+  <sui-card style="max-width: 40rem;">
     <h2>Create task</h2>
 
     {{ form(ship_schema('task'), 'task') }}
 
-    <ship-button-group>
-      <ship-button variant="primary"
+    <sui-toggle-group>
+      <sui-button variant="primary"
                    {{ create('task', '$form') }}
                    {{ loading('_creating') }}>
         Create
-      </ship-button>
+      </sui-button>
       {{ spinner('_creating') }}
-    </ship-button-group>
-  </ship-card>
+    </sui-toggle-group>
+  </sui-card>
 </div>
 </body>
 </html>

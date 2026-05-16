@@ -9,25 +9,25 @@ A **trigger** is a small declarative rule: "when X happens, do Y." You drop a JS
 
 ## What you can listen to
 
-<ship-card padding="md">
+<sui-card padding="md">
 <strong slot="header">Runtime events</strong>
 Anything happening in your Ship project — a job finished, a collection item was created, an artifact was uploaded.
-</ship-card>
+</sui-card>
 
-<ship-card padding="md">
+<sui-card padding="md">
 <strong slot="header">Webhooks</strong>
 An external service POSTing to a path your trigger registers — GitHub, Stripe, your own services.
-</ship-card>
+</sui-card>
 
-<ship-card padding="md">
+<sui-card padding="md">
 <strong slot="header">Files changing</strong>
 A path or glob you watch — the trigger fires on create, modify, or delete.
-</ship-card>
+</sui-card>
 
-<ship-card padding="md">
+<sui-card padding="md">
 <strong slot="header">Cron schedules</strong>
 A standard cron expression. Runs at the specified time, no daemon nag needed.
-</ship-card>
+</sui-card>
 
 ## What a trigger can do
 

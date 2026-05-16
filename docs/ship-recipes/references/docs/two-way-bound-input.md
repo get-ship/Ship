@@ -2,7 +2,7 @@
 group: Recipes
 title: Two-way bound input
 order: 5
-description: The hello-world of Ship reactivity — a ship-input bound to a signal with a data-text echo.
+description: The hello-world of Ship reactivity — a sui-input bound to a signal with a data-text echo.
 ---
 
 When you need a form field whose value is read elsewhere in the view,
@@ -18,10 +18,10 @@ need the live value. No submit step, no controller.
 <head>{{ head('Hello') }}</head>
 <body>
 <div class="ship-view" {{ signal('name', 'world') }}>
-  <ship-card>
+  <sui-card>
     <h1>Hello, <span data-text="$name"></span>!</h1>
-    <ship-input {{ bind('name') }} placeholder="Type your name"></ship-input>
-  </ship-card>
+    <sui-input {{ bind('name') }} placeholder="Type your name"></sui-input>
+  </sui-card>
 </div>
 </body>
 </html>

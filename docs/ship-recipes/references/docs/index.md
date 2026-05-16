@@ -18,7 +18,7 @@ neighbours.
 ## The rule
 
 Every example on every page uses only macros imported from
-`_ship.html.j2` and elements from the `<ship-*>` library. Raw
+`_ship.html.j2` and elements from the `<sui-*>` library. Raw
 `data-signals:`, `data-on:*`, inline `<style>`, and inline `<script>`
 do not appear. The one exception — `data-on:intersect` for
 infinite-scroll — is called out in place.

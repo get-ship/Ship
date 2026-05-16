@@ -2,7 +2,7 @@
 group: Recipes
 title: Delete with confirm
 order: 7
-description: Gate destructive collection actions behind a typed ship-alert-dialog via confirm_dialog + confirm_trigger.
+description: Gate destructive collection actions behind a typed sui-alert-dialog via confirm_dialog + confirm_trigger.
 ---
 
 When you need a destructive action gated by a typed, Ship-styled
@@ -17,13 +17,13 @@ same effect, no typed UI.
 {% from '_ship.html.j2' import delete, confirm_dialog, confirm_trigger %}
 
 {% for item in ship_items('task') %}
-  <ship-list-tile>
+  <sui-list-tile>
     <span slot="title">{{ item.data.title }}</span>
-    <ship-button slot="actions" variant="ghost"
+    <sui-button slot="actions" variant="ghost"
                  {{ confirm_trigger('delete-' ~ item.id) }}>
       Delete
-    </ship-button>
-  </ship-list-tile>
+    </sui-button>
+  </sui-list-tile>
 
   {{ confirm_dialog(
        'delete-' ~ item.id,

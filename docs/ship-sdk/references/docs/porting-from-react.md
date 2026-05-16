@@ -12,19 +12,19 @@ Captured from porting the Agents design (`Agents.html`, React + Babel + hand-rol
 | React | Ship equivalent | Notes |
 |---|---|---|
 | `useState + localStorage` for view mode | `data-signals:view="'list'"` + `persist` plugin | ~1:1 |
-| `React.useEffect` applying `data-theme` | `<ship-view-chrome>` contribution | Shell owns chrome |
+| `React.useEffect` applying `data-theme` | `<sui-view-chrome>` contribution | Shell owns chrome |
 | `onClick={() => setView("create")}` | `data-on:click="$view = 'create'"` | Shorter |
-| `<ShipButton variant="primary">` | `<ship-button tone="accent" variant="solid">` | Same shape |
+| `<ShipButton variant="primary">` | `<sui-button tone="accent" variant="solid">` | Same shape |
 | Conditional rendering (`view === "list" && …`) | `data-show="$view == 'list'"` | Same shape |
-| Card grid | Existing `.agents-grid` + `ship-list-tile variant="card"` | Ship's card handles hover-lift + navigable |
+| Card grid | Existing `.agents-grid` + `sui-list-tile variant="card"` | Ship's card handles hover-lift + navigable |
 
 ## Concrete gaps found
 
 ### 1. Per-identity avatar colors
 
-The design's `Avatar` renders one of eight conic-gradient palettes driven by `agent.color` (`conic-orange`, `conic-red`, `conic-violet`, …). Ship's `<ship-avatar>` has `tone="primary|success|…"` and a single default gradient — no per-identity hue. Today all agents render with the same `tone="primary"` square, which flattens the grid visually.
+The design's `Avatar` renders one of eight conic-gradient palettes driven by `agent.color` (`conic-orange`, `conic-red`, `conic-violet`, …). Ship's `<sui-avatar>` has `tone="primary|success|…"` and a single default gradient — no per-identity hue. Today all agents render with the same `tone="primary"` square, which flattens the grid visually.
 
-**Gap:** `<ship-avatar>` needs an `identity-hue` attr (or equivalent) that accepts a string and hashes it to a stable palette entry. The design-system roadmap should call this out as a Tier-1 primitive extension — every "list of things with a face" view wants it.
+**Gap:** `<sui-avatar>` needs an `identity-hue` attr (or equivalent) that accepts a string and hashes it to a stable palette entry. The design-system roadmap should call this out as a Tier-1 primitive extension — every "list of things with a face" view wants it.
 
 **Workaround today:** write the gradient inline per card, bypassing the primitive. Don't. Wait for the primitive.
 
@@ -32,17 +32,17 @@ The design's `Avatar` renders one of eight conic-gradient palettes driven by `ag
 
 Tiny colored dots representing which AI providers (claude / codex / cursor / gemini / opencode) an agent compiles to. Pattern appears in at least three upcoming views (agents, skills, pipelines that dispatch agents).
 
-**Gap:** `<ship-provider-blob provider="claude">` primitive in `packages/ship-set/src/web-components/domain/` — a domain component since "AI provider" is a Ship-platform concept.
+**Gap:** `<sui-provider-blob provider="claude">` primitive in `packages/ship-set/src/web-components/domain/` — a domain component since "AI provider" is a Ship-platform concept.
 
 **Workaround today:** inline `<span class="prov-blob prov-<provider>">` with CSS tokens. Applied in `.ship/views/agents/index.html.j2` as a temporary measure; CSS mix is theme-aware.
 
 ### 3. Rich-card composition without view-local CSS
 
-The design's agent card is a complete composition (avatar / name / desc / stats / providers / badges). We express this via `<ship-list-tile>` with slots + view-local CSS for the stats row, provider row, and badge row. That's ~70 lines of CSS for what React does in ~25 lines of JSX.
+The design's agent card is a complete composition (avatar / name / desc / stats / providers / badges). We express this via `<sui-list-tile>` with slots + view-local CSS for the stats row, provider row, and badge row. That's ~70 lines of CSS for what React does in ~25 lines of JSX.
 
-**Root cause:** `<ship-list-tile>`'s slot model is row-oriented. For card mode, the primary slot becomes a vertical stack but there's no idiomatic way to structure "title / description / metadata-rows / chips" without reaching for view-local CSS.
+**Root cause:** `<sui-list-tile>`'s slot model is row-oriented. For card mode, the primary slot becomes a vertical stack but there's no idiomatic way to structure "title / description / metadata-rows / chips" without reaching for view-local CSS.
 
-**Gap:** a `<ship-entity-card>` domain primitive (or a `ship-list-tile variant="card" density="rich"` mode) that owns the vertical stack layout, accepts named slots for title/desc/meta/chips, and wraps chips with `flex-wrap`. Halves the CSS per card-grid view.
+**Gap:** a `<sui-card>` domain primitive (or a `sui-list-tile variant="card" density="rich"` mode) that owns the vertical stack layout, accepts named slots for title/desc/meta/chips, and wraps chips with `flex-wrap`. Halves the CSS per card-grid view.
 
 **Workaround today:** the view-local CSS pattern in `.ship/views/agents/index.html.j2` is the template to copy. Document as a recipe until the primitive lands.
 
@@ -90,8 +90,8 @@ React's `Tweaks` panel mutates live props; the design canvas lets the designer A
 
 ## Top three framework investments this exercise motivated
 
-1. **`<ship-entity-card>` domain primitive** — closes the "~70 lines of view-local CSS per card grid" gap. Visible on every list view we build.
-2. **`<ship-avatar identity-hue>` extension** — ten-minute primitive change; every faces-grid view benefits.
+1. **`<sui-card>` domain primitive** — closes the "~70 lines of view-local CSS per card grid" gap. Visible on every list view we build.
+2. **`<sui-avatar identity-hue>` extension** — ten-minute primitive change; every faces-grid view benefits.
 3. **`AgentSummary` schema expansion + sdk-view-contexts regen** — surface the fields the design uses (`providers`, `active`, `tags`). Touches one Rust struct + a schemars derive; every agents-shaped view picks it up automatically.
 
 Each is a small, scoped change. In aggregate they'd take the agent-page port from "70 lines of view CSS" to "15 lines, three of them layout."

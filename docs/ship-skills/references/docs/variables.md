@@ -35,20 +35,20 @@ When the runtime renders this skill, it substitutes the active value before hand
 
 Each variable picks one home via the `storage-hint` field:
 
-<ship-card padding="md">
+<sui-card padding="md">
 <strong slot="header">Global</strong>
 Stored on your machine. Travels with you across all projects. Use this for personal preferences (e.g. preferred tone of voice).
-</ship-card>
+</sui-card>
 
-<ship-card padding="md">
+<sui-card padding="md">
 <strong slot="header">Local</strong>
 Stored for one project on this machine. Personal, not shared. Use this for things you want different for one project but only for yourself.
-</ship-card>
+</sui-card>
 
-<ship-card padding="md">
+<sui-card padding="md">
 <strong slot="header">Project</strong>
 Committed to <code>.ship/</code>. Shared with everyone working in the project. Use this for team conventions (e.g. commit style, branch naming).
-</ship-card>
+</sui-card>
 
 The author of the skill picks the storage-hint that fits the variable. There's no merge or override across scopes — each variable lives in exactly one place.
 
