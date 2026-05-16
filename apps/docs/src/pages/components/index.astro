@@ -16,6 +16,7 @@ const populated = CATEGORY_ORDER.filter((c) => buckets[c].length > 0);
 <StarlightPage
   frontmatter={{ title: 'Components', description: `${COMPONENTS.length} web components for AI-native apps.` }}
 >
+  <div class="not-content idx-root">
   <section class="idx-hero">
     <div class="idx-hero-copy">
       <h2 class="idx-hero-title">Live, in the page you're reading.</h2>
@@ -134,6 +135,7 @@ const populated = CATEGORY_ORDER.filter((c) => buckets[c].length > 0);
       </div>
     </section>
   ))}
+  </div>
 </StarlightPage>
 
 <script>

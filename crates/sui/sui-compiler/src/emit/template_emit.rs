@@ -99,6 +99,13 @@ pub struct TemplateEmitter {
     /// DOM. `emit_for` saves/restores this list around its body walk
     /// to scope it per for-loop.
     pub(super) inline_update_stmts: Vec<String>,
+    /// Depth into an `<svg>` subtree. Bumped by `emit_element` around
+    /// its child walk when the tag is `svg` (or already inside one).
+    /// While > 0, `emit_element` emits `createElementNS(SVG_NS, tag)`
+    /// instead of `createElement(tag)` so the resulting nodes are in
+    /// the SVG namespace — without this, `<svg>` / `<rect>` etc. from
+    /// `.sui` templates resolve as HTML elements and render blank.
+    pub(super) svg_depth: usize,
 }
 
 impl TemplateEmitter {
@@ -117,6 +124,7 @@ impl TemplateEmitter {
             is_view,
             for_in_scope: false,
             inline_update_stmts: Vec::new(),
+            svg_depth: 0,
         }
     }
 

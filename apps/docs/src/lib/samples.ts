@@ -72,12 +72,13 @@ export const SHOTS: Record<string, ComponentShot[]> = {
     { label: 'Default', innerHTML: '<option>Low</option><option selected>Medium</option><option>High</option>' },
   ],
   'sui-switch': [
+    { label: 'On',  attrs: { checked: '' } },
     { label: 'Off' },
-    { label: 'On', attrs: { checked: '' } },
+    { label: 'Disabled', attrs: { disabled: '' } },
   ],
   'sui-checkbox': [
-    { label: 'Off' },
     { label: 'On', attrs: { checked: '' } },
+    { label: 'Off' },
     { label: 'Indeterminate', attrs: { indeterminate: '' } },
     { label: 'Disabled', attrs: { disabled: '' } },
   ],
@@ -105,11 +106,11 @@ export const SHOTS: Record<string, ComponentShot[]> = {
     { label: 'Destructive', attrs: { tone: 'destructive', dismissible: '' }, innerHTML: '<span slot="title">Something went wrong</span>Check the logs and try again.' },
   ],
   'sui-status-dot': [
-    { label: 'Default' },
     { label: 'Success', attrs: { tone: 'success', pulse: '' } },
     { label: 'Info',    attrs: { tone: 'info',    pulse: '' } },
     { label: 'Warning', attrs: { tone: 'warning' } },
     { label: 'Destructive', attrs: { tone: 'destructive' } },
+    { label: 'Idle',    attrs: {} },
   ],
   'sui-spinner': [
     { label: 'Default' },
@@ -177,19 +178,31 @@ export const SHOTS: Record<string, ComponentShot[]> = {
     { label: 'Shift + /',  attrs: { keys: 'Shift ?' } },
   ],
   'sui-sparkline': [
-    { label: 'Accent', attrs: { data: '3,7,5,11,8,14,10', tone: 'accent', width: '220', height: '36' } },
+    { label: 'Accent', raw: '<div style="width:220px;"><sui-sparkline data="3,7,5,11,8,14,10" tone="accent" height="36"></sui-sparkline></div>' },
+    { label: 'Filled', raw: '<div style="width:220px;"><sui-sparkline data="3,7,5,11,8,14,10" tone="primary" variant="area" height="36"></sui-sparkline></div>' },
   ],
   'sui-gauge': [
     { label: '42%', attrs: { value: '42', min: '0', max: '100', tone: 'success', size: '120', label: '42%' } },
+    { label: '88%', attrs: { value: '88', min: '0', max: '100', tone: 'warning', size: '120', label: '88%' } },
   ],
   'sui-progress-ring': [
     { label: '60%', attrs: { value: '60', size: '120', tone: 'primary' } },
+    { label: '92%', attrs: { value: '92', size: '120', tone: 'success' } },
+  ],
+  'sui-donut': [
+    {
+      label: 'Default',
+      attrs: { value: '64', min: '0', max: '100', tone: 'accent', size: '120', label: '64%' },
+    },
   ],
   'sui-bar-chart': [
-    { label: 'Weekly', attrs: { data: '3,7,5,11,8,14,10', labels: 'M,T,W,T,F,S,S', tone: 'primary', width: '260', height: '100' } },
+    { label: 'Weekly', raw: '<div style="width:280px;"><sui-bar-chart data="3,7,5,11,8,14,10" labels="M,T,W,T,F,S,S" tone="primary" height="100"></sui-bar-chart></div>' },
   ],
   'sui-line-chart': [
-    { label: 'Trend', attrs: { series: '[{"data":[3,7,5,11,8,14,10]}]', labels: 'M,T,W,T,F,S,S', width: '280', height: '100' } },
+    { label: 'Trend', raw: `<div style="width:300px;"><sui-line-chart series='[{"data":[3,7,5,11,8,14,10]}]' labels="M,T,W,T,F,S,S" height="100"></sui-line-chart></div>` },
+  ],
+  'sui-area-chart': [
+    { label: 'Filled', raw: `<div style="width:300px;"><sui-area-chart series='[{"data":[3,7,5,11,8,14,10]}]' labels="M,T,W,T,F,S,S" tone="primary" height="120"></sui-area-chart></div>` },
   ],
   'sui-pipeline-step': [
     { label: 'Completed', attrs: { name: 'collect',     'step-type': 'run',   state: 'completed', agent: 'git log' } },
@@ -253,9 +266,10 @@ export const SHOTS: Record<string, ComponentShot[]> = {
     { label: 'External', attrs: { href: 'https://getship.dev', external: '' }, innerHTML: 'getship.dev' },
   ],
   'sui-skeleton': [
-    { label: 'Text',   attrs: { lines: '3', width: '240px' } },
-    { label: 'Avatar', attrs: { variant: 'circle', width: '40px', height: '40px' } },
-    { label: 'Card',   attrs: { variant: 'rect', width: '240px', height: '60px' } },
+    { label: 'Text',   raw: '<div style="width:240px;"><sui-skeleton shape="text" size="md"></sui-skeleton></div>' },
+    { label: 'Line',   raw: '<div style="width:240px;"><sui-skeleton shape="line" size="lg"></sui-skeleton></div>' },
+    { label: 'Avatar', attrs: { shape: 'circle', size: 'lg' } },
+    { label: 'Block',  raw: '<div style="width:240px;"><sui-skeleton shape="block" size="md"></sui-skeleton></div>' },
   ],
   'sui-step-segments': [
     { label: 'Progress', attrs: { values: 'completed,completed,running,pending,pending', size: 'md' } },
@@ -268,13 +282,8 @@ export const SHOTS: Record<string, ComponentShot[]> = {
   ],
   'sui-heatmap': [
     {
-      label: '7x12 grid',
-      attrs: {
-        data: '[[0,1,2,1,0,0,1],[1,2,3,2,1,0,1],[2,3,4,3,2,1,2],[3,4,5,4,3,2,3],[2,3,4,3,2,1,2]]',
-        rows: '5',
-        cols: '7',
-        tone: 'primary',
-      },
+      label: '5x7 grid',
+      raw: `<sui-heatmap style="display:inline-block;width:158px;height:112px;" data="[[0,1,2,1,0,0,1],[1,2,3,2,1,0,1],[2,3,4,3,2,1,2],[3,4,5,4,3,2,3],[2,3,4,3,2,1,2]]" rows="5" cols="7" tone="primary"></sui-heatmap>`,
     },
   ],
   'sui-diff': [
@@ -317,17 +326,28 @@ export const SHOTS: Record<string, ComponentShot[]> = {
   'sui-tree-view': [
     {
       label: 'File tree',
-      raw: `<sui-tree-view>
-  <sui-tree-node label=".ship" expanded>
-    <sui-tree-node label="skills" expanded>
-      <sui-tree-node label="review.md" leaf></sui-tree-node>
-      <sui-tree-node label="plan.md" leaf></sui-tree-node>
-    </sui-tree-node>
-    <sui-tree-node label="views">
-      <sui-tree-node label="dashboard" leaf></sui-tree-node>
-    </sui-tree-node>
-  </sui-tree-node>
-</sui-tree-view>`,
+      raw: `<div style="width:260px;text-align:left;"><sui-tree-view>
+  <sui-tree-item label=".ship" expanded>
+    <sui-tree-item label="skills" expanded>
+      <sui-tree-item label="review.md" leaf></sui-tree-item>
+      <sui-tree-item label="plan.md" leaf></sui-tree-item>
+    </sui-tree-item>
+    <sui-tree-item label="views">
+      <sui-tree-item label="dashboard" leaf></sui-tree-item>
+    </sui-tree-item>
+  </sui-tree-item>
+</sui-tree-view></div>`,
+    },
+  ],
+  'sui-tree-item': [
+    {
+      label: 'Inside sui-tree-view',
+      raw: `<div style="width:240px;text-align:left;"><sui-tree-view>
+  <sui-tree-item label="docs" expanded>
+    <sui-tree-item label="getting-started.md" leaf></sui-tree-item>
+    <sui-tree-item label="architecture.md" leaf></sui-tree-item>
+  </sui-tree-item>
+</sui-tree-view></div>`,
     },
   ],
   'sui-timeline': [
@@ -352,6 +372,262 @@ export const SHOTS: Record<string, ComponentShot[]> = {
   <sui-button size="sm" tone="primary" variant="solid">Save</sui-button>
 </sui-toolbar>`,
     },
+  ],
+  'sui-toggle': [
+    { label: 'On', attrs: { pressed: '' }, innerHTML: 'Pressed' },
+    { label: 'Off', innerHTML: 'Idle' },
+    { label: 'Disabled', attrs: { disabled: '' }, innerHTML: 'Disabled' },
+  ],
+  'sui-toggle-group': [
+    {
+      label: 'View mode',
+      raw: `<sui-toggle-group>
+  <sui-toggle value="list" pressed>List</sui-toggle>
+  <sui-toggle value="grid">Grid</sui-toggle>
+  <sui-toggle value="kanban">Kanban</sui-toggle>
+</sui-toggle-group>`,
+    },
+  ],
+  'sui-radio': [
+    { label: 'On',  attrs: { name: 'demo', value: 'b', checked: '' }, innerHTML: 'Text me' },
+    { label: 'Off', attrs: { name: 'demo', value: 'a' }, innerHTML: 'Email me' },
+    { label: 'Disabled', attrs: { name: 'demo', value: 'c', disabled: '' }, innerHTML: 'Carrier pigeon' },
+  ],
+  'sui-radio-group': [
+    {
+      label: 'Plan',
+      raw: `<sui-radio-group name="plan" value="pro">
+  <sui-radio value="hobby">Hobby</sui-radio>
+  <sui-radio value="pro">Pro</sui-radio>
+  <sui-radio value="team">Team</sui-radio>
+</sui-radio-group>`,
+    },
+  ],
+  'sui-segmented': [
+    {
+      label: 'Tabs',
+      raw: `<sui-segmented value="week">
+  <sui-segmented-option value="day">Day</sui-segmented-option>
+  <sui-segmented-option value="week">Week</sui-segmented-option>
+  <sui-segmented-option value="month">Month</sui-segmented-option>
+</sui-segmented>`,
+    },
+  ],
+  'sui-segmented-option': [
+    {
+      label: 'Inside sui-segmented',
+      raw: `<sui-segmented value="week">
+  <sui-segmented-option value="day">Day</sui-segmented-option>
+  <sui-segmented-option value="week">Week</sui-segmented-option>
+  <sui-segmented-option value="month">Month</sui-segmented-option>
+</sui-segmented>`,
+    },
+  ],
+  'sui-slider': [
+    { label: 'Default', raw: '<div style="width:240px;"><sui-slider value="42" min="0" max="100"></sui-slider></div>' },
+    { label: 'Range',   raw: '<div style="width:240px;"><sui-slider value="20,80" min="0" max="100" range></sui-slider></div>' },
+  ],
+  'sui-textarea': [
+    { label: 'Default', attrs: { placeholder: 'Tell us what changed…', rows: '3' } },
+    { label: 'Disabled', attrs: { value: 'read only content', disabled: '', rows: '3' } },
+  ],
+  'sui-file-upload': [
+    { label: 'Default', attrs: { accept: '.pdf,.png,.jpg' } },
+  ],
+  'sui-accordion': [
+    {
+      label: 'FAQ',
+      raw: `<div style="width:320px;text-align:left;"><sui-accordion>
+  <sui-accordion-item label="What is SUI?" open>
+    A compile-time component framework — templates declare, controllers do.
+  </sui-accordion-item>
+  <sui-accordion-item label="How is it deployed?">
+    Pre-built bundles served by the Ship daemon at /api/assets/.
+  </sui-accordion-item>
+  <sui-accordion-item label="Is it framework-agnostic?">
+    Yes — every primitive is a web component you can drop into any HTML.
+  </sui-accordion-item>
+</sui-accordion></div>`,
+    },
+  ],
+  'sui-accordion-item': [
+    {
+      label: 'Inside sui-accordion',
+      raw: `<div style="width:320px;text-align:left;"><sui-accordion>
+  <sui-accordion-item label="Open by default" open>
+    Body content goes here. Slot in any markup.
+  </sui-accordion-item>
+  <sui-accordion-item label="Closed">
+    Click the header to expand.
+  </sui-accordion-item>
+</sui-accordion></div>`,
+    },
+  ],
+  'sui-collapsible': [
+    {
+      label: 'Default',
+      raw: `<div style="width:320px;text-align:left;"><sui-collapsible open>
+  <span slot="trigger" style="font-weight:600;">Advanced options</span>
+  <div style="padding:8px 0;">
+    Tweak retries, timeouts, and concurrency here.
+  </div>
+</sui-collapsible></div>`,
+    },
+  ],
+  'sui-stepper': [
+    { label: 'Step 2 of 4', attrs: { current: '2', total: '4' } },
+    { label: 'Step 3 of 5', attrs: { current: '3', total: '5', size: 'lg', tone: 'accent' } },
+  ],
+  'sui-pagination': [
+    { label: 'Default', attrs: { page: '3', 'page-count': '12' } },
+  ],
+  'sui-loading': [
+    { label: 'Default', attrs: { label: 'Loading…' } },
+    { label: 'With spinner', attrs: { variant: 'spinner', label: 'Fetching agents…' } },
+  ],
+  'sui-error-state': [
+    {
+      label: 'Generic',
+      raw: `<sui-error-state>
+  <span slot="title">Something went wrong</span>
+  We couldn't load that. Try again, or check the logs.
+</sui-error-state>`,
+    },
+  ],
+  'sui-status-bar': [
+    {
+      label: 'Run summary',
+      raw: `<sui-status-bar tone="success">
+  <span slot="label">Run #214 — passed</span>
+  <span slot="value">12 steps · 1m 04s</span>
+</sui-status-bar>`,
+    },
+  ],
+  'sui-divider': [
+    { label: 'Horizontal', raw: '<div style="width:280px;"><sui-divider></sui-divider></div>' },
+    { label: 'With label', raw: '<div style="width:280px;"><sui-divider label="or"></sui-divider></div>' },
+  ],
+  'sui-navigation-menu': [
+    {
+      label: 'Pages',
+      raw: `<div style="width:240px;text-align:left;"><sui-navigation-menu>
+  <sui-navigation-item href="#" active>Overview</sui-navigation-item>
+  <sui-navigation-item href="#">Activity</sui-navigation-item>
+  <sui-navigation-item href="#">Settings</sui-navigation-item>
+</sui-navigation-menu></div>`,
+    },
+  ],
+  'sui-navigation-item': [
+    { label: 'Default', attrs: { href: '#' }, innerHTML: 'Overview' },
+    { label: 'Active',  attrs: { href: '#', active: '' }, innerHTML: 'Activity' },
+  ],
+  'sui-scroll-area': [
+    {
+      label: 'Default',
+      raw: `<div style="width:240px;height:120px;"><sui-scroll-area style="height:120px;width:240px;border:1px solid var(--border);border-radius:6px;">
+  <div style="padding:10px 14px;font-family:var(--font-mono);font-size:12px;line-height:1.6;">
+    line 01<br>line 02<br>line 03<br>line 04<br>line 05<br>line 06<br>line 07<br>line 08<br>line 09<br>line 10
+  </div>
+</sui-scroll-area></div>`,
+    },
+  ],
+  'sui-portal': [
+    { label: 'Internal', overlay: true, caption: 'Renders its children into the document body. Has no visible footprint until a child paints.' },
+  ],
+  'sui-error-boundary': [
+    { label: 'Wrapper', overlay: true, caption: 'Catches render errors from descendants and shows a fallback. Invisible when healthy.' },
+  ],
+  'sui-view-chrome': [
+    { label: 'Shell', overlay: true, caption: 'Layout container for full-page views (header + body + status bar). Used by the Ship shell, not for inline previews.' },
+  ],
+  'sui-toast-host': [
+    { label: 'Host', overlay: true, caption: 'Mount point for transient toasts. Spawn one with showToast().' },
+  ],
+  'sui-context-menu': [
+    { label: 'Right-click', overlay: true, caption: 'Right-click menu on a target. Appears on contextmenu events.' },
+  ],
+  'sui-drawer': [
+    { label: 'Side drawer', overlay: true, caption: 'Sheet that slides in from an edge. Open via `open` attribute.' },
+  ],
+  'sui-hover-card': [
+    { label: 'On hover', overlay: true, caption: 'Anchored panel that appears on hover. Toggle via `open` attribute.' },
+  ],
+  'sui-edit-overlay': [
+    { label: 'Inline edit', overlay: true, caption: 'Click-to-edit overlay on a target. Appears on activation.' },
+  ],
+  'sui-auth-dialog': [
+    { label: 'Sign-in', overlay: true, caption: 'Auth-flow dialog. Driven by the shell, not used inline.' },
+  ],
+  'sui-graph-canvas': [
+    { label: 'Canvas', overlay: true, caption: 'Force-directed graph canvas. Needs JS-driven node/edge data.' },
+  ],
+
+  /* Status / utility primitives without per-variant samples ---------- */
+  'sui-mark': [
+    { label: 'Highlight', innerHTML: 'highlighted text' },
+    { label: 'Accent', attrs: { tone: 'accent' }, innerHTML: 'accent run' },
+  ],
+  'sui-metachip': [
+    { label: 'Pair', attrs: { label: 'env', value: 'prod' } },
+    { label: 'Tone', attrs: { label: 'role', value: 'reviewer', tone: 'accent' } },
+  ],
+  'sui-app-icon': [
+    { label: 'Default', attrs: { name: 'studio', size: '40' } },
+  ],
+
+  /* Pipeline composites --------------------------------------------- */
+  'sui-pipeline-step-def': [
+    {
+      label: 'Definition row',
+      raw: `<sui-pipeline-step-def name="review" step-type="agent" agent="Claude" prompt="Review the PR"></sui-pipeline-step-def>`,
+    },
+  ],
+  'sui-pipeline-definition': [
+    {
+      label: 'Definition',
+      raw: `<sui-pipeline-definition name="release">
+  <sui-pipeline-step-def name="collect" step-type="run" agent="git log"></sui-pipeline-step-def>
+  <sui-pipeline-step-def name="review" step-type="agent" agent="Claude"></sui-pipeline-step-def>
+  <sui-pipeline-step-def name="merge" step-type="merge"></sui-pipeline-step-def>
+</sui-pipeline-definition>`,
+    },
+  ],
+  'sui-pipeline-run': [
+    {
+      label: 'Run #214',
+      raw: `<sui-pipeline-run run-id="214" state="running">
+  <sui-pipeline-step name="collect" step-type="run" state="completed" agent="git log"></sui-pipeline-step>
+  <sui-pipeline-step name="review" step-type="agent" state="running" agent="Claude"></sui-pipeline-step>
+  <sui-pipeline-step name="merge" step-type="merge" state="pending"></sui-pipeline-step>
+</sui-pipeline-run>`,
+    },
+  ],
+  'sui-provider-blob': [
+    { label: 'Claude',   attrs: { provider: 'claude',   size: 'lg' } },
+    { label: 'Codex',    attrs: { provider: 'codex',    size: 'lg' } },
+    { label: 'Cursor',   attrs: { provider: 'cursor',   size: 'lg' } },
+    { label: 'Gemini',   attrs: { provider: 'gemini',   size: 'lg' } },
+    { label: 'OpenCode', attrs: { provider: 'opencode', size: 'lg' } },
+  ],
+
+  /* Observability primitives missing per-variant samples ------------ */
+  'sui-history-row': [
+    {
+      label: 'Commit row',
+      raw: `<div style="width:320px;text-align:left;"><sui-history-row hash="58e50eb8" subject="chore: revert .artifacts exception" author="micah" at="2026-05-15T18:30:00Z"></sui-history-row></div>`,
+    },
+  ],
+  'sui-log-stream': [
+    {
+      label: 'Tail',
+      raw: `<div style="width:360px;text-align:left;"><sui-log-stream lines='[{"level":"info","at":"09:14:02","msg":"booted"},{"level":"warn","at":"09:14:09","msg":"throttled (3/min)"},{"level":"error","at":"09:14:21","msg":"upstream 502"}]'></sui-log-stream></div>`,
+    },
+  ],
+  'sui-code': [
+    { label: 'Inline', raw: `<sui-code language="ts">const ship = createApp({ persist: true });</sui-code>` },
+  ],
+  'sui-copy-button': [
+    { label: 'Default', attrs: { value: 'echo "ship!"' }, innerHTML: 'Copy command' },
   ],
 
   /* Composite children — render them inside their parent ------------ */

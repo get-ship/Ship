@@ -234,3 +234,76 @@ nav.sidebar a[href*="/http-api/operations/"][aria-current="page"] {
   align-items: center;
   justify-content: center;
 }
+
+/* -------------------------------------------------------------------------
+ * Starlight list spacing — first-item parity.
+ *
+ * Starlight's @layer starlight.core ships:
+ *     .sl-markdown-content li + li { margin-top: 0.25rem; }
+ *
+ * combined with `* { margin: 0 }` in the reset layer. The result: every
+ * <li> after the first has a 0.25rem top margin, but the first <li>
+ * (which has no preceding-li sibling) gets 0. The visual reads as the
+ * first item being "snugged up" against the list edge while the rest
+ * have rhythm — a hairline padding mismatch that's noticeable on every
+ * ul, ol, and the components-page card list once you see it.
+ *
+ * Fix: apply the same 0.25rem leading margin to the first li so the
+ * gap above each item — including the first — is uniform. Override
+ * via the same Starlight layer so we don't have to bump specificity
+ * elsewhere on every list.
+ * ------------------------------------------------------------------------- */
+/* List first-item parity (prose-only).
+ *
+ * `* { margin: 0 }` (reset layer) + `li + li { margin-top: 0.25rem }`
+ * (core layer) leaves the first li with 0 leading margin while every
+ * other li picks up 4px. In a plain ul/ol that's a visible mismatch
+ * between the first row and the rest. Give the first li the same
+ * leading the adjacent-sibling rule applies to its successors.
+ *
+ * Custom-layout pages (the components catalog, the framework page,
+ * cookbook, themes, tokens, installing) wrap their body in
+ * `<div class="not-content">` — Starlight's own opt-out — so the
+ * underlying `:not(inline) + :not(inline) { margin-top }` rule
+ * doesn't fire there at all. That single wrap fixed the first-card-
+ * offset bug everywhere it surfaced (idx-hero-row, idx-hero-form,
+ * idx-grid, cmp-shots, fw-demo-row, sui-toolbar contents, etc.)
+ * without needing one-off overrides per container. */
+.sl-markdown-content ul > li:first-child:not(:where(.not-content *)),
+.sl-markdown-content ol > li:first-child:not(:where(.not-content *)) {
+  margin-top: 0.25rem;
+}
+
+/* Search modal — Starlight's dev-mode placeholder ("Search is only
+ * available in production builds…") sets text via inline `color: white`
+ * on a dialog with the default light surface, giving white-on-white.
+ * Force text and surface to the theme tokens so the placeholder reads
+ * in every theme, and the production Pagefind UI inherits the same
+ * surface tokens too. */
+dialog[open] .dialog-frame {
+  background: var(--background);
+  color: var(--foreground);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg, 10px);
+}
+dialog[open] .dialog-frame * {
+  color: var(--foreground) !important;
+}
+dialog[open] .dialog-frame [data-close-modal] {
+  color: var(--foreground);
+  background: var(--muted);
+}
+
+/* Right-rail "On this page" — Starlight's default column is narrow
+ * (~10rem). Long headings like "Recompile after change" overflow and
+ * get visually clipped by the trailing column edge. Allow wrap and
+ * give the column a touch more room so most headings sit on a single
+ * line at the typical desktop width. */
+:root {
+  --sl-sidebar-width: 19rem;
+}
+.right-sidebar a,
+.right-sidebar li {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}

@@ -1,0 +1,387 @@
+---
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+---
+
+<StarlightPage
+  frontmatter={{
+    title: 'What is SUI',
+    description: 'A single-file template DSL compiled AOT to ESM, paired with a small signals runtime. The framework behind every <sui-*> primitive in these docs.',
+  }}
+>
+  <div class="not-content">
+  <p class="fw-sub">
+    Every <code>&lt;sui-*&gt;</code> primitive on this site is a real custom
+    element compiled from a <code>.sui</code> template the same way the
+    Ship daemon ships components to production. Templates declare;
+    controllers do; the runtime renders SSR first and attaches the
+    reactivity client-side. This page demos the three properties that
+    actually distinguish SUI from Lit, React, or Solid — live.
+  </p>
+
+  <section class="fw-section">
+    <h2 class="fw-h2">Two files</h2>
+    <p class="fw-note">
+      A component is a <code>.sui</code> template, optionally paired
+      with a <code>.controller.ts</code>. Templates declare; controllers
+      run behavior. Drop a <code>&lt;data&gt;</code> tag inside the
+      template when you need a live subscription to the daemon.
+    </p>
+    <div class="fw-roles">
+      <div class="fw-role">
+        <div class="fw-role-head"><code>page.sui</code></div>
+        <div class="fw-role-body">
+          Markup + declarative wiring. Bindings (<code>{'{var()}'}</code>),
+          events (<code>{'@event'}</code>), classes (<code>{':class'}</code>),
+          and the <code>&lt;data&gt;</code> tag for live subscriptions.
+        </div>
+      </div>
+      <div class="fw-role">
+        <div class="fw-role-head"><code>page.controller.ts</code> <span class="fw-role-tag">optional</span></div>
+        <div class="fw-role-body">
+          State, derived signals, event handlers, mount/unmount
+          lifecycle. Skip it when the template is pure presentation.
+        </div>
+      </div>
+    </div>
+    <p class="fw-note">
+      Full reference: <a href="/views/">SUI Architecture</a>.
+    </p>
+  </section>
+
+  <section class="fw-section">
+    <h2 class="fw-h2">Signals reactivity — live</h2>
+    <p class="fw-note">
+      No virtual DOM. No re-render cycle. State is a graph of signals;
+      the components below subscribe to the same underlying signal and
+      stay coherent. Move the slider, watch the gauge, badge, and
+      progress react in the same microtask. Inspect the source — every
+      tag is the same custom element registered globally on this page.
+    </p>
+    <div class="fw-demo">
+      <div class="fw-demo-row" id="reactivity-demo">
+        <div style="display:flex;flex-direction:column;gap:8px;width:240px;">
+          <label style="font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--sl-color-gray-2);">Budget burn</label>
+          <sui-slider id="rx-slider" value="42" min="0" max="100"></sui-slider>
+        </div>
+        <sui-gauge id="rx-gauge" value="42" min="0" max="100" tone="success" size="120" label="42%"></sui-gauge>
+        <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-start;">
+          <sui-badge id="rx-badge" tone="success" variant="soft">on budget</sui-badge>
+          <sui-progress id="rx-progress" value="42" max="100" tone="success" label="42%" style="width:220px;"></sui-progress>
+        </div>
+      </div>
+      <pre class="fw-demo-code"><code>{`<sui-slider id="rx-slider" value="42" min="0" max="100"></sui-slider>
+<sui-gauge   id="rx-gauge"   value="42" tone="success"></sui-gauge>
+<sui-badge   id="rx-badge"   tone="success">on budget</sui-badge>
+<sui-progress id="rx-progress" value="42" max="100" tone="success"></sui-progress>
+
+// A controller would compose these via signals + effects — see
+// /views/controller/. The page does it directly: one input event
+// drives every dependent attribute through DOM properties.`}</code></pre>
+    </div>
+  </section>
+
+  <section class="fw-section">
+    <h2 class="fw-h2">Server-rendered first, hydrated in place</h2>
+    <p class="fw-note">
+      <strong>Open this page's HTML source</strong> (right-click → View
+      Source). The components below are present in the response body
+      before any JavaScript runs. They render as plain HTML, then
+      <code>sui-runtime</code> attaches the reactive bindings in place.
+      No replace-on-load flicker, no &quot;hydration mismatch&quot; class
+      of bugs — the rendered DOM is the authoritative tree.
+    </p>
+    <div class="fw-demo">
+      <div class="fw-demo-row">
+        <sui-card variant="outline" padding="lg" style="width:280px;">
+          <strong slot="header" style="font-weight:700;">Server-rendered</strong>
+          <p style="margin:6px 0 0;font-size:13px;color:var(--muted-foreground);">
+            This card's markup was in the initial HTML payload. The
+            <code>sui-card</code> custom element upgraded in place.
+          </p>
+        </sui-card>
+        <sui-table variant="compact" hoverable style="width:280px;">
+          <thead><tr><th>Phase</th><th>Where</th></tr></thead>
+          <tbody>
+            <tr><td>Render</td><td>shipd (Rust)</td></tr>
+            <tr><td>Stream</td><td>HTTP body</td></tr>
+            <tr><td>Hydrate</td><td>client runtime</td></tr>
+          </tbody>
+        </sui-table>
+      </div>
+      <p class="fw-note">
+        Same model the daemon uses in production: views compile to ESM,
+        the daemon assembles the SSR HTML, the client attaches. The
+        <a href="/views/ssr-hydration/">SSR &amp; hydration guide</a>
+        digs into the contract.
+      </p>
+    </div>
+  </section>
+
+  <section class="fw-section">
+    <h2 class="fw-h2">DOM-morphing updates, not replace</h2>
+    <p class="fw-note">
+      Live-edit demo: type a heading, then add list items. The DOM
+      morphs — existing nodes keep their identity, focus, scroll
+      position, and any controller-attached event handlers. This is
+      what makes hot module reload during authoring feel native: a
+      <code>.sui</code> save patches the live DOM rather than tearing
+      down the subtree.
+    </p>
+    <div class="fw-demo">
+      <div class="fw-demo-row" id="morph-demo">
+        <div style="display:flex;flex-direction:column;gap:8px;width:280px;">
+          <label style="font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--sl-color-gray-2);">Heading</label>
+          <sui-input id="morph-input" value="Release notes"></sui-input>
+          <label style="font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--sl-color-gray-2);margin-top:8px;">Items</label>
+          <sui-slider id="morph-count" value="3" min="1" max="6"></sui-slider>
+        </div>
+        <div id="morph-target" style="flex:1;min-width:240px;padding:16px 18px;border:1px solid var(--sl-color-gray-5);border-radius:8px;background:var(--sl-color-black);">
+          <h3 style="margin:0 0 8px;font-size:16px;letter-spacing:-0.01em;color:var(--sl-color-white);">Release notes</h3>
+          <ul style="margin:0;padding:0 0 0 18px;font-size:13px;line-height:1.6;color:var(--sl-color-gray-2);">
+            <li>item 1</li>
+            <li>item 2</li>
+            <li>item 3</li>
+          </ul>
+        </div>
+      </div>
+      <p class="fw-note">
+        The morph algorithm is the same one <code>sui-runtime</code>
+        uses for HMR — see <a href="/runtime/">Runtime</a> for the diff
+        contract.
+      </p>
+    </div>
+  </section>
+
+  <section class="fw-section">
+    <h2 class="fw-h2">Pack &amp; manifest — share components anywhere</h2>
+    <p class="fw-note">
+      A SUI pack is a directory of <code>.sui</code> files plus a
+      <code>manifest.json</code> describing modules, dependencies, and
+      the surface to publish. The daemon serves packs from
+      <code>/api/assets/</code>; a remote daemon can subscribe to a
+      pack URL and the contained primitives become available to every
+      consuming view.
+    </p>
+    <pre class="fw-demo-code"><code>{`{
+  "name": "@ship/ui-components",
+  "version": "0.1.0",
+  "modules": [
+    { "path": "sui-button.compiled.js", "tags": ["sui-button"] },
+    { "path": "sui-card.compiled.js",   "tags": ["sui-card"]   },
+    { "path": "sui-tabs.compiled.js",   "tags": ["sui-tabs", "sui-tab", "sui-tab-panel"] }
+  ],
+  "dependencies": {
+    "@ship/sui-runtime": "^0.1.0"
+  },
+  "publish": {
+    "bundle": "sui-components.js",
+    "tokens": "view-tokens.css"
+  }
+}`}</code></pre>
+    <p class="fw-note">
+      The component pack model is documented in
+      <a href="/component-packs/">Component Packs</a>. The bundle that
+      registers every primitive on this page is the
+      <code>@ship/ui-components</code> pack, served at
+      <code>/sui-components.js</code>.
+    </p>
+  </section>
+
+  <section class="fw-section">
+    <h2 class="fw-h2">Where to start</h2>
+    <ol class="fw-start">
+      <li>
+        <strong><a href="/getting-started/">Install Ship</a></strong> —
+        binaries + daemon + auto-start in under a minute.
+      </li>
+      <li>
+        <strong><a href="/views/">First view</a></strong> — a
+        <code>page.sui</code> + optional controller served by the
+        daemon at <code>/views/&lt;name&gt;</code>.
+      </li>
+      <li>
+        <strong><a href="/views/controller/">First interaction</a></strong> —
+        wire a button click to a signal update and watch every
+        subscribed primitive react.
+      </li>
+      <li>
+        <strong><a href="/components/">Pick a primitive</a></strong> —
+        100+ <code>&lt;sui-*&gt;</code> components ready to drop into
+        any page.
+      </li>
+    </ol>
+  </section>
+  </div>
+</StarlightPage>
+
+<script>
+  // SUI primitives dispatch CustomEvents — not native input/change.
+  // `<sui-slider>` fires `sui-change` with `{ detail: { value } }`,
+  // `<sui-input>` fires `sui-input` likewise. Listen for those.
+
+  // Reactivity demo — slider drives gauge, badge, and progress.
+  const rxSlider = document.getElementById('rx-slider');
+  const rxGauge = document.getElementById('rx-gauge');
+  const rxBadge = document.getElementById('rx-badge');
+  const rxProgress = document.getElementById('rx-progress');
+  function applyRx(v: number) {
+    const clamped = Math.max(0, Math.min(100, v));
+    const tone = clamped < 50 ? 'success' : clamped < 80 ? 'warning' : 'destructive';
+    const label = clamped < 50 ? 'on budget' : clamped < 80 ? 'approaching' : 'over budget';
+    for (const el of [rxGauge, rxProgress]) {
+      if (!el) continue;
+      el.setAttribute('value', String(clamped));
+      el.setAttribute('tone', tone);
+      el.setAttribute('label', `${clamped}%`);
+    }
+    if (rxBadge) {
+      rxBadge.setAttribute('tone', tone);
+      rxBadge.textContent = label;
+    }
+  }
+  rxSlider?.addEventListener('sui-change', (e: Event) => {
+    const v = Number((e as CustomEvent).detail?.value ?? 0);
+    if (!Number.isNaN(v)) applyRx(v);
+  });
+  applyRx(Number(rxSlider?.getAttribute('value') ?? '42'));
+
+  // Morph demo — typing edits heading in place, slider grows/shrinks the
+  // list, existing nodes keep identity.
+  const morphInput = document.getElementById('morph-input');
+  const morphCount = document.getElementById('morph-count');
+  const morphTarget = document.getElementById('morph-target');
+  function applyMorphHeading(text: string) {
+    const h = morphTarget?.querySelector('h3');
+    if (h && h.textContent !== text) h.textContent = text;
+  }
+  function applyMorphCount(n: number) {
+    const list = morphTarget?.querySelector('ul');
+    if (!list) return;
+    const bounded = Math.max(1, Math.min(6, Math.floor(n)));
+    while (list.children.length < bounded) {
+      const li = document.createElement('li');
+      li.textContent = `item ${list.children.length + 1}`;
+      list.appendChild(li);
+    }
+    while (list.children.length > bounded) list.removeChild(list.lastChild!);
+  }
+  morphInput?.addEventListener('sui-input', (e: Event) => {
+    const v = (e as CustomEvent).detail?.value;
+    if (typeof v === 'string') applyMorphHeading(v || 'Release notes');
+  });
+  morphCount?.addEventListener('sui-change', (e: Event) => {
+    const v = Number((e as CustomEvent).detail?.value ?? 3);
+    if (!Number.isNaN(v)) applyMorphCount(v);
+  });
+</script>
+
+<style>
+  .fw-sub {
+    color: var(--sl-color-gray-2);
+    max-width: 64ch;
+    margin-bottom: 8px;
+    line-height: 1.55;
+  }
+  .fw-sub code,
+  .fw-note code {
+    font-family: var(--sl-font-mono, monospace);
+    font-size: 12px;
+    padding: 1px 5px;
+    border-radius: 4px;
+    background: color-mix(in oklch, var(--sl-color-gray-5) 40%, transparent);
+    color: var(--sl-color-white);
+  }
+
+  .fw-section { padding: 18px 0; display: flex; flex-direction: column; gap: 14px; }
+  .fw-h2 {
+    font-size: 20px;
+    letter-spacing: -0.015em;
+    border: none;
+    margin: 0;
+    padding: 0;
+    color: var(--sl-color-white);
+  }
+  .fw-note { color: var(--sl-color-gray-2); font-size: 13.5px; line-height: 1.6; max-width: 64ch; margin: 0; }
+  .fw-note a { color: var(--sl-color-accent); }
+
+  .fw-roles {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 12px;
+  }
+  .fw-role {
+    padding: 14px 16px;
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 10px;
+    background: var(--sl-color-black);
+  }
+  .fw-role-head {
+    font-family: var(--sl-font-mono, monospace);
+    font-size: 12.5px;
+    margin-bottom: 6px;
+    color: var(--sl-color-white);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .fw-role-tag {
+    font-family: var(--sl-font, inherit);
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    padding: 1px 6px;
+    border-radius: 999px;
+    border: 1px solid var(--sl-color-gray-5);
+    color: var(--sl-color-gray-2);
+  }
+  .fw-role-body { font-size: 13px; line-height: 1.55; color: var(--sl-color-gray-2); }
+  .fw-role-body code {
+    font-family: var(--sl-font-mono, monospace);
+    font-size: 11.5px;
+    padding: 1px 4px;
+    border-radius: 3px;
+    background: color-mix(in oklch, var(--sl-color-gray-5) 40%, transparent);
+    color: var(--sl-color-white);
+  }
+
+  .fw-demo {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 18px 20px;
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 12px;
+    background: var(--sl-color-black);
+  }
+  .fw-demo-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 24px 28px;
+  }
+  .fw-demo-code {
+    margin: 0;
+    padding: 12px 14px;
+    font-family: var(--sl-font-mono, monospace);
+    font-size: 12.5px;
+    line-height: 1.55;
+    background: color-mix(in oklch, var(--sl-color-gray-6) 45%, transparent);
+    border-radius: 6px;
+    color: var(--sl-color-white);
+    overflow: auto;
+  }
+
+  .fw-start { padding-left: 18px; }
+  .fw-start li { margin-top: 6px; font-size: 14px; line-height: 1.55; }
+  .fw-start a { color: var(--sl-color-accent); }
+  .fw-start code {
+    font-family: var(--sl-font-mono, monospace);
+    font-size: 12px;
+    padding: 1px 5px;
+    border-radius: 4px;
+    background: color-mix(in oklch, var(--sl-color-gray-5) 40%, transparent);
+    color: var(--sl-color-white);
+  }
+</style>

@@ -17,10 +17,14 @@ if (!doc) throw new Error(`Missing component doc for ${tag}`);
 
 const shots = getShots(doc.tag);
 
+function escapeAttr(v: string): string {
+  return v.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+}
+
 function attrsToString(attrs?: Record<string, string>): string {
   if (!attrs) return '';
   return Object.entries(attrs)
-    .map(([k, v]) => (v === '' ? ` ${k}` : ` ${k}="${v}"`))
+    .map(([k, v]) => (v === '' ? ` ${k}` : ` ${k}="${escapeAttr(v)}"`))
     .join('');
 }
 
@@ -50,7 +54,7 @@ const allCode = codeShots.map((s) => shotMarkup(doc.tag, s)).join('\n\n');
   }}
 
 >
-  <article class="cmp-page">
+  <article class="cmp-page not-content">
     <header class="cmp-head">
       <div class="cmp-breadcrumb">
         <a href="/components/">Components</a>
@@ -68,13 +72,17 @@ const allCode = codeShots.map((s) => shotMarkup(doc.tag, s)).join('\n\n');
     <section class="cmp-section">
       <h2 class="cmp-h2">Preview</h2>
       <div class="cmp-preview">
-        <div class="cmp-preview-surface">
+        <div
+          class:list={['cmp-preview-surface', codeShots.length === 1 && !codeShots[0].label?.startsWith('Inside ') && 'cmp-preview-surface-solo']}
+        >
           {codeShots.length > 0 && (
-            <div class="cmp-shots">
+            <div class:list={['cmp-shots', codeShots.length === 1 && 'cmp-shots-solo']}>
               {codeShots.map((s) => (
                 <div class="cmp-shot">
                   <div class="cmp-shot-body" set:html={shotMarkup(doc.tag, s)}></div>
-                  <div class="cmp-shot-label">{s.label}</div>
+                  {(codeShots.length > 1 || s.label?.startsWith('Inside ')) && (
+                    <div class="cmp-shot-label">{s.label}</div>
+                  )}
                 </div>
               ))}
             </div>
@@ -309,8 +317,8 @@ const allCode = codeShots.map((s) => shotMarkup(doc.tag, s)).join('\n\n');
     background: var(--sl-color-black);
   }
   .cmp-preview-surface {
-    padding: clamp(24px, 4vw, 48px);
-    min-height: 180px;
+    padding: clamp(28px, 4vw, 56px);
+    min-height: 160px;
     display: grid;
     place-items: center;
     background: repeating-linear-gradient(
@@ -319,14 +327,19 @@ const allCode = codeShots.map((s) => shotMarkup(doc.tag, s)).join('\n\n');
       transparent 1px 10px
     );
   }
+  .cmp-preview-surface-solo {
+    min-height: 200px;
+    padding: clamp(40px, 5vw, 72px) clamp(28px, 4vw, 56px);
+  }
   .cmp-shots {
     display: flex;
     flex-wrap: wrap;
-    gap: 16px 18px;
+    gap: 20px 22px;
     align-items: flex-end;
     justify-content: center;
     max-width: 100%;
   }
+  .cmp-shots-solo { gap: 0; }
   .cmp-shot {
     display: flex;
     flex-direction: column;
