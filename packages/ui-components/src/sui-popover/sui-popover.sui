@@ -24,7 +24,7 @@
                                                                togglePopover
   ────────────────────────────────────────────────────────────────────────────
   Slots: trigger, (default)    trigger, (default)           ✓
-  Parts: (none)                panel                        ✓
+  Parts: (none)                panel, surface               ✓
   ────────────────────────────────────────────────────────────────────────────
   Click-outside / Esc /        DELEGATED to native          ✓ less code,
   focus-return:                  popover="auto"              ✓ better a11y,
@@ -153,7 +153,7 @@
 <slot name="trigger" bind:this={triggerSlot}></slot>
 <div class="panel" part="panel" popover="auto" bind:this={panelEl} role="dialog" aria-modal="false">
   {#if open()}
-    <div class="surface" transition:scale={{ duration: 120 }}>
+    <div class="surface" part="surface" transition:scale={{ duration: 120 }}>
       <slot></slot>
     </div>
   {/if}

@@ -1,0 +1,139 @@
+// Imperative body rendering for <sui-view-picker>. Data layer +
+// drag state machine live in data.ts.
+
+import { type ApiView, humanize, ZONE_PINNED_END, ZONE_ALL } from './data'
+
+const KNOWN_APP_NAMES = new Set([
+  'dashboard', 'pipelines', 'agents', 'skills', 'git', 'collections',
+  'canvas', 'settings', 'chat', 'events', 'specs', 'theme',
+  'theme-studio', 'setup', 'overview', 'mesh', 'ship-ui-studio',
+  'artifacts', 'workspaces',
+])
+
+export interface RenderArgs {
+  pinned: ApiView[]
+  others: ApiView[]
+  cursor: number
+  pins: string[]
+  activeView: string
+  dragOverName: string | null
+  dragOverZone: number | null
+  draggingName: string | null
+  onNavigate: (name: string) => void
+  onTogglePin: (e: Event, name: string) => void
+  onDragStart: (e: DragEvent, name: string, fromPinned: boolean) => void
+  onDragOverRow: (e: DragEvent, name: string) => void
+  onDropRow: (e: DragEvent, name: string, intoPinned: boolean) => void
+  onDragOverZone: (e: DragEvent, zoneId: number) => void
+  onDropZone: (e: DragEvent, zoneId: number) => void
+  onDragEnd: () => void
+  onRowEnter: (idx: number) => void
+}
+
+export function renderBody(el: HTMLElement, args: RenderArgs): void {
+  el.replaceChildren()
+  const total = args.pinned.length + args.others.length
+  if (total === 0) {
+    const empty = document.createElement('div')
+    empty.className = 'vp-empty'
+    empty.textContent = 'No views match.'
+    el.appendChild(empty)
+    return
+  }
+  el.appendChild(buildSection('Pinned to rail', 'section-pinned', args.pinned, 0, true, args))
+  el.appendChild(buildSection('All views', 'section-all', args.others, args.pinned.length, false, args))
+}
+
+function buildSection(
+  label: string, partName: string, rows: ApiView[],
+  indexBase: number, isPinned: boolean, args: RenderArgs,
+): HTMLElement {
+  const section = document.createElement('div')
+  section.setAttribute('part', partName)
+
+  const header = document.createElement('div')
+  header.className = 'vp-section-h'
+  if (isPinned) {
+    const pin = document.createElement('sui-icon')
+    pin.setAttribute('name', 'pin'); pin.setAttribute('size', 'sm')
+    header.appendChild(pin)
+  }
+  header.appendChild(Object.assign(document.createElement('span'), { textContent: label }))
+  if (isPinned) {
+    header.appendChild(Object.assign(document.createElement('span'), {
+      className: 'vp-hint', textContent: 'drag to reorder',
+    }))
+  }
+  section.appendChild(header)
+
+  if (rows.length === 0) {
+    const empty = document.createElement('div')
+    empty.className = 'vp-empty'
+    empty.style.padding = '8px 12px'
+    empty.style.textAlign = 'left'
+    empty.textContent = isPinned ? 'Nothing pinned yet.' : 'No more views.'
+    section.appendChild(empty)
+  }
+  rows.forEach((v, i) => section.appendChild(buildRow(v, indexBase + i, isPinned, args)))
+
+  // End-of-section drop zone — pin-to-end when dragging from all-views
+  // into the pinned section; unpin when dragging from pinned into all.
+  const zoneId = isPinned ? ZONE_PINNED_END : ZONE_ALL
+  const zone = document.createElement('div')
+  zone.className = 'vp-drop-zone' + (args.dragOverZone === zoneId ? ' is-drag-over' : '')
+  zone.setAttribute('data-zone', String(zoneId))
+  zone.addEventListener('dragover', (e) => args.onDragOverZone(e, zoneId))
+  zone.addEventListener('drop', (e) => args.onDropZone(e, zoneId))
+  section.appendChild(zone)
+  return section
+}
+
+function buildRow(v: ApiView, idx: number, isPinned: boolean, args: RenderArgs): HTMLElement {
+  const label = v.rail?.label ?? humanize(v.name)
+  const fallbackIcon = v.rail?.icon ?? 'app-window'
+  const known = KNOWN_APP_NAMES.has(v.name)
+  const isActive = v.name === args.activeView
+  const isCursor = idx === args.cursor
+  const isDragOver = args.dragOverName === v.name
+  const isDragging = args.draggingName === v.name
+
+  const row = document.createElement('div')
+  row.className = [
+    'vp-row',
+    isCursor ? 'is-cursor' : '',
+    isActive ? 'is-active' : '',
+    isDragOver ? 'is-drag-over' : '',
+    isDragging ? 'is-dragging' : '',
+  ].filter(Boolean).join(' ')
+  row.setAttribute('role', 'option')
+  row.setAttribute('data-view', v.name)
+  row.setAttribute('data-section', isPinned ? 'pinned' : 'all')
+  if (isActive) row.setAttribute('aria-current', 'true')
+  row.setAttribute('draggable', 'true')
+  row.setAttribute('tabindex', '-1')
+
+  const icon = document.createElement(known ? 'sui-app-icon' : 'sui-icon')
+  if (known) {
+    icon.setAttribute('name', v.name); icon.setAttribute('variant', 'glyph'); icon.setAttribute('size', 'md')
+  } else {
+    icon.setAttribute('name', fallbackIcon); icon.setAttribute('size', 'md')
+  }
+
+  const text = document.createElement('span')
+  text.className = 'vp-row-text'
+  const lbl = document.createElement('span')
+  lbl.className = 'vp-row-label'; lbl.textContent = label
+  const sub = document.createElement('span')
+  sub.className = 'vp-row-sub'
+  sub.textContent = isPinned ? 'workspace' : (v.source || v.type || '')
+  text.append(lbl, sub)
+  row.append(icon, text)
+
+  row.addEventListener('click', () => args.onNavigate(v.name))
+  row.addEventListener('mouseenter', () => args.onRowEnter(idx))
+  row.addEventListener('dragstart', (e) => args.onDragStart(e, v.name, isPinned))
+  row.addEventListener('dragover', (e) => args.onDragOverRow(e, v.name))
+  row.addEventListener('drop', (e) => args.onDropRow(e, v.name, isPinned))
+  row.addEventListener('dragend', () => args.onDragEnd())
+  return row
+}
