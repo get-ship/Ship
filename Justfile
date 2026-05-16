@@ -246,11 +246,6 @@ docs-regen:
 docs-check-drift:
     cd apps/docs && bun run docs:check-drift
 
-# Frontend dev server (Vite). Daemon must be running separately.
-[group('occasional')]
-shell-dev:
-    bun run --filter shell dev
-
 # One-shot production build: gen-types, ship-set + ui-components rebuilds,
 # cargo --release, then verify outputs. Equivalent to `ship build`.
 [group('daily')]
