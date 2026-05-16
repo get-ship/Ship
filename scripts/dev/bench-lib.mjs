@@ -138,6 +138,38 @@ export function runBench(frameworks) {
   }
 }
 
+// Refresh `webdriver-ts-results/src/results.ts` so the interactive
+// dashboard at `npm run dev -F webdriver-ts-results` (Vite on :5173+)
+// reads fresh values for the just-run frameworks. Pre-fix the bench
+// wrote new JSON into `webdriver-ts/results/`, captured a baseline
+// into our repo, and stopped — the dashboard kept rendering the prior
+// run's data (or empty `b: []` arrays on a fresh checkout) until
+// `node dist/createResultJS.js` was run by hand. Confusing because
+// the data IS captured, just not surfaced in the UI.
+//
+// The Krausest regenerator walks every framework in the catalog and
+// logs "MISSING FILE" for any without results; that's not a failure
+// — it's how a partial run (e.g. 5 of 200 frameworks) populates the
+// dashboard. We silence those lines but surface anything genuinely
+// wrong (non-zero exit, real errors).
+export function refreshDashboardResults() {
+  try {
+    const out = execFileSync(
+      'node',
+      ['dist/createResultJS.js'],
+      { cwd: resolve(BENCH_HOME, 'webdriver-ts'), encoding: 'utf8' },
+    )
+    const noise = out.split('\n').filter(l => l.startsWith('MISSING FILE ')).length
+    const real = out.split('\n').filter(l =>
+      l && !l.startsWith('MISSING FILE ') && !l.startsWith('args ') && !l.startsWith('  ') && l !== '}'
+    )
+    console.log(`▸ dashboard refreshed (${noise} missing-framework notes suppressed)`)
+    if (real.length > 0) console.log(real.join('\n'))
+  } catch (err) {
+    console.warn(`(dashboard refresh failed exit=${err?.status}; results.ts may be stale)`)
+  }
+}
+
 // Today as YYYY-MM-DD (local).
 export function today() {
   const d = new Date()

@@ -28,6 +28,7 @@ import { fileURLToPath } from 'node:url'
 import {
   ensureBenchServer,
   rebuildSuiBundle,
+  refreshDashboardResults,
   runBench,
   tableForFramework,
   today,
@@ -51,6 +52,9 @@ await ensureBenchServer()
 
 console.log(`▸ running benchmark for ${FRAMEWORKS.join(', ')}`)
 runBench(FRAMEWORKS)
+
+console.log('▸ refreshing dashboard results.ts (so :5173 sees the new numbers)')
+refreshDashboardResults()
 
 console.log('▸ aggregating results')
 const tables = Object.fromEntries(FRAMEWORK_KEYS.map(k => [k, tableForFramework(k)]))
