@@ -3,7 +3,10 @@ import type { Scope } from './sui-command-bar.sui'
 import type { Signal } from '@ship/sui-runtime'
 import {
   type BarMode, type SessionSummary, type AgentSummary, type ThreadLine, type CreateSurface,
-  NAV_DESTINATIONS, SLASH_COMMANDS, CREATE_SURFACES, detectMode, isKebab, navigateTo,
+  type SlashCommand,
+  NAV_DESTINATIONS, SLASH_COMMANDS, CREATE_SURFACES,
+  loadSlashCommands, cachedSlashCommands, slashCacheAge, SLASH_CACHE_TTL_MS,
+  detectMode, isKebab, navigateTo,
 } from './types'
 
 // Full scope shape for use in mount: casts.
@@ -19,6 +22,7 @@ type BarState = {
   createName: Signal<string>; createPurpose: Signal<string>
   createShape: Signal<string>; createSubmitting: Signal<boolean>
   createError: Signal<string | null>; dialogRef: Signal<HTMLElement | null>
+  slashCommands: Signal<SlashCommand[]>; sendKey: Signal<'enter' | 'cmd+enter'>
 }
 
 export default controller<Scope>({
@@ -48,6 +52,8 @@ export default controller<Scope>({
     const createShape    = shared(signal('list'))
     const createSubmitting = shared(signal(false))
     const createError    = shared(signal<string | null>(null))
+    const slashCommands  = shared(signal<SlashCommand[]>(cachedSlashCommands()))
+    const sendKey        = shared(signal<'enter' | 'cmd+enter'>('enter'))
 
     const isChat = shared(derived(() => mode() === 'ai' && session() !== null))
 
@@ -58,6 +64,7 @@ export default controller<Scope>({
       selectedIdx, sessionPickerOpen, spawnAgent, spawnProvider, spawning,
       spawnError, thread, workspaceId, createSurface, createName, createPurpose,
       createShape, createSubmitting, createError, isChat, dialogRef,
+      slashCommands, sendKey,
     }
   },
 
@@ -102,11 +109,28 @@ export default controller<Scope>({
     const createShape      = st.createShape
     const createSubmitting = st.createSubmitting
     const createError      = st.createError
+    const slashCommands    = st.slashCommands
+    const sendKey          = st.sendKey
 
     const dialogRef = st.dialogRef?.() as (HTMLElement & { show(): void; close(): void }) | null
 
     let streamAbort: AbortController | null = null
     let lastSpaceAt = 0
+
+    // ── Slash registry + send-key setting loaders ─────────────────
+    async function refreshSlashCommands(force = false): Promise<void> {
+      const list = await loadSlashCommands(force)
+      slashCommands.set(list)
+    }
+    async function refreshSendKey(): Promise<void> {
+      try {
+        const resp = await fetch('/api/v1/settings/cmdk.send_key', { credentials: 'same-origin' })
+        if (!resp.ok) return
+        const body = await resp.json() as { value?: unknown }
+        const v = typeof body.value === 'string' ? body.value : (body as { ok?: boolean; data?: { value?: string } }).data?.value
+        if (v === 'enter' || v === 'cmd+enter') sendKey.set(v)
+      } catch { /* leave default */ }
+    }
 
     // ── Open/close effect ──────────────────────────────────────────
     // The first effect run fires synchronously during this controller's
@@ -121,6 +145,7 @@ export default controller<Scope>({
       host.setAttribute('data-state', isOpen ? 'open' : 'closed')
       if (isOpen) {
         if (typeof dialogRef?.show === 'function') dialogRef.show()
+        if (slashCacheAge() > SLASH_CACHE_TTL_MS) void refreshSlashCommands()
         queueMicrotask(() => {
           const pal = host.shadowRoot?.querySelector('sui-command-palette')
           const inp = pal?.shadowRoot?.querySelector('.cb-search') as HTMLInputElement | null
@@ -279,7 +304,8 @@ export default controller<Scope>({
 
     function runSlashCommand(v: string): void {
       const needle = v.replace(/^\/+\s*/, '').toLowerCase()
-      const cmd = SLASH_COMMANDS.find((c) => c.key === needle || c.key.startsWith(needle))
+      const cmds = slashCommands()
+      const cmd = cmds.find((c) => c.key === needle) ?? cmds.find((c) => c.key.startsWith(needle))
       if (!cmd) return
       switch (cmd.key) {
         case 'new': mode.set('create'); value.set(''); break
@@ -387,8 +413,19 @@ export default controller<Scope>({
     }
 
     void loadCurrentSession()
+    void refreshSlashCommands()
+    void refreshSendKey()
+
+    // Reflect immediately on setting change. The daemon emits config.changed
+    // events; the shell rebroadcasts them on the document. Cheap to re-poll.
+    const onConfigChanged = (e: Event) => {
+      const detail = (e as CustomEvent<{ subject?: string }>).detail
+      if (!detail || detail.subject === 'cmdk.send_key') void refreshSendKey()
+    }
+    document.addEventListener('ship:config:changed', onConfigChanged)
 
     return () => {
+      document.removeEventListener('ship:config:changed', onConfigChanged)
       document.removeEventListener('keydown', onDocKeydown)
       host.removeEventListener('keydown', onPaletteKeydown)
       window.removeEventListener('ship:session:changed', onSessionChanged)
