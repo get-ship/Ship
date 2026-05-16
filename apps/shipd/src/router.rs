@@ -414,6 +414,7 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::ListViews, views::list_views)
         .ship_route(Route::ShipSchema, services::schema::serve_schema)
         .ship_route(Route::ServeViewSource_template(), views::source_api::serve_view_source)
+        .ship_route(Route::ListViewFiles_template(), views::files_api::list_view_files)
         .ship_route(Route::CreateSurface_template(), create_api::create_surface)
         .ship_route(Route::WriteViewTemplate_template(), views::write_api::write_view_template)
         .ship_route(Route::WriteViewManifestApi_template(), views::write_api::write_view_manifest)

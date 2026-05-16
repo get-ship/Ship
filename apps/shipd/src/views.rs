@@ -14,6 +14,7 @@
 //! - [`state`] — read helpers that centralize runtime state access for views.
 
 pub mod mcp_apps_embed;
+pub mod files_api;
 pub mod source_api;
 pub mod write_api;
 pub mod stream;
