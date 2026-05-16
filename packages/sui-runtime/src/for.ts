@@ -263,22 +263,38 @@ export function bindFor<T>(opts: BindForOptions<T>): Disposer {
     //    entirely when step 2 reused no rows (full-replace / first
     //    render): with no matches there's no LIS to compute and the
     //    placement loop below takes the fragment fast path.
+    //
+    //    Monotone fast-path: when matched-prev positions are strictly
+    //    increasing, every matched record is its own LIS — no DOM
+    //    moves needed. Covers the common shapes (append, prepend at
+    //    far end, single insert, single remove, no-op) without paying
+    //    the O(n log n) LIS scan. Krausest's `remove-one-1k` saves
+    //    ~9000 ops on a 1000-row list; `swap-1k` still falls into
+    //    the full LIS path because the swap creates an inversion.
     let matchedCount = 0
     if (anyReused) {
       for (let i = 0; i < prev.length; i++) prevPos.set(prev[i]!.key, i)
 
+      let monotone = true
+      let lastPrevPos = -1
       for (let i = 0; i < nextRecords.length; i++) {
         const p = prevPos.get(nextRecords[i]!.key)
         if (p !== undefined) {
           matched[2 * matchedCount] = i
           matched[2 * matchedCount + 1] = p
           matchedCount++
+          if (monotone && p <= lastPrevPos) monotone = false
+          lastPrevPos = p
         }
       }
 
-      computeLisMaskInto(matched, matchedCount, lisMaskBuf, lisPred, lisTails)
-      for (let j = 0; j < matchedCount; j++) {
-        if (lisMaskBuf[j]) stable.add(matched[2 * j]!)
+      if (monotone) {
+        for (let j = 0; j < matchedCount; j++) stable.add(matched[2 * j]!)
+      } else {
+        computeLisMaskInto(matched, matchedCount, lisMaskBuf, lisPred, lisTails)
+        for (let j = 0; j < matchedCount; j++) {
+          if (lisMaskBuf[j]) stable.add(matched[2 * j]!)
+        }
       }
     }
 

@@ -266,6 +266,70 @@ describe('bindFor — disposer', () => {
   })
 })
 
+describe('bindFor — monotone fast-path', () => {
+  // Three real-world shapes the runtime should resolve without
+  // running the O(n log n) LIS scan: append, single-remove, and
+  // identity (signal re-fire with same key set). All three produce
+  // matched-prev sequences that are monotonically increasing, so
+  // the optimizer marks every match as stable in a single O(n) pass.
+  // Pre-fix these paid the full LIS — measurable on Krausest's
+  // `remove-one-1k` benchmark (12.4 → 11ms-ish, closer to Solid's 10.5).
+
+  it('append-one preserves all existing DOM nodes (no LIS-required moves)', () => {
+    const { $list, root, renderCalls } = setup([
+      { id: 'a', label: 'A' },
+      { id: 'b', label: 'B' },
+    ])
+    const beforeA = root.querySelector('#item-a')!
+    const beforeB = root.querySelector('#item-b')!
+    expect(renderCalls.length).toBe(2)
+    $list.set([
+      { id: 'a', label: 'A' },
+      { id: 'b', label: 'B' },
+      { id: 'c', label: 'C' },
+    ])
+    // No re-renders of a/b; only c rendered fresh.
+    expect(renderCalls.length).toBe(3)
+    expect(renderCalls[2]!.id).toBe('c')
+    // Node identity preserved (no move).
+    expect(root.querySelector('#item-a')!).toBe(beforeA)
+    expect(root.querySelector('#item-b')!).toBe(beforeB)
+  })
+
+  it('single-remove preserves remaining DOM nodes', () => {
+    const items = [
+      { id: 'a', label: 'A' },
+      { id: 'b', label: 'B' },
+      { id: 'c', label: 'C' },
+      { id: 'd', label: 'D' },
+    ]
+    const { $list, root, cleanupCalls } = setup(items)
+    const nodeA = root.querySelector('#item-a')!
+    const nodeC = root.querySelector('#item-c')!
+    const nodeD = root.querySelector('#item-d')!
+    $list.set([items[0]!, items[2]!, items[3]!]) // drop b
+    expect(cleanupCalls).toEqual(['b'])
+    // Untouched siblings keep node identity.
+    expect(root.querySelector('#item-a')!).toBe(nodeA)
+    expect(root.querySelector('#item-c')!).toBe(nodeC)
+    expect(root.querySelector('#item-d')!).toBe(nodeD)
+  })
+
+  it('reorder fall-back: swap-two still produces correct DOM order', () => {
+    // Inversion (b before a) forces the LIS path. Verify the
+    // monotone fast-path doesn't accidentally claim "stable" for
+    // genuinely-out-of-order matches.
+    const items = [
+      { id: 'a', label: 'A' },
+      { id: 'b', label: 'B' },
+      { id: 'c', label: 'C' },
+    ]
+    const { $list, ids } = setup(items)
+    $list.set([items[2]!, items[1]!, items[0]!])
+    expect(ids()).toEqual(['c', 'b', 'a'])
+  })
+})
+
 describe('bindFor — large lists (perf sanity)', () => {
   it('renders 1000 items + reorders one without rendering others', () => {
     const items = Array.from({ length: 1000 }, (_, i) => ({
