@@ -371,6 +371,24 @@ pub struct ProjectArchived {
     pub archived_at: String,
 }
 
+/// Payload for `project.switched`. `entity_id` on the envelope is the
+/// newly-active project_id; `previous` is the id this switch supersedes
+/// (`None` when nothing was previously active, e.g. cold boot).
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ProjectSwitched {
+    /// Newly-active project id.
+    pub project_id: String,
+    /// Display name of the new active project.
+    pub name: String,
+    /// Canonical filesystem path.
+    pub path: String,
+    /// Previously-active project id, if any.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub previous: Option<String>,
+    /// RFC 3339 UTC time of the switch.
+    pub at: String,
+}
+
 // -- Compile aggregate --------------------------------------------------------
 
 /// Payload for `compile.completed`. Records what was compiled for the

@@ -134,17 +134,35 @@ export function setupProjectSwitcher(ctx: SwitcherCtx): SwitcherHandle {
   }
 
   const switchProject = async (id: string): Promise<void> => {
+    const previousActive = activeProjectId()
+    // Optimistic update so the popover row + badge initial reflect the
+    // pick immediately. Reverted on a non-OK response.
+    activeProjectId.set(id)
+    closePopover()
     try {
-      await fetch('/api/v1/projects/switch', {
-        method: 'POST',
-        credentials: 'same-origin',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id }),
-      })
-      activeProjectId.set(id)
-      closePopover()
+      const resp = await fetch(
+        `/api/v1/projects/${encodeURIComponent(id)}/activate`,
+        {
+          method: 'POST',
+          credentials: 'same-origin',
+        },
+      )
+      if (!resp.ok) {
+        activeProjectId.set(previousActive)
+        dispatchBubble(host, 'sui:notify', {
+          tone: 'destructive',
+          title: `Switch failed (${resp.status})`,
+        })
+        return
+      }
+      // The kernel-bus `project.switched` event drives the chrome's
+      // view-remount + status-bar refresh path; chrome subscribes in
+      // shell2/src/main.ts. Keep the legacy DOM event so any existing
+      // listeners (rail tests, devtools) continue to fire.
       dispatchBubble(host, 'ship:project:change', { id })
-    } catch { /* leave previous state */ }
+    } catch {
+      activeProjectId.set(previousActive)
+    }
     void loadProjects()
   }
 

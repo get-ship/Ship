@@ -442,6 +442,15 @@ pub enum Route {
     /// @route POST "/api/v1/projects/switch"
     SwitchProject,
 
+    /// @route POST "/api/v1/projects/{id}/activate"
+    ActivateProject { id: String },
+
+    /// @route GET "/api/v1/projects/active"
+    GetActiveProject,
+
+    /// @route GET "/api/v1/sessions/active-across-projects"
+    ListSessionsAcrossProjects,
+
     /// @route GET "/api/v1/view/{name}/manifest"
     ServeViewManifest { name: String },
 

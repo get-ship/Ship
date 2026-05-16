@@ -9,7 +9,7 @@
 //! Active-project tracking lives in the runtime settings store under
 //! `shell.project.active`. Subscribers redraw on `ship:project:change`.
 
-use axum::extract::State;
+use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::Json;
@@ -69,10 +69,42 @@ fn record_to_api(record: ship_platform::projects::ProjectRecord, label: Option<S
 }
 
 fn active_id() -> Option<String> {
-    ship_platform::config::get_setting("shell.project.active")
-        .ok()
-        .flatten()
-        .and_then(|v| v.as_str().map(String::from))
+    ship_platform::projects::get_active_id().ok().flatten()
+}
+
+#[derive(Serialize, utoipa::ToSchema)]
+pub struct ActiveProjectResponse {
+    /// `None` when no project has been activated yet on this daemon.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub active: Option<Project>,
+}
+
+async fn activate(
+    state: &ApiState,
+    id: &str,
+) -> axum::response::Response {
+    match ship_platform::projects::switch_to(state.kernel(), id).await {
+        Ok(record) => (
+            StatusCode::OK,
+            Json(serde_json::json!({
+                "ok": true,
+                "active": {
+                    "id": record.id,
+                    "name": record.name,
+                    "path": record.path,
+                },
+            })),
+        )
+            .into_response(),
+        Err(e) => {
+            let msg = e.to_string();
+            if msg.contains("not known") {
+                err(StatusCode::NOT_FOUND, msg)
+            } else {
+                err(StatusCode::INTERNAL_SERVER_ERROR, msg)
+            }
+        }
+    }
 }
 
 #[utoipa::path(
@@ -172,30 +204,44 @@ pub async fn switch_project(
     State(state): State<ApiState>,
     Json(req): Json<ProjectSwitchReq>,
 ) -> axum::response::Response {
-    match ship_platform::projects::get(&req.id) {
-        Ok(Some(_)) => {}
-        Ok(None) => {
-            return err(
-                StatusCode::NOT_FOUND,
-                format!("project '{}' not known", req.id),
-            );
-        }
-        Err(e) => return err(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),
+    activate(&state, &req.id).await
+}
+
+#[utoipa::path(
+    operation_id = "activateProject",
+    post,
+    path = "/api/v1/projects/{id}/activate",
+    responses(
+        (status = 200, description = "Active project updated"),
+        (status = 404, description = "Unknown project id"),
+    ),
+    tag = "framework"
+)]
+pub async fn activate_project(
+    State(state): State<ApiState>,
+    Path(id): Path<String>,
+) -> axum::response::Response {
+    activate(&state, &id).await
+}
+
+#[utoipa::path(
+    operation_id = "getActiveProject",
+    get,
+    path = "/api/v1/projects/active",
+    responses(
+        (status = 200, description = "Currently-active project record", body = ActiveProjectResponse),
+    ),
+    tag = "framework"
+)]
+pub async fn get_active_project(State(_state): State<ApiState>) -> axum::response::Response {
+    match ship_platform::projects::get_active() {
+        Ok(record) => (
+            StatusCode::OK,
+            Json(ActiveProjectResponse {
+                active: record.map(|r| record_to_api(r, None)),
+            }),
+        )
+            .into_response(),
+        Err(e) => err(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),
     }
-    if let Err(e) = ship_platform::config::set_setting_and_emit(
-        state.kernel(),
-        "shell.project.active",
-        serde_json::json!(req.id),
-    )
-    .await
-    {
-        return err(StatusCode::INTERNAL_SERVER_ERROR, e.to_string());
-    }
-    // Bump last_seen on switch so the rail's recency order reflects use.
-    let _ = ship_platform::projects::touch(&req.id);
-    (
-        StatusCode::OK,
-        Json(serde_json::json!({ "ok": true, "active": req.id })),
-    )
-        .into_response()
 }

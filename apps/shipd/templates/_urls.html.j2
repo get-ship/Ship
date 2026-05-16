@@ -118,6 +118,9 @@
 {%- macro list_projects() -%}/api/v1/projects{%- endmacro -%}
 {%- macro add_project() -%}/api/v1/projects{%- endmacro -%}
 {%- macro switch_project() -%}/api/v1/projects/switch{%- endmacro -%}
+{%- macro activate_project(id) -%}/api/v1/projects/{{ id }}/activate{%- endmacro -%}
+{%- macro get_active_project() -%}/api/v1/projects/active{%- endmacro -%}
+{%- macro list_sessions_across_projects() -%}/api/v1/sessions/active-across-projects{%- endmacro -%}
 {%- macro serve_view_manifest(name) -%}/api/v1/view/{{ name }}/manifest{%- endmacro -%}
 {%- macro serve_view_bundle(name) -%}/api/v1/view/{{ name }}/bundle{%- endmacro -%}
 {%- macro serve_view_raw(name) -%}/api/v1/view/{{ name }}/raw{%- endmacro -%}
