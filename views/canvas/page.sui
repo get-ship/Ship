@@ -56,11 +56,6 @@
       {/if}
     </div>
 
-    <div class="canvas-rail-cta">
-      <a on:click={(e) => { e.preventDefault(); navigate('/chat') }} href="/chat">
-        Ask an agent to create a canvas
-      </a>
-    </div>
   </aside>
 
   <main class="canvas-main">

@@ -57,7 +57,7 @@ Five rules:
 
 Plain `.ts` files (not `controller.ts`, not under `_components/`) are helpers, types, or tests.
 
-Every first-party view in `views/` now uses the `page.sui` + `controller.ts` + `manifest.jsonc` shape — `views/home/`, `views/agents/`, `views/sessions/`, `views/workspaces/`, `views/git/`, `views/skills/`, `views/chat/`, `views/events/`, `views/dashboard/`, `views/settings/`, `views/canvas/`, `views/mesh/`, `views/pipelines/`, `views/overview/`. The router (`packages/ship-set/src/router/`) walks only manifest-bearing directories — a missing `manifest.jsonc` means the view is invisible to the rail, regardless of which template form it ships.
+Every first-party view in `views/` now uses the `page.sui` + `controller.ts` + `manifest.jsonc` shape — `views/home/`, `views/agents/`, `views/sessions/`, `views/workspaces/`, `views/git/`, `views/skills/`, `views/events/`, `views/dashboard/`, `views/settings/`, `views/canvas/`, `views/mesh/`, `views/pipelines/`, `views/overview/`. The router (`packages/ship-set/src/router/`) walks only manifest-bearing directories — a missing `manifest.jsonc` means the view is invisible to the rail, regardless of which template form it ships.
 
 ### Worked example: `views/home/`
 
