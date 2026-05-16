@@ -53,6 +53,7 @@
       },
       "devDependencies": {
         "@astrojs/markdoc": "^1.0.3",
+        "@playwright/test": "^1.60.0",
         "@types/node": "^22.0.0",
       },
     },
