@@ -28,6 +28,9 @@ const STEPS = [
   '06-bind-value',
   '07-event-modifiers',
   '08-sui-primitives',
+  '09-agent-loop',
+  '10-lsp-cli',
+  '11-sui-eval',
 ] as const
 
 // Disable animations + caret blink so diffs stay deterministic.

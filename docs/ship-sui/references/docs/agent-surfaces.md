@@ -1,3 +1,10 @@
+---
+group: Agents
+order: 1
+title: SUI — Agent Surfaces
+description: Every programmatic surface an agent uses to author, diagnose, and exercise SUI views — MCP tools, the LSP CLI, sui-eval scoring, ship:// resources.
+---
+
 # SUI — Agent Surfaces
 
 The set of programmatic surfaces an agent uses to author, diagnose, and

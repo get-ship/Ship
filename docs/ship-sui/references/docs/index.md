@@ -84,3 +84,16 @@ Six edges SUI has over comparable frameworks:
 4. **Agent-first ergonomics.** The framework is designed to be writable by an LLM. Buckets, naming, and rails exist partly so the eval rig has something to grade against.
 5. **MCP-native.** Controllers can be exposed as MCP tools. A view becomes both a UI surface and an agent-callable surface.
 6. **Mesh / multi-daemon.** When ship daemons mesh, controllers can subscribe to live signals from another daemon. Distribution is a framework primitive.
+
+## See also
+
+- **[The template surface](./template/)** — directives, control flow, bindings, slots, expressions.
+- **[The controller surface](./controller/)** — three tiers, scope rules, mutation discipline.
+- **[Hooks](./hooks/)** — template vs controller hooks, when to reach for which.
+- **[Data subscriptions](./data-subscriptions/)** — the canonical bridge to the daemon.
+- **[Effect scopes](./effect-scope/)** — cleanup ownership on unmount.
+- **[SSR and the attach runtime](./ssr-hydration/)** — server-rendered HTML, client attach.
+- **[Canonical examples](./examples/)** — three view shapes that anchor the discipline.
+- **[Agent surfaces](./agent-surfaces/)** — every MCP tool, LSP CLI subcommand, `@ship/sui-eval` entrypoint, and `ship://` resource an authoring agent uses.
+- **[E2E test suite](./e2e-testing/)** — Playwright coverage and interpretation.
+- **[Implementation status](./status/)** — what's stable, what's in flight.

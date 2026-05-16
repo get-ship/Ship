@@ -175,6 +175,14 @@ function buildTopics(isInternal) {
           { label: "08 · UI primitives", link: "/tutorial/08-sui-primitives/" },
         ],
       },
+      {
+        label: "Agents",
+        items: [
+          { label: "09 · Authoring loop", link: "/tutorial/09-agent-loop/" },
+          { label: "10 · LSP CLI", link: "/tutorial/10-lsp-cli/" },
+          { label: "11 · sui-eval", link: "/tutorial/11-sui-eval/" },
+        ],
+      },
     ],
   },
   {

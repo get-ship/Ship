@@ -72,6 +72,7 @@ const chapterTitles: Record<string, string> = {
   reactivity: 'Reactivity',
   templating: 'Templating',
   components: 'Components',
+  agents: 'Agents',
   other: 'Other',
 }
 
@@ -79,6 +80,7 @@ const chapterDescriptions: Record<string, string> = {
   reactivity: 'Signals, derived, effects, lists — the reactive graph.',
   templating: 'Branches, bindings, events — what shape your DOM takes.',
   components: 'Composing with the built-in Ship UI primitives.',
+  agents: 'How an AI agent authors, diagnoses, and scores a SUI view.',
 }
 
 const firstSlug = steps[0]?.slug
@@ -93,9 +95,10 @@ const firstSlug = steps[0]?.slug
   }}
 >
   <p class="tut-lead">
-    Eight steps across three chapters. Read the prose on the left,
+    Eleven steps across four chapters. Read the prose on the left,
     edit the code on the right, the preview re-renders as you type.
-    Show the solution when stuck.
+    Show the solution when stuck. The Agents chapter explains how to
+    hand SUI authoring off to a model.
   </p>
 
   {firstSlug && (
