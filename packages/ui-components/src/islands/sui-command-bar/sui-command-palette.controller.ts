@@ -104,7 +104,15 @@ export default controller<Scope>({
         .map((r, i) => ({ ...r, idx: i, icon: mentionIcon(r.kind) }))
     })
 
-    const createSurfaces = derived(() => CREATE_SURFACES)
+    // Launch-tier surfaces have backend scaffold endpoints today; the
+     // others are visible but disabled until their scaffold lands so
+     // users know the surface exists without hitting a 501.
+    const LAUNCH_TIER: ReadonlySet<CreateSurface> = new Set<CreateSurface>([
+      'view', 'skill', 'agent', 'theme',
+    ])
+    const createSurfaces = derived(() =>
+      CREATE_SURFACES.map((s) => ({ ...s, disabled: !LAUNCH_TIER.has(s.id) }))
+    )
 
     // ARIA combobox: input.aria-activedescendant points at the currently
     // selected listbox item's id. Items are rendered with id `cb-item-${idx}`
@@ -225,8 +233,15 @@ export default controller<Scope>({
       s.bar.sessionPickerOpen.set(!s.bar.sessionPickerOpen())
     },
     selectSurface: (s: any, id: CreateSurface) => {
-      s.bar.createSurface.set(id)
       const def = CREATE_SURFACES.find((x) => x.id === id)
+      // Mirror createSurfaces' launch-tier gate — clicking a disabled
+      // tile is a no-op so users can't reach the form for a surface
+      // whose backend scaffold isn't wired yet.
+      const launch: ReadonlySet<CreateSurface> = new Set<CreateSurface>([
+        'view', 'skill', 'agent', 'theme',
+      ])
+      if (!launch.has(id)) return
+      s.bar.createSurface.set(id)
       if (def?.shapes[0]) s.bar.createShape.set(def.shapes[0])
     },
     spawnSession: async (s: any) => {

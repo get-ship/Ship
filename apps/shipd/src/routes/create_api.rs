@@ -4,8 +4,10 @@
 //! on disk. For `view`, we copy from
 //! `.ship/skills/ship-views/scaffolds/<shape>/` into
 //! `<ship-dir>/views/<name>/`, substituting `{{TITLE}}` and `{{NAME}}`
-//! placeholders. Other surfaces return 501 until their skills grow
-//! scaffold directories in a later commit.
+//! placeholders. For `skill`, we render a `<ship-dir>/skills/<name>/
+//! SKILL.md` with shape-appropriate frontmatter + body. Other surfaces
+//! return 501 until their skills grow scaffold directories in a later
+//! commit.
 //!
 //! The handler is intentionally synchronous: the user submits the
 //! dialog, the scaffold lands, we return the new route. Shipwright's
@@ -106,7 +108,8 @@ pub async fn create_surface(
 
     let resp = match surface.as_str() {
         "view" => scaffold_view(&state, &req),
-        "skill" | "agent" | "pipeline" | "trigger" | "theme" => err(
+        "skill" => scaffold_skill(&state, &req),
+        "agent" | "pipeline" | "trigger" | "theme" => err(
             StatusCode::NOT_IMPLEMENTED,
             format!("surface '{surface}' scaffolding lands in a later commit"),
         ),
@@ -121,10 +124,10 @@ pub async fn create_surface(
         let state = state.clone();
         let surface = surface.clone();
         let name = req.name.clone();
-        let route = if surface == "view" {
-            Some(format!("/api/v1/v/{name}"))
-        } else {
-            None
+        let route = match surface.as_str() {
+            "view" => Some(format!("/api/v1/v/{name}")),
+            "skill" => Some(format!("/skills/{name}")),
+            _ => None,
         };
         tokio::spawn(async move {
             let payload = serde_json::json!({
@@ -219,6 +222,88 @@ fn scaffold_view(state: &ApiState, req: &CreateRequest) -> axum::response::Respo
         }),
     )
         .into_response()
+}
+
+const SKILL_SHAPES: &[&str] = &["task", "reference", "workflow"];
+
+fn scaffold_skill(state: &ApiState, req: &CreateRequest) -> axum::response::Response {
+    if !SKILL_SHAPES.contains(&req.shape.as_str()) {
+        return err(
+            StatusCode::BAD_REQUEST,
+            format!(
+                "unknown shape '{}' (expected one of: {})",
+                req.shape,
+                SKILL_SHAPES.join(", "),
+            ),
+        );
+    }
+
+    // Match scaffold_view's target convention — write into the ship dir
+    // the daemon was launched against. Tests use a project ship dir;
+    // prod uses the user-global ship dir, where new skills are editable
+    // without colliding with bundled skill IDs.
+    let skills_dir = state.ship_dir().join("skills");
+    if !skills_dir.exists()
+        && let Err(e) = std::fs::create_dir_all(&skills_dir) {
+            return err(StatusCode::INTERNAL_SERVER_ERROR, e.to_string());
+        }
+    let target_dir = skills_dir.join(&req.name);
+    if target_dir.exists() {
+        return err(
+            StatusCode::CONFLICT,
+            format!("skill '{}' already exists", req.name),
+        );
+    }
+
+    if let Err(e) = std::fs::create_dir_all(&target_dir) {
+        return err(StatusCode::INTERNAL_SERVER_ERROR, e.to_string());
+    }
+    let skill_md = target_dir.join("SKILL.md");
+    let body = render_skill_md(&req.name, &req.shape, req.purpose.as_deref());
+    if let Err(e) = std::fs::write(&skill_md, body) {
+        let _ = std::fs::remove_dir_all(&target_dir);
+        return err(StatusCode::INTERNAL_SERVER_ERROR, e.to_string());
+    }
+
+    let route = format!("/skills/{}", req.name);
+    (
+        StatusCode::OK,
+        Json(CreateResponse {
+            ok: true,
+            data: CreateData {
+                route: Some(route),
+                path: skill_md.display().to_string(),
+                surface: "skill".into(),
+            },
+        }),
+    )
+        .into_response()
+}
+
+fn render_skill_md(name: &str, shape: &str, purpose: Option<&str>) -> String {
+    let title = title_case(name);
+    let description = purpose
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(str::to_string)
+        .unwrap_or_else(|| format!("{title} ({shape} skill). Replace this with one line describing when to use it."));
+
+    let body = match shape {
+        "task" => format!(
+            "# {title}\n\n## When to use\n\n## What it does\n\n## Inputs and outputs\n"
+        ),
+        "reference" => format!(
+            "# {title}\n\n## Overview\n\n## Key concepts\n\n## Examples\n"
+        ),
+        "workflow" => format!(
+            "# {title}\n\n## Steps\n\n1.\n2.\n3.\n\n## Verification\n"
+        ),
+        _ => format!("# {title}\n"),
+    };
+
+    format!(
+        "---\nname: {name}\nstable-id: {name}\ndescription: {description}\ntags: []\nauthors: []\n---\n\n{body}"
+    )
 }
 
 fn copy_scaffold(
