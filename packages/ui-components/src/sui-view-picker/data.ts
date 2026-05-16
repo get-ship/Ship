@@ -105,6 +105,29 @@ export async function fetchProject(url: string): Promise<Project | null> {
   } catch { return null }
 }
 
+/** Full project list + the active project's id. Used by the unified
+ *  view+project picker (per Task #54 — single popover for both). */
+export async function fetchProjects(url: string): Promise<{ projects: Project[]; activeId: string | null }> {
+  try {
+    const resp = await fetch(url, { credentials: 'same-origin' })
+    if (!resp.ok) return { projects: [], activeId: null }
+    const body = (await resp.json()) as { projects?: Project[]; active?: string }
+    return { projects: body.projects ?? [], activeId: body.active ?? null }
+  } catch { return { projects: [], activeId: null } }
+}
+
+/** POST /api/v1/projects/<id>/activate — switches the daemon's active
+ *  project. Returns true on success so the caller can refresh state. */
+export async function switchProject(id: string): Promise<boolean> {
+  try {
+    const resp = await fetch(
+      `/api/v1/projects/${encodeURIComponent(id)}/activate`,
+      { method: 'POST', credentials: 'same-origin' },
+    )
+    return resp.ok
+  } catch { return false }
+}
+
 // ── drag state + handlers ──────────────────────────────────────────
 export interface DragState {
   name: string | null

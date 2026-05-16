@@ -236,3 +236,9 @@ views/*/.compiled/
 # Per-worktree isolation marker — created by `just init-worktree`, never committed.
 .ship/.boundary
 .artifacts/
+
+# Generated view artifacts — bundler outputs to crates/sui/ship-sui-server/assets/
+views/*/view.js
+views/*/dist/
+views/*/node_modules/
+views/*/*.d.ts
