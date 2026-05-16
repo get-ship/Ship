@@ -108,6 +108,45 @@ describe('on — handlers receive a writable proxy', () => {
     expect(refresh).toHaveBeenCalledOnce()
   })
 
+  it('$signals exposes the raw signal map for explicit .set()', () => {
+    // Pre-fix the only way to mutate state from `mount` was via the
+    // assignment proxy (`state.viewportH = el.clientHeight`).
+    // `state.viewportH.set(...)` looked correct but silently threw
+    // because the value-side read returned a number. $signals gives
+    // mount handlers an explicit signal-access path.
+    const ctx = withState({ count: 0, label: 'hi' })
+    type ScopeS = { $signals: { count: Signal<number>; label: Signal<string> } }
+    const b = resolveController(
+      {
+        on: {
+          bumpViaSignal: (s: ScopeS) => { s.$signals.count.set(7) },
+          setLabel: (s: ScopeS) => { s.$signals.label.set('there') },
+        },
+      },
+      ctx,
+    ) as Record<string, () => void>
+    b.bumpViaSignal!()
+    b.setLabel!()
+    expect((ctx.stateSignals.count as () => number)()).toBe(7)
+    expect((ctx.stateSignals.label as () => string)()).toBe('there')
+  })
+
+  it('writes to $signals warn and are ignored (read-only accessor)', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const ctx = withState({ count: 0 })
+    const b = resolveController(
+      {
+        on: {
+          stomp: (s: Record<string, unknown>) => { s.$signals = {} },
+        },
+      },
+      ctx,
+    ) as Record<string, () => void>
+    b.stomp!()
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('$signals'))
+    warnSpy.mockRestore()
+  })
+
   it('writes to a non-state key warn and are ignored', () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
     const ctx = withState({ count: 0 })

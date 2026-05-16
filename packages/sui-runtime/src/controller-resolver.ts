@@ -191,12 +191,33 @@ function isSignal(v: unknown): v is Signal<unknown> {
   )
 }
 
+/**
+ * The writable-proxy key under which the raw signal map is exposed.
+ *
+ * The proxy's `get(key)` returns the unwrapped signal VALUE so that
+ * arithmetic-style writes work: `state.count++`, `state.label = 'hi'`.
+ * That ergonomic was load-bearing — `state.count.set(state.count() + 1)`
+ * is uglier than the increment.
+ *
+ * The cost: `state.foo.set(v)` looks correct but silently throws
+ * (`TypeError: (640).set is not a function`) when the signal value is
+ * a primitive, because the value isn't the signal. A real ergonomics
+ * trap in `mount(state, el)` handlers that want to mirror DOM state
+ * back into a signal.
+ *
+ * The escape hatch: `state.$signals.foo.set(v)` returns the raw
+ * `Signal<T>`, so callers who want explicit signal access have one.
+ * The mount JSDoc on `MountSection` documents both shapes.
+ */
+const SIGNALS_KEY = '$signals'
+
 function buildWritableProxy(
   stateSignals: Record<string, Signal<unknown>>,
   baseScope: Record<string, unknown>,
 ): MutableState<Record<string, Signal<unknown>>> {
   return new Proxy({} as Record<string, unknown>, {
     get(_target, key: string) {
+      if (key === SIGNALS_KEY) return stateSignals
       if (key in stateSignals) return stateSignals[key]!()
       return baseScope[key]
     },
@@ -213,6 +234,12 @@ function buildWritableProxy(
         }
         return true
       }
+      if (key === SIGNALS_KEY) {
+        console.warn(
+          `[ship-set] handler tried to write s.${SIGNALS_KEY} = … but ${SIGNALS_KEY} is the read-only signal-map accessor. The assignment was ignored.`,
+        )
+        return true
+      }
       console.warn(
         `[ship-set] handler tried to write s.${key} = … but ${key} is not declared as <state name="${key}"> in the template. The assignment was ignored.`,
       )
@@ -223,12 +250,15 @@ function buildWritableProxy(
       return true
     },
     has(_target, key: string) {
-      return key in stateSignals || key in baseScope
+      return key === SIGNALS_KEY || key in stateSignals || key in baseScope
     },
     ownKeys() {
-      return Object.keys(stateSignals)
+      return [SIGNALS_KEY, ...Object.keys(stateSignals)]
     },
     getOwnPropertyDescriptor(_target, key: string) {
+      if (key === SIGNALS_KEY) {
+        return { configurable: true, enumerable: true, writable: false, value: stateSignals }
+      }
       if (key in stateSignals) {
         return { configurable: true, enumerable: true, writable: true, value: stateSignals[key]!() }
       }
