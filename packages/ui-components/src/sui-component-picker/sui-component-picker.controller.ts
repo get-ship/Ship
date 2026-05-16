@@ -190,6 +190,45 @@ export default controller<Scope>({
         return fuzzyMatch(needle, e.tag) || fuzzyMatch(needle, e.description)
       })
     })
+
+    // Group shown entries by category (the existing categoryOf
+    // heuristic). User asked for pack-grouping — categories are the
+    // closest declarative pack hint available without per-component
+    // frontmatter. Order matches the picker's intent doc: most
+    // common first.
+    const PACK_ORDER = ['display', 'layout', 'form', 'data', 'feedback', 'navigation', 'overlay', 'chart', 'text', 'media']
+    const PACK_LABEL: Record<string, string> = {
+      display: 'Display', layout: 'Layout', form: 'Form', data: 'Data',
+      feedback: 'Feedback', navigation: 'Navigation', overlay: 'Overlay',
+      chart: 'Charts', text: 'Text', media: 'Media',
+    }
+    interface Group { id: string; label: string; entries: PickerEntry[] }
+    const grouped = derived<Group[]>(() => {
+      const buckets = new Map<string, PickerEntry[]>()
+      for (const e of shown()) {
+        const k = e.category || 'display'
+        if (!buckets.has(k)) buckets.set(k, [])
+        buckets.get(k)!.push(e)
+      }
+      const out: Group[] = []
+      for (const k of PACK_ORDER) {
+        if (buckets.has(k)) {
+          out.push({ id: k, label: PACK_LABEL[k] ?? k, entries: buckets.get(k)! })
+          buckets.delete(k)
+        }
+      }
+      // Any leftover unknown categories at the end.
+      for (const [k, v] of buckets) out.push({ id: k, label: PACK_LABEL[k] ?? k, entries: v })
+      return out
+    })
+    // Use string[] (not Set) — SUI templates restrict method calls
+    // to a renderable allowlist that includes .includes() but not
+    // .has(). Functionally identical for ≤10 packs.
+    const collapsed = signal<string[]>([])
+    function toggleGroup(id: string): void {
+      const cur = collapsed()
+      collapsed.set(cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id])
+    }
     const isSelected = (tag: string): boolean => queue().includes(tag)
 
     const h = host as HostWithProps
@@ -223,6 +262,7 @@ export default controller<Scope>({
 
     return {
       entries, filter, queue, gridEl, shown, isSelected,
+      grouped, collapsed, toggleGroup,
       onTileClick, commit, onDialogClose,
     }
   },
@@ -272,26 +312,44 @@ export default controller<Scope>({
       value: () => { h.open = false },
     })
 
-    // Live preview population. Watches the shadow root for any
-    // `.tile-preview[data-tag]` element appearing/disappearing and
-    // populates with a real <tag> instance. Survives template
-    // re-renders driven by filter/search changes.
+    // Lazy preview population via IntersectionObserver — only mounts
+    // a real <tag> instance when its tile scrolls into view. Pre-fix
+    // the picker eagerly mounted 100+ component instances on first
+    // paint, causing perceptible lag during scroll + filter.
     const root = host.shadowRoot
     if (root) {
-      const populate = (): void => {
-        for (const el of root.querySelectorAll<HTMLElement>('.tile-preview[data-tag]')) {
+      const intersectObs = new IntersectionObserver((entries) => {
+        for (const it of entries) {
+          if (!it.isIntersecting) continue
+          const el = it.target as HTMLElement
           if (el.dataset['previewed'] === '1') continue
           const tag = el.dataset['tag']
           if (!tag) continue
           populatePreview(el, tag)
           el.dataset['previewed'] = '1'
+          intersectObs.unobserve(el)
         }
-      }
-      const obs = new MutationObserver(populate)
-      obs.observe(root, { childList: true, subtree: true })
-      // Initial pass after the first paint so any tiles already
-      // present (modal mode renders immediately) get filled.
-      requestAnimationFrame(populate)
+      }, { root: null, rootMargin: '120px', threshold: 0.01 })
+
+      // Watch the shadow root for tile-preview elements appearing
+      // (template re-renders) and start observing them. Filter+
+      // search changes recreate tiles so we need to re-observe.
+      const mountObs = new MutationObserver(() => {
+        for (const el of root.querySelectorAll<HTMLElement>('.tile-preview[data-tag]')) {
+          if (el.dataset['observed'] === '1') continue
+          el.dataset['observed'] = '1'
+          intersectObs.observe(el)
+        }
+      })
+      mountObs.observe(root, { childList: true, subtree: true })
+      // First pass for any tiles present before the observer attached.
+      requestAnimationFrame(() => {
+        for (const el of root.querySelectorAll<HTMLElement>('.tile-preview[data-tag]')) {
+          if (el.dataset['observed'] === '1') continue
+          el.dataset['observed'] = '1'
+          intersectObs.observe(el)
+        }
+      })
     }
 
     void load()

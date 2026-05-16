@@ -78,9 +78,47 @@
     font-variant-numeric: tabular-nums;
   }
 
-  .grid {
+  /* Outer grouped scroll container. The .grid inside each .pack
+     is the actual card grid; the wrapper just stacks pack sections. */
+  .grouped-grid {
     flex: 1;
     overflow: auto;
+    display: flex;
+    flex-direction: column;
+    padding-bottom: 8px;
+  }
+  .pack { display: flex; flex-direction: column; }
+  .pack-head {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    appearance: none;
+    background: color-mix(in oklch, var(--background, #fff) 92%, var(--foreground, #000));
+    border: 0;
+    border-bottom: 1px solid var(--border);
+    color: var(--muted-foreground);
+    font: inherit;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 6px 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    text-align: left;
+  }
+  .pack-head:hover { background: color-mix(in oklch, var(--foreground) 6%, var(--background)); }
+  .pack-head .pack-label { color: var(--foreground); flex: 1; }
+  .pack-head .pack-count {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--muted-foreground);
+    text-transform: none;
+    letter-spacing: 0;
+  }
+  .grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
     gap: 8px;
@@ -214,25 +252,37 @@
         <input type="text" bind:value={filter} placeholder={placeholder()} aria-label="Filter components" />
         <span class="count">{shown().length} / {entries().length}</span>
       </div>
-      <div class="grid" bind:this={gridEl}>
+      <div class="grouped-grid" bind:this={gridEl}>
         {#if entries().length === 0}
           <div class="empty">Loading components…</div>
         {:else if shown().length === 0}
           <div class="empty">No matches.</div>
         {:else}
-          {#for entry of shown() key={entry.tag}}
-            <button
-              class="tile"
-              type="button"
-              data-tag={entry.tag}
-              data-selected={queue().includes(entry.tag) ? 'true' : 'false'}
-              aria-pressed={queue().includes(entry.tag) ? 'true' : 'false'}
-              title={entry.description}
-              on:click={() => onTileClick(entry.tag)}>
-              <div class="tile-preview" part="preview" data-tag={entry.tag}></div>
-              <span class="tile-tag">&lt;{entry.tag}&gt;</span>
-              <span class="tile-desc">{entry.firstDesc}</span>
-            </button>
+          {#for g of grouped() key={g.id}}
+            <section class="pack" data-pack={g.id}>
+              <button class="pack-head" type="button" on:click={() => toggleGroup(g.id)}
+                aria-expanded={collapsed().includes(g.id) ? 'false' : 'true'}>
+                <sui-icon name={collapsed().includes(g.id) ? 'chevron-right' : 'chevron-down'} size="sm"></sui-icon>
+                <span class="pack-label">{g.label}</span>
+                <span class="pack-count">{g.entries.length}</span>
+              </button>
+              {#if !collapsed().includes(g.id)}
+                <div class="grid">
+                  {#for entry of g.entries key={entry.tag}}
+                    <button class="tile" type="button"
+                      data-tag={entry.tag}
+                      data-selected={queue().includes(entry.tag) ? 'true' : 'false'}
+                      aria-pressed={queue().includes(entry.tag) ? 'true' : 'false'}
+                      title={entry.description}
+                      on:click={() => onTileClick(entry.tag)}>
+                      <div class="tile-preview" part="preview" data-tag={entry.tag}></div>
+                      <span class="tile-tag">&lt;{entry.tag}&gt;</span>
+                      <span class="tile-desc">{entry.firstDesc}</span>
+                    </button>
+                  {/for}
+                </div>
+              {/if}
+            </section>
           {/for}
         {/if}
       </div>
@@ -253,27 +303,37 @@
       <input type="text" bind:value={filter} placeholder={placeholder()} aria-label="Filter components" />
       <span class="count">{shown().length} / {entries().length}</span>
     </div>
-    <div class="grid" bind:this={gridEl}>
+    <div class="grouped-grid" bind:this={gridEl}>
       {#if entries().length === 0}
         <div class="empty">Loading components…</div>
       {:else if shown().length === 0}
         <div class="empty">No matches.</div>
       {:else}
-        {#for entry of shown() key={entry.tag}}
-          <button
-            class="tile"
-            type="button"
-            data-tag={entry.tag}
-            data-selected={queue().includes(entry.tag) ? 'true' : 'false'}
-            aria-pressed={queue().includes(entry.tag) ? 'true' : 'false'}
-            title={entry.description}
-            on:click={() => onTileClick(entry.tag)}>
-            <div class="tile-preview" part="preview" data-tag={entry.tag}>
-              <sui-icon name={entry.icon} size="md"></sui-icon>
-            </div>
-            <span class="tile-tag">&lt;{entry.tag}&gt;</span>
-            <span class="tile-desc">{entry.firstDesc}</span>
-          </button>
+        {#for g of grouped() key={g.id}}
+          <section class="pack" data-pack={g.id}>
+            <button class="pack-head" type="button" on:click={() => toggleGroup(g.id)}
+              aria-expanded={collapsed().includes(g.id) ? 'false' : 'true'}>
+              <sui-icon name={collapsed().includes(g.id) ? 'chevron-right' : 'chevron-down'} size="sm"></sui-icon>
+              <span class="pack-label">{g.label}</span>
+              <span class="pack-count">{g.entries.length}</span>
+            </button>
+            {#if !collapsed().includes(g.id)}
+              <div class="grid">
+                {#for entry of g.entries key={entry.tag}}
+                  <button class="tile" type="button"
+                    data-tag={entry.tag}
+                    data-selected={queue().includes(entry.tag) ? 'true' : 'false'}
+                    aria-pressed={queue().includes(entry.tag) ? 'true' : 'false'}
+                    title={entry.description}
+                    on:click={() => onTileClick(entry.tag)}>
+                    <div class="tile-preview" part="preview" data-tag={entry.tag}></div>
+                    <span class="tile-tag">&lt;{entry.tag}&gt;</span>
+                    <span class="tile-desc">{entry.firstDesc}</span>
+                  </button>
+                {/for}
+              </div>
+            {/if}
+          </section>
         {/for}
       {/if}
     </div>
