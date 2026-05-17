@@ -4,7 +4,7 @@ use super::*;
 
 #[test]
 fn unit_variant_full_path_is_literal() {
-    assert_eq!(Route::ListJobs.full_path(), "/api/v1/jobs");
+    assert_eq!(Route::ListJobs.full_path(), "/api/v1/agent_sessions");
     assert_eq!(Route::IssueSession.full_path(), "/api/v1/session");
     assert_eq!(
         Route::AssetViewTokensCss.full_path(),
@@ -30,7 +30,7 @@ fn named_variant_substitutes_params() {
         job_id: "job-xyz".to_string(),
     }
     .full_path();
-    assert_eq!(url, "/api/v1/jobs/job-xyz");
+    assert_eq!(url, "/api/v1/agent_sessions/job-xyz");
 }
 
 #[test]

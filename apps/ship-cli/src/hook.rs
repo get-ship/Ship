@@ -223,7 +223,7 @@ fn signal_job_completed(slug: &str) {
     };
     let client = crate::http::daemon_client();
     if let Ok(resp) = client
-        .post(format!("http://127.0.0.1:{}/api/v1/jobs/end", handle.port))
+        .post(format!("http://127.0.0.1:{}/api/v1/agent_sessions/end", handle.port))
         .bearer_auth(&handle.token)
         .json(&serde_json::json!({"slug": slug}))
         .timeout(std::time::Duration::from_secs(5))
