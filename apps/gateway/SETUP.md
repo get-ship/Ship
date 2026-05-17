@@ -124,13 +124,28 @@ wrangler secret put STRIPE_WEBHOOK_SECRET --env staging   # whsec_…
 wrangler secret put STRIPE_PRICE_PRO      --env staging   # price_… (the Pro plan's recurring monthly Price ID)
 ```
 
-**Daemon attestation JWT signing** (RS256 — used by `/api/auth/daemon-attest` to mint capability JWTs the daemon presents to peer services; verified via the JWKS endpoint at `/api/jwks`):
+**Daemon attestation JWT signing** (Ed25519 — used by `/api/auth/daemon-attest` to mint capability JWTs the daemon presents to peer services; verified via the JWKS endpoint at `/api/jwks`):
 ```sh
 wrangler secret put SHIP_JWT_PRIVATE_KEY     --env staging
 wrangler secret put SHIP_JWT_PRIVATE_KEY_ID  --env staging
 wrangler secret put SHIP_JWT_PUBLIC_KEY      --env staging
 wrangler secret put SHIP_JWT_PUBLIC_JWKS     --env staging
 ```
+
+The JWT carries `iss: "https://getship.dev"` (the brand domain) regardless
+of which env host minted it. Override the issuer per env only if you have
+a reason to:
+
+```sh
+# Optional — defaults to https://getship.dev
+wrangler secret put SHIP_ATTESTATION_ISSUER --env staging
+```
+
+The daemon side resolves issuer and JWKS URL **separately** (the issuer
+claim is the brand identity; JWKS is hosted at the API host). Daemon
+defaults are `auth.attestation_issuer = "https://getship.dev"` and
+`auth.attestation_jwks_url = "https://api.getship.dev/api/jwks"`,
+overridable via `~/.ship/config.toml`.
 
 ---
 

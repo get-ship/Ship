@@ -6,8 +6,8 @@
 //! JWT itself is the proof — endpoint is unauthenticated.
 
 use crate::auth::attest::{
-    AttestationConfig, AttestationVerifier, DEFAULT_ATTESTATION_ISSUER, VerifyError,
-    daemon_owner, set_daemon_owner,
+    AttestationConfig, AttestationVerifier, DEFAULT_ATTESTATION_ISSUER,
+    DEFAULT_ATTESTATION_JWKS_URL, VerifyError, daemon_owner, set_daemon_owner,
 };
 use crate::auth::scopes::{SessionRegistry, generate_session_token};
 
@@ -27,15 +27,22 @@ pub struct AttestResponse {
     pub expires_at_unix: i64,
 }
 
-/// Configured attestation issuer. Reads `auth.attestation_issuer` setting,
-/// falls back to DEFAULT_ATTESTATION_ISSUER.
-fn configured_attestation_issuer() -> AttestationConfig {
-    let issuer = ship_platform::config::get_setting("auth.attestation_issuer")
-        .ok()
-        .flatten()
-        .and_then(|v| v.as_str().map(String::from))
-        .unwrap_or_else(|| DEFAULT_ATTESTATION_ISSUER.to_string());
-    AttestationConfig::from_issuer(issuer)
+/// Configured attestation config. Reads `auth.attestation_issuer` and
+/// `auth.attestation_jwks_url` settings independently — issuer and JWKS
+/// URL are decoupled so the issuer claim can stay on the brand domain
+/// (`getship.dev`) while keys live at the gateway host (`api.getship.dev`).
+fn configured_attestation_config() -> AttestationConfig {
+    let read = |key: &str, default: &str| -> String {
+        ship_platform::config::get_setting(key)
+            .ok()
+            .flatten()
+            .and_then(|v| v.as_str().map(String::from))
+            .unwrap_or_else(|| default.to_string())
+    };
+    AttestationConfig::new(
+        read("auth.attestation_issuer", DEFAULT_ATTESTATION_ISSUER),
+        read("auth.attestation_jwks_url", DEFAULT_ATTESTATION_JWKS_URL),
+    )
 }
 
 /// POST /auth/server-attest { jwt } — verify a JWT signed by a trusted
@@ -61,7 +68,7 @@ pub async fn server_attest(
     session_registry: SessionRegistry,
     axum::Json(body): axum::Json<AttestRequest>,
 ) -> (axum::http::StatusCode, axum::Json<serde_json::Value>) {
-    let config = configured_attestation_issuer();
+    let config = configured_attestation_config();
 
     let claims = match verifier.verify(&body.jwt, &config).await {
         Ok(c) => c,

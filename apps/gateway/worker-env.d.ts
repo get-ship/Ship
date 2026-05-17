@@ -41,4 +41,6 @@ interface Env {
   SHIP_JWT_PUBLIC_KEY: string;
   SHIP_JWT_PUBLIC_JWKS: string;
   BETTER_AUTH_SECRET: string;
+  /** Issuer claim for /api/auth/daemon-attest JWTs. Brand domain, not API host. */
+  SHIP_ATTESTATION_ISSUER?: string;
 }

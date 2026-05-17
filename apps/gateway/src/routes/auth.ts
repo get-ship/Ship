@@ -258,8 +258,11 @@ auth.post('/api/auth/daemon-attest', async (c) => {
   }
 
   const caps: string[] = plan === 'pro' ? ['pro'] : []
-  const url = new URL(c.req.url)
-  const issuer = `${url.protocol}//${url.host}`
+  // Issuer is the brand identity, not the request host. Pinning it stable
+  // across api.getship.dev / staging.getship.dev / localhost means the
+  // daemon's `iss` validation doesn't need per-env config. JWKS URL is
+  // env-specific and configured separately on the daemon side.
+  const issuer = c.env.SHIP_ATTESTATION_ISSUER ?? 'https://getship.dev'
   const ttlSeconds = 3600
 
   let jwt: string
