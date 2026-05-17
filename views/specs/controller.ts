@@ -22,6 +22,15 @@ type SpecDetail = {
   launch_label?: string; launch_hint?: string
 }
 
+type Navigate = (path: string) => void
+
+// State-proxy reads unwrap signals to their values, so `state.selected`
+// is the LiveSignalValue, not the signal. `unwrap(sig)` needs the
+// callable LiveSignal — fetch it via the proxy's `$signals` escape hatch.
+type WithSignals = { $signals: { selected: LiveSignal<SpecDetail> } }
+const liveSelected = (state: unknown): LiveSignal<SpecDetail> =>
+  (state as WithSignals).$signals.selected
+
 const STATUS_CYCLE = ['draft', 'ready', 'launched', 'archived'] as const
 
 export default controller<Scope>({
@@ -79,11 +88,11 @@ export default controller<Scope>({
         body: JSON.stringify({ title: 'New spec', body: '## Goal\n\n## Acceptance\n- [ ] ' }),
       })
     },
-    selectSpec: ({ navigate }, id: string) => {
-      navigate('/specs?id=' + id)
+    selectSpec: (state, id: string) => {
+      (state.navigate as Navigate)('/specs?id=' + id)
     },
-    duplicateSpec: async ({ state }) => {
-      const s = unwrap(state.selected as LiveSignal<SpecDetail>)
+    duplicateSpec: async (state) => {
+      const s = unwrap(liveSelected(state))
       if (!s) return
       await fetch('/api/v1/specs', {
         method: 'POST',
@@ -92,37 +101,37 @@ export default controller<Scope>({
         body: JSON.stringify({ title: (s.title ?? '') + ' (copy)', body: s.body || '' }),
       })
     },
-    launchSpec: async ({ state }) => {
+    launchSpec: async (state) => {
       const id = state.selectedId as string
       if (!id) return
       await fetch(`/api/v1/specs/${id}/launch`, { method: 'POST', credentials: 'include' })
     },
-    deleteSpec: async ({ state, navigate }) => {
+    deleteSpec: async (state) => {
       const id = state.selectedId as string
       if (!id) return
       await fetch(`/api/v1/specs/${id}`, { method: 'DELETE', credentials: 'include' })
       state.confirmDelete = false
-      navigate('/specs')
+      ;(state.navigate as Navigate)('/specs')
     },
-    focusFilter: ({ state }) => {
+    focusFilter: (state) => {
       const el = state.filterInputEl as HTMLElement | null
       el?.focus()
     },
-    startEdit: ({ state }) => {
-      const sel = unwrap(state.selected as LiveSignal<SpecDetail>)
+    startEdit: (state) => {
+      const sel = unwrap(liveSelected(state))
       if (!sel) return
       state.draftTitle = sel.title ?? ''
       state.draftBody = sel.body ?? ''
       state.editing = true
     },
-    cancelEdit: ({ state }) => {
+    cancelEdit: (state) => {
       state.editing = false
     },
-    onTitleInput: ({ state }, evt: Event) => {
+    onTitleInput: (state, evt: Event) => {
       const el = evt.target as HTMLElement & { value?: string }
       state.draftTitle = typeof el?.value === 'string' ? el.value : ''
     },
-    onBodyInput: ({ state }, evt: Event) => {
+    onBodyInput: (state, evt: Event) => {
       const detail = (evt as CustomEvent<{ value?: string }>).detail
       if (detail && typeof detail.value === 'string') {
         state.draftBody = detail.value
@@ -131,7 +140,7 @@ export default controller<Scope>({
       const el = evt.target as HTMLElement & { value?: string }
       if (typeof el?.value === 'string') state.draftBody = el.value
     },
-    saveEdit: async ({ state }) => {
+    saveEdit: async (state) => {
       const id = state.selectedId as string
       if (!id) return
       state.saving = true
@@ -147,7 +156,7 @@ export default controller<Scope>({
         state.saving = false
       }
     },
-    setAgent: async ({ state }, evt: Event) => {
+    setAgent: async (state, evt: Event) => {
       const id = state.selectedId as string
       if (!id) return
       const detail = (evt as CustomEvent<{ value?: string }>).detail
@@ -161,10 +170,10 @@ export default controller<Scope>({
         body: JSON.stringify({ agent: next === '' ? null : next }),
       })
     },
-    cycleStatus: async ({ state }) => {
+    cycleStatus: async (state) => {
       const id = state.selectedId as string
       if (!id) return
-      const sel = unwrap(state.selected as LiveSignal<SpecDetail>)
+      const sel = unwrap(liveSelected(state))
       if (!sel) return
       const current = sel.status ?? 'draft'
       const idx = STATUS_CYCLE.indexOf(current as typeof STATUS_CYCLE[number])
