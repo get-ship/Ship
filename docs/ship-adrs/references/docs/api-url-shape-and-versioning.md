@@ -34,8 +34,8 @@ Every HTTP route the daemon serves belongs to the Ship public contract and lives
 /api/v1/workspaces
 /api/v1/workspaces/{id}
 /api/v1/workspaces/{id}/sessions
-/api/v1/jobs/{id}
-/api/v1/jobs/{id}/log               (SSE)
+/api/v1/agent_sessions/{id}
+/api/v1/agent_sessions/{id}/log               (SSE)
 /api/v1/collections/{id}/items
 /api/v1/artifacts/{id}
 /api/v1/views

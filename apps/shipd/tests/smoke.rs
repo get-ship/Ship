@@ -160,7 +160,7 @@ async fn openapi_spec_is_valid_json() {
 #[tokio::test]
 async fn list_jobs_returns_ok() {
     let d = TestDaemon::start().await;
-    let res = d.authed().get(d.url("/api/v1/jobs")).send().await.unwrap();
+    let res = d.authed().get(d.url("/api/v1/agent_sessions")).send().await.unwrap();
     assert_eq!(res.status(), 200);
     let body: serde_json::Value = res.json().await.unwrap();
     assert_eq!(body["ok"], true);

@@ -190,6 +190,367 @@
         ]
       }
     },
+    "/api/v1/agent_sessions": {
+      "get": {
+        "tags": [
+          "runtime"
+        ],
+        "summary": "List Jobs",
+        "description": "GET /api/v1/runtime/jobs\n\nReturns each `PipelineRun` with two operator-visibility annotations:\n\n- `process_state`: `\"alive\"` when the latest process projection for the\n  slug is still Running, `\"missing\"` when the most recent supervisor\n  sweep flagged drift (no_process) without a coherence_restored after\n  it, `\"terminal\"` for jobs in a terminal status, `\"none\"` otherwise.\n- `notes`: optional truncated error / blocker for the row's NOTES column.",
+        "operationId": "listJobs",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeshResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "curl",
+            "source": "curl -X GET http://localhost:9315/api/v1/agent_sessions \\\n  -H \"Authorization: Bearer $SHIP_TOKEN\""
+          },
+          {
+            "lang": "javascript",
+            "label": "fetch",
+            "source": "const res = await fetch(\"http://localhost:9315/api/v1/agent_sessions\", {\n  method: \"GET\",\n  headers: {\n    \"Authorization\": `Bearer ${process.env.SHIP_TOKEN}`,\n  },\n});\nconst data = await res.json();"
+          }
+        ]
+      }
+    },
+    "/api/v1/agent_sessions/dispatch": {
+      "post": {
+        "tags": [
+          "runtime"
+        ],
+        "summary": "Dispatch Pipeline",
+        "description": "POST /api/v1/agent_sessions/dispatch\n\nUI-facing dispatch — mirrors `ship run` on the CLI. Loads the\nnamed pipeline, generates slug/branch/agent, and emits\n`job.created`. The orchestrator picks it up from there.",
+        "operationId": "dispatch_pipeline",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DispatchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeshResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "curl",
+            "source": "curl -X POST http://localhost:9315/api/v1/agent_sessions/dispatch \\\n  -H \"Authorization: Bearer $SHIP_TOKEN\""
+          },
+          {
+            "lang": "javascript",
+            "label": "fetch",
+            "source": "const res = await fetch(\"http://localhost:9315/api/v1/agent_sessions/dispatch\", {\n  method: \"POST\",\n  headers: {\n    \"Authorization\": `Bearer ${process.env.SHIP_TOKEN}`,\n  },\n});\nconst data = await res.json();"
+          }
+        ]
+      }
+    },
+    "/api/v1/agent_sessions/end": {
+      "post": {
+        "tags": [
+          "runtime"
+        ],
+        "summary": "End Job",
+        "description": "POST /api/v1/runtime/jobs/end — signal that a harness turn ended for a job.\n\nCalled by the session Stop hook when an agent finishes a response turn.\nFor multi-step pipeline jobs, this sends a TurnEnded signal to the step\nmonitor (which accumulates evidence before deciding to advance).\nFor single-step jobs, emits job.completed directly.",
+        "operationId": "endJob",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JobEndRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeshResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "curl",
+            "source": "curl -X POST http://localhost:9315/api/v1/agent_sessions/end \\\n  -H \"Authorization: Bearer $SHIP_TOKEN\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\"slug\":\"write-readme\"}'"
+          },
+          {
+            "lang": "javascript",
+            "label": "fetch",
+            "source": "const res = await fetch(\"http://localhost:9315/api/v1/agent_sessions/end\", {\n  method: \"POST\",\n  headers: {\n    \"Authorization\": `Bearer ${process.env.SHIP_TOKEN}`,\n    \"Content-Type\": \"application/json\",\n  },\n  body: JSON.stringify({\n    \"slug\": \"write-readme\"\n  }),\n});\nconst data = await res.json();"
+          }
+        ]
+      }
+    },
+    "/api/v1/agent_sessions/{job_id}/status": {
+      "post": {
+        "tags": [
+          "runtime"
+        ],
+        "operationId": "updateJobStatus",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "description": "Job ULID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JobStatusReq"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Job status event emitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeshResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid status or missing field",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Insufficient scope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Update Job Status",
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "curl",
+            "source": "curl -X POST http://localhost:9315/api/v1/agent_sessions/01J3Z5ZQXAM3E4T7W/status \\\n  -H \"Authorization: Bearer $SHIP_TOKEN\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\"status\":\"dispatched\",\"worktree\":\"/tmp/ws-write-readme\"}'"
+          },
+          {
+            "lang": "javascript",
+            "label": "fetch",
+            "source": "const res = await fetch(\"http://localhost:9315/api/v1/agent_sessions/01J3Z5ZQXAM3E4T7W/status\", {\n  method: \"POST\",\n  headers: {\n    \"Authorization\": `Bearer ${process.env.SHIP_TOKEN}`,\n    \"Content-Type\": \"application/json\",\n  },\n  body: JSON.stringify({\n    \"status\": \"dispatched\",\n    \"worktree\": \"/tmp/ws-write-readme\"\n  }),\n});\nconst data = await res.json();"
+          }
+        ]
+      }
+    },
+    "/api/v1/agent_sessions/{slug}/step-done": {
+      "post": {
+        "tags": [
+          "runtime"
+        ],
+        "summary": "Job Step Done",
+        "operationId": "jobStepDone",
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "description": "Job slug",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StepDoneReq"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Step-done event emitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeshResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Job or active step not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "description": "POST /api/v1/agent_sessions/{slug}/step-done — agent declares the current pipeline step\ncomplete. Daemon resolves the active step from the projection, builds a\n`step.done_declared` envelope, and routes it through the kernel.",
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "curl",
+            "source": "curl -X POST http://localhost:9315/api/v1/agent_sessions/write-readme/step-done \\\n  -H \"Authorization: Bearer $SHIP_TOKEN\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\"summary\":\"Compiled and tests pass.\",\"outputs\":{\"artifact\":\"build.tar.gz\"}}'"
+          },
+          {
+            "lang": "javascript",
+            "label": "fetch",
+            "source": "const res = await fetch(\"http://localhost:9315/api/v1/agent_sessions/write-readme/step-done\", {\n  method: \"POST\",\n  headers: {\n    \"Authorization\": `Bearer ${process.env.SHIP_TOKEN}`,\n    \"Content-Type\": \"application/json\",\n  },\n  body: JSON.stringify({\n    \"summary\": \"Compiled and tests pass.\",\n    \"outputs\": {\n      \"artifact\": \"build.tar.gz\"\n    }\n  }),\n});\nconst data = await res.json();"
+          }
+        ]
+      }
+    },
     "/api/v1/agents": {
       "get": {
         "tags": [
@@ -678,367 +1039,6 @@
             "lang": "javascript",
             "label": "fetch",
             "source": "const res = await fetch(\"http://localhost:9315/api/v1/harnesses/installed\", {\n  method: \"GET\",\n  headers: {\n    \"Authorization\": `Bearer ${process.env.SHIP_TOKEN}`,\n  },\n});\nconst data = await res.json();"
-          }
-        ]
-      }
-    },
-    "/api/v1/jobs": {
-      "get": {
-        "tags": [
-          "runtime"
-        ],
-        "summary": "List Jobs",
-        "description": "GET /api/v1/runtime/jobs\n\nReturns each `PipelineRun` with two operator-visibility annotations:\n\n- `process_state`: `\"alive\"` when the latest process projection for the\n  slug is still Running, `\"missing\"` when the most recent supervisor\n  sweep flagged drift (no_process) without a coherence_restored after\n  it, `\"terminal\"` for jobs in a terminal status, `\"none\"` otherwise.\n- `notes`: optional truncated error / blocker for the row's NOTES column.",
-        "operationId": "listJobs",
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/MeshResponse"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "server error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        },
-        "x-codeSamples": [
-          {
-            "lang": "bash",
-            "label": "curl",
-            "source": "curl -X GET http://localhost:9315/api/v1/jobs \\\n  -H \"Authorization: Bearer $SHIP_TOKEN\""
-          },
-          {
-            "lang": "javascript",
-            "label": "fetch",
-            "source": "const res = await fetch(\"http://localhost:9315/api/v1/jobs\", {\n  method: \"GET\",\n  headers: {\n    \"Authorization\": `Bearer ${process.env.SHIP_TOKEN}`,\n  },\n});\nconst data = await res.json();"
-          }
-        ]
-      }
-    },
-    "/api/v1/jobs/dispatch": {
-      "post": {
-        "tags": [
-          "runtime"
-        ],
-        "summary": "Dispatch Pipeline",
-        "description": "POST /api/v1/jobs/dispatch\n\nUI-facing dispatch — mirrors `ship run` on the CLI. Loads the\nnamed pipeline, generates slug/branch/agent, and emits\n`job.created`. The orchestrator picks it up from there.",
-        "operationId": "dispatch_pipeline",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/DispatchRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/MeshResponse"
-                }
-              }
-            }
-          }
-        },
-        "x-codeSamples": [
-          {
-            "lang": "bash",
-            "label": "curl",
-            "source": "curl -X POST http://localhost:9315/api/v1/jobs/dispatch \\\n  -H \"Authorization: Bearer $SHIP_TOKEN\""
-          },
-          {
-            "lang": "javascript",
-            "label": "fetch",
-            "source": "const res = await fetch(\"http://localhost:9315/api/v1/jobs/dispatch\", {\n  method: \"POST\",\n  headers: {\n    \"Authorization\": `Bearer ${process.env.SHIP_TOKEN}`,\n  },\n});\nconst data = await res.json();"
-          }
-        ]
-      }
-    },
-    "/api/v1/jobs/end": {
-      "post": {
-        "tags": [
-          "runtime"
-        ],
-        "summary": "End Job",
-        "description": "POST /api/v1/runtime/jobs/end — signal that a harness turn ended for a job.\n\nCalled by the session Stop hook when an agent finishes a response turn.\nFor multi-step pipeline jobs, this sends a TurnEnded signal to the step\nmonitor (which accumulates evidence before deciding to advance).\nFor single-step jobs, emits job.completed directly.",
-        "operationId": "endJob",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/JobEndRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/MeshResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "bad request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "server error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        },
-        "x-codeSamples": [
-          {
-            "lang": "bash",
-            "label": "curl",
-            "source": "curl -X POST http://localhost:9315/api/v1/jobs/end \\\n  -H \"Authorization: Bearer $SHIP_TOKEN\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\"slug\":\"write-readme\"}'"
-          },
-          {
-            "lang": "javascript",
-            "label": "fetch",
-            "source": "const res = await fetch(\"http://localhost:9315/api/v1/jobs/end\", {\n  method: \"POST\",\n  headers: {\n    \"Authorization\": `Bearer ${process.env.SHIP_TOKEN}`,\n    \"Content-Type\": \"application/json\",\n  },\n  body: JSON.stringify({\n    \"slug\": \"write-readme\"\n  }),\n});\nconst data = await res.json();"
-          }
-        ]
-      }
-    },
-    "/api/v1/jobs/{job_id}/status": {
-      "post": {
-        "tags": [
-          "runtime"
-        ],
-        "operationId": "updateJobStatus",
-        "parameters": [
-          {
-            "name": "job_id",
-            "in": "path",
-            "description": "Job ULID",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/JobStatusReq"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Job status event emitted",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/MeshResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Invalid status or missing field",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthenticated",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Insufficient scope",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Server error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        },
-        "summary": "Update Job Status",
-        "x-codeSamples": [
-          {
-            "lang": "bash",
-            "label": "curl",
-            "source": "curl -X POST http://localhost:9315/api/v1/jobs/01J3Z5ZQXAM3E4T7W/status \\\n  -H \"Authorization: Bearer $SHIP_TOKEN\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\"status\":\"dispatched\",\"worktree\":\"/tmp/ws-write-readme\"}'"
-          },
-          {
-            "lang": "javascript",
-            "label": "fetch",
-            "source": "const res = await fetch(\"http://localhost:9315/api/v1/jobs/01J3Z5ZQXAM3E4T7W/status\", {\n  method: \"POST\",\n  headers: {\n    \"Authorization\": `Bearer ${process.env.SHIP_TOKEN}`,\n    \"Content-Type\": \"application/json\",\n  },\n  body: JSON.stringify({\n    \"status\": \"dispatched\",\n    \"worktree\": \"/tmp/ws-write-readme\"\n  }),\n});\nconst data = await res.json();"
-          }
-        ]
-      }
-    },
-    "/api/v1/jobs/{slug}/step-done": {
-      "post": {
-        "tags": [
-          "runtime"
-        ],
-        "summary": "Job Step Done",
-        "operationId": "jobStepDone",
-        "parameters": [
-          {
-            "name": "slug",
-            "in": "path",
-            "description": "Job slug",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/StepDoneReq"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Step-done event emitted",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/MeshResponse"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Invalid request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthenticated",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Job or active step not found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Server error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        },
-        "description": "POST /api/v1/jobs/{slug}/step-done — agent declares the current pipeline step\ncomplete. Daemon resolves the active step from the projection, builds a\n`step.done_declared` envelope, and routes it through the kernel.",
-        "x-codeSamples": [
-          {
-            "lang": "bash",
-            "label": "curl",
-            "source": "curl -X POST http://localhost:9315/api/v1/jobs/write-readme/step-done \\\n  -H \"Authorization: Bearer $SHIP_TOKEN\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\"summary\":\"Compiled and tests pass.\",\"outputs\":{\"artifact\":\"build.tar.gz\"}}'"
-          },
-          {
-            "lang": "javascript",
-            "label": "fetch",
-            "source": "const res = await fetch(\"http://localhost:9315/api/v1/jobs/write-readme/step-done\", {\n  method: \"POST\",\n  headers: {\n    \"Authorization\": `Bearer ${process.env.SHIP_TOKEN}`,\n    \"Content-Type\": \"application/json\",\n  },\n  body: JSON.stringify({\n    \"summary\": \"Compiled and tests pass.\",\n    \"outputs\": {\n      \"artifact\": \"build.tar.gz\"\n    }\n  }),\n});\nconst data = await res.json();"
           }
         ]
       }

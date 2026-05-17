@@ -77,7 +77,7 @@ fn is_safe_slug(slug: &str) -> bool {
 #[utoipa::path(
     operation_id = "listJobs",
     get,
-    path = "/api/v1/jobs",
+    path = "/api/v1/agent_sessions",
     responses(
         (status = 200, body = MeshResponse),
         (status = 401, description = "unauthorized", body = crate::wire::ErrorResponse),
@@ -246,7 +246,7 @@ pub struct EventSummary {
 #[utoipa::path(
     operation_id = "getJobDetail",
     get,
-    path = "/api/v1/jobs/{job_id}",
+    path = "/api/v1/agent_sessions/{job_id}",
     responses(
         (status = 200, body = MeshResponse),
         (status = 401, description = "unauthorized", body = crate::wire::ErrorResponse),
@@ -335,7 +335,7 @@ pub async fn get_job_detail(
 #[utoipa::path(
     operation_id = "createJob",
     post,
-    path = "/api/v1/jobs",
+    path = "/api/v1/agent_sessions",
     request_body = CreateJobRequest,
     responses(
         (status = 200, body = MeshResponse),
@@ -450,7 +450,7 @@ pub(crate) fn default_cancel_reason() -> String {
 #[utoipa::path(
     operation_id = "cancelJob",
     post,
-    path = "/api/v1/jobs/{slug}/cancel",
+    path = "/api/v1/agent_sessions/{slug}/cancel",
     request_body = CancelJobRequest,
     responses(
         (status = 200, body = MeshResponse),
@@ -563,7 +563,7 @@ pub struct JobEndRequest {
 #[utoipa::path(
     operation_id = "endJob",
     post,
-    path = "/api/v1/jobs/end",
+    path = "/api/v1/agent_sessions/end",
     request_body = JobEndRequest,
     responses(
         (status = 200, body = MeshResponse),

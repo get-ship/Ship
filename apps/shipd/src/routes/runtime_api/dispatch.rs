@@ -58,14 +58,14 @@ pub struct DispatchRequest {
     pub depends_on: Option<Vec<String>>,
 }
 
-/// POST /api/v1/jobs/dispatch
+/// POST /api/v1/agent_sessions/dispatch
 ///
 /// UI-facing dispatch — mirrors `ship run` on the CLI. Loads the
 /// named pipeline, generates slug/branch/agent, and emits
 /// `job.created`. The orchestrator picks it up from there.
 #[utoipa::path(
     post,
-    path = "/api/v1/jobs/dispatch",
+    path = "/api/v1/agent_sessions/dispatch",
     request_body = DispatchRequest,
     responses((status = 200, body = MeshResponse)),
     tag = "runtime"

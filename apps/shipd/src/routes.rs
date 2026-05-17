@@ -479,28 +479,28 @@ pub enum Route {
 
     // ── Jobs ─────────────────────────────────────────────────────────────
 
-    /// @route GET "/api/v1/jobs"
+    /// @route GET "/api/v1/agent_sessions"
     ListJobs,
 
-    /// @route POST "/api/v1/jobs/dispatch"
+    /// @route POST "/api/v1/agent_sessions/dispatch"
     DispatchPipeline,
 
-    /// @route GET "/api/v1/jobs/{job_id}"
+    /// @route GET "/api/v1/agent_sessions/{job_id}"
     GetJob { job_id: String },
 
-    /// @route POST "/api/v1/jobs/end"
+    /// @route POST "/api/v1/agent_sessions/end"
     EndJob,
 
-    /// @route POST "/api/v1/jobs/{slug}/cancel"
+    /// @route POST "/api/v1/agent_sessions/{slug}/cancel"
     CancelJob { slug: String },
 
-    /// @route POST "/api/v1/jobs/{job_id}/status"
+    /// @route POST "/api/v1/agent_sessions/{job_id}/status"
     JobStatusUpdate { job_id: String },
 
-    /// @route POST "/api/v1/jobs/{slug}/step-done"
+    /// @route POST "/api/v1/agent_sessions/{slug}/step-done"
     JobStepDone { slug: String },
 
-    /// @route GET "/api/v1/jobs/{slug}/log/stream"
+    /// @route GET "/api/v1/agent_sessions/{slug}/log/stream"
     StreamJobLog { slug: String },
 
     // ── Process projection / events polling / daemon status (slice 6) ────

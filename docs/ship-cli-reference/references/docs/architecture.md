@@ -115,9 +115,9 @@ These commands emit events via the init-on-first-use `KernelRouter` — `try_ini
 
 These commands POST to `http://127.0.0.1:{port}` using the daemon token.
 
-- `ship run <pipeline>` — POSTs to `/api/v1/jobs/dispatch` (see [Architecture: ship run trace](/architecture/#ship-run-end-to-end-trace)).
-- `ship jobs` — GETs `/api/v1/jobs` for the current projection.
-- `ship job <slug>` — single-job operations. The only subcommand today is `cancel` (POSTs `/api/v1/jobs/{slug}/cancel`).
+- `ship run <pipeline>` — POSTs to `/api/v1/agent_sessions/dispatch` (see [Architecture: ship run trace](/architecture/#ship-run-end-to-end-trace)).
+- `ship jobs` — GETs `/api/v1/agent_sessions` for the current projection.
+- `ship job <slug>` — single-job operations. The only subcommand today is `cancel` (POSTs `/api/v1/agent_sessions/{slug}/cancel`).
 - `ship workspace *` — some subcommands go through the daemon for pipeline coordination.
 - `ship hook <trigger>` — emits hook events via daemon (for hook scripts invoked by harnesses).
 - `ship tail` — SSE / long-poll for live events.

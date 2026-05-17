@@ -1,4 +1,4 @@
-//! POST /api/v1/jobs/{job_id}/status — agent-driven lifecycle updates.
+//! POST /api/v1/agent_sessions/{job_id}/status — agent-driven lifecycle updates.
 //!
 //! MCP's `update_job` tool POSTs here instead of writing to the event store
 //! directly. The daemon builds the appropriate `job.*` envelope, persists it
@@ -31,7 +31,7 @@ pub struct JobStatusReq {
 #[utoipa::path(
     operation_id = "updateJobStatus",
     post,
-    path = "/api/v1/jobs/{job_id}/status",
+    path = "/api/v1/agent_sessions/{job_id}/status",
     request_body = JobStatusReq,
     params(("job_id" = String, Path, description = "Job ULID")),
     responses(
@@ -187,13 +187,13 @@ pub struct StepDoneReq {
     pub outputs: std::collections::BTreeMap<String, String>,
 }
 
-/// POST /api/v1/jobs/{slug}/step-done — agent declares the current pipeline step
+/// POST /api/v1/agent_sessions/{slug}/step-done — agent declares the current pipeline step
 /// complete. Daemon resolves the active step from the projection, builds a
 /// `step.done_declared` envelope, and routes it through the kernel.
 #[utoipa::path(
     operation_id = "jobStepDone",
     post,
-    path = "/api/v1/jobs/{slug}/step-done",
+    path = "/api/v1/agent_sessions/{slug}/step-done",
     request_body = StepDoneReq,
     params(("slug" = String, Path, description = "Job slug")),
     responses(
