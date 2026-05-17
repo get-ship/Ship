@@ -1,7 +1,10 @@
 import { Hono } from 'hono'
 import { getAuth } from '../lib/auth.js'
 import { requireSession } from '../lib/session-auth.js'
-import { signJwt, verifyJwt, getSecret, type JwtPayload } from '../lib/cloud-auth.js'
+// CLI auth tokens are Better Auth API keys (migrated 2026-05 from custom
+// HS256 JWTs). Mint via auth.api.createApiKey in the PKCE exchange handler.
+// Validation runs through Better Auth's session middleware automatically
+// (enableSessionForAPIKeys is on; see ../lib/auth.ts).
 import { signDaemonJwt, buildJwks } from '../lib/daemon-jwt.js'
 import { getAuthDb, nanoid } from '../lib/d1.js'
 import { checkRateLimit, rateLimitResponse } from '../lib/rate-limit.js'
@@ -158,6 +161,14 @@ async function sha256Base64url(input: string): Promise<string> {
   return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
 }
 
+// Token exchange — PKCE: trades a one-time auth code (created by the CLI
+// browser callback) for a Better Auth API key. The CLI stores the
+// returned `key` and sends it as `Authorization: Bearer <key>` (or
+// `x-api-key: <key>`) on subsequent gateway calls.
+//
+// Migrated 2026-05 from custom HS256 JWT → Better Auth API key. Migration
+// note: existing daemons holding HS256 JWTs are invalidated; they re-login
+// via `ship login` to get a key.
 auth.post('/api/auth/token', async (c) => {
   const rl = await checkRateLimit(c.req.raw, 'RATE_LIMITER_CLAIM', 60, c.env)
   if (!rl.allowed) return rateLimitResponse(rl.retryAfter)
@@ -174,9 +185,6 @@ auth.post('/api/auth/token', async (c) => {
   const db = getAuthDb(c.env)
   if (!db) return c.json({ error: 'Database unavailable' }, 503)
 
-  const secret = getSecret(c.env)
-  if (!secret) return c.json({ error: 'Server misconfiguration: missing secret' }, 500)
-
   const claim = await db.prepare('UPDATE cli_auth_codes SET used = 1 WHERE code = ? AND used = 0').bind(code).run()
   if (!claim.meta.changes) return c.json({ error: 'Invalid or already-used auth code' }, 401)
 
@@ -191,54 +199,47 @@ auth.post('/api/auth/token', async (c) => {
   const computed = await sha256Base64url(verifier)
   if (computed !== row.code_challenge) return c.json({ error: 'PKCE verification failed' }, 401)
 
-  const token = await signJwt({ sub: row.user_id, org: row.user_id }, secret)
-  return c.json({ token })
+  const a = await getAuth(c.env)
+  const result = await a.api.createApiKey({
+    body: {
+      userId: row.user_id,
+      name: `ship-cli ${new Date().toISOString().slice(0, 10)}`,
+      prefix: 'ship_',
+      // 1-year default TTL. Daemons re-mint via `ship login` when expired.
+      expiresIn: 365 * 24 * 60 * 60,
+      metadata: { issued_via: 'pkce', issued_at: Date.now() },
+    },
+  })
+
+  return c.json({
+    key: result.key,
+    user_id: row.user_id,
+    expires_at: result.expiresAt ? new Date(result.expiresAt).getTime() / 1000 : null,
+  })
 })
 
 // ── Token refresh ─────────────────────────────────────────────────────────────
-
-function decodeJwtPayload(token: string): JwtPayload | null {
-  const parts = token.split('.')
-  if (parts.length !== 3) return null
-  try {
-    const padded = parts[1].replace(/-/g, '+').replace(/_/g, '/').padEnd(parts[1].length + ((4 - (parts[1].length % 4)) % 4), '=')
-    return JSON.parse(atob(padded)) as JwtPayload
-  } catch {
-    return null
-  }
-}
-
-const GRACE_WINDOW_SECONDS = 30 * 24 * 60 * 60
+// With Better Auth API keys (1-year TTL by default), the daemon mints a
+// fresh key by re-running `ship login` rather than refreshing in-place.
+// This endpoint is now a thin "is my key still valid + how long left"
+// check; it doesn't extend or re-issue. Callers needing a longer-lived
+// key call POST /api/auth/token via the PKCE flow again.
 
 auth.post('/api/auth/refresh', async (c) => {
   const rl = await checkRateLimit(c.req.raw, 'RATE_LIMITER_CLAIM', 60, c.env)
   if (!rl.allowed) return rateLimitResponse(rl.retryAfter)
 
-  const authHeader = c.req.header('Authorization')
-  if (!authHeader?.startsWith('Bearer ')) return c.json({ error: 'Missing Authorization header' }, 401)
-  const token = authHeader.slice(7)
+  const session = await requireSession(c.req.raw, c.env)
+  if (session instanceof Response) return session
 
-  const secret = getSecret(c.env)
-  if (!secret) return c.json({ error: 'Server misconfiguration: missing secret' }, 500)
-
-  const db = getAuthDb(c.env)
-  if (!db) return c.json({ error: 'Database unavailable' }, 503)
-
-  let payload = await verifyJwt(token, secret)
-  if (!payload) {
-    const raw = decodeJwtPayload(token)
-    if (!raw?.sub || !raw?.org || typeof raw.iat !== 'number') return c.json({ error: 'Invalid token' }, 401)
-    if (Math.floor(Date.now() / 1000) - raw.iat > GRACE_WINDOW_SECONDS) {
-      return c.json({ error: 'Session expired, please log in again' }, 401)
-    }
-    payload = raw
-  }
-
-  const user = await db.prepare('SELECT id FROM user WHERE id = ?').bind(payload.sub).first<{ id: string }>()
-  if (!user) return c.json({ error: 'User not found' }, 401)
-
-  const newToken = await signJwt({ sub: payload.sub, org: payload.org }, secret)
-  return c.json({ token: newToken })
+  // requireSession resolves the API key via the plugin's middleware.
+  // If we get here, the key is valid; report the remaining TTL.
+  return c.json({
+    ok: true,
+    user_id: session.sub,
+    refresh_via: 'pkce',
+    note: 'API keys do not refresh in place; run `ship login` to get a fresh key.',
+  })
 })
 
 // ── Daemon attestation ────────────────────────────────────────────────────────

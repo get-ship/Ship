@@ -11,6 +11,7 @@
     "db:generate": "bun run db:generate:auth && bun run db:generate:registry"
   },
   "dependencies": {
+    "@better-auth/api-key": "^1.6.11",
     "@better-auth/stripe": "^1.6.11",
     "@ship-cloud/types": "workspace:*",
     "@ship/sdk": "workspace:*",

@@ -19,12 +19,7 @@ import {
   type ThemeId,
 } from '../lib/themes';
 
-type SceneKey = 'session' | 'view';
 type HeadlineKey = 'vibe' | 'build' | 'thirty' | 'reactive';
-type CenterpieceKey = 'auto' | SceneKey;
-
-const SCENES: SceneKey[] = ['session', 'view'];
-const AUTO_MS = 8000;
 
 const HEADLINES: Record<HeadlineKey, { html: string; sub: string }> = {
   vibe: {
@@ -47,107 +42,8 @@ const HEADLINES: Record<HeadlineKey, { html: string; sub: string }> = {
 
 interface State {
   headline: HeadlineKey;
-  centerpiece: CenterpieceKey;
 }
-const state: State = { headline: 'vibe', centerpiece: 'auto' };
-
-// ---- plate scenes --------------------------------------------------
-
-const scenes = document.querySelectorAll<HTMLElement>('.scene');
-const tabButtons = document.querySelectorAll<HTMLButtonElement>('.plate-tabs button[data-scene-btn]');
-const progressBar = document.querySelector<HTMLElement>('[data-plate-progress]');
-const plateEl = document.querySelector<HTMLElement>('#landing-plate');
-let autoTimer: number | null = null;
-let progressStart = 0;
-let progressRaf: number | null = null;
-let isPaused = false;
-let pausedAt = 0;
-
-function showScene(name: SceneKey) {
-  for (const s of scenes) s.classList.toggle('is-active', s.dataset.scene === name);
-  for (const b of tabButtons) b.setAttribute('aria-selected', b.dataset.sceneBtn === name ? 'true' : 'false');
-  const pill = document.querySelector<HTMLElement>('[data-theme-pill-label]');
-  if (pill) pill.dataset.scene = name;
-}
-
-function tickProgress() {
-  if (!progressBar) return;
-  if (isPaused) { progressRaf = null; return; }
-  const elapsed = Math.min(performance.now() - progressStart, AUTO_MS);
-  progressBar.style.width = `${(elapsed / AUTO_MS) * 100}%`;
-  progressRaf = requestAnimationFrame(tickProgress);
-}
-
-function resetProgress() {
-  if (!progressBar) return;
-  progressStart = performance.now();
-  progressBar.style.width = '0%';
-  if (progressRaf) cancelAnimationFrame(progressRaf);
-  progressRaf = requestAnimationFrame(tickProgress);
-}
-
-function stopAutoMorph() {
-  if (autoTimer !== null) {
-    window.clearInterval(autoTimer);
-    autoTimer = null;
-  }
-  if (progressRaf) {
-    cancelAnimationFrame(progressRaf);
-    progressRaf = null;
-  }
-  if (progressBar) progressBar.style.width = '0%';
-}
-
-function startAutoMorph() {
-  stopAutoMorph();
-  const activeScene = document.querySelector<HTMLElement>('.scene.is-active');
-  let idx = Math.max(0, SCENES.indexOf((activeScene?.dataset.scene ?? 'session') as SceneKey));
-  showScene(SCENES[idx]);
-  resetProgress();
-  autoTimer = window.setInterval(() => {
-    if (isPaused) return;
-    idx = (idx + 1) % SCENES.length;
-    showScene(SCENES[idx]);
-    resetProgress();
-  }, AUTO_MS);
-}
-
-if (plateEl) {
-  plateEl.addEventListener('mouseenter', () => {
-    if (state.centerpiece !== 'auto') return;
-    isPaused = true;
-    pausedAt = performance.now();
-    if (progressRaf) { cancelAnimationFrame(progressRaf); progressRaf = null; }
-  });
-  plateEl.addEventListener('mouseleave', () => {
-    if (state.centerpiece !== 'auto') return;
-    if (!isPaused) return;
-    isPaused = false;
-    // Resume the progress bar where it left off so the pause feels honest.
-    progressStart += performance.now() - pausedAt;
-    progressRaf = requestAnimationFrame(tickProgress);
-  });
-}
-
-function setCenterpiece(key: CenterpieceKey) {
-  state.centerpiece = key;
-  for (const b of document.querySelectorAll<HTMLButtonElement>('[data-tweak-group="centerpiece"] button')) {
-    b.setAttribute('aria-pressed', b.dataset.centerpiece === key ? 'true' : 'false');
-  }
-  if (key === 'auto') startAutoMorph();
-  else {
-    stopAutoMorph();
-    showScene(key);
-  }
-  persistEdit();
-}
-
-for (const b of tabButtons) {
-  b.addEventListener('click', () => {
-    const key = b.dataset.sceneBtn as SceneKey | undefined;
-    if (key) setCenterpiece(key);
-  });
-}
+const state: State = { headline: 'vibe' };
 
 // ---- headline ------------------------------------------------------
 
@@ -169,12 +65,6 @@ for (const b of document.querySelectorAll<HTMLButtonElement>('[data-tweak-group=
   b.addEventListener('click', () => {
     const k = b.dataset.headline as HeadlineKey | undefined;
     if (k) setHeadline(k);
-  });
-}
-for (const b of document.querySelectorAll<HTMLButtonElement>('[data-tweak-group="centerpiece"] button')) {
-  b.addEventListener('click', () => {
-    const k = b.dataset.centerpiece as CenterpieceKey | undefined;
-    if (k) setCenterpiece(k);
   });
 }
 
@@ -214,9 +104,8 @@ document.addEventListener('keydown', (e) => {
   if (target && target.matches('input, textarea, [contenteditable="true"]')) return;
   if (e.metaKey || e.ctrlKey || e.altKey) return;
 
-  if (e.key === '1') setCenterpiece('session');
-  else if (e.key === '2') setCenterpiece('view');
-  else if (e.key === 't' || e.key === 'T') {
+  // `t` cycles themes — useful for the Claude artifact edit-mode flow.
+  if (e.key === 't' || e.key === 'T') {
     const ids = THEMES.map((t) => t.id);
     const current = readStoredTheme();
     const next = ids[(ids.indexOf(current) + 1) % ids.length];
@@ -248,10 +137,7 @@ window.addEventListener('message', (e) => {
 function persistEdit() {
   try {
     window.parent.postMessage(
-      {
-        type: '__edit_mode_set_keys',
-        edits: { headline: state.headline, centerpiece: state.centerpiece },
-      },
+      { type: '__edit_mode_set_keys', edits: { headline: state.headline } },
       '*',
     );
   } catch {
@@ -267,7 +153,6 @@ try {
 
 // ---- init ----------------------------------------------------------
 
-// Skip initial setHeadline — the default copy is rendered server-side
-// in Hero.astro to avoid an FOUC where the H1 is empty until JS runs.
-// The headline tweak controls still call setHeadline on click.
-setCenterpiece(state.centerpiece);
+// Headline default copy is rendered server-side in Hero.astro to avoid an
+// FOUC where the H1 is empty until JS runs. The headline tweak controls
+// still call setHeadline on click for the Claude artifact flow.

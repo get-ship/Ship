@@ -26,32 +26,63 @@ const points = [
           <span class="vp-chrome-dot r"></span>
           <span class="vp-chrome-dot y"></span>
           <span class="vp-chrome-dot g"></span>
-          <div class="url">today · dashboard</div>
-          <span class="vp-live-top">● live</span>
+          <div class="url">inbox · daily</div>
+          <sui-badge tone="success" variant="soft" size="sm">
+            <sui-status-dot slot="leading" tone="success" pulse size="sm"></sui-status-dot>
+            live
+          </sui-badge>
         </div>
         <div class="body">
-          <div class="vp-card">
-            <div class="vp-card-head">
-              <div class="vp-title">Today</div>
-              <div class="vp-live">live · reactive</div>
+          <sui-toolbar class="vp-bar" gap="sm" justify="between">
+            <div class="vp-title-wrap">
+              <div class="vp-title">Inbox triage</div>
+              <span class="vp-sub">view · inbox.daily</span>
             </div>
-            <div class="vp-kpis">
-              <div class="vp-kpi"><div class="lbl">RUNS / WK</div><div class="val">128<span class="dlt">+12</span></div></div>
-              <div class="vp-kpi"><div class="lbl">ON BUDGET</div><div class="val">94%<span class="dlt">+3</span></div></div>
-              <div class="vp-kpi"><div class="lbl">AGENTS</div><div class="val">8<span class="dlt dim">3 idle</span></div></div>
+            <sui-badge tone="primary" variant="soft" size="sm">14 items</sui-badge>
+          </sui-toolbar>
+
+          <div class="vp-progress">
+            <div class="vp-progress-label">
+              <span><b>Reviewed</b></span>
+              <span class="vp-progress-count">11 / 14</span>
             </div>
-            <div class="vp-chart">
-              <div class="vp-chart-head"><b>Last 7 days</b><span>runs</span></div>
-              <svg viewBox="0 0 300 70" preserveAspectRatio="none">
-                <defs><linearGradient id="landing-vpArea" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--primary)" stop-opacity="0.35"></stop><stop offset="1" stop-color="var(--primary)" stop-opacity="0"></stop></linearGradient></defs>
-                <path fill="url(#landing-vpArea)" d="M0 46 L40 40 L75 44 L115 22 L155 28 L195 16 L240 18 L300 8 L300 70 L0 70 Z"></path>
-                <path fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round" d="M0 46 L40 40 L75 44 L115 22 L155 28 L195 16 L240 18 L300 8"></path>
-              </svg>
-            </div>
-            <div class="vp-row"><span class="vp-status done">DONE</span><span class="vp-name">weekly-digest</span><span class="vp-meta">1m 42s</span></div>
-            <div class="vp-row"><span class="vp-status done">DONE</span><span class="vp-name">pr-review</span><span class="vp-meta">48s</span></div>
-            <div class="vp-row"><span class="vp-status">RUN</span><span class="vp-name">inbox-triage</span><span class="vp-meta">live</span></div>
+            <sui-progress value="79" tone="primary" label="Items reviewed"></sui-progress>
           </div>
+
+          <div class="vp-chart-wrap">
+            <div class="vp-chart-head">
+              <span class="vp-chart-title">Daily volume</span>
+              <span class="vp-chart-meta">last 7 days</span>
+            </div>
+            <sui-bar-chart
+              data="32,48,42,68,55,82,72"
+              tone="primary"
+              height="80"
+              label="Items per day, last seven days"
+            ></sui-bar-chart>
+          </div>
+
+          <sui-table class="vp-table" density="compact" hoverable label="Recent items">
+            <table>
+              <tbody>
+                <tr>
+                  <td><sui-badge tone="success" variant="soft" size="sm">done</sui-badge></td>
+                  <td><b>Investor digest</b></td>
+                  <td class="num">5 inputs</td>
+                </tr>
+                <tr>
+                  <td><sui-badge tone="primary" variant="soft" size="sm">running</sui-badge></td>
+                  <td><b>PR triage</b></td>
+                  <td class="num">#812</td>
+                </tr>
+                <tr>
+                  <td><sui-badge variant="outline" size="sm">queued</sui-badge></td>
+                  <td><b>Bug reports</b></td>
+                  <td class="num">4 items</td>
+                </tr>
+              </tbody>
+            </table>
+          </sui-table>
         </div>
       </div>
 
@@ -104,56 +135,69 @@ const points = [
     padding: 3px 8px; color: var(--plate-ink);
     flex: 1; font-size: 10.5px;
   }
-  .vp-live-top { color: var(--primary); }
-  .body { padding: 22px; display: grid; gap: 14px; }
-  .vp-card {
-    border: 1px solid var(--plate-line);
-    border-radius: 12px; padding: 16px;
-    background: color-mix(in oklab, var(--plate) 92%, var(--page-bg));
-    display: grid; gap: 10px;
-  }
-  .vp-card-head { display: flex; justify-content: space-between; align-items: baseline; }
+  .body { padding: 20px; display: flex; flex-direction: column; gap: 14px; }
+
+  .vp-bar { --toolbar-py: 0; align-items: center; }
+  .vp-title-wrap { display: flex; align-items: baseline; gap: 12px; }
   .vp-title {
     font-family: var(--font-display);
     font-size: 22px; font-weight: 600;
     letter-spacing: -0.02em; color: var(--plate-ink);
   }
-  .vp-live {
+  .vp-sub {
     font-family: 'JetBrains Mono', ui-monospace, monospace;
-    font-size: 10px; padding: 3px 8px; border-radius: 999px;
-    background: color-mix(in oklab, var(--primary) 15%, transparent);
-    color: var(--primary);
-    letter-spacing: 0.08em; text-transform: uppercase;
+    font-size: 10.5px; color: var(--plate-sub);
   }
-  .vp-kpis { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
-  .vp-kpi { border: 1px solid var(--plate-line); border-radius: 12px; padding: 12px; background: color-mix(in oklab, var(--plate) 92%, var(--page-bg)); }
-  .vp-kpi .lbl { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--plate-sub); }
-  .vp-kpi .val { display: flex; align-items: baseline; gap: 6px; margin-top: 6px; font-family: var(--font-display); font-weight: 600; font-size: 24px; color: var(--plate-ink); letter-spacing: -0.02em; }
-  .vp-kpi .dlt { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10.5px; color: var(--success); }
-  .vp-kpi .dlt.dim { color: var(--plate-sub); }
 
-  .vp-chart { border: 1px solid var(--plate-line); border-radius: 12px; padding: 14px; background: color-mix(in oklab, var(--plate) 92%, var(--page-bg)); display: grid; grid-template-rows: auto 1fr; gap: 10px; min-height: 120px; }
-  .vp-chart-head { display: flex; justify-content: space-between; font-size: 11.5px; color: var(--plate-sub); font-family: 'JetBrains Mono', ui-monospace, monospace; }
-  .vp-chart-head b { color: var(--plate-ink); font-weight: 600; font-family: var(--font-body); font-size: 12.5px; }
-  .vp-chart svg { width: 100%; height: 100%; }
-
-  .vp-row {
-    display: grid; grid-template-columns: 80px 1fr auto;
-    gap: 12px; align-items: center;
-    padding: 10px; border-radius: 8px;
-    background: var(--chip-bg); font-size: 12.5px;
+  .vp-progress {
+    padding: 12px 14px;
+    border: 1px solid var(--plate-line); border-radius: 10px;
+    background: color-mix(in oklab, var(--plate) 94%, var(--page-bg));
+    display: flex; flex-direction: column; gap: 8px;
   }
-  .vp-status {
+  .vp-progress-label {
+    display: flex; justify-content: space-between; align-items: baseline;
+    font-size: 12px; color: var(--plate-muted);
+  }
+  .vp-progress-label b { color: var(--plate-ink); font-weight: 600; }
+  .vp-progress-count {
     font-family: 'JetBrains Mono', ui-monospace, monospace;
-    font-size: 10px; letter-spacing: 0.1em;
-    padding: 3px 8px; border-radius: 999px;
-    background: color-mix(in oklab, var(--primary) 15%, transparent);
-    color: var(--primary); text-align: center;
+    font-size: 11px; color: var(--plate-sub);
   }
-  .vp-status.done {
-    background: color-mix(in oklab, var(--success) 15%, transparent);
-    color: var(--success);
+
+  .vp-chart-wrap {
+    padding: 14px;
+    border: 1px solid var(--plate-line); border-radius: 10px;
+    background: color-mix(in oklab, var(--plate) 94%, var(--page-bg));
   }
-  .vp-name { font-weight: 600; color: var(--plate-ink); }
-  .vp-meta { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10.5px; color: var(--plate-sub); }
+  .vp-chart-head {
+    display: flex; justify-content: space-between; align-items: baseline;
+    margin-bottom: 6px;
+  }
+  .vp-chart-title {
+    font-family: var(--font-body); font-weight: 600;
+    font-size: 12.5px; color: var(--plate-ink);
+  }
+  .vp-chart-meta {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 10.5px; color: var(--plate-sub);
+  }
+  .vp-chart-wrap sui-bar-chart { width: 100%; display: block; }
+
+  .vp-table { --row-py: 8px; --row-px: 12px; }
+  .vp-table table { width: 100%; border-collapse: collapse; }
+  .vp-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--plate-line);
+    font-size: 12.5px;
+    color: var(--plate-muted);
+  }
+  .vp-table tr:last-child td { border-bottom: none; }
+  .vp-table td b { color: var(--plate-ink); font-weight: 500; }
+  .vp-table td.num {
+    text-align: right;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 11px;
+    color: var(--plate-sub);
+  }
 </style>

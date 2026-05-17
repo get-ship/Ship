@@ -81,6 +81,37 @@ export const cliAuthCodes = sqliteTable('cli_auth_codes', {
 })
 
 // ---------------------------------------------------------------------------
+// Better Auth API Key plugin — column names are SACRED, do not rename.
+// The plugin (@better-auth/api-key) reads/writes this table directly.
+// Issued via `auth.api.createApiKey(...)` from server routes (PKCE exchange).
+// Validated automatically by the plugin's request middleware.
+// ---------------------------------------------------------------------------
+
+export const apikey = sqliteTable('apikey', {
+  id: text('id').notNull().primaryKey(),
+  name: text('name'),
+  start: text('start'),                         // first chars for UI display
+  prefix: text('prefix'),                       // plaintext, e.g. 'ship_'
+  key: text('key').notNull(),                   // hashed
+  userId: text('userId').notNull().references(() => user.id),
+  refillInterval: integer('refillInterval'),
+  refillAmount: integer('refillAmount'),
+  lastRefillAt: integer('lastRefillAt', { mode: 'timestamp' }),
+  enabled: integer('enabled', { mode: 'boolean' }),
+  rateLimitEnabled: integer('rateLimitEnabled', { mode: 'boolean' }),
+  rateLimitTimeWindow: integer('rateLimitTimeWindow'),
+  rateLimitMax: integer('rateLimitMax'),
+  requestCount: integer('requestCount'),
+  remaining: integer('remaining'),
+  lastRequest: integer('lastRequest', { mode: 'timestamp' }),
+  expiresAt: integer('expiresAt', { mode: 'timestamp' }),
+  createdAt: integer('createdAt', { mode: 'timestamp' }).notNull(),
+  updatedAt: integer('updatedAt', { mode: 'timestamp' }).notNull(),
+  permissions: text('permissions'),             // JSON
+  metadata: text('metadata'),                   // JSON
+})
+
+// ---------------------------------------------------------------------------
 // Better Auth Stripe plugin — column names are SACRED, do not rename.
 // The plugin (better-auth/plugins/stripe) reads/writes this table directly.
 // ---------------------------------------------------------------------------

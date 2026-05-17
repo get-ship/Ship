@@ -41,7 +41,6 @@
     "GOOGLE_CLIENT_SECRET": "",
     "SLACK_CLIENT_ID": "",
     "SLACK_CLIENT_SECRET": "",
-    "JWT_SECRET": "",
     // Stripe — STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET must be set via
     // `wrangler secret put` per env. STRIPE_PRICE_PRO is the Price ID from
     // the Stripe dashboard for the Pro plan; per-env (test vs live mode).

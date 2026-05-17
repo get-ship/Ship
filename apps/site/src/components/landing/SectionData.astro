@@ -9,15 +9,15 @@ const fields = [
   { name: 'id', type: 'uuid', flag: 'pk' },
   { name: 'agent', type: 'ref → agents', flag: 'idx' },
   { name: 'status', type: 'enum', flag: 'idx' },
-  { name: 'agent', type: 'ref → agents', flag: '·' },
   { name: 'started_at', type: 'datetime', flag: 'idx' },
-  { name: 'artifact', type: 'ref → artifacts?', flag: '·' },
+  { name: 'artifact', type: 'ref → artifacts?', flag: null },
+  { name: 'duration_ms', type: 'integer', flag: null },
 ];
 const artifacts = [
-  { cls: 'md', name: 'digest.md', size: '4.2 kb' },
-  { cls: 'pdf', name: 'board-prep.pdf', size: '112 kb' },
-  { cls: 'img', name: 'runs-week-42.png', size: '64 kb' },
-  { cls: 'csv', name: 'triage.csv', size: '18 kb' },
+  { kind: 'md', name: 'digest.md', size: '4.2 kb', tone: 'primary' as const },
+  { kind: 'pdf', name: 'board-prep.pdf', size: '112 kb', tone: 'destructive' as const },
+  { kind: 'png', name: 'runs-week-42.png', size: '64 kb', tone: 'accent' as const },
+  { kind: 'csv', name: 'triage.csv', size: '18 kb', tone: 'success' as const },
 ];
 ---
 
@@ -35,27 +35,35 @@ const artifacts = [
         <div class="data-card">
           <div class="data-head">
             <div class="data-mono"><b>runs</b> · collection</div>
-            <div class="data-meta">8 fields · 3 indexes</div>
+            <sui-badge tone="primary" variant="soft" size="sm">6 fields · 3 indexes</sui-badge>
           </div>
-          <div class="field-list">
-            {fields.map((f) => (
-              <div class="fl-row">
-                <span class="fl-name">{f.name}</span>
-                <span class="fl-type">{f.type}</span>
-                <span class={`fl-flag ${f.flag === 'pk' ? 'pk' : ''}`}>{f.flag}</span>
-              </div>
-            ))}
-          </div>
+          <sui-table class="data-sui-table" density="compact" hoverable label="Runs collection schema">
+            <table>
+              <tbody>
+                {fields.map((f) => (
+                  <tr>
+                    <td class="fl-name"><b>{f.name}</b></td>
+                    <td class="fl-type">{f.type}</td>
+                    <td class="fl-flag-cell">
+                      {f.flag === 'pk' && <sui-badge tone="primary" variant="soft" size="sm">pk</sui-badge>}
+                      {f.flag === 'idx' && <sui-badge variant="outline" size="sm">idx</sui-badge>}
+                      {f.flag === null && <span class="fl-dash">—</span>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </sui-table>
         </div>
         <div class="data-card">
           <div class="data-head">
             <div class="data-mono"><b>artifacts</b> · this week</div>
-            <div class="data-meta">from weekly-digest</div>
+            <sui-badge variant="soft" size="sm">from weekly-digest</sui-badge>
           </div>
           <div class="artifact-list">
             {artifacts.map((a) => (
               <div class="art">
-                <span class={`art-ico ${a.cls}`}></span>
+                <sui-badge tone={a.tone} variant="soft" size="sm">{a.kind}</sui-badge>
                 <span class="art-name">{a.name}</span>
                 <span class="art-size">{a.size}</span>
               </div>
@@ -99,49 +107,39 @@ const artifacts = [
   .data-mono b { color: var(--plate-ink); font-weight: 600; }
   .data-meta { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10.5px; color: var(--plate-sub); }
 
-  .field-list, .artifact-list { padding: 4px 0; }
-  .fl-row {
-    display: grid; grid-template-columns: 1fr auto auto;
-    gap: 14px; padding: 11px 16px;
+  .data-sui-table { --row-py: 9px; --row-px: 16px; }
+  .data-sui-table table { width: 100%; border-collapse: collapse; }
+  .data-sui-table td {
+    padding: 10px 16px;
     border-top: 1px solid var(--plate-line);
-    align-items: center; font-size: 12.5px;
+    font-size: 12.5px;
+    color: var(--plate-muted);
   }
-  .fl-row:first-child { border-top: none; }
-  .fl-name { color: var(--plate-ink); font-weight: 500; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12px; }
-  .fl-type { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; color: var(--accent); }
-  .fl-flag {
+  .data-sui-table tr:first-child td { border-top: none; }
+  .fl-name {
     font-family: 'JetBrains Mono', ui-monospace, monospace;
-    font-size: 10px; padding: 2px 8px; border-radius: 999px;
-    background: var(--chip-bg); color: var(--plate-sub);
-    min-width: 32px; text-align: center;
+    font-size: 12px; color: var(--plate-muted);
   }
-  .fl-flag.pk {
-    background: color-mix(in oklab, var(--primary) 18%, transparent);
-    color: var(--primary);
+  .fl-name b { color: var(--plate-ink); font-weight: 500; }
+  .fl-type {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 11px; color: var(--accent);
+  }
+  .fl-flag-cell { text-align: right; }
+  .fl-dash {
+    color: var(--plate-sub);
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 12px;
   }
 
+  .artifact-list { padding: 4px 0; }
   .art {
-    display: grid; grid-template-columns: 22px 1fr auto;
+    display: grid; grid-template-columns: max-content 1fr auto;
     gap: 12px; padding: 10px 16px;
     border-top: 1px solid var(--plate-line);
     align-items: center; font-size: 12.5px;
   }
   .art:first-child { border-top: none; }
-  .art-ico {
-    width: 22px; height: 22px; border-radius: 5px;
-    display: inline-block; position: relative;
-  }
-  .art-ico.md { background: color-mix(in oklab, var(--primary) 20%, var(--chip-bg)); }
-  .art-ico.pdf { background: color-mix(in oklab, var(--destructive) 20%, var(--chip-bg)); }
-  .art-ico.img { background: color-mix(in oklab, var(--accent) 20%, var(--chip-bg)); }
-  .art-ico.csv { background: color-mix(in oklab, var(--success) 22%, var(--chip-bg)); }
-  .art-ico::after {
-    content: ""; position: absolute; inset: 5px 4px 4px 4px;
-    border-radius: 2px;
-    background: repeating-linear-gradient(to bottom,
-      color-mix(in oklab, var(--plate-ink) 30%, transparent) 0 1px,
-      transparent 1px 3px);
-  }
   .art-name { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12px; color: var(--plate-ink); }
   .art-size { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10.5px; color: var(--plate-sub); }
 </style>

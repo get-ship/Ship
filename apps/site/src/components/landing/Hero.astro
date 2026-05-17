@@ -122,9 +122,15 @@ import HeroPlate from './HeroPlate.astro';
   :global(.dark) .workswith-list .glyph-adaptive { filter: invert(1); }
 
   .cta-inner {
-    color: inherit; text-decoration: none;
+    color: inherit;
+    text-decoration: none;
     display: inline-flex; align-items: center; gap: 10px;
+    line-height: 1;
   }
-  .cta-inner .caret { transition: transform 180ms var(--ease-out); }
+  .cta-inner .caret {
+    flex: none;
+    display: block;
+    transition: transform 180ms var(--ease-out);
+  }
   sui-button:hover .cta-inner .caret { transform: translateX(3px); }
 </style>

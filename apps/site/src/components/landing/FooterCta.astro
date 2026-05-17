@@ -57,6 +57,19 @@
   .foot-cta p { font-size: 17px; color: var(--muted-ink); margin: 0; }
   .foot-ctas { justify-content: center; }
 
+  .foot-cta .cta-inner {
+    color: inherit;
+    text-decoration: none;
+    display: inline-flex; align-items: center; gap: 10px;
+    line-height: 1;
+  }
+  .foot-cta .caret {
+    flex: none;
+    display: block;
+    transition: transform 180ms var(--ease-out);
+  }
+  .foot-cta sui-button:hover .caret { transform: translateX(3px); }
+
   .foot-bottom {
     padding-top: 24px;
     border-top: 1px solid var(--rail);

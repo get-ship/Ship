@@ -32,9 +32,16 @@
 import { createAuthClient } from 'better-auth/client';
 import { stripeClient } from '@better-auth/stripe/client';
 
+// Gateway URL resolution
+// ──────────────────────
+//   1. PUBLIC_GATEWAY_URL env var if set — escape hatch (e.g. point at
+//      staging from a local dev session)
+//   2. dev mode → http://localhost:8787 — assumes you're running the gateway
+//      alongside via `cd apps/gateway && bun wrangler dev`
+//   3. prod build → https://api.getship.dev
 const GATEWAY_URL =
   (import.meta.env.PUBLIC_GATEWAY_URL as string | undefined) ??
-  (import.meta.env.DEV ? 'https://staging.getship.dev' : 'https://api.getship.dev');
+  (import.meta.env.DEV ? 'http://localhost:8787' : 'https://api.getship.dev');
 
 export const authClient = createAuthClient({
   baseURL: GATEWAY_URL,

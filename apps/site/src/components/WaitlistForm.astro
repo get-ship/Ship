@@ -41,7 +41,7 @@ const {
   // auth pointed at the same backend without re-deriving it.
   const GATEWAY_URL =
     (import.meta.env.PUBLIC_GATEWAY_URL as string | undefined) ??
-    (import.meta.env.DEV ? 'https://staging.getship.dev' : 'https://api.getship.dev');
+    (import.meta.env.DEV ? 'http://localhost:8787' : 'https://api.getship.dev');
 
   for (const form of document.querySelectorAll<HTMLFormElement>('[data-waitlist]')) {
     const input = form.querySelector<HTMLInputElement>('input[name="email"]')!;

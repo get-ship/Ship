@@ -1,13 +1,15 @@
-import { defineWorkersConfig } from '@cloudflare/vitest-pool-workers/config';
+import { cloudflareTest } from '@cloudflare/vitest-pool-workers';
+import { defineConfig } from 'vitest/config';
 
-export default defineWorkersConfig({
-  test: {
-    poolOptions: {
-      workers: {
-        wrangler: {
-          configPath: './wrangler.test.jsonc',
-        },
-      },
-    },
-  },
+// `@cloudflare/vitest-pool-workers` 0.16.x dropped the old
+// `defineWorkersConfig` helper. Tests now opt in via a `cloudflareTest`
+// vitest plugin alongside the standard `defineConfig` from `vitest/config`.
+// Bindings (D1, KV, secrets) come from wrangler.test.jsonc.
+
+export default defineConfig({
+  plugins: [
+    cloudflareTest({
+      wrangler: { configPath: './wrangler.test.jsonc' },
+    }),
+  ],
 });

@@ -54,17 +54,37 @@ import Footer from '../components/Footer.astro';
         <aside class="fx-card spotlight" data-reveal-child>
           <div class="fx-card-head">
             <span class="fx-card-mono"><b>rust-lane</b> · agent</span>
-            <span class="fx-card-tag">ready</span>
+            <sui-badge tone="success" variant="soft" size="sm">
+              <sui-status-dot slot="leading" tone="success" pulse size="sm"></sui-status-dot>
+              ready
+            </sui-badge>
           </div>
           <dl class="fx-spec">
-            <dt>model</dt><dd>claude · opus</dd>
-            <dt>compiles to</dt><dd>claude · codex · gemini · cursor</dd>
-            <dt>skills</dt><dd>cargo · git · rustfmt · clippy</dd>
-            <dt>mcp</dt><dd>fs-scoped · shell-allowlist</dd>
+            <dt>model</dt>
+            <dd><sui-badge tone="primary" variant="soft" size="sm">claude · opus</sui-badge></dd>
+            <dt>compiles to</dt>
+            <dd class="fx-badges">
+              <sui-badge variant="outline" size="sm">claude</sui-badge>
+              <sui-badge variant="outline" size="sm">codex</sui-badge>
+              <sui-badge variant="outline" size="sm">gemini</sui-badge>
+              <sui-badge variant="outline" size="sm">cursor</sui-badge>
+            </dd>
+            <dt>skills</dt>
+            <dd class="fx-badges">
+              <sui-badge variant="soft" size="sm">cargo</sui-badge>
+              <sui-badge variant="soft" size="sm">git</sui-badge>
+              <sui-badge variant="soft" size="sm">rustfmt</sui-badge>
+              <sui-badge variant="soft" size="sm">clippy</sui-badge>
+            </dd>
+            <dt>mcp</dt>
+            <dd class="fx-badges">
+              <sui-badge tone="accent" variant="soft" size="sm">fs-scoped</sui-badge>
+              <sui-badge tone="accent" variant="soft" size="sm">shell-allowlist</sui-badge>
+            </dd>
             <dt>perms</dt>
-            <dd>
-              write · packages/compiler<br/>
-              ask · network
+            <dd class="fx-perms">
+              <span><b>write</b> · packages/compiler</span>
+              <span><b>ask</b> · network</span>
             </dd>
           </dl>
         </aside>
@@ -91,7 +111,7 @@ import Footer from '../components/Footer.astro';
         <aside class="fx-card spotlight" data-reveal-child>
           <div class="fx-card-head">
             <span class="fx-card-mono"><b>.ship/skills/</b></span>
-            <span class="fx-card-tag">3 installed</span>
+            <sui-badge tone="primary" variant="soft" size="sm">3 installed</sui-badge>
           </div>
           <ul class="fx-tree">
             <li class="fx-tree-d">code-review/
@@ -133,18 +153,27 @@ import Footer from '../components/Footer.astro';
         <aside class="fx-card spotlight" data-reveal-child>
           <div class="fx-card-head">
             <span class="fx-card-mono"><b>runs</b> · collection</span>
-            <span class="fx-card-tag">8 fields · 3 indexes</span>
+            <sui-badge tone="primary" variant="soft" size="sm">6 fields · 3 indexes</sui-badge>
           </div>
-          <table class="fx-schema">
-            <tbody>
-              <tr><td class="k">id</td>        <td class="t">uuid</td>             <td class="f f-pk">pk</td></tr>
-              <tr><td class="k">agent</td>     <td class="t">ref → agents</td>     <td class="f">idx</td></tr>
-              <tr><td class="k">status</td>    <td class="t">enum</td>             <td class="f">idx</td></tr>
-              <tr><td class="k">started_at</td><td class="t">datetime</td>         <td class="f">idx</td></tr>
-              <tr><td class="k">artifact</td>  <td class="t">ref → artifacts?</td> <td class="f">·</td></tr>
-              <tr><td class="k">duration_ms</td><td class="t">integer</td>          <td class="f">·</td></tr>
-            </tbody>
-          </table>
+          <sui-table class="fx-sui-table" density="compact" hoverable label="Schema for runs collection">
+            <table>
+              <thead>
+                <tr>
+                  <th>Field</th>
+                  <th>Type</th>
+                  <th class="num">Flag</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td><b>id</b></td>          <td class="t">uuid</td>             <td class="num"><sui-badge tone="primary" variant="soft" size="sm">pk</sui-badge></td></tr>
+                <tr><td><b>agent</b></td>       <td class="t">ref → agents</td>     <td class="num"><sui-badge variant="outline" size="sm">idx</sui-badge></td></tr>
+                <tr><td><b>status</b></td>      <td class="t">enum</td>             <td class="num"><sui-badge variant="outline" size="sm">idx</sui-badge></td></tr>
+                <tr><td><b>started_at</b></td>  <td class="t">datetime</td>         <td class="num"><sui-badge variant="outline" size="sm">idx</sui-badge></td></tr>
+                <tr><td><b>artifact</b></td>    <td class="t">ref → artifacts?</td> <td class="num">—</td></tr>
+                <tr><td><b>duration_ms</b></td> <td class="t">integer</td>          <td class="num">—</td></tr>
+              </tbody>
+            </table>
+          </sui-table>
         </aside>
       </div>
     </section>
@@ -169,20 +198,36 @@ import Footer from '../components/Footer.astro';
         </div>
         <aside class="fx-card spotlight" data-reveal-child>
           <div class="fx-card-head">
-            <span class="fx-card-mono"><b>today.view</b> · 17 lines</span>
-            <span class="fx-card-tag">live</span>
+            <span class="fx-card-mono"><b>today.view</b></span>
+            <sui-badge tone="success" variant="soft" size="sm">
+              <sui-status-dot slot="leading" tone="success" pulse size="sm"></sui-status-dot>
+              live
+            </sui-badge>
           </div>
           <div class="fx-view">
-            <div class="fx-view-kpis">
-              <div class="fx-view-kpi"><div class="lbl">runs / wk</div><div class="val"><span data-counter data-counter-to="128">0</span></div></div>
-              <div class="fx-view-kpi"><div class="lbl">on budget</div><div class="val"><span data-counter data-counter-to="94" data-counter-suffix="%">0</span></div></div>
-              <div class="fx-view-kpi"><div class="lbl">agents</div><div class="val"><span data-counter data-counter-to="8">0</span></div></div>
+            <div class="fx-view-stats">
+              <sui-stat size="sm">
+                <span slot="label">runs / wk</span>
+                <span data-counter data-counter-to="128">0</span>
+              </sui-stat>
+              <sui-stat size="sm">
+                <span slot="label">on budget</span>
+                <span data-counter data-counter-to="94" data-counter-suffix="%">0</span>
+              </sui-stat>
+              <sui-stat size="sm">
+                <span slot="label">agents</span>
+                <span data-counter data-counter-to="8">0</span>
+              </sui-stat>
             </div>
-            <div class="fx-view-bars" aria-hidden="true">
-              <span style="--h:35%"></span><span style="--h:55%"></span>
-              <span style="--h:48%"></span><span style="--h:72%"></span>
-              <span style="--h:65%"></span><span style="--h:88%"></span>
-              <span style="--h:78%"></span>
+            <div class="fx-view-spark">
+              <sui-sparkline
+                data="32,48,42,68,55,82,72"
+                tone="primary"
+                width="540"
+                height="44"
+                fill
+                label="Runs per day this week"
+              ></sui-sparkline>
             </div>
           </div>
         </aside>
@@ -208,15 +253,34 @@ import Footer from '../components/Footer.astro';
         <aside class="fx-card spotlight" data-reveal-child>
           <div class="fx-card-head">
             <span class="fx-card-mono"><b>mcp servers</b></span>
-            <span class="fx-card-tag">4 connected</span>
+            <sui-badge tone="success" variant="soft" size="sm">4 connected</sui-badge>
           </div>
-          <ul class="fx-list">
-            <li><span class="dot ok"></span><b>github</b><span class="v">v3.1.2</span></li>
-            <li><span class="dot ok"></span><b>linear</b><span class="v">v2.0.0</span></li>
-            <li><span class="dot ok"></span><b>postgres</b><span class="v">v1.4.0</span></li>
-            <li><span class="dot ok"></span><b>fs-scoped</b><span class="v">built-in</span></li>
-            <li><span class="dot off"></span><b>slack</b><span class="v">not connected</span></li>
-          </ul>
+          <sui-table class="fx-sui-table" density="compact" hoverable label="MCP server status">
+            <table>
+              <tbody>
+                <tr>
+                  <td class="fx-list-cell"><sui-status-dot tone="success" size="sm"></sui-status-dot><b>github</b></td>
+                  <td class="num"><sui-badge variant="outline" size="sm">v3.1.2</sui-badge></td>
+                </tr>
+                <tr>
+                  <td class="fx-list-cell"><sui-status-dot tone="success" size="sm"></sui-status-dot><b>linear</b></td>
+                  <td class="num"><sui-badge variant="outline" size="sm">v2.0.0</sui-badge></td>
+                </tr>
+                <tr>
+                  <td class="fx-list-cell"><sui-status-dot tone="success" size="sm"></sui-status-dot><b>postgres</b></td>
+                  <td class="num"><sui-badge variant="outline" size="sm">v1.4.0</sui-badge></td>
+                </tr>
+                <tr>
+                  <td class="fx-list-cell"><sui-status-dot tone="success" size="sm"></sui-status-dot><b>fs-scoped</b></td>
+                  <td class="num"><sui-badge tone="muted" variant="soft" size="sm">built-in</sui-badge></td>
+                </tr>
+                <tr>
+                  <td class="fx-list-cell"><sui-status-dot tone="muted" size="sm"></sui-status-dot><b>slack</b></td>
+                  <td class="num"><sui-badge tone="muted" variant="soft" size="sm">not connected</sui-badge></td>
+                </tr>
+              </tbody>
+            </table>
+          </sui-table>
         </aside>
       </div>
     </section>
@@ -376,20 +440,30 @@ import Footer from '../components/Footer.astro';
     margin: 0; padding: 18px 20px;
     display: grid; grid-template-columns: max-content 1fr;
     column-gap: 24px; row-gap: 14px;
-    font-family: 'JetBrains Mono', ui-monospace, monospace;
     font-size: 12px;
   }
   .fx-spec dt {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
     color: var(--subtle-ink);
     text-transform: uppercase;
     letter-spacing: 0.1em;
     font-size: 10px; font-weight: 600;
-    padding-top: 2px;
+    padding-top: 4px;
   }
   .fx-spec dd {
     margin: 0; color: var(--page-fg);
     line-height: 1.6;
   }
+  .fx-badges {
+    display: flex; flex-wrap: wrap; gap: 6px;
+  }
+  .fx-perms {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 11.5px;
+    display: flex; flex-direction: column; gap: 4px;
+    color: var(--muted-ink);
+  }
+  .fx-perms b { color: var(--page-fg); font-weight: 600; }
 
   /* File tree (skills) ───────────────────────────────────────── */
   .fx-tree {
@@ -414,95 +488,54 @@ import Footer from '../components/Footer.astro';
   .fx-tree-d { font-weight: 600; color: var(--page-fg); margin-top: 8px; }
   .fx-tree-d:first-child { margin-top: 0; }
 
-  /* Schema table (collections) ──────────────────────────────── */
-  .fx-schema {
-    width: 100%;
-    border-collapse: collapse;
+  /* sui-table integration ───────────────────────────────────── */
+  .fx-sui-table {
+    --row-py: 9px;
+    --row-px: 16px;
+    --th-py: 8px;
+  }
+  .fx-sui-table table { width: 100%; border-collapse: collapse; }
+  .fx-sui-table thead th {
+    text-align: left;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 10px; font-weight: 600;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--plate-sub);
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--plate-line);
+  }
+  .fx-sui-table thead th.num { text-align: right; }
+  .fx-sui-table tbody td {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--plate-line);
     font-family: 'JetBrains Mono', ui-monospace, monospace;
     font-size: 12px;
+    color: var(--plate-muted);
   }
-  .fx-schema td {
-    padding: 10px 16px;
-    border-top: 1px solid var(--plate-line);
+  .fx-sui-table tbody tr:last-child td { border-bottom: none; }
+  .fx-sui-table tbody td b {
+    color: var(--page-fg); font-weight: 500;
   }
-  .fx-schema tr:first-child td { border-top: none; }
-  .fx-schema .k { color: var(--page-fg); font-weight: 500; }
-  .fx-schema .t { color: var(--accent); }
-  .fx-schema .f {
-    text-align: right;
-    font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase;
-    color: var(--subtle-ink);
-  }
-  .fx-schema .f-pk {
-    color: var(--primary); font-weight: 600;
+  .fx-sui-table tbody td.t { color: var(--accent); }
+  .fx-sui-table tbody td.num { text-align: right; }
+  .fx-list-cell {
+    display: inline-flex; align-items: center; gap: 10px;
   }
 
-  /* View mini (views) ───────────────────────────────────────── */
+  /* View card (sui-stat row + sui-sparkline) ──────────────── */
   .fx-view {
-    padding: 20px;
-    display: flex; flex-direction: column; gap: 18px;
+    padding: 18px;
+    display: flex; flex-direction: column; gap: 14px;
   }
-  .fx-view-kpis {
+  .fx-view-stats {
     display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
   }
-  .fx-view-kpi {
-    padding: 12px;
+  .fx-view-spark {
+    padding: 12px 14px;
     border: 1px solid var(--plate-line); border-radius: 10px;
-    background: color-mix(in oklab, var(--plate) 92%, var(--page-bg));
+    background: color-mix(in oklab, var(--plate) 94%, var(--page-bg));
   }
-  .fx-view-kpi .lbl {
-    font-family: 'JetBrains Mono', ui-monospace, monospace;
-    font-size: 9.5px; letter-spacing: 0.14em; text-transform: uppercase;
-    color: var(--subtle-ink);
-  }
-  .fx-view-kpi .val {
-    font-family: var(--font-display); font-weight: 600;
-    font-size: 22px; color: var(--page-fg); margin-top: 4px;
-  }
-  .fx-view-bars {
-    display: flex; gap: 6px; align-items: flex-end;
-    height: 60px; padding: 0 4px;
-  }
-  .fx-view-bars span {
-    flex: 1;
-    height: 0;
-    background: linear-gradient(to top, var(--primary), color-mix(in oklab, var(--accent) 60%, var(--primary)));
-    border-radius: 3px;
-    opacity: 0.85;
-    transition: height 700ms cubic-bezier(0.2, 0.7, 0.2, 1);
-    transition-delay: calc(var(--idx, 0) * 60ms);
-  }
-  .fx-view-bars.is-revealed span { height: var(--h); }
-  .fx-view-bars span:nth-child(1) { --idx: 0; }
-  .fx-view-bars span:nth-child(2) { --idx: 1; }
-  .fx-view-bars span:nth-child(3) { --idx: 2; }
-  .fx-view-bars span:nth-child(4) { --idx: 3; }
-  .fx-view-bars span:nth-child(5) { --idx: 4; }
-  .fx-view-bars span:nth-child(6) { --idx: 5; }
-  .fx-view-bars span:nth-child(7) { --idx: 6; }
-
-  /* Status list (integrations) ──────────────────────────────── */
-  .fx-list {
-    margin: 0; padding: 8px 20px 8px;
-    list-style: none;
-  }
-  .fx-list li {
-    display: grid; grid-template-columns: 12px 1fr auto;
-    gap: 12px; align-items: center;
-    padding: 11px 0;
-    border-top: 1px solid var(--plate-line);
-    font-family: 'JetBrains Mono', ui-monospace, monospace;
-    font-size: 12.5px;
-  }
-  .fx-list li:first-child { border-top: none; }
-  .fx-list b { color: var(--page-fg); font-weight: 500; }
-  .fx-list .v { color: var(--subtle-ink); font-size: 11px; }
-  .fx-list .dot {
-    width: 8px; height: 8px; border-radius: 50%;
-    background: var(--plate-sub);
-  }
-  .fx-list .dot.ok { background: var(--success); }
-  .fx-list .dot.off { background: var(--plate-sub); opacity: 0.55; }
+  .fx-view-spark sui-sparkline { width: 100%; display: block; }
 
   /* CTA ────────────────────────────────────────────────────────── */
   .fx-cta {

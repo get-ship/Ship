@@ -32,7 +32,6 @@ const baseEnv = {
   GOOGLE_CLIENT_SECRET: '',
   SLACK_CLIENT_ID: '',
   SLACK_CLIENT_SECRET: '',
-  JWT_SECRET: 'test-jwt-secret',
   SHIP_JWT_PRIVATE_KEY: '',
   SHIP_JWT_PRIVATE_KEY_ID: '',
   SHIP_JWT_PUBLIC_KEY: '',

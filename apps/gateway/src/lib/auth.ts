@@ -38,6 +38,7 @@ async function setUserPlan(env: Env, userId: string, plan: Plan): Promise<void> 
 async function makeAuth(env: Env) {
   const { betterAuth } = await import('better-auth')
   const { stripe: stripePlugin } = await import('@better-auth/stripe')
+  const { apiKey: apiKeyPlugin } = await import('@better-auth/api-key')
   const StripeMod = await import('stripe')
   const Stripe = StripeMod.default
 
@@ -190,7 +191,20 @@ async function makeAuth(env: Env) {
         domain: '.getship.dev',
       },
     },
-    plugins,
+    plugins: [
+      ...plugins,
+      // API keys — used by the CLI / daemon for long-lived bearer auth.
+      // `apiKeyHeaders` accepts both the standard `x-api-key` header and
+      // `Authorization` (Bearer …) so the existing daemon HTTP client doesn't
+      // need to change shape. `enableSessionForAPIKeys` lets requireSession
+      // accept API-key-authed requests without a separate code path.
+      apiKeyPlugin({
+        apiKeyHeaders: ['x-api-key', 'authorization'],
+        defaultPrefix: 'ship_',
+        defaultKeyLength: 48,
+        enableSessionForAPIKeys: true,
+      }),
+    ],
   })
 }
 
