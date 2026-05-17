@@ -16,7 +16,17 @@ interface FilesResponse {
   files: Array<{ path: string; name: string; kind: string; size: number; content?: string }>
 }
 
-type CodeEditor = HTMLElement & { value?: string }
+interface SuiDiagnostic {
+  line: number
+  col?: number
+  severity?: 'error' | 'warning' | 'info'
+  message: string
+  source?: string
+}
+type CodeEditor = HTMLElement & {
+  value?: string
+  setDiagnostics?: (diags: SuiDiagnostic[]) => void
+}
 
 const LANG_BY_KIND: Record<string, string> = {
   sui: 'html',
@@ -346,22 +356,39 @@ export default controller<Scope>({
     }
     const compileStatusSig = (state as unknown as { compileStatus: { set(v: string): void; (): string } }).compileStatus
     const compileErrorSig = (state as unknown as { compileError: { set(v: string | null): void; (): string | null } }).compileError
+    // Push compile diagnostics into the CodeMirror gutter on the active
+    // editor instance. The editor exposes setDiagnostics(diags[]) per
+    // its sui-code-editor.sui prop/method surface; we call it on every
+    // errored event (with the new diag) and clear on every compiled.
+    function pushDiagnosticsToEditor(diags: SuiDiagnostic[]): void {
+      const el = readState.editorEl()
+      if (!el?.setDiagnostics) return
+      el.setDiagnostics(diags)
+    }
     const onCompiled = (e: Event): void => {
       const d = (e as CustomEvent).detail
       if (!matchesView(d)) return
       compileStatusSig.set('compiled')
       compileErrorSig.set(null)
+      pushDiagnosticsToEditor([])
       // Auto-revert to idle so the saved chip doesn't linger forever.
       window.setTimeout(() => {
         if (compileStatusSig() === 'compiled') compileStatusSig.set('idle')
       }, 2500)
     }
     const onErrored = (e: Event): void => {
-      const d = (e as CustomEvent).detail as { message?: string; line?: number; col?: number; file?: string } | undefined
+      const d = (e as CustomEvent).detail as { message?: string; line?: number; col?: number; file?: string; severity?: 'error' | 'warning' | 'info' } | undefined
       if (!matchesView(d)) return
       const loc = d?.line ? `:${d.line}${d?.col ? `:${d.col}` : ''}` : ''
       compileStatusSig.set('errored')
       compileErrorSig.set(`${d?.file ?? 'view'}${loc} — ${d?.message ?? 'compile failed'}`)
+      pushDiagnosticsToEditor([{
+        line: d?.line ?? 1,
+        col: d?.col,
+        severity: d?.severity ?? 'error',
+        message: d?.message ?? 'compile failed',
+        source: 'sui-compiler',
+      }])
     }
     document.addEventListener('sui:view:compiled', onCompiled)
     document.addEventListener('sui:view:errored', onErrored)
