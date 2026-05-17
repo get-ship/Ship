@@ -414,35 +414,82 @@ Three recipes guard runtime + visual surface before a PR:
   curled + Playwright visual suite. Proxy for what CI will see; aim for
   green before opening a PR.
 
-## Diagnostics via MCP
+## Agent surfaces (MCP)
 
-Before declaring a `.sui` edit done, call `mcp__ship__sui_diagnostics` with the
-file path to surface compile-grammar issues, missing bindings, or unstable-key
-warnings. This catches syntax errors that would only otherwise surface during
-`bun run --filter ui-components test` or `cargo test -p sui-compiler`. For type +
-binding info at a point, `mcp__ship__sui_hover` returns the same content the
-VS Code extension shows.
+Every agent-facing tool relevant to view authoring. Full catalog with
+groupings + the LSP CLI + `@ship/sui-eval` scoring lives in
+`docs/ship-sui/references/docs/agent-surfaces.md`.
+
+### Scaffold + diagnose loop
+
+| Tool | When |
+|---|---|
+| `mcp__ship__scaffold_view({ name, path?, layout? })` | Emit a fresh `views/<name>/` skeleton. MCP equivalent of `node scripts/scaffold-view.mjs`. |
+| `mcp__ship__sui_diagnostics({ file })` | First thing after writing. Returns `[{ line, col, severity, message, source }]`. Same analyser as the VS Code LSP. |
+| `mcp__ship__sui_hover({ file, line, col })` | Type / directive / prop info at a cursor. Use when you're not sure what shape a binding wants. |
+| `mcp__ship__sui_dependencies({ file })` | What tags / signals / routes this file reaches into. Read before edits to scope blast radius. |
+| `mcp__ship__view_compile_check({ file })` | Full lowering pipeline. Catches issues `sui_diagnostics` (parse + analyse only) misses. |
+| `mcp__ship__get_view_errors({ view })` | Runtime errors from a mounted view session (post-mount, not compile). |
+
+### Source I/O + snapshots
+
+| Tool | When |
+|---|---|
+| `mcp__ship__view_read_source({ view, file? })` | Read one file or the full view dir. |
+| `mcp__ship__view_write_source({ view, file, contents })` | Write — triggers recompile + SSE notify. |
+| `mcp__ship__view_list_siblings({ view })` | Sibling `_components/<view>-<tag>/` widgets. |
+| `mcp__ship__view_list_snapshots({ view })` | Timeline — every save creates one. |
+| `mcp__ship__view_restore_snapshot({ view, snapshot_id })` | Revert; non-destructive. |
+
+### Live mount + poke
+
+| Tool | When |
+|---|---|
+| `mcp__ship__open_view({ view, route? })` | Mount in the agent's session shell; returns a `session_id`. |
+| `mcp__ship__patch_view({ session_id, selector, html })` | Morph an HTML subtree in place. |
+| `mcp__ship__signal_view({ session_id, name, value })` | Set a reactive signal as if the user did via UI. |
+| `mcp__ship__view_preview_snapshot({ session_id })` | PNG + DOM dump — for evals, QA, before/after diffs. |
+| `mcp__ship__close_view({ session_id })` | Release. |
+
+### Theme + collections
+
+| Tool | When |
+|---|---|
+| `mcp__ship__view_theme_tokens({})` | Active theme's tokens. Read before authoring CSS so you stay token-locked. |
+| `mcp__ship__view_collections_schema({})` | Schemas for project-defined `<data source="…">` collections. Use before writing a `<data>`. |
+| `mcp__ship__view_annotate({ view, selector, note })` | Pin a TODO/comment to a DOM node; surfaces in the dev panel. |
+
+### Verify before "done"
+
+Three gates, smallest first:
+
+1. **`mcp__ship__sui_diagnostics`** — parse + analyse. Sub-second.
+2. **`mcp__ship__view_compile_check`** — full lowering. Catches more, slightly heavier.
+3. **`@ship/sui-eval`** — programmatic behavioural scoring against a spec. Use when you authored against a behavioural contract (interaction script + asserts). Sub-scores: `compile / scope / behaviour`. See `docs/ship-sui/references/docs/agent-surfaces.md` § 3.
 
 ```ts
-// Pseudocode:
-// mcp__ship__sui_diagnostics({ file: "packages/ui-components/src/sui-button/sui-button.sui" })
-// mcp__ship__sui_hover({ file: "…/sui-button.sui", line: 12, col: 4 })
+// Pseudocode of the loop:
+// 1. write template + controller
+// 2. mcp__ship__sui_diagnostics({ file: "views/tasks/page.sui" })
+//    → fix any errors, repeat until []
+// 3. mcp__ship__view_compile_check({ file: "views/tasks/page.sui" })
+//    → fix any lowering-only errors
+// 4. (optional) runEval({ description, spec, catalog }) from @ship/sui-eval
+//    → if score < threshold, rewrite and loop
 ```
 
 ## LSP integration
 
-`.sui` files get diagnostics + hover via the `@ship/sui-lsp` language
-server. Two integration paths:
+The same analyser that backs `sui_diagnostics` is exposed as a standalone
+language server.
 
-1. **MCP** (for agents that don't speak LSP): call
-   `mcp__ship__sui_diagnostics` or `mcp__ship__sui_hover` with a file path —
-   see "Diagnostics via MCP" above.
-2. **Native LSP** (for editors): the `apps/vscode/` extension auto-launches
-   the server when a `.sui` file is opened (`.vscode/extensions.json`
-   recommends it). Other editors can launch the server directly over stdio:
-   `node packages/sui-lsp/bin/sui-lsp.js --stdio` (build the package first
-   with `bun run --filter @ship/sui-lsp build`). Configure your client to map the
-   `sui` language ID to that command for files matching `*.sui`.
+| Surface | How |
+|---|---|
+| **MCP** (agents) | `mcp__ship__sui_diagnostics` / `_hover` / `_dependencies`. See above. |
+| **VS Code** | `apps/vscode/` extension auto-launches the server on `.sui` open. |
+| **Other editors over stdio** | `node packages/sui-lsp/bin/sui-lsp.js --stdio` (build first: `bun run --filter @ship/sui-lsp build`). Map the `sui` language ID to that command for `*.sui`. |
+| **LSP CLI** (any shell) | `bun packages/sui-lsp/src/cli.ts diagnostics|hover|dependencies <file>`. JSON to stdout. |
+| **Browser** | Not yet — the LSP is Node-only. Tracking issue: thin browser port that the shell editor + docs playground can consume. |
 
 ## Components
 

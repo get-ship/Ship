@@ -1,7 +1,7 @@
 ---
 name: ship-design-system
 stable-id: ship-design-system
-description: Charter for Ship's design-system layer — tokens, themes, surfaces, tone ramps, motion, density. Load this when authoring or reviewing changes to packages/ship-set/src/tokens.css or themes.css, adding a new theme, debugging why a component doesn't respond to a theme switch, or helping a user customize Ship's look beyond brand color.
+description: Charter for Ship's design-system layer — tokens, themes, surfaces, tone ramps, motion, density. Load this when authoring or reviewing changes to packages/ui-components/src/tokens/tokens.css or themes.css, adding a new theme, debugging why a component doesn't respond to a theme switch, or helping a user customize Ship's look beyond brand color.
 tags: [design-system, tokens, themes, css, theming, frontend]
 authors: [ship]
 ---
@@ -19,9 +19,9 @@ how to *build* them.
 
 Read this when you are:
 
-- Adding or editing a theme in `packages/ship-set/src/themes.ts`
+- Adding or editing a theme in `packages/ui-components/src/tokens/themes.ts`
   or `themes.css`.
-- Introducing a new token to `packages/ship-set/src/tokens.css`.
+- Introducing a new token to `packages/ui-components/src/tokens/tokens.css`.
 - Debugging a "why doesn't this component flip with the theme" bug.
 - Helping a user customize Ship past the palette layer.
 
@@ -246,7 +246,7 @@ When authoring a new component that presents rows, **read from
 
 ## Consumer surfaces — applying a theme
 
-The TS module at `packages/ship-set/src/themes.ts` is the canonical
+The TS module at `packages/ui-components/src/tokens/themes.ts` is the canonical
 entry point. Three functions:
 
 ```ts
@@ -316,6 +316,18 @@ minimal and unsurprising.
    (tokens.css is imported at the document root). Fallbacks create a
    parallel, stale system.
 
+## Agent surfaces
+
+Three MCP surfaces are relevant when working with tokens / themes:
+
+| Tool | When |
+|---|---|
+| `mcp__ship__view_theme_tokens({})` | Read the **active** theme's resolved tokens. Use before you author CSS in a component so you stay token-locked instead of guessing. Returns `{ --background, --foreground, --card, --ring, --tone-*-bg, … }`. |
+| `mcp__ship__sui_diagnostics({ file })` | After editing a `.sui` template that reads tokens via `var(--…)`, run diagnostics to confirm no broken refs. |
+| `ship://components` (resource) | Component catalog includes `cssProperties` per primitive — what CSS custom properties each component accepts as design-token override points. |
+
+Full agent surface inventory: `docs/ship-sui/references/docs/agent-surfaces.md`.
+
 ## Relationship to `ship-components`
 
 Two skills, one boundary:
@@ -329,7 +341,7 @@ Two skills, one boundary:
 If you're editing `tokens.css`, `themes.css`, `themes.ts`, or a
 consumer that applies a theme (shell theme picker, marketing site) →
 this skill. If you're editing
-`packages/ship-set/src/web-components/**` → `ship-components`.
+`packages/ui-components/src/sui-*/**` → `ship-components`.
 
 ## Open gaps
 
@@ -339,7 +351,7 @@ surfaced here so no one re-invents a workaround:
 - **Motion is not themable at the curve level everywhere.** `--ease-out`
   is overridable, but individual components sometimes hardcode a
   specific cubic-bezier in their `css` templates. Grep for
-  `cubic-bezier` under `packages/ship-set/src/web-components/` to
+  `cubic-bezier` under `packages/ui-components/src/sui-*/` to
   find the stragglers; they should all go through the role tokens.
 - **`--tone-bg-mix` / `--tone-border-mix` / `--tone-hover-mix` are
   legacy.** They're still exposed for `util.toneVars()` but new code
@@ -360,7 +372,7 @@ surfaced here so no one re-invents a workaround:
 - **No design-system linter.** The anti-smells above are enforced by
   review, not by a rule. A `stylelint` plugin that flags raw
   `rgba(`, `oklch(0 0 0 / `, and `cubic-bezier(` inside
-  `packages/ship-set/src/web-components/**` would turn this section
+  `packages/ui-components/src/sui-*/**` would turn this section
   into a CI check.
 
 ## Token schema

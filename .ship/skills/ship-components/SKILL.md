@@ -170,45 +170,64 @@ Authors don't call `component()` directly — the compiler emits it.
 9. **`on:<event>` event names must match the platform whitelist:** DOM events, `sui-*` / `ship-*` custom-event families, `tag:event`-prefixed cross-component events. `sui-event-name` lint warns on typos with Levenshtein suggestions.
 10. **Form-aware components use `form-value` / `form-disabled` on `<prop>`** — never hand-roll `attachInternals()` / `setFormValue` / `formResetCallback`. See "Form-aware components" above.
 
-## Diagnostics via MCP
+## Agent surfaces (MCP)
 
-Before declaring a `.sui` edit done, call `mcp__ship__sui_diagnostics` with the
-component file path to catch parse errors, missing `<prop>`/`<state>`
-attributes, unbound identifiers, or invalid template expressions — feedback the
-agent would otherwise only see during `bun run --filter ui-components test` or
-`cargo test -p sui-compiler`. For a single position, `mcp__ship__sui_hover`
-returns the declaration source + setup return type for an identifier.
+The view-authoring tools all apply to components since components
+are just `<sui-*>` views with shadow DOM. Full catalog +
+groupings: `docs/ship-sui/references/docs/agent-surfaces.md`.
+The component-specific essentials:
+
+| Tool | When |
+|---|---|
+| `mcp__ship__sui_diagnostics({ file })` | First thing after editing. Catches parse errors, missing `<prop>` / `<state>` attrs, unbound identifiers, invalid template expressions. |
+| `mcp__ship__sui_hover({ file, line, col })` | Declaration source + setup return type at a cursor. |
+| `mcp__ship__sui_dependencies({ file })` | What sibling `<sui-*>` tags + signals this component reaches into. |
+| `mcp__ship__view_compile_check({ file })` | Full lowering pipeline. Use after `sui_diagnostics` is clean to catch lowering-only issues. |
+| `mcp__ship__view_theme_tokens({})` | Active theme tokens (`--border`, `--card`, `--ring`, `--tone-*-bg`, …). Read before authoring component CSS so you stay token-locked. |
+
+### Visual + behavioural verification
+
+| Surface | Use it for |
+|---|---|
+| `ship-ui-studio` at `/sui/ship-ui-studio/<tag>` | Single-page visual sweep — prop panel + variant matrix + source view. Fastest after-edit eyeball. |
+| `mcp__ship__view_preview_snapshot({ session_id })` | PNG + DOM dump for evals / before-after diffs / regression baselines. |
+| `@ship/sui-eval` `runEval({ description, spec, catalog })` | Programmatic behavioural scoring. Sub-scores: `compile / scope / behaviour`. See `docs/ship-sui/references/docs/agent-surfaces.md` § 3. |
 
 ```ts
-// Pseudocode:
-// mcp__ship__sui_diagnostics({ file: "packages/ui-components/src/sui-button/sui-button.sui" })
-// mcp__ship__sui_hover({ file: "…/sui-button.sui", line: 12, col: 4 })
+// Pseudocode of the verify loop:
+// 1. write template + (optional) controller
+// 2. mcp__ship__sui_diagnostics({ file: "packages/ui-components/src/sui-X/sui-X.sui" })
+//    → fix until []
+// 3. mcp__ship__view_compile_check({ file: "…/sui-X.sui" })
+//    → fix lowering-only issues
+// 4. Open ship-ui-studio for visual sweep across the variant matrix
+// 5. (optional) runEval against a behavioural spec for regression gating
 ```
 
 ## LSP integration
 
-`.sui` files get diagnostics + hover via the `@ship/sui-lsp` language
-server. Two integration paths:
+The same analyser that backs `sui_diagnostics` is exposed as a
+standalone language server.
 
-1. **MCP** (for agents that don't speak LSP): call
-   `mcp__ship__sui_diagnostics` or `mcp__ship__sui_hover` with a file path —
-   see "Diagnostics via MCP" above.
-2. **Native LSP** (for editors): the `apps/vscode/` extension auto-launches
-   the server when a `.sui` file is opened (`.vscode/extensions.json`
-   recommends it). Other editors can launch the server directly over stdio:
-   `node packages/sui-lsp/bin/sui-lsp.js --stdio` (build first with
-   `bun run --filter @ship/sui-lsp build`). Map the `sui` language ID to that command
-   for files matching `*.sui`.
+| Surface | How |
+|---|---|
+| **MCP** (agents) | `mcp__ship__sui_diagnostics` / `_hover` / `_dependencies`. See above. |
+| **VS Code** | `apps/vscode/` extension auto-launches the server on `.sui` open. |
+| **Other editors over stdio** | `node packages/sui-lsp/bin/sui-lsp.js --stdio` (build first: `bun run --filter @ship/sui-lsp build`). Map `sui` language ID to that command for `*.sui`. |
+| **LSP CLI** (any shell) | `bun packages/sui-lsp/src/cli.ts diagnostics|hover|dependencies <file>` — JSON to stdout. |
+| **Browser** | Not yet — the LSP is Node-only. Tracking: a thin browser port so the shell + docs playground get hover and scope-aware completion without shelling out. |
 
 ## What's available in a view
 
 Components fall into three buckets:
 
-- **Primitives** — every `<sui-*>` in `packages/ui-components/src/`. Always registered, available in any view.
+- **Primitives** — every `<sui-*>` in `packages/ui-components/src/`. Always registered, available in any view. (On `main`: decomposed into `packages/components/<pack>/` — first two published packs are `@ship/primitives` and `@ship/charts`. See `references/packs.md` for the manifest-driven runtime-island concept, which coexists with the per-pack decomposition.)
 - **Domain packs** — bundles of related components for a specific surface (editor, graph, chat). Opt-in per view via the manifest's `packs:` field. Loaded on demand to keep boot bundles small.
 - **Islands** — heavy components that lazy-load their engine only when mounted (terminal, code-editor, markdown-editor). Declared as a `packs:` entry in the view manifest; loaded at first instantiation.
 
 Discover what's registered by reading the MCP resource `ship://components` — the canonical agent-side component catalog. It returns the aggregated Custom Elements Manifest (every `<sui-*>` primitive's tagName, attributes, slots, parts, events, CSS custom properties) as JSON. For a single tag, read `ship://components/<tag>` (e.g. `ship://components/sui-button`). Don't `curl` the daemon's `/api/assets/sui-custom-elements.json` — that endpoint exists for browser tooling; agent auth blocks raw HTTP.
+
+On the post-pack-architecture branch the catalog also splits into `workspace.json` (every pack, public + private) and `published.json` (`!private` packs only); both are reachable through the same `ship://components` resource — the JSON gains a `pack` field per entry.
 
 ## Visual sweep: ship-ui-studio
 
