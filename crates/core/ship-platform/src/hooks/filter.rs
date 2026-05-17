@@ -87,9 +87,9 @@ mod tests {
 
     #[test]
     fn multi_key_all_must_match() {
-        let ctx = json!({ "event_type": "job.completed", "payload": { "status": "failed" } });
+        let ctx = json!({ "event_type": "pipeline.run.completed", "payload": { "status": "failed" } });
         let filter = json!({
-            "event_type": "job.completed",
+            "event_type": "pipeline.run.completed",
             "payload.status": "failed",
         });
         assert!(matches(Some(&filter), &ctx));

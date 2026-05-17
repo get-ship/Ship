@@ -49,7 +49,7 @@ fn write_schema(ship_dir: &Path, id: &str) {
 
 fn job_failed_envelope() -> EventEnvelope {
     EventEnvelope::new(
-        "job.failed",
+        "pipeline.run.failed",
         "job-1",
         &json!({ "job_id": "job-1", "error": "boom", "status": "failed" }),
     )
@@ -58,7 +58,7 @@ fn job_failed_envelope() -> EventEnvelope {
 
 fn job_completed_envelope() -> EventEnvelope {
     EventEnvelope::new(
-        "job.completed",
+        "pipeline.run.completed",
         "job-1",
         &json!({ "job_id": "job-1", "slug": "job-1", "status": "ok" }),
     )
@@ -76,7 +76,7 @@ fn loader_parses_valid_hook() {
         r#"{
             // notify-on-failed-job
             "name": "notify-failed",
-            "trigger": { "event": "job.failed" },
+            "trigger": { "event": "pipeline.run.failed" },
             "actions": [
                 { "type": "event.emit", "event_type": "hook.tripped", "payload": { "hi": "there" } }
             ]
@@ -87,7 +87,7 @@ fn loader_parses_valid_hook() {
     assert!(report.errors.is_empty());
     let hook = &report.hooks[0];
     assert_eq!(hook.name, "notify-failed");
-    assert_eq!(hook.trigger.event.as_deref(), Some("job.failed"));
+    assert_eq!(hook.trigger.event.as_deref(), Some("pipeline.run.failed"));
     assert_eq!(hook.actions.len(), 1);
     matches!(hook.actions[0].action_type, HookActionType::EventEmit { .. });
 }
@@ -118,7 +118,7 @@ fn loader_rejects_missing_template_file() {
         "bad-tmpl.jsonc",
         r#"{
             "name": "bad",
-            "trigger": { "event": "job.completed" },
+            "trigger": { "event": "pipeline.run.completed" },
             "actions": [
                 { "type": "collection.insert", "collection": "notes", "template_file": "does-not-exist.j2" }
             ]
@@ -134,7 +134,7 @@ fn loader_rejects_missing_template_file() {
 fn loader_continues_past_bad_hook() {
     let (_tmp, ship_dir) = tmp_ship_dir();
     write_hook(&ship_dir, "good.jsonc", r#"{
-        "name": "good", "trigger": { "event": "job.completed" }, "actions": []
+        "name": "good", "trigger": { "event": "pipeline.run.completed" }, "actions": []
     }"#);
     write_hook(&ship_dir, "bad.jsonc", "not valid jsonc {");
     let report = loader::load_hooks_dir(&ship_dir);
@@ -165,14 +165,14 @@ async fn event_matching_runs_matching_hook_only() {
     let (_tmp, ship_dir) = tmp_ship_dir();
     write_hook(&ship_dir, "fail.jsonc", r#"{
         "name": "on-fail",
-        "trigger": { "event": "job.failed" },
+        "trigger": { "event": "pipeline.run.failed" },
         "actions": [
             { "type": "event.emit", "event_type": "hook.tripped", "payload": { "from": "fail" } }
         ]
     }"#);
     write_hook(&ship_dir, "done.jsonc", r#"{
         "name": "on-done",
-        "trigger": { "event": "job.completed" },
+        "trigger": { "event": "pipeline.run.completed" },
         "actions": [
             { "type": "event.emit", "event_type": "hook.tripped", "payload": { "from": "done" } }
         ]
@@ -199,7 +199,7 @@ async fn filter_excludes_non_matching_payload() {
     write_hook(&ship_dir, "only-failed.jsonc", r#"{
         "name": "only-failed",
         "trigger": {
-            "event": "job.completed",
+            "event": "pipeline.run.completed",
             "filter": { "payload.status": "failed" }
         },
         "actions": [
@@ -222,7 +222,7 @@ async fn jinja_renders_event_fields() {
     let (_tmp, ship_dir) = tmp_ship_dir();
     write_hook(&ship_dir, "mirror.jsonc", r#"{
         "name": "mirror",
-        "trigger": { "event": "job.failed" },
+        "trigger": { "event": "pipeline.run.failed" },
         "actions": [
             { "type": "event.emit", "event_type": "hook.tripped",
               "payload": { "entity": "{{ event.entity_id }}" } }
@@ -247,7 +247,7 @@ async fn when_condition_skips_action() {
     let (_tmp, ship_dir) = tmp_ship_dir();
     write_hook(&ship_dir, "skip.jsonc", r#"{
         "name": "skip",
-        "trigger": { "event": "job.failed" },
+        "trigger": { "event": "pipeline.run.failed" },
         "actions": [
             { "type": "event.emit", "event_type": "hook.tripped", "when": "1 == 2",
               "payload": {} }
@@ -269,7 +269,7 @@ async fn results_chain_across_actions() {
     let (_tmp, ship_dir) = tmp_ship_dir();
     write_hook(&ship_dir, "chain.jsonc", r#"{
         "name": "chain",
-        "trigger": { "event": "job.failed" },
+        "trigger": { "event": "pipeline.run.failed" },
         "actions": [
             { "type": "event.emit", "event_type": "hook.tripped", "payload": { "step": 1 } },
             { "type": "event.emit", "event_type": "hook.tripped",
@@ -303,7 +303,7 @@ async fn template_file_is_rendered() {
     .unwrap();
     write_hook(&ship_dir, "record.jsonc", r#"{
         "name": "record",
-        "trigger": { "event": "job.failed" },
+        "trigger": { "event": "pipeline.run.failed" },
         "actions": [
             { "type": "collection.insert",
               "collection": "notes",
@@ -346,9 +346,9 @@ async fn recursion_guard_blocks_deep_hooks() {
     let (_tmp, ship_dir) = tmp_ship_dir();
     write_hook(&ship_dir, "loop.jsonc", r#"{
         "name": "loop",
-        "trigger": { "event": "job.failed" },
+        "trigger": { "event": "pipeline.run.failed" },
         "actions": [
-            { "type": "event.emit", "event_type": "job.failed", "payload": {
+            { "type": "event.emit", "event_type": "pipeline.run.failed", "payload": {
                 "job_id": "child", "error": "x", "status": "failed"
             } }
         ]

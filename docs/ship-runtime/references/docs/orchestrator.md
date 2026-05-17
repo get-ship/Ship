@@ -130,7 +130,7 @@ Then dispatch by event type:
 
 ## handle_job_created
 
-`dispatch.rs`. Parses `JobCreatedPayload`. If `depends_on` is non-empty, defers — the job sits pending until a dep completion wakes it via `dispatch_ready_pending_jobs`.
+`dispatch.rs`. Parses `PipelineRunStartedPayload`. If `depends_on` is non-empty, defers — the job sits pending until a dep completion wakes it via `dispatch_ready_pending_jobs`.
 
 Otherwise calls `ensure_pipeline(payload)` (idempotent — already called by the HTTP handler before persist) then `dispatch_job_internal`.
 
@@ -207,7 +207,7 @@ Also consumes `StepActivity` from `octx.activity_txs` — Stop hooks from harnes
 
 1. Pipeline defaults (`pipeline.vars` in the pipeline file).
 2. CLI flags at dispatch (`ship run --var k=v`).
-3. Job-level vars baked into the `JobCreatedPayload`.
+3. Job-level vars baked into the `PipelineRunStartedPayload`.
 
 Same templating engine as skill vars (MiniJinja), same limitations (no includes, no file loader, bounded scope).
 

@@ -1,5 +1,5 @@
 use super::*;
-use ship_substrate::events::job::{Pipeline, PipelineStep, StepType};
+use ship_substrate::events::pipeline::{Pipeline, PipelineStep, StepType};
 
 fn step(id: &str, agent: &str) -> PipelineStep {
     PipelineStep {

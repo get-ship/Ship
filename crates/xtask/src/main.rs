@@ -97,27 +97,27 @@ fn collect_types() -> TypeCollection {
     c.register::<ship_platform::projections::job::JobStatus>();
 
     // events/job.rs (job event payloads)
-    c.register::<ship_substrate::events::job::JobCreatedPayload>();
-    c.register::<ship_substrate::events::job::JobCompletedPayload>();
-    c.register::<ship_substrate::events::job::JobDispatchedPayload>();
-    c.register::<ship_substrate::events::job::JobGateRequestedPayload>();
-    c.register::<ship_substrate::events::job::JobGatePassedPayload>();
-    c.register::<ship_substrate::events::job::JobGateFailedPayload>();
-    c.register::<ship_substrate::events::job::JobBlockedPayload>();
-    c.register::<ship_substrate::events::job::JobMergedPayload>();
-    c.register::<ship_substrate::events::job::JobFailedPayload>();
-    c.register::<ship_substrate::events::job::JobUpdatePayload>();
+    c.register::<ship_substrate::events::pipeline::PipelineRunStartedPayload>();
+    c.register::<ship_substrate::events::pipeline::PipelineRunCompletedPayload>();
+    c.register::<ship_substrate::events::pipeline::PipelineRunDispatchedPayload>();
+    c.register::<ship_substrate::events::pipeline::PipelineGateRequestedPayload>();
+    c.register::<ship_substrate::events::pipeline::PipelineGatePassedPayload>();
+    c.register::<ship_substrate::events::pipeline::PipelineGateFailedPayload>();
+    c.register::<ship_substrate::events::pipeline::PipelineRunBlockedPayload>();
+    c.register::<ship_substrate::events::pipeline::PipelineRunMergedPayload>();
+    c.register::<ship_substrate::events::pipeline::PipelineRunFailedPayload>();
+    c.register::<ship_substrate::events::pipeline::PipelineRunUpdatedPayload>();
 
     // events/job.rs (step event payloads + evidence types)
-    c.register::<ship_substrate::events::job::StepObservedPayload>();
-    c.register::<ship_substrate::events::job::StepTrigger>();
-    c.register::<ship_substrate::events::job::StepVerdict>();
-    c.register::<ship_substrate::events::job::StepRetryPayload>();
+    c.register::<ship_substrate::events::pipeline::PipelineStepObservedPayload>();
+    c.register::<ship_substrate::events::pipeline::StepTrigger>();
+    c.register::<ship_substrate::events::pipeline::StepVerdict>();
+    c.register::<ship_substrate::events::pipeline::PipelineStepRetryPayload>();
 
     // events/job.rs (pipeline types — already exported via PipelineRun, but explicit for clarity)
-    c.register::<ship_substrate::events::job::Pipeline>();
-    c.register::<ship_substrate::events::job::PipelineStep>();
-    c.register::<ship_substrate::events::job::StepType>();
+    c.register::<ship_substrate::events::pipeline::Pipeline>();
+    c.register::<ship_substrate::events::pipeline::PipelineStep>();
+    c.register::<ship_substrate::events::pipeline::StepType>();
 
     // events/feedback.rs
     c.register::<ship_substrate::events::feedback::FeedbackEvent>();

@@ -17,7 +17,7 @@ A trigger is a JSONC file in `.ship/hooks/*.jsonc` that subscribes to an event t
   "name": "log-failed-jobs",
   "description": "Emit a derived notice event when a job fails.",
   "trigger": {
-    "event": "job.failed"
+    "event": "pipeline.run.failed"
   },
   "actions": [
     {

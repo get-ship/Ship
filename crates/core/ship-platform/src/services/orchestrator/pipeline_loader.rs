@@ -11,7 +11,7 @@
 //! `pipeline: <name>` reference, but inline pipeline definitions in
 //! spec frontmatter are not supported.
 
-use ship_substrate::events::job::{JobCreatedPayload, Pipeline, PipelineStep};
+use ship_substrate::events::pipeline::{PipelineRunStartedPayload, Pipeline, PipelineStep};
 use ship_jobs::pipeline::{PipelineMeta, normalize_pipeline};
 
 mod resolve;
@@ -25,7 +25,7 @@ use resolve::resolve_steps;
 ///
 /// Returns `Err` if the resolved pipeline fails validation — currently, any
 /// agent/gate step without an `agent` declared.
-pub fn ensure_pipeline(mut payload: JobCreatedPayload) -> Result<JobCreatedPayload, String> {
+pub fn ensure_pipeline(mut payload: PipelineRunStartedPayload) -> Result<PipelineRunStartedPayload, String> {
     resolve_steps(&mut payload);
     interpolate_pipeline(&mut payload);
     // Re-sync payload.agent with the (possibly now-interpolated) first step's agent.
@@ -41,7 +41,7 @@ pub fn ensure_pipeline(mut payload: JobCreatedPayload) -> Result<JobCreatedPaylo
     Ok(payload)
 }
 
-fn interpolate_pipeline(payload: &mut JobCreatedPayload) {
+fn interpolate_pipeline(payload: &mut PipelineRunStartedPayload) {
     let Some(pipeline) = payload.steps.as_mut() else { return };
     let Some(vars) = payload.vars.as_ref() else { return };
     if vars.is_empty() {
@@ -154,7 +154,7 @@ pub(super) fn parse_pipeline_content(content: &str) -> Result<(Pipeline, Pipelin
 
 /// Merge pipeline-level default vars into the job payload.
 
-pub(super) fn merge_meta_vars(payload: &mut JobCreatedPayload, meta: &PipelineMeta) {
+pub(super) fn merge_meta_vars(payload: &mut PipelineRunStartedPayload, meta: &PipelineMeta) {
     if let Some(pipeline_vars) = &meta.vars {
         let job_vars = payload.vars.get_or_insert_with(Default::default);
         for (k, v) in pipeline_vars {

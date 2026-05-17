@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use tokio::sync::Mutex;
 
-use ship_substrate::events::job::{StepObservedPayload, StepTrigger, StepVerdict, event_types};
+use ship_substrate::events::pipeline::{PipelineStepObservedPayload, StepTrigger, StepVerdict, event_types};
 use ship_substrate::events::{EventEnvelope, KernelRouter};
 use crate::services::dispatch_ports::{JobExecutor, ProcessRegistryPort};
 
@@ -52,7 +52,7 @@ pub(super) async fn emit_and_finish(
     registry.unregister(&monitor.slug).await;
 
     let done_result = if done_declared { Some(true) } else { None };
-    let verdict = StepObservedPayload::compute_verdict(
+    let verdict = PipelineStepObservedPayload::compute_verdict(
         &monitor.step_type, done_declared, done_result,
         exit_code, commits, uncommitted, &trigger,
     );
@@ -76,7 +76,7 @@ pub(super) async fn emit_and_finish(
         scan_agent_log_tail(&monitor.work_dir, &monitor.slug)
     };
 
-    let payload = StepObservedPayload {
+    let payload = PipelineStepObservedPayload {
         job_id: monitor.job_id.clone(),
         slug: monitor.slug.clone(),
         step_index: monitor.step_index,
@@ -225,9 +225,9 @@ async fn emit_step_observed(
     kernel: &Arc<Mutex<KernelRouter>>,
     job_id: &str,
     slug: &str,
-    payload: &StepObservedPayload,
+    payload: &PipelineStepObservedPayload,
 ) {
-    let envelope = match EventEnvelope::new(event_types::STEP_OBSERVED, job_id, payload) {
+    let envelope = match EventEnvelope::new(event_types::PIPELINE_STEP_OBSERVED, job_id, payload) {
         Ok(e) => e.with_actor_id("service.job-dispatch"),
         Err(e) => {
             tracing::warn!(slug, "step-monitor: failed to build envelope: {e}");

@@ -97,10 +97,10 @@ fn make_kernel() -> Arc<Mutex<KernelRouter>> {
 }
 
 async fn seed_dispatched_job(kernel: &Arc<Mutex<KernelRouter>>, job_id: &str, slug: &str) {
-    use ship_substrate::events::job::{event_types, JobCreatedPayload, JobDispatchedPayload};
+    use ship_substrate::events::pipeline::{event_types, PipelineRunStartedPayload, PipelineRunDispatchedPayload};
     use ship_substrate::events::{CallerKind, EmitContext, EventEnvelope};
     let ctx = EmitContext { caller_kind: CallerKind::Runtime, skill_id: None, project_id: None, session_id: None };
-    let created = JobCreatedPayload {
+    let created = PipelineRunStartedPayload {
         job_id: job_id.to_string(),
         slug: slug.to_string(),
         agent: "test-agent".to_string(),
@@ -112,15 +112,15 @@ async fn seed_dispatched_job(kernel: &Arc<Mutex<KernelRouter>>, job_id: &str, sl
         spec_content: None, step_specs: None, headless: false,
         baseline_sha: None,
     };
-    let env = EventEnvelope::new(event_types::JOB_CREATED, job_id, &created).unwrap().with_actor_id("test");
+    let env = EventEnvelope::new(event_types::PIPELINE_RUN_STARTED, job_id, &created).unwrap().with_actor_id("test");
     kernel.lock().await.emit(env, &ctx).await.unwrap();
-    let dispatched = JobDispatchedPayload {
+    let dispatched = PipelineRunDispatchedPayload {
         job_id: job_id.to_string(),
         worktree: format!("/tmp/test-worktrees-replay/{slug}"),
         pid: None,
         harness_meta: None,
     };
-    let env = EventEnvelope::new(event_types::JOB_DISPATCHED, job_id, &dispatched).unwrap().with_actor_id("test");
+    let env = EventEnvelope::new(event_types::PIPELINE_RUN_DISPATCHED, job_id, &dispatched).unwrap().with_actor_id("test");
     kernel.lock().await.emit(env, &ctx).await.unwrap();
 }
 
@@ -150,7 +150,7 @@ async fn reconcile_dispatched_emits_session_destroyed_not_step_failed() {
     let terminal = all
         .iter()
         .filter(|e| e.entity_id == "j-replay-1")
-        .any(|e| e.event_type == "job.step_failed" || e.event_type == "job.failed");
+        .any(|e| e.event_type == "pipeline.step.failed" || e.event_type == "pipeline.run.failed");
     assert!(!terminal, "reconcile must not emit any terminal job event");
 
     let jobs = crate::projections::job::load_jobs().unwrap();
@@ -177,7 +177,7 @@ mod replay_filter {
 
     use chrono::{Duration, Utc};
 
-    use ship_substrate::events::job::{Pipeline, PipelineStep, StepType};
+    use ship_substrate::events::pipeline::{Pipeline, PipelineStep, StepType};
     use crate::projections::job::{PipelineRun, JobStatus};
     use crate::services::orchestrator::replay::{
         MAX_REPLAYS_PER_STARTUP, needs_replay, select_replay_targets,

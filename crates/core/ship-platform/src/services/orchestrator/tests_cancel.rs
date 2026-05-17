@@ -9,7 +9,7 @@ use std::sync::Arc;
 use tempfile::TempDir;
 use tokio::sync::Mutex;
 
-use ship_substrate::events::job::{event_types as job_event_types, JobCancelledPayload};
+use ship_substrate::events::pipeline::{event_types as job_event_types, PipelineRunCancelledPayload};
 use ship_substrate::events::kernel_router::{ActorConfig, KernelRouter};
 use ship_substrate::events::process::event_types as process_event_types;
 use ship_substrate::events::process::ProcessKilledPayload;
@@ -144,13 +144,13 @@ async fn cancel_stops_registered_handle_and_emits_process_killed() {
 
     let job_id = "j-cancel-1";
     let slug = "cancel-1";
-    let payload = JobCancelledPayload {
+    let payload = PipelineRunCancelledPayload {
         job_id: job_id.to_string(),
         slug: slug.to_string(),
         reason: "operator test".into(),
         requested_by: "operator".into(),
     };
-    let envelope = EventEnvelope::new(job_event_types::JOB_CANCELLED, job_id, &payload)
+    let envelope = EventEnvelope::new(job_event_types::PIPELINE_RUN_CANCELLED, job_id, &payload)
         .unwrap()
         .with_actor_id("test");
 
@@ -206,13 +206,13 @@ async fn cancel_without_registered_handle_still_cleans_and_emits() {
 
     let job_id = "j-cancel-2";
     let slug = "cancel-2";
-    let payload = JobCancelledPayload {
+    let payload = PipelineRunCancelledPayload {
         job_id: job_id.to_string(),
         slug: slug.to_string(),
         reason: "registry miss".into(),
         requested_by: "operator".into(),
     };
-    let envelope = EventEnvelope::new(job_event_types::JOB_CANCELLED, job_id, &payload)
+    let envelope = EventEnvelope::new(job_event_types::PIPELINE_RUN_CANCELLED, job_id, &payload)
         .unwrap()
         .with_actor_id("test");
 

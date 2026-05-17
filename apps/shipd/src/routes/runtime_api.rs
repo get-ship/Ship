@@ -14,7 +14,7 @@ use axum::extract::Path;
 #[cfg(test)]
 use ship_substrate::events::EventEnvelope;
 #[cfg(test)]
-use ship_substrate::events::job::event_types;
+use ship_substrate::events::pipeline::event_types;
 use serde::Deserialize;
 
 use crate::auth::{AuthContext, Scope, require_scope};
@@ -360,7 +360,7 @@ mod tests {
 
         // Emit a job.created event so load_jobs() finds it.
         let job_id = ship_substrate::gen_ulid();
-        let payload = ship_substrate::events::job::JobCreatedPayload {
+        let payload = ship_substrate::events::pipeline::PipelineRunStartedPayload {
             job_id: job_id.clone(),
             slug: "test-detail".into(),
             agent: "agent-1".into(),
@@ -381,7 +381,7 @@ mod tests {
             baseline_sha: None,
         };
         let envelope = ship_substrate::events::EventEnvelope::new(
-            ship_substrate::events::job::event_types::JOB_CREATED,
+            ship_substrate::events::pipeline::event_types::PIPELINE_RUN_STARTED,
             &job_id,
             &payload,
         )
@@ -405,7 +405,7 @@ mod tests {
 
     async fn emit_job_created(state: &ApiState, slug: &str) -> String {
         let job_id = ship_substrate::gen_ulid();
-        let payload = ship_substrate::events::job::JobCreatedPayload {
+        let payload = ship_substrate::events::pipeline::PipelineRunStartedPayload {
             job_id: job_id.clone(),
             slug: slug.into(),
             agent: "a".into(),
@@ -417,7 +417,7 @@ mod tests {
             spec_content: None, step_specs: None, headless: false,
             baseline_sha: None,
         };
-        let env = EventEnvelope::new(event_types::JOB_CREATED, &job_id, &payload)
+        let env = EventEnvelope::new(event_types::PIPELINE_RUN_STARTED, &job_id, &payload)
             .unwrap()
             .with_actor_id("test");
         state.persist_and_route(&env).await.unwrap();
@@ -452,7 +452,7 @@ mod tests {
         )
         .unwrap();
         assert!(
-            events.iter().any(|e| e.event_type == event_types::JOB_CANCELLED),
+            events.iter().any(|e| e.event_type == event_types::PIPELINE_RUN_CANCELLED),
             "expected job.cancelled in event log"
         );
     }
@@ -464,11 +464,11 @@ mod tests {
         let job_id = emit_job_created(&state, "cancel-term").await;
 
         // Seed a terminal state first.
-        let fail_payload = ship_substrate::events::job::JobFailedPayload {
+        let fail_payload = ship_substrate::events::pipeline::PipelineRunFailedPayload {
             job_id: job_id.clone(),
             error: "boom".into(),
         };
-        let env = EventEnvelope::new(event_types::JOB_FAILED, &job_id, &fail_payload)
+        let env = EventEnvelope::new(event_types::PIPELINE_RUN_FAILED, &job_id, &fail_payload)
             .unwrap()
             .with_actor_id("test");
         state.persist_and_route(&env).await.unwrap();
@@ -491,7 +491,7 @@ mod tests {
         )
         .unwrap();
         assert!(
-            events.iter().all(|e| e.event_type != event_types::JOB_CANCELLED),
+            events.iter().all(|e| e.event_type != event_types::PIPELINE_RUN_CANCELLED),
             "409 path must emit no job.cancelled event"
         );
     }
@@ -589,9 +589,9 @@ mod tests {
 
         // Drive into Failed.
         let env = EventEnvelope::new(
-            event_types::JOB_FAILED,
+            event_types::PIPELINE_RUN_FAILED,
             &job_id,
-            &ship_substrate::events::job::JobFailedPayload {
+            &ship_substrate::events::pipeline::PipelineRunFailedPayload {
                 job_id: job_id.clone(),
                 error: "boom".into(),
             },

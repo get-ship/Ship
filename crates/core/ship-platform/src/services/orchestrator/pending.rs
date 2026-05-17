@@ -61,7 +61,7 @@ pub async fn dispatch_ready_pending_jobs(
     for job in ready {
         tracing::info!(slug = job.slug, job_id = job.job_id, "job-dispatch: dispatching previously-pending job");
 
-        let payload = ship_substrate::events::job::JobCreatedPayload {
+        let payload = ship_substrate::events::pipeline::PipelineRunStartedPayload {
             job_id: job.job_id.clone(),
             slug: job.slug.clone(),
             agent: job.agent.clone(),

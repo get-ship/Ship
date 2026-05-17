@@ -49,7 +49,7 @@ The only built-in adapter today. Env-configured:
 `HumanGatewayService` implements `ServiceHandler`. The handle path:
 
 1. Filter events — only `job.blocked`.
-2. Parse `JobBlockedPayload`. Skip if `needs_human != Some(true)`.
+2. Parse `PipelineRunBlockedPayload`. Skip if `needs_human != Some(true)`.
 3. Format an outbound text message:
 
    ```

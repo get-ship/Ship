@@ -54,9 +54,9 @@ pub async fn update_job_status(
     }
 
     use ship_substrate::events::EventEnvelope;
-    use ship_substrate::events::job::{
-        JobBlockedPayload, JobCompletedPayload, JobDispatchedPayload, JobFailedPayload,
-        JobGateFailedPayload, JobGatePassedPayload, JobGateRequestedPayload, JobMergedPayload,
+    use ship_substrate::events::pipeline::{
+        PipelineRunBlockedPayload, PipelineRunCompletedPayload, PipelineRunDispatchedPayload, PipelineRunFailedPayload,
+        PipelineGateFailedPayload, PipelineGatePassedPayload, PipelineGateRequestedPayload, PipelineRunMergedPayload,
         event_types,
     };
 
@@ -66,9 +66,9 @@ pub async fn update_job_status(
                 err_response(StatusCode::BAD_REQUEST, "worktree is required for status 'dispatched'")
             })?;
             EventEnvelope::new(
-                event_types::JOB_DISPATCHED,
+                event_types::PIPELINE_RUN_DISPATCHED,
                 &job_id,
-                &JobDispatchedPayload {
+                &PipelineRunDispatchedPayload {
                     job_id: job_id.clone(),
                     worktree,
                     pid: body.pid,
@@ -81,27 +81,27 @@ pub async fn update_job_status(
                 err_response(StatusCode::BAD_REQUEST, "gate_agent is required for status 'gate_requested'")
             })?;
             EventEnvelope::new(
-                event_types::JOB_GATE_REQUESTED,
+                event_types::PIPELINE_GATE_REQUESTED,
                 &job_id,
-                &JobGateRequestedPayload {
+                &PipelineGateRequestedPayload {
                     job_id: job_id.clone(),
                     gate_agent,
                 },
             )
         }
         "gate_passed" => EventEnvelope::new(
-            event_types::JOB_GATE_PASSED,
+            event_types::PIPELINE_GATE_PASSED,
             &job_id,
-            &JobGatePassedPayload { job_id: job_id.clone() },
+            &PipelineGatePassedPayload { job_id: job_id.clone() },
         ),
         "gate_failed" => {
             let reason = body.error.ok_or_else(|| {
                 err_response(StatusCode::BAD_REQUEST, "error is required for status 'gate_failed'")
             })?;
             EventEnvelope::new(
-                event_types::JOB_GATE_FAILED,
+                event_types::PIPELINE_GATE_FAILED,
                 &job_id,
-                &JobGateFailedPayload { job_id: job_id.clone(), reason },
+                &PipelineGateFailedPayload { job_id: job_id.clone(), reason },
             )
         }
         "blocked" => {
@@ -109,9 +109,9 @@ pub async fn update_job_status(
                 err_response(StatusCode::BAD_REQUEST, "blocker is required for status 'blocked'")
             })?;
             EventEnvelope::new(
-                event_types::JOB_BLOCKED,
+                event_types::PIPELINE_RUN_BLOCKED,
                 &job_id,
-                &JobBlockedPayload {
+                &PipelineRunBlockedPayload {
                     job_id: job_id.clone(),
                     blocker,
                     needs_human: true,
@@ -121,17 +121,17 @@ pub async fn update_job_status(
         "completed" => {
             let slug = resolve_slug(state.ship_dir(), &job_id);
             EventEnvelope::new(
-                event_types::JOB_COMPLETED,
+                event_types::PIPELINE_RUN_COMPLETED,
                 &job_id,
-                &JobCompletedPayload { job_id: job_id.clone(), slug },
+                &PipelineRunCompletedPayload { job_id: job_id.clone(), slug },
             )
         }
         "merged" => {
             let slug = resolve_slug(state.ship_dir(), &job_id);
             EventEnvelope::new(
-                event_types::JOB_MERGED,
+                event_types::PIPELINE_RUN_MERGED,
                 &job_id,
-                &JobMergedPayload { job_id: job_id.clone(), slug },
+                &PipelineRunMergedPayload { job_id: job_id.clone(), slug },
             )
         }
         "failed" => {
@@ -139,9 +139,9 @@ pub async fn update_job_status(
                 err_response(StatusCode::BAD_REQUEST, "error is required for status 'failed'")
             })?;
             EventEnvelope::new(
-                event_types::JOB_FAILED,
+                event_types::PIPELINE_RUN_FAILED,
                 &job_id,
-                &JobFailedPayload { job_id: job_id.clone(), error },
+                &PipelineRunFailedPayload { job_id: job_id.clone(), error },
             )
         }
         other => {
@@ -229,16 +229,16 @@ pub async fn job_step_done(
     })?;
 
     use ship_substrate::events::EventEnvelope;
-    use ship_substrate::events::job::{StepDoneDeclaredPayload, event_types};
+    use ship_substrate::events::pipeline::{PipelineStepDoneDeclaredPayload, event_types};
 
-    let payload = StepDoneDeclaredPayload {
+    let payload = PipelineStepDoneDeclaredPayload {
         job_id: job.job_id.clone(),
         slug: slug.clone(),
         step_id: step_id.clone(),
         summary: body.summary,
         outputs: body.outputs,
     };
-    let envelope = EventEnvelope::new(event_types::STEP_DONE_DECLARED, &job.job_id, &payload)
+    let envelope = EventEnvelope::new(event_types::PIPELINE_STEP_DONE_DECLARED, &job.job_id, &payload)
         .map_err(|e| err_response(StatusCode::BAD_REQUEST, &e.to_string()))?;
     state
         .persist_and_route(&envelope)

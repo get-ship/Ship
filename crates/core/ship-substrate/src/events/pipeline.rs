@@ -1,7 +1,9 @@
-//! Job event payload types.
+//! Pipeline event payload types.
 //!
-//! Job state is derived entirely from the event log. These payloads are the
-//! only things written to the `events` table under the `job.` namespace.
+//! Pipeline-run state is derived entirely from the event log. These payloads
+//! are the only things written to the `events` table under the `pipeline.`
+//! namespace (covering `pipeline.run.*`, `pipeline.step.*`, and
+//! `pipeline.gate.*` events).
 
 use serde::{Deserialize, Serialize};
 use specta::Type;
@@ -16,7 +18,7 @@ pub use ship_pipelines::types::{
 
 /// Emitted when a job is created. `entity_id` in the envelope is the job_id.
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
-pub struct JobCreatedPayload {
+pub struct PipelineRunStartedPayload {
     pub job_id: String,
     pub slug: String,
     pub agent: String,
@@ -73,7 +75,7 @@ pub struct JobCreatedPayload {
 
 /// Emitted when the job is assigned to a worktree and (optionally) a process.
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
-pub struct JobDispatchedPayload {
+pub struct PipelineRunDispatchedPayload {
     pub job_id: String,
     pub worktree: String,
     pub pid: Option<u32>,
@@ -84,27 +86,27 @@ pub struct JobDispatchedPayload {
 
 /// Emitted when a gate review is requested for the job.
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
-pub struct JobGateRequestedPayload {
+pub struct PipelineGateRequestedPayload {
     pub job_id: String,
     pub gate_agent: String,
 }
 
 /// Emitted when the gate review passes.
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
-pub struct JobGatePassedPayload {
+pub struct PipelineGatePassedPayload {
     pub job_id: String,
 }
 
 /// Emitted when the gate review fails.
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
-pub struct JobGateFailedPayload {
+pub struct PipelineGateFailedPayload {
     pub job_id: String,
     pub reason: String,
 }
 
 /// Emitted when the job is blocked and cannot proceed without resolution.
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
-pub struct JobBlockedPayload {
+pub struct PipelineRunBlockedPayload {
     pub job_id: String,
     /// Human-readable description of what is blocking progress.
     pub blocker: String,
@@ -113,32 +115,32 @@ pub struct JobBlockedPayload {
 
 /// Emitted when the agent signals the job is done but before gate/merge.
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
-pub struct JobCompletedPayload {
+pub struct PipelineRunCompletedPayload {
     pub job_id: String,
     pub slug: String,
 }
 
 /// Emitted when the job's branch is merged.
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
-pub struct JobMergedPayload {
+pub struct PipelineRunMergedPayload {
     pub job_id: String,
     pub slug: String,
 }
 
 /// Emitted when the job terminates with an error.
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
-pub struct JobFailedPayload {
+pub struct PipelineRunFailedPayload {
     pub job_id: String,
     pub error: String,
 }
 
 /// Emitted when an executor's spawn() returns Err — i.e. the agent
-/// process never started. Distinct from JobFailedPayload because it
+/// process never started. Distinct from PipelineRunFailedPayload because it
 /// carries the *stage* of dispatch that failed (isolation prepare,
 /// agent compile, executor spawn) so the operator can debug the
 /// right layer.
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
-pub struct JobSpawnFailedPayload {
+pub struct PipelineStepSpawnFailedPayload {
     pub job_id: String,
     pub slug: String,
     /// Which dispatch phase failed: "isolation_prepare" |
@@ -150,7 +152,7 @@ pub struct JobSpawnFailedPayload {
 
 /// Emitted when an operator (or system policy) cancels a job. Terminal.
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
-pub struct JobCancelledPayload {
+pub struct PipelineRunCancelledPayload {
     pub job_id: String,
     pub slug: String,
     /// Free-form reason. UI surfaces this verbatim.
@@ -164,7 +166,7 @@ pub struct JobCancelledPayload {
 /// update, instruction, or course correction. The daemon routes these to the
 /// agent's mailbox.
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
-pub struct JobUpdatePayload {
+pub struct PipelineRunUpdatedPayload {
     pub job_id: String,
     pub message: String,
     /// Who sent this update — e.g. "human", "commander", agent mesh ID.
@@ -173,7 +175,7 @@ pub struct JobUpdatePayload {
 
 /// Emitted when a pipeline step begins executing.
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
-pub struct StepDispatchedPayload {
+pub struct PipelineStepStartedPayload {
     pub job_id: String,
     pub slug: String,
     pub step_id: String,
@@ -182,7 +184,7 @@ pub struct StepDispatchedPayload {
 
 /// Emitted when a pipeline step finishes successfully.
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
-pub struct StepCompletedPayload {
+pub struct PipelineStepCompletedPayload {
     pub job_id: String,
     pub slug: String,
     pub step_id: String,
@@ -190,7 +192,7 @@ pub struct StepCompletedPayload {
 
 /// Emitted when a pipeline step fails. Halts pipeline advancement.
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
-pub struct StepFailedPayload {
+pub struct PipelineStepFailedPayload {
     pub job_id: String,
     pub slug: String,
     pub step_id: String,
@@ -199,7 +201,7 @@ pub struct StepFailedPayload {
 
 /// Emitted by run steps to capture stdout/stderr output.
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
-pub struct StepOutputPayload {
+pub struct PipelineStepOutputPayload {
     pub job_id: String,
     pub step_id: String,
     pub stdout: Option<String>,
@@ -208,7 +210,7 @@ pub struct StepOutputPayload {
 
 /// Emitted by an agent via the `step_done` MCP tool to declare step completion.
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
-pub struct StepDoneDeclaredPayload {
+pub struct PipelineStepDoneDeclaredPayload {
     pub job_id: String,
     pub slug: String,
     pub step_id: String,
@@ -221,7 +223,7 @@ pub struct StepDoneDeclaredPayload {
 
 /// Emitted when a gated step is retried after gate failure.
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
-pub struct StepRetryPayload {
+pub struct PipelineStepRetryPayload {
     pub job_id: String,
     pub slug: String,
     pub step_id: String,
@@ -264,7 +266,7 @@ pub enum StepVerdict {
 /// available signals (process exit, step_done, git state) and the pipeline
 /// router decides what to do based on the full picture.
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
-pub struct StepObservedPayload {
+pub struct PipelineStepObservedPayload {
     pub job_id: String,
     pub slug: String,
     pub step_index: usize,
@@ -308,7 +310,7 @@ pub struct StepObservedPayload {
     pub log_tail: Option<String>,
 }
 
-impl StepObservedPayload {
+impl PipelineStepObservedPayload {
     /// Derive a verdict from the collected evidence.
     ///
     /// Philosophy: no single signal maps to a verdict. Triggers, exit codes,
@@ -399,25 +401,25 @@ impl StepObservedPayload {
 
 /// Event type constants for the `job.` namespace.
 pub mod event_types {
-    pub const JOB_CREATED: &str = "job.created";
-    pub const JOB_DISPATCHED: &str = "job.dispatched";
-    pub const JOB_GATE_REQUESTED: &str = "job.gate_requested";
-    pub const JOB_GATE_PASSED: &str = "job.gate_passed";
-    pub const JOB_GATE_FAILED: &str = "job.gate_failed";
-    pub const JOB_BLOCKED: &str = "job.blocked";
-    pub const JOB_COMPLETED: &str = "job.completed";
-    pub const JOB_MERGED: &str = "job.merged";
-    pub const JOB_FAILED: &str = "job.failed";
-    pub const JOB_SPAWN_FAILED: &str = "job.spawn_failed";
-    pub const JOB_CANCELLED: &str = "job.cancelled";
-    pub const JOB_UPDATE: &str = "job.update";
-    pub const STEP_DISPATCHED: &str = "job.step_dispatched";
-    pub const STEP_COMPLETED: &str = "job.step_completed";
-    pub const STEP_FAILED: &str = "job.step_failed";
-    pub const STEP_OUTPUT: &str = "job.step_output";
-    pub const STEP_RETRY: &str = "step.retry";
-    pub const STEP_DONE_DECLARED: &str = "step.done_declared";
-    pub const STEP_OBSERVED: &str = "step.observed";
+    pub const PIPELINE_RUN_STARTED: &str = "pipeline.run.started";
+    pub const PIPELINE_RUN_DISPATCHED: &str = "pipeline.run.dispatched";
+    pub const PIPELINE_GATE_REQUESTED: &str = "pipeline.gate.requested";
+    pub const PIPELINE_GATE_PASSED: &str = "pipeline.gate.passed";
+    pub const PIPELINE_GATE_FAILED: &str = "pipeline.gate.failed";
+    pub const PIPELINE_RUN_BLOCKED: &str = "pipeline.run.blocked";
+    pub const PIPELINE_RUN_COMPLETED: &str = "pipeline.run.completed";
+    pub const PIPELINE_RUN_MERGED: &str = "pipeline.run.merged";
+    pub const PIPELINE_RUN_FAILED: &str = "pipeline.run.failed";
+    pub const PIPELINE_STEP_SPAWN_FAILED: &str = "pipeline.step.spawn_failed";
+    pub const PIPELINE_RUN_CANCELLED: &str = "pipeline.run.cancelled";
+    pub const PIPELINE_RUN_UPDATED: &str = "pipeline.run.updated";
+    pub const PIPELINE_STEP_STARTED: &str = "pipeline.step.started";
+    pub const PIPELINE_STEP_COMPLETED: &str = "pipeline.step.completed";
+    pub const PIPELINE_STEP_FAILED: &str = "pipeline.step.failed";
+    pub const PIPELINE_STEP_OUTPUT: &str = "pipeline.step.output";
+    pub const PIPELINE_STEP_RETRY: &str = "pipeline.step.retry";
+    pub const PIPELINE_STEP_DONE_DECLARED: &str = "pipeline.step.done_declared";
+    pub const PIPELINE_STEP_OBSERVED: &str = "pipeline.step.observed";
 }
 
 #[cfg(test)]
@@ -437,7 +439,7 @@ mod job_created_payload_tests {
             "harness": null,
             "source_spec_path": "/abs/path/to/spec.md"
         }"#;
-        let p: JobCreatedPayload = serde_json::from_str(json).unwrap();
+        let p: PipelineRunStartedPayload = serde_json::from_str(json).unwrap();
         assert_eq!(p.source_spec_path.as_deref(), Some("/abs/path/to/spec.md"));
         // Round-trip through serialization preserves the field.
         let reserialized = serde_json::to_string(&p).unwrap();
@@ -461,7 +463,7 @@ mod job_created_payload_tests {
             "harness": null,
             "baseline_sha": "deadbeefcafe"
         }"#;
-        let p: JobCreatedPayload = serde_json::from_str(json).unwrap();
+        let p: PipelineRunStartedPayload = serde_json::from_str(json).unwrap();
         assert_eq!(p.baseline_sha.as_deref(), Some("deadbeefcafe"));
         let reserialized = serde_json::to_string(&p).unwrap();
         assert!(reserialized.contains("\"baseline_sha\":\"deadbeefcafe\""));
@@ -482,7 +484,7 @@ mod job_created_payload_tests {
             "model": null,
             "harness": null
         }"#;
-        let p: JobCreatedPayload = serde_json::from_str(legacy_json).unwrap();
+        let p: PipelineRunStartedPayload = serde_json::from_str(legacy_json).unwrap();
         assert!(p.baseline_sha.is_none());
         let reserialized = serde_json::to_string(&p).unwrap();
         assert!(
@@ -506,7 +508,7 @@ mod job_created_payload_tests {
             "model": null,
             "harness": null
         }"#;
-        let p: JobCreatedPayload = serde_json::from_str(legacy_json).unwrap();
+        let p: PipelineRunStartedPayload = serde_json::from_str(legacy_json).unwrap();
         assert!(p.source_spec_path.is_none());
         let reserialized = serde_json::to_string(&p).unwrap();
         assert!(!reserialized.contains("source_spec_path"),
@@ -545,7 +547,7 @@ mod verdict_tests {
     }
 
     fn verdict(e: Evidence) -> StepVerdict {
-        StepObservedPayload::compute_verdict(
+        PipelineStepObservedPayload::compute_verdict(
             &e.step_type, e.done, e.done_result,
             e.exit, e.commits, e.uncommitted, &e.trigger,
         )

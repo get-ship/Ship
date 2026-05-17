@@ -25,10 +25,10 @@ fn make_api_state(dir: &TempDir) -> crate::routes::rest_api::ApiState {
 
 async fn seed_job(state: &crate::routes::rest_api::ApiState, slug: &str) -> String {
     use ship_substrate::events::EventEnvelope;
-    use ship_substrate::events::job::{JobCreatedPayload, event_types};
+    use ship_substrate::events::pipeline::{PipelineRunStartedPayload, event_types};
 
     let job_id = ship_substrate::gen_ulid();
-    let payload = JobCreatedPayload {
+    let payload = PipelineRunStartedPayload {
         job_id: job_id.clone(),
         slug: slug.to_string(),
         agent: "test-agent".to_string(),
@@ -48,7 +48,7 @@ async fn seed_job(state: &crate::routes::rest_api::ApiState, slug: &str) -> Stri
         headless: false,
         baseline_sha: None,
     };
-    let env = EventEnvelope::new(event_types::JOB_CREATED, &job_id, &payload)
+    let env = EventEnvelope::new(event_types::PIPELINE_RUN_STARTED, &job_id, &payload)
         .unwrap()
         .with_actor_id("test");
     state.persist_and_route(&env).await.unwrap();
@@ -167,7 +167,7 @@ async fn emit_event_validate_domain_rejects_reserved_namespace() {
         State(state),
         None,
         axum::Json(EmitEventReq {
-            event_type: "job.created".to_string(),
+            event_type: "pipeline.run.started".to_string(),
             entity_id: "x".to_string(),
             workspace_id: None,
             payload: serde_json::json!({}),

@@ -4,7 +4,7 @@
 //! event sequences, verifying status transitions, step tracking, and merge semantics.
 
 use ship_substrate::events::EventEnvelope;
-use ship_substrate::events::job::event_types;
+use ship_substrate::events::pipeline::event_types;
 use ship_platform::projections::job::{JobStatus, project};
 
 fn ev(event_type: &str, payload: serde_json::Value) -> EventEnvelope {
@@ -13,7 +13,7 @@ fn ev(event_type: &str, payload: serde_json::Value) -> EventEnvelope {
 
 fn created(job_id: &str) -> EventEnvelope {
     ev(
-        event_types::JOB_CREATED,
+        event_types::PIPELINE_RUN_STARTED,
         serde_json::json!({
             "job_id": job_id,
             "slug": job_id,
@@ -27,7 +27,7 @@ fn created(job_id: &str) -> EventEnvelope {
 
 fn created_with_steps(job_id: &str, steps: serde_json::Value) -> EventEnvelope {
     ev(
-        event_types::JOB_CREATED,
+        event_types::PIPELINE_RUN_STARTED,
         serde_json::json!({
             "job_id": job_id,
             "slug": job_id,
@@ -42,28 +42,28 @@ fn created_with_steps(job_id: &str, steps: serde_json::Value) -> EventEnvelope {
 
 fn dispatched(job_id: &str) -> EventEnvelope {
     ev(
-        event_types::JOB_DISPATCHED,
+        event_types::PIPELINE_RUN_DISPATCHED,
         serde_json::json!({"job_id": job_id, "worktree": "/tmp/wt", "pid": null}),
     )
 }
 
 fn completed(job_id: &str) -> EventEnvelope {
     ev(
-        event_types::JOB_COMPLETED,
+        event_types::PIPELINE_RUN_COMPLETED,
         serde_json::json!({"job_id": job_id, "slug": job_id}),
     )
 }
 
 fn merged(job_id: &str) -> EventEnvelope {
     ev(
-        event_types::JOB_MERGED,
+        event_types::PIPELINE_RUN_MERGED,
         serde_json::json!({"job_id": job_id}),
     )
 }
 
 fn blocked(job_id: &str, reason: &str) -> EventEnvelope {
     ev(
-        event_types::JOB_BLOCKED,
+        event_types::PIPELINE_RUN_BLOCKED,
         serde_json::json!({"job_id": job_id, "blocker": reason}),
     )
 }
@@ -264,7 +264,7 @@ fn three_step_job_intermediate_statuses() {
 ///
 /// Validates that all three steps are tracked in completed_steps and the final
 /// status is Merged — including the last step, which completes without a
-/// subsequent JOB_DISPATCHED (merge fires instead).
+/// subsequent PIPELINE_RUN_DISPATCHED (merge fires instead).
 #[test]
 fn pipeline_full_lifecycle_reaches_merged() {
     let events = vec![
@@ -357,7 +357,7 @@ fn final_step_tracked_without_subsequent_dispatch() {
     assert!(rec.completed_steps.contains(&"last".to_string()));
 }
 
-/// current_step is None after JOB_COMPLETED clears it.
+/// current_step is None after PIPELINE_RUN_COMPLETED clears it.
 #[test]
 fn current_step_cleared_after_completion() {
     let steps = serde_json::json!({

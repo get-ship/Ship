@@ -110,7 +110,7 @@ pub struct HookDef {
 }
 
 pub struct HookTrigger {
-    /// Internal event type (e.g. "job.failed"). Mutually exclusive with `source`.
+    /// Internal event type (e.g. "pipeline.run.failed"). Mutually exclusive with `source`.
     pub event: Option<String>,
     /// External trigger source (webhook, file watch, cron). Mutually exclusive with `event`.
     pub source: Option<TriggerSourceDef>,

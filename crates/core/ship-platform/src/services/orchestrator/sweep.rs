@@ -1,7 +1,7 @@
 //! Periodic coherence sweep — detects and resolves drift between job
 //! projections and live processes every 30 seconds.
 
-use ship_substrate::events::job::{event_types as job_events, JobFailedPayload, StepType};
+use ship_substrate::events::pipeline::{event_types as job_events, PipelineRunFailedPayload, StepType};
 use ship_substrate::events::process::{event_types as proc_events, ProcessKilledPayload};
 use ship_substrate::events::supervisor::{
     event_types as sup_events, CoherenceRestoredPayload, DriftDetectedPayload,
@@ -48,12 +48,12 @@ pub async fn run_sweep(
     let dead_drained = octx.registry.drain_dead(&*octx.executor).await;
     for slug in &dead_drained {
         if let Some(job) = jobs.values().find(|j| &j.slug == slug) {
-            let fail_payload = JobFailedPayload {
+            let fail_payload = PipelineRunFailedPayload {
                 job_id: job.job_id.clone(),
                 error: "coherence sweep: process died without completing".to_string(),
             };
             if let Ok(env) =
-                EventEnvelope::new(job_events::JOB_FAILED, &job.job_id, &fail_payload)
+                EventEnvelope::new(job_events::PIPELINE_RUN_FAILED, &job.job_id, &fail_payload)
             {
                 let env = env.with_actor_id("service.coherence-sweep");
                 persist_and_route(kernel, env, &job.slug, None).await;
@@ -139,11 +139,11 @@ pub async fn run_sweep(
         .await;
 
         // Emit job.failed
-        let fail_payload = JobFailedPayload {
+        let fail_payload = PipelineRunFailedPayload {
             job_id: job.job_id.clone(),
             error: "coherence sweep: process missing for dispatched job".to_string(),
         };
-        if let Ok(env) = EventEnvelope::new(job_events::JOB_FAILED, &job.job_id, &fail_payload) {
+        if let Ok(env) = EventEnvelope::new(job_events::PIPELINE_RUN_FAILED, &job.job_id, &fail_payload) {
             let env = env.with_actor_id("service.coherence-sweep");
             persist_and_route(kernel, env, &job.slug, None).await;
         }

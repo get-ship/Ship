@@ -7,7 +7,7 @@ use axum::{
     response::IntoResponse,
 };
 use ship_substrate::events::EventEnvelope;
-use ship_substrate::events::job::{JobCreatedPayload, event_types};
+use ship_substrate::events::pipeline::{PipelineRunStartedPayload, event_types};
 use serde::Deserialize;
 
 use crate::auth::{AuthContext, Scope, require_scope};
@@ -162,7 +162,7 @@ pub async fn dispatch_pipeline(
     let branch = req.branch.unwrap_or_else(|| format!("job/{slug}"));
     let job_id = ship_substrate::gen_ulid();
 
-    let payload = JobCreatedPayload {
+    let payload = PipelineRunStartedPayload {
         job_id: job_id.clone(),
         slug,
         agent: first_agent,
@@ -193,7 +193,7 @@ pub async fn dispatch_pipeline(
         }
     };
 
-    let envelope = match EventEnvelope::new(event_types::JOB_CREATED, &job_id, &payload)
+    let envelope = match EventEnvelope::new(event_types::PIPELINE_RUN_STARTED, &job_id, &payload)
         .map(|e| e.with_actor_id("studio"))
     {
         Ok(e) => e,

@@ -57,7 +57,7 @@ Constructor: `EventEnvelope::new(event_type, entity_id, &payload)` where payload
 
 ## Event type constants
 
-~83 constants defined in `ship-types::event_types`, re-exported through `ship_substrate::events::types::event_types`. Callers reference `event_types::JOB_CREATED` rather than writing `"job.created"` literally — the constant catches typos at compile time.
+~83 constants defined in `ship-types::event_types`, re-exported through `ship_substrate::events::types::event_types`. Callers reference `event_types::PIPELINE_RUN_STARTED` rather than writing `"pipeline.run.started"` literally — the constant catches typos at compile time.
 
 Complete list grouped by domain:
 
@@ -69,7 +69,7 @@ Complete list grouped by domain:
 
 **Gate (2):** `GATE_PASSED`, `GATE_FAILED`.
 
-**Job (10):** `JOB_CREATED`, `_COMPLETED`, `_FAILED`, `_DISPATCHED`, `_UPDATE`, `_STEP_COMPLETED`, `_STEP_FAILED`, `_CANCELLED`, `_MERGED`, `_SPAWN_FAILED`.
+**Job (10):** `PIPELINE_RUN_STARTED`, `_COMPLETED`, `_FAILED`, `_DISPATCHED`, `_UPDATE`, `_STEP_COMPLETED`, `_STEP_FAILED`, `_CANCELLED`, `_MERGED`, `_SPAWN_FAILED`.
 
 **Skill (7):** `SKILL_STARTED`, `_COMPLETED`, `_FAILED`, `_ATTACHED_TO_SESSION`, `_CREATED`, `_UPDATED`, `_DELETED`.
 
@@ -192,7 +192,7 @@ Most production code accesses the router via the daemon's `ShipRuntime::kernel` 
 
 Each major event family has a module defining its payload types and sometimes event constants local to the domain:
 
-- `job.rs` — `JobCreatedPayload`, `Pipeline`, `PipelineStep`, `StepType`.
+- `job.rs` — `PipelineRunStartedPayload`, `Pipeline`, `PipelineStep`, `StepType`.
 - `process.rs` — `ProcessSpawnedPayload`, `ProcessExitedPayload`, etc.
 - `supervisor.rs` — `SupervisorSweepPayload`, drift detection payloads.
 - `executor.rs` — session/window lifecycle payloads.

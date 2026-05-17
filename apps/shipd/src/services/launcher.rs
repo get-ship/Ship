@@ -1,6 +1,6 @@
 //! Generic "launch a collection item as a job" — reads the item, builds
-//! a `JobCreatedPayload` from conventional fields (`pipeline`, `vars`,
-//! `body_path`), runs pipeline resolution, emits `JOB_CREATED`, and
+//! a `PipelineRunStartedPayload` from conventional fields (`pipeline`, `vars`,
+//! `body_path`), runs pipeline resolution, emits `PIPELINE_RUN_STARTED`, and
 //! marks the item `status = "launched"`.
 //!
 //! Today only the `specs` collection has the convention; the helper is
@@ -11,7 +11,7 @@ use ship_platform::services::collections::service::{
 };
 use crate::services::specs::shape::{load_body, spec_from_item};
 
-use ship_substrate::events::job::{JobCreatedPayload, event_types};
+use ship_substrate::events::pipeline::{PipelineRunStartedPayload, event_types};
 use ship_substrate::events::{CallerKind, EmitContext, EventEnvelope, KernelRouter};
 
 use std::sync::Arc;
@@ -60,7 +60,7 @@ pub async fn launch_collection_item(
         .and_then(|p| p.parent().map(std::path::Path::to_path_buf))
         .and_then(|root| ship_platform::services::orchestrator::git_helpers::resolve_head_sha(&root));
     let agent = spec.agent.clone().unwrap_or_else(|| "claude".to_string());
-    let payload = JobCreatedPayload {
+    let payload = PipelineRunStartedPayload {
         job_id: job_id.clone(),
         slug,
         agent,
@@ -82,7 +82,7 @@ pub async fn launch_collection_item(
     };
     let payload = ship_platform::services::orchestrator::pipeline_loader::ensure_pipeline(payload)
         .map_err(LaunchError::Validation)?;
-    let envelope = EventEnvelope::new(event_types::JOB_CREATED, &job_id, &payload)
+    let envelope = EventEnvelope::new(event_types::PIPELINE_RUN_STARTED, &job_id, &payload)
         .map(|e| e.with_actor_id("studio"))
         .map_err(|e| LaunchError::Validation(e.to_string()))?;
     let ctx = EmitContext {

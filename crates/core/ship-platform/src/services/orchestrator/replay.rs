@@ -97,7 +97,7 @@ pub async fn replay_unprocessed_completions(
             "slug": job.slug,
         });
         let envelope = match EventEnvelope::new(
-            ship_substrate::events::job::event_types::JOB_COMPLETED,
+            ship_substrate::events::pipeline::event_types::PIPELINE_RUN_COMPLETED,
             &job.job_id,
             &payload,
         ) {

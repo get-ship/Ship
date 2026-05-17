@@ -4,7 +4,7 @@
 //! The projection is derived entirely from events — no side channels.
 //! These properties are the foundation of the entire system.
 
-use ship_substrate::events::job::event_types;
+use ship_substrate::events::pipeline::event_types;
 use ship_substrate::events::EventEnvelope;
 use ship_platform::projections::job::{project, JobStatus};
 
@@ -24,12 +24,12 @@ fn ev(event_type: &str, payload: serde_json::Value) -> EventEnvelope {
 #[test]
 fn apply_does_not_mutate_events() {
     let events = vec![
-        ev(event_types::JOB_CREATED, serde_json::json!({
+        ev(event_types::PIPELINE_RUN_STARTED, serde_json::json!({
             "job_id": "j1", "slug": "s",
             "agent": "r", "branch": "job/s",
             "spec_path": "spec.md", "plan_id": null,
         })),
-        ev(event_types::JOB_DISPATCHED, serde_json::json!({
+        ev(event_types::PIPELINE_RUN_DISPATCHED, serde_json::json!({
             "job_id": "j1", "worktree": "/w", "pid": 42,
         })),
     ];
@@ -46,12 +46,12 @@ fn apply_does_not_mutate_events() {
 /// Every event has a unique ID.
 #[test]
 fn events_have_unique_ids() {
-    let e1 = ev(event_types::JOB_CREATED, serde_json::json!({
+    let e1 = ev(event_types::PIPELINE_RUN_STARTED, serde_json::json!({
         "job_id": "j1", "slug": "s",
         "agent": "r", "branch": "job/s",
         "spec_path": "spec.md", "plan_id": null,
     }));
-    let e2 = ev(event_types::JOB_CREATED, serde_json::json!({
+    let e2 = ev(event_types::PIPELINE_RUN_STARTED, serde_json::json!({
         "job_id": "j2", "slug": "t",
         "agent": "r", "branch": "job/t",
         "spec_path": "spec.md", "plan_id": null,
@@ -62,7 +62,7 @@ fn events_have_unique_ids() {
 /// Events have monotonic timestamps.
 #[test]
 fn events_have_timestamps() {
-    let e = ev(event_types::JOB_CREATED, serde_json::json!({
+    let e = ev(event_types::PIPELINE_RUN_STARTED, serde_json::json!({
         "job_id": "j1", "slug": "s",
         "agent": "r", "branch": "job/s",
         "spec_path": "spec.md", "plan_id": null,
@@ -81,7 +81,7 @@ fn events_have_timestamps() {
 #[test]
 fn projection_populates_all_fields_from_events() {
     let events = vec![
-        ev(event_types::JOB_CREATED, serde_json::json!({
+        ev(event_types::PIPELINE_RUN_STARTED, serde_json::json!({
             "job_id": "j1", "slug": "auth-fix",
             "agent": "rust-runtime", "branch": "job/auth-fix",
             "spec_path": "specs/auth.md", "plan_id": "plan-1",
@@ -91,7 +91,7 @@ fn projection_populates_all_fields_from_events() {
                 { "id": "impl", "type": "agent", "agent": "rust-runtime", "after": [] }
             ]}
         })),
-        ev(event_types::JOB_DISPATCHED, serde_json::json!({
+        ev(event_types::PIPELINE_RUN_DISPATCHED, serde_json::json!({
             "job_id": "j1", "worktree": "/wt/auth-fix", "pid": 9999,
             "harness_meta": { "session_id": "sess-1" },
         })),
@@ -126,7 +126,7 @@ fn projection_populates_all_fields_from_events() {
 /// Projection handles missing optional fields gracefully.
 #[test]
 fn projection_handles_minimal_created_event() {
-    let events = vec![ev(event_types::JOB_CREATED, serde_json::json!({
+    let events = vec![ev(event_types::PIPELINE_RUN_STARTED, serde_json::json!({
         "job_id": "j-min", "slug": "minimal",
         "agent": "default", "branch": "job/minimal",
         "spec_path": "spec.md",
@@ -155,7 +155,7 @@ fn projection_handles_minimal_created_event() {
 #[test]
 fn event_envelope_has_entity_id() {
     let e = EventEnvelope::new(
-        event_types::JOB_CREATED,
+        event_types::PIPELINE_RUN_STARTED,
         "j-entity",
         &serde_json::json!({"job_id": "j-entity", "slug": "s", "agent": "r", "branch": "b", "spec_path": "s.md"}),
     ).unwrap();
@@ -166,7 +166,7 @@ fn event_envelope_has_entity_id() {
 #[test]
 fn event_envelope_supports_actor_id() {
     let e = EventEnvelope::new(
-        event_types::JOB_DISPATCHED,
+        event_types::PIPELINE_RUN_DISPATCHED,
         "j1",
         &serde_json::json!({"job_id": "j1", "worktree": "/w", "pid": null}),
     ).unwrap().with_actor_id("service.job-dispatch");
@@ -184,24 +184,24 @@ fn event_envelope_supports_actor_id() {
 #[test]
 fn multi_job_projection_is_deterministic() {
     let events = vec![
-        ev(event_types::JOB_CREATED, serde_json::json!({
+        ev(event_types::PIPELINE_RUN_STARTED, serde_json::json!({
             "job_id": "j1", "slug": "a",
             "agent": "r", "branch": "job/a", "spec_path": "s.md",
         })),
-        ev(event_types::JOB_CREATED, serde_json::json!({
+        ev(event_types::PIPELINE_RUN_STARTED, serde_json::json!({
             "job_id": "j2", "slug": "b",
             "agent": "r", "branch": "job/b", "spec_path": "s.md",
         })),
-        ev(event_types::JOB_DISPATCHED, serde_json::json!({
+        ev(event_types::PIPELINE_RUN_DISPATCHED, serde_json::json!({
             "job_id": "j1", "worktree": "/w/a", "pid": null,
         })),
-        ev(event_types::JOB_COMPLETED, serde_json::json!({
+        ev(event_types::PIPELINE_RUN_COMPLETED, serde_json::json!({
             "job_id": "j1", "slug": "a",
         })),
-        ev(event_types::JOB_DISPATCHED, serde_json::json!({
+        ev(event_types::PIPELINE_RUN_DISPATCHED, serde_json::json!({
             "job_id": "j2", "worktree": "/w/b", "pid": null,
         })),
-        ev(event_types::JOB_FAILED, serde_json::json!({
+        ev(event_types::PIPELINE_RUN_FAILED, serde_json::json!({
             "job_id": "j2", "error": "timeout",
         })),
     ];

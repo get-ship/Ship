@@ -6,12 +6,12 @@
 //! review/merge/sonnet.
 
 use super::pipeline_loader::ensure_pipeline;
-use ship_substrate::events::job::{
-    JobCreatedPayload, OutputScope, Pipeline, PipelineStep, StepOutput, StepPromote, StepType,
+use ship_substrate::events::pipeline::{
+    PipelineRunStartedPayload, OutputScope, Pipeline, PipelineStep, StepOutput, StepPromote, StepType,
 };
 
-fn base_payload(agent: &str) -> JobCreatedPayload {
-    JobCreatedPayload {
+fn base_payload(agent: &str) -> PipelineRunStartedPayload {
+    PipelineRunStartedPayload {
         job_id: "j-1".into(),
         slug: "slug-1".into(),
         agent: agent.into(),

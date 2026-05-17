@@ -1,5 +1,3 @@
-use crate::event_types;
-use crate::payload::{JobCreatedPayload, StepCompletedPayload, StepDispatchedPayload};
 use crate::pipeline::Pipeline;
 use crate::record::PipelineRun;
 use crate::step::{PipelineStep, StepType};
@@ -61,53 +59,6 @@ fn pipeline_root_steps() {
     let roots = pipeline.root_steps();
     let ids: Vec<&str> = roots.iter().map(|s| s.id.as_str()).collect();
     assert_eq!(ids, vec!["step1", "step3"]);
-}
-
-#[test]
-fn job_created_payload_roundtrips_serde() {
-    let payload = JobCreatedPayload {
-        job_id: "j-001".into(),
-        slug: "add-auth".into(),
-        agent: "rust-lane".into(),
-        branch: "job/add-auth".into(),
-        spec_path: ".artifacts/job-spec.md".into(),
-    };
-    let json = serde_json::to_string(&payload).expect("serialize");
-    let back: JobCreatedPayload = serde_json::from_str(&json).expect("deserialize");
-    assert_eq!(payload, back);
-}
-
-#[test]
-fn step_dispatched_payload_fields() {
-    let p = StepDispatchedPayload {
-        job_id: "j-001".into(),
-        step_index: 0,
-        step_name: "implement".into(),
-        step_type: "agent".into(),
-    };
-    assert_eq!(p.job_id, "j-001");
-    assert_eq!(p.step_index, 0);
-    assert_eq!(p.step_name, "implement");
-    assert_eq!(p.step_type, "agent");
-}
-
-#[test]
-fn step_completed_payload_fields() {
-    let p = StepCompletedPayload {
-        job_id: "j-001".into(),
-        step_index: 0,
-        step_name: "implement".into(),
-    };
-    assert_eq!(p.job_id, "j-001");
-    assert_eq!(p.step_index, 0);
-    assert_eq!(p.step_name, "implement");
-}
-
-#[test]
-fn job_event_type_constants_exist() {
-    assert_eq!(event_types::CREATED, "job.created");
-    assert_eq!(event_types::STEP_DISPATCHED, "job.step_dispatched");
-    assert_eq!(event_types::STEP_COMPLETED, "job.step_completed");
 }
 
 #[test]

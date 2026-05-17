@@ -61,7 +61,7 @@ fn reject_both_event_and_source() {
     let hook_str = r#"{
         "name": "both",
         "trigger": {
-            "event": "job.failed",
+            "event": "pipeline.run.failed",
             "source": { "type": "cron", "expression": "*/1 * * * *" }
         },
         "actions": []
@@ -169,7 +169,7 @@ fn existing_event_triggers_still_load() {
     write_hook(
         &ship_dir,
         "event-hook.jsonc",
-        r#"{ "name": "on-fail", "trigger": { "event": "job.failed" }, "actions": [] }"#,
+        r#"{ "name": "on-fail", "trigger": { "event": "pipeline.run.failed" }, "actions": [] }"#,
     );
     let report = load_hooks_dir(&ship_dir);
     assert_eq!(report.hooks.len(), 1);

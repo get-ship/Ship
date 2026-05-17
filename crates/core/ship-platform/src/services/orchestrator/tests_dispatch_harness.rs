@@ -11,8 +11,8 @@ use std::sync::{Arc, Mutex as StdMutex};
 use tempfile::TempDir;
 use tokio::sync::Mutex;
 
-use ship_substrate::events::job::{
-    event_types, JobCreatedPayload, Pipeline, PipelineStep, StepType,
+use ship_substrate::events::pipeline::{
+    event_types, PipelineRunStartedPayload, Pipeline, PipelineStep, StepType,
 };
 use ship_substrate::events::kernel_router::{ActorConfig, KernelRouter};
 use crate::services::dispatch_ports::{
@@ -109,7 +109,7 @@ fn payload_with_first_step(
     step_model: Option<&str>,
     payload_harness: Option<&str>,
     payload_model: Option<&str>,
-) -> JobCreatedPayload {
+) -> PipelineRunStartedPayload {
     let first = PipelineStep {
         id: "implement".into(),
         step_type: StepType::Agent,
@@ -126,7 +126,7 @@ fn payload_with_first_step(
         promotes: vec![],
         fanout: None,
     };
-    JobCreatedPayload {
+    PipelineRunStartedPayload {
         job_id: job_id.into(),
         slug: slug.into(),
         agent: "rust-lane".into(),
@@ -149,7 +149,7 @@ fn payload_with_first_step(
 }
 
 async fn run_dispatch(
-    payload: &JobCreatedPayload,
+    payload: &PipelineRunStartedPayload,
     tmp: &TempDir,
 ) -> Option<(Option<String>, Option<String>)> {
     let base = ship_substrate::project::get_global_dir().unwrap();
@@ -166,7 +166,7 @@ async fn run_dispatch(
     );
 
     let created = ship_substrate::events::EventEnvelope::new(
-        event_types::JOB_CREATED, &payload.job_id, payload,
+        event_types::PIPELINE_RUN_STARTED, &payload.job_id, payload,
     ).unwrap();
     crate::services::orchestrator::emit::persist_and_route(
         &kernel, created, &payload.slug, None,

@@ -3,7 +3,7 @@
 //! This is the entry point for all `job.*` and `step.*` events flowing
 //! through the orchestrator.
 
-use ship_substrate::events::job::{StepDoneDeclaredPayload, StepObservedPayload};
+use ship_substrate::events::pipeline::{PipelineStepDoneDeclaredPayload, PipelineStepObservedPayload};
 use ship_substrate::events::EventEnvelope;
 use ship_types::event_types as et;
 use std::sync::atomic::Ordering;
@@ -118,10 +118,10 @@ pub async fn handle_job_event(
     }
 
     match envelope.event_type.as_str() {
-        "job.created" => handle_job_created(kernel, envelope, octx).await,
-        "job.update" => handle_job_update(kernel, envelope).await,
-        et::JOB_CANCELLED => handle_job_cancelled(kernel, envelope, octx).await,
-        "job.completed" => {
+        "pipeline.run.started" => handle_job_created(kernel, envelope, octx).await,
+        "pipeline.run.updated" => handle_job_update(kernel, envelope).await,
+        et::PIPELINE_RUN_CANCELLED => handle_job_cancelled(kernel, envelope, octx).await,
+        "pipeline.run.completed" => {
             tracing::info!(entity_id = %envelope.entity_id, "job-dispatch: handling job.completed");
             let slug = extract_slug(envelope);
             if let Some(slug) = &slug {
@@ -139,21 +139,21 @@ pub async fn handle_job_event(
                 }
             }
         }
-        et::JOB_STEP_COMPLETED => {
+        et::PIPELINE_STEP_COMPLETED => {
             tracing::info!(entity_id = %envelope.entity_id, "job-dispatch: handling job.step_completed");
             if !advance_pipeline(kernel, envelope, octx).await {
                 finalize_pipeline_if_done(kernel, envelope).await;
                 super::pending::dispatch_ready_pending_jobs(kernel, octx).await;
             }
         }
-        et::JOB_STEP_FAILED => {
+        et::PIPELINE_STEP_FAILED => {
             tracing::warn!(entity_id = %envelope.entity_id, "job-dispatch: pipeline step failed — advancement halted");
             let payload: serde_json::Value = serde_json::from_str(&envelope.payload_json).unwrap_or_default();
             if let Some(slug) = payload["slug"].as_str() {
                 octx.registry.unregister(slug).await;
             }
         }
-        et::JOB_MERGED => {
+        et::PIPELINE_RUN_MERGED => {
             tracing::info!(entity_id = %envelope.entity_id, "job-dispatch: handling job.merged");
             let slug = extract_slug(envelope);
             if let Some(slug) = &slug {
@@ -163,7 +163,7 @@ pub async fn handle_job_event(
             handle_job_cleanup(envelope, &*octx.platform).await;
             super::pending::dispatch_ready_pending_jobs(kernel, octx).await;
         }
-        "job.failed" => {
+        "pipeline.run.failed" => {
             let slug = extract_slug(envelope);
             if let Some(slug) = &slug {
                 octx.registry.unregister(slug).await;
@@ -172,7 +172,7 @@ pub async fn handle_job_event(
             }
             octx.job_locks.lock().await.remove(&envelope.entity_id);
         }
-        "step.done_declared" => {
+        "pipeline.step.done_declared" => {
             let slug = extract_slug(envelope);
             // Set done flag so the step monitor knows step_done was called.
             if let Some(slug) = &slug {
@@ -184,13 +184,13 @@ pub async fn handle_job_event(
                 }
             }
             // Check required outputs — fail the step immediately when any are missing.
-            if let Ok(declared) = serde_json::from_str::<StepDoneDeclaredPayload>(&envelope.payload_json) {
+            if let Ok(declared) = serde_json::from_str::<PipelineStepDoneDeclaredPayload>(&envelope.payload_json) {
                 check_and_fail_missing_outputs(kernel, &declared).await;
             }
         }
-        "step.observed" => {
+        "pipeline.step.observed" => {
             tracing::info!(entity_id = %envelope.entity_id, "job-dispatch: handling step.observed");
-            let payload: StepObservedPayload = match serde_json::from_str(&envelope.payload_json) {
+            let payload: PipelineStepObservedPayload = match serde_json::from_str(&envelope.payload_json) {
                 Ok(p) => p,
                 Err(e) => {
                     tracing::warn!("job-dispatch: malformed step.observed payload: {e}");
@@ -212,7 +212,7 @@ pub async fn handle_job_event(
                 }
             }
 
-            use ship_substrate::events::job::StepVerdict;
+            use ship_substrate::events::pipeline::StepVerdict;
 
             // Evaluate any declared post-step diff gate. This short-circuits
             // positive verdicts into a structured pipeline halt when the
@@ -330,9 +330,9 @@ async fn maybe_auto_merge(
 /// pipeline progression. These are exempt from the terminal-state guard
 /// so operators can still issue signals about a finalized job.
 fn is_operator_event(event_type: &str) -> bool {
-    event_type == "job.created"
-        || event_type == "job.update"
-        || event_type == et::JOB_CANCELLED
+    event_type == "pipeline.run.started"
+        || event_type == "pipeline.run.updated"
+        || event_type == et::PIPELINE_RUN_CANCELLED
 }
 
 /// Load the projected record for a single job by entity_id.
@@ -354,7 +354,7 @@ fn extract_slug(envelope: &EventEnvelope) -> Option<String> {
 /// When any are missing, emits `step.failed` + `job.failed` immediately.
 async fn check_and_fail_missing_outputs(
     kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
-    declared: &StepDoneDeclaredPayload,
+    declared: &PipelineStepDoneDeclaredPayload,
 ) {
     let Some(job) = crate::projections::job::load_job_by_id(&declared.job_id)
         .ok()
@@ -381,7 +381,7 @@ async fn check_and_fail_missing_outputs(
 /// logged but do not block pipeline advancement.
 async fn run_promotes_for_step(
     kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
-    payload: &StepObservedPayload,
+    payload: &PipelineStepObservedPayload,
 ) {
     let Some(job) = crate::projections::job::load_job_by_id(&payload.job_id)
         .ok()
@@ -401,7 +401,7 @@ async fn run_promotes_for_step(
 /// Evaluate the step's declared `gate:` block against its diff. Returns a
 /// failure reason if the gate halts the pipeline, `None` to continue.
 async fn evaluate_step_gate(
-    payload: &StepObservedPayload,
+    payload: &PipelineStepObservedPayload,
     octx: &OrchestratorContext,
 ) -> Option<String> {
     use super::gate_rules::{diff_paths, evaluate, GateOutcome};
@@ -444,18 +444,18 @@ async fn evaluate_step_gate(
 /// existing pipeline-halt shape — no new error taxonomy.
 async fn emit_step_gate_failure(
     kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
-    payload: &StepObservedPayload,
+    payload: &PipelineStepObservedPayload,
     reason: &str,
 ) {
-    use ship_substrate::events::job::{event_types, JobFailedPayload, StepFailedPayload};
+    use ship_substrate::events::pipeline::{event_types, PipelineRunFailedPayload, PipelineStepFailedPayload};
 
-    let step_fail = StepFailedPayload {
+    let step_fail = PipelineStepFailedPayload {
         job_id: payload.job_id.clone(),
         slug: payload.slug.clone(),
         step_id: payload.step_name.clone(),
         error: reason.to_string(),
     };
-    if let Ok(env) = EventEnvelope::new(event_types::STEP_FAILED, &payload.job_id, &step_fail) {
+    if let Ok(env) = EventEnvelope::new(event_types::PIPELINE_STEP_FAILED, &payload.job_id, &step_fail) {
         let env = env.with_actor_id("service.job-dispatch");
         super::emit::persist_and_route(kernel, env, &payload.slug, None).await;
     }
@@ -465,11 +465,11 @@ async fn emit_step_gate_failure(
         Some(tail) => format!("{base_error}\n\nagent log tail:\n{tail}"),
         None => base_error,
     };
-    let job_fail = JobFailedPayload {
+    let job_fail = PipelineRunFailedPayload {
         job_id: payload.job_id.clone(),
         error,
     };
-    if let Ok(env) = EventEnvelope::new(event_types::JOB_FAILED, &payload.job_id, &job_fail) {
+    if let Ok(env) = EventEnvelope::new(event_types::PIPELINE_RUN_FAILED, &payload.job_id, &job_fail) {
         let env = env.with_actor_id("service.job-dispatch");
         super::emit::persist_and_route(kernel, env, &payload.slug, None).await;
     }

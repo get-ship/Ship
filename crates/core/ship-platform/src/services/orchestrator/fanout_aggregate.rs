@@ -10,8 +10,8 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use crate::artifacts::{ArtifactScope, ArtifactService};
-use ship_substrate::events::job::{
-    StepDoneDeclaredPayload, StepObservedPayload, StepVerdict, event_types,
+use ship_substrate::events::pipeline::{
+    PipelineStepDoneDeclaredPayload, PipelineStepObservedPayload, StepVerdict, event_types,
 };
 use ship_substrate::events::{EventEnvelope, KernelRouter};
 use crate::services::orchestrator::emit::persist_and_route;
@@ -35,7 +35,7 @@ pub use ship_pipelines::validate::FAILED_MARKER_NAME;
 /// artifact so the judge's `consumes` resolves via the normal path.
 pub async fn complete_fanout_lane(
     kernel: &Arc<Mutex<KernelRouter>>,
-    payload: &StepObservedPayload,
+    payload: &PipelineStepObservedPayload,
     lane_ref: &FanoutLaneRef,
     octx: &OrchestratorContext,
 ) {
@@ -143,14 +143,14 @@ pub(crate) async fn emit_failed_marker(
 
     // Synthetic step.done_declared so resolve_consumes finds the marker the
     // same way it finds any other lane output.
-    let payload = StepDoneDeclaredPayload {
+    let payload = PipelineStepDoneDeclaredPayload {
         job_id: job_id.to_string(),
         slug: slug.to_string(),
         step_id: lane_step_id.to_string(),
         summary: Some(format!("lane failed: {reason}")),
         outputs: [(FAILED_MARKER_NAME.to_string(), rec.id.clone())].into(),
     };
-    match EventEnvelope::new(event_types::STEP_DONE_DECLARED, job_id, &payload) {
+    match EventEnvelope::new(event_types::PIPELINE_STEP_DONE_DECLARED, job_id, &payload) {
         Ok(env) => {
             let env = env.with_actor_id("service.fanout");
             persist_and_route(kernel, env, slug, None).await;

@@ -18,7 +18,7 @@ pub struct HookDef {
 /// Exactly one of `event` or `source` must be set. Validated at load time.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HookTrigger {
-    /// Internal event type (e.g. `"job.failed"`). Mutually exclusive with `source`.
+    /// Internal event type (e.g. `"pipeline.run.failed"`). Mutually exclusive with `source`.
     #[serde(default)]
     pub event: Option<String>,
     /// External trigger source. Mutually exclusive with `event`.

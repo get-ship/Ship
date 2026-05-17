@@ -7,7 +7,7 @@
 //! Cleanup must be event-driven and idempotent. Running cleanup twice on
 //! the same job must not error.
 
-use ship_substrate::events::job::event_types;
+use ship_substrate::events::pipeline::event_types;
 use ship_substrate::events::EventEnvelope;
 use ship_platform::projections::job::{project, JobStatus};
 
@@ -39,7 +39,7 @@ fn job_merged_routes_to_cleanup() {
     // Orchestration logic moved to ship_platform::services::orchestrator::router
     let source = include_str!("../../../../crates/core/ship-platform/src/services/orchestrator/router.rs");
     assert!(
-        source.contains("job.merged"),
+        source.contains("pipeline.run.merged"),
         "orchestrator router must handle job.merged events"
     );
     assert!(
@@ -134,18 +134,18 @@ fn cleanup_tolerates_missing_branch() {
 #[test]
 fn terminal_jobs_with_worktrees_are_orphan_candidates() {
     let events = vec![
-        ev(event_types::JOB_CREATED, serde_json::json!({
+        ev(event_types::PIPELINE_RUN_STARTED, serde_json::json!({
             "job_id": "j1", "slug": "done",
             "agent": "r", "branch": "job/done",
             "spec_path": "s.md", "plan_id": null,
         })),
-        ev(event_types::JOB_DISPATCHED, serde_json::json!({
+        ev(event_types::PIPELINE_RUN_DISPATCHED, serde_json::json!({
             "job_id": "j1", "worktree": "/tmp/wt/done", "pid": null,
         })),
-        ev(event_types::JOB_COMPLETED, serde_json::json!({
+        ev(event_types::PIPELINE_RUN_COMPLETED, serde_json::json!({
             "job_id": "j1", "slug": "done",
         })),
-        ev(event_types::JOB_MERGED, serde_json::json!({
+        ev(event_types::PIPELINE_RUN_MERGED, serde_json::json!({
             "job_id": "j1", "slug": "done",
         })),
     ];

@@ -3,7 +3,7 @@
 //! Tests cover: config parse, lane ID uniqueness, judge-step reference
 //! validation, lane-scoped output naming, and lane-scoped consumes resolution.
 
-use ship_substrate::events::job::{
+use ship_substrate::events::pipeline::{
     FanoutJudge, FanoutLane, FanoutSpec, Pipeline, PipelineStep, StepOutput, StepType,
     OutputScope,
 };
@@ -43,8 +43,8 @@ fn lane(id: &str, agent: &str) -> FanoutLane {
 fn base_payload(
     slug: &str,
     steps: Vec<PipelineStep>,
-) -> ship_substrate::events::job::JobCreatedPayload {
-    ship_substrate::events::job::JobCreatedPayload {
+) -> ship_substrate::events::pipeline::PipelineRunStartedPayload {
+    ship_substrate::events::pipeline::PipelineRunStartedPayload {
         job_id: "j-test".into(),
         slug: slug.into(),
         agent: "implementer".into(),

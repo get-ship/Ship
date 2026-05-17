@@ -184,7 +184,7 @@ async fn pipeline_trigger(
         "headless": true,
         "_hook_depth": ctx.depth,
     });
-    let envelope = EventEnvelope::new("job.created", &job_id, &payload)?
+    let envelope = EventEnvelope::new("pipeline.run.started", &job_id, &payload)?
         .with_causation(ctx.trigger_event_id)
         .with_actor_id(&format!("hook:{}", ctx.hook_name));
     let emit_ctx = EmitContext {

@@ -4,7 +4,7 @@
 //! from the event store. No job should be lost, stuck, or duplicated.
 //! The startup sequence is: reconcile dispatched → replay completions → dispatch pending.
 
-use ship_substrate::events::job::event_types;
+use ship_substrate::events::pipeline::event_types;
 use ship_substrate::events::EventEnvelope;
 use ship_platform::projections::job::{project, JobStatus};
 
@@ -111,8 +111,8 @@ fn dead_process_emits_session_destroyed() {
 fn reconcile_does_not_emit_step_failed() {
     let source = include_str!("../../../../crates/core/ship-platform/src/services/orchestrator/replay.rs");
     assert!(
-        !source.contains("STEP_FAILED"),
-        "reconcile must not emit STEP_FAILED — observation only"
+        !source.contains("PIPELINE_STEP_FAILED"),
+        "reconcile must not emit PIPELINE_STEP_FAILED — observation only"
     );
     assert!(
         !source.contains("emit_step_failed"),
@@ -146,15 +146,15 @@ fn session_destroyed_uses_external_cause() {
 #[test]
 fn stale_completions_are_detected() {
     let events = vec![
-        ev(event_types::JOB_CREATED, serde_json::json!({
+        ev(event_types::PIPELINE_RUN_STARTED, serde_json::json!({
             "job_id": "j1", "slug": "s",
             "agent": "r", "branch": "job/s",
             "spec_path": "spec.md", "plan_id": null,
         })),
-        ev(event_types::JOB_DISPATCHED, serde_json::json!({
+        ev(event_types::PIPELINE_RUN_DISPATCHED, serde_json::json!({
             "job_id": "j1", "worktree": "/w", "pid": null,
         })),
-        ev(event_types::JOB_COMPLETED, serde_json::json!({
+        ev(event_types::PIPELINE_RUN_COMPLETED, serde_json::json!({
             "job_id": "j1", "slug": "s",
         })),
         // No merge or next dispatch — pipeline stalled while daemon was down
@@ -246,12 +246,12 @@ fn live_process_registered_in_registry() {
 #[test]
 fn reconcile_keeps_orphaned_jobs_dispatched() {
     let events = vec![
-        ev(event_types::JOB_CREATED, serde_json::json!({
+        ev(event_types::PIPELINE_RUN_STARTED, serde_json::json!({
             "job_id": "j-orphan", "slug": "orphan",
             "agent": "r", "branch": "job/orphan",
             "spec_path": "spec.md", "plan_id": null,
         })),
-        ev(event_types::JOB_DISPATCHED, serde_json::json!({
+        ev(event_types::PIPELINE_RUN_DISPATCHED, serde_json::json!({
             "job_id": "j-orphan", "worktree": "/w", "pid": 99999,
         })),
         // No completion — daemon died, process went missing. Simulate
@@ -281,12 +281,12 @@ fn reconcile_keeps_orphaned_jobs_dispatched() {
 #[test]
 fn liveness_sweep_retains_terminal_authority() {
     let events = vec![
-        ev(event_types::JOB_CREATED, serde_json::json!({
+        ev(event_types::PIPELINE_RUN_STARTED, serde_json::json!({
             "job_id": "j-late", "slug": "late",
             "agent": "r", "branch": "job/late",
             "spec_path": "spec.md", "plan_id": null,
         })),
-        ev(event_types::JOB_DISPATCHED, serde_json::json!({
+        ev(event_types::PIPELINE_RUN_DISPATCHED, serde_json::json!({
             "job_id": "j-late", "worktree": "/w", "pid": 99999,
         })),
         ev(ship_substrate::events::executor::EXECUTOR_SESSION_DESTROYED, serde_json::json!({
@@ -297,7 +297,7 @@ fn liveness_sweep_retains_terminal_authority() {
         })),
         // Eventually, liveness sweep emits job.failed after the stale
         // threshold. That transition still works.
-        ev(event_types::JOB_FAILED, serde_json::json!({
+        ev(event_types::PIPELINE_RUN_FAILED, serde_json::json!({
             "job_id": "j-late",
             "error": "liveness: stale dispatched job — no process after 5m",
         })),
@@ -368,15 +368,15 @@ fn startup_propagates_refusal() {
 #[test]
 fn reconcile_skips_completed_jobs() {
     let events = vec![
-        ev(event_types::JOB_CREATED, serde_json::json!({
+        ev(event_types::PIPELINE_RUN_STARTED, serde_json::json!({
             "job_id": "j-done", "slug": "done",
             "agent": "r", "branch": "job/done",
             "spec_path": "spec.md", "plan_id": null,
         })),
-        ev(event_types::JOB_DISPATCHED, serde_json::json!({
+        ev(event_types::PIPELINE_RUN_DISPATCHED, serde_json::json!({
             "job_id": "j-done", "worktree": "/w", "pid": 12345,
         })),
-        ev(event_types::JOB_COMPLETED, serde_json::json!({
+        ev(event_types::PIPELINE_RUN_COMPLETED, serde_json::json!({
             "job_id": "j-done", "slug": "done",
         })),
     ];

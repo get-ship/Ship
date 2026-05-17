@@ -47,7 +47,7 @@ pub struct ActorSpawnReq {
 #[derive(Deserialize, utoipa::ToSchema)]
 #[schema(example = json!({
     "envelope": {
-        "kind": "job.completed",
+        "kind": "pipeline.run.completed",
         "slug": "write-readme",
         "ts": "2026-04-22T10:15:00Z"
     },

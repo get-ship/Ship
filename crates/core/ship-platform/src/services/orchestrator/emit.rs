@@ -90,7 +90,7 @@ pub async fn emit_job_dispatched_with_meta(
     harness_meta: Option<serde_json::Value>,
     ship_dir: Option<&std::path::Path>,
 ) {
-    let payload = ship_substrate::events::job::JobDispatchedPayload {
+    let payload = ship_substrate::events::pipeline::PipelineRunDispatchedPayload {
         job_id: job_id.to_string(),
         worktree: worktree_path.to_string_lossy().into_owned(),
         pid: None,
@@ -98,7 +98,7 @@ pub async fn emit_job_dispatched_with_meta(
     };
     emit_job_dispatch_event(
         kernel,
-        ship_substrate::events::job::event_types::JOB_DISPATCHED,
+        ship_substrate::events::pipeline::event_types::PIPELINE_RUN_DISPATCHED,
         job_id,
         slug,
         &payload,
@@ -120,7 +120,7 @@ pub async fn emit_spawn_failed(
     stage: &str,
     err: &anyhow::Error,
 ) {
-    let payload = ship_substrate::events::job::JobSpawnFailedPayload {
+    let payload = ship_substrate::events::pipeline::PipelineStepSpawnFailedPayload {
         job_id: job_id.to_string(),
         slug: slug.to_string(),
         stage: stage.to_string(),
@@ -128,7 +128,7 @@ pub async fn emit_spawn_failed(
     };
     emit_job_dispatch_event(
         kernel,
-        ship_substrate::events::job::event_types::JOB_SPAWN_FAILED,
+        ship_substrate::events::pipeline::event_types::PIPELINE_STEP_SPAWN_FAILED,
         job_id,
         slug,
         &payload,
@@ -152,7 +152,7 @@ pub async fn emit_step_dispatched_event(
     });
     emit_job_dispatch_event(
         kernel,
-        ship_substrate::events::job::event_types::STEP_DISPATCHED,
+        ship_substrate::events::pipeline::event_types::PIPELINE_STEP_STARTED,
         job_id,
         slug,
         &payload,
@@ -169,19 +169,19 @@ pub async fn emit_step_failed(
     step_id: &str,
     reason: &str,
 ) {
-    use ship_substrate::events::job::{event_types, JobFailedPayload, StepFailedPayload};
-    let step_fail = StepFailedPayload {
+    use ship_substrate::events::pipeline::{event_types, PipelineRunFailedPayload, PipelineStepFailedPayload};
+    let step_fail = PipelineStepFailedPayload {
         job_id: job_id.to_string(),
         slug: slug.to_string(),
         step_id: step_id.to_string(),
         error: reason.to_string(),
     };
-    emit_job_dispatch_event(kernel, event_types::STEP_FAILED, job_id, slug, &step_fail, None).await;
-    let job_fail = JobFailedPayload {
+    emit_job_dispatch_event(kernel, event_types::PIPELINE_STEP_FAILED, job_id, slug, &step_fail, None).await;
+    let job_fail = PipelineRunFailedPayload {
         job_id: job_id.to_string(),
         error: format!("step `{step_id}` failed: {reason}"),
     };
-    emit_job_dispatch_event(kernel, event_types::JOB_FAILED, job_id, slug, &job_fail, None).await;
+    emit_job_dispatch_event(kernel, event_types::PIPELINE_RUN_FAILED, job_id, slug, &job_fail, None).await;
 }
 
 /// Emit a `job.failed` event when a job cannot be dispatched or encounters a fatal error.
@@ -191,13 +191,13 @@ pub async fn emit_job_failed(
     slug: &str,
     error: &str,
 ) {
-    let payload = ship_substrate::events::job::JobFailedPayload {
+    let payload = ship_substrate::events::pipeline::PipelineRunFailedPayload {
         job_id: job_id.to_string(),
         error: error.to_string(),
     };
     emit_job_dispatch_event(
         kernel,
-        ship_substrate::events::job::event_types::JOB_FAILED,
+        ship_substrate::events::pipeline::event_types::PIPELINE_RUN_FAILED,
         job_id,
         slug,
         &payload,

@@ -3,7 +3,7 @@
 //! A pipeline is a DAG of steps. Each step declares dependencies via `after`.
 //! When a step completes, unblocked steps are found and dispatched.
 
-use ship_substrate::events::job::StepType;
+use ship_substrate::events::pipeline::StepType;
 use ship_substrate::events::EventEnvelope;
 use crate::projections::job::load_jobs_at;
 use crate::services::dispatch_ports::{JobContext, LaunchProfile};

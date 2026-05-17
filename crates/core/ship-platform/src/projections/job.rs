@@ -26,7 +26,7 @@ use specta::Type;
 use ship_substrate::db::block_on;
 use ship_substrate::db::envelope::envelope_from_row;
 use ship_substrate::events::EventEnvelope;
-use ship_substrate::events::job::event_types;
+use ship_substrate::events::pipeline::event_types;
 use ship_substrate::projections::registry::Projection;
 
 /// Current status of a job, derived from its event sequence.
@@ -101,10 +101,10 @@ pub struct PipelineRun {
     pub harness_meta: Option<serde_json::Value>,
     /// Legacy linear pipeline phases.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub pipeline: Option<Vec<ship_substrate::events::job::PipelinePhase>>,
+    pub pipeline: Option<Vec<ship_substrate::events::pipeline::PipelinePhase>>,
     /// DAG pipeline steps.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub steps: Option<ship_substrate::events::job::Pipeline>,
+    pub steps: Option<ship_substrate::events::pipeline::Pipeline>,
     /// Index of the currently active pipeline phase (legacy).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub current_phase: Option<usize>,
@@ -147,12 +147,12 @@ impl PipelineRun {
 /// Status transitions are table-driven via [`super::job_transitions::status_for`].
 /// Match arms below own only payload extraction and field-level bookkeeping;
 /// the final `if let Some(next) = status_for(...)` applies the new status.
-/// STEP_OBSERVED is the one payload-conditional case — its `Failed` branch
+/// PIPELINE_STEP_OBSERVED is the one payload-conditional case — its `Failed` branch
 /// is set inline, and `status_for` returns `None` for it to avoid overriding.
 pub fn apply(record: &mut PipelineRun, event: &EventEnvelope) {
     let ts = event.created_at;
     match event.event_type.as_str() {
-        event_types::JOB_DISPATCHED => {
+        event_types::PIPELINE_RUN_DISPATCHED => {
             if let Ok(p) = serde_json::from_str::<serde_json::Value>(&event.payload_json) {
                 record.worktree = p["worktree"].as_str().map(str::to_string);
                 if let Some(meta) = p.get("harness_meta")
@@ -182,19 +182,19 @@ pub fn apply(record: &mut PipelineRun, event: &EventEnvelope) {
             }
             record.updated_at = ts;
         }
-        event_types::JOB_GATE_REQUESTED => {
+        event_types::PIPELINE_GATE_REQUESTED => {
             record.updated_at = ts;
         }
-        event_types::JOB_GATE_PASSED => {
+        event_types::PIPELINE_GATE_PASSED => {
             record.updated_at = ts;
         }
-        event_types::JOB_GATE_FAILED => {
+        event_types::PIPELINE_GATE_FAILED => {
             if let Ok(p) = serde_json::from_str::<serde_json::Value>(&event.payload_json) {
                 record.error = p["reason"].as_str().map(str::to_string);
             }
             record.updated_at = ts;
         }
-        event_types::JOB_COMPLETED => {
+        event_types::PIPELINE_RUN_COMPLETED => {
             if let Some(current) = record.current_step.clone() {
                 if !record.completed_steps.contains(&current) {
                     record.completed_steps.push(current);
@@ -203,40 +203,40 @@ pub fn apply(record: &mut PipelineRun, event: &EventEnvelope) {
             }
             record.updated_at = ts;
         }
-        event_types::JOB_BLOCKED => {
+        event_types::PIPELINE_RUN_BLOCKED => {
             if let Ok(p) = serde_json::from_str::<serde_json::Value>(&event.payload_json) {
                 record.blocker = p["blocker"].as_str().map(str::to_string);
             }
             record.updated_at = ts;
         }
-        event_types::JOB_MERGED => {
+        event_types::PIPELINE_RUN_MERGED => {
             record.updated_at = ts;
         }
-        event_types::JOB_FAILED => {
+        event_types::PIPELINE_RUN_FAILED => {
             if let Ok(p) = serde_json::from_str::<serde_json::Value>(&event.payload_json) {
                 record.error = p["error"].as_str().map(str::to_string);
             }
             record.updated_at = ts;
         }
-        event_types::JOB_SPAWN_FAILED => {
+        event_types::PIPELINE_STEP_SPAWN_FAILED => {
             if let Ok(p) = serde_json::from_str::<serde_json::Value>(&event.payload_json) {
                 record.error = p["error"].as_str().map(str::to_string);
             }
             record.updated_at = ts;
         }
-        event_types::JOB_CANCELLED => {
+        event_types::PIPELINE_RUN_CANCELLED => {
             if let Ok(p) = serde_json::from_str::<serde_json::Value>(&event.payload_json) {
                 record.error = p["reason"].as_str().map(str::to_string);
             }
             record.updated_at = ts;
         }
-        event_types::STEP_DISPATCHED => {
+        event_types::PIPELINE_STEP_STARTED => {
             if let Ok(p) = serde_json::from_str::<serde_json::Value>(&event.payload_json) {
                 record.current_step = p["step_id"].as_str().map(str::to_string);
             }
             record.updated_at = ts;
         }
-        event_types::STEP_COMPLETED => {
+        event_types::PIPELINE_STEP_COMPLETED => {
             if let Ok(p) = serde_json::from_str::<serde_json::Value>(&event.payload_json)
                 && let Some(step_id) = p["step_id"].as_str()
             {
@@ -249,13 +249,13 @@ pub fn apply(record: &mut PipelineRun, event: &EventEnvelope) {
             }
             record.updated_at = ts;
         }
-        event_types::STEP_FAILED => {
+        event_types::PIPELINE_STEP_FAILED => {
             if let Ok(p) = serde_json::from_str::<serde_json::Value>(&event.payload_json) {
                 record.error = p["error"].as_str().map(str::to_string);
             }
             record.updated_at = ts;
         }
-        event_types::STEP_RETRY => {
+        event_types::PIPELINE_STEP_RETRY => {
             if let Ok(p) = serde_json::from_str::<serde_json::Value>(&event.payload_json)
                 && let Some(step_id) = p["step_id"].as_str()
             {
@@ -266,7 +266,7 @@ pub fn apply(record: &mut PipelineRun, event: &EventEnvelope) {
             }
             record.updated_at = ts;
         }
-        event_types::STEP_OBSERVED => {
+        event_types::PIPELINE_STEP_OBSERVED => {
             if let Ok(p) = serde_json::from_str::<serde_json::Value>(&event.payload_json) {
                 let step_name = p["step_name"].as_str().unwrap_or("");
                 let verdict = p["verdict"].as_str().unwrap_or("");
@@ -309,9 +309,9 @@ fn record_from_created(event: &EventEnvelope) -> Option<PipelineRun> {
             .filter_map(|v| v.as_str().map(str::to_string))
             .collect()
     });
-    let pipeline: Option<Vec<ship_substrate::events::job::PipelinePhase>> =
+    let pipeline: Option<Vec<ship_substrate::events::pipeline::PipelinePhase>> =
         serde_json::from_value(p["pipeline"].clone()).ok();
-    let steps: Option<ship_substrate::events::job::Pipeline> =
+    let steps: Option<ship_substrate::events::pipeline::Pipeline> =
         serde_json::from_value(p["steps"].clone()).ok();
     Some(PipelineRun {
         job_id,
@@ -352,7 +352,7 @@ pub fn project(events: &[EventEnvelope]) -> HashMap<String, PipelineRun> {
         if !event.event_type.starts_with("job.") && !event.event_type.starts_with("step.") {
             continue;
         }
-        if event.event_type == event_types::JOB_CREATED {
+        if event.event_type == event_types::PIPELINE_RUN_STARTED {
             if let Some(record) = record_from_created(event) {
                 map.insert(record.job_id.clone(), record);
             }
@@ -376,25 +376,25 @@ pub fn project(events: &[EventEnvelope]) -> HashMap<String, PipelineRun> {
 pub struct JobProjection;
 
 const JOB_EVENT_TYPES: &[&str] = &[
-    event_types::JOB_CREATED,
-    event_types::JOB_DISPATCHED,
-    event_types::JOB_GATE_REQUESTED,
-    event_types::JOB_GATE_PASSED,
-    event_types::JOB_GATE_FAILED,
-    event_types::JOB_BLOCKED,
-    event_types::JOB_COMPLETED,
-    event_types::JOB_MERGED,
-    event_types::JOB_FAILED,
-    event_types::JOB_SPAWN_FAILED,
-    event_types::JOB_CANCELLED,
-    event_types::JOB_UPDATE,
-    event_types::STEP_DISPATCHED,
-    event_types::STEP_COMPLETED,
-    event_types::STEP_FAILED,
-    event_types::STEP_OUTPUT,
-    event_types::STEP_RETRY,
-    event_types::STEP_DONE_DECLARED,
-    event_types::STEP_OBSERVED,
+    event_types::PIPELINE_RUN_STARTED,
+    event_types::PIPELINE_RUN_DISPATCHED,
+    event_types::PIPELINE_GATE_REQUESTED,
+    event_types::PIPELINE_GATE_PASSED,
+    event_types::PIPELINE_GATE_FAILED,
+    event_types::PIPELINE_RUN_BLOCKED,
+    event_types::PIPELINE_RUN_COMPLETED,
+    event_types::PIPELINE_RUN_MERGED,
+    event_types::PIPELINE_RUN_FAILED,
+    event_types::PIPELINE_STEP_SPAWN_FAILED,
+    event_types::PIPELINE_RUN_CANCELLED,
+    event_types::PIPELINE_RUN_UPDATED,
+    event_types::PIPELINE_STEP_STARTED,
+    event_types::PIPELINE_STEP_COMPLETED,
+    event_types::PIPELINE_STEP_FAILED,
+    event_types::PIPELINE_STEP_OUTPUT,
+    event_types::PIPELINE_STEP_RETRY,
+    event_types::PIPELINE_STEP_DONE_DECLARED,
+    event_types::PIPELINE_STEP_OBSERVED,
 ];
 
 impl Projection for JobProjection {
@@ -407,7 +407,7 @@ impl Projection for JobProjection {
     }
 
     fn apply(&self, event: &EventEnvelope, conn: &mut SqliteConnection) -> Result<()> {
-        if event.event_type == event_types::JOB_CREATED {
+        if event.event_type == event_types::PIPELINE_RUN_STARTED {
             if let Some(record) = record_from_created(event) {
                 upsert_record(&record, conn)?;
             }
@@ -452,12 +452,12 @@ fn row_to_record(row: &sqlx::sqlite::SqliteRow) -> Result<PipelineRun> {
         .ok()
         .flatten()
         .and_then(|s| serde_json::from_str(&s).ok());
-    let pipeline: Option<Vec<ship_substrate::events::job::PipelinePhase>> = row
+    let pipeline: Option<Vec<ship_substrate::events::pipeline::PipelinePhase>> = row
         .try_get::<Option<String>, _>(16)
         .ok()
         .flatten()
         .and_then(|s| serde_json::from_str(&s).ok());
-    let steps: Option<ship_substrate::events::job::Pipeline> = row
+    let steps: Option<ship_substrate::events::pipeline::Pipeline> = row
         .try_get::<Option<String>, _>(17)
         .ok()
         .flatten()
