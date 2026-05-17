@@ -1,11 +1,10 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
 import '../styles/landing.css';
-import Nav from '../components/landing/Nav.astro';
+import Navbar from '../components/Navbar.astro';
 import Hero from '../components/landing/Hero.astro';
 import ClusterStrip from '../components/landing/ClusterStrip.astro';
 import SectionAgents from '../components/landing/SectionAgents.astro';
-import SectionPipelines from '../components/landing/SectionPipelines.astro';
 import SectionData from '../components/landing/SectionData.astro';
 import SectionViews from '../components/landing/SectionViews.astro';
 import FooterCta from '../components/landing/FooterCta.astro';
@@ -13,12 +12,11 @@ import TweaksPanel from '../components/landing/TweaksPanel.astro';
 ---
 
 <BaseLayout title="SHIP — the missing AI interface" bodyClass="landing-root">
-  <Nav />
+  <Navbar />
   <main id="main">
     <Hero />
     <ClusterStrip />
     <SectionAgents />
-    <SectionPipelines />
     <SectionData />
     <SectionViews />
   </main>
@@ -28,4 +26,5 @@ import TweaksPanel from '../components/landing/TweaksPanel.astro';
 
 <script>
   import '../scripts/landing';
+  import '../scripts/motion';
 </script>

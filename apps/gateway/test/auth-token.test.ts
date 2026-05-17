@@ -1,10 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-vi.mock('../src/lib/cloud-auth.js', () => ({
-  signJwt: vi.fn().mockResolvedValue('signed-jwt-token'),
-  getSecret: vi.fn().mockReturnValue('test-secret-key'),
-  verifyJwt: vi.fn().mockResolvedValue(null),
-}))
 vi.mock('../src/lib/rate-limit.js', () => ({
   checkRateLimit: vi.fn().mockResolvedValue({ allowed: true, retryAfter: 0 }),
   rateLimitResponse: vi.fn((retryAfter: number) =>
@@ -23,7 +18,12 @@ vi.mock('../src/lib/d1.js', () => ({
   getRegistryDb: vi.fn(() => null),
   nanoid: vi.fn(() => 'test-id'),
 }))
-vi.mock('../src/lib/auth.js', () => ({ getAuth: vi.fn() }))
+const mockCreateApiKey = vi.fn()
+vi.mock('../src/lib/auth.js', () => ({
+  getAuth: vi.fn(() => Promise.resolve({
+    api: { createApiKey: mockCreateApiKey },
+  })),
+}))
 vi.mock('../src/lib/session-auth.js', () => ({ requireSession: vi.fn(), optionalSession: vi.fn() }))
 vi.mock('../src/lib/daemon-jwt.js', () => ({ signDaemonJwt: vi.fn(), buildJwks: vi.fn().mockResolvedValue({ keys: [] }) }))
 
@@ -80,5 +80,43 @@ describe('POST /api/auth/token', () => {
     })
     const res = await authRoutes.request(r, mockEnv)
     expect(res.status).toBe(400)
+  })
+
+  it('mints a Better Auth API key on PKCE success', async () => {
+    // Make PKCE verification succeed — code_challenge must match sha256
+    // of the verifier. Use a known verifier with its precomputed challenge.
+    const verifier = 'test-verifier-string-1234567890'
+    const encoder = new TextEncoder()
+    const hashBuf = await crypto.subtle.digest('SHA-256', encoder.encode(verifier))
+    const challenge = Array.from(new Uint8Array(hashBuf))
+      .map(b => String.fromCharCode(b))
+      .join('')
+    const challengeB64 = btoa(challenge).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
+    mockFirst.mockResolvedValue({
+      user_id: 'user-1',
+      code_challenge: challengeB64,
+      created_at: Date.now(),
+    })
+    const expiresAt = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
+    mockCreateApiKey.mockResolvedValue({ key: 'ship_test_key_abc123', expiresAt })
+
+    const res = await authRoutes.request(
+      makeRequest({ code: 'valid-code', verifier }),
+      mockEnv,
+    )
+    expect(res.status).toBe(200)
+    const body = (await res.json()) as Record<string, unknown>
+    expect(body.key).toBe('ship_test_key_abc123')
+    expect(body.user_id).toBe('user-1')
+    expect(body.expires_at).toBeTypeOf('number')
+
+    // Verify the API key was minted with the right shape
+    expect(mockCreateApiKey).toHaveBeenCalledWith({
+      body: expect.objectContaining({
+        userId: 'user-1',
+        prefix: 'ship_',
+        expiresIn: 365 * 24 * 60 * 60,
+      }),
+    })
   })
 })

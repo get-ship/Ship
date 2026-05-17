@@ -1,204 +1,262 @@
 ---
+/**
+ * Hero showcase plate — every visible widget is a REAL SUI component
+ * rendering seeded data. No bespoke chart mockups, no fake DAG. The
+ * plate-of-glass aesthetic (rounded card, plate-bg, traffic-light chrome)
+ * wraps actual <sui-stat>, <sui-table>, <sui-sparkline>, etc.
+ *
+ * Seeded data is inline; we don't need the reactive SDK for a static
+ * composition. When visitors install Ship, every component below is one
+ * they can drop into a view file.
+ */
 ---
 
 <div class="stage-right">
-  <div class="plate" id="landing-plate">
+  <div class="plate spotlight" id="landing-plate">
     <div class="plate-chrome">
-      <div class="dots"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span></div>
-      <div class="title">ship <b>weekly-digest</b> · mesh</div>
+      <div class="dots" aria-hidden="true">
+        <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+      </div>
+      <div class="title">ship · today</div>
       <div class="theme-pill"><i></i><span data-theme-pill-label>ship-light</span></div>
     </div>
+
     <div class="plate-body">
-      <div class="scene scene-session is-active" data-scene="session">
-        <div class="session-head"><h3>Weekly digest</h3><div class="meta">SESSION · 00:23 ELAPSED</div></div>
-        <div class="tabrow"><span class="on">Conversation</span><span>Artifacts</span><span>Context</span></div>
-        <div class="msg-list">
-          <div class="msg">
-            <div class="avatar p1">C</div>
-            <div class="body"><div class="name">Commander <em>orchestrator</em></div><div class="line">Dispatching to Rust Lane and Inbox Triage — collecting context from 4 collections.</div></div>
-            <div class="time">17:02</div>
-          </div>
-          <div class="msg">
-            <div class="avatar p2">R</div>
-            <div class="body"><div class="name">Rust Lane <em>claude · opus</em></div><div class="line">12 PRs merged this week, 3 behind review SLA. Drafting a digest note…</div></div>
-            <div class="time">17:02</div>
-          </div>
-          <div class="msg">
-            <div class="avatar p3">G</div>
-            <div class="body"><div class="name">Gatekeeper <em>gemini</em><span class="typing"><i></i><i></i><i></i></span></div><div class="line">Reviewing draft against acceptance criteria</div></div>
-            <div class="time">now</div>
-          </div>
+      <sui-toolbar class="plate-bar" gap="sm" justify="between">
+        <div class="plate-bar-title">
+          <h3>Today</h3>
+          <span class="plate-bar-src">view · daily.view</span>
         </div>
+        <sui-badge tone="success" variant="soft" size="sm">
+          <sui-status-dot slot="leading" tone="success" pulse size="sm"></sui-status-dot>
+          Live
+        </sui-badge>
+      </sui-toolbar>
+
+      <div class="plate-stats">
+        <sui-stat size="md">
+          <span slot="label">Runs / wk</span>
+          128
+          <sui-badge slot="trend" tone="success" variant="soft" size="sm">+12</sui-badge>
+        </sui-stat>
+        <sui-stat size="md">
+          <span slot="label">On budget</span>
+          94%
+          <sui-badge slot="trend" tone="success" variant="soft" size="sm">+3</sui-badge>
+        </sui-stat>
+        <sui-stat size="md">
+          <span slot="label">Agents</span>
+          8
+          <span slot="hint">3 idle</span>
+        </sui-stat>
       </div>
 
-      <div class="scene scene-pipeline" data-scene="pipeline">
-        <div class="pipeline-head"><h3>weekly-digest.pipe</h3><div class="run-pill">RUN #248 · 00:01:42</div></div>
-        <div class="dag">
-          <svg class="edges" viewBox="0 0 400 88" preserveAspectRatio="none">
-            <defs><linearGradient id="landing-edgeG" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="var(--primary)" stop-opacity="0.8"></stop><stop offset="1" stop-color="var(--accent)" stop-opacity="0.8"></stop></linearGradient></defs>
-            <path d="M 92 44 C 120 44 120 44 155 44" stroke="url(#landing-edgeG)" stroke-width="1.5" fill="none"></path>
-            <path d="M 210 44 C 240 44 240 44 265 44" stroke="url(#landing-edgeG)" stroke-width="1.5" fill="none" stroke-dasharray="4 3"></path>
-            <path d="M 320 44 C 345 44 345 44 370 44" stroke="var(--plate-line)" stroke-width="1.5" fill="none" stroke-dasharray="4 3"></path>
-          </svg>
-          <div class="node done"><div class="state"></div><div class="nm">fetch</div><div class="sub">4 sources</div></div>
-          <div class="node done"><div class="state"></div><div class="nm">classify</div><div class="sub">inbox-triage</div></div>
-          <div class="node running"><div class="state"></div><div class="nm">summarize</div><div class="sub">claude · opus</div></div>
-          <div class="node queued"><div class="state"></div><div class="nm">publish</div><div class="sub">slack · email</div></div>
+      <div class="plate-chart">
+        <div class="plate-chart-head">
+          <span class="plate-chart-title">Runs this week</span>
+          <span class="plate-chart-meta">mon → sun</span>
         </div>
-        <div class="logs">
-          <div class="log-row"><span class="t">17:02.14</span><span class="lvl ok">OK</span><span>fetch · 4/4 sources · 0 errors</span></div>
-          <div class="log-row"><span class="t">17:02.19</span><span class="lvl ok">OK</span><span>classify · 126 items → 14 buckets</span></div>
-          <div class="log-row"><span class="t">17:02.31</span><span class="lvl">RUN</span><span>summarize · claude-opus · streaming…</span></div>
-          <div class="log-row"><span class="t">17:02.38</span><span class="lvl">RUN</span><span>summarize · tokens 1,842 / 4,096</span></div>
-        </div>
+        <sui-sparkline
+          data="32,48,42,68,55,82,72"
+          tone="primary"
+          width="540"
+          height="56"
+          fill
+          label="Runs per day, Monday through Sunday"
+        ></sui-sparkline>
       </div>
 
-      <div class="scene scene-view" data-scene="view">
-        <div class="view-head"><h3>Today</h3><div class="src">view · daily.view · 17 lines</div></div>
-        <div class="kpis">
-          <div class="kpi"><div class="lbl">RUNS / WK</div><div class="val">128<span class="dlt">+12</span></div></div>
-          <div class="kpi"><div class="lbl">ON BUDGET</div><div class="val">94%<span class="dlt">+3</span></div></div>
-          <div class="kpi"><div class="lbl">AGENTS</div><div class="val">8<span class="dlt dim">idle 3</span></div></div>
-        </div>
-        <div class="chart">
-          <div class="chart-head"><b>Runs this week</b><span>mon → sun</span></div>
-          <svg viewBox="0 0 300 80" preserveAspectRatio="none">
-            <defs><linearGradient id="landing-areaGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--primary)" stop-opacity="0.35"></stop><stop offset="1" stop-color="var(--primary)" stop-opacity="0"></stop></linearGradient></defs>
-            <line class="baseline" x1="0" y1="64" x2="300" y2="64"></line>
-            <path class="area-fill" d="M0 56 L40 48 L75 52 L115 30 L155 36 L195 20 L240 24 L300 10 L300 80 L0 80 Z"></path>
-            <path class="area-line" d="M0 56 L40 48 L75 52 L115 30 L155 36 L195 20 L240 24 L300 10"></path>
-            <circle cx="300" cy="10" r="3.5" fill="var(--primary)"></circle>
-          </svg>
-        </div>
-        <div class="rows">
-          <div class="row-item"><span class="r-dot"></span><span><span class="who">Daily digest</span> · 5 inputs</span><span>07:00</span><span class="when">claude</span></div>
-          <div class="row-item"><span class="r-dot a"></span><span><span class="who">PR review</span> · #812</span><span>10:14</span><span class="when">1m 42s</span></div>
-          <div class="row-item"><span class="r-dot g"></span><span><span class="who">Inbox triage</span> · 4 items</span><span>12:30</span><span class="when">gemini</span></div>
-        </div>
-      </div>
-    </div>
-    <div class="plate-tabs" role="tablist">
-      <button data-scene-btn="session" aria-selected="true">session</button>
-      <button data-scene-btn="pipeline" aria-selected="false">pipeline</button>
-      <button data-scene-btn="view" aria-selected="false">view</button>
+      <sui-table class="plate-table" density="compact" hoverable label="Recent runs">
+        <table>
+          <thead>
+            <tr>
+              <th>Agent</th>
+              <th>Workspace</th>
+              <th>Status</th>
+              <th class="num">Duration</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="cell-agent">Commander</span></td>
+              <td>weekly-digest</td>
+              <td><sui-badge tone="success" variant="soft" size="sm">done</sui-badge></td>
+              <td class="num">1m 42s</td>
+            </tr>
+            <tr>
+              <td><span class="cell-agent">Rust Lane</span></td>
+              <td>compiler</td>
+              <td><sui-badge tone="primary" variant="soft" size="sm">running</sui-badge></td>
+              <td class="num">00:23</td>
+            </tr>
+            <tr>
+              <td><span class="cell-agent">Gatekeeper</span></td>
+              <td>pr-review</td>
+              <td><sui-badge tone="success" variant="soft" size="sm">done</sui-badge></td>
+              <td class="num">48s</td>
+            </tr>
+          </tbody>
+        </table>
+      </sui-table>
     </div>
   </div>
-
-
 </div>
 
 <style>
   .stage-right {
     position: relative;
-    height: clamp(520px, 70vh, 720px);
     display: flex; align-items: center; justify-content: center;
+    padding: 16px 0;
   }
   .plate {
     position: relative; width: min(100%, 640px);
     background: var(--plate); border: 1px solid var(--plate-border);
     border-radius: 18px; box-shadow: var(--shadow-plate);
+    overflow: hidden;
   }
-  .plate::before {
+  .plate::after {
     content: ""; position: absolute; inset: 0; pointer-events: none;
     border-radius: inherit;
     background:
-      radial-gradient(ellipse at top right, color-mix(in oklab, var(--primary) 12%, transparent), transparent 50%),
-      radial-gradient(ellipse at bottom left, color-mix(in oklab, var(--accent) 10%, transparent), transparent 55%);
+      radial-gradient(ellipse at top right, color-mix(in oklab, var(--primary) 10%, transparent), transparent 55%),
+      radial-gradient(ellipse at bottom left, color-mix(in oklab, var(--accent) 8%, transparent), transparent 55%);
+    z-index: 0;
   }
 
-  .plate-chrome { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--plate-line); position: relative; }
+  .plate-chrome {
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--plate-line);
+    position: relative; z-index: 1;
+  }
   .dots { display: flex; gap: 6px; }
   .plate-chrome .dot { width: 10px; height: 10px; border-radius: 50%; }
-  .plate-chrome .dot.r { background: var(--status-red); }
-  .plate-chrome .dot.y { background: var(--status-yellow); }
-  .plate-chrome .dot.g { background: var(--status-green); }
-  .plate-chrome .title { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11.5px; color: var(--plate-sub); letter-spacing: 0.04em; }
-  .plate-chrome .title b { color: var(--plate-ink); font-weight: 600; }
-  .theme-pill { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10.5px; padding: 4px 8px; border-radius: 999px; background: var(--chip-bg); color: var(--plate-muted); border: 1px solid var(--plate-line); }
-  .theme-pill i { width: 8px; height: 8px; border-radius: 2px; background: linear-gradient(135deg, var(--primary), var(--accent)); display: inline-block; font-style: normal; }
+  .plate-chrome .dot.r { background: var(--status-red, oklch(0.62 0.21 25)); }
+  .plate-chrome .dot.y { background: var(--status-yellow, oklch(0.78 0.16 80)); }
+  .plate-chrome .dot.g { background: var(--status-green, oklch(0.6 0.18 150)); }
+  .plate-chrome .title {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 11.5px; color: var(--plate-sub);
+    letter-spacing: 0.04em;
+  }
+  .theme-pill {
+    margin-left: auto;
+    display: inline-flex; align-items: center; gap: 6px;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 10.5px; padding: 4px 8px;
+    border-radius: 999px;
+    background: var(--chip-bg);
+    color: var(--plate-muted);
+    border: 1px solid var(--plate-line);
+  }
+  .theme-pill i {
+    width: 8px; height: 8px; border-radius: 2px;
+    background: linear-gradient(135deg, var(--primary), var(--accent));
+    display: inline-block; font-style: normal;
+  }
 
-  .plate-body { position: relative; min-height: 420px; padding: 22px; }
-  .scene { position: absolute; inset: 22px; opacity: 0; transform: translateY(14px); transition: opacity 550ms var(--ease-out), transform 550ms var(--ease-out); pointer-events: none; }
-  .scene.is-active { opacity: 1; transform: translateY(0); pointer-events: auto; }
+  .plate-body {
+    position: relative; z-index: 1;
+    padding: 18px;
+    display: flex; flex-direction: column; gap: 16px;
+  }
 
-  .scene-session { display: grid; grid-template-rows: auto auto 1fr; gap: 14px; }
-  .session-head { display: flex; justify-content: space-between; align-items: baseline; }
-  .session-head h3 { font-family: var(--font-display); font-size: 22px; font-weight: 600; margin: 0; letter-spacing: -0.02em; color: var(--plate-ink); }
-  .meta { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10.5px; color: var(--plate-sub); letter-spacing: 0.06em; text-transform: uppercase; }
-  .tabrow { display: flex; gap: 6px; padding: 4px; background: var(--chip-bg); border-radius: 10px; width: fit-content; font-size: 12px; font-weight: 500; }
-  .tabrow span { padding: 6px 12px; border-radius: 7px; color: var(--plate-muted); }
-  .tabrow span.on { background: var(--plate); color: var(--plate-ink); box-shadow: 0 1px 2px var(--plate-line); }
-  .msg-list { display: flex; flex-direction: column; gap: 10px; }
-  .msg { display: grid; grid-template-columns: 28px 1fr auto; gap: 12px; padding: 12px 14px; border: 1px solid var(--plate-line); border-radius: 12px; background: color-mix(in oklab, var(--plate) 92%, var(--page-bg)); align-items: center; }
-  .avatar { width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; font-family: var(--font-display); font-size: 13px; font-weight: 700; color: #fff; }
-  .avatar.p1 { background: linear-gradient(135deg, var(--primary), color-mix(in oklab, var(--primary) 60%, var(--accent))); }
-  .avatar.p2 { background: linear-gradient(135deg, var(--accent), color-mix(in oklab, var(--accent) 60%, var(--primary))); }
-  .avatar.p3 { background: linear-gradient(135deg, var(--status-green), var(--info)); }
-  .msg .body { min-width: 0; }
-  .msg .body .name { font-size: 12px; font-weight: 600; color: var(--plate-ink); }
-  .msg .body .name em { font-style: normal; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; color: var(--plate-sub); margin-left: 6px; }
-  .msg .body .line { font-size: 13px; color: var(--plate-muted); margin-top: 2px; }
-  .msg .time { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10.5px; color: var(--plate-sub); }
-  .typing { display: inline-flex; align-items: center; gap: 3px; margin-left: 4px; }
-  .typing i { width: 4px; height: 4px; border-radius: 50%; background: var(--primary); display: inline-block; animation: blink 1.2s infinite; }
-  .typing i:nth-child(2) { animation-delay: 0.15s; }
-  .typing i:nth-child(3) { animation-delay: 0.30s; }
-  @keyframes blink { 0%, 60%, 100% { opacity: 0.3; } 30% { opacity: 1; } }
+  /* Toolbar header */
+  .plate-bar {
+    --toolbar-py: 0;
+    align-items: center;
+  }
+  .plate-bar-title {
+    display: flex; align-items: baseline; gap: 12px;
+  }
+  .plate-bar-title h3 {
+    margin: 0;
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 22px;
+    letter-spacing: -0.02em;
+    color: var(--plate-ink);
+  }
+  .plate-bar-src {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 10.5px;
+    color: var(--plate-sub);
+  }
 
-  .scene-pipeline { display: grid; grid-template-rows: auto 1fr auto; gap: 18px; }
-  .pipeline-head { display: flex; justify-content: space-between; align-items: baseline; }
-  .pipeline-head h3 { font-family: var(--font-display); font-size: 22px; font-weight: 600; margin: 0; letter-spacing: -0.02em; color: var(--plate-ink); }
-  .run-pill { display: inline-flex; align-items: center; gap: 6px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10.5px; font-weight: 500; padding: 4px 10px; border-radius: 999px; background: color-mix(in oklab, var(--primary) 15%, transparent); color: var(--primary); border: 1px solid color-mix(in oklab, var(--primary) 30%, transparent); }
-  .run-pill::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--primary); }
-  .dag { position: relative; padding: 6px 4px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; align-items: center; }
-  .node { position: relative; background: color-mix(in oklab, var(--plate) 92%, var(--page-bg)); border: 1px solid var(--plate-line); border-radius: 12px; padding: 12px 10px; font-size: 11.5px; color: var(--plate-muted); font-family: 'JetBrains Mono', ui-monospace, monospace; display: flex; flex-direction: column; gap: 6px; min-height: 74px; }
-  .node .nm { color: var(--plate-ink); font-weight: 600; font-family: var(--font-body); font-size: 12.5px; letter-spacing: -0.005em; }
-  .node .sub { font-size: 10.5px; color: var(--plate-sub); letter-spacing: 0.02em; }
-  .node .state { position: absolute; top: 10px; right: 10px; width: 8px; height: 8px; border-radius: 50%; background: var(--plate-sub); }
-  .node.done .state { background: var(--success); }
-  .node.running { border-color: color-mix(in oklab, var(--primary) 45%, transparent); }
-  .node.running .state { background: var(--primary); animation: landing-node-pulse 1.6s ease-in-out infinite; }
-  .node.queued { opacity: 0.7; }
-  .node.queued .state { background: var(--plate-sub); opacity: 0.5; }
-  .dag svg.edges { position: absolute; inset: 0; pointer-events: none; width: 100%; height: 100%; }
-  .logs { background: var(--chip-bg); border-radius: 12px; padding: 12px 14px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11.5px; color: var(--plate-muted); display: grid; gap: 6px; max-height: 130px; overflow: hidden; position: relative; }
-  .logs::after { content: ""; position: absolute; inset: auto 0 0 0; height: 36px; background: linear-gradient(to bottom, transparent, var(--chip-bg)); pointer-events: none; }
-  .log-row { display: grid; grid-template-columns: 64px auto 1fr; gap: 10px; align-items: baseline; }
-  .log-row .t { color: var(--plate-sub); }
-  .log-row .lvl { color: var(--primary); font-weight: 600; }
-  .log-row .lvl.ok { color: var(--success); }
+  /* Stat row */
+  .plate-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+  }
 
-  .scene-view { display: grid; grid-template-rows: auto auto 1fr; gap: 14px; }
-  .view-head { display: flex; justify-content: space-between; align-items: baseline; }
-  .view-head h3 { font-family: var(--font-display); font-size: 22px; font-weight: 600; margin: 0; letter-spacing: -0.02em; color: var(--plate-ink); }
-  .view-head .src { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10.5px; color: var(--plate-sub); }
-  .kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-  .kpi { border: 1px solid var(--plate-line); border-radius: 12px; padding: 12px; background: color-mix(in oklab, var(--plate) 92%, var(--page-bg)); }
-  .kpi .lbl { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--plate-sub); }
-  .kpi .val { display: flex; align-items: baseline; gap: 6px; margin-top: 6px; font-family: var(--font-display); font-weight: 600; font-size: 24px; color: var(--plate-ink); letter-spacing: -0.02em; }
-  .kpi .dlt { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10.5px; color: var(--success); }
-  .kpi .dlt.dim { color: var(--plate-sub); }
-  .chart { border: 1px solid var(--plate-line); border-radius: 12px; padding: 14px; background: color-mix(in oklab, var(--plate) 92%, var(--page-bg)); display: grid; grid-template-rows: auto 1fr; gap: 10px; min-height: 140px; }
-  .chart-head { display: flex; justify-content: space-between; font-size: 11.5px; color: var(--plate-sub); font-family: 'JetBrains Mono', ui-monospace, monospace; }
-  .chart-head b { color: var(--plate-ink); font-weight: 600; font-family: var(--font-body); font-size: 12.5px; }
-  .chart svg { width: 100%; height: 100%; }
-  .area-fill { fill: url(#landing-areaGrad); }
-  .area-line { fill: none; stroke: var(--primary); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-  .baseline { stroke: var(--plate-line); stroke-dasharray: 3 4; }
-  .rows { display: grid; gap: 6px; }
-  .row-item { display: grid; grid-template-columns: auto 1fr auto auto; gap: 10px; align-items: center; font-size: 12px; padding: 8px 10px; border-radius: 8px; color: var(--plate-muted); }
-  .row-item:hover { background: var(--chip-bg); }
-  .r-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--primary); display: inline-block; }
-  .r-dot.a { background: var(--accent); }
-  .r-dot.g { background: var(--success); }
-  .row-item .who { color: var(--plate-ink); font-weight: 500; }
-  .row-item .when { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10.5px; color: var(--plate-sub); }
+  /* Chart */
+  .plate-chart {
+    padding: 14px 16px;
+    border: 1px solid var(--plate-line);
+    border-radius: 12px;
+    background: color-mix(in oklab, var(--plate) 94%, var(--page-bg));
+  }
+  .plate-chart-head {
+    display: flex; justify-content: space-between; align-items: baseline;
+    margin-bottom: 6px;
+  }
+  .plate-chart-title {
+    font-family: var(--font-body);
+    font-weight: 600;
+    font-size: 12.5px;
+    color: var(--plate-ink);
+  }
+  .plate-chart-meta {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 10.5px;
+    color: var(--plate-sub);
+  }
+  .plate-chart sui-sparkline {
+    width: 100%;
+    display: block;
+  }
 
-  .plate-tabs { position: absolute; left: 50%; transform: translateX(-50%); bottom: -18px; display: flex; gap: 4px; padding: 4px; background: var(--plate); border: 1px solid var(--plate-border); border-radius: 999px; box-shadow: var(--shadow-plate); z-index: 3; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; }
-  .plate-tabs button { appearance: none; border: none; cursor: pointer; background: transparent; color: var(--plate-muted); padding: 6px 12px; border-radius: 999px; font-family: inherit; font-size: inherit; font-weight: 500; letter-spacing: 0.04em; }
-  .plate-tabs button[aria-selected="true"] { background: var(--plate-ink); color: var(--plate); }
+  /* Table */
+  .plate-table {
+    --row-py: 8px;
+    --row-px: 12px;
+    --th-py: 8px;
+    --th-fs: 9.5px;
+    font-size: 12.5px;
+  }
+  .plate-table table { width: 100%; border-collapse: collapse; }
+  .plate-table thead th {
+    text-align: left;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 10px; font-weight: 600;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--plate-sub);
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--plate-line);
+  }
+  .plate-table thead th.num { text-align: right; }
+  .plate-table tbody td {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--plate-line);
+    color: var(--plate-muted);
+  }
+  .plate-table tbody tr:last-child td { border-bottom: none; }
+  .plate-table tbody td.num {
+    text-align: right;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 11px;
+    color: var(--plate-sub);
+  }
+  .cell-agent {
+    color: var(--plate-ink); font-weight: 500;
+  }
 
   @media (max-width: 1060px) {
-    .stage-right { height: auto; padding: 40px 0 60px; }
+    .stage-right { padding: 24px 0 32px; }
+    .plate-stats { grid-template-columns: 1fr 1fr 1fr; }
+  }
+  @media (max-width: 520px) {
+    .plate-stats { grid-template-columns: 1fr; }
   }
 </style>

@@ -4,9 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "predev": "bun run scripts/copy-sui-assets.ts",
+    "predev": "bun run scripts/copy-sui-assets.ts && node scripts/build-og-image.mjs",
     "dev": "astro dev",
-    "prebuild": "bun run scripts/copy-sui-assets.ts",
+    "prebuild": "bun run scripts/copy-sui-assets.ts && node scripts/build-og-image.mjs",
     "build": "astro build",
     "preview": "astro preview",
     "deploy": "astro build && wrangler deploy",
@@ -14,11 +14,14 @@
   },
   "dependencies": {
     "@astrojs/check": "^0.9.4",
+    "@better-auth/stripe": "^1.6.11",
     "@fontsource-variable/dm-sans": "^5.2.8",
     "@fontsource-variable/syne": "^5.2.7",
-    "astro": "^6.1.1"
+    "astro": "^6.1.1",
+    "better-auth": "^1.6.11"
   },
   "devDependencies": {
+    "@astrojs/sitemap": "^3.7.2",
     "typescript": "~5.8.3",
     "wrangler": "^4.66.0"
   }
