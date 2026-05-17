@@ -46,7 +46,7 @@ import { initProjectSwitch } from './project-switch'
 import { initChromeRegistry } from './chrome/registry'
 import { initEditModeChrome, setEditModeView, toggleEditMode, toggleAnnotationMode } from './chrome/edit-mode'
 import { ensureSetupOrRedirect } from './setup-wizard'
-import { bridgeDockTerminal } from './chrome/terminal-bridge'
+import { bridgeDockTerminal, disposeDockTerminal } from './chrome/terminal-bridge'
 
 interface MountFn {
   (
@@ -756,11 +756,24 @@ document.addEventListener('sui:dock:activate', (e) => {
   const tab = (e as CustomEvent<{ tab?: string }>).detail?.tab
   if (tab === 'terminal') void bridgeDockTerminal()
 })
+// Closing the dock or popping it out → tear down the PTY so the shell
+// process doesn't orphan and a re-open spawns a fresh prompt. Pre-fix
+// nothing called disposeDockTerminal, so the second open returned
+// instantly via the `bridged` guard with no live session attached.
+document.addEventListener('sui:dock:close', () => {
+  document.body.classList.remove('dock-open')
+  void disposeDockTerminal()
+})
 document.body.addEventListener('classList' as never, maybeBridgeTerm) // placeholder; real trigger below
 const dockClassObserver = new MutationObserver(() => {
-  if (document.body.classList.contains('dock-open')) void bridgeDockTerminal()
+  if (document.body.classList.contains('dock-open')) {
+    void bridgeDockTerminal()
+  } else {
+    void disposeDockTerminal()
+  }
 })
 dockClassObserver.observe(document.body, { attributes: true, attributeFilter: ['class'] })
+window.addEventListener('beforeunload', () => { void disposeDockTerminal() })
 
 // Rail launcher button → open <sui-launcher>. The launcher listens for
 // `sui:launcher:open` on document; the rail dispatches the legacy

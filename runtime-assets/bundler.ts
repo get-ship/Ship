@@ -420,7 +420,16 @@ async function buildTarget(
       // Bun.build throws bare `Bundle failed` when the pipeline blows up
       // before logs accumulate. Surface the underlying message.
       const msg = err?.message ?? String(err)
-      throw new Error(`Bun.build threw for ${target.name}: ${msg}`)
+      let extra = ''
+      const errors = (err as any)?.errors
+      if (Array.isArray(errors) && errors.length) {
+        extra = '\n' + errors.map((e: any) => `  [${e.position ? `${e.position.file}:${e.position.line}` : ''}] ${e.message}`).join('\n')
+      } else if (err?.cause) {
+        extra = `\n  cause: ${err.cause}`
+      } else if ((err as any)?.position) {
+        extra = `\n  at ${(err as any).position?.file}:${(err as any).position?.line}`
+      }
+      throw new Error(`Bun.build threw for ${target.name}: ${msg}${extra}`)
     }
 
     if (!result.success) {
