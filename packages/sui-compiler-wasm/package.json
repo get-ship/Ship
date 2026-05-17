@@ -1,0 +1,7 @@
+{
+  "name": "@ship/sui-compiler-wasm",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./sui_compiler.js"
+}

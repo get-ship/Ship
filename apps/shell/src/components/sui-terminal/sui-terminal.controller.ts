@@ -206,16 +206,29 @@ export default controller<Scope>({
         new CustomEvent('sui-terminal-key', { detail: { key, domEvent }, bubbles: true, composed: true }),
       ),
     )
+    // PTY rows/cols must mirror the rendered grid or `tput cols` and
+    // any TUI (vim, less, htop) draws to the wrong dimensions. The
+    // FitAddon fires onResize each time the container changes size;
+    // bridge it as a host CustomEvent so terminal-bridge.ts can POST
+    // the new geometry to the daemon's /resize endpoint.
+    const resizeDisposer = term.onResize(({ cols, rows }) =>
+      host.dispatchEvent(
+        new CustomEvent('sui-terminal-resize', { detail: { cols, rows }, bubbles: true, composed: true }),
+      ),
+    )
 
     // Expose imperative API on the host element.
     const el = host as HTMLElement & {
-      write?: (s: string) => void
+      write?: (s: string | Uint8Array) => void
       writeln?: (s: string) => void
       clear?: () => void
       focus?: () => void
       terminal?: Terminal | null
     }
-    el.write = (str: string) => term.write(str)
+    // PTY transports deliver bytes; accept Uint8Array so the bridge can
+    // write base64-decoded chunks verbatim without an intermediate
+    // (lossy) UTF-8 decode round-trip.
+    el.write = (data: string | Uint8Array) => term.write(data)
     el.writeln = (str: string) => term.writeln(str)
     el.clear = () => term.clear()
     el.focus = () => term.focus()
@@ -259,6 +272,7 @@ export default controller<Scope>({
       for (const d of disposers) d()
       dataDisposer.dispose()
       keyDisposer.dispose()
+      resizeDisposer.dispose()
       el.write = undefined
       el.writeln = undefined
       el.clear = undefined
