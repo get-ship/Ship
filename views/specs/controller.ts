@@ -9,11 +9,20 @@
 // opening the SSE channel directly keeps the signal in `loading`
 // until the first daemon patch lands.
 
-import { controller, signal, derived, live, ref, unwrap } from '@ship/sui-runtime'
+import { controller, signal, derived, effect, live, ref, unwrap } from '@ship/sui-runtime'
 import type { LiveSignal } from '@ship/sui-runtime'
 import { liveExpr } from '@ship/sdk-client'
 import { route as routeFactory } from '@ship/sui-runtime/route'
 import type { Scope } from './page.sui'
+
+type AgentSummary = { id: string }
+type SpecDetail = {
+  id: string; title: string; body: string; status: string
+  pipeline?: string | null; agent?: string | null
+  launch_label?: string; launch_hint?: string
+}
+
+const STATUS_CYCLE = ['draft', 'ready', 'launched', 'archived'] as const
 
 export default controller<Scope>({
   scope: () => {
@@ -22,6 +31,12 @@ export default controller<Scope>({
     const selectedId = derived(() => route.query.id() || '')
     const confirmDelete = signal(false)
     const filterInputEl = ref<HTMLElement>(null)
+    const editing = signal(false)
+    const saving = signal(false)
+    const draftBody = signal('')
+    const draftTitle = signal('')
+    const agentsList = signal<AgentSummary[]>([])
+
     const rail = live(() =>
       liveExpr<unknown>(
         `ship.specs.summaries(${JSON.stringify({ q: q(), selected: selectedId() })})`,
@@ -32,7 +47,28 @@ export default controller<Scope>({
         `ship.specs.detail(${JSON.stringify({ id: selectedId() })})`,
       ),
     )
-    return { q, selectedId, confirmDelete, filterInputEl, rail, selected }
+
+    // Best-effort agent profile load. List is small and quasi-static, so
+    // a one-shot fetch is enough — no need for a live SSE channel.
+    void fetch('/api/v1/agents', { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : { items: [] }))
+      .then((b: { items?: AgentSummary[] }) => {
+        const items = Array.isArray(b?.items) ? b.items : []
+        agentsList.set(items.filter((a) => typeof a?.id === 'string'))
+      })
+      .catch(() => { /* offline → empty picker */ })
+
+    // Drop edit state on selection change so a stale draft never bleeds
+    // across specs.
+    effect(() => {
+      selectedId()
+      editing.set(false)
+    })
+
+    return {
+      q, selectedId, confirmDelete, filterInputEl, rail, selected,
+      editing, saving, draftBody, draftTitle, agentsList,
+    }
   },
   on: {
     newSpec: async () => {
@@ -47,7 +83,7 @@ export default controller<Scope>({
       navigate('/specs?id=' + id)
     },
     duplicateSpec: async ({ state }) => {
-      const s = unwrap(state.selected as LiveSignal<{ title?: string; body?: string }>)
+      const s = unwrap(state.selected as LiveSignal<SpecDetail>)
       if (!s) return
       await fetch('/api/v1/specs', {
         method: 'POST',
@@ -71,6 +107,74 @@ export default controller<Scope>({
     focusFilter: ({ state }) => {
       const el = state.filterInputEl as HTMLElement | null
       el?.focus()
+    },
+    startEdit: ({ state }) => {
+      const sel = unwrap(state.selected as LiveSignal<SpecDetail>)
+      if (!sel) return
+      state.draftTitle = sel.title ?? ''
+      state.draftBody = sel.body ?? ''
+      state.editing = true
+    },
+    cancelEdit: ({ state }) => {
+      state.editing = false
+    },
+    onTitleInput: ({ state }, evt: Event) => {
+      const el = evt.target as HTMLElement & { value?: string }
+      state.draftTitle = typeof el?.value === 'string' ? el.value : ''
+    },
+    onBodyInput: ({ state }, evt: Event) => {
+      const detail = (evt as CustomEvent<{ value?: string }>).detail
+      if (detail && typeof detail.value === 'string') {
+        state.draftBody = detail.value
+        return
+      }
+      const el = evt.target as HTMLElement & { value?: string }
+      if (typeof el?.value === 'string') state.draftBody = el.value
+    },
+    saveEdit: async ({ state }) => {
+      const id = state.selectedId as string
+      if (!id) return
+      state.saving = true
+      try {
+        await fetch(`/api/v1/specs/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ title: state.draftTitle, body: state.draftBody }),
+        })
+        state.editing = false
+      } finally {
+        state.saving = false
+      }
+    },
+    setAgent: async ({ state }, evt: Event) => {
+      const id = state.selectedId as string
+      if (!id) return
+      const detail = (evt as CustomEvent<{ value?: string }>).detail
+      const el = evt.target as HTMLElement & { value?: string }
+      const next = (detail && typeof detail.value === 'string') ? detail.value
+        : (typeof el?.value === 'string' ? el.value : '')
+      await fetch(`/api/v1/specs/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ agent: next === '' ? null : next }),
+      })
+    },
+    cycleStatus: async ({ state }) => {
+      const id = state.selectedId as string
+      if (!id) return
+      const sel = unwrap(state.selected as LiveSignal<SpecDetail>)
+      if (!sel) return
+      const current = sel.status ?? 'draft'
+      const idx = STATUS_CYCLE.indexOf(current as typeof STATUS_CYCLE[number])
+      const next = STATUS_CYCLE[(idx + 1) % STATUS_CYCLE.length]
+      await fetch(`/api/v1/specs/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ status: next }),
+      })
     },
   },
 })

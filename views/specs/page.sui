@@ -78,53 +78,97 @@
         <div class="specs-detail-inner">
           <header class="specs-detail-head">
             <div class="specs-detail-title-row">
-              <h1>{selected().value.title || '(untitled)'}</h1>
+              {#if editing()}
+                <sui-input data-testid="specs-title-input"
+                  attr:value={draftTitle()}
+                  on:input={onTitleInput}></sui-input>
+              {:else}
+                <h1>{selected().value.title || '(untitled)'}</h1>
+              {/if}
               <div class="specs-detail-actions">
-                <sui-button variant="outline" size="sm" on:click={duplicateSpec}>Duplicate</sui-button>
-                <sui-button variant="outline" size="sm" tone="destructive"
-                  on:click={() => confirmDelete.set(true)}>Delete</sui-button>
+                {#if editing()}
+                  <sui-button data-testid="specs-cancel"
+                    variant="outline" size="sm" on:click={cancelEdit}>Cancel</sui-button>
+                  <sui-button data-testid="specs-save"
+                    variant="solid" tone="accent" size="sm"
+                    attr:disabled={saving() ? '' : null}
+                    on:click={saveEdit}>{saving() ? 'Saving…' : 'Save'}</sui-button>
+                {:else}
+                  <sui-button data-testid="specs-edit"
+                    variant="outline" size="sm" on:click={startEdit}>Edit</sui-button>
+                  <sui-button variant="outline" size="sm" on:click={duplicateSpec}>Duplicate</sui-button>
+                  <sui-button variant="outline" size="sm" tone="destructive"
+                    on:click={() => confirmDelete.set(true)}>Delete</sui-button>
+                {/if}
               </div>
             </div>
-            <div class="specs-metachips">
-              <sui-metachip label="Status" attr:value={selected().value.status_label}></sui-metachip>
+            <div class="specs-meta-controls">
+              <button type="button" class="status-pill"
+                data-testid="specs-status-pill"
+                attr:data-tone={selected().value.tone}
+                on:click={cycleStatus}
+                title="Click to cycle status">
+                <sui-status-dot size="sm" attr:tone={selected().value.tone}></sui-status-dot>
+                <span class="status-label">{selected().value.status_label}</span>
+              </button>
+              <label class="agent-picker">
+                <span class="agent-picker-label">Agent</span>
+                <sui-select size="sm" data-testid="specs-agent-select"
+                  attr:value={selected().value.agent_id}
+                  on:sui-change={setAgent}>
+                  <option value="">— none —</option>
+                  {#for a of agentsList() key={a.id}}
+                    <option value={a.id} attr:selected={a.id === selected().value.agent_id ? '' : null}>{a.id}</option>
+                  {/for}
+                </sui-select>
+              </label>
               <sui-metachip label="Pipeline" attr:value={selected().value.pipeline_label}></sui-metachip>
-              <sui-metachip label="Agent" attr:value={selected().value.agent}></sui-metachip>
               <sui-metachip label="Branch" attr:value={selected().value.branch}></sui-metachip>
             </div>
           </header>
-          <article class="specs-prose">
-            {#if selected().value.goal_md}
-              <h2>Goal</h2>
-              <sui-markdown attr:value={selected().value.goal_md}></sui-markdown>
-            {/if}
-            {#if selected().value.acceptance && selected().value.acceptance.length > 0}
-              <h2>Acceptance</h2>
-              <ul class="specs-acceptance">
-                {#for item of selected().value.acceptance key={item.text}}
-                  <li class:done={item.done}>
-                    <sui-checkbox attr:checked={item.done ? '' : null} disabled></sui-checkbox>
-                    <span class="acc-text">{item.text}</span>
-                  </li>
-                {/for}
-              </ul>
-            {/if}
-            {#if selected().value.scope_md}
-              <h2>Scope</h2>
-              <sui-markdown attr:value={selected().value.scope_md}></sui-markdown>
-            {/if}
-            {#if selected().value.linked_md}
-              <h2>Linked</h2>
-              <sui-markdown attr:value={selected().value.linked_md}></sui-markdown>
-            {/if}
-            {#if selected().value.other_md}
-              <sui-markdown attr:value={selected().value.other_md}></sui-markdown>
-            {/if}
-          </article>
+          {#if editing()}
+            <div class="specs-editor">
+              <sui-markdown-editor data-testid="specs-body-editor" full-height
+                attr:value={draftBody()}
+                on:sui-change={onBodyInput}
+                on:input={onBodyInput}></sui-markdown-editor>
+            </div>
+          {:else}
+            <article class="specs-prose">
+              {#if selected().value.goal_md}
+                <h2>Goal</h2>
+                <sui-markdown attr:value={selected().value.goal_md}></sui-markdown>
+              {/if}
+              {#if selected().value.acceptance && selected().value.acceptance.length > 0}
+                <h2>Acceptance</h2>
+                <ul class="specs-acceptance">
+                  {#for item of selected().value.acceptance key={item.text}}
+                    <li class:done={item.done}>
+                      <sui-checkbox attr:checked={item.done ? '' : null} disabled></sui-checkbox>
+                      <span class="acc-text">{item.text}</span>
+                    </li>
+                  {/for}
+                </ul>
+              {/if}
+              {#if selected().value.scope_md}
+                <h2>Scope</h2>
+                <sui-markdown attr:value={selected().value.scope_md}></sui-markdown>
+              {/if}
+              {#if selected().value.linked_md}
+                <h2>Linked</h2>
+                <sui-markdown attr:value={selected().value.linked_md}></sui-markdown>
+              {/if}
+              {#if selected().value.other_md}
+                <sui-markdown attr:value={selected().value.other_md}></sui-markdown>
+              {/if}
+            </article>
+          {/if}
         </div>
         <div class="specs-launch-bar">
           <div class="specs-launch-bar-inner">
-            <sui-button variant="solid" tone="primary" size="lg"
-              attr:disabled={!selected().value.pipeline ? '' : null}
+            <sui-button data-testid="specs-launch"
+              variant="solid" tone="primary" size="lg"
+              attr:disabled={(!selected().value.pipeline && !selected().value.agent_id) || editing() ? '' : null}
               on:click={launchSpec}>
               {selected().value.launch_label}
             </sui-button>
