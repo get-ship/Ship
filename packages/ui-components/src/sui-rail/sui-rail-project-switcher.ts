@@ -200,11 +200,22 @@ export function setupProjectSwitcher(ctx: SwitcherCtx): SwitcherHandle {
     if (!pop || !anchor) return
     const r = anchor.getBoundingClientRect()
     const popWidth = pop.offsetWidth || 220
+    const popHeight = pop.offsetHeight || 240
     const gap = 8
-    const left = Math.max(8, Math.min(r.left, window.innerWidth - popWidth - 8))
-    const bottom = Math.max(8, window.innerHeight - r.top + gap)
-    pop.style.left = `${left}px`
-    pop.style.bottom = `${bottom}px`
+    // Anchor to the badge's RIGHT edge (popover opens to the right of
+    // the rail). Vertical: align to the badge's top, but flip up if it
+    // would overflow the bottom. Project tile is now at the TOP of the
+    // rail (was footer); the old "bottom: window.innerHeight - r.top"
+    // calc put the popover above the badge — off-screen above the
+    // viewport when the badge sits at the very top.
+    const left = Math.min(r.right + gap, window.innerWidth - popWidth - 8)
+    let top = r.top
+    if (top + popHeight + 8 > window.innerHeight) {
+      top = Math.max(8, window.innerHeight - popHeight - 8)
+    }
+    pop.style.left = `${Math.max(8, left)}px`
+    pop.style.top = `${top}px`
+    pop.style.bottom = 'auto'
   }
 
   const onPopoverClick = (e: Event): void => {

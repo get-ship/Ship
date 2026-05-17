@@ -11,7 +11,7 @@
     "providers": ["claude", "codex", "cursor", "gemini", "opencode"]
   },
   "skills": {
-    "refs": ["gate", "code-review", "ship-coordination"]
+    "refs": ["gate", "code-review", "ship-coordination", "web-qa"]
   },
   "mcp": {
     "servers": ["ship"]

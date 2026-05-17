@@ -48,12 +48,24 @@
      header/filter/sections paint edge-to-edge with their own padding. */
   sui-popover::part(surface) {
     padding: 0;
-    min-width: 320px;
-    width: min(380px, calc(100vw - 32px));
+    min-width: 360px;
+    width: min(420px, calc(100vw - 32px));
     max-height: min(560px, calc(100vh - 96px));
     display: flex;
     flex-direction: column;
     overflow: hidden;
+  }
+
+  /* vp-root needs to fill the surface for the flex chain (header +
+     filter + scrolling body + footer) to clamp. Without min-height:0
+     the body's flex:1 can't shrink and the popover grows past the
+     surface's max-height instead of scrolling — flagged by user QA. */
+  .vp-root {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
   }
 
   /* ── header ─────────────────────────────────────────────────────── */
@@ -160,6 +172,24 @@
     outline-offset: -2px;
   }
   .vp-row.is-dragging { opacity: 0.5; }
+
+  /* Project rows — the unified picker shows projects above views. */
+  .vp-row-project {
+    padding: 8px 12px;
+  }
+  .vp-project-swatch {
+    width: 14px;
+    height: 14px;
+    border-radius: 4px;
+    flex-shrink: 0;
+    background: color-mix(in oklch, var(--foreground) 18%, transparent);
+    border: 1px solid var(--border, transparent);
+  }
+  .vp-project-swatch.is-active {
+    background: var(--primary, #f97316);
+    border-color: color-mix(in oklch, var(--primary, #f97316) 70%, transparent);
+    box-shadow: 0 0 0 2px color-mix(in oklch, var(--primary, #f97316) 22%, transparent);
+  }
   .vp-row-text {
     flex: 1;
     min-width: 0;

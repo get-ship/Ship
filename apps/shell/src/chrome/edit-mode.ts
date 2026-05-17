@@ -20,9 +20,13 @@ import {
   editModeForView,
   toggleEditMode,
   setEditMode,
+  annotationModeForView,
+  toggleAnnotationMode,
+  setAnnotationMode,
   effect,
   type Signal,
 } from '@ship/sui-runtime'
+import { installViewMcp, viewMcp } from './view-mcp'
 
 const VA_ISLAND_URL = '/_sui/sui-components/sui-view-authoring.js'
 const PICKER_ISLAND_URL = '/_sui/sui-components/sui-component-picker.js'
@@ -44,21 +48,39 @@ interface PanelDock extends HTMLElement {
   tabs?: DockTabDef[]
 }
 
+// VA_TABS — what the dock surfaces when edit mode is on for the current view.
+// `source` is the SAME tab in the same position regardless of mode (per user
+// feedback); the explorer-style sui-devtools-source works for view + edit
+// (it now serves the active view's file tree + single editor either way).
+// `components`, `activity`, `compile` slot the VA-only surfaces; `terminal`
+// closes out the tab strip.
 const VA_TABS: DockTabDef[] = [
-  { id: 'va-source',     label: 'Source',     icon: 'file-code', badge: 'EDIT' },
+  { id: 'source',        label: 'Source',     icon: 'file-code', badge: 'EDIT' },
   { id: 'va-components', label: 'Components', icon: 'package' },
   { id: 'va-activity',   label: 'Activity',   icon: 'activity', live: true },
   { id: 'va-compile',    label: 'Compile',    icon: 'check-circle-2' },
   { id: 'terminal',      label: 'Terminal',   icon: 'terminal' },
 ]
 
+// Non-edit-mode tabs: debug surfaces only. The Components tab is
+// authoring-specific — it lives in VA_TABS so the dev panel surfaces
+// it only when the user has flipped edit-mode on for the view. The
+// canonical browse-all-components reference is the ship-ui-studio
+// view; outside edit mode we don't duplicate it here.
+// `lint` was here historically but the dock never had a slot child for it —
+// it rendered an active tab with an empty body, surfaced by the first
+// web-qa run on this surface (F-003, .artifacts/web-qa/chrome/dev-panel/
+// edit-mode/2026-05-16T17-57/report.md). Drop until a real
+// `<sui-devtools-lint>` component lands.
+// Source FIRST + Terminal LAST in both DEFAULT_TABS and VA_TABS so
+// the two tabs that exist in both modes stay in the same on-screen
+// position when the user toggles edit. Pre-fix, Terminal moved 0→4
+// and Source moved 1→0 across modes — flagged as maddening.
 const DEFAULT_TABS: DockTabDef[] = [
-  { id: 'terminal',   label: 'Terminal',   icon: 'terminal', live: true },
   { id: 'source',     label: 'Source',     icon: 'file-code' },
   { id: 'signals',    label: 'Signals',    icon: 'radio', live: true },
-  { id: 'lint',       label: 'Lint',       icon: 'list' },
   { id: 'schema',     label: 'Schema',     icon: 'network' },
-  { id: 'components', label: 'Components', icon: 'package' },
+  { id: 'terminal',   label: 'Terminal',   icon: 'terminal', live: true },
 ]
 
 interface VaWindow extends Window {
@@ -95,18 +117,33 @@ function ensurePinLayer(): HTMLElement {
   return el
 }
 
+// Edit-mode pill — persistent top-right indicator so users always see
+// "Editing: <view>" without consuming layout real estate. Lives in
+// light DOM at body level, position:fixed, hidden by default until the
+// shell flips `[on]` to true.
+function ensureEditPill(): HTMLElement {
+  let el = document.getElementById('ship-edit-pill')
+  if (el) return el
+  el = document.createElement('sui-edit-mode-pill')
+  el.id = 'ship-edit-pill'
+  document.body.appendChild(el)
+  return el
+}
+
 function ensureVaSlots(view: string): void {
   const dock = getDock()
   if (!dock) return
   for (const tab of VA_TABS) {
-    if (tab.id === 'terminal') continue
+    // `terminal` is supplied by the dock controller; `source` is
+    // the same sui-devtools-source from default mode and is already
+    // slotted by the shell, so VA enter shouldn't try to re-mount it.
+    if (tab.id === 'terminal' || tab.id === 'source') continue
     if (dock.querySelector(`:scope > [slot="${tab.id}"]`)) {
       const existing = dock.querySelector(`:scope > [slot="${tab.id}"]`) as HTMLElement
       existing.setAttribute('view', view)
       continue
     }
     const tagFor: Record<string, string> = {
-      'va-source':     'sui-va-source',
       'va-components': 'sui-va-components',
       'va-activity':   'sui-va-activity',
       'va-compile':    'sui-va-compile',
@@ -135,37 +172,117 @@ function applyEditMode(on: boolean): void {
   const dock = getDock()
   if (!dock) return
 
+  // Pill visibility tracks the *existence* of a view, not the on/off
+  // state — users need it visible in BOTH states to toggle between
+  // them. Pre-fix the pill only appeared once edit mode was already on,
+  // which made it un-discoverable.
+  if (currentView) dock.setAttribute('edit-mode-pill', '')
+  else dock.removeAttribute('edit-mode-pill')
+
+  const pill = ensureEditPill()
+  if (currentView) pill.setAttribute('view', currentView)
+  else pill.removeAttribute('view')
+
   if (on) {
     ensureIslandLoaded(PICKER_ISLAND_URL, 'sui-component-picker')
     ensureIslandLoaded(VA_ISLAND_URL, 'sui-view-authoring')
     ensureVaSlots(currentView ?? '')
-    dock.setAttribute('edit-mode-pill', '')
     dock.setAttribute('edit-mode-on', '')
     dock.tabs = VA_TABS
     // Activate Source tab by default so the user lands in the editor.
-    dock.activate('va-source')
+    dock.activate('source')
     dock.show()
     document.body.classList.add('edit-mode')
     ensurePinLayer().removeAttribute('hidden')
+    pill.setAttribute('on', '')
+    // Grant our chrome session the view.* tools (capability is scoped
+    // per (session, view) on the daemon). Errors are non-fatal — the
+    // UI surfaces them, and the VA components degrade to read-only.
+    if (currentView) {
+      void viewMcp.enterEditMode(currentView).catch((e) => {
+        console.warn('[edit-mode] enter failed:', e)
+      })
+      openViewSse(currentView)
+    }
   } else {
     dock.removeAttribute('edit-mode-on')
-    // Keep the pill visible so the user can toggle back on; only hide
-    // it when no view is active.
-    if (!currentView) dock.removeAttribute('edit-mode-pill')
     dock.tabs = DEFAULT_TABS
     removeVaSlots()
     document.body.classList.remove('edit-mode')
+    document.body.classList.remove('annotation-mode')
     const pins = getPinLayer()
     if (pins) pins.setAttribute('hidden', '')
+    pill.removeAttribute('on')
+    pill.removeAttribute('annotating')
+    // Exiting edit mode forces annotation mode off too — they are
+    // a parent/child pair, never independent.
+    if (currentView) setAnnotationMode(currentView, false)
+    if (currentView) {
+      void viewMcp.exitEditMode(currentView).catch(() => { /* idempotent */ })
+    }
+    closeViewSse()
+  }
+}
+
+// ── View-authoring SSE bridge ────────────────────────────────────────
+//
+// While edit mode is on, subscribe to /_sui/views/<name>/sse and
+// re-dispatch view-authoring events as document-level events so
+// sui-va-activity + sui-va-compile receive them via their existing
+// addEventListener calls. Closes on edit-mode exit.
+
+let viewSse: EventSource | null = null
+let viewSseView: string | null = null
+
+function openViewSse(view: string): void {
+  if (viewSseView === view && viewSse) return
+  closeViewSse()
+  viewSseView = view
+  try {
+    viewSse = new EventSource(`/_sui/views/${encodeURIComponent(view)}/sse`)
+  } catch (err) {
+    console.warn('[edit-mode] SSE open failed:', err)
+    return
+  }
+  const dispatch = (kind: string) => (e: MessageEvent) => {
+    let payload: unknown = null
+    try { payload = JSON.parse(e.data) } catch { /* ignore */ }
+    document.dispatchEvent(new CustomEvent(kind, {
+      detail: payload,
+      bubbles: true,
+    }))
+  }
+  viewSse.addEventListener('sui:view:annotation', dispatch('sui:view:annotation'))
+  viewSse.addEventListener('sui:view:annotation:clear', dispatch('sui:view:annotation:clear'))
+  viewSse.addEventListener('sui:view:compiled', dispatch('sui:view:compiled'))
+  viewSse.addEventListener('sui:view:errored', dispatch('sui:view:errored'))
+}
+
+function closeViewSse(): void {
+  viewSse?.close()
+  viewSse = null
+  viewSseView = null
+}
+
+function applyAnnotationMode(on: boolean): void {
+  const pill = document.getElementById('ship-edit-pill')
+  if (on) {
+    document.body.classList.add('annotation-mode')
+    pill?.setAttribute('annotating', '')
+  } else {
+    document.body.classList.remove('annotation-mode')
+    pill?.removeAttribute('annotating')
   }
 }
 
 function subscribeFor(view: string): void {
   activeStopEffect?.()
   lastApplied = null
-  const sig: Signal<boolean> = editModeForView(view)
+  const editSig: Signal<boolean> = editModeForView(view)
+  const annSig: Signal<boolean> = annotationModeForView(view)
   activeStopEffect = effect(() => {
-    applyEditMode(sig())
+    applyEditMode(editSig())
+    applyAnnotationMode(annSig())
   })
 }
 
@@ -210,10 +327,128 @@ export function setEditModeView(view: string | null): void {
   if (w.__suiCurrentViewId) w.__suiCurrentViewId = w.__suiCurrentViewId
 }
 
+// ── Annotation queue (per-edit-session) ──────────────────────────────
+//
+// Each captured annotation (from sui-edit-overlay's sui:chat:annotate
+// event) lives here until the user sends to agent or clears the queue.
+// Cleared whenever edit-mode flips off (D2 — per-edit-session).
+
+interface AnnotationCapture {
+  id: string
+  tag: string
+  selector: string
+  preview: string
+  comment?: string
+  ts: number
+}
+
+const annotations: AnnotationCapture[] = []
+let nextId = 1
+
+function syncPillQueue(): void {
+  const pill = document.getElementById('ship-edit-pill')
+  if (!pill) return
+  if (annotations.length > 0) {
+    pill.setAttribute('count', String(annotations.length))
+    pill.setAttribute('queue-json', JSON.stringify(annotations.map((a) => ({
+      id: a.id, tag: a.tag, selector: a.selector, preview: a.preview, comment: a.comment ?? '',
+    }))))
+  } else {
+    pill.removeAttribute('count')
+    pill.setAttribute('queue-json', '[]')
+    pill.removeAttribute('expanded')
+  }
+}
+
+function clearAnnotations(): void {
+  annotations.length = 0
+  syncPillQueue()
+}
+
+function onCapture(e: Event): void {
+  // Annotations are only meaningful when annotation mode is on and
+  // edit mode is on for the current view. The overlay only fires the
+  // event when those conditions hold (it binds via body class), but
+  // belt-and-braces guard here.
+  if (!currentView) return
+  if (!document.body.classList.contains('annotation-mode')) return
+  const d = (e as CustomEvent).detail as { tag?: string; selector?: string; preview?: string } | undefined
+  if (!d?.tag) return
+  annotations.push({
+    id: `ann-${nextId++}`,
+    tag: d.tag,
+    selector: d.selector ?? d.tag,
+    preview: d.preview ?? '',
+    ts: Date.now(),
+  })
+  syncPillQueue()
+}
+
+function sendAnnotationsToAgent(): void {
+  if (annotations.length === 0) return
+  const lines = annotations.map((a, i) => {
+    const head = `${i + 1}. \`${a.selector}\``
+    const preview = a.preview ? ` — "${a.preview}"` : ''
+    const comment = a.comment?.trim() ? `\n   comment: ${a.comment.trim()}` : ''
+    return `${head}${preview}${comment}`
+  })
+  const prefill = `Annotations on view \`${currentView ?? '(none)'}\`:\n${lines.join('\n')}\n\n`
+  // Open cmdk in AI mode with the prefill. The bar lands in the
+  // active commander session if one is already attached (per C3);
+  // otherwise the spawn picker opens and the prefill survives the
+  // transition.
+  document.dispatchEvent(new CustomEvent('ship:bar:open', {
+    detail: { mode: 'ai', prefill }, bubbles: true,
+  }))
+  clearAnnotations()
+}
+
+function removeAnnotation(id: string): void {
+  const idx = annotations.findIndex((a) => a.id === id)
+  if (idx >= 0) annotations.splice(idx, 1)
+  syncPillQueue()
+}
+
+function updateAnnotationComment(id: string, comment: string): void {
+  const a = annotations.find((x) => x.id === id)
+  if (!a) return
+  a.comment = comment
+  // Don't re-serialize queue here — the user is typing in the field,
+  // re-serializing would replace innerHTML and lose cursor position.
+  // The pill's textarea is the source of truth until Send is clicked.
+}
+
 export function initEditModeChrome(): void {
+  // Expose window.__viewMcp so VA components (sui-va-source,
+  // sui-va-components, sui-va-compile) can hit the backend tools
+  // without each duplicating fetch wiring. Pre-fix the shell shipped
+  // without this and the VA components silently no-op'd.
+  installViewMcp()
   document.addEventListener('sui:dock:edit-mode-toggle', onPillToggle)
   document.addEventListener('sui:edit-mode:change', onEditModeChange)
+  // Corner pill's close button bubbles `sui:edit-mode:exit` — same
+  // effect as toggling the dock pill while edit-mode is on.
+  document.addEventListener('sui:edit-mode:exit', () => {
+    if (currentView) setEditMode(currentView, false)
+  })
+  // Annotation mode toggle from pill's crosshair button or keyboard.
+  document.addEventListener('sui:annotation-mode:toggle', () => {
+    if (currentView) toggleAnnotationMode(currentView)
+  })
+  // Capture annotations dispatched by sui-edit-overlay.
+  document.addEventListener('sui:chat:annotate', onCapture)
+  // Pill's "Send to agent" button.
+  document.addEventListener('sui:annotations:send', sendAnnotationsToAgent)
+  document.addEventListener('sui:annotations:clear', clearAnnotations)
+  document.addEventListener('sui:annotations:remove', (e) => {
+    const id = (e as CustomEvent<{ id?: string }>).detail?.id
+    if (id) removeAnnotation(id)
+  })
+  document.addEventListener('sui:annotations:comment-update', (e) => {
+    const d = (e as CustomEvent<{ id?: string; comment?: string }>).detail
+    if (d?.id && typeof d.comment === 'string') updateAnnotationComment(d.id, d.comment)
+  })
 }
 
 // Re-export for keyboard handler in main.ts.
-export { toggleEditMode }
+export { toggleEditMode, toggleAnnotationMode }

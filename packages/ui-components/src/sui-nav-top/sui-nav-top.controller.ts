@@ -11,6 +11,13 @@ interface Crumb {
   href: string
   label: string
   isLast: boolean
+  // The keyed iteration in the template includes `isLast` in the key so
+  // SUI doesn't reuse a previous crumb's branch (current-vs-link) when
+  // the user navigates to a deeper route. Pure-`href` keys re-use a
+  // crumb that flipped from leaf to mid-path and the runtime keeps the
+  // old `{#if}` branch mounted, leaving the breadcrumb missing its
+  // chevron + link affordance on the formerly-leaf segment.
+  key: string
 }
 
 function humanize(id: string): string {
@@ -65,13 +72,13 @@ export default controller<Scope>({
       if (project) {
         // Project segment links to root; never the leaf (a view always
         // follows). Matches the ship-shell home-link convention.
-        out.push({ href: '/', label: project, isLast: false })
+        out.push({ href: '/', label: project, isLast: false, key: '/|0' })
       }
       segs.forEach((seg, i) => {
         const isLast = i === segs.length - 1
         const href = '/' + segs.slice(0, i + 1).join('/')
         const label = i === 0 ? (labelsMap.get(seg) ?? humanize(seg)) : seg
-        out.push({ href, label, isLast })
+        out.push({ href, label, isLast, key: `${href}|${isLast ? 1 : 0}` })
       })
       return out
     })

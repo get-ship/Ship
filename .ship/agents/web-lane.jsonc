@@ -10,7 +10,7 @@
     "providers": ["claude", "codex", "cursor", "gemini", "opencode"],
   },
   "skills": {
-    "refs": ["ship-views", "ship-components", "ship-design-system", "no-slop"],
+    "refs": ["ship-views", "ship-components", "ship-design-system", "no-slop", "web-qa"],
   },
   "mcp": {
     "servers": ["ship"],

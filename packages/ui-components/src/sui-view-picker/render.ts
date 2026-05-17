@@ -1,7 +1,7 @@
 // Imperative body rendering for <sui-view-picker>. Data layer +
 // drag state machine live in data.ts.
 
-import { type ApiView, humanize, ZONE_PINNED_END, ZONE_ALL } from './data'
+import { type ApiView, type Project, humanize, ZONE_PINNED_END, ZONE_ALL } from './data'
 
 const KNOWN_APP_NAMES = new Set([
   'dashboard', 'pipelines', 'agents', 'skills', 'git', 'collections',
@@ -16,10 +16,13 @@ export interface RenderArgs {
   cursor: number
   pins: string[]
   activeView: string
+  projects: Project[]
+  activeProjectId: string | null
   dragOverName: string | null
   dragOverZone: number | null
   draggingName: string | null
   onNavigate: (name: string) => void
+  onPickProject: (id: string) => void
   onTogglePin: (e: Event, name: string) => void
   onDragStart: (e: DragEvent, name: string, fromPinned: boolean) => void
   onDragOverRow: (e: DragEvent, name: string) => void
@@ -32,6 +35,12 @@ export interface RenderArgs {
 
 export function renderBody(el: HTMLElement, args: RenderArgs): void {
   el.replaceChildren()
+  // Projects section at top — unified picker (Task #54). Shown when
+  // ≥1 project is tracked; lets the user switch project without
+  // leaving the picker.
+  if (args.projects.length > 0) {
+    el.appendChild(buildProjectsSection(args))
+  }
   const total = args.pinned.length + args.others.length
   if (total === 0) {
     const empty = document.createElement('div')
@@ -42,6 +51,51 @@ export function renderBody(el: HTMLElement, args: RenderArgs): void {
   }
   el.appendChild(buildSection('Pinned to rail', 'section-pinned', args.pinned, 0, true, args))
   el.appendChild(buildSection('All views', 'section-all', args.others, args.pinned.length, false, args))
+}
+
+function buildProjectsSection(args: RenderArgs): HTMLElement {
+  const section = document.createElement('div')
+  section.setAttribute('part', 'section-projects')
+
+  const header = document.createElement('div')
+  header.className = 'vp-section-h'
+  const icon = document.createElement('sui-icon')
+  icon.setAttribute('name', 'folder-tree')
+  icon.setAttribute('size', 'sm')
+  header.appendChild(icon)
+  header.appendChild(Object.assign(document.createElement('span'), { textContent: 'Projects' }))
+  header.appendChild(Object.assign(document.createElement('span'), {
+    className: 'vp-hint', textContent: `${args.projects.length} tracked`,
+  }))
+  section.appendChild(header)
+
+  args.projects.forEach((p) => {
+    const isActive = p.id === args.activeProjectId
+    const row = document.createElement('div')
+    row.className = 'vp-row vp-row-project' + (isActive ? ' is-active' : '')
+    row.setAttribute('role', 'option')
+    row.setAttribute('data-project-id', p.id)
+    if (isActive) row.setAttribute('aria-current', 'true')
+
+    const swatch = document.createElement('span')
+    swatch.className = 'vp-project-swatch'
+    if (isActive) swatch.classList.add('is-active')
+
+    const text = document.createElement('span')
+    text.className = 'vp-row-text'
+    const label = document.createElement('span')
+    label.className = 'vp-row-label'
+    label.textContent = p.label || p.name
+    const sub = document.createElement('span')
+    sub.className = 'vp-row-sub'
+    sub.textContent = p.path
+    text.append(label, sub)
+
+    row.append(swatch, text)
+    row.addEventListener('click', () => args.onPickProject(p.id))
+    section.appendChild(row)
+  })
+  return section
 }
 
 function buildSection(

@@ -110,4 +110,49 @@ export function setEditMode(name: string, on: boolean): void {
  *  `index.ts` — internal. */
 export function __resetEditModeRegistryForTests(): void {
   SIGNALS.clear()
+  ANNOTATION_SIGNALS.clear()
+}
+
+// ── Annotation mode (sub-toggle inside edit mode) ────────────────────
+//
+// Annotation mode is a SECOND boolean per (project, view), only
+// meaningful when edit-mode is also on. ON ⇒ the overlay binds
+// hover/click handlers so the user picks elements to annotate; OFF ⇒
+// the view is interactive normally even though the dev panel + tabs
+// are still in edit-mode shape.
+//
+// Session-only: not persisted to localStorage so a reload always
+// starts annotation mode off (per the design call D2 — user wants
+// each edit session to start clean).
+
+const ANNOTATION_SIGNALS = new Map<string, Signal<boolean>>()
+
+export function annotationModeForView(name: string): Signal<boolean> {
+  const k = `ship.annotation-mode.${projectId()}.${name}`
+  const existing = ANNOTATION_SIGNALS.get(k)
+  if (existing) return existing
+  const sig = signal<boolean>(false)
+  ANNOTATION_SIGNALS.set(k, sig)
+  return sig
+}
+
+export function toggleAnnotationMode(name: string): boolean {
+  const sig = annotationModeForView(name)
+  const next = !sig()
+  setAnnotationMode(name, next)
+  return next
+}
+
+export function setAnnotationMode(name: string, on: boolean): void {
+  const sig = annotationModeForView(name)
+  if (sig() === on) return
+  // Annotation mode requires edit mode on; refuse to flip on otherwise.
+  if (on && !editModeForView(name)()) return
+  sig.set(on)
+  if (typeof document !== 'undefined') {
+    document.dispatchEvent(new CustomEvent('sui:annotation-mode:change', {
+      detail: { view: name, on },
+      bubbles: true,
+    }))
+  }
 }

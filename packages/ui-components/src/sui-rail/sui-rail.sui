@@ -60,48 +60,51 @@
   :host([hidden]) { display: none; }
   .rail-footer { padding: 4px; }
 
-  /* Top tile area — opens the view-picker (rail customizer + view
-     browser). Mirrors the project-tile area in the OG j2 shell, just
-     in icon-rail form. */
+  /* Rail-top region — hosts the unified project + view picker trigger.
+     A four-cell grid icon (not a user/account-style monogram avatar —
+     which the previous project-badge looked like) signals "browse what
+     this Ship has". Click opens the view-picker popover; project
+     switching surfaces inside the same popover. */
   .rail-top {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 4px;
-    padding: var(--space-2, 8px);
-    border-bottom: 1px solid var(--border);
+    gap: 6px;
+    padding: 10px 6px;
+    border-bottom: 1px solid var(--border-subtle, var(--border));
     flex-shrink: 0;
   }
-  .rail-top-btn {
+
+  .picker-btn {
     appearance: none;
     background: transparent;
-    border: 1px solid transparent;
-    border-radius: var(--radius-sm, 4px);
-    padding: 4px;
     color: var(--muted-foreground);
-    cursor: pointer;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    width: 32px;
+    height: 32px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 28px;
-    height: 28px;
+    cursor: pointer;
     transition:
-      background-color var(--duration-fast, 100ms) var(--ease-out, ease-out),
-      border-color var(--duration-fast, 100ms) var(--ease-out, ease-out),
-      color var(--duration-fast, 100ms) var(--ease-out, ease-out);
+      background-color 120ms var(--ease-out, ease-out),
+      color 120ms var(--ease-out, ease-out),
+      border-color 120ms var(--ease-out, ease-out);
   }
-  .rail-top-btn:hover {
+  .picker-btn:hover {
     background: color-mix(in oklch, var(--foreground) 8%, transparent);
-    border-color: var(--border);
     color: var(--foreground);
+    border-color: color-mix(in oklch, var(--foreground) 12%, transparent);
   }
-  .rail-top-btn[aria-expanded='true'] {
-    background: color-mix(in oklch, var(--primary, #f97316) 14%, transparent);
-    color: var(--primary, #f97316);
+  .picker-btn[aria-expanded='true'] {
+    background: color-mix(in oklch, var(--primary) 14%, transparent);
+    color: var(--primary);
+    border-color: color-mix(in oklch, var(--primary) 30%, transparent);
   }
-  .rail-top-btn:focus-visible {
+  .picker-btn:focus-visible {
     outline: none;
-    box-shadow: 0 0 0 2px color-mix(in oklch, var(--primary, #3b82f6) 50%, transparent);
+    box-shadow: 0 0 0 2px var(--background), 0 0 0 4px color-mix(in oklch, var(--primary) 60%, transparent);
   }
 
   .rail-nav {
@@ -110,7 +113,7 @@
     flex-direction: column;
     overflow-y: auto;
     overflow-x: hidden;
-    padding: var(--space-2, 8px) 0;
+    padding: 6px 0;
     scrollbar-width: thin;
     scrollbar-color: transparent transparent;
   }
@@ -123,33 +126,9 @@
     flex-direction: column;
     align-items: center;
     gap: 4px;
-    padding: var(--space-2, 8px);
-    border-top: 1px solid var(--border);
+    padding: 8px 6px 10px;
+    border-top: 1px solid var(--border-subtle, var(--border));
     flex-shrink: 0;
-  }
-
-  .project-badge {
-    appearance: none;
-    background: var(--primary);
-    color: var(--primary-foreground, white);
-    border: none;
-    border-radius: 6px;
-    width: 28px;
-    height: 28px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 12px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: background-color var(--duration-fast, 100ms) var(--ease-out, ease-out);
-  }
-  .project-badge:hover {
-    background: color-mix(in oklch, var(--primary) 80%, black);
-  }
-  .project-badge:focus-visible {
-    outline: none;
-    box-shadow: 0 0 0 2px color-mix(in oklch, var(--primary, #3b82f6) 50%, transparent);
   }
 
   .footer-actions {
@@ -164,64 +143,58 @@
     appearance: none;
     background: transparent;
     border: 1px solid transparent;
-    border-radius: var(--radius-sm, 4px);
-    padding: 4px;
+    border-radius: 6px;
+    padding: 0;
     color: var(--muted-foreground);
     cursor: pointer;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 28px;
-    height: 28px;
+    width: 32px;
+    height: 32px;
     transition:
-      background-color var(--duration-fast, 100ms) var(--ease-out, ease-out),
-      border-color var(--duration-fast, 100ms) var(--ease-out, ease-out),
-      color var(--duration-fast, 100ms) var(--ease-out, ease-out);
+      background-color 120ms var(--ease-out, ease-out),
+      color 120ms var(--ease-out, ease-out);
   }
   .footer-btn:hover {
     background: color-mix(in oklch, var(--foreground) 8%, transparent);
-    border-color: var(--border);
     color: var(--foreground);
   }
   .footer-btn:focus-visible {
     outline: none;
-    box-shadow: 0 0 0 2px color-mix(in oklch, var(--primary, #3b82f6) 50%, transparent);
+    box-shadow: 0 0 0 2px var(--background), 0 0 0 4px color-mix(in oklch, var(--primary) 60%, transparent);
   }
 
   @media (prefers-reduced-motion: reduce) {
-    :host { transition: none; }
+    :host, .project-badge, .footer-btn { transition: none; }
   }
 </style>
 
+<div class="rail-top" part="top">
+  <sui-view-picker placement="right" bind:this={viewPickerEl}>
+    <button
+      slot="trigger"
+      type="button"
+      class="picker-btn"
+      part="picker-btn"
+      title="Pinned views + project switcher"
+      aria-label="Open picker"
+      bind:this={viewPickerBtnEl}
+    >
+      <sui-icon name="grid-2x2" size="md"></sui-icon>
+    </button>
+  </sui-view-picker>
+</div>
 <nav class="rail-nav" part="nav">
   <slot bind:this={navSlot}></slot>
 </nav>
 <div class="rail-footer" part="footer">
-  <button
-    type="button"
-    class="project-badge"
-    part="project-badge"
-    aria-label="Switch project"
-    aria-haspopup="dialog"
-    title="Switch project"
-    bind:this={projectBadgeEl}
-  >{projectInitial()}</button>
   <div class="footer-actions">
     <button
       type="button"
       class="footer-btn"
-      part="launcher-btn"
-      title="Open launcher"
-      aria-label="Open launcher"
-      bind:this={launcherBtnEl}
-    >
-      <sui-icon name="folder" size="sm"></sui-icon>
-    </button>
-    <button
-      type="button"
-      class="footer-btn"
       part="create-btn"
-      title="Create new"
+      title="Create new (⌘N)"
       aria-label="Create new"
       bind:this={createBtnEl}
     >

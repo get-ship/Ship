@@ -10,7 +10,10 @@
 // generated `.ts` re-export was removed when the bundle moved out.
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { setIconRegistry } from '../src/sui-icon/registry'
+// sui-icon lives in @ship/primitives — its registry primer is still
+// needed here because chrome tests render `<sui-icon>` inside nav-top,
+// status-bar, etc.
+import { setIconRegistry } from '../../components/primitives/src/sui-icon/registry'
 
 // Vitest runs from the package root; the bundle asset is checked into
 // the Rust server crate alongside the rest of the SUI bundle.

@@ -1,13 +1,14 @@
 /**
- * Build-time loader over the aggregated SUI custom-elements manifest.
+ * Build-time loader over the workspace SUI catalog.
  *
- * Reads `crates/sui/ship-sui-server/assets/sui-custom-elements.json` —
- * the canonical CEM produced by `@ship/sui-build` for the entire
- * `packages/ui-components/src/` tree — and emits the typed record per
+ * Reads `.ship/sui-out/catalogs/workspace.json` — the canonical catalog
+ * produced by `@ship/sui-catalog` (CLI: `bun packages/sui-catalog/src/cli.ts`)
+ * which walks every workspace package's `customElements` manifest plus
+ * the per-component CEMs in `.ship/sui-out/`. Emits the typed record per
  * `<sui-*>` primitive that the docs site renders.
  */
 
-import cem from '../../../../crates/sui/ship-sui-server/assets/sui-custom-elements.json' with { type: 'json' };
+import catalog from '../../../../.ship/sui-out/catalogs/workspace.json' with { type: 'json' };
 
 export type ComponentCategory =
   | 'typography'
@@ -292,11 +293,9 @@ function takeFirstSentence(s: string): string {
   return idx > 0 ? trimmed.slice(0, idx) : trimmed.split('\n')[0]!;
 }
 
-interface CemDeclaration {
-  kind: string;
-  name?: string;
-  tagName?: string;
-  summary?: string;
+interface CatalogEntry {
+  tagName: string;
+  sourcePath: string;
   description?: string;
   attributes?: Array<{
     name?: string;
@@ -314,48 +313,42 @@ interface CemDeclaration {
     default?: string;
     syntax?: string;
   }>;
-  customElement?: boolean;
 }
 
-interface CemModule {
-  path?: string;
-  declarations?: CemDeclaration[];
-}
-
-function toComponent(mod: CemModule, d: CemDeclaration): ComponentDoc | null {
-  if (!d.tagName || !d.customElement) return null;
-  if (ISLAND_TAGS.has(d.tagName)) return null;
-  if (HIDDEN_TAGS.has(d.tagName)) return null;
-  const path = mod.path ?? '';
-  const summary = takeFirstSentence(d.summary ?? d.description ?? '');
+function toComponent(e: CatalogEntry): ComponentDoc | null {
+  if (!e.tagName) return null;
+  if (ISLAND_TAGS.has(e.tagName)) return null;
+  if (HIDDEN_TAGS.has(e.tagName)) return null;
+  const description = e.description ?? '';
+  const summary = takeFirstSentence(description);
   return {
-    tag: d.tagName,
-    className: d.name ?? d.tagName,
+    tag: e.tagName,
+    className: e.tagName,
     summary,
-    description: d.description ?? '',
-    path,
-    category: deriveCategory(d.tagName),
-    attributes: (d.attributes ?? []).map((a) => ({
+    description,
+    path: e.sourcePath ?? '',
+    category: deriveCategory(e.tagName),
+    attributes: (e.attributes ?? []).map((a) => ({
       name: a.name ?? '',
       description: a.description,
       type: a.type?.text,
       default: a.default,
       fieldName: a.fieldName,
     })),
-    slots: (d.slots ?? []).map((s) => ({
+    slots: (e.slots ?? []).map((s) => ({
       name: s.name ?? '(default)',
       description: s.description,
     })),
-    events: (d.events ?? []).map((e) => ({
-      name: e.name ?? '',
-      description: e.description,
-      type: e.type?.text,
+    events: (e.events ?? []).map((ev) => ({
+      name: ev.name ?? '',
+      description: ev.description,
+      type: ev.type?.text,
     })),
-    parts: (d.cssParts ?? []).map((p) => ({
+    parts: (e.cssParts ?? []).map((p) => ({
       name: p.name ?? '',
       description: p.description,
     })),
-    cssProperties: (d.cssProperties ?? []).map((c) => ({
+    cssProperties: (e.cssProperties ?? []).map((c) => ({
       name: c.name ?? '',
       description: c.description,
       default: c.default,
@@ -364,12 +357,11 @@ function toComponent(mod: CemModule, d: CemDeclaration): ComponentDoc | null {
   };
 }
 
-const raw = cem as { modules?: CemModule[] };
+const raw = catalog as { entries?: CatalogEntry[] };
 
-export const COMPONENTS: ComponentDoc[] = (raw.modules ?? [])
-  .flatMap((m) =>
-    (m.declarations ?? []).map((d) => toComponent(m, d)).filter((x): x is ComponentDoc => x !== null),
-  )
+export const COMPONENTS: ComponentDoc[] = (raw.entries ?? [])
+  .map(toComponent)
+  .filter((x): x is ComponentDoc => x !== null)
   .sort((a, b) => a.tag.localeCompare(b.tag));
 
 export const COMPONENTS_BY_TAG: Record<string, ComponentDoc> = Object.fromEntries(

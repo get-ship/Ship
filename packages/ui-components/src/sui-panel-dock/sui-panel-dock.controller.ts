@@ -87,17 +87,26 @@ export default controller<Scope>({
         }),
       )
     }
-    function onClear(): void {
-      hostEl?.dispatchEvent(
-        new CustomEvent('sui:dock:clear', {
-          detail: { tab: s.activeTab() }, bubbles: true, composed: true,
-        }),
-      )
-    }
     function onPopout(): void {
+      // Open the active tab's surface in a standalone window so users
+      // can dock the source/signals/etc. alongside their editor. Each
+      // tab declares its own URL via a known map; unknown tabs fall
+      // back to a generic /sui/<tab> path.
+      const tab = s.activeTab()
+      const url = ({
+        terminal: '/sui/terminal',
+        source: '/ship-ui-studio',
+        signals: '/sui/signals',
+        schema: '/sui/schema',
+        'va-source': '/ship-ui-studio',
+        'va-components': '/ship-ui-studio',
+        'va-activity': '/events',
+        'va-compile': '/ship-ui-studio',
+      } as Record<string, string>)[tab] ?? `/sui/${tab}`
+      window.open(url, '_blank', 'noopener')
       hostEl?.dispatchEvent(
         new CustomEvent('sui:dock:popout', {
-          detail: { tab: s.activeTab() }, bubbles: true, composed: true,
+          detail: { tab, url }, bubbles: true, composed: true,
         }),
       )
     }
@@ -118,7 +127,7 @@ export default controller<Scope>({
 
     return {
       tabs, dragHeight, resizeHandle,
-      activate, onClear, onPopout, onClose, onEditModeToggle,
+      activate, onPopout, onClose, onEditModeToggle,
     }
   },
 

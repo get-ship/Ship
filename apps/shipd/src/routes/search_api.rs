@@ -136,6 +136,17 @@ async fn build_adapters(
 
 // ── Snapshot helpers ─────────────────────────────────────────────────
 
+/// Views the v1 shell never surfaces to end users — wizard, samples,
+/// dashboards and dev-panel surfaces not yet promoted to first-party.
+/// Hidden from /api/v1/search (cmdk find mode + view-picker both
+/// consume this — single source of truth). When we add a manifest
+/// `hidden: true` field, this list moves to per-view metadata.
+const HIDDEN_FROM_PICKERS: &[&str] = &[
+    "setup",
+    "sessions", "mesh", "events",
+    "specs",
+];
+
 fn snapshot_views() -> Vec<ViewSnapshot> {
     use std::collections::HashSet;
     let mut seen: HashSet<String> = HashSet::new();
@@ -146,6 +157,7 @@ fn snapshot_views() -> Vec<ViewSnapshot> {
             if !entry.file_type().map(|t| t.is_dir()).unwrap_or(false) { continue }
             let name = entry.file_name().to_string_lossy().to_string();
             if !seen.insert(name.clone()) { continue }
+            if HIDDEN_FROM_PICKERS.contains(&name.as_str()) { continue }
             // Pull rail.label as the searchable "description" + rail.icon
             // so cmdk find-mode shows each view's actual icon (not the
             // generic app-window fallback).

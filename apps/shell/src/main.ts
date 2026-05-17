@@ -15,15 +15,38 @@
 
 import { createClient, type ShipSDK } from '@ship/sdk-client'
 import { shipFetch, gitStatus } from '@ship/sdk'
+// Charts pack — single workspace import registers every <sui-*-chart>,
+// <sui-sparkline>, <sui-donut>, <sui-gauge>, <sui-meter>, <sui-heatmap>
+// before the first view mounts. Charts moved out of @ship/ui-components
+// into @ship/charts (packages/components/charts/) as the first pack
+// extracted under the multi-pack architecture; consumers depend on the
+// pack via standard workspace deps, exactly the same shape any future
+// first- or third-party pack will use.
+//
+// The `/bundle` subpath points at sui-build's pre-built artifact
+// (`dist/sui-charts.js`) — the same shape the daemon uses to serve
+// `<script src="/_sui/components.js">` for the umbrella. Importing
+// `@ship/charts` directly would route through the source tree's
+// `.compiled.js` virtual imports, which only the sui-build / vitest
+// resolvers understand. The bundle path is a real on-disk module
+// Vite can ship as-is. Requires `bun run --filter @ship/charts build`
+// to have produced `dist/sui-charts.js`.
+import '@ship/charts/bundle'
+// Primitives pack — generic `<sui-*>` UI elements (button, input, dialog,
+// popover, tooltip, tabs, etc.). Same shape as charts: pre-built bundle
+// served by the daemon; one workspace import registers every primitive
+// before the first view mounts. Requires `bun run --filter @ship/primitives
+// build` to have produced `dist/sui-primitives.js`.
+import '@ship/primitives/bundle'
 import { route as createRoute, defineRoutes } from '@ship/sui-runtime/route'
 import { chrome, notifyViewUnmount } from '@ship/sui-runtime'
 import { KernelBridge } from './kernel-bridge'
 import { initHmr } from './hmr'
 import { initProjectSwitch } from './project-switch'
 import { initChromeRegistry } from './chrome/registry'
-import { initEditModeChrome, setEditModeView, toggleEditMode } from './chrome/edit-mode'
+import { initEditModeChrome, setEditModeView, toggleEditMode, toggleAnnotationMode } from './chrome/edit-mode'
 import { ensureSetupOrRedirect } from './setup-wizard'
-import { initViewMocks } from './mocks'
+import { bridgeDockTerminal } from './chrome/terminal-bridge'
 
 interface MountFn {
   (
@@ -580,7 +603,8 @@ function getDock(): PanelDock | null {
 // ⌘K/Ctrl+K  → command-bar toggle (find mode)
 // ⌘P/Ctrl+P  → command-bar search (find mode)
 // ⌘J/Ctrl+J  → panel-dock toggle
-// ⌘⇧E/Ctrl+Shift+E → body.edit-mode toggle (sui-edit-overlay listens)
+// Alt+E → per-view edit-mode toggle (was ⌘⇧E; collided with browser
+//   tab-search / devtools shortcuts on multiple platforms).
 // ⌘B/Ctrl+B  → rail toggle (via sui:rail:toggle)
 // Esc        → close open sui-dialog / sui-drawer (backstop)
 
@@ -599,8 +623,7 @@ document.addEventListener('keydown', (e: KeyboardEvent) => {
   // `e.key` reports the produced character: Chromium yields lowercase
   // 'b' for Ctrl+B without Shift, but some automation drivers (and a few
   // platform keyboard layouts) emit uppercase. Normalize so the
-  // shortcuts trigger regardless of caller. Keep ⌘⇧E gated on Shift via
-  // its dedicated branch below.
+  // shortcuts trigger regardless of caller.
   const key = e.key.toLowerCase()
 
   if (mod && key === 'j') {
@@ -621,12 +644,23 @@ document.addEventListener('keydown', (e: KeyboardEvent) => {
     return
   }
 
-  if (mod && e.shiftKey && key === 'e') {
+  if (e.altKey && !mod && !e.shiftKey && key === 'e') {
     e.preventDefault()
     // Per-view edit mode: flip the persisted signal for the current
     // view. The edit-mode chrome (see chrome/edit-mode.ts) reacts and
     // swaps the dock tabs + projects the view-authoring surfaces.
+    // Alt+E replaced the prior ⌘⇧E/Ctrl+Shift+E binding because of
+    // browser collisions (Firefox tab search, Chrome devtools toggle).
     if (currentRoute) toggleEditMode(currentRoute.view)
+    return
+  }
+
+  if (e.altKey && e.shiftKey && !mod && key === 'e') {
+    e.preventDefault()
+    // Annotation mode (sub-toggle inside edit mode). No-op when edit
+    // mode is off — the runtime guards this; the keyboard binding
+    // just relays.
+    if (currentRoute) toggleAnnotationMode(currentRoute.view)
     return
   }
 
@@ -661,6 +695,29 @@ document.addEventListener('sui:dock:close', () => getDock()?.hide(), true)
 // `toggle()` method flips `body.dock-open`, which layout.css uses to
 // reveal the dock surface.
 document.addEventListener('sui:dock:toggle', () => getDock()?.toggle())
+
+// First time the user opens the dock OR activates the Terminal tab,
+// spawn a real shell PTY session via /api/v1/sessions/spawn + wire
+// the EventSource ↔ sui-terminal IO. Idempotent — only spawns once.
+// Listening on both because the dock may boot already-open OR already
+// pointed at the terminal tab (persisted state), in which case
+// `sui:dock:activate` won't refire.
+function maybeBridgeTerm(): void {
+  const dock = document.getElementById('ship-panel-dock') as (HTMLElement & { tabs?: Array<{id:string}> }) | null
+  if (!dock?.hasAttribute('data-active') && !document.body.classList.contains('dock-open')) return
+  // Spawn now whether terminal is active or not — connection is cheap
+  // and the user can switch to Terminal expecting a live shell.
+  void bridgeDockTerminal()
+}
+document.addEventListener('sui:dock:activate', (e) => {
+  const tab = (e as CustomEvent<{ tab?: string }>).detail?.tab
+  if (tab === 'terminal') void bridgeDockTerminal()
+})
+document.body.addEventListener('classList' as never, maybeBridgeTerm) // placeholder; real trigger below
+const dockClassObserver = new MutationObserver(() => {
+  if (document.body.classList.contains('dock-open')) void bridgeDockTerminal()
+})
+dockClassObserver.observe(document.body, { attributes: true, attributeFilter: ['class'] })
 
 // Rail launcher button → open <sui-launcher>. The launcher listens for
 // `sui:launcher:open` on document; the rail dispatches the legacy
@@ -716,9 +773,10 @@ document.addEventListener('sui:navigate', (e: Event) => {
 })
 
 initChromeRegistry()
-// View-authoring MCP stubs. Delete this call (and the `mocks/` dir)
-// once `job/view-authoring-backend` ships the real MCP surface.
-initViewMocks()
+// View-authoring chrome — installs the real __viewMcp + edit-mode
+// signal wiring. The prior initViewMocks() + mocks/ dir was deleted
+// when the backend (view_edit_tool_api) shipped — its leftover
+// setInterval was firing a fake annotation every 5s.
 initEditModeChrome()
 initShipApi()
 initRail()
@@ -736,6 +794,54 @@ initHmr({
 })
 setInterval(() => void updateStatus(), 15000)
 void updateStatus()
+
+// Wire active project name into nav-top so the breadcrumb shows
+// `project / view` per top-nav intent. Refreshes on `project.switched`
+// chrome events so the breadcrumb updates without reload.
+async function syncNavTopProject(): Promise<void> {
+  try {
+    const resp = await fetch('/api/v1/projects/active', { credentials: 'same-origin' })
+    if (!resp.ok) return
+    const body = (await resp.json()) as { active?: { name?: string; label?: string } | null }
+    const name = body.active?.label || body.active?.name || ''
+    const navTop = document.getElementById('ship-nav-top')
+    if (navTop) navTop.setAttribute('project', name)
+    // Status bar mirrors the project label per status-bar intent (left-side
+    // glance slot, clickable for switcher).
+    if (statusBar) statusBar.setAttribute('project', name)
+  } catch { /* breadcrumb stays without project prefix; no-op */ }
+}
+void syncNavTopProject()
+document.addEventListener('project.switched', () => void syncNavTopProject())
+
+// Status-bar click bridges (dot/theme/project) — per status-bar intent
+// the bar is glance-only but each slot opens its corresponding surface.
+// The rail's <sui-view-picker> holds the project switcher; the nav-top's
+// <sui-theme-picker> holds the theme panel. Each exposes a `toggle()`
+// host API via host.expose() in its controller, so the status-bar's
+// click events bridge into those imperative handles rather than
+// synthesising clicks into shadow DOM (which the popover trigger doesn't
+// proxy through slot composition).
+interface OpenableHost extends HTMLElement {
+  toggle?: () => void
+  open?: () => void
+}
+document.addEventListener('sui:project-switcher:open', () => {
+  const rail = document.getElementById('ship-rail') as HTMLElement | null
+  const picker = rail?.shadowRoot?.querySelector<OpenableHost>('sui-view-picker')
+  picker?.toggle?.() ?? picker?.open?.()
+})
+document.addEventListener('sui:theme-picker:open', () => {
+  const navTop = document.getElementById('ship-nav-top')
+  const picker = navTop?.shadowRoot?.querySelector<OpenableHost>('sui-theme-picker')
+  if (picker?.toggle) { picker.toggle(); return }
+  // sui-theme-picker doesn't expose an imperative API yet — fall back to
+  // clicking its internal `.trigger` button. The trigger is anchored
+  // inside the picker's shadow root so a direct `.click()` reaches the
+  // native popover toggle wiring.
+  const trigger = picker?.shadowRoot?.querySelector<HTMLButtonElement>('.trigger')
+  trigger?.click()
+})
 
 // First-run check: if setup hasn't been completed, rewrite the URL to
 // `/setup` so the wizard takes over. `ensureSetupOrRedirect` returns

@@ -53,7 +53,8 @@
 {#if errors().length === 0}
   <div class="empty">
     <span class="ok">All clear</span>
-    No compile errors for this view.
+    No compile errors for this view. Save a file in the Source tab
+    (⌘/Ctrl+S) to trigger a recompile; results land here.
   </div>
 {:else}
   <div class="list">

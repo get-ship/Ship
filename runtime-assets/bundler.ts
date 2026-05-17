@@ -209,31 +209,32 @@ function locateCompiler(): string {
 
 const compilerPath = locateCompiler()
 
-// CEM cache, populated as components are compiled. Aggregated into
-// sui-custom-elements.json after each build_all. Keyed by .sui path so
-// repeat compiles overwrite cleanly.
+// CEM cache, populated as components are compiled. Used to materialise
+// per-component CEMs into `.ship/sui-out/` so `@ship/sui-catalog` (run
+// after every build_all) sees a fresh tree. Keyed by .sui path so repeat
+// compiles overwrite cleanly.
 const cemCache = new Map<string, unknown>()
 
-// `@ship/sui-build`'s aggregator owns the merge/sort/dedup + pretty-print
-// pipeline (the at-build-time path uses it too). Loaded lazily by absolute
+// `@ship/sui-catalog`'s aggregator owns the workspace walk + dual-projection
+// output (`workspace.json` + `published.json`). Loaded lazily by absolute
 // path because this script ships to `~/.ship/runtime/bundler.ts` outside
 // the workspace's node_modules — the aggregator file itself only depends
-// on `node:` modules, so a direct path import keeps both call sites on
-// the same code.
-interface AggregateCemLib {
-  aggregateLoadedCem(
-    files: Array<{ filePath: string; modules: unknown[] }>,
-    opts?: { warn?: (msg: string) => void; schemaVersion?: string; readme?: string },
-  ): { schemaVersion: string; readme: string; modules: unknown[] }
-  stringifyCem(root: { schemaVersion: string; readme: string; modules: unknown[] }): string
+// on `node:` modules, so a direct path import keeps the daemon-side dev
+// loop and the `bun packages/sui-catalog/src/cli.ts` CLI on identical code.
+interface SuiCatalogLib {
+  buildCatalogs(opts: { repoRoot: string }): Promise<{
+    workspace: { schemaVersion: '1'; count: number; entries: unknown[] }
+    published: { schemaVersion: '1'; count: number; entries: unknown[] }
+  }>
+  stringifyCatalog(doc: { schemaVersion: '1'; count: number; entries: unknown[] }): string
 }
-let aggregateCemLib: AggregateCemLib | null = null
-async function loadAggregateCemLib(): Promise<AggregateCemLib> {
-  if (!aggregateCemLib) {
-    const mod = await import(resolve(repoRoot, 'packages/sui-build/src/aggregate-cem.ts'))
-    aggregateCemLib = mod as AggregateCemLib
+let suiCatalogLib: SuiCatalogLib | null = null
+async function loadSuiCatalogLib(): Promise<SuiCatalogLib> {
+  if (!suiCatalogLib) {
+    const mod = await import(resolve(repoRoot, 'packages/sui-catalog/src/index.ts'))
+    suiCatalogLib = mod as SuiCatalogLib
   }
-  return aggregateCemLib
+  return suiCatalogLib
 }
 
 async function compileSuiFile(
@@ -274,29 +275,27 @@ async function compileSuiFile(
   }
 }
 
-// Merge every cached CEM into one document the daemon serves as
-// /api/assets/custom-elements.json. Empty modules array is a valid
-// fallback when no components have been compiled yet. The merge,
-// sort-by-path, dedup-on-tagName + pretty-print pipeline lives in
-// `@ship/sui-build` so this path and the `bun run build` path produce
-// byte-identical output.
-async function aggregateCem(): Promise<void> {
-  const { aggregateLoadedCem, stringifyCem } = await loadAggregateCemLib()
-  const files: Array<{ filePath: string; modules: unknown[] }> = []
+// Persist every cached CEM into `.ship/sui-out/<source-mirror>/<stem>.custom-elements.json`,
+// then run `@ship/sui-catalog` to emit `.ship/sui-out/catalogs/{workspace,published}.json`.
+// The daemon's `/api/sui/catalog/{workspace,published}` endpoints read
+// the second of those files at request time.
+async function refreshCatalog(): Promise<{ workspace: number; published: number }> {
   for (const [filePath, cem] of cemCache.entries()) {
-    const modules = (cem as { modules?: unknown[] })?.modules
-    if (Array.isArray(modules)) files.push({ filePath, modules })
+    if (!cem || typeof cem !== 'object') continue
+    const rel = filePath.startsWith(repoRoot + '/') ? filePath.slice(repoRoot.length + 1) : filePath
+    const stem = basename(rel, '.sui')
+    const dir = dirname(rel)
+    const out = resolve(repoRoot, '.ship/sui-out', dir, `${stem}.custom-elements.json`)
+    mkdirSync(dirname(out), { recursive: true })
+    await Bun.write(out, JSON.stringify(cem, null, 2) + '\n')
   }
-  const root = aggregateLoadedCem(files)
-  // Write target mirrors `packages/ui-components/sui.config.ts::aggregateCemTo`
-  // so the dev-loop and at-build-time pipelines update the same file — the
-  // one `crates/sui/ship-sui-server` actually consumes. Pointing at
-  // `ship-ui-framework/` was the same path-typo class the sui.config.ts fix
-  // already cleaned up; leaving the bundler diverged kept the file
-  // git-flip-flopping between the two writers.
-  const target = resolve(repoRoot, 'crates/sui/ship-sui-server/assets/sui-custom-elements.json')
-  mkdirSync(dirname(target), { recursive: true })
-  await Bun.write(target, stringifyCem(root))
+  const { buildCatalogs, stringifyCatalog } = await loadSuiCatalogLib()
+  const { workspace, published } = await buildCatalogs({ repoRoot })
+  const outDir = resolve(repoRoot, '.ship/sui-out/catalogs')
+  mkdirSync(outDir, { recursive: true })
+  await Bun.write(resolve(outDir, 'workspace.json'), stringifyCatalog(workspace))
+  await Bun.write(resolve(outDir, 'published.json'), stringifyCatalog(published))
+  return { workspace: workspace.count, published: published.count }
 }
 
 // ── Bun plugin for .sui + virtual entries ────────────────────────────────────
@@ -581,11 +580,11 @@ if (process.argv.includes('--all')) {
     }
   }
   try {
-    await aggregateCem()
-    process.stdout.write(`✓ sui-custom-elements.json (${cemCache.size} components)\n`)
+    const counts = await refreshCatalog()
+    process.stdout.write(`✓ sui-catalog (workspace=${counts.workspace} published=${counts.published})\n`)
   } catch (err: any) {
     failed = true
-    process.stderr.write(`✗ aggregateCem: ${err?.message ?? String(err)}\n`)
+    process.stderr.write(`✗ refreshCatalog: ${err?.message ?? String(err)}\n`)
   }
   process.exit(failed ? 1 : 0)
 }
@@ -643,12 +642,12 @@ rl.on('line', async (line) => {
         }
       }
       try {
-        await aggregateCem()
+        await refreshCatalog()
       } catch (err: any) {
         emit({
           id: req.id,
           kind: 'error',
-          message: `aggregateCem failed: ${err?.message ?? String(err)}`,
+          message: `refreshCatalog failed: ${err?.message ?? String(err)}`,
           stack: err?.stack,
         })
       }

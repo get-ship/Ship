@@ -138,9 +138,14 @@ pub async fn write_view_template(
         return json_err(StatusCode::NOT_FOUND, format!("view '{name}' not found"));
     };
 
-    let rel = req.file.as_deref().unwrap_or("index.html.j2");
-    if !rel.ends_with(".html.j2") {
-        return json_err(StatusCode::BAD_REQUEST, "file must end in .html.j2");
+    let rel = req.file.as_deref().unwrap_or("page.sui");
+    // SUI replaced .html.j2 — allow the same source-text extensions
+    // the files_api lists so the explorer's save target matches.
+    let ok_ext = [".sui", ".ts", ".tsx", ".css", ".jsonc", ".json", ".yaml", ".yml", ".md"]
+        .iter()
+        .any(|e| rel.ends_with(e));
+    if !ok_ext {
+        return json_err(StatusCode::BAD_REQUEST, "unsupported file extension for view source");
     }
     let Some(rel_path) = relative_safe(rel) else {
         return json_err(StatusCode::BAD_REQUEST, "file path must stay inside view dir");

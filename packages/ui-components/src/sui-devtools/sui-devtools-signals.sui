@@ -64,7 +64,7 @@
     <sui-empty-state>
       <sui-icon slot="icon" name={filter() ? 'search' : 'radio'}></sui-icon>
       <span slot="title">{filter() ? 'No matches' : 'No signals'}</span>
-      {filter() ? 'No signals match the current filter.' : 'Mount a view — its scope appears here. SUI publishes window.__suiCurrentScope on every navigation.'}
+      {filter() ? 'No signals match the current filter.' : 'Reactive signals from the active view\'s controller appear here as values change. Use it to debug live state without console.log spam — useful when chasing render races or stale derivations.'}
     </sui-empty-state>
   {:else}
     {#for entry of shownEntries() key={entry.key}}

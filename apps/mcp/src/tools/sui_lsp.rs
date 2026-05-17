@@ -206,7 +206,7 @@ mod tests {
     async fn diagnostics_happy_path_returns_json() {
         // sui-button.sui is checked into the workspace and ships with
         // known diagnostics under the current ruleset.
-        let out = sui_diagnostics("packages/ui-components/src/sui-button/sui-button.sui").await;
+        let out = sui_diagnostics("packages/components/primitives/src/sui-button/sui-button.sui").await;
         assert!(!out.starts_with("Error:"), "expected JSON output, got: {out}");
         let v: Value = serde_json::from_str(&out).expect("output parses as JSON");
         assert!(v.get("diagnostics").is_some(), "missing diagnostics key in {out}");

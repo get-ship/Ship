@@ -224,8 +224,17 @@
   .toolbar[hidden] { display: none !important; }
 
   .bodies { flex: 1; min-height: 0; position: relative; overflow: hidden; background: var(--background); }
-  ::slotted(*) { display: none; height: 100%; overflow: auto; }
-  slot[data-active]::slotted(*) { display: block; }
+  /*
+   * Tab body sizing — every body element (sui-terminal, sui-devtools-*,
+   * sui-va-*) defines its own :host { display: flex; flex-direction: column;
+   * height: 100%; min-height: 0 } so the inner flex chain (header + body
+   * editor + footer diagnostics) stretches correctly. The ::slotted rule
+   * MUST match — `display: block` collapses the inner flex layout and
+   * editors render at one-line height. Surfaced by web-qa report F-001 at
+   * .artifacts/web-qa/chrome/dev-panel/edit-mode/2026-05-16T17-57/.
+   */
+  ::slotted(*) { display: none; height: 100%; min-height: 0; overflow: auto; }
+  slot[data-active]::slotted(*) { display: flex; flex-direction: column; }
 
   @media (prefers-reduced-motion: reduce) {
     .tab, .tool, .resize::before { transition: none; }
@@ -270,7 +279,6 @@
         <span>{editModeOn() ? 'Editing' : 'Edit'}</span>
       </button>
     {/if}
-    <button class="tool" type="button" aria-label="Clear" title="Clear" data-action="clear" on:click={onClear}><sui-icon name="refresh-cw" size="sm"></sui-icon></button>
     <button class="tool" type="button" aria-label="Pop out" title="Pop out" data-action="popout" on:click={onPopout}><sui-icon name="maximize" size="sm"></sui-icon></button>
     <button class="tool" type="button" aria-label="Close panel" title="Close (⌘J)" data-action="close" on:click={onClose}><sui-icon name="x" size="sm"></sui-icon></button>
   </span>
