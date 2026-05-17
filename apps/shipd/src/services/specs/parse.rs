@@ -197,7 +197,7 @@ pub fn launch_label(pipeline: Option<&str>, first_agent: Option<&str>) -> String
 }
 
 /// Launch-bar hint — describes what clicking `Launch` will do. Empty
-/// pipeline nudges the user toward the dropdown.
+/// pipeline + agent nudges the user toward the picker.
 pub fn launch_hint(pipeline: Option<&str>, first_agent: Option<&str>) -> String {
     match first_agent {
         Some(agent) => format!(
@@ -205,7 +205,7 @@ pub fn launch_hint(pipeline: Option<&str>, first_agent: Option<&str>) -> String 
             pipeline.unwrap_or("spec"),
             agent
         ),
-        None => "Select a pipeline above to enable launch.".to_string(),
+        None => "Assign an agent or pipeline to enable launch.".to_string(),
     }
 }
 

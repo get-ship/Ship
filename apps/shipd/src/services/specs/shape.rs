@@ -25,6 +25,8 @@ pub struct Spec {
     #[serde(default)]
     pub pipeline: Option<String>,
     #[serde(default)]
+    pub agent: Option<String>,
+    #[serde(default)]
     pub vars: HashMap<String, String>,
     #[serde(default)]
     pub criteria: Vec<String>,
@@ -42,6 +44,7 @@ pub fn spec_from_item(item: store::Item) -> Spec {
     let body_path = string_field(&data, "body_path").unwrap_or_default();
     let status = string_field(&data, "status").unwrap_or_else(|| "draft".into());
     let pipeline = string_field(&data, "pipeline");
+    let agent = string_field(&data, "agent");
     let vars = data
         .get("vars")
         .and_then(|v| serde_json::from_value::<HashMap<String, String>>(v.clone()).ok())
@@ -64,6 +67,7 @@ pub fn spec_from_item(item: store::Item) -> Spec {
         body_path,
         status,
         pipeline,
+        agent,
         vars,
         criteria,
         scope,
@@ -118,11 +122,13 @@ pub fn load_body(body_path: &str) -> std::io::Result<String> {
 }
 
 /// Build the JSON `data` blob for a new spec item.
+#[allow(clippy::too_many_arguments)]
 pub fn build_create_data(
     title: &str,
     body_path: &str,
     status: Option<&str>,
     pipeline: Option<&str>,
+    agent: Option<&str>,
     vars: &HashMap<String, String>,
     criteria: &[String],
     scope: &[String],
@@ -137,6 +143,9 @@ pub fn build_create_data(
     );
     if let Some(p) = pipeline {
         map.insert("pipeline".into(), serde_json::Value::String(p.to_string()));
+    }
+    if let Some(a) = agent {
+        map.insert("agent".into(), serde_json::Value::String(a.to_string()));
     }
     map.insert("vars".into(), serde_json::to_value(vars).unwrap_or_default());
     map.insert("criteria".into(), serde_json::to_value(criteria).unwrap_or_default());
@@ -155,6 +164,7 @@ pub fn build_update_data(
     title: Option<&str>,
     status: Option<&str>,
     pipeline: Option<Option<&str>>,
+    agent: Option<Option<&str>>,
     vars: Option<&HashMap<String, String>>,
     criteria: Option<&[String]>,
     scope: Option<&[String]>,
@@ -171,6 +181,13 @@ pub fn build_update_data(
         map.insert(
             "pipeline".into(),
             p.map(|s| serde_json::Value::String(s.to_string()))
+                .unwrap_or(serde_json::Value::Null),
+        );
+    }
+    if let Some(a) = agent {
+        map.insert(
+            "agent".into(),
+            a.map(|s| serde_json::Value::String(s.to_string()))
                 .unwrap_or(serde_json::Value::Null),
         );
     }

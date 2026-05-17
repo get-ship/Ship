@@ -59,10 +59,11 @@ pub async fn launch_collection_item(
         .ok()
         .and_then(|p| p.parent().map(std::path::Path::to_path_buf))
         .and_then(|root| ship_platform::services::orchestrator::git_helpers::resolve_head_sha(&root));
+    let agent = spec.agent.clone().unwrap_or_else(|| "claude".to_string());
     let payload = JobCreatedPayload {
         job_id: job_id.clone(),
         slug,
-        agent: "claude".into(),
+        agent,
         branch,
         spec_path: spec.body_path.clone(),
         source_spec_path: Some(spec.body_path.clone()),
