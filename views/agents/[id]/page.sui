@@ -65,7 +65,18 @@
           attr:initials={wireData().agent.letter}
           attr:name={wireData().agent.name}></sui-avatar>
         <div class="ad-detail-head-body">
-          <h1 class="ad-detail-title" data-test="agent-name">{wireData().agent.name}</h1>
+          <div class="ad-detail-title-row">
+            <h1 class="ad-detail-title" data-test="agent-name">{wireData().agent.name}</h1>
+            {#if wireData().agent.version}
+              <sui-chip tone="muted" variant="outline" size="sm" data-test="agent-version">v{wireData().agent.version}</sui-chip>
+            {/if}
+            {#if isActive()}
+              <sui-chip tone="success" variant="soft" size="sm" data-test="active-chip">
+                <sui-status-dot slot="leading" tone="success" size="sm" pulse label="Active"></sui-status-dot>
+                active
+              </sui-chip>
+            {/if}
+          </div>
           <div class="ad-detail-id-row">
             <code class="ad-detail-id">{wireData().agent.id}</code>
             <sui-badge tone="muted" variant="outline" size="sm" data-test="agent-source">{wireData().agent.source}</sui-badge>
@@ -79,18 +90,33 @@
           {/if}
         </div>
         <div class="ad-detail-head-actions">
+          {#if isActive()}
+            <sui-button tone="success" variant="outline" size="sm" data-test="deactivate-btn"
+              attr:disabled={activating() ? '' : null}
+              on:click={deactivate}>
+              <sui-icon slot="leading" name="check" size="xs"></sui-icon>
+              {activating() ? 'Saving…' : 'Active · click to clear'}
+            </sui-button>
+          {:else}
+            <sui-button tone="primary" variant="solid" size="sm" data-test="activate-btn"
+              attr:disabled={activating() ? '' : null}
+              on:click={activate}>
+              <sui-icon slot="leading" name="zap" size="xs"></sui-icon>
+              {activating() ? 'Activating…' : 'Activate'}
+            </sui-button>
+          {/if}
           <sui-button variant="outline" size="sm" on:click={goSettings} data-test="edit-settings-btn">
             <sui-icon slot="leading" name="edit" size="xs"></sui-icon>
             Edit settings
           </sui-button>
-          <sui-button variant="ghost" size="sm" on:click={openSource} data-test="open-source-btn">
-            <sui-icon slot="leading" name="file-code" size="xs"></sui-icon>
-            Open raw JSONC
-          </sui-button>
         </div>
       </header>
 
-      <p class="ad-detail-desc" data-test="agent-description">{description()}</p>
+      {#if banner()}
+        <sui-alert tone={banner().ok ? 'success' : 'destructive'} data-test="banner">
+          {banner().msg}
+        </sui-alert>
+      {/if}
 
       <section class="ad-detail-stats" aria-label="Counts">
         <div class="ad-stat" data-test="stat-skills">
@@ -111,107 +137,250 @@
         </div>
       </section>
 
-      <section class="ad-detail-section" data-test="section-skills">
-        <div class="ad-detail-section-head">
-          <h2 class="ad-detail-section-title"><sui-icon name="zap" size="sm"></sui-icon>Skills <span class="ad-detail-section-count">{stats().skills}</span></h2>
+      <sui-collapsible class="ad-coll" prop:open={openSection() === 'description'} data-test="section-description">
+        <div slot="trigger" class="ad-coll-trigger" on:click={() => toggleSection('description')}>
+          <sui-icon name="info" size="sm"></sui-icon>
+          <span>Description</span>
+          <sui-icon class="ad-coll-caret" name="chevron-down" size="xs"></sui-icon>
         </div>
-        {#if stats().skills === 0}
-          <div class="ad-detail-empty">No skills wired.</div>
-        {:else}
-          <div class="ad-detail-list">
-            {#for s of skillsList() key={s}}
-              <button class="ad-detail-item ad-detail-item--skill" type="button" on:click={() => goSkill(s)} data-test="skill-link" attr:data-id={s}>
-                <span class="ad-detail-item-icon"><sui-icon name="zap" size="xs"></sui-icon></span>
-                <span class="ad-detail-item-name">{s}</span>
-                <sui-icon class="ad-detail-item-chev" name="chevron-right" size="xs"></sui-icon>
-              </button>
-            {/for}
+        <div class="ad-coll-body">
+          <sui-textarea rows="3" data-test="desc-edit"
+            value={descDraft()}
+            on:sui-input={onDescInput}
+            on:input={onDescInput}
+            placeholder="What does this agent do?"></sui-textarea>
+          <div class="ad-edit-actions">
+            <span class="ad-edit-hint">
+              {descDirty() ? 'Unsaved changes' : 'Synced to disk.'}
+            </span>
+            <sui-button variant="ghost" size="sm"
+              attr:disabled={!descDirty() || saving() ? '' : null}
+              on:click={resetDesc}>Reset</sui-button>
+            <sui-button tone="primary" variant="solid" size="sm" data-test="desc-save"
+              attr:disabled={!descDirty() || saving() ? '' : null}
+              on:click={saveDesc}>
+              <sui-icon slot="leading" name="save" size="xs"></sui-icon>
+              {saving() ? 'Saving…' : 'Save'}
+            </sui-button>
           </div>
-        {/if}
-      </section>
+        </div>
+      </sui-collapsible>
 
-      <section class="ad-detail-section" data-test="section-mcp">
-        <div class="ad-detail-section-head">
-          <h2 class="ad-detail-section-title"><sui-icon name="terminal" size="sm"></sui-icon>MCP Servers <span class="ad-detail-section-count">{stats().mcp}</span></h2>
+      <sui-collapsible class="ad-coll" prop:open={openSection() === 'skills'} data-test="section-skills">
+        <div slot="trigger" class="ad-coll-trigger" on:click={() => toggleSection('skills')}>
+          <sui-icon name="zap" size="sm"></sui-icon>
+          <span>Skills</span>
+          <span class="ad-coll-count">{stats().skills}</span>
+          <sui-icon class="ad-coll-caret" name="chevron-down" size="xs"></sui-icon>
         </div>
-        {#if stats().mcp === 0}
-          <div class="ad-detail-empty">No MCP servers connected.</div>
-        {:else}
-          <div class="ad-detail-list">
-            {#for m of mcpList() key={m}}
-              <div class="ad-detail-item ad-detail-item--mcp" data-test="mcp-row" attr:data-id={m}>
-                <span class="ad-detail-item-icon"><sui-icon name="terminal" size="xs"></sui-icon></span>
-                <span class="ad-detail-item-name">{m}</span>
-              </div>
-            {/for}
-          </div>
-        {/if}
-      </section>
+        <div class="ad-coll-body">
+          {#if stats().skills === 0}
+            <div class="ad-detail-empty">
+              No skills wired.
+              <sui-button slot="action" variant="outline" size="sm" on:click={goSettings} data-test="pick-skills">
+                Pick from registry…
+              </sui-button>
+            </div>
+          {:else}
+            <div class="ad-detail-list">
+              {#for s of skillsList() key={s}}
+                <button class="ad-detail-item ad-detail-item--skill" type="button" on:click={() => goSkill(s)} data-test="skill-link" attr:data-id={s}>
+                  <span class="ad-detail-item-icon"><sui-icon name="zap" size="xs"></sui-icon></span>
+                  <span class="ad-detail-item-name">{s}</span>
+                  <sui-icon class="ad-detail-item-chev" name="chevron-right" size="xs"></sui-icon>
+                </button>
+              {/for}
+            </div>
+          {/if}
+        </div>
+      </sui-collapsible>
 
-      <section class="ad-detail-section" data-test="section-rules">
-        <div class="ad-detail-section-head">
-          <h2 class="ad-detail-section-title"><sui-icon name="file-text" size="sm"></sui-icon>Rules <span class="ad-detail-section-count">{stats().rules}</span></h2>
+      <sui-collapsible class="ad-coll" prop:open={openSection() === 'mcp'} data-test="section-mcp">
+        <div slot="trigger" class="ad-coll-trigger" on:click={() => toggleSection('mcp')}>
+          <sui-icon name="terminal" size="sm"></sui-icon>
+          <span>MCP Servers</span>
+          <span class="ad-coll-count">{stats().mcp}</span>
+          <sui-icon class="ad-coll-caret" name="chevron-down" size="xs"></sui-icon>
         </div>
-        {#if stats().rules === 0}
-          <div class="ad-detail-empty">No rules attached.</div>
-        {:else}
-          <div class="ad-detail-list">
-            {#for r of rulesList() key={r}}
-              <div class="ad-detail-item ad-detail-item--rule" data-test="rule-row" attr:data-id={r}>
-                <span class="ad-detail-item-icon"><sui-icon name="file-text" size="xs"></sui-icon></span>
-                <span class="ad-detail-item-name">{r}</span>
-              </div>
-            {/for}
-          </div>
-        {/if}
-      </section>
-
-      <section class="ad-detail-section" data-test="section-permissions">
-        <div class="ad-detail-section-head">
-          <h2 class="ad-detail-section-title"><sui-icon name="lock" size="sm"></sui-icon>Permissions</h2>
-        </div>
-        <div class="ad-detail-perm-row">
-          <span class="ad-detail-perm-label">Preset</span>
-          <sui-chip tone="muted" variant="soft" size="sm" data-test="perm-preset">{permPreset()}</sui-chip>
-        </div>
-      </section>
-
-      <section class="ad-detail-section" data-test="section-providers">
-        <div class="ad-detail-section-head">
-          <h2 class="ad-detail-section-title"><sui-icon name="sliders" size="sm"></sui-icon>Providers <span class="ad-detail-section-count">{providerList().length}</span></h2>
-        </div>
-        {#if providerList().length === 0}
-          <div class="ad-detail-empty">No providers configured. Add one under <code>agent.providers</code> to run this agent.</div>
-        {:else}
-          <div class="ad-detail-provider-grid">
-            {#for p of providerList() key={p.id}}
-              <div class="ad-detail-provider-row" data-test="provider-row" attr:data-id={p.id}>
-                <sui-provider-blob attr:provider={p.id} size="md" variant="tile" attr:title={p.label}></sui-provider-blob>
-                <div class="ad-detail-provider-name-col">
-                  <span class="ad-detail-provider-name">{p.label}</span>
-                  {#if p.isDefault}
-                    <sui-badge tone="accent" variant="soft" size="sm" data-test="provider-default">default</sui-badge>
-                  {/if}
+        <div class="ad-coll-body">
+          {#if stats().mcp === 0}
+            <div class="ad-detail-empty">
+              No MCP servers connected.
+              <sui-button slot="action" variant="outline" size="sm" on:click={goSettings}>
+                Pick from registry…
+              </sui-button>
+            </div>
+          {:else}
+            <div class="ad-detail-list">
+              {#for m of mcpList() key={m}}
+                <div class="ad-detail-item ad-detail-item--mcp" data-test="mcp-row" attr:data-id={m}>
+                  <span class="ad-detail-item-icon"><sui-icon name="terminal" size="xs"></sui-icon></span>
+                  <span class="ad-detail-item-name">{m}</span>
                 </div>
-                <span class="ad-detail-provider-sub">
-                  <sui-status-dot tone="success" size="sm"></sui-status-dot>
-                  defaults
-                </span>
-              </div>
-            {/for}
-          </div>
-        {/if}
-      </section>
+              {/for}
+            </div>
+          {/if}
+        </div>
+      </sui-collapsible>
 
-      <section class="ad-detail-section ad-detail-meta" data-test="section-meta">
-        <div class="ad-detail-section-head">
-          <h2 class="ad-detail-section-title"><sui-icon name="info" size="sm"></sui-icon>Source</h2>
+      <sui-collapsible class="ad-coll" prop:open={openSection() === 'rules'} data-test="section-rules">
+        <div slot="trigger" class="ad-coll-trigger" on:click={() => toggleSection('rules')}>
+          <sui-icon name="file-text" size="sm"></sui-icon>
+          <span>Rules</span>
+          <span class="ad-coll-count">{stats().rules + (hasInlineRules() ? 1 : 0)}</span>
+          <sui-icon class="ad-coll-caret" name="chevron-down" size="xs"></sui-icon>
         </div>
-        <div class="ad-detail-perm-row">
-          <span class="ad-detail-perm-label">File</span>
-          <code class="ad-detail-path" data-test="agent-path">{sourcePath()}</code>
+        <div class="ad-coll-body">
+          {#if stats().rules === 0 && !hasInlineRules()}
+            <div class="ad-detail-empty">No rules attached. Edit settings to add a rules ref or inline text.</div>
+          {/if}
+          {#if stats().rules > 0}
+            <div class="ad-detail-list">
+              {#for r of rulesList() key={r}}
+                <div class="ad-detail-item ad-detail-item--rule" data-test="rule-row" attr:data-id={r}>
+                  <span class="ad-detail-item-icon"><sui-icon name="file-text" size="xs"></sui-icon></span>
+                  <span class="ad-detail-item-name">{r}</span>
+                </div>
+              {/for}
+            </div>
+          {/if}
+          <div class="ad-inline-rules">
+            <label class="ad-inline-rules-label">Inline rules</label>
+            <sui-textarea rows="5" data-test="rules-edit"
+              value={rulesDraft()}
+              on:sui-input={onRulesInput}
+              on:input={onRulesInput}
+              placeholder="Free-text rules injected directly into the agent's system prompt."></sui-textarea>
+            <div class="ad-edit-actions">
+              <span class="ad-edit-hint">{rulesDirty() ? 'Unsaved changes' : 'Synced to disk.'}</span>
+              <sui-button variant="ghost" size="sm"
+                attr:disabled={!rulesDirty() || saving() ? '' : null}
+                on:click={resetRules}>Reset</sui-button>
+              <sui-button tone="primary" variant="solid" size="sm" data-test="rules-save"
+                attr:disabled={!rulesDirty() || saving() ? '' : null}
+                on:click={saveRules}>
+                <sui-icon slot="leading" name="save" size="xs"></sui-icon>
+                {saving() ? 'Saving…' : 'Save'}
+              </sui-button>
+            </div>
+          </div>
         </div>
-      </section>
+      </sui-collapsible>
+
+      <sui-collapsible class="ad-coll" prop:open={openSection() === 'permissions'} data-test="section-permissions">
+        <div slot="trigger" class="ad-coll-trigger" on:click={() => toggleSection('permissions')}>
+          <sui-icon name="lock" size="sm"></sui-icon>
+          <span>Permissions</span>
+          <span class="ad-coll-count">{permTotalCount()}</span>
+          <sui-icon class="ad-coll-caret" name="chevron-down" size="xs"></sui-icon>
+        </div>
+        <div class="ad-coll-body">
+          <div class="ad-detail-perm-row">
+            <span class="ad-detail-perm-label">Preset</span>
+            <sui-chip tone="muted" variant="soft" size="sm" data-test="perm-preset">{permPreset()}</sui-chip>
+          </div>
+          <div class="ad-perm-summary">
+            <div class="ad-perm-summary-row" data-test="perm-allow">
+              <span class="ad-perm-summary-label"><sui-icon name="check" size="xs" tone="success"></sui-icon>Allow</span>
+              {#if (permLists().allow || []).length === 0}
+                <span class="ad-perm-summary-none">preset defaults</span>
+              {:else}
+                <div class="ad-perm-summary-chips">
+                  {#for p of permLists().allow key={p}}
+                    <sui-chip tone="success" variant="soft" size="sm">{p}</sui-chip>
+                  {/for}
+                </div>
+              {/if}
+            </div>
+            <div class="ad-perm-summary-row" data-test="perm-ask">
+              <span class="ad-perm-summary-label"><sui-icon name="info" size="xs" tone="info"></sui-icon>Ask</span>
+              {#if (permLists().ask || []).length === 0}
+                <span class="ad-perm-summary-none">preset defaults</span>
+              {:else}
+                <div class="ad-perm-summary-chips">
+                  {#for p of permLists().ask key={p}}
+                    <sui-chip tone="info" variant="soft" size="sm">{p}</sui-chip>
+                  {/for}
+                </div>
+              {/if}
+            </div>
+            <div class="ad-perm-summary-row" data-test="perm-deny">
+              <span class="ad-perm-summary-label"><sui-icon name="x" size="xs" tone="destructive"></sui-icon>Deny</span>
+              {#if (permLists().deny || []).length === 0}
+                <span class="ad-perm-summary-none">preset defaults</span>
+              {:else}
+                <div class="ad-perm-summary-chips">
+                  {#for p of permLists().deny key={p}}
+                    <sui-chip tone="destructive" variant="soft" size="sm">{p}</sui-chip>
+                  {/for}
+                </div>
+              {/if}
+            </div>
+          </div>
+          <div class="ad-edit-actions">
+            <sui-button variant="outline" size="sm" on:click={goSettings}>
+              <sui-icon slot="leading" name="edit" size="xs"></sui-icon>
+              Edit in settings
+            </sui-button>
+          </div>
+        </div>
+      </sui-collapsible>
+
+      <sui-collapsible class="ad-coll" prop:open={openSection() === 'providers'} data-test="section-providers">
+        <div slot="trigger" class="ad-coll-trigger" on:click={() => toggleSection('providers')}>
+          <sui-icon name="sliders" size="sm"></sui-icon>
+          <span>Providers</span>
+          <span class="ad-coll-count">{providerList().length}</span>
+          <sui-icon class="ad-coll-caret" name="chevron-down" size="xs"></sui-icon>
+        </div>
+        <div class="ad-coll-body">
+          {#if providerList().length === 0}
+            <div class="ad-detail-empty">No providers configured. Add one under <code>agent.providers</code> to run this agent.</div>
+          {:else}
+            <div class="ad-detail-provider-grid">
+              {#for p of providerList() key={p.id}}
+                <div class="ad-detail-provider-row" data-test="provider-row" attr:data-id={p.id}>
+                  <sui-provider-blob attr:provider={p.id} size="md" variant="tile" attr:title={p.label}></sui-provider-blob>
+                  <div class="ad-detail-provider-name-col">
+                    <span class="ad-detail-provider-name">{p.label}</span>
+                    {#if p.isDefault}
+                      <sui-badge tone="accent" variant="soft" size="sm" data-test="provider-default">default</sui-badge>
+                    {/if}
+                  </div>
+                  <span class="ad-detail-provider-sub">
+                    <sui-status-dot tone="success" size="sm"></sui-status-dot>
+                    defaults
+                  </span>
+                </div>
+              {/for}
+            </div>
+          {/if}
+        </div>
+      </sui-collapsible>
+
+      <sui-collapsible class="ad-coll" prop:open={openSection() === 'source'} data-test="section-meta">
+        <div slot="trigger" class="ad-coll-trigger" on:click={() => toggleSection('source')}>
+          <sui-icon name="file-code" size="sm"></sui-icon>
+          <span>Source</span>
+          <sui-icon class="ad-coll-caret" name="chevron-down" size="xs"></sui-icon>
+        </div>
+        <div class="ad-coll-body">
+          <div class="ad-detail-perm-row">
+            <span class="ad-detail-perm-label">File</span>
+            <code class="ad-detail-path" data-test="agent-path">{sourcePath()}</code>
+          </div>
+          {#if (wireData().agent.tags || []).length > 0}
+            <div class="ad-detail-perm-row">
+              <span class="ad-detail-perm-label">Tags</span>
+              <div class="ad-detail-providers">
+                {#for t of wireData().agent.tags key={t}}
+                  <sui-chip tone="muted" variant="soft" size="sm">{t}</sui-chip>
+                {/for}
+              </div>
+            </div>
+          {/if}
+        </div>
+      </sui-collapsible>
 
     </div>
   </div>

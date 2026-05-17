@@ -134,6 +134,69 @@
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ad-detail-provider-sub { display: inline-flex; align-items: center; gap: var(--radius-md); font-size: var(--text-xs); color: var(--muted-foreground); flex-shrink: 0; }
 
+/* Title row hosts the name + version + active chip side-by-side. */
+.ad-detail-title-row { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; min-width: 0; }
+
+/* Collapsible sections — disclosure surface for each detail block.
+   The trigger is the entire colored bar; the chevron rotates when open
+   (`open` is a reflected boolean attribute on <sui-collapsible>). */
+.ad-coll {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+  --duration-medium: 220ms;
+}
+.ad-coll[open] { border-color: var(--border); }
+.ad-coll-trigger {
+  display: flex; align-items: center; gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--text-sm); font-weight: var(--font-weight-semibold);
+  color: var(--foreground);
+  cursor: pointer;
+  user-select: none;
+}
+.ad-coll-trigger sui-icon[name="chevron-down"] { margin-left: auto; }
+.ad-coll[open] .ad-coll-caret { transform: rotate(180deg); }
+.ad-coll-caret { transition: transform var(--duration-medium, 220ms) var(--ease-out, ease-out); }
+.ad-coll-count {
+  font-weight: var(--font-weight-normal); color: var(--muted-foreground);
+  background: var(--muted); padding: 1px 6px; border-radius: var(--radius-full);
+  font-variant-numeric: tabular-nums; font-size: var(--text-xs);
+}
+.ad-coll-body {
+  padding: 0 var(--space-4) var(--space-4);
+  display: flex; flex-direction: column; gap: var(--space-3);
+}
+
+.ad-edit-actions {
+  display: flex; align-items: center; gap: var(--space-2);
+  justify-content: flex-end;
+  margin-top: var(--space-2);
+}
+.ad-edit-actions .ad-edit-hint {
+  margin-right: auto;
+  font-size: var(--text-xs); color: var(--muted-foreground);
+}
+.ad-inline-rules { display: flex; flex-direction: column; gap: var(--space-2); margin-top: var(--space-2); }
+.ad-inline-rules-label {
+  font-size: var(--text-xs); color: var(--muted-foreground);
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
+
+.ad-perm-summary { display: flex; flex-direction: column; gap: var(--space-2); }
+.ad-perm-summary-row {
+  display: flex; align-items: flex-start; gap: var(--space-2);
+  padding: var(--space-2) 0;
+}
+.ad-perm-summary-label {
+  display: inline-flex; align-items: center; gap: 4px;
+  min-width: 80px;
+  font-size: var(--text-xs); color: var(--muted-foreground);
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
+.ad-perm-summary-chips { display: flex; gap: 4px; flex-wrap: wrap; flex: 1; min-width: 0; }
+.ad-perm-summary-none { font-size: var(--text-xs); color: var(--muted-foreground); font-style: italic; }
+
 /* ── Picker ── */
 .ad-picker-body { min-width: 320px; max-height: 360px; overflow-y: auto; }
 .ad-picker-list { display: flex; flex-direction: column; gap: 2px; }

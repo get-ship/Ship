@@ -1,13 +1,45 @@
-import { controller, unwrap, live, derived } from '@ship/sui-runtime'
+import { controller, signal, unwrap, live, derived } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
 
 type AgentStatus = 'running' | 'completed' | 'errored'
 
+interface AgentSummary {
+  id: string
+  name: string
+  description: string
+  source: string
+  active: boolean
+  tags?: string[]
+  providers?: string[]
+}
 interface EventRow { event_type: string; actor: string; timestamp: string }
 interface EventsEnvelope { groups: Array<{ rows: EventRow[] }> }
+interface KindFilter { id: 'all' | 'project' | 'user'; label: string; count: number }
+
+function matchesKind(a: AgentSummary, kind: KindFilter['id']): boolean {
+  if (kind === 'all') return true
+  if (kind === 'project') return a.source === 'PROJECT AGENTS'
+  if (kind === 'user') return a.source === 'USER AGENTS'
+  return true
+}
+
+function matchesQuery(a: AgentSummary, q: string): boolean {
+  if (!q) return true
+  const needle = q.toLowerCase().trim()
+  if (!needle) return true
+  if (a.name.toLowerCase().includes(needle)) return true
+  if (a.id.toLowerCase().includes(needle)) return true
+  if ((a.description || '').toLowerCase().includes(needle)) return true
+  for (const t of a.tags ?? []) {
+    if (t.toLowerCase().includes(needle)) return true
+  }
+  return false
+}
 
 export default controller<Scope>({
   scope: ({ ship }) => {
+    const q = signal('')
+    const kind = signal<KindFilter['id']>('all')
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const agentEvents = live(() => (ship as any).events.list({ event_type: 'agent.', limit: 50 }))
     const agentStatus = derived<Record<string, AgentStatus>>(() => {
@@ -29,13 +61,38 @@ export default controller<Scope>({
       }
       return map
     })
-    return { agentEvents, agentStatus }
+    return { q, kind, agentEvents, agentStatus }
   },
   derived: {
-    items: ({ agents }) => unwrap(agents)?.items ?? [],
-    total: ({ agents }) => unwrap(agents)?.items.length ?? 0,
+    items: ({ agents }) => (unwrap(agents)?.items ?? []) as AgentSummary[],
+    filteredItems: ({ agents, q, kind }) => {
+      const all = (unwrap(agents)?.items ?? []) as AgentSummary[]
+      const k = kind as KindFilter['id']
+      const term = q as string
+      return all.filter((a) => matchesKind(a, k) && matchesQuery(a, term))
+    },
+    activeId: ({ agents }) => {
+      const all = (unwrap(agents)?.items ?? []) as AgentSummary[]
+      return all.find((a) => a.active)?.id ?? ''
+    },
+    kindFilters: ({ agents }) => {
+      const all = (unwrap(agents)?.items ?? []) as AgentSummary[]
+      const project = all.filter((a) => a.source === 'PROJECT AGENTS').length
+      const user = all.filter((a) => a.source === 'USER AGENTS').length
+      return [
+        { id: 'all', label: 'All', count: all.length },
+        { id: 'project', label: 'Project', count: project },
+        { id: 'user', label: 'Library', count: user },
+      ] satisfies KindFilter[]
+    },
   },
   on: {
     goCreate: ({ navigate }) => navigate('/agents/create'),
+    onSearchInput: (s, e: Event) => {
+      const target = e.target as HTMLInputElement
+      s.q = target.value ?? ''
+    },
+    clearSearch: (s) => { s.q = '' },
+    resetFilters: (s) => { s.q = ''; s.kind = 'all' },
   },
 })
