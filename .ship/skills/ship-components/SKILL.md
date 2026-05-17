@@ -221,13 +221,15 @@ standalone language server.
 
 Components fall into three buckets:
 
-- **Primitives** — every `<sui-*>` in `packages/ui-components/src/`. Always registered, available in any view. (On `main`: decomposed into `packages/components/<pack>/` — first two published packs are `@ship/primitives` and `@ship/charts`. See `references/packs.md` for the manifest-driven runtime-island concept, which coexists with the per-pack decomposition.)
-- **Domain packs** — bundles of related components for a specific surface (editor, graph, chat). Opt-in per view via the manifest's `packs:` field. Loaded on demand to keep boot bundles small.
-- **Islands** — heavy components that lazy-load their engine only when mounted (terminal, code-editor, markdown-editor). Declared as a `packs:` entry in the view manifest; loaded at first instantiation.
+- **Primitives** — generic `<sui-*>` in **`@ship/primitives`** (`packages/components/primitives/src/`). Charts in **`@ship/charts`** (`packages/components/charts/src/`). Both are decomposed workspace packs with their own bundle + `custom-elements.json`. Always registered, available in any view.
+- **Chrome + domain** — the rest (sui-code-editor, sui-terminal, sui-markdown-editor, picker, nav, devtools, view-authoring) stays in the `@ship/ui-components` umbrella at `packages/ui-components/src/`. Ships as the daemon's `sui-components.js` aggregate.
+- **Islands** — heavy components that lazy-load their engine only when mounted (terminal, code-editor, markdown-editor). The umbrella bundle code-splits these; lazy chunks live under `crates/sui/ship-sui-server/assets/sui-components/<tag>.js`.
 
-Discover what's registered by reading the MCP resource `ship://components` — the canonical agent-side component catalog. It returns the aggregated Custom Elements Manifest (every `<sui-*>` primitive's tagName, attributes, slots, parts, events, CSS custom properties) as JSON. For a single tag, read `ship://components/<tag>` (e.g. `ship://components/sui-button`). Don't `curl` the daemon's `/api/assets/sui-custom-elements.json` — that endpoint exists for browser tooling; agent auth blocks raw HTTP.
+The `@ship/sui-catalog` walker emits two projections under `.ship/sui-out/catalogs/`:
+- `workspace.json` — every pack, public + private. Use for authoring.
+- `published.json` — `!private` packs only. Use when generating consumer-facing docs or npm publish flows.
 
-On the post-pack-architecture branch the catalog also splits into `workspace.json` (every pack, public + private) and `published.json` (`!private` packs only); both are reachable through the same `ship://components` resource — the JSON gains a `pack` field per entry.
+Each entry gains a `pack` field — filter by pack to scope a query. The MCP resource `ship://components` returns the workspace catalog. For a single tag, read `ship://components/<tag>` (e.g. `ship://components/sui-button`). Don't `curl` the daemon's `/api/assets/sui-custom-elements.json` — that endpoint exists for browser tooling; agent auth blocks raw HTTP.
 
 ## Visual sweep: ship-ui-studio
 

@@ -6,9 +6,13 @@ public/sui-runtime.js
 public/sui-dom.js
 public/sui-sdk-client.js
 public/sui-components.js
+# Lazy chunks for the umbrella bundle (sui-code-editor, sui-brand-mark, etc.)
+# also copied by collect-skill-docs.ts.
+public/sui-components/
 # Mirror of the daemon's runtime asset paths emitted by the same script —
 # `<sui-theme-picker>` links view-tokens.css from its shadow root and
 # `<sui-icon>` fetches the lucide registry from /_sui/lucide-icons.json.
+# Per-pack bundles also land under public/_sui/packs/<pack>/.
 public/api/assets/
 public/_sui/
 

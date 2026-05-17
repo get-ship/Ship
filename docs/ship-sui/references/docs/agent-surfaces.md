@@ -93,6 +93,32 @@ URI templates read via `mcp__ship__ReadMcpResource`. Read-only context.
 | `ship://mesh` | Other agents on the local mesh. |
 | `ship://session/<path>` | Files under `.artifacts/<path>` of the active session. |
 
+### 1.7 Component packs (post-decomposition)
+
+Components are decomposed into independent workspace packs under
+`packages/components/<pack>/`. Two published packs today:
+
+| Pack | Tags | Bundle |
+|---|---|---|
+| `@ship/primitives` | ~80 generic `<sui-*>` (button, input, dialog, popover, …) | `/_sui/packs/primitives/sui-primitives.js` |
+| `@ship/charts` | 8 chart components | `/_sui/packs/charts/sui-charts.js` |
+
+Chrome + domain components (sui-code-editor, sui-terminal, picker,
+nav, devtools, …) stay in the `@ship/ui-components` umbrella and ship
+via the daemon's `sui-components.js` aggregate.
+
+The `@ship/sui-catalog` walker produces two projections under
+`.ship/sui-out/catalogs/`:
+
+| File | Contains | Agent use |
+|---|---|---|
+| `workspace.json` | Every component in the repo (public + private) | Authoring agents — full surface. Also what `mcp__ship__ReadMcpResource(ship://components)` returns. |
+| `published.json` | `!private` packs only | Library-consumer agents — what npm publishers see. |
+
+Each catalog entry gains a `pack` field so filters can target one
+pack (`entries.filter(e => e.pack === '@ship/primitives')`). The
+daemon serves per-pack bundles at `/_sui/packs/<pack>/<bundle>.js`.
+
 ---
 
 ## 2. LSP CLI

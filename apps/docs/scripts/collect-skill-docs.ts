@@ -290,6 +290,48 @@ function run(): void {
     copyFileSync(lucideSrc, join(sUiDir, "lucide-icons.json"))
     console.log(`[collect-docs] Emitted /_sui/lucide-icons.json.`)
   }
+
+  // Lazy `<sui-*>` chunks live next to the umbrella bundle under
+  // crates/sui/ship-sui-server/assets/sui-components/. The tutorial
+  // playground side-loads sui-code-editor.js from there; copy the
+  // whole dir so any other chunk a future step needs is reachable.
+  const chunkSrcDir = join(SUI_ASSETS_DIR, "sui-components")
+  if (existsSync(chunkSrcDir)) {
+    const chunkOutDir = join(PUBLIC_DIR, "sui-components")
+    mkdirSync(chunkOutDir, { recursive: true })
+    // Tutorial needs the editor; the others are unused on the docs
+    // site but ~30-80KB each and don't hurt to ship as static.
+    const needs = new Set(["sui-code-editor.js", "sui-brand-mark.js"])
+    let chunkCount = 0
+    for (const entry of readdirSync(chunkSrcDir)) {
+      if (!needs.has(entry)) continue
+      const src = join(chunkSrcDir, entry)
+      copyFileSync(src, join(chunkOutDir, entry))
+      chunkCount++
+    }
+    if (chunkCount > 0) console.log(`[collect-docs] Copied ${chunkCount} lazy chunk(s) to public/sui-components/.`)
+  }
+
+  // Per-pack bundles at the daemon's serve path (/_sui/packs/<pack>/).
+  // Decomposed component packs (charts, primitives) ship their own
+  // bundles; docs site mirrors the URL convention for `<data
+  // live source="...">` resolution and for any tutorial step that
+  // demos pack consumption.
+  const PACKS = [
+    { name: "primitives", file: "sui-primitives.js" },
+    { name: "charts",     file: "sui-charts.js" },
+  ] as const
+  for (const pack of PACKS) {
+    const src = join(REPO_ROOT, "packages/components", pack.name, "dist", pack.file)
+    if (!existsSync(src)) {
+      console.log(`[collect-docs] ${pack.file} not built. Run 'bun run --filter @ship/${pack.name} build'.`)
+      continue
+    }
+    const dest = join(sUiDir, "packs", pack.name)
+    mkdirSync(dest, { recursive: true })
+    copyFileSync(src, join(dest, pack.file))
+    console.log(`[collect-docs] Emitted /_sui/packs/${pack.name}/${pack.file}.`)
+  }
 }
 
 run()
