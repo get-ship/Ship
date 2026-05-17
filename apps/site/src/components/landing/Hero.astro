@@ -12,9 +12,9 @@ import HeroPlate from './HeroPlate.astro';
 
   <div class="container hero-grid">
     <div>
-      <span class="eyebrow"><span class="eyebrow-dot"></span>Public beta</span>
-      <h1 class="display" id="landing-headline"></h1>
-      <p class="sub" id="landing-sub"></p>
+      <span class="eyebrow">Personal AI runtime · Public beta</span>
+      <h1 class="display" id="landing-headline">Vibe <span class="any">anything<span class="period">.</span></span></h1>
+      <p class="sub" id="landing-sub">A local runtime for AI apps you compose from <b>agents, your data, and a real UI</b>. Bring your own model.</p>
       <div class="ctas">
         <sui-button size="lg">
           <a href="/download" class="cta-inner">
@@ -61,19 +61,14 @@ import HeroPlate from './HeroPlate.astro';
 
   .eyebrow {
     display: inline-flex; align-items: center; gap: 8px;
-    padding: 6px 12px 6px 10px;
-    background: color-mix(in oklab, var(--accent) 14%, transparent);
+    padding: 6px 12px;
+    background: color-mix(in oklab, var(--accent) 12%, transparent);
     color: var(--accent);
     border: 1px solid color-mix(in oklab, var(--accent) 25%, transparent);
     border-radius: 999px;
     font-family: 'JetBrains Mono', ui-monospace, monospace;
     font-size: 11px; font-weight: 600;
     letter-spacing: 0.12em; text-transform: uppercase;
-  }
-  .eyebrow-dot {
-    width: 6px; height: 6px; border-radius: 50%;
-    background: var(--accent);
-    animation: landing-pulse 2.2s ease-in-out infinite;
   }
 
   h1.display {

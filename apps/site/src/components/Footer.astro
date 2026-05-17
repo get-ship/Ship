@@ -1,16 +1,18 @@
 ---
 import ThemeSwitcher from './ThemeSwitcher.astro';
 
+const SHOW_PRICING = import.meta.env.DEV || import.meta.env.PUBLIC_SHOW_PRICING === 'true';
+const SHOW_AUTH    = import.meta.env.DEV || import.meta.env.PUBLIC_SHOW_AUTH === 'true';
+
+const productLinks = [
+  { href: '/features', label: 'Features' },
+  ...(SHOW_PRICING ? [{ href: '/pricing', label: 'Pricing' }] : []),
+  { href: '/store', label: 'Store' },
+  { href: '/download', label: 'Download' },
+];
+
 const columns = [
-  {
-    title: 'Product',
-    links: [
-      { href: '/features', label: 'Features' },
-      { href: '/store', label: 'Store' },
-      { href: '/download', label: 'Download' },
-      { href: '/sign-in', label: 'Sign in' },
-    ],
-  },
+  { title: 'Product', links: productLinks },
   {
     title: 'Developers',
     links: [
@@ -18,16 +20,31 @@ const columns = [
       { href: '/features', label: 'Features' },
     ],
   },
+  ...(SHOW_AUTH
+    ? [{
+        title: 'Account',
+        links: [
+          { href: '/sign-in', label: 'Sign in' },
+          { href: '/sign-up', label: 'Sign up' },
+        ],
+      }]
+    : [{
+        title: 'Stay in the loop',
+        links: [
+          { href: '/waitlist', label: 'Join the waitlist' },
+        ],
+      }]),
 ];
-
-const version = 'v0.9.0-preview';
 ---
 
 <footer class="site-footer">
   <div class="site-container footer-inner">
     <div class="footer-top">
       <div class="footer-brand">
-        <div class="footer-brand-name">SHIP</div>
+        <a class="footer-brand-link" href="/" aria-label="SHIP home">
+          <sui-brand-mark size="md" class="footer-brand-mark"></sui-brand-mark>
+          <span class="footer-brand-name">SHIP</span>
+        </a>
         <p class="footer-tagline">
           The missing AI interface.
         </p>
@@ -56,7 +73,6 @@ const version = 'v0.9.0-preview';
         <span class="footer-built-arrow" aria-hidden="true">&rarr;</span>
       </a>
       <ThemeSwitcher />
-      <div class="footer-version">{version}</div>
     </div>
   </div>
 </footer>
@@ -81,6 +97,16 @@ const version = 'v0.9.0-preview';
       grid-template-columns: 1fr;
     }
   }
+  .footer-brand-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    text-decoration: none;
+    color: var(--page-fg);
+  }
+  .footer-brand-mark {
+    filter: drop-shadow(0 2px 6px color-mix(in oklab, var(--primary) 35%, transparent));
+  }
   .footer-brand-name {
     font-family: var(--font-display);
     font-weight: 700;
@@ -95,12 +121,13 @@ const version = 'v0.9.0-preview';
   .footer-cols {
     display: grid;
     gap: 32px;
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(3, 1fr);
   }
-  @media (max-width: 520px) {
-    .footer-cols {
-      grid-template-columns: 1fr 1fr;
-    }
+  @media (max-width: 720px) {
+    .footer-cols { grid-template-columns: 1fr 1fr; }
+  }
+  @media (max-width: 420px) {
+    .footer-cols { grid-template-columns: 1fr; }
   }
   .footer-col-title {
     font-family: var(--font-display);
@@ -155,9 +182,5 @@ const version = 'v0.9.0-preview';
   }
   .footer-built:hover .footer-built-arrow {
     transform: translateX(3px);
-  }
-  .footer-version {
-    font-family: var(--font-mono);
-    font-size: 12px;
   }
 </style>

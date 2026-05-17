@@ -1,0 +1,157 @@
+---
+interface Props {
+  list?: 'general' | 'pro' | 'changelog' | 'blog';
+  source?: string;
+  placeholder?: string;
+  cta?: string;
+  thanks?: string;
+  size?: 'sm' | 'md' | 'lg';
+}
+const {
+  list = 'general',
+  source,
+  placeholder = 'you@example.com',
+  cta = 'Notify me',
+  thanks = "You're on the list. We'll email you the moment it's ready.",
+  size = 'md',
+} = Astro.props;
+---
+
+<form class={`wl wl-${size}`} data-waitlist data-list={list} data-source={source ?? ''} novalidate>
+  <input
+    type="email"
+    name="email"
+    autocomplete="email"
+    required
+    placeholder={placeholder}
+    aria-label="Email"
+  />
+  <sui-button tone="primary" size={size} type="submit">
+    <span data-wl-label>{cta}</span>
+  </sui-button>
+  <div class="wl-msg wl-success" data-wl-success hidden role="status">{thanks}</div>
+  <div class="wl-msg wl-error" data-wl-error hidden role="alert"></div>
+</form>
+
+<script>
+  import { authClient } from '../lib/auth';
+
+  // Reuse the gateway URL the auth client is pointed at. Slightly hacky —
+  // we pull the baseURL via the same env-var resolution — keeps form +
+  // auth pointed at the same backend without re-deriving it.
+  const GATEWAY_URL =
+    (import.meta.env.PUBLIC_GATEWAY_URL as string | undefined) ??
+    (import.meta.env.DEV ? 'https://staging.getship.dev' : 'https://api.getship.dev');
+
+  for (const form of document.querySelectorAll<HTMLFormElement>('[data-waitlist]')) {
+    const input = form.querySelector<HTMLInputElement>('input[name="email"]')!;
+    const label = form.querySelector<HTMLElement>('[data-wl-label]');
+    const baseLabel = label?.textContent ?? 'Notify me';
+    const ok = form.querySelector<HTMLElement>('[data-wl-success]');
+    const err = form.querySelector<HTMLElement>('[data-wl-error]');
+
+    const setBusy = (busy: boolean) => {
+      input.disabled = busy;
+      if (label) label.textContent = busy ? 'Sending…' : baseLabel;
+    };
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (err) { err.hidden = true; err.textContent = ''; }
+      if (ok)  { ok.hidden = true; }
+      const email = input.value.trim();
+      if (!email) return;
+      setBusy(true);
+      try {
+        const res = await fetch(`${GATEWAY_URL}/api/waitlist`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email,
+            list: form.dataset.list,
+            source: form.dataset.source || undefined,
+          }),
+        });
+        if (!res.ok) {
+          const detail = await res.json().catch(() => ({}));
+          if (err) {
+            err.hidden = false;
+            err.textContent = detail?.error === 'invalid_email'
+              ? "That doesn't look like a valid email."
+              : 'Something went wrong. Try again in a moment.';
+          }
+          setBusy(false);
+          return;
+        }
+        form.reset();
+        setBusy(false);
+        if (ok) ok.hidden = false;
+      } catch {
+        if (err) {
+          err.hidden = false;
+          err.textContent = 'Network error. Try again.';
+        }
+        setBusy(false);
+      }
+    });
+  }
+
+  // Silence the unused-import lint for the authClient reference above;
+  // we only imported it so its module side-effects (and PUBLIC_GATEWAY_URL
+  // resolution) match the rest of the site.
+  void authClient;
+</script>
+
+<style>
+  .wl {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 10px;
+    width: 100%;
+  }
+  .wl-sm  { max-width: 360px; }
+  .wl-md  { max-width: 440px; }
+  .wl-lg  { max-width: 520px; }
+
+  .wl input[type="email"] {
+    appearance: none;
+    border: 1px solid var(--plate-line);
+    background: color-mix(in oklab, var(--plate) 92%, var(--page-bg));
+    color: var(--page-fg);
+    padding: 10px 14px;
+    border-radius: 10px;
+    font: inherit;
+    font-size: 14px;
+    min-width: 0;
+    transition: border-color 150ms, box-shadow 150ms;
+  }
+  .wl input[type="email"]:focus {
+    outline: none;
+    border-color: color-mix(in oklab, var(--primary) 60%, var(--plate-line));
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--primary) 18%, transparent);
+  }
+  .wl input[type="email"]:disabled {
+    opacity: 0.6;
+  }
+  .wl-msg {
+    grid-column: 1 / -1;
+    font-size: 13px;
+    line-height: 1.5;
+    padding: 10px 12px;
+    border-radius: 10px;
+    margin-top: 2px;
+  }
+  .wl-success {
+    color: var(--success);
+    background: color-mix(in oklab, var(--success) 10%, transparent);
+    border: 1px solid color-mix(in oklab, var(--success) 30%, transparent);
+  }
+  .wl-error {
+    color: var(--destructive);
+    background: color-mix(in oklab, var(--destructive) 8%, transparent);
+    border: 1px solid color-mix(in oklab, var(--destructive) 30%, transparent);
+  }
+  @media (max-width: 480px) {
+    .wl { grid-template-columns: 1fr; }
+  }
+</style>

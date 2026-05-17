@@ -1,0 +1,50 @@
+---
+interface Props {
+  title: string;
+  description?: string;
+  tone?: 'default' | 'danger';
+}
+const { title, description, tone = 'default' } = Astro.props;
+---
+
+<section class={`account-section${tone === 'danger' ? ' is-danger' : ''}`}>
+  <header class="account-section-head">
+    <h2>{title}</h2>
+    {description && <p>{description}</p>}
+  </header>
+  <div class="account-section-body">
+    <slot />
+  </div>
+</section>
+
+<style>
+  .account-section {
+    background: var(--plate);
+    border: 1px solid var(--plate-border);
+    border-radius: 16px;
+    box-shadow: var(--shadow-plate);
+    overflow: hidden;
+  }
+  .account-section.is-danger {
+    border-color: color-mix(in oklab, var(--destructive) 40%, var(--plate-border));
+  }
+  .account-section-head {
+    padding: 20px 24px 16px;
+    border-bottom: 1px solid var(--plate-line);
+  }
+  .account-section-head h2 {
+    font-family: var(--font-display); font-weight: 600;
+    font-size: 18px; letter-spacing: -0.015em;
+    color: var(--page-fg); margin: 0;
+  }
+  .account-section.is-danger .account-section-head h2 {
+    color: var(--destructive);
+  }
+  .account-section-head p {
+    margin: 6px 0 0; font-size: 13px;
+    color: var(--muted-ink); line-height: 1.5;
+  }
+  .account-section-body {
+    padding: 20px 24px;
+  }
+</style>

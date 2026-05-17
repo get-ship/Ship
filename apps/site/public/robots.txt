@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://getship.dev/sitemap-index.xml

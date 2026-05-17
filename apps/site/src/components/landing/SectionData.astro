@@ -1,13 +1,13 @@
 ---
 const checkIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"></path></svg>`;
 const points = [
-  { title: 'Schemas that earn their keep', body: 'Define types, refs, enums, indexes. Ship manages migrations as you evolve. Your views and pipelines query collections by name, never by raw table.' },
-  { title: 'Artifacts are first-class', body: 'Every file an agent or pipeline produces is tracked, addressable, and referenceable. Link them from collections, render them in views, hand them to the next run.' },
-  { title: 'Reactive, not polled', body: 'Write to a collection, views update. Produce an artifact, downstream pipelines wake up. No refresh buttons, no stale dashboards.' },
+  { title: 'Schemas that earn their keep', body: 'Define types, refs, enums, indexes. Ship manages migrations as you evolve. Your views and skills query collections by name, never by raw table.' },
+  { title: 'Artifacts are first-class', body: 'Every file an agent produces is tracked, addressable, and referenceable. Link them from collections, render them in views, hand them to the next session.' },
+  { title: 'Reactive, not polled', body: 'Write to a collection, views update. Produce an artifact, downstream skills wake up. No refresh buttons, no stale dashboards.' },
 ];
 const fields = [
   { name: 'id', type: 'uuid', flag: 'pk' },
-  { name: 'pipeline', type: 'ref → pipelines', flag: 'idx' },
+  { name: 'agent', type: 'ref → agents', flag: 'idx' },
   { name: 'status', type: 'enum', flag: 'idx' },
   { name: 'agent', type: 'ref → agents', flag: '·' },
   { name: 'started_at', type: 'datetime', flag: 'idx' },
@@ -21,17 +21,17 @@ const artifacts = [
 ];
 ---
 
-<section class="section stage" id="cluster-data">
+<section class="section stage" id="cluster-data" data-reveal>
   <div class="bg" aria-hidden="true"><div class="bg-grid"></div></div>
   <div class="container">
     <div class="section-head">
-      <div class="section-kicker">03 · Artifacts &amp; Collections</div>
-      <h1 class="section-title">Files you <em>produce.</em><br>Data you <em>shape.</em></h1>
-      <p class="section-sub"><b>Artifacts</b> are whatever your agents and pipelines output — reports, exports, generated code, images. <b>Collections</b> are your structured data, with schemas you define and indexes Ship maintains. Both are addressable, queryable, and observable from every corner of the runtime.</p>
+      <div class="section-kicker">02 · Artifacts &amp; Collections</div>
+      <h1 class="section-title">Your data, <em>indexed everywhere.</em></h1>
+      <p class="section-sub"><b>Collections</b> are your structured data. Define the shape; Ship maintains schema and indexes. <b>Artifacts</b> are whatever your agents produce — reports, exports, generated code, images. Both addressable. Both flow through every view and skill in your app.</p>
     </div>
 
     <div class="two-col flip">
-      <div class="data-twin">
+      <div class="data-twin spotlight">
         <div class="data-card">
           <div class="data-head">
             <div class="data-mono"><b>runs</b> · collection</div>

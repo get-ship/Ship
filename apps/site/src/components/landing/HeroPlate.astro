@@ -31,28 +31,6 @@
         </div>
       </div>
 
-      <div class="scene scene-pipeline" data-scene="pipeline">
-        <div class="pipeline-head"><h3>weekly-digest.pipe</h3><div class="run-pill">RUN #248 · 00:01:42</div></div>
-        <div class="dag">
-          <svg class="edges" viewBox="0 0 400 88" preserveAspectRatio="none">
-            <defs><linearGradient id="landing-edgeG" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="var(--primary)" stop-opacity="0.8"></stop><stop offset="1" stop-color="var(--accent)" stop-opacity="0.8"></stop></linearGradient></defs>
-            <path d="M 92 44 C 120 44 120 44 155 44" stroke="url(#landing-edgeG)" stroke-width="1.5" fill="none"></path>
-            <path d="M 210 44 C 240 44 240 44 265 44" stroke="url(#landing-edgeG)" stroke-width="1.5" fill="none" stroke-dasharray="4 3"></path>
-            <path d="M 320 44 C 345 44 345 44 370 44" stroke="var(--plate-line)" stroke-width="1.5" fill="none" stroke-dasharray="4 3"></path>
-          </svg>
-          <div class="node done"><div class="state"></div><div class="nm">fetch</div><div class="sub">4 sources</div></div>
-          <div class="node done"><div class="state"></div><div class="nm">classify</div><div class="sub">inbox-triage</div></div>
-          <div class="node running"><div class="state"></div><div class="nm">summarize</div><div class="sub">claude · opus</div></div>
-          <div class="node queued"><div class="state"></div><div class="nm">publish</div><div class="sub">slack · email</div></div>
-        </div>
-        <div class="logs">
-          <div class="log-row"><span class="t">17:02.14</span><span class="lvl ok">OK</span><span>fetch · 4/4 sources · 0 errors</span></div>
-          <div class="log-row"><span class="t">17:02.19</span><span class="lvl ok">OK</span><span>classify · 126 items → 14 buckets</span></div>
-          <div class="log-row"><span class="t">17:02.31</span><span class="lvl">RUN</span><span>summarize · claude-opus · streaming…</span></div>
-          <div class="log-row"><span class="t">17:02.38</span><span class="lvl">RUN</span><span>summarize · tokens 1,842 / 4,096</span></div>
-        </div>
-      </div>
-
       <div class="scene scene-view" data-scene="view">
         <div class="view-head"><h3>Today</h3><div class="src">view · daily.view · 17 lines</div></div>
         <div class="kpis">
@@ -77,9 +55,9 @@
         </div>
       </div>
     </div>
+    <div class="plate-progress" aria-hidden="true"><span data-plate-progress></span></div>
     <div class="plate-tabs" role="tablist">
       <button data-scene-btn="session" aria-selected="true">session</button>
-      <button data-scene-btn="pipeline" aria-selected="false">pipeline</button>
       <button data-scene-btn="view" aria-selected="false">view</button>
     </div>
   </div>
@@ -194,6 +172,24 @@
   .row-item .who { color: var(--plate-ink); font-weight: 500; }
   .row-item .when { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10.5px; color: var(--plate-sub); }
 
+  .plate-progress {
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    height: 2px;
+    overflow: hidden;
+    border-bottom-left-radius: inherit;
+    border-bottom-right-radius: inherit;
+    pointer-events: none;
+  }
+  .plate-progress span {
+    display: block; height: 100%; width: 0%;
+    background: linear-gradient(90deg, var(--primary), var(--accent));
+    transition: width 80ms linear;
+  }
+  .plate:hover .plate-progress span {
+    opacity: 0.55;
+    transition: width 80ms linear, opacity 200ms ease;
+  }
   .plate-tabs { position: absolute; left: 50%; transform: translateX(-50%); bottom: -18px; display: flex; gap: 4px; padding: 4px; background: var(--plate); border: 1px solid var(--plate-border); border-radius: 999px; box-shadow: var(--shadow-plate); z-index: 3; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; }
   .plate-tabs button { appearance: none; border: none; cursor: pointer; background: transparent; color: var(--plate-muted); padding: 6px 12px; border-radius: 999px; font-family: inherit; font-size: inherit; font-weight: 500; letter-spacing: 0.04em; }
   .plate-tabs button[aria-selected="true"] { background: var(--plate-ink); color: var(--plate); }

@@ -19,29 +19,29 @@ import {
   type ThemeId,
 } from '../lib/themes';
 
-type SceneKey = 'session' | 'pipeline' | 'view';
+type SceneKey = 'session' | 'view';
 type HeadlineKey = 'vibe' | 'build' | 'thirty' | 'reactive';
 type CenterpieceKey = 'auto' | SceneKey;
 
-const SCENES: SceneKey[] = ['session', 'pipeline', 'view'];
-const AUTO_MS = 4200;
+const SCENES: SceneKey[] = ['session', 'view'];
+const AUTO_MS = 8000;
 
 const HEADLINES: Record<HeadlineKey, { html: string; sub: string }> = {
   vibe: {
     html: `Vibe <span class="any">anything<span class="period">.</span></span>`,
-    sub: `Ship lets you build <b>reactive AI applications</b> with advanced orchestration and custom data — <b>in about thirty seconds</b>. Local-first. Bring your own model.`,
+    sub: `A local runtime for AI apps you compose from <b>agents, your data, and a real UI</b>. Bring your own model.`,
   },
   build: {
-    html: `Build AI apps<br/>that <span class="verb">feel<span class="period">.</span></span>`,
-    sub: `Compose <b>agents, data collections, and themeable UI</b> the way you'd throw together a playlist. Ship runs it on your machine, on your model.`,
+    html: `AI that <span class="verb">ships<span class="period">.</span></span>`,
+    sub: `Drop in a skill, shape a collection, drop a view. Save the file. <b>No build step. No deploy. No SaaS.</b>`,
   },
   thirty: {
-    html: `Thirty seconds<br/>to <span class="any">ship<span class="period">.</span></span>`,
-    sub: `Define an <b>orchestration workflow</b>, pair it with your data, dress it in a theme. Ship turns that into a running, reactive app. Local-first.`,
+    html: `Personal AI,<br/>your <span class="any">way<span class="period">.</span></span>`,
+    sub: `One config per agent. Your collections, your themes, your tools. Runs on your machine, with the model you choose.`,
   },
   reactive: {
     html: `The <span class="verb">reactive</span><br/><span class="any">AI runtime<span class="period">.</span></span>`,
-    sub: `Ship is a <b>runtime and composer</b> for AI-native apps: orchestration, custom collections, themeable views. Local, fast, yours.`,
+    sub: `Agents, collections, views — every signal on one event bus. <b>Write a view; it lives.</b> Edit a skill; the agent picks it up.`,
   },
 };
 
@@ -55,7 +55,13 @@ const state: State = { headline: 'vibe', centerpiece: 'auto' };
 
 const scenes = document.querySelectorAll<HTMLElement>('.scene');
 const tabButtons = document.querySelectorAll<HTMLButtonElement>('.plate-tabs button[data-scene-btn]');
+const progressBar = document.querySelector<HTMLElement>('[data-plate-progress]');
+const plateEl = document.querySelector<HTMLElement>('#landing-plate');
 let autoTimer: number | null = null;
+let progressStart = 0;
+let progressRaf: number | null = null;
+let isPaused = false;
+let pausedAt = 0;
 
 function showScene(name: SceneKey) {
   for (const s of scenes) s.classList.toggle('is-active', s.dataset.scene === name);
@@ -64,11 +70,32 @@ function showScene(name: SceneKey) {
   if (pill) pill.dataset.scene = name;
 }
 
+function tickProgress() {
+  if (!progressBar) return;
+  if (isPaused) { progressRaf = null; return; }
+  const elapsed = Math.min(performance.now() - progressStart, AUTO_MS);
+  progressBar.style.width = `${(elapsed / AUTO_MS) * 100}%`;
+  progressRaf = requestAnimationFrame(tickProgress);
+}
+
+function resetProgress() {
+  if (!progressBar) return;
+  progressStart = performance.now();
+  progressBar.style.width = '0%';
+  if (progressRaf) cancelAnimationFrame(progressRaf);
+  progressRaf = requestAnimationFrame(tickProgress);
+}
+
 function stopAutoMorph() {
   if (autoTimer !== null) {
     window.clearInterval(autoTimer);
     autoTimer = null;
   }
+  if (progressRaf) {
+    cancelAnimationFrame(progressRaf);
+    progressRaf = null;
+  }
+  if (progressBar) progressBar.style.width = '0%';
 }
 
 function startAutoMorph() {
@@ -76,10 +103,30 @@ function startAutoMorph() {
   const activeScene = document.querySelector<HTMLElement>('.scene.is-active');
   let idx = Math.max(0, SCENES.indexOf((activeScene?.dataset.scene ?? 'session') as SceneKey));
   showScene(SCENES[idx]);
+  resetProgress();
   autoTimer = window.setInterval(() => {
+    if (isPaused) return;
     idx = (idx + 1) % SCENES.length;
     showScene(SCENES[idx]);
+    resetProgress();
   }, AUTO_MS);
+}
+
+if (plateEl) {
+  plateEl.addEventListener('mouseenter', () => {
+    if (state.centerpiece !== 'auto') return;
+    isPaused = true;
+    pausedAt = performance.now();
+    if (progressRaf) { cancelAnimationFrame(progressRaf); progressRaf = null; }
+  });
+  plateEl.addEventListener('mouseleave', () => {
+    if (state.centerpiece !== 'auto') return;
+    if (!isPaused) return;
+    isPaused = false;
+    // Resume the progress bar where it left off so the pause feels honest.
+    progressStart += performance.now() - pausedAt;
+    progressRaf = requestAnimationFrame(tickProgress);
+  });
 }
 
 function setCenterpiece(key: CenterpieceKey) {
@@ -168,8 +215,7 @@ document.addEventListener('keydown', (e) => {
   if (e.metaKey || e.ctrlKey || e.altKey) return;
 
   if (e.key === '1') setCenterpiece('session');
-  else if (e.key === '2') setCenterpiece('pipeline');
-  else if (e.key === '3') setCenterpiece('view');
+  else if (e.key === '2') setCenterpiece('view');
   else if (e.key === 't' || e.key === 'T') {
     const ids = THEMES.map((t) => t.id);
     const current = readStoredTheme();
@@ -221,5 +267,7 @@ try {
 
 // ---- init ----------------------------------------------------------
 
-setHeadline(state.headline);
+// Skip initial setHeadline — the default copy is rendered server-side
+// in Hero.astro to avoid an FOUC where the H1 is empty until JS runs.
+// The headline tweak controls still call setHeadline on click.
 setCenterpiece(state.centerpiece);

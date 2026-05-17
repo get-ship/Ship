@@ -1,27 +1,27 @@
 ---
 const checkIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"></path></svg>`;
 const points = [
-  { title: '80+ web components, built-in', body: 'Stats, sparklines, tables, chat streams, DAG views, artifact viewers, inbox lists, form builders. Compose them like Lego — or extend them, since they\'re real standards-based components.' },
-  { title: 'Reactive SDK, wired to the runtime', body: 'Subscribe to any agent, any run, any collection row, any artifact. No polling, no manual state sync. Write a view; it lives.' },
-  { title: 'Themeable to the bone', body: 'Every component respects the active theme. Pick from ship\'s palette, bring your own, or let users pick theirs. The UI follows.' },
-  { title: 'Hot reload, always', body: 'Save the file, the view updates. No build step. The whole thing was designed to be enjoyable to sit in.' },
+  { title: 'A component library, built-in', body: 'Stats, sparklines, tables, chat streams, artifact viewers, inbox lists, form builders. Compose or extend — they\'re standards-based custom elements.' },
+  { title: 'Reactive SDK', body: 'Subscribe to any agent, any session, any collection row, any artifact. No polling. No manual state sync.' },
+  { title: 'Theme-aware', body: 'Every component respects the active theme. Pick from Ship\'s palettes or bring your own.' },
+  { title: 'Hot reload', body: 'Save the file. The view updates. No build step.' },
 ];
 ---
 
-<section class="section stage" id="cluster-views">
+<section class="section stage" id="cluster-views" data-reveal>
   <div class="bg" aria-hidden="true">
     <div class="bg-grid"></div>
     <div class="bg-blob b1" style="top: -10%; left: 40%; width: 500px; height: 500px; opacity: 0.35;"></div>
   </div>
   <div class="container">
     <div class="section-head">
-      <div class="section-kicker">04 · Views</div>
-      <h1 class="section-title">A reactive UI framework,<br><em>wired to everything.</em></h1>
-      <p class="section-sub">Ship ships with <b>80+ custom web components</b> and a <b>reactive SDK</b> with live access to every runtime signal — agents, pipelines, triggers, collections, artifacts. Build a dashboard, a chat UI, an inbox, a control panel. It updates itself.</p>
+      <div class="section-kicker">03 · Views</div>
+      <h1 class="section-title">Apps that <em>look like apps.</em></h1>
+      <p class="section-sub"><b>Web components</b> for tables, charts, chat, artifacts, forms — paired with a <b>reactive SDK</b> wired to every runtime signal. Build a dashboard, a chat surface, an inbox, a control panel.</p>
     </div>
 
     <div class="views-stack">
-      <div class="view-preview">
+      <div class="view-preview spotlight">
         <div class="vp-head">
           <span class="vp-chrome-dot r"></span>
           <span class="vp-chrome-dot y"></span>

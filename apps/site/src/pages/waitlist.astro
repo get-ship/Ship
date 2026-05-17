@@ -1,0 +1,135 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Navbar from '../components/Navbar.astro';
+import Footer from '../components/Footer.astro';
+import WaitlistForm from '../components/WaitlistForm.astro';
+
+const reason = Astro.url.searchParams.get('reason');
+const messages: Record<string, { eyebrow: string; title: string; lede: string }> = {
+  signin: {
+    eyebrow: 'Public beta · invite-only',
+    title: 'Sign-in opens with the public beta.',
+    lede: "We're polishing the rest of the launch. Leave your email and we'll let you know the moment accounts open up.",
+  },
+  signup: {
+    eyebrow: 'Public beta · invite-only',
+    title: 'Get an invite to SHIP.',
+    lede: "Sign-up is opening in waves so we can land each cohort cleanly. Drop your email — we'll send the link as soon as your wave opens.",
+  },
+  reset: {
+    eyebrow: 'Public beta · invite-only',
+    title: 'Password reset opens with the public beta.',
+    lede: "Reset requires email infra we're finishing up. We'll email you the moment it's ready.",
+  },
+  general: {
+    eyebrow: 'Public beta · invite-only',
+    title: 'Be first to ship.',
+    lede: "Leave your email and we'll let you know the moment SHIP opens up.",
+  },
+};
+const m = messages[reason ?? 'general'] ?? messages.general;
+---
+
+<BaseLayout title="Join the SHIP waitlist">
+  <Navbar />
+  <main id="main">
+    <section class="wl-stage">
+      <div class="wl-bg" aria-hidden="true">
+        <div class="wl-bg-grid"></div>
+        <div class="wl-bg-blob"></div>
+      </div>
+      <div class="wl-card">
+        <div class="wl-eyebrow">{m.eyebrow}</div>
+        <h1>{m.title}</h1>
+        <p class="wl-lede">{m.lede}</p>
+
+        <WaitlistForm
+          list="general"
+          source={`waitlist:${reason ?? 'general'}`}
+          placeholder="you@company.com"
+          cta="Get notified"
+          thanks="You're on the list. We'll email you the moment it opens."
+          size="lg"
+        />
+
+        <div class="wl-actions">
+          <sui-button variant="ghost" size="sm">
+            <a href="/" class="wl-link">← Back to home</a>
+          </sui-button>
+          <sui-button variant="ghost" size="sm">
+            <a href="https://docs.getship.dev" class="wl-link">Read the docs →</a>
+          </sui-button>
+        </div>
+      </div>
+    </section>
+  </main>
+  <Footer />
+</BaseLayout>
+
+<style>
+  .wl-stage {
+    position: relative;
+    min-height: calc(100vh - 80px);
+    padding: clamp(48px, 6vw, 96px) 24px;
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden;
+  }
+  .wl-bg { position: absolute; inset: 0; pointer-events: none; }
+  .wl-bg-grid {
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(to right,  color-mix(in oklab, var(--page-fg) 6%, transparent) 1px, transparent 1px),
+      linear-gradient(to bottom, color-mix(in oklab, var(--page-fg) 6%, transparent) 1px, transparent 1px);
+    background-size: 48px 48px;
+    mask-image: radial-gradient(ellipse 60% 70% at 50% 40%, #000, transparent 75%);
+  }
+  .wl-bg-blob {
+    position: absolute;
+    width: 540px; height: 540px;
+    border-radius: 50%;
+    filter: blur(80px); opacity: 0.4;
+    background: radial-gradient(circle, color-mix(in oklab, var(--primary) 40%, transparent), transparent 60%);
+    top: -180px; right: -120px;
+  }
+  .wl-card {
+    position: relative; z-index: 1;
+    width: 100%; max-width: 560px;
+    text-align: center;
+  }
+  .wl-eyebrow {
+    display: inline-block;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 11px; font-weight: 600;
+    letter-spacing: 0.16em; text-transform: uppercase;
+    color: var(--primary);
+    background: color-mix(in oklab, var(--primary) 14%, transparent);
+    padding: 6px 14px; border-radius: 999px;
+    border: 1px solid color-mix(in oklab, var(--primary) 25%, transparent);
+  }
+  .wl-card h1 {
+    margin: 28px auto 0;
+    font-family: var(--font-display); font-weight: 700;
+    font-size: clamp(40px, 6vw, 64px);
+    line-height: 1.02; letter-spacing: -0.03em;
+    color: var(--page-fg);
+    max-width: 18ch;
+  }
+  .wl-lede {
+    margin: 20px auto 32px;
+    font-size: 16px; line-height: 1.55;
+    color: var(--muted-ink);
+    max-width: 52ch;
+  }
+  .wl-stage :global(.wl) {
+    margin: 0 auto;
+  }
+  .wl-actions {
+    display: flex; flex-wrap: wrap;
+    justify-content: center; gap: 8px;
+    margin-top: 36px;
+  }
+  .wl-link {
+    color: inherit; text-decoration: none;
+    display: inline-flex; align-items: center;
+  }
+</style>

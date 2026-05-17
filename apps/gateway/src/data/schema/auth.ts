@@ -13,6 +13,12 @@ export const user = sqliteTable('user', {
   image: text('image'),
   createdAt: integer('createdAt', { mode: 'timestamp' }).notNull(),
   updatedAt: integer('updatedAt', { mode: 'timestamp' }).notNull(),
+  // Custom Better Auth additionalFields — mirrored here so drizzle queries
+  // (e.g. /api/auth/daemon-attest) can read it without raw SQL.
+  plan: text('plan').notNull().default('local'),
+  // Stripe customer link — created on signup by the better-auth/plugins/stripe
+  // plugin (createCustomerOnSignUp: true).
+  stripeCustomerId: text('stripeCustomerId'),
 })
 
 export const session = sqliteTable('session', {
@@ -72,4 +78,29 @@ export const cliAuthCodes = sqliteTable('cli_auth_codes', {
   codeChallenge: text('code_challenge').notNull(),
   createdAt: integer('created_at').notNull(),
   used: integer('used').notNull().default(0),
+})
+
+// ---------------------------------------------------------------------------
+// Better Auth Stripe plugin — column names are SACRED, do not rename.
+// The plugin (better-auth/plugins/stripe) reads/writes this table directly.
+// ---------------------------------------------------------------------------
+
+export const subscription = sqliteTable('subscription', {
+  id: text('id').notNull().primaryKey(),
+  plan: text('plan').notNull(),
+  referenceId: text('referenceId').notNull(), // = user.id (when no organization plugin)
+  stripeCustomerId: text('stripeCustomerId'),
+  stripeSubscriptionId: text('stripeSubscriptionId'),
+  status: text('status').notNull(),
+  periodStart: integer('periodStart', { mode: 'timestamp' }),
+  periodEnd: integer('periodEnd', { mode: 'timestamp' }),
+  cancelAtPeriodEnd: integer('cancelAtPeriodEnd', { mode: 'boolean' }),
+  cancelAt: integer('cancelAt', { mode: 'timestamp' }),
+  canceledAt: integer('canceledAt', { mode: 'timestamp' }),
+  endedAt: integer('endedAt', { mode: 'timestamp' }),
+  seats: integer('seats'),
+  trialStart: integer('trialStart', { mode: 'timestamp' }),
+  trialEnd: integer('trialEnd', { mode: 'timestamp' }),
+  billingInterval: text('billingInterval'),
+  stripeScheduleId: text('stripeScheduleId'),
 })
