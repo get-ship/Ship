@@ -15,7 +15,11 @@
     "allowSyntheticDefaultImports": true,
     "resolveJsonModule": true,
     "useDefineForClassFields": false,
-    "verbatimModuleSyntax": true
+    "verbatimModuleSyntax": true,
+    "rootDirs": [
+      "src",
+      "../../.ship/sui-out/apps/shell/src"
+    ]
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]

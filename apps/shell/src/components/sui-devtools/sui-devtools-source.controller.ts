@@ -213,7 +213,20 @@ export default controller<Scope>({
   },
 
   mount(state, host) {
+    // sui-runtime mount-state proxy: writes are plain assignments
+    // (`s.<sig> = next`). Reads of the *value* still need `()` on the
+    // signal — for that we keep a parallel `readState` alias.
     const s = state as unknown as {
+      viewName: string
+      files: ViewFile[]
+      selectedPath: string
+      drafts: Record<string, string>
+      loading: boolean
+      loadError: string | null
+      editorEl: () => CodeEditor | null
+      editorValue: () => string
+    }
+    const readState = state as unknown as {
       viewName: ReturnType<typeof signal<string>>
       files: ReturnType<typeof signal<ViewFile[]>>
       selectedPath: ReturnType<typeof signal<string>>
@@ -231,18 +244,18 @@ export default controller<Scope>({
     async function loadFiles(name: string): Promise<void> {
       if (!name || lastLoadedView === name) return
       lastLoadedView = name
-      s.loading.set(true)
-      s.loadError.set(null)
-      s.files.set([])
-      s.selectedPath.set('')
-      s.drafts.set({})
+      s.loading = true
+      s.loadError = null
+      s.files = []
+      s.selectedPath = ''
+      s.drafts = {}
       try {
         const resp = await fetch(
           `/api/v1/views/${encodeURIComponent(name)}/files`,
           { credentials: 'same-origin' },
         )
         if (!resp.ok) {
-          s.loadError.set(resp.status === 404 ? 'no source for this view' : `fetch failed (${resp.status})`)
+          s.loadError = resp.status === 404 ? 'no source for this view' : `fetch failed (${resp.status})`
           return
         }
         const body = await resp.json() as FilesResponse
@@ -250,20 +263,20 @@ export default controller<Scope>({
           const sub = subrouteOf(f.path)
           return sub ? { ...f, subroute: sub } : f
         })
-        s.files.set(enriched)
+        s.files = enriched
         const def = enriched.find((f) => f.path === 'page.sui') ?? enriched[0]
-        if (def) s.selectedPath.set(def.path)
+        if (def) s.selectedPath = def.path
       } catch (e) {
-        s.loadError.set((e as Error).message)
+        s.loadError = (e as Error).message
       } finally {
-        s.loading.set(false)
+        s.loading = false
       }
     }
 
     function tryAssignEditorValue(): void {
-      const el = s.editorEl()
+      const el = readState.editorEl()
       if (!el) return
-      const v = s.editorValue()
+      const v = readState.editorValue()
       if (el.value !== v) el.value = v
       if (el !== editorWired) {
         editorWired = el
@@ -285,10 +298,10 @@ export default controller<Scope>({
 
     const stopSync = effect(() => {
       // Track every reactive read this effect cares about.
-      s.editorEl()
-      s.editorValue()
-      s.selectedPath()
-      s.files()
+      readState.editorEl()
+      readState.editorValue()
+      readState.selectedPath()
+      readState.files()
       if (editorUpgraded) tryAssignEditorValue()
       // The template can re-render the <sui-code-editor> after the
       // effect snapshot. Poll a few frames so the value lands once the
@@ -300,8 +313,8 @@ export default controller<Scope>({
           if (attempts < 60) requestAnimationFrame(tick)
           return
         }
-        const el = s.editorEl()
-        const want = s.editorValue()
+        const el = readState.editorEl()
+        const want = readState.editorValue()
         if (el && el.value === want && want.length > 0) return
         tryAssignEditorValue()
         if (attempts < 60) requestAnimationFrame(tick)
@@ -314,8 +327,8 @@ export default controller<Scope>({
       const pathname = current?.path ?? location.pathname
       const next = viewNameFromRoute(pathname)
       if (!next) return
-      if (next !== s.viewName()) {
-        s.viewName.set(next)
+      if (next !== readState.viewName()) {
+        s.viewName = next
         void loadFiles(next)
       }
     }
@@ -355,7 +368,7 @@ export default controller<Scope>({
 
     Object.defineProperty(host, 'refresh', {
       configurable: true,
-      value: () => { lastLoadedView = null; void loadFiles(s.viewName()) },
+      value: () => { lastLoadedView = null; void loadFiles(readState.viewName()) },
     })
 
     return () => {

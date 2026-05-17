@@ -8,7 +8,7 @@ import {
   isValidTheme,
   type ThemeId,
   type Theme,
-} from '../tokens/themes'
+} from '../../../../../packages/ui-components/src/tokens/themes'
 import type { Scope } from './sui-theme-picker.sui'
 
 // Group cards by personality. Mirrors apps/shell/src/main.ts mountThemePicker

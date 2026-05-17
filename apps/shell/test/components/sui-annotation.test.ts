@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import '../src/sui-annotation/sui-annotation-layer.compiled.js'
-import '../src/sui-annotation/sui-annotation-marker.compiled.js'
-import '../src/sui-annotation/sui-annotation-list.compiled.js'
-import { createContainerRegistry, flush, mount } from '../src/test-utils'
+import '../../src/components/sui-annotation/sui-annotation-layer.compiled.js'
+import '../../src/components/sui-annotation/sui-annotation-marker.compiled.js'
+import '../../src/components/sui-annotation/sui-annotation-list.compiled.js'
+import { createContainerRegistry, flush, mount } from '../test-utils'
 
 const reg = createContainerRegistry()
 afterEach(() => reg.cleanup())

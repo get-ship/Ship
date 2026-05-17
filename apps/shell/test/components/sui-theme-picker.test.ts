@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import '../src/sui-theme-picker/sui-theme-picker.compiled.js'
-import { createContainerRegistry, flush, mount } from '../src/test-utils'
+import '../../src/components/sui-theme-picker/sui-theme-picker.compiled.js'
+import { createContainerRegistry, flush, mount } from '../test-utils'
 
 const reg = createContainerRegistry()
 beforeEach(() => {

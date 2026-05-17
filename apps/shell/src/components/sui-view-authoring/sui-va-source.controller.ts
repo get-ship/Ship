@@ -52,10 +52,13 @@ export default controller<Scope>({
   },
 
   mount(state, host) {
+    // sui-runtime mount-state proxy: writes go through `s.<sig> = next`
+    // (proxied to signal.set). Bridged props (view) still need `()` to
+    // read.
     const s = state as unknown as {
-      source: ReturnType<typeof signal<string>>
-      dirty: ReturnType<typeof signal<boolean>>
-      saved: ReturnType<typeof signal<boolean>>
+      source: string
+      dirty: boolean
+      saved: boolean
       editorEl: () => CodeEditor | null
       view: () => string
     }
@@ -80,9 +83,9 @@ export default controller<Scope>({
           await new Promise((r) => setTimeout(r, 200))
           res = await fetchOnce()
         }
-        s.source.set(res.source)
-        s.dirty.set(false)
-        s.saved.set(false)
+        s.source = res.source
+        s.dirty = false
+        s.saved = false
       } catch {
         // Reset guard so a manual reload (or activation event) can
         // retry. Pre-fix the editor stayed blank with no recovery.

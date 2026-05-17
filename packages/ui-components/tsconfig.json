@@ -27,6 +27,9 @@
       "src",
       "../../.ship/sui-out/packages/ui-components/src"
     ]
+    // Chrome was relocated to apps/shell/src/components/; the remaining
+    // entries in this package are domain-only (git-diff, pipeline-*,
+    // auth-dialog, provider-blob, graph-canvas, log-stream).
   },
   "include": ["src/**/*"],
   "exclude": ["test", "dist"]

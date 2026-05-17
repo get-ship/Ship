@@ -49,16 +49,28 @@
     }
   </script>
 
-  <!-- Components.js side-effect import — registers <sui-*> custom elements
-       before any view template tries to instantiate one. Loaded via
-       runtime IIFE so Vite's import-analysis doesn't try to resolve it
-       as a local module. The shell additionally loads separate-bundle
-       components it embeds directly (chrome surfaces that don't ride in
-       view-payload `islands`). -->
+  <!-- Components + chrome registration — both are side-effect imports
+       that call `customElements.define()` for every tag they ship.
+       Loaded via runtime IIFE so Vite's import-analysis doesn't try
+       to resolve them as local modules.
+         • /_sui/components.js  — @ship/ui-components umbrella
+           (domain components: git-diff, pipeline-*, log-stream,
+           provider-blob, auth-dialog, graph-canvas; primitives
+           transitively via @ship/primitives).
+         • /_sui/sui-chrome.js  — apps/shell chrome aggregate
+           (non-separate chrome: view-picker, theme-picker,
+           status-bar, brand-mark, view-chrome, edit-overlay,
+           edit-mode-pill, annotation-layer/-marker/-list).
+         • /_sui/sui-components/<tag>.js — heavy chrome that opts
+           into its own separate bundle via `<bundle separate />`
+           (rail, nav-top, launcher, panel-dock, command-bar,
+           devtools). Loaded eagerly here because the shell paints
+           them on first paint. -->
   <script>
     (function () {
       var bundles = [
         '/_sui/components.js',
+        '/_sui/sui-components/sui-chrome.js',
         '/_sui/sui-components/sui-rail.js',
         '/_sui/sui-components/sui-nav-top.js',
         '/_sui/sui-components/sui-launcher.js',
