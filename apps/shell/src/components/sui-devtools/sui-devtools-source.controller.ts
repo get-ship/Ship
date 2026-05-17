@@ -162,6 +162,17 @@ export default controller<Scope>({
         saved.set(true)
         chrome.notify({ tone: 'success', title: `Saved ${p}` })
         window.setTimeout(() => saved.set(false), 1500)
+        // Auto-refresh the snapshots list if the panel is open — the
+        // daemon creates a snapshot on every successful save, so users
+        // expect to see it appear without closing + reopening the panel.
+        if (snapshotsOpen()) {
+          const mcp = (window as unknown as { __viewMcp?: typeof import('../../../../apps/shell/src/chrome/view-mcp').viewMcp }).__viewMcp
+          if (mcp) {
+            mcp.listSnapshots(name, 50).then((r) => {
+              snapshots.set(r.snapshots ?? [])
+            }).catch(() => { /* best-effort; manual reopen still works */ })
+          }
+        }
       } catch (e2) {
         errorMsg.set((e2 as Error).message)
       } finally {
