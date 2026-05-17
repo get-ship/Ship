@@ -21,7 +21,7 @@ fn main() {
 
     connectrpc_build::Config::new()
         .files(&[proto_root.join("ship/gateway/v1/auth.proto")])
-        .includes(&[proto_root.clone()])
+        .includes(std::slice::from_ref(&proto_root))
         .compile()
         .expect("connectrpc-build codegen failed");
 

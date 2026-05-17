@@ -61,6 +61,9 @@ impl<T: Clone + Send + Sync + 'static> Signal<T> {
         // We only record on the first subscription per (observer, signal) per
         // run — subsequent reads of the same signal dedupe via subscribe_if_new.
         if newly_subscribed {
+            // Invariant enforced above: `newly_subscribed` is only set when
+            // `observer` was Some at the subscribe_if_new() call.
+            #[allow(clippy::expect_used)]
             let sub = observer.expect("observer was Some when newly_subscribed");
             let inner_arc = Arc::clone(&self.0);
             record_untrack(Box::new(move || {
