@@ -286,9 +286,19 @@ export default controller<Scope>({
   },
 
   mount(state, host) {
+    // sui-runtime's mount-state proxy uses asymmetric semantics:
+    //   • scope-declared signals (entries, filter, …): READ returns the
+    //     signal itself; WRITE proxies through to signal.set.
+    //   • bridged props (catalogUrl, …): READ returns the signal getter
+    //     (callable). Invoke with () to read its current string value.
+    // Prior `state.entries.set(...)` form worked for entries (`.set` on
+    // signal) but failed an earlier refactor when entries was misread as
+    // the value. Plain assignment via the proxy is the canonical write
+    // path and is unambiguous: `state.entries = next` becomes
+    // `entries.set(next)` regardless of how the property is exposed.
     const s = state as unknown as {
-      entries: ReturnType<typeof signal<PickerEntry[]>>
-      filter: ReturnType<typeof signal<string>>
+      entries: PickerEntry[]
+      filter: string
       catalogUrl: () => string
     }
     const h = host as HostWithProps
@@ -304,7 +314,7 @@ export default controller<Scope>({
           const resp = await fetch(url, { credentials: 'same-origin' })
           if (!resp.ok) return
           const doc = await resp.json() as { entries?: CatalogEntryWire[] }
-          s.entries.set(flattenCatalog(doc.entries ?? []))
+          s.entries = flattenCatalog(doc.entries ?? [])
           loaded = true
         } catch { /* best-effort */ }
         finally { inflight = null }
@@ -323,7 +333,7 @@ export default controller<Scope>({
     })
     Object.defineProperty(host, 'refresh', {
       configurable: true,
-      value: () => { loaded = false; s.entries.set([]); void load() },
+      value: () => { loaded = false; s.entries = []; void load() },
     })
     Object.defineProperty(host, 'close', {
       configurable: true,
