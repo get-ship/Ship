@@ -67,9 +67,11 @@ export default controller<Scope>({
     items: ({ agents }) => (unwrap(agents)?.items ?? []) as AgentSummary[],
     filteredItems: ({ agents, q, kind }) => {
       const all = (unwrap(agents)?.items ?? []) as AgentSummary[]
-      const k = kind as KindFilter['id']
-      const term = q as string
-      return all.filter((a) => matchesKind(a, k) && matchesQuery(a, term))
+      // Derived scope-args arrive as signal getters, not unwrapped values.
+      // Call them before using; cast assertions don't unwrap at runtime.
+      const k = (typeof kind === 'function' ? kind() : kind) as KindFilter['id']
+      const term = (typeof q === 'function' ? q() : q) as string
+      return all.filter((a) => matchesKind(a, k) && matchesQuery(a, term ?? ''))
     },
     activeId: ({ agents }) => {
       const all = (unwrap(agents)?.items ?? []) as AgentSummary[]
