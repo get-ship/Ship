@@ -188,7 +188,7 @@
             </div>
           </div>
 
-          <aside class="skills-info" aria-label="Skill info panel">
+          <aside class="skills-info" aria-label="Skill metadata panel">
             <div class="si-header">
               <div class="si-header-title">
                 <sui-icon name="zap" size="sm" tone="primary"></sui-icon>
@@ -200,34 +200,29 @@
             </div>
 
             <div class="si-body">
-              <sui-collapsible open class="si-coll">
+              <!-- ── Identity ────────────────────────────────────── -->
+              <sui-collapsible class="si-coll" data-testid="si-section-identity"
+                attr:open={openIdentityAttr()}
+                on:sui-toggle={(e) => toggleSection('identity', e.detail.open)}>
                 <div slot="trigger" class="si-coll-trigger">
-                  <sui-icon name="info" size="xs" tone="muted"></sui-icon>
-                  <span>Overview</span>
+                  <sui-icon name="id-card" size="xs" tone="muted"></sui-icon>
+                  <span>Identity</span>
                   <sui-icon class="si-coll-caret" name="chevron-down" size="xs" tone="muted"></sui-icon>
                 </div>
                 <div class="si-coll-body">
-                  <div class="si-field">
-                    <label class="si-label" for="si-desc">Description</label>
-                    <textarea id="si-desc" class="si-textarea"
-                      rows="3"
-                      placeholder="What this skill does…"
-                      prop:disabled={savingMeta()}
-                      bind:value={descDraft}></textarea>
+                  <div class="si-row">
+                    <span class="si-row-key">name</span>
+                    <span class="si-row-val">{skName()}</span>
                   </div>
-                  <div class="si-field">
-                    <label class="si-label" for="si-tags">Tags</label>
-                    <input id="si-tags" class="si-input" type="text"
-                      placeholder="comma-separated"
-                      prop:disabled={savingMeta()}
-                      bind:value={tagsDraft} />
-                    {#if (tagsList() || []).length > 0}
-                      <div class="si-chips">
-                        {#for t of tagsList() key={t}}
-                          <span class="si-chip">{t}</span>
-                        {/for}
-                      </div>
-                    {/if}
+                  <div class="si-row">
+                    <span class="si-row-key">id</span>
+                    <span class="si-row-val si-row-mono">
+                      <span class="si-id-text" attr:title={skId()}>{skId()}</span>
+                      <button class="si-copy-btn" type="button" on:click={copyId}
+                        aria-label="Copy skill id">
+                        <sui-icon name="copy" size="xs"></sui-icon>
+                      </button>
+                    </span>
                   </div>
                   <div class="si-row">
                     <span class="si-row-key">kind</span>
@@ -235,31 +230,147 @@
                   </div>
                   <div class="si-row">
                     <span class="si-row-key">source</span>
-                    <span class="si-row-val">{skSource()}</span>
+                    <span class="si-row-val">{skSourceLabel()}</span>
                   </div>
-                  {#if skAuthorsLen() > 0}
+                  {#if skAuthors().length > 0}
                     <div class="si-row">
                       <span class="si-row-key">authors</span>
-                      <span class="si-row-val">{authorsText()}</span>
+                      <span class="si-row-val">{skAuthorsText()}</span>
                     </div>
                   {/if}
-                  <div class="si-meta-actions">
-                    <button class="sd-action sd-save-btn" data-testid="skill-meta-save"
-                      prop:disabled={!metaDirty() || savingMeta()}
-                      on:click={saveMeta}>
+                </div>
+              </sui-collapsible>
+
+              <!-- ── Description ─────────────────────────────────── -->
+              <sui-collapsible class="si-coll" data-testid="si-section-description"
+                attr:open={openDescriptionAttr()}
+                on:sui-toggle={(e) => toggleSection('description', e.detail.open)}>
+                <div slot="trigger" class="si-coll-trigger">
+                  <sui-icon name="info" size="xs" tone="muted"></sui-icon>
+                  <span>Description</span>
+                  {#if descSavedAgo()}
+                    <span class="si-coll-meta">edited {descSavedAgo()}</span>
+                  {/if}
+                  <sui-icon class="si-coll-caret" name="chevron-down" size="xs" tone="muted"></sui-icon>
+                </div>
+                <div class="si-coll-body">
+                  <textarea class="si-textarea" data-testid="si-desc-edit"
+                    rows="4"
+                    placeholder="What this skill does (one-liner shown in the rail)…"
+                    prop:disabled={descSaving()}
+                    prop:value={descDraft()}
+                    on:input={onDescInput}></textarea>
+                  <div class="si-section-actions">
+                    <span class="si-edit-hint">
+                      {descDirty() ? 'Unsaved changes' : 'Synced.'}
+                    </span>
+                    <button class="sd-action" type="button" data-testid="si-desc-reset"
+                      prop:disabled={!descDirty() || descSaving()}
+                      on:click={resetDesc}>Cancel</button>
+                    <button class="sd-action sd-save-btn" type="button" data-testid="si-desc-save"
+                      prop:disabled={!descDirty() || descSaving()}
+                      on:click={saveDesc}>
                       <sui-icon name="save" size="xs"></sui-icon>
-                      <span>{savingMeta() ? 'Saving…' : metaDirty() ? 'Save metadata' : 'Saved'}</span>
+                      <span>{descSaving() ? 'Saving…' : 'Save'}</span>
                     </button>
                   </div>
-                  {#if metaBanner()}
-                    <sui-alert tone={metaBanner().ok ? 'success' : 'destructive'} class="si-meta-banner">
-                      {metaBanner().msg}
+                  {#if descBanner()}
+                    <sui-alert tone={descBanner().ok ? 'success' : 'warning'} class="si-section-banner">
+                      {descBanner().msg}
                     </sui-alert>
                   {/if}
                 </div>
               </sui-collapsible>
 
-              <sui-collapsible class="si-coll">
+              <!-- ── Tags ────────────────────────────────────────── -->
+              <sui-collapsible class="si-coll" data-testid="si-section-tags"
+                attr:open={openTagsAttr()}
+                on:sui-toggle={(e) => toggleSection('tags', e.detail.open)}>
+                <div slot="trigger" class="si-coll-trigger">
+                  <sui-icon name="tag" size="xs" tone="muted"></sui-icon>
+                  <span>Tags</span>
+                  <span class="si-coll-count">{tagsList().length}</span>
+                  <sui-icon class="si-coll-caret" name="chevron-down" size="xs" tone="muted"></sui-icon>
+                </div>
+                <div class="si-coll-body">
+                  {#if tagsList().length > 0}
+                    <div class="si-chips" data-testid="si-tag-chips">
+                      {#for t of tagsList() key={t}}
+                        <span class="si-chip">
+                          <span class="si-chip-label">{t}</span>
+                          <button type="button" class="si-chip-x"
+                            attr:aria-label={'Remove tag ' + t}
+                            attr:data-tag={t}
+                            on:click={() => removeTag(t)}>×</button>
+                        </span>
+                      {/for}
+                    </div>
+                  {:else}
+                    <div class="si-empty-inline">No tags yet.</div>
+                  {/if}
+                  <input class="si-input" type="text" data-testid="si-tags-input"
+                    placeholder="Add tag (Enter or , to commit)"
+                    prop:disabled={tagsSaving()}
+                    prop:value={tagsInput()}
+                    on:input={onTagsInput}
+                    on:keydown={onTagsKeydown} />
+                  <div class="si-section-actions">
+                    <span class="si-edit-hint">
+                      {tagsDirty() ? 'Unsaved changes' : 'Synced.'}
+                    </span>
+                    <button class="sd-action" type="button" data-testid="si-tags-reset"
+                      prop:disabled={!tagsDirty() || tagsSaving()}
+                      on:click={resetTags}>Cancel</button>
+                    <button class="sd-action sd-save-btn" type="button" data-testid="si-tags-save"
+                      prop:disabled={!tagsDirty() || tagsSaving()}
+                      on:click={saveTags}>
+                      <sui-icon name="save" size="xs"></sui-icon>
+                      <span>{tagsSaving() ? 'Saving…' : 'Save'}</span>
+                    </button>
+                  </div>
+                  {#if tagsBanner()}
+                    <sui-alert tone={tagsBanner().ok ? 'success' : 'warning'} class="si-section-banner">
+                      {tagsBanner().msg}
+                    </sui-alert>
+                  {/if}
+                </div>
+              </sui-collapsible>
+
+              <!-- ── Triggers ────────────────────────────────────── -->
+              <sui-collapsible class="si-coll" data-testid="si-section-triggers"
+                attr:open={openTriggersAttr()}
+                on:sui-toggle={(e) => toggleSection('triggers', e.detail.open)}>
+                <div slot="trigger" class="si-coll-trigger">
+                  <sui-icon name="zap" size="xs" tone="muted"></sui-icon>
+                  <span>Triggers</span>
+                  {#if skTriggerHints().length > 0}
+                    <span class="si-coll-count">{skTriggerHints().length}</span>
+                  {/if}
+                  <sui-icon class="si-coll-caret" name="chevron-down" size="xs" tone="muted"></sui-icon>
+                </div>
+                <div class="si-coll-body">
+                  {#if skTriggerHints().length > 0}
+                    <ul class="si-trigger-list">
+                      {#for hint of skTriggerHints() key={hint}}
+                        <li class="si-trigger-row">{hint}</li>
+                      {/for}
+                    </ul>
+                    <p class="si-help">
+                      Trigger cues live in the skill body. Edit the SKILL.md to refine them.
+                    </p>
+                  {:else}
+                    <div class="si-empty-inline">
+                      No trigger cues declared. Library skills are surfaced by description match —
+                      add <code>TRIGGER when:</code> lines in the body to narrow.
+                    </div>
+                  {/if}
+                </div>
+              </sui-collapsible>
+
+              <!-- ── Variables ───────────────────────────────────── -->
+              <sui-collapsible class="si-coll" data-testid="si-section-variables"
+                attr:open={openVariablesAttr()}
+                on:sui-toggle={(e) => toggleSection('variables', e.detail.open)}>
                 <div slot="trigger" class="si-coll-trigger">
                   <sui-icon name="braces" size="xs" tone="muted"></sui-icon>
                   <span>Variables</span>
@@ -274,23 +385,29 @@
                         <span class="si-var-name">{v}</span>
                       </div>
                     {/for}
+                    <p class="si-help">
+                      Defaults declared in <code>assets/vars.json</code>. Edit that file to change.
+                    </p>
                   {:else}
                     <div class="si-empty-inline">No variables declared.</div>
                   {/if}
                 </div>
               </sui-collapsible>
 
-              <sui-collapsible class="si-coll">
+              <!-- ── Reference docs ──────────────────────────────── -->
+              <sui-collapsible class="si-coll" data-testid="si-section-references"
+                attr:open={openReferencesAttr()}
+                on:sui-toggle={(e) => toggleSection('references', e.detail.open)}>
                 <div slot="trigger" class="si-coll-trigger">
-                  <sui-icon name="files" size="xs" tone="muted"></sui-icon>
-                  <span>Files</span>
-                  <span class="si-coll-count">{skFiles().length}</span>
+                  <sui-icon name="book-open" size="xs" tone="muted"></sui-icon>
+                  <span>Reference docs</span>
+                  <span class="si-coll-count">{skReferences().length}</span>
                   <sui-icon class="si-coll-caret" name="chevron-down" size="xs" tone="muted"></sui-icon>
                 </div>
                 <div class="si-coll-body">
-                  {#if skFiles().length > 0}
-                    {#for f of skFiles() key={f}}
-                      <a class="si-file-row"
+                  {#if skReferences().length > 0}
+                    {#for f of skReferences() key={f}}
+                      <a class="si-file-row" data-testid="si-ref-link"
                         attr:href={'/skills/' + skId() + '?file=' + f}
                         attr:title={f}>
                         <sui-icon size="xs"
@@ -300,11 +417,33 @@
                       </a>
                     {/for}
                   {:else}
-                    <div class="si-empty-inline">No companion files.</div>
+                    <div class="si-empty-inline">
+                      No companion docs. Add markdown files under <code>references/</code>.
+                    </div>
                   {/if}
                 </div>
               </sui-collapsible>
 
+              <!-- ── Evals (placeholder) ─────────────────────────── -->
+              <sui-collapsible class="si-coll si-coll-disabled" data-testid="si-section-evals"
+                attr:open={openEvalsAttr()}
+                on:sui-toggle={(e) => toggleSection('evals', e.detail.open)}>
+                <div slot="trigger" class="si-coll-trigger">
+                  <sui-icon name="flask-conical" size="xs" tone="muted"></sui-icon>
+                  <span>Evals</span>
+                  <span class="si-coll-soon">Coming soon</span>
+                  <sui-icon class="si-coll-caret" name="chevron-down" size="xs" tone="muted"></sui-icon>
+                </div>
+                <div class="si-coll-body">
+                  <div class="si-empty-inline si-evals-empty">
+                    <sui-icon name="flask-conical" size="md" tone="muted"></sui-icon>
+                    <p>
+                      Skill evals are not yet implemented. When they are, this section will
+                      show pass/fail trends and let you run a test set against the skill.
+                    </p>
+                  </div>
+                </div>
+              </sui-collapsible>
             </div>
           </aside>
         </div>
