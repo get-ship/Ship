@@ -295,8 +295,27 @@ const { slug, starterTemplate, starterController, solvedTemplate, solvedControll
     })
     syncIframeTheme()
 
-    window.addEventListener('message', (e: MessageEvent) => {
-      if (e.source === iframe.contentWindow && e.data?.kind === 'tutorial:ready') {
+    window.addEventListener('message', async (e: MessageEvent) => {
+      if (e.source !== iframe.contentWindow) return
+      if (e.data?.kind === 'tutorial:ready') {
+        // Load this step's scenario into the SW (no-op for steps
+        // without one — the dynamic import 404s and we move on).
+        try {
+          const scenarioUrl = `/tutorial/scenarios/${slug}.js`
+          const head = await fetch(scenarioUrl, { method: 'HEAD' })
+          if (head.ok) {
+            const mod: { default: Record<string, unknown> } = await import(/* @vite-ignore */ scenarioUrl)
+            iframe.contentWindow!.postMessage(
+              { kind: 'tutorial:scenario', scenario: mod.default },
+              '*',
+            )
+            // Give the SW a beat to ingest the scenario before runNow
+            // wires up the EventSource subscriptions.
+            await new Promise((r) => setTimeout(r, 50))
+          }
+        } catch (err) {
+          console.warn('[tutorial] scenario load skipped:', err)
+        }
         iframeReady = true
         runNow()
       }

@@ -41,6 +41,8 @@ const STEPS = [
   '19-template-hooks',
   '20-controller-hooks',
   '21-forms',
+  '22-data-live',
+  '23-while-loading',
 ] as const
 
 // Disable animations + caret blink so diffs stay deterministic.

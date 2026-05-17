@@ -116,6 +116,34 @@
       return true
     }
 
+    // `ship` proxy — any `ship.<domain>.<op>(...)` call returns a
+    // LiveSource that subscribes via SSE against /_sui/data/<domain>/<op>.
+    // The SW intercepts those URLs and plays back scenario frames as
+    // envelopes ({ kind: 'loading' | 'ok' | 'error', ... }).
+    //
+    // Lets tutorial templates write the same shape a real Ship view
+    // would:
+    //   <data name="users" source="ship.users.list()" live />
+    window.ship = new Proxy({}, {
+      get: (_t, domain) => new Proxy({}, {
+        get: (_t2, op) => (..._args) => ({
+          subscribe: (sig) => {
+            const url = `/_sui/data/${String(domain)}/${String(op)}`
+            const es = new EventSource(url)
+            es.onmessage = (e) => {
+              try { sig.set(JSON.parse(e.data)) } catch (err) {
+                sig.set({ kind: 'error', error: { message: String(err) } })
+              }
+            }
+            es.onerror = () => {
+              sig.set({ kind: 'error', error: { message: 'SSE connection error' } })
+            }
+            return () => es.close()
+          },
+        }),
+      }),
+    })
+
     // Wait for a 'tutorial:run' postMessage from the parent containing
     // the compiled JS modules (template + controller). Inject them as
     // blob URLs so they import normally through the importmap.

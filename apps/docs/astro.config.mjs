@@ -208,6 +208,13 @@ function buildTopics(isInternal) {
           { label: "18 · untrack / batch", link: "/tutorial/18-untrack-batch/" },
         ],
       },
+      {
+        label: "Views",
+        items: [
+          { label: "22 · <data live>", link: "/tutorial/22-data-live/" },
+          { label: "23 · while-loading / while-error", link: "/tutorial/23-while-loading/" },
+        ],
+      },
     ],
   },
   {

@@ -75,6 +75,7 @@ const chapterTitles: Record<string, string> = {
   agents: 'Agents',
   composition: 'Composition',
   lifecycle: 'Lifecycle',
+  views: 'Views',
   other: 'Other',
 }
 
@@ -85,6 +86,7 @@ const chapterDescriptions: Record<string, string> = {
   agents: 'How an AI agent authors, diagnoses, and scores a SUI view.',
   composition: 'Slots, refs, class:/style: — building larger surfaces.',
   lifecycle: 'When code runs, when it cleans up, and how effects scope.',
+  views: 'Server-pushed data, route params, morph patches, SSR.',
 }
 
 const firstSlug = steps[0]?.slug
@@ -99,10 +101,12 @@ const firstSlug = steps[0]?.slug
   }}
 >
   <p class="tut-lead">
-    Twenty-one steps across six chapters. Read the prose on the
+    Twenty-three steps across seven chapters. Read the prose on the
     left, edit the code on the right, the preview re-renders as you
     type. Show the solution when stuck. The Agents chapter explains
-    how to hand SUI authoring off to a model.
+    how to hand SUI authoring off to a model. The Views chapter
+    exercises server-pushed data through a mock-daemon service worker
+    bundled into the docs site.
   </p>
 
   {firstSlug && (
