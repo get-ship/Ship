@@ -28,15 +28,12 @@ export const BUBBLE_CSS = `
   transition: background-color var(--duration-fast) var(--ease-out),
     color var(--duration-fast) var(--ease-out);
 }
+.bubble button sui-icon { --tone-fg: currentColor; }
 .bubble button:hover:not(:disabled) { background: color-mix(in oklch, var(--muted) 80%, transparent); color: var(--foreground); }
 .bubble button:focus-visible { outline: none; box-shadow: 0 0 0 var(--ring-width) color-mix(in oklch, var(--tone, var(--ring-color)) var(--ring-opacity), transparent); color: var(--foreground); }
 .bubble button.is-active { background: color-mix(in oklch, var(--primary) 18%, var(--muted)); color: var(--foreground); }
 .bubble .sep { width: 1px; height: 18px; background: var(--border); margin: 0 2px; flex-shrink: 0; }
-.bubble svg { width: 14px; height: 14px; }
-.bubble .glyph-bold   { font-weight: 800; font-size: 13px; }
-.bubble .glyph-italic { font-weight: 600; font-size: 13px; font-style: italic; }
-.bubble .glyph-strike { font-weight: 600; font-size: 13px; text-decoration: line-through; }
-.bubble .glyph-code   { font-weight: 600; font-size: 11px; letter-spacing: -0.03em; }
+.bubble sui-icon::part(svg) { width: 14px; height: 14px; }
 @media (prefers-reduced-motion: reduce) { .bubble { transition-duration: 1ms; } }
 
 .composer {
