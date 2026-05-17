@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import '../src/sui-pipeline-run/sui-pipeline-run.compiled.js'
-import '../src/sui-card/sui-card.compiled.js'
-import '../src/sui-badge/sui-badge.compiled.js'
+// sui-card / sui-badge live in @ship/primitives.
+import '@ship/primitives'
 import { createContainerRegistry, flush, mount } from '../src/test-utils'
 
 const reg = createContainerRegistry()

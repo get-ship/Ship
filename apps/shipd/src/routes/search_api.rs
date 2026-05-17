@@ -142,9 +142,9 @@ async fn build_adapters(
 /// consume this — single source of truth). When we add a manifest
 /// `hidden: true` field, this list moves to per-view metadata.
 const HIDDEN_FROM_PICKERS: &[&str] = &[
-    "setup", "hello",
+    "setup",
     "sessions", "mesh", "events",
-    "specs", "sui-demo", "demos", "counter", "dashboard",
+    "specs",
 ];
 
 fn snapshot_views() -> Vec<ViewSnapshot> {

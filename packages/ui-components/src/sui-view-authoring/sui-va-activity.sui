@@ -61,7 +61,11 @@
 
 <div class="wrap" data-entry-count={entries().length}>
   {#if entries().length === 0}
-    <div class="empty">No activity yet. Agent turns will appear here.</div>
+    <div class="empty">
+      Real-time log of agent turns, your saves, and pin annotations for
+      this view. Nothing has happened yet — try saving the source
+      (Source tab) or sending an annotation to the agent (corner pill).
+    </div>
   {:else}
     {#for entry of entries() key={entry.id}}
       <details data-entry-id={entry.id} data-kind={entry.kind}>

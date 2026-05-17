@@ -1,9 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import '../src/sui-auth-dialog/sui-auth-dialog.compiled.js'
-import '../src/sui-dialog/sui-dialog.compiled.js'
-import '../src/sui-tabs/sui-tabs.compiled.js'
-import '../src/sui-tabs/sui-tab.compiled.js'
-import '../src/sui-button/sui-button.compiled.js'
+// sui-dialog / sui-tabs / sui-button moved to @ship/primitives — the
+// umbrella side-effect import registers all of them globally.
+import '@ship/primitives'
 import { createContainerRegistry, flush, mount } from '../src/test-utils'
 
 const reg = createContainerRegistry()

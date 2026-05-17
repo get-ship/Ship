@@ -14,6 +14,7 @@
 //! - [`state`] — read helpers that centralize runtime state access for views.
 
 pub mod mcp_apps_embed;
+pub mod files_api;
 pub mod source_api;
 pub mod write_api;
 pub mod stream;
@@ -61,9 +62,7 @@ use serde::Serialize;
 
 use crate::wire::MeshResponse;
 
-pub use assets::{
-    serve_sui_elements_manifest, serve_theme_css, serve_themes_list, serve_view_tokens,
-};
+pub use assets::{serve_theme_css, serve_themes_list, serve_view_tokens};
 pub use handlers::{
     list_views, serve_view_asset, serve_view_bundle, serve_view_manifest,
 };

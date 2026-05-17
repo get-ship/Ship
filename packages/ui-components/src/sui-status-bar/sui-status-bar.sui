@@ -1,31 +1,31 @@
 <!--
-  <sui-status-bar> — SUI extraction of the shell status bar.
-  Hairline bottom strip with connection indicator, branch, agents, and theme.
-  Extracted from apps/shell/index.html's .ship-statusbar div and
-  apps/shell/src/main.ts's updateStatus() function into a proper component.
+  <sui-status-bar> — chrome's bottom strip. Glance-only system status.
+
+  Per .artifacts/launch-arc/intent/chrome/status-bar.md the bar hosts:
+    daemon-dot · project · branch · agents · view-extensions ··· end-slot · dev · theme
+
+  Click behavior (intent):
+    project       → opens project switcher (sui:project-switcher:open)
+    daemon dot    → opens devtools dock (sui:dock:toggle)
+    theme         → opens theme picker (sui:theme-picker:open)
+
+  Live-updating via `chrome.status.set('key', { label, icon, tone, tooltip })`.
+  The controller subscribes to sui:status:set / sui:status:clear and renders
+  entries into an aria-live="polite" region.
 
   Prop surface
   ─────────────────────────────────────────────────────────────────────────────
-  branch   (string, '')         workspace name / branch
-  theme    (string, '')         current theme ID
-  online   (bool, false, reflect)  daemon connection state; dot is green/red
-  agents   (string, '')         active agent indicator text
-  mode     (string, '')         daemon operating mode ('development' | 'production');
-                                renders a DEV badge when value === 'development'
+  branch   (string, '')              git branch text
+  theme    (string, '')              current theme ID
+  online   (bool, false, reflect)    daemon connection state — dot tone
+  agents   (string, '')              local agent indicator text
+  mode     (string, '', reflect)     'development' renders DEV badge
+  project  (string, '')              active project label (shown when set)
   ─────────────────────────────────────────────────────────────────────────────
   Slots:
-    start  — view-injected status content between branch and spacer
+    start  — view-injected status content between branch and extensions
     end    — view-injected status content between spacer and theme
-  ─────────────────────────────────────────────────────────────────────────────
-  Parts: dot, branch, agents, theme
-  ─────────────────────────────────────────────────────────────────────────────
-  Parity vs inline markup in apps/shell/index.html:
-    #status-dot          → :host .dot (tone via [online] attr)
-    #status-branch       → branch prop → .branch span
-    #status-ab           → (omitted — git a/b not in daemon data yet)
-    #view-status-start   → slot name="start"
-    #view-status-end     → slot name="end"
-    #status-theme        → theme prop → .theme span
+  Parts: project, dot-btn, dot, branch, agents, extensions, mode, theme-btn
   ─────────────────────────────────────────────────────────────────────────────
 -->
 
@@ -33,13 +33,14 @@
 <prop name="theme" type="string" default="" />
 <prop name="online" type="bool" default="false" reflect />
 <prop name="agents" type="string" default="" />
-<prop name="mode" type="string" default="" />
+<prop name="mode" type="string" default="" reflect />
+<prop name="project" type="string" default="" />
 
 <style>
   :host {
     display: flex;
     align-items: center;
-    gap: var(--space-3, 12px);
+    gap: var(--space-2, 8px);
     height: 24px;
     padding: 0 var(--space-3, 12px);
     border-top: 1px solid var(--border);
@@ -53,16 +54,56 @@
   }
   :host([hidden]) { display: none; }
 
+  button {
+    appearance: none;
+    background: transparent;
+    border: 0;
+    padding: 0;
+    margin: 0;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+    border-radius: var(--radius-sm, 4px);
+    transition:
+      background-color var(--duration-fast, 120ms) var(--ease-out, ease-out),
+      color var(--duration-fast, 120ms) var(--ease-out, ease-out);
+  }
+  button:hover {
+    background: color-mix(in oklch, var(--foreground) 8%, transparent);
+    color: var(--foreground);
+  }
+  button:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px color-mix(in oklch, var(--primary, #3b82f6) 50%, transparent);
+  }
+
+  .dot-btn { padding: 0 4px; height: 18px; }
   .dot {
-    width: 6px;
-    height: 6px;
+    width: 7px;
+    height: 7px;
     border-radius: var(--radius-full, 9999px);
     background: var(--destructive);
     flex-shrink: 0;
     transition: background-color var(--duration-fast, 120ms) var(--ease-out, ease-out);
   }
-  :host([online]) .dot {
-    background: var(--success);
+  :host([online]) .dot { background: var(--success); }
+
+  .project { padding: 0 6px; height: 18px; max-width: 180px; }
+  .project > .swatch {
+    width: 8px;
+    height: 8px;
+    border-radius: 2px;
+    background: var(--primary, #3b82f6);
+    flex-shrink: 0;
+  }
+  .project > .label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .text {
@@ -79,13 +120,36 @@
     align-items: center;
   }
 
+  .extensions {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 1;
+    overflow: hidden;
+  }
+  .extensions:empty { display: none; }
+  .ext-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 0 6px;
+    height: 18px;
+    border-radius: var(--radius-sm, 4px);
+    border: 1px solid color-mix(in oklch, var(--foreground) 14%, transparent);
+    background: color-mix(in oklch, var(--foreground) 4%, transparent);
+    color: var(--muted-foreground);
+    white-space: nowrap;
+    flex-shrink: 0;
+    font-size: 10.5px;
+  }
+  .ext-chip[data-tone="info"]    { color: var(--primary, #3b82f6); border-color: color-mix(in oklch, var(--primary) 30%, transparent); }
+  .ext-chip[data-tone="success"] { color: var(--success);          border-color: color-mix(in oklch, var(--success) 30%, transparent); }
+  .ext-chip[data-tone="warning"] { color: var(--warning);          border-color: color-mix(in oklch, var(--warning) 30%, transparent); }
+  .ext-chip[data-tone="error"]   { color: var(--destructive);      border-color: color-mix(in oklch, var(--destructive) 30%, transparent); }
+
   .spacer { flex: 1; }
 
-  /* DEV badge. Rendered when [mode="development"]; mirrors apps/shell
-     parity where shipd-served HTML rewrites the meta to "production"
-     and the badge disappears. The mode attribute is set on this host
-     by apps/shell/src/main.ts at boot; without this rule the
-     attribute was inert. */
+  /* DEV badge — visible when host has [mode="development"]. */
   .mode {
     display: none;
     font-family: var(--mono-font, var(--font-mono));
@@ -102,13 +166,39 @@
     flex-shrink: 0;
   }
   :host([mode="development"]) .mode { display: inline-flex; }
+
+  .theme-btn { padding: 0 6px; height: 18px; }
 </style>
 
-<span class="dot" part="dot" aria-hidden="true"></span>
+<button class="dot-btn" part="dot-btn" type="button"
+  on:click={onDotClick}
+  title="Daemon — click to toggle dev panel"
+  aria-label="Daemon connection status. Click to toggle dev panel.">
+  <span class="dot" part="dot" aria-hidden="true"></span>
+</button>
+{#if project()}
+  <button class="project" part="project" type="button"
+    on:click={onProjectClick}
+    title="Active project — click to switch"
+    aria-label="Active project. Click to switch.">
+    <span class="swatch" aria-hidden="true"></span>
+    <span class="label">{project()}</span>
+  </button>
+{/if}
 <span class="text" part="branch">{branch()}</span>
 <span class="text" part="agents">{agents()}</span>
 <span class="slot-wrap"><slot name="start"></slot></span>
+<span class="extensions" part="extensions" role="status" aria-live="polite" aria-label="View status">
+  {#for ext of extensions() key={ext.key}}
+    <span class="ext-chip" data-tone={ext.tone} title={ext.tooltip}>
+      <span>{ext.label}</span>
+    </span>
+  {/for}
+</span>
 <span class="spacer"></span>
 <span class="slot-wrap"><slot name="end"></slot></span>
 <span class="mode" part="mode" aria-label="Daemon mode">dev</span>
-<span class="text" part="theme">{theme()}</span>
+<button class="theme-btn" part="theme-btn" type="button"
+  on:click={onThemeClick}
+  title="Active theme — click to open theme picker"
+  aria-label="Active theme. Click to open theme picker.">{theme()}</button>

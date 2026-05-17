@@ -8,26 +8,15 @@ use axum::{
 
 use crate::{DaemonMode, asset_cache, compute_etag, mode_from_ext};
 
-/// Islands that the daemon serves a bundle for. Mirrors the bundles we
-/// `include_str!` below; kept local to `serve_sui_island` so adding a
-/// new bundle is a one-file change. Distinct from `sui_compiler`'s
-/// `SUI_ISLANDS` table, which is consumed by the compiler to *preload*
-/// bundles a view references — the route still has to serve `<sui-X>`
-/// tags that show up unannounced at runtime.
-fn is_known_island(name: &str) -> bool {
-    matches!(
-        name,
-        "sui-terminal"
-            | "sui-command-bar"
-            | "sui-devtools"
-            | "sui-launcher"
-            | "sui-panel-dock"
-            | "sui-nav-top"
-            | "sui-rail"
-            | "sui-code-editor"
-            | "sui-markdown-editor"
-    )
-}
+// Per-tag island bundles are served by file existence under
+// `assets/sui-components/`. The bundler (runtime-assets/bundler.ts +
+// packages/sui-build via the umbrella's sui.config.ts `lazyOutSubdir`)
+// is the source of truth for what lands there. The previous
+// hand-maintained `is_known_island` allowlist was retired alongside
+// the workspace-catalog cut-over — origin metadata in
+// `.ship/sui-out/catalogs/workspace.json` makes per-tag gating
+// redundant. Path-traversal is rejected explicitly in
+// `serve_sui_island` so a missing-bundle 404 is the only failure mode.
 
 const ASSETS_DIR: &str = env!("CARGO_MANIFEST_DIR");
 
@@ -41,7 +30,7 @@ fn read_asset(rel: &str) -> Option<String> {
 // Canonical asset layout under `crates/sui/ship-sui-server/assets/`:
 //   * top-level (`assets/<name>.js`) — always-loaded framework bundles
 //     (sui-runtime, sui-dom, sui-sdk-client, sui-components) and
-//     out-of-band assets (lucide-icons.json, sui-custom-elements.json).
+//     out-of-band assets (lucide-icons.json).
 //   * `assets/sui-components/<name>.js` — every code-split component bundle
 //     (opted in via `<bundle separate />` in the component's .sui source).
 //     Both writers (runtime-assets/bundler.ts and packages/sui-build via
@@ -148,31 +137,43 @@ pub async fn serve_sui_lucide_icons(mode: Option<Extension<DaemonMode>>) -> Resp
 
 pub async fn serve_sui_island(mode: Option<Extension<DaemonMode>>, Path(file): Path<String>) -> Response {
     let mode = mode_from_ext(mode);
+    // Reject path-traversal explicitly — the file segment is captured
+    // verbatim from the URL, so a malicious `../../etc/passwd` would
+    // otherwise escape the assets dir.
+    if file.contains("..") || file.contains('/') {
+        return not_found("invalid island name");
+    }
     // The route captures the whole filename (`sui-rail.js`) because axum 0.8
     // forbids mixing path-params with literal suffixes in the same segment.
     // Strip the `.js` to recover the bundle name.
     let bundle = file.strip_suffix(".js").unwrap_or(&file).to_string();
-    if !is_known_island(&bundle) {
-        return not_found("unknown island");
-    }
-    let embedded: &'static str = match bundle.as_str() {
-        "sui-terminal" => SUI_TERMINAL_ISLAND_JS,
-        "sui-command-bar" => SUI_COMMAND_BAR_ISLAND_JS,
-        "sui-devtools" => SUI_DEVTOOLS_ISLAND_JS,
-        "sui-launcher" => SUI_LAUNCHER_ISLAND_JS,
-        "sui-panel-dock" => SUI_PANEL_DOCK_ISLAND_JS,
-        "sui-nav-top" => SUI_NAV_TOP_ISLAND_JS,
-        "sui-rail" => SUI_RAIL_ISLAND_JS,
-        "sui-code-editor" => SUI_CODE_EDITOR_ISLAND_JS,
-        "sui-markdown-editor" => SUI_MARKDOWN_EDITOR_ISLAND_JS,
-        _ => return not_found("unknown island"),
-    };
     // Single canonical path: `assets/sui-components/<bundle>.js`. Both
-    // writers (runtime-assets bundler + packages/sui-build) target it;
-    // fall back to the baked-in copy when the on-disk file is missing.
+    // writers (runtime-assets bundler + packages/sui-build) target it.
+    // Try the on-disk bundle first — that's the live-rebuilt artifact in
+    // development and the canonical install layout in production.
     let rel = format!("sui-components/{bundle}.js");
-    let js = read_asset(&rel).unwrap_or_else(|| embedded.to_string());
-    js_response_mode(js, mode)
+    if let Some(js) = read_asset(&rel) {
+        return js_response_mode(js, mode);
+    }
+    // Fall back to baked-in copies for the framework islands shipped in
+    // the binary. New islands rely on the on-disk path above; missing
+    // bundles surface as 404 with an actionable hint.
+    let embedded: Option<&'static str> = match bundle.as_str() {
+        "sui-terminal" => Some(SUI_TERMINAL_ISLAND_JS),
+        "sui-command-bar" => Some(SUI_COMMAND_BAR_ISLAND_JS),
+        "sui-devtools" => Some(SUI_DEVTOOLS_ISLAND_JS),
+        "sui-launcher" => Some(SUI_LAUNCHER_ISLAND_JS),
+        "sui-panel-dock" => Some(SUI_PANEL_DOCK_ISLAND_JS),
+        "sui-nav-top" => Some(SUI_NAV_TOP_ISLAND_JS),
+        "sui-rail" => Some(SUI_RAIL_ISLAND_JS),
+        "sui-code-editor" => Some(SUI_CODE_EDITOR_ISLAND_JS),
+        "sui-markdown-editor" => Some(SUI_MARKDOWN_EDITOR_ISLAND_JS),
+        _ => None,
+    };
+    match embedded {
+        Some(js) => js_response_mode(js.to_string(), mode),
+        None => not_found("island bundle missing — run `bun run runtime-assets/bundler.ts --all`"),
+    }
 }
 
 // Response helpers
@@ -225,7 +226,18 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread")]
     async fn island_unknown_returns_404() {
-        let resp = serve_sui_island(None, Path("sui-unknown".to_string())).await;
+        // A bundle name with no matching `sui-components/<name>.js` on
+        // disk and no baked-in fallback falls through to a 404 with the
+        // run-bundler hint. The hand-maintained allowlist was retired
+        // when the workspace catalog took over origin metadata; file
+        // existence + path-traversal guards are the only gates now.
+        let resp = serve_sui_island(None, Path("definitely-not-a-real-bundle".to_string())).await;
+        assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn island_path_traversal_rejected() {
+        let resp = serve_sui_island(None, Path("../etc/passwd".to_string())).await;
         assert_eq!(resp.status(), StatusCode::NOT_FOUND);
     }
 

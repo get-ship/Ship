@@ -108,21 +108,28 @@ describe('<sui-devtools-components>', () => {
     const { el } = mount(reg, 'sui-devtools-components')
     await flush()
     expect(body(el).innerHTML).toContain('Loading sui-* components')
-    resolve({ ok: true, json: () => Promise.resolve({ modules: [] }) })
+    resolve({ ok: true, json: () => Promise.resolve({ schemaVersion: '1', count: 0, entries: [] }) })
     globalThis.fetch = origFetch
   })
 
-  it('renders entry list when CEM data loads', async () => {
-    const cem = {
-      modules: [{
-        kind: 'javascript-module', path: 'src/foo.js',
-        declarations: [{
-          kind: 'class', name: 'FooEl', tagName: 'foo-el', customElement: true,
-          description: 'A foo element', attributes: [], slots: [],
-        }],
+  it('renders entry list when catalog data loads', async () => {
+    const catalog = {
+      schemaVersion: '1',
+      count: 1,
+      entries: [{
+        tagName: 'foo-el',
+        package: '@ship/test',
+        private: false,
+        sourcePath: 'src/foo.sui',
+        bundleUrl: '/_sui/packs/test/foo.js',
+        manifestUrl: '/_sui/packs/test/custom-elements.json',
+        description: 'A foo element',
+        firstDesc: 'A foo element',
+        attributes: [],
+        slots: [],
       }],
     }
-    const fetchSpy = vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve(cem) })
+    const fetchSpy = vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve(catalog) })
     const origFetch = globalThis.fetch
     globalThis.fetch = fetchSpy
     const { el } = mount(reg, 'sui-devtools-components')
@@ -132,16 +139,15 @@ describe('<sui-devtools-components>', () => {
   })
 
   it('filter input narrows displayed entries', async () => {
-    const cem = {
-      modules: [{
-        kind: 'javascript-module', path: 'x.js',
-        declarations: [
-          { kind: 'class', name: 'A', tagName: 'ship-button', customElement: true, description: '', attributes: [], slots: [] },
-          { kind: 'class', name: 'B', tagName: 'ship-input', customElement: true, description: '', attributes: [], slots: [] },
-        ],
-      }],
+    const catalog = {
+      schemaVersion: '1',
+      count: 2,
+      entries: [
+        { tagName: 'sui-button', package: '@ship/primitives', private: false, sourcePath: '', bundleUrl: '', manifestUrl: '', description: '', firstDesc: '', attributes: [], slots: [] },
+        { tagName: 'sui-input',  package: '@ship/primitives', private: false, sourcePath: '', bundleUrl: '', manifestUrl: '', description: '', firstDesc: '', attributes: [], slots: [] },
+      ],
     }
-    const fetchSpy = vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve(cem) })
+    const fetchSpy = vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve(catalog) })
     const origFetch = globalThis.fetch
     globalThis.fetch = fetchSpy
     const { el } = mount(reg, 'sui-devtools-components')
@@ -150,8 +156,8 @@ describe('<sui-devtools-components>', () => {
     input.value = 'button'
     input.dispatchEvent(new Event('input', { bubbles: true }))
     await flush()
-    expect(body(el).innerHTML).toContain('ship-button')
-    expect(body(el).innerHTML).not.toContain('ship-input')
+    expect(body(el).innerHTML).toContain('sui-button')
+    expect(body(el).innerHTML).not.toContain('sui-input')
     globalThis.fetch = origFetch
   })
 
@@ -161,16 +167,16 @@ describe('<sui-devtools-components>', () => {
     expect(typeof (el as unknown as { refresh?: unknown }).refresh).toBe('function')
   })
 
-  it('fetches the SUI inventory (sui-custom-elements.json), not the legacy lit CEM', async () => {
-    const fetchSpy = vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve({ modules: [] }) })
+  it('fetches the workspace catalog from /api/sui/catalog/workspace', async () => {
+    const fetchSpy = vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve({ schemaVersion: '1', count: 0, entries: [] }) })
     const origFetch = globalThis.fetch
     globalThis.fetch = fetchSpy
     mount(reg, 'sui-devtools-components')
     await flush(); await flush()
     expect(fetchSpy).toHaveBeenCalled()
     const calledUrl = String(fetchSpy.mock.calls[0]?.[0] ?? '')
-    expect(calledUrl).toContain('/api/assets/sui-custom-elements.json')
-    expect(calledUrl).not.toBe('/api/assets/custom-elements.json')
+    expect(calledUrl).toContain('/api/sui/catalog/workspace')
+    expect(calledUrl).not.toContain('/api/assets/sui-custom-elements.json')
     globalThis.fetch = origFetch
   })
 })

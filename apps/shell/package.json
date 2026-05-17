@@ -10,6 +10,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@ship/charts": "workspace:*",
+    "@ship/primitives": "workspace:*",
     "@ship/sdk": "workspace:*",
     "@ship/sdk-client": "workspace:*",
     "@ship/sui-runtime": "workspace:*"

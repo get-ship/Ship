@@ -68,12 +68,26 @@ export default controller<Scope>({
       loadedFor = name
       const mcp = window.__viewMcp
       if (!mcp) return
+      // Retry once after a short delay — the natural race between
+      // edit-mode/enter (grants capability) and the first auto-load
+      // would otherwise leave the editor empty even though the daemon
+      // would have served the source on the second attempt.
+      const fetchOnce = (): Promise<{ source: string }> => mcp.readSource(name)
       try {
-        const res = await mcp.readSource(name)
+        let res: { source: string }
+        try { res = await fetchOnce() }
+        catch {
+          await new Promise((r) => setTimeout(r, 200))
+          res = await fetchOnce()
+        }
         s.source.set(res.source)
         s.dirty.set(false)
         s.saved.set(false)
-      } catch { /* best-effort */ }
+      } catch {
+        // Reset guard so a manual reload (or activation event) can
+        // retry. Pre-fix the editor stayed blank with no recovery.
+        loadedFor = null
+      }
     }
 
     const stopLoadEffect = effect(() => {

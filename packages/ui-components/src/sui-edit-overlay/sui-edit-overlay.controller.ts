@@ -11,7 +11,7 @@ interface Highlight {
 }
 
 function targetFromEvent(e: PointerEvent | MouseEvent): HTMLElement | null {
-  const root = document.getElementById('ship-view-root')
+  const root = document.getElementById('ship-content')
   if (!root) return null
   const target = e.target as HTMLElement | null
   if (!target || !root.contains(target)) return null
@@ -74,23 +74,24 @@ export default controller<Scope>({
       e.preventDefault()
       e.stopPropagation()
       const { tag, selector, id } = describe(target)
-      const shellEl = host.closest('sui-shell') ?? host.closest('ship-shell')
-      shellEl?.dispatchEvent(
-        new CustomEvent('sui:chat:annotate', {
-          detail: {
-            tag,
-            selector,
-            id,
-            preview: (target.textContent ?? '').trim().slice(0, 60),
-          },
-          bubbles: true,
-        }),
-      )
+      // Dispatch on document so any chrome subscriber catches it. The
+      // legacy sui-shell/ship-shell hosts no longer exist in this
+      // shell — events bubbled there silently were the cause of
+      // "annotation does nothing" QA reports.
+      const detail = {
+        tag,
+        selector,
+        id,
+        preview: (target.textContent ?? '').trim().slice(0, 60),
+      }
+      document.dispatchEvent(new CustomEvent('sui:chat:annotate', {
+        detail, bubbles: true,
+      }))
       ;(window as any).ship?.chat?.open?.()
     }
 
     function setupListeners() {
-      const root = document.getElementById('ship-view-root')
+      const root = document.getElementById('ship-content')
       if (!root) return
       root.addEventListener('pointermove', onPointerMove, true)
       root.addEventListener('pointerleave', onPointerLeave, true)
@@ -98,7 +99,7 @@ export default controller<Scope>({
     }
 
     function teardownListeners() {
-      const root = document.getElementById('ship-view-root')
+      const root = document.getElementById('ship-content')
       if (!root) return
       root.removeEventListener('pointermove', onPointerMove, true)
       root.removeEventListener('pointerleave', onPointerLeave, true)
@@ -106,7 +107,11 @@ export default controller<Scope>({
     }
 
     function applyActive() {
-      const on = document.body.classList.contains('edit-mode')
+      // Overlay binds only when ANNOTATION mode is on (the sub-toggle
+      // inside edit mode). Edit mode alone leaves the view fully
+      // interactive — see chrome/edit-mode.ts for the parent/child
+      // signal pair.
+      const on = document.body.classList.contains('annotation-mode')
       host.classList.toggle('active', on)
       if (on) setupListeners()
       else {

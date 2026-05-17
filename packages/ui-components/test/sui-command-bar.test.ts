@@ -2,7 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import '../src/sui-command-bar/sui-command-bar.compiled.js'
 import '../src/sui-command-bar/sui-command-palette.compiled.js'
 import '../src/sui-command-bar/sui-command-chat.compiled.js'
-import '../src/sui-dialog/sui-dialog.compiled.js'
+// sui-dialog lives in @ship/primitives.
+import '@ship/primitives'
 import { createContainerRegistry, flush, mount } from '../src/test-utils'
 
 const reg = createContainerRegistry()

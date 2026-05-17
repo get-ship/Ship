@@ -1,203 +1,270 @@
 ---
 name: web-qa
 stable-id: web-qa
-description: Use when testing a web application — navigate pages, interact, screenshot, file bugs, write a report. Each run is timestamped. Outputs to .artifacts/{{ stable_id }}/ for live viewing in Ship Studio.
-tags: [qa, testing, browser, playwright]
+description: Systematic QA for a UI surface — every interactive element pressed, multi-theme, console + network captured, evidence written to .artifacts/web-qa/. Use before claiming any UI work "done". Gate-required when touching apps/shell, packages/ui-components, views, or crates/sui.
+tags: [qa, testing, browser, playwright, gate-required]
 authors: [ship]
 license: MIT
-compatibility: Requires Playwright (@playwright/test) with browsers installed, and system libs libnspr4 + libnss3 on Linux
-artifacts: [image, markdown]
+artifacts: [image, markdown, jsonl]
 allowed-tools:
-  - "Bash(playwright*)"
+  - "Bash(playwright-cli*)"
   - "Bash(npx playwright*)"
   - "Bash(bunx playwright*)"
+  - "Bash(curl*)"
+  - Read
+  - Write
 ---
 
-# Web QA
+# Web QA — gated UI evidence
 
-Systematic QA using Playwright. Each run is isolated in a timestamped folder under `.artifacts/{{ stable_id }}/`. Results are viewable live in Ship Studio's Session page.
+You are not done with UI work until this skill has produced a fresh artifact for
+the surface you touched. Taking a screenshot and saying "looks fine" is not QA.
+Real QA exercises every declared interactive element, in every declared theme,
+captures the console and network for the whole run, and verifies that elements
+both exist in the DOM **and** render with non-zero box, non-hidden visibility,
+and >0 opacity.
+
+If you skip this skill, the gate will reject your branch.
 
 ## Setup
 
 ```bash
-QA_ROOT="$(git rev-parse --show-toplevel)/.artifacts/{{ stable_id }}"
+REPO="$(git rev-parse --show-toplevel)"
 QA_RUN="$(date -u +%Y-%m-%dT%H-%M)"
-QA_DIR="$QA_ROOT/$QA_RUN"
-mkdir -p "$QA_DIR/screenshots" "$QA_DIR/bugs"
+QA_SURFACE="${1:?surface name required, e.g. dev-panel/edit-mode/components-tab}"
+QA_DIR="$REPO/.artifacts/web-qa/$QA_SURFACE/$QA_RUN"
+mkdir -p "$QA_DIR/screenshots"
 
-# Discover playwright — check PATH, npx, then project node_modules
-if command -v playwright &>/dev/null; then
-  PW="playwright"
-elif npx --no-install playwright --version &>/dev/null 2>&1; then
-  PW="npx playwright"
-else
-  # Walk up from repo root looking for node_modules/.bin/playwright
-  _root="$(git rev-parse --show-toplevel)"
-  _found=""
-  for _candidate in "$_root"/node_modules/.bin/playwright "$_root"/apps/*/node_modules/.bin/playwright "$_root"/packages/*/node_modules/.bin/playwright; do
-    if [ -x "$_candidate" ]; then _found="$_candidate"; break; fi
-  done
-  if [ -n "$_found" ]; then
-    PW="$_found"
-  else
-    echo "Playwright not found. Install: npm install -D @playwright/test" >&2
-    exit 1
-  fi
-fi
-$PW --version
+# Resolve playwright-cli — see references/runtime.md for fallback walk
+if command -v playwright-cli &>/dev/null; then PW="playwright-cli"
+elif command -v bunx &>/dev/null; then PW="bunx playwright-cli"
+else PW="npx playwright-cli"; fi
+$PW --version >/dev/null || { echo "playwright-cli unavailable" >&2; exit 1; }
 ```
 
-Use `$PW` for all playwright commands and `$QA_DIR` for all paths. Never use relative paths — Playwright resolves them from its own working directory.
+Use `$PW` for every browser command and `$QA_DIR` for every path. Never use
+relative paths — playwright-cli resolves from its own working directory.
 
-## Workflow
+## Required upfront declaration
 
-### 1. Target
+Before touching the browser, write `$QA_DIR/plan.md` declaring:
 
-Ask for the URL. Default tier is `{{ tier }}`.
+1. **Surface name** — `dev-panel/edit-mode/components-tab`, `views/agents/list`, etc. Use slashes for hierarchy.
+2. **Inventory** — every interactive element on the surface (button, input, tab, link, drag handle, keyboard shortcut). One per row. Include declared aria-labels.
+3. **States** — every state the surface can be in (empty, loading, populated, error, hover, focused, disabled, overflow). One per row.
+4. **Theme matrix** — at minimum `ship-light`, `ship-dark`, `console`. Other registered themes: `paper`, `halo`, `contrast`, `glass` (see `packages/ui-components/src/tokens/themes.ts`). Add a theme to the matrix when the surface has theme-conditional CSS.
+5. **Viewport matrix** — at minimum `1280x720` (desktop) and `375x812` (mobile-narrow). Add others when the surface is responsive-specific.
 
-| Tier | Scope |
-|------|-------|
-| Quick | Critical + high only |
-| Standard | + medium |
-| Exhaustive | + cosmetic |
+If you cannot declare these without invention, you don't understand the surface
+well enough to QA it. Stop and re-read the source.
 
-### 2. Inventory
+## Per-element probe protocol
+
+For every element × every state × every theme:
 
 ```bash
-$PW open --browser={{ browser }} <url>
-$PW snapshot
+# 1. Set theme (project-specific — themes are toggled via localStorage)
+$PW localstorage-set ship-site-theme "$THEME"
+$PW reload
+
+# 2. Pre-press evidence
+$PW snapshot --filename="$QA_DIR/snap-$ELEMENT-$STATE-$THEME-before.yml"
+$PW screenshot --filename="$QA_DIR/screenshots/$ELEMENT-$STATE-$THEME-before.png"
+
+# 3. The press itself (one of: click, fill, press, hover, drag)
+$PW click "$REF"
+
+# 4. Post-press evidence
+$PW snapshot --filename="$QA_DIR/snap-$ELEMENT-$STATE-$THEME-after.yml"
+$PW screenshot --filename="$QA_DIR/screenshots/$ELEMENT-$STATE-$THEME-after.png"
+
+# 5. Visibility assertion — the failure mode I keep shipping past
+$PW --raw eval "(() => {
+  const el = $LOCATOR;
+  if (!el) return JSON.stringify({ok:false, reason:'not in DOM'});
+  const r = el.getBoundingClientRect();
+  const cs = getComputedStyle(el);
+  return JSON.stringify({
+    ok: r.width > 0 && r.height > 0 && cs.visibility !== 'hidden' && cs.display !== 'none' && parseFloat(cs.opacity) > 0,
+    rect: {w:r.width, h:r.height},
+    visibility: cs.visibility, display: cs.display, opacity: cs.opacity,
+  });
+})()"
+
+# 6. Console + network capture after each interaction
+$PW console --errors >> "$QA_DIR/console.log"
+$PW requests >> "$QA_DIR/network.log"
+
+# 7. Append one line to evidence.jsonl per probe
+jq -nc \
+  --arg element "$ELEMENT" --arg state "$STATE" --arg theme "$THEME" \
+  --arg pre "$QA_DIR/screenshots/$ELEMENT-$STATE-$THEME-before.png" \
+  --arg post "$QA_DIR/screenshots/$ELEMENT-$STATE-$THEME-after.png" \
+  --argjson visibility "$VISIBILITY_JSON" \
+  '{element:$element, state:$state, theme:$theme, pre:$pre, post:$post, visibility:$visibility, ts: now|todate}' \
+  >> "$QA_DIR/evidence.jsonl"
 ```
 
-Write inventory to `$QA_DIR/inventory.md`:
+**Element-rendered check (step 5) is the load-bearing one.** A `chipCount: 13`
+in shadow DOM means nothing if every chip has `display: none` from a CSS rule
+that doesn't reach into the slot. The visibility assertion catches this.
 
-```markdown
-# QA Inventory
-
-| Page | URL | Status | Issues |
-|------|-----|--------|--------|
-| Landing | / | pending | - |
-```
-
-### 3. Test each page
-
-Navigate, snapshot for element refs, screenshot, check diagnostics:
+## Console + network gates
 
 ```bash
-$PW goto <url>
-$PW snapshot
-$PW screenshot --filename="$QA_DIR/screenshots/<page-name>.png"
-$PW console
-$PW network
+# Any console error or warning fails the run unless explicitly waived in report.md
+$PW console >> "$QA_DIR/console.log"
+$PW console --errors > "$QA_DIR/console-errors.log"
+$PW console --warnings > "$QA_DIR/console-warnings.log"
+
+# Any non-2xx network response fails the run unless explicitly waived
+$PW requests > "$QA_DIR/network.log"
 ```
 
-Screenshot naming: `landing.png`, `settings-form-empty.png`. Descriptive, no numbers.
+**A waiver is a one-line entry in `report.md` under `## Waivers` with a reason.**
+Examples of legitimate waivers: third-party tracker pings, dev-mode HMR
+heartbeats. "Looks fine" is not a reason.
 
-Test interactions using refs from snapshot:
+## Theme matrix
+
+For each theme in the matrix:
 
 ```bash
-$PW fill e3 "user@test.com"
-$PW click e5
-$PW snapshot
-$PW screenshot --filename="$QA_DIR/screenshots/<page-name>-after.png"
+for THEME in ship-light ship-dark console; do
+  $PW localstorage-set ship-site-theme "$THEME"
+  $PW reload
+  # Confirm the switch took — silently-not-applied is a class of failure
+  APPLIED=$($PW --raw eval "document.documentElement.dataset.theme")
+  [ "$APPLIED" = "\"$THEME\"" ] || echo "WARN: theme did not apply: set=$THEME got=$APPLIED" >&2
+  $PW screenshot --filename="$QA_DIR/screenshots/_baseline-$THEME.png"
+  # ... full per-element protocol above ...
+done
 ```
 
-Per-page checks:
-- **Critical**: loads, primary action works, auth correct
-- **High**: forms validate, errors render, data loads
-- **Medium**: responsive, loading states, empty states
-- **Cosmetic**: spacing, contrast, typography
+The baseline screenshot is your eyeball check for theme-aware regressions
+(invisible-against-bg text, contrast loss, color-mix() unwinding wrong).
 
-### 4. File bugs
+## Viewport matrix
 
-Each bug: `$QA_DIR/bugs/<slug>.md`
+```bash
+for VP in "1280x720" "375x812"; do
+  $PW resize ${VP%x*} ${VP#*x}
+  $PW screenshot --filename="$QA_DIR/screenshots/_baseline-$VP.png"
+  # ... full protocol ...
+done
+```
+
+Capture overflow + truncation behavior at each width.
+
+## report.md format
+
+Every run ends with `$QA_DIR/report.md`:
 
 ```markdown
 ---
-severity: critical | high | medium | cosmetic
-page: /settings
-screenshot: screenshots/settings-broken-form.png
+surface: dev-panel/edit-mode/components-tab
+status: DONE | DONE_WITH_CONCERNS | BLOCKED | NEEDS_CONTEXT
+run: 2026-05-16T14-30
+elements_probed: 12
+themes_covered: ship-light, ship-dark, ship-console
+viewports_covered: 1280x720, 375x812
+console_errors: 0
+console_warnings: 1
+network_failures: 0
+health_score: 87
 ---
-
-# Form submit button unresponsive
-
-## Steps to reproduce
-1. Navigate to /settings
-2. Fill in any field
-3. Click Save
-
-## Expected
-Form submits and shows success message.
-
-## Actual
-Nothing happens. No console errors.
-```
-
-### 5. Write report
-
-`$QA_DIR/report.md`:
-
-```markdown
-# QA Report
-
-**URL**: http://localhost:3000
-**Run**: 2026-03-31T19-30
-**Tier**: Standard
-**Browser**: {{ browser }}
-**Pages tested**: 8
-**Issues found**: 5
 
 ## Summary
 
-| Severity | Count |
-|----------|-------|
-| Critical | 1 |
-| High | 2 |
-| Medium | 2 |
-| Cosmetic | 0 |
+<1-2 sentences: what surface, what tier, top finding.>
 
-## Top issues
+## Findings
 
-1. **[Critical]** Form submit unresponsive on /settings
-2. **[High]** Missing loading state on /dashboard
+For each failing probe:
+
+### F-001 — [severity] component does not render with non-zero box in ship-dark
+- **Element:** `<sui-button slot="action">` ref `e15`
+- **State:** populated
+- **Theme:** ship-dark
+- **Viewport:** 1280x720
+- **Visibility check:** `{ok: false, rect: {w:0, h:0}, display: 'flex'}`
+- **Evidence:** screenshots/e15-populated-ship-dark-after.png
+- **Reproduction:**
+  1. `playwright-cli goto http://localhost:3270/dev-panel`
+  2. `playwright-cli localstorage-set ship-site-theme ship-dark`
+  3. `playwright-cli reload`
+  4. `playwright-cli click e3` (open Components tab)
+  5. Observe: tab has slot content but content has zero size
+- **Suspected cause:** host stylesheet defines `.components-tab > *` but the
+  slotted children render inside `<sui-va-components>` shadow root, beyond
+  reach. Move the rule into the inner component's :host stylesheet.
+
+## Waivers
+
+<Empty by default. Every waiver is one line + reason.>
+
+## Health score
+
+| Category      | Weight | Score |
+|---------------|--------|-------|
+| Console clean | 15%    | 100   |
+| Network clean | 10%    | 100   |
+| Rendered      | 20%    | 75    |
+| Themed        | 20%    | 80    |
+| Responsive    | 10%    | 90    |
+| A11y          | 15%    | 70    |
+| Interactive   | 10%    | 100   |
+| **Total**     | 100%   | **87** |
 ```
 
-### 6. Close and update TODO
+A `health_score` ≥ 90 is shippable. 70–89 is `DONE_WITH_CONCERNS`. <70 is
+`BLOCKED`.
 
-```bash
-$PW close
-```
+## Completion status protocol
 
-Append to `$(git rev-parse --show-toplevel)/.artifacts/todo.md`:
+Every run ends with one of:
 
-```markdown
-- [ ] [Critical] Fix form submit on /settings — qa/{{ run_timestamp }}/bugs/form-submit.md
-```
+- **DONE** — every probe passed, score ≥ 90, console + network clean.
+- **DONE_WITH_CONCERNS** — passed but with caveats. List each concern as a
+  finding even if you couldn't fix it this turn.
+- **BLOCKED** — something prevents completion (daemon down, surface 404s,
+  required state unreachable). State the blocker + what you tried + what you
+  recommend.
+- **NEEDS_CONTEXT** — you don't know enough about the surface to declare its
+  inventory. State exactly what's missing.
 
-## Quality
+Lying — declaring DONE when there are unprobed elements or unaddressed
+findings — is a worse failure than honest `DONE_WITH_CONCERNS`.
 
-Every bug needs a screenshot. Use descriptive filenames — they appear in the Studio Session artifacts tab.
+## Gate contract
 
-## Auth
+When this skill writes a report with `status: DONE` or `DONE_WITH_CONCERNS`,
+the gate will accept the touched surface for that commit window. The mapping:
 
-```bash
-$PW state-save "$QA_DIR/auth.json"
-$PW state-load "$QA_DIR/auth.json"
-```
+- `apps/shell/**` → surface name starts with `chrome/` or `shell/`
+- `packages/ui-components/src/sui-*/**` → surface name starts with `components/<tag>/`
+- `views/<name>/**` → surface name starts with `views/<name>/`
+- `crates/sui/**` → surface name starts with `runtime/` or `compiler/`
 
-## Cross-browser
+The gate scans `.artifacts/web-qa/<surface>/<latest>/report.md`, checks the
+`run:` timestamp is newer than the latest commit touching the matched files,
+and parses `status:` + `console_errors:` + `network_failures:` from the
+frontmatter. Missing or stale artifact = gate FAIL.
 
-```bash
-$PW open --browser=firefox <url>
-```
+## Anti-patterns (do not do)
 
-Supported: `chromium`, `firefox`, `webkit`, `msedge`.
+- Taking one screenshot of one tab and committing
+- Probing only `ship-light`
+- Probing only one viewport
+- Asserting on DOM presence without checking computed styles
+- Calling `.click()` on an element you haven't snapshot-ref'd (drag/drop and
+  composed-event paths don't fire from synthetic `.click()` in shadow DOM)
+- Marking DONE when console has unwaived errors
+- Marking DONE when the score is < 90 without justifying every dropped point
 
-## Studio trace viewer
+## References
 
-```bash
-$PW tracing-start
-# ... run session ...
-$PW tracing-stop
-$PW show-trace <trace-file> --port 9323
-# Studio iframes http://localhost:9323
-```
+- `references/playwright-cli.md` — every playwright-cli verb worth knowing
+- `references/health-rubric.md` — full scoring math
+- `references/element-locators.md` — when to use ref vs selector vs role vs
+  testid, and how to find clickable divs the a11y tree misses

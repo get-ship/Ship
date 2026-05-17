@@ -251,10 +251,22 @@ export default controller<Scope>({
       s.bar.spawning.set(true)
       s.bar.spawnError.set(null)
       try {
-        const resp = await fetch('/api/v1/sessions', {
+        // The spawn API requires the active project's workspace_id —
+        // fetch it from /api/v1/projects/active. Posting against the
+        // canonical /api/v1/sessions/spawn endpoint (the bare
+        // /api/v1/sessions only supports GET) with kind=agent so the
+        // server routes the request through the agent supervisor.
+        const projResp = await fetch('/api/v1/projects/active', { credentials: 'same-origin' })
+        const projBody = projResp.ok ? await projResp.json() as { active?: { id?: string } | null } : null
+        const workspace_id = projBody?.active?.id
+        if (!workspace_id) {
+          s.bar.spawnError.set('No active project — cannot spawn session.')
+          return
+        }
+        const resp = await fetch('/api/v1/sessions/spawn', {
           method: 'POST', credentials: 'same-origin',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ agent_id: agent, provider }),
+          body: JSON.stringify({ workspace_id, kind: 'agent', agent_id: agent, provider }),
         })
         if (!resp.ok) {
           const err = await resp.json().catch(() => ({})) as { error?: string }

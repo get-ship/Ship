@@ -2,8 +2,8 @@ import { controller, effect, signal, ref, bindNativeEvent } from '@ship/sui-runt
 import type { Scope } from './sui-view-picker.sui'
 import {
   type ApiView, type Project,
-  fetchPins, fetchProject, fetchViews,
-  makeDrag, partition, savePins,
+  fetchPins, fetchProject, fetchProjects, fetchViews,
+  makeDrag, partition, savePins, switchProject,
 } from './data'
 import { renderBody } from './render'
 
@@ -30,6 +30,8 @@ export default controller<Scope>({
     const views = signal<ApiView[]>([])
     const pins = signal<string[]>([])
     const project = signal<Project | null>(null)
+    const projects = signal<Project[]>([])
+    const activeProjectId = signal<string | null>(null)
     const filter = signal('')
     const cursor = signal(0)
     const activeView = signal<string>(routeToViewName(location.pathname))
@@ -41,10 +43,31 @@ export default controller<Scope>({
     const sKey = (): string => scope.pinsKey()
 
     async function load(): Promise<void> {
-      const [p, pr, vs] = await Promise.all([
-        fetchPins(sUrl(), sKey()), fetchProject(scope.projectsUrl()), fetchViews(scope.viewsUrl()),
+      const [p, pr, vs, projList] = await Promise.all([
+        fetchPins(sUrl(), sKey()),
+        fetchProject(scope.projectsUrl()),
+        fetchViews(scope.viewsUrl()),
+        fetchProjects(scope.projectsUrl()),
       ])
-      pins.set(p); project.set(pr); views.set(vs); loaded = true
+      pins.set(p); project.set(pr); views.set(vs)
+      projects.set(projList.projects)
+      activeProjectId.set(projList.activeId)
+      loaded = true
+    }
+
+    async function onPickProject(id: string): Promise<void> {
+      // Optimistic: highlight + close. Refresh state on success.
+      const prev = activeProjectId()
+      activeProjectId.set(id)
+      scope.open.set(false)
+      const ok = await switchProject(id)
+      if (!ok) {
+        activeProjectId.set(prev)
+        return
+      }
+      host.emit!('sui:view-picker:project-changed', { id })
+      // Refresh the picker's own state on next open.
+      loaded = false
     }
 
     function part(): { pinned: ApiView[]; others: ApiView[] } {
@@ -83,9 +106,11 @@ export default controller<Scope>({
       const { pinned, others } = part()
       renderBody(bodyEl, {
         pinned, others, cursor: cursor(), pins: pins(), activeView: activeView(),
+        projects: projects(), activeProjectId: activeProjectId(),
         dragOverName: dragState.overName, dragOverZone: dragState.overZone,
         draggingName: dragState.name,
         onNavigate: navigate,
+        onPickProject: (id) => { void onPickProject(id) },
         onTogglePin: (e, name) => { e.stopPropagation(); void togglePin(name) },
         onDragStart: drag.onDragStart, onDragOverRow: drag.onDragOverRow,
         onDropRow: drag.onDropRow, onDragOverZone: drag.onDragOverZone,

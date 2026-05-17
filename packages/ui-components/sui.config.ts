@@ -24,13 +24,14 @@ const config: SuiBuildConfig = {
   // framework aggregate (`sui-components.js`) at the top of `assets/` stays
   // distinguishable.
   lazyOutSubdir: 'sui-components',
-  // Aggregate CEM lands next to the bundles in `outdir` so the crate that
-  // bakes it in (`crates/sui/ship-sui-server`, via `build.rs` +
-  // `src/assets.rs`) reads a fresh table. A post-fold typo pointed this at
-  // the untracked `crates/ship-sui/assets/`, which nothing consumes — the
-  // server CEM then went stale (missing every primitive added since).
-  aggregateCemTo: '../../crates/sui/ship-sui-server/assets/sui-custom-elements.json',
-  aggregateCemSources: ['src'],
+  // No `aggregateCemTo` here — the workspace-wide catalog is built by
+  // `@ship/sui-catalog` (CLI: `bun packages/sui-catalog/src/cli.ts`),
+  // which walks every workspace package and emits
+  // `.ship/sui-out/catalogs/{workspace,published}.json`. The per-component
+  // `*.custom-elements.json` files the compiler emits under `.ship/sui-out/`
+  // are the input. Per-pack aggregation (e.g. `@ship/charts`) still uses
+  // sui-build's `aggregateCemTo` because the daemon's pack-bundle handler
+  // exposes `/_sui/packs/<pack-id>/custom-elements.json`.
 }
 
 export default config

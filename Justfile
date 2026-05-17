@@ -16,9 +16,10 @@ default:
 # ── Daily ────────────────────────────────────────────────────────────────────
 
 # One-shot fresh-clone setup. Order matters: gen-types feeds the workspace,
-# ship-set icons feed @ship/set build, both bun builds populate the asset
-# trees that shipd's include_str! consumes, and dev-runtime-install copies
-# bun + sui-compiler + bundler.ts into ~/.ship/runtime/.
+# pack builds populate the asset trees that shipd's include_str! consumes,
+# sui-catalog walks the resulting CEMs into workspace+published catalogs,
+# and dev-runtime-install copies bun + sui-compiler + bundler.ts into
+# ~/.ship/runtime/.
 [group('daily')]
 bootstrap:
     #!/usr/bin/env bash
@@ -27,9 +28,11 @@ bootstrap:
     cargo run -p xtask --quiet -- gen-types
     cargo build -p ship-cli
     bun install
-    bun run --filter @ship/set icons
-    bun run --filter @ship/set build
+    bun run --filter @ship/primitives build
+    bun run --filter @ship/charts build
     bun run --filter @ship/ui-components build
+    bun run --filter @ship/sui-catalog build
+    bun packages/sui-catalog/src/cli.ts
     just dev-runtime-install
     echo "bootstrap complete — 'just dev' to start the daemon"
 
@@ -246,32 +249,33 @@ docs-regen:
 docs-check-drift:
     cd apps/docs && bun run docs:check-drift
 
-# Frontend dev server (Vite). Daemon must be running separately.
-[group('occasional')]
-shell-dev:
-    bun run --filter shell dev
-
-# One-shot production build: gen-types, ship-set + ui-components rebuilds,
-# cargo --release, then verify outputs. Equivalent to `ship build`.
+# One-shot production build: gen-types, every pack + ui-components rebuild,
+# catalog regeneration, cargo --release, then verify outputs. Equivalent to
+# `ship build`.
 [group('daily')]
 build:
     #!/usr/bin/env bash
     set -euo pipefail
     command -v bun >/dev/null || { echo "build: bun not on PATH" >&2; exit 1; }
-    echo "[1/6] gen-types"
+    echo "[1/8] gen-types"
     cargo run -p xtask --quiet -- gen-types
-    echo "[2/6] ship-set icons"
-    bun run --filter @ship/set icons
-    echo "[3/6] ship-set build (sui-build → apps/shipd/assets/)"
-    bun run --filter @ship/set build
-    echo "[4/6] ui-components build (sui-build → crates/sui/ship-sui-server/assets/)"
+    echo "[2/8] primitives build (@ship/primitives → packages/components/primitives/dist/)"
+    bun run --filter @ship/primitives build
+    echo "[3/8] charts build (@ship/charts → packages/components/charts/dist/)"
+    bun run --filter @ship/charts build
+    echo "[4/8] ui-components build (sui-build → crates/sui/ship-sui-server/assets/)"
     bun run --filter @ship/ui-components build
-    echo "[5/6] cargo build --release (ship-cli + shipd + mcp)"
+    echo "[5/8] view bundles + sui-* bundles (runtime-assets/bundler.ts --all)"
+    bun runtime-assets/bundler.ts --all
+    echo "[6/8] sui-catalog walk (→ .ship/sui-out/catalogs/{workspace,published}.json)"
+    bun run --filter @ship/sui-catalog build
+    bun packages/sui-catalog/src/cli.ts
+    echo "[7/8] cargo build --release (ship-cli + shipd + mcp)"
     cargo build --release -p ship-cli -p shipd -p mcp
-    echo "[6/6] verify outputs"
+    echo "[8/8] verify outputs"
     target_dir=$(cargo metadata --format-version 1 --no-deps --offline | grep -o '"target_directory":"[^"]*"' | cut -d'"' -f4)
     missing=0
-    for bin in ship shipd mcp; do
+    for bin in ship shipd; do
         if [ ! -x "$target_dir/release/$bin" ]; then
             echo "  ✗ $target_dir/release/$bin missing" >&2
             missing=1
@@ -279,7 +283,7 @@ build:
             echo "  ✓ $target_dir/release/$bin"
         fi
     done
-    for asset in crates/sui/ship-sui-server/assets/sui-runtime.js crates/sui/ship-sui-server/assets/sui-components.js apps/shipd/assets/ship-elements.js; do
+    for asset in crates/sui/ship-sui-server/assets/sui-runtime.js crates/sui/ship-sui-server/assets/sui-components.js packages/components/primitives/dist/sui-primitives.js packages/components/charts/dist/sui-charts.js .ship/sui-out/catalogs/workspace.json .ship/sui-out/catalogs/published.json; do
         if [ ! -s "$asset" ]; then
             echo "  ✗ $asset missing or empty" >&2
             missing=1
@@ -333,12 +337,12 @@ wasm:
 sui-wasm:
     wasm-pack build crates/sui/sui-compiler --target web --out-dir ../../../packages/sui-compiler-wasm --out-name sui_compiler -- --features wasm
 
-# Regenerate Specta types (Rust → packages/ship-set/src/generated.ts).
+# Regenerate Specta types (Rust → generated TS bindings).
 [group('occasional')]
 gen-types:
     cargo run -p xtask -- gen-types
 
-# Regenerate the Ship SDK manifest (→ packages/ship-set/sdk/*.json).
+# Regenerate the Ship SDK manifest.
 [group('occasional')]
 gen-sdk:
     cargo run -p xtask -- gen-sdk

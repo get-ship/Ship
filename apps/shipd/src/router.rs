@@ -146,10 +146,19 @@ pub fn build_router(
         // Restored after the phase2-substrate-split merge dropped the
         // wiring originally added in 30313c8f; without it every `/_sui/*`
         // request 404s and shell cannot boot.
-        .ship_route(
-            Route::AssetSuiCustomElementsManifest,
-            views::serve_sui_elements_manifest,
-        )
+        // Workspace catalog endpoints — replace the retired
+        // `/api/assets/sui-custom-elements.json` umbrella. Two
+        // projections (workspace = every component, published = only
+        // non-private packaged components) emitted by
+        // `bun packages/sui-catalog/src/cli.ts` to
+        // `.ship/sui-out/catalogs/{workspace,published}.json`.
+        .ship_route(Route::SuiCatalogWorkspace, ship_sui::serve_catalog_workspace)
+        .ship_route(Route::SuiCatalogPublished, ship_sui::serve_catalog_published)
+        // Generalized pack-bundle handler — serves
+        // `/_sui/packs/<pack-id>/<bundle>` for any workspace package
+        // with a `customElements` field in package.json. Index built
+        // lazily by walking the root workspaces glob.
+        .ship_route(Route::SuiPackAsset_template(), ship_sui::serve_pack_asset)
         .ship_route(Route::SuiRuntimeJs, ship_sui::serve_sui_runtime)
         .ship_route(Route::SuiDomJs, ship_sui::serve_sui_dom)
         .ship_route(Route::SuiSdkClientJs, ship_sui::serve_sui_sdk_client)
@@ -414,6 +423,7 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::ListViews, views::list_views)
         .ship_route(Route::ShipSchema, services::schema::serve_schema)
         .ship_route(Route::ServeViewSource_template(), views::source_api::serve_view_source)
+        .ship_route(Route::ListViewFiles_template(), views::files_api::list_view_files)
         .ship_route(Route::CreateSurface_template(), create_api::create_surface)
         .ship_route(Route::WriteViewTemplate_template(), views::write_api::write_view_template)
         .ship_route(Route::WriteViewManifestApi_template(), views::write_api::write_view_manifest)

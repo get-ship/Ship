@@ -39,7 +39,7 @@ impl EntitySearchAdapter for AgentsAdapter {
                     kind: EntityKind::Agent,
                     id: a.id.clone(),
                     label: a.name.clone().unwrap_or_else(|| a.id.clone()),
-                    path: format!("/agents?id={}", a.id),
+                    path: format!("/agents/{}", a.id),
                     icon: Some("bot".into()),
                     snippet: a.description.clone(),
                     score,

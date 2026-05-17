@@ -3,7 +3,7 @@
   Hover-highlight + click-to-annotate overlay for edit mode.
 
   Activation:
-    Watches body.edit-mode class (toggled externally by ⌘⇧E in the shell).
+    Watches body.edit-mode class (toggled externally by Alt+E in the shell).
     Mounts/unmounts pointermove + click listeners on #ship-view-root when active.
     Hover paints an outline box + selector label over the hovered element.
     Click dispatches sui:chat:annotate (renamed from ship:chat:annotate) on the
@@ -87,5 +87,5 @@
 <div class="label" part="label" bind:this={labelEl}></div>
 <div class="hint" part="hint">
   Edit mode — hover an element, click to annotate.
-  <kbd>⌘⇧E</kbd> to exit.
+  <kbd>Alt+E</kbd> to exit.
 </div>

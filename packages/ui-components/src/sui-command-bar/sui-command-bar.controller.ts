@@ -413,9 +413,12 @@ export default controller<Scope>({
     const onCreateOpen = () => { mode.set('create'); open.set(true) }
 
     window.addEventListener('ship:session:changed', onSessionChanged)
-    const shell = document.querySelector('ship-shell') ?? document.querySelector('sui-shell')
-    shell?.addEventListener('ship:bar:open', onBarOpen)
-    shell?.addEventListener('ship:create:open', onCreateOpen)
+    // Bar-open + create-open events: bubble on document since the
+    // legacy <ship-shell>/<sui-shell> host no longer exists in this
+    // shell. Listening on the document means anything in the page
+    // (corner edit pill, view-picker, etc.) reaches the cmdk.
+    document.addEventListener('ship:bar:open', onBarOpen)
+    document.addEventListener('ship:create:open', onCreateOpen)
 
     // Expose endSession + loadCurrentSession on the shared context
     // so palette/chat controllers can call them.
@@ -443,8 +446,8 @@ export default controller<Scope>({
       document.removeEventListener('keydown', onDocKeydown)
       host.removeEventListener('keydown', onPaletteKeydown)
       window.removeEventListener('ship:session:changed', onSessionChanged)
-      shell?.removeEventListener('ship:bar:open', onBarOpen)
-      shell?.removeEventListener('ship:create:open', onCreateOpen)
+      document.removeEventListener('ship:bar:open', onBarOpen)
+      document.removeEventListener('ship:create:open', onCreateOpen)
       if (dialogRef) dialogRef.removeEventListener('sui-close', onDialogClose)
       cancelSearch()
       stopStreamSync()

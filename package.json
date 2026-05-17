@@ -8,6 +8,7 @@
       "apps/site",
       "apps/gateway",
       "packages/*",
+      "packages/components/*",
       "apps/workers/*"
     ],
     "catalog": {

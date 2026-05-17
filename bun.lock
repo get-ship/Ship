@@ -75,6 +75,8 @@
       "name": "shell",
       "version": "0.0.0",
       "dependencies": {
+        "@ship/charts": "workspace:*",
+        "@ship/primitives": "workspace:*",
         "@ship/sdk": "workspace:*",
         "@ship/sdk-client": "workspace:*",
         "@ship/sui-runtime": "workspace:*",
@@ -134,6 +136,30 @@
       "name": "@ship/compiler",
       "version": "0.1.0",
     },
+    "packages/components/charts": {
+      "name": "@ship/charts",
+      "version": "0.1.0",
+      "dependencies": {
+        "@ship/sui-build": "workspace:*",
+        "@ship/sui-dom": "workspace:*",
+        "@ship/sui-runtime": "workspace:*",
+      },
+      "devDependencies": {
+        "vitest": "^4.1.5",
+      },
+    },
+    "packages/components/primitives": {
+      "name": "@ship/primitives",
+      "version": "0.1.0",
+      "dependencies": {
+        "@ship/sui-build": "workspace:*",
+        "@ship/sui-dom": "workspace:*",
+        "@ship/sui-runtime": "workspace:*",
+      },
+      "devDependencies": {
+        "vitest": "^4.1.5",
+      },
+    },
     "packages/sdk": {
       "name": "@ship/sdk",
       "version": "0.2.0",
@@ -170,6 +196,18 @@
       },
       "dependencies": {
         "chokidar": "^4.0.0",
+      },
+      "devDependencies": {
+        "@types/node": "^22.0.0",
+        "typescript": "~5.8.3",
+        "vitest": "^4.1.5",
+      },
+    },
+    "packages/sui-catalog": {
+      "name": "@ship/sui-catalog",
+      "version": "0.1.0",
+      "bin": {
+        "sui-catalog": "./bin/sui-catalog.mjs",
       },
       "devDependencies": {
         "@types/node": "^22.0.0",
@@ -277,6 +315,7 @@
         "@codemirror/state": "^6",
         "@codemirror/view": "^6",
         "@lezer/highlight": "^1",
+        "@ship/primitives": "workspace:*",
         "@ship/sui-build": "workspace:*",
         "@ship/sui-dom": "workspace:*",
         "@ship/sui-runtime": "workspace:*",
@@ -836,9 +875,13 @@
 
     "@ship/assets": ["@ship/assets@workspace:packages/assets"],
 
+    "@ship/charts": ["@ship/charts@workspace:packages/components/charts"],
+
     "@ship/compiler": ["@ship/compiler@workspace:packages/compiler"],
 
     "@ship/docs": ["@ship/docs@workspace:apps/docs"],
+
+    "@ship/primitives": ["@ship/primitives@workspace:packages/components/primitives"],
 
     "@ship/sdk": ["@ship/sdk@workspace:packages/sdk"],
 
@@ -847,6 +890,8 @@
     "@ship/site": ["@ship/site@workspace:apps/site"],
 
     "@ship/sui-build": ["@ship/sui-build@workspace:packages/sui-build"],
+
+    "@ship/sui-catalog": ["@ship/sui-catalog@workspace:packages/sui-catalog"],
 
     "@ship/sui-compiler-wasm": ["@ship/sui-compiler-wasm@workspace:packages/sui-compiler-wasm"],
 

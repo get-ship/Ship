@@ -1,111 +1,82 @@
 //! SUI component catalog exposed as `ship://components` MCP resources.
 //!
-//! The aggregated Custom Elements Manifest (CEM) is built by `bun run
-//! --filter @ship/ui-components build` (sui-build's `aggregateCemTo`) from
-//! `packages/ui-components/src/<tag>/<tag>.custom-elements.json` and
-//! written to `crates/sui/ship-sui-server/assets/sui-custom-elements.json`.
-//! Both the daemon's HTTP endpoint and the MCP resource read from that same
-//! compile-time embedded string so the two contracts can never drift.
+//! Reads `.ship/sui-out/catalogs/workspace.json` (emitted by
+//! `@ship/sui-catalog`) at runtime. Replaces the build-time
+//! `include_str!("…/sui-custom-elements.json")` cut-over that pinned the
+//! MCP server to a stale aggregate baked at the last `cargo build`.
+//!
+//! Two reads happen per request: full catalog + per-tag filter. The
+//! workspace.json file is small (≪ 1 MB even for a large monorepo) and
+//! gets cached at the filesystem layer by the OS, so re-parsing on each
+//! call keeps the implementation simple. Switch to a OnceLock cache if
+//! ever called on a hot path.
 
-use serde_json::Value;
+use serde_json::{Value, json};
+use std::path::{Path, PathBuf};
 
-const SUI_ELEMENTS_MANIFEST: &str =
-    include_str!("../../../crates/sui/ship-sui-server/assets/sui-custom-elements.json");
+const CATALOG_REL: &str = ".ship/sui-out/catalogs/workspace.json";
 
-pub fn full_catalog() -> &'static str {
-    SUI_ELEMENTS_MANIFEST
+fn repo_root() -> PathBuf {
+    // apps/mcp lives at apps/mcp. Repo root is two parents up from
+    // CARGO_MANIFEST_DIR. Distinct from ship-sui-server's three-level
+    // walk-up (it's nested under crates/sui/).
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .and_then(|p| p.parent())
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from("."))
 }
 
-/// Return a CEM containing only modules that declare `tag`. `None` if the
-/// tag is unknown. The returned JSON keeps the top-level CEM shape so
-/// clients can use one parser for both the full and sliced catalogs.
+fn read_workspace_catalog() -> Option<Value> {
+    let path = repo_root().join(CATALOG_REL);
+    let raw = std::fs::read_to_string(&path).ok()?;
+    serde_json::from_str::<Value>(&raw).ok()
+}
+
+/// Return the workspace catalog as a JSON string. Falls back to an empty
+/// document when the on-disk catalog is missing (fresh clone with no
+/// build artefacts) so callers can still parse the response.
+pub fn full_catalog() -> String {
+    let catalog =
+        read_workspace_catalog().unwrap_or_else(|| json!({"schemaVersion": "1", "count": 0, "entries": []}));
+    serde_json::to_string(&catalog).unwrap_or_else(|_| "{}".to_string())
+}
+
+/// Return a single-entry catalog for `tag`, or `None` if the tag is
+/// unknown. Output keeps the top-level catalog shape (schemaVersion +
+/// count + entries) so consumers can use one parser for both projections.
 pub fn component_catalog(tag: &str) -> Option<String> {
-    let mut catalog: Value = serde_json::from_str(SUI_ELEMENTS_MANIFEST).ok()?;
-    let modules = catalog.get_mut("modules")?.as_array_mut()?;
-    let filtered: Vec<Value> = modules
+    let catalog = read_workspace_catalog()?;
+    let entries = catalog.get("entries")?.as_array()?;
+    let matched: Vec<Value> = entries
         .iter()
-        .filter(|m| module_declares_tag(m, tag))
+        .filter(|e| e.get("tagName").and_then(Value::as_str) == Some(tag))
         .cloned()
         .collect();
-    if filtered.is_empty() {
+    if matched.is_empty() {
         return None;
     }
-    *modules = filtered;
-    serde_json::to_string(&catalog).ok()
-}
-
-fn module_declares_tag(module: &Value, tag: &str) -> bool {
-    let Some(decls) = module.get("declarations").and_then(Value::as_array) else {
-        return false;
-    };
-    decls
-        .iter()
-        .any(|d| d.get("tagName").and_then(Value::as_str) == Some(tag))
+    let out = json!({
+        "schemaVersion": catalog.get("schemaVersion").cloned().unwrap_or_else(|| json!("1")),
+        "count": matched.len(),
+        "entries": matched,
+    });
+    serde_json::to_string(&out).ok()
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    fn sample_catalog() -> String {
-        serde_json::json!({
-            "schemaVersion": "1.0.0",
-            "readme": "",
-            "modules": [
-                {
-                    "kind": "javascript-module",
-                    "path": "sui-button.js",
-                    "declarations": [
-                        { "kind": "class", "name": "SuiButton", "tagName": "sui-button" }
-                    ]
-                },
-                {
-                    "kind": "javascript-module",
-                    "path": "sui-card.js",
-                    "declarations": [
-                        { "kind": "class", "name": "SuiCard", "tagName": "sui-card" }
-                    ]
-                }
-            ]
-        })
-        .to_string()
-    }
-
-    fn slice(catalog_json: &str, tag: &str) -> Option<String> {
-        let mut catalog: Value = serde_json::from_str(catalog_json).ok()?;
-        let modules = catalog.get_mut("modules")?.as_array_mut()?;
-        let filtered: Vec<Value> = modules
-            .iter()
-            .filter(|m| module_declares_tag(m, tag))
-            .cloned()
-            .collect();
-        if filtered.is_empty() {
-            return None;
-        }
-        *modules = filtered;
-        serde_json::to_string(&catalog).ok()
+    #[test]
+    fn full_catalog_returns_parseable_json() {
+        let s = full_catalog();
+        let v: Value = serde_json::from_str(&s).expect("must parse");
+        assert!(v.get("entries").and_then(Value::as_array).is_some());
     }
 
     #[test]
-    fn slice_known_tag_returns_only_that_module() {
-        let out = slice(&sample_catalog(), "sui-button").unwrap();
-        let parsed: Value = serde_json::from_str(&out).unwrap();
-        let modules = parsed["modules"].as_array().unwrap();
-        assert_eq!(modules.len(), 1);
-        assert_eq!(
-            modules[0]["declarations"][0]["tagName"].as_str(),
-            Some("sui-button"),
-        );
-    }
-
-    #[test]
-    fn slice_unknown_tag_returns_none() {
-        assert!(slice(&sample_catalog(), "sui-missing").is_none());
-    }
-
-    #[test]
-    fn full_catalog_is_valid_json() {
-        let parsed: Result<Value, _> = serde_json::from_str(full_catalog());
-        assert!(parsed.is_ok(), "embedded catalog must parse as JSON");
+    fn component_catalog_unknown_tag_returns_none() {
+        assert!(component_catalog("sui-definitely-not-real-zzz").is_none());
     }
 }

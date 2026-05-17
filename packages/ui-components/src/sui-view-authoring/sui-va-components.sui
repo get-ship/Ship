@@ -1,39 +1,87 @@
 <bundle separate />
 <!--
   <sui-va-components> — Components tab in the view-authoring dev panel.
-  Two sections:
-    1. In-this-view  — components parsed out of the current view's source
-                       (rendered with a tiny live preview tile).
-    2. Add-a-component — embeds <sui-component-picker mode="inline">.
-                         Picks fire `chrome.bar.open('ai', prefill: …)`
-                         to send the request to the active agent.
+
+  Side-by-side layout: in-view chip list on the LEFT (260px), picker on
+  the RIGHT (rest). Replaces the prior vertically-stacked layout that
+  collapsed each section to a strip + caused the picker to fight for
+  vertical space with the dev panel's already-short body.
+
+  Wrap inside a `.row` to neutralize the dock's
+  `slot[data-active]::slotted(*) { display: flex; flex-direction: column }`
+  rule (same pattern as sui-devtools-source).
 -->
 
 <prop name="view" type="string" default="" reflect />
 
 <style>
-  :host { display: block; height: 100%; overflow: auto; }
+  :host {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+  }
   :host([hidden]) { display: none; }
-  .wrap { display: flex; flex-direction: column; gap: 14px; padding: 12px; }
-  h3 {
-    font-size: 11px;
+
+  .row {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: row;
+  }
+
+  .col-left {
+    flex: 0 0 260px;
+    min-width: 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid var(--border);
+    background: var(--sidebar, var(--card));
+  }
+  .col-right {
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .col-head {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px var(--space-3, 12px);
+    border-bottom: 1px solid var(--border);
+    color: var(--muted-foreground);
+    font-size: var(--text-xs);
     text-transform: uppercase;
     letter-spacing: 0.06em;
-    margin: 0 0 6px 0;
-    color: var(--muted-foreground);
     font-weight: var(--font-weight-medium, 500);
+    flex-shrink: 0;
   }
+  .col-head .count {
+    margin-left: auto;
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+  }
+
   .in-view {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-    gap: 8px;
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    padding: 6px 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
   }
   .chip {
     appearance: none;
     background: var(--background);
     border: 1px solid var(--border);
-    border-radius: var(--radius-md);
-    padding: 6px 8px;
+    border-radius: var(--radius-sm, 4px);
+    padding: 4px 8px;
     display: flex;
     align-items: center;
     gap: 6px;
@@ -43,9 +91,7 @@
     color: var(--foreground);
     text-align: left;
   }
-  .chip:hover {
-    border-color: color-mix(in oklab, var(--primary) 60%, var(--border));
-  }
+  .chip:hover { border-color: color-mix(in oklab, var(--primary) 60%, var(--border)); }
   .chip[data-active="true"] {
     background: color-mix(in oklab, var(--primary) 14%, var(--background));
     border-color: var(--primary);
@@ -54,6 +100,9 @@
     font-family: var(--font-mono);
     color: var(--primary);
     flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .chip .count {
     font-family: var(--font-mono);
@@ -67,23 +116,27 @@
   .empty {
     font-size: 11px;
     color: var(--muted-foreground);
-    padding: 8px;
-    border: 1px dashed var(--border);
-    border-radius: var(--radius-md);
+    padding: 12px;
     text-align: center;
   }
+
   .picker-host {
-    height: 320px;
+    flex: 1;
+    min-height: 0;
     display: flex;
   }
-  sui-component-picker { flex: 1; }
+  sui-component-picker { flex: 1; min-height: 0; }
 </style>
 
-<div class="wrap">
-  <section>
-    <h3>In this view</h3>
+<div class="row">
+  <aside class="col-left" part="in-view">
+    <div class="col-head">
+      <sui-icon name="package" size="sm"></sui-icon>
+      <span>In this view</span>
+      <span class="count">{inView().length}</span>
+    </div>
     {#if inView().length === 0}
-      <div class="empty">No SUI components detected. Open Source and add one, or pick from below.</div>
+      <div class="empty">No SUI components detected.<br/>Pick one from the catalog →</div>
     {:else}
       <div class="in-view">
         {#for entry of inView() key={entry.tag}}
@@ -93,16 +146,19 @@
             data-tag={entry.tag}
             data-active={highlighted() === entry.tag ? 'true' : 'false'}
             on:click={() => onChipClick(entry.tag)}>
-            <sui-icon name="package" size="sm"></sui-icon>
             <span class="tag">&lt;{entry.tag}&gt;</span>
             <span class="count">{entry.count}</span>
           </button>
         {/for}
       </div>
     {/if}
-  </section>
-  <section>
-    <h3>Add a component</h3>
+  </aside>
+
+  <section class="col-right" part="catalog">
+    <div class="col-head">
+      <sui-icon name="search" size="sm"></sui-icon>
+      <span>Add a component</span>
+    </div>
     <div class="picker-host">
       <sui-component-picker
         mode="inline"

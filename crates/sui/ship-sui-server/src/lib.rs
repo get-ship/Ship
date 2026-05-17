@@ -2,6 +2,7 @@ pub mod assets;
 pub mod bundle;
 pub mod meta;
 pub mod mode_html;
+pub mod packs;
 pub mod render_helpers;
 pub mod resolver;
 pub mod view;
@@ -28,6 +29,7 @@ pub use assets::{
     serve_sui_components, serve_sui_dom, serve_sui_island, serve_sui_lucide_icons,
     serve_sui_runtime, serve_sui_sdk_client,
 };
+pub use packs::{serve_catalog_published, serve_catalog_workspace, serve_pack_asset};
 pub use meta::{serve_meta, DaemonBuildInfo};
 pub use mode_html::{inject_mode_meta, mode_str};
 pub use view::{

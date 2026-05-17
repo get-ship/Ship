@@ -6,8 +6,11 @@ Active impl skills bundled with this project. Each one is a single
 context when its trigger matches.
 
 For doc skills (the `docs/ship-*/` tree), see `.ship/skills/writing-docs/`.
-For archived skills covering legacy stacks that still ship in the
-project, see `_archive/README.md`.
+
+Publish-ready, generic-purpose skills live in the top-level `skills/`
+directory (collection-authoring, ship-canvas, tdd, trigger-authoring,
+**web-qa**) — those load when their trigger fires regardless of which
+project the agent runs in.
 
 ## Authoring contract
 
@@ -34,7 +37,7 @@ gated.
 | [`spawn-agent`](spawn-agent/SKILL.md) | Dispatch a job to a specialist agent in a git worktree — write spec, create worktree, launch agent. |
 | [`configure-agent`](configure-agent/SKILL.md) | Pick the agent profile, permission preset, scope, and worktree path when standing up a workspace. |
 | [`setup-workspace`](setup-workspace/SKILL.md) | Configure a multi-agent terminal pod from `.artifacts/pod.md` — one tab per agent in its worktree. |
-| [`gate`](gate/SKILL.md) | Review a completed job branch against acceptance criteria — pass/fail with evidence. |
+| [`gate`](gate/SKILL.md) | Review a completed job branch against acceptance criteria — pass/fail with evidence. Now blocks on missing `web-qa` artifacts for any branch touching UI surfaces. |
 
 ## Review
 
@@ -42,6 +45,7 @@ gated.
 | --- | --- |
 | [`code-review`](code-review/SKILL.md) | Structured review for PRs and branch diffs — security, correctness, test coverage, architecture drift. |
 | [`diff-review`](diff-review/SKILL.md) | Render a git diff or PR as an interactive review surface in Ship Studio's session canvas. |
+| [`web-qa`](../../skills/web-qa/SKILL.md) | **Gate-required** for UI work. Every interactive element pressed, multi-theme + multi-viewport, console + network captured, visibility asserted (not just DOM-presence). Output to `.artifacts/web-qa/<surface>/<timestamp>/`. Lives in the publish-ready `skills/` tree; loaded by commander, web-lane, ship-designer, gatekeeper. |
 
 ## Workflow
 
@@ -58,17 +62,5 @@ session canvas via a `.url` artifact.
 | --- | --- |
 | [`drizzle-studio`](drizzle-studio/SKILL.md) | Browse, query, and edit the database visually via Drizzle Studio. |
 | [`mcp-inspector`](mcp-inspector/SKILL.md) | Debug MCP servers — launch the Inspector UI, connect to any server, watch SSE notifications. |
-| [`storybook`](storybook/SKILL.md) | Develop or review UI components in isolation. |
 | [`vite-inspect`](vite-inspect/SKILL.md) | Inspect the Vite bundle — plugins, module graph, transform chains, build performance. |
 | [`vitest-ui`](vitest-ui/SKILL.md) | Run, filter, and watch tests visually via Vitest's interactive runner. |
-
-## Archived
-
-`.ship/skills/_archive/` holds skills covering legacy stacks that
-still ship in the project but should not be loaded by default. See
-`_archive/README.md` for the table and migration pointers.
-
-- `ship-components-lit` — Lit `<ship-*>` web components. Superseded by
-  `ship-components` (`<sui-*>` SUI components).
-- `ship-views-j2` — Jinja `.html.j2` views. Superseded by `ship-views`
-  (`.sui` views with paired controller).

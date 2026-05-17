@@ -7,10 +7,12 @@
 //! rebuilding when that's empty). All assets are produced by a single
 //! command: `bun runtime-assets/bundler.ts --all` (which fans out to
 //! sui-runtime, sui-dom, sui-sdk-client, sui-components + per-tag
-//! islands, views/*/view.js, sui-custom-elements.json, and the lucide
-//! icon registry). The in-daemon Bun worker at `~/.ship/runtime/
-//! bundler.ts` refreshes the same set on demand while shipd runs in
-//! dev mode.
+//! islands, views/*/view.js, and the lucide icon registry). The
+//! aggregated CEM was retired in favour of `@ship/sui-catalog`, which
+//! emits `.ship/sui-out/catalogs/{workspace,published}.json` and is
+//! read at runtime by `src/packs.rs`. The in-daemon Bun worker at
+//! `~/.ship/runtime/bundler.ts` refreshes the same set on demand
+//! while shipd runs in dev mode.
 //!
 //! What this build script DOES is verify the assets are populated.
 //! Pre-existing failure mode: `cargo build` on a fresh clone wrote
@@ -41,8 +43,6 @@ const ASSETS: &[&str] = &[
     "lucide-icons.json",
 ];
 
-const CUSTOM_ELEMENTS_JSON: &str = "sui-custom-elements.json";
-
 const COARSE_SOURCE_ROOTS: &[&str] = &[
     "packages/sui-runtime/src",
     "packages/sui-dom/src",
@@ -68,15 +68,6 @@ fn main() {
         .unwrap_or_else(|e| panic!("build.rs: mkdir sui-components: {e}"));
     fs::create_dir_all(assets.join("views"))
         .unwrap_or_else(|e| panic!("build.rs: mkdir views: {e}"));
-
-    // sui-custom-elements.json: empty-object is a valid CEM document
-    // and a fine bootstrap value. include_str! always reads parseable
-    // JSON; the bundler overwrites it with the real table.
-    let cem_path = assets.join(CUSTOM_ELEMENTS_JSON);
-    if !cem_path.exists() || file_is_empty(&cem_path) {
-        fs::write(&cem_path, "{}")
-            .unwrap_or_else(|e| panic!("build.rs: write {cem_path:?}: {e}"));
-    }
 
     // Verify every required asset exists and is non-empty.
     let mut missing: Vec<&str> = Vec::new();
@@ -111,7 +102,6 @@ fn main() {
     for rel in ASSETS {
         println!("cargo:rerun-if-changed=assets/{rel}");
     }
-    println!("cargo:rerun-if-changed=assets/{CUSTOM_ELEMENTS_JSON}");
 
     let cache_dir = repo_root.join("apps/shipd/assets/.cache");
     if cache_dir.exists()

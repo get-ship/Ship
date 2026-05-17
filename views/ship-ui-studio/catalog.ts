@@ -20,32 +20,6 @@ export interface PropEntry {
   values?: string[]
 }
 
-// Tags that are owned by chrome / island bundles loaded only when needed
-// (devtools panes, command-bar slots, panel-dock children) and that
-// don't render in isolation in the studio. Keep them out of the
-// catalog so the studio doesn't try to instantiate them with a stub
-// host element that has no slot / shared context.
-const STUDIO_HIDE_TAGS = new Set<string>([
-  'sui-command-bar',
-  'sui-command-palette',
-  'sui-command-chat',
-  'sui-launcher',
-  'sui-panel-dock',
-  'sui-panel-dock-tab',
-  'sui-nav-top',
-  'sui-rail',
-  'sui-rail-item',
-  'sui-rail-section',
-  'sui-status-bar',
-  'sui-toast',
-  'sui-toast-container',
-  'sui-terminal',
-  'sui-devtools-source',
-  'sui-devtools-signals',
-  'sui-devtools-schema',
-  'sui-devtools-components',
-])
-
 // Baked SUI views not surfaced by /api/v1/views. The endpoint currently
 // reports every view as `type: "html"`, so the kind=='sui' filter in
 // loadDaemonViews() yields zero entries — these baked ids keep the
@@ -122,12 +96,12 @@ async function loadLitComponents(): Promise<CatalogEntry[]> {
 }
 
 async function loadSuiComponents(): Promise<CatalogEntry[]> {
-  // Source of truth: the daemon's aggregated SUI CEM. Every
-  // component with a `<prop>` declaration shows up here. Filter
-  // out chrome / island tags that don't render standalone.
+  // Source of truth: the published catalog from @ship/sui-catalog. These
+  // are components shipped from real packs (charts, primitives, …) — the
+  // catalog already excludes shell-local chrome and view-local components,
+  // so no per-tag hide list is needed.
   const propsByTag = await loadSuiPropMap()
   return Object.keys(propsByTag)
-    .filter(tag => !STUDIO_HIDE_TAGS.has(tag))
     .sort()
     .map(tag => ({
       id: tag,
@@ -137,27 +111,36 @@ async function loadSuiComponents(): Promise<CatalogEntry[]> {
     }))
 }
 
-// Fetch the daemon's aggregated SUI CEM and project it down to the prop
-// shape the studio's prop panel renders. Empty map on any error so the
-// catalog still renders even if the endpoint is unreachable.
+// Fetch the daemon's workspace catalog (emitted by @ship/sui-catalog)
+// and project it down to the prop shape the studio's prop panel
+// renders. Empty map on any error so the catalog still renders even
+// if the endpoint is unreachable.
+interface CatalogEntryWire {
+  tagName: string
+  attributes?: Array<{
+    name: string
+    type?: { text?: string }
+    default?: string
+    description?: string
+    values?: unknown
+  }>
+}
 async function loadSuiPropMap(): Promise<Record<string, PropEntry[]>> {
   try {
-    const res = await fetch('/api/assets/sui-custom-elements.json', { credentials: 'same-origin' })
+    const res = await fetch('/api/sui/catalog/published', { credentials: 'same-origin' })
     if (!res.ok) return {}
-    const cem = await res.json() as CemRoot
+    const doc = await res.json() as { entries?: CatalogEntryWire[] }
     const out: Record<string, PropEntry[]> = {}
-    for (const mod of cem.modules ?? []) {
-      for (const decl of mod.declarations ?? []) {
-        if (decl.kind !== 'class' || !decl.tagName) continue
-        const attrs = decl.attributes ?? []
-        out[decl.tagName] = attrs.map(a => ({
-          name: a.name,
-          type: a.type?.text ?? 'string',
-          default: a.default,
-          description: a.description,
-          values: Array.isArray(a.values) ? a.values : undefined,
-        }))
-      }
+    for (const e of doc.entries ?? []) {
+      if (!e.tagName) continue
+      const attrs = e.attributes ?? []
+      out[e.tagName] = attrs.map(a => ({
+        name: a.name,
+        type: a.type?.text ?? 'string',
+        default: a.default,
+        description: a.description,
+        values: Array.isArray(a.values) ? a.values as string[] : undefined,
+      }))
     }
     return out
   } catch {
