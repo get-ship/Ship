@@ -36,6 +36,11 @@ const STEPS = [
   '14-class-style',
   '15-onmount-oncleanup',
   '16-effect-cleanup',
+  '17-selector',
+  '18-untrack-batch',
+  '19-template-hooks',
+  '20-controller-hooks',
+  '21-forms',
 ] as const
 
 // Disable animations + caret blink so diffs stay deterministic.

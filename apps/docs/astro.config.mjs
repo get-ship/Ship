@@ -189,6 +189,9 @@ function buildTopics(isInternal) {
           { label: "12 · Slots", link: "/tutorial/12-slots/" },
           { label: "13 · Refs (bind:this)", link: "/tutorial/13-refs/" },
           { label: "14 · class: / style:", link: "/tutorial/14-class-style/" },
+          { label: "19 · Template hooks", link: "/tutorial/19-template-hooks/" },
+          { label: "20 · Controller hooks", link: "/tutorial/20-controller-hooks/" },
+          { label: "21 · Forms", link: "/tutorial/21-forms/" },
         ],
       },
       {
@@ -196,6 +199,13 @@ function buildTopics(isInternal) {
         items: [
           { label: "15 · onMount / onCleanup", link: "/tutorial/15-onmount-oncleanup/" },
           { label: "16 · Effect cleanup", link: "/tutorial/16-effect-cleanup/" },
+        ],
+      },
+      {
+        label: "Reactivity (advanced)",
+        items: [
+          { label: "17 · selector", link: "/tutorial/17-selector/" },
+          { label: "18 · untrack / batch", link: "/tutorial/18-untrack-batch/" },
         ],
       },
     ],

@@ -1,0 +1,19 @@
+<prop name="shadow" type="bool" default="false" />
+
+<div class="catalog">
+  <input bind:value={list.query} placeholder="filter agents…" />
+
+  <ul>
+    {#for item of list.filtered() key={item.id}}
+      <li
+        class:selected={sel.isSelected(item.id)}
+        on:click={() => sel.toggle(item.id)}
+      >
+        <strong>{item.label}</strong>
+        <span style="margin-left: auto; font-family: var(--font-mono); font-size: 0.75rem;">{item.id}</span>
+      </li>
+    {/for}
+  </ul>
+
+  <p class="hint">selected: <strong>{sel.count()}</strong> · showing <strong>{list.filtered().length}</strong> / <strong>{items().length}</strong></p>
+</div>

@@ -5,7 +5,7 @@ group: "Tutorial"
 order: 16
 slug: "16-effect-cleanup"
 prev: "15-onmount-oncleanup"
-next: null
+next: "17-selector"
 chapter: "lifecycle"
 ---
 
