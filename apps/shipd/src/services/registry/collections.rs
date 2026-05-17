@@ -50,6 +50,81 @@ fn is_builtin(id: &str) -> bool {
         .any(|s| s.id == id)
 }
 
+struct CollectionSummary {
+    item_count: usize,
+    status_field: Option<String>,
+    status_values: Vec<String>,
+    status_counts: serde_json::Map<String, Value>,
+    last_activity: Option<String>,
+}
+
+/// Per-collection aggregate used by `collections.list`. Reads up to 500 rows;
+/// keeps the index responsive while still giving accurate counts for the
+/// typical project. The status summary attaches when the schema declares a
+/// field literally named `status` of type `enum`.
+fn collection_summary(
+    data: Option<&mut ship_substrate::data::DataService>,
+    schema: &ship_platform::collections::schema::CollectionSchema,
+) -> CollectionSummary {
+    let status_field = schema.fields.get("status").and_then(|f| {
+        matches!(f.field_type, ship_platform::collections::schema::FieldType::Enum)
+            .then(|| "status".to_string())
+    });
+    let status_values: Vec<String> = schema
+        .fields
+        .get("status")
+        .and_then(|f| f.values.clone())
+        .unwrap_or_default();
+    let Some(svc) = data else {
+        return CollectionSummary {
+            item_count: 0,
+            status_field,
+            status_values,
+            status_counts: serde_json::Map::new(),
+            last_activity: None,
+        };
+    };
+    if ship_platform::collections::store::ensure_collection_table(svc, schema).is_err() {
+        return CollectionSummary {
+            item_count: 0,
+            status_field,
+            status_values,
+            status_counts: serde_json::Map::new(),
+            last_activity: None,
+        };
+    }
+    let req = ship_platform::collections::query::QueryRequest {
+        collection: schema.id.clone(),
+        filter: Default::default(),
+        sort: Default::default(),
+        limit: 500,
+        offset: 0,
+    };
+    let rows = ship_platform::collections::store::query_items(svc, schema, &req).unwrap_or_default();
+    let mut counts: serde_json::Map<String, Value> = serde_json::Map::new();
+    for v in &status_values { counts.insert(v.clone(), json!(0)); }
+    let mut last: Option<String> = None;
+    for item in &rows {
+        if status_field.is_some() {
+            if let Some(s) = item.data.get("status").and_then(|v| v.as_str()) {
+                let key = s.to_string();
+                let next = counts.get(&key).and_then(|v| v.as_u64()).unwrap_or(0) + 1;
+                counts.insert(key, json!(next));
+            }
+        }
+        if !item.updated_at.is_empty() && last.as_ref().is_none_or(|p| item.updated_at > *p) {
+            last = Some(item.updated_at.clone());
+        }
+    }
+    CollectionSummary {
+        item_count: rows.len(),
+        status_field,
+        status_values,
+        status_counts: counts,
+        last_activity: last,
+    }
+}
+
 pub(super) fn try_dispatch(
     name: &str,
     args: &Value,
@@ -59,13 +134,22 @@ pub(super) fn try_dispatch(
     let value: Result<Value, RegistryError> = match name {
         "collections.list" => {
             let schemas = load_schemas(state);
-            let items: Vec<_> = schemas.iter().map(|s| json!({
-                "id": s.id,
-                "name": s.name,
-                "field_count": s.fields.len(),
-                "fields": fields_records(s),
-                "builtin": is_builtin(&s.id),
-            })).collect();
+            let mut svc = ship_platform::collections::store::open_data_db(state.ship_dir()).ok();
+            let items: Vec<_> = schemas.iter().map(|s| {
+                let summary = collection_summary(svc.as_mut(), s);
+                json!({
+                    "id": s.id,
+                    "name": s.name,
+                    "field_count": s.fields.len(),
+                    "fields": fields_records(s),
+                    "builtin": is_builtin(&s.id),
+                    "item_count": summary.item_count,
+                    "status_field": summary.status_field,
+                    "status_values": summary.status_values,
+                    "status_counts": summary.status_counts,
+                    "last_activity": summary.last_activity,
+                })
+            }).collect();
             Ok(json!({ "items": items }))
         }
         "collections.detail" => {
