@@ -73,11 +73,11 @@ fn events_have_timestamps() {
 // ═══════════════════════════════════════════════════════════════════════════
 // PROJECTION COMPLETENESS
 //
-// Every field on JobRecord must be derivable from events alone.
+// Every field on PipelineRun must be derivable from events alone.
 // No field should require in-memory state or external lookups.
 // ═══════════════════════════════════════════════════════════════════════════
 
-/// All JobRecord fields are populated from events.
+/// All PipelineRun fields are populated from events.
 #[test]
 fn projection_populates_all_fields_from_events() {
     let events = vec![

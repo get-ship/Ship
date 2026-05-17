@@ -1,7 +1,7 @@
 //! `pipelines.history(limit?, offset?, q?, pipeline?)` — paginated
 //! history rows for the dedicated history view.
 
-use ship_platform::projections::job::JobRecord;
+use ship_platform::projections::job::PipelineRun;
 use serde::Serialize;
 use std::collections::BTreeSet;
 use std::path::Path;
@@ -55,7 +55,7 @@ pub fn build(
 
     let q_str = q.clone().unwrap_or_default();
     let q_lower = q_str.to_lowercase();
-    let filtered: Vec<JobRecord> = history_all
+    let filtered: Vec<PipelineRun> = history_all
         .into_iter()
         .filter(|j| {
             if q_lower.is_empty() {
@@ -70,7 +70,7 @@ pub fn build(
     let total = filtered.len();
 
     let offset = offset.min(total);
-    let window: Vec<JobRecord> = filtered.into_iter().skip(offset).take(limit).collect();
+    let window: Vec<PipelineRun> = filtered.into_iter().skip(offset).take(limit).collect();
 
     let pipelines: Vec<String> = {
         let unfiltered = list_pipeline_runs(ship_dir, &Filter::default());

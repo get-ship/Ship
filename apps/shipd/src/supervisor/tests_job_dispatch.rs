@@ -556,7 +556,7 @@ mod ports {
 }
 
 /// `job.created` with model/provider in the payload projects to a valid
-/// pending JobRecord.
+/// pending PipelineRun.
 #[test]
 fn job_projection_handles_model_and_provider_payload() {
     let events = vec![ev(

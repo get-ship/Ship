@@ -5,7 +5,7 @@
 //! These types are serialized straight into the registry op payloads
 //! that `.ship/views/pipelines/*` templates consume.
 
-use ship_platform::projections::job::{JobRecord, JobStatus};
+use ship_platform::projections::job::{PipelineRun, JobStatus};
 use serde::Serialize;
 use std::path::PathBuf;
 
@@ -116,7 +116,7 @@ pub fn format_duration_between(
 /// Derive per-step outcome segment tokens from what the projection
 /// exposes: `steps.len()`, `completed_steps`, overall `status`. No
 /// per-step verdict is required.
-pub fn derive_segments(job: &JobRecord) -> Vec<&'static str> {
+pub fn derive_segments(job: &PipelineRun) -> Vec<&'static str> {
     let total = job
         .steps
         .as_ref()
@@ -153,7 +153,7 @@ pub fn derive_segments(job: &JobRecord) -> Vec<&'static str> {
 
 /// Build a `RunView` for a single job record. When `include_stats`,
 /// shells out for per-worktree `BranchStats`; otherwise zero-defaults.
-pub fn to_run_view(job: &JobRecord, include_stats: bool) -> RunView {
+pub fn to_run_view(job: &PipelineRun, include_stats: bool) -> RunView {
     let job_failed = matches!(job.status, JobStatus::Failed);
     let steps = job
         .steps

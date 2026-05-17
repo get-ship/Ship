@@ -1,6 +1,6 @@
 //! `pipelines.run(slug)` — per-run detail page data.
 //!
-//! Joins the `JobRecord` projection with the underlying event log
+//! Joins the `PipelineRun` projection with the underlying event log
 //! (step.observed + job.* / process.* events) to produce the step
 //! observations table and the scrollable event timeline.
 

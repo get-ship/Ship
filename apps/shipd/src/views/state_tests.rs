@@ -3,11 +3,11 @@
 
 use super::{filter_and_sort, partition_runs, status_token, Filter, RunCategory};
 use chrono::{TimeZone, Utc};
-use ship_platform::projections::job::{JobRecord, JobStatus};
+use ship_platform::projections::job::{PipelineRun, JobStatus};
 use std::collections::HashMap;
 
-fn mk(slug: &str, agent: &str, status: JobStatus, ts_secs: i64) -> JobRecord {
-    JobRecord {
+fn mk(slug: &str, agent: &str, status: JobStatus, ts_secs: i64) -> PipelineRun {
+    PipelineRun {
         job_id: format!("job-{slug}"),
         slug: slug.into(),
         agent: agent.into(),

@@ -1,7 +1,7 @@
 use crate::event_types;
 use crate::payload::{JobCreatedPayload, StepCompletedPayload, StepDispatchedPayload};
 use crate::pipeline::Pipeline;
-use crate::record::JobRecord;
+use crate::record::PipelineRun;
 use crate::step::{PipelineStep, StepType};
 
 #[test]
@@ -111,8 +111,8 @@ fn job_event_type_constants_exist() {
 }
 
 #[test]
-fn job_record_default_has_no_steps() {
-    let r = JobRecord::default();
+fn pipeline_run_default_has_no_steps() {
+    let r = PipelineRun::default();
     assert!(r.pipeline.is_none());
     assert!(r.current_step.is_none());
     assert!(r.completed_steps.is_empty());

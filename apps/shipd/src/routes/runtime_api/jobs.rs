@@ -32,7 +32,7 @@ pub struct CreateJobRequest {
     pub branch: String,
     pub spec_path: String,
     /// Operator-facing path to the spec file (absolute when resolvable).
-    /// Plumbed into the JobRecord so `ship jobs` can distinguish which
+    /// Plumbed into the PipelineRun so `ship jobs` can distinguish which
     /// spec each job was dispatched from. Distinct from `spec_path`
     /// (daemon-side worktree destination). Optional: `--spec-text`
     /// dispatches and legacy callers send `None`.
@@ -67,7 +67,7 @@ fn is_safe_slug(slug: &str) -> bool {
 
 /// GET /api/v1/runtime/jobs
 ///
-/// Returns each `JobRecord` with two operator-visibility annotations:
+/// Returns each `PipelineRun` with two operator-visibility annotations:
 ///
 /// - `process_state`: `"alive"` when the latest process projection for the
 ///   slug is still Running, `"missing"` when the most recent supervisor
@@ -118,7 +118,7 @@ pub async fn list_jobs(State(state): State<ApiState>) -> impl IntoResponse {
 
 /// Annotate a job with `process_state` + `notes` for `ship jobs`.
 pub(crate) fn annotate_job(
-    job: &ship_platform::projections::job::JobRecord,
+    job: &ship_platform::projections::job::PipelineRun,
     processes: &[ship_substrate::projections::process::ProcessRecord],
     supervisor_events: &[ship_substrate::events::EventEnvelope],
 ) -> serde_json::Value {
@@ -230,7 +230,7 @@ pub(crate) fn load_recent_events_by_type(
 
 #[derive(serde::Serialize)]
 pub struct JobDetailResponse {
-    job: ship_platform::projections::job::JobRecord,
+    job: ship_platform::projections::job::PipelineRun,
     step_observations: Vec<ship_substrate::events::job::StepObservedPayload>,
     recent_events: Vec<EventSummary>,
 }
