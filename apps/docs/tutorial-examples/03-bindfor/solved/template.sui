@@ -2,7 +2,7 @@
 
 <div class="todo">
   <form on:submit|preventDefault={() => add()}>
-    <input prop:value={draft()} on:sui-input={(e) => setDraft(e.detail.value)} placeholder="What needs doing?" />
+    <input bind:value={draft} placeholder="What needs doing?" />
     <button type="submit">Add</button>
   </form>
   <ul>

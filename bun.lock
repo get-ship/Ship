@@ -45,6 +45,7 @@
         "@ship/sui-lsp-browser": "workspace:*",
         "astro": "^6.1.1",
         "sharp": "^0.33.0",
+        "shiki": "^4.0.0",
         "starlight-openapi": "^0.24.0",
         "starlight-sidebar-topics": "^0.7.1",
       },

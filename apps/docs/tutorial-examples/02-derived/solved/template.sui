@@ -6,6 +6,6 @@
   <p>loud: <strong>{loudGreeting()}</strong></p>
   <div class="row">
     <button on:click={() => bump(1)}>+1</button>
-    <input prop:value={name()} on:sui-input={(e) => setName(e.detail.value)} placeholder="name" />
+    <input bind:value={name} placeholder="name" />
   </div>
 </div>

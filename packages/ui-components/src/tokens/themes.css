@@ -906,3 +906,70 @@
   0%, 49%   { box-shadow: var(--shadow-accent); }
   50%, 100% { box-shadow: 0 0 0 2px oklch(0.78 0.20 145 / 20%); }
 }
+
+/* ─── Syntax-highlighting per theme ───────────────────────────────────
+ * Subdued themes (halo, paper) keep --primary / --accent low-chroma for
+ * the visual aesthetic, but code blocks need higher contrast to stay
+ * legible. Dark themes (ship-dark, console, contrast) need lighter
+ * lightness levels against their dark --card backgrounds. */
+
+:root[data-theme='paper'],
+:root[data-theme='halo'] {
+  --syntax-keyword:  oklch(0.42 0.22 285);
+  --syntax-string:   oklch(0.40 0.18 152);
+  --syntax-number:   oklch(0.42 0.20 245);
+  --syntax-function: oklch(0.42 0.24 305);
+  --syntax-type:     oklch(0.42 0.20 195);
+  --syntax-tag:      oklch(0.45 0.22 20);
+  --syntax-attr:     oklch(0.48 0.20 55);
+  --syntax-comment:  oklch(0.50 0.04 250);
+}
+
+:root[data-theme='glass'] {
+  --syntax-keyword:  oklch(0.42 0.22 285);
+  --syntax-string:   oklch(0.40 0.18 152);
+  --syntax-number:   oklch(0.42 0.20 245);
+  --syntax-function: oklch(0.42 0.24 305);
+  --syntax-type:     oklch(0.42 0.20 195);
+  --syntax-tag:      oklch(0.45 0.22 20);
+  --syntax-attr:     oklch(0.48 0.20 55);
+  --syntax-comment:  oklch(0.45 0.04 250);
+}
+
+.dark,
+:root[data-theme='ship-dark'],
+:root[data-theme='console'],
+:root[data-theme='contrast'] {
+  --syntax-keyword:  oklch(0.78 0.16 290);
+  --syntax-string:   oklch(0.80 0.15 145);
+  --syntax-number:   oklch(0.78 0.14 230);
+  --syntax-function: oklch(0.78 0.18 60);
+  --syntax-type:     oklch(0.80 0.13 195);
+  --syntax-tag:      oklch(0.78 0.18 25);
+  --syntax-attr:     oklch(0.82 0.14 90);
+  --syntax-comment:  oklch(0.62 0.03 250);
+  --syntax-variable: var(--foreground);
+}
+
+:root[data-theme='console'] {
+  --syntax-keyword:  oklch(0.82 0.20 145);
+  --syntax-string:   oklch(0.85 0.16 100);
+  --syntax-number:   oklch(0.78 0.16 60);
+  --syntax-function: oklch(0.85 0.18 145);
+  --syntax-type:     oklch(0.78 0.14 180);
+  --syntax-tag:      oklch(0.78 0.18 145);
+  --syntax-attr:     oklch(0.82 0.16 90);
+  --syntax-comment:  oklch(0.55 0.06 145);
+}
+
+:root[data-theme='contrast'] {
+  --syntax-keyword:  oklch(0.92 0.18 90);
+  --syntax-string:   oklch(0.92 0.18 145);
+  --syntax-number:   oklch(0.92 0.18 230);
+  --syntax-function: oklch(0.95 0.16 300);
+  --syntax-type:     oklch(0.92 0.16 195);
+  --syntax-tag:      oklch(0.95 0.18 25);
+  --syntax-attr:     oklch(0.95 0.18 90);
+  --syntax-comment:  oklch(0.75 0.05 250);
+  --syntax-variable: oklch(0.98 0 0);
+}

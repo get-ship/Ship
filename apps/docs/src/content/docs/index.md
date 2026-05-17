@@ -3,55 +3,44 @@ title: Ship
 description: Ship is the runtime for agent workflows. Agents write code, run pipelines, build live HTML views — Ship gives them the rails.
 ---
 
-<div style="display: flex; flex-direction: column; gap: 0.5rem; margin: 0 0 1rem;">
-  <p style="font-size: 1.125rem; line-height: 1.5; color: var(--foreground); margin: 0; max-width: 42rem;">
-    Ship is the runtime for agent workflows.
-    Agents write code, run pipelines, build live HTML views — Ship gives them the rails.
-  </p>
-  <p style="font-size: 0.9375rem; line-height: 1.5; color: var(--muted-foreground); margin: 0; max-width: 42rem;">
-    One declarative config tree, every provider. Skills compile to provider-native artifacts.
-    Pipelines run across git worktrees. SUI views are the deepest part of the surface — live,
-    ergonomic, agent-authored.
-  </p>
+<div class="not-content idx-hero">
+  <div class="idx-hero-band" aria-hidden="true"></div>
+  <div class="idx-hero-inner">
+    <p class="idx-eyebrow">The runtime for agent workflows</p>
+    <h1 class="idx-title">Code. Pipelines. Live views.<br/><span class="idx-title-accent">One declarative tree.</span></h1>
+    <p class="idx-lede">
+      Ship gives agents rails — typed skills, JSONC pipelines on git worktrees, and a
+      reactive HTML surface they can author in one shot. One config tree, every provider.
+    </p>
+    <div class="idx-cta-row">
+      <a class="idx-cta idx-cta-primary" href="/tutorial/01-hello-signal/">Try the SUI tutorial →</a>
+      <a class="idx-cta idx-cta-secondary" href="/getting-started/">60-second install</a>
+      <a class="idx-cta idx-cta-ghost" href="/components/">Browse components →</a>
+    </div>
+    <div class="idx-pill-row">
+      <span class="idx-pill"><span class="idx-pill-dot idx-dot-primary"></span> Claude · Cursor · Gemini · Codex · OpenCode</span>
+      <span class="idx-pill"><span class="idx-pill-dot idx-dot-success"></span> Event-sourced kernel</span>
+      <span class="idx-pill"><span class="idx-pill-dot idx-dot-info"></span> Resumable pipelines</span>
+    </div>
+  </div>
 </div>
 
-<div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin: 0.75rem 0 2rem;">
-  <a href="/tutorial/01-hello-signal/"><sui-button tone="primary" variant="solid">Try the SUI tutorial →</sui-button></a>
-  <a href="/getting-started/"><sui-button variant="outline">60-second install</sui-button></a>
-  <a href="/components/"><sui-button variant="ghost">Browse components</sui-button></a>
-</div>
-
-<div class="screenshot-todo">
-<strong>SCREENSHOT</strong> — Ship Studio shell: session view active in the main pane, an agent
-dispatched and visibly working in the side rail, dev panel open at the bottom showing the Source
-tab with a live <code>.sui</code> file. Approx 1440×900, ship-light theme. Use Playwright against
-a live daemon with at least one job mid-flight.
-</div>
-
-## How agents work in Ship
-
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem; margin: 1.5rem 0;">
-
-<sui-card padding="md">
-<strong slot="header">Write code</strong>
-Agents read and write your codebase using Ship's job + session primitives. Permissions, tool gates,
-and skill-shaped instructions keep them on rails. Compiles to <code>CLAUDE.md</code>,
-<code>.cursor/rules</code>, <code>GEMINI.md</code>, <code>AGENTS.md</code>, <code>opencode.json</code>.
-</sui-card>
-
-<sui-card padding="md">
-<strong slot="header">Run pipelines</strong>
-JSONC DAGs of agent steps. Gates, retries, worktree isolation, resumable on crash. Each step runs
-in its own agent profile. Long-running work survives kernel restarts.
-</sui-card>
-
-<sui-card padding="md">
-<strong slot="header">Build live views</strong>
-<code>.sui</code> templates with optional paired controllers. Signal-driven, AOT-compiled, SSR'd,
-attached client-side. Zero build step. The deepest surface — and the one agents most often
-co-author with humans. <a href="/tutorial/01-hello-signal/">Try it →</a>
-</sui-card>
-
+<div class="not-content idx-three">
+  <a class="idx-three-card idx-card-primary" href="/agents/">
+    <div class="idx-three-icon" aria-hidden="true">⌘</div>
+    <div class="idx-three-title">Write code</div>
+    <p class="idx-three-body">Agents read + write your tree under typed skills, permissions, and job/session primitives. Compiles to every major provider format.</p>
+  </a>
+  <a class="idx-three-card idx-card-info" href="/pipelines/">
+    <div class="idx-three-icon" aria-hidden="true">⇢</div>
+    <div class="idx-three-title">Run pipelines</div>
+    <p class="idx-three-body">JSONC DAGs of agent steps with gates, retries, and worktree isolation. Resumable across kernel restarts.</p>
+  </a>
+  <a class="idx-three-card idx-card-success" href="/tutorial/01-hello-signal/">
+    <div class="idx-three-icon" aria-hidden="true">◈</div>
+    <div class="idx-three-title">Build live views</div>
+    <p class="idx-three-body"><code>.sui</code> templates with optional controllers. Signal-driven, AOT-compiled, hydration-free. The deepest surface — agent-authored end to end.</p>
+  </a>
 </div>
 
 ## What a SUI view looks like
@@ -80,77 +69,11 @@ That's the whole surface. The compiler emits a single ESM, the daemon SSRs it, t
 attaches reactivity. Compose 100+ `<sui-*>` primitives.
 [Try this in the browser →](/tutorial/01-hello-signal/)
 
-## The supporting cast
-
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; margin: 1.5rem 0;">
-
-<sui-card padding="md">
-<strong slot="header">Skills</strong>
-Typed instruction sets with variables. One skill, personalized output per user and project.
-</sui-card>
-
-<sui-card padding="md">
-<strong slot="header">Agent profiles</strong>
-Compose skills, MCP servers, permissions, and rules into portable configs for every provider.
-</sui-card>
-
-<sui-card padding="md">
-<strong slot="header">Collections</strong>
-Schema-backed structured data. Specs, ADRs, notes — queryable and event-driven.
-</sui-card>
-
-<sui-card padding="md">
-<strong slot="header">Triggers</strong>
-Reactive JSONC that matches events and runs actions. Automation without writing code.
-</sui-card>
-
-<sui-card padding="md">
-<strong slot="header">Components</strong>
-Two published packs — <code>@ship/primitives</code> (~80 generic <code>&lt;sui-*&gt;</code> elements) and <code>@ship/charts</code>. Drop into any view.
-</sui-card>
-
-<sui-card padding="md">
-<strong slot="header">Agent surfaces</strong>
-47 MCP tools, a Node + browser LSP, <code>sui-eval</code> regression scoring.
-The agent has every surface it needs to author + verify in one turn.
-<a href="/agents/agent-surfaces/">Reference →</a>
-</sui-card>
-
-</div>
-
-## 60-second install
-
-```bash
-curl -fsSL https://getship.dev/install | sh
-cd your-project
-ship init
-ship studio --open
-```
-
-<div class="screenshot-todo">
-<strong>SCREENSHOT</strong> — <code>ship studio --open</code> result: browser landing on the
-Ship Studio home view with the workspace switcher visible top-left, no active session yet. Use
-this to give new visitors a sense of "what they see after install". Approx 1440×900.
-</div>
-
-<sui-alert tone="info">
-<strong slot="title">Migrating from existing provider config?</strong>
-Ship converts <code>CLAUDE.md</code>, <code>.cursor/rules</code>, and other provider configs into <code>.ship/</code> format. Run <code>ship convert .</code> in your project root.
-</sui-alert>
-
-## Supported providers
-
-- **Claude Code** — `CLAUDE.md`, `.mcp.json`, `.claude/skills/`
-- **Cursor** — `.cursor/rules`, `.cursor/mcp.json`
-- **Gemini CLI** — `GEMINI.md`, `.gemini/settings.json`
-- **Codex** — `AGENTS.md`, `.codex/config.toml`
-- **OpenCode** — `opencode.json`
-
 ## SUI, live
 
 The docs site renders with the same component runtime it documents. Every tag below is a real `<sui-*>` element — pick a theme, drive the controls, watch it react.
 
-<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:1.25rem;margin:1.5rem 0;">
+<div class="not-content idx-live-grid">
 
 <sui-card variant="outline" padding="lg">
 <strong slot="header" style="font-weight:700;font-size:15px;">Theme</strong>
@@ -169,7 +92,7 @@ The docs site renders with the same component runtime it documents. Every tag be
   </sui-select>
 </div>
 <sui-toolbar justify="end">
-  <sui-button variant="ghost" size="sm">Cancel</sui-button>
+  <sui-button variant="outline" size="sm">Cancel</sui-button>
   <sui-button tone="primary" variant="solid" size="sm">Dispatch</sui-button>
 </sui-toolbar>
 </sui-card>
@@ -185,3 +108,25 @@ The docs site renders with the same component runtime it documents. Every tag be
 </sui-card>
 
 </div>
+
+## 60-second install
+
+```bash
+curl -fsSL https://getship.dev/install | sh
+cd your-project
+ship init
+ship studio --open
+```
+
+<sui-alert tone="info">
+<strong slot="title">Migrating from existing provider config?</strong>
+Ship converts <code>CLAUDE.md</code>, <code>.cursor/rules</code>, and other provider configs into <code>.ship/</code> format. Run <code>ship convert .</code> in your project root.
+</sui-alert>
+
+## Supported providers
+
+- **Claude Code** — `CLAUDE.md`, `.mcp.json`, `.claude/skills/`
+- **Cursor** — `.cursor/rules`, `.cursor/mcp.json`
+- **Gemini CLI** — `GEMINI.md`, `.gemini/settings.json`
+- **Codex** — `AGENTS.md`, `.codex/config.toml`
+- **OpenCode** — `opencode.json`
