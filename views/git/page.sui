@@ -82,7 +82,7 @@
                     </div>
                     <div class="git-deltas">
                       <span class="git-add">+{c.additions}</span>
-                      <span class="git-del">&minus;{c.deletions}</span>
+                      <span class="git-del">−{c.deletions}</span>
                     </div>
                   </div>
                 {/for}
@@ -152,7 +152,7 @@
                   <sui-badge tone="warning" variant="soft" size="sm">diff</sui-badge>
                   <span class="git-mono git-diff-path" data-test="diff-path">{diffFiles()[0].path}</span>
                   <span slot="spacer"></span>
-                  <span class="git-mono"><span class="git-add">+{diffFiles()[0].additions}</span> <span class="git-del">&minus;{diffFiles()[0].deletions}</span></span>
+                  <span class="git-mono"><span class="git-add">+{diffFiles()[0].additions}</span> <span class="git-del">−{diffFiles()[0].deletions}</span></span>
                   <sui-segmented value={diffMode()} size="sm" on:sui-change={(e) => setDiffMode(e.detail.value)}>
                     <sui-segmented-option value="unified">Unified</sui-segmented-option>
                     <sui-segmented-option value="split">Split</sui-segmented-option>
