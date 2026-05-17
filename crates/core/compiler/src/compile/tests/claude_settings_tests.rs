@@ -67,7 +67,7 @@ fn model_none_omits_field() {
 }
 
 #[test]
-fn model_only_for_claude_not_other_providers() {
+fn model_only_for_claude_not_other_harnesses() {
     let r = ResolvedConfig {
         model: Some("claude-opus-4-6".to_string()),
         ..resolved(vec![])
@@ -157,19 +157,19 @@ fn empty_env_no_settings_patch() {
 }
 
 #[test]
-fn env_only_for_claude_not_other_providers() {
+fn env_only_for_claude_not_other_harnesses() {
     let mut env = std::collections::HashMap::new();
     env.insert("FOO".to_string(), "bar".to_string());
     let r = ResolvedConfig {
         env,
         ..resolved(vec![])
     };
-    for provider in &["gemini", "codex", "cursor"] {
-        let out = compile(&r, provider).unwrap();
+    for harness in &["gemini", "codex", "cursor"] {
+        let out = compile(&r, harness).unwrap();
         assert!(
             out.claude_settings_patch.is_none(),
-            "provider {} should not have claude_settings_patch",
-            provider
+            "harness {} should not have claude_settings_patch",
+            harness
         );
     }
 }
@@ -215,7 +215,7 @@ fn agent_profiles_compiled_into_agent_files() {
             name: "Code Reviewer".to_string(),
             version: None,
             description: Some("Reviews code".to_string()),
-            providers: vec!["claude".to_string()],
+            harnesses: vec!["claude".to_string()],
             role: None,
             tags: vec![],
             tools_preset: None,
@@ -231,7 +231,7 @@ fn agent_profiles_compiled_into_agent_files() {
         },
         hooks: Default::default(),
         apps: Default::default(),
-        provider_settings: Default::default(),
+        harness_settings: Default::default(),
     };
 
     let r = ResolvedConfig {
@@ -278,16 +278,16 @@ fn team_agents_only_for_claude() {
         claude_team_agents: vec![("lead.md".to_string(), "content".to_string())],
         ..resolved(vec![])
     };
-    for provider in &["gemini", "codex", "cursor"] {
-        let out = compile(&r, provider).unwrap();
+    for harness in &["gemini", "codex", "cursor"] {
+        let out = compile(&r, harness).unwrap();
         assert!(
             !out.agent_files.contains_key(".claude/agents/lead.md"),
-            "{provider} must not get claude team agents"
+            "{harness} must not get claude team agents"
         );
     }
 }
 
-// ── Phase 4: Claude provider settings ────────────────────────────────────────
+// ── Phase 4: Claude harness settings ────────────────────────────────────────
 
 #[test]
 fn claude_theme_emitted_in_settings_patch() {

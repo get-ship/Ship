@@ -1,10 +1,10 @@
 //! Generic MCP notification push adapter (fallback).
 //!
 //! Sends events as `ship/event` custom MCP notifications with the full
-//! EventEnvelope serialized as params. Used for providers that don't have
+//! EventEnvelope serialized as params. Used for harnesses that don't have
 //! a dedicated push mechanism (Cursor, Codex, OpenCode, Gemini).
 //!
-//! Providers can poll for events via MCP tools as an alternative.
+//! Harnesses can poll for events via MCP tools as an alternative.
 
 use async_trait::async_trait;
 use rmcp::model::CustomNotification;

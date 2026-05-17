@@ -65,8 +65,8 @@ pub(super) fn try_dispatch(
         "agents.permission_presets" => Ok(json!({
             "items": ship_platform::services::agents::create::builtin_permission_presets(),
         })),
-        "agents.providers" => Ok(json!({
-            "items": ship_platform::services::agents::create::builtin_providers(),
+        "agents.harnesses" => Ok(json!({
+            "items": ship_platform::services::agents::create::builtin_harnesses(),
         })),
         "agents.create_ctx" => {
             let ctx = ship_platform::services::agents::create::build_create_ctx();

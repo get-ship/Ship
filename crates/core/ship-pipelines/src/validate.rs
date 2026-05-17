@@ -265,7 +265,7 @@ mod tests {
             goal: None,
             after: vec![],
             model: None,
-            provider: None,
+            harness: None,
             command: None,
             max_retries: None,
             gate: None,

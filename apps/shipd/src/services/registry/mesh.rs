@@ -48,7 +48,7 @@ pub(super) fn try_dispatch(
                                 else { "unknown".into() }
                             }),
                         "agent_id": proj.and_then(|p| p.agent_id.clone()),
-                        "provider": proj.and_then(|p| p.provider.clone()),
+                        "harness": proj.and_then(|p| p.harness.clone()),
                         "transport": proj.and_then(|p| p.transport.clone()),
                         "workspace_id": proj.and_then(|p| p.workspace_id.clone()),
                         "pid": proj.and_then(|p| p.pid),
@@ -100,7 +100,7 @@ pub(super) fn try_dispatch(
                 }
             }
 
-            // Walk /proc and pick out provider CLIs + `ship mcp serve`
+            // Walk /proc and pick out harness CLIs + `ship mcp serve`
             // children. These are processes that exist because of Ship
             // (or via Ship's MCP integration). Trust contract: if a
             // ship-spawned `ship` is running on this machine, we show it.
@@ -162,7 +162,7 @@ pub(super) fn try_dispatch(
                         continue;
                     }
 
-                    // Provider CLIs (claude, codex, etc.) — the actual
+                    // Harness CLIs (claude, codex, etc.) — the actual
                     // agent binaries running on the user's machine.
                     let bin = cmdline.split_whitespace().next().unwrap_or("");
                     let bin_basename = bin.rsplit('/').next().unwrap_or(bin);

@@ -1,8 +1,8 @@
-# Provider Reference
+# Harness Reference
 
-Authoritative file paths, config schemas, and compiler support status for each agent provider.
+Authoritative file paths, config schemas, and compiler support status for each agent harness.
 
-**Rule:** When changing a `ProviderDescriptor` field, update the corresponding row here first.
+**Rule:** When changing a `HarnessDescriptor` field, update the corresponding row here first.
 Add a `<!-- verified: YYYY-MM-DD source: <url> -->` comment when re-verifying a section.
 
 ---
@@ -24,7 +24,7 @@ Add a `<!-- verified: YYYY-MM-DD source: <url> -->` comment when re-verifying a 
 | Agent limits (cost/turns) | ✅ | — | — | — |
 | Model override | ✅ `model` in settings patch | ✅ `model.name` in settings patch | ✅ `model` in TOML config | — |
 | MCP config path | ✅ `.mcp.json` | ✅ `.gemini/settings.json` | ✅ `.codex/config.toml` | ✅ `.cursor/mcp.json` |
-| Provider-specific settings | ✅ `theme`, `autoUpdates`, `includeCoAuthoredBy`, `claude_settings_extra` | ✅ `defaultApprovalMode`, `maxSessionTurns`, `disableYoloMode`, `disableAlwaysAllow`, `tools.sandbox`, `gemini_settings_extra` | ✅ `approval_policy`, `model_reasoning_effort`, `[agents]` table, `shell_environment_policy`, `notify`, `codex_settings_extra` | ✅ `cursor_environment`, `cursor_settings_extra` |
+| Harness-specific settings | ✅ `theme`, `autoUpdates`, `includeCoAuthoredBy`, `claude_settings_extra` | ✅ `defaultApprovalMode`, `maxSessionTurns`, `disableYoloMode`, `disableAlwaysAllow`, `tools.sandbox`, `gemini_settings_extra` | ✅ `approval_policy`, `model_reasoning_effort`, `[agents]` table, `shell_environment_policy`, `notify`, `codex_settings_extra` | ✅ `cursor_environment`, `cursor_settings_extra` |
 | Subagent profiles | ✅ `.claude/agents/<id>.md` | ✅ `.gemini/agents/<id>.md` | ✅ `.codex/agents/<id>.toml` | ✅ `.cursor/agents/<id>.md` |
 
 **Key:** ✅ implemented · ⚠️ partial/not compiled · — not implemented / out of scope
@@ -119,7 +119,7 @@ Triggers: `SessionStart`, `SessionEnd`, `BeforeAgent`, `AfterAgent`, `BeforeMode
 | Asset | Path | Format |
 |---|---|---|
 | Rules / context | `AGENTS.md` | Markdown. Searched from git root → CWD, each level. Also `~/.codex/AGENTS.md` (global) |
-| Approval policy | `~/.codex/config.toml` → `approval_policy` | TOML — `"suggest"`, `"auto-edit"`, or `"full-auto"`. Provider-specific setting. |
+| Approval policy | `~/.codex/config.toml` → `approval_policy` | TOML — `"suggest"`, `"auto-edit"`, or `"full-auto"`. Harness-specific setting. |
 | Skills | `.agents/skills/<id>/SKILL.md` | Markdown + YAML frontmatter. Also `~/.agents/skills/` |
 | Agents dir | `.codex/agents/<id>.toml` | TOML agent config |
 | MCP config | `.codex/config.toml` | **TOML** `[mcp_servers.<name>]` tables |
@@ -143,8 +143,8 @@ url = "https://api.example.com/mcp"
 The JSON `mcp_servers` field is still populated for internal use but Codex consumers should use `codex_config_patch`.
 
 **Codex has no permission model compatible with Ship's allow/deny patterns.**
-`approval_policy` (`suggest` / `auto-edit` / `full-auto`) is a provider-specific setting
-that belongs in `provider_config`, not in the permissions model.
+`approval_policy` (`suggest` / `auto-edit` / `full-auto`) is a harness-specific setting
+that belongs in `harness_config`, not in the permissions model.
 
 ---
 
@@ -192,13 +192,13 @@ Rule application modes:
 Keep rules under 500 lines. Cursor ignores rules in Inline Edit (Cmd+K) — Agent Chat only.
 
 **Context file behavior:** Cursor uses `rule_files` (individual `.mdc`) instead of a single
-`AGENTS.md`. `context_content` is always `None` for Cursor. Other providers concatenate all
+`AGENTS.md`. `context_content` is always `None` for Cursor. Other harnesses concatenate all
 rules into one file (`CLAUDE.md`, `GEMINI.md`, `AGENTS.md`) — keep individual rules concise
 to avoid bloating those files.
 
 ---
 
-## SKILL.md Frontmatter (all providers)
+## SKILL.md Frontmatter (all harnesses)
 
 ```yaml
 ---
@@ -213,7 +213,7 @@ disable-model-invocation: false   # true = requires explicit /skill-name invocat
 ```
 
 Optional subdirectories inside a skill folder: `scripts/`, `references/`, `assets/`
-Codex also supports `agents/openai.yaml` for provider-specific metadata.
+Codex also supports `agents/openai.yaml` for harness-specific metadata.
 
 ---
 
@@ -221,7 +221,7 @@ Codex also supports `agents/openai.yaml` for provider-specific metadata.
 
 ## Permissions Models
 
-Each provider uses a fundamentally different model. Claude's is the primary compilation target; others are best-effort translations.
+Each harness uses a fundamentally different model. Claude's is the primary compilation target; others are best-effort translations.
 
 ### Claude Code — allow/deny lists
 
@@ -259,7 +259,7 @@ Translation: Claude `Bash(cmd)` → `tool="shell" pattern="cmd"` (glob converted
 
 <!-- verified: 2026-03-14 source: https://developers.openai.com/codex/config-advanced -->
 
-Codex's `approval_policy` (`suggest` / `auto-edit` / `full-auto`) controls how the agent handles tool use, but it is a global approval mode — not a per-tool allow/deny list. It belongs in `provider_config`, not in Ship's permissions model.
+Codex's `approval_policy` (`suggest` / `auto-edit` / `full-auto`) controls how the agent handles tool use, but it is a global approval mode — not a per-tool allow/deny list. It belongs in `harness_config`, not in Ship's permissions model.
 
 Ship does not compile any permission rules for Codex.
 
@@ -316,8 +316,8 @@ Compiled to `cursor_cli_permissions` field in `CompileOutput`.
 
 ## Subagent Profiles
 
-Ship compiles `.ship/agents/profiles/*.toml` into provider-native subagent definitions.
-Each profile is emitted for every provider listed in its `providers` field (or all providers if empty).
+Ship compiles `.ship/agents/profiles/*.toml` into harness-native subagent definitions.
+Each profile is emitted for every harness listed in its `harnesses` field (or all harnesses if empty).
 
 <!-- verified: 2026-03-17 source: https://code.claude.com/docs/en/sub-agents -->
 <!-- verified: 2026-03-17 source: https://geminicli.com/docs/core/subagents/ -->
@@ -345,9 +345,9 @@ Referenced from `[agents.<name>]` in `.codex/config.toml`.
 
 ---
 
-## Provider-Specific Settings
+## Harness-Specific Settings
 
-These settings affect **how the agent runs** (model, sandbox, approval policy, telemetry) rather than what it can do — orthogonal to workspace modes. They require a `provider_config: HashMap<String, Value>` concept in `ProjectLibrary` (not yet implemented).
+These settings affect **how the agent runs** (model, sandbox, approval policy, telemetry) rather than what it can do — orthogonal to workspace modes. They require a `harness_config: HashMap<String, Value>` concept in `ProjectLibrary` (not yet implemented).
 
 <!-- verified: 2026-03-14 source: https://geminicli.com/docs/cli/settings -->
 <!-- verified: 2026-03-14 source: https://developers.openai.com/codex/config-advanced -->
@@ -390,11 +390,11 @@ otlp_endpoint = "http://localhost:4317"
 
 ---
 
-## Adding a New Provider
+## Adding a New Harness
 
-1. Fetch the provider's official docs for: rules, skills, MCP, settings, hooks
+1. Fetch the harness's official docs for: rules, skills, MCP, settings, hooks
 2. Add a verified section above with `<!-- verified: YYYY-MM-DD source: <url> -->` on each source
 3. Add a row to the Support Matrix
-4. Add a `ProviderDescriptor` entry in `crates/core/compiler/src/compile/mod.rs`
-5. Add `"<id>"` to `normalize_providers()` in `crates/core/compiler/src/resolve.rs`
-6. Add tests: provider_exists, mcp_format, skill_dir, context_file, no_settings_patch (if applicable)
+4. Add a `HarnessDescriptor` entry in `crates/core/compiler/src/compile/mod.rs`
+5. Add `"<id>"` to `normalize_harnesses()` in `crates/core/compiler/src/resolve.rs`
+6. Add tests: harness_exists, mcp_format, skill_dir, context_file, no_settings_patch (if applicable)

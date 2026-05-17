@@ -1,4 +1,4 @@
-//! Settings and provider-detection endpoints for the Ship daemon.
+//! Settings and harness-detection endpoints for the Ship daemon.
 
 use axum::{Json, extract::{Path, State}, http::StatusCode, response::IntoResponse};
 use serde::{Deserialize, Serialize};
@@ -13,11 +13,11 @@ use crate::routes::rest_api::{ApiState, MeshResponse};
 
 #[derive(Deserialize, utoipa::ToSchema)]
 #[schema(example = json!({
-    "key": "defaults.provider",
+    "key": "defaults.harness",
     "value": "claude"
 }))]
 pub struct SettingsUpdateReq {
-    /// Dotted setting key, e.g. `defaults.provider`.
+    /// Dotted setting key, e.g. `defaults.harness`.
     pub key: String,
     /// Setting value as JSON. Shape depends on the setting (string, bool,
     /// number, or structured object). Validated against the setting's
@@ -40,30 +40,30 @@ pub struct ProviderStatus {
     pub version: Option<String>,
 }
 
-// ─── Provider cache ─────────────────────────────────────────────────────────
+// ─── Harness cache ─────────────────────────────────────────────────────────
 
-static PROVIDER_CACHE: Mutex<Option<(Instant, Vec<ProviderStatus>)>> = Mutex::new(None);
-const PROVIDER_CACHE_TTL: Duration = Duration::from_secs(300);
+static HARNESS_CACHE: Mutex<Option<(Instant, Vec<ProviderStatus>)>> = Mutex::new(None);
+const HARNESS_CACHE_TTL: Duration = Duration::from_secs(300);
 
-fn cached_providers() -> Vec<ProviderStatus> {
-    let mut guard = match PROVIDER_CACHE.lock() {
+fn cached_harnesses() -> Vec<ProviderStatus> {
+    let mut guard = match HARNESS_CACHE.lock() {
         Ok(g) => g,
         Err(poisoned) => {
-            tracing::warn!("provider cache lock was poisoned, recovering");
+            tracing::warn!("harness cache lock was poisoned, recovering");
             poisoned.into_inner()
         }
     };
     if let Some((ts, ref cached)) = *guard {
-        if ts.elapsed() < PROVIDER_CACHE_TTL {
+        if ts.elapsed() < HARNESS_CACHE_TTL {
             return cached.clone();
         }
     }
-    let providers: Vec<ProviderStatus> = ship_platform::agents::providers::PROVIDERS
+    let harnesses: Vec<ProviderStatus> = ship_platform::agents::harnesses::HARNESSES
         .iter()
         .map(|d| {
-            let available = ship_platform::agents::providers::detect_binary(d.binary);
+            let available = ship_platform::agents::harnesses::detect_binary(d.binary);
             let version = if available {
-                ship_platform::agents::providers::detect_version(d.binary)
+                ship_platform::agents::harnesses::detect_version(d.binary)
             } else {
                 None
             };
@@ -75,8 +75,8 @@ fn cached_providers() -> Vec<ProviderStatus> {
             }
         })
         .collect();
-    *guard = Some((Instant::now(), providers.clone()));
-    providers
+    *guard = Some((Instant::now(), harnesses.clone()));
+    harnesses
 }
 
 // ─── Handlers ───────────────────────────────────────────────────────────────
@@ -163,7 +163,7 @@ pub async fn update_setting(
     operation_id = "getSetting",
     get,
     path = "/api/v1/settings/{key}",
-    params(("key" = String, Path, description = "Setting key (e.g. defaults.provider)")),
+    params(("key" = String, Path, description = "Setting key (e.g. defaults.harness)")),
     responses(
         (status = 200, body = MeshResponse),
         (status = 401, description = "unauthorized", body = crate::routes::openapi_types::ErrorResponse),
@@ -204,7 +204,7 @@ pub async fn get_setting(
 #[utoipa::path(
     operation_id = "listProviders",
     get,
-    path = "/api/v1/providers",
+    path = "/api/v1/harnesses",
     responses(
         (status = 200, body = MeshResponse),
         (status = 401, description = "unauthorized", body = crate::routes::openapi_types::ErrorResponse),
@@ -212,15 +212,15 @@ pub async fn get_setting(
     ),
     tag = "settings"
 )]
-pub async fn list_providers(
+pub async fn list_harnesses(
     State(_state): State<ApiState>,
 ) -> impl IntoResponse {
-    let providers = cached_providers();
+    let harnesses = cached_harnesses();
     (
         StatusCode::OK,
         Json(MeshResponse {
             ok: true,
-            data: serde_json::json!(providers),
+            data: serde_json::json!(harnesses),
         }),
     )
 }

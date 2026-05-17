@@ -7,12 +7,12 @@
 //!                        real PTY (headless fallback used when tmux is
 //!                        unavailable or the caller opts in via
 //!                        `--headless`).
-//! `ServerExecutor`     — delegates to a provider's long-lived server-mode
+//! `ServerExecutor`     — delegates to a harness's long-lived server-mode
 //!                        session (codex app-server / opencode serve).
-//!                        Picked when the provider advertises `server_mode`
+//!                        Picked when the harness advertises `server_mode`
 //!                        AND a session is bound in the registry.
 //! `RoutingExecutor`    — dispatches each JobContext to Server, TmuxWindow,
-//!                        or Process based on provider capabilities +
+//!                        or Process based on harness capabilities +
 //!                        `ctx.headless`.
 
 pub(crate) mod process;

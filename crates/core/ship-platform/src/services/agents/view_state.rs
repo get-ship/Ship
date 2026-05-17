@@ -26,15 +26,15 @@ pub struct AgentSummary {
     pub name: String,
     pub description: String,
     pub skills_count: usize,
-    pub providers_count: usize,
+    pub harnesses_count: usize,
     pub mcp_count: usize,
     pub rules_count: usize,
     /// First letter of `name` uppercased, for the avatar glyph.
     pub letter: String,
     pub source: String,
-    /// Providers this agent compiles to (claude/codex/cursor/gemini/opencode).
-    /// The list-view renders one tinted blob per provider.
-    pub providers: Vec<String>,
+    /// Harnesses this agent compiles to (claude/codex/cursor/gemini/opencode).
+    /// The list-view renders one tinted blob per harness.
+    pub harnesses: Vec<String>,
     /// Freeform tags from the agent jsonc (e.g. "workflow", "review").
     pub tags: Vec<String>,
     /// True when the agent is currently participating in an active session /
@@ -67,8 +67,8 @@ pub struct AgentDetail {
     /// Verbatim `rules.inline` text from the agent jsonc — surfaced in the
     /// detail editor so the inline rules can be read + edited in place.
     pub inline_rules: String,
-    pub providers: Vec<String>,
-    pub default_provider: Option<String>,
+    pub harnesses: Vec<String>,
+    pub default_harness: Option<String>,
     /// Legacy — canonicalized tier for existing UI that only shows a
     /// single "tier" (one of standard / autonomous / read-only). Kept
     /// for backward compat while the permissions panel migrates to
@@ -148,7 +148,7 @@ fn scan_agents_dir(dir: &Path, source: &str) -> Vec<AgentSummary> {
             .unwrap_or("")
             .to_string();
         let skills = resolve_array_field(&parsed, &["skills"], &["refs"]);
-        let providers = resolve_array_field(agent_obj, &["providers"], &[]);
+        let harnesses = resolve_array_field(agent_obj, &["harnesses"], &[]);
         let mcp = resolve_array_field(&parsed, &["mcp"], &["servers"]);
         // Schema/UI mismatch: schema says `rules.inline: string`; UI still
         // wants a list. Reading `rules.refs` until the UI redesign lands.
@@ -160,12 +160,12 @@ fn scan_agents_dir(dir: &Path, source: &str) -> Vec<AgentSummary> {
             name,
             description,
             skills_count: skills.len(),
-            providers_count: providers.len(),
+            harnesses_count: harnesses.len(),
             mcp_count: mcp.len(),
             rules_count: rules.len(),
             letter,
             source: source.to_string(),
-            providers,
+            harnesses,
             tags,
             active: false,
         });
@@ -192,7 +192,7 @@ fn load_from_dir(dir: &Path, id: &str, source: &str) -> Option<AgentDetail> {
             .unwrap_or("")
             .to_string();
         let skills = resolve_array_field(&parsed, &["skills"], &["refs"]);
-        let providers = resolve_array_field(agent_obj, &["providers"], &[]);
+        let harnesses = resolve_array_field(agent_obj, &["harnesses"], &[]);
         let mcp_servers = resolve_array_field(&parsed, &["mcp"], &["servers"]);
         let rules = resolve_array_field(&parsed, &["rules"], &["refs"]);
         let inline_rules = parsed
@@ -210,9 +210,9 @@ fn load_from_dir(dir: &Path, id: &str, source: &str) -> Option<AgentDetail> {
             .and_then(|v| v.as_str())
             .map(str::to_string);
         let tags = resolve_array_field(agent_obj, &["tags"], &[]);
-        // No standalone "default" field on the schema — first provider wins.
-        // The UI uses this to highlight the active provider in the panel.
-        let default_provider = providers.first().cloned();
+        // No standalone "default" field on the schema — first harness wins.
+        // The UI uses this to highlight the active harness in the panel.
+        let default_harness = harnesses.first().cloned();
         // Permissions tier lives under `permissions.tier` (flat) or — for
         // project configs that use the preset name — `permissions.preset`
         // with a `ship-<tier>` prefix. Strip the prefix to canonicalize.
@@ -255,8 +255,8 @@ fn load_from_dir(dir: &Path, id: &str, source: &str) -> Option<AgentDetail> {
             mcp_servers,
             rules,
             inline_rules,
-            providers,
-            default_provider,
+            harnesses,
+            default_harness,
             permissions_tier,
             permissions,
             source: source.to_string(),
@@ -347,7 +347,7 @@ pub struct AgentCatalogs {
     /// to the three canonical tiers when the file is absent.
     pub presets: Vec<CatalogEntry>,
     /// Known-good tool patterns the autocomplete suggests. Merged from
-    /// provider builtins + Ship MCP tools + user-declared MCP
+    /// harness builtins + Ship MCP tools + user-declared MCP
     /// `active_tools` + a small curated Bash-shape list. Free-form
     /// strings outside this list are still accepted in the editor.
     pub tool_patterns: Vec<ToolPatternEntry>,
@@ -358,7 +358,7 @@ pub struct ToolPatternEntry {
     pub pattern: String,
     /// Short label shown in the autocomplete dropdown.
     pub label: String,
-    /// Where this pattern comes from — "provider", "mcp-ship",
+    /// Where this pattern comes from — "harness", "mcp-ship",
     /// "mcp-<server>", "bash".
     pub source: String,
 }
@@ -422,13 +422,13 @@ fn fallback_presets() -> Vec<CatalogEntry> {
 }
 
 /// Build the tool-pattern autocomplete catalog. Intentionally small —
-/// provider builtins + Ship MCP tool names + curated Bash shapes +
+/// harness builtins + Ship MCP tool names + curated Bash shapes +
 /// a wildcard hint. User-declared MCP server `active_tools` get
 /// added when present.
 fn list_tool_patterns(ship_dir: &Path) -> Vec<ToolPatternEntry> {
     let mut out: Vec<ToolPatternEntry> = Vec::new();
 
-    // Provider builtins — invariant across projects.
+    // Harness builtins — invariant across projects.
     for t in &[
         "Read", "Write", "Edit", "Glob", "Grep", "Bash",
         "NotebookEdit", "WebFetch", "WebSearch", "Task",
@@ -436,7 +436,7 @@ fn list_tool_patterns(ship_dir: &Path) -> Vec<ToolPatternEntry> {
         out.push(ToolPatternEntry {
             pattern: t.to_string(),
             label: t.to_string(),
-            source: "provider".into(),
+            source: "harness".into(),
         });
     }
 

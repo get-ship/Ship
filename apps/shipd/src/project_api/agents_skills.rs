@@ -74,7 +74,7 @@ pub async fn list_agents(
             "name": agent_obj.get("name").and_then(|v| v.as_str()).unwrap_or(&id_str),
             "description": agent_obj.get("description").and_then(|v| v.as_str()),
             "skills": parsed.get("skills").cloned().unwrap_or(serde_json::json!([])),
-            "providers": agent_obj.get("providers").cloned().unwrap_or(serde_json::json!([])),
+            "harnesses": agent_obj.get("harnesses").cloned().unwrap_or(serde_json::json!([])),
         }));
     }
 

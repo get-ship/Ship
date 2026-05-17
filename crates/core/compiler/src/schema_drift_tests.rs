@@ -58,61 +58,61 @@ fn schema_has_key(schema: &Json, path: &[&str]) -> bool {
     true
 }
 
-// ── Provider enum consistency ────────────────────────────────────────────────
+// ── Harness enum consistency ────────────────────────────────────────────────
 
 #[test]
-fn agent_schema_providers_match_compiler() {
+fn agent_schema_harnesses_match_compiler() {
     let schema = load_schema("agent.schema.json");
-    let schema_providers = schema_enum_values(
+    let schema_harnesses = schema_enum_values(
         &schema,
         &[
             "properties",
             "agent",
             "properties",
-            "providers",
+            "harnesses",
             "items",
             "enum",
         ],
     );
 
-    let compiler_providers: Vec<&str> = crate::compile::list_providers()
+    let compiler_harnesses: Vec<&str> = crate::compile::list_harnesses()
         .iter()
         .map(|p| p.id)
         .collect();
 
-    for p in &compiler_providers {
+    for p in &compiler_harnesses {
         assert!(
-            schema_providers.contains(&p.to_string()),
-            "Compiler has provider '{}' but agent.schema.json is missing it",
+            schema_harnesses.contains(&p.to_string()),
+            "Compiler has harness '{}' but agent.schema.json is missing it",
             p
         );
     }
 }
 
 #[test]
-fn ship_schema_providers_match_compiler() {
+fn ship_schema_harnesses_match_compiler() {
     let schema = load_schema("ship.schema.json");
-    let schema_providers = schema_enum_values(
+    let schema_harnesses = schema_enum_values(
         &schema,
         &[
             "properties",
             "project",
             "properties",
-            "providers",
+            "harnesses",
             "items",
             "enum",
         ],
     );
 
-    let compiler_providers: Vec<&str> = crate::compile::list_providers()
+    let compiler_harnesses: Vec<&str> = crate::compile::list_harnesses()
         .iter()
         .map(|p| p.id)
         .collect();
 
-    for p in &compiler_providers {
+    for p in &compiler_harnesses {
         assert!(
-            schema_providers.contains(&p.to_string()),
-            "Compiler has provider '{}' but ship.schema.json is missing it",
+            schema_harnesses.contains(&p.to_string()),
+            "Compiler has harness '{}' but ship.schema.json is missing it",
             p
         );
     }
@@ -121,7 +121,7 @@ fn ship_schema_providers_match_compiler() {
 // ── MCP schema fields match McpServerConfig ──────────────────────────────────
 
 #[test]
-fn mcp_schema_has_per_server_provider_fields() {
+fn mcp_schema_has_per_server_harness_fields() {
     let schema = load_schema("mcp.schema.json");
     let server_props = schema_object_keys(&schema, &["$defs", "McpServerEntry", "properties"]);
 
@@ -189,13 +189,13 @@ fn permissions_schema_preset_fields_match_loader() {
 // ── ship.schema.json ─────────────────────────────────────────────────────────
 
 #[test]
-fn ship_schema_has_provider_defaults() {
+fn ship_schema_has_harness_defaults() {
     let schema = load_schema("ship.schema.json");
     let project_props = schema_object_keys(&schema, &["properties", "project", "properties"]);
 
     assert!(
-        project_props.contains(&"provider_defaults".to_string()),
-        "ship.schema.json project section missing provider_defaults"
+        project_props.contains(&"harness_defaults".to_string()),
+        "ship.schema.json project section missing harness_defaults"
     );
 }
 
@@ -229,7 +229,7 @@ fn ship_schema_has_agents() {
 
 // ── agent.schema.json ────────────────────────────────────────────────────────
 
-// Hooks are provider-specific — configured via provider_settings, not schema-level.
+// Hooks are harness-specific — configured via harness_settings, not schema-level.
 // Ship will add hook schemas when the runtime supports hooks natively.
 
 // ── Schema version fields ────────────────────────────────────────────────────
@@ -254,15 +254,15 @@ fn all_schemas_have_version_field() {
 // ── Schema URLs in schemas.rs match actual files ─────────────────────────────
 
 #[test]
-fn schema_url_constants_cover_all_providers() {
-    for provider in crate::compile::list_providers() {
-        let found = crate::PROVIDER_SCHEMAS
+fn schema_url_constants_cover_all_harnesses() {
+    for harness in crate::compile::list_harnesses() {
+        let found = crate::HARNESS_SCHEMAS
             .iter()
-            .any(|(id, _)| *id == provider.id);
+            .any(|(id, _)| *id == harness.id);
         assert!(
             found,
-            "Provider '{}' missing from PROVIDER_SCHEMAS in schemas.rs",
-            provider.id
+            "Harness '{}' missing from HARNESS_SCHEMAS in schemas.rs",
+            harness.id
         );
     }
 }
@@ -287,24 +287,24 @@ fn permissions_schema_has_tool_pattern_def() {
     );
 }
 
-// ── provider_settings managed-key exclusion ────────────────────────────────
+// ── harness_settings managed-key exclusion ────────────────────────────────
 
-/// Verify that the `allOf` exclusion in agent.schema.json provider_settings
-/// matches `PROVIDER_MANAGED_KEYS` in schemas.rs.
+/// Verify that the `allOf` exclusion in agent.schema.json harness_settings
+/// matches `HARNESS_MANAGED_KEYS` in schemas.rs.
 #[test]
-fn agent_schema_provider_settings_exclude_managed_keys() {
+fn agent_schema_harness_settings_exclude_managed_keys() {
     let schema = load_schema("agent.schema.json");
-    for (provider_id, expected_keys) in crate::PROVIDER_MANAGED_KEYS {
+    for (harness_id, expected_keys) in crate::HARNESS_MANAGED_KEYS {
         if expected_keys.is_empty() {
             continue; // Cursor has no exclusion (no upstream schema)
         }
-        // Navigate to provider_settings.<provider>.allOf[1].properties
-        let allof = &schema["properties"]["provider_settings"]["properties"][provider_id]["allOf"];
+        // Navigate to harness_settings.<harness>.allOf[1].properties
+        let allof = &schema["properties"]["harness_settings"]["properties"][harness_id]["allOf"];
         let excluded = schema_object_keys_from(
             allof.get(1).unwrap_or_else(|| {
                 panic!(
-                    "agent.schema.json: provider_settings.{} missing allOf[1]",
-                    provider_id
+                    "agent.schema.json: harness_settings.{} missing allOf[1]",
+                    harness_id
                 )
             }),
             &["properties"],
@@ -312,30 +312,30 @@ fn agent_schema_provider_settings_exclude_managed_keys() {
         for &key in *expected_keys {
             assert!(
                 excluded.contains(&key.to_string()),
-                "agent.schema.json: provider_settings.{} missing exclusion for Ship-managed key '{}'",
-                provider_id,
+                "agent.schema.json: harness_settings.{} missing exclusion for Ship-managed key '{}'",
+                harness_id,
                 key
             );
         }
     }
 }
 
-/// Verify that the `allOf` exclusion in ship.schema.json provider_defaults
-/// matches `PROVIDER_MANAGED_KEYS` in schemas.rs.
+/// Verify that the `allOf` exclusion in ship.schema.json harness_defaults
+/// matches `HARNESS_MANAGED_KEYS` in schemas.rs.
 #[test]
-fn ship_schema_provider_defaults_exclude_managed_keys() {
+fn ship_schema_harness_defaults_exclude_managed_keys() {
     let schema = load_schema("ship.schema.json");
-    for (provider_id, expected_keys) in crate::PROVIDER_MANAGED_KEYS {
+    for (harness_id, expected_keys) in crate::HARNESS_MANAGED_KEYS {
         if expected_keys.is_empty() {
             continue;
         }
-        let allof = &schema["properties"]["project"]["properties"]["provider_defaults"]["properties"]
-            [provider_id]["allOf"];
+        let allof = &schema["properties"]["project"]["properties"]["harness_defaults"]["properties"]
+            [harness_id]["allOf"];
         let excluded = schema_object_keys_from(
             allof.get(1).unwrap_or_else(|| {
                 panic!(
-                    "ship.schema.json: provider_defaults.{} missing allOf[1]",
-                    provider_id
+                    "ship.schema.json: harness_defaults.{} missing allOf[1]",
+                    harness_id
                 )
             }),
             &["properties"],
@@ -343,8 +343,8 @@ fn ship_schema_provider_defaults_exclude_managed_keys() {
         for &key in *expected_keys {
             assert!(
                 excluded.contains(&key.to_string()),
-                "ship.schema.json: provider_defaults.{} missing exclusion for Ship-managed key '{}'",
-                provider_id,
+                "ship.schema.json: harness_defaults.{} missing exclusion for Ship-managed key '{}'",
+                harness_id,
                 key
             );
         }

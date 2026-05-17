@@ -38,7 +38,7 @@ fn compile_worktree_output_root_separates_from_project_root() {
     run_compile(CompileOptions {
         project_root: project.path(),
         output_root: Some(output.path()),
-        provider: Some("claude"),
+        harness: Some("claude"),
         dry_run: false,
         active_agent: None,
         extra_skills: vec![],

@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use crate::resolve::ResolvedConfig;
 use crate::types::Skill;
 
-use super::provider::ProviderDescriptor;
+use super::harness::HarnessDescriptor;
 
 /// Compute the deduplicated set of event subscription namespaces for a list of skills.
 ///
@@ -25,7 +25,7 @@ pub(super) fn resolve_event_subscriptions(skills: &[Skill]) -> Vec<String> {
 }
 
 pub(super) fn build_skill_files(
-    desc: &ProviderDescriptor,
+    desc: &HarnessDescriptor,
     resolved: &ResolvedConfig,
 ) -> HashMap<String, String> {
     let Some(base) = desc.skills_dir.base_path() else {
@@ -52,7 +52,7 @@ pub(super) fn build_skill_files(
 /// | Key | Type | Description |
 /// |-----|------|-------------|
 /// | `runtime.agents` | array of `{id, name, description}` | Agent profiles from `.ship/agents/*.toml` |
-/// | `runtime.providers` | array of strings | Active provider IDs (e.g. `["claude", "cursor"]`) |
+/// | `runtime.harnesses` | array of strings | Active harness IDs (e.g. `["claude", "cursor"]`) |
 /// | `runtime.model` | string or `""` | Configured model override, empty if not set |
 /// | `runtime.skills` | array of `{id, name, description}` | All skills active in this compile |
 fn build_runtime_vars(resolved: &ResolvedConfig) -> serde_json::Value {
@@ -82,7 +82,7 @@ fn build_runtime_vars(resolved: &ResolvedConfig) -> serde_json::Value {
 
     serde_json::json!({
         "agents": agents,
-        "providers": resolved.providers,
+        "harnesses": resolved.harnesses,
         "model": resolved.model.as_deref().unwrap_or(""),
         "skills": skills,
     })

@@ -3,7 +3,7 @@
 //! Sessions are immutable analytics records over actor activity. The
 //! `workspace` runtime primitive retired entirely (see
 //! `.artifacts/specs/workspace-retirement/`); this module is what remains
-//! — start/end/list/progress, plus the compile step that writes provider
+//! — start/end/list/progress, plus the compile step that writes harness
 //! config files at session start.
 
 pub(crate) mod compile;

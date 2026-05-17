@@ -30,7 +30,7 @@ in dev; in prod they redirect through `/waitlist` per the flag.
 | `/sign-up` | `PUBLIC_SHOW_AUTH=true` | Better Auth sign-up |
 | `/forgot-password` | `PUBLIC_SHOW_AUTH=true` | Calls Better Auth `forgetPassword` |
 | `/reset-password` | `PUBLIC_SHOW_AUTH=true` | Reset via token from email |
-| `/account` | `PUBLIC_SHOW_ACCOUNT=true` | Profile + theme + sessions + linked providers + danger zone |
+| `/account` | `PUBLIC_SHOW_ACCOUNT=true` | Profile + theme + sessions + linked harnesses + danger zone |
 | `/billing` | `PUBLIC_SHOW_BILLING=true` | Real subscription state via `authClient.subscription.*` |
 
 When flag is off, route redirects to `/` (account/billing/pricing) or
@@ -74,7 +74,7 @@ work in the Cloudflare dashboard + a couple wrangler commands.
   wrangler secret put STRIPE_WEBHOOK_SECRET  --env staging   # whsec_...
   wrangler secret put STRIPE_PRICE_PRO      --env staging   # price_...
 
-  # OAuth providers (each one needed only if you're enabling that button)
+  # OAuth harnesses (each one needed only if you're enabling that button)
   wrangler secret put GITHUB_CLIENT_ID       --env staging
   wrangler secret put GITHUB_CLIENT_SECRET   --env staging
   wrangler secret put GOOGLE_CLIENT_ID       --env staging

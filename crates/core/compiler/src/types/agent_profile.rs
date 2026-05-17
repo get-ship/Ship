@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 /// An agent parsed from `.ship/agents/<id>.jsonc`.
 ///
 /// Defines a specialist agent that the compiler emits as a
-/// provider-native subagent definition (`.claude/agents/`,
+/// harness-native subagent definition (`.claude/agents/`,
 /// `.gemini/agents/`, `.cursor/agents/`, `.codex/agents/`). The
 /// canonical schema lives in `schemas/agent.schema.json` — every
 /// JSONC field declared there should have a matching Rust field
@@ -27,11 +27,11 @@ pub struct AgentProfile {
     /// App integrations for this agent profile.
     #[serde(default)]
     pub apps: ProfileApps,
-    /// Provider-specific settings merged verbatim into the provider's config
-    /// file. `provider_settings.claude` → `.claude/settings.json`. Any
+    /// Harness-specific settings merged verbatim into the harness's config
+    /// file. `harness_settings.claude` → `.claude/settings.json`. Any
     /// key/value valid in that file works here — no code change required.
     #[serde(default)]
-    pub provider_settings: std::collections::HashMap<String, serde_json::Value>,
+    pub harness_settings: std::collections::HashMap<String, serde_json::Value>,
 }
 
 /// Declares which Ship apps an agent integrates with.
@@ -54,7 +54,7 @@ pub struct ProfileMeta {
     #[serde(default)]
     pub description: Option<String>,
     #[serde(default)]
-    pub providers: Vec<String>,
+    pub harnesses: Vec<String>,
     /// Role for tool gating defaults. Maps to a `tools_preset` when unset:
     ///   worker → preset "worker"
     ///   lead | commander → preset "orchestrator"
@@ -127,7 +127,7 @@ pub struct ProfileRules {
 }
 
 /// Hook commands declared on the agent. Compile emits each into the active
-/// provider's hook registration (e.g. `.claude/settings.json:hooks`).
+/// harness's hook registration (e.g. `.claude/settings.json:hooks`).
 #[cfg_attr(feature = "specta", derive(specta::Type))]
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ProfileHooks {
@@ -141,7 +141,7 @@ pub struct ProfileHooks {
 
 impl AgentProfile {
     /// Project this nested file-format profile to the flat runtime form
-    /// the resolver and provider compilers consume (`compiler::AgentConfig`).
+    /// the resolver and harness compilers consume (`compiler::AgentConfig`).
     /// This is the single canonical nested → flat mapping.
     pub fn to_config(&self) -> super::AgentConfig {
         use super::config::PermissionConfig;
@@ -157,7 +157,7 @@ impl AgentProfile {
             rules: Vec::new(),
             hooks: Vec::new(),
             permissions: PermissionConfig::default(),
-            target_agents: self.agent.providers.clone(),
+            target_agents: self.agent.harnesses.clone(),
         }
     }
 }
@@ -186,7 +186,7 @@ mod tests {
     "name": "Code Reviewer",
     "version": "1.2.0",
     "description": "Reviews pull requests for style, correctness, and test coverage.",
-    "providers": ["claude", "cursor"],
+    "harnesses": ["claude", "cursor"],
     "role": "worker",
     "tags": ["review", "testing"]
   },
@@ -202,7 +202,7 @@ mod tests {
   },
   "rules": { "inline": "You are a senior code reviewer.\nFocus on correctness." },
   "hooks": { "stop": "ship session end" },
-  "provider_settings": {
+  "harness_settings": {
     "claude": { "model": "opus", "temperature": 0.2 }
   }
 }"#;
@@ -215,7 +215,7 @@ mod tests {
         assert_eq!(profile.mcp.servers, vec!["github", "linear"]);
         assert_eq!(profile.permissions.preset.as_deref(), Some("ship-standard"));
         assert_eq!(profile.hooks.stop.as_deref(), Some("ship session end"));
-        let claude = profile.provider_settings.get("claude").expect("claude");
+        let claude = profile.harness_settings.get("claude").expect("claude");
         assert_eq!(claude.get("model").and_then(|v| v.as_str()), Some("opus"));
     }
 
@@ -251,13 +251,13 @@ mod tests {
         assert!(profile.skills.refs.is_empty());
         assert!(profile.mcp.servers.is_empty());
         assert!(profile.permissions.tools_allow.is_empty());
-        assert!(profile.provider_settings.is_empty());
+        assert!(profile.harness_settings.is_empty());
     }
 
     #[test]
     fn to_config_projects_nested_to_flat() {
         let src = r#"{
-  "agent": { "id": "rev", "name": "Reviewer", "role": "worker", "providers": ["claude"] },
+  "agent": { "id": "rev", "name": "Reviewer", "role": "worker", "harnesses": ["claude"] },
   "skills": { "refs": ["a", "b"] },
   "mcp": { "servers": ["github"] }
 }"#;

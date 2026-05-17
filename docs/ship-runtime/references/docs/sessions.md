@@ -23,7 +23,7 @@ pub struct Session {
     pub started_at: DateTime<Utc>,
     pub ended_at: Option<DateTime<Utc>>,
     pub agent_id: Option<String>,
-    pub primary_provider: Option<String>,
+    pub primary_harness: Option<String>,
     pub goal: Option<String>,
     pub summary: Option<String>,
     pub updated_workspace_ids: Vec<String>,
@@ -69,7 +69,7 @@ pub fn start_session(
     branch: &str,
     goal: Option<String>,
     agent_id: Option<String>,
-    primary_provider: Option<String>,
+    primary_harness: Option<String>,
 ) -> Result<Session>
 ```
 
@@ -77,7 +77,7 @@ Flow:
 
 1. Validate branch key; derive `workspace_id` via `sanitize_file_name(branch)`.
 2. **Idempotent check** — if an active session already exists for the branch, emit `session.attached`, persist an "attach" artifact, and return the existing session. No error.
-3. Resolve providers for the session's agent (via `compile::resolve_session_providers`) and the primary provider.
+3. Resolve harnesses for the session's agent (via `compile::resolve_session_harnesses`) and the primary harness.
 4. Compile the session context.
 5. Look up `project_id` from the project root — left `None` if the project isn't registered (registration is explicit, never implicit).
 6. Insert the session row via `db::session_events::insert_session_with_started_event` — a single transaction does INSERT + emit `session.started`.
@@ -161,7 +161,7 @@ From `ship-types::event_types`:
 
 | Constant | Meaning |
 |---|---|
-| `SESSION_STARTED` | Session begins. Includes agent, provider, goal. |
+| `SESSION_STARTED` | Session begins. Includes agent, harness, goal. |
 | `SESSION_PROGRESS` | Progress note. Not projected — event log only. |
 | `SESSION_ENDED` | Session closes. Carries summary + inline telemetry. |
 | `SESSION_ATTACHED` | Idempotent attach — `start_session` found an active session. |

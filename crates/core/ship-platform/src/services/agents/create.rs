@@ -1,4 +1,4 @@
-//! `agents.templates()` / `agents.permission_presets()` / `agents.providers()`
+//! `agents.templates()` / `agents.permission_presets()` / `agents.harnesses()`
 //! — catalogs for the create-agent wizard.
 //!
 //! Today these are builtin lists. When they become user-configurable
@@ -48,7 +48,7 @@ pub fn builtin_permission_presets() -> Vec<PermissionPreset> {
     ]
 }
 
-pub fn builtin_providers() -> Vec<String> {
+pub fn builtin_harnesses() -> Vec<String> {
     vec!["claude", "codex", "cursor", "gemini", "opencode"]
         .into_iter()
         .map(String::from)
@@ -61,14 +61,14 @@ pub fn builtin_providers() -> Vec<String> {
 pub struct AgentsCreateCtx {
     pub templates: Vec<AgentTemplate>,
     pub permission_presets: Vec<PermissionPreset>,
-    pub available_providers: Vec<String>,
+    pub available_harnesses: Vec<String>,
 }
 
 pub fn build_create_ctx() -> AgentsCreateCtx {
     AgentsCreateCtx {
         templates: builtin_templates(),
         permission_presets: builtin_permission_presets(),
-        available_providers: builtin_providers(),
+        available_harnesses: builtin_harnesses(),
     }
 }
 
@@ -90,7 +90,7 @@ mod tests {
     }
 
     #[test]
-    fn providers_include_claude() {
-        assert!(builtin_providers().contains(&"claude".to_string()));
+    fn harnesses_include_claude() {
+        assert!(builtin_harnesses().contains(&"claude".to_string()));
     }
 }

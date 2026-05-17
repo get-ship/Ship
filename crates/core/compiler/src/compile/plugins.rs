@@ -1,11 +1,11 @@
 use crate::types::{PluginEntry, PluginsManifest};
 
-/// Build the plugins manifest for a given provider.
-/// Plugin entries inherit the provider from the manifest scope or default to
-/// the compile target when no provider hint is encoded in the plugin ID.
+/// Build the plugins manifest for a given harness.
+/// Plugin entries inherit the harness from the manifest scope or default to
+/// the compile target when no harness hint is encoded in the plugin ID.
 pub(super) fn build_plugins_manifest(
     plugins: &PluginsManifest,
-    provider_id: &str,
+    harness_id: &str,
 ) -> PluginsManifest {
     if plugins.install.is_empty() {
         return PluginsManifest::default();
@@ -16,10 +16,10 @@ pub(super) fn build_plugins_manifest(
         .iter()
         .map(|entry| PluginEntry {
             id: entry.id.clone(),
-            provider: if entry.provider.is_empty() {
-                provider_id.to_string()
+            harness: if entry.harness.is_empty() {
+                harness_id.to_string()
             } else {
-                entry.provider.clone()
+                entry.harness.clone()
             },
         })
         .collect();

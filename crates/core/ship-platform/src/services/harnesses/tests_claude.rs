@@ -1,7 +1,7 @@
-//! Tests for ClaudeAdapter — the Claude Code CLI provider adapter.
+//! Tests for ClaudeAdapter — the Claude Code CLI harness adapter.
 
 use crate::services::dispatch_ports::LaunchProfile;
-use crate::services::provider_adapter::{ProviderAdapter, ProviderEvent};
+use crate::services::harness_adapter::{HarnessAdapter, HarnessEvent};
 use super::ClaudeAdapter;
 
 fn default_profile() -> LaunchProfile {
@@ -212,7 +212,7 @@ fn parse_system_init_extracts_session_id() {
     // shape; see commit 8158d5a0).
     let line = r#"{"type":"system","subtype":"init","session_id":"sess-xyz-789"}"#;
     match adapter.parse_output(line) {
-        Some(ProviderEvent::SessionStarted { session_id }) => {
+        Some(HarnessEvent::SessionStarted { session_id }) => {
             assert_eq!(session_id, "sess-xyz-789");
         }
         other => panic!("expected SessionStarted, got {other:?}"),
@@ -226,7 +226,7 @@ fn parse_tool_use_extracts_tool_name() {
     // not the legacy `stream_event/content_block_start` wrapper.
     let line = r#"{"type":"assistant","message":{"content":[{"type":"tool_use","id":"tu_1","name":"Read","input":{}}]}}"#;
     match adapter.parse_output(line) {
-        Some(ProviderEvent::ToolUse { tool, .. }) => {
+        Some(HarnessEvent::ToolUse { tool, .. }) => {
             assert_eq!(tool, "Read");
         }
         other => panic!("expected ToolUse, got {other:?}"),
@@ -238,7 +238,7 @@ fn parse_system_event_becomes_custom() {
     let adapter = ClaudeAdapter;
     let line = r#"{"type":"system","subtype":"api_retry","attempt":1,"max_retries":3,"retry_delay_ms":1000,"error_status":429,"error":"rate_limit","uuid":"u5","session_id":"s1"}"#;
     match adapter.parse_output(line) {
-        Some(ProviderEvent::Custom { kind, .. }) => {
+        Some(HarnessEvent::Custom { kind, .. }) => {
             assert_eq!(kind, "api_retry");
         }
         other => panic!("expected Custom, got {other:?}"),

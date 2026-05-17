@@ -251,7 +251,7 @@ pub(super) fn build_cursor_cli_json(resolved: &ResolvedConfig) -> Option<Json> {
 
 /// Build Cursor MCP server entry with Cursor-specific per-server fields.
 pub(super) fn build_cursor_server_entry(
-    desc: &super::provider::ProviderDescriptor,
+    desc: &super::harness::HarnessDescriptor,
     s: &McpServerConfig,
 ) -> Json {
     let mut entry = super::mcp::server_entry(desc, s);
@@ -268,7 +268,7 @@ pub(super) fn build_cursor_server_entry(
 
 /// Build the Cursor MCP servers object with Cursor-specific fields.
 pub(super) fn build_cursor_mcp_servers(
-    desc: &super::provider::ProviderDescriptor,
+    desc: &super::harness::HarnessDescriptor,
     servers: &[McpServerConfig],
     studio_url: Option<&str>,
     ship_home_dir: Option<&str>,

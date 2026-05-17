@@ -13,7 +13,7 @@ pub struct SessionDb {
     pub started_at: String,
     pub ended_at: Option<String>,
     pub agent_id: Option<String>,
-    pub primary_provider: Option<String>,
+    pub primary_harness: Option<String>,
     pub goal: Option<String>,
     pub summary: Option<String>,
     pub updated_workspace_ids: Vec<String>,

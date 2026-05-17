@@ -320,9 +320,9 @@ fn canonical_tool_ids() -> Vec<String> {
     ids.into_iter().collect()
 }
 
-pub fn permission_tool_ids_for_provider(provider_id: &str) -> Vec<String> {
+pub fn permission_tool_ids_for_harness(harness_id: &str) -> Vec<String> {
     let mut ids: BTreeSet<String> = canonical_tool_ids().into_iter().collect();
-    if provider_id == "gemini" {
+    if harness_id == "gemini" {
         ids.insert("run_shell_command".to_string());
     }
     ids.into_iter().collect()
@@ -334,15 +334,15 @@ mod tests {
     use tempfile::TempDir;
 
     #[test]
-    fn provider_tool_vocab_excludes_wildcards_and_mcp_patterns() {
-        let ids = permission_tool_ids_for_provider("claude");
+    fn harness_tool_vocab_excludes_wildcards_and_mcp_patterns() {
+        let ids = permission_tool_ids_for_harness("claude");
         assert!(!ids.iter().any(|id| id == "*"));
         assert!(!ids.iter().any(|id| id.starts_with("mcp__")));
     }
 
     #[test]
     fn gemini_vocab_includes_shell_tool_id() {
-        let ids = permission_tool_ids_for_provider("gemini");
+        let ids = permission_tool_ids_for_harness("gemini");
         assert!(ids.iter().any(|id| id == "run_shell_command"));
     }
 

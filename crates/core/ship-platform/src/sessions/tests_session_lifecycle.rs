@@ -1,13 +1,13 @@
-//! Tests for session lifecycle — start, end, attach, provider resolution.
+//! Tests for session lifecycle — start, end, attach, harness resolution.
 
 use crate::sessions::*;
 use anyhow::Result;
 use tempfile::tempdir;
 
-fn init_project_with_provider(tmp: &tempfile::TempDir) -> Result<std::path::PathBuf> {
+fn init_project_with_harness(tmp: &tempfile::TempDir) -> Result<std::path::PathBuf> {
     let ship_dir = crate::testutil::init_project(tmp.path())?;
     let mut config = crate::config::get_config(Some(ship_dir.clone()))?;
-    config.providers = vec!["claude".to_string()];
+    config.harnesses = vec!["claude".to_string()];
     crate::config::save_config(&config, Some(ship_dir.clone()))?;
     Ok(ship_dir)
 }
@@ -17,7 +17,7 @@ fn init_project_with_provider(tmp: &tempfile::TempDir) -> Result<std::path::Path
 #[test]
 fn start_session_auto_creates_workspace() -> Result<()> {
     let tmp = tempdir()?;
-    let ship_dir = init_project_with_provider(&tmp)?;
+    let ship_dir = init_project_with_harness(&tmp)?;
 
     let session = start_session(
         &ship_dir,
@@ -35,7 +35,7 @@ fn start_session_auto_creates_workspace() -> Result<()> {
 #[test]
 fn start_session_on_existing_workspace() -> Result<()> {
     let tmp = tempdir()?;
-    let ship_dir = init_project_with_provider(&tmp)?;
+    let ship_dir = init_project_with_harness(&tmp)?;
 
     let session = start_session(
         &ship_dir,
@@ -51,7 +51,7 @@ fn start_session_on_existing_workspace() -> Result<()> {
 #[test]
 fn start_session_returns_existing_active_session() -> Result<()> {
     let tmp = tempdir()?;
-    let ship_dir = init_project_with_provider(&tmp)?;
+    let ship_dir = init_project_with_harness(&tmp)?;
 
     let first = start_session(
         &ship_dir,
@@ -76,20 +76,20 @@ fn start_session_returns_existing_active_session() -> Result<()> {
 #[test]
 fn start_session_rejects_empty_branch() {
     let tmp = tempdir().unwrap();
-    let ship_dir = init_project_with_provider(&tmp).unwrap();
+    let ship_dir = init_project_with_harness(&tmp).unwrap();
 
     let err = start_session(&ship_dir, "", None, None, None).unwrap_err();
     assert!(err.to_string().contains("cannot be empty"));
 }
 
 #[test]
-fn start_session_rejects_empty_provider() {
+fn start_session_rejects_empty_harness() {
     let tmp = tempdir().unwrap();
-    let ship_dir = init_project_with_provider(&tmp).unwrap();
+    let ship_dir = init_project_with_harness(&tmp).unwrap();
 
     let err = start_session(
         &ship_dir,
-        "feature/empty-provider",
+        "feature/empty-harness",
         None,
         None,
         Some("".into()),
@@ -99,13 +99,13 @@ fn start_session_rejects_empty_provider() {
 }
 
 #[test]
-fn start_session_rejects_disallowed_provider() {
+fn start_session_rejects_disallowed_harness() {
     let tmp = tempdir().unwrap();
-    let ship_dir = init_project_with_provider(&tmp).unwrap();
+    let ship_dir = init_project_with_harness(&tmp).unwrap();
 
     let err = start_session(
         &ship_dir,
-        "feature/bad-provider",
+        "feature/bad-harness",
         None,
         None,
         Some("codex".into()),
@@ -115,34 +115,34 @@ fn start_session_rejects_disallowed_provider() {
 }
 
 #[test]
-fn start_session_with_explicit_provider() -> Result<()> {
+fn start_session_with_explicit_harness() -> Result<()> {
     let tmp = tempdir()?;
-    let ship_dir = init_project_with_provider(&tmp)?;
+    let ship_dir = init_project_with_harness(&tmp)?;
 
     let session = start_session(
         &ship_dir,
-        "feature/explicit-provider",
+        "feature/explicit-harness",
         None,
         None,
         Some("claude".into()),
     )?;
-    assert_eq!(session.primary_provider.as_deref(), Some("claude"));
+    assert_eq!(session.primary_harness.as_deref(), Some("claude"));
     Ok(())
 }
 
 #[test]
-fn start_session_assigns_default_provider() -> Result<()> {
+fn start_session_assigns_default_harness() -> Result<()> {
     let tmp = tempdir()?;
-    let ship_dir = init_project_with_provider(&tmp)?;
+    let ship_dir = init_project_with_harness(&tmp)?;
 
     let session = start_session(
         &ship_dir,
-        "feature/default-provider",
+        "feature/default-harness",
         None,
         None,
         None,
     )?;
-    assert!(session.primary_provider.is_some());
+    assert!(session.primary_harness.is_some());
     Ok(())
 }
 
@@ -151,7 +151,7 @@ fn start_session_assigns_default_provider() -> Result<()> {
 #[test]
 fn end_session_errors_for_missing_workspace() {
     let tmp = tempdir().unwrap();
-    let ship_dir = init_project_with_provider(&tmp).unwrap();
+    let ship_dir = init_project_with_harness(&tmp).unwrap();
 
     let err = end_session(
         &ship_dir,
@@ -165,7 +165,7 @@ fn end_session_errors_for_missing_workspace() {
 #[test]
 fn end_session_errors_when_no_active_session() {
     let tmp = tempdir().unwrap();
-    let ship_dir = init_project_with_provider(&tmp).unwrap();
+    let ship_dir = init_project_with_harness(&tmp).unwrap();
 
     let err = end_session(
         &ship_dir,
@@ -179,7 +179,7 @@ fn end_session_errors_when_no_active_session() {
 #[test]
 fn end_session_completes_active_session() -> Result<()> {
     let tmp = tempdir()?;
-    let ship_dir = init_project_with_provider(&tmp)?;
+    let ship_dir = init_project_with_harness(&tmp)?;
 
     start_session(
         &ship_dir,
@@ -206,7 +206,7 @@ fn end_session_completes_active_session() -> Result<()> {
 #[test]
 fn end_session_creates_session_record() -> Result<()> {
     let tmp = tempdir()?;
-    let ship_dir = init_project_with_provider(&tmp)?;
+    let ship_dir = init_project_with_harness(&tmp)?;
 
     start_session(
         &ship_dir,
@@ -235,7 +235,7 @@ fn end_session_creates_session_record() -> Result<()> {
 #[test]
 fn end_session_with_no_summary() -> Result<()> {
     let tmp = tempdir()?;
-    let ship_dir = init_project_with_provider(&tmp)?;
+    let ship_dir = init_project_with_harness(&tmp)?;
 
     start_session(
         &ship_dir,
@@ -258,7 +258,7 @@ fn end_session_with_no_summary() -> Result<()> {
 #[test]
 fn start_new_session_after_ending_previous() -> Result<()> {
     let tmp = tempdir()?;
-    let ship_dir = init_project_with_provider(&tmp)?;
+    let ship_dir = init_project_with_harness(&tmp)?;
 
     let first = start_session(
         &ship_dir,

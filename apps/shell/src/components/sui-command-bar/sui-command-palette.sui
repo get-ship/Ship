@@ -1,7 +1,7 @@
 <bundle separate />
 <!--
   <sui-command-palette> — inner command palette panel.
-  Consumed inside <sui-command-bar>. Accesses provider state via useShared.
+  Consumed inside <sui-command-bar>. Accesses harness state via useShared.
 -->
 
 <style>
@@ -269,7 +269,7 @@
             on:click={() => selectSession(s.id)}
           >
             <span class="cb-dot" style:background={s.status === 'thinking' ? 'var(--warning,#d97706)' : 'var(--success,#16a34a)'}></span>
-            <span><strong>{s.agent_id ?? ''}</strong><span class="meta"> · {s.provider ?? ''} · {s.workspace_id}</span></span>
+            <span><strong>{s.agent_id ?? ''}</strong><span class="meta"> · {s.harness ?? ''} · {s.workspace_id}</span></span>
             <button class="cb-session-end" type="button" aria-label="End session" on:click={(e) => { e.stopPropagation(); endSession(s.id) }}>×</button>
           </div>
         {/for}

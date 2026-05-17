@@ -12,7 +12,7 @@
 //! - POST   /api/v1/permissions                 create { id, preset, scope? }
 //! - GET    /api/v1/permissions/tool-patterns   autocomplete catalog
 //!
-//! The `tool-patterns` endpoint composes: hardcoded provider builtins +
+//! The `tool-patterns` endpoint composes: hardcoded harness builtins +
 //! curated Bash shapes + wildcards for every MCP server returned by
 //! `McpService::list()` (scope-agnostic).
 
@@ -179,7 +179,7 @@ pub async fn create(
 
 /// GET /api/v1/permissions/tool-patterns
 ///
-/// Provider builtins + curated Bash shapes + wildcard entries for every
+/// Harness builtins + curated Bash shapes + wildcard entries for every
 /// MCP server known to the daemon. The cross-domain composition lives
 /// inside `PermissionsService::tool_patterns` — handler is just JSON.
 pub async fn tool_patterns(State(state): State<ApiState>) -> Json<serde_json::Value> {

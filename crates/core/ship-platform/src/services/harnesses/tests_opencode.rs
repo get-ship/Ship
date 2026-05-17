@@ -1,8 +1,8 @@
-//! Tests for GeminiAdapter — the Gemini CLI provider adapter.
+//! Tests for OpenCodeAdapter — the OpenCode CLI harness adapter.
 
 use crate::services::dispatch_ports::LaunchProfile;
-use crate::services::provider_adapter::ProviderAdapter;
-use super::GeminiAdapter;
+use crate::services::harness_adapter::HarnessAdapter;
+use super::OpenCodeAdapter;
 
 fn default_profile() -> LaunchProfile {
     LaunchProfile { persist_session: true, ..Default::default() }
@@ -11,45 +11,47 @@ fn default_profile() -> LaunchProfile {
 // ── Launch command tests ────────────────────────────────────────────────────
 
 #[test]
-fn interactive_emits_gemini_binary() {
-    let adapter = GeminiAdapter;
+fn interactive_emits_opencode_binary() {
+    let adapter = OpenCodeAdapter;
     let cmd = adapter.build_interactive("my-job", &default_profile());
-    assert_eq!(cmd.bin, "gemini");
+    assert_eq!(cmd.bin, "opencode");
 }
 
 #[test]
 fn interactive_sets_mesh_id_env() {
-    let adapter = GeminiAdapter;
+    let adapter = OpenCodeAdapter;
     let cmd = adapter.build_interactive("my-job", &default_profile());
     assert_eq!(cmd.env.get("SHIP_ACTOR_ID").unwrap(), "my-job");
 }
 
 #[test]
 fn interactive_model_flag_maps_correctly() {
-    let adapter = GeminiAdapter;
+    let adapter = OpenCodeAdapter;
     let profile = LaunchProfile {
-        model: Some("gemini-2.5-pro".to_string()),
+        model: Some("anthropic/claude-sonnet-4".to_string()),
         persist_session: true,
         ..Default::default()
     };
     let cmd = adapter.build_interactive("j", &profile);
     let idx = cmd.args.iter().position(|a| a == "--model").unwrap();
-    assert_eq!(cmd.args[idx + 1], "gemini-2.5-pro");
+    assert_eq!(cmd.args[idx + 1], "anthropic/claude-sonnet-4");
 }
 
 #[test]
-fn headless_emits_yolo_prompt_command() {
-    let adapter = GeminiAdapter;
+fn headless_emits_run_command_with_prompt() {
+    let adapter = OpenCodeAdapter;
     let profile = LaunchProfile {
         autostart_prompt: Some("test prompt".to_string()),
         persist_session: true,
         ..Default::default()
     };
     let cmd = adapter.build_headless("test-slug", &profile);
-    assert_eq!(cmd.bin, "gemini");
-    assert!(cmd.args.contains(&"--yolo".to_string()));
-    let p_idx = cmd.args.iter().position(|a| a == "-p").expect("-p flag");
-    assert_eq!(cmd.args[p_idx + 1], "test prompt");
+    assert_eq!(cmd.bin, "opencode");
+    assert_eq!(cmd.args[0], "run");
+    assert!(
+        !cmd.args.contains(&"--yolo".to_string()),
+        "opencode CLI has no --yolo flag; removed in April 2026",
+    );
     assert_eq!(cmd.args.last().unwrap(), "test prompt");
     assert_eq!(
         cmd.env.get("SHIP_ACTOR_ID").map(String::as_str),
@@ -59,9 +61,9 @@ fn headless_emits_yolo_prompt_command() {
 
 #[test]
 fn headless_includes_model_when_specified() {
-    let adapter = GeminiAdapter;
+    let adapter = OpenCodeAdapter;
     let profile = LaunchProfile {
-        model: Some("gemini-2.5-pro".to_string()),
+        model: Some("anthropic/claude-sonnet-4".to_string()),
         autostart_prompt: Some("p".to_string()),
         persist_session: true,
         ..Default::default()
@@ -72,12 +74,12 @@ fn headless_includes_model_when_specified() {
         .iter()
         .position(|a| a == "--model")
         .expect("--model flag");
-    assert_eq!(cmd.args[model_idx + 1], "gemini-2.5-pro");
+    assert_eq!(cmd.args[model_idx + 1], "anthropic/claude-sonnet-4");
 }
 
 #[test]
 fn headless_falls_back_to_default_prompt() {
-    let adapter = GeminiAdapter;
+    let adapter = OpenCodeAdapter;
     let cmd = adapter.build_headless("s", &default_profile());
     assert_eq!(
         cmd.args.last().unwrap(),
@@ -88,13 +90,13 @@ fn headless_falls_back_to_default_prompt() {
 // ── Adapter identity ────────────────────────────────────────────────────────
 
 #[test]
-fn id_is_gemini() {
-    assert_eq!(GeminiAdapter.id(), "gemini");
+fn id_is_opencode() {
+    assert_eq!(OpenCodeAdapter.id(), "opencode");
 }
 
 #[test]
 fn parse_output_returns_none() {
-    let adapter = GeminiAdapter;
+    let adapter = OpenCodeAdapter;
     assert!(adapter.parse_output("anything").is_none());
 }
 
@@ -102,12 +104,15 @@ fn parse_output_returns_none() {
 
 #[test]
 fn caps_match_declared() {
-    let c = GeminiAdapter.caps();
+    let c = OpenCodeAdapter.caps();
     assert!(c.headless);
     assert!(c.interactive);
-    assert!(!c.server_mode);
-    assert!(c.json_stream, "gemini: --output-format json");
-    assert!(c.mcp, "gemini: .gemini/settings.json mcpServers");
-    assert!(c.hooks, "gemini: .gemini/settings.json hooks");
-    assert!(!c.session_resume);
+    assert!(
+        !c.server_mode,
+        "opencode server_mode is off pending OpenCodeSession rewrite — API shape changed (parts vs role/content, sync vs SSE)",
+    );
+    assert!(c.json_stream);
+    assert!(c.mcp, "opencode: opencode.json mcp");
+    assert!(!c.hooks, "opencode: hooks via JS plugin file, not wired");
+    assert!(c.session_resume, "opencode: REST sessions persist");
 }

@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use ship_platform::agents::providers::{list_models, list_providers};
+use ship_platform::agents::harnesses::{list_models, list_harnesses};
 use ship_platform::agents::skill::{get_effective_skill, list_effective_skills};
 use ship_platform::agents::skill_vars::get_skill_vars;
 use ship_platform::config::get_config;
@@ -190,16 +190,16 @@ fn resolve_workspace_uri(uri: &str, ship_dir: &Path) -> Option<String> {
             Err(err) => Some(format!("Error: {}", err)),
         };
     }
-    if uri == "ship://providers" {
-        return match list_providers(ship_dir) {
-            Ok(providers) => serde_json::to_string_pretty(&providers).ok(),
+    if uri == "ship://harnesses" {
+        return match list_harnesses(ship_dir) {
+            Ok(harnesses) => serde_json::to_string_pretty(&harnesses).ok(),
             Err(err) => Some(format!("Error: {}", err)),
         };
     }
-    if let Some(rest) = uri.strip_prefix("ship://providers/")
-        && let Some(provider_id) = rest.strip_suffix("/models")
+    if let Some(rest) = uri.strip_prefix("ship://harnesses/")
+        && let Some(harness_id) = rest.strip_suffix("/models")
     {
-        return match list_models(provider_id) {
+        return match list_models(harness_id) {
             Ok(models) => serde_json::to_string_pretty(&models).ok(),
             Err(err) => Some(format!("Error: {}", err)),
         };

@@ -2,7 +2,7 @@
 //!
 //! Each dispatched step gets a `StepMonitor` that listens for multiple signals:
 //! 1. `step.done_declared` event (agent called `step_done`) — strongest signal
-//! 2. Activity signals (provider Stop hook, turn ended) — scan triggers
+//! 2. Activity signals (harness Stop hook, turn ended) — scan triggers
 //! 3. Process exit signal (executor sends `ExitSignal`)
 //! 4. Subprocess-tree heartbeat (CPU progress across root + descendants)
 //! 5. Idle timeout: no activity for `idle_timeout` → kill

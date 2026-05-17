@@ -181,7 +181,7 @@ async fn reconcile_dispatched_inner(
             .executor
             .resume_handle(
                 &job.slug,
-                job.provider.as_deref(),
+                job.harness.as_deref(),
                 job.current_step.as_deref(),
             )
             .await

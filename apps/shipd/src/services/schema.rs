@@ -83,7 +83,7 @@ pub const OPS: &[OpDescriptor] = &[
     },
     OpDescriptor {
         name: "agents.summaries",
-        description: "List all agents with display metadata (label, providers, tags).",
+        description: "List all agents with display metadata (label, harnesses, tags).",
         args: &[],
         returns: "{items: [AgentSummary]}",
         permission: "ship.agents.read",
@@ -91,7 +91,7 @@ pub const OPS: &[OpDescriptor] = &[
     },
     OpDescriptor {
         name: "agents.detail",
-        description: "Full view-shaped agent detail — catalogs, permissions, providers, tags.",
+        description: "Full view-shaped agent detail — catalogs, permissions, harnesses, tags.",
         args: &[ArgDescriptor { name: "id", kind: "string", required: true }],
         returns: "AgentDetail",
         permission: "ship.agents.read",
@@ -99,7 +99,7 @@ pub const OPS: &[OpDescriptor] = &[
     },
     OpDescriptor {
         name: "agents.catalogs",
-        description: "Catalog rows for the agents list (providers, skills, etc.).",
+        description: "Catalog rows for the agents list (harnesses, skills, etc.).",
         args: &[],
         returns: "AgentCatalogs",
         permission: "ship.agents.read",
@@ -146,8 +146,8 @@ pub const OPS: &[OpDescriptor] = &[
         sensitive: false,
     },
     OpDescriptor {
-        name: "agents.providers",
-        description: "Enumerate known providers (claude, openai, gemini, ...).",
+        name: "agents.harnesses",
+        description: "Enumerate known harnesses (claude, openai, gemini, ...).",
         args: &[],
         returns: "{items: [string]}",
         permission: "ship.agents.read",
@@ -155,7 +155,7 @@ pub const OPS: &[OpDescriptor] = &[
     },
     OpDescriptor {
         name: "agents.create_ctx",
-        description: "Convenience: templates + presets + providers for the create view.",
+        description: "Convenience: templates + presets + harnesses for the create view.",
         args: &[],
         returns: "AgentsCreateCtx",
         permission: "ship.agents.read",
@@ -403,7 +403,7 @@ pub const OPS: &[OpDescriptor] = &[
     // ── settings / dashboard / collections / chat ────────────────
     OpDescriptor {
         name: "settings.state",
-        description: "Providers, defaults, terminal, about — everything the settings view renders.",
+        description: "Harnesses, defaults, terminal, about — everything the settings view renders.",
         args: &[], returns: "SettingsCtx",
         permission: "ship.settings.read", sensitive: false,
     },

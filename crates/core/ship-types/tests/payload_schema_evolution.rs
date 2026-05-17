@@ -28,10 +28,10 @@ fn workspace_created_v1_round_trips() {
 
 #[test]
 fn workspace_activated_v1_round_trips() {
-    let json = r#"{"agent_id": "code-lane", "providers": ["claude", "codex"]}"#;
+    let json = r#"{"agent_id": "code-lane", "harnesses": ["claude", "codex"]}"#;
     let p: WorkspaceActivated = parse(json, "WorkspaceActivated");
     assert_eq!(p.agent_id.as_deref(), Some("code-lane"));
-    assert_eq!(p.providers, vec!["claude", "codex"]);
+    assert_eq!(p.harnesses, vec!["claude", "codex"]);
 }
 
 #[test]
@@ -48,7 +48,7 @@ fn session_started_v1_round_trips() {
         "workspace_id": "ws-1",
         "branch": "feat/x",
         "agent_id": "lead",
-        "primary_provider": "claude",
+        "primary_harness": "claude",
         "project_id": "proj-1",
         "kind": "direct_attach",
         "pipeline_run_id": null,
@@ -141,7 +141,7 @@ fn actor_created_v1_round_trips() {
         "parent_actor_id": null,
         "restart_count": 0,
         "agent_id": "lead",
-        "provider": "claude",
+        "harness": "claude",
         "model": "sonnet",
         "transport": "stdio",
         "persistence": "ephemeral",
@@ -243,7 +243,7 @@ fn config_changed_v1_round_trips() {
 #[test]
 fn project_log_v1_round_trips() {
     let _: ProjectLog = parse(
-        r#"{"action": "compiled", "details": "all providers"}"#,
+        r#"{"action": "compiled", "details": "all harnesses"}"#,
         "ProjectLog",
     );
 }
@@ -345,7 +345,7 @@ fn compile_completed_v1_round_trips() {
         "active_agent": "lead",
         "compiled_at": "2026-05-04T00:00:00Z",
         "ship_version": "0.1.0",
-        "provider": "claude",
+        "harness": "claude",
         "plugins_installed": ["superpowers"]
     }"#;
     let p: CompileCompleted = parse(json, "CompileCompleted");

@@ -1,4 +1,4 @@
-use crate::compile::{compile, get_provider, list_providers};
+use crate::compile::{compile, get_harness, list_harnesses};
 use crate::resolve::ResolvedConfig;
 use crate::types::{PluginEntry, PluginsManifest};
 
@@ -75,7 +75,7 @@ fn context_file_is_none_when_all_rule_content_empty() {
 
 #[test]
 fn claude_feature_flags() {
-    let flags = get_provider("claude").unwrap().feature_flags();
+    let flags = get_harness("claude").unwrap().feature_flags();
     assert!(flags.supports_mcp);
     assert!(flags.supports_hooks);
     assert!(flags.supports_tool_permissions);
@@ -84,7 +84,7 @@ fn claude_feature_flags() {
 
 #[test]
 fn gemini_feature_flags() {
-    let flags = get_provider("gemini").unwrap().feature_flags();
+    let flags = get_harness("gemini").unwrap().feature_flags();
     assert!(flags.supports_mcp);
     assert!(flags.supports_hooks);
     assert!(flags.supports_tool_permissions);
@@ -93,7 +93,7 @@ fn gemini_feature_flags() {
 
 #[test]
 fn codex_feature_flags() {
-    let flags = get_provider("codex").unwrap().feature_flags();
+    let flags = get_harness("codex").unwrap().feature_flags();
     assert!(flags.supports_mcp);
     assert!(flags.supports_hooks);
     assert!(!flags.supports_tool_permissions);
@@ -102,7 +102,7 @@ fn codex_feature_flags() {
 
 #[test]
 fn cursor_feature_flags() {
-    let flags = get_provider("cursor").unwrap().feature_flags();
+    let flags = get_harness("cursor").unwrap().feature_flags();
     assert!(flags.supports_mcp);
     assert!(flags.supports_hooks);
     assert!(flags.supports_tool_permissions);
@@ -112,7 +112,7 @@ fn cursor_feature_flags() {
 #[test]
 fn feature_flags_govern_mcp_emission() {
     let r = resolved(vec![make_server("github")]);
-    for desc in list_providers() {
+    for desc in list_harnesses() {
         let flags = desc.feature_flags();
         let out = compile(&r, desc.id).unwrap();
         if flags.supports_mcp {
@@ -120,18 +120,18 @@ fn feature_flags_govern_mcp_emission() {
                 out.mcp_servers
                     .as_object()
                     .is_some_and(|o| o.contains_key("ship")),
-                "provider {} (supports_mcp=true) must include ship server",
+                "harness {} (supports_mcp=true) must include ship server",
                 desc.id
             );
         } else {
             assert!(
                 out.mcp_servers.as_object().is_some_and(|o| o.is_empty()),
-                "provider {} (supports_mcp=false) must not emit MCP entries",
+                "harness {} (supports_mcp=false) must not emit MCP entries",
                 desc.id
             );
             assert!(
                 out.mcp_config_path.is_none(),
-                "provider {} must not emit mcp_config_path",
+                "harness {} must not emit mcp_config_path",
                 desc.id
             );
         }
@@ -154,11 +154,11 @@ fn plugins_manifest_populated_from_resolved() {
             install: vec![
                 PluginEntry {
                     id: "superpowers@claude-plugins-official".into(),
-                    provider: "claude".into(),
+                    harness: "claude".into(),
                 },
                 PluginEntry {
                     id: "rust-analyzer-lsp@claude-plugins-official".into(),
-                    provider: "claude".into(),
+                    harness: "claude".into(),
                 },
             ],
             scope: "project".to_string(),
@@ -175,19 +175,19 @@ fn plugins_manifest_populated_from_resolved() {
 }
 
 #[test]
-fn plugins_manifest_empty_provider_defaults_to_compile_target() {
+fn plugins_manifest_empty_harness_defaults_to_compile_target() {
     let r = ResolvedConfig {
         plugins: PluginsManifest {
             install: vec![PluginEntry {
                 id: "my-plugin@registry".into(),
-                provider: String::new(),
+                harness: String::new(),
             }],
             scope: "user".to_string(),
         },
         ..resolved(vec![])
     };
     let out = compile(&r, "gemini").unwrap();
-    assert_eq!(out.plugins_manifest.install[0].provider, "gemini");
+    assert_eq!(out.plugins_manifest.install[0].harness, "gemini");
     assert_eq!(out.plugins_manifest.scope, "user");
 }
 
@@ -197,7 +197,7 @@ fn plugins_manifest_empty_scope_defaults_to_project() {
         plugins: PluginsManifest {
             install: vec![PluginEntry {
                 id: "p@reg".into(),
-                provider: "claude".into(),
+                harness: "claude".into(),
             }],
             scope: String::new(),
         },
@@ -208,11 +208,11 @@ fn plugins_manifest_empty_scope_defaults_to_project() {
 }
 
 #[test]
-fn plugins_manifest_is_same_across_providers() {
+fn plugins_manifest_is_same_across_harnesses() {
     let manifest = PluginsManifest {
         install: vec![PluginEntry {
             id: "tool@reg".into(),
-            provider: "claude".into(),
+            harness: "claude".into(),
         }],
         scope: "project".to_string(),
     };
@@ -220,13 +220,13 @@ fn plugins_manifest_is_same_across_providers() {
         plugins: manifest.clone(),
         ..resolved(vec![])
     };
-    for provider in &["claude", "gemini", "codex", "cursor"] {
-        let out = compile(&r, provider).unwrap();
+    for harness in &["claude", "gemini", "codex", "cursor"] {
+        let out = compile(&r, harness).unwrap();
         assert_eq!(
             out.plugins_manifest.install.len(),
             1,
-            "provider {} must include manifest",
-            provider
+            "harness {} must include manifest",
+            harness
         );
     }
 }

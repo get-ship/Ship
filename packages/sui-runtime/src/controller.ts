@@ -193,7 +193,7 @@ export type UnmountSection<Scope> = (state: Scope) => void
 export interface ControllerShape<Scope = object> {
   /**
    * Factory that produces typed scope contributions: signals,
-   * derived, hooks, shared-provider/consumer wrappers. The returned
+   * derived, hooks, shared-harness/consumer wrappers. The returned
    * object is merged into the template's scope. Runs before any
    * other section so derived/on/use can reference its entries.
    *

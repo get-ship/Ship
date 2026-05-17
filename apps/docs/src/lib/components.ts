@@ -192,7 +192,7 @@ const CATEGORY_BY_TAG: Record<string, ComponentCategory> = {
   'sui-pipeline-definition': 'domain',
   'sui-pipeline-run': 'domain',
   'sui-graph-canvas': 'domain',
-  'sui-provider-blob': 'domain',
+  'sui-harness-blob': 'domain',
 };
 
 export const CATEGORY_LABELS: Record<ComponentCategory, string> = {

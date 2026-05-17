@@ -49,7 +49,7 @@ pub struct RunView {
     pub steps: Vec<StepView>,
     pub branch_stats: BranchStats,
     pub segments: Vec<&'static str>,
-    pub provider: String,
+    pub harness: String,
     pub model: String,
     pub blocker: String,
     pub error: String,
@@ -203,7 +203,7 @@ pub fn to_run_view(job: &JobRecord, include_stats: bool) -> RunView {
         steps,
         branch_stats: stats,
         segments: derive_segments(job),
-        provider: job.provider.clone().unwrap_or_default(),
+        harness: job.harness.clone().unwrap_or_default(),
         model: job.model.clone().unwrap_or_default(),
         blocker: job.blocker.clone().unwrap_or_default(),
         error: job.error.clone().unwrap_or_default(),
@@ -249,10 +249,10 @@ pub fn find_pipeline_file(name: &str) -> Option<std::path::PathBuf> {
     }
 }
 
-pub fn providers_on_path() -> Vec<String> {
-    ship_platform::agents::providers::PROVIDERS
+pub fn harnesses_on_path() -> Vec<String> {
+    ship_platform::agents::harnesses::HARNESSES
         .iter()
-        .filter(|d| ship_platform::agents::providers::detect_binary(d.binary))
+        .filter(|d| ship_platform::agents::harnesses::detect_binary(d.binary))
         .map(|d| d.id.to_string())
         .collect()
 }

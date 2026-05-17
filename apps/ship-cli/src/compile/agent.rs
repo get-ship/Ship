@@ -2,8 +2,8 @@
 //! project library. The library has already been populated with every
 //! `.ship/agents/*.jsonc` by [`crate::loader::load_library`]; this step
 //! pulls the active one out and merges its permissions / hooks / plugins /
-//! provider settings, then injects a flat `AgentConfig` so `resolve()` can
-//! filter providers and MCP/skill refs against it.
+//! harness settings, then injects a flat `AgentConfig` so `resolve()` can
+//! filter harnesses and MCP/skill refs against it.
 
 use anyhow::Result;
 use compiler::{HookConfig, HookTrigger, PluginEntry, PluginsManifest, ProjectLibrary};
@@ -46,9 +46,9 @@ pub(crate) fn apply_agent_to_library(
         }
     }
 
-    // If the agent declares a provider list, inject a flat AgentConfig so
+    // If the agent declares a harness list, inject a flat AgentConfig so
     // resolve() can apply target-agent / MCP / skill filtering.
-    if !profile.agent.providers.is_empty() {
+    if !profile.agent.harnesses.is_empty() {
         let mut cfg = profile.to_config();
         cfg.id = agent_id.to_string();
         library.agents.push(cfg);
@@ -63,7 +63,7 @@ pub(crate) fn apply_agent_to_library(
                 .iter()
                 .map(|id| PluginEntry {
                     id: id.clone(),
-                    provider: "claude".to_string(),
+                    harness: "claude".to_string(),
                 })
                 .collect(),
             scope: profile.plugins.scope.clone().unwrap_or_else(|| "project".to_string()),
@@ -82,16 +82,16 @@ pub(crate) fn apply_agent_to_library(
         );
     }
 
-    if let Some(v) = profile.provider_settings.get("claude") {
+    if let Some(v) = profile.harness_settings.get("claude") {
         library.claude_settings_extra = Some(v.clone());
     }
-    if let Some(v) = profile.provider_settings.get("gemini") {
+    if let Some(v) = profile.harness_settings.get("gemini") {
         library.gemini_settings_extra = Some(v.clone());
     }
-    if let Some(v) = profile.provider_settings.get("codex") {
+    if let Some(v) = profile.harness_settings.get("codex") {
         library.codex_settings_extra = Some(v.clone());
     }
-    if let Some(v) = profile.provider_settings.get("cursor") {
+    if let Some(v) = profile.harness_settings.get("cursor") {
         library.cursor_settings_extra = Some(v.clone());
     }
 
@@ -116,11 +116,11 @@ fn push_hook(library: &mut ProjectLibrary, id: String, trigger: HookTrigger, com
 
 // ── Team agents ──────────────────────────────────────────────────────────────
 
-fn load_team_agents(project_root: &Path, provider_id: &str) -> Vec<(String, String)> {
+fn load_team_agents(project_root: &Path, harness_id: &str) -> Vec<(String, String)> {
     let teams_dir = ship_substrate::ShipHome::project_ship_dir(project_root)
         .join("agents")
         .join("teams")
-        .join(provider_id);
+        .join(harness_id);
     if !teams_dir.exists() {
         return vec![];
     }

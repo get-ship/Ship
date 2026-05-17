@@ -80,11 +80,11 @@ fn init_is_idempotent() {
 }
 
 #[test]
-fn init_with_provider_sets_provider_in_toml() {
+fn init_with_harness_sets_harness_in_toml() {
     let tmp = TempDir::new().unwrap();
 
     ship()
-        .args(["init", "--provider", "gemini"])
+        .args(["init", "--harness", "gemini"])
         .current_dir(tmp.path())
         .assert()
         .success();
@@ -92,7 +92,7 @@ fn init_with_provider_sets_provider_in_toml() {
     let content = fs::read_to_string(ship_substrate::ShipHome::project_ship_dir(tmp.path()).join("ship.jsonc")).unwrap();
     assert!(
         content.contains("gemini"),
-        "provider should appear in ship.jsonc"
+        "harness should appear in ship.jsonc"
     );
 }
 
@@ -111,7 +111,7 @@ fn use_activates_agent_writes_claude_md_and_state() {
     write(
         tmp.path(),
         ".ship/agents/my-agent.jsonc",
-        r#"{ "agent": { "name": "My Agent", "id": "my-agent", "providers": ["claude"] } }"#,
+        r#"{ "agent": { "name": "My Agent", "id": "my-agent", "harnesses": ["claude"] } }"#,
     );
 
     ship_in(&tmp)
@@ -145,7 +145,7 @@ fn use_same_agent_twice_is_idempotent() {
     write(
         tmp.path(),
         ".ship/agents/my-agent.jsonc",
-        r#"{ "agent": { "name": "My Agent", "id": "my-agent", "providers": ["claude"] } }"#,
+        r#"{ "agent": { "name": "My Agent", "id": "my-agent", "harnesses": ["claude"] } }"#,
     );
 
     let args = ["use", "my-agent", "--path", tmp.path().to_str().unwrap()];
@@ -197,7 +197,7 @@ fn compile_writes_claude_md() {
     ship()
         .args([
             "compile",
-            "--provider",
+            "--harness",
             "claude",
             "--path",
             tmp.path().to_str().unwrap(),
@@ -217,7 +217,7 @@ fn compile_dry_run_writes_nothing() {
     ship()
         .args([
             "compile",
-            "--provider",
+            "--harness",
             "claude",
             "--dry-run",
             "--path",
@@ -244,15 +244,15 @@ fn compile_fails_without_ship_dir() {
         .stderr(predicate::str::contains(".ship/ not found"));
 }
 
-// ── ship compile --provider ───────────────────────────────────────────────────
+// ── ship compile --harness ───────────────────────────────────────────────────
 
 #[test]
-fn compile_provider_gemini_writes_gemini_md() {
+fn compile_harness_gemini_writes_gemini_md() {
     let tmp = TempDir::new().unwrap();
     write(tmp.path(), ".ship/rules/style.md", "Use explicit types.");
 
     ship()
-        .args(["compile", "--provider", "gemini"])
+        .args(["compile", "--harness", "gemini"])
         .current_dir(tmp.path())
         .assert()
         .success();
@@ -266,12 +266,12 @@ fn compile_provider_gemini_writes_gemini_md() {
 }
 
 #[test]
-fn compile_provider_codex_writes_agents_md() {
+fn compile_harness_codex_writes_agents_md() {
     let tmp = TempDir::new().unwrap();
     write(tmp.path(), ".ship/rules/style.md", "Use explicit types.");
 
     ship()
-        .args(["compile", "--provider", "codex"])
+        .args(["compile", "--harness", "codex"])
         .current_dir(tmp.path())
         .assert()
         .success();
@@ -285,12 +285,12 @@ fn compile_provider_codex_writes_agents_md() {
 }
 
 #[test]
-fn compile_provider_codex_writes_codex_config_toml() {
+fn compile_harness_codex_writes_codex_config_toml() {
     let tmp = TempDir::new().unwrap();
     write(tmp.path(), ".ship/rules/style.md", "Use explicit types.");
 
     ship()
-        .args(["compile", "--provider", "codex"])
+        .args(["compile", "--harness", "codex"])
         .current_dir(tmp.path())
         .assert()
         .success();
@@ -336,7 +336,7 @@ fn compile_is_idempotent() {
 
     let args = [
         "compile",
-        "--provider",
+        "--harness",
         "claude",
         "--path",
         tmp.path().to_str().unwrap(),
@@ -363,7 +363,7 @@ fn install_without_module_succeeds_with_no_deps() {
     write(
         tmp.path(),
         ".ship/ship.jsonc",
-        r#"{ "project": { "providers": ["claude"] } }"#,
+        r#"{ "project": { "harnesses": ["claude"] } }"#,
     );
 
     // install with no deps and no module should succeed (no network needed)
@@ -411,7 +411,7 @@ fn validate_passes_on_valid_config() {
         tmp.path(),
         ".ship/agents/default.jsonc",
         r#"{
-  "agent": { "name": "Default", "id": "default", "providers": ["claude"] },
+  "agent": { "name": "Default", "id": "default", "harnesses": ["claude"] },
   "skills": { "refs": [] },
   "mcp": { "servers": [] },
   "permissions": { "preset": "ship-standard" }
@@ -491,7 +491,7 @@ fn e2e_init_create_agent_use_compile_full_flow() {
     "name": "Fullstack Dev",
     "version": "0.1.0",
     "description": "Full-stack development agent",
-    "providers": ["claude"]
+    "harnesses": ["claude"]
   },
   "skills": { "refs": [] },
   "mcp": { "servers": [] },
@@ -574,7 +574,7 @@ fn e2e_init_create_agent_use_compile_full_flow() {
 
     // 8. Re-compile picks up active agent from DB state
     ship_in(&tmp)
-        .args(["compile", "--provider", "claude", "--path", p])
+        .args(["compile", "--harness", "claude", "--path", p])
         .assert()
         .success();
 
@@ -604,11 +604,11 @@ fn e2e_init_create_agent_use_compile_full_flow() {
     );
 }
 
-/// Same .ship/ configuration compiles correctly to all 4 providers.
-/// Verifies that rule content appears in every provider's context file
-/// and that each provider produces its expected artifacts.
+/// Same .ship/ configuration compiles correctly to all 4 harnesses.
+/// Verifies that rule content appears in every harness's context file
+/// and that each harness produces its expected artifacts.
 #[test]
-fn e2e_cross_provider_same_config() {
+fn e2e_cross_harness_same_config() {
     let tmp = TempDir::new().unwrap();
     let p = tmp.path().to_str().unwrap();
 
@@ -619,9 +619,9 @@ fn e2e_cross_provider_same_config() {
         r#"{
   "agent": {
     "id": "cross",
-    "name": "Cross Provider",
+    "name": "Cross Harness",
     "version": "0.1.0",
-    "providers": ["claude", "cursor", "gemini", "codex"]
+    "harnesses": ["claude", "cursor", "gemini", "codex"]
   },
   "skills": { "refs": [] },
   "mcp": { "servers": [] },
@@ -668,7 +668,7 @@ fn e2e_cross_provider_same_config() {
 
     // Compile for claude
     ship()
-        .args(["compile", "--provider", "claude", "--path", p])
+        .args(["compile", "--harness", "claude", "--path", p])
         .assert()
         .success();
     assert!(
@@ -688,7 +688,7 @@ fn e2e_cross_provider_same_config() {
 
     // Compile for cursor
     ship()
-        .args(["compile", "--provider", "cursor", "--path", p])
+        .args(["compile", "--harness", "cursor", "--path", p])
         .assert()
         .success();
     let cursor_rule = tmp.path().join(".cursor/rules/architecture.mdc");
@@ -705,7 +705,7 @@ fn e2e_cross_provider_same_config() {
 
     // Compile for gemini
     ship()
-        .args(["compile", "--provider", "gemini", "--path", p])
+        .args(["compile", "--harness", "gemini", "--path", p])
         .assert()
         .success();
     assert!(
@@ -725,7 +725,7 @@ fn e2e_cross_provider_same_config() {
 
     // Compile for codex
     ship()
-        .args(["compile", "--provider", "codex", "--path", p])
+        .args(["compile", "--harness", "codex", "--path", p])
         .assert()
         .success();
     assert!(
@@ -778,7 +778,7 @@ fn e2e_permission_preset_plus_agent_override() {
     "id": "strict-auto",
     "name": "Strict Autonomous",
     "version": "0.1.0",
-    "providers": ["claude"]
+    "harnesses": ["claude"]
   },
   "skills": { "refs": [] },
   "mcp": { "servers": [] },
@@ -889,7 +889,7 @@ fn e2e_compile_with_dependency_skills() {
     "id": "with-deps",
     "name": "With Deps",
     "version": "0.1.0",
-    "providers": ["claude"]
+    "harnesses": ["claude"]
   },
   "skills": {
     "refs": ["github.com/example/skills-pkg/skills/cool-skill"]
@@ -963,7 +963,7 @@ fn e2e_validate_then_compile_catches_bad_config() {
   "agent": {
     "id": "broken",
     "name": "Fixed Agent",
-    "providers": ["claude"]
+    "harnesses": ["claude"]
   },
   "skills": { "refs": [] },
   "mcp": { "servers": [] },
@@ -984,12 +984,12 @@ fn e2e_validate_then_compile_catches_bad_config() {
     // causes build_context_content to emit a mode comment, making parts
     // non-empty and CLAUDE.md to be written even when there are no rules.
     ship_in(&tmp)
-        .args(["compile", "--provider", "claude", "--path", p])
+        .args(["compile", "--harness", "claude", "--path", p])
         .assert()
         .success();
 
     // The config has no rules, so CLAUDE.md is correctly not written.
-    // The MCP config is always written for the claude provider.
+    // The MCP config is always written for the claude harness.
     assert!(
         !tmp.path().join("CLAUDE.md").exists(),
         "CLAUDE.md must NOT be written when there are no rules"

@@ -52,10 +52,10 @@ This scaffolds the `.ship/` directory:
   .gitignore       # ignores compiled artifacts
 ```
 
-To use a different default provider:
+To use a different default harness:
 
 ```bash
-ship init --provider gemini
+ship init --harness gemini
 ```
 
 ### 2. Activate an agent
@@ -64,7 +64,7 @@ ship init --provider gemini
 ship use my-agent
 ```
 
-`ship use` reads the agent profile, resolves skill references, MCP servers, and permissions, then compiles provider-native config files into the project root.
+`ship use` reads the agent profile, resolves skill references, MCP servers, and permissions, then compiles harness-native config files into the project root.
 
 ### 3. Recompile after changes
 
@@ -80,10 +80,10 @@ Preview without writing files:
 ship compile --dry-run
 ```
 
-Target a single provider:
+Target a single harness:
 
 ```bash
-ship compile --provider gemini
+ship compile --harness gemini
 ```
 
 ## Project Structure
@@ -106,9 +106,9 @@ After setup, the `.ship/` directory contains:
 Compiled output (gitignored, at project root):
 
 ```
-CLAUDE.md                  # claude provider
-GEMINI.md                  # gemini provider
-AGENTS.md                  # codex/opencode provider
+CLAUDE.md                  # claude harness
+GEMINI.md                  # gemini harness
+AGENTS.md                  # codex/opencode harness
 .mcp.json                  # claude MCP config
 .gemini/                   # gemini config
 .codex/                    # codex config
@@ -147,7 +147,7 @@ ship docs topics                 # list available help topics
 ship docs agents                 # agent management
 ship docs skills                 # skill authoring
 ship docs mcp                    # MCP server configuration
-ship docs providers              # supported providers
+ship docs harnesses              # supported harnesses
 ship docs compile                # compilation pipeline
 ship docs workflow               # day-to-day workflow
 ```

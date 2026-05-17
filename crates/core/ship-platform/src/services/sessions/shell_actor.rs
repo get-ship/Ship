@@ -35,7 +35,7 @@ pub fn spawn_shell(
         work_dir,
         workspace_id: Some(workspace_id.to_string()),
         agent_id: None,
-        provider: None,
+        harness: None,
         parent_actor_id: None,
         log_dir: Some(log_dir),
         subscribe_namespaces: vec![],
@@ -49,14 +49,14 @@ pub fn spawn_shell(
         kind: SessionKind::Shell,
         workspace_id: workspace_id.to_string(),
         agent_id: None,
-        provider: None,
+        harness: None,
         pid: handle.pid(),
         status: SessionStatus::Idle,
         log_path: handle.child.log_path().display().to_string(),
         spawned_at: now,
         last_activity: now,
         exit_code: None,
-        provider_session_id: None,
+        harness_session_id: None,
     };
 
     Ok(registry.insert(handle, meta))

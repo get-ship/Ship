@@ -83,7 +83,7 @@ pub(super) fn resolve_steps(payload: &mut JobCreatedPayload) {
             goal: None,
             after: vec![],
             model: None,
-            provider: None,
+            harness: None,
             command: None,
             max_retries: None,
             gate: None,

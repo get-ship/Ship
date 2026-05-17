@@ -1,6 +1,6 @@
 //! Lifecycle CRUD handlers for the PTY-session HTTP surface:
-//! spawn / list / get / stop / resize, plus the `installed_providers`
-//! probe that the spawn UI uses to gate provider options.
+//! spawn / list / get / stop / resize, plus the `installed_harnesses`
+//! probe that the spawn UI uses to gate harness options.
 
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
@@ -22,7 +22,7 @@ pub struct SpawnBody {
     #[serde(default)]
     pub agent_id: Option<String>,
     #[serde(default)]
-    pub provider: Option<String>,
+    pub harness: Option<String>,
 }
 
 #[derive(Serialize, utoipa::ToSchema)]
@@ -47,7 +47,7 @@ pub struct SessionMetaWire {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub agent_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub provider: Option<String>,
+    pub harness: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub pid: Option<u32>,
     pub status: String,
@@ -70,7 +70,7 @@ impl From<SessionMeta> for SessionMetaWire {
             .to_string(),
             workspace_id: m.workspace_id,
             agent_id: m.agent_id,
-            provider: m.provider,
+            harness: m.harness,
             pid: m.pid,
             status: format!("{:?}", m.status).to_lowercase(),
             log_path: m.log_path,
@@ -81,14 +81,14 @@ impl From<SessionMeta> for SessionMetaWire {
     }
 }
 
-/// Provider detection: which of the known providers have their CLI
+/// Harness detection: which of the known harnesses have their CLI
 /// binaries on PATH. Powers the command-bar's spawn card.
 #[derive(Serialize, utoipa::ToSchema)]
 pub struct InstalledProvidersResponse {
-    pub providers: Vec<String>,
+    pub harnesses: Vec<String>,
 }
 
-const KNOWN_PROVIDERS: &[(&str, &str)] = &[
+const KNOWN_HARNESSES: &[(&str, &str)] = &[
     ("claude", "claude"),
     ("codex", "codex"),
     ("cursor", "cursor-agent"),
@@ -122,21 +122,21 @@ fn binary_exists(bin: &str) -> bool {
 #[utoipa::path(
     operation_id = "installedProviders",
     get,
-    path = "/api/v1/providers/installed",
+    path = "/api/v1/harnesses/installed",
     responses(
-        (status = 200, description = "Providers detected on PATH", body = InstalledProvidersResponse),
+        (status = 200, description = "Harnesses detected on PATH", body = InstalledProvidersResponse),
     ),
     tag = "sessions"
 )]
-pub async fn installed_providers() -> axum::response::Response {
-    let providers = KNOWN_PROVIDERS
+pub async fn installed_harnesses() -> axum::response::Response {
+    let harnesses = KNOWN_HARNESSES
         .iter()
         .filter(|(_, bin)| binary_exists(bin))
         .map(|(id, _)| id.to_string())
         .collect();
     (
         StatusCode::OK,
-        Json(InstalledProvidersResponse { providers }),
+        Json(InstalledProvidersResponse { harnesses }),
     )
         .into_response()
 }
@@ -167,23 +167,23 @@ pub async fn spawn_session(
                 Some(a) if !a.is_empty() => a,
                 _ => return err(StatusCode::BAD_REQUEST, "agent_id required for agent kind"),
             };
-            let provider = match req.provider.as_deref() {
+            let harness = match req.harness.as_deref() {
                 Some(p) if !p.is_empty() => p,
-                _ => return err(StatusCode::BAD_REQUEST, "provider required for agent kind"),
+                _ => return err(StatusCode::BAD_REQUEST, "harness required for agent kind"),
             };
 
-            // Persistent-session providers (all five CLI agents today)
+            // Persistent-session harnesses (all five CLI agents today)
             // go through the supervisor primitive + ActorRegistry. The
             // push_mechanism (channel / stdin / respawn) is decided at
             // send-time; the spawn shape is identical regardless.
-            if let Ok(adapter) = ship_platform::services::provider_adapter::adapter_for(provider)
+            if let Ok(adapter) = ship_platform::services::harness_adapter::adapter_for(harness)
                 && adapter.caps().persistent_session {
                     let append = lifecycle::load_agent_rules(&work_dir, agent_id);
                     return match super::super::agent_actor::spawn_or_attach(
                         state.actor_sessions(),
                         &req.workspace_id,
                         agent_id,
-                        provider,
+                        harness,
                         work_dir,
                         log_dir,
                         append,
@@ -203,7 +203,7 @@ pub async fn spawn_session(
                 registry,
                 &req.workspace_id,
                 agent_id,
-                provider,
+                harness,
                 work_dir,
                 log_dir,
             ) {
@@ -368,7 +368,7 @@ pub async fn session_resize(
         }
         return (StatusCode::NO_CONTENT, ()).into_response();
     }
-    // Per-turn PtySession path (codex/opencode etc. — providers without
+    // Per-turn PtySession path (codex/opencode etc. — harnesses without
     // channel-capability). The portable-pty master sits inside the Inner
     // struct and is not currently exposed for resize. These are one-shot
     // turn processes, so the gap is benign in practice.

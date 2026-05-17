@@ -23,7 +23,7 @@ const KNOWN_CONFIG_KEYS: &[&str] = &[
 /// Parse Codex CLI native config files and produce a partial [`ProjectLibrary`].
 ///
 /// Reads (if present):
-/// - `.codex/config.toml` → model, codex settings, MCP servers, provider_defaults
+/// - `.codex/config.toml` → model, codex settings, MCP servers, harness_defaults
 /// - `AGENTS.md` → rules
 pub fn decompile_codex(project_root: &Path) -> ProjectLibrary {
     let mut library = ProjectLibrary::default();
@@ -111,7 +111,7 @@ fn parse_codex_config(library: &mut ProjectLibrary, table: &toml::Table) {
         }
     }
 
-    // ── Provider defaults — everything we don't recognize ────────────────────
+    // ── Harness defaults — everything we don't recognize ────────────────────
     let mut extra = serde_json::Map::new();
     for (k, v) in table {
         if !KNOWN_CONFIG_KEYS.contains(&k.as_str())
@@ -122,7 +122,7 @@ fn parse_codex_config(library: &mut ProjectLibrary, table: &toml::Table) {
     }
     if !extra.is_empty() {
         library
-            .provider_defaults
+            .harness_defaults
             .insert("codex".to_string(), Json::Object(extra));
     }
 }

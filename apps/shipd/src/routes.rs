@@ -406,7 +406,7 @@ pub enum Route {
     /// @route GET "/api/v1/sessions/{id}/events"
     StreamPtySessionEvents { id: String },
 
-    /// @route GET "/api/v1/providers/installed"
+    /// @route GET "/api/v1/harnesses/installed"
     InstalledProviders,
 
     /// @route GET "/api/v1/projects"
@@ -545,7 +545,7 @@ pub enum Route {
     /// @route GET "/api/v1/projects/{id}/pty"
     ProjectPty { id: String },
 
-    // ── Settings / providers ─────────────────────────────────────────────
+    // ── Settings / harnesses ─────────────────────────────────────────────
 
     /// @route GET "/api/v1/settings"
     ListSettings,
@@ -556,7 +556,7 @@ pub enum Route {
     /// @route GET "/api/v1/settings/{key}"
     GetSetting { key: String },
 
-    /// @route GET "/api/v1/providers"
+    /// @route GET "/api/v1/harnesses"
     ListProviders,
 
     // ── Supervisor ───────────────────────────────────────────────────────

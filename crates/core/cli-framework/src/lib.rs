@@ -10,7 +10,7 @@ pub mod hooks;
 pub use core_primitives::{
     EventAction, McpAction, ProviderAction, SkillAction, SkillReadScope,
     SkillWriteScope, handle_event_action, handle_mcp_action,
-    handle_provider_action, handle_skill_action, parse_skill_read_scope, parse_skill_write_scope,
+    handle_harness_action, handle_skill_action, parse_skill_read_scope, parse_skill_write_scope,
 };
 
 #[derive(Debug, Clone, Copy)]

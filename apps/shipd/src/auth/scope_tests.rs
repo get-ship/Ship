@@ -114,7 +114,7 @@ fn dispatch_req(pipeline: &str) -> crate::routes::runtime_api::DispatchRequest {
     crate::routes::runtime_api::DispatchRequest {
         pipeline: pipeline.into(),
         spec: None,
-        provider: None,
+        harness: None,
         model: None,
         vars: None,
         headless: false,

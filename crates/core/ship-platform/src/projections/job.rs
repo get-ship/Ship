@@ -93,12 +93,12 @@ pub struct JobRecord {
     pub blocker: Option<String>,
     pub error: Option<String>,
     pub model: Option<String>,
-    pub provider: Option<String>,
+    pub harness: Option<String>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
-    /// Provider-specific session metadata (e.g. Claude session ID for --resume).
+    /// Harness-specific session metadata (e.g. Claude session ID for --resume).
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub provider_meta: Option<serde_json::Value>,
+    pub harness_meta: Option<serde_json::Value>,
     /// Legacy linear pipeline phases.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub pipeline: Option<Vec<ship_substrate::events::job::PipelinePhase>>,
@@ -155,10 +155,10 @@ pub fn apply(record: &mut JobRecord, event: &EventEnvelope) {
         event_types::JOB_DISPATCHED => {
             if let Ok(p) = serde_json::from_str::<serde_json::Value>(&event.payload_json) {
                 record.worktree = p["worktree"].as_str().map(str::to_string);
-                if let Some(meta) = p.get("provider_meta")
+                if let Some(meta) = p.get("harness_meta")
                     && !meta.is_null()
                 {
-                    record.provider_meta = Some(meta.clone());
+                    record.harness_meta = Some(meta.clone());
                 }
             }
             if record.status == JobStatus::Completed
@@ -326,10 +326,10 @@ fn record_from_created(event: &EventEnvelope) -> Option<JobRecord> {
         blocker: None,
         error: None,
         model: p["model"].as_str().map(str::to_string),
-        provider: p["provider"].as_str().map(str::to_string),
+        harness: p["harness"].as_str().map(str::to_string),
         created_at: event.created_at,
         updated_at: event.created_at,
-        provider_meta: None,
+        harness_meta: None,
         pipeline,
         steps,
         current_phase: None,
@@ -434,8 +434,8 @@ impl Projection for JobProjection {
 // ── Row I/O ─────────────────────────────────────────────────────────────────
 
 const ROW_COLS: &str = "job_id, slug, agent, branch, spec_path, source_spec_path, \
-    depends_on_json, status, worktree, blocker, error, model, provider, \
-    created_at, updated_at, provider_meta_json, pipeline_json, steps_json, \
+    depends_on_json, status, worktree, blocker, error, model, harness, \
+    created_at, updated_at, harness_meta_json, pipeline_json, steps_json, \
     current_phase, completed_steps_json, current_step, vars_json, \
     step_retries_json, headless, baseline_sha";
 
@@ -447,7 +447,7 @@ fn row_to_record(row: &sqlx::sqlite::SqliteRow) -> Result<JobRecord> {
     let status: String = row.get(7);
     let created_at: String = row.get(13);
     let updated_at: String = row.get(14);
-    let provider_meta: Option<serde_json::Value> = row
+    let harness_meta: Option<serde_json::Value> = row
         .try_get::<Option<String>, _>(15)
         .ok()
         .flatten()
@@ -489,7 +489,7 @@ fn row_to_record(row: &sqlx::sqlite::SqliteRow) -> Result<JobRecord> {
         blocker: row.try_get(9).ok().flatten(),
         error: row.try_get(10).ok().flatten(),
         model: row.try_get(11).ok().flatten(),
-        provider: row.try_get(12).ok().flatten(),
+        harness: row.try_get(12).ok().flatten(),
         created_at: created_at
             .parse::<DateTime<Utc>>()
             .or_else(|_| {
@@ -502,7 +502,7 @@ fn row_to_record(row: &sqlx::sqlite::SqliteRow) -> Result<JobRecord> {
                 chrono::DateTime::parse_from_rfc3339(&updated_at).map(|dt| dt.with_timezone(&Utc))
             })
             .context("invalid updated_at on jobs row")?,
-        provider_meta,
+        harness_meta,
         pipeline,
         steps,
         current_phase: current_phase.map(|v| v as usize),
@@ -520,8 +520,8 @@ fn upsert_record(record: &JobRecord, conn: &mut SqliteConnection) -> Result<()> 
         .depends_on
         .as_ref()
         .map(|v| serde_json::to_string(v).unwrap_or_else(|_| "[]".to_string()));
-    let provider_meta_json = record
-        .provider_meta
+    let harness_meta_json = record
+        .harness_meta
         .as_ref()
         .map(|v| serde_json::to_string(v).unwrap_or_else(|_| "null".to_string()));
     let pipeline_json = record
@@ -545,8 +545,8 @@ fn upsert_record(record: &JobRecord, conn: &mut SqliteConnection) -> Result<()> 
         sqlx::query(
             "INSERT INTO jobs (\
               job_id, slug, agent, branch, spec_path, source_spec_path, \
-              depends_on_json, status, worktree, blocker, error, model, provider, \
-              created_at, updated_at, provider_meta_json, pipeline_json, steps_json, \
+              depends_on_json, status, worktree, blocker, error, model, harness, \
+              created_at, updated_at, harness_meta_json, pipeline_json, steps_json, \
               current_phase, completed_steps_json, current_step, vars_json, \
               step_retries_json, headless, baseline_sha) \
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) \
@@ -555,9 +555,9 @@ fn upsert_record(record: &JobRecord, conn: &mut SqliteConnection) -> Result<()> 
               spec_path=excluded.spec_path, source_spec_path=excluded.source_spec_path, \
               depends_on_json=excluded.depends_on_json, status=excluded.status, \
               worktree=excluded.worktree, blocker=excluded.blocker, error=excluded.error, \
-              model=excluded.model, provider=excluded.provider, \
+              model=excluded.model, harness=excluded.harness, \
               updated_at=excluded.updated_at, \
-              provider_meta_json=excluded.provider_meta_json, pipeline_json=excluded.pipeline_json, \
+              harness_meta_json=excluded.harness_meta_json, pipeline_json=excluded.pipeline_json, \
               steps_json=excluded.steps_json, current_phase=excluded.current_phase, \
               completed_steps_json=excluded.completed_steps_json, current_step=excluded.current_step, \
               vars_json=excluded.vars_json, step_retries_json=excluded.step_retries_json, \
@@ -575,10 +575,10 @@ fn upsert_record(record: &JobRecord, conn: &mut SqliteConnection) -> Result<()> 
         .bind(&record.blocker)
         .bind(&record.error)
         .bind(&record.model)
-        .bind(&record.provider)
+        .bind(&record.harness)
         .bind(record.created_at.to_rfc3339())
         .bind(record.updated_at.to_rfc3339())
-        .bind(&provider_meta_json)
+        .bind(&harness_meta_json)
         .bind(&pipeline_json)
         .bind(&steps_json)
         .bind(record.current_phase.map(|v| v as i64))

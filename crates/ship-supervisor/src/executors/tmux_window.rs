@@ -18,7 +18,7 @@ use async_trait::async_trait;
 use ship_platform::services::dispatch_ports::{
     ExecutorHandle, ExitCause, ExitSignal, JobContext, JobExecutor,
 };
-use ship_platform::services::provider_adapter::adapter_for_or_default;
+use ship_platform::services::harness_adapter::adapter_for_or_default;
 
 /// Job executor that runs each pipeline step inside a tmux window.
 pub(crate) struct TmuxWindowExecutor;
@@ -179,7 +179,7 @@ impl JobExecutor for TmuxWindowExecutor {
         let window_id = create_window(&session, &step_id, &work_dir)?;
         let window_target = format!("{session}:{window_id}");
 
-        let adapter = adapter_for_or_default(ctx.launch.provider.as_deref())
+        let adapter = adapter_for_or_default(ctx.launch.harness.as_deref())
             .map_err(|e| anyhow!("tmux-window executor: {e}"))?;
         let cmd = adapter.build_headless(&ctx.slug, &ctx.launch);
         let shell_cmd = cmd.to_shell_string();
@@ -254,7 +254,7 @@ impl JobExecutor for TmuxWindowExecutor {
     async fn resume_handle(
         &self,
         slug: &str,
-        _provider: Option<&str>,
+        _harness: Option<&str>,
         current_step: Option<&str>,
     ) -> Option<ExecutorHandle> {
         let session = session_name(slug);

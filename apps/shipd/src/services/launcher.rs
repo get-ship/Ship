@@ -69,7 +69,7 @@ pub async fn launch_collection_item(
         source_spec_path: Some(spec.body_path.clone()),
         plan_id: None,
         model: None,
-        provider: None,
+        harness: None,
         depends_on: None,
         pipeline: None,
         steps: None,

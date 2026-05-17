@@ -73,7 +73,7 @@ pub async fn dispatch_ready_pending_jobs(
             steps: job.steps.clone(),
             plan_id: None,
             model: None,
-            provider: None,
+            harness: None,
             pipeline_name: None,
             vars: None,
             spec_content: None,

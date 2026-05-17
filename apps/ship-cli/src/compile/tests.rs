@@ -1,4 +1,4 @@
-//! Tests for the compile pipeline — core provider output.
+//! Tests for the compile pipeline — core harness output.
 
 use super::*;
 use std::path::Path;
@@ -26,7 +26,7 @@ fn compile_writes_claude_md() {
     run_compile(CompileOptions {
         project_root: tmp.path(),
         output_root: None,
-        provider: Some("claude"),
+        harness: Some("claude"),
         dry_run: false,
         active_agent: None,
         extra_skills: vec![],
@@ -44,7 +44,7 @@ fn compile_writes_mcp_json() {
     run_compile(CompileOptions {
         project_root: tmp.path(),
         output_root: None,
-        provider: Some("claude"),
+        harness: Some("claude"),
         dry_run: false,
         active_agent: None,
         extra_skills: vec![],
@@ -68,7 +68,7 @@ fn mcp_json_ship_server_args_exact() {
     run_compile(CompileOptions {
         project_root: tmp.path(),
         output_root: None,
-        provider: Some("claude"),
+        harness: Some("claude"),
         dry_run: false,
         active_agent: None,
         extra_skills: vec![],
@@ -95,7 +95,7 @@ fn compile_dry_run_writes_nothing() {
     run_compile(CompileOptions {
         project_root: tmp.path(),
         output_root: None,
-        provider: Some("claude"),
+        harness: Some("claude"),
         dry_run: true,
         active_agent: None,
         extra_skills: vec![],
@@ -113,7 +113,7 @@ fn compile_gemini_writes_settings_json_with_mcp_and_context() {
     run_compile(CompileOptions {
         project_root: tmp.path(),
         output_root: None,
-        provider: Some("gemini"),
+        harness: Some("gemini"),
         dry_run: false,
         active_agent: None,
         extra_skills: vec![],
@@ -134,7 +134,7 @@ fn compile_gemini_writes_gemini_md_with_rules() {
     run_compile(CompileOptions {
         project_root: tmp.path(),
         output_root: None,
-        provider: Some("gemini"),
+        harness: Some("gemini"),
         dry_run: false,
         active_agent: None,
         extra_skills: vec![],
@@ -152,7 +152,7 @@ fn compile_codex_writes_agents_md_with_rules() {
     run_compile(CompileOptions {
         project_root: tmp.path(),
         output_root: None,
-        provider: Some("codex"),
+        harness: Some("codex"),
         dry_run: false,
         active_agent: None,
         extra_skills: vec![],
@@ -170,7 +170,7 @@ fn compile_codex_writes_toml_config_with_mcp_servers() {
     run_compile(CompileOptions {
         project_root: tmp.path(),
         output_root: None,
-        provider: Some("codex"),
+        harness: Some("codex"),
         dry_run: false,
         active_agent: None,
         extra_skills: vec![],
@@ -191,7 +191,7 @@ fn compile_cursor_writes_mdc_rule_files() {
     run_compile(CompileOptions {
         project_root: tmp.path(),
         output_root: None,
-        provider: Some("cursor"),
+        harness: Some("cursor"),
         dry_run: false,
         active_agent: None,
         extra_skills: vec![],
@@ -212,7 +212,7 @@ fn compile_opencode_writes_agents_md_with_rules() {
     run_compile(CompileOptions {
         project_root: tmp.path(),
         output_root: None,
-        provider: Some("opencode"),
+        harness: Some("opencode"),
         dry_run: false,
         active_agent: None,
         extra_skills: vec![],
@@ -230,7 +230,7 @@ fn compile_opencode_writes_opencode_json_with_mcp() {
     run_compile(CompileOptions {
         project_root: tmp.path(),
         output_root: None,
-        provider: Some("opencode"),
+        harness: Some("opencode"),
         dry_run: false,
         active_agent: None,
         extra_skills: vec![],
@@ -252,7 +252,7 @@ fn compile_opencode_dry_run_writes_nothing() {
     run_compile(CompileOptions {
         project_root: tmp.path(),
         output_root: None,
-        provider: Some("opencode"),
+        harness: Some("opencode"),
         dry_run: true,
         active_agent: None,
         extra_skills: vec![],
@@ -270,7 +270,7 @@ fn compile_codex_writes_hooks_json() {
     run_compile(CompileOptions {
         project_root: tmp.path(),
         output_root: None,
-        provider: Some("codex"),
+        harness: Some("codex"),
         dry_run: false,
         active_agent: None,
         extra_skills: vec![],

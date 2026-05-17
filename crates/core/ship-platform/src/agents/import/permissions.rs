@@ -1,5 +1,5 @@
-//! Import per-provider permission rules into the project's
-//! `permissions.jsonc`. Each provider format has its own grammar:
+//! Import per-harness permission rules into the project's
+//! `permissions.jsonc`. Each harness format has its own grammar:
 //!
 //! - **Claude** — `.claude/settings.json`'s `permissions.allow` becomes
 //!   `tools.allow`. Anything else is left to the user.
@@ -13,7 +13,7 @@
 //!   `.codex/rules/*.rules` (parsed with a hand-rolled mini-grammar
 //!   covering `decision` + `pattern`).
 //!
-//! Dispatch fan-out (`import_permissions_from_provider`) lives here so
+//! Dispatch fan-out (`import_permissions_from_harness`) lives here so
 //! all three variants share their helpers and the variant code stays
 //! local. Helpers (`dedupe_strings`, TOML/Starlark accessors) are
 //! private to this module since no other importer needs them.
@@ -28,12 +28,12 @@ use std::path::{Path, PathBuf};
 
 use super::home;
 
-pub fn import_permissions_from_provider(provider_id: &str, project_dir: PathBuf) -> Result<bool> {
-    let imported = match provider_id {
+pub fn import_permissions_from_harness(harness_id: &str, project_dir: PathBuf) -> Result<bool> {
+    let imported = match harness_id {
         "claude" => import_permissions_from_claude(&project_dir)?,
         "gemini" => import_permissions_from_gemini(&project_dir)?,
         "codex" => import_permissions_from_codex(&project_dir)?,
-        _ => return Err(anyhow!("Unsupported provider '{}'", provider_id)),
+        _ => return Err(anyhow!("Unsupported harness '{}'", harness_id)),
     };
 
     if let Some(permissions) = imported {

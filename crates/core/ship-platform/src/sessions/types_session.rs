@@ -78,7 +78,7 @@ pub struct Session {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub agent_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub primary_provider: Option<String>,
+    pub primary_harness: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub goal: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -131,8 +131,8 @@ pub struct ProviderMatrix {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub agent_id: Option<String>,
     pub source: String,
-    pub allowed_providers: Vec<String>,
-    pub supported_providers: Vec<String>,
+    pub allowed_harnesses: Vec<String>,
+    pub supported_harnesses: Vec<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub resolution_error: Option<String>,
 }
@@ -143,8 +143,8 @@ pub struct ProviderMatrixRepairReport {
     pub dry_run: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub agent_id: Option<String>,
-    pub providers_expected: Vec<String>,
-    pub missing_provider_configs: Vec<String>,
+    pub harnesses_expected: Vec<String>,
+    pub missing_harness_configs: Vec<String>,
     pub needs_recompile: bool,
     pub reapplied_compile: bool,
     #[serde(skip_serializing_if = "Option::is_none")]

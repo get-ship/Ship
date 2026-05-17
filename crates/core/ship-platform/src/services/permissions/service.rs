@@ -50,11 +50,11 @@ pub struct PutArgs {
 pub struct ToolPattern {
     pub pattern: String,
     pub label: String,
-    /// `"provider"` | `"bash"` | `"mcp-<server>"`.
+    /// `"harness"` | `"bash"` | `"mcp-<server>"`.
     pub source: String,
 }
 
-const PROVIDER_BUILTINS: &[&str] = &[
+const HARNESS_BUILTINS: &[&str] = &[
     "Read", "Write", "Edit", "Glob", "Grep", "Bash",
     "NotebookEdit", "WebFetch", "WebSearch", "Task",
 ];
@@ -92,7 +92,7 @@ pub trait PermissionsService: Send + Sync + 'static {
     ) -> Result<Scope, state::Error>;
     fn create(&self, args: CreateArgs) -> Result<Scope, state::Error>;
 
-    /// Autocomplete catalog: provider builtins + curated Bash shapes +
+    /// Autocomplete catalog: harness builtins + curated Bash shapes +
     /// wildcard patterns for every MCP server known to the daemon.
     /// Cross-domain reads (the MCP listing) live inside the impl so the
     /// HTTP / MCP / view-registry transports stay marshalling-only.
@@ -201,13 +201,13 @@ impl PermissionsService for PermissionsServiceImpl {
 
     fn tool_patterns(&self) -> Vec<ToolPattern> {
         let mut out: Vec<ToolPattern> = Vec::with_capacity(
-            PROVIDER_BUILTINS.len() + BASH_SHAPES.len(),
+            HARNESS_BUILTINS.len() + BASH_SHAPES.len(),
         );
-        for t in PROVIDER_BUILTINS {
+        for t in HARNESS_BUILTINS {
             out.push(ToolPattern {
                 pattern: (*t).into(),
                 label: (*t).into(),
-                source: "provider".into(),
+                source: "harness".into(),
             });
         }
         for (p, l) in BASH_SHAPES {
@@ -348,7 +348,7 @@ mod tests {
     fn tool_patterns_includes_builtins_and_bash() {
         let (_tmp, svc) = fresh();
         let patterns = svc.tool_patterns();
-        assert!(patterns.iter().any(|p| p.pattern == "Read" && p.source == "provider"));
+        assert!(patterns.iter().any(|p| p.pattern == "Read" && p.source == "harness"));
         assert!(patterns.iter().any(|p| p.pattern == "Bash(git *)" && p.source == "bash"));
     }
 }

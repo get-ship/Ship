@@ -18,7 +18,7 @@ export interface SessionSummary {
   id: string
   workspace_id: string
   agent_id?: string
-  provider?: string
+  harness?: string
   status: string
 }
 
@@ -176,7 +176,7 @@ export const NAV_DESTINATIONS: NavDest[] = [
   { label: 'Skills',                path: '/skills',       icon: 'zap',      keywords: 'browse edit files'         },
   { label: 'Git',                   path: '/git',          icon: 'git',      keywords: 'status diff commit branch' },
   { label: 'UI Studio',             path: '/ship-ui-studio', icon: 'sparkles', keywords: 'components design tokens' },
-  { label: 'Settings',              path: '/settings',     icon: 'settings', keywords: 'config theme provider'     },
+  { label: 'Settings',              path: '/settings',     icon: 'settings', keywords: 'config theme harness'     },
   { label: 'Theme Studio',          path: '/theme-studio', icon: 'palette',  keywords: 'design tokens'             },
 ]
 

@@ -8,7 +8,7 @@ authors: [ship]
 
 # Ship CLI Reference
 
-Ship compiles declarative agent configuration (`.ship/`) into provider-native files. The core workflow: `init` a project, `use` an agent, `compile` to emit outputs, `run` to execute pipelines.
+Ship compiles declarative agent configuration (`.ship/`) into harness-native files. The core workflow: `init` a project, `use` an agent, `compile` to emit outputs, `run` to execute pipelines.
 
 ## Core Workflow
 
@@ -19,7 +19,7 @@ ship use <agent-id>               # activate agent and compile
 ship use <agent-id> --with <skill># inject extra skills at compile time
 ship compile                      # recompile after config changes
 ship compile --dry-run            # preview output without writing files
-ship compile --provider claude    # compile for a specific provider only
+ship compile --harness claude    # compile for a specific harness only
 ship status                       # show active agent and compilation state
 ship validate                     # check config for errors
 ship validate --agent <name>      # validate a single agent
@@ -109,20 +109,20 @@ ship config path                  # show config file path
 ## Other Commands
 
 ```
-ship convert <source>             # convert provider configs to .ship/ format
+ship convert <source>             # convert harness configs to .ship/ format
 ship docs topics                  # list help topics
 ship docs <topic>                 # detailed help for a topic
-ship hook session-start           # provider hook: session start
-ship hook before-tool             # provider hook: before tool
-ship hook after-tool              # provider hook: after tool
-ship hook session-end             # provider hook: session end
+ship hook session-start           # harness hook: session start
+ship hook before-tool             # harness hook: before tool
+ship hook after-tool              # harness hook: after tool
+ship hook session-end             # harness hook: session end
 ```
 
-## Provider Outputs
+## Harness Outputs
 
 All outputs are gitignored build artifacts produced by `ship compile` / `ship use`.
 
-| Provider | Context file | MCP config | Skills dir |
+| Harness | Context file | MCP config | Skills dir |
 |----------|-------------|------------|------------|
 | `claude` | `CLAUDE.md` | `.mcp.json` | `.claude/skills/` |
 | `gemini` | `GEMINI.md` | `.gemini/settings.json` | `.gemini/skills/` |

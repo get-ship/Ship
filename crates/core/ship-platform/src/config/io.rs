@@ -3,7 +3,7 @@ use super::merge::{
     merge_agents, merge_mcp_servers, merge_string_lists, write_project_core_config,
 };
 use super::agents::{get_agents_config, save_agents_config};
-use super::project::{ProjectConfig, default_providers};
+use super::project::{ProjectConfig, default_harnesses};
 use super::types::PRIMARY_CONFIG_FILE;
 use ship_substrate::project::get_global_dir;
 use anyhow::Result;
@@ -55,11 +55,11 @@ pub fn get_effective_config(project_dir: Option<PathBuf>) -> Result<ProjectConfi
     project.agent.prompts = merge_string_lists(&global.agent.prompts, &project.agent.prompts);
     project.agent.context = merge_string_lists(&global.agent.context, &project.agent.context);
 
-    // Project providers win; fall back to global when project does not specify a real override.
-    if (project.providers.is_empty() || project.providers == default_providers())
-        && !global.providers.is_empty()
+    // Project harnesses win; fall back to global when project does not specify a real override.
+    if (project.harnesses.is_empty() || project.harnesses == default_harnesses())
+        && !global.harnesses.is_empty()
     {
-        project.providers = global.providers;
+        project.harnesses = global.harnesses;
     }
 
     project.agents = merge_agents(&global.agents, &project.agents);
@@ -116,7 +116,7 @@ pub fn save_config(config: &ProjectConfig, project_dir: Option<PathBuf>) -> Resu
     save_agents_config(&config_dir, &effective.agents)?;
 
     // Keep ship.jsonc focused on stable project identity only. Project
-    // providers default via the field's serde default; if the user wants to
+    // harnesses default via the field's serde default; if the user wants to
     // narrow at the project level, they edit ship.jsonc directly. (No more
     // KV side-table.)
     write_project_core_config(&path, &effective)?;

@@ -30,7 +30,7 @@ struct ProviderHook {
     mcp_context: Option<serde_json::Value>,
 }
 
-/// Parses provider hook stdin JSON and emits skill.started.
+/// Parses harness hook stdin JSON and emits skill.started.
 /// Returns Ok(None) for non-ship tools (ignore silently).
 /// Supports Claude PreToolUse, Gemini BeforeTool, Cursor beforeMCPExecution schemas.
 ///
@@ -68,7 +68,7 @@ pub fn handle_before_tool(
     Ok(Some(event))
 }
 
-/// Parses provider hook stdin JSON and emits skill.completed or skill.failed.
+/// Parses harness hook stdin JSON and emits skill.completed or skill.failed.
 /// Returns Ok(None) for non-ship tools.
 pub fn handle_after_tool(
     stdin_json: &str,

@@ -1,4 +1,4 @@
-//! Realistic agent fixture tests — multi-feature configs across all providers.
+//! Realistic agent fixture tests — multi-feature configs across all harnesses.
 
 use super::fixtures::{make_hook, make_rule, make_server, make_skill, resolved};
 use crate::compile::compile;
@@ -16,7 +16,7 @@ fn full_agent() -> ResolvedConfig {
     github.timeout_secs = Some(30);
 
     ResolvedConfig {
-        providers: vec![
+        harnesses: vec![
             "claude".into(),
             "gemini".into(),
             "codex".into(),
@@ -157,18 +157,18 @@ fn realistic_agent_mcp_has_both_servers_plus_ship() {
     assert!(obj["github"]["env"]["GITHUB_TOKEN"].is_string());
 }
 
-// ── Test 2: All providers consistent ─────────────────────────────────────────
+// ── Test 2: All harnesses consistent ─────────────────────────────────────────
 
 #[test]
-fn realistic_agent_all_providers_have_context_with_rules() {
+fn realistic_agent_all_harnesses_have_context_with_rules() {
     let r = full_agent();
-    for provider in &["claude", "gemini", "codex"] {
-        let ctx = compile(&r, provider)
+    for harness in &["claude", "gemini", "codex"] {
+        let ctx = compile(&r, harness)
             .unwrap()
             .context_content
-            .unwrap_or_else(|| panic!("{provider} must have context_content"));
-        assert!(ctx.contains("Use explicit type annotations"), "{provider}");
-        assert!(ctx.contains("Never commit secrets"), "{provider}");
+            .unwrap_or_else(|| panic!("{harness} must have context_content"));
+        assert!(ctx.contains("Use explicit type annotations"), "{harness}");
+        assert!(ctx.contains("Never commit secrets"), "{harness}");
     }
     // Cursor uses rule_files instead
     let cursor = compile(&r, "cursor").unwrap();
@@ -183,7 +183,7 @@ fn realistic_agent_all_providers_have_context_with_rules() {
 }
 
 #[test]
-fn realistic_agent_all_providers_have_skill_files() {
+fn realistic_agent_all_harnesses_have_skill_files() {
     let r = full_agent();
     let paths: HashMap<&str, &str> = [
         ("claude", ".claude/skills"),
@@ -192,29 +192,29 @@ fn realistic_agent_all_providers_have_skill_files() {
         ("cursor", ".cursor/skills"),
     ]
     .into();
-    for (provider, base) in &paths {
-        let out = compile(&r, provider).unwrap();
+    for (harness, base) in &paths {
+        let out = compile(&r, harness).unwrap();
         for id in &["code-review", "test-generator"] {
             let path = format!("{base}/{id}/SKILL.md");
-            assert!(out.skill_files.contains_key(&path), "{provider}: {path}");
+            assert!(out.skill_files.contains_key(&path), "{harness}: {path}");
         }
     }
 }
 
 #[test]
-fn realistic_agent_all_providers_have_mcp_servers() {
+fn realistic_agent_all_harnesses_have_mcp_servers() {
     let r = full_agent();
-    for provider in &["claude", "gemini", "codex", "cursor"] {
-        let obj = compile(&r, provider).unwrap().mcp_servers;
+    for harness in &["claude", "gemini", "codex", "cursor"] {
+        let obj = compile(&r, harness).unwrap().mcp_servers;
         let mcp = obj.as_object().unwrap();
-        assert!(mcp.contains_key("ship"), "{provider}: ship");
-        assert!(mcp.contains_key("github"), "{provider}: github");
-        assert!(mcp.contains_key("postgres"), "{provider}: postgres");
+        assert!(mcp.contains_key("ship"), "{harness}: ship");
+        assert!(mcp.contains_key("github"), "{harness}: github");
+        assert!(mcp.contains_key("postgres"), "{harness}: postgres");
     }
 }
 
 #[test]
-fn realistic_agent_provider_patches_are_exclusive() {
+fn realistic_agent_harness_patches_are_exclusive() {
     let r = full_agent();
     assert!(
         compile(&r, "claude")
@@ -313,19 +313,19 @@ fn permission_deny_only_no_allow_leak_gemini() {
 // ── Test 4: Empty agent compiles without errors ──────────────────────────────
 
 #[test]
-fn empty_agent_compiles_for_all_providers() {
+fn empty_agent_compiles_for_all_harnesses() {
     let r = empty_agent();
-    for provider in &["claude", "gemini", "codex", "cursor"] {
-        let out = compile(&r, provider).unwrap();
+    for harness in &["claude", "gemini", "codex", "cursor"] {
+        let out = compile(&r, harness).unwrap();
         assert!(
             out.mcp_servers.as_object().unwrap().contains_key("ship"),
-            "{provider}: ship always"
+            "{harness}: ship always"
         );
-        assert!(out.skill_files.is_empty(), "{provider}: no skill files");
+        assert!(out.skill_files.is_empty(), "{harness}: no skill files");
     }
 }
 
-// ── Test 5: Hook emission across providers ───────────────────────────────────
+// ── Test 5: Hook emission across harnesses ───────────────────────────────────
 
 #[test]
 fn both_stop_hooks_emit_to_claude_settings() {
@@ -375,7 +375,7 @@ fn stop_hook_maps_to_cursor_session_end() {
 }
 
 #[test]
-fn subagent_stop_dropped_for_non_claude_providers() {
+fn subagent_stop_dropped_for_non_claude_harnesses() {
     let r = ResolvedConfig {
         hooks: vec![make_hook(
             HookTrigger::SubagentStop,

@@ -1,11 +1,11 @@
-//! Canonical upstream provider schema URLs.
+//! Canonical upstream harness schema URLs.
 //!
 //! Used by:
-//! - Ship JSON schemas — `$ref` in provider_settings / provider_defaults
-//! - Web app — CodeMirror autocomplete for provider_settings
+//! - Ship JSON schemas — `$ref` in harness_settings / harness_defaults
+//! - Web app — CodeMirror autocomplete for harness_settings
 //! - CI — drift detection (schema_drift_tests.rs)
 //!
-//! When a provider publishes a new schema URL, update this file.
+//! When a harness publishes a new schema URL, update this file.
 
 /// Claude Code settings JSON Schema (SchemaStore).
 pub const CLAUDE_SCHEMA_URL: &str = "https://www.schemastore.org/claude-code-settings.json";
@@ -25,9 +25,9 @@ pub const OPENCODE_SCHEMA_URL: &str = "https://opencode.ai/config.json";
 /// `.cursor/rules/*.mdc`, `.cursor/mcp.json`, `.cursor/cli.json`, `.cursor/hooks.json`.
 pub const CURSOR_SCHEMA_URL: Option<&str> = None;
 
-/// All provider schema URLs, keyed by provider ID.
-/// Returns `(provider_id, Option<schema_url>)`.
-pub const PROVIDER_SCHEMAS: &[(&str, Option<&str>)] = &[
+/// All harness schema URLs, keyed by harness ID.
+/// Returns `(harness_id, Option<schema_url>)`.
+pub const HARNESS_SCHEMAS: &[(&str, Option<&str>)] = &[
     ("claude", Some(CLAUDE_SCHEMA_URL)),
     ("codex", Some(CODEX_SCHEMA_URL)),
     ("gemini", Some(GEMINI_SCHEMA_URL)),
@@ -35,23 +35,23 @@ pub const PROVIDER_SCHEMAS: &[(&str, Option<&str>)] = &[
     ("opencode", Some(OPENCODE_SCHEMA_URL)),
 ];
 
-/// Look up the upstream schema URL for a provider.
-pub fn schema_url(provider_id: &str) -> Option<&'static str> {
-    PROVIDER_SCHEMAS
+/// Look up the upstream schema URL for a harness.
+pub fn schema_url(harness_id: &str) -> Option<&'static str> {
+    HARNESS_SCHEMAS
         .iter()
-        .find(|(id, _)| *id == provider_id)
+        .find(|(id, _)| *id == harness_id)
         .and_then(|(_, url)| *url)
 }
 
-/// Ship-managed keys per provider.
+/// Ship-managed keys per harness.
 ///
 /// These keys are written by the compiler from Ship's own schema fields
 /// (model, permissions, env, agent_limits, hooks, MCP). They must NOT
-/// appear in `provider_settings` / `provider_defaults` — the JSON schemas
+/// appear in `harness_settings` / `harness_defaults` — the JSON schemas
 /// use `allOf` + `false` to reject them.
 ///
-/// Source of truth: each provider's `build_*` function in `compile/`.
-pub const PROVIDER_MANAGED_KEYS: &[(&str, &[&str])] = &[
+/// Source of truth: each harness's `build_*` function in `compile/`.
+pub const HARNESS_MANAGED_KEYS: &[(&str, &[&str])] = &[
     (
         "claude",
         &[
@@ -70,11 +70,11 @@ pub const PROVIDER_MANAGED_KEYS: &[(&str, &[&str])] = &[
     ("opencode", &["mcp", "permission"]),
 ];
 
-/// Look up Ship-managed keys for a provider.
-pub fn managed_keys(provider_id: &str) -> &'static [&'static str] {
-    PROVIDER_MANAGED_KEYS
+/// Look up Ship-managed keys for a harness.
+pub fn managed_keys(harness_id: &str) -> &'static [&'static str] {
+    HARNESS_MANAGED_KEYS
         .iter()
-        .find(|(id, _)| *id == provider_id)
+        .find(|(id, _)| *id == harness_id)
         .map(|(_, keys)| *keys)
         .unwrap_or(&[])
 }
@@ -84,7 +84,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn schema_url_returns_known_providers() {
+    fn schema_url_returns_known_harnesses() {
         assert!(schema_url("claude").is_some());
         assert!(schema_url("codex").is_some());
         assert!(schema_url("gemini").is_some());
@@ -94,6 +94,6 @@ mod tests {
 
     #[test]
     fn schema_url_returns_none_for_unknown() {
-        assert!(schema_url("unknown-provider").is_none());
+        assert!(schema_url("unknown-harness").is_none());
     }
 }

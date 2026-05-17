@@ -83,7 +83,7 @@ fn draw_footer(f: &mut Frame, area: Rect, state: &TopState) {
 
 fn draw_workspaces(f: &mut Frame, area: Rect, state: &TopState, focused: bool, scroll: usize) {
     let header =
-        Row::new(["Branch", "Status", "Agent", "Providers", "Session"]).style(HEADER);
+        Row::new(["Branch", "Status", "Agent", "Harnesses", "Session"]).style(HEADER);
     let rows: Vec<Row> = state
         .workspaces
         .iter()
@@ -93,7 +93,7 @@ fn draw_workspaces(f: &mut Frame, area: Rect, state: &TopState, focused: bool, s
                 Cell::from(w.branch.as_str()),
                 Cell::from(w.status.as_str()).style(status_color(&w.status)),
                 Cell::from(w.agent.as_str()),
-                Cell::from(w.providers.as_str()),
+                Cell::from(w.harnesses.as_str()),
                 Cell::from(w.session_status.as_str()).style(session_color(&w.session_status)),
             ])
         })
@@ -139,7 +139,7 @@ fn draw_agents(f: &mut Frame, area: Rect, state: &TopState, focused: bool, scrol
 }
 
 fn draw_sessions(f: &mut Frame, area: Rect, state: &TopState, focused: bool, scroll: usize) {
-    let header = Row::new(["ID", "Branch", "Status", "Provider", "Agent", "Tools", "Started", "Goal"])
+    let header = Row::new(["ID", "Branch", "Status", "Harness", "Agent", "Tools", "Started", "Goal"])
         .style(HEADER);
     let rows: Vec<Row> = state
         .sessions
@@ -150,7 +150,7 @@ fn draw_sessions(f: &mut Frame, area: Rect, state: &TopState, focused: bool, scr
                 Cell::from(s.id_short.as_str()).style(DIM),
                 Cell::from(s.branch.as_str()),
                 Cell::from(s.status.as_str()).style(session_color(&s.status)),
-                Cell::from(s.provider.as_str()),
+                Cell::from(s.harness.as_str()),
                 Cell::from(s.agent.as_str()),
                 Cell::from(s.tool_calls.to_string()),
                 Cell::from(s.started.as_str()).style(DIM),

@@ -296,7 +296,7 @@ pub async fn event_route(
 }
 
 /// Broadcast an agent reply onto a session's event stream. The daemon
-/// emits it as a `ProviderEvent::Message`, which the command bar renders
+/// emits it as a `HarnessEvent::Message`, which the command bar renders
 /// as an agent bubble. Used by the `chat_reply` MCP tool.
 pub async fn session_reply(session_id: &str, text: &str) -> Result<String> {
     post(

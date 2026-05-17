@@ -63,7 +63,7 @@ antipattern. Recent examples we've cleaned up:
 - `file_claim` — same. Dead.
 - `git_commit_drafts` — full plumbing (table, module, trait, handlers,
   routes, SDK), zero callers. Deleted.
-- `managed_mcp_state` — two scalar fields per provider; was a
+- `managed_mcp_state` — two scalar fields per harness; was a
   dedicated table, moved to `kv_state`. Should ultimately be event-
   sourced (see Integrations below) but the move-to-KV was an
   improvement.
@@ -162,7 +162,7 @@ concepts:
    "what happened" is a session query.
 
 4. **Adapter** — in-process module that talks to the outside world
-   (git, tmux, providers, future containers) and emits events into
+   (git, tmux, harnesses, future containers) and emits events into
    the runtime log. Adapters never write runtime projection tables.
    Today: `ship_substrate::git` (the subprocess adapter),
    `ship_platform::services::git` (the libgit2-direct GitService, whose

@@ -256,7 +256,7 @@ fn loads_agent_profiles_from_agents_dir() {
         tmp.path(),
         "agents/web-lane.jsonc",
         r#"{
-  "agent": { "id": "web-lane", "name": "Web Lane", "providers": ["claude"] },
+  "agent": { "id": "web-lane", "name": "Web Lane", "harnesses": ["claude"] },
   "skills": { "refs": ["tanstack-start"] },
   "permissions": { "preset": "ship-standard" }
 }"#,
@@ -265,7 +265,7 @@ fn loads_agent_profiles_from_agents_dir() {
         tmp.path(),
         "agents/server-lane.jsonc",
         r#"{
-  "agent": { "id": "server-lane", "name": "Server Lane", "providers": ["claude"] }
+  "agent": { "id": "server-lane", "name": "Server Lane", "harnesses": ["claude"] }
 }"#,
     );
     let lib = load_library(tmp.path()).unwrap();

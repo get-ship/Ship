@@ -53,7 +53,7 @@ pub fn interpolate_step(
         goal: step.goal.as_deref().map(interp).transpose()?,
         after: step.after.clone(),
         model: step.model.as_deref().map(interp).transpose()?,
-        provider: step.provider.as_deref().map(interp).transpose()?,
+        harness: step.harness.as_deref().map(interp).transpose()?,
         command: step.command.as_deref().map(interp).transpose()?,
         max_retries: step.max_retries,
         gate: step.gate.clone(),
@@ -69,7 +69,7 @@ mod tests {
     use super::*;
     use crate::types::StepType;
 
-    fn step_with_provider(template: &str) -> PipelineStep {
+    fn step_with_harness(template: &str) -> PipelineStep {
         PipelineStep {
             id: "implement".into(),
             step_type: StepType::Agent,
@@ -77,7 +77,7 @@ mod tests {
             goal: None,
             after: vec![],
             model: None,
-            provider: Some(template.into()),
+            harness: Some(template.into()),
             command: None,
             max_retries: None,
             gate: None,
@@ -89,37 +89,37 @@ mod tests {
     }
 
     #[test]
-    fn provider_is_interpolated_from_job_vars() {
-        let step = step_with_provider("{{ provider }}");
+    fn harness_is_interpolated_from_job_vars() {
+        let step = step_with_harness("{{ harness }}");
         let vars: HashMap<String, String> =
-            [("provider".into(), "codex".into())].into_iter().collect();
+            [("harness".into(), "codex".into())].into_iter().collect();
         let out = interpolate_step(&step, &vars, &Default::default()).unwrap();
-        assert_eq!(out.provider.as_deref(), Some("codex"));
+        assert_eq!(out.harness.as_deref(), Some("codex"));
     }
 
     #[test]
-    fn provider_missing_var_errors() {
-        let step = step_with_provider("{{ provider }}");
+    fn harness_missing_var_errors() {
+        let step = step_with_harness("{{ harness }}");
         let err = interpolate_step(&step, &Default::default(), &Default::default()).unwrap_err();
-        assert_eq!(err, "provider");
+        assert_eq!(err, "harness");
     }
 
     #[test]
-    fn provider_literal_passes_through() {
-        let step = step_with_provider("claude");
+    fn harness_literal_passes_through() {
+        let step = step_with_harness("claude");
         let out = interpolate_step(&step, &Default::default(), &Default::default()).unwrap();
-        assert_eq!(out.provider.as_deref(), Some("claude"));
+        assert_eq!(out.harness.as_deref(), Some("claude"));
     }
 
     #[test]
     fn job_vars_override_step_vars_for_same_key() {
-        let step = step_with_provider("{{ provider }}");
+        let step = step_with_harness("{{ harness }}");
         let job: HashMap<String, String> =
-            [("provider".into(), "claude".into())].into_iter().collect();
+            [("harness".into(), "claude".into())].into_iter().collect();
         let step_vars: HashMap<String, String> =
-            [("provider".into(), "codex".into())].into_iter().collect();
+            [("harness".into(), "codex".into())].into_iter().collect();
         let out = interpolate_step(&step, &job, &step_vars).unwrap();
-        assert_eq!(out.provider.as_deref(), Some("claude"));
+        assert_eq!(out.harness.as_deref(), Some("claude"));
     }
 
     #[test]

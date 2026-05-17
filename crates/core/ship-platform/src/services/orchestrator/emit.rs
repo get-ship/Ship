@@ -80,21 +80,21 @@ pub async fn emit_job_dispatched(
     emit_job_dispatched_with_meta(kernel, job_id, worktree_path, slug, None, None).await;
 }
 
-/// Emit a `job.dispatched` event with optional provider metadata.
+/// Emit a `job.dispatched` event with optional harness metadata.
 /// `ship_dir` overrides the default store path (used in tests).
 pub async fn emit_job_dispatched_with_meta(
     kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
     job_id: &str,
     worktree_path: &std::path::Path,
     slug: &str,
-    provider_meta: Option<serde_json::Value>,
+    harness_meta: Option<serde_json::Value>,
     ship_dir: Option<&std::path::Path>,
 ) {
     let payload = ship_substrate::events::job::JobDispatchedPayload {
         job_id: job_id.to_string(),
         worktree: worktree_path.to_string_lossy().into_owned(),
         pid: None,
-        provider_meta,
+        harness_meta,
     };
     emit_job_dispatch_event(
         kernel,

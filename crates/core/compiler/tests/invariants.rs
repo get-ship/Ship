@@ -1,11 +1,11 @@
-/// Compiler invariant tests — determinism, provider round-trips, empty input,
+/// Compiler invariant tests — determinism, harness round-trips, empty input,
 /// and WASM purity (structural).
 ///
 /// No `proptest`/`quickcheck` in Cargo.toml, so these are deterministic
 /// parameterised tests as permitted by the job spec.
 use compiler::{
     AgentProfile, McpServerConfig, ProfileMeta, ProjectLibrary, Rule, Skill, SkillRefs, McpRefs,
-    PluginRefs, ProfilePermissions, ProfileRules, compile, list_providers, resolve_library,
+    PluginRefs, ProfilePermissions, ProfileRules, compile, list_harnesses, resolve_library,
 };
 
 // ─── Fixture helpers ──────────────────────────────────────────────────────────
@@ -71,32 +71,32 @@ fn rich_library() -> ProjectLibrary {
 // ─── Determinism ──────────────────────────────────────────────────────────────
 
 /// Same ProjectLibrary compiled 10× must produce identical output every time.
-/// Tests all four providers to catch any per-provider non-determinism.
+/// Tests all four harnesses to catch any per-harness non-determinism.
 #[test]
 fn compile_is_deterministic() {
     let library = rich_library();
-    let providers = ["claude", "gemini", "codex", "cursor"];
+    let harnesses = ["claude", "gemini", "codex", "cursor"];
 
-    for provider in providers {
+    for harness in harnesses {
         let resolved = resolve_library(&library, None, None);
-        let reference = compile(&resolved, provider).expect("known provider");
+        let reference = compile(&resolved, harness).expect("known harness");
 
         for _ in 1..10 {
             let resolved = resolve_library(&library, None, None);
-            let output = compile(&resolved, provider).unwrap();
+            let output = compile(&resolved, harness).unwrap();
 
             // Compare serialisable/comparable fields.
             assert_eq!(
                 output.mcp_servers, reference.mcp_servers,
-                "mcp_servers non-deterministic for {provider}"
+                "mcp_servers non-deterministic for {harness}"
             );
             assert_eq!(
                 output.context_content, reference.context_content,
-                "context_content non-deterministic for {provider}"
+                "context_content non-deterministic for {harness}"
             );
             assert_eq!(
                 output.mcp_config_path, reference.mcp_config_path,
-                "mcp_config_path non-deterministic for {provider}"
+                "mcp_config_path non-deterministic for {harness}"
             );
 
             let mut skill_keys: Vec<_> = output.skill_files.keys().collect();
@@ -105,7 +105,7 @@ fn compile_is_deterministic() {
             ref_skill_keys.sort();
             assert_eq!(
                 skill_keys, ref_skill_keys,
-                "skill_files keys non-deterministic for {provider}"
+                "skill_files keys non-deterministic for {harness}"
             );
 
             let mut rule_keys: Vec<_> = output.rule_files.keys().collect();
@@ -114,19 +114,19 @@ fn compile_is_deterministic() {
             ref_rule_keys.sort();
             assert_eq!(
                 rule_keys, ref_rule_keys,
-                "rule_files keys non-deterministic for {provider}"
+                "rule_files keys non-deterministic for {harness}"
             );
 
             assert_eq!(
                 format!("{:?}", output.claude_settings_patch),
                 format!("{:?}", reference.claude_settings_patch),
-                "claude_settings_patch non-deterministic for {provider}"
+                "claude_settings_patch non-deterministic for {harness}"
             );
         }
     }
 }
 
-// ─── Provider round-trips ─────────────────────────────────────────────────────
+// ─── Harness round-trips ─────────────────────────────────────────────────────
 
 /// Compiling for `claude` must produce a CLAUDE.md context section containing
 /// skill and rule content.
@@ -212,40 +212,40 @@ fn codex_output_has_agents_md_and_config_patch() {
 /// MCP servers object always contains the built-in `ship` server key.
 #[test]
 fn mcp_servers_always_includes_ship_entry() {
-    let providers = ["claude", "gemini", "codex", "cursor"];
+    let harnesses = ["claude", "gemini", "codex", "cursor"];
     let library = ProjectLibrary::default();
     let resolved = resolve_library(&library, None, None);
 
-    for provider in providers {
-        let output = compile(&resolved, provider).unwrap();
+    for harness in harnesses {
+        let output = compile(&resolved, harness).unwrap();
         let servers = output
             .mcp_servers
             .as_object()
             .expect("mcp_servers must be a JSON object");
         assert!(
             servers.contains_key("ship"),
-            "provider {provider} mcp_servers must include built-in 'ship' key"
+            "harness {harness} mcp_servers must include built-in 'ship' key"
         );
     }
 }
 
 // ─── Empty input ──────────────────────────────────────────────────────────────
 
-/// Empty ProjectLibrary must compile for every known provider without panicking
+/// Empty ProjectLibrary must compile for every known harness without panicking
 /// and must produce structurally valid output.
 #[test]
-fn empty_library_compiles_for_all_providers() {
+fn empty_library_compiles_for_all_harnesses() {
     let library = ProjectLibrary::default();
 
-    for desc in list_providers() {
+    for desc in list_harnesses() {
         let resolved = resolve_library(&library, None, None);
         let output = compile(&resolved, desc.id)
-            .unwrap_or_else(|| panic!("compile returned None for known provider {}", desc.id));
+            .unwrap_or_else(|| panic!("compile returned None for known harness {}", desc.id));
 
         // MCP servers must be a JSON object (at minimum contains "ship" key).
         assert!(
             output.mcp_servers.is_object(),
-            "provider {} mcp_servers must be an object on empty input",
+            "harness {} mcp_servers must be an object on empty input",
             desc.id
         );
 
@@ -256,15 +256,15 @@ fn empty_library_compiles_for_all_providers() {
 }
 
 /// resolve_library on an empty ProjectLibrary must not panic and must default
-/// provider to "claude".
+/// harness to "claude".
 #[test]
 fn empty_library_resolves_to_claude_default() {
     let library = ProjectLibrary::default();
     let resolved = resolve_library(&library, None, None);
     assert_eq!(
-        resolved.providers,
+        resolved.harnesses,
         vec!["claude"],
-        "empty library must default to claude provider"
+        "empty library must default to claude harness"
     );
 }
 
@@ -286,14 +286,14 @@ fn compile_and_resolve_are_pure_no_io() {
     // resolve_library takes owned/borrowed structs; no I/O arguments accepted.
     let resolved = resolve_library(&library, None, None);
 
-    // compile takes a ResolvedConfig (in-memory) and a provider string.
+    // compile takes a ResolvedConfig (in-memory) and a harness string.
     // If this function accessed the filesystem or spawned a process it would
     // either fail (WASM/sandboxed) or require Path/Command arguments it doesn't have.
-    for desc in list_providers() {
+    for desc in list_harnesses() {
         let out = compile(&resolved, desc.id);
         assert!(
             out.is_some(),
-            "compile must return Some for known provider {}",
+            "compile must return Some for known harness {}",
             desc.id
         );
     }
@@ -308,7 +308,7 @@ fn make_agent_profile(id: &str, description: &str) -> AgentProfile {
             name: id.to_string(),
             version: None,
             description: Some(description.to_string()),
-            providers: vec![],
+            harnesses: vec![],
             role: None,
             tags: vec![],
             tools_preset: None,
@@ -322,7 +322,7 @@ fn make_agent_profile(id: &str, description: &str) -> AgentProfile {
         rules: ProfileRules::default(),
         hooks: Default::default(),
         apps: Default::default(),
-        provider_settings: Default::default(),
+        harness_settings: Default::default(),
     }
 }
 
@@ -373,19 +373,19 @@ fn runtime_agents_injected_into_skill_template() {
     );
 }
 
-/// Skills with `{{ runtime.providers }}` get the active provider list.
+/// Skills with `{{ runtime.harnesses }}` get the active harness list.
 #[test]
-fn runtime_providers_injected_into_skill_template() {
+fn runtime_harnesses_injected_into_skill_template() {
     let skill = Skill {
-        id: "providers".to_string(),
-        name: "providers".to_string(),
+        id: "harnesses".to_string(),
+        name: "harnesses".to_string(),
         stable_id: None,
         description: None,
         license: None,
         compatibility: None,
         allowed_tools: vec![],
         metadata: Default::default(),
-        content: "{% for p in runtime.providers %}{{ p }} {% endfor %}".to_string(),
+        content: "{% for p in runtime.harnesses %}{{ p }} {% endfor %}".to_string(),
         source: Default::default(),
         vars: Default::default(),
         artifacts: vec![],
@@ -407,7 +407,7 @@ fn runtime_providers_injected_into_skill_template() {
 
     assert!(
         skill_content.contains("claude"),
-        "runtime.providers must include 'claude'; got:\n{skill_content}"
+        "runtime.harnesses must include 'claude'; got:\n{skill_content}"
     );
 }
 
@@ -458,22 +458,22 @@ fn runtime_skills_injected_into_skill_template() {
     );
 }
 
-/// Unknown provider IDs must return None rather than panicking.
+/// Unknown harness IDs must return None rather than panicking.
 #[test]
-fn compile_unknown_provider_returns_none() {
+fn compile_unknown_harness_returns_none() {
     let library = ProjectLibrary::default();
     let resolved = resolve_library(&library, None, None);
 
     assert!(
         compile(&resolved, "").is_none(),
-        "empty provider id must return None"
+        "empty harness id must return None"
     );
     assert!(
-        compile(&resolved, "unknown-provider").is_none(),
-        "unknown provider id must return None"
+        compile(&resolved, "unknown-harness").is_none(),
+        "unknown harness id must return None"
     );
     assert!(
         compile(&resolved, "CLAUDE").is_none(),
-        "provider matching is case-sensitive — 'CLAUDE' must return None"
+        "harness matching is case-sensitive — 'CLAUDE' must return None"
     );
 }

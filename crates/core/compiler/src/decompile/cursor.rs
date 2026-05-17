@@ -19,7 +19,7 @@ use super::json_string_array;
 /// - `.cursor/mcp.json` → MCP servers
 /// - `.cursor/rules/*.mdc` → rules
 /// - `.cursor/hooks.json` → hooks
-/// - `.cursor/cli.json` → permissions, provider_defaults
+/// - `.cursor/cli.json` → permissions, harness_defaults
 /// - `.cursor/environment.json` → cursor_environment
 pub fn decompile_cursor(project_root: &Path) -> ProjectLibrary {
     let mut library = ProjectLibrary::default();
@@ -46,7 +46,7 @@ pub fn decompile_cursor(project_root: &Path) -> ProjectLibrary {
         library.hooks = parse_cursor_hooks(&json);
     }
 
-    // ── .cursor/cli.json → permissions + provider_defaults ───────────────────
+    // ── .cursor/cli.json → permissions + harness_defaults ───────────────────
     let cli_path = project_root.join(".cursor").join("cli.json");
     if let Ok(content) = std::fs::read_to_string(&cli_path)
         && let Ok(json) = serde_json::from_str::<Json>(&content)

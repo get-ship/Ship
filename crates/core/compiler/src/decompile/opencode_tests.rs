@@ -48,8 +48,8 @@ fn opencode_agent_basic_fields() {
         Some("You are a build agent. Follow TDD.")
     );
 
-    // Model stored in provider_settings.opencode
-    let oc = agent.provider_settings.get("opencode").unwrap();
+    // Model stored in harness_settings.opencode
+    let oc = agent.harness_settings.get("opencode").unwrap();
     assert_eq!(
         oc.get("model").and_then(|v| v.as_str()),
         Some("anthropic/claude-sonnet-4-20250514")
@@ -129,7 +129,7 @@ fn opencode_agent_permissions_granular_bash() {
 // ── Agent with unknown fields preserved ──────────────────────────────────────
 
 #[test]
-fn opencode_agent_unknown_fields_in_provider_settings() {
+fn opencode_agent_unknown_fields_in_harness_settings() {
     let tmp = TempDir::new().unwrap();
     let config = json!({
         "agent": {
@@ -152,7 +152,7 @@ fn opencode_agent_unknown_fields_in_provider_settings() {
 
     assert_eq!(lib.agent_profiles.len(), 1);
     let oc = lib.agent_profiles[0]
-        .provider_settings
+        .harness_settings
         .get("opencode")
         .unwrap();
     assert_eq!(oc.get("mode").and_then(|v| v.as_str()), Some("primary"));
@@ -204,7 +204,7 @@ fn opencode_multiple_agents() {
 // ── Agent key added to KNOWN_CONFIG_KEYS ─────────────────────────────────────
 
 #[test]
-fn opencode_agent_key_not_in_provider_defaults() {
+fn opencode_agent_key_not_in_harness_defaults() {
     let tmp = TempDir::new().unwrap();
     let config = json!({
         "model": "gpt-4o",
@@ -222,11 +222,11 @@ fn opencode_agent_key_not_in_provider_defaults() {
 
     let lib = decompile_opencode(tmp.path());
 
-    // The "agent" key should NOT appear in provider_defaults
-    if let Some(defaults) = lib.provider_defaults.get("opencode") {
+    // The "agent" key should NOT appear in harness_defaults
+    if let Some(defaults) = lib.harness_defaults.get("opencode") {
         assert!(
             defaults.get("agent").is_none(),
-            "agent key should be in KNOWN_CONFIG_KEYS, not provider_defaults"
+            "agent key should be in KNOWN_CONFIG_KEYS, not harness_defaults"
         );
     }
 }

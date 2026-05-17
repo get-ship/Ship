@@ -15,7 +15,7 @@ use crate::routes::rest_api::{ApiState, MeshResponse};
     "actor_id": "agent-writer",
     "config": {
         "kind": "agent",
-        "provider": "claude",
+        "harness": "claude",
         "spec_path": ".ship/specs/write-readme.md"
     },
     "capabilities": ["writes.prose", "reads.repo"]

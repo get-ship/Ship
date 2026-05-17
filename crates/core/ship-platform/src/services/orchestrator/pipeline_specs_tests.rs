@@ -9,7 +9,7 @@ fn step(id: &str, agent: &str) -> PipelineStep {
         goal: None,
         after: vec![],
         model: None,
-        provider: None,
+        harness: None,
         command: None,
         max_retries: None,
         gate: None,

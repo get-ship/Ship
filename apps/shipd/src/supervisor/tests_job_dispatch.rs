@@ -94,7 +94,7 @@ async fn job_created_delivered_to_subscriber() {
             "spec_path": ".artifacts/job-spec.md",
             "plan_id": null,
             "model": null,
-            "provider": null,
+            "harness": null,
         }),
     );
 
@@ -555,10 +555,10 @@ mod ports {
     }
 }
 
-/// `job.created` with model/provider in the payload projects to a valid
+/// `job.created` with model/harness in the payload projects to a valid
 /// pending JobRecord.
 #[test]
-fn job_projection_handles_model_and_provider_payload() {
+fn job_projection_handles_model_and_harness_payload() {
     let events = vec![ev(
         event_types::JOB_CREATED,
         serde_json::json!({
@@ -569,7 +569,7 @@ fn job_projection_handles_model_and_provider_payload() {
             "spec_path": ".artifacts/job-spec.md",
             "plan_id": null,
             "model": "claude-opus-4-5",
-            "provider": "anthropic",
+            "harness": "anthropic",
         }),
     )];
 
@@ -583,7 +583,7 @@ fn job_projection_handles_model_and_provider_payload() {
     let raw: serde_json::Value =
         serde_json::from_str(&events[0].payload_json).unwrap();
     assert_eq!(raw["model"].as_str(), Some("claude-opus-4-5"));
-    assert_eq!(raw["provider"].as_str(), Some("anthropic"));
+    assert_eq!(raw["harness"].as_str(), Some("anthropic"));
 }
 
 /// SHIP_ACTOR_ID env var overrides derived actor ID.

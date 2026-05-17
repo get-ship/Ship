@@ -105,7 +105,7 @@ pub fn activate_agent(
     run_compile(CompileOptions {
         project_root,
         output_root,
-        provider: None,
+        harness: None,
         dry_run: false,
         active_agent: Some(&id),
         extra_skills: extra_skills.clone(),

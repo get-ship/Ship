@@ -1,4 +1,4 @@
-use crate::compile::{compile, get_provider};
+use crate::compile::{compile, get_harness};
 use crate::resolve::ResolvedConfig;
 use crate::types::{McpServerType, Rule};
 
@@ -11,13 +11,13 @@ fn ship_server_args_include_serve_subcommand() {
     // Regression: ship use was generating args: ["mcp"] — missing "serve".
     // The correct command is `ship mcp serve`.
     let r = resolved(vec![]);
-    for provider_id in &["claude", "gemini", "codex", "cursor"] {
-        let out = compile(&r, provider_id).unwrap();
+    for harness_id in &["claude", "gemini", "codex", "cursor"] {
+        let out = compile(&r, harness_id).unwrap();
         let ship = &out.mcp_servers["ship"];
         assert_eq!(
             ship["command"].as_str(),
             Some("ship"),
-            "{provider_id}: ship server command must be 'ship'"
+            "{harness_id}: ship server command must be 'ship'"
         );
         let args: Vec<&str> = ship["args"]
             .as_array()
@@ -28,7 +28,7 @@ fn ship_server_args_include_serve_subcommand() {
         assert_eq!(
             args,
             vec!["mcp", "serve"],
-            "{provider_id}: ship server args must be [\"mcp\", \"serve\"]"
+            "{harness_id}: ship server args must be [\"mcp\", \"serve\"]"
         );
     }
 }
@@ -64,26 +64,26 @@ fn claude_uses_mcpservers_key() {
 
 #[test]
 fn codex_uses_mcp_servers_key() {
-    let desc = get_provider("codex").unwrap();
+    let desc = get_harness("codex").unwrap();
     assert_eq!(desc.mcp_key.as_str(), "mcp_servers");
 }
 
 /// Source: https://geminicli.com/docs/tools/mcp-server
 /// Gemini has NO "type" field — transport is inferred from which property is present.
 #[test]
-fn no_provider_emits_type_field_for_stdio() {
+fn no_harness_emits_type_field_for_stdio() {
     let r = resolved(vec![make_server("github")]);
-    for provider_id in &["claude", "gemini", "codex", "cursor"] {
-        let out = compile(&r, provider_id).unwrap();
+    for harness_id in &["claude", "gemini", "codex", "cursor"] {
+        let out = compile(&r, harness_id).unwrap();
         assert!(
             out.mcp_servers["github"].get("type").is_none(),
-            "{provider_id}: must not emit 'type' field for stdio servers"
+            "{harness_id}: must not emit 'type' field for stdio servers"
         );
     }
 }
 
 #[test]
-fn http_server_url_field_per_provider() {
+fn http_server_url_field_per_harness() {
     let mut s = make_server("remote");
     s.server_type = McpServerType::Http;
     s.url = Some("https://api.example.com/mcp".to_string());
@@ -144,10 +144,10 @@ fn claude_mcp_config_path_in_output() {
 // ── Context file (CLAUDE.md / AGENTS.md / GEMINI.md) ─────────────────────────
 
 #[test]
-fn provider_context_file_names() {
-    let desc_claude = get_provider("claude").unwrap();
-    let desc_gemini = get_provider("gemini").unwrap();
-    let desc_codex = get_provider("codex").unwrap();
+fn harness_context_file_names() {
+    let desc_claude = get_harness("claude").unwrap();
+    let desc_gemini = get_harness("gemini").unwrap();
+    let desc_codex = get_harness("codex").unwrap();
     assert_eq!(desc_claude.context_file.file_name(), Some("CLAUDE.md"));
     assert_eq!(desc_gemini.context_file.file_name(), Some("GEMINI.md"));
     assert_eq!(desc_codex.context_file.file_name(), Some("AGENTS.md"));
@@ -241,7 +241,7 @@ fn empty_skill_content_is_filtered() {
 }
 
 #[test]
-fn skill_files_provider_directories() {
+fn skill_files_harness_directories() {
     let r = ResolvedConfig {
         skills: vec![make_skill("rust-expert")],
         ..resolved(vec![])

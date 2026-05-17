@@ -10,7 +10,7 @@
 //!   - [`Transport`] — how a child process is held. PTY today; headless,
 //!     tmux, server-session arrive as the migration progresses.
 //!   - [`ActorProfile`] — what the actor IS. Kind, transport, agent id,
-//!     provider, env, work dir. The orchestrator wires Transport +
+//!     harness, env, work dir. The orchestrator wires Transport +
 //!     metadata + lifecycle events together.
 //!   - [`spawn_actor`] — the orchestrator. Mints the actor id, opens
 //!     the transport, holds the child, emits `actor.created`, returns
@@ -173,7 +173,7 @@ pub fn spawn_actor(profile: ActorProfile) -> Result<ActorHandle> {
             project_id,
             cwd: Some(cwd),
             agent_id: emit_profile.agent_id.clone(),
-            provider: emit_profile.provider.clone(),
+            harness: emit_profile.harness.clone(),
             transport: Some(emit_profile.transport.as_str().to_string()),
             persistence: Some(emit_profile.persistence_label().to_string()),
             pid: emit_pid,

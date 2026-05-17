@@ -4,7 +4,7 @@
 //! Exposes CRUD operations over session handles. Persistence across
 //! daemon restart is deferred — a future sqlite mirror will capture
 //! spawn metadata + log paths so a restart can reattach to orphaned
-//! provider processes.
+//! harness processes.
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -54,20 +54,20 @@ impl SessionRegistry {
         metas
     }
 
-    /// Find an existing session for a `(workspace, agent, provider)`
+    /// Find an existing session for a `(workspace, agent, harness)`
     /// tuple. Used by spawn-or-attach flows so we don't duplicate.
     pub fn find_agent_session(
         &self,
         workspace_id: &str,
         agent_id: &str,
-        provider: &str,
+        harness: &str,
     ) -> Option<PtySession> {
         let guard = self.inner.lock().unwrap();
         for handle in guard.values() {
             let meta = handle.meta.lock().unwrap();
             if meta.workspace_id == workspace_id
                 && meta.agent_id.as_deref() == Some(agent_id)
-                && meta.provider.as_deref() == Some(provider)
+                && meta.harness.as_deref() == Some(harness)
             {
                 return Some(PtySession(handle.clone()));
             }
@@ -76,15 +76,15 @@ impl SessionRegistry {
     }
 
     /// Reverse-lookup: find the Ship session whose captured
-    /// `provider_session_id` matches the provider's own session id.
+    /// `harness_session_id` matches the harness's own session id.
     /// Used by hook endpoints to route `PreToolUse` / `PostToolUse`
-    /// events (which carry the provider's session id) to the
+    /// events (which carry the harness's session id) to the
     /// corresponding Ship chat bubble.
-    pub fn find_by_provider_session(&self, provider_session_id: &str) -> Option<PtySession> {
+    pub fn find_by_harness_session(&self, harness_session_id: &str) -> Option<PtySession> {
         let guard = self.inner.lock().unwrap();
         for handle in guard.values() {
             let meta = handle.meta.lock().unwrap();
-            if meta.provider_session_id.as_deref() == Some(provider_session_id) {
+            if meta.harness_session_id.as_deref() == Some(harness_session_id) {
                 return Some(PtySession(handle.clone()));
             }
         }

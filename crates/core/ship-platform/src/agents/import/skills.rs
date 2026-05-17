@@ -1,4 +1,4 @@
-//! Import provider-managed skills (Claude `~/.claude/skills`, Gemini
+//! Import harness-managed skills (Claude `~/.claude/skills`, Gemini
 //! `~/.gemini/skills`, Codex `~/.agents/skills`) into the project's
 //! `skills/<id>/SKILL.md`. Frontmatter is YAML; we tolerate either a
 //! top-level `name:` or a `metadata.display_name:` entry. Skills that
@@ -10,12 +10,12 @@ use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use super::super::providers::{ProviderDescriptor, SkillsOutput, require_provider};
+use super::super::harnesses::{HarnessDescriptor, SkillsOutput, require_harness};
 use super::home;
 
-pub fn import_skills_from_provider(provider_id: &str, project_dir: PathBuf) -> Result<usize> {
-    let desc = require_provider(provider_id)?;
-    let import_paths = provider_skill_import_paths(desc, &project_dir)?;
+pub fn import_skills_from_harness(harness_id: &str, project_dir: PathBuf) -> Result<usize> {
+    let desc = require_harness(harness_id)?;
+    let import_paths = harness_skill_import_paths(desc, &project_dir)?;
     if import_paths.is_empty() {
         return Ok(0);
     }
@@ -73,11 +73,11 @@ pub fn import_skills_from_provider(provider_id: &str, project_dir: PathBuf) -> R
     Ok(added)
 }
 
-fn provider_skill_import_paths(
-    desc: &ProviderDescriptor,
+fn harness_skill_import_paths(
+    desc: &HarnessDescriptor,
     project_dir: &Path,
 ) -> Result<Vec<PathBuf>> {
-    let Some(relative_path) = provider_skills_relative_path(desc) else {
+    let Some(relative_path) = harness_skills_relative_path(desc) else {
         return Ok(Vec::new());
     };
 
@@ -96,7 +96,7 @@ fn provider_skill_import_paths(
     Ok(project_path_opt.into_iter().collect())
 }
 
-fn provider_skills_relative_path(desc: &ProviderDescriptor) -> Option<&'static str> {
+fn harness_skills_relative_path(desc: &HarnessDescriptor) -> Option<&'static str> {
     match desc.skills_output {
         SkillsOutput::ClaudeSkills => Some(".claude/skills"),
         SkillsOutput::AgentSkills => Some(".gemini/skills"),

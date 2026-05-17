@@ -1,19 +1,19 @@
 //! Long-lived agent sessions on the supervisor primitive.
 //!
 //! Replaces `lifecycle::spawn_long_lived_agent` for channels-capable
-//! providers (Claude). Builds an `ActorProfile` from the provider
+//! harnesses (Claude). Builds an `ActorProfile` from the harness
 //! adapter's `build_interactive`, calls `ship_substrate::supervisor::spawn_actor`,
 //! and attaches a reader-middleware thread that:
 //!
 //! 1. Auto-dismisses Claude's `--dangerously-load-development-channels`
 //!    confirmation menu by sending a single CR when the menu pattern
 //!    appears in the byte stream. State-aware, fires once per session.
-//! 2. Feeds bytes through the provider adapter line-by-line and
-//!    publishes parsed `ProviderEvent`s on the entry's `event_tx`.
+//! 2. Feeds bytes through the harness adapter line-by-line and
+//!    publishes parsed `HarnessEvent`s on the entry's `event_tx`.
 //! 3. Updates the sidecar `SessionMeta` (status, last_activity).
 //! 4. Emits `actor.stopped` when the byte stream closes.
 //!
-//! Per-turn providers (codex, opencode, cursor, gemini) keep their
+//! Per-turn harnesses (codex, opencode, cursor, gemini) keep their
 //! parent metadata on the legacy `SessionRegistry` (no persistent
 //! child between turns), but `run_headless_turn` spawns the per-turn
 //! child through the supervisor's Headless transport — same primitive,
@@ -26,7 +26,7 @@ use std::sync::Mutex;
 use anyhow::{anyhow, Result};
 use chrono::Utc;
 use crate::services::dispatch_ports::LaunchProfile;
-use crate::services::provider_adapter::{adapter_for, ProviderEvent};
+use crate::services::harness_adapter::{adapter_for, HarnessEvent};
 use ship_substrate::supervisor::{spawn_actor, ActorKind, ActorProfile, TransportKind};
 use tokio::sync::broadcast;
 
@@ -45,29 +45,29 @@ pub fn spawn_or_attach(
     registry: &ActorRegistry,
     workspace_id: &str,
     agent_id: &str,
-    provider: &str,
+    harness: &str,
     work_dir: PathBuf,
     log_dir: PathBuf,
     append_system_prompt: Option<String>,
 ) -> Result<SpawnOutcome> {
-    if let Some(entry) = registry.find_agent_session(workspace_id, agent_id, provider) {
+    if let Some(entry) = registry.find_agent_session(workspace_id, agent_id, harness) {
         return Ok(SpawnOutcome {
             entry,
             attached: true,
         });
     }
 
-    let adapter = adapter_for(provider).map_err(|e| anyhow!(e))?;
+    let adapter = adapter_for(harness).map_err(|e| anyhow!(e))?;
     if !adapter.caps().persistent_session {
         anyhow::bail!(
-            "agent_actor::spawn_or_attach: provider '{provider}' has no persistent-session \
+            "agent_actor::spawn_or_attach: harness '{harness}' has no persistent-session \
              support; respawn-per-turn is not handled here"
         );
     }
 
     let slug_prefix = format!("agent-{agent_id}");
     let lp = LaunchProfile {
-        provider: Some(provider.to_string()),
+        harness: Some(harness.to_string()),
         persist_session: true,
         structured_output: true,
         append_system_prompt,
@@ -86,7 +86,7 @@ pub fn spawn_or_attach(
         work_dir,
         workspace_id: Some(workspace_id.to_string()),
         agent_id: Some(agent_id.to_string()),
-        provider: Some(provider.to_string()),
+        harness: Some(harness.to_string()),
         parent_actor_id: None,
         log_dir: Some(log_dir),
         // Channel-listening lives in the MCP-side actor_spawn path
@@ -98,7 +98,7 @@ pub fn spawn_or_attach(
     };
 
     let handle = spawn_actor(profile)?;
-    let (event_tx, _) = broadcast::channel::<ProviderEvent>(EVENT_CAP);
+    let (event_tx, _) = broadcast::channel::<HarnessEvent>(EVENT_CAP);
 
     let now = Utc::now();
     let meta = SessionMeta {
@@ -106,19 +106,19 @@ pub fn spawn_or_attach(
         kind: SessionKind::Agent,
         workspace_id: workspace_id.to_string(),
         agent_id: Some(agent_id.to_string()),
-        provider: Some(provider.to_string()),
+        harness: Some(harness.to_string()),
         pid: handle.pid(),
         status: SessionStatus::Spawning,
         log_path: handle.child.log_path().display().to_string(),
         spawned_at: now,
         last_activity: now,
         exit_code: None,
-        provider_session_id: None,
+        harness_session_id: None,
     };
 
     let entry = registry.insert_with(handle.clone(), meta, Some(event_tx.clone()));
 
-    spawn_reader_middleware(entry.clone(), provider.to_string(), event_tx);
+    spawn_reader_middleware(entry.clone(), harness.to_string(), event_tx);
 
     Ok(SpawnOutcome {
         entry,
@@ -128,8 +128,8 @@ pub fn spawn_or_attach(
 
 fn spawn_reader_middleware(
     entry: ActorEntry,
-    provider: String,
-    event_tx: broadcast::Sender<ProviderEvent>,
+    harness: String,
+    event_tx: broadcast::Sender<HarnessEvent>,
 ) {
     let mut rx = entry.handle.subscribe_output();
     let handle = entry.handle.clone();
@@ -146,12 +146,12 @@ fn spawn_reader_middleware(
             m.last_activity = Utc::now();
         }
         let menu_state = Arc::new(Mutex::new(MenuState::default()));
-        let adapter = adapter_for(&provider).ok();
+        let adapter = adapter_for(&harness).ok();
         // Auto-dismiss only applies to Claude — the dev-channels TUI
-        // confirmation menu is Claude-specific. Other providers don't
+        // confirmation menu is Claude-specific. Other harnesses don't
         // render it; running the matcher would just burn cycles + the
         // 16K menu_buf budget for nothing.
-        let needs_menu_dismiss = provider == "claude";
+        let needs_menu_dismiss = harness == "claude";
         let mut line_buf = String::new();
 
         loop {
@@ -161,7 +161,7 @@ fn spawn_reader_middleware(
                         try_dismiss_menu(&handle, &menu_state, &chunk);
                     }
 
-                    // Provider parse → event_tx.
+                    // Harness parse → event_tx.
                     if let Some(ref adapter) = adapter {
                         line_buf.push_str(&String::from_utf8_lossy(&chunk));
                         while let Some(nl) = line_buf.find('\n') {
@@ -170,7 +170,7 @@ fn spawn_reader_middleware(
                             if !trimmed.is_empty()
                                 && let Some(ev) = adapter.parse_output(trimmed) {
                                     // Studio.reply parity: long-lived
-                                    // non-Claude providers (codex,
+                                    // non-Claude harnesses (codex,
                                     // opencode, cursor, gemini via stdin
                                     // push) emit Message events here.
                                     // Claude has its own chat_reply
@@ -179,7 +179,7 @@ fn spawn_reader_middleware(
                                     // produces Message from a Claude
                                     // TUI rendering, so the duplicate
                                     // case is unlikely in practice.
-                                    if let ProviderEvent::Message { text } = &ev {
+                                    if let HarnessEvent::Message { text } = &ev {
                                         emit_studio_reply(&actor_id, text);
                                     }
                                     let _ = event_tx.send(ev);
@@ -232,15 +232,15 @@ fn spawn_reader_middleware(
 /// child for each turn now spawns through the supervisor: fresh actor
 /// id per turn, Headless transport, lifetime bounded by the turn.
 ///
-/// Stream-json on stdout drains through the provider adapter and the
-/// parsed `ProviderEvent`s forward to the parent session's event_tx
+/// Stream-json on stdout drains through the harness adapter and the
+/// parsed `HarnessEvent`s forward to the parent session's event_tx
 /// (so SSE consumers tailing /events keep working). Child exit
 /// captures exit code into the parent session meta and flips status
 /// back to Idle.
 pub fn run_headless_turn(
     session: super::types::PtySession,
     launch: crate::services::dispatch_ports::LaunchCommand,
-    provider_id: String,
+    harness_id: String,
     work_dir: PathBuf,
 ) -> Result<()> {
     let profile = ActorProfile {
@@ -254,7 +254,7 @@ pub fn run_headless_turn(
         work_dir,
         workspace_id: None,
         agent_id: None,
-        provider: Some(provider_id.clone()),
+        harness: Some(harness_id.clone()),
         parent_actor_id: Some(session.0.meta.lock().unwrap().id.clone()),
         log_dir: None,
         subscribe_namespaces: vec![],
@@ -266,10 +266,10 @@ pub fn run_headless_turn(
     let handle_for_wait = handle.clone();
 
     tokio::spawn(async move {
-        let adapter = match adapter_for(&provider_id) {
+        let adapter = match adapter_for(&harness_id) {
             Ok(a) => a,
             Err(e) => {
-                tracing::error!(provider = %provider_id, "adapter lookup failed: {e}");
+                tracing::error!(harness = %harness_id, "adapter lookup failed: {e}");
                 return;
             }
         };
@@ -286,18 +286,18 @@ pub fn run_headless_turn(
                             continue;
                         }
                         if let Some(ev) = adapter.parse_output(trimmed) {
-                            if let ProviderEvent::SessionStarted { session_id } = &ev {
+                            if let HarnessEvent::SessionStarted { session_id } = &ev {
                                 let mut m = session_clone.0.meta.lock().unwrap();
-                                m.provider_session_id = Some(session_id.clone());
+                                m.harness_session_id = Some(session_id.clone());
                             }
                             // Studio.reply parity: emit a kernel event on
-                            // every Message ProviderEvent so the chat
+                            // every Message HarnessEvent so the chat
                             // thread sees codex/opencode/cursor/gemini
                             // replies on the same rail Claude uses via
                             // chat_reply. Best-effort; in-memory event_tx
                             // broadcast still fires below for SSE
                             // consumers tailing /events.
-                            if let ProviderEvent::Message { text: msg } = &ev {
+                            if let HarnessEvent::Message { text: msg } = &ev {
                                 let parent_id = session_clone.0.meta.lock().unwrap().id.clone();
                                 emit_studio_reply(&parent_id, msg);
                             }

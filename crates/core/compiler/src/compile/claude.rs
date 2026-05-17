@@ -4,7 +4,7 @@ use serde_json::Value as Json;
 
 use crate::types::{HookConfig, HookTrigger, Permissions};
 
-/// Build the `.claude/settings.json` patch from permissions, hooks, model, and provider settings.
+/// Build the `.claude/settings.json` patch from permissions, hooks, model, and harness settings.
 ///
 /// Returns `None` when nothing needs to be written — i.e. when all permissions
 /// are at their safe defaults and there are no hooks. This is intentional: Ship
@@ -146,8 +146,8 @@ pub fn build_claude_settings_patch(
     // Ship is the memory layer. Always disable Claude's built-in memories.
     patch["autoMemoryEnabled"] = serde_json::json!(false);
 
-    // Extra provider-specific settings — pass through verbatim (must be last).
-    // Source: `[provider_settings.claude]` in the active preset TOML.
+    // Extra harness-specific settings — pass through verbatim (must be last).
+    // Source: `[harness_settings.claude]` in the active preset TOML.
     if let Some(extra_obj) = extra.and_then(|v| v.as_object()) {
         for (k, v) in extra_obj {
             patch[k] = v.clone();
@@ -160,7 +160,7 @@ pub fn build_claude_settings_patch(
 /// Inject Ship lifecycle hooks for the daemon into Claude's hooks patch.
 ///
 /// Always emits command hooks via `ship hook <phase>`. The CLI authenticates
-/// to the daemon using the local `~/.ship/daemon.token`, so provider settings
+/// to the daemon using the local `~/.ship/daemon.token`, so harness settings
 /// stay stable across daemon restarts.
 pub fn inject_ship_lifecycle_hooks(patch: &mut Json) {
     let Some(obj) = patch.as_object_mut() else {

@@ -30,10 +30,10 @@ fn print_topic_list() {
 
 const TOPICS: &[(&str, &str)] = &[
     ("agents", "Creating and managing agent definitions"),
-    ("compile", "How compilation works and provider output"),
+    ("compile", "How compilation works and harness output"),
     ("config", "User preferences and environment variables"),
     ("mcp", "MCP server configuration and the Ship MCP server"),
-    ("providers", "Supported providers and their output formats"),
+    ("harnesses", "Supported harnesses and their output formats"),
     ("skills", "Adding and authoring agent skills"),
     ("workflow", "Typical day-to-day workflow with Ship"),
 ];
@@ -44,7 +44,7 @@ fn lookup(topic: &str) -> Option<&'static str> {
         "compile" => Some(TOPIC_COMPILE),
         "config" => Some(TOPIC_CONFIG),
         "mcp" => Some(TOPIC_MCP),
-        "providers" => Some(TOPIC_PROVIDERS),
+        "harnesses" => Some(TOPIC_HARNESSES),
         "skills" => Some(TOPIC_SKILLS),
         "workflow" => Some(TOPIC_WORKFLOW),
         _ => None,
@@ -55,7 +55,7 @@ const TOPIC_AGENTS: &str = "\
 Agents
 
 An agent is a JSONC file in .ship/agents/ that declares an AI assistant's
-identity, skills, permissions, and provider targets.
+identity, skills, permissions, and harness targets.
 
   Create:   Add a file at .ship/agents/<id>.jsonc
   Activate: ship use <id>
@@ -68,21 +68,21 @@ Agent files live in .ship/agents/<id>.jsonc. Global agents live in
 ~/.ship/agents/<id>.jsonc.
 
 After editing an agent, run `ship compile` or `ship use <id>` to regenerate
-provider-native config files.
+harness-native config files.
 ";
 
 const TOPIC_COMPILE: &str = "\
 Compilation
 
-`ship compile` reads the active agent from .ship/ and writes provider-native
+`ship compile` reads the active agent from .ship/ and writes harness-native
 config files to the project root (e.g. CLAUDE.md, .cursor/, .mcp.json).
 
-  Compile all providers:    ship compile
-  Single provider:          ship compile --provider claude
+  Compile all harnesses:    ship compile
+  Single harness:          ship compile --harness claude
   Preview without writing:  ship compile --dry-run
 
 The compiler resolves skills, permissions, MCP servers, and rules into a
-single output per provider. Output files are build artifacts and should be
+single output per harness. Output files are build artifacts and should be
 gitignored.
 
 Run `ship validate` before compile to catch config errors early.
@@ -109,7 +109,7 @@ Available keys:
   terminal.program    Terminal for dispatch: wt, iterm, tmux, gnome, vscode, manual
   dispatch.confirm    Show spec and ask y/n before launching agent (true/false)
   worktrees.dir       Base directory for worktrees (default: ~/dev/<project>-worktrees)
-  defaults.provider   Default compilation provider (claude, gemini, codex, cursor)
+  defaults.harness   Default compilation harness (claude, gemini, codex, cursor)
   defaults.mode       Default agent permission mode
   identity.name       Your display name
   identity.email      Your email
@@ -142,21 +142,21 @@ Serving (run the Ship MCP server for project intelligence):
 Server definitions live in .ship/mcp.jsonc.
 ";
 
-const TOPIC_PROVIDERS: &str = "\
-Providers
+const TOPIC_HARNESSES: &str = "\
+Harnesses
 
-Ship compiles agent config to provider-native formats:
+Ship compiles agent config to harness-native formats:
 
   claude    CLAUDE.md + .mcp.json
   cursor    .cursor/ directory
   codex     .codex/ directory + AGENTS.md
   gemini    .gemini/ directory + GEMINI.md
 
-Set providers in your agent JSONC:
-  \"agent\": { \"providers\": [\"claude\", \"gemini\"] }
+Set harnesses in your agent JSONC:
+  \"agent\": { \"harnesses\": [\"claude\", \"gemini\"] }
 
-Or compile for one provider at a time:
-  ship compile --provider claude
+Or compile for one harness at a time:
+  ship compile --harness claude
 ";
 
 const TOPIC_SKILLS: &str = "\
@@ -182,7 +182,7 @@ Typical Workflow
 1. Initialize a project (scaffolds .ship/ with a dev agent and compiles):
    ship init
 
-2. Edit the agent to add skills, permissions, providers:
+2. Edit the agent to add skills, permissions, harnesses:
    Edit .ship/agents/dev.jsonc directly
 
 3. Recompile after changes:

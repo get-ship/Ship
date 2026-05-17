@@ -27,7 +27,7 @@ const KNOWN_CONFIG_KEYS: &[&str] = &[
 /// Parse OpenCode native config files and produce a partial [`ProjectLibrary`].
 ///
 /// Reads (if present):
-/// - `opencode.json` → MCP servers, model, provider_defaults
+/// - `opencode.json` → MCP servers, model, harness_defaults
 /// - `AGENTS.md` → rules
 pub fn decompile_opencode(project_root: &Path) -> ProjectLibrary {
     let mut library = ProjectLibrary::default();
@@ -100,7 +100,7 @@ fn parse_opencode_config(library: &mut ProjectLibrary, config: &Json) {
         }
     }
 
-    // ── Provider defaults — everything we don't recognize ────────────────────
+    // ── Harness defaults — everything we don't recognize ────────────────────
     let mut extra = serde_json::Map::new();
     for (k, v) in obj {
         if !KNOWN_CONFIG_KEYS.contains(&k.as_str()) {
@@ -109,7 +109,7 @@ fn parse_opencode_config(library: &mut ProjectLibrary, config: &Json) {
     }
     if !extra.is_empty() {
         library
-            .provider_defaults
+            .harness_defaults
             .insert("opencode".to_string(), Json::Object(extra));
     }
 }

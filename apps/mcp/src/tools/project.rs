@@ -144,8 +144,8 @@ pub async fn get_project_info(project_dir: &Path) -> String {
                 if let Some(ref goal) = session.goal {
                     out.push_str(&format!(" — goal: {}", goal));
                 }
-                if let Some(ref provider) = session.primary_provider {
-                    out.push_str(&format!(" [{}]", provider));
+                if let Some(ref harness) = session.primary_harness {
+                    out.push_str(&format!(" [{}]", harness));
                 }
                 out.push('\n');
             }

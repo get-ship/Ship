@@ -1,6 +1,6 @@
 <bundle separate />
 <!--
-  <sui-command-bar> — provider shell for the command palette.
+  <sui-command-bar> — harness shell for the command palette.
   Renders the trigger pill + sui-dialog. Wraps state in shared() so
   <sui-command-palette> and <sui-command-chat> consume via useShared.
 

@@ -139,7 +139,7 @@ export async function createConfigPr(
     method: 'POST',
     headers,
     body: JSON.stringify({
-      message: 'feat: add Ship agent configuration\n\nAdds .ship/ directory with imported agent config and updates .gitignore\nto exclude generated provider artifacts.',
+      message: 'feat: add Ship agent configuration\n\nAdds .ship/ directory with imported agent config and updates .gitignore\nto exclude generated harness artifacts.',
       tree: treeData.sha,
       parents: [baseSha],
     }),
@@ -171,15 +171,15 @@ export async function createConfigPr(
     '## What is Ship?',
     '',
     '[Ship](https://ship-studio.com) is a universal agent configuration platform.',
-    'It compiles a single `.ship/` source-of-truth into provider-specific config files',
+    'It compiles a single `.ship/` source-of-truth into harness-specific config files',
     'for Claude Code, Gemini CLI, Codex CLI, and Cursor.',
     '',
     '## What this PR does',
     '',
     '- Adds `.ship/` directory with your imported agent configuration',
-    '- Updates `.gitignore` to exclude generated provider artifacts',
+    '- Updates `.gitignore` to exclude generated harness artifacts',
     '',
-    'After merging, run `ship use` to generate provider files from this config.',
+    'After merging, run `ship use` to generate harness files from this config.',
   ].join('\n')
 
   const prRes = await fetch(`${api}/pulls`, {

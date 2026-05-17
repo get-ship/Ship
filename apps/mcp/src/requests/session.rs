@@ -9,8 +9,8 @@ pub struct StartSessionRequest {
     pub goal: Option<String>,
     /// Optional agent override for this session.
     pub agent_id: Option<String>,
-    /// Optional primary provider for this session.
-    pub provider_id: Option<String>,
+    /// Optional primary harness for this session.
+    pub harness_id: Option<String>,
 }
 
 #[derive(Deserialize, JsonSchema)]

@@ -1,4 +1,4 @@
-// Browser-side hover provider for .sui templates.
+// Browser-side hover harness for .sui templates.
 //
 // v2a: static dictionary lookups for directives / modifiers / block
 // keywords. Zero-bundle hover. Covers ~80% of pedagogically useful

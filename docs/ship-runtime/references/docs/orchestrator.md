@@ -139,7 +139,7 @@ Otherwise calls `ensure_pipeline(payload)` (idempotent — already called by the
 Branches on step type. First-step `Run` → `dispatch_first_run_step` (shell command, no agent). First-step agent →:
 
 1. Resolve agent (first step's `agent` field or job-level `agent`).
-2. Resolve provider/model (first step's or payload's).
+2. Resolve harness/model (first step's or payload's).
 3. Build `JobContext`:
 
    ```rust
@@ -147,7 +147,7 @@ Branches on step type. First-step `Run` → `dispatch_first_run_step` (shell com
        job_id, slug, agent, branch, spec_path, spec_content,
        work_dir: octx.platform.worktrees_dir().join(slug),
        env: [("SHIP_MESH_ID", slug)].into(),
-       launch: LaunchProfile { provider, model, persist_session: true },
+       launch: LaunchProfile { harness, model, persist_session: true },
        step: Some(StepInfo { index: 0, id }),
        headless,
        exit_tx: None,  // filled after isolation
@@ -199,7 +199,7 @@ Three phases in `replay.rs`:
 - `AgentExited` + non-zero exit → emit `job.step_failed`.
 - `SessionDestroyed` → emit `job.step_failed` with a distinguishable reason. The substrate went away without the agent's own exit observed.
 
-Also consumes `StepActivity` from `octx.activity_txs` — Stop hooks from providers send `TurnEnded` so the monitor can distinguish interactive mode (many turns) from headless (exit = done).
+Also consumes `StepActivity` from `octx.activity_txs` — Stop hooks from harnesses send `TurnEnded` so the monitor can distinguish interactive mode (many turns) from headless (exit = done).
 
 ## Template variables
 

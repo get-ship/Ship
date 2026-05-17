@@ -77,9 +77,9 @@ mod tests {
 
     fn fixture() -> ViewsAdapter {
         ViewsAdapter::new(vec![
-            ViewSnapshot { name: "dashboard".into(), description: Some("overview home".into()) },
-            ViewSnapshot { name: "settings".into(), description: Some("config provider theme".into()) },
-            ViewSnapshot { name: "counter".into(), description: None },
+            ViewSnapshot { name: "dashboard".into(), description: Some("overview home".into()), icon: None },
+            ViewSnapshot { name: "settings".into(), description: Some("config harness theme".into()), icon: None },
+            ViewSnapshot { name: "counter".into(), description: None, icon: None },
         ])
     }
 
@@ -96,7 +96,7 @@ mod tests {
     #[tokio::test]
     async fn description_match_finds_view() {
         let a = fixture();
-        let r = a.query("provider", &SearchOpts { limit: 10, ..Default::default() }).await;
+        let r = a.query("harness", &SearchOpts { limit: 10, ..Default::default() }).await;
         assert!(r.hits.iter().any(|h| h.id == "settings"));
     }
 

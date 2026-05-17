@@ -37,7 +37,7 @@ async fn seed_job(state: &crate::routes::rest_api::ApiState, slug: &str) -> Stri
         source_spec_path: None,
         plan_id: None,
         model: None,
-        provider: None,
+        harness: None,
         depends_on: None,
         pipeline: None,
         steps: None,

@@ -11,17 +11,17 @@ use std::path::{Path, PathBuf};
 pub struct ModelInfo {
     pub id: String,
     pub name: String,
-    pub provider_id: String,
+    pub harness_id: String,
     pub context_window: u32,
     pub recommended: bool,
 }
 
-/// Static list of provider IDs that Ship can compile configs for.
-/// Mirrors the PROVIDERS table in the compiler crate; kept in sync manually.
-pub const SUPPORTED_PROVIDER_IDS: &[&str] =
+/// Static list of harness IDs that Ship can compile configs for.
+/// Mirrors the HARNESSES table in the compiler crate; kept in sync manually.
+pub const SUPPORTED_HARNESS_IDS: &[&str] =
     &["claude", "gemini", "codex", "cursor", "opencode"];
 
-// ─── Provider registry ────────────────────────────────────────────────────────
+// ─── Harness registry ────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ConfigFormat {
@@ -63,7 +63,7 @@ pub enum SkillsOutput {
 }
 
 #[derive(Debug)]
-pub struct ProviderDescriptor {
+pub struct HarnessDescriptor {
     pub id: &'static str,
     pub name: &'static str,
     /// Binary name for PATH detection.
@@ -84,8 +84,8 @@ pub struct ProviderDescriptor {
     pub skills_output: SkillsOutput,
 }
 
-pub const PROVIDERS: &[ProviderDescriptor] = &[
-    ProviderDescriptor {
+pub const HARNESSES: &[HarnessDescriptor] = &[
+    HarnessDescriptor {
         id: "claude",
         name: "Claude Code",
         binary: "claude",
@@ -99,7 +99,7 @@ pub const PROVIDERS: &[ProviderDescriptor] = &[
         prompt_output: PromptOutput::ClaudeMd,
         skills_output: SkillsOutput::ClaudeSkills,
     },
-    ProviderDescriptor {
+    HarnessDescriptor {
         id: "gemini",
         name: "Gemini CLI",
         binary: "gemini",
@@ -117,7 +117,7 @@ pub const PROVIDERS: &[ProviderDescriptor] = &[
         prompt_output: PromptOutput::GeminiMd,
         skills_output: SkillsOutput::AgentSkills,
     },
-    ProviderDescriptor {
+    HarnessDescriptor {
         id: "codex",
         name: "Codex CLI",
         binary: "codex",
@@ -133,13 +133,13 @@ pub const PROVIDERS: &[ProviderDescriptor] = &[
     },
 ];
 
-pub fn get_provider(id: &str) -> Option<&'static ProviderDescriptor> {
-    PROVIDERS.iter().find(|p| p.id == id)
+pub fn get_harness(id: &str) -> Option<&'static HarnessDescriptor> {
+    HARNESSES.iter().find(|p| p.id == id)
 }
 
-/// Serializable projection of `ProviderDescriptor` for MCP tools and Tauri commands.
+/// Serializable projection of `HarnessDescriptor` for MCP tools and Tauri commands.
 #[derive(Serialize, Deserialize, Clone, specta::Type)]
-pub struct ProviderInfo {
+pub struct HarnessInfo {
     pub id: String,
     pub name: String,
     pub binary: String,
@@ -148,13 +148,13 @@ pub struct ProviderInfo {
     pub config_format: String,
     pub prompt_output: String,
     pub skills_output: String,
-    /// True when this provider is listed in the project's `providers` field.
+    /// True when this harness is listed in the project's `harnesses` field.
     pub enabled: bool,
-    /// True when the provider's binary is found in PATH.
+    /// True when the harness's binary is found in PATH.
     pub installed: bool,
     /// Version string from `<binary> --version`, if the binary is installed.
     pub version: Option<String>,
-    /// Known models for this provider.
+    /// Known models for this harness.
     pub models: Vec<ModelInfo>,
 }
 
@@ -243,14 +243,14 @@ fn fallback_binary_dirs() -> Vec<PathBuf> {
     Vec::new()
 }
 
-fn provider_info(d: &ProviderDescriptor, enabled: bool, project_dir: Option<&Path>) -> ProviderInfo {
+fn harness_info(d: &HarnessDescriptor, enabled: bool, project_dir: Option<&Path>) -> HarnessInfo {
     let installed = detect_binary(d.binary);
     let version = if installed {
         detect_version(d.binary)
     } else {
         None
     };
-    ProviderInfo {
+    HarnessInfo {
         id: d.id.to_string(),
         name: d.name.to_string(),
         binary: d.binary.to_string(),
@@ -279,67 +279,67 @@ fn provider_info(d: &ProviderDescriptor, enabled: bool, project_dir: Option<&Pat
     }
 }
 
-/// Return all registered providers, each annotated with enabled + installed status.
-pub fn list_providers(project_dir: &std::path::Path) -> anyhow::Result<Vec<ProviderInfo>> {
+/// Return all registered harnesses, each annotated with enabled + installed status.
+pub fn list_harnesses(project_dir: &std::path::Path) -> anyhow::Result<Vec<HarnessInfo>> {
     let config = get_config(Some(project_dir.to_path_buf()))?;
     let enabled: std::collections::HashSet<&str> =
-        config.providers.iter().map(|s| s.as_str()).collect();
-    Ok(PROVIDERS
+        config.harnesses.iter().map(|s| s.as_str()).collect();
+    Ok(HARNESSES
         .iter()
-        .map(|d| provider_info(d, enabled.contains(d.id), Some(project_dir)))
+        .map(|d| harness_info(d, enabled.contains(d.id), Some(project_dir)))
         .collect())
 }
 
-/// Add a provider to the project's enabled list (idempotent).
+/// Add a harness to the project's enabled list (idempotent).
 /// Returns `true` if the list was changed.
-pub fn enable_provider(project_dir: &std::path::Path, provider_id: &str) -> Result<bool> {
-    require_provider(provider_id)?;
+pub fn enable_harness(project_dir: &std::path::Path, harness_id: &str) -> Result<bool> {
+    require_harness(harness_id)?;
     let mut config = get_config(Some(project_dir.to_path_buf()))?;
-    if config.providers.iter().any(|p| p == provider_id) {
+    if config.harnesses.iter().any(|p| p == harness_id) {
         return Ok(false);
     }
-    config.providers.push(provider_id.to_string());
+    config.harnesses.push(harness_id.to_string());
     crate::config::save_config(&config, Some(project_dir.to_path_buf()))?;
     Ok(true)
 }
 
-/// Remove a provider from the project's enabled list.
+/// Remove a harness from the project's enabled list.
 /// Returns `true` if the list was changed.
-pub fn disable_provider(project_dir: &std::path::Path, provider_id: &str) -> Result<bool> {
-    require_provider(provider_id)?;
+pub fn disable_harness(project_dir: &std::path::Path, harness_id: &str) -> Result<bool> {
+    require_harness(harness_id)?;
     let mut config = get_config(Some(project_dir.to_path_buf()))?;
-    let before = config.providers.len();
-    config.providers.retain(|p| p != provider_id);
-    if config.providers.len() == before {
+    let before = config.harnesses.len();
+    config.harnesses.retain(|p| p != harness_id);
+    if config.harnesses.len() == before {
         return Ok(false);
     }
     crate::config::save_config(&config, Some(project_dir.to_path_buf()))?;
     Ok(true)
 }
 
-/// Detect which known providers are installed in PATH and enable them.
-/// Intended for use in `ship init`. Skips already-enabled providers.
-/// Returns the list of provider IDs that were newly enabled.
-pub fn autodetect_providers(project_dir: &std::path::Path) -> Result<Vec<String>> {
+/// Detect which known harnesses are installed in PATH and enable them.
+/// Intended for use in `ship init`. Skips already-enabled harnesses.
+/// Returns the list of harness IDs that were newly enabled.
+pub fn autodetect_harnesses(project_dir: &std::path::Path) -> Result<Vec<String>> {
     let mut newly_enabled = Vec::new();
-    for d in PROVIDERS {
-        if detect_binary(d.binary) && enable_provider(project_dir, d.id)? {
+    for d in HARNESSES {
+        if detect_binary(d.binary) && enable_harness(project_dir, d.id)? {
             newly_enabled.push(d.id.to_string());
         }
     }
     Ok(newly_enabled)
 }
 
-/// Return models for a specific provider by ID.
-pub fn list_models(provider_id: &str) -> Result<Vec<ModelInfo>> {
-    let d = require_provider(provider_id)?;
+/// Return models for a specific harness by ID.
+pub fn list_models(harness_id: &str) -> Result<Vec<ModelInfo>> {
+    let d = require_harness(harness_id)?;
     Ok(discover_models(d, resolve_project_dir_for_models().as_deref()))
 }
 
-pub(crate) fn require_provider(id: &str) -> Result<&'static ProviderDescriptor> {
-    get_provider(id).ok_or_else(|| {
-        let known: Vec<&str> = PROVIDERS.iter().map(|p| p.id).collect();
-        anyhow!("Unknown provider '{}'. Known: {}", id, known.join(", "))
+pub(crate) fn require_harness(id: &str) -> Result<&'static HarnessDescriptor> {
+    get_harness(id).ok_or_else(|| {
+        let known: Vec<&str> = HARNESSES.iter().map(|p| p.id).collect();
+        anyhow!("Unknown harness '{}'. Known: {}", id, known.join(", "))
     })
 }
 
@@ -359,19 +359,19 @@ fn resolve_project_dir_for_models() -> Option<PathBuf> {
     ship_dir_from_path(&cwd)
 }
 
-fn discover_models(desc: &ProviderDescriptor, project_dir: Option<&Path>) -> Vec<ModelInfo> {
+fn discover_models(desc: &HarnessDescriptor, project_dir: Option<&Path>) -> Vec<ModelInfo> {
     let mut models = Vec::new();
     let mut seen = HashSet::new();
 
-    // Provider env hints (explicitly set by users in shell/startup).
-    for env_key in provider_model_env_keys(desc.id) {
+    // Harness env hints (explicitly set by users in shell/startup).
+    for env_key in harness_model_env_keys(desc.id) {
         if let Ok(value) = std::env::var(env_key) {
             push_model(&mut models, &mut seen, desc.id, value.trim(), true);
         }
     }
 
-    // Model IDs from provider-native config files.
-    for path in provider_model_config_paths(desc, project_dir) {
+    // Model IDs from harness-native config files.
+    for path in harness_model_config_paths(desc, project_dir) {
         match desc.config_format {
             ConfigFormat::Json => {
                 if let Ok(raw) = fs::read_to_string(&path)
@@ -396,8 +396,8 @@ fn discover_models(desc: &ProviderDescriptor, project_dir: Option<&Path>) -> Vec
     models
 }
 
-fn provider_model_env_keys(provider_id: &str) -> &'static [&'static str] {
-    match provider_id {
+fn harness_model_env_keys(harness_id: &str) -> &'static [&'static str] {
+    match harness_id {
         "claude" => &["ANTHROPIC_MODEL", "CLAUDE_CODE_MODEL"],
         "gemini" => &["GEMINI_MODEL"],
         "codex" => &["OPENAI_MODEL", "CODEX_MODEL"],
@@ -405,14 +405,14 @@ fn provider_model_env_keys(provider_id: &str) -> &'static [&'static str] {
     }
 }
 
-fn provider_model_config_paths(desc: &ProviderDescriptor, project_dir: Option<&Path>) -> Vec<PathBuf> {
+fn harness_model_config_paths(desc: &HarnessDescriptor, project_dir: Option<&Path>) -> Vec<PathBuf> {
     let mut paths = Vec::new();
     if let Some(project_dir) = project_dir
         && let Some(project_root) = project_dir.parent()
     {
         paths.push(project_root.join(desc.project_config));
     }
-    // Fallback to HOME for providers whose global config is not under ~/.ship.
+    // Fallback to HOME for harnesses whose global config is not under ~/.ship.
     if let Some(home) = std::env::var_os("HOME") {
         paths.push(PathBuf::from(home).join(desc.global_config));
     }
@@ -429,7 +429,7 @@ fn provider_model_config_paths(desc: &ProviderDescriptor, project_dir: Option<&P
 fn push_model(
     models: &mut Vec<ModelInfo>,
     seen: &mut HashSet<String>,
-    provider_id: &str,
+    harness_id: &str,
     raw_id: &str,
     recommended: bool,
 ) {
@@ -449,35 +449,35 @@ fn push_model(
     models.push(ModelInfo {
         id: id.to_string(),
         name: id.to_string(),
-        provider_id: provider_id.to_string(),
+        harness_id: harness_id.to_string(),
         context_window: 0,
         recommended,
     });
 }
 
 fn collect_json_models(
-    provider_id: &str,
+    harness_id: &str,
     root: &serde_json::Value,
     models: &mut Vec<ModelInfo>,
     seen: &mut HashSet<String>,
 ) {
     if let Some(model) = root.get("model").and_then(|v| v.as_str()) {
-        push_model(models, seen, provider_id, model, true);
+        push_model(models, seen, harness_id, model, true);
     }
     if let Some(model) = root
         .get("model")
         .and_then(|v| v.get("name"))
         .and_then(|v| v.as_str())
     {
-        push_model(models, seen, provider_id, model, true);
+        push_model(models, seen, harness_id, model, true);
     }
 
     // Claude model aliases.
     if let Some(aliases) = root.get("modelAliases").and_then(|v| v.as_object()) {
         for (alias, value) in aliases {
-            push_model(models, seen, provider_id, alias, false);
+            push_model(models, seen, harness_id, alias, false);
             if let Some(target) = value.as_str() {
-                push_model(models, seen, provider_id, target, false);
+                push_model(models, seen, harness_id, target, false);
             }
         }
     }
@@ -485,37 +485,37 @@ fn collect_json_models(
     // Gemini model configs.
     if let Some(model_configs) = root.get("modelConfigs").and_then(|v| v.as_object()) {
         for (name, entry) in model_configs {
-            push_model(models, seen, provider_id, name, false);
+            push_model(models, seen, harness_id, name, false);
             if let Some(model_name) = entry.get("name").and_then(|v| v.as_str()) {
-                push_model(models, seen, provider_id, model_name, false);
+                push_model(models, seen, harness_id, model_name, false);
             }
             if let Some(model_name) = entry.get("model").and_then(|v| v.as_str()) {
-                push_model(models, seen, provider_id, model_name, false);
+                push_model(models, seen, harness_id, model_name, false);
             }
         }
     }
 }
 
 fn collect_toml_models(
-    provider_id: &str,
+    harness_id: &str,
     root: &toml::Value,
     models: &mut Vec<ModelInfo>,
     seen: &mut HashSet<String>,
 ) {
     if let Some(model) = root.get("model").and_then(|v| v.as_str()) {
-        push_model(models, seen, provider_id, model, true);
+        push_model(models, seen, harness_id, model, true);
     }
     if let Some(model) = root.get("model_name").and_then(|v| v.as_str()) {
-        push_model(models, seen, provider_id, model, false);
+        push_model(models, seen, harness_id, model, false);
     }
     if let Some(table) = root.get("model_providers").and_then(|v| v.as_table()) {
-        for (_, provider_entry) in table {
-            if let Some(model) = provider_entry.get("model").and_then(|v| v.as_str()) {
-                push_model(models, seen, provider_id, model, false);
+        for (_, harness_entry) in table {
+            if let Some(model) = harness_entry.get("model").and_then(|v| v.as_str()) {
+                push_model(models, seen, harness_id, model, false);
             }
-            if let Some(array) = provider_entry.get("models").and_then(|v| v.as_array()) {
+            if let Some(array) = harness_entry.get("models").and_then(|v| v.as_array()) {
                 for model in array.iter().filter_map(|item| item.as_str()) {
-                    push_model(models, seen, provider_id, model, false);
+                    push_model(models, seen, harness_id, model, false);
                 }
             }
         }

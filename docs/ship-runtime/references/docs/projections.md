@@ -117,9 +117,9 @@ No table. `load_jobs()` queries `events` filtered by `job.*` types and folds the
 ```rust
 pub struct JobRecord {
     job_id, slug, agent, branch, spec_path, source_spec_path,
-    depends_on, status, worktree, blocker, error, model, provider,
+    depends_on, status, worktree, blocker, error, model, harness,
     created_at, updated_at,
-    provider_meta,
+    harness_meta,
     pipeline, steps, current_phase,       // pipeline state (legacy + DAG)
     completed_steps, current_step, vars, step_retries,
     ...

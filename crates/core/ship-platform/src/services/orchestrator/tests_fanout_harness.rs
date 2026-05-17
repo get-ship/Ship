@@ -147,14 +147,14 @@ pub fn mk_step(id: &str, agent: &str) -> PipelineStep {
     PipelineStep {
         id: id.into(), step_type: StepType::Agent,
         agent: Some(agent.into()), goal: None, after: vec![],
-        model: None, provider: None, command: None,
+        model: None, harness: None, command: None,
         max_retries: None, gate: None,
         produces: vec![], consumes: vec![], promotes: vec![], fanout: None,
     }
 }
 
 pub fn mk_lane(id: &str) -> FanoutLane {
-    FanoutLane { id: id.into(), agent: "implementer".into(), model: None, provider: None }
+    FanoutLane { id: id.into(), agent: "implementer".into(), model: None, harness: None }
 }
 
 pub fn mk_pipeline_with_three_lanes() -> Pipeline {

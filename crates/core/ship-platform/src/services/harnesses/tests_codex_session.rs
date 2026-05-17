@@ -276,7 +276,7 @@ async fn cancel_sends_turn_interrupt() {
 }
 
 #[tokio::test]
-async fn provider_id_is_codex() {
+async fn harness_id_is_codex() {
     let (s_rx, s_tx, mut f_rx, mut f_tx) = transport();
     let fake = tokio::spawn(async move {
         respond_handshake(&mut f_rx, &mut f_tx).await;
@@ -284,7 +284,7 @@ async fn provider_id_is_codex() {
     let session = CodexSession::with_transport(Box::new(s_rx), Box::new(s_tx))
         .await
         .expect("handshake");
-    assert_eq!(session.provider(), "codex");
+    assert_eq!(session.harness(), "codex");
     fake.await.expect("fake driver");
 }
 

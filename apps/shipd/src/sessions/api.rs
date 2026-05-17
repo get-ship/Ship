@@ -1,7 +1,7 @@
 //! HTTP endpoints for the PTY session registry. Three concerns split
 //! per file:
 //!
-//! - [`crud`] — spawn / list / get / stop / resize + `installed_providers`.
+//! - [`crud`] — spawn / list / get / stop / resize + `installed_harnesses`.
 //! - [`io`] — stdin write, SSE byte stream, SSE event stream.
 //! - [`messages`] — `session_message` (user turn) + `session_reply`
 //!   (agent reply) + annotation rendering.
@@ -16,7 +16,7 @@
 //! * `POST /api/v1/sessions/{id}/message` — chat turn
 //! * `POST /api/v1/sessions/{id}/reply` — agent reply
 //! * `GET  /api/v1/sessions/{id}/stream` — SSE replay + live tail (bytes)
-//! * `GET  /api/v1/sessions/{id}/events` — SSE parsed ProviderEvents
+//! * `GET  /api/v1/sessions/{id}/events` — SSE parsed HarnessEvents
 
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
@@ -30,7 +30,7 @@ pub mod messages;
 
 pub use crud::{
     InstalledProvidersResponse, ResizeBody, SessionListResponse, SessionMetaWire, SpawnBody,
-    SpawnResponse, get_session, installed_providers, list_pty_sessions, session_resize,
+    SpawnResponse, get_session, installed_harnesses, list_pty_sessions, session_resize,
     spawn_session, stop_session,
 };
 pub use io::{InputBody, session_input, stream_session, stream_session_events};

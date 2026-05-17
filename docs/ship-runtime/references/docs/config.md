@@ -46,7 +46,7 @@ Collection schemas at user scope live under `~/.ship/library/collections/`; proj
 
 ```rust
 pub struct ProjectConfig {
-    pub providers: Vec<String>,
+    pub harnesses: Vec<String>,
     pub agents: Vec<AgentLayerConfig>,
     pub hooks: Vec<HookConfig>,
     pub mcp_servers: Vec<McpServerConfig>,
@@ -89,7 +89,7 @@ No deep-field merging beyond the lists. Scalar overlap wins by last-apply (overl
 
 ## HookConfig + HookTrigger
 
-These are **agent lifecycle hooks** — the config that tells a provider to run a shell command on specific events (`PreToolUse`, `Stop`, `SessionEnd`, etc.). They are compiled into provider-native config; Ship never executes them itself. Distinct from the platform reactive triggers in `ship_platform::hooks` (`HookDef` / `.ship/hooks/*.jsonc`) — see [Hooks](/runtime/hooks/).
+These are **agent lifecycle hooks** — the config that tells a harness to run a shell command on specific events (`PreToolUse`, `Stop`, `SessionEnd`, etc.). They are compiled into harness-native config; Ship never executes them itself. Distinct from the platform reactive triggers in `ship_platform::hooks` (`HookDef` / `.ship/hooks/*.jsonc`) — see [Hooks](/runtime/hooks/).
 
 ```rust
 pub enum HookTrigger {
@@ -111,9 +111,9 @@ pub struct HookConfig {
 }
 ```
 
-19 triggers. `matcher` is a glob/regex on tool name — `"Bash"`, `"mcp__*"`, empty = all tools. `timeout_ms` caps runtime. The compiler translates these into each provider's native hook format (Claude's `PreToolUse`/`Stop`/etc.; Gemini's `BeforeTool`/`AfterTool`/etc.) — the compiler's own narrower `HookTrigger` has only 6 variants. Providers with different trigger vocabularies get mapped-or-dropped based on their schema.
+19 triggers. `matcher` is a glob/regex on tool name — `"Bash"`, `"mcp__*"`, empty = all tools. `timeout_ms` caps runtime. The compiler translates these into each harness's native hook format (Claude's `PreToolUse`/`Stop`/etc.; Gemini's `BeforeTool`/`AfterTool`/etc.) — the compiler's own narrower `HookTrigger` has only 6 variants. Harnesses with different trigger vocabularies get mapped-or-dropped based on their schema.
 
-All triggers are provider-side. Ship doesn't observe or execute them — the provider runs them inside its execution loop. See [Hooks](/runtime/hooks/) for the full breakdown, including the separate platform reactive-trigger system.
+All triggers are harness-side. Ship doesn't observe or execute them — the harness runs them inside its execution loop. See [Hooks](/runtime/hooks/) for the full breakdown, including the separate platform reactive-trigger system.
 
 ## CRUD
 
@@ -181,4 +181,4 @@ Walks `.ship/skills/`, `.ship/rules/`, agent profiles, plugin entries in the pac
 
 - [Hooks](/runtime/hooks/) — compiler lifecycle hooks vs platform reactive triggers, in full.
 - [Sessions](/runtime/sessions/) — fires `SessionEnd` and `Stop` hooks on session end.
-- [Compiler](/compiler/) — translates hooks into provider-native formats.
+- [Compiler](/compiler/) — translates hooks into harness-native formats.

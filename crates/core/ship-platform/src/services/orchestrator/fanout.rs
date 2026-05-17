@@ -75,9 +75,9 @@ pub async fn dispatch_fanout_step(
         let lane_branch = format!("{}-{}-{}", job.branch, step.id, lane.id);
         let lane_wt = wt_root.join(&lane_slug);
 
-        let provider = lane.provider.clone()
-            .or_else(|| step.provider.clone())
-            .or_else(|| job.provider.clone());
+        let harness = lane.harness.clone()
+            .or_else(|| step.harness.clone())
+            .or_else(|| job.harness.clone());
         let model = lane.model.clone()
             .or_else(|| step.model.clone())
             .or_else(|| job.model.clone());
@@ -93,7 +93,7 @@ pub async fn dispatch_fanout_step(
             env: [("SHIP_ACTOR_ID".to_string(), lane_slug.clone())].into(),
             exit_tx: None,
             launch: LaunchProfile {
-                provider,
+                harness,
                 model,
                 persist_session: true,
                 ..Default::default()

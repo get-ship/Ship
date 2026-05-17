@@ -80,7 +80,7 @@ pub const STUDIO_CHAT_TURN: &str = "studio.chat_turn";
 pub const STUDIO_REPLY: &str = "studio.reply";
 
 /// Emitted by `ship compile` at end of a successful run. Records what was
-/// compiled (active agent, provider, plugins, ship version) for the
+/// compiled (active agent, harness, plugins, ship version) for the
 /// `project_compile_state` projection. `entity_id` is the project_id.
 pub const COMPILE_COMPLETED: &str = "compile.completed";
 

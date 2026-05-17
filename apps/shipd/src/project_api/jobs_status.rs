@@ -72,7 +72,7 @@ pub async fn update_job_status(
                     job_id: job_id.clone(),
                     worktree,
                     pid: body.pid,
-                    provider_meta: None,
+                    harness_meta: None,
                 },
             )
         }

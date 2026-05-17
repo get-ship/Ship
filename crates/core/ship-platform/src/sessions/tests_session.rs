@@ -18,7 +18,7 @@ let started = start_session(
         )?;
         assert_eq!(started.status, SessionStatus::Active);
         assert_eq!(started.goal.as_deref(), Some("Implement parser"));
-        assert_eq!(started.primary_provider.as_deref(), Some("claude"));
+        assert_eq!(started.primary_harness.as_deref(), Some("claude"));
         assert!(started.ended_at.is_none());
 
         let active = get_active_session(&ship_dir, "feature/session-flow")?
@@ -74,7 +74,7 @@ let started = start_session(
         assert_eq!(started.id, ended.id);
         assert!(ended.duration_secs.is_some());
         assert!(ended.duration_secs.unwrap() >= 0);
-        assert_eq!(ended.primary_provider.as_deref(), Some("claude"));
+        assert_eq!(ended.primary_harness.as_deref(), Some("claude"));
         assert_eq!(ended.model.as_deref(), Some("claude-opus-4-20250514"));
         assert_eq!(ended.agent_id, started.agent_id);
         assert_eq!(ended.files_changed, Some(5));
@@ -97,7 +97,7 @@ start_session(&ship_dir, "feature/metrics-defaults", None, None, None)?;
 
         assert!(ended.duration_secs.is_some());
         assert!(ended.duration_secs.unwrap() >= 0);
-        assert!(ended.primary_provider.is_some());
+        assert!(ended.primary_harness.is_some());
         assert!(ended.model.is_none());
         assert!(ended.files_changed.is_none());
         assert!(ended.gate_result.is_none());
@@ -159,65 +159,65 @@ let first = start_session(
     }
 
     #[test]
-    fn workspace_session_start_allows_explicit_primary_provider() -> Result<()> {
+    fn workspace_session_start_allows_explicit_primary_harness() -> Result<()> {
         let tmp = tempdir()?;
         let ship_dir = crate::testutil::init_project(tmp.path())?;
 
 let session = start_session(
             &ship_dir,
-            "feature/provider-ok",
-            Some("Pin provider".to_string()),
+            "feature/harness-ok",
+            Some("Pin harness".to_string()),
             None,
             Some("claude".to_string()),
         )?;
-        assert_eq!(session.primary_provider.as_deref(), Some("claude"));
+        assert_eq!(session.primary_harness.as_deref(), Some("claude"));
         Ok(())
     }
 
     #[test]
-    fn workspace_session_start_rejects_provider_outside_allowed_targets() -> Result<()> {
+    fn workspace_session_start_rejects_harness_outside_allowed_targets() -> Result<()> {
         let tmp = tempdir()?;
         let ship_dir = crate::testutil::init_project(tmp.path())?;
 
 let err = start_session(
             &ship_dir,
-            "feature/provider-deny",
+            "feature/harness-deny",
             None,
             None,
             Some("gemini".to_string()),
         )
-        .expect_err("provider outside allowed targets should be rejected");
+        .expect_err("harness outside allowed targets should be rejected");
 
         assert!(
             err.to_string()
-                .contains("Provider 'gemini' not allowed for branch")
+                .contains("Harness 'gemini' not allowed for branch")
         );
         Ok(())
     }
 
     #[test]
-    fn start_workspace_session_falls_back_to_claude_when_no_providers_configured() -> Result<()> {
+    fn start_workspace_session_falls_back_to_claude_when_no_harnesses_configured() -> Result<()> {
         let tmp = tempdir()?;
         let ship_dir = crate::testutil::init_project(tmp.path())?;
 
-        // Clear project-level providers so the default fallback kicks in.
+        // Clear project-level harnesses so the default fallback kicks in.
         let mut config = crate::config::get_config(Some(ship_dir.clone()))?;
-        config.providers = vec![];
+        config.harnesses = vec![];
         crate::config::save_config(&config, Some(ship_dir.clone()))?;
 
-// Provider resolution falls back to "claude" by design (agents/config.rs
+// Harness resolution falls back to "claude" by design (agents/config.rs
         // resolution priority level 4). Session start should succeed.
         let session = start_session(
             &ship_dir,
-            "feature/no-provider",
+            "feature/no-harness",
             Some("fallback test".to_string()),
             None,
             None,
         )?;
         assert_eq!(
-            session.primary_provider.as_deref(),
+            session.primary_harness.as_deref(),
             Some("claude"),
-            "empty project providers should fall back to claude"
+            "empty project harnesses should fall back to claude"
         );
         Ok(())
     }

@@ -61,7 +61,7 @@ fn interpolate_pipeline(payload: &mut JobCreatedPayload) {
     for step in &mut pipeline.steps {
         render(&mut step.agent);
         render(&mut step.model);
-        render(&mut step.provider);
+        render(&mut step.harness);
         render(&mut step.goal);
         render(&mut step.command);
     }

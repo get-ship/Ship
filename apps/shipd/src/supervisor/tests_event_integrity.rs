@@ -85,7 +85,7 @@ fn projection_populates_all_fields_from_events() {
             "job_id": "j1", "slug": "auth-fix",
             "agent": "rust-runtime", "branch": "job/auth-fix",
             "spec_path": "specs/auth.md", "plan_id": "plan-1",
-            "model": "opus", "provider": "claude",
+            "model": "opus", "harness": "claude",
             "depends_on": ["upstream"],
             "steps": { "steps": [
                 { "id": "impl", "type": "agent", "agent": "rust-runtime", "after": [] }
@@ -93,7 +93,7 @@ fn projection_populates_all_fields_from_events() {
         })),
         ev(event_types::JOB_DISPATCHED, serde_json::json!({
             "job_id": "j1", "worktree": "/wt/auth-fix", "pid": 9999,
-            "provider_meta": { "session_id": "sess-1" },
+            "harness_meta": { "session_id": "sess-1" },
         })),
     ];
     let map = project(&events);
@@ -106,16 +106,16 @@ fn projection_populates_all_fields_from_events() {
     assert_eq!(rec.branch, "job/auth-fix");
     assert_eq!(rec.spec_path, "specs/auth.md");
     assert_eq!(rec.model.as_deref(), Some("opus"));
-    assert_eq!(rec.provider.as_deref(), Some("claude"));
+    assert_eq!(rec.harness.as_deref(), Some("claude"));
     assert!(rec.depends_on.is_some());
     assert!(rec.steps.is_some());
 
     // From job.dispatched
     assert_eq!(rec.status, JobStatus::Dispatched);
     assert_eq!(rec.worktree.as_deref(), Some("/wt/auth-fix"));
-    assert!(rec.provider_meta.is_some());
+    assert!(rec.harness_meta.is_some());
     assert_eq!(
-        rec.provider_meta.as_ref().unwrap()["session_id"].as_str(),
+        rec.harness_meta.as_ref().unwrap()["session_id"].as_str(),
         Some("sess-1")
     );
 
@@ -135,14 +135,14 @@ fn projection_handles_minimal_created_event() {
     let rec = map.get("j-min").unwrap();
     assert_eq!(rec.status, JobStatus::Pending);
     assert!(rec.model.is_none());
-    assert!(rec.provider.is_none());
+    assert!(rec.harness.is_none());
     assert!(rec.depends_on.is_none());
     assert!(rec.steps.is_none());
     assert!(rec.pipeline.is_none());
     assert!(rec.worktree.is_none());
     assert!(rec.blocker.is_none());
     assert!(rec.error.is_none());
-    assert!(rec.provider_meta.is_none());
+    assert!(rec.harness_meta.is_none());
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

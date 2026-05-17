@@ -42,14 +42,14 @@ describe('provide / useShared', () => {
     document.body.removeChild(parent)
   })
 
-  it('returns null when no provider in ancestry', () => {
+  it('returns null when no harness in ancestry', () => {
     const orphan = document.createElement('span')
     document.body.appendChild(orphan)
     expect(useShared(orphan, 'unknown')).toBeNull()
     document.body.removeChild(orphan)
   })
 
-  it('crosses shadow boundaries to find provider', () => {
+  it('crosses shadow boundaries to find harness', () => {
     const grandparent = document.createElement('div')
     document.body.appendChild(grandparent)
     const root = grandparent.attachShadow({ mode: 'open' })
@@ -68,7 +68,7 @@ describe('provide / useShared', () => {
     document.body.removeChild(grandparent)
   })
 
-  it('nearest provider wins', () => {
+  it('nearest harness wins', () => {
     const outer = document.createElement('div')
     const inner = document.createElement('div')
     const leaf = document.createElement('span')

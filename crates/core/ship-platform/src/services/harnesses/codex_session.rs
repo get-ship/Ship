@@ -201,7 +201,7 @@ impl CodexSession {
 
 #[async_trait]
 impl ServerSession for CodexSession {
-    fn provider(&self) -> &str {
+    fn harness(&self) -> &str {
         "codex"
     }
 

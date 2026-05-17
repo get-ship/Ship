@@ -74,7 +74,7 @@ fn test_filter_by_entity_id() -> anyhow::Result<()> {
 fn test_filter_by_event_type() -> anyhow::Result<()> {
     let (_tmp, store) = setup();
     let entity = "filter-type-entity";
-    store.append(&EventEnvelope::new(event_types::WORKSPACE_ACTIVATED, entity, &WorkspaceActivated { agent_id: None, providers: vec![] })?)?;
+    store.append(&EventEnvelope::new(event_types::WORKSPACE_ACTIVATED, entity, &WorkspaceActivated { agent_id: None, harnesses: vec![] })?)?;
     store.append(&EventEnvelope::new(event_types::SESSION_STARTED, entity, &SessionStarted { goal: None, ..Default::default() })?)?;
     store.append(&EventEnvelope::new(event_types::WORKSPACE_ARCHIVED, entity, &WorkspaceArchived {})?)?;
 
@@ -147,7 +147,7 @@ fn test_payload_round_trip() -> anyhow::Result<()> {
         }};
     }
 
-    rt!(event_types::WORKSPACE_ACTIVATED,   WorkspaceActivated { agent_id: Some("a1".into()), providers: vec!["claude".into()] });
+    rt!(event_types::WORKSPACE_ACTIVATED,   WorkspaceActivated { agent_id: Some("a1".into()), harnesses: vec!["claude".into()] });
     rt!(event_types::WORKSPACE_ARCHIVED,    WorkspaceArchived {});
     rt!(event_types::SESSION_STARTED,       SessionStarted { goal: Some("deploy".into()), ..Default::default() });
     rt!(event_types::SESSION_PROGRESS,      SessionProgress { message: "halfway".into(), escalation: None });

@@ -88,7 +88,7 @@ pub trait JobExecutor: Send + Sync {
 
 Default. Per-job routing precedence (highest first):
 
-1. **ServerExecutor** — when the provider adapter declares `caps().server_mode == true` AND the session registry has a bound session for that provider AND `ctx.headless == false`. Server-mode providers hold a persistent session (e.g. codex server, opencode server) and route new jobs to existing sessions rather than spawning fresh processes.
+1. **ServerExecutor** — when the harness adapter declares `caps().server_mode == true` AND the session registry has a bound session for that harness AND `ctx.headless == false`. Server-mode harnesses hold a persistent session (e.g. codex server, opencode server) and route new jobs to existing sessions rather than spawning fresh processes.
 2. **ProcessExecutor** — when `ctx.headless == true`, or when TmuxWindow is unavailable (no tmux binary, Windows).
 3. **TmuxWindowExecutor** — default for interactive jobs. Opens a new window inside a shared tmux session so an operator can attach.
 
@@ -106,7 +106,7 @@ Headless. Plain `tokio::process::Command::spawn`. stdout/stderr piped to the ker
 
 ### ServerExecutor
 
-Long-lived session mode. Maintains a connection to a running provider server; new jobs route as requests rather than new processes. Currently scaffolding — registry is empty for every provider; real bindings land in `provider-codex-02` / `provider-opencode-02` per the routing.rs docstring.
+Long-lived session mode. Maintains a connection to a running harness server; new jobs route as requests rather than new processes. Currently scaffolding — registry is empty for every harness; real bindings land in `harness-codex-02` / `harness-opencode-02` per the routing.rs docstring.
 
 ## ProcessRegistry
 

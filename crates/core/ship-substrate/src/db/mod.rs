@@ -295,7 +295,7 @@ const BASELINE_TABLE_STATEMENTS: &[&str] = &[
         started_at                  TEXT NOT NULL,
         ended_at                    TEXT,
         agent_id                    TEXT,
-        primary_provider            TEXT,
+        primary_harness            TEXT,
         goal                        TEXT,
         summary                     TEXT,
         updated_workspace_ids_json  TEXT NOT NULL DEFAULT '[]',
@@ -355,7 +355,7 @@ const BASELINE_TABLE_STATEMENTS: &[&str] = &[
         active_agent            TEXT,
         compiled_at             TEXT NOT NULL,
         ship_version            TEXT NOT NULL,
-        provider                TEXT,
+        harness                TEXT,
         plugins_installed_json  TEXT NOT NULL DEFAULT '[]',
         updated_at              TEXT NOT NULL DEFAULT (datetime('now'))
     )",

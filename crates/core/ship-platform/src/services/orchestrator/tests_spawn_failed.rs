@@ -104,7 +104,7 @@ fn job_payload(job_id: &str, slug: &str) -> JobCreatedPayload {
         source_spec_path: None,
         plan_id: None,
         model: None,
-        provider: None,
+        harness: None,
         depends_on: None,
         pipeline: None,
         steps: None,

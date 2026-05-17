@@ -71,7 +71,7 @@ fn test_elevated_filter() -> anyhow::Result<()> {
         .elevate();
     store.append(&ev_end)?;
     // workspace.activated — elevated
-    let ev_ws = EventEnvelope::new(event_types::WORKSPACE_ACTIVATED, entity, &WorkspaceActivated { agent_id: None, providers: vec![] })?
+    let ev_ws = EventEnvelope::new(event_types::WORKSPACE_ACTIVATED, entity, &WorkspaceActivated { agent_id: None, harnesses: vec![] })?
         .elevate();
     store.append(&ev_ws)?;
 
@@ -131,7 +131,7 @@ fn test_hierarchy_traversal_via_parent_actor_id() -> anyhow::Result<()> {
     let (_tmp, store) = setup();
 
     // Workspace actor emits an event
-    let ws_ev = EventEnvelope::new(event_types::WORKSPACE_ACTIVATED, "ws-entity", &WorkspaceActivated { agent_id: None, providers: vec![] })?
+    let ws_ev = EventEnvelope::new(event_types::WORKSPACE_ACTIVATED, "ws-entity", &WorkspaceActivated { agent_id: None, harnesses: vec![] })?
         .with_actor_id("actor-ws-1");
     store.append(&ws_ev)?;
 

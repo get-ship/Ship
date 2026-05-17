@@ -1,4 +1,4 @@
-//! `ship convert <source>` — convert provider config files (CLAUDE.md, .cursor/) into .ship/ format.
+//! `ship convert <source>` — convert harness config files (CLAUDE.md, .cursor/) into .ship/ format.
 
 use anyhow::{Context, Result};
 use std::path::Path;
@@ -97,7 +97,7 @@ fn convert_from_url(url: &str) -> Result<()> {
     Ok(())
 }
 
-/// Convert from a local file or directory path (provider config detection).
+/// Convert from a local file or directory path (harness config detection).
 fn convert_from_path(source: &str) -> Result<()> {
     let path = Path::new(source).canonicalize().context("Invalid path")?;
 
@@ -108,17 +108,17 @@ fn convert_from_path(source: &str) -> Result<()> {
         );
     }
 
-    let detected = compiler::detect_providers(&path);
+    let detected = compiler::detect_harnesses(&path);
     if !detected.any() {
         anyhow::bail!(
-            "No provider configs found in {}\n\
+            "No harness configs found in {}\n\
              Looking for: CLAUDE.md, .claude/, .mcp.json, .codex/, .gemini/, .cursor/",
             source
         );
     }
 
-    let providers = detected.as_list();
-    println!("Detected providers: {}", providers.join(", "));
+    let harnesses = detected.as_list();
+    println!("Detected harnesses: {}", harnesses.join(", "));
 
     let library = compiler::decompile_all(&path);
 
@@ -128,19 +128,19 @@ fn convert_from_path(source: &str) -> Result<()> {
 
     let mut files_written = 0;
 
-    // ── ship.jsonc — manifest with providers and provider_defaults ────────────
+    // ── ship.jsonc — manifest with harnesses and harness_defaults ────────────
     let ship_jsonc = ship_dir.join("ship.jsonc");
     if !ship_jsonc.exists() {
         let mut project = serde_json::json!({
-            "providers": providers.iter().map(|p| serde_json::Value::String(p.to_string())).collect::<Vec<_>>()
+            "harnesses": harnesses.iter().map(|p| serde_json::Value::String(p.to_string())).collect::<Vec<_>>()
         });
-        if !library.provider_defaults.is_empty() {
+        if !library.harness_defaults.is_empty() {
             let defaults: serde_json::Map<String, serde_json::Value> = library
-                .provider_defaults
+                .harness_defaults
                 .iter()
                 .map(|(k, v)| (k.clone(), v.clone()))
                 .collect();
-            project["provider_defaults"] = serde_json::Value::Object(defaults);
+            project["harness_defaults"] = serde_json::Value::Object(defaults);
         }
         let manifest = serde_json::json!({
             "$schema": "../schemas/ship.schema.json",
@@ -231,11 +231,11 @@ fn convert_from_path(source: &str) -> Result<()> {
     }
 
     if files_written == 0 {
-        println!("  Nothing to write — providers detected but configs are empty.");
+        println!("  Nothing to write — harnesses detected but configs are empty.");
     } else {
-        println!("\nConverted {} provider(s) into .ship/", providers.len());
+        println!("\nConverted {} harness(s) into .ship/", harnesses.len());
         println!("  Run: ship use <agent-id>   to activate an agent");
-        println!("  Run: ship compile          to compile back to provider configs");
+        println!("  Run: ship compile          to compile back to harness configs");
     }
 
     Ok(())
