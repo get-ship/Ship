@@ -43,6 +43,8 @@ const STEPS = [
   '21-forms',
   '22-data-live',
   '23-while-loading',
+  '24-morphs',
+  '25-going-further',
 ] as const
 
 // Disable animations + caret blink so diffs stay deterministic.

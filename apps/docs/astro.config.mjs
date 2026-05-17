@@ -213,6 +213,8 @@ function buildTopics(isInternal) {
         items: [
           { label: "22 · <data live>", link: "/tutorial/22-data-live/" },
           { label: "23 · while-loading / while-error", link: "/tutorial/23-while-loading/" },
+          { label: "24 · Mutations + server push", link: "/tutorial/24-morphs/" },
+          { label: "25 · Going further", link: "/tutorial/25-going-further/" },
         ],
       },
     ],

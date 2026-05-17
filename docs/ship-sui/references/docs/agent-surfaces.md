@@ -14,6 +14,7 @@ exercise SUI views or components. Three planes:
 |---|---|---|
 | **MCP tools** | Live operations against an active project (scaffold, edit, mount, snapshot, diagnose) | `apps/mcp/src/server/mod.rs`, `apps/mcp/src/tools/*.rs` |
 | **LSP CLI** | One-shot diagnostics / hover / dependencies on a single `.sui` file from any shell | `packages/sui-lsp/src/cli.ts` |
+| **`@ship/sui-lsp-browser`** | Browser-only structural analyser + completion sources. Web worker, no Node deps, no `typescript` package. Used by the docs playground; the shell editor can adopt it too. | `packages/sui-lsp-browser/src/` |
 | **`@ship/sui-eval`** | Regression-quality scoring of agent-produced SUI against a behavioural spec | `packages/sui-eval/src/index.ts` |
 
 Read this alongside `SKILL.md` (the four-layer overview) and

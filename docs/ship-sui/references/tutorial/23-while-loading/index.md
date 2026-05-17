@@ -5,7 +5,7 @@ group: "Tutorial"
 order: 23
 slug: "23-while-loading"
 prev: "22-data-live"
-next: null
+next: "24-morphs"
 chapter: "views"
 ---
 

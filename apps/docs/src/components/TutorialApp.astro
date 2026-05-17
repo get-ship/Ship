@@ -392,6 +392,18 @@ const { slug, starterTemplate, starterController, solvedTemplate, solvedControll
     ensureLsp().allSources()
       .then((sources) => tplEl.setCompletions?.(sources))
       .catch((e) => console.warn('[tutorial] lsp.allSources failed:', e))
+
+    // Warm up the lazy oxc-parser bundle on first editor focus so
+    // first-hover latency is near zero. Idempotent — first call eats
+    // the ~500 KB gz network cost, every later call no-ops.
+    let preloadFired = false
+    const fireOnce = () => {
+      if (preloadFired) return
+      preloadFired = true
+      ensureLsp().preload().catch(() => { /* dict-only path still works */ })
+    }
+    tplEl.addEventListener('focus', fireOnce, { passive: true })
+    ctrlEl.addEventListener('focus', fireOnce, { passive: true })
   }
 
   Promise.all([ensureWasm(), ensureEditorCE(), ensureBaseCE()])

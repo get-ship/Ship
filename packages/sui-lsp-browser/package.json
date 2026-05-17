@@ -10,14 +10,16 @@
     ".": "./src/client.ts",
     "./worker": "./src/worker.ts",
     "./completions": "./src/completions.ts",
-    "./diagnostics": "./src/diagnostics.ts"
+    "./diagnostics": "./src/diagnostics.ts",
+    "./hover": "./src/hover.ts"
   },
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@ship/sui-lsp": "workspace:*"
+    "@ship/sui-lsp": "workspace:*",
+    "oxc-parser": "^0.131.0"
   },
   "devDependencies": {
     "vitest": "^4.1.5"
