@@ -72,13 +72,6 @@
                         {#if s.has_evals}<span class="se-dot evals" title="Evals"></span>{/if}
                       </span>
                     </a>
-                    <button class="se-invoke"
-                      aria-label={'Invoke ' + s.name}
-                      prop:disabled={invokeBusy() === s.id}
-                      on:click={() => invoke(s.id)}>
-                      <sui-icon name="play" size="xs"></sui-icon>
-                      <span>{invokeBusy() === s.id ? 'Invoking…' : 'Invoke'}</span>
-                    </button>
                     {#if s.id === skillId() && s.files && s.files.length > 0}
                       {#for f of s.files key={f}}
                         <a class="se-file" class:is-active={selectedFile() === f}
@@ -104,20 +97,6 @@
     </aside>
 
     <main class="skills-main">
-      {#if invokeResult()}
-        <sui-alert tone={invokeResult().ok ? 'success' : 'warning'} class="sd-invoke-result">
-          {#if invokeResult().ok}
-            Invoked · run <code>{invokeResult().run_id}</code> · session <code>{invokeResult().session_id}</code>
-            <button class="sd-invoke-dismiss" aria-label="Dismiss"
-              on:click={() => invokeResult.set(null)}>×</button>
-          {:else}
-            {invokeResult().error}
-            <button class="sd-invoke-dismiss" aria-label="Dismiss"
-              on:click={() => invokeResult.set(null)}>×</button>
-          {/if}
-        </sui-alert>
-      {/if}
-
       {#if !skillId()}
         <div class="se-empty-state">
           <sui-icon name="zap" size="xl" class="se-empty-icon" tone="muted"></sui-icon>
@@ -326,22 +305,6 @@
                 </div>
               </sui-collapsible>
 
-              <sui-collapsible class="si-coll">
-                <div slot="trigger" class="si-coll-trigger">
-                  <sui-icon name="play" size="xs" tone="muted"></sui-icon>
-                  <span>Run</span>
-                  <sui-icon class="si-coll-caret" name="chevron-down" size="xs" tone="muted"></sui-icon>
-                </div>
-                <div class="si-coll-body">
-                  <button class="sd-action sd-run-btn"
-                    prop:disabled={invokeBusy() === skId()}
-                    on:click={() => invoke(skId())}>
-                    <sui-icon name="play" size="xs"></sui-icon>
-                    <span>{invokeBusy() === skId() ? 'Invoking…' : 'Invoke skill'}</span>
-                  </button>
-                  <p class="si-help">Runs this skill as a one-shot library task. Result appears above the editor.</p>
-                </div>
-              </sui-collapsible>
             </div>
           </aside>
         </div>

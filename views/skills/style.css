@@ -187,27 +187,6 @@
 .se-dot.refs { background: var(--status-green, oklch(0.72 0.19 162)); }
 .se-dot.evals { background: var(--status-purple, oklch(0.63 0.21 303)); }
 
-.se-invoke {
-  position: absolute; right: var(--space-2); top: 4px;
-  display: inline-flex; align-items: center; gap: 4px;
-  padding: 2px var(--space-2);
-  font-size: var(--text-xs);
-  background: var(--background);
-  color: var(--primary);
-  border: 1px solid color-mix(in oklch, var(--primary) 35%, var(--border));
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  font-family: inherit;
-  visibility: hidden;
-  transition: background-color var(--duration-fast) var(--ease-out);
-}
-.se-skill-row:hover .se-invoke,
-.se-invoke:focus-visible { visibility: visible; }
-.se-invoke[disabled] { opacity: 0.7; cursor: progress; visibility: visible; }
-.se-invoke:hover:not([disabled]) {
-  background: color-mix(in oklch, var(--primary) 12%, var(--background));
-}
-
 .se-file {
   display: flex; width: 100%; align-items: center;
   gap: var(--space-2);
@@ -247,7 +226,7 @@
   color: var(--primary);
 }
 
-/* ── Main (editor + invoke banner + empty) ─────────────────────────── */
+/* ── Main (editor + empty state) ─────────────────────────── */
 
 .skills-main {
   display: flex;
@@ -257,28 +236,6 @@
   min-height: 0;
   overflow: hidden;
 }
-
-.sd-invoke-result {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  margin: var(--space-3) var(--space-4) 0;
-  flex-shrink: 0;
-}
-.sd-invoke-result code {
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  padding: 1px var(--space-2);
-  border-radius: var(--radius-sm);
-  background: color-mix(in oklch, var(--background) 60%, transparent);
-}
-.sd-invoke-dismiss {
-  margin-left: auto;
-  background: none; border: none; color: inherit;
-  font-size: var(--text-base); line-height: 1;
-  cursor: pointer; padding: 0 4px; opacity: 0.6;
-}
-.sd-invoke-dismiss:hover { opacity: 1; }
 
 /* The dual-pane shell sits inside .skills-main and lays editor + info side-by-side */
 .sd-pane {
@@ -593,15 +550,6 @@ sui-collapsible:not([open]) .si-coll-caret { transform: rotate(-90deg); }
 .si-file-row:hover { background: color-mix(in oklch, var(--muted) 30%, transparent); color: var(--primary); }
 .si-file-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-.sd-run-btn {
-  align-self: flex-start;
-  background: var(--primary) !important;
-  color: var(--primary-foreground, #fff) !important;
-  border-color: var(--primary) !important;
-}
-.sd-run-btn:hover:not([disabled]) {
-  background: color-mix(in oklch, var(--primary) 88%, black) !important;
-}
 .si-help {
   margin: 0;
   font-size: var(--text-xs);

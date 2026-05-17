@@ -9,7 +9,6 @@
 //   PUT /api/v1/skills/{id}/body          — markdown body
 //   PUT /api/v1/skills/{id}/files/{path}  — companion files
 //   PUT /api/v1/skills/{id}/frontmatter   — description + tags + name
-//   POST /api/v1/skills/{id}/invoke       — one-shot run
 
 import { controller, signal, derived, live, effect } from '@ship/sui-runtime'
 import { liveExpr } from '@ship/sdk-client'
@@ -51,9 +50,6 @@ interface SkillFile {
   content: string
 }
 type Banner = { ok: true; msg: string } | { ok: false; msg: string } | null
-interface InvokeOk { ok: true; run_id: string; session_id: string; workspace_id: string | null; mode: string }
-interface InvokeErr { ok: false; error: string }
-type InvokeResult = InvokeOk | InvokeErr
 
 function fileKind(name: string): FileKind {
   const lower = name.toLowerCase()
@@ -154,10 +150,6 @@ export default controller<Scope>({
     const tagsBaseline = signal('')
     const savingMeta = signal(false)
     const metaBanner = signal<Banner>(null)
-
-    // Invoke state
-    const invokeBusy = signal('')
-    const invokeResult = signal<InvokeResult | null>(null)
 
     const rail = live(() => liveExpr<RailValue>(
       `ship.skills.summaries(${JSON.stringify({ q: q(), kind: kind(), tag: tag() })})`,
@@ -342,52 +334,13 @@ export default controller<Scope>({
       }
     }
 
-    async function invoke(id: string): Promise<void> {
-      invokeBusy.set(id)
-      invokeResult.set(null)
-      try {
-        const resp = await fetch(`/api/v1/skills/${encodeURIComponent(id)}/invoke`, {
-          method: 'POST',
-          credentials: 'same-origin',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({}),
-        })
-        const text = await resp.text().catch(() => '')
-        if (!resp.ok) {
-          let msg = text || `Skill invoke failed (${resp.status})`
-          if (resp.status === 404 || resp.status === 501 || text.includes('not_implemented')) {
-            msg = 'Skill runs are coming soon — server route not wired yet.'
-          }
-          invokeResult.set({ ok: false, error: msg })
-          return
-        }
-        const body = (text ? JSON.parse(text) : {}) as Partial<InvokeOk> & { ok?: boolean }
-        if (body.ok && typeof body.run_id === 'string' && typeof body.session_id === 'string') {
-          invokeResult.set({
-            ok: true,
-            run_id: body.run_id,
-            session_id: body.session_id,
-            workspace_id: body.workspace_id ?? null,
-            mode: body.mode ?? 'library',
-          })
-        } else {
-          invokeResult.set({ ok: false, error: 'Skill invoke returned an unexpected response.' })
-        }
-      } catch (e) {
-        invokeResult.set({ ok: false, error: (e as Error).message ?? 'Skill invoke failed.' })
-      } finally {
-        invokeBusy.set('')
-      }
-    }
-
     return {
       skillId, q, kind, tag, selectedFile,
       rail, skill, fileContent, fileMetas,
       draft, dirty, saving, saveBanner, activeIsEditable, selectedFileName,
       descDraft, tagsDraft, tagsList, authorsText, savingMeta, metaDirty, metaBanner,
       sk, skName, skId, skKind, skSource, skBody, skVariables, skFiles, skAuthorsLen,
-      invokeBusy, invokeResult,
-      onEditorInput, save, saveMeta, invoke,
+      onEditorInput, save, saveMeta,
     }
   },
 })
