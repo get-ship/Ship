@@ -1,0 +1,29 @@
+[package]
+name = "ship-gateway-client"
+version = "0.1.0"
+edition = "2024"
+publish = false
+description = "Typed Connect-RPC client for the Ship gateway (apps/gateway). Codegen runs in build.rs from proto/ship/gateway/v1/*.proto."
+
+[dependencies]
+# Connect-RPC runtime. Client feature only — we never serve from Rust here.
+connectrpc = { version = "0.4", features = ["client"] }
+# Must match the version connectrpc 0.4.x pulls transitively, otherwise
+# generated types (which name buffa types in their function signatures)
+# clash with the runtime's view types — two-buffa-version diagnostic.
+buffa = { version = "0.5", features = ["json"] }
+# HTTP transport. reqwest::Client is the standard choice; matches what the
+# CLI already uses for the daemon socket and what shipd uses for JWKS fetch.
+reqwest = { workspace = true }
+# Generated code references `::serde::` paths directly (buffa's JSON codegen
+# emits standard serde Deserialize impls), so serde must be a direct dep
+# rather than only transitively available through buffa. Same reason for
+# http-body: connectrpc-codegen emits `::http_body::Body` bounds on the
+# generic transport's response body.
+serde = { workspace = true }
+http-body = "1"
+
+[build-dependencies]
+connectrpc-build = "0.4"
+# Bundles a protoc binary so fresh clones don't need a system-wide install.
+protoc-bin-vendored = "3"
