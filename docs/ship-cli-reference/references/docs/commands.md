@@ -17,7 +17,7 @@ Scaffold `.ship/` in the current project, or configure `~/.ship/` globally.
 | Flag | Description |
 |------|-------------|
 | `--global` | Configure `~/.ship/` instead of current project |
-| `--provider <id>` | Default provider: `claude`, `gemini`, `codex`, `cursor` |
+| `--provider <id>` | Default provider: `claude`, `cursor`, `gemini`, `codex`, `opencode` |
 | `--force` | Overwrite existing `.ship/` |
 
 ```bash

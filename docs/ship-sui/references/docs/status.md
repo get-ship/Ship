@@ -3,6 +3,7 @@ group: Views
 order: 8
 title: Implementation status
 description: What's stable, what's in active development, what's not yet implemented. Honest accounting of the gap between the architecture in this skill and the code on disk.
+audience: internal
 ---
 
 # Implementation status

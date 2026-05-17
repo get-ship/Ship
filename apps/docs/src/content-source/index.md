@@ -115,7 +115,7 @@ The docs site renders with the same component runtime it documents. Every tag be
 curl -fsSL https://getship.dev/install | sh
 cd your-project
 ship init
-ship studio --open
+ship use <agent-id>
 ```
 
 <sui-alert tone="info">

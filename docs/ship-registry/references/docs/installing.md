@@ -2,7 +2,6 @@
 group: Registry
 title: Installing Packages
 order: 3
-audience: internal
 ---
 
 # Installing Packages

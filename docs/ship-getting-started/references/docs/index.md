@@ -12,10 +12,9 @@ Ship is a runtime for building custom apps with agentic workflows. You author th
 - **Agents** — composed of skills, MCP servers, and permissions. One profile compiles to every supported provider.
 - **Skills** — instruction sets with typed variables. One skill, personalized output per user and project.
 - **Pipelines** — multi-step work with gates, retries, and parallel branches.
-- **Views** — live HTML surfaces over your data. Authored as templates; the app renders.
+- **Views** — live reactive UI authored as `.sui` templates. Signal-driven, server-rendered, hydrated client-side.
 - **Collections** — schema-backed structured data. Queryable, event-driven.
 - **Artifacts** — files agents and pipelines produce. Tracked, addressable, renderable in views.
-- **Triggers** — reactive rules that match events and run actions.
 
 ## Where to go next
 

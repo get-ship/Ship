@@ -3,6 +3,7 @@ group: Views
 order: 9
 title: E2E test suite
 description: Playwright-based end-to-end coverage for SUI views. How to run, what it covers, and how to interpret failures.
+audience: internal
 ---
 
 # E2E test suite

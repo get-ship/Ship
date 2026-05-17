@@ -18,6 +18,7 @@ Ship compiles a single agent profile into provider-native config files. Each pro
 | Gemini | `gemini` | Markdown | JSON | Markdown in directory |
 | Codex | `codex` | Markdown | TOML | Markdown in directory |
 | Cursor | `cursor` | MDC rule files | JSON | Markdown in directory |
+| OpenCode | `opencode` | Markdown | JSON | Markdown in directory |
 
 ## Claude (`claude`)
 
@@ -99,7 +100,7 @@ Target multiple providers from a single agent profile:
 {
   "agent": {
     "id": "my-agent",
-    "providers": ["claude", "gemini", "codex", "cursor"]
+    "providers": ["claude", "cursor", "gemini", "codex", "opencode"]
   }
 }
 ```
