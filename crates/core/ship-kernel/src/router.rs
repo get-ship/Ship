@@ -77,6 +77,53 @@ impl KernelRouter {
         Ok(Mailbox::new(rx))
     }
 
+    /// Replace an existing actor's config in place.
+    ///
+    /// The mailbox sender stays the exact same `mpsc::Sender` instance —
+    /// callers holding a `Mailbox` (or any receiver tied to the sender)
+    /// continue receiving without interruption. Subscription mappings
+    /// are re-keyed: namespaces present in the OLD config but absent in
+    /// the new config drop this actor; namespaces present in the NEW
+    /// config that didn't have the actor before gain it.
+    ///
+    /// Returns `ActorNotFound` if no actor with `actor_id` is registered
+    /// — the caller is expected to spawn first.
+    pub fn refine_actor(
+        &mut self,
+        actor_id: &str,
+        config: ActorConfig,
+    ) -> Result<(), KernelError> {
+        if !self.mailboxes.contains_key(actor_id) {
+            return Err(KernelError::ActorNotFound {
+                actor_id: actor_id.to_string(),
+            });
+        }
+
+        let old_subs: Vec<String> = self
+            .actor_configs
+            .get(actor_id)
+            .map(|c| c.subscribe_namespaces.clone())
+            .unwrap_or_default();
+
+        for ns in &old_subs {
+            if !config.subscribe_namespaces.contains(ns)
+                && let Some(ids) = self.subscriptions.get_mut(ns) {
+                    ids.retain(|id| id != actor_id);
+                }
+        }
+
+        for ns in &config.subscribe_namespaces {
+            let ids = self.subscriptions.entry(ns.clone()).or_default();
+            if !ids.iter().any(|id| id == actor_id) {
+                ids.push(actor_id.to_string());
+            }
+        }
+
+        self.actor_configs
+            .insert(actor_id.to_string(), config);
+        Ok(())
+    }
+
     /// Remove an actor from the router.
     pub fn stop_actor(&mut self, actor_id: &str) -> Result<(), KernelError> {
         if self.mailboxes.remove(actor_id).is_none() {

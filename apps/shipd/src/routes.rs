@@ -36,6 +36,8 @@
 // `crate::routes::<x>_api::*` (or `shipd::routes::<x>_api::*` externally).
 
 pub mod actor_api;
+#[cfg(test)]
+mod actor_api_tests;
 pub mod actors_api;
 pub mod mcp_registry;
 pub mod agents_api;
