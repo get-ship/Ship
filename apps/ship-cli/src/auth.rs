@@ -73,11 +73,13 @@ fn exchange_code_for_token(code: &str, verifier: &str, port: u16) -> Result<Stri
         anyhow::bail!("Auth failed: {}", err);
     }
 
+    // Field is `key` since the May-2026 Better Auth API key migration;
+    // the legacy `token` name on the wire is gone.
     parsed
-        .get("token")
+        .get("key")
         .and_then(|v| v.as_str())
         .map(String::from)
-        .ok_or_else(|| anyhow::anyhow!("No token in auth response"))
+        .ok_or_else(|| anyhow::anyhow!("No key in auth response"))
 }
 
 /// `ship login` — PKCE S256 OAuth flow.
