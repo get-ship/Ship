@@ -16,8 +16,8 @@
       {#while-loading of canvasList}
         <div class="canvas-rail-empty">Loading&hellip;</div>
       {/while-loading}
-      {#if canvasList().kind === 'ok' && canvasList().value}
-        {#if canvasList().value.length === 0}
+      {#if canvasList().kind === 'ok'}
+        {#if !canvasList().value || canvasList().value.length === 0}
           <div class="canvas-rail-empty">
             No canvas artifacts yet. Agents create them by uploading HTML to
             <code>POST /api/v1/artifacts</code> with <code>collection_id=canvas</code>.
