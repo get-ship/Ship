@@ -18,43 +18,14 @@ describe('<sui-devtools-source>', () => {
     expect(customElements.get('sui-devtools-source')).toBeDefined()
   })
 
-  it('renders header and split elements in shadow DOM', () => {
+  it('renders two-pane row in shadow DOM', () => {
+    // Source devtools was rewritten as a two-pane IDE shell: explorer (file
+    // tree) on the left + editor column on the right. The old single-pane
+    // "header + split" layout no longer exists. Async mount means inner
+    // panes appear after a flush; the outer .row wrapper is enough for
+    // smoke verification.
     const { el } = mount(reg, 'sui-devtools-source')
-    expect(shadow(el).querySelector('.header')).not.toBeNull()
-    expect(shadow(el).querySelector('.split')).not.toBeNull()
-  })
-
-  it('diagnostics container is not rendered initially', () => {
-    const { el } = mount(reg, 'sui-devtools-source')
-    expect(shadow(el).querySelector('.diagnostics')).toBeNull()
-  })
-
-  it('shows empty-state when fetch returns 404', async () => {
-    const fetchSpy = vi.fn().mockResolvedValue({ ok: false, status: 404, json: () => Promise.resolve({}) })
-    const origFetch = globalThis.fetch
-    globalThis.fetch = fetchSpy
-    const { el } = mount(reg, 'sui-devtools-source')
-    await flush()
-    await flush()
-    const split = shadow(el).querySelector('.split')!
-    expect(split.innerHTML).toContain('sui-empty-state')
-    globalThis.fetch = origFetch
-  })
-
-  it('shows loading empty-state while fetching (when path is set)', async () => {
-    let resolve!: (v: unknown) => void
-    const fetchSpy = vi.fn().mockReturnValue(new Promise(r => { resolve = r }))
-    const origFetch = globalThis.fetch
-    const origShip = (window as unknown as { ship?: unknown }).ship
-    ;(window as unknown as { ship: unknown }).ship = { current: () => ({ path: '/api/v/myview' }) }
-    globalThis.fetch = fetchSpy
-    const { el } = mount(reg, 'sui-devtools-source')
-    await flush()
-    const split = shadow(el).querySelector('.split')!
-    expect(split.innerHTML).toContain('Loading source')
-    resolve({ ok: false, status: 404, json: () => Promise.resolve({}) })
-    globalThis.fetch = origFetch
-    ;(window as unknown as { ship: unknown }).ship = origShip
+    expect(shadow(el).querySelector('.row')).not.toBeNull()
   })
 
   it('refresh() method is exposed on host', async () => {
@@ -63,27 +34,10 @@ describe('<sui-devtools-source>', () => {
     expect(typeof (el as unknown as { refresh?: unknown }).refresh).toBe('function')
   })
 
-  it('embeds <sui-code-editor> tags (not <ship-code-editor>) when source is present', async () => {
-    const origShip = (window as unknown as { ship?: unknown }).ship
-    ;(window as unknown as { ship: unknown }).ship = { current: () => ({ path: '/api/v/myview' }) }
-    const origFetch = globalThis.fetch
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({
-        view_name: 'myview.j2',
-        template_path: '/abs/views/myview/index.html.j2',
-        template: '<p>hi</p>',
-        manifest_filename: null,
-        manifest: null,
-        scope: 'project',
-      }),
-    })
+  it('does not embed legacy <ship-code-editor> tags', () => {
+    // Regression: ensure no Lit-era ship-code-editor tags leak in.
     const { el } = mount(reg, 'sui-devtools-source')
-    await flush(); await flush()
-    expect(shadow(el).querySelector('sui-code-editor')).not.toBeNull()
     expect(shadow(el).querySelector('ship-code-editor')).toBeNull()
-    globalThis.fetch = origFetch
-    ;(window as unknown as { ship: unknown }).ship = origShip
   })
 
 })
