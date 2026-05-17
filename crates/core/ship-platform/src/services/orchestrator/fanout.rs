@@ -16,7 +16,7 @@ use ship_substrate::events::job::{
     FanoutSpec, PipelineStep, StepObservedPayload, StepTrigger, StepType, StepVerdict, event_types,
 };
 use ship_substrate::events::{EventEnvelope, KernelRouter};
-use crate::projections::job::JobRecord;
+use crate::projections::job::PipelineRun;
 use crate::services::dispatch_ports::{JobContext, LaunchProfile, StepInfo};
 use crate::services::orchestrator::emit::{
     emit_process_spawned, emit_step_dispatched_event, emit_step_failed, persist_and_route,
@@ -38,7 +38,7 @@ pub use crate::services::orchestrator::fanout_aggregate::{
 /// determine whether `dispatched_any` should be true).
 pub async fn dispatch_fanout_step(
     kernel: &Arc<Mutex<KernelRouter>>,
-    job: &JobRecord,
+    job: &PipelineRun,
     step: &PipelineStep,
     fanout: &FanoutSpec,
     step_idx: usize,

@@ -100,7 +100,7 @@ pub async fn handle_job_event(
     // (job.created/update/cancelled) are exempt: those are signals FROM
     // the operator, not pipeline progression.
     if !is_operator_event(&envelope.event_type)
-        && let Some(record) = load_job_record(&envelope.entity_id)
+        && let Some(record) = load_pipeline_run(&envelope.entity_id)
         && matches!(
             record.status,
             crate::projections::job::JobStatus::Failed
@@ -340,7 +340,7 @@ fn is_operator_event(event_type: &str) -> bool {
 /// Used by the terminal-state guard. Returns `None` if the projection
 /// can't be loaded or the job doesn't exist — callers treat that as
 /// "not terminal, proceed" so startup races don't drop events.
-fn load_job_record(entity_id: &str) -> Option<crate::projections::job::JobRecord> {
+fn load_pipeline_run(entity_id: &str) -> Option<crate::projections::job::PipelineRun> {
     crate::projections::job::load_job_by_id(entity_id).ok().flatten()
 }
 

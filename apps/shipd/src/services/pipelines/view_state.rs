@@ -1,6 +1,6 @@
 //! Per-run git-level stats for the pipelines render layer.
 //!
-//! The runtime's `JobRecord` projection does not surface per-step
+//! The runtime's `PipelineRun` projection does not surface per-step
 //! commit or dirty-file counts. What's cheap + honest today is a
 //! per-run (per-worktree) snapshot of commits-ahead-of-main and
 //! uncommitted-files counts — one `git rev-list --count` + one

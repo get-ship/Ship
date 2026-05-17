@@ -8,7 +8,7 @@ use ship_substrate::events::supervisor::{
     SweepCompletedPayload, SweepStartedPayload,
 };
 use ship_substrate::events::EventEnvelope;
-use crate::projections::job::{load_jobs, JobRecord, JobStatus};
+use crate::projections::job::{load_jobs, PipelineRun, JobStatus};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::Mutex;
@@ -266,7 +266,7 @@ pub async fn run_sweep(
 /// True iff the job's current step has `StepType::Run`. Returns false for
 /// jobs with no DAG pipeline, no `current_step`, or a non-Run step type — so
 /// only the Run-step path short-circuits the sweep.
-fn current_step_is_run(job: &JobRecord) -> bool {
+fn current_step_is_run(job: &PipelineRun) -> bool {
     let Some(pipeline) = job.steps.as_ref() else {
         return false;
     };

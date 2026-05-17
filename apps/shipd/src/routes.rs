@@ -17,7 +17,7 @@
 //!
 //! ```ignore
 //! /// @route METHOD "/path/with/{params}"
-//! /// @returns Vec<JobRecord>     (optional — TS gets typed fetch wrapper)
+//! /// @returns Vec<PipelineRun>     (optional — TS gets typed fetch wrapper)
 //! /// @body   CreateJobRequest    (optional — TS gets typed request body)
 //! ```
 //!

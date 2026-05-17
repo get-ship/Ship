@@ -76,7 +76,7 @@ impl JobStatus {
 
 /// Projected state of a single job.
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
-pub struct JobRecord {
+pub struct PipelineRun {
     pub job_id: String,
     pub slug: String,
     pub agent: String,
@@ -131,7 +131,7 @@ pub struct JobRecord {
     pub baseline_sha: Option<String>,
 }
 
-impl JobRecord {
+impl PipelineRun {
     /// Number of DAG pipeline steps recorded as completed.
     pub fn completed_step_count(&self) -> usize {
         self.completed_steps.len()
@@ -140,7 +140,7 @@ impl JobRecord {
 
 // ── Pure fold (source of truth for status semantics) ────────────────────────
 
-/// Apply a single event to an existing `JobRecord`.
+/// Apply a single event to an existing `PipelineRun`.
 ///
 /// Unknown event types are silently ignored so the projection remains forward-compatible.
 ///
@@ -149,7 +149,7 @@ impl JobRecord {
 /// the final `if let Some(next) = status_for(...)` applies the new status.
 /// STEP_OBSERVED is the one payload-conditional case — its `Failed` branch
 /// is set inline, and `status_for` returns `None` for it to avoid overriding.
-pub fn apply(record: &mut JobRecord, event: &EventEnvelope) {
+pub fn apply(record: &mut PipelineRun, event: &EventEnvelope) {
     let ts = event.created_at;
     match event.event_type.as_str() {
         event_types::JOB_DISPATCHED => {
@@ -299,9 +299,9 @@ pub fn apply(record: &mut JobRecord, event: &EventEnvelope) {
     }
 }
 
-/// Build the initial JobRecord from a `job.created` event payload.
+/// Build the initial PipelineRun from a `job.created` event payload.
 /// Returns `None` if the payload doesn't carry a `job_id`.
-fn record_from_created(event: &EventEnvelope) -> Option<JobRecord> {
+fn record_from_created(event: &EventEnvelope) -> Option<PipelineRun> {
     let p = serde_json::from_str::<serde_json::Value>(&event.payload_json).ok()?;
     let job_id = p["job_id"].as_str()?.to_string();
     let depends_on = p["depends_on"].as_array().map(|arr| {
@@ -313,7 +313,7 @@ fn record_from_created(event: &EventEnvelope) -> Option<JobRecord> {
         serde_json::from_value(p["pipeline"].clone()).ok();
     let steps: Option<ship_substrate::events::job::Pipeline> =
         serde_json::from_value(p["steps"].clone()).ok();
-    Some(JobRecord {
+    Some(PipelineRun {
         job_id,
         slug: p["slug"].as_str().unwrap_or("").to_string(),
         agent: p["agent"].as_str().unwrap_or("").to_string(),
@@ -342,12 +342,12 @@ fn record_from_created(event: &EventEnvelope) -> Option<JobRecord> {
     })
 }
 
-/// Fold a slice of events into a map of `job_id → JobRecord`.
+/// Fold a slice of events into a map of `job_id → PipelineRun`.
 ///
 /// Events must be ordered by `created_at` ascending. Non-`job.*` / `step.*`
 /// events are silently skipped. Used by tests and the one-shot hydration path.
-pub fn project(events: &[EventEnvelope]) -> HashMap<String, JobRecord> {
-    let mut map: HashMap<String, JobRecord> = HashMap::new();
+pub fn project(events: &[EventEnvelope]) -> HashMap<String, PipelineRun> {
+    let mut map: HashMap<String, PipelineRun> = HashMap::new();
     for event in events {
         if !event.event_type.starts_with("job.") && !event.event_type.starts_with("step.") {
             continue;
@@ -439,7 +439,7 @@ const ROW_COLS: &str = "job_id, slug, agent, branch, spec_path, source_spec_path
     current_phase, completed_steps_json, current_step, vars_json, \
     step_retries_json, headless, baseline_sha";
 
-fn row_to_record(row: &sqlx::sqlite::SqliteRow) -> Result<JobRecord> {
+fn row_to_record(row: &sqlx::sqlite::SqliteRow) -> Result<PipelineRun> {
     let depends_on_json: Option<String> = row.try_get(6).ok().flatten();
     let depends_on = depends_on_json
         .as_deref()
@@ -476,7 +476,7 @@ fn row_to_record(row: &sqlx::sqlite::SqliteRow) -> Result<JobRecord> {
         serde_json::from_str(&step_retries_json).unwrap_or_default();
     let headless: i64 = row.get(23);
 
-    Ok(JobRecord {
+    Ok(PipelineRun {
         job_id: row.get(0),
         slug: row.get(1),
         agent: row.get(2),
@@ -515,7 +515,7 @@ fn row_to_record(row: &sqlx::sqlite::SqliteRow) -> Result<JobRecord> {
     })
 }
 
-fn upsert_record(record: &JobRecord, conn: &mut SqliteConnection) -> Result<()> {
+fn upsert_record(record: &PipelineRun, conn: &mut SqliteConnection) -> Result<()> {
     let depends_on_json = record
         .depends_on
         .as_ref()
@@ -594,7 +594,7 @@ fn upsert_record(record: &JobRecord, conn: &mut SqliteConnection) -> Result<()> 
     Ok(())
 }
 
-fn load_row(job_id: &str, conn: &mut SqliteConnection) -> Result<Option<JobRecord>> {
+fn load_row(job_id: &str, conn: &mut SqliteConnection) -> Result<Option<PipelineRun>> {
     let row = block_on(async {
         sqlx::query(&format!("SELECT {ROW_COLS} FROM jobs WHERE job_id = ?"))
             .bind(job_id)
@@ -604,7 +604,7 @@ fn load_row(job_id: &str, conn: &mut SqliteConnection) -> Result<Option<JobRecor
     row.as_ref().map(row_to_record).transpose()
 }
 
-fn load_all_rows(conn: &mut SqliteConnection) -> Result<HashMap<String, JobRecord>> {
+fn load_all_rows(conn: &mut SqliteConnection) -> Result<HashMap<String, PipelineRun>> {
     let rows = block_on(async {
         sqlx::query(&format!("SELECT {ROW_COLS} FROM jobs"))
             .fetch_all(conn)
@@ -620,11 +620,11 @@ fn load_all_rows(conn: &mut SqliteConnection) -> Result<HashMap<String, JobRecor
 
 // ── Public read API ─────────────────────────────────────────────────────────
 
-/// Load all jobs from the platform DB. Returns a `job_id → JobRecord` map.
+/// Load all jobs from the platform DB. Returns a `job_id → PipelineRun` map.
 ///
 /// Backed by the `jobs` table. On installs that predate the projection table,
 /// hydrates from the event log on first call (idempotent).
-pub fn load_jobs() -> Result<HashMap<String, JobRecord>> {
+pub fn load_jobs() -> Result<HashMap<String, PipelineRun>> {
     use ship_substrate::db::{db_path, ensure_db, open_db_at};
 
     ensure_db()?;
@@ -634,7 +634,7 @@ pub fn load_jobs() -> Result<HashMap<String, JobRecord>> {
 }
 
 /// Load all jobs from an explicit `ship_dir` path. Preferred in tests.
-pub fn load_jobs_at(ship_dir: &std::path::Path) -> Result<HashMap<String, JobRecord>> {
+pub fn load_jobs_at(ship_dir: &std::path::Path) -> Result<HashMap<String, PipelineRun>> {
     use ship_substrate::db::{ensure_db_at, open_db_at};
 
     ensure_db_at(ship_dir)?;
@@ -647,7 +647,7 @@ pub fn load_jobs_at(ship_dir: &std::path::Path) -> Result<HashMap<String, JobRec
 ///
 /// Used by the orchestrator's terminal-state guard and other hot-path callers
 /// that previously fetched every job to filter for one.
-pub fn load_job_by_id(job_id: &str) -> Result<Option<JobRecord>> {
+pub fn load_job_by_id(job_id: &str) -> Result<Option<PipelineRun>> {
     use ship_substrate::db::{db_path, ensure_db, open_db_at};
 
     ensure_db()?;
@@ -661,7 +661,7 @@ pub fn load_job_by_id(job_id: &str) -> Result<Option<JobRecord>> {
 pub fn load_job_by_id_at(
     ship_dir: &std::path::Path,
     job_id: &str,
-) -> Result<Option<JobRecord>> {
+) -> Result<Option<PipelineRun>> {
     use ship_substrate::db::{ensure_db_at, open_db_at};
 
     ensure_db_at(ship_dir)?;
@@ -673,7 +673,7 @@ pub fn load_job_by_id_at(
 /// Index-backed lookup for a single job by its `slug`. Returns the most
 /// recently updated match (slug isn't unique across job lifetimes — re-runs
 /// of the same logical job get a fresh job_id but reuse the slug).
-pub fn load_job_by_slug(slug: &str) -> Result<Option<JobRecord>> {
+pub fn load_job_by_slug(slug: &str) -> Result<Option<PipelineRun>> {
     use ship_substrate::db::{db_path, ensure_db, open_db_at};
 
     ensure_db()?;
@@ -686,7 +686,7 @@ pub fn load_job_by_slug(slug: &str) -> Result<Option<JobRecord>> {
 pub fn load_job_by_slug_at(
     ship_dir: &std::path::Path,
     slug: &str,
-) -> Result<Option<JobRecord>> {
+) -> Result<Option<PipelineRun>> {
     use ship_substrate::db::{ensure_db_at, open_db_at};
 
     ensure_db_at(ship_dir)?;
@@ -697,7 +697,7 @@ pub fn load_job_by_slug_at(
 fn load_job_by_slug_on(
     conn: &mut SqliteConnection,
     slug: &str,
-) -> Result<Option<JobRecord>> {
+) -> Result<Option<PipelineRun>> {
     hydrate_if_needed(conn)?;
     let row = block_on(async {
         sqlx::query(&format!(

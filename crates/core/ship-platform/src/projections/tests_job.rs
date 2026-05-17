@@ -466,7 +466,7 @@ mod idempotent {
         ]
     }
 
-    fn project_and_get(events: &[EventEnvelope], job_id: &str) -> super::super::JobRecord {
+    fn project_and_get(events: &[EventEnvelope], job_id: &str) -> super::super::PipelineRun {
         super::project(events).get(job_id).cloned().unwrap()
     }
 

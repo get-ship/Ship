@@ -133,7 +133,7 @@
       "purpose": "read",
       "params": [],
       "summary": "GET /api/v1/runtime/jobs",
-      "description": "Returns each `JobRecord` with two operator-visibility annotations:\n\n- `process_state`: `\"alive\"` when the latest process projection for the\n  slug is still Running, `\"missing\"` when the most recent supervisor\n  sweep flagged drift (no_process) without a coherence_restored after\n  it, `\"terminal\"` for jobs in a terminal status, `\"none\"` otherwise.\n- `notes`: optional truncated error / blocker for the row's NOTES column.",
+      "description": "Returns each `PipelineRun` with two operator-visibility annotations:\n\n- `process_state`: `\"alive\"` when the latest process projection for the\n  slug is still Running, `\"missing\"` when the most recent supervisor\n  sweep flagged drift (no_process) without a coherence_restored after\n  it, `\"terminal\"` for jobs in a terminal status, `\"none\"` otherwise.\n- `notes`: optional truncated error / blocker for the row's NOTES column.",
       "request": null,
       "response": {
         "$ref": "#/components/schemas/MeshResponse"
@@ -569,6 +569,20 @@
       "request": null,
       "response": {
         "$ref": "#/components/schemas/ViewSourceResponse"
+      }
+    },
+    "GET /api/v1/views/{name}/files": {
+      "method": "GET",
+      "path": "/api/v1/views/{name}/files",
+      "purpose": "read",
+      "params": [
+        "name"
+      ],
+      "summary": null,
+      "description": null,
+      "request": null,
+      "response": {
+        "$ref": "#/components/schemas/ViewFilesResponse"
       }
     },
     "POST /api/v1/views/{name}/fork": {

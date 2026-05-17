@@ -28,14 +28,14 @@ pub use ship_platform::services::skills::view_state::{
     load_skill_file,
 };
 
-use ship_platform::projections::job::{JobRecord, JobStatus};
+use ship_platform::projections::job::{PipelineRun, JobStatus};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::io::ErrorKind;
 use std::path::Path;
 
 /// Definition of a pipeline parsed from a `.ship/pipelines/*.jsonc` file,
-/// plus usage stats aggregated from JobRecords referencing it.
+/// plus usage stats aggregated from PipelineRuns referencing it.
 #[derive(Clone, Debug, Serialize)]
 pub struct PipelineDef {
     pub name: String,
@@ -107,7 +107,7 @@ pub struct Filter {
     /// pipeline name where relevant.
     #[serde(default)]
     pub q: Option<String>,
-    /// Exact match on `JobRecord::agent`.
+    /// Exact match on `PipelineRun::agent`.
     #[serde(default)]
     pub agent: Option<String>,
     /// Exact match on pipeline name (derived from spec path's parent).
@@ -124,7 +124,7 @@ impl Filter {
         self.q.is_none() && self.agent.is_none() && self.pipeline.is_none() && self.status.is_none()
     }
 
-    fn matches(&self, job: &JobRecord) -> bool {
+    fn matches(&self, job: &PipelineRun) -> bool {
         if let Some(q) = self.q.as_deref().filter(|s| !s.is_empty()) {
             let needle = q.to_lowercase();
             let haystack = format!("{} {}", job.slug, job.agent).to_lowercase();
@@ -247,14 +247,14 @@ pub fn list_pipeline_defs(ship_dir: &Path) -> Vec<PipelineDef> {
     out
 }
 
-/// Aggregate per-pipeline run stats from a JobRecord iterator and
+/// Aggregate per-pipeline run stats from a PipelineRun iterator and
 /// merge them into the provided defs. Each def's counts, success
 /// rate, and last-run fields get populated in place.
 pub fn aggregate_pipeline_stats<'a>(
     defs: &mut [PipelineDef],
-    jobs: impl IntoIterator<Item = &'a ship_platform::projections::job::JobRecord>,
+    jobs: impl IntoIterator<Item = &'a ship_platform::projections::job::PipelineRun>,
 ) {
-    let mut by_name: std::collections::HashMap<String, Vec<&JobRecord>> =
+    let mut by_name: std::collections::HashMap<String, Vec<&PipelineRun>> =
         std::collections::HashMap::new();
     for job in jobs {
         let Some(pipe) = pipeline_name_for_job(job) else { continue };
@@ -305,14 +305,14 @@ pub fn aggregate_pipeline_stats<'a>(
 }
 
 /// Public alias — history view needs to group/filter runs by pipeline.
-pub fn pipeline_name_for_job_public(job: &JobRecord) -> Option<String> {
+pub fn pipeline_name_for_job_public(job: &PipelineRun) -> Option<String> {
     pipeline_name_for_job(job)
 }
 
 /// Resolve a job's pipeline name from its slug. `ship run` generates
 /// slug as `<pipeline_name>-<8-char-ulid>`; strip the trailing 8-char
 /// alphanumeric suffix after the last `-`.
-fn pipeline_name_for_job(job: &JobRecord) -> Option<String> {
+fn pipeline_name_for_job(job: &PipelineRun) -> Option<String> {
     let (prefix, suffix) = job.slug.rsplit_once('-')?;
     if suffix.len() == 8 && suffix.chars().all(|c| c.is_ascii_alphanumeric()) {
         Some(prefix.to_string())
@@ -372,7 +372,7 @@ fn parse_pipeline_meta(content: &str) -> (String, usize) {
 }
 
 /// All known job records, filtered, sorted by `updated_at` descending.
-pub fn list_pipeline_runs(ship_dir: &Path, filter: &Filter) -> Vec<JobRecord> {
+pub fn list_pipeline_runs(ship_dir: &Path, filter: &Filter) -> Vec<PipelineRun> {
     let jobs = match ship_platform::projections::job::load_jobs_at(ship_dir) {
         Ok(j) => j,
         Err(e) => {
@@ -383,15 +383,15 @@ pub fn list_pipeline_runs(ship_dir: &Path, filter: &Filter) -> Vec<JobRecord> {
     filter_and_sort(jobs, filter)
 }
 
-fn filter_and_sort(jobs: HashMap<String, JobRecord>, filter: &Filter) -> Vec<JobRecord> {
-    let mut out: Vec<JobRecord> = jobs.into_values().filter(|j| filter.matches(j)).collect();
+fn filter_and_sort(jobs: HashMap<String, PipelineRun>, filter: &Filter) -> Vec<PipelineRun> {
+    let mut out: Vec<PipelineRun> = jobs.into_values().filter(|j| filter.matches(j)).collect();
     out.sort_by(|a, b| b.updated_at.cmp(&a.updated_at));
     out
 }
 
 /// Partition a run list into `(active, history)` by [`RunCategory`].
 /// Preserves relative ordering within each bucket.
-pub fn partition_runs(runs: Vec<JobRecord>) -> (Vec<JobRecord>, Vec<JobRecord>) {
+pub fn partition_runs(runs: Vec<PipelineRun>) -> (Vec<PipelineRun>, Vec<PipelineRun>) {
     let mut active = Vec::new();
     let mut history = Vec::new();
     for run in runs {

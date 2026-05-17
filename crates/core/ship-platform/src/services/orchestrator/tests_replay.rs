@@ -178,7 +178,7 @@ mod replay_filter {
     use chrono::{Duration, Utc};
 
     use ship_substrate::events::job::{Pipeline, PipelineStep, StepType};
-    use crate::projections::job::{JobRecord, JobStatus};
+    use crate::projections::job::{PipelineRun, JobStatus};
     use crate::services::orchestrator::replay::{
         MAX_REPLAYS_PER_STARTUP, needs_replay, select_replay_targets,
     };
@@ -208,9 +208,9 @@ mod replay_filter {
         completed: &[&str],
         auto_merge: bool,
         worktree: Option<String>,
-    ) -> JobRecord {
+    ) -> PipelineRun {
         let now = Utc::now();
-        JobRecord {
+        PipelineRun {
             job_id: id.to_string(),
             slug: id.to_string(),
             agent: "test-agent".to_string(),
@@ -313,7 +313,7 @@ mod replay_filter {
 
     #[test]
     fn replay_no_change_when_nothing_to_replay() {
-        let empty: HashMap<String, JobRecord> = HashMap::new();
+        let empty: HashMap<String, PipelineRun> = HashMap::new();
         assert!(select_replay_targets(&empty).is_empty());
 
         // Fully-advanced no-merge job is filtered out — select returns empty.

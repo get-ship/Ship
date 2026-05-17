@@ -20,7 +20,7 @@ export class ShipApiError extends Error {
  * Typical call:
  * ```ts
  * import { listJobs, shipFetch } from '@ship/sdk'
- * const jobs = await shipFetch<JobRecord[]>(listJobs())
+ * const jobs = await shipFetch<PipelineRun[]>(listJobs())
  * ```
  */
 export async function shipFetch<T>(

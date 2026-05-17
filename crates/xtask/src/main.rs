@@ -93,7 +93,7 @@ fn collect_types() -> TypeCollection {
     // ── Daemon / runtime types ─────────────────────────────────────────────
 
     // projections/job.rs
-    c.register::<ship_platform::projections::job::JobRecord>();
+    c.register::<ship_platform::projections::job::PipelineRun>();
     c.register::<ship_platform::projections::job::JobStatus>();
 
     // events/job.rs (job event payloads)
@@ -114,7 +114,7 @@ fn collect_types() -> TypeCollection {
     c.register::<ship_substrate::events::job::StepVerdict>();
     c.register::<ship_substrate::events::job::StepRetryPayload>();
 
-    // events/job.rs (pipeline types — already exported via JobRecord, but explicit for clarity)
+    // events/job.rs (pipeline types — already exported via PipelineRun, but explicit for clarity)
     c.register::<ship_substrate::events::job::Pipeline>();
     c.register::<ship_substrate::events::job::PipelineStep>();
     c.register::<ship_substrate::events::job::StepType>();
