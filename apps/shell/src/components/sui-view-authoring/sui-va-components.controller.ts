@@ -86,8 +86,9 @@ export default controller<Scope>({
   },
 
   mount(state) {
+    // sui-runtime mount-state proxy: write via plain assignment.
     const s = state as unknown as {
-      inView: ReturnType<typeof signal<ComponentRef[]>>
+      inView: ComponentRef[]
       view: () => string
     }
 
@@ -95,20 +96,20 @@ export default controller<Scope>({
 
     async function refresh(): Promise<void> {
       const name = s.view()
-      if (!name) { s.inView.set([]); return }
+      if (!name) { s.inView = []; return }
       if (loadedFor === name) return
       loadedFor = name
       const mcp = window.__viewMcp
       if (!mcp) return
       try {
         const source = await readSourceWithRetry(mcp, name)
-        s.inView.set(scanComponents(source))
+        s.inView = scanComponents(source)
       } catch {
         // Reset the guard so a subsequent view switch (or a manual
         // re-mount of the tab) can re-attempt — otherwise an early
         // failure leaves the chips section permanently empty.
         loadedFor = null
-        s.inView.set([])
+        s.inView = []
       }
     }
 

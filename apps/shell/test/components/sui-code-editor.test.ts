@@ -13,7 +13,7 @@
  */
 
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import '../src/sui-code-editor/sui-code-editor.compiled.js'
+import '../../src/components/sui-code-editor/sui-code-editor.compiled.js'
 
 const containers: HTMLElement[] = []
 

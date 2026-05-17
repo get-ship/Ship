@@ -29,7 +29,11 @@ export default controller<Scope>({
   },
 
   mount(state, host) {
-    const s = state as unknown as { pins: ReturnType<typeof signal<Pin[]>> }
+    // sui-runtime mount-state proxy: write via plain assignment.
+    // Reads still need explicit `()` since the proxy returns the signal
+    // (callable) — the `readState` alias preserves that call shape.
+    const s = state as unknown as { pins: Pin[] }
+    const readState = state as unknown as { pins: ReturnType<typeof signal<Pin[]>> }
     let counter = 0
     let lastTurn = 0
     const timers = new Map<string, number>()
@@ -47,20 +51,20 @@ export default controller<Scope>({
     }
 
     function removePin(id: string): void {
-      const next = s.pins().filter((p) => p.id !== id)
-      s.pins.set(next)
+      const next = readState.pins().filter((p) => p.id !== id)
+      s.pins = next
       const tid = timers.get(id)
       if (tid != null) { window.clearTimeout(tid); timers.delete(id) }
     }
 
     function startFade(id: string): void {
-      const next = s.pins().map((p) => p.id === id ? { ...p, fading: true } : p)
-      s.pins.set(next)
+      const next = readState.pins().map((p) => p.id === id ? { ...p, fading: true } : p)
+      s.pins = next
       window.setTimeout(() => removePin(id), 260)
     }
 
     function clearAllExceptTurn(turn: number): void {
-      for (const p of s.pins()) {
+      for (const p of readState.pins()) {
         if (p.turn < turn) startFade(p.id)
       }
     }
@@ -92,13 +96,13 @@ export default controller<Scope>({
         x: at.x, y: at.y,
         fading: false,
       }
-      s.pins.set([...s.pins().filter((p) => p.id !== id), pin])
+      s.pins = [...readState.pins().filter((p) => p.id !== id), pin]
       const tid = window.setTimeout(() => startFade(id), AUTO_CLEAR_MS)
       timers.set(id, tid)
     }
 
     function reposition(): void {
-      const cur = s.pins()
+      const cur = readState.pins()
       if (cur.length === 0) return
       const next: Pin[] = []
       for (const p of cur) {
@@ -106,7 +110,7 @@ export default controller<Scope>({
         if (!at) continue
         next.push({ ...p, x: at.x, y: at.y })
       }
-      s.pins.set(next)
+      s.pins = next
     }
 
     document.addEventListener('sui:view:annotation', onAnnotation)
@@ -119,11 +123,11 @@ export default controller<Scope>({
     // Public API for tests: synchronously read pin count.
     Object.defineProperty(host, 'pinCount', {
       configurable: true,
-      get: () => s.pins().filter((p) => !p.fading).length,
+      get: () => readState.pins().filter((p) => !p.fading).length,
     })
     Object.defineProperty(host, 'clear', {
       configurable: true,
-      value: () => { for (const p of s.pins()) startFade(p.id) },
+      value: () => { for (const p of readState.pins()) startFade(p.id) },
     })
 
     return () => {

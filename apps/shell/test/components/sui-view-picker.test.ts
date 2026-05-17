@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 // sui-popover / sui-portal / sui-icon / sui-app-icon live in @ship/primitives.
 import '@ship/primitives'
-import '../src/sui-view-picker/sui-view-picker.compiled.js'
-import { createContainerRegistry, flush, mount } from '../src/test-utils'
+import '../../src/components/sui-view-picker/sui-view-picker.compiled.js'
+import { createContainerRegistry, flush, mount } from '../test-utils'
 
 const reg = createContainerRegistry()
 afterEach(() => {

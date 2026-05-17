@@ -27,10 +27,15 @@ export default controller<Scope>({
   },
 
   mount(state, host) {
+    // sui-runtime mount-state proxy: reads return the signal (callable),
+    // writes proxy through to signal.set. Plain assignment is the
+    // canonical write form regardless of whether the property is a
+    // scope-declared signal or a bridged prop.
     const s = state as unknown as {
-      entries: ReturnType<typeof signal<Entry[]>>
+      entries: Entry[]
       view: () => string
     }
+    const readEntries = state as unknown as { entries: ReturnType<typeof signal<Entry[]>> }
 
     let counter = 0
 
@@ -41,8 +46,7 @@ export default controller<Scope>({
         id: `va-${counter}`,
         tsFmt: formatTs(entry.ts),
       }
-      const next = [e, ...s.entries()].slice(0, MAX_ENTRIES)
-      s.entries.set(next)
+      s.entries = [e, ...readEntries.entries()].slice(0, MAX_ENTRIES)
     }
 
     function matchesView(detailView: string | undefined): boolean {
@@ -89,7 +93,7 @@ export default controller<Scope>({
 
     Object.defineProperty(host, 'clear', {
       configurable: true,
-      value: () => s.entries.set([]),
+      value: () => { s.entries = [] },
     })
 
     return () => {

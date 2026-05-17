@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import '../src/sui-nav-top/sui-nav-top.compiled.js'
-import { createContainerRegistry, flush, mount } from '../src/test-utils'
+import '../../src/components/sui-nav-top/sui-nav-top.compiled.js'
+import { createContainerRegistry, flush, mount } from '../test-utils'
 
 const reg = createContainerRegistry()
 afterEach(() => reg.cleanup())

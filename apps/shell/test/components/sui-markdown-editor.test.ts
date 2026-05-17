@@ -9,8 +9,8 @@
  */
 
 import { afterEach, describe, expect, it } from 'vitest'
-import '../src/sui-markdown-editor/sui-markdown-editor.compiled.js'
-import { createContainerRegistry, flush, mount } from '../src/test-utils'
+import '../../src/components/sui-markdown-editor/sui-markdown-editor.compiled.js'
+import { createContainerRegistry, flush, mount } from '../test-utils'
 
 const reg = createContainerRegistry()
 afterEach(() => reg.cleanup())

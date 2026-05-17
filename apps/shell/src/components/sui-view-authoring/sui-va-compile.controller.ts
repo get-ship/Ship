@@ -26,8 +26,9 @@ export default controller<Scope>({
   },
 
   mount(state) {
+    // sui-runtime mount-state proxy: write via plain assignment.
     const s = state as unknown as {
-      errors: ReturnType<typeof signal<ErrorRow[]>>
+      errors: ErrorRow[]
       view: () => string
     }
 
@@ -44,19 +45,19 @@ export default controller<Scope>({
     function onErrored(e: Event): void {
       const d = (e as CustomEvent).detail as { view?: string; errors?: ErrIn[] } | undefined
       if (!d || !matches(d.view)) return
-      s.errors.set((d.errors ?? []).map((er) => ({
+      s.errors = (d.errors ?? []).map((er) => ({
         id: id(),
         line: er.line ?? 1,
         col: er.col ?? 1,
         severity: er.severity ?? 'error',
         message: er.message,
-      })))
+      }))
     }
     function onCompiled(e: Event): void {
       const d = (e as CustomEvent).detail as { view?: string } | undefined
       if (!matches(d?.view)) return
       // Successful compile clears the list.
-      s.errors.set([])
+      s.errors = []
     }
 
     document.addEventListener('sui:view:errored', onErrored)
