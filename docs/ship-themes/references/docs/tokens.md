@@ -8,7 +8,7 @@ description: The v1 stability contract for Ship's CSS custom properties — whic
 
 # Token stability
 
-Ship's design tokens live in `packages/ship-set/src/tokens.css`. Each token is split into one of two contracts:
+Ship's design tokens live in `packages/ui-components/src/tokens/tokens.css`. Each token is split into one of two contracts:
 
 - **`@stable`** — public v1 API. Renames within v1.x ship a deprecation alias kept for one minor. New tokens may be added at any time. Themes, third-party components, and user CSS may rely on these names.
 - **`@internal`** — implementation detail of the default themes. May be renamed, retyped, or removed at any minor without notice. Override at your own risk.

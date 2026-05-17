@@ -88,10 +88,6 @@ function buildTopics(isInternal) {
       // Pipelines + Triggers are experimental power-user surfaces —
       // hidden from the public Build sidebar. Content stays reachable
       // internally via the Internals topic (see INTERNALS_DIRS).
-      {
-        label: "Recipes",
-        autogenerate: { directory: "recipes" },
-      },
     ],
   },
   {
@@ -131,10 +127,6 @@ function buildTopics(isInternal) {
       {
         label: "Design System",
         autogenerate: { directory: "design-system" },
-      },
-      {
-        label: "SDK",
-        autogenerate: { directory: "sdk" },
       },
     ],
   },

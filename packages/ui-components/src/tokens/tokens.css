@@ -293,6 +293,22 @@ body::after {
   --status-orange: oklch(0.6 0.2 35);
   --status-amber: oklch(0.75 0.15 75);
 
+  /* Syntax-highlighting tokens — read by sui-code-editor and any
+   * other code-rendering surface. Kept separate from the brand
+   * palette so themes that intentionally subdue their --primary /
+   * --accent (halo, paper) can still keep code legibility high.
+   * Defaults track the canonical brand palette but with chroma
+   * floored for contrast against typical card backgrounds. */
+  --syntax-keyword:  oklch(0.55 0.20 280);
+  --syntax-string:   oklch(0.50 0.15 152);
+  --syntax-number:   oklch(0.50 0.16 250);
+  --syntax-function: oklch(0.55 0.22 310);
+  --syntax-type:     oklch(0.55 0.18 200);
+  --syntax-tag:      oklch(0.50 0.20 25);
+  --syntax-attr:     oklch(0.55 0.16 60);
+  --syntax-comment:  oklch(0.55 0.02 250);
+  --syntax-variable: var(--foreground);
+
   /* Sidebar — kept as-is for Studio compat. */
   --sidebar: oklch(0.99 0.001 106.423);
   --sidebar-foreground: oklch(0.147 0.004 49.25);

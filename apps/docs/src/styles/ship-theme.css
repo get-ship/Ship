@@ -89,6 +89,22 @@ pre {
   border-radius: 0.5rem;
 }
 
+/* Starlight site-search button. The default border picks up
+ * --sl-color-hairline → --border, which is near-transparent on
+ * frosted themes (glass: oklch(1 0 0 / 22%), halo: similar).
+ * Force a thicker, more present outline via --border-strong with
+ * a fallback to a darkened --foreground so the button is clearly
+ * an input on every theme. */
+button[data-open-modal],
+site-search button {
+  border: 1px solid var(--border-strong, color-mix(in oklch, var(--foreground) 24%, transparent)) !important;
+  background: var(--card, var(--sl-color-bg-sidebar)) !important;
+}
+button[data-open-modal]:hover,
+site-search button:hover {
+  border-color: var(--ring, var(--primary)) !important;
+}
+
 nav.sidebar .top-level > li {
   margin-top: 0.25rem;
 }
@@ -384,25 +400,225 @@ body:has(.canvas-root) .sl-container { flex: 1; min-height: 0; display: flex; fl
 body:has(.canvas-root) .pagination-links,
 body:has(.canvas-root) footer.sl-flex { display: none !important; }
 
-/* Floating "← Docs" badge — top-left of the canvas, absolute
- * positioned so it doesn't eat a layout row. Used by every canvas
- * surface as the way back to the rest of the site. */
+/* "← Docs" link — non-absolute, flows inline above the rest of
+ * the canvas content. Earlier iteration positioned it absolute
+ * top-left and it clashed with the prose pane's chapter chip;
+ * top-right clashed with editor pane chrome. Inline placement
+ * (caller decides exactly where) is the only conflict-free
+ * option. Caller wraps in whatever container makes sense for the
+ * surface — for the tutorial that's the prose pane header. */
 .canvas-back {
-  position: absolute;
-  top: 6px;
-  left: 12px;
-  z-index: 10;
+  display: inline-block;
   font-family: var(--sl-font-system-mono);
   font-size: 0.7rem;
-  color: var(--sl-color-gray-2);
+  color: var(--sl-color-gray-3);
   text-decoration: none;
-  padding: 3px 8px;
-  border-radius: 4px;
-  background: color-mix(in oklch, var(--sl-color-bg-sidebar) 80%, transparent);
-  border: 1px solid var(--sl-color-hairline-shade);
-  transition: color 120ms ease, border-color 120ms ease;
+  padding: 2px 0;
+  border-bottom: 1px dotted color-mix(in oklch, var(--sl-color-gray-3) 50%, transparent);
+  opacity: 0.65;
+  transition: color 120ms ease, opacity 120ms ease, border-color 120ms ease;
 }
 .canvas-back:hover {
   color: var(--sl-color-text-accent);
-  border-color: var(--sl-color-text-accent);
+  opacity: 1;
+  border-bottom-color: var(--sl-color-text-accent);
+}
+
+/* --------------------------------------------------------------------
+ * Homepage — hero, three-up, and live grid.
+ *
+ * All idx-* blocks sit inside `<div class="not-content">` so Starlight's
+ * `:not(inline) + :not(inline) { margin-top }` rule doesn't push their
+ * second-and-after children down (the bug that visually shifts the
+ * second sui-button in a sui-toolbar, every sibling sui-pipeline-step
+ * after the first, etc.).
+ * ----------------------------------------------------------------- */
+
+/* Homepage suppresses Starlight's auto h1 — the hero block has its own
+ * display title. Starlight renders the page-title h1 in a separate
+ * .content-panel above the markdown one, so we use :has() across the
+ * body to find pages that opt into the custom hero. */
+body:has(.idx-hero) .content-panel:has(> .sl-container > h1#_top) { display: none; }
+
+.idx-hero {
+  position: relative;
+  margin: 0 0 2rem;
+  padding: 2.5rem 2rem 2.25rem;
+  border-radius: var(--radius-lg, 14px);
+  overflow: hidden;
+  border: 1px solid var(--border, var(--sl-color-gray-5));
+  background:
+    radial-gradient(ellipse 60% 70% at 0% 0%, color-mix(in oklch, var(--primary) 18%, transparent), transparent 60%),
+    radial-gradient(ellipse 70% 65% at 100% 100%, color-mix(in oklch, var(--accent) 14%, transparent), transparent 60%),
+    var(--card, var(--sl-color-bg-sidebar));
+}
+.idx-hero-band {
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  background: linear-gradient(90deg,
+    var(--primary, oklch(0.67 0.16 58)) 0%,
+    var(--accent, oklch(0.61 0.23 303)) 50%,
+    var(--info, oklch(0.6 0.18 260)) 100%);
+}
+.idx-hero-inner { position: relative; max-width: 46rem; }
+.idx-eyebrow {
+  margin: 0 0 0.5rem;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.75rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted-foreground, var(--sl-color-gray-3));
+}
+.idx-title {
+  margin: 0 0 0.75rem;
+  font-family: "Syne Variable", "Syne", "Inter", sans-serif;
+  font-size: clamp(2rem, 4.5vw, 3rem);
+  line-height: 1.05;
+  letter-spacing: -0.025em;
+  font-weight: 700;
+  color: var(--foreground);
+}
+.idx-title-accent {
+  background: linear-gradient(90deg,
+    var(--primary) 0%,
+    var(--accent) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.idx-lede {
+  margin: 0 0 1.5rem;
+  font-size: 1.0625rem;
+  line-height: 1.55;
+  color: color-mix(in oklch, var(--foreground) 80%, var(--background));
+  max-width: 38rem;
+}
+.idx-cta-row {
+  display: flex;
+  gap: 0.625rem;
+  flex-wrap: wrap;
+  margin: 0 0 1.25rem;
+}
+.idx-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1.125rem;
+  border-radius: var(--radius-md, 8px);
+  font-weight: 600;
+  font-size: 0.9375rem;
+  text-decoration: none;
+  transition: transform 120ms ease, box-shadow 120ms ease, background 120ms ease;
+  border: 1px solid transparent;
+}
+.idx-cta-primary {
+  background: var(--primary);
+  color: var(--primary-foreground);
+  box-shadow: 0 4px 12px color-mix(in oklch, var(--primary) 30%, transparent),
+    0 1px 0 color-mix(in oklch, var(--primary) 60%, var(--foreground)) inset;
+}
+.idx-cta-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 18px color-mix(in oklch, var(--primary) 40%, transparent); }
+.idx-cta-secondary {
+  background: var(--card, var(--sl-color-bg-sidebar));
+  color: var(--foreground);
+  border-color: var(--border-strong, color-mix(in oklch, var(--foreground) 24%, transparent));
+}
+.idx-cta-secondary:hover { border-color: var(--primary); color: var(--primary); }
+.idx-cta-ghost { color: var(--muted-foreground); }
+.idx-cta-ghost:hover { color: var(--primary); }
+.idx-pill-row {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin: 0;
+}
+.idx-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0.625rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  color: var(--muted-foreground);
+  background: color-mix(in oklch, var(--foreground) 5%, transparent);
+  border: 1px solid color-mix(in oklch, var(--foreground) 8%, transparent);
+}
+.idx-pill-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.idx-dot-primary { background: var(--primary); }
+.idx-dot-success { background: var(--success); }
+.idx-dot-info { background: var(--info); }
+
+.idx-three {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1rem;
+  margin: 0 0 2.5rem;
+}
+.idx-three-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1.25rem 1.25rem 1.125rem;
+  border-radius: var(--radius-md, 10px);
+  border: 1px solid var(--border-strong, color-mix(in oklch, var(--foreground) 18%, transparent));
+  background: var(--card, var(--sl-color-bg-sidebar));
+  color: var(--foreground);
+  text-decoration: none;
+  overflow: hidden;
+  transition: transform 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+}
+.idx-three-card::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  background: var(--accent-stripe, var(--primary));
+}
+.idx-three-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--accent-stripe, var(--primary));
+  box-shadow: 0 6px 22px color-mix(in oklch, var(--accent-stripe, var(--primary)) 18%, transparent);
+}
+.idx-card-primary { --accent-stripe: var(--primary); }
+.idx-card-info    { --accent-stripe: var(--info); }
+.idx-card-success { --accent-stripe: var(--success); }
+.idx-three-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 18px;
+  color: var(--accent-stripe);
+  background: color-mix(in oklch, var(--accent-stripe) 12%, transparent);
+  border: 1px solid color-mix(in oklch, var(--accent-stripe) 22%, transparent);
+}
+.idx-three-title {
+  font-family: "Syne Variable", "Syne", "Inter", sans-serif;
+  font-weight: 700;
+  font-size: 1.0625rem;
+  letter-spacing: -0.015em;
+}
+.idx-three-body {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--muted-foreground);
+}
+
+.idx-live-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.25rem;
+  margin: 1.5rem 0 2rem;
 }

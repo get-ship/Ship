@@ -284,6 +284,33 @@ const HIDDEN_TAGS = new Set([
   'sui-annotation-layer',
   'sui-annotation-marker',
   'sui-annotation-list',
+  // Shell chrome — only meaningful inside the Ship Studio shell.
+  // Documenting them on /components/ promotes infrastructure that
+  // customers shouldn't compose into their own apps. The shell
+  // catalog (apps/shell/) imports them directly.
+  'sui-launcher',
+  'sui-nav-top',
+  'sui-panel-dock',
+  'sui-rail',
+  'sui-rail-item',
+  'sui-rail-section',
+  'sui-view-chrome',
+  'sui-view-picker',
+  'sui-app-icon',
+  'sui-brand-mark',
+  'sui-devtools-components',
+  'sui-devtools-schema',
+  'sui-devtools-signals',
+  'sui-devtools-source',
+  // View-authoring overlay components — only meaningful when shell's
+  // edit mode is active. Same reasoning as devtools-*.
+  'sui-va-activity',
+  'sui-va-annotation-pins',
+  'sui-va-compile',
+  'sui-va-components',
+  'sui-va-source',
+  // Examples-only.
+  'sui-app',
 ]);
 
 function takeFirstSentence(s: string): string {

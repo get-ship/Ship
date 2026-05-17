@@ -5,22 +5,21 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SUI tutorial host</title>
   <script>
-    // Map the parent's theme query to the Ship token-system selectors
-    // — Ship's tokens.css overrides `:root[data-theme='ship-dark']`
-    // (and a few other named themes), and falls back to `:root`
-    // defaults for the light surface. The parent passes 'light' or
-    // 'dark' via ?theme; we translate to the right Ship selector and
-    // toggle the .dark class for any rule that keys on it.
+    // Pass the parent's full theme name through. Ship has six themes:
+    // ship-light, ship-dark, paper, halo, console, contrast, glass.
+    // The parent sets ?theme=<full-id> on iframe.src; we stamp it
+    // onto data-theme and toggle .dark for any selector keyed on it.
+    // Legacy 'light' / 'dark' short forms keep working.
     (function () {
+      var DARK_THEMES = { 'ship-dark': 1, console: 1, contrast: 1 }
       var p = new URLSearchParams(location.search)
-      var t = p.get('theme')
+      var raw = p.get('theme') || ''
       var root = document.documentElement
-      if (t === 'dark') {
-        root.dataset.theme = 'ship-dark'
-        root.classList.add('dark')
-      } else if (t === 'light') {
-        root.dataset.theme = 'ship-light'
-        root.classList.remove('dark')
+      if (raw === 'light') raw = 'ship-light'
+      else if (raw === 'dark') raw = 'ship-dark'
+      if (raw) {
+        root.dataset.theme = raw
+        root.classList.toggle('dark', !!DARK_THEMES[raw])
       }
     })()
   </script>

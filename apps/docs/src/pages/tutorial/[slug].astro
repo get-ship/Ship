@@ -14,6 +14,7 @@ import TutorialApp from '../../components/TutorialApp.astro'
 import { readFileSync, readdirSync, existsSync } from 'node:fs'
 import { resolve, dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { createHighlighter } from 'shiki'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const repoRoot = resolve(__dirname, '../../../../../')
@@ -133,14 +134,43 @@ if (!starter || !solved) {
 // regex pass that handles fences + paragraphs. Good enough for the
 // three steps we have — and a TODO is to plug Astro's MD compiler
 // in once the surrounding shape is locked in.
+// Shiki highlighter — created once at module-load (top-level await
+// in Astro's SSR context). Bundles the four languages tutorial
+// prose uses + two themes (one for .dark, one for :root). The
+// `themeCssSelector`-style wrapping handled in the renderer below
+// emits two `<pre>` blocks per snippet; CSS picks the right one
+// per page-theme. Smaller and sharper than expressive-code for
+// this hot path (the slug page renders 25 markdown bodies).
+const SHIKI_LANGS = ['typescript', 'tsx', 'html', 'json', 'bash', 'css']
+// Map our fence labels to a Shiki-known language. `sui` is a stand-in
+// — Shiki has no `sui` grammar; `tsx` gives us SUI-like highlighting
+// (templates + braces + identifiers) without a custom TextMate grammar.
+const LANG_MAP: Record<string, string> = {
+  sui: 'tsx', ts: 'typescript', js: 'typescript',
+  html: 'html', json: 'json', bash: 'bash', sh: 'bash', css: 'css',
+}
+const highlighter = await createHighlighter({
+  themes: ['github-light', 'night-owl'],
+  langs: SHIKI_LANGS,
+})
+
+function renderCode(lang: string, code: string): string {
+  const grammar = LANG_MAP[lang] || 'typescript'
+  // Two-pass: one HTML pre per theme; CSS shows/hides the right
+  // one based on `html.dark`. Saves a per-page theme switcher.
+  const light = highlighter.codeToHtml(code, { lang: grammar, theme: 'github-light' })
+  const dark = highlighter.codeToHtml(code, { lang: grammar, theme: 'night-owl' })
+  return `<div class="tut-code"><div class="tut-code-light">${light}</div><div class="tut-code-dark">${dark}</div></div>`
+}
+
 function renderMarkdown(md: string): string {
   let out = md
-  // Code fences ```lang\n...\n``` → <sui-code block> for syntax
-  // highlighting via the Ship code primitive (same lowlight palette
-  // as the sui-code-editor, so prose and live editor agree).
+  // Code fences ```lang\n...\n``` → real Shiki-highlighted output.
+  // Replaces the prior sui-code block (no syntax highlighting,
+  // horizontally-scrolling source) with proper tokenized HTML +
+  // theme switching keyed on html.dark.
   out = out.replace(/```([\w-]*)\n([\s\S]*?)\n```/g, (_m, lang, code) => {
-    const escaped = code.replace(/[<>&]/g, (c: string) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' })[c]!)
-    return `<sui-code block lang="${lang || ''}">${escaped}</sui-code>`
+    return renderCode((lang as string) || 'ts', code as string)
   })
   // Headings
   out = out.replace(/^(#{1,4})\s+(.+)$/gm, (_m, hashes, title) => {
@@ -149,8 +179,7 @@ function renderMarkdown(md: string): string {
   })
   // Inline code — escape the inner contents so things like
   // `<textarea>` and `<select>` don't get parsed as live HTML by
-  // the browser. (Block code fences above already escape inside the
-  // <sui-code> body; this is the analogous fix for inline code.)
+  // the browser.
   out = out.replace(/`([^`]+)`/g, (_m, inner: string) => {
     const escaped = inner.replace(/[<>&]/g, (c: string) =>
       ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' })[c]!,
@@ -170,7 +199,7 @@ function renderMarkdown(md: string): string {
   for (const para of out.split(/\n{2,}/)) {
     const trimmed = para.trim()
     if (!trimmed) continue
-    if (/^<(pre|h\d|ol|ul|blockquote|sui-code|sui-alert)/.test(trimmed)) blocks.push(trimmed)
+    if (/^<(pre|h\d|ol|ul|blockquote|div class="tut-code|sui-alert)/.test(trimmed)) blocks.push(trimmed)
     else blocks.push(`<p>${trimmed.replace(/\n/g, ' ')}</p>`)
   }
   return blocks.join('\n')
@@ -188,21 +217,22 @@ const proseHtml = renderMarkdown(body)
   }}
 >
   <div class="tut-root canvas-root">
-    {/* The shared .canvas-back is positioned absolute via the global
-        rule in ship-theme.css — keeps every working surface (tutorial,
-        component viewer, future playgrounds) using the same back
-        affordance instead of each rolling its own. */}
-    <a href="/" class="canvas-back" aria-label="Back to docs home">
-      <span aria-hidden="true">←</span> Docs
-    </a>
-
     <div class="tut-split">
       <article class="tut-prose">
         <header class="tut-prose-head">
-          <sui-chip tone="primary" variant="soft" size="sm" pill>
-            {String(fm.order).padStart(2, '0')} · {chapterLabel(fm)}
-          </sui-chip>
-          <h1>{fm.title}</h1>
+          {/* "← Docs" sits inline at the top of the prose header so
+              it never overlaps the chapter chip (the earlier
+              absolute-positioned variant collided with the chip on
+              every step). Subtle dotted underline, accent on hover. */}
+          <a href="/" class="canvas-back" aria-label="Back to docs home">
+            <span aria-hidden="true">←</span> Docs
+          </a>
+          <div class="tut-prose-title">
+            <sui-chip tone="primary" variant="soft" size="sm" pill>
+              {String(fm.order).padStart(2, '0')} · {chapterLabel(fm)}
+            </sui-chip>
+            <h1>{fm.title}</h1>
+          </div>
           {fm.description && <p class="tut-prose-desc">{fm.description}</p>}
         </header>
         <div class="tut-prose-body" set:html={proseHtml} />
@@ -309,11 +339,24 @@ const proseHtml = renderMarkdown(body)
   }
   .tut-prose-head {
     flex-shrink: 0;
-    padding: 2px 14px 8px;
+    padding: 6px 14px 8px;
     border-bottom: 1px solid var(--sl-color-hairline-shade);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .tut-prose-head .canvas-back {
+    align-self: flex-start;
+    margin-bottom: 2px;
+  }
+  .tut-prose-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
   }
   .tut-prose-head h1 {
-    margin: 6px 0 4px;
+    margin: 0 !important;
     font-size: 1.125rem;
     font-weight: 600;
     color: var(--sl-color-white);
@@ -352,15 +395,42 @@ const proseHtml = renderMarkdown(body)
   .tut-prose-nav > *:nth-child(2) { justify-content: center; }
   .tut-prose-nav > *:last-child { justify-content: flex-end; }
   .tut-nav-link { text-decoration: none; }
-  .tut-prose sui-code {
+  /* Inline code — wraps so the narrow prose pane (~28rem) never
+     forces horizontal scroll on a long identifier. */
+  .tut-prose code {
     max-width: 100%;
-    overflow-x: auto;
     word-break: break-word;
+    overflow-wrap: anywhere;
   }
-  .tut-prose sui-code[block] {
-    display: block;
+
+  /* Shiki-highlighted block code. Two `<pre>` per snippet (one
+     per theme); CSS shows the right one based on html.dark.
+     `white-space: pre-wrap` kills horizontal scroll — long lines
+     break instead of overflowing. */
+  .tut-prose .tut-code {
     margin: 0.5rem 0;
   }
+  .tut-prose .tut-code pre {
+    margin: 0 !important;
+    padding: 10px 12px !important;
+    border-radius: 6px;
+    border: 1px solid var(--sl-color-hairline-shade);
+    font-family: var(--sl-font-system-mono);
+    font-size: 0.78rem;
+    line-height: 1.45;
+    overflow-x: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .tut-prose .tut-code pre code {
+    background: transparent;
+    padding: 0;
+    border: 0;
+  }
+  .tut-prose .tut-code-light { display: block; }
+  .tut-prose .tut-code-dark  { display: none; }
+  html.dark .tut-prose .tut-code-light { display: none; }
+  html.dark .tut-prose .tut-code-dark  { display: block; }
   /* Subtle scroll affordance instead of a default ugly scrollbar. */
   .tut-prose::-webkit-scrollbar { width: 6px; }
   .tut-prose::-webkit-scrollbar-thumb {
