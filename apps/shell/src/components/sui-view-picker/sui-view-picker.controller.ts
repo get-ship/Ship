@@ -188,9 +188,33 @@ export default controller<Scope>({
       wasOpen = o
     })
 
+    // Drag-survives-light-dismiss (task #65). Native `popover="auto"`
+    // dismisses on pointerup outside the popover bounds, which happens
+    // mid-drag when the user releases over a drop target outside the
+    // popover panel. Track drag state at the popover root and veto the
+    // close event if it fires while a drag is in flight; re-open via
+    // the exposed show() method on the next frame.
+    let isDragging = false
+    const popRoot = scope.rootEl()
+    if (popRoot) {
+      bindNativeEvent(popRoot, 'dragstart', () => { isDragging = true })
+      bindNativeEvent(popRoot, 'dragend', () => {
+        // Defer the flag-clear so a sui-toggle firing in the same task
+        // (which is what happens when the popover light-dismisses on the
+        // drag's pointerup-outside) still sees isDragging === true.
+        setTimeout(() => { isDragging = false }, 0)
+      })
+    }
+
     const pop = scope.popoverEl()
     if (pop) bindNativeEvent(pop, 'sui-toggle', (e) => {
       const open = !!(e as CustomEvent).detail?.open
+      if (!open && isDragging) {
+        // Popover light-dismissed mid-drag — re-open + suppress the
+        // scope.open mutation so the rest of the view doesn't tear down.
+        requestAnimationFrame(() => { (pop as unknown as { show?: () => void }).show?.() })
+        return
+      }
       if (open !== scope.open()) scope.open.set(open)
     })
 
