@@ -1,0 +1,144 @@
+{
+  "findings": [
+    {
+      "level": "info",
+      "label": "daemon",
+      "detail": "http://localhost:9334",
+      "ts": "2026-05-17T04:12:35.573Z"
+    },
+    {
+      "level": "info",
+      "label": "paired session via dev auto-approve",
+      "detail": "",
+      "ts": "2026-05-17T04:12:35.590Z"
+    },
+    {
+      "level": "info",
+      "label": "attach: __suiDispose set",
+      "detail": "",
+      "ts": "2026-05-17T04:12:37.922Z"
+    },
+    {
+      "level": "info",
+      "label": "overview resolved → .git-head visible",
+      "detail": "",
+      "ts": "2026-05-17T04:12:40.186Z"
+    },
+    {
+      "level": "info",
+      "label": "screenshot git-ship-light.png",
+      "detail": "",
+      "ts": "2026-05-17T04:12:40.428Z"
+    },
+    {
+      "level": "info",
+      "label": "screenshot git-ship-dark.png",
+      "detail": "",
+      "ts": "2026-05-17T04:12:40.676Z"
+    },
+    {
+      "level": "info",
+      "label": "screenshot git-console.png",
+      "detail": "",
+      "ts": "2026-05-17T04:12:40.903Z"
+    },
+    {
+      "level": "info",
+      "label": "branch=job/git-depth",
+      "detail": "",
+      "ts": "2026-05-17T04:12:41.054Z"
+    },
+    {
+      "level": "info",
+      "label": "status chip=11 changed",
+      "detail": "",
+      "ts": "2026-05-17T04:12:41.056Z"
+    },
+    {
+      "level": "info",
+      "label": "file rows=11",
+      "detail": "",
+      "ts": "2026-05-17T04:12:41.059Z"
+    },
+    {
+      "level": "info",
+      "label": "diff body opened after file row click",
+      "detail": "",
+      "ts": "2026-05-17T04:12:41.196Z"
+    },
+    {
+      "level": "info",
+      "label": "screenshot git-diff-open.png",
+      "detail": "",
+      "ts": "2026-05-17T04:12:41.273Z"
+    },
+    {
+      "level": "info",
+      "label": "commit btn label: Commit (2) → Commit (3)",
+      "detail": "",
+      "ts": "2026-05-17T04:12:43.580Z"
+    },
+    {
+      "level": "info",
+      "label": "screenshot git-after-stage.png",
+      "detail": "",
+      "ts": "2026-05-17T04:12:43.673Z"
+    },
+    {
+      "level": "info",
+      "label": "commit dialog opened",
+      "detail": "",
+      "ts": "2026-05-17T04:12:43.715Z"
+    },
+    {
+      "level": "info",
+      "label": "screenshot git-commit-dialog.png",
+      "detail": "",
+      "ts": "2026-05-17T04:12:43.806Z"
+    },
+    {
+      "level": "info",
+      "label": "branches tab renders tiles",
+      "detail": "",
+      "ts": "2026-05-17T04:12:43.866Z"
+    },
+    {
+      "level": "info",
+      "label": "Checkout button appears for non-active branch",
+      "detail": "",
+      "ts": "2026-05-17T04:12:43.907Z"
+    },
+    {
+      "level": "info",
+      "label": "screenshot git-branches.png",
+      "detail": "",
+      "ts": "2026-05-17T04:12:43.982Z"
+    },
+    {
+      "level": "info",
+      "label": "history tab renders rows",
+      "detail": "",
+      "ts": "2026-05-17T04:12:44.042Z"
+    },
+    {
+      "level": "info",
+      "label": "screenshot git-history.png",
+      "detail": "",
+      "ts": "2026-05-17T04:12:44.128Z"
+    },
+    {
+      "level": "warn",
+      "label": "failed requests: 2",
+      "detail": "GET http://localhost:9334/_sui/data?expr=ship.git.overview() — net::ERR_ABORTED\nGET http://localhost:9334/_sui/data?expr=ship.git.diff(%7B%22commit%22%3A%22WORKING%22%7D) — net::ERR_ABORTED",
+      "ts": "2026-05-17T04:12:44.128Z"
+    },
+    {
+      "level": "warn",
+      "label": "final failed requests",
+      "detail": "GET http://localhost:9334/_sui/data?expr=ship.git.overview() — net::ERR_ABORTED\n  | GET http://localhost:9334/_sui/data?expr=ship.git.diff(%7B%22commit%22%3A%22WORKING%22%7D) — net::ERR_ABORTED",
+      "ts": "2026-05-17T04:12:44.151Z"
+    }
+  ],
+  "warnings": 2,
+  "errors": 0
+}

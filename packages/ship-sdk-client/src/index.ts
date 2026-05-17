@@ -175,6 +175,32 @@ export function createClient(opts?: CreateClientOpts): ShipSDK {
       diff:        (args: GitDiffArgs) => sse<GitDiff>('git', 'diff', args),
       annotations: (args: { file: string; workspace_id?: string }) =>
         sse('git', 'annotations', args),
+      stage:       (args) =>
+        json<{ ok: true; staged: number }>('POST', '/api/v1/git/stage', args),
+      unstage:     (args) =>
+        json<{ ok: true; unstaged: number }>('POST', '/api/v1/git/unstage', args),
+      commit:      (args) =>
+        json<{ ok: true; sha: string; branch: string | null }>(
+          'POST', '/api/v1/git/commit', args,
+        ),
+      push:        (args) =>
+        json<{ ok: true; remote: string; force: boolean }>(
+          'POST', '/api/v1/git/push', args ?? {},
+        ),
+      fetch:       (args) =>
+        json<{ ok: true; remote: string }>('POST', '/api/v1/git/fetch', args ?? {}),
+      pull:        (args) =>
+        json<{ ok: true; head: string }>('POST', '/api/v1/git/pull', args ?? {}),
+      checkout:    (args) =>
+        json<{ ok: true; ref: string; resolved: string }>(
+          'POST', '/api/v1/git/checkout', { ref: args.ref, workspace_id: args.workspace_id },
+        ),
+      branch_create: (args) =>
+        json<{ ok: true; name: string }>('POST', '/api/v1/git/branch', args),
+      branch_delete: (args) =>
+        json<{ ok: true; name: string }>('DELETE', '/api/v1/git/branch', args),
+      init:        (args) =>
+        json<{ ok: true }>('POST', '/api/v1/git/init', args ?? {}),
     },
     mesh: {
       snapshot: () => sse('mesh', 'snapshot'),

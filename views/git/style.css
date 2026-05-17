@@ -276,3 +276,69 @@
 }
 .git-card-body { display: flex; flex-direction: column; gap: 0; }
 .git-card-actions { display: flex; flex-direction: column; align-items: stretch; gap: 8px; }
+
+/* No-repo empty state */
+.git-no-repo {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  padding: 40px 24px;
+}
+
+/* Bulk actions row above file list */
+.git-bulk-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.git-bulk-spacer { flex: 1; }
+
+/* File row wrap: row + per-file stage/unstage action */
+.git-file-row-wrap {
+  display: flex;
+  align-items: stretch;
+  border-left: 2px solid transparent;
+}
+.git-file-row-wrap[data-active] {
+  background: color-mix(in oklab, var(--primary) 10%, transparent);
+  border-left-color: var(--primary);
+}
+.git-file-row-wrap > .git-file-row { flex: 1; border-left: 0; }
+.git-file-act {
+  flex: none;
+  width: 28px;
+  background: transparent;
+  border: 0;
+  border-left: 1px solid var(--border-subtle);
+  color: var(--muted-foreground);
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  opacity: 0;
+  transition: opacity var(--duration-fast) ease, background var(--duration-fast) ease;
+}
+.git-file-row-wrap:hover .git-file-act,
+.git-file-act:focus-visible { opacity: 1; }
+.git-file-act:hover {
+  background: color-mix(in oklab, var(--primary) 14%, transparent);
+  color: var(--primary);
+}
+
+/* Branches header */
+.git-branches {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.git-branches-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+/* Confirm copy */
+.git-confirm-msg { margin: 0 0 12px; font-size: 13px; color: var(--foreground); }
