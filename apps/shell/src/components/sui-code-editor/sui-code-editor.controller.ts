@@ -230,6 +230,56 @@ export default controller<Scope>({
       }
     }))
 
+    // ── Browser LSP integration ───────────────────────────────────
+    // For `.sui` content, run sui-lsp-browser's pure analyser on the
+    // main thread (no worker — the `?worker` Vite suffix isn't supported
+    // by sui-build, our chrome bundler). Diagnostics stream into
+    // setDiagnostics on every debounced doc change; completions are
+    // seeded once from allSources. Hover deferred to a follow-up; if
+    // the parse cost ever shows in the input loop, switch to a worker
+    // with a Bun-compatible URL.
+    type LspDiagnoseFn = (text: string) => SuiDiagnostic[]
+    type LspAllSourcesFn = () => SuiCompletionSource[]
+    let lspDiagnose: LspDiagnoseFn | null = null
+    let lspDebounce: ReturnType<typeof setTimeout> | null = null
+    let lspInit: Promise<void> | null = null
+    async function ensureLsp(): Promise<void> {
+      if (lspDiagnose || lspInit) { await lspInit; return }
+      lspInit = (async () => {
+        try {
+          const [diag, comp] = await Promise.all([
+            import('@ship/sui-lsp-browser/diagnostics') as Promise<{ diagnose: LspDiagnoseFn }>,
+            import('@ship/sui-lsp-browser/completions') as Promise<{ allSources: LspAllSourcesFn }>,
+          ])
+          lspDiagnose = diag.diagnose
+          try { el.setCompletions?.(comp.allSources()) } catch { /* best-effort */ }
+        } catch (err) {
+          console.warn('[sui-code-editor] LSP init failed; diagnostics unavailable', err)
+        }
+      })()
+      await lspInit
+    }
+    disposers.push(effect(() => {
+      const lang = langSig()
+      if (lang !== 'sui') return
+      void ensureLsp()
+    }))
+    disposers.push(effect(() => {
+      const text = valSig()
+      if (langSig() !== 'sui') return
+      if (lspDebounce) clearTimeout(lspDebounce)
+      lspDebounce = setTimeout(async () => {
+        if (!lspDiagnose) await ensureLsp()
+        if (!lspDiagnose) return
+        try { el.setDiagnostics?.(lspDiagnose(text)) } catch { /* best-effort */ }
+      }, 350)
+    }))
+    disposers.push(() => {
+      if (lspDebounce) clearTimeout(lspDebounce)
+      lspDiagnose = null
+      lspInit = null
+    })
+
     disposers.push(effect(() => {
       view?.dispatch({ effects: readonlyCompartment.reconfigure(EditorState.readOnly.of(roSig())) })
     }))
