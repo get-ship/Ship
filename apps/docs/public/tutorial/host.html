@@ -83,6 +83,39 @@
   </script>
 
   <script type="module">
+    // Mock-daemon service worker — intercepts /_sui/data/<source>
+    // SSE requests and serves them from per-step scenarios. Tutorial
+    // steps that exercise <data live>, {#while-loading}, morphs, or
+    // any other daemon-shape feature route through this SW.
+    //
+    // Registration is best-effort; fall back to no SW if denied (the
+    // tutorial steps that don't need a daemon work either way).
+    async function registerSw() {
+      if (!('serviceWorker' in navigator)) return null
+      try {
+        const reg = await navigator.serviceWorker.register('/tutorial/sw.js', {
+          scope: '/tutorial/',
+        })
+        await navigator.serviceWorker.ready
+        return reg
+      } catch (e) {
+        console.warn('[tutorial-host] sw register failed:', e)
+        return null
+      }
+    }
+
+    // Scenario plumbing — parent posts { kind: 'tutorial:scenario',
+    // scenario: { '/users': {...}, 'api:/whoami': {...} } } and the
+    // SW picks it up before any iframe fetch fires.
+    async function loadScenario(scenario) {
+      const reg = await registerSw()
+      if (!reg) return false
+      const ctrl = navigator.serviceWorker.controller ?? reg.active
+      if (!ctrl) return false
+      ctrl.postMessage({ kind: 'load-scenario', scenario })
+      return true
+    }
+
     // Wait for a 'tutorial:run' postMessage from the parent containing
     // the compiled JS modules (template + controller). Inject them as
     // blob URLs so they import normally through the importmap.
@@ -99,6 +132,13 @@
     }
 
     window.addEventListener('message', async (e) => {
+      // Scenario load — parent ships a per-step timeline for the SW
+      // to play back. Independent of tutorial:run so the scenario
+      // can be primed before the user's view mounts.
+      if (e.data && e.data.kind === 'tutorial:scenario') {
+        await loadScenario(e.data.scenario || {})
+        return
+      }
       if (!e.data || e.data.kind !== 'tutorial:run') return
       const { template, controller, tag } = e.data
       const errEl = document.getElementById('err')
