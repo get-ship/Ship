@@ -11,12 +11,12 @@
             bind:value={q}
             on:input={(e) => q.set(e.target.value)} />
         </div>
-        {#if rail().kind === 'ok'}
+        {#if rail().kind === 'ok' && rail().value}
           <div class="se-filters" role="group" aria-label="Filter by kind">
-            {#for kc of rail().value.kind_counts key={kc.id}}
+            {#for kc of (rail().value.kind_counts || []) key={kc.id}}
               <button class="se-pill" class:is-active={kind() === kc.id}
                 on:click={() => kind.set(kc.id)}>
-                {kc.label} <span style="opacity:0.6;font-variant-numeric:tabular-nums">{kc.count}</span>
+                {kc.label} <span class="se-pill-count">{kc.count}</span>
               </button>
             {/for}
           </div>
@@ -38,13 +38,11 @@
             {err.message}
           </sui-error-state>
         {/while-error}
-        {#if rail().kind === 'ok'}
-          {#if rail().value.groups.length === 0}
-            <div class="se-empty">
-              {q() ? 'No skills match "' + q() + '".' : 'No skills discovered.'}
-            </div>
+        {#if rail().kind === 'ok' && rail().value}
+          {#if (rail().value.groups || []).length === 0}
+            <div class="se-empty">{q() ? 'No skills match "' + q() + '".' : 'No skills discovered.'}</div>
           {:else}
-            {#for g of rail().value.groups key={g.source}}
+            {#for g of (rail().value.groups || []) key={g.source}}
               <div class="se-section">
                 <div class="se-section-head">
                   <span class="se-section-label">
@@ -53,35 +51,51 @@
                     <span class="count">({g.skills.length})</span>
                   </span>
                 </div>
-                {#if g.skills.length === 0}
-                  <div class="se-empty">{q() ? 'No matches.' : 'No skills yet.'}</div>
-                {:else}
-                  {#for s of g.skills key={s.id}}
-                    <div role="treeitem" class="se-skill-row" aria-selected="false">
-                      <a class="se-skill"
-                        attr:href={'/skills/' + s.id}
-                        attr:title={s.description}>
-                        <span class="se-chevron" aria-hidden="true">
+                {#for s of g.skills key={s.id}}
+                  <div class="se-skill-row" role="treeitem"
+                    attr:aria-selected={s.id === skillId() ? 'true' : 'false'}>
+                    <a class="se-skill" class:is-active={s.id === skillId()}
+                      attr:href={'/skills/' + s.id}
+                      attr:title={s.description}>
+                      <span class="se-chevron" aria-hidden="true">
+                        {#if s.id === skillId()}
+                          <sui-icon name="chevron-down" size="xs"></sui-icon>
+                        {:else}
                           <sui-icon name="chevron-right" size="xs"></sui-icon>
-                        </span>
-                        <sui-icon name="zap" size="xs" tone="primary"></sui-icon>
-                        <span class="se-name">{s.name}</span>
-                        <span class="se-dots">
-                          {#if s.has_vars}<span class="se-dot vars" title="Variables"></span>{/if}
-                          {#if s.has_refs}<span class="se-dot refs" title="Reference docs"></span>{/if}
-                          {#if s.has_evals}<span class="se-dot evals" title="Evals"></span>{/if}
-                        </span>
-                      </a>
-                      <button class="se-invoke"
-                        aria-label={'Invoke ' + s.name}
-                        prop:disabled={invokeBusy() === s.id}
-                        on:click={() => invoke(s.id)}>
-                        <sui-icon name="play" size="xs"></sui-icon>
-                        <span>{invokeBusy() === s.id ? 'Invoking…' : 'Invoke'}</span>
-                      </button>
-                    </div>
-                  {/for}
-                {/if}
+                        {/if}
+                      </span>
+                      <sui-icon name="zap" size="xs" tone="primary"></sui-icon>
+                      <span class="se-name">{s.name}</span>
+                      <span class="se-dots">
+                        {#if s.has_vars}<span class="se-dot vars" title="Variables"></span>{/if}
+                        {#if s.has_refs}<span class="se-dot refs" title="Reference docs"></span>{/if}
+                        {#if s.has_evals}<span class="se-dot evals" title="Evals"></span>{/if}
+                      </span>
+                    </a>
+                    <button class="se-invoke"
+                      aria-label={'Invoke ' + s.name}
+                      prop:disabled={invokeBusy() === s.id}
+                      on:click={() => invoke(s.id)}>
+                      <sui-icon name="play" size="xs"></sui-icon>
+                      <span>{invokeBusy() === s.id ? 'Invoking…' : 'Invoke'}</span>
+                    </button>
+                    {#if s.id === skillId() && s.files && s.files.length > 0}
+                      {#for f of s.files key={f}}
+                        <a class="se-file" class:is-active={selectedFile() === f}
+                          role="treeitem"
+                          attr:aria-current={selectedFile() === f ? 'true' : null}
+                          attr:href={'/skills/' + s.id + '?file=' + f}
+                          attr:title={f}>
+                          <sui-icon size="xs"
+                            attr:name={fileMetas()[f] ? fileMetas()[f].icon : 'file'}
+                            attr:tone={fileMetas()[f] ? fileMetas()[f].tone : 'muted'}></sui-icon>
+                          <span class="se-fname">{f}</span>
+                          <span class="se-fkind" aria-hidden="true">{fileMetas()[f] ? fileMetas()[f].kind : ''}</span>
+                        </a>
+                      {/for}
+                    {/if}
+                  </div>
+                {/for}
               </div>
             {/for}
           {/if}
@@ -89,7 +103,7 @@
       </div>
     </aside>
 
-    <div class="skills-editor">
+    <main class="skills-main">
       {#if invokeResult()}
         <sui-alert tone={invokeResult().ok ? 'success' : 'warning'} class="sd-invoke-result">
           {#if invokeResult().ok}
@@ -103,12 +117,236 @@
           {/if}
         </sui-alert>
       {/if}
-      <div class="se-empty-state">
-        <sui-icon name="zap" size="xl" class="se-empty-icon" tone="muted"></sui-icon>
-        <span class="se-empty-title">No skill open</span>
-        <span class="se-empty-desc">Select a skill from the explorer to view its files and edit content.</span>
-      </div>
-    </div>
+
+      {#if !skillId()}
+        <div class="se-empty-state">
+          <sui-icon name="zap" size="xl" class="se-empty-icon" tone="muted"></sui-icon>
+          <span class="se-empty-title">No skill open</span>
+          <span class="se-empty-desc">Select a skill from the explorer to view its files and edit content.</span>
+        </div>
+      {:else if skill().kind === 'loading'}
+        <div class="se-empty-state" role="status" aria-live="polite" aria-busy="true">
+          <sui-spinner size="md"></sui-spinner>
+          <span class="se-empty-desc">Loading skill…</span>
+        </div>
+      {:else if skill().kind === 'error'}
+        <div class="se-empty-state">
+          <sui-icon name="alert-triangle" size="xl" tone="warning"></sui-icon>
+          <span class="se-empty-title">Couldn't load skill</span>
+          <span class="se-empty-desc">{skill().error.message}</span>
+        </div>
+      {:else if sk()}
+        <div class="sd-pane">
+          <div class="sd-editor">
+            <div class="se-toolbar">
+              <div class="se-breadcrumb">
+                <a href="/skills">skills</a>
+                <span class="sep">/</span>
+                <span class="active">{skName()}</span>
+                {#if selectedFile()}
+                  <span class="sep">/</span>
+                  <span class="active">{selectedFileName()}</span>
+                {/if}
+              </div>
+              <div class="se-toolbar-actions">
+                {#if activeIsEditable()}
+                  <button class="sd-action sd-save-btn" data-testid="skill-save"
+                    prop:disabled={!dirty() || saving()}
+                    on:click={save}>
+                    <sui-icon name="save" size="xs"></sui-icon>
+                    <span>{saving() ? 'Saving…' : dirty() ? 'Save' : 'Saved'}</span>
+                  </button>
+                {/if}
+              </div>
+            </div>
+            {#if saveBanner()}
+              <sui-alert tone={saveBanner().ok ? 'success' : 'destructive'} class="sd-save-banner">
+                {saveBanner().msg}
+              </sui-alert>
+            {/if}
+            <div class="se-editor-body">
+              {#while-loading of fileContent}
+                {#if selectedFile()}
+                  <div class="se-empty-state" role="status" aria-live="polite" aria-busy="true">
+                    <sui-spinner size="md"></sui-spinner>
+                    <span class="se-empty-desc">Loading file…</span>
+                  </div>
+                {/if}
+              {/while-loading}
+              {#while-error err of fileContent}
+                {#if selectedFile()}
+                  <sui-error-state variant="inline" size="sm" title="Couldn't load file" role="alert" aria-live="assertive">
+                    {err.message}
+                  </sui-error-state>
+                {/if}
+              {/while-error}
+              {#if selectedFile() && fileContent().kind === 'ok' && fileContent().value && fileContent().value.path === selectedFile()}
+                <div class="se-editor-content">
+                  {#if fileContent().value.ext === 'md'}
+                    <sui-markdown-editor data-testid="skill-editor" full-height
+                      attr:value={draft()}
+                      on:sui-change={onEditorInput}
+                      on:input={onEditorInput}></sui-markdown-editor>
+                  {:else}
+                    <pre class="se-code-view">{draft()}</pre>
+                  {/if}
+                </div>
+              {:else if !selectedFile()}
+                {#if skBody() || dirty()}
+                  <div class="se-editor-content">
+                    <sui-markdown-editor data-testid="skill-editor" full-height
+                      attr:value={draft()}
+                      on:sui-change={onEditorInput}
+                      on:input={onEditorInput}></sui-markdown-editor>
+                  </div>
+                {:else}
+                  <div class="se-empty-state">
+                    <sui-icon name="file" size="xl" tone="muted"></sui-icon>
+                    <span class="se-empty-desc">This skill has no SKILL.md content yet.</span>
+                  </div>
+                {/if}
+              {/if}
+            </div>
+          </div>
+
+          <aside class="skills-info" aria-label="Skill info panel">
+            <div class="si-header">
+              <div class="si-header-title">
+                <sui-icon name="zap" size="sm" tone="primary"></sui-icon>
+                <div class="si-header-text">
+                  <span class="si-name">{skName()}</span>
+                  <span class="si-skill-id">{skId()}</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="si-body">
+              <sui-collapsible open class="si-coll">
+                <div slot="trigger" class="si-coll-trigger">
+                  <sui-icon name="info" size="xs" tone="muted"></sui-icon>
+                  <span>Overview</span>
+                  <sui-icon class="si-coll-caret" name="chevron-down" size="xs" tone="muted"></sui-icon>
+                </div>
+                <div class="si-coll-body">
+                  <div class="si-field">
+                    <label class="si-label" for="si-desc">Description</label>
+                    <textarea id="si-desc" class="si-textarea"
+                      rows="3"
+                      placeholder="What this skill does…"
+                      prop:disabled={savingMeta()}
+                      bind:value={descDraft}></textarea>
+                  </div>
+                  <div class="si-field">
+                    <label class="si-label" for="si-tags">Tags</label>
+                    <input id="si-tags" class="si-input" type="text"
+                      placeholder="comma-separated"
+                      prop:disabled={savingMeta()}
+                      bind:value={tagsDraft} />
+                    {#if (tagsList() || []).length > 0}
+                      <div class="si-chips">
+                        {#for t of tagsList() key={t}}
+                          <span class="si-chip">{t}</span>
+                        {/for}
+                      </div>
+                    {/if}
+                  </div>
+                  <div class="si-row">
+                    <span class="si-row-key">kind</span>
+                    <span class="si-row-val">{skKind()}</span>
+                  </div>
+                  <div class="si-row">
+                    <span class="si-row-key">source</span>
+                    <span class="si-row-val">{skSource()}</span>
+                  </div>
+                  {#if skAuthorsLen() > 0}
+                    <div class="si-row">
+                      <span class="si-row-key">authors</span>
+                      <span class="si-row-val">{authorsText()}</span>
+                    </div>
+                  {/if}
+                  <div class="si-meta-actions">
+                    <button class="sd-action sd-save-btn" data-testid="skill-meta-save"
+                      prop:disabled={!metaDirty() || savingMeta()}
+                      on:click={saveMeta}>
+                      <sui-icon name="save" size="xs"></sui-icon>
+                      <span>{savingMeta() ? 'Saving…' : metaDirty() ? 'Save metadata' : 'Saved'}</span>
+                    </button>
+                  </div>
+                  {#if metaBanner()}
+                    <sui-alert tone={metaBanner().ok ? 'success' : 'destructive'} class="si-meta-banner">
+                      {metaBanner().msg}
+                    </sui-alert>
+                  {/if}
+                </div>
+              </sui-collapsible>
+
+              <sui-collapsible class="si-coll">
+                <div slot="trigger" class="si-coll-trigger">
+                  <sui-icon name="braces" size="xs" tone="muted"></sui-icon>
+                  <span>Variables</span>
+                  <span class="si-coll-count">{skVariables().length}</span>
+                  <sui-icon class="si-coll-caret" name="chevron-down" size="xs" tone="muted"></sui-icon>
+                </div>
+                <div class="si-coll-body">
+                  {#if skVariables().length > 0}
+                    {#for v of skVariables() key={v}}
+                      <div class="si-var-row">
+                        <sui-icon name="braces" size="xs" tone="muted"></sui-icon>
+                        <span class="si-var-name">{v}</span>
+                      </div>
+                    {/for}
+                  {:else}
+                    <div class="si-empty-inline">No variables declared.</div>
+                  {/if}
+                </div>
+              </sui-collapsible>
+
+              <sui-collapsible class="si-coll">
+                <div slot="trigger" class="si-coll-trigger">
+                  <sui-icon name="files" size="xs" tone="muted"></sui-icon>
+                  <span>Files</span>
+                  <span class="si-coll-count">{skFiles().length}</span>
+                  <sui-icon class="si-coll-caret" name="chevron-down" size="xs" tone="muted"></sui-icon>
+                </div>
+                <div class="si-coll-body">
+                  {#if skFiles().length > 0}
+                    {#for f of skFiles() key={f}}
+                      <a class="si-file-row"
+                        attr:href={'/skills/' + skId() + '?file=' + f}
+                        attr:title={f}>
+                        <sui-icon size="xs"
+                          attr:name={fileMetas()[f] ? fileMetas()[f].icon : 'file'}
+                          attr:tone={fileMetas()[f] ? fileMetas()[f].tone : 'muted'}></sui-icon>
+                        <span class="si-file-name">{f}</span>
+                      </a>
+                    {/for}
+                  {:else}
+                    <div class="si-empty-inline">No companion files.</div>
+                  {/if}
+                </div>
+              </sui-collapsible>
+
+              <sui-collapsible class="si-coll">
+                <div slot="trigger" class="si-coll-trigger">
+                  <sui-icon name="play" size="xs" tone="muted"></sui-icon>
+                  <span>Run</span>
+                  <sui-icon class="si-coll-caret" name="chevron-down" size="xs" tone="muted"></sui-icon>
+                </div>
+                <div class="si-coll-body">
+                  <button class="sd-action sd-run-btn"
+                    prop:disabled={invokeBusy() === skId()}
+                    on:click={() => invoke(skId())}>
+                    <sui-icon name="play" size="xs"></sui-icon>
+                    <span>{invokeBusy() === skId() ? 'Invoking…' : 'Invoke skill'}</span>
+                  </button>
+                  <p class="si-help">Runs this skill as a one-shot library task. Result appears above the editor.</p>
+                </div>
+              </sui-collapsible>
+            </div>
+          </aside>
+        </div>
+      {/if}
+    </main>
 
   </div>
   <div class="skills-mobile">

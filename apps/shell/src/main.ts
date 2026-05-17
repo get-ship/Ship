@@ -92,7 +92,14 @@ const routeSignals = createRoute()
 function navigate(path: string): void {
   history.pushState({}, '', path)
   const next = readRouteFromUrl(location.pathname)
-  if (next) void mountRoute(next)
+  if (!next) return
+  if (currentRoute && currentRoute.view === next.view && SAME_SHELL_VIEWS.has(next.view)) {
+    currentRoute = next
+    notifySameShellRouteChange()
+    updateNav(next)
+    return
+  }
+  void mountRoute(next)
 }
 
 // ── window.ship API ──────────────────────────────────────────────────
@@ -204,7 +211,17 @@ function routeToPath(r: Route): string {
   return r.sub ? `/${r.view}/${r.sub}` : `/${r.view}`
 }
 
+// Views whose root payload (no `sub`) renders the entire surface for every
+// `/<view>/<id>` URL too. The detail is just a route param read by the
+// view's controller via `route.params.id()`, so navigating between
+// list/detail (or sibling detail rows) doesn't need a full mount-swap —
+// the URL changes, routeSignals fire, the controller reacts in place.
+// Without this, every sibling click re-fetches the payload + rebuilds
+// the entire DOM, which the user perceives as a "page reload" flash.
+const SAME_SHELL_VIEWS = new Set(['skills'])
+
 function payloadUrl(r: Route): string {
+  if (SAME_SHELL_VIEWS.has(r.view)) return `/_sui/views/${r.view}`
   return r.sub ? `/_sui/views/${r.view}/${r.sub}` : `/_sui/views/${r.view}`
 }
 
@@ -394,10 +411,36 @@ function onAnchorClick(e: MouseEvent): void {
   // as `/` and survives a reload), while resolving the route to a view
   // name for the SUI mount call.
   const urlPath = a.pathname || '/'
-  const sameView = currentRoute && currentRoute.view === next.view && (currentRoute.sub ?? '') === (next.sub ?? '')
-  if (sameView) return
+  const sameRoute = currentRoute && currentRoute.view === next.view && (currentRoute.sub ?? '') === (next.sub ?? '')
+  if (sameRoute) return
   history.pushState({}, '', urlPath + a.search + a.hash)
+  // Same-shell views (see SAME_SHELL_VIEWS) just need a route-signal kick
+  // so the in-place controller reacts; no payload re-fetch, no mount swap.
+  if (currentRoute && currentRoute.view === next.view && SAME_SHELL_VIEWS.has(next.view)) {
+    currentRoute = next
+    notifySameShellRouteChange()
+    updateNav(next)
+    return
+  }
   void mountRoute(next)
+}
+
+// Same-shell navigations (see SAME_SHELL_VIEWS) don't remount the view —
+// the URL changes via pushState, but the view's controller is still the
+// one set up at the original mount, which means its compiled `derived`
+// reads of `route.params.id()` were registered against the SHELL bundle's
+// signal observer. The VIEW bundle has its own copy of @ship/sui-runtime
+// (served as `/_sui/runtime.js`) with its own CURRENT_OBSERVER closure,
+// so cross-bundle signal subscription doesn't fire view-bundle effects.
+// We compensate by both:
+//   (a) firing shell-bundle routeSignals' update — for any derived that
+//       happens to live in the shell bundle (rare, but defensible);
+//   (b) dispatching a synthetic `popstate` event, which the view bundle's
+//       route module listens for and uses to call its own update()
+//       against the view bundle's signal subscribers.
+function notifySameShellRouteChange(): void {
+  globalThis.__shipSetRouteUpdate?.()
+  window.dispatchEvent(new PopStateEvent('popstate'))
 }
 
 function readRouteFromUrl(pathname: string): Route | null {
@@ -745,11 +788,20 @@ initProjectSwitch(kernelBridge, {
 document.addEventListener('click', onAnchorClick)
 window.addEventListener('popstate', () => {
   const r = readRoute()
-  if (r) void mountRoute(r)
-  else {
+  if (!r) {
     const slot = document.getElementById('ship-content')
     if (slot) showLanding(slot)
+    return
   }
+  // Same-shell views stay mounted; routeSignals already update from the
+  // shared popstate listener in @ship/sui-runtime/route, so the in-place
+  // controller reacts to the new params without a payload re-fetch.
+  if (currentRoute && currentRoute.view === r.view && SAME_SHELL_VIEWS.has(r.view)) {
+    currentRoute = r
+    updateNav(r)
+    return
+  }
+  void mountRoute(r)
 })
 
 // External navigation requests — components that need to navigate dispatch
@@ -765,10 +817,16 @@ document.addEventListener('sui:navigate', (e: Event) => {
   if (!detail?.to) return
   const next = readRouteFromUrl(detail.to)
   if (!next) return
-  const sameView = currentRoute
+  const sameRoute = currentRoute
     && currentRoute.view === next.view
     && (currentRoute.sub ?? '') === (next.sub ?? '')
-  if (sameView) return
+  if (sameRoute) return
+  if (currentRoute && currentRoute.view === next.view && SAME_SHELL_VIEWS.has(next.view)) {
+    currentRoute = next
+    notifySameShellRouteChange()
+    updateNav(next)
+    return
+  }
   void mountRoute(next)
 })
 

@@ -1,7 +1,0 @@
-{
-  "name": "skills-detail",
-  "path": "/skills/[id]",
-  "title": "Skill",
-  "layout": "default",
-  "auth": "user"
-}
