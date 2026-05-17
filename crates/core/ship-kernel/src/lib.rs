@@ -158,6 +158,68 @@ mod tests {
         assert!(mb_b.try_recv().is_ok(), "B should receive targeted msg");
     }
 
+    #[tokio::test]
+    async fn refine_actor_preserves_mailbox() {
+        let sink = Arc::new(MockSink::new());
+        let mut router = KernelRouter::new(sink);
+        let mut mb = router.spawn_actor("a", test_config("mesh")).unwrap();
+        let new_cfg = ActorConfig {
+            namespace: "a".into(),
+            write_namespaces: vec!["other.".into()],
+            read_namespaces: vec!["other.".into()],
+            subscribe_namespaces: vec!["other.".into()],
+        };
+        router.refine_actor("a", new_cfg).unwrap();
+
+        let mut event = ev("other.hello");
+        event.target_actor_id = Some("a".into());
+        router.route(event).await.unwrap();
+        let received = mb.try_recv().expect("mailbox should receive directed event");
+        assert_eq!(received.event_type, "other.hello");
+    }
+
+    #[tokio::test]
+    async fn refine_actor_rekeys_subscriptions() {
+        let sink = Arc::new(MockSink::new());
+        let mut router = KernelRouter::new(sink);
+        let cfg_a = ActorConfig {
+            namespace: "x".into(),
+            write_namespaces: vec!["a.".into()],
+            read_namespaces: vec!["a.".into()],
+            subscribe_namespaces: vec!["a.".into()],
+        };
+        let mut mb = router.spawn_actor("x", cfg_a).unwrap();
+
+        // Confirm initial subscription on a.* works.
+        router.route(ev("a.first")).await.unwrap();
+        assert!(mb.try_recv().is_ok());
+
+        let cfg_b = ActorConfig {
+            namespace: "x".into(),
+            write_namespaces: vec!["b.".into()],
+            read_namespaces: vec!["b.".into()],
+            subscribe_namespaces: vec!["b.".into()],
+        };
+        router.refine_actor("x", cfg_b).unwrap();
+
+        // a.* no longer reaches the actor.
+        router.route(ev("a.second")).await.unwrap();
+        assert!(mb.try_recv().is_err(), "a.* must not reach after refinement");
+
+        // b.* now reaches the actor.
+        router.route(ev("b.first")).await.unwrap();
+        let recv = mb.try_recv().expect("b.* must reach after refinement");
+        assert_eq!(recv.event_type, "b.first");
+    }
+
+    #[test]
+    fn refine_actor_errors_on_unknown() {
+        let sink = Arc::new(MockSink::new());
+        let mut router = KernelRouter::new(sink);
+        let err = router.refine_actor("ghost", test_config("g")).unwrap_err();
+        assert!(matches!(err, KernelError::ActorNotFound { .. }));
+    }
+
     #[test]
     fn ship_kernel_has_no_sqlx() {
         let cargo_toml = include_str!("../Cargo.toml");
