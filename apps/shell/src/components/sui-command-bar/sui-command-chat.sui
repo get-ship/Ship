@@ -1,8 +1,13 @@
 <bundle separate />
 <!--
-  <sui-command-chat> — inner chat panel for an active AI session.
-  Consumed inside <sui-command-bar> when mode=ai and session exists.
-  Accesses provider state via useShared.
+  <sui-command-chat> — chat panel for the unified ai mode.
+  Always rendered when bar.mode = 'ai'. Body branches:
+    daemonOffline → "Daemon unreachable" empty state
+    no agents     → "Set an active agent in /agents"
+    no session    → inline spawn picker (agent + provider + Start)
+    session       → message thread
+  Composer is always present so prefill text from `ship:bar:open`
+  is visible + editable before submission.
 -->
 
 <style>
@@ -86,8 +91,8 @@
   }
   .cb-session-action:hover { background: var(--muted); color: var(--foreground); }
 
-  /* ── Messages ─────────────────────────────────────────────────── */
-  .cb-chat-messages {
+  /* ── Body shell ──────────────────────────────────────────────── */
+  .cb-chat-body {
     flex: 1;
     min-height: 0;
     overflow-y: auto;
@@ -98,7 +103,26 @@
     flex-direction: column;
     gap: 8px;
   }
-  .cb-chat-empty { color: var(--muted-foreground); font-size: 13px; text-align: center; margin-top: 24px; }
+
+  /* ── Messages ─────────────────────────────────────────────────── */
+  .cb-chat-empty {
+    color: var(--muted-foreground);
+    font-size: 13px;
+    text-align: center;
+    margin-top: 24px;
+    padding: 0 16px;
+    line-height: 1.5;
+  }
+  .cb-chat-empty .title { color: var(--foreground); font-weight: 600; margin-bottom: 6px; }
+  .cb-chat-empty a, .cb-chat-empty button.link {
+    color: var(--primary);
+    background: transparent;
+    border: none;
+    padding: 0;
+    font: inherit;
+    text-decoration: underline;
+    cursor: pointer;
+  }
   .cb-chat-turn { display: flex; flex-direction: column; }
   .cb-chat-turn[data-sender='user'] { align-items: flex-end; }
   .cb-chat-turn[data-sender='agent'] { align-items: flex-start; }
@@ -127,6 +151,76 @@
     font-family: var(--font-mono);
   }
 
+  /* ── Inline spawn picker ──────────────────────────────────────── */
+  .cb-spawn-card {
+    margin: 8px 0;
+    padding: 14px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md, 6px);
+    background: var(--muted);
+  }
+  .cb-spawn-title { font-weight: 600; font-size: 13px; margin-bottom: 12px; }
+  .cb-spawn-row {
+    display: grid;
+    grid-template-columns: 72px 1fr;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .cb-spawn-row label { font-size: 12px; color: var(--muted-foreground); }
+  .cb-spawn-row select {
+    height: 30px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm, 4px);
+    background: var(--background);
+    color: var(--foreground);
+    font: inherit;
+    font-size: 13px;
+    padding: 0 6px;
+  }
+  .cb-spawn-error { font-size: 12px; color: var(--destructive, red); margin-bottom: 8px; }
+  .cb-spawn-start {
+    margin-top: 4px;
+    height: 32px;
+    width: 100%;
+    border: none;
+    border-radius: var(--radius-sm, 4px);
+    background: var(--primary);
+    color: var(--primary-foreground, #fff);
+    font: inherit;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .cb-spawn-start:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* ── Banners ─────────────────────────────────────────────────── */
+  .cb-banner {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px;
+    font-size: 12px;
+    border-bottom: 1px solid var(--border);
+    flex: 0 0 auto;
+  }
+  .cb-banner.warn {
+    background: color-mix(in oklch, var(--warning,#d97706) 12%, var(--background));
+    color: var(--warning,#d97706);
+  }
+  .cb-banner.error {
+    background: color-mix(in oklch, var(--destructive,#dc2626) 12%, var(--background));
+    color: var(--destructive,#dc2626);
+  }
+  .cb-banner button.dismiss {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: inherit;
+    font: inherit;
+    padding: 0 4px;
+    margin-left: auto;
+  }
+
   /* ── Composer ─────────────────────────────────────────────────── */
   .cb-chat-composer {
     display: flex;
@@ -147,6 +241,8 @@
     padding: 6px 8px;
     resize: none;
     line-height: 1.4;
+    min-height: 56px;
+    max-height: 200px;
   }
   .cb-chat-input:focus { outline: none; border-color: var(--primary); }
   .cb-chat-send {
@@ -169,7 +265,7 @@
 <div class="cb-chat-header">
   <span class="cb-dot" style:background={headerDotBg()} aria-hidden="true"></span>
   <div style="display:grid;line-height:1.25">
-    <span class="title">{bar.session()?.agent_id ?? ''}</span>
+    <span class="title">{bar.session()?.agent_id ?? 'No session'}</span>
     <span class="sub">{bar.session()?.provider ?? '—'} · {bar.session()?.workspace_id ?? ''}</span>
   </div>
   <span style="flex:1"></span>
@@ -207,32 +303,90 @@
   <kbd class="cb-esc" aria-label="Escape to close">esc</kbd>
 </div>
 
-<!-- Messages -->
-<div class="cb-chat-messages">
-  {#if bar.thread().length === 0}
-    <div class="cb-chat-empty">Type below and press Enter. The agent's replies land here.</div>
-  {:else}
-    {#for msg of bar.thread() key={msg.id}}
-      <div class="cb-chat-turn" data-sender={msg.sender}>
-        <div class="cb-chat-bubble">{msg.text}</div>
+<!-- Banners -->
+{#if daemonOffline()}
+  <div class="cb-banner warn" role="status">
+    <sui-icon name="alert-triangle" size="sm" aria-hidden="true"></sui-icon>
+    <span>Daemon unreachable. Reconnect to send messages.</span>
+  </div>
+{/if}
+{#if bar.sendError()}
+  <div class="cb-banner error" role="alert">
+    <sui-icon name="alert-circle" size="sm" aria-hidden="true"></sui-icon>
+    <span>{bar.sendError()}</span>
+    <button class="dismiss" type="button" aria-label="Dismiss" on:click={dismissSendError}>×</button>
+  </div>
+{/if}
+
+<!-- Body — branches on session / agents state -->
+<div class="cb-chat-body">
+  {#if hasSession()}
+    {#if bar.thread().length === 0}
+      <div class="cb-chat-empty">
+        <div class="title">Connected to {bar.session()?.agent_id ?? 'agent'}</div>
+        <div>Type below and press Enter. ArrowUp recalls recent messages.</div>
       </div>
-    {/for}
+    {:else}
+      {#for msg of bar.thread() key={msg.id}}
+        <div class="cb-chat-turn" data-sender={msg.sender}>
+          <div class="cb-chat-bubble">{msg.text}</div>
+        </div>
+      {/for}
+    {/if}
+  {:else if !hasAgents()}
+    <div class="cb-chat-empty">
+      <div class="title">No agents configured</div>
+      <div>Open <button class="link" type="button" on:click={goToAgents}>/agents</button> to add one, then start a session.</div>
+    </div>
+  {:else}
+    <div class="cb-spawn-card">
+      <div class="cb-spawn-title">Start a session</div>
+      <div class="cb-spawn-row">
+        <label>Agent</label>
+        <select class="cb-spawn-agent" bind:value={bar.spawnAgent}>
+          {#for a of bar.agents() key={a.id}}
+            <option value={a.id}>{a.name ?? a.label ?? a.id}</option>
+          {/for}
+        </select>
+      </div>
+      <div class="cb-spawn-row">
+        <label>Provider</label>
+        {#if hasProviders()}
+          <select class="cb-spawn-provider" bind:value={bar.spawnProvider}>
+            {#for p of bar.providers() key={p}}
+              <option value={p}>{p}</option>
+            {/for}
+          </select>
+        {:else}
+          <span style="font-size:12px;color:var(--muted-foreground)">No providers installed</span>
+        {/if}
+      </div>
+      {#if bar.spawnError()}
+        <div class="cb-spawn-error">{bar.spawnError()}</div>
+      {/if}
+      <button
+        class="cb-spawn-start"
+        type="button"
+        disabled={bar.spawning() || !bar.spawnAgent() || !bar.spawnProvider()}
+        on:click={spawnSession}
+      >{bar.spawning() ? 'Starting…' : 'Start session'}</button>
+    </div>
   {/if}
 </div>
 
-<!-- Composer -->
+<!-- Composer (always present so prefill is visible + editable) -->
 <div class="cb-chat-composer">
   <textarea
     class="cb-chat-input"
     rows="2"
-    placeholder="Message the agent…"
+    placeholder={hasSession() ? 'Message the agent…' : 'Draft a message — start a session above to send'}
     bind:value={bar.value}
     on:keydown={onComposerKeydown}
   ></textarea>
   <button
     class="cb-chat-send"
     type="button"
-    disabled={!bar.value().trim()}
+    disabled={!bar.value().trim() || !hasSession()}
     on:click={sendMessage}
   >Send</button>
 </div>

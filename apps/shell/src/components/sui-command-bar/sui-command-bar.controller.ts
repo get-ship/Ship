@@ -25,6 +25,9 @@ type BarState = {
   createError: Signal<string | null>; dialogRef: Signal<HTMLElement | null>
   slashCommands: Signal<SlashCommand[]>; sendKey: Signal<'enter' | 'cmd+enter'>
   searchHits: Signal<SearchHit[]>; searching: Signal<boolean>
+  daemonOnline: Signal<boolean>
+  recentSends: Signal<string[]>; historyIdx: Signal<number>
+  sendError: Signal<string | null>
 }
 
 export default controller<Scope>({
@@ -58,8 +61,15 @@ export default controller<Scope>({
     const sendKey        = shared(signal<'enter' | 'cmd+enter'>('enter'))
     const searchHits     = shared(signal<SearchHit[]>([]))
     const searching      = shared(signal(false))
+    const daemonOnline   = shared(signal(true))
+    const recentSends    = shared(signal<string[]>([]))
+    const historyIdx     = shared(signal(-1))
+    const sendError      = shared(signal<string | null>(null))
 
-    const isChat = shared(derived(() => mode() === 'ai' && session() !== null))
+    // ai mode owns the chat surface even with no session. The chat panel
+    // renders a spawn / no-agents empty state inline so a prefill from
+    // `ship:bar:open` is always visible above the same composer.
+    const isChat = shared(derived(() => mode() === 'ai'))
 
     const dialogRef = ref<HTMLElement>(null)
 
@@ -69,6 +79,7 @@ export default controller<Scope>({
       spawnError, thread, workspaceId, createSurface, createName, createPurpose,
       createShape, createSubmitting, createError, isChat, dialogRef,
       slashCommands, sendKey, searchHits, searching,
+      daemonOnline, recentSends, historyIdx, sendError,
     }
   },
 
@@ -117,6 +128,9 @@ export default controller<Scope>({
     const sendKey          = st.sendKey
     const searchHits       = st.searchHits
     const searching        = st.searching
+    const daemonOnline     = st.daemonOnline
+    const recentSends      = st.recentSends
+    const sendError        = st.sendError
 
     const dialogRef = st.dialogRef?.() as (HTMLElement & { show(): void; close(): void }) | null
 
@@ -146,17 +160,35 @@ export default controller<Scope>({
     // typeof checks so the initial closed → closed no-op is silent and
     // subsequent transitions go through cleanly once the dialog is
     // ready.
+    function focusActivePane(): void {
+      // Defer to next microtask so the {#if isChat()} branch has rendered
+      // and the relevant child is in the DOM. ai mode focuses the chat
+      // textarea (and selects any prefill so the user can immediately
+      // type to replace, or arrow-key edit); all other modes focus the
+      // palette search input.
+      queueMicrotask(() => {
+        if (mode() === 'ai') {
+          const chat = host.shadowRoot?.querySelector('sui-command-chat')
+          const ta = chat?.shadowRoot?.querySelector('.cb-chat-input') as HTMLTextAreaElement | null
+          if (ta) {
+            ta.focus()
+            if (ta.value.length > 0) ta.select()
+          }
+          return
+        }
+        const pal = host.shadowRoot?.querySelector('sui-command-palette')
+        const inp = pal?.shadowRoot?.querySelector('.cb-search') as HTMLInputElement | null
+        inp?.focus()
+      })
+    }
+
     const stopOpenSync = effect(() => {
       const isOpen = open()
       host.setAttribute('data-state', isOpen ? 'open' : 'closed')
       if (isOpen) {
         if (typeof dialogRef?.show === 'function') dialogRef.show()
         if (slashCacheAge() > SLASH_CACHE_TTL_MS) void refreshSlashCommands()
-        queueMicrotask(() => {
-          const pal = host.shadowRoot?.querySelector('sui-command-palette')
-          const inp = pal?.shadowRoot?.querySelector('.cb-search') as HTMLInputElement | null
-          inp?.focus()
-        })
+        focusActivePane()
       } else {
         if (typeof dialogRef?.close === 'function') dialogRef.close()
         host.dispatchEvent(new CustomEvent('sui-command:cancel', {
@@ -222,6 +254,15 @@ export default controller<Scope>({
       else detachStream()
     })
 
+    // Re-focus the right input whenever mode flips while the bar is open
+    // (e.g., send-to-agent prefill flips mode→'ai' on an already-open bar).
+    const stopModeFocusSync = effect(() => {
+      const m = mode()
+      if (open()) focusActivePane()
+      // touch m to register dep
+      void m
+    })
+
     // ── Find-mode unified search ───────────────────────────────────
     // Debounce 200ms so each keystroke doesn't fire a request. Cancel
     // any in-flight search on a new keystroke. Cleared when the bar
@@ -255,18 +296,28 @@ export default controller<Scope>({
       searchTimer = setTimeout(() => { void runSearch(q) }, 200)
     })
 
+    // ── Daemon online indicator ────────────────────────────────────
+    // Any successful fetch flips back to online; a network error on a
+    // core endpoint flips offline. Used by the chat empty state to show
+    // a "daemon offline" banner instead of failing silently.
+    function markOnline(): void { if (!daemonOnline()) daemonOnline.set(true) }
+    function markOffline(): void { if (daemonOnline()) daemonOnline.set(false) }
+
     // ── Async data loading ─────────────────────────────────────────
     async function loadCurrentSession(): Promise<void> {
       try {
         const resp = await fetch('/api/v1/pty-sessions', { credentials: 'same-origin' })
         if (resp.ok) {
+          markOnline()
           const body = await resp.json() as { sessions: SessionSummary[] }
           allSessions.set(body.sessions)
           const active = body.sessions.find((s) => s.status !== 'ended' && s.agent_id)
           if (active && active.id !== session()?.id) { session.set(active); thread.set([]) }
           else if (!active) { session.set(null) }
+        } else {
+          markOffline()
         }
-      } catch { /* leave null */ }
+      } catch { markOffline() }
       if (agents().length === 0) void loadAgents()
       if (providers().length === 0) void loadProviders()
       if (views().length === 0) void loadViews()
@@ -342,14 +393,21 @@ export default controller<Scope>({
     }
 
     function runSlashCommand(v: string): void {
-      const needle = v.replace(/^\/+\s*/, '').toLowerCase()
+      const needle = v.replace(/^\/+\s*/, '').toLowerCase().trim()
       const cmds = slashCommands()
       const cmd = cmds.find((c) => c.key === needle) ?? cmds.find((c) => c.key.startsWith(needle))
       if (!cmd) return
+      value.set('')
+      // Mirror sui-command-palette#activateCmd. Keep these in sync — Enter
+      // (here) and click (palette) are the two activation paths into the
+      // same slash registry; missing branches here silently no-op'd /theme
+      // and /lint on Enter pre-fix.
       switch (cmd.key) {
-        case 'new': mode.set('create'); value.set(''); break
+        case 'new': mode.set('create'); break
         case 'chats': void navigateTo('/chats'); open.set(false); break
         case 'settings': void navigateTo('/settings'); open.set(false); break
+        case 'theme': void navigateTo('/theme-studio'); open.set(false); break
+        case 'lint': void navigateTo('/lint'); open.set(false); break
         case 'end': if (session()) void endSession(session()!.id); open.set(false); break
         case 'close': open.set(false); break
       }
@@ -453,6 +511,7 @@ export default controller<Scope>({
       stopStreamSync()
       stopSearchSync()
       stopOpenSync()
+      stopModeFocusSync()
     }
   },
 })

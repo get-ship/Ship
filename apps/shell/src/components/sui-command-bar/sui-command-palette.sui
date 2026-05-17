@@ -236,47 +236,6 @@
   }
   .cb-create-submit:disabled { opacity: 0.5; cursor: not-allowed; }
 
-  /* ── AI spawn card ────────────────────────────────────────────── */
-  .cb-spawn-card {
-    margin: 20px 16px;
-    padding: 16px;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-md, 6px);
-    background: var(--muted);
-  }
-  .cb-spawn-title { font-weight: 600; font-size: 13px; margin-bottom: 12px; }
-  .cb-spawn-row {
-    display: grid;
-    grid-template-columns: 64px 1fr;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 8px;
-  }
-  .cb-spawn-row label { font-size: 12px; color: var(--muted-foreground); }
-  .cb-spawn-row select {
-    height: 30px;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm, 4px);
-    background: var(--background);
-    color: var(--foreground);
-    font: inherit;
-    font-size: 13px;
-    padding: 0 6px;
-  }
-  .cb-spawn-error { font-size: 12px; color: var(--destructive, red); margin-bottom: 8px; }
-  .cb-spawn-start {
-    margin-top: 4px;
-    height: 32px;
-    width: 100%;
-    border: none;
-    border-radius: var(--radius-sm, 4px);
-    background: var(--primary);
-    color: var(--primary-foreground, #fff);
-    font: inherit;
-    font-size: 13px;
-    cursor: pointer;
-  }
-  .cb-spawn-start:disabled { opacity: 0.5; cursor: not-allowed; }
 </style>
 
 <!-- Input row -->
@@ -463,42 +422,9 @@
       </div>
 
     {:default}
-      <!-- ai mode without session — spawn card -->
-      <div class="cb-spawn-card">
-        <div class="cb-spawn-title">Start a session</div>
-        <div class="cb-spawn-row">
-          <label>Agent</label>
-          <select class="cb-spawn-agent" bind:value={bar.spawnAgent}>
-            {#if bar.agents().length === 0}
-              <option value="">No agents found</option>
-            {:else}
-              {#for a of bar.agents() key={a.id}}
-                <option value={a.id}>{a.name ?? a.label ?? a.id}</option>
-              {/for}
-            {/if}
-          </select>
-        </div>
-        <div class="cb-spawn-row">
-          <label>Provider</label>
-          <select class="cb-spawn-provider" bind:value={bar.spawnProvider}>
-            {#if bar.providers().length === 0}
-              <option value="">No providers installed</option>
-            {:else}
-              {#for p of bar.providers() key={p}}
-                <option value={p}>{p}</option>
-              {/for}
-            {/if}
-          </select>
-        </div>
-        {#if bar.spawnError()}
-          <div class="cb-spawn-error">{bar.spawnError()}</div>
-        {/if}
-        <button
-          class="cb-spawn-start"
-          type="button"
-          disabled={bar.spawning() || !bar.spawnAgent() || !bar.spawnProvider()}
-          on:click={spawnSession}
-        >{bar.spawning() ? 'Starting…' : 'Start session'}</button>
-      </div>
+      <!-- ai mode is owned by <sui-command-chat> via isChat(); palette
+           never renders for mode='ai'. This branch is a defensive
+           no-op for any transient unknown mode. -->
+      <div class="cb-empty">…</div>
   {/match}
 </div>
