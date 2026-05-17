@@ -2,6 +2,7 @@
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import Navbar from '../../components/Navbar.astro';
 import Footer from '../../components/Footer.astro';
+import WaitlistForm from '../../components/WaitlistForm.astro';
 ---
 
 <BaseLayout title="SHIP installers — coming soon">
@@ -18,21 +19,12 @@ import Footer from '../../components/Footer.astro';
         live.
       </p>
 
-      <form
-        class="soon-form"
-        id="notify"
-        onsubmit="event.preventDefault();document.getElementById('notify-thanks').toggleAttribute('hidden',false);this.reset();"
-      >
-        <input type="email" required placeholder="you@company.com" aria-label="Email" />
-        <sui-button tone="accent" variant="solid" size="md" type="submit">
-          Notify me
-        </sui-button>
-      </form>
-
-      <sui-alert tone="success" id="notify-thanks" class="soon-thanks" hidden>
-        <span slot="title">You&rsquo;re on the list.</span>
-        We&rsquo;ll email you as soon as installers land.
-      </sui-alert>
+      <WaitlistForm
+        list="general"
+        source="download/coming-soon"
+        placeholder="you@company.com"
+        thanks="You're on the list. We'll email you as soon as installers land."
+      />
 
       <sui-toolbar justify="center" class="soon-actions">
         <sui-button variant="ghost" size="sm" onclick="location.href='/'">
@@ -61,30 +53,6 @@ import Footer from '../../components/Footer.astro';
   }
   .soon-inner h1 {
     font-size: clamp(36px, 5vw, 56px);
-  }
-  .soon-form {
-    display: flex;
-    gap: 10px;
-    margin-top: 12px;
-    width: min(100%, 420px);
-  }
-  .soon-form input {
-    flex: 1;
-    height: 40px;
-    padding: 0 14px;
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    background: var(--card);
-    color: var(--foreground);
-    font: inherit;
-  }
-  .soon-form input:focus {
-    outline: 2px solid var(--accent);
-    outline-offset: 2px;
-  }
-  .soon-thanks {
-    width: min(100%, 420px);
-    text-align: left;
   }
   .soon-actions {
     margin-top: 16px;

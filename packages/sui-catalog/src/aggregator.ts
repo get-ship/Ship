@@ -201,7 +201,21 @@ async function entriesFromSuiOut(
     if (owning?.pkg.customElements) continue
     const cem = await readCemFile(cemAbs)
     if (!cem?.modules) continue
-    const origin = owning?.pkg.name ?? originForNonPackagedSource(sourcePath)
+    // Origin choice:
+    //   • Owning workspace package with a customElements manifest →
+    //     handled above (skipped here, served from the aggregated CEM).
+    //   • Shell-local (sourcePath under `apps/shell/`) → `app:shell`,
+    //     even though apps/shell is a registered workspace package.
+    //     Treating it as a published pack would expose every chrome
+    //     tag in `published.json`; we keep them workspace-only.
+    //   • Other owning workspace package → its npm name, preserving
+    //     the previous behavior for non-pack utility packages.
+    //   • Unowned source → path heuristic (`view:<name>`,
+    //     `workspace:<dir>`).
+    const isShellLocal = sourcePath.startsWith('apps/shell/')
+    const origin = isShellLocal
+      ? originForNonPackagedSource(sourcePath)
+      : (owning?.pkg.name ?? originForNonPackagedSource(sourcePath))
     const isPrivate = owning?.pkg.private ?? true
     const entries = modulesToEntries(cem.modules, {
       packageOrigin: origin,

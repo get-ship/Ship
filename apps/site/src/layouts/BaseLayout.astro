@@ -1,23 +1,24 @@
 ---
 import '../styles/global.css';
-import AuthModal from '../components/AuthModal.astro';
 import { THEMES, DEFAULT_THEME, THEME_STORAGE_KEY } from '../lib/themes';
 
 interface Props {
   title: string;
   description?: string;
   bodyClass?: string;
-  /** If true, skip mounting the shared auth modal — used by /sign-in
-   *  and /sign-up which mount their own with `autoOpen`. */
-  ownAuthModal?: boolean;
+  /** Per-page social card override; defaults to /og-image.png. */
+  ogImage?: string;
 }
 
 const {
   title,
   description = 'SHIP is the missing AI interface. One app for every model, built to run on your machine.',
   bodyClass = '',
-  ownAuthModal = false,
+  ogImage = '/og-image.png',
 } = Astro.props;
+
+const canonicalUrl = new URL(Astro.url.pathname, Astro.site ?? 'https://getship.dev').toString();
+const ogImageUrl = new URL(ogImage, Astro.site ?? 'https://getship.dev').toString();
 
 // Serialize the local theme catalog into the FOUC-prevention inline
 // script. Single source of truth — if THEMES changes, this updates.
@@ -36,10 +37,19 @@ const themePreloadPayload = JSON.stringify({
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{title}</title>
     <meta name="description" content={description} />
+    <link rel="canonical" href={canonicalUrl} />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
     <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://getship.dev" />
+    <meta property="og:url" content={canonicalUrl} />
+    <meta property="og:image" content={ogImageUrl} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:site_name" content="SHIP" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={ogImageUrl} />
     <meta name="theme-color" content="#0f172a" />
     <link rel="icon" href="/favicon.ico" sizes="any" />
     <link rel="icon" href="/ship-logo.svg" type="image/svg+xml" />
@@ -80,6 +90,5 @@ const themePreloadPayload = JSON.stringify({
   </head>
   <body class={bodyClass}>
     <slot />
-    {!ownAuthModal && <AuthModal />}
   </body>
 </html>

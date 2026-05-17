@@ -1,0 +1,100 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Syne:wght@500;700&family=DM+Sans:wght@400;600&display=swap');
+  html, body { margin: 0; padding: 0; }
+  body {
+    width: 1200px; height: 630px;
+    font-family: 'DM Sans', system-ui, sans-serif;
+    background: oklch(0.99 0.001 106.423);
+    color: oklch(0.18 0.01 250);
+    position: relative;
+    overflow: hidden;
+  }
+  .grid {
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(to right,  oklch(0.18 0.01 250 / 0.05) 1px, transparent 1px),
+      linear-gradient(to bottom, oklch(0.18 0.01 250 / 0.05) 1px, transparent 1px);
+    background-size: 48px 48px;
+    mask-image: radial-gradient(ellipse 70% 80% at 30% 50%, #000, transparent 75%);
+  }
+  .blob1 {
+    position: absolute;
+    width: 700px; height: 700px;
+    right: -150px; top: -200px;
+    background: radial-gradient(circle, oklch(0.67 0.18 58 / 0.35), transparent 60%);
+    filter: blur(40px);
+  }
+  .blob2 {
+    position: absolute;
+    width: 550px; height: 550px;
+    right: 100px; bottom: -200px;
+    background: radial-gradient(circle, oklch(0.61 0.23 303 / 0.28), transparent 60%);
+    filter: blur(50px);
+  }
+  .wrap {
+    position: relative; z-index: 1;
+    padding: 88px 96px;
+    display: flex; flex-direction: column;
+    height: 100%; box-sizing: border-box;
+  }
+  .brand {
+    display: flex; align-items: center; gap: 14px;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700; font-size: 26px;
+    letter-spacing: 0.04em;
+  }
+  .brand-mark {
+    width: 42px; height: 42px; border-radius: 8px;
+    background: linear-gradient(135deg, oklch(0.67 0.18 58), oklch(0.61 0.23 303));
+    box-shadow: 0 6px 24px oklch(0.67 0.18 58 / 0.4);
+  }
+  h1 {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700; font-size: 124px;
+    line-height: 0.92; letter-spacing: -0.04em;
+    margin: 64px 0 0; max-width: 900px;
+  }
+  h1 em {
+    font-style: italic; font-weight: 500;
+    background: linear-gradient(100deg, oklch(0.67 0.18 58), oklch(0.61 0.23 303));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .period { color: oklch(0.67 0.18 58); }
+  .sub {
+    margin-top: 36px; font-size: 26px; color: oklch(0.42 0.02 250);
+    max-width: 880px; line-height: 1.4;
+  }
+  .meta {
+    margin-top: auto;
+    display: flex; align-items: center; gap: 18px;
+    font-family: ui-monospace, 'JetBrains Mono', monospace;
+    font-size: 17px; letter-spacing: 0.1em; text-transform: uppercase;
+    color: oklch(0.42 0.02 250);
+  }
+  .meta .pill {
+    padding: 6px 14px; border-radius: 999px;
+    background: oklch(0.67 0.18 58 / 0.12);
+    color: oklch(0.55 0.18 58);
+    border: 1px solid oklch(0.67 0.18 58 / 0.25);
+  }
+</style>
+</head>
+<body>
+  <div class="grid"></div>
+  <div class="blob1"></div>
+  <div class="blob2"></div>
+  <div class="wrap">
+    <div class="brand"><div class="brand-mark"></div>SHIP</div>
+    <h1>Vibe <em>anything<span class="period">.</span></em></h1>
+    <p class="sub">Where AI stops being a chat and starts being an app. Local-first. Bring your own model.</p>
+    <div class="meta">
+      <span class="pill">PERSONAL AI RUNTIME</span>
+      <span>getship.dev</span>
+    </div>
+  </div>
+</body>
+</html>

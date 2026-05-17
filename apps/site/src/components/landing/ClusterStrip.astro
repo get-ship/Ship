@@ -1,17 +1,16 @@
 ---
 const clusters = [
-  { num: '01', href: '#cluster-agents', title: 'Agents', joiner: '+', right: 'Skills', desc: 'Universal agent config. Skills drop in as folders.' },
-  { num: '02', href: '#cluster-logic', title: 'Pipelines', joiner: '+', right: 'Triggers', desc: 'DAGs that react to anything — cron, webhook, file, message.' },
-  { num: '03', href: '#cluster-data', title: 'Artifacts', joiner: '+', right: 'Collections', desc: 'Files you produce. Structured data you shape.' },
-  { num: '04', href: '#cluster-views', title: 'Views', joiner: '', right: '', desc: '80+ web components and a reactive SDK wired to every runtime signal.' },
+  { num: '01', href: '#cluster-agents', title: 'Agents', joiner: '+', right: 'Skills', desc: 'One config per agent. Standard skill files. Works across Claude, Codex, Gemini, Cursor.' },
+  { num: '02', href: '#cluster-data',   title: 'Artifacts', joiner: '+', right: 'Collections', desc: 'Your data in shapes you define. Every file your agents produce, indexed and addressable.' },
+  { num: '03', href: '#cluster-views',  title: 'Views', joiner: '', right: '', desc: 'Web components for tables, charts, chat, artifacts, forms. A reactive SDK wired to every runtime signal. Save the file; the app updates.' },
 ];
 ---
 
-<section class="axes-strip" id="features">
+<section class="axes-strip" id="features" data-reveal>
   <div class="container">
     <div class="cluster-grid">
       {clusters.map((c) => (
-        <a class="cluster" href={c.href}>
+        <a class="cluster spotlight" href={c.href} data-reveal-child>
           <span class="cluster-num">{c.num}</span>
           <span class="cluster-title">
             {c.title}
@@ -33,11 +32,10 @@ const clusters = [
   }
   .cluster-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr 1fr 1.35fr;
+    grid-template-columns: 1fr 1fr 1.25fr;
     gap: 16px;
   }
-  @media (max-width: 1060px) { .cluster-grid { grid-template-columns: 1fr 1fr; } }
-  @media (max-width: 640px) { .cluster-grid { grid-template-columns: 1fr; } }
+  @media (max-width: 900px) { .cluster-grid { grid-template-columns: 1fr; } }
   .cluster {
     display: flex; flex-direction: column; gap: 10px;
     padding: 24px 22px; border-radius: 16px;
@@ -45,11 +43,15 @@ const clusters = [
     border: 1px solid var(--plate-border);
     text-decoration: none; min-height: 160px;
     position: relative;
-    transition: transform 200ms var(--ease-out), border-color 200ms;
+    transition:
+      transform 280ms var(--ease-out),
+      border-color 280ms ease,
+      box-shadow 280ms ease;
   }
   .cluster:hover {
-    transform: translateY(-2px);
+    transform: translateY(-3px);
     border-color: color-mix(in oklab, var(--primary) 45%, var(--plate-border));
+    box-shadow: 0 14px 32px color-mix(in oklab, var(--page-fg) 12%, transparent);
   }
   .cluster-num {
     font-family: 'JetBrains Mono', ui-monospace, monospace;

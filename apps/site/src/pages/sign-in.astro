@@ -2,36 +2,16 @@
 import BaseLayout from '../layouts/BaseLayout.astro';
 import Navbar from '../components/Navbar.astro';
 import Footer from '../components/Footer.astro';
-import AuthModal from '../components/AuthModal.astro';
+import AuthPage from '../components/AuthPage.astro';
+
+const SHOW_AUTH = import.meta.env.DEV || import.meta.env.PUBLIC_SHOW_AUTH === 'true';
+if (!SHOW_AUTH) return Astro.redirect('/waitlist?reason=signin');
 ---
 
-<BaseLayout title="Sign in — SHIP" ownAuthModal>
+<BaseLayout title="Sign in — SHIP">
   <Navbar />
-  <main class="auth-page">
-    <div class="site-container auth-intro">
-      <h1>Welcome back.</h1>
-      <p class="site-muted">
-        Sign in to sync across your devices, share workspaces with your
-        team, and keep your SHIP preferences wherever you install it.
-      </p>
-    </div>
+  <main id="main">
+    <AuthPage mode="sign-in" />
   </main>
   <Footer />
-  <AuthModal mode="sign-in" autoOpen />
 </BaseLayout>
-
-<style>
-  .auth-page {
-    padding: clamp(72px, 10vw, 128px) 0;
-    min-height: 60vh;
-  }
-  .auth-intro {
-    text-align: center;
-    max-width: 48ch;
-    margin: 0 auto;
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-    align-items: center;
-  }
-</style>

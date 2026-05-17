@@ -6,13 +6,48 @@
     <header class="agents-head">
       <div class="agents-head-titles">
         <h1 class="agents-title">Agents</h1>
-        <p class="agents-sub">{total()} agent{total() === 1 ? '' : 's'}</p>
+        <p class="agents-sub">
+          {filteredItems().length} of {items().length} agent{items().length === 1 ? '' : 's'}
+          {#if activeId()}
+            <span class="agents-sub-sep">·</span>
+            <span class="agents-sub-active" data-test="active-summary">active: {activeId()}</span>
+          {/if}
+        </p>
       </div>
       <sui-button tone="primary" variant="solid" on:click={goCreate} data-test="cta-new">
         <sui-icon slot="leading" name="plus"></sui-icon>
         New agent
       </sui-button>
     </header>
+
+    <div class="agents-filters">
+      <div class="agents-search">
+        <sui-icon name="search" size="sm" tone="muted"></sui-icon>
+        <input type="text" placeholder="Search by name, description, or tag…"
+          aria-label="Search agents"
+          spellcheck="false"
+          data-test="search"
+          value={q()}
+          on:input={onSearchInput} />
+        {#if q()}
+          <button type="button" class="agents-search-clear" aria-label="Clear search"
+            on:click={clearSearch}>
+            <sui-icon name="x" size="xs"></sui-icon>
+          </button>
+        {/if}
+      </div>
+      <div class="agents-pills" role="group" aria-label="Filter by source">
+        {#for f of kindFilters() key={f.id}}
+          <button type="button" class="agents-pill"
+            class:is-active={kind() === f.id}
+            data-test="filter"
+            attr:data-filter={f.id}
+            on:click={() => kind.set(f.id)}>
+            {f.label} <span class="agents-pill-count">{f.count}</span>
+          </button>
+        {/for}
+      </div>
+    </div>
 
     {#while-loading of agents}
       <div class="agents-grid" data-test="loading" role="status" aria-live="polite" aria-busy="true" aria-label="Loading agents">
@@ -48,13 +83,23 @@
             Create your first agent
           </sui-button>
         </sui-empty-state>
+      {:else if filteredItems().length === 0}
+        <sui-empty-state icon="search-x" variant="default" size="sm" data-test="empty-filtered" role="status">
+          <span slot="title">No matching agents</span>
+          {q() ? 'Nothing matches "' + q() + '"' : 'No agents in this scope.'}
+          <sui-button slot="action" variant="outline" size="sm" on:click={resetFilters}>
+            Clear filters
+          </sui-button>
+        </sui-empty-state>
       {:else}
         <div class="agents-grid" data-view-enter data-test="grid">
-          {#for a of items() key={a.id}}
+          {#for a of filteredItems() key={a.id}}
             <sui-list-tile variant="card" density="normal" interactive
                             navigable={'/agents/' + a.id}
                             class="agents-card-tile"
-                            data-test="agent">
+                            data-test="agent"
+                            attr:data-id={a.id}
+                            attr:data-active={a.active ? '' : null}>
               <div class="agents-card-icon-tile" slot="leading">
                 <span class="agents-card-letter">{a.letter}</span>
               </div>
@@ -82,6 +127,12 @@
                 {/if}
                 <div class="agents-card-badges">
                   <sui-badge tone="muted" variant="outline" size="sm" class="agents-card-badge-source">{a.source}</sui-badge>
+                  {#if a.active}
+                    <sui-chip tone="success" variant="soft" size="sm" data-test="active-chip">
+                      <sui-status-dot slot="leading" tone="success" size="sm" pulse label="Active"></sui-status-dot>
+                      active
+                    </sui-chip>
+                  {/if}
                   {#if agentStatus()[a.id]}
                     <sui-chip
                         tone={agentStatus()[a.id] === 'errored' ? 'destructive' : agentStatus()[a.id] === 'completed' ? 'success' : 'primary'}
@@ -97,13 +148,6 @@
                           label={agentStatus()[a.id]}></sui-status-dot>
                       {agentStatus()[a.id]}
                     </sui-chip>
-                  {:else}
-                    {#if a.active}
-                      <sui-chip tone="primary" variant="soft" size="sm">
-                        <sui-status-dot slot="leading" tone="primary" size="sm" pulse label="Active session"></sui-status-dot>
-                        active session
-                      </sui-chip>
-                    {/if}
                   {/if}
                   {#for t of (a.tags || []).slice(0, 2) key={t}}
                     <sui-chip tone="muted" variant="soft" size="sm">{t}</sui-chip>

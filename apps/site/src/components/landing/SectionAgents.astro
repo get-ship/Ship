@@ -1,27 +1,30 @@
 ---
 const checkIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"></path></svg>`;
 const points = [
-  { title: 'Universal agent config', body: 'One definition. Skills, tools, MCP, permissions. Ship compiles to provider-specific manifests so swapping models doesn\'t mean rewriting agents.' },
-  { title: 'Skills extend <code>agentskills.io</code>', body: 'Drop a skill folder; agents pick it up. Same spec your CLI already speaks — nothing proprietary, nothing to learn twice.' },
-  { title: 'Scoped by default', body: 'Filesystem, shell, and network permissions are explicit. Agents get what they need to do the work and nothing more.' },
+  { title: 'One definition, every provider', body: 'Skills, tools, MCP, permissions, model preference — declared once. Ship compiles to whichever provider runs it.' },
+  { title: 'Standard skill files', body: 'Drop a skill folder; agents pick it up. Bring the skills you already use.' },
+  { title: 'Scoped by default', body: 'Filesystem, shell, and network permissions are explicit per agent. Nothing they shouldn\'t touch.' },
 ];
 ---
 
-<section class="section stage" id="cluster-agents">
+<section class="section stage" id="cluster-agents" data-reveal>
   <div class="bg" aria-hidden="true"><div class="bg-grid"></div></div>
   <div class="container">
     <div class="section-head">
       <div class="section-kicker">01 · Agents &amp; Skills</div>
       <h1 class="section-title">One config. <em>Every model.</em></h1>
-      <p class="section-sub">Declare an agent once — <b>skills, MCP servers, permissions, model preferences</b>. Ship compiles it down to whichever provider you're running: Claude, Codex, Gemini, Cursor. Swap the model, keep the agent.</p>
+      <p class="section-sub">Declare an agent once with the <b>skills, MCP servers, permissions, and model</b> you want. Ship compiles to whichever provider runs it: Claude, Codex, Gemini, Cursor.</p>
     </div>
 
     <div class="two-col flip">
-      <div class="agent-card">
+      <div class="agent-card spotlight">
         <div class="ac-head">
           <div class="ac-mono"><b>rust-lane</b> · agent</div>
           <div></div>
-          <div class="ac-mono ac-ready">● ready</div>
+          <sui-badge tone="success" variant="soft" size="sm">
+            <sui-status-dot slot="leading" tone="success" pulse size="sm"></sui-status-dot>
+            ready
+          </sui-badge>
         </div>
         <div class="ac-grid">
           <div class="ac-side">
@@ -39,10 +42,38 @@ const points = [
             <h3>Rust Lane</h3>
             <div class="ac-desc">A focused implementation lane for cross-crate work on the compiler + runtime.</div>
             <div class="ac-rows">
-              <div class="ac-row"><div class="k">Compiles to</div><div class="v compile-to"><span class="tag p">claude</span><span class="arrow">·</span><span class="tag">codex</span><span class="arrow">·</span><span class="tag">gemini</span><span class="arrow">·</span><span class="tag">cursor</span></div></div>
-              <div class="ac-row"><div class="k">Skills</div><div class="v"><span class="tag">cargo</span><span class="tag">git</span><span class="tag">rustfmt</span><span class="tag">clippy</span></div></div>
-              <div class="ac-row"><div class="k">MCP</div><div class="v"><span class="tag a">fs-scoped</span><span class="tag a">shell-allowlist</span></div></div>
-              <div class="ac-row"><div class="k">Perms</div><div class="v"><span class="tag">write · packages/compiler</span><span class="tag">ask · network</span></div></div>
+              <div class="ac-row">
+                <div class="k">Compiles to</div>
+                <div class="v">
+                  <sui-badge tone="primary" variant="soft" size="sm">claude</sui-badge>
+                  <sui-badge variant="outline" size="sm">codex</sui-badge>
+                  <sui-badge variant="outline" size="sm">gemini</sui-badge>
+                  <sui-badge variant="outline" size="sm">cursor</sui-badge>
+                </div>
+              </div>
+              <div class="ac-row">
+                <div class="k">Skills</div>
+                <div class="v">
+                  <sui-badge variant="soft" size="sm">cargo</sui-badge>
+                  <sui-badge variant="soft" size="sm">git</sui-badge>
+                  <sui-badge variant="soft" size="sm">rustfmt</sui-badge>
+                  <sui-badge variant="soft" size="sm">clippy</sui-badge>
+                </div>
+              </div>
+              <div class="ac-row">
+                <div class="k">MCP</div>
+                <div class="v">
+                  <sui-badge tone="accent" variant="soft" size="sm">fs-scoped</sui-badge>
+                  <sui-badge tone="accent" variant="soft" size="sm">shell-allowlist</sui-badge>
+                </div>
+              </div>
+              <div class="ac-row">
+                <div class="k">Perms</div>
+                <div class="v">
+                  <sui-badge variant="soft" size="sm">write · packages/compiler</sui-badge>
+                  <sui-badge variant="soft" size="sm">ask · network</sui-badge>
+                </div>
+              </div>
             </div>
           </div>
         </div>

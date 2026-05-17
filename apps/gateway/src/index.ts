@@ -5,8 +5,15 @@ import { syncRoutes, projectRoutes, jobRoutes } from './routes/index.js';
 import { authRoutes } from './routes/auth.js';
 import { githubRoutes } from './routes/github.js';
 import { registryRoutes } from './routes/registry.js';
+import { opsRoutes } from './routes/ops.js';
+import { waitlistRoutes } from './routes/waitlist.js';
 
-const CORS_ORIGINS = ['http://localhost:3000', 'https://staging.getship.dev', 'https://getship.dev'];
+const CORS_ORIGINS = [
+  'http://localhost:3000',
+  'http://localhost:4321', // marketing site (Astro dev)
+  'https://staging.getship.dev',
+  'https://getship.dev',
+];
 
 const app = new Hono<{ Bindings: Env; Variables: { projectId: string } }>()
   .onError(errorHandler)
@@ -44,6 +51,9 @@ const app = new Hono<{ Bindings: Env; Variables: { projectId: string } }>()
   // Auth, GitHub, registry routes (no x-project-id middleware)
   .route('/', authRoutes)
   .route('/', githubRoutes)
-  .route('/', registryRoutes);
+  .route('/', registryRoutes)
+  // Always-on: ops + waitlist (no feature flag, no auth)
+  .route('/', opsRoutes)
+  .route('/', waitlistRoutes);
 
 export default app;

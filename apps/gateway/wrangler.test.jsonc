@@ -21,7 +21,6 @@
   "vars": {
     "GITHUB_CLIENT_ID": "",
     "GITHUB_CLIENT_SECRET": "",
-    "GITHUB_WEBHOOK_SECRET": "",
-    "JWT_SECRET": ""
+    "GITHUB_WEBHOOK_SECRET": ""
   }
 }

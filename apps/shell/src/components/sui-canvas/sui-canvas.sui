@@ -1,0 +1,88 @@
+<bundle separate />
+<!--
+  <sui-canvas> — generic agent-paired authoring surface.
+
+  Agent emits SUI markup into the canvas; user annotates, sends feedback,
+  and interacts with rendered content. Agent emits morph patches that
+  update the canvas without remount.
+
+  Wire (kernel events, filtered by canvas-id):
+    Agent  → canvas:  canvas.content { canvas_id, sui }
+                      canvas.morph   { canvas_id, target, patch }
+    Canvas → agent:   canvas.interaction { canvas_id, kind, ... }
+
+  Prop surface
+  ────────────────────────────────────────────────────────────────────────
+  canvas-id       (string, '')              session id; filters wire events
+  agent-id        (string, '')              paired agent id (informational)
+  full-height     (bool, false, reflect)    expand to container height
+  ────────────────────────────────────────────────────────────────────────
+  Events (bubbles, composed):
+    sui-canvas-mounted   → detail: { canvas_id }
+    sui-canvas-content   → detail: { canvas_id, length }
+    sui-canvas-morph     → detail: { canvas_id, target, patch }
+    sui-canvas-interact  → detail: { canvas_id, kind, ... }
+  ────────────────────────────────────────────────────────────────────────
+  Host methods (exposed by controller):
+    setContent(sui)      replace canvas body (uses morph to preserve state)
+    applyMorph(target, patch)  patch a single element by selector
+    clear()              empty the canvas
+    getContentHtml()     current canvas innerHTML
+  ────────────────────────────────────────────────────────────────────────
+-->
+
+<prop name="canvas-id" type="string" default="" />
+<prop name="agent-id" type="string" default="" />
+<prop name="full-height" type="bool" default="false" reflect />
+
+<style>
+  :host {
+    display: block;
+    position: relative;
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-body);
+    overflow: auto;
+  }
+  :host([hidden]) { display: none; }
+  :host([full-height]) { height: 100%; }
+
+  .canvas-surface {
+    min-height: 100%;
+    padding: var(--space-6);
+    box-sizing: border-box;
+  }
+
+  .canvas-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 240px;
+    gap: var(--space-3);
+    color: var(--muted-foreground);
+    font-size: var(--text-sm);
+    text-align: center;
+    padding: var(--space-8);
+  }
+  .canvas-empty-title {
+    font-family: var(--font-display);
+    font-size: var(--text-base);
+    font-weight: var(--font-weight-semibold);
+    color: var(--foreground);
+  }
+
+  @media (forced-colors: active) {
+    :host { outline: 1px solid CanvasText; }
+  }
+</style>
+
+<div class="canvas-surface" part="surface" bind:this={surfaceEl}>
+  {#if !hasContent()}
+    <div class="canvas-empty" part="empty">
+      <sui-icon name="image" aria-hidden="true"></sui-icon>
+      <div class="canvas-empty-title">Canvas ready</div>
+      <div>Paired agent will render content here.</div>
+    </div>
+  {/if}
+</div>

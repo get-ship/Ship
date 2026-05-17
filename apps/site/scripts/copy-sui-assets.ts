@@ -16,6 +16,7 @@ const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(SCRIPT_DIR, '../../..');
 const PUBLIC_DIR = join(SCRIPT_DIR, '../public');
 const SUI_ASSETS_DIR = join(REPO_ROOT, 'crates/sui/ship-sui-server/assets');
+const SHIPD_ASSETS_DIR = join(REPO_ROOT, 'apps/shipd/assets');
 
 const SUI_BUNDLES = [
   'sui-runtime.js',
@@ -23,6 +24,13 @@ const SUI_BUNDLES = [
   'sui-sdk-client.js',
   'sui-components.js',
 ] as const;
+
+// <sui-theme-picker> injects a <link rel="stylesheet" href="/api/assets/view-tokens.css">
+// into its shadow root. Mirror that path so the request resolves on a
+// static host (we have no daemon serving /api/assets/*).
+const DAEMON_API_ASSETS: ReadonlyArray<{ src: string; dst: string }> = [
+  { src: join(SHIPD_ASSETS_DIR, 'view-tokens.css'), dst: join(PUBLIC_DIR, 'api/assets/view-tokens.css') },
+];
 
 mkdirSync(PUBLIC_DIR, { recursive: true });
 
@@ -40,4 +48,14 @@ for (const name of SUI_BUNDLES) {
   copied++;
 }
 
-console.log(`[copy-sui-assets] Copied ${copied}/${SUI_BUNDLES.length} SUI bundles to public/.`);
+for (const { src, dst } of DAEMON_API_ASSETS) {
+  if (!existsSync(src)) {
+    console.log(`[copy-sui-assets] ${src} not found; skipping.`);
+    continue;
+  }
+  mkdirSync(dirname(dst), { recursive: true });
+  copyFileSync(src, dst);
+  copied++;
+}
+
+console.log(`[copy-sui-assets] Copied ${copied} assets to public/.`);

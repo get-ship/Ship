@@ -2,242 +2,553 @@
 import BaseLayout from '../layouts/BaseLayout.astro';
 import Navbar from '../components/Navbar.astro';
 import Footer from '../components/Footer.astro';
-
-// Five features, each substantial. Each card has a tone, a kicker,
-// a paragraph of real content, and a technical tag line underneath.
-const features = [
-  {
-    tone: 'primary',
-    kind: 'Skills',
-    title: 'Parameterized capabilities for every agent.',
-    body: 'Skills are small files — a prompt, the tools they can touch, a permission scope, optional UI. Hand one to any agent and watch it work. Compose them into pipelines. Author your own in an afternoon and share them across workspaces.',
-    tag: '.ship/skills/*',
-  },
-  {
-    tone: 'accent',
-    kind: 'Views',
-    title: 'Reactive apps inside your workspace.',
-    body: 'Build a dashboard, a tracker, a lens over your data with the same ship-* components the first-party app uses. Jinja templates, Datastar for reactivity, no build step, no deploy. Drop a new view file into a folder and refresh — your app is live.',
-    tag: '.ship/views/*',
-  },
-  {
-    tone: 'info',
-    kind: 'Pipelines',
-    title: 'Any workflow, one file, audited.',
-    body: 'Steps can be a shell command, an agent call, a human gate, a merge, or a nested pipeline. SHIP schedules, retries, caps cost per run, and keeps the full audit trail. Drop into a branch, run locally, promote to scheduled.',
-    tag: 'ship run <name>',
-  },
-  {
-    tone: 'success',
-    kind: 'Collections',
-    title: 'Your data, any shape, instantly usable.',
-    body: 'Define a schema and SHIP hands you forms, tables, filters, and SQL-pushdown queries. Any agent can read, any view can render, any skill can write. Your collections are first-class citizens of every surface in the app.',
-    tag: 'collections/*',
-  },
-  {
-    tone: 'warning',
-    kind: 'Integrations',
-    title: 'MCP-native. Local-first. Your keys.',
-    body: 'Every tool that speaks Model Context Protocol plugs straight in. Notifications route agent output back to where you already work — push, email, chat, webhooks, your rules. Runs entirely on your machine, no account required.',
-    tag: 'local-first · BYO keys',
-  },
-];
 ---
 
-<BaseLayout title="SHIP features — the platform for AI-native apps">
-  <Navbar />
-  <main class="fx-page">
+<script>
+  import '../scripts/motion';
+</script>
 
-    <!-- Hero (retained — best descriptor) -------------------------- -->
-    <header class="fx-hero site-container">
-      <sui-badge tone="primary" variant="soft" size="sm">Build on SHIP</sui-badge>
-      <h1>The platform for AI&#8209;native apps.</h1>
-      <p class="fx-lede">
-        SHIP isn&rsquo;t a library. It&rsquo;s a runtime, an SDK, a
-        component system, and a governance layer &mdash; all designed
-        so your team can ship AI features your users actually want to
-        use. Start free on your laptop, talk to us when you&rsquo;re
-        ready for a team or production.
-      </p>
-      <sui-toolbar gap="md" justify="start" class="fx-ctas">
-        <sui-button
-          tone="primary"
-          variant="solid"
-          size="lg"
-          onclick="location.href='/download'"
-        >Download SHIP</sui-button>
-        <sui-button
-          variant="ghost"
-          size="lg"
-          onclick="location.href='https://docs.getship.dev'"
-        >Read the docs &rarr;</sui-button>
-      </sui-toolbar>
+<BaseLayout title="SHIP features">
+  <Navbar />
+  <main class="fx">
+
+    <!-- Hero ─────────────────────────────────────────────────────── -->
+    <header class="fx-hero">
+      <div class="container">
+        <span class="fx-eyebrow">What's in the box</span>
+        <h1>Everything you need to build your own AI app.</h1>
+        <p class="fx-lede">
+          SHIP is a runtime, an SDK, a component library, and a permission
+          model. The full stack to compose your own AI app and use it
+          every day. Free on your machine; paid sync if you want it
+          across machines.
+        </p>
+        <div class="fx-ctas">
+          <sui-button tone="primary" variant="solid" size="lg">
+            <a href="/download" class="fx-link">Download SHIP</a>
+          </sui-button>
+          <sui-button variant="ghost" size="lg">
+            <a href="https://docs.getship.dev" class="fx-link">Read the docs →</a>
+          </sui-button>
+        </div>
+      </div>
     </header>
 
-    <!-- Feature stack — five cards with real content -->
-    <section class="fx-stack site-container" aria-label="Features">
-      {features.map((f, i) => (
-        <sui-card variant="outline" padding="lg" class="fx-card" data-tone={f.tone}>
-          <div class="fx-card-rail" aria-hidden="true">
-            <span class="fx-card-num">{String(i + 1).padStart(2, '0')}</span>
-            <sui-badge tone={f.tone} variant="soft" size="sm">{f.kind}</sui-badge>
+    <!-- 01 · Agents ─────────────────────────────────────────────── -->
+    <section class="fx-section stage" id="agents" data-reveal>
+      <div class="container fx-grid">
+        <div class="fx-copy">
+          <div class="fx-kicker" data-reveal-child>01 · Agents</div>
+          <h2 data-reveal-child>One config. Every provider.</h2>
+          <p data-reveal-child>
+            An agent is one file: model preference, skills, MCP servers,
+            permissions. Ship compiles that file to provider-specific
+            manifests so swapping models doesn't mean rewriting agents.
+          </p>
+          <ul class="fx-points" data-reveal-child>
+            <li><b>Provider-agnostic.</b> Same agent runs on Claude, Codex, Gemini, or Cursor.</li>
+            <li><b>Scoped permissions.</b> Filesystem, shell, and network access is explicit per agent.</li>
+            <li><b>Local dispatch.</b> Dispatched and observed entirely on your machine.</li>
+          </ul>
+        </div>
+        <aside class="fx-card spotlight" data-reveal-child>
+          <div class="fx-card-head">
+            <span class="fx-card-mono"><b>rust-lane</b> · agent</span>
+            <sui-badge tone="success" variant="soft" size="sm">
+              <sui-status-dot slot="leading" tone="success" pulse size="sm"></sui-status-dot>
+              ready
+            </sui-badge>
           </div>
-          <div class="fx-card-body-wrap">
-            <h3 class="fx-card-title">{f.title}</h3>
-            <p class="fx-card-body">{f.body}</p>
-            <code class="fx-card-tag">{f.tag}</code>
-          </div>
-        </sui-card>
-      ))}
+          <dl class="fx-spec">
+            <dt>model</dt>
+            <dd><sui-badge tone="primary" variant="soft" size="sm">claude · opus</sui-badge></dd>
+            <dt>compiles to</dt>
+            <dd class="fx-badges">
+              <sui-badge variant="outline" size="sm">claude</sui-badge>
+              <sui-badge variant="outline" size="sm">codex</sui-badge>
+              <sui-badge variant="outline" size="sm">gemini</sui-badge>
+              <sui-badge variant="outline" size="sm">cursor</sui-badge>
+            </dd>
+            <dt>skills</dt>
+            <dd class="fx-badges">
+              <sui-badge variant="soft" size="sm">cargo</sui-badge>
+              <sui-badge variant="soft" size="sm">git</sui-badge>
+              <sui-badge variant="soft" size="sm">rustfmt</sui-badge>
+              <sui-badge variant="soft" size="sm">clippy</sui-badge>
+            </dd>
+            <dt>mcp</dt>
+            <dd class="fx-badges">
+              <sui-badge tone="accent" variant="soft" size="sm">fs-scoped</sui-badge>
+              <sui-badge tone="accent" variant="soft" size="sm">shell-allowlist</sui-badge>
+            </dd>
+            <dt>perms</dt>
+            <dd class="fx-perms">
+              <span><b>write</b> · packages/compiler</span>
+              <span><b>ask</b> · network</span>
+            </dd>
+          </dl>
+        </aside>
+      </div>
     </section>
 
-    <!-- CTA card -------------------------------------------------- -->
-    <section class="fx-cta site-container">
-      <sui-card variant="outline" padding="lg" class="fx-cta-card">
-        <div class="fx-cta-copy">
-          <h2>Install it. See for yourself.</h2>
-          <p>
-            Everything above runs on your laptop the moment the
-            installer lands. Leave your email for the release, or jump
-            straight into the docs and start wiring up your own
-            skills, views, and pipelines.
+    <!-- 02 · Skills ─────────────────────────────────────────────── -->
+    <section class="fx-section stage fx-flip" id="skills" data-reveal>
+      <div class="container fx-grid">
+        <div class="fx-copy">
+          <div class="fx-kicker" data-reveal-child>02 · Skills</div>
+          <h2 data-reveal-child>Standard files. Drop in. Done.</h2>
+          <p data-reveal-child>
+            Skills are small folders — a prompt, the tools they can touch,
+            a permission scope, optional UI. Bring the skills you already
+            use; author your own in an afternoon.
           </p>
+          <ul class="fx-points" data-reveal-child>
+            <li><b>Standard format.</b> Same shape your CLI already speaks.</li>
+            <li><b>Drop-in install.</b> Move the folder into <code>.ship/skills/</code>; agents pick it up on next dispatch.</li>
+            <li><b>Composable.</b> Any agent can use any skill; permissions intersect.</li>
+          </ul>
         </div>
-        <sui-toolbar slot="footer" gap="md" justify="end">
-          <sui-button
-            variant="ghost"
-            size="md"
-            onclick="location.href='https://docs.getship.dev'"
-          >Read the docs</sui-button>
-          <sui-button
-            tone="primary"
-            variant="solid"
-            size="md"
-            onclick="location.href='/download'"
-          >Download SHIP</sui-button>
-        </sui-toolbar>
-      </sui-card>
+        <aside class="fx-card spotlight" data-reveal-child>
+          <div class="fx-card-head">
+            <span class="fx-card-mono"><b>.ship/skills/</b></span>
+            <sui-badge tone="primary" variant="soft" size="sm">3 installed</sui-badge>
+          </div>
+          <ul class="fx-tree">
+            <li class="fx-tree-d">code-review/
+              <ul>
+                <li>prompt.md</li>
+                <li>tools.json</li>
+                <li>perms.json</li>
+              </ul>
+            </li>
+            <li class="fx-tree-d">inbox-triage/
+              <ul><li>prompt.md</li><li>tools.json</li></ul>
+            </li>
+            <li class="fx-tree-d">digest-writer/
+              <ul><li>prompt.md</li><li>view.j2</li></ul>
+            </li>
+          </ul>
+        </aside>
+      </div>
+    </section>
+
+    <!-- 03 · Collections & Artifacts ────────────────────────────── -->
+    <section class="fx-section stage" id="data" data-reveal>
+      <div class="container fx-grid">
+        <div class="fx-copy">
+          <div class="fx-kicker" data-reveal-child>03 · Collections &amp; Artifacts</div>
+          <h2 data-reveal-child>Your data, indexed everywhere.</h2>
+          <p data-reveal-child>
+            Collections are your structured data — define the shape, Ship
+            maintains schema and indexes. Artifacts are whatever your
+            agents produce. Both addressable, both flow through every
+            view and skill.
+          </p>
+          <ul class="fx-points" data-reveal-child>
+            <li><b>Schema-managed.</b> Define types, refs, enums, indexes; Ship handles migrations.</li>
+            <li><b>Reactive.</b> Write to a collection, views update. Produce an artifact, downstream skills wake up.</li>
+            <li><b>Local-first.</b> SQLite on disk. Yours.</li>
+          </ul>
+        </div>
+        <aside class="fx-card spotlight" data-reveal-child>
+          <div class="fx-card-head">
+            <span class="fx-card-mono"><b>runs</b> · collection</span>
+            <sui-badge tone="primary" variant="soft" size="sm">6 fields · 3 indexes</sui-badge>
+          </div>
+          <sui-table class="fx-sui-table" density="compact" hoverable label="Schema for runs collection">
+            <table>
+              <thead>
+                <tr>
+                  <th>Field</th>
+                  <th>Type</th>
+                  <th class="num">Flag</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td><b>id</b></td>          <td class="t">uuid</td>             <td class="num"><sui-badge tone="primary" variant="soft" size="sm">pk</sui-badge></td></tr>
+                <tr><td><b>agent</b></td>       <td class="t">ref → agents</td>     <td class="num"><sui-badge variant="outline" size="sm">idx</sui-badge></td></tr>
+                <tr><td><b>status</b></td>      <td class="t">enum</td>             <td class="num"><sui-badge variant="outline" size="sm">idx</sui-badge></td></tr>
+                <tr><td><b>started_at</b></td>  <td class="t">datetime</td>         <td class="num"><sui-badge variant="outline" size="sm">idx</sui-badge></td></tr>
+                <tr><td><b>artifact</b></td>    <td class="t">ref → artifacts?</td> <td class="num">—</td></tr>
+                <tr><td><b>duration_ms</b></td> <td class="t">integer</td>          <td class="num">—</td></tr>
+              </tbody>
+            </table>
+          </sui-table>
+        </aside>
+      </div>
+    </section>
+
+    <!-- 04 · Views ──────────────────────────────────────────────── -->
+    <section class="fx-section stage fx-flip" id="views" data-reveal>
+      <div class="container fx-grid">
+        <div class="fx-copy">
+          <div class="fx-kicker" data-reveal-child>04 · Views</div>
+          <h2 data-reveal-child>Apps that look like apps.</h2>
+          <p data-reveal-child>
+            Custom web components for everything you'll render, paired
+            with a reactive SDK wired to every runtime signal. Save the
+            file; the app updates.
+          </p>
+          <ul class="fx-points" data-reveal-child>
+            <li><b>Component library.</b> Stats, sparklines, tables, chat streams, artifact viewers, inbox lists, form builders.</li>
+            <li><b>Reactive SDK.</b> Subscribe to any agent, session, collection row, or artifact.</li>
+            <li><b>Theme-aware.</b> Every component respects the active theme.</li>
+            <li><b>Hot reload.</b> Save the file. The view updates. No build step.</li>
+          </ul>
+        </div>
+        <aside class="fx-card spotlight" data-reveal-child>
+          <div class="fx-card-head">
+            <span class="fx-card-mono"><b>today.view</b></span>
+            <sui-badge tone="success" variant="soft" size="sm">
+              <sui-status-dot slot="leading" tone="success" pulse size="sm"></sui-status-dot>
+              live
+            </sui-badge>
+          </div>
+          <div class="fx-view">
+            <div class="fx-view-stats">
+              <sui-stat size="sm">
+                <span slot="label">runs / wk</span>
+                <span data-counter data-counter-to="128">0</span>
+              </sui-stat>
+              <sui-stat size="sm">
+                <span slot="label">on budget</span>
+                <span data-counter data-counter-to="94" data-counter-suffix="%">0</span>
+              </sui-stat>
+              <sui-stat size="sm">
+                <span slot="label">agents</span>
+                <span data-counter data-counter-to="8">0</span>
+              </sui-stat>
+            </div>
+            <div class="fx-view-spark">
+              <sui-sparkline
+                data="32,48,42,68,55,82,72"
+                tone="primary"
+                width="540"
+                height="44"
+                fill
+                label="Runs per day this week"
+              ></sui-sparkline>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <!-- 05 · Integrations ──────────────────────────────────────── -->
+    <section class="fx-section stage" id="integrations" data-reveal>
+      <div class="container fx-grid">
+        <div class="fx-copy">
+          <div class="fx-kicker" data-reveal-child>05 · Integrations</div>
+          <h2 data-reveal-child>MCP-native. Your keys.</h2>
+          <p data-reveal-child>
+            Every tool that speaks Model Context Protocol plugs straight
+            in. Runs on your machine. No account required.
+          </p>
+          <ul class="fx-points" data-reveal-child>
+            <li><b>MCP-native.</b> Drop in any MCP server; agents discover its tools automatically.</li>
+            <li><b>Your model, your keys.</b> Talk to providers directly. No SHIP-managed inference.</li>
+            <li><b>Local-first.</b> No account required to run anything.</li>
+          </ul>
+        </div>
+        <aside class="fx-card spotlight" data-reveal-child>
+          <div class="fx-card-head">
+            <span class="fx-card-mono"><b>mcp servers</b></span>
+            <sui-badge tone="success" variant="soft" size="sm">4 connected</sui-badge>
+          </div>
+          <sui-table class="fx-sui-table" density="compact" hoverable label="MCP server status">
+            <table>
+              <tbody>
+                <tr>
+                  <td class="fx-list-cell"><sui-status-dot tone="success" size="sm"></sui-status-dot><b>github</b></td>
+                  <td class="num"><sui-badge variant="outline" size="sm">v3.1.2</sui-badge></td>
+                </tr>
+                <tr>
+                  <td class="fx-list-cell"><sui-status-dot tone="success" size="sm"></sui-status-dot><b>linear</b></td>
+                  <td class="num"><sui-badge variant="outline" size="sm">v2.0.0</sui-badge></td>
+                </tr>
+                <tr>
+                  <td class="fx-list-cell"><sui-status-dot tone="success" size="sm"></sui-status-dot><b>postgres</b></td>
+                  <td class="num"><sui-badge variant="outline" size="sm">v1.4.0</sui-badge></td>
+                </tr>
+                <tr>
+                  <td class="fx-list-cell"><sui-status-dot tone="success" size="sm"></sui-status-dot><b>fs-scoped</b></td>
+                  <td class="num"><sui-badge tone="muted" variant="soft" size="sm">built-in</sui-badge></td>
+                </tr>
+                <tr>
+                  <td class="fx-list-cell"><sui-status-dot tone="muted" size="sm"></sui-status-dot><b>slack</b></td>
+                  <td class="num"><sui-badge tone="muted" variant="soft" size="sm">not connected</sui-badge></td>
+                </tr>
+              </tbody>
+            </table>
+          </sui-table>
+        </aside>
+      </div>
+    </section>
+
+    <!-- CTA ─────────────────────────────────────────────────────── -->
+    <section class="fx-cta">
+      <div class="container">
+        <h2>Run it locally.</h2>
+        <p>Pull SHIP, open the docs alongside, wire your first skill.</p>
+        <div class="fx-ctas">
+          <sui-button tone="primary" variant="solid" size="lg">
+            <a href="/download" class="fx-link">Download SHIP</a>
+          </sui-button>
+          <sui-button variant="ghost" size="lg">
+            <a href="https://docs.getship.dev" class="fx-link">Read the docs</a>
+          </sui-button>
+        </div>
+      </div>
     </section>
   </main>
   <Footer />
 </BaseLayout>
 
 <style>
-  .fx-page {
-    padding-top: clamp(48px, 6vw, 80px);
-    padding-bottom: clamp(72px, 10vw, 128px);
-  }
+  .fx { padding-bottom: clamp(64px, 8vw, 96px); }
+  .container { max-width: 1180px; margin-inline: auto; padding-inline: 40px; }
+  @media (max-width: 720px) { .container { padding-inline: 20px; } }
+  .fx-link { color: inherit; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; }
 
-  /* Hero --------------------------------------------------------- */
+  /* Hero ────────────────────────────────────────────────────────── */
   .fx-hero {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 18px;
-    max-width: 52rem;
-    padding-bottom: clamp(40px, 6vw, 64px);
+    padding: clamp(56px, 7vw, 96px) 0 clamp(40px, 5vw, 64px);
   }
-  .fx-hero h1 { font-size: clamp(40px, 6vw, 64px); }
-  .fx-lede {
-    font-size: clamp(16px, 1.5vw, 18px);
-    line-height: 1.55;
-    color: var(--muted-foreground);
-  }
-  .fx-ctas { margin-top: 6px; }
-
-  /* Feature stack ------------------------------------------------ */
-  .fx-stack {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-    padding-bottom: clamp(40px, 6vw, 80px);
-    max-width: 960px;
-    margin-inline: auto;
-  }
-  .fx-card {
-    display: grid;
-    grid-template-columns: 160px 1fr;
-    gap: clamp(20px, 3vw, 40px);
-    align-items: start;
-    position: relative;
-    overflow: hidden;
-    transition: border-color var(--duration-fast) var(--ease-out),
-                transform var(--duration-fast) var(--ease-out);
-  }
-  @media (max-width: 640px) {
-    .fx-card { grid-template-columns: 1fr; gap: 12px; }
-  }
-  .fx-card::before {
-    content: '';
-    position: absolute;
-    inset: 0 auto 0 0;
-    width: 3px;
-    background: var(--fx-tone, var(--primary));
-  }
-  .fx-card[data-tone='primary']  { --fx-tone: var(--primary); }
-  .fx-card[data-tone='accent']   { --fx-tone: var(--accent); }
-  .fx-card[data-tone='info']     { --fx-tone: oklch(0.60 0.16 240); }
-  .fx-card[data-tone='success']  { --fx-tone: oklch(0.58 0.15 150); }
-  .fx-card[data-tone='warning']  { --fx-tone: oklch(0.64 0.16 60); }
-  .fx-card:hover {
-    border-color: color-mix(in oklch, var(--fx-tone, var(--primary)) 45%, transparent);
-  }
-
-  .fx-card-rail {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    align-items: flex-start;
-  }
-  .fx-card-num {
-    font-family: var(--font-mono);
-    font-weight: 600;
-    font-size: 11px;
-    color: var(--muted-foreground);
-    letter-spacing: 0.1em;
-  }
-  .fx-card-title {
-    font-family: var(--font-display);
-    font-weight: 700;
-    font-size: clamp(20px, 2.3vw, 26px);
-    letter-spacing: -0.018em;
-    color: var(--foreground);
-    margin-bottom: 10px;
-    line-height: 1.2;
-  }
-  .fx-card-body {
-    color: var(--muted-foreground);
-    font-size: 14.5px;
-    line-height: 1.6;
-    margin-bottom: 14px;
-    max-width: 62ch;
-  }
-  .fx-card-tag {
-    font-family: var(--font-mono);
-    font-size: 11.5px;
-    color: color-mix(in oklch, var(--fx-tone, var(--primary)) 75%, var(--foreground));
-    padding: 3px 8px;
-    border-radius: var(--radius-sm);
-    background: color-mix(in oklch, var(--fx-tone, var(--primary)) 10%, transparent);
+  .fx-eyebrow {
     display: inline-block;
+    padding: 6px 12px; border-radius: 999px;
+    background: color-mix(in oklab, var(--primary) 12%, transparent);
+    color: var(--primary);
+    border: 1px solid color-mix(in oklab, var(--primary) 25%, transparent);
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 11px; font-weight: 600;
+    letter-spacing: 0.12em; text-transform: uppercase;
+  }
+  .fx-hero h1 {
+    font-family: var(--font-display); font-weight: 700;
+    font-size: clamp(40px, 6vw, 72px);
+    line-height: 1.02; letter-spacing: -0.035em;
+    color: var(--page-fg); margin: 28px 0 0; max-width: 18ch;
+  }
+  .fx-lede {
+    margin: 24px 0 0;
+    font-size: clamp(16px, 1.4vw, 18px);
+    line-height: 1.55; color: var(--muted-ink);
+    max-width: 56ch;
+  }
+  .fx-ctas {
+    display: flex; flex-wrap: wrap; gap: 12px;
+    margin-top: 32px;
   }
 
-  /* CTA --------------------------------------------------------- */
-  .fx-cta { padding-top: clamp(24px, 4vw, 48px); }
-  .fx-cta-card {
-    display: block;
-    max-width: 56rem;
-    margin-inline: auto;
+  /* Section pattern ───────────────────────────────────────────── */
+  .fx-section {
+    position: relative;
+    padding: clamp(56px, 8vw, 112px) 0;
+    border-top: 1px solid var(--rail);
   }
-  .fx-cta-card h2 {
-    font-size: clamp(24px, 3vw, 32px);
-    letter-spacing: -0.02em;
-    margin-bottom: 8px;
+  .fx-section:nth-child(even) {
+    background: color-mix(in oklab, var(--plate) 35%, transparent);
   }
-  .fx-cta-card p {
-    color: var(--muted-foreground);
-    line-height: 1.55;
-    font-size: 15px;
-    max-width: 54ch;
+  .fx-grid {
+    display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
+    gap: clamp(40px, 6vw, 80px);
+    align-items: center;
   }
+  .fx-flip .fx-grid { direction: rtl; }
+  .fx-flip .fx-grid > * { direction: ltr; }
+  @media (max-width: 880px) {
+    .fx-grid { grid-template-columns: 1fr; gap: 36px; }
+    .fx-flip .fx-grid { direction: ltr; }
+  }
+
+  .fx-copy { min-width: 0; }
+  .fx-kicker {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 11px; font-weight: 600;
+    letter-spacing: 0.16em; text-transform: uppercase;
+    color: var(--subtle-ink);
+    margin-bottom: 14px;
+  }
+  .fx-copy h2 {
+    font-family: var(--font-display); font-weight: 700;
+    font-size: clamp(32px, 4.5vw, 52px);
+    line-height: 1.02; letter-spacing: -0.03em;
+    color: var(--page-fg); margin: 0;
+    max-width: 14ch;
+  }
+  .fx-copy > p {
+    margin: 22px 0 0;
+    font-size: 16px; line-height: 1.6;
+    color: var(--muted-ink); max-width: 54ch;
+  }
+  .fx-points {
+    list-style: none; padding: 0; margin: 28px 0 0;
+    display: flex; flex-direction: column; gap: 14px;
+  }
+  .fx-points li {
+    font-size: 14.5px; line-height: 1.55; color: var(--muted-ink);
+    padding-left: 18px; position: relative;
+  }
+  .fx-points li::before {
+    content: ""; position: absolute; left: 0; top: 9px;
+    width: 6px; height: 6px; border-radius: 50%;
+    background: color-mix(in oklab, var(--primary) 80%, var(--page-fg));
+  }
+  .fx-points li b { color: var(--page-fg); font-weight: 600; }
+  .fx-points li code {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 0.92em; color: var(--primary);
+    background: color-mix(in oklab, var(--primary) 10%, transparent);
+    padding: 1px 5px; border-radius: 4px;
+  }
+
+  /* Spec card ─────────────────────────────────────────────────── */
+  .fx-card {
+    background: var(--plate);
+    border: 1px solid var(--plate-border);
+    border-radius: 16px;
+    box-shadow: var(--shadow-plate);
+    overflow: hidden;
+    transition: transform 280ms var(--ease-out, ease-out), border-color 280ms ease, box-shadow 280ms ease;
+  }
+  .fx-card:hover {
+    transform: translateY(-2px);
+    border-color: color-mix(in oklab, var(--primary) 35%, var(--plate-border));
+    box-shadow: 0 12px 32px color-mix(in oklab, var(--page-fg) 12%, transparent);
+  }
+  .fx-card-head {
+    display: flex; justify-content: space-between; align-items: baseline;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--plate-line);
+  }
+  .fx-card-mono {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 11.5px; color: var(--plate-sub);
+  }
+  .fx-card-mono b { color: var(--plate-ink); font-weight: 600; }
+  .fx-card-tag {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase;
+    padding: 3px 8px; border-radius: 999px;
+    background: color-mix(in oklab, var(--success) 14%, transparent);
+    color: var(--success);
+  }
+
+  /* Spec list (agents) ───────────────────────────────────────── */
+  .fx-spec {
+    margin: 0; padding: 18px 20px;
+    display: grid; grid-template-columns: max-content 1fr;
+    column-gap: 24px; row-gap: 14px;
+    font-size: 12px;
+  }
+  .fx-spec dt {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    color: var(--subtle-ink);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-size: 10px; font-weight: 600;
+    padding-top: 4px;
+  }
+  .fx-spec dd {
+    margin: 0; color: var(--page-fg);
+    line-height: 1.6;
+  }
+  .fx-badges {
+    display: flex; flex-wrap: wrap; gap: 6px;
+  }
+  .fx-perms {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 11.5px;
+    display: flex; flex-direction: column; gap: 4px;
+    color: var(--muted-ink);
+  }
+  .fx-perms b { color: var(--page-fg); font-weight: 600; }
+
+  /* File tree (skills) ───────────────────────────────────────── */
+  .fx-tree {
+    margin: 0; padding: 18px 20px 18px 24px;
+    list-style: none;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 12.5px;
+    color: var(--plate-muted);
+  }
+  .fx-tree ul {
+    list-style: none; padding: 0; margin: 4px 0 0 16px;
+    border-left: 1px dashed var(--plate-line);
+  }
+  .fx-tree ul li {
+    padding: 3px 0 3px 14px;
+    position: relative;
+  }
+  .fx-tree ul li::before {
+    content: ""; position: absolute; left: 0; top: 12px;
+    width: 10px; height: 1px; background: var(--plate-line);
+  }
+  .fx-tree-d { font-weight: 600; color: var(--page-fg); margin-top: 8px; }
+  .fx-tree-d:first-child { margin-top: 0; }
+
+  /* sui-table integration ───────────────────────────────────── */
+  .fx-sui-table {
+    --row-py: 9px;
+    --row-px: 16px;
+    --th-py: 8px;
+  }
+  .fx-sui-table table { width: 100%; border-collapse: collapse; }
+  .fx-sui-table thead th {
+    text-align: left;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 10px; font-weight: 600;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--plate-sub);
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--plate-line);
+  }
+  .fx-sui-table thead th.num { text-align: right; }
+  .fx-sui-table tbody td {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--plate-line);
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 12px;
+    color: var(--plate-muted);
+  }
+  .fx-sui-table tbody tr:last-child td { border-bottom: none; }
+  .fx-sui-table tbody td b {
+    color: var(--page-fg); font-weight: 500;
+  }
+  .fx-sui-table tbody td.t { color: var(--accent); }
+  .fx-sui-table tbody td.num { text-align: right; }
+  .fx-list-cell {
+    display: inline-flex; align-items: center; gap: 10px;
+  }
+
+  /* View card (sui-stat row + sui-sparkline) ──────────────── */
+  .fx-view {
+    padding: 18px;
+    display: flex; flex-direction: column; gap: 14px;
+  }
+  .fx-view-stats {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+  }
+  .fx-view-spark {
+    padding: 12px 14px;
+    border: 1px solid var(--plate-line); border-radius: 10px;
+    background: color-mix(in oklab, var(--plate) 94%, var(--page-bg));
+  }
+  .fx-view-spark sui-sparkline { width: 100%; display: block; }
+
+  /* CTA ────────────────────────────────────────────────────────── */
+  .fx-cta {
+    padding: clamp(64px, 9vw, 128px) 0 0;
+    text-align: center;
+  }
+  .fx-cta h2 {
+    font-family: var(--font-display); font-weight: 700;
+    font-size: clamp(32px, 4.5vw, 48px); letter-spacing: -0.03em;
+    color: var(--page-fg); margin: 0;
+  }
+  .fx-cta p {
+    margin: 16px 0 0; font-size: 16px; color: var(--muted-ink);
+  }
+  .fx-cta .fx-ctas { justify-content: center; }
 </style>

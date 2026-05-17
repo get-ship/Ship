@@ -11,12 +11,15 @@
     "db:generate": "bun run db:generate:auth && bun run db:generate:registry"
   },
   "dependencies": {
+    "@better-auth/api-key": "^1.6.11",
+    "@better-auth/stripe": "^1.6.11",
     "@ship-cloud/types": "workspace:*",
     "@ship/sdk": "workspace:*",
     "better-auth": "^1.5.3",
     "drizzle-orm": "catalog:",
     "hono": "catalog:",
     "jose": "^6.2.2",
+    "stripe": "^22.1.1",
     "zod": "catalog:"
   },
   "devDependencies": {

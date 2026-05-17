@@ -109,11 +109,29 @@
                   </tr>
                 </thead>
                 <tbody>
-                  {#for item of detailValue().items key={item.id}}
+                  {#for row of rowsView() key={row.id}}
                     <tr>
-                      <td class="cd-cell cd-cell-id mono-snip">{item.id}</td>
-                      {#for f of detailValue().schema.fields key={f.name}}
-                        <td class="cd-cell">{item.data?.[f.name] ?? ''}</td>
+                      <td class="cd-cell cd-cell-id mono-snip">{row.id}</td>
+                      {#for cell of row.cells key={cell.kind + ':' + cell.value}}
+                        {#if cell.kind === 'status'}
+                          <td class="cd-cell">
+                            <button type="button" class={cell.class_name}
+                              aria-label={'Cycle status for ' + row.id}
+                              on:click={() => cycleStatus(row.raw)}>
+                              <span class="status-chip-dot" aria-hidden="true"></span>
+                              <span class="status-chip-label">{cell.value}</span>
+                            </button>
+                          </td>
+                        {:else if cell.kind === 'ref'}
+                          <td class="cd-cell">
+                            <span class="ref-pill">
+                              <sui-icon attr:name={cell.icon} size="xs"></sui-icon>
+                              <span class="mono-snip">{cell.label}</span>
+                            </span>
+                          </td>
+                        {:else}
+                          <td class="cd-cell">{cell.value}</td>
+                        {/if}
                       {/for}
                     </tr>
                   {/for}

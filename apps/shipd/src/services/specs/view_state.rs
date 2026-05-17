@@ -62,6 +62,7 @@ pub struct SpecDetail {
     pub pipeline: Option<String>,
     pub pipeline_label: String,
     pub agent: String,
+    pub agent_id: String,
     pub vars_display: String,
     pub branch: String,
     pub tone: &'static str,
@@ -198,7 +199,9 @@ pub fn build_detail(spec: &Spec, body: &str) -> SpecDetail {
         Some(name) => pipeline_step_count(name),
         None => (0, None),
     };
-    let agent = first_agent.clone().unwrap_or_else(|| "—".to_string());
+    // Spec-level agent override wins over the pipeline's first step agent.
+    let resolved_agent = spec.agent.clone().or_else(|| first_agent.clone());
+    let agent = resolved_agent.clone().unwrap_or_else(|| "—".to_string());
 
     let vars_display = if spec.vars.is_empty() {
         "—".to_string()
@@ -219,6 +222,7 @@ pub fn build_detail(spec: &Spec, body: &str) -> SpecDetail {
         pipeline: spec.pipeline.clone(),
         pipeline_label,
         agent,
+        agent_id: spec.agent.clone().unwrap_or_default(),
         vars_display,
         branch: "auto".into(),
         tone: tone_for(&spec.status),
@@ -227,8 +231,8 @@ pub fn build_detail(spec: &Spec, body: &str) -> SpecDetail {
         linked_md,
         acceptance,
         other_md,
-        launch_label: launch_label(spec.pipeline.as_deref(), first_agent.as_deref()),
-        launch_hint: launch_hint(spec.pipeline.as_deref(), first_agent.as_deref()),
+        launch_label: launch_label(spec.pipeline.as_deref(), resolved_agent.as_deref()),
+        launch_hint: launch_hint(spec.pipeline.as_deref(), resolved_agent.as_deref()),
         title_js: js_escape(&spec.title),
         body_js: js_escape(&body),
         pipeline_js: js_escape(spec.pipeline.as_deref().unwrap_or("")),
@@ -246,6 +250,7 @@ mod tests {
             body_path: String::new(),
             status: status.into(),
             pipeline: None,
+            agent: None,
             vars: Default::default(),
             criteria: vec![],
             scope: vec![],

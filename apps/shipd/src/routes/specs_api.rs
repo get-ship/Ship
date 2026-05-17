@@ -67,6 +67,7 @@ fn spec_to_json(s: &Spec) -> serde_json::Value {
         "body_path": s.body_path,
         "status": s.status,
         "pipeline": s.pipeline,
+        "agent": s.agent,
         "vars": s.vars,
         "criteria": s.criteria,
         "scope": s.scope,
@@ -96,6 +97,8 @@ pub struct CreateSpecRequest {
     #[serde(default)]
     pub pipeline: Option<String>,
     #[serde(default)]
+    pub agent: Option<String>,
+    #[serde(default)]
     pub status: Option<String>,
     #[serde(default)]
     pub vars: HashMap<String, String>,
@@ -119,6 +122,8 @@ pub struct UpdateSpecRequest {
     pub body: Option<String>,
     #[serde(default)]
     pub pipeline: Option<Option<String>>,
+    #[serde(default)]
+    pub agent: Option<Option<String>>,
     #[serde(default)]
     pub status: Option<String>,
     #[serde(default)]
@@ -227,6 +232,7 @@ pub async fn create_spec(
         &body_path,
         req.status.as_deref(),
         req.pipeline.as_deref(),
+        req.agent.as_deref(),
         &req.vars,
         &req.criteria,
         &req.scope,
@@ -285,10 +291,12 @@ pub async fn update_spec(
         }
     }
     let pipeline = req.pipeline.as_ref().map(|opt| opt.as_deref());
+    let agent = req.agent.as_ref().map(|opt| opt.as_deref());
     let updates = build_update_data(
         req.title.as_deref(),
         req.status.as_deref(),
         pipeline,
+        agent,
         req.vars.as_ref(),
         req.criteria.as_deref(),
         req.scope.as_deref(),

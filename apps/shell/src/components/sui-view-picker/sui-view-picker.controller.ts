@@ -1,0 +1,289 @@
+import { controller, effect, signal, ref, bindNativeEvent, chrome } from '@ship/sui-runtime'
+import type { Scope } from './sui-view-picker.sui'
+import {
+  type ApiView, type Project,
+  fetchPins, fetchProject, fetchProjects, fetchViews,
+  makeDrag, partition, savePins, switchProject,
+} from './data'
+import { renderBody } from './render'
+
+interface PopoverEl extends HTMLElement {
+  show?: () => void; hide?: () => void; toggle?: () => void
+}
+
+export default controller<Scope>({
+  scope: () => ({
+    popoverEl: ref<PopoverEl>(),
+    rootEl: ref<HTMLElement>(),
+    projectNameEl: ref<HTMLElement>(),
+    projectPathEl: ref<HTMLElement>(),
+    filterInput: ref<HTMLInputElement>(),
+    countEl: ref<HTMLElement>(),
+    pagerEl: ref<HTMLElement>(),
+    bodyEl: ref<HTMLElement>(),
+    installLink: ref<HTMLAnchorElement>(),
+  }),
+
+  mount(state, host) {
+    const scope = state as unknown as Scope
+
+    const views = signal<ApiView[]>([])
+    const pins = signal<string[]>([])
+    const project = signal<Project | null>(null)
+    const projects = signal<Project[]>([])
+    const activeProjectId = signal<string | null>(null)
+    const filter = signal('')
+    const cursor = signal(0)
+    const activeView = signal<string>(routeToViewName(location.pathname))
+    const dragState = { name: null, overName: null, overZone: null, fromPinned: false }
+    let filterTimer: ReturnType<typeof setTimeout> | null = null
+    let loaded = false
+
+    const sUrl = (): string => scope.settingsUrl()
+    const sKey = (): string => scope.pinsKey()
+
+    async function load(): Promise<void> {
+      const [p, pr, vs, projList] = await Promise.all([
+        fetchPins(sUrl(), sKey()),
+        fetchProject(scope.projectsUrl()),
+        fetchViews(scope.viewsUrl()),
+        fetchProjects(scope.projectsUrl()),
+      ])
+      pins.set(p); project.set(pr); views.set(vs)
+      projects.set(projList.projects)
+      activeProjectId.set(projList.activeId)
+      loaded = true
+    }
+
+    async function onPickProject(id: string): Promise<void> {
+      // Already-active click is a no-op (popover closes via scope.open).
+      if (id === activeProjectId()) { scope.open.set(false); return }
+      // Optimistic: highlight + close. Refresh state on success.
+      const prev = activeProjectId()
+      activeProjectId.set(id)
+      scope.open.set(false)
+      const ok = await switchProject(id)
+      if (!ok) {
+        activeProjectId.set(prev)
+        chrome.notify({
+          tone: 'error',
+          title: 'Project switch failed',
+          description: 'The daemon rejected the switch. Try again or check shipd logs.',
+          duration: 5000,
+        })
+        return
+      }
+      host.emit!('sui:view-picker:project-changed', { id })
+      // Refresh the picker's own state on next open.
+      loaded = false
+    }
+
+    function part(): { pinned: ApiView[]; others: ApiView[] } {
+      return partition({ views: views(), pins: pins(), filter: filter() })
+    }
+
+    const navigate = (name: string): void => {
+      host.emit!('sui:view-picker:navigate', { name })
+      const path = '/' + (name === 'dashboard' ? '' : name)
+      try { history.pushState({}, '', path) } catch { /* SSR-safe */ }
+      document.dispatchEvent(new CustomEvent('sui:navigate', { detail: { to: path } }))
+      ;(window as unknown as { ship?: { navigate?: (p: string) => void } }).ship?.navigate?.(path)
+      scope.open.set(false)
+    }
+
+    const togglePin = async (name: string): Promise<void> => {
+      const cur = pins()
+      const next = cur.includes(name) ? cur.filter((n) => n !== name) : [...cur, name]
+      pins.set(next)
+      await savePins(sUrl(), sKey(), next)
+      host.emit!('sui:view-picker:pin-changed', { pins: next })
+    }
+
+    const drag = makeDrag({
+      state: dragState,
+      pins: () => pins(),
+      setPins: (next) => pins.set(next),
+      persist: (next) => savePins(sUrl(), sKey(), next),
+      repaint: () => paintBody(),
+      emit: (next) => host.emit!('sui:view-picker:pin-changed', { pins: next }),
+    })
+
+    function paintBody(): void {
+      const bodyEl = scope.bodyEl()
+      if (!bodyEl) return
+      const { pinned, others } = part()
+      renderBody(bodyEl, {
+        pinned, others, cursor: cursor(), pins: pins(), activeView: activeView(),
+        projects: projects(), activeProjectId: activeProjectId(),
+        dragOverName: dragState.overName, dragOverZone: dragState.overZone,
+        draggingName: dragState.name,
+        onNavigate: navigate,
+        onPickProject: (id) => { void onPickProject(id) },
+        onTogglePin: (e, name) => { e.stopPropagation(); void togglePin(name) },
+        onDragStart: drag.onDragStart, onDragOverRow: drag.onDragOverRow,
+        onDropRow: drag.onDropRow, onDragOverZone: drag.onDragOverZone,
+        onDropZone: drag.onDropZone, onDragEnd: drag.onDragEnd,
+        onRowEnter: (idx) => cursor.set(idx),
+      })
+    }
+
+    const stopHeader = effect(() => {
+      const p = project()
+      const n = scope.projectNameEl(); const pt = scope.projectPathEl()
+      if (n) n.textContent = p?.label ?? p?.name ?? 'Ship'
+      if (pt) pt.textContent = p?.path ?? ''
+    })
+    const stopInstall = effect(() => {
+      const a = scope.installLink()
+      if (a) a.setAttribute('href', scope.installHref())
+    })
+    const stopBody = effect(() => {
+      const { pinned, others } = part()
+      const total = pinned.length + others.length
+      const c = scope.countEl(); const pg = scope.pagerEl()
+      if (c) c.textContent = String(total)
+      if (pg) pg.textContent = `${total} view${total === 1 ? '' : 's'}`
+      paintBody()
+    })
+
+    // ── filter input ────────────────────────────────────────────
+    const fInput = scope.filterInput()
+    if (fInput) {
+      bindNativeEvent(fInput, 'input', () => {
+        if (filterTimer) clearTimeout(filterTimer)
+        filterTimer = setTimeout(() => { filter.set(fInput.value); cursor.set(0) }, 60)
+      })
+      bindNativeEvent(fInput, 'keydown', (e) => {
+        const k = (e as KeyboardEvent).key
+        if (k === 'ArrowDown' || k === 'ArrowUp' || k === 'Enter' || k === 'Escape') onKey(e as KeyboardEvent)
+      })
+    }
+
+    // ── install link ────────────────────────────────────────────
+    const iLink = scope.installLink()
+    if (iLink) bindNativeEvent(iLink, 'click', (e) => {
+      e.preventDefault()
+      host.emit!('sui:view-picker:install', { href: scope.installHref() })
+      navigate(scope.installHref().replace(/^\//, ''))
+    })
+
+    // ── open/close sync (host.open ↔ composed sui-popover) ──────
+    let wasOpen = false
+    const stopOpen = effect(() => {
+      const o = scope.open()
+      const pop = scope.popoverEl()
+      if (pop) {
+        if (o && !pop.hasAttribute('open')) pop.setAttribute('open', '')
+        else if (!o && pop.hasAttribute('open')) pop.removeAttribute('open')
+      }
+      if (o && !wasOpen) {
+        cursor.set(0); filter.set('')
+        if (fInput) fInput.value = ''
+        if (!loaded) void load()
+        requestAnimationFrame(() => fInput?.focus())
+        host.emit!('sui:view-picker:open', null)
+      } else if (!o && wasOpen) {
+        host.emit!('sui:view-picker:close', null)
+      }
+      wasOpen = o
+    })
+
+    // Drag-survives-light-dismiss (task #65). Native `popover="auto"`
+    // dismisses on pointerup outside the popover bounds, which happens
+    // mid-drag when the user releases over a drop target outside the
+    // popover panel. Track drag state at the popover root and veto the
+    // close event if it fires while a drag is in flight; re-open via
+    // the exposed show() method on the next frame.
+    let isDragging = false
+    const popRoot = scope.rootEl()
+    if (popRoot) {
+      bindNativeEvent(popRoot, 'dragstart', () => { isDragging = true })
+      bindNativeEvent(popRoot, 'dragend', () => {
+        // Defer the flag-clear so a sui-toggle firing in the same task
+        // (which is what happens when the popover light-dismisses on the
+        // drag's pointerup-outside) still sees isDragging === true.
+        setTimeout(() => { isDragging = false }, 0)
+      })
+    }
+
+    const pop = scope.popoverEl()
+    if (pop) bindNativeEvent(pop, 'sui-toggle', (e) => {
+      const open = !!(e as CustomEvent).detail?.open
+      if (!open && isDragging) {
+        // Popover light-dismissed mid-drag — re-open + suppress the
+        // scope.open mutation so the rest of the view doesn't tear down.
+        requestAnimationFrame(() => { (pop as unknown as { show?: () => void }).show?.() })
+        return
+      }
+      if (open !== scope.open()) scope.open.set(open)
+    })
+
+    // Trigger click → toggle open. The composed sui-popover's
+    // popovertarget wiring relies on slot.assignedElements() which
+    // doesn't follow double-slotted triggers (rail → view-picker →
+    // popover trigger slot), so the rail's button click never fires
+    // the native popover toggle. Forward the click manually.
+    bindNativeEvent(host, 'click', (e) => {
+      const path = (e as Event).composedPath()
+      const onTrigger = path.some((n) => {
+        const el = n as HTMLElement | null
+        return el?.getAttribute?.('slot') === 'trigger'
+      })
+      if (!onTrigger) return
+      scope.open.set(!scope.open())
+    })
+
+    host.expose!({
+      open: () => scope.open.set(true),
+      close: () => scope.open.set(false),
+      toggle: () => scope.open.set(!scope.open()),
+      refresh: () => load(),
+    })
+
+    // ── keyboard ────────────────────────────────────────────────
+    function onKey(e: KeyboardEvent): void {
+      if (!scope.open()) return
+      if (e.key === 'Escape') { e.preventDefault(); scope.open.set(false); return }
+      if (e.key === '/' && document.activeElement !== fInput) {
+        e.preventDefault(); fInput?.focus(); return
+      }
+      const { pinned, others } = part()
+      const projRows = projects().map((p) => ({ kind: 'project' as const, id: p.id }))
+      const viewRows = [...pinned, ...others].map((v) => ({ kind: 'view' as const, name: v.name }))
+      const visible: Array<{ kind: 'project'; id: string } | { kind: 'view'; name: string }> = [
+        ...projRows, ...viewRows,
+      ]
+      if (e.key === 'ArrowDown') {
+        e.preventDefault()
+        cursor.set(Math.min(visible.length - 1, cursor() + 1))
+        requestAnimationFrame(() => {
+          scope.bodyEl()?.querySelector('.vp-row.is-cursor')?.scrollIntoView({ block: 'nearest' })
+        })
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault()
+        cursor.set(Math.max(0, cursor() - 1))
+      } else if (e.key === 'Enter') {
+        const row = visible[cursor()]
+        if (!row) return
+        e.preventDefault()
+        if (row.kind === 'project') void onPickProject(row.id)
+        else navigate(row.name)
+      }
+    }
+    bindNativeEvent(document, 'keydown', onKey as EventListener)
+
+    const onNav = (): void => activeView.set(routeToViewName(location.pathname))
+    bindNativeEvent(document, 'sui:navigate', onNav)
+    bindNativeEvent(window, 'popstate', onNav)
+
+    return () => {
+      stopHeader(); stopInstall(); stopBody(); stopOpen()
+      if (filterTimer) clearTimeout(filterTimer)
+    }
+  },
+})
+
+function routeToViewName(path: string): string {
+  const seg = path.split('/').filter(Boolean)[0]
+  return seg ?? 'dashboard'
+}

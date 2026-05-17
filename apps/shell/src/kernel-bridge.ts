@@ -17,6 +17,18 @@ interface KernelEvent {
   [k: string]: unknown
 }
 
+/** Wire envelope emitted by the daemon SSE endpoint
+ *  (`apps/shipd/src/routes/runtime_api/events.rs`). `payload_json` is a
+ *  string-wrapped JSON blob — the bridge parses it once into `payload`. */
+interface WireEnvelope {
+  event_type: string
+  entity_id?: string
+  actor?: string
+  payload_json?: string
+  created_at?: string
+  [k: string]: unknown
+}
+
 type EventHandler = (event: KernelEvent) => void
 type UnsubscribeFn = () => void
 
@@ -44,15 +56,27 @@ export class KernelBridge {
   private connect(): void {
     const src = new EventSource('/api/v1/events/stream')
     this.socket = src
-    src.onmessage = (e) => {
-      let ev: KernelEvent
-      try {
-        ev = JSON.parse(e.data) as KernelEvent
-      } catch {
-        return
+    // Daemon emits `event: ship.event` so EventSource.onmessage (which
+    // only fires for the default `message` type) never delivers — bind
+    // the named-event handler explicitly. See
+    // apps/shipd/src/routes/runtime_api/events.rs.
+    const onWire = (e: MessageEvent): void => {
+      let envelope: WireEnvelope
+      try { envelope = JSON.parse(e.data) as WireEnvelope } catch { return }
+      let payload: unknown = null
+      if (typeof envelope.payload_json === 'string' && envelope.payload_json.length > 0) {
+        try { payload = JSON.parse(envelope.payload_json) } catch { payload = envelope.payload_json }
       }
-      this.fanOut(ev)
+      this.fanOut({
+        event_type: envelope.event_type,
+        entity: (envelope.entity_id as string | undefined) ?? '',
+        actor: envelope.actor as string | undefined,
+        timestamp: (envelope.created_at as string | undefined) ?? '',
+        payload,
+      })
     }
+    src.addEventListener('ship.event', onWire)
+    src.onmessage = onWire
     src.onopen = () => {
       this.reconnectAttempts = 0
     }

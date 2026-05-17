@@ -3,6 +3,32 @@
   background: var(--background);
   font-family: var(--font-body);
   min-height: 100vh;
+  position: relative;
+}
+
+/* Drop-to-upload overlay. While a file drag is over the view, paint a
+   full-surface affordance so the user knows the drop will land. The
+   `data-drag-active` mirror on .art-wrap dims the underlying content. */
+.art-wrap[data-drag-active] {
+  filter: brightness(0.85);
+  transition: filter var(--duration-fast) var(--ease-out);
+}
+.art-drop-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  background: color-mix(in oklch, var(--primary) 12%, transparent);
+  outline: 2px dashed var(--primary);
+  outline-offset: -16px;
+  color: var(--foreground);
+  font-size: var(--text-lg);
+  font-weight: 600;
+  pointer-events: none;
+  z-index: 50;
 }
 .art-wrap {
   max-width: 1280px;

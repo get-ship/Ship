@@ -7,8 +7,13 @@
 //
 // State model
 //   - Each (project, view) has an independent boolean signal.
-//   - State persists across reloads via localStorage under
-//     `ship.edit-mode.<project>.<view>`.
+//   - Signals are in-memory only — they survive SPA navigation via the
+//     memoized SIGNALS map but reset on hard reload. Persistence was
+//     previously held in localStorage (`ship.edit-mode.<project>.<view>`)
+//     but a single accidental Alt+E hit on a built-in view (e.g.
+//     /artifacts) would stick forever and re-open the dev panel on every
+//     visit. Per-tab UI state doesn't survive reload; the user re-enters
+//     edit mode explicitly when they want it.
 //   - Entering/exiting fires backend POSTs to
 //     `/api/v1/views/<name>/edit-mode/{enter,exit}`. The body includes
 //     the current session id (looked up from window.__shipSessionId,
@@ -32,26 +37,50 @@ function projectId(): string {
   return (window as EditModeWindow).__shipProjectId ?? 'default'
 }
 
-function sessionId(): string | null {
-  if (typeof window === 'undefined') return null
-  return (window as EditModeWindow).__shipSessionId ?? null
+// Session id matches the key view-mcp.ts uses so both lifecycle producers
+// (this runtime helper and the shell's view-mcp) share one id per tab.
+// Falls back to a per-tab UUID when neither source has been primed —
+// avoids posting {session_id: null} which the daemon rejects with 422.
+const VIEW_MCP_SESSION_KEY = 'ship.chrome.view-mcp.session_id'
+
+function sessionId(): string {
+  if (typeof window === 'undefined') return 'no-window'
+  const fromWindow = (window as EditModeWindow).__shipSessionId
+  if (fromWindow && fromWindow.length > 0) return fromWindow
+  try {
+    const stored = sessionStorage.getItem(VIEW_MCP_SESSION_KEY)
+    if (stored && stored.length > 0) return stored
+    const fresh = (typeof crypto !== 'undefined' && crypto.randomUUID)
+      ? crypto.randomUUID()
+      : `runtime-${Date.now()}-${Math.random().toString(36).slice(2)}`
+    sessionStorage.setItem(VIEW_MCP_SESSION_KEY, fresh)
+    return fresh
+  } catch {
+    return `runtime-fallback-${Date.now()}`
+  }
 }
 
-function storageKey(name: string): string {
-  return `ship.edit-mode.${projectId()}.${name}`
+function signalKey(name: string): string {
+  return `${projectId()}.${name}`
 }
 
-function readPersisted(name: string): boolean {
-  if (typeof localStorage === 'undefined') return false
-  try { return localStorage.getItem(storageKey(name)) === '1' }
-  catch { return false }
-}
-
-function writePersisted(name: string, on: boolean): void {
+// One-shot migration: purge legacy `ship.edit-mode.*` keys from
+// localStorage. Pre-fix, edit-mode persisted across browser sessions —
+// users who accidentally hit Alt+E on a built-in view (e.g. /artifacts)
+// would re-enter edit mode on every visit. Clearing here is idempotent
+// and cheap.
+let migrated = false
+function purgeLegacyPersistence(): void {
+  if (migrated) return
+  migrated = true
   if (typeof localStorage === 'undefined') return
   try {
-    if (on) localStorage.setItem(storageKey(name), '1')
-    else localStorage.removeItem(storageKey(name))
+    const stale: string[] = []
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i)
+      if (k && k.startsWith('ship.edit-mode.')) stale.push(k)
+    }
+    for (const k of stale) localStorage.removeItem(k)
   } catch { /* best-effort */ }
 }
 
@@ -70,12 +99,14 @@ async function postLifecycle(name: string, action: 'enter' | 'exit'): Promise<vo
 
 /** Return the (memoized) Signal<boolean> for whether edit-mode is on
  *  for `name`. Subsequent calls with the same name return the same
- *  signal instance. */
+ *  signal instance. Always starts OFF on first access; a hard reload
+ *  resets every view to off. */
 export function editModeForView(name: string): Signal<boolean> {
-  const k = storageKey(name)
+  purgeLegacyPersistence()
+  const k = signalKey(name)
   const existing = SIGNALS.get(k)
   if (existing) return existing
-  const sig = signal<boolean>(readPersisted(name))
+  const sig = signal<boolean>(false)
   SIGNALS.set(k, sig)
   return sig
 }
@@ -95,7 +126,6 @@ export function setEditMode(name: string, on: boolean): void {
   const sig = editModeForView(name)
   if (sig() === on) return
   sig.set(on)
-  writePersisted(name, on)
   void postLifecycle(name, on ? 'enter' : 'exit')
   if (typeof document !== 'undefined') {
     document.dispatchEvent(new CustomEvent('sui:edit-mode:change', {

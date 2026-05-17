@@ -77,6 +77,7 @@ pub fn specs_schema() -> CollectionSchema {
         enum_field(&["draft", "ready", "launched", "archived"], true),
     );
     fields.insert("pipeline".into(), filterable(FieldType::String));
+    fields.insert("agent".into(), filterable(FieldType::String));
     fields.insert("vars".into(), field(FieldType::Object));
     fields.insert("criteria".into(), field(FieldType::Array));
     fields.insert("scope".into(), filterable(FieldType::Array));

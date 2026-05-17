@@ -57,5 +57,28 @@ h2.create-h { font-family: var(--heading-font); font-weight: var(--heading-weigh
 
 .review-card pre { margin: 0; font-family: var(--font-mono); font-size: var(--text-xs); line-height: 1.55; background: var(--surface-2); border-radius: var(--radius-md); padding: var(--space-3); overflow-x: auto; }
 
+.tpl-skills { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 6px; }
+
+.field-err { color: var(--destructive); font-size: var(--text-xs); margin-top: 4px; }
+
+.review-summary {
+  display: grid;
+  grid-template-columns: 100px 1fr;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+  margin-bottom: var(--space-3);
+}
+.review-summary-row { display: contents; }
+.review-summary-label {
+  font-size: var(--text-xs); color: var(--muted-foreground);
+  text-transform: uppercase; letter-spacing: 0.06em;
+  align-self: center;
+}
+.review-summary-val { font-size: var(--text-sm); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.review-summary-val code { font-family: var(--font-mono); font-size: var(--text-xs); background: var(--muted); padding: 1px 6px; border-radius: var(--radius-sm); }
+
 .actions-row { display: flex; align-items: center; gap: var(--space-2); margin-top: var(--space-6); }
 .actions-row .spacer { flex: 1; }

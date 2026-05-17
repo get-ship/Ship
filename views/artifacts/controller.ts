@@ -1,76 +1,25 @@
 import { controller, derived, live, signal, unwrap } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
-
-interface ArtifactRow {
-  id: string
-  name: string
-  mime: string
-  size: number
-  size_label: string
-  id_short: string
-  created_short: string
-  path: string
-  scope: string
-  collection_id?: string | null
-  item_id?: string | null
-  created_at: string
-}
+import { AGE_BUCKETS, bucketFor, decorate, previewKindFor, type ArtifactRow } from './decorate'
 
 interface ArtifactsListResponse { ok: boolean; data: ArtifactRow[]; count: number }
 type CollectionRow = { id: string; name?: string | null }
 
-const MIME_BUCKETS: Array<{ value: string; prefix: string }> = [
-  { value: 'image', prefix: 'image/' },
-  { value: 'text', prefix: 'text/' },
-  { value: 'json', prefix: 'application/json' },
-]
-
-function bucketFor(mime: string): string {
-  for (const b of MIME_BUCKETS) if (mime.startsWith(b.prefix)) return b.value
-  return ''
-}
-
-function previewKindFor(mime: string): 'image' | 'html' | 'text' | 'binary' {
-  if (mime.startsWith('image/')) return 'image'
-  if (mime === 'text/html') return 'html'
-  if (mime.startsWith('text/') || mime === 'application/json' || mime === 'application/xml') return 'text'
-  return 'binary'
-}
-
-function formatSize(bytes: number): string {
-  if (!Number.isFinite(bytes) || bytes <= 0) return '0 B'
-  const units = ['B', 'KB', 'MB', 'GB'] as const
-  let n = bytes
-  let i = 0
-  while (n >= 1024 && i < units.length - 1) { n /= 1024; i++ }
-  const unit = units[i] ?? 'B'
-  return `${n.toFixed(n < 10 && i > 0 ? 1 : 0)} ${unit}`
-}
-
-function formatShortDate(iso: string): string {
-  if (!iso) return ''
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return iso
-  return d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
-}
-
-function decorate(rows: ArtifactRow[]): ArtifactRow[] {
-  for (const r of rows) {
-    r.size_label = formatSize(r.size)
-    r.id_short = (r.id ?? '').slice(0, 12)
-    r.created_short = formatShortDate(r.created_at)
-  }
-  return rows
-}
-
 export default controller<Scope>({
-  scope: ({ ship }) => {
+  scope: (ctx) => {
+    const { ship } = ctx
+    // Shell-injected navigator. Runtime's stock `navigate` only does
+    // pushState; the shell's wrapper also triggers mountRoute.
+    const navigate = (ctx as { navigate?: (p: string) => void }).navigate
+      ?? ((p: string) => { if (typeof window !== 'undefined') window.location.href = p })
     const items = signal<ArtifactRow[]>([])
     const loading = signal<boolean>(true)
     const loadError = signal<string>('')
 
     const mimeFilter = signal<string>('')
     const collectionFilter = signal<string>('')
+    const actorFilter = signal<string>('')
+    const ageFilter = signal<string>('')
     const searchQuery = signal<string>('')
 
     const detailItem = signal<ArtifactRow | null>(null)
@@ -84,6 +33,7 @@ export default controller<Scope>({
     const uploadCollection = signal<string>('')
     const uploadError = signal<string>('')
     const uploading = signal<boolean>(false)
+    const dragActive = signal<boolean>(false)
 
     const collectionsLive = live(() => ship.collections.list())
     const collectionOptions = derived<CollectionRow[]>(() => {
@@ -91,15 +41,30 @@ export default controller<Scope>({
       return unwrapped?.items ?? []
     })
 
+    const actorOptions = derived<string[]>(() => {
+      const set = new Set<string>()
+      for (const r of items()) if (r.owner_actor) set.add(r.owner_actor)
+      return Array.from(set).sort()
+    })
+
     const visibleItems = derived<ArtifactRow[]>(() => {
       const q = searchQuery().trim().toLowerCase()
       const mb = mimeFilter()
       const cf = collectionFilter()
+      const af = actorFilter()
+      const age = ageFilter()
+      const ageMs = age ? (AGE_BUCKETS[age] ?? 0) : 0
+      const cutoff = ageMs > 0 ? Date.now() - ageMs : 0
       return items().filter((r) => {
         if (mb && bucketFor(r.mime) !== mb) return false
         if (cf && (r.collection_id ?? '') !== cf) return false
+        if (af && (r.owner_actor ?? '') !== af) return false
+        if (cutoff > 0) {
+          const t = Date.parse(r.created_at)
+          if (!Number.isFinite(t) || t < cutoff) return false
+        }
         if (q) {
-          const hay = `${r.name ?? ''} ${r.id} ${r.mime}`.toLowerCase()
+          const hay = `${r.name ?? ''} ${r.id} ${r.mime} ${r.owner_actor ?? ''}`.toLowerCase()
           if (!hay.includes(q)) return false
         }
         return true
@@ -109,7 +74,11 @@ export default controller<Scope>({
     const totalCount = derived(() => items().length)
     const visibleCount = derived(() => visibleItems().length)
     const hasActiveFilters = derived(() =>
-      mimeFilter() !== '' || collectionFilter() !== '' || searchQuery().trim() !== '',
+      mimeFilter() !== ''
+      || collectionFilter() !== ''
+      || actorFilter() !== ''
+      || ageFilter() !== ''
+      || searchQuery().trim() !== '',
     )
     const detailUrl = derived(() => detailItem() ? `/api/v1/artifacts/${detailItem()!.id}` : '')
     const previewKind = derived(() => detailItem() ? previewKindFor(detailItem()!.mime) : 'binary')
@@ -149,37 +118,62 @@ export default controller<Scope>({
 
     void refresh()
 
-    // SDK upload wrapper captured from ctx so the `submitUpload` on-
-    // handler can reach the daemon through the typed surface instead
-    // of constructing FormData inline.
     const uploadArtifact = (args: { file: File; collection_id?: string }) =>
       ship.artifacts.upload(args)
 
+    async function activateRow(id: string): Promise<void> {
+      const row = items().find((r) => r.id === id) ?? null
+      if (!row) return
+      if (row.viewer_url) {
+        navigate(row.viewer_url)
+        return
+      }
+      detailItem.set(row)
+      detailOpen.set(true)
+      previewText.set('')
+      previewError.set('')
+      await loadPreview(row)
+    }
+
+    async function uploadDirect(file: File): Promise<void> {
+      uploading.set(true)
+      uploadError.set('')
+      try {
+        await uploadArtifact({ file })
+        await refresh()
+      } catch (e) {
+        uploadError.set((e as Error).message)
+        uploadOpen.set(true)
+      } finally {
+        uploading.set(false)
+      }
+    }
+
     return {
       items, loading, loadError,
-      mimeFilter, collectionFilter, searchQuery,
+      mimeFilter, collectionFilter, actorFilter, ageFilter, searchQuery,
       detailItem, detailOpen, previewText, previewLoading, previewError,
-      uploadOpen, uploadFiles, uploadCollection, uploadError, uploading,
-      collectionsLive, collectionOptions,
+      uploadOpen, uploadFiles, uploadCollection, uploadError, uploading, dragActive,
+      collectionsLive, collectionOptions, actorOptions,
       visibleItems, totalCount, visibleCount, hasActiveFilters, detailUrl, previewKind,
-      refresh, loadPreview, uploadArtifact,
+      refresh, loadPreview, uploadArtifact, uploadDirect, activateRow,
     }
   },
 
   on: {
     setMimeFilter: (s, v: string) => { s.mimeFilter = v },
     setCollectionFilter: (s, v: string) => { s.collectionFilter = v },
-    clearFilters: (s) => { s.mimeFilter = ''; s.collectionFilter = ''; s.searchQuery = '' },
-
-    openDetail: async (s, id: string) => {
-      const row = (s.items as ArtifactRow[]).find((r) => r.id === id) ?? null
-      if (!row) return
-      s.detailItem = row
-      s.detailOpen = true
-      s.previewText = ''
-      s.previewError = ''
-      await (s as any).loadPreview(row)
+    setActorFilter: (s, v: string) => { s.actorFilter = v },
+    setAgeFilter: (s, v: string) => { s.ageFilter = v },
+    setSearchQuery: (s, v: string) => { s.searchQuery = v },
+    clearFilters: (s) => {
+      s.mimeFilter = ''
+      s.collectionFilter = ''
+      s.actorFilter = ''
+      s.ageFilter = ''
+      s.searchQuery = ''
     },
+
     closeDetail: (s) => {
       s.detailOpen = false
       s.detailItem = null
@@ -223,6 +217,31 @@ export default controller<Scope>({
       } finally {
         s.uploading = false
       }
+    },
+
+    // dragover MUST preventDefault — without it the browser rejects
+    // the drop and navigates to the file URL.
+    onDragOver: (s, e: DragEvent) => {
+      const dt = e.dataTransfer
+      if (!dt || !Array.from(dt.types || []).includes('Files')) return
+      e.preventDefault()
+      dt.dropEffect = 'copy'
+      s.dragActive = true
+    },
+    onDragLeave: (s, e: DragEvent) => {
+      const t = e.currentTarget as HTMLElement | null
+      const related = e.relatedTarget as Node | null
+      if (t && related && t.contains(related)) return
+      s.dragActive = false
+    },
+    onDrop: async (s, e: DragEvent) => {
+      e.preventDefault()
+      s.dragActive = false
+      const files = e.dataTransfer?.files
+      if (!files || files.length === 0) return
+      const first = files[0]
+      if (!first) return
+      await (s as any).uploadDirect(first)
     },
   },
 })

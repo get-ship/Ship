@@ -67,6 +67,23 @@ pub struct CheckoutArgs {
     pub refname: String,
 }
 
+/// Args for `GitService::branch_create`.
+#[derive(Debug, Clone)]
+pub struct BranchCreateArgs {
+    pub workspace_id: Option<String>,
+    pub name: String,
+    /// If true, checkout the new branch after creation.
+    pub checkout: bool,
+}
+
+/// Args for `GitService::branch_delete`.
+#[derive(Debug, Clone)]
+pub struct BranchDeleteArgs {
+    pub workspace_id: Option<String>,
+    pub name: String,
+    pub force: bool,
+}
+
 pub trait GitService: Send + Sync + 'static {
     // ── reads ───────────────────────────────────────────────────────────
     fn status(&self, workspace_id: Option<&str>) -> Result<StatusReport, GitError>;
@@ -103,6 +120,9 @@ pub trait GitService: Send + Sync + 'static {
         remote: Option<&str>,
     ) -> Result<String, GitError>;
     fn checkout(&self, args: CheckoutArgs) -> Result<String, GitError>;
+    fn branch_create(&self, args: BranchCreateArgs) -> Result<String, GitError>;
+    fn branch_delete(&self, args: BranchDeleteArgs) -> Result<String, GitError>;
+    fn init(&self, workspace_id: Option<&str>) -> Result<(), GitError>;
 
     /// Resolve the repo root for `workspace_id` so transports that own
     /// non-trait operations (the SSE handler today) can share the same
@@ -234,6 +254,33 @@ impl GitService for GitServiceImpl {
     fn checkout(&self, args: CheckoutArgs) -> Result<String, GitError> {
         let root = self.resolve(args.workspace_id.as_deref())?;
         write::checkout(&root, &args.refname)
+    }
+
+    fn branch_create(&self, args: BranchCreateArgs) -> Result<String, GitError> {
+        let root = self.resolve(args.workspace_id.as_deref())?;
+        let name = write::branch_create(&root, &args.name)?;
+        if args.checkout {
+            write::checkout(&root, &name)?;
+        }
+        Ok(name)
+    }
+
+    fn branch_delete(&self, args: BranchDeleteArgs) -> Result<String, GitError> {
+        let root = self.resolve(args.workspace_id.as_deref())?;
+        write::branch_delete(&root, &args.name, args.force)
+    }
+
+    fn init(&self, workspace_id: Option<&str>) -> Result<(), GitError> {
+        // For init, fall back to the project root when resolve fails (no repo yet).
+        let root = self
+            .resolve(workspace_id)
+            .or_else(|_| {
+                ship_substrate::project::get_project_dir(None)
+                    .ok()
+                    .and_then(|p| p.parent().map(Path::to_path_buf))
+                    .ok_or_else(|| GitError::RepoUnavailable("cannot resolve project root".into()))
+            })?;
+        write::init_repo(&root)
     }
 
     fn resolve_root(&self, workspace_id: Option<&str>) -> Result<PathBuf, GitError> {

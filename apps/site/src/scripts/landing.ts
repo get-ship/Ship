@@ -19,88 +19,31 @@ import {
   type ThemeId,
 } from '../lib/themes';
 
-type SceneKey = 'session' | 'pipeline' | 'view';
 type HeadlineKey = 'vibe' | 'build' | 'thirty' | 'reactive';
-type CenterpieceKey = 'auto' | SceneKey;
-
-const SCENES: SceneKey[] = ['session', 'pipeline', 'view'];
-const AUTO_MS = 4200;
 
 const HEADLINES: Record<HeadlineKey, { html: string; sub: string }> = {
   vibe: {
     html: `Vibe <span class="any">anything<span class="period">.</span></span>`,
-    sub: `Ship lets you build <b>reactive AI applications</b> with advanced orchestration and custom data — <b>in about thirty seconds</b>. Local-first. Bring your own model.`,
+    sub: `A local runtime for AI apps you compose from <b>agents, your data, and a real UI</b>. Bring your own model.`,
   },
   build: {
-    html: `Build AI apps<br/>that <span class="verb">feel<span class="period">.</span></span>`,
-    sub: `Compose <b>agents, data collections, and themeable UI</b> the way you'd throw together a playlist. Ship runs it on your machine, on your model.`,
+    html: `AI that <span class="verb">ships<span class="period">.</span></span>`,
+    sub: `Drop in a skill, shape a collection, drop a view. Save the file. <b>No build step. No deploy. No SaaS.</b>`,
   },
   thirty: {
-    html: `Thirty seconds<br/>to <span class="any">ship<span class="period">.</span></span>`,
-    sub: `Define an <b>orchestration workflow</b>, pair it with your data, dress it in a theme. Ship turns that into a running, reactive app. Local-first.`,
+    html: `Personal AI,<br/>your <span class="any">way<span class="period">.</span></span>`,
+    sub: `One config per agent. Your collections, your themes, your tools. Runs on your machine, with the model you choose.`,
   },
   reactive: {
     html: `The <span class="verb">reactive</span><br/><span class="any">AI runtime<span class="period">.</span></span>`,
-    sub: `Ship is a <b>runtime and composer</b> for AI-native apps: orchestration, custom collections, themeable views. Local, fast, yours.`,
+    sub: `Agents, collections, views — every signal on one event bus. <b>Write a view; it lives.</b> Edit a skill; the agent picks it up.`,
   },
 };
 
 interface State {
   headline: HeadlineKey;
-  centerpiece: CenterpieceKey;
 }
-const state: State = { headline: 'vibe', centerpiece: 'auto' };
-
-// ---- plate scenes --------------------------------------------------
-
-const scenes = document.querySelectorAll<HTMLElement>('.scene');
-const tabButtons = document.querySelectorAll<HTMLButtonElement>('.plate-tabs button[data-scene-btn]');
-let autoTimer: number | null = null;
-
-function showScene(name: SceneKey) {
-  for (const s of scenes) s.classList.toggle('is-active', s.dataset.scene === name);
-  for (const b of tabButtons) b.setAttribute('aria-selected', b.dataset.sceneBtn === name ? 'true' : 'false');
-  const pill = document.querySelector<HTMLElement>('[data-theme-pill-label]');
-  if (pill) pill.dataset.scene = name;
-}
-
-function stopAutoMorph() {
-  if (autoTimer !== null) {
-    window.clearInterval(autoTimer);
-    autoTimer = null;
-  }
-}
-
-function startAutoMorph() {
-  stopAutoMorph();
-  const activeScene = document.querySelector<HTMLElement>('.scene.is-active');
-  let idx = Math.max(0, SCENES.indexOf((activeScene?.dataset.scene ?? 'session') as SceneKey));
-  showScene(SCENES[idx]);
-  autoTimer = window.setInterval(() => {
-    idx = (idx + 1) % SCENES.length;
-    showScene(SCENES[idx]);
-  }, AUTO_MS);
-}
-
-function setCenterpiece(key: CenterpieceKey) {
-  state.centerpiece = key;
-  for (const b of document.querySelectorAll<HTMLButtonElement>('[data-tweak-group="centerpiece"] button')) {
-    b.setAttribute('aria-pressed', b.dataset.centerpiece === key ? 'true' : 'false');
-  }
-  if (key === 'auto') startAutoMorph();
-  else {
-    stopAutoMorph();
-    showScene(key);
-  }
-  persistEdit();
-}
-
-for (const b of tabButtons) {
-  b.addEventListener('click', () => {
-    const key = b.dataset.sceneBtn as SceneKey | undefined;
-    if (key) setCenterpiece(key);
-  });
-}
+const state: State = { headline: 'vibe' };
 
 // ---- headline ------------------------------------------------------
 
@@ -122,12 +65,6 @@ for (const b of document.querySelectorAll<HTMLButtonElement>('[data-tweak-group=
   b.addEventListener('click', () => {
     const k = b.dataset.headline as HeadlineKey | undefined;
     if (k) setHeadline(k);
-  });
-}
-for (const b of document.querySelectorAll<HTMLButtonElement>('[data-tweak-group="centerpiece"] button')) {
-  b.addEventListener('click', () => {
-    const k = b.dataset.centerpiece as CenterpieceKey | undefined;
-    if (k) setCenterpiece(k);
   });
 }
 
@@ -167,10 +104,8 @@ document.addEventListener('keydown', (e) => {
   if (target && target.matches('input, textarea, [contenteditable="true"]')) return;
   if (e.metaKey || e.ctrlKey || e.altKey) return;
 
-  if (e.key === '1') setCenterpiece('session');
-  else if (e.key === '2') setCenterpiece('pipeline');
-  else if (e.key === '3') setCenterpiece('view');
-  else if (e.key === 't' || e.key === 'T') {
+  // `t` cycles themes — useful for the Claude artifact edit-mode flow.
+  if (e.key === 't' || e.key === 'T') {
     const ids = THEMES.map((t) => t.id);
     const current = readStoredTheme();
     const next = ids[(ids.indexOf(current) + 1) % ids.length];
@@ -202,10 +137,7 @@ window.addEventListener('message', (e) => {
 function persistEdit() {
   try {
     window.parent.postMessage(
-      {
-        type: '__edit_mode_set_keys',
-        edits: { headline: state.headline, centerpiece: state.centerpiece },
-      },
+      { type: '__edit_mode_set_keys', edits: { headline: state.headline } },
       '*',
     );
   } catch {
@@ -221,5 +153,6 @@ try {
 
 // ---- init ----------------------------------------------------------
 
-setHeadline(state.headline);
-setCenterpiece(state.centerpiece);
+// Headline default copy is rendered server-side in Hero.astro to avoid an
+// FOUC where the H1 is empty until JS runs. The headline tweak controls
+// still call setHeadline on click for the Claude artifact flow.

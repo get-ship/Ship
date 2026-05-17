@@ -1,0 +1,105 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Navbar from '../components/Navbar.astro';
+import Footer from '../components/Footer.astro';
+---
+
+<BaseLayout title="Something broke — SHIP">
+  <Navbar />
+  <main id="main">
+    <section class="err-stage">
+      <div class="err-bg" aria-hidden="true">
+        <div class="err-bg-grid"></div>
+      </div>
+      <div class="err-card">
+        <div class="err-eyebrow">500 · Server error</div>
+        <h1>That's <span class="any">on us<span class="period">.</span></span></h1>
+        <p>
+          Something on our end didn't work. We've been pinged about it. Try
+          again in a moment, or jump back to safer ground.
+        </p>
+        <div class="err-actions">
+          <sui-button tone="primary" size="lg">
+            <a href="/" class="err-link">Back to home</a>
+          </sui-button>
+          <sui-button variant="ghost" size="lg">
+            <a href="https://docs.getship.dev" class="err-link">Read the docs</a>
+          </sui-button>
+        </div>
+        <div class="err-note">
+          If this keeps happening, drop us a line at
+          <a href="mailto:support@getship.dev">support@getship.dev</a>.
+        </div>
+      </div>
+    </section>
+  </main>
+  <Footer />
+</BaseLayout>
+
+<style>
+  .err-stage {
+    position: relative;
+    min-height: calc(100vh - 80px);
+    padding: clamp(48px, 6vw, 96px) 24px;
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden;
+  }
+  .err-bg { position: absolute; inset: 0; pointer-events: none; }
+  .err-bg-grid {
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(to right,  color-mix(in oklab, var(--destructive) 7%, transparent) 1px, transparent 1px),
+      linear-gradient(to bottom, color-mix(in oklab, var(--destructive) 7%, transparent) 1px, transparent 1px);
+    background-size: 48px 48px;
+    mask-image: radial-gradient(ellipse 60% 70% at 50% 40%, #000, transparent 75%);
+  }
+  .err-card {
+    position: relative; z-index: 1;
+    width: 100%; max-width: 640px;
+    text-align: center;
+  }
+  .err-eyebrow {
+    display: inline-block;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 11px; font-weight: 600;
+    letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--destructive);
+    background: color-mix(in oklab, var(--destructive) 14%, transparent);
+    padding: 6px 12px; border-radius: 999px;
+    border: 1px solid color-mix(in oklab, var(--destructive) 25%, transparent);
+  }
+  .err-card h1 {
+    margin: 28px 0 0;
+    font-family: var(--font-display); font-weight: 700;
+    font-size: clamp(56px, 9vw, 112px);
+    line-height: 0.92; letter-spacing: -0.035em;
+    color: var(--page-fg);
+  }
+  .err-card h1 .any {
+    background: linear-gradient(100deg, var(--destructive) 0%, var(--accent) 80%);
+    -webkit-background-clip: text; background-clip: text;
+    color: transparent;
+  }
+  .err-card h1 .period { color: var(--destructive); }
+  .err-card p {
+    margin: 24px auto 0;
+    font-size: 16px; line-height: 1.55;
+    color: var(--muted-ink);
+    max-width: 48ch;
+  }
+  .err-actions {
+    display: flex; flex-wrap: wrap;
+    justify-content: center; gap: 12px;
+    margin-top: 36px;
+  }
+  .err-link {
+    color: inherit; text-decoration: none;
+    display: inline-flex; align-items: center;
+  }
+  .err-note {
+    margin-top: 36px;
+    color: var(--subtle-ink); font-size: 13px;
+  }
+  .err-note a { color: var(--primary); text-decoration: none; }
+  .err-note a:hover { text-decoration: underline; }
+</style>

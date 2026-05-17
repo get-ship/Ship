@@ -89,41 +89,57 @@ interface BundleTarget {
   virtualEntry?: string
 }
 
-// Separate-bundle discovery. Walks every top-level `packages/ui-components/src/<tag>/`
-// directory and opts that directory into its own code-split bundle when any
-// `.sui` file inside it carries the top-of-file `<bundle separate />` directive.
-// Without the directive, the component lives inside the aggregate
-// `sui-components.js` bundle (re-exported via `packages/ui-components/src/index.ts`).
-// The bundle is built from a synthetic entry that imports every .sui in the
-// directory by absolute path — Bun.build's plugin handles each .sui via onLoad,
-// and the relative `import setup from "./<stem>.controller.ts"` inside each
-// compiled output resolves against the .sui's own directory. No precompile-to-
-// disk step is needed.
+// Separate-bundle discovery. Walks every top-level `<root>/<tag>/`
+// directory under each scanned source root and opts that directory into
+// its own code-split bundle when any `.sui` file inside it carries the
+// top-of-file `<bundle separate />` directive. Without the directive,
+// the component lives inside its package's umbrella aggregate (e.g.
+// `sui-components.js`).
+//
+// Two source roots are scanned:
+//   * `packages/ui-components/src` — domain components umbrella
+//   * `apps/shell/src/components`  — shell chrome (relocated from the
+//     ui-components umbrella as phase 3 of the pack architecture).
+//
+// The bundle is built from a synthetic entry that imports every .sui in
+// the directory by absolute path — Bun.build's plugin handles each .sui
+// via onLoad, and the relative `import setup from "./<stem>.controller.ts"`
+// inside each compiled output resolves against the .sui's own directory.
+// No precompile-to-disk step is needed.
 const BUNDLE_SEPARATE_RE = /<bundle\s+separate(\s|\/|>)/
+const SEPARATE_BUNDLE_ROOTS = [
+  'packages/ui-components/src',
+  'apps/shell/src/components',
+]
 function discoverSeparateBundles(): BundleTarget[] {
-  const componentsDir = resolve(repoRoot, 'packages/ui-components/src')
-  if (!existsSync(componentsDir)) return []
   const out: BundleTarget[] = []
-  for (const e of readdirSync(componentsDir, { withFileTypes: true })) {
-    if (!e.isDirectory()) continue
-    if (!e.name.startsWith('sui-')) continue
-    const dir = resolve(componentsDir, e.name)
-    const suiPaths = readdirSync(dir, { withFileTypes: true })
-      .filter((f) => f.isFile() && f.name.endsWith('.sui'))
-      .map((f) => resolve(dir, f.name))
-      .sort()
-    if (suiPaths.length === 0) continue
-    const separate = suiPaths.some((p) => BUNDLE_SEPARATE_RE.test(readFileSync(p, 'utf-8')))
-    if (!separate) continue
-    out.push({
-      name: `sui-components/${e.name}`,
-      // virtualEntry contents are written to a tmp file at build time. The
-      // imports use absolute paths so the tmp location is irrelevant.
-      entry: '<virtual>',
-      virtualEntry: suiPaths.map((p) => `import ${JSON.stringify(p)}`).join('\n') + '\n',
-      external: ['@ship/sui-runtime', '@ship/sui-dom'],
-      outFile: `sui-components/${e.name}.js`,
-    })
+  const seen = new Set<string>()
+  for (const rel of SEPARATE_BUNDLE_ROOTS) {
+    const componentsDir = resolve(repoRoot, rel)
+    if (!existsSync(componentsDir)) continue
+    for (const e of readdirSync(componentsDir, { withFileTypes: true })) {
+      if (!e.isDirectory()) continue
+      if (!e.name.startsWith('sui-')) continue
+      if (seen.has(e.name)) continue
+      const dir = resolve(componentsDir, e.name)
+      const suiPaths = readdirSync(dir, { withFileTypes: true })
+        .filter((f) => f.isFile() && f.name.endsWith('.sui'))
+        .map((f) => resolve(dir, f.name))
+        .sort()
+      if (suiPaths.length === 0) continue
+      const separate = suiPaths.some((p) => BUNDLE_SEPARATE_RE.test(readFileSync(p, 'utf-8')))
+      if (!separate) continue
+      seen.add(e.name)
+      out.push({
+        name: `sui-components/${e.name}`,
+        // virtualEntry contents are written to a tmp file at build time. The
+        // imports use absolute paths so the tmp location is irrelevant.
+        entry: '<virtual>',
+        virtualEntry: suiPaths.map((p) => `import ${JSON.stringify(p)}`).join('\n') + '\n',
+        external: ['@ship/sui-runtime', '@ship/sui-dom'],
+        outFile: `sui-components/${e.name}.js`,
+      })
+    }
   }
   return out
 }
@@ -179,6 +195,17 @@ const TARGETS: BundleTarget[] = [
     name: 'sui-components',
     entry: 'packages/ui-components/src/index.ts',
     external: ['@ship/sui-runtime'],
+  },
+  // Shell chrome aggregate — non-separate chrome tags (view-picker,
+  // theme-picker, status-bar, brand-mark, view-chrome, edit-overlay,
+  // edit-mode-pill, annotation-*) under one bundle the shell loads at
+  // boot. Separate-bundle chrome (rail, nav-top, command-bar, ...)
+  // surfaces through `discoverSeparateBundles()` below.
+  {
+    name: 'sui-components/sui-chrome',
+    entry: 'apps/shell/src/components/index.ts',
+    external: ['@ship/sui-runtime', '@ship/sui-dom'],
+    outFile: 'sui-components/sui-chrome.js',
   },
   ...discoverSeparateBundles(),
   ...discoverViewBundles(),
@@ -300,13 +327,16 @@ async function refreshCatalog(): Promise<{ workspace: number; published: number 
 
 // ── Bun plugin for .sui + virtual entries ────────────────────────────────────
 
-const componentsRoot = resolve(repoRoot, 'packages/ui-components/src')
+const COMPONENT_ROOTS = [
+  resolve(repoRoot, 'packages/ui-components/src'),
+  resolve(repoRoot, 'apps/shell/src/components'),
+]
 
 function detectMode(absPath: string): { mode: 'component' | 'view'; stem: string } {
   const stem = basename(absPath, '.sui')
   const parent = basename(dirname(absPath))
-  // Every `.sui` under `packages/ui-components/src/` is a custom-element
-  // component, regardless of whether its filename matches its directory.
+  // Every `.sui` under a known component root is a custom-element,
+  // regardless of whether its filename matches its directory.
   // Component directories routinely pack multiple tags (e.g. `sui-toast/`
   // holds sui-toast + sui-toast-container, `sui-git-diff/` holds the diff
   // plus -file/-hunk/-line) where only the tag matching the directory name
@@ -315,7 +345,9 @@ function detectMode(absPath: string): { mode: 'component' | 'view'; stem: string
   // elements. This subsumes the separate-bundle `<tag>/` case (opted in via
   // `<bundle separate />`), whose bundle directories pack multiple tags the
   // same way.
-  if (absPath.startsWith(componentsRoot + '/')) return { mode: 'component', stem }
+  for (const root of COMPONENT_ROOTS) {
+    if (absPath.startsWith(root + '/')) return { mode: 'component', stem }
+  }
   const mode: 'component' | 'view' = stem === parent && stem.length > 0 ? 'component' : 'view'
   return { mode, stem }
 }
@@ -388,7 +420,16 @@ async function buildTarget(
       // Bun.build throws bare `Bundle failed` when the pipeline blows up
       // before logs accumulate. Surface the underlying message.
       const msg = err?.message ?? String(err)
-      throw new Error(`Bun.build threw for ${target.name}: ${msg}`)
+      let extra = ''
+      const errors = (err as any)?.errors
+      if (Array.isArray(errors) && errors.length) {
+        extra = '\n' + errors.map((e: any) => `  [${e.position ? `${e.position.file}:${e.position.line}` : ''}] ${e.message}`).join('\n')
+      } else if (err?.cause) {
+        extra = `\n  cause: ${err.cause}`
+      } else if ((err as any)?.position) {
+        extra = `\n  at ${(err as any).position?.file}:${(err as any).position?.line}`
+      }
+      throw new Error(`Bun.build threw for ${target.name}: ${msg}${extra}`)
     }
 
     if (!result.success) {
@@ -498,7 +539,7 @@ function startWatching() {
   const watchDirs: string[] = []
   const watchSeen = new Set<string>()
   for (const root of sourceRoots) {
-    for (const d of ['packages', 'views', '.ship/views']) {
+    for (const d of ['packages', 'views', '.ship/views', 'apps/shell/src']) {
       const abs = resolve(root, d)
       if (watchSeen.has(abs)) continue
       if (existsSync(abs)) {

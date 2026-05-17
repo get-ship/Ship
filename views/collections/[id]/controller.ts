@@ -32,6 +32,55 @@ interface CollectionDetail {
   total_items: number
 }
 
+type CellView =
+  | { kind: 'status'; value: string; class_name: string; raw: { id: string; data?: Record<string, unknown> } }
+  | { kind: 'ref'; value: string; icon: string; label: string }
+  | { kind: 'text'; value: string }
+
+function refIconFor(value: string): string {
+  if (value.startsWith('agent:')) return 'cpu'
+  if (value.startsWith('skill:')) return 'sparkles'
+  if (value.startsWith('pipeline:')) return 'git-branch'
+  if (value.startsWith('artifact:')) return 'file'
+  if (value.startsWith('job:')) return 'play'
+  if (value.startsWith('http')) return 'external-link'
+  return 'link'
+}
+
+function isRefValue(fieldName: string, value: unknown): value is string {
+  if (typeof value !== 'string' || !value) return false
+  if (fieldName === 'url' || fieldName === 'href') return true
+  if (fieldName === 'ref' || fieldName === 'item' || fieldName === 'target') return true
+  return /^(https?:|agent:|skill:|pipeline:|artifact:|job:)/.test(value)
+}
+
+function buildCell(
+  field: SchemaField,
+  item: { id: string; data?: Record<string, unknown> },
+): CellView {
+  const raw = item.data?.[field.name]
+  if (field.name === 'status' && field.field_type === 'enum') {
+    const value = typeof raw === 'string' ? raw : ''
+    return {
+      kind: 'status',
+      value: value || '—',
+      class_name: 'status-chip status-chip-' + (value || 'unset'),
+      raw: item,
+    }
+  }
+  if (isRefValue(field.name, raw)) {
+    return {
+      kind: 'ref',
+      value: raw,
+      icon: refIconFor(raw),
+      label: raw.length > 64 ? raw.slice(0, 64) + '…' : raw,
+    }
+  }
+  if (raw === null || raw === undefined) return { kind: 'text', value: '' }
+  if (typeof raw === 'object') return { kind: 'text', value: JSON.stringify(raw) }
+  return { kind: 'text', value: String(raw) }
+}
+
 export default controller<Scope>({
   scope: ({ ship, route }) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -89,15 +138,41 @@ export default controller<Scope>({
       return JSON.stringify(out, null, 2)
     })
 
+    const rowsView = derived<Array<{ id: string; raw: { id: string; data?: Record<string, unknown> }; cells: CellView[] }>>(() => {
+      const d = detailValue()
+      if (!d) return []
+      return d.items.map(item => ({
+        id: item.id,
+        raw: item,
+        cells: d.schema.fields.map(f => buildCell(f, item)),
+      }))
+    })
+
     return {
       collectionId, colDetail, detailValue,
       tab, newRowOpen, rowDraft, drawerError,
-      schemaFieldsView, sourcePath, fieldsSummary, jsoncSource,
+      schemaFieldsView, sourcePath, fieldsSummary, jsoncSource, rowsView,
     }
   },
   on: {
     setDraftField: (state, name: string, value: unknown) => {
       state.rowDraft = { ...(state.rowDraft as Record<string, unknown>), [name]: value }
+    },
+    cycleStatus: async (state, item: { id: string; data?: Record<string, unknown> }) => {
+      const detail = state.detailValue as CollectionDetail | null
+      const statusField = detail?.schema.fields?.find(f => f.name === 'status')
+      const values = statusField?.values ?? []
+      if (values.length === 0) return
+      const current = (item.data?.['status'] as string | undefined) ?? ''
+      const idx = values.indexOf(current)
+      const next = values[(idx + 1) % values.length]
+      const id = state.collectionId as string
+      await fetch(`/api/v1/collections/${id}/items/${encodeURIComponent(item.id)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ data: { ...(item.data ?? {}), status: next } }),
+      }).catch(() => undefined)
     },
     openNewRow: (state) => {
       state.rowDraft = {}

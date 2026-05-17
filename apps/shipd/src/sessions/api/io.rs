@@ -7,6 +7,8 @@ use axum::http::StatusCode;
 use axum::response::sse::{Event, KeepAlive, Sse};
 use axum::response::IntoResponse;
 use axum::Json;
+use base64::engine::general_purpose::STANDARD as BASE64;
+use base64::Engine;
 use futures_util::stream::{self};
 use serde::Deserialize;
 use std::convert::Infallible;
@@ -120,9 +122,16 @@ pub async fn stream_session(
     let replay_stream = stream::iter(std::iter::once(replay));
     let bytes_stream = replay_stream.chain(live_stream);
 
+    // PTY output is raw bytes — escape sequences contain CR (\r) for
+    // cursor returns, color codes, prompt redraws. SSE line-folds on
+    // both \r and \n, and EventSource rejoins fields with \n only, so
+    // any \r in the payload silently becomes \n on the client and the
+    // terminal renders garbled output. Base64-encode each chunk so the
+    // transport is byte-exact; the bridge decodes back to bytes and
+    // writes them straight into xterm.
     let event_stream = bytes_stream.map(|bytes| {
-        let text = String::from_utf8_lossy(&bytes).to_string();
-        Ok::<_, Infallible>(Event::default().event("bytes").data(text))
+        let encoded = BASE64.encode(&bytes);
+        Ok::<_, Infallible>(Event::default().event("bytes").data(encoded))
     });
 
     let sse = Sse::new(event_stream)

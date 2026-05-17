@@ -37,8 +37,42 @@
     "GITHUB_CLIENT_ID": "",
     "GITHUB_CLIENT_SECRET": "",
     "GITHUB_WEBHOOK_SECRET": "",
-    "JWT_SECRET": ""
+    "GOOGLE_CLIENT_ID": "",
+    "GOOGLE_CLIENT_SECRET": "",
+    "SLACK_CLIENT_ID": "",
+    "SLACK_CLIENT_SECRET": "",
+    // Stripe — STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET must be set via
+    // `wrangler secret put` per env. STRIPE_PRICE_PRO is the Price ID from
+    // the Stripe dashboard for the Pro plan; per-env (test vs live mode).
+    "STRIPE_SECRET_KEY": "",
+    "STRIPE_WEBHOOK_SECRET": "",
+    "STRIPE_PRICE_PRO": "",
+    // Feature flags — default OFF. Enable per-env via wrangler env.<env>.vars
+    // override (no secret needed; not sensitive).
+    "SHIP_CLOUD_ENABLED": "false",
+    "STRIPE_LIVE_MODE": "false",
+    "EMAIL_LIVE_MODE": "false",
+    "MACAROON_ENFORCEMENT": "false",
+    // Build identification — `wrangler deploy` doesn't auto-stamp these;
+    // set via CI in env.<env>.vars or leave for /api/version to return 'dev'.
+    "GATEWAY_VERSION": "dev",
+    "BUILD_SHA": "unknown"
   },
+  // KV bindings. Create with:
+  //   wrangler kv namespace create WAITLIST [--env staging|production]
+  // WAITLIST holds long-lived email-capture entries (per-list, deduped by
+  // hashed email).
+  "kv_namespaces": [
+    { "binding": "WAITLIST", "id": "REPLACE_WITH_KV_NAMESPACE_ID" }
+  ],
+  // Transactional email via Cloudflare Email (beta). `remote: true` keeps
+  // local `wrangler dev` from blasting real mail.
+  "send_email": [
+    {
+      "name": "EMAIL",
+      "remote": true
+    }
+  ],
   "env": {
     "staging": {
       "name": "gateway-staging",
