@@ -1,4 +1,4 @@
-import { controller, effect, signal, ref, bindNativeEvent } from '@ship/sui-runtime'
+import { controller, effect, signal, ref, bindNativeEvent, chrome } from '@ship/sui-runtime'
 import type { Scope } from './sui-view-picker.sui'
 import {
   type ApiView, type Project,
@@ -56,6 +56,8 @@ export default controller<Scope>({
     }
 
     async function onPickProject(id: string): Promise<void> {
+      // Already-active click is a no-op (popover closes via scope.open).
+      if (id === activeProjectId()) { scope.open.set(false); return }
       // Optimistic: highlight + close. Refresh state on success.
       const prev = activeProjectId()
       activeProjectId.set(id)
@@ -63,6 +65,12 @@ export default controller<Scope>({
       const ok = await switchProject(id)
       if (!ok) {
         activeProjectId.set(prev)
+        chrome.notify({
+          tone: 'error',
+          title: 'Project switch failed',
+          description: 'The daemon rejected the switch. Try again or check shipd logs.',
+          duration: 5000,
+        })
         return
       }
       host.emit!('sui:view-picker:project-changed', { id })
@@ -216,7 +224,11 @@ export default controller<Scope>({
         e.preventDefault(); fInput?.focus(); return
       }
       const { pinned, others } = part()
-      const visible = [...pinned, ...others]
+      const projRows = projects().map((p) => ({ kind: 'project' as const, id: p.id }))
+      const viewRows = [...pinned, ...others].map((v) => ({ kind: 'view' as const, name: v.name }))
+      const visible: Array<{ kind: 'project'; id: string } | { kind: 'view'; name: string }> = [
+        ...projRows, ...viewRows,
+      ]
       if (e.key === 'ArrowDown') {
         e.preventDefault()
         cursor.set(Math.min(visible.length - 1, cursor() + 1))
@@ -228,7 +240,10 @@ export default controller<Scope>({
         cursor.set(Math.max(0, cursor() - 1))
       } else if (e.key === 'Enter') {
         const row = visible[cursor()]
-        if (row) { e.preventDefault(); navigate(row.name) }
+        if (!row) return
+        e.preventDefault()
+        if (row.kind === 'project') void onPickProject(row.id)
+        else navigate(row.name)
       }
     }
     bindNativeEvent(document, 'keydown', onKey as EventListener)

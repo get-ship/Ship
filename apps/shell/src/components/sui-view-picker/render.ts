@@ -38,8 +38,11 @@ export function renderBody(el: HTMLElement, args: RenderArgs): void {
   // Projects section at top — unified picker (Task #54). Shown when
   // ≥1 project is tracked; lets the user switch project without
   // leaving the picker.
-  if (args.projects.length > 0) {
+  const projectCount = args.projects.length
+  if (projectCount > 0) {
     el.appendChild(buildProjectsSection(args))
+  } else {
+    el.appendChild(buildProjectsEmpty())
   }
   const total = args.pinned.length + args.others.length
   if (total === 0) {
@@ -49,8 +52,28 @@ export function renderBody(el: HTMLElement, args: RenderArgs): void {
     el.appendChild(empty)
     return
   }
-  el.appendChild(buildSection('Pinned to rail', 'section-pinned', args.pinned, 0, true, args))
-  el.appendChild(buildSection('All views', 'section-all', args.others, args.pinned.length, false, args))
+  el.appendChild(buildSection('Pinned to rail', 'section-pinned', args.pinned, projectCount, true, args))
+  el.appendChild(buildSection('All views', 'section-all', args.others, projectCount + args.pinned.length, false, args))
+}
+
+function buildProjectsEmpty(): HTMLElement {
+  const section = document.createElement('div')
+  section.setAttribute('part', 'section-projects')
+  const header = document.createElement('div')
+  header.className = 'vp-section-h'
+  const icon = document.createElement('sui-icon')
+  icon.setAttribute('name', 'folder-tree')
+  icon.setAttribute('size', 'sm')
+  header.appendChild(icon)
+  header.appendChild(Object.assign(document.createElement('span'), { textContent: 'Projects' }))
+  section.appendChild(header)
+  const empty = document.createElement('div')
+  empty.className = 'vp-empty'
+  empty.style.padding = '8px 12px'
+  empty.style.textAlign = 'left'
+  empty.textContent = 'No projects — run `ship init` or open a workspace.'
+  section.appendChild(empty)
+  return section
 }
 
 function buildProjectsSection(args: RenderArgs): HTMLElement {
@@ -69,10 +92,13 @@ function buildProjectsSection(args: RenderArgs): HTMLElement {
   }))
   section.appendChild(header)
 
-  args.projects.forEach((p) => {
+  args.projects.forEach((p, idx) => {
     const isActive = p.id === args.activeProjectId
+    const isCursor = idx === args.cursor
     const row = document.createElement('div')
-    row.className = 'vp-row vp-row-project' + (isActive ? ' is-active' : '')
+    row.className = 'vp-row vp-row-project'
+      + (isActive ? ' is-active' : '')
+      + (isCursor ? ' is-cursor' : '')
     row.setAttribute('role', 'option')
     row.setAttribute('data-project-id', p.id)
     if (isActive) row.setAttribute('aria-current', 'true')
@@ -93,6 +119,7 @@ function buildProjectsSection(args: RenderArgs): HTMLElement {
 
     row.append(swatch, text)
     row.addEventListener('click', () => args.onPickProject(p.id))
+    row.addEventListener('mouseenter', () => args.onRowEnter(idx))
     section.appendChild(row)
   })
   return section
