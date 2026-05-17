@@ -32,9 +32,27 @@ function projectId(): string {
   return (window as EditModeWindow).__shipProjectId ?? 'default'
 }
 
-function sessionId(): string | null {
-  if (typeof window === 'undefined') return null
-  return (window as EditModeWindow).__shipSessionId ?? null
+// Session id matches the key view-mcp.ts uses so both lifecycle producers
+// (this runtime helper and the shell's view-mcp) share one id per tab.
+// Falls back to a per-tab UUID when neither source has been primed —
+// avoids posting {session_id: null} which the daemon rejects with 422.
+const VIEW_MCP_SESSION_KEY = 'ship.chrome.view-mcp.session_id'
+
+function sessionId(): string {
+  if (typeof window === 'undefined') return 'no-window'
+  const fromWindow = (window as EditModeWindow).__shipSessionId
+  if (fromWindow && fromWindow.length > 0) return fromWindow
+  try {
+    const stored = sessionStorage.getItem(VIEW_MCP_SESSION_KEY)
+    if (stored && stored.length > 0) return stored
+    const fresh = (typeof crypto !== 'undefined' && crypto.randomUUID)
+      ? crypto.randomUUID()
+      : `runtime-${Date.now()}-${Math.random().toString(36).slice(2)}`
+    sessionStorage.setItem(VIEW_MCP_SESSION_KEY, fresh)
+    return fresh
+  } catch {
+    return `runtime-fallback-${Date.now()}`
+  }
 }
 
 function storageKey(name: string): string {
