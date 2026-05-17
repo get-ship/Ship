@@ -24,8 +24,8 @@ curl -s 'http://localhost:3000/api/sdk/query?q=collection' | jq .
 ```
 
 The machine-readable spec is also checked into
-`packages/ship-set/sdk/sdk-macros.json` and
-`packages/ship-set/sdk/sdk-urls.json` for offline browsing.
+`packages/sdk/src/generated/sdk-framework.json` and
+`packages/sdk/src/generated/sdk-urls.json` for offline browsing.
 
 ## 2. Inspect a view's compile-time context
 

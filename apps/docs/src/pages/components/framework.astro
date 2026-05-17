@@ -146,8 +146,9 @@ import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
       </div>
       <p class="fw-note">
         The morph algorithm is the same one <code>sui-runtime</code>
-        uses for HMR — see <a href="/runtime/">Runtime</a> for the diff
-        contract.
+        uses for HMR — see
+        <a href="/views/ssr-hydration/">SSR &amp; hydration</a>
+        for the diff contract.
       </p>
     </div>
   </section>
@@ -179,11 +180,11 @@ import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
   }
 }`}</code></pre>
     <p class="fw-note">
-      The component pack model is documented in
-      <a href="/component-packs/">Component Packs</a>. The bundle that
-      registers every primitive on this page is the
+      The bundle that registers every primitive on this page is the
       <code>@ship/ui-components</code> pack, served at
-      <code>/sui-components.js</code>.
+      <code>/sui-components.js</code>. See
+      <a href="/components/installing/">Installing</a> for how packs
+      get wired into a Ship daemon or a standalone HTML page.
     </p>
   </section>
 
