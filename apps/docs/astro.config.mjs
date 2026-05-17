@@ -183,6 +183,21 @@ function buildTopics(isInternal) {
           { label: "11 · sui-eval", link: "/tutorial/11-sui-eval/" },
         ],
       },
+      {
+        label: "Composition",
+        items: [
+          { label: "12 · Slots", link: "/tutorial/12-slots/" },
+          { label: "13 · Refs (bind:this)", link: "/tutorial/13-refs/" },
+          { label: "14 · class: / style:", link: "/tutorial/14-class-style/" },
+        ],
+      },
+      {
+        label: "Lifecycle",
+        items: [
+          { label: "15 · onMount / onCleanup", link: "/tutorial/15-onmount-oncleanup/" },
+          { label: "16 · Effect cleanup", link: "/tutorial/16-effect-cleanup/" },
+        ],
+      },
     ],
   },
   {

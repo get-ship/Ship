@@ -31,6 +31,11 @@ const STEPS = [
   '09-agent-loop',
   '10-lsp-cli',
   '11-sui-eval',
+  '12-slots',
+  '13-refs',
+  '14-class-style',
+  '15-onmount-oncleanup',
+  '16-effect-cleanup',
 ] as const
 
 // Disable animations + caret blink so diffs stay deterministic.

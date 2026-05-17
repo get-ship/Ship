@@ -73,6 +73,8 @@ const chapterTitles: Record<string, string> = {
   templating: 'Templating',
   components: 'Components',
   agents: 'Agents',
+  composition: 'Composition',
+  lifecycle: 'Lifecycle',
   other: 'Other',
 }
 
@@ -81,6 +83,8 @@ const chapterDescriptions: Record<string, string> = {
   templating: 'Branches, bindings, events — what shape your DOM takes.',
   components: 'Composing with the built-in Ship UI primitives.',
   agents: 'How an AI agent authors, diagnoses, and scores a SUI view.',
+  composition: 'Slots, refs, class:/style: — building larger surfaces.',
+  lifecycle: 'When code runs, when it cleans up, and how effects scope.',
 }
 
 const firstSlug = steps[0]?.slug
@@ -95,7 +99,7 @@ const firstSlug = steps[0]?.slug
   }}
 >
   <p class="tut-lead">
-    Eleven steps across four chapters. Read the prose on the left,
+    Sixteen steps across six chapters. Read the prose on the left,
     edit the code on the right, the preview re-renders as you type.
     Show the solution when stuck. The Agents chapter explains how to
     hand SUI authoring off to a model.
