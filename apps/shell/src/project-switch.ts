@@ -51,10 +51,11 @@ export function initProjectSwitch(
     void host.refreshStatus()
     void updateCrossProjectIndicator(host.statusBar)
     const detail = (event.payload as { project_id?: string } | null) ?? {}
-    document.dispatchEvent(new CustomEvent('ship:project:switched', {
-      detail,
-      bubbles: true,
-    }))
+    // Two names because there are two listener camps in shell main:
+    // the project breadcrumb listens for `project.switched` (kernel name),
+    // newer chrome wants the namespaced `ship:project:switched`.
+    document.dispatchEvent(new CustomEvent('project.switched', { detail, bubbles: true }))
+    document.dispatchEvent(new CustomEvent('ship:project:switched', { detail, bubbles: true }))
   })
 
   bridge.subscribe('session.', () => {
