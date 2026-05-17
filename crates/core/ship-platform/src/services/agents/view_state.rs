@@ -55,9 +55,18 @@ pub struct AgentDetail {
     pub name: String,
     pub description: String,
     pub letter: String,
+    /// Optional icon name (lucide). Surfaced in detail header.
+    pub icon: Option<String>,
+    /// Optional semver-ish version string from `agent.version`.
+    pub version: Option<String>,
+    /// Tag strings from `agent.tags`.
+    pub tags: Vec<String>,
     pub skills: Vec<String>,
     pub mcp_servers: Vec<String>,
     pub rules: Vec<String>,
+    /// Verbatim `rules.inline` text from the agent jsonc — surfaced in the
+    /// detail editor so the inline rules can be read + edited in place.
+    pub inline_rules: String,
     pub providers: Vec<String>,
     pub default_provider: Option<String>,
     /// Legacy — canonicalized tier for existing UI that only shows a
@@ -186,6 +195,21 @@ fn load_from_dir(dir: &Path, id: &str, source: &str) -> Option<AgentDetail> {
         let providers = resolve_array_field(agent_obj, &["providers"], &[]);
         let mcp_servers = resolve_array_field(&parsed, &["mcp"], &["servers"]);
         let rules = resolve_array_field(&parsed, &["rules"], &["refs"]);
+        let inline_rules = parsed
+            .get("rules")
+            .and_then(|r| r.get("inline"))
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string();
+        let icon = agent_obj
+            .get("icon")
+            .and_then(|v| v.as_str())
+            .map(str::to_string);
+        let version = agent_obj
+            .get("version")
+            .and_then(|v| v.as_str())
+            .map(str::to_string);
+        let tags = resolve_array_field(agent_obj, &["tags"], &[]);
         // No standalone "default" field on the schema — first provider wins.
         // The UI uses this to highlight the active provider in the panel.
         let default_provider = providers.first().cloned();
@@ -224,9 +248,13 @@ fn load_from_dir(dir: &Path, id: &str, source: &str) -> Option<AgentDetail> {
             name: name.clone(),
             description,
             letter: first_letter(&name),
+            icon,
+            version,
+            tags,
             skills,
             mcp_servers,
             rules,
+            inline_rules,
             providers,
             default_provider,
             permissions_tier,
@@ -243,18 +271,31 @@ pub fn list_agents(ship_dir: &Path) -> Vec<AgentSummary> {
     list_agents_with_scopes(&resolve_scopes(ship_dir))
 }
 
+/// Read the workspace-active agent id from `daemon_settings`. The
+/// `/agents` list view dims everything but the active row; activation
+/// happens through `POST /api/v1/settings { key: "shell.agent.active" }`.
+pub fn active_agent_id() -> Option<String> {
+    crate::config::get_setting("shell.agent.active")
+        .ok()
+        .flatten()
+        .and_then(|v| v.as_str().map(String::from))
+}
+
 pub(crate) fn list_agents_with_scopes(scopes: &AgentScopes) -> Vec<AgentSummary> {
+    let active = active_agent_id();
     let mut seen: HashSet<String> = HashSet::new();
     let mut out = Vec::new();
     if let Some(dir) = scopes.project_dir.as_ref() {
-        for a in scan_agents_dir(dir, SOURCE_PROJECT) {
+        for mut a in scan_agents_dir(dir, SOURCE_PROJECT) {
             if seen.insert(a.id.clone()) {
+                a.active = active.as_deref() == Some(a.id.as_str());
                 out.push(a);
             }
         }
     }
-    for a in scan_agents_dir(&scopes.global_dir, SOURCE_GLOBAL) {
+    for mut a in scan_agents_dir(&scopes.global_dir, SOURCE_GLOBAL) {
         if seen.insert(a.id.clone()) {
+            a.active = active.as_deref() == Some(a.id.as_str());
             out.push(a);
         }
     }
