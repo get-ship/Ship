@@ -12,7 +12,7 @@ env var checklist, and the "turn it on later" path for each gated feature.
 | `/` | Landing | Plate cycles every 7s, pause-on-hover, progress sliver |
 | `/features` | Features overview | Five cards, refreshed copy |
 | `/download` | Download lander | Calls `<PlatformDetect>`; all platforms route to /coming-soon |
-| `/download/coming-soon` | Real waitlist capture | POSTs to gateway `/api/waitlist`; KV-backed |
+| `/download/coming-soon` | Real waitlist capture | POSTs to gateway `/v1/waitlist`; KV-backed |
 | `/store` | Marketplace placeholder | Honest "coming at launch" copy |
 | `/waitlist` | Single-purpose waitlist | `?reason={signin|signup|reset|general}` varies copy |
 | `/404` | Branded not-found | Gradient "Lost at sea." |
@@ -87,7 +87,7 @@ work in the Cloudflare dashboard + a couple wrangler commands.
   ```
 - **Stripe Dashboard:** create one Product (`SHIP Pro`) with a recurring
   monthly USD Price ($20). Webhook endpoint pointed at
-  `https://staging.getship.dev/api/auth/stripe/webhook` (and api.getship.dev
+  `https://staging.getship.dev/v1/auth/stripe/webhook` (and api.getship.dev
   for prod). Customer Portal config: enable cancel-at-period-end, payment
   method updates, invoice download; disable plan switching in the portal.
   Tax: enable Stripe Tax; add registrations as you cross nexus thresholds.
@@ -106,11 +106,11 @@ work in the Cloudflare dashboard + a couple wrangler commands.
 2. **Gateway with waitlist + ops only (cheap):**
    - Create KV namespace (WAITLIST).
    - Deploy gateway. `wrangler deploy --env staging`.
-   - Waitlist form works. `/healthz` and `/api/version` work.
+   - Waitlist form works. `/healthz` and `/v1/version` work.
    - All cloud routes return 503 (SHIP_CLOUD_ENABLED=false by default).
 3. **Auth enabled:**
    - Register OAuth apps with Google/GitHub/Slack. Callback URLs:
-     `https://staging.getship.dev/api/auth/callback/{google|github|slack}`
+     `https://staging.getship.dev/v1/auth/callback/{google|github|slack}`
      (and api.getship.dev for prod).
    - Set the secrets per the wrangler block above.
    - Onboard CF Email; set `EMAIL_LIVE_MODE=true`.
@@ -165,7 +165,7 @@ These were discussed, scoped, or sketched but not implemented:
 - **Blog + changelog scaffolds** (Astro content collections; ~1 day; not
   blocking if no launch announcement to write).
 - **Webhooks as a Pro feature** (sketched; data model fits the existing
-  `/api/registry/webhook` pattern; needs cloud-spec 09 decisions).
+  `/v1/registry/webhook` pattern; needs cloud-spec 09 decisions).
 - **OAuth vault as a Pro feature** (sketched; needs cloud-spec 05).
 - **ENG SIDE: actually verify a Stripe test charge end-to-end** — until
   staging gateway is deployed with secrets, the loop is unproven.
@@ -205,8 +205,8 @@ curl -sf -o /dev/null -w '%{http_code}' https://getship.dev/pricing  # 302 → /
 
 # Gateway
 curl -sf https://staging.getship.dev/healthz && echo 'health OK'
-curl -sf https://staging.getship.dev/api/version | jq .
-curl -sf -X POST https://staging.getship.dev/api/waitlist \
+curl -sf https://staging.getship.dev/v1/version | jq .
+curl -sf -X POST https://staging.getship.dev/v1/waitlist \
   -H 'Content-Type: application/json' \
   -d '{"email":"test@example.com","list":"general"}'
 ```

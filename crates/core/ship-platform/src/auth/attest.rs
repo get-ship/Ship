@@ -21,7 +21,7 @@ pub const DEFAULT_ATTESTATION_ISSUER: &str = "https://getship.dev";
 /// brand sits on `getship.dev`; keeping these decoupled lets the JWT
 /// issuer claim stay stable across env hosts. Overridden via
 /// `auth.attestation_jwks_url` in ~/.ship/config.toml.
-pub const DEFAULT_ATTESTATION_JWKS_URL: &str = "https://api.getship.dev/api/jwks";
+pub const DEFAULT_ATTESTATION_JWKS_URL: &str = "https://api.getship.dev/v1/jwks";
 
 /// How long to cache the fetched JWKS.
 const JWKS_CACHE_TTL: Duration = Duration::from_secs(3600);
@@ -248,7 +248,7 @@ mod tests {
     fn config_defaults_decouple_issuer_from_jwks() {
         let cfg = AttestationConfig::from_defaults();
         assert_eq!(cfg.issuer, "https://getship.dev");
-        assert_eq!(cfg.jwks_url, "https://api.getship.dev/api/jwks");
+        assert_eq!(cfg.jwks_url, "https://api.getship.dev/v1/jwks");
     }
 
     #[test]

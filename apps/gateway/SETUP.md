@@ -80,8 +80,8 @@ of mail bounces, swap to Resend/SES — the `sendEmail()` wrapper in
 
 | Var | What it does |
 |---|---|
-| `GATEWAY_VERSION` | Returned by `/api/version`. Bump in CI on each deploy. Default `dev` |
-| `BUILD_SHA` | Returned by `/api/version`. CI should stamp commit SHA. Default `unknown` |
+| `GATEWAY_VERSION` | Returned by `/v1/version`. Bump in CI on each deploy. Default `dev` |
+| `BUILD_SHA` | Returned by `/v1/version`. CI should stamp commit SHA. Default `unknown` |
 
 ### Feature flags (default OFF — flip per env as features go live)
 
@@ -124,7 +124,7 @@ wrangler secret put STRIPE_WEBHOOK_SECRET --env staging   # whsec_…
 wrangler secret put STRIPE_PRICE_PRO      --env staging   # price_… (the Pro plan's recurring monthly Price ID)
 ```
 
-**Daemon attestation JWT signing** (Ed25519 — used by `/api/auth/daemon-attest` to mint capability JWTs the daemon presents to peer services; verified via the JWKS endpoint at `/api/jwks`):
+**Daemon attestation JWT signing** (Ed25519 — used by `/v1/auth/daemon-attest` to mint capability JWTs the daemon presents to peer services; verified via the JWKS endpoint at `/v1/jwks`):
 ```sh
 wrangler secret put SHIP_JWT_PRIVATE_KEY     --env staging
 wrangler secret put SHIP_JWT_PRIVATE_KEY_ID  --env staging
@@ -144,7 +144,7 @@ wrangler secret put SHIP_ATTESTATION_ISSUER --env staging
 The daemon side resolves issuer and JWKS URL **separately** (the issuer
 claim is the brand identity; JWKS is hosted at the API host). Daemon
 defaults are `auth.attestation_issuer = "https://getship.dev"` and
-`auth.attestation_jwks_url = "https://api.getship.dev/api/jwks"`,
+`auth.attestation_jwks_url = "https://api.getship.dev/v1/jwks"`,
 overridable via `~/.ship/config.toml`.
 
 ---
@@ -154,8 +154,8 @@ overridable via `~/.ship/config.toml`.
 For each social provider you want enabled, register an OAuth app and set
 the **callback URL** to:
 
-- Staging: `https://staging.getship.dev/api/auth/callback/{provider}`
-- Production: `https://api.getship.dev/api/auth/callback/{provider}`
+- Staging: `https://staging.getship.dev/v1/auth/callback/{provider}`
+- Production: `https://api.getship.dev/v1/auth/callback/{provider}`
 
 Where `{provider}` is one of: `github`, `google`, `slack`.
 
@@ -176,7 +176,7 @@ See `apps/gateway/STRIPE.md` for the full walkthrough. Short version:
 
 1. Create one Product (`SHIP Pro`) with one Price (monthly, USD, $20).
 2. Copy the Price ID into `STRIPE_PRICE_PRO` per env.
-3. Add webhook endpoint at `https://{api,staging}.getship.dev/api/auth/stripe/webhook`
+3. Add webhook endpoint at `https://{api,staging}.getship.dev/v1/auth/stripe/webhook`
    with events: `checkout.session.completed`, `customer.subscription.{created,updated,deleted}`,
    `invoice.{paid,payment_failed}`.
 4. Configure Customer Portal: enable cancellation (at period end),
@@ -200,7 +200,7 @@ bun dev
 # defaults to http://localhost:4321
 
 # Optional terminal C — Stripe webhook forwarding
-stripe listen --forward-to localhost:8787/api/auth/stripe/webhook
+stripe listen --forward-to localhost:8787/v1/auth/stripe/webhook
 # Paste the printed whsec_… into .dev.vars as STRIPE_WEBHOOK_SECRET
 ```
 
@@ -241,11 +241,28 @@ Once-per-env, in order:
    D1 ids look right.
 8. **Deploy** — `wrangler deploy --env staging` (then `--env production`).
 9. **Smoke test** — `curl https://staging.getship.dev/healthz`,
-   `/api/version`, `POST /api/waitlist` with a test email.
+   `/v1/version`, `POST /v1/waitlist` with a test email.
 
 ---
 
-## 7. What's NOT done yet (real list)
+## 7. Path migration note (2026-05)
+
+All gateway routes moved from `/api/*` to `/v1/*` — the host is already
+`api.getship.dev`, so the legacy `/api/` prefix was redundant. Better Auth
+moved with everything else (now mounted at `/v1/auth/*`).
+
+If you've already registered OAuth apps or a Stripe webhook against
+the old paths, update them:
+
+- GitHub OAuth callback: `…/api/auth/callback/github` → `…/v1/auth/callback/github`
+- Google OAuth callback: `…/api/auth/callback/google` → `…/v1/auth/callback/google`
+- Slack OAuth callback: `…/api/auth/callback/slack` → `…/v1/auth/callback/slack`
+- Stripe webhook URL: `…/api/auth/stripe/webhook` → `…/v1/auth/stripe/webhook`
+
+Six dashboard edits total (3 providers × 2 envs) plus one Stripe webhook
+URL per env. Operational endpoints (`/healthz`, `/readyz`) stay unversioned.
+
+## 8. What's NOT done yet (real list)
 
 - **Email transport unverified.** The code path is wired but no end-to-end
   send has been tested. First real signup with reset will exercise it.

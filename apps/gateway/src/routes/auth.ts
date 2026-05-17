@@ -13,14 +13,14 @@ const auth = new Hono<{ Bindings: Env }>()
 
 // ── JWKS ─────────────────────────────────────────────────────────────────────
 
-auth.get('/api/jwks', async (c) => {
+auth.get('/v1/jwks', async (c) => {
   const keys = await buildJwks(c.env)
   return c.json(keys)
 })
 
 // ── Identity ─────────────────────────────────────────────────────────────────
 
-auth.get('/api/me', async (c) => {
+auth.get('/v1/me', async (c) => {
   const session = await requireSession(c.req.raw, c.env)
   if (session instanceof Response) return session
   const db = getAuthDb(c.env)
@@ -30,11 +30,9 @@ auth.get('/api/me', async (c) => {
   return c.json({ user })
 })
 
-auth.get('/api/health', (c) => c.json({ status: 'ok' }))
-
 // ── CLI PKCE OAuth ────────────────────────────────────────────────────────────
 
-auth.get('/auth/cli', async (c) => {
+auth.get('/v1/auth/cli', async (c) => {
   const url = new URL(c.req.url)
   const codeChallenge = url.searchParams.get('code_challenge')
   const redirectUri = url.searchParams.get('redirect_uri')
@@ -65,7 +63,7 @@ auth.get('/auth/cli', async (c) => {
     .bind(state, codeChallenge, redirectUri, Date.now())
     .run()
 
-  const callbackUrl = `${url.origin}/auth/cli-callback`
+  const callbackUrl = `${url.origin}/v1/auth/cli-callback`
   const ghUrl = new URL('https://github.com/login/oauth/authorize')
   ghUrl.searchParams.set('client_id', clientId)
   ghUrl.searchParams.set('redirect_uri', callbackUrl)
@@ -75,7 +73,7 @@ auth.get('/auth/cli', async (c) => {
   return new Response(null, { status: 302, headers: { Location: ghUrl.toString() } })
 })
 
-auth.get('/auth/cli-callback', async (c) => {
+auth.get('/v1/auth/cli-callback', async (c) => {
   const url = new URL(c.req.url)
   const code = url.searchParams.get('code')
   const state = url.searchParams.get('state')
@@ -169,7 +167,7 @@ async function sha256Base64url(input: string): Promise<string> {
 // Migrated 2026-05 from custom HS256 JWT → Better Auth API key. Migration
 // note: existing daemons holding HS256 JWTs are invalidated; they re-login
 // via `ship login` to get a key.
-auth.post('/api/auth/token', async (c) => {
+auth.post('/v1/auth/token', async (c) => {
   const rl = await checkRateLimit(c.req.raw, 'RATE_LIMITER_CLAIM', 60, c.env)
   if (!rl.allowed) return rateLimitResponse(rl.retryAfter)
 
@@ -223,9 +221,9 @@ auth.post('/api/auth/token', async (c) => {
 // fresh key by re-running `ship login` rather than refreshing in-place.
 // This endpoint is now a thin "is my key still valid + how long left"
 // check; it doesn't extend or re-issue. Callers needing a longer-lived
-// key call POST /api/auth/token via the PKCE flow again.
+// key call POST /v1/auth/token via the PKCE flow again.
 
-auth.post('/api/auth/refresh', async (c) => {
+auth.post('/v1/auth/refresh', async (c) => {
   const rl = await checkRateLimit(c.req.raw, 'RATE_LIMITER_CLAIM', 60, c.env)
   if (!rl.allowed) return rateLimitResponse(rl.retryAfter)
 
@@ -244,7 +242,7 @@ auth.post('/api/auth/refresh', async (c) => {
 
 // ── Daemon attestation ────────────────────────────────────────────────────────
 
-auth.post('/api/auth/daemon-attest', async (c) => {
+auth.post('/v1/auth/daemon-attest', async (c) => {
   const session = await requireSession(c.req.raw, c.env)
   if (session instanceof Response) return session
 
@@ -276,8 +274,11 @@ auth.post('/api/auth/daemon-attest', async (c) => {
 })
 
 // ── Better Auth passthrough (catch-all, must be last) ─────────────────────────
+// BA is configured with basePath '/v1/auth' (apps/gateway/src/lib/auth.ts), so
+// its internal route table generates /v1/auth/* URLs — matching what's mounted
+// here.
 
-auth.on(['GET', 'POST'], '/api/auth/*', async (c) => {
+auth.on(['GET', 'POST'], '/v1/auth/*', async (c) => {
   const a = await getAuth(c.env)
   return a.handler(c.req.raw)
 })

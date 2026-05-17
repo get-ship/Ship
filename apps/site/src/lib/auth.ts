@@ -45,6 +45,9 @@ const GATEWAY_URL =
 
 export const authClient = createAuthClient({
   baseURL: GATEWAY_URL,
+  // Gateway mounts Better Auth at /v1/auth/* (apps/gateway/src/lib/auth.ts
+  // sets basePath). Keep these in sync.
+  basePath: '/v1/auth',
   plugins: [stripeClient({ subscription: true })],
 });
 

@@ -15,10 +15,23 @@ const CORS_ORIGINS = [
   'https://getship.dev',
 ];
 
+// All non-operational routes live under /v1/*. The host is already api.getship.dev,
+// so an /api/ prefix would be redundant. /healthz and /readyz stay unversioned
+// per ops convention.
+const requireProjectId = async (
+  c: { req: { header: (n: string) => string | undefined }; set: (k: 'projectId', v: string) => void; json: (b: unknown, s: number) => Response },
+  next: () => Promise<void>,
+) => {
+  const projectId = c.req.header('x-project-id');
+  if (!projectId) return c.json({ error: 'Missing x-project-id header' }, 400);
+  c.set('projectId', projectId);
+  return next();
+};
+
 const app = new Hono<{ Bindings: Env; Variables: { projectId: string } }>()
   .onError(errorHandler)
   .use(
-    '/api/*',
+    '/v1/*',
     cors({
       origin: CORS_ORIGINS,
       allowHeaders: ['Content-Type', 'Authorization', 'x-project-id'],
@@ -26,29 +39,14 @@ const app = new Hono<{ Bindings: Env; Variables: { projectId: string } }>()
       credentials: true,
     }),
   )
-  // Platform routes (project/job proxy to Durable Objects — require x-project-id)
-  .use('/api/sync/*', async (c, next) => {
-    const projectId = c.req.header('x-project-id');
-    if (!projectId) return c.json({ error: 'Missing x-project-id header' }, 400);
-    c.set('projectId', projectId);
-    return next();
-  })
-  .use('/api/projects/*', async (c, next) => {
-    const projectId = c.req.header('x-project-id');
-    if (!projectId) return c.json({ error: 'Missing x-project-id header' }, 400);
-    c.set('projectId', projectId);
-    return next();
-  })
-  .use('/api/jobs/*', async (c, next) => {
-    const projectId = c.req.header('x-project-id');
-    if (!projectId) return c.json({ error: 'Missing x-project-id header' }, 400);
-    c.set('projectId', projectId);
-    return next();
-  })
-  .route('/api/sync', syncRoutes)
-  .route('/api/projects', projectRoutes)
-  .route('/api/jobs', jobRoutes)
-  // Auth, GitHub, registry routes (no x-project-id middleware)
+  .use('/v1/sync/*', requireProjectId)
+  .use('/v1/projects/*', requireProjectId)
+  .use('/v1/jobs/*', requireProjectId)
+  .route('/v1/sync', syncRoutes)
+  .route('/v1/projects', projectRoutes)
+  .route('/v1/jobs', jobRoutes)
+  // Auth, GitHub, registry routes (no x-project-id middleware) — paths declared
+  // inside the route modules using absolute /v1/... prefixes.
   .route('/', authRoutes)
   .route('/', githubRoutes)
   .route('/', registryRoutes)

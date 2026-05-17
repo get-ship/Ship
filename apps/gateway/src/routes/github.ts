@@ -8,7 +8,7 @@ import { fetchRepoFiles } from '../lib/github/fetch-repo-files.js'
 
 const github = new Hono<{ Bindings: Env }>()
 
-github.get('/api/github/repos', async (c) => {
+github.get('/v1/github/repos', async (c) => {
   const token = await getGitHubToken(c.req.raw, c.env)
   if (!token) return c.json({ error: 'Not authenticated' }, 401)
 
@@ -31,7 +31,7 @@ github.get('/api/github/repos', async (c) => {
   }
 })
 
-github.get('/api/github/installations', async (c) => {
+github.get('/v1/github/installations', async (c) => {
   const session = await requireSession(c.req.raw, c.env)
   if (session instanceof Response) return session
 
@@ -55,7 +55,7 @@ github.get('/api/github/installations', async (c) => {
   }
 })
 
-github.get('/api/github/repos-config', async (c) => {
+github.get('/v1/github/repos-config', async (c) => {
   const token = await getGitHubToken(c.req.raw, c.env)
   if (!token) return c.json({ error: 'Not authenticated' }, 401)
 
@@ -74,7 +74,7 @@ github.get('/api/github/repos-config', async (c) => {
   }
 })
 
-github.post('/api/github/disconnect', async (c) => {
+github.post('/v1/github/disconnect', async (c) => {
   const session = await requireSession(c.req.raw, c.env)
   if (session instanceof Response) return session
   return c.json({ ok: true, action: 'reauthenticate' })

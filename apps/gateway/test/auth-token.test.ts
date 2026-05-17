@@ -33,14 +33,14 @@ import * as rateLimit from '../src/lib/rate-limit.js'
 const mockEnv = {} as Env
 
 function makeRequest(body: unknown) {
-  return new Request('http://localhost/api/auth/token', {
+  return new Request('http://localhost/v1/auth/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   })
 }
 
-describe('POST /api/auth/token', () => {
+describe('POST /v1/auth/token', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.mocked(rateLimit.checkRateLimit).mockResolvedValue({ allowed: true, retryAfter: 0 })
@@ -75,7 +75,7 @@ describe('POST /api/auth/token', () => {
   })
 
   it('returns 400 for invalid JSON', async () => {
-    const r = new Request('http://localhost/api/auth/token', {
+    const r = new Request('http://localhost/v1/auth/token', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: 'not-json',
     })
     const res = await authRoutes.request(r, mockEnv)

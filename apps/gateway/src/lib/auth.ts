@@ -1,7 +1,7 @@
 import { getAuthDb } from './d1.js'
 import { sendEmail, resetPasswordEmail, verifyEmailEmail } from './email.js'
 
-// Origins permitted to call /api/auth/* and receive Set-Cookie. The marketing
+// Origins permitted to call /v1/auth/* and receive Set-Cookie. The marketing
 // site's local-dev origin is included so Astro dev can exercise the real
 // signin flow against a locally-running or staging gateway.
 const TRUSTED_ORIGINS = [
@@ -13,7 +13,7 @@ const TRUSTED_ORIGINS = [
 
 // Single source of truth for plan IDs we mirror onto user.plan. Better Auth's
 // Stripe plugin owns the `subscription` table; this column is the fast-read
-// denormalization that daemon-attest and /api/me return.
+// denormalization that daemon-attest and /v1/me return.
 type Plan = 'local' | 'pro'
 
 function planFromSubscriptionStatus(status: string): Plan {
@@ -70,7 +70,7 @@ async function makeAuth(env: Env) {
 
   const plugins: ReturnType<typeof stripePlugin>[] = []
   if (!stripeClient) {
-    console.warn('[auth] STRIPE_SECRET_KEY not set — billing plugin disabled. /api/auth/subscription/* will 404.')
+    console.warn('[auth] STRIPE_SECRET_KEY not set — billing plugin disabled. /v1/auth/subscription/* will 404.')
   } else if (!env.STRIPE_WEBHOOK_SECRET) {
     console.warn('[auth] STRIPE_WEBHOOK_SECRET not set — billing plugin disabled (webhook verification would fail).')
   } else if (!env.STRIPE_PRICE_PRO) {
@@ -123,6 +123,10 @@ async function makeAuth(env: Env) {
 
   return betterAuth({
     ...(database ? { database } : {}),
+    // Mount under /v1/auth/* — the host is already api.getship.dev, so the
+    // legacy /api/auth/* prefix was redundant. All gateway paths now live
+    // under /v1/* uniformly.
+    basePath: '/v1/auth',
     trustedOrigins: TRUSTED_ORIGINS,
     emailAndPassword: {
       enabled: true,
