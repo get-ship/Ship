@@ -108,6 +108,18 @@ fn codex_agent_output() {
 }
 
 #[test]
+fn opencode_agent_output() {
+    let p = make_profile("reviewer", "Code Reviewer", &["opencode"]);
+    let files = compile_agent_profiles(&[p], "opencode");
+    assert_eq!(files.len(), 1);
+    let content = &files[".opencode/agents/reviewer.md"];
+    assert!(content.starts_with("---\n"));
+    assert!(content.contains("description: Code Reviewer agent"));
+    assert!(content.contains("mode: subagent"));
+    assert!(content.contains("You are a specialist."));
+}
+
+#[test]
 fn skips_unmatched_harness() {
     let p = make_profile("reviewer", "Code Reviewer", &["claude"]);
     let files = compile_agent_profiles(&[p], "gemini");
