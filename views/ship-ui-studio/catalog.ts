@@ -20,14 +20,6 @@ export interface PropEntry {
   values?: string[]
 }
 
-// Tags that are owned by chrome / island bundles loaded only when needed
-// (devtools panes, command-bar slots, panel-dock children) and that
-// don't render in isolation in the studio. Source: shared
-// PICKER_HIDDEN_TAGS so the studio, the component picker primitive,
-// and any future "insert component" UX all use the same list.
-import { PICKER_HIDDEN_TAGS } from '../../packages/ui-components/src/picker-hidden-tags'
-const STUDIO_HIDE_TAGS = PICKER_HIDDEN_TAGS
-
 // Baked SUI views not surfaced by /api/v1/views. The endpoint currently
 // reports every view as `type: "html"`, so the kind=='sui' filter in
 // loadDaemonViews() yields zero entries — these baked ids keep the
@@ -104,12 +96,12 @@ async function loadLitComponents(): Promise<CatalogEntry[]> {
 }
 
 async function loadSuiComponents(): Promise<CatalogEntry[]> {
-  // Source of truth: the daemon's aggregated SUI CEM. Every
-  // component with a `<prop>` declaration shows up here. Filter
-  // out chrome / island tags that don't render standalone.
+  // Source of truth: the published catalog from @ship/sui-catalog. These
+  // are components shipped from real packs (charts, primitives, …) — the
+  // catalog already excludes shell-local chrome and view-local components,
+  // so no per-tag hide list is needed.
   const propsByTag = await loadSuiPropMap()
   return Object.keys(propsByTag)
-    .filter(tag => !STUDIO_HIDE_TAGS.has(tag))
     .sort()
     .map(tag => ({
       id: tag,
@@ -135,7 +127,7 @@ interface CatalogEntryWire {
 }
 async function loadSuiPropMap(): Promise<Record<string, PropEntry[]>> {
   try {
-    const res = await fetch('/api/sui/catalog/workspace', { credentials: 'same-origin' })
+    const res = await fetch('/api/sui/catalog/published', { credentials: 'same-origin' })
     if (!res.ok) return {}
     const doc = await res.json() as { entries?: CatalogEntryWire[] }
     const out: Record<string, PropEntry[]> = {}

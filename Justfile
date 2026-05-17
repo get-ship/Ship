@@ -257,20 +257,22 @@ build:
     #!/usr/bin/env bash
     set -euo pipefail
     command -v bun >/dev/null || { echo "build: bun not on PATH" >&2; exit 1; }
-    echo "[1/7] gen-types"
+    echo "[1/8] gen-types"
     cargo run -p xtask --quiet -- gen-types
-    echo "[2/7] primitives build (@ship/primitives → packages/components/primitives/dist/)"
+    echo "[2/8] primitives build (@ship/primitives → packages/components/primitives/dist/)"
     bun run --filter @ship/primitives build
-    echo "[3/7] charts build (@ship/charts → packages/components/charts/dist/)"
+    echo "[3/8] charts build (@ship/charts → packages/components/charts/dist/)"
     bun run --filter @ship/charts build
-    echo "[4/7] ui-components build (sui-build → crates/sui/ship-sui-server/assets/)"
+    echo "[4/8] ui-components build (sui-build → crates/sui/ship-sui-server/assets/)"
     bun run --filter @ship/ui-components build
-    echo "[5/7] sui-catalog walk (→ .ship/sui-out/catalogs/{workspace,published}.json)"
+    echo "[5/8] view bundles + sui-* bundles (runtime-assets/bundler.ts --all)"
+    bun runtime-assets/bundler.ts --all
+    echo "[6/8] sui-catalog walk (→ .ship/sui-out/catalogs/{workspace,published}.json)"
     bun run --filter @ship/sui-catalog build
     bun packages/sui-catalog/src/cli.ts
-    echo "[6/7] cargo build --release (ship-cli + shipd + mcp)"
+    echo "[7/8] cargo build --release (ship-cli + shipd + mcp)"
     cargo build --release -p ship-cli -p shipd -p mcp
-    echo "[7/7] verify outputs"
+    echo "[8/8] verify outputs"
     target_dir=$(cargo metadata --format-version 1 --no-deps --offline | grep -o '"target_directory":"[^"]*"' | cut -d'"' -f4)
     missing=0
     for bin in ship shipd; do
