@@ -5,115 +5,66 @@ section: guide
 order: 4
 ---
 
-# Building views with collections
+# Building views from collection data
 
-Views in `.ship/views/` render collection data server-side. The daemon passes
-schemas and items as Jinja context — no JavaScript data fetching needed.
+Collections expose their schemas + items through `ship.collections.*`
+ops, and SUI views consume those ops the same way they consume any
+other live data source — declare a `<data live>` source and let the
+runtime resubscribe when the inputs change.
 
-## How it works
+See the [SUI views](/views/) section for the full template + controller
+surface, and [data subscriptions](/views/data-subscriptions/) for how
+`<data live>` envelopes work.
 
-1. Create `.ship/views/my-view/index.html.j2`
-2. The daemon renders it through Jinja, injecting collection data as context
-3. Ship-elements render as custom elements in the browser
-4. Datastar handles mutations (`@post`, `@delete`)
-5. SSE subscription reloads on changes (4 lines of JS)
+## Read a collection
 
-## Template context
+```sui
+<!-- views/agents-list/page.sui -->
+<data name="agents" source="ship.collections.items({ id: 'agents' })" live />
 
-Every `.ship/views/` Jinja template receives:
+{#while-loading of agents()}
+  <p>Loading…</p>
+{/while-loading}
 
-| Variable | Type | Description |
-|----------|------|-------------|
-| `view_name` | string | The view's directory name |
-| `collections` | array | All registered schemas with id, name, field_count, fields |
-| `active_collection` | string | ID of the first collection |
-| `schema` | object | Full schema for the active collection |
-| `items` | array | Items in the active collection (up to 200) |
-| `total_items` | number | Item count |
-
-## URL macros
-
-Import typed endpoint builders:
-
-```jinja
-{% raw %}{% from '_urls.html.j2' import create_collection_item, delete_collection_item %}{% endraw %}
+{#for item of agents().value.items key={item.id}}
+  <article>
+    <h3>{item.name}</h3>
+    <p class="muted">{item.role}</p>
+  </article>
+{/for}
 ```
 
-Use in Datastar actions:
+The daemon serves the items from the collection's schema; the SSE
+channel pushes patches whenever an item lands or changes.
 
-```html
-{% raw %}<sui-button data-on:click="@delete('{{ delete_collection_item(active_collection, item.id) }}')">
-  Delete
-</sui-button>{% endraw %}
+## Schema-driven forms
+
+`ship.collections.schema({ id })` returns the field list — pair it
+with `<sui-input>` / `<sui-select>` to build a form whose fields
+follow the schema:
+
+```sui
+<data name="schema" source="ship.collections.schema({ id: 'agents' })" />
+
+<form on:submit|prevent={() => create()}>
+  {#for f of schema().value.fields}
+    <label>
+      {f.label}
+      <sui-input bind:value={form[f.name]} type={f.type} />
+    </label>
+  {/for}
+  <sui-button type="submit" tone="primary">Create</sui-button>
+</form>
 ```
 
-Available macros:
+The controller wires `form` and `create()` in its `scope:` factory.
 
-| Macro | Method | Path |
-|-------|--------|------|
-| `list_collections()` | GET | `/api/collections` |
-| `get_collection_schema(collection)` | GET | `/api/collections/{collection}/schema` |
-| `create_collection_item(collection)` | POST | `/api/collections/{collection}/items` |
-| `update_collection_item(collection, item_id)` | PUT | `/api/collections/{collection}/items/{item_id}` |
-| `delete_collection_item(collection, item_id)` | DELETE | `/api/collections/{collection}/items/{item_id}` |
-| `query_collection(collection)` | POST | `/api/collections/{collection}/query` |
+## Mutate
 
-## Rendering fields
+Collection mutations go through the standard SDK call surface —
+`ship.collections.create / update / delete` — invoked from the
+controller (not the template). The `<data live>` subscription
+re-emits as soon as the daemon persists the change, so the list
+re-renders without an explicit invalidation step.
 
-```html
-{% raw %}{% if field_def.field_type == "enum" %}
-  <sui-chip>{{ val }}</sui-chip>
-{% elif field_def.field_type == "boolean" %}
-  <sui-badge variant="{{ 'success' if val else 'secondary' }}">{{ "Yes" if val else "No" }}</sui-badge>
-{% elif field_def.field_type == "number" %}
-  <span class="mono">{{ val }}</span>
-{% elif field_def.field_type == "array" and val is iterable and val is not string %}
-  {% for v in val[:4] %}<sui-chip>{{ v }}</sui-chip> {% endfor %}
-{% else %}
-  {{ val }}
-{% endif %}{% endraw %}
-```
-
-## Create forms
-
-Ship-elements for typed inputs, Datastar `@post` for submission:
-
-```html
-{% raw %}<form data-on:submit__prevent="@post('{{ create_collection_item(active_collection) }}',
-  {contentType:'json', body: JSON.stringify({data: Object.fromEntries(new FormData(this))})})">
-  <sui-input name="title" placeholder="Title"></sui-input>
-  <sui-select name="status">
-    {% for v in schema.fields.status.values %}
-    <sui-option value="{{ v }}">{{ v }}</sui-option>
-    {% endfor %}
-  </sui-select>
-  <sui-button type="submit">Create</sui-button>
-</form>{% endraw %}
-```
-
-## SSE live updates
-
-```html
-<script>
-const es = new EventSource('/api/events/stream', { withCredentials: true });
-es.onmessage = e => {
-  try { if (JSON.parse(e.data).event_type?.startsWith('collection.')) location.reload(); }
-  catch {}
-};
-</script>
-```
-
-## Design tokens
-
-Use tokens from `view-tokens.css` — never hardcode colors or spacing:
-
-```css
-color: var(--foreground);
-border: 1px solid var(--border);
-font-family: var(--font-mono);
-padding: var(--space-3);
-```
-
-## Example
-
-See `.ship/views/collections/index.html.j2` for a complete collection browser.
+See [collections op catalog](./querying.md) for the full call list.
