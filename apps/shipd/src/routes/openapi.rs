@@ -59,7 +59,7 @@ impl Modify for SecurityAndServer {
         crate::routes::settings_api::list_settings,
         crate::routes::settings_api::update_setting,
         crate::routes::settings_api::get_setting,
-        crate::routes::settings_api::list_providers,
+        crate::routes::settings_api::list_harnesses,
         // Framework surface added in the ship-set-architecture arc.
         crate::services::schema::serve_schema,
         crate::services::chat::send::send_message,
@@ -79,7 +79,7 @@ impl Modify for SecurityAndServer {
         crate::sessions::api::messages::session_reply,
         crate::sessions::api::io::stream_session,
         crate::sessions::api::io::stream_session_events,
-        crate::sessions::api::crud::installed_providers,
+        crate::sessions::api::crud::installed_harnesses,
         crate::routes::projects_api::list_projects,
         crate::routes::projects_api::add_project,
         crate::routes::projects_api::switch_project,

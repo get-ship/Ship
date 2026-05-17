@@ -53,9 +53,9 @@ fn compile_is_idempotent() {
     );
 }
 
-/// Every provider must produce identical output when compiled twice.
+/// Every harness must produce identical output when compiled twice.
 #[test]
-fn all_providers_are_idempotent() {
+fn all_harnesses_are_idempotent() {
     let r = ResolvedConfig {
         mcp_servers: vec![make_server("github"), make_server("linear")],
         skills: vec![{
@@ -77,60 +77,60 @@ fn all_providers_are_idempotent() {
         )],
         ..resolved(vec![])
     };
-    for provider in &["claude", "gemini", "codex", "cursor"] {
-        let a = compile(&r, provider).unwrap();
-        let b = compile(&r, provider).unwrap();
+    for harness in &["claude", "gemini", "codex", "cursor"] {
+        let a = compile(&r, harness).unwrap();
+        let b = compile(&r, harness).unwrap();
         assert_eq!(
             serde_json::to_string(&a.mcp_servers).unwrap(),
             serde_json::to_string(&b.mcp_servers).unwrap(),
-            "{provider}: mcp_servers not idempotent"
+            "{harness}: mcp_servers not idempotent"
         );
         assert_eq!(
             a.context_content, b.context_content,
-            "{provider}: context not idempotent"
+            "{harness}: context not idempotent"
         );
         assert_eq!(
             a.skill_files, b.skill_files,
-            "{provider}: skill_files not idempotent"
+            "{harness}: skill_files not idempotent"
         );
         assert_eq!(
             serde_json::to_string(&a.claude_settings_patch).unwrap(),
             serde_json::to_string(&b.claude_settings_patch).unwrap(),
-            "{provider}: claude_settings_patch not idempotent"
+            "{harness}: claude_settings_patch not idempotent"
         );
         assert_eq!(
             a.codex_config_patch, b.codex_config_patch,
-            "{provider}: codex_config_patch not idempotent"
+            "{harness}: codex_config_patch not idempotent"
         );
         assert_eq!(
             serde_json::to_string(&a.gemini_settings_patch).unwrap(),
             serde_json::to_string(&b.gemini_settings_patch).unwrap(),
-            "{provider}: gemini_settings_patch not idempotent"
+            "{harness}: gemini_settings_patch not idempotent"
         );
         assert_eq!(
             serde_json::to_string(&a.cursor_hooks_patch).unwrap(),
             serde_json::to_string(&b.cursor_hooks_patch).unwrap(),
-            "{provider}: cursor_hooks_patch not idempotent"
+            "{harness}: cursor_hooks_patch not idempotent"
         );
         assert_eq!(
             serde_json::to_string(&a.cursor_cli_permissions).unwrap(),
             serde_json::to_string(&b.cursor_cli_permissions).unwrap(),
-            "{provider}: cursor_cli_permissions not idempotent"
+            "{harness}: cursor_cli_permissions not idempotent"
         );
         assert_eq!(
             a.rule_files, b.rule_files,
-            "{provider}: rule_files not idempotent"
+            "{harness}: rule_files not idempotent"
         );
         assert_eq!(
             a.gemini_policy_patch, b.gemini_policy_patch,
-            "{provider}: gemini_policy_patch not idempotent"
+            "{harness}: gemini_policy_patch not idempotent"
         );
     }
 }
 
-/// All four providers compile the same skill set correctly.
+/// All four harnesses compile the same skill set correctly.
 #[test]
-fn all_providers_emit_skills() {
+fn all_harnesses_emit_skills() {
     let mut skill = make_skill("refactor");
     skill.content = "Refactor carefully.".into();
     let r = ResolvedConfig {
@@ -166,7 +166,7 @@ fn all_providers_emit_skills() {
 /// Claude, Gemini, Codex emit a context file when rules are present.
 /// Cursor uses per-file .mdc rules instead.
 #[test]
-fn all_providers_emit_context_file() {
+fn all_harnesses_emit_context_file() {
     let r = ResolvedConfig {
         rules: vec![Rule {
             file_name: "style.md".into(),
@@ -199,9 +199,9 @@ fn all_providers_emit_context_file() {
     );
 }
 
-/// No provider emits a patch output it doesn't own.
+/// No harness emits a patch output it doesn't own.
 #[test]
-fn patch_outputs_are_provider_exclusive() {
+fn patch_outputs_are_harness_exclusive() {
     let r = ResolvedConfig {
         rules: vec![Rule {
             file_name: "r.md".into(),

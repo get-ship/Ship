@@ -158,7 +158,7 @@
       "path": "/api/v1/jobs/end",
       "purpose": "create",
       "params": [],
-      "summary": "POST /api/v1/runtime/jobs/end — signal that a provider turn ended for a job.",
+      "summary": "POST /api/v1/runtime/jobs/end — signal that a harness turn ended for a job.",
       "description": "Called by the session Stop hook when an agent finishes a response turn.\nFor multi-step pipeline jobs, this sends a TurnEnded signal to the step\nmonitor (which accumulates evidence before deciding to advance).\nFor single-step jobs, emits job.completed directly.",
       "request": {
         "$ref": "#/components/schemas/JobEndRequest"
@@ -317,9 +317,9 @@
       },
       "response": null
     },
-    "GET /api/v1/providers": {
+    "GET /api/v1/harnesses": {
       "method": "GET",
-      "path": "/api/v1/providers",
+      "path": "/api/v1/harnesses",
       "purpose": "read",
       "params": [],
       "summary": null,
@@ -329,9 +329,9 @@
         "$ref": "#/components/schemas/MeshResponse"
       }
     },
-    "GET /api/v1/providers/installed": {
+    "GET /api/v1/harnesses/installed": {
       "method": "GET",
-      "path": "/api/v1/providers/installed",
+      "path": "/api/v1/harnesses/installed",
       "purpose": "read",
       "params": [],
       "summary": null,

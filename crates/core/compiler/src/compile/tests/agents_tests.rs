@@ -1,15 +1,15 @@
-use crate::compile::agents::{compile_agent_profiles, profile_targets_provider};
+use crate::compile::agents::{compile_agent_profiles, profile_targets_harness};
 use crate::types::AgentProfile;
 use crate::types::agent_profile::*;
 
-fn make_profile(id: &str, name: &str, providers: &[&str]) -> AgentProfile {
+fn make_profile(id: &str, name: &str, harnesses: &[&str]) -> AgentProfile {
     AgentProfile {
         agent: ProfileMeta {
             id: id.to_string(),
             name: name.to_string(),
             version: None,
             description: Some(format!("{name} agent")),
-            providers: providers.iter().map(|s| s.to_string()).collect(),
+            harnesses: harnesses.iter().map(|s| s.to_string()).collect(),
             role: None,
             tags: vec![],
             tools_preset: None,
@@ -34,23 +34,23 @@ fn make_profile(id: &str, name: &str, providers: &[&str]) -> AgentProfile {
         },
         hooks: Default::default(),
         apps: Default::default(),
-        provider_settings: Default::default(),
+        harness_settings: Default::default(),
     }
 }
 
 #[test]
-fn provider_filter_targets_listed() {
+fn harness_filter_targets_listed() {
     let p = make_profile("test", "Test", &["claude", "gemini"]);
-    assert!(profile_targets_provider(&p, "claude"));
-    assert!(profile_targets_provider(&p, "gemini"));
-    assert!(!profile_targets_provider(&p, "cursor"));
+    assert!(profile_targets_harness(&p, "claude"));
+    assert!(profile_targets_harness(&p, "gemini"));
+    assert!(!profile_targets_harness(&p, "cursor"));
 }
 
 #[test]
-fn provider_filter_empty_targets_all() {
+fn harness_filter_empty_targets_all() {
     let p = make_profile("test", "Test", &[]);
-    assert!(profile_targets_provider(&p, "claude"));
-    assert!(profile_targets_provider(&p, "codex"));
+    assert!(profile_targets_harness(&p, "claude"));
+    assert!(profile_targets_harness(&p, "codex"));
 }
 
 #[test]
@@ -108,7 +108,7 @@ fn codex_agent_output() {
 }
 
 #[test]
-fn skips_unmatched_provider() {
+fn skips_unmatched_harness() {
     let p = make_profile("reviewer", "Code Reviewer", &["claude"]);
     let files = compile_agent_profiles(&[p], "gemini");
     assert!(files.is_empty());

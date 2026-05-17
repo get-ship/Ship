@@ -1,6 +1,6 @@
-//! Subagent compiler — transforms `AgentProfile` TOML into provider-native agent files.
+//! Subagent compiler — transforms `AgentProfile` TOML into harness-native agent files.
 //!
-//! Each provider has its own agent definition format:
+//! Each harness has its own agent definition format:
 //! - **Claude**: `.claude/agents/<id>.md` — YAML frontmatter + Markdown body
 //! - **Gemini**: `.gemini/agents/<id>.md` — YAML frontmatter + Markdown body
 //! - **Cursor**: `.cursor/agents/<id>.md` — YAML frontmatter + Markdown body
@@ -8,31 +8,31 @@
 
 use std::collections::HashMap;
 
-use crate::compile::get_provider;
+use crate::compile::get_harness;
 use crate::types::AgentProfile;
 
-/// Compile agent profiles into provider-native agent files.
+/// Compile agent profiles into harness-native agent files.
 ///
 /// Returns a map of `relative_path → file_content` ready for `CompileOutput.agent_files`.
-/// Profiles are filtered to those that list the target provider (or have no provider restriction).
+/// Profiles are filtered to those that list the target harness (or have no harness restriction).
 pub fn compile_agent_profiles(
     profiles: &[AgentProfile],
-    provider_id: &str,
+    harness_id: &str,
 ) -> HashMap<String, String> {
-    let desc = match get_provider(provider_id) {
+    let desc = match get_harness(harness_id) {
         Some(d) => d,
         None => return HashMap::new(),
     };
     let mut out = HashMap::new();
     for profile in profiles {
-        if !profile_targets_provider(profile, provider_id) {
+        if !profile_targets_harness(profile, harness_id) {
             continue;
         }
         let path = match desc.agents_dir.agent_path(&profile.agent.id) {
             Some(p) => p,
             None => continue,
         };
-        let content = match provider_id {
+        let content = match harness_id {
             "claude" => compile_claude_agent(profile),
             "gemini" => compile_gemini_agent(profile),
             "cursor" => compile_cursor_agent(profile),
@@ -44,17 +44,17 @@ pub fn compile_agent_profiles(
     out
 }
 
-/// Check whether a profile should be emitted for a given provider.
-/// A profile with an empty providers list targets all providers.
-pub(super) fn profile_targets_provider(profile: &AgentProfile, provider_id: &str) -> bool {
-    if profile.agent.providers.is_empty() {
+/// Check whether a profile should be emitted for a given harness.
+/// A profile with an empty harnesses list targets all harnesses.
+pub(super) fn profile_targets_harness(profile: &AgentProfile, harness_id: &str) -> bool {
+    if profile.agent.harnesses.is_empty() {
         return true;
     }
     profile
         .agent
-        .providers
+        .harnesses
         .iter()
-        .any(|p| p.eq_ignore_ascii_case(provider_id))
+        .any(|p| p.eq_ignore_ascii_case(harness_id))
 }
 
 // ─── Claude Code ─────────────────────────────────────────────────────────────
@@ -69,7 +69,7 @@ fn compile_claude_agent(profile: &AgentProfile) -> String {
         fm.push(format!("description: {}", yaml_quote(desc)));
     }
 
-    // Model from provider_settings.claude or omit (inherit)
+    // Model from harness_settings.claude or omit (inherit)
     if let Some(model) = claude_setting(profile, "model") {
         fm.push(format!("model: {model}"));
     }
@@ -195,28 +195,28 @@ fn compile_codex_agent(profile: &AgentProfile) -> String {
     lines.join("\n") + "\n"
 }
 
-// ─── Provider setting helpers ────────────────────────────────────────────────
+// ─── Harness setting helpers ────────────────────────────────────────────────
 
 fn claude_setting(profile: &AgentProfile, key: &str) -> Option<String> {
-    provider_setting(profile, "claude", key)
+    harness_setting(profile, "claude", key)
 }
 
 fn gemini_setting(profile: &AgentProfile, key: &str) -> Option<String> {
-    provider_setting(profile, "gemini", key)
+    harness_setting(profile, "gemini", key)
 }
 
 fn cursor_setting(profile: &AgentProfile, key: &str) -> Option<String> {
-    provider_setting(profile, "cursor", key)
+    harness_setting(profile, "cursor", key)
 }
 
 fn codex_setting(profile: &AgentProfile, key: &str) -> Option<String> {
-    provider_setting(profile, "codex", key)
+    harness_setting(profile, "codex", key)
 }
 
-fn provider_setting(profile: &AgentProfile, provider: &str, key: &str) -> Option<String> {
+fn harness_setting(profile: &AgentProfile, harness: &str, key: &str) -> Option<String> {
     profile
-        .provider_settings
-        .get(provider)
+        .harness_settings
+        .get(harness)
         .and_then(|v| v.get(key))
         .and_then(|v| match v {
             serde_json::Value::String(s) => Some(s.clone()),

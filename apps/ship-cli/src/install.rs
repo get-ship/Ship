@@ -27,7 +27,7 @@ use crate::profile::ProjectState;
 /// 1. Parse `.ship/ship.jsonc` as a registry manifest.
 /// 2. Resolve and fetch all declared dependencies.
 /// 3. Write updated `.ship/ship.lock`.
-/// 4. Compile resolved packages into provider targets.
+/// 4. Compile resolved packages into harness targets.
 pub fn run_install(project_root: &Path, frozen: bool, offline: bool) -> Result<()> {
     let ship_dir = ship_substrate::ShipHome::project_ship_dir(project_root);
     let manifest_path = ship_dir.join("ship.jsonc");
@@ -55,7 +55,7 @@ pub fn run_install(project_root: &Path, frozen: bool, offline: bool) -> Result<(
     run_compile(CompileOptions {
         project_root,
         output_root: None,
-        provider: None,
+        harness: None,
         dry_run: false,
         active_agent: state.active_agent.as_deref(),
         extra_skills: vec![],
@@ -63,8 +63,8 @@ pub fn run_install(project_root: &Path, frozen: bool, offline: bool) -> Result<(
     })
     .context("compiling after install")?;
 
-    // Determine provider list from compile output (approximated from providers in ship.jsonc).
-    let providers = detect_providers_from_project(project_root);
+    // Determine harness list from compile output (approximated from harnesses in ship.jsonc).
+    let harnesses = detect_harnesses_from_project(project_root);
     let n = result.packages.len();
 
     if result.lockfile_written {
@@ -72,14 +72,14 @@ pub fn run_install(project_root: &Path, frozen: bool, offline: bool) -> Result<(
             "installed {} package{}, compiled for {}",
             n,
             if n == 1 { "" } else { "s" },
-            providers
+            harnesses
         );
     } else {
         println!(
             "already up to date ({} package{}), compiled for {}",
             n,
             if n == 1 { "" } else { "s" },
-            providers
+            harnesses
         );
     }
 
@@ -105,19 +105,19 @@ fn compiler_to_registry_manifest(m: &ShipManifest) -> RegistryManifest {
     reg
 }
 
-/// Detect configured providers from the project's manifest (best-effort).
-fn detect_providers_from_project(project_root: &Path) -> String {
+/// Detect configured harnesses from the project's manifest (best-effort).
+fn detect_harnesses_from_project(project_root: &Path) -> String {
     let path = ship_substrate::ShipHome::project_ship_dir(project_root).join("ship.jsonc");
     if let Ok(content) = std::fs::read_to_string(&path) {
         let stripped = ship_substrate::fs_util::strip_jsonc_comments(&content);
         if let Ok(val) = serde_json::from_str::<serde_json::Value>(&stripped) {
             for section in ["defaults", "project"] {
-                if let Some(providers) = val
+                if let Some(harnesses) = val
                     .get(section)
-                    .and_then(|d| d.get("providers"))
+                    .and_then(|d| d.get("harnesses"))
                     .and_then(|p| p.as_array())
                 {
-                    let ids: Vec<&str> = providers.iter().filter_map(|v| v.as_str()).collect();
+                    let ids: Vec<&str> = harnesses.iter().filter_map(|v| v.as_str()).collect();
                     if !ids.is_empty() {
                         return ids.join(", ");
                     }
@@ -160,7 +160,7 @@ mod tests {
         write(
             tmp.path(),
             ".ship/ship.jsonc",
-            "{\"defaults\": {\"providers\": [\"claude\"]}}\n",
+            "{\"defaults\": {\"harnesses\": [\"claude\"]}}\n",
         );
         // No deps, no module — should succeed (empty lock, no-op compile)
         let result = run_install(tmp.path(), false, false);
@@ -193,7 +193,7 @@ mod tests {
             let content = std::fs::read_to_string(&lock_path).unwrap();
             assert!(content.contains("\"version\": 1"));
         }
-        // If compile failed due to missing providers config, that's acceptable for this unit test
+        // If compile failed due to missing harnesses config, that's acceptable for this unit test
     }
 
     #[test]

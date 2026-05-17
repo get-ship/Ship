@@ -18,7 +18,7 @@ pub struct WorkspaceRow {
     pub branch: String,
     pub status: String,
     pub agent: String,
-    pub providers: String,
+    pub harnesses: String,
     pub session_status: String,
 }
 
@@ -26,7 +26,7 @@ pub struct SessionRow {
     pub id_short: String,
     pub branch: String,
     pub status: String,
-    pub provider: String,
+    pub harness: String,
     pub agent: String,
     pub tool_calls: i64,
     pub started: String,
@@ -90,7 +90,7 @@ fn refresh_sessions(state: &mut TopState) {
                     id_short: s.id.chars().take(8).collect(),
                     branch: s.branch,
                     status: s.status,
-                    provider: s.primary_provider.unwrap_or_else(|| "—".into()),
+                    harness: s.primary_harness.unwrap_or_else(|| "—".into()),
                     agent: s.agent_id.unwrap_or_else(|| "—".into()),
                     tool_calls: s.tool_call_count,
                     started: format_time(&s.started_at),

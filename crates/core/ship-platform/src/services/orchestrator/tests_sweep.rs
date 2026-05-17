@@ -179,7 +179,7 @@ async fn seed_dispatched_job(
         plan_id: None,
         depends_on: None,
         model: None,
-        provider: None,
+        harness: None,
         pipeline: None,
         steps: None,
         pipeline_name: None,
@@ -198,7 +198,7 @@ async fn seed_dispatched_job(
         job_id: job_id.to_string(),
         worktree: format!("/tmp/test-worktrees/{slug}"),
         pid: None,
-        provider_meta: None,
+        harness_meta: None,
     };
     let env = EventEnvelope::new(event_types::JOB_DISPATCHED, job_id, &dispatched)
         .unwrap()
@@ -234,7 +234,7 @@ async fn seed_dispatched_job_with_pipeline(
         plan_id: None,
         depends_on: None,
         model: None,
-        provider: None,
+        harness: None,
         pipeline: None,
         steps: Some(pipeline),
         pipeline_name: None,
@@ -253,7 +253,7 @@ async fn seed_dispatched_job_with_pipeline(
         job_id: job_id.to_string(),
         worktree: format!("/tmp/test-worktrees/{slug}"),
         pid: None,
-        provider_meta: None,
+        harness_meta: None,
     };
     let env = EventEnvelope::new(event_types::JOB_DISPATCHED, job_id, &dispatched)
         .unwrap()
@@ -278,7 +278,7 @@ fn one_step_pipeline(step_id: &str, step_type: ship_substrate::events::job::Step
             goal,
             after: vec![],
             model: None,
-            provider: None,
+            harness: None,
             command,
             max_retries: None,
             gate: None,
@@ -316,7 +316,7 @@ async fn seed_failed_job(
         plan_id: None,
         depends_on: None,
         model: None,
-        provider: None,
+        harness: None,
         pipeline: None,
         steps: None,
         pipeline_name: None,

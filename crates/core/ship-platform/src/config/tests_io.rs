@@ -10,7 +10,7 @@ fn save_config_keeps_ship_toml_free_of_agent_sections() -> anyhow::Result<()> {
     fs::create_dir_all(&ship_dir)?;
 
     let config = ProjectConfig {
-        providers: vec!["claude".to_string(), "codex".to_string()],
+        harnesses: vec!["claude".to_string(), "codex".to_string()],
         agent: AgentLayerConfig {
             skills: vec!["task-policy".to_string()],
             prompts: vec![],
@@ -55,8 +55,8 @@ fn save_config_keeps_ship_toml_free_of_agent_sections() -> anyhow::Result<()> {
         "ship.jsonc must not persist agent block"
     );
     assert!(
-        !ship_config.contains("\"providers\""),
-        "ship.jsonc must not persist providers"
+        !ship_config.contains("\"harnesses\""),
+        "ship.jsonc must not persist harnesses"
     );
     assert!(
         !ship_config.contains("active_agent"),
@@ -82,7 +82,7 @@ fn save_config_keeps_ship_toml_free_of_agent_sections() -> anyhow::Result<()> {
     // Legacy per-agent TOML config is no longer read or written — the
     // loader path was removed in the home-layout restructure.
 
-    // Providers live in ship.jsonc (file-canonical) — already asserted above
+    // Harnesses live in ship.jsonc (file-canonical) — already asserted above
     // by virtue of being absent from the KV store.
 
     // Verify agent profile written as a per-id .jsonc under .ship/agents/
@@ -111,7 +111,7 @@ fn get_config_round_trips_agent_sidecars() -> anyhow::Result<()> {
     fs::create_dir_all(&ship_dir)?;
 
     let config = ProjectConfig {
-        providers: vec!["gemini".to_string()],
+        harnesses: vec!["gemini".to_string()],
         agents: vec![AgentProfile {
             id: "focus".to_string(),
             name: "Focus".to_string(),
@@ -134,16 +134,16 @@ fn get_config_round_trips_agent_sidecars() -> anyhow::Result<()> {
     };
 
     save_config(&config, Some(ship_dir.clone()))?;
-    // Providers are file-canonical and not persisted by save_config — write
+    // Harnesses are file-canonical and not persisted by save_config — write
     // ship.jsonc directly to round-trip them. (Agents and MCP servers are
     // sidecar-canonical and DO round-trip through save_config.)
     fs::write(
         ship_dir.join("ship.jsonc"),
-        "{\"providers\": [\"gemini\"]}\n",
+        "{\"harnesses\": [\"gemini\"]}\n",
     )?;
     let loaded = get_config(Some(ship_dir))?;
 
-    assert_eq!(loaded.providers, vec!["gemini".to_string()]);
+    assert_eq!(loaded.harnesses, vec!["gemini".to_string()]);
     assert!(loaded.agent.skills.is_empty());
     assert_eq!(loaded.agents.len(), 1);
     assert_eq!(loaded.agents[0].id, "focus");

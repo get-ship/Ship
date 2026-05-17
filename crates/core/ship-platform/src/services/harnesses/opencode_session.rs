@@ -136,7 +136,7 @@ impl OpenCodeSession {
 
 #[async_trait]
 impl ServerSession for OpenCodeSession {
-    fn provider(&self) -> &str {
+    fn harness(&self) -> &str {
         "opencode"
     }
 

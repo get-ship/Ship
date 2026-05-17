@@ -1,15 +1,15 @@
-use crate::compile::provider::ContextFile;
-use crate::compile::{compile, get_provider, translate_to_cursor_permission};
+use crate::compile::harness::ContextFile;
+use crate::compile::{compile, get_harness, translate_to_cursor_permission};
 use crate::resolve::ResolvedConfig;
 use crate::types::{HookTrigger, Permissions, ToolPermissions};
 
 use super::fixtures::*;
 
-// ── Cursor provider ───────────────────────────────────────────────────────────
+// ── Cursor harness ───────────────────────────────────────────────────────────
 
 #[test]
-fn cursor_provider_exists() {
-    let desc = get_provider("cursor").expect("cursor provider must be registered");
+fn cursor_harness_exists() {
+    let desc = get_harness("cursor").expect("cursor harness must be registered");
     assert_eq!(desc.name, "Cursor");
     assert_eq!(desc.mcp_key.as_str(), "mcpServers");
     assert!(
@@ -62,7 +62,7 @@ fn cursor_skill_files_in_rules_dir() {
 
 #[test]
 fn cursor_context_file_is_none() {
-    let desc = get_provider("cursor").unwrap();
+    let desc = get_harness("cursor").unwrap();
     assert_eq!(desc.context_file, ContextFile::None);
     assert_eq!(desc.context_file.file_name(), None);
 }
@@ -85,11 +85,11 @@ fn cursor_no_settings_patch() {
 }
 
 #[test]
-fn cursor_is_valid_provider_in_normalize() {
+fn cursor_is_valid_harness_in_normalize() {
     use crate::resolve::{WorkspaceOverrides, resolve};
     use crate::types::ProjectConfig;
     let feature = WorkspaceOverrides {
-        providers: vec!["cursor".to_string()],
+        harnesses: vec!["cursor".to_string()],
         ..Default::default()
     };
     let resolved = resolve(
@@ -101,7 +101,7 @@ fn cursor_is_valid_provider_in_normalize() {
         Some(&feature),
         None,
     );
-    assert_eq!(resolved.providers, vec!["cursor"]);
+    assert_eq!(resolved.harnesses, vec!["cursor"]);
 }
 
 #[test]
@@ -178,7 +178,7 @@ fn cursor_unmapped_user_triggers_only_lifecycle_hooks() {
 }
 
 #[test]
-fn cursor_hooks_not_emitted_for_other_providers() {
+fn cursor_hooks_not_emitted_for_other_harnesses() {
     let r = ResolvedConfig {
         hooks: vec![make_hook(HookTrigger::PreToolUse, "cmd", None)],
         ..resolved(vec![])
@@ -278,7 +278,7 @@ fn cursor_settings_extra_merged_into_cli_json() {
 }
 
 #[test]
-fn cursor_env_file_not_emitted_for_other_providers() {
+fn cursor_env_file_not_emitted_for_other_harnesses() {
     let mut s = make_server("my-server");
     s.cursor_env_file = Some(".env".to_string());
     let r = resolved(vec![s]);

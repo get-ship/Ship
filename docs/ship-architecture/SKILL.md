@@ -10,7 +10,7 @@ authors: [ship]
 
 > **Target architecture**: see [Architecture Charter](references/docs/charter.md) — the four layers, contract boundaries, and non-negotiables. The sections below describe the codebase as it currently stands; the charter is canonical for intent.
 
-Ship is an agent configuration compiler and runtime. It compiles declarative agent configuration (`.ship/`) into provider-native files (Claude, Gemini, Codex, Cursor), and provides a daemon for multi-agent coordination, pipeline execution, and event-driven state management.
+Ship is an agent configuration compiler and runtime. It compiles declarative agent configuration (`.ship/`) into harness-native files (Claude, Gemini, Codex, Cursor), and provides a daemon for multi-agent coordination, pipeline execution, and event-driven state management.
 
 ## Crate Structure
 
@@ -49,13 +49,13 @@ Substrate layer — persistence, the event log, and path resolution. Owns:
 
 Platform primitives — the domain services on top of substrate state. Owns:
 
-- `config/` — `.ship/` config parsing, catalog, security, providers
+- `config/` — `.ship/` config parsing, catalog, security, harnesses
 - `agents/` — agent profiles, export, skill paths, skill vars, permissions, rules
 - `collections/` — collection types and persistence over `data.db`
 - `artifacts/` — artifact metadata, backends, session artifact persistence
 - `registry/` — package install, fetch, resolve, verify, tracking
 - `hooks/` — trigger engine, loader, filter, rendering
-- `services/` — orchestrator (pipeline execution), provider adapters, git service, files, sync
+- `services/` — orchestrator (pipeline execution), harness adapters, git service, files, sync
 - `sessions/` — session lifecycle, trash, artifact events, reconciliation
 - `projections/` — high-level read models (auth, jobs, compile state, projects)
 - `auth` / `kv` — auth primitives, key-value store
@@ -79,7 +79,7 @@ Shared lint rules — module-DAG and file-cap checks wired into CI.
 
 ### compiler
 
-Compiles `.ship/` configuration into provider-specific output files. Pure transformation — no side effects, no database, no network. Takes agent config as input, emits files like `CLAUDE.md`, `AGENTS.md`, `.cursor/rules/*.mdc`, `GEMINI.md`, and MCP server configs.
+Compiles `.ship/` configuration into harness-specific output files. Pure transformation — no side effects, no database, no network. Takes agent config as input, emits files like `CLAUDE.md`, `AGENTS.md`, `.cursor/rules/*.mdc`, `GEMINI.md`, and MCP server configs.
 
 ### mcp-framework
 
@@ -124,7 +124,7 @@ The kernel (`ship-kernel`) defines an `EventSink` trait but has no database depe
 
 ### Four runtime primitives
 
-The runtime has four concepts — no `workspace` primitive. **Project** is a directory with `.ship/` inside it; a tagging/filter primitive, not a context-lock. **Actor** is a running thing — it owns isolation (`cwd`, `project_id`, permissions, transport, lifecycle, MCP tool gate) and is supervisor-managed. **Session** is an analytics rollup over actor activity, with a `kind` discriminator (`pipeline_step | chat_thread | direct_attach`); telemetry is inline, there is no live session row. **Adapter** is an in-process module that talks to the outside world (git, tmux, providers) and emits events into the runtime log. Git worktrees are a git feature, resolved on demand — not a runtime primitive.
+The runtime has four concepts — no `workspace` primitive. **Project** is a directory with `.ship/` inside it; a tagging/filter primitive, not a context-lock. **Actor** is a running thing — it owns isolation (`cwd`, `project_id`, permissions, transport, lifecycle, MCP tool gate) and is supervisor-managed. **Session** is an analytics rollup over actor activity, with a `kind` discriminator (`pipeline_step | chat_thread | direct_attach`); telemetry is inline, there is no live session row. **Adapter** is an in-process module that talks to the outside world (git, tmux, harnesses) and emits events into the runtime log. Git worktrees are a git feature, resolved on demand — not a runtime primitive.
 
 ### Simplified pipelines
 

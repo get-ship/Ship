@@ -1,25 +1,25 @@
-# Provider Config Surface — Gap Analysis
+# Harness Config Surface — Gap Analysis
 
 > Research date: 2026-03-17
-> Purpose: Map everything each provider supports, diff against what Ship compiles, identify gaps.
+> Purpose: Map everything each harness supports, diff against what Ship compiles, identify gaps.
 > Sources: Upstream JSON Schemas, official docs, SchemaStore, GitHub repos.
 
 ---
 
 ## How to Read This Document
 
-Each provider section lists the **full upstream config surface**, then marks each field:
+Each harness section lists the **full upstream config surface**, then marks each field:
 - **✅ Compiled** — Ship emits this today
 - **🗺️ Maps to Ship concept** — has a Ship equivalent but not yet compiled
-- **🔧 Needs provider_config** — provider-specific, needs passthrough
+- **🔧 Needs harness_config** — harness-specific, needs passthrough
 - **⬜ Out of scope** — UX/cosmetic, not relevant to workspace config
 - **🔴 Gap** — meaningful capability Ship should support but doesn't
 
 ---
 
-## Summary: Ship Coverage by Provider
+## Summary: Ship Coverage by Harness
 
-| Provider | Total Config Surfaces | Ship Compiles | Coverage | Critical Gaps |
+| Harness | Total Config Surfaces | Ship Compiles | Coverage | Critical Gaps |
 |---|---|---|---|---|
 | Claude Code | ~90 fields + 24 hook events + sandbox ACLs | ~20 fields + 6 triggers | ~22% | sandbox (fs+net ACLs), 18 hook events, 3 hook types, env, worktree config, glob-scoped rules |
 | Gemini CLI | ~120 fields + 11 hook triggers | ~15 fields + 5 triggers | ~12% | model, approval mode, sandbox, browser agent, extensions, env |
@@ -72,14 +72,14 @@ Each provider section lists the **full upstream config surface**, then marks eac
 | Field | Type | Ship Status | Notes |
 |---|---|---|---|
 | `model` | string | ✅ Compiled | Via settings patch |
-| `availableModels` | string[] | 🔧 provider_config | Restrict model picker |
-| `effortLevel` | "low"/"medium"/"high" | 🔧 provider_config | Reasoning effort |
-| `fastMode` | boolean | 🔧 provider_config | Fast output mode |
-| `fastModePerSessionOptIn` | boolean | 🔧 provider_config | |
-| `alwaysThinkingEnabled` | boolean | 🔧 provider_config | |
-| `language` | string | 🔧 provider_config | Response language |
-| `outputStyle` | string | 🔧 provider_config | Response style |
-| `teammateMode` | "auto"/"in-process"/"tmux" | 🔧 provider_config | Multi-agent topology |
+| `availableModels` | string[] | 🔧 harness_config | Restrict model picker |
+| `effortLevel` | "low"/"medium"/"high" | 🔧 harness_config | Reasoning effort |
+| `fastMode` | boolean | 🔧 harness_config | Fast output mode |
+| `fastModePerSessionOptIn` | boolean | 🔧 harness_config | |
+| `alwaysThinkingEnabled` | boolean | 🔧 harness_config | |
+| `language` | string | 🔧 harness_config | Response language |
+| `outputStyle` | string | 🔧 harness_config | Response style |
+| `teammateMode` | "auto"/"in-process"/"tmux" | 🔧 harness_config | Multi-agent topology |
 
 #### Permissions
 | Field | Type | Ship Status | Notes |
@@ -132,47 +132,47 @@ Each provider section lists the **full upstream config surface**, then marks eac
 |---|---|---|---|
 | `sandbox.enabled` | boolean | 🔴 Gap | Enable bash sandboxing |
 | `sandbox.autoAllowBashIfSandboxed` | boolean | 🔴 Gap | Auto-approve bash when sandboxed |
-| `sandbox.excludedCommands` | array | 🔧 provider_config | Commands outside sandbox |
-| `sandbox.allowUnsandboxedCommands` | boolean | 🔧 provider_config | Allow escape hatch |
+| `sandbox.excludedCommands` | array | 🔧 harness_config | Commands outside sandbox |
+| `sandbox.allowUnsandboxedCommands` | boolean | 🔧 harness_config | Allow escape hatch |
 | `sandbox.filesystem.allowWrite` | array | 🔴 Gap | Writable paths |
 | `sandbox.filesystem.denyWrite` | array | 🔴 Gap | Denied write paths (precedence) |
 | `sandbox.filesystem.denyRead` | array | 🔴 Gap | Denied read paths |
 | `sandbox.filesystem.allowRead` | array | 🔴 Gap | Re-allow reads within deny regions |
 | `sandbox.network.allowedDomains` | array | 🔴 Gap | Outbound domain allowlist (`*.example.com`) |
-| `sandbox.network.allowUnixSockets` | array | 🔧 provider_config | |
-| `sandbox.network.allowLocalBinding` | boolean | 🔧 provider_config | macOS localhost binding |
-| `sandbox.network.httpProxyPort` | integer | 🔧 provider_config | |
+| `sandbox.network.allowUnixSockets` | array | 🔧 harness_config | |
+| `sandbox.network.allowLocalBinding` | boolean | 🔧 harness_config | macOS localhost binding |
+| `sandbox.network.httpProxyPort` | integer | 🔧 harness_config | |
 
 #### MCP Server Controls
 | Field | Type | Ship Status | Notes |
 |---|---|---|---|
-| `enableAllProjectMcpServers` | boolean | 🔧 provider_config | Auto-trust project MCP |
-| `enabledMcpjsonServers` | string[] | 🔧 provider_config | Explicit enable list |
-| `disabledMcpjsonServers` | string[] | 🔧 provider_config | Explicit disable list |
-| `allowedMcpServers` | object[] | 🔧 provider_config | Enterprise allowlist |
-| `deniedMcpServers` | object[] | 🔧 provider_config | Enterprise denylist |
+| `enableAllProjectMcpServers` | boolean | 🔧 harness_config | Auto-trust project MCP |
+| `enabledMcpjsonServers` | string[] | 🔧 harness_config | Explicit enable list |
+| `disabledMcpjsonServers` | string[] | 🔧 harness_config | Explicit disable list |
+| `allowedMcpServers` | object[] | 🔧 harness_config | Enterprise allowlist |
+| `deniedMcpServers` | object[] | 🔧 harness_config | Enterprise denylist |
 | `allowManagedMcpServersOnly` | boolean | ⬜ Managed only | |
 
 #### Environment & Auth
 | Field | Type | Ship Status | Notes |
 |---|---|---|---|
 | `env` | Record<string, string> | 🔴 Gap | Environment variables |
-| `apiKeyHelper` | string | 🔧 provider_config | Auth script |
-| `awsCredentialExport` | string | 🔧 provider_config | AWS creds |
-| `awsAuthRefresh` | string | 🔧 provider_config | AWS refresh |
-| `forceLoginMethod` | "claudeai"/"console" | 🔧 provider_config | |
-| `forceLoginOrgUUID` | string | 🔧 provider_config | |
-| `otelHeadersHelper` | string | 🔧 provider_config | OTEL auth |
+| `apiKeyHelper` | string | 🔧 harness_config | Auth script |
+| `awsCredentialExport` | string | 🔧 harness_config | AWS creds |
+| `awsAuthRefresh` | string | 🔧 harness_config | AWS refresh |
+| `forceLoginMethod` | "claudeai"/"console" | 🔧 harness_config | |
+| `forceLoginOrgUUID` | string | 🔧 harness_config | |
+| `otelHeadersHelper` | string | 🔧 harness_config | OTEL auth |
 
 #### Plugins/Marketplace
 | Field | Type | Ship Status | Notes |
 |---|---|---|---|
 | `enabledPlugins` | object | 🗺️ Maps to plugins manifest | Plugin install state |
-| `pluginConfigs` | object | 🔧 provider_config | Per-plugin config |
-| `extraKnownMarketplaces` | object | 🔧 provider_config | |
+| `pluginConfigs` | object | 🔧 harness_config | Per-plugin config |
+| `extraKnownMarketplaces` | object | 🔧 harness_config | |
 | `strictKnownMarketplaces` | array | ⬜ Managed only | |
-| `skippedMarketplaces` | array | 🔧 provider_config | |
-| `skippedPlugins` | array | 🔧 provider_config | |
+| `skippedMarketplaces` | array | 🔧 harness_config | |
+| `skippedPlugins` | array | 🔧 harness_config | |
 | `blockedMarketplaces` | array | ⬜ Managed only | |
 
 #### Agent Limits
@@ -190,7 +190,7 @@ Each provider section lists the **full upstream config surface**, then marks eac
 #### Model Config (advanced)
 | Field | Type | Ship Status | Notes |
 |---|---|---|---|
-| `modelOverrides` | object | 🔧 provider_config | Map Anthropic model IDs to provider-specific IDs (Bedrock ARNs) |
+| `modelOverrides` | object | 🔧 harness_config | Map Anthropic model IDs to harness-specific IDs (Bedrock ARNs) |
 | `feedbackSurveyRate` | number (0-1) | ⬜ | |
 
 #### Rules (.claude/rules/*.md with glob frontmatter)
@@ -205,21 +205,21 @@ Each provider section lists the **full upstream config surface**, then marks eac
 Fields: `statusLine`, `fileSuggestion`, `spinnerVerbs`, `spinnerTipsEnabled`, `terminalProgressBarEnabled`, `showTurnDuration`, `prefersReducedMotion`, `autoUpdatesChannel`, `cleanupPeriodDays`, `respectGitignore`, `autoMemoryEnabled`, `autoMemoryDirectory`, `plansDirectory`, `outputStyle`, `language`, `teammateMode`, `companyAnnouncements`
 | `plansDirectory` | ⬜ | |
 | `skipWebFetchPreflight` | ⬜ | |
-| `sandbox` | 🔧 provider_config | Sandbox config |
+| `sandbox` | 🔧 harness_config | Sandbox config |
 
 #### Attribution
 | Field | Type | Ship Status | Notes |
 |---|---|---|---|
-| `attribution.commit` | string | 🔧 provider_config | Commit message suffix |
-| `attribution.pr` | string | 🔧 provider_config | PR description suffix |
-| `includeGitInstructions` | boolean | 🔧 provider_config | |
-| `includeCoAuthoredBy` | boolean | 🔧 provider_config | Deprecated |
+| `attribution.commit` | string | 🔧 harness_config | Commit message suffix |
+| `attribution.pr` | string | 🔧 harness_config | PR description suffix |
+| `includeGitInstructions` | boolean | 🔧 harness_config | |
+| `includeCoAuthoredBy` | boolean | 🔧 harness_config | Deprecated |
 
 ### Sub-agents (.claude/agents/*.md)
 | Feature | Ship Status | Notes |
 |---|---|---|
 | Agent definition files | ✅ Compiled (Claude only) | `.claude/agents/<name>.md` |
-| Cross-provider agent format | 🔴 Gap | Only compiles for Claude |
+| Cross-harness agent format | 🔴 Gap | Only compiles for Claude |
 
 ### Commands (.claude/commands/*.md)
 | Feature | Ship Status | Notes |
@@ -270,13 +270,13 @@ Fields: `statusLine`, `fileSuggestion`, `spinnerVerbs`, `spinnerTipsEnabled`, `t
 |---|---|---|---|
 | `model.name` | string | 🔴 Gap | Model selection |
 | `model.maxSessionTurns` | number | 🔴 Gap | Turn limit |
-| `model.compressionThreshold` | number (0-1) | 🔧 provider_config | Context compaction |
-| `model.disableLoopDetection` | boolean | 🔧 provider_config | |
-| `model.summarizeToolOutput` | object | 🔧 provider_config | Output summarization |
+| `model.compressionThreshold` | number (0-1) | 🔧 harness_config | Context compaction |
+| `model.disableLoopDetection` | boolean | 🔧 harness_config | |
+| `model.summarizeToolOutput` | object | 🔧 harness_config | Output summarization |
 | `general.defaultApprovalMode` | "default"/"auto_edit"/"plan" | 🔴 Gap | Agent approval mode |
-| `general.maxAttempts` | number | 🔧 provider_config | Retry limit |
-| `general.checkpointing.enabled` | boolean | 🔧 provider_config | |
-| `general.sessionRetention.*` | object | 🔧 provider_config | Session cleanup |
+| `general.maxAttempts` | number | 🔧 harness_config | Retry limit |
+| `general.checkpointing.enabled` | boolean | 🔧 harness_config | |
+| `general.sessionRetention.*` | object | 🔧 harness_config | Session cleanup |
 
 #### Hooks
 | Trigger | Ship Equivalent | Ship Status | Notes |
@@ -304,12 +304,12 @@ Communication: JSON on stdin/stdout. Env vars: `GEMINI_PROJECT_DIR`, `GEMINI_SES
 | `mcpServers` (HTTP) | ✅ Compiled | `httpUrl` field |
 | `timeout` per server | 🔴 Gap | Connection timeout (ms) |
 | `cwd` per server | 🔴 Gap | Working directory |
-| `trust` per server | 🔧 provider_config | Trust level |
+| `trust` per server | 🔧 harness_config | Trust level |
 | `includeTools` per server | 🔴 Gap | Tool allowlist per MCP server |
 | `excludeTools` per server | 🔴 Gap | Tool blocklist per MCP server |
 | `headers` (HTTP/SSE) | 🔴 Gap | Auth headers |
-| Global `mcp.allowed` | 🔧 provider_config | Server-level allowlist |
-| Global `mcp.excluded` | 🔧 provider_config | Server-level blocklist |
+| Global `mcp.allowed` | 🔧 harness_config | Server-level allowlist |
+| Global `mcp.excluded` | 🔧 harness_config | Server-level blocklist |
 
 #### Permissions / Policies
 | Feature | Ship Status | Notes |
@@ -319,48 +319,48 @@ Communication: JSON on stdin/stdout. Env vars: `GEMINI_PROJECT_DIR`, `GEMINI_SES
 | `argsPattern` field in policies | 🔴 Gap | Regex against JSON-serialized tool args |
 | `priority` field in policies | 🔴 Gap | 0-999 priority within tier (3-tier system) |
 | `commandPrefix` field in policies | 🔴 Gap | Shell command prefix matching |
-| `policyPaths` | 🔧 provider_config | Extra policy directories |
+| `policyPaths` | 🔧 harness_config | Extra policy directories |
 | `adminPolicyPaths` | ⬜ Managed only | |
 
 #### Tool Controls
 | Field | Ship Status | Notes |
 |---|---|---|
-| `tools.core` | 🔧 provider_config | Built-in tool allowlist |
+| `tools.core` | 🔧 harness_config | Built-in tool allowlist |
 | `tools.allowed` | 🗺️ Maps to permissions | Tools bypassing confirmation e.g. `"run_shell_command(git)"` |
 | `tools.exclude` | 🗺️ Maps to permissions | Tools to disable |
-| `tools.discoveryCommand` | 🔧 provider_config | Custom tool discovery |
-| `tools.callCommand` | 🔧 provider_config | Custom tool call command (JSON stdin/stdout) |
-| `tools.truncateToolOutputThreshold` | 🔧 provider_config | Default 40000 |
-| `tools.shell.*` | 🔧 provider_config | Shell behavior (interactive, pager, timeout) |
+| `tools.discoveryCommand` | 🔧 harness_config | Custom tool discovery |
+| `tools.callCommand` | 🔧 harness_config | Custom tool call command (JSON stdin/stdout) |
+| `tools.truncateToolOutputThreshold` | 🔧 harness_config | Default 40000 |
+| `tools.shell.*` | 🔧 harness_config | Shell behavior (interactive, pager, timeout) |
 
 #### Context / Discovery
 | Field | Ship Status | Notes |
 |---|---|---|
 | `context.fileName` | ⬜ | Custom context filename (default "GEMINI.md") |
 | `context.discoveryMaxDirs` | ⬜ | Directory scan limit (default 200) |
-| `context.includeDirectories` | 🔧 provider_config | Multi-repo context |
-| `context.loadMemoryFromIncludeDirectories` | 🔧 provider_config | |
+| `context.includeDirectories` | 🔧 harness_config | Multi-repo context |
+| `context.loadMemoryFromIncludeDirectories` | 🔧 harness_config | |
 | `context.fileFiltering.*` | ⬜ | Gitignore/geminiignore behavior |
 | `@path/to/file.md` imports in GEMINI.md | ⬜ | Context file imports |
 
 #### Security / Enterprise
 | Field | Ship Status | Notes |
 |---|---|---|
-| `security.disableYoloMode` | 🔧 provider_config | Enterprise lockdown |
-| `security.disableAlwaysAllow` | 🔧 provider_config | |
-| `security.enablePermanentToolApproval` | 🔧 provider_config | |
-| `security.folderTrust.enabled` | 🔧 provider_config | |
-| `security.environmentVariableRedaction.*` | 🔧 provider_config | Sensitive var masking |
-| `security.blockGitExtensions` | 🔧 provider_config | |
-| `security.allowedExtensions` | 🔧 provider_config | Regex patterns |
+| `security.disableYoloMode` | 🔧 harness_config | Enterprise lockdown |
+| `security.disableAlwaysAllow` | 🔧 harness_config | |
+| `security.enablePermanentToolApproval` | 🔧 harness_config | |
+| `security.folderTrust.enabled` | 🔧 harness_config | |
+| `security.environmentVariableRedaction.*` | 🔧 harness_config | Sensitive var masking |
+| `security.blockGitExtensions` | 🔧 harness_config | |
+| `security.allowedExtensions` | 🔧 harness_config | Regex patterns |
 
 #### Browser Agent
 | Field | Ship Status | Notes |
 |---|---|---|
-| `agents.browser.sessionMode` | 🔧 provider_config | "persistent"/"isolated"/"existing" |
-| `agents.browser.headless` | 🔧 provider_config | |
-| `agents.browser.allowedDomains` | 🔧 provider_config | Default: github, google, localhost |
-| `agents.browser.visualModel` | 🔧 provider_config | |
+| `agents.browser.sessionMode` | 🔧 harness_config | "persistent"/"isolated"/"existing" |
+| `agents.browser.headless` | 🔧 harness_config | |
+| `agents.browser.allowedDomains` | 🔧 harness_config | Default: github, google, localhost |
+| `agents.browser.visualModel` | 🔧 harness_config | |
 
 #### Extensions
 | Feature | Ship Status | Notes |
@@ -388,9 +388,9 @@ Communication: JSON on stdin/stdout. Env vars: `GEMINI_PROJECT_DIR`, `GEMINI_SES
 #### Sandbox
 | Field | Ship Status | Notes |
 |---|---|---|
-| `tools.sandbox` | 🔧 provider_config | true/"docker"/"podman"/path/object |
-| `.gemini/sandbox.Dockerfile` | 🔧 provider_config | Custom sandbox image |
-| `.gemini/sandbox-macos-*.sb` | 🔧 provider_config | macOS sandbox profiles |
+| `tools.sandbox` | 🔧 harness_config | true/"docker"/"podman"/path/object |
+| `.gemini/sandbox.Dockerfile` | 🔧 harness_config | Custom sandbox image |
+| `.gemini/sandbox-macos-*.sb` | 🔧 harness_config | macOS sandbox profiles |
 
 #### UI/Telemetry (out of scope)
 Fields: `ui.*` (theme, footer, spinner, accessibility ~30 fields), `privacy.*`, `telemetry.*`, `billing.*`, `ide.*`, `output.format`, `model.summarizeToolOutput`, `model.compressionThreshold`, `model.disableLoopDetection`
@@ -434,24 +434,24 @@ Fields: `ui.*` (theme, footer, spinner, accessibility ~30 fields), `privacy.*`, 
 | Field | Type | Ship Status | Notes |
 |---|---|---|---|
 | `model` | string | 🔴 Gap | Model selection |
-| `model_provider` | string | 🔴 Gap | Provider (openai, azure, etc.) |
-| `model_providers` | map | 🔧 provider_config | Custom provider definitions (name, base_url, env_key, wire_api, headers) |
-| `model_context_window` | int64 | 🔧 provider_config | |
-| `model_reasoning_effort` | enum | 🔧 provider_config | none/minimal/low/medium/high/xhigh |
-| `model_reasoning_summary` | enum | 🔧 provider_config | auto/concise/detailed/none |
-| `model_verbosity` | enum | 🔧 provider_config | low/medium/high (GPT-5) |
-| `model_auto_compact_token_limit` | int64 | 🔧 provider_config | |
+| `model_provider` | string | 🔴 Gap | Harness (openai, azure, etc.) |
+| `model_providers` | map | 🔧 harness_config | Custom harness definitions (name, base_url, env_key, wire_api, headers) |
+| `model_context_window` | int64 | 🔧 harness_config | |
+| `model_reasoning_effort` | enum | 🔧 harness_config | none/minimal/low/medium/high/xhigh |
+| `model_reasoning_summary` | enum | 🔧 harness_config | auto/concise/detailed/none |
+| `model_verbosity` | enum | 🔧 harness_config | low/medium/high (GPT-5) |
+| `model_auto_compact_token_limit` | int64 | 🔧 harness_config | |
 | `approval_policy` | union | 🔴 Gap | "untrusted"/"on-request"/"never" or `{granular: ...}` |
 | `sandbox_mode` | enum | 🔴 Gap | read-only/workspace-write/danger-full-access |
 | `sandbox_workspace_write` | object | 🔴 Gap | writable_roots, network_access |
-| `profile` | string | 🔧 provider_config | Active config profile |
-| `profiles` | map | 🔧 provider_config | Named profiles (override almost any field) |
-| `personality` | enum | 🔧 provider_config | none/friendly/pragmatic |
-| `instructions` | string | 🔧 provider_config | System instructions |
-| `developer_instructions` | string | 🔧 provider_config | Developer role message |
-| `compact_prompt` | string | 🔧 provider_config | Compaction prompt |
-| `tool_output_token_limit` | uint | 🔧 provider_config | |
-| `service_tier` | enum | 🔧 provider_config | fast/flex |
+| `profile` | string | 🔧 harness_config | Active config profile |
+| `profiles` | map | 🔧 harness_config | Named profiles (override almost any field) |
+| `personality` | enum | 🔧 harness_config | none/friendly/pragmatic |
+| `instructions` | string | 🔧 harness_config | System instructions |
+| `developer_instructions` | string | 🔧 harness_config | Developer role message |
+| `compact_prompt` | string | 🔧 harness_config | Compaction prompt |
+| `tool_output_token_limit` | uint | 🔧 harness_config | |
+| `service_tier` | enum | 🔧 harness_config | fast/flex |
 
 #### Approval Policy (granular)
 | Field | Ship Status | Notes |
@@ -474,12 +474,12 @@ Fields: `ui.*` (theme, footer, spinner, accessibility ~30 fields), `privacy.*`, 
 | `enabled_tools` / `disabled_tools` | 🔴 Gap | Per-server tool allow/block |
 | `required` | 🔴 Gap | Fail-fast if server unavailable |
 | `bearer_token` / `bearer_token_env_var` | 🔴 Gap | Auth token |
-| `oauth_resource` / `scopes` | 🔧 provider_config | OAuth config |
+| `oauth_resource` / `scopes` | 🔧 harness_config | OAuth config |
 | `env_vars` | 🔴 Gap | Env var names to pass through |
 | `env_http_headers` / `http_headers` | 🔴 Gap | HTTP headers (static + env-sourced) |
-| `mcp_oauth_callback_port` | 🔧 provider_config | |
-| `mcp_oauth_callback_url` | 🔧 provider_config | |
-| `mcp_oauth_credentials_store` | 🔧 provider_config | auto/file/keyring |
+| `mcp_oauth_callback_port` | 🔧 harness_config | |
+| `mcp_oauth_callback_url` | 🔧 harness_config | |
+| `mcp_oauth_credentials_store` | 🔧 harness_config | auto/file/keyring |
 
 #### Permissions
 | Field | Ship Status | Notes |
@@ -497,7 +497,7 @@ Fields: `ui.*` (theme, footer, spinner, accessibility ~30 fields), `privacy.*`, 
 | `~/.codex/rules/*.rules` | 🔴 Gap | Starlark `prefix_rule()` files |
 | `prefix_rule(pattern, decision, justification)` | 🗺️ Maps to permissions | allow/prompt/forbidden per command prefix |
 | Admin-enforced rules (`requirements.toml`) | ⬜ Managed only | |
-| Feature flags (50+ booleans) | 🔧 provider_config | `features.*` toggles |
+| Feature flags (50+ booleans) | 🔧 harness_config | `features.*` toggles |
 
 #### Multi-Agent
 | Feature | Ship Status | Notes |
@@ -507,53 +507,53 @@ Fields: `ui.*` (theme, footer, spinner, accessibility ~30 fields), `privacy.*`, 
 | `agents.job_max_runtime_seconds` | 🔴 Gap | Per-job timeout |
 | Agent role entries (`.config_file`, `.description`) | 🔴 Gap | Role configs |
 | `agents/*.toml` files | 🔴 Gap | Role-specific configs |
-| `approvals_reviewer` | 🔧 provider_config | user/guardian_subagent |
+| `approvals_reviewer` | 🔧 harness_config | user/guardian_subagent |
 
 #### Skills
 | Feature | Ship Status | Notes |
 |---|---|---|
 | `.agents/skills/*/SKILL.md` | ✅ Compiled | Standard skill format |
-| `skills.bundled.enabled` | 🔧 provider_config | Toggle bundled skills |
-| `skills.config[]` | 🔧 provider_config | Per-skill enable/path override |
+| `skills.bundled.enabled` | 🔧 harness_config | Toggle bundled skills |
+| `skills.config[]` | 🔧 harness_config | Per-skill enable/path override |
 
 #### Plugins & Apps
 | Feature | Ship Status | Notes |
 |---|---|---|
 | `plugins` | 🔴 Gap | Plugin enable/disable map |
-| `apps._default` | 🔧 provider_config | Default app policy |
-| `apps.<name>` | 🔧 provider_config | Per-app tool approval modes |
+| `apps._default` | 🔧 harness_config | Default app policy |
+| `apps.<name>` | 🔧 harness_config | Per-app tool approval modes |
 
 #### Environment
 | Field | Ship Status | Notes |
 |---|---|---|
-| `shell_environment_policy.inherit` | 🔧 provider_config | core/all/none |
+| `shell_environment_policy.inherit` | 🔧 harness_config | core/all/none |
 | `shell_environment_policy.set` | 🔴 Gap | Explicit env var overrides |
-| `shell_environment_policy.include_only` / `exclude` | 🔧 provider_config | Regex filters |
-| `openai_base_url` | 🔧 provider_config | |
-| `chatgpt_base_url` | 🔧 provider_config | |
+| `shell_environment_policy.include_only` / `exclude` | 🔧 harness_config | Regex filters |
+| `openai_base_url` | 🔧 harness_config | |
+| `chatgpt_base_url` | 🔧 harness_config | |
 
 #### Memories
 | Field | Ship Status | Notes |
 |---|---|---|
-| `memories.generate_memories` | 🔧 provider_config | Auto-generate memories |
-| `memories.use_memories` | 🔧 provider_config | Use memories in context |
-| `memories.extract_model` / `consolidation_model` | 🔧 provider_config | |
-| `memories.max_*` / `no_memories_if_mcp_or_web_search` | 🔧 provider_config | Tuning knobs |
+| `memories.generate_memories` | 🔧 harness_config | Auto-generate memories |
+| `memories.use_memories` | 🔧 harness_config | Use memories in context |
+| `memories.extract_model` / `consolidation_model` | 🔧 harness_config | |
+| `memories.max_*` / `no_memories_if_mcp_or_web_search` | 🔧 harness_config | Tuning knobs |
 
 #### Enterprise / Admin
 | Feature | Ship Status | Notes |
 |---|---|---|
 | `/etc/codex/managed_config.toml` | ⬜ Managed only | Cannot be overridden |
 | `requirements.toml` | ⬜ Managed only | Allowed policies, sandbox modes, rules |
-| `projects.<name>.trust_level` | 🔧 provider_config | trusted/untrusted per project |
+| `projects.<name>.trust_level` | 🔧 harness_config | trusted/untrusted per project |
 
 #### Observability
 | Field | Ship Status | Notes |
 |---|---|---|
-| `otel.*` | 🔧 provider_config | Full OTEL config |
-| `notify` | 🔧 provider_config | External notification command (array) |
-| `log_dir` | 🔧 provider_config | |
-| `commit_attribution` | 🔧 provider_config | Commit message attribution |
+| `otel.*` | 🔧 harness_config | Full OTEL config |
+| `notify` | 🔧 harness_config | External notification command (array) |
+| `log_dir` | 🔧 harness_config | |
+| `commit_attribution` | 🔧 harness_config | Commit message attribution |
 
 #### UX / Experimental (out of scope)
 Fields: `tui.*` (theme, animations, tooltips, alt_screen), `audio.*`, `realtime.*`, `ghost_snapshot.*`, `web_search`, `history.*`, `file_opener`, `check_for_update_on_startup`, `disable_paste_burst`, `hide_agent_reasoning`
@@ -673,17 +673,17 @@ Scoping: project (`.cursor/hooks.json`) + global (`~/.cursor/hooks.json`). Both 
 
 ---
 
-## Cross-Provider Gap Summary
+## Cross-Harness Gap Summary
 
-### Critical Gaps (affect user migration from provider → Ship)
+### Critical Gaps (affect user migration from harness → Ship)
 
-| Gap | Providers Affected | Ship Concept Mapping | Priority |
+| Gap | Harnesses Affected | Ship Concept Mapping | Priority |
 |---|---|---|---|
-| **`provider_config` passthrough** | ALL | Free-form per-provider settings blob | **P0** |
+| **`harness_config` passthrough** | ALL | Free-form per-harness settings blob | **P0** |
 | **Environment variables** | Claude (`env`), Gemini (`.env`), Codex (shell policy) | Ship `[env]` section in preset? | **P0** |
 | **Model selection** | Gemini, Codex, Cursor | Already in preset `[profile]` but only compiled for Claude | **P1** |
 | **Approval mode** | Gemini (`defaultApprovalMode`), Codex (`approval_policy`) | Maps to Ship workspace modes | **P1** |
-| **Sandbox mode** | Claude (full sandbox: fs read/write ACLs + network domain allowlist), Codex (`sandbox_mode` + `sandbox_workspace_write`), Gemini (`tools.sandbox` + Dockerfile) | Ship concept TBD — all 3 CLI providers now have sandbox | **P1** |
+| **Sandbox mode** | Claude (full sandbox: fs read/write ACLs + network domain allowlist), Codex (`sandbox_mode` + `sandbox_workspace_write`), Gemini (`tools.sandbox` + Dockerfile) | Ship concept TBD — all 3 CLI harnesses now have sandbox | **P1** |
 | **Codex permission profiles** | Codex (filesystem + network ACLs per profile, Starlark `.rules` files) | Partially maps to Ship permissions but much richer (per-path fs access, domain-level network ACLs) | **P2** |
 | **Codex granular approval** | Codex (`approval_policy.granular` — per-category: sandbox, rules, MCP, permissions, skills) | No Ship equivalent | **P2** |
 | **MCP per-server config** | Codex (timeouts, enabled), Gemini (timeout, cwd, includeTools, excludeTools, headers, trust), Claude (enable/disable lists) | Extend Ship MCP server TOML | **P2** |
@@ -700,33 +700,33 @@ Scoping: project (`.cursor/hooks.json`) + global (`~/.cursor/hooks.json`). Both 
 
 | Feature | Ship Approach | Notes |
 |---|---|---|
-| MCP servers (basic) | Unified TOML → per-provider format | All 4 providers |
-| Rules/context files | `.ship/agents/rules/` → concatenated or per-file | All 4 providers |
-| Skills | `.ship/agents/skills/` → provider skill dirs | All 4 providers |
+| MCP servers (basic) | Unified TOML → per-harness format | All 4 harnesses |
+| Rules/context files | `.ship/agents/rules/` → concatenated or per-file | All 4 harnesses |
+| Skills | `.ship/agents/skills/` → harness skill dirs | All 4 harnesses |
 | Permissions (Claude) | Lossless translation | Best coverage |
 | Permissions (Gemini) | Policy engine TOML | Good coverage |
 | Permissions (Cursor) | Typed CLI patterns | Good coverage |
 | Hooks (basic triggers) | 6 triggers compiled | Claude, Gemini, Cursor |
 | Agent limits | `maxCostPerSession`, `maxTurns` | Claude only |
-| Multi-provider compilation | Single source → 4 outputs | Core value prop |
+| Multi-harness compilation | Single source → 4 outputs | Core value prop |
 
 ### Honest Assessment
 
-**What we tell users today:** "Ship replaces your provider config files. Define once in `.ship/`, compile to all providers."
+**What we tell users today:** "Ship replaces your harness config files. Define once in `.ship/`, compile to all harnesses."
 
 **What's actually true:** Ship handles the *structural* config well (MCP, rules, skills, permissions, basic hooks) but misses most *behavioral* config (model selection, approval modes, sandbox, env vars, timeouts, plugins). A user migrating a mature Claude Code setup would lose ~75% of their settings.json fields. A Codex user would lose approval_policy, sandbox_mode, permission profiles (fs+network ACLs), Starlark execution rules, and granular approval — arguably their most important settings. Codex's permission model is actually richer than we assumed — it has per-path filesystem access modes, domain-level network ACLs, and Starlark rules for command-level policy.
 
 **The path forward:**
-1. **P0: `provider_config` passthrough** — Let users put arbitrary provider-specific settings in their preset. Ship passes them through unmodified. This closes the "long tail" gap immediately.
-2. **P1: First-class model + approval mode** — These are universal concepts. Every provider has them. Compile `[profile] model` to all providers, not just Claude. Map Ship workspace modes to provider approval modes.
+1. **P0: `harness_config` passthrough** — Let users put arbitrary harness-specific settings in their preset. Ship passes them through unmodified. This closes the "long tail" gap immediately.
+2. **P1: First-class model + approval mode** — These are universal concepts. Every harness has them. Compile `[profile] model` to all harnesses, not just Claude. Map Ship workspace modes to harness approval modes.
 3. **P2: Incremental coverage** — Hook triggers, MCP timeouts, env vars, multi-agent. Add as demand appears.
-4. **P3: Provider-specific features** — Extensions (Gemini), cloud agents (Cursor). Only if users ask.
+4. **P3: Harness-specific features** — Extensions (Gemini), cloud agents (Cursor). Only if users ask.
 
 ---
 
 ## Appendix: Schema URLs
 
-| Provider | Schema | URL |
+| Harness | Schema | URL |
 |---|---|---|
 | Claude Code | settings.json | `https://json.schemastore.org/claude-code-settings.json` |
 | Gemini CLI | settings.json | `https://raw.githubusercontent.com/google-gemini/gemini-cli/main/schemas/settings.schema.json` |

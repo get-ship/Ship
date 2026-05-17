@@ -65,7 +65,7 @@ pub fn make_rule(file_name: &str, content: &str) -> Rule {
 
 pub fn resolved(servers: Vec<McpServerConfig>) -> ResolvedConfig {
     ResolvedConfig {
-        providers: vec!["claude".to_string()],
+        harnesses: vec!["claude".to_string()],
         model: None,
         max_cost_per_session: None,
         max_turns: None,

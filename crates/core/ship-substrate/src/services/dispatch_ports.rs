@@ -53,7 +53,7 @@ pub struct JobContext {
     pub spec_content: Option<String>,
     pub work_dir: PathBuf,
     pub env: HashMap<String, String>,
-    /// How to launch the provider CLI for this job.
+    /// How to launch the harness CLI for this job.
     pub launch: LaunchProfile,
     /// Exit notification channel. Set by `dispatch_job_internal` so the executor's
     /// background monitor can signal exit without curling the daemon API.
@@ -79,21 +79,21 @@ pub struct StepInfo {
     pub id: String,
 }
 
-/// Everything about *how* to run the provider process.
+/// Everything about *how* to run the harness process.
 ///
 /// Separated from JobContext so launch configuration is composable —
-/// provider defaults + pipeline step overrides + user preferences.
+/// harness defaults + pipeline step overrides + user preferences.
 #[derive(Clone, Debug, Default)]
 pub struct LaunchProfile {
-    /// Provider CLI to use (e.g. "claude", "codex"). None = default (claude).
-    pub provider: Option<String>,
+    /// Harness CLI to use (e.g. "claude", "codex"). None = default (claude).
+    pub harness: Option<String>,
     /// Model override for this run.
     pub model: Option<String>,
-    /// Effort level (e.g. "low", "medium", "high", "max"). Provider-specific.
+    /// Effort level (e.g. "low", "medium", "high", "max"). Harness-specific.
     pub effort: Option<String>,
     /// Resume a previous session by ID.
     pub resume_session: Option<String>,
-    /// Display name for the session (shows in provider's session picker).
+    /// Display name for the session (shows in harness's session picker).
     pub session_name: Option<String>,
     /// Maximum spend in USD for this run.
     pub max_budget_usd: Option<f64>,
@@ -101,14 +101,14 @@ pub struct LaunchProfile {
     pub permission_mode: Option<String>,
     /// Whether to persist the session (false = ephemeral, e.g. gate reviews).
     pub persist_session: bool,
-    /// Request structured JSON output from the provider.
+    /// Request structured JSON output from the harness.
     pub structured_output: bool,
-    /// Prompt handed to headless provider runs as the first instruction.
+    /// Prompt handed to headless harness runs as the first instruction.
     /// Claude consumes it via `-p` after the rest of its flags; Codex takes it
     /// as the final positional argument to `codex exec`. `None` falls back to
     /// each adapter's default.
     pub autostart_prompt: Option<String>,
-    /// Additional system-prompt content appended to the provider's base
+    /// Additional system-prompt content appended to the harness's base
     /// system prompt. Delivered via Claude's `--append-system-prompt`.
     /// Used to inject a Ship agent's `rules.inline` into the spawned
     /// subprocess so the agent knows its editing protocol (read-before-write,
@@ -123,7 +123,7 @@ pub struct ExecutorHandle {
     pub inner: Box<dyn std::any::Any + Send + Sync>,
 }
 
-/// CLI command built by a `ProviderLauncher`.
+/// CLI command built by a `HarnessLauncher`.
 #[derive(Debug, Clone)]
 pub struct LaunchCommand {
     /// Binary name (e.g. "claude", "codex").
@@ -277,7 +277,7 @@ pub trait JobExecutor: Send + Sync {
     async fn resume_handle(
         &self,
         _slug: &str,
-        _provider: Option<&str>,
+        _harness: Option<&str>,
         _current_step: Option<&str>,
     ) -> Option<ExecutorHandle> {
         None
@@ -300,7 +300,7 @@ pub trait AgentPlatform: Send + Sync {
     fn compile_agent_config(&self, worktree_path: &std::path::Path, agent_id: &str) -> Result<()>;
 
     /// Gracefully exit the current agent in a tmux session.
-    async fn graceful_agent_exit(&self, slug: &str, provider: Option<&str>);
+    async fn graceful_agent_exit(&self, slug: &str, harness: Option<&str>);
 
     /// Clean up job resources (tmux session, worktree, branch).
     async fn cleanup_job(&self, slug: &str, branch: &str);

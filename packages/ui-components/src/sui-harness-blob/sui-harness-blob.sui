@@ -1,15 +1,15 @@
 <!--
-  <sui-provider-blob> — SUI port of <ship-provider-blob>.
+  <sui-harness-blob> — SUI port of <ship-harness-blob>.
 
-  Small branded indicator for an AI provider (claude / codex / cursor /
+  Small branded indicator for an AI harness (claude / codex / cursor /
   gemini / opencode). Inlines the canonical brand SVG so the blob is
   always pixel-accurate and offline-safe.
 
-  Prop / event / slot parity vs <ship-provider-blob>
+  Prop / event / slot parity vs <ship-harness-blob>
   ─────────────────────────────────────────────────────────────────────────────
   Lit                          SUI                      Notes
   ─────────────────────────────────────────────────────────────────────────────
-  provider (enum, 'claude')    provider (enum,          ✓ reflects
+  harness (enum, 'claude')    harness (enum,          ✓ reflects
                                   'claude', reflect)
   size (sm|md|lg, 'md')        size (enum, 'md',        ✓ reflects
                                   reflect)
@@ -24,7 +24,7 @@
   ─────────────────────────────────────────────────────────────────────────────
 -->
 
-<prop name="provider" values="claude|codex|cursor|gemini|opencode" default="claude" reflect />
+<prop name="harness" values="claude|codex|cursor|gemini|opencode" default="claude" reflect />
 <prop name="size" values="sm|md|lg" default="md" reflect />
 <prop name="variant" values="tile|glyph" default="tile" reflect />
 

@@ -121,7 +121,7 @@ fn test_event_stream_since() -> anyhow::Result<()> {
     store.append(&EventEnvelope::new(
         event_types::WORKSPACE_ACTIVATED,
         "feat-1",
-        &WorkspaceActivated { agent_id: None, providers: vec![] },
+        &WorkspaceActivated { agent_id: None, harnesses: vec![] },
     )?)?;
     let _ = &ship_path;
     let events = list_events_since(&before, None)?;

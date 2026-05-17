@@ -1,7 +1,7 @@
-// ─── Provider registry ────────────────────────────────────────────────────────
+// ─── Harness registry ────────────────────────────────────────────────────────
 // Authoritative path reference, support matrix, and compatibility dates:
-// → crates/core/compiler/PROVIDERS.md
-// Update that file before changing any ProviderDescriptor field.
+// → crates/core/compiler/HARNESSES.md
+// Update that file before changing any HarnessDescriptor field.
 
 /// How MCP servers are keyed in the target config file.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -33,7 +33,7 @@ pub enum ContextFile {
     GeminiMd,
     /// `AGENTS.md` — Codex, Roo, Amp, Goose
     AgentsMd,
-    /// Provider does not use a context file
+    /// Harness does not use a context file
     None,
 }
 
@@ -77,7 +77,7 @@ impl SkillsDir {
     }
 }
 
-/// Where provider-native subagent definition files are written.
+/// Where harness-native subagent definition files are written.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AgentsDir {
     /// `.claude/agents/<id>.md`
@@ -121,7 +121,7 @@ impl AgentsDir {
 }
 
 #[derive(Debug, Clone)]
-pub struct ProviderDescriptor {
+pub struct HarnessDescriptor {
     pub id: &'static str,
     pub name: &'static str,
     pub mcp_key: McpKey,
@@ -133,7 +133,7 @@ pub struct ProviderDescriptor {
     /// Gemini and Codex: false — transport is inferred from field presence
     ///   (command → stdio, url → SSE, httpUrl → HTTP).
     pub emit_type_field: bool,
-    /// Field name used for SSE transport URL entries ("url" for most providers).
+    /// Field name used for SSE transport URL entries ("url" for most harnesses).
     pub sse_url_field: &'static str,
     /// Field name used for streamable HTTP transport URL entries.
     /// Gemini uses "httpUrl"; others use "url".
@@ -143,8 +143,8 @@ pub struct ProviderDescriptor {
     pub mcp_config_path: Option<&'static str>,
 }
 
-pub(super) static PROVIDERS: &[ProviderDescriptor] = &[
-    ProviderDescriptor {
+pub(super) static HARNESSES: &[HarnessDescriptor] = &[
+    HarnessDescriptor {
         id: "claude",
         name: "Claude Code",
         mcp_key: McpKey::McpServers,
@@ -157,7 +157,7 @@ pub(super) static PROVIDERS: &[ProviderDescriptor] = &[
         // Project-level MCP for Claude Code lives in .mcp.json
         mcp_config_path: Some(".mcp.json"),
     },
-    ProviderDescriptor {
+    HarnessDescriptor {
         id: "gemini",
         name: "Gemini CLI",
         mcp_key: McpKey::McpServers,
@@ -173,7 +173,7 @@ pub(super) static PROVIDERS: &[ProviderDescriptor] = &[
         // MCP is nested under mcpServers inside settings.json (not a separate file)
         mcp_config_path: Some(".gemini/settings.json"),
     },
-    ProviderDescriptor {
+    HarnessDescriptor {
         id: "codex",
         name: "OpenAI Codex",
         // Source: https://developers.openai.com/codex/mcp
@@ -190,7 +190,7 @@ pub(super) static PROVIDERS: &[ProviderDescriptor] = &[
         http_url_field: "url",
         mcp_config_path: Some(".codex/config.toml"),
     },
-    ProviderDescriptor {
+    HarnessDescriptor {
         id: "cursor",
         name: "Cursor",
         // Source: https://cursor.com/docs/context/skills
@@ -204,7 +204,7 @@ pub(super) static PROVIDERS: &[ProviderDescriptor] = &[
         http_url_field: "url",
         mcp_config_path: Some(".cursor/mcp.json"),
     },
-    ProviderDescriptor {
+    HarnessDescriptor {
         id: "opencode",
         name: "OpenCode",
         // Source: https://opencode.ai/docs/config/
@@ -224,29 +224,29 @@ pub(super) static PROVIDERS: &[ProviderDescriptor] = &[
     },
 ];
 
-/// Feature support flags for a provider.
+/// Feature support flags for a harness.
 ///
-/// These govern what the compiler emits for a given provider:
-/// - `supports_mcp` — provider reads an MCP server config file
-/// - `supports_hooks` — provider supports session hooks (Stop, PreToolUse, etc.)
-/// - `supports_tool_permissions` — provider supports allow/deny tool lists
-/// - `supports_memory` — provider has persistent memory / context file
+/// These govern what the compiler emits for a given harness:
+/// - `supports_mcp` — harness reads an MCP server config file
+/// - `supports_hooks` — harness supports session hooks (Stop, PreToolUse, etc.)
+/// - `supports_tool_permissions` — harness supports allow/deny tool lists
+/// - `supports_memory` — harness has persistent memory / context file
 ///
-/// See SPEC.md §Provider Feature Matrix for the full per-provider table.
+/// See SPEC.md §Harness Feature Matrix for the full per-harness table.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ProviderFeatureFlags {
-    /// Does this provider read an MCP server config file?
+    /// Does this harness read an MCP server config file?
     pub supports_mcp: bool,
-    /// Does this provider support session hooks?
+    /// Does this harness support session hooks?
     pub supports_hooks: bool,
-    /// Can you configure allow/deny tool permission lists for this provider?
+    /// Can you configure allow/deny tool permission lists for this harness?
     pub supports_tool_permissions: bool,
-    /// Does this provider have a persistent memory / context file?
+    /// Does this harness have a persistent memory / context file?
     pub supports_memory: bool,
 }
 
-impl ProviderDescriptor {
-    /// Return the feature flags for this provider.
+impl HarnessDescriptor {
+    /// Return the feature flags for this harness.
     pub fn feature_flags(&self) -> ProviderFeatureFlags {
         match self.id {
             "claude" => ProviderFeatureFlags {
@@ -279,7 +279,7 @@ impl ProviderDescriptor {
                 supports_tool_permissions: true,
                 supports_memory: true,
             },
-            // Unknown providers: conservative defaults
+            // Unknown harnesses: conservative defaults
             _ => ProviderFeatureFlags {
                 supports_mcp: false,
                 supports_hooks: false,
@@ -290,10 +290,10 @@ impl ProviderDescriptor {
     }
 }
 
-pub fn get_provider(id: &str) -> Option<&'static ProviderDescriptor> {
-    PROVIDERS.iter().find(|p| p.id == id)
+pub fn get_harness(id: &str) -> Option<&'static HarnessDescriptor> {
+    HARNESSES.iter().find(|p| p.id == id)
 }
 
-pub fn list_providers() -> &'static [ProviderDescriptor] {
-    PROVIDERS
+pub fn list_harnesses() -> &'static [HarnessDescriptor] {
+    HARNESSES
 }

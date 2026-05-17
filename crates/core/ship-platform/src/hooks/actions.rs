@@ -178,7 +178,7 @@ async fn pipeline_trigger(
         "spec_path": format!(".artifacts/hooks/{slug}.md"),
         "plan_id": null,
         "model": null,
-        "provider": null,
+        "harness": null,
         "pipeline_name": pipeline,
         "vars": vars,
         "headless": true,

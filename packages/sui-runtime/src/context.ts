@@ -50,7 +50,7 @@ export function provide<T>(host: Element, key: string, value: T): void {
  * Look up a context published by an ancestor. Walks `host.parentElement`
  * and crosses shadow-root boundaries via `getRootNode().host`.
  *
- * Returns `null` when no provider is found — consumer guards with
+ * Returns `null` when no harness is found — consumer guards with
  * `{#if bar}` or controller-side null checks.
  */
 export function useShared<T>(host: Element, key: string): T | null {

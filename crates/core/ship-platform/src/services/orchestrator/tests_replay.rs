@@ -107,7 +107,7 @@ async fn seed_dispatched_job(kernel: &Arc<Mutex<KernelRouter>>, job_id: &str, sl
         branch: format!("job/{slug}"),
         spec_path: ".artifacts/job-spec.md".to_string(),
         source_spec_path: None,
-        plan_id: None, depends_on: None, model: None, provider: None,
+        plan_id: None, depends_on: None, model: None, harness: None,
         pipeline: None, steps: None, pipeline_name: None, vars: None,
         spec_content: None, step_specs: None, headless: false,
         baseline_sha: None,
@@ -118,7 +118,7 @@ async fn seed_dispatched_job(kernel: &Arc<Mutex<KernelRouter>>, job_id: &str, sl
         job_id: job_id.to_string(),
         worktree: format!("/tmp/test-worktrees-replay/{slug}"),
         pid: None,
-        provider_meta: None,
+        harness_meta: None,
     };
     let env = EventEnvelope::new(event_types::JOB_DISPATCHED, job_id, &dispatched).unwrap().with_actor_id("test");
     kernel.lock().await.emit(env, &ctx).await.unwrap();
@@ -191,7 +191,7 @@ mod replay_filter {
             goal: None,
             after: vec![],
             model: None,
-            provider: None,
+            harness: None,
             command: None,
             max_retries: None,
             gate: None,
@@ -223,10 +223,10 @@ mod replay_filter {
             blocker: None,
             error: None,
             model: None,
-            provider: None,
+            harness: None,
             created_at: now,
             updated_at: now,
-            provider_meta: None,
+            harness_meta: None,
             pipeline: None,
             steps: Some(Pipeline {
                 steps: step_ids.iter().map(|s| pipeline_step(s)).collect(),

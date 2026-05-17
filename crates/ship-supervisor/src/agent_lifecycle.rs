@@ -1,13 +1,13 @@
 //! Agent lifecycle helpers — graceful agent exit for pipeline step transitions.
 
-use ship_platform::services::provider_adapter::adapter_for_or_default;
+use ship_platform::services::harness_adapter::adapter_for_or_default;
 
-/// Send the provider's exit command to the agent in a tmux session and wait for clean exit.
+/// Send the harness's exit command to the agent in a tmux session and wait for clean exit.
 /// Best-effort — skips if tmux isn't available (tests).
-pub(crate) async fn graceful_agent_exit(slug: &str, provider: Option<&str>) {
+pub(crate) async fn graceful_agent_exit(slug: &str, harness: Option<&str>) {
     let tmux_session = format!("job-{}", slug);
-    // Best-effort: unknown provider → no exit command, force-kill path handles it.
-    let exit_cmd = adapter_for_or_default(provider)
+    // Best-effort: unknown harness → no exit command, force-kill path handles it.
+    let exit_cmd = adapter_for_or_default(harness)
         .map(|a| a.exit_command().to_string())
         .unwrap_or_default();
 

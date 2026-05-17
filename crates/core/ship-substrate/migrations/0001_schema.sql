@@ -35,7 +35,7 @@ CREATE TABLE IF NOT EXISTS sessions (
   started_at                  TEXT NOT NULL,
   ended_at                    TEXT,
   agent_id                    TEXT,
-  primary_provider            TEXT,
+  primary_harness            TEXT,
   goal                        TEXT,
   summary                     TEXT,
   updated_workspace_ids_json  TEXT NOT NULL DEFAULT '[]',
@@ -168,7 +168,7 @@ CREATE TABLE IF NOT EXISTS project_compile_state (
   active_agent        TEXT,
   compiled_at         TEXT NOT NULL,
   ship_version        TEXT NOT NULL,
-  provider            TEXT,
+  harness            TEXT,
   plugins_installed_json TEXT NOT NULL DEFAULT '[]',
   updated_at          TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -189,11 +189,11 @@ CREATE TABLE IF NOT EXISTS actors (
   parent_actor_id     TEXT,
   restart_count       INTEGER NOT NULL DEFAULT 0,
   agent_id            TEXT,
-  provider            TEXT,
+  harness            TEXT,
   model               TEXT,
   transport           TEXT,
   persistence         TEXT,
-  provider_session_id TEXT,
+  harness_session_id TEXT,
   system_prompt_hash  TEXT,
   pid                 INTEGER,
   capabilities_json   TEXT NOT NULL DEFAULT '[]',
@@ -207,7 +207,7 @@ CREATE TABLE IF NOT EXISTS actors (
 CREATE INDEX IF NOT EXISTS idx_actors_workspace  ON actors(workspace_id);
 CREATE INDEX IF NOT EXISTS idx_actors_project    ON actors(project_id);
 CREATE INDEX IF NOT EXISTS idx_actors_status     ON actors(status);
-CREATE INDEX IF NOT EXISTS idx_actors_provider   ON actors(provider);
+CREATE INDEX IF NOT EXISTS idx_actors_harness   ON actors(harness);
 CREATE INDEX IF NOT EXISTS idx_actors_agent_id   ON actors(agent_id);
 CREATE INDEX IF NOT EXISTS idx_actors_last_event ON actors(last_event_at);
 

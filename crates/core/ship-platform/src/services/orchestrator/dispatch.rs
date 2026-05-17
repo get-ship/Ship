@@ -87,15 +87,15 @@ pub async fn dispatch_job_internal(
         })
     });
 
-    // Resolve provider/model from the first step when present — matches how
+    // Resolve harness/model from the first step when present — matches how
     // `advance_pipeline` resolves for steps 2+, so first-step and
     // later-step dispatch agree on the source of truth. Fall through to
     // the job-level payload fields when the step leaves them unset.
     let first_step = payload.steps.as_ref()
         .and_then(|p| p.root_steps().first().cloned());
-    let launch_provider = first_step.as_ref()
-        .and_then(|s| s.provider.clone())
-        .or_else(|| payload.provider.clone());
+    let launch_harness = first_step.as_ref()
+        .and_then(|s| s.harness.clone())
+        .or_else(|| payload.harness.clone());
     let launch_model = first_step.as_ref()
         .and_then(|s| s.model.clone())
         .or_else(|| payload.model.clone());
@@ -111,7 +111,7 @@ pub async fn dispatch_job_internal(
         env: [("SHIP_ACTOR_ID".to_string(), slug.to_string())].into(),
         exit_tx: None,
         launch: LaunchProfile {
-            provider: launch_provider.clone(),
+            harness: launch_harness.clone(),
             model: launch_model,
             persist_session: true,
             ..Default::default()
@@ -179,7 +179,7 @@ pub async fn dispatch_job_internal(
     };
 
     let executor_kind = if payload.headless { "process" } else { "pty" };
-    let cmd_label = launch_provider.as_deref().unwrap_or("claude");
+    let cmd_label = launch_harness.as_deref().unwrap_or("claude");
     emit_process_spawned(
         kernel, slug, &payload.job_id, handle.pid,
         cmd_label, &[], &[], &worktree_path.to_string_lossy(),
@@ -267,7 +267,7 @@ async fn dispatch_first_run_step_inner(
         env: [("SHIP_ACTOR_ID".to_string(), slug.to_string())].into(),
         exit_tx: None,
         launch: LaunchProfile {
-            provider: payload.provider.clone(),
+            harness: payload.harness.clone(),
             model: payload.model.clone(),
             persist_session: true,
             ..Default::default()

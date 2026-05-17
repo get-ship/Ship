@@ -1,16 +1,16 @@
-//! Provider adapter trait — single interface between executors and provider CLIs.
+//! Harness adapter trait — single interface between executors and harness CLIs.
 //!
-//! Each provider implements this trait once. Executors use the trait methods
-//! without knowing which provider they're running.
+//! Each harness implements this trait once. Executors use the trait methods
+//! without knowing which harness they're running.
 
 use std::path::Path;
 
 use super::dispatch_ports::{LaunchCommand, LaunchProfile};
 
-/// Events extracted from provider process output.
+/// Events extracted from harness process output.
 #[derive(Debug, Clone, PartialEq, serde::Serialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
-pub enum ProviderEvent {
+pub enum HarnessEvent {
     ToolUse { tool: String, input_preview: String },
     Message { text: String },
     SessionStarted { session_id: String },
@@ -22,28 +22,28 @@ pub enum ProviderEvent {
     },
 }
 
-/// Declarative capability flags per provider.
+/// Declarative capability flags per harness.
 /// Used by executors + pipeline-step routing to branch on what's supported.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct ProviderCapabilities {
-    /// Provider supports `-p`-style headless one-shot execution.
+pub struct HarnessCapabilities {
+    /// Harness supports `-p`-style headless one-shot execution.
     pub headless: bool,
-    /// Provider supports interactive TUI mode.
+    /// Harness supports interactive TUI mode.
     pub interactive: bool,
-    /// Provider has a long-lived server/daemon mode (codex app-server,
+    /// Harness has a long-lived server/daemon mode (codex app-server,
     /// opencode serve) suitable for persistent orchestrator connections.
     pub server_mode: bool,
-    /// Provider can emit JSON-lines structured output (codex --json,
+    /// Harness can emit JSON-lines structured output (codex --json,
     /// claude stream-json, cursor stream-json).
     pub json_stream: bool,
-    /// Provider supports MCP tool injection at the config level.
+    /// Harness supports MCP tool injection at the config level.
     pub mcp: bool,
-    /// Provider has a hook mechanism we can wire `ship hook session-end` into.
+    /// Harness has a hook mechanism we can wire `ship hook session-end` into.
     pub hooks: bool,
-    /// Provider supports resuming a prior session in headless/server mode
+    /// Harness supports resuming a prior session in headless/server mode
     /// (codex exec resume, opencode REST sessions).
     pub session_resume: bool,
-    /// The provider process can hold across turns — a long-lived TUI /
+    /// The harness process can hold across turns — a long-lived TUI /
     /// REPL we keep alive and feed new turns to, instead of spawning
     /// fresh per turn. All five CLI agents support this; they're TUIs.
     pub persistent_session: bool,
@@ -52,24 +52,24 @@ pub struct ProviderCapabilities {
     pub push_mechanism: PushMechanism,
 }
 
-/// How a new user turn reaches a long-lived provider process.
+/// How a new user turn reaches a long-lived harness process.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum PushMechanism {
-    /// Provider-specific MCP channel notification (Claude Code's
+    /// Harness-specific MCP channel notification (Claude Code's
     /// `notifications/claude/channel`). Bidirectional, structured.
     Channel,
     /// Write the prompt + newline to the PTY master. Works for any TUI
-    /// that's just a REPL waiting at a prompt. Provider has no inkling
+    /// that's just a REPL waiting at a prompt. Harness has no inkling
     /// it's being driven programmatically.
     Stdin,
     /// Kill the process and respawn with `--resume <session_id>` plus
-    /// the new prompt. Universal fallback — any provider with
+    /// the new prompt. Universal fallback — any harness with
     /// `session_resume = true` supports this.
     #[default]
     Respawn,
 }
 
-impl ProviderCapabilities {
+impl HarnessCapabilities {
     /// Conservative defaults — headless + interactive only, no
     /// persistence story (every turn respawns).
     pub const MINIMAL: Self = Self {
@@ -85,13 +85,13 @@ impl ProviderCapabilities {
     };
 }
 
-/// Complete lifecycle adapter for a provider CLI.
-pub trait ProviderAdapter: Send + Sync {
-    /// Provider identifier (e.g. "claude", "codex").
+/// Complete lifecycle adapter for a harness CLI.
+pub trait HarnessAdapter: Send + Sync {
+    /// Harness identifier (e.g. "claude", "codex").
     fn id(&self) -> &str;
 
-    /// Declarative capability flags — what this provider supports.
-    fn caps(&self) -> ProviderCapabilities;
+    /// Declarative capability flags — what this harness supports.
+    fn caps(&self) -> HarnessCapabilities;
 
     /// Build the CLI command for an interactive (terminal) session.
     fn build_interactive(&self, slug: &str, profile: &LaunchProfile) -> LaunchCommand;
@@ -108,25 +108,25 @@ pub trait ProviderAdapter: Send + Sync {
     /// Command to send for graceful shutdown.
     fn exit_command(&self) -> &str;
 
-    /// Parse a line of stdout from the provider process.
-    fn parse_output(&self, _line: &str) -> Option<ProviderEvent> { None }
+    /// Parse a line of stdout from the harness process.
+    fn parse_output(&self, _line: &str) -> Option<HarnessEvent> { None }
 
     /// Extract session metadata from the work directory after launch.
     fn extract_session_meta(&self, _work_dir: &Path) -> Option<serde_json::Value> { None }
 }
 
-/// Resolve a provider name to its adapter.
-/// Returns Err for unknown providers (no silent default) so a `foo-typo`
+/// Resolve a harness name to its adapter.
+/// Returns Err for unknown harnesses (no silent default) so a `foo-typo`
 /// config doesn't silently run as Claude with weird flags.
-pub fn adapter_for(provider: &str) -> Result<Box<dyn ProviderAdapter>, String> {
-    match provider {
-        "claude" | "claude-code" => Ok(Box::new(super::providers::claude::ClaudeAdapter)),
-        "codex" => Ok(Box::new(super::providers::codex::CodexAdapter)),
-        "cursor" => Ok(Box::new(super::providers::cursor::CursorAdapter)),
-        "gemini" => Ok(Box::new(super::providers::gemini::GeminiAdapter)),
-        "opencode" => Ok(Box::new(super::providers::opencode::OpenCodeAdapter)),
+pub fn adapter_for(harness: &str) -> Result<Box<dyn HarnessAdapter>, String> {
+    match harness {
+        "claude" | "claude-code" => Ok(Box::new(super::harnesses::claude::ClaudeAdapter)),
+        "codex" => Ok(Box::new(super::harnesses::codex::CodexAdapter)),
+        "cursor" => Ok(Box::new(super::harnesses::cursor::CursorAdapter)),
+        "gemini" => Ok(Box::new(super::harnesses::gemini::GeminiAdapter)),
+        "opencode" => Ok(Box::new(super::harnesses::opencode::OpenCodeAdapter)),
         unknown => Err(format!(
-            "unknown provider '{unknown}'. Known: claude, codex, cursor, gemini, opencode."
+            "unknown harness '{unknown}'. Known: claude, codex, cursor, gemini, opencode."
         )),
     }
 }
@@ -134,15 +134,15 @@ pub fn adapter_for(provider: &str) -> Result<Box<dyn ProviderAdapter>, String> {
 /// Convenience: resolve an Option<&str>, falling back to "claude" when None.
 /// Used by executors that want a default for unconfigured pipelines.
 pub fn adapter_for_or_default(
-    provider: Option<&str>,
-) -> Result<Box<dyn ProviderAdapter>, String> {
-    adapter_for(provider.unwrap_or("claude"))
+    harness: Option<&str>,
+) -> Result<Box<dyn HarnessAdapter>, String> {
+    adapter_for(harness.unwrap_or("claude"))
 }
 
-/// Enumerate all known providers and their capabilities.
-/// Used by `ship status --providers` and Studio's provider picker.
-pub fn capabilities() -> Vec<(&'static str, ProviderCapabilities)> {
-    use super::providers::{
+/// Enumerate all known harnesses and their capabilities.
+/// Used by `ship status --harnesses` and Studio's harness picker.
+pub fn capabilities() -> Vec<(&'static str, HarnessCapabilities)> {
+    use super::harnesses::{
         claude::ClaudeAdapter, codex::CodexAdapter, cursor::CursorAdapter,
         gemini::GeminiAdapter, opencode::OpenCodeAdapter,
     };
@@ -160,23 +160,23 @@ mod adapter_for_tests {
     use super::*;
 
     #[test]
-    fn all_providers_advertise_persistent_session() {
+    fn all_harnesses_advertise_persistent_session() {
         // Every TUI agent CLI is a long-lived REPL we can hold across
-        // turns. If a new provider lands without persistent_session=true,
+        // turns. If a new harness lands without persistent_session=true,
         // it'd quietly fall to the legacy per-turn-respawn path; this
         // test pins the parity contract.
         for name in ["claude", "codex", "cursor", "gemini", "opencode"] {
             let adapter = adapter_for(name).unwrap();
             assert!(
                 adapter.caps().persistent_session,
-                "provider '{name}' must support persistent_session"
+                "harness '{name}' must support persistent_session"
             );
         }
     }
 
     #[test]
-    fn push_mechanism_per_provider() {
-        // Pin which mechanism each provider uses. Drift in this map is
+    fn push_mechanism_per_harness() {
+        // Pin which mechanism each harness uses. Drift in this map is
         // a behavior change — surface it in review.
         use PushMechanism::*;
         let expected: &[(&str, PushMechanism)] = &[
@@ -190,7 +190,7 @@ mod adapter_for_tests {
             assert_eq!(
                 adapter_for(name).unwrap().caps().push_mechanism,
                 *want,
-                "provider '{name}' push_mechanism drifted"
+                "harness '{name}' push_mechanism drifted"
             );
         }
     }
@@ -225,7 +225,7 @@ mod adapter_for_tests {
         let result = adapter_for("nonexistent");
         assert!(result.is_err());
         let msg = result.err().unwrap();
-        assert!(msg.contains("unknown provider"), "msg was: {msg}");
+        assert!(msg.contains("unknown harness"), "msg was: {msg}");
         assert!(msg.contains("Known: claude, codex"), "msg was: {msg}");
     }
 
@@ -236,7 +236,7 @@ mod adapter_for_tests {
     }
 
     #[test]
-    fn capabilities_lists_all_five_providers() {
+    fn capabilities_lists_all_five_harnesses() {
         let caps = capabilities();
         let ids: Vec<&str> = caps.iter().map(|(id, _)| *id).collect();
         assert_eq!(ids, vec!["claude", "codex", "cursor", "gemini", "opencode"]);
@@ -264,7 +264,7 @@ mod adapter_for_tests {
 
     #[test]
     fn minimal_caps_are_conservative() {
-        let m = ProviderCapabilities::MINIMAL;
+        let m = HarnessCapabilities::MINIMAL;
         assert!(m.headless);
         assert!(m.interactive);
         assert!(!m.server_mode);

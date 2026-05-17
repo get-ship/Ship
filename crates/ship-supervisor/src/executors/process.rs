@@ -32,7 +32,7 @@ use ship_platform::services::dispatch_ports::{
     ExecutorHandle, ExitCause, ExitSignal, JobContext, JobExecutor, LaunchCommand, LaunchProfile,
 };
 use ship_platform::services::orchestrator::emit::persist_and_route;
-use ship_platform::services::provider_adapter::{adapter_for_or_default, ProviderAdapter};
+use ship_platform::services::harness_adapter::{adapter_for_or_default, HarnessAdapter};
 use ship_substrate::supervisor::{spawn_actor, ActorHandle, ActorKind, ActorProfile, TransportKind};
 
 /// Default prompt injected when the caller didn't supply one.
@@ -43,9 +43,9 @@ const DEFAULT_AUTOSTART_PROMPT: &str = "Read .artifacts/job-spec.md and execute 
 
 /// Build the headless launch command for a job, filling in the default prompt
 /// when the profile doesn't carry one. Extracted so tests can assert the
-/// provider-dispatch shape without actually spawning a process.
+/// harness-dispatch shape without actually spawning a process.
 fn build_headless_with_default_prompt(
-    adapter: &dyn ProviderAdapter,
+    adapter: &dyn HarnessAdapter,
     slug: &str,
     profile: &LaunchProfile,
 ) -> LaunchCommand {
@@ -86,12 +86,12 @@ struct ProcessState {
 #[async_trait]
 impl JobExecutor for ProcessExecutor {
     async fn spawn(&self, ctx: &JobContext) -> Result<ExecutorHandle> {
-        // Non-interactive launch. Dispatch to the provider adapter so each
-        // provider owns its own flags and prompt shape — Claude consumes the
+        // Non-interactive launch. Dispatch to the harness adapter so each
+        // harness owns its own flags and prompt shape — Claude consumes the
         // autostart prompt via `-p`, Codex via `codex exec "<prompt>"`, etc.
-        // `adapter_for_or_default` falls back to Claude when provider is None,
+        // `adapter_for_or_default` falls back to Claude when harness is None,
         // and errors loudly on an unknown name instead of silently defaulting.
-        let adapter = adapter_for_or_default(ctx.launch.provider.as_deref())
+        let adapter = adapter_for_or_default(ctx.launch.harness.as_deref())
             .map_err(|e| anyhow::anyhow!("ProcessExecutor: {e}"))?;
         let launch = build_headless_with_default_prompt(adapter.as_ref(), &ctx.slug, &ctx.launch);
 
@@ -107,7 +107,7 @@ impl JobExecutor for ProcessExecutor {
             kind: ActorKind::PipelineStep,
             // Real PTY so claude/codex see isatty() and stay in their
             // structured-output mode. Headless transport would pipe-
-            // capture stdout but providers detect the lack of a TTY
+            // capture stdout but harnesses detect the lack of a TTY
             // and downgrade formatting.
             transport: TransportKind::Pty,
             one_shot: true,
@@ -117,7 +117,7 @@ impl JobExecutor for ProcessExecutor {
             work_dir: ctx.work_dir.clone(),
             workspace_id: None,
             agent_id: Some(ctx.agent.clone()),
-            provider: ctx.launch.provider.clone(),
+            harness: ctx.launch.harness.clone(),
             parent_actor_id: None,
             log_dir: Some(log_dir),
             subscribe_namespaces: vec![],
@@ -272,21 +272,21 @@ async fn emit_process_killed(
 mod tests {
     use super::*;
 
-    // ── Provider-dispatch tests ────────────────────────────────────────────
+    // ── Harness-dispatch tests ────────────────────────────────────────────
     //
-    // The spawn path now delegates binary + flag construction to the provider
+    // The spawn path now delegates binary + flag construction to the harness
     // adapter. These tests pin that we pick the right adapter and pipe the
     // default autostart prompt when the profile omits one — without actually
-    // exec'ing the provider CLI (which would require codex/claude on PATH).
+    // exec'ing the harness CLI (which would require codex/claude on PATH).
 
     #[test]
-    fn dispatch_uses_codex_adapter_when_provider_is_codex() {
+    fn dispatch_uses_codex_adapter_when_harness_is_codex() {
         let profile = LaunchProfile {
-            provider: Some("codex".to_string()),
+            harness: Some("codex".to_string()),
             persist_session: true,
             ..Default::default()
         };
-        let adapter = adapter_for_or_default(profile.provider.as_deref()).unwrap();
+        let adapter = adapter_for_or_default(profile.harness.as_deref()).unwrap();
         let cmd = build_headless_with_default_prompt(adapter.as_ref(), "my-slug", &profile);
         assert_eq!(cmd.bin, "codex");
         assert_eq!(cmd.args[0], "exec");
@@ -294,9 +294,9 @@ mod tests {
     }
 
     #[test]
-    fn dispatch_defaults_to_claude_when_provider_is_none() {
+    fn dispatch_defaults_to_claude_when_harness_is_none() {
         let profile = LaunchProfile { persist_session: true, ..Default::default() };
-        let adapter = adapter_for_or_default(profile.provider.as_deref()).unwrap();
+        let adapter = adapter_for_or_default(profile.harness.as_deref()).unwrap();
         let cmd = build_headless_with_default_prompt(adapter.as_ref(), "my-slug", &profile);
         assert_eq!(cmd.bin, "claude");
         // Default prompt is injected as the `-p` value (instead of the
@@ -309,12 +309,12 @@ mod tests {
     #[test]
     fn dispatch_preserves_caller_supplied_prompt() {
         let profile = LaunchProfile {
-            provider: Some("codex".to_string()),
+            harness: Some("codex".to_string()),
             autostart_prompt: Some("custom".to_string()),
             persist_session: true,
             ..Default::default()
         };
-        let adapter = adapter_for_or_default(profile.provider.as_deref()).unwrap();
+        let adapter = adapter_for_or_default(profile.harness.as_deref()).unwrap();
         let cmd = build_headless_with_default_prompt(adapter.as_ref(), "s", &profile);
         assert_eq!(cmd.args.last().unwrap(), "custom");
     }
@@ -357,7 +357,7 @@ mod tests {
             work_dir: tmp.path().to_path_buf(),
             workspace_id: None,
             agent_id: None,
-            provider: None,
+            harness: None,
             parent_actor_id: None,
             log_dir: Some(log_dir),
             subscribe_namespaces: vec![],

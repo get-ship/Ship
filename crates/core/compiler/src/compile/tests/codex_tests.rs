@@ -203,16 +203,16 @@ fn codex_sandbox_none_omitted() {
 }
 
 #[test]
-fn codex_sandbox_not_emitted_for_other_providers() {
+fn codex_sandbox_not_emitted_for_other_harnesses() {
     let r = ResolvedConfig {
         codex_sandbox: Some("full".to_string()),
         ..resolved(vec![])
     };
-    for provider in &["claude", "gemini", "cursor"] {
-        let out = compile(&r, provider).unwrap();
+    for harness in &["claude", "gemini", "cursor"] {
+        let out = compile(&r, harness).unwrap();
         assert!(
             out.codex_config_patch.is_none(),
-            "{provider} must not get codex config patch"
+            "{harness} must not get codex config patch"
         );
     }
 }

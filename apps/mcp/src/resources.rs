@@ -11,7 +11,7 @@ pub fn static_resource_list() -> Vec<rmcp::model::Annotated<RawResource>> {
         RawResource::new("ship://workspaces", "Workspaces").no_annotation(),
         RawResource::new("ship://sessions", "Workspace Sessions").no_annotation(),
         RawResource::new("ship://modes", "Modes").no_annotation(),
-        RawResource::new("ship://providers", "Providers").no_annotation(),
+        RawResource::new("ship://harnesses", "Harnesses").no_annotation(),
         RawResource::new("ship://jobs", "Jobs").no_annotation(),
         RawResource::new("ship://log", "Project Log").no_annotation(),
         RawResource::new("ship://events", "Event Stream").no_annotation(),
@@ -66,8 +66,8 @@ pub fn static_resource_template_list() -> Vec<rmcp::model::Annotated<RawResource
             "application/json",
         ),
         tmpl(
-            "ship://workspaces/{branch}/provider-matrix",
-            "Workspace Provider Matrix",
+            "ship://workspaces/{branch}/harness-matrix",
+            "Workspace Harness Matrix",
             "application/json",
         ),
         tmpl(
@@ -81,8 +81,8 @@ pub fn static_resource_template_list() -> Vec<rmcp::model::Annotated<RawResource
             "application/json",
         ),
         tmpl(
-            "ship://providers/{id}/models",
-            "Provider Models",
+            "ship://harnesses/{id}/models",
+            "Harness Models",
             "application/json",
         ),
         tmpl("ship://jobs/{id}", "Job", "application/json"),

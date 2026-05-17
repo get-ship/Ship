@@ -1,7 +1,7 @@
 //! OS-level agent supervision — the daemon-side companion to
 //! `ship-platform`'s orchestrator. Owns the concrete things processes need
 //! that platform crates can't (PTY allocation, tmux subprocess, git
-//! worktree creation, terminal launching, provider-specific signal
+//! worktree creation, terminal launching, harness-specific signal
 //! handling, graceful shutdown).
 //!
 //! The orchestrator in `ship_platform::services::orchestrator` makes all

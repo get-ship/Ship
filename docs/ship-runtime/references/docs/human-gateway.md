@@ -23,7 +23,7 @@ pub struct OutboundMessage {
 
 #[async_trait]
 pub trait NotificationAdapter: Send + Sync {
-    async fn send(&self, msg: &OutboundMessage) -> Result<String>;  // returns provider message id
+    async fn send(&self, msg: &OutboundMessage) -> Result<String>;  // returns harness message id
     fn name(&self) -> &'static str;
 }
 

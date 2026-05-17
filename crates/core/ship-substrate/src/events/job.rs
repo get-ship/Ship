@@ -30,7 +30,7 @@ pub struct JobCreatedPayload {
     pub source_spec_path: Option<String>,
     pub plan_id: Option<String>,
     pub model: Option<String>,
-    pub provider: Option<String>,
+    pub harness: Option<String>,
     #[serde(default)]
     pub depends_on: Option<Vec<String>>,
     /// Legacy linear pipeline. Kept for backward compat.
@@ -77,9 +77,9 @@ pub struct JobDispatchedPayload {
     pub job_id: String,
     pub worktree: String,
     pub pid: Option<u32>,
-    /// Provider-specific session metadata (e.g. Claude session ID for --resume).
+    /// Harness-specific session metadata (e.g. Claude session ID for --resume).
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub provider_meta: Option<serde_json::Value>,
+    pub harness_meta: Option<serde_json::Value>,
 }
 
 /// Emitted when a gate review is requested for the job.
@@ -301,7 +301,7 @@ pub struct StepObservedPayload {
     pub start_sha: Option<String>,
     /// Last ~30 lines of the agent's stdout/stderr log. Populated only on
     /// non-Advance verdicts so operators can see *why* a step failed
-    /// without SSHing into the worktree. ANSI escapes stripped. Provider-
+    /// without SSHing into the worktree. ANSI escapes stripped. Harness-
     /// agnostic — works for any executor that writes to
     /// `.artifacts/agent-<slug>.log` (ProcessExecutor does).
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -434,7 +434,7 @@ mod job_created_payload_tests {
             "spec_path": ".artifacts/job-spec.md",
             "plan_id": null,
             "model": null,
-            "provider": null,
+            "harness": null,
             "source_spec_path": "/abs/path/to/spec.md"
         }"#;
         let p: JobCreatedPayload = serde_json::from_str(json).unwrap();
@@ -458,7 +458,7 @@ mod job_created_payload_tests {
             "spec_path": ".artifacts/job-spec.md",
             "plan_id": null,
             "model": null,
-            "provider": null,
+            "harness": null,
             "baseline_sha": "deadbeefcafe"
         }"#;
         let p: JobCreatedPayload = serde_json::from_str(json).unwrap();
@@ -480,7 +480,7 @@ mod job_created_payload_tests {
             "spec_path": ".artifacts/job-spec.md",
             "plan_id": null,
             "model": null,
-            "provider": null
+            "harness": null
         }"#;
         let p: JobCreatedPayload = serde_json::from_str(legacy_json).unwrap();
         assert!(p.baseline_sha.is_none());
@@ -504,7 +504,7 @@ mod job_created_payload_tests {
             "spec_path": ".artifacts/job-spec.md",
             "plan_id": null,
             "model": null,
-            "provider": null
+            "harness": null
         }"#;
         let p: JobCreatedPayload = serde_json::from_str(legacy_json).unwrap();
         assert!(p.source_spec_path.is_none());

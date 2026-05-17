@@ -1,13 +1,13 @@
-//! ServerExecutor — delegates job execution to a provider's long-lived
+//! ServerExecutor — delegates job execution to a harness's long-lived
 //! server-mode session (codex app-server over JSON-RPC, opencode serve
 //! over HTTP+SSE).
 //!
 //! Unlike `ProcessExecutor` and `TmuxWindowExecutor`, which spawn a
-//! fresh provider CLI per job, `ServerExecutor` reuses a persistent
+//! fresh harness CLI per job, `ServerExecutor` reuses a persistent
 //! connection held by a `ServerSession`. The connection survives across
 //! jobs; each dispatch translates to a "turn" on the session.
 //!
-//! This slice is scaffolding: the per-provider `ServerSession` impls
+//! This slice is scaffolding: the per-harness `ServerSession` impls
 //! land in follow-on slices. The executor is wired to any
 //! `Arc<dyn ServerSession>`, so binding the real impl later is a
 //! one-line swap in the session registry.
@@ -33,9 +33,9 @@ use tokio::sync::Mutex as TokioMutex;
 /// the non-interactive autostart fallback in `ProcessExecutor`.
 const FALLBACK_PROMPT: &str = "Read .artifacts/job-spec.md and execute it autonomously.";
 
-/// Job executor that delegates to a provider's server-mode session.
+/// Job executor that delegates to a harness's server-mode session.
 ///
-/// Selected by `RoutingExecutor` when the provider advertises
+/// Selected by `RoutingExecutor` when the harness advertises
 /// `caps().server_mode` AND a real session is bound in the registry.
 pub(crate) struct ServerExecutor {
     _kernel: Option<Arc<TokioMutex<KernelRouter>>>,
@@ -87,15 +87,15 @@ impl JobExecutor for ServerExecutor {
         let exit_tx = ctx.exit_tx.clone();
         let slug = ctx.slug.clone();
         let job_id = ctx.job_id.clone();
-        let provider = self.session.provider().to_string();
+        let harness = self.session.harness().to_string();
         let turn_id_mon = turn_id.clone();
         tokio::spawn(async move {
-            translate_events(events, exit_tx, slug, job_id, provider, turn_id_mon).await;
+            translate_events(events, exit_tx, slug, job_id, harness, turn_id_mon).await;
         });
 
         tracing::info!(
             slug = ctx.slug,
-            provider = self.session.provider(),
+            harness = self.session.harness(),
             turn_id,
             "server-executor: turn started"
         );
@@ -114,7 +114,7 @@ impl JobExecutor for ServerExecutor {
         // The session monitor fires `ExitSignal` on TurnCompleted / Error;
         // liveness here just confirms the handle targets a session we know
         // about. A richer implementation could query the session for the
-        // turn's state — per-provider impls can override this.
+        // turn's state — per-harness impls can override this.
         handle.inner.downcast_ref::<ServerState>().is_some()
     }
 
@@ -156,13 +156,13 @@ async fn translate_events(
     exit_tx: Option<tokio::sync::mpsc::UnboundedSender<ExitSignal>>,
     slug: String,
     job_id: String,
-    provider: String,
+    harness: String,
     turn_id: String,
 ) {
     while let Some(event) = events.recv().await {
         match event {
             SessionEvent::TurnCompleted { stop_reason } => {
-                tracing::info!(slug, provider, turn_id, stop_reason,
+                tracing::info!(slug, harness, turn_id, stop_reason,
                     "server-executor: turn completed");
                 if let Some(tx) = &exit_tx {
                     let _ = tx.send(ExitSignal {
@@ -175,7 +175,7 @@ async fn translate_events(
                 return;
             }
             SessionEvent::Error { message } => {
-                tracing::warn!(slug, provider, turn_id, %message,
+                tracing::warn!(slug, harness, turn_id, %message,
                     "server-executor: session error");
                 if let Some(tx) = &exit_tx {
                     let _ = tx.send(ExitSignal {
@@ -188,21 +188,21 @@ async fn translate_events(
                 return;
             }
             SessionEvent::TurnStarted { turn_id: t } => {
-                tracing::debug!(slug, provider, turn = t, "server-executor: turn started event");
+                tracing::debug!(slug, harness, turn = t, "server-executor: turn started event");
             }
             SessionEvent::AgentMessage { text } => {
-                tracing::debug!(slug, provider, text_len = text.len(),
+                tracing::debug!(slug, harness, text_len = text.len(),
                     "server-executor: agent message");
             }
             SessionEvent::ToolUse { tool, input_preview } => {
-                tracing::debug!(slug, provider, tool, ?input_preview,
+                tracing::debug!(slug, harness, tool, ?input_preview,
                     "server-executor: tool use");
             }
             SessionEvent::CommandStarted { cmd } => {
-                tracing::debug!(slug, provider, cmd, "server-executor: command started");
+                tracing::debug!(slug, harness, cmd, "server-executor: command started");
             }
             SessionEvent::CommandOutput { stream, line } => {
-                tracing::debug!(slug, provider, stream, line_len = line.len(),
+                tracing::debug!(slug, harness, stream, line_len = line.len(),
                     "server-executor: command output");
             }
         }
@@ -210,7 +210,7 @@ async fn translate_events(
 
     // Channel closed without a terminal event — treat as session
     // destroyed so the liveness sweep can react.
-    tracing::warn!(slug, provider, turn_id,
+    tracing::warn!(slug, harness, turn_id,
         "server-executor: event stream ended without terminal event");
     if let Some(tx) = &exit_tx {
         let _ = tx.send(ExitSignal {

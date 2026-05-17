@@ -20,10 +20,10 @@ pub struct DispatchRequest {
     /// Inline spec body describing what the run should do.
     #[serde(default)]
     pub spec: Option<String>,
-    /// Provider override; when `None`, each step uses whatever the
+    /// Harness override; when `None`, each step uses whatever the
     /// pipeline file declared (or falls back to claude).
     #[serde(default)]
-    pub provider: Option<String>,
+    pub harness: Option<String>,
     /// Model override (e.g. "sonnet"). When `None`, the pipeline step decides.
     #[serde(default)]
     pub model: Option<String>,
@@ -171,7 +171,7 @@ pub async fn dispatch_pipeline(
         source_spec_path: req.source_spec_path,
         plan_id: None,
         model: req.model,
-        provider: req.provider,
+        harness: req.harness,
         depends_on: req.depends_on,
         pipeline: None,
         steps: None,

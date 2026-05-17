@@ -1,7 +1,7 @@
-//! MCP tool pre-approval for each provider.
+//! MCP tool pre-approval for each harness.
 //!
 //! After compilation, `ship use` pre-approves the ship-mcp server tools in
-//! each provider's global or project-local settings so the user is not
+//! each harness's global or project-local settings so the user is not
 //! prompted on every session start.
 
 use anyhow::{Context, Result};
@@ -60,7 +60,7 @@ fn update_json_settings(
     Ok(())
 }
 
-// ── Provider-specific allow-listing ──────────────────────────────────────────
+// ── Harness-specific allow-listing ──────────────────────────────────────────
 
 /// Claude: write `mcp__ship__*` to `~/.claude/settings.json` permissions.allow.
 pub(crate) fn ensure_ship_mcp_allowed_claude() -> Result<()> {

@@ -244,7 +244,7 @@ async fn list_agents_reads_jsonc() {
     "name": "Test Agent",
     "description": "A test agent",
     "skills": ["skill-a"],
-    "providers": ["claude"]
+    "harnesses": ["claude"]
 }"#,
     )
     .unwrap();
@@ -259,7 +259,7 @@ async fn list_agents_reads_jsonc() {
     assert_eq!(agents[0]["name"], "Test Agent");
     assert_eq!(agents[0]["description"], "A test agent");
     assert_eq!(agents[0]["skills"], serde_json::json!(["skill-a"]));
-    assert_eq!(agents[0]["providers"], serde_json::json!(["claude"]));
+    assert_eq!(agents[0]["harnesses"], serde_json::json!(["claude"]));
 }
 
 #[tokio::test(flavor = "multi_thread")]

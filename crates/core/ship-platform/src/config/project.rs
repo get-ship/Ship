@@ -122,10 +122,10 @@ pub struct ProjectConfig {
     pub mcp_servers: Vec<McpServerConfig>,
     #[serde(default, skip_serializing_if = "is_agent_layer_empty")]
     pub agent: AgentLayerConfig,
-    /// Which agent providers to generate config for on branch checkout.
+    /// Which agent harnesses to generate config for on branch checkout.
     /// Alpha: "claude" | "gemini" | "codex". Defaults to ["claude"].
-    #[serde(default = "default_providers", skip_serializing_if = "Vec::is_empty")]
-    pub providers: Vec<String>,
+    #[serde(default = "default_harnesses", skip_serializing_if = "Vec::is_empty")]
+    pub harnesses: Vec<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
@@ -142,7 +142,7 @@ pub fn default_version() -> String {
     "1".to_string()
 }
 
-pub fn default_providers() -> Vec<String> {
+pub fn default_harnesses() -> Vec<String> {
     vec!["claude".to_string()]
 }
 
@@ -156,7 +156,7 @@ impl Default for ProjectConfig {
             agents: Vec::new(),
             mcp_servers: Vec::new(),
             agent: AgentLayerConfig::default(),
-            providers: default_providers(),
+            harnesses: default_harnesses(),
         }
     }
 }

@@ -93,9 +93,9 @@ fn dispatch(command: Option<Commands>) -> Result<()> {
         Some(cmd) => match cmd {
             Commands::Init {
                 global,
-                provider,
+                harness,
                 force: _,
-            } => init::run(global, provider),
+            } => init::run(global, harness),
             Commands::Config { action } => dispatch_config(action),
             Commands::Login => auth::run_login(),
             Commands::Logout => auth::run_logout(),
@@ -116,10 +116,10 @@ fn dispatch(command: Option<Commands>) -> Result<()> {
             } => run_use(Some(&agent_id), path, with_skills),
             Commands::Status { path } => run_status(path),
             Commands::Compile {
-                provider,
+                harness,
                 dry_run,
                 path,
-            } => run_compile_cmd(provider.as_deref(), dry_run, path),
+            } => run_compile_cmd(harness.as_deref(), dry_run, path),
             Commands::Workspace { action } => dispatch_workspace(action),
             Commands::Mcp { action } => dispatch_mcp(action),
             Commands::Convert { source } => convert::run_convert(&source),
@@ -367,7 +367,7 @@ fn run_status(path: Option<PathBuf>) -> Result<()> {
 
 // ── Compile ───────────────────────────────────────────────────────────────────
 
-fn run_compile_cmd(provider: Option<&str>, dry_run: bool, path: Option<PathBuf>) -> Result<()> {
+fn run_compile_cmd(harness: Option<&str>, dry_run: bool, path: Option<PathBuf>) -> Result<()> {
     let project_root = path
         .as_deref()
         .map(std::fs::canonicalize)
@@ -382,7 +382,7 @@ fn run_compile_cmd(provider: Option<&str>, dry_run: bool, path: Option<PathBuf>)
     compile::run_compile(compile::CompileOptions {
         project_root: &project_root,
         output_root: None,
-        provider,
+        harness,
         dry_run,
         active_agent: state.active_agent.as_deref(),
         extra_skills: vec![],

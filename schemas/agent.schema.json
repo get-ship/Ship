@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://raw.githubusercontent.com/madvib/ship/main/schemas/agent.schema.json",
   "title": "Ship Agent Configuration",
-  "description": "Schema for .ship/agents/<id>.jsonc — an agent definition that controls identity, skills, MCP servers, plugins, permissions, hooks, rules, and provider settings.",
+  "description": "Schema for .ship/agents/<id>.jsonc — an agent definition that controls identity, skills, MCP servers, plugins, permissions, hooks, rules, and harness settings.",
   "type": "object",
   "required": ["agent"],
   "properties": {
@@ -47,13 +47,13 @@
           "type": "string",
           "description": "Display icon — emoji or icon name (e.g. '\ud83e\uddea', 'test-tube')."
         },
-        "providers": {
+        "harnesses": {
           "type": "array",
           "items": {
             "type": "string",
             "enum": ["claude", "cursor", "codex", "gemini", "opencode"]
           },
-          "description": "Provider targets for this agent. Overrides the project-level providers list."
+          "description": "Harness targets for this agent. Overrides the project-level harnesses list."
         },
         "role": {
           "type": "string",
@@ -150,9 +150,9 @@
       },
       "additionalProperties": false
     },
-    "provider_settings": {
+    "harness_settings": {
       "type": "object",
-      "description": "Per-agent provider-specific overrides. Merged on top of project-level provider_defaults from ship.jsonc (agent wins on conflict, deep merge). Keys are provider names. Values validated against upstream provider schemas, with Ship-managed keys excluded (use Ship's own fields for permissions, env, hooks, etc.). Set the model here, under the relevant provider key.",
+      "description": "Per-agent harness-specific overrides. Merged on top of project-level harness_defaults from ship.jsonc (agent wins on conflict, deep merge). Keys are harness names. Values validated against upstream harness schemas, with Ship-managed keys excluded (use Ship's own fields for permissions, env, hooks, etc.). Set the model here, under the relevant harness key.",
       "properties": {
         "claude": {
           "allOf": [

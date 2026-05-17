@@ -24,7 +24,7 @@ pub struct ActorProfile {
 
     pub workspace_id: Option<String>,
     pub agent_id: Option<String>,
-    pub provider: Option<String>,
+    pub harness: Option<String>,
     pub parent_actor_id: Option<String>,
 
     /// Optional override for log file location. Defaults to

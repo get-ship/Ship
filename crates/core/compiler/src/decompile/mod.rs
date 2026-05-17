@@ -1,7 +1,7 @@
-//! Decompile — reverse-compile provider-native configs into a [`ProjectLibrary`].
+//! Decompile — reverse-compile harness-native configs into a [`ProjectLibrary`].
 //!
-//! Each provider module parses its native config files and produces a partial
-//! [`ProjectLibrary`]. The caller merges results from multiple providers.
+//! Each harness module parses its native config files and produces a partial
+//! [`ProjectLibrary`]. The caller merges results from multiple harnesses.
 
 mod claude;
 mod claude_mcp;
@@ -48,7 +48,7 @@ pub use cursor::decompile_cursor;
 pub use gemini::decompile_gemini;
 pub use opencode::decompile_opencode;
 
-/// Which providers were detected in a project directory.
+/// Which harnesses were detected in a project directory.
 #[derive(Debug, Default)]
 pub struct DetectedProviders {
     pub claude: bool,
@@ -84,8 +84,8 @@ impl DetectedProviders {
     }
 }
 
-/// Detect which provider configs exist in a project directory.
-pub fn detect_providers(project_root: &Path) -> DetectedProviders {
+/// Detect which harness configs exist in a project directory.
+pub fn detect_harnesses(project_root: &Path) -> DetectedProviders {
     DetectedProviders {
         claude: project_root.join(".claude").is_dir()
             || project_root.join("CLAUDE.md").exists()
@@ -98,13 +98,13 @@ pub fn detect_providers(project_root: &Path) -> DetectedProviders {
     }
 }
 
-/// Decompile all detected providers in a directory into a single [`ProjectLibrary`].
+/// Decompile all detected harnesses in a directory into a single [`ProjectLibrary`].
 ///
-/// MCP servers, rules, permissions, and hooks are merged. Provider-specific
-/// settings go into `provider_defaults`. The caller should write the result
+/// MCP servers, rules, permissions, and hooks are merged. Harness-specific
+/// settings go into `harness_defaults`. The caller should write the result
 /// to `.ship/`.
 pub fn decompile_all(project_root: &Path) -> ProjectLibrary {
-    let detected = detect_providers(project_root);
+    let detected = detect_harnesses(project_root);
     let mut library = ProjectLibrary::default();
 
     if detected.claude {
@@ -135,8 +135,8 @@ pub fn decompile_all(project_root: &Path) -> ProjectLibrary {
     library
 }
 
-/// Merge a provider-specific partial library into the accumulator.
-fn merge_into(target: &mut ProjectLibrary, source: ProjectLibrary, provider_id: &str) {
+/// Merge a harness-specific partial library into the accumulator.
+fn merge_into(target: &mut ProjectLibrary, source: ProjectLibrary, harness_id: &str) {
     // MCP servers — deduplicate by id
     for server in source.mcp_servers {
         if !target.mcp_servers.iter().any(|s| s.id == server.id) {
@@ -144,7 +144,7 @@ fn merge_into(target: &mut ProjectLibrary, source: ProjectLibrary, provider_id: 
         }
     }
 
-    // Rules — append (no dedup; different providers may have different context files)
+    // Rules — append (no dedup; different harnesses may have different context files)
     target.rules.extend(source.rules);
 
     // Permissions — merge tool lists (union)
@@ -171,9 +171,9 @@ fn merge_into(target: &mut ProjectLibrary, source: ProjectLibrary, provider_id: 
     // Env — merge (source wins on conflict)
     target.env.extend(source.env);
 
-    // Provider defaults — merge in
-    for (k, v) in source.provider_defaults {
-        target.provider_defaults.insert(k, v);
+    // Harness defaults — merge in
+    for (k, v) in source.harness_defaults {
+        target.harness_defaults.insert(k, v);
     }
 
     // Scalar fields — take from source if set
@@ -185,7 +185,7 @@ fn merge_into(target: &mut ProjectLibrary, source: ProjectLibrary, provider_id: 
     }
 
     // Claude-specific fields
-    if provider_id == "claude" {
+    if harness_id == "claude" {
         target.claude_settings_extra = source.claude_settings_extra;
         target.claude_theme = source.claude_theme;
         target.claude_auto_updates = source.claude_auto_updates;
@@ -194,7 +194,7 @@ fn merge_into(target: &mut ProjectLibrary, source: ProjectLibrary, provider_id: 
     }
 
     // Codex-specific fields
-    if provider_id == "codex" {
+    if harness_id == "codex" {
         target.codex_settings_extra = source.codex_settings_extra;
         target.codex_sandbox = source.codex_sandbox;
         target.codex_approval_policy = source.codex_approval_policy;
@@ -207,7 +207,7 @@ fn merge_into(target: &mut ProjectLibrary, source: ProjectLibrary, provider_id: 
     }
 
     // Gemini-specific fields
-    if provider_id == "gemini" {
+    if harness_id == "gemini" {
         target.gemini_settings_extra = source.gemini_settings_extra;
         target.gemini_default_approval_mode = source.gemini_default_approval_mode;
         target.gemini_max_session_turns = source.gemini_max_session_turns;
@@ -217,7 +217,7 @@ fn merge_into(target: &mut ProjectLibrary, source: ProjectLibrary, provider_id: 
     }
 
     // Cursor-specific fields
-    if provider_id == "cursor" {
+    if harness_id == "cursor" {
         target.cursor_settings_extra = source.cursor_settings_extra;
         target.cursor_environment = source.cursor_environment;
     }

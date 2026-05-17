@@ -24,7 +24,7 @@ fn compile_with_deny_writes_claude_settings() {
     run_compile(CompileOptions {
         project_root: tmp.path(),
         output_root: None,
-        provider: Some("claude"),
+        harness: Some("claude"),
         dry_run: false,
         active_agent: None,
         extra_skills: vec![],
@@ -45,14 +45,14 @@ fn compile_with_mode_applies_permissions() {
         tmp.path(),
         ".ship/agents/readonly.jsonc",
         r#"{
-  "agent": { "id": "readonly", "name": "ReadOnly", "providers": ["claude"] },
+  "agent": { "id": "readonly", "name": "ReadOnly", "harnesses": ["claude"] },
   "permissions": { "preset": "ship-readonly" }
 }"#,
     );
     run_compile(CompileOptions {
         project_root: tmp.path(),
         output_root: None,
-        provider: Some("claude"),
+        harness: Some("claude"),
         dry_run: false,
         active_agent: Some("readonly"),
         extra_skills: vec![],
@@ -74,14 +74,14 @@ fn compile_with_mode_inline_rules_adds_to_context() {
         tmp.path(),
         ".ship/agents/strict.jsonc",
         r#"{
-  "agent": { "id": "strict", "name": "Strict", "providers": ["claude"] },
+  "agent": { "id": "strict", "name": "Strict", "harnesses": ["claude"] },
   "rules": { "inline": "Never delete files without explicit confirmation." }
 }"#,
     );
     run_compile(CompileOptions {
         project_root: tmp.path(),
         output_root: None,
-        provider: Some("claude"),
+        harness: Some("claude"),
         dry_run: false,
         active_agent: Some("strict"),
         extra_skills: vec![],
@@ -99,14 +99,14 @@ fn compile_with_profile_stop_hook_emits_to_settings() {
         tmp.path(),
         ".ship/agents/commander.jsonc",
         r#"{
-  "agent": { "id": "commander", "name": "Commander", "providers": ["claude"] },
+  "agent": { "id": "commander", "name": "Commander", "harnesses": ["claude"] },
   "hooks": { "stop": "ship permissions sync" }
 }"#,
     );
     run_compile(CompileOptions {
         project_root: tmp.path(),
         output_root: None,
-        provider: Some("claude"),
+        harness: Some("claude"),
         dry_run: false,
         active_agent: Some("commander"),
         extra_skills: vec![],
@@ -149,14 +149,14 @@ fn compile_with_mode_uses_permissions_jsonc_preset() {
         tmp.path(),
         ".ship/agents/fast.jsonc",
         r#"{
-  "agent": { "id": "fast", "name": "Fast", "providers": ["claude"] },
+  "agent": { "id": "fast", "name": "Fast", "harnesses": ["claude"] },
   "permissions": { "preset": "ship-fast" }
 }"#,
     );
     run_compile(CompileOptions {
         project_root: tmp.path(),
         output_root: None,
-        provider: Some("claude"),
+        harness: Some("claude"),
         dry_run: false,
         active_agent: Some("fast"),
         extra_skills: vec![],
@@ -185,14 +185,14 @@ fn compile_with_bypass_permissions_mode_writes_default_mode() {
         tmp.path(),
         ".ship/agents/autonomous.jsonc",
         r#"{
-  "agent": { "id": "autonomous", "name": "Autonomous", "providers": ["claude"] },
+  "agent": { "id": "autonomous", "name": "Autonomous", "harnesses": ["claude"] },
   "permissions": { "default_mode": "bypassPermissions" }
 }"#,
     );
     run_compile(CompileOptions {
         project_root: tmp.path(),
         output_root: None,
-        provider: Some("claude"),
+        harness: Some("claude"),
         dry_run: false,
         active_agent: Some("autonomous"),
         extra_skills: vec![],

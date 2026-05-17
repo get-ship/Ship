@@ -20,7 +20,7 @@ fn agent_step(id: &str, agent: &str) -> PipelineStep {
         goal: None,
         after: vec![],
         model: None,
-        provider: None,
+        harness: None,
         command: None,
         max_retries: None,
         gate: None,
@@ -36,7 +36,7 @@ fn lane(id: &str, agent: &str) -> FanoutLane {
         id: id.into(),
         agent: agent.into(),
         model: None,
-        provider: None,
+        harness: None,
     }
 }
 
@@ -53,7 +53,7 @@ fn base_payload(
         source_spec_path: None,
         plan_id: None,
         model: None,
-        provider: None,
+        harness: None,
         depends_on: None,
         pipeline: None,
         steps: Some(Pipeline { steps, auto_merge: false }),
@@ -273,7 +273,7 @@ fn lane_with_empty_agent_fails_validation() {
     let fanout_step = PipelineStep {
         id: "draft".into(),
         fanout: Some(FanoutSpec {
-            lanes: vec![FanoutLane { id: "l1".into(), agent: "".into(), model: None, provider: None }],
+            lanes: vec![FanoutLane { id: "l1".into(), agent: "".into(), model: None, harness: None }],
             judge: FanoutJudge { step: "choose".into() },
             min_successful_lanes: 1,
         }),

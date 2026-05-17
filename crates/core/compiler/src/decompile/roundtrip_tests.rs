@@ -1,6 +1,6 @@
 //! Round-trip tests: compile → write → decompile → assert key fields preserved.
 //!
-//! These tests verify that compiling a ProjectLibrary to provider-native configs
+//! These tests verify that compiling a ProjectLibrary to harness-native configs
 //! and then decompiling back produces equivalent results for fields we support.
 
 use std::io::Write as _;

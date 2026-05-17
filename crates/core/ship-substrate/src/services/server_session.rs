@@ -1,4 +1,4 @@
-//! Persistent connection to a provider's server-mode endpoint.
+//! Persistent connection to a harness's server-mode endpoint.
 //!
 //! Codex exposes a JSON-RPC app-server over stdio; OpenCode exposes an
 //! HTTP+SSE server. Both are designed for long-lived orchestrator
@@ -6,23 +6,23 @@
 //! abstracts over their differences so `ServerExecutor` can delegate
 //! turns + cancellation without knowing the wire protocol.
 //!
-//! Per-provider implementations land in follow-on slices
-//! (`provider-codex-02`, `provider-opencode-02`). This module provides
+//! Per-harness implementations land in follow-on slices
+//! (`harness-codex-02`, `harness-opencode-02`). This module provides
 //! the trait, the event vocabulary, and a `StubSession` used for tests
 //! and as the placeholder until real sessions are bound.
 //!
-//! Events flow from provider -> `SessionEvent` -> (executor) -> ship's
+//! Events flow from harness -> `SessionEvent` -> (executor) -> ship's
 //! `process.*` / `executor.*` envelopes. Keeping the vocabulary
-//! provider-agnostic means the executor's event-mapping lives in one
+//! harness-agnostic means the executor's event-mapping lives in one
 //! place instead of every adapter.
 
 use anyhow::Result;
 use async_trait::async_trait;
 use tokio::sync::mpsc::UnboundedReceiver;
 
-/// Stream event from a provider's server-mode connection.
+/// Stream event from a harness's server-mode connection.
 ///
-/// Kept provider-agnostic so the executor's mapping layer (to ship's
+/// Kept harness-agnostic so the executor's mapping layer (to ship's
 /// `process.*` / `executor.*` envelopes) can be a single match. Codex
 /// emits `ToolCall*`, `AgentMessage*`, `ExecCommand*`, etc. over JSON-RPC;
 /// OpenCode emits analogous SSE events. Both funnel through this enum.
@@ -37,9 +37,9 @@ pub enum SessionEvent {
     Error { message: String },
 }
 
-/// Long-lived session with a provider's server-mode endpoint.
+/// Long-lived session with a harness's server-mode endpoint.
 ///
-/// One `ServerSession` per live provider connection. A turn is the unit
+/// One `ServerSession` per live harness connection. A turn is the unit
 /// of work: submit a prompt, stream events until `TurnCompleted` (or
 /// `Error`), optionally cancel. `close` tears down the underlying
 /// transport. All methods are idempotent-safe — `cancel` on an unknown
@@ -47,8 +47,8 @@ pub enum SessionEvent {
 /// closed session.
 #[async_trait]
 pub trait ServerSession: Send + Sync {
-    /// Provider id (matches `ProviderAdapter::id`).
-    fn provider(&self) -> &str;
+    /// Harness id (matches `HarnessAdapter::id`).
+    fn harness(&self) -> &str;
 
     /// Submit a turn; returns the turn id immediately. Streamed events
     /// arrive via `subscribe`.
@@ -65,37 +65,37 @@ pub trait ServerSession: Send + Sync {
     async fn close(&self) -> Result<()>;
 }
 
-/// Stub session used by tests + as the placeholder until per-provider
-/// implementations (`provider-codex-02`, `provider-opencode-02`) land.
+/// Stub session used by tests + as the placeholder until per-harness
+/// implementations (`harness-codex-02`, `harness-opencode-02`) land.
 /// Errors loudly when `start_turn`/`subscribe` are called so a
 /// misrouted job doesn't silently appear to succeed.
 pub struct StubSession {
-    pub provider: String,
+    pub harness: String,
 }
 
 impl StubSession {
-    pub fn new(provider: impl Into<String>) -> Self {
-        Self { provider: provider.into() }
+    pub fn new(harness: impl Into<String>) -> Self {
+        Self { harness: harness.into() }
     }
 }
 
 #[async_trait]
 impl ServerSession for StubSession {
-    fn provider(&self) -> &str {
-        &self.provider
+    fn harness(&self) -> &str {
+        &self.harness
     }
 
     async fn start_turn(&self, _prompt: &str) -> Result<String> {
         anyhow::bail!(
             "StubSession::start_turn called — no real ServerSession bound for '{}'",
-            self.provider
+            self.harness
         )
     }
 
     async fn subscribe(&self, _turn_id: &str) -> Result<UnboundedReceiver<SessionEvent>> {
         anyhow::bail!(
             "StubSession::subscribe called — no real ServerSession bound for '{}'",
-            self.provider
+            self.harness
         )
     }
 
@@ -113,7 +113,7 @@ mod tests {
     use super::*;
 
     #[tokio::test]
-    async fn stub_session_start_turn_errors_with_provider_name() {
+    async fn stub_session_start_turn_errors_with_harness_name() {
         let s = StubSession::new("codex");
         let err = s.start_turn("hi").await.unwrap_err();
         let msg = err.to_string();
@@ -122,7 +122,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn stub_session_subscribe_errors_with_provider_name() {
+    async fn stub_session_subscribe_errors_with_harness_name() {
         let s = StubSession::new("opencode");
         let err = s.subscribe("t-1").await.unwrap_err();
         let msg = err.to_string();
@@ -138,8 +138,8 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn stub_session_provider_reflects_construction() {
+    async fn stub_session_harness_reflects_construction() {
         let s = StubSession::new("opencode");
-        assert_eq!(s.provider(), "opencode");
+        assert_eq!(s.harness(), "opencode");
     }
 }

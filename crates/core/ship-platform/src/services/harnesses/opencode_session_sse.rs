@@ -56,7 +56,7 @@ pub(super) fn parse_sse_frame(frame: &str) -> Option<(String, Value)> {
 }
 
 /// Map an `opencode serve` SSE event `type` + `properties` payload to a
-/// provider-agnostic `SessionEvent`. Unknown types are silently ignored
+/// harness-agnostic `SessionEvent`. Unknown types are silently ignored
 /// so new opencode event names don't break the loop.
 pub(super) fn map_sse_event_to_session_event(
     event_type: &str,

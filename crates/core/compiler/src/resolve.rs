@@ -15,8 +15,8 @@ pub struct WorkspaceOverrides {
     pub mcp_servers: Vec<String>,
     /// Restrict to these skill IDs (empty = no restriction)
     pub skills: Vec<String>,
-    /// Override provider list (empty = use project default)
-    pub providers: Vec<String>,
+    /// Override harness list (empty = use project default)
+    pub harnesses: Vec<String>,
 }
 
 /// Fully resolved, in-memory agent configuration.
@@ -25,7 +25,7 @@ pub struct WorkspaceOverrides {
 /// No filesystem access occurs during resolution.
 #[derive(Debug, Clone)]
 pub struct ResolvedConfig {
-    pub providers: Vec<String>,
+    pub harnesses: Vec<String>,
     pub model: Option<String>,
     pub max_cost_per_session: Option<f64>,
     pub max_turns: Option<u32>,
@@ -38,18 +38,18 @@ pub struct ResolvedConfig {
     /// Plugin install intent declared by the active preset.
     /// Passed through unchanged from `ProjectLibrary::plugins`.
     pub plugins: PluginsManifest,
-    /// Arbitrary extra settings for the Claude provider.
-    /// Pass-through from `[provider_settings.claude]` in the preset TOML.
+    /// Arbitrary extra settings for the Claude harness.
+    /// Pass-through from `[harness_settings.claude]` in the preset TOML.
     /// Merged verbatim into `.claude/settings.json`.
     pub claude_settings_extra: Option<serde_json::Value>,
     /// Agent profiles parsed from `.ship/agents/*.toml`.
-    /// Compiled into provider-native subagent definitions.
+    /// Compiled into harness-native subagent definitions.
     pub agent_profiles: Vec<AgentProfile>,
-    /// Team agent files for the Claude provider (legacy passthrough).
+    /// Team agent files for the Claude harness (legacy passthrough).
     /// Source: `.ship/agents/teams/claude/<name>.md`.
     /// Output: `.claude/agents/<name>.md`.
     pub claude_team_agents: Vec<(String, String)>,
-    /// Environment variables to inject into provider settings.
+    /// Environment variables to inject into harness settings.
     /// Source: `agents/env.toml` or `[env]` in preset TOML.
     /// Claude: `env` field in `.claude/settings.json`.
     pub env: std::collections::HashMap<String, String>,
@@ -58,14 +58,14 @@ pub struct ResolvedConfig {
     pub available_models: Vec<String>,
     /// Codex sandbox mode — translated key/value before emit.
     pub codex_sandbox: Option<String>,
-    // ── Gemini provider settings ───────────────────────────────────────────────
+    // ── Gemini harness settings ───────────────────────────────────────────────
     pub gemini_default_approval_mode: Option<String>,
     pub gemini_max_session_turns: Option<u32>,
     pub gemini_disable_yolo_mode: Option<bool>,
     pub gemini_disable_always_allow: Option<bool>,
     pub gemini_tools_sandbox: Option<String>,
     pub gemini_settings_extra: Option<serde_json::Value>,
-    // ── Codex provider settings ────────────────────────────────────────────────
+    // ── Codex harness settings ────────────────────────────────────────────────
     pub codex_approval_policy: Option<String>,
     pub codex_reasoning_effort: Option<String>,
     pub codex_max_threads: Option<u32>,
@@ -74,12 +74,12 @@ pub struct ResolvedConfig {
     pub codex_shell_env_policy: Option<String>,
     pub codex_notify: Option<serde_json::Value>,
     pub codex_settings_extra: Option<serde_json::Value>,
-    // ── OpenCode provider settings ────────────────────────────────────────────
+    // ── OpenCode harness settings ────────────────────────────────────────────
     pub opencode_settings_extra: Option<serde_json::Value>,
-    // ── Cursor provider settings ───────────────────────────────────────────────
+    // ── Cursor harness settings ───────────────────────────────────────────────
     pub cursor_environment: Option<serde_json::Value>,
     pub cursor_settings_extra: Option<serde_json::Value>,
-    // ── Claude provider settings ───────────────────────────────────────────────
+    // ── Claude harness settings ───────────────────────────────────────────────
     pub claude_theme: Option<String>,
     pub claude_auto_updates: Option<bool>,
     pub claude_include_co_authored_by: Option<bool>,
@@ -101,7 +101,7 @@ pub struct ResolvedConfig {
 /// Resolution order (highest wins):
 /// 1. Project defaults (manifest types + `agents/` content)
 /// 2. Active mode filter (restricts servers/skills/rules)
-/// 3. Feature overrides (model, providers, additional server/skill filter)
+/// 3. Feature overrides (model, harnesses, additional server/skill filter)
 ///
 /// A self-contained library of agent config assets loaded from the `agents/`
 /// directory. This is the primary input for the compiler in the new config model:
@@ -133,11 +133,11 @@ pub struct ProjectLibrary {
     /// Plugin install intent from the active preset's `[plugins]` section.
     #[serde(default)]
     pub plugins: PluginsManifest,
-    /// Project-level provider defaults from `project.provider_defaults` in `ship.jsonc`.
+    /// Project-level harness defaults from `project.harness_defaults` in `ship.jsonc`.
     /// Merged as base under agent-level `*_settings_extra` during resolution.
     #[serde(default, skip_serializing_if = "std::collections::HashMap::is_empty")]
-    pub provider_defaults: std::collections::HashMap<String, serde_json::Value>,
-    /// Pass-through from `[provider_settings.claude]` in the active preset.
+    pub harness_defaults: std::collections::HashMap<String, serde_json::Value>,
+    /// Pass-through from `[harness_settings.claude]` in the active preset.
     /// Merged verbatim into `.claude/settings.json` on compile.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub claude_settings_extra: Option<serde_json::Value>,
@@ -147,7 +147,7 @@ pub struct ProjectLibrary {
     /// Team agent files: `.ship/agents/teams/claude/<name>.md` → `.claude/agents/<name>.md`.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub claude_team_agents: Vec<(String, String)>,
-    /// Environment variables: KEY=VALUE pairs injected into provider settings.
+    /// Environment variables: KEY=VALUE pairs injected into harness settings.
     #[serde(default, skip_serializing_if = "std::collections::HashMap::is_empty")]
     pub env: std::collections::HashMap<String, String>,
     /// Restrict model picker to these IDs.
@@ -160,7 +160,7 @@ pub struct ProjectLibrary {
     /// Shared model override used by Gemini + Codex when no feature override present.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub model: Option<String>,
-    // ── Gemini provider settings ───────────────────────────────────────────────
+    // ── Gemini harness settings ───────────────────────────────────────────────
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub gemini_default_approval_mode: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -173,7 +173,7 @@ pub struct ProjectLibrary {
     pub gemini_tools_sandbox: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub gemini_settings_extra: Option<serde_json::Value>,
-    // ── Codex provider settings ────────────────────────────────────────────────
+    // ── Codex harness settings ────────────────────────────────────────────────
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub codex_approval_policy: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -190,15 +190,15 @@ pub struct ProjectLibrary {
     pub codex_notify: Option<serde_json::Value>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub codex_settings_extra: Option<serde_json::Value>,
-    // ── OpenCode provider settings ────────────────────────────────────────────
+    // ── OpenCode harness settings ────────────────────────────────────────────
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub opencode_settings_extra: Option<serde_json::Value>,
-    // ── Cursor provider settings ───────────────────────────────────────────────
+    // ── Cursor harness settings ───────────────────────────────────────────────
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cursor_environment: Option<serde_json::Value>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cursor_settings_extra: Option<serde_json::Value>,
-    // ── Claude provider settings ───────────────────────────────────────────────
+    // ── Claude harness settings ───────────────────────────────────────────────
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub claude_theme: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -212,10 +212,10 @@ pub struct ProjectLibrary {
     pub studio_port: Option<u16>,
 }
 
-/// Merge provider_defaults (base) with *_settings_extra (agent override).
+/// Merge harness_defaults (base) with *_settings_extra (agent override).
 /// Returns the merged value, or None if both are None. Deep-merge logic is
 /// delegated to [`crate::output::merge_json`] — single canonical impl.
-fn merge_provider_extra(
+fn merge_harness_extra(
     defaults: Option<&serde_json::Value>,
     agent_extra: Option<&serde_json::Value>,
 ) -> Option<serde_json::Value> {
@@ -259,10 +259,10 @@ pub fn resolve_library(
         active_agent_override.as_deref(),
     );
     resolved.plugins = library.plugins.clone();
-    // Merge provider_defaults with agent-level *_settings_extra.
-    // provider_defaults is the base; *_settings_extra is the agent override.
-    resolved.claude_settings_extra = merge_provider_extra(
-        library.provider_defaults.get("claude"),
+    // Merge harness_defaults with agent-level *_settings_extra.
+    // harness_defaults is the base; *_settings_extra is the agent override.
+    resolved.claude_settings_extra = merge_harness_extra(
+        library.harness_defaults.get("claude"),
         library.claude_settings_extra.as_ref(),
     );
     resolved.agent_profiles = library.agent_profiles.clone();
@@ -280,8 +280,8 @@ pub fn resolve_library(
     resolved.gemini_disable_yolo_mode = library.gemini_disable_yolo_mode;
     resolved.gemini_disable_always_allow = library.gemini_disable_always_allow;
     resolved.gemini_tools_sandbox = library.gemini_tools_sandbox.clone();
-    resolved.gemini_settings_extra = merge_provider_extra(
-        library.provider_defaults.get("gemini"),
+    resolved.gemini_settings_extra = merge_harness_extra(
+        library.harness_defaults.get("gemini"),
         library.gemini_settings_extra.as_ref(),
     );
     // Codex settings
@@ -292,19 +292,19 @@ pub fn resolve_library(
     resolved.codex_job_max_runtime_seconds = library.codex_job_max_runtime_seconds;
     resolved.codex_shell_env_policy = library.codex_shell_env_policy.clone();
     resolved.codex_notify = library.codex_notify.clone();
-    resolved.codex_settings_extra = merge_provider_extra(
-        library.provider_defaults.get("codex"),
+    resolved.codex_settings_extra = merge_harness_extra(
+        library.harness_defaults.get("codex"),
         library.codex_settings_extra.as_ref(),
     );
     // OpenCode settings
-    resolved.opencode_settings_extra = merge_provider_extra(
-        library.provider_defaults.get("opencode"),
+    resolved.opencode_settings_extra = merge_harness_extra(
+        library.harness_defaults.get("opencode"),
         library.opencode_settings_extra.as_ref(),
     );
     // Cursor settings
     resolved.cursor_environment = library.cursor_environment.clone();
-    resolved.cursor_settings_extra = merge_provider_extra(
-        library.provider_defaults.get("cursor"),
+    resolved.cursor_settings_extra = merge_harness_extra(
+        library.harness_defaults.get("cursor"),
         library.cursor_settings_extra.as_ref(),
     );
     // Claude settings
@@ -333,7 +333,7 @@ pub fn resolve(
     feature: Option<&WorkspaceOverrides>,
     active_agent_override: Option<&str>,
 ) -> ResolvedConfig {
-    // ── Active agent (resolved first — needed for provider target_agents) ─────
+    // ── Active agent (resolved first — needed for harness target_agents) ─────
     let active_agent = active_agent_override
         .map(str::trim)
         .filter(|v| !v.is_empty())
@@ -343,30 +343,30 @@ pub fn resolve(
         .as_deref()
         .and_then(|id| config.agents.iter().find(|a| a.id == id));
 
-    // ── Providers ─────────────────────────────────────────────────────────────
+    // ── Harnesses ─────────────────────────────────────────────────────────────
     // Resolution priority (highest wins):
-    // 1. Feature/workspace explicit providers — propagate even if empty (unknown
-    //    providers → empty rather than silent fallback).
+    // 1. Feature/workspace explicit harnesses — propagate even if empty (unknown
+    //    harnesses → empty rather than silent fallback).
     // 2. Agent target_agents — when an agent is active and specifies target agents.
-    // 3. Project-level providers.
+    // 3. Project-level harnesses.
     // 4. Default: ["claude"].
-    let feature_has_explicit = feature.is_some_and(|f| !f.providers.is_empty());
-    let feature_providers = feature
-        .filter(|f| !f.providers.is_empty())
-        .map(|f| normalize_providers(&f.providers))
+    let feature_has_explicit = feature.is_some_and(|f| !f.harnesses.is_empty());
+    let feature_harnesses = feature
+        .filter(|f| !f.harnesses.is_empty())
+        .map(|f| normalize_harnesses(&f.harnesses))
         .unwrap_or_default();
 
-    let providers = if feature_has_explicit {
-        feature_providers
+    let harnesses = if feature_has_explicit {
+        feature_harnesses
     } else {
-        let agent_providers = agent
+        let agent_harnesses = agent
             .filter(|m| !m.target_agents.is_empty())
-            .map(|m| normalize_providers(&m.target_agents))
+            .map(|m| normalize_harnesses(&m.target_agents))
             .unwrap_or_default();
-        if !agent_providers.is_empty() {
-            agent_providers
+        if !agent_harnesses.is_empty() {
+            agent_harnesses
         } else {
-            let project = normalize_providers(&config.providers);
+            let project = normalize_harnesses(&config.harnesses);
             if project.is_empty() {
                 vec!["claude".to_string()]
             } else {
@@ -377,7 +377,7 @@ pub fn resolve(
 
     // ── Model ─────────────────────────────────────────────────────────────────
     // Model comes from the feature/workspace override only — there's no
-    // project-level default. The provider's CLI picks its own when none
+    // project-level default. The harness's CLI picks its own when none
     // is specified.
     let model = feature.and_then(|f| f.model.clone());
 
@@ -409,7 +409,7 @@ pub fn resolve(
     }
 
     ResolvedConfig {
-        providers,
+        harnesses,
         model,
         max_cost_per_session,
         max_turns,
@@ -453,7 +453,7 @@ pub fn resolve(
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-fn normalize_providers(ids: &[String]) -> Vec<String> {
+fn normalize_harnesses(ids: &[String]) -> Vec<String> {
     let mut seen = HashSet::new();
     let mut out = Vec::new();
     for raw in ids {
@@ -560,20 +560,20 @@ mod tests {
     }
 
     #[test]
-    fn default_provider_is_claude() {
+    fn default_harness_is_claude() {
         let config = ProjectConfig::default();
         let resolved = resolve(&config, &[], &[], &Permissions::default(), &[], None, None);
-        assert_eq!(resolved.providers, vec!["claude"]);
+        assert_eq!(resolved.harnesses, vec!["claude"]);
     }
 
     #[test]
-    fn feature_overrides_providers() {
+    fn feature_overrides_harnesses() {
         let config = ProjectConfig {
-            providers: vec!["gemini".to_string()],
+            harnesses: vec!["gemini".to_string()],
             ..Default::default()
         };
         let feature = WorkspaceOverrides {
-            providers: vec!["codex".to_string()],
+            harnesses: vec!["codex".to_string()],
             ..Default::default()
         };
         let resolved = resolve(
@@ -585,7 +585,7 @@ mod tests {
             Some(&feature),
             None,
         );
-        assert_eq!(resolved.providers, vec!["codex"]);
+        assert_eq!(resolved.harnesses, vec!["codex"]);
     }
 
     #[test]
@@ -617,22 +617,22 @@ mod tests {
         assert_eq!(resolved.skills[0].id, "alpha");
     }
 
-    // ── Provider normalization ─────────────────────────────────────────────
+    // ── Harness normalization ─────────────────────────────────────────────
 
     #[test]
-    fn providers_normalized_to_lowercase() {
+    fn harnesses_normalized_to_lowercase() {
         let config = ProjectConfig {
-            providers: vec!["CLAUDE".to_string(), "Gemini".to_string()],
+            harnesses: vec!["CLAUDE".to_string(), "Gemini".to_string()],
             ..Default::default()
         };
         let resolved = resolve(&config, &[], &[], &Permissions::default(), &[], None, None);
-        assert_eq!(resolved.providers, vec!["claude", "gemini"]);
+        assert_eq!(resolved.harnesses, vec!["claude", "gemini"]);
     }
 
     #[test]
-    fn duplicate_providers_deduplicated() {
+    fn duplicate_harnesses_deduplicated() {
         let config = ProjectConfig {
-            providers: vec![
+            harnesses: vec![
                 "claude".to_string(),
                 "Claude".to_string(),
                 "CLAUDE".to_string(),
@@ -640,45 +640,45 @@ mod tests {
             ..Default::default()
         };
         let resolved = resolve(&config, &[], &[], &Permissions::default(), &[], None, None);
-        assert_eq!(resolved.providers, vec!["claude"]);
+        assert_eq!(resolved.harnesses, vec!["claude"]);
     }
 
     #[test]
-    fn unknown_providers_dropped() {
+    fn unknown_harnesses_dropped() {
         let config = ProjectConfig {
-            providers: vec!["claude".to_string(), "unknown-ai".to_string()],
+            harnesses: vec!["claude".to_string(), "unknown-ai".to_string()],
             ..Default::default()
         };
         let resolved = resolve(&config, &[], &[], &Permissions::default(), &[], None, None);
-        assert_eq!(resolved.providers, vec!["claude"]);
+        assert_eq!(resolved.harnesses, vec!["claude"]);
     }
 
     #[test]
-    fn empty_and_whitespace_providers_dropped() {
+    fn empty_and_whitespace_harnesses_dropped() {
         let config = ProjectConfig {
-            providers: vec!["".to_string(), "  ".to_string(), "claude".to_string()],
+            harnesses: vec!["".to_string(), "  ".to_string(), "claude".to_string()],
             ..Default::default()
         };
         let resolved = resolve(&config, &[], &[], &Permissions::default(), &[], None, None);
-        assert_eq!(resolved.providers, vec!["claude"]);
+        assert_eq!(resolved.harnesses, vec!["claude"]);
     }
 
     #[test]
-    fn all_invalid_providers_falls_back_to_claude() {
+    fn all_invalid_harnesses_falls_back_to_claude() {
         let config = ProjectConfig {
-            providers: vec!["invalid".to_string(), "".to_string()],
+            harnesses: vec!["invalid".to_string(), "".to_string()],
             ..Default::default()
         };
         let resolved = resolve(&config, &[], &[], &Permissions::default(), &[], None, None);
-        assert_eq!(resolved.providers, vec!["claude"]);
+        assert_eq!(resolved.harnesses, vec!["claude"]);
     }
 
     // ── Mode target_agents ─────────────────────────────────────────────────
 
     #[test]
-    fn mode_target_agents_overrides_project_providers() {
+    fn mode_target_agents_overrides_project_harnesses() {
         let config = ProjectConfig {
-            providers: vec!["gemini".to_string()],
+            harnesses: vec!["gemini".to_string()],
             agents: vec![AgentConfig {
                 id: "cursor-mode".to_string(),
                 name: "Cursor Mode".to_string(),
@@ -688,11 +688,11 @@ mod tests {
             ..Default::default()
         };
         let resolved = resolve(&config, &[], &[], &Permissions::default(), &[], None, Some("cursor-mode"));
-        assert_eq!(resolved.providers, vec!["cursor"]);
+        assert_eq!(resolved.harnesses, vec!["cursor"]);
     }
 
     #[test]
-    fn feature_providers_override_mode_target_agents() {
+    fn feature_harnesses_override_mode_target_agents() {
         let config = ProjectConfig {
             agents: vec![AgentConfig {
                 id: "mode1".to_string(),
@@ -703,7 +703,7 @@ mod tests {
             ..Default::default()
         };
         let feature = WorkspaceOverrides {
-            providers: vec!["codex".to_string()],
+            harnesses: vec!["codex".to_string()],
             ..Default::default()
         };
         let resolved = resolve(
@@ -715,7 +715,7 @@ mod tests {
             Some(&feature),
             None,
         );
-        assert_eq!(resolved.providers, vec!["codex"]);
+        assert_eq!(resolved.harnesses, vec!["codex"]);
     }
 
     // ── Rule normalization ────────────────────────────────────────────────
@@ -927,7 +927,7 @@ mod tests {
             plugins: PluginsManifest {
                 install: vec![PluginEntry {
                     id: "test-plugin".to_string(),
-                    provider: "claude".to_string(),
+                    harness: "claude".to_string(),
                 }],
                 scope: "project".to_string(),
             },
@@ -938,7 +938,7 @@ mod tests {
                     name: "Test Agent".to_string(),
                     version: None,
                     description: None,
-                    providers: vec![],
+                    harnesses: vec![],
                     role: None,
                     tags: vec![],
                     tools_preset: None,
@@ -952,7 +952,7 @@ mod tests {
                 rules: ProfileRules::default(),
                 hooks: Default::default(),
                 apps: Default::default(),
-                provider_settings: Default::default(),
+                harness_settings: Default::default(),
             }],
             claude_team_agents: vec![("team-lead.md".to_string(), "# Team Lead".to_string())],
             env: {
@@ -1023,10 +1023,10 @@ mod tests {
     }
 
     #[test]
-    fn provider_defaults_merge_with_agent_extra() {
+    fn harness_defaults_merge_with_agent_extra() {
         use serde_json::json;
 
-        // provider_defaults sets a base; agent extra overrides one key, adds another
+        // harness_defaults sets a base; agent extra overrides one key, adds another
         let mut defaults = std::collections::HashMap::new();
         defaults.insert(
             "claude".to_string(),
@@ -1035,7 +1035,7 @@ mod tests {
         defaults.insert("gemini".to_string(), json!({"yoloMode": false}));
 
         let library = ProjectLibrary {
-            provider_defaults: defaults,
+            harness_defaults: defaults,
             claude_settings_extra: Some(
                 json!({"theme": "light", "newKey": "hello", "nested": {"b": 99, "c": 3}}),
             ),

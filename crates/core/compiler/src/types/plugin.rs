@@ -6,15 +6,15 @@ use serde::{Deserialize, Serialize};
 pub struct PluginEntry {
     /// Plugin ID, e.g. `"superpowers@claude-plugins-official"`.
     pub id: String,
-    /// Provider this plugin belongs to, e.g. `"claude"`.
-    pub provider: String,
+    /// Harness this plugin belongs to, e.g. `"claude"`.
+    pub harness: String,
 }
 
 impl Default for PluginEntry {
     fn default() -> Self {
         Self {
             id: String::new(),
-            provider: "claude".into(),
+            harness: "claude".into(),
         }
     }
 }

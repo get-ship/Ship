@@ -1,10 +1,10 @@
 //! `session_message` (user turn) and `session_reply` (agent reply)
 //! handlers, plus the annotation-rendering helpers that turn structured
-//! attachment metadata into a `<context>` XML prefix every provider
+//! attachment metadata into a `<context>` XML prefix every harness
 //! sees as part of the prompt.
 //!
 //! `session_message` emits `studio.chat_turn` for channel-capable
-//! agents and branches per-provider on `push_mechanism` (channel /
+//! agents and branches per-harness on `push_mechanism` (channel /
 //! stdin / respawn). `session_reply` is the canonical write path for
 //! agent → user replies (emits `studio.reply` + broadcasts to SSE
 //! subscribers).
@@ -26,8 +26,8 @@ use super::{err, work_dir_for};
 pub struct MessageBody {
     pub text: String,
     /// Optional context attachments. Rendered into the prompt as
-    /// XML-tagged blocks so any provider's TUI / stream-json sees them
-    /// as part of the user turn — provider-agnostic, no per-mechanism
+    /// XML-tagged blocks so any harness's TUI / stream-json sees them
+    /// as part of the user turn — harness-agnostic, no per-mechanism
     /// branching. Empty / absent → no annotation prefix.
     #[serde(default)]
     pub annotations: Vec<Annotation>,
@@ -54,7 +54,7 @@ pub struct AnnotationSource {
 }
 
 /// Render `annotations` into a single block prepended to `text`.
-/// Provider-agnostic XML so claude / codex / opencode all see the
+/// Harness-agnostic XML so claude / codex / opencode all see the
 /// same shape; the agent's prompt template can pick the tags it
 /// cares about. Empty `annotations` returns `text` unchanged.
 fn render_message_with_annotations(text: &str, annotations: &[Annotation]) -> String {
@@ -112,12 +112,12 @@ pub async fn session_message(
         return err(StatusCode::BAD_REQUEST, "empty message");
     }
     // Render annotations as a <context> prefix so every push_mechanism
-    // (channel / stdin / respawn) sees the same prompt shape — provider-
+    // (channel / stdin / respawn) sees the same prompt shape — harness-
     // agnostic.
     let text = render_message_with_annotations(&raw_text, &body.annotations);
 
     // Emit `studio.chat_turn` for channel-capable long-lived agents.
-    // Per-turn providers ignore this path; they still get driven by the
+    // Per-turn harnesses ignore this path; they still get driven by the
     // spawn + stdin prompt below. The event is scoped to `session_id` so
     // the MCP `EventRelay` can filter it to the exact Claude instance.
     let (workspace_id, agent_id) = if let Some(entry) = state.actor_sessions().get(&id) {
@@ -164,17 +164,17 @@ pub async fn session_message(
     }
 
     // Persistent-session agents live in ActorRegistry. Delivery branches
-    // on the provider's push_mechanism: channel (event-only, the emit
+    // on the harness's push_mechanism: channel (event-only, the emit
     // above is enough), stdin (write prompt + newline to the PTY master),
     // respawn (kill + spawn fresh — not yet implemented; falls through
     // to the legacy per-turn path).
     if let Some(entry) = state.actor_sessions().get(&id) {
-        use ship_platform::services::provider_adapter::{adapter_for, PushMechanism};
-        let provider = entry
+        use ship_platform::services::harness_adapter::{adapter_for, PushMechanism};
+        let harness = entry
             .meta_snapshot()
-            .provider
+            .harness
             .unwrap_or_default();
-        let mechanism = adapter_for(&provider)
+        let mechanism = adapter_for(&harness)
             .map(|a| a.caps().push_mechanism)
             .unwrap_or(PushMechanism::Respawn);
 
@@ -196,7 +196,7 @@ pub async fn session_message(
             PushMechanism::Respawn => {
                 // Not yet implemented at this layer — fall through to
                 // legacy per-turn spawn (which respawns headless with
-                // --resume internally for providers that support it).
+                // --resume internally for harnesses that support it).
                 let work_dir = work_dir_for(&state, "main");
                 return match lifecycle::send_agent_message(
                     state.pty_sessions(),
@@ -267,7 +267,7 @@ pub async fn session_reply(
     // In-memory broadcast for SSE consumers tailing the session's
     // parsed-event stream. Check both registries so reply works
     // regardless of which substrate owns the session.
-    let ev = ship_platform::services::provider_adapter::ProviderEvent::Message { text };
+    let ev = ship_platform::services::harness_adapter::HarnessEvent::Message { text };
     if let Some(entry) = state.actor_sessions().get(&id) {
         if let Some(tx) = entry.event_tx.as_ref() {
             let _ = tx.send(ev);

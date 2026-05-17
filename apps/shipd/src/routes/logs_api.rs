@@ -1,8 +1,8 @@
 //! Live agent-log streaming — tails `<worktree>/.artifacts/agent-<slug>.log`
 //! as it's written and streams the bytes to an SSE consumer.
 //!
-//! Works for every provider and dispatch mode because every executor
-//! ultimately teed PTY output into this file. No provider-specific
+//! Works for every harness and dispatch mode because every executor
+//! ultimately teed PTY output into this file. No harness-specific
 //! hooks; no tmux attachment required.
 //!
 //! SSE event shape:

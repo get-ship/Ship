@@ -1,9 +1,9 @@
 //! Executor behavior tests.
 //!
-//! Executors are provider-agnostic process managers. They receive a
-//! ProviderAdapter and delegate all provider-specific behavior to it.
+//! Executors are harness-agnostic process managers. They receive a
+//! HarnessAdapter and delegate all harness-specific behavior to it.
 
-use ship_platform::services::provider_adapter::{adapter_for, adapter_for_or_default};
+use ship_platform::services::harness_adapter::{adapter_for, adapter_for_or_default};
 
 // ── Source helpers ───────────────────────────────────────────────────────────
 
@@ -30,20 +30,20 @@ fn lifecycle_src() -> String {
 // ── Executor wiring ─────────────────────────────────────────────────────────
 
 #[test]
-fn executors_resolve_adapter_from_provider_adapter_module() {
+fn executors_resolve_adapter_from_harness_adapter_module() {
     let src = executor_sources();
     assert!(
-        src.contains("provider_adapter") || src.contains("adapter_for"),
-        "executor code must use provider_adapter, not hardcoded provider logic"
+        src.contains("harness_adapter") || src.contains("adapter_for"),
+        "executor code must use harness_adapter, not hardcoded harness logic"
     );
 }
 
 #[test]
-fn executors_do_not_use_deprecated_provider_launchers() {
+fn executors_do_not_use_deprecated_harness_launchers() {
     let src = executor_sources();
     assert!(
-        !src.contains("provider_launchers"),
-        "executor code must not reference the deprecated provider_launchers module"
+        !src.contains("harness_launchers"),
+        "executor code must not reference the deprecated harness_launchers module"
     );
 }
 
@@ -70,14 +70,14 @@ fn executors_exit_gracefully_via_adapter() {
 }
 
 #[test]
-fn provider_launchers_module_does_not_exist() {
+fn harness_launchers_module_does_not_exist() {
     let manifest = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
     let workspace_root = manifest.parent().and_then(|p| p.parent())
         .expect("could not resolve workspace root");
-    let path = workspace_root.join("crates/core/runtime/src/services/provider_launchers.rs");
+    let path = workspace_root.join("crates/core/runtime/src/services/harness_launchers.rs");
     assert!(
         !path.exists(),
-        "provider_launchers.rs must be deleted — providers/ replaces it"
+        "harness_launchers.rs must be deleted — harnesses/ replaces it"
     );
 }
 

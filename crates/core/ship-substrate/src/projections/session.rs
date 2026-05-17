@@ -102,7 +102,7 @@ struct StartedPayload {
     #[serde(default)]
     agent_id: Option<String>,
     #[serde(default)]
-    primary_provider: Option<String>,
+    primary_harness: Option<String>,
 }
 
 fn apply_started(event: &EventEnvelope, conn: &mut SqliteConnection) -> Result<()> {
@@ -116,7 +116,7 @@ fn apply_started(event: &EventEnvelope, conn: &mut SqliteConnection) -> Result<(
             "INSERT INTO sessions \
              (id, workspace_id, branch, project_id, kind, \
               pipeline_run_id, chat_thread_id, status, started_at, ended_at, \
-              agent_id, primary_provider, goal, summary, \
+              agent_id, primary_harness, goal, summary, \
               updated_workspace_ids_json, created_at, updated_at) \
              VALUES (?, ?, ?, ?, ?, ?, ?, 'active', ?, NULL, ?, ?, ?, NULL, '[]', ?, ?) \
              ON CONFLICT(id) DO UPDATE SET \
@@ -129,7 +129,7 @@ fn apply_started(event: &EventEnvelope, conn: &mut SqliteConnection) -> Result<(
                status = excluded.status, \
                started_at = excluded.started_at, \
                agent_id = excluded.agent_id, \
-               primary_provider = excluded.primary_provider, \
+               primary_harness = excluded.primary_harness, \
                goal = excluded.goal, \
                updated_at = excluded.updated_at",
         )
@@ -142,7 +142,7 @@ fn apply_started(event: &EventEnvelope, conn: &mut SqliteConnection) -> Result<(
         .bind(&p.chat_thread_id)
         .bind(&now)
         .bind(&p.agent_id)
-        .bind(&p.primary_provider)
+        .bind(&p.primary_harness)
         .bind(&p.goal)
         .bind(&now)
         .bind(&now)

@@ -137,9 +137,9 @@ pub fn compute_wire_layout(agent: &AgentDetail) -> (Vec<WireNode>, Vec<WireEdge>
         w: node_w,
     });
 
-    // Providers — right column.
-    for (i, y) in column(agent.providers.len(), 100.0, 420.0).into_iter().enumerate() {
-        let p = &agent.providers[i];
+    // Harnesses — right column.
+    for (i, y) in column(agent.harnesses.len(), 100.0, 420.0).into_iter().enumerate() {
+        let p = &agent.harnesses[i];
         nodes.push(WireNode {
             kind: "prov",
             id: p.clone(),
@@ -214,8 +214,8 @@ mod tests {
             mcp_servers: vec!["m1".into()],
             rules: vec!["r1".into()],
             inline_rules: String::new(),
-            providers: vec!["claude".into(), "codex".into()],
-            default_provider: None,
+            harnesses: vec!["claude".into(), "codex".into()],
+            default_harness: None,
             permissions_tier: "standard".into(),
             permissions: Permissions::default(),
             source: "PROJECT AGENTS".into(),
@@ -225,7 +225,7 @@ mod tests {
     #[test]
     fn layout_produces_center_plus_peripherals() {
         let (nodes, edges) = compute_wire_layout(&agent());
-        // agent + 2 skills + 1 mcp + 1 rule + 1 perm + 2 providers = 8
+        // agent + 2 skills + 1 mcp + 1 rule + 1 perm + 2 harnesses = 8
         assert_eq!(nodes.len(), 8);
         // edges = nodes - 1
         assert_eq!(edges.len(), 7);

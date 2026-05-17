@@ -1,7 +1,7 @@
-//! Tests for CursorAdapter — the Cursor CLI provider adapter.
+//! Tests for CursorAdapter — the Cursor CLI harness adapter.
 
 use crate::services::dispatch_ports::LaunchProfile;
-use crate::services::provider_adapter::ProviderAdapter;
+use crate::services::harness_adapter::HarnessAdapter;
 use super::CursorAdapter;
 
 fn default_profile() -> LaunchProfile {

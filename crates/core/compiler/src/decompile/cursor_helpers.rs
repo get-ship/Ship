@@ -50,7 +50,7 @@ pub(super) fn parse_mdc_frontmatter(content: &str) -> (HashMap<String, String>, 
 /// Known top-level keys in `.cursor/cli.json` that map to structured Ship fields.
 const KNOWN_CLI_KEYS: &[&str] = &["version", "permissions"];
 
-/// Parse `.cursor/cli.json` into permissions and provider_defaults.
+/// Parse `.cursor/cli.json` into permissions and harness_defaults.
 pub(super) fn parse_cursor_cli(library: &mut ProjectLibrary, json: &Json) {
     let obj = match json.as_object() {
         Some(o) => o,
@@ -88,7 +88,7 @@ pub(super) fn parse_cursor_cli(library: &mut ProjectLibrary, json: &Json) {
     }
     if !extra.is_empty() {
         library
-            .provider_defaults
+            .harness_defaults
             .insert("cursor".to_string(), Json::Object(extra));
     }
 }

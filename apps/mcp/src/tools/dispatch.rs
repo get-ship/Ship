@@ -9,7 +9,7 @@ use crate::requests::{DispatchAgentRequest, SteerAgentRequest, StopAgentRequest}
 /// Create a job via the daemon — the orchestrator handles worktree creation,
 /// agent compilation, and process spawning.
 pub async fn dispatch_agent(req: DispatchAgentRequest) -> String {
-    let provider = req.provider.as_deref().unwrap_or("claude");
+    let harness = req.harness.as_deref().unwrap_or("claude");
     let branch = format!("job/{}", req.slug);
 
     let body = serde_json::json!({
@@ -17,7 +17,7 @@ pub async fn dispatch_agent(req: DispatchAgentRequest) -> String {
         "agent": req.agent_profile,
         "branch": branch,
         "spec_path": ".artifacts/job-spec.md",
-        "provider": provider,
+        "harness": harness,
         "spec_content": req.job_spec,
     });
 

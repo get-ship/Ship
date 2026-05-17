@@ -111,7 +111,7 @@ pub async fn run_sweep(
             .executor
             .resume_handle(
                 &job.slug,
-                job.provider.as_deref(),
+                job.harness.as_deref(),
                 job.current_step.as_deref(),
             )
             .await;

@@ -30,7 +30,7 @@ mod session_tests {
                 "workspace_id": ws_id,
                 "branch": "feature/proj-test",
                 "agent_id": "test-agent",
-                "primary_provider": "claude",
+                "primary_harness": "claude",
                 "config_generation_at_start": 1
             }),
         )
@@ -137,7 +137,7 @@ mod session_tests {
                 "kind": "pipeline_step",
                 "pipeline_run_id": "run-1",
                 "agent_id": "rust-runtime",
-                "primary_provider": "codex"
+                "primary_harness": "codex"
             }),
         )
         .unwrap()

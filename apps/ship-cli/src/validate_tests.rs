@@ -9,7 +9,7 @@ fn write(dir: &Path, rel: &str, content: &str) {
 
 fn valid_agent_jsonc() -> &'static str {
     r#"{
-  "agent": { "id": "test", "name": "test", "providers": ["claude"] },
+  "agent": { "id": "test", "name": "test", "harnesses": ["claude"] },
   "skills": { "refs": [] },
   "mcp": { "servers": [] },
   "permissions": { "preset": "ship-standard" }
@@ -59,7 +59,7 @@ fn malformed_jsonc_reports_error() {
 fn missing_skill_ref_reports_error() {
     let (tmp, agents_dir) = setup();
     let src = r#"{
-  "agent": { "id": "test", "name": "test", "providers": ["claude"] },
+  "agent": { "id": "test", "name": "test", "harnesses": ["claude"] },
   "skills": { "refs": ["nonexistent-skill"] }
 }"#;
     write(tmp.path(), ".ship/agents/test.jsonc", src);
@@ -83,7 +83,7 @@ fn existing_skill_ref_passes() {
         "---\nname: My Skill\n---\nContent.",
     );
     let src = r#"{
-  "agent": { "id": "test", "name": "test", "providers": ["claude"] },
+  "agent": { "id": "test", "name": "test", "harnesses": ["claude"] },
   "skills": { "refs": ["my-skill"] }
 }"#;
     write(tmp.path(), ".ship/agents/test.jsonc", src);
@@ -143,7 +143,7 @@ fn http_mcp_missing_url_reports_error() {
 fn unknown_permissions_preset_reports_error() {
     let (tmp, agents_dir) = setup();
     let src = r#"{
-  "agent": { "id": "test", "name": "test", "providers": ["claude"] },
+  "agent": { "id": "test", "name": "test", "harnesses": ["claude"] },
   "permissions": { "preset": "nonexistent-preset" }
 }"#;
     write(tmp.path(), ".ship/agents/test.jsonc", src);

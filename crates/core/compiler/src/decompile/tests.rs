@@ -10,7 +10,7 @@ use super::codex::decompile_codex;
 use super::cursor::decompile_cursor;
 use super::gemini::decompile_gemini;
 use super::opencode::decompile_opencode;
-use super::{decompile_all, detect_providers};
+use super::{decompile_all, detect_harnesses};
 use crate::types::HookTrigger;
 
 fn write_file(dir: &TempDir, path: &str, content: &str) {
@@ -22,12 +22,12 @@ fn write_file(dir: &TempDir, path: &str, content: &str) {
     f.write_all(content.as_bytes()).unwrap();
 }
 
-// ── detect_providers ─────────────────────────────────────────────────────────
+// ── detect_harnesses ─────────────────────────────────────────────────────────
 
 #[test]
 fn detect_empty_dir() {
     let tmp = TempDir::new().unwrap();
-    let detected = detect_providers(tmp.path());
+    let detected = detect_harnesses(tmp.path());
     assert!(!detected.any());
     assert!(detected.as_list().is_empty());
 }
@@ -36,7 +36,7 @@ fn detect_empty_dir() {
 fn detect_claude_from_mcp_json() {
     let tmp = TempDir::new().unwrap();
     write_file(&tmp, ".mcp.json", "{}");
-    let detected = detect_providers(tmp.path());
+    let detected = detect_harnesses(tmp.path());
     assert!(detected.claude);
     assert_eq!(detected.as_list(), vec!["claude"]);
 }
@@ -45,7 +45,7 @@ fn detect_claude_from_mcp_json() {
 fn detect_claude_from_claude_dir() {
     let tmp = TempDir::new().unwrap();
     std::fs::create_dir_all(tmp.path().join(".claude")).unwrap();
-    let detected = detect_providers(tmp.path());
+    let detected = detect_harnesses(tmp.path());
     assert!(detected.claude);
 }
 
@@ -53,18 +53,18 @@ fn detect_claude_from_claude_dir() {
 fn detect_claude_from_claude_md() {
     let tmp = TempDir::new().unwrap();
     write_file(&tmp, "CLAUDE.md", "# Rules");
-    let detected = detect_providers(tmp.path());
+    let detected = detect_harnesses(tmp.path());
     assert!(detected.claude);
 }
 
 #[test]
-fn detect_multiple_providers() {
+fn detect_multiple_harnesses() {
     let tmp = TempDir::new().unwrap();
     write_file(&tmp, "CLAUDE.md", "# Claude rules");
     std::fs::create_dir_all(tmp.path().join(".codex")).unwrap();
     std::fs::create_dir_all(tmp.path().join(".gemini")).unwrap();
     std::fs::create_dir_all(tmp.path().join(".cursor")).unwrap();
-    let detected = detect_providers(tmp.path());
+    let detected = detect_harnesses(tmp.path());
     assert_eq!(
         detected.as_list(),
         vec!["claude", "codex", "gemini", "cursor"]
@@ -196,7 +196,7 @@ fn claude_settings_theme_and_scalar_fields() {
 }
 
 #[test]
-fn claude_settings_unknown_keys_into_provider_defaults() {
+fn claude_settings_unknown_keys_into_harness_defaults() {
     let tmp = TempDir::new().unwrap();
     let settings = json!({
         "model": "claude-sonnet-4-5-20250514",
@@ -212,7 +212,7 @@ fn claude_settings_unknown_keys_into_provider_defaults() {
     let lib = decompile_claude(tmp.path());
 
     assert_eq!(lib.model.as_deref(), Some("claude-sonnet-4-5-20250514"));
-    let defaults = lib.provider_defaults.get("claude").unwrap();
+    let defaults = lib.harness_defaults.get("claude").unwrap();
     assert_eq!(defaults["customSetting"], true);
     assert_eq!(defaults["experimentalFeatures"]["betaFlag"], "on");
     assert!(defaults.get("model").is_none());
@@ -311,7 +311,7 @@ fn full_claude_project_decompile() {
     assert_eq!(lib.hooks.len(), 1);
     assert_eq!(lib.model.as_deref(), Some("claude-opus-4-20250514"));
     assert_eq!(lib.mcp_servers.len(), 1);
-    let defaults = lib.provider_defaults.get("claude").unwrap();
+    let defaults = lib.harness_defaults.get("claude").unwrap();
     assert_eq!(defaults["customPlugin"]["enabled"], true);
 }
 
@@ -391,7 +391,7 @@ fn codex_agents_md_imported() {
 }
 
 #[test]
-fn codex_unknown_keys_into_provider_defaults() {
+fn codex_unknown_keys_into_harness_defaults() {
     let tmp = TempDir::new().unwrap();
     let config = r#"
 model = "o3"
@@ -401,7 +401,7 @@ custom_flag = true
 
     let lib = decompile_codex(tmp.path());
 
-    let defaults = lib.provider_defaults.get("codex").unwrap();
+    let defaults = lib.harness_defaults.get("codex").unwrap();
     assert_eq!(defaults["custom_flag"], true);
     assert!(defaults.get("model").is_none());
 }
@@ -442,7 +442,7 @@ fn gemini_settings_model_and_general() {
 }
 
 #[test]
-fn gemini_mcp_servers_with_provider_fields() {
+fn gemini_mcp_servers_with_harness_fields() {
     let tmp = TempDir::new().unwrap();
     let settings = json!({
         "mcpServers": {
@@ -634,8 +634,8 @@ fn cursor_cli_json_permissions() {
             .contains(&"Bash(rm -rf *)".to_string())
     );
 
-    // Unknown keys → provider_defaults
-    let defaults = lib.provider_defaults.get("cursor").unwrap();
+    // Unknown keys → harness_defaults
+    let defaults = lib.harness_defaults.get("cursor").unwrap();
     assert_eq!(defaults["experimentalFeature"], true);
 }
 
@@ -659,11 +659,11 @@ fn cursor_environment_json() {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// decompile_all — multi-provider merge
+// decompile_all — multi-harness merge
 // ══════════════════════════════════════════════════════════════════════════════
 
 #[test]
-fn decompile_all_merges_providers() {
+fn decompile_all_merges_harnesses() {
     let tmp = TempDir::new().unwrap();
 
     // Claude
@@ -696,7 +696,7 @@ fn decompile_all_merges_providers() {
 
     let lib = decompile_all(tmp.path());
 
-    // Rules from both providers
+    // Rules from both harnesses
     assert_eq!(lib.rules.len(), 2);
     assert!(lib.rules.iter().any(|r| r.file_name == "CLAUDE.md"));
     assert!(lib.rules.iter().any(|r| r.file_name == "style.mdc"));
@@ -741,7 +741,7 @@ fn opencode_config_model_and_mcp() {
 }
 
 #[test]
-fn opencode_unknown_keys_into_provider_defaults() {
+fn opencode_unknown_keys_into_harness_defaults() {
     let tmp = TempDir::new().unwrap();
     let config = json!({
         "model": "gpt-4o",
@@ -756,7 +756,7 @@ fn opencode_unknown_keys_into_provider_defaults() {
 
     let lib = decompile_opencode(tmp.path());
 
-    let defaults = lib.provider_defaults.get("opencode").unwrap();
+    let defaults = lib.harness_defaults.get("opencode").unwrap();
     assert!(defaults.get("plugins").is_some());
     assert_eq!(defaults["theme"], "dark");
     assert!(defaults.get("model").is_none());

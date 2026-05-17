@@ -109,7 +109,7 @@ impl ShipServer {
     ///   1. SHIP_ACTOR_ID env var set (works when parent propagates env).
     ///   2. Current dir or any ancestor contains a `.artifacts/.dispatched`
     ///      marker — written by the isolation adapter on worktree prep.
-    ///      Survives providers like codex that don't propagate env.
+    ///      Survives harnesses like codex that don't propagate env.
     ///
     /// Dispatched agents always get PLATFORM_TOOLS regardless of
     /// KV-stored active_agent state — dispatch context is the truth.

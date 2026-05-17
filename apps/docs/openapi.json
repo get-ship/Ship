@@ -180,12 +180,12 @@
           {
             "lang": "bash",
             "label": "curl",
-            "source": "curl -X POST http://localhost:9315/api/v1/actor/spawn \\\n  -H \"Authorization: Bearer $SHIP_TOKEN\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\"actor_id\":\"agent-writer\",\"config\":{\"kind\":\"agent\",\"provider\":\"claude\",\"spec_path\":\".ship/specs/write-readme.md\"},\"capabilities\":[\"writes.prose\",\"reads.repo\"]}'"
+            "source": "curl -X POST http://localhost:9315/api/v1/actor/spawn \\\n  -H \"Authorization: Bearer $SHIP_TOKEN\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\"actor_id\":\"agent-writer\",\"config\":{\"kind\":\"agent\",\"harness\":\"claude\",\"spec_path\":\".ship/specs/write-readme.md\"},\"capabilities\":[\"writes.prose\",\"reads.repo\"]}'"
           },
           {
             "lang": "javascript",
             "label": "fetch",
-            "source": "const res = await fetch(\"http://localhost:9315/api/v1/actor/spawn\", {\n  method: \"POST\",\n  headers: {\n    \"Authorization\": `Bearer ${process.env.SHIP_TOKEN}`,\n    \"Content-Type\": \"application/json\",\n  },\n  body: JSON.stringify({\n    \"actor_id\": \"agent-writer\",\n    \"config\": {\n      \"kind\": \"agent\",\n      \"provider\": \"claude\",\n      \"spec_path\": \".ship/specs/write-readme.md\"\n    },\n    \"capabilities\": [\n      \"writes.prose\",\n      \"reads.repo\"\n    ]\n  }),\n});\nconst data = await res.json();"
+            "source": "const res = await fetch(\"http://localhost:9315/api/v1/actor/spawn\", {\n  method: \"POST\",\n  headers: {\n    \"Authorization\": `Bearer ${process.env.SHIP_TOKEN}`,\n    \"Content-Type\": \"application/json\",\n  },\n  body: JSON.stringify({\n    \"actor_id\": \"agent-writer\",\n    \"config\": {\n      \"kind\": \"agent\",\n      \"harness\": \"claude\",\n      \"spec_path\": \".ship/specs/write-readme.md\"\n    },\n    \"capabilities\": [\n      \"writes.prose\",\n      \"reads.repo\"\n    ]\n  }),\n});\nconst data = await res.json();"
           }
         ]
       }
@@ -596,6 +596,92 @@
         ]
       }
     },
+    "/api/v1/harnesses": {
+      "get": {
+        "tags": [
+          "settings"
+        ],
+        "operationId": "listProviders",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeshResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "List Providers",
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "curl",
+            "source": "curl -X GET http://localhost:9315/api/v1/harnesses \\\n  -H \"Authorization: Bearer $SHIP_TOKEN\""
+          },
+          {
+            "lang": "javascript",
+            "label": "fetch",
+            "source": "const res = await fetch(\"http://localhost:9315/api/v1/harnesses\", {\n  method: \"GET\",\n  headers: {\n    \"Authorization\": `Bearer ${process.env.SHIP_TOKEN}`,\n  },\n});\nconst data = await res.json();"
+          }
+        ]
+      }
+    },
+    "/api/v1/harnesses/installed": {
+      "get": {
+        "tags": [
+          "sessions"
+        ],
+        "operationId": "installedProviders",
+        "responses": {
+          "200": {
+            "description": "Harnesses detected on PATH",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InstalledProvidersResponse"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Installed Providers",
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "curl",
+            "source": "curl -X GET http://localhost:9315/api/v1/harnesses/installed \\\n  -H \"Authorization: Bearer $SHIP_TOKEN\""
+          },
+          {
+            "lang": "javascript",
+            "label": "fetch",
+            "source": "const res = await fetch(\"http://localhost:9315/api/v1/harnesses/installed\", {\n  method: \"GET\",\n  headers: {\n    \"Authorization\": `Bearer ${process.env.SHIP_TOKEN}`,\n  },\n});\nconst data = await res.json();"
+          }
+        ]
+      }
+    },
     "/api/v1/jobs": {
       "get": {
         "tags": [
@@ -700,7 +786,7 @@
           "runtime"
         ],
         "summary": "End Job",
-        "description": "POST /api/v1/runtime/jobs/end — signal that a provider turn ended for a job.\n\nCalled by the session Stop hook when an agent finishes a response turn.\nFor multi-step pipeline jobs, this sends a TurnEnded signal to the step\nmonitor (which accumulates evidence before deciding to advance).\nFor single-step jobs, emits job.completed directly.",
+        "description": "POST /api/v1/runtime/jobs/end — signal that a harness turn ended for a job.\n\nCalled by the session Stop hook when an agent finishes a response turn.\nFor multi-step pipeline jobs, this sends a TurnEnded signal to the step\nmonitor (which accumulates evidence before deciding to advance).\nFor single-step jobs, emits job.completed directly.",
         "operationId": "endJob",
         "requestBody": {
           "content": {
@@ -1496,92 +1582,6 @@
         ]
       }
     },
-    "/api/v1/providers": {
-      "get": {
-        "tags": [
-          "settings"
-        ],
-        "operationId": "listProviders",
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/MeshResponse"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "server error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        },
-        "summary": "List Providers",
-        "x-codeSamples": [
-          {
-            "lang": "bash",
-            "label": "curl",
-            "source": "curl -X GET http://localhost:9315/api/v1/providers \\\n  -H \"Authorization: Bearer $SHIP_TOKEN\""
-          },
-          {
-            "lang": "javascript",
-            "label": "fetch",
-            "source": "const res = await fetch(\"http://localhost:9315/api/v1/providers\", {\n  method: \"GET\",\n  headers: {\n    \"Authorization\": `Bearer ${process.env.SHIP_TOKEN}`,\n  },\n});\nconst data = await res.json();"
-          }
-        ]
-      }
-    },
-    "/api/v1/providers/installed": {
-      "get": {
-        "tags": [
-          "sessions"
-        ],
-        "operationId": "installedProviders",
-        "responses": {
-          "200": {
-            "description": "Providers detected on PATH",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/InstalledProvidersResponse"
-                }
-              }
-            }
-          }
-        },
-        "summary": "Installed Providers",
-        "x-codeSamples": [
-          {
-            "lang": "bash",
-            "label": "curl",
-            "source": "curl -X GET http://localhost:9315/api/v1/providers/installed \\\n  -H \"Authorization: Bearer $SHIP_TOKEN\""
-          },
-          {
-            "lang": "javascript",
-            "label": "fetch",
-            "source": "const res = await fetch(\"http://localhost:9315/api/v1/providers/installed\", {\n  method: \"GET\",\n  headers: {\n    \"Authorization\": `Bearer ${process.env.SHIP_TOKEN}`,\n  },\n});\nconst data = await res.json();"
-          }
-        ]
-      }
-    },
     "/api/v1/pty-sessions": {
       "get": {
         "tags": [
@@ -1900,7 +1900,7 @@
         ],
         "responses": {
           "200": {
-            "description": "SSE stream of parsed ProviderEvents",
+            "description": "SSE stream of parsed HarnessEvents",
             "content": {
               "text/event-stream": {}
             }
@@ -2244,12 +2244,12 @@
           {
             "lang": "bash",
             "label": "curl",
-            "source": "curl -X PUT http://localhost:9315/api/v1/settings \\\n  -H \"Authorization: Bearer $SHIP_TOKEN\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\"key\":\"defaults.provider\",\"value\":\"claude\"}'"
+            "source": "curl -X PUT http://localhost:9315/api/v1/settings \\\n  -H \"Authorization: Bearer $SHIP_TOKEN\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\"key\":\"defaults.harness\",\"value\":\"claude\"}'"
           },
           {
             "lang": "javascript",
             "label": "fetch",
-            "source": "const res = await fetch(\"http://localhost:9315/api/v1/settings\", {\n  method: \"PUT\",\n  headers: {\n    \"Authorization\": `Bearer ${process.env.SHIP_TOKEN}`,\n    \"Content-Type\": \"application/json\",\n  },\n  body: JSON.stringify({\n    \"key\": \"defaults.provider\",\n    \"value\": \"claude\"\n  }),\n});\nconst data = await res.json();"
+            "source": "const res = await fetch(\"http://localhost:9315/api/v1/settings\", {\n  method: \"PUT\",\n  headers: {\n    \"Authorization\": `Bearer ${process.env.SHIP_TOKEN}`,\n    \"Content-Type\": \"application/json\",\n  },\n  body: JSON.stringify({\n    \"key\": \"defaults.harness\",\n    \"value\": \"claude\"\n  }),\n});\nconst data = await res.json();"
           }
         ]
       }
@@ -2264,7 +2264,7 @@
           {
             "name": "key",
             "in": "path",
-            "description": "Setting key (e.g. defaults.provider)",
+            "description": "Setting key (e.g. defaults.harness)",
             "required": true,
             "schema": {
               "type": "string"
@@ -2318,12 +2318,12 @@
           {
             "lang": "bash",
             "label": "curl",
-            "source": "curl -X GET http://localhost:9315/api/v1/settings/defaults.provider \\\n  -H \"Authorization: Bearer $SHIP_TOKEN\""
+            "source": "curl -X GET http://localhost:9315/api/v1/settings/defaults.harness \\\n  -H \"Authorization: Bearer $SHIP_TOKEN\""
           },
           {
             "lang": "javascript",
             "label": "fetch",
-            "source": "const res = await fetch(\"http://localhost:9315/api/v1/settings/defaults.provider\", {\n  method: \"GET\",\n  headers: {\n    \"Authorization\": `Bearer ${process.env.SHIP_TOKEN}`,\n  },\n});\nconst data = await res.json();"
+            "source": "const res = await fetch(\"http://localhost:9315/api/v1/settings/defaults.harness\", {\n  method: \"GET\",\n  headers: {\n    \"Authorization\": `Bearer ${process.env.SHIP_TOKEN}`,\n  },\n});\nconst data = await res.json();"
           }
         ]
       }
@@ -2747,7 +2747,7 @@
           "actor_id": "agent-writer",
           "config": {
             "kind": "agent",
-            "provider": "claude",
+            "harness": "claude",
             "spec_path": ".ship/specs/write-readme.md"
           },
           "capabilities": [
@@ -3023,6 +3023,13 @@
             },
             "description": "Parent job slugs this run depends on."
           },
+          "harness": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Harness override; when `None`, each step uses whatever the\npipeline file declared (or falls back to claude)."
+          },
           "headless": {
             "type": "boolean",
             "description": "When true, force the headless (ProcessExecutor) path."
@@ -3037,13 +3044,6 @@
           "pipeline": {
             "type": "string",
             "description": "Pipeline name (file in `.ship/pipelines/<name>.jsonc`)."
-          },
-          "provider": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "Provider override; when `None`, each step uses whatever the\npipeline file declared (or falls back to claude)."
           },
           "slug": {
             "type": [
@@ -3221,12 +3221,12 @@
       },
       "InstalledProvidersResponse": {
         "type": "object",
-        "description": "Provider detection: which of the known providers have their CLI\nbinaries on PATH. Powers the command-bar's spawn card.",
+        "description": "Harness detection: which of the known harnesses have their CLI\nbinaries on PATH. Powers the command-bar's spawn card.",
         "required": [
-          "providers"
+          "harnesses"
         ],
         "properties": {
-          "providers": {
+          "harnesses": {
             "type": "array",
             "items": {
               "type": "string"
@@ -3467,7 +3467,7 @@
             "items": {
               "$ref": "#/components/schemas/Annotation"
             },
-            "description": "Optional context attachments. Rendered into the prompt as\nXML-tagged blocks so any provider's TUI / stream-json sees them\nas part of the user turn — provider-agnostic, no per-mechanism\nbranching. Empty / absent → no annotation prefix."
+            "description": "Optional context attachments. Rendered into the prompt as\nXML-tagged blocks so any harness's TUI / stream-json sees them\nas part of the user turn — harness-agnostic, no per-mechanism\nbranching. Empty / absent → no annotation prefix."
           },
           "text": {
             "type": "string"
@@ -3683,6 +3683,12 @@
             ],
             "format": "int32"
           },
+          "harness": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "id": {
             "type": "string"
           },
@@ -3702,12 +3708,6 @@
             ],
             "format": "int32",
             "minimum": 0
-          },
-          "provider": {
-            "type": [
-              "string",
-              "null"
-            ]
           },
           "spawned_at": {
             "type": "string"
@@ -3729,7 +3729,7 @@
         "properties": {
           "key": {
             "type": "string",
-            "description": "Dotted setting key, e.g. `defaults.provider`."
+            "description": "Dotted setting key, e.g. `defaults.harness`."
           },
           "value": {
             "type": "object",
@@ -3737,7 +3737,7 @@
           }
         },
         "example": {
-          "key": "defaults.provider",
+          "key": "defaults.harness",
           "value": "claude"
         }
       },
@@ -3754,15 +3754,15 @@
               "null"
             ]
           },
-          "kind": {
-            "type": "string",
-            "description": "`\"agent\" | \"shell\"`. Pipelines register internally."
-          },
-          "provider": {
+          "harness": {
             "type": [
               "string",
               "null"
             ]
+          },
+          "kind": {
+            "type": "string",
+            "description": "`\"agent\" | \"shell\"`. Pipelines register internally."
           },
           "workspace_id": {
             "type": "string"

@@ -158,7 +158,7 @@ ship_substrate::home::ensure_layout(&ShipHome::at(global_dir))?;
 }
 ```
 
-**`ship init`** (project-scope) creates `<cwd>/.ship/`, scaffolds `ship.jsonc` (or imports existing provider configs via auto-detection). Writes JSONC; no TOML branch.
+**`ship init`** (project-scope) creates `<cwd>/.ship/`, scaffolds `ship.jsonc` (or imports existing harness configs via auto-detection). Writes JSONC; no TOML branch.
 
 ## Lint guards
 

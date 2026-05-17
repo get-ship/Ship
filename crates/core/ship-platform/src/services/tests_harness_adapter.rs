@@ -1,7 +1,7 @@
-//! Tests for the provider adapter registry and trait contract.
+//! Tests for the harness adapter registry and trait contract.
 
 use crate::services::dispatch_ports::LaunchProfile;
-use crate::services::provider_adapter::{adapter_for, adapter_for_or_default};
+use crate::services::harness_adapter::{adapter_for, adapter_for_or_default};
 
 fn default_profile() -> LaunchProfile {
     LaunchProfile { persist_session: true, ..Default::default() }
@@ -35,9 +35,9 @@ fn adapter_for_codex_returns_codex() {
 
 #[test]
 fn adapter_for_unknown_errors_with_known_list() {
-    let result = adapter_for("unknown-provider");
-    let err = result.err().expect("unknown provider must error");
-    assert!(err.contains("unknown provider"), "err: {err}");
+    let result = adapter_for("unknown-harness");
+    let err = result.err().expect("unknown harness must error");
+    assert!(err.contains("unknown harness"), "err: {err}");
     assert!(err.contains("claude"), "err: {err}");
     assert!(err.contains("codex"), "err: {err}");
     assert!(err.contains("cursor"), "err: {err}");
@@ -49,9 +49,9 @@ fn adapter_for_unknown_errors_with_known_list() {
 
 #[test]
 fn all_adapters_set_mesh_id_env() {
-    let providers: &[Option<&str>] = &[None, Some("claude"), Some("codex")];
-    for provider in providers {
-        let adapter = adapter_for_or_default(*provider).unwrap();
+    let harnesses: &[Option<&str>] = &[None, Some("claude"), Some("codex")];
+    for harness in harnesses {
+        let adapter = adapter_for_or_default(*harness).unwrap();
         let cmd = adapter.build_interactive("test-slug", &default_profile());
         assert_eq!(
             cmd.env.get("SHIP_ACTOR_ID").map(|s| s.as_str()),
@@ -64,9 +64,9 @@ fn all_adapters_set_mesh_id_env() {
 
 #[test]
 fn all_adapters_produce_non_empty_bin() {
-    let providers: &[Option<&str>] = &[None, Some("claude"), Some("codex")];
-    for provider in providers {
-        let adapter = adapter_for_or_default(*provider).unwrap();
+    let harnesses: &[Option<&str>] = &[None, Some("claude"), Some("codex")];
+    for harness in harnesses {
+        let adapter = adapter_for_or_default(*harness).unwrap();
         let cmd = adapter.build_interactive("s", &default_profile());
         assert!(
             !cmd.bin.is_empty(),
@@ -78,9 +78,9 @@ fn all_adapters_produce_non_empty_bin() {
 
 #[test]
 fn all_adapters_to_shell_string_is_non_empty() {
-    let providers: &[Option<&str>] = &[None, Some("claude"), Some("codex")];
-    for provider in providers {
-        let adapter = adapter_for_or_default(*provider).unwrap();
+    let harnesses: &[Option<&str>] = &[None, Some("claude"), Some("codex")];
+    for harness in harnesses {
+        let adapter = adapter_for_or_default(*harness).unwrap();
         let cmd = adapter.build_interactive("s", &default_profile());
         assert!(
             !cmd.to_shell_string().is_empty(),

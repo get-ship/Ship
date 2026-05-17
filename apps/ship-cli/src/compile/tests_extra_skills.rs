@@ -15,7 +15,7 @@ fn write_agent_with_skill_filter(dir: &Path) {
         dir,
         ".ship/agents/rust-lane.jsonc",
         r#"{
-  "agent": { "id": "rust-lane", "name": "Rust Lane", "providers": ["claude"] },
+  "agent": { "id": "rust-lane", "name": "Rust Lane", "harnesses": ["claude"] },
   "skills": { "refs": ["base-skill"] }
 }"#,
     );
@@ -39,7 +39,7 @@ fn extra_skill_included_in_output() {
     run_compile(CompileOptions {
         project_root: tmp.path(),
         output_root: None,
-        provider: Some("claude"),
+        harness: Some("claude"),
         dry_run: false,
         active_agent: Some("rust-lane"),
         extra_skills: vec!["compiler-docs".to_string()],
@@ -73,13 +73,13 @@ fn nonexistent_extra_skill_returns_clear_error() {
 [agent]
 name = "Rust Lane"
 id = "rust-lane"
-providers = ["claude"]
+harnesses = ["claude"]
 "#,
     );
     let err = run_compile(CompileOptions {
         project_root: tmp.path(),
         output_root: None,
-        provider: Some("claude"),
+        harness: Some("claude"),
         dry_run: false,
         active_agent: Some("rust-lane"),
         extra_skills: vec!["nonexistent".to_string()],
@@ -110,7 +110,7 @@ fn multiple_extra_skills_all_included() {
     run_compile(CompileOptions {
         project_root: tmp.path(),
         output_root: None,
-        provider: Some("claude"),
+        harness: Some("claude"),
         dry_run: false,
         active_agent: Some("rust-lane"),
         extra_skills: vec!["auth-feature".to_string(), "tdd".to_string()],
@@ -144,7 +144,7 @@ fn no_extra_skills_behaviour_unchanged() {
     run_compile(CompileOptions {
         project_root: tmp.path(),
         output_root: None,
-        provider: Some("claude"),
+        harness: Some("claude"),
         dry_run: false,
         active_agent: Some("rust-lane"),
         extra_skills: vec![],

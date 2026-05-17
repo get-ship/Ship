@@ -1,7 +1,7 @@
-//! Tests for CodexAdapter — the Codex CLI provider adapter.
+//! Tests for CodexAdapter — the Codex CLI harness adapter.
 
 use crate::services::dispatch_ports::LaunchProfile;
-use crate::services::provider_adapter::ProviderAdapter;
+use crate::services::harness_adapter::HarnessAdapter;
 use super::CodexAdapter;
 
 fn default_profile() -> LaunchProfile {

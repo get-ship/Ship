@@ -143,7 +143,7 @@ fn query_events_since_elevated_only() {
     let elevated = EventEnvelope::new(
         et::WORKSPACE_ACTIVATED,
         "ws-1",
-        &WorkspaceActivated { agent_id: None, providers: vec![] },
+        &WorkspaceActivated { agent_id: None, harnesses: vec![] },
     )
     .unwrap()
     .elevate();

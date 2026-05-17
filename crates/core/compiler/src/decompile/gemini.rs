@@ -25,7 +25,7 @@ const KNOWN_SETTINGS_KEYS: &[&str] = &[
 /// Parse Gemini CLI native config files and produce a partial [`ProjectLibrary`].
 ///
 /// Reads (if present):
-/// - `.gemini/settings.json` → model, hooks, MCP servers, gemini settings, provider_defaults
+/// - `.gemini/settings.json` → model, hooks, MCP servers, gemini settings, harness_defaults
 /// - `GEMINI.md` → rules
 /// - `.gemini/policies/*.toml` → permissions
 pub fn decompile_gemini(project_root: &Path) -> ProjectLibrary {
@@ -108,8 +108,8 @@ fn parse_gemini_settings(library: &mut ProjectLibrary, settings: &Json) {
     }
 
     // ── hooks ────────────────────────────────────────────────────────────────
-    // Gemini hooks go into provider_defaults as-is (provider-native format for v0.1).
-    // We don't reverse-map them to Ship HookConfig since hooks are provider-native.
+    // Gemini hooks go into harness_defaults as-is (harness-native format for v0.1).
+    // We don't reverse-map them to Ship HookConfig since hooks are harness-native.
 
     // ── mcpServers ───────────────────────────────────────────────────────────
     if let Some(servers) = obj.get("mcpServers").and_then(|v| v.as_object()) {
@@ -120,20 +120,20 @@ fn parse_gemini_settings(library: &mut ProjectLibrary, settings: &Json) {
         }
     }
 
-    // ── Provider defaults — everything we don't recognize ────────────────────
+    // ── Harness defaults — everything we don't recognize ────────────────────
     let mut extra = serde_json::Map::new();
     for (k, v) in obj {
         if !KNOWN_SETTINGS_KEYS.contains(&k.as_str()) {
             extra.insert(k.clone(), v.clone());
         }
     }
-    // Also preserve hooks in provider_defaults (provider-native)
+    // Also preserve hooks in harness_defaults (harness-native)
     if let Some(hooks) = obj.get("hooks") {
         extra.insert("hooks".to_string(), hooks.clone());
     }
     if !extra.is_empty() {
         library
-            .provider_defaults
+            .harness_defaults
             .insert("gemini".to_string(), Json::Object(extra));
     }
 }

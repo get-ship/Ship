@@ -207,7 +207,7 @@ fn normalize_single_step(
                 step.insert("type".to_string(), json!(step_type));
                 step.insert("agent".to_string(), json!(agent));
                 // Copy overrides
-                for key in ["model", "provider", "max_retries", "goal", "command"] {
+                for key in ["model", "harness", "max_retries", "goal", "command"] {
                     if let Some(v) = obj.get(key) {
                         step.insert(key.to_string(), v.clone());
                     }

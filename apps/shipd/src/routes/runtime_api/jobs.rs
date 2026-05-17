@@ -40,7 +40,7 @@ pub struct CreateJobRequest {
     pub source_spec_path: Option<String>,
     pub depends_on: Option<Vec<String>>,
     pub pipeline: Option<String>,
-    pub provider: Option<String>,
+    pub harness: Option<String>,
     /// Inline spec content. Travels in the JobCreated event; the worktree
     /// adapter writes it to `spec_path` at dispatch time.
     pub spec_content: Option<String>,
@@ -376,7 +376,7 @@ pub async fn create_job(
         source_spec_path: req.source_spec_path,
         plan_id: None,
         model: None,
-        provider: req.provider,
+        harness: req.harness,
         depends_on: req.depends_on,
         pipeline: None,
         steps: None,
@@ -554,7 +554,7 @@ pub struct JobEndRequest {
     pub slug: String,
 }
 
-/// POST /api/v1/runtime/jobs/end — signal that a provider turn ended for a job.
+/// POST /api/v1/runtime/jobs/end — signal that a harness turn ended for a job.
 ///
 /// Called by the session Stop hook when an agent finishes a response turn.
 /// For multi-step pipeline jobs, this sends a TurnEnded signal to the step

@@ -27,7 +27,7 @@ pub struct Identity {
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Defaults {
-    pub provider: Option<String>,
+    pub harness: Option<String>,
     pub mode: Option<String>,
 }
 
@@ -60,7 +60,7 @@ mod tests {
                 email: Some("a@b.com".into()),
             }),
             defaults: Some(Defaults {
-                provider: Some("claude".into()),
+                harness: Some("claude".into()),
                 mode: None,
             }),
             cloud: Some(Cloud {
@@ -71,7 +71,7 @@ mod tests {
 
         let back = LibrarySettings::load_at(&path);
         assert_eq!(back.identity.unwrap().name.unwrap(), "Alice");
-        assert_eq!(back.defaults.unwrap().provider.unwrap(), "claude");
+        assert_eq!(back.defaults.unwrap().harness.unwrap(), "claude");
         assert_eq!(back.cloud.unwrap().base_url.unwrap(), "https://example.com");
     }
 

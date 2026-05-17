@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::path::Path;
 
 use crate::services::dispatch_ports::{LaunchCommand, LaunchProfile};
-use crate::services::provider_adapter::{ProviderAdapter, ProviderCapabilities, ProviderEvent};
+use crate::services::harness_adapter::{HarnessAdapter, HarnessCapabilities, HarnessEvent};
 
 pub struct ClaudeAdapter;
 
@@ -84,11 +84,11 @@ impl ClaudeAdapter {
     }
 }
 
-impl ProviderAdapter for ClaudeAdapter {
+impl HarnessAdapter for ClaudeAdapter {
     fn id(&self) -> &str { "claude" }
 
-    fn caps(&self) -> ProviderCapabilities {
-        ProviderCapabilities {
+    fn caps(&self) -> HarnessCapabilities {
+        HarnessCapabilities {
             headless: true,
             interactive: true,
             server_mode: false,
@@ -97,7 +97,7 @@ impl ProviderAdapter for ClaudeAdapter {
             hooks: true,
             session_resume: false,
             persistent_session: true,
-            push_mechanism: super::super::provider_adapter::PushMechanism::Channel,
+            push_mechanism: super::super::harness_adapter::PushMechanism::Channel,
         }
     }
 
@@ -130,7 +130,7 @@ impl ProviderAdapter for ClaudeAdapter {
     }
     fn exit_command(&self) -> &str { "/exit" }
 
-    fn parse_output(&self, line: &str) -> Option<ProviderEvent> {
+    fn parse_output(&self, line: &str) -> Option<HarnessEvent> {
         let v: serde_json::Value = serde_json::from_str(line).ok()?;
         let ty = v.get("type")?.as_str()?;
         match ty {
@@ -139,12 +139,12 @@ impl ProviderAdapter for ClaudeAdapter {
                 let subtype = v.get("subtype").and_then(|s| s.as_str()).unwrap_or("");
                 if subtype == "init" {
                     if let Some(sid) = v.get("session_id").and_then(|s| s.as_str()) {
-                        return Some(ProviderEvent::SessionStarted {
+                        return Some(HarnessEvent::SessionStarted {
                             session_id: sid.to_string(),
                         });
                     }
                 }
-                Some(ProviderEvent::Custom {
+                Some(HarnessEvent::Custom {
                     kind: subtype.to_string(),
                     data: v,
                 })
@@ -163,13 +163,13 @@ impl ProviderAdapter for ClaudeAdapter {
                     let bt = block.get("type")?.as_str()?;
                     if bt == "text" {
                         if let Some(text) = block.get("text").and_then(|t| t.as_str()) {
-                            return Some(ProviderEvent::Message {
+                            return Some(HarnessEvent::Message {
                                 text: text.to_string(),
                             });
                         }
                     } else if bt == "tool_use" {
                         if let Some(name) = block.get("name").and_then(|n| n.as_str()) {
-                            return Some(ProviderEvent::ToolUse {
+                            return Some(HarnessEvent::ToolUse {
                                 tool: name.to_string(),
                                 input_preview: block
                                     .get("input")
@@ -189,7 +189,7 @@ impl ProviderAdapter for ClaudeAdapter {
                     .and_then(|s| s.as_str())
                     .unwrap_or("end_turn")
                     .to_string();
-                Some(ProviderEvent::TurnComplete { stop_reason: stop })
+                Some(HarnessEvent::TurnComplete { stop_reason: stop })
             }
 
             _ => None,

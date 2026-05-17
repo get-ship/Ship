@@ -41,7 +41,7 @@ pub struct HookConfig {
     /// Optional timeout for the hook command in milliseconds.
     #[serde(default)]
     pub timeout_ms: Option<u64>,
-    /// Human-readable intent for editor UX and exported provider config.
+    /// Human-readable intent for editor UX and exported harness config.
     #[serde(default)]
     pub description: Option<String>,
     /// The shell command to run

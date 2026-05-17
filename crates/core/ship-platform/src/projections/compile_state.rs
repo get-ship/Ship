@@ -19,7 +19,7 @@ pub struct ProjectCompileState {
     pub active_agent: Option<String>,
     pub compiled_at: String,
     pub ship_version: String,
-    pub provider: Option<String>,
+    pub harness: Option<String>,
     pub plugins_installed: Vec<String>,
 }
 
@@ -44,13 +44,13 @@ impl Projection for CompileStateProjection {
         block_on(async {
             sqlx::query(
                 "INSERT INTO project_compile_state \
-                 (project_id, active_agent, compiled_at, ship_version, provider, plugins_installed_json, updated_at) \
+                 (project_id, active_agent, compiled_at, ship_version, harness, plugins_installed_json, updated_at) \
                  VALUES (?, ?, ?, ?, ?, ?, datetime('now')) \
                  ON CONFLICT(project_id) DO UPDATE SET \
                    active_agent = excluded.active_agent, \
                    compiled_at = excluded.compiled_at, \
                    ship_version = excluded.ship_version, \
-                   provider = excluded.provider, \
+                   harness = excluded.harness, \
                    plugins_installed_json = excluded.plugins_installed_json, \
                    updated_at = datetime('now')",
             )
@@ -58,7 +58,7 @@ impl Projection for CompileStateProjection {
             .bind(&payload.active_agent)
             .bind(&payload.compiled_at)
             .bind(&payload.ship_version)
-            .bind(&payload.provider)
+            .bind(&payload.harness)
             .bind(&plugins_json)
             .execute(conn)
             .await
@@ -83,7 +83,7 @@ pub fn load(project_id: &str) -> Result<Option<ProjectCompileState>> {
     let mut conn = ship_substrate::db::open_db()?;
     let row = block_on(async {
         sqlx::query(
-            "SELECT project_id, active_agent, compiled_at, ship_version, provider, plugins_installed_json \
+            "SELECT project_id, active_agent, compiled_at, ship_version, harness, plugins_installed_json \
              FROM project_compile_state WHERE project_id = ?",
         )
         .bind(project_id)
@@ -99,7 +99,7 @@ pub fn load(project_id: &str) -> Result<Option<ProjectCompileState>> {
             active_agent: r.try_get(1).ok(),
             compiled_at: r.get(2),
             ship_version: r.get(3),
-            provider: r.try_get(4).ok(),
+            harness: r.try_get(4).ok(),
             plugins_installed,
         }
     }))
@@ -131,7 +131,7 @@ mod tests {
             active_agent: Some(agent.to_string()),
             compiled_at: time.to_string(),
             ship_version: "0.1.0".to_string(),
-            provider: Some("claude".to_string()),
+            harness: Some("claude".to_string()),
             plugins_installed: vec!["plug-a".to_string()],
         };
         EventEnvelope::new(COMPILE_COMPLETED, project_id, &payload).unwrap()
@@ -156,7 +156,7 @@ mod tests {
         assert_eq!(row.project_id, id);
         assert_eq!(row.active_agent.as_deref(), Some("planner"));
         assert_eq!(row.ship_version, "0.1.0");
-        assert_eq!(row.provider.as_deref(), Some("claude"));
+        assert_eq!(row.harness.as_deref(), Some("claude"));
         assert_eq!(row.plugins_installed, vec!["plug-a".to_string()]);
     }
 

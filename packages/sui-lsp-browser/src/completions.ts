@@ -97,7 +97,7 @@ const SOURCES: Record<string, SuiCompletionSource> = {
 /** Pick the right completion source for the cursor position. Looks
  *  back at most 8 characters for a trigger string. Returns null if
  *  nothing recognizable precedes the cursor — caller can then fall
- *  back to the editor's built-in completion provider. */
+ *  back to the editor's built-in completion harness. */
 export function completionsAt(source: string, offset: number): SuiCompletionSource | null {
   const safe = Math.max(0, Math.min(offset, source.length))
   const lookback = source.slice(Math.max(0, safe - 8), safe)

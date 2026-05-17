@@ -4,7 +4,7 @@ import type { SuiBuildConfig } from '@ship/sui-build'
 // Chrome was relocated to `apps/shell/src/components/` (built by the
 // shell's own sui-build invocation); this package keeps only the
 // feature/domain components (git-diff, pipeline-*, log-stream,
-// provider-blob, auth-dialog, graph-canvas).
+// harness-blob, auth-dialog, graph-canvas).
 //
 // The walker in `@ship/sui-catalog` reads the per-component CEMs
 // emitted under `.ship/sui-out/` and (because this package declares

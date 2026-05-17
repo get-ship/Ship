@@ -23,7 +23,7 @@ fn opencode_produces_json_patch() {
 }
 
 #[test]
-fn opencode_patch_only_for_opencode_provider() {
+fn opencode_patch_only_for_opencode_harness() {
     let r = resolved(vec![make_server("x")]);
     assert!(
         compile(&r, "opencode")
@@ -315,7 +315,7 @@ fn opencode_settings_extra_merged_last() {
 
 #[test]
 fn opencode_skills_dir_is_opencode() {
-    let desc = crate::compile::get_provider("opencode").unwrap();
+    let desc = crate::compile::get_harness("opencode").unwrap();
     assert_eq!(
         desc.skills_dir.base_path().unwrap(),
         ".opencode/skills",
@@ -323,11 +323,11 @@ fn opencode_skills_dir_is_opencode() {
     );
 }
 
-// ── Provider descriptor ─────────────────────────────────────────────────────
+// ── Harness descriptor ─────────────────────────────────────────────────────
 
 #[test]
 fn opencode_mcp_key_is_mcp() {
-    let desc = crate::compile::get_provider("opencode").unwrap();
+    let desc = crate::compile::get_harness("opencode").unwrap();
     assert_eq!(
         desc.mcp_key.as_str(),
         "mcp",
@@ -337,7 +337,7 @@ fn opencode_mcp_key_is_mcp() {
 
 #[test]
 fn opencode_supports_tool_permissions() {
-    let desc = crate::compile::get_provider("opencode").unwrap();
+    let desc = crate::compile::get_harness("opencode").unwrap();
     let flags = desc.feature_flags();
     assert!(
         flags.supports_tool_permissions,

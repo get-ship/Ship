@@ -1,9 +1,9 @@
-//! Tests for first-step provider plumbing in the job-dispatch path.
+//! Tests for first-step harness plumbing in the job-dispatch path.
 //!
 //! `dispatch_job_internal` must build the `LaunchProfile` from the
-//! first pipeline step's `provider` when present, not only from the
-//! job-level `payload.provider`. This mirrors how `advance_pipeline`
-//! resolves provider for steps 2+, so the two dispatch paths agree.
+//! first pipeline step's `harness` when present, not only from the
+//! job-level `payload.harness`. This mirrors how `advance_pipeline`
+//! resolves harness for steps 2+, so the two dispatch paths agree.
 
 use async_trait::async_trait;
 use std::path::PathBuf;
@@ -35,7 +35,7 @@ impl IsolationStrategy for OkIsolation {
     }
 }
 
-/// Records the (provider, model) it was asked to spawn, then errors so
+/// Records the (harness, model) it was asked to spawn, then errors so
 /// dispatch skips all post-spawn work (monitors, events, etc).
 struct RecordingExecutor {
     captured: Arc<StdMutex<Option<(Option<String>, Option<String>)>>>,
@@ -45,7 +45,7 @@ struct RecordingExecutor {
 impl JobExecutor for RecordingExecutor {
     async fn spawn(&self, ctx: &JobContext) -> anyhow::Result<ExecutorHandle> {
         *self.captured.lock().unwrap() =
-            Some((ctx.launch.provider.clone(), ctx.launch.model.clone()));
+            Some((ctx.launch.harness.clone(), ctx.launch.model.clone()));
         Err(anyhow::anyhow!("recording executor: refusing to spawn"))
     }
     async fn is_alive(&self, _: &ExecutorHandle) -> bool { false }
@@ -105,9 +105,9 @@ fn octx_with(
 fn payload_with_first_step(
     job_id: &str,
     slug: &str,
-    step_provider: Option<&str>,
+    step_harness: Option<&str>,
     step_model: Option<&str>,
-    payload_provider: Option<&str>,
+    payload_harness: Option<&str>,
     payload_model: Option<&str>,
 ) -> JobCreatedPayload {
     let first = PipelineStep {
@@ -117,7 +117,7 @@ fn payload_with_first_step(
         goal: None,
         after: vec![],
         model: step_model.map(str::to_string),
-        provider: step_provider.map(str::to_string),
+        harness: step_harness.map(str::to_string),
         command: None,
         max_retries: None,
         gate: None,
@@ -135,7 +135,7 @@ fn payload_with_first_step(
         source_spec_path: None,
         plan_id: None,
         model: payload_model.map(str::to_string),
-        provider: payload_provider.map(str::to_string),
+        harness: payload_harness.map(str::to_string),
         depends_on: None,
         pipeline: None,
         steps: Some(Pipeline { steps: vec![first], auto_merge: false }),
@@ -177,7 +177,7 @@ async fn run_dispatch(
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn first_step_provider_is_used_when_payload_provider_none() {
+async fn first_step_harness_is_used_when_payload_harness_none() {
     let tmp = TempDir::new().unwrap();
     let payload = payload_with_first_step(
         "j-prov-step", "prov-step",
@@ -188,7 +188,7 @@ async fn first_step_provider_is_used_when_payload_provider_none() {
     assert_eq!(
         captured.0.as_deref(),
         Some("codex"),
-        "step.provider must flow into LaunchProfile.provider on first-step dispatch",
+        "step.harness must flow into LaunchProfile.harness on first-step dispatch",
     );
 }
 
@@ -209,7 +209,7 @@ async fn first_step_model_is_used_when_payload_model_none() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn step_provider_takes_precedence_over_payload_provider() {
+async fn step_harness_takes_precedence_over_payload_harness() {
     let tmp = TempDir::new().unwrap();
     let payload = payload_with_first_step(
         "j-prov-prec", "prov-prec",
@@ -220,12 +220,12 @@ async fn step_provider_takes_precedence_over_payload_provider() {
     assert_eq!(
         captured.0.as_deref(),
         Some("codex"),
-        "step.provider must win over payload.provider when both are set",
+        "step.harness must win over payload.harness when both are set",
     );
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn payload_provider_is_used_when_step_provider_none() {
+async fn payload_harness_is_used_when_step_harness_none() {
     let tmp = TempDir::new().unwrap();
     let payload = payload_with_first_step(
         "j-prov-fallback", "prov-fallback",
@@ -236,6 +236,6 @@ async fn payload_provider_is_used_when_step_provider_none() {
     assert_eq!(
         captured.0.as_deref(),
         Some("claude"),
-        "payload.provider must be used when step.provider is absent",
+        "payload.harness must be used when step.harness is absent",
     );
 }

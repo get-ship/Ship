@@ -161,7 +161,7 @@ pub fn pipeline_step_count(name: &str) -> (usize, Option<String>) {
         source_spec_path: None,
         plan_id: None,
         model: None,
-        provider: None,
+        harness: None,
         depends_on: None,
         pipeline: None,
         steps: None,

@@ -21,7 +21,7 @@ export default controller<Scope>({
 
     const hasSession = derived(() => bar!.session() !== null)
     const hasAgents = derived(() => bar!.agents().length > 0)
-    const hasProviders = derived(() => bar!.providers().length > 0)
+    const hasProviders = derived(() => bar!.harnesses().length > 0)
     const daemonOffline = derived(() => bar!.daemonOnline() === false)
 
     function endSession(id: string): void {
@@ -73,8 +73,8 @@ export default controller<Scope>({
       // ai mode (chat panel always renders) can start a session without
       // bouncing back through the palette.
       const agent = s.bar.spawnAgent()
-      const provider = s.bar.spawnProvider()
-      if (!agent || !provider) return
+      const harness = s.bar.spawnHarness()
+      if (!agent || !harness) return
       s.bar.spawning.set(true)
       s.bar.spawnError.set(null)
       try {
@@ -88,7 +88,7 @@ export default controller<Scope>({
         const resp = await fetch('/api/v1/sessions/spawn', {
           method: 'POST', credentials: 'same-origin',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ workspace_id, kind: 'agent', agent_id: agent, provider }),
+          body: JSON.stringify({ workspace_id, kind: 'agent', agent_id: agent, harness }),
         })
         if (!resp.ok) {
           const err = await resp.json().catch(() => ({})) as { error?: string }

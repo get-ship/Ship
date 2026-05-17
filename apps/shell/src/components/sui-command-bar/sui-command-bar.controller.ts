@@ -14,10 +14,10 @@ import {
 type BarState = {
   open: Signal<boolean>; mode: Signal<BarMode>; value: Signal<string>
   session: Signal<SessionSummary | null>; agents: Signal<AgentSummary[]>
-  providers: Signal<string[]>; allSessions: Signal<SessionSummary[]>
+  harnesses: Signal<string[]>; allSessions: Signal<SessionSummary[]>
   views: Signal<string[]>; selectedIdx: Signal<number>
   sessionPickerOpen: Signal<boolean>; spawnAgent: Signal<string>
-  spawnProvider: Signal<string>; spawning: Signal<boolean>
+  spawnHarness: Signal<string>; spawning: Signal<boolean>
   spawnError: Signal<string | null>; thread: Signal<ThreadLine[]>
   workspaceId: Signal<string>; createSurface: Signal<CreateSurface>
   createName: Signal<string>; createPurpose: Signal<string>
@@ -40,13 +40,13 @@ export default controller<Scope>({
     const value          = shared(signal(''))
     const session        = shared(signal<SessionSummary | null>(null))
     const agents         = shared(signal<AgentSummary[]>([]))
-    const providers      = shared(signal<string[]>([]))
+    const harnesses      = shared(signal<string[]>([]))
     const allSessions    = shared(signal<SessionSummary[]>([]))
     const views          = shared(signal<string[]>([]))
     const selectedIdx    = shared(signal(0))
     const sessionPickerOpen = shared(signal(false))
     const spawnAgent     = shared(signal(''))
-    const spawnProvider  = shared(signal(''))
+    const spawnHarness  = shared(signal(''))
     const spawning       = shared(signal(false))
     const spawnError     = shared(signal<string | null>(null))
     const thread         = shared(signal<ThreadLine[]>([]))
@@ -74,8 +74,8 @@ export default controller<Scope>({
     const dialogRef = ref<HTMLElement>(null)
 
     return {
-      open, mode, value, session, agents, providers, allSessions, views,
-      selectedIdx, sessionPickerOpen, spawnAgent, spawnProvider, spawning,
+      open, mode, value, session, agents, harnesses, allSessions, views,
+      selectedIdx, sessionPickerOpen, spawnAgent, spawnHarness, spawning,
       spawnError, thread, workspaceId, createSurface, createName, createPurpose,
       createShape, createSubmitting, createError, isChat, dialogRef,
       slashCommands, sendKey, searchHits, searching,
@@ -108,12 +108,12 @@ export default controller<Scope>({
     const value = st.value
     const session      = st.session
     const agents       = st.agents
-    const providers    = st.providers
+    const harnesses    = st.harnesses
     const allSessions  = st.allSessions
     const views        = st.views
     const selectedIdx  = st.selectedIdx
     const spawnAgent   = st.spawnAgent
-    const spawnProvider = st.spawnProvider
+    const spawnHarness = st.spawnHarness
     const spawning     = st.spawning
     const spawnError   = st.spawnError
     const thread       = st.thread
@@ -220,7 +220,7 @@ export default controller<Scope>({
       streamAbort = ac
       const es = new EventSource(`/api/v1/sessions/${sessionId}/events`, { withCredentials: true })
       let currentAgentId: string | null = null
-      es.addEventListener('provider', (ev) => {
+      es.addEventListener('harness', (ev) => {
         let parsed: { kind?: string; text?: string; tool?: string }
         try { parsed = JSON.parse((ev as MessageEvent).data) } catch { return }
         switch (parsed.kind) {
@@ -319,7 +319,7 @@ export default controller<Scope>({
         }
       } catch { markOffline() }
       if (agents().length === 0) void loadAgents()
-      if (providers().length === 0) void loadProviders()
+      if (harnesses().length === 0) void loadProviders()
       if (views().length === 0) void loadViews()
     }
 
@@ -336,11 +336,11 @@ export default controller<Scope>({
 
     async function loadProviders(): Promise<void> {
       try {
-        const resp = await fetch('/api/v1/providers/installed', { credentials: 'same-origin' })
+        const resp = await fetch('/api/v1/harnesses/installed', { credentials: 'same-origin' })
         if (!resp.ok) return
-        const body = await resp.json() as { providers: string[] }
-        providers.set(body.providers)
-        if (!spawnProvider() && body.providers.length > 0) spawnProvider.set(body.providers[0]!)
+        const body = await resp.json() as { harnesses: string[] }
+        harnesses.set(body.harnesses)
+        if (!spawnHarness() && body.harnesses.length > 0) spawnHarness.set(body.harnesses[0]!)
       } catch { /* empty */ }
     }
 

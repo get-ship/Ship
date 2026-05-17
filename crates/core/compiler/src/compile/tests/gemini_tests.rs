@@ -75,7 +75,7 @@ fn gemini_no_user_hooks_has_lifecycle_hooks() {
 }
 
 #[test]
-fn gemini_hooks_not_emitted_for_other_providers() {
+fn gemini_hooks_not_emitted_for_other_harnesses() {
     let r = ResolvedConfig {
         hooks: vec![make_hook(HookTrigger::PreToolUse, "cmd", None)],
         ..resolved(vec![])

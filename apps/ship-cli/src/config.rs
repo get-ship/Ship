@@ -62,7 +62,7 @@ impl ShipConfig {
         match key {
             "identity.name" => self.library.identity.as_ref()?.name.clone(),
             "identity.email" => self.library.identity.as_ref()?.email.clone(),
-            "defaults.provider" => self.library.defaults.as_ref()?.provider.clone(),
+            "defaults.harness" => self.library.defaults.as_ref()?.harness.clone(),
             "defaults.mode" => self.library.defaults.as_ref()?.mode.clone(),
             "cloud.base_url" => self.library.cloud.as_ref()?.base_url.clone(),
             "worktrees.dir" => self.local.worktrees.as_ref()?.dir.clone(),
@@ -93,11 +93,11 @@ impl ShipConfig {
                     .get_or_insert_with(Identity::default)
                     .email = Some(value.to_string());
             }
-            "defaults.provider" => {
+            "defaults.harness" => {
                 self.library
                     .defaults
                     .get_or_insert_with(Defaults::default)
-                    .provider = Some(value.to_string());
+                    .harness = Some(value.to_string());
             }
             "defaults.mode" => {
                 self.library
@@ -144,7 +144,7 @@ impl ShipConfig {
             }
             _ => anyhow::bail!(
                 "Unknown key: \"{}\". Valid keys: identity.name, identity.email, \
-                 defaults.provider, defaults.mode, cloud.base_url, worktrees.dir, \
+                 defaults.harness, defaults.mode, cloud.base_url, worktrees.dir, \
                  terminal.program, dispatch.confirm",
                 key
             ),
@@ -157,7 +157,7 @@ impl ShipConfig {
         let keys = [
             "identity.name",
             "identity.email",
-            "defaults.provider",
+            "defaults.harness",
             "defaults.mode",
             "cloud.base_url",
             "worktrees.dir",
@@ -186,13 +186,13 @@ mod tests {
         let (_tmp, _guard) = isolated_home();
         let mut cfg = ShipConfig::default();
         cfg.set("identity.name", "Alice").unwrap();
-        cfg.set("defaults.provider", "claude").unwrap();
+        cfg.set("defaults.harness", "claude").unwrap();
         cfg.set("cloud.base_url", "https://example.com").unwrap();
         cfg.save().unwrap();
 
         let back = ShipConfig::load();
         assert_eq!(back.get("identity.name"), Some("Alice".into()));
-        assert_eq!(back.get("defaults.provider"), Some("claude".into()));
+        assert_eq!(back.get("defaults.harness"), Some("claude".into()));
         assert_eq!(back.get("cloud.base_url"), Some("https://example.com".into()));
     }
 

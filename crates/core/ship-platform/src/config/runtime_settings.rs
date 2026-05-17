@@ -14,7 +14,7 @@ use ship_types::payload::ConfigChanged;
 /// Return the default value for a well-known setting key.
 ///
 /// Defaults are reserved for non-identity infrastructure choices (terminal
-/// program, daemon port). Identity-shaped values like "which AI provider"
+/// program, daemon port). Identity-shaped values like "which AI harness"
 /// or "which model" never default — those need explicit user input on first
 /// run, since silently picking an AI the user hasn't installed or paid for
 /// is a footgun.
@@ -122,8 +122,8 @@ pub fn drain_legacy_settings_kv() -> Result<usize> {
     Ok(migrated)
 }
 
-/// One-shot drain of legacy `providers` rows from the per-project
-/// `runtime::*` KV namespace. Providers now live only in `ship.jsonc`,
+/// One-shot drain of legacy `harnesses` rows from the per-project
+/// `runtime::*` KV namespace. Harnesses now live only in `ship.jsonc`,
 /// so the legacy KV rows can be deleted. Other keys in `runtime::*`
 /// (e.g. the `agents` cache) are preserved. Idempotent.
 pub fn drain_legacy_project_config_kv() -> Result<usize> {
@@ -131,7 +131,7 @@ pub fn drain_legacy_project_config_kv() -> Result<usize> {
     let mut conn = open_kv_db()?;
     let result = block_on(async {
         sqlx::query(
-            "DELETE FROM kv_state WHERE namespace LIKE 'runtime::%' AND key = 'providers'",
+            "DELETE FROM kv_state WHERE namespace LIKE 'runtime::%' AND key = 'harnesses'",
         )
         .execute(&mut conn)
         .await

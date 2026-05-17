@@ -27,7 +27,7 @@ pub struct OutboundMessage {
 /// Pluggable notification adapter. Implement this to add Slack, WhatsApp, etc.
 #[async_trait]
 pub trait NotificationAdapter: Send + Sync {
-    /// Send a message to the human. Returns a provider message ID on success.
+    /// Send a message to the human. Returns a harness message ID on success.
     async fn send(&self, msg: &OutboundMessage) -> Result<String>;
     /// Stable adapter name used in log output and config.
     fn name(&self) -> &'static str;

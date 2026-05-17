@@ -16,8 +16,8 @@ pub struct CreateJobRequest {
     pub plan_id: Option<String>,
     /// Model override for the spawned agent (e.g. "sonnet", "opus").
     pub model: Option<String>,
-    /// Provider override (e.g. "anthropic", "openai").
-    pub provider: Option<String>,
+    /// Harness override (e.g. "anthropic", "openai").
+    pub harness: Option<String>,
     /// Job slugs that must complete before this job is dispatched.
     pub depends_on: Option<Vec<String>>,
     /// Pipeline name from .ship/pipelines/ (e.g. "tdd"). Overrides spec frontmatter.

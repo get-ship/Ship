@@ -42,7 +42,7 @@ fn parses_canonical_nested_shape() {
         tmp.path(),
         "commander",
         r#"{
-            "agent": { "name": "Commander", "providers": ["claude", "codex"] },
+            "agent": { "name": "Commander", "harnesses": ["claude", "codex"] },
             "skills": { "refs": ["cmdr", "write-adr", "ship-agents"] },
             "mcp":    { "servers": ["ship", "typescript"] },
             "rules":  { "refs": ["discipline"] },
@@ -57,15 +57,15 @@ fn parses_canonical_nested_shape() {
     assert_eq!(commander.skills_count, 3);
     assert_eq!(commander.mcp_count, 2);
     assert_eq!(commander.rules_count, 1);
-    assert_eq!(commander.providers_count, 2);
+    assert_eq!(commander.harnesses_count, 2);
 
     let detail = load_agent_with_scopes(&scopes, "commander").unwrap();
     assert_eq!(detail.skills.len(), 3);
     assert_eq!(detail.mcp_servers, vec!["ship", "typescript"]);
     assert_eq!(detail.permissions_tier, "autonomous");
-    // default_provider derives from providers[0] — there is no standalone
+    // default_harness derives from harnesses[0] — there is no standalone
     // field on the schema.
-    assert_eq!(detail.default_provider.as_deref(), Some("claude"));
+    assert_eq!(detail.default_harness.as_deref(), Some("claude"));
 }
 
 #[test]
@@ -138,7 +138,7 @@ fn merges_project_and_global_scopes() {
     write_agent(
         &global_ship,
         "g-only",
-        r#"{ "agent": { "id": "g-only", "name": "Globalist", "providers": ["claude"] } }"#,
+        r#"{ "agent": { "id": "g-only", "name": "Globalist", "harnesses": ["claude"] } }"#,
     );
     write_agent(
         &global_ship,
@@ -155,7 +155,7 @@ fn merges_project_and_global_scopes() {
     write_project_agent(
         &project_ship,
         "p-only",
-        r#"{ "agent": { "id": "p-only", "name": "Projector", "providers": ["codex"] } }"#,
+        r#"{ "agent": { "id": "p-only", "name": "Projector", "harnesses": ["codex"] } }"#,
     );
     write_project_agent(
         &project_ship,

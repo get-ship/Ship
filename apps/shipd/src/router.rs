@@ -439,7 +439,7 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::PtySessionReply_template(), sessions::api::session_reply)
         .ship_route(Route::StreamPtySession_template(), sessions::api::stream_session)
         .ship_route(Route::StreamPtySessionEvents_template(), sessions::api::stream_session_events)
-        .ship_route(Route::InstalledProviders, sessions::api::installed_providers)
+        .ship_route(Route::InstalledProviders, sessions::api::installed_harnesses)
         .ship_route(Route::ListProjects, projects_api::list_projects)
         .ship_route(Route::AddProject, projects_api::add_project)
         .ship_route(Route::SwitchProject, projects_api::switch_project)
@@ -550,7 +550,7 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::ListSettings, settings_api::list_settings)
         .ship_route(Route::UpdateSetting, settings_api::update_setting)
         .ship_route(Route::GetSetting_template(), settings_api::get_setting)
-        .ship_route(Route::ListProviders, settings_api::list_providers)
+        .ship_route(Route::ListProviders, settings_api::list_harnesses)
         // Project
         .ship_route(Route::ListSessionFiles_template(), project_api::list_session_files)
         .ship_route(Route::ListProjectAgents_template(), project_api::list_agents)

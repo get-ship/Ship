@@ -66,7 +66,7 @@ pub fn emit_actor_created_simple(
     kind: &str,
     project_id: Option<&str>,
     agent_id: Option<&str>,
-    provider: Option<&str>,
+    harness: Option<&str>,
     transport: Option<&str>,
     parent_actor_id: Option<&str>,
 ) -> Result<()> {
@@ -77,7 +77,7 @@ pub fn emit_actor_created_simple(
         parent_actor_id: parent_actor_id.map(str::to_string),
         restart_count: 0,
         agent_id: agent_id.map(str::to_string),
-        provider: provider.map(str::to_string),
+        harness: harness.map(str::to_string),
         transport: transport.map(str::to_string),
         persistence: Some("one-shot".to_string()),
         ..Default::default()

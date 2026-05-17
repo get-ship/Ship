@@ -209,7 +209,7 @@ async fn build_mesh_snapshot(state: &ApiState) -> Result<serde_json::Value, Stri
                 "status": r.status,
                 "workspace_id": r.workspace_id,
                 "agent_id": r.agent_id,
-                "provider": r.provider,
+                "harness": r.harness,
                 "model": r.model,
                 "transport": r.transport,
                 "persistence": r.persistence,

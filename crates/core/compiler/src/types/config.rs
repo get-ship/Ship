@@ -177,7 +177,7 @@ pub struct ProjectConfig {
     pub name: Option<String>,
     pub description: Option<String>,
     #[serde(default)]
-    pub providers: Vec<String>,
+    pub harnesses: Vec<String>,
     #[serde(default)]
     pub agents: Vec<AgentConfig>,
     #[serde(default)]
@@ -197,7 +197,7 @@ impl Default for ProjectConfig {
             id: String::new(),
             name: None,
             description: None,
-            providers: Vec::new(),
+            harnesses: Vec::new(),
             agents: Vec::new(),
             mcp_servers: Vec::new(),
             hooks: Vec::new(),

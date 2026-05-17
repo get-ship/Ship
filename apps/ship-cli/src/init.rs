@@ -4,11 +4,11 @@ use anyhow::Result;
 
 use crate::paths;
 
-pub fn run(global: bool, provider: Option<String>) -> Result<()> {
+pub fn run(global: bool, harness: Option<String>) -> Result<()> {
     if global {
         run_global()
     } else {
-        run_project(provider)
+        run_project(harness)
     }
 }
 
@@ -35,13 +35,13 @@ fn run_global() -> Result<()> {
     Ok(())
 }
 
-fn run_project(provider: Option<String>) -> Result<()> {
+fn run_project(harness: Option<String>) -> Result<()> {
     let project_root = std::env::current_dir()?;
 
-    // ── Auto-detect existing provider configs when no --provider flag ─────────
+    // ── Auto-detect existing harness configs when no --harness flag ─────────
     let is_fresh = !paths::project_ship_jsonc().exists();
-    let detected = if is_fresh && provider.is_none() {
-        let d = compiler::detect_providers(&project_root);
+    let detected = if is_fresh && harness.is_none() {
+        let d = compiler::detect_harnesses(&project_root);
         if d.any() { Some(d) } else { None }
     } else {
         None
@@ -51,26 +51,26 @@ fn run_project(provider: Option<String>) -> Result<()> {
     let ship_jsonc = paths::project_ship_jsonc();
 
     if let Some(ref detected) = detected {
-        // Import detected provider configs into .ship/
-        let providers = detected.as_list();
-        println!("Detected existing configs: {}", providers.join(", "));
+        // Import detected harness configs into .ship/
+        let harnesses = detected.as_list();
+        println!("Detected existing configs: {}", harnesses.join(", "));
 
         let library = compiler::decompile_all(&project_root);
 
-        // Write ship.jsonc with detected providers and provider_defaults
+        // Write ship.jsonc with detected harnesses and harness_defaults
         if !ship_jsonc.exists() {
             let mut project = serde_json::json!({
-                "providers": providers.iter()
+                "harnesses": harnesses.iter()
                     .map(|p| serde_json::Value::String(p.to_string()))
                     .collect::<Vec<_>>()
             });
-            if !library.provider_defaults.is_empty() {
+            if !library.harness_defaults.is_empty() {
                 let defaults: serde_json::Map<String, serde_json::Value> = library
-                    .provider_defaults
+                    .harness_defaults
                     .iter()
                     .map(|(k, v)| (k.clone(), v.clone()))
                     .collect();
-                project["provider_defaults"] = serde_json::Value::Object(defaults);
+                project["harness_defaults"] = serde_json::Value::Object(defaults);
             }
             let manifest = serde_json::json!({
                 "$schema": "../schemas/ship.schema.json",
@@ -128,12 +128,12 @@ fn run_project(provider: Option<String>) -> Result<()> {
         }
     } else if !ship_jsonc.exists() {
         // No detection — scaffold default
-        let prov = provider.as_deref().unwrap_or("claude");
+        let prov = harness.as_deref().unwrap_or("claude");
         std::fs::write(
             &ship_jsonc,
             format!(
                 "{{\n  \"$schema\": \"../schemas/ship.schema.json\",\n  \
-                 \"project\": {{\n    \"providers\": [\"{prov}\"],\n  }},\n}}"
+                 \"project\": {{\n    \"harnesses\": [\"{prov}\"],\n  }},\n}}"
             ),
         )?;
     }
@@ -215,16 +215,16 @@ fn run_project(provider: Option<String>) -> Result<()> {
 
     install_post_checkout_hook(&project_root);
 
-    let effective_providers = if let Some(ref d) = detected {
+    let effective_harnesses = if let Some(ref d) = detected {
         d.as_list().join(", ")
     } else {
-        provider.as_deref().unwrap_or("claude").to_string()
+        harness.as_deref().unwrap_or("claude").to_string()
     };
 
     println!("initialized .ship/ in current directory");
-    println!("  providers: {}", effective_providers);
+    println!("  harnesses: {}", effective_harnesses);
     if detected.is_some() {
-        println!("  imported existing provider configs into .ship/");
+        println!("  imported existing harness configs into .ship/");
     }
     if home_view_scaffolded {
         println!(

@@ -14,7 +14,7 @@ use super::json_string_array;
 /// Parse Claude Code native config files and produce a partial [`ProjectLibrary`].
 ///
 /// Reads (if present):
-/// - `.claude/settings.json` → permissions, hooks, model, env, agent limits, provider_defaults
+/// - `.claude/settings.json` → permissions, hooks, model, env, agent limits, harness_defaults
 /// - `CLAUDE.md` → rules
 /// - `.mcp.json` → mcp_servers
 pub fn decompile_claude(project_root: &Path) -> ProjectLibrary {
@@ -128,7 +128,7 @@ fn parse_claude_settings(library: &mut ProjectLibrary, settings: &Json) {
         library.claude_include_co_authored_by = Some(co);
     }
 
-    // ── Provider defaults — everything we don't recognize ────────────────────
+    // ── Harness defaults — everything we don't recognize ────────────────────
     let mut extra = serde_json::Map::new();
     for (k, v) in obj {
         if !KNOWN_SETTINGS_KEYS.contains(&k.as_str()) {
@@ -137,7 +137,7 @@ fn parse_claude_settings(library: &mut ProjectLibrary, settings: &Json) {
     }
     if !extra.is_empty() {
         library
-            .provider_defaults
+            .harness_defaults
             .insert("claude".to_string(), Json::Object(extra));
     }
 }

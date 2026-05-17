@@ -18,7 +18,7 @@ const AFTER_HELP: &str = "\x1b[1mDaily Workflow:\x1b[0m
 \x1b[1mConfiguration:\x1b[0m
   ship mcp add-stdio ... Register an MCP server
   ship config set k v    Set a user preference
-  ship convert <source>  Convert provider configs to .ship/
+  ship convert <source>  Convert harness configs to .ship/
 
 \x1b[1mLearn More:\x1b[0m
   ship docs topics       List help topics
@@ -44,9 +44,9 @@ pub enum Commands {
         /// Configure ~/.ship/ identity and defaults instead of current project
         #[arg(long)]
         global: bool,
-        /// Default provider target (claude, gemini, codex, cursor)
+        /// Default harness target (claude, gemini, codex, cursor)
         #[arg(long)]
-        provider: Option<String>,
+        harness: Option<String>,
         /// Overwrite existing .ship/ configuration
         #[arg(long)]
         force: bool,
@@ -95,11 +95,11 @@ pub enum Commands {
         path: Option<PathBuf>,
     },
 
-    /// Compile the active agent to provider-native config files
+    /// Compile the active agent to harness-native config files
     Compile {
-        /// Compile for a specific provider only (claude, gemini, codex, cursor)
+        /// Compile for a specific harness only (claude, gemini, codex, cursor)
         #[arg(long)]
-        provider: Option<String>,
+        harness: Option<String>,
         /// Preview output without writing any files
         #[arg(long)]
         dry_run: bool,
@@ -176,9 +176,9 @@ pub enum Commands {
         json: bool,
     },
 
-    /// Convert provider config files (CLAUDE.md, .cursor/) into .ship/ format
+    /// Convert harness config files (CLAUDE.md, .cursor/) into .ship/ format
     Convert {
-        /// A getship.dev URL (e.g. https://getship.dev/p/<id>), local path, or provider config
+        /// A getship.dev URL (e.g. https://getship.dev/p/<id>), local path, or harness config
         source: String,
     },
 
@@ -191,11 +191,11 @@ pub enum Commands {
 
     /// Show detailed help for a topic (run `ship docs topics` to list)
     Docs {
-        /// Topic name (e.g. agents, skills, mcp, compile, providers)
+        /// Topic name (e.g. agents, skills, mcp, compile, harnesses)
         topic: Option<String>,
     },
 
-    /// Provider hook integration (before-tool, after-tool, session-end)
+    /// Harness hook integration (before-tool, after-tool, session-end)
     #[command(hide = true)]
     Hook {
         #[command(subcommand)]

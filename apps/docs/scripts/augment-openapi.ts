@@ -53,7 +53,7 @@ const PARAM_PLACEHOLDERS: Record<string, string> = {
   path: "webhook-example",
   view_id: "chat",
   skill_id: "ship-writing",
-  key: "defaults.provider",
+  key: "defaults.harness",
 };
 
 function fillPath(path: string): string {

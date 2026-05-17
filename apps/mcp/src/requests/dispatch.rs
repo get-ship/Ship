@@ -9,8 +9,8 @@ pub struct DispatchAgentRequest {
     pub slug: String,
     /// Contents of the job spec — written to `.artifacts/job-spec.md`.
     pub job_spec: String,
-    /// Provider to use: "claude" (default) or "codex".
-    pub provider: Option<String>,
+    /// Harness to use: "claude" (default) or "codex".
+    pub harness: Option<String>,
 }
 
 #[derive(Deserialize, JsonSchema)]

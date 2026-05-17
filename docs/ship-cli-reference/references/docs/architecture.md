@@ -30,7 +30,7 @@ fn dispatch(command: Option<Commands>) -> Result<()> {
     match command {
         None => run_status(None),
         Some(cmd) => match cmd {
-            Commands::Init { global, provider, force } => init::run(global, provider, force),
+            Commands::Init { global, harness, force } => init::run(global, harness, force),
             Commands::Run { ... } => ship_run::run(opts),
             Commands::Compile { ... } => compile::run(...),
             // ~40 arms total
@@ -55,7 +55,7 @@ pub struct Cli {
 
 #[derive(Subcommand, Debug)]
 pub enum Commands {
-    Init { global, provider, force },
+    Init { global, harness, force },
     Use { agent, ... },
     Compile { ... },
     Run { pipeline, workspace, vars, dry_run, headless, ... },
@@ -119,7 +119,7 @@ These commands POST to `http://127.0.0.1:{port}` using the daemon token.
 - `ship jobs` — GETs `/api/v1/jobs` for the current projection.
 - `ship job <slug>` — single-job operations. The only subcommand today is `cancel` (POSTs `/api/v1/jobs/{slug}/cancel`).
 - `ship workspace *` — some subcommands go through the daemon for pipeline coordination.
-- `ship hook <trigger>` — emits hook events via daemon (for hook scripts invoked by providers).
+- `ship hook <trigger>` — emits hook events via daemon (for hook scripts invoked by harnesses).
 - `ship tail` — SSE / long-poll for live events.
 
 Token read: `~/.ship/daemon.token` via `auth::read_token`. Port read: `~/.ship/shipd.port` via `daemon::read_port_file`. Connection failures surface as "Try: ship daemon start."
@@ -178,9 +178,9 @@ Error: ...
 
 ## Hook trigger scripts
 
-`hook.rs` implements `ship hook <trigger>` — the endpoint hook scripts invoke. The `HookCommands` enum has four variants: `session-start`, `before-tool`, `after-tool`, `session-end`. Example: a provider's session-end hook fires `ship hook session-end < payload.json`. The CLI reads stdin, parses the hook payload, constructs the appropriate event (`session.ended`, `skill.completed`, etc.), and POSTs to the daemon.
+`hook.rs` implements `ship hook <trigger>` — the endpoint hook scripts invoke. The `HookCommands` enum has four variants: `session-start`, `before-tool`, `after-tool`, `session-end`. Example: a harness's session-end hook fires `ship hook session-end < payload.json`. The CLI reads stdin, parses the hook payload, constructs the appropriate event (`session.ended`, `skill.completed`, etc.), and POSTs to the daemon.
 
-Used primarily for events that originate inside provider execution loops and can't be captured any other way.
+Used primarily for events that originate inside harness execution loops and can't be captured any other way.
 
 ## Tests
 

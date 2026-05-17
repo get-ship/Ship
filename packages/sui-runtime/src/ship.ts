@@ -83,7 +83,7 @@ export interface ShipSDK {
   agents: {
     /** Agent list summaries — full payload as first patch, deltas after. */
     summaries(): LiveSource<AgentsSummariesResponse>
-    /** Agent-create wizard ctx (templates + presets + providers). */
+    /** Agent-create wizard ctx (templates + presets + harnesses). */
     create_ctx(): LiveSource<unknown>
     /** Graph payload (nodes + edges) for the agent-wire canvas. */
     wire(args: { id: string }): LiveSource<unknown>
@@ -91,7 +91,7 @@ export interface ShipSDK {
     detail(args: { id: string }): LiveSource<unknown>
     /** Tier list + catalog rows for the per-agent settings pane. */
     settings(args: { id: string }): LiveSource<unknown>
-    /** Catalog rows for the agents list (providers, skills, etc.). */
+    /** Catalog rows for the agents list (harnesses, skills, etc.). */
     catalogs(): LiveSource<unknown>
     /** Create an agent. Body is the agent doc as written to disk; `id` is
      *  the agent slug. */
@@ -252,19 +252,19 @@ export interface ShipSDK {
     snapshot(): LiveSource<unknown>
   }
   settings: {
-    /** Settings view ctx — providers, defaults, terminal, about. */
+    /** Settings view ctx — harnesses, defaults, terminal, about. */
     state(): LiveSource<unknown>
   }
   sessions: {
     /** Live PTY-session registry (Mission Control feed). */
     list(): LiveSource<unknown>
     /** Spawn a new PTY session and attach the actor.
-     *  `kind` is `'agent' | 'shell'`; agents require `agent_id` + `provider`. */
+     *  `kind` is `'agent' | 'shell'`; agents require `agent_id` + `harness`. */
     start(args: {
       workspace_id: string
       kind: 'agent' | 'shell'
       agent_id?: string
-      provider?: string
+      harness?: string
     }): Promise<{ session_id: string; attached: boolean }>
     /** Gracefully stop a live session. Resolves once the daemon acks. */
     end(args: { id: string }): Promise<void>
