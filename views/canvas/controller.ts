@@ -17,7 +17,7 @@ interface AnnotationRow {
   note: string
 }
 
-interface AgentSummary { id: string; label?: string; description?: string }
+interface AgentSummary { id: string; name?: string; description?: string }
 
 interface CanvasHostEl extends HTMLElement {
   setContent(sui: string): void
@@ -109,10 +109,10 @@ export default controller<Scope>({
     const pairedAgentLabel = derived(() => {
       const id = pairedAgentId()
       if (!id) return ''
-      const list = agentsSummaries() as { kind?: string; value?: { agents?: AgentSummary[] } }
+      const list = agentsSummaries() as { kind?: string; value?: { items?: AgentSummary[] } }
       if (list?.kind !== 'ok') return id
-      const a = list.value?.agents?.find((x) => x.id === id)
-      return a?.label || id
+      const a = list.value?.items?.find((x) => x.id === id)
+      return a?.name || id
     })
 
     return {
