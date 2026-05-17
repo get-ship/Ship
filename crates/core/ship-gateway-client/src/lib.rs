@@ -17,7 +17,17 @@ pub use connectrpc::ConnectError;
 
 // Generated modules — one per proto package. connectrpc-build emits a
 // `<package>.mod.rs` aggregator that includes per-file content; we wrap
-// it in the matching Rust module tree.
+// it in the matching Rust module tree. The generated code trips a few
+// stylistic clippy lints (match_single_binding from default impls,
+// large stack arrays from the file descriptor blobs); allow on the
+// module so we don't have to monkey-patch the generator output.
+#[allow(
+    clippy::match_single_binding,
+    clippy::large_stack_arrays,
+    clippy::needless_borrow,
+    clippy::useless_conversion,
+    clippy::redundant_clone,
+)]
 pub mod ship {
     pub mod gateway {
         pub mod v1 {

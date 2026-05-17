@@ -27,3 +27,6 @@ http-body = "1"
 connectrpc-build = "0.4"
 # Bundles a protoc binary so fresh clones don't need a system-wide install.
 protoc-bin-vendored = "3"
+
+[dev-dependencies]
+serde_json = { workspace = true }
