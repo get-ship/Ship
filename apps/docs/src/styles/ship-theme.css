@@ -343,3 +343,66 @@ dialog[open] .dialog-frame [data-close-modal] {
   border-radius: 4px;
   font-size: 0.92em;
 }
+
+/* -------------------------------------------------------------------------
+ * Canvas surfaces — pages that are working tools, not prose.
+ *
+ * Tutorial, component viewer, playground. They get full-bleed
+ * viewport, drop the Starlight content-panel padding, own their
+ * scrolling internally. Add `class="canvas-root"` to the page's
+ * top-level wrapper and Starlight's chrome gets out of the way.
+ *
+ * Used today by: tut-root (tutorial steps) and cmp-root
+ * (component viewer). The body:has() reset is one source so the
+ * two surfaces stay visually consistent.
+ * ------------------------------------------------------------------------- */
+html:has(.canvas-root), body:has(.canvas-root) {
+  overflow: hidden;
+  height: 100dvh;
+}
+body:has(.canvas-root) main > .sl-container,
+body:has(.canvas-root) .main-pane .sl-container {
+  max-width: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+body:has(.canvas-root) main > * {
+  max-width: none !important;
+  margin: 0 !important;
+}
+body:has(.canvas-root) .hero,
+body:has(.canvas-root) main h1#_top,
+body:has(.canvas-root) main h1 {
+  display: none !important;
+}
+body:has(.canvas-root) .content-panel { padding: 0 !important; border: none !important; }
+body:has(.canvas-root) .content-panel + .content-panel { border-top: 0 !important; }
+body:has(.canvas-root) .page > .main-frame { padding-top: var(--sl-nav-height) !important; }
+body:has(.canvas-root) main { padding: 0 !important; flex: 1; min-height: 0; display: flex; flex-direction: column; }
+body:has(.canvas-root) .main-frame { display: flex; flex-direction: column; height: 100dvh; }
+body:has(.canvas-root) .sl-container { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+body:has(.canvas-root) .pagination-links,
+body:has(.canvas-root) footer.sl-flex { display: none !important; }
+
+/* Floating "← Docs" badge — top-left of the canvas, absolute
+ * positioned so it doesn't eat a layout row. Used by every canvas
+ * surface as the way back to the rest of the site. */
+.canvas-back {
+  position: absolute;
+  top: 6px;
+  left: 12px;
+  z-index: 10;
+  font-family: var(--sl-font-system-mono);
+  font-size: 0.7rem;
+  color: var(--sl-color-gray-2);
+  text-decoration: none;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: color-mix(in oklch, var(--sl-color-bg-sidebar) 80%, transparent);
+  border: 1px solid var(--sl-color-hairline-shade);
+  transition: color 120ms ease, border-color 120ms ease;
+}
+.canvas-back:hover {
+  color: var(--sl-color-text-accent);
+  border-color: var(--sl-color-text-accent);
+}

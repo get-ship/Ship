@@ -187,11 +187,12 @@ const proseHtml = renderMarkdown(body)
     tableOfContents: false,
   }}
 >
-  <div class="tut-root">
-    {/* Tiny floating badge — only chrome in the tut-root header
-        row. Gives a one-click way back to the rest of the docs
-        site without eating vertical real estate. */}
-    <a href="/" class="tut-back" aria-label="Back to docs home">
+  <div class="tut-root canvas-root">
+    {/* The shared .canvas-back is positioned absolute via the global
+        rule in ship-theme.css — keeps every working surface (tutorial,
+        component viewer, future playgrounds) using the same back
+        affordance instead of each rolling its own. */}
+    <a href="/" class="canvas-back" aria-label="Back to docs home">
       <span aria-hidden="true">←</span> Docs
     </a>
 
@@ -240,48 +241,11 @@ const proseHtml = renderMarkdown(body)
 </StarlightPage>
 
 <style is:global>
-  /* Splash template still emits a full-bleed <h1> from frontmatter
-     `title`. Suppress on tutorial routes — the pill in tut-head gives
-     equivalent info without eating 100+ px of viewport. */
-  body:has(.tut-root) main > .sl-container,
-  body:has(.tut-root) .main-pane .sl-container {
-    max-width: none;
-    padding: 0 !important;
-  }
-  body:has(.tut-root) .hero,
-  body:has(.tut-root) main h1#_top,
-  body:has(.tut-root) main h1 {
-    display: none !important;
-  }
-  /* Full-screen canvas: the page owns scrolling inside its own
-     panes, the body never scrolls. */
-  html:has(.tut-root), body:has(.tut-root) {
-    overflow: hidden;
-    height: 100dvh;
-  }
-  body:has(.tut-root) .content-panel { padding: 0 !important; border: none !important; }
-  body:has(.tut-root) .content-panel + .content-panel { border-top: 0 !important; }
-  body:has(.tut-root) .page > .main-frame { padding-top: var(--sl-nav-height) !important; }
-  body:has(.tut-root) main { padding: 0 !important; }
-  /* Starlight wraps content in .sl-container with a max-width.
-     Override it on tutorial pages so the canvas truly fills. */
-  body:has(.tut-root) .sl-container,
-  body:has(.tut-root) .main-pane .sl-container,
-  body:has(.tut-root) main > * {
-    max-width: none !important;
-    margin: 0 !important;
-  }
-  body:has(.tut-root) .main-frame {
-    display: flex;
-    flex-direction: column;
-    height: 100dvh;
-  }
-  body:has(.tut-root) main { flex: 1; min-height: 0; display: flex; flex-direction: column; }
-  body:has(.tut-root) .sl-container { flex: 1; min-height: 0; display: flex; flex-direction: column; }
-  /* Suppress the "Built with Starlight" footer + page-meta bar on
-     tutorial pages — they break the full-viewport canvas illusion. */
-  body:has(.tut-root) .pagination-links,
-  body:has(.tut-root) footer.sl-flex { display: none !important; }
+  /* All the body:has(.tut-root) chrome resets are now sourced from
+     `.canvas-root` in apps/docs/src/styles/ship-theme.css — the
+     tutorial just opts in by adding canvas-root to the wrapper.
+     What lives here: tutorial-specific layout (split, prose pane,
+     editor + preview panes). */
 
   .tut-root {
     display: flex;
@@ -293,10 +257,9 @@ const proseHtml = renderMarkdown(body)
     position: relative;
   }
 
-  /* Top-left back-to-docs badge. Floats absolute so it doesn't
-     consume a row in the layout — the prose pane uses its full
-     vertical span. ~24px tall, sits above the prose's first
-     scroll line. */
+  /* Local tut-back stub kept for backward-compatibility with any
+     external link still pointing at the old class. Visual styling
+     comes from .canvas-back. */
   .tut-back {
     position: absolute;
     top: 6px;
