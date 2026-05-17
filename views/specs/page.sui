@@ -26,9 +26,14 @@
             <span slot="title">No specs yet</span>
             Click + New to start one.
           </sui-empty-state>
+        {:else if noMatches()}
+          <sui-empty-state variant="placeholder" style="padding:24px 14px">
+            <span slot="title">No matches</span>
+            No specs match "{q()}". Clear the filter to see all.
+          </sui-empty-state>
         {:else}
           {#for group of rail().value.groups key={group.key}}
-            {#if group.count > 0}
+            {#if group.items.length > 0}
               <section class="specs-rail-group">
                 <div class="specs-rail-group-head">
                   <span>{group.label}</span>

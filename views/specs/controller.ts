@@ -31,7 +31,14 @@ type WithSignals = { $signals: { selected: LiveSignal<SpecDetail> } }
 const liveSelected = (state: unknown): LiveSignal<SpecDetail> =>
   (state as WithSignals).$signals.selected
 
-const STATUS_CYCLE = ['draft', 'ready', 'launched', 'archived'] as const
+// The collection schema accepts {draft, ready, launched, archived} but
+// the rail buckets are {draft, ready, launched, completed} — two daemon
+// enums that disagree. Until they're unified, the click-cycle is limited
+// to the intersection: statuses that are both writable AND visible. A
+// fourth click wraps back to `draft`. `archived` and `completed` remain
+// reachable from outside (API, future settings menu); they're just not
+// in the rapid-toggle path.
+const STATUS_CYCLE = ['draft', 'ready', 'launched'] as const
 
 export default controller<Scope>({
   scope: () => {
@@ -57,6 +64,19 @@ export default controller<Scope>({
       ),
     )
 
+    // True when the rail loaded but every group's filtered items are
+    // empty — i.e. the user's filter excluded every spec. The template
+    // compiler bans inline arrow functions in `{:else if}` expressions,
+    // so the predicate lives here.
+    type RailGroup = { items: unknown[] }
+    type RailValue = { total: number; groups: RailGroup[] }
+    const noMatches = derived(() => {
+      const s = rail()
+      if (s.kind !== 'ok') return false
+      const v = s.value as RailValue
+      return v.total > 0 && v.groups.every((g) => g.items.length === 0)
+    })
+
     // Best-effort agent profile load. List is small and quasi-static, so
     // a one-shot fetch is enough — no need for a live SSE channel.
     void fetch('/api/v1/agents', { credentials: 'include' })
@@ -75,7 +95,7 @@ export default controller<Scope>({
     })
 
     return {
-      q, selectedId, confirmDelete, filterInputEl, rail, selected,
+      q, selectedId, confirmDelete, filterInputEl, rail, selected, noMatches,
       editing, saving, draftBody, draftTitle, agentsList,
     }
   },
