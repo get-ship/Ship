@@ -57,7 +57,6 @@ pub enum ActorKind {
     Agent,
     PipelineStep,
     Shell,
-    Service,
 }
 
 impl ActorKind {
@@ -66,7 +65,6 @@ impl ActorKind {
             ActorKind::Agent => "agent",
             ActorKind::PipelineStep => "pipeline-step",
             ActorKind::Shell => "shell",
-            ActorKind::Service => "service",
         }
     }
 }
