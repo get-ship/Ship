@@ -1,0 +1,79 @@
+// Ship gateway AuthService — typed RPC for the auth/identity surface
+// the daemon and CLI consume. REST stays for things the wire shape
+// genuinely matters for (JWKS, OAuth callbacks, waitlist). RPC owns
+// the call sites where typed request/response over a generated client
+// is the point.
+//
+// Versioning lives in the package (`ship.gateway.v1`); the wire path
+// is `/ship.gateway.v1.AuthService/<Method>` per Connect convention.
+// REST routes on this same gateway live under `/v1/*`.
+syntax = "proto3";
+
+package ship.gateway.v1;
+
+service AuthService {
+  // Exchange a PKCE auth code + verifier for a Better Auth API key.
+  // The CLI gets here after the browser callback in `/v1/auth/cli` →
+  // `/v1/auth/cli-callback` redirects back with a one-time code.
+  rpc TokenExchange(TokenExchangeRequest) returns (TokenExchangeResponse);
+
+  // Validity check + remaining TTL for an existing key. Better Auth
+  // API keys do not refresh in place; this endpoint reports liveness
+  // and tells callers when to re-run `ship login` for a fresh key.
+  rpc Refresh(RefreshRequest) returns (RefreshResponse);
+
+  // Mint a short-lived signed JWT (Ed25519, 1h TTL) the daemon presents
+  // to its peers as an attestation that this user owns this machine.
+  // Verified against the JWKS at /v1/jwks.
+  rpc DaemonAttest(DaemonAttestRequest) returns (DaemonAttestResponse);
+
+  // Return the calling session's user — used by `ship login` to bind
+  // the daemon to a user id, and by `ship whoami` for display.
+  rpc GetMe(GetMeRequest) returns (GetMeResponse);
+}
+
+message TokenExchangeRequest {
+  string code = 1;
+  string verifier = 2;
+}
+
+message TokenExchangeResponse {
+  // Better Auth API key — stored by the CLI as the long-lived bearer
+  // credential. Prefix: `ship_`. Length: 48 + prefix.
+  string key = 1;
+  string user_id = 2;
+  // Unix seconds. Zero means the key never expires (in-memory only).
+  int64 expires_at = 3;
+}
+
+message RefreshRequest {}
+
+message RefreshResponse {
+  bool ok = 1;
+  string user_id = 2;
+  // Human-facing note explaining the no-refresh model.
+  string note = 3;
+}
+
+message DaemonAttestRequest {}
+
+message DaemonAttestResponse {
+  string jwt = 1;
+  // Brand-domain identifier (e.g. https://getship.dev) — stable across
+  // env hosts. Distinct from where the JWKS is served.
+  string issuer = 2;
+  int64 expires_at = 3;
+}
+
+message GetMeRequest {}
+
+message User {
+  string id = 1;
+  string name = 2;
+  string email = 3;
+  string image = 4;
+}
+
+message GetMeResponse {
+  User user = 1;
+}
