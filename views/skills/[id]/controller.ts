@@ -101,10 +101,6 @@ function decodeEntities(s: string): string {
     .replace(/&amp;/g, '&')
 }
 
-function fileHref(id: string, file: string): string {
-  return `/skills/${encodeURIComponent(id)}?file=${encodeURIComponent(file)}`
-}
-
 function isEditable(path: string, ext: string): boolean {
   if (!path) return true
   return ext === 'md'
@@ -177,6 +173,12 @@ export default controller<Scope>({
     })
 
     const dirty = derived(() => draft() !== baseline())
+    const selectedFileName = derived(() => {
+      const path = selectedFile()
+      if (!path) return ''
+      const idx = path.lastIndexOf('/')
+      return idx >= 0 ? path.slice(idx + 1) : path
+    })
     const activeIsEditable = derived(() => {
       const path = selectedFile()
       if (!path) return true
@@ -229,8 +231,8 @@ export default controller<Scope>({
 
     return {
       skillId, q, kind, tag, selectedFile,
-      rail, skill, fileContent, fileMetas, fileHref,
-      draft, dirty, saving, saveBanner, activeIsEditable,
+      rail, skill, fileContent, fileMetas,
+      draft, dirty, saving, saveBanner, activeIsEditable, selectedFileName,
       onEditorInput, save,
     }
   },
