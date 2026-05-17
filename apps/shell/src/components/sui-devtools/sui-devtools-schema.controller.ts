@@ -70,7 +70,12 @@ export default controller<Scope>({
 
     function stripPrefix(path: string): string {
       const m = path.match(/^\/api\/v\/(.+)$/)
-      return m ? m[1]! : path.replace(/^\/+/, '')
+      // view-source is keyed by the base view name; subroutes like
+      // /skills/cmdr share the parent view's source. Take just the
+      // first segment to avoid spurious 404s on every detail navigation.
+      const raw = m ? m[1]! : path.replace(/^\/+/, '')
+      const firstSlash = raw.indexOf('/')
+      return firstSlash > 0 ? raw.slice(0, firstSlash) : raw
     }
 
     async function refresh(): Promise<void> {
