@@ -230,6 +230,60 @@ pub fn pull_ff_only(root: &Path, remote: Option<&str>) -> Result<String, GitErro
     Ok(upstream_commit.id().to_string())
 }
 
+// ── branch create / delete ──────────────────────────────────────────────
+
+/// Create a new local branch from HEAD. Fails if the branch already exists.
+pub fn branch_create(root: &Path, name: &str) -> Result<String, GitError> {
+    let repo = open_repo(root)?;
+    let head_commit = repo
+        .head()
+        .map_err(|e| GitError::BadRef(format!("no HEAD: {e}")))?
+        .peel_to_commit()?;
+    repo.branch(name, &head_commit, false)
+        .map_err(|e| GitError::BadRef(format!("branch `{name}`: {e}")))?;
+    Ok(name.to_string())
+}
+
+/// Delete a local branch. `force=true` allows deleting unmerged branches.
+/// Refuses to delete the currently-checked-out branch.
+pub fn branch_delete(root: &Path, name: &str, force: bool) -> Result<String, GitError> {
+    let repo = open_repo(root)?;
+    if current_branch_name(&repo).as_deref() == Some(name) {
+        return Err(GitError::BadRef(format!(
+            "cannot delete `{name}` — it is the current branch"
+        )));
+    }
+    let mut branch = repo
+        .find_branch(name, BranchType::Local)
+        .map_err(|e| GitError::BadRef(format!("branch `{name}`: {e}")))?;
+    if !force {
+        // Reject deletion if the branch is not merged into HEAD.
+        let head_oid = repo.head()?.target();
+        let br_oid = branch.get().target();
+        if let (Some(head), Some(br)) = (head_oid, br_oid) {
+            let (ahead, _) = repo.graph_ahead_behind(br, head)?;
+            if ahead > 0 {
+                return Err(GitError::BadRef(format!(
+                    "branch `{name}` is not fully merged — pass force=true to override"
+                )));
+            }
+        }
+    }
+    branch.delete()?;
+    Ok(name.to_string())
+}
+
+// ── repo init ────────────────────────────────────────────────────────────
+
+/// Initialize a new git repository at `root`. No-op if `.git` already exists.
+pub fn init_repo(root: &Path) -> Result<(), GitError> {
+    if root.join(".git").exists() {
+        return Ok(());
+    }
+    Repository::init(root).map_err(GitError::from)?;
+    Ok(())
+}
+
 // ── checkout ─────────────────────────────────────────────────────────────
 
 /// Checkout a ref — branch name or commit sha. Fails fast on dirty working

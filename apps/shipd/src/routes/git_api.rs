@@ -23,7 +23,9 @@
 //! callers pin a specific worktree.
 
 
-use ship_platform::services::git::service::{CheckoutArgs, CommitArgs, PushArgs};
+use ship_platform::services::git::service::{
+    BranchCreateArgs, BranchDeleteArgs, CheckoutArgs, CommitArgs, PushArgs,
+};
 
 use std::path::Path;
 use axum::extract::{Query, State};
@@ -137,6 +139,30 @@ pub struct CheckoutBody {
     pub workspace_id: Option<String>,
     #[serde(rename = "ref")]
     pub refname: String,
+}
+
+#[derive(Deserialize)]
+pub struct BranchCreateBody {
+    #[serde(default)]
+    pub workspace_id: Option<String>,
+    pub name: String,
+    #[serde(default)]
+    pub checkout: bool,
+}
+
+#[derive(Deserialize)]
+pub struct BranchDeleteBody {
+    #[serde(default)]
+    pub workspace_id: Option<String>,
+    pub name: String,
+    #[serde(default)]
+    pub force: bool,
+}
+
+#[derive(Deserialize, Default)]
+pub struct InitBody {
+    #[serde(default)]
+    pub workspace_id: Option<String>,
 }
 
 
@@ -309,6 +335,47 @@ pub async fn checkout_handler(
     Ok(Json(serde_json::json!({
         "ok": true, "ref": refname, "resolved": resolved,
     })))
+}
+
+/// POST /api/v1/git/branch — create branch from HEAD; optional checkout.
+pub async fn branch_create_handler(
+    State(state): State<ApiState>,
+    Json(body): Json<BranchCreateBody>,
+) -> Result<Json<serde_json::Value>, Resp> {
+    let name = state
+        .git()
+        .branch_create(BranchCreateArgs {
+            workspace_id: body.workspace_id,
+            name: body.name,
+            checkout: body.checkout,
+        })
+        .map_err(map_err)?;
+    Ok(Json(serde_json::json!({ "ok": true, "name": name })))
+}
+
+/// DELETE /api/v1/git/branch — delete a local branch (force-unmerged via `force=true`).
+pub async fn branch_delete_handler(
+    State(state): State<ApiState>,
+    Json(body): Json<BranchDeleteBody>,
+) -> Result<Json<serde_json::Value>, Resp> {
+    let name = state
+        .git()
+        .branch_delete(BranchDeleteArgs {
+            workspace_id: body.workspace_id,
+            name: body.name,
+            force: body.force,
+        })
+        .map_err(map_err)?;
+    Ok(Json(serde_json::json!({ "ok": true, "name": name })))
+}
+
+/// POST /api/v1/git/init — initialize a repo at the active workspace root.
+pub async fn init_handler(
+    State(state): State<ApiState>,
+    Json(body): Json<InitBody>,
+) -> Result<Json<serde_json::Value>, Resp> {
+    state.git().init(body.workspace_id.as_deref()).map_err(map_err)?;
+    Ok(Json(serde_json::json!({ "ok": true })))
 }
 
 // ── change stream ────────────────────────────────────────────────────────

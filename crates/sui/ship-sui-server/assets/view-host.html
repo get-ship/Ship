@@ -103,12 +103,25 @@
             `${res.status}: ${body}</div>`
         } else {
           const payload = await res.json()
+          // Build a same-origin SDK client so view controllers that use
+          // `({ ship })` can fire daemon mutations (stage / commit / push
+          // / ...). Without this, controllers that destructure `ship` see
+          // `undefined` and any `ship.<domain>.<op>(...)` call throws.
+          let ship
+          try {
+            const sdk = await import('@ship/sdk-client')
+            ship = sdk.createClient()
+          } catch {
+            // SDK not available — leave ship undefined; read-only views
+            // that rely solely on `<data live />` keep working.
+            ship = undefined
+          }
           // mount() morphs onto the SSR markup already inside #sui-root
           // (seeded by the daemon, including the __set_init__ island),
           // then returns a handle. Expose its disposer as
           // window.__suiDispose — hosts and e2e probes treat that
           // property as the "attach complete" signal.
-          const handle = await mount(target, payload)
+          const handle = await mount(target, payload, { ship })
           window.__suiDispose = () => handle.dispose()
         }
       } catch (err) {

@@ -604,6 +604,15 @@ pub enum Route {
     /// @route POST "/api/v1/git/checkout"
     GitCheckout,
 
+    /// @route POST "/api/v1/git/branch"
+    GitBranchCreate,
+
+    /// @route DELETE "/api/v1/git/branch"
+    GitBranchDelete,
+
+    /// @route POST "/api/v1/git/init"
+    GitInit,
+
     /// @route GET "/api/v1/git/sse"
     GitSse,
 
