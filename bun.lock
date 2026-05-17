@@ -42,6 +42,7 @@
         "@fontsource-variable/dm-sans": "^5.2.8",
         "@fontsource-variable/syne": "^5.2.7",
         "@ship/sui-compiler-wasm": "workspace:*",
+        "@ship/sui-lsp-browser": "workspace:*",
         "astro": "^6.1.1",
         "sharp": "^0.33.0",
         "starlight-openapi": "^0.24.0",
@@ -232,6 +233,16 @@
       },
       "devDependencies": {
         "@types/node": "^20.11.0",
+        "vitest": "^4.1.5",
+      },
+    },
+    "packages/sui-lsp-browser": {
+      "name": "@ship/sui-lsp-browser",
+      "version": "0.1.0",
+      "dependencies": {
+        "@ship/sui-lsp": "workspace:*",
+      },
+      "devDependencies": {
         "vitest": "^4.1.5",
       },
     },
@@ -844,6 +855,8 @@
     "@ship/sui-eval": ["@ship/sui-eval@workspace:packages/sui-eval"],
 
     "@ship/sui-lsp": ["@ship/sui-lsp@workspace:packages/sui-lsp"],
+
+    "@ship/sui-lsp-browser": ["@ship/sui-lsp-browser@workspace:packages/sui-lsp-browser"],
 
     "@ship/sui-runtime": ["@ship/sui-runtime@workspace:packages/sui-runtime"],
 
