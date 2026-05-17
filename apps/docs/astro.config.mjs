@@ -33,9 +33,19 @@ const INTERNALS_DIRS = [
 // Build the topics array. Internals is conditionally included via buildTopics(isInternal).
 function buildTopics(isInternal) {
   const topics = [
+  // Five user-facing topics, ordered by the path a new visitor
+  // walks: Start (install + concepts) → Tutorial (interactive) →
+  // Build (agent-coordination surfaces: skills, agents, views,
+  // artifacts, collections, recipes) → Components (SUI library)
+  // → Reference (CLI, MCP, schemas, agent surfaces).
+  //
+  // "Concepts" merged into Start so the foundation lives in one
+  // place. "Components" + "Component Packs" + "Design System" +
+  // "SDK" all moved under the Components topic — they're all the
+  // SUI component library surface and were duplicated before.
   {
-    id: "getting-started",
-    label: "Getting Started",
+    id: "start",
+    label: "Start",
     icon: "open-book",
     link: "/getting-started/",
     items: [
@@ -43,14 +53,6 @@ function buildTopics(isInternal) {
         label: "Getting Started",
         autogenerate: { directory: "getting-started" },
       },
-    ],
-  },
-  {
-    id: "concepts",
-    label: "Concepts",
-    icon: "puzzle",
-    link: "/concepts/",
-    items: [
       {
         label: "Concepts",
         autogenerate: { directory: "concepts" },
@@ -58,8 +60,8 @@ function buildTopics(isInternal) {
     ],
   },
   {
-    id: "extensions",
-    label: "Extensions",
+    id: "build",
+    label: "Build",
     icon: "puzzle",
     link: "/smart-skills/",
     items: [
@@ -83,25 +85,9 @@ function buildTopics(isInternal) {
         label: "Collections",
         autogenerate: { directory: "collections" },
       },
-      // Pipelines + Triggers are experimental power-user surfaces — hidden
-      // from the public Extensions sidebar. Content stays reachable
+      // Pipelines + Triggers are experimental power-user surfaces —
+      // hidden from the public Build sidebar. Content stays reachable
       // internally via the Internals topic (see INTERNALS_DIRS).
-      {
-        label: "Components",
-        autogenerate: { directory: "components" },
-      },
-      {
-        label: "Component Packs",
-        autogenerate: { directory: "component-packs" },
-      },
-      {
-        label: "Design System",
-        autogenerate: { directory: "design-system" },
-      },
-      {
-        label: "SDK",
-        autogenerate: { directory: "sdk" },
-      },
       {
         label: "Recipes",
         autogenerate: { directory: "recipes" },
@@ -137,6 +123,18 @@ function buildTopics(isInternal) {
       {
         label: "Cookbook",
         link: "/components/cookbook/",
+      },
+      {
+        label: "Component Packs",
+        autogenerate: { directory: "component-packs" },
+      },
+      {
+        label: "Design System",
+        autogenerate: { directory: "design-system" },
+      },
+      {
+        label: "SDK",
+        autogenerate: { directory: "sdk" },
       },
     ],
   },
@@ -240,6 +238,15 @@ function buildTopics(isInternal) {
       {
         label: "Registry",
         autogenerate: { directory: "registry" },
+      },
+      // Agent-facing reference — every MCP tool, LSP surface,
+      // sui-eval entrypoint, and ship:// resource that powers
+      // agent workflows. Single page link (not autogenerate)
+      // because the agents/ directory also feeds the Build →
+      // Agents subtree and we don't want it duplicated.
+      {
+        label: "Agent Surfaces",
+        link: "/agents/agent-surfaces/",
       },
     ],
   },
@@ -455,9 +462,9 @@ export default defineConfig({
           // Map the HTTP API guide (ship-http-api skill, /http-api/*) and the
           // generated OpenAPI reference (/api-reference/*) to the internals topic.
           topics: {
-            // Map the homepage to the Getting Started topic so the topic rail
-            // renders with named labels on "/" instead of numeric fallbacks.
-            "getting-started": ["/"],
+            // Map the homepage to the Start topic so the topic rail
+            // renders with a named label on "/" instead of numeric fallbacks.
+            start: ["/"],
             components: ["/components/**", "/components"],
             tutorial: ["/tutorial/**", "/tutorial"],
             ...(isInternal

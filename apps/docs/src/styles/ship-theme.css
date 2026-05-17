@@ -307,3 +307,39 @@ dialog[open] .dialog-frame [data-close-modal] {
   overflow-wrap: anywhere;
   word-break: break-word;
 }
+
+/* -------------------------------------------------------------------------
+ * Screenshot placeholders.
+ *
+ * Visible TODO blocks for screenshots that don't exist yet. Greppable
+ * via the literal `class="screenshot-todo"` so a screenshot pass can
+ * find every site that needs an image. Styled as a dashed-border
+ * call-out so anyone reading the page knows it's an intentional gap,
+ * not broken markup.
+ * ------------------------------------------------------------------------- */
+.screenshot-todo {
+  display: block;
+  margin: 1rem 0;
+  padding: 12px 16px;
+  border: 2px dashed var(--border-strong, var(--border));
+  border-radius: var(--radius-md, 6px);
+  background: color-mix(in oklch, var(--muted) 60%, transparent);
+  color: var(--muted-foreground);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+}
+.screenshot-todo strong {
+  color: var(--foreground);
+  font-family: var(--font-mono, inherit);
+  letter-spacing: 0.04em;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  margin-right: 6px;
+}
+.screenshot-todo code {
+  background: var(--card);
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 0.92em;
+}

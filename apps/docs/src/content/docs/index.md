@@ -1,23 +1,57 @@
 ---
 title: Ship
-description: Ship is the runtime for building real software with AI agents — declarative skills, agent profiles, pipelines, live HTML views, all working from one config tree.
+description: Ship is the runtime for agent workflows. Agents write code, run pipelines, build live HTML views — Ship gives them the rails.
 ---
 
 <div style="display: flex; flex-direction: column; gap: 0.5rem; margin: 0 0 1rem;">
   <p style="font-size: 1.125rem; line-height: 1.5; color: var(--foreground); margin: 0; max-width: 42rem;">
-    Ship is the runtime for building real software with AI agents.
-    One declarative config tree, every provider, live HTML views, agent-authored.
+    Ship is the runtime for agent workflows.
+    Agents write code, run pipelines, build live HTML views — Ship gives them the rails.
   </p>
   <p style="font-size: 0.9375rem; line-height: 1.5; color: var(--muted-foreground); margin: 0; max-width: 42rem;">
-    Skills compile to provider-native artifacts. Pipelines run across git worktrees.
-    Views render live HTML driven by signals. Agents author all of it.
+    One declarative config tree, every provider. Skills compile to provider-native artifacts.
+    Pipelines run across git worktrees. SUI views are the deepest part of the surface — live,
+    ergonomic, agent-authored.
   </p>
 </div>
 
 <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin: 0.75rem 0 2rem;">
-  <a href="/tutorial/01-hello-signal/"><sui-button tone="primary" variant="solid">Try the tutorial →</sui-button></a>
+  <a href="/tutorial/01-hello-signal/"><sui-button tone="primary" variant="solid">Try the SUI tutorial →</sui-button></a>
   <a href="/getting-started/"><sui-button variant="outline">60-second install</sui-button></a>
   <a href="/components/"><sui-button variant="ghost">Browse components</sui-button></a>
+</div>
+
+<div class="screenshot-todo">
+<strong>SCREENSHOT</strong> — Ship Studio shell: session view active in the main pane, an agent
+dispatched and visibly working in the side rail, dev panel open at the bottom showing the Source
+tab with a live <code>.sui</code> file. Approx 1440×900, ship-light theme. Use Playwright against
+a live daemon with at least one job mid-flight.
+</div>
+
+## How agents work in Ship
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem; margin: 1.5rem 0;">
+
+<sui-card padding="md">
+<strong slot="header">Write code</strong>
+Agents read and write your codebase using Ship's job + session primitives. Permissions, tool gates,
+and skill-shaped instructions keep them on rails. Compiles to <code>CLAUDE.md</code>,
+<code>.cursor/rules</code>, <code>GEMINI.md</code>, <code>AGENTS.md</code>, <code>opencode.json</code>.
+</sui-card>
+
+<sui-card padding="md">
+<strong slot="header">Run pipelines</strong>
+JSONC DAGs of agent steps. Gates, retries, worktree isolation, resumable on crash. Each step runs
+in its own agent profile. Long-running work survives kernel restarts.
+</sui-card>
+
+<sui-card padding="md">
+<strong slot="header">Build live views</strong>
+<code>.sui</code> templates with optional paired controllers. Signal-driven, AOT-compiled, SSR'd,
+attached client-side. Zero build step. The deepest surface — and the one agents most often
+co-author with humans. <a href="/tutorial/01-hello-signal/">Try it →</a>
+</sui-card>
+
 </div>
 
 ## What a SUI view looks like
@@ -42,42 +76,44 @@ export default controller<Scope>({
 })
 ```
 
-That's it. The compiler emits a single ESM, the daemon SSRs it, the
-client attaches reactivity. Compose 100+ `<sui-*>` primitives.
+That's the whole surface. The compiler emits a single ESM, the daemon SSRs it, the client
+attaches reactivity. Compose 100+ `<sui-*>` primitives.
 [Try this in the browser →](/tutorial/01-hello-signal/)
 
-## How Ship works
+## The supporting cast
 
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem; margin: 1.5rem 0;">
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; margin: 1.5rem 0;">
 
 <sui-card padding="md">
-<strong slot="header">Skills + Agents</strong>
-Compose typed skills, MCP servers, permissions, rules into agent profiles. Compile to <code>CLAUDE.md</code>, <code>.cursor/rules</code>, <code>GEMINI.md</code>, <code>AGENTS.md</code>, <code>opencode.json</code>, or your own provider.
+<strong slot="header">Skills</strong>
+Typed instruction sets with variables. One skill, personalized output per user and project.
 </sui-card>
 
 <sui-card padding="md">
-<strong slot="header">Views — live HTML</strong>
-<code>.sui</code> templates with optional paired controllers. Signal-driven, AOT-compiled, SSR'd, attached client-side. Zero build step. Agents write them.
+<strong slot="header">Agent profiles</strong>
+Compose skills, MCP servers, permissions, and rules into portable configs for every provider.
 </sui-card>
 
 <sui-card padding="md">
-<strong slot="header">Pipelines</strong>
-JSONC DAGs of agent steps. Gates, retries, worktree isolation, resumable on crash. Each step runs in its own agent profile.
+<strong slot="header">Collections</strong>
+Schema-backed structured data. Specs, ADRs, notes — queryable and event-driven.
 </sui-card>
 
 <sui-card padding="md">
-<strong slot="header">Triggers + Collections</strong>
-Schema-backed structured data plus reactive JSONC that matches events and fires actions. Automation without writing code.
+<strong slot="header">Triggers</strong>
+Reactive JSONC that matches events and runs actions. Automation without writing code.
 </sui-card>
 
 <sui-card padding="md">
 <strong slot="header">Components</strong>
-Two published packs — <code>@ship/primitives</code> (~80 generic <code>&lt;sui-*&gt;</code> elements) and <code>@ship/charts</code> (8 chart components). Drop in any view.
+Two published packs — <code>@ship/primitives</code> (~80 generic <code>&lt;sui-*&gt;</code> elements) and <code>@ship/charts</code>. Drop into any view.
 </sui-card>
 
 <sui-card padding="md">
 <strong slot="header">Agent surfaces</strong>
-47 MCP tools, a Node + browser LSP, <code>sui-eval</code> regression scoring. The agent has every surface it needs to author + verify in one turn. <a href="/agents/agent-surfaces/">Reference →</a>
+47 MCP tools, a Node + browser LSP, <code>sui-eval</code> regression scoring.
+The agent has every surface it needs to author + verify in one turn.
+<a href="/agents/agent-surfaces/">Reference →</a>
 </sui-card>
 
 </div>
@@ -90,6 +126,12 @@ cd your-project
 ship init
 ship studio --open
 ```
+
+<div class="screenshot-todo">
+<strong>SCREENSHOT</strong> — <code>ship studio --open</code> result: browser landing on the
+Ship Studio home view with the workspace switcher visible top-left, no active session yet. Use
+this to give new visitors a sense of "what they see after install". Approx 1440×900.
+</div>
 
 <sui-alert tone="info">
 <strong slot="title">Migrating from existing provider config?</strong>
