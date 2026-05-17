@@ -373,7 +373,18 @@ pub enum DaemonCommands {
     /// is ahead of the binary on its own, so this is a pure diagnostic:
     /// use it to understand a startup migration error.
     #[command(name = "repair-migrations")]
-    RepairMigrations,
+    RepairMigrations {
+        /// Backup and recreate `platform.db` when a checksum mismatch is
+        /// detected. Pre-launch escape hatch: when a baseline migration is
+        /// edited in place (per the migrations/README convention), every
+        /// dev DB that already applied the old checksum fails to start.
+        /// `--reset` backs up the affected DB to `<path>.bak-<timestamp>`
+        /// and deletes the original (plus -wal and -shm), letting the
+        /// next daemon start re-apply migrations from scratch. Without
+        /// `--reset` the command remains a read-only diagnostic.
+        #[arg(long)]
+        reset: bool,
+    },
     /// Run the daemon in the foreground (internal — used by `start`, also useful for Docker/systemd)
     #[command(hide = true)]
     Run {

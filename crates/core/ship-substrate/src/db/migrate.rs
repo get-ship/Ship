@@ -72,8 +72,10 @@ pub async fn run_tolerant(conn: &mut SqliteConnection) -> Result<()> {
             "migration {v} checksum mismatch: an already-applied migration was \
              modified. Applied migrations are immutable — a change must be a \
              new migration, never an edit to a recorded one. Restore the \
-             original file content; `ship daemon repair-migrations` prints the \
-             full drift report."
+             original file content, OR (pre-launch only, accepts data loss) \
+             run `ship daemon repair-migrations --reset` to back up and \
+             recreate platform.db so the next start re-applies migrations \
+             from scratch."
         ),
         MigrateError::Dirty(v) => anyhow!(
             "migration {v} is dirty: a previous run failed partway through. \
