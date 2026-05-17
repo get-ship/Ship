@@ -349,7 +349,7 @@ fn record_from_created(event: &EventEnvelope) -> Option<PipelineRun> {
 pub fn project(events: &[EventEnvelope]) -> HashMap<String, PipelineRun> {
     let mut map: HashMap<String, PipelineRun> = HashMap::new();
     for event in events {
-        if !event.event_type.starts_with("job.") && !event.event_type.starts_with("step.") {
+        if !event.event_type.starts_with("pipeline.") && !event.event_type.starts_with("pipeline.step.") {
             continue;
         }
         if event.event_type == event_types::PIPELINE_RUN_STARTED {

@@ -1,4 +1,4 @@
-use crate::pipeline::normalize_pipeline;
+use super::normalize_pipeline;
 
 #[test]
 fn test_agents_short_form() {
@@ -11,15 +11,10 @@ fn test_agents_short_form() {
     assert_eq!(steps.len(), 3);
     assert_eq!(meta.name.as_deref(), Some("tdd"));
 
-    // First step has no after
     assert!(steps[0].get("after").is_none() || steps[0]["after"].as_array().unwrap().is_empty());
     assert_eq!(steps[0]["agent"], "test-writer");
-
-    // Second step depends on first
     assert_eq!(steps[1]["after"][0], "step-1");
     assert_eq!(steps[1]["agent"], "{{ impl_agent }}");
-
-    // Third step depends on second
     assert_eq!(steps[2]["after"][0], "step-2");
 }
 
@@ -40,11 +35,8 @@ fn test_mixed_steps() {
 
     assert_eq!(steps[0]["type"], "agent");
     assert_eq!(steps[0]["agent"], "researcher");
-
     assert_eq!(steps[2]["type"], "run");
     assert_eq!(steps[2]["command"], "echo review");
-
-    // Last step chains after the run step.
     assert_eq!(steps[3]["after"][0].as_str().unwrap(), steps[2]["id"].as_str().unwrap());
 }
 
@@ -109,14 +101,11 @@ fn test_parallel_group() {
     }"#;
     let (val, _) = normalize_pipeline(src).unwrap();
     let steps = val["steps"].as_array().unwrap();
-    // planner + 2 parallel + reviewer = 4
     assert_eq!(steps.len(), 4);
 
-    // Both parallel steps depend on planner
     assert_eq!(steps[1]["after"][0].as_str().unwrap(), steps[0]["id"].as_str().unwrap());
     assert_eq!(steps[2]["after"][0].as_str().unwrap(), steps[0]["id"].as_str().unwrap());
 
-    // Reviewer depends on both parallel steps
     let reviewer_after = steps[3]["after"].as_array().unwrap();
     assert_eq!(reviewer_after.len(), 2);
 }

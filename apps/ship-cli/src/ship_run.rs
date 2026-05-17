@@ -1,5 +1,5 @@
 use anyhow::{Result, bail};
-use ship_jobs::pipeline::normalize_pipeline;
+use ship_pipelines::normalize_pipeline;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 

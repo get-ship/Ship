@@ -1,18 +1,16 @@
-use crate::step::{PipelineStep, infer_step_type};
+//! Pipeline parser — JSONC pipeline definitions → normalized `{ steps: [...] }`
+//! shape plus `PipelineMeta`.
+//!
+//! Accepts the short form (`agents: [...]`) and the long form (`steps: [...]`
+//! with mixed entry types). Input format is JSONC — no YAML. Pipeline files
+//! (`.ship/pipelines/<name>.jsonc`) and inline pipeline blobs both come
+//! through here.
+//!
+//! Moved from `ship-jobs::pipeline` when ship-jobs was dissolved; this is the
+//! canonical home for pipeline parsing now that `ship-pipelines` owns the
+//! Pipeline / PipelineStep / StepType types.
+
 use serde_json::{Map, Value, json};
-
-/// A pipeline definition — a DAG of steps.
-#[derive(Debug, Clone)]
-pub struct Pipeline {
-    pub steps: Vec<PipelineStep>,
-}
-
-impl Pipeline {
-    /// Find root steps (no dependencies).
-    pub fn root_steps(&self) -> Vec<&PipelineStep> {
-        self.steps.iter().filter(|s| s.after.is_empty()).collect()
-    }
-}
 
 /// Pipeline-level metadata extracted from the pipeline file.
 #[derive(Debug, Clone, Default)]
@@ -34,11 +32,6 @@ pub struct PipelineMeta {
 
 /// Parse a pipeline definition and normalize it into a JSON `{ steps: [...] }`
 /// shape the runtime can deserialize via `PipelineStep`.
-///
-/// Accepts both the short form (`agents: [...]`) and the long form
-/// (`steps: [...]` with mixed entry types). Input format is JSONC —
-/// no YAML. Pipeline files (`.ship/pipelines/<name>.jsonc`) and inline
-/// pipeline blobs both come through here.
 pub fn normalize_pipeline(input: &str) -> Result<(Value, PipelineMeta), String> {
     let json_str = compiler::jsonc::strip_jsonc_comments(input);
     let val: Value = serde_json::from_str(&json_str)
@@ -124,19 +117,16 @@ fn normalize_steps(steps: &[Value]) -> Result<Vec<Value>, String> {
     let mut step_counter: usize = 0;
 
     for (i, step_val) in steps.iter().enumerate() {
-        // Explicit-id step → pass through
         if let Some(obj) = step_val.as_object()
             && obj.contains_key("id")
         {
             result.push(step_val.clone());
-            // Track ID for sequential chaining of subsequent new-format steps
             if let Some(id) = obj.get("id").and_then(|v| v.as_str()).map(str::to_string) {
                 prev_id = Some(id);
             }
             continue;
         }
 
-        // Parallel group
         if let Some(obj) = step_val.as_object()
             && let Some(parallel_val) = obj.get("parallel")
         {
@@ -149,10 +139,7 @@ fn normalize_steps(steps: &[Value]) -> Result<Vec<Value>, String> {
                 &mut step_counter,
                 &mut result,
             )?;
-            // All parallel steps share the same "after", and the next
-            // sequential step depends on all of them.
-            prev_id = None; // Cleared — next step sets after to all group IDs
-            // Store group IDs for the next step's `after`
+            prev_id = None;
             if !group_ids.is_empty() {
                 prev_id = Some(group_ids.join(","));
             }
@@ -161,8 +148,6 @@ fn normalize_steps(steps: &[Value]) -> Result<Vec<Value>, String> {
 
         step_counter += 1;
         let normalized = normalize_single_step(step_val, step_counter, &prev_id, i)?;
-        // `normalize_single_step` always sets "id"; fall back to a generated
-        // form if a future refactor breaks that invariant rather than panic.
         let id = normalized
             .get("id")
             .and_then(|v| v.as_str())
@@ -186,7 +171,6 @@ fn normalize_single_step(
     let step_type = infer_step_type(val);
 
     match val {
-        // String → agent step
         Value::String(agent) => {
             let id = format!("step-{counter}");
             step.insert("id".to_string(), json!(id));
@@ -195,18 +179,15 @@ fn normalize_single_step(
         }
         Value::Object(obj) => {
             if let Some(cmd) = obj.get("run").and_then(|v| v.as_str()) {
-                // run: <command>
                 let id = format!("run-{counter}");
                 step.insert("id".to_string(), json!(id));
                 step.insert("type".to_string(), json!("run"));
                 step.insert("command".to_string(), json!(cmd));
             } else if let Some(agent) = obj.get("agent").and_then(|v| v.as_str()) {
-                // agent: <id> with overrides
                 let id = format!("step-{counter}");
                 step.insert("id".to_string(), json!(id));
                 step.insert("type".to_string(), json!(step_type));
                 step.insert("agent".to_string(), json!(agent));
-                // Copy overrides
                 for key in ["model", "harness", "max_retries", "goal", "command"] {
                     if let Some(v) = obj.get(key) {
                         step.insert(key.to_string(), v.clone());
@@ -224,7 +205,6 @@ fn normalize_single_step(
         }
     }
 
-    // Wire sequential dependency
     if let Some(prev) = prev_id
         && !step.contains_key("after")
     {
@@ -247,7 +227,6 @@ fn normalize_parallel_group(
     for (j, item) in group.iter().enumerate() {
         *counter += 1;
         let mut normalized = normalize_single_step(item, *counter, prev_id, j)?;
-        // Override after to point to prev_id (not chained within the group)
         if let Some(obj) = normalized.as_object_mut() {
             if let Some(prev) = prev_id {
                 let after: Vec<&str> = prev.split(',').collect();
@@ -267,3 +246,34 @@ fn normalize_parallel_group(
 
     Ok(ids)
 }
+
+/// Infer the step type string from a JSON value's shape.
+///
+/// Returns the `type` field value that the runtime PipelineStep
+/// deserializer expects:
+/// - Has `run` key → "run"
+/// - Has `agent` key or is a string → "agent"
+fn infer_step_type(val: &serde_json::Value) -> &'static str {
+    if val.is_string() {
+        return "agent";
+    }
+    if let Some(obj) = val.as_object() {
+        if obj.contains_key("run") {
+            return "run";
+        }
+        if obj.contains_key("type")
+            && let Some(t) = obj["type"].as_str()
+        {
+            return match t {
+                "agent" => "agent",
+                "review" => "review",
+                "run" => "run",
+                _ => "agent",
+            };
+        }
+    }
+    "agent"
+}
+
+#[cfg(test)]
+mod tests;

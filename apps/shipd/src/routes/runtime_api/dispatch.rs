@@ -119,7 +119,7 @@ pub async fn dispatch_pipeline(
             );
         }
     };
-    let (normalized, meta) = match ship_jobs::pipeline::normalize_pipeline(&raw) {
+    let (normalized, meta) = match ship_pipelines::normalize_pipeline(&raw) {
         Ok(n) => n,
         Err(e) => {
             return (

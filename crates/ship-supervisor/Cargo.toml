@@ -9,7 +9,6 @@ description = "OS-level agent supervision — executors, isolation, terminal lau
 ship-substrate = { path = "../core/ship-substrate" }
 ship-platform = { path = "../core/ship-platform" }
 ship-types = { path = "../core/ship-types" }
-ship-jobs = { path = "../core/ship-jobs" }
 
 anyhow = { workspace = true }
 async-trait = { workspace = true }

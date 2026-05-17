@@ -39,8 +39,8 @@ fn job_merged_routes_to_cleanup() {
     // Orchestration logic moved to ship_platform::services::orchestrator::router
     let source = include_str!("../../../../crates/core/ship-platform/src/services/orchestrator/router.rs");
     assert!(
-        source.contains("pipeline.run.merged"),
-        "orchestrator router must handle job.merged events"
+        source.contains("PIPELINE_RUN_MERGED"),
+        "orchestrator router must handle pipeline.run.merged events"
     );
     assert!(
         source.contains("cleanup") || source.contains("handle_job_cleanup"),

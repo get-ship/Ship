@@ -12,7 +12,7 @@
 //! spec frontmatter are not supported.
 
 use ship_substrate::events::pipeline::{PipelineRunStartedPayload, Pipeline, PipelineStep};
-use ship_jobs::pipeline::{PipelineMeta, normalize_pipeline};
+use ship_pipelines::{PipelineMeta, normalize_pipeline};
 
 mod resolve;
 use resolve::resolve_steps;

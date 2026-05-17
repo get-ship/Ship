@@ -20,10 +20,10 @@ path = "src/main.rs"
 [dependencies]
 ship-substrate = { path = "../../crates/core/ship-substrate" }
 ship-platform = { path = "../../crates/core/ship-platform" }
+ship-pipelines = { path = "../../crates/core/ship-pipelines" }
 ship-supervisor = { path = "../../crates/ship-supervisor" }
 ship-types = { path = "../../crates/core/ship-types" }
 compiler = { path = "../../crates/core/compiler" }
-ship-jobs = { path = "../../crates/core/ship-jobs" }
 build-info = { path = "../../crates/core/build-info" }
 ship-sui = { path = "../../crates/sui/ship-sui" }
 sui-compiler = { path = "../../crates/sui/sui-compiler" }
@@ -97,7 +97,6 @@ chrono = { workspace = true }
 reqwest = { workspace = true, features = ["json"] }
 tokio = { workspace = true, features = ["full", "test-util"] }
 serde_json = { workspace = true }
-ship-pipelines = { path = "../../crates/core/ship-pipelines" }
 
 [lints]
 workspace = true

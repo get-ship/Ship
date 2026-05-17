@@ -73,7 +73,7 @@ fn to_message(env: &EventEnvelope) -> Option<ChatMessage> {
             let summary = payload_str(env, "summary").unwrap_or_else(|| "Session ended".into());
             Some(base(Sender::System, summary, None))
         }
-        kind if kind.starts_with("job.") => {
+        kind if kind.starts_with("pipeline.") => {
             let slug = payload_str(env, "slug").unwrap_or_else(|| env.entity_id.clone());
             let action = kind.trim_start_matches("job.");
             Some(base(Sender::System, format!("Job {slug}: {action}"), None))

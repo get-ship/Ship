@@ -7,12 +7,14 @@
 
 pub mod fanout;
 pub mod gate;
+pub mod parse;
 pub mod types;
 pub mod validate;
 pub mod variables;
 
 pub use fanout::{AggregateDecision, LaneOutcome, aggregate_lane_outcomes};
 pub use gate::{GateOutcome, GateRule, GateSpec};
+pub use parse::{PipelineMeta, normalize_pipeline};
 pub use types::{
     FanoutJudge, FanoutLane, FanoutSpec, OutputScope, Pipeline, PipelinePhase, PipelineStep,
     StepOutput, StepPromote, StepType,
