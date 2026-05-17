@@ -1,5 +1,3 @@
-<data name="createCtx" source="ship.agents.create_ctx()" />
-
 <sui-view-chrome title="New agent">
   <sui-button slot="actions" variant="ghost" size="sm" on:click={cancel}>
     <sui-icon slot="leading" name="x" size="xs"></sui-icon>

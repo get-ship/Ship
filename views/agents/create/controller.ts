@@ -1,8 +1,9 @@
-import { controller, signal, derived } from '@ship/sui-runtime'
+import { controller, signal, derived, live } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
 
 export default controller<Scope>({
-  scope: () => {
+  scope: ({ ship }) => {
+    const createCtx = live(() => ship.agents.create_ctx())
     const step = signal(0)
     const template = signal('blank')
     const hue = signal('orange')
@@ -22,7 +23,7 @@ export default controller<Scope>({
       providers: providers(),
       permissions: { preset: preset() },
     }, null, 2))
-    return { step, template, hue, name, id, desc, providers, preset, creating, err, reviewJson }
+    return { createCtx, step, template, hue, name, id, desc, providers, preset, creating, err, reviewJson }
   },
   on: {
     cancel: ({ navigate }) => navigate('/agents'),
