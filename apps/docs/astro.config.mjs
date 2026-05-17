@@ -33,9 +33,19 @@ const INTERNALS_DIRS = [
 // Build the topics array. Internals is conditionally included via buildTopics(isInternal).
 function buildTopics(isInternal) {
   const topics = [
+  // Five user-facing topics, ordered by the path a new visitor
+  // walks: Start (install + concepts) → Tutorial (interactive) →
+  // Build (agent-coordination surfaces: skills, agents, views,
+  // artifacts, collections, recipes) → Components (SUI library)
+  // → Reference (CLI, MCP, schemas, agent surfaces).
+  //
+  // "Concepts" merged into Start so the foundation lives in one
+  // place. "Components" + "Component Packs" + "Design System" +
+  // "SDK" all moved under the Components topic — they're all the
+  // SUI component library surface and were duplicated before.
   {
-    id: "getting-started",
-    label: "Getting Started",
+    id: "start",
+    label: "Start",
     icon: "open-book",
     link: "/getting-started/",
     items: [
@@ -43,14 +53,6 @@ function buildTopics(isInternal) {
         label: "Getting Started",
         autogenerate: { directory: "getting-started" },
       },
-    ],
-  },
-  {
-    id: "concepts",
-    label: "Concepts",
-    icon: "puzzle",
-    link: "/concepts/",
-    items: [
       {
         label: "Concepts",
         autogenerate: { directory: "concepts" },
@@ -58,8 +60,8 @@ function buildTopics(isInternal) {
     ],
   },
   {
-    id: "extensions",
-    label: "Extensions",
+    id: "build",
+    label: "Build",
     icon: "puzzle",
     link: "/smart-skills/",
     items: [
@@ -83,25 +85,9 @@ function buildTopics(isInternal) {
         label: "Collections",
         autogenerate: { directory: "collections" },
       },
-      // Pipelines + Triggers are experimental power-user surfaces — hidden
-      // from the public Extensions sidebar. Content stays reachable
+      // Pipelines + Triggers are experimental power-user surfaces —
+      // hidden from the public Build sidebar. Content stays reachable
       // internally via the Internals topic (see INTERNALS_DIRS).
-      {
-        label: "Components",
-        autogenerate: { directory: "components" },
-      },
-      {
-        label: "Component Packs",
-        autogenerate: { directory: "component-packs" },
-      },
-      {
-        label: "Design System",
-        autogenerate: { directory: "design-system" },
-      },
-      {
-        label: "SDK",
-        autogenerate: { directory: "sdk" },
-      },
       {
         label: "Recipes",
         autogenerate: { directory: "recipes" },
@@ -138,6 +124,97 @@ function buildTopics(isInternal) {
         label: "Cookbook",
         link: "/components/cookbook/",
       },
+      {
+        label: "Component Packs",
+        autogenerate: { directory: "component-packs" },
+      },
+      {
+        label: "Design System",
+        autogenerate: { directory: "design-system" },
+      },
+      {
+        label: "SDK",
+        autogenerate: { directory: "sdk" },
+      },
+    ],
+  },
+  {
+    id: "tutorial",
+    label: "Tutorial",
+    icon: "open-book",
+    link: "/tutorial/",
+    items: [
+      // Each tutorial step is an Astro page (not a doc collection
+      // entry), so the sidebar entries are hand-listed here. Group
+      // by chapter; order within each chapter is ascending step
+      // number. Keep in sync with the `chapter` frontmatter in
+      // docs/ship-sui/references/tutorial/<NN-slug>/index.md.
+      { label: "Overview", link: "/tutorial/" },
+      {
+        label: "Reactivity",
+        items: [
+          { label: "01 · Signals", link: "/tutorial/01-hello-signal/" },
+          { label: "02 · Derived", link: "/tutorial/02-derived/" },
+          { label: "03 · Lists", link: "/tutorial/03-bindfor/" },
+          { label: "04 · Effects", link: "/tutorial/04-effect/" },
+        ],
+      },
+      {
+        label: "Templating",
+        items: [
+          { label: "05 · Conditional rendering", link: "/tutorial/05-bind-if/" },
+          { label: "06 · Two-way binding", link: "/tutorial/06-bind-value/" },
+          { label: "07 · Event modifiers", link: "/tutorial/07-event-modifiers/" },
+        ],
+      },
+      {
+        label: "Components",
+        items: [
+          { label: "08 · UI primitives", link: "/tutorial/08-sui-primitives/" },
+        ],
+      },
+      {
+        label: "Agents",
+        items: [
+          { label: "09 · Authoring loop", link: "/tutorial/09-agent-loop/" },
+          { label: "10 · LSP CLI", link: "/tutorial/10-lsp-cli/" },
+          { label: "11 · sui-eval", link: "/tutorial/11-sui-eval/" },
+        ],
+      },
+      {
+        label: "Composition",
+        items: [
+          { label: "12 · Slots", link: "/tutorial/12-slots/" },
+          { label: "13 · Refs (bind:this)", link: "/tutorial/13-refs/" },
+          { label: "14 · class: / style:", link: "/tutorial/14-class-style/" },
+          { label: "19 · Template hooks", link: "/tutorial/19-template-hooks/" },
+          { label: "20 · Controller hooks", link: "/tutorial/20-controller-hooks/" },
+          { label: "21 · Forms", link: "/tutorial/21-forms/" },
+        ],
+      },
+      {
+        label: "Lifecycle",
+        items: [
+          { label: "15 · onMount / onCleanup", link: "/tutorial/15-onmount-oncleanup/" },
+          { label: "16 · Effect cleanup", link: "/tutorial/16-effect-cleanup/" },
+        ],
+      },
+      {
+        label: "Reactivity (advanced)",
+        items: [
+          { label: "17 · selector", link: "/tutorial/17-selector/" },
+          { label: "18 · untrack / batch", link: "/tutorial/18-untrack-batch/" },
+        ],
+      },
+      {
+        label: "Views",
+        items: [
+          { label: "22 · <data live>", link: "/tutorial/22-data-live/" },
+          { label: "23 · while-loading / while-error", link: "/tutorial/23-while-loading/" },
+          { label: "24 · Mutations + server push", link: "/tutorial/24-morphs/" },
+          { label: "25 · Going further", link: "/tutorial/25-going-further/" },
+        ],
+      },
     ],
   },
   {
@@ -161,6 +238,15 @@ function buildTopics(isInternal) {
       {
         label: "Registry",
         autogenerate: { directory: "registry" },
+      },
+      // Agent-facing reference — every MCP tool, LSP surface,
+      // sui-eval entrypoint, and ship:// resource that powers
+      // agent workflows. Single page link (not autogenerate)
+      // because the agents/ directory also feeds the Build →
+      // Agents subtree and we don't want it duplicated.
+      {
+        label: "Agent Surfaces",
+        link: "/agents/agent-surfaces/",
       },
     ],
   },
@@ -259,8 +345,15 @@ export default defineConfig({
         // dark Ship surfaces too. Switch on `html.dark` (toggled by our
         // pre-paint script), not prefers-color-scheme.
         themes: ["night-owl", "light-plus"],
+        // expressive-code concatenates `:root` directly with this
+        // value (no descendant combinator), so a bare `html.dark`
+        // returned here produces invalid `:roothtml.dark`. Workaround:
+        // return a class selector that the theme-switcher script also
+        // toggles on <body>. expressive-code then emits
+        // `:root.<class>` / `:root:not(.<class>)` — both are valid
+        // since they're attribute matches on the same element.
         themeCssSelector: (theme) =>
-          theme.name === "night-owl" ? "html.dark" : "html:not(.dark)",
+          theme.name === "night-owl" ? ".dark" : ":not(.dark)",
         useDarkModeMediaQuery: false,
       },
       customCss: [
@@ -273,6 +366,12 @@ export default defineConfig({
         SiteTitle: "./src/components/SiteTitle.astro",
         ThemeProvider: "./src/components/ThemeProvider.astro",
         ThemeSelect: "./src/components/ThemeProvider.astro",
+        // Custom PageFrame switches to a no-sidebar full-canvas layout
+        // for pages with frontmatter `template: 'sui-canvas'` — used by
+        // playground + component-reference pages where the prose chrome
+        // would compete with the live preview. Other pages get the
+        // upstream behaviour byte-for-byte.
+        PageFrame: "./src/components/PageFrame.astro",
       },
       head: [
         {
@@ -298,6 +397,14 @@ export default defineConfig({
         {
           tag: "script",
           attrs: { type: "module", src: "/sui-components.js" },
+        },
+        // sui-code-editor is a lazy chunk under /sui-components/; nothing
+        // in the main bundle imports it. Load it here so the tutorial
+        // (and any other page that uses <sui-code-editor>) doesn't have
+        // to side-load it itself.
+        {
+          tag: "script",
+          attrs: { type: "module", src: "/sui-components/sui-code-editor.js" },
         },
         // Ship theme ownership.
         //
@@ -355,10 +462,11 @@ export default defineConfig({
           // Map the HTTP API guide (ship-http-api skill, /http-api/*) and the
           // generated OpenAPI reference (/api-reference/*) to the internals topic.
           topics: {
-            // Map the homepage to the Getting Started topic so the topic rail
-            // renders with named labels on "/" instead of numeric fallbacks.
-            "getting-started": ["/"],
+            // Map the homepage to the Start topic so the topic rail
+            // renders with a named label on "/" instead of numeric fallbacks.
+            start: ["/"],
             components: ["/components/**", "/components"],
+            tutorial: ["/tutorial/**", "/tutorial"],
             ...(isInternal
               ? {
                   internals: [

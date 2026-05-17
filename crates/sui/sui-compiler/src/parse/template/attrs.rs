@@ -362,9 +362,17 @@ fn compile_dynamic_attr(
     loc: &str,
 ) -> Result<AttrInstr, CompileError> {
     if !is_expr_value(value) {
-        return Err(CompileError::new("attr: expects ={valueExpr}")
-            .with_span(value_span)
-            .with_category(loc.to_string()));
+        // `attr:foo="bar"` is the most common mistake — author reached
+        // for `attr:` to bind a *static* value, when plain `foo="bar"`
+        // is what they wanted. Surface the fix in the error so the
+        // author doesn't have to know that `attr:` is reserved for
+        // expression bindings (`attr:foo={expr}`). Hit five+ times
+        // during the harness build with shapes like `attr:min="0"`.
+        return Err(CompileError::new(format!(
+            "attr:{raw_name}=\"{value}\" — `attr:` expects an expression binding (attr:{raw_name}={{expr}}). For a static value, drop the `attr:` prefix: {raw_name}=\"{value}\"."
+        ))
+        .with_span(value_span)
+        .with_category(loc.to_string()));
     }
     let value_inner = strip_braces(value).to_string();
     expr::validate_at(&value_inner, false, loc, value_span)?;
@@ -389,4 +397,34 @@ fn compile_dynamic_attr(
         expr: Expr::new(value_inner, value_span, false),
         span: value_span,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn attr_with_literal_value_suggests_dropping_prefix() {
+        // Pre-fix the error read "attr: expects ={valueExpr}", which is
+        // technically correct but doesn't tell the author what to do.
+        // Most of the time the fix is "drop attr: and write min=\"0\""
+        // — surface that in the message.
+        // The HTML attribute parser strips quotes before handing us
+        // the value, so we re-quote in the suggestion.
+        let err = compile_dynamic_attr("min", "0", Span::new(0, 1), "[<sui-slider> attr:min]")
+            .unwrap_err();
+        assert!(
+            err.message.contains("drop the `attr:` prefix"),
+            "expected suggestion, got: {}",
+            err.message
+        );
+        assert!(err.message.contains("min=\"0\""), "expected suggested form, got: {}", err.message);
+    }
+
+    #[test]
+    fn attr_with_expr_value_still_compiles() {
+        // Don't regress the happy path.
+        compile_dynamic_attr("min", "{n()}", Span::new(0, 5), "[<sui-slider> attr:min]")
+            .expect("expression-value attr: should compile");
+    }
 }

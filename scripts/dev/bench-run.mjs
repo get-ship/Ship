@@ -28,6 +28,7 @@ import { fileURLToPath } from 'node:url'
 import {
   ensureBenchServer,
   rebuildSuiBundle,
+  refreshDashboardResults,
   runBench,
   tableForFramework,
   today,
@@ -35,8 +36,8 @@ import {
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..')
 
-const FRAMEWORKS = ['keyed/sui', 'keyed/solid', 'keyed/svelte', 'keyed/vue', 'keyed/vanillajs']
-const FRAMEWORK_KEYS = ['sui', 'solid', 'svelte', 'vue', 'vanillajs']
+const FRAMEWORKS = ['keyed/sui', 'keyed/solid', 'keyed/svelte', 'keyed/vue', 'keyed/vanillajs', 'keyed/lit']
+const FRAMEWORK_KEYS = ['sui', 'solid', 'svelte', 'vue', 'vanillajs', 'lit']
 
 const label = parseLabel(process.argv.slice(2))
 
@@ -51,6 +52,9 @@ await ensureBenchServer()
 
 console.log(`▸ running benchmark for ${FRAMEWORKS.join(', ')}`)
 runBench(FRAMEWORKS)
+
+console.log('▸ refreshing dashboard results.ts (so :5173 sees the new numbers)')
+refreshDashboardResults()
 
 console.log('▸ aggregating results')
 const tables = Object.fromEntries(FRAMEWORK_KEYS.map(k => [k, tableForFramework(k)]))

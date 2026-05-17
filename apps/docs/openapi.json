@@ -2486,6 +2486,53 @@
         ]
       }
     },
+    "/api/v1/views/{name}/files": {
+      "get": {
+        "tags": [
+          "framework"
+        ],
+        "operationId": "listViewFiles",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "description": "View name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Files under the view directory",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ViewFilesResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "View not found"
+          }
+        },
+        "summary": "List View Files",
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "curl",
+            "source": "curl -X GET http://localhost:9315/api/v1/views/write-readme/files \\\n  -H \"Authorization: Bearer $SHIP_TOKEN\""
+          },
+          {
+            "lang": "javascript",
+            "label": "fetch",
+            "source": "const res = await fetch(\"http://localhost:9315/api/v1/views/write-readme/files\", {\n  method: \"GET\",\n  headers: {\n    \"Authorization\": `Bearer ${process.env.SHIP_TOKEN}`,\n  },\n});\nconst data = await res.json();"
+          }
+        ]
+      }
+    },
     "/api/v1/views/{name}/fork": {
       "post": {
         "tags": [
@@ -3761,6 +3808,63 @@
           "summary": "Compiled and tests pass.",
           "outputs": {
             "artifact": "build.tar.gz"
+          }
+        }
+      },
+      "ViewFile": {
+        "type": "object",
+        "required": [
+          "path",
+          "name",
+          "kind",
+          "size"
+        ],
+        "properties": {
+          "content": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "File body for files under MAX_INLINE_BYTES; None for larger\nfiles (the dev panel can fall back to a separate fetch)."
+          },
+          "kind": {
+            "type": "string",
+            "description": "Lower-case extension (without the dot). Drives editor language."
+          },
+          "name": {
+            "type": "string",
+            "description": "Filename only."
+          },
+          "path": {
+            "type": "string",
+            "description": "Relative path from the view root (e.g. `page.sui`,\n`[id]/page.sui`, `controller.ts`). Forward slashes regardless\nof platform."
+          },
+          "size": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          }
+        }
+      },
+      "ViewFilesResponse": {
+        "type": "object",
+        "required": [
+          "view_name",
+          "view_dir",
+          "files"
+        ],
+        "properties": {
+          "files": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ViewFile"
+            }
+          },
+          "view_dir": {
+            "type": "string"
+          },
+          "view_name": {
+            "type": "string"
           }
         }
       },

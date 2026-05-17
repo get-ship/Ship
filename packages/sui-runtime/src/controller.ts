@@ -143,14 +143,29 @@ export type UseSection<Scope> = Record<string, ControllerHook>
  * all signals/handlers/hooks are wired. May return a cleanup function
  * that is called on disconnect (equivalent to pushing to cleanups).
  *
- * `state` is the full `Scope` view — signals are preserved as
- * `Signal<T>` (so `state.caughtError.set(null)` is well-typed) and
- * non-signal entries from the controller's `scope: () => ({...})`
+ * `state` is the writable proxy — the same shape `on:` handlers see.
+ * Two access patterns:
+ *
+ *   1. **Assignment style** (ergonomic for primitives):
+ *      `state.viewportH = el.clientHeight`
+ *      `state.count++`
+ *      The proxy intercepts the write and forwards to `signal.set()`.
+ *      Reads return the unwrapped value (`state.count` is the number,
+ *      not the signal), which is what makes `state.count++` work.
+ *
+ *   2. **Explicit signal access** via `state.$signals`:
+ *      `state.$signals.viewportH.set(el.clientHeight)`
+ *      `state.$signals.viewportH(prev => prev + 1)`
+ *      Use this when a primitive's `.set` would otherwise be tempting
+ *      (`state.viewportH.set(...)` throws because the value-side read
+ *      returned a number) or when you want to hand a `Signal<T>` to a
+ *      callback that closes over it.
+ *
+ * Non-signal entries from the controller's `scope: () => ({...})`
  * factory (helper functions, plain values) are directly accessible
- * (`state.reset()` resolves to the factory-returned arrow). The
- * compiler emits both groups into the per-file `Scope` interface in
- * `<file>.sui.d.ts`; controllers no longer need the `state['key'] as
- * Signal<T>` cast tax.
+ * via the proxy fallthrough — `state.reset()` resolves to the
+ * factory-returned arrow. The compiler emits both groups into the
+ * per-file `Scope` interface in `<file>.sui.d.ts`.
  */
 export type MountSection<Scope> = (state: Scope, el: HTMLElement) => (() => void) | void
 

@@ -330,9 +330,60 @@ fn classify_local_binding(
     ScopeKind::Other
 }
 
+/// If `bytes[start..]` begins with `kw` (followed by a non-ident
+/// boundary or end-of-slice), return the index past the keyword.
+/// Otherwise None. Used to peel `async` / `function` prefixes off
+/// scope-entry RHS values during classification.
+fn strip_kw(bytes: &[u8], start: usize, end: usize, kw: &[u8]) -> Option<usize> {
+    if start + kw.len() > end {
+        return None;
+    }
+    if &bytes[start..start + kw.len()] != kw {
+        return None;
+    }
+    let after = start + kw.len();
+    if after < end && is_ident_cont(bytes[after]) {
+        return None;
+    }
+    Some(after)
+}
+
 fn classify_scope_value(bytes: &[u8], start: usize, end: usize) -> ScopeKind {
     let mut i = skip_trivia(bytes, start);
     if i >= end {
+        return ScopeKind::Other;
+    }
+    // Strip a leading `async` — `async (x) => …`, `async x => …`,
+    // `async function …` all classify the same as their non-async
+    // counterparts for `on:click={…}` purposes.
+    if let Some(after) = strip_kw(bytes, i, end, b"async") {
+        i = skip_trivia(bytes, after);
+        if i >= end {
+            return ScopeKind::Other;
+        }
+    }
+    // Function expression: `function NAME?(args)…` / `function* NAME?(args)…`.
+    // Pre-fix, `toggleStream: function toggleStream(): void {…}` classified
+    // as Other and `on:click={toggleStream}` was rejected as "not callable",
+    // forcing every author to either reshape as an arrow or wrap inline.
+    if let Some(after) = strip_kw(bytes, i, end, b"function") {
+        let mut j = skip_trivia(bytes, after);
+        if j < end && bytes[j] == b'*' {
+            j = skip_trivia(bytes, j + 1);
+        }
+        if j < end && is_ident_start(bytes[j]) {
+            while j < end && is_ident_cont(bytes[j]) {
+                j += 1;
+            }
+            j = skip_trivia(bytes, j);
+        }
+        if j < end && bytes[j] == b'<' {
+            j = skip_generic_args(bytes, j, end);
+            j = skip_trivia(bytes, j);
+        }
+        if j < end && bytes[j] == b'(' {
+            return ScopeKind::Action;
+        }
         return ScopeKind::Other;
     }
     // Arrow shapes: `(x) => …` / `(x): T => …` / `x => …` / `() => …` => Action.
@@ -583,6 +634,35 @@ mod tests {
         assert_eq!(t.kind_of_scope("doubled"), Some(ScopeKind::Derived));
         assert_eq!(t.kind_of_scope("handle"), Some(ScopeKind::Action));
         assert_eq!(t.kind_of_scope("plain"), Some(ScopeKind::Other));
+    }
+
+    #[test]
+    fn classifies_async_and_function_expression_values() {
+        // Pre-fix, `toggleStream: function toggleStream(): void {…}` and
+        // `openModal: async (): Promise<void> => {…}` both classified as
+        // Other, so `on:click={toggleStream}` was rejected as "not
+        // callable", forcing arrow wrap. Real-world idioms (named
+        // function expressions for stack-trace readability, async
+        // handlers) should round-trip the on:-callable check.
+        let c = ctrl(
+            r#"export default controller({
+                scope: () => ({
+                    asyncArrow: async (): Promise<void> => {},
+                    asyncShort: async e => e,
+                    fnExpr: function foo(): void {},
+                    fnAnon: function () { return 1 },
+                    asyncFn: async function bar() {},
+                    gen: function* () { yield 1 },
+                }),
+            });"#,
+        );
+        let t = SymbolTable::build(&empty_program(), Some(&c));
+        assert_eq!(t.kind_of_scope("asyncArrow"), Some(ScopeKind::Action));
+        assert_eq!(t.kind_of_scope("asyncShort"), Some(ScopeKind::Action));
+        assert_eq!(t.kind_of_scope("fnExpr"),     Some(ScopeKind::Action));
+        assert_eq!(t.kind_of_scope("fnAnon"),     Some(ScopeKind::Action));
+        assert_eq!(t.kind_of_scope("asyncFn"),    Some(ScopeKind::Action));
+        assert_eq!(t.kind_of_scope("gen"),        Some(ScopeKind::Action));
     }
 
     #[test]

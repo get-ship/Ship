@@ -1,0 +1,197 @@
+---
+/*
+  Tutorial index — landing page that groups every step under its
+  chapter (frontmatter `chapter` field). Pulls metadata from each
+  step's index.md under docs/ship-sui/references/tutorial/<NN-slug>/.
+  Prose source of truth stays in the skill; the app (this route +
+  the step pages) lives here under apps/docs/.
+
+  Chapter chrome uses Ship primitives: <sui-chip> for chapter labels,
+  <sui-card> per step, <sui-button> for the "start" CTA — keeps the
+  index visually aligned with what the user is about to read.
+*/
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro'
+import { readFileSync, readdirSync } from 'node:fs'
+import { resolve, dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+const __dirname = dirname(fileURLToPath(import.meta.url))
+const repoRoot = resolve(__dirname, '../../../../../')
+const tutorialDir = join(repoRoot, 'docs/ship-sui/references/tutorial')
+
+interface Step {
+  slug: string
+  title: string
+  description: string | null
+  order: number
+  chapter: string
+}
+
+function parseFm(text: string): Record<string, string | null> {
+  const m = text.match(/^---\n([\s\S]*?)\n---/)
+  if (!m) return {}
+  const out: Record<string, string | null> = {}
+  for (const line of m[1].split('\n')) {
+    const kv = line.match(/^(\w+):\s*(.+)$/)
+    if (!kv) continue
+    let v = kv[2].trim()
+    if (v === 'null') { out[kv[1]] = null; continue }
+    v = v.replace(/^["']|["']$/g, '')
+    out[kv[1]] = v
+  }
+  return out
+}
+
+const steps: Step[] = readdirSync(tutorialDir, { withFileTypes: true })
+  .filter((e) => e.isDirectory())
+  .map((e) => {
+    const indexPath = join(tutorialDir, e.name, 'index.md')
+    const fm = parseFm(readFileSync(indexPath, 'utf8'))
+    return {
+      slug: fm.slug ?? e.name,
+      title: fm.title ?? e.name,
+      description: fm.description ?? null,
+      order: Number(fm.order ?? 999),
+      chapter: fm.chapter ?? 'other',
+    }
+  })
+  .sort((a, b) => a.order - b.order)
+
+// Order chapters by the order of their first step.
+const chapterOrder: string[] = []
+const byChapter = new Map<string, Step[]>()
+for (const s of steps) {
+  if (!byChapter.has(s.chapter)) {
+    byChapter.set(s.chapter, [])
+    chapterOrder.push(s.chapter)
+  }
+  byChapter.get(s.chapter)!.push(s)
+}
+
+const chapterTitles: Record<string, string> = {
+  reactivity: 'Reactivity',
+  templating: 'Templating',
+  components: 'Components',
+  agents: 'Agents',
+  composition: 'Composition',
+  lifecycle: 'Lifecycle',
+  views: 'Views',
+  other: 'Other',
+}
+
+const chapterDescriptions: Record<string, string> = {
+  reactivity: 'Signals, derived, effects, lists — the reactive graph.',
+  templating: 'Branches, bindings, events — what shape your DOM takes.',
+  components: 'Composing with the built-in Ship UI primitives.',
+  agents: 'How an AI agent authors, diagnoses, and scores a SUI view.',
+  composition: 'Slots, refs, class:/style: — building larger surfaces.',
+  lifecycle: 'When code runs, when it cleans up, and how effects scope.',
+  views: 'Server-pushed data, route params, morph patches, SSR.',
+}
+
+const firstSlug = steps[0]?.slug
+---
+
+<StarlightPage
+  frontmatter={{
+    title: 'SUI Tutorial',
+    description: 'Learn SUI step by step. Edit code, see it run.',
+    template: 'doc',
+    tableOfContents: false,
+  }}
+>
+  <p class="tut-lead">
+    Twenty-five steps across seven chapters. Read the prose on the
+    left, edit the code on the right, the preview re-renders as you
+    type. Show the solution when stuck. The Agents chapter explains
+    how to hand SUI authoring off to a model. The Views chapter
+    exercises server-pushed data through a mock-daemon service worker
+    bundled into the docs site.
+  </p>
+
+  {firstSlug && (
+    <p>
+      <a href={`/tutorial/${firstSlug}/`} class="tut-cta-link">
+        <sui-button variant="solid" tone="primary" size="md">
+          Start with step 01 →
+        </sui-button>
+      </a>
+    </p>
+  )}
+
+  {chapterOrder.map((chap) => (
+    <section class="tut-chapter">
+      <header class="tut-chap-head">
+        <sui-chip tone="primary" variant="soft" size="sm" pill>
+          {chapterTitles[chap] ?? chap}
+        </sui-chip>
+        {chapterDescriptions[chap] && (
+          <span class="tut-chap-desc">{chapterDescriptions[chap]}</span>
+        )}
+      </header>
+      <div class="tut-chap-grid">
+        {byChapter.get(chap)!.map((s) => (
+          <a href={`/tutorial/${s.slug}/`} class="tut-card-link">
+            <sui-card padding="md" interactive>
+              <div class="tut-card-row">
+                <span class="tut-num">{String(s.order).padStart(2, '0')}</span>
+                <div class="tut-card-meta">
+                  <strong>{s.title}</strong>
+                  {s.description && <span class="tut-desc">{s.description}</span>}
+                </div>
+              </div>
+            </sui-card>
+          </a>
+        ))}
+      </div>
+    </section>
+  ))}
+</StarlightPage>
+
+<style>
+  .tut-lead {
+    color: var(--sl-color-gray-2);
+    font-size: 1rem;
+    line-height: 1.6;
+  }
+  .tut-cta-link { text-decoration: none; display: inline-block; }
+
+  .tut-chapter {
+    margin: 2rem 0 1rem;
+  }
+  .tut-chap-head {
+    display: flex;
+    align-items: baseline;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+    flex-wrap: wrap;
+  }
+  .tut-chap-desc {
+    color: var(--sl-color-gray-3);
+    font-size: 0.875rem;
+  }
+  .tut-chap-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr));
+    gap: 0.5rem;
+  }
+  .tut-card-link {
+    text-decoration: none;
+    color: inherit;
+    display: block;
+  }
+  .tut-card-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+  .tut-num {
+    font-family: var(--sl-font-system-mono);
+    font-size: 0.875rem;
+    color: var(--muted-foreground, var(--sl-color-gray-3));
+    width: 2ch;
+    text-align: right;
+  }
+  .tut-card-meta { display: flex; flex-direction: column; gap: 2px; }
+  .tut-desc { font-size: 0.8125rem; color: var(--sl-color-gray-3); }
+</style>

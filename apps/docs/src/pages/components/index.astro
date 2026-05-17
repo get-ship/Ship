@@ -14,9 +14,20 @@ const populated = CATEGORY_ORDER.filter((c) => buckets[c].length > 0);
 ---
 
 <StarlightPage
-  frontmatter={{ title: 'Components', description: `${COMPONENTS.length} web components for AI-native apps.` }}
+  frontmatter={{
+    title: 'Components',
+    description: `${COMPONENTS.length} web components for AI-native apps.`,
+    template: 'splash',
+    tableOfContents: false,
+  }}
 >
-  <div class="not-content idx-root">
+  <div class="not-content idx-root cmp-root canvas-root">
+    {/* Floating ← Docs badge — same affordance as the tutorial.
+        Lives on every canvas surface (.canvas-root) via the
+        global style in ship-theme.css. */}
+    <a href="/" class="canvas-back" aria-label="Back to docs home">
+      <span aria-hidden="true">←</span> Docs
+    </a>
   <section class="idx-hero">
     <div class="idx-hero-copy">
       <h2 class="idx-hero-title">Live, in the page you're reading.</h2>
@@ -195,6 +206,22 @@ const populated = CATEGORY_ORDER.filter((c) => buckets[c].length > 0);
 </script>
 
 <style>
+  /* Canvas wrapper — full viewport minus the top nav. Owns its
+     own padding + scrolling internally; the body never scrolls. */
+  .cmp-root {
+    height: calc(100dvh - var(--sl-nav-height));
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 32px 24px 24px;
+    box-sizing: border-box;
+    position: relative;
+  }
+  .cmp-root::-webkit-scrollbar { width: 8px; }
+  .cmp-root::-webkit-scrollbar-thumb {
+    background: var(--sl-color-hairline-shade);
+    border-radius: 999px;
+  }
+
   .idx-hero {
     display: grid;
     grid-template-columns: minmax(0, 1fr);

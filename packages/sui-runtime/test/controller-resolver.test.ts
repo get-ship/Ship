@@ -108,6 +108,45 @@ describe('on — handlers receive a writable proxy', () => {
     expect(refresh).toHaveBeenCalledOnce()
   })
 
+  it('$signals exposes the raw signal map for explicit .set()', () => {
+    // Pre-fix the only way to mutate state from `mount` was via the
+    // assignment proxy (`state.viewportH = el.clientHeight`).
+    // `state.viewportH.set(...)` looked correct but silently threw
+    // because the value-side read returned a number. $signals gives
+    // mount handlers an explicit signal-access path.
+    const ctx = withState({ count: 0, label: 'hi' })
+    type ScopeS = { $signals: { count: Signal<number>; label: Signal<string> } }
+    const b = resolveController(
+      {
+        on: {
+          bumpViaSignal: (s: ScopeS) => { s.$signals.count.set(7) },
+          setLabel: (s: ScopeS) => { s.$signals.label.set('there') },
+        },
+      },
+      ctx,
+    ) as Record<string, () => void>
+    b.bumpViaSignal!()
+    b.setLabel!()
+    expect((ctx.stateSignals.count as () => number)()).toBe(7)
+    expect((ctx.stateSignals.label as () => string)()).toBe('there')
+  })
+
+  it('writes to $signals warn and are ignored (read-only accessor)', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const ctx = withState({ count: 0 })
+    const b = resolveController(
+      {
+        on: {
+          stomp: (s: Record<string, unknown>) => { s.$signals = {} },
+        },
+      },
+      ctx,
+    ) as Record<string, () => void>
+    b.stomp!()
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('$signals'))
+    warnSpy.mockRestore()
+  })
+
   it('writes to a non-state key warn and are ignored', () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
     const ctx = withState({ count: 0 })
@@ -163,6 +202,39 @@ describe('derived — memoized over scope', () => {
     expect(b.filtered!()).toEqual(['b'])
     agents.set(['ba', 'cb', 'd'])
     expect(b.filtered!()).toEqual(['ba', 'cb'])
+  })
+
+  it('derived that shadows a scope key reads the scope original, not itself', () => {
+    // Pre-fix: `derived: { x: ({x}) => x() * 2 }` closed over a
+    // declScope where `x` was the derived, so the memo recursed
+    // into itself on first read and stack-overflowed silently.
+    const count: Signal<number> = signal(3)
+    const ctx = withState({}, { count })
+    const b = resolveController(
+      {
+        derived: { count: ({ count }: { count: () => number }) => count() * 2 },
+      },
+      ctx,
+    ) as Record<string, () => number>
+    expect(b.count!()).toBe(6)
+    count.set(5)
+    expect(b.count!()).toBe(10)
+  })
+
+  it('non-shadowing derived still see other derived (chained derived works)', () => {
+    const ctx = withState({ first: 'Ada', last: 'Lovelace' })
+    const b = resolveController(
+      {
+        derived: {
+          full: ({ first, last }: { first: () => string; last: () => string }) =>
+            `${first()} ${last()}`,
+          greeting: ({ full }: { full: () => string }) => `hi ${full()}`,
+        },
+      },
+      ctx,
+    ) as Record<string, () => string>
+    expect(b.full!()).toBe('Ada Lovelace')
+    expect(b.greeting!()).toBe('hi Ada Lovelace')
   })
 })
 

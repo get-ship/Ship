@@ -43,6 +43,9 @@ pub mod out_layout;
 pub mod parse;
 pub mod render;
 
+#[cfg(target_arch = "wasm32")]
+pub mod wasm;
+
 pub use diagnostics::{CompileError, Span};
 
 /// Identity stamp embedded in every emitted artifact (JS leading

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { signal, derived, effect, batch, untrack } from '../src/signal'
+import { signal, derived, effect, batch, untrack, selector } from '../src/signal'
 
 describe('signal', () => {
   it('reads return the current value', () => {
@@ -265,5 +265,87 @@ describe('untrack', () => {
     expect(fn).toHaveBeenCalledTimes(1) // y did not trigger
     $x.set(1)
     expect(fn).toHaveBeenCalledTimes(2) // x did
+  })
+})
+
+describe('selector', () => {
+  it('returns true only for the current value', () => {
+    const $sel = signal<string | null>(null)
+    const isSelected = selector($sel)
+    expect(isSelected('a')).toBe(false)
+    $sel.set('a')
+    expect(isSelected('a')).toBe(true)
+    expect(isSelected('b')).toBe(false)
+  })
+
+  it('notifies only the two affected buckets on change (not all subscribers)', () => {
+    // The Krausest motivation: with 1000 rows binding to selected,
+    // a change between two ids should re-fire just two effects, not
+    // 1000. Track each row's fire count to prove the others stay quiet.
+    const $sel = signal<number>(-1)
+    const isSelected = selector($sel)
+    const fires: Record<number, number> = {}
+    for (let id = 0; id < 5; id++) {
+      fires[id] = 0
+      effect(() => {
+        isSelected(id) // subscribe
+        fires[id]!++
+      })
+    }
+    // Initial run fires each effect once.
+    expect(fires).toEqual({ 0: 1, 1: 1, 2: 1, 3: 1, 4: 1 })
+
+    $sel.set(2)
+    // Only id=2's effect re-fires (became selected). id=-1 has no
+    // subscriber, so no notify there.
+    expect(fires).toEqual({ 0: 1, 1: 1, 2: 2, 3: 1, 4: 1 })
+
+    $sel.set(4)
+    // Both old (2) and new (4) re-fire; others quiet.
+    expect(fires).toEqual({ 0: 1, 1: 1, 2: 3, 3: 1, 4: 2 })
+
+    $sel.set(4)
+    // No-op set — Object.is equality, no notifies.
+    expect(fires).toEqual({ 0: 1, 1: 1, 2: 3, 3: 1, 4: 2 })
+  })
+
+  it('untracks observers on re-run (no stale subscriptions across runs)', () => {
+    const $sel = signal<string>('a')
+    const $which = signal<'x' | 'y'>('x')
+    const isSelected = selector($sel)
+    const fires = vi.fn()
+    effect(() => {
+      // Read the bucket for whichever key $which points to. After
+      // $which flips to 'y', the 'x' bucket subscription must clear
+      // — otherwise selecting 'x' would re-fire this effect.
+      isSelected($which())
+      fires()
+    })
+    expect(fires).toHaveBeenCalledTimes(1)
+    $which.set('y') // re-fires (which changed)
+    expect(fires).toHaveBeenCalledTimes(2)
+    $sel.set('x') // 'x' bucket should have no subscribers left
+    expect(fires).toHaveBeenCalledTimes(2)
+    $sel.set('y') // 'y' has us, fires
+    expect(fires).toHaveBeenCalledTimes(3)
+  })
+
+  it('batch groups selector notifies', () => {
+    const $sel = signal<number>(-1)
+    const isSelected = selector($sel)
+    const fires = vi.fn()
+    effect(() => {
+      isSelected(1)
+      isSelected(2)
+      fires()
+    })
+    expect(fires).toHaveBeenCalledTimes(1)
+    batch(() => {
+      $sel.set(1)
+      $sel.set(2)
+    })
+    // Two changes, one effect run (1 became sel then desel; 2 became
+    // sel). End state: 2 is selected. Effect re-runs once.
+    expect(fires).toHaveBeenCalledTimes(2)
   })
 })

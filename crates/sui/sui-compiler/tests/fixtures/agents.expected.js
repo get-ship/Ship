@@ -50,7 +50,6 @@ const __wireBoundary_b5 = (anchor) => bindFor({
     const __childScope25 = Object.create($scope);
     __childScope25.agent = agent;
     __childScope25.__i = __i;
-    __childScope25.__v = signal(0);
     return (($scope) => {
 const __frag26 = document.createDocumentFragment();
 const __c27 = [];
@@ -60,7 +59,7 @@ const __t29 = document.createTextNode("");
 __e28.appendChild(__t29);
 __t29.textContent = ($scope.agent.name);
 __frag26.appendChild(__e28);
-      return { nodes: Array.from(__frag26.childNodes), cleanup: () => { for (const c of __c27) try { c(); } catch (e) {} }, update: (__new30, __newI31) => { $scope.agent = __new30; $scope.__i = __newI31; __t29.textContent = ($scope.agent.name); $scope.__v.set(c => c + 1); } };
+      return { nodes: Array.from(__frag26.childNodes), cleanup: () => { for (const c of __c27) try { c(); } catch (e) {} }, update: (__new30, __newI31) => { const __old = $scope.agent; $scope.agent = __new30; $scope.__i = __newI31; if (__old.name !== $scope.agent.name) { __t29.textContent = ($scope.agent.name); } } };
     })(__childScope25);
   },
 });

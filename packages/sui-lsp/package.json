@@ -6,6 +6,14 @@
   "license": "MIT",
   "type": "commonjs",
   "main": "dist/server.js",
+  "exports": {
+    ".": "./dist/server.js",
+    "./parse": "./src/parse.ts",
+    "./parse-types": "./src/parse-types.ts",
+    "./parse-attrs": "./src/parse-attrs.ts",
+    "./parse-blocks": "./src/parse-blocks.ts",
+    "./parse-braces": "./src/parse-braces.ts"
+  },
   "bin": {
     "sui-lsp": "bin/sui-lsp.js"
   },

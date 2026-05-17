@@ -10,7 +10,7 @@
 import { effect, type Signal } from './signal'
 import type { Disposer } from './bind'
 import { runProtected } from './error-boundary'
-import { runEnter, runLeave } from './transition'
+import { runEnter, runLeave } from './transition-runner'
 
 /**
  * Inputs to `bindFor` — what to iterate, how to identify items, and
@@ -263,22 +263,38 @@ export function bindFor<T>(opts: BindForOptions<T>): Disposer {
     //    entirely when step 2 reused no rows (full-replace / first
     //    render): with no matches there's no LIS to compute and the
     //    placement loop below takes the fragment fast path.
+    //
+    //    Monotone fast-path: when matched-prev positions are strictly
+    //    increasing, every matched record is its own LIS — no DOM
+    //    moves needed. Covers the common shapes (append, prepend at
+    //    far end, single insert, single remove, no-op) without paying
+    //    the O(n log n) LIS scan. Krausest's `remove-one-1k` saves
+    //    ~9000 ops on a 1000-row list; `swap-1k` still falls into
+    //    the full LIS path because the swap creates an inversion.
     let matchedCount = 0
     if (anyReused) {
       for (let i = 0; i < prev.length; i++) prevPos.set(prev[i]!.key, i)
 
+      let monotone = true
+      let lastPrevPos = -1
       for (let i = 0; i < nextRecords.length; i++) {
         const p = prevPos.get(nextRecords[i]!.key)
         if (p !== undefined) {
           matched[2 * matchedCount] = i
           matched[2 * matchedCount + 1] = p
           matchedCount++
+          if (monotone && p <= lastPrevPos) monotone = false
+          lastPrevPos = p
         }
       }
 
-      computeLisMaskInto(matched, matchedCount, lisMaskBuf, lisPred, lisTails)
-      for (let j = 0; j < matchedCount; j++) {
-        if (lisMaskBuf[j]) stable.add(matched[2 * j]!)
+      if (monotone) {
+        for (let j = 0; j < matchedCount; j++) stable.add(matched[2 * j]!)
+      } else {
+        computeLisMaskInto(matched, matchedCount, lisMaskBuf, lisPred, lisTails)
+        for (let j = 0; j < matchedCount; j++) {
+          if (lisMaskBuf[j]) stable.add(matched[2 * j]!)
+        }
       }
     }
 
@@ -324,6 +340,16 @@ export function bindFor<T>(opts: BindForOptions<T>): Disposer {
 
     // Drop scratch contents so we don't pin references (records, items,
     // keys) between renders. The Maps/Sets themselves are reused.
+    // Pre-fix, `nextRecords` was left holding the previous render's
+    // record objects (item refs, detached DOM nodes, cleanup/update
+    // closures) until the next render's line `nextRecords.length = 0`
+    // dropped them. After a `clear()` that emptied the list, no next
+    // render arrived — and Krausest's 25_run-clear-memory measured
+    // 2.7MB of residual where Solid/Svelte sat at 0.7–0.9MB. The
+    // records were already flushed (DOM removed, cleanup called), but
+    // the JS objects pinning `item` payloads + the detached <tr>
+    // subtrees stayed referenced through the scratch array.
+    nextRecords.length = 0
     nextKeys.clear()
     prevByKey.clear()
     prevPos.clear()

@@ -12,12 +12,16 @@
     "docs:check-drift": "bun scripts/check-skill-docs-drift.ts",
     "prebuild": "bun run openapi:generate && bun run collect",
     "build": "astro build",
-    "preview": "astro preview"
+    "preview": "astro preview",
+    "visual": "playwright test --config tests/visual/playwright.config.ts",
+    "visual:update": "playwright test --config tests/visual/playwright.config.ts --update-snapshots"
   },
   "dependencies": {
     "@astrojs/starlight": "^0.38.2",
     "@fontsource-variable/dm-sans": "^5.2.8",
     "@fontsource-variable/syne": "^5.2.7",
+    "@ship/sui-compiler-wasm": "workspace:*",
+    "@ship/sui-lsp-browser": "workspace:*",
     "astro": "^6.1.1",
     "sharp": "^0.33.0",
     "starlight-openapi": "^0.24.0",
@@ -25,6 +29,7 @@
   },
   "devDependencies": {
     "@astrojs/markdoc": "^1.0.3",
+    "@playwright/test": "^1.60.0",
     "@types/node": "^22.0.0"
   }
 }

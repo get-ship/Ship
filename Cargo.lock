@@ -4687,10 +4687,12 @@ dependencies = [
  "clap",
  "libc",
  "serde",
+ "serde-wasm-bindgen",
  "serde_json",
  "sui-lint",
  "tempfile",
  "thiserror 2.0.18",
+ "wasm-bindgen",
 ]
 
 [[package]]

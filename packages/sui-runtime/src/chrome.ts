@@ -108,7 +108,17 @@ function stamp<T extends object>(detail: T, opts?: ScopeOpt): T & { viewId?: str
 let modalSeq = 0
 const pendingModals = new Map<number, (action: string) => void>()
 
-if (typeof document !== 'undefined') {
+// Pre-fix: the `sui:modal:respond` listener attached at module-top-
+// level on import — a side effect that pinned chrome.ts into every
+// bundle that pulled the runtime barrel, even if no consumer used
+// `chrome.modal.request()`. Listener attachment moves to the first
+// request() call below so the top-level becomes side-effect-free
+// and esbuild can drop chrome.ts when `chrome` isn't imported.
+let modalListenerAttached = false
+function attachModalListener(): void {
+  if (modalListenerAttached) return
+  if (typeof document === 'undefined') return
+  modalListenerAttached = true
   document.addEventListener('sui:modal:respond', (e: Event) => {
     const detail = (e as CustomEvent).detail as
       | { id?: number; action?: string }
@@ -203,6 +213,7 @@ export const chrome = {
 
   modal: {
     request(opts: ModalRequestOpts): Promise<string> {
+      attachModalListener()
       const id = ++modalSeq
       return new Promise((resolve) => {
         pendingModals.set(id, resolve)
