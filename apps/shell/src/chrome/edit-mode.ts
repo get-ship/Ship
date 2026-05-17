@@ -374,14 +374,30 @@ function onCapture(e: Event): void {
   if (!document.body.classList.contains('annotation-mode')) return
   const d = (e as CustomEvent).detail as { tag?: string; selector?: string; preview?: string } | undefined
   if (!d?.tag) return
-  annotations.push({
+  const ann: AnnotationCapture = {
     id: `ann-${nextId++}`,
     tag: d.tag,
     selector: d.selector ?? d.tag,
     preview: d.preview ?? '',
     ts: Date.now(),
-  })
+  }
+  annotations.push(ann)
   syncPillQueue()
+  // Render a visible pin at the annotated selector via the
+  // sui-va-annotation-pins overlay (it listens for sui:view:annotation).
+  // The overlay locates the element under #ship-content, positions a
+  // marker, and auto-clears after 30s. Without this the user gets no
+  // visual confirmation that the click was captured.
+  document.dispatchEvent(new CustomEvent('sui:view:annotation', {
+    detail: {
+      id: ann.id,
+      selector: ann.selector,
+      label: ann.preview || ann.tag,
+      turn: annotations.length,
+      view: currentView,
+    },
+    bubbles: true,
+  }))
 }
 
 function sendAnnotationsToAgent(): void {
