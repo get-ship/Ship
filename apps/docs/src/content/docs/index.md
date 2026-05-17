@@ -1,88 +1,88 @@
 ---
 title: Ship
-description: Ship — the multi-agent coordination runtime. Compile declarative config into provider-native artifacts, run pipelines across git worktrees, coordinate agents through an event-sourced kernel.
+description: Ship is the runtime for building real software with AI agents — declarative skills, agent profiles, pipelines, live HTML views, all working from one config tree.
 ---
 
-The multi-agent coordination runtime. Declarative config compiles to provider-native artifacts; pipelines run across git worktrees; events coordinate everything.
-
-<div style="display: flex; gap: 0.75rem; margin: 1rem 0 2rem;">
-  <a href="/getting-started/"><sui-button tone="primary">Get Started →</sui-button></a>
-  <a href="https://getship.dev/registry"><sui-button variant="outline">Registry</sui-button></a>
+<div style="display: flex; flex-direction: column; gap: 0.5rem; margin: 0 0 1rem;">
+  <p style="font-size: 1.125rem; line-height: 1.5; color: var(--foreground); margin: 0; max-width: 42rem;">
+    Ship is the runtime for building real software with AI agents.
+    One declarative config tree, every provider, live HTML views, agent-authored.
+  </p>
+  <p style="font-size: 0.9375rem; line-height: 1.5; color: var(--muted-foreground); margin: 0; max-width: 42rem;">
+    Skills compile to provider-native artifacts. Pipelines run across git worktrees.
+    Views render live HTML driven by signals. Agents author all of it.
+  </p>
 </div>
 
-## What Ship gives you
+<div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin: 0.75rem 0 2rem;">
+  <a href="/tutorial/01-hello-signal/"><sui-button tone="primary" variant="solid">Try the tutorial →</sui-button></a>
+  <a href="/getting-started/"><sui-button variant="outline">60-second install</sui-button></a>
+  <a href="/components/"><sui-button variant="ghost">Browse components</sui-button></a>
+</div>
+
+## What a SUI view looks like
+
+```sui
+<!-- views/counter/page.sui -->
+<prop name="initial" type="number" default="0" />
+
+<div class="counter">
+  <p>count: <strong>{count()}</strong></p>
+  <button on:click={() => count.set(count() + 1)}>+1</button>
+</div>
+```
+
+```ts
+// views/counter/controller.ts
+import { controller, signal } from '@ship/sui-runtime'
+import type { Scope } from './page.sui'
+
+export default controller<Scope>({
+  scope: ({ initial }) => ({ count: signal(initial) }),
+})
+```
+
+That's it. The compiler emits a single ESM, the daemon SSRs it, the
+client attaches reactivity. Compose 100+ `<sui-*>` primitives.
+[Try this in the browser →](/tutorial/01-hello-signal/)
+
+## How Ship works
 
 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem; margin: 1.5rem 0;">
 
 <sui-card padding="md">
-<strong slot="header">Smart Skills</strong>
-Instruction sets with typed variables. One skill, personalized output per user and project.
+<strong slot="header">Skills + Agents</strong>
+Compose typed skills, MCP servers, permissions, rules into agent profiles. Compile to <code>CLAUDE.md</code>, <code>.cursor/rules</code>, <code>GEMINI.md</code>, <code>AGENTS.md</code>, <code>opencode.json</code>, or your own provider.
 </sui-card>
 
 <sui-card padding="md">
-<strong slot="header">Agent Profiles</strong>
-Compose skills, MCP servers, permissions, and rules into portable configs for every provider.
+<strong slot="header">Views — live HTML</strong>
+<code>.sui</code> templates with optional paired controllers. Signal-driven, AOT-compiled, SSR'd, attached client-side. Zero build step. Agents write them.
 </sui-card>
 
 <sui-card padding="md">
 <strong slot="header">Pipelines</strong>
-YAML DAGs of agent steps. Gates, retries, worktree isolation, resumable on crash.
+JSONC DAGs of agent steps. Gates, retries, worktree isolation, resumable on crash. Each step runs in its own agent profile.
 </sui-card>
 
 <sui-card padding="md">
-<strong slot="header">Views</strong>
-Author live-updating HTML surfaces for your data in `.ship/views/*`. Zero build step.
+<strong slot="header">Triggers + Collections</strong>
+Schema-backed structured data plus reactive JSONC that matches events and fires actions. Automation without writing code.
 </sui-card>
 
 <sui-card padding="md">
-<strong slot="header">Collections</strong>
-Schema-backed structured data. Specs, ADRs, notes, anything — queryable and event-driven.
+<strong slot="header">Components</strong>
+Two published packs — <code>@ship/primitives</code> (~80 generic <code>&lt;sui-*&gt;</code> elements) and <code>@ship/charts</code> (8 chart components). Drop in any view.
 </sui-card>
 
 <sui-card padding="md">
-<strong slot="header">Triggers</strong>
-Reactive JSONC that matches events and runs actions. Automation without writing code.
+<strong slot="header">Agent surfaces</strong>
+47 MCP tools, a Node + browser LSP, <code>sui-eval</code> regression scoring. The agent has every surface it needs to author + verify in one turn. <a href="/agents/agent-surfaces/">Reference →</a>
 </sui-card>
 
 </div>
 
-## Find your way around
-
-The docs are split by audience — pick the one that matches what you're doing.
-
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 0.75rem; margin: 1.5rem 0;">
-
-<sui-card padding="md" interactive>
-<strong slot="header"><a href="/getting-started/" style="text-decoration: none; color: inherit;">Guide →</a></strong>
-Install, init, your first project. How skills, agents, and pipelines fit together.
-</sui-card>
-
-<sui-card padding="md" interactive>
-<strong slot="header"><a href="/cli/" style="text-decoration: none; color: inherit;">Reference →</a></strong>
-CLI commands, MCP tools, schemas, config shape. Look things up.
-</sui-card>
-
-<sui-card padding="md" interactive>
-<strong slot="header"><a href="/smart-skills/" style="text-decoration: none; color: inherit;">Extensions →</a></strong>
-Build on Ship. Seven extension mechanisms: skills, agents, views, pipelines, artifacts, collections, triggers.
-</sui-card>
-
-<sui-card padding="md" interactive>
-<strong slot="header"><a href="/components/" style="text-decoration: none; color: inherit;">Components →</a></strong>
-The SUI components library. Tokens, primitives, themes, cookbook.
-</sui-card>
-
-</div>
-
-## Supported providers
-
-- **Claude Code** — `CLAUDE.md`, `.mcp.json`, `.claude/skills/`
-- **Cursor** — `.cursor/rules`, `.cursor/mcp.json`
-- **Gemini CLI** — `GEMINI.md`, `.gemini/settings.json`
-- **Codex** — `AGENTS.md`, `.codex/config.toml`
-- **OpenCode** — `opencode.json`
-
-## Quick start
+## 60-second install
 
 ```bash
 curl -fsSL https://getship.dev/install | sh
@@ -96,9 +96,17 @@ ship studio --open
 Ship converts <code>CLAUDE.md</code>, <code>.cursor/rules</code>, and other provider configs into <code>.ship/</code> format. Run <code>ship convert .</code> in your project root.
 </sui-alert>
 
+## Supported providers
+
+- **Claude Code** — `CLAUDE.md`, `.mcp.json`, `.claude/skills/`
+- **Cursor** — `.cursor/rules`, `.cursor/mcp.json`
+- **Gemini CLI** — `GEMINI.md`, `.gemini/settings.json`
+- **Codex** — `AGENTS.md`, `.codex/config.toml`
+- **OpenCode** — `opencode.json`
+
 ## SUI, live
 
-The docs site renders with the same component runtime it documents. Every tag below is a real `<sui-*>` element, registered globally by `/sui-components.js` — pick a theme, drive the controls, watch it react.
+The docs site renders with the same component runtime it documents. Every tag below is a real `<sui-*>` element — pick a theme, drive the controls, watch it react.
 
 <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:1.25rem;margin:1.5rem 0;">
 

@@ -5,65 +5,87 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SUI tutorial host</title>
   <script>
+    // Map the parent's theme query to the Ship token-system selectors
+    // — Ship's tokens.css overrides `:root[data-theme='ship-dark']`
+    // (and a few other named themes), and falls back to `:root`
+    // defaults for the light surface. The parent passes 'light' or
+    // 'dark' via ?theme; we translate to the right Ship selector and
+    // toggle the .dark class for any rule that keys on it.
     (function () {
       var p = new URLSearchParams(location.search)
       var t = p.get('theme')
-      if (t === 'dark' || t === 'light') document.documentElement.dataset.theme = t
+      var root = document.documentElement
+      if (t === 'dark') {
+        root.dataset.theme = 'ship-dark'
+        root.classList.add('dark')
+      } else if (t === 'light') {
+        root.dataset.theme = 'ship-light'
+        root.classList.remove('dark')
+      }
     })()
   </script>
+  <!-- Ship design tokens. Same file the daemon serves at runtime;
+       collect-skill-docs.ts concatenates tokens.css + themes.css
+       into a single /api/assets/view-tokens.css. Loading it here
+       makes every <sui-*> primitive theme-aware inside the preview
+       iframe — without it, components fall back to whatever default
+       palette is in their shadow DOM. -->
+  <link rel="stylesheet" href="/api/assets/view-tokens.css" />
   <style>
-    :root {
-      --bg: #0c0d10; --fg: #e6e6e6; --muted: #8a8c92; --border: #232529;
-      --card: #14161a; --primary: #7aa2f7; --success: #9ece6a;
-      --warning: #e0af68; --danger: #f7768e; --accent: #bb9af7;
-      --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
-    }
-    :root[data-theme="light"] {
-      --bg: #fafafa; --fg: #1a1a1c; --muted: #6a6c72; --border: #e2e3e6;
-      --card: #ffffff; --primary: #335cca; --success: #2e8050; --warning: #8a5a0c;
-      --danger: #c43c5a; --accent: #6c45c5;
-    }
-    @media (prefers-color-scheme: light) {
-      :root:not([data-theme]) {
-        --bg: #fafafa; --fg: #1a1a1c; --muted: #6a6c72; --border: #e2e3e6;
-        --card: #ffffff; --primary: #335cca; --success: #2e8050; --warning: #8a5a0c;
-        --danger: #c43c5a; --accent: #6c45c5;
-      }
-    }
     body {
-      margin: 0; font-family: system-ui, -apple-system, sans-serif;
-      background: var(--bg); color: var(--fg); min-height: 100vh;
+      margin: 0;
+      font-family: var(--font-sans, system-ui, -apple-system, sans-serif);
+      background: var(--background);
+      color: var(--foreground);
+      min-height: 100vh;
       padding: 24px;
     }
     .err {
-      font-family: var(--mono); font-size: 13px;
-      background: color-mix(in oklch, var(--danger) 15%, transparent);
-      color: var(--danger); padding: 12px; border-radius: 6px;
-      border-left: 3px solid var(--danger);
+      font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+      font-size: 13px;
+      background: var(--tone-destructive-bg, color-mix(in oklch, var(--destructive) 15%, transparent));
+      color: var(--destructive);
+      padding: 12px;
+      border-radius: var(--radius-md, 6px);
+      border-left: 3px solid var(--destructive);
       white-space: pre-wrap;
     }
-    /* Tutorial example styles */
-    .counter, .card, .todo {
+    /* Tutorial example styles — read from Ship tokens so they flip
+       with the parent theme. Hand-crafted .counter/.todo/.dash
+       containers in the step templates pick these up. */
+    .counter, .card, .todo, .dash, .form, .users, .clock,
+    .branch, .chat, .grid, .metrics, .refs-demo,
+    .effect, .slots-demo, .list, .hooks-demo, .catalog,
+    .signup, .closer, .add-user, .fetcher, .signup,
+    .branches {
       display: flex; flex-direction: column; gap: 12px;
-      padding: 16px; background: var(--card); border: 1px solid var(--border);
-      border-radius: 10px; max-width: 32rem;
+      padding: 16px;
+      background: var(--card);
+      color: var(--card-foreground, var(--foreground));
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg, 10px);
+      max-width: 32rem;
     }
     .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
-    .counter p, .card p { margin: 0; }
-    .counter strong, .card strong { font-family: var(--mono); }
-    button, input {
+    p { margin: 0; }
+    strong { font-family: var(--font-mono, ui-monospace, monospace); }
+    button:not([class^="sui-"]), input:not([class^="sui-"]) {
       background: transparent; color: inherit;
       border: 1px solid var(--border); padding: 6px 12px;
-      border-radius: 6px; font: inherit; font-size: 14px; cursor: pointer;
+      border-radius: var(--radius-md, 6px); font: inherit; font-size: 14px; cursor: pointer;
     }
-    input { cursor: text; min-width: 200px; }
-    button:hover { border-color: var(--primary); }
-    .todo ul { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 4px; }
-    .todo li { padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px; cursor: pointer; transition: opacity 120ms; }
+    input:not([class^="sui-"]) { cursor: text; min-width: 200px; }
+    button:not([class^="sui-"]):hover { border-color: var(--primary); }
+    .todo ul, .users ul, .chat ul { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 4px; }
+    .todo li, .users li, .chat li { padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius-md, 6px); }
+    .todo li { cursor: pointer; transition: opacity 120ms; }
     .todo li.done { opacity: 0.5; text-decoration: line-through; }
     .todo li.empty { cursor: default; opacity: 0.6; font-style: italic; }
-    .todo form { display: flex; gap: 8px; }
-    .todo form input { flex: 1; }
+    .todo form, .add-user form { display: flex; gap: 8px; }
+    .todo form input, .add-user form input { flex: 1; }
+    .muted, .hint { color: var(--muted-foreground, var(--foreground)); font-size: 0.875rem; opacity: 0.7; }
+    .err { color: var(--destructive); }
+    .ok  { color: var(--success); }
   </style>
 </head>
 <body>
