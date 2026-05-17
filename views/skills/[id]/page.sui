@@ -77,7 +77,7 @@
                         <a class="se-file" class:is-active={selectedFile() === f}
                           role="treeitem"
                           attr:aria-current={selectedFile() === f ? 'true' : null}
-                          attr:href={fileHref(s.id, f)}
+                          attr:href={'/skills/' + s.id + '?file=' + f}
                           attr:title={f}>
                           <sui-icon size="xs"
                             attr:name={fileMetas()[f] ? fileMetas()[f].icon : 'file'}
@@ -105,7 +105,7 @@
             <span>{skill().value.name}</span>
             {#if selectedFile()}
               <span class="sep">/</span>
-              <span class="active">{selectedFile().split('/').pop()}</span>
+              <span class="active">{selectedFileName()}</span>
             {/if}
           </div>
           <div class="se-toolbar-actions">
