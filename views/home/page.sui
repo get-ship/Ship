@@ -176,7 +176,7 @@
                 <div class="home-agents-grid" data-view-enter>
                   {#for agent of agentSlice() key={agent.id}}
                     <sui-list-tile variant="card" density="compact" interactive
-                      prop:navigable={'/agents/' + agent.id}
+                      navigable={'/agents/' + agent.id}
                       class="home-agent-tile" data-test="home-agent">
                       <sui-avatar slot="leading" size="md" shape="square"
                         attr:name={agent.name ?? agent.id}
