@@ -89,6 +89,22 @@ pre {
   border-radius: 0.5rem;
 }
 
+/* Starlight site-search button. The default border picks up
+ * --sl-color-hairline → --border, which is near-transparent on
+ * frosted themes (glass: oklch(1 0 0 / 22%), halo: similar).
+ * Force a thicker, more present outline via --border-strong with
+ * a fallback to a darkened --foreground so the button is clearly
+ * an input on every theme. */
+button[data-open-modal],
+site-search button {
+  border: 1px solid var(--border-strong, color-mix(in oklch, var(--foreground) 24%, transparent)) !important;
+  background: var(--card, var(--sl-color-bg-sidebar)) !important;
+}
+button[data-open-modal]:hover,
+site-search button:hover {
+  border-color: var(--ring, var(--primary)) !important;
+}
+
 nav.sidebar .top-level > li {
   margin-top: 0.25rem;
 }
@@ -384,25 +400,26 @@ body:has(.canvas-root) .sl-container { flex: 1; min-height: 0; display: flex; fl
 body:has(.canvas-root) .pagination-links,
 body:has(.canvas-root) footer.sl-flex { display: none !important; }
 
-/* Floating "← Docs" badge — top-left of the canvas, absolute
- * positioned so it doesn't eat a layout row. Used by every canvas
- * surface as the way back to the rest of the site. */
+/* "← Docs" link — non-absolute, flows inline above the rest of
+ * the canvas content. Earlier iteration positioned it absolute
+ * top-left and it clashed with the prose pane's chapter chip;
+ * top-right clashed with editor pane chrome. Inline placement
+ * (caller decides exactly where) is the only conflict-free
+ * option. Caller wraps in whatever container makes sense for the
+ * surface — for the tutorial that's the prose pane header. */
 .canvas-back {
-  position: absolute;
-  top: 6px;
-  left: 12px;
-  z-index: 10;
+  display: inline-block;
   font-family: var(--sl-font-system-mono);
   font-size: 0.7rem;
-  color: var(--sl-color-gray-2);
+  color: var(--sl-color-gray-3);
   text-decoration: none;
-  padding: 3px 8px;
-  border-radius: 4px;
-  background: color-mix(in oklch, var(--sl-color-bg-sidebar) 80%, transparent);
-  border: 1px solid var(--sl-color-hairline-shade);
-  transition: color 120ms ease, border-color 120ms ease;
+  padding: 2px 0;
+  border-bottom: 1px dotted color-mix(in oklch, var(--sl-color-gray-3) 50%, transparent);
+  opacity: 0.65;
+  transition: color 120ms ease, opacity 120ms ease, border-color 120ms ease;
 }
 .canvas-back:hover {
   color: var(--sl-color-text-accent);
-  border-color: var(--sl-color-text-accent);
+  opacity: 1;
+  border-bottom-color: var(--sl-color-text-accent);
 }

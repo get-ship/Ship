@@ -277,17 +277,22 @@ const { slug, starterTemplate, starterController, solvedTemplate, solvedControll
 
     let iframeReady = false
     const iframe = root.querySelector<HTMLIFrameElement>('.tut-preview')!
-    function resolvedTheme(): 'dark' | 'light' {
-      if (document.documentElement.classList.contains('dark')) return 'dark'
+    // Resolve to one of Ship's named themes
+    // (ship-light/ship-dark/paper/halo/console/contrast/glass).
+    // The iframe receives the full theme id and stamps it onto its
+    // own data-theme so every <sui-*> primitive inside flips
+    // correctly — not just light/dark, but every theme the design
+    // system supports.
+    function resolvedTheme(): string {
       const t = document.documentElement.dataset.theme
-      if (t === 'dark' || t === 'light') return t
-      if (t && t.includes('dark')) return 'dark'
-      if (t && t.includes('light')) return 'light'
-      return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+      if (t) return t
+      const dark = document.documentElement.classList.contains('dark') ||
+        window.matchMedia('(prefers-color-scheme: dark)').matches
+      return dark ? 'ship-dark' : 'ship-light'
     }
     function syncIframeTheme(): void {
       const base = iframe.dataset.baseSrc!
-      iframe.src = `${base}?theme=${resolvedTheme()}&_=${Date.now()}`
+      iframe.src = `${base}?theme=${encodeURIComponent(resolvedTheme())}&_=${Date.now()}`
       iframeReady = false
     }
     new MutationObserver(syncIframeTheme).observe(document.documentElement, {

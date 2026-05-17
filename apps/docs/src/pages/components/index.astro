@@ -22,12 +22,13 @@ const populated = CATEGORY_ORDER.filter((c) => buckets[c].length > 0);
   }}
 >
   <div class="not-content idx-root cmp-root canvas-root">
-    {/* Floating ← Docs badge — same affordance as the tutorial.
-        Lives on every canvas surface (.canvas-root) via the
-        global style in ship-theme.css. */}
+  {/* "← Docs" sits as a small row above the hero — same inline
+      pattern as the tutorial (avoids overlap with hero columns). */}
+  <div class="cmp-back-row">
     <a href="/" class="canvas-back" aria-label="Back to docs home">
       <span aria-hidden="true">←</span> Docs
     </a>
+  </div>
   <section class="idx-hero">
     <div class="idx-hero-copy">
       <h2 class="idx-hero-title">Live, in the page you're reading.</h2>
@@ -212,9 +213,12 @@ const populated = CATEGORY_ORDER.filter((c) => buckets[c].length > 0);
     height: calc(100dvh - var(--sl-nav-height));
     overflow-y: auto;
     overflow-x: hidden;
-    padding: 32px 24px 24px;
+    padding: 12px 24px 24px;
     box-sizing: border-box;
     position: relative;
+  }
+  .cmp-back-row {
+    margin: 0 0 12px;
   }
   .cmp-root::-webkit-scrollbar { width: 8px; }
   .cmp-root::-webkit-scrollbar-thumb {
@@ -364,22 +368,31 @@ const populated = CATEGORY_ORDER.filter((c) => buckets[c].length > 0);
     gap: 14px;
     justify-content: start;
   }
+  /* Card chrome uses Ship tokens that stay visible across every
+     theme. --border-strong over --border for clearly visible
+     outlines (halo's --border is almost transparent for its
+     neumorphic style; glass's is heavily translucent). Soft
+     shadow on top so the card reads as elevated even when the
+     border is faint. Fallbacks chain to Starlight tokens for
+     any non-Ship surface. */
   .idx-card {
     display: flex;
     flex-direction: column;
     gap: 14px;
     padding: 20px;
-    border: 1px solid var(--sl-color-gray-5);
+    border: 1px solid var(--border-strong, var(--border, var(--sl-color-gray-5)));
     border-radius: 12px;
-    background: var(--sl-color-black);
+    background: var(--card, var(--sl-color-bg-sidebar));
+    color: var(--card-foreground, inherit);
     text-decoration: none;
-    color: inherit;
     min-height: 180px;
-    transition: border-color 120ms ease-out, transform 120ms ease-out;
+    box-shadow: var(--shadow-card-rest, 0 1px 3px color-mix(in oklch, var(--foreground, #000) 6%, transparent));
+    transition: border-color 120ms ease-out, transform 120ms ease-out, box-shadow 120ms ease-out;
   }
   .idx-card:hover {
-    border-color: color-mix(in oklch, var(--sl-color-accent) 45%, transparent);
+    border-color: var(--ring, var(--primary, var(--sl-color-accent)));
     transform: translateY(-1px);
+    box-shadow: var(--shadow-hover, 0 8px 24px color-mix(in oklch, var(--primary, var(--sl-color-accent)) 18%, transparent));
   }
   .idx-card-preview {
     flex: 1;

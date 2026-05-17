@@ -188,21 +188,22 @@ const proseHtml = renderMarkdown(body)
   }}
 >
   <div class="tut-root canvas-root">
-    {/* The shared .canvas-back is positioned absolute via the global
-        rule in ship-theme.css — keeps every working surface (tutorial,
-        component viewer, future playgrounds) using the same back
-        affordance instead of each rolling its own. */}
-    <a href="/" class="canvas-back" aria-label="Back to docs home">
-      <span aria-hidden="true">←</span> Docs
-    </a>
-
     <div class="tut-split">
       <article class="tut-prose">
         <header class="tut-prose-head">
-          <sui-chip tone="primary" variant="soft" size="sm" pill>
-            {String(fm.order).padStart(2, '0')} · {chapterLabel(fm)}
-          </sui-chip>
-          <h1>{fm.title}</h1>
+          {/* "← Docs" sits inline at the top of the prose header so
+              it never overlaps the chapter chip (the earlier
+              absolute-positioned variant collided with the chip on
+              every step). Subtle dotted underline, accent on hover. */}
+          <a href="/" class="canvas-back" aria-label="Back to docs home">
+            <span aria-hidden="true">←</span> Docs
+          </a>
+          <div class="tut-prose-title">
+            <sui-chip tone="primary" variant="soft" size="sm" pill>
+              {String(fm.order).padStart(2, '0')} · {chapterLabel(fm)}
+            </sui-chip>
+            <h1>{fm.title}</h1>
+          </div>
           {fm.description && <p class="tut-prose-desc">{fm.description}</p>}
         </header>
         <div class="tut-prose-body" set:html={proseHtml} />
@@ -309,11 +310,24 @@ const proseHtml = renderMarkdown(body)
   }
   .tut-prose-head {
     flex-shrink: 0;
-    padding: 2px 14px 8px;
+    padding: 6px 14px 8px;
     border-bottom: 1px solid var(--sl-color-hairline-shade);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .tut-prose-head .canvas-back {
+    align-self: flex-start;
+    margin-bottom: 2px;
+  }
+  .tut-prose-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
   }
   .tut-prose-head h1 {
-    margin: 6px 0 4px;
+    margin: 0 !important;
     font-size: 1.125rem;
     font-weight: 600;
     color: var(--sl-color-white);
@@ -352,14 +366,30 @@ const proseHtml = renderMarkdown(body)
   .tut-prose-nav > *:nth-child(2) { justify-content: center; }
   .tut-prose-nav > *:last-child { justify-content: flex-end; }
   .tut-nav-link { text-decoration: none; }
-  .tut-prose sui-code {
+  /* Inline + block code in tutorial prose. The prose pane is
+     narrow (28rem), so any horizontal overflow is a UX failure —
+     readers shouldn't have to scroll sideways to read a code
+     snippet. Force wrapping on both shapes; block code also gets a
+     subtle surface so it reads as a code block, not a misformatted
+     paragraph. */
+  .tut-prose sui-code,
+  .tut-prose code {
     max-width: 100%;
-    overflow-x: auto;
     word-break: break-word;
+    overflow-wrap: anywhere;
   }
   .tut-prose sui-code[block] {
     display: block;
     margin: 0.5rem 0;
+    padding: 8px 10px;
+    background: var(--sl-color-bg-sidebar);
+    border: 1px solid var(--sl-color-hairline-shade);
+    border-radius: 6px;
+    font-family: var(--sl-font-system-mono);
+    font-size: 0.78rem;
+    line-height: 1.45;
+    white-space: pre-wrap;
+    color: var(--sl-color-text);
   }
   /* Subtle scroll affordance instead of a default ugly scrollbar. */
   .tut-prose::-webkit-scrollbar { width: 6px; }

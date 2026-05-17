@@ -582,15 +582,21 @@
   --sidebar-ring: oklch(0.62 0.16 50 / 40%);
 }
 
-/* Tinted gradient mesh — soft warm/cool corners blur into the cool
- * neutral page. Fixed attachment so scrolling doesn't drag the mesh. */
+/* Tinted gradient mesh — a hint of cool/warm in the corners that
+ * sets the "glass over color" mood without dominating any surface.
+ * Earlier iteration painted a hard blue wash in the top-left that
+ * read as a UI accent rather than ambient. Pulled chroma + opacity
+ * way down (≤22%) and expanded the falloff (75-80%) so the mesh
+ * sits ~5% above the base background and trails off well before
+ * reaching any content panel. Fixed attachment so scrolling
+ * doesn't drag the mesh. */
 :root[data-theme='glass'] body,
 [data-theme-preview='glass'].tc-bg {
   background-color: oklch(0.97 0.005 240);
   background-image:
-    radial-gradient(ellipse 70% 50% at 0% 0%, oklch(0.88 0.10 220 / 70%), transparent 60%),
-    radial-gradient(ellipse 60% 45% at 100% 100%, oklch(0.90 0.10 30 / 55%), transparent 60%),
-    radial-gradient(ellipse 50% 40% at 100% 0%, oklch(0.92 0.08 300 / 45%), transparent 65%);
+    radial-gradient(ellipse 80% 60% at 0% 0%, oklch(0.92 0.05 220 / 18%), transparent 75%),
+    radial-gradient(ellipse 75% 55% at 100% 100%, oklch(0.92 0.05 30 / 14%), transparent 75%),
+    radial-gradient(ellipse 60% 45% at 100% 0%, oklch(0.93 0.04 300 / 10%), transparent 80%);
   background-attachment: fixed;
 }
 
