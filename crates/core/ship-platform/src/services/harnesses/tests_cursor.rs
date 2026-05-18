@@ -110,3 +110,16 @@ fn caps_match_declared() {
     assert!(c.hooks, "cursor: .cursor/hooks.json");
     assert!(!c.session_resume);
 }
+
+#[test]
+fn build_resume_args_returns_unsupported() {
+    use crate::services::harness_adapter::ResumeError;
+    let adapter = CursorAdapter;
+    let err = adapter
+        .build_resume_args("my-job", "any-id", &default_profile())
+        .expect_err("cursor has no resume mechanism");
+    match err {
+        ResumeError::Unsupported { harness } => assert_eq!(harness, "cursor"),
+        other => panic!("expected Unsupported, got {other:?}"),
+    }
+}

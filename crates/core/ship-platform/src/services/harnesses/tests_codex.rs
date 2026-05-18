@@ -126,9 +126,53 @@ fn exit_command_is_q() {
 // ── Output parsing ──────────────────────────────────────────────────────────
 
 #[test]
-fn parse_output_returns_none() {
+fn parse_output_returns_none_for_non_json() {
     let adapter = CodexAdapter;
     assert!(adapter.parse_output("anything").is_none());
+}
+
+#[test]
+fn parse_output_extracts_session_id_from_thread_started() {
+    use crate::services::harness_adapter::HarnessEvent;
+    let adapter = CodexAdapter;
+    // `codex exec --json` emits a `thread.started` event up front with the
+    // thread_id; that's the id resume targets.
+    let line = r#"{"type":"thread.started","thread_id":"thr-abc-789"}"#;
+    match adapter.parse_output(line) {
+        Some(HarnessEvent::SessionStarted { session_id }) => {
+            assert_eq!(session_id, "thr-abc-789");
+        }
+        other => panic!("expected SessionStarted, got {other:?}"),
+    }
+}
+
+// ── build_resume_args ───────────────────────────────────────────────────────
+
+#[test]
+fn build_resume_args_emits_exec_resume() {
+    let adapter = CodexAdapter;
+    let cmd = adapter
+        .build_resume_args("my-job", "thr-abc-789", &default_profile())
+        .expect("codex supports resume");
+    assert_eq!(cmd.bin, "codex");
+    assert_eq!(cmd.args[0], "exec");
+    assert_eq!(cmd.args[1], "resume");
+    assert_eq!(cmd.args[2], "thr-abc-789");
+    assert!(cmd.args.contains(&"--full-auto".to_string()));
+    assert!(cmd.args.contains(&"--json".to_string()));
+    // Resume should not pass --ephemeral; the rollout we're resuming has
+    // to exist on disk.
+    assert!(!cmd.args.contains(&"--ephemeral".to_string()));
+}
+
+#[test]
+fn build_resume_args_rejects_empty_session_id() {
+    use crate::services::harness_adapter::ResumeError;
+    let adapter = CodexAdapter;
+    let err = adapter
+        .build_resume_args("my-job", "", &default_profile())
+        .expect_err("empty session id must be rejected");
+    assert!(matches!(err, ResumeError::BadSession { .. }));
 }
 
 // ── Adapter identity ────────────────────────────────────────────────────────

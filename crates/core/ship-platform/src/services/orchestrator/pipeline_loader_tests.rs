@@ -31,6 +31,7 @@ fn base_payload(agent: &str) -> PipelineRunStartedPayload {
         headless: false,
         prompt: None,
         resume: false,
+        resume_session_id: None,
         baseline_sha: None,
     }
 }

@@ -115,6 +115,7 @@ fn job_payload(job_id: &str, slug: &str) -> PipelineRunStartedPayload {
         headless: true,
         prompt: None,
         resume: false,
+        resume_session_id: None,
         baseline_sha: None,
     }
 }

@@ -387,6 +387,7 @@ pub async fn create_job(
         headless: req.headless,
         prompt: None,
         resume: false,
+        resume_session_id: None,
         baseline_sha,
     };
 

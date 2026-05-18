@@ -112,6 +112,7 @@ async fn seed_dispatched_job(kernel: &Arc<Mutex<KernelRouter>>, job_id: &str, sl
         spec_content: None, step_specs: None, headless: false,
         prompt: None,
         resume: false,
+        resume_session_id: None,
         baseline_sha: None,
     };
     let env = EventEnvelope::new(event_types::PIPELINE_RUN_STARTED, job_id, &created).unwrap().with_actor_id("test");

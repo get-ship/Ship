@@ -41,6 +41,20 @@ ship validate --json              # emit errors as JSON array
 
 `--auto`, `--prompt`, `--spec`, and `--resume` each imply `--launch` — pass any one of them without `--launch` and a dispatch still happens. `--path` alone does not. `--prompt` and `--spec` are mutually exclusive. Launches POST to the daemon's `/api/v1/agent_sessions/dispatch` endpoint; tail the result with `ship procs --slug <slug>`.
 
+### `--resume` coverage
+
+`--resume` reuses the worktree's prior harness session by reading `.ship/session.json`. The dispatch endpoint validates harness parity and then dispatches with the per-harness resume command:
+
+| Harness  | Resume behavior                                                                  |
+|----------|----------------------------------------------------------------------------------|
+| claude   | `claude --resume <uuid> --fork-session …`                                        |
+| codex    | `codex exec resume <thread_id> …`                                                |
+| opencode | `opencode run --session <uuid> …`                                                |
+| gemini   | rejected with `400` — Gemini CLI has no session resume                           |
+| cursor   | rejected with `400` — Cursor CLI has no session resume                           |
+
+Failures are loud: a missing `.ship/session.json`, a harness mismatch (e.g. last session was Claude, request asked for Codex), or a harness without resume support all return `400` with an explanatory message rather than silently launching fresh. See [`session.json`](../../ship-schema-reference/references/docs/session-file.md) for the file shape.
+
 ## Pipelines
 
 ```

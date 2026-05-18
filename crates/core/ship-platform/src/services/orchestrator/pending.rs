@@ -81,6 +81,7 @@ pub async fn dispatch_ready_pending_jobs(
             headless: job.headless,
             prompt: None,
             resume: false,
+            resume_session_id: None,
             baseline_sha: job.baseline_sha.clone(),
         };
 

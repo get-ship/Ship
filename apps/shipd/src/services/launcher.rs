@@ -80,6 +80,7 @@ pub async fn launch_collection_item(
         headless: false,
         prompt: None,
         resume: false,
+        resume_session_id: None,
         baseline_sha,
     };
     let payload = ship_platform::services::orchestrator::pipeline_loader::ensure_pipeline(payload)

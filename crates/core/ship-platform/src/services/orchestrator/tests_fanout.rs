@@ -64,6 +64,7 @@ fn base_payload(
         headless: true,
         prompt: None,
         resume: false,
+        resume_session_id: None,
         baseline_sha: None,
     }
 }

@@ -74,6 +74,12 @@ pub struct PipelineRunStartedPayload {
     /// its slug/branch instead of generating new ones.
     #[serde(default)]
     pub resume: bool,
+    /// Harness-native session id resolved from the worktree's
+    /// `.ship/session.json` when `resume: true`. Threaded through to the
+    /// orchestrator so each adapter's `build_resume_args` can produce the
+    /// correct CLI flags. `None` for fresh launches and legacy events.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub resume_session_id: Option<String>,
     /// HEAD SHA of the source repo when this job was created. Pipeline
     /// gates evaluate `require_changed` / `forbid_changed` against the
     /// diff from this SHA to HEAD, so the checks see work committed in

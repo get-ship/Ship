@@ -172,6 +172,7 @@ pub fn pipeline_step_count(name: &str) -> (usize, Option<String>) {
         headless: false,
         prompt: None,
         resume: false,
+        resume_session_id: None,
         baseline_sha: None,
     };
     let resolved = match pipeline_loader::ensure_pipeline(payload) {
