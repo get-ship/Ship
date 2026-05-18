@@ -417,6 +417,10 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::JobStatusUpdate_template(), project_api::update_job_status)
         .ship_route(Route::JobStepDone_template(), project_api::job_step_done)
         .ship_route(Route::StreamJobLog_template(), logs_api::stream_job_log)
+        .ship_route(
+            Route::AttachAgentSession_template(),
+            crate::routes::agent_sessions_attach::attach_agent_session,
+        )
         .ship_route(Route::ListProcs, runtime_api::list_procs)
         .ship_route(Route::PollEvents, runtime_api::poll_events)
         .ship_route(Route::DaemonStatus, runtime_api::daemon_status)
