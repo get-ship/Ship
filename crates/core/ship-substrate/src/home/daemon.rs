@@ -132,9 +132,14 @@ fn daemon_hash_input(from: &Path) -> Option<PathBuf> {
 ///
 /// 1. If `from` lives in a git worktree (or under a `.ship/` project), look
 ///    for a per-worktree daemon at `machine/daemons/<hash(worktree_root)>/`.
-/// 2. Fall back to the global `machine/daemon/`.
+/// 2. If `from` is a LINKED git worktree (`.git` is a file), the main
+///    project's daemon serves it — look at `machine/daemons/<hash(main_repo)>/`.
+///    Needed for `ship hook` invocations from dispatched worktrees: the
+///    daemon hosting the dispatch lives at the main project's hash, not
+///    the linked worktree's.
+/// 3. Fall back to the global `machine/daemon/`.
 ///
-/// Returns `None` when neither location holds a complete handshake.
+/// Returns `None` when no location holds a complete handshake.
 pub fn discover_running_daemon(from: &Path) -> Option<DaemonHandle> {
     let home = crate::ShipHome::from_env();
     if let Some(root) = daemon_hash_input(from) {
@@ -143,8 +148,43 @@ pub fn discover_running_daemon(from: &Path) -> Option<DaemonHandle> {
         if let Some(handle) = DaemonHandle::load(&dir) {
             return Some(handle);
         }
+        // Linked-worktree fallback: hooks fired from a dispatched worktree
+        // need to reach the main project's daemon. Resolve `.git` to its
+        // common dir; take the parent of `.git/` as the main repo root.
+        if let Some(main_root) = main_repo_root_for(&root) {
+            let main_hash = path_hash(&main_root);
+            if main_hash != hash {
+                let dir = home.worktree_daemon_dir(&main_hash);
+                if let Some(handle) = DaemonHandle::load(&dir) {
+                    return Some(handle);
+                }
+            }
+        }
     }
     DaemonHandle::load(&home.daemon_dir())
+}
+
+/// For a path that is itself a linked git worktree, follow the `.git`
+/// file's gitdir pointer back to the main repository root. Returns
+/// `None` for non-worktree paths (where `.git` is a directory).
+fn main_repo_root_for(worktree_root: &Path) -> Option<PathBuf> {
+    let dot_git = worktree_root.join(".git");
+    if !dot_git.is_file() {
+        return None;
+    }
+    let contents = std::fs::read_to_string(&dot_git).ok()?;
+    // `.git` file is `gitdir: <path>` where <path> is
+    // `<main_repo>/.git/worktrees/<name>`. Take the gitdir, strip the
+    // `/worktrees/<name>` suffix and then strip `/.git` to land on the
+    // main repo root.
+    let gitdir_line = contents
+        .lines()
+        .find_map(|l| l.strip_prefix("gitdir:"))?
+        .trim();
+    let gitdir = PathBuf::from(gitdir_line);
+    // Walk up: <gitdir>/.. = .git/worktrees, .. = .git, .. = main repo root
+    let main_root = gitdir.parent()?.parent()?.parent()?;
+    std::fs::canonicalize(main_root).ok()
 }
 
 /// The directory the daemon serving `from` should write its IPC files to.

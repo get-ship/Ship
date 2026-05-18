@@ -23,7 +23,14 @@ impl ClaudeAdapter {
         let inline_mcp = r#"{"mcpServers":{"ship-bridge":{"command":"ship","args":["mcp","serve"]}}}"#;
         let mut args = vec![
             "--dangerously-skip-permissions".to_string(),
-            "--dangerously-load-development-channels".to_string(),
+            // `--channels` is the approved-channel form. The older
+            // `--dangerously-load-development-channels` flag triggers an
+            // interactive "I am using this for local development"
+            // confirmation prompt that blocks SessionStart from firing
+            // until a user (or piped Enter) answers it — fatal for
+            // keepalive dispatches and for hook-driven analytics. The
+            // approved form accepts `server:ship` without the dialog.
+            "--channels".to_string(),
             "server:ship".to_string(),
             "--mcp-config".to_string(),
             inline_mcp.to_string(),
