@@ -86,6 +86,17 @@ const themePreloadPayload = JSON.stringify({
         '@ship/sdk-client': '/sui-sdk-client.js',
       },
     })}></script>
+    <!--
+      `modulepreload` hints start the fetches in parallel with HTML
+      parsing instead of waiting until the body-end script tags resolve.
+      Order matters: list the leaves of the importmap (runtime, dom,
+      sdk-client) before the consumer (components) so the browser can
+      build the request fan-out without re-parsing.
+    -->
+    <link rel="modulepreload" href="/sui-runtime.js" fetchpriority="high" />
+    <link rel="modulepreload" href="/sui-dom.js" fetchpriority="high" />
+    <link rel="modulepreload" href="/sui-sdk-client.js" />
+    <link rel="modulepreload" href="/sui-components.js" />
     <script is:inline type="module" src="/sui-components.js"></script>
   </head>
   <body class={bodyClass}>

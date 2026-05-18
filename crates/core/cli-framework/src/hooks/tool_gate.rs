@@ -223,12 +223,34 @@ fn classify_path(path: &str, home: &Path) -> Option<String> {
             "ship hook: blocked write inside .git/ (would let an agent rewrite refs) — path `{path}`"
         ));
     }
-    if path_has_segment(&expanded, ".claude") {
+    if claude_path_is_protected(&expanded) {
         return Some(format!(
-            "ship hook: blocked write inside .claude/ (would let an agent disable its own hooks) — path `{path}`"
+            "ship hook: blocked write to .claude/ settings or hooks (would let an agent disable its own hooks) — path `{path}`"
         ));
     }
     None
+}
+
+/// True iff a path under `.claude/` targets the agent's own configuration —
+/// settings JSON or the hooks directory. Skills, commands, and other content
+/// under `.claude/` are author-editable and not gated here.
+fn claude_path_is_protected(path: &Path) -> bool {
+    let mut components = path.components();
+    while let Some(c) = components.next() {
+        if matches!(c, Component::Normal(n) if n == ".claude") {
+            let rest: Vec<_> = components.collect();
+            let first = rest.first().and_then(|c| match c {
+                Component::Normal(n) => n.to_str(),
+                _ => None,
+            });
+            return match first {
+                Some("hooks") => true,
+                Some(name) => name.starts_with("settings") && name.ends_with(".json"),
+                None => false,
+            };
+        }
+    }
+    false
 }
 
 fn strip_prefix_wrappers(tokens: &[String]) -> &str {

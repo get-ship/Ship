@@ -154,19 +154,7 @@
 
   <sui-toast-container position="bottom-right" id="sui-toast-container"></sui-toast-container>
 
-  <!-- sui-loading demo: toggled via button in the view content area -->
-  <div id="sui-loading-demo" style="display:none;position:fixed;inset:0;z-index:8000;background:var(--background,#fff)">
-    <sui-loading messages="Loading demo|Warming up|Almost there"></sui-loading>
-  </div>
-
-  <!-- sui-edit-overlay: activated by body.edit-mode (same contract as ship-edit-overlay) -->
   <sui-edit-overlay id="sui-edit-overlay"></sui-edit-overlay>
-
-  <!-- sui-annotation demo: hidden layer with sample markers; shown via toggle button -->
-  <sui-annotation-layer id="sui-annotation-demo"
-    mode="off"
-    style="display:none;position:fixed;inset:0;z-index:8500"
-  ></sui-annotation-layer>
 
   <script type="module" src="/src/main.ts"></script>
 </body>
