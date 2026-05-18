@@ -71,6 +71,7 @@ impl KernelRouter {
             write_namespaces: permissions.emit.clone(),
             read_namespaces: subs_to_namespaces(&permissions.subscribe),
             subscribe_namespaces: subs_to_namespaces(&permissions.subscribe),
+            see_directed_events: false,
         };
 
         // Register with inner for subscription state and actor config lookup.

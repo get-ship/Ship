@@ -25,6 +25,7 @@ fn sync_actor_config() -> ActorConfig {
         write_namespaces: vec!["sync.".into()],
         read_namespaces: vec!["sync.".into()],
         subscribe_namespaces: vec!["sync.".into(), "workspace.".into()],
+        see_directed_events: false,
     }
 }
 

@@ -46,6 +46,7 @@ fn fresh_ctx(harness: Option<&str>) -> JobContext {
         exit_tx: None,
         step: None,
         headless: true,
+        keepalive: false,
     }
 }
 

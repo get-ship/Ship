@@ -374,6 +374,7 @@ mod tests {
             spec_content: None,
             step_specs: None,
             headless: false,
+            keepalive: false,
             prompt: None,
             resume: false,
             resume_session_id: None,

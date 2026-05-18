@@ -31,6 +31,7 @@ pub async fn spawn_human_gateway(
         write_namespaces: vec!["human.".to_string()],
         read_namespaces: vec!["job.".to_string()],
         subscribe_namespaces: vec!["job.".to_string()],
+        see_directed_events: false,
     };
 
     let handler: Box<dyn ship_platform::services::ServiceHandler> = Box::new(

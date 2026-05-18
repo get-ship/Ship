@@ -17,7 +17,9 @@
  * Reads TOKEN from env if present, otherwise from ~/.ship/daemon.token.
  */
 import { readdir, readFile, writeFile, mkdir } from "node:fs/promises";
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
+import { realpathSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join, basename } from "node:path";
 import { homedir } from "node:os";
@@ -29,13 +31,38 @@ const args = process.argv.slice(2);
 const includeUi = args.includes("--ui");
 const filter = args.find((a) => !a.startsWith("--"));
 
+// Per-worktree daemon discovery — matches scripts/dev/_lib.sh::daemon_dir
+// and tests/agents/_helpers.ts. SHA-256 the realpath of the git toplevel,
+// take the first 8 hex chars, look under ~/.ship/machine/daemons/<hash>/.
+// The old ~/.ship/daemon.token path was retired during auth hardening.
+function daemonDir() {
+  const r = spawnSync("git", ["rev-parse", "--show-toplevel"], { encoding: "utf8" });
+  const root = realpathSync(r.status === 0 && r.stdout ? r.stdout.trim() : process.cwd());
+  const hash = createHash("sha256").update(root).digest("hex").slice(0, 8);
+  const home = process.env.SHIP_HOME ?? join(homedir(), ".ship");
+  return join(home, "machine/daemons", hash);
+}
+
 async function token() {
   if (process.env.TOKEN) return process.env.TOKEN;
+  const tokenPath = join(daemonDir(), "token");
   try {
-    return (await readFile(join(homedir(), ".ship/daemon.token"), "utf8")).trim();
+    return (await readFile(tokenPath, "utf8")).trim();
   } catch {
-    console.error("no TOKEN env and no ~/.ship/daemon.token — start the daemon first");
+    console.error(
+      `no TOKEN env and no token at ${tokenPath} — start the per-worktree daemon first (\`just dev\`)`,
+    );
     process.exit(2);
+  }
+}
+
+async function shipdUrl() {
+  if (process.env.SHIPD_URL) return process.env.SHIPD_URL;
+  try {
+    const port = (await readFile(join(daemonDir(), "port"), "utf8")).trim();
+    return `http://localhost:${port}`;
+  } catch {
+    return "http://localhost:9315"; // legacy default; specs that override SHIPD_URL win
   }
 }
 
@@ -82,7 +109,8 @@ const COLORS = {
 
 async function main() {
   const TOKEN = await token();
-  const env = { ...process.env, TOKEN };
+  const SHIPD_URL = await shipdUrl();
+  const env = { ...process.env, TOKEN, SHIPD_URL };
   await mkdir(RESULTS, { recursive: true });
 
   const files = await discover();

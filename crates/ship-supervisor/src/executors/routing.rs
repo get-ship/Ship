@@ -240,6 +240,18 @@ impl JobExecutor for RoutingExecutor {
         self.ensure_codex_session(ctx).await;
         self.ensure_opencode_session(ctx).await;
 
+        // Keepalive sessions need PTY for the harness to recognize a
+        // TTY (claude/codex/etc downgrade output when there isn't one)
+        // AND need the WS attach surface (only ProcessExecutor exposes
+        // the substrate ActorHandle the attach endpoint upgrades to).
+        // TmuxWindow can't serve attach today; Server mode is its own
+        // beast. Force ProcessExecutor here regardless of `headless`.
+        if ctx.keepalive {
+            tracing::info!(slug = ctx.slug,
+                harness = ?ctx.launch.harness,
+                "routing: keepalive — forcing ProcessExecutor with build_interactive");
+            return self.process.spawn(ctx).await;
+        }
         if let Some(server) = self.try_server_executor(ctx) {
             tracing::info!(slug = ctx.slug,
                 harness = ?ctx.launch.harness,

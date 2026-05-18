@@ -40,6 +40,7 @@ fn agent_config() -> ActorConfig {
             "session.".into(),
             "gate.".into(),
         ],
+        see_directed_events: false,
     }
 }
 

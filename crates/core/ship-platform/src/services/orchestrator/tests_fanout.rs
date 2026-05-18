@@ -62,6 +62,7 @@ fn base_payload(
         spec_content: None,
         step_specs: None,
         headless: true,
+        keepalive: false,
         prompt: None,
         resume: false,
         resume_session_id: None,

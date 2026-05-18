@@ -4308,6 +4308,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dc6fe69c597f9c37bfeeeeeb33da3530379845f10be461a66d16d03eca2ded77"
 
 [[package]]
+name = "ship-analytics"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "serde",
+ "serde_json",
+ "ship-substrate",
+ "sqlx",
+ "tempfile",
+ "tracing",
+]
+
+[[package]]
 name = "ship-cli"
 version = "0.2.0"
 dependencies = [
@@ -4442,6 +4456,7 @@ dependencies = [
  "serde_json",
  "serde_yaml",
  "sha2",
+ "ship-analytics",
  "ship-gateway-client",
  "ship-isolation",
  "ship-kernel",

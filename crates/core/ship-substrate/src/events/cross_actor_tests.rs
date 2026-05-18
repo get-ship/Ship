@@ -42,6 +42,7 @@ fn agent_config(actor_id: &str) -> ActorConfig {
             "session.".to_string(),
             "actor.".to_string(),
         ],
+        see_directed_events: false,
     }
 }
 
@@ -51,6 +52,7 @@ fn studio_config() -> ActorConfig {
         write_namespaces: vec!["studio.".to_string()],
         read_namespaces: vec!["studio.".to_string()],
         subscribe_namespaces: vec!["studio.".to_string(), "agent.".to_string()],
+        see_directed_events: false,
     }
 }
 
@@ -206,6 +208,7 @@ async fn agent_skill_event_reaches_studio_mailbox() {
             "agent.".to_string(),
             "canvas.".to_string(),
         ],
+        see_directed_events: false,
     };
     let (_studio_store, mut studio_mb) = router.spawn_actor("studio", studio_cfg).unwrap();
     let (_agent_store, _agent_mb) =

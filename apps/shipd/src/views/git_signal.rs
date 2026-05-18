@@ -67,6 +67,7 @@ async fn run_updater(state: ApiState) {
         write_namespaces: vec![],
         read_namespaces: vec![],
         subscribe_namespaces: vec!["config".to_string()],
+        see_directed_events: false,
     };
     let mailbox = match state.kernel().lock().await.spawn_actor(&actor_id, config) {
         Ok((_store, mb)) => mb,

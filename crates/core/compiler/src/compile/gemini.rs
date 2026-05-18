@@ -165,6 +165,7 @@ pub(super) fn inject_ship_lifecycle_hooks(patch: &mut Json) {
         .or_insert_with(|| serde_json::json!({}));
 
     let lifecycle = [
+        ("SessionStart", "ship hook session-start"),
         ("BeforeTool", "ship hook before-tool"),
         ("AfterTool", "ship hook after-tool"),
         ("SessionEnd", "ship hook session-end"),

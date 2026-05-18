@@ -66,6 +66,11 @@ pub async fn update_job_status(
                 &job_id,
                 &PipelineRunDispatchedPayload {
                     job_id: job_id.clone(),
+                    // External status-update endpoint only has job_id;
+                    // slug is unknown here. Consumers that need filtering
+                    // by slug should subscribe via the dispatch path or
+                    // resolve slug from the pipeline_run record.
+                    slug: String::new(),
                     worktree,
                     pid: body.pid,
                     harness_meta: None,

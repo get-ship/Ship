@@ -80,7 +80,8 @@ fn dispatch_config() -> ActorConfig {
         namespace: "service.job-dispatch".to_string(),
         write_namespaces: vec!["job.".to_string(), "step.".to_string()],
         read_namespaces: vec![],
-        subscribe_namespaces: vec!["job.".to_string(), "step.".to_string()],
+        subscribe_namespaces: vec!["pipeline.".to_string()],
+        see_directed_events: false,
     }
 }
 
@@ -146,6 +147,7 @@ fn payload_with_first_step(
         spec_content: None,
         step_specs: None,
         headless: true,
+        keepalive: false,
         prompt: None,
         resume: false,
         resume_session_id: None,

@@ -190,6 +190,7 @@ async fn run_data_source(
         write_namespaces: vec![],
         read_namespaces: vec![],
         subscribe_namespaces: namespaces,
+        see_directed_events: false,
     };
     let mailbox = match state.kernel().lock().await.spawn_actor(&actor_id, config) {
         Ok((_store, mb)) => Some(mb),

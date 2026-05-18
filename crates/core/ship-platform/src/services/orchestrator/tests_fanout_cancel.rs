@@ -75,7 +75,8 @@ fn dispatch_actor_config() -> ActorConfig {
         namespace: "service.job-dispatch".into(),
         write_namespaces: vec!["job.".into(), "step.".into(), "process.".into()],
         read_namespaces: vec![],
-        subscribe_namespaces: vec!["job.".into(), "step.".into()],
+        subscribe_namespaces: vec!["pipeline.".into()],
+        see_directed_events: false,
     }
 }
 

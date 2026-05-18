@@ -19,6 +19,7 @@ fn agent_config(id: &str) -> ActorConfig {
         write_namespaces: vec![format!("{id}.")],
         read_namespaces: vec![format!("{id}.")],
         subscribe_namespaces: vec![format!("{id}.")],
+        see_directed_events: false,
     }
 }
 
@@ -142,6 +143,7 @@ async fn stable_path_mailbox_full_drops_silently() {
         write_namespaces: vec!["studio.".into()],
         read_namespaces: vec!["studio.".into()],
         subscribe_namespaces: vec!["studio.".into()],
+        see_directed_events: false,
     }).unwrap();
 
     // Fill the mailbox.

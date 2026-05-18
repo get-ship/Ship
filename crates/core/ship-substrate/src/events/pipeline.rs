@@ -63,6 +63,13 @@ pub struct PipelineRunStartedPayload {
     /// live.
     #[serde(default)]
     pub headless: bool,
+    /// Long-running interactive session — not a pipeline step. Routes to
+    /// ProcessExecutor with `adapter.build_interactive` (no `-p`, no
+    /// `--print`). The harness stays at its TUI prompt waiting for stdin
+    /// pushes or WebSocket attach. Mutually exclusive with `headless`.
+    /// Drives cmdb-modal chat, hooks SessionStart, reliable PTY attach.
+    #[serde(default)]
+    pub keepalive: bool,
     /// Inline one-shot prompt for the dispatched agent. Distinct from
     /// `spec_content` (the latter is written to `spec_path` as a file;
     /// `prompt` is delivered as the first user turn or piped via the
@@ -94,6 +101,13 @@ pub struct PipelineRunStartedPayload {
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct PipelineRunDispatchedPayload {
     pub job_id: String,
+    /// Worktree slug for the dispatched session. Required for observers
+    /// filtering by `slug` (e.g. /api/v1/events/poll?slug=) — the
+    /// envelope's entity_id is the job_id (a ULID), not the slug.
+    /// Optional with serde default for forward compat with older
+    /// persisted envelopes that pre-date this field.
+    #[serde(default)]
+    pub slug: String,
     pub worktree: String,
     pub pid: Option<u32>,
     /// Harness-specific session metadata (e.g. Claude session ID for --resume).

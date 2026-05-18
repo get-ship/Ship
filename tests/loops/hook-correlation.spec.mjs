@@ -2,7 +2,7 @@
 /**
  * Loop 2 — hook events correlate to actor by actor_id.
  *
- * Today: hooks key by provider_session_id which is unknown for the
+ * Today: hooks key by harness_session_id which is unknown for the
  * long-lived PTY claude path. Tool calls fire and silently drop —
  * dashboard never sees them, can't render tool cards.
  *
@@ -56,7 +56,7 @@ async function main() {
       workspace_id: "feat-view-dev-studio",
       kind: "agent",
       agent_id: "shipwright",
-      provider: "claude",
+      harness: "claude",
     }),
   });
   if (spawnRes.status !== 200 || !spawnRes.data.session_id) {
@@ -127,7 +127,7 @@ async function main() {
   if (!landed) {
     fail("hook event never appeared in actor's event stream", {
       actorId,
-      hint: "broadcast_tool_use is keying by provider_session_id and dropping the event",
+      hint: "broadcast_tool_use looks up pty_sessions by harness_session_id; dispatched sessions don't register there — see job-spec-push-registry-wiring.md",
     });
   }
   let payload = {};

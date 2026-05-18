@@ -7,6 +7,7 @@ publish = false
 
 [dependencies]
 ship-substrate = { path = "../ship-substrate" }
+ship-analytics = { path = "../../ship-analytics" }
 ship-kernel = { path = "../ship-kernel" }
 ship-types = { path = "../ship-types" }
 ship-pipelines = { path = "../ship-pipelines", features = ["specta"] }

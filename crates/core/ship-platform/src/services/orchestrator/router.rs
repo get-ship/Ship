@@ -29,11 +29,15 @@ pub async fn start_orchestrator(
     octx: Arc<OrchestratorContext>,
 ) {
     let actor_id = "service.job-dispatch".to_string();
+    // Post JobRecord→PipelineRun rename: dispatch emits `pipeline.run.started`
+    // and friends under the `pipeline.` namespace. The orchestrator subscribes
+    // there. Bare `job.` / `step.` namespaces are dead (no live emitters).
     let config = ship_substrate::events::ActorConfig {
         namespace: actor_id.clone(),
-        write_namespaces: vec!["job.".to_string(), "step.".to_string()],
+        write_namespaces: vec!["pipeline.".to_string()],
         read_namespaces: vec![],
-        subscribe_namespaces: vec!["job.".to_string(), "step.".to_string()],
+        subscribe_namespaces: vec!["pipeline.".to_string()],
+        see_directed_events: false,
     };
 
     let mailbox = {

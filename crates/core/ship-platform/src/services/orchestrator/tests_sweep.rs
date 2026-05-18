@@ -128,7 +128,8 @@ fn make_kernel() -> Arc<Mutex<KernelRouter>> {
             "supervisor.".to_string(),
         ],
         read_namespaces: vec![],
-        subscribe_namespaces: vec!["job.".to_string(), "step.".to_string()],
+        subscribe_namespaces: vec!["pipeline.".to_string()],
+        see_directed_events: false,
     };
     router.spawn_actor("service.job-dispatch", config).unwrap();
     Arc::new(Mutex::new(router))
@@ -187,6 +188,7 @@ async fn seed_dispatched_job(
         spec_content: None,
         step_specs: None,
         headless: false,
+        keepalive: false,
         prompt: None,
         resume: false,
         resume_session_id: None,
@@ -199,6 +201,7 @@ async fn seed_dispatched_job(
 
     let dispatched = PipelineRunDispatchedPayload {
         job_id: job_id.to_string(),
+        slug: slug.to_string(),
         worktree: format!("/tmp/test-worktrees/{slug}"),
         pid: None,
         harness_meta: None,
@@ -245,6 +248,7 @@ async fn seed_dispatched_job_with_pipeline(
         spec_content: None,
         step_specs: None,
         headless: false,
+        keepalive: false,
         prompt: None,
         resume: false,
         resume_session_id: None,
@@ -257,6 +261,7 @@ async fn seed_dispatched_job_with_pipeline(
 
     let dispatched = PipelineRunDispatchedPayload {
         job_id: job_id.to_string(),
+        slug: slug.to_string(),
         worktree: format!("/tmp/test-worktrees/{slug}"),
         pid: None,
         harness_meta: None,
@@ -330,6 +335,7 @@ async fn seed_failed_job(
         spec_content: None,
         step_specs: None,
         headless: false,
+        keepalive: false,
         prompt: None,
         resume: false,
         resume_session_id: None,

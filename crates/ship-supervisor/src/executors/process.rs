@@ -184,8 +184,18 @@ impl JobExecutor for ProcessExecutor {
         // and errors loudly on an unknown name instead of silently defaulting.
         let adapter = adapter_for_or_default(ctx.launch.harness.as_deref())
             .map_err(|e| anyhow::anyhow!("ProcessExecutor: {e}"))?;
-        let mut launch =
-            build_headless_with_default_prompt(adapter.as_ref(), &ctx.slug, &ctx.launch)?;
+        // Keepalive sessions get the interactive build (no `-p`, no
+        // `--print`) so the harness sits at its TUI waiting for stdin.
+        // Drives cmdb-modal chat, SessionStart hook firing, and
+        // long-lived WS attach. Everything else stays on the headless
+        // path with autostart prompt fallback. Either way the launch is
+        // mutable below so the isolation block can rewrite bin/args
+        // when enforcement is on.
+        let mut launch = if ctx.keepalive {
+            adapter.build_interactive(&ctx.slug, &ctx.launch)
+        } else {
+            build_headless_with_default_prompt(adapter.as_ref(), &ctx.slug, &ctx.launch)?
+        };
 
         // Per-step log under .artifacts/. The supervisor primitive owns
         // the actual log file lifecycle; we just point it at the right
@@ -294,7 +304,11 @@ impl JobExecutor for ProcessExecutor {
             // capture stdout but harnesses detect the lack of a TTY
             // and downgrade formatting.
             transport: TransportKind::Pty,
-            one_shot: true,
+            // Keepalive sessions sit at the TUI prompt indefinitely
+            // (operator cancel is the only exit); the supervisor's
+            // one-shot semantics would otherwise expect an early exit
+            // and trip its monitor.
+            one_shot: !ctx.keepalive,
             bin: launch.bin,
             args: launch.args,
             env: launch.env,

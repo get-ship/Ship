@@ -170,6 +170,7 @@ pub fn pipeline_step_count(name: &str) -> (usize, Option<String>) {
         spec_content: None,
         step_specs: None,
         headless: false,
+        keepalive: false,
         prompt: None,
         resume: false,
         resume_session_id: None,

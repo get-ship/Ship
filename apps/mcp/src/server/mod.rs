@@ -193,6 +193,7 @@ impl ShipServer {
             write_namespaces: vec!["".to_string()],
             read_namespaces: vec!["agent.".to_string()],
             subscribe_namespaces,
+            see_directed_events: false,
         };
 
         // Spawn the actor in the daemon's kernel. Daemon mints the

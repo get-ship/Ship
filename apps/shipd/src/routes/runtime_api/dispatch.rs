@@ -53,6 +53,15 @@ pub struct DispatchRequest {
     #[serde(default)]
     pub auto: bool,
 
+    /// Long-running interactive session — NOT a pipeline step. The
+    /// harness sits at its TUI prompt waiting for stdin pushes
+    /// (`/api/v1/sessions/{slug}/message`) or WebSocket attach. Cancel
+    /// is the only exit. Mutually exclusive with `auto`. Drives
+    /// cmdb-modal chat, reliable PTY attach, and harness-fires-hook
+    /// observability (SessionStart only exists in interactive mode).
+    #[serde(default)]
+    pub keepalive: bool,
+
     /// Workspace label (used for slug generation). Power-user override.
     #[serde(default)]
     pub workspace: Option<String>,
@@ -95,6 +104,20 @@ pub async fn dispatch_agent_session(
     Extension(_auth): Extension<AuthContext>,
     Json(req): Json<DispatchRequest>,
 ) -> impl IntoResponse {
+    // Pipeline-step + long-running-chat are mutually exclusive intents.
+    // auto:true completes per turn; keepalive:true never auto-exits.
+    if req.auto && req.keepalive {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(MeshResponse {
+                ok: false,
+                data: serde_json::json!(
+                    "auto and keepalive are mutually exclusive — \
+                     pipeline steps use auto, long-running chat uses keepalive"
+                ),
+            }),
+        );
+    }
 
     let workspace_label = req
         .workspace
@@ -168,6 +191,7 @@ pub async fn dispatch_agent_session(
         spec_content: req.spec,
         step_specs: None,
         headless: req.auto,
+        keepalive: req.keepalive,
         prompt: req.prompt,
         resume: req.resume,
         resume_session_id,

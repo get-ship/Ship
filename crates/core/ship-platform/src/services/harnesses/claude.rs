@@ -23,7 +23,10 @@ impl ClaudeAdapter {
         let inline_mcp = r#"{"mcpServers":{"ship-bridge":{"command":"ship","args":["mcp","serve"]}}}"#;
         let mut args = vec![
             "--dangerously-skip-permissions".to_string(),
-            "--dangerously-load-development-channels".to_string(),
+            // `--channels` is the approved-channel form (avoids the
+            // interactive confirmation dialog that
+            // `--dangerously-load-development-channels` triggers).
+            "--channels".to_string(),
             "server:ship".to_string(),
             "--mcp-config".to_string(),
             inline_mcp.to_string(),

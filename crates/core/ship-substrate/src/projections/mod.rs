@@ -7,12 +7,12 @@
 //! Projections are the ONLY mutable state in the system. They can be truncated
 //! and rebuilt from the event log at any time via [`rebuild`].
 
+pub mod actor;
 pub mod async_projection;
 pub mod process;
-pub mod spawn;
-pub mod actor;
 pub mod registry;
 mod session;
+pub mod spawn;
 
 #[cfg(test)]
 mod tests_actor;

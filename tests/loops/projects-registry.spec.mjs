@@ -91,7 +91,12 @@ async function main() {
     body: JSON.stringify({ id: projectId }),
   });
   assert(switched.status === 200, "POST /api/v1/projects/switch → 200");
-  assert(switched.data.active === projectId, "switch returns the new active id");
+  // Switch returns `active: { id, name, path }` (richer than list's
+  // `active: <id>` string). Extract the id explicitly.
+  assert(
+    switched.data.active?.id === projectId,
+    "switch returns the new active id",
+  );
 
   // 5. list reflects the active id
   const after = await api("/api/v1/projects");

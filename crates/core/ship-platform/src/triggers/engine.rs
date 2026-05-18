@@ -259,6 +259,7 @@ pub async fn spawn_hook_service(
         read_namespaces: vec![],
         // Subscribe to everything so the hook engine sees every event.
         subscribe_namespaces: vec!["".to_string()],
+        see_directed_events: false,
     };
     let mut router = kernel.lock().await;
     crate::services::spawn_service(&mut router, "service.hooks", config, service)

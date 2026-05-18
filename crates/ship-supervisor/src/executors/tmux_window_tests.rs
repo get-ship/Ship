@@ -77,6 +77,7 @@ async fn tmux_window_spawn_captures_window_id_and_survives_name_collision() {
         },
         step: Some(StepInfo { index: 0, id: "tests".into() }),
         headless: false,
+        keepalive: false,
     };
 
     let exec = TmuxWindowExecutor::new().unwrap();
@@ -130,6 +131,7 @@ async fn resume_handle_refuses_ambiguous_name() {
         },
         step: Some(StepInfo { index: 0, id: "tests".into() }),
         headless: false,
+        keepalive: false,
     };
 
     let exec = TmuxWindowExecutor::new().unwrap();

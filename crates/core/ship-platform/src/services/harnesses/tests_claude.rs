@@ -28,7 +28,7 @@ fn interactive_skips_permissions() {
 fn interactive_loads_ship_channel() {
     let adapter = ClaudeAdapter;
     let cmd = adapter.build_interactive("my-job", &default_profile());
-    let idx = cmd.args.iter().position(|a| a == "--dangerously-load-development-channels").unwrap();
+    let idx = cmd.args.iter().position(|a| a == "--channels").unwrap();
     assert_eq!(cmd.args[idx + 1], "server:ship");
 }
 
@@ -88,7 +88,7 @@ fn headless_always_uses_stream_json() {
 fn headless_also_loads_ship_channel() {
     let adapter = ClaudeAdapter;
     let cmd = adapter.build_headless("my-job", &default_profile());
-    assert!(cmd.args.contains(&"--dangerously-load-development-channels".to_string()));
+    assert!(cmd.args.contains(&"--channels".to_string()));
 }
 
 // ── LaunchProfile flag mapping ──────────────────────────────────────────────
@@ -278,7 +278,7 @@ fn to_shell_string_includes_env_and_flags() {
     assert!(shell.contains("SHIP_ACTOR_ID=test-slug"));
     assert!(shell.contains("claude"));
     assert!(shell.contains("--dangerously-skip-permissions"));
-    assert!(shell.contains("--dangerously-load-development-channels"));
+    assert!(shell.contains("--channels"));
 }
 
 // ── Adapter identity ────────────────────────────────────────────────────────

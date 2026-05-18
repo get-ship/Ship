@@ -153,6 +153,7 @@ impl NetworkServer {
                 "workspace.".to_string(),
                 "session.".to_string(),
             ],
+            see_directed_events: false,
         };
 
         let (_, mailbox) = match self.kernel.lock().await.spawn_actor(&agent_id, config) {

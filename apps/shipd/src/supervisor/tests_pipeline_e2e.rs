@@ -68,6 +68,7 @@ fn dispatch_config() -> ActorConfig {
         write_namespaces: vec!["job.".to_string()],
         read_namespaces: vec![],
         subscribe_namespaces: vec!["job.".to_string()],
+        see_directed_events: false,
     }
 }
 

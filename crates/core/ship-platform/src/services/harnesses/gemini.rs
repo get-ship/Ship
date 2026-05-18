@@ -26,7 +26,12 @@ impl HarnessAdapter for GeminiAdapter {
     }
 
     fn build_interactive(&self, slug: &str, profile: &LaunchProfile) -> LaunchCommand {
-        let mut args = Vec::new();
+        // --yolo auto-approves tool calls (parity with claude's
+        // --dangerously-skip-permissions and codex's --full-auto). Keepalive
+        // dispatches us as long-lived TUI sessions that an agent talks to
+        // via push; without --yolo every tool call would block on
+        // confirmation. Matches the headless invocation below.
+        let mut args = vec!["--yolo".to_string()];
         if let Some(ref model) = profile.model {
             args.push("--model".to_string());
             args.push(model.clone());

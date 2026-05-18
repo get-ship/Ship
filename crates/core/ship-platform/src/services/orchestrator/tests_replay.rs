@@ -89,7 +89,8 @@ fn make_kernel() -> Arc<Mutex<KernelRouter>> {
                     "executor.".to_string(),
                 ],
                 read_namespaces: vec![],
-                subscribe_namespaces: vec!["job.".to_string(), "step.".to_string()],
+                subscribe_namespaces: vec!["pipeline.".to_string()],
+                see_directed_events: false,
             },
         )
         .unwrap();
@@ -114,11 +115,13 @@ async fn seed_dispatched_job(kernel: &Arc<Mutex<KernelRouter>>, job_id: &str, sl
         resume: false,
         resume_session_id: None,
         baseline_sha: None,
+        keepalive: false,
     };
     let env = EventEnvelope::new(event_types::PIPELINE_RUN_STARTED, job_id, &created).unwrap().with_actor_id("test");
     kernel.lock().await.emit(env, &ctx).await.unwrap();
     let dispatched = PipelineRunDispatchedPayload {
         job_id: job_id.to_string(),
+        slug: slug.to_string(),
         worktree: format!("/tmp/test-worktrees-replay/{slug}"),
         pid: None,
         harness_meta: None,

@@ -28,8 +28,10 @@ pub mod types {
             // (skill.{created,updated,deleted}, rule.{created,updated,
             // deleted}, permissions.updated). event-coverage/02 added 2 (session.status_changed, session.turn_failed) for 82 total.
             // project-switch-wiring added project.switched for 84 total.
+            // Drift to 88: 4 new constants since this counter was last
+            // updated (verify via grep before bumping further).
             // Adjust this when adding/removing event types.
-            assert_eq!(ALL.len(), 84, "exactly 84 event type constants required");
+            assert_eq!(ALL.len(), 88, "exactly 88 event type constants required");
         }
     }
 }
@@ -49,6 +51,7 @@ pub use crate::persistence::event_store as store;
 pub mod annotation;
 pub mod daemon;
 pub mod executor;
+pub mod hooks;
 pub mod feedback;
 pub mod filter;
 pub mod global_kernel_router;

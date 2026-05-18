@@ -162,6 +162,7 @@ pub fn spawn_actor(profile: ActorProfile) -> Result<ActorHandle> {
             write_namespaces: vec!["".to_string()],
             read_namespaces: vec!["agent.".to_string()],
             subscribe_namespaces: profile.subscribe_namespaces.clone(),
+            see_directed_events: false,
         };
         let actor_id_for_kr = actor_id.clone();
         let res: Result<()> = crate::db::block_on_anyhow(async move {

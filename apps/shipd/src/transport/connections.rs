@@ -205,6 +205,7 @@ pub async fn spawn_mesh_service(
         write_namespaces: vec!["mesh.".to_string()],
         read_namespaces: vec!["mesh.".to_string()],
         subscribe_namespaces: vec!["mesh.".to_string()],
+        see_directed_events: false,
     };
     let handler: Box<dyn ship_platform::services::ServiceHandler> = Box::new(
         ship_platform::services::mesh::MeshService::with_shared_registry(

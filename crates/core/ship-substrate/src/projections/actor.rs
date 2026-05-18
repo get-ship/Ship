@@ -34,6 +34,12 @@ const HANDLED: &[&str] = &[
     event_types::ACTOR_SLEPT,
     event_types::ACTOR_STOPPED,
     event_types::ACTOR_CRASHED,
+    // Cross-domain: process.spawned carries the real pid the supervisor
+    // captures AFTER the OS spawn returns. actor.created (emitted before
+    // spawn from emit_actor_created_simple) doesn't have it. Apply the
+    // pid from process.spawned to the matching actor row so live = pid_alive
+    // works honestly instead of falling back to the activity_live timer.
+    crate::events::process::event_types::PROCESS_SPAWNED,
 ];
 
 impl Projection for ActorProjection {
@@ -53,6 +59,9 @@ impl Projection for ActorProjection {
             event_types::ACTOR_SLEPT => apply_status(entity, "sleeping", conn),
             event_types::ACTOR_STOPPED => apply_stopped(entity, &event.payload_json, conn),
             event_types::ACTOR_CRASHED => apply_crashed(entity, &event.payload_json, conn),
+            t if t == crate::events::process::event_types::PROCESS_SPAWNED => {
+                apply_process_spawned(&event.payload_json, conn)
+            }
             _ => Ok(()),
         }
     }
@@ -122,14 +131,38 @@ fn apply_created(
     let p: CreatedPayload = serde_json::from_str(payload_json)?;
     let capabilities_json = serde_json::to_string(&p.capabilities).unwrap_or_else(|_| "[]".into());
     block_on(async {
+        // ON CONFLICT(id) DO UPDATE — NOT INSERT OR REPLACE — because a
+        // second actor.created for the same id (e.g. fire-and-forget
+        // emit racing a reconcile) must NOT trample fields written by
+        // intervening events. Specifically: `pid` is set by
+        // apply_process_spawned AFTER spawn returns; the actor.created
+        // payload only carries pid:None. INSERT OR REPLACE wiped the
+        // pid back to NULL on every duplicate emit, breaking actor.live
+        // for dispatched sessions. Keep created_at + last_event_at from
+        // the original row, refresh updated_at only.
         sqlx::query(
-            "INSERT OR REPLACE INTO actors \
+            "INSERT INTO actors \
              (id, kind, environment_type, status, workspace_id, project_id, cwd, \
               parent_actor_id, restart_count, agent_id, harness, model, transport, \
               persistence, system_prompt_hash, pid, capabilities_json, \
               created_at, updated_at, last_event_at) \
              VALUES (?, ?, ?, 'created', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, \
-                     datetime('now'), datetime('now'), datetime('now'))",
+                     datetime('now'), datetime('now'), datetime('now')) \
+             ON CONFLICT(id) DO UPDATE SET \
+                 kind = excluded.kind, \
+                 environment_type = excluded.environment_type, \
+                 workspace_id = excluded.workspace_id, \
+                 project_id = excluded.project_id, \
+                 cwd = excluded.cwd, \
+                 parent_actor_id = excluded.parent_actor_id, \
+                 agent_id = excluded.agent_id, \
+                 harness = excluded.harness, \
+                 model = excluded.model, \
+                 transport = excluded.transport, \
+                 persistence = excluded.persistence, \
+                 system_prompt_hash = excluded.system_prompt_hash, \
+                 capabilities_json = excluded.capabilities_json, \
+                 updated_at = datetime('now')",
         )
         .bind(entity_id)
         .bind(&p.kind)
@@ -149,6 +182,42 @@ fn apply_created(
         .bind(&capabilities_json)
         .execute(conn)
         .await?;
+        Ok(())
+    })
+}
+
+/// Update an actor row's pid from a `process.spawned` event. The
+/// supervisor emits this AFTER the OS spawn returns, so it carries the
+/// real child pid (where `actor.created` couldn't — it fires earlier).
+/// Keyed by the payload's `slug`, which matches the actor row id for
+/// dispatched sessions.
+///
+/// Idempotent: if no actor row exists for the slug yet, the UPDATE is
+/// a no-op. Pre-existing rows get pid filled in even if it was None.
+fn apply_process_spawned(payload_json: &str, conn: &mut SqliteConnection) -> Result<()> {
+    let payload: crate::events::process::ProcessSpawnedPayload =
+        serde_json::from_str(payload_json)?;
+    let pid = match payload.pid {
+        Some(p) if p > 0 => p as i64,
+        _ => return Ok(()),
+    };
+    block_on(async {
+        // UPSERT: process.spawned can land BEFORE actor.created in the
+        // projection bus (actor.created is fire-and-forget from a
+        // std::thread spawn in routing.rs to avoid tokio deadlock; the
+        // synchronous emit_process_spawned can race ahead). When the
+        // row doesn't exist yet, INSERT a stub with the pid; the later
+        // actor.created lands via ON CONFLICT DO UPDATE (apply_created)
+        // and fills in the metadata without trampling pid.
+        let _ = sqlx::query(
+            "INSERT INTO actors (id, kind, pid, status, environment_type, capabilities_json) \
+             VALUES (?, 'pipeline-step', ?, 'created', 'local', '[]') \
+             ON CONFLICT(id) DO UPDATE SET pid = excluded.pid, updated_at = datetime('now')"
+        )
+            .bind(&payload.slug)
+            .bind(pid)
+            .execute(conn)
+            .await?;
         Ok(())
     })
 }
@@ -281,7 +350,12 @@ fn row_to_actor(row: &sqlx::sqlite::SqliteRow) -> ActorRow {
         .try_get("capabilities_json")
         .unwrap_or_else(|_| "[]".into());
     let capabilities: Vec<String> = serde_json::from_str(&caps_json).unwrap_or_default();
-    let pid: Option<i64> = row.try_get("pid").ok();
+    // SQLite + sqlx sometimes surfaces a NULL pid column as `Some(0)`
+    // here (the binding side writes NULL, but the read path collapses).
+    // pid 0 is the kernel swapper, never a real child — treat it as
+    // "no pid recorded" so `activity_live` can take over for actors
+    // whose pid hasn't been wired into the projection yet (Task #14).
+    let pid: Option<i64> = row.try_get("pid").ok().filter(|&p| p > 0);
     let status: String = row.try_get("status").unwrap_or_default();
     let last_event_at: Option<String> = row.try_get("last_event_at").ok();
     // Liveness sources, in order of confidence:
