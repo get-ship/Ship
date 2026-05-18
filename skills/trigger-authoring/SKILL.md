@@ -1,20 +1,20 @@
 ---
 name: trigger-authoring
 stable-id: trigger-authoring
-description: Author Ship triggers — JSONC files in .ship/hooks/*.jsonc (to be renamed .ship/triggers/) that match a Ship event and run actions. Reactive automation layer. Distinct from agent/provider hooks, which are a compiler concern.
+description: Author Ship triggers — JSONC files in .ship/triggers/*.jsonc that match a Ship event and run actions. Reactive automation layer. Distinct from agent/provider hooks, which are a compiler concern.
 tags: [triggers, extension-authoring, jsonc, jinja, automation]
 authors: [ship]
 ---
 
 # Ship Triggers — The Reactive Automation Layer
 
-A **trigger** is a declarative JSONC file that listens for a Ship event and runs one or more actions when it fires. You write it as `.ship/hooks/<name>.jsonc`, the daemon hot-reloads on file change, and your automation is live.
+A **trigger** is a declarative JSONC file that listens for a Ship event and runs one or more actions when it fires. You write it as `.ship/triggers/<name>.jsonc`, the daemon hot-reloads on file change, and your automation is live.
 
-> **Naming note.** In the extension context, these are **triggers**. The runtime code and filesystem path currently use the legacy name `hooks` (`crates/core/runtime/src/hooks/`, `.ship/hooks/*.jsonc`) — a rename is pending. "Hooks" elsewhere in Ship refers to the agent/provider compiler hooks (pre/post-tool), a different system entirely. Keep the two separate in your head.
+> **Naming note.** Internal Rust types still carry the `Hook*` prefix (`HookDef`, `HookEngine`, `HookAction`) for historical reasons; the public/filesystem surface is consistently **triggers**. "Hooks" elsewhere in Ship refers to the agent/provider compiler hooks (pre/post-tool), a different system entirely. Keep the two separate in your head.
 
 ## Minimal example
 
-`.ship/hooks/log-failed-jobs.jsonc`:
+`.ship/triggers/log-failed-jobs.jsonc`:
 
 ```jsonc
 {
@@ -36,7 +36,7 @@ A **trigger** is a declarative JSONC file that listens for a Ship event and runs
 }
 ```
 
-Drop the file in `.ship/hooks/`, the daemon watcher picks it up, and the next `job.failed` event produces a `trigger.job_failed_notice` event with the rendered payload.
+Drop the file in `.ship/triggers/`, the daemon watcher picks it up, and the next `job.failed` event produces a `trigger.job_failed_notice` event with the rendered payload.
 
 ## Definition shape
 
@@ -117,7 +117,7 @@ Or, for multiline JSON, reference a `.j2` file:
 {
   "type": "collection.insert",
   "collection": "bug_triage",
-  "template_file": "hooks/templates/triage-bug.j2"
+  "template_file": "triggers/templates/triage-bug.j2"
 }
 ```
 The template must render to a valid JSON object.
@@ -202,7 +202,7 @@ Invalid triggers log a warning and are skipped — they do not crash the daemon.
 
 ## Authoring workflow
 
-1. Write the JSONC file in `.ship/hooks/<name>.jsonc`
+1. Write the JSONC file in `.ship/triggers/<name>.jsonc`
 2. Confirm the daemon loaded it: `tail -n 20 ~/.ship/logs/shipd.stderr.log | grep trigger`
 3. Fire the event manually for testing — via the CLI (`ship events emit <type>`) or by producing it naturally
 4. Inspect the result (collection write, emitted event, pipeline run) via the events view or Studio

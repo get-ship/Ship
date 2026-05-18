@@ -89,7 +89,7 @@ No deep-field merging beyond the lists. Scalar overlap wins by last-apply (overl
 
 ## HookConfig + HookTrigger
 
-These are **agent lifecycle hooks** — the config that tells a harness to run a shell command on specific events (`PreToolUse`, `Stop`, `SessionEnd`, etc.). They are compiled into harness-native config; Ship never executes them itself. Distinct from the platform reactive triggers in `ship_platform::hooks` (`HookDef` / `.ship/hooks/*.jsonc`) — see [Hooks](/runtime/hooks/).
+These are **agent lifecycle hooks** — the config that tells a harness to run a shell command on specific events (`PreToolUse`, `Stop`, `SessionEnd`, etc.). They are compiled into harness-native config; Ship never executes them itself. Distinct from the platform reactive triggers in `ship_platform::triggers` (`HookDef` / `.ship/triggers/*.jsonc`) — see [Hooks](/runtime/hooks/).
 
 ```rust
 pub enum HookTrigger {

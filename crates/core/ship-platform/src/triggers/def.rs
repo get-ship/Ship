@@ -1,8 +1,8 @@
-//! Hook definition types — shape of a `.ship/hooks/*.jsonc` document.
+//! Hook definition types — shape of a `.ship/triggers/*.jsonc` document.
 
 use serde::{Deserialize, Serialize};
 
-/// A single hook definition loaded from `.ship/hooks/<name>.jsonc`.
+/// A single hook definition loaded from `.ship/triggers/<name>.jsonc`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HookDef {
     pub name: String,

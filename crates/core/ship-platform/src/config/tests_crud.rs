@@ -75,7 +75,7 @@ fn duplicate_mcp_server_rejected() -> anyhow::Result<()> {
 }
 
 // Hook CRUD removed — `config.hooks` was parallel dead data.
-// Real hooks live as `.ship/hooks/<id>.jsonc` files and the hook engine
+// Real triggers live as `.ship/triggers/<id>.jsonc` files and the trigger engine
 // reads them via the Phase 4 watcher.
 
 // ── Mode CRUD ──────────────────────────────────────────────────────────────

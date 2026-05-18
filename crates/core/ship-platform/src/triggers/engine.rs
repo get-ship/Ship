@@ -77,10 +77,10 @@ impl HookEngine {
         self.sources.as_ref().map(|s| s.webhook.clone())
     }
 
-    /// Replace the registered hook set by rescanning the hooks directory.
+    /// Replace the registered hook set by rescanning the triggers directory.
     /// Also notifies all source adapters of the updated definitions.
     pub async fn reload(&self) {
-        let report = super::loader::load_hooks_dir(&self.ship_dir);
+        let report = super::loader::load_triggers_dir(&self.ship_dir);
         let mut map = HashMap::with_capacity(report.hooks.len());
         for hook in report.hooks {
             map.insert(hook.name.clone(), hook);

@@ -10,12 +10,12 @@ use tokio::sync::Mutex;
 
 use super::TriggerSource;
 use ship_substrate::events::{EventEnvelope, KernelRouter};
-use crate::hooks::def::{
+use crate::triggers::def::{
     CronSourceDef, FileEventKind, FileSourceDef, HookDef, HookTrigger, TriggerSourceDef,
     WebhookSourceDef,
 };
-use crate::hooks::engine::HookEngine;
-use crate::hooks::loader::{load_hooks_dir, parse_hook, validate_hook};
+use crate::triggers::engine::HookEngine;
+use crate::triggers::loader::{load_triggers_dir, parse_hook, validate_hook};
 
 // ── Test helpers ─────────────────────────────────────────────────────────────
 
@@ -171,7 +171,7 @@ fn existing_event_triggers_still_load() {
         "event-hook.jsonc",
         r#"{ "name": "on-fail", "trigger": { "event": "pipeline.run.failed" }, "actions": [] }"#,
     );
-    let report = load_hooks_dir(&ship_dir);
+    let report = load_triggers_dir(&ship_dir);
     assert_eq!(report.hooks.len(), 1);
     assert!(report.errors.is_empty());
 }
