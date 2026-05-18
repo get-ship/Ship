@@ -249,9 +249,9 @@
         "tags": [
           "runtime"
         ],
-        "summary": "Dispatch Pipeline",
-        "description": "POST /api/v1/agent_sessions/dispatch\n\nUI-facing dispatch — mirrors `ship run` on the CLI. Loads the\nnamed pipeline, generates slug/branch/agent, and emits\n`job.created`. The orchestrator picks it up from there.",
-        "operationId": "dispatch_pipeline",
+        "summary": "Dispatch Agent Session",
+        "description": "POST /api/v1/agent_sessions/dispatch\n\nAgent-centric single-agent dispatch. Rejects payloads carrying a\n`pipeline` field (those belong at `POST /api/v1/pipelines/run`).",
+        "operationId": "dispatch_agent_session",
         "requestBody": {
           "content": {
             "application/json": {
@@ -947,12 +947,12 @@
           {
             "lang": "bash",
             "label": "curl",
-            "source": "curl -X POST http://localhost:9315/api/v1/events/route \\\n  -H \"Authorization: Bearer $SHIP_TOKEN\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\"envelope\":{\"kind\":\"job.completed\",\"slug\":\"write-readme\",\"ts\":\"2026-04-22T10:15:00Z\"},\"workspace_id\":\"default\",\"session_id\":\"sess-2f9c\"}'"
+            "source": "curl -X POST http://localhost:9315/api/v1/events/route \\\n  -H \"Authorization: Bearer $SHIP_TOKEN\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\"envelope\":{\"kind\":\"pipeline.run.completed\",\"slug\":\"write-readme\",\"ts\":\"2026-04-22T10:15:00Z\"},\"workspace_id\":\"default\",\"session_id\":\"sess-2f9c\"}'"
           },
           {
             "lang": "javascript",
             "label": "fetch",
-            "source": "const res = await fetch(\"http://localhost:9315/api/v1/events/route\", {\n  method: \"POST\",\n  headers: {\n    \"Authorization\": `Bearer ${process.env.SHIP_TOKEN}`,\n    \"Content-Type\": \"application/json\",\n  },\n  body: JSON.stringify({\n    \"envelope\": {\n      \"kind\": \"job.completed\",\n      \"slug\": \"write-readme\",\n      \"ts\": \"2026-04-22T10:15:00Z\"\n    },\n    \"workspace_id\": \"default\",\n    \"session_id\": \"sess-2f9c\"\n  }),\n});\nconst data = await res.json();"
+            "source": "const res = await fetch(\"http://localhost:9315/api/v1/events/route\", {\n  method: \"POST\",\n  headers: {\n    \"Authorization\": `Bearer ${process.env.SHIP_TOKEN}`,\n    \"Content-Type\": \"application/json\",\n  },\n  body: JSON.stringify({\n    \"envelope\": {\n      \"kind\": \"pipeline.run.completed\",\n      \"slug\": \"write-readme\",\n      \"ts\": \"2026-04-22T10:15:00Z\"\n    },\n    \"workspace_id\": \"default\",\n    \"session_id\": \"sess-2f9c\"\n  }),\n});\nconst data = await res.json();"
           }
         ]
       }
@@ -1462,6 +1462,50 @@
             "lang": "javascript",
             "label": "fetch",
             "source": "const res = await fetch(\"http://localhost:9315/api/v1/mesh/status\", {\n  method: \"POST\",\n  headers: {\n    \"Authorization\": `Bearer ${process.env.SHIP_TOKEN}`,\n    \"Content-Type\": \"application/json\",\n  },\n  body: JSON.stringify({\n    \"agent_id\": \"agent-writer\",\n    \"status\": \"idle\"\n  }),\n});\nconst data = await res.json();"
+          }
+        ]
+      }
+    },
+    "/api/v1/pipelines/run": {
+      "post": {
+        "tags": [
+          "runtime"
+        ],
+        "summary": "Run Pipeline",
+        "operationId": "run_pipeline",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PipelineRunRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeshResponse"
+                }
+              }
+            }
+          }
+        },
+        "description": "POST /api/v1/pipelines/run",
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "curl",
+            "source": "curl -X POST http://localhost:9315/api/v1/pipelines/run \\\n  -H \"Authorization: Bearer $SHIP_TOKEN\""
+          },
+          {
+            "lang": "javascript",
+            "label": "fetch",
+            "source": "const res = await fetch(\"http://localhost:9315/api/v1/pipelines/run\", {\n  method: \"POST\",\n  headers: {\n    \"Authorization\": `Bearer ${process.env.SHIP_TOKEN}`,\n  },\n});\nconst data = await res.json();"
           }
         ]
       }
@@ -2995,16 +3039,18 @@
       },
       "DispatchRequest": {
         "type": "object",
+        "description": "Wire shape for `POST /api/v1/agent_sessions/dispatch`. Agent-centric —\n`agent` is required and there is no `pipeline` field; pipeline runs\nlive at `POST /api/v1/pipelines/run`.",
         "required": [
-          "pipeline"
+          "agent"
         ],
         "properties": {
           "agent": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "Agent override. When `None`, falls back to the pipeline's\nfirst-step `agent`, then `\"default\"`."
+            "type": "string",
+            "description": "Ship-agent profile id (required)."
+          },
+          "auto": {
+            "type": "boolean",
+            "description": "Autonomous (headless) vs interactive. Default false (interactive)."
           },
           "branch": {
             "type": [
@@ -3028,29 +3074,32 @@
               "string",
               "null"
             ],
-            "description": "Harness override; when `None`, each step uses whatever the\npipeline file declared (or falls back to claude)."
-          },
-          "headless": {
-            "type": "boolean",
-            "description": "When true, force the headless (ProcessExecutor) path."
+            "description": "Harness override for this dispatch. None → project/user default chain."
           },
           "model": {
             "type": [
               "string",
               "null"
             ],
-            "description": "Model override (e.g. \"sonnet\"). When `None`, the pipeline step decides."
+            "description": "Model override. None → harness default."
           },
-          "pipeline": {
-            "type": "string",
-            "description": "Pipeline name (file in `.ship/pipelines/<name>.jsonc`)."
+          "prompt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Inline one-shot prompt. Either piped via the harness's one-shot\nflag (`auto` mode) or injected as the first user turn (interactive)."
+          },
+          "resume": {
+            "type": "boolean",
+            "description": "Continue the last session for this (agent, workspace) pair. Errors\nwith 400 when no matching session exists."
           },
           "slug": {
             "type": [
               "string",
               "null"
             ],
-            "description": "Explicit slug (e.g. `ship-dev-01kpx…`). When `None`, the daemon\ngenerates one from `workspace` + a random suffix."
+            "description": "Explicit slug. When `None`, derived from `workspace` + a ULID suffix."
           },
           "source_spec_path": {
             "type": [
@@ -3064,14 +3113,14 @@
               "string",
               "null"
             ],
-            "description": "Inline spec body describing what the run should do."
+            "description": "Inline spec body. Becomes `.artifacts/job-spec.md` for the agent at launch."
           },
           "vars": {
             "type": [
               "object",
               "null"
             ],
-            "description": "Pipeline `{{ var }}` overrides.",
+            "description": "Per-launch vars. Pipelines pass their own vars through to each\ndispatch via the pipeline-run endpoint.",
             "additionalProperties": {
               "type": "string"
             },
@@ -3084,9 +3133,10 @@
               "string",
               "null"
             ],
-            "description": "Optional workspace name; defaults to the pipeline name. Only\nused when `slug` isn't supplied."
+            "description": "Workspace label (used for slug generation). Power-user override."
           }
-        }
+        },
+        "additionalProperties": false
       },
       "EmitEventReq": {
         "type": "object",
@@ -3529,6 +3579,79 @@
             "format": "double"
           }
         }
+      },
+      "PipelineRunRequest": {
+        "type": "object",
+        "description": "Wire shape for `POST /api/v1/pipelines/run`. `pipeline` names a file\nunder `.ship/pipelines/<name>.jsonc`.",
+        "required": [
+          "pipeline"
+        ],
+        "properties": {
+          "auto": {
+            "type": "boolean",
+            "description": "Autonomous (headless) vs interactive. Default false (interactive)."
+          },
+          "harness": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Harness override applied to every step that does not declare its own."
+          },
+          "model": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Model override applied to every step that does not declare its own."
+          },
+          "pipeline": {
+            "type": "string",
+            "description": "Pipeline name (file in `.ship/pipelines/<name>.jsonc`)."
+          },
+          "slug": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Explicit slug override."
+          },
+          "source_spec_path": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Operator-facing path to the spec file (for `ship jobs` display)."
+          },
+          "spec": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Inline spec body. Written to `.artifacts/job-spec.md` for the first\nagent; per-step bodies come from the pipeline file's `step_specs:`."
+          },
+          "vars": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "description": "Pipeline-level `{{ var }}` overrides. Merged over the file's defaults.",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "workspace": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Workspace label (used for slug generation). Defaults to the\npipeline name."
+          }
+        },
+        "additionalProperties": false
       },
       "Project": {
         "type": "object",

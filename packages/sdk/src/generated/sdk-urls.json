@@ -55,7 +55,7 @@
       "purpose": "create",
       "params": [],
       "summary": "POST /api/v1/agent_sessions/dispatch",
-      "description": "UI-facing dispatch — mirrors `ship run` on the CLI. Loads the\nnamed pipeline, generates slug/branch/agent, and emits\n`job.created`. The orchestrator picks it up from there.",
+      "description": "Agent-centric single-agent dispatch. Rejects payloads carrying a\n`pipeline` field (those belong at `POST /api/v1/pipelines/run`).",
       "request": {
         "$ref": "#/components/schemas/DispatchRequest"
       },
@@ -298,6 +298,20 @@
       "description": null,
       "request": {
         "$ref": "#/components/schemas/MeshStatusReq"
+      },
+      "response": {
+        "$ref": "#/components/schemas/MeshResponse"
+      }
+    },
+    "POST /api/v1/pipelines/run": {
+      "method": "POST",
+      "path": "/api/v1/pipelines/run",
+      "purpose": "create",
+      "params": [],
+      "summary": "POST /api/v1/pipelines/run",
+      "description": null,
+      "request": {
+        "$ref": "#/components/schemas/PipelineRunRequest"
       },
       "response": {
         "$ref": "#/components/schemas/MeshResponse"

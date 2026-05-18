@@ -233,6 +233,9 @@ pub enum Route {
     /// @route POST "/api/v1/pipelines/{name}/dispatch"
     PipelinesDispatch { name: String },
 
+    /// @route POST "/api/v1/pipelines/run"
+    PipelinesRun,
+
     /// @route POST "/api/v1/pipelines/runs/{slug}/cancel"
     PipelineRunCancel { slug: String },
 

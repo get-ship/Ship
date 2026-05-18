@@ -110,20 +110,21 @@ async fn worker_can_send_mesh_message() {
 // Worker tokens must be rejected by the dispatch endpoint so sub-agents
 // can't spawn top-level jobs on behalf of the user.
 
-fn dispatch_req(pipeline: &str) -> crate::routes::runtime_api::DispatchRequest {
+fn dispatch_req(agent: &str) -> crate::routes::runtime_api::DispatchRequest {
     crate::routes::runtime_api::DispatchRequest {
-        pipeline: pipeline.into(),
+        agent: agent.into(),
         spec: None,
+        prompt: None,
+        resume: false,
         harness: None,
         model: None,
-        vars: None,
-        headless: false,
+        auto: false,
         workspace: None,
         slug: None,
         branch: None,
-        agent: None,
         source_spec_path: None,
         depends_on: None,
+        vars: None,
     }
 }
 
@@ -132,10 +133,10 @@ async fn worker_cannot_create_jobs() {
     let dir = TempDir::new().unwrap();
     let state = make_api_state(&dir);
 
-    let resp = crate::routes::runtime_api::dispatch_pipeline(
+    let resp = crate::routes::runtime_api::dispatch_agent_session(
         axum::extract::State(state),
         Extension(worker_auth()),
-        Json(dispatch_req("test-pipeline")),
+        Json(dispatch_req("rust-lane")),
     )
     .await
     .into_response();

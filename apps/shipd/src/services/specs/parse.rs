@@ -170,6 +170,8 @@ pub fn pipeline_step_count(name: &str) -> (usize, Option<String>) {
         spec_content: None,
         step_specs: None,
         headless: false,
+        prompt: None,
+        resume: false,
         baseline_sha: None,
     };
     let resolved = match pipeline_loader::ensure_pipeline(payload) {

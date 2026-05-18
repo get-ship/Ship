@@ -63,6 +63,17 @@ pub struct PipelineRunStartedPayload {
     /// live.
     #[serde(default)]
     pub headless: bool,
+    /// Inline one-shot prompt for the dispatched agent. Distinct from
+    /// `spec_content` (the latter is written to `spec_path` as a file;
+    /// `prompt` is delivered as the first user turn or piped via the
+    /// harness's one-shot flag in `auto` mode).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub prompt: Option<String>,
+    /// Continue the last session for this (agent, workspace) pair. When
+    /// set, the dispatch endpoint resolved an existing session and reused
+    /// its slug/branch instead of generating new ones.
+    #[serde(default)]
+    pub resume: bool,
     /// HEAD SHA of the source repo when this job was created. Pipeline
     /// gates evaluate `require_changed` / `forbid_changed` against the
     /// diff from this SHA to HEAD, so the checks see work committed in

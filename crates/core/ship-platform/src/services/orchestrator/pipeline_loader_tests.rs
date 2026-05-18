@@ -29,6 +29,8 @@ fn base_payload(agent: &str) -> PipelineRunStartedPayload {
         spec_content: None,
         step_specs: None,
         headless: false,
+        prompt: None,
+        resume: false,
         baseline_sha: None,
     }
 }

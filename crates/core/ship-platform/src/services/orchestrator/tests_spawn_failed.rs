@@ -113,6 +113,8 @@ fn job_payload(job_id: &str, slug: &str) -> PipelineRunStartedPayload {
         spec_content: None,
         step_specs: None,
         headless: true,
+        prompt: None,
+        resume: false,
         baseline_sha: None,
     }
 }

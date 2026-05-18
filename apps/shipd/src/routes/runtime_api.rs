@@ -202,16 +202,18 @@ pub mod daemon;
 pub mod dispatch;
 pub mod events;
 pub mod jobs;
+pub mod pipeline_run;
 pub mod procs;
 
 pub use agents::{SteerAgentRequest, list_agents, steer_agent, stop_agent};
 pub use daemon::{daemon_status, rebuild_projections};
-pub use dispatch::{DispatchRequest, dispatch_pipeline};
+pub use dispatch::{DispatchRequest, dispatch_agent_session};
 pub use events::{EventsPollQuery, event_stream, poll_events};
 pub use jobs::{
     CancelJobRequest, CreateJobRequest, EventSummary, JobDetailResponse, JobEndRequest,
     cancel_job, create_job, end_job, get_job_detail, list_jobs,
 };
+pub use pipeline_run::{PipelineRunRequest, run_pipeline};
 pub use procs::{ProcsQuery, list_procs};
 
 // Helpers re-exported for the in-file test mod below.
@@ -378,6 +380,8 @@ mod tests {
             spec_content: None,
             step_specs: None,
             headless: false,
+            prompt: None,
+            resume: false,
             baseline_sha: None,
         };
         let envelope = ship_substrate::events::EventEnvelope::new(
@@ -415,6 +419,8 @@ mod tests {
             plan_id: None, model: None, harness: None, depends_on: None,
             pipeline: None, steps: None, pipeline_name: None, vars: None,
             spec_content: None, step_specs: None, headless: false,
+            prompt: None,
+            resume: false,
             baseline_sha: None,
         };
         let env = EventEnvelope::new(event_types::PIPELINE_RUN_STARTED, &job_id, &payload)
