@@ -207,6 +207,39 @@ const TARGETS: BundleTarget[] = [
     external: ['@ship/sui-runtime', '@ship/sui-dom'],
     outFile: 'sui-components/sui-chrome.js',
   },
+  // Marketing-essentials aggregate — exactly the `<sui-*>` tags the
+  // apps/site templates use today (`grep -rho '<sui-[a-z-]\+' apps/site/src`).
+  // Lets the marketing site swap its `<script src="/sui-components.js">`
+  // (~728 KB, 94 primitives + 8 domain components) for this far smaller
+  // bundle that only registers what its pages actually mount. Keep this
+  // list in sync when adding new `<sui-*>` tags to apps/site/src.
+  {
+    name: 'sui-marketing',
+    entry: '<virtual>',
+    virtualEntry: [
+      // @ship/primitives — 8 of 94 tags marketing actually mounts.
+      `import ${JSON.stringify(resolve(repoRoot, 'packages/components/primitives/src/sui-badge/sui-badge.sui'))}`,
+      `import ${JSON.stringify(resolve(repoRoot, 'packages/components/primitives/src/sui-button/sui-button.sui'))}`,
+      `import ${JSON.stringify(resolve(repoRoot, 'packages/components/primitives/src/sui-progress/sui-progress.sui'))}`,
+      `import ${JSON.stringify(resolve(repoRoot, 'packages/components/primitives/src/sui-separator/sui-separator.sui'))}`,
+      `import ${JSON.stringify(resolve(repoRoot, 'packages/components/primitives/src/sui-stat/sui-stat.sui'))}`,
+      `import ${JSON.stringify(resolve(repoRoot, 'packages/components/primitives/src/sui-status-dot/sui-status-dot.sui'))}`,
+      `import ${JSON.stringify(resolve(repoRoot, 'packages/components/primitives/src/sui-table/sui-table.sui'))}`,
+      `import ${JSON.stringify(resolve(repoRoot, 'packages/components/primitives/src/sui-toolbar/sui-toolbar.sui'))}`,
+      // @ship/charts — 2 viz tags used on landing and the data section.
+      `import ${JSON.stringify(resolve(repoRoot, 'packages/components/charts/src/sui-bar-chart/sui-bar-chart.sui'))}`,
+      `import ${JSON.stringify(resolve(repoRoot, 'packages/components/charts/src/sui-sparkline/sui-sparkline.sui'))}`,
+      // apps/shell — brand mark + theme picker live in the shell pack
+      // today but the marketing site references them. Long-term these
+      // should move to a shared chrome package; short-term we include
+      // them so marketing keeps rendering correctly.
+      `import ${JSON.stringify(resolve(repoRoot, 'apps/shell/src/components/sui-brand-mark/sui-brand-mark.sui'))}`,
+      `import ${JSON.stringify(resolve(repoRoot, 'apps/shell/src/components/sui-theme-picker/sui-theme-picker.sui'))}`,
+      '',
+    ].join('\n'),
+    external: ['@ship/sui-runtime', '@ship/sui-dom'],
+    outFile: 'sui-marketing.js',
+  },
   ...discoverSeparateBundles(),
   ...discoverViewBundles(),
 ]

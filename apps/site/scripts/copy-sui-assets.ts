@@ -22,7 +22,13 @@ const SUI_BUNDLES = [
   'sui-runtime.js',
   'sui-dom.js',
   'sui-sdk-client.js',
-  'sui-components.js',
+  // `sui-marketing.js` is the focused bundle for apps/site — registers
+  // only the ~12 `<sui-*>` tags marketing actually mounts (~140 KB).
+  // The full `sui-components.js` umbrella (~740 KB) was 5× larger and
+  // contained 80+ tags the marketing pages never instantiate. If a new
+  // tag is added to apps/site/src, append it to the `sui-marketing`
+  // bundle target in `runtime/bundler.ts`.
+  'sui-marketing.js',
 ] as const;
 
 // <sui-theme-picker> injects a <link rel="stylesheet" href="/api/assets/view-tokens.css">

@@ -90,14 +90,22 @@ const themePreloadPayload = JSON.stringify({
       `modulepreload` hints start the fetches in parallel with HTML
       parsing instead of waiting until the body-end script tags resolve.
       Order matters: list the leaves of the importmap (runtime, dom,
-      sdk-client) before the consumer (components) so the browser can
-      build the request fan-out without re-parsing.
+      sdk-client) before the consumer so the browser can build the
+      request fan-out without re-parsing.
+
+      `sui-marketing.js` is the focused bundle — only the ~12 `<sui-*>`
+      tags marketing actually mounts (~140 KB minified). The general
+      `sui-components.js` umbrella (~740 KB) registers all 94 primitives
+      + ship-domain components, none of which marketing uses outside
+      that 12-tag set. See the `sui-marketing` target in
+      `runtime/bundler.ts` — add to its imports when introducing a new
+      `<sui-*>` tag in apps/site/src.
     -->
     <link rel="modulepreload" href="/sui-runtime.js" fetchpriority="high" />
     <link rel="modulepreload" href="/sui-dom.js" fetchpriority="high" />
     <link rel="modulepreload" href="/sui-sdk-client.js" />
-    <link rel="modulepreload" href="/sui-components.js" />
-    <script is:inline type="module" src="/sui-components.js"></script>
+    <link rel="modulepreload" href="/sui-marketing.js" />
+    <script is:inline type="module" src="/sui-marketing.js"></script>
   </head>
   <body class={bodyClass}>
     <slot />
