@@ -18,6 +18,24 @@ use super::profile::ActorProfile;
 
 const OUTPUT_CAP: usize = 1024;
 
+/// Compute the PATH the supervisor passes to spawned children. Prepends
+/// the dir containing the running daemon binary so a stashed `ship` next
+/// to `shipd` (per `scripts/dev/_lib.sh::stash_binary`) wins over any
+/// stale `~/.local/bin/ship` on the parent's PATH.
+///
+/// This closes a class of footgun: harness hooks (`ship hook session-start`
+/// fired by claude / codex / etc.) used to find whatever `ship` was first
+/// on PATH — typically a long-installed user binary with out-of-date
+/// daemon-discovery logic. Pinning to the daemon-stashed binary means
+/// `just dev-restart` is the only "install" step needed for hooks to
+/// reach the fresh daemon.
+fn pinned_path_env() -> Option<String> {
+    let exe_dir = std::env::current_exe().ok()?.parent()?.to_path_buf();
+    let existing = std::env::var("PATH").unwrap_or_default();
+    let sep = if cfg!(windows) { ";" } else { ":" };
+    Some(format!("{}{}{}", exe_dir.display(), sep, existing))
+}
+
 /// Marker trait for transports — gates the spawn primitive. PTY for
 /// long-lived interactive children, Headless for one-shot per-turn /
 /// pipeline runs. Future variants (tmux, server-session) bolt on here.
@@ -181,6 +199,9 @@ impl Transport for PtyTransport {
         if let Some(a) = profile.agent_id.as_deref() {
             cmd.env("SHIP_AGENT_ID", a);
         }
+        if let Some(path) = pinned_path_env() {
+            cmd.env("PATH", path);
+        }
 
         let child = pair
             .slave
@@ -250,6 +271,9 @@ impl Transport for HeadlessTransport {
         cmd.env("SHIP_ACTOR_ID", actor_id);
         if let Some(a) = profile.agent_id.as_deref() {
             cmd.env("SHIP_AGENT_ID", a);
+        }
+        if let Some(path) = pinned_path_env() {
+            cmd.env("PATH", path);
         }
         cmd.stdin(Stdio::null())
             .stdout(Stdio::piped())
