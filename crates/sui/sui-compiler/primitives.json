@@ -33,6 +33,15 @@
       "mode": { "values": ["sign-in", "sign-up"], "default": "sign-in" },
       "open": { "type": "bool", "default": "false" }
     },
+    "sui-autocomplete": {
+      "disabled": { "type": "bool", "default": "false" },
+      "name": { "type": "string", "default": "" },
+      "placeholder": { "type": "string", "default": "" },
+      "size": { "values": ["sm", "md", "lg"], "default": "md" },
+      "suggestions": { "type": "string", "default": "" },
+      "tone": { "values": ["default", "primary", "info", "success", "warning", "destructive", "accent", "muted"], "default": "default" },
+      "value": { "type": "string", "default": "" }
+    },
     "sui-avatar": {
       "icon-slug": { "type": "string", "default": "" },
       "initials": { "type": "string", "default": "" },
@@ -112,12 +121,38 @@
       "disabled": { "type": "bool", "default": "false" },
       "open": { "type": "bool", "default": "false" }
     },
+    "sui-color-picker": {
+      "disabled": { "type": "bool", "default": "false" },
+      "name": { "type": "string", "default": "" },
+      "size": { "values": ["sm", "md", "lg"], "default": "md" },
+      "tone": { "values": ["default", "primary", "info", "success", "warning", "destructive", "accent", "muted"], "default": "default" },
+      "value": { "type": "string", "default": "#000000" }
+    },
+    "sui-combobox": {
+      "disabled": { "type": "bool", "default": "false" },
+      "name": { "type": "string", "default": "" },
+      "options": { "type": "string", "default": "" },
+      "placeholder": { "type": "string", "default": "" },
+      "size": { "values": ["sm", "md", "lg"], "default": "md" },
+      "tone": { "values": ["default", "primary", "info", "success", "warning", "destructive", "accent", "muted"], "default": "default" },
+      "value": { "type": "string", "default": "" }
+    },
     "sui-context-menu": {
       "open": { "type": "bool", "default": "false" }
     },
     "sui-copy-button": {
       "copied": { "type": "bool", "default": "false" },
       "label": { "type": "string", "default": "Copy" },
+      "value": { "type": "string", "default": "" }
+    },
+    "sui-date-picker": {
+      "disabled": { "type": "bool", "default": "false" },
+      "max": { "type": "string", "default": "" },
+      "min": { "type": "string", "default": "" },
+      "name": { "type": "string", "default": "" },
+      "placeholder": { "type": "string", "default": "YYYY-MM-DD" },
+      "size": { "values": ["sm", "md", "lg"], "default": "md" },
+      "tone": { "values": ["default", "primary", "info", "success", "warning", "destructive", "accent", "muted"], "default": "default" },
       "value": { "type": "string", "default": "" }
     },
     "sui-dialog": {
@@ -502,6 +537,15 @@
       "sticky": { "type": "bool", "default": "false" },
       "tone": { "values": ["default", "primary", "info", "success", "warning", "destructive", "accent", "muted"], "default": "default" },
       "variant": { "values": ["underline", "pill", "enclosed"], "default": "underline" }
+    },
+    "sui-tag-input": {
+      "disabled": { "type": "bool", "default": "false" },
+      "max-tags": { "type": "number", "default": "0" },
+      "name": { "type": "string", "default": "" },
+      "placeholder": { "type": "string", "default": "" },
+      "size": { "values": ["sm", "md", "lg"], "default": "md" },
+      "tone": { "values": ["default", "primary", "info", "success", "warning", "destructive", "accent", "muted"], "default": "default" },
+      "value": { "type": "string", "default": "" }
     },
     "sui-textarea": {
       "described-by": { "type": "string", "default": "" },
