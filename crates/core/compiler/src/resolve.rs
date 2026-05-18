@@ -347,9 +347,12 @@ pub fn resolve(
     // Resolution priority (highest wins):
     // 1. Feature/workspace explicit harnesses — propagate even if empty (unknown
     //    harnesses → empty rather than silent fallback).
-    // 2. Agent target_agents — when an agent is active and specifies target agents.
-    // 3. Project-level harnesses.
-    // 4. Default: ["claude"].
+    // 2. Project-level harnesses.
+    // 3. Default: ["claude"].
+    //
+    // Agent profiles are harness-agnostic at the baseline. Per-agent overrides
+    // of harness settings (e.g. model) live in `harness_settings.<harness>.<key>`,
+    // not in selecting which harnesses to emit.
     let feature_has_explicit = feature.is_some_and(|f| !f.harnesses.is_empty());
     let feature_harnesses = feature
         .filter(|f| !f.harnesses.is_empty())
@@ -359,19 +362,11 @@ pub fn resolve(
     let harnesses = if feature_has_explicit {
         feature_harnesses
     } else {
-        let agent_harnesses = agent
-            .filter(|m| !m.target_agents.is_empty())
-            .map(|m| normalize_harnesses(&m.target_agents))
-            .unwrap_or_default();
-        if !agent_harnesses.is_empty() {
-            agent_harnesses
+        let project = normalize_harnesses(&config.harnesses);
+        if project.is_empty() {
+            vec!["claude".to_string()]
         } else {
-            let project = normalize_harnesses(&config.harnesses);
-            if project.is_empty() {
-                vec!["claude".to_string()]
-            } else {
-                project
-            }
+            project
         }
     };
 
@@ -673,49 +668,26 @@ mod tests {
         assert_eq!(resolved.harnesses, vec!["claude"]);
     }
 
-    // ── Mode target_agents ─────────────────────────────────────────────────
+    // ── Agent target_agents is ignored for harness selection ─────────────
+    // Agent profiles are harness-agnostic at the baseline; an agent's
+    // target_agents (if non-empty for whatever legacy reason) does NOT
+    // restrict which harnesses compile. Project list (and feature
+    // override) are the only inputs to the harness loop.
 
     #[test]
-    fn mode_target_agents_overrides_project_harnesses() {
+    fn agent_target_agents_does_not_override_project_harnesses() {
         let config = ProjectConfig {
             harnesses: vec!["gemini".to_string()],
             agents: vec![AgentConfig {
-                id: "cursor-mode".to_string(),
-                name: "Cursor Mode".to_string(),
+                id: "any-agent".to_string(),
+                name: "Any Agent".to_string(),
                 target_agents: vec!["cursor".to_string()],
                 ..Default::default()
             }],
             ..Default::default()
         };
-        let resolved = resolve(&config, &[], &[], &Permissions::default(), &[], None, Some("cursor-mode"));
-        assert_eq!(resolved.harnesses, vec!["cursor"]);
-    }
-
-    #[test]
-    fn feature_harnesses_override_mode_target_agents() {
-        let config = ProjectConfig {
-            agents: vec![AgentConfig {
-                id: "mode1".to_string(),
-                name: "Mode 1".to_string(),
-                target_agents: vec!["gemini".to_string()],
-                ..Default::default()
-            }],
-            ..Default::default()
-        };
-        let feature = WorkspaceOverrides {
-            harnesses: vec!["codex".to_string()],
-            ..Default::default()
-        };
-        let resolved = resolve(
-            &config,
-            &[],
-            &[],
-            &Permissions::default(),
-            &[],
-            Some(&feature),
-            None,
-        );
-        assert_eq!(resolved.harnesses, vec!["codex"]);
+        let resolved = resolve(&config, &[], &[], &Permissions::default(), &[], None, Some("any-agent"));
+        assert_eq!(resolved.harnesses, vec!["gemini"]);
     }
 
     // ── Rule normalization ────────────────────────────────────────────────
@@ -938,7 +910,6 @@ mod tests {
                     name: "Test Agent".to_string(),
                     version: None,
                     description: None,
-                    harnesses: vec![],
                     role: None,
                     tags: vec![],
                     tools_preset: None,

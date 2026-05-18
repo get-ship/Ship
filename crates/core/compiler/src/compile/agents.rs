@@ -17,7 +17,8 @@ use crate::types::AgentProfile;
 /// Compile agent profiles into harness-native agent files.
 ///
 /// Returns a map of `relative_path → file_content` ready for `CompileOutput.agent_files`.
-/// Profiles are filtered to those that list the target harness (or have no harness restriction).
+/// Every profile compiles for every harness — agent profiles are harness-agnostic.
+/// Per-harness customization lives in `harness_settings.<harness>.<key>`.
 pub fn compile_agent_profiles(
     profiles: &[AgentProfile],
     harness_id: &str,
@@ -28,9 +29,6 @@ pub fn compile_agent_profiles(
     };
     let mut out = HashMap::new();
     for profile in profiles {
-        if !profile_targets_harness(profile, harness_id) {
-            continue;
-        }
         let path = match desc.agents_dir.agent_path(&profile.agent.id) {
             Some(p) => p,
             None => continue,
@@ -46,19 +44,6 @@ pub fn compile_agent_profiles(
         out.insert(path, content);
     }
     out
-}
-
-/// Check whether a profile should be emitted for a given harness.
-/// A profile with an empty harnesses list targets all harnesses.
-pub(super) fn profile_targets_harness(profile: &AgentProfile, harness_id: &str) -> bool {
-    if profile.agent.harnesses.is_empty() {
-        return true;
-    }
-    profile
-        .agent
-        .harnesses
-        .iter()
-        .any(|p| p.eq_ignore_ascii_case(harness_id))
 }
 
 // ─── Claude Code ─────────────────────────────────────────────────────────────

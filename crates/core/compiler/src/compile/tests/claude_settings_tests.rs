@@ -215,7 +215,6 @@ fn agent_profiles_compiled_into_agent_files() {
             name: "Code Reviewer".to_string(),
             version: None,
             description: Some("Reviews code".to_string()),
-            harnesses: vec!["claude".to_string()],
             role: None,
             tags: vec![],
             tools_preset: None,
