@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { errorHandler } from './middleware/on-error.js';
+import { requireProjectAuth } from './middleware/project-auth.js';
 import { syncRoutes, projectRoutes, jobRoutes } from './routes/index.js';
 import { authRoutes } from './routes/auth.js';
 import { githubRoutes } from './routes/github.js';
@@ -19,17 +20,8 @@ const CORS_ORIGINS = [
 // All non-operational routes live under /v1/*. The host is already api.getship.dev,
 // so an /api/ prefix would be redundant. /healthz and /readyz stay unversioned
 // per ops convention.
-const requireProjectId = async (
-  c: { req: { header: (n: string) => string | undefined }; set: (k: 'projectId', v: string) => void; json: (b: unknown, s: number) => Response },
-  next: () => Promise<void>,
-) => {
-  const projectId = c.req.header('x-project-id');
-  if (!projectId) return c.json({ error: 'Missing x-project-id header' }, 400);
-  c.set('projectId', projectId);
-  return next();
-};
 
-const app = new Hono<{ Bindings: Env; Variables: { projectId: string } }>()
+const app = new Hono<{ Bindings: Env; Variables: { projectId: string; userId: string } }>()
   .onError(errorHandler)
   .use(
     '/v1/*',
@@ -40,9 +32,9 @@ const app = new Hono<{ Bindings: Env; Variables: { projectId: string } }>()
       credentials: true,
     }),
   )
-  .use('/v1/sync/*', requireProjectId)
-  .use('/v1/projects/*', requireProjectId)
-  .use('/v1/jobs/*', requireProjectId)
+  .use('/v1/sync/*', requireProjectAuth)
+  .use('/v1/projects/*', requireProjectAuth)
+  .use('/v1/jobs/*', requireProjectAuth)
   .route('/v1/sync', syncRoutes)
   .route('/v1/projects', projectRoutes)
   .route('/v1/jobs', jobRoutes)
