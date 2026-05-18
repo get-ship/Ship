@@ -30,6 +30,7 @@ pub mod helpers;
 pub mod net;
 pub mod policy;
 pub mod recommender;
+pub mod settings;
 pub mod sidecar;
 pub mod tier;
 
