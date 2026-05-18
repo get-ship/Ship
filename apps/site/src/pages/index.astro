@@ -9,6 +9,8 @@ import SectionData from '../components/landing/SectionData.astro';
 import SectionViews from '../components/landing/SectionViews.astro';
 import FooterCta from '../components/landing/FooterCta.astro';
 import TweaksPanel from '../components/landing/TweaksPanel.astro';
+
+const isDev = import.meta.env.DEV;
 ---
 
 <BaseLayout title="SHIP — the missing AI interface" bodyClass="landing-root">
@@ -21,7 +23,7 @@ import TweaksPanel from '../components/landing/TweaksPanel.astro';
     <SectionViews />
   </main>
   <FooterCta />
-  <TweaksPanel />
+  {isDev && <TweaksPanel />}
 </BaseLayout>
 
 <script>

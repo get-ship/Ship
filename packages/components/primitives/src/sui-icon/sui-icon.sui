@@ -33,7 +33,7 @@
 -->
 
 <prop name="name" type="string" default="" reflect />
-<prop name="size" values="sm|md|lg" default="md" reflect />
+<prop name="size" values="xs|sm|md|lg|xl" default="md" reflect />
 <prop name="tone" values="default|info|success|warning|destructive|accent|muted|primary" default="default" reflect />
 <prop name="label" type="string" default="" reflect />
 
@@ -55,8 +55,10 @@
     height: 16px;
     flex: 0 0 auto;
   }
+  :host([size='xs']) svg.sui-icon-svg { width: 10px; height: 10px; }
   :host([size='sm']) svg.sui-icon-svg { width: 12px; height: 12px; }
   :host([size='lg']) svg.sui-icon-svg { width: 20px; height: 20px; }
+  :host([size='xl']) svg.sui-icon-svg { width: 24px; height: 24px; }
 
   /* Slot passthrough: user-provided SVG fills the icon box */
   ::slotted(svg) { width: 100%; height: 100%; }

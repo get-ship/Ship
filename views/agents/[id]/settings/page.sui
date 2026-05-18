@@ -19,7 +19,7 @@
 
   <div class="ship-view ad-view">
     <div class="ad-body">
-      <div class="ad-sections">
+      <sui-stack gap="4">
 
         <sui-card padding="none">
           <div slot="header" class="ad-section-head">
@@ -30,14 +30,14 @@
             {#if agent().skills.length === 0}
               <div class="ad-empty">No skills attached. Edit <code style="font-family:var(--font-mono);font-size:var(--text-xs)">.ship/agents/{agent().id}.jsonc</code> to add one.</div>
             {:else}
-              <div class="ad-chip-grid">
+              <sui-cluster>
                 {#for s of agent().skills key={s}}
                   <sui-list-tile variant="card" density="compact">
                     <span slot="leading" class="ad-chip-icon ad-chip-icon--skill">{s.slice(0,2)}</span>
                     <span class="ad-chip-name">{s}</span><span slot="meta" class="ad-chip-meta">project</span>
                   </sui-list-tile>
                 {/for}
-              </div>
+              </sui-cluster>
             {/if}
           </div>
         </sui-card>
@@ -54,14 +54,14 @@
             {#if agent().mcp_servers.length === 0}
               <div class="ad-empty">No MCP servers connected. Edit <code style="font-family:var(--font-mono);font-size:var(--text-xs)">.ship/agents/{agent().id}.jsonc</code> to add one.</div>
             {:else}
-              <div class="ad-chip-grid">
+              <sui-cluster>
                 {#for m of agent().mcp_servers key={m}}
                   <sui-list-tile variant="card" density="compact">
                     <span slot="leading" class="ad-chip-icon ad-chip-icon--mcp">{m.slice(0,2)}</span>
                     <span class="ad-chip-name">{m}</span><span slot="meta" class="ad-chip-meta">server</span>
                   </sui-list-tile>
                 {/for}
-              </div>
+              </sui-cluster>
             {/if}
           </div>
         </sui-card>
@@ -173,7 +173,7 @@
           </div>
         </sui-card>
 
-      </div>
+      </sui-stack>
       <div class="ad-bottom-spacer"></div>
     </div>
   </div>
@@ -186,7 +186,7 @@
           <span slot="title">No {pickerKind()}s to add</span>
         </sui-empty-state>
       {:else}
-        <div class="ad-picker-list">
+        <sui-stack>
           {#for entry of (catalogs()?.[pickerKind()] ?? []) key={entry.id}}
             <label class="ad-picker-row">
               <input type="checkbox" class="ad-picker-check" checked={pickerSelected().includes(entry.id)} on:change={() => togglePick(entry.id)} />
@@ -196,7 +196,7 @@
               </span>
             </label>
           {/for}
-        </div>
+        </sui-stack>
       {/if}
     </div>
     <sui-toolbar slot="footer">

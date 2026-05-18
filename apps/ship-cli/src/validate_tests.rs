@@ -75,16 +75,59 @@ fn missing_skill_ref_reports_error() {
 }
 
 #[test]
-fn existing_skill_ref_passes() {
+fn existing_skill_ref_at_dir_layout_passes() {
+    // Canonical: `.ship/skills/<id>/SKILL.md` (the directory shape).
     let (tmp, agents_dir) = setup();
     write(
         tmp.path(),
-        ".ship/agents/skills/my-skill.md",
-        "---\nname: My Skill\n---\nContent.",
+        ".ship/skills/my-skill/SKILL.md",
+        "---\nname: my-skill\nstable-id: my-skill\ndescription: Test.\n---\n\nContent.",
     );
     let src = r#"{
   "agent": { "id": "test", "name": "test", "harnesses": ["claude"] },
   "skills": { "refs": ["my-skill"] }
+}"#;
+    write(tmp.path(), ".ship/agents/test.jsonc", src);
+    let report = validate_agent("test", &agents_dir.join("test.jsonc"), &agents_dir);
+    assert!(report.errors.is_empty(), "{:?}", report.errors);
+}
+
+#[test]
+fn existing_skill_ref_at_flat_layout_passes() {
+    // Flat: `.ship/skills/<id>.md` — also legal, the loader accepts both.
+    let (tmp, agents_dir) = setup();
+    write(
+        tmp.path(),
+        ".ship/skills/flat-skill.md",
+        "---\nname: flat-skill\nstable-id: flat-skill\ndescription: Test.\n---\n\nContent.",
+    );
+    let src = r#"{
+  "agent": { "id": "test", "name": "test", "harnesses": ["claude"] },
+  "skills": { "refs": ["flat-skill"] }
+}"#;
+    write(tmp.path(), ".ship/agents/test.jsonc", src);
+    let report = validate_agent("test", &agents_dir.join("test.jsonc"), &agents_dir);
+    assert!(report.errors.is_empty(), "{:?}", report.errors);
+}
+
+#[test]
+fn skill_via_skill_paths_passes() {
+    // `project.skill_paths` adds extra roots — the validator must honor
+    // them (compiler does).
+    let (tmp, agents_dir) = setup();
+    write(
+        tmp.path(),
+        ".ship/ship.jsonc",
+        r#"{"id":"t","project":{"skill_paths":["docs/"]}}"#,
+    );
+    write(
+        tmp.path(),
+        "docs/extra-skill/SKILL.md",
+        "---\nname: extra-skill\nstable-id: extra-skill\ndescription: Test.\n---\n\nContent.",
+    );
+    let src = r#"{
+  "agent": { "id": "test", "name": "test", "harnesses": ["claude"] },
+  "skills": { "refs": ["extra-skill"] }
 }"#;
     write(tmp.path(), ".ship/agents/test.jsonc", src);
     let report = validate_agent("test", &agents_dir.join("test.jsonc"), &agents_dir);

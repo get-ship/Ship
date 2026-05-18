@@ -33,7 +33,7 @@ Drop the file in `.ship/collections/`, hit `POST /api/collections/todo/items`, d
 
 ## The authoring checklist
 
-1. **`id` is the handle.** Lowercase, underscore-separated, singular (`todo`, not `todos`). It's the URL slug, the event namespace, the Jinja template name. Rename = migration.
+1. **`id` is the handle.** Lowercase, underscore-separated, singular (`todo`, not `todos`). It's the URL slug, the event namespace, and the key views reference in their `<data>` subscriptions. Rename = migration.
 2. **Pick field types deliberately** — see §Field types.
 3. **Mark what you filter on.** Every field the user sorts, filters, or searches on needs `filterable: true`. The daemon auto-creates an index; queries stay fast under volume.
 4. **Declare required early.** `required: true` at author time beats adding it later when half your rows violate it.
@@ -46,7 +46,7 @@ Drop the file in `.ship/collections/`, hit `POST /api/collections/todo/items`, d
 | Type | When to use | Gotchas |
 |---|---|---|
 | `string` | Short text — title, slug, external id | Don't use for anything > ~200 chars. Use `markdown`. |
-| `markdown` | Long-form content — notes, descriptions, body | Rendered by views via the `markdown` Jinja filter. Not indexed. |
+| `markdown` | Long-form content — notes, descriptions, body | Rendered by views via the `<sui-markdown>` primitive. Not indexed. |
 | `number` | Numeric — count, score, price | Stored as double (REAL). No int/float distinction. |
 | `boolean` | Flag — `archived`, `starred`, `is_public` | Coerced on read; safe to filter with `true`/`false`. |
 | `enum` | Fixed list — status, priority, type | Values enforced on write. Adding a new value is safe; removing is not. |
@@ -152,6 +152,6 @@ If the data lives in another system (GitHub issues, Jira tickets) and you don't 
 
 ## Relation to other systems
 
-- **Views** consume collections via the query API. See `ship-views` for the Jinja helpers (`ship_query`, `ship_items`, `| where`).
+- **Views** consume collections by subscribing to `ship.collection.items(id, filter?)` via a `<data>` element in the template. The signal stays live as items change. See `ship-views` for the `<data>` shape and the SDK methods.
 - **Triggers** react to `collection.item_created`/`_updated`/`_deleted` events. See `trigger-authoring`.
 - **Hooks** (agent/provider layer) have nothing to do with collections.

@@ -82,7 +82,7 @@
 
   :host([active]) button {
     color: var(--foreground);
-    border-bottom-color: var(--tone, var(--primary));
+    border-bottom-color: var(--tone);
   }
 
   button:disabled {
@@ -107,12 +107,12 @@
     background: color-mix(in oklch, var(--muted) 80%, transparent);
   }
   :host([active]) .count {
-    color: var(--tone, var(--primary));
-    background: color-mix(in oklch, var(--tone, var(--primary)) 12%, transparent);
+    color: var(--tone);
+    background: color-mix(in oklch, var(--tone) 12%, transparent);
   }
 
   button:focus-visible {
-    outline: 2px solid color-mix(in oklch, var(--tone, var(--primary)) 55%, transparent);
+    outline: 2px solid color-mix(in oklch, var(--tone) 55%, transparent);
     outline-offset: -2px;
   }
 
@@ -123,7 +123,7 @@
   }
   :host([variant='pill'][active]) button {
     background: var(--background);
-    box-shadow: var(--shadow-sm, 0 1px 2px 0 rgb(0 0 0 / 0.05));
+    box-shadow: var(--shadow-sm, 0 1px 2px 0 color-mix(in oklch, var(--foreground) 5%, transparent));
     color: var(--foreground);
   }
 

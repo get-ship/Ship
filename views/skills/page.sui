@@ -12,14 +12,14 @@
             on:input={(e) => q.set(e.target.value)} />
         </div>
         {#if rail().kind === 'ok' && rail().value}
-          <div class="se-filters" role="group" aria-label="Filter by kind">
+          <sui-cluster gap="1" role="group" aria-label="Filter by kind">
             {#for kc of (rail().value.kind_counts || []) key={kc.id}}
               <button class="se-pill" class:is-active={kind() === kc.id}
                 on:click={() => kind.set(kc.id)}>
                 {kc.label} <span class="se-pill-count">{kc.count}</span>
               </button>
             {/for}
-          </div>
+          </sui-cluster>
         {/if}
       </div>
 
@@ -27,9 +27,9 @@
         {#while-loading of rail}
           <div class="se-skel" role="status" aria-live="polite" aria-busy="true" aria-label="Loading skills">
             {#for n of [0, 1, 2, 3, 4, 5] key={n}}
-              <div class="se-skel-row">
+              <sui-cluster align="center">
                 <sui-skeleton shape="line" size="md"></sui-skeleton>
-              </div>
+              </sui-cluster>
             {/for}
           </div>
         {/while-loading}

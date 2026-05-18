@@ -43,7 +43,7 @@
             <span class="cd-meta-val">{detailValue().total_items}</span>
           </span>
         </div>
-        <div class="cd-tabs-row">
+        <sui-cluster gap="3" align="center" justify="between">
           <sui-segmented size="sm" attr:value={tab()} on:sui-change={(e) => tab.set(e.detail.value)}>
             <sui-segmented-option value="schema" icon="columns">Schema</sui-segmented-option>
             <sui-segmented-option value="rows" icon="list-check">Rows</sui-segmented-option>
@@ -52,7 +52,7 @@
           <sui-button size="sm" tone="accent" variant="solid" on:click={openNewRow}>
             <sui-icon slot="leading" name="plus"></sui-icon>New row
           </sui-button>
-        </div>
+        </sui-cluster>
       {/if}
 
       {#if colDetail().kind === 'error'}
@@ -78,7 +78,7 @@
                 Built-in collections ship with the runtime. Fields are listed for reference only.
               </div>
             {/if}
-            <div class="cd-fields">
+            <sui-stack gap="1">
               {#for f of schemaFieldsView() key={f.name}}
                 <div class="cd-field-row">
                   <span class={'cd-ft cd-ft-' + f.field_type}>{f.field_type}</span>
@@ -89,7 +89,7 @@
                   {/if}
                 </div>
               {/for}
-            </div>
+            </sui-stack>
           </div>
         {/if}
 
@@ -158,9 +158,9 @@
       <span slot="title">New row</span>
       {#if detailValue()}
         <span slot="description">Add a new item to {detailValue().schema.name || collectionId()}</span>
-        <div class="cd-drawer-form">
+        <sui-stack gap="3">
           {#for f of detailValue().schema.fields key={f.name}}
-            <div class="cd-drawer-field">
+            <sui-stack gap="1">
               <label class="cd-drawer-label">
                 {f.name}{#if f.required}<span class="cd-drawer-req">*</span>{/if}
                 <span class="cd-drawer-type">{f.field_type}</span>
@@ -178,10 +178,10 @@
                   attr:placeholder={f.name}
                   on:input={(e) => setDraftField(f.name, e.target.value)}></sui-input>
               {/if}
-            </div>
+            </sui-stack>
           {/for}
           {#if drawerError()}<div class="cd-drawer-error">{drawerError()}</div>{/if}
-        </div>
+        </sui-stack>
         <div slot="footer">
           <sui-button variant="ghost" on:click={closeNewRow}>Cancel</sui-button>
           <sui-button tone="accent" variant="solid" on:click={saveNewRow}>Save</sui-button>

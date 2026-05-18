@@ -23,7 +23,7 @@
 <prop name="open" type="bool" default="false" reflect />
 
 <style>
-  :host { position: relative; display: inline-flex; }
+  :host { display: inline-flex; }
   :host([hidden]) { display: none; }
 
   .panel {
@@ -31,11 +31,11 @@
     margin: 0;
     min-width: 160px;
     padding: 4px;
-    background: var(--popover, var(--card, #fff));
-    color: var(--popover-foreground, var(--card-foreground, #111));
-    border: 1px solid var(--border, #e5e5e5);
+    background: var(--popover);
+    color: var(--popover-foreground);
+    border: 1px solid var(--border);
     border-radius: var(--radius, var(--radius-md, 6px));
-    box-shadow: var(--shadow-lg, 0 8px 24px rgba(0,0,0,0.12));
+    box-shadow: var(--shadow-lg, 0 8px 24px color-mix(in oklch, var(--foreground) 12%, transparent));
     display: flex; flex-direction: column;
     font-family: var(--font-body, system-ui);
     font-size: var(--text-base, 14px);
@@ -44,6 +44,24 @@
     transition:
       opacity var(--duration-medium, 200ms) var(--ease-out, ease-out),
       transform var(--duration-medium, 200ms) var(--ease-out, ease-out);
+  }
+
+  /* CSS Anchor Positioning. Controller sets `--sui-dd-anchor` to a
+     unique per-instance name on the slotted trigger so each dropdown
+     anchors to its own trigger without inline-style juggling. The
+     controller skips its `positionPanel` JS fallback when this path
+     is live so we don't double-position. */
+  @supports (anchor-name: --x) {
+    ::slotted([slot='trigger']) {
+      anchor-name: var(--sui-dd-anchor, --sui-dd-default);
+    }
+    .panel {
+      position-anchor: var(--sui-dd-anchor, --sui-dd-default);
+      top: calc(anchor(bottom) + 4px);
+      left: anchor(left);
+      position-try-fallbacks: flip-block, flip-inline, flip-block flip-inline;
+      position-try-order: most-block-size;
+    }
   }
   .panel:popover-open {
     opacity: 1;
@@ -62,7 +80,7 @@
   }
   ::slotted(button:hover), ::slotted([role='menuitem']:hover),
   ::slotted(button:focus-visible), ::slotted([role='menuitem']:focus-visible) {
-    background: var(--accent, var(--muted, #f5f5f5));
+    background: var(--accent);
     outline: none;
   }
 

@@ -80,7 +80,7 @@
     text-transform: uppercase;
   }
   :host([human]) .avatar {
-    background: conic-gradient(from 40deg, var(--status-blue, var(--info)), var(--accent));
+    background: conic-gradient(from 40deg, var(--status-blue), var(--accent));
   }
 
   .msg {

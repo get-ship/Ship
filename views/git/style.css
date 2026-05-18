@@ -12,7 +12,6 @@
 }
 
 .git-skel { padding: 16px 20px; display: flex; flex-direction: column; gap: 16px; }
-.git-skel-head { display: flex; align-items: center; gap: 16px; }
 .git-skel-titles { flex: 1; display: flex; flex-direction: column; gap: 6px; }
 .git-skel-tabs { display: flex; gap: 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
 .git-skel-card {
@@ -24,7 +23,6 @@
   flex-direction: column;
   gap: 10px;
 }
-.git-skel-row { display: flex; align-items: center; gap: 10px; }
 .git-skel-row sui-skeleton[shape="line"] { flex: 1; }
 
 /* Header */
@@ -44,8 +42,6 @@
   letter-spacing: var(--heading-tracking, 0);
 }
 .git-sub { margin: 4px 0 0; font-size: 12px; color: var(--muted-foreground); }
-.git-head-actions { display: flex; gap: 8px; align-items: center; }
-
 /* Tabs row + tabs-right strip */
 .git-tabs-row {
   display: flex;
@@ -233,7 +229,6 @@
 
 /* History view */
 .git-history { padding: 16px 20px; display: flex; flex-direction: column; gap: 12px; flex: 1; min-height: 0; }
-.git-history-search { display: flex; align-items: center; gap: 12px; }
 .git-search {
   flex: 1;
   min-width: 0;
@@ -274,9 +269,6 @@
   text-transform: uppercase;
   color: var(--muted-foreground);
 }
-.git-card-body { display: flex; flex-direction: column; gap: 0; }
-.git-card-actions { display: flex; flex-direction: column; align-items: stretch; gap: 8px; }
-
 /* No-repo empty state */
 .git-no-repo {
   flex: 1;

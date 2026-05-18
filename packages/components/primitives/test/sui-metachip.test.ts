@@ -82,4 +82,32 @@ describe('<sui-metachip>', () => {
     expect(shadow(el).querySelector('.k')).not.toBeNull()
     expect(shadow(el).querySelector('.v')).not.toBeNull()
   })
+
+  it('sets role="group" on the host so AT treats label+value as one entity', async () => {
+    const { el } = mount(reg, 'sui-metachip', { label: 'env', value: 'prod' })
+    await flush()
+    expect(el.getAttribute('role')).toBe('group')
+  })
+
+  it('builds aria-label from "label: value" so screen readers read the pair together', async () => {
+    const { el } = mount(reg, 'sui-metachip', { label: 'env', value: 'prod' })
+    await flush()
+    expect(el.getAttribute('aria-label')).toBe('env: prod')
+  })
+
+  it('falls back to whichever side is populated when only one is set', async () => {
+    const { el: labelOnly } = mount(reg, 'sui-metachip', { label: 'lonely' })
+    await flush()
+    expect(labelOnly.getAttribute('aria-label')).toBe('lonely')
+
+    const { el: valueOnly } = mount(reg, 'sui-metachip', { value: 'orphan' })
+    await flush()
+    expect(valueOnly.getAttribute('aria-label')).toBe('orphan')
+  })
+
+  it('omits aria-label when both sides are empty (decorative chip)', async () => {
+    const { el } = mount(reg, 'sui-metachip')
+    await flush()
+    expect(el.hasAttribute('aria-label')).toBe(false)
+  })
 })

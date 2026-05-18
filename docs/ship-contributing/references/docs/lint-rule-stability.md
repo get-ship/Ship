@@ -19,7 +19,7 @@ single Ship release:
   `ship lint views --format json`.
 
 After launch, every published rule ID is locked in. The catalog is
-`.ship/skills/ship-views/references/lint-rules.md` (or wherever the catalog lives once it's published).
+`skills/ship-views/references/lint-rules.md` (or wherever the catalog lives once it's published).
 
 ## Naming convention
 
@@ -77,7 +77,7 @@ When you add a rule:
 3. Register the constant in `crates/core/lint/src/lib.rs` (or the
    corresponding submodule for AST rules) and append it to
    `ALL_RULES`.
-4. Update `.ship/skills/ship-views/references/lint-rules.md` (or wherever the catalog lives once it's published)
+4. Update `skills/ship-views/references/lint-rules.md` (or wherever the catalog lives once it's published)
    in the same commit — the catalog is the user-facing contract.
 5. Add at least one happy-path test and one failure-path test under
    `crates/core/lint/src/tests.rs`.

@@ -23,7 +23,7 @@
       <div class="section-h">
         <sui-icon name="zap" size="xs"></sui-icon>Skills
         <span class="count">{wireData().agent.skills.length}</span>
-        <sui-button variant="ghost" size="icon" class="add-btn" aria-label="Add skill" on:click={() => openPicker('skill')}>
+        <sui-button variant="ghost" size="sm" class="add-btn" aria-label="Add skill" on:click={() => openPicker('skill')}>
           <sui-icon name="plus" size="xs"></sui-icon>
         </sui-button>
       </div>
@@ -41,7 +41,7 @@
       <div class="section-h" style="margin-top:16px">
         <sui-icon name="terminal" size="xs"></sui-icon>MCP Servers
         <span class="count">{wireData().agent.mcp_servers.length}</span>
-        <sui-button variant="ghost" size="icon" class="add-btn" aria-label="Add MCP server" on:click={() => openPicker('mcp')}>
+        <sui-button variant="ghost" size="sm" class="add-btn" aria-label="Add MCP server" on:click={() => openPicker('mcp')}>
           <sui-icon name="plus" size="xs"></sui-icon>
         </sui-button>
       </div>
@@ -58,7 +58,7 @@
       <div class="section-h" style="margin-top:16px">
         <sui-icon name="file-text" size="xs"></sui-icon>Rules
         <span class="count">{wireData().agent.rules.length}</span>
-        <sui-button variant="ghost" size="icon" class="add-btn" aria-label="Add rule" on:click={() => openPicker('rule')}>
+        <sui-button variant="ghost" size="sm" class="add-btn" aria-label="Add rule" on:click={() => openPicker('rule')}>
           <sui-icon name="plus" size="xs"></sui-icon>
         </sui-button>
       </div>
@@ -178,7 +178,7 @@
             <span slot="title">No {pickerKind()}s to add</span>
           </sui-empty-state>
         {:else}
-          <div class="ad-picker-list">
+          <sui-stack>
             {#for entry of (wireData().catalogs[pickerKind()] ?? []) key={entry.id}}
               <label class="ad-picker-row">
                 <input type="checkbox" class="ad-picker-check" value={entry.id}
@@ -190,7 +190,7 @@
                 </span>
               </label>
             {/for}
-          </div>
+          </sui-stack>
         {/if}
       </div>
       <sui-toolbar slot="footer">

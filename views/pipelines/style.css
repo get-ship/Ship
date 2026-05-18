@@ -18,7 +18,6 @@
   content: ''; display: block; width: 60px; height: 4px; margin-top: var(--space-2);
   border-radius: 2px; background: linear-gradient(90deg, var(--primary), transparent);
 }
-.ship-pipelines-head-actions { display: flex; gap: var(--space-2); }
 @media (max-width: 767px) {
   .ship-pipelines-wrap { display: none; }
   .ship-mobile-gate { display: flex; }
@@ -39,7 +38,6 @@
   text-transform: uppercase; display: flex; align-items: center;
   gap: var(--space-2); margin: 0; color: var(--muted-foreground);
 }
-.ship-pipelines-run-list { display: flex; flex-direction: column; gap: var(--space-3); }
 .ship-pipelines-def-list {
   display: grid; grid-template-columns: repeat(auto-fill, minmax(22rem, 1fr));
   gap: var(--space-4); align-items: stretch;
@@ -62,7 +60,6 @@
   display: flex; gap: var(--space-2); align-items: center;
   flex-wrap: nowrap; overflow: hidden; min-height: 22px;
 }
-.ship-def-stats { display: flex; align-items: baseline; gap: var(--space-5); }
 .ship-def-stat { display: flex; flex-direction: column; gap: 2px; }
 .ship-def-stat-grow { margin-left: auto; align-items: flex-end; text-align: right; }
 .ship-def-stat-value {

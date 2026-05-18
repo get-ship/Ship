@@ -5,7 +5,7 @@
 //!     `InstallOptions::sui_compiler_source` / `InstallOptions::bundler_ts_source`
 //!     — used by `just dev-runtime-install` and tests.
 //!   - **Auto-discovery** — looks for `bun` on `PATH`, `sui-compiler` walking
-//!     up from cwd, and `bundler.ts` in `runtime-assets/bundler.ts` relative to
+//!     up from cwd, and `bundler.ts` in `runtime/bundler.ts` relative to
 //!     the workspace root.
 //!
 //! After the binaries and script land, `ensure_present` verifies the result.
@@ -23,7 +23,7 @@ pub enum InstallError {
     MissingBun(String),
     #[error("could not locate `sui-compiler` binary: {0}.\n  Pass --sui-compiler <path> or run `cargo build -p sui-compiler --release`.")]
     MissingSuiCompiler(String),
-    #[error("could not locate `bundler.ts`: {0}.\n  Pass --bundler-ts <path> or ensure runtime-assets/bundler.ts exists in the workspace.")]
+    #[error("could not locate `bundler.ts`: {0}.\n  Pass --bundler-ts <path> or ensure runtime/bundler.ts exists in the workspace.")]
     MissingBundlerTs(String),
     #[error("io error at {path}: {source}")]
     Io {
@@ -140,7 +140,7 @@ fn walk_for_bundler_ts() -> Result<PathBuf, String> {
     let cwd = std::env::current_dir().map_err(|e| format!("cwd: {e}"))?;
     let mut cur = cwd.as_path();
     for _ in 0..16 {
-        let candidate = cur.join("runtime-assets").join("bundler.ts");
+        let candidate = cur.join("runtime").join("bundler.ts");
         if candidate.exists() {
             return Ok(candidate);
         }
@@ -149,7 +149,7 @@ fn walk_for_bundler_ts() -> Result<PathBuf, String> {
             None => break,
         }
     }
-    Err("runtime-assets/bundler.ts not found above cwd".to_string())
+    Err("runtime/bundler.ts not found above cwd".to_string())
 }
 
 fn which(bin: &str) -> Result<PathBuf, String> {

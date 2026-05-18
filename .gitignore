@@ -157,7 +157,7 @@ apps/docs/public/ship-*.js
 # SUI framework + view bundles are generated build outputs, consumed by
 # `cargo build -p shipd` via include_str! in crates/sui/ship-sui-server/src/assets.rs
 # (build.rs panics if missing). NOT tracked — produced on demand by:
-#   * `just bootstrap` / `just dev-build-all` (bun runtime-assets/bundler.ts)
+#   * `just bootstrap` / `just dev-build-all` (bun runtime/bundler.ts)
 #   * the in-daemon Bun worker (`~/.ship/runtime/bundler.ts`) in dev mode
 #   * `dispatch.sh`, which bootstraps fresh worktrees from the launching repo
 # `view-host.html` is hand-authored source and stays tracked.

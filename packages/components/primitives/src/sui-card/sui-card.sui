@@ -57,10 +57,10 @@
     display: block;
     position: relative;
     background: var(--card);
-    color: var(--card-foreground, var(--foreground));
+    color: var(--card-foreground);
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-card-rest, var(--shadow-xs));
+    box-shadow: var(--shadow-card-rest);
     --card-px: 20px;
     --card-py: 16px;
     --card-gap: var(--space-3, 12px);
@@ -115,14 +115,14 @@
   :host([interactive]) { cursor: pointer; -webkit-tap-highlight-color: transparent; }
   :host([interactive]:hover) {
     border-color: color-mix(in oklch, var(--border) 160%, transparent);
-    box-shadow: var(--shadow-hover, var(--shadow-sm));
+    box-shadow: var(--shadow-hover);
     transform: translateY(-1px);
   }
   @media (prefers-reduced-motion: reduce) {
     :host([interactive]:hover) { transform: none; }
   }
   :host([interactive]:active) {
-    box-shadow: var(--shadow-card-rest, var(--shadow-xs));
+    box-shadow: var(--shadow-card-rest);
     transform: translateY(0);
     transition-duration: 60ms;
   }

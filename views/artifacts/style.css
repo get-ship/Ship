@@ -70,12 +70,6 @@
   color: var(--muted-foreground);
   margin: 0;
 }
-.art-head-actions {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-
 .art-filters {
   display: flex;
   flex-wrap: wrap;
@@ -157,11 +151,6 @@
 }
 .art-empty-link:hover { color: var(--foreground); }
 
-.art-detail {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-}
 .art-detail-meta {
   display: flex;
   flex-direction: column;
@@ -244,16 +233,6 @@
 }
 .art-detail-download { text-decoration: none; }
 
-.art-upload-form {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-}
-.art-upload-field {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-}
 .art-upload-label {
   font-size: var(--text-sm);
   font-weight: 500;

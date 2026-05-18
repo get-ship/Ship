@@ -2,8 +2,10 @@
 //!
 //! The shell's create dialog posts here to materialize a new feature
 //! on disk. For `view`, we copy from
-//! `.ship/skills/ship-views/scaffolds/<shape>/` into
-//! `<ship-dir>/views/<name>/`, substituting `{{TITLE}}` and `{{NAME}}`
+//! `skills/ship-views/scaffolds/<shape>/` (the publish-ready skill;
+//! falls back to `.ship/skills/ship-views/scaffolds/<shape>/` if a
+//! project-local override exists) into `<ship-dir>/views/<name>/`,
+//! substituting `{{TITLE}}` and `{{NAME}}`
 //! placeholders. For `skill`, we render a `<ship-dir>/skills/<name>/
 //! SKILL.md` with shape-appropriate frontmatter + body. Other surfaces
 //! return 501 until their skills grow scaffold directories in a later

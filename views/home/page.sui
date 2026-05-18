@@ -5,19 +5,19 @@
   <div class="home-wrap">
 
     <header class="home-head">
-      <div class="home-wordmark">
+      <sui-cluster gap="3" align="center" class="home-wordmark">
         <sui-app-icon class="home-logo" name="dashboard" variant="solid"
           size="lg" radius="md" aria-hidden="true"></sui-app-icon>
         <div>
           <h1 class="home-title" data-test="home-title">SHIP</h1>
           <p class="home-workspace" data-test="home-workspace">{workspaceLabel()}</p>
         </div>
-      </div>
-      <div class="home-head-side">
+      </sui-cluster>
+      <sui-cluster gap="2" align="center" class="home-head-side">
         <div class="home-live-badge" role="status" aria-label="Live updates active">
           <span class="home-live-dot"></span>live
         </div>
-      </div>
+      </sui-cluster>
     </header>
 
     {#while-loading of dash}
@@ -42,7 +42,7 @@
           <span slot="title">Welcome to Ship</span>
           This workspace is empty. Start by adding an agent or scaffolding a view —
           everything else fills in as you work.
-          <div slot="action" class="home-empty-actions">
+          <sui-cluster slot="action" gap="2" justify="center" class="home-empty-actions">
             <sui-button tone="primary" variant="solid" on:click={() => navigate('/agents/create')} data-test="home-empty-agent">
               <sui-icon slot="leading" name="user-plus"></sui-icon>
               Add an agent
@@ -55,7 +55,7 @@
               <sui-icon slot="leading" name="sparkles"></sui-icon>
               Open Studio
             </sui-button>
-          </div>
+          </sui-cluster>
         </sui-empty-state>
       {:else}
         <div class="home-stats" role="list" aria-label="Workspace statistics" data-test="home-stats" data-view-enter>
@@ -98,7 +98,7 @@
                 Project at-a-glance
               </h2>
               <a class="home-section-link" href="/git" on:click={(e) => goNav(e, '/git')}>
-                Git view <sui-icon name="chevron-right" size="10" aria-hidden="true"></sui-icon>
+                Git view <sui-icon name="chevron-right" size="xs" aria-hidden="true"></sui-icon>
               </a>
             </div>
             <div class="home-glance">
@@ -128,10 +128,10 @@
                 Recent jobs
               </h2>
               <a class="home-section-link" href="/pipelines" on:click={(e) => goNav(e, '/pipelines')}>
-                View all <sui-icon name="chevron-right" size="10" aria-hidden="true"></sui-icon>
+                View all <sui-icon name="chevron-right" size="xs" aria-hidden="true"></sui-icon>
               </a>
             </div>
-            <div class="home-jobs-list">
+            <sui-stack>
               {#if recentJobs().length > 0}
                 {#for run of recentJobs() key={run.id}}
                   <sui-list-tile density="compact" class="home-job-tile" data-test="home-job">
@@ -157,7 +157,7 @@
                   Start a workflow to see runs here.
                 </sui-empty-state>
               {/if}
-            </div>
+            </sui-stack>
           </sui-card>
 
           <sui-card padding="none" class="home-section" aria-label="Agents" data-test="home-agents">
@@ -168,7 +168,7 @@
                 <sui-badge tone="muted" variant="soft" size="sm">{agentCount()}</sui-badge>
               </h2>
               <a class="home-section-link" href="/agents" on:click={(e) => goNav(e, '/agents')}>
-                Manage <sui-icon name="chevron-right" size="10" aria-hidden="true"></sui-icon>
+                Manage <sui-icon name="chevron-right" size="xs" aria-hidden="true"></sui-icon>
               </a>
             </div>
             <div class="home-section-body">
@@ -210,7 +210,7 @@
                 <sui-badge tone="muted" variant="soft" size="sm">{recentEvents().length}</sui-badge>
               </h2>
               <a class="home-section-link" href="/events" on:click={(e) => goNav(e, '/events')}>
-                Full stream <sui-icon name="chevron-right" size="10" aria-hidden="true"></sui-icon>
+                Full stream <sui-icon name="chevron-right" size="xs" aria-hidden="true"></sui-icon>
               </a>
             </div>
             <div class="home-section-body">
@@ -254,7 +254,7 @@
                 <a class="home-link-btn" href={link.href} on:click={(e) => goNav(e, link.href)}
                   data-test="home-link" attr:data-link={link.key}>
                   <div class="home-link-icon" attr:data-tone={link.key} aria-hidden="true">
-                    <sui-icon name={link.icon} size="16"></sui-icon>
+                    <sui-icon name={link.icon}></sui-icon>
                   </div>{link.label}
                 </a>
               {/for}

@@ -79,11 +79,6 @@
 }
 .se-search input::placeholder { color: var(--muted-foreground); }
 
-.se-filters {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-1);
-}
 .se-pill {
   display: inline-flex;
   align-items: center;
@@ -135,7 +130,6 @@
   gap: var(--space-2);
   padding: var(--space-3) var(--space-4);
 }
-.se-skel-row { display: flex; align-items: center; }
 .se-skel-row sui-skeleton[shape="line"] { flex: 1; }
 
 .se-skill-row {
@@ -451,7 +445,6 @@ sui-collapsible:not([open]) .si-coll-caret { transform: rotate(-90deg); }
   gap: var(--space-3);
 }
 
-.si-field { display: flex; flex-direction: column; gap: 6px; }
 .si-label {
   font-size: 10px;
   text-transform: uppercase;

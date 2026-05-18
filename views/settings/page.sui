@@ -12,20 +12,20 @@
     </header>
 
     {#while-loading of settings}
-      <div class="s-skel" aria-busy="true" aria-label="Loading settings">
+      <sui-stack gap="4" aria-busy="true" aria-label="Loading settings">
         {#for n of [0, 1, 2] key={n}}
-          <div class="s-skel-card">
-            <div class="s-skel-head">
+          <sui-stack class="s-skel-card" gap="3">
+            <sui-cluster gap="2" align="center">
               <sui-skeleton shape="circle" size="sm"></sui-skeleton>
               <sui-skeleton shape="line" size="md" style="width:120px"></sui-skeleton>
-            </div>
-            <div class="s-skel-body">
+            </sui-cluster>
+            <sui-stack gap="2">
               <sui-skeleton shape="line" size="md"></sui-skeleton>
               <sui-skeleton shape="line" size="md"></sui-skeleton>
-            </div>
-          </div>
+            </sui-stack>
+          </sui-stack>
         {/for}
-      </div>
+      </sui-stack>
     {/while-loading}
 
     {#while-error err of settings}
@@ -35,7 +35,7 @@
     {/while-error}
 
     {#if settings().kind === 'ok'}
-      <div class="s-sections">
+      <sui-stack gap="4">
 
         <!-- Account -->
         <sui-card id="account" padding="none">
@@ -88,7 +88,7 @@
                 <span class="s-row-label">Session</span>
                 <span slot="meta">Sign out clears the API key stored by this daemon</span>
                 <span slot="trailing">
-                  <sui-button variant="outline" tone="danger" size="sm"
+                  <sui-button variant="outline" tone="destructive" size="sm"
                     disabled={accountBusy()}
                     on:click={onAccountSignOut}>
                     Sign out
@@ -476,7 +476,7 @@
           </div>
         </sui-card>
 
-      </div>
+      </sui-stack>
     {/if}
   </main>
 </div>

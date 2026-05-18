@@ -60,14 +60,14 @@
   :host {
     display: block;
     width: 100%;
-    --tone: var(--ring-color, var(--primary));
+    --tone: var(--ring-color);
     --tone-fg: var(--foreground);
   }
   :host([hidden]) { display: none; }
 
   :host(:not([tone])),
   :host([tone='default']) {
-    --tone: var(--ring-color, var(--primary));
+    --tone: var(--ring-color);
     --tone-fg: var(--foreground);
   }
   :host([tone='primary'])     { --tone: var(--primary);          --tone-fg: var(--primary); }
