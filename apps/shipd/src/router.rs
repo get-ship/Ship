@@ -274,38 +274,10 @@ pub fn build_router(
     let feedback_guard = feedback_api::FeedbackGuard::new();
     let registry_state = mcp_registry::McpRegistryState::new();
 
-    // Account service — owns the gateway-bearer token store and the
-    // PKCE state for in-flight logins. Constructed once per daemon.
-    // Base URL defaults to production gateway; overridable via the
-    // SHIP_GATEWAY_URL env var so dev can point at staging or a local
-    // `wrangler dev` instance.
-    let gateway_base = std::env::var("SHIP_GATEWAY_URL")
-        .unwrap_or_else(|_| "https://api.getship.dev".to_string());
-    let account_store = Arc::new(
-        ship_platform::account::FileTokenStore::for_daemon_dir(rt.daemon_dir()),
-    );
-    let account_service = match ship_platform::account::AccountService::new(
-        account_store,
-        &gateway_base,
-    ) {
-        Ok(s) => Arc::new(s),
-        Err(e) => {
-            tracing::warn!(
-                "account service: build failed ({e}); /api/v1/account/* will return 500"
-            );
-            // Synthesize a degraded service so route registration still
-            // compiles; handlers will surface the construction error.
-            Arc::new(
-                ship_platform::account::AccountService::new(
-                    Arc::new(ship_platform::account::FileTokenStore::for_daemon_dir(
-                        rt.daemon_dir(),
-                    )),
-                    "https://api.getship.dev",
-                )
-                .expect("fallback service ctor"),
-            )
-        }
-    };
+    // Account service is owned by ShipRuntime; expose it as an Extension
+    // so REST handlers (`account_api::*`) can extract it. The read-op
+    // registry reaches the same Arc via `rt.account()`.
+    let account_service = rt.account().clone();
 
     // MCP registry proxy is a public, read-only endpoint — match the
     // original Cloudflare Worker handler's "no auth required" contract

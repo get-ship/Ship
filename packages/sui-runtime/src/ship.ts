@@ -18,7 +18,13 @@
 // co-located so controller code can read `ship.foo.bar()` without the
 // indirection of a per-project SDK manifest.
 
-import type { AgentsSummariesResponse, GitDiff, GitDiffArgs, GitOverview } from './generated'
+import type {
+  AccountState,
+  AgentsSummariesResponse,
+  GitDiff,
+  GitDiffArgs,
+  GitOverview,
+} from './generated'
 import type { LiveSource } from './live'
 
 /** Artifact metadata record — mirrors the daemon's `ArtifactRecord`. */
@@ -80,6 +86,13 @@ export interface WorkspaceSummary {
 
 /** Live SDK handle exposed to controllers, hooks, and `<data>` sources. */
 export interface ShipSDK {
+  account: {
+    /** Ship Cloud account snapshot — logged_out / pending / logged_in.
+     *  Re-emits on the next state-changing event; today the daemon only
+     *  flips the value on explicit login/logout so the chip refreshes
+     *  whenever those routes run. */
+    state(): LiveSource<AccountState>
+  }
   agents: {
     /** Agent list summaries — full payload as first patch, deltas after. */
     summaries(): LiveSource<AgentsSummariesResponse>

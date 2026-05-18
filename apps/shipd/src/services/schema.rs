@@ -489,4 +489,14 @@ pub const OPS: &[OpDescriptor] = &[
         permission: "ship.workspaces.read",
         sensitive: false,
     },
+
+    // ── account ──────────────────────────────────────────────────
+    OpDescriptor {
+        name: "account.state",
+        description: "Ship Cloud account snapshot — logged_out / pending / logged_in.",
+        args: &[],
+        returns: "AccountState",
+        permission: "ship.account.read",
+        sensitive: false,
+    },
 ];

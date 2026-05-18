@@ -15,9 +15,17 @@
 // short timer. Each row's `s-save-badge` binds `class:visible` to its
 // own signal instead of the shared `$mutation`.
 
-import { controller, signal, live } from '@ship/sui-runtime'
+import { controller, signal, derived, unwrapOr } from '@ship/sui-runtime'
 import type { Signal } from '@ship/sui-runtime'
-import { liveExpr } from '@ship/sdk-client'
+import {
+  accountDisplayName,
+  accountInitials,
+  accountPlanLabel,
+  accountSignIn,
+  accountSignOut,
+  openAccountBilling,
+  readAccountIdentity,
+} from '@ship/sdk-client'
 import type { Scope } from './page.sui'
 
 // Flip the given signal to true for `ms`, then back to false. Each call
@@ -54,19 +62,71 @@ async function settingsUpdate(formData: FormData): Promise<{ key: string; value:
 }
 
 export default controller<Scope>({
-  scope: () => ({
-    advancedOpen: signal(false),
-    savedProvider: signal(false),
-    savedModel: signal(false),
-    savedTerminal: signal(false),
-    savedWorktree: signal(false),
-    savedRegistry: signal(false),
-    flashSaved,
-    // Local SDK facade so `<form mutation="ship.settings.update">`
-    // resolves through `resolveChain` in wireFormMutation.
-    ship: { settings: { update: settingsUpdate } },
-    settings: live(() => liveExpr<unknown>('ship.settings.state()')),
-  }),
+  // `settings` and `account` come from the <data> elements in the template
+  // (see SUI hard rule #2). Destructure them from the auto-generated scope.
+  scope: ({ account }) => {
+    const accountBusy = signal(false)
+    const accountError = signal('')
+    const accountIdentity = derived(() =>
+      readAccountIdentity(unwrapOr(account, null)),
+    )
+    const accountName = derived(() => accountDisplayName(accountIdentity()))
+    const accountInitialsSig = derived(
+      () => accountInitials(accountIdentity()) || '··',
+    )
+    const accountPlan = derived(() => accountPlanLabel(accountIdentity()))
+
+    async function onAccountSignIn(): Promise<void> {
+      if (accountBusy()) return
+      accountBusy.set(true)
+      accountError.set('')
+      try {
+        await accountSignIn()
+      } catch (e) {
+        accountError.set(e instanceof Error ? e.message : String(e))
+      } finally {
+        accountBusy.set(false)
+      }
+    }
+    async function onAccountSignOut(): Promise<void> {
+      if (accountBusy()) return
+      accountBusy.set(true)
+      accountError.set('')
+      try {
+        await accountSignOut()
+      } catch (e) {
+        accountError.set(e instanceof Error ? e.message : String(e))
+      } finally {
+        accountBusy.set(false)
+      }
+    }
+
+    return {
+      advancedOpen: signal(false),
+      savedProvider: signal(false),
+      savedModel: signal(false),
+      savedTerminal: signal(false),
+      savedWorktree: signal(false),
+      savedRegistry: signal(false),
+      flashSaved,
+      // Local SDK facade so `<form mutation="ship.settings.update">`
+      // resolves through `resolveChain` in wireFormMutation.
+      ship: { settings: { update: settingsUpdate } },
+
+      // Account section — same live SSE source (declared in template) as
+      // <sui-account-menu> so the two surfaces stay in lockstep without
+      // duplicating state.
+      accountBusy,
+      accountError,
+      accountIdentity,
+      accountName,
+      accountInitials: accountInitialsSig,
+      accountPlan,
+      onAccountSignIn,
+      onAccountSignOut,
+      openBilling: openAccountBilling,
+    }
+  },
   on: {
     // Settings → About → Run setup again. Clears the wizard's
     // completion flag and dispatches `ship:setup:rerun` so shell's

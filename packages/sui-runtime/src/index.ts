@@ -264,6 +264,7 @@ export type { Patch, PatchOp, PathToken } from './patch'
 // Generated daemon ↔ runtime data contract. Authored by `cargo xtask
 // gen-types` from Rust source; do not edit `generated.ts` by hand.
 export type {
+  AccountState,
   AgentSummary,
   AgentsSummariesResponse,
   BranchSummary,
@@ -277,6 +278,7 @@ export type {
   LintFinding,
   LintViewRequest,
   ManifestRail,
+  MeView,
   ParsedDiff,
   RailMeta,
   ResolveError,

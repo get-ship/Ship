@@ -193,6 +193,10 @@ fn collect_framework_types() -> TypeCollection {
     c.register::<ship_platform::services::agents::view_state::AgentSummary>();
     c.register::<ship_platform::services::agents::view_state::AgentsSummariesResponse>();
 
+    // ship-platform::account — Ship Cloud account state for the chrome chip.
+    c.register::<ship_platform::account::types::AccountState>();
+    c.register::<ship_platform::account::types::MeView>();
+
     // view-authoring — contract types shared with the chrome edit-mode UI.
     c.register::<ship_platform::view_authoring::CompileError>();
     c.register::<ship_platform::view_authoring::SnapshotMeta>();

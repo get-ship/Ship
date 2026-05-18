@@ -35,6 +35,7 @@ const config: SuiBuildConfig = {
     'sui-devtools':         'src/components/sui-devtools/index.ts',
     'sui-component-picker': 'src/components/sui-component-picker/index.ts',
     'sui-view-authoring':   'src/components/sui-view-authoring/index.ts',
+    'sui-account-menu':     'src/components/sui-account-menu/index.ts',
   },
   outdir: '../../crates/sui/ship-sui-server/assets',
   lazyOutSubdir: 'sui-components',

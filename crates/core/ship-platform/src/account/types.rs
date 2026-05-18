@@ -35,7 +35,7 @@ impl AccountToken {
 
 /// Account-state snapshot returned by `GET /api/v1/account/state`.
 /// Used by Studio to render "signed in as X" / "log in" affordances.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 #[serde(tag = "state", rename_all = "snake_case")]
 pub enum AccountState {
     LoggedOut,
@@ -55,7 +55,7 @@ pub enum AccountState {
 /// User-identity payload exposed to clients. Mirrors
 /// `ship_gateway_client::User` but lives here to avoid leaking the
 /// generated buffa types across the platform boundary.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 pub struct MeView {
     pub id: String,
     pub name: String,
