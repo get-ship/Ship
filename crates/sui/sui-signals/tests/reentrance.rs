@@ -95,7 +95,7 @@ fn batch_inside_effect_coalesces_correctly() {
     // total at this point: once for its own initial, once for the batch flush
     // after the trigger-effect's initial run.
     let after_initial = runs.load(Ordering::Relaxed);
-    assert!(after_initial >= 2 && after_initial <= 3);
+    assert!((2..=3).contains(&after_initial));
 
     let before = runs.load(Ordering::Relaxed);
     trigger.set(1);
@@ -229,7 +229,7 @@ fn effect_created_on_main_thread_reruns_on_writing_thread() {
         s3.set(42);
         std::thread::current().id()
     });
-    let writer_id = writer_handle.join().expect("writer panicked");
+    let writer_id = writer_handle.join().unwrap();
 
     let entries = log.lock().unwrap().clone();
     assert_eq!(entries.len(), 2);

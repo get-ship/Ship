@@ -27,7 +27,7 @@ fn signal_clone_is_send_to_thread() {
     let handle = std::thread::spawn(move || {
         s2.set(42);
     });
-    handle.join().expect("thread panicked");
+    handle.join().unwrap();
     assert_eq!(s.peek(), 42);
 }
 
@@ -41,7 +41,7 @@ fn multi_thread_writes_no_deadlock() {
         })
         .collect();
     for h in handles {
-        h.join().expect("thread panicked");
+        h.join().unwrap();
     }
     // No panic or deadlock. Value is whichever thread won the race.
     let v = s.peek();
@@ -67,7 +67,7 @@ fn signal_set_from_different_thread_notifies_effect() {
         // Effect fires synchronously here, on this spawned thread.
         s.set(99);
     });
-    handle.join().expect("thread panicked");
+    handle.join().unwrap();
 
     assert_eq!(*received.lock().unwrap(), vec![0, 99]);
 }
@@ -84,7 +84,7 @@ async fn signal_passes_across_tokio_tasks() {
         s2.peek()
     })
     .await
-    .expect("task panicked");
+    .unwrap();
 
     assert_eq!(result, 7);
     assert_eq!(s.peek(), 7);
@@ -107,7 +107,7 @@ async fn signal_used_from_many_tasks_no_panic() {
         .collect();
 
     for t in tasks {
-        t.await.expect("task panicked");
+        t.await.unwrap();
     }
 
     assert_eq!(counter.load(Ordering::Relaxed), 16);
@@ -132,6 +132,6 @@ fn signal_in_arc_accessed_concurrently() {
         .collect();
 
     for h in handles {
-        h.join().expect("thread panicked");
+        h.join().unwrap();
     }
 }

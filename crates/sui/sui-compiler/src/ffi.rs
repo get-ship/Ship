@@ -35,12 +35,16 @@ pub extern "C" fn sui_compiler_compile(
 }
 
 /// Free a string returned by `sui_compiler_compile`.
+///
+/// # Safety
+/// `ptr` must be either null or a value previously returned by
+/// `sui_compiler_compile`. Passing any other pointer is UB.
 #[unsafe(no_mangle)]
-pub extern "C" fn sui_compiler_free_string(ptr: *mut c_char) {
+pub unsafe extern "C" fn sui_compiler_free_string(ptr: *mut c_char) {
     if ptr.is_null() {
         return;
     }
-    // SAFETY: ptr was produced by CString::into_raw in sui_compiler_compile.
+    // SAFETY: caller guarantees ptr was produced by CString::into_raw in sui_compiler_compile.
     unsafe { drop(CString::from_raw(ptr)) }
 }
 

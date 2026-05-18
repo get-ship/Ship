@@ -88,7 +88,7 @@ pub struct ChildHandle {
 
 impl ChildHandle {
     pub fn write_input(&self, bytes: &[u8]) -> Result<()> {
-        let mut guard = self.writer.lock().expect("ChildHandle writer mutex poisoned");
+        let mut guard = self.writer.lock().unwrap_or_else(|e| e.into_inner());
         let writer = guard
             .as_mut()
             .ok_or_else(|| anyhow!("actor '{}': writer closed", self.actor_id))?;
@@ -102,7 +102,7 @@ impl ChildHandle {
     }
 
     pub fn stop(&self) -> Result<()> {
-        let mut guard = self.child.lock().expect("ChildHandle child mutex poisoned");
+        let mut guard = self.child.lock().unwrap_or_else(|e| e.into_inner());
         if let Some(child) = guard.as_mut() {
             let _ = child.kill();
         }
@@ -110,7 +110,7 @@ impl ChildHandle {
     }
 
     pub fn pid(&self) -> Option<u32> {
-        *self.pid.lock().expect("ChildHandle pid mutex poisoned")
+        *self.pid.lock().unwrap_or_else(|e| e.into_inner())
     }
 
     pub fn is_alive(&self) -> bool {
@@ -132,7 +132,7 @@ impl ChildHandle {
     /// output broadcast closes — the reader exits on EOF, then the
     /// child status becomes available within a beat.
     pub fn try_exit(&self) -> Option<i32> {
-        let mut guard = self.child.lock().expect("ChildHandle child mutex poisoned");
+        let mut guard = self.child.lock().unwrap_or_else(|e| e.into_inner());
         guard.as_mut().and_then(|c| c.try_wait().ok().flatten())
     }
 
@@ -143,7 +143,7 @@ impl ChildHandle {
     /// readonly state (mesh-view debug attach to a stopped pipeline,
     /// for example).
     pub fn resize(&self, cols: u16, rows: u16) -> Result<()> {
-        let guard = self._master.lock().expect("ChildHandle _master mutex poisoned");
+        let guard = self._master.lock().unwrap_or_else(|e| e.into_inner());
         let Some(master) = guard.as_ref() else { return Ok(()) };
         master
             .resize(PtySize { cols, rows, pixel_width: 0, pixel_height: 0 })

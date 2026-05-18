@@ -190,7 +190,7 @@ fn rebuild_watcher(
 
 async fn handle_fs_event(
     ev: FsEvent,
-    entries: &mut Vec<FileTriggerEntry>,
+    entries: &mut [FileTriggerEntry],
     kernel: &Arc<tokio::sync::Mutex<KernelRouter>>,
 ) {
     for entry in entries.iter_mut() {

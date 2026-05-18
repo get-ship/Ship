@@ -174,15 +174,10 @@ mod cross_component {
         let drain = tokio::spawn(async move {
             let mut mb = mb;
             let mut seqs = Vec::new();
-            loop {
-                match tokio::time::timeout(Duration::from_secs(5), mb.recv()).await {
-                    Ok(Some(e)) => {
-                        let p: serde_json::Value = serde_json::from_str(&e.payload_json).unwrap();
-                        seqs.push(p["seq"].as_u64().unwrap());
-                        if seqs.len() as u32 == N { break; }
-                    }
-                    _ => break,
-                }
+            while let Ok(Some(e)) = tokio::time::timeout(Duration::from_secs(5), mb.recv()).await {
+                let p: serde_json::Value = serde_json::from_str(&e.payload_json).unwrap();
+                seqs.push(p["seq"].as_u64().unwrap());
+                if seqs.len() as u32 == N { break; }
             }
             seqs
         });

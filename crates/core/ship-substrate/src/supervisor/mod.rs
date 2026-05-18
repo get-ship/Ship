@@ -177,7 +177,7 @@ pub fn spawn_actor(profile: ActorProfile) -> Result<ActorHandle> {
                     // drop it (same as before this change).
                     mailbox_stash()
                         .lock()
-                        .expect("pre-registered mailbox stash poisoned")
+                        .unwrap_or_else(|e| e.into_inner())
                         .insert(actor_id_for_kr.clone(), mailbox);
                 }
                 Ok(())

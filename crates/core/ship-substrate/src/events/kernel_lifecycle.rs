@@ -19,7 +19,7 @@ impl KernelRouter {
 
         #[cfg(feature = "unstable")]
         {
-            let log_len = self.event_log.lock().expect("event_log mutex poisoned").len();
+            let log_len = self.event_log.lock().unwrap_or_else(|e| e.into_inner()).len();
             self.actor_cursors.insert(actor_id.to_string(), log_len);
             self.actor_meta.remove(actor_id);
         }

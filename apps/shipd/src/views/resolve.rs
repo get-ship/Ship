@@ -1,7 +1,7 @@
 //! Resolver helpers — view dir lookup, manifest parsing, type detection.
 
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use serde::Deserialize;
 
@@ -15,13 +15,16 @@ pub(crate) struct ManifestFile {
     element: Option<String>,
     claims: Option<Vec<String>>,
     entry: Option<String>,
+    #[allow(dead_code)] // Deserialized but not yet read; kept for forward-compat manifests.
     pub data: Option<ManifestData>,
+    #[allow(dead_code)]
     pub events: Option<Vec<String>>,
     /// Optional list of bundle packs this view needs at load time.
     /// Each pack name expands to a fixed set of JS bundles that the daemon
     /// injects as `<script type="module">` tags into the response. Known
     /// packs live in [`super::packs`]. Unknown names are silently skipped.
     #[serde(default)]
+    #[allow(dead_code)]
     pub packs: Option<Vec<String>>,
     /// Shell display metadata — rail label, icon, pin defaults.
     /// Absent → view has no pinned/launcher presence unless the shell
@@ -72,6 +75,7 @@ fn humanize(id: &str) -> String {
 /// is absent — they're silently ignored.
 #[derive(Deserialize, Clone)]
 pub(crate) struct ManifestData {
+    #[allow(dead_code)] // Deserialized but not yet read.
     pub collections: Option<ManifestCollections>,
 }
 
@@ -169,7 +173,7 @@ pub(crate) fn read_raw_manifest(dir: &std::path::Path) -> Option<ManifestFile> {
     }
 }
 
-pub(super) fn read_manifest_file(dir: &PathBuf, name: &str) -> Option<ViewManifest> {
+pub(super) fn read_manifest_file(dir: &Path, name: &str) -> Option<ViewManifest> {
     let raw: ManifestFile = read_raw_manifest(dir)?;
 
     let vtype = raw.view_type.unwrap_or_else(|| "html".into());
@@ -183,7 +187,7 @@ pub(super) fn read_manifest_file(dir: &PathBuf, name: &str) -> Option<ViewManife
     Some(ViewManifest { name: mname, view_type: vtype, element_name: el, bundle_url: url, claims: raw.claims, entry: raw.entry })
 }
 
-fn detect_view_type(dir: &PathBuf) -> Option<String> {
+fn detect_view_type(dir: &Path) -> Option<String> {
     if (dir.join("manifest.yaml").exists()
         || dir.join("manifest.jsonc").exists()
         || dir.join("manifest.json").exists())
