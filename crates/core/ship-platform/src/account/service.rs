@@ -28,7 +28,7 @@ use sha2::{Digest, Sha256};
 use tokio::sync::Mutex;
 
 use ship_gateway_client::{
-    AuthServiceClient, HttpClient, TokenExchangeRequest, auth_client,
+    AuthServiceClient, CallOptions, GetMeRequest, HttpClient, TokenExchangeRequest, auth_client,
 };
 
 use super::store::AccountTokenStore;
@@ -180,21 +180,48 @@ impl AccountService {
         }
     }
 
-    /// Fetch the current user identity from the gateway. Requires a
-    /// stored token; returns an error otherwise.
+    /// Fetch the current user identity from the gateway, authenticated
+    /// with the stored API key. Returns an error when not logged in or
+    /// when the gateway rejects the call.
     pub async fn refresh_me(&self) -> Result<MeView> {
-        // Note: the client doesn't yet route the bearer token automatically
-        // — auth bearer plumbing is next-commit work. For now this is a
-        // placeholder that surfaces the right error shape without making
-        // the unauth'd call.
-        let _stored = self
+        let stored = self
             .store
             .read()
             .await?
             .ok_or_else(|| anyhow!("not logged in"))?;
-        Err(anyhow!(
-            "refresh_me: client bearer plumbing pending (task #72 follow-up)"
-        ))
+        if stored.is_expired() {
+            return Err(anyhow!("token expired; run `ship login` to re-auth"));
+        }
+
+        // Per-call header injection. Generated client exposes
+        // `<method>_with_options` taking CallOptions; we use
+        // `with_header` to set `Authorization: Bearer <key>`. ClientConfig
+        // doesn't carry default headers in connectrpc 0.4, so per-call is
+        // the right knob today; if we add a second authenticated method
+        // we'll wrap the client in a thin adapter that sets the header
+        // for every call.
+        let opts = CallOptions::default()
+            .with_header("authorization", format!("Bearer {}", stored.key));
+        let resp = self
+            .client
+            .get_me_with_options(GetMeRequest::default(), opts)
+            .await
+            .map_err(|e| anyhow!("gateway GetMe failed: {e}"))?;
+        let view = resp.view();
+        let user = view
+            .user
+            .as_option()
+            .ok_or_else(|| anyhow!("gateway GetMe: empty user"))?;
+        Ok(MeView {
+            id: user.id.to_string(),
+            name: user.name.to_string(),
+            email: user.email.to_string(),
+            image: if user.image.is_empty() {
+                None
+            } else {
+                Some(user.image.to_string())
+            },
+        })
     }
 
     /// Snapshot of account state — used by Studio and `ship whoami`.

@@ -27,7 +27,7 @@
 //! or `https://staging.getship.dev` (staging). Override via
 //! [`auth_client()`] argument; the transport is the same.
 
-pub use connectrpc::client::{ClientConfig, HttpClient};
+pub use connectrpc::client::{CallOptions, ClientConfig, HttpClient};
 pub use connectrpc::ConnectError;
 
 // Generated modules — one per proto package. connectrpc-build emits a
