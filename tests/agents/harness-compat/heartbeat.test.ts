@@ -117,10 +117,11 @@ for (const h of HARNESSES) {
             );
           }
 
-          // After heartbeats and the pid=0-as-no-pid fix in row_to_actor,
-          // activity_live should kick in: last_event_at advanced within
-          // 90s + pid treated as None → live=true.
+          // After the projection picks up process.spawned, pid is the
+          // real child pid (not null, not 0). live = pid_alive(pid).
           expect(after.live).toBe(true);
+          expect(after.pid).not.toBeNull();
+          expect(after.pid).toBeGreaterThan(0);
           console.log(
             `INFO: ${h.id} actor.live=${after.live} pid=${after.pid ?? "null"} after heartbeats`,
           );
