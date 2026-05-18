@@ -28,9 +28,9 @@ use std::sync::Arc;
 use tokio::process::Command;
 use tokio::sync::Mutex;
 
-use crate::handle::{ExecHandle, SandboxHandle, SandboxId};
-use crate::policy::{MountMode, NetworkPolicy, SandboxPolicy};
-use crate::trait_def::{Isolator, IsolatorError, LaunchCommand};
+use ship_substrate::isolation::{ExecHandle, SandboxHandle, SandboxId};
+use ship_substrate::isolation::{MountMode, NetworkPolicy, SandboxPolicy};
+use ship_substrate::isolation::{Isolator, IsolatorError, LaunchCommand};
 
 #[derive(Debug, Clone)]
 pub struct DockerConfig {
@@ -292,7 +292,7 @@ fn mount_args(policy: &SandboxPolicy) -> Vec<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::policy::{FsMount, ResourceLimits};
+    use ship_substrate::isolation::{FsMount, ResourceLimits};
     use std::collections::HashMap;
     use std::path::PathBuf;
 

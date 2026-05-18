@@ -28,9 +28,9 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::process::Command;
 
-use crate::handle::{ExecHandle, SandboxHandle, SandboxId};
-use crate::policy::{MountMode, NetworkPolicy, SandboxPolicy};
-use crate::trait_def::{Isolator, IsolatorError, LaunchCommand};
+use ship_substrate::isolation::{ExecHandle, SandboxHandle, SandboxId};
+use ship_substrate::isolation::{MountMode, NetworkPolicy, SandboxPolicy};
+use ship_substrate::isolation::{Isolator, IsolatorError, LaunchCommand};
 
 #[derive(Debug, Clone)]
 pub struct YoukiConfig {
@@ -97,7 +97,7 @@ pub(crate) struct OciMount {
     pub(crate) options: Vec<&'static str>,
 }
 
-pub(crate) fn mount_for(m: &crate::policy::FsMount) -> OciMount {
+pub(crate) fn mount_for(m: &ship_substrate::isolation::FsMount) -> OciMount {
     OciMount {
         destination: m.sandbox_path.display().to_string(),
         source: m.host_path.display().to_string(),

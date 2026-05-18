@@ -3,7 +3,7 @@
 
 use std::path::{Path, PathBuf};
 
-use crate::policy::{FsMount, MountMode};
+use ship_substrate::isolation::{FsMount, MountMode};
 
 /// A host file copied into a per-sandbox scratch dir for bind-mounting.
 /// Drops the copy when the guard goes out of scope. Use this for

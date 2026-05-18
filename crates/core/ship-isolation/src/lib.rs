@@ -1,46 +1,34 @@
-//! Agent-process isolation primitives.
+//! Ship-specific isolation strategies.
 //!
-//! **Status: experimental spike.** Lives in its own crate with no
-//! dependents from `ship-substrate` / `ship-platform` / `ship-supervisor`.
-//! Integration into the orchestrator is a separate branch and a separate
-//! conversation. See `.artifacts/local-sandbox-spec/` for the research
-//! and design intent that produced this crate.
+//! The abstraction (the `Isolator` trait + `SandboxPolicy` + the
+//! lifetime-bound `SandboxHandle`) lives in `ship_substrate::isolation`
+//! so an `ActorHandle` can own its sandbox. This crate provides the
+//! concrete L1 pieces:
 //!
-//! ## Scope
+//! - **Backends** — Docker / Podman, youki rootless, sandbox-runtime,
+//!   sidecar, etc. Each is gated by a Cargo feature.
+//! - **Capabilities** — host probe for which primitives are usable.
+//! - **Tier + Strategy** — the user-facing taxonomy.
+//! - **Recommender** — maps `(capabilities, overrides) → strategy` with
+//!   per-OS defaults and honest downgrade reasons.
+//! - **Registry** — `IsolationStrategy → Arc<dyn Isolator>` factory map.
+//! - **Settings** — env-var precedence + "auto" sentinel resolution +
+//!   launch-wrap helpers.
 //!
-//! Sandboxes the *agent process itself* — the harness binary spawned by
-//! the orchestrator. Distinct from `IsolationStrategy` in
-//! `ship_substrate::services::dispatch_ports`, which prepares the
-//! working *directory* (git worktree) before the process runs. The two
-//! compose: prepare worktree → wrap the process in an `Isolator`.
-//!
-//! ## Backends
-//!
-//! - [`backends::Noop`] — runs unsandboxed. Default; matches today.
-//! - [`backends::SandboxRuntime`] — wraps the Anthropic `sandbox-runtime`
-//!   npm package via a Bun subprocess. Composing/wrapping backend.
-//! - [`backends::Youki`] (feature `youki-backend`, Linux only) — runs
-//!   the agent inside an OCI container managed by `youki`. Forward-
-//!   looking experiment.
+//! See `docs/strategy.md` for the design intent.
 
 pub mod backends;
 pub mod capabilities;
-pub mod handle;
 pub mod helpers;
 pub mod net;
-pub mod policy;
 pub mod recommender;
 pub mod registry;
 pub mod settings;
 pub mod sidecar;
 pub mod tier;
 
-mod trait_def;
-
 pub use capabilities::{Capabilities, HostOs};
-pub use handle::{ExecHandle, SandboxHandle, SandboxId};
 pub use helpers::EphemeralFile;
-pub use policy::{FsMount, MountMode, NetworkPolicy, SandboxPolicy, ResourceLimits};
 pub use recommender::{
     RecommendInput, RecommenderError, ResolutionReason, ResolvedIsolation, recommend,
 };
@@ -49,4 +37,22 @@ pub use registry::{
     register_harness_sandbox,
 };
 pub use tier::{IsolationProfile, IsolationStrategy, IsolationTier};
-pub use trait_def::{Isolator, IsolatorError, LaunchCommand};
+
+// Re-export the substrate-owned abstraction so existing callers using
+// `ship_isolation::Isolator` etc. don't change. These are the same
+// types — substrate is the canonical location now because ActorHandle
+// owns the sandbox lifetime.
+pub use ship_substrate::isolation::{
+    ExecHandle, FsMount, Isolator, IsolatorError, LaunchCommand, MountMode, NetworkPolicy,
+    ResourceLimits, SandboxHandle, SandboxId, SandboxPolicy,
+};
+
+/// `policy` was a top-level module here pre-L0-move. Callers that
+/// imported `ship_isolation::policy::SandboxPolicy` still work via this
+/// re-export; new code should use `ship_isolation::SandboxPolicy` (or
+/// `ship_substrate::isolation::SandboxPolicy`) directly.
+pub mod policy {
+    pub use ship_substrate::isolation::{
+        FsMount, MountMode, NetworkPolicy, ResourceLimits, SandboxPolicy,
+    };
+}

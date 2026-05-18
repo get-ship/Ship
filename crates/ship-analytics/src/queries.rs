@@ -1,3 +1,7 @@
+// SQLx returns large positional tuples for raw fetch; refactoring each
+// into a typed struct is a separate cleanup. Allow locally for now.
+#![allow(clippy::type_complexity)]
+
 //! Typed SELECT helpers over `analytics_sessions` and `analytics_tool_uses`.
 //!
 //! Dashboard / CLI / HTTP-endpoint code should call these instead of

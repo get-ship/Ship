@@ -83,11 +83,17 @@ pub fn discard_pre_registered_mailbox(actor_id: &str) {
 /// dropping does NOT kill the child; explicit `stop()` does. This
 /// matches the `lifecycle.rs::PtySession` contract so migration is a
 /// drop-in replacement.
+///
+/// `sandbox` carries the isolation owner when the actor runs inside
+/// one. It's an `Arc` so cloning the handle is cheap; the underlying
+/// `SandboxOwner::Drop` fires the isolator's `shutdown()` when the
+/// last clone goes away. Stays `None` for unsandboxed actors.
 #[derive(Clone)]
 pub struct ActorHandle {
     pub actor_id: String,
     pub kind: ActorKind,
     pub child: Arc<ChildHandle>,
+    pub sandbox: Option<Arc<crate::isolation::SandboxOwner>>,
 }
 
 impl ActorHandle {
@@ -246,7 +252,20 @@ pub fn spawn_actor(profile: ActorProfile) -> Result<ActorHandle> {
         actor_id,
         kind: profile.kind,
         child,
+        sandbox: None,
     })
+}
+
+impl ActorHandle {
+    /// Attach a sandbox to this handle. Called by the supervisor right
+    /// after `spawn_actor` returns when the agent runs inside an
+    /// isolator. Returns a new handle (shares the same child + actor
+    /// id) with the sandbox owner attached. The owner's `Drop` fires
+    /// shutdown when the last clone of this handle is gone.
+    pub fn with_sandbox(mut self, sandbox: Arc<crate::isolation::SandboxOwner>) -> Self {
+        self.sandbox = Some(sandbox);
+        self
+    }
 }
 
 /// Convenience: where children write their logs by default. Callers

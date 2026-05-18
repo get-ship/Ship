@@ -4,7 +4,7 @@ use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::Mutex;
 
-use crate::trait_def::IsolatorError;
+use ship_substrate::isolation::IsolatorError;
 
 #[derive(Debug, Clone)]
 pub struct HostMatcher {

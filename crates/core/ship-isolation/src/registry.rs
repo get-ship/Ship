@@ -17,7 +17,7 @@ use std::sync::Arc;
 
 use crate::backends;
 use crate::tier::IsolationStrategy;
-use crate::trait_def::Isolator;
+use ship_substrate::isolation::Isolator;
 
 /// A factory closure that constructs an `Isolator` for one launch.
 /// Returns `Arc` so the registry can hand the same instance to many
@@ -94,9 +94,9 @@ pub fn register_harness_sandbox(r: &mut Registry, cfg: backends::SandboxRuntimeC
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::handle::{ExecHandle, SandboxHandle};
-    use crate::policy::SandboxPolicy;
-    use crate::trait_def::{IsolatorError, LaunchCommand};
+    use ship_substrate::isolation::{ExecHandle, SandboxHandle};
+    use ship_substrate::isolation::SandboxPolicy;
+    use ship_substrate::isolation::{IsolatorError, LaunchCommand};
     use async_trait::async_trait;
 
     struct DummyIsolator(&'static str);

@@ -3,8 +3,8 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use thiserror::Error;
 
-use crate::handle::{ExecHandle, SandboxHandle};
-use crate::policy::SandboxPolicy;
+use super::handle::{ExecHandle, SandboxHandle};
+use super::policy::SandboxPolicy;
 
 #[derive(Debug, Clone)]
 pub struct LaunchCommand {

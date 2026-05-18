@@ -5,7 +5,7 @@
 //! per `data:` line. Health probe is `GET /v1/health` → `200 OK` with
 //! `{"status":"ok","version":"<sidecar semver>"}`.
 //!
-//! Endpoints intentionally mirror the trait surface in `crate::trait_def`
+//! Endpoints intentionally mirror the trait surface in `ship_substrate::isolation`
 //! so the same types serialize to either local transport or cloud HTTPS.
 
 use serde::{Deserialize, Serialize};
@@ -19,7 +19,7 @@ pub struct HealthResponse {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SessionStartRequest {
     pub label: String,
-    pub policy: crate::policy::SandboxPolicy,
+    pub policy: ship_substrate::isolation::SandboxPolicy,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -57,13 +57,13 @@ pub struct StdinRequest {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MountRequest {
     pub session_id: String,
-    pub mount: crate::policy::FsMount,
+    pub mount: ship_substrate::isolation::FsMount,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PolicyUpdateRequest {
     pub session_id: String,
-    pub policy: crate::policy::SandboxPolicy,
+    pub policy: ship_substrate::isolation::SandboxPolicy,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -123,7 +123,7 @@ mod tests {
     fn session_start_roundtrips() {
         let req = SessionStartRequest {
             label: "demo".into(),
-            policy: crate::policy::SandboxPolicy::workspace_default(PathBuf::from("/tmp/x")),
+            policy: ship_substrate::isolation::SandboxPolicy::workspace_default(PathBuf::from("/tmp/x")),
         };
         let s = serde_json::to_string(&req).unwrap();
         let back: SessionStartRequest = serde_json::from_str(&s).unwrap();

@@ -31,11 +31,11 @@ use tokio::net::TcpListener;
 use tokio::process::{Child, Command};
 
 use crate::backends::youki::{patch_spec, Youki, YoukiConfig};
-use crate::handle::SandboxId;
+use ship_substrate::isolation::SandboxId;
 use crate::net::{HostMatcher, ProxyHandle, spawn_allowlist_proxy};
-use crate::policy::{FsMount, MountMode, NetworkPolicy, SandboxPolicy};
+use ship_substrate::isolation::{FsMount, MountMode, NetworkPolicy, SandboxPolicy};
 use crate::sidecar::protocol::{ExecRequest, ExecResponse};
-use crate::trait_def::IsolatorError;
+use ship_substrate::isolation::IsolatorError;
 
 const SIDECAR_INSIDE: &str = "/usr/local/bin/ship-sidecar";
 
@@ -162,7 +162,7 @@ impl SidecarSandbox {
             );
         }
 
-        let sidecar_cmd = crate::trait_def::LaunchCommand {
+        let sidecar_cmd = ship_substrate::isolation::LaunchCommand {
             bin: PathBuf::from(SIDECAR_INSIDE),
             args: vec![
                 "--addr".into(),

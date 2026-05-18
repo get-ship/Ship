@@ -152,7 +152,7 @@ pub struct IsolationProfile {
     pub strategy: Option<IsolationStrategy>,
     /// Optional policy override (mounts, network, limits).
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub policy: Option<crate::policy::SandboxPolicy>,
+    pub policy: Option<ship_substrate::isolation::SandboxPolicy>,
 }
 
 impl IsolationProfile {

@@ -33,9 +33,9 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::process::Command;
 
-use crate::handle::{ExecHandle, SandboxHandle, SandboxId};
-use crate::policy::{MountMode, NetworkPolicy, SandboxPolicy};
-use crate::trait_def::{Isolator, IsolatorError, LaunchCommand};
+use ship_substrate::isolation::{ExecHandle, SandboxHandle, SandboxId};
+use ship_substrate::isolation::{MountMode, NetworkPolicy, SandboxPolicy};
+use ship_substrate::isolation::{Isolator, IsolatorError, LaunchCommand};
 
 #[derive(Debug, Clone)]
 pub struct SandboxRuntimeConfig {

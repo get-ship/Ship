@@ -2,9 +2,9 @@ use async_trait::async_trait;
 use std::sync::Arc;
 use tokio::process::Command;
 
-use crate::handle::{ExecHandle, SandboxHandle, SandboxId};
-use crate::policy::SandboxPolicy;
-use crate::trait_def::{Isolator, IsolatorError, LaunchCommand};
+use super::handle::{ExecHandle, SandboxHandle, SandboxId};
+use super::policy::SandboxPolicy;
+use super::trait_def::{Isolator, IsolatorError, LaunchCommand};
 
 #[derive(Debug, Default, Clone)]
 pub struct Noop;

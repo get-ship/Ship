@@ -3,7 +3,7 @@ name = "ship-isolation"
 version = "0.1.0"
 edition = "2024"
 publish = false
-description = "Agent-process isolation primitives. Forward-looking; no L1+ dependents yet. See .artifacts/local-sandbox-spec/."
+description = "Ship-specific isolation strategies. The Isolator trait + abstract policy types live in ship-substrate; this crate provides the concrete backends (Docker, Youki, SandboxRuntime, sidecar) plus the recommender + registry + settings layer."
 
 [features]
 default = []
@@ -11,6 +11,7 @@ youki-backend = ["dep:libc"]
 sidecar-mode = ["dep:reqwest", "dep:base64", "dep:futures-util"]
 
 [dependencies]
+ship-substrate = { path = "../ship-substrate" }
 anyhow = { workspace = true }
 thiserror = { workspace = true }
 async-trait = { workspace = true }
