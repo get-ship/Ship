@@ -96,8 +96,11 @@ pub fn build_router(
     let public_routes = Router::new()
         .route(
             "/auth/pair/init",
-            axum::routing::post(move |body: Option<axum::Json<auth::PairInitRequest>>| {
-                auth::pair_init(pair_init_reg.clone(), pair_init_sessions.clone(), body)
+            axum::routing::post(move |
+                peer: axum::extract::ConnectInfo<std::net::SocketAddr>,
+                body: Option<axum::Json<auth::PairInitRequest>>,
+            | {
+                auth::pair_init(pair_init_reg.clone(), pair_init_sessions.clone(), Some(peer), body)
             }),
         )
         .route(

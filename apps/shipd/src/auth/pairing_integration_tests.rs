@@ -55,7 +55,7 @@ async fn pair_init_confirm_status_roundtrip() {
     let sessions = session_registry();
 
     // 1. Init
-    let init = auth::pair_init(reg.clone(), sessions.clone(), None)
+    let init = auth::pair_init(reg.clone(), sessions.clone(), None, None)
         .await
         .unwrap();
     let code = init.0.code.clone();
@@ -120,7 +120,7 @@ async fn pair_confirm_rejects_non_full_scope() {
     let reg = pairing::new_shared();
     let sessions = session_registry();
 
-    let init = auth::pair_init(reg.clone(), sessions.clone(), None)
+    let init = auth::pair_init(reg.clone(), sessions.clone(), None, None)
         .await
         .unwrap();
 
@@ -158,7 +158,7 @@ async fn pair_code_is_single_use() {
     let reg = pairing::new_shared();
     let sessions = session_registry();
 
-    let init = auth::pair_init(reg.clone(), sessions.clone(), None)
+    let init = auth::pair_init(reg.clone(), sessions.clone(), None, None)
         .await
         .unwrap();
     let code = init.0.code.clone();
@@ -269,7 +269,7 @@ async fn revoke_removes_from_registry_and_kv() {
     let sessions = session_registry();
 
     // Pair to create a persisted session.
-    let init = auth::pair_init(reg.clone(), sessions.clone(), None)
+    let init = auth::pair_init(reg.clone(), sessions.clone(), None, None)
         .await
         .unwrap();
     let _ = auth::pair_confirm(
