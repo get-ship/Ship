@@ -209,6 +209,8 @@ export interface ActorRow {
   live: boolean;
   pid: number | null;
   harness: string | null;
+  transport: string | null;
+  last_event_at: string | null;
 }
 
 export async function waitForActorRow(
@@ -223,6 +225,8 @@ export async function waitForActorRow(
         live?: boolean;
         pid?: number | null;
         harness?: string | null;
+        transport?: string | null;
+        last_event_at?: string | null;
       };
     }>(`/api/v1/actors/${slug}`);
     const a = body.data;
@@ -232,11 +236,37 @@ export async function waitForActorRow(
         live: a.live ?? false,
         pid: a.pid ?? null,
         harness: a.harness ?? null,
+        transport: a.transport ?? null,
+        last_event_at: a.last_event_at ?? null,
       };
     }
     await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
   }
   return null;
+}
+
+/** Fetch the current actor row without polling (returns null on 404). */
+export async function getActorRow(slug: string): Promise<ActorRow | null> {
+  const { status, body } = await api<{
+    data?: {
+      kind?: string;
+      live?: boolean;
+      pid?: number | null;
+      harness?: string | null;
+      transport?: string | null;
+      last_event_at?: string | null;
+    };
+  }>(`/api/v1/actors/${slug}`);
+  const a = body.data;
+  if (status !== 200 || !a?.kind) return null;
+  return {
+    kind: a.kind,
+    live: a.live ?? false,
+    pid: a.pid ?? null,
+    harness: a.harness ?? null,
+    transport: a.transport ?? null,
+    last_event_at: a.last_event_at ?? null,
+  };
 }
 
 export async function waitForMeshClear(

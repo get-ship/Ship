@@ -66,30 +66,37 @@ describe("hooks / daemon emit", () => {
   ] as const;
 
   for (const c of cases) {
-    test(`POST /hooks/${c.endpoint} emits ${c.eventType}`, async () => {
-      const probeActor = `hooks-test-${Date.now()}`;
-      const sinceId = await latestEventId();
+    test(
+      `POST /hooks/${c.endpoint} emits ${c.eventType}`,
+      async () => {
+        const probeActor = `hooks-test-${Date.now()}`;
+        const sinceId = await latestEventId();
 
-      const res = await api(`/api/v1/hooks/${c.endpoint}`, {
-        method: "POST",
-        body: JSON.stringify({
-          actor_id: probeActor,
-          session_id: probeActor,
-        }),
-      });
-      expect(res.status).toBe(200);
+        const res = await api(`/api/v1/hooks/${c.endpoint}`, {
+          method: "POST",
+          body: JSON.stringify({
+            actor_id: probeActor,
+            session_id: probeActor,
+          }),
+        });
+        expect(res.status).toBe(200);
 
-      const events = await pollForEvents(
-        (e) => e.event_type === c.eventType && e.entity_id === probeActor,
-        { sinceId, timeoutMs: 5_000, stopAfter: 1 },
-      );
-      expect(events.length).toBe(1);
-      const e = events[0]!;
-      // Target + actor_id mirror the entity (the session id) so
-      // observers can filter to a specific session.
-      expect(e.target_actor_id).toBe(probeActor);
-      expect(e.actor_id).toBe(probeActor);
-    });
+        // Generous timeout: poll endpoint scans recent events list +
+        // filters in-process. With a busy DB the first page may not
+        // include our event; widen the window.
+        const events = await pollForEvents(
+          (e) => e.event_type === c.eventType && e.entity_id === probeActor,
+          { sinceId, timeoutMs: 10_000, stopAfter: 1 },
+        );
+        expect(events.length).toBe(1);
+        const e = events[0]!;
+        // Target + actor_id mirror the entity (the session id) so
+        // observers can filter to a specific session.
+        expect(e.target_actor_id).toBe(probeActor);
+        expect(e.actor_id).toBe(probeActor);
+      },
+      15_000,
+    );
   }
 });
 
