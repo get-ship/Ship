@@ -51,10 +51,12 @@ wrangler d1 migrations apply ship-auth --env production
 wrangler d1 migrations apply ship-registry --env production
 ```
 
-Three auth migrations exist as of this writing:
+Five auth migrations exist as of this writing:
 - `0001_initial.sql` — Better Auth core tables (user, session, account, verification) + CLI PKCE
 - `0002_user_plan.sql` — adds `user.plan` (defaults to `'local'`)
 - `0003_stripe.sql` — adds `user.stripeCustomerId` + the `subscription` table
+- `0004_api_keys.sql` — Better Auth `apikey` table for CLI / daemon long-lived bearer auth
+- `0005_cascade_user_fks.sql` — switches `session.userId`, `account.userId`, `apikey.userId` FKs from `NO ACTION` to `CASCADE` so the deleteUser flow leaves no orphans
 
 ### Cloudflare Email binding
 
