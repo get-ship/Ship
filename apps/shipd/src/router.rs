@@ -18,12 +18,12 @@ use crate::{
     sessions, views,
 };
 use crate::routes::{
-    actor_api, actors_api, agents_api, annotations_api, artifacts_api, collection_api,
-    commands_api, create_api, feedback_api, git_api, hooks_api, human_webhook, logs_api,
-    mcp_api, openapi, permissions_api, pipelines_api, projects_api, rest_api, rules_api,
-    runtime_api, sdk_manifest, search_api, settings_api, skills_api, specs_api,
-    themes_api, view_edit_mode_api, view_edit_tool_api, view_errors_api, view_sessions_api,
-    webhook_ext,
+    account_api, actor_api, actors_api, agents_api, annotations_api, artifacts_api,
+    collection_api, commands_api, create_api, feedback_api, git_api, hooks_api,
+    human_webhook, logs_api, mcp_api, openapi, permissions_api, pipelines_api, projects_api,
+    rest_api, rules_api, runtime_api, sdk_manifest, search_api, settings_api, skills_api,
+    specs_api, themes_api, view_edit_mode_api, view_edit_tool_api, view_errors_api,
+    view_sessions_api, webhook_ext,
 };
 use crate::auth::{attest, pairing, session};
 use crate::transport::{cors, pty as pty_handler};
@@ -274,6 +274,39 @@ pub fn build_router(
     let feedback_guard = feedback_api::FeedbackGuard::new();
     let registry_state = mcp_registry::McpRegistryState::new();
 
+    // Account service — owns the gateway-bearer token store and the
+    // PKCE state for in-flight logins. Constructed once per daemon.
+    // Base URL defaults to production gateway; overridable via the
+    // SHIP_GATEWAY_URL env var so dev can point at staging or a local
+    // `wrangler dev` instance.
+    let gateway_base = std::env::var("SHIP_GATEWAY_URL")
+        .unwrap_or_else(|_| "https://api.getship.dev".to_string());
+    let account_store = Arc::new(
+        ship_platform::account::FileTokenStore::for_daemon_dir(rt.daemon_dir()),
+    );
+    let account_service = match ship_platform::account::AccountService::new(
+        account_store,
+        &gateway_base,
+    ) {
+        Ok(s) => Arc::new(s),
+        Err(e) => {
+            tracing::warn!(
+                "account service: build failed ({e}); /api/v1/account/* will return 500"
+            );
+            // Synthesize a degraded service so route registration still
+            // compiles; handlers will surface the construction error.
+            Arc::new(
+                ship_platform::account::AccountService::new(
+                    Arc::new(ship_platform::account::FileTokenStore::for_daemon_dir(
+                        rt.daemon_dir(),
+                    )),
+                    "https://api.getship.dev",
+                )
+                .expect("fallback service ctor"),
+            )
+        }
+    };
+
     // MCP registry proxy is a public, read-only endpoint — match the
     // original Cloudflare Worker handler's "no auth required" contract
     // so the shell's agent builder can query it before pairing.
@@ -289,6 +322,7 @@ pub fn build_router(
         .nest("/api", webhook_routes)
         .nest_service("/mcp", service)
         .layer(axum::Extension(feedback_guard))
+        .layer(axum::Extension(account_service))
         // Dry-run view interceptor runs INSIDE auth (applied before the
         // auth layer here, which means outer->inner order wraps it with
         // auth) so requests must carry a valid bearer before short-circuit.
@@ -466,6 +500,11 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         // Feedback ingress
         .ship_route(Route::PostFeedback, feedback_api::post_feedback)
         .ship_route(Route::PostAnnotation, annotations_api::post_annotation)
+        // Account — gateway-mediated; CallerKind::Cli only (MCP denied)
+        .ship_route(Route::StartAccountLogin, account_api::start_login)
+        .ship_route(Route::CompleteAccountLogin, account_api::complete_login)
+        .ship_route(Route::GetAccountState, account_api::get_state)
+        .ship_route(Route::LogoutAccount, account_api::logout)
         // View authoring — chrome edit-mode handshake + agent tool dispatch.
         .ship_route(Route::EnterViewEditMode_template(), view_edit_mode_api::enter_edit_mode)
         .ship_route(Route::ExitViewEditMode_template(), view_edit_mode_api::exit_edit_mode)
