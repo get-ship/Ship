@@ -24,15 +24,23 @@
 //!   looking experiment.
 
 pub mod backends;
+pub mod capabilities;
 pub mod handle;
 pub mod helpers;
 pub mod net;
 pub mod policy;
+pub mod recommender;
 pub mod sidecar;
+pub mod tier;
 
 mod trait_def;
 
+pub use capabilities::{Capabilities, HostOs};
 pub use handle::{ExecHandle, SandboxHandle, SandboxId};
 pub use helpers::EphemeralFile;
 pub use policy::{FsMount, MountMode, NetworkPolicy, SandboxPolicy, ResourceLimits};
+pub use recommender::{
+    RecommendInput, RecommenderError, ResolutionReason, ResolvedIsolation, recommend,
+};
+pub use tier::{IsolationProfile, IsolationStrategy, IsolationTier};
 pub use trait_def::{Isolator, IsolatorError, LaunchCommand};
