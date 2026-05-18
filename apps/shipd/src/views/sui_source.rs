@@ -152,8 +152,11 @@ mod tests {
     fn known_component_has_source() {
         // Smoke test that the embedded tree actually contains the bake-time
         // canary component. If this fails, `include_dir!` is mis-pathed.
-        let f = UI_COMPONENTS_SRC.get_file("sui-button/sui-button.sui");
-        assert!(f.is_some(), "sui-button.sui missing from embedded tree");
+        let f = UI_COMPONENTS_SRC.get_file("sui-pipeline-step/sui-pipeline-step.sui");
+        assert!(
+            f.is_some(),
+            "sui-pipeline-step.sui missing from embedded tree",
+        );
     }
 
     #[test]
