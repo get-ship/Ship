@@ -171,6 +171,24 @@ fn ship_schema_has_harness_defaults() {
 }
 
 #[test]
+fn ship_schema_has_root_harness_block() {
+    let schema = load_schema("ship.schema.json");
+    let root_props = schema_object_keys(&schema, &["properties"]);
+    assert!(
+        root_props.contains(&"harness".to_string()),
+        "ship.schema.json missing root-level 'harness' block for launch defaults"
+    );
+    let harness_props = schema_object_keys(&schema, &["properties", "harness", "properties"]);
+    for field in ["default", "default_model"] {
+        assert!(
+            harness_props.contains(&field.to_string()),
+            "root harness block missing '{}'",
+            field
+        );
+    }
+}
+
+#[test]
 fn ship_schema_has_agents() {
     let schema = load_schema("ship.schema.json");
     let project_props = schema_object_keys(&schema, &["properties", "project", "properties"]);

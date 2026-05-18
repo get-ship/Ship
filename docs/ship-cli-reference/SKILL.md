@@ -121,6 +121,29 @@ ship config list                  # list all set config values
 ship config path                  # show config file path
 ```
 
+### Known keys
+
+JSONC-backed (live in `~/.ship/library/settings.jsonc` or `~/.ship/machine/local.jsonc`):
+
+| Key | Type | Notes |
+|---|---|---|
+| `identity.name` | string | User identity for publish + commits |
+| `identity.email` | string | User identity for publish + commits |
+| `defaults.harness` | string | Library default harness (legacy — see `harness.default` below) |
+| `defaults.mode` | string | Library default mode |
+| `cloud.base_url` | string | Override for getship.dev cloud endpoint |
+| `worktrees.dir` | path | Where `ship dispatch` creates worktrees |
+| `terminal.program` | enum | `wt` \| `iterm` \| `tmux` \| `gnome` \| `vscode` \| `manual` \| `auto` |
+| `dispatch.confirm` | bool | Prompt before dispatching a job |
+
+Daemon-KV-backed (live in `platform.db`, shared with `/api/v1/settings` and the Studio settings page):
+
+| Key | Type | Default | Notes |
+|---|---|---|---|
+| `harness.default` | string | — (no compile default) | Which harness `ship use --launch` picks when `--harness=X` is absent. Project may override via `harness.default` in `.ship/ship.jsonc`. |
+| `harness.default_model` | string \| null | — (no compile default) | Which model `ship use --launch` picks when `--model=X` is absent. Project may override via `harness.default_model` in `.ship/ship.jsonc`. |
+| `agent_session.auto_resume` | bool | `false` | When true, `ship use --launch` re-enters an existing `(agent, path)` session instead of spawning fresh. User-only — no project override. |
+
 ## Processes
 
 ```
