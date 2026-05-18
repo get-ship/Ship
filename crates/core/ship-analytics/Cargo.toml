@@ -6,8 +6,8 @@ publish = false
 description = "Analytics rollups over hook.* events — per-session duration, per-tool counts, cost. Lives downstream of ship-substrate's event log; will grow harness data-dir mining (~/.claude/, ~/.codex/, etc.) so Ship's GUI surface can render the same data the harnesses already write to disk."
 
 [dependencies]
-ship-substrate = { path = "../core/ship-substrate" }
-ship-types = { path = "../core/ship-types" }
+ship-substrate = { path = "../ship-substrate" }
+ship-types = { path = "../ship-types" }
 
 anyhow = { workspace = true }
 chrono = { workspace = true }

@@ -8,12 +8,12 @@ audience: internal
 
 # Supervisor
 
-The supervisor is its own crate: `crates/ship-supervisor/`. Platform-specific process management. The orchestrator (in `ship-platform`) is transport-agnostic and calls through trait objects; the supervisor provides the concrete implementations — tmux, git worktrees, process spawning, liveness probing, orphan cleanup.
+The supervisor is its own crate: `crates/core/ship-supervisor/`. Platform-specific process management. The orchestrator (in `ship-platform`) is transport-agnostic and calls through trait objects; the supervisor provides the concrete implementations — tmux, git worktrees, process spawning, liveness probing, orphan cleanup.
 
-`apps/shipd/src/supervisor/` is now just `mod.rs` plus integration tests — those tests need shipd internals (`ApiState`, `ShipRuntime`, the test harness) so they can't move into the supervisor crate. Production supervisor code lives entirely in `crates/ship-supervisor/src/`.
+`apps/shipd/src/supervisor/` is now just `mod.rs` plus integration tests — those tests need shipd internals (`ApiState`, `ShipRuntime`, the test harness) so they can't move into the supervisor crate. Production supervisor code lives entirely in `crates/core/ship-supervisor/src/`.
 
 ```
-crates/ship-supervisor/src/
+crates/core/ship-supervisor/src/
   lib.rs                — crate surface, re-exports
   platform.rs           — ShipdPlatform (AgentPlatform impl), MockPlatform
   adapters.rs           — GitWorktreeIsolation, RegistryAdapter

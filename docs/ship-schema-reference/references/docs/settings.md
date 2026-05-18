@@ -50,7 +50,7 @@ The canonical list lives in `setting_default()` and `get_all_settings()` in `cra
 
 | Key | Type | Default | Scope | Read by | Notes |
 |---|---|---|---|---|---|
-| `terminal.program` | string | `"tmux"` | env > KV > default | `crates/ship-supervisor/src/terminal_launcher.rs:89` (via `SHIP_DEFAULT_TERMINAL`); KV via `get_setting` | One of `tmux`, `kitty`, `wezterm`, `iterm2`, `terminal`. The `SHIP_DEFAULT_TERMINAL` env var overrides the stored value. |
+| `terminal.program` | string | `"tmux"` | env > KV > default | `crates/core/ship-supervisor/src/terminal_launcher.rs:89` (via `SHIP_DEFAULT_TERMINAL`); KV via `get_setting` | One of `tmux`, `kitty`, `wezterm`, `iterm2`, `terminal`. The `SHIP_DEFAULT_TERMINAL` env var overrides the stored value. |
 | `daemon.port` | string (u16) | `"9315"` | CLI > worktree-derived > default | `apps/shipd/src/lib.rs:194-197` — `--port` CLI flag wins, otherwise the daemon derives a worktree-specific port from `worktree_port_for`; falls back to 9315. | Stored as a string for symmetry with the other settings; coerced where used. |
 | `cmdk.send_key` | string | `"enter"` | KV > default | Studio command bar | `enter` sends on Enter (Shift+Enter for newline); `cmd+enter` inverts the binding. |
 | `watcher.debounce_ms` | u64 (ms) | `200` | KV > default | `crates/core/ship-platform/src/config/watcher.rs:71` via `config::resolve_watcher_debounce()` | Debounce window for the declarative `.ship/` watcher (agents, skills, views, pipelines, rules). Read once at daemon startup; changes require a daemon restart. |

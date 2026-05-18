@@ -1,6 +1,6 @@
 //! Test scaffolding for the supervisor crate.
 //!
-//! Production supervisor code lives in `crates/ship-supervisor/`. This
+//! Production supervisor code lives in `crates/core/ship-supervisor/`. This
 //! module declares the integration tests that exercise the supervisor
 //! together with shipd internals (`ApiState`, `ShipRuntime`, test
 //! harness, etc.) — those tests can't move to the supervisor crate

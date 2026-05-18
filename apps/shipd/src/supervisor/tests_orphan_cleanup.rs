@@ -30,7 +30,7 @@ fn startup_includes_orphan_cleanup() {
 /// Orphan cleanup function exists in orphan_cleanup module.
 #[test]
 fn orphan_cleanup_function_exists() {
-    let source = include_str!("../../../../crates/ship-supervisor/src/orphan_cleanup.rs");
+    let source = include_str!("../../../../crates/core/ship-supervisor/src/orphan_cleanup.rs");
     assert!(
         source.contains("cleanup_orphaned_worktrees"),
         "orphan_cleanup must provide a cleanup_orphaned_worktrees function"
@@ -41,7 +41,7 @@ fn orphan_cleanup_function_exists() {
 /// Active (Dispatched, Pending) jobs must never be cleaned up.
 #[test]
 fn orphan_cleanup_filters_terminal_states_only() {
-    let source = include_str!("../../../../crates/ship-supervisor/src/orphan_cleanup.rs");
+    let source = include_str!("../../../../crates/core/ship-supervisor/src/orphan_cleanup.rs");
     assert!(
         source.contains("JobStatus::Merged") && source.contains("JobStatus::Failed"),
         "orphan cleanup must filter for Merged and Failed jobs only"
@@ -51,7 +51,7 @@ fn orphan_cleanup_filters_terminal_states_only() {
 /// Orphan cleanup calls cleanup_orphan for consistent cleanup behavior.
 #[test]
 fn orphan_cleanup_delegates_to_cleanup_orphan() {
-    let source = include_str!("../../../../crates/ship-supervisor/src/orphan_cleanup.rs");
+    let source = include_str!("../../../../crates/core/ship-supervisor/src/orphan_cleanup.rs");
     assert!(
         source.contains("cleanup_orphan"),
         "orphan cleanup must call cleanup_orphan for consistent cleanup behavior"

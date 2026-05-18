@@ -10,7 +10,7 @@ fn registry_src() -> String {
 }
 
 fn process_executor_src() -> String {
-    include_str!("../../../../crates/ship-supervisor/src/executors/process.rs").to_string()
+    include_str!("../../../../crates/core/ship-supervisor/src/executors/process.rs").to_string()
 }
 
 // ── ProcessExecutor shutdown ─────────────────────────────────────────────────
