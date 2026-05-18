@@ -64,7 +64,10 @@ describe('gateway auth — billing plugin wiring', () => {
     const warnings = warnSpy.mock.calls.map((c) => String(c[0]))
     const hasStripeWarning = warnings.some((w) => w.includes('STRIPE_SECRET_KEY'))
     expect(hasStripeWarning).toBe(true)
-  })
+    // Account deletion was wired in alongside the Stripe cleanup hook —
+    // the endpoint must be reachable on the same handler.
+    expect(typeof (auth.api as Record<string, unknown>).deleteUser).toBe('function')
+  }, 30000) // The full BA + Stripe SDK import chain dominates wall time on cold cache.
 
   // Note: a second test exercising "with Stripe configured" would need to
   // bust the module-level cache in auth.ts. We could refactor getAuth to
