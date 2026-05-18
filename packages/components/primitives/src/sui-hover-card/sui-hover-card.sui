@@ -27,7 +27,7 @@
 <prop name="hide-delay" type="number" default="100" />
 
 <style>
-  :host { display: inline-flex; position: relative; }
+  :host { display: inline-flex; }
   :host([hidden]) { display: none; }
 
   .panel {
@@ -55,6 +55,41 @@
     transform: translateY(0);
   }
   .panel::backdrop { background: transparent; }
+
+  /* CSS Anchor Positioning — same shape as sui-popover and
+     sui-dropdown-menu. Controller sets `--sui-hc-anchor` to a unique
+     per-instance name on the slotted trigger; CSS resolves placement
+     against that anchor. `position-try-fallbacks` auto-flips when the
+     chosen placement would clip the viewport. The controller's JS
+     positionPanel is skipped when this branch is live. */
+  @supports (anchor-name: --x) {
+    ::slotted([slot='trigger']) {
+      anchor-name: var(--sui-hc-anchor, --sui-hc-default);
+    }
+    .panel {
+      position: fixed;
+      position-anchor: var(--sui-hc-anchor, --sui-hc-default);
+      position-try-fallbacks: flip-block, flip-inline, flip-block flip-inline;
+      position-try-order: most-block-size;
+    }
+    :host(:not([placement])) .panel,
+    :host([placement='bottom']) .panel {
+      top: calc(anchor(bottom) + 8px);
+      justify-self: anchor-center;
+    }
+    :host([placement='top']) .panel {
+      bottom: calc(anchor(top) + 8px);
+      justify-self: anchor-center;
+    }
+    :host([placement='left']) .panel {
+      right: calc(anchor(left) + 8px);
+      align-self: anchor-center;
+    }
+    :host([placement='right']) .panel {
+      left: calc(anchor(right) + 8px);
+      align-self: anchor-center;
+    }
+  }
 
   @media (prefers-reduced-motion: reduce) {
     .panel { transition: none; transform: none !important; }

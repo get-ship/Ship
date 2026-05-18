@@ -3,6 +3,14 @@ import type { Scope } from './sui-hover-card.sui'
 
 let _seq = 0
 
+// Browsers without CSS Anchor Positioning fall back to JS rect math.
+// Cached at module load — there's no platform path that toggles this
+// at runtime, so re-checking per mount is wasted work.
+const anchorSupported =
+  typeof CSS !== 'undefined' &&
+  typeof CSS.supports === 'function' &&
+  CSS.supports('anchor-name', '--x')
+
 type PopoverEl = HTMLElement & {
   showPopover?: () => void
   hidePopover?: () => void
@@ -43,7 +51,13 @@ function positionPanel(trigger: HTMLElement, panel: HTMLElement, placement: Plac
 export default controller<Scope>({
   mount(state, host) {
     const scope = state as unknown as Scope
-    const cardId = `sui-hover-card-${++_seq}`
+    const seq = ++_seq
+    const cardId = `sui-hover-card-${seq}`
+    const anchorName = `--sui-hc-${seq}`
+
+    // Per-instance anchor name. CSS forwards it from the host to the
+    // slotted trigger's anchor-name and the panel's position-anchor.
+    host.style.setProperty('--sui-hc-anchor', anchorName)
 
     const triggerSlot = scope.triggerSlot() as HTMLSlotElement | null
     const panelEl = scope.panelEl() as PopoverEl | null
@@ -69,7 +83,9 @@ export default controller<Scope>({
     function doShow() {
       clearTimers()
       const trigger = (triggerSlot?.assignedElements({ flatten: true }) as HTMLElement[])?.[0]
-      if (trigger && panelEl) {
+      // CSS Anchor Positioning owns placement when the browser supports
+      // it. JS fallback only fires on older engines.
+      if (trigger && panelEl && !anchorSupported) {
         positionPanel(trigger, panelEl as HTMLElement, (scope.placement() || 'bottom') as Placement)
       }
       panelEl?.showPopover?.()
