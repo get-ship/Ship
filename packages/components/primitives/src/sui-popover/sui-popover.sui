@@ -94,6 +94,16 @@
     }
     .panel {
       position-anchor: var(--sui-popover-anchor, --sui-popover-default);
+      /* When the chosen placement would clip the panel against the
+         viewport edge, fall back automatically. `flip-block` swaps
+         top↔bottom, `flip-inline` swaps left↔right, and the combined
+         entry covers diagonal cases. The browser picks the first
+         fallback that fits; if none do, the original placement wins
+         (clipped but visible). Modern Chromium/Safari/Firefox all
+         honor this — older browsers ignore the property and degrade
+         to the chosen placement (the same behavior as today). */
+      position-try-fallbacks: flip-block, flip-inline, flip-block flip-inline;
+      position-try-order: most-block-size;
     }
     :host(:not([placement])) .panel,
     :host([placement='bottom']) .panel {

@@ -1,6 +1,6 @@
   <prop name="tone" values="default|primary|info|success|warning|destructive|accent|muted" default="default" reflect />
   <prop name="variant" values="solid|soft|outline|ghost|default" default="default" reflect />
-  <prop name="size" values="sm|md|lg" default="md" reflect />
+  <prop name="size" values="xs|sm|md|lg" default="md" reflect />
   <prop name="type" values="button|submit|reset" default="button" reflect />
   <prop name="disabled" type="bool" default="false" reflect />
   <prop name="loading" type="bool" default="false" reflect />
@@ -24,6 +24,7 @@
     :host([hidden]) { display: none; }
 
     /* Size matrix */
+    :host([size='xs']) { --btn-h: 22px; --btn-fs: 11px; --btn-px: 8px;  --btn-gap: 4px; }
     :host([size='sm']) { --btn-h: 28px; --btn-fs: 12px; --btn-px: 10px; --btn-gap: 6px; }
     :host([size='md']) { --btn-h: 34px; --btn-fs: 13px; --btn-px: 12px; --btn-gap: 8px; }
     :host([size='lg']) { --btn-h: 40px; --btn-fs: 14px; --btn-px: 16px; --btn-gap: 8px; }
