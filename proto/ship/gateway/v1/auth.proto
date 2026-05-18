@@ -30,6 +30,12 @@ service AuthService {
   // Return the calling session's user — used by `ship login` to bind
   // the daemon to a user id, and by `ship whoami` for display.
   rpc GetMe(GetMeRequest) returns (GetMeResponse);
+
+  // Revoke the calling key on the gateway. The caller authenticates with
+  // the bearer it wants revoked; on success the key is gone before the
+  // response returns. Used by `ship logout` to invalidate the server-side
+  // credential alongside clearing the local token file.
+  rpc RevokeKey(RevokeKeyRequest) returns (RevokeKeyResponse);
 }
 
 message TokenExchangeRequest {
@@ -76,4 +82,13 @@ message User {
 
 message GetMeResponse {
   User user = 1;
+}
+
+message RevokeKeyRequest {}
+
+message RevokeKeyResponse {
+  // True when the gateway dropped the key. False is reserved for future
+  // "already revoked / not found" idempotent acks if we extend the wire
+  // contract; today the only way to get a response is success.
+  bool revoked = 1;
 }

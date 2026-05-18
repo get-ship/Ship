@@ -42,9 +42,15 @@ vi.mock('../src/lib/d1.js', () => ({
 }))
 
 const mockCreateApiKey = vi.fn()
+const mockGetSession = vi.fn()
+const mockDeleteApiKey = vi.fn()
 vi.mock('../src/lib/auth.js', () => ({
   getAuth: vi.fn(() => Promise.resolve({
-    api: { createApiKey: mockCreateApiKey },
+    api: {
+      createApiKey: mockCreateApiKey,
+      getSession: mockGetSession,
+      deleteApiKey: mockDeleteApiKey,
+    },
   })),
 }))
 
@@ -177,10 +183,26 @@ describe('Connect-RPC contract — auth_service.json fixtures', () => {
     expect(Number(body.expiresAt)).toBeGreaterThan(1700000000) // sanity-check epoch
   })
 
+  it('RevokeKey wire shape matches fixture.response_ok', async () => {
+    const fixture = fixtures.RevokeKey
+    mockGetSession.mockResolvedValue({ session: { id: 'key-row-id-abc' } })
+    mockDeleteApiKey.mockResolvedValue({ success: true })
+
+    const app = await makeApp()
+    const res = await app.fetch(makeConnectRequest(fixture.method_path, fixture.request), mockEnv)
+
+    expect(res.status).toBe(200)
+    const body = (await res.json()) as Record<string, unknown>
+    expect(body.revoked).toBe(fixture.response_ok.revoked)
+    expect(mockDeleteApiKey).toHaveBeenCalledWith(
+      expect.objectContaining({ body: { keyId: 'key-row-id-abc' } }),
+    )
+  })
+
   it('every method in the proto has a fixture', () => {
     // Lock in fixture completeness so adding a method to the proto without
     // a fixture trips this test.
-    const expectedMethods = ['TokenExchange', 'Refresh', 'DaemonAttest', 'GetMe']
+    const expectedMethods = ['TokenExchange', 'Refresh', 'DaemonAttest', 'GetMe', 'RevokeKey']
     for (const m of expectedMethods) {
       expect(fixtures[m]).toBeDefined()
       expect(fixtures[m].method_path).toBe(`/ship.gateway.v1.AuthService/${m}`)

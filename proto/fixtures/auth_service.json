@@ -46,5 +46,13 @@
         "image": "https://example.com/avatar.png"
       }
     }
+  },
+
+  "RevokeKey": {
+    "method_path": "/ship.gateway.v1.AuthService/RevokeKey",
+    "request": {},
+    "response_ok": {
+      "revoked": true
+    }
   }
 }

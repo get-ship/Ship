@@ -14,7 +14,8 @@
 //! the drift class without the orchestration.
 
 use ship_gateway_client::{
-    DaemonAttestResponse, GetMeResponse, RefreshResponse, TokenExchangeResponse,
+    DaemonAttestResponse, GetMeResponse, RefreshResponse, RevokeKeyResponse,
+    TokenExchangeResponse,
 };
 
 const FIXTURES_JSON: &str = include_str!("../../../../proto/fixtures/auth_service.json");
@@ -70,9 +71,17 @@ fn get_me_response_parses_from_fixture() {
 }
 
 #[test]
+fn revoke_key_response_parses_from_fixture() {
+    let json = fixture_response_ok("RevokeKey");
+    let resp: RevokeKeyResponse =
+        serde_json::from_str(&json).expect("parse RevokeKeyResponse");
+    assert!(resp.revoked);
+}
+
+#[test]
 fn every_proto_method_has_a_fixture() {
     let v: serde_json::Value = serde_json::from_str(FIXTURES_JSON).expect("fixtures parse");
-    for method in &["TokenExchange", "Refresh", "DaemonAttest", "GetMe"] {
+    for method in &["TokenExchange", "Refresh", "DaemonAttest", "GetMe", "RevokeKey"] {
         let fixture = &v[method];
         assert!(
             fixture.is_object(),
