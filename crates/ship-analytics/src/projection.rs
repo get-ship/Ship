@@ -32,6 +32,8 @@ use ship_substrate::events::hooks::{
     HookToolUseStartedPayload, ToolStatus,
 };
 use ship_substrate::projections::Projection;
+use ship_types::event_types::{ACTOR_CREATED, ACTOR_STOPPED};
+use ship_types::payload::{ActorCreated, ActorStopped};
 
 pub struct AnalyticsProjection;
 
@@ -52,6 +54,15 @@ const HANDLED: &[&str] = &[
     event_types::HOOK_SESSION_ENDED,
     event_types::HOOK_TOOL_USE_STARTED,
     event_types::HOOK_TOOL_USE_COMPLETED,
+    // Actor lifecycle as a fallback session signal. Some harness/dispatch
+    // combinations don't fire SessionStart hooks (e.g. dispatched
+    // keepalive claude, cursor — which lacks a session-start event upstream
+    // — and opencode's plugin model). actor.created/actor.stopped from the
+    // supervisor are unconditional, so analytics_sessions stays populated
+    // even when hooks are absent. When both fire, the hook payload wins for
+    // harness/model/session_id; actor.* only fills in what hooks didn't.
+    ACTOR_CREATED,
+    ACTOR_STOPPED,
 ];
 
 impl Projection for AnalyticsProjection {
@@ -69,6 +80,8 @@ impl Projection for AnalyticsProjection {
             event_types::HOOK_SESSION_ENDED => apply_session_ended(event, conn),
             event_types::HOOK_TOOL_USE_STARTED => apply_tool_use_started(event, conn),
             event_types::HOOK_TOOL_USE_COMPLETED => apply_tool_use_completed(event, conn),
+            ACTOR_CREATED => apply_actor_created(event, conn),
+            ACTOR_STOPPED => apply_actor_stopped(event, conn),
             _ => Ok(()),
         }
     }
@@ -254,6 +267,82 @@ fn apply_tool_use_completed(event: &EventEnvelope, conn: &mut SqliteConnection) 
                  WHERE session_key = ?",
             )
             .bind(&key)
+            .execute(&mut *conn)
+            .await?;
+        }
+        Ok(())
+    })
+}
+
+fn apply_actor_created(event: &EventEnvelope, conn: &mut SqliteConnection) -> Result<()> {
+    let p: ActorCreated = serde_json::from_str(&event.payload_json)?;
+    // Only agent actors are interesting for analytics; service actors
+    // (mesh, user-inbox, supervisor) have no harness backing.
+    if p.harness.is_none() {
+        return Ok(());
+    }
+    let Some(actor_id) = event.actor_id.clone() else {
+        return Ok(());
+    };
+    let started_at = event.created_at.to_rfc3339();
+    block_on(async {
+        // Key by actor_id. Hook-derived rows (when they fire) use the
+        // same fallback when payload session_id is absent, so they
+        // collide on this row and merge via COALESCE. The hook
+        // payload's harness/model wins because INSERT goes first;
+        // actor.created only fills in NULLs left by prior hook events.
+        sqlx::query(
+            "INSERT INTO analytics_sessions \
+               (session_key, actor_id, harness, model, started_at) \
+             VALUES (?, ?, ?, ?, ?) \
+             ON CONFLICT(session_key) DO UPDATE SET \
+               harness = COALESCE(analytics_sessions.harness, excluded.harness), \
+               model   = COALESCE(analytics_sessions.model,   excluded.model)",
+        )
+        .bind(&actor_id)
+        .bind(&actor_id)
+        .bind(&p.harness)
+        .bind(&p.model)
+        .bind(&started_at)
+        .execute(&mut *conn)
+        .await?;
+        Ok(())
+    })
+}
+
+fn apply_actor_stopped(event: &EventEnvelope, conn: &mut SqliteConnection) -> Result<()> {
+    let p: ActorStopped = serde_json::from_str(&event.payload_json)?;
+    let Some(actor_id) = event.actor_id.clone() else {
+        return Ok(());
+    };
+    let ended_at = event.created_at.to_rfc3339();
+    block_on(async {
+        // Update only when no end has been recorded yet — hook.session_ended
+        // is preferred when it fires (carries the harness's own reason
+        // string). When neither has fired before, UPDATE finds the row
+        // and sets ended_at + duration_ms + reason. When no session row
+        // exists at all (actor wasn't an agent / hook fallback never
+        // wrote one), this is a no-op rather than inserting a stub —
+        // analytics_sessions is meaningful only for agent actors.
+        let started: Option<(String,)> = sqlx::query_as(
+            "SELECT started_at FROM analytics_sessions \
+             WHERE session_key = ? AND ended_at IS NULL",
+        )
+        .bind(&actor_id)
+        .fetch_optional(&mut *conn)
+        .await?;
+        if let Some((started_at,)) = started {
+            let duration_ms = compute_duration_ms(&started_at, &ended_at)
+                .or_else(|| p.duration_ms.map(|d| d as i64));
+            sqlx::query(
+                "UPDATE analytics_sessions \
+                 SET ended_at = ?, duration_ms = ?, reason = COALESCE(reason, ?) \
+                 WHERE session_key = ?",
+            )
+            .bind(&ended_at)
+            .bind(duration_ms)
+            .bind(&p.reason)
+            .bind(&actor_id)
             .execute(&mut *conn)
             .await?;
         }

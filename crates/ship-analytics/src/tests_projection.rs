@@ -366,6 +366,136 @@ mod analytics_tests {
         assert!(tu[1].ended_at.is_none());
     }
 
+    // ── Actor-lifecycle fallback ─────────────────────────────────────
+    //
+    // Closes the keepalive SessionStart-hook gap: even when the harness
+    // never fires hook.session_started (dispatched keepalive claude,
+    // cursor — no upstream event, opencode — plugin model), actor.created
+    // populates the session row so analytics stays complete.
+
+    fn actor_created_event(
+        actor_id: &str,
+        harness: Option<&str>,
+        model: Option<&str>,
+    ) -> EventEnvelope {
+        let payload = ship_types::payload::ActorCreated {
+            kind: "worker".to_string(),
+            environment_type: "cli".to_string(),
+            harness: harness.map(String::from),
+            model: model.map(String::from),
+            ..Default::default()
+        };
+        EventEnvelope::new(ship_types::event_types::ACTOR_CREATED, actor_id, &payload)
+            .unwrap()
+            .with_actor_id(actor_id)
+    }
+
+    fn actor_stopped_event(actor_id: &str, reason: &str) -> EventEnvelope {
+        let payload = ship_types::payload::ActorStopped {
+            reason: reason.to_string(),
+            exit_code: Some(0),
+            duration_ms: None,
+        };
+        EventEnvelope::new(ship_types::event_types::ACTOR_STOPPED, actor_id, &payload)
+            .unwrap()
+            .with_actor_id(actor_id)
+    }
+
+    #[test]
+    fn actor_created_populates_session_when_no_hook_fires() {
+        // Simulates dispatched keepalive claude: hook.session_started
+        // never arrives, but actor.created from the supervisor does.
+        let (_dir, mut conn) = setup();
+        let bus = bus();
+        bus.dispatch(
+            &actor_created_event("actor-keepalive-1", Some("claude"), Some("opus")),
+            &mut conn,
+        );
+        let r = query_session(&mut conn, "actor-keepalive-1")
+            .expect("actor.created must seed a session row");
+        assert_eq!(r.actor_id, "actor-keepalive-1");
+        assert_eq!(r.harness.as_deref(), Some("claude"));
+        assert_eq!(r.model.as_deref(), Some("opus"));
+        assert!(r.ended_at.is_none());
+    }
+
+    #[test]
+    fn actor_created_without_harness_is_ignored() {
+        // Service actors (mesh, user-inbox, supervisor) have no harness.
+        // They aren't agent sessions and shouldn't populate analytics.
+        let (_dir, mut conn) = setup();
+        let bus = bus();
+        bus.dispatch(&actor_created_event("service-mesh", None, None), &mut conn);
+        assert!(query_session(&mut conn, "service-mesh").is_none());
+    }
+
+    #[test]
+    fn actor_stopped_closes_session_row() {
+        let (_dir, mut conn) = setup();
+        let bus = bus();
+        bus.dispatch(
+            &actor_created_event("actor-stop-1", Some("claude"), None),
+            &mut conn,
+        );
+        bus.dispatch(&actor_stopped_event("actor-stop-1", "process-exited"), &mut conn);
+        let r = query_session(&mut conn, "actor-stop-1").expect("row");
+        assert!(r.ended_at.is_some(), "actor.stopped must record ended_at");
+        assert_eq!(r.reason.as_deref(), Some("process-exited"));
+    }
+
+    #[test]
+    fn hook_session_started_takes_precedence_over_actor_created() {
+        // When the harness DOES fire SessionStart, its payload's harness
+        // wins. actor.created arriving later only fills in nulls.
+        let (_dir, mut conn) = setup();
+        let bus = bus();
+        bus.dispatch(
+            &session_started_event(
+                "actor-both",
+                None, // no session_id — keys on actor_id
+                Some("claude"),
+                Some("sonnet"),
+                "2026-05-18T10:00:00+00:00",
+            ),
+            &mut conn,
+        );
+        // actor.created arrives later with conflicting model — COALESCE
+        // preserves the hook-supplied value.
+        bus.dispatch(
+            &actor_created_event("actor-both", Some("codex"), Some("gpt-5")),
+            &mut conn,
+        );
+        let r = query_session(&mut conn, "actor-both").expect("row");
+        assert_eq!(r.harness.as_deref(), Some("claude"), "hook wins");
+        assert_eq!(r.model.as_deref(), Some("sonnet"), "hook wins");
+    }
+
+    #[test]
+    fn actor_stopped_skipped_when_hook_session_ended_already_recorded() {
+        let (_dir, mut conn) = setup();
+        let bus = bus();
+        bus.dispatch(
+            &session_started_event(
+                "actor-end-first",
+                None,
+                Some("claude"),
+                None,
+                "2026-05-18T10:00:00+00:00",
+            ),
+            &mut conn,
+        );
+        bus.dispatch(
+            &session_ended_event("actor-end-first", "2026-05-18T10:00:05+00:00", Some("normal")),
+            &mut conn,
+        );
+        // actor.stopped arrives after; should not overwrite the hook's
+        // ended_at (the WHERE clause filters ended_at IS NULL).
+        bus.dispatch(&actor_stopped_event("actor-end-first", "force-killed"), &mut conn);
+        let r = query_session(&mut conn, "actor-end-first").expect("row");
+        assert_eq!(r.ended_at.as_deref(), Some("2026-05-18T10:00:05+00:00"));
+        assert_eq!(r.reason.as_deref(), Some("normal"), "hook reason preserved");
+    }
+
     #[test]
     fn truncate_clears_both_tables() {
         let (_dir, mut conn) = setup();
