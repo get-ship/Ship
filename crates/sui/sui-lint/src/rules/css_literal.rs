@@ -33,10 +33,12 @@
 //! - Typography literals (`font-size: 13px`, etc.).
 //! - linear-gradient(...) color stops.
 //!
-//! Severity ratchet: ships as `Warn` so existing per-view stylesheets
-//! and primitive fallback patterns (`var(--card, #fff)`) don't break
-//! compilation. Promote to `Error` after the migration pass cleans up
-//! the violators.
+//! Severity is `Error`: `sui-compiler::check::css_token` promotes
+//! every error-severity finding to a build failure. The rule was
+//! introduced alongside a one-shot migration that cleared the prior
+//! drift (80 violations across 14 primitives — `var(--card, #fff)`
+//! fallback patterns and a handful of raw color-mix sources). After
+//! the cleanup, Error became safe to enable without breaking compile.
 
 use std::collections::HashSet;
 use std::path::Path;
@@ -63,7 +65,7 @@ pub fn check(path: &Path, source: &str) -> Vec<Finding> {
                     line,
                     col,
                     rule: RULE_ID,
-                    severity: Severity::Warn,
+                    severity: Severity::Error,
                     message,
                     suggest: Some(
                         "Pick the closest tone token from \

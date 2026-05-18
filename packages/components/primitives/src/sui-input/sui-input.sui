@@ -158,7 +158,7 @@
    * suppressed by themes that flatten ring tokens. Mirrors the
    * sui-button pattern: 2px outline + 2px offset, tone-tinted. */
   input:focus-visible {
-    outline: 2px solid var(--tone-ring, var(--ring-color, var(--primary)));
+    outline: 2px solid var(--tone-ring);
     outline-offset: 2px;
   }
   @media (forced-colors: active) {

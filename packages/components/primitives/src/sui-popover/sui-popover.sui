@@ -72,11 +72,11 @@
   .panel > .surface {
     min-width: 180px;
     padding: 6px;
-    background: var(--popover, var(--card, #fff));
-    color: var(--popover-foreground, var(--card-foreground, #111));
-    border: 1px solid var(--border, #e5e5e5);
+    background: var(--popover);
+    color: var(--popover-foreground);
+    border: 1px solid var(--border);
     border-radius: var(--radius-md, 6px);
-    box-shadow: var(--shadow-md, 0 4px 12px rgba(0,0,0,0.1));
+    box-shadow: var(--shadow-md, 0 4px 12px color-mix(in oklch, var(--foreground) 10%, transparent));
     backdrop-filter: var(--card-backdrop-filter, none);
     -webkit-backdrop-filter: var(--card-backdrop-filter, none);
     font-family: var(--font-body, system-ui);

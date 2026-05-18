@@ -59,7 +59,7 @@
     --toast-slide-y: 0;
     /* tone channel defaults */
     --tone-bg: transparent;
-    --tone-border: var(--border, #e5e5e5);
+    --tone-border: var(--border);
     pointer-events: auto;
     will-change: transform, opacity;
   }
@@ -108,11 +108,11 @@
     max-width: var(--toast-max-w);
     border-radius: var(--radius-md, 6px);
     border: 1px solid var(--tone-border);
-    background: color-mix(in oklch, var(--tone-bg) 1, var(--card, #fff));
-    color: var(--card-foreground, #111);
+    background: color-mix(in oklch, var(--tone-bg) 1, var(--card));
+    color: var(--card-foreground);
     box-shadow:
-      0 0 0 1px color-mix(in oklch, black 3%, transparent),
-      var(--shadow-md, 0 4px 12px rgba(0,0,0,0.1));
+      0 0 0 1px color-mix(in oklch, var(--foreground) 3%, transparent),
+      var(--shadow-md, 0 4px 12px color-mix(in oklch, var(--foreground) 10%, transparent));
     font-family: var(--font-body, system-ui);
     font-size: var(--toast-fs);
     line-height: var(--leading-normal, 1.5);
@@ -125,8 +125,8 @@
 
   :host(:not([tone])) .toast,
   :host([tone='default']) .toast {
-    border-color: color-mix(in oklch, var(--border, #e5e5e5) 160%, transparent);
-    background: var(--card, #fff);
+    border-color: color-mix(in oklch, var(--border) 160%, transparent);
+    background: var(--card);
   }
 
   :host([tone='info']) .toast,
@@ -134,7 +134,7 @@
   :host([tone='warning']) .toast,
   :host([tone='destructive']) .toast,
   :host([tone='accent']) .toast {
-    background: color-mix(in oklch, var(--tone-bg) 70%, var(--card, #fff));
+    background: color-mix(in oklch, var(--tone-bg) 70%, var(--card));
     border-color: var(--tone-border);
   }
 
@@ -144,7 +144,7 @@
     inset-inline-start: 0;
     top: 0; bottom: 0;
     width: 3px;
-    background: var(--tone-fg, var(--foreground, #111));
+    background: var(--tone-fg);
     opacity: 0;
     transition: opacity var(--duration-fast, 100ms) var(--ease-out, ease-out);
   }
@@ -161,11 +161,11 @@
     width: 18px;
     height: 18px;
     flex: 0 0 auto;
-    color: var(--tone-fg, var(--muted-foreground, #888));
+    color: var(--tone-fg);
     margin-top: 1px;
   }
   :host(:not([tone])) .icon,
-  :host([tone='default']) .icon { color: var(--muted-foreground, #888); }
+  :host([tone='default']) .icon { color: var(--muted-foreground); }
   .icon svg { width: 18px; height: 18px; display: block; }
   :host([size='sm']) .icon,
   :host([size='sm']) .icon svg { width: 16px; height: 16px; }
@@ -180,22 +180,22 @@
     flex-direction: column;
     gap: 2px;
     min-width: 0;
-    color: var(--card-foreground, #111);
+    color: var(--card-foreground);
   }
   .title {
     font-weight: var(--font-weight-semibold, 600);
     font-size: var(--toast-title-fs);
     letter-spacing: -0.005em;
     line-height: var(--leading-tight, 1.25);
-    color: var(--foreground, #111);
+    color: var(--foreground);
   }
   .body {
     font-size: var(--toast-fs);
-    color: var(--muted-foreground, #888);
+    color: var(--muted-foreground);
     line-height: var(--leading-normal, 1.5);
     word-break: break-word;
   }
-  :host([data-no-title]) .body { color: var(--card-foreground, #111); }
+  :host([data-no-title]) .body { color: var(--card-foreground); }
   :host([data-no-title]) .title { display: none; }
 
   .actions {
@@ -218,7 +218,7 @@
     background: transparent;
     border: 1px solid transparent;
     border-radius: var(--radius-sm, 4px);
-    color: var(--muted-foreground, #888);
+    color: var(--muted-foreground);
     cursor: pointer;
     padding: 0;
     font: inherit;
@@ -229,14 +229,14 @@
   }
   .close:hover {
     background: var(--active-bg, color-mix(in oklch, currentColor 8%, transparent));
-    color: var(--foreground, #111);
+    color: var(--foreground);
   }
   .close:active { transform: scale(0.94); }
   .close:focus-visible {
     outline: none;
     box-shadow:
-      0 0 0 2px var(--card, #fff),
-      0 0 0 4px color-mix(in oklch, var(--tone-fg, var(--primary, #3b82f6)) 55%, transparent);
+      0 0 0 2px var(--card),
+      0 0 0 4px color-mix(in oklch, var(--tone-fg) 55%, transparent);
   }
   .close svg { width: 12px; height: 12px; display: block; }
 
@@ -244,13 +244,13 @@
     position: absolute;
     left: 0; right: 0; bottom: 0;
     height: 2px;
-    background: var(--tone-fg, var(--muted-foreground, #888));
+    background: var(--tone-fg);
     transform: scaleX(1);
     transform-origin: left center;
     animation: sui-toast-progress var(--toast-duration, 5000ms) linear forwards;
   }
   :host(:not([tone])) .progress,
-  :host([tone='default']) .progress { background: var(--muted-foreground, #888); }
+  :host([tone='default']) .progress { background: var(--muted-foreground); }
   :host(:hover) .progress,
   :host([data-paused]) .progress { animation-play-state: paused; }
   @keyframes sui-toast-progress {

@@ -7,14 +7,11 @@
 //! falls back to the default — exactly the slop the design system was
 //! supposed to prevent.
 //!
-//! Severity ratchet:
-//! - Ships as `Warn` so existing drift (≈100 cases at introduction,
-//!   dominated by `sui-icon#size`) doesn't block compile. The rule
-//!   still surfaces in LSP and `cargo run -p sui-lint --example check`.
-//! - Promote to `Error` (and let `sui-compiler::check::css_token` —
-//!   which promotes every Error finding to a compile failure —
-//!   enforce it at build time) after the variant/tone canonicalization
-//!   pass migrates views and expands restrictive primitive enums.
+//! Severity is `Error`: `sui-compiler::check::css_token` promotes
+//! every error-severity finding to a build failure. The rule was
+//! introduced alongside a one-shot migration that cleared the prior
+//! drift (~100 violations dominated by `sui-icon#size`); afterward
+//! Error became safe to enable without breaking compile.
 //!
 //! Scope and limits:
 //! - Only static string-literal attribute values are validated.
@@ -80,7 +77,7 @@ pub fn check(path: &Path, source: &str) -> Vec<Finding> {
                 line,
                 col,
                 rule: RULE_ID,
-                severity: Severity::Warn,
+                severity: Severity::Error,
                 message,
                 suggest: Some(format!(
                     "Replace with one of: {}. Add a new enum value at the \

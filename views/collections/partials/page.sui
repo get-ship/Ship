@@ -40,7 +40,7 @@
               <div class="data-card-fields">
                 {#for f of c.fields.slice(0, 5) key={f.name}}
                   <span class="data-card-field">
-                    <sui-badge variant="secondary" size="sm">{f.type}</sui-badge>
+                    <sui-badge variant="soft" size="sm">{f.type}</sui-badge>
                     <span class="mono-snip">{f.name}</span>
                     {#if f.required}<span class="data-card-req">*</span>{/if}
                   </span>

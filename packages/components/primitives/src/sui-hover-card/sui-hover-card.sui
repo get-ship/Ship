@@ -36,11 +36,11 @@
     min-width: 240px;
     max-width: 340px;
     padding: 16px;
-    background: var(--popover, var(--card, #fff));
-    color: var(--popover-foreground, var(--card-foreground, #111));
-    border: 1px solid var(--border, #e5e5e5);
+    background: var(--popover);
+    color: var(--popover-foreground);
+    border: 1px solid var(--border);
     border-radius: var(--radius-lg, 8px);
-    box-shadow: var(--shadow-lg, 0 8px 24px rgba(0,0,0,0.12));
+    box-shadow: var(--shadow-lg, 0 8px 24px color-mix(in oklch, var(--foreground) 12%, transparent));
     font-family: var(--font-body, system-ui);
     font-size: var(--text-base, 14px);
     line-height: var(--leading-normal, 1.5);

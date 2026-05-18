@@ -47,7 +47,7 @@
               <sui-icon slot="leading" name="stop"></sui-icon>Stop
             </sui-button>
             <div class="ship-run-detail">
-              {#if run.agent}<sui-avatar size="sm" shape="circle" attr:identity-hue={run.agent} attr:name={run.agent}></sui-avatar>{/if}
+              {#if run.agent}<sui-avatar size="sm" shape="round" attr:identity-hue={run.agent} attr:name={run.agent}></sui-avatar>{/if}
               {#if run.branch}<code>{run.branch}</code>{/if}
               {#if run.provider}<sui-provider-blob attr:provider={run.provider} size="sm" variant="glyph"></sui-provider-blob>{/if}
               {#if run.model}<sui-chip size="sm">{run.model}</sui-chip>{/if}

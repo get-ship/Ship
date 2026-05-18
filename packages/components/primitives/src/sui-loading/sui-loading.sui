@@ -81,7 +81,7 @@
     z-index: 1;
     background: radial-gradient(
       ellipse at 50% 30%,
-      color-mix(in oklch, var(--primary) 95%, white) 0%,
+      color-mix(in oklch, var(--primary) 95%, var(--background)) 0%,
       color-mix(in oklch, var(--primary) 70%, transparent) 55%,
       transparent 80%
     );
@@ -155,10 +155,10 @@
     <svg viewBox="0 0 32 40" fill="none" xmlns="http://www.w3.org/2000/svg">
       <path d="M16 2 C20 6 22 11 22 16 H10 C10 11 12 6 16 2 Z" fill="currentColor" />
       <rect x="10" y="16" width="12" height="14" rx="2" fill="currentColor" opacity="0.9" />
-      <circle cx="16" cy="20" r="2.5" fill="var(--background, #fff)" opacity="0.85" />
+      <circle cx="16" cy="20" r="2.5" fill="var(--background)" opacity="0.85" />
       <path d="M10 24 L4 32 L10 30 Z" fill="currentColor" opacity="0.75" />
       <path d="M22 24 L28 32 L22 30 Z" fill="currentColor" opacity="0.75" />
-      <rect x="13" y="29" width="6" height="2" rx="0.5" fill="var(--background, #000)" opacity="0.5" />
+      <rect x="13" y="29" width="6" height="2" rx="0.5" fill="var(--background)" opacity="0.5" />
     </svg>
   </div>
   <div class="flame"></div>

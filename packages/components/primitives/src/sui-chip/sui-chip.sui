@@ -109,9 +109,9 @@
   }
   :host([variant='solid']) .chip {
     background: var(--tone);
-    border-color: color-mix(in oklch, var(--tone) 100%, black 6%);
+    border-color: color-mix(in oklch, var(--tone) 100%, var(--foreground) 6%);
     color: var(--tone-contrast);
-    box-shadow: inset 0 1px 0 0 color-mix(in oklch, white 18%, transparent);
+    box-shadow: inset 0 1px 0 0 color-mix(in oklch, var(--background) 18%, transparent);
   }
   :host([variant='ghost']) .chip {
     background: transparent;
@@ -123,13 +123,13 @@
 
   :host([selected]) .chip {
     background: var(--tone);
-    border-color: color-mix(in oklch, var(--tone) 100%, black 10%);
+    border-color: color-mix(in oklch, var(--tone) 100%, var(--foreground) 10%);
     color: var(--tone-contrast);
-    box-shadow: inset 0 1px 0 0 color-mix(in oklch, white 20%, transparent);
+    box-shadow: inset 0 1px 0 0 color-mix(in oklch, var(--background) 20%, transparent);
     font-weight: var(--font-weight-semibold);
   }
   :host([selected]:not([disabled])) .chip:hover {
-    background: color-mix(in oklch, var(--tone) 92%, white 8%);
+    background: color-mix(in oklch, var(--tone) 92%, var(--background) 8%);
   }
   :host([selected]:not([tone])) .chip,
   :host([selected][tone='muted']) .chip {
@@ -143,7 +143,7 @@
    * themes; the stacked box-shadow keeps the soft halo for parity
    * with sui-button. */
   :host(:focus-visible) {
-    outline: 2px solid color-mix(in oklch, var(--tone) 75%, var(--ring-color, var(--primary)));
+    outline: 2px solid color-mix(in oklch, var(--tone) 75%, var(--ring-color));
     outline-offset: 2px;
     border-radius: var(--chip-radius);
   }

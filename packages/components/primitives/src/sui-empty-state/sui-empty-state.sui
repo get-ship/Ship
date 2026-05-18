@@ -159,7 +159,7 @@
   :host([variant='inline']) .copy { align-items: flex-start; }
 
   .title {
-    font-family: var(--heading-font, var(--font-body));
+    font-family: var(--heading-font);
     font-size: var(--es-title-fs);
     font-weight: var(--heading-weight, 600);
     color: var(--foreground);

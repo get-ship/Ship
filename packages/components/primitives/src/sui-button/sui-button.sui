@@ -75,12 +75,12 @@
     /* Solid */
     :host([variant='solid']) button {
       background: var(--tone);
-      border-color: color-mix(in oklch, var(--tone) 100%, black 6%);
+      border-color: color-mix(in oklch, var(--tone) 100%, var(--foreground) 6%);
       color: var(--tone-contrast);
       box-shadow: var(--shadow-xs);
     }
     :host([variant='solid']) button:hover:not(:disabled) {
-      background: color-mix(in oklch, var(--tone) 92%, white 8%);
+      background: color-mix(in oklch, var(--tone) 92%, var(--background) 8%);
       transform: translateY(-1px);
       box-shadow: var(--shadow-sm);
     }
