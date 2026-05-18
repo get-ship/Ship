@@ -158,6 +158,15 @@ impl AccountService {
         };
         self.store.write(token.clone()).await?;
 
+        // Bind this daemon to the logged-in user. Idempotent — the second
+        // call with the same id is a no-op event-store-wise. The CLI
+        // previously did this itself by calling /v1/me + set_daemon_owner;
+        // moving it here removes a round-trip and gives `complete_login`
+        // a single coherent atomic step.
+        if let Err(e) = crate::auth::attest::set_daemon_owner(&token.user_id) {
+            tracing::warn!("account: daemon-owner bind failed: {e}");
+        }
+
         // Fetch /me to return the user identity. Best-effort — if it
         // fails, the token is still stored and the CLI can poll later.
         match self.refresh_me().await {
@@ -208,6 +217,28 @@ impl AccountService {
     /// Clear the stored token. Idempotent.
     pub async fn logout(&self) -> Result<()> {
         self.store.clear().await
+    }
+
+    /// Return the stored API key — transitional, used by the CLI to
+    /// dual-write to its legacy `credentials.jsonc` until `ship publish`
+    /// and `ship convert <getship-url>` are routed through the daemon.
+    /// Returns Err when not logged in.
+    ///
+    /// **This is a tactical bridge.** It exposes a credential over local
+    /// HTTP, which is fine today (CallerKind::Cli gate on the route +
+    /// the floor's `Read(~/.ship/machine/**)` deny already covering the
+    /// file the CLI re-stores into) but should be removed once all
+    /// gateway call sites go via the daemon. Tracked separately.
+    pub async fn get_key(&self) -> Result<String> {
+        let token = self
+            .store
+            .read()
+            .await?
+            .ok_or_else(|| anyhow!("not logged in"))?;
+        if token.is_expired() {
+            return Err(anyhow!("token expired"));
+        }
+        Ok(token.key)
     }
 
     async fn gc_pending(&self) {

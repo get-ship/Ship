@@ -212,6 +212,43 @@ pub async fn logout(
     }
 }
 
+#[derive(serde::Serialize, utoipa::ToSchema)]
+pub struct GetKeyResponse {
+    pub key: String,
+}
+
+/// Transitional bridge — returns the stored API key so the CLI can
+/// dual-write to its legacy `credentials.jsonc` for `ship publish` and
+/// `ship convert <getship-url>` which still call the gateway directly.
+/// REMOVE once those call sites route through the daemon.
+#[utoipa::path(
+    operation_id = "getAccountKey",
+    get,
+    path = "/api/v1/account/key",
+    responses(
+        (status = 200, description = "Stored API key", body = GetKeyResponse),
+        (status = 401, description = "Not logged in"),
+        (status = 403, description = "Account ops require user presence"),
+    ),
+    tag = "account"
+)]
+pub async fn get_key(
+    Extension(svc): Extension<Arc<AccountService>>,
+    Extension(auth): Extension<AuthContext>,
+) -> Response {
+    if let Some(r) = require_user_presence(&auth) {
+        return r;
+    }
+    match svc.get_key().await {
+        Ok(key) => (StatusCode::OK, Json(GetKeyResponse { key })).into_response(),
+        Err(e) => (
+            StatusCode::UNAUTHORIZED,
+            Json(serde_json::json!({ "error": e.to_string() })),
+        )
+            .into_response(),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
