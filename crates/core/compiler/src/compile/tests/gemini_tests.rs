@@ -69,6 +69,7 @@ fn gemini_no_user_hooks_has_lifecycle_hooks() {
     let out = compile(&resolved(vec![]), "gemini").unwrap();
     // Even with no user hooks, lifecycle hooks are injected.
     let patch = out.gemini_settings_patch.expect("lifecycle hooks must exist");
+    assert!(patch["hooks"]["SessionStart"].is_array());
     assert!(patch["hooks"]["BeforeTool"].is_array());
     assert!(patch["hooks"]["AfterTool"].is_array());
     assert!(patch["hooks"]["SessionEnd"].is_array());
