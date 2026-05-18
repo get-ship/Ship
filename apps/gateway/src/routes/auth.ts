@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import { getAuth } from '../lib/auth.js'
 import { requireSession } from '../lib/session-auth.js'
+import { checkRateLimit, rateLimitResponse } from '../lib/rate-limit.js'
 // CLI/daemon-shaped auth (TokenExchange / Refresh / GetMe) now lives only
 // at Connect-RPC paths (/ship.gateway.v1.AuthService/<Method>) — the
 // daemon's account module is the sole consumer, and the CLI goes through
@@ -33,13 +34,24 @@ auth.get('/v1/jwks', async (c) => {
 
 // ── CLI PKCE OAuth ────────────────────────────────────────────────────────────
 
+// PKCE S256 challenge: base64url of a 32-byte SHA-256 → exactly 43 chars.
+// RFC 7636 §4.2 allows 43–128 unreserved url-safe chars. Anything outside
+// this shape is bogus (or an injection probe) — reject before touching the DB.
+const PKCE_CHALLENGE = /^[A-Za-z0-9_-]{43,128}$/
+
 auth.get('/v1/auth/cli', async (c) => {
+  const rl = await checkRateLimit(c.req.raw, 'RATE_LIMITER_AUTH', 60, c.env)
+  if (!rl.allowed) return rateLimitResponse(rl.retryAfter)
+
   const url = new URL(c.req.url)
   const codeChallenge = url.searchParams.get('code_challenge')
   const redirectUri = url.searchParams.get('redirect_uri')
 
   if (!codeChallenge || !redirectUri) {
     return c.json({ error: 'Missing code_challenge or redirect_uri' }, 400)
+  }
+  if (!PKCE_CHALLENGE.test(codeChallenge)) {
+    return c.json({ error: 'Invalid code_challenge format' }, 400)
   }
 
   let parsed: URL
@@ -75,6 +87,9 @@ auth.get('/v1/auth/cli', async (c) => {
 })
 
 auth.get('/v1/auth/cli-callback', async (c) => {
+  const rl = await checkRateLimit(c.req.raw, 'RATE_LIMITER_AUTH', 60, c.env)
+  if (!rl.allowed) return rateLimitResponse(rl.retryAfter)
+
   const url = new URL(c.req.url)
   const code = url.searchParams.get('code')
   const state = url.searchParams.get('state')
@@ -154,6 +169,9 @@ auth.get('/v1/auth/cli-callback', async (c) => {
 // Daemon's account module is the only consumer.
 
 auth.post('/v1/auth/daemon-attest', async (c) => {
+  const rl = await checkRateLimit(c.req.raw, 'RATE_LIMITER_AUTH', 60, c.env)
+  if (!rl.allowed) return rateLimitResponse(rl.retryAfter)
+
   const session = await requireSession(c.req.raw, c.env)
   if (session instanceof Response) return session
 
@@ -186,6 +204,9 @@ auth.post('/v1/auth/daemon-attest', async (c) => {
 // here.
 
 auth.on(['GET', 'POST'], '/v1/auth/*', async (c) => {
+  const rl = await checkRateLimit(c.req.raw, 'RATE_LIMITER_AUTH', 60, c.env)
+  if (!rl.allowed) return rateLimitResponse(rl.retryAfter)
+
   const a = await getAuth(c.env)
   return a.handler(c.req.raw)
 })
