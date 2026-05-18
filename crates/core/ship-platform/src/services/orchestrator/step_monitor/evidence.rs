@@ -192,7 +192,7 @@ fn strip_ansi(input: &str) -> String {
             // CSI: ESC [ ... final byte in 0x40..=0x7E
             if chars.peek() == Some(&'[') {
                 chars.next();
-                while let Some(nc) = chars.next() {
+                for nc in chars.by_ref() {
                     if matches!(nc, '\x40'..='\x7E') {
                         break;
                     }

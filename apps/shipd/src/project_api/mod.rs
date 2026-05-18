@@ -319,7 +319,7 @@ mod tests_inline {
             .unwrap_err();
         let (status, body) = response;
         assert_eq!(status, StatusCode::NOT_FOUND);
-        assert_eq!(body.0.ok, false);
+        assert!(!body.0.ok);
     }
 
     #[test]

@@ -25,6 +25,8 @@ pub(super) enum Response {
     Empty,
 }
 
+type HandlerArc = Arc<dyn Fn(&str, &str) -> Option<Response> + Send + Sync>;
+
 pub(super) struct StubServer {
     pub base_url: String,
     pub captures: Arc<Mutex<Vec<CapturedRequest>>>,
@@ -69,7 +71,7 @@ impl StubServer {
 async fn handle_connection(
     mut socket: tokio::net::TcpStream,
     captures: Arc<Mutex<Vec<CapturedRequest>>>,
-    handler: Arc<dyn Fn(&str, &str) -> Option<Response> + Send + Sync>,
+    handler: HandlerArc,
 ) -> std::io::Result<()> {
     let (read_half, mut write_half) = socket.split();
     let mut reader = BufReader::new(read_half);

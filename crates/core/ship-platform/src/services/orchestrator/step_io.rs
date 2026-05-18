@@ -272,7 +272,7 @@ pub fn find_fanout_step_for_lane<'a>(
     lane_id: &str,
 ) -> Option<&'a ship_substrate::events::pipeline::PipelineStep> {
     pipeline.steps.iter().find(|s| {
-        s.fanout.as_ref().map_or(false, |f| f.lanes.iter().any(|l| l.id == lane_id))
+        s.fanout.as_ref().is_some_and(|f| f.lanes.iter().any(|l| l.id == lane_id))
     })
 }
 

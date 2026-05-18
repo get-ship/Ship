@@ -92,7 +92,7 @@ Vision -> Release -> Feature -> Spec -> Close Feature -> Ship Release
     )?;
 
     crate::config::ensure_standard_dirs(&ship_path)?;
-    write_project_gitignore(base_dir.as_ref())?;
+    write_project_gitignore(base_dir)?;
 
     Ok(ship_path)
 }

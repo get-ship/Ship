@@ -54,7 +54,6 @@ fn svg_camel_case(lower: &str) -> Option<&'static str> {
         "pointsatx" => Some("pointsAtX"),
         "pointsaty" => Some("pointsAtY"),
         "pointsatz" => Some("pointsAtZ"),
-        "specularconstant" => Some("specularConstant"),
         _ => None,
     }
 }

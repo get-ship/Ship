@@ -120,11 +120,13 @@ mod tests {
     fn save_then_load_round_trips() {
         let (_tmp, home) = fresh_home();
         let path = LocalSettings::path_at(&home);
-        let mut settings = LocalSettings::default();
-        settings.worktrees = Some(Worktrees {
-            dir: Some("/opt/wt".into()),
-            ports: HashMap::new(),
-        });
+        let settings = LocalSettings {
+            worktrees: Some(Worktrees {
+                dir: Some("/opt/wt".into()),
+                ports: HashMap::new(),
+            }),
+            ..Default::default()
+        };
         settings.save_at(&path).unwrap();
 
         let back = LocalSettings::load_at(&path);

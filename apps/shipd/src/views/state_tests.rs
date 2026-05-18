@@ -52,8 +52,7 @@ fn run_category_splits_correctly() {
 #[test]
 fn filter_is_empty_when_all_fields_none() {
     assert!(Filter::default().is_empty());
-    let mut f = Filter::default();
-    f.q = Some(String::new());
+    let f = Filter { q: Some(String::new()), ..Default::default() };
     // Empty-string q still counts as "set" from the URL but matches everything;
     // `is_empty` reflects "no filter fields", not "matches nothing".
     assert!(!f.is_empty());
@@ -62,8 +61,7 @@ fn filter_is_empty_when_all_fields_none() {
 #[test]
 fn filter_matches_q_across_slug_and_agent() {
     let job = mk("spec-42", "reviewer", JobStatus::Dispatched, 1);
-    let mut f = Filter::default();
-    f.q = Some("review".into());
+    let mut f = Filter { q: Some("review".into()), ..Default::default() };
     assert!(f.matches(&job));
     f.q = Some("42".into());
     assert!(f.matches(&job));
@@ -74,8 +72,7 @@ fn filter_matches_q_across_slug_and_agent() {
 #[test]
 fn filter_agent_requires_exact_match() {
     let job = mk("a", "builder", JobStatus::Dispatched, 1);
-    let mut f = Filter::default();
-    f.agent = Some("builder".into());
+    let mut f = Filter { agent: Some("builder".into()), ..Default::default() };
     assert!(f.matches(&job));
     f.agent = Some("other".into());
     assert!(!f.matches(&job));
@@ -84,8 +81,7 @@ fn filter_agent_requires_exact_match() {
 #[test]
 fn filter_status_uses_tokens() {
     let job = mk("a", "x", JobStatus::GatePending, 1);
-    let mut f = Filter::default();
-    f.status = Some("gate-pending".into());
+    let mut f = Filter { status: Some("gate-pending".into()), ..Default::default() };
     assert!(f.matches(&job));
     f.status = Some("failed".into());
     assert!(!f.matches(&job));

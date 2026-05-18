@@ -50,7 +50,7 @@ pub async fn open_project(
 /// `project_id`, that's the source of truth — per-actor scope replaces
 /// the legacy `active_project` singleton. Falls back to the singleton
 /// + cwd + global + single-registered chain for connections without an
-/// associated actor (external IDE clients etc).
+///   associated actor (external IDE clients etc).
 pub async fn get_effective_project_dir(
     actor_id: &str,
     active_project: &Arc<Mutex<Option<PathBuf>>>,

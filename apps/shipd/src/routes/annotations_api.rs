@@ -160,6 +160,10 @@ fn annotation_kind_str(ev: &AnnotationEvent) -> &'static str {
     }
 }
 
+#[allow(
+    clippy::result_large_err,
+    reason = "axum::Response is the canonical error vehicle for handler helpers"
+)]
 fn validate(ev: &AnnotationEvent) -> Result<(), Response> {
     use ship_substrate::events::annotation::AnnotationKind;
     match ev.kind {

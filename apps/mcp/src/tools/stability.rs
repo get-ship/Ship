@@ -137,6 +137,10 @@ where
 
 /// Best-effort static-str lookup. Tool names from the macro are always
 /// `&'static str`, so this should always succeed; the fallback is a safety net.
+#[allow(
+    clippy::ptr_arg,
+    reason = "the Cow variant is the discriminator — clippy's &str suggestion erases it"
+)]
 fn static_str(s: &Cow<'static, str>) -> &'static str {
     match s {
         Cow::Borrowed(b) => b,

@@ -8,6 +8,7 @@
 //!    `<lane_id>.failed` marker carrying the failure reason.
 //! 3. All lanes fail — the aggregator produces `AggregateDecision::Fail`, so
 //!    the fanout step fails and the judge is never dispatched.
+//!
 //! Shared harness (mock ports, event/artifact seeding) lives in
 //! `tests_fanout_harness.rs`.
 

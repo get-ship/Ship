@@ -79,7 +79,7 @@ export default controller({
 }
 
 #[test]
-fn does_not_match_method_named_dateNowish() {
+fn does_not_match_method_named_date_nowish() {
     let src = r#"
 export default controller({
   derived: { x: (s) => s.dateNow },

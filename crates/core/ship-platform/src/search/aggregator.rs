@@ -74,7 +74,7 @@ pub async fn run_search(
 fn adapter_enabled(kind: EntityKindFilter, allow: Option<&[EntityKindFilter]>) -> bool {
     match allow {
         None => true,
-        Some(list) => list.iter().any(|k| *k == kind),
+        Some(list) => list.contains(&kind),
     }
 }
 

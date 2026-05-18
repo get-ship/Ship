@@ -35,9 +35,14 @@ pub fn init_kernel_router(base_dir: PathBuf) -> anyhow::Result<Arc<Mutex<KernelR
         return Ok(kr.clone());
     }
     let arc = Arc::new(Mutex::new(build_router(base_dir)?));
-    // Ignore failure — another thread may have won the race; take its value.
-    let _ = KERNEL_ROUTER.set(arc);
-    Ok(KERNEL_ROUTER.get().expect("just set").clone())
+    // If another thread won the race, take its value; otherwise take ours.
+    match KERNEL_ROUTER.set(arc.clone()) {
+        Ok(()) => Ok(arc),
+        Err(_) => Ok(KERNEL_ROUTER
+            .get()
+            .ok_or_else(|| anyhow::anyhow!("KERNEL_ROUTER race: neither set nor get succeeded"))?
+            .clone()),
+    }
 }
 
 /// Get the global KernelRouter, or `None` if not yet initialized.

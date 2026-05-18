@@ -50,11 +50,11 @@ fn instr_references(instr: &Instr, var_name: &str, idx_name: Option<&str>) -> bo
             expr_references(&f.iterable, var_name, idx_name)
                 || f.key
                     .as_ref()
-                    .map_or(false, |k| expr_references(k, var_name, idx_name))
+                    .is_some_and(|k| expr_references(k, var_name, idx_name))
                 || body_references_for_vars(&f.body, var_name, idx_name)
                 || f.else_body
                     .as_ref()
-                    .map_or(false, |b| body_references_for_vars(b, var_name, idx_name))
+                    .is_some_and(|b| body_references_for_vars(b, var_name, idx_name))
         }
         Instr::Match(m) => {
             expr_references(&m.discriminant, var_name, idx_name)
@@ -64,7 +64,7 @@ fn instr_references(instr: &Instr, var_name: &str, idx_name: Option<&str>) -> bo
                 })
                 || m.default
                     .as_ref()
-                    .map_or(false, |b| body_references_for_vars(b, var_name, idx_name))
+                    .is_some_and(|b| body_references_for_vars(b, var_name, idx_name))
         }
         Instr::WhileLoading(w) => body_references_for_vars(&w.body, var_name, idx_name),
         Instr::WhileError(w) => body_references_for_vars(&w.body, var_name, idx_name),
@@ -90,13 +90,13 @@ fn attr_references(attr: &AttrInstr, var_name: &str, idx_name: Option<&str>) -> 
         }
         AttrInstr::Transition { opts, .. } => opts
             .as_ref()
-            .map_or(false, |e| expr_references(e, var_name, idx_name)),
+            .is_some_and(|e| expr_references(e, var_name, idx_name)),
     }
 }
 
 fn expr_references(expr: &Expr, var_name: &str, idx_name: Option<&str>) -> bool {
     contains_identifier(&expr.source, var_name)
-        || idx_name.map_or(false, |n| contains_identifier(&expr.source, n))
+        || idx_name.is_some_and(|n| contains_identifier(&expr.source, n))
 }
 
 /// Substring search with JS identifier word boundaries on each side.
