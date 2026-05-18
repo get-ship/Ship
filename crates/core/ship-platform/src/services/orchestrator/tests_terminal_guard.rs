@@ -149,6 +149,8 @@ async fn seed_terminal(
         spec_content: None,
         step_specs: None,
         headless: true,
+        prompt: None,
+        resume: false,
         baseline_sha: None,
     };
     let env = EventEnvelope::new(event_types::PIPELINE_RUN_STARTED, job_id, &created).unwrap();

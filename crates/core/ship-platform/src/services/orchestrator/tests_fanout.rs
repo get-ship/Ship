@@ -62,6 +62,8 @@ fn base_payload(
         spec_content: None,
         step_specs: None,
         headless: true,
+        prompt: None,
+        resume: false,
         baseline_sha: None,
     }
 }

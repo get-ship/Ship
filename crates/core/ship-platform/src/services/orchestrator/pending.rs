@@ -79,6 +79,8 @@ pub async fn dispatch_ready_pending_jobs(
             spec_content: None,
             step_specs: None,
             headless: job.headless,
+            prompt: None,
+            resume: false,
             baseline_sha: job.baseline_sha.clone(),
         };
 

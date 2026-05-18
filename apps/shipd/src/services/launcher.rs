@@ -78,6 +78,8 @@ pub async fn launch_collection_item(
         spec_content: load_body(&spec.body_path).ok(),
         step_specs: None,
         headless: false,
+        prompt: None,
+        resume: false,
         baseline_sha,
     };
     let payload = ship_platform::services::orchestrator::pipeline_loader::ensure_pipeline(payload)
