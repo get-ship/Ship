@@ -95,18 +95,23 @@ describe("hooks / daemon emit", () => {
         expect(res.status).toBe(200);
 
         // Generous timeout: poll endpoint scans recent events list +
-        // filters in-process. With a busy DB the first page may not
-        // include our event; widen the window.
-        //
-        // tool_use events use actor_id (resolve_actor) as the entity_id,
-        // not session_id. Filter on either to match both shapes.
+        // filters in-process. Server-side slug filter narrows the
+        // response so we don't have to walk thousands of unrelated
+        // events on a busy daemon. The poll endpoint matches slug
+        // against entity_id OR payload.slug — our typed payload
+        // doesn't carry a `slug` field today, so we rely on entity_id.
         const events = await pollForEvents(
           (e) =>
             e.event_type === c.eventType &&
             (e.entity_id === probeActor ||
               e.target_actor_id === probeActor ||
               e.actor_id === probeActor),
-          { sinceId, timeoutMs: 10_000, stopAfter: 1 },
+          {
+            sinceId,
+            slug: probeActor,
+            timeoutMs: 10_000,
+            stopAfter: 1,
+          },
         );
         expect(events.length).toBe(1);
         const e = events[0]!;

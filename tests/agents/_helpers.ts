@@ -414,12 +414,19 @@ export async function pollForEvents(
   return collected;
 }
 
-/** Latest persisted event id — use as a `sinceId` cursor anchor. */
+/** Latest persisted event id — use as a `sinceId` cursor anchor.
+ *  The poll endpoint returns events ASC (oldest of the recent 5000
+ *  first — `list_recent_events_at` does `ORDER BY id DESC LIMIT 5000`
+ *  then `.reverse()`). To get the newest, ask for the full recent
+ *  window and read the LAST element. Skipping the workaround would
+ *  put the cursor 5000 events in the past — making tests miss newly
+ *  emitted events on busy daemons. */
 export async function latestEventId(): Promise<string | undefined> {
   const { body } = await api<{ data?: { events?: EventEnvelope[] } }>(
-    `/api/v1/events/poll?limit=1`,
+    `/api/v1/events/poll?limit=5000`,
   );
-  return body.data?.events?.[0]?.id;
+  const evs = body.data?.events;
+  return evs && evs.length > 0 ? evs[evs.length - 1]!.id : undefined;
 }
 
 /**
