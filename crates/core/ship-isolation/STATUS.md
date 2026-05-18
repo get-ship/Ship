@@ -30,10 +30,24 @@
   - Direct probe (`/tmp/probe-bundle`) confirms container's `/home`
     is the rootfs's `/home` (not the host's): host `~/.bashrc` is
     invisible from inside; only what the policy mounts is visible.
-- **`ship-sidecar` binary** — `bin/ship-sidecar/tests/health.rs`:
+- **`ship-sidecar` binary** — `bin/ship-sidecar/tests/{health,exec}.rs`:
   - Boots on a free port via axum.
-  - Responds to `GET /v1/health` with the `HealthResponse` shape
-    defined in `ship_isolation::sidecar::protocol`.
+  - `/v1/health` returns the `HealthResponse` shape.
+  - `/v1/exec` spawns a child with piped stdio, returns exec_id + pid.
+  - `/v1/stdin` writes base64 bytes to a running exec.
+  - `/v1/signal` dispatches kill(2) with caller-specified signal.
+  - `/v1/events` SSE streams Stdout/Stderr/Exited events.
+  - `/v1/shutdown` triggers graceful axum shutdown.
+- **`SidecarSandbox` wrapper** (feature `sidecar-mode`, Linux only) —
+  `src/backends/youki_sidecar.rs`:
+  - Spawns a long-lived youki container with `ship-sidecar` as PID 1.
+  - Drives exec / stdin / signal / wait via HTTP against the
+    sidecar's free TCP port (host network namespace shared for the
+    spike).
+  - Bind-mounts the host's `ship-sidecar` binary into the container
+    at `/usr/local/bin/ship-sidecar` — no rootfs rebuild needed per
+    sidecar change. Production should bake the sidecar into the
+    rootfs.
 
 Live tests skip if their external dependency isn't on PATH. They are
 NOT marked `#[ignore]` — they auto-run when the tooling is present,

@@ -144,6 +144,15 @@ async fn signal_terminates_running_exec() {
     let base = format!("http://{addr}");
     let client = reqwest::Client::new();
 
+    // Subscribe FIRST so we don't miss the Exited event.
+    let mut events = client
+        .get(format!("{base}/v1/events"))
+        .send()
+        .await
+        .unwrap()
+        .bytes_stream();
+    tokio::time::sleep(Duration::from_millis(50)).await;
+
     let exec_body = serde_json::json!({
         "session_id": "ses_default",
         "bin": "/bin/sh",
@@ -172,13 +181,6 @@ async fn signal_terminates_running_exec() {
         .await
         .unwrap();
     assert!(sig_resp.status().is_success());
-
-    let mut events = client
-        .get(format!("{base}/v1/events"))
-        .send()
-        .await
-        .unwrap()
-        .bytes_stream();
 
     let mut exited_before_timeout = false;
     let deadline = tokio::time::Instant::now() + Duration::from_secs(5);
@@ -214,12 +216,23 @@ async fn stdin_is_delivered_to_running_exec() {
     let base = format!("http://{addr}");
     let client = reqwest::Client::new();
 
+    // Subscribe FIRST so we don't miss tr's HELLO stdout.
+    let mut events = client
+        .get(format!("{base}/v1/events"))
+        .send()
+        .await
+        .unwrap()
+        .bytes_stream();
+    tokio::time::sleep(Duration::from_millis(50)).await;
+
+    // sh -c "read line; echo GOT $line" — exits cleanly after one
+    // line of stdin, no need to close stdin or send a signal.
     let exec: serde_json::Value = client
         .post(format!("{base}/v1/exec"))
         .json(&serde_json::json!({
             "session_id": "ses_default",
-            "bin": "/usr/bin/tr",
-            "args": ["a-z", "A-Z"],
+            "bin": "/bin/sh",
+            "args": ["-c", "read line; echo GOT $line"],
             "env": HashMap::<String, String>::new(),
             "cwd": "/"
         }))
@@ -231,13 +244,6 @@ async fn stdin_is_delivered_to_running_exec() {
         .unwrap();
     let exec_id = exec["exec_id"].as_str().unwrap().to_string();
 
-    let mut events = client
-        .get(format!("{base}/v1/events"))
-        .send()
-        .await
-        .unwrap()
-        .bytes_stream();
-
     let payload = base64::engine::general_purpose::STANDARD.encode("hello\n");
     client
         .post(format!("{base}/v1/stdin"))
@@ -246,16 +252,7 @@ async fn stdin_is_delivered_to_running_exec() {
         .await
         .unwrap();
 
-    // signal EOF: send empty payload then SIGTERM tr (it won't exit on
-    // empty input alone — we have to close stdin or kill)
-    client
-        .post(format!("{base}/v1/signal"))
-        .json(&serde_json::json!({ "exec_id": exec_id, "signal": 15 }))
-        .send()
-        .await
-        .unwrap();
-
-    let mut saw_upper = false;
+    let mut saw_echo = false;
     let deadline = tokio::time::Instant::now() + Duration::from_secs(5);
     while tokio::time::Instant::now() < deadline {
         let chunk = match tokio::time::timeout(Duration::from_millis(500), events.next()).await {
@@ -274,16 +271,16 @@ async fn stdin_is_delivered_to_running_exec() {
                 let b = base64::engine::general_purpose::STANDARD
                     .decode(v["data_b64"].as_str().unwrap_or(""))
                     .unwrap_or_default();
-                if String::from_utf8_lossy(&b).contains("HELLO") {
-                    saw_upper = true;
+                if String::from_utf8_lossy(&b).contains("GOT hello") {
+                    saw_echo = true;
                 }
             }
         }
-        if saw_upper {
+        if saw_echo {
             break;
         }
     }
 
-    assert!(saw_upper, "did not see HELLO from tr after sending 'hello'");
+    assert!(saw_echo, "did not see 'GOT hello' from sh after stdin 'hello'");
     let _ = child.kill().await;
 }
