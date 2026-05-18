@@ -8,9 +8,12 @@ context when its trigger matches.
 For doc skills (the `docs/ship-*/` tree), see `.ship/skills/writing-docs/`.
 
 Publish-ready, generic-purpose skills live in the top-level `skills/`
-directory (collection-authoring, ship-canvas, tdd, trigger-authoring,
-**web-qa**) — those load when their trigger fires regardless of which
-project the agent runs in.
+directory — those load when their trigger fires regardless of which
+project the agent runs in. Current publish set:
+`collection-authoring`, `ship-canvas`, `ship-components`,
+`ship-design-system`, `ship-views`, `tdd`, `web-qa`. The
+`trigger-authoring` skill used to live there too but moved back to
+`.ship/skills/` because Ship triggers aren't launch-ready yet.
 
 ## Authoring contract
 
@@ -19,11 +22,12 @@ Active framework contracts agents use when writing first-party code.
 | Skill | One-liner |
 | --- | --- |
 | [`no-slop`](no-slop/SKILL.md) | Ten commandments for building software with AI agents. Hard-won, opinionated, concise. |
-| [`ship-views`](ship-views/SKILL.md) | Author Ship views in SUI — `.sui` templates with optional paired `.controller.ts`, AOT-compiled, server-rendered first, hydrated by `attach()`. |
-| [`ship-components`](ship-components/SKILL.md) | Author Ship components in SUI — `<sui-*>` primitives compiled AOT from `.sui` source with optional paired `.controller.ts`. |
-| [`ship-design-system`](ship-design-system/SKILL.md) | Charter for Ship's design-system layer — tokens, themes, surfaces, tone ramps, motion, density. Read when editing `packages/ui-components/src/tokens/tokens.css`/`themes.css` or adding a theme. |
+| [`ship-views`](../../skills/ship-views/SKILL.md) | (publish-ready) Author Ship views in SUI — `.sui` templates with optional paired `.controller.ts`, AOT-compiled, server-rendered first, hydrated by `attach()`. |
+| [`ship-components`](../../skills/ship-components/SKILL.md) | (publish-ready) Author Ship components in SUI — `<sui-*>` primitives compiled AOT from `.sui` source with optional paired `.controller.ts`. |
+| [`ship-design-system`](../../skills/ship-design-system/SKILL.md) | (publish-ready) Charter for Ship's design-system layer — tokens, themes, surfaces, tone ramps, motion, density. Read when editing `packages/ui-components/src/tokens/tokens.css`/`themes.css` or adding a theme. |
 | [`writing-docs`](writing-docs/SKILL.md) | Write reference docs for a doc skill (`docs/ship-*/references/docs/`). Covers Markdown + ship-elements, frontmatter, audience filtering, multi-page structure. |
 | [`write-adr`](write-adr/SKILL.md) | Capture a technical/product decision for future agents — context, decision, alternatives, consequences, success measure. |
+| [`trigger-authoring`](trigger-authoring/SKILL.md) | Author Ship triggers — JSONC files in `.ship/triggers/*.jsonc` that match a Ship event and run actions. Not yet launch-ready; lives here until the surface stabilises. |
 
 ## Orchestration
 

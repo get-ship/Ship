@@ -104,4 +104,4 @@ Raw scales — reach only when the layers above don't fit.
 ## Where to go next
 
 - Override individual tokens or author a full theme: [Customizing](./customizing).
-- Component-author guidance — which token for which intent — lives in the impl skill at `.ship/skills/ship-components/SKILL.md`.
+- Component-author guidance — which token for which intent — lives in the impl skill at `skills/ship-components/SKILL.md`.

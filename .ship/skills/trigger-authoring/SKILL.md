@@ -177,7 +177,12 @@ Inside `data`, `payload`, `filter`, `template_file` content, and `when`:
 | `results` | Array of prior-action results in this trigger, indexed by position. `{{ results[0].id }}` after a `collection.insert` |
 | `now()` | Current UTC timestamp (ISO 8601) |
 
-Jinja filters inherit the same set as Ship views — see `ship-views` skill.
+The renderer is a fresh `minijinja::Environment` per evaluation —
+custom filters are not registered today, so `{{ a | b }}` chains
+limited to minijinja built-ins (`length`, `upper`, `lower`, `default`,
+etc.). The renderer lives at
+`crates/core/ship-platform/src/triggers/render.rs` — register a filter
+there if you genuinely need one.
 
 ## Recursion guard
 
@@ -259,7 +264,7 @@ Invalid triggers log a warning and are skipped — they do not crash the daemon.
 
 ## Relation to other systems
 
-- **Views** can read a collection that a trigger writes to, giving you live dashboards of derived state. See `ship-views`.
+- **Views** can read a collection that a trigger writes to, giving you live dashboards of derived state. Views subscribe via `<data name="…" source="ship.collection.items(…)" live />` and stay current as triggers mutate the table. See `ship-views`.
 - **Pipelines** handle multi-step or agent-involving work. Triggers are the cheap reflex; pipelines are the thoughtful response.
 - **Connections** (Phase 2) will add `notify` and `connection.proxy` actions so triggers can send messages and call external APIs through authenticated proxies.
 

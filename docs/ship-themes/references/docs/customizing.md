@@ -116,4 +116,4 @@ Rebuild the `@ship/ui-components` package so the `ThemeId` union and theme expor
 
 ## Going deeper
 
-The authoring rules in full — tone-ramp mechanics, motion curve guidance, density conventions, anti-smells — live in the impl skill at `.ship/skills/ship-design-system/SKILL.md`. Read it before submitting a theme for inclusion.
+The authoring rules in full — tone-ramp mechanics, motion curve guidance, density conventions, anti-smells — live in the impl skill at `skills/ship-design-system/SKILL.md`. Read it before submitting a theme for inclusion.
