@@ -31,5 +31,9 @@ tokio = { workspace = true, features = ["rt-multi-thread", "macros", "sync", "pr
 name = "run_claude"
 required-features = ["youki-backend"]
 
+[[example]]
+name = "run_claude_sidecar"
+required-features = ["youki-backend", "sidecar-mode"]
+
 [lints]
 workspace = true
