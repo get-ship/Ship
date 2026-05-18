@@ -23,9 +23,25 @@ impl ClaudeAdapter {
         let inline_mcp = r#"{"mcpServers":{"ship-bridge":{"command":"ship","args":["mcp","serve"]}}}"#;
         let mut args = vec![
             "--dangerously-skip-permissions".to_string(),
-            // `--channels` is the approved-channel form (avoids the
-            // interactive confirmation dialog that
-            // `--dangerously-load-development-channels` triggers).
+            // Claude channel state — CURRENTLY DEGRADED. See
+            // .artifacts/agents-arc/discussions/claude-channel-dialog-blocker.md
+            //
+            // Short version: `server:` channels (used for Ship's push-to-
+            // agent Channel mechanism) require
+            // --dangerously-load-development-channels, which triggers an
+            // interactive confirmation dialog that blocks the TUI in
+            // dispatched-keepalive mode (no user to press Enter).
+            //
+            // Today we pass --channels server:ship alone: claude survives,
+            // channel is declared, but server: entries are inactive
+            // (claude logs "server: entries need
+            // --dangerously-load-development-channels"). Push via Channel
+            // mechanism HTTP-202s and emits studio.chat_turn, but
+            // delivery to claude's MCP subscriber doesn't actually
+            // happen.
+            //
+            // Proper fix: PTY-side dialog auto-dismissal in the
+            // supervisor when keepalive=true. Substantial work; tracked.
             "--channels".to_string(),
             "server:ship".to_string(),
             "--mcp-config".to_string(),
