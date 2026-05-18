@@ -85,7 +85,6 @@
 .home-glance-skel { font-style: italic; }
 .home-mono { font-family: var(--font-mono); }
 
-.home-jobs-list { display: flex; flex-direction: column; }
 .home-job-tile { padding: 0 var(--space-5); border-bottom: 1px solid color-mix(in oklch, var(--border) 30%, transparent); }
 .home-job-tile:last-child { border-bottom: none; }
 .home-job-name { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--foreground); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

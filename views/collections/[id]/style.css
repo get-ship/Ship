@@ -85,13 +85,6 @@
   color: var(--muted-foreground);
 }
 .cd-meta-val { color: var(--foreground); }
-.cd-tabs-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-}
-
 /* Body / panels */
 .cd-body {
   flex: 1;
@@ -131,7 +124,6 @@
   color: var(--muted-foreground);
   margin-bottom: var(--space-3);
 }
-.cd-fields { display: flex; flex-direction: column; gap: var(--space-1); }
 .cd-field-row {
   display: flex;
   align-items: center;
@@ -232,8 +224,6 @@
 .ref-pill sui-icon { color: var(--muted-foreground); }
 
 /* Drawer (matches index view conventions) */
-.cd-drawer-form { display: flex; flex-direction: column; gap: var(--space-3); }
-.cd-drawer-field { display: flex; flex-direction: column; gap: var(--space-1); }
 .cd-drawer-label {
   font-size: var(--text-xs);
   font-weight: var(--font-weight-medium);

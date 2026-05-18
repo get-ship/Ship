@@ -12,12 +12,12 @@
           {visibleCount()} of {totalCount()} artifact{totalCount() === 1 ? '' : 's'}
         </p>
       </div>
-      <div class="art-head-actions">
+      <sui-cluster gap="2" align="center">
         <sui-button tone="accent" variant="solid" size="sm"
           on:click={openUpload} data-test="upload-button">
           <sui-icon slot="leading" name="upload"></sui-icon>Upload
         </sui-button>
-      </div>
+      </sui-cluster>
     </header>
 
     {#if loadError()}
@@ -177,7 +177,7 @@
         <span slot="title">{detailItem().name || detailItem().id}</span>
         <span slot="description">{detailItem().mime} · {detailItem().size_label}</span>
 
-        <div class="art-detail">
+        <sui-stack gap="4">
           <dl class="art-detail-meta">
             <div class="art-detail-row">
               <dt>ID</dt>
@@ -223,7 +223,7 @@
               </div>
             {/if}
           </div>
-        </div>
+        </sui-stack>
 
         <div slot="footer">
           <sui-button variant="ghost" on:click={closeDetail}>Close</sui-button>
@@ -240,12 +240,12 @@
     <sui-dialog attr:open={uploadOpen() ? '' : null} size="md"
       on:sui-close={closeUpload} data-test="upload-dialog">
       <span slot="header">Upload artifact</span>
-      <div class="art-upload-form">
+      <sui-stack gap="3">
         <sui-file-upload accept="" attr:disabled={uploading() ? '' : null}
           on:sui-change={(e) => onUploadFiles(e.detail.files)}
           data-test="upload-files"></sui-file-upload>
 
-        <div class="art-upload-field">
+        <sui-stack gap="1">
           <label class="art-upload-label" for="art-upload-col">
             Collection <span class="art-upload-hint">(optional)</span>
           </label>
@@ -258,12 +258,12 @@
               <option attr:value={c.id}>{c.name || c.id}</option>
             {/for}
           </sui-select>
-        </div>
+        </sui-stack>
 
         {#if uploadError()}
           <div class="art-upload-error" data-test="upload-error">{uploadError()}</div>
         {/if}
-      </div>
+      </sui-stack>
       <div slot="footer">
         <sui-button variant="ghost" on:click={closeUpload}
           attr:disabled={uploading() ? '' : null}>Cancel</sui-button>

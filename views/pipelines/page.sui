@@ -13,7 +13,7 @@
         <h1 class="ship-pipelines-title">Pipelines</h1>
         <p class="ship-pipelines-sub">{statsSubtitle()}</p>
       </div>
-      <div class="ship-pipelines-head-actions">
+      <sui-cluster gap="2">
         <sui-button variant="outline" size="sm" on:click={() => navigate('/pipelines/history')}>
           <sui-icon slot="leading" name="list" size="sm"></sui-icon>History
         </sui-button>
@@ -25,7 +25,7 @@
         <sui-button tone="primary" variant="solid" size="sm" on:click={openDispatch}>
           <sui-icon slot="leading" name="play" size="sm"></sui-icon>Dispatch
         </sui-button>
-      </div>
+      </sui-cluster>
     </header>
 
     {#if activeRuns().length > 0}
@@ -36,7 +36,7 @@
         </h2>
         <sui-badge tone="info">{activeRuns().length}</sui-badge>
       </div>
-      <div class="ship-pipelines-run-list">
+      <sui-stack gap="3">
         {#for run of activeRuns() key={run.slug}}
           <sui-pipeline-run attr:state={run.state_attr} attr:slug={run.slug} attr:agent={run.agent}>
             <sui-timestamp slot="actions" attr:value={run.updated_at} relative></sui-timestamp>
@@ -64,7 +64,7 @@
             <sui-log-stream slot="footer" attr:id={'logs-' + run.slug} attr:url={'/api/v1/pipelines/runs/' + run.slug + '/log/stream'} autoscroll></sui-log-stream>
           </sui-pipeline-run>
         {/for}
-      </div>
+      </sui-stack>
     </div>
     {/if}
 
@@ -89,7 +89,7 @@
               {#if def.last_run_status}<sui-chip size="sm" attr:tone={def.last_run_tone ?? 'muted'}>{def.last_run_status}</sui-chip>{/if}
               {#if def.recent_outcomes}<span class="ship-def-spark" aria-label={'Last ' + def.recent_outcomes.length + ' run outcomes'}></span>{/if}
             </div>
-            <div slot="footer" class="ship-def-stats">
+            <sui-cluster gap="5" align="baseline" slot="footer">
               {#if def.total_runs > 0}
                 <span class="ship-def-stat">
                   <span class="ship-def-stat-value">{def.total_runs}</span>
@@ -108,7 +108,7 @@
               {:else}
                 <span class="ship-def-stat-empty">No runs yet — click to dispatch</span>
               {/if}
-            </div>
+            </sui-cluster>
           </sui-card>
         {/for}
       </div>

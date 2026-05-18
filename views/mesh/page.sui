@@ -1,7 +1,7 @@
 <div class="ship-view ship-mesh">
 
   {#while-loading of snap}
-    <div class="mesh-skel" aria-busy="true" aria-label="Loading mesh">
+    <sui-stack gap="5" aria-busy="true" aria-label="Loading mesh">
       <div class="mesh-skel-head">
         <sui-skeleton shape="line" size="lg" style="width:120px"></sui-skeleton>
         <sui-skeleton shape="line" size="sm" style="width:320px"></sui-skeleton>
@@ -17,7 +17,7 @@
           {/for}
         </section>
       {/for}
-    </div>
+    </sui-stack>
   {/while-loading}
 
   {#while-error err of snap}

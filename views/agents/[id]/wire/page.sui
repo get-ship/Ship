@@ -178,7 +178,7 @@
             <span slot="title">No {pickerKind()}s to add</span>
           </sui-empty-state>
         {:else}
-          <div class="ad-picker-list">
+          <sui-stack>
             {#for entry of (wireData().catalogs[pickerKind()] ?? []) key={entry.id}}
               <label class="ad-picker-row">
                 <input type="checkbox" class="ad-picker-check" value={entry.id}
@@ -190,7 +190,7 @@
                 </span>
               </label>
             {/for}
-          </div>
+          </sui-stack>
         {/if}
       </div>
       <sui-toolbar slot="footer">

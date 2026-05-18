@@ -131,7 +131,7 @@
                 View all <sui-icon name="chevron-right" size="xs" aria-hidden="true"></sui-icon>
               </a>
             </div>
-            <div class="home-jobs-list">
+            <sui-stack>
               {#if recentJobs().length > 0}
                 {#for run of recentJobs() key={run.id}}
                   <sui-list-tile density="compact" class="home-job-tile" data-test="home-job">
@@ -157,7 +157,7 @@
                   Start a workflow to see runs here.
                 </sui-empty-state>
               {/if}
-            </div>
+            </sui-stack>
           </sui-card>
 
           <sui-card padding="none" class="home-section" aria-label="Agents" data-test="home-agents">

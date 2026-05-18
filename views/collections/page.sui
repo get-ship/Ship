@@ -49,7 +49,7 @@
           {#for c of filteredIndex() key={c.id}}
             <a class="data-card" attr:href={'/collections?collection=' + c.id}
               on:click={(e) => { e.preventDefault(); navigate('/collections?collection=' + c.id) }}>
-              <div class="data-card-head">
+              <sui-cluster gap="2" align="center">
                 <span class="data-card-icon"><sui-icon name="database"></sui-icon></span>
                 <div class="data-card-identity">
                   <div class="data-card-name">{c.name || c.id}</div>
@@ -58,9 +58,9 @@
                 <span class="data-card-count">
                   {c.item_count ?? 0} item{(c.item_count ?? 0) !== 1 ? 's' : ''}
                 </span>
-              </div>
+              </sui-cluster>
               {#if c.status_summary && c.status_summary.length > 0}
-                <div class="col-card-status">
+                <sui-cluster gap="1">
                   {#for sv of c.status_summary key={sv.value}}
                     <span class={'status-chip status-chip-' + sv.value}>
                       <span class="status-chip-dot" aria-hidden="true"></span>
@@ -68,9 +68,9 @@
                       <span class="status-chip-count">{sv.count}</span>
                     </span>
                   {/for}
-                </div>
+                </sui-cluster>
               {:else if c.fields && c.fields.length > 0}
-                <div class="data-card-fields">
+                <sui-cluster gap="1">
                   {#for f of c.fields.slice(0, 5) key={f.name}}
                     <span class="data-card-field">
                       <sui-badge variant="soft" size="sm">{f.type}</sui-badge>
@@ -81,7 +81,7 @@
                   {#if c.fields.length > 5}
                     <span class="data-card-field data-card-field-more">+{c.fields.length - 5} more</span>
                   {/if}
-                </div>
+                </sui-cluster>
               {/if}
               <div class="data-card-footer">
                 <span>
@@ -132,14 +132,14 @@
 
       <div class="col-work-main">
         <div class="col-head">
-          <div class="col-head-identity">
+          <sui-cluster gap="2" align="center">
             <span class="col-head-icon"><sui-icon name="database" size="sm"></sui-icon></span>
             {#if colDetail().kind === 'ok' && colDetail().value}
               <span class="col-head-name">{colDetail().value.schema.name || activeId()}</span>
               <span class="col-head-id mono-snip">{activeId()}</span>
               <span class="col-head-count">{colDetail().value.items.length} of {colDetail().value.total_items}</span>
             {/if}
-          </div>
+          </sui-cluster>
           <div class="col-head-right">
             {#if hasStatusField()}
               <sui-segmented size="sm" attr:value={statusFilter()} on:sui-change={(e) => statusFilter.set(e.detail.value)}>
@@ -249,7 +249,7 @@
                     Built-in collections ship with the runtime. Fields are listed for reference only.
                   </div>
                 {/if}
-                <div class="schema-fields">
+                <sui-stack gap="1">
                   {#for f of schemaFieldsView() key={f.name}}
                     <div class="schema-field">
                       <span class={'ft-badge ft-' + f.field_type}>{f.field_type}</span>
@@ -261,7 +261,7 @@
                       {#if !colDetail().value.schema.builtin}<sui-button size="sm" variant="ghost" aria-label="Remove field" on:click={() => removeSchemaField(f.name)}><sui-icon name="trash" size="xs"></sui-icon></sui-button>{/if}
                     </div>
                   {/for}
-                </div>
+                </sui-stack>
               </div>
             {/if}
           </div>
@@ -275,9 +275,9 @@
     <span slot="title">New row</span>
     {#if colDetail().kind === 'ok' && colDetail().value}
       <span slot="description">Add a new item to {colDetail().value.schema.name || activeId()}</span>
-      <div class="drawer-form">
+      <sui-stack gap="3">
         {#for f of colDetail().value.schema.fields key={f.name}}
-          <div class="drawer-field">
+          <sui-stack gap="1">
             <label class="drawer-label">
               {f.name}{#if f.required}<span class="drawer-req">*</span>{/if}
               <span class="drawer-type">{f.field_type}</span>
@@ -294,10 +294,10 @@
                 attr:value={rowDraft()[f.name] ?? ''} attr:placeholder={f.name}
                 on:input={(e) => setDraftField('row', f.name, e.target.value)}></sui-input>
             {/if}
-          </div>
+          </sui-stack>
         {/for}
         {#if drawerError()}<div class="drawer-error">{drawerError()}</div>{/if}
-      </div>
+      </sui-stack>
       <div slot="footer">
         <sui-button variant="ghost" on:click={() => { newRowOpen.set(false); drawerError.set('') }}>Cancel</sui-button>
         <sui-button tone="accent" variant="solid" on:click={saveNewRow}>Save</sui-button>
@@ -310,9 +310,9 @@
     <span slot="title">Edit row</span>
     {#if colDetail().kind === 'ok' && colDetail().value}
       <span slot="description">Editing {editId()}</span>
-      <div class="drawer-form">
+      <sui-stack gap="3">
         {#for f of colDetail().value.schema.fields key={f.name}}
-          <div class="drawer-field">
+          <sui-stack gap="1">
             <label class="drawer-label">
               {f.name}{#if f.required}<span class="drawer-req">*</span>{/if}
               <span class="drawer-type">{f.field_type}</span>
@@ -329,10 +329,10 @@
                 attr:value={editDraft()[f.name] ?? ''} attr:placeholder={f.name}
                 on:input={(e) => setDraftField('edit', f.name, e.target.value)}></sui-input>
             {/if}
-          </div>
+          </sui-stack>
         {/for}
         {#if drawerError()}<div class="drawer-error">{drawerError()}</div>{/if}
-      </div>
+      </sui-stack>
       <div slot="footer">
         <sui-button tone="destructive" variant="soft" style="margin-right:auto"
           on:click={deleteRow}>Delete</sui-button>
@@ -346,21 +346,21 @@
     on:sui-close={() => { newColOpen.set(false); drawerError.set('') }}>
     <span slot="title">New collection</span>
     <span slot="description">Define a typed dataset stored in data.db</span>
-    <div class="drawer-form">
-      <div class="drawer-field">
+    <sui-stack gap="3">
+      <sui-stack gap="1">
         <label class="drawer-label">
           Collection ID <span class="drawer-req">*</span>
           <span class="drawer-type">snake_case</span>
         </label>
         <sui-input bind:value={newColDraftId} placeholder="my_collection" required
           style="font-family:var(--font-mono)"></sui-input>
-      </div>
-      <div class="drawer-field">
+      </sui-stack>
+      <sui-stack gap="1">
         <label class="drawer-label">Display name</label>
         <sui-input bind:value={newColDraftName} placeholder="My Collection"></sui-input>
-      </div>
+      </sui-stack>
       {#if drawerError()}<div class="drawer-error">{drawerError()}</div>{/if}
-    </div>
+    </sui-stack>
     <div slot="footer">
       <sui-button variant="ghost" on:click={() => { newColOpen.set(false); drawerError.set('') }}>Cancel</sui-button>
       <sui-button tone="accent" variant="solid" on:click={createCollection}>Create collection</sui-button>

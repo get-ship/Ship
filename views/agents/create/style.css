@@ -49,7 +49,6 @@ h2.create-h { font-family: var(--heading-font); font-weight: var(--heading-weigh
 .slug-hint { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--muted-foreground); margin-top: 4px; }
 .slug-hint code { background: var(--muted); padding: 1px 6px; border-radius: 4px; }
 
-.prov-grid { display: grid; gap: 8px; }
 @media (max-width: 700px) { .prov-grid { grid-template-columns: repeat(2, 1fr) !important; } }
 .preset-list { display: flex; flex-direction: column; gap: 8px; margin-top: var(--space-2); }
 .prov-card, .preset-card { cursor: pointer; }

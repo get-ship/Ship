@@ -77,16 +77,16 @@
               </sui-chip>
             {/if}
           </div>
-          <div class="ad-detail-id-row">
+          <sui-cluster gap="2" align="center">
             <code class="ad-detail-id">{wireData().agent.id}</code>
             <sui-badge tone="muted" variant="outline" size="sm" data-test="agent-source">{wireData().agent.source}</sui-badge>
-          </div>
+          </sui-cluster>
           {#if providerList().length > 0}
-            <div class="ad-detail-providers" aria-label="Compiles to">
+            <sui-cluster gap="2" aria-label="Compiles to">
               {#for p of providerList() key={p.id}}
                 <sui-chip tone={p.isDefault ? 'primary' : 'muted'} variant={p.isDefault ? 'soft' : 'outline'} size="sm" attr:title={p.label}>{p.label}</sui-chip>
               {/for}
-            </div>
+            </sui-cluster>
           {/if}
         </div>
         <div class="ad-detail-head-actions">
@@ -182,7 +182,7 @@
               </sui-button>
             </div>
           {:else}
-            <div class="ad-detail-list">
+            <sui-stack gap="1">
               {#for s of skillsList() key={s}}
                 <button class="ad-detail-item ad-detail-item--skill" type="button" on:click={() => goSkill(s)} data-test="skill-link" attr:data-id={s}>
                   <span class="ad-detail-item-icon"><sui-icon name="zap" size="xs"></sui-icon></span>
@@ -190,7 +190,7 @@
                   <sui-icon class="ad-detail-item-chev" name="chevron-right" size="xs"></sui-icon>
                 </button>
               {/for}
-            </div>
+            </sui-stack>
           {/if}
         </div>
       </sui-collapsible>
@@ -211,14 +211,14 @@
               </sui-button>
             </div>
           {:else}
-            <div class="ad-detail-list">
+            <sui-stack gap="1">
               {#for m of mcpList() key={m}}
                 <div class="ad-detail-item ad-detail-item--mcp" data-test="mcp-row" attr:data-id={m}>
                   <span class="ad-detail-item-icon"><sui-icon name="terminal" size="xs"></sui-icon></span>
                   <span class="ad-detail-item-name">{m}</span>
                 </div>
               {/for}
-            </div>
+            </sui-stack>
           {/if}
         </div>
       </sui-collapsible>
@@ -235,14 +235,14 @@
             <div class="ad-detail-empty">No rules attached. Edit settings to add a rules ref or inline text.</div>
           {/if}
           {#if stats().rules > 0}
-            <div class="ad-detail-list">
+            <sui-stack gap="1">
               {#for r of rulesList() key={r}}
                 <div class="ad-detail-item ad-detail-item--rule" data-test="rule-row" attr:data-id={r}>
                   <span class="ad-detail-item-icon"><sui-icon name="file-text" size="xs"></sui-icon></span>
                   <span class="ad-detail-item-name">{r}</span>
                 </div>
               {/for}
-            </div>
+            </sui-stack>
           {/if}
           <div class="ad-inline-rules">
             <label class="ad-inline-rules-label">Inline rules</label>
@@ -279,7 +279,7 @@
             <span class="ad-detail-perm-label">Preset</span>
             <sui-chip tone="muted" variant="soft" size="sm" data-test="perm-preset">{permPreset()}</sui-chip>
           </div>
-          <div class="ad-perm-summary">
+          <sui-stack gap="2">
             <div class="ad-perm-summary-row" data-test="perm-allow">
               <span class="ad-perm-summary-label"><sui-icon name="check" size="xs" tone="success"></sui-icon>Allow</span>
               {#if (permLists().allow || []).length === 0}
@@ -316,7 +316,7 @@
                 </div>
               {/if}
             </div>
-          </div>
+          </sui-stack>
           <div class="ad-edit-actions">
             <sui-button variant="outline" size="sm" on:click={goSettings}>
               <sui-icon slot="leading" name="edit" size="xs"></sui-icon>
@@ -372,11 +372,11 @@
           {#if (wireData().agent.tags || []).length > 0}
             <div class="ad-detail-perm-row">
               <span class="ad-detail-perm-label">Tags</span>
-              <div class="ad-detail-providers">
+              <sui-cluster gap="2">
                 {#for t of wireData().agent.tags key={t}}
                   <sui-chip tone="muted" variant="soft" size="sm">{t}</sui-chip>
                 {/for}
-              </div>
+              </sui-cluster>
             </div>
           {/if}
         </div>

@@ -39,7 +39,6 @@
   color: var(--muted-foreground);
 }
 .specs-rail-group-head .count { opacity: 0.6; }
-.specs-rail-items { display: flex; flex-direction: column; gap: 2px; }
 .spec-row-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
 .spec-row-name {
   font-size: var(--text-sm);
@@ -75,12 +74,6 @@
   flex-direction: column;
   gap: var(--space-3);
   margin-bottom: var(--space-5);
-}
-.specs-detail-title-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: var(--space-4);
 }
 .specs-detail-title-row h1 {
   font-family: var(--font-display);
