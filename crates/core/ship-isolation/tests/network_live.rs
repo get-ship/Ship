@@ -92,7 +92,23 @@ async fn allowlist_injects_proxy_env_and_denies_unlisted_host() {
     }];
 
     sandbox.start(policy).await.expect("start");
+    eprintln!("network_live: sandbox started, proxy_port={:?}", sandbox.proxy_port());
     assert!(sandbox.proxy_port().is_some(), "proxy should be running");
+
+    // Sanity probe: see what env the sidecar itself has.
+    let (_c, sout, _serr) = sandbox
+        .run_capture(
+            "/bin/sh",
+            vec!["-c".into(), "env | grep -iE 'proxy' | sort".into()],
+            HashMap::new(),
+            "/work",
+        )
+        .await
+        .expect("env probe");
+    eprintln!(
+        "network_live: in-container env: {:?}",
+        String::from_utf8_lossy(&sout)
+    );
 
     // 1) Inside the container, env should carry HTTPS_PROXY.
     let (code, stdout, _stderr) = sandbox
