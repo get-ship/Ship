@@ -25,6 +25,10 @@ fn default_bus() -> Arc<EventBus> {
     let mut bus = EventBus::new();
     bus.register(Box::new(ActorProjection::new()));
     bus.register(Box::new(SessionProjection::new()));
+    // AnalyticsProjection lives in the `ship-analytics` crate. The
+    // daemon registers it at startup via
+    // `install_extra_projections_factory` (see apps/shipd/src/lib.rs);
+    // substrate stays free of downstream-consumer dependencies.
     for projection in crate::projections::extra_projections() {
         bus.register(projection);
     }

@@ -2,20 +2,20 @@
 
 #[cfg(test)]
 mod analytics_tests {
-    use crate::db::{block_on, open_db};
-    use crate::events::EventEnvelope;
-    use crate::events::hooks::{
+    use ship_substrate::db::{block_on, open_db};
+    use ship_substrate::events::EventEnvelope;
+    use ship_substrate::events::hooks::{
         event_types,
         HookSessionEndedPayload, HookSessionStartedPayload, HookToolUseCompletedPayload,
         HookToolUseStartedPayload, ToolStatus,
     };
-    use crate::projections::{AnalyticsProjection, EventBus};
+    use ship_substrate::projections::EventBus; use crate::AnalyticsProjection;
 
     fn setup() -> (std::path::PathBuf, sqlx::SqliteConnection) {
-        let ship_dir = crate::project::get_global_dir().unwrap();
+        let ship_dir = ship_substrate::project::get_global_dir().unwrap();
         let base = ship_dir.parent().unwrap().to_path_buf();
-        crate::testutil::init_project_minimal(base).unwrap();
-        crate::db::ensure_db().unwrap();
+        ship_substrate::testutil::init_project_minimal(base).unwrap();
+        ship_substrate::db::ensure_db().unwrap();
         let conn = open_db().unwrap();
         (ship_dir, conn)
     }

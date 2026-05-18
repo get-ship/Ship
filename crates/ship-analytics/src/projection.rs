@@ -24,14 +24,14 @@
 use anyhow::Result;
 use sqlx::SqliteConnection;
 
-use crate::db::block_on;
-use crate::events::EventEnvelope;
-use crate::events::hooks::{
+use ship_substrate::db::block_on;
+use ship_substrate::events::EventEnvelope;
+use ship_substrate::events::hooks::{
     event_types,
     HookSessionEndedPayload, HookSessionStartedPayload, HookToolUseCompletedPayload,
     HookToolUseStartedPayload, ToolStatus,
 };
-use crate::projections::Projection;
+use ship_substrate::projections::Projection;
 
 pub struct AnalyticsProjection;
 
