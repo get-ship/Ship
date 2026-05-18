@@ -44,8 +44,6 @@ pub struct AgentBundle {
     pub description: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub version: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub harnesses: Option<Vec<String>>,
     /// Display icon — emoji or icon name.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub icon: Option<String>,
@@ -144,7 +142,6 @@ pub struct PullProfile {
     pub id: String,
     pub name: String,
     pub description: String,
-    pub harnesses: Vec<String>,
     pub version: String,
     /// Display icon — emoji or icon name.
     #[serde(default, skip_serializing_if = "Option::is_none")]
