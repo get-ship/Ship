@@ -152,4 +152,4 @@ if (componentTag) {
 console.log(`[scaffold] next steps:`)
 console.log(`  1. Edit page.sui — replace placeholder body`)
 console.log(`  2. Edit manifest.jsonc — set rail/preload/events as needed`)
-console.log(`  3. Mount via the router (packages/ship-set/src/router/)`)
+console.log(`  3. Reload the shell — views auto-mount from .ship/views/`)

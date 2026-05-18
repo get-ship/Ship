@@ -1,4 +1,13 @@
 //! Actor profile — what the actor IS, independent of how it's held.
+//!
+//! # Isolation
+//!
+//! No explicit isolation axis on `ActorProfile` today — we trust each harness's
+//! own sandboxing (Claude Code's permission system, Codex/Gemini equivalents).
+//! When explicit isolation lands (bubblewrap, seatbelt, docker, future VMs),
+//! it will be an orthogonal axis on this struct alongside `transport` and the
+//! kernel-scope fields, not folded into either. Networking + IPC back to shipd
+//! and credential passing are the open design questions blocking that work.
 
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -24,7 +33,7 @@ pub struct ActorProfile {
 
     pub workspace_id: Option<String>,
     pub agent_id: Option<String>,
-    pub provider: Option<String>,
+    pub harness: Option<String>,
     pub parent_actor_id: Option<String>,
 
     /// Optional override for log file location. Defaults to
@@ -57,7 +66,6 @@ pub enum ActorKind {
     Agent,
     PipelineStep,
     Shell,
-    Service,
 }
 
 impl ActorKind {
@@ -66,7 +74,6 @@ impl ActorKind {
             ActorKind::Agent => "agent",
             ActorKind::PipelineStep => "pipeline-step",
             ActorKind::Shell => "shell",
-            ActorKind::Service => "service",
         }
     }
 }

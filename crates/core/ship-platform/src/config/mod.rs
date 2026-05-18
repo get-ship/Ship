@@ -93,8 +93,8 @@ pub use types::{
 };
 
 pub use project::{
-    AgentProfile, McpConfig, McpSection, McpServerConfig, McpServerType, ProjectConfig,
-    ProjectDiscovery,
+    AgentProfile, HarnessProjectOverrides, McpConfig, McpSection, McpServerConfig, McpServerType,
+    ProjectConfig, ProjectDiscovery,
 };
 
 pub use mcp::get_mcp_config;
@@ -112,7 +112,8 @@ pub use watcher::{spawn_config_watcher, ConfigWatcher};
 
 pub use runtime_settings::{
     drain_legacy_project_config_kv, drain_legacy_settings_kv, get_all_settings, get_setting,
-    set_setting, set_setting_and_emit, setting_default,
+    get_setting_u64_or, resolve_bool, resolve_git_log_limit, resolve_hooks_max_depth,
+    resolve_str, resolve_watcher_debounce, set_setting, set_setting_and_emit, setting_default,
 };
 
 pub use credentials::Credentials;

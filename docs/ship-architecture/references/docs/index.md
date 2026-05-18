@@ -107,7 +107,7 @@ audience: internal
     <text class="label-sub"   x="690" y="442" font-size="10.5">CompileOutput.</text>
     <g transform="translate(690 454)">
       <rect class="chip-bg" x="0"   y="0" width="68" height="22"/><text class="chip" x="34"  y="15" text-anchor="middle">vars</text>
-      <rect class="chip-bg" x="76"  y="0" width="68" height="22"/><text class="chip" x="110" y="15" text-anchor="middle">providers</text>
+      <rect class="chip-bg" x="76"  y="0" width="68" height="22"/><text class="chip" x="110" y="15" text-anchor="middle">harnesses</text>
     </g>
   </g>
   <!-- Persistence leg -->
@@ -124,7 +124,7 @@ audience: internal
   </g>
 </svg>
 <figcaption style="text-align: center; font-size: 0.85rem; color: var(--muted-foreground); margin-top: 0.75rem;">
-Two paths out of transport: HTTP to the daemon, or a direct compile call. The daemon hosts the runtime; the runtime wraps the kernel. Events persist to <code>platform.db</code>; compile writes provider-native files.
+Two paths out of transport: HTTP to the daemon, or a direct compile call. The daemon hosts the runtime; the runtime wraps the kernel. Events persist to <code>platform.db</code>; compile writes harness-native files.
 </figcaption>
 </figure>
 
@@ -308,7 +308,7 @@ Two paths out of transport: HTTP to the daemon, or a direct compile call. The da
 - [The Ship Stack](/ship-stack/) — product-layer view.
 - [Runtime internals](/runtime/) — shipd, services, persistence.
 - [Kernel](/architecture/kernel/) — routing contract, limitations, future work.
-- [Provider Outputs](/compiler/providers/) — what the compiler writes per provider.
+- [Harness Outputs](/compiler/harnesses/) — what the compiler writes per harness.
 - [Daemon authentication model](/architecture/auth-model/) — tokens and session scopes.
 
 {% internal %}
@@ -344,10 +344,10 @@ The runtime is split across three layered crates. Top-level modules:
 | `ship-platform` (L1) | `agents` | Agent profiles, export/import, permissions, rules, skills, skill paths, skill vars. |
 | `ship-platform` (L1) | `artifacts` | Artifact metadata, backends, session artifact persistence. |
 | `ship-platform` (L1) | `collections` | Collection types and persistence. |
-| `ship-platform` (L1) | `config` | `.ship/` parsing — catalog, hooks, security, providers. |
+| `ship-platform` (L1) | `config` | `.ship/` parsing — catalog, hooks, security, harnesses. |
 | `ship-platform` (L1) | `hooks` | Trigger engine, loader, filter, rendering. |
 | `ship-platform` (L1) | `registry` | Package install, fetch, resolve, verify, tracking. |
-| `ship-platform` (L1) | `services` | Orchestrator, provider adapters. |
+| `ship-platform` (L1) | `services` | Orchestrator, harness adapters. |
 | `ship-platform` (L1) | `sessions` | Workspace lifecycle, sessions, trash, artifact events, reconciliation. |
 | `ship-platform` (L1) | `projections` | High-level read models (auth, jobs, compile state, projects). |
 | `ship-application` (L2) | `bundler` / `toolchain` | View bundler worker supervisor, Node toolchain management. |

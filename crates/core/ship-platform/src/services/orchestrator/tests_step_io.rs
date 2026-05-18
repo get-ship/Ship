@@ -14,8 +14,8 @@
 //! so prior tests sharing the same worker thread start from a clean state.
 
 use crate::artifacts::{ArtifactScope, ArtifactService};
-use ship_substrate::events::job::{
-    OutputScope, Pipeline, PipelineStep, StepDoneDeclaredPayload, StepOutput, StepPromote, StepType,
+use ship_substrate::events::pipeline::{
+    OutputScope, Pipeline, PipelineStep, PipelineStepDoneDeclaredPayload, StepOutput, StepPromote, StepType,
 };
 use ship_substrate::events::{EventEnvelope, EventSink};
 use ship_substrate::persistence::event_store::SqliteEventStore;
@@ -31,7 +31,7 @@ fn step(id: &str, agent: &str) -> PipelineStep {
         goal: None,
         after: vec![],
         model: None,
-        provider: None,
+        harness: None,
         command: None,
         max_retries: None,
         gate: None,
@@ -60,7 +60,7 @@ fn emit_event(ship_dir: &std::path::Path, event_type: &str, entity: &str, payloa
 }
 
 fn emit_job_created(ship_dir: &std::path::Path, job_id: &str, pipeline: &Pipeline) {
-    emit_event(ship_dir, "job.created", job_id, serde_json::json!({
+    emit_event(ship_dir, "pipeline.run.started", job_id, serde_json::json!({
         "job_id": job_id,
         "slug": "test-slug",
         "agent": "orchestrator",
@@ -76,7 +76,7 @@ fn emit_step_done(
     step_id: &str,
     outputs: std::collections::BTreeMap<String, String>,
 ) {
-    let payload = StepDoneDeclaredPayload {
+    let payload = PipelineStepDoneDeclaredPayload {
         job_id: job_id.into(),
         slug: "test-slug".into(),
         step_id: step_id.into(),
@@ -85,7 +85,7 @@ fn emit_step_done(
     };
     emit_event(
         ship_dir,
-        "step.done_declared",
+        "pipeline.step.done_declared",
         job_id,
         serde_json::to_value(&payload).unwrap(),
     );

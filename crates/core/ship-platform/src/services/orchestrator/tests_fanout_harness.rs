@@ -10,9 +10,9 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use crate::artifacts::{ArtifactScope, ArtifactService};
-use ship_substrate::events::job::{
+use ship_substrate::events::pipeline::{
     FanoutJudge, FanoutLane, FanoutSpec, OutputScope, Pipeline, PipelineStep,
-    StepDoneDeclaredPayload, StepObservedPayload, StepOutput, StepTrigger, StepType, StepVerdict,
+    PipelineStepDoneDeclaredPayload, PipelineStepObservedPayload, StepOutput, StepTrigger, StepType, StepVerdict,
 };
 use ship_substrate::events::{EventEnvelope, EventSink};
 use ship_substrate::persistence::event_store::SqliteEventStore;
@@ -119,7 +119,7 @@ pub fn emit_lane_step_done(
     lane_step_id: &str,
     outputs: std::collections::BTreeMap<String, String>,
 ) {
-    let payload = StepDoneDeclaredPayload {
+    let payload = PipelineStepDoneDeclaredPayload {
         job_id: job_id.into(),
         slug: "test-slug".into(),
         step_id: lane_step_id.into(),
@@ -127,14 +127,14 @@ pub fn emit_lane_step_done(
         outputs,
     };
     emit_event(
-        ship_dir, "step.done_declared", job_id,
+        ship_dir, "pipeline.step.done_declared", job_id,
         serde_json::to_value(&payload).unwrap(),
     );
 }
 
 pub fn seed_job_created(ship_dir: &std::path::Path, job_id: &str, pipeline: &Pipeline) {
     emit_event(
-        ship_dir, "job.created", job_id,
+        ship_dir, "pipeline.run.started", job_id,
         serde_json::json!({
             "job_id": job_id, "slug": "test-slug",
             "agent": "orchestrator", "branch": "test",
@@ -147,14 +147,14 @@ pub fn mk_step(id: &str, agent: &str) -> PipelineStep {
     PipelineStep {
         id: id.into(), step_type: StepType::Agent,
         agent: Some(agent.into()), goal: None, after: vec![],
-        model: None, provider: None, command: None,
+        model: None, harness: None, command: None,
         max_retries: None, gate: None,
         produces: vec![], consumes: vec![], promotes: vec![], fanout: None,
     }
 }
 
 pub fn mk_lane(id: &str) -> FanoutLane {
-    FanoutLane { id: id.into(), agent: "implementer".into(), model: None, provider: None }
+    FanoutLane { id: id.into(), agent: "implementer".into(), model: None, harness: None }
 }
 
 pub fn mk_pipeline_with_three_lanes() -> Pipeline {
@@ -193,8 +193,8 @@ pub fn mk_observed(
     step_name: &str,
     verdict: StepVerdict,
     reason: Option<&str>,
-) -> StepObservedPayload {
-    StepObservedPayload {
+) -> PipelineStepObservedPayload {
+    PipelineStepObservedPayload {
         job_id: "".into(),
         slug: slug.into(),
         step_index: 0,

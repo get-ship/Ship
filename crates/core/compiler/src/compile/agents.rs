@@ -1,60 +1,49 @@
-//! Subagent compiler — transforms `AgentProfile` TOML into provider-native agent files.
+//! Subagent compiler — transforms `AgentProfile` TOML into harness-native agent files.
 //!
-//! Each provider has its own agent definition format:
+//! Each harness has its own agent definition format:
 //! - **Claude**: `.claude/agents/<id>.md` — YAML frontmatter + Markdown body
 //! - **Gemini**: `.gemini/agents/<id>.md` — YAML frontmatter + Markdown body
 //! - **Cursor**: `.cursor/agents/<id>.md` — YAML frontmatter + Markdown body
 //! - **Codex**: `.codex/agents/<id>.toml` — TOML agent config
+//! - **OpenCode**: `.opencode/agents/<id>.md` — YAML frontmatter + Markdown body
+//!   (OpenCode also supports inline `agent` key in opencode.json; file form
+//!   chosen here to parallel the other harnesses.)
 
 use std::collections::HashMap;
 
-use crate::compile::get_provider;
+use crate::compile::get_harness;
 use crate::types::AgentProfile;
 
-/// Compile agent profiles into provider-native agent files.
+/// Compile agent profiles into harness-native agent files.
 ///
 /// Returns a map of `relative_path → file_content` ready for `CompileOutput.agent_files`.
-/// Profiles are filtered to those that list the target provider (or have no provider restriction).
+/// Every profile compiles for every harness — agent profiles are harness-agnostic.
+/// Per-harness customization lives in `harness_settings.<harness>.<key>`.
 pub fn compile_agent_profiles(
     profiles: &[AgentProfile],
-    provider_id: &str,
+    harness_id: &str,
 ) -> HashMap<String, String> {
-    let desc = match get_provider(provider_id) {
+    let desc = match get_harness(harness_id) {
         Some(d) => d,
         None => return HashMap::new(),
     };
     let mut out = HashMap::new();
     for profile in profiles {
-        if !profile_targets_provider(profile, provider_id) {
-            continue;
-        }
         let path = match desc.agents_dir.agent_path(&profile.agent.id) {
             Some(p) => p,
             None => continue,
         };
-        let content = match provider_id {
+        let content = match harness_id {
             "claude" => compile_claude_agent(profile),
             "gemini" => compile_gemini_agent(profile),
             "cursor" => compile_cursor_agent(profile),
             "codex" => compile_codex_agent(profile),
+            "opencode" => compile_opencode_agent(profile),
             _ => continue,
         };
         out.insert(path, content);
     }
     out
-}
-
-/// Check whether a profile should be emitted for a given provider.
-/// A profile with an empty providers list targets all providers.
-pub(super) fn profile_targets_provider(profile: &AgentProfile, provider_id: &str) -> bool {
-    if profile.agent.providers.is_empty() {
-        return true;
-    }
-    profile
-        .agent
-        .providers
-        .iter()
-        .any(|p| p.eq_ignore_ascii_case(provider_id))
 }
 
 // ─── Claude Code ─────────────────────────────────────────────────────────────
@@ -69,7 +58,7 @@ fn compile_claude_agent(profile: &AgentProfile) -> String {
         fm.push(format!("description: {}", yaml_quote(desc)));
     }
 
-    // Model from provider_settings.claude or omit (inherit)
+    // Model from harness_settings.claude or omit (inherit)
     if let Some(model) = claude_setting(profile, "model") {
         fm.push(format!("model: {model}"));
     }
@@ -195,28 +184,60 @@ fn compile_codex_agent(profile: &AgentProfile) -> String {
     lines.join("\n") + "\n"
 }
 
-// ─── Provider setting helpers ────────────────────────────────────────────────
+// ─── OpenCode ────────────────────────────────────────────────────────────────
+// Format: `.opencode/agents/<id>.md`
+// Frontmatter: description (required), mode, model, permission, temperature
+// Source: https://opencode.ai/docs/agents
+// Ship emits `mode: subagent` so the parent OpenCode harness exposes these
+// agents under `@`-autocomplete as subagents (invokable from a primary
+// agent), matching the Claude `.claude/agents/<id>.md` semantics.
+
+fn compile_opencode_agent(profile: &AgentProfile) -> String {
+    let mut fm = Vec::new();
+    // `description` is required by OpenCode's schema; fall back to the
+    // agent id when no description is set in the profile.
+    let desc = profile
+        .agent
+        .description
+        .clone()
+        .unwrap_or_else(|| profile.agent.id.clone());
+    fm.push(format!("description: {}", yaml_quote(&desc)));
+    fm.push("mode: subagent".to_string());
+
+    if let Some(model) = opencode_setting(profile, "model") {
+        fm.push(format!("model: {model}"));
+    }
+
+    let body = profile.rules.inline.as_deref().unwrap_or_default();
+    format!("---\n{}\n---\n\n{}\n", fm.join("\n"), body.trim())
+}
+
+// ─── Harness setting helpers ────────────────────────────────────────────────
 
 fn claude_setting(profile: &AgentProfile, key: &str) -> Option<String> {
-    provider_setting(profile, "claude", key)
+    harness_setting(profile, "claude", key)
 }
 
 fn gemini_setting(profile: &AgentProfile, key: &str) -> Option<String> {
-    provider_setting(profile, "gemini", key)
+    harness_setting(profile, "gemini", key)
 }
 
 fn cursor_setting(profile: &AgentProfile, key: &str) -> Option<String> {
-    provider_setting(profile, "cursor", key)
+    harness_setting(profile, "cursor", key)
 }
 
 fn codex_setting(profile: &AgentProfile, key: &str) -> Option<String> {
-    provider_setting(profile, "codex", key)
+    harness_setting(profile, "codex", key)
 }
 
-fn provider_setting(profile: &AgentProfile, provider: &str, key: &str) -> Option<String> {
+fn opencode_setting(profile: &AgentProfile, key: &str) -> Option<String> {
+    harness_setting(profile, "opencode", key)
+}
+
+fn harness_setting(profile: &AgentProfile, harness: &str, key: &str) -> Option<String> {
     profile
-        .provider_settings
-        .get(provider)
+        .harness_settings
+        .get(harness)
         .and_then(|v| v.get(key))
         .and_then(|v| match v {
             serde_json::Value::String(s) => Some(s.clone()),

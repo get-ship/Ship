@@ -42,7 +42,7 @@ fn parses_canonical_nested_shape() {
         tmp.path(),
         "commander",
         r#"{
-            "agent": { "name": "Commander", "providers": ["claude", "codex"] },
+            "agent": { "name": "Commander" },
             "skills": { "refs": ["cmdr", "write-adr", "ship-agents"] },
             "mcp":    { "servers": ["ship", "typescript"] },
             "rules":  { "refs": ["discipline"] },
@@ -57,15 +57,11 @@ fn parses_canonical_nested_shape() {
     assert_eq!(commander.skills_count, 3);
     assert_eq!(commander.mcp_count, 2);
     assert_eq!(commander.rules_count, 1);
-    assert_eq!(commander.providers_count, 2);
 
     let detail = load_agent_with_scopes(&scopes, "commander").unwrap();
     assert_eq!(detail.skills.len(), 3);
     assert_eq!(detail.mcp_servers, vec!["ship", "typescript"]);
     assert_eq!(detail.permissions_tier, "autonomous");
-    // default_provider derives from providers[0] — there is no standalone
-    // field on the schema.
-    assert_eq!(detail.default_provider.as_deref(), Some("claude"));
 }
 
 #[test]
@@ -88,6 +84,45 @@ fn load_agent_returns_detail_with_defaults() {
     assert_eq!(d.name, "Coder");
     assert_eq!(d.permissions_tier, "standard");
     assert_eq!(d.letter, "C");
+}
+
+/// Regression: agent profiles never carry a `harnesses` field on the
+/// `agent` object (removed in the agent-profile-harness-cleanup arc).
+/// The view-state structs must not surface one either — this test pins
+/// both that the build doesn't panic when the field is absent and that
+/// the serialized view shape excludes `harnesses` / `harnesses_count`.
+#[test]
+fn agent_without_harnesses_field_serializes_without_harnesses_keys() {
+    let tmp = tempdir().unwrap();
+    write_agent(
+        tmp.path(),
+        "lean",
+        r#"{ "agent": { "id": "lean", "name": "Lean" } }"#,
+    );
+    let scopes = scopes_from(tmp.path(), None);
+
+    let summaries = list_agents_with_scopes(&scopes);
+    assert_eq!(summaries.len(), 1);
+    let summary_json = serde_json::to_value(&summaries[0]).unwrap();
+    assert!(
+        summary_json.get("harnesses").is_none(),
+        "AgentSummary must not surface a harnesses field: {summary_json}"
+    );
+    assert!(
+        summary_json.get("harnesses_count").is_none(),
+        "AgentSummary must not surface a harnesses_count field: {summary_json}"
+    );
+
+    let detail = load_agent_with_scopes(&scopes, "lean").unwrap();
+    let detail_json = serde_json::to_value(&detail).unwrap();
+    assert!(
+        detail_json.get("harnesses").is_none(),
+        "AgentDetail must not surface a harnesses field: {detail_json}"
+    );
+    assert!(
+        detail_json.get("default_harness").is_none(),
+        "AgentDetail must not surface a default_harness field: {detail_json}"
+    );
 }
 
 #[test]
@@ -138,7 +173,7 @@ fn merges_project_and_global_scopes() {
     write_agent(
         &global_ship,
         "g-only",
-        r#"{ "agent": { "id": "g-only", "name": "Globalist", "providers": ["claude"] } }"#,
+        r#"{ "agent": { "id": "g-only", "name": "Globalist" } }"#,
     );
     write_agent(
         &global_ship,
@@ -155,7 +190,7 @@ fn merges_project_and_global_scopes() {
     write_project_agent(
         &project_ship,
         "p-only",
-        r#"{ "agent": { "id": "p-only", "name": "Projector", "providers": ["codex"] } }"#,
+        r#"{ "agent": { "id": "p-only", "name": "Projector" } }"#,
     );
     write_project_agent(
         &project_ship,

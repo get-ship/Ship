@@ -5,7 +5,7 @@
 //! 2. Reconciles jobs stuck in `Dispatched` state after a daemon restart
 
 use ship_substrate::events::EventEnvelope;
-use crate::projections::job::{load_jobs, JobRecord, JobStatus};
+use crate::projections::job::{load_jobs, PipelineRun, JobStatus};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -25,7 +25,7 @@ pub(super) const MAX_REPLAYS_PER_STARTUP: usize = 10;
 ///
 /// Returns false when the job is fully terminal: no DAG pipeline, or
 /// every step completed with no pending auto_merge.
-pub(super) fn needs_replay(job: &JobRecord) -> bool {
+pub(super) fn needs_replay(job: &PipelineRun) -> bool {
     let Some(pipeline) = job.steps.as_ref() else {
         return false;
     };
@@ -46,8 +46,8 @@ pub(super) fn needs_replay(job: &JobRecord) -> bool {
 
 /// Select the jobs to replay: Completed + needs_replay, sorted most-recent
 /// first, capped at `MAX_REPLAYS_PER_STARTUP`. Logs a warn when capped.
-pub(super) fn select_replay_targets(jobs: &HashMap<String, JobRecord>) -> Vec<JobRecord> {
-    let mut stale: Vec<JobRecord> = jobs
+pub(super) fn select_replay_targets(jobs: &HashMap<String, PipelineRun>) -> Vec<PipelineRun> {
+    let mut stale: Vec<PipelineRun> = jobs
         .values()
         .filter(|j| j.status == JobStatus::Completed)
         .filter(|j| needs_replay(j))
@@ -61,7 +61,7 @@ pub(super) fn select_replay_targets(jobs: &HashMap<String, JobRecord>) -> Vec<Jo
             total = stale.len(),
             cap = MAX_REPLAYS_PER_STARTUP,
             "job-dispatch: replay set exceeds cap; replaying most recent only. \
-             Investigate stale completions: ship jobs --status completed"
+             Investigate stale completions: ship procs --kind pipeline-step"
         );
         stale.truncate(MAX_REPLAYS_PER_STARTUP);
     }
@@ -97,7 +97,7 @@ pub async fn replay_unprocessed_completions(
             "slug": job.slug,
         });
         let envelope = match EventEnvelope::new(
-            ship_substrate::events::job::event_types::JOB_COMPLETED,
+            ship_substrate::events::pipeline::event_types::PIPELINE_RUN_COMPLETED,
             &job.job_id,
             &payload,
         ) {
@@ -154,7 +154,7 @@ pub async fn reconcile_dispatched_jobs_at(
 async fn reconcile_dispatched_inner(
     kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
     octx: &OrchestratorContext,
-    jobs: std::collections::HashMap<String, crate::projections::job::JobRecord>,
+    jobs: std::collections::HashMap<String, crate::projections::job::PipelineRun>,
     _store_dir: Option<&std::path::Path>,
 ) {
     let stale: Vec<_> = jobs
@@ -181,7 +181,7 @@ async fn reconcile_dispatched_inner(
             .executor
             .resume_handle(
                 &job.slug,
-                job.provider.as_deref(),
+                job.harness.as_deref(),
                 job.current_step.as_deref(),
             )
             .await

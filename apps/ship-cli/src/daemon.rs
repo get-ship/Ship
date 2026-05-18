@@ -31,8 +31,10 @@ pub enum DaemonCommand {
     /// `scripts/dev/*` without those reaching into ShipHome internals.
     Dir,
     Cleanup,
-    /// Read-only migration drift diagnostic — see `daemon_repair_migrations`.
-    RepairMigrations,
+    /// Read-only migration drift diagnostic by default. With `reset: true`,
+    /// backs up and recreates `platform.db` when a checksum mismatch is
+    /// detected (pre-launch escape hatch for edited baseline migrations).
+    RepairMigrations { reset: bool },
     Run { host: String, port: u16, dev: bool },
     /// Internal: supervisor loop that watches and restarts the daemon.
     Supervise { host: String, dev: bool },
@@ -115,7 +117,7 @@ pub fn run_daemon(cmd: DaemonCommand) -> Result<()> {
             Ok(())
         }
         DaemonCommand::Cleanup => daemon_cleanup(),
-        DaemonCommand::RepairMigrations => daemon_repair_migrations(),
+        DaemonCommand::RepairMigrations { reset } => daemon_repair_migrations(reset),
         DaemonCommand::Run { host, port, dev } => daemon_run(host, port, dev),
         DaemonCommand::Supervise { host, dev } => daemon_supervise(host, dev),
         DaemonCommand::InstallService { shipd_path, no_start, no_autostart } => {
@@ -762,7 +764,7 @@ fn format_relative_time(ts: &str) -> String {
 /// checksum patching) are gone. What's left is the tool for understanding
 /// the one drift the runner still rejects: an applied migration whose
 /// checksum no longer matches its embedded source.
-fn daemon_repair_migrations() -> Result<()> {
+fn daemon_repair_migrations(reset: bool) -> Result<()> {
     use ship_substrate::db::repair;
 
     let global_dir = ship_substrate::project::get_global_dir()
@@ -796,13 +798,40 @@ fn daemon_repair_migrations() -> Result<()> {
     }
     if !report.checksum_mismatch.is_empty() {
         println!(
-            "  checksum mismatch (applied migration was edited — startup will \
-             hard-error; restore the original file content): {:?}",
+            "  checksum mismatch (applied migration was edited): {:?}",
             report.checksum_mismatch
         );
+        if !reset {
+            println!(
+                "  → run `ship daemon repair-migrations --reset` to back up and \
+                 recreate platform.db (pre-launch escape hatch)."
+            );
+        }
     }
     if report.is_clean() {
         println!("clean — the DB and this binary's migration set agree.");
+        return Ok(());
+    }
+
+    if reset && !report.checksum_mismatch.is_empty() {
+        // Close the connection before moving the file.
+        drop(conn);
+        let ts = chrono::Utc::now().format("%Y%m%dT%H%M%SZ");
+        for suffix in ["", "-wal", "-shm"] {
+            let src = db_path.with_extension(format!("db{suffix}"));
+            if !src.exists() {
+                continue;
+            }
+            let bak = src.with_extension(format!("db{suffix}.bak-{ts}"));
+            std::fs::rename(&src, &bak)
+                .with_context(|| format!("backup {} → {}", src.display(), bak.display()))?;
+            println!("  backed up {} → {}", src.display(), bak.display());
+        }
+        println!(
+            "reset complete — next `ship daemon start` re-applies migrations from scratch."
+        );
+    } else if reset {
+        println!("--reset specified but no checksum mismatch — nothing to do.");
     }
     Ok(())
 }

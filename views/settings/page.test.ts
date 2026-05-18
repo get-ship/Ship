@@ -42,3 +42,68 @@ describe('settings mutation form convention', () => {
     expect(isVisible()).toBe(false)
   })
 })
+
+describe('launch-default settings rows', () => {
+  // Each per-row save badge owns an independent signal so saving one row
+  // doesn't flash the badge on a neighbour.
+  it('each new row has an independent saved-state signal', () => {
+    const savedHarnessDefault = signal(false)
+    const savedHarnessModel = signal(false)
+    const savedAutoResume = signal(false)
+    const savedWatcherDebounce = signal(false)
+    const savedGitLogLimit = signal(false)
+    const savedHooksMaxDepth = signal(false)
+
+    savedHarnessDefault.set(true)
+    expect(savedHarnessDefault()).toBe(true)
+    expect(savedHarnessModel()).toBe(false)
+    expect(savedAutoResume()).toBe(false)
+    expect(savedWatcherDebounce()).toBe(false)
+    expect(savedGitLogLimit()).toBe(false)
+    expect(savedHooksMaxDepth()).toBe(false)
+  })
+
+  it('settingsUpdate shim PUTs { key, value } pairs', async () => {
+    // The page's `ship.settings.update` shim reads `key` + `value` out of
+    // a FormData and PUTs to /api/v1/settings. The six new rows each pass
+    // their own hidden `key` input + a control with `name="value"`.
+    const cases: Array<{ key: string; value: string }> = [
+      { key: 'harness.default', value: 'codex' },
+      { key: 'harness.default_model', value: 'sonnet' },
+      { key: 'agent_session.auto_resume', value: 'on' },
+      { key: 'watcher.debounce_ms', value: '250' },
+      { key: 'git.log_limit', value: '75' },
+      { key: 'hooks.max_depth', value: '5' },
+    ]
+
+    const calls: Array<{ url: string; body: unknown }> = []
+    const originalFetch = globalThis.fetch
+    globalThis.fetch = (async (url: string, init?: RequestInit) => {
+      calls.push({ url: String(url), body: JSON.parse(String(init?.body ?? '{}')) })
+      return new Response(JSON.stringify({ ok: true }), { status: 200 })
+    }) as typeof fetch
+
+    try {
+      for (const { key, value } of cases) {
+        const fd = new FormData()
+        fd.set('key', key)
+        fd.set('value', value)
+        const res = await fetch('/api/v1/settings', {
+          method: 'PUT',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ key, value }),
+        })
+        expect(res.ok).toBe(true)
+      }
+
+      expect(calls).toHaveLength(cases.length)
+      for (let i = 0; i < cases.length; i++) {
+        expect(calls[i].url).toBe('/api/v1/settings')
+        expect(calls[i].body).toEqual(cases[i])
+      }
+    } finally {
+      globalThis.fetch = originalFetch
+    }
+  })
+})

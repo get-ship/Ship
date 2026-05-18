@@ -206,3 +206,24 @@
   flex-direction: column;
   min-height: 0;
 }
+
+@media (max-width: 720px) {
+  .specs-grid {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+  }
+  .specs-rail {
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+    max-height: 45vh;
+  }
+  .specs-detail-inner {
+    padding: var(--space-4) var(--space-4) 0;
+  }
+  .specs-detail-title-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .specs-detail-actions { flex-wrap: wrap; }
+  .specs-launch-bar { padding: var(--space-3) var(--space-4); }
+}

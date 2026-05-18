@@ -17,7 +17,7 @@ pub struct ProviderRow {
     pub version: Option<String>,
     /// Whether the CLI is installed on PATH.
     pub available: bool,
-    /// Whether this is the default provider per runtime settings.
+    /// Whether this is the default harness per runtime settings.
     pub is_default: bool,
 }
 
@@ -55,36 +55,45 @@ pub struct AboutInfo {
 
 #[derive(Serialize)]
 pub struct SettingsCtx {
-    pub providers: Vec<ProviderRow>,
-    pub default_provider: String,
+    pub harnesses: Vec<ProviderRow>,
+    pub default_harness: String,
     pub default_model: String,
     pub terminal: TerminalConfig,
     pub advanced: Vec<FeatureFlag>,
     pub advanced_registry: String,
     pub daemon_endpoint: String,
     pub about: AboutInfo,
+    pub harness_default: String,
+    pub harness_default_model: String,
+    pub agent_session_auto_resume: bool,
+    /// Stringified for the `<sui-input>` value binding — the SUI compiler
+    /// rejects scalar coercions like `String(...)` in renderable
+    /// expressions, so number-shaped settings are serialised as strings.
+    pub watcher_debounce_ms: String,
+    pub git_log_limit: String,
+    pub hooks_max_depth: String,
 }
 
-fn provider_meta(id: &str) -> (&'static str, &'static str) {
+fn harness_meta(id: &str) -> (&'static str, &'static str) {
     match id {
         "claude" => ("Anthropic Claude", "\u{2726}"),
         "openai" | "codex" => ("OpenAI", "\u{25C6}"),
         "gemini" => ("Google Gemini", "\u{25C7}"),
         "grok" => ("xAI Grok", "\u{25C8}"),
         "opencode" => ("OpenCode", "\u{25C9}"),
-        _ => ("Provider", "\u{25CB}"),
+        _ => ("Harness", "\u{25CB}"),
     }
 }
 
-fn detect_providers(default_id: &str) -> Vec<ProviderRow> {
+fn detect_harnesses(default_id: &str) -> Vec<ProviderRow> {
     // Availability-only: `which <binary>` is sub-millisecond. Version
     // detection spawns the binary and blocks the render — keep off the
     // hot path.
-    ship_platform::agents::providers::PROVIDERS
+    ship_platform::agents::harnesses::HARNESSES
         .iter()
         .map(|d| {
-            let available = ship_platform::agents::providers::detect_binary(d.binary);
-            let (label, glyph) = provider_meta(d.id);
+            let available = ship_platform::agents::harnesses::detect_binary(d.binary);
+            let (label, glyph) = harness_meta(d.id);
             ProviderRow {
                 id: d.id.to_string(),
                 label: label.to_string(),
@@ -140,13 +149,13 @@ fn build_about() -> AboutInfo {
 }
 
 pub fn build_ctx() -> SettingsCtx {
-    let default_provider = ship_platform::config::get_setting("defaults.provider")
+    let default_harness = ship_platform::config::get_setting("defaults.harness")
         .ok()
         .flatten()
         .and_then(|v| v.as_str().map(|s| s.to_string()))
         .unwrap_or_else(|| "claude".to_string());
     let default_model = setting_string("defaults.model");
-    let providers = detect_providers(&default_provider);
+    let harnesses = detect_harnesses(&default_harness);
     let advanced_registry = setting_string("registry.endpoint");
     let daemon_port = setting_string("daemon.port");
     let daemon_endpoint = if daemon_port.is_empty() {
@@ -155,14 +164,34 @@ pub fn build_ctx() -> SettingsCtx {
         format!("http://localhost:{}", daemon_port)
     };
 
+    let harness_default = setting_string("harness.default");
+    let harness_default_model = setting_string("harness.default_model");
+    let agent_session_auto_resume = ship_platform::config::resolve_bool(
+        "agent_session.auto_resume",
+        None,
+        &ship_platform::config::ProjectConfig::default(),
+    );
+    let watcher_debounce_ms =
+        ship_platform::config::get_setting_u64_or("watcher.debounce_ms", 200).to_string();
+    let git_log_limit =
+        ship_platform::config::get_setting_u64_or("git.log_limit", 50).to_string();
+    let hooks_max_depth =
+        (ship_platform::config::get_setting_u64_or("hooks.max_depth", 3) as u32).to_string();
+
     SettingsCtx {
-        providers,
-        default_provider,
+        harnesses,
+        default_harness,
         default_model,
         terminal: build_terminal(),
         advanced: Vec::new(),
         advanced_registry,
         daemon_endpoint,
         about: build_about(),
+        harness_default,
+        harness_default_model,
+        agent_session_auto_resume,
+        watcher_debounce_ms,
+        git_log_limit,
+        hooks_max_depth,
     }
 }

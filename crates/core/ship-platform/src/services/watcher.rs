@@ -42,9 +42,10 @@ pub struct WatcherSpec {
     pub debounce: Duration,
 }
 
-/// Default debounce window — short enough to feel instant in Studio, long
-/// enough to coalesce editor saves and scaffolder bursts.
-pub const DEFAULT_DEBOUNCE: Duration = Duration::from_millis(200);
+// Historical default for the watcher debounce window — short enough to feel
+// instant in Studio, long enough to coalesce editor saves and scaffolder
+// bursts. The runtime value is resolved from the `watcher.debounce_ms` KV
+// setting (default 200ms) via `crate::config::resolve_watcher_debounce`.
 
 /// RAII handle holding every registered watcher and debounce task. Dropping
 /// it stops them all.

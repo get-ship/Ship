@@ -2,7 +2,7 @@
 //!
 //! These test the tricky corners of json→toml, glob→regex,
 //! and permission translation that aren't covered by the
-//! happy-path integration tests in each provider's test file.
+//! happy-path integration tests in each harness's test file.
 
 use crate::compile::compile;
 use crate::resolve::ResolvedConfig;

@@ -8,16 +8,16 @@
 use anyhow::{Result, anyhow};
 use std::path::Path;
 
-use crate::compile::{CompileOutput, get_provider};
+use crate::compile::{CompileOutput, get_harness};
 
-/// Write a compiled provider output to the filesystem at `root`.
+/// Write a compiled harness output to the filesystem at `root`.
 ///
 /// For `.mcp.json` (Claude / Cursor): reads existing file, preserves
 /// user-authored entries that don't carry `_ship.managed: true`, then writes
 /// Ship-managed entries with the marker. All other files are written directly.
-pub fn write_output(root: &Path, provider_id: &str, output: &CompileOutput) -> Result<()> {
-    let desc = get_provider(provider_id)
-        .ok_or_else(|| anyhow!("unknown provider: {}", provider_id))?;
+pub fn write_output(root: &Path, harness_id: &str, output: &CompileOutput) -> Result<()> {
+    let desc = get_harness(harness_id)
+        .ok_or_else(|| anyhow!("unknown harness: {}", harness_id))?;
 
     // Context file (CLAUDE.md, GEMINI.md, AGENTS.md)
     if let (Some(content), Some(file_name)) =
@@ -28,7 +28,7 @@ pub fn write_output(root: &Path, provider_id: &str, output: &CompileOutput) -> R
 
     // MCP config file
     if let Some(ref mcp_path) = output.mcp_config_path {
-        if provider_id == "gemini" {
+        if harness_id == "gemini" {
             // Gemini: mcp_servers + hooks merged into settings.json
             let path = root.join(mcp_path);
             ensure_parent(&path)?;
@@ -37,10 +37,10 @@ pub fn write_output(root: &Path, provider_id: &str, output: &CompileOutput) -> R
                 merge_json(&mut patch, hooks);
             }
             merge_json_file(&path, &patch)?;
-        } else if provider_id == "codex" {
+        } else if harness_id == "codex" {
             // Codex: TOML patch written separately — skip JSON write here
         } else {
-            // All other providers (Claude, Cursor): merge preserving user entries
+            // All other harnesses (Claude, Cursor): merge preserving user entries
             let path = root.join(mcp_path);
             ensure_parent(&path)?;
             write_mcp_preserving_user_entries(&path, desc.mcp_key.as_str(), &output.mcp_servers)?;
@@ -68,7 +68,7 @@ pub fn write_output(root: &Path, provider_id: &str, output: &CompileOutput) -> R
         merge_json_file(&path, patch)?;
     }
 
-    // Provider agent files (.claude/agents/*.md etc.)
+    // Harness agent files (.claude/agents/*.md etc.)
     for (rel_path, content) in &output.agent_files {
         let path = root.join(rel_path);
         ensure_parent(&path)?;

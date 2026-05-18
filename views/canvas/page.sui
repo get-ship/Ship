@@ -67,10 +67,10 @@
         </div>
 
         <div class="canvas-agent-picker">
-          {#if agentsSummaries().kind === 'ok' && agentsSummaries().value && agentsSummaries().value.agents && agentsSummaries().value.agents.length > 0}
-            {#for ag of agentsSummaries().value.agents key={ag.id}}
+          {#if agentsSummaries().kind === 'ok' && agentsSummaries().value && agentsSummaries().value.items && agentsSummaries().value.items.length > 0}
+            {#for ag of agentsSummaries().value.items key={ag.id}}
               <button type="button" class="canvas-agent-card" on:click={(e) => { e.preventDefault(); pair(ag.id) }}>
-                <div class="canvas-agent-name">{ag.label || ag.id}</div>
+                <div class="canvas-agent-name">{ag.name || ag.id}</div>
                 {#if ag.description}
                   <div class="canvas-agent-desc">{ag.description}</div>
                 {/if}

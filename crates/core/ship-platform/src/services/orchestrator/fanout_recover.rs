@@ -24,9 +24,9 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use ship_substrate::events::EventEnvelope;
-use ship_substrate::events::job::event_types;
+use ship_substrate::events::pipeline::event_types;
 use ship_substrate::events::KernelRouter;
-use crate::projections::job::{JobRecord, JobStatus};
+use crate::projections::job::{PipelineRun, JobStatus};
 use crate::services::orchestrator::OrchestratorContext;
 use crate::services::orchestrator::emit::persist_and_route;
 use crate::services::orchestrator::fanout_aggregate::emit_failed_marker;
@@ -54,7 +54,7 @@ pub async fn emit_fanout_lane_dispatched(
         "lane_id": lane_id,
         "lane_slug": lane_slug,
     });
-    let envelope = match EventEnvelope::new(event_types::STEP_DISPATCHED, job_id, &payload) {
+    let envelope = match EventEnvelope::new(event_types::PIPELINE_STEP_STARTED, job_id, &payload) {
         Ok(e) => e.with_actor_id("service.job-dispatch"),
         Err(e) => {
             tracing::warn!(parent_slug, lane_id, "fanout: failed to build lane step_dispatched: {e}");
@@ -85,7 +85,7 @@ pub(crate) fn find_orphan_lanes(events: &[EventEnvelope]) -> Vec<LaneDispatchRec
 
     for env in events {
         match env.event_type.as_str() {
-            event_types::STEP_DISPATCHED => {
+            event_types::PIPELINE_STEP_STARTED => {
                 let Ok(p) = serde_json::from_str::<serde_json::Value>(&env.payload_json) else {
                     continue;
                 };
@@ -113,7 +113,7 @@ pub(crate) fn find_orphan_lanes(events: &[EventEnvelope]) -> Vec<LaneDispatchRec
                     },
                 );
             }
-            event_types::STEP_DONE_DECLARED => {
+            event_types::PIPELINE_STEP_DONE_DECLARED => {
                 let Ok(p) = serde_json::from_str::<serde_json::Value>(&env.payload_json) else {
                     continue;
                 };
@@ -203,7 +203,7 @@ pub async fn reconcile_fanout_lanes(
 /// Derive a lane's branch name from the projection (preferred) or fall
 /// back to the dispatch naming convention.
 fn lane_branch(
-    parent: Option<&JobRecord>,
+    parent: Option<&PipelineRun>,
     parent_slug: &str,
     fanout_step_id: &str,
     lane_id: &str,
@@ -225,19 +225,19 @@ mod tests {
     #[test]
     fn orphan_detection_matches_dispatched_minus_completed() {
         let events = vec![
-            ev(event_types::STEP_DISPATCHED, "j1", serde_json::json!({
+            ev(event_types::PIPELINE_STEP_STARTED, "j1", serde_json::json!({
                 "job_id": "j1", "slug": "parent",
                 "step_id": "draft.lane-a", "step_type": "fanout_lane",
                 "fanout_parent_step": "draft", "lane_id": "lane-a",
                 "lane_slug": "parent-draft-lane-a",
             })),
-            ev(event_types::STEP_DISPATCHED, "j1", serde_json::json!({
+            ev(event_types::PIPELINE_STEP_STARTED, "j1", serde_json::json!({
                 "job_id": "j1", "slug": "parent",
                 "step_id": "draft.lane-b", "step_type": "fanout_lane",
                 "fanout_parent_step": "draft", "lane_id": "lane-b",
                 "lane_slug": "parent-draft-lane-b",
             })),
-            ev(event_types::STEP_DONE_DECLARED, "j1", serde_json::json!({
+            ev(event_types::PIPELINE_STEP_DONE_DECLARED, "j1", serde_json::json!({
                 "job_id": "j1", "slug": "parent",
                 "step_id": "draft.lane-a",
                 "outputs": {}, "summary": "ok",
@@ -251,7 +251,7 @@ mod tests {
 
     #[test]
     fn non_fanout_step_dispatched_events_are_ignored() {
-        let events = vec![ev(event_types::STEP_DISPATCHED, "j1", serde_json::json!({
+        let events = vec![ev(event_types::PIPELINE_STEP_STARTED, "j1", serde_json::json!({
             "job_id": "j1", "slug": "parent",
             "step_id": "build", "step_type": "agent",
         }))];
@@ -261,13 +261,13 @@ mod tests {
     #[test]
     fn completed_lanes_are_not_orphans() {
         let events = vec![
-            ev(event_types::STEP_DISPATCHED, "j1", serde_json::json!({
+            ev(event_types::PIPELINE_STEP_STARTED, "j1", serde_json::json!({
                 "job_id": "j1", "slug": "parent",
                 "step_id": "draft.l", "step_type": "fanout_lane",
                 "fanout_parent_step": "draft", "lane_id": "l",
                 "lane_slug": "parent-draft-l",
             })),
-            ev(event_types::STEP_DONE_DECLARED, "j1", serde_json::json!({
+            ev(event_types::PIPELINE_STEP_DONE_DECLARED, "j1", serde_json::json!({
                 "job_id": "j1", "slug": "parent",
                 "step_id": "draft.l", "outputs": {}, "summary": "",
             })),
@@ -277,7 +277,7 @@ mod tests {
 
     #[test]
     fn malformed_payloads_are_skipped_silently() {
-        let events = vec![ev(event_types::STEP_DISPATCHED, "j1", serde_json::json!({
+        let events = vec![ev(event_types::PIPELINE_STEP_STARTED, "j1", serde_json::json!({
             "step_type": "fanout_lane",
             // missing job_id, lane_slug, step_id
         }))];

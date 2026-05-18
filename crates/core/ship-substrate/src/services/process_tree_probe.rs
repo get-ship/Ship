@@ -17,7 +17,7 @@ use tokio::sync::Mutex;
 use crate::services::dispatch_ports::{ProcessTreeProbe, TreeSample};
 
 /// Guardrail against pathological parent-PID cycles. Real agent trees are
-/// shallow (tmux → shell → provider CLI → tool-call subprocess → rustc).
+/// shallow (tmux → shell → harness CLI → tool-call subprocess → rustc).
 const MAX_TREE_DEPTH: u32 = 16;
 
 pub struct SysinfoProcessTreeProbe {

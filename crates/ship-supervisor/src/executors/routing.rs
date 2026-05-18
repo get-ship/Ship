@@ -4,16 +4,16 @@
 //! The orchestrator receives a single `Arc<dyn JobExecutor>`, but we
 //! want the routing decision (server-mode session vs. interactive tmux
 //! vs. headless child process) made **per job** based on (a) the
-//! provider's declared capabilities and (b) the `headless` flag that
+//! harness's declared capabilities and (b) the `headless` flag that
 //! flows in from `ship run --headless` / the API.
 //!
 //! Routing precedence (highest first):
 //!
 //! 1. **Server mode** — when `adapter.caps().server_mode == true` AND
-//!    the session registry has a bound session for that provider AND
+//!    the session registry has a bound session for that harness AND
 //!    the job isn't `headless`-forcing a process. Currently the
-//!    registry is empty for every provider (scaffolding slice); real
-//!    sessions bind in `provider-codex-02` / `provider-opencode-02`.
+//!    registry is empty for every harness (scaffolding slice); real
+//!    sessions bind in `harness-codex-02` / `harness-opencode-02`.
 //! 2. **Process** — when `ctx.headless == true` or TmuxWindow is
 //!    unavailable (Windows, tmux missing).
 //! 3. **TmuxWindow** — the default for interactive-attach pipelines.
@@ -29,18 +29,18 @@ use anyhow::Result;
 use async_trait::async_trait;
 use ship_substrate::events::KernelRouter;
 use ship_platform::services::dispatch_ports::{ExecutorHandle, JobContext, JobExecutor};
-use ship_platform::services::provider_adapter::adapter_for_or_default;
-use ship_platform::services::providers::codex_session::CodexSession;
-use ship_platform::services::providers::opencode_session::OpenCodeSession;
+use ship_platform::services::harness_adapter::adapter_for_or_default;
+use ship_platform::services::harnesses::codex_session::CodexSession;
+use ship_platform::services::harnesses::opencode_session::OpenCodeSession;
 use ship_platform::services::server_session::ServerSession;
 use tokio::sync::Mutex;
 
 use super::{ProcessExecutor, ServerExecutor, TmuxWindowExecutor};
 
-/// In-memory registry mapping provider id -> bound `ServerSession`.
+/// In-memory registry mapping harness id -> bound `ServerSession`.
 ///
-/// Scaffolding: empty in this slice. `provider-codex-02` /
-/// `provider-opencode-02` will populate it at daemon startup once
+/// Scaffolding: empty in this slice. `harness-codex-02` /
+/// `harness-opencode-02` will populate it at daemon startup once
 /// codex/opencode server processes are spawned. The registry is an
 /// `Arc`-wrapped `std::sync::Mutex` over a `HashMap` — lookups are
 /// lock-light and rare (once per spawn).
@@ -54,18 +54,18 @@ impl ServerSessionRegistry {
         Self::default()
     }
 
-    /// Look up the session bound for a provider id. Returns `None` when
+    /// Look up the session bound for a harness id. Returns `None` when
     /// no session is bound — routing falls through to Process/TmuxWindow.
-    pub(crate) fn get(&self, provider: &str) -> Option<Arc<dyn ServerSession>> {
-        self.inner.lock().ok()?.get(provider).cloned()
+    pub(crate) fn get(&self, harness: &str) -> Option<Arc<dyn ServerSession>> {
+        self.inner.lock().ok()?.get(harness).cloned()
     }
 
-    /// Bind a session for a provider id. Replaces any prior binding.
+    /// Bind a session for a harness id. Replaces any prior binding.
     /// Used by daemon startup and by tests to install a stub session.
-    #[allow(dead_code)] // Used by tests + future provider-codex-02/provider-opencode-02.
-    pub(crate) fn bind(&self, provider: impl Into<String>, session: Arc<dyn ServerSession>) {
+    #[allow(dead_code)] // Used by tests + future harness-codex-02/harness-opencode-02.
+    pub(crate) fn bind(&self, harness: impl Into<String>, session: Arc<dyn ServerSession>) {
         if let Ok(mut guard) = self.inner.lock() {
-            guard.insert(provider.into(), session);
+            guard.insert(harness.into(), session);
         }
     }
 }
@@ -109,11 +109,11 @@ impl RoutingExecutor {
         }
     }
 
-    /// Returns a `ServerExecutor` if the provider has `server_mode` AND
+    /// Returns a `ServerExecutor` if the harness has `server_mode` AND
     /// a session is bound. Otherwise `None` — caller falls through to
     /// the existing Process/TmuxWindow selection.
     fn try_server_executor(&self, ctx: &JobContext) -> Option<ServerExecutor> {
-        let adapter = adapter_for_or_default(ctx.launch.provider.as_deref()).ok()?;
+        let adapter = adapter_for_or_default(ctx.launch.harness.as_deref()).ok()?;
         if !adapter.caps().server_mode {
             return None;
         }
@@ -127,10 +127,10 @@ impl RoutingExecutor {
     /// untouched — the caller then falls through to Process/TmuxWindow,
     /// preserving the one-shot `codex exec` path as graceful degradation.
     async fn ensure_codex_session(&self, ctx: &JobContext) {
-        let Some(provider) = ctx.launch.provider.as_deref() else {
+        let Some(harness) = ctx.launch.harness.as_deref() else {
             return;
         };
-        if provider != "codex" {
+        if harness != "codex" {
             return;
         }
         if self.sessions.get("codex").is_some() {
@@ -144,7 +144,7 @@ impl RoutingExecutor {
         }
         match CodexSession::spawn().await {
             Ok(session) => {
-                tracing::info!("routing: lazy-spawned CodexSession for provider=codex");
+                tracing::info!("routing: lazy-spawned CodexSession for harness=codex");
                 self.sessions.bind("codex", Arc::new(session));
             }
             Err(err) => {
@@ -158,10 +158,10 @@ impl RoutingExecutor {
     /// the binding in the session registry. Mirrors `ensure_codex_session`:
     /// binary-absence + spawn-failure both degrade cleanly to Process.
     async fn ensure_opencode_session(&self, ctx: &JobContext) {
-        let Some(provider) = ctx.launch.provider.as_deref() else {
+        let Some(harness) = ctx.launch.harness.as_deref() else {
             return;
         };
-        if provider != "opencode" {
+        if harness != "opencode" {
             return;
         }
         if self.sessions.get("opencode").is_some() {
@@ -175,7 +175,7 @@ impl RoutingExecutor {
         }
         match OpenCodeSession::spawn().await {
             Ok(session) => {
-                tracing::info!("routing: lazy-spawned OpenCodeSession for provider=opencode");
+                tracing::info!("routing: lazy-spawned OpenCodeSession for harness=opencode");
                 self.sessions.bind("opencode", Arc::new(session));
             }
             Err(err) => {
@@ -186,7 +186,7 @@ impl RoutingExecutor {
     }
 
     /// Test-only inspection: which executor would `spawn` dispatch to,
-    /// given this context? Avoids actually spawning a provider process
+    /// given this context? Avoids actually spawning a harness process
     /// in routing tests.
     #[cfg(test)]
     pub(crate) fn route_kind(&self, ctx: &JobContext) -> RouteKind {
@@ -219,7 +219,7 @@ impl JobExecutor for RoutingExecutor {
         let kind = "pipeline-step";
         let workspace_id = ctx.branch.clone();
         let agent_id = ctx.agent.clone();
-        let provider = ctx.launch.provider.clone();
+        let harness = ctx.launch.harness.clone();
         let transport = if ctx.headless { "headless" } else { "pty" };
         let transport = transport.to_string();
         std::thread::spawn(move || {
@@ -228,21 +228,21 @@ impl JobExecutor for RoutingExecutor {
                 kind,
                 Some(&workspace_id),
                 Some(&agent_id),
-                provider.as_deref(),
+                harness.as_deref(),
                 Some(&transport),
                 None,
             );
         });
 
-        // Server-mode providers route to a persistent session when the
-        // registry has a binding. The first dispatch per provider lazy-
+        // Server-mode harnesses route to a persistent session when the
+        // registry has a binding. The first dispatch per harness lazy-
         // spawns the child; subsequent dispatches reuse the cached Arc.
         self.ensure_codex_session(ctx).await;
         self.ensure_opencode_session(ctx).await;
 
         if let Some(server) = self.try_server_executor(ctx) {
             tracing::info!(slug = ctx.slug,
-                provider = ?ctx.launch.provider,
+                harness = ?ctx.launch.harness,
                 "routing: dispatching to ServerExecutor");
             return server.spawn(ctx).await;
         }
@@ -296,7 +296,7 @@ impl JobExecutor for RoutingExecutor {
     async fn resume_handle(
         &self,
         slug: &str,
-        provider: Option<&str>,
+        harness: Option<&str>,
         current_step: Option<&str>,
     ) -> Option<ExecutorHandle> {
         // Tmux-attached jobs rehydrate from tmux window state. Process
@@ -305,7 +305,7 @@ impl JobExecutor for RoutingExecutor {
         // Server-mode sessions also can't be re-attached in this slice;
         // session-state persistence is future work.
         if let Some(ref tmux_window) = self.tmux_window
-            && let Some(h) = tmux_window.resume_handle(slug, provider, current_step).await
+            && let Some(h) = tmux_window.resume_handle(slug, harness, current_step).await
         {
             return Some(h);
         }
@@ -314,7 +314,7 @@ impl JobExecutor for RoutingExecutor {
 }
 
 /// Walk `PATH` once looking for a named binary. Avoids a spawn attempt
-/// (and its error log) when the user hasn't installed the provider.
+/// (and its error log) when the user hasn't installed the harness.
 /// Cheap enough to re-check per dispatch — the success case caches the
 /// bound session so this only runs until the first matching job.
 fn binary_on_path(name: &str) -> bool {
@@ -330,11 +330,11 @@ fn binary_on_path(name: &str) -> bool {
 /// Build a transient `ServerExecutor` for handle dispatch when the
 /// handle's inner state matches server state. Returns `None` if the
 /// handle isn't a server handle OR no session is registered for the
-/// handle's provider any more (hot-swapped out).
+/// handle's harness any more (hot-swapped out).
 ///
 /// We reconstruct the executor per-call rather than keeping N
 /// instances around because each `ServerExecutor` holds one session
-/// `Arc`, and we may have multiple bound providers.
+/// `Arc`, and we may have multiple bound harnesses.
 fn server_for_handle(
     routing: &RoutingExecutor,
     handle: &ExecutorHandle,

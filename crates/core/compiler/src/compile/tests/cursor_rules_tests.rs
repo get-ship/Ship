@@ -293,7 +293,7 @@ fn cursor_empty_rule_content_skipped_in_rule_files() {
 }
 
 #[test]
-fn other_providers_have_no_rule_files() {
+fn other_harnesses_have_no_rule_files() {
     let r = ResolvedConfig {
         rules: vec![make_rule("style.md", "Use consistent naming.")],
         ..resolved(vec![])

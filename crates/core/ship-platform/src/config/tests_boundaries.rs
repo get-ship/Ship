@@ -52,7 +52,7 @@ fn save_then_get_config_roundtrips() -> anyhow::Result<()> {
     let config_a = ProjectConfig {
         name: Some("project-a".to_string()),
         description: Some("roundtrip test".to_string()),
-        providers: vec!["boundary-provider".to_string()],
+        harnesses: vec!["boundary-harness".to_string()],
         ..Default::default()
     };
     save_config(&config_a, Some(tmp_a.path().to_path_buf()))?;
@@ -60,15 +60,15 @@ fn save_then_get_config_roundtrips() -> anyhow::Result<()> {
     assert_eq!(loaded.name.as_deref(), Some("project-a"));
     assert_eq!(loaded.description.as_deref(), Some("roundtrip test"));
 
-    // Boundary: a second independent project must not inherit project-a's providers
+    // Boundary: a second independent project must not inherit project-a's harnesses
     // from the global kv store. Fails today because save_runtime_settings ignores
     // its ship_dir argument and writes to a shared "runtime" namespace.
     let tmp_b = tempdir()?;
     let loaded_b = get_config(Some(tmp_b.path().to_path_buf()))?;
     assert_ne!(
-        loaded_b.providers,
-        vec!["boundary-provider".to_string()],
-        "project-b must not inherit project-a's providers from global kv"
+        loaded_b.harnesses,
+        vec!["boundary-harness".to_string()],
+        "project-b must not inherit project-a's harnesses from global kv"
     );
     Ok(())
 }

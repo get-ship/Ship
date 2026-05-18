@@ -1,5 +1,5 @@
 use anyhow::{Result, bail};
-use ship_jobs::pipeline::normalize_pipeline;
+use ship_pipelines::normalize_pipeline;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
@@ -80,13 +80,13 @@ pub fn run(opts: RunOptions) -> Result<()> {
     let body = serde_json::json!({
         "pipeline": pipeline_name,
         "slug": slug,
-        "branch": branch,
-        "agent": first_agent_display,
         "source_spec_path": source_spec_path,
         "spec": if spec_content.is_empty() { None } else { Some(&spec_content) },
         "vars": if vars.is_empty() { None } else { Some(&vars) },
-        "headless": opts.headless,
+        "auto": opts.headless,
+        "workspace": workspace_name,
     });
+    let _ = first_agent_display;
     // spec_path is fixed (.artifacts/job-spec.md) — server derives it.
     let _ = spec_path;
 
@@ -100,7 +100,7 @@ pub fn run(opts: RunOptions) -> Result<()> {
         format!("ship-{sanitized}")
     };
 
-    match post_to_daemon("/api/v1/jobs/dispatch", &body) {
+    match post_to_daemon("/api/v1/pipelines/run", &body) {
         Ok(resp) => {
             eprintln!("Pipeline: {pipeline_name}");
             eprintln!("Steps:    {}", steps.len());

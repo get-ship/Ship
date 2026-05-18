@@ -1,5 +1,5 @@
 use super::*;
-use ship_substrate::events::job::{Pipeline, PipelineStep, StepType};
+use ship_substrate::events::pipeline::{Pipeline, PipelineStep, StepType};
 
 fn step(id: &str, agent: &str) -> PipelineStep {
     PipelineStep {
@@ -9,7 +9,7 @@ fn step(id: &str, agent: &str) -> PipelineStep {
         goal: None,
         after: vec![],
         model: None,
-        provider: None,
+        harness: None,
         command: None,
         max_retries: None,
         gate: None,

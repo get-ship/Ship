@@ -51,7 +51,7 @@
     --edge-mcp: var(--tone-info-fg);
     --edge-rule: var(--tone-warning-fg);
     --edge-perm: var(--tone-destructive-fg);
-    --edge-provider: var(--tone-accent-fg);
+    --edge-harness: var(--tone-accent-fg);
   }
   :host([hidden]) { display: none; }
 
@@ -79,7 +79,7 @@
   svg.edges path[data-kind='mcp']      { stroke: var(--edge-mcp); }
   svg.edges path[data-kind='rule']     { stroke: var(--edge-rule); }
   svg.edges path[data-kind='perm']     { stroke: var(--edge-perm); }
-  svg.edges path[data-kind='provider'] { stroke: var(--edge-provider); }
+  svg.edges path[data-kind='harness'] { stroke: var(--edge-harness); }
   svg.edges path[data-dashed] { stroke-dasharray: 4 3; }
 
   .node {
@@ -112,7 +112,7 @@
   .node[data-kind='mcp']      { border-left: 3px solid var(--edge-mcp); }
   .node[data-kind='rule']     { border-left: 3px solid var(--edge-rule); }
   .node[data-kind='perm']     { border-left: 3px solid var(--edge-perm); }
-  .node[data-kind='provider'] { border-left: 3px solid var(--edge-provider); }
+  .node[data-kind='harness'] { border-left: 3px solid var(--edge-harness); }
 
   .node-h {
     display: flex;

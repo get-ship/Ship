@@ -602,12 +602,12 @@ export const SHOTS: Record<string, ComponentShot[]> = {
 </sui-pipeline-run>`,
     },
   ],
-  'sui-provider-blob': [
-    { label: 'Claude',   attrs: { provider: 'claude',   size: 'lg' } },
-    { label: 'Codex',    attrs: { provider: 'codex',    size: 'lg' } },
-    { label: 'Cursor',   attrs: { provider: 'cursor',   size: 'lg' } },
-    { label: 'Gemini',   attrs: { provider: 'gemini',   size: 'lg' } },
-    { label: 'OpenCode', attrs: { provider: 'opencode', size: 'lg' } },
+  'sui-harness-blob': [
+    { label: 'Claude',   attrs: { harness: 'claude',   size: 'lg' } },
+    { label: 'Codex',    attrs: { harness: 'codex',    size: 'lg' } },
+    { label: 'Cursor',   attrs: { harness: 'cursor',   size: 'lg' } },
+    { label: 'Gemini',   attrs: { harness: 'gemini',   size: 'lg' } },
+    { label: 'OpenCode', attrs: { harness: 'opencode', size: 'lg' } },
   ],
 
   /* Observability primitives missing per-variant samples ------------ */

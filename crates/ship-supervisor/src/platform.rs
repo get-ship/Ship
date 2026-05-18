@@ -34,8 +34,8 @@ impl AgentPlatform for ShipdPlatform {
         helpers::compile_agent_config(worktree_path, agent_id)
     }
 
-    async fn graceful_agent_exit(&self, slug: &str, provider: Option<&str>) {
-        super::agent_lifecycle::graceful_agent_exit(slug, provider).await;
+    async fn graceful_agent_exit(&self, slug: &str, harness: Option<&str>) {
+        super::agent_lifecycle::graceful_agent_exit(slug, harness).await;
     }
 
     async fn cleanup_job(&self, slug: &str, branch: &str) {

@@ -42,7 +42,7 @@ fn use_nonexistent_agent_names_agent_and_suggests_fix() {
     write(
         tmp.path(),
         ".ship/agents/valid-agent.jsonc",
-        r#"{ "agent": { "name": "Valid", "id": "valid-agent", "providers": ["claude"] } }"#,
+        r#"{ "agent": { "name": "Valid", "id": "valid-agent", "harnesses": ["claude"] } }"#,
     );
 
     let output = ship_in(&tmp)
@@ -97,7 +97,7 @@ fn compile_broken_mcp_warns_about_file() {
     write(tmp.path(), ".ship/mcp.jsonc", "{ invalid json {{{{");
 
     let output = ship()
-        .args(["compile", "--provider", "claude", "--path", tmp.path().to_str().unwrap()])
+        .args(["compile", "--harness", "claude", "--path", tmp.path().to_str().unwrap()])
         .output()
         .unwrap();
     let stderr = String::from_utf8_lossy(&output.stderr);
@@ -131,7 +131,7 @@ fn validate_mcp_stdio_missing_command_shows_fix_hint() {
         tmp.path(),
         ".ship/agents/test.jsonc",
         r#"{
-  "agent": { "name": "Test", "id": "test", "providers": ["claude"] },
+  "agent": { "name": "Test", "id": "test", "harnesses": ["claude"] },
   "skills": { "refs": [] },
   "mcp": { "servers": [] },
   "permissions": {}
@@ -158,7 +158,7 @@ fn validate_missing_skill_suggests_create_or_install() {
         tmp.path(),
         ".ship/agents/test-agent.jsonc",
         r#"{
-  "agent": { "name": "Test", "id": "test-agent", "providers": ["claude"] },
+  "agent": { "name": "Test", "id": "test-agent", "harnesses": ["claude"] },
   "skills": { "refs": ["nonexistent-skill"] },
   "mcp": { "servers": [] },
   "permissions": {}
@@ -193,7 +193,7 @@ fn compile_extra_skill_not_found_suggests_fix() {
         tmp.path(),
         ".ship/agents/test.jsonc",
         r#"{
-  "agent": { "name": "Test", "id": "test", "providers": ["claude"] },
+  "agent": { "name": "Test", "id": "test", "harnesses": ["claude"] },
   "skills": { "refs": [] },
   "mcp": { "servers": [] },
   "permissions": {}
@@ -375,7 +375,7 @@ fn validate_missing_skill_ref_shows_skill_and_agent() {
         tmp.path(),
         ".ship/agents/dev.jsonc",
         r#"{
-  "agent": { "name": "Dev", "id": "dev", "providers": ["claude"] },
+  "agent": { "name": "Dev", "id": "dev", "harnesses": ["claude"] },
   "skills": { "refs": ["missing-skill-xyz"] },
   "mcp": { "servers": [] },
   "permissions": {}
@@ -399,7 +399,7 @@ fn validate_bad_mcp_ref_shows_server_and_hint() {
         tmp.path(),
         ".ship/agents/dev.jsonc",
         r#"{
-  "agent": { "name": "Dev", "id": "dev", "providers": ["claude"] },
+  "agent": { "name": "Dev", "id": "dev", "harnesses": ["claude"] },
   "skills": { "refs": [] },
   "mcp": { "servers": ["nonexistent-server"] },
   "permissions": {}
@@ -449,7 +449,7 @@ fn success_exits_zero() {
     let tmp = TempDir::new().unwrap();
     write(tmp.path(), ".ship/rules/style.md", "Use types.");
     ship()
-        .args(["compile", "--provider", "claude", "--path", tmp.path().to_str().unwrap()])
+        .args(["compile", "--harness", "claude", "--path", tmp.path().to_str().unwrap()])
         .assert()
         .success()
         .code(0);

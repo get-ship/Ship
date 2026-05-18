@@ -7,7 +7,7 @@
 //! On exit 0: emits `job.step_output` then `job.step_completed`.
 //! On non-zero exit: emits `job.step_output` then `job.step_failed`.
 
-use ship_substrate::events::job::event_types;
+use ship_substrate::events::pipeline::event_types;
 use ship_substrate::events::EventEnvelope;
 use std::path::Path;
 use std::sync::Arc;
@@ -36,7 +36,7 @@ pub async fn execute_run_step(
         "job_id": job_id, "slug": slug,
         "step_id": step_id, "step_type": "run",
     });
-    if let Ok(env) = EventEnvelope::new(event_types::STEP_DISPATCHED, job_id, &dispatched_payload) {
+    if let Ok(env) = EventEnvelope::new(event_types::PIPELINE_STEP_STARTED, job_id, &dispatched_payload) {
         persist_and_route(kernel, env.with_actor_id("service.job-dispatch"), slug, ship_dir).await;
     }
 
@@ -59,7 +59,7 @@ pub async fn execute_run_step(
                 "stdout": if stdout.is_empty() { serde_json::Value::Null } else { serde_json::Value::String(stdout) },
                 "stderr": if stderr.is_empty() { serde_json::Value::Null } else { serde_json::Value::String(stderr) },
             });
-            if let Ok(env) = EventEnvelope::new(event_types::STEP_OUTPUT, job_id, &output_payload) {
+            if let Ok(env) = EventEnvelope::new(event_types::PIPELINE_STEP_OUTPUT, job_id, &output_payload) {
                 persist_and_route(kernel, env.with_actor_id("service.job-dispatch"), slug, ship_dir).await;
             }
 
@@ -68,7 +68,7 @@ pub async fn execute_run_step(
                 let payload = serde_json::json!({
                     "job_id": job_id, "slug": slug, "step_id": step_id,
                 });
-                if let Ok(env) = EventEnvelope::new(event_types::STEP_COMPLETED, job_id, &payload) {
+                if let Ok(env) = EventEnvelope::new(event_types::PIPELINE_STEP_COMPLETED, job_id, &payload) {
                     persist_and_route(kernel, env.with_actor_id("service.job-dispatch"), slug, ship_dir).await;
                 }
             } else {
@@ -79,7 +79,7 @@ pub async fn execute_run_step(
                     "job_id": job_id, "slug": slug, "step_id": step_id,
                     "error": format!("command exited with code {exit_code}: {stderr_str}"),
                 });
-                if let Ok(env) = EventEnvelope::new(event_types::STEP_FAILED, job_id, &payload) {
+                if let Ok(env) = EventEnvelope::new(event_types::PIPELINE_STEP_FAILED, job_id, &payload) {
                     persist_and_route(kernel, env.with_actor_id("service.job-dispatch"), slug, ship_dir).await;
                 }
             }
@@ -90,7 +90,7 @@ pub async fn execute_run_step(
                 "job_id": job_id, "slug": slug, "step_id": step_id,
                 "error": format!("failed to spawn sh: {e}"),
             });
-            if let Ok(env) = EventEnvelope::new(event_types::STEP_FAILED, job_id, &payload) {
+            if let Ok(env) = EventEnvelope::new(event_types::PIPELINE_STEP_FAILED, job_id, &payload) {
                 persist_and_route(kernel, env.with_actor_id("service.job-dispatch"), slug, ship_dir).await;
             }
         }

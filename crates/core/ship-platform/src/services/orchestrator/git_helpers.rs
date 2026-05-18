@@ -8,10 +8,10 @@
 /// the directory isn't a repo, or the output is empty.
 ///
 /// Used at two moments:
-/// - **Dispatch:** capture the source repo's HEAD → `JobCreatedPayload.baseline_sha`.
+/// - **Dispatch:** capture the source repo's HEAD → `PipelineRunStartedPayload.baseline_sha`.
 ///   This is the pipeline's baseline for gate `require_changed` / `forbid_changed`
 ///   checks, so gates see commits made by any earlier step.
-/// - **Step start:** capture the worktree's HEAD → `StepObservedPayload.start_sha`.
+/// - **Step start:** capture the worktree's HEAD → `PipelineStepObservedPayload.start_sha`.
 ///   This tracks commits made within a single step (used by `compute_verdict`).
 pub fn resolve_head_sha(work_dir: &std::path::Path) -> Option<String> {
     std::process::Command::new("git")

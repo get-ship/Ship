@@ -33,7 +33,7 @@ pub struct InstallResult {
 /// resolved packages.  Writes `lock_path` when the lockfile changes unless
 /// `opts.frozen` is set.
 ///
-/// Does NOT compile provider targets -- compilation is the compiler's responsibility.
+/// Does NOT compile harness targets -- compilation is the compiler's responsibility.
 pub fn resolve_and_fetch(
     manifest: &ShipManifest,
     lock_path: &Path,

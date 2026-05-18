@@ -3,7 +3,7 @@ use serde_json::Value as Json;
 use crate::resolve::ResolvedConfig;
 use crate::types::{HookTrigger, McpServerConfig, Permissions};
 
-use super::provider::ProviderDescriptor;
+use super::harness::HarnessDescriptor;
 
 // ── Trigger mapping ───────────────────────────────────────────────────────────
 
@@ -184,7 +184,7 @@ pub(super) fn inject_ship_lifecycle_hooks(patch: &mut Json) {
 // ── MCP server entry (Gemini-specific fields) ─────────────────────────────────
 
 /// Build a Gemini MCP server entry with Gemini-specific per-server fields.
-pub(super) fn build_gemini_server_entry(desc: &ProviderDescriptor, s: &McpServerConfig) -> Json {
+pub(super) fn build_gemini_server_entry(desc: &HarnessDescriptor, s: &McpServerConfig) -> Json {
     let mut entry = super::mcp::server_entry(desc, s);
 
     // Gemini-specific per-server fields.
@@ -207,7 +207,7 @@ pub(super) fn build_gemini_server_entry(desc: &ProviderDescriptor, s: &McpServer
 // ── Gemini MCP servers object ─────────────────────────────────────────────────
 
 pub(super) fn build_gemini_mcp_servers(
-    desc: &ProviderDescriptor,
+    desc: &HarnessDescriptor,
     servers: &[McpServerConfig],
     studio_url: Option<&str>,
     ship_home_dir: Option<&str>,

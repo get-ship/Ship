@@ -6,12 +6,12 @@
 //! review/merge/sonnet.
 
 use super::pipeline_loader::ensure_pipeline;
-use ship_substrate::events::job::{
-    JobCreatedPayload, OutputScope, Pipeline, PipelineStep, StepOutput, StepPromote, StepType,
+use ship_substrate::events::pipeline::{
+    PipelineRunStartedPayload, OutputScope, Pipeline, PipelineStep, StepOutput, StepPromote, StepType,
 };
 
-fn base_payload(agent: &str) -> JobCreatedPayload {
-    JobCreatedPayload {
+fn base_payload(agent: &str) -> PipelineRunStartedPayload {
+    PipelineRunStartedPayload {
         job_id: "j-1".into(),
         slug: "slug-1".into(),
         agent: agent.into(),
@@ -20,7 +20,7 @@ fn base_payload(agent: &str) -> JobCreatedPayload {
         source_spec_path: None,
         plan_id: None,
         model: None,
-        provider: None,
+        harness: None,
         depends_on: None,
         pipeline: None,
         steps: None,
@@ -29,6 +29,9 @@ fn base_payload(agent: &str) -> JobCreatedPayload {
         spec_content: None,
         step_specs: None,
         headless: false,
+        prompt: None,
+        resume: false,
+        resume_session_id: None,
         baseline_sha: None,
     }
 }
@@ -44,7 +47,7 @@ fn missing_agent_on_agent_step_fails_at_load() {
             goal: None,
             after: vec![],
             model: None,
-            provider: None,
+            harness: None,
             command: None,
             max_retries: None,
             gate: None,
@@ -73,7 +76,7 @@ fn missing_agent_on_review_step_fails_at_load() {
                 goal: None,
                 after: vec![],
                 model: None,
-                provider: None,
+                harness: None,
                 command: None,
                 max_retries: None,
                 gate: None,
@@ -89,7 +92,7 @@ fn missing_agent_on_review_step_fails_at_load() {
                 goal: None,
                 after: vec!["impl".into()],
                 model: None,
-                provider: None,
+                harness: None,
                 command: None,
                 max_retries: None,
                 gate: None,
@@ -139,7 +142,7 @@ fn run_step_without_agent_is_fine() {
             goal: None,
             after: vec![],
             model: None,
-            provider: None,
+            harness: None,
             command: Some("echo hi".into()),
             max_retries: None,
             gate: None,
@@ -163,7 +166,7 @@ fn agent_step(id: &str, agent: &str) -> PipelineStep {
         goal: None,
         after: vec![],
         model: None,
-        provider: None,
+        harness: None,
         command: None,
         max_retries: None,
         gate: None,

@@ -35,7 +35,7 @@ export default controller<Scope>({
   },
   on: {
     stopRun: async (_s, jobId: string) => {
-      await fetch('/api/v1/jobs/end', {
+      await fetch('/api/v1/agent_sessions/end', {
         method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ job_id: jobId }),

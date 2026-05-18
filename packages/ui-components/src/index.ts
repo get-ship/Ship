@@ -6,7 +6,7 @@
 // view-picker, code-editor, markdown-editor, terminal) was relocated
 // to `apps/shell/src/components/`. This package now holds the
 // feature/domain components only: git-diff, pipeline-*, log-stream,
-// provider-blob, auth-dialog, graph-canvas. Generic primitives live
+// harness-blob, auth-dialog, graph-canvas. Generic primitives live
 // in `@ship/primitives` (packages/components/primitives/).
 //
 // Every domain component uses primitive `<sui-*>` tags in its
@@ -22,7 +22,7 @@ import './sui-pipeline-run/sui-pipeline-run.compiled.js'
 import './sui-pipeline-step-def/sui-pipeline-step-def.compiled.js'
 import './sui-pipeline-definition/sui-pipeline-definition.compiled.js'
 import './sui-log-stream/sui-log-stream.compiled.js'
-import './sui-provider-blob/sui-provider-blob.compiled.js'
+import './sui-harness-blob/sui-harness-blob.compiled.js'
 import './sui-auth-dialog/sui-auth-dialog.compiled.js'
 import './sui-git-diff/sui-git-diff.compiled.js'
 import './sui-git-diff/sui-git-diff-file.compiled.js'

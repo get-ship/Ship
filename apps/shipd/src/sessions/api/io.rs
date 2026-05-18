@@ -1,5 +1,5 @@
 //! PTY stdin write + SSE streaming handlers (raw bytes and parsed
-//! ProviderEvents). The raw byte stream replays the log file from
+//! HarnessEvents). The raw byte stream replays the log file from
 //! disk before tailing the broadcast; the event stream is broadcast-only.
 
 use axum::extract::{Path, State};
@@ -65,7 +65,7 @@ pub async fn session_input(
     path = "/api/v1/sessions/{id}/events",
     params(("id" = String, Path, description = "Session id")),
     responses(
-        (status = 200, description = "SSE stream of parsed ProviderEvents", content_type = "text/event-stream"),
+        (status = 200, description = "SSE stream of parsed HarnessEvents", content_type = "text/event-stream"),
         (status = 404, description = "Not found"),
     ),
     tag = "sessions"
@@ -86,7 +86,7 @@ pub async fn stream_session_events(
         .filter_map(|r| r.ok())
         .map(|ev| {
             let data = serde_json::to_string(&ev).unwrap_or_else(|_| "{}".into());
-            Ok::<_, Infallible>(Event::default().event("provider").data(data))
+            Ok::<_, Infallible>(Event::default().event("harness").data(data))
         });
     let sse = Sse::new(ev_stream).keep_alive(KeepAlive::new().interval(Duration::from_secs(15)));
     sse.into_response()

@@ -179,8 +179,8 @@ mod tests {
 
     #[test]
     fn filter_event_type_is_prefix() {
-        let f = EventFilter { event_type: Some("job.".into()), ..Default::default() };
-        assert!(f.matches(&env("1", "job.started", "j1", "a")));
+        let f = EventFilter { event_type: Some("pipeline.".into()), ..Default::default() };
+        assert!(f.matches(&env("1", "pipeline.run.started", "j1", "a")));
         assert!(!f.matches(&env("2", "studio.message", "x", "a")));
     }
 

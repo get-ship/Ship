@@ -7,19 +7,19 @@ use serde::{Deserialize, Serialize};
 pub type SessionId = String;
 
 /// What kind of process backs this session. Drives whether we expect a
-/// provider adapter, how the parser runs, and how the UI labels it.
+/// harness adapter, how the parser runs, and how the UI labels it.
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum SessionKind {
-    /// A Ship agent running a provider CLI (Claude, Codex, …). Has an
-    /// agent id and a provider id, output parses through the provider
+    /// A Ship agent running a harness CLI (Claude, Codex, …). Has an
+    /// agent id and a harness id, output parses through the harness
     /// adapter.
     Agent,
     /// A pipeline step's child process. Registered so the pipelines
     /// view can live-stream output. Does not take user stdin.
     Pipeline,
     /// A plain shell (`$SHELL`) for the dock's terminal tab. No agent,
-    /// no provider, no parsing — just raw passthrough.
+    /// no harness, no parsing — just raw passthrough.
     Shell,
 }
 
@@ -49,7 +49,7 @@ pub struct SessionMeta {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub agent_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub provider: Option<String>,
+    pub harness: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub pid: Option<u32>,
     pub status: SessionStatus,
@@ -62,11 +62,11 @@ pub struct SessionMeta {
     /// SessionStarted event of the most recent turn. Used by the next
     /// `/message` call to continue the conversation via --resume.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub provider_session_id: Option<String>,
+    pub harness_session_id: Option<String>,
 }
 
 /// Incoming spawn request. Agent-kind sessions require `agent_id` +
-/// `provider`; shell kinds require none; pipeline kinds are registered
+/// `harness`; shell kinds require none; pipeline kinds are registered
 /// internally by the orchestrator, not over HTTP.
 #[derive(Clone, Debug, Deserialize)]
 pub struct SpawnRequest {
@@ -75,12 +75,12 @@ pub struct SpawnRequest {
     #[serde(default)]
     pub agent_id: Option<String>,
     #[serde(default)]
-    pub provider: Option<String>,
+    pub harness: Option<String>,
 }
 
 pub(crate) mod private {
     use super::*;
-    use crate::services::provider_adapter::ProviderEvent;
+    use crate::services::harness_adapter::HarnessEvent;
 
     use std::path::PathBuf;
     use std::sync::{Arc, Mutex};
@@ -97,10 +97,10 @@ pub(crate) mod private {
         /// Raw-bytes broadcast for subscribers (terminal view, debug logs).
         /// `run_headless_turn` republishes the substrate handle's bytes here.
         pub output_tx: broadcast::Sender<Vec<u8>>,
-        /// Parsed `ProviderEvent` broadcast — populated by the reader
-        /// pumping the substrate handle's output through the provider
+        /// Parsed `HarnessEvent` broadcast — populated by the reader
+        /// pumping the substrate handle's output through the harness
         /// adapter.
-        pub event_tx: broadcast::Sender<ProviderEvent>,
+        pub event_tx: broadcast::Sender<HarnessEvent>,
         /// Absolute path to the tee'd log file for replay.
         pub log_path: PathBuf,
     }
@@ -128,11 +128,11 @@ impl PtySession {
         self.0.output_tx.subscribe()
     }
 
-    /// Subscribe to parsed provider events (agent sessions only).
+    /// Subscribe to parsed harness events (agent sessions only).
     /// Shell sessions return a receiver that will never produce.
     pub fn subscribe_events(
         &self,
-    ) -> tokio::sync::broadcast::Receiver<crate::services::provider_adapter::ProviderEvent> {
+    ) -> tokio::sync::broadcast::Receiver<crate::services::harness_adapter::HarnessEvent> {
         self.0.event_tx.subscribe()
     }
 }

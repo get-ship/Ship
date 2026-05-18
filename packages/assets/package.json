@@ -5,7 +5,7 @@
   "type": "module",
   "exports": {
     "./ship-logos": "./public/ship-logos/",
-    "./provider-logos": "./public/provider-logos/",
+    "./harness-logos": "./public/harness-logos/",
     "./ide-logos": "./public/ide-logos/"
   }
 }

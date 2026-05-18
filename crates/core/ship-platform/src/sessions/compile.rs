@@ -1,5 +1,5 @@
 use crate::agents::config::{
-    ProviderSettings, resolve_provider_settings_with_agent_override,
+    ProviderSettings, resolve_harness_settings_with_agent_override,
 };
 use anyhow::{Result, anyhow};
 use std::path::{Path, PathBuf};
@@ -16,31 +16,31 @@ pub(crate) fn resolve_session_agent_config(
         .and_then(normalize_agent_ref)
         .map(|a| a.to_string());
 
-    resolve_provider_settings_with_agent_override(
+    resolve_harness_settings_with_agent_override(
         ship_dir,
         None,
         agent_id.as_deref(),
     )
 }
 
-pub(crate) fn resolve_session_providers(
+pub(crate) fn resolve_session_harnesses(
     ship_dir: &Path,
     branch: &str,
     agent_id: Option<&str>,
 ) -> Result<Vec<String>> {
     let resolved = resolve_session_agent_config(ship_dir, agent_id)?;
-    if resolved.providers.is_empty() {
+    if resolved.harnesses.is_empty() {
         return Err(anyhow!(
-            "No valid providers resolved for session on branch '{}'",
+            "No valid harnesses resolved for session on branch '{}'",
             branch
         ));
     }
-    Ok(resolved.providers)
+    Ok(resolved.harnesses)
 }
 
 // ---- Context root and missing configs --------------------------------------
 
-/// Resolve the on-disk root where provider config files should be written.
+/// Resolve the on-disk root where harness config files should be written.
 /// Caller passes the worktree path explicitly (or None to fall back to the
 /// project root, computed from `ship_dir.parent()`).
 pub(crate) fn resolve_session_context_root(
@@ -58,11 +58,11 @@ pub(crate) fn resolve_session_context_root(
 
 // ---- Compile session context ---------------------------------------------
 
-/// Ensure provider config files exist in the project root before session launch.
+/// Ensure harness config files exist in the project root before session launch.
 ///
 /// Runs `ship compile` as a subprocess — best-effort. Compilation errors are
 /// logged as warnings but do not block session start (configs may already exist
-/// from a prior compile run). Returns the resolved provider list.
+/// from a prior compile run). Returns the resolved harness list.
 pub(crate) fn compile_session_context(
     ship_dir: &Path,
     branch: &str,
@@ -72,7 +72,7 @@ pub(crate) fn compile_session_context(
     let agent_id = agent_id_override
         .map(|a| a.to_string())
         .and_then(|value| normalize_optional_text(Some(value)));
-    let providers = resolve_session_providers(ship_dir, branch, agent_id.as_deref())?;
+    let harnesses = resolve_session_harnesses(ship_dir, branch, agent_id.as_deref())?;
 
     let context_root = resolve_session_context_root(ship_dir, cwd);
     let project_root = ship_dir.parent().unwrap_or(ship_dir);
@@ -100,5 +100,5 @@ pub(crate) fn compile_session_context(
         }
     }
 
-    Ok(providers)
+    Ok(harnesses)
 }

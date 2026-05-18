@@ -17,7 +17,7 @@
 //!
 //! ```ignore
 //! /// @route METHOD "/path/with/{params}"
-//! /// @returns Vec<JobRecord>     (optional — TS gets typed fetch wrapper)
+//! /// @returns Vec<PipelineRun>     (optional — TS gets typed fetch wrapper)
 //! /// @body   CreateJobRequest    (optional — TS gets typed request body)
 //! ```
 //!
@@ -37,6 +37,8 @@
 
 pub mod account_api;
 pub mod actor_api;
+#[cfg(test)]
+mod actor_api_tests;
 pub mod actors_api;
 pub mod mcp_registry;
 pub mod agents_api;
@@ -307,6 +309,10 @@ pub enum Route {
     /// @auth scope CreateJobs
     PipelinesDispatch { name: String },
 
+    /// @route POST "/api/v1/pipelines/run"
+    /// @auth scope CreateJobs
+    PipelinesRun,
+
     /// @route POST "/api/v1/pipelines/runs/{slug}/cancel"
     /// @auth scope ManageJobs
     PipelineRunCancel { slug: String },
@@ -537,7 +543,7 @@ pub enum Route {
     /// @auth scope ReadJobs
     StreamPtySessionEvents { id: String },
 
-    /// @route GET "/api/v1/providers/installed"
+    /// @route GET "/api/v1/harnesses/installed"
     /// @auth scope ReadWorkspace
     InstalledProviders,
 
@@ -631,35 +637,35 @@ pub enum Route {
 
     // ── Jobs ─────────────────────────────────────────────────────────────
 
-    /// @route GET "/api/v1/jobs"
+    /// @route GET "/api/v1/agent_sessions"
     /// @auth scope ReadJobs
     ListJobs,
 
-    /// @route POST "/api/v1/jobs/dispatch"
+    /// @route POST "/api/v1/agent_sessions/dispatch"
     /// @auth scope CreateJobs
     DispatchPipeline,
 
-    /// @route GET "/api/v1/jobs/{job_id}"
+    /// @route GET "/api/v1/agent_sessions/{job_id}"
     /// @auth scope ReadJobs
     GetJob { job_id: String },
 
-    /// @route POST "/api/v1/jobs/end"
+    /// @route POST "/api/v1/agent_sessions/end"
     /// @auth scope ManageJobs
     EndJob,
 
-    /// @route POST "/api/v1/jobs/{slug}/cancel"
+    /// @route POST "/api/v1/agent_sessions/{slug}/cancel"
     /// @auth scope ManageJobs
     CancelJob { slug: String },
 
-    /// @route POST "/api/v1/jobs/{job_id}/status"
+    /// @route POST "/api/v1/agent_sessions/{job_id}/status"
     /// @auth scope EmitEvents
     JobStatusUpdate { job_id: String },
 
-    /// @route POST "/api/v1/jobs/{slug}/step-done"
+    /// @route POST "/api/v1/agent_sessions/{slug}/step-done"
     /// @auth scope EmitEvents
     JobStepDone { slug: String },
 
-    /// @route GET "/api/v1/jobs/{slug}/log/stream"
+    /// @route GET "/api/v1/agent_sessions/{slug}/log/stream"
     /// @auth scope ReadJobs
     StreamJobLog { slug: String },
 
@@ -717,7 +723,7 @@ pub enum Route {
     /// @auth scope ManageJobs
     ProjectPty { id: String },
 
-    // ── Settings / providers ─────────────────────────────────────────────
+    // ── Settings / harnesses ─────────────────────────────────────────────
 
     /// @route GET "/api/v1/settings"
     /// @auth scope ReadWorkspace
@@ -731,7 +737,7 @@ pub enum Route {
     /// @auth scope ReadWorkspace
     GetSetting { key: String },
 
-    /// @route GET "/api/v1/providers"
+    /// @route GET "/api/v1/harnesses"
     /// @auth scope ReadWorkspace
     ListProviders,
 

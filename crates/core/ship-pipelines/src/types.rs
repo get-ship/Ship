@@ -71,7 +71,7 @@ pub struct StepPromote {
     pub target_scope: OutputScope,
 }
 
-/// A single lane in a fanout step — runs the same spec through a different agent/model/provider.
+/// A single lane in a fanout step — runs the same spec through a different agent/model/harness.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct FanoutLane {
@@ -82,7 +82,7 @@ pub struct FanoutLane {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub model: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub provider: Option<String>,
+    pub harness: Option<String>,
 }
 
 /// Points to the judge step that arbitrates lane outputs.
@@ -97,7 +97,7 @@ pub struct FanoutJudge {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct FanoutSpec {
-    /// Parallel lanes. Each runs the fanout step's spec through a different agent/model/provider.
+    /// Parallel lanes. Each runs the fanout step's spec through a different agent/model/harness.
     pub lanes: Vec<FanoutLane>,
     /// Judge step that receives all lane outputs and arbitrates.
     pub judge: FanoutJudge,
@@ -134,9 +134,9 @@ pub struct PipelineStep {
     /// Model override for this step.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub model: Option<String>,
-    /// Provider override for this step.
+    /// Harness override for this step.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub provider: Option<String>,
+    pub harness: Option<String>,
     /// Shell command to run (populated for StepType::Run). Wire name: `run`.
     #[serde(default, rename = "run", skip_serializing_if = "Option::is_none")]
     pub command: Option<String>,
@@ -182,7 +182,7 @@ impl<'de> serde::Deserialize<'de> for PipelineStep {
             #[serde(default)]
             model: Option<String>,
             #[serde(default)]
-            provider: Option<String>,
+            harness: Option<String>,
             #[serde(rename = "run", default)]
             command: Option<String>,
             #[serde(default)]
@@ -213,7 +213,7 @@ impl<'de> serde::Deserialize<'de> for PipelineStep {
             goal: raw.goal,
             after: raw.after,
             model: raw.model,
-            provider: raw.provider,
+            harness: raw.harness,
             command: raw.command,
             max_retries: raw.max_retries,
             gate: raw.gate,
@@ -321,7 +321,7 @@ mod tests {
             goal: None,
             after: after.iter().map(|s| s.to_string()).collect(),
             model: None,
-            provider: None,
+            harness: None,
             command: None,
             max_retries: None,
             gate: None,

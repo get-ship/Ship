@@ -44,8 +44,8 @@ pub struct ShipServer {
     /// returned from `actor_spawn`. Populated in `on_initialized`.
     /// Tool handlers read this instead of re-running synthesis fallback.
     pub canonical_actor_id: std::sync::Arc<tokio::sync::Mutex<Option<String>>>,
-    /// MCP provider name from clientInfo (e.g. "claude-code", "cursor").
-    pub mcp_provider: std::sync::Arc<tokio::sync::Mutex<Option<String>>>,
+    /// MCP harness name from clientInfo (e.g. "claude-code", "cursor").
+    pub mcp_harness: std::sync::Arc<tokio::sync::Mutex<Option<String>>>,
     /// Active session ID for this connection (set by auto_session_start).
     pub session_id: std::sync::Arc<tokio::sync::Mutex<Option<String>>>,
     /// Epoch millis of last tool call — used for heartbeat tracking.
@@ -97,7 +97,7 @@ impl ShipServer {
             })),
             actor_store: std::sync::Arc::new(tokio::sync::Mutex::new(None)),
             canonical_actor_id: std::sync::Arc::new(tokio::sync::Mutex::new(None)),
-            mcp_provider: std::sync::Arc::new(tokio::sync::Mutex::new(None)),
+            mcp_harness: std::sync::Arc::new(tokio::sync::Mutex::new(None)),
             session_id: std::sync::Arc::new(tokio::sync::Mutex::new(None)),
             last_activity: std::sync::Arc::new(AtomicU64::new(0)),
             heartbeat_counter: std::sync::Arc::new(AtomicU64::new(0)),
@@ -295,14 +295,14 @@ impl ShipServer {
             .ok()
             .and_then(|d| tool_gate::current_branch(&d).ok());
 
-        // Select push adapter based on detected provider, register as peer.
+        // Select push adapter based on detected harness, register as peer.
         // The peer's actor identity lives on its mailbox in the kernel —
         // directed-delivery events route to that mailbox, no per-peer
         // session/actor filtering needed at the relay.
         if let Some(peer) = self.notification_peer.lock().await.clone() {
-            let provider = self.mcp_provider.lock().await.clone();
+            let harness = self.mcp_harness.lock().await.clone();
             let adapter =
-                crate::push::select_adapter(provider.as_deref(), peer);
+                crate::push::select_adapter(harness.as_deref(), peer);
             tracing::info!(
                 adapter = adapter.adapter_name(),
                 branch = ?branch,
@@ -376,7 +376,7 @@ impl ShipServer {
             .flatten()
             .map(|a| a.id.clone());
 
-        let provider = self.mcp_provider.lock().await.clone();
+        let harness = self.mcp_harness.lock().await.clone();
 
         // Try to resume a draining session for this workspace+agent.
         let agent_key = agent_id.as_deref().unwrap_or("mcp");
@@ -397,7 +397,7 @@ impl ShipServer {
             &branch,
             None,
             agent_id,
-            provider,
+            harness,
         ) {
             Ok(session) => {
                 tracing::info!(session_id = %session.id, "auto-started session");
@@ -858,7 +858,7 @@ impl ShipServer {
     // ---- Dispatch ----
 
     #[tool(
-        description = "Spawn an agent: creates a git worktree, compiles provider config via \
+        description = "Spawn an agent: creates a git worktree, compiles harness config via \
         `ship use`, launches the agent process, and registers it on the mesh. \
         Returns the job_id for use with steer_agent, list_agents, stop_agent."
     )]

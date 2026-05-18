@@ -25,6 +25,46 @@ pub use ship_platform::config::credentials::Account as CredentialsAccount;
 
 use ship_platform::config::library::{Cloud, Defaults, Identity, LibrarySettings};
 use ship_platform::config::local::{Dispatch, LocalSettings, Terminal, Worktrees};
+use ship_platform::config::set_setting;
+
+/// Daemon-KV-backed launch defaults — see
+/// `runtime_settings::setting_default` and `resolve_str/resolve_bool`.
+/// These do NOT live in the JSONC library/local files; the CLI just
+/// routes get/set through to the daemon_settings table so users have
+/// one tool (`ship config`) for everything.
+const DAEMON_KV_KEYS: &[&str] = &[
+    "harness.default",
+    "harness.default_model",
+    "agent_session.auto_resume",
+];
+
+fn read_daemon_kv(key: &str) -> Option<String> {
+    // Read the persisted value only — compile-time defaults are deliberately
+    // not surfaced through `ship config get/list`, mirroring the other CLI
+    // keys whose `list()` returns "what the user has set," not "what would
+    // resolve."
+    match ship_substrate::db::daemon_settings::get(key).ok().flatten()? {
+        serde_json::Value::String(s) => Some(s),
+        serde_json::Value::Bool(b) => Some(b.to_string()),
+        serde_json::Value::Null => None,
+        other => Some(other.to_string()),
+    }
+}
+
+fn write_daemon_kv(key: &str, value: &str) -> Result<()> {
+    let json = match key {
+        "agent_session.auto_resume" => {
+            let b = match value {
+                "true" | "1" | "yes" => true,
+                "false" | "0" | "no" => false,
+                _ => anyhow::bail!("{} must be true or false", key),
+            };
+            serde_json::Value::Bool(b)
+        }
+        _ => serde_json::Value::String(value.to_string()),
+    };
+    set_setting(key, json)
+}
 
 /// Façade over the JSONC settings stores.
 ///
@@ -59,10 +99,13 @@ impl ShipConfig {
 
     /// Read a value by dot-path key.
     pub fn get(&self, key: &str) -> Option<String> {
+        if DAEMON_KV_KEYS.contains(&key) {
+            return read_daemon_kv(key);
+        }
         match key {
             "identity.name" => self.library.identity.as_ref()?.name.clone(),
             "identity.email" => self.library.identity.as_ref()?.email.clone(),
-            "defaults.provider" => self.library.defaults.as_ref()?.provider.clone(),
+            "defaults.harness" => self.library.defaults.as_ref()?.harness.clone(),
             "defaults.mode" => self.library.defaults.as_ref()?.mode.clone(),
             "cloud.base_url" => self.library.cloud.as_ref()?.base_url.clone(),
             "worktrees.dir" => self.local.worktrees.as_ref()?.dir.clone(),
@@ -78,8 +121,12 @@ impl ShipConfig {
     }
 
     /// Write a value by dot-path key. `save()` must be called afterward
-    /// to persist; both stores are written together.
+    /// to persist; both stores are written together. Daemon-KV-backed
+    /// keys persist immediately and are unaffected by `save()`.
     pub fn set(&mut self, key: &str, value: &str) -> Result<()> {
+        if DAEMON_KV_KEYS.contains(&key) {
+            return write_daemon_kv(key, value);
+        }
         match key {
             "identity.name" => {
                 self.library
@@ -93,11 +140,11 @@ impl ShipConfig {
                     .get_or_insert_with(Identity::default)
                     .email = Some(value.to_string());
             }
-            "defaults.provider" => {
+            "defaults.harness" => {
                 self.library
                     .defaults
                     .get_or_insert_with(Defaults::default)
-                    .provider = Some(value.to_string());
+                    .harness = Some(value.to_string());
             }
             "defaults.mode" => {
                 self.library
@@ -144,8 +191,9 @@ impl ShipConfig {
             }
             _ => anyhow::bail!(
                 "Unknown key: \"{}\". Valid keys: identity.name, identity.email, \
-                 defaults.provider, defaults.mode, cloud.base_url, worktrees.dir, \
-                 terminal.program, dispatch.confirm",
+                 defaults.harness, defaults.mode, cloud.base_url, worktrees.dir, \
+                 terminal.program, dispatch.confirm, harness.default, \
+                 harness.default_model, agent_session.auto_resume",
                 key
             ),
         }
@@ -157,12 +205,15 @@ impl ShipConfig {
         let keys = [
             "identity.name",
             "identity.email",
-            "defaults.provider",
+            "defaults.harness",
             "defaults.mode",
             "cloud.base_url",
             "worktrees.dir",
             "terminal.program",
             "dispatch.confirm",
+            "harness.default",
+            "harness.default_model",
+            "agent_session.auto_resume",
         ];
         keys.iter()
             .filter_map(|k| self.get(k).map(|v| (k.to_string(), v)))
@@ -186,13 +237,13 @@ mod tests {
         let (_tmp, _guard) = isolated_home();
         let mut cfg = ShipConfig::default();
         cfg.set("identity.name", "Alice").unwrap();
-        cfg.set("defaults.provider", "claude").unwrap();
+        cfg.set("defaults.harness", "claude").unwrap();
         cfg.set("cloud.base_url", "https://example.com").unwrap();
         cfg.save().unwrap();
 
         let back = ShipConfig::load();
         assert_eq!(back.get("identity.name"), Some("Alice".into()));
-        assert_eq!(back.get("defaults.provider"), Some("claude".into()));
+        assert_eq!(back.get("defaults.harness"), Some("claude".into()));
         assert_eq!(back.get("cloud.base_url"), Some("https://example.com".into()));
     }
 
@@ -235,5 +286,43 @@ mod tests {
         let (_tmp, _guard) = isolated_home();
         let mut cfg = ShipConfig::default();
         assert!(cfg.set("nonexistent.key", "value").is_err());
+    }
+
+    #[test]
+    fn round_trips_harness_default_via_daemon_kv() {
+        let (_tmp, _guard) = isolated_home();
+        let mut cfg = ShipConfig::default();
+        cfg.set("harness.default", "codex").unwrap();
+        // Daemon-KV-backed keys persist immediately; no save() required.
+        assert_eq!(cfg.get("harness.default"), Some("codex".into()));
+
+        let fresh = ShipConfig::load();
+        assert_eq!(fresh.get("harness.default"), Some("codex".into()));
+    }
+
+    #[test]
+    fn round_trips_harness_default_model_via_daemon_kv() {
+        let (_tmp, _guard) = isolated_home();
+        let mut cfg = ShipConfig::default();
+        cfg.set("harness.default_model", "opus").unwrap();
+        let fresh = ShipConfig::load();
+        assert_eq!(fresh.get("harness.default_model"), Some("opus".into()));
+    }
+
+    #[test]
+    fn auto_resume_accepts_true_false_only() {
+        let (_tmp, _guard) = isolated_home();
+        let mut cfg = ShipConfig::default();
+        cfg.set("agent_session.auto_resume", "true").unwrap();
+        assert_eq!(
+            ShipConfig::load().get("agent_session.auto_resume"),
+            Some("true".into())
+        );
+        cfg.set("agent_session.auto_resume", "false").unwrap();
+        assert_eq!(
+            ShipConfig::load().get("agent_session.auto_resume"),
+            Some("false".into())
+        );
+        assert!(cfg.set("agent_session.auto_resume", "maybe").is_err());
     }
 }

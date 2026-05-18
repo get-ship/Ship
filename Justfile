@@ -329,13 +329,16 @@ install: build-release
 wasm:
     wasm-pack build crates/core/compiler --target web --out-dir ../../../packages/compiler --out-name compiler -- --features wasm
 
-# Rebuild the in-browser SUI template compiler (wasm-pack output
-# under packages/sui-compiler-wasm/). Used by the docs site playground
-# to compile .sui edits without a server round-trip. ~640KB wasm
-# blob, ~9KB JS shim — gzip-encoded by any reasonable host.
+# Rebuild the in-browser SUI template compiler. wasm-pack writes into
+# `packages/sui-compiler-wasm/pkg/` (gitignored) so the package's own
+# package.json + .gitignore stay intact; the workspace re-exports the
+# generated entry via `main` / `exports`. Required before
+# `bun run --filter @ship/docs build` — the docs playground imports
+# `@ship/sui-compiler-wasm/sui_compiler_bg.wasm?url` to compile `.sui`
+# edits without a server round-trip. ~640KB wasm + ~9KB JS shim.
 [group('occasional')]
 sui-wasm:
-    wasm-pack build crates/sui/sui-compiler --target web --out-dir ../../../packages/sui-compiler-wasm --out-name sui_compiler -- --features wasm
+    wasm-pack build crates/sui/sui-compiler --target web --out-dir ../../../packages/sui-compiler-wasm/pkg --out-name sui_compiler -- --features wasm
 
 # Regenerate Specta types (Rust → generated TS bindings).
 [group('occasional')]

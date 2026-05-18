@@ -2,10 +2,10 @@ use serde_json::Value as Json;
 
 use crate::types::{McpServerConfig, McpServerType};
 
-use super::provider::ProviderDescriptor;
+use super::harness::HarnessDescriptor;
 
 pub(super) fn build_mcp_servers(
-    desc: &ProviderDescriptor,
+    desc: &HarnessDescriptor,
     servers: &[McpServerConfig],
     studio_url: Option<&str>,
     ship_home_dir: Option<&str>,
@@ -30,7 +30,7 @@ pub(super) fn build_mcp_servers(
     Json::Object(map)
 }
 
-pub(super) fn server_entry(desc: &ProviderDescriptor, s: &McpServerConfig) -> Json {
+pub(super) fn server_entry(desc: &HarnessDescriptor, s: &McpServerConfig) -> Json {
     let mut entry = serde_json::json!({});
     match s.server_type {
         McpServerType::Stdio => {
@@ -130,8 +130,8 @@ mod tests {
 
     #[test]
     fn build_mcp_servers_no_studio_uses_stdio() {
-        use crate::compile::provider::get_provider;
-        let desc = get_provider("claude").unwrap();
+        use crate::compile::harness::get_harness;
+        let desc = get_harness("claude").unwrap();
         let result = build_mcp_servers(desc, &[], None, None);
         let ship = &result["ship"];
         assert_eq!(ship["command"], "ship");
@@ -139,8 +139,8 @@ mod tests {
 
     #[test]
     fn build_mcp_servers_with_studio_uses_http() {
-        use crate::compile::provider::get_provider;
-        let desc = get_provider("claude").unwrap();
+        use crate::compile::harness::get_harness;
+        let desc = get_harness("claude").unwrap();
         let result = build_mcp_servers(desc, &[], Some("http://localhost:51741/agent"), None);
         let ship = &result["ship"];
         assert_eq!(ship["url"], "http://localhost:51741/agent");

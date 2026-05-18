@@ -30,7 +30,7 @@ pub fn load_job_context(job_id: &str) -> JobContextFromEvents {
     let envelopes = store
         .query(&EventFilter {
             entity_id: Some(job_id.to_string()),
-            event_type: Some("job.created".to_string()),
+            event_type: Some("pipeline.run.started".to_string()),
             ..Default::default()
         })
         .unwrap_or_default();

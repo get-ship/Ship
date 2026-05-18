@@ -47,7 +47,7 @@ function buildShipToml(modeName: string): string {
     '',
     '[defaults]',
     `profile = "${modeName}"`,
-    'providers = ["claude", "gemini", "codex", "cursor"]',
+    'harnesses = ["claude", "gemini", "codex", "cursor"]',
     '',
   ].join('\n')
 }

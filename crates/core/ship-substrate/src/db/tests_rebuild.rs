@@ -22,7 +22,7 @@ fn workspace_created_event(branch: &str) -> EventEnvelope {
             "workspace_id": branch,
             "workspace_type": "feature",
             "active_agent": null,
-            "providers": [],
+            "harnesses": [],
             "mcp_servers": [],
             "skills": [],
             "path": null

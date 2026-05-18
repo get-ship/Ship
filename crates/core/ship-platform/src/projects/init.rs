@@ -99,14 +99,14 @@ Vision -> Release -> Feature -> Spec -> Close Feature -> Ship Release
 
 /// Write a top-level `.gitignore` template to the project root listing only
 /// tool-required files Ship generates on compile (CLAUDE.md, AGENTS.md, the
-/// per-provider tool dirs). Implementation details inside `.ship/` never
+/// per-harness tool dirs). Implementation details inside `.ship/` never
 /// belong here. Idempotent: appends only the lines the user doesn't already
 /// have.
 fn write_project_gitignore(project_root: &Path) -> Result<()> {
     let path = project_root.join(".gitignore");
     let existing = std::fs::read_to_string(&path).unwrap_or_default();
     let want: &[&str] = &[
-        "# Ship — tool-generated provider context",
+        "# Ship — tool-generated harness context",
         "CLAUDE.md",
         "AGENTS.md",
         ".mcp.json",

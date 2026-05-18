@@ -9,7 +9,7 @@
 use std::sync::Arc;
 
 use ship_substrate::events::executor::DestructionCause;
-use ship_substrate::events::job::event_types;
+use ship_substrate::events::pipeline::event_types;
 use ship_substrate::events::{EventEnvelope, KernelRouter};
 use tokio::sync::Mutex;
 use tokio::sync::mpsc::UnboundedReceiver;
@@ -61,7 +61,7 @@ pub fn start(
                             });
                             emit_job_event(
                                 &kernel,
-                                event_types::JOB_COMPLETED,
+                                event_types::PIPELINE_RUN_COMPLETED,
                                 &signal.job_id,
                                 &signal.slug,
                                 payload,
@@ -75,7 +75,7 @@ pub fn start(
                             });
                             emit_job_event(
                                 &kernel,
-                                event_types::JOB_FAILED,
+                                event_types::PIPELINE_RUN_FAILED,
                                 &signal.job_id,
                                 &signal.slug,
                                 payload,
@@ -92,7 +92,7 @@ pub fn start(
                             });
                             emit_job_event(
                                 &kernel,
-                                event_types::JOB_FAILED,
+                                event_types::PIPELINE_RUN_FAILED,
                                 &signal.job_id,
                                 &signal.slug,
                                 payload,
@@ -116,7 +116,7 @@ pub fn start(
                     });
                     emit_job_event(
                         &kernel,
-                        event_types::JOB_FAILED,
+                        event_types::PIPELINE_RUN_FAILED,
                         &signal.job_id,
                         &signal.slug,
                         payload,

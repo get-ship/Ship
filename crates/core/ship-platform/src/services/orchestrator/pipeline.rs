@@ -3,7 +3,7 @@
 //! A pipeline is a DAG of steps. Each step declares dependencies via `after`.
 //! When a step completes, unblocked steps are found and dispatched.
 
-use ship_substrate::events::job::StepType;
+use ship_substrate::events::pipeline::StepType;
 use ship_substrate::events::EventEnvelope;
 use crate::projections::job::load_jobs_at;
 use crate::services::dispatch_ports::{JobContext, LaunchProfile};
@@ -269,7 +269,7 @@ async fn advance_pipeline_inner(
                     vec![]
                 };
 
-                octx.platform.graceful_agent_exit(slug, step.provider.as_deref()).await;
+                octx.platform.graceful_agent_exit(slug, step.harness.as_deref()).await;
 
                 tracing::info!(slug, agent, step_id = step.id, "pipeline: compiling agent config");
                 if let Err(e) = octx.platform.compile_agent_config(&worktree_path, agent) {
@@ -296,7 +296,7 @@ async fn advance_pipeline_inner(
                     env: [("SHIP_ACTOR_ID".to_string(), slug.clone())].into(),
                     exit_tx: Some(exit_tx),
                     launch: LaunchProfile {
-                        provider: step.provider.clone(),
+                        harness: step.harness.clone(),
                         model: step.model.clone(),
                         persist_session: persist,
                         ..Default::default()
@@ -307,7 +307,7 @@ async fn advance_pipeline_inner(
                 match octx.executor.spawn(&job_ctx).await {
                     Ok(handle) => {
                         let exec_kind = if job.headless { "process" } else { "pty" };
-                        let cmd_label = step.provider.as_deref().unwrap_or("claude");
+                        let cmd_label = step.harness.as_deref().unwrap_or("claude");
                         emit_process_spawned(
                             kernel, slug, &job.job_id, handle.pid,
                             cmd_label, &[], &[],

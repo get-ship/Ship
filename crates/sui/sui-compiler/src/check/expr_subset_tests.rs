@@ -92,9 +92,9 @@ fn agents_view_real_expressions() {
     ok("items().length === 0");
     ok("a.description || 'No description'");
     ok("'/agents/' + a.id");
-    ok("a.providers && a.providers.length > 0");
-    ok("a.providers.slice(0, 4)");
-    ok("a.providers.length - 4");
+    ok("a.harnesses && a.harnesses.length > 0");
+    ok("a.harnesses.slice(0, 4)");
+    ok("a.harnesses.length - 4");
     ok("(a.tags || []).slice(0, 2)");
     ok("(a.tags || []).length > 2");
 }

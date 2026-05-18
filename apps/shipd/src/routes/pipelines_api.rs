@@ -160,8 +160,9 @@ pub async fn delete(
 
 /// POST /api/v1/pipelines/{name}/dispatch
 ///
-/// Accepts the same body shape as `runtime_api::DispatchRequest` minus
-/// `pipeline` (the name is taken from the URL).
+/// Convenience wrapper around `POST /api/v1/pipelines/run` that takes the
+/// pipeline name from the URL. Accepts the same body shape as
+/// `runtime_api::PipelineRunRequest` minus `pipeline`.
 pub async fn dispatch(
     state: State<ApiState>,
     auth: axum::Extension<crate::auth::AuthContext>,
@@ -175,14 +176,14 @@ pub async fn dispatch(
     } else {
         merged = serde_json::json!({ "pipeline": name });
     }
-    let req: crate::routes::runtime_api::DispatchRequest = match serde_json::from_value(merged) {
+    let req: crate::routes::runtime_api::PipelineRunRequest = match serde_json::from_value(merged) {
         Ok(r) => r,
         Err(e) => return err(
             StatusCode::BAD_REQUEST, "bad_body",
             format!("dispatch body: {e}"),
         ).into_response(),
     };
-    crate::routes::runtime_api::dispatch_pipeline(state, auth, Json(req)).await.into_response()
+    crate::routes::runtime_api::run_pipeline(state, auth, Json(req)).await.into_response()
 }
 
 /// POST /api/v1/pipelines/runs/{slug}/cancel — delegates to the job-level
@@ -225,7 +226,7 @@ pub async fn list_runs(
     let jobs = ship_platform::projections::job::load_jobs_at(state.ship_dir())
         .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, "io", e.to_string()))?;
     let limit = q.limit.unwrap_or(100).clamp(1, 500);
-    let mut items: Vec<&ship_platform::projections::job::JobRecord> = jobs
+    let mut items: Vec<&ship_platform::projections::job::PipelineRun> = jobs
         .values()
         .filter(|j| match q.name.as_deref() {
             Some(n) if !n.is_empty() => {

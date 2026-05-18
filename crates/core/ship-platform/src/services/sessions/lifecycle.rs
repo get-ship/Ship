@@ -1,6 +1,6 @@
 //! Session lifecycle — spawn, stop, write-stdin, read.
 //!
-//! Agent sessions dispatch through the provider adapter trait so
+//! Agent sessions dispatch through the harness adapter trait so
 //! Claude / Codex / OpenCode all reuse the same registry + stream
 //! primitives; only the CLI argv + parsing differ. Shell sessions
 //! skip the adapter and spawn `$SHELL` directly.
@@ -11,7 +11,7 @@ use std::sync::{Arc, Mutex as StdMutex};
 use anyhow::{anyhow, bail, Context, Result};
 use chrono::Utc;
 use crate::services::dispatch_ports::LaunchProfile;
-use crate::services::provider_adapter::adapter_for;
+use crate::services::harness_adapter::adapter_for;
 use tokio::sync::broadcast;
 
 use super::registry::SessionRegistry;
@@ -67,7 +67,7 @@ pub struct SpawnOutcome {
     pub attached: bool,
 }
 
-/// Spawn (or attach to) an agent session for `(workspace, agent, provider)`.
+/// Spawn (or attach to) an agent session for `(workspace, agent, harness)`.
 ///
 /// If an existing session matches the triple, return it unchanged with
 /// `attached = true`. Otherwise spawn a fresh PTY.
@@ -75,24 +75,24 @@ pub fn spawn_agent(
     registry: &SessionRegistry,
     workspace_id: &str,
     agent_id: &str,
-    provider: &str,
+    harness: &str,
     work_dir: PathBuf,
     log_dir: PathBuf,
 ) -> Result<SpawnOutcome> {
-    if let Some(existing) = registry.find_agent_session(workspace_id, agent_id, provider) {
+    if let Some(existing) = registry.find_agent_session(workspace_id, agent_id, harness) {
         return Ok(SpawnOutcome {
             session: existing,
             attached: true,
         });
     }
 
-    let _ = adapter_for(provider).map_err(|e| anyhow!(e))?;
+    let _ = adapter_for(harness).map_err(|e| anyhow!(e))?;
 
     // Two session paths:
-    //   - Persistent providers (claude with --resume) are intercepted in
+    //   - Persistent harnesses (claude with --resume) are intercepted in
     //     `api::spawn_session` and routed to `agent_actor::spawn_or_attach`
     //     via the unified supervisor primitive.
-    //   - Per-turn providers (codex, opencode — no channels capability)
+    //   - Per-turn harnesses (codex, opencode — no channels capability)
     //     fall through here. We allocate session metadata only; the actual
     //     child is spawned fresh per turn by `agent_actor::run_headless_turn`
     //     when `send_agent_message` is called.
@@ -111,14 +111,14 @@ pub fn spawn_agent(
         kind: SessionKind::Agent,
         workspace_id: workspace_id.to_string(),
         agent_id: Some(agent_id.to_string()),
-        provider: Some(provider.to_string()),
+        harness: Some(harness.to_string()),
         pid: None,
         status: SessionStatus::Idle,
         log_path: log_path.display().to_string(),
         spawned_at: now,
         last_activity: now,
         exit_code: None,
-        provider_session_id: None,
+        harness_session_id: None,
     };
 
     let inner = Arc::new(Inner {
@@ -136,10 +136,10 @@ pub fn spawn_agent(
     })
 }
 
-/// Send a user turn to an agent session. Spawns the provider headless
+/// Send a user turn to an agent session. Spawns the harness headless
 /// with stream-json output, parses events line-by-line, broadcasts
-/// `ProviderEvent`s on the session's event_tx, and captures the
-/// provider's session id for subsequent `--resume` calls.
+/// `HarnessEvent`s on the session's event_tx, and captures the
+/// harness's session id for subsequent `--resume` calls.
 pub fn send_agent_message(
     registry: &SessionRegistry,
     session_id: &str,
@@ -149,33 +149,33 @@ pub fn send_agent_message(
     let session = registry
         .get(session_id)
         .ok_or_else(|| anyhow!("session '{session_id}' not found"))?;
-    let (provider, resume, slug) = {
+    let (harness, resume, slug) = {
         let m = session.0.meta.lock().unwrap();
         if m.kind != SessionKind::Agent {
             bail!("send_agent_message: session is not an agent session");
         }
         let p = m
-            .provider
+            .harness
             .clone()
-            .ok_or_else(|| anyhow!("agent session missing provider"))?;
-        (p, m.provider_session_id.clone(), m.id.clone())
+            .ok_or_else(|| anyhow!("agent session missing harness"))?;
+        (p, m.harness_session_id.clone(), m.id.clone())
     };
-    let adapter = adapter_for(&provider).map_err(|e| anyhow!(e))?;
+    let adapter = adapter_for(&harness).map_err(|e| anyhow!(e))?;
 
-    // Persistent-session providers (claude with --resume) live on
+    // Persistent-session harnesses (claude with --resume) live on
     // `ActorRegistry`, not here — they're routed earlier in
     // `api::spawn_session` to `agent_actor::spawn_or_attach` and their
     // chat turns flow over the channel event from the HTTP layer.
-    // Anything reaching this function is a per-turn provider (codex,
+    // Anything reaching this function is a per-turn harness (codex,
     // opencode, gemini, cursor) and gets a fresh headless child below.
-    tracing::info!(session = %slug, provider = %provider, "send_agent_message: per-turn headless");
+    tracing::info!(session = %slug, harness = %harness, "send_agent_message: per-turn headless");
 
     let agent_id_opt = session.0.meta.lock().unwrap().agent_id.clone();
     let append_system_prompt = agent_id_opt
         .as_deref()
         .and_then(|aid| load_agent_rules(&work_dir, aid));
     let profile = LaunchProfile {
-        provider: Some(provider.clone()),
+        harness: Some(harness.clone()),
         resume_session: resume,
         autostart_prompt: Some(text.to_string()),
         persist_session: true,
@@ -204,7 +204,7 @@ pub fn send_agent_message(
             &SessionTurnFailed { error: e.to_string() },
         );
         let _ = session.0.event_tx.send(
-            crate::services::provider_adapter::ProviderEvent::Message {
+            crate::services::harness_adapter::HarnessEvent::Message {
                 text: format!("[ship] turn failed: {e}"),
             },
         );
@@ -247,7 +247,7 @@ pub fn emit_actor_created_for(session: &PtySession, extras: &ActorSpawnExtras) {
         parent_actor_id: None,
         restart_count: 0,
         agent_id: m.agent_id.clone(),
-        provider: m.provider.clone(),
+        harness: m.harness.clone(),
         model: extras.model.clone(),
         transport: extras.transport.clone().or(Some("pty".to_string())),
         persistence: extras.persistence.clone().or(Some("long-lived".to_string())),
@@ -336,7 +336,7 @@ pub fn stop(registry: &SessionRegistry, id: &str) -> bool {
 /// the work directory. Prepended with a Ship-specific preamble so the agent
 /// knows which session id to reply into. Returns `None` if the file is
 /// absent, unreadable, or has no inline rules — callers fall back to vanilla
-/// provider behaviour.
+/// harness behaviour.
 pub fn load_agent_rules(work_dir: &std::path::Path, agent_id: &str) -> Option<String> {
     let path = ship_substrate::ShipHome::project_ship_dir(work_dir).join("agents").join(format!("{agent_id}.jsonc"));
     let raw = std::fs::read_to_string(&path).ok()?;

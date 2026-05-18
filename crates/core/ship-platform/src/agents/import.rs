@@ -1,15 +1,15 @@
-//! Import provider-managed config (MCP servers, skills, permissions)
+//! Import harness-managed config (MCP servers, skills, permissions)
 //! into the project's `.ship/` tree.
 //!
-//! Each importer is keyed by `provider_id` and reads the corresponding
-//! provider's on-disk format (Claude's JSON, Codex/Gemini's TOML, etc.).
+//! Each importer is keyed by `harness_id` and reads the corresponding
+//! harness's on-disk format (Claude's JSON, Codex/Gemini's TOML, etc.).
 //! Project-scope files win over user-scope ones; ids that already exist
 //! in the project are skipped (no overwrite). Wired up by
 //! `cli-framework::core_primitives` as part of the `ship init` /
 //! `ship pull` flows.
 //!
 //! Split (P26 follow-up): one submodule per concern. The dispatcher
-//! `import_permissions_from_provider` lives with the claude/gemini/codex
+//! `import_permissions_from_harness` lives with the claude/gemini/codex
 //! variants in `permissions.rs` so all three share their helpers locally.
 
 use anyhow::{Result, anyhow};
@@ -19,9 +19,9 @@ pub mod mcp;
 pub mod permissions;
 pub mod skills;
 
-pub use mcp::import_from_provider;
-pub use permissions::import_permissions_from_provider;
-pub use skills::import_skills_from_provider;
+pub use mcp::import_from_harness;
+pub use permissions::import_permissions_from_harness;
+pub use skills::import_skills_from_harness;
 
 /// Resolve the user home directory. Honours `HOME` if set, falls back
 /// to `home::home_dir()`. Shared by all three importers since each

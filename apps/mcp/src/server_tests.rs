@@ -15,7 +15,7 @@ fn install_active_agent(project_dir: &std::path::Path, agent: AgentProfile) {
         active_agent: Some(id),
         compiled_at: chrono::Utc::now().to_rfc3339(),
         ship_version: "test".to_string(),
-        provider: None,
+        harness: None,
         plugins_installed: Vec::new(),
     };
     let envelope = ship_substrate::events::EventEnvelope::new(

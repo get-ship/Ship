@@ -14,7 +14,7 @@
   step-type (enum,             step-type (enum,         ✓ same type→tone map
     'agent')                     'agent', reflect)        in template
   agent (string)               agent (string, reflect)  ✓
-  provider (string)            provider (string,        ✓
+  harness (string)            harness (string,        ✓
                                  reflect)
   model (string)               model (string, reflect)  ✓
   after (string)               after (string, reflect)  ✓ comma-separated
@@ -30,7 +30,7 @@
 <prop name="name" type="string" default="" reflect />
 <prop name="step-type" values="agent|gate|run|merge|human" default="agent" reflect />
 <prop name="agent" type="string" default="" reflect />
-<prop name="provider" type="string" default="" reflect />
+<prop name="harness" type="string" default="" reflect />
 <prop name="model" type="string" default="" reflect />
 <prop name="after" type="string" default="" reflect />
 <prop name="command" type="string" default="" />
@@ -115,10 +115,10 @@
       {/if}
       <span class="trailing"><slot name="trailing"></slot></span>
     </div>
-    {#if agent() || provider() || model()}
+    {#if agent() || harness() || model()}
       <div class="chips">
         {#if agent()}<sui-chip size="sm">{agent()}</sui-chip>{/if}
-        {#if provider()}<sui-chip size="sm">{provider()}</sui-chip>{/if}
+        {#if harness()}<sui-chip size="sm">{harness()}</sui-chip>{/if}
         {#if model()}<sui-chip size="sm">{model()}</sui-chip>{/if}
       </div>
     {/if}

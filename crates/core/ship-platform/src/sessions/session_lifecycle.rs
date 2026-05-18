@@ -9,7 +9,7 @@ use anyhow::{Result, anyhow};
 use chrono::Utc;
 use std::path::Path;
 
-use super::compile::{compile_session_context, resolve_session_providers};
+use super::compile::{compile_session_context, resolve_session_harnesses};
 use super::helpers::*;
 use super::session::{hydrate_session, persist_session_artifact};
 use super::types_session::*;
@@ -24,7 +24,7 @@ pub fn start_session(
     branch: &str,
     goal: Option<String>,
     agent_id: Option<String>,
-    primary_provider: Option<String>,
+    primary_harness: Option<String>,
 ) -> Result<Session> {
     let branch = ensure_branch_key(branch)?;
     let workspace_id = sanitize_file_name(branch);
@@ -44,11 +44,11 @@ pub fn start_session(
         return Ok(existing);
     }
 
-    // Resolve providers and compile context.
+    // Resolve harnesses and compile context.
     let agent_id = agent_id.and_then(|v| normalize_optional_text(Some(v)));
-    let providers = resolve_session_providers(ship_dir, branch, agent_id.as_deref())?;
-    let primary_provider = resolve_primary_provider(primary_provider, &providers, branch)?;
-    let _providers = compile_session_context(ship_dir, branch, None, agent_id.as_deref())?;
+    let harnesses = resolve_session_harnesses(ship_dir, branch, agent_id.as_deref())?;
+    let primary_harness = resolve_primary_harness(primary_harness, &harnesses, branch)?;
+    let _harnesses = compile_session_context(ship_dir, branch, None, agent_id.as_deref())?;
 
     // Look up project_id from ship_dir.parent (the project root). When the
     // project isn't registered, leaves project_id as None — registration is
@@ -65,7 +65,7 @@ pub fn start_session(
         workspace_id: workspace_id.clone(),
         branch: branch.to_string(),
         agent_id,
-        primary_provider: Some(primary_provider),
+        primary_harness: Some(primary_harness),
         project_id,
         kind: Some("direct_attach".to_string()),
         pipeline_run_id: None,
@@ -84,24 +84,24 @@ pub fn start_session(
     Ok(started)
 }
 
-fn resolve_primary_provider(
+fn resolve_primary_harness(
     requested: Option<String>,
-    providers: &[String],
+    harnesses: &[String],
     branch: &str,
 ) -> Result<String> {
     if let Some(req) = requested {
-        let normalized = normalize_provider_ref(&req)
-            .ok_or_else(|| anyhow!("Session provider cannot be empty"))?;
-        if !providers.iter().any(|p| p == &normalized) {
+        let normalized = normalize_harness_ref(&req)
+            .ok_or_else(|| anyhow!("Session harness cannot be empty"))?;
+        if !harnesses.iter().any(|p| p == &normalized) {
             return Err(anyhow!(
-                "Provider '{}' not allowed for branch '{}' (allowed: {})",
-                normalized, branch, providers.join(", ")
+                "Harness '{}' not allowed for branch '{}' (allowed: {})",
+                normalized, branch, harnesses.join(", ")
             ));
         }
         Ok(normalized)
     } else {
-        providers.first().cloned()
-            .ok_or_else(|| anyhow!("No providers resolved for branch '{}'", branch))
+        harnesses.first().cloned()
+            .ok_or_else(|| anyhow!("No harnesses resolved for branch '{}'", branch))
     }
 }
 
@@ -150,7 +150,7 @@ pub fn end_session(
         gate_result: request.gate_result.clone(),
         updated_workspace_ids: active.updated_workspace_ids.clone(),
         agent_id: active.agent_id.clone(),
-        provider: active.primary_provider.clone(),
+        harness: active.primary_harness.clone(),
         model: request.model.clone(),
         files_changed,
         lines_added,

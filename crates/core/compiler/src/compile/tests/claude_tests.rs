@@ -373,7 +373,7 @@ fn ask_with_deny_both_emitted() {
 }
 
 #[test]
-fn ask_tier_not_emitted_for_other_providers() {
+fn ask_tier_not_emitted_for_other_harnesses() {
     let r = ResolvedConfig {
         permissions: Permissions {
             tools: ToolPermissions {
@@ -412,7 +412,7 @@ fn claude_lsp_config_is_always_emitted() {
     let lsp = out
         .claude_lsp_config
         .as_ref()
-        .expect("claude provider must emit lsp config");
+        .expect("claude harness must emit lsp config");
     let ship = &lsp["ship"];
     assert_eq!(ship["command"], "ship");
     assert_eq!(ship["args"], serde_json::json!(["lsp"]));
@@ -422,7 +422,7 @@ fn claude_lsp_config_is_always_emitted() {
 }
 
 #[test]
-fn lsp_config_not_emitted_for_other_providers() {
+fn lsp_config_not_emitted_for_other_harnesses() {
     for p in ["gemini", "codex", "cursor", "opencode"] {
         assert!(
             compile(&resolved(vec![]), p)

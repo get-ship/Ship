@@ -6,9 +6,9 @@ description: Trigger file shape, source types, action types, template context, l
 audience: internal
 ---
 
-A trigger is a JSONC file in `.ship/hooks/*.jsonc` that subscribes to an event type (or an external source) and runs one or more actions when matching events fire. Reactive automation without writing code — declarative JSONC, hot-reloaded when you edit.
+A trigger is a JSONC file in `.ship/triggers/*.jsonc` that subscribes to an event type (or an external source) and runs one or more actions when matching events fire. Reactive automation without writing code — declarative JSONC, hot-reloaded when you edit.
 
-**Naming note.** The code, directory, and types are currently called "hooks" (legacy name). The product concept is "triggers" — the rename is planned. This page uses "trigger" for the concept and points at `hooks` paths/types for the code.
+**Naming note.** Internal Rust types still carry the `Hook*` prefix (`HookDef`, `HookEngine`, `HookAction`) for historical reasons; the public/filesystem surface is consistently **triggers**.
 
 ## File shape
 
@@ -17,7 +17,7 @@ A trigger is a JSONC file in `.ship/hooks/*.jsonc` that subscribes to an event t
   "name": "log-failed-jobs",
   "description": "Emit a derived notice event when a job fails.",
   "trigger": {
-    "event": "job.failed"
+    "event": "pipeline.run.failed"
   },
   "actions": [
     {
@@ -161,7 +161,7 @@ Emitted event: `external.cron.<trigger_name>` · payload: `{ "scheduled_for", "f
 
 ## Action types
 
-Four today. All typed in `ship_platform::hooks::def::HookActionType`:
+Four today. All typed in `ship_platform::triggers::def::HookActionType`:
 
 | Type | Effect |
 |---|---|
@@ -187,10 +187,10 @@ Common patterns: `{{ event.entity_id }}`, `{{ event.payload.slug }}`, `{{ event.
 
 ## Lifecycle
 
-1. `ship_platform::hooks::loader::load_hooks_dir(ship_dir)` reads `.ship/hooks/*.jsonc` into `Vec<HookDef>`. Returns a `LoadReport` noting any parse errors — one bad file doesn't block the rest.
+1. `ship_platform::triggers::loader::load_triggers_dir(ship_dir)` reads `.ship/triggers/*.jsonc` into `Vec<HookDef>`. Returns a `LoadReport` noting any parse errors — one bad file doesn't block the rest.
 2. `HookEngine` holds the loaded set and subscribes to the kernel for all events.
 3. When an event fires, the engine finds matching triggers, renders actions against the template context, dispatches each in order.
-4. `ship_platform::hooks::watcher::start_watcher(engine, ship_dir)` watches `.ship/hooks/` for file changes and reloads the engine on add/remove/modify. No daemon restart needed.
+4. `ship_platform::triggers::watcher::start_watcher(engine, ship_dir)` watches `.ship/triggers/` for file changes and reloads the engine on add/remove/modify. No daemon restart needed.
 5. External source adapters (webhook, file, cron) are also notified on hot-reload and update their registered trigger sets.
 
 ## Not to be confused with

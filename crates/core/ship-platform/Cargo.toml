@@ -9,7 +9,6 @@ publish = false
 ship-substrate = { path = "../ship-substrate" }
 ship-kernel = { path = "../ship-kernel" }
 ship-types = { path = "../ship-types" }
-ship-jobs = { path = "../ship-jobs" }
 ship-pipelines = { path = "../ship-pipelines", features = ["specta"] }
 ship-gateway-client = { path = "../ship-gateway-client" }
 compiler = { path = "../compiler", features = ["specta"] }

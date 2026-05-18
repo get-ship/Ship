@@ -13,8 +13,8 @@ use tempfile::TempDir;
 use tokio::sync::Mutex;
 use tokio::sync::mpsc;
 
-use ship_substrate::events::job::{
-    event_types as job_event_types, StepObservedPayload, StepTrigger, StepType,
+use ship_substrate::events::pipeline::{
+    event_types as job_event_types, PipelineStepObservedPayload, StepTrigger, StepType,
 };
 use ship_substrate::events::kernel_router::{ActorConfig, KernelRouter};
 use crate::services::dispatch_ports::{ExitSignal, ProcessTreeProbe};
@@ -103,7 +103,7 @@ fn launch(
     Launch { job_id, exit_tx, activity_tx }
 }
 
-async fn wait_observed(job_id: &str, deadline: Duration) -> Option<StepObservedPayload> {
+async fn wait_observed(job_id: &str, deadline: Duration) -> Option<PipelineStepObservedPayload> {
     let start = std::time::Instant::now();
     while start.elapsed() < deadline {
         if let Some(p) = find_observed(job_id) {
@@ -114,13 +114,13 @@ async fn wait_observed(job_id: &str, deadline: Duration) -> Option<StepObservedP
     None
 }
 
-fn find_observed(job_id: &str) -> Option<StepObservedPayload> {
+fn find_observed(job_id: &str) -> Option<PipelineStepObservedPayload> {
     ship_substrate::db::events::list_all_events()
         .ok()?
         .into_iter()
         .rev()
         .find_map(|e| {
-            if e.entity_id == job_id && e.event_type == job_event_types::STEP_OBSERVED {
+            if e.entity_id == job_id && e.event_type == job_event_types::PIPELINE_STEP_OBSERVED {
                 serde_json::from_str(&e.payload_json).ok()
             } else {
                 None

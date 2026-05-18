@@ -27,8 +27,8 @@ Top-level modules across the three crates:
 | `ship-substrate` | `git` | Git subprocess adapter — returns pure-data results |
 | `ship-substrate` | `supervisor` | Actor supervision and restart policies |
 | `ship-platform` | `sessions` | Session lifecycle — start, progress, end, reconciliation |
-| `ship-platform` | `services` | Orchestrator, provider adapters, GitService, files, sync |
-| `ship-platform` | `config` | Project config (`ship.jsonc`), agents, MCP servers, providers, gitignore |
+| `ship-platform` | `services` | Orchestrator, harness adapters, GitService, files, sync |
+| `ship-platform` | `config` | Project config (`ship.jsonc`), agents, MCP servers, harnesses, gitignore |
 | `ship-platform` | `agents` | Agent config, export/import, permissions, rules, skills, skill vars/paths |
 | `ship-platform` | `collections` | Collection logic over the data DB |
 | `ship-platform` | `artifacts` | Artifact storage and backends |

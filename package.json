@@ -33,7 +33,6 @@
   ],
   "scripts": {
     "build:bundles": "bun run runtime-assets/bundler.ts --all",
-    "build:jinja-docs": "node scripts/build-jinja-docs.mjs",
     "test:rust": "cargo test",
     "wasm": "wasm-pack build crates/core/compiler --target web --out-dir ../../../packages/compiler --out-name compiler -- --features wasm",
     "lint": "vp lint",
@@ -47,6 +46,7 @@
     "@cloudflare/vitest-pool-workers": "^0.15.2",
     "@playwright/test": "^1.58.2",
     "drizzle-kit": "^0.31.8",
+    "lucide-static": "1.14.0",
     "playwright": "^1.59.1",
     "typescript": "~5.8.3",
     "vite": "^7.3.1",

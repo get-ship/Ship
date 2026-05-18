@@ -17,11 +17,11 @@ pub const ACTOR_STOPPED: &str = "actor.stopped";
 pub const ACTOR_CRASHED: &str = "actor.crashed";
 pub const GATE_PASSED: &str = "gate.passed";
 pub const GATE_FAILED: &str = "gate.failed";
-pub const JOB_CREATED: &str = "job.created";
-pub const JOB_COMPLETED: &str = "job.completed";
-pub const JOB_FAILED: &str = "job.failed";
-pub const JOB_DISPATCHED: &str = "job.dispatched";
-pub const JOB_UPDATE: &str = "job.update";
+pub const PIPELINE_RUN_STARTED: &str = "pipeline.run.started";
+pub const PIPELINE_RUN_COMPLETED: &str = "pipeline.run.completed";
+pub const PIPELINE_RUN_FAILED: &str = "pipeline.run.failed";
+pub const PIPELINE_RUN_DISPATCHED: &str = "pipeline.run.dispatched";
+pub const PIPELINE_RUN_UPDATED: &str = "pipeline.run.updated";
 pub const CONFIG_CHANGED: &str = "config.changed";
 pub const AGENT_CHANGED: &str = "agent.changed";
 pub const SKILL_CHANGED: &str = "skill.changed";
@@ -56,11 +56,11 @@ pub const DAEMON_CRASHED: &str = "daemon.crashed";
 pub const DAEMON_PORT_BIND_FAILED: &str = "daemon.port_bind_failed";
 pub const DAEMON_PIDFILE_ACQUIRED: &str = "daemon.pidfile_acquired";
 pub const DAEMON_PIDFILE_STALE_TAKEN: &str = "daemon.pidfile_stale_taken";
-pub const JOB_STEP_COMPLETED: &str = "job.step_completed";
-pub const JOB_STEP_FAILED: &str = "job.step_failed";
-pub const JOB_CANCELLED: &str = "job.cancelled";
-pub const JOB_MERGED: &str = "job.merged";
-pub const JOB_SPAWN_FAILED: &str = "job.spawn_failed";
+pub const PIPELINE_STEP_COMPLETED: &str = "pipeline.step.completed";
+pub const PIPELINE_STEP_FAILED: &str = "pipeline.step.failed";
+pub const PIPELINE_RUN_CANCELLED: &str = "pipeline.run.cancelled";
+pub const PIPELINE_RUN_MERGED: &str = "pipeline.run.merged";
+pub const PIPELINE_STEP_SPAWN_FAILED: &str = "pipeline.step.spawn_failed";
 pub const ARTIFACT_CREATED: &str = "artifact.created";
 pub const ARTIFACT_UPDATED: &str = "artifact.updated";
 pub const ARTIFACT_MOVED: &str = "artifact.moved";
@@ -80,7 +80,7 @@ pub const STUDIO_CHAT_TURN: &str = "studio.chat_turn";
 pub const STUDIO_REPLY: &str = "studio.reply";
 
 /// Emitted by `ship compile` at end of a successful run. Records what was
-/// compiled (active agent, provider, plugins, ship version) for the
+/// compiled (active agent, harness, plugins, ship version) for the
 /// `project_compile_state` projection. `entity_id` is the project_id.
 pub const COMPILE_COMPLETED: &str = "compile.completed";
 
@@ -176,11 +176,11 @@ pub const ALL: &[&str] = &[
     ACTOR_CRASHED,
     GATE_PASSED,
     GATE_FAILED,
-    JOB_CREATED,
-    JOB_COMPLETED,
-    JOB_FAILED,
-    JOB_DISPATCHED,
-    JOB_UPDATE,
+    PIPELINE_RUN_STARTED,
+    PIPELINE_RUN_COMPLETED,
+    PIPELINE_RUN_FAILED,
+    PIPELINE_RUN_DISPATCHED,
+    PIPELINE_RUN_UPDATED,
     CONFIG_CHANGED,
     AGENT_CHANGED,
     SKILL_CHANGED,
@@ -211,11 +211,11 @@ pub const ALL: &[&str] = &[
     DAEMON_PORT_BIND_FAILED,
     DAEMON_PIDFILE_ACQUIRED,
     DAEMON_PIDFILE_STALE_TAKEN,
-    JOB_STEP_COMPLETED,
-    JOB_STEP_FAILED,
-    JOB_CANCELLED,
-    JOB_MERGED,
-    JOB_SPAWN_FAILED,
+    PIPELINE_STEP_COMPLETED,
+    PIPELINE_STEP_FAILED,
+    PIPELINE_RUN_CANCELLED,
+    PIPELINE_RUN_MERGED,
+    PIPELINE_STEP_SPAWN_FAILED,
     ARTIFACT_CREATED,
     ARTIFACT_UPDATED,
     ARTIFACT_MOVED,

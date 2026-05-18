@@ -19,7 +19,7 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use crate::artifacts::{ArtifactRecord, ArtifactScope, ArtifactService};
-use ship_substrate::events::job::{OutputScope, PipelineStep, StepOutput};
+use ship_substrate::events::pipeline::{OutputScope, PipelineStep, StepOutput};
 use ship_substrate::events::{EventFilter, EventStore, SqliteEventStore};
 
 /// An artifact resolved from a prior step's `produces` declaration.
@@ -46,7 +46,7 @@ pub struct ResolvedInput {
 /// Returns `Err` with a human-readable message when any input cannot be resolved.
 pub fn resolve_consumes(
     step: &PipelineStep,
-    pipeline: &ship_substrate::events::job::Pipeline,
+    pipeline: &ship_substrate::events::pipeline::Pipeline,
     job_id: &str,
     worktree_path: &Path,
 ) -> Result<Vec<ResolvedInput>, String> {
@@ -241,7 +241,7 @@ pub fn find_artifact_id_in_events(
     let envelopes = store
         .query(&EventFilter {
             entity_id: Some(job_id.to_string()),
-            event_type: Some("step.done_declared".to_string()),
+            event_type: Some("pipeline.step.done_declared".to_string()),
             ..Default::default()
         })
         .ok()?;
@@ -268,9 +268,9 @@ pub use ship_pipelines::validate::parse_lane_scoped_ref;
 
 /// Find the fanout step that owns a given lane_id.
 pub fn find_fanout_step_for_lane<'a>(
-    pipeline: &'a ship_substrate::events::job::Pipeline,
+    pipeline: &'a ship_substrate::events::pipeline::Pipeline,
     lane_id: &str,
-) -> Option<&'a ship_substrate::events::job::PipelineStep> {
+) -> Option<&'a ship_substrate::events::pipeline::PipelineStep> {
     pipeline.steps.iter().find(|s| {
         s.fanout.as_ref().map_or(false, |f| f.lanes.iter().any(|l| l.id == lane_id))
     })
@@ -283,7 +283,7 @@ pub fn get_step_outputs_from_events(job_id: &str, step_id: &str) -> BTreeMap<Str
     };
     let Ok(envelopes) = store.query(&EventFilter {
         entity_id: Some(job_id.to_string()),
-        event_type: Some("step.done_declared".to_string()),
+        event_type: Some("pipeline.step.done_declared".to_string()),
         ..Default::default()
     }) else {
         return BTreeMap::new();
@@ -376,7 +376,7 @@ pub(crate) fn ensure_within(base: &Path, candidate: &Path) -> std::io::Result<()
 }
 
 /// Load the pipeline for a job from the projection (for promote resolution).
-fn load_pipeline_for_job(job_id: &str) -> Option<ship_substrate::events::job::Pipeline> {
+fn load_pipeline_for_job(job_id: &str) -> Option<ship_substrate::events::pipeline::Pipeline> {
     crate::projections::job::load_job_by_id(job_id)
         .ok()
         .flatten()
@@ -389,7 +389,7 @@ fn find_artifact_for_promote(
     name: &str,
     job_id: &str,
     step: &PipelineStep,
-    pipeline: Option<&ship_substrate::events::job::Pipeline>,
+    pipeline: Option<&ship_substrate::events::pipeline::Pipeline>,
 ) -> Option<String> {
     // Only relevant when the name is in consumes (not in produces).
     if !step.consumes.contains(&name.to_string()) {
@@ -426,7 +426,7 @@ fn output_scope_to_artifact_scope(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ship_substrate::events::job::{OutputScope, StepOutput};
+    use ship_substrate::events::pipeline::{OutputScope, StepOutput};
 
     #[test]
     fn check_required_outputs_passes_when_present() {

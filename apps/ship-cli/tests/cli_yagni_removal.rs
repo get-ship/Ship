@@ -52,7 +52,7 @@ fn retained_compile_still_works() {
     ship()
         .args([
             "compile",
-            "--provider",
+            "--harness",
             "claude",
             "--path",
             tmp.path().to_str().unwrap(),
@@ -74,7 +74,7 @@ fn retained_use_still_works() {
     std::fs::create_dir_all(ship_substrate::ShipHome::project_ship_dir(tmp.path()).join("agents")).unwrap();
     std::fs::write(
         ship_substrate::ShipHome::project_ship_dir(tmp.path()).join("agents/test-agent.jsonc"),
-        r#"{ "agent": { "name": "Test", "id": "test-agent", "providers": ["claude"] } }"#,
+        r#"{ "agent": { "name": "Test", "id": "test-agent", "harnesses": ["claude"] } }"#,
     )
     .unwrap();
 

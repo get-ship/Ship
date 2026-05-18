@@ -11,8 +11,8 @@ pub use ship_substrate::services::server_session::{self};
 // L1 service actors.
 pub mod orchestrator;
 pub mod process_registry;
-pub mod provider_adapter;
-pub mod providers;
+pub mod harness_adapter;
+pub mod harnesses;
 pub mod watcher;
 
 #[cfg(feature = "unstable")]
@@ -50,4 +50,4 @@ mod tests;
 #[cfg(test)]
 mod tests_drain;
 #[cfg(test)]
-mod tests_provider_adapter;
+mod tests_harness_adapter;

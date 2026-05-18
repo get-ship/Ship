@@ -31,8 +31,8 @@ pub(crate) fn normalize_agent_ref(agent: &str) -> Option<String> {
     }
 }
 
-pub(crate) fn normalize_provider_ref(provider: &str) -> Option<String> {
-    let trimmed = provider.trim().to_ascii_lowercase();
+pub(crate) fn normalize_harness_ref(harness: &str) -> Option<String> {
+    let trimmed = harness.trim().to_ascii_lowercase();
     if trimmed.is_empty() {
         None
     } else {

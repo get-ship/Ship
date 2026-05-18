@@ -1,14 +1,24 @@
-//! `ship procs [--slug X]` — list process records from the
+//! `ship procs [--slug X] [--kind K]` — list process records from the
 //! ProcessRecord projection. Read-only view of process lifecycle.
 
 use anyhow::{Result, anyhow};
 
-pub fn run(slug: Option<&str>, limit: Option<usize>, json: bool) -> Result<()> {
+/// Valid `--kind` values, mirroring `SessionKind` in
+/// `crates/core/ship-platform/src/services/sessions/types.rs`.
+pub(crate) const VALID_KINDS: &[&str] = &["agent", "pipeline-step", "shell"];
+
+pub fn run(slug: Option<&str>, kind: Option<&str>, limit: Option<usize>, json: bool) -> Result<()> {
+    if let Some(k) = kind {
+        validate_kind(k)?;
+    }
     let (port, token) = crate::daemon::ensure_daemon()?;
     let mut url = format!("http://127.0.0.1:{port}/api/v1/procs");
     let mut q: Vec<String> = vec![];
     if let Some(s) = slug {
         q.push(format!("slug={}", urlencode(s)));
+    }
+    if let Some(k) = kind {
+        q.push(format!("kind={}", urlencode(k)));
     }
     if let Some(l) = limit {
         q.push(format!("limit={l}"));
@@ -83,6 +93,17 @@ pub fn run(slug: Option<&str>, limit: Option<usize>, json: bool) -> Result<()> {
     Ok(())
 }
 
+pub(crate) fn validate_kind(kind: &str) -> Result<()> {
+    if VALID_KINDS.contains(&kind) {
+        Ok(())
+    } else {
+        Err(anyhow!(
+            "invalid --kind value '{kind}'. Valid values: {}",
+            VALID_KINDS.join(", ")
+        ))
+    }
+}
+
 fn fmt_ts(s: &str) -> String {
     chrono::DateTime::parse_from_rfc3339(s)
         .map(|d| d.format("%Y-%m-%d %H:%M:%S").to_string())
@@ -132,5 +153,21 @@ mod tests {
     #[test]
     fn fmt_ts_returns_input_for_invalid() {
         assert_eq!(fmt_ts("garbage"), "garbage");
+    }
+
+    #[test]
+    fn validate_kind_accepts_session_kinds() {
+        for k in VALID_KINDS {
+            assert!(validate_kind(k).is_ok(), "{k} should be valid");
+        }
+    }
+
+    #[test]
+    fn validate_kind_rejects_unknown_value() {
+        let err = validate_kind("widget").unwrap_err().to_string();
+        assert!(err.contains("widget"), "error should name the bad value: {err}");
+        for k in VALID_KINDS {
+            assert!(err.contains(k), "error should list valid value {k}: {err}");
+        }
     }
 }

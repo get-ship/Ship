@@ -1,6 +1,6 @@
 //! `pipelines.run(slug)` — per-run detail page data.
 //!
-//! Joins the `JobRecord` projection with the underlying event log
+//! Joins the `PipelineRun` projection with the underlying event log
 //! (step.observed + job.* / process.* events) to produce the step
 //! observations table and the scrollable event timeline.
 
@@ -43,15 +43,15 @@ fn event_summary(env: &ship_substrate::events::EventEnvelope) -> String {
     let v: serde_json::Value =
         serde_json::from_str(&env.payload_json).unwrap_or(serde_json::Value::Null);
     match env.event_type.as_str() {
-        "job.created" => v
+        "pipeline.run.started" => v
             .get("pipeline_name")
             .and_then(|x| x.as_str())
             .map(|s| format!("pipeline: {s}"))
             .unwrap_or_default(),
-        "job.dispatched" => "job dispatched".to_string(),
-        "job.completed" => "job completed".to_string(),
-        "job.merged" => "job merged".to_string(),
-        "job.failed" => v
+        "pipeline.run.dispatched" => "job dispatched".to_string(),
+        "pipeline.run.completed" => "job completed".to_string(),
+        "pipeline.run.merged" => "job merged".to_string(),
+        "pipeline.run.failed" => v
             .get("error")
             .and_then(|x| x.as_str())
             .map(|s| s.lines().next().unwrap_or("failed").to_string())
@@ -61,7 +61,7 @@ fn event_summary(env: &ship_substrate::events::EventEnvelope) -> String {
             .and_then(|x| x.as_str())
             .map(|s| format!("→ {s}"))
             .unwrap_or_default(),
-        "step.observed" => {
+        "pipeline.step.observed" => {
             let name = v.get("step_name").and_then(|x| x.as_str()).unwrap_or("?");
             let verdict = v.get("verdict").and_then(|x| x.as_str()).unwrap_or("?");
             format!("{name} — {verdict}")
@@ -98,9 +98,9 @@ pub fn build(slug: &str, ship_dir: &Path) -> Option<RunDetailCtx> {
 
     let mut observations: Vec<StepObservationRow> = events
         .iter()
-        .filter(|e| e.event_type == "step.observed")
+        .filter(|e| e.event_type == "pipeline.step.observed")
         .filter_map(|e| {
-            serde_json::from_str::<ship_substrate::events::job::StepObservedPayload>(&e.payload_json)
+            serde_json::from_str::<ship_substrate::events::pipeline::PipelineStepObservedPayload>(&e.payload_json)
                 .ok()
                 .map(|p| StepObservationRow {
                     step_name: p.step_name,

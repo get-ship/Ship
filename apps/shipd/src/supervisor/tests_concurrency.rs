@@ -4,7 +4,7 @@
 //! limit is reached, new jobs stay pending until a slot opens. Pending
 //! jobs with resolved dependencies dispatch in creation order.
 
-use ship_substrate::events::job::event_types;
+use ship_substrate::events::pipeline::event_types;
 use ship_substrate::events::EventEnvelope;
 use ship_platform::projections::job::{project, JobStatus};
 
@@ -14,7 +14,7 @@ fn ev(event_type: &str, payload: serde_json::Value) -> EventEnvelope {
 }
 
 fn created(job_id: &str, slug: &str) -> EventEnvelope {
-    ev(event_types::JOB_CREATED, serde_json::json!({
+    ev(event_types::PIPELINE_RUN_STARTED, serde_json::json!({
         "job_id": job_id, "slug": slug,
         "agent": "rust-runtime", "branch": format!("job/{slug}"),
         "spec_path": "spec.md", "plan_id": null,
@@ -22,7 +22,7 @@ fn created(job_id: &str, slug: &str) -> EventEnvelope {
 }
 
 fn created_with_deps(job_id: &str, slug: &str, deps: Vec<&str>) -> EventEnvelope {
-    ev(event_types::JOB_CREATED, serde_json::json!({
+    ev(event_types::PIPELINE_RUN_STARTED, serde_json::json!({
         "job_id": job_id, "slug": slug,
         "agent": "rust-runtime", "branch": format!("job/{slug}"),
         "spec_path": "spec.md", "plan_id": null,
@@ -31,13 +31,13 @@ fn created_with_deps(job_id: &str, slug: &str, deps: Vec<&str>) -> EventEnvelope
 }
 
 fn dispatched(job_id: &str) -> EventEnvelope {
-    ev(event_types::JOB_DISPATCHED, serde_json::json!({
+    ev(event_types::PIPELINE_RUN_DISPATCHED, serde_json::json!({
         "job_id": job_id, "worktree": format!("/tmp/wt/{job_id}"), "pid": null,
     }))
 }
 
 fn completed(job_id: &str) -> EventEnvelope {
-    ev(event_types::JOB_COMPLETED, serde_json::json!({
+    ev(event_types::PIPELINE_RUN_COMPLETED, serde_json::json!({
         "job_id": job_id, "slug": "s",
     }))
 }

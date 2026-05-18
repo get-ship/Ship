@@ -12,7 +12,7 @@ pub struct WorkspaceCreated {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct WorkspaceActivated {
     pub agent_id: Option<String>,
-    pub providers: Vec<String>,
+    pub harnesses: Vec<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -30,7 +30,7 @@ pub struct SessionStarted {
     #[serde(default)]
     pub agent_id: Option<String>,
     #[serde(default)]
-    pub primary_provider: Option<String>,
+    pub primary_harness: Option<String>,
     /// Project this session belongs to. Looked up at start from the
     /// actor's project_id or the workspace path. None for sessions that
     /// have no associated project (daemon services, ephemeral runs).
@@ -67,7 +67,7 @@ pub struct SessionEnded {
     #[serde(default)]
     pub agent_id: Option<String>,
     #[serde(default)]
-    pub provider: Option<String>,
+    pub harness: Option<String>,
     #[serde(default)]
     pub model: Option<String>,
     #[serde(default)]
@@ -161,11 +161,11 @@ pub struct ActorCreated {
     /// None for service actors (mesh, user-inbox, supervisor).
     #[serde(default)]
     pub agent_id: Option<String>,
-    /// Provider backing this actor (claude / codex / opencode / gemini / cursor).
+    /// Harness backing this actor (claude / codex / opencode / gemini / cursor).
     /// None for non-agent actors.
     #[serde(default)]
-    pub provider: Option<String>,
-    /// Provider model identifier when known at spawn time.
+    pub harness: Option<String>,
+    /// Harness model identifier when known at spawn time.
     #[serde(default)]
     pub model: Option<String>,
     /// Transport profile — `pty` for attached/interactive, `headless` for stream-json.
@@ -440,9 +440,9 @@ pub struct CompileCompleted {
     pub compiled_at: String,
     /// Ship version that produced this compile.
     pub ship_version: String,
-    /// Primary provider compiled for (e.g. "claude").
+    /// Primary harness compiled for (e.g. "claude").
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub provider: Option<String>,
+    pub harness: Option<String>,
     /// Plugin IDs the active agent declared and that this compile installed.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub plugins_installed: Vec<String>,

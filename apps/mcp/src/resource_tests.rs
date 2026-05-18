@@ -37,7 +37,7 @@ async fn resolve(uri: &str, dir: &std::path::Path) -> Option<String> {
 
 fn job_created_event(job_id: &str, slug: &str, agent: &str) -> EventEnvelope {
     EventEnvelope::new(
-        "job.created",
+        "pipeline.run.started",
         job_id,
         &serde_json::json!({
             "job_id": job_id,
@@ -112,7 +112,7 @@ async fn jobs_get_reflects_status_changes() {
     append_event(
         &ship_dir,
         &EventEnvelope::new(
-            "job.dispatched",
+            "pipeline.run.dispatched",
             "j-status",
             &serde_json::json!({"job_id": "j-status", "worktree": "/tmp/wt"}),
         )

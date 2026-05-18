@@ -108,6 +108,12 @@ export default controller<Scope>({
       savedTerminal: signal(false),
       savedWorktree: signal(false),
       savedRegistry: signal(false),
+      savedHarnessDefault: signal(false),
+      savedHarnessModel: signal(false),
+      savedAutoResume: signal(false),
+      savedWatcherDebounce: signal(false),
+      savedGitLogLimit: signal(false),
+      savedHooksMaxDepth: signal(false),
       flashSaved,
       // Local SDK facade so `<form mutation="ship.settings.update">`
       // resolves through `resolveChain` in wireFormMutation.

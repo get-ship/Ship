@@ -1,8 +1,8 @@
 //! Live agent-log streaming — tails `<worktree>/.artifacts/agent-<slug>.log`
 //! as it's written and streams the bytes to an SSE consumer.
 //!
-//! Works for every provider and dispatch mode because every executor
-//! ultimately teed PTY output into this file. No provider-specific
+//! Works for every harness and dispatch mode because every executor
+//! ultimately teed PTY output into this file. No harness-specific
 //! hooks; no tmux attachment required.
 //!
 //! SSE event shape:
@@ -35,7 +35,7 @@ const POLL_INTERVAL: Duration = Duration::from_millis(500);
 /// once. Subsequent appends are not capped.
 const INITIAL_TAIL_BYTES: u64 = 64 * 1024;
 
-/// GET /api/v1/jobs/{slug}/log/stream
+/// GET /api/v1/agent_sessions/{slug}/log/stream
 pub async fn stream_job_log(
     State(_state): State<ApiState>,
     Path(slug): Path<String>,

@@ -3,5 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "main": "./sui_compiler.js"
+  "main": "./pkg/sui_compiler.js",
+  "types": "./pkg/sui_compiler.d.ts",
+  "exports": {
+    ".": "./pkg/sui_compiler.js",
+    "./sui_compiler_bg.wasm": "./pkg/sui_compiler_bg.wasm"
+  }
 }

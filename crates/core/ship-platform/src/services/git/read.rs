@@ -149,8 +149,9 @@ fn diff_stats_for_commit(repo: &Repository, commit: &git2::Commit) -> (usize, us
         .unwrap_or((0, 0))
 }
 
-/// Default log length when no caller limit is supplied.
-pub const DEFAULT_LOG_LIMIT: usize = 50;
+// Historical default log length when no caller limit is supplied. The
+// runtime value is resolved from the `git.log_limit` KV setting (default
+// 50) via `crate::config::resolve_git_log_limit`.
 
 pub fn load_log(root: &Path, branch: Option<&str>, limit: usize) -> Vec<CommitSummary> {
     let repo = match open_repo(root) {

@@ -39,7 +39,7 @@ pub(super) fn try_dispatch(
             let mut out: Vec<serde_json::Value> = Vec::new();
             for t in &["Read", "Write", "Edit", "Glob", "Grep", "Bash",
                       "NotebookEdit", "WebFetch", "WebSearch", "Task"] {
-                out.push(json!({ "pattern": t, "label": t, "source": "provider" }));
+                out.push(json!({ "pattern": t, "label": t, "source": "harness" }));
             }
             for (p, l) in &[
                 ("Bash(git *)", "Bash git · all git subcommands"),

@@ -44,8 +44,6 @@ pub struct AgentBundle {
     pub description: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub version: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub providers: Option<Vec<String>>,
     /// Display icon — emoji or icon name.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub icon: Option<String>,
@@ -80,7 +78,7 @@ pub struct AgentBundle {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub permissions: Option<serde_json::Value>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub provider_settings: Option<serde_json::Value>,
+    pub harness_settings: Option<serde_json::Value>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub hooks: Option<Vec<serde_json::Value>>,
 }
@@ -127,7 +125,7 @@ pub struct PullAgent {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub plugins: Option<serde_json::Value>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub provider_settings: Option<serde_json::Value>,
+    pub harness_settings: Option<serde_json::Value>,
     /// "project" (from .ship/) or "library" (from ~/.ship/).
     #[serde(default = "default_source")]
     pub source: String,
@@ -144,7 +142,6 @@ pub struct PullProfile {
     pub id: String,
     pub name: String,
     pub description: String,
-    pub providers: Vec<String>,
     pub version: String,
     /// Display icon — emoji or icon name.
     #[serde(default, skip_serializing_if = "Option::is_none")]

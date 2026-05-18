@@ -159,7 +159,7 @@ mod tests {
     fn seed_adds_dependencies_to_empty_manifest() {
         let tmp = tempfile::tempdir().unwrap();
         let ship_dir = init_ship_dir(tmp.path());
-        write_ship_jsonc(&ship_dir, r#"{ "project": { "providers": ["claude"] } }"#);
+        write_ship_jsonc(&ship_dir, r#"{ "project": { "harnesses": ["claude"] } }"#);
 
         let result = seed_default_dependencies(&ship_dir).unwrap();
         assert!(!result.already_present);
@@ -224,7 +224,7 @@ mod tests {
         let ship_dir = init_ship_dir(tmp.path());
         write_ship_jsonc(
             &ship_dir,
-            r#"{ "id": "abc123", "project": { "providers": ["claude"] } }"#,
+            r#"{ "id": "abc123", "project": { "harnesses": ["claude"] } }"#,
         );
 
         seed_default_dependencies(&ship_dir).unwrap();
@@ -246,7 +246,7 @@ mod tests {
             r#"{
   // Ship project manifest
   "project": {
-    "providers": ["claude"], // default provider
+    "harnesses": ["claude"], // default harness
   },
 }"#,
         );
@@ -260,7 +260,7 @@ mod tests {
     fn try_install_returns_false_when_no_deps() {
         let tmp = tempfile::tempdir().unwrap();
         let ship_dir = init_ship_dir(tmp.path());
-        write_ship_jsonc(&ship_dir, r#"{ "project": { "providers": ["claude"] } }"#);
+        write_ship_jsonc(&ship_dir, r#"{ "project": { "harnesses": ["claude"] } }"#);
 
         let result = try_install_init_deps(&ship_dir).unwrap();
         assert!(!result, "should return false when no dependencies");

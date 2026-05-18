@@ -3,10 +3,10 @@
 //! from the parent module per supervisor::tests_service_architecture
 //! file-size enforcement.
 
-use ship_substrate::events::job::{JobCreatedPayload, Pipeline, PipelineStep, StepType};
+use ship_substrate::events::pipeline::{PipelineRunStartedPayload, Pipeline, PipelineStep, StepType};
 use super::{load_pipeline_file, merge_meta_vars};
 
-pub(super) fn resolve_steps(payload: &mut JobCreatedPayload) {
+pub(super) fn resolve_steps(payload: &mut PipelineRunStartedPayload) {
     if payload.steps.is_some() {
         return;
     }
@@ -83,7 +83,7 @@ pub(super) fn resolve_steps(payload: &mut JobCreatedPayload) {
             goal: None,
             after: vec![],
             model: None,
-            provider: None,
+            harness: None,
             command: None,
             max_retries: None,
             gate: None,
@@ -119,7 +119,7 @@ fn parse_pipeline_name_from_frontmatter(content: &str) -> Option<String> {
 /// Resolve spec content for frontmatter parsing.
 /// Prefers the inline `spec_content` on the payload (authoritative, event-carried)
 
-fn spec_content_for_resolution(payload: &JobCreatedPayload) -> String {
+fn spec_content_for_resolution(payload: &PipelineRunStartedPayload) -> String {
     if let Some(content) = &payload.spec_content {
         return content.clone();
     }

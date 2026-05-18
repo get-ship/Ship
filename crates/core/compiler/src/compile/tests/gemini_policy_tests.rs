@@ -217,9 +217,9 @@ fn gemini_policy_output_is_valid_toml() {
     assert_eq!(policies.len(), 3, "deny(2) + ask(1) = 3 entries");
 }
 
-/// Gemini policy patch is only emitted for the gemini provider.
+/// Gemini policy patch is only emitted for the gemini harness.
 #[test]
-fn gemini_policy_only_for_gemini_not_other_providers() {
+fn gemini_policy_only_for_gemini_not_other_harnesses() {
     let r = ResolvedConfig {
         permissions: Permissions {
             tools: ToolPermissions {

@@ -9,7 +9,7 @@
 //! Shape: `actor_id -> (ActorHandle, Arc<Mutex<SessionMeta>>)`. The handle
 //! owns process I/O (write_input, subscribe_output, stop). The sidecar
 //! holds session-flavored state the HTTP layer reports — workspace,
-//! agent/provider, status, exit code, provider_session_id — which doesn't
+//! agent/harness, status, exit code, harness_session_id — which doesn't
 //! belong inside the supervisor primitive.
 //!
 //! Status updates flow from per-kind reader middleware (auto-dismiss for
@@ -25,7 +25,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use anyhow::Result;
-use crate::services::provider_adapter::ProviderEvent;
+use crate::services::harness_adapter::HarnessEvent;
 use ship_substrate::supervisor::ActorHandle;
 use std::path::PathBuf;
 use tokio::sync::broadcast;
@@ -36,11 +36,11 @@ use super::types::{SessionId, SessionMeta};
 pub struct ActorEntry {
     pub handle: ActorHandle,
     pub meta: Arc<Mutex<SessionMeta>>,
-    /// Provider-event broadcast for agent kinds. Reader middleware
-    /// (provider adapter `parse_output`) publishes here; SSE consumers
+    /// Harness-event broadcast for agent kinds. Reader middleware
+    /// (harness adapter `parse_output`) publishes here; SSE consumers
     /// subscribe via `/api/sessions/{id}/events`. Shell entries leave
     /// this `None`; consumers receive `Closed` immediately.
-    pub event_tx: Option<broadcast::Sender<ProviderEvent>>,
+    pub event_tx: Option<broadcast::Sender<HarnessEvent>>,
 }
 
 impl ActorEntry {
@@ -66,13 +66,13 @@ impl ActorEntry {
         self.handle.child.log_path().clone()
     }
 
-    pub fn subscribe_events(&self) -> broadcast::Receiver<ProviderEvent> {
+    pub fn subscribe_events(&self) -> broadcast::Receiver<HarnessEvent> {
         match &self.event_tx {
             Some(tx) => tx.subscribe(),
             None => {
                 // No agent-side event source — return a closed receiver
                 // (created from a fresh sender that's immediately dropped).
-                let (tx, rx) = broadcast::channel::<ProviderEvent>(1);
+                let (tx, rx) = broadcast::channel::<HarnessEvent>(1);
                 drop(tx);
                 rx
             }
@@ -98,7 +98,7 @@ impl ActorRegistry {
         &self,
         handle: ActorHandle,
         meta: SessionMeta,
-        event_tx: Option<broadcast::Sender<ProviderEvent>>,
+        event_tx: Option<broadcast::Sender<HarnessEvent>>,
     ) -> ActorEntry {
         debug_assert_eq!(handle.actor_id, meta.id, "handle/meta id mismatch");
         let entry = ActorEntry {
@@ -136,14 +136,14 @@ impl ActorRegistry {
         &self,
         workspace_id: &str,
         agent_id: &str,
-        provider: &str,
+        harness: &str,
     ) -> Option<ActorEntry> {
         let guard = self.inner.lock().unwrap();
         for entry in guard.values() {
             let meta = entry.meta.lock().unwrap();
             if meta.workspace_id == workspace_id
                 && meta.agent_id.as_deref() == Some(agent_id)
-                && meta.provider.as_deref() == Some(provider)
+                && meta.harness.as_deref() == Some(harness)
             {
                 return Some(entry.clone());
             }
@@ -151,11 +151,11 @@ impl ActorRegistry {
         None
     }
 
-    pub fn find_by_provider_session(&self, provider_session_id: &str) -> Option<ActorEntry> {
+    pub fn find_by_harness_session(&self, harness_session_id: &str) -> Option<ActorEntry> {
         let guard = self.inner.lock().unwrap();
         for entry in guard.values() {
             let meta = entry.meta.lock().unwrap();
-            if meta.provider_session_id.as_deref() == Some(provider_session_id) {
+            if meta.harness_session_id.as_deref() == Some(harness_session_id) {
                 return Some(entry.clone());
             }
         }

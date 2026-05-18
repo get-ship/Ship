@@ -1,10 +1,10 @@
 //! PTY session registry + actor-backed primitives.
 //!
 //! Wraps the L0 `ship_substrate::supervisor::spawn_actor` primitive with
-//! session-flavored sidecar metadata (workspace, agent, provider, status)
-//! and provider-adapter wiring (stream-json parsing, channels delivery).
+//! session-flavored sidecar metadata (workspace, agent, harness, status)
+//! and harness-adapter wiring (stream-json parsing, channels delivery).
 //! Per the charter: actor lifecycle + supervision are L0; agent profiles
-//! plus compilation to provider config are L1 — that's this module.
+//! plus compilation to harness config are L1 — that's this module.
 //!
 //! HTTP transport over these primitives lives in `apps/shipd/src/sessions/api.rs`.
 //!
@@ -13,7 +13,7 @@
 //! * `types`           — `SessionId`, `SessionKind`, `SessionStatus`,
 //!                       `PtySession`, `SessionMeta`, `SpawnRequest`.
 //! * `registry`        — legacy in-memory `SessionRegistry` for per-turn
-//!                       providers (no persistent child between turns).
+//!                       harnesses (no persistent child between turns).
 //! * `actor_registry`  — `ActorRegistry` + `ActorEntry` keyed on the
 //!                       supervisor's `ActorHandle`. Destination registry.
 //! * `lifecycle`       — spawn/stop/write-stdin/send-message glue for the

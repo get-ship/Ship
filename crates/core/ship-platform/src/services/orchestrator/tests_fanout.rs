@@ -3,7 +3,7 @@
 //! Tests cover: config parse, lane ID uniqueness, judge-step reference
 //! validation, lane-scoped output naming, and lane-scoped consumes resolution.
 
-use ship_substrate::events::job::{
+use ship_substrate::events::pipeline::{
     FanoutJudge, FanoutLane, FanoutSpec, Pipeline, PipelineStep, StepOutput, StepType,
     OutputScope,
 };
@@ -20,7 +20,7 @@ fn agent_step(id: &str, agent: &str) -> PipelineStep {
         goal: None,
         after: vec![],
         model: None,
-        provider: None,
+        harness: None,
         command: None,
         max_retries: None,
         gate: None,
@@ -36,15 +36,15 @@ fn lane(id: &str, agent: &str) -> FanoutLane {
         id: id.into(),
         agent: agent.into(),
         model: None,
-        provider: None,
+        harness: None,
     }
 }
 
 fn base_payload(
     slug: &str,
     steps: Vec<PipelineStep>,
-) -> ship_substrate::events::job::JobCreatedPayload {
-    ship_substrate::events::job::JobCreatedPayload {
+) -> ship_substrate::events::pipeline::PipelineRunStartedPayload {
+    ship_substrate::events::pipeline::PipelineRunStartedPayload {
         job_id: "j-test".into(),
         slug: slug.into(),
         agent: "implementer".into(),
@@ -53,7 +53,7 @@ fn base_payload(
         source_spec_path: None,
         plan_id: None,
         model: None,
-        provider: None,
+        harness: None,
         depends_on: None,
         pipeline: None,
         steps: Some(Pipeline { steps, auto_merge: false }),
@@ -62,6 +62,9 @@ fn base_payload(
         spec_content: None,
         step_specs: None,
         headless: true,
+        prompt: None,
+        resume: false,
+        resume_session_id: None,
         baseline_sha: None,
     }
 }
@@ -273,7 +276,7 @@ fn lane_with_empty_agent_fails_validation() {
     let fanout_step = PipelineStep {
         id: "draft".into(),
         fanout: Some(FanoutSpec {
-            lanes: vec![FanoutLane { id: "l1".into(), agent: "".into(), model: None, provider: None }],
+            lanes: vec![FanoutLane { id: "l1".into(), agent: "".into(), model: None, harness: None }],
             judge: FanoutJudge { step: "choose".into() },
             min_successful_lanes: 1,
         }),

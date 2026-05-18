@@ -17,18 +17,18 @@ Scaffold `.ship/` in the current project, or configure `~/.ship/` globally.
 | Flag | Description |
 |------|-------------|
 | `--global` | Configure `~/.ship/` instead of current project |
-| `--provider <id>` | Default provider: `claude`, `cursor`, `gemini`, `codex`, `opencode` |
+| `--harness <id>` | Default harness: `claude`, `gemini`, `codex`, `cursor` |
 | `--force` | Overwrite existing `.ship/` |
 
 ```bash
 ship init                        # scaffold with claude default
-ship init --provider gemini      # scaffold with gemini default
+ship init --harness gemini      # scaffold with gemini default
 ship init --global               # configure ~/.ship/ identity
 ```
 
 ### `ship use <agent-id>`
 
-Activate an agent and compile immediately. Resolves skill references, MCP servers, and permissions, then writes provider-native config files. Flag: `--path <dir>` to bind to another path.
+Activate an agent and compile immediately. Resolves skill references, MCP servers, and permissions, then writes harness-native config files. Flag: `--path <dir>` to bind to another path.
 
 ### `ship status`
 
@@ -36,11 +36,11 @@ Show active agent and compilation status. Flag: `--path <dir>`.
 
 ### `ship compile`
 
-Compile the active agent to provider-native config files.
+Compile the active agent to harness-native config files.
 
 | Flag | Description |
 |------|-------------|
-| `--provider <id>` | Compile for a specific provider only |
+| `--harness <id>` | Compile for a specific harness only |
 | `--dry-run` | Preview without writing files |
 | `--path <dir>` | Project root |
 
@@ -56,7 +56,7 @@ Validate `.ship/` config -- JSONC syntax, skill refs, MCP fields, permissions.
 
 ### `ship convert .`
 
-Convert existing provider config files in the current directory into `.ship/` format.
+Convert existing harness config files in the current directory into `.ship/` format.
 
 ## Agent Management
 
@@ -169,7 +169,7 @@ Query the project event log.
 
 ### `ship docs [topic]`
 
-Show detailed help. Topics: `agents`, `skills`, `mcp`, `providers`, `compile`, `workflow`.
+Show detailed help. Topics: `agents`, `skills`, `mcp`, `harnesses`, `compile`, `workflow`.
 
 ```bash
 ship docs topics    # list all topics

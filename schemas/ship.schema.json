@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://raw.githubusercontent.com/madvib/ship/main/schemas/ship.schema.json",
   "title": "Ship Project Manifest",
-  "description": "Schema for .ship/ship.jsonc — the Ship project manifest that declares providers, agents, module identity, dependencies, and exports.",
+  "description": "Schema for .ship/ship.jsonc — the Ship project manifest that declares harnesses, agents, module identity, dependencies, and exports.",
   "type": "object",
   "properties": {
     "$schema": {
@@ -26,17 +26,17 @@
           "type": "string",
           "description": "Human-readable project name."
         },
-        "providers": {
+        "harnesses": {
           "type": "array",
           "items": {
             "type": "string",
             "enum": ["claude", "cursor", "codex", "gemini", "opencode"]
           },
-          "description": "AI provider targets for this project."
+          "description": "AI harness targets for this project."
         },
-        "provider_defaults": {
+        "harness_defaults": {
           "type": "object",
-          "description": "Project-level provider settings inherited by all agents. Keys are provider names. Values validated against upstream provider schemas, with Ship-managed keys excluded. Agents override via provider_settings (deep merge, agent wins).",
+          "description": "Project-level harness settings inherited by all agents. Keys are harness names. Values validated against upstream harness schemas, with Ship-managed keys excluded. Agents override via harness_settings (deep merge, agent wins).",
           "properties": {
             "claude": {
               "allOf": [
@@ -163,6 +163,21 @@
         ]
       }
     },
+    "harness": {
+      "type": "object",
+      "description": "Project-level overrides for the user-KV launch defaults consulted by `ship use --launch`. Only the two identity-shaped keys are overrideable here — per-user preferences like `agent_session.auto_resume` stay in user storage.",
+      "properties": {
+        "default": {
+          "type": "string",
+          "description": "Project override for the user-KV `harness.default` setting. Picked when `--harness=X` is not passed."
+        },
+        "default_model": {
+          "type": ["string", "null"],
+          "description": "Project override for the user-KV `harness.default_model` setting. Picked when `--model=X` is not passed. `null` clears any user-level value for this project."
+        }
+      },
+      "additionalProperties": false
+    },
     "exports": {
       "type": "object",
       "description": "Paths exported by this module for consumers.",
@@ -236,7 +251,7 @@
         "target_agents": {
           "type": "array",
           "items": { "type": "string" },
-          "description": "Override the project's providers list when this mode is active."
+          "description": "Override the project's harnesses list when this mode is active."
         }
       },
       "additionalProperties": false

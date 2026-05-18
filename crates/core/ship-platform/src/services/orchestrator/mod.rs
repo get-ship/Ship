@@ -47,7 +47,7 @@ mod tests_cancel;
 #[cfg(test)]
 mod tests_prompt_composer;
 #[cfg(test)]
-mod tests_dispatch_provider;
+mod tests_dispatch_harness;
 #[cfg(test)]
 mod tests_spawn_failed;
 #[cfg(test)]
@@ -84,7 +84,7 @@ use tokio::sync::Mutex;
 /// Activity signal sent to a step monitor from external sources (hooks, API).
 #[derive(Debug, Clone)]
 pub enum StepActivity {
-    /// A provider Stop hook fired — the agent finished a response turn.
+    /// A harness Stop hook fired — the agent finished a response turn.
     /// In interactive mode this does NOT mean the task is done.
     TurnEnded,
 }

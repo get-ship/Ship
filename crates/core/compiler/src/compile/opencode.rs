@@ -239,7 +239,7 @@ pub(super) fn build_opencode_config_patch(resolved: &ResolvedConfig) -> Option<J
     // ConfigInvalidError. Ship lifecycle integration for opencode runs
     // through the MCP server entry above instead.
 
-    // settings_extra — merged verbatim last (provider_settings.opencode passthrough).
+    // settings_extra — merged verbatim last (harness_settings.opencode passthrough).
     if let Some(extra) = &resolved.opencode_settings_extra
         && let Some(obj) = extra.as_object()
     {

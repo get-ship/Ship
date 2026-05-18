@@ -4,7 +4,7 @@
 //! Distinct from the diff-rule gate (`GateSpec` attribute on any step).
 //! This module only handles `StepType::Review` — the agent-backed reviewer.
 
-use ship_substrate::events::job::{StepObservedPayload, StepType};
+use ship_substrate::events::pipeline::{PipelineStepObservedPayload, StepType};
 use ship_substrate::events::EventEnvelope;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -18,7 +18,7 @@ use super::OrchestratorContext;
 pub async fn try_review_retry(
     kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
     octx: &OrchestratorContext,
-    payload: &StepObservedPayload,
+    payload: &PipelineStepObservedPayload,
 ) -> bool {
     let jobs = match crate::projections::job::load_jobs() {
         Ok(j) => j,
@@ -71,7 +71,7 @@ pub async fn try_review_retry(
     );
 
     // Emit step.retry event
-    let retry_payload = ship_substrate::events::job::StepRetryPayload {
+    let retry_payload = ship_substrate::events::pipeline::PipelineStepRetryPayload {
         job_id: payload.job_id.clone(),
         slug: payload.slug.clone(),
         step_id: gated_step_id.clone(),
@@ -80,7 +80,7 @@ pub async fn try_review_retry(
         reason: "gate_failed".to_string(),
     };
     let retry_envelope = match EventEnvelope::new(
-        ship_substrate::events::job::event_types::STEP_RETRY,
+        ship_substrate::events::pipeline::event_types::PIPELINE_STEP_RETRY,
         &payload.job_id,
         &retry_payload,
     ) {
@@ -97,7 +97,7 @@ pub async fn try_review_retry(
 
     // Build synthetic envelope for advance_pipeline
     let synthetic = match EventEnvelope::new(
-        "step.retry",
+        "pipeline.step.retry",
         &payload.job_id,
         &serde_json::json!({ "job_id": &payload.job_id, "slug": &payload.slug }),
     ) {
@@ -111,7 +111,7 @@ pub async fn try_review_retry(
 /// Emit `job.failed` when a review fails with no retries remaining.
 pub async fn emit_job_failed_for_review(
     kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
-    payload: &StepObservedPayload,
+    payload: &PipelineStepObservedPayload,
 ) {
     let jobs = match crate::projections::job::load_jobs() {
         Ok(j) => j,
@@ -142,12 +142,12 @@ pub async fn emit_job_failed_for_review(
         Some(tail) => format!("{reason}\n\nagent log tail:\n{tail}"),
         None => reason,
     };
-    let fail_payload = ship_substrate::events::job::JobFailedPayload {
+    let fail_payload = ship_substrate::events::pipeline::PipelineRunFailedPayload {
         job_id: payload.job_id.clone(),
         error,
     };
     let env = match EventEnvelope::new(
-        ship_substrate::events::job::event_types::JOB_FAILED,
+        ship_substrate::events::pipeline::event_types::PIPELINE_RUN_FAILED,
         &payload.job_id,
         &fail_payload,
     ) {

@@ -5,7 +5,7 @@
 //! These types are serialized straight into the registry op payloads
 //! that `.ship/views/pipelines/*` templates consume.
 
-use ship_platform::projections::job::{JobRecord, JobStatus};
+use ship_platform::projections::job::{PipelineRun, JobStatus};
 use serde::Serialize;
 use std::path::PathBuf;
 
@@ -49,7 +49,7 @@ pub struct RunView {
     pub steps: Vec<StepView>,
     pub branch_stats: BranchStats,
     pub segments: Vec<&'static str>,
-    pub provider: String,
+    pub harness: String,
     pub model: String,
     pub blocker: String,
     pub error: String,
@@ -116,7 +116,7 @@ pub fn format_duration_between(
 /// Derive per-step outcome segment tokens from what the projection
 /// exposes: `steps.len()`, `completed_steps`, overall `status`. No
 /// per-step verdict is required.
-pub fn derive_segments(job: &JobRecord) -> Vec<&'static str> {
+pub fn derive_segments(job: &PipelineRun) -> Vec<&'static str> {
     let total = job
         .steps
         .as_ref()
@@ -153,7 +153,7 @@ pub fn derive_segments(job: &JobRecord) -> Vec<&'static str> {
 
 /// Build a `RunView` for a single job record. When `include_stats`,
 /// shells out for per-worktree `BranchStats`; otherwise zero-defaults.
-pub fn to_run_view(job: &JobRecord, include_stats: bool) -> RunView {
+pub fn to_run_view(job: &PipelineRun, include_stats: bool) -> RunView {
     let job_failed = matches!(job.status, JobStatus::Failed);
     let steps = job
         .steps
@@ -203,7 +203,7 @@ pub fn to_run_view(job: &JobRecord, include_stats: bool) -> RunView {
         steps,
         branch_stats: stats,
         segments: derive_segments(job),
-        provider: job.provider.clone().unwrap_or_default(),
+        harness: job.harness.clone().unwrap_or_default(),
         model: job.model.clone().unwrap_or_default(),
         blocker: job.blocker.clone().unwrap_or_default(),
         error: job.error.clone().unwrap_or_default(),
@@ -249,10 +249,10 @@ pub fn find_pipeline_file(name: &str) -> Option<std::path::PathBuf> {
     }
 }
 
-pub fn providers_on_path() -> Vec<String> {
-    ship_platform::agents::providers::PROVIDERS
+pub fn harnesses_on_path() -> Vec<String> {
+    ship_platform::agents::harnesses::HARNESSES
         .iter()
-        .filter(|d| ship_platform::agents::providers::detect_binary(d.binary))
+        .filter(|d| ship_platform::agents::harnesses::detect_binary(d.binary))
         .map(|d| d.id.to_string())
         .collect()
 }

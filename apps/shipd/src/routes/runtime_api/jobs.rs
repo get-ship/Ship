@@ -7,7 +7,7 @@ use axum::{
     response::IntoResponse,
 };
 use ship_substrate::events::EventEnvelope;
-use ship_substrate::events::job::{JobCreatedPayload, event_types};
+use ship_substrate::events::pipeline::{PipelineRunStartedPayload, event_types};
 use serde::Deserialize;
 
 use crate::auth::{AuthContext};
@@ -32,7 +32,7 @@ pub struct CreateJobRequest {
     pub branch: String,
     pub spec_path: String,
     /// Operator-facing path to the spec file (absolute when resolvable).
-    /// Plumbed into the JobRecord so `ship jobs` can distinguish which
+    /// Plumbed into the PipelineRun so `ship jobs` can distinguish which
     /// spec each job was dispatched from. Distinct from `spec_path`
     /// (daemon-side worktree destination). Optional: `--spec-text`
     /// dispatches and legacy callers send `None`.
@@ -40,7 +40,7 @@ pub struct CreateJobRequest {
     pub source_spec_path: Option<String>,
     pub depends_on: Option<Vec<String>>,
     pub pipeline: Option<String>,
-    pub provider: Option<String>,
+    pub harness: Option<String>,
     /// Inline spec content. Travels in the JobCreated event; the worktree
     /// adapter writes it to `spec_path` at dispatch time.
     pub spec_content: Option<String>,
@@ -67,7 +67,7 @@ fn is_safe_slug(slug: &str) -> bool {
 
 /// GET /api/v1/runtime/jobs
 ///
-/// Returns each `JobRecord` with two operator-visibility annotations:
+/// Returns each `PipelineRun` with two operator-visibility annotations:
 ///
 /// - `process_state`: `"alive"` when the latest process projection for the
 ///   slug is still Running, `"missing"` when the most recent supervisor
@@ -77,7 +77,7 @@ fn is_safe_slug(slug: &str) -> bool {
 #[utoipa::path(
     operation_id = "listJobs",
     get,
-    path = "/api/v1/jobs",
+    path = "/api/v1/agent_sessions",
     responses(
         (status = 200, body = MeshResponse),
         (status = 401, description = "unauthorized", body = crate::wire::ErrorResponse),
@@ -118,7 +118,7 @@ pub async fn list_jobs(State(state): State<ApiState>) -> impl IntoResponse {
 
 /// Annotate a job with `process_state` + `notes` for `ship jobs`.
 pub(crate) fn annotate_job(
-    job: &ship_platform::projections::job::JobRecord,
+    job: &ship_platform::projections::job::PipelineRun,
     processes: &[ship_substrate::projections::process::ProcessRecord],
     supervisor_events: &[ship_substrate::events::EventEnvelope],
 ) -> serde_json::Value {
@@ -230,8 +230,8 @@ pub(crate) fn load_recent_events_by_type(
 
 #[derive(serde::Serialize)]
 pub struct JobDetailResponse {
-    job: ship_platform::projections::job::JobRecord,
-    step_observations: Vec<ship_substrate::events::job::StepObservedPayload>,
+    job: ship_platform::projections::job::PipelineRun,
+    step_observations: Vec<ship_substrate::events::pipeline::PipelineStepObservedPayload>,
     recent_events: Vec<EventSummary>,
 }
 
@@ -246,7 +246,7 @@ pub struct EventSummary {
 #[utoipa::path(
     operation_id = "getJobDetail",
     get,
-    path = "/api/v1/jobs/{job_id}",
+    path = "/api/v1/agent_sessions/{job_id}",
     responses(
         (status = 200, body = MeshResponse),
         (status = 401, description = "unauthorized", body = crate::wire::ErrorResponse),
@@ -281,12 +281,12 @@ pub async fn get_job_detail(
 
     let platform_db = ship_substrate::db::platform_db_path(state.ship_dir());
     let step_observations = ship_substrate::db::events::query_events_by_entity_and_type_at(
-        &platform_db, &job_id, "step.observed",
+        &platform_db, &job_id, "pipeline.step.observed",
     )
     .unwrap_or_default()
     .into_iter()
     .filter_map(|env| {
-        serde_json::from_str::<ship_substrate::events::job::StepObservedPayload>(&env.payload_json).ok()
+        serde_json::from_str::<ship_substrate::events::pipeline::PipelineStepObservedPayload>(&env.payload_json).ok()
     })
     .collect::<Vec<_>>();
 
@@ -332,7 +332,7 @@ pub async fn get_job_detail(
 #[utoipa::path(
     operation_id = "createJob",
     post,
-    path = "/api/v1/jobs",
+    path = "/api/v1/agent_sessions",
     request_body = CreateJobRequest,
     responses(
         (status = 200, body = MeshResponse),
@@ -361,7 +361,7 @@ pub async fn create_job(
     }
     let job_id = ship_substrate::gen_ulid();
     let baseline_sha = super::resolve_project_head_sha();
-    let payload = JobCreatedPayload {
+    let payload = PipelineRunStartedPayload {
         job_id: job_id.clone(),
         slug: req.slug,
         agent: req.agent,
@@ -370,7 +370,7 @@ pub async fn create_job(
         source_spec_path: req.source_spec_path,
         plan_id: None,
         model: None,
-        provider: req.provider,
+        harness: req.harness,
         depends_on: req.depends_on,
         pipeline: None,
         steps: None,
@@ -379,6 +379,9 @@ pub async fn create_job(
         spec_content: req.spec_content,
         step_specs: None,
         headless: req.headless,
+        prompt: None,
+        resume: false,
+        resume_session_id: None,
         baseline_sha,
     };
 
@@ -394,7 +397,7 @@ pub async fn create_job(
         }
     };
 
-    let envelope = match EventEnvelope::new(event_types::JOB_CREATED, &job_id, &payload)
+    let envelope = match EventEnvelope::new(event_types::PIPELINE_RUN_STARTED, &job_id, &payload)
         .map(|e| e.with_actor_id("studio"))
     {
         Ok(e) => e,
@@ -444,7 +447,7 @@ pub(crate) fn default_cancel_reason() -> String {
 #[utoipa::path(
     operation_id = "cancelJob",
     post,
-    path = "/api/v1/jobs/{slug}/cancel",
+    path = "/api/v1/agent_sessions/{slug}/cancel",
     request_body = CancelJobRequest,
     responses(
         (status = 200, body = MeshResponse),
@@ -499,7 +502,7 @@ pub async fn cancel_job(
         );
     }
 
-    let payload = ship_substrate::events::job::JobCancelledPayload {
+    let payload = ship_substrate::events::pipeline::PipelineRunCancelledPayload {
         job_id: job.job_id.clone(),
         slug: slug.clone(),
         reason: req.reason,
@@ -507,7 +510,7 @@ pub async fn cancel_job(
     };
 
     let envelope = match EventEnvelope::new(
-        event_types::JOB_CANCELLED,
+        event_types::PIPELINE_RUN_CANCELLED,
         &job.job_id,
         &payload,
     )
@@ -545,7 +548,7 @@ pub struct JobEndRequest {
     pub slug: String,
 }
 
-/// POST /api/v1/runtime/jobs/end — signal that a provider turn ended for a job.
+/// POST /api/v1/runtime/jobs/end — signal that a harness turn ended for a job.
 ///
 /// Called by the session Stop hook when an agent finishes a response turn.
 /// For multi-step pipeline jobs, this sends a TurnEnded signal to the step
@@ -554,7 +557,7 @@ pub struct JobEndRequest {
 #[utoipa::path(
     operation_id = "endJob",
     post,
-    path = "/api/v1/jobs/end",
+    path = "/api/v1/agent_sessions/end",
     request_body = JobEndRequest,
     responses(
         (status = 200, body = MeshResponse),
@@ -618,12 +621,12 @@ pub async fn end_job(
     }
 
     // Single-step job or fallback: emit job.completed directly.
-    let payload = ship_substrate::events::job::JobCompletedPayload {
+    let payload = ship_substrate::events::pipeline::PipelineRunCompletedPayload {
         job_id: job.job_id.clone(),
         slug: job.slug.clone(),
     };
 
-    let envelope = match EventEnvelope::new(event_types::JOB_COMPLETED, &job.job_id, &payload)
+    let envelope = match EventEnvelope::new(event_types::PIPELINE_RUN_COMPLETED, &job.job_id, &payload)
         .map(|e| e.with_actor_id("hook"))
     {
         Ok(e) => e,

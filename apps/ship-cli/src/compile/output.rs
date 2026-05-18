@@ -1,70 +1,70 @@
 //! File writing — emit compiler output to the filesystem with progress reporting.
 
 use anyhow::{Result, anyhow};
-use compiler::{CompileOutput, get_provider};
+use compiler::{CompileOutput, get_harness};
 use std::path::Path;
 
 // ── File writer ──────────────────────────────────────────────────────────────
 
-pub fn write_output(root: &Path, provider_id: &str, output: &CompileOutput) -> Result<()> {
-    let desc = get_provider(provider_id)
-        .ok_or_else(|| anyhow!("unknown provider: {}", provider_id))?;
+pub fn write_output(root: &Path, harness_id: &str, output: &CompileOutput) -> Result<()> {
+    let desc = get_harness(harness_id)
+        .ok_or_else(|| anyhow!("unknown harness: {}", harness_id))?;
 
     // Delegate filesystem writes to the compiler's native output module.
-    compiler::write_output(root, provider_id, output)?;
+    compiler::write_output(root, harness_id, output)?;
 
     // Progress reporting: announce each written file.
     if let Some(file_name) = desc.context_file.file_name()
         && output.context_content.is_some()
     {
-        println!("  {} {}", provider_id, file_name);
+        println!("  {} {}", harness_id, file_name);
     }
     if let Some(ref mcp_path) = output.mcp_config_path
-        && provider_id != "codex" {
-            println!("  {} {}", provider_id, mcp_path);
+        && harness_id != "codex" {
+            println!("  {} {}", harness_id, mcp_path);
         }
     for path in output.skill_files.keys() {
-        println!("  {} {}", provider_id, path);
+        println!("  {} {}", harness_id, path);
     }
     for path in output.rule_files.keys() {
-        println!("  {} {}", provider_id, path);
+        println!("  {} {}", harness_id, path);
     }
     if output.claude_settings_patch.is_some() {
-        println!("  {} .claude/settings.json", provider_id);
+        println!("  {} .claude/settings.json", harness_id);
     }
     for path in output.agent_files.keys() {
-        println!("  {} {}", provider_id, path);
+        println!("  {} {}", harness_id, path);
     }
     if output.codex_config_patch.is_some() {
-        println!("  {} .codex/config.toml", provider_id);
+        println!("  {} .codex/config.toml", harness_id);
     }
     if output.codex_hooks_json.is_some() {
-        println!("  {} .codex/hooks.json", provider_id);
+        println!("  {} .codex/hooks.json", harness_id);
     }
-    if output.codex_policy_content.is_some() { println!("  {} .codex/rules/ship.rules", provider_id) }
+    if output.codex_policy_content.is_some() { println!("  {} .codex/rules/ship.rules", harness_id) }
     if output.gemini_policy_patch.is_some() {
-        println!("  {} .gemini/policies/ship.toml", provider_id);
+        println!("  {} .gemini/policies/ship.toml", harness_id);
     }
     if output.cursor_hooks_patch.is_some() {
-        println!("  {} .cursor/hooks.json", provider_id);
+        println!("  {} .cursor/hooks.json", harness_id);
     }
     if output.cursor_cli_permissions.is_some() {
-        println!("  {} .cursor/cli.json", provider_id);
+        println!("  {} .cursor/cli.json", harness_id);
     }
     if output.cursor_environment_json.is_some() {
-        println!("  {} .cursor/environment.json", provider_id);
+        println!("  {} .cursor/environment.json", harness_id);
     }
     if output.opencode_config_patch.is_some() {
-        println!("  {} opencode.json", provider_id);
+        println!("  {} opencode.json", harness_id);
     }
 
     Ok(())
 }
 
 /// Dry-run: print what would be written.
-pub(crate) fn print_dry_run(provider_id: &str, output: &CompileOutput) {
-    println!("[dry-run] provider: {}", provider_id);
-    if let Some(f) = get_provider(provider_id).and_then(|d| d.context_file.file_name())
+pub(crate) fn print_dry_run(harness_id: &str, output: &CompileOutput) {
+    println!("[dry-run] harness: {}", harness_id);
+    if let Some(f) = get_harness(harness_id).and_then(|d| d.context_file.file_name())
         && output.context_content.is_some()
     {
         println!("  would write {}", f);

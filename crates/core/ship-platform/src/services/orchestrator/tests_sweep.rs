@@ -159,7 +159,7 @@ async fn seed_dispatched_job(
     job_id: &str,
     slug: &str,
 ) {
-    use ship_substrate::events::job::{event_types, JobCreatedPayload, JobDispatchedPayload};
+    use ship_substrate::events::pipeline::{event_types, PipelineRunStartedPayload, PipelineRunDispatchedPayload};
     use ship_substrate::events::{CallerKind, EmitContext};
 
     let ctx = EmitContext {
@@ -169,7 +169,7 @@ async fn seed_dispatched_job(
         session_id: None,
     };
 
-    let created = JobCreatedPayload {
+    let created = PipelineRunStartedPayload {
         job_id: job_id.to_string(),
         slug: slug.to_string(),
         agent: "test-agent".to_string(),
@@ -179,7 +179,7 @@ async fn seed_dispatched_job(
         plan_id: None,
         depends_on: None,
         model: None,
-        provider: None,
+        harness: None,
         pipeline: None,
         steps: None,
         pipeline_name: None,
@@ -187,34 +187,37 @@ async fn seed_dispatched_job(
         spec_content: None,
         step_specs: None,
         headless: false,
+        prompt: None,
+        resume: false,
+        resume_session_id: None,
         baseline_sha: None,
     };
-    let env = EventEnvelope::new(event_types::JOB_CREATED, job_id, &created)
+    let env = EventEnvelope::new(event_types::PIPELINE_RUN_STARTED, job_id, &created)
         .unwrap()
         .with_actor_id("test");
     kernel.lock().await.emit(env, &ctx).await.unwrap();
 
-    let dispatched = JobDispatchedPayload {
+    let dispatched = PipelineRunDispatchedPayload {
         job_id: job_id.to_string(),
         worktree: format!("/tmp/test-worktrees/{slug}"),
         pid: None,
-        provider_meta: None,
+        harness_meta: None,
     };
-    let env = EventEnvelope::new(event_types::JOB_DISPATCHED, job_id, &dispatched)
+    let env = EventEnvelope::new(event_types::PIPELINE_RUN_DISPATCHED, job_id, &dispatched)
         .unwrap()
         .with_actor_id("test");
     kernel.lock().await.emit(env, &ctx).await.unwrap();
 }
 
 /// Seed a dispatched job with a DAG pipeline; `current_step` advances via
-/// the JOB_DISPATCHED projection.
+/// the PIPELINE_RUN_DISPATCHED projection.
 async fn seed_dispatched_job_with_pipeline(
     kernel: &Arc<Mutex<KernelRouter>>,
     job_id: &str,
     slug: &str,
-    pipeline: ship_substrate::events::job::Pipeline,
+    pipeline: ship_substrate::events::pipeline::Pipeline,
 ) {
-    use ship_substrate::events::job::{event_types, JobCreatedPayload, JobDispatchedPayload};
+    use ship_substrate::events::pipeline::{event_types, PipelineRunStartedPayload, PipelineRunDispatchedPayload};
     use ship_substrate::events::{CallerKind, EmitContext};
 
     let ctx = EmitContext {
@@ -224,7 +227,7 @@ async fn seed_dispatched_job_with_pipeline(
         session_id: None,
     };
 
-    let created = JobCreatedPayload {
+    let created = PipelineRunStartedPayload {
         job_id: job_id.to_string(),
         slug: slug.to_string(),
         agent: "test-agent".to_string(),
@@ -234,7 +237,7 @@ async fn seed_dispatched_job_with_pipeline(
         plan_id: None,
         depends_on: None,
         model: None,
-        provider: None,
+        harness: None,
         pipeline: None,
         steps: Some(pipeline),
         pipeline_name: None,
@@ -242,29 +245,32 @@ async fn seed_dispatched_job_with_pipeline(
         spec_content: None,
         step_specs: None,
         headless: false,
+        prompt: None,
+        resume: false,
+        resume_session_id: None,
         baseline_sha: None,
     };
-    let env = EventEnvelope::new(event_types::JOB_CREATED, job_id, &created)
+    let env = EventEnvelope::new(event_types::PIPELINE_RUN_STARTED, job_id, &created)
         .unwrap()
         .with_actor_id("test");
     kernel.lock().await.emit(env, &ctx).await.unwrap();
 
-    let dispatched = JobDispatchedPayload {
+    let dispatched = PipelineRunDispatchedPayload {
         job_id: job_id.to_string(),
         worktree: format!("/tmp/test-worktrees/{slug}"),
         pid: None,
-        provider_meta: None,
+        harness_meta: None,
     };
-    let env = EventEnvelope::new(event_types::JOB_DISPATCHED, job_id, &dispatched)
+    let env = EventEnvelope::new(event_types::PIPELINE_RUN_DISPATCHED, job_id, &dispatched)
         .unwrap()
         .with_actor_id("test");
     kernel.lock().await.emit(env, &ctx).await.unwrap();
 }
 
-fn one_step_pipeline(step_id: &str, step_type: ship_substrate::events::job::StepType)
-    -> ship_substrate::events::job::Pipeline
+fn one_step_pipeline(step_id: &str, step_type: ship_substrate::events::pipeline::StepType)
+    -> ship_substrate::events::pipeline::Pipeline
 {
-    use ship_substrate::events::job::{Pipeline, PipelineStep, StepType};
+    use ship_substrate::events::pipeline::{Pipeline, PipelineStep, StepType};
     let (command, agent, goal) = match step_type {
         StepType::Run => (Some("echo hi".to_string()), None, None),
         _ => (None, Some("test-agent".to_string()), Some("do work".to_string())),
@@ -278,7 +284,7 @@ fn one_step_pipeline(step_id: &str, step_type: ship_substrate::events::job::Step
             goal,
             after: vec![],
             model: None,
-            provider: None,
+            harness: None,
             command,
             max_retries: None,
             gate: None,
@@ -296,7 +302,7 @@ async fn seed_failed_job(
     job_id: &str,
     slug: &str,
 ) {
-    use ship_substrate::events::job::{event_types, JobCreatedPayload, JobFailedPayload};
+    use ship_substrate::events::pipeline::{event_types, PipelineRunStartedPayload, PipelineRunFailedPayload};
     use ship_substrate::events::{CallerKind, EmitContext};
 
     let ctx = EmitContext {
@@ -306,7 +312,7 @@ async fn seed_failed_job(
         session_id: None,
     };
 
-    let created = JobCreatedPayload {
+    let created = PipelineRunStartedPayload {
         job_id: job_id.to_string(),
         slug: slug.to_string(),
         agent: "test-agent".to_string(),
@@ -316,7 +322,7 @@ async fn seed_failed_job(
         plan_id: None,
         depends_on: None,
         model: None,
-        provider: None,
+        harness: None,
         pipeline: None,
         steps: None,
         pipeline_name: None,
@@ -324,18 +330,21 @@ async fn seed_failed_job(
         spec_content: None,
         step_specs: None,
         headless: false,
+        prompt: None,
+        resume: false,
+        resume_session_id: None,
         baseline_sha: None,
     };
-    let env = EventEnvelope::new(event_types::JOB_CREATED, job_id, &created)
+    let env = EventEnvelope::new(event_types::PIPELINE_RUN_STARTED, job_id, &created)
         .unwrap()
         .with_actor_id("test");
     kernel.lock().await.emit(env, &ctx).await.unwrap();
 
-    let failed = JobFailedPayload {
+    let failed = PipelineRunFailedPayload {
         job_id: job_id.to_string(),
         error: "seed failure".to_string(),
     };
-    let env = EventEnvelope::new(event_types::JOB_FAILED, job_id, &failed)
+    let env = EventEnvelope::new(event_types::PIPELINE_RUN_FAILED, job_id, &failed)
         .unwrap()
         .with_actor_id("test");
     kernel.lock().await.emit(env, &ctx).await.unwrap();
@@ -368,7 +377,7 @@ async fn dispatched_job_no_process_gets_marked_failed() {
     );
 
     // Verify job.failed
-    let failed = find_events_by_type("job.failed");
+    let failed = find_events_by_type("pipeline.run.failed");
     let sweep_fail = failed.iter().find(|e| {
         let p: serde_json::Value = serde_json::from_str(&e.payload_json).unwrap_or_default();
         p["error"].as_str().unwrap_or_default().contains("coherence sweep")
@@ -499,7 +508,7 @@ async fn stray_process_gets_killed() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn sweep_skips_run_step_jobs() {
-    use ship_substrate::events::job::StepType;
+    use ship_substrate::events::pipeline::StepType;
     let _tmp = tempfile::TempDir::new().unwrap();
     let kernel = make_kernel();
     let octx = make_octx(Arc::new(DeadExecutor), Arc::new(EmptyRegistry));
@@ -521,7 +530,7 @@ async fn sweep_skips_run_step_jobs() {
     );
 
     // No job.failed for this job_id emitted by the sweep.
-    let sweep_failed = find_events_by_type("job.failed")
+    let sweep_failed = find_events_by_type("pipeline.run.failed")
         .into_iter()
         .find(|e| e.entity_id == "j-run-aware-1");
     assert!(
@@ -532,7 +541,7 @@ async fn sweep_skips_run_step_jobs() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn sweep_still_flags_agent_step_jobs_with_no_process() {
-    use ship_substrate::events::job::StepType;
+    use ship_substrate::events::pipeline::StepType;
     let _tmp = tempfile::TempDir::new().unwrap();
     let kernel = make_kernel();
     let octx = make_octx(Arc::new(DeadExecutor), Arc::new(EmptyRegistry));
@@ -552,7 +561,7 @@ async fn sweep_still_flags_agent_step_jobs_with_no_process() {
         "agent-step dispatched job with no live process must still be flagged"
     );
 
-    let sweep_failed = find_events_by_type("job.failed")
+    let sweep_failed = find_events_by_type("pipeline.run.failed")
         .into_iter()
         .filter(|e| e.entity_id == "j-agent-aware-1")
         .find(|e| {

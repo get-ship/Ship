@@ -106,6 +106,29 @@ pub struct McpSection {
     pub servers: HashMap<String, McpServerConfig>,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone, Default, Type)]
+pub struct HarnessProjectOverrides {
+    /// Project-level override for the user-KV `harness.default` setting.
+    /// Picked when `ship use --launch` is invoked without `--harness=X`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub default: Option<String>,
+    /// Project-level override for the user-KV `harness.default_model`
+    /// setting. Picked when `ship use --launch` is invoked without
+    /// `--model=X`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub default_model: Option<String>,
+}
+
+impl HarnessProjectOverrides {
+    pub fn is_empty(&self) -> bool {
+        self.default.is_none() && self.default_model.is_none()
+    }
+}
+
+fn is_harness_overrides_empty(h: &Option<HarnessProjectOverrides>) -> bool {
+    h.as_ref().map(|o| o.is_empty()).unwrap_or(true)
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, Type)]
 pub struct ProjectConfig {
     #[serde(default = "default_version")]
@@ -122,10 +145,16 @@ pub struct ProjectConfig {
     pub mcp_servers: Vec<McpServerConfig>,
     #[serde(default, skip_serializing_if = "is_agent_layer_empty")]
     pub agent: AgentLayerConfig,
-    /// Which agent providers to generate config for on branch checkout.
+    /// Which agent harnesses to generate config for on branch checkout.
     /// Alpha: "claude" | "gemini" | "codex". Defaults to ["claude"].
-    #[serde(default = "default_providers", skip_serializing_if = "Vec::is_empty")]
-    pub providers: Vec<String>,
+    #[serde(default = "default_harnesses", skip_serializing_if = "Vec::is_empty")]
+    pub harnesses: Vec<String>,
+    /// Project-level overrides for the user-KV launch defaults
+    /// (`harness.default`, `harness.default_model`). Only the two
+    /// identity-shaped keys are overrideable here — per-user
+    /// preferences like `agent_session.auto_resume` are not.
+    #[serde(default, skip_serializing_if = "is_harness_overrides_empty")]
+    pub harness: Option<HarnessProjectOverrides>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
@@ -142,7 +171,7 @@ pub fn default_version() -> String {
     "1".to_string()
 }
 
-pub fn default_providers() -> Vec<String> {
+pub fn default_harnesses() -> Vec<String> {
     vec!["claude".to_string()]
 }
 
@@ -156,7 +185,8 @@ impl Default for ProjectConfig {
             agents: Vec::new(),
             mcp_servers: Vec::new(),
             agent: AgentLayerConfig::default(),
-            providers: default_providers(),
+            harnesses: default_harnesses(),
+            harness: None,
         }
     }
 }

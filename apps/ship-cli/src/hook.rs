@@ -18,8 +18,8 @@ fn read_stdin() -> Result<String> {
     Ok(buf)
 }
 
-/// Detect the provider from environment variables.
-fn detect_provider() -> &'static str {
+/// Detect the harness from environment variables.
+fn detect_harness() -> &'static str {
     if std::env::var("CODEX_SESSION_ID").is_ok() {
         return "codex";
     }
@@ -37,15 +37,15 @@ fn detect_provider() -> &'static str {
     "claude"
 }
 
-/// Normalize provider-specific stdin JSON into the daemon's ShipHookEvent.
+/// Normalize harness-specific stdin JSON into the daemon's ShipHookEvent.
 fn normalize_stdin(stdin: &str, hook_type: &str) -> serde_json::Value {
     let parsed: serde_json::Value =
         serde_json::from_str(stdin).unwrap_or(serde_json::json!({}));
 
-    let provider = detect_provider();
+    let harness = detect_harness();
 
-    // All providers currently use a similar JSON shape with tool_name / tool_input.
-    // Normalize field names for cross-provider compatibility.
+    // All harnesses currently use a similar JSON shape with tool_name / tool_input.
+    // Normalize field names for cross-harness compatibility.
     let tool_name = parsed
         .get("tool_name")
         .or_else(|| parsed.get("toolName"))
@@ -67,7 +67,7 @@ fn normalize_stdin(stdin: &str, hook_type: &str) -> serde_json::Value {
     let session = ship_substrate::env::read_raw(ship_substrate::env::Var::ActorId).ok();
 
     let mut event = serde_json::json!({
-        "provider": provider,
+        "harness": harness,
         "hook_type": hook_type,
     });
     if let Some(v) = tool_name {
@@ -129,7 +129,7 @@ fn post_to_daemon(endpoint: &str, body: &serde_json::Value) -> Result<serde_json
 
 /// Try to POST to daemon; fall back to local event emission on failure.
 ///
-/// Logs the daemon error to stderr so provider hook logs capture the reason.
+/// Logs the daemon error to stderr so harness hook logs capture the reason.
 /// Distinguishes between "daemon unreachable" (expected fallback) and
 /// "daemon rejected request" (auth or other issue that needs attention).
 fn try_daemon_or_local(
@@ -139,7 +139,7 @@ fn try_daemon_or_local(
 ) -> Result<()> {
     match post_to_daemon(endpoint, body) {
         Ok(resp) => {
-            // Output the daemon response for providers that read stdout.
+            // Output the daemon response for harnesses that read stdout.
             println!("{}", serde_json::to_string(&resp)?);
             Ok(())
         }
@@ -248,7 +248,7 @@ fn signal_job_completed(slug: &str) {
     };
     let client = crate::http::daemon_client();
     if let Ok(resp) = client
-        .post(format!("http://127.0.0.1:{}/api/v1/jobs/end", handle.port))
+        .post(format!("http://127.0.0.1:{}/api/v1/agent_sessions/end", handle.port))
         .bearer_auth(&handle.token)
         .json(&serde_json::json!({"slug": slug}))
         .timeout(std::time::Duration::from_secs(5))
@@ -298,7 +298,7 @@ mod tests {
     }
 
     #[test]
-    fn normalize_stdin_accepts_provider_variants() {
+    fn normalize_stdin_accepts_harness_variants() {
         // cursor-style camelCase keys
         let stdin = r#"{"toolName":"Edit","toolInput":{"path":"f"}}"#;
         let event = normalize_stdin(stdin, "before-tool");

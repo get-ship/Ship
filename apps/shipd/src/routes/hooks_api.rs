@@ -2,7 +2,7 @@
 //!
 //! Four endpoints receive normalized `ShipHookEvent` payloads from either
 //! Claude HTTP hooks (direct) or the `ship hook` CLI adapter (which
-//! normalizes provider-specific stdin before POSTing here).
+//! normalizes harness-specific stdin before POSTing here).
 //!
 //! Phase 1: the hook pipeline always returns "allow". Security scanning
 //! and custom rules are Phase 2.
@@ -157,7 +157,7 @@ pub async fn hook_before_tool(
     // threads and dashboards can render tool cards regardless of
     // whether the actor is in the legacy PtySession registry. No more
     // broadcast_tool_use silently dropping when the registry doesn't
-    // have a matching provider_session_id.
+    // have a matching harness_session_id.
     if actor != "unknown" {
         let payload = json!({
             "tool": tool,
@@ -180,18 +180,18 @@ pub async fn hook_before_tool(
 
 /// Route a tool-use event into the matching Ship chat session so the
 /// command bar renders it as an inline tool card. The hook carries the
-/// provider's own session id — we reverse-lookup our Ship session via
-/// `provider_session_id` and broadcast a `ProviderEvent::ToolUse` on
+/// harness's own session id — we reverse-lookup our Ship session via
+/// `harness_session_id` and broadcast a `HarnessEvent::ToolUse` on
 /// its existing event channel (the UI already consumes this variant).
 fn broadcast_tool_use(
     state: &ApiState,
-    provider_session_id: &str,
+    harness_session_id: &str,
     tool: &str,
     input: Option<&serde_json::Value>,
 ) {
     let Some(session) = state
         .pty_sessions()
-        .find_by_provider_session(provider_session_id)
+        .find_by_harness_session(harness_session_id)
     else {
         return;
     };
@@ -201,7 +201,7 @@ fn broadcast_tool_use(
             if s.len() > 400 { s.chars().take(400).collect() } else { s }
         })
         .unwrap_or_default();
-    let ev = ship_platform::services::provider_adapter::ProviderEvent::ToolUse {
+    let ev = ship_platform::services::harness_adapter::HarnessEvent::ToolUse {
         tool: tool.to_string(),
         input_preview,
     };

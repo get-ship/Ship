@@ -8,7 +8,7 @@ pub struct WorkspaceAgentSettings {
     #[serde(default)]
     pub skills: Vec<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub providers: Vec<String>,
+    pub harnesses: Vec<String>,
 }
 
 use crate::permissions::{Permissions, get_permissions};
@@ -22,9 +22,9 @@ use std::path::Path;
 
 // ─── Resolved config ──────────────────────────────────────────────────────────
 
-/// Fully resolved, in-memory provider settings for the current branch/feature.
+/// Fully resolved, in-memory harness settings for the current branch/feature.
 ///
-/// Not stored as a file. Computed by [`resolve_provider_settings`] from:
+/// Not stored as a file. Computed by [`resolve_harness_settings`] from:
 /// 1. Project defaults (`ship.jsonc` + `agents/` directory)
 /// 2. Active agent profile overrides
 /// 3. Feature `[agent]` block (thin overrides)
@@ -32,9 +32,9 @@ use std::path::Path;
 /// A snapshot of key IDs is stored in the Workspace SQLite record for the UI.
 #[derive(Serialize, Deserialize, Debug, Clone, Type)]
 pub struct ProviderSettings {
-    /// Active provider IDs (e.g. `["claude"]`). Inherited from project or overridden by feature.
-    pub providers: Vec<String>,
-    /// Model override — `None` means use the provider's default.
+    /// Active harness IDs (e.g. `["claude"]`). Inherited from project or overridden by feature.
+    pub harnesses: Vec<String>,
+    /// Model override — `None` means use the harness's default.
     pub model: Option<String>,
     /// Resolved MCP servers (project list, filtered by agent profile + feature).
     pub mcp_servers: Vec<McpServerConfig>,
@@ -48,7 +48,7 @@ pub struct ProviderSettings {
     pub active_agent: Option<String>,
 }
 
-fn normalize_provider_ids(ids: &[String]) -> Vec<String> {
+fn normalize_harness_ids(ids: &[String]) -> Vec<String> {
     let mut seen = HashSet::new();
     let mut normalized = Vec::new();
 
@@ -57,7 +57,7 @@ fn normalize_provider_ids(ids: &[String]) -> Vec<String> {
         if id.is_empty() {
             continue;
         }
-        // Keep provider IDs aligned with registered provider descriptors.
+        // Keep harness IDs aligned with registered harness descriptors.
         if !matches!(id.as_str(), "claude" | "gemini" | "codex") {
             continue;
         }
@@ -87,21 +87,21 @@ fn normalize_rule_id(id: &str) -> String {
 /// Resolution order (highest wins):
 /// 1. Project defaults (`ship.jsonc` + `agents/` directory)
 /// 2. Active agent profile overrides (profile's `mcp_servers` filter, skill refs, rules)
-/// 3. Feature `[agent]` block — thin overrides: `model`, `providers`, filtered server/skill IDs
+/// 3. Feature `[agent]` block — thin overrides: `model`, `harnesses`, filtered server/skill IDs
 ///
 /// Pass `None` for `workspace_agent` when not on a feature branch.
-pub fn resolve_provider_settings(
+pub fn resolve_harness_settings(
     ship_dir: &Path,
     workspace_agent: Option<&WorkspaceAgentSettings>,
 ) -> Result<ProviderSettings> {
-    resolve_provider_settings_with_agent_override(ship_dir, workspace_agent, None)
+    resolve_harness_settings_with_agent_override(ship_dir, workspace_agent, None)
 }
 
-/// Resolve effective provider settings with an optional agent profile override.
+/// Resolve effective harness settings with an optional agent profile override.
 ///
 /// `active_agent_override` is intended for workspace-level agent selection.
 /// When provided and valid, it takes precedence over project `active_agent`.
-pub fn resolve_provider_settings_with_agent_override(
+pub fn resolve_harness_settings_with_agent_override(
     ship_dir: &Path,
     workspace_agent: Option<&WorkspaceAgentSettings>,
     active_agent_override: Option<&str>,
@@ -119,42 +119,42 @@ pub fn resolve_provider_settings_with_agent_override(
         .iter()
         .find(|a| active_agent.as_deref() == Some(a.id.as_str()));
 
-    // ── Providers ─────────────────────────────────────────────────────────────
+    // ── Harnesses ─────────────────────────────────────────────────────────────
     // Resolution priority (highest wins):
-    // 1. Workspace explicit providers — if they specified any (even if all unknown),
+    // 1. Workspace explicit harnesses — if they specified any (even if all unknown),
     //    use the normalized result rather than falling back. An empty result from all-invalid
-    //    providers propagates as a no-valid-providers error rather than silently using "claude".
+    //    harnesses propagates as a no-valid-harnesses error rather than silently using "claude".
     // 2. Agent profile target_agents — when an agent is active and specifies target agents.
-    // 3. Project-level providers from ship.jsonc.
+    // 3. Project-level harnesses from ship.jsonc.
     // 4. Default: ["claude"].
-    let workspace_has_explicit_providers =
-        workspace_agent.is_some_and(|wa| !wa.providers.is_empty());
-    let workspace_override_providers = workspace_agent
-        .filter(|wa| !wa.providers.is_empty())
-        .map(|wa| normalize_provider_ids(&wa.providers))
+    let workspace_has_explicit_harnesses =
+        workspace_agent.is_some_and(|wa| !wa.harnesses.is_empty());
+    let workspace_override_harnesses = workspace_agent
+        .filter(|wa| !wa.harnesses.is_empty())
+        .map(|wa| normalize_harness_ids(&wa.harnesses))
         .unwrap_or_default();
-    let providers = if workspace_has_explicit_providers {
-        workspace_override_providers
+    let harnesses = if workspace_has_explicit_harnesses {
+        workspace_override_harnesses
     } else {
-        let agent_providers = agent
+        let agent_harnesses = agent
             .filter(|a| !a.target_agents.is_empty())
-            .map(|a| normalize_provider_ids(&a.target_agents))
+            .map(|a| normalize_harness_ids(&a.target_agents))
             .unwrap_or_default();
-        if !agent_providers.is_empty() {
-            agent_providers
+        if !agent_harnesses.is_empty() {
+            agent_harnesses
         } else {
-            let project_providers = normalize_provider_ids(&config.providers);
-            if project_providers.is_empty() {
+            let project_harnesses = normalize_harness_ids(&config.harnesses);
+            if project_harnesses.is_empty() {
                 vec!["claude".to_string()]
             } else {
-                project_providers
+                project_harnesses
             }
         }
     };
 
     // ── Model ─────────────────────────────────────────────────────────────────
     // Model comes from the workspace override only — there's no project-level
-    // default. The provider's CLI picks a default when none is specified.
+    // default. The harness's CLI picks a default when none is specified.
     let model = workspace_agent.and_then(|wa| wa.model.clone());
 
     // ── MCP servers ───────────────────────────────────────────────────────────
@@ -206,7 +206,7 @@ pub fn resolve_provider_settings_with_agent_override(
     let permissions = get_permissions(ship_dir.to_path_buf())?;
 
     Ok(ProviderSettings {
-        providers,
+        harnesses,
         model,
         mcp_servers,
         skills,
@@ -242,7 +242,7 @@ mod tests {
     }
 
     #[test]
-    fn resolve_agent_config_feature_overrides_providers_model_and_skill_filter() -> Result<()> {
+    fn resolve_agent_config_feature_overrides_harnesses_model_and_skill_filter() -> Result<()> {
         let tmp = tempdir()?;
         let ship_dir = init_project(tmp.path())?;
 
@@ -250,7 +250,7 @@ mod tests {
         create_skill(&ship_dir, "rt-beta-skill", "Beta", "beta body")?;
 
         let config = ProjectConfig {
-            providers: vec!["claude".to_string(), "gemini".to_string()],
+            harnesses: vec!["claude".to_string(), "gemini".to_string()],
             mcp_servers: vec![stdio_server("github", "github-bin")],
             ..Default::default()
         };
@@ -260,11 +260,11 @@ mod tests {
             model: Some("feature-model".to_string()),
             mcp_servers: vec!["github".to_string()],
             skills: vec!["rt-beta-skill".to_string()],
-            providers: vec!["codex".to_string()],
+            harnesses: vec!["codex".to_string()],
         };
 
-        let resolved = resolve_provider_settings(&ship_dir, Some(&feature_agent))?;
-        assert_eq!(resolved.providers, vec!["codex".to_string()]);
+        let resolved = resolve_harness_settings(&ship_dir, Some(&feature_agent))?;
+        assert_eq!(resolved.harnesses, vec!["codex".to_string()]);
         assert_eq!(resolved.model.as_deref(), Some("feature-model"));
         assert_eq!(
             resolved
@@ -288,10 +288,10 @@ mod tests {
             model: None,
             mcp_servers: vec![],
             skills: vec!["rt-missing-skill".to_string(), "rt-only-skill".to_string()],
-            providers: vec![],
+            harnesses: vec![],
         };
 
-        let resolved = resolve_provider_settings(&ship_dir, Some(&feature_agent))?;
+        let resolved = resolve_harness_settings(&ship_dir, Some(&feature_agent))?;
         assert_eq!(
             resolved
                 .skills
@@ -325,7 +325,7 @@ mod tests {
         save_config(&config, Some(ship_dir.clone()))?;
 
         let resolved =
-            resolve_provider_settings_with_agent_override(&ship_dir, None, Some("planning"))?;
+            resolve_harness_settings_with_agent_override(&ship_dir, None, Some("planning"))?;
         assert_eq!(resolved.mcp_servers.len(), 1);
         assert_eq!(resolved.mcp_servers[0].id, "github");
         Ok(())
@@ -378,7 +378,7 @@ mod tests {
         })?;
         std::fs::write(ship_substrate::project::mcp_config_path(&ship_dir), mcp_json)?;
 
-        let resolved = resolve_provider_settings(&ship_dir, None)?;
+        let resolved = resolve_harness_settings(&ship_dir, None)?;
         let github = resolved
             .mcp_servers
             .iter()
@@ -421,10 +421,10 @@ mod tests {
             model: None,
             mcp_servers: vec!["linear".to_string(), "figma".to_string()],
             skills: vec![],
-            providers: vec![],
+            harnesses: vec![],
         };
 
-        let resolved = resolve_provider_settings_with_agent_override(
+        let resolved = resolve_harness_settings_with_agent_override(
             &ship_dir,
             Some(&feature_agent),
             Some("planning"),
@@ -439,29 +439,29 @@ mod tests {
     }
 
     #[test]
-    fn resolve_agent_config_feature_without_provider_override_uses_project_providers() -> Result<()>
+    fn resolve_agent_config_feature_without_harness_override_uses_project_harnesses() -> Result<()>
     {
         let tmp = tempdir()?;
         let ship_dir = init_project(tmp.path())?;
 
-        // Providers are file-canonical in ship.jsonc — save_config doesn't
+        // Harnesses are file-canonical in ship.jsonc — save_config doesn't
         // persist them (project identity only), so write them directly to
-        // exercise the project-providers fallback path.
+        // exercise the project-harnesses fallback path.
         std::fs::write(
             ship_dir.join("ship.jsonc"),
-            "{\"providers\": [\"claude\", \"gemini\"]}\n",
+            "{\"harnesses\": [\"claude\", \"gemini\"]}\n",
         )?;
 
         let feature_agent = WorkspaceAgentSettings {
             model: Some("feature-model".to_string()),
             mcp_servers: vec![],
             skills: vec![],
-            providers: vec![],
+            harnesses: vec![],
         };
 
-        let resolved = resolve_provider_settings(&ship_dir, Some(&feature_agent))?;
+        let resolved = resolve_harness_settings(&ship_dir, Some(&feature_agent))?;
         assert_eq!(
-            resolved.providers,
+            resolved.harnesses,
             vec!["claude".to_string(), "gemini".to_string()]
         );
         assert_eq!(resolved.model.as_deref(), Some("feature-model"));
@@ -469,12 +469,12 @@ mod tests {
     }
 
     #[test]
-    fn resolve_agent_config_feature_providers_are_normalized_and_unknown_filtered() -> Result<()> {
+    fn resolve_agent_config_feature_harnesses_are_normalized_and_unknown_filtered() -> Result<()> {
         let tmp = tempdir()?;
         let ship_dir = init_project(tmp.path())?;
 
         let config = ProjectConfig {
-            providers: vec!["gemini".to_string()],
+            harnesses: vec!["gemini".to_string()],
             ..Default::default()
         };
         save_config(&config, Some(ship_dir.clone()))?;
@@ -483,29 +483,29 @@ mod tests {
             model: None,
             mcp_servers: vec![],
             skills: vec![],
-            providers: vec![
+            harnesses: vec![
                 " codex ".to_string(),
-                "unknown-provider".to_string(),
+                "unknown-harness".to_string(),
                 "CLAUDE".to_string(),
                 "claude".to_string(),
             ],
         };
 
-        let resolved = resolve_provider_settings(&ship_dir, Some(&feature_agent))?;
+        let resolved = resolve_harness_settings(&ship_dir, Some(&feature_agent))?;
         assert_eq!(
-            resolved.providers,
+            resolved.harnesses,
             vec!["codex".to_string(), "claude".to_string()]
         );
         Ok(())
     }
 
     #[test]
-    fn resolve_agent_config_invalid_feature_provider_returns_empty() -> Result<()> {
+    fn resolve_agent_config_invalid_feature_harness_returns_empty() -> Result<()> {
         let tmp = tempdir()?;
         let ship_dir = init_project(tmp.path())?;
 
         let config = ProjectConfig {
-            providers: vec!["gemini".to_string(), "claude".to_string()],
+            harnesses: vec!["gemini".to_string(), "claude".to_string()],
             ..Default::default()
         };
         save_config(&config, Some(ship_dir.clone()))?;
@@ -514,29 +514,29 @@ mod tests {
             model: None,
             mcp_servers: vec![],
             skills: vec![],
-            providers: vec!["unknown-provider".to_string()],
+            harnesses: vec!["unknown-harness".to_string()],
         };
 
-        // Invalid feature-level providers are no longer silently ignored —
-        // an empty provider list propagates so callers can surface the error.
-        let resolved = resolve_provider_settings(&ship_dir, Some(&feature_agent))?;
-        assert!(resolved.providers.is_empty());
+        // Invalid feature-level harnesses are no longer silently ignored —
+        // an empty harness list propagates so callers can surface the error.
+        let resolved = resolve_harness_settings(&ship_dir, Some(&feature_agent))?;
+        assert!(resolved.harnesses.is_empty());
         Ok(())
     }
 
     #[test]
-    fn resolve_agent_config_invalid_project_providers_fall_back_to_claude() -> Result<()> {
+    fn resolve_agent_config_invalid_project_harnesses_fall_back_to_claude() -> Result<()> {
         let tmp = tempdir()?;
         let ship_dir = init_project(tmp.path())?;
 
         let config = ProjectConfig {
-            providers: vec!["unknown-provider".to_string(), "   ".to_string()],
+            harnesses: vec!["unknown-harness".to_string(), "   ".to_string()],
             ..Default::default()
         };
         save_config(&config, Some(ship_dir.clone()))?;
 
-        let resolved = resolve_provider_settings(&ship_dir, None)?;
-        assert_eq!(resolved.providers, vec!["claude".to_string()]);
+        let resolved = resolve_harness_settings(&ship_dir, None)?;
+        assert_eq!(resolved.harnesses, vec!["claude".to_string()]);
         Ok(())
     }
 
@@ -567,7 +567,7 @@ mod tests {
         save_config(&config, Some(ship_dir.clone()))?;
 
         let resolved =
-            resolve_provider_settings_with_agent_override(&ship_dir, None, Some("planning"))?;
+            resolve_harness_settings_with_agent_override(&ship_dir, None, Some("planning"))?;
         assert_eq!(
             resolved
                 .skills
@@ -618,12 +618,12 @@ mod tests {
         // Baseline (no project active_agent — the field no longer exists in
         // ProjectConfig — and no override): no agent is selected, no skills
         // get filtered in.
-        let baseline = resolve_provider_settings(&ship_dir, None)?;
+        let baseline = resolve_harness_settings(&ship_dir, None)?;
         assert_eq!(baseline.active_agent, None);
 
         // Override picks the right agent and its skills.
         let overridden =
-            resolve_provider_settings_with_agent_override(&ship_dir, None, Some("code"))?;
+            resolve_harness_settings_with_agent_override(&ship_dir, None, Some("code"))?;
         assert_eq!(overridden.active_agent.as_deref(), Some("code"));
         assert_eq!(
             overridden
@@ -636,7 +636,7 @@ mod tests {
 
         // Invalid override falls back to None (no project default exists).
         let invalid_override =
-            resolve_provider_settings_with_agent_override(&ship_dir, None, Some("missing-agent"))?;
+            resolve_harness_settings_with_agent_override(&ship_dir, None, Some("missing-agent"))?;
         assert_eq!(invalid_override.active_agent, None);
 
         Ok(())

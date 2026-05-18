@@ -10,7 +10,7 @@ description: Ship is the runtime for agent workflows. Agents write code, run pip
     <h1 class="idx-title">Code. Pipelines. Live views.<br/><span class="idx-title-accent">One declarative tree.</span></h1>
     <p class="idx-lede">
       Ship gives agents rails — typed skills, JSONC pipelines on git worktrees, and a
-      reactive HTML surface they can author in one shot. One config tree, every provider.
+      reactive HTML surface they can author in one shot. One config tree, every harness.
     </p>
     <div class="idx-cta-row">
       <a class="idx-cta idx-cta-primary" href="/tutorial/01-hello-signal/">Try the SUI tutorial →</a>
@@ -29,7 +29,7 @@ description: Ship is the runtime for agent workflows. Agents write code, run pip
   <a class="idx-three-card idx-card-primary" href="/agents/">
     <div class="idx-three-icon" aria-hidden="true">⌘</div>
     <div class="idx-three-title">Write code</div>
-    <p class="idx-three-body">Agents read + write your tree under typed skills, permissions, and job/session primitives. Compiles to every major provider format.</p>
+    <p class="idx-three-body">Agents read + write your tree under typed skills, permissions, and job/session primitives. Compiles to every major harness format.</p>
   </a>
   <a class="idx-three-card idx-card-info" href="/pipelines/">
     <div class="idx-three-icon" aria-hidden="true">⇢</div>
@@ -119,11 +119,11 @@ ship use <agent-id>
 ```
 
 <sui-alert tone="info">
-<strong slot="title">Migrating from existing provider config?</strong>
-Ship converts <code>CLAUDE.md</code>, <code>.cursor/rules</code>, and other provider configs into <code>.ship/</code> format. Run <code>ship convert .</code> in your project root.
+<strong slot="title">Migrating from existing harness config?</strong>
+Ship converts <code>CLAUDE.md</code>, <code>.cursor/rules</code>, and other harness configs into <code>.ship/</code> format. Run <code>ship convert .</code> in your project root.
 </sui-alert>
 
-## Supported providers
+## Supported harnesses
 
 - **Claude Code** — `CLAUDE.md`, `.mcp.json`, `.claude/skills/`
 - **Cursor** — `.cursor/rules`, `.cursor/mcp.json`

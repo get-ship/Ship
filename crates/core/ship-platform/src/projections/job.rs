@@ -26,7 +26,7 @@ use specta::Type;
 use ship_substrate::db::block_on;
 use ship_substrate::db::envelope::envelope_from_row;
 use ship_substrate::events::EventEnvelope;
-use ship_substrate::events::job::event_types;
+use ship_substrate::events::pipeline::event_types;
 use ship_substrate::projections::registry::Projection;
 
 /// Current status of a job, derived from its event sequence.
@@ -76,7 +76,7 @@ impl JobStatus {
 
 /// Projected state of a single job.
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
-pub struct JobRecord {
+pub struct PipelineRun {
     pub job_id: String,
     pub slug: String,
     pub agent: String,
@@ -93,18 +93,18 @@ pub struct JobRecord {
     pub blocker: Option<String>,
     pub error: Option<String>,
     pub model: Option<String>,
-    pub provider: Option<String>,
+    pub harness: Option<String>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
-    /// Provider-specific session metadata (e.g. Claude session ID for --resume).
+    /// Harness-specific session metadata (e.g. Claude session ID for --resume).
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub provider_meta: Option<serde_json::Value>,
+    pub harness_meta: Option<serde_json::Value>,
     /// Legacy linear pipeline phases.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub pipeline: Option<Vec<ship_substrate::events::job::PipelinePhase>>,
+    pub pipeline: Option<Vec<ship_substrate::events::pipeline::PipelinePhase>>,
     /// DAG pipeline steps.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub steps: Option<ship_substrate::events::job::Pipeline>,
+    pub steps: Option<ship_substrate::events::pipeline::Pipeline>,
     /// Index of the currently active pipeline phase (legacy).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub current_phase: Option<usize>,
@@ -131,7 +131,7 @@ pub struct JobRecord {
     pub baseline_sha: Option<String>,
 }
 
-impl JobRecord {
+impl PipelineRun {
     /// Number of DAG pipeline steps recorded as completed.
     pub fn completed_step_count(&self) -> usize {
         self.completed_steps.len()
@@ -140,25 +140,25 @@ impl JobRecord {
 
 // ── Pure fold (source of truth for status semantics) ────────────────────────
 
-/// Apply a single event to an existing `JobRecord`.
+/// Apply a single event to an existing `PipelineRun`.
 ///
 /// Unknown event types are silently ignored so the projection remains forward-compatible.
 ///
 /// Status transitions are table-driven via [`super::job_transitions::status_for`].
 /// Match arms below own only payload extraction and field-level bookkeeping;
 /// the final `if let Some(next) = status_for(...)` applies the new status.
-/// STEP_OBSERVED is the one payload-conditional case — its `Failed` branch
+/// PIPELINE_STEP_OBSERVED is the one payload-conditional case — its `Failed` branch
 /// is set inline, and `status_for` returns `None` for it to avoid overriding.
-pub fn apply(record: &mut JobRecord, event: &EventEnvelope) {
+pub fn apply(record: &mut PipelineRun, event: &EventEnvelope) {
     let ts = event.created_at;
     match event.event_type.as_str() {
-        event_types::JOB_DISPATCHED => {
+        event_types::PIPELINE_RUN_DISPATCHED => {
             if let Ok(p) = serde_json::from_str::<serde_json::Value>(&event.payload_json) {
                 record.worktree = p["worktree"].as_str().map(str::to_string);
-                if let Some(meta) = p.get("provider_meta")
+                if let Some(meta) = p.get("harness_meta")
                     && !meta.is_null()
                 {
-                    record.provider_meta = Some(meta.clone());
+                    record.harness_meta = Some(meta.clone());
                 }
             }
             if record.status == JobStatus::Completed
@@ -182,19 +182,19 @@ pub fn apply(record: &mut JobRecord, event: &EventEnvelope) {
             }
             record.updated_at = ts;
         }
-        event_types::JOB_GATE_REQUESTED => {
+        event_types::PIPELINE_GATE_REQUESTED => {
             record.updated_at = ts;
         }
-        event_types::JOB_GATE_PASSED => {
+        event_types::PIPELINE_GATE_PASSED => {
             record.updated_at = ts;
         }
-        event_types::JOB_GATE_FAILED => {
+        event_types::PIPELINE_GATE_FAILED => {
             if let Ok(p) = serde_json::from_str::<serde_json::Value>(&event.payload_json) {
                 record.error = p["reason"].as_str().map(str::to_string);
             }
             record.updated_at = ts;
         }
-        event_types::JOB_COMPLETED => {
+        event_types::PIPELINE_RUN_COMPLETED => {
             if let Some(current) = record.current_step.clone() {
                 if !record.completed_steps.contains(&current) {
                     record.completed_steps.push(current);
@@ -203,40 +203,40 @@ pub fn apply(record: &mut JobRecord, event: &EventEnvelope) {
             }
             record.updated_at = ts;
         }
-        event_types::JOB_BLOCKED => {
+        event_types::PIPELINE_RUN_BLOCKED => {
             if let Ok(p) = serde_json::from_str::<serde_json::Value>(&event.payload_json) {
                 record.blocker = p["blocker"].as_str().map(str::to_string);
             }
             record.updated_at = ts;
         }
-        event_types::JOB_MERGED => {
+        event_types::PIPELINE_RUN_MERGED => {
             record.updated_at = ts;
         }
-        event_types::JOB_FAILED => {
+        event_types::PIPELINE_RUN_FAILED => {
             if let Ok(p) = serde_json::from_str::<serde_json::Value>(&event.payload_json) {
                 record.error = p["error"].as_str().map(str::to_string);
             }
             record.updated_at = ts;
         }
-        event_types::JOB_SPAWN_FAILED => {
+        event_types::PIPELINE_STEP_SPAWN_FAILED => {
             if let Ok(p) = serde_json::from_str::<serde_json::Value>(&event.payload_json) {
                 record.error = p["error"].as_str().map(str::to_string);
             }
             record.updated_at = ts;
         }
-        event_types::JOB_CANCELLED => {
+        event_types::PIPELINE_RUN_CANCELLED => {
             if let Ok(p) = serde_json::from_str::<serde_json::Value>(&event.payload_json) {
                 record.error = p["reason"].as_str().map(str::to_string);
             }
             record.updated_at = ts;
         }
-        event_types::STEP_DISPATCHED => {
+        event_types::PIPELINE_STEP_STARTED => {
             if let Ok(p) = serde_json::from_str::<serde_json::Value>(&event.payload_json) {
                 record.current_step = p["step_id"].as_str().map(str::to_string);
             }
             record.updated_at = ts;
         }
-        event_types::STEP_COMPLETED => {
+        event_types::PIPELINE_STEP_COMPLETED => {
             if let Ok(p) = serde_json::from_str::<serde_json::Value>(&event.payload_json)
                 && let Some(step_id) = p["step_id"].as_str()
             {
@@ -249,13 +249,13 @@ pub fn apply(record: &mut JobRecord, event: &EventEnvelope) {
             }
             record.updated_at = ts;
         }
-        event_types::STEP_FAILED => {
+        event_types::PIPELINE_STEP_FAILED => {
             if let Ok(p) = serde_json::from_str::<serde_json::Value>(&event.payload_json) {
                 record.error = p["error"].as_str().map(str::to_string);
             }
             record.updated_at = ts;
         }
-        event_types::STEP_RETRY => {
+        event_types::PIPELINE_STEP_RETRY => {
             if let Ok(p) = serde_json::from_str::<serde_json::Value>(&event.payload_json)
                 && let Some(step_id) = p["step_id"].as_str()
             {
@@ -266,7 +266,7 @@ pub fn apply(record: &mut JobRecord, event: &EventEnvelope) {
             }
             record.updated_at = ts;
         }
-        event_types::STEP_OBSERVED => {
+        event_types::PIPELINE_STEP_OBSERVED => {
             if let Ok(p) = serde_json::from_str::<serde_json::Value>(&event.payload_json) {
                 let step_name = p["step_name"].as_str().unwrap_or("");
                 let verdict = p["verdict"].as_str().unwrap_or("");
@@ -299,9 +299,9 @@ pub fn apply(record: &mut JobRecord, event: &EventEnvelope) {
     }
 }
 
-/// Build the initial JobRecord from a `job.created` event payload.
+/// Build the initial PipelineRun from a `job.created` event payload.
 /// Returns `None` if the payload doesn't carry a `job_id`.
-fn record_from_created(event: &EventEnvelope) -> Option<JobRecord> {
+fn record_from_created(event: &EventEnvelope) -> Option<PipelineRun> {
     let p = serde_json::from_str::<serde_json::Value>(&event.payload_json).ok()?;
     let job_id = p["job_id"].as_str()?.to_string();
     let depends_on = p["depends_on"].as_array().map(|arr| {
@@ -309,11 +309,11 @@ fn record_from_created(event: &EventEnvelope) -> Option<JobRecord> {
             .filter_map(|v| v.as_str().map(str::to_string))
             .collect()
     });
-    let pipeline: Option<Vec<ship_substrate::events::job::PipelinePhase>> =
+    let pipeline: Option<Vec<ship_substrate::events::pipeline::PipelinePhase>> =
         serde_json::from_value(p["pipeline"].clone()).ok();
-    let steps: Option<ship_substrate::events::job::Pipeline> =
+    let steps: Option<ship_substrate::events::pipeline::Pipeline> =
         serde_json::from_value(p["steps"].clone()).ok();
-    Some(JobRecord {
+    Some(PipelineRun {
         job_id,
         slug: p["slug"].as_str().unwrap_or("").to_string(),
         agent: p["agent"].as_str().unwrap_or("").to_string(),
@@ -326,10 +326,10 @@ fn record_from_created(event: &EventEnvelope) -> Option<JobRecord> {
         blocker: None,
         error: None,
         model: p["model"].as_str().map(str::to_string),
-        provider: p["provider"].as_str().map(str::to_string),
+        harness: p["harness"].as_str().map(str::to_string),
         created_at: event.created_at,
         updated_at: event.created_at,
-        provider_meta: None,
+        harness_meta: None,
         pipeline,
         steps,
         current_phase: None,
@@ -342,17 +342,17 @@ fn record_from_created(event: &EventEnvelope) -> Option<JobRecord> {
     })
 }
 
-/// Fold a slice of events into a map of `job_id → JobRecord`.
+/// Fold a slice of events into a map of `job_id → PipelineRun`.
 ///
 /// Events must be ordered by `created_at` ascending. Non-`job.*` / `step.*`
 /// events are silently skipped. Used by tests and the one-shot hydration path.
-pub fn project(events: &[EventEnvelope]) -> HashMap<String, JobRecord> {
-    let mut map: HashMap<String, JobRecord> = HashMap::new();
+pub fn project(events: &[EventEnvelope]) -> HashMap<String, PipelineRun> {
+    let mut map: HashMap<String, PipelineRun> = HashMap::new();
     for event in events {
-        if !event.event_type.starts_with("job.") && !event.event_type.starts_with("step.") {
+        if !event.event_type.starts_with("pipeline.") && !event.event_type.starts_with("pipeline.step.") {
             continue;
         }
-        if event.event_type == event_types::JOB_CREATED {
+        if event.event_type == event_types::PIPELINE_RUN_STARTED {
             if let Some(record) = record_from_created(event) {
                 map.insert(record.job_id.clone(), record);
             }
@@ -376,25 +376,25 @@ pub fn project(events: &[EventEnvelope]) -> HashMap<String, JobRecord> {
 pub struct JobProjection;
 
 const JOB_EVENT_TYPES: &[&str] = &[
-    event_types::JOB_CREATED,
-    event_types::JOB_DISPATCHED,
-    event_types::JOB_GATE_REQUESTED,
-    event_types::JOB_GATE_PASSED,
-    event_types::JOB_GATE_FAILED,
-    event_types::JOB_BLOCKED,
-    event_types::JOB_COMPLETED,
-    event_types::JOB_MERGED,
-    event_types::JOB_FAILED,
-    event_types::JOB_SPAWN_FAILED,
-    event_types::JOB_CANCELLED,
-    event_types::JOB_UPDATE,
-    event_types::STEP_DISPATCHED,
-    event_types::STEP_COMPLETED,
-    event_types::STEP_FAILED,
-    event_types::STEP_OUTPUT,
-    event_types::STEP_RETRY,
-    event_types::STEP_DONE_DECLARED,
-    event_types::STEP_OBSERVED,
+    event_types::PIPELINE_RUN_STARTED,
+    event_types::PIPELINE_RUN_DISPATCHED,
+    event_types::PIPELINE_GATE_REQUESTED,
+    event_types::PIPELINE_GATE_PASSED,
+    event_types::PIPELINE_GATE_FAILED,
+    event_types::PIPELINE_RUN_BLOCKED,
+    event_types::PIPELINE_RUN_COMPLETED,
+    event_types::PIPELINE_RUN_MERGED,
+    event_types::PIPELINE_RUN_FAILED,
+    event_types::PIPELINE_STEP_SPAWN_FAILED,
+    event_types::PIPELINE_RUN_CANCELLED,
+    event_types::PIPELINE_RUN_UPDATED,
+    event_types::PIPELINE_STEP_STARTED,
+    event_types::PIPELINE_STEP_COMPLETED,
+    event_types::PIPELINE_STEP_FAILED,
+    event_types::PIPELINE_STEP_OUTPUT,
+    event_types::PIPELINE_STEP_RETRY,
+    event_types::PIPELINE_STEP_DONE_DECLARED,
+    event_types::PIPELINE_STEP_OBSERVED,
 ];
 
 impl Projection for JobProjection {
@@ -407,7 +407,7 @@ impl Projection for JobProjection {
     }
 
     fn apply(&self, event: &EventEnvelope, conn: &mut SqliteConnection) -> Result<()> {
-        if event.event_type == event_types::JOB_CREATED {
+        if event.event_type == event_types::PIPELINE_RUN_STARTED {
             if let Some(record) = record_from_created(event) {
                 upsert_record(&record, conn)?;
             }
@@ -434,12 +434,12 @@ impl Projection for JobProjection {
 // ── Row I/O ─────────────────────────────────────────────────────────────────
 
 const ROW_COLS: &str = "job_id, slug, agent, branch, spec_path, source_spec_path, \
-    depends_on_json, status, worktree, blocker, error, model, provider, \
-    created_at, updated_at, provider_meta_json, pipeline_json, steps_json, \
+    depends_on_json, status, worktree, blocker, error, model, harness, \
+    created_at, updated_at, harness_meta_json, pipeline_json, steps_json, \
     current_phase, completed_steps_json, current_step, vars_json, \
     step_retries_json, headless, baseline_sha";
 
-fn row_to_record(row: &sqlx::sqlite::SqliteRow) -> Result<JobRecord> {
+fn row_to_record(row: &sqlx::sqlite::SqliteRow) -> Result<PipelineRun> {
     let depends_on_json: Option<String> = row.try_get(6).ok().flatten();
     let depends_on = depends_on_json
         .as_deref()
@@ -447,17 +447,17 @@ fn row_to_record(row: &sqlx::sqlite::SqliteRow) -> Result<JobRecord> {
     let status: String = row.get(7);
     let created_at: String = row.get(13);
     let updated_at: String = row.get(14);
-    let provider_meta: Option<serde_json::Value> = row
+    let harness_meta: Option<serde_json::Value> = row
         .try_get::<Option<String>, _>(15)
         .ok()
         .flatten()
         .and_then(|s| serde_json::from_str(&s).ok());
-    let pipeline: Option<Vec<ship_substrate::events::job::PipelinePhase>> = row
+    let pipeline: Option<Vec<ship_substrate::events::pipeline::PipelinePhase>> = row
         .try_get::<Option<String>, _>(16)
         .ok()
         .flatten()
         .and_then(|s| serde_json::from_str(&s).ok());
-    let steps: Option<ship_substrate::events::job::Pipeline> = row
+    let steps: Option<ship_substrate::events::pipeline::Pipeline> = row
         .try_get::<Option<String>, _>(17)
         .ok()
         .flatten()
@@ -476,7 +476,7 @@ fn row_to_record(row: &sqlx::sqlite::SqliteRow) -> Result<JobRecord> {
         serde_json::from_str(&step_retries_json).unwrap_or_default();
     let headless: i64 = row.get(23);
 
-    Ok(JobRecord {
+    Ok(PipelineRun {
         job_id: row.get(0),
         slug: row.get(1),
         agent: row.get(2),
@@ -489,7 +489,7 @@ fn row_to_record(row: &sqlx::sqlite::SqliteRow) -> Result<JobRecord> {
         blocker: row.try_get(9).ok().flatten(),
         error: row.try_get(10).ok().flatten(),
         model: row.try_get(11).ok().flatten(),
-        provider: row.try_get(12).ok().flatten(),
+        harness: row.try_get(12).ok().flatten(),
         created_at: created_at
             .parse::<DateTime<Utc>>()
             .or_else(|_| {
@@ -502,7 +502,7 @@ fn row_to_record(row: &sqlx::sqlite::SqliteRow) -> Result<JobRecord> {
                 chrono::DateTime::parse_from_rfc3339(&updated_at).map(|dt| dt.with_timezone(&Utc))
             })
             .context("invalid updated_at on jobs row")?,
-        provider_meta,
+        harness_meta,
         pipeline,
         steps,
         current_phase: current_phase.map(|v| v as usize),
@@ -515,13 +515,13 @@ fn row_to_record(row: &sqlx::sqlite::SqliteRow) -> Result<JobRecord> {
     })
 }
 
-fn upsert_record(record: &JobRecord, conn: &mut SqliteConnection) -> Result<()> {
+fn upsert_record(record: &PipelineRun, conn: &mut SqliteConnection) -> Result<()> {
     let depends_on_json = record
         .depends_on
         .as_ref()
         .map(|v| serde_json::to_string(v).unwrap_or_else(|_| "[]".to_string()));
-    let provider_meta_json = record
-        .provider_meta
+    let harness_meta_json = record
+        .harness_meta
         .as_ref()
         .map(|v| serde_json::to_string(v).unwrap_or_else(|_| "null".to_string()));
     let pipeline_json = record
@@ -545,8 +545,8 @@ fn upsert_record(record: &JobRecord, conn: &mut SqliteConnection) -> Result<()> 
         sqlx::query(
             "INSERT INTO jobs (\
               job_id, slug, agent, branch, spec_path, source_spec_path, \
-              depends_on_json, status, worktree, blocker, error, model, provider, \
-              created_at, updated_at, provider_meta_json, pipeline_json, steps_json, \
+              depends_on_json, status, worktree, blocker, error, model, harness, \
+              created_at, updated_at, harness_meta_json, pipeline_json, steps_json, \
               current_phase, completed_steps_json, current_step, vars_json, \
               step_retries_json, headless, baseline_sha) \
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) \
@@ -555,9 +555,9 @@ fn upsert_record(record: &JobRecord, conn: &mut SqliteConnection) -> Result<()> 
               spec_path=excluded.spec_path, source_spec_path=excluded.source_spec_path, \
               depends_on_json=excluded.depends_on_json, status=excluded.status, \
               worktree=excluded.worktree, blocker=excluded.blocker, error=excluded.error, \
-              model=excluded.model, provider=excluded.provider, \
+              model=excluded.model, harness=excluded.harness, \
               updated_at=excluded.updated_at, \
-              provider_meta_json=excluded.provider_meta_json, pipeline_json=excluded.pipeline_json, \
+              harness_meta_json=excluded.harness_meta_json, pipeline_json=excluded.pipeline_json, \
               steps_json=excluded.steps_json, current_phase=excluded.current_phase, \
               completed_steps_json=excluded.completed_steps_json, current_step=excluded.current_step, \
               vars_json=excluded.vars_json, step_retries_json=excluded.step_retries_json, \
@@ -575,10 +575,10 @@ fn upsert_record(record: &JobRecord, conn: &mut SqliteConnection) -> Result<()> 
         .bind(&record.blocker)
         .bind(&record.error)
         .bind(&record.model)
-        .bind(&record.provider)
+        .bind(&record.harness)
         .bind(record.created_at.to_rfc3339())
         .bind(record.updated_at.to_rfc3339())
-        .bind(&provider_meta_json)
+        .bind(&harness_meta_json)
         .bind(&pipeline_json)
         .bind(&steps_json)
         .bind(record.current_phase.map(|v| v as i64))
@@ -594,7 +594,7 @@ fn upsert_record(record: &JobRecord, conn: &mut SqliteConnection) -> Result<()> 
     Ok(())
 }
 
-fn load_row(job_id: &str, conn: &mut SqliteConnection) -> Result<Option<JobRecord>> {
+fn load_row(job_id: &str, conn: &mut SqliteConnection) -> Result<Option<PipelineRun>> {
     let row = block_on(async {
         sqlx::query(&format!("SELECT {ROW_COLS} FROM jobs WHERE job_id = ?"))
             .bind(job_id)
@@ -604,7 +604,7 @@ fn load_row(job_id: &str, conn: &mut SqliteConnection) -> Result<Option<JobRecor
     row.as_ref().map(row_to_record).transpose()
 }
 
-fn load_all_rows(conn: &mut SqliteConnection) -> Result<HashMap<String, JobRecord>> {
+fn load_all_rows(conn: &mut SqliteConnection) -> Result<HashMap<String, PipelineRun>> {
     let rows = block_on(async {
         sqlx::query(&format!("SELECT {ROW_COLS} FROM jobs"))
             .fetch_all(conn)
@@ -620,11 +620,11 @@ fn load_all_rows(conn: &mut SqliteConnection) -> Result<HashMap<String, JobRecor
 
 // ── Public read API ─────────────────────────────────────────────────────────
 
-/// Load all jobs from the platform DB. Returns a `job_id → JobRecord` map.
+/// Load all jobs from the platform DB. Returns a `job_id → PipelineRun` map.
 ///
 /// Backed by the `jobs` table. On installs that predate the projection table,
 /// hydrates from the event log on first call (idempotent).
-pub fn load_jobs() -> Result<HashMap<String, JobRecord>> {
+pub fn load_jobs() -> Result<HashMap<String, PipelineRun>> {
     use ship_substrate::db::{db_path, ensure_db, open_db_at};
 
     ensure_db()?;
@@ -634,7 +634,7 @@ pub fn load_jobs() -> Result<HashMap<String, JobRecord>> {
 }
 
 /// Load all jobs from an explicit `ship_dir` path. Preferred in tests.
-pub fn load_jobs_at(ship_dir: &std::path::Path) -> Result<HashMap<String, JobRecord>> {
+pub fn load_jobs_at(ship_dir: &std::path::Path) -> Result<HashMap<String, PipelineRun>> {
     use ship_substrate::db::{ensure_db_at, open_db_at};
 
     ensure_db_at(ship_dir)?;
@@ -647,7 +647,7 @@ pub fn load_jobs_at(ship_dir: &std::path::Path) -> Result<HashMap<String, JobRec
 ///
 /// Used by the orchestrator's terminal-state guard and other hot-path callers
 /// that previously fetched every job to filter for one.
-pub fn load_job_by_id(job_id: &str) -> Result<Option<JobRecord>> {
+pub fn load_job_by_id(job_id: &str) -> Result<Option<PipelineRun>> {
     use ship_substrate::db::{db_path, ensure_db, open_db_at};
 
     ensure_db()?;
@@ -661,7 +661,7 @@ pub fn load_job_by_id(job_id: &str) -> Result<Option<JobRecord>> {
 pub fn load_job_by_id_at(
     ship_dir: &std::path::Path,
     job_id: &str,
-) -> Result<Option<JobRecord>> {
+) -> Result<Option<PipelineRun>> {
     use ship_substrate::db::{ensure_db_at, open_db_at};
 
     ensure_db_at(ship_dir)?;
@@ -673,7 +673,7 @@ pub fn load_job_by_id_at(
 /// Index-backed lookup for a single job by its `slug`. Returns the most
 /// recently updated match (slug isn't unique across job lifetimes — re-runs
 /// of the same logical job get a fresh job_id but reuse the slug).
-pub fn load_job_by_slug(slug: &str) -> Result<Option<JobRecord>> {
+pub fn load_job_by_slug(slug: &str) -> Result<Option<PipelineRun>> {
     use ship_substrate::db::{db_path, ensure_db, open_db_at};
 
     ensure_db()?;
@@ -686,7 +686,7 @@ pub fn load_job_by_slug(slug: &str) -> Result<Option<JobRecord>> {
 pub fn load_job_by_slug_at(
     ship_dir: &std::path::Path,
     slug: &str,
-) -> Result<Option<JobRecord>> {
+) -> Result<Option<PipelineRun>> {
     use ship_substrate::db::{ensure_db_at, open_db_at};
 
     ensure_db_at(ship_dir)?;
@@ -697,7 +697,7 @@ pub fn load_job_by_slug_at(
 fn load_job_by_slug_on(
     conn: &mut SqliteConnection,
     slug: &str,
-) -> Result<Option<JobRecord>> {
+) -> Result<Option<PipelineRun>> {
     hydrate_if_needed(conn)?;
     let row = block_on(async {
         sqlx::query(&format!(

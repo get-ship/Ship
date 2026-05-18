@@ -1,4 +1,4 @@
-//! Import MCP server entries from a provider's config file (Claude / Cursor /
+//! Import MCP server entries from a harness's config file (Claude / Cursor /
 //! Codex / Gemini). The project-scope file wins if it exists; the
 //! global-scope fallback runs when no project file is present. Imported
 //! servers are normalized (id trimmed, "ship" reserved, stdio vs http
@@ -11,14 +11,14 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use super::super::providers::{ConfigFormat, ProviderDescriptor, require_provider};
+use super::super::harnesses::{ConfigFormat, HarnessDescriptor, require_harness};
 use super::home;
 
-pub fn import_from_provider(provider_id: &str, project_dir: PathBuf) -> Result<usize> {
-    let desc = require_provider(provider_id)?;
+pub fn import_from_harness(harness_id: &str, project_dir: PathBuf) -> Result<usize> {
+    let desc = require_harness(harness_id)?;
     let mut config = get_config(Some(project_dir.clone()))?;
     let mut added = 0usize;
-    let import_paths = provider_import_paths(desc, &project_dir)?;
+    let import_paths = harness_import_paths(desc, &project_dir)?;
 
     for path in import_paths {
         if !path.exists() {
@@ -50,7 +50,7 @@ pub fn import_from_provider(provider_id: &str, project_dir: PathBuf) -> Result<u
     Ok(added)
 }
 
-fn import_scope_for_path(desc: &ProviderDescriptor, project_dir: &Path, path: &Path) -> String {
+fn import_scope_for_path(desc: &HarnessDescriptor, project_dir: &Path, path: &Path) -> String {
     let project_scope_path = project_dir
         .parent()
         .map(|root| root.join(desc.project_config));
@@ -99,8 +99,8 @@ fn normalize_imported_server(mut server: McpServerConfig) -> Option<McpServerCon
     Some(server)
 }
 
-pub(super) fn provider_import_paths(
-    desc: &ProviderDescriptor,
+pub(super) fn harness_import_paths(
+    desc: &HarnessDescriptor,
     project_dir: &Path,
 ) -> Result<Vec<PathBuf>> {
     let project_path_opt = project_dir
@@ -127,15 +127,15 @@ pub(super) fn provider_import_paths(
     Ok(candidates)
 }
 
-/// Read a provider's MCP config (JSON for Claude/Cursor, TOML for Codex/Gemini)
+/// Read a harness's MCP config (JSON for Claude/Cursor, TOML for Codex/Gemini)
 /// and return its server entries normalised into [`McpServerConfig`].
 ///
-/// TOML provider files are converted to `serde_json::Value` at the boundary so
+/// TOML harness files are converted to `serde_json::Value` at the boundary so
 /// the field-extraction logic stays single-source. Previously this had two
 /// near-identical 70-line implementations that drifted on minor details
 /// (e.g. `timeout_secs` was only honoured on the JSON side).
 fn import_mcp_servers(
-    desc: &ProviderDescriptor,
+    desc: &HarnessDescriptor,
     path: &Path,
 ) -> Result<Vec<McpServerConfig>> {
     let raw = fs::read_to_string(path)?;

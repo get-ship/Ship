@@ -15,7 +15,7 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use crate::artifacts::ArtifactScope;
-use ship_substrate::events::job::{
+use ship_substrate::events::pipeline::{
     FanoutJudge, FanoutSpec, OutputScope, Pipeline, PipelineStep, StepOutput, StepVerdict,
 };
 use crate::services::orchestrator::fanout_aggregate::{

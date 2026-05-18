@@ -26,7 +26,7 @@ pub(super) fn parse_opencode_agent(name: &str, entry: &Json) -> Option<AgentProf
         .map(parse_agent_permissions)
         .unwrap_or_default();
 
-    // Collect unknown fields + model into provider_settings.opencode
+    // Collect unknown fields + model into harness_settings.opencode
     let mut oc_settings = serde_json::Map::new();
     if let Some(Json::String(m)) = obj.get("model") {
         oc_settings.insert("model".to_string(), Json::String(m.clone()));
@@ -37,9 +37,9 @@ pub(super) fn parse_opencode_agent(name: &str, entry: &Json) -> Option<AgentProf
         }
     }
 
-    let mut provider_settings = HashMap::new();
+    let mut harness_settings = HashMap::new();
     if !oc_settings.is_empty() {
-        provider_settings.insert("opencode".to_string(), Json::Object(oc_settings));
+        harness_settings.insert("opencode".to_string(), Json::Object(oc_settings));
     }
 
     Some(AgentProfile {
@@ -48,7 +48,6 @@ pub(super) fn parse_opencode_agent(name: &str, entry: &Json) -> Option<AgentProf
             name: name.to_string(),
             version: None,
             description,
-            providers: vec![],
             role: None,
             tags: vec![],
             tools_preset: None,
@@ -62,7 +61,7 @@ pub(super) fn parse_opencode_agent(name: &str, entry: &Json) -> Option<AgentProf
         rules: ProfileRules { inline: prompt },
         hooks: Default::default(),
         apps: Default::default(),
-        provider_settings,
+        harness_settings,
     })
 }
 

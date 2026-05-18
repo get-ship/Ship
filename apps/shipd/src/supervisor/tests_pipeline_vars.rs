@@ -7,7 +7,7 @@
 //!
 //! All tests call `interpolate_step` from the runtime orchestrator.
 
-use ship_substrate::events::job::{PipelineStep, StepType};
+use ship_substrate::events::pipeline::{PipelineStep, StepType};
 use ship_pipelines::variables::interpolate_step;
 use std::collections::HashMap;
 
@@ -21,7 +21,7 @@ fn agent_step(agent: &str) -> PipelineStep {
         goal: None,
         after: vec![],
         model: None,
-        provider: None,
+        harness: None,
         command: None,
         max_retries: None,
         gate: None,
@@ -40,7 +40,7 @@ fn agent_step_with_model(agent: &str, model: &str) -> PipelineStep {
         goal: None,
         after: vec![],
         model: Some(model.to_string()),
-        provider: None,
+        harness: None,
         command: None,
         max_retries: None,
         gate: None,
@@ -59,7 +59,7 @@ fn run_step(command: &str) -> PipelineStep {
         goal: None,
         after: vec![],
         model: None,
-        provider: None,
+        harness: None,
         command: Some(command.to_string()),
         max_retries: None,
         gate: None,
@@ -97,7 +97,7 @@ fn step_goal_interpolated_from_job_vars() {
         goal: Some("Implement {{ feature_name }}".to_string()),
         after: vec![],
         model: None,
-        provider: None,
+        harness: None,
         command: None,
         max_retries: None,
         gate: None,

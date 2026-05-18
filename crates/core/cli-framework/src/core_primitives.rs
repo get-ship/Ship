@@ -1,9 +1,9 @@
 use anyhow::Result;
 use ship_platform::agents::import::{
-    import_from_provider, import_permissions_from_provider, import_skills_from_provider,
+    import_from_harness, import_permissions_from_harness, import_skills_from_harness,
 };
-use ship_platform::agents::providers::{
-    autodetect_providers, disable_provider, enable_provider, list_models, list_providers,
+use ship_platform::agents::harnesses::{
+    autodetect_harnesses, disable_harness, enable_harness, list_models, list_harnesses,
 };
 use ship_platform::agents::skill::{
     SkillInstallScope, create_skill, create_user_skill, delete_skill, delete_user_skill,
@@ -75,7 +75,7 @@ pub enum McpAction {
         target: String,
     },
     Import {
-        provider: String,
+        harness: String,
     },
     Add {
         id: String,
@@ -307,7 +307,7 @@ pub fn handle_mcp_action(action: McpAction, project_dir: &Path) -> Result<()> {
             let project_root = project_dir.parent().unwrap_or(project_dir);
             let status = std::process::Command::new("ship")
                 .arg("compile")
-                .arg("--provider")
+                .arg("--harness")
                 .arg(&target)
                 .arg("--path")
                 .arg(project_root)
@@ -315,7 +315,7 @@ pub fn handle_mcp_action(action: McpAction, project_dir: &Path) -> Result<()> {
             match status {
                 Ok(s) if s.success() => {}
                 Ok(s) => anyhow::bail!(
-                    "ship compile failed for provider '{}' (exit {})",
+                    "ship compile failed for harness '{}' (exit {})",
                     target,
                     s.code().unwrap_or(-1)
                 ),
@@ -323,12 +323,12 @@ pub fn handle_mcp_action(action: McpAction, project_dir: &Path) -> Result<()> {
             }
             println!("Exported MCP server registry to {} config.", target);
         }
-        McpAction::Import { provider } => {
-            let added = import_from_provider(
-                &provider,
+        McpAction::Import { harness } => {
+            let added = import_from_harness(
+                &harness,
                 project_dir.to_path_buf(),
             )?;
-            println!("Imported {} MCP server(s) from {}.", added, provider);
+            println!("Imported {} MCP server(s) from {}.", added, harness);
         }
         McpAction::Add {
             id,
@@ -384,33 +384,33 @@ pub fn handle_mcp_action(action: McpAction, project_dir: &Path) -> Result<()> {
     Ok(())
 }
 
-pub fn handle_provider_action(action: ProviderAction, project_dir: &Path) -> Result<()> {
+pub fn handle_harness_action(action: ProviderAction, project_dir: &Path) -> Result<()> {
     match action {
         ProviderAction::List => {
-            let providers = list_providers(project_dir)?;
+            let harnesses = list_harnesses(project_dir)?;
             println!(
                 "{:<12} {:<20} {:<10} {:<10} VERSION",
                 "ID", "NAME", "INSTALLED", "CONNECTED"
             );
             println!("{}", "-".repeat(70));
-            for provider in providers {
+            for harness in harnesses {
                 println!(
                     "{:<12} {:<20} {:<10} {:<10} {}",
-                    provider.id,
-                    provider.name,
-                    if provider.installed { "yes" } else { "no" },
-                    if provider.enabled { "yes" } else { "no" },
-                    provider.version.as_deref().unwrap_or("-"),
+                    harness.id,
+                    harness.name,
+                    if harness.installed { "yes" } else { "no" },
+                    if harness.enabled { "yes" } else { "no" },
+                    harness.version.as_deref().unwrap_or("-"),
                 );
             }
         }
         ProviderAction::Connect { id } => {
-            if enable_provider(project_dir, &id)? {
-                println!("Connected provider: {}", id);
+            if enable_harness(project_dir, &id)? {
+                println!("Connected harness: {}", id);
             } else {
-                println!("Provider '{}' is already connected.", id);
+                println!("Harness '{}' is already connected.", id);
             }
-            let summary = import_provider_surface(project_dir, &id)?;
+            let summary = import_harness_surface(project_dir, &id)?;
             println!(
                 "Imported from {}: mcp_servers={}, skills={}, permissions={}",
                 id,
@@ -424,16 +424,16 @@ pub fn handle_provider_action(action: ProviderAction, project_dir: &Path) -> Res
             );
         }
         ProviderAction::Disconnect { id } => {
-            if disable_provider(project_dir, &id)? {
-                println!("Disconnected provider: {}", id);
+            if disable_harness(project_dir, &id)? {
+                println!("Disconnected harness: {}", id);
             } else {
-                println!("Provider '{}' was not connected.", id);
+                println!("Harness '{}' was not connected.", id);
             }
         }
         ProviderAction::Detect => {
-            let found = autodetect_providers(project_dir)?;
+            let found = autodetect_harnesses(project_dir)?;
             if found.is_empty() {
-                println!("No new providers detected.");
+                println!("No new harnesses detected.");
             } else {
                 println!("Detected and connected: {}", found.join(", "));
             }
@@ -461,26 +461,26 @@ pub fn handle_provider_action(action: ProviderAction, project_dir: &Path) -> Res
             }
         }
         ProviderAction::Import { id } => {
-            let targets: Vec<String> = if let Some(provider_id) = id {
-                vec![provider_id.to_ascii_lowercase()]
+            let targets: Vec<String> = if let Some(harness_id) = id {
+                vec![harness_id.to_ascii_lowercase()]
             } else {
-                list_providers(project_dir)?
+                list_harnesses(project_dir)?
                     .into_iter()
-                    .filter(|provider| provider.enabled)
-                    .map(|provider| provider.id)
+                    .filter(|harness| harness.enabled)
+                    .map(|harness| harness.id)
                     .collect()
             };
 
             if targets.is_empty() {
                 println!(
-                    "No connected providers to import from. Connect one with `ship providers connect <id>`."
+                    "No connected harnesses to import from. Connect one with `ship harnesses connect <id>`."
                 );
             } else {
-                for provider in targets {
-                    let summary = import_provider_surface(project_dir, &provider)?;
+                for harness in targets {
+                    let summary = import_harness_surface(project_dir, &harness)?;
                     println!(
                         "Imported from {}: mcp_servers={}, skills={}, permissions={}",
-                        provider,
+                        harness,
                         summary.mcp_servers_added,
                         summary.skills_added,
                         if summary.permissions_imported {
@@ -496,11 +496,11 @@ pub fn handle_provider_action(action: ProviderAction, project_dir: &Path) -> Res
     Ok(())
 }
 
-fn import_provider_surface(project_dir: &Path, provider_id: &str) -> Result<ProviderImportSummary> {
-    let mcp_servers_added = import_from_provider(provider_id, project_dir.to_path_buf())?;
-    let skills_added = import_skills_from_provider(provider_id, project_dir.to_path_buf())?;
+fn import_harness_surface(project_dir: &Path, harness_id: &str) -> Result<ProviderImportSummary> {
+    let mcp_servers_added = import_from_harness(harness_id, project_dir.to_path_buf())?;
+    let skills_added = import_skills_from_harness(harness_id, project_dir.to_path_buf())?;
     let permissions_imported =
-        import_permissions_from_provider(provider_id, project_dir.to_path_buf())?;
+        import_permissions_from_harness(harness_id, project_dir.to_path_buf())?;
     Ok(ProviderImportSummary {
         mcp_servers_added,
         skills_added,

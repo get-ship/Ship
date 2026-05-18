@@ -7,8 +7,7 @@
     "icon": "shield-check",
     "version": "0.2.0",
     "description": "Gates job branches against acceptance criteria and reviews PRs for security, correctness, and architecture drift.",
-    "tags": ["gate", "review", "security", "pr", "code-quality"],
-    "providers": ["claude", "codex", "cursor", "gemini", "opencode"]
+    "tags": ["gate", "review", "security", "pr", "code-quality"]
   },
   "skills": {
     "refs": ["gate", "code-review", "ship-coordination", "web-qa"]

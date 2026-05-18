@@ -40,7 +40,7 @@ impl ServerHandler for ShipServer {
                     .enable_resources_subscribe()
                     .build();
                 // Declare claude/channel capability for push notifications.
-                // Non-Claude providers ignore experimental capabilities they
+                // Non-Claude harnesses ignore experimental capabilities they
                 // don't understand — this is safe to declare unconditionally.
                 let mut experimental = std::collections::BTreeMap::new();
                 experimental.insert(
@@ -98,9 +98,9 @@ impl ServerHandler for ShipServer {
     }
 
     async fn on_initialized(&self, context: NotificationContext<RoleServer>) {
-        // Capture provider from MCP handshake before moving the peer.
+        // Capture harness from MCP handshake before moving the peer.
         if let Some(client_info) = context.peer.peer_info() {
-            *self.mcp_provider.lock().await = Some(client_info.client_info.name.clone());
+            *self.mcp_harness.lock().await = Some(client_info.client_info.name.clone());
         }
         self.store_peer(context.peer).await;
 

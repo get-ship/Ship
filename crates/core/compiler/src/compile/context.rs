@@ -1,9 +1,9 @@
 use crate::resolve::ResolvedConfig;
 
-use super::provider::{ContextFile, ProviderDescriptor};
+use super::harness::{ContextFile, HarnessDescriptor};
 
 pub(super) fn build_context_content(
-    desc: &ProviderDescriptor,
+    desc: &HarnessDescriptor,
     resolved: &ResolvedConfig,
 ) -> Option<String> {
     if desc.context_file == ContextFile::None {

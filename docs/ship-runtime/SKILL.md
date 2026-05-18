@@ -26,14 +26,14 @@ Session lifecycle and analytics. The `workspace` runtime primitive was retired e
 - `session.rs` — session queries, progress, artifact persistence
 - `session_lifecycle.rs` — `start_session` (idempotent), `end_session`
 - `compile.rs` — triggers compiler for active agent config at session start
-- `helpers.rs` — branch-key validation and provider-ref normalization
+- `helpers.rs` — branch-key validation and harness-ref normalization
 - `types_session.rs` — `Session`, `SessionStatus`, `SessionLiveness`, `EndSessionRequest`
 
 ### projections/ — `crates/core/ship-substrate/src/projections/` (low-level) + `crates/core/ship-platform/src/projections/` (high-level)
 
 Read models rebuilt from events. Projection handlers for jobs (`JobRecord`, `load_jobs`), sessions, actors, processes, and the package registry. Includes `async_projection` for background rebuilds and `spawn` for projection actor startup.
 
-### services/ — `crates/core/ship-platform/src/services/` (orchestrator, providers) + `crates/core/ship-substrate/src/services/` (mesh, human_gateway, dispatch_ports)
+### services/ — `crates/core/ship-platform/src/services/` (orchestrator, harnesses) + `crates/core/ship-substrate/src/services/` (mesh, human_gateway, dispatch_ports)
 
 Service actors and coordination:
 
@@ -50,7 +50,7 @@ Service actors and coordination:
 - `mesh.rs` — inter-agent message routing via `SharedMeshRegistry`
 - `human_gateway.rs` — human-in-the-loop step handling
 - `dispatch_ports.rs` — trait abstraction for job dispatch
-- `provider_adapter.rs`, `providers/` — provider-specific adapters
+- `harness_adapter.rs`, `harnesses/` — harness-specific adapters
 
 ### config/ — `crates/core/ship-platform/src/config/`
 

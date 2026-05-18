@@ -8,7 +8,12 @@ every file here in lexicographic order on `DataService::open` /
 
 - `0001_schema.sql` — squashed baseline. Defines the current schema in
   one file. Pre-launch you can keep editing this in place + wipe DBs;
-  once external installations exist it freezes.
+  once external installations exist it freezes. **When you edit the
+  baseline, dev DBs that already applied the previous checksum will
+  hard-error on next start.** Run `ship daemon repair-migrations --reset`
+  to back up the affected DB (`<path>.bak-<ts>`) and let the next start
+  re-apply migrations from scratch. Post-launch, this flag stops being
+  the right answer — new migrations only.
 - `YYYYMMDDHHMM_kebab_description.sql` — every schema change after the
   baseline. UTC timestamp prefix, monotonic relative to the newest
   existing file. Lowercase ASCII + digits + `-`/`_` in the slug.

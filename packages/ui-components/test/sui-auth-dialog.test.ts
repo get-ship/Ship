@@ -114,18 +114,18 @@ describe('<sui-auth-dialog>', () => {
     expect(btn.hasAttribute('disabled')).toBe(true)
   })
 
-  it('hides the "or" divider when no providers slotted', async () => {
+  it('hides the "or" divider when no harnesses slotted', async () => {
     const { el } = mount(reg, 'sui-auth-dialog')
     await flush()
     expect(shadow(el).querySelector('.or')).toBeNull()
   })
 
-  it('shows the "or" divider when providers slot has content', async () => {
+  it('shows the "or" divider when harnesses slot has content', async () => {
     const { el } = mount(
       reg,
       'sui-auth-dialog',
       {},
-      '<button slot="providers">Continue with GitHub</button>',
+      '<button slot="harnesses">Continue with GitHub</button>',
     )
     await flush()
     expect(shadow(el).querySelector('.or')?.textContent?.trim()).toBe('or')

@@ -38,8 +38,8 @@ pub struct CompileOptions<'a> {
     /// Output root — where compiled files (CLAUDE.md, .claude/, .mcp.json) go.
     /// Defaults to project_root. Set to cwd for worktree compilation.
     pub output_root: Option<&'a Path>,
-    /// Optionally restrict to a single provider.
-    pub provider: Option<&'a str>,
+    /// Optionally restrict to a single harness.
+    pub harness: Option<&'a str>,
     /// Print what would be written without touching the filesystem.
     pub dry_run: bool,
     /// Active mode id (already resolved from PathContext / ship.jsonc).
@@ -60,7 +60,7 @@ pub fn run_compile(opts: CompileOptions<'_>) -> Result<()> {
     // 1. Load raw library from .ship/ (flat layout)
     let mut library = load_library(&ship_dir).context("failed to load .ship/")?;
 
-    // 2. Apply mode overrides (permissions, inline rules, provider list)
+    // 2. Apply mode overrides (permissions, inline rules, harness list)
     if let Some(mode_id) = opts.active_agent {
         apply_agent_to_library(&mut library, mode_id, opts.project_root)?;
     }
@@ -112,61 +112,61 @@ pub fn run_compile(opts: CompileOptions<'_>) -> Result<()> {
         }
     }
 
-    // 3. Resolve (mode filtering, provider selection)
+    // 3. Resolve (mode filtering, harness selection)
     let mut resolved = resolve_library(&library, None, opts.active_agent);
     // Inject the resolved ship home so the compiler can emit MCP entries
     // with `SHIP_HOME` without reading env directly (it is WASM-safe).
     let ship_home: ship_substrate::ShipHome = ship_substrate::ShipHome::from_env();
     resolved.ship_home_dir = Some(ship_home.root().to_string_lossy().into_owned());
 
-    // 4. Determine providers to compile for
-    let providers: Vec<String> = match opts.provider {
+    // 4. Determine harnesses to compile for
+    let harnesses: Vec<String> = match opts.harness {
         Some(p) => vec![p.to_string()],
-        None => resolved.providers.clone(),
+        None => resolved.harnesses.clone(),
     };
 
-    if providers.is_empty() {
-        println!("No providers configured. Add providers to .ship/ship.jsonc or agent profile.");
+    if harnesses.is_empty() {
+        println!("No harnesses configured. Add harnesses to .ship/ship.jsonc or agent profile.");
         return Ok(());
     }
 
     // 5. Compile + write (output goes to output_root, not project_root)
-    for provider_id in &providers {
-        let Some(output) = compile(&resolved, provider_id) else {
-            eprintln!("warning: unknown provider '{}', skipping", provider_id);
+    for harness_id in &harnesses {
+        let Some(output) = compile(&resolved, harness_id) else {
+            eprintln!("warning: unknown harness '{}', skipping", harness_id);
             continue;
         };
         if opts.dry_run {
-            print_dry_run(provider_id, &output);
+            print_dry_run(harness_id, &output);
         } else {
-            write_output(output_root, provider_id, &output)
-                .with_context(|| format!("failed to write {} output", provider_id))?;
+            write_output(output_root, harness_id, &output)
+                .with_context(|| format!("failed to write {} output", harness_id))?;
         }
     }
 
-    // 6. Pre-approve ship MCP tools globally for each provider.
+    // 6. Pre-approve ship MCP tools globally for each harness.
     if !opts.dry_run {
-        for provider in &providers {
-            let result = match provider.as_str() {
+        for harness in &harnesses {
+            let result = match harness.as_str() {
                 "claude" => ensure_ship_mcp_allowed_claude(),
                 "gemini" => ensure_ship_mcp_allowed_gemini(),
                 "cursor" => ensure_ship_mcp_allowed_cursor(output_root),
                 _ => Ok(()),
             };
             if let Err(e) = result {
-                eprintln!("warning: could not update {provider} MCP permissions: {e}");
+                eprintln!("warning: could not update {harness} MCP permissions: {e}");
             }
         }
     }
 
     if !opts.dry_run {
         ensure_session_gitignored(output_root)?;
-        emit_compile_completed(&ship_dir, opts.active_agent, &providers, &opts.plugins_installed);
+        emit_compile_completed(&ship_dir, opts.active_agent, &harnesses, &opts.plugins_installed);
         if opts.extra_skills.is_empty() {
-            println!("✓ compiled for: {}", providers.join(", "));
+            println!("✓ compiled for: {}", harnesses.join(", "));
         } else {
             let injected: Vec<String> = opts.extra_skills.iter().map(|s| format!("+{}", s)).collect();
-            println!("✓ compiled for: {} ({})", providers.join(", "), injected.join(", "));
+            println!("✓ compiled for: {} ({})", harnesses.join(", "), injected.join(", "));
         }
     }
     Ok(())
@@ -179,7 +179,7 @@ pub fn run_compile(opts: CompileOptions<'_>) -> Result<()> {
 fn emit_compile_completed(
     ship_dir: &Path,
     active_agent: Option<&str>,
-    providers: &[String],
+    harnesses: &[String],
     plugins_installed: &[String],
 ) {
     use ship_substrate::events::EventEnvelope;
@@ -197,7 +197,7 @@ fn emit_compile_completed(
         active_agent: active_agent.map(str::to_string),
         compiled_at: chrono::Utc::now().to_rfc3339(),
         ship_version: env!("CARGO_PKG_VERSION").to_string(),
-        provider: providers.first().cloned(),
+        harness: harnesses.first().cloned(),
         plugins_installed: plugins_installed.to_vec(),
     };
     let envelope = match EventEnvelope::new(COMPILE_COMPLETED, &project_id, &payload) {

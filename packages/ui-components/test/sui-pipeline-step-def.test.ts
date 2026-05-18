@@ -58,11 +58,11 @@ describe('<sui-pipeline-step-def>', () => {
     expect(codes[1].textContent).toBe('test')
   })
 
-  it('renders chips for agent/provider/model when present', async () => {
+  it('renders chips for agent/harness/model when present', async () => {
     const { el } = mount(reg, 'sui-pipeline-step-def', {
       name: 'x',
       agent: 'ada',
-      provider: 'claude',
+      harness: 'claude',
       model: 'opus',
     })
     await flush()
@@ -70,7 +70,7 @@ describe('<sui-pipeline-step-def>', () => {
     expect(chips.length).toBe(3)
   })
 
-  it('omits the chips row when no agent/provider/model', async () => {
+  it('omits the chips row when no agent/harness/model', async () => {
     const { el } = mount(reg, 'sui-pipeline-step-def', { name: 'x' })
     await flush()
     expect(shadow(el).querySelector('.chips')).toBeNull()

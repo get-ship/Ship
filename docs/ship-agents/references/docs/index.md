@@ -4,13 +4,15 @@ title: Agents
 order: 1
 ---
 
-An **agent** is a profile that tells an AI assistant how to behave in your project — which skills it knows, which tools it can reach for, what it's allowed to do, and which provider it runs as. You author the profile once in `.ship/agents/<name>.jsonc`; Ship compiles it into the configuration each provider expects.
+An **agent** is a profile that tells an AI assistant how to behave in your project — which skills it knows, which tools it can reach for, what it's allowed to do. You author the profile once in `.ship/agents/<name>.jsonc`; Ship compiles it into the configuration each harness expects.
+
+Agent profiles are harness-agnostic at the baseline. The project's `harnesses` list (in `ship.jsonc`) decides which harnesses get compiled; every agent profile compiles for every harness in that list. To override a single setting (e.g. `model`) for one harness, use `harness_settings.<harness>.<key>` on the profile.
 
 ## What goes into an agent
 
 <sui-card padding="md">
 <strong slot="header">Identity</strong>
-A name, a description, and the providers this agent should compile to. One agent can target several providers from the same source.
+A name and a description. One profile compiles for every harness the project enables.
 </sui-card>
 
 <sui-card padding="md">
@@ -34,8 +36,7 @@ A preset that controls what the agent can do without asking — read-only, inter
 {
   "agent": {
     "id": "dev",
-    "name": "Dev",
-    "providers": ["claude"]
+    "name": "Dev"
   },
   "skills": {
     "refs": ["tdd", "code-review"]
@@ -46,26 +47,40 @@ A preset that controls what the agent can do without asking — read-only, inter
 }
 ```
 
-That's the minimum. Naming, providers, skills, permissions. Save the file, run `ship use dev`, and the configuration files your CLI agent expects appear automatically.
+That's the minimum. Identity, skills, permissions. Save the file, run `ship use dev`, and Ship emits one configuration file per harness in the project's `harnesses` list.
 
 ## Where agents live
 
 - **Project agents** — `.ship/agents/` in your repo. Committed; shared with your team.
 - **Library agents** — `~/.ship/agents/` on your machine. Personal; not committed.
 
-## Compiling for several providers at once
+## Compiling for several harnesses at once
 
-Add more providers to `providers` and Ship compiles them all on `ship use`:
+Configure the project's `harnesses` list in `ship.jsonc` — Ship compiles every agent profile for every harness in that list on `ship use`:
+
+```jsonc
+// ship.jsonc
+{
+  "harnesses": ["claude", "gemini", "codex"]
+}
+```
+
+Each harness gets its native format. The compiled files are gitignored build output — your `.ship/` profile is the source of truth.
+
+## Per-harness overrides
+
+When one harness needs a different setting (e.g. a specific `model`), declare it under `harness_settings`:
 
 ```jsonc
 {
-  "agent": {
-    "providers": ["claude", "gemini", "codex"]
+  "agent": { "id": "dev", "name": "Dev" },
+  "harness_settings": {
+    "gemini": { "model": "gemini-2.5-pro" }
   }
 }
 ```
 
-Each provider gets its native format. The compiled files are gitignored build output — your `.ship/` profile is the source of truth.
+This applies only to the matching harness file; other harnesses use the default.
 
 ## Next
 

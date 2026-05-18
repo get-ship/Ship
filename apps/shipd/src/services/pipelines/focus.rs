@@ -13,7 +13,7 @@ use crate::views::state::{
 };
 
 use super::shape::{
-    RunView, current_project_workspace_id, find_pipeline_file, providers_on_path, to_run_view,
+    RunView, current_project_workspace_id, find_pipeline_file, harnesses_on_path, to_run_view,
 };
 
 #[derive(Serialize)]
@@ -37,7 +37,7 @@ pub struct FocusCtx {
     pub other_for_pipeline: Vec<RunView>,
     /// True when any active runs exist (template's `ops_mode` trigger).
     pub ops_mode: bool,
-    pub providers: Vec<String>,
+    pub harnesses: Vec<String>,
 }
 
 /// Build the focus context. Returns `None` when no pipeline file or
@@ -106,6 +106,6 @@ pub fn build(name: &str, ship_dir: &Path) -> Option<FocusCtx> {
         active_for_pipeline,
         other_for_pipeline,
         ops_mode,
-        providers: providers_on_path(),
+        harnesses: harnesses_on_path(),
     })
 }

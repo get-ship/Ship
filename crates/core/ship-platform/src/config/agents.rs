@@ -10,7 +10,7 @@ use std::path::Path;
 /// into the platform's flat [`AgentProfile`] (runtime/UI view). This is the
 /// single bridge between the file-canonical schema and the platform's
 /// in-memory shape. Lossy by design — the nested type carries fields the
-/// platform UI does not surface (`provider_settings`, `apps`, `plugins`,
+/// platform UI does not surface (`harness_settings`, `apps`, `plugins`,
 /// `rules.inline`, etc.).
 fn project_canonical(src: &compiler::AgentProfile) -> AgentProfile {
     AgentProfile {
@@ -25,7 +25,7 @@ fn project_canonical(src: &compiler::AgentProfile) -> AgentProfile {
         rules: Vec::new(),
         hooks: Vec::new(),
         permissions: super::types::PermissionConfig::default(),
-        target_agents: src.agent.providers.clone(),
+        target_agents: Vec::new(),
     }
 }
 
@@ -128,7 +128,7 @@ pub(super) fn save_agents_config(ship_dir: &Path, agents: &[AgentProfile]) -> Re
 /// Render an agent profile to JSONC. When `path` already holds a canonical
 /// nested-shape file, the platform-managed fields are merged in and the
 /// remaining hand-authored content (`hooks`, `plugins`, `rules.inline`,
-/// `provider_settings`, `apps`, schema reference) is preserved. When the
+/// `harness_settings`, `apps`, schema reference) is preserved. When the
 /// file is missing or in legacy flat form, the platform-managed fields are
 /// emitted as a minimal canonical nested file.
 fn render_agent_file(path: &Path, flat: &AgentProfile) -> Result<String> {
@@ -168,7 +168,7 @@ fn render_agent_file(path: &Path, flat: &AgentProfile) -> Result<String> {
             );
         }
         if !flat.target_agents.is_empty() {
-            agent_block["providers"] = serde_json::Value::Array(
+            agent_block["harnesses"] = serde_json::Value::Array(
                 flat.target_agents
                     .iter()
                     .map(|s| serde_json::Value::String(s.clone()))
@@ -187,7 +187,7 @@ fn render_agent_file(path: &Path, flat: &AgentProfile) -> Result<String> {
 
 /// Overlay the platform-managed fields of a flat [`AgentProfile`] onto a
 /// canonical nested JSONC document. Fields the platform does not own
-/// (`hooks`, `plugins`, `rules.inline`, `provider_settings`, `apps`) are
+/// (`hooks`, `plugins`, `rules.inline`, `harness_settings`, `apps`) are
 /// left untouched.
 fn merge_flat_into_canonical(doc: &mut serde_json::Value, flat: &AgentProfile) {
     let Some(root) = doc.as_object_mut() else {
@@ -230,7 +230,7 @@ fn merge_flat_into_canonical(doc: &mut serde_json::Value, flat: &AgentProfile) {
         }
         if !flat.target_agents.is_empty() {
             a.insert(
-                "providers".to_string(),
+                "harnesses".to_string(),
                 serde_json::Value::Array(
                     flat.target_agents
                         .iter()

@@ -28,7 +28,7 @@
   ship-close                   sui-close                renamed per
                                                           convention
   ─────────────────────────────────────────────────────────────────────────────
-  slots: header, providers,    same                     ✓
+  slots: header, harnesses,    same                     ✓
     terms
   parts: dialog, form, submit  same                     ✓
   methods: show()/showModal()  exposed by controller    ✓ same names
@@ -54,7 +54,7 @@
     color: var(--foreground);
   }
 
-  .providers {
+  .harnesses {
     display: flex;
     flex-direction: column;
     gap: 8px;
@@ -166,8 +166,8 @@
       <sui-tab name="sign-up" label="Sign up"></sui-tab>
     </sui-tabs>
 
-    <div class="providers">
-      <slot name="providers" bind:this={providersSlot}></slot>
+    <div class="harnesses">
+      <slot name="harnesses" bind:this={providersSlot}></slot>
     </div>
 
     {#if hasProviders()}

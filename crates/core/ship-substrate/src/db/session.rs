@@ -10,7 +10,7 @@ use super::{block_on, open_db};
 /// `session_drain.rs` — order must match [`parse_session_row`].
 pub(super) const SESSION_COLS: &str = "id, workspace_id, branch, project_id, kind, \
     pipeline_run_id, chat_thread_id, status, started_at, ended_at, agent_id, \
-    primary_provider, goal, summary, updated_workspace_ids_json, tool_call_count, \
+    primary_harness, goal, summary, updated_workspace_ids_json, tool_call_count, \
     drained_at, last_activity_at, duration_secs, model, files_changed, lines_added, \
     lines_removed, tool_calls, gate_result, exit_reason, created_at, updated_at";
 
@@ -31,7 +31,7 @@ pub(super) fn parse_session_row(row: &sqlx::sqlite::SqliteRow) -> SessionDb {
         started_at: row.get(8),
         ended_at: row.get(9),
         agent_id: row.get(10),
-        primary_provider: row.get(11),
+        primary_harness: row.get(11),
         goal: row.get(12),
         summary: row.get(13),
         updated_workspace_ids,

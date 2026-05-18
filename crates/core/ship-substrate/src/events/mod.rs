@@ -52,7 +52,7 @@ pub mod executor;
 pub mod feedback;
 pub mod filter;
 pub mod global_kernel_router;
-pub mod job;
+pub mod pipeline;
 pub mod process;
 pub mod supervisor;
 pub mod kernel_lifecycle;

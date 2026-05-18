@@ -1,6 +1,6 @@
 //! End-to-end tests for the Ship registry pipeline.
 //!
-//! Covers the full path from dependency resolution through provider output.
+//! Covers the full path from dependency resolution through harness output.
 //! No real network calls — local bare git repos are used as fixtures.
 //!
 //! Test strategy:

@@ -12,7 +12,7 @@ use crate::services::dispatch_ports::JobContext;
 /// Materialize the job spec inside a prepared worktree.
 ///
 /// Priority:
-/// 1. `job.spec_content` — inline content from the `JobCreatedPayload` event.
+/// 1. `job.spec_content` — inline content from the `PipelineRunStartedPayload` event.
 ///    The preferred path: specs travel in events, not via shared disk.
 /// 2. Legacy fallback: read `job.spec_path` from the main checkout (manual
 ///    dispatch where a lead agent wrote the spec to disk).

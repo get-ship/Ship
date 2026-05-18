@@ -3,7 +3,7 @@
 //! One call returns everything `.ship/views/pipelines/index.html.j2`
 //! needs: definitions with aggregated stats, active + history runs
 //! (each pre-shaped as `RunView`), the status-pill row, the agents
-//! chip set, detected providers, and workspace id.
+//! chip set, detected harnesses, and workspace id.
 
 use serde::Serialize;
 use std::collections::BTreeSet;
@@ -17,7 +17,7 @@ use crate::views::state::{
 };
 
 use super::shape::{
-    RunView, Stats, StatusPill, current_project_workspace_id, providers_on_path, to_run_view,
+    RunView, Stats, StatusPill, current_project_workspace_id, harnesses_on_path, to_run_view,
 };
 
 #[derive(Serialize)]
@@ -29,7 +29,7 @@ pub struct SummariesCtx {
     pub active_runs: Vec<RunView>,
     pub history_runs: Vec<RunView>,
     pub status_pills: Vec<StatusPill>,
-    pub providers: Vec<String>,
+    pub harnesses: Vec<String>,
     pub workspace_id: Option<String>,
     /// Echo of the selected filter (for chip-state rendering).
     pub filter: Filter,
@@ -136,7 +136,7 @@ pub fn build(
         active_runs,
         history_runs,
         status_pills,
-        providers: providers_on_path(),
+        harnesses: harnesses_on_path(),
         workspace_id: current_project_workspace_id(),
         filter,
         agent_filter,

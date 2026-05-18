@@ -12,11 +12,11 @@ use std::sync::Arc;
 use std::time::Instant;
 use tokio::sync::Mutex;
 
-use ship_substrate::events::job::{
-    FanoutSpec, PipelineStep, StepObservedPayload, StepTrigger, StepType, StepVerdict, event_types,
+use ship_substrate::events::pipeline::{
+    FanoutSpec, PipelineStep, PipelineStepObservedPayload, StepTrigger, StepType, StepVerdict, event_types,
 };
 use ship_substrate::events::{EventEnvelope, KernelRouter};
-use crate::projections::job::JobRecord;
+use crate::projections::job::PipelineRun;
 use crate::services::dispatch_ports::{JobContext, LaunchProfile, StepInfo};
 use crate::services::orchestrator::emit::{
     emit_process_spawned, emit_step_dispatched_event, emit_step_failed, persist_and_route,
@@ -38,7 +38,7 @@ pub use crate::services::orchestrator::fanout_aggregate::{
 /// determine whether `dispatched_any` should be true).
 pub async fn dispatch_fanout_step(
     kernel: &Arc<Mutex<KernelRouter>>,
-    job: &JobRecord,
+    job: &PipelineRun,
     step: &PipelineStep,
     fanout: &FanoutSpec,
     step_idx: usize,
@@ -75,9 +75,9 @@ pub async fn dispatch_fanout_step(
         let lane_branch = format!("{}-{}-{}", job.branch, step.id, lane.id);
         let lane_wt = wt_root.join(&lane_slug);
 
-        let provider = lane.provider.clone()
-            .or_else(|| step.provider.clone())
-            .or_else(|| job.provider.clone());
+        let harness = lane.harness.clone()
+            .or_else(|| step.harness.clone())
+            .or_else(|| job.harness.clone());
         let model = lane.model.clone()
             .or_else(|| step.model.clone())
             .or_else(|| job.model.clone());
@@ -93,7 +93,7 @@ pub async fn dispatch_fanout_step(
             env: [("SHIP_ACTOR_ID".to_string(), lane_slug.clone())].into(),
             exit_tx: None,
             launch: LaunchProfile {
-                provider,
+                harness,
                 model,
                 persist_session: true,
                 ..Default::default()
@@ -237,7 +237,7 @@ pub async fn dispatch_fanout_step(
         };
 
         // Emit synthetic step.observed(Advance) for the parent fanout step.
-        let payload = StepObservedPayload {
+        let payload = PipelineStepObservedPayload {
             job_id: job_id.clone(),
             slug: parent_slug.clone(),
             step_index: step_idx,
@@ -255,7 +255,7 @@ pub async fn dispatch_fanout_step(
             start_sha: None,
             log_tail: None,
         };
-        if let Ok(env) = EventEnvelope::new(event_types::STEP_OBSERVED, &job_id, &payload) {
+        if let Ok(env) = EventEnvelope::new(event_types::PIPELINE_STEP_OBSERVED, &job_id, &payload) {
             let env = env.with_actor_id("service.job-dispatch");
             persist_and_route(&kernel_clone, env, &parent_slug, None).await;
         }
