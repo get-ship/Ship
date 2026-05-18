@@ -1,7 +1,7 @@
 // Dev-only HMR glue between `@ship/sui-runtime/dev`'s subscribeHmr and
 // shell's mount lifecycle.
 //
-// Bundler target shape (see runtime-assets/bundler.ts):
+// Bundler target shape (see runtime/bundler.ts):
 //   views/<name>/view      → one bundle per views/<name>/page.sui
 //   sui-components/<name>  → separate-bundle component
 //   sui-runtime, sui-dom, sui-components, ship-elements, …

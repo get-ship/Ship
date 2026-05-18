@@ -59,7 +59,7 @@
     },
     "packs": {
       "type": "array",
-      "description": "Heavy JS bundles the view needs at render time. Closed enum at v1: only `editor`, `terminal`, and `git` are accepted. The daemon's runtime manifest loader (apps/shipd/src/views/packs.rs) is the source of truth — unknown names are rejected at load time with an error naming the manifest path and offending value, and the lint rule `pkg-stale-pack-declaration` catches them at author time. Pack extensibility for third-party authors is a Phase B concern; do not introduce new pack names without updating this enum, the runtime KNOWN_PACKS constant, the pack→bundle map, and the bundler entry under `runtime-assets/bundler.ts`.",
+      "description": "Heavy JS bundles the view needs at render time. Closed enum at v1: only `editor`, `terminal`, and `git` are accepted. The daemon's runtime manifest loader (apps/shipd/src/views/packs.rs) is the source of truth — unknown names are rejected at load time with an error naming the manifest path and offending value, and the lint rule `pkg-stale-pack-declaration` catches them at author time. Pack extensibility for third-party authors is a Phase B concern; do not introduce new pack names without updating this enum, the runtime KNOWN_PACKS constant, the pack→bundle map, and the bundler entry under `runtime/bundler.ts`.",
       "items": {
         "type": "string",
         "enum": ["editor", "terminal", "git"],

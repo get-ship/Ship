@@ -14,7 +14,9 @@ import { fileURLToPath } from 'node:url'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const root = resolve(__dirname, '..')
-const repoRoot = resolve(root, '..', '..')
+// Package lives at packages/sui-runtime/example/sui-app/; scripts/precompile.mjs
+// → root is sui-app; repo root is four levels up.
+const repoRoot = resolve(root, '..', '..', '..', '..')
 const srcDir = resolve(root, 'src')
 
 const compilerPath = process.env.SUI_COMPILER ?? (() => {

@@ -5,7 +5,7 @@
 //! gitignored — the build emits them on demand and `dispatch.sh`
 //! bootstraps fresh worktrees by copying from the launching repo (or
 //! rebuilding when that's empty). All assets are produced by a single
-//! command: `bun runtime-assets/bundler.ts --all` (which fans out to
+//! command: `bun runtime/bundler.ts --all` (which fans out to
 //! sui-runtime, sui-dom, sui-sdk-client, sui-components + per-tag
 //! islands, views/*/view.js, and the lucide icon registry). The
 //! aggregated CEM was retired in favour of `@ship/sui-catalog`, which
@@ -22,7 +22,7 @@
 //! actionable.
 //!
 //! On a fresh clone without dispatch.sh, run
-//! `bun runtime-assets/bundler.ts --all` before `cargo build`.
+//! `bun runtime/bundler.ts --all` before `cargo build`.
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -50,8 +50,8 @@ const COARSE_SOURCE_ROOTS: &[&str] = &[
     "packages/ui-components/src",
     "apps/shell/src/components",
     "packages/ship-sdk-client/src",
-    "runtime-assets/bundler.ts",
-    "runtime-assets/generate-lucide-registry.mjs",
+    "runtime/bundler.ts",
+    "scripts/codegen/generate-lucide-registry.mjs",
 ];
 
 fn main() {
@@ -96,7 +96,7 @@ fn main() {
              On fresh worktrees, dispatch.sh bootstraps them automatically.\n\
              For a standalone cargo build, regenerate by running (in order):\n\n  \
              bun install --frozen-lockfile\n  \
-             bun runtime-assets/bundler.ts --all\n\n\
+             bun runtime/bundler.ts --all\n\n\
              then re-run `cargo build`."
         );
     }

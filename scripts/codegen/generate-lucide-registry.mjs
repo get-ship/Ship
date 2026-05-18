@@ -7,7 +7,7 @@
  * blank buttons.
  *
  * Output: crates/sui/ship-sui-server/assets/lucide-icons.json
- * Run via: `bun runtime-assets/generate-lucide-registry.mjs`.
+ * Run via: `bun scripts/codegen/generate-lucide-registry.mjs`.
  */
 import { readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'

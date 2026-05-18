@@ -41,7 +41,7 @@ impl Bundler {
     /// Like `start`, but uses `script` as the `bundler.ts` path instead of
     /// the copy in `~/.ship/runtime/`. Bun and the sui-compiler still come
     /// from the installed runtime. Used in dev mode so edits to the in-repo
-    /// `runtime-assets/bundler.ts` take effect on daemon restart without an
+    /// `runtime/bundler.ts` take effect on daemon restart without an
     /// extra `ship runtime install`.
     pub fn start_with_script(
         home: &ShipHome,
