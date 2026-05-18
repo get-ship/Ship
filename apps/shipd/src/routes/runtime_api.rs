@@ -643,7 +643,7 @@ mod tests {
         emit_process_spawned(&state, "procs-a", 1).await;
         emit_process_spawned(&state, "procs-b", 2).await;
 
-        let q = Query(ProcsQuery { slug: Some("procs-a".into()), limit: None });
+        let q = Query(ProcsQuery { slug: Some("procs-a".into()), kind: None, limit: None });
         let response = list_procs(State(state), q).await.into_response();
         let val = collect_body(response).await;
         let procs = val["data"]["procs"].as_array().unwrap();
@@ -659,11 +659,84 @@ mod tests {
         emit_process_spawned(&state, "all-a", 10).await;
         emit_process_spawned(&state, "all-b", 11).await;
 
-        let q = Query(ProcsQuery { slug: None, limit: None });
+        let q = Query(ProcsQuery { slug: None, kind: None, limit: None });
         let response = list_procs(State(state), q).await.into_response();
         let val = collect_body(response).await;
         let procs = val["data"]["procs"].as_array().unwrap();
         assert!(procs.len() >= 2);
+    }
+
+    async fn emit_process_spawned_with_kind(
+        state: &ApiState,
+        slug: &str,
+        pid: u32,
+        executor_kind: &str,
+    ) {
+        let payload = ship_substrate::events::process::ProcessSpawnedPayload {
+            slug: slug.to_string(),
+            job_id: format!("job-{slug}"),
+            pid: Some(pid),
+            cmd: "claude".to_string(),
+            argv: vec![],
+            env_keys: vec![],
+            cwd: "/tmp".to_string(),
+            executor_kind: executor_kind.to_string(),
+            step_id: None,
+        };
+        let env = EventEnvelope::new(
+            ship_substrate::events::process::event_types::PROCESS_SPAWNED,
+            slug,
+            &payload,
+        )
+        .unwrap()
+        .with_actor_id("test");
+        state.persist_and_route(&env).await.unwrap();
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn list_procs_filters_by_kind_agent_keeps_pty() {
+        let dir = TempDir::new().unwrap();
+        let state = make_api_state(&dir);
+        emit_process_spawned_with_kind(&state, "agent-pty", 30, "pty").await;
+        emit_process_spawned_with_kind(&state, "step-headless", 31, "process").await;
+
+        let q = Query(ProcsQuery { slug: None, kind: Some("agent".into()), limit: None });
+        let response = list_procs(State(state), q).await.into_response();
+        let val = collect_body(response).await;
+        let procs = val["data"]["procs"].as_array().unwrap();
+        let slugs: Vec<&str> = procs.iter().map(|p| p["slug"].as_str().unwrap()).collect();
+        assert!(slugs.contains(&"agent-pty"), "agent-pty should be present: {slugs:?}");
+        assert!(!slugs.contains(&"step-headless"), "step-headless should be filtered out: {slugs:?}");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn list_procs_filters_by_kind_pipeline_step_keeps_process() {
+        let dir = TempDir::new().unwrap();
+        let state = make_api_state(&dir);
+        emit_process_spawned_with_kind(&state, "agent-pty-2", 40, "pty").await;
+        emit_process_spawned_with_kind(&state, "step-headless-2", 41, "process").await;
+
+        let q = Query(ProcsQuery { slug: None, kind: Some("pipeline-step".into()), limit: None });
+        let response = list_procs(State(state), q).await.into_response();
+        let val = collect_body(response).await;
+        let procs = val["data"]["procs"].as_array().unwrap();
+        let slugs: Vec<&str> = procs.iter().map(|p| p["slug"].as_str().unwrap()).collect();
+        assert!(slugs.contains(&"step-headless-2"), "pipeline-step should match 'process' executor: {slugs:?}");
+        assert!(!slugs.contains(&"agent-pty-2"), "pty executor should be filtered out: {slugs:?}");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn list_procs_rejects_unknown_kind_with_400() {
+        let dir = TempDir::new().unwrap();
+        let state = make_api_state(&dir);
+        let q = Query(ProcsQuery { slug: None, kind: Some("widget".into()), limit: None });
+        let response = list_procs(State(state), q).await.into_response();
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+        let val = collect_body(response).await;
+        assert_eq!(val["ok"], false);
+        let msg = val["data"].as_str().unwrap_or("");
+        assert!(msg.contains("widget"), "error message should name bad value: {msg}");
+        assert!(msg.contains("agent"), "error message should list valid values: {msg}");
     }
 
     #[tokio::test(flavor = "multi_thread")]

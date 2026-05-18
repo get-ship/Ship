@@ -106,6 +106,18 @@ ship config list                  # list all set config values
 ship config path                  # show config file path
 ```
 
+## Processes
+
+```
+ship procs                        # list recent process records (newest first)
+ship procs --slug <slug>          # filter to a single job/session slug
+ship procs --kind <kind>          # filter by session kind: agent, pipeline-step, shell
+ship procs --limit <n>            # cap the number of rows (default 100)
+ship procs --json                 # emit records as JSON instead of a table
+ship tail <slug>                  # stream events for a slug in real time
+ship job cancel <slug>            # cancel a running pipeline run
+```
+
 ## Other Commands
 
 ```

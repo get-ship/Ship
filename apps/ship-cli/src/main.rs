@@ -20,7 +20,6 @@ mod http;
 mod init;
 mod install;
 mod job;
-mod jobs;
 mod procs;
 mod runtime_cmd;
 mod tail;
@@ -191,8 +190,7 @@ fn dispatch(command: Option<Commands>) -> Result<()> {
                     JobCommands::Cancel { slug, reason } => job::cancel(&slug, &reason),
                 }
             }
-            Commands::Jobs { json } => jobs::run(json),
-            Commands::Procs { slug, limit, json } => procs::run(slug.as_deref(), limit, json),
+            Commands::Procs { slug, kind, limit, json } => procs::run(slug.as_deref(), kind.as_deref(), limit, json),
             Commands::Tail { slug, namespace } => tail::run(&slug, namespace.as_deref()),
             Commands::Daemon { action } => {
                 use cli::DaemonCommands;

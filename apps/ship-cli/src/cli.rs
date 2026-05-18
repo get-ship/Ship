@@ -243,18 +243,14 @@ pub enum Commands {
         action: JobCommands,
     },
 
-    /// List current jobs with projected status, current step, and live process state
-    Jobs {
-        /// Emit jobs as JSON instead of a table
-        #[arg(long)]
-        json: bool,
-    },
-
     /// List process records (lifecycle view from the ProcessRecord projection)
     Procs {
         /// Filter to a single job slug
         #[arg(long)]
         slug: Option<String>,
+        /// Filter by session kind. Valid values: agent, pipeline-step, shell.
+        #[arg(long, value_name = "KIND")]
+        kind: Option<String>,
         /// Cap the number of rows returned (default 100)
         #[arg(long)]
         limit: Option<usize>,
