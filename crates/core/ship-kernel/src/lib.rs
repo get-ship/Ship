@@ -81,6 +81,16 @@ mod tests {
         }
     }
 
+    fn audience_config(ns: &str) -> ActorConfig {
+        ActorConfig {
+            namespace: ns.into(),
+            write_namespaces: vec![format!("{ns}.")],
+            read_namespaces: vec![format!("{ns}.")],
+            subscribe_namespaces: vec![format!("{ns}.")],
+            see_directed_events: true,
+        }
+    }
+
     // ── Tests ────────────────────────────────────────────────────────────
 
     #[test]
@@ -251,5 +261,84 @@ mod tests {
             .unwrap()
             .block_on(router.route(ev("bad.event")));
         assert!(result.is_err());
+    }
+
+    // ── see_directed_events audience semantics ───────────────────────────
+
+    #[tokio::test]
+    async fn directed_event_reaches_target_and_audience_subscriber() {
+        let sink = Arc::new(MockSink::new());
+        let mut router = KernelRouter::new(sink);
+        let mut mb_target = router.spawn_actor("target", test_config("mesh")).unwrap();
+        let mut mb_audience = router
+            .spawn_actor("audit", audience_config("mesh"))
+            .unwrap();
+
+        let mut event = ev("mesh.hello");
+        event.target_actor_id = Some("target".into());
+        router.route(event).await.unwrap();
+
+        assert!(
+            mb_target.try_recv().is_ok(),
+            "target must receive the directed event"
+        );
+        assert!(
+            mb_audience.try_recv().is_ok(),
+            "audience subscriber with see_directed_events must also receive it"
+        );
+    }
+
+    #[tokio::test]
+    async fn directed_event_skips_non_audience_subscriber() {
+        let sink = Arc::new(MockSink::new());
+        let mut router = KernelRouter::new(sink);
+        let mut mb_target = router.spawn_actor("target", test_config("mesh")).unwrap();
+        let mut mb_observer = router
+            .spawn_actor("observer", test_config("mesh"))
+            .unwrap();
+
+        let mut event = ev("mesh.hello");
+        event.target_actor_id = Some("target".into());
+        router.route(event).await.unwrap();
+
+        assert!(mb_target.try_recv().is_ok());
+        assert!(
+            mb_observer.try_recv().is_err(),
+            "subscriber WITHOUT see_directed_events must not see directed events (regression: chat actors must stay isolated)"
+        );
+    }
+
+    #[tokio::test]
+    async fn audience_subscriber_namespace_filter_still_applies() {
+        let sink = Arc::new(MockSink::new());
+        let mut router = KernelRouter::new(sink);
+        let mut mb_target = router.spawn_actor("target", test_config("mesh")).unwrap();
+        // Audience subscribes to `other.` — directed event on `mesh.`
+        // must NOT reach it.
+        let mut mb_audience = router
+            .spawn_actor("audit", audience_config("other"))
+            .unwrap();
+
+        let mut event = ev("mesh.hello");
+        event.target_actor_id = Some("target".into());
+        router.route(event).await.unwrap();
+
+        assert!(mb_target.try_recv().is_ok());
+        assert!(
+            mb_audience.try_recv().is_err(),
+            "audience must respect its namespace filter even with see_directed_events"
+        );
+    }
+
+    #[tokio::test]
+    async fn broadcast_event_reaches_audience_subscriber_same_as_others() {
+        // Sanity: see_directed_events doesn't change broadcast semantics.
+        let sink = Arc::new(MockSink::new());
+        let mut router = KernelRouter::new(sink);
+        let mut mb_a = router.spawn_actor("a", test_config("mesh")).unwrap();
+        let mut mb_b = router.spawn_actor("b", audience_config("mesh")).unwrap();
+        router.route(ev("mesh.hello")).await.unwrap();
+        assert!(mb_a.try_recv().is_ok());
+        assert!(mb_b.try_recv().is_ok());
     }
 }
