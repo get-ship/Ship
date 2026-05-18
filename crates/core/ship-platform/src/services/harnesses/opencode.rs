@@ -4,7 +4,9 @@ use std::collections::HashMap;
 use std::path::Path;
 
 use crate::services::dispatch_ports::{LaunchCommand, LaunchProfile};
-use crate::services::harness_adapter::{HarnessAdapter, HarnessCapabilities, HarnessEvent};
+use crate::services::harness_adapter::{
+    HarnessAdapter, HarnessCapabilities, HarnessEvent, ResumeError,
+};
 
 pub struct OpenCodeAdapter;
 
@@ -70,6 +72,41 @@ impl HarnessAdapter for OpenCodeAdapter {
     fn ready_pattern(&self) -> &str { "$ " }
     fn autostart_input(&self) -> &str { "go" }
     fn exit_command(&self) -> &str { "" }
+
+    fn build_resume_args(
+        &self,
+        slug: &str,
+        session_id: &str,
+        profile: &LaunchProfile,
+    ) -> Result<LaunchCommand, ResumeError> {
+        if session_id.is_empty() {
+            return Err(ResumeError::BadSession {
+                harness: self.id().to_string(),
+                reason: "empty session id".to_string(),
+            });
+        }
+        // `opencode run --session <SESSION_ID> [prompt]` targets the
+        // existing REST session UUID. Same shape as a fresh `opencode run`
+        // otherwise so prompt + model overrides flow through unchanged.
+        let mut args = vec![
+            "run".to_string(),
+            "--session".to_string(),
+            session_id.to_string(),
+        ];
+        if let Some(ref model) = profile.model {
+            args.push("--model".to_string());
+            args.push(model.clone());
+        }
+        let prompt = profile
+            .autostart_prompt
+            .clone()
+            .unwrap_or_else(|| "Continue.".to_string());
+        args.push(prompt);
+
+        let mut env = HashMap::new();
+        env.insert("SHIP_ACTOR_ID".to_string(), slug.to_string());
+        Ok(LaunchCommand { bin: "opencode".to_string(), args, env })
+    }
 
     fn parse_output(&self, _line: &str) -> Option<HarnessEvent> { None }
     fn extract_session_meta(&self, _work_dir: &Path) -> Option<serde_json::Value> { None }

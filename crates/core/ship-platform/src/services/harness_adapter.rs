@@ -7,6 +7,18 @@ use std::path::Path;
 
 use super::dispatch_ports::{LaunchCommand, LaunchProfile};
 
+/// Errors returned from `HarnessAdapter::build_resume_args`.
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+pub enum ResumeError {
+    /// The harness has no session-resume capability. Dispatch should reject
+    /// the resume request with a 400 rather than silently launching fresh.
+    #[error("harness '{harness}' does not support session resume")]
+    Unsupported { harness: String },
+    /// Session id was rejected (empty, malformed, or not recognized).
+    #[error("session id rejected by harness '{harness}': {reason}")]
+    BadSession { harness: String, reason: String },
+}
+
 /// Events extracted from harness process output.
 #[derive(Debug, Clone, PartialEq, serde::Serialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
@@ -98,6 +110,23 @@ pub trait HarnessAdapter: Send + Sync {
 
     /// Build the CLI command for a headless (non-interactive) session.
     fn build_headless(&self, slug: &str, profile: &LaunchProfile) -> LaunchCommand;
+
+    /// Build the launch command to resume an existing session by id.
+    ///
+    /// Adapters whose harness has no resume capability (per
+    /// `caps().session_resume`) leave the default in place and return
+    /// `Err(ResumeError::Unsupported)`. The dispatch path translates
+    /// that into a 400 rather than silently launching fresh.
+    fn build_resume_args(
+        &self,
+        _slug: &str,
+        _session_id: &str,
+        _profile: &LaunchProfile,
+    ) -> Result<LaunchCommand, ResumeError> {
+        Err(ResumeError::Unsupported {
+            harness: self.id().to_string(),
+        })
+    }
 
     /// Pattern that indicates the CLI is ready for input.
     fn ready_pattern(&self) -> &str;

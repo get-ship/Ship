@@ -48,6 +48,7 @@ async fn seed_job(state: &crate::routes::rest_api::ApiState, slug: &str) -> Stri
         headless: false,
         prompt: None,
         resume: false,
+        resume_session_id: None,
         baseline_sha: None,
     };
     let env = EventEnvelope::new(event_types::PIPELINE_RUN_STARTED, &job_id, &payload)

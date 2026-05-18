@@ -187,6 +187,7 @@ pub async fn run_pipeline(
         headless: req.auto,
         prompt: None,
         resume: false,
+        resume_session_id: None,
         baseline_sha: super::resolve_project_head_sha(),
     };
 

@@ -189,6 +189,7 @@ async fn seed_dispatched_job(
         headless: false,
         prompt: None,
         resume: false,
+        resume_session_id: None,
         baseline_sha: None,
     };
     let env = EventEnvelope::new(event_types::PIPELINE_RUN_STARTED, job_id, &created)
@@ -246,6 +247,7 @@ async fn seed_dispatched_job_with_pipeline(
         headless: false,
         prompt: None,
         resume: false,
+        resume_session_id: None,
         baseline_sha: None,
     };
     let env = EventEnvelope::new(event_types::PIPELINE_RUN_STARTED, job_id, &created)
@@ -330,6 +332,7 @@ async fn seed_failed_job(
         headless: false,
         prompt: None,
         resume: false,
+        resume_session_id: None,
         baseline_sha: None,
     };
     let env = EventEnvelope::new(event_types::PIPELINE_RUN_STARTED, job_id, &created)

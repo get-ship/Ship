@@ -114,6 +114,12 @@ pub async fn dispatch_job_internal(
             harness: launch_harness.clone(),
             model: launch_model,
             persist_session: true,
+            // On resume, propagate the harness-native session id resolved
+            // by the dispatch endpoint into the launch profile so the
+            // executor's `build_resume_args` can produce the right CLI
+            // shape. The endpoint already validated the adapter supports
+            // it (see `resolve_resume`); fresh launches leave this None.
+            resume_session: payload.resume_session_id.clone(),
             ..Default::default()
         },
         step: first_step_info,

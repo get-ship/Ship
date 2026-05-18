@@ -111,3 +111,16 @@ fn caps_match_declared() {
     assert!(c.hooks, "gemini: .gemini/settings.json hooks");
     assert!(!c.session_resume);
 }
+
+#[test]
+fn build_resume_args_returns_unsupported() {
+    use crate::services::harness_adapter::ResumeError;
+    let adapter = GeminiAdapter;
+    let err = adapter
+        .build_resume_args("my-job", "any-id", &default_profile())
+        .expect_err("gemini has no resume mechanism");
+    match err {
+        ResumeError::Unsupported { harness } => assert_eq!(harness, "gemini"),
+        other => panic!("expected Unsupported, got {other:?}"),
+    }
+}

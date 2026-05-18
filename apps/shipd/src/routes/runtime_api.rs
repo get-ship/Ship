@@ -382,6 +382,7 @@ mod tests {
             headless: false,
             prompt: None,
             resume: false,
+            resume_session_id: None,
             baseline_sha: None,
         };
         let envelope = ship_substrate::events::EventEnvelope::new(
@@ -421,6 +422,7 @@ mod tests {
             spec_content: None, step_specs: None, headless: false,
             prompt: None,
             resume: false,
+            resume_session_id: None,
             baseline_sha: None,
         };
         let env = EventEnvelope::new(event_types::PIPELINE_RUN_STARTED, &job_id, &payload)
