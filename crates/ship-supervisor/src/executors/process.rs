@@ -86,10 +86,37 @@ impl ProcessExecutor {
 /// Since 1.1.d, the actual child + PTY mechanics live in
 /// `ship_substrate::supervisor::ActorHandle`. This struct is just metadata
 /// the executor's `is_alive` / `stop` / event emission needs.
-struct ProcessState {
+pub(crate) struct ProcessState {
     slug: String,
     pid: Option<u32>,
-    handle: ActorHandle,
+    pub(crate) handle: ActorHandle,
+}
+
+impl ProcessState {
+    /// Downcast an opaque `ExecutorHandle.inner` to a substrate `ActorHandle`
+    /// when the inner is a `ProcessState`. Returns `None` for any other
+    /// executor's state — the WebSocket attach route uses this to map a
+    /// registered slug to its PTY-backed handle (or 409 when it isn't one).
+    pub(crate) fn actor_handle_from(
+        inner: &Box<dyn std::any::Any + Send + Sync>,
+    ) -> Option<ActorHandle> {
+        inner.downcast_ref::<ProcessState>().map(|s| s.handle.clone())
+    }
+
+    /// Wrap a substrate `ActorHandle` in an `ExecutorHandle` so tests can
+    /// push a PTY child into `ProcessRegistry` without driving the full
+    /// orchestrator. Mirrors what `spawn()` returns.
+    pub(crate) fn executor_handle_for_test(slug: &str, handle: ActorHandle) -> ExecutorHandle {
+        let pid = handle.pid();
+        ExecutorHandle {
+            pid,
+            inner: Box::new(ProcessState {
+                slug: slug.to_string(),
+                pid,
+                handle,
+            }),
+        }
+    }
 }
 
 #[async_trait]

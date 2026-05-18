@@ -40,6 +40,9 @@ pub mod actor_api;
 #[cfg(test)]
 mod actor_api_tests;
 pub mod actors_api;
+pub mod agent_sessions_attach;
+#[cfg(test)]
+mod agent_sessions_attach_tests;
 pub mod mcp_registry;
 pub mod agents_api;
 pub mod annotations_api;
@@ -668,6 +671,10 @@ pub enum Route {
     /// @route GET "/api/v1/agent_sessions/{slug}/log/stream"
     /// @auth scope ReadJobs
     StreamJobLog { slug: String },
+
+    /// @route GET "/api/v1/agent_sessions/{slug}/attach"
+    /// @auth scope WriteWorkspace
+    AttachAgentSession { slug: String },
 
     // ── Process projection / events polling / daemon status (slice 6) ────
 

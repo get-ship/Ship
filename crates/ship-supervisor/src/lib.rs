@@ -29,3 +29,14 @@ pub mod terminal_launcher;
 /// for stopping spawned processes conceptually lives, even though the
 /// implementation is in platform.
 pub use ship_platform::services::process_registry::graceful_shutdown;
+
+/// Returns the substrate `ActorHandle` for an `ExecutorHandle` registered
+/// by `ProcessExecutor` (PTY-backed). Tmux- and server-mode executors
+/// return `None`. Used by the agent-session WebSocket attach route.
+pub use executors::pty_actor_handle;
+
+/// Test-only helper: wrap a substrate `ActorHandle` in an `ExecutorHandle`
+/// shaped like `ProcessExecutor::spawn` would. Lets integration tests in
+/// downstream crates seed `ProcessRegistry` with a PTY child without
+/// driving the orchestrator end-to-end.
+pub use executors::pty_executor_handle_for_test;
