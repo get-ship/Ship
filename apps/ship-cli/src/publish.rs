@@ -4,8 +4,6 @@ use std::path::Path;
 use compiler::manifest::ShipManifest;
 use ship_platform::registry::hash::{ExportHashes, compute_export_hashes};
 
-use crate::config::{Credentials, DiskBackedConfig};
-
 /// Filter manifest exports to a single export path.
 ///
 /// Returns the filtered (skills, agents) vectors. Errors if the path is not
@@ -161,29 +159,8 @@ pub fn run_publish(
         return Ok(());
     }
 
-    let creds = Credentials::load();
-    let token = creds.account_token().ok_or_else(|| {
-        anyhow::anyhow!("Not authenticated. Run `ship login` first, then retry `ship publish`.")
-    })?;
-
     let payload = build_payload(&manifest, &hashes, tag, export_path);
-
-    let mut resp = ureq::post("https://api.getship.dev/api/v1/registry/publish")
-        .header("Authorization", &format!("Bearer {}", token))
-        .header("Content-Type", "application/json")
-        .send(payload.to_string().as_bytes())
-        .map_err(|e| anyhow::anyhow!("Publish request failed: {}", e))?;
-
-    let status = resp.status();
-    let body: String = resp.body_mut().read_to_string().unwrap_or_default();
-
-    if status != 200 && status != 201 {
-        let detail = serde_json::from_str::<serde_json::Value>(&body)
-            .ok()
-            .and_then(|v| v.get("error").and_then(|e| e.as_str()).map(String::from))
-            .unwrap_or(body);
-        anyhow::bail!("Publish failed ({}): {}", status, detail);
-    }
+    publish_via_daemon(&payload)?;
 
     let label = match export_path {
         Some(path) => format!(
@@ -193,6 +170,46 @@ pub fn run_publish(
         None => format!("{}@{}", module.name, module.version),
     };
     println!("Published {} ({})", label, hashes.combined);
+    Ok(())
+}
+
+/// POST the publish payload to the local daemon.
+///
+/// The daemon attaches the user's API key from
+/// `~/.ship/machine/credentials.jsonc` and forwards to the gateway.
+/// CLI never talks to the gateway directly.
+fn publish_via_daemon(payload: &serde_json::Value) -> Result<()> {
+    let home = ship_substrate::ShipHome::from_env();
+    let port: u16 = std::fs::read_to_string(home.daemon_file(ship_substrate::home::DaemonFile::Port))
+        .map_err(|_| anyhow::anyhow!("daemon is not running — start it with: ship daemon start"))?
+        .trim()
+        .parse()
+        .map_err(|_| anyhow::anyhow!("invalid daemon port file"))?;
+    let token = std::fs::read_to_string(home.daemon_file(ship_substrate::home::DaemonFile::Token))
+        .map_err(|_| anyhow::anyhow!("daemon token not readable — is the daemon running?"))?
+        .trim()
+        .to_string();
+
+    let url = format!("http://127.0.0.1:{port}/api/v1/registry/publish");
+    let resp = crate::http::daemon_client()
+        .post(&url)
+        .bearer_auth(&token)
+        .json(payload)
+        .timeout(std::time::Duration::from_secs(60))
+        .send()
+        .map_err(|e| anyhow::anyhow!("daemon request failed: {e}"))?;
+    crate::http::check_skew(resp.headers());
+
+    let status = resp.status();
+    let body_text = resp.text().unwrap_or_default();
+
+    if !status.is_success() {
+        let detail = serde_json::from_str::<serde_json::Value>(&body_text)
+            .ok()
+            .and_then(|v| v.get("error").and_then(|e| e.as_str()).map(String::from))
+            .unwrap_or(body_text);
+        anyhow::bail!("Publish failed ({}): {}", status, detail);
+    }
     Ok(())
 }
 

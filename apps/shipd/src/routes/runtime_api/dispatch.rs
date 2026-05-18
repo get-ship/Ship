@@ -15,7 +15,7 @@ use ship_substrate::events::EventEnvelope;
 use ship_substrate::events::pipeline::{PipelineRunStartedPayload, event_types};
 use serde::Deserialize;
 
-use crate::auth::{AuthContext, Scope, require_scope};
+use crate::auth::{AuthContext};
 use crate::routes::rest_api::{ApiState, MeshResponse};
 
 /// Wire shape for `POST /api/v1/agent_sessions/dispatch`. Agent-centric —
@@ -92,12 +92,9 @@ pub struct DispatchRequest {
 )]
 pub async fn dispatch_agent_session(
     State(state): State<ApiState>,
-    Extension(auth): Extension<AuthContext>,
+    Extension(_auth): Extension<AuthContext>,
     Json(req): Json<DispatchRequest>,
 ) -> impl IntoResponse {
-    if let Err(e) = require_scope(&auth, Scope::CreateJobs) {
-        return e;
-    }
 
     let workspace_label = req
         .workspace

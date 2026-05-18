@@ -17,7 +17,7 @@ use ship_substrate::events::EventEnvelope;
 use ship_substrate::events::pipeline::event_types;
 use serde::Deserialize;
 
-use crate::auth::{AuthContext, Scope, require_scope};
+use crate::auth::AuthContext;
 use crate::ship_runtime::ApiState;
 use crate::wire::MeshResponse;
 
@@ -62,12 +62,9 @@ pub(super) fn resolve_project_head_sha() -> Option<String> {
 )]
 pub async fn list_workspace_sessions(
     State(_state): State<ApiState>,
-    Extension(auth): Extension<AuthContext>,
+    Extension(_auth): Extension<AuthContext>,
     Query(params): Query<SessionsQuery>,
 ) -> impl IntoResponse {
-    if let Err(e) = require_scope(&auth, Scope::ReadWorkspace) {
-        return e.into_response();
-    }
     let workspace_id = params.workspace_id.as_deref();
     match ship_substrate::db::session::list_sessions_db(workspace_id, 100) {
         Ok(sessions) => {
@@ -130,11 +127,8 @@ pub async fn list_workspace_sessions(
 )]
 pub async fn list_sessions_across_projects(
     State(_state): State<ApiState>,
-    Extension(auth): Extension<AuthContext>,
+    Extension(_auth): Extension<AuthContext>,
 ) -> impl IntoResponse {
-    if let Err(e) = require_scope(&auth, Scope::ReadWorkspace) {
-        return e.into_response();
-    }
     let sessions = match ship_substrate::db::session_drain::list_active_sessions() {
         Ok(rows) => rows,
         Err(e) => {
@@ -247,7 +241,7 @@ mod tests {
             agent_id: None,
             workspace_id: None,
             session_id: None,
-            scopes: vec![Scope::Full],
+            scopes: vec![crate::auth::Scope::Full],
         })
     }
 

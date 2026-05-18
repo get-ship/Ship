@@ -24,7 +24,6 @@ use serde::Deserialize;
 use serde_json::json;
 use std::path::PathBuf;
 
-use crate::auth::{Scope, require_scope};
 use crate::routes::rest_api::{ApiState, MeshResponse};
 
 // ---- Shared helpers ----
@@ -210,9 +209,6 @@ pub async fn emit_event(
     auth: Option<axum::Extension<crate::auth::AuthContext>>,
     Json(body): Json<EmitEventReq>,
 ) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
-    if let Some(axum::Extension(ref ac)) = auth {
-        require_scope(ac, Scope::EmitEvents)?;
-    }
 
     if body.validate_domain.unwrap_or(false) {
         if body.event_type.is_empty() {
@@ -319,7 +315,7 @@ mod tests_inline {
             .unwrap_err();
         let (status, body) = response;
         assert_eq!(status, StatusCode::NOT_FOUND);
-        assert_eq!(body.0.ok, false);
+        assert!(!body.0.ok);
     }
 
     #[test]

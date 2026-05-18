@@ -1,11 +1,14 @@
 use anyhow::Result;
-use base64::Engine as _;
-use sha2::{Digest, Sha256};
 use std::io::{Read, Write};
 use std::net::TcpListener;
 use std::sync::mpsc;
 
 use crate::config::{Credentials, CredentialsAccount, DiskBackedConfig, ShipConfig};
+
+// PKCE state (verifier + challenge generation) moved to the daemon's
+// AccountService in `crates/core/ship-platform/src/account/service.rs`.
+// The CLI is the orchestrator + browser launcher; the daemon owns the
+// crypto and the resulting token.
 
 /// Open `url` in the system's default browser.
 fn open_browser(url: &str) {
@@ -19,21 +22,6 @@ fn open_browser(url: &str) {
         .spawn();
     #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
     eprintln!("Cannot open browser automatically. Visit: {}", url);
-}
-
-/// Generate a PKCE code_verifier (64 random bytes, base64url-encoded, no padding).
-/// Uses OS CSPRNG via getrandom.
-fn generate_code_verifier() -> String {
-    let mut buf = [0u8; 48]; // 48 bytes → 64 base64url chars
-    getrandom::getrandom(&mut buf).expect("OS RNG failed");
-    base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(buf)
-}
-
-/// Compute the S256 code_challenge from a verifier:
-/// `base64url_nopad(sha256(verifier.as_bytes()))`
-fn s256_challenge(verifier: &str) -> String {
-    let hash = Sha256::digest(verifier.as_bytes());
-    base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(hash)
 }
 
 /// Extract the `code` query parameter from an HTTP GET request line.
@@ -50,59 +38,49 @@ fn parse_code_from_request(request: &str) -> Option<String> {
     None
 }
 
-/// Exchange an authorization code + PKCE verifier for a token via POST.
-fn exchange_code_for_token(code: &str, verifier: &str, port: u16) -> Result<String> {
-    let body = serde_json::json!({
-        "code": code,
-        "verifier": verifier,
-        "redirect_uri": format!("http://127.0.0.1:{}/callback", port),
-    });
-
-    let resp: String = ureq::post("https://api.getship.dev/api/auth/token")
-        .header("Content-Type", "application/json")
-        .send(body.to_string().as_bytes())
-        .map_err(|e| anyhow::anyhow!("Token exchange failed: {}", e))?
-        .body_mut()
-        .read_to_string()
-        .map_err(|e| anyhow::anyhow!("Failed to read token response: {e}"))?;
-
-    let parsed: serde_json::Value = serde_json::from_str(&resp)
-        .map_err(|_| anyhow::anyhow!("Invalid response from auth server"))?;
-
-    if let Some(err) = parsed.get("error").and_then(|v| v.as_str()) {
-        anyhow::bail!("Auth failed: {}", err);
-    }
-
-    parsed
-        .get("token")
-        .and_then(|v| v.as_str())
-        .map(String::from)
-        .ok_or_else(|| anyhow::anyhow!("No token in auth response"))
-}
-
-/// `ship login` — PKCE S256 OAuth flow.
+/// `ship login` — PKCE S256 OAuth flow, daemon-mediated.
+///
+/// Flow:
+///   1. CLI binds an ephemeral callback port on 127.0.0.1
+///   2. CLI POSTs the redirect_uri to daemon `/api/v1/account/login`;
+///      daemon generates PKCE state, returns the browser URL
+///   3. CLI opens browser
+///   4. Browser → gateway OAuth → redirects to CLI's callback server with `code`
+///   5. CLI POSTs `{state_id, code}` to daemon `/api/v1/account/login/complete`;
+///      daemon does PKCE exchange + stores API key + binds daemon owner
+///   6. CLI fetches the key via `/api/v1/account/key` and dual-writes to
+///      legacy credentials.jsonc so publish/convert continue to work
+///      (transitional bridge; remove when task #79 lands)
 pub fn run_login() -> Result<()> {
+    let (daemon_port, daemon_token) = daemon_connect()?;
+
+    // Bind callback first so we know the redirect_uri to send the daemon.
     let listener = TcpListener::bind("127.0.0.1:0")
         .map_err(|e| anyhow::anyhow!("Could not start callback server: {}", e))?;
-    let port = listener.local_addr()?.port();
+    let cb_port = listener.local_addr()?.port();
+    let redirect_uri = format!("http://127.0.0.1:{}/callback", cb_port);
 
-    let verifier = generate_code_verifier();
-    let challenge = s256_challenge(&verifier);
-    let state = format!("{:x}", port as u64 ^ 0xdead_beef);
-
-    let auth_url = format!(
-        "https://api.getship.dev/auth/cli\
-        ?code_challenge={challenge}\
-        &code_challenge_method=S256\
-        &redirect_uri=http://127.0.0.1:{port}/callback\
-        &state={state}"
-    );
+    // 1. Start the login via daemon — daemon generates PKCE + returns
+    //    the browser URL pointing at the gateway with our redirect_uri.
+    let start: serde_json::Value = daemon_post_json(
+        daemon_port,
+        &daemon_token,
+        "/api/v1/account/login",
+        serde_json::json!({ "redirect_uri": redirect_uri }),
+    )?;
+    let state_id = start.get("state_id").and_then(|v| v.as_str())
+        .ok_or_else(|| anyhow::anyhow!("daemon /account/login: missing state_id"))?
+        .to_string();
+    let browser_url = start.get("browser_url").and_then(|v| v.as_str())
+        .ok_or_else(|| anyhow::anyhow!("daemon /account/login: missing browser_url"))?
+        .to_string();
 
     println!("Opening browser for login...");
-    println!("  {}", auth_url);
-    open_browser(&auth_url);
+    println!("  {}", browser_url);
+    open_browser(&browser_url);
     println!("\nWaiting for callback (60 s timeout)...");
 
+    // 2. Receive the auth code from the OAuth callback.
     let (tx, rx) = mpsc::channel::<String>();
     std::thread::spawn(move || {
         if let Ok((mut stream, _)) = listener.accept() {
@@ -128,52 +106,84 @@ pub fn run_login() -> Result<()> {
         Err(_) => anyhow::bail!("Login timed out (60 s). Run `ship login` to try again."),
     };
 
-    let token = exchange_code_for_token(&code, &verifier, port)?;
+    // 3. Daemon exchanges the code, stores the API key, binds the daemon
+    //    owner. Single round-trip; no Credentials write yet.
+    let complete: serde_json::Value = daemon_post_json(
+        daemon_port,
+        &daemon_token,
+        "/api/v1/account/login/complete",
+        serde_json::json!({ "state_id": state_id, "code": code }),
+    )?;
+    let user_id = complete.get("user_id").and_then(|v| v.as_str())
+        .ok_or_else(|| anyhow::anyhow!("daemon /account/login/complete: missing user_id"))?
+        .to_string();
 
+    // 4. Transitional bridge — fetch the API key back from the daemon
+    //    and write it into legacy credentials.jsonc so publish/convert
+    //    keep working until they too go via the daemon (task #79).
+    let key: serde_json::Value = daemon_get_json(
+        daemon_port,
+        &daemon_token,
+        "/api/v1/account/key",
+    )?;
+    let api_key = key.get("key").and_then(|v| v.as_str())
+        .ok_or_else(|| anyhow::anyhow!("daemon /account/key: missing key"))?
+        .to_string();
     let mut creds = Credentials::load();
-    creds.account = Some(CredentialsAccount { token: Some(token.clone()) });
+    creds.account = Some(CredentialsAccount { token: Some(api_key) });
     creds.save()?;
-    let creds_path = Credentials::path();
 
-    // Bind this machine's daemon to the logged-in user. Enables zero-click
-    // browser auth via server attestation (Studio → daemon) while ensuring
-    // a stolen JWT from a different user can't unlock this daemon.
-    match bind_daemon_owner(&token) {
-        Ok(Some(user_id)) => {
-            println!("Logged in as {user_id}. Daemon bound to this account.");
-        }
-        Ok(None) => {
-            println!("Logged in. (Could not fetch user profile to bind daemon — run `ship daemon status`.)");
-        }
-        Err(e) => {
-            println!("Logged in. (Daemon binding failed: {e})");
-        }
-    }
-    println!("Token stored in {} (0600).", creds_path.display());
+    println!("Logged in as {user_id}. Daemon stored token + bound to this account.");
+    println!("(transitional: credentials also mirrored to {} for publish/convert)", Credentials::path().display());
     Ok(())
 }
 
-/// Fetch the authenticated user's id and record it as the daemon owner in
-/// platform.db. The daemon checks this on every server-attest call.
-fn bind_daemon_owner(token: &str) -> Result<Option<String>> {
-    let mut resp = ureq::get("https://api.getship.dev/api/v1/me")
-        .header("Authorization", &format!("Bearer {token}"))
-        .call()
-        .map_err(|e| anyhow::anyhow!("fetch user profile: {e}"))?;
-    let body: serde_json::Value = resp
-        .body_mut()
-        .read_json()
-        .map_err(|e| anyhow::anyhow!("parse user profile: {e}"))?;
-    let user_id = body
-        .get("user")
-        .and_then(|u| u.get("id"))
-        .and_then(|v| v.as_str())
-        .map(String::from);
-    if let Some(ref id) = user_id {
-        shipd::auth::attest::set_daemon_owner(id)
-            .map_err(|e| anyhow::anyhow!("write daemon owner: {e}"))?;
+/// POST a JSON body to the daemon, parse the JSON response.
+fn daemon_post_json(
+    port: u16,
+    daemon_token: &str,
+    path: &str,
+    body: serde_json::Value,
+) -> Result<serde_json::Value> {
+    let url = format!("http://127.0.0.1:{port}{path}");
+    let resp = crate::http::daemon_client()
+        .post(&url)
+        .bearer_auth(daemon_token)
+        .json(&body)
+        .timeout(std::time::Duration::from_secs(120))
+        .send()
+        .map_err(|e| anyhow::anyhow!("daemon {path} POST failed: {e}"))?;
+    crate::http::check_skew(resp.headers());
+    let status = resp.status();
+    let body_text = resp.text().unwrap_or_default();
+    if !status.is_success() {
+        let parsed: serde_json::Value = serde_json::from_str(&body_text).unwrap_or_default();
+        let err_msg = parsed.get("error").and_then(|v| v.as_str()).unwrap_or(&body_text);
+        anyhow::bail!("daemon {path} returned {status}: {err_msg}");
     }
-    Ok(user_id)
+    serde_json::from_str(&body_text)
+        .map_err(|e| anyhow::anyhow!("daemon {path}: parse response: {e}"))
+}
+
+/// GET a JSON response from the daemon.
+fn daemon_get_json(port: u16, daemon_token: &str, path: &str) -> Result<serde_json::Value> {
+    let url = format!("http://127.0.0.1:{port}{path}");
+    let resp = crate::http::daemon_client()
+        .get(&url)
+        .bearer_auth(daemon_token)
+        .timeout(std::time::Duration::from_secs(5))
+        .send()
+        .map_err(|e| anyhow::anyhow!("daemon {path} GET failed: {e}"))?;
+    crate::http::check_skew(resp.headers());
+    let status = resp.status();
+    let body_text = resp.text().unwrap_or_default();
+    if !status.is_success() {
+        let parsed: serde_json::Value = serde_json::from_str(&body_text).unwrap_or_default();
+        let err_msg = parsed.get("error").and_then(|v| v.as_str()).unwrap_or(&body_text);
+        anyhow::bail!("daemon {path} returned {status}: {err_msg}");
+    }
+    serde_json::from_str(&body_text)
+        .map_err(|e| anyhow::anyhow!("daemon {path}: parse response: {e}"))
 }
 
 /// `ship auth pair <code>` — confirm a pairing code from Studio.
@@ -307,53 +317,77 @@ pub fn run_auth_revoke(token: Option<&str>, all: bool) -> Result<()> {
     Ok(())
 }
 
-/// `ship logout` — remove the stored auth token.
+/// `ship logout` — clear the daemon's stored token + the legacy CLI mirror.
 pub fn run_logout() -> Result<()> {
+    // Best-effort daemon clear — if daemon isn't running we still want
+    // to nuke the local mirror so the user isn't stuck in a half-state.
+    let mut daemon_cleared = false;
+    if let Ok((port, daemon_token)) = daemon_connect() {
+        let url = format!("http://127.0.0.1:{port}/api/v1/account/logout");
+        if let Ok(resp) = crate::http::daemon_client()
+            .post(&url)
+            .bearer_auth(&daemon_token)
+            .timeout(std::time::Duration::from_secs(5))
+            .send()
+        {
+            crate::http::check_skew(resp.headers());
+            daemon_cleared = resp.status().is_success();
+        }
+    }
+
     let mut creds = Credentials::load();
-    if creds.account_token().is_none() {
+    let had_legacy = creds.account_token().is_some();
+    if had_legacy {
+        creds.account = None;
+        creds.save()?;
+    }
+
+    if !daemon_cleared && !had_legacy {
         println!("Not logged in.");
         return Ok(());
-    }
-    creds.account = None;
-    creds.save()?;
-    // Clear the daemon-owner binding so the next ship login can bind fresh.
-    if let Some(prior) = shipd::auth::attest::daemon_owner() {
-        let payload = ship_substrate::events::types::DaemonOwnerUnbound {};
-        if let Ok(envelope) = ship_substrate::events::EventEnvelope::new(
-            ship_substrate::events::types::event_types::DAEMON_OWNER_UNBOUND,
-            &prior,
-            &payload,
-        )
-            && let Ok(store) = ship_substrate::persistence::event_store::SqliteEventStore::new() {
-                let _ = ship_substrate::persistence::event_store::EventStore::append(&store, &envelope);
-            }
     }
     println!("Logged out.");
     Ok(())
 }
 
-/// `ship whoami` — print identity and auth token status.
-/// Tries to fetch user info from getship.dev; falls back to local config.
+/// `ship whoami` — query the daemon for current account state.
 pub fn run_whoami() -> Result<()> {
-    let creds = Credentials::load();
-    match creds.account_token() {
-        Some(token) => {
-            // Try the remote API first.
-            match fetch_me(token) {
-                Ok(info) => println!("{}", info),
-                Err(_) => {
-                    // API unreachable — show local identity.
-                    print_local_identity();
-                    println!("authenticated (offline — could not reach API)");
-                }
+    match daemon_connect() {
+        Ok((port, daemon_token)) => match daemon_get_json(port, &daemon_token, "/api/v1/account/state") {
+            Ok(state) => print_account_state(&state),
+            Err(_) => {
+                // Daemon unreachable — show local identity at least.
+                print_local_identity();
+                println!("(daemon unreachable — could not fetch account state)");
             }
+        },
+        Err(_) => {
+            print_local_identity();
+            println!("Not logged in. (daemon not running; run `ship daemon start` to enable account ops)");
         }
-        None => {
+    }
+    Ok(())
+}
+
+fn print_account_state(state: &serde_json::Value) {
+    let kind = state.get("state").and_then(|v| v.as_str()).unwrap_or("logged_out");
+    match kind {
+        "logged_in" => {
+            print_local_identity();
+            if let Some(uid) = state.get("user_id").and_then(|v| v.as_str()) {
+                println!("user_id: {uid}");
+            }
+            println!("authenticated");
+        }
+        "pending" => {
+            print_local_identity();
+            println!("login in progress — return to the browser tab and complete it");
+        }
+        _ => {
             print_local_identity();
             println!("Not logged in.");
         }
     }
-    Ok(())
 }
 
 fn print_local_identity() {
@@ -369,35 +403,6 @@ fn print_local_identity() {
         }
         _ => println!("(no identity — run: ship init --global)"),
     }
-}
-
-/// Fetch /api/v1/me and return a display string.
-fn fetch_me(token: &str) -> Result<String> {
-    let mut resp = ureq::get("https://api.getship.dev/api/v1/me")
-        .header("Authorization", &format!("Bearer {}", token))
-        .call()
-        .map_err(|e| anyhow::anyhow!("API request failed: {}", e))?;
-
-    let body: String = resp
-        .body_mut()
-        .read_to_string()
-        .map_err(|e| anyhow::anyhow!("Failed to read response: {e}"))?;
-
-    let parsed: serde_json::Value =
-        serde_json::from_str(&body).map_err(|_| anyhow::anyhow!("Invalid response"))?;
-
-    let name = parsed
-        .get("name")
-        .and_then(|v| v.as_str())
-        .unwrap_or("(unknown)");
-    let email = parsed.get("email").and_then(|v| v.as_str());
-
-    let mut out = name.to_string();
-    if let Some(e) = email {
-        out.push_str(&format!("\n{}", e));
-    }
-    out.push_str("\nauthenticated");
-    Ok(out)
 }
 
 #[cfg(test)]
@@ -416,44 +421,6 @@ mod tests {
         assert_eq!(parse_code_from_request(req), None);
     }
 
-    #[test]
-    fn generate_code_verifier_length_and_charset() {
-        let v = generate_code_verifier();
-        // 48 random bytes → 64 base64url chars (no padding)
-        assert_eq!(v.len(), 64);
-        assert!(
-            v.chars()
-                .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_'),
-            "verifier contains invalid chars: {v}"
-        );
-    }
-
-    #[test]
-    fn generate_code_verifier_is_not_deterministic() {
-        let v1 = generate_code_verifier();
-        let v2 = generate_code_verifier();
-        assert_ne!(v1, v2, "two verifiers should not be identical");
-    }
-
-    #[test]
-    fn s256_challenge_is_base64url_sha256() {
-        // Test vector: SHA256("abc") = ba7816bf8f01cfea414140de5dae2ec73b00361bbef0469546108688dbfd254
-        // base64url_nopad of that hash = ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0=
-        // without padding: ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0
-        // (standard base64, then converted to URL-safe)
-        let c = s256_challenge("abc");
-        // Must be 43 chars (256-bit hash → 32 bytes → 43 base64url chars without padding)
-        assert_eq!(c.len(), 43);
-        assert!(
-            c.chars()
-                .all(|ch| ch.is_ascii_alphanumeric() || ch == '-' || ch == '_')
-        );
-    }
-
-    #[test]
-    fn s256_challenge_differs_from_verifier() {
-        let v = generate_code_verifier();
-        let c = s256_challenge(&v);
-        assert_ne!(c, v);
-    }
+    // PKCE verifier/challenge tests moved with the implementation —
+    // they live alongside AccountService in ship-platform now.
 }

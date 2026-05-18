@@ -54,6 +54,11 @@ pub const SESSION_TTL: Duration = Duration::from_secs(30 * 24 * 60 * 60); // 30 
 /// on localhost from exhausting memory or saturating the code namespace.
 pub const MAX_PENDING: usize = 100;
 
+/// Maximum failed confirm attempts per code before the pairing is locked out.
+/// Bounds how much a local attacker (no daemon token) can grind the 6-char
+/// code space before the user notices or the code expires.
+pub const MAX_CONFIRM_ATTEMPTS: u32 = 5;
+
 #[derive(Debug, Clone)]
 pub struct PendingPairing {
     pub code: String,
@@ -62,6 +67,12 @@ pub struct PendingPairing {
     pub created_at: Instant,
     /// Set to Some(session_token) once the user confirms via CLI.
     pub approved_session: Option<String>,
+    /// Total confirm() calls observed while this pairing was active —
+    /// regardless of which code was supplied. Each pending pairing acts as a
+    /// budget: once any one exceeds `MAX_CONFIRM_ATTEMPTS`, the registry
+    /// refuses further confirms until that pairing expires. Bounds how many
+    /// codes an attacker on localhost can grind during a single pairing.
+    pub attempt_count: u32,
 }
 
 impl PendingPairing {
@@ -74,6 +85,12 @@ impl PendingPairing {
     }
 }
 
+/// Per-IP token-bucket cap on `pair_init` calls. The global `MAX_PENDING`
+/// is a back-stop; this is the front-stop that bounds how fast any one source
+/// can grind the code namespace.
+pub const INIT_RATE_PER_MINUTE: usize = 5;
+pub const INIT_RATE_WINDOW: Duration = Duration::from_secs(60);
+
 /// Registry of active pairing requests. Keyed by `claim_token` for status lookup;
 /// a secondary index on `code` lets confirm find the pending pairing.
 #[derive(Default)]
@@ -81,6 +98,9 @@ pub struct PairingRegistry {
     by_claim: HashMap<String, PendingPairing>,
     /// code → claim_token (for confirm lookup)
     code_to_claim: HashMap<String, String>,
+    /// per-source (IP, etc.) sliding window of `init` timestamps for rate
+    /// limiting. Sources whose recent calls all aged out are dropped on `gc`.
+    init_attempts: HashMap<String, Vec<Instant>>,
 }
 
 impl PairingRegistry {
@@ -101,24 +121,41 @@ impl PairingRegistry {
                 self.code_to_claim.remove(&p.code);
             }
         }
+        // Drop per-source rate-limit buckets that have aged out completely.
+        self.init_attempts.retain(|_, ts| {
+            ts.retain(|t| t.elapsed() < INIT_RATE_WINDOW);
+            !ts.is_empty()
+        });
     }
 
     /// Create a new pending pairing and return it.
     ///
-    /// Returns an error if too many pairings are in flight (rate limit).
-    pub fn init(&mut self, label: Option<String>) -> Result<PendingPairing, &'static str> {
+    /// Returns an error if the per-source rate limit is exceeded or if too
+    /// many pairings are in flight globally. `source` is the caller's IP (or
+    /// an equivalent identifier — empty string disables per-source limiting,
+    /// reserved for tests).
+    pub fn init(&mut self, label: Option<String>, source: &str) -> Result<PendingPairing, InitError> {
         self.gc();
-        if self.by_claim.len() >= MAX_PENDING {
-            return Err("too many pending pairings");
+        if !source.is_empty() {
+            let bucket = self.init_attempts.entry(source.to_string()).or_default();
+            bucket.retain(|t| t.elapsed() < INIT_RATE_WINDOW);
+            if bucket.len() >= INIT_RATE_PER_MINUTE {
+                return Err(InitError::RateLimited);
+            }
+            bucket.push(Instant::now());
         }
-        let code = generate_code().map_err(|_| "entropy error generating code")?;
-        let claim_token = generate_claim_token().map_err(|_| "entropy error generating claim token")?;
+        if self.by_claim.len() >= MAX_PENDING {
+            return Err(InitError::TooManyPending);
+        }
+        let code = generate_code().map_err(|_| InitError::Entropy)?;
+        let claim_token = generate_claim_token().map_err(|_| InitError::Entropy)?;
         let pairing = PendingPairing {
             code: code.clone(),
             claim_token: claim_token.clone(),
             client_label: label,
             created_at: Instant::now(),
             approved_session: None,
+            attempt_count: 0,
         };
         self.code_to_claim.insert(code, claim_token.clone());
         self.by_claim.insert(claim_token, pairing.clone());
@@ -127,8 +164,23 @@ impl PairingRegistry {
 
     /// Confirm a pairing by its code. Attaches the issued session token.
     /// Returns the claim_token so the issuer can also record the session.
+    ///
+    /// Every confirm() call — match or miss — bumps `attempt_count` on each
+    /// active pending pairing. If any pairing has accumulated
+    /// `MAX_CONFIRM_ATTEMPTS` attempts, the registry refuses further confirms
+    /// until that pairing expires (`TooManyAttempts`). Bounds code-grinding.
     pub fn confirm(&mut self, code: &str, session_token: String) -> Result<String, ConfirmError> {
         self.gc();
+        if self
+            .by_claim
+            .values()
+            .any(|p| p.attempt_count >= MAX_CONFIRM_ATTEMPTS)
+        {
+            return Err(ConfirmError::TooManyAttempts);
+        }
+        for p in self.by_claim.values_mut() {
+            p.attempt_count = p.attempt_count.saturating_add(1);
+        }
         let claim_token = self
             .code_to_claim
             .get(code)
@@ -175,10 +227,31 @@ impl PairingRegistry {
 }
 
 #[derive(Debug, PartialEq)]
+pub enum InitError {
+    /// Per-source rate limit hit (429).
+    RateLimited,
+    /// Global MAX_PENDING ceiling hit (429).
+    TooManyPending,
+    /// OS entropy failure (500).
+    Entropy,
+}
+
+impl InitError {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::RateLimited => "too many init attempts from this source",
+            Self::TooManyPending => "too many pending pairings",
+            Self::Entropy => "entropy error generating pairing",
+        }
+    }
+}
+
+#[derive(Debug, PartialEq)]
 pub enum ConfirmError {
     UnknownCode,
     CodeExpired,
     AlreadyApproved,
+    TooManyAttempts,
 }
 
 #[derive(Debug, PartialEq)]
@@ -230,8 +303,8 @@ mod tests {
     #[test]
     fn init_produces_unique_codes_and_claims() {
         let mut reg = PairingRegistry::new();
-        let a = reg.init(None).unwrap();
-        let b = reg.init(None).unwrap();
+        let a = reg.init(None, "").unwrap();
+        let b = reg.init(None, "").unwrap();
         assert_ne!(a.code, b.code);
         assert_ne!(a.claim_token, b.claim_token);
     }
@@ -246,7 +319,7 @@ mod tests {
     #[test]
     fn confirm_then_claim_roundtrip() {
         let mut reg = PairingRegistry::new();
-        let pairing = reg.init(Some("studio".to_string())).unwrap();
+        let pairing = reg.init(Some("studio".to_string()), "").unwrap();
 
         assert_eq!(reg.claim(&pairing.claim_token), ClaimResult::Pending);
 
@@ -266,7 +339,7 @@ mod tests {
     #[test]
     fn confirm_twice_rejects_second() {
         let mut reg = PairingRegistry::new();
-        let p = reg.init(None).unwrap();
+        let p = reg.init(None, "").unwrap();
         reg.confirm(&p.code, "tok1".to_string()).unwrap();
         // Code was consumed; second confirm gets UnknownCode.
         let err = reg.confirm(&p.code, "tok2".to_string()).unwrap_err();
@@ -298,12 +371,37 @@ mod tests {
     }
 
     #[test]
+    fn confirm_rejects_after_max_attempts() {
+        let mut reg = PairingRegistry::new();
+        let p = reg.init(None, "").unwrap();
+        // Burn the budget with wrong-code guesses.
+        for _ in 0..MAX_CONFIRM_ATTEMPTS {
+            let _ = reg.confirm("XXX-XXX", "tok".to_string());
+        }
+        // Even the correct code is now locked out until the pairing expires.
+        let err = reg.confirm(&p.code, "tok".to_string()).unwrap_err();
+        assert_eq!(err, ConfirmError::TooManyAttempts);
+    }
+
+    #[test]
     fn init_rejects_after_max_pending() {
         let mut reg = PairingRegistry::new();
         for _ in 0..MAX_PENDING {
-            reg.init(None).unwrap();
+            reg.init(None, "").unwrap();
         }
-        let err = reg.init(None).unwrap_err();
-        assert!(err.contains("too many"), "expected rate-limit error, got: {err}");
+        let err = reg.init(None, "").unwrap_err();
+        assert_eq!(err, InitError::TooManyPending);
+    }
+
+    #[test]
+    fn init_rate_limits_per_source() {
+        let mut reg = PairingRegistry::new();
+        for _ in 0..INIT_RATE_PER_MINUTE {
+            reg.init(None, "127.0.0.1").unwrap();
+        }
+        let err = reg.init(None, "127.0.0.1").unwrap_err();
+        assert_eq!(err, InitError::RateLimited);
+        // A different source still has its own budget.
+        reg.init(None, "10.0.0.1").unwrap();
     }
 }

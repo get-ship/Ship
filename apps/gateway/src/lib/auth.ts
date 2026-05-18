@@ -1,7 +1,7 @@
 import { getAuthDb } from './d1.js'
-import { sendEmail, resetPasswordEmail, verifyEmailEmail } from './email.js'
+import { sendEmail, resetPasswordEmail, verifyEmailEmail, deleteAccountEmail } from './email.js'
 
-// Origins permitted to call /api/auth/* and receive Set-Cookie. The marketing
+// Origins permitted to call /v1/auth/* and receive Set-Cookie. The marketing
 // site's local-dev origin is included so Astro dev can exercise the real
 // signin flow against a locally-running or staging gateway.
 const TRUSTED_ORIGINS = [
@@ -13,7 +13,7 @@ const TRUSTED_ORIGINS = [
 
 // Single source of truth for plan IDs we mirror onto user.plan. Better Auth's
 // Stripe plugin owns the `subscription` table; this column is the fast-read
-// denormalization that daemon-attest and /api/me return.
+// denormalization that daemon-attest and /v1/me return.
 type Plan = 'local' | 'pro'
 
 function planFromSubscriptionStatus(status: string): Plan {
@@ -70,7 +70,7 @@ async function makeAuth(env: Env) {
 
   const plugins: ReturnType<typeof stripePlugin>[] = []
   if (!stripeClient) {
-    console.warn('[auth] STRIPE_SECRET_KEY not set — billing plugin disabled. /api/auth/subscription/* will 404.')
+    console.warn('[auth] STRIPE_SECRET_KEY not set — billing plugin disabled. /v1/auth/subscription/* will 404.')
   } else if (!env.STRIPE_WEBHOOK_SECRET) {
     console.warn('[auth] STRIPE_WEBHOOK_SECRET not set — billing plugin disabled (webhook verification would fail).')
   } else if (!env.STRIPE_PRICE_PRO) {
@@ -123,10 +123,28 @@ async function makeAuth(env: Env) {
 
   return betterAuth({
     ...(database ? { database } : {}),
+    // Mount under /v1/auth/* — the host is already api.getship.dev, so the
+    // legacy /api/auth/* prefix was redundant. All gateway paths now live
+    // under /v1/* uniformly.
+    basePath: '/v1/auth',
     trustedOrigins: TRUSTED_ORIGINS,
+    // Block client-side API key management — the daemon issues keys via the
+    // server-side `auth.api.createApiKey` helper, never via the HTTP route.
+    // Leaving the routes open let any session holder mint themselves a long-
+    // lived bearer token (audit §7.3).
+    disabledPaths: [
+      '/api-key/create',
+      '/api-key/update',
+      '/api-key/delete',
+      '/api-key/list',
+      '/api-key/get',
+    ],
     emailAndPassword: {
       enabled: true,
-      requireEmailVerification: false,
+      // OAuth providers (GitHub/Google/Slack) are pre-verified. Password
+      // signups must verify their email before /v1/auth/sign-in/email
+      // returns a session — closes the trivial account-spam vector.
+      requireEmailVerification: true,
       // sendResetPassword is fired by Better Auth's /forget-password endpoint.
       // The marketing site's /forgot-password page calls authClient.forgetPassword
       // which hits that endpoint and triggers this hook.
@@ -146,7 +164,12 @@ async function makeAuth(env: Env) {
       github: {
         clientId: env.GITHUB_CLIENT_ID ?? '',
         clientSecret: env.GITHUB_CLIENT_SECRET ?? '',
-        scope: ['repo', 'user:email'],
+        // Signup needs identity only. The `repo` scope (read+write to all
+        // private repos) is way out of proportion to "create an account".
+        // If a downstream feature ever needs private-repo access, request
+        // it incrementally at that feature's call site via Better Auth's
+        // scope-upgrade flow — don't widen the signup default.
+        scope: ['read:user', 'user:email'],
       },
       google: {
         clientId: env.GOOGLE_CLIENT_ID ?? '',
@@ -178,6 +201,41 @@ async function makeAuth(env: Env) {
           required: false,
           defaultValue: 'local',
           input: false,
+        },
+      },
+      // Account deletion. The endpoint stays disabled unless explicitly turned
+      // on — the site's /account page calls authClient.deleteUser() and used
+      // to silently 404 (BA returns NOT_FOUND when this is off), leaving the
+      // user signed out but every row intact. Two-step confirm via email:
+      // first call returns "Verification email sent", the link in the email
+      // hits /v1/auth/delete-user/callback?token=... which actually deletes.
+      deleteUser: {
+        enabled: true,
+        sendDeleteAccountVerification: async ({ user, url }) => {
+          await sendEmail(env, deleteAccountEmail({ to: user.email, url }))
+        },
+        // beforeDelete fires inside the callback handler after token verify
+        // and BEFORE the user row + dependents are removed. This is the
+        // narrow window where stripeCustomerId is still readable. Stripe
+        // deletion is irreversible — we only reach this point because the
+        // user clicked the verification link in their inbox.
+        beforeDelete: async (user) => {
+          if (!stripeClient) return
+          const customerId = (user as { stripeCustomerId?: string | null }).stripeCustomerId
+          if (!customerId) return
+          try {
+            await stripeClient.customers.del(customerId)
+          } catch (err) {
+            // Don't block the deletion on a Stripe failure (customer may
+            // already be gone, or Stripe may be down). Log and let the row
+            // deletion proceed — orphaning a Stripe customer is recoverable
+            // by hand; blocking the user from deleting their account isn't.
+            console.error('[auth:deleteUser] stripe customer delete failed', {
+              userId: user.id,
+              customerId,
+              err: err instanceof Error ? err.message : String(err),
+            })
+          }
         },
       },
     },

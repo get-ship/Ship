@@ -150,7 +150,7 @@ fn nearest_event(name: &str) -> Option<String> {
     for &known in KNOWN_EVENTS {
         let d = levenshtein(&name_l, known);
         let max_d = (known.len().max(name_l.len()) / 3).max(1);
-        if d <= max_d && best.map_or(true, |(b, _)| d < b) {
+        if d <= max_d && best.is_none_or(|(b, _)| d < b) {
             best = Some((d, known));
         }
     }

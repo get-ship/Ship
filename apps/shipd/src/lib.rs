@@ -348,6 +348,11 @@ pub async fn run_network(
     if !dev {
         auth::hydrate_sessions(&session_registry).await;
     }
+    // Background sweep — evict expired sessions from the in-memory
+    // registry every 5 minutes and emit `auth.session.expired` for each.
+    // The HTTP lookup path already filters expired rows; this is the
+    // audit-event source.
+    auth::spawn_session_sweeper(session_registry.clone());
     let pairing_registry = auth::pairing::new_shared();
     let attestation_verifier = auth::attest::AttestationVerifier::new();
     let app = router::build_router(
@@ -462,7 +467,10 @@ pub async fn run_network(
     // subsequent starts; suppressible via `SHIP_NO_BROWSER=1`.
     daemon::first_run::maybe_open_setup(&global_dir, port);
 
-    axum::serve(listener, app)
+    axum::serve(
+        listener,
+        app.into_make_service_with_connect_info::<std::net::SocketAddr>(),
+    )
         .with_graceful_shutdown(async move { ct.cancelled_owned().await })
         .await.map_err(|e| anyhow!("server error: {e}"))?;
 

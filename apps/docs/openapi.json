@@ -97,6 +97,205 @@
         ]
       }
     },
+    "/api/v1/account/key": {
+      "get": {
+        "tags": [
+          "account"
+        ],
+        "summary": "Get Account Key",
+        "operationId": "getAccountKey",
+        "responses": {
+          "200": {
+            "description": "Stored API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetKeyResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not logged in"
+          },
+          "403": {
+            "description": "Account ops require user presence"
+          }
+        },
+        "description": "Transitional bridge — returns the stored API key so the CLI can\ndual-write to its legacy `credentials.jsonc` for `ship publish` and\n`ship convert <getship-url>` which still call the gateway directly.\nREMOVE once those call sites route through the daemon.",
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "curl",
+            "source": "curl -X GET http://localhost:9315/api/v1/account/key \\\n  -H \"Authorization: Bearer $SHIP_TOKEN\""
+          },
+          {
+            "lang": "javascript",
+            "label": "fetch",
+            "source": "const res = await fetch(\"http://localhost:9315/api/v1/account/key\", {\n  method: \"GET\",\n  headers: {\n    \"Authorization\": `Bearer ${process.env.SHIP_TOKEN}`,\n  },\n});\nconst data = await res.json();"
+          }
+        ]
+      }
+    },
+    "/api/v1/account/login": {
+      "post": {
+        "tags": [
+          "account"
+        ],
+        "operationId": "startAccountLogin",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StartLoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Login flow started",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StartLoginResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid redirect_uri"
+          },
+          "403": {
+            "description": "Account ops require user presence"
+          }
+        },
+        "summary": "Start Account Login",
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "curl",
+            "source": "curl -X POST http://localhost:9315/api/v1/account/login \\\n  -H \"Authorization: Bearer $SHIP_TOKEN\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\"redirect_uri\":\"http://127.0.0.1:54321/callback\"}'"
+          },
+          {
+            "lang": "javascript",
+            "label": "fetch",
+            "source": "const res = await fetch(\"http://localhost:9315/api/v1/account/login\", {\n  method: \"POST\",\n  headers: {\n    \"Authorization\": `Bearer ${process.env.SHIP_TOKEN}`,\n    \"Content-Type\": \"application/json\",\n  },\n  body: JSON.stringify({\n    \"redirect_uri\": \"http://127.0.0.1:54321/callback\"\n  }),\n});\nconst data = await res.json();"
+          }
+        ]
+      }
+    },
+    "/api/v1/account/login/complete": {
+      "post": {
+        "tags": [
+          "account"
+        ],
+        "operationId": "completeAccountLogin",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompleteLoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Login complete; token stored",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompleteLoginResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid or expired state, or PKCE failed at gateway"
+          },
+          "403": {
+            "description": "Account ops require user presence"
+          },
+          "502": {
+            "description": "Gateway unreachable or rejected exchange"
+          }
+        },
+        "summary": "Complete Account Login",
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "curl",
+            "source": "curl -X POST http://localhost:9315/api/v1/account/login/complete \\\n  -H \"Authorization: Bearer $SHIP_TOKEN\""
+          },
+          {
+            "lang": "javascript",
+            "label": "fetch",
+            "source": "const res = await fetch(\"http://localhost:9315/api/v1/account/login/complete\", {\n  method: \"POST\",\n  headers: {\n    \"Authorization\": `Bearer ${process.env.SHIP_TOKEN}`,\n  },\n});\nconst data = await res.json();"
+          }
+        ]
+      }
+    },
+    "/api/v1/account/logout": {
+      "post": {
+        "tags": [
+          "account"
+        ],
+        "operationId": "logoutAccount",
+        "responses": {
+          "204": {
+            "description": "Token cleared (idempotent)"
+          },
+          "403": {
+            "description": "Account ops require user presence"
+          }
+        },
+        "summary": "Logout Account",
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "curl",
+            "source": "curl -X POST http://localhost:9315/api/v1/account/logout \\\n  -H \"Authorization: Bearer $SHIP_TOKEN\""
+          },
+          {
+            "lang": "javascript",
+            "label": "fetch",
+            "source": "const res = await fetch(\"http://localhost:9315/api/v1/account/logout\", {\n  method: \"POST\",\n  headers: {\n    \"Authorization\": `Bearer ${process.env.SHIP_TOKEN}`,\n  },\n});\nconst data = await res.json();"
+          }
+        ]
+      }
+    },
+    "/api/v1/account/state": {
+      "get": {
+        "tags": [
+          "account"
+        ],
+        "operationId": "getAccountState",
+        "responses": {
+          "200": {
+            "description": "Account state snapshot"
+          },
+          "403": {
+            "description": "Account ops require user presence"
+          }
+        },
+        "summary": "Get Account State",
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "curl",
+            "source": "curl -X GET http://localhost:9315/api/v1/account/state \\\n  -H \"Authorization: Bearer $SHIP_TOKEN\""
+          },
+          {
+            "lang": "javascript",
+            "label": "fetch",
+            "source": "const res = await fetch(\"http://localhost:9315/api/v1/account/state\", {\n  method: \"GET\",\n  headers: {\n    \"Authorization\": `Bearer ${process.env.SHIP_TOKEN}`,\n  },\n});\nconst data = await res.json();"
+          }
+        ]
+      }
+    },
     "/api/v1/actor/spawn": {
       "post": {
         "tags": [
@@ -2916,6 +3115,32 @@
           "path": "/home/me/project"
         }
       },
+      "CompleteLoginRequest": {
+        "type": "object",
+        "required": [
+          "state_id",
+          "code"
+        ],
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "state_id": {
+            "type": "string"
+          }
+        }
+      },
+      "CompleteLoginResponse": {
+        "type": "object",
+        "required": [
+          "user_id"
+        ],
+        "properties": {
+          "user_id": {
+            "type": "string"
+          }
+        }
+      },
       "ContrastReport": {
         "type": "object",
         "required": [
@@ -3255,6 +3480,17 @@
           },
           "workspace_id": "default",
           "session_id": "sess-2f9c"
+        }
+      },
+      "GetKeyResponse": {
+        "type": "object",
+        "required": [
+          "key"
+        ],
+        "properties": {
+          "key": {
+            "type": "string"
+          }
         }
       },
       "InputBody": {
@@ -3903,6 +4139,35 @@
             "type": "boolean"
           },
           "session_id": {
+            "type": "string"
+          }
+        }
+      },
+      "StartLoginRequest": {
+        "type": "object",
+        "required": [
+          "redirect_uri"
+        ],
+        "properties": {
+          "redirect_uri": {
+            "type": "string"
+          }
+        },
+        "example": {
+          "redirect_uri": "http://127.0.0.1:54321/callback"
+        }
+      },
+      "StartLoginResponse": {
+        "type": "object",
+        "required": [
+          "state_id",
+          "browser_url"
+        ],
+        "properties": {
+          "browser_url": {
+            "type": "string"
+          },
+          "state_id": {
             "type": "string"
           }
         }

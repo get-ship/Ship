@@ -8,7 +8,6 @@ use axum::{Json, extract::{Path, State}, http::StatusCode};
 use serde::Deserialize;
 use serde_json::json;
 
-use crate::auth::{Scope, require_scope};
 use crate::project_api::{err_response, ok_response};
 use crate::routes::rest_api::{ApiState, MeshResponse};
 
@@ -45,13 +44,10 @@ pub struct JobStatusReq {
 )]
 pub async fn update_job_status(
     State(state): State<ApiState>,
-    auth: Option<axum::Extension<crate::auth::AuthContext>>,
+    _auth: Option<axum::Extension<crate::auth::AuthContext>>,
     Path(job_id): Path<String>,
     Json(body): Json<JobStatusReq>,
 ) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
-    if let Some(axum::Extension(ref ac)) = auth {
-        require_scope(ac, Scope::EmitEvents)?;
-    }
 
     use ship_substrate::events::EventEnvelope;
     use ship_substrate::events::pipeline::{
@@ -207,13 +203,10 @@ pub struct StepDoneReq {
 )]
 pub async fn job_step_done(
     State(state): State<ApiState>,
-    auth: Option<axum::Extension<crate::auth::AuthContext>>,
+    _auth: Option<axum::Extension<crate::auth::AuthContext>>,
     Path(slug): Path<String>,
     Json(body): Json<StepDoneReq>,
 ) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
-    if let Some(axum::Extension(ref ac)) = auth {
-        require_scope(ac, Scope::EmitEvents)?;
-    }
 
     let jobs = ship_platform::projections::job::load_jobs_at(state.ship_dir())
         .map_err(|e| err_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;

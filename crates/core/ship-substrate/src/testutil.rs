@@ -41,7 +41,7 @@ fn registry() -> &'static Mutex<HashMap<&'static str, &'static Mutex<()>>> {
 }
 
 fn lock_for(name: &'static str) -> &'static Mutex<()> {
-    let mut reg = registry().lock().expect("env-lock registry poisoned");
+    let mut reg = registry().lock().unwrap_or_else(|e| e.into_inner());
     if let Some(m) = reg.get(name) {
         return m;
     }
@@ -72,7 +72,7 @@ pub struct EnvGuard {
 impl EnvGuard {
     fn acquire(var: crate::env::Var) -> (Self, &'static str) {
         let name = var.as_str();
-        let lock = lock_for(name).lock().expect("env-lock poisoned");
+        let lock = lock_for(name).lock().unwrap_or_else(|e| e.into_inner());
         let previous = std::env::var(name).ok();
         (
             Self {

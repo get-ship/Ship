@@ -18,12 +18,12 @@ use crate::{
     sessions, views,
 };
 use crate::routes::{
-    actor_api, actors_api, agents_api, annotations_api, artifacts_api, collection_api,
-    commands_api, create_api, feedback_api, git_api, hooks_api, human_webhook, logs_api,
-    mcp_api, openapi, permissions_api, pipelines_api, projects_api, rest_api, rules_api,
-    runtime_api, sdk_manifest, search_api, settings_api, skills_api, specs_api,
-    themes_api, view_edit_mode_api, view_edit_tool_api, view_errors_api, view_sessions_api,
-    webhook_ext,
+    account_api, actor_api, actors_api, agents_api, annotations_api, artifacts_api,
+    collection_api, commands_api, create_api, feedback_api, git_api, hooks_api,
+    human_webhook, logs_api, mcp_api, openapi, permissions_api, pipelines_api, projects_api,
+    registry_api, rest_api, rules_api, runtime_api, sdk_manifest, search_api, settings_api,
+    skills_api, specs_api, themes_api, view_edit_mode_api, view_edit_tool_api, view_errors_api,
+    view_sessions_api, webhook_ext,
 };
 use crate::auth::{attest, pairing, session};
 use crate::transport::{cors, pty as pty_handler};
@@ -96,8 +96,11 @@ pub fn build_router(
     let public_routes = Router::new()
         .route(
             "/auth/pair/init",
-            axum::routing::post(move |body: Option<axum::Json<auth::PairInitRequest>>| {
-                auth::pair_init(pair_init_reg.clone(), pair_init_sessions.clone(), body)
+            axum::routing::post(move |
+                peer: axum::extract::ConnectInfo<std::net::SocketAddr>,
+                body: Option<axum::Json<auth::PairInitRequest>>,
+            | {
+                auth::pair_init(pair_init_reg.clone(), pair_init_sessions.clone(), Some(peer), body)
             }),
         )
         .route(
@@ -132,9 +135,9 @@ pub fn build_router(
             move || ship_sui::serve_meta(Some(axum::Extension(dbi)))
         }))
         // Shared static assets — no user-specific data, safe to serve unauth.
-        .ship_route(Route::AssetViewTokensCss, views::serve_view_tokens)
-        .ship_route(Route::AssetThemeCss, views::serve_theme_css)
-        .ship_route(Route::ListThemes, views::serve_themes_list)
+        .ship_public_route(Route::AssetViewTokensCss, views::serve_view_tokens)
+        .ship_public_route(Route::AssetThemeCss, views::serve_theme_css)
+        .ship_public_route(Route::ListThemes, views::serve_themes_list)
         // SUI framework hosting — runtime/dom/sdk/components bundles +
         // per-view template/payload/css + data/mutation/patch endpoints.
         // These sit under `/_sui/*` (plus `/view-host` and `/sui/{name}`);
@@ -152,43 +155,43 @@ pub fn build_router(
         // non-private packaged components) emitted by
         // `bun packages/sui-catalog/src/cli.ts` to
         // `.ship/sui-out/catalogs/{workspace,published}.json`.
-        .ship_route(Route::SuiCatalogWorkspace, ship_sui::serve_catalog_workspace)
-        .ship_route(Route::SuiCatalogPublished, ship_sui::serve_catalog_published)
+        .ship_public_route(Route::SuiCatalogWorkspace, ship_sui::serve_catalog_workspace)
+        .ship_public_route(Route::SuiCatalogPublished, ship_sui::serve_catalog_published)
         // Generalized pack-bundle handler — serves
         // `/_sui/packs/<pack-id>/<bundle>` for any workspace package
         // with a `customElements` field in package.json. Index built
         // lazily by walking the root workspaces glob.
-        .ship_route(Route::SuiPackAsset_template(), ship_sui::serve_pack_asset)
-        .ship_route(Route::SuiRuntimeJs, ship_sui::serve_sui_runtime)
-        .ship_route(Route::SuiDomJs, ship_sui::serve_sui_dom)
-        .ship_route(Route::SuiSdkClientJs, ship_sui::serve_sui_sdk_client)
-        .ship_route(Route::SuiComponentsJs, ship_sui::serve_sui_components)
-        .ship_route(Route::SuiLucideIconsJson, ship_sui::serve_sui_lucide_icons)
-        .ship_route(Route::SuiComponentBundle_template(), ship_sui::serve_sui_island)
-        .ship_route(
+        .ship_public_route(Route::SuiPackAsset_template(), ship_sui::serve_pack_asset)
+        .ship_public_route(Route::SuiRuntimeJs, ship_sui::serve_sui_runtime)
+        .ship_public_route(Route::SuiDomJs, ship_sui::serve_sui_dom)
+        .ship_public_route(Route::SuiSdkClientJs, ship_sui::serve_sui_sdk_client)
+        .ship_public_route(Route::SuiComponentsJs, ship_sui::serve_sui_components)
+        .ship_public_route(Route::SuiLucideIconsJson, ship_sui::serve_sui_lucide_icons)
+        .ship_public_route(Route::SuiComponentBundle_template(), ship_sui::serve_sui_island)
+        .ship_public_route(
             Route::SuiViewTemplate_template(),
             ship_sui::serve_sui_view_template,
         )
-        .ship_route(
+        .ship_public_route(
             Route::SuiViewSetup_template(),
             ship_sui::serve_sui_view_setup,
         )
-        .ship_route(
+        .ship_public_route(
             Route::SuiViewPayload_template(),
             ship_sui::serve_view_payload,
         )
-        .ship_route(
+        .ship_public_route(
             Route::SuiViewCss_template(),
             ship_sui::serve_sui_view_css,
         )
-        .ship_route(Route::SuiViewSse_template(), views::sui_sse::serve_sui_sse)
-        .ship_route(Route::SuiViewHost, ship_sui::serve_view_host)
-        .ship_route(
+        .ship_public_route(Route::SuiViewSse_template(), views::sui_sse::serve_sui_sse)
+        .ship_public_route(Route::SuiViewHost, ship_sui::serve_view_host)
+        .ship_public_route(
             Route::SuiViewHostForName_template(),
             ship_sui::serve_view_host,
         )
-        .ship_route(Route::SuiData, views::sui_data::serve_data)
-        .ship_route(
+        .ship_public_route(Route::SuiData, views::sui_data::serve_data)
+        .ship_public_route(
             Route::SuiMutation_template(),
             views::sui_mutation::serve_sui_mutation,
         )
@@ -198,7 +201,7 @@ pub fn build_router(
         // middleware. A public registration left that extension
         // unfulfilled and every POST 500'd. It is registered in
         // `build_ship_routes` (the authenticated group) instead.
-        .ship_route(Route::SuiSource_template(), views::sui_source::serve_sui_source)
+        .ship_public_route(Route::SuiSource_template(), views::sui_source::serve_sui_source)
         // HMR routes (SuiHmr / SuiHmrClientJs / SuiDevHmr) are NOT wired
         // here — they stay development-only and are merged into `root`
         // inside the `daemon_mode == Development` block further below.
@@ -219,8 +222,8 @@ pub fn build_router(
         )
         // First-run flow — both routes are unauthenticated so a fresh
         // install can reach the setup wizard before any browser is paired.
-        .ship_route(Route::Index, views::setup::index_handler)
-        .ship_route(Route::Setup, views::setup::setup_handler)
+        .ship_public_route(Route::Index, views::setup::index_handler)
+        .ship_public_route(Route::Setup, views::setup::setup_handler)
         // SUI state-using handlers (sui_sse, sui_data, sui_mutation,
         // sui_agent_push) extract `State<ApiState>`. Bind the state here
         // so the resulting `Router<()>` merges cleanly with the root
@@ -274,11 +277,16 @@ pub fn build_router(
     let feedback_guard = feedback_api::FeedbackGuard::new();
     let registry_state = mcp_registry::McpRegistryState::new();
 
+    // Account service is owned by ShipRuntime; expose it as an Extension
+    // so REST handlers (`account_api::*`) can extract it. The read-op
+    // registry reaches the same Arc via `rt.account()`.
+    let account_service = rt.account().clone();
+
     // MCP registry proxy is a public, read-only endpoint — match the
     // original Cloudflare Worker handler's "no auth required" contract
     // so the shell's agent builder can query it before pairing.
     let mcp_registry_routes = Router::new()
-        .ship_route(Route::McpServers, mcp_registry::list_mcp_servers)
+        .ship_public_route(Route::McpServers, mcp_registry::list_mcp_servers)
         .layer(axum::Extension(registry_state));
 
     let authenticated_routes = Router::new()
@@ -289,6 +297,7 @@ pub fn build_router(
         .nest("/api", webhook_routes)
         .nest_service("/mcp", service)
         .layer(axum::Extension(feedback_guard))
+        .layer(axum::Extension(account_service))
         // Dry-run view interceptor runs INSIDE auth (applied before the
         // auth layer here, which means outer->inner order wraps it with
         // auth) so requests must carry a valid bearer before short-circuit.
@@ -307,9 +316,9 @@ pub fn build_router(
     // HMR routes are development-only; not registered in production mode.
     if daemon_mode == ship_sui::DaemonMode::Development {
         let hmr_routes: Router<()> = Router::new()
-            .ship_route(Route::SuiHmr, views::sui_hmr::serve_hmr)
-            .ship_route(Route::SuiHmrClientJs, views::sui_hmr::serve_hmr_client_js)
-            .ship_route(Route::SuiDevHmr, views::sui_hmr::serve_bundle_hmr);
+            .ship_public_route(Route::SuiHmr, views::sui_hmr::serve_hmr)
+            .ship_public_route(Route::SuiHmrClientJs, views::sui_hmr::serve_hmr_client_js)
+            .ship_public_route(Route::SuiDevHmr, views::sui_hmr::serve_bundle_hmr);
         root = root.merge(hmr_routes);
     }
     root
@@ -417,6 +426,10 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::JobStatusUpdate_template(), project_api::update_job_status)
         .ship_route(Route::JobStepDone_template(), project_api::job_step_done)
         .ship_route(Route::StreamJobLog_template(), logs_api::stream_job_log)
+        .ship_route(
+            Route::AttachAgentSession_template(),
+            crate::routes::agent_sessions_attach::attach_agent_session,
+        )
         .ship_route(Route::ListProcs, runtime_api::list_procs)
         .ship_route(Route::PollEvents, runtime_api::poll_events)
         .ship_route(Route::DaemonStatus, runtime_api::daemon_status)
@@ -467,6 +480,12 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         // Feedback ingress
         .ship_route(Route::PostFeedback, feedback_api::post_feedback)
         .ship_route(Route::PostAnnotation, annotations_api::post_annotation)
+        // Account — gateway-mediated; CallerKind::Cli only (MCP denied)
+        .ship_route(Route::StartAccountLogin, account_api::start_login)
+        .ship_route(Route::CompleteAccountLogin, account_api::complete_login)
+        .ship_route(Route::GetAccountState, account_api::get_state)
+        .ship_route(Route::LogoutAccount, account_api::logout)
+        .ship_route(Route::GetAccountKey, account_api::get_key)
         // View authoring — chrome edit-mode handshake + agent tool dispatch.
         .ship_route(Route::EnterViewEditMode_template(), view_edit_mode_api::enter_edit_mode)
         .ship_route(Route::ExitViewEditMode_template(), view_edit_mode_api::exit_edit_mode)
@@ -474,6 +493,9 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
             Route::DispatchViewEditTool_template(),
             view_edit_tool_api::dispatch_tool,
         )
+        // Registry — gateway proxy. The daemon attaches the user's API key
+        // and forwards to the gateway. CLI never talks to the gateway.
+        .ship_route(Route::Publish, registry_api::publish)
         // AgentService — generic CRUD + lifecycle. First-party and
         // third-party views use this surface equally.
         .ship_route(Route::AgentsList, agents_api::list)

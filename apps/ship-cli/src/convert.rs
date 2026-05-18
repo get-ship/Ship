@@ -98,6 +98,11 @@ fn convert_from_url(url: &str) -> Result<()> {
 }
 
 /// Convert from a local file or directory path (harness config detection).
+///
+/// Pure local-fs op — reads harness configs under `source` and writes
+/// `.ship/`. No network, no gateway, so it stays in-process and does NOT
+/// route through the daemon. The URL-based variants above are out of
+/// scope for the daemon-proxy migration (task #79).
 fn convert_from_path(source: &str) -> Result<()> {
     let path = Path::new(source).canonicalize().context("Invalid path")?;
 

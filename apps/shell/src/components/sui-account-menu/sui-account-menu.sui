@@ -1,0 +1,141 @@
+<bundle separate />
+<!--
+  <sui-account-menu> — Ship Cloud account affordance for the chrome strip.
+  Trigger button shows the signed-in identity (avatar + name) or "Sign in";
+  clicking opens a native-popover panel with plan info + actions (Open
+  Account Settings, Open Billing, Sign in / Sign out).
+
+  Mirrors the popover-anchor pattern used by <sui-theme-picker>: the
+  trigger toggles a `popover="auto"` panel, the controller anchors it
+  with getBoundingClientRect() on open, and a `toggle` event listener
+  drives aria-expanded.
+
+  Account state subscription lives in the <data> element below, per
+  SUI hard rule #2 — never call ship.* outside <data> or <form mutation>.
+  The compiler auto-generates `account` as a Signal<LiveState<AccountState>>
+  in scope; the controller derives `identity` / labels / actions from it.
+
+  Styles live in the sibling sui-account-menu.css (auto-linked by the
+  compiler).
+
+  Prop / event surface
+  ────────────────────────────────────────────────────────────────────────
+  Props:
+    placement (union, 'bottom-end', reflect)  panel placement
+    label-style (union, 'text'|'compact', 'text', reflect)
+                                              compact = avatar + caret only
+  ────────────────────────────────────────────────────────────────────────
+  Events dispatched (bubbling, composed):
+    sui:account:menu-ready {}  fired once after first mount
+  ────────────────────────────────────────────────────────────────────────
+  Slots: (none — fully self-contained)
+  Parts: trigger, avatar, name, panel
+  ────────────────────────────────────────────────────────────────────────
+-->
+
+<prop name="placement" values="top|top-end|bottom|bottom-end|left|left-end|right|right-end" default="bottom-end" reflect />
+<prop name="label-style" values="text|compact" default="text" reflect />
+
+<data name="account" source="ship.account.state()" live />
+
+<button class="trigger" part="trigger" type="button" bind:this={triggerBtn}
+  aria-haspopup="dialog"
+  aria-expanded={panelOpen() ? 'true' : 'false'}
+  aria-label={triggerAria()}
+  title={triggerAria()}
+  on:click={() => togglePanel()}>
+  {#if identity().status === 'logged_in' && identity().me?.image}
+    <img class="avatar" part="avatar" src={identity().me?.image ?? ''} alt="" />
+  {:else if identity().status === 'logged_in'}
+    <span class="avatar-fallback" part="avatar" aria-hidden="true">{initials()}</span>
+  {:else}
+    <span class="avatar-fallback signed-out" part="avatar" aria-hidden="true">
+      <sui-icon name="user" size="sm"></sui-icon>
+    </span>
+  {/if}
+  <span class="name" part="name">{triggerLabel()}</span>
+  <svg class="caret" viewBox="0 0 10 6" aria-hidden="true">
+    <path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+  </svg>
+</button>
+
+<div class="panel" part="panel" popover="auto" bind:this={panelEl} role="menu" aria-label="Account">
+  {#if identity().status === 'logged_in'}
+    <div class="id-block">
+      {#if identity().me?.image}
+        <img class="avatar" src={identity().me?.image ?? ''} alt="" />
+      {:else}
+        <span class="avatar-fallback" aria-hidden="true">{initials()}</span>
+      {/if}
+      <div class="id-stack">
+        <span class="id-name">{displayName()}</span>
+        {#if identity().me?.email}
+          <span class="id-email">{identity().me?.email}</span>
+        {/if}
+      </div>
+      {#if planLabel()}
+        <span class="plan">{planLabel()}</span>
+      {/if}
+    </div>
+  {:else}
+    <div class="id-block">
+      <span class="avatar-fallback signed-out" aria-hidden="true">
+        <sui-icon name="user" size="sm"></sui-icon>
+      </span>
+      <div class="id-stack">
+        <span class="id-name">Not signed in</span>
+        <span class="id-email">Connect this workspace to Ship Cloud</span>
+      </div>
+    </div>
+  {/if}
+
+  <div class="actions" role="none">
+    {#if identity().status === 'logged_in'}
+      <button class="action" type="button" role="menuitem" on:click={openSettings}>
+        <sui-icon name="settings" size="sm"></sui-icon>
+        <span>Account settings</span>
+      </button>
+      <button class="action" type="button" role="menuitem" on:click={openBillingAction}>
+        <sui-icon name="credit-card" size="sm"></sui-icon>
+        <span>Billing</span>
+        <sui-icon class="meta" name="external-link" size="sm"></sui-icon>
+      </button>
+      <div class="divider" role="separator"></div>
+      <button class="action danger" type="button" role="menuitem"
+        disabled={busy()}
+        on:click={() => onSignOut()}>
+        <sui-icon name="log-out" size="sm"></sui-icon>
+        <span>Sign out</span>
+      </button>
+    {:else if identity().status === 'pending'}
+      <button class="action" type="button" role="menuitem" disabled>
+        <sui-icon name="loader" size="sm"></sui-icon>
+        <span>Completing sign-in in browser…</span>
+      </button>
+      <div class="status-line">
+        Finish OAuth in the browser tab that opened. Until the daemon's
+        local callback completes, you may need to run <code>ship login</code>
+        in a terminal to finalize.
+      </div>
+      <button class="action" type="button" role="menuitem" on:click={openSettings}>
+        <sui-icon name="settings" size="sm"></sui-icon>
+        <span>Account settings</span>
+      </button>
+    {:else}
+      <button class="action" type="button" role="menuitem"
+        disabled={busy()}
+        on:click={() => onSignIn()}>
+        <sui-icon name="log-in" size="sm"></sui-icon>
+        <span>Sign in with Ship Cloud</span>
+      </button>
+      <button class="action" type="button" role="menuitem" on:click={openSettings}>
+        <sui-icon name="settings" size="sm"></sui-icon>
+        <span>Account settings</span>
+      </button>
+    {/if}
+  </div>
+
+  {#if errorMessage()}
+    <div class="status-line err" role="status">{errorMessage()}</div>
+  {/if}
+</div>

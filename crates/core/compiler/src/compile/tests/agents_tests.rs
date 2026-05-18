@@ -130,7 +130,7 @@ fn yaml_quoting() {
 fn profile_with_no_harnesses_field_compiles_for_every_harness() {
     let p = make_profile("anything", "Anything");
     for harness in ["claude", "gemini", "cursor", "codex", "opencode"] {
-        let files = compile_agent_profiles(&[p.clone()], harness);
+        let files = compile_agent_profiles(std::slice::from_ref(&p), harness);
         assert_eq!(
             files.len(),
             1,

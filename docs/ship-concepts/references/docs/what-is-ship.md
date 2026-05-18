@@ -85,7 +85,7 @@ Local-first means: your data is in your filesystem and your local databases. Clo
 | | Rules | Behavioral constraints. |
 | | Permissions | What's allowed at the actor and view layer. |
 | | MCP integrations | External tool bindings. |
-| | Views | UI surfaces, built with Ship UI (Ship's own rendering framework). |
+| | Views | UI surfaces. Authored as `.sui` templates (Signal-driven UI), compiled to ESM, SSR'd by the daemon, hydrated client-side. |
 
 The runtime substrate — event log, actor supervision, projections, mesh routing, sessions, jobs — is **L0**. Users don't author L0; they use it through the primitives above.
 
@@ -104,16 +104,16 @@ Ship ships with **first-party views** — chat, dashboard, settings, project swi
 
 There is no special framework hidden inside the daemon for first-party views. If you can read a first-party view's source, you can build one yourself.
 
-## The Shop
+## The Store
 
-Ship Shop (the marketplace) is a distribution layer for components people share — views, pipelines, agents, skills, collection schemas, MCP integrations. Most marketplace items are bundled around a view: install the view, it brings the components it depends on.
+The **Ship Store** is the marketplace — a distribution layer for components people share — views, pipelines, agents, skills, collection schemas, MCP integrations. Most marketplace items are bundled around a view: install the view, it brings the components it depends on.
 
 Sharing is for teams and friends. Quality bar is "useful," not "consumer-polished."
 
 ## What's not in v1
 
 - **Triggers as a user-facing primitive.** The reactive engine exists internally; user-defined triggers (`when this event happens, run this action`) come after v1.
-- **Marketplace polish.** v1 supports installing components by URL or repo. The curated Shop UI lands later.
+- **Marketplace polish.** v1 supports installing components by URL or repo. The curated Store UI lands later.
 - **Cross-project access.** Projects are isolated by default in v1. Cross-project queries are an explicit affordance later.
 - **Browser-fork Studio shell.** v1 has the desktop Studio app. The browser shell is 12–18 months out, but everything in v1 is built so the shell can swap without changing the app contract.
 - **Cloud team workflows beyond sync.** v1 cloud is sync, identity, and the marketplace. Comments, notifications, permission inheritance across teams come later.

@@ -163,7 +163,7 @@ ship daemon status
 
 ## Build a UI with Views
 
-The same daemon that compiles agent configuration also hosts the Ship UI. A view is a SUI template — a `.sui` file declaring markup, optionally paired with a `controller.ts` that owns reactive state and event handlers. The compiler emits a hydratable ESM module; the daemon serves an SSR snapshot, the browser hydrates it. The bundler scans two layouts under the workspace root:
+The same daemon that compiles agent configuration also hosts SUI. A view is a SUI template — a `.sui` file declaring markup, optionally paired with a `controller.ts` that owns reactive state and event handlers. The compiler emits a hydratable ESM module; the daemon serves an SSR snapshot, the browser hydrates it. The bundler scans two layouts under the workspace root:
 
 ```
 views/<name>/page.sui          # top-level

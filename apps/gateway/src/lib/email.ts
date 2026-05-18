@@ -95,6 +95,29 @@ export function verifyEmailEmail(args: { to: string; url: string }): SendInput {
   }
 }
 
+export function deleteAccountEmail(args: { to: string; url: string }): SendInput {
+  return {
+    to: args.to,
+    subject: 'Confirm SHIP account deletion',
+    text: [
+      'Someone (hopefully you) asked to delete your SHIP account.',
+      '',
+      'Click this link to confirm. This is irreversible — your synced workspaces, sessions, API keys, and billing customer record will be removed:',
+      args.url,
+      '',
+      `The link expires in 24 hours. If you didn't request this, ignore this email and your account stays put.`,
+      '',
+      '— SHIP',
+    ].join('\n'),
+    html: htmlEnvelope(
+      `<h1>Confirm account deletion</h1>` +
+      `<p>Someone (hopefully you) asked to delete your SHIP account. Click below to confirm — this is <strong>irreversible</strong>. Your synced workspaces, sessions, API keys, and billing customer record will be removed.</p>` +
+      ctaButton('Delete my account', args.url) +
+      `<p class="muted">The link expires in 24 hours. If you didn't request this, ignore this email and your account stays put.</p>`,
+    ),
+  }
+}
+
 // ── HTML helpers ──────────────────────────────────────────────────────────
 
 function htmlEnvelope(body: string): string {

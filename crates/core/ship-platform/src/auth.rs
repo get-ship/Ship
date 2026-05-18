@@ -10,3 +10,4 @@ pub mod attest;
 pub mod pairing;
 pub mod scopes;
 pub mod session;
+pub mod sweeper;

@@ -21,12 +21,14 @@
 //! The skill's filesystem is the source of truth for everything else.
 
 
+use axum::Extension;
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use axum::response::Json;
 use serde::Deserialize;
 
 use crate::access::RuntimeAccess;
+use crate::auth::{AuthContext};
 use crate::routes::rest_api::ApiState;
 use ship_platform::services::files::Scope;
 use ship_platform::services::skills::service::CreateArgs;
@@ -72,6 +74,7 @@ fn err(status: StatusCode, code: &str, message: impl Into<String>) -> Resp {
     (status, Json(serde_json::json!({ "ok": false, "error": code, "message": message.into() })))
 }
 
+
 fn map_err(e: ship_platform::services::skills::state::Error) -> Resp {
     use ship_platform::services::skills::state::Error::*;
     match e {
@@ -89,13 +92,17 @@ fn map_err(e: ship_platform::services::skills::state::Error) -> Resp {
 // ── List / detail ─────────────────────────────────────────────────────
 
 /// GET /api/v1/skills
-pub async fn list(State(state): State<ApiState>) -> Json<serde_json::Value> {
-    Json(serde_json::json!({ "ok": true, "items": state.services().skills().list() }))
+pub async fn list(
+    State(state): State<ApiState>,
+    Extension(_auth): Extension<AuthContext>,
+) -> Result<Json<serde_json::Value>, Resp> {
+    Ok(Json(serde_json::json!({ "ok": true, "items": state.services().skills().list() })))
 }
 
 /// GET /api/v1/skills/{id}
 pub async fn get(
     State(state): State<ApiState>,
+    Extension(_auth): Extension<AuthContext>,
     Path(id): Path<String>,
     Query(q): Query<ScopeQuery>,
 ) -> Result<Json<serde_json::Value>, Resp> {
@@ -109,6 +116,7 @@ pub async fn get(
 /// PUT /api/v1/skills/{id}/frontmatter
 pub async fn put_frontmatter(
     State(state): State<ApiState>,
+    Extension(_auth): Extension<AuthContext>,
     Path(id): Path<String>,
     Query(q): Query<ScopeQuery>,
     Json(body): Json<serde_json::Value>,
@@ -129,6 +137,7 @@ pub struct BodyPayload {
 /// PUT /api/v1/skills/{id}/body
 pub async fn put_body(
     State(state): State<ApiState>,
+    Extension(_auth): Extension<AuthContext>,
     Path(id): Path<String>,
     Query(q): Query<ScopeQuery>,
     Json(payload): Json<BodyPayload>,
@@ -151,6 +160,7 @@ pub struct FilePayload {
 /// PUT /api/v1/skills/{id}/files/{*path}
 pub async fn put_file(
     State(state): State<ApiState>,
+    Extension(_auth): Extension<AuthContext>,
     Path((id, path)): Path<(String, String)>,
     Query(q): Query<ScopeQuery>,
     Json(payload): Json<FilePayload>,
@@ -168,6 +178,7 @@ pub async fn put_file(
 /// DELETE /api/v1/skills/{id}/files/{*path}
 pub async fn delete_file(
     State(state): State<ApiState>,
+    Extension(_auth): Extension<AuthContext>,
     Path((id, path)): Path<(String, String)>,
     Query(q): Query<ScopeQuery>,
 ) -> Result<Json<serde_json::Value>, Resp> {
@@ -198,6 +209,7 @@ pub struct CreateBody {
 /// POST /api/v1/skills
 pub async fn create(
     State(state): State<ApiState>,
+    Extension(_auth): Extension<AuthContext>,
     Json(body): Json<CreateBody>,
 ) -> Result<Resp, Resp> {
     let target = match body.scope.as_deref() {
@@ -223,6 +235,7 @@ pub async fn create(
 /// DELETE /api/v1/skills/{id}
 pub async fn delete(
     State(state): State<ApiState>,
+    Extension(_auth): Extension<AuthContext>,
     Path(id): Path<String>,
     Query(q): Query<ScopeQuery>,
 ) -> Result<Json<serde_json::Value>, Resp> {
@@ -240,6 +253,7 @@ pub struct RenameBody { pub new_id: String }
 /// POST /api/v1/skills/{id}/rename
 pub async fn rename(
     State(state): State<ApiState>,
+    Extension(_auth): Extension<AuthContext>,
     Path(id): Path<String>,
     Query(q): Query<ScopeQuery>,
     Json(body): Json<RenameBody>,
@@ -258,6 +272,7 @@ pub struct DuplicateBody { pub new_id: String }
 /// POST /api/v1/skills/{id}/duplicate
 pub async fn duplicate(
     State(state): State<ApiState>,
+    Extension(_auth): Extension<AuthContext>,
     Path(id): Path<String>,
     Query(q): Query<ScopeQuery>,
     Json(body): Json<DuplicateBody>,
@@ -276,6 +291,7 @@ pub struct MoveBody { pub to_scope: String }
 /// POST /api/v1/skills/{id}/move
 pub async fn move_scope(
     State(state): State<ApiState>,
+    Extension(_auth): Extension<AuthContext>,
     Path(id): Path<String>,
     Query(q): Query<ScopeQuery>,
     Json(body): Json<MoveBody>,
@@ -297,6 +313,7 @@ pub async fn move_scope(
 /// GET /api/v1/skills/{id}/vars
 pub async fn get_vars(
     State(state): State<ApiState>,
+    Extension(_auth): Extension<AuthContext>,
     Path(id): Path<String>,
 ) -> Result<Json<serde_json::Value>, Resp> {
     state.services().skills().validate_id(&id).map_err(map_err)?;
@@ -322,6 +339,7 @@ pub struct SetVarBody {
 /// PUT /api/v1/skills/{id}/vars/{key}
 pub async fn put_var(
     State(state): State<ApiState>,
+    Extension(_auth): Extension<AuthContext>,
     Path((id, key)): Path<(String, String)>,
     Json(body): Json<SetVarBody>,
 ) -> Result<Json<serde_json::Value>, Resp> {
@@ -340,6 +358,7 @@ pub async fn put_var(
 /// DELETE /api/v1/skills/{id}/vars/{key}
 pub async fn delete_var(
     State(state): State<ApiState>,
+    Extension(_auth): Extension<AuthContext>,
     Path((id, key)): Path<(String, String)>,
 ) -> Result<Json<serde_json::Value>, Resp> {
     state.services().skills().validate_id(&id).map_err(map_err)?;
@@ -412,6 +431,7 @@ struct InvokeOutcome {
 /// POST /api/v1/skills/{id}/invoke
 pub async fn invoke(
     State(state): State<ApiState>,
+    Extension(_auth): Extension<AuthContext>,
     Path(id): Path<String>,
     Query(q): Query<ScopeQuery>,
     body: Option<Json<InvokeBody>>,

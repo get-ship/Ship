@@ -23,6 +23,66 @@
       "request": null,
       "response": null
     },
+    "GET /api/v1/account/key": {
+      "method": "GET",
+      "path": "/api/v1/account/key",
+      "purpose": "read",
+      "params": [],
+      "summary": "Transitional bridge — returns the stored API key so the CLI can\ndual-write to its legacy `credentials.jsonc` for `ship publish` and\n`ship convert <getship-url>` which still call the gateway directly.\nREMOVE once those call sites route through the daemon.",
+      "description": null,
+      "request": null,
+      "response": {
+        "$ref": "#/components/schemas/GetKeyResponse"
+      }
+    },
+    "POST /api/v1/account/login": {
+      "method": "POST",
+      "path": "/api/v1/account/login",
+      "purpose": "create",
+      "params": [],
+      "summary": null,
+      "description": null,
+      "request": {
+        "$ref": "#/components/schemas/StartLoginRequest"
+      },
+      "response": {
+        "$ref": "#/components/schemas/StartLoginResponse"
+      }
+    },
+    "POST /api/v1/account/login/complete": {
+      "method": "POST",
+      "path": "/api/v1/account/login/complete",
+      "purpose": "create",
+      "params": [],
+      "summary": null,
+      "description": null,
+      "request": {
+        "$ref": "#/components/schemas/CompleteLoginRequest"
+      },
+      "response": {
+        "$ref": "#/components/schemas/CompleteLoginResponse"
+      }
+    },
+    "POST /api/v1/account/logout": {
+      "method": "POST",
+      "path": "/api/v1/account/logout",
+      "purpose": "create",
+      "params": [],
+      "summary": null,
+      "description": null,
+      "request": null,
+      "response": null
+    },
+    "GET /api/v1/account/state": {
+      "method": "GET",
+      "path": "/api/v1/account/state",
+      "purpose": "read",
+      "params": [],
+      "summary": null,
+      "description": null,
+      "request": null,
+      "response": null
+    },
     "POST /api/v1/actor/spawn": {
       "method": "POST",
       "path": "/api/v1/actor/spawn",

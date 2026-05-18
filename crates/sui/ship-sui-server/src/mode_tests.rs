@@ -53,6 +53,10 @@ async fn island_dev_mode_no_cache() {
 // ── View template/setup cache headers ────────────────────────────────────────
 
 #[tokio::test(flavor = "multi_thread")]
+#[allow(
+    clippy::await_holding_lock,
+    reason = "test serializes env-var mutation across the await — the whole point of this lock"
+)]
 async fn view_template_prod_must_revalidate_and_etag() {
     use std::path::PathBuf;
     use std::sync::OnceLock;
@@ -87,6 +91,10 @@ async fn view_template_prod_must_revalidate_and_etag() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+#[allow(
+    clippy::await_holding_lock,
+    reason = "test serializes env-var mutation across the await — the whole point of this lock"
+)]
 async fn view_template_dev_no_cache_no_etag() {
     use std::path::PathBuf;
     use std::sync::OnceLock;

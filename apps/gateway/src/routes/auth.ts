@@ -1,46 +1,57 @@
 import { Hono } from 'hono'
 import { getAuth } from '../lib/auth.js'
 import { requireSession } from '../lib/session-auth.js'
-// CLI auth tokens are Better Auth API keys (migrated 2026-05 from custom
-// HS256 JWTs). Mint via auth.api.createApiKey in the PKCE exchange handler.
-// Validation runs through Better Auth's session middleware automatically
-// (enableSessionForAPIKeys is on; see ../lib/auth.ts).
+import { checkRateLimit, rateLimitResponse } from '../lib/rate-limit.js'
+// CLI/daemon-shaped auth (TokenExchange / Refresh / GetMe) now lives only
+// at Connect-RPC paths (/ship.gateway.v1.AuthService/<Method>) — the
+// daemon's account module is the sole consumer, and the CLI goes through
+// the daemon. REST handlers for those methods were removed in the CLI
+// swap commit.
+//
+// What remains here:
+// - /v1/jwks               (browser + third-party tooling expect raw GET)
+// - /v1/auth/cli           (browser redirect — not RPC-shaped)
+// - /v1/auth/cli-callback  (OAuth callback — also not RPC-shaped)
+// - /v1/auth/daemon-attest (browser/Studio flow — REST kept; Connect impl
+//                            also exists, browsers may prefer one or the
+//                            other depending on their client)
+// - /v1/auth/*             (Better Auth catch-all)
 import { signDaemonJwt, buildJwks } from '../lib/daemon-jwt.js'
 import { getAuthDb, nanoid } from '../lib/d1.js'
-import { checkRateLimit, rateLimitResponse } from '../lib/rate-limit.js'
 
 const auth = new Hono<{ Bindings: Env }>()
 
 // ── JWKS ─────────────────────────────────────────────────────────────────────
 
-auth.get('/api/jwks', async (c) => {
+auth.get('/v1/jwks', async (c) => {
   const keys = await buildJwks(c.env)
   return c.json(keys)
 })
 
-// ── Identity ─────────────────────────────────────────────────────────────────
-
-auth.get('/api/me', async (c) => {
-  const session = await requireSession(c.req.raw, c.env)
-  if (session instanceof Response) return session
-  const db = getAuthDb(c.env)
-  if (!db) return c.json({ error: 'Database unavailable' }, 503)
-  const user = await db.prepare('SELECT id, name, email, image FROM user WHERE id = ?').bind(session.sub).first()
-  if (!user) return c.json({ error: 'User not found' }, 404)
-  return c.json({ user })
-})
-
-auth.get('/api/health', (c) => c.json({ status: 'ok' }))
+// /v1/me REST handler removed — the daemon's account module proxies via
+// Connect-RPC's GetMe instead. The browser uses Better Auth's typed
+// client through the catch-all.
 
 // ── CLI PKCE OAuth ────────────────────────────────────────────────────────────
 
-auth.get('/auth/cli', async (c) => {
+// PKCE S256 challenge: base64url of a 32-byte SHA-256 → exactly 43 chars.
+// RFC 7636 §4.2 allows 43–128 unreserved url-safe chars. Anything outside
+// this shape is bogus (or an injection probe) — reject before touching the DB.
+const PKCE_CHALLENGE = /^[A-Za-z0-9_-]{43,128}$/
+
+auth.get('/v1/auth/cli', async (c) => {
+  const rl = await checkRateLimit(c.req.raw, 'RATE_LIMITER_AUTH', 60, c.env)
+  if (!rl.allowed) return rateLimitResponse(rl.retryAfter)
+
   const url = new URL(c.req.url)
   const codeChallenge = url.searchParams.get('code_challenge')
   const redirectUri = url.searchParams.get('redirect_uri')
 
   if (!codeChallenge || !redirectUri) {
     return c.json({ error: 'Missing code_challenge or redirect_uri' }, 400)
+  }
+  if (!PKCE_CHALLENGE.test(codeChallenge)) {
+    return c.json({ error: 'Invalid code_challenge format' }, 400)
   }
 
   let parsed: URL
@@ -65,7 +76,7 @@ auth.get('/auth/cli', async (c) => {
     .bind(state, codeChallenge, redirectUri, Date.now())
     .run()
 
-  const callbackUrl = `${url.origin}/auth/cli-callback`
+  const callbackUrl = `${url.origin}/v1/auth/cli-callback`
   const ghUrl = new URL('https://github.com/login/oauth/authorize')
   ghUrl.searchParams.set('client_id', clientId)
   ghUrl.searchParams.set('redirect_uri', callbackUrl)
@@ -75,7 +86,10 @@ auth.get('/auth/cli', async (c) => {
   return new Response(null, { status: 302, headers: { Location: ghUrl.toString() } })
 })
 
-auth.get('/auth/cli-callback', async (c) => {
+auth.get('/v1/auth/cli-callback', async (c) => {
+  const rl = await checkRateLimit(c.req.raw, 'RATE_LIMITER_AUTH', 60, c.env)
+  if (!rl.allowed) return rateLimitResponse(rl.retryAfter)
+
   const url = new URL(c.req.url)
   const code = url.searchParams.get('code')
   const state = url.searchParams.get('state')
@@ -150,101 +164,14 @@ auth.get('/auth/cli-callback', async (c) => {
   return new Response(null, { status: 302, headers: { Location: cliRedirect.toString() } })
 })
 
-// ── Token exchange ────────────────────────────────────────────────────────────
+// /v1/auth/token and /v1/auth/refresh REST handlers removed — Connect-RPC
+// owns them at /ship.gateway.v1.AuthService/{TokenExchange,Refresh}.
+// Daemon's account module is the only consumer.
 
-async function sha256Base64url(input: string): Promise<string> {
-  const data = new TextEncoder().encode(input)
-  const hash = await crypto.subtle.digest('SHA-256', data)
-  const bytes = new Uint8Array(hash)
-  let binary = ''
-  for (const b of bytes) binary += String.fromCharCode(b)
-  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
-}
-
-// Token exchange — PKCE: trades a one-time auth code (created by the CLI
-// browser callback) for a Better Auth API key. The CLI stores the
-// returned `key` and sends it as `Authorization: Bearer <key>` (or
-// `x-api-key: <key>`) on subsequent gateway calls.
-//
-// Migrated 2026-05 from custom HS256 JWT → Better Auth API key. Migration
-// note: existing daemons holding HS256 JWTs are invalidated; they re-login
-// via `ship login` to get a key.
-auth.post('/api/auth/token', async (c) => {
-  const rl = await checkRateLimit(c.req.raw, 'RATE_LIMITER_CLAIM', 60, c.env)
+auth.post('/v1/auth/daemon-attest', async (c) => {
+  const rl = await checkRateLimit(c.req.raw, 'RATE_LIMITER_AUTH', 60, c.env)
   if (!rl.allowed) return rateLimitResponse(rl.retryAfter)
 
-  let body: unknown
-  try { body = await c.req.json() } catch { return c.json({ error: 'Invalid JSON body' }, 400) }
-
-  const b = body as Record<string, unknown>
-  if (!body || typeof b['code'] !== 'string' || typeof b['verifier'] !== 'string') {
-    return c.json({ error: 'Missing code or verifier' }, 400)
-  }
-  const { code, verifier } = b as { code: string; verifier: string }
-
-  const db = getAuthDb(c.env)
-  if (!db) return c.json({ error: 'Database unavailable' }, 503)
-
-  const claim = await db.prepare('UPDATE cli_auth_codes SET used = 1 WHERE code = ? AND used = 0').bind(code).run()
-  if (!claim.meta.changes) return c.json({ error: 'Invalid or already-used auth code' }, 401)
-
-  const row = await db
-    .prepare('SELECT user_id, code_challenge, created_at FROM cli_auth_codes WHERE code = ?')
-    .bind(code)
-    .first<{ user_id: string; code_challenge: string; created_at: number }>()
-
-  if (!row) return c.json({ error: 'Invalid auth code' }, 401)
-  if (Date.now() - row.created_at > 5 * 60 * 1000) return c.json({ error: 'Auth code expired' }, 401)
-
-  const computed = await sha256Base64url(verifier)
-  if (computed !== row.code_challenge) return c.json({ error: 'PKCE verification failed' }, 401)
-
-  const a = await getAuth(c.env)
-  const result = await a.api.createApiKey({
-    body: {
-      userId: row.user_id,
-      name: `ship-cli ${new Date().toISOString().slice(0, 10)}`,
-      prefix: 'ship_',
-      // 1-year default TTL. Daemons re-mint via `ship login` when expired.
-      expiresIn: 365 * 24 * 60 * 60,
-      metadata: { issued_via: 'pkce', issued_at: Date.now() },
-    },
-  })
-
-  return c.json({
-    key: result.key,
-    user_id: row.user_id,
-    expires_at: result.expiresAt ? new Date(result.expiresAt).getTime() / 1000 : null,
-  })
-})
-
-// ── Token refresh ─────────────────────────────────────────────────────────────
-// With Better Auth API keys (1-year TTL by default), the daemon mints a
-// fresh key by re-running `ship login` rather than refreshing in-place.
-// This endpoint is now a thin "is my key still valid + how long left"
-// check; it doesn't extend or re-issue. Callers needing a longer-lived
-// key call POST /api/auth/token via the PKCE flow again.
-
-auth.post('/api/auth/refresh', async (c) => {
-  const rl = await checkRateLimit(c.req.raw, 'RATE_LIMITER_CLAIM', 60, c.env)
-  if (!rl.allowed) return rateLimitResponse(rl.retryAfter)
-
-  const session = await requireSession(c.req.raw, c.env)
-  if (session instanceof Response) return session
-
-  // requireSession resolves the API key via the plugin's middleware.
-  // If we get here, the key is valid; report the remaining TTL.
-  return c.json({
-    ok: true,
-    user_id: session.sub,
-    refresh_via: 'pkce',
-    note: 'API keys do not refresh in place; run `ship login` to get a fresh key.',
-  })
-})
-
-// ── Daemon attestation ────────────────────────────────────────────────────────
-
-auth.post('/api/auth/daemon-attest', async (c) => {
   const session = await requireSession(c.req.raw, c.env)
   if (session instanceof Response) return session
 
@@ -258,8 +185,7 @@ auth.post('/api/auth/daemon-attest', async (c) => {
   }
 
   const caps: string[] = plan === 'pro' ? ['pro'] : []
-  const url = new URL(c.req.url)
-  const issuer = `${url.protocol}//${url.host}`
+  const issuer = c.env.SHIP_ATTESTATION_ISSUER ?? 'https://getship.dev'
   const ttlSeconds = 3600
 
   let jwt: string
@@ -273,8 +199,14 @@ auth.post('/api/auth/daemon-attest', async (c) => {
 })
 
 // ── Better Auth passthrough (catch-all, must be last) ─────────────────────────
+// BA is configured with basePath '/v1/auth' (apps/gateway/src/lib/auth.ts), so
+// its internal route table generates /v1/auth/* URLs — matching what's mounted
+// here.
 
-auth.on(['GET', 'POST'], '/api/auth/*', async (c) => {
+auth.on(['GET', 'POST'], '/v1/auth/*', async (c) => {
+  const rl = await checkRateLimit(c.req.raw, 'RATE_LIMITER_AUTH', 60, c.env)
+  if (!rl.allowed) return rateLimitResponse(rl.retryAfter)
+
   const a = await getAuth(c.env)
   return a.handler(c.req.raw)
 })

@@ -17,7 +17,7 @@ use axum::{
 };
 use std::sync::Arc;
 
-use crate::auth::AuthContext;
+use crate::auth::{AuthContext};
 use crate::routes::rest_api::ApiState;
 use ship_platform::artifacts::ArtifactService;
 use ship_platform::view_authoring::{self, CompileError, ViewAnnotateResponse, ViewCompileCheckResponse,
@@ -499,6 +499,10 @@ fn project_root() -> Option<std::path::PathBuf> {
     Some(ship_dir.parent().unwrap_or(&ship_dir).to_path_buf())
 }
 
+#[allow(
+    clippy::result_large_err,
+    reason = "axum::Response is the canonical error vehicle for handler helpers"
+)]
 fn resolve_view(name: &str) -> Result<(String, std::path::PathBuf), Response> {
     let resolved = ship_sui::resolver::resolve(name, None)
         .map_err(|e| err(StatusCode::NOT_FOUND, "view_not_found", &e.message))?;

@@ -25,7 +25,6 @@ fn compile_sui(name: &str) -> String {
         component_meta: None,
         emit_dts: false,
         emit_ssr: false,
-        ..CompileOpts::default()
     };
     let out = compile(&source, opts).expect("compile morph fixture");
     out.js

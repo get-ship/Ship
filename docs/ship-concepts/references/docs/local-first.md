@@ -11,7 +11,7 @@ This isn't "self-host if you want" — it's the architecture. There's no Ship se
 
 ## Cloud is optional
 
-The Ship Store, share links, and hosted triggers are adjacent services you can opt into. Pair with `ship login` if you want to publish or share a package. Skip it entirely and Ship works the same.
+The Ship Store and share links are adjacent services you can opt into. Pair with `ship login` if you want to publish or share a package. Skip it entirely and Ship works the same.
 
 ## What this gets you
 

@@ -37,8 +37,10 @@ impl IsolationStrategy for OkIsolation {
 
 /// Records the (harness, model) it was asked to spawn, then errors so
 /// dispatch skips all post-spawn work (monitors, events, etc).
+type CapturedSpawn = Option<(Option<String>, Option<String>)>;
+
 struct RecordingExecutor {
-    captured: Arc<StdMutex<Option<(Option<String>, Option<String>)>>>,
+    captured: Arc<StdMutex<CapturedSpawn>>,
 }
 
 #[async_trait]

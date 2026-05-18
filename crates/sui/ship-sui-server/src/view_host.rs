@@ -26,7 +26,7 @@ pub(crate) fn ssr_cache() -> &'static Mutex<HashMap<String, String>> {
 
 fn view_name_from_path(path: &str) -> Option<String> {
     path.trim_start_matches('/')
-        .splitn(3, '/')
+        .split('/')
         .nth(1)
         .filter(|s| !s.is_empty())
         .map(str::to_string)
@@ -118,29 +118,6 @@ pub async fn serve_view_host(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::path::PathBuf;
-    use std::sync::OnceLock;
-
-    fn repo_root() -> &'static std::path::Path {
-        static ROOT: OnceLock<PathBuf> = OnceLock::new();
-        ROOT.get_or_init(|| {
-            let mut cur = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-            loop {
-                let cargo = cur.join("Cargo.toml");
-                if cargo.is_file()
-                    && std::fs::read_to_string(&cargo)
-                        .map(|s| s.contains("[workspace]"))
-                        .unwrap_or(false)
-                {
-                    return cur;
-                }
-                if !cur.pop() {
-                    panic!("could not find repo root from {}", env!("CARGO_MANIFEST_DIR"));
-                }
-            }
-        });
-        ROOT.get().unwrap()
-    }
 
     fn make_uri(path: &str) -> OriginalUri {
         OriginalUri(format!("http://localhost{path}").parse().unwrap())
@@ -198,6 +175,10 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread")]
+    #[allow(
+        clippy::await_holding_lock,
+        reason = "test serializes env-var mutation across the await — the whole point of this lock"
+    )]
     async fn ssr_file_spliced_into_root() {
         let _lock = crate::test_lock::lock();
         let tmp = tempfile::tempdir().unwrap();

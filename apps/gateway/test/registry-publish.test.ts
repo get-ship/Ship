@@ -55,7 +55,7 @@ function useRepos(overrides: Record<string, unknown> = {}) {
 }
 
 function req(body: unknown) {
-  return new Request('http://localhost/api/registry/publish', {
+  return new Request('http://localhost/v1/registry/publish', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
@@ -76,7 +76,7 @@ beforeEach(() => {
   vi.mocked(skillScan.scanSkillContent).mockReturnValue({ safe: true, warnings: [] })
 })
 
-describe('POST /api/registry/publish', () => {
+describe('POST /v1/registry/publish', () => {
   it('happy path — returns package_id, version, skills_indexed', async () => {
     const res = await registryRoutes.request(req(defaultBody), mockEnv)
     const body = await res.json() as Record<string, unknown>
@@ -87,7 +87,7 @@ describe('POST /api/registry/publish', () => {
   })
 
   it('returns 400 for invalid JSON body', async () => {
-    const r = new Request('http://localhost/api/registry/publish', {
+    const r = new Request('http://localhost/v1/registry/publish', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: 'not-json',
     })
     const res = await registryRoutes.request(r, mockEnv)

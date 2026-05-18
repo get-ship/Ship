@@ -9,6 +9,8 @@ description: `<data>` is the canonical bridge to the daemon. Live envelope shape
 
 The Ship daemon (`shipd`) is the model. Views bridge to it via `<data>` elements declared in the template. This is the **only** sanctioned way to bring server data into a view. It is not interchangeable with hooks.
 
+> **Discovering available `ship.*` calls.** Every read op the daemon exposes is registered in `apps/shipd/src/services/registry.rs` and listed in `apps/shipd/src/services/schema.rs::OPS`. The catalog is also served live at `GET /api/ship/schema` and checked into `packages/sdk/src/generated/sdk-ship-ops.json` for offline browsing. The lint rule `ast-unknown-ship-op` fails any template that calls a name not in the catalog.
+
 ## The element
 
 ```html

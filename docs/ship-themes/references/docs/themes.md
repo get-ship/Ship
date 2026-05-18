@@ -3,12 +3,12 @@ group: Design System
 title: Themes
 section: reference
 order: 2
-description: The six built-in Ship themes, the dimensions each one bends, and how to switch between them.
+description: The seven built-in Ship themes, the dimensions each one bends, and how to switch between them.
 ---
 
 # Themes
 
-Ship ships six themes. Every one is a full aesthetic — palette, surfaces, radii, shadows, motion, typography, and interaction strength. The picker is flat: no tiers, no palette-only tier. You pick one and the app feels different.
+Ship ships seven themes. Every one is a full aesthetic — palette, surfaces, radii, shadows, motion, typography, and interaction strength. The picker is flat: no tiers, no palette-only tier. You pick one and the app feels different.
 
 ## The catalog
 
@@ -20,6 +20,7 @@ Ship ships six themes. Every one is a full aesthetic — palette, surfaces, radi
 | `halo` | Halo | Glassy pale-blue with a primary-tinted nested surface, spring motion as the interaction default, snappy 100/150/200ms durations, primary-tinted accent glow. | Fast UI work, premium feel. |
 | `console` | Console | 90s beige-box nostalgia. Tan/amber + teal accent, sharp radii (2/3/4/6px), inset-style shadows in lieu of blur, mono-forward labels, bold heading weight, chunky 12/18/22% tints. | Terminal-native users, tactile affection. |
 | `contrast` | High Contrast | Accessibility-hero. Near-black background, amber fused as both primary and accent, pure white foreground, flat 1–2px border "shadows", blocky tiny radii, bold weights, amped 14/22/30% interaction tints. | Low-vision needs, presentation mode. |
+| `glass` | Glass | Translucent surfaces with subtle saturation backdrop, soft tinted radial gradients on the page background, generous radii. | Showcase pages, demo screens, hero surfaces. |
 
 ## What a theme changes
 
@@ -47,4 +48,4 @@ The canonical UI is the **theme picker** in the shell topbar.
 
 If you are embedding Ship or wiring a custom host, drop a `<sui-theme-picker>` (or `<sui-theme-toggle>`) into the page chrome — the primitive owns load / persist / apply and dispatches `sui-theme-change` on the root so other UI can react.
 
-> **TODO: SUI equivalent pending.** The previous `applyTheme` / `persistTheme` / `readStoredTheme` functions lived on the legacy ship-set themes module. A public TS surface for the same primitives on `@ship/ui-components` has not landed yet; until it does, embed via the components above and listen for `sui-theme-change` events. Track the gap before consuming this API in integrator code.
+For a programmatic surface (apply a theme from your own code, read the current selection, listen for changes), the `<sui-theme-picker>` element itself is the API: query it via `document.querySelector('sui-theme-picker')`, set its `value` attribute to switch themes, and subscribe to `sui-theme-change` on the document root. The picker handles `data-theme`, `.dark`, and `localStorage` persistence internally.

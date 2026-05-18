@@ -11,7 +11,7 @@ use axum::{Extension, Json, extract::{Path, State}, http::StatusCode, response::
 use serde::Deserialize;
 
 use crate::access::RuntimeAccess;
-use crate::auth::{AuthContext, Scope, require_scope};
+use crate::auth::{AuthContext};
 use crate::routes::rest_api::ApiState;
 use ship_platform::services::collections::service::{
     CollectionsService, CreateItemArgs, Error as CollectionsError, UpdateItemArgs,
@@ -66,11 +66,8 @@ fn generate_item_id() -> String {
 )]
 pub async fn list_collections(
     State(state): State<ApiState>,
-    Extension(auth): Extension<AuthContext>,
+    Extension(_auth): Extension<AuthContext>,
 ) -> impl IntoResponse {
-    if let Err(e) = require_scope(&auth, Scope::ReadWorkspace) {
-        return e.into_response();
-    }
     match collections(&state).list_user_schemas() {
         Ok(schemas) => {
             let summaries: Vec<_> = schemas.iter().map(|s| serde_json::json!({
@@ -90,12 +87,9 @@ pub async fn list_collections(
 /// Rejects built-in ids and duplicates (409).
 pub async fn create_collection(
     State(state): State<ApiState>,
-    Extension(auth): Extension<AuthContext>,
+    Extension(_auth): Extension<AuthContext>,
     Json(new_schema): Json<schema::CollectionSchema>,
 ) -> impl IntoResponse {
-    if let Err(e) = require_scope(&auth, Scope::WriteWorkspace) {
-        return e.into_response();
-    }
     match collections(&state).create_schema(new_schema.clone()) {
         Ok(()) => (
             StatusCode::CREATED,
@@ -122,12 +116,9 @@ pub async fn create_collection(
 )]
 pub async fn get_schema(
     State(state): State<ApiState>,
-    Extension(auth): Extension<AuthContext>,
+    Extension(_auth): Extension<AuthContext>,
     Path(collection): Path<String>,
 ) -> impl IntoResponse {
-    if let Err(e) = require_scope(&auth, Scope::ReadWorkspace) {
-        return e.into_response();
-    }
     match collections(&state).get_schema(&collection) {
         Ok(s) => (StatusCode::OK, Json(serde_json::json!({ "ok": true, "data": s })))
             .into_response(),
@@ -141,13 +132,10 @@ pub async fn get_schema(
 /// owned by the runtime and shipped as code.
 pub async fn update_schema(
     State(state): State<ApiState>,
-    Extension(auth): Extension<AuthContext>,
+    Extension(_auth): Extension<AuthContext>,
     Path(collection): Path<String>,
     Json(updated): Json<schema::CollectionSchema>,
 ) -> impl IntoResponse {
-    if let Err(e) = require_scope(&auth, Scope::WriteWorkspace) {
-        return e.into_response();
-    }
     let payload = updated.clone();
     match collections(&state).update_schema(&collection, updated) {
         Ok(()) => (
@@ -195,9 +183,6 @@ pub async fn create_item(
     Path(collection): Path<String>,
     Json(req): Json<CreateItemRequest>,
 ) -> impl IntoResponse {
-    if let Err(e) = require_scope(&auth, Scope::WriteWorkspace) {
-        return e.into_response();
-    }
     let id = req.id.unwrap_or_else(generate_item_id);
     let args = CreateItemArgs {
         collection: collection.clone(),
@@ -234,12 +219,9 @@ pub async fn create_item(
 )]
 pub async fn get_item(
     State(state): State<ApiState>,
-    Extension(auth): Extension<AuthContext>,
+    Extension(_auth): Extension<AuthContext>,
     Path((collection, item_id)): Path<(String, String)>,
 ) -> impl IntoResponse {
-    if let Err(e) = require_scope(&auth, Scope::ReadWorkspace) {
-        return e.into_response();
-    }
     match collections(&state).get_item(&collection, &item_id).await {
         Ok(item) => (StatusCode::OK, Json(serde_json::json!({ "ok": true, "data": item })))
             .into_response(),
@@ -276,13 +258,10 @@ pub struct UpdateItemRequest {
 )]
 pub async fn update_item(
     State(state): State<ApiState>,
-    Extension(auth): Extension<AuthContext>,
+    Extension(_auth): Extension<AuthContext>,
     Path((collection, item_id)): Path<(String, String)>,
     Json(req): Json<UpdateItemRequest>,
 ) -> impl IntoResponse {
-    if let Err(e) = require_scope(&auth, Scope::WriteWorkspace) {
-        return e.into_response();
-    }
     let args = UpdateItemArgs {
         collection,
         id: item_id,
@@ -314,12 +293,9 @@ pub async fn update_item(
 )]
 pub async fn delete_item(
     State(state): State<ApiState>,
-    Extension(auth): Extension<AuthContext>,
+    Extension(_auth): Extension<AuthContext>,
     Path((collection, item_id)): Path<(String, String)>,
 ) -> impl IntoResponse {
-    if let Err(e) = require_scope(&auth, Scope::WriteWorkspace) {
-        return e.into_response();
-    }
     match collections(&state).delete_item(&collection, &item_id).await {
         Ok(true) => (StatusCode::OK, Json(serde_json::json!({ "ok": true })))
             .into_response(),
@@ -346,13 +322,10 @@ pub async fn delete_item(
 )]
 pub async fn query_items(
     State(state): State<ApiState>,
-    Extension(auth): Extension<AuthContext>,
+    Extension(_auth): Extension<AuthContext>,
     Path(collection): Path<String>,
     Json(mut req): Json<QueryRequest>,
 ) -> impl IntoResponse {
-    if let Err(e) = require_scope(&auth, Scope::ReadWorkspace) {
-        return e.into_response();
-    }
     if !ship_platform::collections::query::is_safe_identifier(&collection) {
         return (
             StatusCode::BAD_REQUEST,

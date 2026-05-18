@@ -21,6 +21,5 @@ The same pieces handle the type, the workflow, the interface, and the review.
 - **Skills** — instruction sets with typed variables. One skill, personalized output per user and project.
 - **Pipelines** — declarative multi-step work. Steps run in order or in parallel; gates pause for approval; runs are resumable.
 - **Collections** — schema-backed structured data. Define types, query them, subscribe to changes.
-- **Views** — live HTML surfaces over your data. Author a template; the runtime renders.
+- **Views** — live reactive UI authored as `.sui` templates. Signal-driven, server-rendered, hydrated client-side.
 - **Artifacts** — files agents and pipelines produce. Tracked, addressable, renderable in views.
-- **Triggers** — rules that watch for events and run actions when they fire.

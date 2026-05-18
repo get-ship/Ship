@@ -6,7 +6,7 @@ use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::sse::{Event, KeepAlive, Sse};
 use axum::response::IntoResponse;
-use axum::Json;
+use axum::{Extension, Json};
 use base64::engine::general_purpose::STANDARD as BASE64;
 use base64::Engine;
 use futures_util::stream::{self};
@@ -16,6 +16,7 @@ use std::time::Duration;
 use tokio_stream::wrappers::BroadcastStream;
 use tokio_stream::StreamExt as TokioStreamExt;
 
+use crate::auth::{AuthContext};
 use crate::routes::rest_api::ApiState;
 
 use super::err;
@@ -41,6 +42,7 @@ pub struct InputBody {
 )]
 pub async fn session_input(
     State(state): State<ApiState>,
+    Extension(_auth): Extension<AuthContext>,
     Path(id): Path<String>,
     Json(body): Json<InputBody>,
 ) -> axum::response::Response {
@@ -70,6 +72,7 @@ pub async fn session_input(
 )]
 pub async fn stream_session_events(
     State(state): State<ApiState>,
+    Extension(_auth): Extension<AuthContext>,
     Path(id): Path<String>,
 ) -> axum::response::Response {
     let rx = if let Some(entry) = state.actor_sessions().get(&id) {
@@ -102,6 +105,7 @@ pub async fn stream_session_events(
 )]
 pub async fn stream_session(
     State(state): State<ApiState>,
+    Extension(_auth): Extension<AuthContext>,
     Path(id): Path<String>,
 ) -> axum::response::Response {
     let (log_path, live) = if let Some(entry) = state.actor_sessions().get(&id) {

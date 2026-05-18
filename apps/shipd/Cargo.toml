@@ -96,6 +96,8 @@ tower = { version = "0.5", features = ["util"] }
 chrono = { workspace = true }
 reqwest = { workspace = true, features = ["json"] }
 tokio = { workspace = true, features = ["full", "test-util"] }
+tokio-tungstenite = "0.28"
+futures-util = "0.3"
 serde_json = { workspace = true }
 
 [lints]

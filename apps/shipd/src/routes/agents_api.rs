@@ -18,12 +18,14 @@
 
 
 
+use axum::Extension;
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use axum::response::Json;
 use serde::Deserialize;
 
 use crate::access::RuntimeAccess;
+use crate::auth::{AuthContext};
 use crate::routes::rest_api::ApiState;
 use ship_platform::services::files::Scope;
 use ship_platform::services::agents::service::{CreateArgs, DuplicateArgs, PutArgs};
@@ -74,6 +76,7 @@ fn err(status: StatusCode, code: &str, message: impl Into<String>) -> Resp {
     (status, Json(serde_json::json!({ "ok": false, "error": code, "message": message.into() })))
 }
 
+
 fn map_err(e: ship_platform::services::agents::state::Error) -> Resp {
     use ship_platform::services::agents::state::Error::*;
     match e {
@@ -91,13 +94,17 @@ fn map_err(e: ship_platform::services::agents::state::Error) -> Resp {
 // ── Handlers ─────────────────────────────────────────────────────────
 
 /// GET /api/v1/agents
-pub async fn list(State(state): State<ApiState>) -> Json<serde_json::Value> {
-    Json(serde_json::json!({ "ok": true, "items": state.services().agents().list() }))
+pub async fn list(
+    State(state): State<ApiState>,
+    Extension(_auth): Extension<AuthContext>,
+) -> Result<Json<serde_json::Value>, Resp> {
+    Ok(Json(serde_json::json!({ "ok": true, "items": state.services().agents().list() })))
 }
 
 /// GET /api/v1/agents/{id}
 pub async fn get(
     State(state): State<ApiState>,
+    Extension(_auth): Extension<AuthContext>,
     Path(id): Path<String>,
     Query(q): Query<ScopeQuery>,
 ) -> Result<Json<serde_json::Value>, Resp> {
@@ -114,6 +121,7 @@ pub async fn get(
 /// PUT /api/v1/agents/{id}
 pub async fn put(
     State(state): State<ApiState>,
+    Extension(_auth): Extension<AuthContext>,
     Path(id): Path<String>,
     Query(q): Query<ScopeQuery>,
     Json(doc): Json<serde_json::Value>,
@@ -133,6 +141,7 @@ pub async fn put(
 /// Body is an RFC 6902 patch document: `[{op,path,value?}, ...]`.
 pub async fn patch(
     State(state): State<ApiState>,
+    Extension(_auth): Extension<AuthContext>,
     Path(id): Path<String>,
     Query(q): Query<ScopeQuery>,
     Json(patch_body): Json<serde_json::Value>,
@@ -150,6 +159,7 @@ pub async fn patch(
 /// DELETE /api/v1/agents/{id}
 pub async fn delete(
     State(state): State<ApiState>,
+    Extension(_auth): Extension<AuthContext>,
     Path(id): Path<String>,
     Query(q): Query<ScopeQuery>,
 ) -> Result<Json<serde_json::Value>, Resp> {
@@ -176,6 +186,7 @@ pub struct CreateBody {
 
 pub async fn create(
     State(state): State<ApiState>,
+    Extension(_auth): Extension<AuthContext>,
     Json(body): Json<CreateBody>,
 ) -> Result<Resp, Resp> {
     let target = match body.scope.as_deref() {
@@ -198,6 +209,7 @@ pub struct RenameBody { pub new_id: String }
 
 pub async fn rename(
     State(state): State<ApiState>,
+    Extension(_auth): Extension<AuthContext>,
     Path(id): Path<String>,
     Query(q): Query<ScopeQuery>,
     Json(body): Json<RenameBody>,
@@ -220,6 +232,7 @@ pub struct DuplicateBody {
 
 pub async fn duplicate(
     State(state): State<ApiState>,
+    Extension(_auth): Extension<AuthContext>,
     Path(id): Path<String>,
     Query(q): Query<ScopeQuery>,
     Json(body): Json<DuplicateBody>,
@@ -249,6 +262,7 @@ pub struct MoveBody { pub to_scope: String }
 
 pub async fn move_scope(
     State(state): State<ApiState>,
+    Extension(_auth): Extension<AuthContext>,
     Path(id): Path<String>,
     Query(q): Query<ScopeQuery>,
     Json(body): Json<MoveBody>,

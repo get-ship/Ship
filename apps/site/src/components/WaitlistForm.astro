@@ -63,7 +63,7 @@ const {
       if (!email) return;
       setBusy(true);
       try {
-        const res = await fetch(`${GATEWAY_URL}/api/waitlist`, {
+        const res = await fetch(`${GATEWAY_URL}/v1/waitlist`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

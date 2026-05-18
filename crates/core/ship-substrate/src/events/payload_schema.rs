@@ -135,6 +135,11 @@ fn schema_for_event_type(
         "auth.session.expired" => Some(check::<AuthSessionExpired>),
         "daemon.owner.bound" => Some(check::<DaemonOwnerBound>),
         "daemon.owner.unbound" => Some(check::<DaemonOwnerUnbound>),
+        // account lifecycle
+        "account.login_started" => Some(check::<AccountLoginStarted>),
+        "account.login_completed" => Some(check::<AccountLoginCompleted>),
+        "account.logout" => Some(check::<AccountLogout>),
+        "account.key_refreshed" => Some(check::<AccountKeyRefreshed>),
         // skill / rule / permission CRUD (event-coverage/01)
         "skill.created" => Some(check::<SkillCreated>),
         "skill.updated" => Some(check::<SkillUpdated>),

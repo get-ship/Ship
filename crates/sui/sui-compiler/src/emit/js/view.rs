@@ -13,9 +13,7 @@ pub(super) fn emit_view_export(w: &mut Writer, body: Writer) {
         "{{\"cargo\":\"{}\",\"git\":\"{}\",\"dirty\":{},\"builtAt\":\"{}\"}}",
         cv.cargo, cv.git, cv.dirty, cv.built_at,
     );
-    w.line(&format!(
-        "export default Object.assign(view((ctx) => {{"
-    ));
+    w.line("export default Object.assign(view((ctx) => {");
     w.push_str(&body.into_string());
     w.line(&format!("}}), {{ _compilerVersion: {stamp} }});"));
 }

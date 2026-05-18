@@ -10,7 +10,7 @@ use ship_substrate::events::EventEnvelope;
 use ship_substrate::events::pipeline::{PipelineRunStartedPayload, event_types};
 use serde::Deserialize;
 
-use crate::auth::{AuthContext, Scope, require_scope};
+use crate::auth::{AuthContext};
 use crate::routes::rest_api::{ApiState, MeshResponse};
 
 // ---- Job request types ----
@@ -257,12 +257,9 @@ pub struct EventSummary {
 )]
 pub async fn get_job_detail(
     State(state): State<ApiState>,
-    Extension(auth): Extension<AuthContext>,
+    Extension(_auth): Extension<AuthContext>,
     Path(job_id): Path<String>,
 ) -> axum::response::Response {
-    if let Err(e) = require_scope(&auth, Scope::ReadJobs) {
-        return e.into_response();
-    }
     let job = match ship_platform::projections::job::load_job_by_id_at(state.ship_dir(), &job_id) {
         Ok(Some(j)) => j,
         Ok(None) => {
@@ -348,12 +345,9 @@ pub async fn get_job_detail(
 )]
 pub async fn create_job(
     State(state): State<ApiState>,
-    Extension(auth): Extension<AuthContext>,
+    Extension(_auth): Extension<AuthContext>,
     Json(req): Json<CreateJobRequest>,
 ) -> impl IntoResponse {
-    if let Err(e) = require_scope(&auth, Scope::CreateJobs) {
-        return e;
-    }
     if !is_safe_slug(&req.slug) {
         return (
             StatusCode::BAD_REQUEST,
@@ -467,13 +461,10 @@ pub(crate) fn default_cancel_reason() -> String {
 )]
 pub async fn cancel_job(
     State(state): State<ApiState>,
-    Extension(auth): Extension<AuthContext>,
+    Extension(_auth): Extension<AuthContext>,
     Path(slug): Path<String>,
     Json(req): Json<CancelJobRequest>,
 ) -> impl IntoResponse {
-    if let Err(e) = require_scope(&auth, Scope::ManageJobs) {
-        return e;
-    }
 
     let job = match ship_platform::projections::job::load_job_by_slug_at(state.ship_dir(), &slug) {
         Ok(Some(j)) => j,
@@ -578,12 +569,9 @@ pub struct JobEndRequest {
 )]
 pub async fn end_job(
     State(state): State<ApiState>,
-    Extension(auth): Extension<AuthContext>,
+    Extension(_auth): Extension<AuthContext>,
     Json(req): Json<JobEndRequest>,
 ) -> impl IntoResponse {
-    if let Err(e) = require_scope(&auth, Scope::ManageJobs) {
-        return e;
-    }
     // Slug isn't unique across job lifetimes, but the SQL projection
     // returns the most-recently-updated row — that's the live one when a
     // dispatched job exists. Filter by status to confirm before steering.

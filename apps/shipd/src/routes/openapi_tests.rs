@@ -9,6 +9,7 @@
 //! - public operations override `security: []` (requires routes like
 //!   `/api/health` to be utoipa-declared, not inline closures)
 //! - every operation declares at least one non-2xx response
+//!
 //! These three are tracked in `.artifacts/openapi-contract-gaps.md` and
 //! become tests once the underlying spec gaps are closed.
 

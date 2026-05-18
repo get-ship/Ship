@@ -46,22 +46,23 @@ impl<T: Clone + Send + Sync + 'static> Signal<T> {
     /// subscriber. Call `peek()` for non-tracking reads.
     pub fn get(&self) -> T {
         let observer = get_observer();
-        let (value, newly_subscribed) = {
+        let (value, newly_subscribed_sub) = {
             let mut inner = self.lock();
-            let newly = if let Some(sub) = observer.as_ref() {
-                subscribe_if_new(&mut inner.subs, Arc::clone(sub))
-            } else {
-                false
-            };
-            (inner.value.clone(), newly)
+            let newly_sub = observer.as_ref().and_then(|sub| {
+                if subscribe_if_new(&mut inner.subs, Arc::clone(sub)) {
+                    Some(Arc::clone(sub))
+                } else {
+                    None
+                }
+            });
+            (inner.value.clone(), newly_sub)
         };
 
         // Record an untrack thunk so the active observer can drop its
         // subscription to this signal on its next tracked run / disposal.
         // We only record on the first subscription per (observer, signal) per
         // run — subsequent reads of the same signal dedupe via subscribe_if_new.
-        if newly_subscribed {
-            let sub = observer.expect("observer was Some when newly_subscribed");
+        if let Some(sub) = newly_subscribed_sub {
             let inner_arc = Arc::clone(&self.0);
             record_untrack(Box::new(move || {
                 let mut inner = inner_arc.lock().unwrap_or_else(|e| e.into_inner());

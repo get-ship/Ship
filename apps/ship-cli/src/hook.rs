@@ -1,6 +1,6 @@
 use anyhow::{Result, anyhow};
 use cli_framework::hooks::{
-    handle_after_tool, handle_before_tool, handle_session_end, handle_session_start,
+    handle_after_tool, handle_before_tool, handle_session_end, handle_session_start, tool_gate,
 };
 use std::io::Read;
 
@@ -173,6 +173,31 @@ pub fn run_session_start() -> Result<()> {
 
 pub fn run_before_tool() -> Result<()> {
     let stdin = read_stdin()?;
+
+    // Layer 2 — Ship-integrity gate (see SECURITY.md). Runs before the
+    // daemon roundtrip; on deny, emit Claude Code's permission-decision
+    // JSON and return without logging a (nonexistent) tool call.
+    let ctx = tool_gate::Context {
+        home_dir: home::home_dir().unwrap_or_else(|| std::path::PathBuf::from("/")),
+        daemon_port: std::env::current_dir()
+            .ok()
+            .and_then(|c| ship_substrate::home::discover_running_daemon(&c))
+            .map(|h| h.port),
+    };
+    if let tool_gate::Decision::Deny(reason) = tool_gate::check(&stdin, &ctx) {
+        println!(
+            "{}",
+            serde_json::json!({
+                "hookSpecificOutput": {
+                    "hookEventName": "PreToolUse",
+                    "permissionDecision": "deny",
+                    "permissionDecisionReason": reason,
+                }
+            })
+        );
+        return Ok(());
+    }
+
     let body = normalize_stdin(&stdin, "before-tool");
     try_daemon_or_local("before-tool", &body, || {
         if let (Some(actor), Some(workspace)) = (agent_id(), workspace_id())

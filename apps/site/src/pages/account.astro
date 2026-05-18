@@ -255,17 +255,41 @@ if (!SHOW_ACCOUNT) return Astro.redirect('/');
       renderSessions(rows as SessionRow[]);
     });
 
-    document.querySelector<HTMLButtonElement>('[data-delete-account]')?.addEventListener('click', async () => {
-      const ok = confirm('Delete your account? Synced workspaces will be removed. This cannot be undone.');
+    document.querySelector<HTMLButtonElement>('[data-delete-account]')?.addEventListener('click', async (e) => {
+      const btn = e.currentTarget as HTMLButtonElement;
+      const ok = confirm(
+        'Delete your account?\n\nWe\'ll email you a confirmation link. Your account stays active until you click it. This cannot be undone.',
+      );
       if (!ok) return;
+      btn.disabled = true;
       try {
-        await authClient.deleteUser({});
-      } catch {
-        // Even if the gateway doesn't implement deleteUser, sign out so the
-        // user doesn't end up stuck on a page they can't escape.
+        // Gateway is configured with sendDeleteAccountVerification, so the
+        // first call doesn't delete — it returns "Verification email sent"
+        // and the user has to click the link in their inbox to actually
+        // remove the row + cascade dependents + drop the Stripe customer.
+        // Stay signed in so they can still see /account; the callback flow
+        // signs them out at the gateway after the row is gone.
+        const res = await authClient.deleteUser({
+          callbackURL: `${location.origin}/?deleted=1`,
+        });
+        const data = (res as { data?: { message?: string } | null } | undefined)?.data ?? null;
+        if (data?.message === 'Verification email sent') {
+          alert(`Check ${user.email} for a confirmation link. Your account stays active until you click it.`);
+        } else if (data?.message === 'User deleted') {
+          // BA returns this when verification is not configured. We DO have
+          // it configured server-side, so this branch shouldn't fire — but
+          // if it does, the row is gone and signing out is correct.
+          await signOut();
+          location.href = '/?deleted=1';
+        } else {
+          alert('Could not start account deletion. Please try again or contact support.');
+        }
+      } catch (err) {
+        console.error('deleteUser failed', err);
+        alert('Could not start account deletion. Please try again or contact support.');
+      } finally {
+        btn.disabled = false;
       }
-      await signOut();
-      location.href = '/';
     });
   }
 

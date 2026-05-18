@@ -16,7 +16,7 @@ use axum::{Extension, Json};
 use serde::Deserialize;
 use ship_substrate::events::{types::event_types, EventEnvelope};
 
-use crate::auth::AuthContext;
+use crate::auth::{AuthContext};
 use crate::routes::rest_api::ApiState;
 
 use super::super::lifecycle;

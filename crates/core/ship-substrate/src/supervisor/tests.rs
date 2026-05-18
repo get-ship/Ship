@@ -204,7 +204,7 @@ fn stop_terminates_child() {
     // /proc/{pid} disappears after the kill propagates.
     let mut alive_after_stop = true;
     for _ in 0..20 {
-        if !std::fs::metadata(format!("/proc/{pid}")).is_ok() {
+        if std::fs::metadata(format!("/proc/{pid}")).is_err() {
             alive_after_stop = false;
             break;
         }
