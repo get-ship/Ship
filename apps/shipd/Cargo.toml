@@ -23,6 +23,7 @@ ship-platform = { path = "../../crates/core/ship-platform" }
 ship-pipelines = { path = "../../crates/core/ship-pipelines" }
 ship-supervisor = { path = "../../crates/ship-supervisor" }
 ship-types = { path = "../../crates/core/ship-types" }
+ship-analytics = { path = "../../crates/ship-analytics" }
 compiler = { path = "../../crates/core/compiler" }
 build-info = { path = "../../crates/core/build-info" }
 ship-sui = { path = "../../crates/sui/ship-sui" }
