@@ -128,9 +128,23 @@ async function makeAuth(env: Env) {
     // under /v1/* uniformly.
     basePath: '/v1/auth',
     trustedOrigins: TRUSTED_ORIGINS,
+    // Block client-side API key management — the daemon issues keys via the
+    // server-side `auth.api.createApiKey` helper, never via the HTTP route.
+    // Leaving the routes open let any session holder mint themselves a long-
+    // lived bearer token (audit §7.3).
+    disabledPaths: [
+      '/api-key/create',
+      '/api-key/update',
+      '/api-key/delete',
+      '/api-key/list',
+      '/api-key/get',
+    ],
     emailAndPassword: {
       enabled: true,
-      requireEmailVerification: false,
+      // OAuth providers (GitHub/Google/Slack) are pre-verified. Password
+      // signups must verify their email before /v1/auth/sign-in/email
+      // returns a session — closes the trivial account-spam vector.
+      requireEmailVerification: true,
       // sendResetPassword is fired by Better Auth's /forget-password endpoint.
       // The marketing site's /forgot-password page calls authClient.forgetPassword
       // which hits that endpoint and triggers this hook.

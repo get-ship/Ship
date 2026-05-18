@@ -123,9 +123,16 @@ pub(crate) fn hex_encode(bytes: &[u8]) -> String {
 }
 
 /// Write the daemon token to `<daemon_dir>/token` with restricted
-/// permissions. Parent directories are created if missing.
+/// permissions. Parent directories are created if missing. On Unix the
+/// daemon dir itself is forced to 0700 so other local users can't enumerate
+/// or read sibling secrets (sessions/, pending-pairings, etc.).
 pub fn write_token_file(daemon_dir: &Path, token: &str) -> std::io::Result<()> {
     std::fs::create_dir_all(daemon_dir)?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(daemon_dir, std::fs::Permissions::from_mode(0o700))?;
+    }
     let path = daemon_dir.join("token");
     std::fs::write(&path, token)?;
     #[cfg(unix)]

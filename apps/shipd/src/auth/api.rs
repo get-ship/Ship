@@ -52,6 +52,19 @@ mod tests {
         assert_eq!(read, token);
     }
 
+    #[cfg(unix)]
+    #[test]
+    fn write_token_file_sets_daemon_dir_0700() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = tempfile::TempDir::new().unwrap();
+        let nested = dir.path().join("machine").join("daemon");
+        write_token_file(&nested, "tok").unwrap();
+        let dir_mode = std::fs::metadata(&nested).unwrap().permissions().mode() & 0o777;
+        assert_eq!(dir_mode, 0o700, "daemon dir must be 0700");
+        let file_mode = std::fs::metadata(nested.join("token")).unwrap().permissions().mode() & 0o777;
+        assert_eq!(file_mode, 0o600, "token file must be 0600");
+    }
+
     #[test]
     fn is_daemon_token_valid() {
         let token = generate_token().unwrap();
