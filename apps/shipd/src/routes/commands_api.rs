@@ -4,9 +4,10 @@
 //! seeded at daemon boot; runtime additions appear after seeded entries in
 //! insertion order.
 
-use axum::{Json, http::StatusCode, response::IntoResponse};
+use axum::{Extension, Json, http::StatusCode, response::IntoResponse};
 use serde::Serialize;
 
+use crate::auth::{AuthContext, Scope, require_scope};
 use ship_platform::commands::{self, CommandEntry};
 
 #[derive(Serialize, utoipa::ToSchema)]
@@ -24,10 +25,15 @@ pub struct CommandsResponse {
     ),
     tag = "framework"
 )]
-pub async fn list_commands() -> impl IntoResponse {
+pub async fn list_commands(
+    Extension(auth): Extension<AuthContext>,
+) -> axum::response::Response {
+    if let Err(e) = require_scope(&auth, Scope::ReadWorkspace) {
+        return e.into_response();
+    }
     let commands = commands::list();
     (
         StatusCode::OK,
         Json(CommandsResponse { ok: true, commands }),
-    )
+    ).into_response()
 }

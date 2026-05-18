@@ -211,3 +211,70 @@ async fn minimal_scope_cannot_route_events() {
 
     assert_eq!(resp.status(), StatusCode::FORBIDDEN);
 }
+
+// ── Scope closure: workspace-state path (job/scope-closure) ───────────────
+
+#[tokio::test(flavor = "multi_thread")]
+async fn worker_cannot_git_push() {
+    let dir = TempDir::new().unwrap();
+    let state = make_api_state(&dir);
+    let auth_no_write = AuthContext {
+        caller_kind: ship_substrate::events::CallerKind::Mcp,
+        agent_id: Some("agent.worker".into()),
+        workspace_id: None,
+        session_id: None,
+        scopes: vec![Scope::ReadWorkspace, Scope::ReadJobs, Scope::LogProgress],
+    };
+
+    let resp = crate::routes::git_api::push_handler(
+        State(state),
+        Extension(auth_no_write),
+        Json(crate::routes::git_api::PushBody {
+            workspace_id: None,
+            remote: None,
+            force: false,
+        }),
+    )
+    .await
+    .into_response();
+
+    assert_eq!(resp.status(), StatusCode::FORBIDDEN);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn worker_cannot_create_agent() {
+    let dir = TempDir::new().unwrap();
+    let state = make_api_state(&dir);
+
+    let resp = crate::routes::agents_api::create(
+        State(state),
+        Extension(worker_auth()),
+        Json(crate::routes::agents_api::CreateBody {
+            id: "evil".into(),
+            scope: None,
+            doc: serde_json::json!({"agent": {"id": "evil"}}),
+        }),
+    )
+    .await
+    .into_response();
+
+    assert_eq!(resp.status(), StatusCode::FORBIDDEN);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn worker_cannot_invoke_skill() {
+    let dir = TempDir::new().unwrap();
+    let state = make_api_state(&dir);
+
+    let resp = crate::routes::skills_api::invoke(
+        State(state),
+        Extension(worker_auth()),
+        axum::extract::Path("no-such-skill".to_string()),
+        axum::extract::Query(crate::routes::skills_api::ScopeQuery { scope: None }),
+        Some(Json(crate::routes::skills_api::InvokeBody::default())),
+    )
+    .await
+    .into_response();
+
+    assert_eq!(resp.status(), StatusCode::FORBIDDEN);
+}

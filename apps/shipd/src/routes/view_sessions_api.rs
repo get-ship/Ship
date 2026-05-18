@@ -23,7 +23,7 @@ use axum::{
 use serde::Deserialize;
 use serde_json::Value;
 
-use crate::auth::AuthContext;
+use crate::auth::{AuthContext, Scope, require_scope};
 use crate::routes::rest_api::ApiState;
 use crate::views::session::SessionError;
 
@@ -117,6 +117,9 @@ pub async fn open_session(
     Extension(auth): Extension<AuthContext>,
     Json(req): Json<OpenReq>,
 ) -> Response {
+    if let Err(e) = require_scope(&auth, Scope::ManageJobs) {
+        return e.into_response();
+    }
     let agent = match require_agent(&auth) { Ok(a) => a, Err(r) => return r };
     match state
         .view_sessions()
@@ -161,6 +164,9 @@ pub async fn patch_session(
     Path(id): Path<String>,
     Json(req): Json<PatchReq>,
 ) -> Response {
+    if let Err(e) = require_scope(&auth, Scope::ManageJobs) {
+        return e.into_response();
+    }
     let agent = match require_agent(&auth) { Ok(a) => a, Err(r) => return r };
     match state.view_sessions().patch(&id, &agent, &req.selector, req.html).await {
         Ok(()) => ok_json(serde_json::json!({"ok": true})),
@@ -188,6 +194,9 @@ pub async fn append_session(
     Path(id): Path<String>,
     Json(req): Json<PatchReq>,
 ) -> Response {
+    if let Err(e) = require_scope(&auth, Scope::ManageJobs) {
+        return e.into_response();
+    }
     let agent = match require_agent(&auth) { Ok(a) => a, Err(r) => return r };
     match state.view_sessions().append(&id, &agent, &req.selector, req.html).await {
         Ok(()) => ok_json(serde_json::json!({"ok": true})),
@@ -215,6 +224,9 @@ pub async fn signal_session(
     Path(id): Path<String>,
     Json(req): Json<SignalReq>,
 ) -> Response {
+    if let Err(e) = require_scope(&auth, Scope::ManageJobs) {
+        return e.into_response();
+    }
     let agent = match require_agent(&auth) { Ok(a) => a, Err(r) => return r };
     match state.view_sessions().signal(&id, &agent, &req.name, req.value).await {
         Ok(()) => ok_json(serde_json::json!({"ok": true})),
@@ -240,6 +252,9 @@ pub async fn close_session(
     Extension(auth): Extension<AuthContext>,
     Path(id): Path<String>,
 ) -> Response {
+    if let Err(e) = require_scope(&auth, Scope::ManageJobs) {
+        return e.into_response();
+    }
     let agent = match require_agent(&auth) { Ok(a) => a, Err(r) => return r };
     match state.view_sessions().close(&id, &agent).await {
         Ok(()) => ok_json(serde_json::json!({"ok": true})),
@@ -264,6 +279,9 @@ pub async fn subscribe_session(
     Extension(auth): Extension<AuthContext>,
     Path(id): Path<String>,
 ) -> Response {
+    if let Err(e) = require_scope(&auth, Scope::ReadWorkspace) {
+        return e.into_response();
+    }
     // Subscribe is read-only but still agent-scoped: anonymous MCP
     // callers have no business tailing another agent's canvas. The
     // daemon's bearer auth has already run; this rejects connections

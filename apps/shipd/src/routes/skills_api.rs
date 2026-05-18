@@ -21,12 +21,14 @@
 //! The skill's filesystem is the source of truth for everything else.
 
 
+use axum::Extension;
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use axum::response::Json;
 use serde::Deserialize;
 
 use crate::access::RuntimeAccess;
+use crate::auth::{AuthContext, Scope as AuthScope};
 use crate::routes::rest_api::ApiState;
 use ship_platform::services::files::Scope;
 use ship_platform::services::skills::service::CreateArgs;
@@ -72,6 +74,14 @@ fn err(status: StatusCode, code: &str, message: impl Into<String>) -> Resp {
     (status, Json(serde_json::json!({ "ok": false, "error": code, "message": message.into() })))
 }
 
+fn require(auth: &AuthContext, scope: AuthScope) -> Result<(), Resp> {
+    if auth.has_scope(scope) {
+        Ok(())
+    } else {
+        Err(err(StatusCode::FORBIDDEN, "forbidden", format!("insufficient scope: {scope:?} required")))
+    }
+}
+
 fn map_err(e: ship_platform::services::skills::state::Error) -> Resp {
     use ship_platform::services::skills::state::Error::*;
     match e {
@@ -89,16 +99,22 @@ fn map_err(e: ship_platform::services::skills::state::Error) -> Resp {
 // ── List / detail ─────────────────────────────────────────────────────
 
 /// GET /api/v1/skills
-pub async fn list(State(state): State<ApiState>) -> Json<serde_json::Value> {
-    Json(serde_json::json!({ "ok": true, "items": state.services().skills().list() }))
+pub async fn list(
+    State(state): State<ApiState>,
+    Extension(auth): Extension<AuthContext>,
+) -> Result<Json<serde_json::Value>, Resp> {
+    require(&auth, AuthScope::ReadWorkspace)?;
+    Ok(Json(serde_json::json!({ "ok": true, "items": state.services().skills().list() })))
 }
 
 /// GET /api/v1/skills/{id}
 pub async fn get(
     State(state): State<ApiState>,
+    Extension(auth): Extension<AuthContext>,
     Path(id): Path<String>,
     Query(q): Query<ScopeQuery>,
 ) -> Result<Json<serde_json::Value>, Resp> {
+    require(&auth, AuthScope::ReadWorkspace)?;
     let scope = parse_scope(&q)?;
     let detail = state.services().skills().get(&id, scope).map_err(map_err)?;
     Ok(Json(serde_json::json!({ "ok": true, "skill": detail })))
@@ -109,10 +125,12 @@ pub async fn get(
 /// PUT /api/v1/skills/{id}/frontmatter
 pub async fn put_frontmatter(
     State(state): State<ApiState>,
+    Extension(auth): Extension<AuthContext>,
     Path(id): Path<String>,
     Query(q): Query<ScopeQuery>,
     Json(body): Json<serde_json::Value>,
 ) -> Result<Json<serde_json::Value>, Resp> {
+    require(&auth, AuthScope::WriteWorkspace)?;
     let scope = parse_scope(&q)?;
     let resolved = state.services().skills().write_frontmatter(&id, scope, &body).map_err(map_err)?;
     Ok(Json(serde_json::json!({
@@ -129,10 +147,12 @@ pub struct BodyPayload {
 /// PUT /api/v1/skills/{id}/body
 pub async fn put_body(
     State(state): State<ApiState>,
+    Extension(auth): Extension<AuthContext>,
     Path(id): Path<String>,
     Query(q): Query<ScopeQuery>,
     Json(payload): Json<BodyPayload>,
 ) -> Result<Json<serde_json::Value>, Resp> {
+    require(&auth, AuthScope::WriteWorkspace)?;
     let scope = parse_scope(&q)?;
     let resolved = state.services().skills().write_body(&id, scope, &payload.body).map_err(map_err)?;
     Ok(Json(serde_json::json!({
@@ -151,10 +171,12 @@ pub struct FilePayload {
 /// PUT /api/v1/skills/{id}/files/{*path}
 pub async fn put_file(
     State(state): State<ApiState>,
+    Extension(auth): Extension<AuthContext>,
     Path((id, path)): Path<(String, String)>,
     Query(q): Query<ScopeQuery>,
     Json(payload): Json<FilePayload>,
 ) -> Result<Json<serde_json::Value>, Resp> {
+    require(&auth, AuthScope::WriteWorkspace)?;
     let scope = parse_scope(&q)?;
     let resolved = state.services().skills()
         .write_file(&id, scope, &path, payload.content.as_bytes())
@@ -168,9 +190,11 @@ pub async fn put_file(
 /// DELETE /api/v1/skills/{id}/files/{*path}
 pub async fn delete_file(
     State(state): State<ApiState>,
+    Extension(auth): Extension<AuthContext>,
     Path((id, path)): Path<(String, String)>,
     Query(q): Query<ScopeQuery>,
 ) -> Result<Json<serde_json::Value>, Resp> {
+    require(&auth, AuthScope::WriteWorkspace)?;
     let scope = parse_scope(&q)?;
     let resolved = state.services().skills().delete_file(&id, scope, &path).map_err(map_err)?;
     Ok(Json(serde_json::json!({
@@ -198,8 +222,10 @@ pub struct CreateBody {
 /// POST /api/v1/skills
 pub async fn create(
     State(state): State<ApiState>,
+    Extension(auth): Extension<AuthContext>,
     Json(body): Json<CreateBody>,
 ) -> Result<Resp, Resp> {
+    require(&auth, AuthScope::CreateJobs)?;
     let target = match body.scope.as_deref() {
         None | Some("") => None,
         Some(s) => Some(parse_scope_required(s)?),
@@ -223,9 +249,11 @@ pub async fn create(
 /// DELETE /api/v1/skills/{id}
 pub async fn delete(
     State(state): State<ApiState>,
+    Extension(auth): Extension<AuthContext>,
     Path(id): Path<String>,
     Query(q): Query<ScopeQuery>,
 ) -> Result<Json<serde_json::Value>, Resp> {
+    require(&auth, AuthScope::WriteWorkspace)?;
     let scope = parse_scope(&q)?;
     let resolved = state.services().skills().delete(&id, scope).map_err(map_err)?;
     Ok(Json(serde_json::json!({
@@ -240,10 +268,12 @@ pub struct RenameBody { pub new_id: String }
 /// POST /api/v1/skills/{id}/rename
 pub async fn rename(
     State(state): State<ApiState>,
+    Extension(auth): Extension<AuthContext>,
     Path(id): Path<String>,
     Query(q): Query<ScopeQuery>,
     Json(body): Json<RenameBody>,
 ) -> Result<Json<serde_json::Value>, Resp> {
+    require(&auth, AuthScope::WriteWorkspace)?;
     let scope = parse_scope(&q)?;
     let resolved = state.services().skills().rename(&id, &body.new_id, scope).map_err(map_err)?;
     Ok(Json(serde_json::json!({
@@ -258,10 +288,12 @@ pub struct DuplicateBody { pub new_id: String }
 /// POST /api/v1/skills/{id}/duplicate
 pub async fn duplicate(
     State(state): State<ApiState>,
+    Extension(auth): Extension<AuthContext>,
     Path(id): Path<String>,
     Query(q): Query<ScopeQuery>,
     Json(body): Json<DuplicateBody>,
 ) -> Result<Json<serde_json::Value>, Resp> {
+    require(&auth, AuthScope::CreateJobs)?;
     let scope = parse_scope(&q)?;
     let resolved = state.services().skills().duplicate(&id, &body.new_id, scope).map_err(map_err)?;
     Ok(Json(serde_json::json!({
@@ -276,10 +308,12 @@ pub struct MoveBody { pub to_scope: String }
 /// POST /api/v1/skills/{id}/move
 pub async fn move_scope(
     State(state): State<ApiState>,
+    Extension(auth): Extension<AuthContext>,
     Path(id): Path<String>,
     Query(q): Query<ScopeQuery>,
     Json(body): Json<MoveBody>,
 ) -> Result<Json<serde_json::Value>, Resp> {
+    require(&auth, AuthScope::WriteWorkspace)?;
     let from_scope = parse_scope(&q)?.ok_or_else(|| err(
         StatusCode::BAD_REQUEST, "missing_scope",
         "source scope is required on move — pass ?scope=project or ?scope=user",
@@ -297,8 +331,10 @@ pub async fn move_scope(
 /// GET /api/v1/skills/{id}/vars
 pub async fn get_vars(
     State(state): State<ApiState>,
+    Extension(auth): Extension<AuthContext>,
     Path(id): Path<String>,
 ) -> Result<Json<serde_json::Value>, Resp> {
+    require(&auth, AuthScope::ReadWorkspace)?;
     state.services().skills().validate_id(&id).map_err(map_err)?;
     let vars = state.services().skills().get_vars(&id).map_err(|e| {
         err(StatusCode::INTERNAL_SERVER_ERROR, "io", e.to_string())
@@ -322,9 +358,11 @@ pub struct SetVarBody {
 /// PUT /api/v1/skills/{id}/vars/{key}
 pub async fn put_var(
     State(state): State<ApiState>,
+    Extension(auth): Extension<AuthContext>,
     Path((id, key)): Path<(String, String)>,
     Json(body): Json<SetVarBody>,
 ) -> Result<Json<serde_json::Value>, Resp> {
+    require(&auth, AuthScope::WriteWorkspace)?;
     state.services().skills().validate_id(&id).map_err(map_err)?;
     state.services().skills().set_var(&id, &key, body.value).map_err(|e| {
         let msg = e.to_string();
@@ -340,8 +378,10 @@ pub async fn put_var(
 /// DELETE /api/v1/skills/{id}/vars/{key}
 pub async fn delete_var(
     State(state): State<ApiState>,
+    Extension(auth): Extension<AuthContext>,
     Path((id, key)): Path<(String, String)>,
 ) -> Result<Json<serde_json::Value>, Resp> {
+    require(&auth, AuthScope::WriteWorkspace)?;
     state.services().skills().validate_id(&id).map_err(map_err)?;
     let had = state.services().skills().delete_var(&id, &key).map_err(|e| {
         let msg = e.to_string();
@@ -412,10 +452,12 @@ struct InvokeOutcome {
 /// POST /api/v1/skills/{id}/invoke
 pub async fn invoke(
     State(state): State<ApiState>,
+    Extension(auth): Extension<AuthContext>,
     Path(id): Path<String>,
     Query(q): Query<ScopeQuery>,
     body: Option<Json<InvokeBody>>,
 ) -> Result<Json<serde_json::Value>, Resp> {
+    require(&auth, AuthScope::ManageJobs)?;
     let scope = parse_scope(&q)?;
     // Resolve the skill so we 404 before emitting any started event for
     // a skill the user can't actually run. `load` parses the SKILL.md

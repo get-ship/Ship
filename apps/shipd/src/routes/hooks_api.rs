@@ -12,7 +12,7 @@ use ship_substrate::events::EventEnvelope;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
-use crate::auth::AuthContext;
+use crate::auth::{AuthContext, Scope, require_scope};
 use crate::routes::rest_api::ApiState;
 
 /// Normalized hook event sent by Claude HTTP hooks or the `ship hook` adapter.
@@ -86,7 +86,10 @@ fn resolve_session(event: &ShipHookEvent, auth: &AuthContext) -> Option<String> 
 pub async fn hook_session_start(
     Extension(auth): Extension<AuthContext>,
     Json(event): Json<ShipHookEvent>,
-) -> impl IntoResponse {
+) -> axum::response::Response {
+    if let Err(e) = require_scope(&auth, Scope::EmitEvents) {
+        return e.into_response();
+    }
     let actor = resolve_actor(&event, &auth);
     let session = resolve_session(&event, &auth);
 
@@ -97,7 +100,7 @@ pub async fn hook_session_start(
         let _ = ship_substrate::db::session_drain::update_heartbeat(sid);
     }
 
-    (StatusCode::OK, Json(HookResponse::allow()))
+    (StatusCode::OK, Json(HookResponse::allow())).into_response()
 }
 
 /// POST /api/v1/hooks/before-tool
@@ -118,7 +121,10 @@ pub async fn hook_before_tool(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
     Json(event): Json<ShipHookEvent>,
-) -> impl IntoResponse {
+) -> axum::response::Response {
+    if let Err(e) = require_scope(&auth, Scope::EmitEvents) {
+        return e.into_response();
+    }
     let actor = resolve_actor(&event, &auth);
     let session = resolve_session(&event, &auth);
     let tool = event.tool_name.as_deref().unwrap_or("unknown");
@@ -157,7 +163,7 @@ pub async fn hook_before_tool(
         }
     }
 
-    (StatusCode::OK, Json(HookResponse::allow()))
+    (StatusCode::OK, Json(HookResponse::allow())).into_response()
 }
 
 /// Route a tool-use event into the matching Ship chat session so the
@@ -208,7 +214,10 @@ pub async fn hook_after_tool(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
     Json(event): Json<ShipHookEvent>,
-) -> impl IntoResponse {
+) -> axum::response::Response {
+    if let Err(e) = require_scope(&auth, Scope::EmitEvents) {
+        return e.into_response();
+    }
     let actor = resolve_actor(&event, &auth);
     let session = resolve_session(&event, &auth);
     let tool = event.tool_name.as_deref().unwrap_or("unknown");
@@ -244,7 +253,7 @@ pub async fn hook_after_tool(
         }
     }
 
-    (StatusCode::OK, Json(HookResponse::allow()))
+    (StatusCode::OK, Json(HookResponse::allow())).into_response()
 }
 
 /// POST /api/v1/hooks/session-end
@@ -264,7 +273,10 @@ pub async fn hook_after_tool(
 pub async fn hook_session_end(
     Extension(auth): Extension<AuthContext>,
     Json(event): Json<ShipHookEvent>,
-) -> impl IntoResponse {
+) -> axum::response::Response {
+    if let Err(e) = require_scope(&auth, Scope::EmitEvents) {
+        return e.into_response();
+    }
     let actor = resolve_actor(&event, &auth);
     let session = resolve_session(&event, &auth);
 
@@ -274,7 +286,7 @@ pub async fn hook_session_end(
         let _ = ship_substrate::db::session_drain::update_heartbeat(sid);
     }
 
-    (StatusCode::OK, Json(HookResponse::allow()))
+    (StatusCode::OK, Json(HookResponse::allow())).into_response()
 }
 
 #[cfg(test)]
