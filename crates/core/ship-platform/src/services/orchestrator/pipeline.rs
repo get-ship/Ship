@@ -303,6 +303,8 @@ async fn advance_pipeline_inner(
                     },
                     step: Some(crate::services::dispatch_ports::StepInfo { index: step_idx, id: step.id.clone() }),
                     headless: job.headless,
+                    // Pipeline steps are always per-turn, never keepalive.
+                    keepalive: false,
                 };
                 match octx.executor.spawn(&job_ctx).await {
                     Ok(handle) => {

@@ -147,6 +147,7 @@ fn payload_with_first_step(
         spec_content: None,
         step_specs: None,
         headless: true,
+        keepalive: false,
         prompt: None,
         resume: false,
         resume_session_id: None,

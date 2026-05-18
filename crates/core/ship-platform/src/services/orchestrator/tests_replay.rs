@@ -242,6 +242,7 @@ mod replay_filter {
             vars: None,
             step_retries: HashMap::new(),
             headless: false,
+            keepalive: false,
             baseline_sha: None,
         }
     }

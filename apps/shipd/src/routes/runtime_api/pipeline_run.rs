@@ -185,6 +185,7 @@ pub async fn run_pipeline(
         spec_content: req.spec,
         step_specs: None,
         headless: req.auto,
+        keepalive: false,
         prompt: None,
         resume: false,
         resume_session_id: None,

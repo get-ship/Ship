@@ -68,6 +68,18 @@ pub struct JobContext {
     /// through to the executor so it can fall back without its own flag
     /// check.
     pub headless: bool,
+    /// Long-running interactive session — not a pipeline step. Routes to
+    /// ProcessExecutor with `adapter.build_interactive` (no `-p`, no
+    /// `--print`). The harness stays at its TUI prompt waiting for stdin
+    /// pushes (via `/api/v1/sessions/{slug}/message` Stdin mechanism) or
+    /// WebSocket attach. Mutually exclusive with `headless` — the
+    /// dispatch validator should reject both being true.
+    ///
+    /// Drives the cmdb-modal chat backend, the analytics SessionStart
+    /// hook flow, and reliable PTY attach. See
+    /// `.artifacts/agents-arc/discussions/dispatch-modes-vs-session-hooks.md`
+    /// and `pty-attach-needs-keepalive-mode.md`.
+    pub keepalive: bool,
 }
 
 /// Per-step metadata threaded to executors.

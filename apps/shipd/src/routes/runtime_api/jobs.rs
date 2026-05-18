@@ -379,6 +379,7 @@ pub async fn create_job(
         spec_content: req.spec_content,
         step_specs: None,
         headless: req.headless,
+        keepalive: false,
         prompt: None,
         resume: false,
         resume_session_id: None,
