@@ -129,6 +129,7 @@ export interface DispatchInput {
   auto?: boolean;
   workspace?: string;
   model?: string;
+  keepalive?: boolean;
 }
 
 export interface DispatchResponse {
@@ -161,6 +162,7 @@ export async function dispatch(input: DispatchInput): Promise<{
         auto: input.auto ?? true,
         workspace: input.workspace,
         model: input.model,
+        keepalive: input.keepalive ?? false,
       }),
     },
   );
