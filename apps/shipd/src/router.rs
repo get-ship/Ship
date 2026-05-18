@@ -20,7 +20,8 @@ use crate::{
 use crate::routes::{
     account_api, actor_api, actors_api, agents_api, annotations_api, artifacts_api,
     collection_api, commands_api, create_api, feedback_api, git_api, hooks_api,
-    human_webhook, logs_api, mcp_api, openapi, permissions_api, pipelines_api, projects_api,
+    human_webhook, isolation_api, logs_api, mcp_api, openapi, permissions_api, pipelines_api,
+    projects_api,
     registry_api, rest_api, rules_api, runtime_api, sdk_manifest, search_api, settings_api,
     skills_api, specs_api, themes_api, view_edit_mode_api, view_edit_tool_api, view_errors_api,
     view_sessions_api, webhook_ext,
@@ -412,6 +413,9 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::KillTree_template(), actors_api::kill_tree_handler)
         // Capabilities (no state required; ok against a stateful router)
         .ship_route(Route::Capabilities, rest_api::capabilities)
+        // Isolation — agent sandbox capability probe + recommender
+        .ship_route(Route::IsolationStatus, isolation_api::isolation_status)
+        .ship_route(Route::IsolationRescan, isolation_api::isolation_rescan)
         // Runtime
         .ship_route(Route::ListSessions, runtime_api::list_workspace_sessions)
         .ship_route(Route::ListAgents, runtime_api::list_agents)

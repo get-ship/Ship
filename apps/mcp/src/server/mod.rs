@@ -877,6 +877,28 @@ impl ShipServer {
     }
 
     #[tool(
+        description = "Show detected host sandbox capabilities and the strategy Ship \
+        would pick for the next agent run. Returns JSON: { capabilities, decision } — \
+        capabilities lists docker/podman/youki/lima/wsl2/srt/fly presence; decision \
+        gives the resolved strategy + tier + human-readable reason."
+    )]
+    async fn isolation_status(&self) -> String {
+        let caps = match ship_platform::isolation::cached_capabilities() {
+            Ok(c) => c,
+            Err(e) => return format!("Error: capability probe failed: {e}"),
+        };
+        let decision = ship_platform::isolation::decide(None, None);
+        let payload = serde_json::json!({
+            "capabilities": caps,
+            "decision": match &decision {
+                Ok(d) => serde_json::to_value(d).unwrap_or(serde_json::Value::Null),
+                Err(e) => serde_json::json!({ "error": e.to_string() }),
+            },
+        });
+        serde_json::to_string_pretty(&payload).unwrap_or_else(|e| format!("Error: {e}"))
+    }
+
+    #[tool(
         description = "Stop a running agent by slug. Terminates the process and \
         removes it from the registry."
     )]

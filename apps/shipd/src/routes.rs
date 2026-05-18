@@ -56,6 +56,7 @@ pub mod feedback_api;
 pub mod git_api;
 pub mod hooks_api;
 pub mod human_webhook;
+pub mod isolation_api;
 pub mod logs_api;
 pub mod mcp_api;
 pub mod openapi;
@@ -973,6 +974,16 @@ pub enum Route {
     /// @route GET "/api/v1/capabilities"
     /// @auth scope ReadWorkspace
     Capabilities,
+
+    // ── Isolation (agent sandbox) ────────────────────────────────────────
+
+    /// @route GET "/api/v1/isolation/status"
+    /// @auth scope ReadWorkspace
+    IsolationStatus,
+
+    /// @route POST "/api/v1/isolation/rescan"
+    /// @auth scope WriteWorkspace
+    IsolationRescan,
 
     // ── Command bar registry ─────────────────────────────────────────────
 
