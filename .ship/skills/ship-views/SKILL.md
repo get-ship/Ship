@@ -57,7 +57,7 @@ Five rules:
 
 Plain `.ts` files (not `controller.ts`, not under `_components/`) are helpers, types, or tests.
 
-Every first-party view in `views/` now uses the `page.sui` + `controller.ts` + `manifest.jsonc` shape — `views/home/`, `views/agents/`, `views/sessions/`, `views/workspaces/`, `views/git/`, `views/skills/`, `views/events/`, `views/dashboard/`, `views/settings/`, `views/canvas/`, `views/mesh/`, `views/pipelines/`, `views/overview/`. The router (`packages/ship-set/src/router/`) walks only manifest-bearing directories — a missing `manifest.jsonc` means the view is invisible to the rail, regardless of which template form it ships.
+Every first-party view in `views/` uses the `page.sui` + `controller.ts` + `manifest.jsonc` shape. The shell's route mounter (`apps/shell/src/main.ts::mountRoute`) walks only manifest-bearing directories — a missing `manifest.jsonc` means the view is invisible to the rail, regardless of which template form it ships.
 
 ### Worked example: `views/home/`
 
@@ -381,7 +381,7 @@ re-resolves on the daemon.
 }
 ```
 
-The router (`packages/ship-set/src/router/`) walks `views/` at build/start time and registers each `manifest.jsonc`. URL → view module resolution and `[param]` capture happen there. For daemon route shapes, the SSR + attach pipeline, and the marker contract, see `references/manifests-routes.md`.
+The shell's route mounter (`apps/shell/src/main.ts::mountRoute`) walks `views/` at build/start time and registers each `manifest.jsonc`. URL → view module resolution and `[param]` capture happen there. For daemon route shapes, the SSR + attach pipeline, and the marker contract, see `references/manifests-routes.md`.
 
 ## Hard rules
 

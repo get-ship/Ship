@@ -21,7 +21,7 @@ Active framework contracts agents use when writing first-party code.
 | [`no-slop`](no-slop/SKILL.md) | Ten commandments for building software with AI agents. Hard-won, opinionated, concise. |
 | [`ship-views`](ship-views/SKILL.md) | Author Ship views in SUI — `.sui` templates with optional paired `.controller.ts`, AOT-compiled, server-rendered first, hydrated by `attach()`. |
 | [`ship-components`](ship-components/SKILL.md) | Author Ship components in SUI — `<sui-*>` primitives compiled AOT from `.sui` source with optional paired `.controller.ts`. |
-| [`ship-design-system`](ship-design-system/SKILL.md) | Charter for Ship's design-system layer — tokens, themes, surfaces, tone ramps, motion, density. Read when editing `packages/ship-set/src/tokens.css`/`themes.css` or adding a theme. |
+| [`ship-design-system`](ship-design-system/SKILL.md) | Charter for Ship's design-system layer — tokens, themes, surfaces, tone ramps, motion, density. Read when editing `packages/ui-components/src/tokens/tokens.css`/`themes.css` or adding a theme. |
 | [`writing-docs`](writing-docs/SKILL.md) | Write reference docs for a doc skill (`docs/ship-*/references/docs/`). Covers Markdown + ship-elements, frontmatter, audience filtering, multi-page structure. |
 | [`write-adr`](write-adr/SKILL.md) | Capture a technical/product decision for future agents — context, decision, alternatives, consequences, success measure. |
 
