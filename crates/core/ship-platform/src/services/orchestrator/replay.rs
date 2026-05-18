@@ -61,7 +61,7 @@ pub(super) fn select_replay_targets(jobs: &HashMap<String, PipelineRun>) -> Vec<
             total = stale.len(),
             cap = MAX_REPLAYS_PER_STARTUP,
             "job-dispatch: replay set exceeds cap; replaying most recent only. \
-             Investigate stale completions: ship jobs --status completed"
+             Investigate stale completions: ship procs --kind pipeline-step"
         );
         stale.truncate(MAX_REPLAYS_PER_STARTUP);
     }
