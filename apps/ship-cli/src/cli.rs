@@ -75,6 +75,11 @@ pub enum Commands {
 
     // ── Daily Use ────────────────────────────────────────────────────────────
     /// Activate an agent for the current (or specified) directory
+    ///
+    /// Without launch flags this only compiles and activates the agent.
+    /// Pass `--launch` (interactive) or `--auto` (headless) to dispatch a
+    /// session immediately. `--auto`, `--prompt`, `--spec`, and `--resume`
+    /// each imply `--launch`.
     Use {
         /// Agent ID or registry reference (e.g. rust-expert, @org/agent)
         agent_id: String,
@@ -87,6 +92,29 @@ pub enum Commands {
         /// Extra skill IDs to inject at compile time (repeatable)
         #[arg(long = "with", value_name = "SKILL_ID")]
         with_skills: Vec<String>,
+
+        // ── launch ──
+        /// Spawn an interactive agent session after compiling.
+        #[arg(long)]
+        launch: bool,
+        /// Spawn an autonomous (headless) session after compiling. Implies --launch.
+        #[arg(long)]
+        auto: bool,
+        /// Re-enter the last session for this (agent, path) pair. Implies --launch.
+        #[arg(long)]
+        resume: bool,
+        /// Inline prompt; becomes the agent's first user turn. Implies --launch.
+        #[arg(long, conflicts_with = "spec")]
+        prompt: Option<String>,
+        /// Path to a job spec markdown; copied to .artifacts/job-spec.md. Implies --launch.
+        #[arg(long, conflicts_with = "prompt")]
+        spec: Option<PathBuf>,
+        /// Per-launch harness override (claude, codex, gemini, cursor).
+        #[arg(long)]
+        harness: Option<String>,
+        /// Per-launch model override (e.g. sonnet, opus).
+        #[arg(long)]
+        model: Option<String>,
     },
 
     /// Show the active agent and compilation status

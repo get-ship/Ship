@@ -17,6 +17,19 @@ ship init                         # scaffold .ship/ in current project
 ship init --global                # configure ~/.ship/ identity and defaults
 ship use <agent-id>               # activate agent and compile
 ship use <agent-id> --with <skill># inject extra skills at compile time
+ship use <agent-id> --launch      # compile + dispatch an interactive session
+ship use <agent-id> --auto        # compile + dispatch a headless session
+ship use <agent-id> --resume      # continue last session for (agent, path)
+ship use <agent-id> --launch --prompt "..."
+                                  # seed the first user turn (interactive)
+ship use <agent-id> --auto --prompt "..."
+                                  # one-shot autonomous run
+ship use <agent-id> --launch --spec ./job.md
+                                  # spec-driven launch; copies to .artifacts/job-spec.md
+ship use <agent-id> --launch --path /worktrees/x
+                                  # launch into an alternate directory
+ship use <agent-id> --launch --harness codex --model sonnet
+                                  # per-launch harness / model overrides
 ship compile                      # recompile after config changes
 ship compile --dry-run            # preview output without writing files
 ship compile --harness claude    # compile for a specific harness only
@@ -25,6 +38,8 @@ ship validate                     # check config for errors
 ship validate --agent <name>      # validate a single agent
 ship validate --json              # emit errors as JSON array
 ```
+
+`--auto`, `--prompt`, `--spec`, and `--resume` each imply `--launch` — pass any one of them without `--launch` and a dispatch still happens. `--path` alone does not. `--prompt` and `--spec` are mutually exclusive. Launches POST to the daemon's `/api/v1/agent_sessions/dispatch` endpoint; tail the result with `ship procs --slug <slug>`.
 
 ## Pipelines
 
