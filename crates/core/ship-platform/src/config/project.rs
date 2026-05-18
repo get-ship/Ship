@@ -106,6 +106,29 @@ pub struct McpSection {
     pub servers: HashMap<String, McpServerConfig>,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone, Default, Type)]
+pub struct HarnessProjectOverrides {
+    /// Project-level override for the user-KV `harness.default` setting.
+    /// Picked when `ship use --launch` is invoked without `--harness=X`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub default: Option<String>,
+    /// Project-level override for the user-KV `harness.default_model`
+    /// setting. Picked when `ship use --launch` is invoked without
+    /// `--model=X`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub default_model: Option<String>,
+}
+
+impl HarnessProjectOverrides {
+    pub fn is_empty(&self) -> bool {
+        self.default.is_none() && self.default_model.is_none()
+    }
+}
+
+fn is_harness_overrides_empty(h: &Option<HarnessProjectOverrides>) -> bool {
+    h.as_ref().map(|o| o.is_empty()).unwrap_or(true)
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, Type)]
 pub struct ProjectConfig {
     #[serde(default = "default_version")]
@@ -126,6 +149,12 @@ pub struct ProjectConfig {
     /// Alpha: "claude" | "gemini" | "codex". Defaults to ["claude"].
     #[serde(default = "default_harnesses", skip_serializing_if = "Vec::is_empty")]
     pub harnesses: Vec<String>,
+    /// Project-level overrides for the user-KV launch defaults
+    /// (`harness.default`, `harness.default_model`). Only the two
+    /// identity-shaped keys are overrideable here — per-user
+    /// preferences like `agent_session.auto_resume` are not.
+    #[serde(default, skip_serializing_if = "is_harness_overrides_empty")]
+    pub harness: Option<HarnessProjectOverrides>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
@@ -157,6 +186,7 @@ impl Default for ProjectConfig {
             mcp_servers: Vec::new(),
             agent: AgentLayerConfig::default(),
             harnesses: default_harnesses(),
+            harness: None,
         }
     }
 }

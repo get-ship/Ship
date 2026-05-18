@@ -163,6 +163,21 @@
         ]
       }
     },
+    "harness": {
+      "type": "object",
+      "description": "Project-level overrides for the user-KV launch defaults consulted by `ship use --launch`. Only the two identity-shaped keys are overrideable here — per-user preferences like `agent_session.auto_resume` stay in user storage.",
+      "properties": {
+        "default": {
+          "type": "string",
+          "description": "Project override for the user-KV `harness.default` setting. Picked when `--harness=X` is not passed."
+        },
+        "default_model": {
+          "type": ["string", "null"],
+          "description": "Project override for the user-KV `harness.default_model` setting. Picked when `--model=X` is not passed. `null` clears any user-level value for this project."
+        }
+      },
+      "additionalProperties": false
+    },
     "exports": {
       "type": "object",
       "description": "Paths exported by this module for consumers.",
