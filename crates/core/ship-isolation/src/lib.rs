@@ -30,6 +30,7 @@ pub mod helpers;
 pub mod net;
 pub mod policy;
 pub mod recommender;
+pub mod registry;
 pub mod settings;
 pub mod sidecar;
 pub mod tier;
@@ -42,6 +43,10 @@ pub use helpers::EphemeralFile;
 pub use policy::{FsMount, MountMode, NetworkPolicy, SandboxPolicy, ResourceLimits};
 pub use recommender::{
     RecommendInput, RecommenderError, ResolutionReason, ResolvedIsolation, recommend,
+};
+pub use registry::{
+    IsolatorFactory, Registry, default_registry, register_default_noop, register_docker,
+    register_harness_sandbox,
 };
 pub use tier::{IsolationProfile, IsolationStrategy, IsolationTier};
 pub use trait_def::{Isolator, IsolatorError, LaunchCommand};
