@@ -13,10 +13,11 @@
 use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
-use axum::Json;
+use axum::{Extension, Json};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
+use crate::auth::{AuthContext, Scope, require_scope};
 use crate::routes::rest_api::ApiState;
 
 #[derive(Deserialize, utoipa::ToSchema)]
@@ -80,8 +81,12 @@ const PAIRS: &[(&str, &str, &str, &str)] = &[
 )]
 pub async fn theme_contrast(
     State(_state): State<ApiState>,
+    Extension(auth): Extension<AuthContext>,
     Json(req): Json<ContrastRequest>,
 ) -> axum::response::Response {
+    if let Err(e) = require_scope(&auth, Scope::ReadWorkspace) {
+        return e.into_response();
+    }
     let body_min = req.min_body_ratio.unwrap_or(4.5);
     let interactive_min = req.min_interactive_ratio.unwrap_or(3.0);
 

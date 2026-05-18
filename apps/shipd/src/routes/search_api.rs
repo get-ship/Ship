@@ -9,8 +9,10 @@
 
 use std::sync::Arc;
 
-use axum::{Json, extract::{Query, State}, http::StatusCode, response::IntoResponse};
+use axum::{Extension, Json, extract::{Query, State}, http::StatusCode, response::IntoResponse};
 use serde::Deserialize;
+
+use crate::auth::{AuthContext, Scope, require_scope};
 
 use ship_platform::collections::query::QueryRequest;
 use ship_platform::search::{
@@ -66,8 +68,12 @@ pub struct SearchQuery {
 )]
 pub async fn search(
     State(state): State<ApiState>,
+    Extension(auth): Extension<AuthContext>,
     Query(q): Query<SearchQuery>,
-) -> impl IntoResponse {
+) -> axum::response::Response {
+    if let Err(e) = require_scope(&auth, Scope::ReadWorkspace) {
+        return e.into_response();
+    }
     let query = q.q.unwrap_or_default();
     let types: Option<Vec<EntityKindFilter>> = q.types.as_deref().map(parse_types_filter);
     let cursor = q.cursor.as_deref().and_then(Cursor::decode);
@@ -83,7 +89,7 @@ pub async fn search(
             "ok": true,
             "data": resp,
         })),
-    )
+    ).into_response()
 }
 
 fn parse_types_filter(raw: &str) -> Vec<EntityKindFilter> {

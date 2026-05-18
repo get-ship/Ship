@@ -6,7 +6,7 @@ use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::sse::{Event, KeepAlive, Sse};
 use axum::response::IntoResponse;
-use axum::Json;
+use axum::{Extension, Json};
 use base64::engine::general_purpose::STANDARD as BASE64;
 use base64::Engine;
 use futures_util::stream::{self};
@@ -16,6 +16,7 @@ use std::time::Duration;
 use tokio_stream::wrappers::BroadcastStream;
 use tokio_stream::StreamExt as TokioStreamExt;
 
+use crate::auth::{AuthContext, Scope, require_scope};
 use crate::routes::rest_api::ApiState;
 
 use super::err;
@@ -41,9 +42,13 @@ pub struct InputBody {
 )]
 pub async fn session_input(
     State(state): State<ApiState>,
+    Extension(auth): Extension<AuthContext>,
     Path(id): Path<String>,
     Json(body): Json<InputBody>,
 ) -> axum::response::Response {
+    if let Err(e) = require_scope(&auth, Scope::ManageJobs) {
+        return e.into_response();
+    }
     // Only sessions that own a live transport (shell + persistent agent
     // sessions on ActorRegistry) accept raw stdin. Per-turn agent
     // sessions on `pty_sessions` have no live writer; clients use
@@ -70,8 +75,12 @@ pub async fn session_input(
 )]
 pub async fn stream_session_events(
     State(state): State<ApiState>,
+    Extension(auth): Extension<AuthContext>,
     Path(id): Path<String>,
 ) -> axum::response::Response {
+    if let Err(e) = require_scope(&auth, Scope::ReadJobs) {
+        return e.into_response();
+    }
     let rx = if let Some(entry) = state.actor_sessions().get(&id) {
         entry.subscribe_events()
     } else if let Some(session) = state.pty_sessions().get(&id) {
@@ -102,8 +111,12 @@ pub async fn stream_session_events(
 )]
 pub async fn stream_session(
     State(state): State<ApiState>,
+    Extension(auth): Extension<AuthContext>,
     Path(id): Path<String>,
 ) -> axum::response::Response {
+    if let Err(e) = require_scope(&auth, Scope::ManageJobs) {
+        return e.into_response();
+    }
     let (log_path, live) = if let Some(entry) = state.actor_sessions().get(&id) {
         (entry.log_path(), entry.subscribe())
     } else if let Some(session) = state.pty_sessions().get(&id) {

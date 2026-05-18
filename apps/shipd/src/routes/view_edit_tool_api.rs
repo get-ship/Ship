@@ -17,7 +17,7 @@ use axum::{
 };
 use std::sync::Arc;
 
-use crate::auth::AuthContext;
+use crate::auth::{AuthContext, Scope, require_scope};
 use crate::routes::rest_api::ApiState;
 use ship_platform::artifacts::ArtifactService;
 use ship_platform::view_authoring::{self, CompileError, ViewAnnotateResponse, ViewCompileCheckResponse,
@@ -85,9 +85,12 @@ fn ok<T: serde::Serialize>(value: &T) -> Response {
 pub async fn dispatch_tool(
     Path(name): Path<String>,
     State(state): State<ApiState>,
-    Extension(_auth): Extension<AuthContext>,
+    Extension(auth): Extension<AuthContext>,
     Json(body): Json<ToolBody>,
 ) -> Response {
+    if let Err(e) = require_scope(&auth, Scope::ManageJobs) {
+        return e.into_response();
+    }
     if !is_valid_view_name(&name) {
         return err(StatusCode::BAD_REQUEST, "invalid_view_name", "invalid view name");
     }

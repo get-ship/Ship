@@ -12,7 +12,7 @@ use ship_substrate::events::EventEnvelope;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
-use crate::auth::{AuthContext, enforce_mcp_identity};
+use crate::auth::{AuthContext, Scope, enforce_mcp_identity, require_scope};
 use crate::routes::rest_api::ApiState;
 
 /// Normalized hook event sent by Claude HTTP hooks or the `ship hook` adapter.
@@ -93,6 +93,9 @@ pub async fn hook_session_start(
     Extension(auth): Extension<AuthContext>,
     Json(event): Json<ShipHookEvent>,
 ) -> Response {
+    if let Err(e) = require_scope(&auth, Scope::EmitEvents) {
+        return e.into_response();
+    }
     let actor = match resolve_actor(&event, &auth) {
         Ok(a) => a,
         Err(e) => return e,
@@ -128,6 +131,9 @@ pub async fn hook_before_tool(
     Extension(auth): Extension<AuthContext>,
     Json(event): Json<ShipHookEvent>,
 ) -> Response {
+    if let Err(e) = require_scope(&auth, Scope::EmitEvents) {
+        return e.into_response();
+    }
     let actor = match resolve_actor(&event, &auth) {
         Ok(a) => a,
         Err(e) => return e,
@@ -221,6 +227,9 @@ pub async fn hook_after_tool(
     Extension(auth): Extension<AuthContext>,
     Json(event): Json<ShipHookEvent>,
 ) -> Response {
+    if let Err(e) = require_scope(&auth, Scope::EmitEvents) {
+        return e.into_response();
+    }
     let actor = match resolve_actor(&event, &auth) {
         Ok(a) => a,
         Err(e) => return e,
@@ -280,6 +289,9 @@ pub async fn hook_session_end(
     Extension(auth): Extension<AuthContext>,
     Json(event): Json<ShipHookEvent>,
 ) -> Response {
+    if let Err(e) = require_scope(&auth, Scope::EmitEvents) {
+        return e.into_response();
+    }
     let actor = match resolve_actor(&event, &auth) {
         Ok(a) => a,
         Err(e) => return e,

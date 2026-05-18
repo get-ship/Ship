@@ -26,7 +26,7 @@ use std::time::{Duration, Instant};
 use tokio::sync::Mutex;
 use ulid::Ulid;
 
-use crate::auth::AuthContext;
+use crate::auth::{AuthContext, Scope, require_scope};
 use crate::routes::rest_api::ApiState;
 use crate::views::session::SessionError;
 
@@ -114,6 +114,9 @@ pub async fn post_feedback(
     Extension(guard): Extension<Arc<FeedbackGuard>>,
     Json(mut ev): Json<FeedbackEvent>,
 ) -> Response {
+    if let Err(e) = require_scope(&auth, Scope::LogProgress) {
+        return e.into_response();
+    }
     // Allow server-side id generation for view-authored feedback where the
     // template can't easily produce a ULID. Empty string or any string that
     // isn't a valid ULID from a human-authored action = server generates.
