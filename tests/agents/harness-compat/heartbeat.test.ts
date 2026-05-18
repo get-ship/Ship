@@ -117,11 +117,10 @@ for (const h of HARNESSES) {
             );
           }
 
-          // Independent assertion: actor.live should ideally stay true
-          // while the process is "active." Today it's controlled by
-          // pid_alive(pid). For dispatched harnesses pid=0, so live
-          // depends entirely on last_event_at being recent.
-          // INFO-log the current value either way.
+          // After heartbeats and the pid=0-as-no-pid fix in row_to_actor,
+          // activity_live should kick in: last_event_at advanced within
+          // 90s + pid treated as None → live=true.
+          expect(after.live).toBe(true);
           console.log(
             `INFO: ${h.id} actor.live=${after.live} pid=${after.pid ?? "null"} after heartbeats`,
           );

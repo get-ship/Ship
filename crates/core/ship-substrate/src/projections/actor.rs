@@ -281,7 +281,12 @@ fn row_to_actor(row: &sqlx::sqlite::SqliteRow) -> ActorRow {
         .try_get("capabilities_json")
         .unwrap_or_else(|_| "[]".into());
     let capabilities: Vec<String> = serde_json::from_str(&caps_json).unwrap_or_default();
-    let pid: Option<i64> = row.try_get("pid").ok();
+    // SQLite + sqlx sometimes surfaces a NULL pid column as `Some(0)`
+    // here (the binding side writes NULL, but the read path collapses).
+    // pid 0 is the kernel swapper, never a real child — treat it as
+    // "no pid recorded" so `activity_live` can take over for actors
+    // whose pid hasn't been wired into the projection yet (Task #14).
+    let pid: Option<i64> = row.try_get("pid").ok().filter(|&p| p > 0);
     let status: String = row.try_get("status").unwrap_or_default();
     let last_event_at: Option<String> = row.try_get("last_event_at").ok();
     // Liveness sources, in order of confidence:
