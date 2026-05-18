@@ -170,6 +170,81 @@
           </div>
         </sui-card>
 
+        <!-- Harness defaults -->
+        <sui-card padding="none">
+          <div slot="header" class="s-section-head">
+            <h2 class="s-section-title">
+              <sui-icon name="cpu"></sui-icon>Harness defaults
+            </h2>
+          </div>
+          <div class="s-section-body">
+            <sui-list-tile density="compact">
+              <span class="s-row-label" id="s-label-harness-default">Default harness</span>
+              <span slot="meta">Harness used when `ship use --launch` runs with no `--harness` flag</span>
+              <span slot="trailing" class="s-row-trailing">
+                <form mutation="ship.settings.update" on:success={() => flashSaved(savedHarnessDefault)}>
+                  <input type="hidden" name="key" value="harness.default" />
+                  <sui-badge tone="success" variant="soft" size="sm"
+                    class="s-save-badge" class:visible={savedHarnessDefault()}>
+                    <sui-icon slot="leading" name="check" size="sm"></sui-icon>Saved
+                  </sui-badge>
+                  <sui-input name="value" size="sm" aria-labelledby="s-label-harness-default"
+                    prop:value={settings().value.harness_default}
+                    placeholder="e.g. claude, codex, gemini"
+                    on:blur={(e) => e.target.closest('form')?.requestSubmit()}
+                    on:keydown={(e) => { if (e.key === 'Enter') e.target.blur() }}></sui-input>
+                </form>
+              </span>
+            </sui-list-tile>
+
+            <sui-list-tile density="compact">
+              <span class="s-row-label" id="s-label-harness-default-model">Default harness model</span>
+              <span slot="meta">Model passed to the launched harness when no `--model` flag is set</span>
+              <span slot="trailing" class="s-row-trailing">
+                <form mutation="ship.settings.update" on:success={() => flashSaved(savedHarnessModel)}>
+                  <input type="hidden" name="key" value="harness.default_model" />
+                  <sui-badge tone="success" variant="soft" size="sm"
+                    class="s-save-badge" class:visible={savedHarnessModel()}>
+                    <sui-icon slot="leading" name="check" size="sm"></sui-icon>Saved
+                  </sui-badge>
+                  <sui-input name="value" size="sm" aria-labelledby="s-label-harness-default-model"
+                    prop:value={settings().value.harness_default_model}
+                    placeholder="e.g. sonnet, opus"
+                    on:blur={(e) => e.target.closest('form')?.requestSubmit()}
+                    on:keydown={(e) => { if (e.key === 'Enter') e.target.blur() }}></sui-input>
+                </form>
+              </span>
+            </sui-list-tile>
+          </div>
+        </sui-card>
+
+        <!-- Sessions -->
+        <sui-card padding="none">
+          <div slot="header" class="s-section-head">
+            <h2 class="s-section-title">
+              <sui-icon name="play"></sui-icon>Sessions
+            </h2>
+          </div>
+          <div class="s-section-body">
+            <sui-list-tile density="compact">
+              <span class="s-row-label" id="s-label-auto-resume">Auto-resume agent sessions</span>
+              <span slot="meta">When on, `ship use --launch` re-enters an existing (agent, path) session instead of spawning fresh</span>
+              <span slot="trailing" class="s-row-trailing">
+                <form mutation="ship.settings.update" on:success={() => flashSaved(savedAutoResume)}>
+                  <input type="hidden" name="key" value="agent_session.auto_resume" />
+                  <sui-badge tone="success" variant="soft" size="sm"
+                    class="s-save-badge" class:visible={savedAutoResume()}>
+                    <sui-icon slot="leading" name="check" size="sm"></sui-icon>Saved
+                  </sui-badge>
+                  <sui-switch name="value" size="sm" aria-labelledby="s-label-auto-resume"
+                    prop:checked={settings().value.agent_session_auto_resume}
+                    on:sui-change={(e) => e.target.closest('form')?.requestSubmit()}></sui-switch>
+                </form>
+              </span>
+            </sui-list-tile>
+          </div>
+        </sui-card>
+
         <!-- Advanced (collapsible) -->
         <sui-card padding="none">
           <sui-collapsible
@@ -208,6 +283,60 @@
                       <sui-input name="value" size="sm" aria-labelledby="s-label-registry"
                         prop:value={settings().value.advanced_registry}
                         placeholder="https://registry.getship.dev"
+                        on:blur={(e) => e.target.closest('form')?.requestSubmit()}
+                        on:keydown={(e) => { if (e.key === 'Enter') e.target.blur() }}></sui-input>
+                    </form>
+                  </span>
+                </sui-list-tile>
+                <sui-list-tile density="compact">
+                  <span class="s-row-label" id="s-label-watcher-debounce">Watcher debounce (ms)</span>
+                  <span slot="meta">Debounce window for the declarative `.ship/` file watcher</span>
+                  <span slot="trailing" class="s-row-trailing">
+                    <form mutation="ship.settings.update" on:success={() => flashSaved(savedWatcherDebounce)}>
+                      <input type="hidden" name="key" value="watcher.debounce_ms" />
+                      <sui-badge tone="success" variant="soft" size="sm"
+                        class="s-save-badge" class:visible={savedWatcherDebounce()}>
+                        <sui-icon slot="leading" name="check" size="sm"></sui-icon>Saved
+                      </sui-badge>
+                      <sui-input type="number" name="value" size="sm" aria-labelledby="s-label-watcher-debounce"
+                        prop:value={settings().value.watcher_debounce_ms}
+                        placeholder="200"
+                        on:blur={(e) => e.target.closest('form')?.requestSubmit()}
+                        on:keydown={(e) => { if (e.key === 'Enter') e.target.blur() }}></sui-input>
+                    </form>
+                  </span>
+                </sui-list-tile>
+                <sui-list-tile density="compact">
+                  <span class="s-row-label" id="s-label-git-log-limit">Git log limit</span>
+                  <span slot="meta">Default row count for `git log` reads when callers omit a limit</span>
+                  <span slot="trailing" class="s-row-trailing">
+                    <form mutation="ship.settings.update" on:success={() => flashSaved(savedGitLogLimit)}>
+                      <input type="hidden" name="key" value="git.log_limit" />
+                      <sui-badge tone="success" variant="soft" size="sm"
+                        class="s-save-badge" class:visible={savedGitLogLimit()}>
+                        <sui-icon slot="leading" name="check" size="sm"></sui-icon>Saved
+                      </sui-badge>
+                      <sui-input type="number" name="value" size="sm" aria-labelledby="s-label-git-log-limit"
+                        prop:value={settings().value.git_log_limit}
+                        placeholder="50"
+                        on:blur={(e) => e.target.closest('form')?.requestSubmit()}
+                        on:keydown={(e) => { if (e.key === 'Enter') e.target.blur() }}></sui-input>
+                    </form>
+                  </span>
+                </sui-list-tile>
+                <sui-list-tile density="compact">
+                  <span class="s-row-label" id="s-label-hooks-max-depth">Hooks max depth</span>
+                  <span slot="meta">Max hook recursion depth before the engine drops further events</span>
+                  <span slot="trailing" class="s-row-trailing">
+                    <form mutation="ship.settings.update" on:success={() => flashSaved(savedHooksMaxDepth)}>
+                      <input type="hidden" name="key" value="hooks.max_depth" />
+                      <sui-badge tone="success" variant="soft" size="sm"
+                        class="s-save-badge" class:visible={savedHooksMaxDepth()}>
+                        <sui-icon slot="leading" name="check" size="sm"></sui-icon>Saved
+                      </sui-badge>
+                      <sui-input type="number" name="value" size="sm" aria-labelledby="s-label-hooks-max-depth"
+                        prop:value={settings().value.hooks_max_depth}
+                        placeholder="3"
                         on:blur={(e) => e.target.closest('form')?.requestSubmit()}
                         on:keydown={(e) => { if (e.key === 'Enter') e.target.blur() }}></sui-input>
                     </form>
