@@ -118,6 +118,21 @@ pub enum IsolationDecisionError {
     Recommender(#[from] RecommenderError),
 }
 
+/// Parse the optional `isolation` field on an `AgentProfile` into a
+/// typed `IsolationProfile`. Returns `Ok(None)` for missing or empty;
+/// `Err` only when the value is malformed (caller should surface this
+/// in the UI as "agent has an invalid isolation config").
+pub fn parse_agent_override(
+    raw: Option<&serde_json::Value>,
+) -> Result<Option<IsolationProfile>, serde_json::Error> {
+    let Some(value) = raw else { return Ok(None) };
+    if value.is_null() {
+        return Ok(None);
+    }
+    let parsed: IsolationProfile = serde_json::from_value(value.clone())?;
+    Ok(Some(parsed))
+}
+
 fn string_setting(key: &str) -> Result<Option<String>> {
     Ok(match get_setting(key)? {
         Some(serde_json::Value::String(s)) => Some(s),
@@ -148,5 +163,31 @@ mod tests {
         // Smoke: without overrides, decide() returns SOMETHING. The
         // contents depend on host caps; we just check it doesn't panic.
         let _ = decide(None, None);
+    }
+
+    #[test]
+    fn parse_agent_override_handles_missing_null_and_typed() {
+        assert!(parse_agent_override(None).unwrap().is_none());
+        assert!(
+            parse_agent_override(Some(&serde_json::Value::Null))
+                .unwrap()
+                .is_none()
+        );
+        let raw = serde_json::json!({ "tier": "container", "strategy": "docker" });
+        let parsed = parse_agent_override(Some(&raw)).unwrap().unwrap();
+        assert_eq!(
+            parsed.tier,
+            Some(ship_isolation::tier::IsolationTier::Container)
+        );
+        assert_eq!(
+            parsed.strategy,
+            Some(ship_isolation::tier::IsolationStrategy::DockerEngine)
+        );
+    }
+
+    #[test]
+    fn parse_agent_override_errors_on_malformed() {
+        let raw = serde_json::json!({ "tier": "totally-wrong" });
+        assert!(parse_agent_override(Some(&raw)).is_err());
     }
 }

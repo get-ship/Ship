@@ -57,6 +57,23 @@ pub enum WorkspaceCommands {
 }
 
 #[derive(Subcommand, Debug)]
+pub enum IsolationCommands {
+    /// Show detected host capabilities + which strategy ship would pick
+    /// for an agent run today.
+    Status {
+        /// Emit JSON instead of human-readable output
+        #[arg(long)]
+        json: bool,
+    },
+    /// Force a re-probe of host capabilities (clears the cache).
+    Rescan {
+        /// Emit JSON instead of human-readable output
+        #[arg(long)]
+        json: bool,
+    },
+}
+
+#[derive(Subcommand, Debug)]
 pub enum McpCommands {
     /// Run the Ship MCP server (stdio by default; --http for HTTP daemon)
     Serve {

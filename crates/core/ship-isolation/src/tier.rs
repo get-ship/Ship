@@ -75,22 +75,24 @@ impl fmt::Display for IsolationTier {
 
 /// One concrete implementation of a tier. Each strategy implements
 /// `Isolator`. Strategies are capability-gated by the recommender.
+///
+/// Serde uses the same short ids as `as_id()` / `from_id()` (e.g.
+/// "docker", "youki") — what users type in YAML, what the CLI prints.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
 pub enum IsolationStrategy {
-    /// Tier 0 — baseline. Spawns unsandboxed.
+    #[serde(rename = "noop")]
     Noop,
-    /// Tier 1 — wraps `@anthropic-ai/sandbox-runtime` (Seatbelt or bwrap).
+    #[serde(rename = "harness", alias = "harness_sandbox", alias = "srt", alias = "sandbox-runtime")]
     HarnessSandbox,
-    /// Tier 2 — host `docker` or `podman`.
+    #[serde(rename = "docker", alias = "docker_engine", alias = "podman")]
     DockerEngine,
-    /// Tier 2 — bundled `youki` + Ubuntu rootfs.
+    #[serde(rename = "youki", alias = "youki_rootless")]
     YoukiRootless,
-    /// Tier 2 — host WSL2 distro (Windows path when WSL2 present).
+    #[serde(rename = "wsl2", alias = "wsl")]
     Wsl2,
-    /// Tier 3 — Lima/Vz on macOS arm64.
+    #[serde(rename = "lima", alias = "lima_vm", alias = "tart", alias = "vz")]
     LimaVm,
-    /// Tier 4 — Fly Machines.
+    #[serde(rename = "fly", alias = "fly_machines", alias = "flyio")]
     FlyMachines,
 }
 

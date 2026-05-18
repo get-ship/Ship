@@ -17,6 +17,7 @@ use crate::auth::AuthContext;
 
 /// Reject if an MCP caller's claimed agent_id (from body/path) doesn't
 /// match the agent_id bound to its session. Non-MCP callers pass through.
+#[allow(clippy::result_large_err)] // axum Response is the contract here
 pub fn enforce_mcp_identity(
     auth: &AuthContext,
     claimed_agent_id: Option<&str>,

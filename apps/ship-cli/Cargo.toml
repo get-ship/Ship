@@ -22,6 +22,7 @@ cli-framework = { path = "../../crates/core/cli-framework" }
 compiler = { path = "../../crates/core/compiler" }
 ship-substrate = { path = "../../crates/core/ship-substrate" }
 ship-platform = { path = "../../crates/core/ship-platform" }
+ship-isolation = { path = "../../crates/core/ship-isolation", default-features = false }
 ship-pipelines = { path = "../../crates/core/ship-pipelines" }
 ship-types = { path = "../../crates/core/ship-types" }
 anyhow = { workspace = true }

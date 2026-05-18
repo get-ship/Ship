@@ -59,6 +59,7 @@ impl HookResponse {
 /// the body's `actor_id` is bound to `auth.agent_id` — workers can't
 /// claim another agent's identity. Daemon-token callers keep their
 /// trusted preference for the body value.
+#[allow(clippy::result_large_err)] // axum Response is the contract here
 fn resolve_actor(event: &ShipHookEvent, auth: &AuthContext) -> Result<String, Response> {
     enforce_mcp_identity(auth, event.actor_id.as_deref())?;
     Ok(event

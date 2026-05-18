@@ -26,6 +26,7 @@ fn project_canonical(src: &compiler::AgentProfile) -> AgentProfile {
         hooks: Vec::new(),
         permissions: super::types::PermissionConfig::default(),
         target_agents: Vec::new(),
+        isolation: None,
     }
 }
 
