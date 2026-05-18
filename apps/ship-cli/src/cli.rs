@@ -265,12 +265,6 @@ pub enum Commands {
         headless: bool,
     },
 
-    /// Manage running jobs (cancel, etc.).
-    Job {
-        #[command(subcommand)]
-        action: JobCommands,
-    },
-
     /// List process records (lifecycle view from the ProcessRecord projection)
     Procs {
         /// Filter to a single job slug
@@ -347,17 +341,6 @@ pub enum OpenapiCommands {
     },
 }
 
-#[derive(Subcommand, Debug)]
-pub enum JobCommands {
-    /// Cancel a running job.
-    Cancel {
-        /// Slug of the job to cancel.
-        slug: String,
-        /// Free-form reason. Recorded in the event log.
-        #[arg(long, default_value = "operator-cancelled")]
-        reason: String,
-    },
-}
 
 #[derive(Subcommand, Debug)]
 pub enum DaemonCommands {

@@ -19,7 +19,6 @@ mod hook;
 mod http;
 mod init;
 mod install;
-mod job;
 mod procs;
 mod runtime_cmd;
 mod tail;
@@ -209,12 +208,6 @@ fn dispatch(command: Option<Commands>) -> Result<()> {
                 })
             }
             Commands::Hook { action } => dispatch_hook(action),
-            Commands::Job { action } => {
-                use cli::JobCommands;
-                match action {
-                    JobCommands::Cancel { slug, reason } => job::cancel(&slug, &reason),
-                }
-            }
             Commands::Procs { slug, kind, limit, json } => procs::run(slug.as_deref(), kind.as_deref(), limit, json),
             Commands::Tail { slug, namespace } => tail::run(&slug, namespace.as_deref()),
             Commands::Daemon { action } => {
