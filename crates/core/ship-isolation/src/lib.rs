@@ -26,6 +26,7 @@
 pub mod backends;
 pub mod handle;
 pub mod helpers;
+pub mod net;
 pub mod policy;
 pub mod sidecar;
 

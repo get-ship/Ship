@@ -48,6 +48,22 @@
     at `/usr/local/bin/ship-sidecar` — no rootfs rebuild needed per
     sidecar change. Production should bake the sidecar into the
     rootfs.
+  - `run_capture()` convenience: exec + collect stdout/stderr/exit
+    via the SSE stream in one call.
+- **Allowlist network mediation** — `src/net/proxy.rs`:
+  - Small Rust HTTP CONNECT proxy that listens on a free TCP port.
+  - `HostMatcher` supports exact + `*.suffix` glob.
+  - When `NetworkPolicy::Allowlist { hosts }` is set on a
+    `SidecarSandbox`, the wrapper spawns a proxy task, injects
+    `HTTPS_PROXY` / `HTTP_PROXY` / `NO_PROXY` env into the sidecar's
+    process, child execs inherit them. Denied CONNECTs get 403.
+  - Live-verified by `tests/network_live.rs`: in-container curl gets
+    blocked by the host proxy and the deny is recorded in the proxy
+    log. ~400ms end-to-end.
+  - **Scope limitations:** HTTP CONNECT only (sufficient for HTTPS);
+    no MITM/body inspection; plain HTTP via absolute-URI form is not
+    proxied; SOCKS5 not implemented. Production wants `srt`'s
+    proxy or a fuller proxy implementation.
 
 Live tests skip if their external dependency isn't on PATH. They are
 NOT marked `#[ignore]` — they auto-run when the tooling is present,
