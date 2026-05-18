@@ -28,7 +28,7 @@ use std::path::PathBuf;
 
 use ship_isolation::backends::{Youki, YoukiConfig};
 use ship_isolation::{
-    FsMount, Isolator, LaunchCommand, MountMode, NetworkPolicy, SandboxPolicy,
+    EphemeralFile, FsMount, Isolator, LaunchCommand, MountMode, NetworkPolicy, SandboxPolicy,
 };
 
 fn env_path(name: &str, default: &str) -> PathBuf {
@@ -82,6 +82,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     });
     backend.available().await?;
 
+    // Option B: copy host credentials into a Ship-owned ephemeral file,
+    // bind-mount that into the container. The host's real
+    // ~/.claude/.credentials.json is never bind-mounted directly.
+    let ephem_creds = EphemeralFile::copy_from(&creds).await?;
+
     let mut policy = SandboxPolicy {
         label: "run-claude".into(),
         ..SandboxPolicy::default()
@@ -93,11 +98,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             sandbox_path: PathBuf::from("/work"),
             mode: MountMode::ReadWrite,
         },
-        FsMount {
-            host_path: creds.clone(),
-            sandbox_path: PathBuf::from("/root/.claude/.credentials.json"),
-            mode: MountMode::ReadOnly,
-        },
+        ephem_creds.as_mount(PathBuf::from("/root/.claude/.credentials.json")),
         FsMount {
             host_path: PathBuf::from("/etc/resolv.conf"),
             sandbox_path: PathBuf::from("/etc/resolv.conf"),
@@ -127,6 +128,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     eprintln!("ship-isolation: claude exited with {:?}", code);
 
     backend.shutdown(handle).await?;
+    drop(ephem_creds);
     let _ = tokio::fs::remove_dir_all(&state_root).await;
 
     std::process::exit(code.unwrap_or(0));

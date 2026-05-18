@@ -25,11 +25,13 @@
 
 pub mod backends;
 pub mod handle;
+pub mod helpers;
 pub mod policy;
 pub mod sidecar;
 
 mod trait_def;
 
 pub use handle::{ExecHandle, SandboxHandle, SandboxId};
+pub use helpers::EphemeralFile;
 pub use policy::{FsMount, MountMode, NetworkPolicy, SandboxPolicy, ResourceLimits};
 pub use trait_def::{Isolator, IsolatorError, LaunchCommand};
