@@ -12,6 +12,7 @@
 // Pure auth primitives live in `ship_platform::auth`. These re-exports
 // preserve the `crate::auth::{attest,pairing}` paths the daemon uses.
 pub use ship_platform::auth::{attest, pairing};
+pub mod identity;
 pub mod scopes;
 pub mod session;
 
@@ -49,6 +50,8 @@ fn tokens_equal(a: &str, b: &str) -> bool {
 }
 use std::path::Path;
 use std::sync::Arc;
+
+pub use crate::auth::identity::enforce_mcp_identity;
 
 // Re-export scope model from the split-out module.
 pub use crate::auth::scopes::{

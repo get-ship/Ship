@@ -500,6 +500,121 @@ async fn cors_allows_localhost_dev() {
     assert_eq!(acao, Some("http://localhost:3000"));
 }
 
+// ── identity binding — mesh_send, mesh_broadcast, mesh_status, mesh_events ─
+
+#[tokio::test(flavor = "multi_thread")]
+async fn mcp_agent_cannot_send_as_other_agent() {
+    let dir = TempDir::new().unwrap();
+    let state = make_api_state(&dir);
+
+    let resp = mesh_send(
+        State(state),
+        Extension(TestDaemon::mcp_auth("agent-self")),
+        Json(MeshSendReq {
+            from: "agent-other".into(),
+            to: "agent-target".into(),
+            body: serde_json::json!({"text": "spoofed"}),
+        }),
+    )
+    .await
+    .into_response();
+
+    assert_eq!(resp.status(), StatusCode::FORBIDDEN);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn mcp_agent_can_send_as_self() {
+    let dir = TempDir::new().unwrap();
+    let state = make_api_state(&dir);
+
+    let resp = mesh_send(
+        State(state),
+        Extension(TestDaemon::mcp_auth("agent-self")),
+        Json(MeshSendReq {
+            from: "agent-self".into(),
+            to: "agent-target".into(),
+            body: serde_json::json!({"text": "ok"}),
+        }),
+    )
+    .await
+    .into_response();
+
+    assert_eq!(resp.status(), StatusCode::OK);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn mcp_agent_cannot_broadcast_as_other_agent() {
+    let dir = TempDir::new().unwrap();
+    let state = make_api_state(&dir);
+
+    let resp = mesh_broadcast(
+        State(state),
+        Extension(TestDaemon::mcp_auth("agent-self")),
+        Json(MeshBroadcastReq {
+            from: "agent-other".into(),
+            body: serde_json::json!({}),
+            capability_filter: None,
+        }),
+    )
+    .await
+    .into_response();
+
+    assert_eq!(resp.status(), StatusCode::FORBIDDEN);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn mcp_agent_cannot_update_status_for_other_agent() {
+    let dir = TempDir::new().unwrap();
+    let state = make_api_state(&dir);
+
+    let resp = mesh_status_update(
+        State(state),
+        Extension(TestDaemon::mcp_auth("agent-self")),
+        Json(MeshStatusReq {
+            agent_id: "agent-other".into(),
+            status: "busy".into(),
+        }),
+    )
+    .await
+    .into_response();
+
+    assert_eq!(resp.status(), StatusCode::FORBIDDEN);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn mcp_agent_cannot_drain_other_agents_mailbox() {
+    let dir = TempDir::new().unwrap();
+    let state = make_api_state(&dir);
+
+    let resp = mesh_events(
+        State(state),
+        Extension(TestDaemon::mcp_auth("agent-self")),
+        axum::extract::Path("agent-other".to_string()),
+    )
+    .await
+    .into_response();
+
+    assert_eq!(resp.status(), StatusCode::FORBIDDEN);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn cli_caller_can_drain_any_mailbox() {
+    let dir = TempDir::new().unwrap();
+    let state = make_api_state(&dir);
+
+    // No mailbox registered → 404, not 403 — confirms identity check
+    // passed for CLI caller.
+    let resp = mesh_events(
+        State(state),
+        Extension(TestDaemon::cli_auth()),
+        axum::extract::Path("agent-anything".to_string()),
+    )
+    .await
+    .into_response();
+
+    assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+}
+
 #[tokio::test(flavor = "multi_thread")]
 async fn mcp_agent_without_agent_id_can_register() {
     let dir = TempDir::new().unwrap();

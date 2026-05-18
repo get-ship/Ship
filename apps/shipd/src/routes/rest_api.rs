@@ -8,7 +8,7 @@ use axum::response::sse::{Event, KeepAlive, Sse};
 use ship_substrate::events::{CallerKind, EventEnvelope};
 use serde::{Deserialize, Serialize};
 
-use crate::auth::{AuthContext, Scope, require_scope};
+use crate::auth::{AuthContext, Scope, enforce_mcp_identity, require_scope};
 
 /// Axum shared state — an Arc-wrapped ShipRuntime.
 pub use crate::ship_runtime::ApiState;
@@ -185,8 +185,11 @@ pub async fn mesh_send(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
     Json(req): Json<MeshSendReq>,
-) -> impl IntoResponse {
+) -> axum::response::Response {
     if let Err(e) = require_scope(&auth, Scope::MeshSend) {
+        return e.into_response();
+    }
+    if let Err(e) = enforce_mcp_identity(&auth, Some(&req.from)) {
         return e;
     }
     // Route through MeshService via mesh.send event type so it validates
@@ -199,13 +202,13 @@ pub async fn mesh_send(
     .map(|e| e.with_actor_id(&req.from))
     {
         Ok(e) => e,
-        Err(e) => return (StatusCode::BAD_REQUEST, Json(MeshResponse { ok: false, data: serde_json::json!(e.to_string()) })),
+        Err(e) => return (StatusCode::BAD_REQUEST, Json(MeshResponse { ok: false, data: serde_json::json!(e.to_string()) })).into_response(),
     };
 
     let ctx = auth.to_daemon_emit_context();
     match state.kernel().lock().await.emit(envelope, &ctx).await {
-        Ok(()) => (StatusCode::OK, Json(MeshResponse { ok: true, data: serde_json::json!("sent") })),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(MeshResponse { ok: false, data: serde_json::json!(e.to_string()) })),
+        Ok(()) => (StatusCode::OK, Json(MeshResponse { ok: true, data: serde_json::json!("sent") })).into_response(),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(MeshResponse { ok: false, data: serde_json::json!(e.to_string()) })).into_response(),
     }
 }
 
@@ -226,8 +229,11 @@ pub async fn mesh_broadcast(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
     Json(req): Json<MeshBroadcastReq>,
-) -> impl IntoResponse {
+) -> axum::response::Response {
     if let Err(e) = require_scope(&auth, Scope::MeshBroadcast) {
+        return e.into_response();
+    }
+    if let Err(e) = enforce_mcp_identity(&auth, Some(&req.from)) {
         return e;
     }
     let mut payload = serde_json::json!({ "from": &req.from, "body": req.body });
@@ -238,13 +244,13 @@ pub async fn mesh_broadcast(
         .map(|e| e.with_actor_id(&req.from))
     {
         Ok(e) => e,
-        Err(e) => return (StatusCode::BAD_REQUEST, Json(MeshResponse { ok: false, data: serde_json::json!(e.to_string()) })),
+        Err(e) => return (StatusCode::BAD_REQUEST, Json(MeshResponse { ok: false, data: serde_json::json!(e.to_string()) })).into_response(),
     };
 
     let ctx = auth.to_daemon_emit_context();
     match state.kernel().lock().await.emit(envelope, &ctx).await {
-        Ok(()) => (StatusCode::OK, Json(MeshResponse { ok: true, data: serde_json::json!("broadcast sent") })),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(MeshResponse { ok: false, data: serde_json::json!(e.to_string()) })),
+        Ok(()) => (StatusCode::OK, Json(MeshResponse { ok: true, data: serde_json::json!("broadcast sent") })).into_response(),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(MeshResponse { ok: false, data: serde_json::json!(e.to_string()) })).into_response(),
     }
 }
 
@@ -294,7 +300,13 @@ pub async fn mesh_status_update(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
     Json(req): Json<MeshStatusReq>,
-) -> impl IntoResponse {
+) -> axum::response::Response {
+    // Scope check is owned by job #80 (compound issue); this dispatch
+    // only adds identity binding so workers can't update another agent's
+    // status. Daemon-token callers (CLI/Studio) pass through.
+    if let Err(e) = enforce_mcp_identity(&auth, Some(&req.agent_id)) {
+        return e;
+    }
     let envelope = match EventEnvelope::new(
         "mesh.status",
         &req.agent_id,
@@ -303,13 +315,13 @@ pub async fn mesh_status_update(
     .map(|e| e.with_actor_id(&req.agent_id))
     {
         Ok(e) => e,
-        Err(e) => return (StatusCode::BAD_REQUEST, Json(MeshResponse { ok: false, data: serde_json::json!(e.to_string()) })),
+        Err(e) => return (StatusCode::BAD_REQUEST, Json(MeshResponse { ok: false, data: serde_json::json!(e.to_string()) })).into_response(),
     };
 
     let ctx = auth.to_daemon_emit_context();
     match state.kernel().lock().await.emit(envelope, &ctx).await {
-        Ok(()) => (StatusCode::OK, Json(MeshResponse { ok: true, data: serde_json::json!("status updated") })),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(MeshResponse { ok: false, data: serde_json::json!(e.to_string()) })),
+        Ok(()) => (StatusCode::OK, Json(MeshResponse { ok: true, data: serde_json::json!("status updated") })).into_response(),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(MeshResponse { ok: false, data: serde_json::json!(e.to_string()) })).into_response(),
     }
 }
 
@@ -435,14 +447,18 @@ pub async fn hooks_checkout(
 )]
 pub async fn mesh_events(
     State(state): State<ApiState>,
+    Extension(auth): Extension<AuthContext>,
     Path(agent_id): Path<String>,
-) -> impl IntoResponse {
+) -> axum::response::Response {
+    if let Err(e) = enforce_mcp_identity(&auth, Some(&agent_id)) {
+        return e;
+    }
     let mailbox = state.agent_mailboxes().lock().await.remove(&agent_id);
     let Some(mut mailbox) = mailbox else {
-        return Err((
+        return (
             StatusCode::NOT_FOUND,
             format!("no mailbox for agent '{agent_id}' — register first"),
-        ));
+        ).into_response();
     };
 
     let stream = async_stream::stream! {
@@ -459,7 +475,7 @@ pub async fn mesh_events(
         }
     };
 
-    Ok(Sse::new(stream).keep_alive(KeepAlive::default()))
+    Sse::new(stream).keep_alive(KeepAlive::default()).into_response()
 }
 
 #[cfg(test)]
