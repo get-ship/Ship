@@ -1,6 +1,15 @@
 # ship-isolation — status
 
-**Phase:** experimental spike. No existing crate imports this yet.
+**Phase:** Phase A complete (tier model + recommender + Docker backend +
+settings + CLI + shipd API + MCP tool). `ship-platform` now depends on
+this crate (`default-features` off — youki + sidecar stay opt-in via
+the daemon's feature flags). Supervisor integration (Phase B) is next:
+hook the Decision into `ProcessExecutor::spawn` so launches actually
+go through the Isolator.
+
+See `docs/strategy.md` for the design, `docs/sidecar-parity.md` for
+the per-feature audit, and `.artifacts/local-sandbox-spec/settings-
+and-envs.md` for the canonical settings + env-var list.
 
 ## Verified working (live tests, real binaries)
 
