@@ -137,20 +137,6 @@ pub fn compute_wire_layout(agent: &AgentDetail) -> (Vec<WireNode>, Vec<WireEdge>
         w: node_w,
     });
 
-    // Harnesses — right column.
-    for (i, y) in column(agent.harnesses.len(), 100.0, 420.0).into_iter().enumerate() {
-        let p = &agent.harnesses[i];
-        nodes.push(WireNode {
-            kind: "prov",
-            id: p.clone(),
-            title: capitalize(p),
-            sub: "compiled target".into(),
-            x: 830.0,
-            y,
-            w: node_w,
-        });
-    }
-
     // Edges: from agent to each peripheral.
     let agent_left = (agent_x, agent_y + agent_h / 2.0);
     let agent_right = (agent_x + agent_w, agent_y + agent_h / 2.0);
@@ -214,8 +200,6 @@ mod tests {
             mcp_servers: vec!["m1".into()],
             rules: vec!["r1".into()],
             inline_rules: String::new(),
-            harnesses: vec!["claude".into(), "codex".into()],
-            default_harness: None,
             permissions_tier: "standard".into(),
             permissions: Permissions::default(),
             source: "PROJECT AGENTS".into(),
@@ -225,10 +209,10 @@ mod tests {
     #[test]
     fn layout_produces_center_plus_peripherals() {
         let (nodes, edges) = compute_wire_layout(&agent());
-        // agent + 2 skills + 1 mcp + 1 rule + 1 perm + 2 harnesses = 8
-        assert_eq!(nodes.len(), 8);
+        // agent + 2 skills + 1 mcp + 1 rule + 1 perm = 6
+        assert_eq!(nodes.len(), 6);
         // edges = nodes - 1
-        assert_eq!(edges.len(), 7);
+        assert_eq!(edges.len(), 5);
         // agent node is first
         assert_eq!(nodes[0].kind, "agent");
     }
