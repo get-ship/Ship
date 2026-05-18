@@ -47,14 +47,6 @@
           "type": "string",
           "description": "Display icon — emoji or icon name (e.g. '\ud83e\uddea', 'test-tube')."
         },
-        "harnesses": {
-          "type": "array",
-          "items": {
-            "type": "string",
-            "enum": ["claude", "cursor", "codex", "gemini", "opencode"]
-          },
-          "description": "Harness targets for this agent. Overrides the project-level harnesses list."
-        },
         "role": {
           "type": "string",
           "description": "Role for tool-gating defaults — 'worker', 'lead', or 'commander'. Maps to a `tools_preset` when that field is unset (worker → 'worker'; lead/commander → 'orchestrator'). `tools_preset` takes precedence when both are set."

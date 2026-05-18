@@ -61,35 +61,6 @@ fn schema_has_key(schema: &Json, path: &[&str]) -> bool {
 // ── Harness enum consistency ────────────────────────────────────────────────
 
 #[test]
-fn agent_schema_harnesses_match_compiler() {
-    let schema = load_schema("agent.schema.json");
-    let schema_harnesses = schema_enum_values(
-        &schema,
-        &[
-            "properties",
-            "agent",
-            "properties",
-            "harnesses",
-            "items",
-            "enum",
-        ],
-    );
-
-    let compiler_harnesses: Vec<&str> = crate::compile::list_harnesses()
-        .iter()
-        .map(|p| p.id)
-        .collect();
-
-    for p in &compiler_harnesses {
-        assert!(
-            schema_harnesses.contains(&p.to_string()),
-            "Compiler has harness '{}' but agent.schema.json is missing it",
-            p
-        );
-    }
-}
-
-#[test]
 fn ship_schema_harnesses_match_compiler() {
     let schema = load_schema("ship.schema.json");
     let schema_harnesses = schema_enum_values(

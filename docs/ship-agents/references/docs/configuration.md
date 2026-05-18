@@ -21,7 +21,6 @@ Agent identity and metadata. Both `id` and `name` are required.
 | `description` | string | no | What this agent does. Shown in listings and editor UI. |
 | `tags` | string[] | no | Searchable tags for registry discovery (e.g., `["frontend", "review"]`) |
 | `icon` | string | no | Display icon — emoji or icon name (e.g. `"🧪"`, `"test-tube"`). |
-| `providers` | string[] | no | Provider targets. Values: `claude`, `cursor`, `codex`, `gemini`, `opencode`. Overrides the project-level providers list when set. |
 | `role` | string | no | Role for tool-gating defaults — `worker`, `lead`, or `commander`. Maps to a `tools_preset` when unset. Prefer `tools_preset`. |
 | `tools_preset` | string | no | Tool preset name controlling which platform-shipped tools this agent sees. Known values: `worker`, `orchestrator`. When unset, falls back to the `role`-based default. |
 | `active_tools` | string[] | no | Explicit tool IDs visible to this agent. When non-empty, replaces the preset's tool list (escape hatch for custom agents). |
@@ -143,17 +142,17 @@ Hook commands declared on the agent. The compiler emits each into the active pro
 }
 ```
 
-## provider_settings
+## harness_settings
 
-Per-provider configuration pass-through. Deep-merged on top of project-level `provider_defaults` from `ship.jsonc`. Agent values win on conflict.
+Per-harness configuration pass-through and the recommended way to override a setting for one harness without affecting the others. Deep-merged on top of project-level `harness_defaults` from `ship.jsonc`. Agent values win on conflict.
 
-Keys are provider names: `claude`, `codex`, `gemini`, `cursor`, `opencode`.
+Keys are harness names: `claude`, `codex`, `gemini`, `cursor`, `opencode`.
 
-This is also where the model is set — there is no top-level `model` field. Set `model` under the relevant provider key (Gemini uses `model.name`).
+This is where the model is set per harness — there is no top-level `model` field. Set `model` under the relevant harness key (Gemini uses `model.name`).
 
 ```jsonc
 {
-  "provider_settings": {
+  "harness_settings": {
     "claude": {
       "model": "claude-opus-4-20250514",
       "contextFileFormat": "markdown"
@@ -166,8 +165,10 @@ This is also where the model is set — there is no top-level `model` field. Set
 }
 ```
 
+Agent profiles are harness-agnostic at the baseline — they compile for every harness in the project's `harnesses` list. `harness_settings.<harness>.<key>` is the per-agent override mechanism when one harness genuinely needs a different setting.
+
 {% aside type="caution" %}
-Ship-managed fields cannot be set in `provider_settings`. Use Ship's own fields for: `permissions`, `hooks`, `env`, MCP servers. The schema enforces this -- setting a managed field here is a validation error. (`model` is *not* Ship-managed — set it here.)
+Ship-managed fields cannot be set in `harness_settings`. Use Ship's own fields for: `permissions`, `hooks`, `env`, MCP servers. The schema enforces this -- setting a managed field here is a validation error. (`model` is *not* Ship-managed — set it here.)
 {% /aside %}
 
 Provider-specific schemas are validated against upstream definitions:

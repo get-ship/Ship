@@ -6,8 +6,7 @@
     "icon": "simpleicons:starship",
     "version": "0.2.0",
     "role": "commander",
-    "description": "Ship orchestrator — captures intent, dispatches specialists, monitors via mesh, gates before merge",
-    "providers": ["claude", "codex", "cursor", "gemini", "opencode"]
+    "description": "Ship orchestrator — captures intent, dispatches specialists, monitors via mesh, gates before merge"
   },
   "skills": {
     "refs": ["cmdr", "spawn-agent", "write-adr", "ship-coordination", "ship-agents", "web-qa"]

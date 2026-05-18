@@ -308,7 +308,6 @@ fn make_agent_profile(id: &str, description: &str) -> AgentProfile {
             name: id.to_string(),
             version: None,
             description: Some(description.to_string()),
-            harnesses: vec![],
             role: None,
             tags: vec![],
             tools_preset: None,

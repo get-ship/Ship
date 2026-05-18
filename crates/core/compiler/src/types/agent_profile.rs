@@ -53,8 +53,6 @@ pub struct ProfileMeta {
     pub version: Option<String>,
     #[serde(default)]
     pub description: Option<String>,
-    #[serde(default)]
-    pub harnesses: Vec<String>,
     /// Role for tool gating defaults. Maps to a `tools_preset` when unset:
     ///   worker → preset "worker"
     ///   lead | commander → preset "orchestrator"
@@ -157,7 +155,7 @@ impl AgentProfile {
             rules: Vec::new(),
             hooks: Vec::new(),
             permissions: PermissionConfig::default(),
-            target_agents: self.agent.harnesses.clone(),
+            target_agents: Vec::new(),
         }
     }
 }
@@ -186,7 +184,6 @@ mod tests {
     "name": "Code Reviewer",
     "version": "1.2.0",
     "description": "Reviews pull requests for style, correctness, and test coverage.",
-    "harnesses": ["claude", "cursor"],
     "role": "worker",
     "tags": ["review", "testing"]
   },
@@ -257,7 +254,7 @@ mod tests {
     #[test]
     fn to_config_projects_nested_to_flat() {
         let src = r#"{
-  "agent": { "id": "rev", "name": "Reviewer", "role": "worker", "harnesses": ["claude"] },
+  "agent": { "id": "rev", "name": "Reviewer", "role": "worker" },
   "skills": { "refs": ["a", "b"] },
   "mcp": { "servers": ["github"] }
 }"#;
@@ -268,6 +265,6 @@ mod tests {
         assert_eq!(config.role.as_deref(), Some("worker"));
         assert_eq!(config.skills, vec!["a", "b"]);
         assert_eq!(config.mcp_servers, vec!["github"]);
-        assert_eq!(config.target_agents, vec!["claude"]);
+        assert!(config.target_agents.is_empty());
     }
 }

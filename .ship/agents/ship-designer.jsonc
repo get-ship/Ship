@@ -6,7 +6,6 @@
     "icon": "palette",
     "version": "0.2.0",
     "description": "UI specialist for SUI views and components — `.sui` templates with optional paired `.controller.ts`. Owns `views/<name>/` and `packages/ui-components/src/<tag>/`.",
-    "providers": ["claude", "codex", "cursor", "gemini", "opencode"],
     "tags": ["ui", "sui", "views", "components", "design"]
   },
   "skills": {
