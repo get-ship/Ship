@@ -7,6 +7,7 @@ use ship_substrate::events::types::{
 use serde::Deserialize;
 
 mod soft_delete;
+pub mod tool_gate;
 
 #[cfg(test)]
 mod hooks_tests;
