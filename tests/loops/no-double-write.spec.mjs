@@ -69,7 +69,7 @@ async function main() {
       workspace_id: "feat-view-dev-studio",
       kind: "agent",
       agent_id: "shipwright",
-      provider: "claude",
+      harness: "claude",
     }),
   });
   if (status !== 200 || !spawn.session_id) fail("spawn failed", { status, spawn });
