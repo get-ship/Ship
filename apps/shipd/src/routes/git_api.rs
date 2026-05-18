@@ -221,7 +221,7 @@ pub async fn log_handler(
     State(state): State<ApiState>,
     Query(q): Query<LogQuery>,
 ) -> Result<Json<serde_json::Value>, Resp> {
-    let limit = q.limit.unwrap_or(ship_platform::services::git::read::DEFAULT_LOG_LIMIT);
+    let limit = q.limit.unwrap_or_else(ship_platform::config::resolve_git_log_limit);
     let commits = state
         .git()
         .log(q.workspace_id.as_deref(), q.branch.as_deref(), limit)

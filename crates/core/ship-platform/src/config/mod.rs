@@ -112,6 +112,7 @@ pub use watcher::{spawn_config_watcher, ConfigWatcher};
 
 pub use runtime_settings::{
     drain_legacy_project_config_kv, drain_legacy_settings_kv, get_all_settings, get_setting,
+    get_setting_u64_or, resolve_git_log_limit, resolve_hooks_max_depth, resolve_watcher_debounce,
     set_setting, set_setting_and_emit, setting_default,
 };
 

@@ -16,10 +16,12 @@ use super::def::{HookAction, HookDef};
 use super::filter;
 use super::render;
 use super::sources::SourceManager;
+use crate::config::resolve_hooks_max_depth;
 
-/// Maximum hook chain depth. Events emitted by a hook carry a depth marker; at
-/// depth ≥ this value, hooks are not executed.
-pub const MAX_HOOK_DEPTH: u32 = 3;
+// Historical hook chain depth (events emitted by a hook carry a depth
+// marker; at depth ≥ this value, hooks are not executed). The runtime
+// value is resolved from the `hooks.max_depth` KV setting (default 3) via
+// `crate::config::resolve_hooks_max_depth`.
 
 /// Per-hook / per-event context passed to each action while an action list
 /// runs.
@@ -102,7 +104,8 @@ impl HookEngine {
     /// prevent other hooks from running.
     pub async fn dispatch_event(&self, envelope: &EventEnvelope) {
         let depth = incoming_depth(envelope);
-        if depth >= MAX_HOOK_DEPTH {
+        let max_depth = resolve_hooks_max_depth();
+        if depth >= max_depth {
             tracing::warn!(
                 event_id = %envelope.id,
                 depth,

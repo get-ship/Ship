@@ -10,8 +10,9 @@ use tokio::sync::Mutex;
 use ship_substrate::events::{EventEnvelope, KernelRouter};
 
 use super::def::HookActionType;
-use super::engine::{HookEngine, MAX_HOOK_DEPTH};
+use super::engine::HookEngine;
 use super::{filter, loader};
+use crate::config::resolve_hooks_max_depth;
 
 fn tmp_ship_dir() -> (TempDir, std::path::PathBuf) {
     let tmp = tempfile::tempdir().unwrap();
@@ -360,7 +361,7 @@ async fn recursion_guard_blocks_deep_hooks() {
 
     let mut envelope = job_failed_envelope();
     let mut payload: Value = serde_json::from_str(&envelope.payload_json).unwrap();
-    payload["_hook_depth"] = Value::from(MAX_HOOK_DEPTH);
+    payload["_hook_depth"] = Value::from(resolve_hooks_max_depth());
     envelope.payload_json = payload.to_string();
 
     let before = recent_hook_events(&ship_dir);
