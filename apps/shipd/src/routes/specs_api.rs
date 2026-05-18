@@ -15,7 +15,7 @@ use serde::Deserialize;
 use std::collections::HashMap;
 
 use crate::access::RuntimeAccess;
-use crate::auth::{AuthContext, Scope, require_scope};
+use crate::auth::{AuthContext};
 use crate::routes::rest_api::{ApiState, MeshResponse};
 use ship_platform::services::collections::service::{
     CollectionsService, CreateItemArgs, Error as CollectionsError, UpdateItemArgs,
@@ -152,11 +152,8 @@ pub struct UpdateSpecRequest {
 )]
 pub async fn list_specs(
     State(state): State<ApiState>,
-    Extension(auth): Extension<AuthContext>,
+    Extension(_auth): Extension<AuthContext>,
 ) -> impl IntoResponse {
-    if let Err(e) = require_scope(&auth, Scope::ReadJobs) {
-        return e;
-    }
     let req = ship_platform::collections::query::QueryRequest {
         collection: SPECS_ID.to_string(),
         filter: Default::default(),
@@ -195,12 +192,9 @@ pub async fn list_specs(
 )]
 pub async fn get_spec(
     State(state): State<ApiState>,
-    Extension(auth): Extension<AuthContext>,
+    Extension(_auth): Extension<AuthContext>,
     Path(id): Path<String>,
 ) -> impl IntoResponse {
-    if let Err(e) = require_scope(&auth, Scope::ReadJobs) {
-        return e;
-    }
     match collections(&state).get_item(SPECS_ID, &id).await {
         Ok(item) => {
             let spec = spec_from_item(item);
@@ -228,12 +222,9 @@ pub async fn get_spec(
 )]
 pub async fn create_spec(
     State(state): State<ApiState>,
-    Extension(auth): Extension<AuthContext>,
+    Extension(_auth): Extension<AuthContext>,
     Json(req): Json<CreateSpecRequest>,
 ) -> impl IntoResponse {
-    if let Err(e) = require_scope(&auth, Scope::CreateJobs) {
-        return e;
-    }
     if req.title.trim().is_empty() {
         return err(StatusCode::BAD_REQUEST, "title is required");
     }
@@ -282,13 +273,10 @@ pub async fn create_spec(
 )]
 pub async fn update_spec(
     State(state): State<ApiState>,
-    Extension(auth): Extension<AuthContext>,
+    Extension(_auth): Extension<AuthContext>,
     Path(id): Path<String>,
     Json(req): Json<UpdateSpecRequest>,
 ) -> impl IntoResponse {
-    if let Err(e) = require_scope(&auth, Scope::WriteWorkspace) {
-        return e;
-    }
     // Body writes need the existing item's body_path. Fetch it first; an
     // update against a nonexistent id should 404 before disk I/O anyway.
     let body_path = if req.body.is_some() {
@@ -347,12 +335,9 @@ pub async fn update_spec(
 )]
 pub async fn delete_spec(
     State(state): State<ApiState>,
-    Extension(auth): Extension<AuthContext>,
+    Extension(_auth): Extension<AuthContext>,
     Path(id): Path<String>,
 ) -> impl IntoResponse {
-    if let Err(e) = require_scope(&auth, Scope::WriteWorkspace) {
-        return e;
-    }
     match collections(&state).delete_item(SPECS_ID, &id).await {
         Ok(true) => ok(serde_json::json!({ "id": id })),
         Ok(false) => err(StatusCode::NOT_FOUND, format!("spec '{id}' not found")),
@@ -376,12 +361,9 @@ pub async fn delete_spec(
 )]
 pub async fn launch_spec(
     State(state): State<ApiState>,
-    Extension(auth): Extension<AuthContext>,
+    Extension(_auth): Extension<AuthContext>,
     Path(id): Path<String>,
 ) -> impl IntoResponse {
-    if let Err(e) = require_scope(&auth, Scope::CreateJobs) {
-        return e;
-    }
     let kernel = state.kernel().clone();
     match launch_collection_item(collections(&state), &kernel, SPECS_ID, &id).await {
         Ok(job_id) => ok(serde_json::json!({ "job_id": job_id, "spec_id": id })),

@@ -7,11 +7,11 @@
 
 use std::sync::OnceLock;
 
-use axum::{Extension, Json, extract::Path as AxumPath, http::StatusCode, response::IntoResponse};
+use axum::{Json, extract::Path as AxumPath, http::StatusCode, response::IntoResponse};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::auth::{AuthContext, Scope, require_scope};
+// auth no longer extracted — route layer enforces `Scope::ReadWorkspace`.
 
 // ── Embedded manifest ───────────────────────────────────────────────────────
 
@@ -202,97 +202,77 @@ fn extract_sse_topics(manifest: &Value) -> Vec<String> {
 
 // ── Handlers ────────────────────────────────────────────────────────────────
 
-fn unauthorized_or<F: FnOnce() -> axum::response::Response>(
-    auth: &AuthContext,
-    otherwise: F,
-) -> axum::response::Response {
-    match require_scope(auth, Scope::ReadWorkspace) {
-        Err(e) => e.into_response(),
-        Ok(()) => otherwise(),
-    }
-}
-
 /// GET /api/v1/views/{name}/meta
 pub async fn get_view_meta(
-    Extension(auth): Extension<AuthContext>,
     AxumPath(name): AxumPath<String>,
 ) -> axum::response::Response {
-    unauthorized_or(&auth, || {
-        let p = parsed();
-        let views_entries = entries(&p.views);
-        let manifest = views_entries.and_then(|e| e.get(&name));
+    let p = parsed();
+    let views_entries = entries(&p.views);
+    let manifest = views_entries.and_then(|e| e.get(&name));
 
-        let Some(manifest) = manifest else {
-            let available: Vec<&String> = views_entries
-                .map(|m| m.keys().collect())
-                .unwrap_or_default();
-            return (
-                StatusCode::NOT_FOUND,
-                Json(serde_json::json!({
-                    "error": "unknown view",
-                    "available": available,
-                })),
-            )
-                .into_response();
-        };
+    let Some(manifest) = manifest else {
+        let available: Vec<&String> = views_entries
+            .map(|m| m.keys().collect())
+            .unwrap_or_default();
+        return (
+            StatusCode::NOT_FOUND,
+            Json(serde_json::json!({
+                "error": "unknown view",
+                "available": available,
+            })),
+        )
+            .into_response();
+    };
 
-        let context = entries(&p.view_contexts)
-            .and_then(|e| e.get(&name))
-            .cloned()
-            .unwrap_or(Value::Null);
+    let context = entries(&p.view_contexts)
+        .and_then(|e| e.get(&name))
+        .cloned()
+        .unwrap_or(Value::Null);
 
-        let signals = extract_signals(manifest);
-        let sse_topics = extract_sse_topics(manifest);
-        let action_urls = extract_action_urls(manifest, &p.urls);
-        let required_packs = string_list(manifest.get("packs"));
-        let collections_referenced = extract_collections(manifest);
+    let signals = extract_signals(manifest);
+    let sse_topics = extract_sse_topics(manifest);
+    let action_urls = extract_action_urls(manifest, &p.urls);
+    let required_packs = string_list(manifest.get("packs"));
+    let collections_referenced = extract_collections(manifest);
 
-        Json(ViewMeta {
-            name: name.clone(),
-            context,
-            manifest: manifest.clone(),
-            signals,
-            sse_topics,
-            action_urls,
-            required_packs,
-            collections_referenced,
-        })
-        .into_response()
+    Json(ViewMeta {
+        name: name.clone(),
+        context,
+        manifest: manifest.clone(),
+        signals,
+        sse_topics,
+        action_urls,
+        required_packs,
+        collections_referenced,
     })
+    .into_response()
 }
 
 /// GET /api/v1/sdk — full SDK root.
-pub async fn get_sdk_root(
-    Extension(auth): Extension<AuthContext>,
-) -> axum::response::Response {
-    unauthorized_or(&auth, || {
-        let p = parsed();
-        Json(SdkRoot {
-            routes: p.urls.clone(),
-            view_contexts: p.view_contexts.clone(),
-            views: p.views.clone(),
-            collections: p.collections.clone(),
-            triggers: p.triggers.clone(),
-        })
-        .into_response()
+pub async fn get_sdk_root() -> axum::response::Response {
+    let p = parsed();
+    Json(SdkRoot {
+        routes: p.urls.clone(),
+        view_contexts: p.view_contexts.clone(),
+        views: p.views.clone(),
+        collections: p.collections.clone(),
+        triggers: p.triggers.clone(),
     })
+    .into_response()
 }
 
 /// GET /api/v1/sdk/query?q=term
 pub async fn query_sdk(
-    Extension(auth): Extension<AuthContext>,
     axum::extract::Query(q): axum::extract::Query<SdkQuery>,
 ) -> axum::response::Response {
-    unauthorized_or(&auth, || {
-        let p = parsed();
-        let query = q.q.unwrap_or_default();
-        let hits = if query.trim().is_empty() {
-            Vec::new()
-        } else {
-            search(&query, p)
-        };
-        Json(SdkSearchResponse { query, hits }).into_response()
-    })
+    let p = parsed();
+    let query = q.q.unwrap_or_default();
+    let hits = if query.trim().is_empty() {
+        Vec::new()
+    } else {
+        search(&query, p)
+    };
+    Json(SdkSearchResponse { query, hits }).into_response()
 }
 
 /// Case-insensitive substring match. Rank = match position (lower = better),

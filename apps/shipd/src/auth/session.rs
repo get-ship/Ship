@@ -7,8 +7,7 @@
 use axum::{
     body::Body,
     http::{HeaderValue, Response, StatusCode, header},
-    response::IntoResponse,
-};
+    };
 // Re-export the platform's pure helpers so existing
 // `crate::auth::session::*` import paths continue to resolve.
 pub use ship_platform::auth::session::{
@@ -18,7 +17,7 @@ pub use ship_platform::auth::session::{
 };
 
 use crate::auth::AuthContext;
-use crate::auth::scopes::{Scope, SessionRegistry};
+use crate::auth::scopes::{SessionRegistry};
 
 /// Response body for `POST /api/v1/runtime/session`.
 #[derive(serde::Serialize, utoipa::ToSchema)]
@@ -45,13 +44,8 @@ pub struct SessionIssueResponse {
 )]
 pub async fn issue_session_handler(
     registry: SessionRegistry,
-    auth: AuthContext,
+    _auth: AuthContext,
 ) -> Response<Body> {
-    if !auth.has_scope(Scope::Full) {
-        return (StatusCode::FORBIDDEN, "session issuance requires Full scope")
-            .into_response();
-    }
-
     let id = issue_browser_session(&registry).await;
     let cookie = format!(
         "{COOKIE_NAME}={id}; HttpOnly; SameSite=Strict; Path=/api/v1/runtime; Max-Age={BROWSER_SESSION_TTL_SECS}"

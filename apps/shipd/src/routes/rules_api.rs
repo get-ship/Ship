@@ -20,7 +20,7 @@ use axum::response::Json;
 use serde::Deserialize;
 
 use crate::access::RuntimeAccess;
-use crate::auth::{AuthContext, Scope as AuthScope};
+use crate::auth::{AuthContext};
 use crate::routes::rest_api::ApiState;
 use ship_platform::services::files::Scope;
 use ship_platform::services::rules::service::{CreateArgs, PutArgs};
@@ -64,13 +64,6 @@ fn err(status: StatusCode, code: &str, message: impl Into<String>) -> Resp {
 
 fn created(value: serde_json::Value) -> Resp { (StatusCode::CREATED, Json(value)) }
 
-fn require(auth: &AuthContext, scope: AuthScope) -> Result<(), Resp> {
-    if auth.has_scope(scope) {
-        Ok(())
-    } else {
-        Err(err(StatusCode::FORBIDDEN, "forbidden", format!("insufficient scope: {scope:?} required")))
-    }
-}
 
 fn map_err(e: ship_platform::services::rules::state::Error) -> Resp {
     use ship_platform::services::rules::state::Error::*;
@@ -87,9 +80,8 @@ fn map_err(e: ship_platform::services::rules::state::Error) -> Resp {
 /// GET /api/v1/rules
 pub async fn list(
     State(state): State<ApiState>,
-    Extension(auth): Extension<AuthContext>,
+    Extension(_auth): Extension<AuthContext>,
 ) -> Result<Json<serde_json::Value>, Resp> {
-    require(&auth, AuthScope::ReadWorkspace)?;
     let items = state.services().rules().list();
     Ok(Json(serde_json::json!({ "ok": true, "items": items })))
 }
@@ -97,11 +89,10 @@ pub async fn list(
 /// GET /api/v1/rules/{id}
 pub async fn get(
     State(state): State<ApiState>,
-    Extension(auth): Extension<AuthContext>,
+    Extension(_auth): Extension<AuthContext>,
     Path(id): Path<String>,
     Query(q): Query<ScopeQuery>,
 ) -> Result<Json<serde_json::Value>, Resp> {
-    require(&auth, AuthScope::ReadWorkspace)?;
     let scope = parse_scope(&q)?;
     let content = state.services().rules().get(&id, scope).map_err(map_err)?;
     Ok(Json(serde_json::json!({
@@ -116,12 +107,11 @@ pub async fn get(
 /// Body: `{ "content": "..." }` or the raw string inside the JSON value.
 pub async fn put(
     State(state): State<ApiState>,
-    Extension(auth): Extension<AuthContext>,
+    Extension(_auth): Extension<AuthContext>,
     Path(id): Path<String>,
     Query(q): Query<ScopeQuery>,
     Json(body): Json<serde_json::Value>,
 ) -> Result<Json<serde_json::Value>, Resp> {
-    require(&auth, AuthScope::WriteWorkspace)?;
     let explicit_scope = parse_scope(&q)?;
     let content = extract_content(&body)?;
     let target = state
@@ -138,11 +128,10 @@ pub async fn put(
 /// DELETE /api/v1/rules/{id}
 pub async fn delete(
     State(state): State<ApiState>,
-    Extension(auth): Extension<AuthContext>,
+    Extension(_auth): Extension<AuthContext>,
     Path(id): Path<String>,
     Query(q): Query<ScopeQuery>,
 ) -> Result<Json<serde_json::Value>, Resp> {
-    require(&auth, AuthScope::WriteWorkspace)?;
     let scope = parse_scope(&q)?;
     let resolved = state.services().rules().delete(&id, scope).map_err(map_err)?;
     Ok(Json(serde_json::json!({
@@ -163,10 +152,9 @@ pub struct CreateBody {
 
 pub async fn create(
     State(state): State<ApiState>,
-    Extension(auth): Extension<AuthContext>,
+    Extension(_auth): Extension<AuthContext>,
     Json(body): Json<CreateBody>,
 ) -> Result<Resp, Resp> {
-    require(&auth, AuthScope::CreateJobs)?;
     let target = match body.scope.as_deref() {
         None | Some("") => None,
         Some(s) => Some(parse_scope_required(s)?),

@@ -8,7 +8,7 @@ use axum::{
 };
 use serde::Deserialize;
 
-use crate::auth::{AuthContext, Scope, require_scope};
+use crate::auth::{AuthContext};
 use crate::routes::rest_api::{ApiState, MeshResponse};
 
 /// GET /api/v1/runtime/agents
@@ -25,11 +25,8 @@ use crate::routes::rest_api::{ApiState, MeshResponse};
 )]
 pub async fn list_agents(
     State(state): State<ApiState>,
-    Extension(auth): Extension<AuthContext>,
+    Extension(_auth): Extension<AuthContext>,
 ) -> impl IntoResponse {
-    if let Err(e) = require_scope(&auth, Scope::ReadWorkspace) {
-        return e.into_response();
-    }
     // An agent is either (a) defined on disk as a .ship/agents/<id> profile,
     // (b) live in the mesh registry (registered via REST/MCP), or both.
     // Return the union keyed by agent_id so tests that populate only the
@@ -106,12 +103,9 @@ pub struct SteerAgentRequest {
 )]
 pub async fn stop_agent(
     State(state): State<ApiState>,
-    Extension(auth): Extension<AuthContext>,
+    Extension(_auth): Extension<AuthContext>,
     Path(slug): Path<String>,
 ) -> impl IntoResponse {
-    if let Err(e) = require_scope(&auth, Scope::ManageJobs) {
-        return e;
-    }
     let dh = match state.dispatch_handle() {
         Some(dh) => dh,
         None => {
@@ -164,13 +158,10 @@ pub async fn stop_agent(
 )]
 pub async fn steer_agent(
     State(state): State<ApiState>,
-    Extension(auth): Extension<AuthContext>,
+    Extension(_auth): Extension<AuthContext>,
     Path(slug): Path<String>,
     Json(req): Json<SteerAgentRequest>,
 ) -> impl IntoResponse {
-    if let Err(e) = require_scope(&auth, Scope::ManageJobs) {
-        return e;
-    }
     let dh = match state.dispatch_handle() {
         Some(dh) => dh,
         None => {

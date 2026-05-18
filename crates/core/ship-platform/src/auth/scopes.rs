@@ -49,6 +49,34 @@ impl Scope {
     }
 }
 
+/// Route-level auth requirement. Every `Route` variant declares one via
+/// `/// @auth ...` in `apps/shipd/src/routes.rs`. The router enforces this
+/// at registration time (`ship_route` wraps the handler in a middleware
+/// that reads `AuthContext` from request extensions and rejects with 401
+/// /403 before the handler runs).
+///
+/// - `Public`: unauthenticated. Registered via `ship_public_route` in the
+///   public group (no auth middleware applied). `ship_public_route` panics
+///   if a route declares anything other than `Public`.
+/// - `Cli`: requires `CallerKind::Cli` (daemon token or browser cookie).
+///   MCP session tokens are categorically rejected even if they carry
+///   `Scope::Full`. Account ops use this.
+/// - `Scope(s)`: any authenticated caller whose scopes satisfy `s` (or
+///   `Scope::Full`).
+/// - `Handler`: the handler enforces its own scope (used when the required
+///   scope depends on request body / DB state, e.g. artifact handlers
+///   whose scope is read from the artifact record). The `route_scope_enum`
+///   test suite asserts that every `Handler`-tagged handler still calls
+///   `require_scope` (or `can_*_artifacts`) so a bare `Handler` annotation
+///   can't be used to silently disable enforcement.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RequiredAuth {
+    Public,
+    Cli,
+    Scope(Scope),
+    Handler,
+}
+
 /// Artifact scopes granted to agents running inside a pipeline (worker/lead).
 fn pipeline_agent_artifact_scopes() -> Vec<Scope> {
     vec![

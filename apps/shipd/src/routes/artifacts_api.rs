@@ -25,9 +25,9 @@ use serde::Deserialize;
 use std::collections::BTreeMap;
 
 use crate::access::RuntimeAccess;
-use crate::auth::{AuthContext, Scope};
+use crate::auth::{AuthContext};
 use crate::routes::rest_api::ApiState;
-use crate::auth::scopes::{can_delete_artifacts, can_read_artifacts, can_write_artifacts, require_scope};
+use crate::auth::scopes::{can_delete_artifacts, can_read_artifacts, can_write_artifacts};
 use ship_platform::services::artifacts::service::{
     ArtifactsService, Error as ArtifactsError, PatchArgs, StoreArgs,
 };
@@ -435,13 +435,10 @@ pub struct PromoteBody {
 )]
 pub async fn promote_artifact(
     State(state): State<ApiState>,
-    Extension(auth): Extension<AuthContext>,
+    Extension(_auth): Extension<AuthContext>,
     Path(id): Path<String>,
     Json(body): Json<PromoteBody>,
 ) -> Response {
-    if let Err(e) = require_scope(&auth, Scope::PromoteArtifact) {
-        return e.into_response();
-    }
     let project_slug = state.project_slug().unwrap_or_default();
     let target = match parse_scope(&body.target_scope, body.run_id.as_deref(), body.user_id.as_deref(), &project_slug) {
         Ok(s) => s,

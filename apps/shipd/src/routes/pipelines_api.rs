@@ -26,7 +26,7 @@ use axum::response::Json;
 use serde::Deserialize;
 
 use crate::access::RuntimeAccess;
-use crate::auth::{AuthContext, Scope as AuthScope};
+use crate::auth::{AuthContext};
 use crate::routes::rest_api::ApiState;
 use ship_platform::services::files::Scope;
 use ship_platform::services::pipelines::service::PutArgs;
@@ -60,13 +60,6 @@ fn err(status: StatusCode, code: &str, message: impl Into<String>) -> Resp {
     (status, Json(serde_json::json!({ "ok": false, "error": code, "message": message.into() })))
 }
 
-fn require(auth: &AuthContext, scope: AuthScope) -> Result<(), Resp> {
-    if auth.has_scope(scope) {
-        Ok(())
-    } else {
-        Err(err(StatusCode::FORBIDDEN, "forbidden", format!("insufficient scope: {scope:?} required")))
-    }
-}
 
 fn map_err(e: ship_platform::services::pipelines::state::Error) -> Resp {
     use ship_platform::services::pipelines::state::Error::*;
@@ -87,20 +80,18 @@ fn map_err(e: ship_platform::services::pipelines::state::Error) -> Resp {
 /// GET /api/v1/pipelines
 pub async fn list(
     State(state): State<ApiState>,
-    Extension(auth): Extension<AuthContext>,
+    Extension(_auth): Extension<AuthContext>,
 ) -> Result<Json<serde_json::Value>, Resp> {
-    require(&auth, AuthScope::ReadJobs)?;
     Ok(Json(serde_json::json!({ "ok": true, "items": state.services().pipelines().list() })))
 }
 
 /// GET /api/v1/pipelines/{name}
 pub async fn get(
     State(state): State<ApiState>,
-    Extension(auth): Extension<AuthContext>,
+    Extension(_auth): Extension<AuthContext>,
     Path(name): Path<String>,
     Query(q): Query<ScopeQuery>,
 ) -> Result<Json<serde_json::Value>, Resp> {
-    require(&auth, AuthScope::ReadJobs)?;
     let scope = parse_scope(&q)?;
     let entry = state.services().pipelines().get(&name, scope).map_err(map_err)?;
     Ok(Json(serde_json::json!({
@@ -115,12 +106,11 @@ pub async fn get(
 /// PUT /api/v1/pipelines/{name}
 pub async fn put(
     State(state): State<ApiState>,
-    Extension(auth): Extension<AuthContext>,
+    Extension(_auth): Extension<AuthContext>,
     Path(name): Path<String>,
     Query(q): Query<ScopeQuery>,
     Json(doc): Json<serde_json::Value>,
 ) -> Result<Json<serde_json::Value>, Resp> {
-    require(&auth, AuthScope::WriteWorkspace)?;
     let explicit_scope = parse_scope(&q)?;
     let target = state
         .pipelines()
@@ -135,12 +125,11 @@ pub async fn put(
 /// PATCH /api/v1/pipelines/{name}
 pub async fn patch(
     State(state): State<ApiState>,
-    Extension(auth): Extension<AuthContext>,
+    Extension(_auth): Extension<AuthContext>,
     Path(name): Path<String>,
     Query(q): Query<ScopeQuery>,
     Json(patch_body): Json<serde_json::Value>,
 ) -> Result<Json<serde_json::Value>, Resp> {
-    require(&auth, AuthScope::WriteWorkspace)?;
     let scope = parse_scope(&q)?;
     let patch: json_patch::Patch = serde_json::from_value(patch_body).map_err(|e| {
         err(StatusCode::BAD_REQUEST, "bad_patch", format!("bad patch shape: {e}"))
@@ -155,11 +144,10 @@ pub async fn patch(
 /// DELETE /api/v1/pipelines/{name}
 pub async fn delete(
     State(state): State<ApiState>,
-    Extension(auth): Extension<AuthContext>,
+    Extension(_auth): Extension<AuthContext>,
     Path(name): Path<String>,
     Query(q): Query<ScopeQuery>,
 ) -> Result<Json<serde_json::Value>, Resp> {
-    require(&auth, AuthScope::WriteWorkspace)?;
     let scope = parse_scope(&q)?;
     let resolved = state.services().pipelines().delete(&name, scope).map_err(map_err)?;
     Ok(Json(serde_json::json!({
@@ -181,9 +169,6 @@ pub async fn dispatch(
     Json(body): Json<serde_json::Value>,
 ) -> axum::response::Response {
     use axum::response::IntoResponse;
-    if let Err(e) = require(&auth.0, AuthScope::CreateJobs) {
-        return e.into_response();
-    }
     let mut merged = body;
     if let Some(obj) = merged.as_object_mut() {
         obj.insert("pipeline".to_string(), serde_json::Value::String(name));
@@ -209,9 +194,6 @@ pub async fn cancel_run(
     Json(body): Json<serde_json::Value>,
 ) -> axum::response::Response {
     use axum::response::IntoResponse;
-    if let Err(e) = require(&auth.0, AuthScope::ManageJobs) {
-        return e.into_response();
-    }
     let req: crate::routes::runtime_api::CancelJobRequest =
         serde_json::from_value(body).unwrap_or(crate::routes::runtime_api::CancelJobRequest {
             reason: "operator-cancelled".to_string(),
@@ -237,10 +219,9 @@ pub struct RunsQuery {
 /// name, branch, and a size cap (default 100, max 500).
 pub async fn list_runs(
     State(state): State<ApiState>,
-    Extension(auth): Extension<AuthContext>,
+    Extension(_auth): Extension<AuthContext>,
     Query(q): Query<RunsQuery>,
 ) -> Result<Json<serde_json::Value>, Resp> {
-    require(&auth, AuthScope::ReadJobs)?;
     let jobs = ship_platform::projections::job::load_jobs_at(state.ship_dir())
         .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, "io", e.to_string()))?;
     let limit = q.limit.unwrap_or(100).clamp(1, 500);
@@ -270,10 +251,9 @@ pub async fn list_runs(
 /// GET /api/v1/pipelines/runs/{slug}
 pub async fn get_run(
     State(state): State<ApiState>,
-    Extension(auth): Extension<AuthContext>,
+    Extension(_auth): Extension<AuthContext>,
     Path(slug): Path<String>,
 ) -> Result<Json<serde_json::Value>, Resp> {
-    require(&auth, AuthScope::ReadJobs)?;
     let jobs = ship_platform::projections::job::load_jobs_at(state.ship_dir())
         .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, "io", e.to_string()))?;
     let job = jobs

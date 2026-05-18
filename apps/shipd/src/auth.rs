@@ -55,9 +55,9 @@ pub use crate::auth::identity::enforce_mcp_identity;
 
 // Re-export scope model from the split-out module.
 pub use crate::auth::scopes::{
-    DaemonSession, Scope, SessionRegistry, SessionRegisterRequest,
-    SessionRegisterResponse, generate_session_token, hydrate_sessions,
-    is_session_token, persist_session, remove_persisted_session,
+    DaemonSession, RequiredAuth, Scope, SessionRegistry, SessionRegisterRequest,
+    SessionRegisterResponse, enforce_required_auth, generate_session_token,
+    hydrate_sessions, is_session_token, persist_session, remove_persisted_session,
     require_scope, scopes_for_role, session_register, spawn_session_sweeper,
 };
 
