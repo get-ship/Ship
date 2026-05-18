@@ -77,9 +77,9 @@ mod tests {
 
     fn fixture() -> ViewsAdapter {
         ViewsAdapter::new(vec![
-            ViewSnapshot { name: "dashboard".into(), description: Some("overview home".into()) },
-            ViewSnapshot { name: "settings".into(), description: Some("config provider theme".into()) },
-            ViewSnapshot { name: "counter".into(), description: None },
+            ViewSnapshot { name: "dashboard".into(), description: Some("overview home".into()), icon: None },
+            ViewSnapshot { name: "settings".into(), description: Some("config provider theme".into()), icon: None },
+            ViewSnapshot { name: "counter".into(), description: None, icon: None },
         ])
     }
 

@@ -6,15 +6,14 @@ publish = false
 description = "Typed Connect-RPC client for the Ship gateway (apps/gateway). Codegen runs in build.rs from proto/ship/gateway/v1/*.proto."
 
 [dependencies]
-# Connect-RPC runtime. Client feature only — we never serve from Rust here.
-connectrpc = { version = "0.4", features = ["client"] }
+# Connect-RPC runtime. `client` is the unary/streaming client; `client-tls`
+# pulls in rustls so HttpClient::with_tls is available for the production
+# https://api.getship.dev gateway.
+connectrpc = { version = "0.4", features = ["client", "client-tls"] }
 # Must match the version connectrpc 0.4.x pulls transitively, otherwise
 # generated types (which name buffa types in their function signatures)
 # clash with the runtime's view types — two-buffa-version diagnostic.
 buffa = { version = "0.5", features = ["json"] }
-# HTTP transport. reqwest::Client is the standard choice; matches what the
-# CLI already uses for the daemon socket and what shipd uses for JWKS fetch.
-reqwest = { workspace = true }
 # Generated code references `::serde::` paths directly (buffa's JSON codegen
 # emits standard serde Deserialize impls), so serde must be a direct dep
 # rather than only transitively available through buffa. Same reason for
@@ -22,6 +21,13 @@ reqwest = { workspace = true }
 # generic transport's response body.
 serde = { workspace = true }
 http-body = "1"
+http = "1"
+# TLS for the production transport. Native roots via rustls-native-certs;
+# avoids embedding our own CA bundle but takes a runtime cost to read the
+# system trust store on first use.
+rustls = { version = "0.23", default-features = false, features = ["ring"] }
+rustls-native-certs = "0.8"
+thiserror = { workspace = true }
 
 [build-dependencies]
 connectrpc-build = "0.4"
