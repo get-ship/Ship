@@ -124,6 +124,16 @@ which means a real CI box with the deps installed exercises them.
 10. **Orchestrator wiring** — out of scope. The trait plugs into
     `ship_platform::services::orchestrator` alongside the existing
     `IsolationStrategy` (worktree) and `JobExecutor`. Not wired.
+11. **PTY attach convergence.** Main now ships PTY-backed agent sessions
+    via `ship_substrate::supervisor::ActorHandle`
+    (`subscribe_output()` broadcast + `write_input()`) and a
+    `/api/v1/agent_sessions/{slug}/attach` WebSocket route
+    (`apps/shipd/src/routes/agent_sessions_attach.rs`). The sidecar's
+    pipe-based stdio + SSE event surface will need to converge on this
+    shape: the sidecar process inside the container should expose a
+    PTY-backed `ActorHandle` equivalent and shipd's attach route should
+    transparently bridge to it whether the agent runs on host or in a
+    sandbox. Not done — flagged as the natural next merge-in.
 
 ## Naming
 
