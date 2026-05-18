@@ -10,7 +10,7 @@
     "openapi:generate": "bun scripts/generate-openapi.ts",
     "openapi:check-drift": "bun scripts/check-openapi-drift.ts",
     "docs:check-drift": "bun scripts/check-skill-docs-drift.ts",
-    "prebuild": "bun run openapi:generate && bun run collect",
+    "prebuild": "bun run openapi:generate && bun run collect && bun ../../packages/sui-catalog/src/cli.ts --root ../..",
     "build": "astro build",
     "preview": "astro preview",
     "visual": "playwright test --config tests/visual/playwright.config.ts",
