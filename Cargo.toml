@@ -6,6 +6,8 @@ members = [
     "crates/core/mcp-framework",
     "crates/core/ship-substrate",
     "crates/core/ship-platform",
+    "crates/core/ship-isolation",
+    "crates/core/ship-isolation/bin/ship-sidecar",
     "crates/core/ship-jobs",
     "crates/core/ship-kernel",
     "crates/core/ship-pipelines",

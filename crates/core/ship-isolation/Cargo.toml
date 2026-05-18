@@ -1,0 +1,27 @@
+[package]
+name = "ship-isolation"
+version = "0.1.0"
+edition = "2024"
+publish = false
+description = "Agent-process isolation primitives. Forward-looking; no L1+ dependents yet. See .artifacts/local-sandbox-spec/."
+
+[features]
+default = []
+youki-backend = ["dep:libc"]
+
+[dependencies]
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+async-trait = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true, features = ["sync", "process", "io-util", "macros", "rt", "fs"] }
+tracing = { workspace = true }
+nanoid = { workspace = true }
+libc = { version = "0.2", optional = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "sync", "process", "time"] }
+
+[lints]
+workspace = true
