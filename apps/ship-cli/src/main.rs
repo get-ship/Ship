@@ -37,6 +37,7 @@ mod validate;
 mod vars;
 mod openapi;
 mod trash_cmd;
+mod use_command;
 
 use anyhow::Result;
 use cli::{Cli, Commands, ConfigCommands, EventsCommands, HookCommands, McpCommands, OpenapiCommands, WorkspaceCommands};
@@ -112,7 +113,31 @@ fn dispatch(command: Option<Commands>) -> Result<()> {
                 path,
                 compile: _,
                 with_skills,
-            } => run_use(Some(&agent_id), path, with_skills),
+                launch,
+                auto,
+                resume,
+                prompt,
+                spec,
+                harness,
+                model,
+            } => {
+                let opts = use_command::LaunchOpts {
+                    agent: agent_id.clone(),
+                    path: path.clone(),
+                    launch,
+                    auto,
+                    resume,
+                    prompt,
+                    spec,
+                    harness,
+                    model,
+                };
+                run_use(Some(&agent_id), path, with_skills)?;
+                if use_command::should_launch(&opts) {
+                    use_command::run_launch(opts)?;
+                }
+                Ok(())
+            }
             Commands::Status { path } => run_status(path),
             Commands::Compile {
                 harness,
