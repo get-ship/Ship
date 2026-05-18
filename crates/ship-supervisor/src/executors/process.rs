@@ -129,7 +129,8 @@ impl JobExecutor for ProcessExecutor {
         // and errors loudly on an unknown name instead of silently defaulting.
         let adapter = adapter_for_or_default(ctx.launch.harness.as_deref())
             .map_err(|e| anyhow::anyhow!("ProcessExecutor: {e}"))?;
-        let launch = build_headless_with_default_prompt(adapter.as_ref(), &ctx.slug, &ctx.launch)?;
+        let mut launch =
+            build_headless_with_default_prompt(adapter.as_ref(), &ctx.slug, &ctx.launch)?;
 
         // Per-step log under .artifacts/. The supervisor primitive owns
         // the actual log file lifecycle; we just point it at the right
@@ -137,6 +138,41 @@ impl JobExecutor for ProcessExecutor {
         // ActorHandle::log_path() afterwards.
         let log_dir = ctx.work_dir.join(".artifacts");
         std::fs::create_dir_all(&log_dir)?;
+
+        // Compute the isolation decision for this agent. Observe-and-log
+        // for now — Phase B wiring. Sandbox enforcement (Docker / youki
+        // / sidecar) comes in a separate change once the supervisor
+        // owns the Isolator lifecycle alongside ActorHandle. The
+        // decision IS surfaced into the agent's env so introspection
+        // tools see what tier they're (intended to be) running under.
+        let ship_dir = ctx.work_dir.join(".ship");
+        let decision = ship_platform::isolation::decide_for_agent(&ship_dir, &ctx.agent, None);
+        match &decision {
+            Ok(d) => {
+                tracing::info!(
+                    slug = ctx.slug,
+                    strategy = %d.resolved.strategy,
+                    tier = %d.resolved.tier,
+                    downgraded = d.resolved.downgraded,
+                    "isolation decision (observe-only — enforcement not yet wired)"
+                );
+                launch
+                    .env
+                    .insert("SHIP_ISOLATION_TIER".into(), d.resolved.tier.to_string());
+                launch.env.insert(
+                    "SHIP_ISOLATION_STRATEGY".into(),
+                    d.resolved.strategy.to_string(),
+                );
+                launch.env.insert("SHIP_ISOLATION_ACTIVE".into(), "0".into());
+            }
+            Err(e) => {
+                tracing::warn!(
+                    slug = ctx.slug,
+                    error = %e,
+                    "isolation decision failed — agent will run unsandboxed"
+                );
+            }
+        }
 
         let profile = ActorProfile {
             actor_id_hint: Some(ctx.slug.clone()),

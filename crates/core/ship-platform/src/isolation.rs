@@ -133,6 +133,47 @@ pub fn parse_agent_override(
     Ok(Some(parsed))
 }
 
+/// Decide which strategy to use for a specific agent, reading the
+/// agent's optional `isolation:` block from `.ship/agents/<id>.jsonc`.
+/// `run_override` is the per-launch CLI flag (`ship use --isolation=…`).
+///
+/// Returns the same `IsolationDecision` as `decide()`. Used by the
+/// supervisor when it spawns a job so the launch can observe (and
+/// later enforce) the resolution.
+pub fn decide_for_agent(
+    ship_dir: &std::path::Path,
+    agent_id: &str,
+    run_override: Option<&IsolationProfile>,
+) -> Result<IsolationDecision, IsolationDecisionError> {
+    let agent_override = match crate::config::get_config(Some(ship_dir.to_path_buf())) {
+        Ok(cfg) => cfg
+            .agents
+            .iter()
+            .find(|a| a.id == agent_id)
+            .and_then(|a| {
+                parse_agent_override(a.isolation.as_ref())
+                    .map_err(|e| {
+                        tracing::warn!(
+                            agent = agent_id,
+                            error = %e,
+                            "agent has invalid isolation: block — ignoring"
+                        );
+                        e
+                    })
+                    .ok()
+                    .flatten()
+            }),
+        Err(e) => {
+            tracing::warn!(
+                error = %e,
+                "config read failed in decide_for_agent — using defaults"
+            );
+            None
+        }
+    };
+    decide(agent_override.as_ref(), run_override)
+}
+
 fn string_setting(key: &str) -> Result<Option<String>> {
     Ok(match get_setting(key)? {
         Some(serde_json::Value::String(s)) => Some(s),
