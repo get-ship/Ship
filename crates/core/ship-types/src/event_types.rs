@@ -111,6 +111,20 @@ pub const DAEMON_OWNER_BOUND: &str = "daemon.owner.bound";
 /// Daemon-owner binding — the user unpaired (`ship logout`).
 pub const DAEMON_OWNER_UNBOUND: &str = "daemon.owner.unbound";
 
+/// Account — PKCE login flow opened. `entity_id` is the opaque state_id
+/// returned to the CLI; payload carries the redirect_uri the CLI bound.
+/// No credential material is emitted.
+pub const ACCOUNT_LOGIN_STARTED: &str = "account.login_started";
+/// Account — PKCE login flow finished: token stored + daemon-owner bound.
+/// `entity_id` is the user_id.
+pub const ACCOUNT_LOGIN_COMPLETED: &str = "account.login_completed";
+/// Account — local token cleared. `entity_id` is the user_id of the
+/// previously-bound owner, or `"none"` when the call was idempotent.
+pub const ACCOUNT_LOGOUT: &str = "account.logout";
+/// Account — `/me` refreshed against the gateway with the stored bearer.
+/// `entity_id` is the user_id.
+pub const ACCOUNT_KEY_REFRESHED: &str = "account.key_refreshed";
+
 /// Skill CRUD — a skill SKILL.md (project- or user-scoped) was written
 /// for the first time. `entity_id` is the skill id.
 pub const SKILL_CREATED: &str = "skill.created";
@@ -218,6 +232,10 @@ pub const ALL: &[&str] = &[
     AUTH_SESSION_EXPIRED,
     DAEMON_OWNER_BOUND,
     DAEMON_OWNER_UNBOUND,
+    ACCOUNT_LOGIN_STARTED,
+    ACCOUNT_LOGIN_COMPLETED,
+    ACCOUNT_LOGOUT,
+    ACCOUNT_KEY_REFRESHED,
     SKILL_CREATED,
     SKILL_UPDATED,
     SKILL_DELETED,

@@ -150,7 +150,12 @@ async function makeAuth(env: Env) {
       github: {
         clientId: env.GITHUB_CLIENT_ID ?? '',
         clientSecret: env.GITHUB_CLIENT_SECRET ?? '',
-        scope: ['repo', 'user:email'],
+        // Signup needs identity only. The `repo` scope (read+write to all
+        // private repos) is way out of proportion to "create an account".
+        // If a downstream feature ever needs private-repo access, request
+        // it incrementally at that feature's call site via Better Auth's
+        // scope-upgrade flow — don't widen the signup default.
+        scope: ['read:user', 'user:email'],
       },
       google: {
         clientId: env.GOOGLE_CLIENT_ID ?? '',

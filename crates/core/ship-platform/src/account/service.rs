@@ -31,6 +31,7 @@ use ship_gateway_client::{
     AuthServiceClient, CallOptions, GetMeRequest, HttpClient, TokenExchangeRequest, auth_client,
 };
 
+use super::events as account_events;
 use super::store::AccountTokenStore;
 use super::types::{AccountState, AccountToken, MeView};
 
@@ -117,6 +118,8 @@ impl AccountService {
             urlencoding::encode(&state_id),
         );
 
+        account_events::emit_login_started(&state_id, redirect_uri);
+
         Ok(StartLoginResponse {
             state_id,
             browser_url,
@@ -167,6 +170,8 @@ impl AccountService {
             tracing::warn!("account: daemon-owner bind failed: {e}");
         }
 
+        account_events::emit_login_completed(&token.user_id);
+
         // Fetch /me to return the user identity. Best-effort — if it
         // fails, the token is still stored and the CLI can poll later.
         match self.refresh_me().await {
@@ -212,7 +217,7 @@ impl AccountService {
             .user
             .as_option()
             .ok_or_else(|| anyhow!("gateway GetMe: empty user"))?;
-        Ok(MeView {
+        let me = MeView {
             id: user.id.to_string(),
             name: user.name.to_string(),
             email: user.email.to_string(),
@@ -221,7 +226,9 @@ impl AccountService {
             } else {
                 Some(user.image.to_string())
             },
-        })
+        };
+        account_events::emit_key_refreshed(&me.id);
+        Ok(me)
     }
 
     /// Snapshot of account state — used by Studio and `ship whoami`.
@@ -241,9 +248,23 @@ impl AccountService {
         }
     }
 
-    /// Clear the stored token. Idempotent.
+    /// Clear the stored token. Idempotent. Emits `daemon.owner.unbound`
+    /// (only when a binding existed) and `account.logout` (always, with
+    /// `had_token` distinguishing real vs. idempotent calls).
     pub async fn logout(&self) -> Result<()> {
-        self.store.clear().await
+        let prior_user = self
+            .store
+            .read()
+            .await
+            .ok()
+            .flatten()
+            .map(|t| t.user_id);
+        self.store.clear().await?;
+        if let Err(e) = crate::auth::attest::clear_daemon_owner() {
+            tracing::warn!("account: daemon-owner unbind failed: {e}");
+        }
+        account_events::emit_logout(prior_user.as_deref(), prior_user.is_some());
+        Ok(())
     }
 
     /// Return the stored API key — transitional, used by the CLI to
@@ -292,53 +313,5 @@ fn generate_state_id() -> String {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::account::store::FileTokenStore;
-    use tempfile::TempDir;
-
-    fn make_service() -> (TempDir, AccountService) {
-        let tmp = TempDir::new().unwrap();
-        let store = Arc::new(FileTokenStore::for_daemon_dir(tmp.path()));
-        let svc = AccountService::new(store, "https://api.getship.dev").unwrap();
-        (tmp, svc)
-    }
-
-    #[tokio::test]
-    async fn state_is_logged_out_before_login() {
-        let (_tmp, svc) = make_service();
-        matches!(svc.state().await.unwrap(), AccountState::LoggedOut);
-    }
-
-    #[tokio::test]
-    async fn start_login_registers_pending_and_returns_browser_url() {
-        let (_tmp, svc) = make_service();
-        let resp = svc
-            .start_login("http://127.0.0.1:54321/callback")
-            .await
-            .unwrap();
-        assert!(resp.browser_url.starts_with("https://api.getship.dev/v1/auth/cli?"));
-        assert!(resp.browser_url.contains("code_challenge="));
-        assert!(resp.browser_url.contains(&format!(
-            "state={}",
-            urlencoding::encode(&resp.state_id)
-        )));
-        // pending state recorded
-        assert_eq!(svc.pending.lock().await.len(), 1);
-    }
-
-    #[tokio::test]
-    async fn complete_login_with_unknown_state_errors() {
-        let (_tmp, svc) = make_service();
-        let err = svc.complete_login("bogus-state", "any-code").await;
-        assert!(err.is_err());
-        assert!(err.unwrap_err().to_string().contains("invalid or expired"));
-    }
-
-    #[tokio::test]
-    async fn logout_is_idempotent() {
-        let (_tmp, svc) = make_service();
-        svc.logout().await.unwrap();
-        svc.logout().await.unwrap();
-    }
-}
+#[path = "service_tests.rs"]
+mod tests;

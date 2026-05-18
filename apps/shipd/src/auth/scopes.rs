@@ -13,6 +13,7 @@ pub use ship_platform::auth::scopes::{
     DaemonSession, Scope, SessionRegistry, generate_session_token, hydrate_sessions,
     is_session_token, persist_session, remove_persisted_session, scopes_for_role,
 };
+pub use ship_platform::auth::sweeper::spawn_session_sweeper;
 
 // ── Artifact scope checks (HTTP-context-bound) ─────────────────────────────
 

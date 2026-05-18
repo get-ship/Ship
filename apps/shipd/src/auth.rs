@@ -55,7 +55,7 @@ pub use crate::auth::scopes::{
     DaemonSession, Scope, SessionRegistry, SessionRegisterRequest,
     SessionRegisterResponse, generate_session_token, hydrate_sessions,
     is_session_token, persist_session, remove_persisted_session,
-    require_scope, scopes_for_role, session_register,
+    require_scope, scopes_for_role, session_register, spawn_session_sweeper,
 };
 
 /// Authenticated caller context injected into request extensions by the

@@ -240,6 +240,24 @@ pub fn set_daemon_owner(user_id: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
+/// Clear the daemon-owner binding. Called by `ship logout`. Emits
+/// `daemon.owner.unbound` with `entity_id = user_id`. No-op event-wise
+/// when the daemon was never bound (returns Ok without emitting).
+pub fn clear_daemon_owner() -> anyhow::Result<()> {
+    let Some(user_id) = daemon_owner() else {
+        return Ok(());
+    };
+    let payload = ship_substrate::events::types::DaemonOwnerUnbound {};
+    let envelope = ship_substrate::events::EventEnvelope::new(
+        ship_substrate::events::types::event_types::DAEMON_OWNER_UNBOUND,
+        &user_id,
+        &payload,
+    )?;
+    let store = ship_substrate::persistence::event_store::SqliteEventStore::new()?;
+    ship_substrate::persistence::event_store::EventStore::append(&store, &envelope)?;
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

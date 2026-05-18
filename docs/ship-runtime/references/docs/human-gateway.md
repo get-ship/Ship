@@ -39,6 +39,13 @@ The only built-in adapter today. Env-configured:
 
 - `SHIP_TELEGRAM_TOKEN` — bot token from BotFather.
 - `SHIP_TELEGRAM_CHAT_ID` — target chat (user or group).
+- `SHIP_TELEGRAM_WEBHOOK_SECRET` — shared secret for inbound replies.
+  Required for the `POST /api/v1/webhook/telegram` route to accept any
+  request. Pass the same value to Telegram's `setWebhook` `secret_token`
+  parameter (max 256 chars, `[A-Za-z0-9_-]`). Telegram echoes it back as
+  the `X-Telegram-Bot-Api-Secret-Token` header on every webhook POST; the
+  daemon constant-time compares and returns 401 on miss. With the env
+  var unset the route is closed.
 
 `TelegramAdapter::from_env()` returns `None` if either variable is unset, which is how the daemon decides whether to spawn the gateway at all.
 

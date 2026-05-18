@@ -26,6 +26,7 @@
 //!   challenge and exchanges the resulting code, but the OAuth dance is
 //!   between the user's browser and the gateway.
 
+pub mod events;
 pub mod service;
 pub mod store;
 pub mod types;
