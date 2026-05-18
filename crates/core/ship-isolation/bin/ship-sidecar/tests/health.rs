@@ -8,10 +8,7 @@ use tokio::net::TcpListener;
 use tokio::process::Command;
 
 fn binary_path() -> std::path::PathBuf {
-    let mut p = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    // Tests run inside the bin crate; the binary lands at workspace target/.
-    p.push("../../../../target/debug/ship-sidecar");
-    p
+    std::path::PathBuf::from(env!("CARGO_BIN_EXE_ship-sidecar"))
 }
 
 async fn free_port() -> u16 {
