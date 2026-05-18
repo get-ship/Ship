@@ -1,12 +1,14 @@
 ---
 name: ship-schema-reference
 stable-id: ship-schema-reference
-description: Use when the user asks about Ship configuration format, available fields, valid values, or how to structure their .ship/ directory. Covers ship.jsonc manifest, agent profile JSONC, permissions.jsonc, mcp.jsonc, skill frontmatter, vars.json, pipeline JSONC, and ship.lock schemas.
-tags: [reference, schema, configuration, documentation]
+description: Use when the user asks about Ship configuration — file schemas, KV settings, env vars, defaults resolution chain. Covers ship.jsonc manifest, agent profile JSONC, permissions.jsonc, mcp.jsonc, skill frontmatter, vars.json, pipeline JSONC, ship.lock schemas, the `daemon_settings` KV store, every `SHIP_*` env var, and how the four configuration tiers resolve.
+tags: [reference, schema, configuration, documentation, settings, env-vars]
 authors: [ship]
 ---
 
-# Ship Configuration Schema Reference
+# Ship Configuration Reference
+
+Ship configuration spans four tiers: per-launch env vars / CLI flags, the project file (`.ship/ship.jsonc` and friends), the user KV store (`daemon_settings`), and compile-time defaults. The pages below document each surface and the resolution chain that picks a value at runtime.
 
 All Ship config files use JSONC (JSON with comments). JSON Schemas are available at `https://raw.githubusercontent.com/madvib/ship/main/schemas/` for editor autocompletion.
 
@@ -21,3 +23,5 @@ For detailed field-level documentation, read the reference pages in `references/
 - [Skill Variables](references/docs/vars.md) — `assets/vars.json`
 - [Pipelines](references/docs/pipeline.md) — `.ship/pipelines/<name>.jsonc`
 - [Lockfile](references/docs/lockfile.md) — `ship.lock`
+- [Environment Variables](references/docs/env-vars.md) — every `SHIP_*` env var Ship reads
+- [KV Settings](references/docs/settings.md) — daemon-managed preferences in `daemon_settings`, plus the four-tier resolution chain

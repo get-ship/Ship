@@ -30,6 +30,12 @@ pub fn setting_default(key: &str) -> Option<&'static str> {
         // session instead of spawning fresh. Off by default so the user
         // opts in to implicit resumes.
         "agent_session.auto_resume" => Some("false"),
+        // u64 ms — debounce window for the declarative `.ship/` watcher.
+        "watcher.debounce_ms" => Some("200"),
+        // usize — default `limit` for `git log` reads when no caller value is supplied.
+        "git.log_limit" => Some("50"),
+        // u32 — maximum hook recursion depth before the engine drops further events.
+        "hooks.max_depth" => Some("3"),
         _ => None,
     }
 }
@@ -84,6 +90,9 @@ pub fn get_all_settings() -> Result<HashMap<String, serde_json::Value>> {
         ("daemon.port", "9315"),
         ("cmdk.send_key", "enter"),
         ("agent_session.auto_resume", "false"),
+        ("watcher.debounce_ms", "200"),
+        ("git.log_limit", "50"),
+        ("hooks.max_depth", "3"),
     ] {
         map.insert(
             (*key).to_string(),
@@ -147,6 +156,45 @@ pub fn resolve_bool(key: &str, per_launch: Option<bool>, _project: &ProjectConfi
         ),
         _ => false,
     }
+}
+
+/// Coerce a JSON value to `u64`, accepting either a JSON number or a
+/// stringified number (settings are persisted as JSON; `setting_default`
+/// returns its values as strings).
+fn coerce_u64(v: &serde_json::Value) -> Option<u64> {
+    match v {
+        serde_json::Value::Number(n) => n.as_u64(),
+        serde_json::Value::String(s) => s.parse().ok(),
+        _ => None,
+    }
+}
+
+/// Fetch a setting and coerce to `u64`, falling back to `fallback` when the
+/// key is unset, the stored value is unparseable, or the KV store cannot be
+/// opened (e.g. during early-startup or in tests that haven't initialized
+/// the daemon DB).
+pub fn get_setting_u64_or(key: &str, fallback: u64) -> u64 {
+    match get_setting(key) {
+        Ok(Some(v)) => coerce_u64(&v).unwrap_or(fallback),
+        _ => fallback,
+    }
+}
+
+/// Watcher debounce, resolved from `watcher.debounce_ms`.
+/// Historical default: 200ms.
+pub fn resolve_watcher_debounce() -> std::time::Duration {
+    std::time::Duration::from_millis(get_setting_u64_or("watcher.debounce_ms", 200))
+}
+
+/// Git log limit, resolved from `git.log_limit`. Historical default: 50.
+pub fn resolve_git_log_limit() -> usize {
+    get_setting_u64_or("git.log_limit", 50) as usize
+}
+
+/// Maximum hook recursion depth, resolved from `hooks.max_depth`.
+/// Historical default: 3.
+pub fn resolve_hooks_max_depth() -> u32 {
+    get_setting_u64_or("hooks.max_depth", 3) as u32
 }
 
 /// One-shot drain of the legacy KV `settings` namespace into the
@@ -340,5 +388,64 @@ mod tests {
             resolve_str("harness.default", None, &project),
             Some("codex".into())
         );
+    }
+}
+
+#[cfg(test)]
+mod resolver_tests {
+    use super::*;
+
+    /// `ship_substrate::project::get_global_dir` provides per-thread DB
+    /// isolation when running under a cargo test binary, so each test thread
+    /// gets its own `daemon_settings` table. We still scrub the three keys
+    /// at the start of each test because a thread may be reused across
+    /// tests within this module.
+    fn fresh_settings() {
+        ship_substrate::db::ensure_db().unwrap();
+        let _ = daemon_settings::delete("watcher.debounce_ms");
+        let _ = daemon_settings::delete("git.log_limit");
+        let _ = daemon_settings::delete("hooks.max_depth");
+    }
+
+    #[test]
+    fn watcher_debounce_defaults_to_historical_200ms() {
+        fresh_settings();
+        assert_eq!(resolve_watcher_debounce(), std::time::Duration::from_millis(200));
+    }
+
+    #[test]
+    fn watcher_debounce_honors_override() {
+        fresh_settings();
+        set_setting("watcher.debounce_ms", serde_json::json!("500")).unwrap();
+        assert_eq!(resolve_watcher_debounce(), std::time::Duration::from_millis(500));
+        // Also accepts numeric JSON.
+        set_setting("watcher.debounce_ms", serde_json::json!(750)).unwrap();
+        assert_eq!(resolve_watcher_debounce(), std::time::Duration::from_millis(750));
+    }
+
+    #[test]
+    fn git_log_limit_defaults_to_historical_50() {
+        fresh_settings();
+        assert_eq!(resolve_git_log_limit(), 50);
+    }
+
+    #[test]
+    fn git_log_limit_honors_override() {
+        fresh_settings();
+        set_setting("git.log_limit", serde_json::json!(200)).unwrap();
+        assert_eq!(resolve_git_log_limit(), 200);
+    }
+
+    #[test]
+    fn hooks_max_depth_defaults_to_historical_3() {
+        fresh_settings();
+        assert_eq!(resolve_hooks_max_depth(), 3);
+    }
+
+    #[test]
+    fn hooks_max_depth_honors_override() {
+        fresh_settings();
+        set_setting("hooks.max_depth", serde_json::json!("7")).unwrap();
+        assert_eq!(resolve_hooks_max_depth(), 7);
     }
 }

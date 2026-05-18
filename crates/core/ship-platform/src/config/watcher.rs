@@ -14,7 +14,8 @@ use anyhow::Result;
 use notify::RecursiveMode;
 use tokio::sync::Mutex;
 
-use crate::services::watcher::{DEFAULT_DEBOUNCE, WatcherService, WatcherSpec};
+use crate::config::resolve_watcher_debounce;
+use crate::services::watcher::{WatcherService, WatcherSpec};
 use ship_substrate::ShipHome;
 use ship_substrate::events::kernel_router::KernelRouter;
 use ship_types::event_types;
@@ -68,6 +69,7 @@ pub fn spawn_config_watcher(
     let project_ship_dir = workspace_dir.map(ShipHome::project_ship_dir);
 
     let mut service = WatcherService::new();
+    let debounce = resolve_watcher_debounce();
 
     for domain in DOMAINS {
         // User scope — ensure the dir exists so we always have somewhere to
@@ -83,7 +85,7 @@ pub fn spawn_config_watcher(
                 event_type: domain.event_type,
                 subject: domain.dir_name.to_string(),
                 recursive: domain.recursive,
-                debounce: DEFAULT_DEBOUNCE,
+                debounce,
             },
         )?;
 
@@ -97,7 +99,7 @@ pub fn spawn_config_watcher(
                     event_type: domain.event_type,
                     subject: domain.dir_name.to_string(),
                     recursive: domain.recursive,
-                    debounce: DEFAULT_DEBOUNCE,
+                    debounce,
                 },
             ) {
                 tracing::warn!(
