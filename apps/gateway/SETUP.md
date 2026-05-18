@@ -245,22 +245,41 @@ Once-per-env, in order:
 
 ---
 
-## 7. Path migration note (2026-05)
+## 7. Path conventions
 
-All gateway routes moved from `/api/*` to `/v1/*` — the host is already
-`api.getship.dev`, so the legacy `/api/` prefix was redundant. Better Auth
-moved with everything else (now mounted at `/v1/auth/*`).
+All gateway routes live under `/v1/*` — the host is already `api.getship.dev`,
+so an `/api/` prefix would be redundant. Better Auth is mounted at
+`/v1/auth/*`. Operational endpoints (`/healthz`, `/readyz`) stay
+unversioned per convention.
 
-If you've already registered OAuth apps or a Stripe webhook against
-the old paths, update them:
+Concrete URLs you'll need when configuring third-party services:
 
-- GitHub OAuth callback: `…/api/auth/callback/github` → `…/v1/auth/callback/github`
-- Google OAuth callback: `…/api/auth/callback/google` → `…/v1/auth/callback/google`
-- Slack OAuth callback: `…/api/auth/callback/slack` → `…/v1/auth/callback/slack`
-- Stripe webhook URL: `…/api/auth/stripe/webhook` → `…/v1/auth/stripe/webhook`
+**OAuth callback URLs** (register against each provider's app config):
 
-Six dashboard edits total (3 providers × 2 envs) plus one Stripe webhook
-URL per env. Operational endpoints (`/healthz`, `/readyz`) stay unversioned.
+| Provider | Staging | Production |
+|---|---|---|
+| GitHub | `https://staging.getship.dev/v1/auth/callback/github` | `https://api.getship.dev/v1/auth/callback/github` |
+| Google | `https://staging.getship.dev/v1/auth/callback/google` | `https://api.getship.dev/v1/auth/callback/google` |
+| Slack | `https://staging.getship.dev/v1/auth/callback/slack` | `https://api.getship.dev/v1/auth/callback/slack` |
+
+**Stripe webhook URL:**
+
+| Env | URL |
+|---|---|
+| Staging | `https://staging.getship.dev/v1/auth/stripe/webhook` |
+| Production | `https://api.getship.dev/v1/auth/stripe/webhook` |
+
+**Smoke-test URLs (no config required):**
+
+| What | URL |
+|---|---|
+| Liveness | `https://api.getship.dev/healthz` |
+| Readiness | `https://api.getship.dev/readyz` |
+| Build version | `https://api.getship.dev/v1/version` |
+| JWKS | `https://api.getship.dev/v1/jwks` |
+| Waitlist (POST) | `https://api.getship.dev/v1/waitlist` |
+
+(replace `api` with `staging` for the staging env.)
 
 ## 8. What's NOT done yet (real list)
 
