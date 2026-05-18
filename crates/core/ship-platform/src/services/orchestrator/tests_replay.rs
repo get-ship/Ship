@@ -90,6 +90,7 @@ fn make_kernel() -> Arc<Mutex<KernelRouter>> {
                 ],
                 read_namespaces: vec![],
                 subscribe_namespaces: vec!["pipeline.".to_string()],
+                see_directed_events: false,
             },
         )
         .unwrap();

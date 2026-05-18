@@ -19,12 +19,24 @@ pub struct EmitContext {
 }
 
 /// Configuration provided to the kernel when spawning an actor.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ActorConfig {
     pub namespace: String,
     pub write_namespaces: Vec<String>,
     pub read_namespaces: Vec<String>,
     pub subscribe_namespaces: Vec<String>,
+    /// When true, the kernel ALSO delivers events with `target_actor_id`
+    /// set (i.e. directed events) to this subscriber when its namespace
+    /// matches — in addition to the targeted actor. Used by observability
+    /// surfaces (SSE event stream, audit log tailers, dashboards) that
+    /// need to see all traffic, not just the broadcast subset.
+    ///
+    /// Default: false. The kernel's directed-event short-circuit (delivery
+    /// to target only) remains the per-actor norm. Explicit opt-in keeps
+    /// chat / agent actors from accidentally inheriting cross-session
+    /// observability traffic.
+    #[serde(default)]
+    pub see_directed_events: bool,
 }
 
 #[cfg(test)]

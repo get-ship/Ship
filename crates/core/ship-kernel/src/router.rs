@@ -218,19 +218,46 @@ impl KernelRouter {
 
     /// Deliver an event to subscribers without persistence or validation.
     ///
-    /// Used by callers that have already persisted the event and just need
-    /// to push it to in-memory mailboxes (e.g. the deprecated `route()` path
-    /// in the runtime wrapper that skips persistence).
+    /// Delivery rules:
+    /// - Directed events (`target_actor_id` set): always reach the target
+    ///   actor, AND additionally reach subscribers with
+    ///   `see_directed_events = true` whose namespace matches. Lets
+    ///   observability surfaces (SSE, audit, dashboards) see the full
+    ///   stream without intercepting per-actor traffic by default.
+    /// - Broadcast events (no `target_actor_id`): reach every subscriber
+    ///   whose namespace matches.
     pub fn deliver(&self, event: &EventEnvelope) {
-        // Direct message — deliver only to target
         if let Some(ref target) = event.target_actor_id {
+            // Primary: targeted actor.
             if let Some(tx) = self.mailboxes.get(target) {
                 let _ = tx.try_send(event.clone());
+            }
+            // Audience: opted-in observers whose namespace matches.
+            for (ns, actor_ids) in &self.subscriptions {
+                if !event.event_type.starts_with(ns.as_str()) {
+                    continue;
+                }
+                for actor_id in actor_ids {
+                    if actor_id == target {
+                        continue;
+                    }
+                    let opted_in = self
+                        .actor_configs
+                        .get(actor_id)
+                        .map(|c| c.see_directed_events)
+                        .unwrap_or(false);
+                    if !opted_in {
+                        continue;
+                    }
+                    if let Some(tx) = self.mailboxes.get(actor_id) {
+                        let _ = tx.try_send(event.clone());
+                    }
+                }
             }
             return;
         }
 
-        // Broadcast — deliver to matching subscribers
+        // Broadcast — deliver to matching subscribers.
         for (ns, actor_ids) in &self.subscriptions {
             if event.event_type.starts_with(ns.as_str()) {
                 for actor_id in actor_ids {

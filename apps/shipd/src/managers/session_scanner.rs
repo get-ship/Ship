@@ -50,6 +50,7 @@ impl SessionScanner {
                     write_namespaces: vec![],
                     read_namespaces: vec![],
                     subscribe_namespaces: vec!["session.".to_string()],
+                    see_directed_events: false,
                 };
                 match kr.spawn_actor("service.session_scanner", config) {
                     Ok((_store, mb)) => mb,

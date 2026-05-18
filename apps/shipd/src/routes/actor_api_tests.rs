@@ -13,6 +13,7 @@ fn cfg(ns: &str) -> ActorConfig {
         write_namespaces: vec![format!("{ns}.")],
         read_namespaces: vec![format!("{ns}.")],
         subscribe_namespaces: vec![format!("{ns}.")],
+        see_directed_events: false,
     }
 }
 

@@ -77,6 +77,7 @@ mod tests {
             write_namespaces: vec![format!("{ns}.")],
             read_namespaces: vec![format!("{ns}.")],
             subscribe_namespaces: vec![format!("{ns}.")],
+            see_directed_events: false,
         }
     }
 
@@ -168,6 +169,7 @@ mod tests {
             write_namespaces: vec!["other.".into()],
             read_namespaces: vec!["other.".into()],
             subscribe_namespaces: vec!["other.".into()],
+            see_directed_events: false,
         };
         router.refine_actor("a", new_cfg).unwrap();
 
@@ -187,6 +189,7 @@ mod tests {
             write_namespaces: vec!["a.".into()],
             read_namespaces: vec!["a.".into()],
             subscribe_namespaces: vec!["a.".into()],
+            see_directed_events: false,
         };
         let mut mb = router.spawn_actor("x", cfg_a).unwrap();
 
@@ -199,6 +202,7 @@ mod tests {
             write_namespaces: vec!["b.".into()],
             read_namespaces: vec!["b.".into()],
             subscribe_namespaces: vec!["b.".into()],
+            see_directed_events: false,
         };
         router.refine_actor("x", cfg_b).unwrap();
 

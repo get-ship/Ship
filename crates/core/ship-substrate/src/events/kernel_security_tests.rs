@@ -212,6 +212,7 @@ mod kernel_security {
             write_namespaces: vec!["agent.".into()],
             read_namespaces: vec!["agent.".into()],
             subscribe_namespaces: vec!["agent.".into()],
+            see_directed_events: false,
         };
         router.spawn_actor("agent.legacy", config).unwrap();
 
@@ -324,6 +325,7 @@ mod kernel_security {
             write_namespaces: vec!["agent.".into()],
             read_namespaces: vec!["agent.".into()],
             subscribe_namespaces: vec!["agent.".into()],
+            see_directed_events: false,
         };
         router.spawn_actor("agent.legacy", config).unwrap();
 

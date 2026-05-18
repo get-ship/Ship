@@ -74,6 +74,7 @@ fn make_kernel() -> Arc<Mutex<KernelRouter>> {
                 write_namespaces: vec!["job.".into(), "step.".into(), "artifact.".into()],
                 read_namespaces: vec![],
                 subscribe_namespaces: vec!["pipeline.".into()],
+                see_directed_events: false,
             },
         )
         .unwrap();

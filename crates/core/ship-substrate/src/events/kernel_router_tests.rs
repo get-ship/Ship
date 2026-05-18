@@ -26,6 +26,7 @@ fn studio_config() -> ActorConfig {
         write_namespaces: vec!["studio.".into()],
         read_namespaces: vec!["studio.".into(), "session.".into()],
         subscribe_namespaces: vec!["studio.".into()],
+        see_directed_events: false,
     }
 }
 
@@ -108,6 +109,7 @@ fn actors_cannot_read_each_others_stores() {
         write_namespaces: vec!["agent.".into()],
         read_namespaces: vec!["agent.".into()],
         subscribe_namespaces: vec![],
+        see_directed_events: false,
     };
 
     let (store_a, _mb_a) = router.spawn_actor("agent-a", agent_cfg("agent-a")).unwrap();
@@ -146,6 +148,7 @@ async fn route_skips_unsubscribed_mailbox() {
         write_namespaces: vec!["agent.".into()],
         read_namespaces: vec!["agent.".into()],
         subscribe_namespaces: vec!["agent.".into()],
+        see_directed_events: false,
     };
     let (_store, mut mb) = router.spawn_actor("agent-1", agent_cfg).unwrap();
 
@@ -170,6 +173,7 @@ async fn route_delivers_to_multiple_subscribers() {
         write_namespaces: vec![format!("{id}.")],
         read_namespaces: vec![format!("{id}."), "studio.".into()],
         subscribe_namespaces: vec!["studio.".into()],
+        see_directed_events: false,
     };
 
     let (_s1, mut mb1) = router.spawn_actor("watcher-1", sub_cfg("watcher-1")).unwrap();
@@ -248,6 +252,7 @@ async fn refine_actor_preserves_mailbox_through_wrapper() {
         write_namespaces: vec!["other.".into()],
         read_namespaces: vec!["other.".into()],
         subscribe_namespaces: vec!["other.".into()],
+        see_directed_events: false,
     };
     router.refine_actor("studio", new_cfg).unwrap();
 

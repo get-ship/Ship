@@ -119,6 +119,7 @@ pub async fn mesh_register(
             write_namespaces: vec!["mesh.".to_string()],
             read_namespaces: vec!["mesh.".to_string()],
             subscribe_namespaces: vec!["mesh.".to_string()],
+            see_directed_events: false,
         };
         match kernel.spawn_actor(&req.agent_id, config) {
             Ok((_store, mailbox)) => Some(mailbox),

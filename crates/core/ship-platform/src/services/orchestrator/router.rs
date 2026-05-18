@@ -37,6 +37,7 @@ pub async fn start_orchestrator(
         write_namespaces: vec!["pipeline.".to_string()],
         read_namespaces: vec![],
         subscribe_namespaces: vec!["pipeline.".to_string()],
+        see_directed_events: false,
     };
 
     let mailbox = {

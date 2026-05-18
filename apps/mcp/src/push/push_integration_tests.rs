@@ -52,6 +52,7 @@ async fn wire_agent(
         write_namespaces: vec!["".to_string()],
         read_namespaces: vec!["".to_string()],
         subscribe_namespaces: subscribe,
+        see_directed_events: false,
     };
     let (_store, mailbox) = kr.spawn_actor(actor_id, config).unwrap();
 
@@ -80,6 +81,7 @@ async fn studio_event_reaches_agent_via_push_adapter() {
         write_namespaces: vec!["studio.".to_string()],
         read_namespaces: vec!["studio.".to_string()],
         subscribe_namespaces: vec!["agent.".to_string()],
+        see_directed_events: false,
     };
     let (_studio_store, _studio_mailbox) = kr.spawn_actor("studio", studio_config).unwrap();
 
@@ -204,6 +206,7 @@ async fn studio_event_fans_out_to_multiple_agents() {
         write_namespaces: vec!["studio.".to_string()],
         read_namespaces: vec![],
         subscribe_namespaces: vec![],
+        see_directed_events: false,
     };
     let _ = kr.spawn_actor("studio", studio_config).unwrap();
 
@@ -369,6 +372,7 @@ async fn escalated_progress_event_reaches_push_adapter() {
         write_namespaces: vec!["session.".to_string()],
         read_namespaces: vec![],
         subscribe_namespaces: vec![],
+        see_directed_events: false,
     };
     let _ = kr.spawn_actor("session-emitter", session_config).unwrap();
 
@@ -431,6 +435,7 @@ async fn agents_auto_register_discover_and_communicate() {
         write_namespaces: vec!["mesh.".to_string()],
         read_namespaces: vec!["mesh.".to_string()],
         subscribe_namespaces: vec!["mesh.".to_string()],
+        see_directed_events: false,
     };
     let handler: Box<dyn ship_platform::services::ServiceHandler> =
         Box::new(ship_platform::services::mesh::MeshService::new(

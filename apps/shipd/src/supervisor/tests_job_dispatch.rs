@@ -26,6 +26,7 @@ fn job_dispatch_config() -> ActorConfig {
         write_namespaces: vec!["job.".to_string()],
         read_namespaces: vec![],
         subscribe_namespaces: vec!["job.".to_string()],
+        see_directed_events: false,
     }
 }
 
@@ -1390,6 +1391,7 @@ mod reliability {
             write_namespaces: vec![],
             read_namespaces: vec![],
             subscribe_namespaces: vec!["supervisor.".to_string()],
+            see_directed_events: false,
         };
         let (_store, mut mb) = router.spawn_actor("test.shutdown-observer", config).unwrap();
         let kernel = Arc::new(tokio::sync::Mutex::new(router));

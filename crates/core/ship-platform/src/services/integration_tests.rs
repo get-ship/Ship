@@ -32,6 +32,7 @@ mod mesh_kernel {
             write_namespaces: vec!["mesh.".into()],
             read_namespaces: vec!["mesh.".into()],
             subscribe_namespaces: vec!["mesh.".into()],
+            see_directed_events: false,
         }
     }
 

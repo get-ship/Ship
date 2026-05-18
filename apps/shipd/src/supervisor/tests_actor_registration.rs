@@ -36,6 +36,7 @@ fn actor_config(id: &str) -> ActorConfig {
         write_namespaces: vec!["mesh.".into()],
         read_namespaces: vec!["mesh.".into()],
         subscribe_namespaces: vec!["mesh.".into()],
+        see_directed_events: false,
     }
 }
 
@@ -211,6 +212,7 @@ async fn stop_actor_cleans_subscriptions_completely() {
         write_namespaces: vec!["mesh.".into()],
         read_namespaces: vec!["mesh.".into()],
         subscribe_namespaces: vec!["mesh.".into(), "ship.".into()],
+        see_directed_events: false,
     };
     kernel.spawn_actor("agent.dup", config.clone()).unwrap();
     kernel.stop_actor("agent.dup").unwrap();

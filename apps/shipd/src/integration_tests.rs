@@ -237,12 +237,14 @@ async fn namespace_isolation_between_actors() {
             write_namespaces: vec!["team-a.".into()],
             read_namespaces: vec!["team-a.".into()],
             subscribe_namespaces: vec!["team-a.".into()],
+            see_directed_events: false,
         };
         let config_b = ActorConfig {
             namespace: "agent-b".into(),
             write_namespaces: vec!["team-b.".into()],
             read_namespaces: vec!["team-b.".into()],
             subscribe_namespaces: vec!["team-b.".into()],
+            see_directed_events: false,
         };
         let (_store_a, _mb_a) = kernel.spawn_actor("agent-a", config_a).unwrap();
         let (store_b, _mb_b) = kernel.spawn_actor("agent-b", config_b).unwrap();
@@ -264,6 +266,7 @@ async fn actor_store_isolation_between_actors() {
         write_namespaces: vec!["shared.".into()],
         read_namespaces: vec!["shared.".into()],
         subscribe_namespaces: vec![],
+        see_directed_events: false,
     };
 
     let (store_a, _mb_a) = kernel.spawn_actor("iso-a", config("iso-a")).unwrap();
@@ -348,6 +351,7 @@ async fn broadcast_routes_to_subscribed_actors() {
         write_namespaces: vec!["mesh.".into()],
         read_namespaces: vec!["mesh.".into()],
         subscribe_namespaces: vec!["mesh.".into()],
+        see_directed_events: false,
     };
     let (_s1, mut mb1) = kernel.spawn_actor("bcast.sender", config("bcast.sender")).unwrap();
     let (_s2, mut mb2) = kernel.spawn_actor("bcast.listener", config("bcast.listener")).unwrap();

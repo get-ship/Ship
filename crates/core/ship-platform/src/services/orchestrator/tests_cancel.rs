@@ -94,6 +94,7 @@ fn dispatch_actor_config() -> ActorConfig {
         ],
         read_namespaces: vec![],
         subscribe_namespaces: vec!["pipeline.".to_string()],
+        see_directed_events: false,
     }
 }
 

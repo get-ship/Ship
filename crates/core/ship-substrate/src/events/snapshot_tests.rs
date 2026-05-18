@@ -21,6 +21,7 @@ fn agent_config(id: &str) -> ActorConfig {
         write_namespaces: vec![format!("{id}.")],
         read_namespaces: vec![format!("{id}.")],
         subscribe_namespaces: vec![format!("{id}.")],
+        see_directed_events: false,
     }
 }
 

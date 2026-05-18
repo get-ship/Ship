@@ -166,6 +166,7 @@ async fn spawn_studio_subscriber(
                 write_namespaces: vec!["".into()],
                 read_namespaces: vec!["agent.".into()],
                 subscribe_namespaces: vec!["studio.".into()],
+                see_directed_events: false,
             },
         )
         .unwrap();

@@ -135,6 +135,12 @@ pub async fn event_stream(
         write_namespaces: vec![],
         read_namespaces: vec![],
         subscribe_namespaces: vec!["".to_string()],
+        // SSE is the observability surface — clients opt in explicitly
+        // when they want the full stream including directed events
+        // (studio.chat_turn, hook.*, mesh.message). Without this flag,
+        // the kernel's directed-event short-circuit hides those from
+        // broadcast subscribers by design.
+        see_directed_events: true,
     };
 
     let mailbox = {
