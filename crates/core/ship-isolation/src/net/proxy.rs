@@ -109,8 +109,7 @@ fn parse_request_line(line: &str) -> Option<ParsedRequest> {
         let (host, port) = split_host_port(target, 443);
         return Some(ParsedRequest::Connect { host, port });
     }
-    if target.starts_with("http://") {
-        let after = &target["http://".len()..];
+    if let Some(after) = target.strip_prefix("http://") {
         let (authority, _path) = after.split_once('/').unwrap_or((after, ""));
         let (host, port) = split_host_port(authority, 80);
         return Some(ParsedRequest::AbsoluteUri {

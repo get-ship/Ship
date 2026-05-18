@@ -141,8 +141,7 @@ fn clap_rejects_prompt_and_spec_together() {
     let err = crate::cli::Cli::try_parse_from([
         "ship", "use", "rust-lane", "--prompt", "x", "--spec", "./y.md",
     ])
-    .err()
-    .expect("clap must reject --prompt + --spec");
+    .expect_err("clap must reject --prompt + --spec");
     let msg = err.to_string();
     assert!(
         msg.contains("cannot be used with") || msg.contains("conflicts"),

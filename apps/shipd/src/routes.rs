@@ -40,6 +40,9 @@ pub mod actor_api;
 #[cfg(test)]
 mod actor_api_tests;
 pub mod actors_api;
+pub mod agent_sessions_attach;
+#[cfg(test)]
+mod agent_sessions_attach_tests;
 pub mod mcp_registry;
 pub mod agents_api;
 pub mod annotations_api;
@@ -63,6 +66,7 @@ pub mod skills_api;
 pub mod openapi_modifier;
 pub mod openapi_types;
 pub mod projects_api;
+pub mod registry_api;
 pub mod rest_api;
 pub mod runtime_api;
 pub mod sdk_manifest;
@@ -669,6 +673,10 @@ pub enum Route {
     /// @auth scope ReadJobs
     StreamJobLog { slug: String },
 
+    /// @route GET "/api/v1/agent_sessions/{slug}/attach"
+    /// @auth scope WriteWorkspace
+    AttachAgentSession { slug: String },
+
     // ── Process projection / events polling / daemon status (slice 6) ────
 
     /// @route GET "/api/v1/procs"
@@ -1025,6 +1033,17 @@ pub enum Route {
     /// @route POST "/api/v1/views/{name}/edit/tool"
     /// @auth scope ManageJobs
     DispatchViewEditTool { name: String },
+
+    // ── Registry (gateway-forwarded) ─────────────────────────────────────
+    //
+    // The daemon is the single hop to the gateway: CLI hits the daemon
+    // here, the daemon attaches the user's stored API key and forwards
+    // to `<cloud.base_url>/api/v1/registry/publish`. `ship publish` no
+    // longer talks to the gateway directly.
+
+    /// @route POST "/api/v1/registry/publish"
+    /// @auth cli
+    Publish,
 }
 
 #[cfg(test)]

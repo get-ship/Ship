@@ -67,13 +67,12 @@ pub fn check(path: &Path, source: &str) -> Vec<Finding> {
                 col,
                 rule: RULE_ID,
                 severity: Severity::Warn,
-                message: format!(
-                    "{{#for}} block has no `key=` — the reconciler will \
+                message: "{#for} block has no `key=` — the reconciler will \
                      fall back to positional matching and DOM identity \
                      (focus, selection, in-place edits) will be lost on \
-                     reorder. Add `key={{item.id}}` (or whatever uniquely \
+                     reorder. Add `key={item.id}` (or whatever uniquely \
                      identifies each row)."
-                ),
+                    .to_string(),
                 suggest: Some(
                     "Add `key={EXPR}` to the for-block header, where \
                      EXPR returns a stable unique value per item — e.g. \

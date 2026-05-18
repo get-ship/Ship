@@ -100,71 +100,6 @@ pub(super) fn partition_inline_updates(
     (Some(body), fallback)
 }
 
-#[cfg(test)]
-mod partition_tests {
-    use super::*;
-
-    #[test]
-    fn whole_row_falls_back() {
-        let u = vec![
-            (
-                "t1".into(),
-                RowUse::FieldsOnly(vec!["id".into()]),
-            ),
-            ("t2".into(), RowUse::Whole),
-        ];
-        let (gated, fallback) = partition_inline_updates(&u, "row");
-        assert!(gated.is_none());
-        assert!(fallback.contains("t1") && fallback.contains("t2"));
-    }
-
-    #[test]
-    fn fields_only_groups_by_field_set() {
-        let u = vec![
-            ("set_id_text".into(), RowUse::FieldsOnly(vec!["id".into()])),
-            (
-                "set_label_text".into(),
-                RowUse::FieldsOnly(vec!["label".into()]),
-            ),
-            (
-                "set_id_attr".into(),
-                RowUse::FieldsOnly(vec!["id".into()]),
-            ),
-        ];
-        let (gated, _) = partition_inline_updates(&u, "row");
-        let body = gated.unwrap();
-        // id-group fires id stmts together
-        assert!(body.contains("__old.id !== $scope.row.id"));
-        assert!(body.contains("__old.label !== $scope.row.label"));
-        // id stmts share their guard
-        let id_section = body
-            .split("__old.id !== $scope.row.id")
-            .nth(1)
-            .unwrap_or("");
-        assert!(id_section.contains("set_id_text"));
-        assert!(id_section.contains("set_id_attr"));
-    }
-
-    #[test]
-    fn multi_field_stmt_disjunction() {
-        let u = vec![(
-            "concat".into(),
-            RowUse::FieldsOnly(vec!["id".into(), "label".into()]),
-        )];
-        let body = partition_inline_updates(&u, "row").0.unwrap();
-        assert!(body.contains("__old.id !== $scope.row.id || __old.label !== $scope.row.label"));
-    }
-
-    #[test]
-    fn none_stmts_dropped() {
-        // A `{42}` constant inside a for body classifies as None.
-        // It's idempotent on update — never needs re-firing.
-        let u = vec![("set_const".into(), RowUse::None)];
-        let body = partition_inline_updates(&u, "row").0.unwrap();
-        assert!(body.is_empty());
-    }
-}
-
 impl TemplateEmitter {
     pub(in crate::emit) fn emit_if(
         &mut self,
@@ -317,11 +252,8 @@ impl TemplateEmitter {
         let hoist_snapshot = self.boundary_hoists.len();
         self.boundary_depth += 1;
         let outer_for = std::mem::replace(&mut self.for_in_scope, body_needs_v);
-        let outer_var = std::mem::replace(&mut self.for_var_name, Some(var.clone()));
-        let outer_idx = std::mem::replace(
-            &mut self.for_idx_name,
-            Some(idx_name.to_string()),
-        );
+        let outer_var = self.for_var_name.replace(var.clone());
+        let outer_idx = self.for_idx_name.replace(idx_name.to_string());
         // D5: scope inline-update statements per for-loop so a nested
         // for inside this one collects into its own bucket, not ours.
         let outer_inline = std::mem::take(&mut self.inline_update_stmts);
@@ -695,5 +627,70 @@ impl TemplateEmitter {
         h.leave();
         h.line("};");
         self.boundary_hoists.push_str(&h.into_string());
+    }
+}
+
+#[cfg(test)]
+mod partition_tests {
+    use super::*;
+
+    #[test]
+    fn whole_row_falls_back() {
+        let u = vec![
+            (
+                "t1".into(),
+                RowUse::FieldsOnly(vec!["id".into()]),
+            ),
+            ("t2".into(), RowUse::Whole),
+        ];
+        let (gated, fallback) = partition_inline_updates(&u, "row");
+        assert!(gated.is_none());
+        assert!(fallback.contains("t1") && fallback.contains("t2"));
+    }
+
+    #[test]
+    fn fields_only_groups_by_field_set() {
+        let u = vec![
+            ("set_id_text".into(), RowUse::FieldsOnly(vec!["id".into()])),
+            (
+                "set_label_text".into(),
+                RowUse::FieldsOnly(vec!["label".into()]),
+            ),
+            (
+                "set_id_attr".into(),
+                RowUse::FieldsOnly(vec!["id".into()]),
+            ),
+        ];
+        let (gated, _) = partition_inline_updates(&u, "row");
+        let body = gated.unwrap();
+        // id-group fires id stmts together
+        assert!(body.contains("__old.id !== $scope.row.id"));
+        assert!(body.contains("__old.label !== $scope.row.label"));
+        // id stmts share their guard
+        let id_section = body
+            .split("__old.id !== $scope.row.id")
+            .nth(1)
+            .unwrap_or("");
+        assert!(id_section.contains("set_id_text"));
+        assert!(id_section.contains("set_id_attr"));
+    }
+
+    #[test]
+    fn multi_field_stmt_disjunction() {
+        let u = vec![(
+            "concat".into(),
+            RowUse::FieldsOnly(vec!["id".into(), "label".into()]),
+        )];
+        let body = partition_inline_updates(&u, "row").0.unwrap();
+        assert!(body.contains("__old.id !== $scope.row.id || __old.label !== $scope.row.label"));
+    }
+
+    #[test]
+    fn none_stmts_dropped() {
+        // A `{42}` constant inside a for body classifies as None.
+        // It's idempotent on update — never needs re-firing.
+        let u = vec![("set_const".into(), RowUse::None)];
+        let body = partition_inline_updates(&u, "row").0.unwrap();
+        assert!(body.is_empty());
     }
 }

@@ -1,0 +1,135 @@
+<bundle separate />
+<!--
+  <sui-agent-attach> — xterm.js attached to a running PTY-backed agent
+  session over the daemon's WebSocket bridge.
+
+  Wraps <sui-terminal> (the xterm engine) with the byte-pump (see
+  ./attach.ts) so views can drop in a fully functional attached terminal
+  without re-implementing the WS lifecycle.
+
+  Backend contract (apps/shipd/src/routes/agent_sessions_attach.rs):
+    GET /api/v1/agent_sessions/{slug}/attach   (Upgrade: websocket)
+      server → client: binary frames carrying raw PTY bytes
+      client → server: binary frames written as PTY input
+
+  Props
+  ─────────────────────────────────────────────────────────────────────────
+  slug          (string, '')           — agent-session slug to attach to.
+                                         When empty the component renders
+                                         the disconnected overlay without
+                                         opening a WS.
+  auto-connect  (bool, true, reflect)  — open the WS on mount. Set false
+                                         to defer until the host calls the
+                                         imperative connect() method.
+  readonly      (bool, false, reflect) — pass through to <sui-terminal>;
+                                         when true, inbound bytes still
+                                         render but xterm doesn't capture
+                                         keystrokes (display-only attach).
+
+  Events (bubble, composed)
+  ─────────────────────────────────────────────────────────────────────────
+  sui-agent-attach-open       fired when the WS open handshake completes
+  sui-agent-attach-disconnect detail: { reason: string }
+
+  Methods (imperative API on the host element)
+  ─────────────────────────────────────────────────────────────────────────
+  host.connect()    open the WS (no-op if already connected)
+  host.disconnect() close the WS without disposing the terminal
+-->
+
+<prop name="slug" type="string" default="" />
+<prop name="auto-connect" type="bool" default="true" reflect />
+<prop name="readonly" type="bool" default="false" reflect />
+
+<style>
+  :host {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    position: relative;
+    background: var(--background);
+  }
+  :host([hidden]) { display: none; }
+
+  .saa-term {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+  }
+
+  .saa-term sui-terminal {
+    /* <sui-terminal>'s :host is `display: block` with no intrinsic height.
+       Without these, FitAddon sees a 0-height container and xterm
+       collapses to its default rows × line-height, leaving the wrapper
+       largely empty. */
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+    height: 100%;
+  }
+
+  .saa-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: color-mix(in oklch, var(--background) 88%, transparent);
+    backdrop-filter: blur(2px);
+    pointer-events: auto;
+  }
+
+  .saa-overlay-card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    align-items: center;
+    padding: var(--space-5) var(--space-6);
+    border-radius: var(--radius-lg);
+    background: var(--background);
+    border: 1px solid color-mix(in oklch, var(--border) 60%, transparent);
+    box-shadow: var(--shadow-md);
+    max-width: 28rem;
+    text-align: center;
+  }
+
+  .saa-overlay-title {
+    font-size: var(--text-sm);
+    font-weight: var(--font-weight-semibold);
+    color: var(--foreground);
+    margin: 0;
+  }
+
+  .saa-overlay-reason {
+    font-size: var(--text-xs);
+    color: var(--muted-foreground);
+    font-family: var(--font-mono);
+    margin: 0;
+  }
+</style>
+
+<div class="saa-term">
+  <sui-terminal
+    bind:this={termRef}
+    prop:readonly={readonly()}
+    fit
+  ></sui-terminal>
+</div>
+
+{#if !slug()}
+  <div class="saa-overlay" data-test="empty-slug">
+    <div class="saa-overlay-card">
+      <p class="saa-overlay-title">No agent session selected</p>
+      <p class="saa-overlay-reason">Set the `slug` attribute to attach.</p>
+    </div>
+  </div>
+{:else if !connected() && disconnectReason()}
+  <div class="saa-overlay" data-test="disconnected">
+    <div class="saa-overlay-card">
+      <p class="saa-overlay-title">Session disconnected</p>
+      <p class="saa-overlay-reason">{disconnectReason()}</p>
+    </div>
+  </div>
+{/if}

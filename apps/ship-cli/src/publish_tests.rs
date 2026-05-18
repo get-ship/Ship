@@ -31,8 +31,15 @@ fn dry_run_reads_manifest_and_hashes() -> Result<()> {
 }
 
 #[test]
-fn publish_without_token_errors() -> Result<()> {
+fn publish_without_daemon_errors() -> Result<()> {
+    // Publish now goes through the daemon (`ship login`'s API key is read
+    // daemon-side, not CLI-side). With no daemon running in the isolated
+    // SHIP_HOME, the CLI must report the daemon-not-running condition
+    // rather than reaching out to the gateway directly.
     let dir = tempdir()?;
+    let ship_home = tempdir()?;
+    let _guard = crate::test_env::isolated_ship_home(ship_home.path());
+
     let ship_dir = ship_substrate::ShipHome::project_ship_dir(dir.path());
     std::fs::create_dir_all(&ship_dir)?;
     std::fs::write(
@@ -47,8 +54,8 @@ fn publish_without_token_errors() -> Result<()> {
 
     let err = run_publish(dir.path(), None, false, None).unwrap_err();
     assert!(
-        err.to_string().contains("ship login"),
-        "expected auth error, got: {err}"
+        err.to_string().contains("daemon is not running"),
+        "expected daemon-not-running error, got: {err}"
     );
     Ok(())
 }

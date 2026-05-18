@@ -51,7 +51,7 @@ fn bench_many_deps(c: &mut Criterion) {
         let counter = Arc::new(AtomicUsize::new(0));
 
         let c_clone = Arc::clone(&counter);
-        let sigs_clone: Vec<_> = signals.iter().cloned().collect();
+        let sigs_clone: Vec<_> = signals.to_vec();
         let _e = effect(move || {
             for s in &sigs_clone {
                 let _ = s.get();

@@ -55,8 +55,8 @@ pub use diagnostics::{CompileError, Span};
 ///
 /// Cargo version is the crate's `version` field; git sha + dirty flag
 /// + build timestamp come from `build.rs` via the shared `build_info`
-/// crate. On source-tarball builds without `.git`, `git` is the
-/// literal string `"unknown"`.
+///   crate. On source-tarball builds without `.git`, `git` is the
+///   literal string `"unknown"`.
 #[derive(Debug, Clone, Copy)]
 pub struct CompilerVersion {
     pub cargo: &'static str,

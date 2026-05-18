@@ -25,19 +25,14 @@ pub enum MountMode {
     ReadWrite,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(tag = "mode", rename_all = "snake_case")]
 pub enum NetworkPolicy {
+    #[default]
     DenyAll,
     Allowlist { hosts: Vec<String> },
     Proxy { listener: String, allow: Vec<String> },
     Open,
-}
-
-impl Default for NetworkPolicy {
-    fn default() -> Self {
-        Self::DenyAll
-    }
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]

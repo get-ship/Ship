@@ -1,5 +1,5 @@
 import { getAuthDb } from './d1.js'
-import { sendEmail, resetPasswordEmail, verifyEmailEmail } from './email.js'
+import { sendEmail, resetPasswordEmail, verifyEmailEmail, deleteAccountEmail } from './email.js'
 
 // Origins permitted to call /v1/auth/* and receive Set-Cookie. The marketing
 // site's local-dev origin is included so Astro dev can exercise the real
@@ -201,6 +201,41 @@ async function makeAuth(env: Env) {
           required: false,
           defaultValue: 'local',
           input: false,
+        },
+      },
+      // Account deletion. The endpoint stays disabled unless explicitly turned
+      // on — the site's /account page calls authClient.deleteUser() and used
+      // to silently 404 (BA returns NOT_FOUND when this is off), leaving the
+      // user signed out but every row intact. Two-step confirm via email:
+      // first call returns "Verification email sent", the link in the email
+      // hits /v1/auth/delete-user/callback?token=... which actually deletes.
+      deleteUser: {
+        enabled: true,
+        sendDeleteAccountVerification: async ({ user, url }) => {
+          await sendEmail(env, deleteAccountEmail({ to: user.email, url }))
+        },
+        // beforeDelete fires inside the callback handler after token verify
+        // and BEFORE the user row + dependents are removed. This is the
+        // narrow window where stripeCustomerId is still readable. Stripe
+        // deletion is irreversible — we only reach this point because the
+        // user clicked the verification link in their inbox.
+        beforeDelete: async (user) => {
+          if (!stripeClient) return
+          const customerId = (user as { stripeCustomerId?: string | null }).stripeCustomerId
+          if (!customerId) return
+          try {
+            await stripeClient.customers.del(customerId)
+          } catch (err) {
+            // Don't block the deletion on a Stripe failure (customer may
+            // already be gone, or Stripe may be down). Log and let the row
+            // deletion proceed — orphaning a Stripe customer is recoverable
+            // by hand; blocking the user from deleting their account isn't.
+            console.error('[auth:deleteUser] stripe customer delete failed', {
+              userId: user.id,
+              customerId,
+              err: err instanceof Error ? err.message : String(err),
+            })
+          }
         },
       },
     },

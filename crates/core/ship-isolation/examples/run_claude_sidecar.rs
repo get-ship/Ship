@@ -22,7 +22,7 @@
 ))]
 
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use ship_isolation::backends::{SidecarConfig, SidecarSandbox, Youki, YoukiConfig};
@@ -34,7 +34,7 @@ fn env_path(name: &str, default: &str) -> PathBuf {
     PathBuf::from(std::env::var(name).unwrap_or_else(|_| default.into()))
 }
 
-fn must_exist(path: &PathBuf, kind: &str) -> Result<(), String> {
+fn must_exist(path: &Path, kind: &str) -> Result<(), String> {
     let ok = match kind {
         "file" => path.is_file(),
         "dir" => path.is_dir(),

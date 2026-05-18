@@ -101,16 +101,63 @@ const TOKEN_MAP: Record<string, string> = {
   white: '--foreground',
 }
 
+/// xterm.js's WebGL renderer can't parse modern color syntaxes (oklch,
+/// color-mix, lab). All Ship design tokens are oklch, so passing them
+/// through unresolved makes WebGL fall back to white — the terminal
+/// looks light-on-light in every dark theme.
+///
+/// Convert via the browser's actual color parser: set the value as a
+/// real `color` on a probe element, then read the computed value, which
+/// browsers always normalize to `rgb()` / `rgba()`. Cheap (one DOM
+/// append per token per refresh) and works for every CSS color syntax.
+// Canvas reused across normalizeColor calls — creating a fresh canvas
+// every paint is expensive enough to show up under profiling.
+let __colorCanvas: HTMLCanvasElement | null = null
+let __colorCtx: CanvasRenderingContext2D | null = null
+
+function normalizeColor(_host: HTMLElement, value: string): string {
+  if (!value) return value
+  // Pure rgb/hex values don't need normalization. Allow `hsl` through —
+  // xterm's WebGL parser handles it natively.
+  if (/^#|^rgb|^hsl/i.test(value)) return value
+  // CSS Color 4 syntaxes (oklch, color-mix, lab, …) crash xterm's WebGL
+  // renderer — it parses with a legacy rgb()/hex parser. Convert via the
+  // 2d canvas, which is the only browser API that always returns
+  // `rgba(r, g, b, a)` regardless of input color syntax. getComputedStyle
+  // alone is not enough: recent Chromium versions return oklch() verbatim
+  // from CSS Color 4 inputs.
+  try {
+    if (!__colorCtx) {
+      __colorCanvas = document.createElement('canvas')
+      __colorCanvas.width = 1
+      __colorCanvas.height = 1
+      __colorCtx = __colorCanvas.getContext('2d')
+    }
+    if (!__colorCtx) return value
+    __colorCtx.fillStyle = '#000'
+    __colorCtx.fillStyle = value
+    // After assignment, fillStyle is always a string in #rrggbb or
+    // rgba(r,g,b,a) form — never the original input syntax.
+    return __colorCtx.fillStyle as string
+  } catch {
+    return value
+  }
+}
+
 function buildTheme(host: HTMLElement): Record<string, string> {
   const theme: Record<string, string> = { ...THEME_FALLBACKS }
   const cs = getComputedStyle(host)
   for (const [key, cssVar] of Object.entries(TOKEN_MAP)) {
     const val = cs.getPropertyValue(cssVar).trim()
-    if (val) theme[key] = val
+    if (val) theme[key] = normalizeColor(host, val)
   }
   const primary = theme.cursor || THEME_FALLBACKS.cursor!
-  theme.selectionBackground = `color-mix(in oklch, ${primary} 30%, transparent)`
-  theme.cyan = 'oklch(0.7 0.15 200)'
+  // selectionBackground needs alpha; compute via color-mix and normalize.
+  theme.selectionBackground = normalizeColor(
+    host,
+    `color-mix(in oklch, ${primary} 30%, transparent)`,
+  )
+  theme.cyan = normalizeColor(host, 'oklch(0.7 0.15 200)')
   theme.brightBlack = theme.white!
   theme.brightRed = theme.red!
   theme.brightGreen = theme.green!
@@ -223,6 +270,7 @@ export default controller<Scope>({
       writeln?: (s: string) => void
       clear?: () => void
       focus?: () => void
+      fit?: () => void
       terminal?: Terminal | null
     }
     // PTY transports deliver bytes; accept Uint8Array so the bridge can
@@ -232,6 +280,12 @@ export default controller<Scope>({
     el.writeln = (str: string) => term.writeln(str)
     el.clear = () => term.clear()
     el.focus = () => term.focus()
+    // Exposed for hosts whose layout settles AFTER the initial fit.fit()
+    // call inside the rAF in this controller — e.g. a parent component
+    // that wraps <sui-terminal> in a flex container. Without this, the
+    // first fit measures a 0-height container and xterm sticks at a
+    // handful of rows until the user manually triggers a resize.
+    el.fit = () => { try { fit.fit() } catch { /* mid-teardown */ } }
     el.terminal = term
 
     // Reactive prop updates via effect() — re-runs when signals change.
@@ -277,6 +331,7 @@ export default controller<Scope>({
       el.writeln = undefined
       el.clear = undefined
       el.focus = undefined
+      el.fit = undefined
       el.terminal = null
       try { term.dispose() } catch { /* teardown race */ }
     }

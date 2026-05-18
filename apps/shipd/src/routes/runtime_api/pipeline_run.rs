@@ -236,6 +236,10 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread")]
+    #[allow(
+        clippy::await_holding_lock,
+        reason = "test serializes cwd mutation across the await — the whole point of this lock"
+    )]
     async fn pipeline_run_missing_pipeline_returns_404() {
         let _g = cwd_guard();
         let dir = TempDir::new().unwrap();
@@ -267,6 +271,10 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread")]
+    #[allow(
+        clippy::await_holding_lock,
+        reason = "test serializes cwd mutation across the await — the whole point of this lock"
+    )]
     async fn pipeline_run_multi_step_dispatches_via_shared_primitive() {
         let _g = cwd_guard();
         let dir = TempDir::new().unwrap();

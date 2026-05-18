@@ -100,9 +100,13 @@ unused_variables = "warn"
 dead_code = "warn"
 
 [workspace.lints.clippy]
-unwrap_used = "warn"
-expect_used = "warn"
-panic = "warn"
+# Demoted from "warn" — workspace has hundreds of intentional uses across
+# lib + test code. Per-crate enforcement via `-W clippy::expect_used` on
+# crates that should be clean (e.g. sui-signals) keeps targeted pressure
+# without blocking the workspace-wide `-D warnings` gate.
+unwrap_used = "allow"
+expect_used = "allow"
+panic = "allow"
 todo = "warn"
 
 # Style preferences we don't enforce — keeps `cargo clippy -D warnings`

@@ -211,7 +211,7 @@ impl KernelRouter {
         // mutex contention is bounded (six 10s buckets, single hashmap
         // lookup per actor reference).
         {
-            let mut counters = self.rate_counters.lock().expect("rate_counters mutex poisoned");
+            let mut counters = self.rate_counters.lock().unwrap_or_else(|e| e.into_inner());
             let originator = event.actor_id.as_deref().unwrap_or("");
             if !originator.is_empty() {
                 counters.entry(originator.to_string()).or_default().bump();
@@ -233,7 +233,7 @@ impl KernelRouter {
             // skip that because unstable owns scope-filtered delivery
             // via deliver_with_scope.
             self.inner.persist(&event)?;
-            self.event_log.lock().expect("event_log mutex poisoned").push(event.clone());
+            self.event_log.lock().unwrap_or_else(|e| e.into_inner()).push(event.clone());
             return self.deliver_with_scope(&event).await;
         }
 
@@ -258,7 +258,7 @@ impl KernelRouter {
     pub fn stop_actor(&mut self, actor_id: &str) -> Result<(), KernelError> {
         #[cfg(feature = "unstable")]
         {
-            let log_len = self.event_log.lock().expect("event_log mutex poisoned").len();
+            let log_len = self.event_log.lock().unwrap_or_else(|e| e.into_inner()).len();
             self.actor_cursors.insert(actor_id.to_string(), log_len);
             self.actor_meta.remove(actor_id);
             self.unstable_senders.remove(actor_id);
@@ -283,7 +283,7 @@ impl KernelRouter {
     pub fn msg_rate(&self, actor_id: &str) -> u32 {
         self.rate_counters
             .lock()
-            .unwrap()
+            .unwrap_or_else(|e| e.into_inner())
             .get(actor_id)
             .map(|c| c.per_minute())
             .unwrap_or(0)

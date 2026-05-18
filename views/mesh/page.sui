@@ -48,7 +48,7 @@
       {:else}
         <table class="mesh-table">
           <thead>
-            <tr><th></th><th>Kind</th><th>Name</th><th>Provider</th><th>Workspace</th><th>Pid</th><th>Last activity</th></tr>
+            <tr><th></th><th>Kind</th><th>Name</th><th>Provider</th><th>Workspace</th><th>Pid</th><th>Last activity</th><th></th></tr>
           </thead>
           <tbody>
             {#for a of actorsFormatted() key={a.actor_id}}
@@ -66,6 +66,15 @@
                 <td>{a.workspace_id || '—'}</td>
                 <td class="mesh-pid">{a.pid || '—'}</td>
                 <td class="mesh-ts">{a.last_event_at_pretty}</td>
+                <td class="mesh-actions">
+                  {#if a.transport === 'pty'}
+                    <sui-button size="sm" variant="outline"
+                      on:click={() => openAttach(a.actor_id)}
+                      data-test="attach-action">
+                      Attach
+                    </sui-button>
+                  {/if}
+                </td>
               </tr>
             {/for}
           </tbody>
@@ -125,4 +134,17 @@
     </section>
   {/if}
 
+  <sui-drawer
+    size="lg"
+    prop:open={attachOpen()}
+    on:sui-close={closeAttach}
+    on:sui-dismiss={closeAttach}>
+    <span slot="title">Agent session</span>
+    <span slot="description">{attachSlug()}</span>
+    <div class="mesh-attach-body" style="height: 60vh; min-height: 320px; display: flex;">
+      {#if attachOpen() && attachSlug()}
+        <sui-agent-attach slug={attachSlug()} style="flex: 1; min-height: 0"></sui-agent-attach>
+      {/if}
+    </div>
+  </sui-drawer>
 </div>

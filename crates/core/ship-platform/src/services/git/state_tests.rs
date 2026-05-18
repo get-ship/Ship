@@ -3,8 +3,6 @@
 //! All write tests use `git2::Repository::init` in tempdirs — no network,
 //! no shared state. Draft tests use the platform DB via `init_project`.
 
-#![cfg(test)]
-
 use super::{read, write};
 use git2::{Repository, Signature};
 use std::fs;

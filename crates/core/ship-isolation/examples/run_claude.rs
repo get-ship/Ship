@@ -24,7 +24,7 @@
 #![cfg(all(feature = "youki-backend", target_os = "linux"))]
 
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use ship_isolation::backends::{Youki, YoukiConfig};
 use ship_isolation::{
@@ -35,7 +35,7 @@ fn env_path(name: &str, default: &str) -> PathBuf {
     PathBuf::from(std::env::var(name).unwrap_or_else(|_| default.into()))
 }
 
-fn must_exist(path: &PathBuf, kind: &str) -> Result<(), String> {
+fn must_exist(path: &Path, kind: &str) -> Result<(), String> {
     let ok = match kind {
         "file" => path.is_file(),
         "dir" => path.is_dir(),

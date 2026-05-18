@@ -125,10 +125,10 @@ pub async fn serve_sui_view_css(
     if !is_valid_view_name(&name) {
         return not_found("invalid view name");
     }
-    if q.sub.is_none() {
-        if let Some(css) = resolve_view_css_baked(&name) {
-            return css_response_mode(css.to_string(), mode);
-        }
+    if q.sub.is_none()
+        && let Some(css) = resolve_view_css_baked(&name)
+    {
+        return css_response_mode(css.to_string(), mode);
     }
     let body: String = match resolve(&name, q.sub.as_deref()) {
         Ok(r) => {
@@ -137,13 +137,11 @@ pub async fn serve_sui_view_css(
                 .source_path
                 .as_ref()
                 .and_then(|p| top_level_view_dir(p, &name))
-            {
-                if let Ok(s) = std::fs::read_to_string(parent_dir.join("style.css"))
+                && let Ok(s) = std::fs::read_to_string(parent_dir.join("style.css"))
                     .or_else(|_| std::fs::read_to_string(parent_dir.join("index.css")))
                     .or_else(|_| std::fs::read_to_string(parent_dir.join("view.css")))
-                {
-                    buf.push_str(&s);
-                }
+            {
+                buf.push_str(&s);
             }
             if q.sub.is_some()
                 && let Some(sub_dir) = r.source_path.as_ref().and_then(|p| p.parent())
@@ -313,6 +311,10 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread")]
+    #[allow(
+        clippy::await_holding_lock,
+        reason = "test serializes env-var mutation across the await — the whole point of this lock"
+    )]
     async fn agents_template_served_verbatim() {
         let _lock = test_lock();
         let prev = std::env::var_os("SHIP_DEV_PROJECT_DIR");

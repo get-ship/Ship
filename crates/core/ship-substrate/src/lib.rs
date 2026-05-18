@@ -44,9 +44,16 @@ pub fn gen_ulid() -> String {
         static GEN: RefCell<ulid::Generator> = const { RefCell::new(ulid::Generator::new()) };
     }
     GEN.with(|g| {
-        g.borrow_mut()
-            .generate_from_datetime(SystemTime::now())
-            .expect("ULID generation failed")
+        let now = SystemTime::now();
+        let mut generator = g.borrow_mut();
+        // Monotonic overflow within a single ms — reset the generator so the
+        // counter starts fresh at the new timestamp and try again.
+        generator
+            .generate_from_datetime(now)
+            .unwrap_or_else(|_| {
+                *generator = ulid::Generator::new();
+                ulid::Ulid::from_datetime(now)
+            })
             .to_string()
     })
 }

@@ -24,6 +24,7 @@ const config: SuiBuildConfig = {
     'sui-components/sui-chrome': 'src/components/index.ts',
   },
   lazyBundles: {
+    'sui-agent-attach':     'src/components/sui-agent-attach/index.ts',
     'sui-terminal':         'src/components/sui-terminal/index.ts',
     'sui-code-editor':      'src/components/sui-code-editor/index.ts',
     'sui-markdown-editor':  'src/components/sui-markdown-editor/index.ts',

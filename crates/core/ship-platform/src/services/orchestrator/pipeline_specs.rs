@@ -134,7 +134,7 @@ fn resolve_step_bodies(
 ) -> Vec<String> {
     match step_specs {
         Some(specs) => {
-            let mut out: Vec<String> = specs.iter().cloned().collect();
+            let mut out: Vec<String> = specs.to_vec();
             out.resize(pipeline.steps.len(), String::new());
             out
         }

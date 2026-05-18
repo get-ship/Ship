@@ -120,6 +120,7 @@ mod tests {
     use ship_substrate::events::new_isolated_for_test;
     use ship_substrate::events::EventFilter;
     use ship_substrate::persistence::event_store::{EventStore, SqliteEventStore};
+    use std::path::Path;
     use std::time::Duration;
     use tempfile::tempdir;
     use crate::testutil::init_project;
@@ -132,7 +133,7 @@ mod tests {
         (tmp, ship_dir, kernel)
     }
 
-    fn count_events(ship_dir: &PathBuf, event_type: &str) -> usize {
+    fn count_events(ship_dir: &Path, event_type: &str) -> usize {
         let store = SqliteEventStore::new_at(ship_dir).unwrap();
         store
             .query(&EventFilter {

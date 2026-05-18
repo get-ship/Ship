@@ -21,8 +21,8 @@ use crate::routes::{
     account_api, actor_api, actors_api, agents_api, annotations_api, artifacts_api,
     collection_api, commands_api, create_api, feedback_api, git_api, hooks_api,
     human_webhook, logs_api, mcp_api, openapi, permissions_api, pipelines_api, projects_api,
-    rest_api, rules_api, runtime_api, sdk_manifest, search_api, settings_api, skills_api,
-    specs_api, themes_api, view_edit_mode_api, view_edit_tool_api, view_errors_api,
+    registry_api, rest_api, rules_api, runtime_api, sdk_manifest, search_api, settings_api,
+    skills_api, specs_api, themes_api, view_edit_mode_api, view_edit_tool_api, view_errors_api,
     view_sessions_api, webhook_ext,
 };
 use crate::auth::{attest, pairing, session};
@@ -426,6 +426,10 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::JobStatusUpdate_template(), project_api::update_job_status)
         .ship_route(Route::JobStepDone_template(), project_api::job_step_done)
         .ship_route(Route::StreamJobLog_template(), logs_api::stream_job_log)
+        .ship_route(
+            Route::AttachAgentSession_template(),
+            crate::routes::agent_sessions_attach::attach_agent_session,
+        )
         .ship_route(Route::ListProcs, runtime_api::list_procs)
         .ship_route(Route::PollEvents, runtime_api::poll_events)
         .ship_route(Route::DaemonStatus, runtime_api::daemon_status)
@@ -489,6 +493,9 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
             Route::DispatchViewEditTool_template(),
             view_edit_tool_api::dispatch_tool,
         )
+        // Registry — gateway proxy. The daemon attaches the user's API key
+        // and forwards to the gateway. CLI never talks to the gateway.
+        .ship_route(Route::Publish, registry_api::publish)
         // AgentService — generic CRUD + lifecycle. First-party and
         // third-party views use this surface equally.
         .ship_route(Route::AgentsList, agents_api::list)

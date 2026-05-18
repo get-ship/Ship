@@ -46,7 +46,7 @@ pub enum DaemonMode {
 }
 
 impl DaemonMode {
-    pub fn from_str(s: &str) -> Self {
+    pub fn parse(s: &str) -> Self {
         match s {
             "production" => Self::Production,
             _ => Self::Development,

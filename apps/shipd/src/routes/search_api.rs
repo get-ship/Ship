@@ -105,7 +105,7 @@ async fn build_adapters(
     types: Option<&[EntityKindFilter]>,
 ) -> Vec<Arc<dyn EntitySearchAdapter>> {
     let enabled = |k: EntityKindFilter| -> bool {
-        types.is_none_or(|list| list.iter().any(|t| *t == k))
+        types.is_none_or(|list| list.contains(&k))
     };
 
     let mut adapters: Vec<Arc<dyn EntitySearchAdapter>> = Vec::new();

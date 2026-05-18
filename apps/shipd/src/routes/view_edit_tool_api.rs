@@ -499,6 +499,10 @@ fn project_root() -> Option<std::path::PathBuf> {
     Some(ship_dir.parent().unwrap_or(&ship_dir).to_path_buf())
 }
 
+#[allow(
+    clippy::result_large_err,
+    reason = "axum::Response is the canonical error vehicle for handler helpers"
+)]
 fn resolve_view(name: &str) -> Result<(String, std::path::PathBuf), Response> {
     let resolved = ship_sui::resolver::resolve(name, None)
         .map_err(|e| err(StatusCode::NOT_FOUND, "view_not_found", &e.message))?;

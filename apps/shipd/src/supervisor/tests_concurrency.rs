@@ -147,7 +147,7 @@ fn job_with_resolved_dep_is_dispatchable() {
         .map(|j| j.slug.as_str())
         .collect();
     let deps_resolved = j2.depends_on.as_ref()
-        .map_or(true, |deps| deps.iter().all(|d| done_slugs.contains(d.as_str())));
+        .is_none_or(|deps| deps.iter().all(|d| done_slugs.contains(d.as_str())));
     assert!(deps_resolved, "downstream deps must be resolved when upstream completes");
 }
 
@@ -168,7 +168,7 @@ fn job_with_multiple_deps_waits_for_all() {
         .collect();
     let j3 = map.get("j3").unwrap();
     let deps_resolved = j3.depends_on.as_ref()
-        .map_or(true, |deps| deps.iter().all(|d| done_slugs.contains(d.as_str())));
+        .is_none_or(|deps| deps.iter().all(|d| done_slugs.contains(d.as_str())));
     assert!(!deps_resolved, "downstream must wait for ALL deps, not just one");
 }
 

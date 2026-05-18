@@ -147,7 +147,8 @@ mod session_tests {
 
         bus.dispatch(&event, &mut conn);
 
-        let row: Option<(Option<String>, String, Option<String>, Option<String>)> =
+        type SessionDimRow = (Option<String>, String, Option<String>, Option<String>);
+        let row: Option<SessionDimRow> =
             block_on(async {
                 sqlx::query_as(
                     "SELECT project_id, kind, pipeline_run_id, chat_thread_id \
