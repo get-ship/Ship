@@ -123,14 +123,19 @@ pub async fn session_message(
     let (workspace_id, agent_id) = if let Some(entry) = state.actor_sessions().get(&id) {
         let m = entry.meta_snapshot();
         (m.workspace_id, m.agent_id)
+    } else if let Some(s) = state.pty_sessions().get(&id) {
+        let m = s.meta();
+        (m.workspace_id, m.agent_id)
     } else {
-        state
-            .pty_sessions()
-            .get(&id)
-            .map(|s| {
-                let m = s.meta();
-                (m.workspace_id, m.agent_id)
-            })
+        // Dispatched sessions (POST /api/v1/agent_sessions/dispatch) land
+        // in neither legacy registry — they live in the orchestrator's
+        // ProcessRegistry and the actor projection. Read metadata from
+        // the projection so studio.chat_turn carries the right context
+        // even for sessions the legacy registries never saw.
+        ship_substrate::projections::actor::get_actor(&id)
+            .ok()
+            .flatten()
+            .map(|a| (a.workspace_id.unwrap_or_default(), a.agent_id))
             .unwrap_or_default()
     };
     let payload = serde_json::json!({
@@ -216,6 +221,80 @@ pub async fn session_message(
         return (StatusCode::ACCEPTED, ()).into_response();
     }
 
+    // Dispatched sessions (POST /api/v1/agent_sessions/dispatch) live in
+    // the orchestrator's ProcessRegistry, NOT actor_sessions / pty_sessions.
+    // Look them up via the dispatch handle — the same lookup the WS attach
+    // endpoint uses — and route by the harness's push_mechanism.
+    if let Some(dh) = state.dispatch_handle() {
+        // Hold the lock just long enough to copy out the substrate
+        // ActorHandle (Clone) — ExecutorHandle itself isn't Clone
+        // (its inner is a Box<dyn Any>). actor_handle is None when
+        // the session isn't PTY-backed (tmux / server-mode) OR when
+        // no session is registered for this slug.
+        let actor_handle = {
+            let registry = dh.registry.lock().await;
+            registry
+                .get(&id)
+                .and_then(|h| ship_supervisor::pty_actor_handle(h))
+        };
+        // Distinguish "no session in registry" from "session present
+        // but not PTY" by a second pass.
+        let session_in_registry = { dh.registry.lock().await.get(&id).is_some() };
+
+        if session_in_registry {
+            // Harness comes from the actor projection — the dispatch
+            // payload carries it through to the actor.created event.
+            let harness = ship_substrate::projections::actor::get_actor(&id)
+                .ok()
+                .flatten()
+                .and_then(|a| a.harness)
+                .unwrap_or_default();
+            use ship_platform::services::harness_adapter::{adapter_for, PushMechanism};
+            let mechanism = adapter_for(&harness)
+                .map(|a| a.caps().push_mechanism)
+                .unwrap_or(PushMechanism::Respawn);
+
+            match mechanism {
+                PushMechanism::Channel => {
+                    // Channel push delivers via the studio.chat_turn event
+                    // emitted above. Nothing further needed here.
+                    return (StatusCode::ACCEPTED, ()).into_response();
+                }
+                PushMechanism::Stdin => {
+                    let Some(actor_handle) = actor_handle else {
+                        return err(
+                            StatusCode::CONFLICT,
+                            format!(
+                                "session '{id}' is not PTY-backed; stdin push unavailable (harness={harness})"
+                            ),
+                        );
+                    };
+                    let mut payload = text.clone();
+                    payload.push('\n');
+                    if let Err(e) = actor_handle.write_input(payload.as_bytes()) {
+                        return err(StatusCode::INTERNAL_SERVER_ERROR, format!("stdin write: {e}"));
+                    }
+                    return (StatusCode::ACCEPTED, ()).into_response();
+                }
+                PushMechanism::Respawn => {
+                    // Respawn for dispatched sessions isn't wired yet —
+                    // would require coordinating with the orchestrator
+                    // to kill + relaunch with --resume. Surface a clear
+                    // 501 instead of silently doing nothing.
+                    return err(
+                        StatusCode::NOT_IMPLEMENTED,
+                        format!(
+                            "respawn push not implemented for dispatched session '{id}' (harness={harness})"
+                        ),
+                    );
+                }
+            }
+        }
+    }
+
+    // Fallback: legacy spawn path (sessions/spawn with kind=agent on a
+    // non-persistent harness). 500s with "not found" if no registry
+    // anywhere has the session — that's a true unknown id.
     let work_dir = work_dir_for(&state, "main");
     match lifecycle::send_agent_message(
         state.pty_sessions(),
