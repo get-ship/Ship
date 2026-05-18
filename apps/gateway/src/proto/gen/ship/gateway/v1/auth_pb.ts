@@ -20,7 +20,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file ship/gateway/v1/auth.proto.
  */
 export const file_ship_gateway_v1_auth: GenFile = /*@__PURE__*/
-  fileDesc("ChpzaGlwL2dhdGV3YXkvdjEvYXV0aC5wcm90bxIPc2hpcC5nYXRld2F5LnYxIjYKFFRva2VuRXhjaGFuZ2VSZXF1ZXN0EgwKBGNvZGUYASABKAkSEAoIdmVyaWZpZXIYAiABKAkiSQoVVG9rZW5FeGNoYW5nZVJlc3BvbnNlEgsKA2tleRgBIAEoCRIPCgd1c2VyX2lkGAIgASgJEhIKCmV4cGlyZXNfYXQYAyABKAMiEAoOUmVmcmVzaFJlcXVlc3QiPAoPUmVmcmVzaFJlc3BvbnNlEgoKAm9rGAEgASgIEg8KB3VzZXJfaWQYAiABKAkSDAoEbm90ZRgDIAEoCSIVChNEYWVtb25BdHRlc3RSZXF1ZXN0IkcKFERhZW1vbkF0dGVzdFJlc3BvbnNlEgsKA2p3dBgBIAEoCRIOCgZpc3N1ZXIYAiABKAkSEgoKZXhwaXJlc19hdBgDIAEoAyIOCgxHZXRNZVJlcXVlc3QiPgoEVXNlchIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEg0KBWVtYWlsGAMgASgJEg0KBWltYWdlGAQgASgJIjQKDUdldE1lUmVzcG9uc2USIwoEdXNlchgBIAEoCzIVLnNoaXAuZ2F0ZXdheS52MS5Vc2VyMuACCgtBdXRoU2VydmljZRJeCg1Ub2tlbkV4Y2hhbmdlEiUuc2hpcC5nYXRld2F5LnYxLlRva2VuRXhjaGFuZ2VSZXF1ZXN0GiYuc2hpcC5nYXRld2F5LnYxLlRva2VuRXhjaGFuZ2VSZXNwb25zZRJMCgdSZWZyZXNoEh8uc2hpcC5nYXRld2F5LnYxLlJlZnJlc2hSZXF1ZXN0GiAuc2hpcC5nYXRld2F5LnYxLlJlZnJlc2hSZXNwb25zZRJbCgxEYWVtb25BdHRlc3QSJC5zaGlwLmdhdGV3YXkudjEuRGFlbW9uQXR0ZXN0UmVxdWVzdBolLnNoaXAuZ2F0ZXdheS52MS5EYWVtb25BdHRlc3RSZXNwb25zZRJGCgVHZXRNZRIdLnNoaXAuZ2F0ZXdheS52MS5HZXRNZVJlcXVlc3QaHi5zaGlwLmdhdGV3YXkudjEuR2V0TWVSZXNwb25zZWIGcHJvdG8z");
+  fileDesc("ChpzaGlwL2dhdGV3YXkvdjEvYXV0aC5wcm90bxIPc2hpcC5nYXRld2F5LnYxIjYKFFRva2VuRXhjaGFuZ2VSZXF1ZXN0EgwKBGNvZGUYASABKAkSEAoIdmVyaWZpZXIYAiABKAkiSQoVVG9rZW5FeGNoYW5nZVJlc3BvbnNlEgsKA2tleRgBIAEoCRIPCgd1c2VyX2lkGAIgASgJEhIKCmV4cGlyZXNfYXQYAyABKAMiEAoOUmVmcmVzaFJlcXVlc3QiPAoPUmVmcmVzaFJlc3BvbnNlEgoKAm9rGAEgASgIEg8KB3VzZXJfaWQYAiABKAkSDAoEbm90ZRgDIAEoCSIVChNEYWVtb25BdHRlc3RSZXF1ZXN0IkcKFERhZW1vbkF0dGVzdFJlc3BvbnNlEgsKA2p3dBgBIAEoCRIOCgZpc3N1ZXIYAiABKAkSEgoKZXhwaXJlc19hdBgDIAEoAyIOCgxHZXRNZVJlcXVlc3QiPgoEVXNlchIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEg0KBWVtYWlsGAMgASgJEg0KBWltYWdlGAQgASgJIjQKDUdldE1lUmVzcG9uc2USIwoEdXNlchgBIAEoCzIVLnNoaXAuZ2F0ZXdheS52MS5Vc2VyIhIKEFJldm9rZUtleVJlcXVlc3QiJAoRUmV2b2tlS2V5UmVzcG9uc2USDwoHcmV2b2tlZBgBIAEoCDK0AwoLQXV0aFNlcnZpY2USXgoNVG9rZW5FeGNoYW5nZRIlLnNoaXAuZ2F0ZXdheS52MS5Ub2tlbkV4Y2hhbmdlUmVxdWVzdBomLnNoaXAuZ2F0ZXdheS52MS5Ub2tlbkV4Y2hhbmdlUmVzcG9uc2USTAoHUmVmcmVzaBIfLnNoaXAuZ2F0ZXdheS52MS5SZWZyZXNoUmVxdWVzdBogLnNoaXAuZ2F0ZXdheS52MS5SZWZyZXNoUmVzcG9uc2USWwoMRGFlbW9uQXR0ZXN0EiQuc2hpcC5nYXRld2F5LnYxLkRhZW1vbkF0dGVzdFJlcXVlc3QaJS5zaGlwLmdhdGV3YXkudjEuRGFlbW9uQXR0ZXN0UmVzcG9uc2USRgoFR2V0TWUSHS5zaGlwLmdhdGV3YXkudjEuR2V0TWVSZXF1ZXN0Gh4uc2hpcC5nYXRld2F5LnYxLkdldE1lUmVzcG9uc2USUgoJUmV2b2tlS2V5EiEuc2hpcC5nYXRld2F5LnYxLlJldm9rZUtleVJlcXVlc3QaIi5zaGlwLmdhdGV3YXkudjEuUmV2b2tlS2V5UmVzcG9uc2ViBnByb3RvMw");
 
 /**
  * @generated from message ship.gateway.v1.TokenExchangeRequest
@@ -224,6 +224,40 @@ export const GetMeResponseSchema: GenMessage<GetMeResponse> = /*@__PURE__*/
   messageDesc(file_ship_gateway_v1_auth, 8);
 
 /**
+ * @generated from message ship.gateway.v1.RevokeKeyRequest
+ */
+export type RevokeKeyRequest = Message<"ship.gateway.v1.RevokeKeyRequest"> & {
+};
+
+/**
+ * Describes the message ship.gateway.v1.RevokeKeyRequest.
+ * Use `create(RevokeKeyRequestSchema)` to create a new message.
+ */
+export const RevokeKeyRequestSchema: GenMessage<RevokeKeyRequest> = /*@__PURE__*/
+  messageDesc(file_ship_gateway_v1_auth, 9);
+
+/**
+ * @generated from message ship.gateway.v1.RevokeKeyResponse
+ */
+export type RevokeKeyResponse = Message<"ship.gateway.v1.RevokeKeyResponse"> & {
+  /**
+   * True when the gateway dropped the key. False is reserved for future
+   * "already revoked / not found" idempotent acks if we extend the wire
+   * contract; today the only way to get a response is success.
+   *
+   * @generated from field: bool revoked = 1;
+   */
+  revoked: boolean;
+};
+
+/**
+ * Describes the message ship.gateway.v1.RevokeKeyResponse.
+ * Use `create(RevokeKeyResponseSchema)` to create a new message.
+ */
+export const RevokeKeyResponseSchema: GenMessage<RevokeKeyResponse> = /*@__PURE__*/
+  messageDesc(file_ship_gateway_v1_auth, 10);
+
+/**
  * @generated from service ship.gateway.v1.AuthService
  */
 export const AuthService: GenService<{
@@ -273,6 +307,19 @@ export const AuthService: GenService<{
     methodKind: "unary";
     input: typeof GetMeRequestSchema;
     output: typeof GetMeResponseSchema;
+  },
+  /**
+   * Revoke the calling key on the gateway. The caller authenticates with
+   * the bearer it wants revoked; on success the key is gone before the
+   * response returns. Used by `ship logout` to invalidate the server-side
+   * credential alongside clearing the local token file.
+   *
+   * @generated from rpc ship.gateway.v1.AuthService.RevokeKey
+   */
+  revokeKey: {
+    methodKind: "unary";
+    input: typeof RevokeKeyRequestSchema;
+    output: typeof RevokeKeyResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_ship_gateway_v1_auth, 0);

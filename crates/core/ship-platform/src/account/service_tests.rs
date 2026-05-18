@@ -1,5 +1,6 @@
 use super::*;
 use crate::account::store::FileTokenStore;
+use crate::account::types::AccountToken;
 use tempfile::TempDir;
 
 fn make_service() -> (TempDir, AccountService) {
@@ -7,6 +8,16 @@ fn make_service() -> (TempDir, AccountService) {
     let store = Arc::new(FileTokenStore::for_daemon_dir(tmp.path()));
     let svc = AccountService::new(store, "https://api.getship.dev").unwrap();
     (tmp, svc)
+}
+
+/// Service pointed at an unroutable address so revoke_key fails fast.
+/// Used to drive the offline-logout fallback path without depending on
+/// real network reachability.
+fn make_service_offline() -> (TempDir, Arc<FileTokenStore>, AccountService) {
+    let tmp = TempDir::new().unwrap();
+    let store = Arc::new(FileTokenStore::for_daemon_dir(tmp.path()));
+    let svc = AccountService::new(store.clone(), "http://127.0.0.1:1").unwrap();
+    (tmp, store, svc)
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
@@ -88,4 +99,47 @@ async fn logout_emits_account_logout() {
         found.iter().any(|t| t == "account.logout"),
         "expected account.logout in log even on idempotent logout, found: {found:?}",
     );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+async fn logout_clears_local_token_when_gateway_revoke_fails() {
+    // Token stored, gateway unreachable. Logout must still clear the
+    // local file (offline-logout invariant) and emit `account.logout`
+    // with key_revoked=false so audit can distinguish "logged out +
+    // revoked" from "logged out (local only)".
+    let (_tmp, store, svc) = make_service_offline();
+    store
+        .write(AccountToken {
+            key: "ship_unrevokable".into(),
+            user_id: "user-offline".into(),
+            expires_at: 0,
+            stored_at: 0,
+        })
+        .await
+        .unwrap();
+
+    svc.logout().await.unwrap();
+
+    assert!(
+        store.read().await.unwrap().is_none(),
+        "local token should be cleared even when gateway revoke fails",
+    );
+
+    use ship_substrate::events::EventFilter;
+    use ship_substrate::persistence::event_store::{EventStore, SqliteEventStore};
+    let events = SqliteEventStore::new()
+        .unwrap()
+        .query(&EventFilter {
+            event_type: Some("account.logout".into()),
+            entity_id: Some("user-offline".into()),
+            ..Default::default()
+        })
+        .unwrap();
+    let ev = events
+        .iter()
+        .find(|e| e.entity_id == "user-offline")
+        .expect("account.logout for user-offline emitted");
+    let payload: serde_json::Value = serde_json::from_str(&ev.payload_json).unwrap();
+    assert_eq!(payload["had_token"], serde_json::json!(true));
+    assert_eq!(payload["key_revoked"], serde_json::json!(false));
 }

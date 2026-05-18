@@ -22,6 +22,8 @@ import {
   DaemonAttestResponseSchema,
   type GetMeResponse,
   GetMeResponseSchema,
+  type RevokeKeyResponse,
+  RevokeKeyResponseSchema,
   UserSchema,
 } from '../proto/gen/ship/gateway/v1/auth_pb.js'
 import { envContextKey } from '../lib/connect-context.js'
@@ -189,9 +191,31 @@ async function getMe(_req: unknown, ctx: HandlerContext): Promise<GetMeResponse>
   })
 }
 
+async function revokeKey(_req: unknown, ctx: HandlerContext): Promise<RevokeKeyResponse> {
+  const env = requireEnv(ctx)
+  const a = await getAuth(env)
+  // The api-key plugin's `before` hook resolves the bearer into a session
+  // whose `session.id` is the apiKey row id (see plugin index.mjs §2180).
+  // We read that out of getSession, then call the framework's deleteApiKey
+  // so the same authorization + cleanup path runs that the REST endpoint
+  // would have.
+  const sessionResp = await a.api.getSession({ headers: ctx.requestHeader })
+  const keyId = (sessionResp as { session?: { id?: string } } | null)?.session?.id
+  if (!keyId) {
+    throw new ConnectError('authentication required', Code.Unauthenticated)
+  }
+  try {
+    await a.api.deleteApiKey({ body: { keyId }, headers: ctx.requestHeader })
+  } catch (e) {
+    throw new ConnectError(`revoke failed: ${String(e)}`, Code.Internal)
+  }
+  return create(RevokeKeyResponseSchema, { revoked: true })
+}
+
 export const authServiceImpl: ServiceImpl<typeof AuthService> = {
   tokenExchange,
   refresh,
   daemonAttest,
   getMe,
+  revokeKey,
 }

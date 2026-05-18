@@ -28,7 +28,8 @@ use sha2::{Digest, Sha256};
 use tokio::sync::Mutex;
 
 use ship_gateway_client::{
-    AuthServiceClient, CallOptions, GetMeRequest, HttpClient, TokenExchangeRequest, auth_client,
+    AuthServiceClient, CallOptions, GetMeRequest, HttpClient, RevokeKeyRequest,
+    TokenExchangeRequest, auth_client,
 };
 
 use super::events as account_events;
@@ -248,23 +249,49 @@ impl AccountService {
         }
     }
 
-    /// Clear the stored token. Idempotent. Emits `daemon.owner.unbound`
-    /// (only when a binding existed) and `account.logout` (always, with
-    /// `had_token` distinguishing real vs. idempotent calls).
+    /// Clear the stored token. Idempotent. When a key is present, asks
+    /// the gateway to revoke it BEFORE clearing the local file so a
+    /// leaked-then-logged-out key can't be reused for the rest of its
+    /// 1-year TTL. If the revoke call fails (network down, gateway
+    /// error) we still clear the local file — logout must work offline,
+    /// even if it means the server-side key lingers — and the emitted
+    /// `account.logout` event records `key_revoked: false` so audit can
+    /// distinguish the two outcomes. Emits `daemon.owner.unbound` only
+    /// when a binding existed.
     pub async fn logout(&self) -> Result<()> {
-        let prior_user = self
-            .store
-            .read()
-            .await
-            .ok()
-            .flatten()
-            .map(|t| t.user_id);
+        let prior = self.store.read().await.ok().flatten();
+        let key_revoked = match prior.as_ref() {
+            Some(token) => self.try_revoke_key(&token.key).await,
+            None => false,
+        };
+        let prior_user = prior.map(|t| t.user_id);
         self.store.clear().await?;
         if let Err(e) = crate::auth::attest::clear_daemon_owner() {
             tracing::warn!("account: daemon-owner unbind failed: {e}");
         }
-        account_events::emit_logout(prior_user.as_deref(), prior_user.is_some());
+        account_events::emit_logout(prior_user.as_deref(), prior_user.is_some(), key_revoked);
         Ok(())
+    }
+
+    /// Ask the gateway to revoke `key`. Returns true on success; logs and
+    /// returns false on any failure so logout can still clear the local
+    /// file. Pulled out of `logout` to keep the lifecycle method readable.
+    async fn try_revoke_key(&self, key: &str) -> bool {
+        let opts = CallOptions::default().with_header("authorization", format!("Bearer {key}"));
+        match self
+            .client
+            .revoke_key_with_options(RevokeKeyRequest::default(), opts)
+            .await
+        {
+            Ok(resp) => resp.view().revoked,
+            Err(e) => {
+                tracing::warn!(
+                    "account: gateway revoke_key failed ({}); clearing local token only: {e}",
+                    self.base_url
+                );
+                false
+            }
+        }
     }
 
     /// Return the stored API key — transitional, used by the CLI to

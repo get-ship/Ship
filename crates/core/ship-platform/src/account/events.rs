@@ -51,10 +51,14 @@ pub fn emit_login_completed(user_id: &str) {
 
 /// Emit `account.logout`. `entity_id` is the previously-bound user_id,
 /// or `"none"` if logout was idempotent. `had_token` distinguishes the
-/// two cases for audit consumers.
-pub fn emit_logout(user_id: Option<&str>, had_token: bool) {
+/// two cases for audit consumers; `key_revoked` records whether the
+/// gateway-side key was successfully invalidated.
+pub fn emit_logout(user_id: Option<&str>, had_token: bool, key_revoked: bool) {
     let entity = user_id.unwrap_or("none");
-    let payload = AccountLogout { had_token };
+    let payload = AccountLogout {
+        had_token,
+        key_revoked,
+    };
     match EventEnvelope::new(ACCOUNT_LOGOUT, entity, &payload) {
         Ok(env) => append(env),
         Err(e) => tracing::warn!("account event build failed (logout): {e}"),

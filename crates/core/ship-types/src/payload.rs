@@ -363,6 +363,13 @@ pub struct AccountLogout {
     /// logout. Useful for distinguishing "user explicitly logged out" from
     /// "CLI ran ship logout while already signed out."
     pub had_token: bool,
+    /// True when the gateway acknowledged revoking the server-side API
+    /// key as part of this logout. False when no token existed, or when
+    /// the revoke call failed (network down / gateway error) and we fell
+    /// back to clearing the local file only. Lets audit distinguish
+    /// "logged out + revoked" from "logged out (local only)".
+    #[serde(default)]
+    pub key_revoked: bool,
 }
 
 /// `entity_id` on the envelope is the user_id. Emitted on a successful
