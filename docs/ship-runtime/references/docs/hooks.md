@@ -2,7 +2,7 @@
 group: Runtime
 order: 18
 title: Hooks
-description: Two different concepts share the name. Compiler lifecycle hooks (HookConfig, compiled into harness config) vs platform reactive triggers (HookDef, .ship/hooks/*.jsonc).
+description: Two different concepts share the name. Compiler lifecycle hooks (HookConfig, compiled into harness config) vs platform reactive triggers (HookDef, .ship/triggers/*.jsonc).
 audience: internal
 ---
 
@@ -98,10 +98,10 @@ A non-zero exit from the command signals hook failure. What the agent sees varie
 
 ## 2. Platform reactive triggers — `HookDef` / `HookTrigger`
 
-A different system that also lives under the "hooks" name (the code is still in `crates/core/ship-platform/src/hooks/` until the rename to "triggers" lands). These are reactive automation: a JSONC document in `.ship/hooks/*.jsonc` matches a Ship event (or an external source) and runs actions. Ship executes these itself — they are not compiled into harness config.
+A different system that also lives under the "hooks" name — the public surface is **triggers** (the Rust types still carry the `Hook*` prefix; the module path and JSONC directory have been renamed). The code lives in `crates/core/ship-platform/src/triggers/`. These are reactive automation: a JSONC document in `.ship/triggers/*.jsonc` matches a Ship event (or an external source) and runs actions. Ship executes these itself — they are not compiled into harness config.
 
 ```rust
-// crates/core/ship-platform/src/hooks/def.rs
+// crates/core/ship-platform/src/triggers/def.rs
 pub struct HookDef {
     pub name: String,
     pub description: Option<String>,
@@ -119,19 +119,19 @@ pub struct HookTrigger {
 }
 ```
 
-Exactly one of `event` or `source` is set. Event triggers match a kernel event type directly; source triggers (`Webhook`, `File`, `Cron`) are surfaced as synthetic `external.<kind>.<name>` events. The `HookEngine` (`hooks/engine.rs`) loads the documents, watches for changes, and dispatches matching events to the actions. Distinct from the compiler lifecycle hooks above — those are an agent/harness concern, these are a runtime automation concern.
+Exactly one of `event` or `source` is set. Event triggers match a kernel event type directly; source triggers (`Webhook`, `File`, `Cron`) are surfaced as synthetic `external.<kind>.<name>` events. The `HookEngine` (`triggers/engine.rs`) loads the documents, watches for changes, and dispatches matching events to the actions. Distinct from the compiler lifecycle hooks above — those are an agent/harness concern, these are a runtime automation concern.
 
 ## Why the naming collision exists
 
 Both systems were named "hooks" independently:
 
 - `HookConfig` / `config::types::HookTrigger` — agent lifecycle hooks, the Claude/Gemini-style "shell commands on events" vocabulary. Compiled into harness config.
-- `HookDef` / `hooks::def::HookTrigger` — reactive triggers matching Ship events. Runtime-executed. The rename to "triggers" is planned but not yet landed.
+- `HookDef` / `triggers::def::HookTrigger` — reactive triggers matching Ship events. Runtime-executed. The filesystem and module path use **triggers**; the Rust types retain the `Hook*` prefix for historical reasons.
 
 When reading code, disambiguate by context:
 
 - `HookConfig`, `config::types::HookTrigger`, agent config, "compiled into harness config" → compiler lifecycle hooks.
-- `HookDef`, `hooks::def::HookTrigger`, `HookEngine`, `.ship/hooks/*.jsonc` → platform reactive triggers.
+- `HookDef`, `triggers::def::HookTrigger`, `HookEngine`, `.ship/triggers/*.jsonc` → platform reactive triggers.
 
 ## Invariants
 

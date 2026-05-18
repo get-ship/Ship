@@ -1,4 +1,4 @@
-//! Tests that committed `.ship/hooks/*.jsonc` validate against the trigger schema
+//! Tests that committed `.ship/triggers/*.jsonc` validate against the trigger schema
 //! and that `.ship/views/*/manifest.json` validate against the view-manifest schema.
 
 use jsonschema::validator_for;
@@ -39,15 +39,15 @@ fn trigger_schema_is_valid_json_schema() {
 }
 
 #[test]
-fn committed_hooks_validate_against_trigger_schema() {
+fn committed_triggers_validate_against_trigger_schema() {
     let root = workspace_root();
     let schema_path = root.join("schemas/trigger.schema.json").to_string_lossy().into_owned();
     let schema = load_json(&schema_path);
     let validator = validator_for(&schema).expect("trigger schema must compile");
 
-    let hooks_dir = ship_substrate::ShipHome::project_ship_dir(root).join("triggers");
-    let entries = std::fs::read_dir(&hooks_dir)
-        .unwrap_or_else(|e| panic!("cannot read {}: {e}", hooks_dir.display()));
+    let triggers_dir = ship_substrate::ShipHome::project_ship_dir(root).join("triggers");
+    let entries = std::fs::read_dir(&triggers_dir)
+        .unwrap_or_else(|e| panic!("cannot read {}: {e}", triggers_dir.display()));
 
     let mut validated = 0usize;
     for entry in entries.flatten() {
@@ -66,7 +66,7 @@ fn committed_hooks_validate_against_trigger_schema() {
         );
         validated += 1;
     }
-    assert!(validated > 0, "expected at least one .jsonc hook file to validate");
+    assert!(validated > 0, "expected at least one .jsonc trigger file to validate");
 }
 
 // ── view-manifest schema ─────────────────────────────────────────────────────

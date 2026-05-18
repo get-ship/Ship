@@ -1,4 +1,4 @@
-//! Unit tests for the hook engine.
+//! Unit tests for the trigger engine.
 
 use std::path::Path;
 use std::sync::Arc;
@@ -83,7 +83,7 @@ fn loader_parses_valid_hook() {
             ]
         }"#,
     );
-    let report = loader::load_hooks_dir(&ship_dir);
+    let report = loader::load_triggers_dir(&ship_dir);
     assert_eq!(report.hooks.len(), 1);
     assert!(report.errors.is_empty());
     let hook = &report.hooks[0];
@@ -105,7 +105,7 @@ fn loader_rejects_unknown_event() {
             "actions": []
         }"#,
     );
-    let report = loader::load_hooks_dir(&ship_dir);
+    let report = loader::load_triggers_dir(&ship_dir);
     assert!(report.hooks.is_empty());
     assert_eq!(report.errors.len(), 1);
     assert!(report.errors[0].reason.contains("unknown event type"));
@@ -125,7 +125,7 @@ fn loader_rejects_missing_template_file() {
             ]
         }"#,
     );
-    let report = loader::load_hooks_dir(&ship_dir);
+    let report = loader::load_triggers_dir(&ship_dir);
     assert!(report.hooks.is_empty());
     assert_eq!(report.errors.len(), 1);
     assert!(report.errors[0].reason.contains("template_file"));
@@ -138,9 +138,37 @@ fn loader_continues_past_bad_hook() {
         "name": "good", "trigger": { "event": "pipeline.run.completed" }, "actions": []
     }"#);
     write_hook(&ship_dir, "bad.jsonc", "not valid jsonc {");
-    let report = loader::load_hooks_dir(&ship_dir);
+    let report = loader::load_triggers_dir(&ship_dir);
     assert_eq!(report.hooks.len(), 1);
     assert_eq!(report.errors.len(), 1);
+}
+
+#[test]
+fn loader_reads_triggers_dir_and_ignores_legacy_hooks_dir() {
+    // Regression for the .ship/hooks/ → .ship/triggers/ rename: the loader
+    // must read from `.ship/triggers/` and NOT silently double-read a
+    // legacy `.ship/hooks/` sibling directory.
+    let (_tmp, ship_dir) = tmp_ship_dir();
+    write_hook(&ship_dir, "in-triggers.jsonc", r#"{
+        "name": "in-triggers",
+        "trigger": { "event": "pipeline.run.completed" },
+        "actions": []
+    }"#);
+    let legacy = ship_dir.join("hooks");
+    std::fs::create_dir_all(&legacy).unwrap();
+    std::fs::write(
+        legacy.join("in-hooks.jsonc"),
+        r#"{
+            "name": "in-hooks",
+            "trigger": { "event": "pipeline.run.completed" },
+            "actions": []
+        }"#,
+    )
+    .unwrap();
+
+    let report = loader::load_triggers_dir(&ship_dir);
+    assert_eq!(report.hooks.len(), 1, "only the triggers/ entry loads");
+    assert_eq!(report.hooks[0].name, "in-triggers");
 }
 
 // ── filter ──────────────────────────────────────────────────────────────────

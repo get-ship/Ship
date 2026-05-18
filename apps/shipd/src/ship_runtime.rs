@@ -108,7 +108,7 @@ pub struct ShipRuntime {
     /// Wall-clock instant the daemon process started — used for uptime.
     started_at: std::time::Instant,
     /// Hook engine (external source adapters + hot-reload watcher).
-    hook_engine: std::sync::OnceLock<std::sync::Arc<ship_platform::hooks::engine::HookEngine>>,
+    hook_engine: std::sync::OnceLock<std::sync::Arc<ship_platform::triggers::engine::HookEngine>>,
     /// Declarative-tier config watcher (Phase 4) — emits domain.changed events.
     config_watcher: std::sync::OnceLock<ship_platform::config::ConfigWatcher>,
     /// Bun bundler worker — owned here, lazily started on first access.
@@ -696,7 +696,7 @@ impl ShipRuntime {
         // user-scope vector. Project-scope triggers are loaded by the hook
         // engine when a project workspace activates.
         let library_dir = ship_substrate::ShipHome::at(self.ship_dir.clone()).library_dir();
-        match ship_platform::hooks::engine::spawn_hook_service(
+        match ship_platform::triggers::engine::spawn_hook_service(
             self.kernel.clone(),
             library_dir,
         )
@@ -704,7 +704,7 @@ impl ShipRuntime {
         {
             Ok(engine) => {
                 // Also start the filesystem watcher for hot-reload.
-                if let Err(e) = ship_platform::hooks::watcher::spawn_watcher(engine.clone()) {
+                if let Err(e) = ship_platform::triggers::watcher::spawn_watcher(engine.clone()) {
                     tracing::warn!("hook watcher failed to start: {e}");
                 }
                 let _ = self.hook_engine.set(engine);
@@ -717,14 +717,14 @@ impl ShipRuntime {
     /// The running hook engine, if started.
     pub fn hook_engine(
         &self,
-    ) -> Option<&std::sync::Arc<ship_platform::hooks::engine::HookEngine>> {
+    ) -> Option<&std::sync::Arc<ship_platform::triggers::engine::HookEngine>> {
         self.hook_engine.get()
     }
 
     /// The webhook source for the public webhook route, if the engine is running.
     pub fn webhook_source(
         &self,
-    ) -> Option<std::sync::Arc<ship_platform::hooks::sources::webhook::WebhookSource>> {
+    ) -> Option<std::sync::Arc<ship_platform::triggers::sources::webhook::WebhookSource>> {
         self.hook_engine.get()?.webhook_source()
     }
 

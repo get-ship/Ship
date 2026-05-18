@@ -1,4 +1,4 @@
-//! Hook loader — scan `.ship/hooks/*.jsonc` and return validated [`HookDef`]s.
+//! Trigger loader — scan `.ship/triggers/*.jsonc` and return validated [`HookDef`]s.
 
 use std::path::Path;
 
@@ -13,7 +13,7 @@ pub struct LoadError {
     pub reason: String,
 }
 
-/// Result of scanning a hooks directory: parsed hooks plus any failures.
+/// Result of scanning a triggers directory: parsed hooks plus any failures.
 #[derive(Debug, Default)]
 pub struct LoadReport {
     pub hooks: Vec<HookDef>,
@@ -25,10 +25,10 @@ pub struct LoadReport {
 ///
 /// Invalid hooks are collected in `errors` — the loader never panics. Missing
 /// directory is not an error; it returns an empty report.
-pub fn load_hooks_dir(ship_dir: &Path) -> LoadReport {
-    let hooks_dir = ship_dir.join("triggers");
+pub fn load_triggers_dir(ship_dir: &Path) -> LoadReport {
+    let triggers_dir = ship_dir.join("triggers");
     let mut report = LoadReport::default();
-    let entries = match std::fs::read_dir(&hooks_dir) {
+    let entries = match std::fs::read_dir(&triggers_dir) {
         Ok(it) => it,
         Err(_) => return report,
     };
@@ -198,6 +198,6 @@ fn is_known_event(event: &str) -> bool {
 
 fn log_errors(report: &LoadReport) {
     for err in &report.errors {
-        tracing::warn!(file = %err.file, reason = %err.reason, "hooks: invalid hook skipped");
+        tracing::warn!(file = %err.file, reason = %err.reason, "triggers: invalid trigger skipped");
     }
 }

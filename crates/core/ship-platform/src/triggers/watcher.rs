@@ -17,9 +17,9 @@ use super::engine::HookEngine;
 /// The watcher task runs until the process exits; dropping the returned
 /// [`HookWatcher`] stops both the watcher and the debounce loop.
 pub fn spawn_watcher(engine: Arc<HookEngine>) -> Result<HookWatcher> {
-    let hooks_dir = engine.ship_dir().join("triggers");
-    if !hooks_dir.exists() {
-        std::fs::create_dir_all(&hooks_dir)?;
+    let triggers_dir = engine.ship_dir().join("triggers");
+    if !triggers_dir.exists() {
+        std::fs::create_dir_all(&triggers_dir)?;
     }
     let (tx, mut rx) = mpsc::unbounded_channel::<()>();
     let mut watcher = notify::recommended_watcher(move |res: notify::Result<Event>| {
@@ -32,7 +32,7 @@ pub fn spawn_watcher(engine: Arc<HookEngine>) -> Result<HookWatcher> {
             let _ = tx.send(());
         }
     })?;
-    watcher.watch(&hooks_dir, RecursiveMode::NonRecursive)?;
+    watcher.watch(&triggers_dir, RecursiveMode::NonRecursive)?;
 
     let task_engine = engine.clone();
     let handle = tokio::spawn(async move {
@@ -46,7 +46,7 @@ pub fn spawn_watcher(engine: Arc<HookEngine>) -> Result<HookWatcher> {
 
     Ok(HookWatcher {
         _watcher: watcher,
-        path: hooks_dir,
+        path: triggers_dir,
         _task: handle,
     })
 }

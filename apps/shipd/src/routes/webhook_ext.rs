@@ -11,7 +11,7 @@ use axum::{
     response::IntoResponse,
     Json,
 };
-use ship_platform::hooks::sources::webhook::{WebhookResult, WebhookSource};
+use ship_platform::triggers::sources::webhook::{WebhookResult, WebhookSource};
 use serde_json::json;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -27,7 +27,7 @@ pub type SharedKernelRef = Arc<Mutex<KernelRouter>>;
 /// - `Extension<SharedWebhookSource>` — the webhook registry from HookEngine
 /// - `Extension<SharedKernelRef>` — shared kernel for event emission
 ///
-/// Authentication is hook-declared: each trigger in `.ship/hooks/` carries
+/// Authentication is trigger-declared: each trigger in `.ship/triggers/` carries
 /// its own `secret`, which must be supplied via the `x-ship-webhook-secret`
 /// request header. Callers that send the wrong secret (or none at all for
 /// a trigger that requires one) get `401`. Bearer auth is explicitly not
@@ -40,7 +40,7 @@ pub type SharedKernelRef = Arc<Mutex<KernelRouter>>;
     post,
     path = "/api/hooks/webhook/{path}",
     params(
-        ("path" = String, Path, description = "Trigger path as declared under .ship/hooks/. Matches the `*path` glob from the router."),
+        ("path" = String, Path, description = "Trigger path as declared under .ship/triggers/. Matches the `*path` glob from the router."),
     ),
     request_body(
         content_type = "application/octet-stream",

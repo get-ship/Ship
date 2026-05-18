@@ -6,7 +6,7 @@ pub mod bundler;
 pub mod collections;
 pub mod commands;
 pub mod config;
-pub mod hooks;
+pub mod triggers;
 pub mod kv;
 pub mod projections;
 pub mod projects;
