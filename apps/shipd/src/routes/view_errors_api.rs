@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
 use std::sync::{Mutex, OnceLock};
 
-use crate::auth::{AuthContext, Scope, require_scope};
+use crate::auth::{AuthContext};
 
 const RING_CAP: usize = 200;
 
@@ -88,12 +88,9 @@ pub struct ListQuery {
 
 /// POST /api/v1/view-errors
 pub async fn post_error(
-    Extension(auth): Extension<AuthContext>,
+    Extension(_auth): Extension<AuthContext>,
     Json(req): Json<PostErrorReq>,
 ) -> axum::response::Response {
-    if let Err(e) = require_scope(&auth, Scope::ReadWorkspace) {
-        return e.into_response();
-    }
     let id = next_id();
     let stored = StoredError {
         id,
@@ -126,12 +123,9 @@ pub async fn post_error(
 
 /// GET /api/v1/view-errors
 pub async fn list_errors(
-    Extension(auth): Extension<AuthContext>,
+    Extension(_auth): Extension<AuthContext>,
     Query(q): Query<ListQuery>,
 ) -> axum::response::Response {
-    if let Err(e) = require_scope(&auth, Scope::ReadWorkspace) {
-        return e.into_response();
-    }
     let limit = q.limit.unwrap_or(50).min(RING_CAP);
     let buf = buffer().lock().expect("view-errors buffer poisoned");
     let total = buf.len();
@@ -156,11 +150,8 @@ pub async fn list_errors(
 
 /// DELETE /api/v1/view-errors
 pub async fn clear_errors(
-    Extension(auth): Extension<AuthContext>,
+    Extension(_auth): Extension<AuthContext>,
 ) -> axum::response::Response {
-    if let Err(e) = require_scope(&auth, Scope::ReadWorkspace) {
-        return e.into_response();
-    }
     let cleared = {
         let mut buf = buffer().lock().expect("view-errors buffer poisoned");
         let n = buf.len();

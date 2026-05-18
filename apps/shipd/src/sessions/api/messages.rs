@@ -16,7 +16,7 @@ use axum::{Extension, Json};
 use serde::Deserialize;
 use ship_substrate::events::{types::event_types, EventEnvelope};
 
-use crate::auth::{AuthContext, Scope, require_scope};
+use crate::auth::{AuthContext};
 use crate::routes::rest_api::ApiState;
 
 use super::super::lifecycle;
@@ -107,9 +107,6 @@ pub async fn session_message(
     Path(id): Path<String>,
     Json(body): Json<MessageBody>,
 ) -> axum::response::Response {
-    if let Err(e) = require_scope(&auth, Scope::ManageJobs) {
-        return e.into_response();
-    }
     let raw_text = body.text.trim().to_string();
     if raw_text.is_empty() {
         return err(StatusCode::BAD_REQUEST, "empty message");
@@ -249,9 +246,6 @@ pub async fn session_reply(
     Path(id): Path<String>,
     Json(body): Json<MessageBody>,
 ) -> axum::response::Response {
-    if let Err(e) = require_scope(&auth, Scope::ManageJobs) {
-        return e.into_response();
-    }
     let text = body.text;
     if text.is_empty() {
         return err(StatusCode::BAD_REQUEST, "empty reply");

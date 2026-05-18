@@ -24,27 +24,8 @@ use axum::{
     response::{IntoResponse, Response},
 };
 use ship_platform::account::AccountService;
-use ship_substrate::events::CallerKind;
 
-use crate::auth::AuthContext;
 
-/// Gate every account route on user presence. MCP session tokens are
-/// denied even when their role grants `Scope::Full`; the floor is the
-/// caller kind, not the scope.
-fn require_user_presence(auth: &AuthContext) -> Option<Response> {
-    match auth.caller_kind {
-        CallerKind::Cli => None,
-        _ => Some(
-            (
-                StatusCode::FORBIDDEN,
-                Json(serde_json::json!({
-                    "error": "account ops require user-present caller (daemon token / browser cookie); MCP sessions are denied",
-                })),
-            )
-                .into_response(),
-        ),
-    }
-}
 
 #[derive(serde::Deserialize, utoipa::ToSchema)]
 #[schema(example = json!({ "redirect_uri": "http://127.0.0.1:54321/callback" }))]
@@ -72,12 +53,8 @@ pub struct StartLoginResponse {
 )]
 pub async fn start_login(
     Extension(svc): Extension<Arc<AccountService>>,
-    Extension(auth): Extension<AuthContext>,
     Json(req): Json<StartLoginRequest>,
 ) -> Response {
-    if let Some(r) = require_user_presence(&auth) {
-        return r;
-    }
     if !req.redirect_uri.starts_with("http://127.0.0.1:")
         && !req.redirect_uri.starts_with("http://localhost:")
     {
@@ -132,12 +109,8 @@ pub struct CompleteLoginResponse {
 )]
 pub async fn complete_login(
     Extension(svc): Extension<Arc<AccountService>>,
-    Extension(auth): Extension<AuthContext>,
     Json(req): Json<CompleteLoginRequest>,
 ) -> Response {
-    if let Some(r) = require_user_presence(&auth) {
-        return r;
-    }
     match svc.complete_login(&req.state_id, &req.code).await {
         Ok(me) => (
             StatusCode::OK,
@@ -170,11 +143,7 @@ pub async fn complete_login(
 )]
 pub async fn get_state(
     Extension(svc): Extension<Arc<AccountService>>,
-    Extension(auth): Extension<AuthContext>,
 ) -> Response {
-    if let Some(r) = require_user_presence(&auth) {
-        return r;
-    }
     match svc.state().await {
         Ok(state) => (StatusCode::OK, Json(state)).into_response(),
         Err(e) => (
@@ -197,11 +166,7 @@ pub async fn get_state(
 )]
 pub async fn logout(
     Extension(svc): Extension<Arc<AccountService>>,
-    Extension(auth): Extension<AuthContext>,
 ) -> Response {
-    if let Some(r) = require_user_presence(&auth) {
-        return r;
-    }
     match svc.logout().await {
         Ok(()) => StatusCode::NO_CONTENT.into_response(),
         Err(e) => (
@@ -234,11 +199,7 @@ pub struct GetKeyResponse {
 )]
 pub async fn get_key(
     Extension(svc): Extension<Arc<AccountService>>,
-    Extension(auth): Extension<AuthContext>,
 ) -> Response {
-    if let Some(r) = require_user_presence(&auth) {
-        return r;
-    }
     match svc.get_key().await {
         Ok(key) => (StatusCode::OK, Json(GetKeyResponse { key })).into_response(),
         Err(e) => (
@@ -249,59 +210,9 @@ pub async fn get_key(
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::auth::scopes::Scope;
-
-    fn cli_auth() -> AuthContext {
-        AuthContext {
-            caller_kind: CallerKind::Cli,
-            agent_id: None,
-            workspace_id: None,
-            session_id: None,
-            scopes: vec![Scope::Full],
-        }
-    }
-
-    fn mcp_auth_with_full_scope() -> AuthContext {
-        // Worst case for the gate: an MCP caller that somehow holds
-        // Scope::Full (a contributor-role session). Categorical denial
-        // by CallerKind, regardless of scope.
-        AuthContext {
-            caller_kind: CallerKind::Mcp,
-            agent_id: Some("attacker-agent".into()),
-            workspace_id: None,
-            session_id: None,
-            scopes: vec![Scope::Full],
-        }
-    }
-
-    fn sdk_auth() -> AuthContext {
-        AuthContext {
-            caller_kind: CallerKind::Sdk,
-            agent_id: None,
-            workspace_id: None,
-            session_id: None,
-            scopes: vec![Scope::Full],
-        }
-    }
-
-    #[test]
-    fn cli_passes_user_presence_check() {
-        assert!(require_user_presence(&cli_auth()).is_none());
-    }
-
-    #[test]
-    fn mcp_is_denied_even_with_full_scope() {
-        let r = require_user_presence(&mcp_auth_with_full_scope());
-        assert!(r.is_some(), "MCP must be categorically denied");
-    }
-
-    #[test]
-    fn sdk_is_denied() {
-        // SDK is programmatic; account self-service should require an
-        // interactive user. Keep this strict — relax only with intent.
-        assert!(require_user_presence(&sdk_auth()).is_some());
-    }
-}
+// User-presence enforcement (CallerKind::Cli) is now declared via
+// `/// @auth cli` on each `Route::*AccountLogin*` / `Route::Logout*` /
+// `Route::GetAccountKey` variant. The router enforces at registration
+// time; the comprehensive denial matrix (CLI passes, MCP denied even
+// with Scope::Full, SDK denied) is covered in
+// `apps/shipd/src/routes/scope_enforcement_tests.rs`.

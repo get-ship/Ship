@@ -19,7 +19,7 @@ use ship_substrate::events::EventEnvelope;
 use ship_substrate::events::annotation::AnnotationEvent;
 use ulid::Ulid;
 
-use crate::auth::{AuthContext, Scope, require_scope};
+use crate::auth::AuthContext;
 use crate::routes::rest_api::ApiState;
 
 const NOTE_MAX_BYTES: usize = 10 * 1024;
@@ -43,9 +43,6 @@ pub async fn post_annotation(
     Extension(auth): Extension<AuthContext>,
     Json(mut ev): Json<AnnotationEvent>,
 ) -> Response {
-    if let Err(e) = require_scope(&auth, Scope::LogProgress) {
-        return e.into_response();
-    }
     if Ulid::from_string(&ev.id).is_err() {
         ev.id = Ulid::new().to_string();
     }

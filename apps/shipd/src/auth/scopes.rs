@@ -10,10 +10,75 @@ use serde_json::json;
 // Re-export the platform's policy primitives so existing
 // `crate::auth::scopes::Scope` import paths continue to resolve.
 pub use ship_platform::auth::scopes::{
-    DaemonSession, Scope, SessionRegistry, generate_session_token, hydrate_sessions,
-    is_session_token, persist_session, remove_persisted_session, scopes_for_role,
+    DaemonSession, RequiredAuth, Scope, SessionRegistry, generate_session_token,
+    hydrate_sessions, is_session_token, persist_session, remove_persisted_session,
+    scopes_for_role,
 };
 pub use ship_platform::auth::sweeper::spawn_session_sweeper;
+
+use axum::body::Body;
+use axum::extract::Request;
+use axum::middleware::Next;
+use axum::response::{IntoResponse, Response};
+use ship_substrate::events::CallerKind;
+
+/// Per-route auth enforcement middleware. Wraps the actual handler.
+///
+/// Behavior:
+/// - `RequiredAuth::Public` — pass through (this branch should never be
+///   hit because `ship_route` only wraps non-public routes).
+/// - `RequiredAuth::Cli` — require `AuthContext` in extensions AND
+///   `caller_kind == CallerKind::Cli`. MCP session tokens get 403 even
+///   when they hold `Scope::Full`.
+/// - `RequiredAuth::Scope(s)` — require `auth.has_scope(s)`.
+/// - `RequiredAuth::Handler` — pass through; the handler enforces.
+///
+/// Missing `AuthContext` (the outer `auth_middleware` didn't run, or
+/// failed) returns 401. Insufficient privileges return 403 with the
+/// canonical `MeshResponse` shape.
+pub async fn enforce_required_auth(
+    required: RequiredAuth,
+    req: Request<Body>,
+    next: Next,
+) -> Response {
+    match required {
+        RequiredAuth::Public | RequiredAuth::Handler => next.run(req).await,
+        RequiredAuth::Cli => {
+            let Some(auth) = req.extensions().get::<super::AuthContext>().cloned() else {
+                return (StatusCode::UNAUTHORIZED, "missing auth context").into_response();
+            };
+            if matches!(auth.caller_kind, CallerKind::Cli) {
+                next.run(req).await
+            } else {
+                (
+                    StatusCode::FORBIDDEN,
+                    axum::Json(crate::wire::MeshResponse {
+                        ok: false,
+                        data: json!("requires user-presence (CallerKind::Cli)"),
+                    }),
+                )
+                    .into_response()
+            }
+        }
+        RequiredAuth::Scope(scope) => {
+            let Some(auth) = req.extensions().get::<super::AuthContext>().cloned() else {
+                return (StatusCode::UNAUTHORIZED, "missing auth context").into_response();
+            };
+            if auth.has_scope(scope) {
+                next.run(req).await
+            } else {
+                (
+                    StatusCode::FORBIDDEN,
+                    axum::Json(crate::wire::MeshResponse {
+                        ok: false,
+                        data: json!(format!("insufficient scope: {scope:?} required")),
+                    }),
+                )
+                    .into_response()
+            }
+        }
+    }
+}
 
 // ── Artifact scope checks (HTTP-context-bound) ─────────────────────────────
 

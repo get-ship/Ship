@@ -45,15 +45,13 @@
 //! - `403 Forbidden` — caller lacks `Scope::Full`.
 
 use axum::{
-    Extension, Json,
+    Json,
     extract::Path,
     http::StatusCode,
     response::{IntoResponse, Response},
 };
 use serde::Serialize;
 
-use crate::auth::AuthContext;
-use crate::auth::scopes::Scope;
 use super::sui_patch_channel;
 use super::sui_patches::{PatchElements, format_patch_elements};
 use ship_sui::render_helpers::is_valid_view_name;
@@ -70,12 +68,8 @@ pub struct PatchElementsResponse {
 /// `POST /_sui/views/{name}/patch-elements`
 pub async fn serve_patch_elements(
     Path(name): Path<String>,
-    Extension(auth): Extension<AuthContext>,
     body: Result<Json<PatchElements>, axum::extract::rejection::JsonRejection>,
 ) -> Response {
-    if !auth.has_scope(Scope::Full) {
-        return error(StatusCode::FORBIDDEN, "patch-elements requires Scope::Full");
-    }
     if !is_valid_view_name(&name) {
         return error(StatusCode::BAD_REQUEST, "invalid view name");
     }
@@ -121,16 +115,6 @@ mod tests {
     use super::*;
     use crate::views::sui_patches::PatchElementsMode;
 
-    fn auth_with(scopes: Vec<Scope>) -> AuthContext {
-        AuthContext {
-            caller_kind: ship_substrate::events::CallerKind::Cli,
-            agent_id: Some("test".into()),
-            workspace_id: None,
-            session_id: None,
-            scopes,
-        }
-    }
-
     fn good_patch() -> PatchElements {
         PatchElements {
             selector: "#x".into(),
@@ -140,25 +124,14 @@ mod tests {
         }
     }
 
-    #[tokio::test]
-    async fn rejects_without_full_scope() {
-        let resp = serve_patch_elements(
-            Path("git".into()),
-            Extension(auth_with(vec![Scope::ReadWorkspace])),
-            Ok(Json(good_patch())),
-        )
-        .await;
-        assert_eq!(resp.status(), StatusCode::FORBIDDEN);
-    }
+    // Scope::Full enforcement is now route-layer (see Route::SuiPatchElements
+    // `@auth scope Full` in routes.rs; covered by
+    // `apps/shipd/src/routes/scope_enforcement_tests.rs`). These tests cover
+    // body validation only.
 
     #[tokio::test]
     async fn rejects_invalid_view_name() {
-        let resp = serve_patch_elements(
-            Path("../etc".into()),
-            Extension(auth_with(vec![Scope::Full])),
-            Ok(Json(good_patch())),
-        )
-        .await;
+        let resp = serve_patch_elements(Path("../etc".into()), Ok(Json(good_patch()))).await;
         assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
     }
 
@@ -166,12 +139,7 @@ mod tests {
     async fn rejects_empty_selector() {
         let mut p = good_patch();
         p.selector = "   ".into();
-        let resp = serve_patch_elements(
-            Path("git".into()),
-            Extension(auth_with(vec![Scope::Full])),
-            Ok(Json(p)),
-        )
-        .await;
+        let resp = serve_patch_elements(Path("git".into()), Ok(Json(p))).await;
         assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
     }
 
@@ -179,24 +147,17 @@ mod tests {
     async fn rejects_empty_html() {
         let mut p = good_patch();
         p.html = String::new();
-        let resp = serve_patch_elements(
-            Path("git".into()),
-            Extension(auth_with(vec![Scope::Full])),
-            Ok(Json(p)),
-        )
-        .await;
+        let resp = serve_patch_elements(Path("git".into()), Ok(Json(p))).await;
         assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
     }
 
     #[tokio::test]
     async fn accepts_and_publishes_with_subscriber() {
-        // Use a unique view name so this test doesn't race other tests.
         let view = "test-agent-push-roundtrip";
         let mut rx = sui_patch_channel::subscribe(view).await;
 
         let resp = serve_patch_elements(
             Path(view.into()),
-            Extension(auth_with(vec![Scope::Full])),
             Ok(Json(PatchElements {
                 selector: "#target".into(),
                 mode: PatchElementsMode::Morph,
@@ -216,12 +177,9 @@ mod tests {
 
     #[tokio::test]
     async fn accepts_with_zero_subscribers() {
-        let resp = serve_patch_elements(
-            Path("test-agent-push-no-listeners".into()),
-            Extension(auth_with(vec![Scope::Full])),
-            Ok(Json(good_patch())),
-        )
-        .await;
+        let resp =
+            serve_patch_elements(Path("test-agent-push-no-listeners".into()), Ok(Json(good_patch())))
+                .await;
         assert_eq!(resp.status(), StatusCode::ACCEPTED);
     }
 }

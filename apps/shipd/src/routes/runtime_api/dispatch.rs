@@ -10,7 +10,7 @@ use ship_substrate::events::EventEnvelope;
 use ship_substrate::events::job::{JobCreatedPayload, event_types};
 use serde::Deserialize;
 
-use crate::auth::{AuthContext, Scope, require_scope};
+use crate::auth::{AuthContext};
 use crate::routes::rest_api::{ApiState, MeshResponse};
 
 #[derive(Deserialize, utoipa::ToSchema)]
@@ -72,12 +72,9 @@ pub struct DispatchRequest {
 )]
 pub async fn dispatch_pipeline(
     State(state): State<ApiState>,
-    Extension(auth): Extension<AuthContext>,
+    Extension(_auth): Extension<AuthContext>,
     Json(req): Json<DispatchRequest>,
 ) -> impl IntoResponse {
-    if let Err(e) = require_scope(&auth, Scope::CreateJobs) {
-        return e;
-    }
 
     // Walk up from the daemon's CWD to find `.ship/pipelines/<name>.jsonc`.
     // Matches `ship_platform::services::orchestrator::pipeline_loader::load_pipeline_file`'s

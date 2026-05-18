@@ -23,7 +23,7 @@ use serde::Serialize;
 use serde::Deserialize;
 use serde_json::json;
 
-use crate::auth::{AuthContext, Scope, enforce_mcp_identity, require_scope};
+use crate::auth::{AuthContext, enforce_mcp_identity};
 use crate::routes::rest_api::{ApiState, MeshResponse};
 
 #[derive(Deserialize)]
@@ -358,9 +358,6 @@ pub async fn kill_tree_handler(
     Extension(auth): Extension<AuthContext>,
     Path(id): Path<String>,
 ) -> impl IntoResponse {
-    if let Err(e) = require_scope(&auth, Scope::MeshSend) {
-        return e.into_response();
-    }
     if let Err(e) = enforce_mcp_identity(&auth, Some(&id)) {
         return e;
     }
@@ -433,9 +430,6 @@ pub async fn actor_input_handler(
     Path(id): Path<String>,
     Json(req): Json<ActorInputReq>,
 ) -> impl IntoResponse {
-    if let Err(e) = require_scope(&auth, Scope::MeshSend) {
-        return e.into_response();
-    }
     if let Err(e) = enforce_mcp_identity(&auth, Some(&id)) {
         return e;
     }

@@ -8,7 +8,7 @@ use axum::response::sse::{Event, KeepAlive, Sse};
 use ship_substrate::events::{CallerKind, EventEnvelope};
 use serde::{Deserialize, Serialize};
 
-use crate::auth::{AuthContext, Scope, enforce_mcp_identity, require_scope};
+use crate::auth::{AuthContext, enforce_mcp_identity};
 
 /// Axum shared state — an Arc-wrapped ShipRuntime.
 pub use crate::ship_runtime::ApiState;
@@ -91,9 +91,6 @@ pub async fn mesh_register(
     Extension(auth): Extension<AuthContext>,
     Json(req): Json<MeshRegisterReq>,
 ) -> impl IntoResponse {
-    if let Err(e) = require_scope(&auth, Scope::MeshSend) {
-        return e;
-    }
     // MCP callers must register as their authenticated identity — no impersonation.
     if auth.caller_kind == CallerKind::Mcp
         && let Some(ref bound_id) = auth.agent_id
@@ -186,9 +183,6 @@ pub async fn mesh_send(
     Extension(auth): Extension<AuthContext>,
     Json(req): Json<MeshSendReq>,
 ) -> axum::response::Response {
-    if let Err(e) = require_scope(&auth, Scope::MeshSend) {
-        return e.into_response();
-    }
     if let Err(e) = enforce_mcp_identity(&auth, Some(&req.from)) {
         return e;
     }
@@ -230,9 +224,6 @@ pub async fn mesh_broadcast(
     Extension(auth): Extension<AuthContext>,
     Json(req): Json<MeshBroadcastReq>,
 ) -> axum::response::Response {
-    if let Err(e) = require_scope(&auth, Scope::MeshBroadcast) {
-        return e.into_response();
-    }
     if let Err(e) = enforce_mcp_identity(&auth, Some(&req.from)) {
         return e;
     }
