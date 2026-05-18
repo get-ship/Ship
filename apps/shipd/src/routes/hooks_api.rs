@@ -90,6 +90,7 @@ fn resolve_session(event: &ShipHookEvent, auth: &AuthContext) -> Option<String> 
     tag = "hooks"
 )]
 pub async fn hook_session_start(
+    State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
     Json(event): Json<ShipHookEvent>,
 ) -> Response {
@@ -104,9 +105,28 @@ pub async fn hook_session_start(
 
     tracing::debug!(actor = %actor, session = ?session, "hook: session-start");
 
-    // Update heartbeat if we have a session.
     if let Some(ref sid) = session {
         let _ = ship_substrate::db::session_drain::update_heartbeat(sid);
+    }
+
+    // Emit a kernel event correlated by the session id (the dispatched
+    // slug for orchestrator sessions; the harness's own session_id for
+    // legacy spawns). Mirrors the hook.tool_use_* pattern. Target +
+    // entity_id + actor_id all carry the session id so observers can
+    // filter to a specific dispatch.
+    let target = session.as_deref().unwrap_or(actor.as_str());
+    if target != "unknown" {
+        let payload = json!({
+            "actor_id": actor,
+            "session_id": session,
+        });
+        if let Ok(env) = EventEnvelope::new("hook.session_started", target, &payload) {
+            let env = env.with_target(target).with_actor_id(target);
+            let ctx = auth.to_daemon_emit_context();
+            if let Err(e) = state.kernel().lock().await.emit(env, &ctx).await {
+                tracing::warn!(target, "hook.session_started emit failed: {e}");
+            }
+        }
     }
 
     (StatusCode::OK, Json(HookResponse::allow())).into_response()
@@ -286,6 +306,7 @@ pub async fn hook_after_tool(
     tag = "hooks"
 )]
 pub async fn hook_session_end(
+    State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
     Json(event): Json<ShipHookEvent>,
 ) -> Response {
@@ -302,6 +323,27 @@ pub async fn hook_session_end(
 
     if let Some(ref sid) = session {
         let _ = ship_substrate::db::session_drain::update_heartbeat(sid);
+    }
+
+    // Emit a kernel event correlated by the session id. NOTE: today
+    // the claude compiler wires the Stop hook → `ship hook session-end`,
+    // which fires on every turn end (Claude's Stop semantics), not on
+    // actual session boundary. Until the Stop → turn-end split lands
+    // separately, observers should treat this as "Stop hook fired" not
+    // "session truly ended."
+    let target = session.as_deref().unwrap_or(actor.as_str());
+    if target != "unknown" {
+        let payload = json!({
+            "actor_id": actor,
+            "session_id": session,
+        });
+        if let Ok(env) = EventEnvelope::new("hook.session_ended", target, &payload) {
+            let env = env.with_target(target).with_actor_id(target);
+            let ctx = auth.to_daemon_emit_context();
+            if let Err(e) = state.kernel().lock().await.emit(env, &ctx).await {
+                tracing::warn!(target, "hook.session_ended emit failed: {e}");
+            }
+        }
     }
 
     (StatusCode::OK, Json(HookResponse::allow())).into_response()

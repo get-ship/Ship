@@ -170,7 +170,18 @@ pub fn inject_ship_lifecycle_hooks(patch: &mut Json) {
         .entry("hooks")
         .or_insert_with(|| serde_json::json!({}));
 
+    // Claude Code hook events used by Ship's lifecycle wiring:
+    // - SessionStart: fires once when Claude opens a session. Drives
+    //   the hook.session_started kernel event for analytics.
+    // - PreToolUse / PostToolUse: per-tool bracketing. Drives the
+    //   hook.tool_use_* kernel events.
+    // - Stop: fires on EVERY turn end (not actual session end —
+    //   Claude's Stop semantics). Wired to `ship hook session-end`
+    //   for historical reasons; the per-turn semantics are documented
+    //   in hooks_api.rs::hook_session_end. A future job will split
+    //   turn-end from session-end into separate Ship signals.
     let lifecycle = [
+        ("SessionStart", "ship hook session-start"),
         ("PreToolUse", "ship hook before-tool"),
         ("PostToolUse", "ship hook after-tool"),
         ("Stop", "ship hook session-end"),
