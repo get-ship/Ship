@@ -62,6 +62,7 @@ pub mod skills_api;
 pub mod openapi_modifier;
 pub mod openapi_types;
 pub mod projects_api;
+pub mod registry_api;
 pub mod rest_api;
 pub mod runtime_api;
 pub mod sdk_manifest;
@@ -779,6 +780,17 @@ pub enum Route {
 
     /// @route POST "/api/v1/views/{name}/edit/tool"
     DispatchViewEditTool { name: String },
+
+    // ── Registry (gateway-forwarded) ─────────────────────────────────────
+    //
+    // The daemon is the single hop to the gateway: CLI hits the daemon
+    // here, the daemon attaches the user's stored API key and forwards
+    // to `<cloud.base_url>/api/v1/registry/publish`. `ship publish` no
+    // longer talks to the gateway directly.
+
+    /// @route POST "/api/v1/registry/publish"
+    /// @auth scope=Full
+    Publish,
 }
 
 #[cfg(test)]

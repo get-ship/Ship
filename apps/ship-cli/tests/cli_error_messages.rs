@@ -269,10 +269,15 @@ fn install_no_manifest_suggests_how_to_create() {
     );
 }
 
-// ── 5. ship publish without auth ────────────────────────────────────────────
+// ── 5. ship publish without daemon ──────────────────────────────────────────
 
 #[test]
-fn publish_without_auth_says_run_login() {
+fn publish_without_daemon_says_start_daemon() {
+    // Publish now goes through the daemon (the API key lives in
+    // ~/.ship/machine/credentials.jsonc and is attached by the daemon).
+    // Without a daemon running the CLI should surface the daemon-not-
+    // running condition, since `ship login` can't help if the daemon
+    // isn't there to mint a session token in the first place.
     let tmp = TempDir::new().unwrap();
     write(
         tmp.path(),
@@ -289,14 +294,13 @@ fn publish_without_auth_says_run_login() {
     let stderr = String::from_utf8_lossy(&output.stderr);
 
     assert!(!output.status.success());
-    // Already includes "ship login" — verify the full remediation
     assert!(
-        stderr.contains("ship login"),
-        "must tell user to run ship login: {stderr}"
+        stderr.contains("daemon is not running"),
+        "must surface daemon-not-running condition: {stderr}"
     );
     assert!(
-        stderr.contains("ship publish"),
-        "must suggest retrying publish after login: {stderr}"
+        stderr.contains("ship daemon start"),
+        "must suggest starting the daemon: {stderr}"
     );
 }
 
