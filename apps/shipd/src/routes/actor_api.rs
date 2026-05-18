@@ -2,12 +2,21 @@
 //!
 //! These generalize mesh operations so the MCP process can delegate
 //! actor lifecycle and event routing to the daemon's shared kernel.
+//!
+//! `actor_spawn` is register-or-refine: if the kernel doesn't yet have
+//! an actor with this id, it's registered fresh (the historical path,
+//! for agents launched outside substrate). If the kernel already has
+//! one — substrate pre-registers every actor it spawns, including
+//! agents — its config is refined in place via `KernelRouter::refine_actor`.
+//! The mailbox sender is preserved across refinement, so any Mailbox
+//! a caller holds (or that substrate stashed for SSE drain) stays
+//! valid.
 
 use axum::{Extension, Json, extract::State, http::StatusCode, response::IntoResponse};
 use ship_substrate::events::{EmitContext, EventEnvelope};
 use serde::Deserialize;
 
-use crate::auth::{AuthContext, Scope, require_scope};
+use crate::auth::{AuthContext};
 use crate::routes::rest_api::{ApiState, MeshResponse};
 
 #[derive(Deserialize, utoipa::ToSchema)]
@@ -38,7 +47,7 @@ pub struct ActorSpawnReq {
 #[derive(Deserialize, utoipa::ToSchema)]
 #[schema(example = json!({
     "envelope": {
-        "kind": "job.completed",
+        "kind": "pipeline.run.completed",
         "slug": "write-readme",
         "ts": "2026-04-22T10:15:00Z"
     },
@@ -72,9 +81,6 @@ pub async fn actor_spawn(
     Extension(auth): Extension<AuthContext>,
     Json(req): Json<ActorSpawnReq>,
 ) -> impl IntoResponse {
-    if let Err(e) = require_scope(&auth, Scope::MeshSend) {
-        return e;
-    }
 
     // Resolve the actor id. Daemon is the only minter — clients
     // either send the ULID a daemon-spawn already minted (propagated
@@ -97,11 +103,13 @@ pub async fn actor_spawn(
 
     {
         let mut kernel = state.kernel().lock().await;
-        // Idempotent: if the actor is already registered (e.g. rmcp
-        // framework calling on_initialized twice, or a reconnect), keep
-        // the existing mailbox. Tearing it down invalidates the relay's
-        // handle and silently drops in-flight events. Only spawn if
-        // truly new.
+        // Register-or-refine. If the actor isn't in the kernel yet
+        // (e.g. agent launched outside substrate), spawn it fresh
+        // with the caller's config — same as before. If it is already
+        // registered (substrate pre-registered it, or the rmcp
+        // framework is calling on_initialized twice), refine the
+        // existing config in place: the kernel sender — and therefore
+        // any Mailbox handle a caller is holding — stays valid.
         if !kernel.has_actor(&actor_id) {
             match kernel.spawn_actor(&actor_id, req.config) {
                 Ok((_store, mailbox)) => {
@@ -119,7 +127,29 @@ pub async fn actor_spawn(
                     }));
                 }
             }
+        } else if let Err(e) = kernel.refine_actor(&actor_id, req.config) {
+            let status = match &e {
+                ship_substrate::errors::KernelError::ActorNotFound { .. } => StatusCode::NOT_FOUND,
+                _ => StatusCode::INTERNAL_SERVER_ERROR,
+            };
+            return (status, Json(MeshResponse {
+                ok: false, data: serde_json::json!(e.to_string()),
+            }));
         }
+    }
+
+    // After refinement (or first registration), promote any mailbox
+    // substrate stashed for this actor into the SSE-drain map. This
+    // covers the case where substrate pre-registered the agent and
+    // dropped its Mailbox into the stash; the MCP child's eventual
+    // SSE connect on `/mesh/events/{actor_id}` consumes from there.
+    if let Some(mailbox) = ship_substrate::supervisor::take_pre_registered_mailbox(&actor_id) {
+        state
+            .agent_mailboxes()
+            .lock()
+            .await
+            .entry(actor_id.clone())
+            .or_insert(mailbox);
     }
 
     if let Some(ref caps) = req.capabilities {
@@ -212,9 +242,6 @@ pub async fn event_route(
     Extension(auth): Extension<AuthContext>,
     Json(req): Json<EventRouteReq>,
 ) -> impl IntoResponse {
-    if let Err(e) = require_scope(&auth, Scope::EmitEvents) {
-        return e;
-    }
     // MCP tools route through the daemon's HTTP API. The MCP server is a
     // trusted Ship component — it validates caller permissions before emitting.
     // Use the authenticated caller kind but allow CLI callers (default) to route

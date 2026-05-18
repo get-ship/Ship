@@ -177,7 +177,7 @@
   {
     "id": "hooks-infrastructure",
     "status": "aspirational",
-    "notes": ".ship/hooks/ executables triggered by platform events. Extension model for automation."
+    "notes": ".ship/triggers/ executables triggered by platform events. Extension model for automation."
   },
   {
     "id": "git-post-checkout-hook",

@@ -35,7 +35,8 @@ An agent profile composes skills, MCP servers, permissions, rules, and provider 
 | `description` | string | no | What this agent does — shown in Studio UI |
 | `tags` | string[] | no | Searchable tags for registry discovery |
 | `icon` | string | no | Emoji or icon name |
-| `providers` | string[] | no | Provider targets. Overrides project-level `providers`. Values: `claude`, `cursor`, `codex`, `gemini`, `opencode` |
+
+Agent profiles are harness-agnostic at the baseline — every profile compiles for every harness in the project's `harnesses` list. To override a setting for a single harness, use `harness_settings.<harness>.<key>` (see below) rather than restricting which harnesses an agent targets.
 
 ## skills
 
@@ -90,8 +91,7 @@ Supported keys: `claude`, `codex`, `gemini`, `cursor`, `opencode`. Each validate
     "id": "backend",
     "name": "Backend Engineer",
     "version": "0.1.0",
-    "description": "Rust backend specialist",
-    "providers": ["claude", "gemini"]
+    "description": "Rust backend specialist"
   },
   "model": "opus",
   "skills": {

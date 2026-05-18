@@ -83,6 +83,16 @@ struct RouteVariant {
     fields: Vec<String>,
     returns: Option<TypeRef>,
     body: Option<TypeRef>,
+    /// Required-auth declaration. One per variant, required.
+    auth: AuthSpec,
+}
+
+#[derive(Clone, Debug)]
+enum AuthSpec {
+    Public,
+    Cli,
+    Scope(String),
+    Handler,
 }
 
 #[derive(Clone, Debug)]
@@ -111,6 +121,7 @@ fn extract_route_variants(file: &syn::File) -> Vec<RouteVariant> {
             let mut route_line: Option<String> = None;
             let mut returns_line: Option<String> = None;
             let mut body_line: Option<String> = None;
+            let mut auth_line: Option<String> = None;
 
             for attr in &v.attrs {
                 let Meta::NameValue(nv) = &attr.meta else { continue };
@@ -133,6 +144,8 @@ fn extract_route_variants(file: &syn::File) -> Vec<RouteVariant> {
                     returns_line = Some(rest.trim().to_string());
                 } else if let Some(rest) = trimmed.strip_prefix("@body ") {
                     body_line = Some(rest.trim().to_string());
+                } else if let Some(rest) = trimmed.strip_prefix("@auth ") {
+                    auth_line = Some(rest.trim().to_string());
                 }
             }
 
@@ -173,6 +186,8 @@ fn extract_route_variants(file: &syn::File) -> Vec<RouteVariant> {
                 .as_deref()
                 .map(|s| parse_type_ref(&variant_name, "body", s));
 
+            let auth = parse_auth_line(&variant_name, auth_line.as_deref());
+
             out.push(RouteVariant {
                 name: variant_name,
                 method,
@@ -182,6 +197,7 @@ fn extract_route_variants(file: &syn::File) -> Vec<RouteVariant> {
                 fields,
                 returns,
                 body,
+                auth,
             });
         }
     }
@@ -270,6 +286,39 @@ fn parse_type_ref(variant: &str, kind: &str, src: &str) -> TypeRef {
     }
     ensure_plain_ident(variant, kind, s);
     TypeRef::Plain(s.to_string())
+}
+
+/// Parse `@auth public|cli|scope <Scope>|handler`. The annotation is
+/// mandatory — a missing `@auth` line panics with the offending variant
+/// name. The accepted Scope identifiers are the variants of
+/// `ship_platform::auth::scopes::Scope`; we accept any plain identifier
+/// here and let `rustc` catch unknown scopes at compile time of the
+/// generated match arm.
+fn parse_auth_line(variant: &str, raw: Option<&str>) -> AuthSpec {
+    let line = raw.unwrap_or_else(|| {
+        panic!(
+            "build.rs: variant Route::{variant} is missing `/// @auth public|cli|scope <Scope>|handler` annotation"
+        )
+    });
+    let trimmed = line.trim();
+    if trimmed == "public" {
+        AuthSpec::Public
+    } else if trimmed == "cli" {
+        AuthSpec::Cli
+    } else if trimmed == "handler" {
+        AuthSpec::Handler
+    } else if let Some(rest) = trimmed.strip_prefix("scope ") {
+        let s = rest.trim();
+        if s.is_empty() {
+            panic!("build.rs: Route::{variant} @auth scope requires a Scope identifier");
+        }
+        ensure_plain_ident(variant, "auth scope", s);
+        AuthSpec::Scope(s.to_string())
+    } else {
+        panic!(
+            "build.rs: Route::{variant} @auth `{trimmed}` is not recognized (expected `public`, `cli`, `scope <Name>`, or `handler`)"
+        )
+    }
 }
 
 fn ensure_plain_ident(variant: &str, kind: &str, s: &str) {
@@ -388,6 +437,59 @@ fn emit_rust(variants: &[RouteVariant]) -> String {
         .collect::<Vec<_>>()
         .join("\n");
 
+    // `required_auth()` arms — one per variant, exhaustive.
+    let required_auth_arms = variants
+        .iter()
+        .map(|v| {
+            let pattern = match v.kind {
+                VariantKind::Unit => format!("Route::{}", v.name),
+                VariantKind::Named => format!("Route::{} {{ .. }}", v.name),
+            };
+            let expr = match &v.auth {
+                AuthSpec::Public => "crate::auth::RequiredAuth::Public".to_string(),
+                AuthSpec::Cli => "crate::auth::RequiredAuth::Cli".to_string(),
+                AuthSpec::Handler => "crate::auth::RequiredAuth::Handler".to_string(),
+                AuthSpec::Scope(s) => format!(
+                    "crate::auth::RequiredAuth::Scope(crate::auth::Scope::{s})"
+                ),
+            };
+            format!("            {pattern} => {expr},")
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    // `Route::all()` — vec of every variant (Named variants use empty
+    // strings for path params). For test enumeration only — Public/Cli/
+    // Handler/Scope walk-throughs.
+    let all_items = variants
+        .iter()
+        .map(|v| match v.kind {
+            VariantKind::Unit => format!("            Route::{},", v.name),
+            VariantKind::Named => {
+                let inits = v
+                    .fields
+                    .iter()
+                    .map(|f| format!("{f}: String::new()"))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                format!("            Route::{} {{ {inits} }},", v.name)
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    let variant_name_arms = variants
+        .iter()
+        .map(|v| {
+            let pattern = match v.kind {
+                VariantKind::Unit => format!("Route::{}", v.name),
+                VariantKind::Named => format!("Route::{} {{ .. }}", v.name),
+            };
+            format!("            {pattern} => \"{}\",", v.name)
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+
     format!(
         r#"// @generated by apps/shipd/build.rs — DO NOT EDIT.
 
@@ -415,19 +517,75 @@ impl Route {{
         }}
     }}
 
+    /// Variant identifier (e.g. `"PostFeedback"`). Used in test diagnostics.
+    pub fn variant_name(&self) -> &'static str {{
+        match self {{
+{variant_name_arms}
+        }}
+    }}
+
+    /// Required-auth declaration for this route. Generated from the
+    /// `/// @auth ...` doc annotation on each variant. The router uses
+    /// this to enforce auth before the handler runs (`ship_route`) and
+    /// to validate registration in the public group (`ship_public_route`).
+    pub fn required_auth(&self) -> crate::auth::RequiredAuth {{
+        match self {{
+{required_auth_arms}
+        }}
+    }}
+
+    /// Every variant, with empty-string path params for Named variants.
+    /// For test enumeration — walk this list to assert invariants about
+    /// `required_auth()` and to drive integration tests.
+    pub fn all() -> Vec<Route> {{
+        vec![
+{all_items}
+        ]
+    }}
+
 {template_ctors}
 }}
 
 /// Extension trait that registers a `Route` against an `axum::Router` using
-/// the route's own `method()` + `template_path()`. Handler must satisfy
-/// Axum's `Handler<T, S>` — the usual combination of extractors and a
-/// `Future<Output = impl IntoResponse>`.
+/// the route's own `method()` + `template_path()`. The route's declared
+/// `required_auth()` is enforced by a per-route middleware wrap — handlers
+/// no longer need to call `require_scope` themselves.
+///
+/// Two registrars:
+/// - `ship_route` for the authenticated group. Panics at registration if
+///   the route declares `RequiredAuth::Public` (Public routes belong in
+///   the public group, not behind the auth middleware).
+/// - `ship_public_route` for the public group. Panics if the route
+///   declares anything other than `Public`. No middleware wrap — the
+///   public group has no `AuthContext` to enforce against.
 pub trait ShipRouterExt<S> {{
     fn ship_route<H, T>(self, route: Route, handler: H) -> Self
     where
         H: axum::handler::Handler<T, S>,
         T: 'static,
         S: Clone + Send + Sync + 'static;
+
+    fn ship_public_route<H, T>(self, route: Route, handler: H) -> Self
+    where
+        H: axum::handler::Handler<T, S>,
+        T: 'static,
+        S: Clone + Send + Sync + 'static;
+}}
+
+fn build_method_router<H, T, S>(method: &'static str, handler: H) -> axum::routing::MethodRouter<S>
+where
+    H: axum::handler::Handler<T, S>,
+    T: 'static,
+    S: Clone + Send + Sync + 'static,
+{{
+    match method {{
+        "GET" => axum::routing::get(handler),
+        "POST" => axum::routing::post(handler),
+        "PUT" => axum::routing::put(handler),
+        "DELETE" => axum::routing::delete(handler),
+        "PATCH" => axum::routing::patch(handler),
+        other => panic!("ship_route: unsupported method {{other}}"),
+    }}
 }}
 
 impl<S> ShipRouterExt<S> for axum::Router<S>
@@ -439,17 +597,39 @@ where
         H: axum::handler::Handler<T, S>,
         T: 'static,
     {{
+        let required = route.required_auth();
+        if matches!(required, crate::auth::RequiredAuth::Public) {{
+            panic!(
+                "ship_route: Route::{{}} is Public — register it via ship_public_route in the public group",
+                route.variant_name()
+            );
+        }}
         let method = route.method();
         let path = route.template_path();
-        let mr = match method {{
-            "GET" => axum::routing::get(handler),
-            "POST" => axum::routing::post(handler),
-            "PUT" => axum::routing::put(handler),
-            "DELETE" => axum::routing::delete(handler),
-            "PATCH" => axum::routing::patch(handler),
-            other => panic!("ship_route: unsupported method {{other}}"),
-        }};
+        let mr = build_method_router(method, handler).layer(axum::middleware::from_fn(
+            move |req: axum::extract::Request, next: axum::middleware::Next| {{
+                crate::auth::enforce_required_auth(required, req, next)
+            }},
+        ));
         self.route(path, mr)
+    }}
+
+    fn ship_public_route<H, T>(self, route: Route, handler: H) -> Self
+    where
+        H: axum::handler::Handler<T, S>,
+        T: 'static,
+    {{
+        let required = route.required_auth();
+        if !matches!(required, crate::auth::RequiredAuth::Public) {{
+            panic!(
+                "ship_public_route: Route::{{}} declares {{:?}}, not Public — register it via ship_route instead",
+                route.variant_name(),
+                required,
+            );
+        }}
+        let method = route.method();
+        let path = route.template_path();
+        self.route(path, build_method_router(method, handler))
     }}
 }}
 "#

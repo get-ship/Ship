@@ -6,7 +6,7 @@
 //! `services::launcher::launch_collection_item`.
 
 use axum::{
-    Json,
+    Extension, Json,
     extract::{Path, State},
     http::StatusCode,
     response::IntoResponse,
@@ -15,6 +15,7 @@ use serde::Deserialize;
 use std::collections::HashMap;
 
 use crate::access::RuntimeAccess;
+use crate::auth::{AuthContext};
 use crate::routes::rest_api::{ApiState, MeshResponse};
 use ship_platform::services::collections::service::{
     CollectionsService, CreateItemArgs, Error as CollectionsError, UpdateItemArgs,
@@ -149,7 +150,10 @@ pub struct UpdateSpecRequest {
     ),
     tag = "specs"
 )]
-pub async fn list_specs(State(state): State<ApiState>) -> impl IntoResponse {
+pub async fn list_specs(
+    State(state): State<ApiState>,
+    Extension(_auth): Extension<AuthContext>,
+) -> impl IntoResponse {
     let req = ship_platform::collections::query::QueryRequest {
         collection: SPECS_ID.to_string(),
         filter: Default::default(),
@@ -188,6 +192,7 @@ pub async fn list_specs(State(state): State<ApiState>) -> impl IntoResponse {
 )]
 pub async fn get_spec(
     State(state): State<ApiState>,
+    Extension(_auth): Extension<AuthContext>,
     Path(id): Path<String>,
 ) -> impl IntoResponse {
     match collections(&state).get_item(SPECS_ID, &id).await {
@@ -217,6 +222,7 @@ pub async fn get_spec(
 )]
 pub async fn create_spec(
     State(state): State<ApiState>,
+    Extension(_auth): Extension<AuthContext>,
     Json(req): Json<CreateSpecRequest>,
 ) -> impl IntoResponse {
     if req.title.trim().is_empty() {
@@ -267,6 +273,7 @@ pub async fn create_spec(
 )]
 pub async fn update_spec(
     State(state): State<ApiState>,
+    Extension(_auth): Extension<AuthContext>,
     Path(id): Path<String>,
     Json(req): Json<UpdateSpecRequest>,
 ) -> impl IntoResponse {
@@ -328,6 +335,7 @@ pub async fn update_spec(
 )]
 pub async fn delete_spec(
     State(state): State<ApiState>,
+    Extension(_auth): Extension<AuthContext>,
     Path(id): Path<String>,
 ) -> impl IntoResponse {
     match collections(&state).delete_item(SPECS_ID, &id).await {
@@ -353,6 +361,7 @@ pub async fn delete_spec(
 )]
 pub async fn launch_spec(
     State(state): State<ApiState>,
+    Extension(_auth): Extension<AuthContext>,
     Path(id): Path<String>,
 ) -> impl IntoResponse {
     let kernel = state.kernel().clone();

@@ -41,6 +41,7 @@ pub struct SpawnOutcome {
     pub attached: bool,
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn spawn_or_attach(
     registry: &ActorRegistry,
     workspace_id: &str,
@@ -83,7 +84,7 @@ pub fn spawn_or_attach(
         bin: launch.bin,
         args: launch.args,
         env: launch.env,
-        work_dir,
+        work_dir: work_dir.clone(),
         workspace_id: Some(workspace_id.to_string()),
         agent_id: Some(agent_id.to_string()),
         harness: Some(harness.to_string()),
@@ -118,7 +119,13 @@ pub fn spawn_or_attach(
 
     let entry = registry.insert_with(handle.clone(), meta, Some(event_tx.clone()));
 
-    spawn_reader_middleware(entry.clone(), harness.to_string(), event_tx);
+    spawn_reader_middleware(
+        entry.clone(),
+        harness.to_string(),
+        agent_id.to_string(),
+        work_dir,
+        event_tx,
+    );
 
     Ok(SpawnOutcome {
         entry,
@@ -129,6 +136,8 @@ pub fn spawn_or_attach(
 fn spawn_reader_middleware(
     entry: ActorEntry,
     harness: String,
+    agent_id: String,
+    work_dir: PathBuf,
     event_tx: broadcast::Sender<HarnessEvent>,
 ) {
     let mut rx = entry.handle.subscribe_output();
@@ -169,6 +178,23 @@ fn spawn_reader_middleware(
                             let trimmed = line.trim_end_matches(['\n', '\r']);
                             if !trimmed.is_empty()
                                 && let Some(ev) = adapter.parse_output(trimmed) {
+                                    // Persist `.ship/session.json` once per
+                                    // session — subsequent dispatches with
+                                    // `resume: true` read this to recover
+                                    // the harness-native session id.
+                                    if let HarnessEvent::SessionStarted { session_id } = &ev {
+                                        if let Err(e) = crate::services::harnesses::session_file::write_session_file(
+                                            &work_dir,
+                                            &harness,
+                                            session_id,
+                                            &agent_id,
+                                        ) {
+                                            tracing::warn!(
+                                                harness = %harness,
+                                                "session_file write failed: {e}"
+                                            );
+                                        }
+                                    }
                                     // Studio.reply parity: long-lived
                                     // non-Claude harnesses (codex,
                                     // opencode, cursor, gemini via stdin
@@ -251,7 +277,7 @@ pub fn run_headless_turn(
         bin: launch.bin,
         args: launch.args,
         env: launch.env,
-        work_dir,
+        work_dir: work_dir.clone(),
         workspace_id: None,
         agent_id: None,
         harness: Some(harness_id.clone()),
@@ -264,6 +290,7 @@ pub fn run_headless_turn(
     let mut rx = handle.subscribe_output();
     let session_clone = session.clone();
     let handle_for_wait = handle.clone();
+    let work_dir_for_session = work_dir.clone();
 
     tokio::spawn(async move {
         let adapter = match adapter_for(&harness_id) {
@@ -287,6 +314,24 @@ pub fn run_headless_turn(
                         }
                         if let Some(ev) = adapter.parse_output(trimmed) {
                             if let HarnessEvent::SessionStarted { session_id } = &ev {
+                                let (harness_id_opt, agent_opt) = {
+                                    let m = session_clone.0.meta.lock().unwrap();
+                                    (m.harness.clone(), m.agent_id.clone())
+                                };
+                                if let (Some(harness_id), Some(agent_id)) = (harness_id_opt, agent_opt) {
+                                    if let Err(e) = crate::services::harnesses::session_file::write_session_file(
+                                        &work_dir_for_session,
+                                        &harness_id,
+                                        session_id,
+                                        &agent_id,
+                                    ) {
+                                        tracing::warn!(
+                                            harness = %harness_id,
+                                            session_id = %session_id,
+                                            "session_file write failed: {e}"
+                                        );
+                                    }
+                                }
                                 let mut m = session_clone.0.meta.lock().unwrap();
                                 m.harness_session_id = Some(session_id.clone());
                             }

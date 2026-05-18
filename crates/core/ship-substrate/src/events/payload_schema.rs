@@ -68,15 +68,15 @@ fn schema_for_event_type(
         "gate.passed" => Some(check::<GatePassed>),
         "gate.failed" => Some(check::<GateFailed>),
         // job — canonical 18-field payloads live in `crate::events::job`
-        "job.created" => Some(check::<crate::events::job::JobCreatedPayload>),
-        "job.completed" => Some(check::<crate::events::job::JobCompletedPayload>),
-        "job.failed" => Some(check::<crate::events::job::JobFailedPayload>),
-        "job.dispatched" => Some(check::<crate::events::job::JobDispatchedPayload>),
-        ship_types::event_types::JOB_STEP_COMPLETED => Some(check::<crate::events::job::StepCompletedPayload>),
-        ship_types::event_types::JOB_STEP_FAILED => Some(check::<crate::events::job::StepFailedPayload>),
-        ship_types::event_types::JOB_CANCELLED => Some(check::<crate::events::job::JobCancelledPayload>),
-        ship_types::event_types::JOB_MERGED => Some(check::<crate::events::job::JobMergedPayload>),
-        ship_types::event_types::JOB_SPAWN_FAILED => Some(check::<crate::events::job::JobSpawnFailedPayload>),
+        "pipeline.run.started" => Some(check::<crate::events::pipeline::PipelineRunStartedPayload>),
+        "pipeline.run.completed" => Some(check::<crate::events::pipeline::PipelineRunCompletedPayload>),
+        "pipeline.run.failed" => Some(check::<crate::events::pipeline::PipelineRunFailedPayload>),
+        "pipeline.run.dispatched" => Some(check::<crate::events::pipeline::PipelineRunDispatchedPayload>),
+        ship_types::event_types::PIPELINE_STEP_COMPLETED => Some(check::<crate::events::pipeline::PipelineStepCompletedPayload>),
+        ship_types::event_types::PIPELINE_STEP_FAILED => Some(check::<crate::events::pipeline::PipelineStepFailedPayload>),
+        ship_types::event_types::PIPELINE_RUN_CANCELLED => Some(check::<crate::events::pipeline::PipelineRunCancelledPayload>),
+        ship_types::event_types::PIPELINE_RUN_MERGED => Some(check::<crate::events::pipeline::PipelineRunMergedPayload>),
+        ship_types::event_types::PIPELINE_STEP_SPAWN_FAILED => Some(check::<crate::events::pipeline::PipelineStepSpawnFailedPayload>),
         // config + declarative-tier domain events (Phase 4)
         "config.changed" => Some(check::<ConfigChanged>),
         "agent.changed" => Some(check::<ConfigChanged>),
@@ -135,6 +135,11 @@ fn schema_for_event_type(
         "auth.session.expired" => Some(check::<AuthSessionExpired>),
         "daemon.owner.bound" => Some(check::<DaemonOwnerBound>),
         "daemon.owner.unbound" => Some(check::<DaemonOwnerUnbound>),
+        // account lifecycle
+        "account.login_started" => Some(check::<AccountLoginStarted>),
+        "account.login_completed" => Some(check::<AccountLoginCompleted>),
+        "account.logout" => Some(check::<AccountLogout>),
+        "account.key_refreshed" => Some(check::<AccountKeyRefreshed>),
         // skill / rule / permission CRUD (event-coverage/01)
         "skill.created" => Some(check::<SkillCreated>),
         "skill.updated" => Some(check::<SkillUpdated>),
@@ -213,7 +218,7 @@ mod tests {
         // signal-send sites. studio.chat_turn carries an ad-hoc {actor_id,
         // text} payload; not yet a typed struct.
         let exceptions = &[
-            "job.update",
+            "pipeline.run.updated",
             "session.attached",
             "process.killed",
             "studio.chat_turn",

@@ -11,9 +11,17 @@ use tokio::sync::Mutex;
 use jsonwebtoken::{Algorithm, DecodingKey, Validation, decode, decode_header};
 use serde::{Deserialize, Serialize};
 
-/// Default issuer/JWKS URL. Overridden via ~/.ship/config.toml [auth]
-/// attestation_issuer.
+/// Default issuer claim — the brand domain that identifies "tokens from Ship,"
+/// independent of which API host actually mints them. Overridden via
+/// `auth.attestation_issuer` in ~/.ship/config.toml.
 pub const DEFAULT_ATTESTATION_ISSUER: &str = "https://getship.dev";
+
+/// Default JWKS URL — where the daemon fetches public keys to verify
+/// attestation JWTs. The gateway lives on `api.getship.dev` while the
+/// brand sits on `getship.dev`; keeping these decoupled lets the JWT
+/// issuer claim stay stable across env hosts. Overridden via
+/// `auth.attestation_jwks_url` in ~/.ship/config.toml.
+pub const DEFAULT_ATTESTATION_JWKS_URL: &str = "https://api.getship.dev/v1/jwks";
 
 /// How long to cache the fetched JWKS.
 const JWKS_CACHE_TTL: Duration = Duration::from_secs(3600);
@@ -39,11 +47,14 @@ pub struct AttestationConfig {
 }
 
 impl AttestationConfig {
-    /// Build from a base issuer URL. JWKS URL is `{issuer}/api/v1/jwks`.
-    pub fn from_issuer(issuer: impl Into<String>) -> Self {
-        let issuer = issuer.into();
-        let jwks_url = format!("{}/api/v1/jwks", issuer.trim_end_matches('/'));
-        Self { issuer, jwks_url }
+    pub fn new(issuer: impl Into<String>, jwks_url: impl Into<String>) -> Self {
+        Self { issuer: issuer.into(), jwks_url: jwks_url.into() }
+    }
+
+    /// Build from the compiled-in defaults — brand-domain issuer +
+    /// gateway-hosted JWKS URL. The two are intentionally decoupled.
+    pub fn from_defaults() -> Self {
+        Self::new(DEFAULT_ATTESTATION_ISSUER, DEFAULT_ATTESTATION_JWKS_URL)
     }
 }
 
@@ -229,17 +240,43 @@ pub fn set_daemon_owner(user_id: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
+/// Clear the daemon-owner binding. Called by `ship logout`. Emits
+/// `daemon.owner.unbound` with `entity_id = user_id`. No-op event-wise
+/// when the daemon was never bound (returns Ok without emitting).
+pub fn clear_daemon_owner() -> anyhow::Result<()> {
+    let Some(user_id) = daemon_owner() else {
+        return Ok(());
+    };
+    let payload = ship_substrate::events::types::DaemonOwnerUnbound {};
+    let envelope = ship_substrate::events::EventEnvelope::new(
+        ship_substrate::events::types::event_types::DAEMON_OWNER_UNBOUND,
+        &user_id,
+        &payload,
+    )?;
+    let store = ship_substrate::persistence::event_store::SqliteEventStore::new()?;
+    ship_substrate::persistence::event_store::EventStore::append(&store, &envelope)?;
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn config_from_issuer_builds_jwks_url() {
-        let cfg = AttestationConfig::from_issuer("https://getship.dev");
-        assert_eq!(cfg.jwks_url, "https://getship.dev/api/v1/jwks");
+    fn config_defaults_decouple_issuer_from_jwks() {
+        let cfg = AttestationConfig::from_defaults();
+        assert_eq!(cfg.issuer, "https://getship.dev");
+        assert_eq!(cfg.jwks_url, "https://api.getship.dev/v1/jwks");
+    }
 
-        let cfg = AttestationConfig::from_issuer("https://getship.dev/");
-        assert_eq!(cfg.jwks_url, "https://getship.dev/api/v1/jwks");
+    #[test]
+    fn config_new_accepts_arbitrary_pair() {
+        let cfg = AttestationConfig::new(
+            "https://staging.getship.dev",
+            "https://staging-api.getship.dev/api/jwks",
+        );
+        assert_eq!(cfg.issuer, "https://staging.getship.dev");
+        assert_eq!(cfg.jwks_url, "https://staging-api.getship.dev/api/jwks");
     }
 
     #[test]

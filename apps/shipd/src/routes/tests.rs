@@ -4,7 +4,7 @@ use super::*;
 
 #[test]
 fn unit_variant_full_path_is_literal() {
-    assert_eq!(Route::ListJobs.full_path(), "/api/v1/jobs");
+    assert_eq!(Route::ListJobs.full_path(), "/api/v1/agent_sessions");
     assert_eq!(Route::IssueSession.full_path(), "/api/v1/session");
     assert_eq!(
         Route::AssetViewTokensCss.full_path(),
@@ -30,7 +30,7 @@ fn named_variant_substitutes_params() {
         job_id: "job-xyz".to_string(),
     }
     .full_path();
-    assert_eq!(url, "/api/v1/jobs/job-xyz");
+    assert_eq!(url, "/api/v1/agent_sessions/job-xyz");
 }
 
 #[test]
@@ -92,7 +92,19 @@ async fn ship_route_registers_handler_end_to_end() {
         "ok"
     }
 
-    let app: axum::Router = axum::Router::new().ship_route(Route::Capabilities, ok_handler);
+    // ship_route wraps the handler in the per-route auth enforcement middleware
+    // (see `scope_enforcement_tests.rs` for the full enforcement matrix).
+    // Route::Capabilities declares `@auth scope ReadWorkspace`, so the test
+    // injects an AuthContext with `Scope::Full` to clear the gate.
+    let app: axum::Router = axum::Router::new()
+        .ship_route(Route::Capabilities, ok_handler)
+        .layer(axum::Extension(crate::auth::AuthContext {
+            caller_kind: ship_substrate::events::CallerKind::Cli,
+            agent_id: None,
+            workspace_id: None,
+            session_id: None,
+            scopes: vec![crate::auth::Scope::Full],
+        }));
     let req = Request::builder()
         .method("GET")
         .uri(Route::Capabilities.full_path())

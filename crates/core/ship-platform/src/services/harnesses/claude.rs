@@ -4,7 +4,9 @@ use std::collections::HashMap;
 use std::path::Path;
 
 use crate::services::dispatch_ports::{LaunchCommand, LaunchProfile};
-use crate::services::harness_adapter::{HarnessAdapter, HarnessCapabilities, HarnessEvent};
+use crate::services::harness_adapter::{
+    HarnessAdapter, HarnessCapabilities, HarnessEvent, ResumeError,
+};
 
 pub struct ClaudeAdapter;
 
@@ -95,7 +97,10 @@ impl HarnessAdapter for ClaudeAdapter {
             json_stream: true,
             mcp: true,
             hooks: true,
-            session_resume: false,
+            // Claude supports `--resume <uuid>` end-to-end. The original
+            // adapter audit pinned this `false`; the cross-provider-resume
+            // job corrects it now that build_resume_args is wired.
+            session_resume: true,
             persistent_session: true,
             push_mechanism: super::super::harness_adapter::PushMechanism::Channel,
         }
@@ -118,6 +123,27 @@ impl HarnessAdapter for ClaudeAdapter {
             prompt,
         ]);
         LaunchCommand { bin: "claude".to_string(), args, env }
+    }
+
+    fn build_resume_args(
+        &self,
+        slug: &str,
+        session_id: &str,
+        profile: &LaunchProfile,
+    ) -> Result<LaunchCommand, ResumeError> {
+        if session_id.is_empty() {
+            return Err(ResumeError::BadSession {
+                harness: self.id().to_string(),
+                reason: "empty session id".to_string(),
+            });
+        }
+        // `base_args` already maps `profile.resume_session` to `--resume <id>`
+        // + `--fork-session`. Reuse that path so resume launches share the
+        // same flag shape as the rest of dispatch (--mcp-config, --name,
+        // --model, etc.).
+        let mut p = profile.clone();
+        p.resume_session = Some(session_id.to_string());
+        Ok(self.build_headless(slug, &p))
     }
 
     // `bypass permissions on` appears under the real input prompt and NOT in

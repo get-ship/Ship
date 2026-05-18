@@ -2,7 +2,7 @@
 //!
 //! Also handles pipelines whose first step is `run:` (skips agent spawning).
 
-use ship_substrate::events::job::{JobCreatedPayload, StepType};
+use ship_substrate::events::pipeline::{PipelineRunStartedPayload, StepType};
 use crate::services::dispatch_ports::{JobContext, LaunchProfile};
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -17,7 +17,7 @@ pub async fn handle_job_created(
     envelope: &ship_substrate::events::EventEnvelope,
     octx: &OrchestratorContext,
 ) {
-    let payload: JobCreatedPayload = match serde_json::from_str(&envelope.payload_json) {
+    let payload: PipelineRunStartedPayload = match serde_json::from_str(&envelope.payload_json) {
         Ok(p) => p,
         Err(e) => {
             tracing::warn!("job-dispatch: malformed job.created payload: {e}");
@@ -48,7 +48,7 @@ pub async fn handle_job_created(
 
 pub async fn dispatch_job_internal(
     kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
-    payload: &JobCreatedPayload,
+    payload: &PipelineRunStartedPayload,
     octx: &OrchestratorContext,
 ) {
     let slug = &payload.slug;
@@ -114,6 +114,12 @@ pub async fn dispatch_job_internal(
             harness: launch_harness.clone(),
             model: launch_model,
             persist_session: true,
+            // On resume, propagate the harness-native session id resolved
+            // by the dispatch endpoint into the launch profile so the
+            // executor's `build_resume_args` can produce the right CLI
+            // shape. The endpoint already validated the adapter supports
+            // it (see `resolve_resume`); fresh launches leave this None.
+            resume_session: payload.resume_session_id.clone(),
             ..Default::default()
         },
         step: first_step_info,
@@ -193,7 +199,7 @@ pub async fn dispatch_job_internal(
         let root = payload.steps.as_ref().and_then(|s| s.root_steps().first().cloned().cloned());
         let (step_name, step_type) = root
             .map(|r| (r.id, r.step_type))
-            .unwrap_or_else(|| (String::new(), ship_substrate::events::job::StepType::Agent));
+            .unwrap_or_else(|| (String::new(), ship_substrate::events::pipeline::StepType::Agent));
         let monitor = StepMonitor::new(
             payload.job_id.clone(),
             0,
@@ -224,7 +230,7 @@ pub async fn dispatch_job_internal(
 /// Test-friendly variant with explicit ship_dir for event store.
 pub async fn dispatch_first_run_step_at(
     kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
-    payload: &JobCreatedPayload,
+    payload: &PipelineRunStartedPayload,
     octx: &OrchestratorContext,
     step_id: &str,
     command: &str,
@@ -235,7 +241,7 @@ pub async fn dispatch_first_run_step_at(
 
 async fn dispatch_first_run_step(
     kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
-    payload: &JobCreatedPayload,
+    payload: &PipelineRunStartedPayload,
     octx: &OrchestratorContext,
     step_id: &str,
     command: &str,
@@ -245,7 +251,7 @@ async fn dispatch_first_run_step(
 
 async fn dispatch_first_run_step_inner(
     kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
-    payload: &JobCreatedPayload,
+    payload: &PipelineRunStartedPayload,
     octx: &OrchestratorContext,
     step_id: &str,
     command: &str,

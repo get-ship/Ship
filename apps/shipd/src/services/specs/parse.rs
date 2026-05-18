@@ -152,7 +152,7 @@ pub fn glue_other_sections(
 /// expected to render `—` in that case.
 pub fn pipeline_step_count(name: &str) -> (usize, Option<String>) {
     use ship_platform::services::orchestrator::pipeline_loader;
-    let payload = ship_substrate::events::job::JobCreatedPayload {
+    let payload = ship_substrate::events::pipeline::PipelineRunStartedPayload {
         job_id: String::new(),
         slug: String::new(),
         agent: String::new(),
@@ -170,6 +170,9 @@ pub fn pipeline_step_count(name: &str) -> (usize, Option<String>) {
         spec_content: None,
         step_specs: None,
         headless: false,
+        prompt: None,
+        resume: false,
+        resume_session_id: None,
         baseline_sha: None,
     };
     let resolved = match pipeline_loader::ensure_pipeline(payload) {

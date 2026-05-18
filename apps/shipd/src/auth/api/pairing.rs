@@ -9,8 +9,10 @@
 //! `pair_init` and mints an ephemeral session inline, skipping the
 //! `pair_confirm` step.
 
+use std::net::SocketAddr;
+
 use crate::auth::AuthContext;
-use crate::auth::pairing::{ClaimResult, ConfirmError, SharedPairingRegistry};
+use crate::auth::pairing::{ClaimResult, ConfirmError, InitError, SharedPairingRegistry};
 use crate::auth::scopes::{Scope, SessionRegistry, generate_session_token};
 
 #[derive(serde::Deserialize, Default, utoipa::ToSchema)]
@@ -83,19 +85,19 @@ pub enum PairStatusResponse {
 pub async fn pair_init(
     registry: SharedPairingRegistry,
     session_registry: SessionRegistry,
+    peer: Option<axum::extract::ConnectInfo<SocketAddr>>,
     body: Option<axum::Json<PairInitRequest>>,
 ) -> Result<axum::Json<PairInitResponse>, (axum::http::StatusCode, &'static str)> {
     let label = body.and_then(|b| b.0.client_label);
     let dev_mode = crate::auth::pairing::is_dev_mode();
+    let source = peer.map(|c| c.0.ip().to_string()).unwrap_or_default();
 
     let mut reg = registry.lock().await;
-    let pairing = reg.init(label).map_err(|e| {
-        // Rate limit → 429. Other errors (entropy) → 500.
-        if e.contains("too many") {
-            (axum::http::StatusCode::TOO_MANY_REQUESTS, e)
-        } else {
-            (axum::http::StatusCode::INTERNAL_SERVER_ERROR, e)
+    let pairing = reg.init(label, &source).map_err(|e| match e {
+        InitError::RateLimited | InitError::TooManyPending => {
+            (axum::http::StatusCode::TOO_MANY_REQUESTS, e.as_str())
         }
+        InitError::Entropy => (axum::http::StatusCode::INTERNAL_SERVER_ERROR, e.as_str()),
     })?;
 
     if dev_mode {
@@ -226,6 +228,13 @@ pub async fn pair_confirm(
             axum::Json(PairConfirmResponse {
                 ok: false,
                 error: Some("pairing already approved".into()),
+            }),
+        ),
+        Err(ConfirmError::TooManyAttempts) => (
+            axum::http::StatusCode::TOO_MANY_REQUESTS,
+            axum::Json(PairConfirmResponse {
+                ok: false,
+                error: Some("too many confirm attempts; wait for pairing to expire".into()),
             }),
         ),
     }

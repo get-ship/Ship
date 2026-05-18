@@ -97,10 +97,10 @@ impl NotificationAdapter for TelegramAdapter {
     }
 }
 
-// ── JobBlockedPayload ─────────────────────────────────────────────────────────
+// ── PipelineRunBlockedPayload ─────────────────────────────────────────────────────────
 
 #[derive(Debug, Deserialize)]
-struct JobBlockedPayload {
+struct PipelineRunBlockedPayload {
     job_id: Option<String>,
     slug: Option<String>,
     blocker: Option<String>,
@@ -125,7 +125,7 @@ impl HumanGatewayService {
     }
 
     fn handle_job_blocked(&self, event: &EventEnvelope) {
-        let payload: JobBlockedPayload = match serde_json::from_str(&event.payload_json) {
+        let payload: PipelineRunBlockedPayload = match serde_json::from_str(&event.payload_json) {
             Ok(p) => p,
             Err(e) => {
                 tracing::warn!("human-gateway: failed to parse job.blocked payload: {e}");
@@ -167,7 +167,7 @@ impl ServiceHandler for HumanGatewayService {
     }
 
     fn handle(&mut self, event: &EventEnvelope, _store: &ActorStore) -> Result<()> {
-        if event.event_type == "job.blocked" {
+        if event.event_type == "pipeline.run.blocked" {
             self.handle_job_blocked(event);
         }
         Ok(())
@@ -183,7 +183,7 @@ mod tests {
     #[test]
     fn test_job_blocked_payload_needs_human_false() {
         let json = r#"{"job_id":"j1","slug":"my-job","blocker":"waiting","needs_human":false}"#;
-        let p: JobBlockedPayload = serde_json::from_str(json).unwrap();
+        let p: PipelineRunBlockedPayload = serde_json::from_str(json).unwrap();
         assert_eq!(p.needs_human, Some(false));
         assert_eq!(p.job_id.as_deref(), Some("j1"));
     }
@@ -191,14 +191,14 @@ mod tests {
     #[test]
     fn test_job_blocked_payload_needs_human_true() {
         let json = r#"{"job_id":"j2","slug":"deploy","blocker":"needs approval","needs_human":true}"#;
-        let p: JobBlockedPayload = serde_json::from_str(json).unwrap();
+        let p: PipelineRunBlockedPayload = serde_json::from_str(json).unwrap();
         assert_eq!(p.needs_human, Some(true));
         assert_eq!(p.blocker.as_deref(), Some("needs approval"));
     }
 
     #[test]
     fn test_outbound_message_format() {
-        let payload = JobBlockedPayload {
+        let payload = PipelineRunBlockedPayload {
             job_id: Some("abc".to_string()),
             slug: Some("release".to_string()),
             blocker: Some("manual review required".to_string()),

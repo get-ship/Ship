@@ -25,6 +25,17 @@ import { fetchBody, mutateForm, mutateJson } from './http'
 import { makeSseSource } from './sse'
 
 export { makeSseSource, liveExpr } from './sse'
+export {
+  displayName as accountDisplayName,
+  initials as accountInitials,
+  openBilling as openAccountBilling,
+  planLabel as accountPlanLabel,
+  readIdentity as readAccountIdentity,
+  signIn as accountSignIn,
+  signOut as accountSignOut,
+  type AccountIdentity,
+  type AccountStatus,
+} from './account'
 
 export type {
   AgentSummary,
@@ -94,6 +105,9 @@ export function createClient(opts?: CreateClientOpts): ShipSDK {
     fetchBody<T>(baseUrl, path, as)
 
   return {
+    account: {
+      state: () => sse('account', 'state'),
+    },
     agents: {
       summaries:   () => sse<AgentsSummariesResponse>('agents', 'summaries'),
       create_ctx:  () => sse('agents', 'create_ctx'),

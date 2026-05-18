@@ -340,6 +340,43 @@ pub struct DaemonOwnerBound {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct DaemonOwnerUnbound {}
 
+// -- Account lifecycle ------------------------------------------------------
+
+/// `entity_id` on the envelope is the opaque PKCE state id. Payload
+/// records the callback URL the CLI bound. No credential material here.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct AccountLoginStarted {
+    pub redirect_uri: String,
+}
+
+/// `entity_id` on the envelope is the user_id. Logged once the API key
+/// has been written to the daemon's token store and the daemon-owner
+/// binding has been emitted.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct AccountLoginCompleted {}
+
+/// `entity_id` on the envelope is the user_id of the previously-bound
+/// owner, or `"none"` when logout was a no-op.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct AccountLogout {
+    /// True when a stored token was actually cleared, false on idempotent
+    /// logout. Useful for distinguishing "user explicitly logged out" from
+    /// "CLI ran ship logout while already signed out."
+    pub had_token: bool,
+    /// True when the gateway acknowledged revoking the server-side API
+    /// key as part of this logout. False when no token existed, or when
+    /// the revoke call failed (network down / gateway error) and we fell
+    /// back to clearing the local file only. Lets audit distinguish
+    /// "logged out + revoked" from "logged out (local only)".
+    #[serde(default)]
+    pub key_revoked: bool,
+}
+
+/// `entity_id` on the envelope is the user_id. Emitted on a successful
+/// `/me` refresh against the gateway. No bearer material in the payload.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct AccountKeyRefreshed {}
+
 // -- Project registry --------------------------------------------------------
 
 /// Payload for `project.registered`. `entity_id` is the project_id (stable

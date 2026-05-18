@@ -108,7 +108,7 @@ pub struct ShipRuntime {
     /// Wall-clock instant the daemon process started — used for uptime.
     started_at: std::time::Instant,
     /// Hook engine (external source adapters + hot-reload watcher).
-    hook_engine: std::sync::OnceLock<std::sync::Arc<ship_platform::hooks::engine::HookEngine>>,
+    hook_engine: std::sync::OnceLock<std::sync::Arc<ship_platform::triggers::engine::HookEngine>>,
     /// Declarative-tier config watcher (Phase 4) — emits domain.changed events.
     config_watcher: std::sync::OnceLock<ship_platform::config::ConfigWatcher>,
     /// Bun bundler worker — owned here, lazily started on first access.
@@ -143,6 +143,11 @@ pub struct ShipRuntime {
     /// `ArtifactsService` impl — ninth mr-02 migration. Db-bound;
     /// shares the `data_service` Arc with the runtime.
     artifacts: std::sync::Arc<dyn ship_platform::services::artifacts::service::ArtifactsService>,
+    /// Account service — owns the gateway-bearer token store and the
+    /// PKCE state for in-flight logins. Constructed once per daemon and
+    /// shared between the REST routes (`account_api`) and the read-op
+    /// registry (`registry::account`).
+    account: std::sync::Arc<ship_platform::account::AccountService>,
     /// Worktree resolver — production uses `git worktree list`; tests
     /// override with an in-memory map. See `resolve_worktree` method and
     /// `new_test_with_worktree_resolver` test ctor.
@@ -318,6 +323,52 @@ impl ShipRuntime {
             data_service.clone(),
         );
 
+        // Account service — owns the gateway-bearer token store + PKCE
+        // pending registry. Base URL defaults to production gateway;
+        // overridable via SHIP_GATEWAY_URL so dev can point at staging or
+        // a local `wrangler dev` instance. On client construction failure
+        // we fall back to the production URL so route registration still
+        // compiles; downstream handlers surface the construction error.
+        let gateway_base = std::env::var("SHIP_GATEWAY_URL")
+            .unwrap_or_else(|_| "https://api.getship.dev".to_string());
+        let daemon_dir_for_account = {
+            let probe = workspace_dir
+                .clone()
+                .or_else(|| std::env::current_dir().ok());
+            let wt_root = probe
+                .as_ref()
+                .and_then(|p| ship_substrate::home::worktree_root_for(p))
+                .or_else(|| {
+                    probe
+                        .as_ref()
+                        .and_then(|p| ship_substrate::home::ProjectRoot::discover(p))
+                        .map(|r| r.path().to_path_buf())
+                });
+            let home = ship_substrate::ShipHome::at(global_dir.clone());
+            match wt_root.as_ref() {
+                Some(r) => home.worktree_daemon_dir(&ship_substrate::home::path_hash(r)),
+                None => home.daemon_dir(),
+            }
+        };
+        let account_store = Arc::new(
+            ship_platform::account::FileTokenStore::for_daemon_dir(&daemon_dir_for_account),
+        );
+        let account = Arc::new(
+            ship_platform::account::AccountService::new(account_store, &gateway_base)
+                .or_else(|e| {
+                    tracing::warn!(
+                        "account service: build failed ({e}); /api/v1/account/* will return 500"
+                    );
+                    ship_platform::account::AccountService::new(
+                        Arc::new(ship_platform::account::FileTokenStore::for_daemon_dir(
+                            &daemon_dir_for_account,
+                        )),
+                        "https://api.getship.dev",
+                    )
+                })
+                .context("building fallback account service")?,
+        );
+
         Ok(Self {
             config,
             kernel,
@@ -381,6 +432,7 @@ impl ShipRuntime {
             git: ship_platform::services::git::service::GitServiceImpl::arc(global_dir.clone()),
             collections,
             artifacts,
+            account,
             workspace_dir,
             started_at: std::time::Instant::now(),
             hook_engine: std::sync::OnceLock::new(),
@@ -495,6 +547,13 @@ impl ShipRuntime {
         &self,
     ) -> &dyn ship_platform::services::artifacts::service::ArtifactsService {
         &*self.artifacts
+    }
+
+    /// `AccountService` accessor — gateway-bearer token store + PKCE
+    /// state for in-flight logins. Shared between REST routes and the
+    /// read-op registry.
+    pub fn account(&self) -> &Arc<ship_platform::account::AccountService> {
+        &self.account
     }
 
     pub fn mesh_registry(&self) -> &SharedMeshRegistry {
@@ -696,7 +755,7 @@ impl ShipRuntime {
         // user-scope vector. Project-scope triggers are loaded by the hook
         // engine when a project workspace activates.
         let library_dir = ship_substrate::ShipHome::at(self.ship_dir.clone()).library_dir();
-        match ship_platform::hooks::engine::spawn_hook_service(
+        match ship_platform::triggers::engine::spawn_hook_service(
             self.kernel.clone(),
             library_dir,
         )
@@ -704,7 +763,7 @@ impl ShipRuntime {
         {
             Ok(engine) => {
                 // Also start the filesystem watcher for hot-reload.
-                if let Err(e) = ship_platform::hooks::watcher::spawn_watcher(engine.clone()) {
+                if let Err(e) = ship_platform::triggers::watcher::spawn_watcher(engine.clone()) {
                     tracing::warn!("hook watcher failed to start: {e}");
                 }
                 let _ = self.hook_engine.set(engine);
@@ -717,14 +776,14 @@ impl ShipRuntime {
     /// The running hook engine, if started.
     pub fn hook_engine(
         &self,
-    ) -> Option<&std::sync::Arc<ship_platform::hooks::engine::HookEngine>> {
+    ) -> Option<&std::sync::Arc<ship_platform::triggers::engine::HookEngine>> {
         self.hook_engine.get()
     }
 
     /// The webhook source for the public webhook route, if the engine is running.
     pub fn webhook_source(
         &self,
-    ) -> Option<std::sync::Arc<ship_platform::hooks::sources::webhook::WebhookSource>> {
+    ) -> Option<std::sync::Arc<ship_platform::triggers::sources::webhook::WebhookSource>> {
         self.hook_engine.get()?.webhook_source()
     }
 
@@ -806,6 +865,7 @@ impl ShipRuntime {
                     mcp.clone(),
                 ),
             );
+        let account = test_account_service(&ship_dir);
         Self {
             config: RuntimeConfig::default(),
             kernel,
@@ -833,6 +893,7 @@ impl ShipRuntime {
             git,
             collections,
             artifacts,
+            account: account.clone(),
             workspace_dir,
             started_at: std::time::Instant::now(),
             hook_engine: std::sync::OnceLock::new(),
@@ -882,6 +943,7 @@ impl ShipRuntime {
                     mcp.clone(),
                 ),
             );
+        let account = test_account_service(&ship_dir);
         Self {
             config: RuntimeConfig::default(),
             kernel,
@@ -909,6 +971,7 @@ impl ShipRuntime {
             git,
             collections,
             artifacts,
+            account: account.clone(),
             workspace_dir,
             started_at: std::time::Instant::now(),
             hook_engine: std::sync::OnceLock::new(),
@@ -1037,4 +1100,20 @@ fn log_event_log_summary(global_dir: &Path) {
         latest_event_id = summary.latest_event_id.as_deref().unwrap_or("-"),
         "shipd: event-log summary"
     );
+}
+
+/// Synthesise an `AccountService` for unit tests. Uses a tempdir-shaped
+/// fake token store rooted at `ship_dir` (tests don't write to it) and a
+/// localhost gateway URL so client construction succeeds without DNS.
+#[cfg(test)]
+fn test_account_service(
+    ship_dir: &std::path::Path,
+) -> std::sync::Arc<ship_platform::account::AccountService> {
+    let store = std::sync::Arc::new(
+        ship_platform::account::FileTokenStore::for_daemon_dir(ship_dir),
+    );
+    std::sync::Arc::new(
+        ship_platform::account::AccountService::new(store, "http://127.0.0.1:1")
+            .expect("test account service ctor"),
+    )
 }

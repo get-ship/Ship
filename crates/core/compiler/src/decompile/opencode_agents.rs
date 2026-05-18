@@ -48,7 +48,6 @@ pub(super) fn parse_opencode_agent(name: &str, entry: &Json) -> Option<AgentProf
             name: name.to_string(),
             version: None,
             description,
-            harnesses: vec![],
             role: None,
             tags: vec![],
             tools_preset: None,

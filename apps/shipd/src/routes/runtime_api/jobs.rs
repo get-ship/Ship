@@ -7,10 +7,10 @@ use axum::{
     response::IntoResponse,
 };
 use ship_substrate::events::EventEnvelope;
-use ship_substrate::events::job::{JobCreatedPayload, event_types};
+use ship_substrate::events::pipeline::{PipelineRunStartedPayload, event_types};
 use serde::Deserialize;
 
-use crate::auth::{AuthContext, Scope, require_scope};
+use crate::auth::{AuthContext};
 use crate::routes::rest_api::{ApiState, MeshResponse};
 
 // ---- Job request types ----
@@ -77,7 +77,7 @@ fn is_safe_slug(slug: &str) -> bool {
 #[utoipa::path(
     operation_id = "listJobs",
     get,
-    path = "/api/v1/jobs",
+    path = "/api/v1/agent_sessions",
     responses(
         (status = 200, body = MeshResponse),
         (status = 401, description = "unauthorized", body = crate::wire::ErrorResponse),
@@ -231,7 +231,7 @@ pub(crate) fn load_recent_events_by_type(
 #[derive(serde::Serialize)]
 pub struct JobDetailResponse {
     job: ship_platform::projections::job::PipelineRun,
-    step_observations: Vec<ship_substrate::events::job::StepObservedPayload>,
+    step_observations: Vec<ship_substrate::events::pipeline::PipelineStepObservedPayload>,
     recent_events: Vec<EventSummary>,
 }
 
@@ -246,7 +246,7 @@ pub struct EventSummary {
 #[utoipa::path(
     operation_id = "getJobDetail",
     get,
-    path = "/api/v1/jobs/{job_id}",
+    path = "/api/v1/agent_sessions/{job_id}",
     responses(
         (status = 200, body = MeshResponse),
         (status = 401, description = "unauthorized", body = crate::wire::ErrorResponse),
@@ -257,12 +257,9 @@ pub struct EventSummary {
 )]
 pub async fn get_job_detail(
     State(state): State<ApiState>,
-    Extension(auth): Extension<AuthContext>,
+    Extension(_auth): Extension<AuthContext>,
     Path(job_id): Path<String>,
 ) -> axum::response::Response {
-    if let Err(e) = require_scope(&auth, Scope::ReadJobs) {
-        return e.into_response();
-    }
     let job = match ship_platform::projections::job::load_job_by_id_at(state.ship_dir(), &job_id) {
         Ok(Some(j)) => j,
         Ok(None) => {
@@ -284,12 +281,12 @@ pub async fn get_job_detail(
 
     let platform_db = ship_substrate::db::platform_db_path(state.ship_dir());
     let step_observations = ship_substrate::db::events::query_events_by_entity_and_type_at(
-        &platform_db, &job_id, "step.observed",
+        &platform_db, &job_id, "pipeline.step.observed",
     )
     .unwrap_or_default()
     .into_iter()
     .filter_map(|env| {
-        serde_json::from_str::<ship_substrate::events::job::StepObservedPayload>(&env.payload_json).ok()
+        serde_json::from_str::<ship_substrate::events::pipeline::PipelineStepObservedPayload>(&env.payload_json).ok()
     })
     .collect::<Vec<_>>();
 
@@ -335,7 +332,7 @@ pub async fn get_job_detail(
 #[utoipa::path(
     operation_id = "createJob",
     post,
-    path = "/api/v1/jobs",
+    path = "/api/v1/agent_sessions",
     request_body = CreateJobRequest,
     responses(
         (status = 200, body = MeshResponse),
@@ -348,12 +345,9 @@ pub async fn get_job_detail(
 )]
 pub async fn create_job(
     State(state): State<ApiState>,
-    Extension(auth): Extension<AuthContext>,
+    Extension(_auth): Extension<AuthContext>,
     Json(req): Json<CreateJobRequest>,
 ) -> impl IntoResponse {
-    if let Err(e) = require_scope(&auth, Scope::CreateJobs) {
-        return e;
-    }
     if !is_safe_slug(&req.slug) {
         return (
             StatusCode::BAD_REQUEST,
@@ -367,7 +361,7 @@ pub async fn create_job(
     }
     let job_id = ship_substrate::gen_ulid();
     let baseline_sha = super::resolve_project_head_sha();
-    let payload = JobCreatedPayload {
+    let payload = PipelineRunStartedPayload {
         job_id: job_id.clone(),
         slug: req.slug,
         agent: req.agent,
@@ -385,6 +379,9 @@ pub async fn create_job(
         spec_content: req.spec_content,
         step_specs: None,
         headless: req.headless,
+        prompt: None,
+        resume: false,
+        resume_session_id: None,
         baseline_sha,
     };
 
@@ -400,7 +397,7 @@ pub async fn create_job(
         }
     };
 
-    let envelope = match EventEnvelope::new(event_types::JOB_CREATED, &job_id, &payload)
+    let envelope = match EventEnvelope::new(event_types::PIPELINE_RUN_STARTED, &job_id, &payload)
         .map(|e| e.with_actor_id("studio"))
     {
         Ok(e) => e,
@@ -450,7 +447,7 @@ pub(crate) fn default_cancel_reason() -> String {
 #[utoipa::path(
     operation_id = "cancelJob",
     post,
-    path = "/api/v1/jobs/{slug}/cancel",
+    path = "/api/v1/agent_sessions/{slug}/cancel",
     request_body = CancelJobRequest,
     responses(
         (status = 200, body = MeshResponse),
@@ -464,13 +461,10 @@ pub(crate) fn default_cancel_reason() -> String {
 )]
 pub async fn cancel_job(
     State(state): State<ApiState>,
-    Extension(auth): Extension<AuthContext>,
+    Extension(_auth): Extension<AuthContext>,
     Path(slug): Path<String>,
     Json(req): Json<CancelJobRequest>,
 ) -> impl IntoResponse {
-    if let Err(e) = require_scope(&auth, Scope::ManageJobs) {
-        return e;
-    }
 
     let job = match ship_platform::projections::job::load_job_by_slug_at(state.ship_dir(), &slug) {
         Ok(Some(j)) => j,
@@ -508,7 +502,7 @@ pub async fn cancel_job(
         );
     }
 
-    let payload = ship_substrate::events::job::JobCancelledPayload {
+    let payload = ship_substrate::events::pipeline::PipelineRunCancelledPayload {
         job_id: job.job_id.clone(),
         slug: slug.clone(),
         reason: req.reason,
@@ -516,7 +510,7 @@ pub async fn cancel_job(
     };
 
     let envelope = match EventEnvelope::new(
-        event_types::JOB_CANCELLED,
+        event_types::PIPELINE_RUN_CANCELLED,
         &job.job_id,
         &payload,
     )
@@ -563,7 +557,7 @@ pub struct JobEndRequest {
 #[utoipa::path(
     operation_id = "endJob",
     post,
-    path = "/api/v1/jobs/end",
+    path = "/api/v1/agent_sessions/end",
     request_body = JobEndRequest,
     responses(
         (status = 200, body = MeshResponse),
@@ -575,12 +569,9 @@ pub struct JobEndRequest {
 )]
 pub async fn end_job(
     State(state): State<ApiState>,
-    Extension(auth): Extension<AuthContext>,
+    Extension(_auth): Extension<AuthContext>,
     Json(req): Json<JobEndRequest>,
 ) -> impl IntoResponse {
-    if let Err(e) = require_scope(&auth, Scope::ManageJobs) {
-        return e;
-    }
     // Slug isn't unique across job lifetimes, but the SQL projection
     // returns the most-recently-updated row — that's the live one when a
     // dispatched job exists. Filter by status to confirm before steering.
@@ -630,12 +621,12 @@ pub async fn end_job(
     }
 
     // Single-step job or fallback: emit job.completed directly.
-    let payload = ship_substrate::events::job::JobCompletedPayload {
+    let payload = ship_substrate::events::pipeline::PipelineRunCompletedPayload {
         job_id: job.job_id.clone(),
         slug: job.slug.clone(),
     };
 
-    let envelope = match EventEnvelope::new(event_types::JOB_COMPLETED, &job.job_id, &payload)
+    let envelope = match EventEnvelope::new(event_types::PIPELINE_RUN_COMPLETED, &job.job_id, &payload)
         .map(|e| e.with_actor_id("hook"))
     {
         Ok(e) => e,

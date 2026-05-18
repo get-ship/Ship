@@ -19,8 +19,6 @@ mod hook;
 mod http;
 mod init;
 mod install;
-mod job;
-mod jobs;
 mod procs;
 mod runtime_cmd;
 mod tail;
@@ -38,6 +36,7 @@ mod validate;
 mod vars;
 mod openapi;
 mod trash_cmd;
+mod use_command;
 
 use anyhow::Result;
 use cli::{Cli, Commands, ConfigCommands, EventsCommands, HookCommands, McpCommands, OpenapiCommands, WorkspaceCommands};
@@ -113,7 +112,31 @@ fn dispatch(command: Option<Commands>) -> Result<()> {
                 path,
                 compile: _,
                 with_skills,
-            } => run_use(Some(&agent_id), path, with_skills),
+                launch,
+                auto,
+                resume,
+                prompt,
+                spec,
+                harness,
+                model,
+            } => {
+                let opts = use_command::LaunchOpts {
+                    agent: agent_id.clone(),
+                    path: path.clone(),
+                    launch,
+                    auto,
+                    resume,
+                    prompt,
+                    spec,
+                    harness,
+                    model,
+                };
+                run_use(Some(&agent_id), path, with_skills)?;
+                if use_command::should_launch(&opts) {
+                    use_command::run_launch(opts)?;
+                }
+                Ok(())
+            }
             Commands::Status { path } => run_status(path),
             Commands::Compile {
                 harness,
@@ -185,14 +208,7 @@ fn dispatch(command: Option<Commands>) -> Result<()> {
                 })
             }
             Commands::Hook { action } => dispatch_hook(action),
-            Commands::Job { action } => {
-                use cli::JobCommands;
-                match action {
-                    JobCommands::Cancel { slug, reason } => job::cancel(&slug, &reason),
-                }
-            }
-            Commands::Jobs { json } => jobs::run(json),
-            Commands::Procs { slug, limit, json } => procs::run(slug.as_deref(), limit, json),
+            Commands::Procs { slug, kind, limit, json } => procs::run(slug.as_deref(), kind.as_deref(), limit, json),
             Commands::Tail { slug, namespace } => tail::run(&slug, namespace.as_deref()),
             Commands::Daemon { action } => {
                 use cli::DaemonCommands;
@@ -204,7 +220,7 @@ fn dispatch(command: Option<Commands>) -> Result<()> {
                     DaemonCommands::Status => DaemonCommand::Status,
                     DaemonCommands::Dir => DaemonCommand::Dir,
                     DaemonCommands::Cleanup => DaemonCommand::Cleanup,
-                    DaemonCommands::RepairMigrations => DaemonCommand::RepairMigrations,
+                    DaemonCommands::RepairMigrations { reset } => DaemonCommand::RepairMigrations { reset },
                     DaemonCommands::Run { host, port, dev } => DaemonCommand::Run { host, port, dev },
                     DaemonCommands::Supervise { host, dev } => DaemonCommand::Supervise { host, dev },
                     DaemonCommands::InstallService { shipd_path, no_start, no_autostart } => {

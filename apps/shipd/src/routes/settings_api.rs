@@ -6,7 +6,6 @@ use serde::{Deserialize, Serialize};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
-use crate::auth::{AuthContext, Scope};
 use crate::routes::rest_api::{ApiState, MeshResponse};
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -129,18 +128,8 @@ pub async fn list_settings(
 )]
 pub async fn update_setting(
     State(state): State<ApiState>,
-    axum::Extension(auth): axum::Extension<AuthContext>,
     Json(req): Json<SettingsUpdateReq>,
 ) -> impl IntoResponse {
-    if !auth.has_scope(Scope::AdminDaemon) {
-        return (
-            StatusCode::FORBIDDEN,
-            Json(MeshResponse {
-                ok: false,
-                data: serde_json::json!("insufficient scope: AdminDaemon required"),
-            }),
-        );
-    }
     match ship_platform::config::set_setting_and_emit(state.kernel(), &req.key, req.value.clone()).await {
         Ok(()) => (
             StatusCode::OK,

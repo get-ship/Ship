@@ -177,6 +177,20 @@ impl KernelRouter {
         Ok((store, mailbox))
     }
 
+    /// Replace an existing actor's config in place without disturbing
+    /// its mailbox. Used by `actor_spawn` HTTP to refine the config of an
+    /// actor that substrate already pre-registered (e.g., an agent whose
+    /// OS process was launched by the supervisor; the MCP child then
+    /// reaches in to declare its real namespace / subscriptions).
+    /// Returns `ActorNotFound` if the actor isn't registered.
+    pub fn refine_actor(
+        &mut self,
+        actor_id: &str,
+        config: ActorConfig,
+    ) -> Result<(), KernelError> {
+        self.inner.refine_actor(actor_id, config).map_err(Into::into)
+    }
+
     /// Persist an event to platform.db and deliver it to subscribed mailboxes.
     ///
     /// Every event is:

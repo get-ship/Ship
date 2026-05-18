@@ -26,15 +26,11 @@ pub struct AgentSummary {
     pub name: String,
     pub description: String,
     pub skills_count: usize,
-    pub harnesses_count: usize,
     pub mcp_count: usize,
     pub rules_count: usize,
     /// First letter of `name` uppercased, for the avatar glyph.
     pub letter: String,
     pub source: String,
-    /// Harnesses this agent compiles to (claude/codex/cursor/gemini/opencode).
-    /// The list-view renders one tinted blob per harness.
-    pub harnesses: Vec<String>,
     /// Freeform tags from the agent jsonc (e.g. "workflow", "review").
     pub tags: Vec<String>,
     /// True when the agent is currently participating in an active session /
@@ -67,8 +63,6 @@ pub struct AgentDetail {
     /// Verbatim `rules.inline` text from the agent jsonc — surfaced in the
     /// detail editor so the inline rules can be read + edited in place.
     pub inline_rules: String,
-    pub harnesses: Vec<String>,
-    pub default_harness: Option<String>,
     /// Legacy — canonicalized tier for existing UI that only shows a
     /// single "tier" (one of standard / autonomous / read-only). Kept
     /// for backward compat while the permissions panel migrates to
@@ -148,7 +142,6 @@ fn scan_agents_dir(dir: &Path, source: &str) -> Vec<AgentSummary> {
             .unwrap_or("")
             .to_string();
         let skills = resolve_array_field(&parsed, &["skills"], &["refs"]);
-        let harnesses = resolve_array_field(agent_obj, &["harnesses"], &[]);
         let mcp = resolve_array_field(&parsed, &["mcp"], &["servers"]);
         // Schema/UI mismatch: schema says `rules.inline: string`; UI still
         // wants a list. Reading `rules.refs` until the UI redesign lands.
@@ -160,12 +153,10 @@ fn scan_agents_dir(dir: &Path, source: &str) -> Vec<AgentSummary> {
             name,
             description,
             skills_count: skills.len(),
-            harnesses_count: harnesses.len(),
             mcp_count: mcp.len(),
             rules_count: rules.len(),
             letter,
             source: source.to_string(),
-            harnesses,
             tags,
             active: false,
         });
@@ -192,7 +183,6 @@ fn load_from_dir(dir: &Path, id: &str, source: &str) -> Option<AgentDetail> {
             .unwrap_or("")
             .to_string();
         let skills = resolve_array_field(&parsed, &["skills"], &["refs"]);
-        let harnesses = resolve_array_field(agent_obj, &["harnesses"], &[]);
         let mcp_servers = resolve_array_field(&parsed, &["mcp"], &["servers"]);
         let rules = resolve_array_field(&parsed, &["rules"], &["refs"]);
         let inline_rules = parsed
@@ -210,9 +200,6 @@ fn load_from_dir(dir: &Path, id: &str, source: &str) -> Option<AgentDetail> {
             .and_then(|v| v.as_str())
             .map(str::to_string);
         let tags = resolve_array_field(agent_obj, &["tags"], &[]);
-        // No standalone "default" field on the schema — first harness wins.
-        // The UI uses this to highlight the active harness in the panel.
-        let default_harness = harnesses.first().cloned();
         // Permissions tier lives under `permissions.tier` (flat) or — for
         // project configs that use the preset name — `permissions.preset`
         // with a `ship-<tier>` prefix. Strip the prefix to canonicalize.
@@ -255,8 +242,6 @@ fn load_from_dir(dir: &Path, id: &str, source: &str) -> Option<AgentDetail> {
             mcp_servers,
             rules,
             inline_rules,
-            harnesses,
-            default_harness,
             permissions_tier,
             permissions,
             source: source.to_string(),

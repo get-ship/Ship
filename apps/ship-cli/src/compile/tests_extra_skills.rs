@@ -15,7 +15,7 @@ fn write_agent_with_skill_filter(dir: &Path) {
         dir,
         ".ship/agents/rust-lane.jsonc",
         r#"{
-  "agent": { "id": "rust-lane", "name": "Rust Lane", "harnesses": ["claude"] },
+  "agent": { "id": "rust-lane", "name": "Rust Lane" },
   "skills": { "refs": ["base-skill"] }
 }"#,
     );

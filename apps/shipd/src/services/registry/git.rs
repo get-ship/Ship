@@ -42,7 +42,7 @@ pub(super) fn try_dispatch(
             let workspace_id = args.get("workspace_id").and_then(|v| v.as_str());
             let root = ship_platform::services::git::state::resolve_root(state.ship_dir(), workspace_id)
                 .map_err(RegistryError::service)?;
-            let limit = optional_usize(args, "limit", ship_platform::services::git::read::DEFAULT_LOG_LIMIT);
+            let limit = optional_usize(args, "limit", ship_platform::config::resolve_git_log_limit());
             let buckets = ship_platform::services::git::read::load_status_buckets(&root);
             let (ahead, behind) = ship_platform::services::git::read::load_ahead_behind(&root)
                 .unwrap_or((0, 0));

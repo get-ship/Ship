@@ -5,9 +5,10 @@
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
-use axum::Json;
+use axum::{Extension, Json};
 use serde::{Deserialize, Serialize};
 
+use crate::auth::{AuthContext};
 use crate::routes::rest_api::ApiState;
 
 use super::super::lifecycle;
@@ -128,7 +129,9 @@ fn binary_exists(bin: &str) -> bool {
     ),
     tag = "sessions"
 )]
-pub async fn installed_harnesses() -> axum::response::Response {
+pub async fn installed_harnesses(
+    Extension(_auth): Extension<AuthContext>,
+) -> axum::response::Response {
     let harnesses = KNOWN_HARNESSES
         .iter()
         .filter(|(_, bin)| binary_exists(bin))
@@ -155,6 +158,7 @@ pub async fn installed_harnesses() -> axum::response::Response {
 )]
 pub async fn spawn_session(
     State(state): State<ApiState>,
+    Extension(_auth): Extension<AuthContext>,
     Json(req): Json<SpawnBody>,
 ) -> axum::response::Response {
     let registry = state.pty_sessions();
@@ -267,7 +271,10 @@ pub async fn spawn_session(
     ),
     tag = "sessions"
 )]
-pub async fn list_pty_sessions(State(state): State<ApiState>) -> axum::response::Response {
+pub async fn list_pty_sessions(
+    State(state): State<ApiState>,
+    Extension(_auth): Extension<AuthContext>,
+) -> axum::response::Response {
     // Cheap housekeeping — flip thinking → idle as needed before
     // handing the snapshot to the client.
     lifecycle::sweep_idle(state.pty_sessions());
@@ -300,6 +307,7 @@ pub async fn list_pty_sessions(State(state): State<ApiState>) -> axum::response:
 )]
 pub async fn get_session(
     State(state): State<ApiState>,
+    Extension(_auth): Extension<AuthContext>,
     Path(id): Path<String>,
 ) -> axum::response::Response {
     if let Some(entry) = state.actor_sessions().get(&id) {
@@ -328,6 +336,7 @@ pub async fn get_session(
 )]
 pub async fn stop_session(
     State(state): State<ApiState>,
+    Extension(_auth): Extension<AuthContext>,
     Path(id): Path<String>,
 ) -> axum::response::Response {
     if super::super::shell_actor::stop(state.actor_sessions(), &id)
@@ -359,6 +368,7 @@ pub struct ResizeBody {
 )]
 pub async fn session_resize(
     State(state): State<ApiState>,
+    Extension(_auth): Extension<AuthContext>,
     Path(id): Path<String>,
     Json(body): Json<ResizeBody>,
 ) -> axum::response::Response {

@@ -11,7 +11,7 @@ use std::sync::Arc;
 use tempfile::TempDir;
 use tokio::sync::Mutex;
 
-use ship_substrate::events::job::{event_types, StepObservedPayload, StepTrigger, StepVerdict};
+use ship_substrate::events::pipeline::{event_types, PipelineStepObservedPayload, StepTrigger, StepVerdict};
 use ship_substrate::events::kernel_router::{ActorConfig, KernelRouter};
 use ship_substrate::events::EventEnvelope;
 use crate::projections::job::{load_jobs, JobStatus};
@@ -131,7 +131,7 @@ async fn seed_terminal(
         .unwrap();
     let kernel = Arc::new(Mutex::new(router));
 
-    let created = ship_substrate::events::job::JobCreatedPayload {
+    let created = ship_substrate::events::pipeline::PipelineRunStartedPayload {
         job_id: job_id.into(),
         slug: slug.into(),
         agent: "rust-runtime".into(),
@@ -149,9 +149,12 @@ async fn seed_terminal(
         spec_content: None,
         step_specs: None,
         headless: true,
+        prompt: None,
+        resume: false,
+        resume_session_id: None,
         baseline_sha: None,
     };
-    let env = EventEnvelope::new(event_types::JOB_CREATED, job_id, &created).unwrap();
+    let env = EventEnvelope::new(event_types::PIPELINE_RUN_STARTED, job_id, &created).unwrap();
     crate::services::orchestrator::emit::persist_and_route(&kernel, env, slug, None).await;
 
     let terminal_payload = serde_json::json!({
@@ -169,7 +172,7 @@ async fn seed_terminal(
 }
 
 fn observed_advance(job_id: &str, slug: &str) -> EventEnvelope {
-    let payload = StepObservedPayload {
+    let payload = PipelineStepObservedPayload {
         job_id: job_id.into(),
         slug: slug.into(),
         step_index: 0,
@@ -187,7 +190,7 @@ fn observed_advance(job_id: &str, slug: &str) -> EventEnvelope {
         start_sha: None,
         log_tail: None,
     };
-    EventEnvelope::new(event_types::STEP_OBSERVED, job_id, &payload).unwrap()
+    EventEnvelope::new(event_types::PIPELINE_STEP_OBSERVED, job_id, &payload).unwrap()
 }
 
 // ── Tests ──────────────────────────────────────────────────────────────────
@@ -199,7 +202,7 @@ async fn step_observed_ignored_when_job_failed() {
     let ctx = octx(executor.clone(), tmp.path().into());
 
     let job_id = "j-guard-failed";
-    let kernel = seed_terminal(job_id, "guard-failed", event_types::JOB_FAILED).await;
+    let kernel = seed_terminal(job_id, "guard-failed", event_types::PIPELINE_RUN_FAILED).await;
 
     assert_eq!(
         load_jobs().unwrap().get(job_id).unwrap().status,
@@ -223,7 +226,7 @@ async fn step_observed_ignored_when_job_merged() {
     let ctx = octx(executor.clone(), tmp.path().into());
 
     let job_id = "j-guard-merged";
-    let kernel = seed_terminal(job_id, "guard-merged", event_types::JOB_MERGED).await;
+    let kernel = seed_terminal(job_id, "guard-merged", event_types::PIPELINE_RUN_MERGED).await;
 
     let env = observed_advance(job_id, "guard-merged");
     handle_job_event(&kernel, &env, &ctx).await;
@@ -241,7 +244,7 @@ async fn step_observed_ignored_when_job_cancelled() {
     let ctx = octx(executor.clone(), tmp.path().into());
 
     let job_id = "j-guard-cancelled";
-    let kernel = seed_terminal(job_id, "guard-cancelled", event_types::JOB_CANCELLED).await;
+    let kernel = seed_terminal(job_id, "guard-cancelled", event_types::PIPELINE_RUN_CANCELLED).await;
 
     assert_eq!(
         load_jobs().unwrap().get(job_id).unwrap().status,
@@ -268,7 +271,7 @@ async fn operator_events_bypass_terminal_guard() {
     let ctx = octx(executor.clone(), tmp.path().into());
 
     let job_id = "j-guard-operator";
-    let kernel = seed_terminal(job_id, "guard-operator", event_types::JOB_FAILED).await;
+    let kernel = seed_terminal(job_id, "guard-operator", event_types::PIPELINE_RUN_FAILED).await;
 
     let update_payload = serde_json::json!({
         "job_id": job_id,
@@ -276,7 +279,7 @@ async fn operator_events_bypass_terminal_guard() {
         "status": "failed",
         "note": "operator commented after failure",
     });
-    let env = EventEnvelope::new(event_types::JOB_UPDATE, job_id, &update_payload).unwrap();
+    let env = EventEnvelope::new(event_types::PIPELINE_RUN_UPDATED, job_id, &update_payload).unwrap();
     handle_job_event(&kernel, &env, &ctx).await;
 
     // The guard must not swallow operator events; the job stays Failed.

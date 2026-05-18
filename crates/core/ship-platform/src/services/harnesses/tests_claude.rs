@@ -299,5 +299,45 @@ fn caps_match_declared() {
     assert!(c.json_stream, "claude: --output-format stream-json");
     assert!(c.mcp, "claude: .mcp.json");
     assert!(c.hooks, "claude: .claude/settings.json hooks");
-    assert!(!c.session_resume);
+    assert!(c.session_resume, "claude: --resume <uuid>");
+}
+
+// ── build_resume_args ───────────────────────────────────────────────────────
+
+#[test]
+fn build_resume_args_emits_resume_flag() {
+    let adapter = ClaudeAdapter;
+    let cmd = adapter
+        .build_resume_args("my-job", "sess-abc-123", &default_profile())
+        .expect("claude supports resume");
+    assert_eq!(cmd.bin, "claude");
+    let idx = cmd.args.iter().position(|a| a == "--resume").unwrap();
+    assert_eq!(cmd.args[idx + 1], "sess-abc-123");
+}
+
+#[test]
+fn build_resume_args_includes_fork_session() {
+    // Resumed runs must include --fork-session so the new turn's MCP
+    // config (--mcp-config inline) is re-bound. See base_args comment.
+    let adapter = ClaudeAdapter;
+    let cmd = adapter
+        .build_resume_args("my-job", "sess-abc-123", &default_profile())
+        .expect("claude supports resume");
+    assert!(cmd.args.contains(&"--fork-session".to_string()));
+}
+
+#[test]
+fn build_resume_args_rejects_empty_session_id() {
+    use crate::services::harness_adapter::ResumeError;
+    let adapter = ClaudeAdapter;
+    let err = adapter
+        .build_resume_args("my-job", "", &default_profile())
+        .expect_err("empty session id must be rejected");
+    match err {
+        ResumeError::BadSession { harness, reason } => {
+            assert_eq!(harness, "claude");
+            assert!(reason.contains("empty"));
+        }
+        other => panic!("expected BadSession, got {other:?}"),
+    }
 }

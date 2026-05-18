@@ -7,7 +7,7 @@ use axum::{
     response::IntoResponse,
 };
 
-use crate::auth::{AuthContext, Scope, require_scope};
+use crate::auth::{AuthContext};
 use crate::routes::rest_api::{ApiState, MeshResponse};
 
 pub async fn daemon_status(State(state): State<ApiState>) -> impl IntoResponse {
@@ -81,11 +81,8 @@ pub async fn daemon_status(State(state): State<ApiState>) -> impl IntoResponse {
 )]
 pub async fn rebuild_projections(
     State(state): State<ApiState>,
-    Extension(auth): Extension<AuthContext>,
+    Extension(_auth): Extension<AuthContext>,
 ) -> impl IntoResponse {
-    if let Err(e) = require_scope(&auth, Scope::AdminDaemon) {
-        return e;
-    }
     match ship_substrate::db::rebuild::rebuild_projections(state.ship_dir()) {
         Ok(report) => (
             StatusCode::OK,

@@ -7,7 +7,7 @@
 //!
 //! All tests call `interpolate_step` from the runtime orchestrator.
 
-use ship_substrate::events::job::{PipelineStep, StepType};
+use ship_substrate::events::pipeline::{PipelineStep, StepType};
 use ship_pipelines::variables::interpolate_step;
 use std::collections::HashMap;
 

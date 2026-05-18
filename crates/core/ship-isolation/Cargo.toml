@@ -23,5 +23,9 @@ libc = { version = "0.2", optional = true }
 [dev-dependencies]
 tokio = { workspace = true, features = ["rt-multi-thread", "macros", "sync", "process", "time"] }
 
+[[example]]
+name = "run_claude"
+required-features = ["youki-backend"]
+
 [lints]
 workspace = true

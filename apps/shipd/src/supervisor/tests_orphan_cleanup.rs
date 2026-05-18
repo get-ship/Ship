@@ -4,7 +4,7 @@
 //! may still have worktrees on disk. The startup scan must detect and clean them.
 //! Active (Dispatched, Pending) jobs must never be touched.
 
-use ship_substrate::events::job::event_types;
+use ship_substrate::events::pipeline::event_types;
 use ship_substrate::events::EventEnvelope;
 use ship_platform::projections::job::{project, JobStatus};
 
@@ -62,18 +62,18 @@ fn orphan_cleanup_delegates_to_cleanup_orphan() {
 #[test]
 fn orphan_detection_via_projection() {
     let events = vec![
-        ev(event_types::JOB_CREATED, serde_json::json!({
+        ev(event_types::PIPELINE_RUN_STARTED, serde_json::json!({
             "job_id": "j-orph", "slug": "orph",
             "agent": "r", "branch": "job/orph",
             "spec_path": "s.md", "plan_id": null,
         })),
-        ev(event_types::JOB_DISPATCHED, serde_json::json!({
+        ev(event_types::PIPELINE_RUN_DISPATCHED, serde_json::json!({
             "job_id": "j-orph", "worktree": "/tmp/ship-test/orph", "pid": null,
         })),
-        ev(event_types::JOB_COMPLETED, serde_json::json!({
+        ev(event_types::PIPELINE_RUN_COMPLETED, serde_json::json!({
             "job_id": "j-orph", "slug": "orph",
         })),
-        ev(event_types::JOB_MERGED, serde_json::json!({
+        ev(event_types::PIPELINE_RUN_MERGED, serde_json::json!({
             "job_id": "j-orph", "slug": "orph",
         })),
     ];
@@ -90,12 +90,12 @@ fn orphan_detection_via_projection() {
 #[test]
 fn active_jobs_are_not_orphan_candidates() {
     let events = vec![
-        ev(event_types::JOB_CREATED, serde_json::json!({
+        ev(event_types::PIPELINE_RUN_STARTED, serde_json::json!({
             "job_id": "j-active", "slug": "active",
             "agent": "r", "branch": "job/active",
             "spec_path": "s.md", "plan_id": null,
         })),
-        ev(event_types::JOB_DISPATCHED, serde_json::json!({
+        ev(event_types::PIPELINE_RUN_DISPATCHED, serde_json::json!({
             "job_id": "j-active", "worktree": "/tmp/ship-test/active", "pid": null,
         })),
     ];

@@ -1,6 +1,6 @@
 //! Secondary event handlers — update forwarding, cleanup, finalization, merge.
 
-use ship_substrate::events::job::event_types;
+use ship_substrate::events::pipeline::event_types;
 use ship_substrate::events::process::{event_types as process_event_types, ProcessKilledPayload};
 use ship_substrate::events::{CallerKind, EmitContext, EventEnvelope};
 use crate::services::dispatch_ports::AgentPlatform;
@@ -35,7 +35,7 @@ pub async fn handle_job_update(
             "from": "service.job-dispatch",
             "to": slug,
             "body": {
-                "type": "job.update",
+                "type": "pipeline.run.updated",
                 "job_id": entity_id,
                 "payload": payload,
             }
@@ -129,7 +129,7 @@ pub async fn finalize_pipeline_if_done(
     let slug = payload["slug"].as_str().unwrap_or(job.slug.as_str()).to_string();
     tracing::info!(job_id, slug, "job-dispatch: all pipeline steps done, emitting job.completed");
     let env = match EventEnvelope::new(
-        event_types::JOB_COMPLETED,
+        event_types::PIPELINE_RUN_COMPLETED,
         &job_id,
         &serde_json::json!({ "job_id": &job_id, "slug": &slug }),
     ) {
@@ -242,12 +242,12 @@ pub async fn execute_merge_step(
     match platform.git_merge(branch) {
         Ok(true) => {
             tracing::info!(slug, branch, "pipeline: merge successful");
-            let merged_payload = ship_substrate::events::job::JobMergedPayload {
+            let merged_payload = ship_substrate::events::pipeline::PipelineRunMergedPayload {
                 job_id: job_id.to_string(),
                 slug: slug.to_string(),
             };
             let merged_envelope = EventEnvelope::new(
-                event_types::JOB_MERGED,
+                event_types::PIPELINE_RUN_MERGED,
                 job_id,
                 &merged_payload,
             );

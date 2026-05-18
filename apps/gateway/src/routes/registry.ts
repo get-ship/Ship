@@ -31,7 +31,7 @@ const VALID_SORTS = new Set(['installs', 'recent', 'name'])
 
 // ── Search ────────────────────────────────────────────────────────────────────
 
-registry.get('/api/registry/search', async (c) => {
+registry.get('/v1/registry/search', async (c) => {
   const rl = await checkRateLimit(c.req.raw, 'RATE_LIMITER_SEARCH', 60, c.env)
   if (!rl.allowed) return rateLimitResponse(rl.retryAfter)
 
@@ -76,7 +76,7 @@ registry.get('/api/registry/search', async (c) => {
 
 // ── Duplicates ────────────────────────────────────────────────────────────────
 
-registry.get('/api/registry/duplicates', async (c) => {
+registry.get('/v1/registry/duplicates', async (c) => {
   const hash = c.req.query('hash')
   if (!hash) return c.json({ error: 'Missing hash query parameter' }, 400)
   if (!/^sha256:[a-f0-9]{64}$/.test(hash)) return c.json({ error: 'Invalid hash format. Expected sha256:<64 hex chars>' }, 400)
@@ -95,7 +95,7 @@ registry.get('/api/registry/duplicates', async (c) => {
 
 // ── Package detail ────────────────────────────────────────────────────────────
 
-registry.get('/api/registry/:path{.+}', async (c) => {
+registry.get('/v1/registry/:path{.+}', async (c) => {
   // Disambiguate from /star, /install, /deprecate below by checking suffix
   const rawPath = c.req.param('path')
   if (rawPath.endsWith('/star') || rawPath.endsWith('/install') || rawPath.endsWith('/deprecate')) {
@@ -125,7 +125,7 @@ registry.get('/api/registry/:path{.+}', async (c) => {
 
 // ── Star ──────────────────────────────────────────────────────────────────────
 
-registry.post('/api/registry/:path{.+}/star', async (c) => {
+registry.post('/v1/registry/:path{.+}/star', async (c) => {
   const rl = await checkRateLimit(c.req.raw, 'RATE_LIMITER_STAR', 60, c.env)
   if (!rl.allowed) return rateLimitResponse(rl.retryAfter)
 
@@ -146,7 +146,7 @@ registry.post('/api/registry/:path{.+}/star', async (c) => {
 
 // ── Install ───────────────────────────────────────────────────────────────────
 
-registry.post('/api/registry/:path{.+}/install', async (c) => {
+registry.post('/v1/registry/:path{.+}/install', async (c) => {
   const rl = await checkRateLimit(c.req.raw, 'RATE_LIMITER_INSTALL', 60, c.env)
   if (!rl.allowed) return rateLimitResponse(rl.retryAfter)
 
@@ -164,7 +164,7 @@ registry.post('/api/registry/:path{.+}/install', async (c) => {
 
 // ── Deprecate ─────────────────────────────────────────────────────────────────
 
-registry.post('/api/registry/:path{.+}/deprecate', async (c) => {
+registry.post('/v1/registry/:path{.+}/deprecate', async (c) => {
   const rl = await checkRateLimit(c.req.raw, 'RATE_LIMITER_CLAIM', 3600, c.env)
   if (!rl.allowed) return rateLimitResponse(rl.retryAfter)
 
@@ -190,7 +190,7 @@ registry.post('/api/registry/:path{.+}/deprecate', async (c) => {
 
 // ── Claim ─────────────────────────────────────────────────────────────────────
 
-registry.post('/api/registry/claim', async (c) => {
+registry.post('/v1/registry/claim', async (c) => {
   const rl = await checkRateLimit(c.req.raw, 'RATE_LIMITER_CLAIM', 3600, c.env)
   if (!rl.allowed) return rateLimitResponse(rl.retryAfter)
 
@@ -250,7 +250,7 @@ const PublishInput = z.object({
   tag: z.string().optional(),
 })
 
-registry.post('/api/registry/publish', async (c) => {
+registry.post('/v1/registry/publish', async (c) => {
   const rl = await checkRateLimit(c.req.raw, 'RATE_LIMITER_PUBLISH', 3600, c.env)
   if (!rl.allowed) return rateLimitResponse(rl.retryAfter)
 
@@ -376,7 +376,7 @@ registry.post('/api/registry/publish', async (c) => {
 
 // ── Webhook ───────────────────────────────────────────────────────────────────
 
-registry.post('/api/registry/webhook', async (c) => {
+registry.post('/v1/registry/webhook', async (c) => {
   const secret = c.env.GITHUB_WEBHOOK_SECRET
   if (!secret) return c.json({ error: 'Webhook secret not configured' }, 500)
 

@@ -4,7 +4,7 @@
 //! lifecycle of jobs with a `steps` (DAG pipeline) field.
 
 use ship_substrate::events::EventEnvelope;
-use ship_substrate::events::job::event_types;
+use ship_substrate::events::pipeline::event_types;
 use ship_platform::projections::job::{JobStatus, project};
 
 fn ev(event_type: &str, payload: serde_json::Value) -> EventEnvelope {
@@ -13,7 +13,7 @@ fn ev(event_type: &str, payload: serde_json::Value) -> EventEnvelope {
 
 fn created_with_steps(job_id: &str, steps: serde_json::Value) -> EventEnvelope {
     ev(
-        event_types::JOB_CREATED,
+        event_types::PIPELINE_RUN_STARTED,
         serde_json::json!({
             "job_id": job_id,
             "slug": job_id,
@@ -28,21 +28,21 @@ fn created_with_steps(job_id: &str, steps: serde_json::Value) -> EventEnvelope {
 
 fn dispatched(job_id: &str) -> EventEnvelope {
     ev(
-        event_types::JOB_DISPATCHED,
+        event_types::PIPELINE_RUN_DISPATCHED,
         serde_json::json!({"job_id": job_id, "worktree": "/tmp/wt", "pid": null}),
     )
 }
 
 fn completed(job_id: &str) -> EventEnvelope {
     ev(
-        event_types::JOB_COMPLETED,
+        event_types::PIPELINE_RUN_COMPLETED,
         serde_json::json!({"job_id": job_id, "slug": job_id}),
     )
 }
 
 fn merged(job_id: &str) -> EventEnvelope {
     ev(
-        event_types::JOB_MERGED,
+        event_types::PIPELINE_RUN_MERGED,
         serde_json::json!({"job_id": job_id}),
     )
 }
@@ -78,7 +78,7 @@ fn single_step_pipeline_tracked_on_completion() {
     let rec = map.get("j-s2").unwrap();
     assert!(
         rec.completed_steps.contains(&"implement".to_string()),
-        "completed step must appear in completed_steps after JOB_COMPLETED"
+        "completed step must appear in completed_steps after PIPELINE_RUN_COMPLETED"
     );
 }
 
@@ -130,7 +130,7 @@ fn two_step_pipeline_step2_tracked_on_completion() {
 fn no_pipeline_job_no_step_tracking() {
     let events = vec![
         ev(
-            event_types::JOB_CREATED,
+            event_types::PIPELINE_RUN_STARTED,
             serde_json::json!({
                 "job_id": "j-nopipe",
                 "slug": "no-pipe",
@@ -188,15 +188,15 @@ fn current_step_none_after_completion_no_next_dispatch() {
     let rec = map.get("j-clear").unwrap();
     assert!(
         rec.current_step.is_none(),
-        "current_step must be None after JOB_COMPLETED clears it"
+        "current_step must be None after PIPELINE_RUN_COMPLETED clears it"
     );
 }
 
-/// THE KEY TEST: A step that completes without a subsequent JOB_DISPATCHED
+/// THE KEY TEST: A step that completes without a subsequent PIPELINE_RUN_DISPATCHED
 /// (e.g. merge fires immediately after) must still appear in completed_steps.
 ///
-/// Before the fix: `completed_steps` was only updated in `JOB_DISPATCHED`.
-/// After the fix: `JOB_COMPLETED` also pushes `current_step` into `completed_steps`.
+/// Before the fix: `completed_steps` was only updated in `PIPELINE_RUN_DISPATCHED`.
+/// After the fix: `PIPELINE_RUN_COMPLETED` also pushes `current_step` into `completed_steps`.
 #[test]
 fn completion_without_subsequent_dispatch_still_trackable() {
     let steps = serde_json::json!({
@@ -214,7 +214,7 @@ fn completion_without_subsequent_dispatch_still_trackable() {
     assert_eq!(rec.status, JobStatus::Merged);
     assert!(
         rec.completed_steps.contains(&"final-step".to_string()),
-        "final-step must be in completed_steps even when JOB_MERGED fires without a second JOB_DISPATCHED"
+        "final-step must be in completed_steps even when PIPELINE_RUN_MERGED fires without a second PIPELINE_RUN_DISPATCHED"
     );
 }
 
@@ -222,7 +222,7 @@ fn completion_without_subsequent_dispatch_still_trackable() {
 /// All three steps must appear in completed_steps.
 ///
 /// Before the fix: the last step was lost because it completed without a
-/// subsequent JOB_DISPATCHED to trigger the completed_steps update.
+/// subsequent PIPELINE_RUN_DISPATCHED to trigger the completed_steps update.
 #[test]
 fn three_steps_completed_before_merge() {
     let steps = serde_json::json!({

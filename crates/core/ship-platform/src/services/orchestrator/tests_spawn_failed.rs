@@ -11,7 +11,7 @@ use std::sync::Arc;
 use tempfile::TempDir;
 use tokio::sync::Mutex;
 
-use ship_substrate::events::job::{event_types, JobCreatedPayload, JobSpawnFailedPayload};
+use ship_substrate::events::pipeline::{event_types, PipelineRunStartedPayload, PipelineStepSpawnFailedPayload};
 use ship_substrate::events::kernel_router::{ActorConfig, KernelRouter};
 use crate::projections::job::{load_jobs, JobStatus};
 use crate::services::dispatch_ports::{
@@ -94,8 +94,8 @@ impl ProcessRegistryPort for NoopRegistry {
 
 // ── Harness ────────────────────────────────────────────────────────────────
 
-fn job_payload(job_id: &str, slug: &str) -> JobCreatedPayload {
-    JobCreatedPayload {
+fn job_payload(job_id: &str, slug: &str) -> PipelineRunStartedPayload {
+    PipelineRunStartedPayload {
         job_id: job_id.into(),
         slug: slug.into(),
         agent: "rust-runtime".into(),
@@ -113,6 +113,9 @@ fn job_payload(job_id: &str, slug: &str) -> JobCreatedPayload {
         spec_content: None,
         step_specs: None,
         headless: true,
+        prompt: None,
+        resume: false,
+        resume_session_id: None,
         baseline_sha: None,
     }
 }
@@ -146,10 +149,10 @@ fn octx(
     }
 }
 
-fn find_spawn_failed(job_id: &str) -> Option<JobSpawnFailedPayload> {
+fn find_spawn_failed(job_id: &str) -> Option<PipelineStepSpawnFailedPayload> {
     let events = ship_substrate::db::events::list_all_events().ok()?;
     events.into_iter().find_map(|e| {
-        if e.entity_id == job_id && e.event_type == event_types::JOB_SPAWN_FAILED {
+        if e.entity_id == job_id && e.event_type == event_types::PIPELINE_STEP_SPAWN_FAILED {
             serde_json::from_str(&e.payload_json).ok()
         } else {
             None
@@ -178,7 +181,7 @@ async fn isolation_prepare_failure_emits_spawn_failed() {
     let payload = job_payload("j-spawn-iso", "spawn-iso");
     // Seed job.created so the projection reaches Pending first.
     let created = ship_substrate::events::EventEnvelope::new(
-        event_types::JOB_CREATED,
+        event_types::PIPELINE_RUN_STARTED,
         &payload.job_id,
         &payload,
     )
@@ -229,7 +232,7 @@ async fn executor_spawn_failure_emits_spawn_failed() {
 
     let payload = job_payload("j-spawn-exec", "spawn-exec");
     let created = ship_substrate::events::EventEnvelope::new(
-        event_types::JOB_CREATED,
+        event_types::PIPELINE_RUN_STARTED,
         &payload.job_id,
         &payload,
     )

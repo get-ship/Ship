@@ -39,11 +39,11 @@ Project `.ship/` mirrors the `library/` shape — no `library/` / `machine/` spl
 ```
 <project>/.ship/
   agents/  skills/  collections/  views/  pipelines/
-  triggers/  rules/  permissions/  themes/
+  triggers/                 ← reactive triggers (.ship/triggers/*.jsonc)
+  rules/  permissions/  themes/
   mcp.jsonc
   ship.jsonc                ← project manifest
   ship.lock
-  hooks/                    ← reactive triggers (.ship/hooks/*.jsonc — rename to triggers/ pending)
 ```
 
 **Precedence (lowest → highest):** built-in defaults → user (`~/.ship/library/`) → project (`<project>/.ship/`) → project-local overrides (gitignored).

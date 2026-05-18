@@ -3,11 +3,13 @@ import { platform_schema } from '../data/schema/index.js';
 import { EventRepository } from '../repositories/event.repository.js';
 import { ProjectProjectionRepository } from '../repositories/project-projection.repository.js';
 import { JobProjectionRepository } from '../repositories/job-projection.repository.js';
+import { MembersRepository } from '../repositories/members.repository.js';
 
 export class RepositoryFactory {
   private _eventRepo?: EventRepository;
   private _projectProjectionRepo?: ProjectProjectionRepository;
   private _jobProjectionRepo?: JobProjectionRepository;
+  private _membersRepo?: MembersRepository;
 
   constructor(private storage: DurableObjectStorage) {}
 
@@ -34,5 +36,12 @@ export class RepositoryFactory {
       this._jobProjectionRepo = new JobProjectionRepository(this.db);
     }
     return this._jobProjectionRepo;
+  }
+
+  get members(): MembersRepository {
+    if (!this._membersRepo) {
+      this._membersRepo = new MembersRepository(this.db);
+    }
+    return this._membersRepo;
   }
 }

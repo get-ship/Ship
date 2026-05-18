@@ -181,7 +181,13 @@ impl JobExecutor for TmuxWindowExecutor {
 
         let adapter = adapter_for_or_default(ctx.launch.harness.as_deref())
             .map_err(|e| anyhow!("tmux-window executor: {e}"))?;
-        let cmd = adapter.build_headless(&ctx.slug, &ctx.launch);
+        let cmd = if let Some(ref sid) = ctx.launch.resume_session {
+            adapter
+                .build_resume_args(&ctx.slug, sid, &ctx.launch)
+                .map_err(|e| anyhow!("tmux-window: build_resume_args failed: {e}"))?
+        } else {
+            adapter.build_headless(&ctx.slug, &ctx.launch)
+        };
         let shell_cmd = cmd.to_shell_string();
         let log_rel = step_log_rel(step_idx, &step_id);
         let teed = format!("{shell_cmd} 2>&1 | tee -a {log_rel}");

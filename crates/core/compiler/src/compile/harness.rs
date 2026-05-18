@@ -88,6 +88,10 @@ pub enum AgentsDir {
     Codex,
     /// `.cursor/agents/<id>.md`
     Cursor,
+    /// `.opencode/agents/<id>.md` — markdown form (OpenCode also supports
+    /// inline definition under `opencode.json` `agent` key; file form is
+    /// chosen here to parallel the other harnesses).
+    OpenCode,
     None,
 }
 
@@ -98,6 +102,7 @@ impl AgentsDir {
             Self::Gemini => Some(".gemini/agents"),
             Self::Codex => Some(".codex/agents"),
             Self::Cursor => Some(".cursor/agents"),
+            Self::OpenCode => Some(".opencode/agents"),
             Self::None => None,
         }
     }
@@ -108,6 +113,7 @@ impl AgentsDir {
             Self::Gemini => Some("md"),
             Self::Codex => Some("toml"),
             Self::Cursor => Some("md"),
+            Self::OpenCode => Some("md"),
             Self::None => None,
         }
     }
@@ -214,8 +220,10 @@ pub(super) static HARNESSES: &[HarnessDescriptor] = &[
         context_file: ContextFile::AgentsMd,
         // Skills discovered from .opencode/skills/<name>/SKILL.md
         skills_dir: SkillsDir::OpenCode,
-        // Agents defined inline in opencode.json "agent" object, not separate files.
-        agents_dir: AgentsDir::None,
+        // OpenCode supports both inline (opencode.json "agent" key) and
+        // file-based (.opencode/agents/<id>.md) agent definitions. Ship
+        // emits files to parallel the other four harnesses.
+        agents_dir: AgentsDir::OpenCode,
         emit_type_field: true, // OpenCode uses "type": "local"/"remote"
         sse_url_field: "url",
         http_url_field: "url",

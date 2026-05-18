@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use ship_substrate::events::job::event_types;
+use ship_substrate::events::pipeline::event_types;
 use ship_substrate::events::kernel_router::{ActorConfig, KernelRouter};
 use ship_substrate::events::validator::{CallerKind, EmitContext};
 use ship_substrate::events::EventEnvelope;
@@ -85,7 +85,7 @@ async fn job_created_delivered_to_subscriber() {
         .unwrap();
 
     let event = ev(
-        event_types::JOB_CREATED,
+        event_types::PIPELINE_RUN_STARTED,
         serde_json::json!({
             "job_id": "j-created-1",
             "slug": "auth-tests",
@@ -104,7 +104,7 @@ async fn job_created_delivered_to_subscriber() {
         .try_recv()
         .expect("job.created must be delivered to job-dispatch subscriber");
     assert_eq!(received.id, event.id);
-    assert_eq!(received.event_type, event_types::JOB_CREATED);
+    assert_eq!(received.event_type, event_types::PIPELINE_RUN_STARTED);
 }
 
 /// Kernel routing delivers `job.update` with correct payload to subscriber.
@@ -116,7 +116,7 @@ async fn job_update_delivered_to_subscriber() {
         .unwrap();
 
     let event = ev(
-        event_types::JOB_UPDATE,
+        event_types::PIPELINE_RUN_UPDATED,
         serde_json::json!({
             "job_id": "j-update-1",
             "message": "please fix the lint errors",
@@ -131,7 +131,7 @@ async fn job_update_delivered_to_subscriber() {
         .try_recv()
         .expect("job.update must be delivered to job-dispatch subscriber");
     assert_eq!(received.id, event.id);
-    assert_eq!(received.event_type, event_types::JOB_UPDATE);
+    assert_eq!(received.event_type, event_types::PIPELINE_RUN_UPDATED);
     let payload: serde_json::Value =
         serde_json::from_str(&received.payload_json).unwrap();
     assert_eq!(
@@ -149,7 +149,7 @@ async fn job_completed_delivered_to_subscriber() {
         .unwrap();
 
     let event = ev(
-        event_types::JOB_COMPLETED,
+        event_types::PIPELINE_RUN_COMPLETED,
         serde_json::json!({"job_id": "j-comp-1", "slug": "auth-tests"}),
     );
 
@@ -158,7 +158,7 @@ async fn job_completed_delivered_to_subscriber() {
     let received = mb
         .try_recv()
         .expect("job.completed must be delivered to job-dispatch subscriber");
-    assert_eq!(received.event_type, event_types::JOB_COMPLETED);
+    assert_eq!(received.event_type, event_types::PIPELINE_RUN_COMPLETED);
 }
 
 /// `job.merged` is delivered to job-dispatch subscriber.
@@ -170,7 +170,7 @@ async fn job_merged_delivered_to_subscriber() {
         .unwrap();
 
     let event = ev(
-        event_types::JOB_MERGED,
+        event_types::PIPELINE_RUN_MERGED,
         serde_json::json!({"job_id": "j-merged-1", "slug": "auth-tests"}),
     );
 
@@ -179,7 +179,7 @@ async fn job_merged_delivered_to_subscriber() {
     let received = mb
         .try_recv()
         .expect("job.merged must be delivered to job-dispatch subscriber");
-    assert_eq!(received.event_type, event_types::JOB_MERGED);
+    assert_eq!(received.event_type, event_types::PIPELINE_RUN_MERGED);
 }
 
 /// `workspace.activated` is not delivered to the job-dispatch subscriber.
@@ -236,7 +236,7 @@ async fn pipeline_advances_to_next_phase() {
     let store = SqliteEventStore::new_at(&global_dir).expect("test DB must initialize");
 
     let created = ev(
-        event_types::JOB_CREATED,
+        event_types::PIPELINE_RUN_STARTED,
         serde_json::json!({
             "job_id": job_id,
             "slug": slug,
@@ -255,7 +255,7 @@ async fn pipeline_advances_to_next_phase() {
     store.append(&created).unwrap();
 
     let dispatched = ev(
-        event_types::JOB_DISPATCHED,
+        event_types::PIPELINE_RUN_DISPATCHED,
         serde_json::json!({
             "job_id": job_id,
             "worktree": worktree_path.to_string_lossy(),
@@ -273,7 +273,7 @@ async fn pipeline_advances_to_next_phase() {
 
     // Simulate phase 0 completion
     let completed = ev(
-        event_types::JOB_COMPLETED,
+        event_types::PIPELINE_RUN_COMPLETED,
         serde_json::json!({ "job_id": job_id, "slug": slug }),
     );
 
@@ -288,7 +288,7 @@ async fn pipeline_advances_to_next_phase() {
     let phase1_event = mb
         .try_recv()
         .expect("job.dispatched for phase 1 must be routed to subscriber");
-    assert_eq!(phase1_event.event_type, event_types::JOB_DISPATCHED);
+    assert_eq!(phase1_event.event_type, event_types::PIPELINE_RUN_DISPATCHED);
 
     let payload: serde_json::Value =
         serde_json::from_str(&phase1_event.payload_json).unwrap();
@@ -423,7 +423,7 @@ mod ports {
         let kernel = Arc::new(tokio::sync::Mutex::new(router));
 
         let event = super::ev(
-            event_types::JOB_CREATED,
+            event_types::PIPELINE_RUN_STARTED,
             serde_json::json!({
                 "job_id": "j-iso-dispatch",
                 "slug": "iso-dispatch",
@@ -462,7 +462,7 @@ mod ports {
         let kernel = Arc::new(tokio::sync::Mutex::new(router));
 
         let event = super::ev(
-            event_types::JOB_CREATED,
+            event_types::PIPELINE_RUN_STARTED,
             serde_json::json!({
                 "job_id": "j-exec-dispatch",
                 "slug": "exec-dispatch",
@@ -514,7 +514,7 @@ mod ports {
 
         let store = SqliteEventStore::new_at(&global_dir).unwrap();
         store.append(&super::ev(
-            event_types::JOB_CREATED,
+            event_types::PIPELINE_RUN_STARTED,
             serde_json::json!({
                 "job_id": job_id, "slug": slug,
                 "agent": "test-writer", "branch": "job/pipe-exec-test",
@@ -528,7 +528,7 @@ mod ports {
             }),
         )).unwrap();
         store.append(&super::ev(
-            event_types::JOB_DISPATCHED,
+            event_types::PIPELINE_RUN_DISPATCHED,
             serde_json::json!({
                 "job_id": job_id,
                 "worktree": worktree_path.to_string_lossy(),
@@ -543,7 +543,7 @@ mod ports {
         let kernel = Arc::new(tokio::sync::Mutex::new(router));
 
         let completed = super::ev(
-            event_types::JOB_COMPLETED,
+            event_types::PIPELINE_RUN_COMPLETED,
             serde_json::json!({ "job_id": job_id, "slug": slug }),
         );
         super::super::advance_pipeline_at(&kernel, &completed, &dctx, &global_dir).await;
@@ -560,7 +560,7 @@ mod ports {
 #[test]
 fn job_projection_handles_model_and_harness_payload() {
     let events = vec![ev(
-        event_types::JOB_CREATED,
+        event_types::PIPELINE_RUN_STARTED,
         serde_json::json!({
             "job_id": "j-model-1",
             "slug": "typed-api",
@@ -618,7 +618,7 @@ async fn job_with_depends_on_is_deferred() {
 
     let dctx = noop_dctx();
     let event = ev(
-        event_types::JOB_CREATED,
+        event_types::PIPELINE_RUN_STARTED,
         serde_json::json!({
             "job_id": "j-deferred",
             "slug": "downstream",
@@ -644,7 +644,7 @@ async fn job_without_depends_on_not_deferred() {
 
     let dctx = noop_dctx();
     let event = ev(
-        event_types::JOB_CREATED,
+        event_types::PIPELINE_RUN_STARTED,
         serde_json::json!({
             "job_id": "j-immediate",
             "slug": "no-deps",
@@ -673,7 +673,7 @@ fn projection_resolves_pending_deps() {
 
     // Create upstream job (will complete)
     store.append(&ev(
-        event_types::JOB_CREATED,
+        event_types::PIPELINE_RUN_STARTED,
         serde_json::json!({
             "job_id": "j-up",
             "slug": "upstream",
@@ -686,7 +686,7 @@ fn projection_resolves_pending_deps() {
 
     // Create downstream job with dependency
     store.append(&ev(
-        event_types::JOB_CREATED,
+        event_types::PIPELINE_RUN_STARTED,
         serde_json::json!({
             "job_id": "j-down",
             "slug": "downstream",
@@ -711,11 +711,11 @@ fn projection_resolves_pending_deps() {
 
     // Complete upstream
     store.append(&ev(
-        event_types::JOB_DISPATCHED,
+        event_types::PIPELINE_RUN_DISPATCHED,
         serde_json::json!({"job_id": "j-up", "worktree": "/tmp/wt/upstream", "pid": null}),
     )).unwrap();
     store.append(&ev(
-        event_types::JOB_COMPLETED,
+        event_types::PIPELINE_RUN_COMPLETED,
         serde_json::json!({"job_id": "j-up", "slug": "upstream"}),
     )).unwrap();
 
@@ -747,7 +747,7 @@ fn pending_jobs_recoverable_from_event_store() {
     for i in 1..=3 {
         store
             .append(&ev(
-                event_types::JOB_CREATED,
+                event_types::PIPELINE_RUN_STARTED,
                 serde_json::json!({
                     "job_id": format!("j-persist-{i}"),
                     "slug": format!("persist-job-{i}"),
@@ -797,7 +797,7 @@ fn projection_detects_stale_dispatched_jobs() {
     // Job A: pending (created only)
     store
         .append(&ev(
-            event_types::JOB_CREATED,
+            event_types::PIPELINE_RUN_STARTED,
             serde_json::json!({
                 "job_id": "j-pending",
                 "slug": "pending-slug",
@@ -812,7 +812,7 @@ fn projection_detects_stale_dispatched_jobs() {
     // Job B: dispatched (created + dispatched) — simulates running when daemon stopped
     store
         .append(&ev(
-            event_types::JOB_CREATED,
+            event_types::PIPELINE_RUN_STARTED,
             serde_json::json!({
                 "job_id": "j-dispatched",
                 "slug": "dispatched-slug",
@@ -825,7 +825,7 @@ fn projection_detects_stale_dispatched_jobs() {
         .unwrap();
     store
         .append(&ev(
-            event_types::JOB_DISPATCHED,
+            event_types::PIPELINE_RUN_DISPATCHED,
             serde_json::json!({
                 "job_id": "j-dispatched",
                 "worktree": "/tmp/wt/dispatched-slug",
@@ -837,7 +837,7 @@ fn projection_detects_stale_dispatched_jobs() {
     // Job C: completed (created + dispatched + completed)
     store
         .append(&ev(
-            event_types::JOB_CREATED,
+            event_types::PIPELINE_RUN_STARTED,
             serde_json::json!({
                 "job_id": "j-completed",
                 "slug": "completed-slug",
@@ -850,7 +850,7 @@ fn projection_detects_stale_dispatched_jobs() {
         .unwrap();
     store
         .append(&ev(
-            event_types::JOB_DISPATCHED,
+            event_types::PIPELINE_RUN_DISPATCHED,
             serde_json::json!({
                 "job_id": "j-completed",
                 "worktree": "/tmp/wt/completed-slug",
@@ -860,7 +860,7 @@ fn projection_detects_stale_dispatched_jobs() {
         .unwrap();
     store
         .append(&ev(
-            event_types::JOB_COMPLETED,
+            event_types::PIPELINE_RUN_COMPLETED,
             serde_json::json!({"job_id": "j-completed", "slug": "completed-slug"}),
         ))
         .unwrap();
@@ -892,7 +892,7 @@ fn projection_detects_stale_dispatched_jobs() {
 fn failed_event_transitions_dispatched_to_failed() {
     let events = vec![
         ev(
-            event_types::JOB_CREATED,
+            event_types::PIPELINE_RUN_STARTED,
             serde_json::json!({
                 "job_id": "j-fail-test",
                 "slug": "fail-test",
@@ -903,7 +903,7 @@ fn failed_event_transitions_dispatched_to_failed() {
             }),
         ),
         ev(
-            event_types::JOB_DISPATCHED,
+            event_types::PIPELINE_RUN_DISPATCHED,
             serde_json::json!({
                 "job_id": "j-fail-test",
                 "worktree": "/tmp/wt/fail-test",
@@ -911,7 +911,7 @@ fn failed_event_transitions_dispatched_to_failed() {
             }),
         ),
         ev(
-            event_types::JOB_FAILED,
+            event_types::PIPELINE_RUN_FAILED,
             serde_json::json!({
                 "job_id": "j-fail-test",
                 "error": "daemon restart, process not found",
@@ -941,7 +941,7 @@ fn dispatched_event_preserves_pid_in_payload() {
     let store = SqliteEventStore::new_at(&ship_dir).unwrap();
 
     let dispatched = ev(
-        event_types::JOB_DISPATCHED,
+        event_types::PIPELINE_RUN_DISPATCHED,
         serde_json::json!({
             "job_id": "j-pid-test",
             "worktree": "/tmp/wt/pid-test",
@@ -972,7 +972,7 @@ async fn single_dispatch_path_one_subscriber() {
         .unwrap();
 
     let event = ev(
-        event_types::JOB_CREATED,
+        event_types::PIPELINE_RUN_STARTED,
         serde_json::json!({
             "job_id": "j-single-path",
             "slug": "single-path",
@@ -1003,7 +1003,7 @@ async fn single_dispatch_path_one_subscriber() {
 fn projection_completed_status() {
     let events = vec![
         ev(
-            event_types::JOB_CREATED,
+            event_types::PIPELINE_RUN_STARTED,
             serde_json::json!({
                 "job_id": "j-proj-comp",
                 "slug": "test-slug",
@@ -1014,7 +1014,7 @@ fn projection_completed_status() {
             }),
         ),
         ev(
-            event_types::JOB_COMPLETED,
+            event_types::PIPELINE_RUN_COMPLETED,
             serde_json::json!({"job_id": "j-proj-comp", "slug": "test-slug"}),
         ),
     ];
@@ -1115,7 +1115,7 @@ mod reliability {
         use ship_substrate::events::store::EventStore;
         store
             .append(&ev(
-                event_types::JOB_CREATED,
+                event_types::PIPELINE_RUN_STARTED,
                 serde_json::json!({
                     "job_id": job_id,
                     "slug": slug,
@@ -1128,7 +1128,7 @@ mod reliability {
             .unwrap();
         store
             .append(&ev(
-                event_types::JOB_DISPATCHED,
+                event_types::PIPELINE_RUN_DISPATCHED,
                 serde_json::json!({
                     "job_id": job_id,
                     "worktree": format!("/tmp/wt/{slug}"),
@@ -1418,7 +1418,7 @@ mod reliability {
     fn failed_job_can_be_redispatched() {
         let events = vec![
             ev(
-                event_types::JOB_CREATED,
+                event_types::PIPELINE_RUN_STARTED,
                 serde_json::json!({
                     "job_id": "j-redispatch",
                     "slug": "redispatch",
@@ -1429,7 +1429,7 @@ mod reliability {
                 }),
             ),
             ev(
-                event_types::JOB_DISPATCHED,
+                event_types::PIPELINE_RUN_DISPATCHED,
                 serde_json::json!({
                     "job_id": "j-redispatch",
                     "worktree": "/tmp/wt/redispatch",
@@ -1437,14 +1437,14 @@ mod reliability {
                 }),
             ),
             ev(
-                event_types::JOB_FAILED,
+                event_types::PIPELINE_RUN_FAILED,
                 serde_json::json!({
                     "job_id": "j-redispatch",
                     "error": "agent crashed",
                 }),
             ),
             ev(
-                event_types::JOB_DISPATCHED,
+                event_types::PIPELINE_RUN_DISPATCHED,
                 serde_json::json!({
                     "job_id": "j-redispatch",
                     "worktree": "/tmp/wt/redispatch",

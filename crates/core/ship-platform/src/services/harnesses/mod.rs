@@ -5,6 +5,7 @@ pub mod cursor;
 pub mod gemini;
 pub mod opencode;
 pub mod opencode_session;
+pub mod session_file;
 
 #[cfg(test)]
 #[path = "tests_codex_session.rs"]

@@ -1,4 +1,5 @@
 // ── L1 modules (agent/collection domain layer) ────────────────────────────────
+pub mod account;
 pub mod agents;
 pub mod artifacts;
 pub mod auth;
@@ -6,7 +7,7 @@ pub mod bundler;
 pub mod collections;
 pub mod commands;
 pub mod config;
-pub mod hooks;
+pub mod triggers;
 pub mod kv;
 pub mod projections;
 pub mod projects;

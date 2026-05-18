@@ -3,6 +3,7 @@ group: Views
 order: 10
 title: Effect scopes — cleanup ownership
 description: The effect-scope primitive that releases a view's resources (EventSource, observers, timers, hook subscriptions) on unmount.
+audience: internal
 ---
 
 # Effect scopes — cleanup ownership

@@ -14,7 +14,7 @@ The scope is comparable to Material or Apple's Human Interface Guidelines: switc
 
 ## What this reference covers
 
-- **[Themes](./themes)** — the six built-in themes, the dimensions a theme changes, and how users pick one.
+- **[Themes](./themes)** — the seven built-in themes, the dimensions a theme changes, and how users pick one.
 - **[Tokens](./tokens)** — the four-layer token system that makes theming cohesive: semantic surfaces, tone ramps, role tokens, primitives.
 - **[Customizing](./customizing)** — two paths: override individual CSS custom properties, or author a full custom theme.
 

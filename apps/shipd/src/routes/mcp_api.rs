@@ -14,12 +14,14 @@
 
 
 
+use axum::Extension;
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use axum::response::Json;
 use serde::Deserialize;
 
 use crate::access::RuntimeAccess;
+use crate::auth::{AuthContext};
 use crate::routes::rest_api::ApiState;
 use ship_platform::services::files::Scope;
 use ship_platform::services::mcp::service::{CreateArgs, PutArgs};
@@ -61,6 +63,7 @@ fn err(status: StatusCode, code: &str, message: impl Into<String>) -> Resp {
 
 fn created(value: serde_json::Value) -> Resp { (StatusCode::CREATED, Json(value)) }
 
+
 fn map_err(e: ship_platform::services::mcp::state::Error) -> Resp {
     use ship_platform::services::mcp::state::Error::*;
     match e {
@@ -76,14 +79,18 @@ fn map_err(e: ship_platform::services::mcp::state::Error) -> Resp {
 }
 
 /// GET /api/v1/mcp
-pub async fn list(State(state): State<ApiState>) -> Json<serde_json::Value> {
+pub async fn list(
+    State(state): State<ApiState>,
+    Extension(_auth): Extension<AuthContext>,
+) -> Result<Json<serde_json::Value>, Resp> {
     let items = state.services().mcp().list();
-    Json(serde_json::json!({ "ok": true, "items": items }))
+    Ok(Json(serde_json::json!({ "ok": true, "items": items })))
 }
 
 /// GET /api/v1/mcp/{id}
 pub async fn get(
     State(state): State<ApiState>,
+    Extension(_auth): Extension<AuthContext>,
     Path(id): Path<String>,
     Query(q): Query<ScopeQuery>,
 ) -> Result<Json<serde_json::Value>, Resp> {
@@ -100,6 +107,7 @@ pub async fn get(
 /// PUT /api/v1/mcp/{id}
 pub async fn put(
     State(state): State<ApiState>,
+    Extension(_auth): Extension<AuthContext>,
     Path(id): Path<String>,
     Query(q): Query<ScopeQuery>,
     Json(body): Json<serde_json::Value>,
@@ -118,6 +126,7 @@ pub async fn put(
 /// PATCH /api/v1/mcp/{id}
 pub async fn patch(
     State(state): State<ApiState>,
+    Extension(_auth): Extension<AuthContext>,
     Path(id): Path<String>,
     Query(q): Query<ScopeQuery>,
     Json(patch_body): Json<serde_json::Value>,
@@ -135,6 +144,7 @@ pub async fn patch(
 /// DELETE /api/v1/mcp/{id}
 pub async fn delete(
     State(state): State<ApiState>,
+    Extension(_auth): Extension<AuthContext>,
     Path(id): Path<String>,
     Query(q): Query<ScopeQuery>,
 ) -> Result<Json<serde_json::Value>, Resp> {
@@ -157,6 +167,7 @@ pub struct CreateBody {
 
 pub async fn create(
     State(state): State<ApiState>,
+    Extension(_auth): Extension<AuthContext>,
     Json(body): Json<CreateBody>,
 ) -> Result<Resp, Resp> {
     let target = match body.scope.as_deref() {

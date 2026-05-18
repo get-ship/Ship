@@ -139,7 +139,7 @@ fn orphaned_status() {
 fn non_process_events_are_ignored() {
     let events = vec![
         make_event("process.spawned", spawned_payload("s1", Some(1), "process")),
-        EventEnvelope::new("job.created", "j1", &serde_json::json!({"job_id": "j1"})).unwrap(),
+        EventEnvelope::new("pipeline.run.started", "j1", &serde_json::json!({"job_id": "j1"})).unwrap(),
     ];
     let records = project(&events);
     assert_eq!(records.len(), 1);

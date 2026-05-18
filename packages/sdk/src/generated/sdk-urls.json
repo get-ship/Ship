@@ -23,6 +23,66 @@
       "request": null,
       "response": null
     },
+    "GET /api/v1/account/key": {
+      "method": "GET",
+      "path": "/api/v1/account/key",
+      "purpose": "read",
+      "params": [],
+      "summary": "Transitional bridge — returns the stored API key so the CLI can\ndual-write to its legacy `credentials.jsonc` for `ship publish` and\n`ship convert <getship-url>` which still call the gateway directly.\nREMOVE once those call sites route through the daemon.",
+      "description": null,
+      "request": null,
+      "response": {
+        "$ref": "#/components/schemas/GetKeyResponse"
+      }
+    },
+    "POST /api/v1/account/login": {
+      "method": "POST",
+      "path": "/api/v1/account/login",
+      "purpose": "create",
+      "params": [],
+      "summary": null,
+      "description": null,
+      "request": {
+        "$ref": "#/components/schemas/StartLoginRequest"
+      },
+      "response": {
+        "$ref": "#/components/schemas/StartLoginResponse"
+      }
+    },
+    "POST /api/v1/account/login/complete": {
+      "method": "POST",
+      "path": "/api/v1/account/login/complete",
+      "purpose": "create",
+      "params": [],
+      "summary": null,
+      "description": null,
+      "request": {
+        "$ref": "#/components/schemas/CompleteLoginRequest"
+      },
+      "response": {
+        "$ref": "#/components/schemas/CompleteLoginResponse"
+      }
+    },
+    "POST /api/v1/account/logout": {
+      "method": "POST",
+      "path": "/api/v1/account/logout",
+      "purpose": "create",
+      "params": [],
+      "summary": null,
+      "description": null,
+      "request": null,
+      "response": null
+    },
+    "GET /api/v1/account/state": {
+      "method": "GET",
+      "path": "/api/v1/account/state",
+      "purpose": "read",
+      "params": [],
+      "summary": null,
+      "description": null,
+      "request": null,
+      "response": null
+    },
     "POST /api/v1/actor/spawn": {
       "method": "POST",
       "path": "/api/v1/actor/spawn",
@@ -32,6 +92,78 @@
       "description": null,
       "request": {
         "$ref": "#/components/schemas/ActorSpawnReq"
+      },
+      "response": {
+        "$ref": "#/components/schemas/MeshResponse"
+      }
+    },
+    "GET /api/v1/agent_sessions": {
+      "method": "GET",
+      "path": "/api/v1/agent_sessions",
+      "purpose": "read",
+      "params": [],
+      "summary": "GET /api/v1/runtime/jobs",
+      "description": "Returns each `PipelineRun` with two operator-visibility annotations:\n\n- `process_state`: `\"alive\"` when the latest process projection for the\n  slug is still Running, `\"missing\"` when the most recent supervisor\n  sweep flagged drift (no_process) without a coherence_restored after\n  it, `\"terminal\"` for jobs in a terminal status, `\"none\"` otherwise.\n- `notes`: optional truncated error / blocker for the row's NOTES column.",
+      "request": null,
+      "response": {
+        "$ref": "#/components/schemas/MeshResponse"
+      }
+    },
+    "POST /api/v1/agent_sessions/dispatch": {
+      "method": "POST",
+      "path": "/api/v1/agent_sessions/dispatch",
+      "purpose": "create",
+      "params": [],
+      "summary": "POST /api/v1/agent_sessions/dispatch",
+      "description": "Agent-centric single-agent dispatch. Rejects payloads carrying a\n`pipeline` field (those belong at `POST /api/v1/pipelines/run`).",
+      "request": {
+        "$ref": "#/components/schemas/DispatchRequest"
+      },
+      "response": {
+        "$ref": "#/components/schemas/MeshResponse"
+      }
+    },
+    "POST /api/v1/agent_sessions/end": {
+      "method": "POST",
+      "path": "/api/v1/agent_sessions/end",
+      "purpose": "create",
+      "params": [],
+      "summary": "POST /api/v1/runtime/jobs/end — signal that a harness turn ended for a job.",
+      "description": "Called by the session Stop hook when an agent finishes a response turn.\nFor multi-step pipeline jobs, this sends a TurnEnded signal to the step\nmonitor (which accumulates evidence before deciding to advance).\nFor single-step jobs, emits job.completed directly.",
+      "request": {
+        "$ref": "#/components/schemas/JobEndRequest"
+      },
+      "response": {
+        "$ref": "#/components/schemas/MeshResponse"
+      }
+    },
+    "POST /api/v1/agent_sessions/{job_id}/status": {
+      "method": "POST",
+      "path": "/api/v1/agent_sessions/{job_id}/status",
+      "purpose": "create",
+      "params": [
+        "job_id"
+      ],
+      "summary": null,
+      "description": null,
+      "request": {
+        "$ref": "#/components/schemas/JobStatusReq"
+      },
+      "response": {
+        "$ref": "#/components/schemas/MeshResponse"
+      }
+    },
+    "POST /api/v1/agent_sessions/{slug}/step-done": {
+      "method": "POST",
+      "path": "/api/v1/agent_sessions/{slug}/step-done",
+      "purpose": "create",
+      "params": [
+        "slug"
+      ],
+      "summary": "POST /api/v1/agent_sessions/{slug}/step-done — agent declares the current pipeline step\ncomplete. Daemon resolves the active step from the projection, builds a\n`step.done_declared` envelope, and routes it through the kernel.",
+      "description": null,
+      "request": {
+        "$ref": "#/components/schemas/StepDoneReq"
       },
       "response": {
         "$ref": "#/components/schemas/MeshResponse"
@@ -127,76 +259,28 @@
         "$ref": "#/components/schemas/MeshResponse"
       }
     },
-    "GET /api/v1/jobs": {
+    "GET /api/v1/harnesses": {
       "method": "GET",
-      "path": "/api/v1/jobs",
+      "path": "/api/v1/harnesses",
       "purpose": "read",
       "params": [],
-      "summary": "GET /api/v1/runtime/jobs",
-      "description": "Returns each `PipelineRun` with two operator-visibility annotations:\n\n- `process_state`: `\"alive\"` when the latest process projection for the\n  slug is still Running, `\"missing\"` when the most recent supervisor\n  sweep flagged drift (no_process) without a coherence_restored after\n  it, `\"terminal\"` for jobs in a terminal status, `\"none\"` otherwise.\n- `notes`: optional truncated error / blocker for the row's NOTES column.",
+      "summary": null,
+      "description": null,
       "request": null,
       "response": {
         "$ref": "#/components/schemas/MeshResponse"
       }
     },
-    "POST /api/v1/jobs/dispatch": {
-      "method": "POST",
-      "path": "/api/v1/jobs/dispatch",
-      "purpose": "create",
+    "GET /api/v1/harnesses/installed": {
+      "method": "GET",
+      "path": "/api/v1/harnesses/installed",
+      "purpose": "read",
       "params": [],
-      "summary": "POST /api/v1/jobs/dispatch",
-      "description": "UI-facing dispatch — mirrors `ship run` on the CLI. Loads the\nnamed pipeline, generates slug/branch/agent, and emits\n`job.created`. The orchestrator picks it up from there.",
-      "request": {
-        "$ref": "#/components/schemas/DispatchRequest"
-      },
-      "response": {
-        "$ref": "#/components/schemas/MeshResponse"
-      }
-    },
-    "POST /api/v1/jobs/end": {
-      "method": "POST",
-      "path": "/api/v1/jobs/end",
-      "purpose": "create",
-      "params": [],
-      "summary": "POST /api/v1/runtime/jobs/end — signal that a harness turn ended for a job.",
-      "description": "Called by the session Stop hook when an agent finishes a response turn.\nFor multi-step pipeline jobs, this sends a TurnEnded signal to the step\nmonitor (which accumulates evidence before deciding to advance).\nFor single-step jobs, emits job.completed directly.",
-      "request": {
-        "$ref": "#/components/schemas/JobEndRequest"
-      },
-      "response": {
-        "$ref": "#/components/schemas/MeshResponse"
-      }
-    },
-    "POST /api/v1/jobs/{job_id}/status": {
-      "method": "POST",
-      "path": "/api/v1/jobs/{job_id}/status",
-      "purpose": "create",
-      "params": [
-        "job_id"
-      ],
       "summary": null,
       "description": null,
-      "request": {
-        "$ref": "#/components/schemas/JobStatusReq"
-      },
+      "request": null,
       "response": {
-        "$ref": "#/components/schemas/MeshResponse"
-      }
-    },
-    "POST /api/v1/jobs/{slug}/step-done": {
-      "method": "POST",
-      "path": "/api/v1/jobs/{slug}/step-done",
-      "purpose": "create",
-      "params": [
-        "slug"
-      ],
-      "summary": "POST /api/v1/jobs/{slug}/step-done — agent declares the current pipeline step\ncomplete. Daemon resolves the active step from the projection, builds a\n`step.done_declared` envelope, and routes it through the kernel.",
-      "description": null,
-      "request": {
-        "$ref": "#/components/schemas/StepDoneReq"
-      },
-      "response": {
-        "$ref": "#/components/schemas/MeshResponse"
+        "$ref": "#/components/schemas/InstalledProvidersResponse"
       }
     },
     "POST /api/v1/mesh/broadcast": {
@@ -279,6 +363,20 @@
         "$ref": "#/components/schemas/MeshResponse"
       }
     },
+    "POST /api/v1/pipelines/run": {
+      "method": "POST",
+      "path": "/api/v1/pipelines/run",
+      "purpose": "create",
+      "params": [],
+      "summary": "POST /api/v1/pipelines/run",
+      "description": null,
+      "request": {
+        "$ref": "#/components/schemas/PipelineRunRequest"
+      },
+      "response": {
+        "$ref": "#/components/schemas/MeshResponse"
+      }
+    },
     "GET /api/v1/projects": {
       "method": "GET",
       "path": "/api/v1/projects",
@@ -316,30 +414,6 @@
         "$ref": "#/components/schemas/ProjectSwitchReq"
       },
       "response": null
-    },
-    "GET /api/v1/harnesses": {
-      "method": "GET",
-      "path": "/api/v1/harnesses",
-      "purpose": "read",
-      "params": [],
-      "summary": null,
-      "description": null,
-      "request": null,
-      "response": {
-        "$ref": "#/components/schemas/MeshResponse"
-      }
-    },
-    "GET /api/v1/harnesses/installed": {
-      "method": "GET",
-      "path": "/api/v1/harnesses/installed",
-      "purpose": "read",
-      "params": [],
-      "summary": null,
-      "description": null,
-      "request": null,
-      "response": {
-        "$ref": "#/components/schemas/InstalledProvidersResponse"
-      }
     },
     "GET /api/v1/pty-sessions": {
       "method": "GET",

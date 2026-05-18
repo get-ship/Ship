@@ -7,12 +7,12 @@
 //! Phase 1: the hook pipeline always returns "allow". Security scanning
 //! and custom rules are Phase 2.
 
-use axum::{extract::State, Extension, Json, http::StatusCode, response::IntoResponse};
+use axum::{extract::State, Extension, Json, http::StatusCode, response::{IntoResponse, Response}};
 use ship_substrate::events::EventEnvelope;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
-use crate::auth::AuthContext;
+use crate::auth::{AuthContext, Scope, enforce_mcp_identity, require_scope};
 use crate::routes::rest_api::ApiState;
 
 /// Normalized hook event sent by Claude HTTP hooks or the `ship hook` adapter.
@@ -55,16 +55,22 @@ impl HookResponse {
     }
 }
 
-/// Resolve actor_id from the event body or auth context.
-fn resolve_actor(event: &ShipHookEvent, auth: &AuthContext) -> String {
-    event
+/// Resolve actor_id from the event body or auth context. For MCP callers
+/// the body's `actor_id` is bound to `auth.agent_id` — workers can't
+/// claim another agent's identity. Daemon-token callers keep their
+/// trusted preference for the body value.
+fn resolve_actor(event: &ShipHookEvent, auth: &AuthContext) -> Result<String, Response> {
+    enforce_mcp_identity(auth, event.actor_id.as_deref())?;
+    Ok(event
         .actor_id
         .clone()
         .or_else(|| auth.agent_id.clone())
-        .unwrap_or_else(|| "unknown".to_string())
+        .unwrap_or_else(|| "unknown".to_string()))
 }
 
-/// Resolve session_id from the event body or auth context.
+/// Resolve session_id from the event body or auth context. session_id is
+/// not a privilege claim (see `auth_middleware` — `x-ship-session-id` is
+/// already freely settable), so no binding is enforced here.
 fn resolve_session(event: &ShipHookEvent, auth: &AuthContext) -> Option<String> {
     event.session_id.clone().or_else(|| auth.session_id.clone())
 }
@@ -86,8 +92,14 @@ fn resolve_session(event: &ShipHookEvent, auth: &AuthContext) -> Option<String> 
 pub async fn hook_session_start(
     Extension(auth): Extension<AuthContext>,
     Json(event): Json<ShipHookEvent>,
-) -> impl IntoResponse {
-    let actor = resolve_actor(&event, &auth);
+) -> Response {
+    if let Err(e) = require_scope(&auth, Scope::EmitEvents) {
+        return e.into_response();
+    }
+    let actor = match resolve_actor(&event, &auth) {
+        Ok(a) => a,
+        Err(e) => return e,
+    };
     let session = resolve_session(&event, &auth);
 
     tracing::debug!(actor = %actor, session = ?session, "hook: session-start");
@@ -97,7 +109,7 @@ pub async fn hook_session_start(
         let _ = ship_substrate::db::session_drain::update_heartbeat(sid);
     }
 
-    (StatusCode::OK, Json(HookResponse::allow()))
+    (StatusCode::OK, Json(HookResponse::allow())).into_response()
 }
 
 /// POST /api/v1/hooks/before-tool
@@ -118,8 +130,14 @@ pub async fn hook_before_tool(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
     Json(event): Json<ShipHookEvent>,
-) -> impl IntoResponse {
-    let actor = resolve_actor(&event, &auth);
+) -> Response {
+    if let Err(e) = require_scope(&auth, Scope::EmitEvents) {
+        return e.into_response();
+    }
+    let actor = match resolve_actor(&event, &auth) {
+        Ok(a) => a,
+        Err(e) => return e,
+    };
     let session = resolve_session(&event, &auth);
     let tool = event.tool_name.as_deref().unwrap_or("unknown");
 
@@ -157,7 +175,7 @@ pub async fn hook_before_tool(
         }
     }
 
-    (StatusCode::OK, Json(HookResponse::allow()))
+    (StatusCode::OK, Json(HookResponse::allow())).into_response()
 }
 
 /// Route a tool-use event into the matching Ship chat session so the
@@ -208,8 +226,14 @@ pub async fn hook_after_tool(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
     Json(event): Json<ShipHookEvent>,
-) -> impl IntoResponse {
-    let actor = resolve_actor(&event, &auth);
+) -> Response {
+    if let Err(e) = require_scope(&auth, Scope::EmitEvents) {
+        return e.into_response();
+    }
+    let actor = match resolve_actor(&event, &auth) {
+        Ok(a) => a,
+        Err(e) => return e,
+    };
     let session = resolve_session(&event, &auth);
     let tool = event.tool_name.as_deref().unwrap_or("unknown");
 
@@ -244,7 +268,7 @@ pub async fn hook_after_tool(
         }
     }
 
-    (StatusCode::OK, Json(HookResponse::allow()))
+    (StatusCode::OK, Json(HookResponse::allow())).into_response()
 }
 
 /// POST /api/v1/hooks/session-end
@@ -264,8 +288,14 @@ pub async fn hook_after_tool(
 pub async fn hook_session_end(
     Extension(auth): Extension<AuthContext>,
     Json(event): Json<ShipHookEvent>,
-) -> impl IntoResponse {
-    let actor = resolve_actor(&event, &auth);
+) -> Response {
+    if let Err(e) = require_scope(&auth, Scope::EmitEvents) {
+        return e.into_response();
+    }
+    let actor = match resolve_actor(&event, &auth) {
+        Ok(a) => a,
+        Err(e) => return e,
+    };
     let session = resolve_session(&event, &auth);
 
     tracing::debug!(actor = %actor, session = ?session, "hook: session-end");
@@ -274,7 +304,7 @@ pub async fn hook_session_end(
         let _ = ship_substrate::db::session_drain::update_heartbeat(sid);
     }
 
-    (StatusCode::OK, Json(HookResponse::allow()))
+    (StatusCode::OK, Json(HookResponse::allow())).into_response()
 }
 
 #[cfg(test)]
@@ -313,43 +343,57 @@ mod tests {
         assert_eq!(event.session_id.as_deref(), Some("sess-123"));
     }
 
-    #[test]
-    fn resolve_actor_prefers_event() {
-        let event = ShipHookEvent {
+    fn make_event(actor_id: Option<&str>) -> ShipHookEvent {
+        ShipHookEvent {
             tool_name: None,
             tool_input: None,
             tool_response: None,
-            actor_id: Some("from-event".into()),
+            actor_id: actor_id.map(str::to_string),
             workspace: None,
             session_id: None,
-        };
-        let auth = AuthContext {
+        }
+    }
+
+    fn cli_auth(agent_id: Option<&str>) -> AuthContext {
+        AuthContext {
             caller_kind: ship_substrate::events::CallerKind::Cli,
-            agent_id: Some("from-auth".into()),
+            agent_id: agent_id.map(str::to_string),
             workspace_id: None,
             session_id: None,
             scopes: vec![],
-        };
-        assert_eq!(resolve_actor(&event, &auth), "from-event");
+        }
+    }
+
+    fn mcp_auth(agent_id: &str) -> AuthContext {
+        AuthContext {
+            caller_kind: ship_substrate::events::CallerKind::Mcp,
+            agent_id: Some(agent_id.to_string()),
+            workspace_id: None,
+            session_id: None,
+            scopes: vec![],
+        }
     }
 
     #[test]
-    fn resolve_actor_falls_back_to_auth() {
-        let event = ShipHookEvent {
-            tool_name: None,
-            tool_input: None,
-            tool_response: None,
-            actor_id: None,
-            workspace: None,
-            session_id: None,
-        };
-        let auth = AuthContext {
-            caller_kind: ship_substrate::events::CallerKind::Cli,
-            agent_id: Some("from-auth".into()),
-            workspace_id: None,
-            session_id: None,
-            scopes: vec![],
-        };
-        assert_eq!(resolve_actor(&event, &auth), "from-auth");
+    fn resolve_actor_cli_prefers_event() {
+        let resolved = resolve_actor(&make_event(Some("from-event")), &cli_auth(Some("from-auth")));
+        assert_eq!(resolved.ok().as_deref(), Some("from-event"));
+    }
+
+    #[test]
+    fn resolve_actor_cli_falls_back_to_auth() {
+        let resolved = resolve_actor(&make_event(None), &cli_auth(Some("from-auth")));
+        assert_eq!(resolved.ok().as_deref(), Some("from-auth"));
+    }
+
+    #[test]
+    fn resolve_actor_mcp_matching_passes() {
+        let resolved = resolve_actor(&make_event(Some("agent-self")), &mcp_auth("agent-self"));
+        assert_eq!(resolved.ok().as_deref(), Some("agent-self"));
+    }
+
+    #[test]
+    fn resolve_actor_mcp_mismatched_rejected() {
+        assert!(resolve_actor(&make_event(Some("agent-other")), &mcp_auth("agent-self")).is_err());
     }
 }

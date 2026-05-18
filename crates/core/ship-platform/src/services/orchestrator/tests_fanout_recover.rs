@@ -114,18 +114,18 @@ fn persist(ship_dir: &std::path::Path, event_type: &str, entity: &str, payload: 
 }
 
 fn seed_live_parent_with_three_orphan_lanes(ship_dir: &std::path::Path, job_id: &str, slug: &str) {
-    use ship_substrate::events::job::event_types;
+    use ship_substrate::events::pipeline::event_types;
     // Parent dispatched, still live (no job.completed/failed/cancelled).
-    persist(ship_dir, event_types::JOB_CREATED, job_id, serde_json::json!({
+    persist(ship_dir, event_types::PIPELINE_RUN_STARTED, job_id, serde_json::json!({
         "job_id": job_id, "slug": slug, "agent": "orchestrator",
         "branch": format!("job/{slug}"),
         "spec_path": ".artifacts/job-spec.md", "source_spec_path": null,
     }));
-    persist(ship_dir, event_types::JOB_DISPATCHED, job_id, serde_json::json!({
+    persist(ship_dir, event_types::PIPELINE_RUN_DISPATCHED, job_id, serde_json::json!({
         "job_id": job_id, "worktree": format!("/tmp/{slug}"), "pid": null,
     }));
     for lane in ["a", "b", "c"] {
-        persist(ship_dir, event_types::STEP_DISPATCHED, job_id, serde_json::json!({
+        persist(ship_dir, event_types::PIPELINE_STEP_STARTED, job_id, serde_json::json!({
             "job_id": job_id, "slug": slug,
             "step_id": format!("draft.{lane}"),
             "step_type": "fanout_lane",
@@ -162,7 +162,7 @@ async fn reconcile_live_parent_emits_synthetic_failed_markers_for_orphan_lanes()
     let events = ship_substrate::db::events::list_all_events().unwrap();
     let synthetic_dones: Vec<_> = events
         .iter()
-        .filter(|e| e.event_type == "step.done_declared")
+        .filter(|e| e.event_type == "pipeline.step.done_declared")
         .filter(|e| {
             let p: serde_json::Value = serde_json::from_str(&e.payload_json).unwrap_or_default();
             p["step_id"].as_str().map(|s| s.starts_with("draft.")).unwrap_or(false)
@@ -178,7 +178,7 @@ async fn reconcile_live_parent_emits_synthetic_failed_markers_for_orphan_lanes()
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn reconcile_terminal_parent_cleans_up_lane_worktrees() {
-    use ship_substrate::events::job::event_types;
+    use ship_substrate::events::pipeline::event_types;
     let ship_dir = fresh_ship_dir();
     let kernel = make_kernel();
 
@@ -192,7 +192,7 @@ async fn reconcile_terminal_parent_cleans_up_lane_worktrees() {
 
     seed_live_parent_with_three_orphan_lanes(&ship_dir, "j-restart-2", "slug-2");
     // Promote parent into a terminal state: emit job.cancelled.
-    persist(&ship_dir, event_types::JOB_CANCELLED, "j-restart-2", serde_json::json!({
+    persist(&ship_dir, event_types::PIPELINE_RUN_CANCELLED, "j-restart-2", serde_json::json!({
         "job_id": "j-restart-2", "slug": "slug-2",
         "reason": "operator", "requested_by": "test",
     }));
@@ -226,14 +226,14 @@ async fn reconcile_is_idempotent_second_pass_emits_no_extra_markers() {
 
     let first_dones: usize = ship_substrate::db::events::list_all_events().unwrap()
         .iter()
-        .filter(|e| e.event_type == "step.done_declared")
+        .filter(|e| e.event_type == "pipeline.step.done_declared")
         .count();
 
     reconcile_fanout_lanes(&kernel, &octx).await;
 
     let second_dones: usize = ship_substrate::db::events::list_all_events().unwrap()
         .iter()
-        .filter(|e| e.event_type == "step.done_declared")
+        .filter(|e| e.event_type == "pipeline.step.done_declared")
         .count();
     assert_eq!(
         first_dones, second_dones,

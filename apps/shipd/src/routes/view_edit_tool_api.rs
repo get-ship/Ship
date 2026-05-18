@@ -17,7 +17,7 @@ use axum::{
 };
 use std::sync::Arc;
 
-use crate::auth::AuthContext;
+use crate::auth::{AuthContext};
 use crate::routes::rest_api::ApiState;
 use ship_platform::artifacts::ArtifactService;
 use ship_platform::view_authoring::{self, CompileError, ViewAnnotateResponse, ViewCompileCheckResponse,

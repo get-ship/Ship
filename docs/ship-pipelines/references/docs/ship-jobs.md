@@ -167,15 +167,15 @@ pub struct JobSpec {
 pub enum SpecStatus { Draft, Ready, InProgress, Done, Abandoned }
 ```
 
-Body is opaque markdown — it becomes the agent's spec content via `spec_content` in the `JobCreatedPayload`.
+Body is opaque markdown — it becomes the agent's spec content via `spec_content` in the `PipelineRunStartedPayload`.
 
 ## Payload types
 
 `payload.rs`. Event serialization shapes shared between orchestrator (emitter) and CLI (observer for `ship tail`, `ship jobs`):
 
-- `JobCreatedPayload` — POSTed by `ship run`. Carries slug, agent, branch, spec_path, and (after `ensure_pipeline`) parsed pipeline steps.
-- `StepDispatchedPayload` — step begins.
-- `StepCompletedPayload` — clean completion.
+- `PipelineRunStartedPayload` — POSTed by `ship run`. Carries slug, agent, branch, spec_path, and (after `ensure_pipeline`) parsed pipeline steps.
+- `PipelineStepStartedPayload` — step begins.
+- `PipelineStepCompletedPayload` — clean completion.
 - Additional payloads for cancellation, failure, merge, gate pass/fail.
 
 ## Record types
@@ -184,7 +184,7 @@ Body is opaque markdown — it becomes the agent's spec content via `spec_conten
 
 ## event_types.rs
 
-String constants for pipeline step events. Historically local to this crate; step event strings have since been lifted into `ship-types::event_types` (`JOB_STEP_COMPLETED`, `JOB_STEP_FAILED`, `JOB_CANCELLED`, `JOB_MERGED`, `JOB_SPAWN_FAILED`) via the db-cleanup-01 refactor. The shared crate is the canonical source; any remaining literals here should be migrated in a follow-up.
+String constants for pipeline step events. Historically local to this crate; step event strings have since been lifted into `ship-types::event_types` (`JOB_STEP_COMPLETED`, `JOB_STEP_FAILED`, `PIPELINE_RUN_CANCELLED`, `PIPELINE_RUN_MERGED`, `PIPELINE_STEP_SPAWN_FAILED`) via the db-cleanup-01 refactor. The shared crate is the canonical source; any remaining literals here should be migrated in a follow-up.
 
 ## Invariants
 
@@ -196,9 +196,9 @@ String constants for pipeline step events. Historically local to this crate; ste
 
 ## Where the pipeline gets consumed
 
-1. **CLI** (`ship run`): loads the JSONC pipeline file, calls `normalize_pipeline`, POSTs `JobCreatedPayload` with normalized form.
+1. **CLI** (`ship run`): loads the JSONC pipeline file, calls `normalize_pipeline`, POSTs `PipelineRunStartedPayload` with normalized form.
 2. **Daemon** (`runtime_api::create_job`): runs `orchestrator::pipeline_loader::ensure_pipeline` (idempotent) to deserialize into the payload's `steps` field, then persists the event.
-3. **Orchestrator**: consumes `JobCreatedPayload`, reads `steps` as a `Pipeline`, runs `advance_pipeline` to dispatch.
+3. **Orchestrator**: consumes `PipelineRunStartedPayload`, reads `steps` as a `Pipeline`, runs `advance_pipeline` to dispatch.
 
 Same `Pipeline` type, shared via ship-jobs, used by all three.
 

@@ -5,7 +5,7 @@ import { Hono } from 'hono'
  *
  *   GET /healthz     liveness — returns 200 unconditionally
  *   GET /readyz      readiness — verifies critical bindings are reachable
- *   GET /api/version build identification
+ *   GET /v1/version  build identification
  *
  * Cloudflare's edge needs liveness probes that don't touch backing services
  * (avoid cascading failure during D1 incidents). Readiness DOES touch them,
@@ -53,7 +53,7 @@ ops.get('/readyz', async (c) => {
   )
 })
 
-ops.get('/api/version', (c) => {
+ops.get('/v1/version', (c) => {
   // Build SHA and version come from wrangler-injected env at deploy time
   // (or from a build-time replacement). Until that's wired, the version
   // string is "dev"; build SHA is whatever last `wrangler deploy` stamped,

@@ -1,3 +1,9 @@
+<!-- Live subscriptions live at the top per SUI hard rule #2 (subscriptions
+     in <data> elements; never call ship.* outside <data> or <form mutation>).
+     Both signals are accessed via the auto-generated scope in the controller. -->
+<data name="settings" source="ship.settings.state()" live />
+<data name="account"  source="ship.account.state()"  live />
+
 <div class="ship-view ship-view-settings">
   <main class="settings-wrap">
     <header class="settings-header">
@@ -30,6 +36,96 @@
 
     {#if settings().kind === 'ok'}
       <div class="s-sections">
+
+        <!-- Account -->
+        <sui-card id="account" padding="none">
+          <div slot="header" class="s-section-head">
+            <h2 class="s-section-title">
+              <sui-icon name="user"></sui-icon>Account
+            </h2>
+          </div>
+          <div class="s-section-body s-account-body">
+            {#if account().kind === 'loading'}
+              <sui-list-tile density="compact">
+                <span class="s-row-label muted">Loading account…</span>
+              </sui-list-tile>
+            {:else if account().kind === 'error'}
+              <sui-list-tile density="compact">
+                <span class="s-row-label">Ship Cloud</span>
+                <span slot="meta">Daemon unreachable. Account features unavailable while offline.</span>
+              </sui-list-tile>
+            {:else if accountIdentity().status === 'logged_in'}
+              <sui-list-tile density="compact">
+                {#if accountIdentity().me?.image}
+                  <img slot="leading" class="s-account-avatar"
+                    src={accountIdentity().me?.image ?? ''} alt="" />
+                {:else}
+                  <span slot="leading" class="s-account-avatar-fallback">{accountInitials()}</span>
+                {/if}
+                <span class="s-row-label">{accountName()}</span>
+                {#if accountIdentity().me?.email}
+                  <span slot="meta">{accountIdentity().me?.email}</span>
+                {:else}
+                  <span slot="meta">Signed in to Ship Cloud</span>
+                {/if}
+                {#if accountPlan()}
+                  <span slot="trailing" class="s-row-trailing">
+                    <sui-badge tone="info" variant="soft" size="sm">{accountPlan()}</sui-badge>
+                  </span>
+                {/if}
+              </sui-list-tile>
+              <sui-list-tile density="compact">
+                <span class="s-row-label">Billing</span>
+                <span slot="meta">Manage your plan and payment method</span>
+                <span slot="trailing">
+                  <sui-button variant="outline" size="sm" on:click={() => openBilling()}>
+                    <sui-icon slot="leading" name="external-link" size="sm"></sui-icon>
+                    Open billing
+                  </sui-button>
+                </span>
+              </sui-list-tile>
+              <sui-list-tile density="compact">
+                <span class="s-row-label">Session</span>
+                <span slot="meta">Sign out clears the API key stored by this daemon</span>
+                <span slot="trailing">
+                  <sui-button variant="outline" tone="danger" size="sm"
+                    disabled={accountBusy()}
+                    on:click={onAccountSignOut}>
+                    Sign out
+                  </sui-button>
+                </span>
+              </sui-list-tile>
+            {:else if accountIdentity().status === 'pending'}
+              <sui-list-tile density="compact">
+                <span slot="leading" class="s-account-avatar-fallback signed-out">
+                  <sui-icon name="loader" size="sm"></sui-icon>
+                </span>
+                <span class="s-row-label">Completing sign-in…</span>
+                <span slot="meta">Finish the flow in your browser, then return here.</span>
+              </sui-list-tile>
+            {:else}
+              <sui-list-tile density="compact">
+                <span slot="leading" class="s-account-avatar-fallback signed-out">
+                  <sui-icon name="user" size="sm"></sui-icon>
+                </span>
+                <span class="s-row-label">Not signed in</span>
+                <span slot="meta">Connect this workspace to Ship Cloud to unlock publish + sync.</span>
+                <span slot="trailing">
+                  <sui-button variant="solid" tone="primary" size="sm"
+                    disabled={accountBusy()}
+                    on:click={onAccountSignIn}>
+                    Sign in
+                  </sui-button>
+                </span>
+              </sui-list-tile>
+            {/if}
+            {#if accountError()}
+              <sui-list-tile density="compact">
+                <span class="s-row-label err">{accountError()}</span>
+              </sui-list-tile>
+            {/if}
+          </div>
+        </sui-card>
 
         <!-- Theme -->
         <sui-card padding="none">
@@ -170,6 +266,81 @@
           </div>
         </sui-card>
 
+        <!-- Harness defaults -->
+        <sui-card padding="none">
+          <div slot="header" class="s-section-head">
+            <h2 class="s-section-title">
+              <sui-icon name="cpu"></sui-icon>Harness defaults
+            </h2>
+          </div>
+          <div class="s-section-body">
+            <sui-list-tile density="compact">
+              <span class="s-row-label" id="s-label-harness-default">Default harness</span>
+              <span slot="meta">Harness used when `ship use --launch` runs with no `--harness` flag</span>
+              <span slot="trailing" class="s-row-trailing">
+                <form mutation="ship.settings.update" on:success={() => flashSaved(savedHarnessDefault)}>
+                  <input type="hidden" name="key" value="harness.default" />
+                  <sui-badge tone="success" variant="soft" size="sm"
+                    class="s-save-badge" class:visible={savedHarnessDefault()}>
+                    <sui-icon slot="leading" name="check" size="sm"></sui-icon>Saved
+                  </sui-badge>
+                  <sui-input name="value" size="sm" aria-labelledby="s-label-harness-default"
+                    prop:value={settings().value.harness_default}
+                    placeholder="e.g. claude, codex, gemini"
+                    on:blur={(e) => e.target.closest('form')?.requestSubmit()}
+                    on:keydown={(e) => { if (e.key === 'Enter') e.target.blur() }}></sui-input>
+                </form>
+              </span>
+            </sui-list-tile>
+
+            <sui-list-tile density="compact">
+              <span class="s-row-label" id="s-label-harness-default-model">Default harness model</span>
+              <span slot="meta">Model passed to the launched harness when no `--model` flag is set</span>
+              <span slot="trailing" class="s-row-trailing">
+                <form mutation="ship.settings.update" on:success={() => flashSaved(savedHarnessModel)}>
+                  <input type="hidden" name="key" value="harness.default_model" />
+                  <sui-badge tone="success" variant="soft" size="sm"
+                    class="s-save-badge" class:visible={savedHarnessModel()}>
+                    <sui-icon slot="leading" name="check" size="sm"></sui-icon>Saved
+                  </sui-badge>
+                  <sui-input name="value" size="sm" aria-labelledby="s-label-harness-default-model"
+                    prop:value={settings().value.harness_default_model}
+                    placeholder="e.g. sonnet, opus"
+                    on:blur={(e) => e.target.closest('form')?.requestSubmit()}
+                    on:keydown={(e) => { if (e.key === 'Enter') e.target.blur() }}></sui-input>
+                </form>
+              </span>
+            </sui-list-tile>
+          </div>
+        </sui-card>
+
+        <!-- Sessions -->
+        <sui-card padding="none">
+          <div slot="header" class="s-section-head">
+            <h2 class="s-section-title">
+              <sui-icon name="play"></sui-icon>Sessions
+            </h2>
+          </div>
+          <div class="s-section-body">
+            <sui-list-tile density="compact">
+              <span class="s-row-label" id="s-label-auto-resume">Auto-resume agent sessions</span>
+              <span slot="meta">When on, `ship use --launch` re-enters an existing (agent, path) session instead of spawning fresh</span>
+              <span slot="trailing" class="s-row-trailing">
+                <form mutation="ship.settings.update" on:success={() => flashSaved(savedAutoResume)}>
+                  <input type="hidden" name="key" value="agent_session.auto_resume" />
+                  <sui-badge tone="success" variant="soft" size="sm"
+                    class="s-save-badge" class:visible={savedAutoResume()}>
+                    <sui-icon slot="leading" name="check" size="sm"></sui-icon>Saved
+                  </sui-badge>
+                  <sui-switch name="value" size="sm" aria-labelledby="s-label-auto-resume"
+                    prop:checked={settings().value.agent_session_auto_resume}
+                    on:sui-change={(e) => e.target.closest('form')?.requestSubmit()}></sui-switch>
+                </form>
+              </span>
+            </sui-list-tile>
+          </div>
+        </sui-card>
+
         <!-- Advanced (collapsible) -->
         <sui-card padding="none">
           <sui-collapsible
@@ -208,6 +379,60 @@
                       <sui-input name="value" size="sm" aria-labelledby="s-label-registry"
                         prop:value={settings().value.advanced_registry}
                         placeholder="https://registry.getship.dev"
+                        on:blur={(e) => e.target.closest('form')?.requestSubmit()}
+                        on:keydown={(e) => { if (e.key === 'Enter') e.target.blur() }}></sui-input>
+                    </form>
+                  </span>
+                </sui-list-tile>
+                <sui-list-tile density="compact">
+                  <span class="s-row-label" id="s-label-watcher-debounce">Watcher debounce (ms)</span>
+                  <span slot="meta">Debounce window for the declarative `.ship/` file watcher</span>
+                  <span slot="trailing" class="s-row-trailing">
+                    <form mutation="ship.settings.update" on:success={() => flashSaved(savedWatcherDebounce)}>
+                      <input type="hidden" name="key" value="watcher.debounce_ms" />
+                      <sui-badge tone="success" variant="soft" size="sm"
+                        class="s-save-badge" class:visible={savedWatcherDebounce()}>
+                        <sui-icon slot="leading" name="check" size="sm"></sui-icon>Saved
+                      </sui-badge>
+                      <sui-input type="number" name="value" size="sm" aria-labelledby="s-label-watcher-debounce"
+                        prop:value={settings().value.watcher_debounce_ms}
+                        placeholder="200"
+                        on:blur={(e) => e.target.closest('form')?.requestSubmit()}
+                        on:keydown={(e) => { if (e.key === 'Enter') e.target.blur() }}></sui-input>
+                    </form>
+                  </span>
+                </sui-list-tile>
+                <sui-list-tile density="compact">
+                  <span class="s-row-label" id="s-label-git-log-limit">Git log limit</span>
+                  <span slot="meta">Default row count for `git log` reads when callers omit a limit</span>
+                  <span slot="trailing" class="s-row-trailing">
+                    <form mutation="ship.settings.update" on:success={() => flashSaved(savedGitLogLimit)}>
+                      <input type="hidden" name="key" value="git.log_limit" />
+                      <sui-badge tone="success" variant="soft" size="sm"
+                        class="s-save-badge" class:visible={savedGitLogLimit()}>
+                        <sui-icon slot="leading" name="check" size="sm"></sui-icon>Saved
+                      </sui-badge>
+                      <sui-input type="number" name="value" size="sm" aria-labelledby="s-label-git-log-limit"
+                        prop:value={settings().value.git_log_limit}
+                        placeholder="50"
+                        on:blur={(e) => e.target.closest('form')?.requestSubmit()}
+                        on:keydown={(e) => { if (e.key === 'Enter') e.target.blur() }}></sui-input>
+                    </form>
+                  </span>
+                </sui-list-tile>
+                <sui-list-tile density="compact">
+                  <span class="s-row-label" id="s-label-hooks-max-depth">Hooks max depth</span>
+                  <span slot="meta">Max hook recursion depth before the engine drops further events</span>
+                  <span slot="trailing" class="s-row-trailing">
+                    <form mutation="ship.settings.update" on:success={() => flashSaved(savedHooksMaxDepth)}>
+                      <input type="hidden" name="key" value="hooks.max_depth" />
+                      <sui-badge tone="success" variant="soft" size="sm"
+                        class="s-save-badge" class:visible={savedHooksMaxDepth()}>
+                        <sui-icon slot="leading" name="check" size="sm"></sui-icon>Saved
+                      </sui-badge>
+                      <sui-input type="number" name="value" size="sm" aria-labelledby="s-label-hooks-max-depth"
+                        prop:value={settings().value.hooks_max_depth}
+                        placeholder="3"
                         on:blur={(e) => e.target.closest('form')?.requestSubmit()}
                         on:keydown={(e) => { if (e.key === 'Enter') e.target.blur() }}></sui-input>
                     </form>

@@ -140,14 +140,13 @@ fn skill_files_content(out: &CompileOutput) -> String {
     parts.join("\n\n")
 }
 
-fn profile(id: &str, harnesses: &[&str], refs: &[&str]) -> AgentProfile {
+fn profile(id: &str, _harnesses: &[&str], refs: &[&str]) -> AgentProfile {
     AgentProfile {
         agent: ProfileMeta {
             id: id.into(),
             name: id.into(),
             version: None,
             description: None,
-            harnesses: harnesses.iter().map(|s| s.to_string()).collect(),
             role: None,
             tags: vec![],
             tools_preset: None,

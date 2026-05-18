@@ -7,7 +7,6 @@
     "icon": "simpleicons:javascript",
     "version": "0.2.0",
     "description": "Web-facing app code: apps/shell, apps/site, apps/docs. Uses SUI views and components but doesn't author them — that's ship-designer's lane.",
-    "providers": ["claude", "codex", "cursor", "gemini", "opencode"],
   },
   "skills": {
     "refs": ["ship-views", "ship-components", "ship-design-system", "no-slop", "web-qa"],

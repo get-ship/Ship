@@ -63,6 +63,15 @@ pub struct SettingsCtx {
     pub advanced_registry: String,
     pub daemon_endpoint: String,
     pub about: AboutInfo,
+    pub harness_default: String,
+    pub harness_default_model: String,
+    pub agent_session_auto_resume: bool,
+    /// Stringified for the `<sui-input>` value binding — the SUI compiler
+    /// rejects scalar coercions like `String(...)` in renderable
+    /// expressions, so number-shaped settings are serialised as strings.
+    pub watcher_debounce_ms: String,
+    pub git_log_limit: String,
+    pub hooks_max_depth: String,
 }
 
 fn harness_meta(id: &str) -> (&'static str, &'static str) {
@@ -155,6 +164,20 @@ pub fn build_ctx() -> SettingsCtx {
         format!("http://localhost:{}", daemon_port)
     };
 
+    let harness_default = setting_string("harness.default");
+    let harness_default_model = setting_string("harness.default_model");
+    let agent_session_auto_resume = ship_platform::config::resolve_bool(
+        "agent_session.auto_resume",
+        None,
+        &ship_platform::config::ProjectConfig::default(),
+    );
+    let watcher_debounce_ms =
+        ship_platform::config::get_setting_u64_or("watcher.debounce_ms", 200).to_string();
+    let git_log_limit =
+        ship_platform::config::get_setting_u64_or("git.log_limit", 50).to_string();
+    let hooks_max_depth =
+        (ship_platform::config::get_setting_u64_or("hooks.max_depth", 3) as u32).to_string();
+
     SettingsCtx {
         harnesses,
         default_harness,
@@ -164,5 +187,11 @@ pub fn build_ctx() -> SettingsCtx {
         advanced_registry,
         daemon_endpoint,
         about: build_about(),
+        harness_default,
+        harness_default_model,
+        agent_session_auto_resume,
+        watcher_debounce_ms,
+        git_log_limit,
+        hooks_max_depth,
     }
 }

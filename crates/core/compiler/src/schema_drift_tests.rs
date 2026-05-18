@@ -61,35 +61,6 @@ fn schema_has_key(schema: &Json, path: &[&str]) -> bool {
 // ── Harness enum consistency ────────────────────────────────────────────────
 
 #[test]
-fn agent_schema_harnesses_match_compiler() {
-    let schema = load_schema("agent.schema.json");
-    let schema_harnesses = schema_enum_values(
-        &schema,
-        &[
-            "properties",
-            "agent",
-            "properties",
-            "harnesses",
-            "items",
-            "enum",
-        ],
-    );
-
-    let compiler_harnesses: Vec<&str> = crate::compile::list_harnesses()
-        .iter()
-        .map(|p| p.id)
-        .collect();
-
-    for p in &compiler_harnesses {
-        assert!(
-            schema_harnesses.contains(&p.to_string()),
-            "Compiler has harness '{}' but agent.schema.json is missing it",
-            p
-        );
-    }
-}
-
-#[test]
 fn ship_schema_harnesses_match_compiler() {
     let schema = load_schema("ship.schema.json");
     let schema_harnesses = schema_enum_values(
@@ -197,6 +168,24 @@ fn ship_schema_has_harness_defaults() {
         project_props.contains(&"harness_defaults".to_string()),
         "ship.schema.json project section missing harness_defaults"
     );
+}
+
+#[test]
+fn ship_schema_has_root_harness_block() {
+    let schema = load_schema("ship.schema.json");
+    let root_props = schema_object_keys(&schema, &["properties"]);
+    assert!(
+        root_props.contains(&"harness".to_string()),
+        "ship.schema.json missing root-level 'harness' block for launch defaults"
+    );
+    let harness_props = schema_object_keys(&schema, &["properties", "harness", "properties"]);
+    for field in ["default", "default_model"] {
+        assert!(
+            harness_props.contains(&field.to_string()),
+            "root harness block missing '{}'",
+            field
+        );
+    }
 }
 
 #[test]

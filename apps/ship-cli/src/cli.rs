@@ -75,6 +75,11 @@ pub enum Commands {
 
     // ── Daily Use ────────────────────────────────────────────────────────────
     /// Activate an agent for the current (or specified) directory
+    ///
+    /// Without launch flags this only compiles and activates the agent.
+    /// Pass `--launch` (interactive) or `--auto` (headless) to dispatch a
+    /// session immediately. `--auto`, `--prompt`, `--spec`, and `--resume`
+    /// each imply `--launch`.
     Use {
         /// Agent ID or registry reference (e.g. rust-expert, @org/agent)
         agent_id: String,
@@ -87,6 +92,29 @@ pub enum Commands {
         /// Extra skill IDs to inject at compile time (repeatable)
         #[arg(long = "with", value_name = "SKILL_ID")]
         with_skills: Vec<String>,
+
+        // ── launch ──
+        /// Spawn an interactive agent session after compiling.
+        #[arg(long)]
+        launch: bool,
+        /// Spawn an autonomous (headless) session after compiling. Implies --launch.
+        #[arg(long)]
+        auto: bool,
+        /// Re-enter the last session for this (agent, path) pair. Implies --launch.
+        #[arg(long)]
+        resume: bool,
+        /// Inline prompt; becomes the agent's first user turn. Implies --launch.
+        #[arg(long, conflicts_with = "spec")]
+        prompt: Option<String>,
+        /// Path to a job spec markdown; copied to .artifacts/job-spec.md. Implies --launch.
+        #[arg(long, conflicts_with = "prompt")]
+        spec: Option<PathBuf>,
+        /// Per-launch harness override (claude, codex, gemini, cursor).
+        #[arg(long)]
+        harness: Option<String>,
+        /// Per-launch model override (e.g. sonnet, opus).
+        #[arg(long)]
+        model: Option<String>,
     },
 
     /// Show the active agent and compilation status
@@ -237,24 +265,14 @@ pub enum Commands {
         headless: bool,
     },
 
-    /// Manage running jobs (cancel, etc.).
-    Job {
-        #[command(subcommand)]
-        action: JobCommands,
-    },
-
-    /// List current jobs with projected status, current step, and live process state
-    Jobs {
-        /// Emit jobs as JSON instead of a table
-        #[arg(long)]
-        json: bool,
-    },
-
     /// List process records (lifecycle view from the ProcessRecord projection)
     Procs {
         /// Filter to a single job slug
         #[arg(long)]
         slug: Option<String>,
+        /// Filter by session kind. Valid values: agent, pipeline-step, shell.
+        #[arg(long, value_name = "KIND")]
+        kind: Option<String>,
         /// Cap the number of rows returned (default 100)
         #[arg(long)]
         limit: Option<usize>,
@@ -323,17 +341,6 @@ pub enum OpenapiCommands {
     },
 }
 
-#[derive(Subcommand, Debug)]
-pub enum JobCommands {
-    /// Cancel a running job.
-    Cancel {
-        /// Slug of the job to cancel.
-        slug: String,
-        /// Free-form reason. Recorded in the event log.
-        #[arg(long, default_value = "operator-cancelled")]
-        reason: String,
-    },
-}
 
 #[derive(Subcommand, Debug)]
 pub enum DaemonCommands {
@@ -373,7 +380,18 @@ pub enum DaemonCommands {
     /// is ahead of the binary on its own, so this is a pure diagnostic:
     /// use it to understand a startup migration error.
     #[command(name = "repair-migrations")]
-    RepairMigrations,
+    RepairMigrations {
+        /// Backup and recreate `platform.db` when a checksum mismatch is
+        /// detected. Pre-launch escape hatch: when a baseline migration is
+        /// edited in place (per the migrations/README convention), every
+        /// dev DB that already applied the old checksum fails to start.
+        /// `--reset` backs up the affected DB to `<path>.bak-<timestamp>`
+        /// and deletes the original (plus -wal and -shm), letting the
+        /// next daemon start re-apply migrations from scratch. Without
+        /// `--reset` the command remains a read-only diagnostic.
+        #[arg(long)]
+        reset: bool,
+    },
     /// Run the daemon in the foreground (internal — used by `start`, also useful for Docker/systemd)
     #[command(hide = true)]
     Run {

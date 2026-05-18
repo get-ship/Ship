@@ -143,7 +143,7 @@ export default controller<Scope>({
     openDelete: (s) => { (s as any).deleteOpen = true },
     closeDelete: (s) => { (s as any).deleteOpen = false },
     stopRun: async (_s, jobId: string) => {
-      await fetch('/api/v1/jobs/end', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ job_id: jobId }) })
+      await fetch('/api/v1/agent_sessions/end', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ job_id: jobId }) })
     },
     pulseRun: (_s, el: HTMLElement) => {
       el.classList.add('ship-heartbeat')

@@ -1,6 +1,6 @@
 use super::{JobStatus, project};
 use ship_substrate::events::EventEnvelope;
-use ship_substrate::events::job::event_types;
+use ship_substrate::events::pipeline::event_types;
 
 fn make_event(event_type: &str, payload: serde_json::Value) -> EventEnvelope {
     EventEnvelope::new(event_type, "test-entity", &payload).unwrap()
@@ -8,7 +8,7 @@ fn make_event(event_type: &str, payload: serde_json::Value) -> EventEnvelope {
 
 fn created_event(job_id: &str) -> EventEnvelope {
     make_event(
-        event_types::JOB_CREATED,
+        event_types::PIPELINE_RUN_STARTED,
         serde_json::json!({
             "job_id": job_id,
             "slug": "auth-tests",
@@ -38,7 +38,7 @@ fn project_carries_source_spec_path_from_created_event() {
     // New-style dispatches carry the operator-facing path. The projection
     // must surface it verbatim so `ship jobs` can distinguish spec files.
     let events = vec![make_event(
-        event_types::JOB_CREATED,
+        event_types::PIPELINE_RUN_STARTED,
         serde_json::json!({
             "job_id": "j-src",
             "slug": "with-source",
@@ -63,7 +63,7 @@ fn project_carries_baseline_sha_from_created_event() {
     // load-bearing field for end-to-end pipelines — without it a review
     // step's gate sees an empty diff range and fails spuriously.
     let events = vec![make_event(
-        event_types::JOB_CREATED,
+        event_types::PIPELINE_RUN_STARTED,
         serde_json::json!({
             "job_id": "j-base",
             "slug": "with-baseline",
@@ -96,7 +96,7 @@ fn project_dispatched_sets_worktree() {
     let events = vec![
         created_event("j2"),
         make_event(
-            event_types::JOB_DISPATCHED,
+            event_types::PIPELINE_RUN_DISPATCHED,
             serde_json::json!({"job_id": "j2", "worktree": "/tmp/wt", "pid": 1234}),
         ),
     ];
@@ -111,11 +111,11 @@ fn project_gate_requested_then_passed() {
     let events = vec![
         created_event("j3"),
         make_event(
-            event_types::JOB_GATE_REQUESTED,
+            event_types::PIPELINE_GATE_REQUESTED,
             serde_json::json!({"job_id": "j3", "gate_agent": "gatekeeper"}),
         ),
         make_event(
-            event_types::JOB_GATE_PASSED,
+            event_types::PIPELINE_GATE_PASSED,
             serde_json::json!({"job_id": "j3"}),
         ),
     ];
@@ -128,7 +128,7 @@ fn project_gate_failed_stores_reason() {
     let events = vec![
         created_event("j4"),
         make_event(
-            event_types::JOB_GATE_FAILED,
+            event_types::PIPELINE_GATE_FAILED,
             serde_json::json!({"job_id": "j4", "reason": "tests failed"}),
         ),
     ];
@@ -143,7 +143,7 @@ fn project_blocked_stores_blocker() {
     let events = vec![
         created_event("j5"),
         make_event(
-            event_types::JOB_BLOCKED,
+            event_types::PIPELINE_RUN_BLOCKED,
             serde_json::json!({"job_id": "j5", "blocker": "waiting for infra", "needs_human": true}),
         ),
     ];
@@ -158,7 +158,7 @@ fn project_merged() {
     let events = vec![
         created_event("j6"),
         make_event(
-            event_types::JOB_MERGED,
+            event_types::PIPELINE_RUN_MERGED,
             serde_json::json!({"job_id": "j6"}),
         ),
     ];
@@ -171,7 +171,7 @@ fn project_failed_stores_error() {
     let events = vec![
         created_event("j7"),
         make_event(
-            event_types::JOB_FAILED,
+            event_types::PIPELINE_RUN_FAILED,
             serde_json::json!({"job_id": "j7", "error": "panic in build"}),
         ),
     ];
@@ -186,7 +186,7 @@ fn project_completed_status() {
     let events = vec![
         created_event("j-comp"),
         make_event(
-            event_types::JOB_COMPLETED,
+            event_types::PIPELINE_RUN_COMPLETED,
             serde_json::json!({"job_id": "j-comp", "slug": "auth-tests"}),
         ),
     ];
@@ -197,7 +197,7 @@ fn project_completed_status() {
 #[test]
 fn project_depends_on_stored() {
     let events = vec![make_event(
-        event_types::JOB_CREATED,
+        event_types::PIPELINE_RUN_STARTED,
         serde_json::json!({
             "job_id": "j-dep",
             "slug": "gated-job",
@@ -238,7 +238,7 @@ fn project_skips_non_job_events() {
 fn project_ignores_event_for_unknown_job() {
     // A dispatched event for a job_id we never saw created — should not panic.
     let events = vec![make_event(
-        event_types::JOB_DISPATCHED,
+        event_types::PIPELINE_RUN_DISPATCHED,
         serde_json::json!({"job_id": "unknown", "worktree": "/x", "pid": null}),
     )];
     let map = project(&events);
@@ -250,7 +250,7 @@ fn project_pipeline_phase_tracking() {
     // Simulate a 2-phase pipeline: created → dispatched (phase 0) → completed → dispatched (phase 1)
     let events = vec![
         make_event(
-            event_types::JOB_CREATED,
+            event_types::PIPELINE_RUN_STARTED,
             serde_json::json!({
                 "job_id": "j-pipe",
                 "slug": "pipe-test",
@@ -266,17 +266,17 @@ fn project_pipeline_phase_tracking() {
         ),
         // Phase 0 dispatched
         make_event(
-            event_types::JOB_DISPATCHED,
+            event_types::PIPELINE_RUN_DISPATCHED,
             serde_json::json!({"job_id": "j-pipe", "worktree": "/tmp/wt", "pid": null}),
         ),
         // Phase 0 completed
         make_event(
-            event_types::JOB_COMPLETED,
+            event_types::PIPELINE_RUN_COMPLETED,
             serde_json::json!({"job_id": "j-pipe", "slug": "pipe-test"}),
         ),
         // Phase 1 dispatched (pipeline advance)
         make_event(
-            event_types::JOB_DISPATCHED,
+            event_types::PIPELINE_RUN_DISPATCHED,
             serde_json::json!({"job_id": "j-pipe", "worktree": "/tmp/wt", "pid": null}),
         ),
     ];
@@ -293,7 +293,7 @@ fn project_pipeline_full_lifecycle() {
     // 3-phase pipeline: all phases complete
     let events = vec![
         make_event(
-            event_types::JOB_CREATED,
+            event_types::PIPELINE_RUN_STARTED,
             serde_json::json!({
                 "job_id": "j-3p",
                 "slug": "three-phase",
@@ -309,16 +309,16 @@ fn project_pipeline_full_lifecycle() {
             }),
         ),
         // Phase 0 dispatched + completed
-        make_event(event_types::JOB_DISPATCHED, serde_json::json!({"job_id": "j-3p", "worktree": "/w", "pid": null})),
-        make_event(event_types::JOB_COMPLETED, serde_json::json!({"job_id": "j-3p"})),
+        make_event(event_types::PIPELINE_RUN_DISPATCHED, serde_json::json!({"job_id": "j-3p", "worktree": "/w", "pid": null})),
+        make_event(event_types::PIPELINE_RUN_COMPLETED, serde_json::json!({"job_id": "j-3p"})),
         // Phase 1 dispatched + completed
-        make_event(event_types::JOB_DISPATCHED, serde_json::json!({"job_id": "j-3p", "worktree": "/w", "pid": null})),
-        make_event(event_types::JOB_COMPLETED, serde_json::json!({"job_id": "j-3p"})),
+        make_event(event_types::PIPELINE_RUN_DISPATCHED, serde_json::json!({"job_id": "j-3p", "worktree": "/w", "pid": null})),
+        make_event(event_types::PIPELINE_RUN_COMPLETED, serde_json::json!({"job_id": "j-3p"})),
         // Phase 2 dispatched + completed
-        make_event(event_types::JOB_DISPATCHED, serde_json::json!({"job_id": "j-3p", "worktree": "/w", "pid": null})),
-        make_event(event_types::JOB_COMPLETED, serde_json::json!({"job_id": "j-3p"})),
+        make_event(event_types::PIPELINE_RUN_DISPATCHED, serde_json::json!({"job_id": "j-3p", "worktree": "/w", "pid": null})),
+        make_event(event_types::PIPELINE_RUN_COMPLETED, serde_json::json!({"job_id": "j-3p"})),
         // Merged after all phases
-        make_event(event_types::JOB_MERGED, serde_json::json!({"job_id": "j-3p"})),
+        make_event(event_types::PIPELINE_RUN_MERGED, serde_json::json!({"job_id": "j-3p"})),
     ];
     let map = project(&events);
     let rec = map.get("j-3p").unwrap();
@@ -330,7 +330,7 @@ fn project_pipeline_full_lifecycle() {
 fn project_step_retry_tracks_attempt() {
     let events = vec![
         make_event(
-            event_types::JOB_CREATED,
+            event_types::PIPELINE_RUN_STARTED,
             serde_json::json!({
                 "job_id": "j-retry",
                 "slug": "retry-test",
@@ -346,16 +346,16 @@ fn project_step_retry_tracks_attempt() {
             }),
         ),
         make_event(
-            event_types::STEP_DISPATCHED,
+            event_types::PIPELINE_STEP_STARTED,
             serde_json::json!({"job_id": "j-retry", "slug": "retry-test", "step_id": "implement", "step_type": "agent"}),
         ),
         make_event(
-            event_types::STEP_COMPLETED,
+            event_types::PIPELINE_STEP_COMPLETED,
             serde_json::json!({"job_id": "j-retry", "slug": "retry-test", "step_id": "implement"}),
         ),
         // Gate fails — step.retry emitted for the gated step
         make_event(
-            event_types::STEP_RETRY,
+            event_types::PIPELINE_STEP_RETRY,
             serde_json::json!({
                 "job_id": "j-retry",
                 "slug": "retry-test",
@@ -379,7 +379,7 @@ fn project_step_retry_tracks_attempt() {
 fn project_step_retry_increments_on_second_retry() {
     let events = vec![
         make_event(
-            event_types::JOB_CREATED,
+            event_types::PIPELINE_RUN_STARTED,
             serde_json::json!({
                 "job_id": "j-retry2",
                 "slug": "retry-test-2",
@@ -389,7 +389,7 @@ fn project_step_retry_increments_on_second_retry() {
             }),
         ),
         make_event(
-            event_types::STEP_RETRY,
+            event_types::PIPELINE_STEP_RETRY,
             serde_json::json!({
                 "job_id": "j-retry2",
                 "slug": "retry-test-2",
@@ -400,7 +400,7 @@ fn project_step_retry_increments_on_second_retry() {
             }),
         ),
         make_event(
-            event_types::STEP_RETRY,
+            event_types::PIPELINE_STEP_RETRY,
             serde_json::json!({
                 "job_id": "j-retry2",
                 "slug": "retry-test-2",
@@ -421,8 +421,8 @@ fn project_non_pipeline_job_has_no_phase() {
     // A normal job (no pipeline) should have current_phase = None
     let events = vec![
         created_event("j-nopipe"),
-        make_event(event_types::JOB_DISPATCHED, serde_json::json!({"job_id": "j-nopipe", "worktree": "/w", "pid": null})),
-        make_event(event_types::JOB_COMPLETED, serde_json::json!({"job_id": "j-nopipe"})),
+        make_event(event_types::PIPELINE_RUN_DISPATCHED, serde_json::json!({"job_id": "j-nopipe", "worktree": "/w", "pid": null})),
+        make_event(event_types::PIPELINE_RUN_COMPLETED, serde_json::json!({"job_id": "j-nopipe"})),
     ];
     let map = project(&events);
     let rec = map.get("j-nopipe").unwrap();
@@ -444,23 +444,23 @@ mod idempotent {
         vec![
             created_event(job_id),
             make_event(
-                event_types::JOB_DISPATCHED,
+                event_types::PIPELINE_RUN_DISPATCHED,
                 serde_json::json!({"job_id": job_id, "worktree": "/tmp/w", "pid": 1}),
             ),
             make_event(
-                event_types::STEP_COMPLETED,
+                event_types::PIPELINE_STEP_COMPLETED,
                 serde_json::json!({"job_id": job_id, "step_id": "step-1"}),
             ),
             make_event(
-                event_types::STEP_DISPATCHED,
+                event_types::PIPELINE_STEP_STARTED,
                 serde_json::json!({"job_id": job_id, "step_id": "step-2", "step_type": "agent"}),
             ),
             make_event(
-                event_types::STEP_COMPLETED,
+                event_types::PIPELINE_STEP_COMPLETED,
                 serde_json::json!({"job_id": job_id, "step_id": "step-2"}),
             ),
             make_event(
-                event_types::JOB_COMPLETED,
+                event_types::PIPELINE_RUN_COMPLETED,
                 serde_json::json!({"job_id": job_id, "slug": "auth-tests"}),
             ),
         ]
@@ -490,16 +490,16 @@ mod idempotent {
 
     #[test]
     fn step_completed_push_is_idempotent() {
-        // Apply STEP_COMPLETED for the same step twice. Must not produce
+        // Apply PIPELINE_STEP_COMPLETED for the same step twice. Must not produce
         // duplicates in completed_steps.
         let events = vec![
             created_event("j-sc"),
             make_event(
-                event_types::STEP_COMPLETED,
+                event_types::PIPELINE_STEP_COMPLETED,
                 serde_json::json!({"job_id": "j-sc", "step_id": "step-1"}),
             ),
             make_event(
-                event_types::STEP_COMPLETED,
+                event_types::PIPELINE_STEP_COMPLETED,
                 serde_json::json!({"job_id": "j-sc", "step_id": "step-1"}),
             ),
         ];
@@ -507,7 +507,7 @@ mod idempotent {
         assert_eq!(
             rec.completed_steps.iter().filter(|s| *s == "step-1").count(),
             1,
-            "duplicate STEP_COMPLETED must not produce duplicate completed_steps entries"
+            "duplicate PIPELINE_STEP_COMPLETED must not produce duplicate completed_steps entries"
         );
     }
 
@@ -520,15 +520,15 @@ mod idempotent {
         let events = vec![
             created_event("j-dis"),
             make_event(
-                event_types::STEP_COMPLETED,
+                event_types::PIPELINE_STEP_COMPLETED,
                 serde_json::json!({"job_id": "j-dis", "step_id": "step-1"}),
             ),
             make_event(
-                event_types::JOB_COMPLETED,
+                event_types::PIPELINE_RUN_COMPLETED,
                 serde_json::json!({"job_id": "j-dis", "slug": "auth-tests"}),
             ),
             make_event(
-                event_types::JOB_DISPATCHED,
+                event_types::PIPELINE_RUN_DISPATCHED,
                 serde_json::json!({"job_id": "j-dis", "worktree": "/w", "pid": 1}),
             ),
         ];
@@ -557,7 +557,7 @@ mod idempotent {
         let events = vec![
             created_event("js1"),
             make_event(
-                event_types::JOB_SPAWN_FAILED,
+                event_types::PIPELINE_STEP_SPAWN_FAILED,
                 serde_json::json!({
                     "job_id": "js1",
                     "slug": "auth-tests",
@@ -577,7 +577,7 @@ mod idempotent {
         let events = vec![
             created_event("jc1"),
             make_event(
-                event_types::JOB_CANCELLED,
+                event_types::PIPELINE_RUN_CANCELLED,
                 serde_json::json!({
                     "job_id": "jc1",
                     "slug": "auth-tests",

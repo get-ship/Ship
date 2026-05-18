@@ -4,7 +4,7 @@
 //! daemon restarts, agent crashes, stuck jobs, resource leaks, and
 //! concurrent operations. They define what "stable" means for v0.2.0.
 
-use ship_substrate::events::job::event_types;
+use ship_substrate::events::pipeline::event_types;
 use ship_substrate::events::EventEnvelope;
 use ship_platform::projections::job::{project, JobStatus};
 
@@ -14,7 +14,7 @@ fn ev(event_type: &str, payload: serde_json::Value) -> EventEnvelope {
 }
 
 fn created(job_id: &str, slug: &str) -> EventEnvelope {
-    ev(event_types::JOB_CREATED, serde_json::json!({
+    ev(event_types::PIPELINE_RUN_STARTED, serde_json::json!({
         "job_id": job_id, "slug": slug,
         "agent": "rust-runtime", "branch": format!("job/{slug}"),
         "spec_path": "spec.md", "plan_id": null,
@@ -22,25 +22,25 @@ fn created(job_id: &str, slug: &str) -> EventEnvelope {
 }
 
 fn dispatched(job_id: &str) -> EventEnvelope {
-    ev(event_types::JOB_DISPATCHED, serde_json::json!({
+    ev(event_types::PIPELINE_RUN_DISPATCHED, serde_json::json!({
         "job_id": job_id, "worktree": format!("/tmp/wt/{job_id}"), "pid": 1234
     }))
 }
 
 fn completed(job_id: &str, slug: &str) -> EventEnvelope {
-    ev(event_types::JOB_COMPLETED, serde_json::json!({
+    ev(event_types::PIPELINE_RUN_COMPLETED, serde_json::json!({
         "job_id": job_id, "slug": slug
     }))
 }
 
 fn merged(job_id: &str, slug: &str) -> EventEnvelope {
-    ev(event_types::JOB_MERGED, serde_json::json!({
+    ev(event_types::PIPELINE_RUN_MERGED, serde_json::json!({
         "job_id": job_id, "slug": slug
     }))
 }
 
 fn failed(job_id: &str, error: &str) -> EventEnvelope {
-    ev(event_types::JOB_FAILED, serde_json::json!({
+    ev(event_types::PIPELINE_RUN_FAILED, serde_json::json!({
         "job_id": job_id, "error": error
     }))
 }
@@ -223,7 +223,7 @@ fn all_non_terminal_states_recoverable() {
         // Blocked — needs human
         created("j-blocked", "blocked"),
         dispatched("j-blocked"),
-        ev(event_types::JOB_BLOCKED, serde_json::json!({
+        ev(event_types::PIPELINE_RUN_BLOCKED, serde_json::json!({
             "job_id": "j-blocked", "blocker": "needs key", "needs_human": true
         })),
     ];
@@ -280,7 +280,7 @@ fn job_full_lifecycle_all_events_present() {
 #[test]
 fn pipeline_full_lifecycle_all_steps_tracked() {
     let events = vec![
-        ev(event_types::JOB_CREATED, serde_json::json!({
+        ev(event_types::PIPELINE_RUN_STARTED, serde_json::json!({
             "job_id": "j1", "slug": "pipe",
             "agent": "test-writer", "branch": "job/pipe",
             "spec_path": "spec.md", "plan_id": null,
@@ -311,7 +311,7 @@ fn pipeline_full_lifecycle_all_steps_tracked() {
 #[test]
 fn pipeline_failure_preserves_completed_steps() {
     let events = vec![
-        ev(event_types::JOB_CREATED, serde_json::json!({
+        ev(event_types::PIPELINE_RUN_STARTED, serde_json::json!({
             "job_id": "j1", "slug": "pipe",
             "agent": "test-writer", "branch": "job/pipe",
             "spec_path": "spec.md", "plan_id": null,
@@ -393,11 +393,11 @@ fn dead_process_recovery_is_observable() {
         "reconcile must record an observation event when no live process is found"
     );
     assert!(
-        sweep.contains("drain_dead") && sweep.contains("JOB_FAILED"),
+        sweep.contains("drain_dead") && sweep.contains("PIPELINE_RUN_FAILED"),
         "coherence sweep must drain dead handles and emit job.failed"
     );
     assert!(
-        exit_handler.contains("JOB_FAILED"),
+        exit_handler.contains("PIPELINE_RUN_FAILED"),
         "exit handler must emit job.failed for non-zero process exits"
     );
 }

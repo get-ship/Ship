@@ -116,3 +116,27 @@ fn caps_match_declared() {
     assert!(!c.hooks, "opencode: hooks via JS plugin file, not wired");
     assert!(c.session_resume, "opencode: REST sessions persist");
 }
+
+// ── build_resume_args ───────────────────────────────────────────────────────
+
+#[test]
+fn build_resume_args_emits_session_flag() {
+    let adapter = OpenCodeAdapter;
+    let cmd = adapter
+        .build_resume_args("my-job", "sess-uuid-9", &default_profile())
+        .expect("opencode supports resume");
+    assert_eq!(cmd.bin, "opencode");
+    assert_eq!(cmd.args[0], "run");
+    let idx = cmd.args.iter().position(|a| a == "--session").unwrap();
+    assert_eq!(cmd.args[idx + 1], "sess-uuid-9");
+}
+
+#[test]
+fn build_resume_args_rejects_empty_session_id() {
+    use crate::services::harness_adapter::ResumeError;
+    let adapter = OpenCodeAdapter;
+    let err = adapter
+        .build_resume_args("my-job", "", &default_profile())
+        .expect_err("empty session id must be rejected");
+    assert!(matches!(err, ResumeError::BadSession { .. }));
+}

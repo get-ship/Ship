@@ -22,8 +22,8 @@ cli-framework = { path = "../../crates/core/cli-framework" }
 compiler = { path = "../../crates/core/compiler" }
 ship-substrate = { path = "../../crates/core/ship-substrate" }
 ship-platform = { path = "../../crates/core/ship-platform" }
+ship-pipelines = { path = "../../crates/core/ship-pipelines" }
 ship-types = { path = "../../crates/core/ship-types" }
-ship-jobs = { path = "../../crates/core/ship-jobs" }
 anyhow = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

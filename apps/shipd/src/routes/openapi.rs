@@ -47,7 +47,8 @@ impl Modify for SecurityAndServer {
         crate::routes::runtime_api::list_workspace_sessions,
         crate::routes::runtime_api::agents::list_agents,
         crate::routes::runtime_api::jobs::list_jobs,
-        crate::routes::runtime_api::dispatch::dispatch_pipeline,
+        crate::routes::runtime_api::dispatch::dispatch_agent_session,
+        crate::routes::runtime_api::pipeline_run::run_pipeline,
         crate::routes::runtime_api::jobs::end_job,
         crate::routes::runtime_api::events::event_stream,
         crate::routes::runtime_api::daemon::rebuild_projections,
@@ -87,6 +88,12 @@ impl Modify for SecurityAndServer {
         crate::views::assets::serve_view_tokens,
         crate::views::assets::serve_theme_css,
         crate::views::assets::serve_themes_list,
+        // Account — daemon-mediated Ship Cloud identity (CallerKind::Cli only).
+        crate::routes::account_api::start_login,
+        crate::routes::account_api::complete_login,
+        crate::routes::account_api::get_state,
+        crate::routes::account_api::logout,
+        crate::routes::account_api::get_key,
     ),
     components(schemas(
         crate::routes::rest_api::MeshRegisterReq,
@@ -97,6 +104,7 @@ impl Modify for SecurityAndServer {
         crate::routes::rest_api::CapabilitiesResponse,
         crate::routes::rest_api::CheckoutHookReq,
         crate::routes::runtime_api::DispatchRequest,
+        crate::routes::runtime_api::PipelineRunRequest,
         crate::routes::runtime_api::JobEndRequest,
         crate::routes::actor_api::ActorSpawnReq,
         crate::routes::actor_api::EventRouteReq,
@@ -129,6 +137,11 @@ impl Modify for SecurityAndServer {
         crate::routes::projects_api::ProjectsResponse,
         crate::routes::projects_api::ProjectAddReq,
         crate::routes::projects_api::ProjectSwitchReq,
+        crate::routes::account_api::StartLoginRequest,
+        crate::routes::account_api::StartLoginResponse,
+        crate::routes::account_api::CompleteLoginRequest,
+        crate::routes::account_api::CompleteLoginResponse,
+        crate::routes::account_api::GetKeyResponse,
     ))
 )]
 pub struct ApiDoc;

@@ -51,7 +51,7 @@ const COARSE_SOURCE_ROOTS: &[&str] = &[
     "apps/shell/src/components",
     "packages/ship-sdk-client/src",
     "runtime-assets/bundler.ts",
-    "packages/ship-set/scripts/generate-lucide-registry.mjs",
+    "runtime-assets/generate-lucide-registry.mjs",
 ];
 
 fn main() {

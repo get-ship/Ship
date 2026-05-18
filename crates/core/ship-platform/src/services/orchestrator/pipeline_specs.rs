@@ -20,7 +20,7 @@
 //! `.artifacts/pipeline/spec.md` plus its agent profile. There is no
 //! implicit "share the overall spec across every stage" behaviour.
 
-use ship_substrate::events::job::{Pipeline, PipelineStep};
+use ship_substrate::events::pipeline::{Pipeline, PipelineStep};
 use crate::services::orchestrator::step_io::ResolvedInput;
 use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};

@@ -14,7 +14,7 @@
 
 mod evidence;
 
-use ship_substrate::events::job::{StepTrigger, StepType};
+use ship_substrate::events::pipeline::{StepTrigger, StepType};
 use ship_substrate::events::KernelRouter;
 use crate::services::dispatch_ports::{
     ExitSignal, JobExecutor, ProcessRegistryPort, ProcessTreeProbe, TreeSample,

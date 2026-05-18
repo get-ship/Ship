@@ -2,7 +2,7 @@
 
 The gateway uses the [Better Auth Stripe plugin](https://better-auth.com/docs/plugins/stripe)
 to expose Subscription / Checkout / Customer-Portal endpoints under the
-existing `/api/auth/*` namespace. The marketing site calls these via
+existing `/v1/auth/*` namespace. The marketing site calls these via
 `authClient.subscription.upgrade()` / `.cancel()` / `.restore()` /
 `.billingPortal()` / `.list()`.
 
@@ -48,8 +48,8 @@ cd apps/gateway
 bun wrangler dev
 
 # Terminal B — Stripe CLI forwards webhook events to your local gateway.
-# The webhook URL the plugin registers is /api/auth/stripe/webhook.
-stripe listen --forward-to localhost:8787/api/auth/stripe/webhook
+# The webhook URL the plugin registers is /v1/auth/stripe/webhook.
+stripe listen --forward-to localhost:8787/v1/auth/stripe/webhook
 ```
 
 The `stripe listen` command prints a **webhook signing secret** that's
@@ -165,8 +165,8 @@ For each deployed env (staging + prod), add one webhook endpoint:
 
 Dashboard → **Developers** → **Webhooks** → "+ Add endpoint"
 
-- URL: `https://staging.getship.dev/api/auth/stripe/webhook`
-  (or `https://api.getship.dev/api/auth/stripe/webhook` for prod)
+- URL: `https://staging.getship.dev/v1/auth/stripe/webhook`
+  (or `https://api.getship.dev/v1/auth/stripe/webhook` for prod)
 - Description: `SHIP gateway — staging` (or `production`)
 - Events to send: select these (do not select "all events"):
   - `checkout.session.completed`

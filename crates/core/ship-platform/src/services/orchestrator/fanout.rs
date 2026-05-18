@@ -12,8 +12,8 @@ use std::sync::Arc;
 use std::time::Instant;
 use tokio::sync::Mutex;
 
-use ship_substrate::events::job::{
-    FanoutSpec, PipelineStep, StepObservedPayload, StepTrigger, StepType, StepVerdict, event_types,
+use ship_substrate::events::pipeline::{
+    FanoutSpec, PipelineStep, PipelineStepObservedPayload, StepTrigger, StepType, StepVerdict, event_types,
 };
 use ship_substrate::events::{EventEnvelope, KernelRouter};
 use crate::projections::job::PipelineRun;
@@ -237,7 +237,7 @@ pub async fn dispatch_fanout_step(
         };
 
         // Emit synthetic step.observed(Advance) for the parent fanout step.
-        let payload = StepObservedPayload {
+        let payload = PipelineStepObservedPayload {
             job_id: job_id.clone(),
             slug: parent_slug.clone(),
             step_index: step_idx,
@@ -255,7 +255,7 @@ pub async fn dispatch_fanout_step(
             start_sha: None,
             log_tail: None,
         };
-        if let Ok(env) = EventEnvelope::new(event_types::STEP_OBSERVED, &job_id, &payload) {
+        if let Ok(env) = EventEnvelope::new(event_types::PIPELINE_STEP_OBSERVED, &job_id, &payload) {
             let env = env.with_actor_id("service.job-dispatch");
             persist_and_route(&kernel_clone, env, &parent_slug, None).await;
         }

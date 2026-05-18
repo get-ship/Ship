@@ -23,7 +23,7 @@ use serde::Serialize;
 use serde::Deserialize;
 use serde_json::json;
 
-use crate::auth::{AuthContext, Scope, require_scope};
+use crate::auth::{AuthContext, enforce_mcp_identity};
 use crate::routes::rest_api::{ApiState, MeshResponse};
 
 #[derive(Deserialize)]
@@ -358,8 +358,8 @@ pub async fn kill_tree_handler(
     Extension(auth): Extension<AuthContext>,
     Path(id): Path<String>,
 ) -> impl IntoResponse {
-    if let Err(e) = require_scope(&auth, Scope::MeshSend) {
-        return e.into_response();
+    if let Err(e) = enforce_mcp_identity(&auth, Some(&id)) {
+        return e;
     }
 
     // BFS over parent_actor_id. Cap depth to avoid pathological loops
@@ -430,8 +430,8 @@ pub async fn actor_input_handler(
     Path(id): Path<String>,
     Json(req): Json<ActorInputReq>,
 ) -> impl IntoResponse {
-    if let Err(e) = require_scope(&auth, Scope::MeshSend) {
-        return e.into_response();
+    if let Err(e) = enforce_mcp_identity(&auth, Some(&id)) {
+        return e;
     }
     let text = req.text.trim().to_string();
     if text.is_empty() {
@@ -489,3 +489,7 @@ pub async fn actor_input_handler(
     (StatusCode::ACCEPTED, Json(MeshResponse { ok: true, data: json!({}) }))
         .into_response()
 }
+
+#[cfg(test)]
+#[path = "actors_api_tests.rs"]
+mod tests;

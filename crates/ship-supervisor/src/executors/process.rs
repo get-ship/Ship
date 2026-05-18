@@ -48,13 +48,22 @@ fn build_headless_with_default_prompt(
     adapter: &dyn HarnessAdapter,
     slug: &str,
     profile: &LaunchProfile,
-) -> LaunchCommand {
-    if profile.autostart_prompt.is_some() {
-        return adapter.build_headless(slug, profile);
+) -> anyhow::Result<LaunchCommand> {
+    let mut p = profile.clone();
+    if p.autostart_prompt.is_none() {
+        p.autostart_prompt = Some(DEFAULT_AUTOSTART_PROMPT.to_string());
     }
-    let mut with_prompt = profile.clone();
-    with_prompt.autostart_prompt = Some(DEFAULT_AUTOSTART_PROMPT.to_string());
-    adapter.build_headless(slug, &with_prompt)
+    // Resume path: each adapter knows its own resume CLI shape. The
+    // dispatch endpoint already validated `build_resume_args` returns Ok
+    // for this harness/session combo before threading
+    // `resume_session_id` through; surfacing an Err here would mean the
+    // adapter table disagrees with the dispatch validator — fail loudly.
+    if let Some(ref sid) = p.resume_session {
+        return adapter
+            .build_resume_args(slug, sid, &p)
+            .map_err(|e| anyhow::anyhow!("build_resume_args failed: {e}"));
+    }
+    Ok(adapter.build_headless(slug, &p))
 }
 use tokio::sync::Mutex as TokioMutex;
 
@@ -93,7 +102,7 @@ impl JobExecutor for ProcessExecutor {
         // and errors loudly on an unknown name instead of silently defaulting.
         let adapter = adapter_for_or_default(ctx.launch.harness.as_deref())
             .map_err(|e| anyhow::anyhow!("ProcessExecutor: {e}"))?;
-        let launch = build_headless_with_default_prompt(adapter.as_ref(), &ctx.slug, &ctx.launch);
+        let launch = build_headless_with_default_prompt(adapter.as_ref(), &ctx.slug, &ctx.launch)?;
 
         // Per-step log under .artifacts/. The supervisor primitive owns
         // the actual log file lifecycle; we just point it at the right
@@ -133,18 +142,70 @@ impl JobExecutor for ProcessExecutor {
             "process-executor: agent spawned under supervisor"
         );
 
-        // Forward exit-signal: subscribe to the output broadcast; when
-        // it closes, the child has exited, capture the code via
-        // try_exit and forward to ctx.exit_tx.
+        // Forward exit-signal + capture the harness-native session id
+        // from the PTY stream: subscribe to the broadcast, line-parse
+        // through the adapter so we can write `.ship/session.json` on
+        // SessionStarted (drives subsequent `resume: true` dispatches),
+        // and detect exit when the stream closes.
         let mut rx = handle.subscribe_output();
         let slug = ctx.slug.clone();
         let job_id = ctx.job_id.clone();
         let exit_tx = ctx.exit_tx.clone();
         let handle_for_exit = handle.clone();
+        let work_dir_for_session = ctx.work_dir.clone();
+        let harness_for_session = ctx
+            .launch
+            .harness
+            .clone()
+            .unwrap_or_else(|| "claude".to_string());
+        let agent_for_session = ctx.agent.clone();
+        let adapter_for_session = adapter_for_or_default(ctx.launch.harness.as_deref()).ok();
         tokio::spawn(async move {
+            let mut line_buf = String::new();
+            let mut session_written = false;
             loop {
                 match rx.recv().await {
-                    Ok(_) => continue,
+                    Ok(chunk) => {
+                        if !session_written && let Some(ref adapter) = adapter_for_session {
+                            line_buf.push_str(&String::from_utf8_lossy(&chunk));
+                            while let Some(nl) = line_buf.find('\n') {
+                                let line: String = line_buf.drain(..=nl).collect();
+                                let trimmed = line.trim_end_matches(['\n', '\r']);
+                                if trimmed.is_empty() {
+                                    continue;
+                                }
+                                if let Some(ev) = adapter.parse_output(trimmed)
+                                    && let ship_platform::services::harness_adapter::HarnessEvent::SessionStarted { session_id } = ev
+                                {
+                                    if let Err(e) = ship_platform::services::harnesses::session_file::write_session_file(
+                                        &work_dir_for_session,
+                                        &harness_for_session,
+                                        &session_id,
+                                        &agent_for_session,
+                                    ) {
+                                        tracing::warn!(
+                                            slug = %slug,
+                                            harness = %harness_for_session,
+                                            "session_file write failed: {e}"
+                                        );
+                                    } else {
+                                        tracing::info!(
+                                            slug = %slug,
+                                            harness = %harness_for_session,
+                                            session_id = %session_id,
+                                            "session_file written"
+                                        );
+                                    }
+                                    session_written = true;
+                                    break;
+                                }
+                            }
+                            if session_written {
+                                line_buf.clear();
+                            }
+                        }
+                        continue;
+                    }
                     Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => continue,
                     Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
                 }
@@ -287,7 +348,7 @@ mod tests {
             ..Default::default()
         };
         let adapter = adapter_for_or_default(profile.harness.as_deref()).unwrap();
-        let cmd = build_headless_with_default_prompt(adapter.as_ref(), "my-slug", &profile);
+        let cmd = build_headless_with_default_prompt(adapter.as_ref(), "my-slug", &profile).unwrap();
         assert_eq!(cmd.bin, "codex");
         assert_eq!(cmd.args[0], "exec");
         assert_eq!(cmd.args.last().unwrap(), DEFAULT_AUTOSTART_PROMPT);
@@ -297,7 +358,7 @@ mod tests {
     fn dispatch_defaults_to_claude_when_harness_is_none() {
         let profile = LaunchProfile { persist_session: true, ..Default::default() };
         let adapter = adapter_for_or_default(profile.harness.as_deref()).unwrap();
-        let cmd = build_headless_with_default_prompt(adapter.as_ref(), "my-slug", &profile);
+        let cmd = build_headless_with_default_prompt(adapter.as_ref(), "my-slug", &profile).unwrap();
         assert_eq!(cmd.bin, "claude");
         // Default prompt is injected as the `-p` value (instead of the
         // adapter's own "go" fallback) so the Claude flow gets the same
@@ -315,8 +376,44 @@ mod tests {
             ..Default::default()
         };
         let adapter = adapter_for_or_default(profile.harness.as_deref()).unwrap();
-        let cmd = build_headless_with_default_prompt(adapter.as_ref(), "s", &profile);
+        let cmd = build_headless_with_default_prompt(adapter.as_ref(), "s", &profile).unwrap();
         assert_eq!(cmd.args.last().unwrap(), "custom");
+    }
+
+    #[test]
+    fn dispatch_routes_through_build_resume_args_when_session_set() {
+        // With `resume_session` set, the executor must dispatch to the
+        // adapter's `build_resume_args` instead of `build_headless` so the
+        // resulting CLI carries the harness-specific resume flags
+        // (`--resume <uuid>` for claude, `exec resume <id>` for codex).
+        let profile = LaunchProfile {
+            harness: Some("claude".to_string()),
+            resume_session: Some("sess-resume-1".to_string()),
+            persist_session: true,
+            ..Default::default()
+        };
+        let adapter = adapter_for_or_default(profile.harness.as_deref()).unwrap();
+        let cmd = build_headless_with_default_prompt(adapter.as_ref(), "slug-x", &profile).unwrap();
+        let idx = cmd.args.iter().position(|a| a == "--resume").expect("--resume flag");
+        assert_eq!(cmd.args[idx + 1], "sess-resume-1");
+    }
+
+    #[test]
+    fn dispatch_surfaces_resume_unsupported_error() {
+        // Gemini has no resume — the adapter returns Err and the executor
+        // bubbles that up rather than silently falling back to a fresh
+        // launch.
+        let profile = LaunchProfile {
+            harness: Some("gemini".to_string()),
+            resume_session: Some("anything".to_string()),
+            persist_session: true,
+            ..Default::default()
+        };
+        let adapter = adapter_for_or_default(profile.harness.as_deref()).unwrap();
+        let err = build_headless_with_default_prompt(adapter.as_ref(), "s", &profile)
+            .expect_err("gemini resume must fail");
+        let msg = err.to_string();
+        assert!(msg.contains("does not support session resume"), "got: {msg}");
     }
 
     // PTY mechanics are tested at the source — `ship_substrate::supervisor::tests`

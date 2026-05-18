@@ -73,11 +73,11 @@ async fn session_destroyed_emits_job_failed_not_completed() {
         "must emit executor.session_destroyed; got {types:?}"
     );
     assert!(
-        types.iter().any(|t| t == "job.failed"),
+        types.iter().any(|t| t == "pipeline.run.failed"),
         "must emit job.failed; got {types:?}"
     );
     assert!(
-        !types.iter().any(|t| t == "job.completed"),
+        !types.iter().any(|t| t == "pipeline.run.completed"),
         "must NOT emit job.completed on session destruction; got {types:?}"
     );
 
@@ -114,11 +114,11 @@ async fn agent_exited_clean_still_emits_job_completed() {
     let types = types_of(&events);
 
     assert!(
-        types.iter().any(|t| t == "job.completed"),
+        types.iter().any(|t| t == "pipeline.run.completed"),
         "clean exit must emit job.completed; got {types:?}"
     );
     assert!(
-        !types.iter().any(|t| t == "job.failed"),
+        !types.iter().any(|t| t == "pipeline.run.failed"),
         "clean exit must not emit job.failed; got {types:?}"
     );
     assert!(
@@ -147,11 +147,11 @@ async fn agent_exited_nonzero_emits_job_failed() {
     let types = types_of(&events);
 
     assert!(
-        types.iter().any(|t| t == "job.failed"),
+        types.iter().any(|t| t == "pipeline.run.failed"),
         "nonzero exit must emit job.failed; got {types:?}"
     );
     assert!(
-        !types.iter().any(|t| t == "job.completed"),
+        !types.iter().any(|t| t == "pipeline.run.completed"),
         "nonzero exit must not emit job.completed; got {types:?}"
     );
 }
@@ -177,11 +177,11 @@ async fn agent_exited_unknown_code_emits_job_failed() {
     let types = types_of(&events);
 
     assert!(
-        types.iter().any(|t| t == "job.failed"),
+        types.iter().any(|t| t == "pipeline.run.failed"),
         "agent gone with no code captured must emit job.failed; got {types:?}"
     );
     assert!(
-        !types.iter().any(|t| t == "job.completed"),
+        !types.iter().any(|t| t == "pipeline.run.completed"),
         "agent gone with no code captured must NOT emit job.completed; got {types:?}"
     );
 }

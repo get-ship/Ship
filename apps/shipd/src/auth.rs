@@ -12,6 +12,7 @@
 // Pure auth primitives live in `ship_platform::auth`. These re-exports
 // preserve the `crate::auth::{attest,pairing}` paths the daemon uses.
 pub use ship_platform::auth::{attest, pairing};
+pub mod identity;
 pub mod scopes;
 pub mod session;
 
@@ -50,12 +51,14 @@ fn tokens_equal(a: &str, b: &str) -> bool {
 use std::path::Path;
 use std::sync::Arc;
 
+pub use crate::auth::identity::enforce_mcp_identity;
+
 // Re-export scope model from the split-out module.
 pub use crate::auth::scopes::{
-    DaemonSession, Scope, SessionRegistry, SessionRegisterRequest,
-    SessionRegisterResponse, generate_session_token, hydrate_sessions,
-    is_session_token, persist_session, remove_persisted_session,
-    require_scope, scopes_for_role, session_register,
+    DaemonSession, RequiredAuth, Scope, SessionRegistry, SessionRegisterRequest,
+    SessionRegisterResponse, enforce_required_auth, generate_session_token,
+    hydrate_sessions, is_session_token, persist_session, remove_persisted_session,
+    require_scope, scopes_for_role, session_register, spawn_session_sweeper,
 };
 
 /// Authenticated caller context injected into request extensions by the
@@ -120,9 +123,16 @@ pub(crate) fn hex_encode(bytes: &[u8]) -> String {
 }
 
 /// Write the daemon token to `<daemon_dir>/token` with restricted
-/// permissions. Parent directories are created if missing.
+/// permissions. Parent directories are created if missing. On Unix the
+/// daemon dir itself is forced to 0700 so other local users can't enumerate
+/// or read sibling secrets (sessions/, pending-pairings, etc.).
 pub fn write_token_file(daemon_dir: &Path, token: &str) -> std::io::Result<()> {
     std::fs::create_dir_all(daemon_dir)?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(daemon_dir, std::fs::Permissions::from_mode(0o700))?;
+    }
     let path = daemon_dir.join("token");
     std::fs::write(&path, token)?;
     #[cfg(unix)]

@@ -237,6 +237,38 @@ fn spawn_actor_rejects_duplicate_id() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn refine_actor_preserves_mailbox_through_wrapper() {
+    let (_tmp, mut router) = setup();
+    let (_store, mut mb) = router.spawn_actor("studio", studio_config()).unwrap();
+
+    // Refine to a different namespace; the wrapper must keep the sender
+    // intact so the original Mailbox handle stays receivable.
+    let new_cfg = ActorConfig {
+        namespace: "studio".into(),
+        write_namespaces: vec!["other.".into()],
+        read_namespaces: vec!["other.".into()],
+        subscribe_namespaces: vec!["other.".into()],
+    };
+    router.refine_actor("studio", new_cfg).unwrap();
+
+    let mut event = ev("other.hello");
+    event.target_actor_id = Some("studio".into());
+    router.emit(event, &runtime_ctx()).await.unwrap();
+    let recv = mb.try_recv().expect("mailbox should receive directed event");
+    assert_eq!(recv.event_type, "other.hello");
+}
+
+#[test]
+fn refine_actor_errors_on_unknown_through_wrapper() {
+    let (_tmp, mut router) = setup();
+    let err = router.refine_actor("ghost", studio_config()).unwrap_err();
+    assert!(matches!(
+        err,
+        crate::errors::KernelError::ActorNotFound { .. }
+    ));
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn stopped_actor_mailbox_is_closed() {
     let (_tmp, mut router) = setup();
     let (_store, mut mb) = router.spawn_actor("studio", studio_config()).unwrap();

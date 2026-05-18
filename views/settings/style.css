@@ -127,3 +127,29 @@ sui-input { width: 160px; }
   .s-row-trailing { width: 100%; flex-wrap: wrap; }
   sui-input { width: 100%; }
 }
+
+.s-account-body { gap: 0; }
+.s-account-avatar,
+.s-account-avatar-fallback {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  box-shadow: 0 0 0 1px color-mix(in oklch, var(--foreground) 15%, transparent);
+}
+.s-account-avatar { object-fit: cover; }
+.s-account-avatar-fallback {
+  background: color-mix(in oklch, var(--primary) 18%, var(--muted));
+  color: var(--primary);
+  font-size: var(--text-xs);
+  font-weight: 600;
+}
+.s-account-avatar-fallback.signed-out {
+  background: color-mix(in oklch, currentColor 8%, transparent);
+  color: var(--muted-foreground);
+}
+.s-row-label.err { color: var(--danger, #c43d3d); }
+.s-row-label.muted { color: var(--muted-foreground); }

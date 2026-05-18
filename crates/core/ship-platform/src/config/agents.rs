@@ -25,7 +25,7 @@ fn project_canonical(src: &compiler::AgentProfile) -> AgentProfile {
         rules: Vec::new(),
         hooks: Vec::new(),
         permissions: super::types::PermissionConfig::default(),
-        target_agents: src.agent.harnesses.clone(),
+        target_agents: Vec::new(),
     }
 }
 

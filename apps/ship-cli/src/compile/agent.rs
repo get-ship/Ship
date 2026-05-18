@@ -46,13 +46,13 @@ pub(crate) fn apply_agent_to_library(
         }
     }
 
-    // If the agent declares a harness list, inject a flat AgentConfig so
-    // resolve() can apply target-agent / MCP / skill filtering.
-    if !profile.agent.harnesses.is_empty() {
-        let mut cfg = profile.to_config();
-        cfg.id = agent_id.to_string();
-        library.agents.push(cfg);
-    }
+    // Inject a flat AgentConfig so resolve() can apply MCP / skill / rule
+    // filtering from the active profile. Harness selection is no longer
+    // per-agent (target_agents stays empty); the project's harness list
+    // governs which harnesses get emitted.
+    let mut cfg = profile.to_config();
+    cfg.id = agent_id.to_string();
+    library.agents.push(cfg);
 
     // Plugins — convert install list into PluginsManifest.
     if !profile.plugins.install.is_empty() {

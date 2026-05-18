@@ -18,6 +18,7 @@ interface Env {
   RATE_LIMITER_INSTALL: RateLimit;
   RATE_LIMITER_SEARCH: RateLimit;
   RATE_LIMITER_STAR: RateLimit;
+  RATE_LIMITER_AUTH: RateLimit;
   GITHUB_CLIENT_ID: string;
   GITHUB_CLIENT_SECRET: string;
   GITHUB_WEBHOOK_SECRET: string;
@@ -41,4 +42,6 @@ interface Env {
   SHIP_JWT_PUBLIC_KEY: string;
   SHIP_JWT_PUBLIC_JWKS: string;
   BETTER_AUTH_SECRET: string;
+  /** Issuer claim for /api/auth/daemon-attest JWTs. Brand domain, not API host. */
+  SHIP_ATTESTATION_ISSUER?: string;
 }

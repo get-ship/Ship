@@ -8,10 +8,10 @@ members = [
     "crates/core/ship-platform",
     "crates/core/ship-isolation",
     "crates/core/ship-isolation/bin/ship-sidecar",
-    "crates/core/ship-jobs",
     "crates/core/ship-kernel",
     "crates/core/ship-pipelines",
     "crates/core/ship-types",
+    "crates/core/ship-gateway-client",
     "crates/ship-supervisor",
     "crates/sui/sui-compiler",
     "crates/sui/ship-sui-host",
@@ -67,6 +67,7 @@ tracing-appender = "0.2"
 
 # Filesystem / paths
 home = "0.5"
+shell-words = "1"
 tempfile = "3"
 notify = { version = "7", default-features = false, features = ["macos_fsevent"] }
 

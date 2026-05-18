@@ -31,7 +31,7 @@ function looksLikeEmail(s: unknown): s is string {
   return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(s)
 }
 
-waitlist.post('/api/waitlist', async (c) => {
+waitlist.post('/v1/waitlist', async (c) => {
   const rl = await checkRateLimit(c.req.raw, 'RATE_LIMITER_CLAIM', 60, c.env)
   if (!rl.allowed) return rateLimitResponse(rl.retryAfter)
 

@@ -3,10 +3,10 @@ import type { DrizzleSqliteDODatabase } from 'drizzle-orm/durable-sqlite';
 import { Result } from '@ship-cloud/types';
 import type { EventEnvelope } from '@ship-cloud/types';
 import {
-  JOB_CREATED,
-  JOB_DISPATCHED,
-  JOB_COMPLETED,
-  JOB_FAILED,
+  PIPELINE_RUN_STARTED,
+  PIPELINE_RUN_DISPATCHED,
+  PIPELINE_RUN_COMPLETED,
+  PIPELINE_RUN_FAILED,
 } from '@ship-cloud/types';
 import { jobs } from '../data/schema/jobs.js';
 import type { platform_schema } from '../data/schema/index.js';
@@ -19,7 +19,7 @@ export class JobProjectionRepository {
       const now = new Date().toISOString();
 
       switch (event.event_type) {
-        case JOB_CREATED: {
+        case PIPELINE_RUN_STARTED: {
           await this.db.insert(jobs).values({
             id: event.entity_id,
             status: 'created',
@@ -29,17 +29,17 @@ export class JobProjectionRepository {
           }).onConflictDoNothing();
           break;
         }
-        case JOB_DISPATCHED:
+        case PIPELINE_RUN_DISPATCHED:
           await this.db.update(jobs)
             .set({ status: 'dispatched', updated_at: now })
             .where(eq(jobs.id, event.entity_id));
           break;
-        case JOB_COMPLETED:
+        case PIPELINE_RUN_COMPLETED:
           await this.db.update(jobs)
             .set({ status: 'completed', updated_at: now })
             .where(eq(jobs.id, event.entity_id));
           break;
-        case JOB_FAILED:
+        case PIPELINE_RUN_FAILED:
           await this.db.update(jobs)
             .set({ status: 'failed', updated_at: now })
             .where(eq(jobs.id, event.entity_id));

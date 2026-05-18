@@ -28,6 +28,7 @@ use ship_platform::services::git::service::{
 };
 
 use std::path::Path;
+use axum::Extension;
 use axum::extract::{Query, State};
 use axum::http::StatusCode;
 use axum::response::Json;
@@ -35,6 +36,7 @@ use serde::Deserialize;
 use std::time::Duration;
 
 use crate::access::RuntimeAccess;
+use crate::auth::{AuthContext};
 use crate::routes::rest_api::ApiState;
 use crate::views::stream::{ViewSse, ViewStream};
 use ship_platform::services::git::state::GitError;
@@ -182,6 +184,7 @@ fn current_branch(root: &Path) -> Option<String> {
 /// GET /api/v1/git/status
 pub async fn status_handler(
     State(state): State<ApiState>,
+    Extension(_auth): Extension<AuthContext>,
     Query(q): Query<WorkspaceQuery>,
 ) -> Result<Json<serde_json::Value>, Resp> {
     let r = state.services().git().status(q.workspace_id.as_deref()).map_err(map_err)?;
@@ -202,6 +205,7 @@ pub async fn status_handler(
 /// GET /api/v1/git/diff?commit=X&path=Y   (commit=WORKING for working-tree)
 pub async fn diff_handler(
     State(state): State<ApiState>,
+    Extension(_auth): Extension<AuthContext>,
     Query(q): Query<DiffQuery>,
 ) -> Result<Json<serde_json::Value>, Resp> {
     let r = state
@@ -219,9 +223,10 @@ pub async fn diff_handler(
 /// GET /api/v1/git/log?branch=X&limit=N
 pub async fn log_handler(
     State(state): State<ApiState>,
+    Extension(_auth): Extension<AuthContext>,
     Query(q): Query<LogQuery>,
 ) -> Result<Json<serde_json::Value>, Resp> {
-    let limit = q.limit.unwrap_or(ship_platform::services::git::read::DEFAULT_LOG_LIMIT);
+    let limit = q.limit.unwrap_or_else(ship_platform::config::resolve_git_log_limit);
     let commits = state
         .git()
         .log(q.workspace_id.as_deref(), q.branch.as_deref(), limit)
@@ -232,6 +237,7 @@ pub async fn log_handler(
 /// GET /api/v1/git/branches
 pub async fn branches_handler(
     State(state): State<ApiState>,
+    Extension(_auth): Extension<AuthContext>,
     Query(q): Query<WorkspaceQuery>,
 ) -> Result<Json<serde_json::Value>, Resp> {
     let branches = state.services().git().branches(q.workspace_id.as_deref()).map_err(map_err)?;
@@ -243,6 +249,7 @@ pub async fn branches_handler(
 /// POST /api/v1/git/stage
 pub async fn stage_handler(
     State(state): State<ApiState>,
+    Extension(_auth): Extension<AuthContext>,
     Json(body): Json<PathsBody>,
 ) -> Result<Json<serde_json::Value>, Resp> {
     let n = state.services().git().stage(body.workspace_id.as_deref(), &body.paths).map_err(map_err)?;
@@ -252,6 +259,7 @@ pub async fn stage_handler(
 /// POST /api/v1/git/unstage
 pub async fn unstage_handler(
     State(state): State<ApiState>,
+    Extension(_auth): Extension<AuthContext>,
     Json(body): Json<PathsBody>,
 ) -> Result<Json<serde_json::Value>, Resp> {
     let n = state.services().git().unstage(body.workspace_id.as_deref(), &body.paths).map_err(map_err)?;
@@ -261,6 +269,7 @@ pub async fn unstage_handler(
 /// POST /api/v1/git/commit
 pub async fn commit_handler(
     State(state): State<ApiState>,
+    Extension(_auth): Extension<AuthContext>,
     Json(body): Json<CommitBody>,
 ) -> Result<Json<serde_json::Value>, Resp> {
     let res = state
@@ -281,6 +290,7 @@ pub async fn commit_handler(
 /// POST /api/v1/git/push
 pub async fn push_handler(
     State(state): State<ApiState>,
+    Extension(_auth): Extension<AuthContext>,
     Json(body): Json<PushBody>,
 ) -> Result<Json<serde_json::Value>, Resp> {
     let force = body.force;
@@ -298,6 +308,7 @@ pub async fn push_handler(
 /// POST /api/v1/git/fetch
 pub async fn fetch_handler(
     State(state): State<ApiState>,
+    Extension(_auth): Extension<AuthContext>,
     Json(body): Json<RemoteBody>,
 ) -> Result<Json<serde_json::Value>, Resp> {
     let remote = state
@@ -310,6 +321,7 @@ pub async fn fetch_handler(
 /// POST /api/v1/git/pull — ff-only
 pub async fn pull_handler(
     State(state): State<ApiState>,
+    Extension(_auth): Extension<AuthContext>,
     Json(body): Json<RemoteBody>,
 ) -> Result<Json<serde_json::Value>, Resp> {
     let sha = state
@@ -322,6 +334,7 @@ pub async fn pull_handler(
 /// POST /api/v1/git/checkout
 pub async fn checkout_handler(
     State(state): State<ApiState>,
+    Extension(_auth): Extension<AuthContext>,
     Json(body): Json<CheckoutBody>,
 ) -> Result<Json<serde_json::Value>, Resp> {
     let refname = body.refname.clone();
@@ -340,6 +353,7 @@ pub async fn checkout_handler(
 /// POST /api/v1/git/branch — create branch from HEAD; optional checkout.
 pub async fn branch_create_handler(
     State(state): State<ApiState>,
+    Extension(_auth): Extension<AuthContext>,
     Json(body): Json<BranchCreateBody>,
 ) -> Result<Json<serde_json::Value>, Resp> {
     let name = state
@@ -356,6 +370,7 @@ pub async fn branch_create_handler(
 /// DELETE /api/v1/git/branch — delete a local branch (force-unmerged via `force=true`).
 pub async fn branch_delete_handler(
     State(state): State<ApiState>,
+    Extension(_auth): Extension<AuthContext>,
     Json(body): Json<BranchDeleteBody>,
 ) -> Result<Json<serde_json::Value>, Resp> {
     let name = state
@@ -372,6 +387,7 @@ pub async fn branch_delete_handler(
 /// POST /api/v1/git/init — initialize a repo at the active workspace root.
 pub async fn init_handler(
     State(state): State<ApiState>,
+    Extension(_auth): Extension<AuthContext>,
     Json(body): Json<InitBody>,
 ) -> Result<Json<serde_json::Value>, Resp> {
     state.git().init(body.workspace_id.as_deref()).map_err(map_err)?;
@@ -385,8 +401,9 @@ pub async fn init_handler(
 /// server-side truth without re-running its own libgit2 queries.
 pub async fn sse_handler(
     State(state): State<ApiState>,
+    Extension(_auth): Extension<AuthContext>,
     Query(q): Query<WorkspaceQuery>,
-) -> ViewSse {
+) -> Result<ViewSse, Resp> {
     let (vs, sse) = ViewStream::new();
     let ship_dir = state.ship_dir().to_path_buf();
     let workspace_id = q.workspace_id.clone();
@@ -418,6 +435,6 @@ pub async fn sse_handler(
         }
     });
 
-    sse
+    Ok(sse)
 }
 
