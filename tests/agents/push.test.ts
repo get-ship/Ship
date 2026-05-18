@@ -122,7 +122,12 @@ for (const h of HARNESSES) {
               e.event_type === STUDIO_CHAT_TURN &&
               (e.entity_id === dispatched.slug ||
                 e.target_actor_id === dispatched.slug),
-            { sinceId, timeoutMs: 8_000, stopAfter: 1 },
+            {
+              sinceId,
+              slug: dispatched.slug,
+              timeoutMs: 8_000,
+              stopAfter: 1,
+            },
           );
 
           // ── Assertion 1: studio.chat_turn fired with rendered context ──

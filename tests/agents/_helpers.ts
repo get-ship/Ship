@@ -372,6 +372,14 @@ export async function pollForEvents(
     timeoutMs?: number;
     stopAfter?: number;
     pollIntervalMs?: number;
+    /** Server-side filter: only events whose entity_id OR payload.slug
+     *  matches. Sharply narrows the result set when many concurrent
+     *  dispatches are flowing. Use the dispatched slug; events that
+     *  carry the slug in entity_id or payload come through. */
+    slug?: string;
+    /** Server-side filter: namespace prefix (e.g. "hook" matches
+     *  hook.*). Cheap to combine with slug. */
+    namespace?: string;
   } = {},
 ): Promise<EventEnvelope[]> {
   const timeoutMs = opts.timeoutMs ?? 8_000;
@@ -383,6 +391,8 @@ export async function pollForEvents(
   while (Date.now() < deadline) {
     const qs = new URLSearchParams();
     if (cursor) qs.set("since_id", cursor);
+    if (opts.slug) qs.set("slug", opts.slug);
+    if (opts.namespace) qs.set("namespace", opts.namespace);
     qs.set("limit", "200");
     const { body } = await api<{ data?: { events?: EventEnvelope[] } }>(
       `/api/v1/events/poll?${qs}`,

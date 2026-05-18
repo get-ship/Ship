@@ -92,6 +92,7 @@ pub async fn emit_job_dispatched_with_meta(
 ) {
     let payload = ship_substrate::events::pipeline::PipelineRunDispatchedPayload {
         job_id: job_id.to_string(),
+        slug: slug.to_string(),
         worktree: worktree_path.to_string_lossy().into_owned(),
         pid: None,
         harness_meta,

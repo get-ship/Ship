@@ -93,7 +93,11 @@ for (const h of HARNESSES) {
             e.entity_id === dispatched.jobId ||
             e.actor_id === dispatched.slug ||
             e.target_actor_id === dispatched.slug,
-          { sinceId, timeoutMs: 8_000 },
+          {
+            sinceId,
+            slug: dispatched.slug,
+            timeoutMs: 8_000,
+          },
         );
 
         const types = new Set(events.map((e) => e.event_type));

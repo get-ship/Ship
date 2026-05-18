@@ -94,6 +94,13 @@ pub struct PipelineRunStartedPayload {
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct PipelineRunDispatchedPayload {
     pub job_id: String,
+    /// Worktree slug for the dispatched session. Required for observers
+    /// filtering by `slug` (e.g. /api/v1/events/poll?slug=) — the
+    /// envelope's entity_id is the job_id (a ULID), not the slug.
+    /// Optional with serde default for forward compat with older
+    /// persisted envelopes that pre-date this field.
+    #[serde(default)]
+    pub slug: String,
     pub worktree: String,
     pub pid: Option<u32>,
     /// Harness-specific session metadata (e.g. Claude session ID for --resume).
