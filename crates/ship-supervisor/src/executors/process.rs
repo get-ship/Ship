@@ -119,6 +119,61 @@ impl ProcessState {
     }
 }
 
+/// `which`-style lookup. Returns the first match on `$PATH`, or `None`.
+/// Used by the isolation-enforce path to find `bun` without depending on
+/// the existing toolchain resolver (which assumes a specific install
+/// layout under `~/.ship/`).
+fn which_bin(name: &str) -> Option<std::path::PathBuf> {
+    let which = if cfg!(target_os = "windows") { "where" } else { "which" };
+    let out = std::process::Command::new(which).arg(name).output().ok()?;
+    if !out.status.success() {
+        return None;
+    }
+    let s = String::from_utf8_lossy(&out.stdout);
+    let first = s.lines().next()?.trim();
+    if first.is_empty() {
+        None
+    } else {
+        Some(std::path::PathBuf::from(first))
+    }
+}
+
+/// Resolve the bundled `@anthropic-ai/sandbox-runtime` entry-point. Today
+/// we look in the global bun install location used by the rest of the
+/// toolchain. Returns `None` when srt isn't installed — the caller logs
+/// a warning and runs the agent unwrapped.
+fn resolve_srt_entry() -> Option<std::path::PathBuf> {
+    let home = std::env::var("HOME").ok()?;
+    let p = std::path::PathBuf::from(home)
+        .join(".bun/install/global/node_modules/@anthropic-ai/sandbox-runtime");
+    if p.is_dir() { Some(p) } else { None }
+}
+
+/// Write the srt settings JSON for a wrapped HarnessSandbox launch. The
+/// schema matches `@anthropic-ai/sandbox-runtime`'s zod validator — see
+/// `ship_isolation::backends::sandbox_runtime`. For now we grant write
+/// to the workspace and deny everything else; per-agent overrides land
+/// when the agent profile's isolation.policy field is plumbed through.
+fn write_srt_settings(path: &std::path::Path, work_dir: &std::path::Path) -> anyhow::Result<()> {
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    let payload = serde_json::json!({
+        "filesystem": {
+            "denyRead": [],
+            "allowRead": [],
+            "allowWrite": [work_dir.to_string_lossy()],
+            "denyWrite": [],
+        },
+        "network": {
+            "allowedDomains": ["api.anthropic.com", "console.anthropic.com"],
+            "deniedDomains": [],
+        },
+    });
+    std::fs::write(path, serde_json::to_vec_pretty(&payload)?)?;
+    Ok(())
+}
+
 #[async_trait]
 impl JobExecutor for ProcessExecutor {
     async fn spawn(&self, ctx: &JobContext) -> Result<ExecutorHandle> {
@@ -139,39 +194,96 @@ impl JobExecutor for ProcessExecutor {
         let log_dir = ctx.work_dir.join(".artifacts");
         std::fs::create_dir_all(&log_dir)?;
 
-        // Compute the isolation decision for this agent. Observe-and-log
-        // for now — Phase B wiring. Sandbox enforcement (Docker / youki
-        // / sidecar) comes in a separate change once the supervisor
-        // owns the Isolator lifecycle alongside ActorHandle. The
-        // decision IS surfaced into the agent's env so introspection
-        // tools see what tier they're (intended to be) running under.
+        // Compute the isolation decision for this agent. Always surface
+        // it to the agent process via env vars. Only wrap the launch
+        // when the master switch (`isolation.enforce`) is on AND the
+        // strategy is one we can wrap via simple argv rewriting
+        // (HarnessSandbox today). Container/VM strategies need an
+        // Isolator lifecycle (prepare/shutdown) that the supervisor
+        // doesn't own yet — they fall through with a warning.
         let ship_dir = ctx.work_dir.join(".ship");
         let decision = ship_platform::isolation::decide_for_agent(&ship_dir, &ctx.agent, None);
-        match &decision {
-            Ok(d) => {
-                tracing::info!(
-                    slug = ctx.slug,
-                    strategy = %d.resolved.strategy,
-                    tier = %d.resolved.tier,
-                    downgraded = d.resolved.downgraded,
-                    "isolation decision (observe-only — enforcement not yet wired)"
-                );
-                launch
-                    .env
-                    .insert("SHIP_ISOLATION_TIER".into(), d.resolved.tier.to_string());
-                launch.env.insert(
-                    "SHIP_ISOLATION_STRATEGY".into(),
-                    d.resolved.strategy.to_string(),
-                );
-                launch.env.insert("SHIP_ISOLATION_ACTIVE".into(), "0".into());
+        let enforce = ship_platform::isolation::enforcement_enabled();
+        if let Ok(d) = &decision {
+            tracing::info!(
+                slug = ctx.slug,
+                strategy = %d.resolved.strategy,
+                tier = %d.resolved.tier,
+                downgraded = d.resolved.downgraded,
+                enforce,
+                "isolation decision"
+            );
+            launch
+                .env
+                .insert("SHIP_ISOLATION_TIER".into(), d.resolved.tier.to_string());
+            launch.env.insert(
+                "SHIP_ISOLATION_STRATEGY".into(),
+                d.resolved.strategy.to_string(),
+            );
+            // Inside-sandbox detection flag. Set when enforcement is
+            // on AND the strategy wraps. Stays "0" otherwise so
+            // in-process introspection can tell the difference between
+            // "we picked HarnessSandbox" and "we are now running under
+            // HarnessSandbox".
+            let mut active = "0";
+            if enforce {
+                use ship_isolation::settings::{WrapContext, wrap_launch};
+                use ship_isolation::tier::IsolationStrategy;
+                if d.resolved.strategy == IsolationStrategy::HarnessSandbox {
+                    let bun = which_bin("bun");
+                    let srt = resolve_srt_entry();
+                    let settings_path = ctx.work_dir.join(".artifacts").join(format!(
+                        "srt-{}.json",
+                        ctx.slug.replace('/', "_")
+                    ));
+                    if let (Some(bun_path), Some(srt_path)) = (bun.as_ref(), srt.as_ref()) {
+                        if let Err(e) = write_srt_settings(&settings_path, &ctx.work_dir) {
+                            tracing::warn!(
+                                slug = ctx.slug,
+                                error = %e,
+                                "srt settings write failed; running unwrapped"
+                            );
+                        } else if let Some(w) = wrap_launch(
+                            IsolationStrategy::HarnessSandbox,
+                            std::path::PathBuf::from(&launch.bin),
+                            launch.args.clone(),
+                            &WrapContext {
+                                bun_bin: Some(bun_path),
+                                srt_entry: Some(srt_path),
+                                srt_settings_path: Some(&settings_path),
+                            },
+                        ) {
+                            launch.bin = w.bin.to_string_lossy().into_owned();
+                            launch.args = w.args;
+                            active = "1";
+                            tracing::info!(slug = ctx.slug, "isolation enforced: HarnessSandbox");
+                        }
+                    } else {
+                        tracing::warn!(
+                            slug = ctx.slug,
+                            bun = bun.is_some(),
+                            srt = srt.is_some(),
+                            "HarnessSandbox enforce requested but bun / srt missing"
+                        );
+                    }
+                } else if !matches!(d.resolved.strategy, IsolationStrategy::Noop) {
+                    tracing::warn!(
+                        slug = ctx.slug,
+                        strategy = %d.resolved.strategy,
+                        "isolation enforce on but {} requires lifecycle support not yet wired",
+                        d.resolved.strategy
+                    );
+                }
             }
-            Err(e) => {
-                tracing::warn!(
-                    slug = ctx.slug,
-                    error = %e,
-                    "isolation decision failed — agent will run unsandboxed"
-                );
-            }
+            launch
+                .env
+                .insert("SHIP_ISOLATION_ACTIVE".into(), active.into());
+        } else if let Err(e) = &decision {
+            tracing::warn!(
+                slug = ctx.slug,
+                error = %e,
+                "isolation decision failed — agent will run unsandboxed"
+            );
         }
 
         let profile = ActorProfile {

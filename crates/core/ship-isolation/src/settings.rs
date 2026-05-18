@@ -123,6 +123,64 @@ pub fn parse_allowlist(raw: &str) -> Vec<String> {
         .collect()
 }
 
+/// Wrap a launch (`bin`, `args`) for a given strategy. The wrapper transforms
+/// what the supervisor would have spawned directly into what it should spawn
+/// *through* the chosen isolation strategy.
+///
+/// Returns `None` when the strategy is `Noop` (passthrough) or when the
+/// strategy requires lifecycle management beyond simple argv rewriting
+/// (Docker, Youki, Lima, Fly — those need `prepare`/`shutdown`). Callers
+/// treat `None` as "supervisor should keep its existing launch".
+///
+/// For HarnessSandbox: returns the bun + srt invocation. Requires a
+/// `bun_bin` resolved by the capability probe (or settings) and a
+/// settings-file path the caller writes the srt JSON to.
+pub fn wrap_launch(
+    strategy: crate::tier::IsolationStrategy,
+    bin: std::path::PathBuf,
+    args: Vec<String>,
+    ctx: &WrapContext<'_>,
+) -> Option<WrappedLaunch> {
+    use crate::tier::IsolationStrategy::*;
+    match strategy {
+        Noop => None,
+        HarnessSandbox => {
+            let bun = ctx.bun_bin?;
+            let srt = ctx.srt_entry?;
+            let settings = ctx.srt_settings_path?;
+            let mut new_args = vec![
+                "run".to_string(),
+                srt.to_string_lossy().into_owned(),
+                "--settings".to_string(),
+                settings.to_string_lossy().into_owned(),
+                bin.to_string_lossy().into_owned(),
+            ];
+            new_args.extend(args);
+            Some(WrappedLaunch {
+                bin: bun.to_path_buf(),
+                args: new_args,
+            })
+        }
+        DockerEngine | YoukiRootless | Wsl2 | LimaVm | FlyMachines => None,
+    }
+}
+
+/// Pre-resolved paths the caller hands to `wrap_launch`. Each field is
+/// optional because not every strategy needs every path; the wrapper
+/// returns `None` when a required path is missing.
+#[derive(Debug, Default, Clone, Copy)]
+pub struct WrapContext<'a> {
+    pub bun_bin: Option<&'a std::path::Path>,
+    pub srt_entry: Option<&'a std::path::Path>,
+    pub srt_settings_path: Option<&'a std::path::Path>,
+}
+
+#[derive(Debug, Clone)]
+pub struct WrappedLaunch {
+    pub bin: std::path::PathBuf,
+    pub args: Vec<String>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -182,6 +240,82 @@ mod tests {
         let raw = "  api.anthropic.com, ,*.github.com,";
         let v = parse_allowlist(raw);
         assert_eq!(v, vec!["api.anthropic.com", "*.github.com"]);
+    }
+
+    #[test]
+    fn wrap_noop_returns_none() {
+        use crate::tier::IsolationStrategy;
+        let out = wrap_launch(
+            IsolationStrategy::Noop,
+            std::path::PathBuf::from("/bin/echo"),
+            vec!["hi".into()],
+            &WrapContext::default(),
+        );
+        assert!(out.is_none());
+    }
+
+    #[test]
+    fn wrap_harness_sandbox_builds_bun_srt_invocation() {
+        use crate::tier::IsolationStrategy;
+        let bun = std::path::PathBuf::from("/usr/local/bin/bun");
+        let srt = std::path::PathBuf::from("/opt/srt/bin.js");
+        let settings = std::path::PathBuf::from("/tmp/srt-1234.json");
+        let out = wrap_launch(
+            IsolationStrategy::HarnessSandbox,
+            std::path::PathBuf::from("/usr/local/bin/claude"),
+            vec!["-p".into(), "hello".into()],
+            &WrapContext {
+                bun_bin: Some(&bun),
+                srt_entry: Some(&srt),
+                srt_settings_path: Some(&settings),
+            },
+        )
+        .expect("should wrap");
+        assert_eq!(out.bin, bun);
+        assert_eq!(out.args[0], "run");
+        assert_eq!(out.args[1], "/opt/srt/bin.js");
+        assert_eq!(out.args[2], "--settings");
+        assert_eq!(out.args[3], "/tmp/srt-1234.json");
+        assert_eq!(out.args[4], "/usr/local/bin/claude");
+        assert_eq!(out.args[5], "-p");
+        assert_eq!(out.args[6], "hello");
+    }
+
+    #[test]
+    fn wrap_harness_sandbox_needs_all_paths() {
+        use crate::tier::IsolationStrategy;
+        let bun = std::path::PathBuf::from("/usr/local/bin/bun");
+        let out = wrap_launch(
+            IsolationStrategy::HarnessSandbox,
+            std::path::PathBuf::from("/usr/local/bin/claude"),
+            vec![],
+            &WrapContext {
+                bun_bin: Some(&bun),
+                srt_entry: None,
+                srt_settings_path: None,
+            },
+        );
+        assert!(out.is_none(), "missing srt_entry should yield None");
+    }
+
+    #[test]
+    fn wrap_container_strategies_return_none() {
+        use crate::tier::IsolationStrategy;
+        for s in [
+            IsolationStrategy::DockerEngine,
+            IsolationStrategy::YoukiRootless,
+            IsolationStrategy::Wsl2,
+            IsolationStrategy::LimaVm,
+            IsolationStrategy::FlyMachines,
+        ] {
+            let out = wrap_launch(
+                s,
+                std::path::PathBuf::from("/bin/echo"),
+                vec![],
+                &WrapContext::default(),
+            );
+            assert!(out.is_none(), "{s:?} should not be wrappable via argv-only");
+        }
     }
 
     #[test]

@@ -118,6 +118,22 @@ pub enum IsolationDecisionError {
     Recommender(#[from] RecommenderError),
 }
 
+/// Is the `isolation.enforce` master switch on? When false, the
+/// supervisor observes the decision and propagates it via env vars but
+/// does NOT wrap the launch. Defaults to false.
+pub fn enforcement_enabled() -> bool {
+    string_setting("isolation.enforce")
+        .ok()
+        .flatten()
+        .as_deref()
+        .map(parse_bool)
+        .unwrap_or(false)
+}
+
+fn parse_bool(s: &str) -> bool {
+    matches!(s.trim().to_ascii_lowercase().as_str(), "true" | "1" | "yes")
+}
+
 /// Parse the optional `isolation` field on an `AgentProfile` into a
 /// typed `IsolationProfile`. Returns `Ok(None)` for missing or empty;
 /// `Err` only when the value is malformed (caller should surface this

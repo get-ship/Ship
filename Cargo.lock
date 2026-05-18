@@ -4574,6 +4574,7 @@ dependencies = [
  "portable-pty",
  "serde",
  "serde_json",
+ "ship-isolation",
  "ship-platform",
  "ship-substrate",
  "ship-types",

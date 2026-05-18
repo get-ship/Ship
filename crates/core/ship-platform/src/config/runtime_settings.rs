@@ -45,6 +45,13 @@ pub fn setting_default(key: &str) -> Option<&'static str> {
         // If "false", the recommender refuses to fall back to Tier 0 and
         // an agent run fails instead of silently running unsandboxed.
         "isolation.allow_tier_0" => Some("true"),
+        // Master switch. When "false" (the default), the supervisor
+        // computes the isolation decision, exposes it via the API + env
+        // vars, but DOES NOT wrap the launch — the agent still runs on
+        // the host. Flip to "true" once strategies are validated on
+        // your machine. Per-strategy enforcement coverage is partial;
+        // strategies not yet wired downgrade to Noop with a warning.
+        "isolation.enforce" => Some("false"),
         // Lazy-fetch heavy assets (rootfs, VM images) on first use.
         "isolation.lazy_fetch" => Some("true"),
         // Default network policy when an agent doesn't specify one.
@@ -114,6 +121,7 @@ pub fn get_all_settings() -> Result<HashMap<String, serde_json::Value>> {
         ("isolation.default_tier", "auto"),
         ("isolation.default_strategy", "auto"),
         ("isolation.allow_tier_0", "true"),
+        ("isolation.enforce", "false"),
         ("isolation.lazy_fetch", "true"),
         ("isolation.network_default", "allowlist"),
         (
