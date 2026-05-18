@@ -171,17 +171,23 @@ pub fn inject_ship_lifecycle_hooks(patch: &mut Json) {
         .or_insert_with(|| serde_json::json!({}));
 
     // Claude Code hook events used by Ship's lifecycle wiring:
-    // - SessionStart: fires once when Claude opens a session. Drives
-    //   the hook.session_started kernel event for analytics.
+    // - SessionStart: fires when Claude opens a session. Drives the
+    //   hook.session_started kernel event for analytics. UNLIKE the
+    //   per-event hooks (PreToolUse / PostToolUse / Stop), SessionStart
+    //   requires an explicit `matcher` naming the source (`startup`,
+    //   `resume`, `clear`, `compact`). Without a matcher the hook
+    //   silently fails to register and never fires. We register one
+    //   entry per source so any kind of session boot reaches the
+    //   daemon. Source: claude --debug hooks emits "no matching hook"
+    //   when matcher is absent.
     // - PreToolUse / PostToolUse: per-tool bracketing. Drives the
-    //   hook.tool_use_* kernel events.
+    //   hook.tool_use_* kernel events. No matcher needed (default = all).
     // - Stop: fires on EVERY turn end (not actual session end —
     //   Claude's Stop semantics). Wired to `ship hook session-end`
     //   for historical reasons; the per-turn semantics are documented
     //   in hooks_api.rs::hook_session_end. A future job will split
     //   turn-end from session-end into separate Ship signals.
     let lifecycle = [
-        ("SessionStart", "ship hook session-start"),
         ("PreToolUse", "ship hook before-tool"),
         ("PostToolUse", "ship hook after-tool"),
         ("Stop", "ship hook session-end"),
@@ -195,6 +201,23 @@ pub fn inject_ship_lifecycle_hooks(patch: &mut Json) {
         } else {
             hooks_obj[trigger] = serde_json::json!([entry]);
         }
+    }
+
+    // SessionStart needs one entry per source matcher to register.
+    let session_start_sources = ["startup", "resume", "clear", "compact"];
+    let session_start_entries: Vec<Json> = session_start_sources
+        .iter()
+        .map(|src| {
+            serde_json::json!({
+                "matcher": src,
+                "hooks": [{ "type": "command", "command": "ship hook session-start" }],
+            })
+        })
+        .collect();
+    if let Some(arr) = hooks_obj.get_mut("SessionStart").and_then(|v| v.as_array_mut()) {
+        arr.extend(session_start_entries);
+    } else {
+        hooks_obj["SessionStart"] = serde_json::json!(session_start_entries);
     }
 }
 
