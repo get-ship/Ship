@@ -12,7 +12,9 @@ ship-substrate = { path = "../ship-substrate" }
 ship-platform = { path = "../ship-platform" }
 serde = { workspace = true }
 serde_json = { workspace = true }
+shell-words = { workspace = true }
 tracing = { workspace = true }
+home = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }

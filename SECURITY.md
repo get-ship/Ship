@@ -76,35 +76,92 @@ through tool calls matching the floor patterns.
 
 ### Layer 2 — PreToolUse hooks (Ship integrity)
 
-**Status: filed as task #75.**
-**Universal across harnesses that support hooks (Claude Code, future others).**
+**Status: in production as of `job/pretooluse-hooks`.**
+**Source:** `crates/core/cli-framework/src/hooks/tool_gate.rs` (gate logic),
+`apps/ship-cli/src/hook.rs::run_before_tool` (transport).
+**Wiring:** `crates/core/compiler/src/compile/{claude,gemini,codex,cursor}.rs::inject_ship_lifecycle_hooks`
+already emits `ship hook before-tool` into every supported harness's
+PreToolUse equivalent; the gate runs inside that handler — no separate
+binary, no parallel install path.
+**Universal across harnesses that support hooks (Claude Code, Gemini,
+Codex, Cursor today).**
 
-Ship ships a PreToolUse hook script that the agent compiler emits into
-every agent's harness config. The hook receives the tool call JSON at
-runtime and runs Ship-aware checks before the call executes. Unlike
-Layer 1, the hook sees actual arguments rather than patterns, so it can
-catch dynamically-constructed bypasses:
+The hook receives the tool-call JSON from the harness on stdin and runs
+Ship-aware checks before the call executes. Unlike Layer 1, the hook
+sees actual arguments rather than glob patterns, so it catches
+dynamically-constructed bypasses Layer 1's literal-glob matcher misses.
 
-- Any write to `~/.ship/machine/`, `~/.ship/data/`, `~/.ship/projections/`
-  regardless of the Bash command's surface shape
-- `tar`/`cp`/`mv`/`dd` whose targets include Ship-owned paths
-- Direct daemon HTTP from inside the agent process (`curl localhost:<port>`)
-- Future: rate limiting, anomaly detection, audit logging
+**Rules enforced:**
 
-The hook is the **mission-critical layer for Ship integrity** — it is the
-defense that holds even when the harness permission list is misconfigured
-or compromised.
+- **Write / Edit / MultiEdit / NotebookEdit** to any path inside
+  `~/.ship/machine/`, `~/.ship/data/`, or `~/.ship/projections/` — match
+  is segment-aware (`~/.ship/datasets/` is not flagged).
+- **Write** inside `.git/` (would let an agent rewrite refs) or
+  `.claude/` (would let an agent disable the hooks themselves).
+- **Bash** verbs `tar`/`cp`/`mv`/`dd`/`rsync`/`tee`/`chmod`/`chown`/`ln`/
+  `install`/`base64`/`xxd`/`od`/`hexdump`/`cat`/`head`/`tail`/`less`/
+  `more`/`rm` paired with a Ship-protected path in any argument
+  position. `sudo` / `env KEY=v` / `timeout` prefixes are stripped before
+  identifying the verb.
+- **Bash redirects** (`>`, `>>`, `&>`, `&>>`) whose target token is a
+  Ship-protected path, regardless of the leading verb.
+- **Bash shell-wrappers** — `bash -c "..."`, `sh -c "..."`, `eval "..."`
+  recursively re-enter the gate so a quoted inner script cannot evade
+  the verb rules. Bounded to depth 4.
+- **Direct daemon HTTP** — `curl`/`wget`/`http`/`httpie`/`xh` targeting
+  any of `localhost:<port>`, `127.0.0.1:<port>`, `[::1]:<port>`,
+  `0.0.0.0:<port>` where `<port>` is the live daemon port (discovered
+  via the same per-worktree / singleton walk the CLI uses). Legitimate
+  Ship operations go through the `ship` CLI or MCP tools, which
+  authenticate and audit-log.
+
+**Failure mode:** fail-closed. Malformed hook JSON or unparseable shell
+denies the call rather than waving it through — the threat model
+weighs "false-positive deny" against "smuggled bypass" and decides in
+favour of the safer side.
+
+**Protocol:** On deny, the gate writes Claude Code's structured
+permission-decision JSON to stdout and exits 0
+(`{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"..."}}`).
+This is the protocol path that surfaces a human-readable reason to the
+model, so the agent can explain to the user why the call was blocked
+and suggest a Ship-native alternative. Other harnesses (Gemini, Codex,
+Cursor) either consume the same shape or ignore stdout — either way the
+downstream daemon roundtrip is skipped because there is no tool call to
+log.
+
+**Performance:** The gate is pure logic plus one optional read of the
+daemon port file (skipped when no daemon is running). Measured well
+under the 50 ms hook budget; integration test runtime including process
+spawn is ~0.5 s, which is dominated by process startup, not gate work.
 
 **What this defends:** runtime intent. An agent attempting to corrupt
-Ship state is blocked regardless of how the command is phrased.
+Ship state, exfiltrate a credential via constructed paths, or call the
+daemon directly is blocked regardless of how the command is phrased,
+including via `$HOME` concatenation, `bash -c` wrapping, or `env`/`sudo`
+prefixing.
 
 **What this does NOT defend:**
 
-- Harnesses that do not support hooks at all (none currently in scope
-  but worth tracking)
-- An agent that disables hooks via harness config — the floor prevents
-  the obvious cases (write to `.claude/settings.json` is protected),
-  but a sufficiently determined agent could try harder
+- **Harnesses that do not support PreToolUse hooks at all** — none are
+  currently in scope, but future additions need an audit before they
+  ship.
+- **An agent that disables the hook via harness config** — the gate
+  blocks writes to `.claude/`, and Layer 1 separately denies
+  `.claude/settings.json`, but a sufficiently determined agent that
+  combines a Layer-1 bypass with a Layer-2 bypass could try. Closing
+  that gap is Layer 3's job.
+- **An agent escaping the harness entirely** (`--dangerously-skip-permissions`,
+  spawning a Python subprocess that doesn't consult Claude Code at all).
+  Hooks live inside the harness; they have no effect if the harness
+  isn't invoked. Layer 3 is the only defense against this class.
+- **File reads by other processes running as the same Unix user** —
+  that's a keychain / Unix-socket-peercred concern, tracked separately
+  under "Account token storage" below.
+- **Audit logging of denied calls** — filed as a follow-up; for now,
+  denials are visible to the model (via the reason string) and to
+  whoever inspects the harness's hook transcript, but are not
+  persisted to the event store.
 
 ### Layer 3 — OS sandbox (future)
 

@@ -583,8 +583,10 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
+ "home",
  "serde",
  "serde_json",
+ "shell-words",
  "ship-platform",
  "ship-substrate",
  "tempfile",
