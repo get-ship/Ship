@@ -128,7 +128,7 @@ fn make_kernel() -> Arc<Mutex<KernelRouter>> {
             "supervisor.".to_string(),
         ],
         read_namespaces: vec![],
-        subscribe_namespaces: vec!["job.".to_string(), "step.".to_string()],
+        subscribe_namespaces: vec!["pipeline.".to_string()],
     };
     router.spawn_actor("service.job-dispatch", config).unwrap();
     Arc::new(Mutex::new(router))

@@ -89,7 +89,7 @@ fn make_kernel() -> Arc<Mutex<KernelRouter>> {
                     "executor.".to_string(),
                 ],
                 read_namespaces: vec![],
-                subscribe_namespaces: vec!["job.".to_string(), "step.".to_string()],
+                subscribe_namespaces: vec!["pipeline.".to_string()],
             },
         )
         .unwrap();

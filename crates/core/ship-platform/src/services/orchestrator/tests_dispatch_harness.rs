@@ -80,7 +80,7 @@ fn dispatch_config() -> ActorConfig {
         namespace: "service.job-dispatch".to_string(),
         write_namespaces: vec!["job.".to_string(), "step.".to_string()],
         read_namespaces: vec![],
-        subscribe_namespaces: vec!["job.".to_string(), "step.".to_string()],
+        subscribe_namespaces: vec!["pipeline.".to_string()],
     }
 }
 
