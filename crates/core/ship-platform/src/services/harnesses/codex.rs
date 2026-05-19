@@ -116,21 +116,51 @@ impl HarnessAdapter for CodexAdapter {
         Ok(LaunchCommand { bin: "codex".to_string(), args, env })
     }
 
-    /// Codex `--json` stream emits `thread.started` early in a run with
-    /// the thread id we resume against later. Surface that as
-    /// `SessionStarted` so the reader middleware can persist
-    /// `.ship/session.json`.
+    /// Codex `--json` stream emits these events relevant to observability:
+    ///   thread.started — early in run; carries `thread_id` (the resume key).
+    ///   turn.completed — end of turn; carries `usage` block with token
+    ///                    counts. Shape (per codex-rs/exec/src/exec_events.rs):
+    ///                    `{"type":"turn.completed","usage":{
+    ///                       "input_tokens":i64, "cached_input_tokens":i64,
+    ///                       "output_tokens":i64, "reasoning_output_tokens":i64 }}`
+    ///                    No cost field; no stop_reason; no model echo.
     fn parse_output(&self, line: &str) -> Option<HarnessEvent> {
         let v: serde_json::Value = serde_json::from_str(line).ok()?;
         let ty = v.get("type")?.as_str()?;
-        if ty == "thread.started"
-            && let Some(tid) = v.get("thread_id").and_then(|s| s.as_str())
-        {
-            return Some(HarnessEvent::SessionStarted {
-                session_id: tid.to_string(),
-            });
+        match ty {
+            "thread.started" => {
+                let tid = v.get("thread_id").and_then(|s| s.as_str())?;
+                Some(HarnessEvent::SessionStarted {
+                    session_id: tid.to_string(),
+                })
+            }
+            "turn.completed" => {
+                let usage = v.get("usage")?;
+                let input_tokens =
+                    usage.get("input_tokens").and_then(|n| n.as_i64()).unwrap_or(0) as u64;
+                let output_tokens =
+                    usage.get("output_tokens").and_then(|n| n.as_i64()).unwrap_or(0) as u64;
+                let reasoning_tokens = usage
+                    .get("reasoning_output_tokens")
+                    .and_then(|n| n.as_i64())
+                    .unwrap_or(0) as u64;
+                let cache_read_tokens = usage
+                    .get("cached_input_tokens")
+                    .and_then(|n| n.as_i64())
+                    .unwrap_or(0) as u64;
+                Some(HarnessEvent::TurnUsage {
+                    model: None,
+                    input_tokens,
+                    output_tokens,
+                    reasoning_tokens,
+                    cache_creation_tokens: 0,
+                    cache_read_tokens,
+                    stop_reason: None,
+                    harness_reported_cost_usd: None,
+                })
+            }
+            _ => None,
         }
-        None
     }
     fn extract_session_meta(&self, _work_dir: &Path) -> Option<serde_json::Value> { None }
 }

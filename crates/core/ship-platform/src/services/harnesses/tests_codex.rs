@@ -146,6 +146,47 @@ fn parse_output_extracts_session_id_from_thread_started() {
     }
 }
 
+#[test]
+fn parse_output_extracts_turn_usage_from_turn_completed() {
+    use crate::services::harness_adapter::HarnessEvent;
+    let adapter = CodexAdapter;
+    // Shape per codex-rs/exec/src/exec_events.rs::TurnCompletedEvent.
+    // cached_input_tokens maps to cache_read_tokens; codex doesn't
+    // surface cache_creation or cost.
+    let line = r#"{"type":"turn.completed","usage":{"input_tokens":1234,"cached_input_tokens":56,"output_tokens":78,"reasoning_output_tokens":9}}"#;
+    match adapter.parse_output(line) {
+        Some(HarnessEvent::TurnUsage {
+            model,
+            input_tokens,
+            output_tokens,
+            reasoning_tokens,
+            cache_creation_tokens,
+            cache_read_tokens,
+            stop_reason,
+            harness_reported_cost_usd,
+        }) => {
+            assert_eq!(model, None);
+            assert_eq!(input_tokens, 1234);
+            assert_eq!(output_tokens, 78);
+            assert_eq!(reasoning_tokens, 9);
+            assert_eq!(cache_creation_tokens, 0);
+            assert_eq!(cache_read_tokens, 56);
+            assert_eq!(stop_reason, None);
+            assert_eq!(harness_reported_cost_usd, None);
+        }
+        other => panic!("expected TurnUsage, got {other:?}"),
+    }
+}
+
+#[test]
+fn parse_output_turn_completed_missing_usage_returns_none() {
+    let adapter = CodexAdapter;
+    // Defensive — if codex ever ships a turn.completed without usage we
+    // shouldn't panic or emit zeros that pollute analytics.
+    let line = r#"{"type":"turn.completed"}"#;
+    assert!(adapter.parse_output(line).is_none());
+}
+
 // ── build_resume_args ───────────────────────────────────────────────────────
 
 #[test]
