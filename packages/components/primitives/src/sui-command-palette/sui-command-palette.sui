@@ -206,8 +206,17 @@
   }
   @media (forced-colors: active) {
     dialog[open] { border: 1px solid CanvasText; }
-    .row.hl { background: Highlight; color: HighlightText; }
-    .row.hl .row-icon { color: HighlightText; }
+    /* forced-color-adjust:none disables the UA text "backplate"; without
+       it Chromium paints a Canvas-coloured plate behind the row text that
+       collides with HighlightText, hiding the selected label. */
+    .row.hl {
+      forced-color-adjust: none;
+      background: Highlight;
+      color: HighlightText;
+    }
+    .row.hl .row-icon,
+    .row.hl .row-label,
+    .row.hl .row-hint { color: HighlightText; }
   }
 </style>
 
