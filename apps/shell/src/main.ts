@@ -49,6 +49,7 @@ import { KernelBridge } from './kernel-bridge'
 import { initHmr } from './hmr'
 import { initProjectSwitch } from './project-switch'
 import { initChromeRegistry } from './chrome/registry'
+import { initCommandPalette } from './chrome/command-palette'
 import { initEditModeChrome, setEditModeView, toggleEditMode, toggleAnnotationMode } from './chrome/edit-mode'
 import { bridgeDockTerminal, disposeDockTerminal } from './chrome/terminal-bridge'
 
@@ -626,10 +627,11 @@ document.addEventListener('keydown', (e: KeyboardEvent) => {
 
   if (mod && key === 'k') {
     e.preventDefault()
-    // Open the command bar AND fire the bare `sui-open-command-palette`
-    // event for chrome (shell-top pill, blank-canvas hint) that listens
-    // for the higher-level intent.
-    getCommandBar()?.toggle('find')
+    // ⌘K is the command palette — the shell's primary navigation surface
+    // (it replaces the rail). Fire the bare `sui-open-command-palette`
+    // intent; initCommandPalette() receives it and opens the overlay. The
+    // shell-top pill and blank-canvas hint emit the same event. The older
+    // `<sui-command-bar>` find mode keeps its own binding on ⌘P.
     document.dispatchEvent(new CustomEvent('sui-open-command-palette', { bubbles: true }))
     return
   }
@@ -855,6 +857,10 @@ document.addEventListener('sui:navigate', (e: Event) => {
 })
 
 initChromeRegistry()
+// Command palette — mount once on body and wire ⌘K / chrome-emitted
+// `sui-open-command-palette` → open, and `sui-command-select` → navigate
+// or dispatch a run intent. Primary navigation surface of the shell.
+initCommandPalette({ sdk: shipClient, navigate })
 // View-authoring chrome — installs the real __viewMcp + edit-mode
 // signal wiring. The prior initViewMocks() + mocks/ dir was deleted
 // when the backend (view_edit_tool_api) shipped — its leftover
