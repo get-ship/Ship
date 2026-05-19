@@ -132,19 +132,26 @@
 
   <main class="studio-content" data-test="studio-content"
     attr:data-section={section()}>
-    <section class="studio-section">
-      <h1 class="studio-section-h1" data-test="section-title">{sectionTitle()}</h1>
-      <p class="studio-section-sub" data-test="section-sub">{sectionSubtitle()}</p>
+    {#if section() === 'themes'}
+      <!-- Section keystone: dispatch to the registered section element.
+           Other sections add a `{:else if}` arm here as they land. See
+           controller.ts § "Studio section elements". -->
+      <sui-studio-themes></sui-studio-themes>
+    {:else}
+      <section class="studio-section">
+        <h1 class="studio-section-h1" data-test="section-title">{sectionTitle()}</h1>
+        <p class="studio-section-sub" data-test="section-sub">{sectionSubtitle()}</p>
 
-      <div class="studio-section-empty">
-        <sui-empty-state variant="placeholder" size="md" data-test="section-empty">
-          <sui-icon slot="icon" name="sparkles"></sui-icon>
-          <span slot="title">Coming soon</span>
-          This section's interior is coming in a follow-up. Other tracks are
-          landing the per-section content.
-        </sui-empty-state>
-      </div>
-    </section>
+        <div class="studio-section-empty">
+          <sui-empty-state variant="placeholder" size="md" data-test="section-empty">
+            <sui-icon slot="icon" name="sparkles"></sui-icon>
+            <span slot="title">Coming soon</span>
+            This section's interior is coming in a follow-up. Other tracks are
+            landing the per-section content.
+          </sui-empty-state>
+        </div>
+      </section>
+    {/if}
   </main>
 
 </div>
