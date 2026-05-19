@@ -116,6 +116,13 @@ impl TemplateEmitter {
             self.svg_depth -= 1;
         }
         w.line(&format!("{parent_var}.appendChild({v});"));
+        // `<use-*>` elements aren't visible UI — they're behavior
+        // markers. After the DOM is built, look the hook up in the
+        // template-hook registry and invoke its factory so listeners
+        // (e.g. `<use-kbd>` document keydown) actually attach.
+        if let Some(hook_name) = lower.strip_prefix("use-") {
+            emit_hook_activation(w, &v, hook_name, el, cleanups_var);
+        }
     }
 
     pub(super) fn emit_attr(
@@ -464,4 +471,88 @@ fn with_arg(kind: &str, arg: Option<&str>) -> String {
         Some(a) => format!("{{ kind: \"{kind}\", arg: {} }}", js_string(a)),
         None => format!("{{ kind: \"{kind}\" }}"),
     }
+}
+
+/// Emit a `getTemplateHook(name)`-backed activation for a `<use-*>`
+/// element. The hook factory expects `attrs` shaped per its declared
+/// `attrs` schema; for `<use-kbd>` the children are `<on key=… action=…>`
+/// records that get parsed at runtime into the `shortcuts` array.
+///
+/// Other hooks (`use-title`, `use-click-outside`, …) don't have
+/// element children — their inputs come through the parent element's
+/// attributes, which are already emitted as `setAttribute` calls on
+/// `__el`. The factory reads them back via `el.getAttribute(…)` or via
+/// a wrapping hydrate flow. Today only `<use-kbd>` and `<use-title>`
+/// have authoring use in the repo, so this emit only special-cases
+/// the kbd shortcut shape.
+fn emit_hook_activation(
+    w: &mut Writer,
+    el_var: &str,
+    hook_name: &str,
+    el: &ElementInstr,
+    cleanups_var: &str,
+) {
+    let hook_var = format!("__hook_{hook_name}");
+    w.line(&format!(
+        "const {hook_var} = getTemplateHook({});",
+        js_string(hook_name)
+    ));
+    w.line(&format!("if ({hook_var}) {{"));
+    w.enter();
+    w.line("const __hookAttrs = Object.create(null);");
+    if hook_name == "kbd" {
+        // Pre-compute shortcuts from `<on key=… action=…>` static children.
+        let shortcuts = collect_kbd_shortcuts(&el.children);
+        w.line(&format!("__hookAttrs.shortcuts = {shortcuts};"));
+        w.line("__hookAttrs.resolve = (__n) => $scope[__n];");
+    } else {
+        // Generic: surface el attributes by name as literals so the
+        // factory can read them without re-traversing the DOM.
+        for a in &el.attrs {
+            if let AttrInstr::Static { name, value, .. } = a {
+                w.line(&format!(
+                    "__hookAttrs[{}] = {};",
+                    js_string(name),
+                    js_string(value)
+                ));
+            }
+        }
+    }
+    let cleanup_fn = format!("(__fn) => {cleanups_var}.push(__fn)");
+    w.line(&format!(
+        "{hook_var}.factory({{ attrs: __hookAttrs, el: {el_var}, cleanup: {cleanup_fn} }});"
+    ));
+    w.leave();
+    w.line("}");
+}
+
+/// Walk `<on key=… action=…>` children of a `<use-kbd>` element and
+/// emit a JS array literal of `{ key, action }` records.
+fn collect_kbd_shortcuts(children: &[Instr]) -> String {
+    let mut items: Vec<String> = Vec::new();
+    for child in children {
+        let Instr::Element(el) = child else { continue };
+        if el.tag.to_ascii_lowercase() != "on" {
+            continue;
+        }
+        let mut key: Option<String> = None;
+        let mut action: Option<String> = None;
+        for a in &el.attrs {
+            if let AttrInstr::Static { name, value, .. } = a {
+                match name.as_str() {
+                    "key" => key = Some(value.clone()),
+                    "action" => action = Some(value.clone()),
+                    _ => {}
+                }
+            }
+        }
+        if let (Some(k), Some(a)) = (key, action) {
+            items.push(format!(
+                "{{ key: {}, action: {} }}",
+                js_string(&k),
+                js_string(&a)
+            ));
+        }
+    }
+    format!("[{}]", items.join(", "))
 }

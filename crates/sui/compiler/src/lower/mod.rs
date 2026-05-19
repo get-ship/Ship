@@ -159,6 +159,9 @@ fn walk_instr(instr: &Instr, out: &mut Lowered, is_view: bool, depth: &mut usize
         Instr::Element(el) => {
             if el.tag.starts_with("use-") {
                 out.uses_template_hooks = true;
+                // Hook activation needs `getTemplateHook` to look the
+                // factory up in the registry at mount time.
+                out.runtime_imports.insert("getTemplateHook");
             }
             for a in &el.attrs {
                 if is_view {
@@ -186,6 +189,14 @@ fn walk_instr(instr: &Instr, out: &mut Lowered, is_view: bool, depth: &mut usize
             }
             *depth += 1;
             walk_instrs(&we.body, out, is_view, depth);
+            *depth -= 1;
+        }
+        Instr::Let(l) => {
+            // `Let` is internal-only — emitted by `{#async X as v}` to
+            // snapshot the signal's `.value`. No new runtime imports
+            // beyond what the body already needs.
+            *depth += 1;
+            walk_instrs(&l.body, out, is_view, depth);
             *depth -= 1;
         }
         Instr::If(IfInstr { branches, else_body, .. }) => {

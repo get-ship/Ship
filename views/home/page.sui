@@ -20,22 +20,21 @@
       </sui-cluster>
     </header>
 
-    {#while-loading of dash}
+    {#async dash}
+      {:loading}
       <div class="home-stats" data-test="home-loading" aria-busy="true" aria-label="Loading workspace">
         {#for n of [0, 1, 2, 3] key={n}}
           <sui-skeleton shape="block" size="md"></sui-skeleton>
         {/for}
       </div>
-    {/while-loading}
-
-    {#while-error err of dash}
+    
+      {:error err}
       <sui-error-state title="Couldn't load workspace" data-test="home-error" role="alert" aria-live="assertive">
         {err.message}
         <sui-button slot="action" tone="primary" variant="solid" on:click={() => window.location.reload()}>Retry</sui-button>
       </sui-error-state>
-    {/while-error}
-
-    {#if dash().kind === 'ok'}
+    
+      {:ok}
       {#if isFirstRun()}
         <sui-empty-state icon="sparkles" variant="default" size="lg"
           data-test="home-empty" role="status" class="home-empty">
@@ -102,13 +101,14 @@
               </a>
             </div>
             <div class="home-glance">
-              {#while-loading of git}
+              {#async git}
+                {:loading}
                 <span class="home-glance-skel" data-test="git-loading">Loading git status&hellip;</span>
-              {/while-loading}
-              {#while-error err of git}
+              
+                {:error err}
                 <span class="home-glance-err" data-test="git-error">Git stream offline: {err.message}</span>
-              {/while-error}
-              {#if git().kind === 'ok'}
+              
+                {:ok}
                 <span class="home-glance-line" data-test="git-summary">
                   <span class="home-glance-dot" data-clean={isClean() ? '1' : '0'} aria-hidden="true"></span>
                   <span>Branch <strong class="home-mono" data-test="git-branch">{branchName()}</strong></span>
@@ -117,7 +117,8 @@
                   <span class="home-glance-sep">&middot;</span>
                   <span data-test="git-status">{isClean() ? 'clean' : changedSummary()}</span>
                 </span>
-              {/if}
+              
+              {/async}
             </div>
           </sui-card>
 
@@ -263,7 +264,8 @@
 
         </div>
       {/if}
-    {/if}
+    
+    {/async}
 
   </div>
 </div>

@@ -1,7 +1,7 @@
 import { defineConfig } from 'vitest/config'
 import { resolve, dirname, basename, relative } from 'node:path'
-import { existsSync, readFileSync } from 'node:fs'
-import { SHIP_VITEST_DEFAULTS } from '../../../vitest.shared'
+import { existsSync } from 'node:fs'
+import { SHIP_VITEST_DEFAULTS, compileSuiToJs } from '../../../vitest.shared'
 // @ts-expect-error — JS module, no .d.ts.
 import { spawnBoundedOrThrow } from '../../../scripts/spawn-bounded.mjs'
 
@@ -35,7 +35,6 @@ export default defineConfig({
   resolve: {
     alias: {
       '@ship/sui-runtime': resolve(__dirname, '../../sui/runtime/src/index.ts'),
-      '@ship/sui-dom/legacy': resolve(__dirname, '../../sui/dom/src/legacy/index.ts'),
       '@ship/sui-dom': resolve(__dirname, '../../sui/dom/src/index.ts'),
     },
   },
@@ -45,21 +44,11 @@ export default defineConfig({
     setupFiles: ['./test/setup.ts'],
     ...SHIP_VITEST_DEFAULTS,
   },
-  // `<tag>.compiled.js` shim — same contract as ui-components: resolve
-  // to the mirror-tree artifact, compile on-demand from a sibling
-  // `.sui` if missing, fall back to the legacy `.html.set` hydrate path.
+  // `<tag>.compiled.js` shim — resolve to the mirror-tree artifact
+  // (produced by `pretest`), CLI-compile on-demand from a sibling
+  // `.sui` if missing, and wasm-compile inline as a final fallback for
+  // watch-mode HMR cycles.
   plugins: [
-    {
-      name: 'html-set-text-loader',
-      transform(_code: string, id: string) {
-        if (!id.endsWith('.html.set')) return null
-        const source = readFileSync(id, 'utf8')
-        return {
-          code: `export default ${JSON.stringify(source)}`,
-          map: null,
-        }
-      },
-    },
     {
       name: 'compiled-js-test-shim',
       resolveId(id: string, importer?: string) {
@@ -76,23 +65,16 @@ export default defineConfig({
         if (existsSync(suiFile)) {
           compileSui(suiFile, stem)
           if (existsSync(mirrorFile)) return mirrorFile
+          return `\0compiled-js-shim:${suiFile}`
         }
 
-        return `\0compiled-js-shim:${resolve(sourceDir, stem)}`
+        return null
       },
       load(id: string) {
         const prefix = '\0compiled-js-shim:'
         if (!id.startsWith(prefix)) return null
-        const base = id.slice(prefix.length)
-        const htmlSet = `${base}.html.set`
-        return [
-          `import { hydrate } from '@ship/sui-dom/legacy'`,
-          `import template from ${JSON.stringify(htmlSet)}`,
-          `if (typeof document !== 'undefined') {`,
-          `  const __c = document.createElement('div')`,
-          `  hydrate(template, undefined, { container: __c })`,
-          `}`,
-        ].join('\n')
+        const suiPath = id.slice(prefix.length)
+        return compileSuiToJs(suiPath)
       },
     },
   ],

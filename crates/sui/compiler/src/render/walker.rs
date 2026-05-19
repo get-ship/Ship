@@ -121,6 +121,7 @@ impl<'r> Walker<'r> {
             Instr::Match(match_instr) => control_flow::render_match(self, match_instr),
             Instr::WhileLoading(wl) => control_flow::render_while_loading(self, wl),
             Instr::WhileError(we) => control_flow::render_while_error(self, we),
+            Instr::Let(l) => control_flow::render_let(self, l),
         }
     }
 }

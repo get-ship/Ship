@@ -1,10 +1,11 @@
-{#while-loading of settings}
+{#async settings}
+  {:loading}
   <sui-spinner size="md" centered></sui-spinner>
-{/while-loading}
-{#while-error err of settings}
-  <p style="padding:var(--space-4); color:var(--destructive)">{err.message}</p>
-{/while-error}
 
+  {:error err}
+  <p style="padding:var(--space-4); color:var(--destructive)">{err.message}</p>
+
+  {:ok}
 {#if agent()}
   <sui-view-chrome title={agent().name}>
     <sui-segmented slot="actions" value="settings" size="sm">
@@ -206,3 +207,4 @@
     </sui-toolbar>
   </sui-dialog>
 {/if}
+{/async}

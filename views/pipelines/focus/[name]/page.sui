@@ -18,13 +18,14 @@
 .ship-live-run.ship-heartbeat { box-shadow: 0 0 0 3px color-mix(in oklch, var(--info) 30%, transparent); }
 </style>
 
-{#while-loading of ctx}
+{#async ctx}
+  {:loading}
   <sui-spinner size="md" centered></sui-spinner>
-{/while-loading}
-{#while-error err of ctx}
-  <sui-alert tone="destructive">Failed to load pipeline: {err.message}</sui-alert>
-{/while-error}
 
+  {:error err}
+  <sui-alert tone="destructive">Failed to load pipeline: {err.message}</sui-alert>
+
+  {:ok}
 {#if def()}
 <div class="ship-view ship-view-pipeline-focus">
   <div class="ship-focus-wrap">
@@ -227,3 +228,4 @@
   {/if}
 </div>
 {/if}
+{/async}

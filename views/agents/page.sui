@@ -46,7 +46,8 @@
       </sui-segmented>
     </div>
 
-    {#while-loading of agents}
+    {#async agents}
+      {:loading}
       <div class="agents-grid" data-test="loading" role="status" aria-live="polite" aria-busy="true" aria-label="Loading agents">
         {#for n of [0,1,2,3,4,5] key={n}}
           <div class="agents-skel-card" aria-hidden="true">
@@ -59,16 +60,14 @@
           </div>
         {/for}
       </div>
-    {/while-loading}
-
-    {#while-error err of agents}
+    
+      {:error err}
       <sui-error-state title="Couldn't load agents" data-test="error" role="alert" aria-live="assertive">
         {err.message}
         <sui-button slot="action" tone="primary" variant="solid" on:click={() => window.location.reload()}>Retry</sui-button>
       </sui-error-state>
-    {/while-error}
-
-    {#if agents().kind === 'ok'}
+    
+      {:ok}
       {#if items().length === 0}
         <sui-empty-state icon="sparkles" variant="default" size="sm" data-test="empty" role="status">
           <span slot="title">No agents yet</span>
@@ -158,7 +157,8 @@
           {/for}
         </div>
       {/if}
-    {/if}
+    
+    {/async}
 
   </div>
 </div>
