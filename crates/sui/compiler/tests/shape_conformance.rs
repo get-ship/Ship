@@ -1,7 +1,7 @@
 //! Shape-conformance integration test.
 //!
 //! Compiles every checked-in `.sui` template (under `views/` and
-//! `packages/ui-components/src/`) with the in-process compiler API,
+//! `packages/ship-components/ui-components/src/`) with the in-process compiler API,
 //! merges the emitted JS into a tempdir, and runs `tsc --noEmit`
 //! against it with paths mapped to the runtime / ui-dom sources.
 //!
@@ -61,11 +61,11 @@ fn walk_collect(dir: &Path, out: &mut Vec<PathBuf>) {
 }
 
 /// Determine compile mode + component metadata for a given `.sui` path.
-/// Files under `packages/ui-components/src/` are components; their
+/// Files under `packages/ship-components/ui-components/src/` are components; their
 /// component name is the file stem. Files under `views/` are views.
 fn classify(path: &Path, repo: &Path) -> (CompileMode, Option<ComponentMeta>) {
     let rel = path.strip_prefix(repo).unwrap_or(path);
-    let is_component = rel.starts_with("packages/ui-components/src");
+    let is_component = rel.starts_with("packages/ship-components/ui-components/src");
     if is_component {
         let stem = path
             .file_stem()
@@ -366,7 +366,7 @@ fn structural_check(
 #[test]
 fn every_sui_compiles_and_imports_resolve() {
     let repo = repo_root();
-    let roots = [repo.join("views"), repo.join("packages/ui-components/src")];
+    let roots = [repo.join("views"), repo.join("packages/ship-components/ui-components/src")];
     let files = collect_sui_files(&roots);
     assert!(
         !files.is_empty(),
@@ -423,7 +423,7 @@ fn every_sui_typechecks_against_runtime_dts() {
     let temp = tempfile::tempdir().expect("tempdir");
     let temp_path = temp.path().to_path_buf();
 
-    let roots = [repo.join("views"), repo.join("packages/ui-components/src")];
+    let roots = [repo.join("views"), repo.join("packages/ship-components/ui-components/src")];
     let files = collect_sui_files(&roots);
     assert!(!files.is_empty());
 

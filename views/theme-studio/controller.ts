@@ -13,7 +13,7 @@
 // Round-trip is plain JSON so Export/Import use the same shape.
 
 import { controller, signal, derived, chrome } from '@ship/sui-runtime'
-import { applyTheme, readStoredTheme, persistTheme, isValidTheme, type ThemeId } from '../../packages/ui-components/src/tokens/themes'
+import { applyTheme, readStoredTheme, persistTheme, isValidTheme, type ThemeId } from '../../packages/ship-components/ui-components/src/tokens/themes'
 import type { Scope } from './page.sui'
 import { LAYERS, THEME_PACKS, ALL_TOKENS } from './token-catalog'
 

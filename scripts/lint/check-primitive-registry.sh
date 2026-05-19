@@ -2,8 +2,8 @@
 # check-primitive-registry.sh
 #
 # Guard against drift between primitive `<prop>` declarations
-# (packages/components/primitives/src/**/*.sui,
-#  packages/ui-components/src/**/*.sui)
+# (packages/ship-components/primitives/src/**/*.sui,
+#  packages/ship-components/ui-components/src/**/*.sui)
 # and the registry sui-lint's `sui-prop-value` rule loads from
 # crates/sui/compiler/primitives.json.
 #

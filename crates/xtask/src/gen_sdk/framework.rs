@@ -11,7 +11,7 @@
 //! across the framework's lifetime and are authored by hand here. The
 //! per-component prop catalog (`components` field) is populated by a
 //! separate pass from `@custom-elements-manifest/analyzer` against
-//! `packages/ui-components/`; that pipeline is not driven from this file.
+//! `packages/ship-components/ui-components/`; that pipeline is not driven from this file.
 
 use std::path::Path;
 

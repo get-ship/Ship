@@ -1,6 +1,6 @@
 ---
 title: "View Directory Convention"
-description: "ADR: views/<name>/ uses page.sui (route entry), controller.ts, style.css, manifest.jsonc, dist/ (generated), and _components/ (view-private widgets) — distinct from the component shape under packages/ui-components/src/sui-*."
+description: "ADR: views/<name>/ uses page.sui (route entry), controller.ts, style.css, manifest.jsonc, dist/ (generated), and _components/ (view-private widgets) — distinct from the component shape under packages/ship-components/ui-components/src/sui-*."
 group: ADRs
 order: 21
 audience: internal
@@ -14,15 +14,15 @@ tags: [views, sui, routing, conventions]
 
 ## Context
 
-Today views and components share the same directory shape. A view at `views/counter/` has a `view.sui`, `view.controller.ts`, `view.css`, and `package.json`. A component at `packages/ui-components/src/sui-button/` has `sui-button.sui`, `sui-button.controller.ts`. The two layers are conceptually distinct — a view is a **page** (route entry, served at a URL, owns a viewport), a component is a **reusable widget** (custom element, composed by views, owns its own internal state) — but the on-disk shape doesn't say so.
+Today views and components share the same directory shape. A view at `views/counter/` has a `view.sui`, `view.controller.ts`, `view.css`, and `package.json`. A component at `packages/ship-components/ui-components/src/sui-button/` has `sui-button.sui`, `sui-button.controller.ts`. The two layers are conceptually distinct — a view is a **page** (route entry, served at a URL, owns a viewport), a component is a **reusable widget** (custom element, composed by views, owns its own internal state) — but the on-disk shape doesn't say so.
 
 Three follow-on problems:
 
 1. **No hint about role.** Reading `view.sui` in isolation does not tell a future author or agent whether they're looking at a routed page or one of many reusable widgets that happens to live under `views/`. The filename stem is mute.
-2. **No place for view-private widgets.** A page often has one or two bespoke widgets that are not worth promoting to `packages/ui-components/`. Today there's no convention for where those land — authors either inline the markup, hand-roll a one-off custom element somewhere ad hoc, or put them next to siblings, blurring "exported component" with "page-private fragment."
+2. **No place for view-private widgets.** A page often has one or two bespoke widgets that are not worth promoting to `packages/ship-components/ui-components/`. Today there's no convention for where those land — authors either inline the markup, hand-roll a one-off custom element somewhere ad hoc, or put them next to siblings, blurring "exported component" with "page-private fragment."
 3. **No declarative metadata.** Route path, title, layout slot, auth requirement, preload data — all of it lives in code (the daemon resolver, the shell main, ad hoc per-view setup). A view's metadata cannot be read without reading the runtime that interprets it.
 
-The component shape (`packages/ui-components/src/sui-foo/`) is settled and stays settled — see `ship-components` skill. This ADR settles the **view** shape.
+The component shape (`packages/ship-components/ui-components/src/sui-foo/`) is settled and stays settled — see `ship-components` skill. This ADR settles the **view** shape.
 
 ## Decision
 
@@ -121,7 +121,7 @@ Familiar to web devs. Rejected because `index` is a generic "this directory has 
 
 ### Components register globally with full pathnames (no view scoping)
 
-Avoids `_components/` and lets any widget be reused. Rejected because we already have `packages/ui-components/` for shared widgets. The whole point of `_components/` is opting OUT of the global registry — once a widget is reusable, it gets promoted to the components package. Two registries with clear directionality (`_components/` → `packages/ui-components/`) beats one giant flat namespace.
+Avoids `_components/` and lets any widget be reused. Rejected because we already have `packages/ship-components/ui-components/` for shared widgets. The whole point of `_components/` is opting OUT of the global registry — once a widget is reusable, it gets promoted to the components package. Two registries with clear directionality (`_components/` → `packages/ship-components/ui-components/`) beats one giant flat namespace.
 
 ### YAML manifests
 

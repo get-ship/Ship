@@ -63,9 +63,9 @@ const SUI_BUNDLES = [
 // resolves against the same canonical tokens the daemon serves at
 // runtime. The concat order must match apps/shipd/src/views/assets.rs.
 const VIEW_TOKENS_SOURCES = [
-  join(REPO_ROOT, "packages/ui-components/src/tokens/tokens.css"),
+  join(REPO_ROOT, "packages/ship-components/ui-components/src/tokens/tokens.css"),
   join(REPO_ROOT, "apps/shipd/assets/view-tokens.css"),
-  join(REPO_ROOT, "packages/ui-components/src/tokens/themes.css"),
+  join(REPO_ROOT, "packages/ship-components/ui-components/src/tokens/themes.css"),
 ] as const
 // `agent-only` files never ship to any site. `internal` files are hidden from
 // the public (user) build but rendered in internal mode so contributors can
@@ -306,7 +306,7 @@ function run(): void {
   for (const name of SUI_BUNDLES) {
     const src = join(SUI_ASSETS_DIR, name)
     if (!existsSync(src)) {
-      console.log(`[collect-docs] ${name} not found at ${src}. Run 'cd packages/ui-components && bun run build' first.`)
+      console.log(`[collect-docs] ${name} not found at ${src}. Run 'cd packages/ship-components/ui-components && bun run build' first.`)
       continue
     }
     copyFileSync(src, join(PUBLIC_DIR, name))

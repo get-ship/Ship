@@ -2,7 +2,7 @@
 //! `.sui` template and `.controller.ts` for a SUI component.
 //!
 //! Powers the "View source" deep-link in ship-ui-studio. The whole
-//! `packages/ui-components/src/` tree is baked into the daemon binary
+//! `packages/ship-components/ui-components/src/` tree is baked into the daemon binary
 //! at compile time via `include_dir!`, so the studio works even when
 //! the daemon ships standalone (no workspace on disk). Look-ups go
 //! through `is_valid_tag()` — only `sui-[a-z0-9-]+` matches; anything
@@ -17,7 +17,7 @@ use include_dir::{Dir, include_dir};
 /// directly rather than touching the filesystem, so shipped daemons
 /// expose component source even when the monorepo isn't present.
 static UI_COMPONENTS_SRC: Dir<'_> =
-    include_dir!("$CARGO_MANIFEST_DIR/../../packages/ui-components/src");
+    include_dir!("$CARGO_MANIFEST_DIR/../../packages/ship-components/ui-components/src");
 
 /// Tag whitelist — lowercase ASCII, digits, and hyphens after `sui-`.
 /// Rejects path-traversal (`..`, `/`, `\\`) and any non-component name.
@@ -98,7 +98,7 @@ fn render_html(tag: &str, sui_src: &str, ctrl_src: Option<&str>) -> String {
 </style>\n\
 </head><body>\n\
 <h1>{header}</h1>\n\
-<p class=\"meta\">packages/ui-components/src/{tag}/</p>\n\
+<p class=\"meta\">packages/ship-components/ui-components/src/{tag}/</p>\n\
 <h2>Template (.sui)</h2><pre>{sui_html}</pre>\n\
 {ctrl_block}\n\
 </body></html>"

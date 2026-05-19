@@ -184,25 +184,72 @@
       "name": "@ship/compiler",
       "version": "0.1.0",
     },
-    "packages/components/charts": {
-      "name": "@ship/charts",
+    "packages/deck/build": {
+      "name": "@ship/sui-build",
       "version": "0.1.0",
+      "bin": {
+        "sui-build": "./bin/sui-build.mjs",
+      },
       "dependencies": {
-        "@ship/sui-build": "workspace:*",
+        "chokidar": "^4.0.0",
+      },
+      "devDependencies": {
+        "@types/node": "^22.0.0",
+        "typescript": "~5.8.3",
+        "vitest": "^4.1.5",
+      },
+    },
+    "packages/deck/catalog": {
+      "name": "@ship/sui-catalog",
+      "version": "0.1.0",
+      "bin": {
+        "sui-catalog": "./bin/sui-catalog.mjs",
+      },
+      "devDependencies": {
+        "@types/node": "^22.0.0",
+        "typescript": "~5.8.3",
+        "vitest": "^4.1.5",
+      },
+    },
+    "packages/deck/eval": {
+      "name": "@ship/sui-eval",
+      "version": "0.1.0",
+      "bin": {
+        "sui-eval": "bin/sui-eval.mjs",
+      },
+      "dependencies": {
         "@ship/sui-dom": "workspace:*",
         "@ship/sui-runtime": "workspace:*",
       },
       "devDependencies": {
+        "@types/node": "^24.0.0",
+        "jsdom": "^25.0.0",
+        "typescript": "^5.5.0",
         "vitest": "^4.1.5",
       },
     },
-    "packages/components/primitives": {
-      "name": "@ship/primitives",
+    "packages/deck/lsp": {
+      "name": "@ship/sui-lsp",
+      "version": "0.1.0",
+      "bin": {
+        "sui-lsp": "bin/sui-lsp.js",
+      },
+      "dependencies": {
+        "typescript": "~5.4.5",
+        "vscode-languageserver": "^9.0.1",
+        "vscode-languageserver-textdocument": "^1.0.12",
+      },
+      "devDependencies": {
+        "@types/node": "^20.11.0",
+        "vitest": "^4.1.5",
+      },
+    },
+    "packages/deck/lsp-browser": {
+      "name": "@ship/sui-lsp-browser",
       "version": "0.1.0",
       "dependencies": {
-        "@ship/sui-build": "workspace:*",
-        "@ship/sui-dom": "workspace:*",
-        "@ship/sui-runtime": "workspace:*",
+        "@ship/sui-lsp": "workspace:*",
+        "oxc-parser": "^0.131.0",
       },
       "devDependencies": {
         "vitest": "^4.1.5",
@@ -236,30 +283,40 @@
         "vitest": "^4.1.5",
       },
     },
-    "packages/deck/build": {
-      "name": "@ship/sui-build",
+    "packages/ship-components/charts": {
+      "name": "@ship/charts",
       "version": "0.1.0",
-      "bin": {
-        "sui-build": "./bin/sui-build.mjs",
-      },
       "dependencies": {
-        "chokidar": "^4.0.0",
+        "@ship/sui-build": "workspace:*",
+        "@ship/sui-dom": "workspace:*",
+        "@ship/sui-runtime": "workspace:*",
       },
       "devDependencies": {
-        "@types/node": "^22.0.0",
-        "typescript": "~5.8.3",
         "vitest": "^4.1.5",
       },
     },
-    "packages/deck/catalog": {
-      "name": "@ship/sui-catalog",
+    "packages/ship-components/primitives": {
+      "name": "@ship/primitives",
       "version": "0.1.0",
-      "bin": {
-        "sui-catalog": "./bin/sui-catalog.mjs",
+      "dependencies": {
+        "@ship/sui-build": "workspace:*",
+        "@ship/sui-dom": "workspace:*",
+        "@ship/sui-runtime": "workspace:*",
       },
       "devDependencies": {
-        "@types/node": "^22.0.0",
-        "typescript": "~5.8.3",
+        "vitest": "^4.1.5",
+      },
+    },
+    "packages/ship-components/ui-components": {
+      "name": "@ship/ui-components",
+      "version": "0.1.0",
+      "dependencies": {
+        "@ship/primitives": "workspace:*",
+        "@ship/sui-build": "workspace:*",
+        "@ship/sui-dom": "workspace:*",
+        "@ship/sui-runtime": "workspace:*",
+      },
+      "devDependencies": {
         "vitest": "^4.1.5",
       },
     },
@@ -279,23 +336,6 @@
         "vitest": "^4.1.5",
       },
     },
-    "packages/deck/eval": {
-      "name": "@ship/sui-eval",
-      "version": "0.1.0",
-      "bin": {
-        "sui-eval": "bin/sui-eval.mjs",
-      },
-      "dependencies": {
-        "@ship/sui-dom": "workspace:*",
-        "@ship/sui-runtime": "workspace:*",
-      },
-      "devDependencies": {
-        "@types/node": "^24.0.0",
-        "jsdom": "^25.0.0",
-        "typescript": "^5.5.0",
-        "vitest": "^4.1.5",
-      },
-    },
     "packages/sui/grammar": {
       "name": "tree-sitter-sui",
       "version": "0.1.0",
@@ -306,33 +346,6 @@
         "tree-sitter-cli": "^0.26.0",
       },
     },
-    "packages/deck/lsp": {
-      "name": "@ship/sui-lsp",
-      "version": "0.1.0",
-      "bin": {
-        "sui-lsp": "bin/sui-lsp.js",
-      },
-      "dependencies": {
-        "typescript": "~5.4.5",
-        "vscode-languageserver": "^9.0.1",
-        "vscode-languageserver-textdocument": "^1.0.12",
-      },
-      "devDependencies": {
-        "@types/node": "^20.11.0",
-        "vitest": "^4.1.5",
-      },
-    },
-    "packages/deck/lsp-browser": {
-      "name": "@ship/sui-lsp-browser",
-      "version": "0.1.0",
-      "dependencies": {
-        "@ship/sui-lsp": "workspace:*",
-        "oxc-parser": "^0.131.0",
-      },
-      "devDependencies": {
-        "vitest": "^4.1.5",
-      },
-    },
     "packages/sui/runtime": {
       "name": "@ship/sui-runtime",
       "version": "0.1.0",
@@ -341,19 +354,6 @@
         "axe-core": "^4.11.4",
         "jsdom": "^25.0.0",
         "typescript": "^5.5.0",
-        "vitest": "^4.1.5",
-      },
-    },
-    "packages/ui-components": {
-      "name": "@ship/ui-components",
-      "version": "0.1.0",
-      "dependencies": {
-        "@ship/primitives": "workspace:*",
-        "@ship/sui-build": "workspace:*",
-        "@ship/sui-dom": "workspace:*",
-        "@ship/sui-runtime": "workspace:*",
-      },
-      "devDependencies": {
         "vitest": "^4.1.5",
       },
     },
@@ -966,15 +966,15 @@
 
     "@ship/assets": ["@ship/assets@workspace:packages/assets"],
 
-    "@ship/charts": ["@ship/charts@workspace:packages/components/charts"],
+    "@ship/charts": ["@ship/charts@workspace:packages/ship-components/charts"],
 
     "@ship/compiler": ["@ship/compiler@workspace:packages/compiler"],
 
     "@ship/docs": ["@ship/docs@workspace:apps/docs"],
 
-    "@ship/primitives": ["@ship/primitives@workspace:packages/components/primitives"],
+    "@ship/primitives": ["@ship/primitives@workspace:packages/ship-components/primitives"],
 
-    "@ship/sdk": ["@ship/sdk@workspace:packages/sdk"],
+    "@ship/sdk": ["@ship/sdk@workspace:packages/deck/sdk"],
 
     "@ship/sdk-client": ["@ship/sdk-client@workspace:packages/deck/sdk-client"],
 
@@ -996,7 +996,7 @@
 
     "@ship/sui-runtime": ["@ship/sui-runtime@workspace:packages/sui/runtime"],
 
-    "@ship/ui-components": ["@ship/ui-components@workspace:packages/ui-components"],
+    "@ship/ui-components": ["@ship/ui-components@workspace:packages/ship-components/ui-components"],
 
     "@sindresorhus/is": ["@sindresorhus/is@7.2.0", "", {}, "sha512-P1Cz1dWaFfR4IR+U13mqqiGsLFf1KbayybWwdd2vfctdV6hDpUkgCY0nKOLLTMSoRd/jJNjtbqzf13K8DCCXQw=="],
 

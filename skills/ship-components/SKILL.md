@@ -26,7 +26,7 @@ For HTML-blob cases (markdown rendering, third-party SVG generators, icon-pack s
 ## File layout
 
 ```
-packages/ui-components/src/<tag>/
+packages/ship-components/ui-components/src/<tag>/
   <tag>.sui                  # template + <prop> + <style>     (required)
   <tag>.controller.ts        # paired controller               (optional, auto-detected)
   <tag>.css                  # extracted styles                (optional)
@@ -39,7 +39,7 @@ Convention is the contract: directory IS the component, filename stem IS the tag
 File IS the component — no `<component>` wrapper. Top-level `<prop>` directives declare the API; the rest is the body.
 
 ```html
-<!-- packages/ui-components/src/sui-button/sui-button.sui -->
+<!-- packages/ship-components/ui-components/src/sui-button/sui-button.sui -->
 <prop name="tone" values="default|primary|destructive" default="default" reflect />
 <prop name="disabled" type="bool" default="false" reflect />
 <prop name="size" values="sm|md|lg" default="md" reflect />
@@ -104,9 +104,9 @@ from the `.sui` template alone. The LSP rule `controller.empty` flags
 `controller({})`-shape files (and `export default null`) as a warning;
 delete them rather than satisfy the convention with ceremony.
 
-Working exemplars: `packages/ui-components/src/sui-error-boundary/`,
-`packages/ui-components/src/sui-portal/`,
-`packages/ui-components/src/sui-toast-container/`.
+Working exemplars: `packages/ship-components/ui-components/src/sui-error-boundary/`,
+`packages/ship-components/ui-components/src/sui-portal/`,
+`packages/ship-components/ui-components/src/sui-toast-container/`.
 
 ## Form-aware components
 
@@ -126,7 +126,7 @@ The compiler emits `static formAssociated = true` on the generated host class; t
 
 Drop any hand-rolled `ElementInternals` plumbing — the runtime owns it. The setup ctx surfaces `internals?: ElementInternals` if a controller needs `setValidity()` / `checkValidity()` for custom validation.
 
-Worked examples: `packages/ui-components/src/sui-input/sui-input.sui`, `packages/ui-components/src/sui-select/sui-select.sui`, `packages/ui-components/src/sui-checkbox/sui-checkbox.sui`.
+Worked examples: `packages/ship-components/ui-components/src/sui-input/sui-input.sui`, `packages/ship-components/ui-components/src/sui-select/sui-select.sui`, `packages/ship-components/ui-components/src/sui-checkbox/sui-checkbox.sui`.
 
 Constraints (compiler-enforced):
 
@@ -196,7 +196,7 @@ The component-specific essentials:
 ```ts
 // Pseudocode of the verify loop:
 // 1. write template + (optional) controller
-// 2. mcp__ship__sui_diagnostics({ file: "packages/ui-components/src/sui-X/sui-X.sui" })
+// 2. mcp__ship__sui_diagnostics({ file: "packages/ship-components/ui-components/src/sui-X/sui-X.sui" })
 //    → fix until []
 // 3. mcp__ship__view_compile_check({ file: "…/sui-X.sui" })
 //    → fix lowering-only issues
@@ -221,8 +221,8 @@ standalone language server.
 
 Components fall into three buckets:
 
-- **Primitives** — generic `<sui-*>` in **`@ship/primitives`** (`packages/components/primitives/src/`). Charts in **`@ship/charts`** (`packages/components/charts/src/`). Both are decomposed workspace packs with their own bundle + `custom-elements.json`. Always registered, available in any view.
-- **Chrome + domain** — the rest (sui-code-editor, sui-terminal, sui-markdown-editor, picker, nav, devtools, view-authoring) stays in the `@ship/ui-components` umbrella at `packages/ui-components/src/`. Ships as the daemon's `sui-components.js` aggregate.
+- **Primitives** — generic `<sui-*>` in **`@ship/primitives`** (`packages/ship-components/primitives/src/`). Charts in **`@ship/charts`** (`packages/ship-components/charts/src/`). Both are decomposed workspace packs with their own bundle + `custom-elements.json`. Always registered, available in any view.
+- **Chrome + domain** — the rest (sui-code-editor, sui-terminal, sui-markdown-editor, picker, nav, devtools, view-authoring) stays in the `@ship/ui-components` umbrella at `packages/ship-components/ui-components/src/`. Ships as the daemon's `sui-components.js` aggregate.
 - **Islands** — heavy components that lazy-load their engine only when mounted (terminal, code-editor, markdown-editor). The umbrella bundle code-splits these; lazy chunks live under `crates/sui/ship-sui-server/assets/sui-components/<tag>.js`.
 
 The `@ship/sui-catalog` walker emits two projections under `.ship/sui-out/catalogs/`:

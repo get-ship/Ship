@@ -49,7 +49,7 @@ views/<name>/                 # first-party view, baked into shipd
 
 Five rules:
 
-1. **`page.sui` is the route entry.** The filename stem says what the file IS — a page, not a reusable widget. Reusable widgets live under `packages/ui-components/src/sui-*/`.
+1. **`page.sui` is the route entry.** The filename stem says what the file IS — a page, not a reusable widget. Reusable widgets live under `packages/ship-components/ui-components/src/sui-*/`.
 2. **`controller.ts`, no stem prefix.** The directory IS the view; pairing is unambiguous. Inside `_components/<tag>/`, the `<tag>.controller.ts` rule from `ship-components` applies.
 3. **`style.css` for page-scoped styles.** Linked automatically. Use `<style>` blocks inside `.sui` for component-scoped styles.
 4. **`manifest.jsonc` is required.** JSONC, not YAML. See "Manifest" below.
@@ -224,7 +224,7 @@ Component `.sui` files only — views don't participate in form submission. When
 
 The compiler emits `static formAssociated = true` and the runtime auto-wires `setFormValue`, `formResetCallback`, `formStateRestoreCallback`, and `formDisabledCallback`. Drop any hand-rolled `ElementInternals` plumbing — the runtime owns it. The setup ctx still surfaces `internals?: ElementInternals` for `setValidity()` / `checkValidity()` paths.
 
-Worked examples: `packages/ui-components/src/sui-input/sui-input.sui`, `packages/ui-components/src/sui-select/sui-select.sui`. Full contract and constraints: `references/form-association.md`.
+Worked examples: `packages/ship-components/ui-components/src/sui-input/sui-input.sui`, `packages/ship-components/ui-components/src/sui-select/sui-select.sui`. Full contract and constraints: `references/form-association.md`.
 
 ## Live data envelope
 
@@ -493,7 +493,7 @@ language server.
 
 ## Components
 
-Views compose `<sui-*>` components from `packages/ui-components/`. See the `ship-components` skill for the component contract.
+Views compose `<sui-*>` components from `packages/ship-components/ui-components/`. See the `ship-components` skill for the component contract.
 
 ## Error handling
 

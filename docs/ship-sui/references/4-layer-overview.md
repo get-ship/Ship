@@ -101,7 +101,7 @@ Daemon-side route table (`apps/shipd/src/router.rs`) mounts the surface:
 
 The router wiring is in `apps/shipd/src/router.rs`. Signal-backed sources (tighter wake-up than the default `config` kernel namespace) live under `apps/shipd/src/views/sui_data_resolvers/` and `apps/shipd/src/views/git_signal.rs`; `sui_sse.rs::is_signal_backed_expr` picks them up by registry name.
 
-## Layer 4 — Authoring (`views/<name>/`, `packages/ui-components/src/<tag>/`)
+## Layer 4 — Authoring (`views/<name>/`, `packages/ship-components/ui-components/src/<tag>/`)
 
 Directory shapes:
 
@@ -118,12 +118,12 @@ views/<name>/                    # first-party views
 
 .ship/views/<name>/              # project-local extension views; same shape
 
-packages/ui-components/src/<tag>/   # first-party components
+packages/ship-components/ui-components/src/<tag>/   # first-party components
   <tag>.sui
   <tag>.controller.ts            # optional
   <tag>.css                      # optional
 
-packages/ui-components/src/<tag>/   # separate-bundle (lazy) components also live here;
+packages/ship-components/ui-components/src/<tag>/   # separate-bundle (lazy) components also live here;
                                     # they opt in via `<bundle separate />` in their .sui
 ```
 

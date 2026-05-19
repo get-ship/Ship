@@ -46,7 +46,7 @@ for (const name of SUI_BUNDLES) {
   if (!existsSync(src)) {
     console.log(
       `[copy-sui-assets] ${name} not found at ${src}. ` +
-      `Run 'cd packages/ui-components && bun run build' first.`,
+      `Run 'cd packages/ship-components/ui-components && bun run build' first.`,
     );
     continue;
   }

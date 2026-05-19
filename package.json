@@ -8,7 +8,7 @@
       "apps/site",
       "apps/gateway",
       "packages/*",
-      "packages/components/*",
+      "packages/ship-components/*",
       "packages/deck/*",
       "packages/sui/*",
       "apps/workers/*"

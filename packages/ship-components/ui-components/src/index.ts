@@ -7,7 +7,7 @@
 // to `apps/shell/src/components/`. This package now holds the
 // feature/domain components only: git-diff, pipeline-*, log-stream,
 // harness-blob, auth-dialog, graph-canvas. Generic primitives live
-// in `@ship/primitives` (packages/components/primitives/).
+// in `@ship/primitives` (packages/ship-components/primitives/).
 //
 // Every domain component uses primitive `<sui-*>` tags in its
 // templates — they resolve at runtime because we side-effect-import

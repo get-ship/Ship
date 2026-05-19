@@ -18,7 +18,7 @@ import { shipFetch, gitStatus } from '@ship/sdk'
 // Charts pack — single workspace import registers every <sui-*-chart>,
 // <sui-sparkline>, <sui-donut>, <sui-gauge>, <sui-meter>, <sui-heatmap>
 // before the first view mounts. Charts moved out of @ship/ui-components
-// into @ship/charts (packages/components/charts/) as the first pack
+// into @ship/charts (packages/ship-components/charts/) as the first pack
 // extracted under the multi-pack architecture; consumers depend on the
 // pack via standard workspace deps, exactly the same shape any future
 // first- or third-party pack will use.

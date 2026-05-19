@@ -47,7 +47,7 @@ const ASSETS: &[&str] = &[
 const COARSE_SOURCE_ROOTS: &[&str] = &[
     "packages/sui/runtime/src",
     "packages/sui/dom/src",
-    "packages/ui-components/src",
+    "packages/ship-components/ui-components/src",
     "apps/shell/src/components",
     "packages/deck/sdk-client/src",
     "runtime/bundler.ts",

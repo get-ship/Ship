@@ -213,7 +213,7 @@ lint-views:
     cargo run --features unstable -p ship-cli --quiet -- lint views --format json
 
 # Regenerate the aggregated SUI Custom Elements Manifest from per-component
-# CEMs under packages/ui-components/src/. Writes
+# CEMs under packages/ship-components/ui-components/src/. Writes
 # crates/ship-sui/assets/sui-custom-elements.json which apps/shipd embeds.
 [group('occasional')]
 cem:
@@ -259,9 +259,9 @@ build:
     command -v bun >/dev/null || { echo "build: bun not on PATH" >&2; exit 1; }
     echo "[1/8] gen-types"
     cargo run -p xtask --quiet -- gen-types
-    echo "[2/8] primitives build (@ship/primitives → packages/components/primitives/dist/)"
+    echo "[2/8] primitives build (@ship/primitives → packages/ship-components/primitives/dist/)"
     bun run --filter @ship/primitives build
-    echo "[3/8] charts build (@ship/charts → packages/components/charts/dist/)"
+    echo "[3/8] charts build (@ship/charts → packages/ship-components/charts/dist/)"
     bun run --filter @ship/charts build
     echo "[4/8] ui-components build (sui-build → crates/sui/ship-sui-server/assets/)"
     bun run --filter @ship/ui-components build
@@ -283,7 +283,7 @@ build:
             echo "  ✓ $target_dir/release/$bin"
         fi
     done
-    for asset in crates/sui/ship-sui-server/assets/sui-runtime.js crates/sui/ship-sui-server/assets/sui-components.js packages/components/primitives/dist/sui-primitives.js packages/components/charts/dist/sui-charts.js .ship/sui-out/catalogs/workspace.json .ship/sui-out/catalogs/published.json; do
+    for asset in crates/sui/ship-sui-server/assets/sui-runtime.js crates/sui/ship-sui-server/assets/sui-components.js packages/ship-components/primitives/dist/sui-primitives.js packages/ship-components/charts/dist/sui-charts.js .ship/sui-out/catalogs/workspace.json .ship/sui-out/catalogs/published.json; do
         if [ ! -s "$asset" ]; then
             echo "  ✗ $asset missing or empty" >&2
             missing=1

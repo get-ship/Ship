@@ -16,9 +16,9 @@ cargo run -q -p sui-compiler -- build views/home/page.sui
 cargo run -q -p sui-compiler -- build views --out target/sui-debug --clean
 
 # Component mode — implied by --component-name:
-cargo run -q -p sui-compiler -- build packages/ui-components/src/sui-button/sui-button.sui \
+cargo run -q -p sui-compiler -- build packages/ship-components/ui-components/src/sui-button/sui-button.sui \
   --component-name sui-button \
-  --styles packages/ui-components/src/sui-button/sui-button.css
+  --styles packages/ship-components/ui-components/src/sui-button/sui-button.css
 ```
 
 Flags (from `crates/sui/compiler/src/bin/sui-compiler.rs`):
@@ -50,7 +50,7 @@ sui-build --mode development       # passes through to compile flags + bundler e
 
 Entry: `packages/deck/build/bin/sui-build.mjs` → `dist/cli.js` via Bun. The runner (`src/runner.ts`) walks the configured source globs, invokes `sui-compiler` (preferring the in-repo FFI build of `libsui_compiler`, falling back to `target/debug/sui-compiler` or `cargo run --quiet -p sui-compiler`), and feeds the emitted JS / CSS / CEM through the chosen bundler adapter (`adapters/bun.ts`, `adapters/esbuild.ts`).
 
-Configuration: `<package>/sui.config.ts`. Each package opts in by adding a `build` script — currently `packages/ui-components/` (writes `crates/sui/ship-sui-server/assets/`) and `packages/ship-set/` (writes `apps/shipd/assets/`).
+Configuration: `<package>/sui.config.ts`. Each package opts in by adding a `build` script — currently `packages/ship-components/ui-components/` (writes `crates/sui/ship-sui-server/assets/`) and `packages/ship-set/` (writes `apps/shipd/assets/`).
 
 **Role.** `@ship/sui-build` is the CI / pre-merge bundler — it's what `smoke-deploy.sh` runs and what `just cem` invokes. It is *not* what shipd uses at dev time. The dev-time bundler is `runtime/bundler.ts`, a Bun worker spawned by the daemon (see [end-to-end dev loop](#end-to-end-edit-loop-in-dev) below). Both pipelines target the same on-disk asset trees that the release binary later `include_str!`s.
 
@@ -120,7 +120,7 @@ Use it to find a component, browse its props (including enum values from `<prop 
 
 ## Devtools panes — in-page introspection
 
-`packages/ui-components/src/sui-devtools/` ships five panes that share a separate bundle (opted in via `<bundle separate />` in each `.sui` source). Each is a `.sui` + `.controller.ts` pair, lazy-loaded on first mount via the `sui-devtools.js` bundle.
+`packages/ship-components/ui-components/src/sui-devtools/` ships five panes that share a separate bundle (opted in via `<bundle separate />` in each `.sui` source). Each is a `.sui` + `.controller.ts` pair, lazy-loaded on first mount via the `sui-devtools.js` bundle.
 
 | Tag | What it shows |
 |---|---|

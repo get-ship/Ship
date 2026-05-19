@@ -21,15 +21,11 @@
     // sui-compiler emits `<stem>.sui.d.ts` into the project mirror tree
     // at `<repo-root>/.ship/sui-out/<src-rel>/`. `rootDirs` lets tsc
     // treat the source tree and its mirror as a single virtual root for
-    // relative module resolution, so the relative `./<stem>.sui` import
-    // resolves to the mirror-tree declaration.
+    // relative module resolution.
     "rootDirs": [
       "src",
-      "../../.ship/sui-out/packages/ui-components/src"
+      "../../../.ship/sui-out/packages/ship-components/primitives/src"
     ]
-    // Chrome was relocated to apps/shell/src/components/; the remaining
-    // entries in this package are domain-only (git-diff, pipeline-*,
-    // auth-dialog, harness-blob, graph-canvas, log-stream).
   },
   "include": ["src/**/*"],
   "exclude": ["test", "dist"]

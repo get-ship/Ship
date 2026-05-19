@@ -13,7 +13,7 @@ use crate::ir::Instr;
 /// a template.
 ///
 /// Adding a new separate-bundle component: drop the source under
-/// `packages/ui-components/src/<bundle>/`, mark its `.sui` source with a
+/// `packages/ship-components/ui-components/src/<bundle>/`, mark its `.sui` source with a
 /// top-of-file `<bundle separate />` directive, list its tag here, and
 /// rebuild. The daemon route handler and build pipeline pick it up
 /// automatically.
