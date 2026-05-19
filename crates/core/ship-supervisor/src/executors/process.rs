@@ -174,12 +174,38 @@ fn write_srt_settings(path: &std::path::Path, work_dir: &std::path::Path) -> any
     Ok(())
 }
 
-/// Result of `prepare_docker_sandbox` — the live isolator + its handle,
-/// kept together so the caller can both wrap the launch and stash the
-/// owner on `ActorHandle.with_sandbox(...)` so drop fires shutdown.
+/// Result of `prepare_docker_sandbox` — the live isolator + its handle
+/// + the sidecar's v1 endpoint. The orchestrator wraps the isolator +
+/// handle in a SandboxOwner (per-sandbox lifetime) and builds a
+/// SidecarActorRuntime against `endpoint` to spawn the actor over
+/// ship.sidecar.v1 — same mechanism as youki_sidecar.
 struct PreparedSandbox {
     isolator: std::sync::Arc<dyn ship_substrate::isolation::Isolator>,
     sandbox: ship_substrate::isolation::SandboxHandle,
+    /// `http://127.0.0.1:<port>` for the in-container sidecar's v1
+    /// listener. None only if the backend was misconfigured without a
+    /// sidecar binary (treated as an error by the caller).
+    endpoint: Option<String>,
+}
+
+/// Resolve the host `ship-sidecar` binary to bind-mount into the
+/// container. Prefers the explicit settings path, then a binary next
+/// to the running daemon, then the conventional install location.
+fn resolve_sidecar_bin() -> std::path::PathBuf {
+    if let Ok(s) = ship_platform::isolation::strategies_settings()
+        && !s.docker.sidecar_bin.is_empty()
+    {
+        return std::path::PathBuf::from(s.docker.sidecar_bin);
+    }
+    if let Ok(exe) = std::env::current_exe()
+        && let Some(dir) = exe.parent()
+    {
+        let candidate = dir.join("ship-sidecar");
+        if candidate.is_file() {
+            return candidate;
+        }
+    }
+    std::path::PathBuf::from("/usr/local/bin/ship-sidecar")
 }
 
 /// Build a Docker isolator from `isolation.strategies.docker` settings
@@ -206,6 +232,10 @@ async fn prepare_docker_sandbox(
             settings.docker.name_prefix,
             ctx.slug.replace('/', "_")
         ),
+        // Sidecar mode: the container runs ship-sidecar as PID 1 and
+        // the supervisor drives the actor over ship.sidecar.v1. Same
+        // mechanism youki_sidecar uses.
+        sidecar_bin: Some(resolve_sidecar_bin()),
     };
     let isolator: std::sync::Arc<dyn ship_substrate::isolation::Isolator> =
         std::sync::Arc::new(Docker::new(cfg));
@@ -248,7 +278,8 @@ async fn prepare_docker_sandbox(
         }
     };
     let sandbox = isolator.prepare(&policy).await?;
-    Ok(PreparedSandbox { isolator, sandbox })
+    let endpoint = ship_isolation::backends::Docker::sidecar_endpoint(&sandbox);
+    Ok(PreparedSandbox { isolator, sandbox, endpoint })
 }
 
 #[async_trait]
@@ -293,8 +324,16 @@ impl JobExecutor for ProcessExecutor {
         let enforce = ship_platform::isolation::enforcement_enabled();
         // Optional sandbox owner — attached to ActorHandle after spawn
         // so its Drop fires isolator.shutdown() when the actor dies.
+        // (Tier 1 wrap path only; Tier 2+ owner lives on the dispatcher.)
         let mut sandbox_owner: Option<std::sync::Arc<ship_substrate::isolation::SandboxOwner>> =
             None;
+        // When set, the actor is spawned through this runtime (a
+        // sidecar-backed runtime for Tier 2+) instead of the in-process
+        // spawn_actor path. The harness runs inside the sandbox's
+        // container; control flows over ship.sidecar.v1.
+        let mut remote_runtime: Option<
+            std::sync::Arc<dyn ship_substrate::supervisor::ActorRuntime>,
+        > = None;
         if let Ok(d) = &decision {
             tracing::info!(
                 slug = ctx.slug,
@@ -427,17 +466,21 @@ impl JobExecutor for ProcessExecutor {
                         // OS). Already logged at decision time.
                     }
                     IsolationStrategy::DockerEngine => {
-                        // Per-sandbox docker container: project-scoped
-                        // and shared across N actors. First actor in
-                        // the project pays the prepare cost; subsequent
-                        // actors reuse the same container via docker
-                        // exec. Reaper tears it down when the project
-                        // sandbox has been idle past timeout.
+                        // Per-sandbox docker container running the
+                        // sidecar as PID 1. Project-scoped, shared across
+                        // N actors. The harness runs INSIDE the container;
+                        // the supervisor drives it over ship.sidecar.v1
+                        // via a SidecarActorRuntime — NOT docker exec.
+                        // Same mechanism as youki_sidecar; one protocol
+                        // across every container/VM substrate.
                         //
-                        // Lifetime now lives on the dispatcher's
-                        // Sandbox.sandbox_owner — NOT on ActorHandle.
-                        // We intentionally do not attach to per-actor
-                        // sandbox_owner here.
+                        // First actor in the project prepares the
+                        // container (sidecar PID 1, v1 port published) and
+                        // attaches the SandboxOwner to the dispatcher's
+                        // Sandbox. Subsequent actors reuse the running
+                        // sidecar's endpoint. Reaper tears the container
+                        // down when the project sandbox is idle past
+                        // timeout (SandboxOwner drop → docker rm).
                         let project_key = ctx.work_dir.to_string_lossy().to_string();
                         let dispatcher = ship_platform::sandbox::dispatcher();
                         let isolation_profile = ship_isolation::tier::IsolationProfile {
@@ -450,96 +493,81 @@ impl JobExecutor for ProcessExecutor {
                             .await
                         {
                             Ok(sandbox_id) => {
-                                // Reuse existing sandbox's container
-                                // if present; else prepare + attach.
-                                let existing_handle = {
-                                    let registry = dispatcher.registry();
-                                    let reg = registry.read().await;
-                                    reg.get(&sandbox_id)
-                                        .and_then(|s| s.sandbox_owner.as_ref().and_then(|o| {
-                                            o.handle().map(|h| (o.clone(), h))
-                                        }))
-                                };
-                                let (isolator_for_wrap, handle_for_wrap) =
-                                    if let Some((owner, handle)) = existing_handle {
-                                        // owner.handle() returns a clone; the
-                                        // backend identifier is on the owner.
-                                        // We need the isolator too — but
-                                        // SandboxOwner doesn't expose it.
-                                        // Workaround: reuse the just-prepared
-                                        // path's isolator by re-preparing
-                                        // (cheap; just checks docker availability)
-                                        // OR cache an isolator factory.
-                                        // Simpler: just re-prepare a Docker
-                                        // isolator (stateless) to use for the
-                                        // wrap_for_external_spawn call.
-                                        let cfg = ship_isolation::backends::DockerConfig {
-                                            engine_bin: ship_platform::isolation::strategies_settings()
-                                                .map(|s| s.docker.engine_bin.clone())
-                                                .unwrap_or_else(|_| "docker".into()),
-                                            image: String::new(),
-                                            name_prefix: String::new(),
-                                        };
-                                        let isolator: std::sync::Arc<dyn ship_substrate::isolation::Isolator> =
-                                            std::sync::Arc::new(
-                                                ship_isolation::backends::Docker::new(cfg),
+                                // Reuse the running sidecar's endpoint if
+                                // the project already has a prepared
+                                // sandbox; else prepare a fresh container.
+                                let existing_endpoint =
+                                    dispatcher.endpoint_for(&sandbox_id).await.and_then(|e| {
+                                        match e {
+                                            ship_platform::sandbox::RuntimeEndpoint::Remote {
+                                                addr, ..
+                                            } => Some(addr),
+                                            _ => None,
+                                        }
+                                    });
+                                let endpoint = if let Some(addr) = existing_endpoint {
+                                    Some(addr)
+                                } else {
+                                    match prepare_docker_sandbox(&ctx).await {
+                                        Ok(prepared) => {
+                                            let Some(endpoint) = prepared.endpoint.clone() else {
+                                                return Err(anyhow::anyhow!(
+                                                    "DockerEngine prepared without a sidecar endpoint"
+                                                ));
+                                            };
+                                            let owner = std::sync::Arc::new(
+                                                ship_substrate::isolation::SandboxOwner::new(
+                                                    prepared.isolator.clone(),
+                                                    prepared.sandbox.clone(),
+                                                ),
                                             );
-                                        let _ = owner; // keep for clarity
-                                        (isolator, handle)
-                                    } else {
-                                        match prepare_docker_sandbox(&ctx).await {
-                                            Ok(prepared) => {
-                                                let owner = std::sync::Arc::new(
-                                                    ship_substrate::isolation::SandboxOwner::new(
-                                                        prepared.isolator.clone(),
-                                                        prepared.sandbox.clone(),
-                                                    ),
-                                                );
-                                                if let Err(e) = dispatcher
-                                                    .attach_sandbox_owner(
-                                                        &sandbox_id,
-                                                        owner,
-                                                    )
-                                                    .await
-                                                {
-                                                    tracing::warn!(
-                                                        slug = ctx.slug,
-                                                        "attach_sandbox_owner failed: {e}"
-                                                    );
-                                                }
-                                                (prepared.isolator, prepared.sandbox)
-                                            }
-                                            Err(e) => {
+                                            if let Err(e) = dispatcher
+                                                .attach_sandbox_owner(&sandbox_id, owner)
+                                                .await
+                                            {
                                                 tracing::warn!(
                                                     slug = ctx.slug,
-                                                    error = %e,
-                                                    "DockerEngine prepare failed; running unwrapped"
+                                                    "attach_sandbox_owner failed: {e}"
                                                 );
-                                                return Err(anyhow::anyhow!(
-                                                    "DockerEngine prepare: {e}"
-                                                ));
                                             }
+                                            if let Err(e) = dispatcher
+                                                .mark_remote_running(
+                                                    &sandbox_id,
+                                                    endpoint.clone(),
+                                                    "http",
+                                                )
+                                                .await
+                                            {
+                                                tracing::warn!(
+                                                    slug = ctx.slug,
+                                                    "mark_remote_running failed: {e}"
+                                                );
+                                            }
+                                            Some(endpoint)
                                         }
-                                    };
-                                if let Some((new_bin, new_args)) =
-                                    isolator_for_wrap.wrap_for_external_spawn(
-                                        &handle_for_wrap,
-                                        std::path::Path::new(&launch.bin),
-                                        &launch.args,
-                                    )
-                                {
-                                    launch.bin = new_bin.to_string_lossy().into_owned();
-                                    launch.args = new_args;
+                                        Err(e) => {
+                                            tracing::warn!(
+                                                slug = ctx.slug,
+                                                error = %e,
+                                                "DockerEngine prepare failed"
+                                            );
+                                            return Err(anyhow::anyhow!(
+                                                "DockerEngine prepare: {e}"
+                                            ));
+                                        }
+                                    }
+                                };
+                                if let Some(endpoint) = endpoint {
+                                    remote_runtime = Some(
+                                        ship_isolation::runtime::SidecarActorRuntime::shared(
+                                            endpoint,
+                                        ),
+                                    );
                                     active = "1";
                                     tracing::info!(
                                         slug = ctx.slug,
                                         sandbox_id = %sandbox_id.0,
-                                        "isolation enforced: DockerEngine (per-sandbox)"
-                                    );
-                                } else {
-                                    tracing::warn!(
-                                        slug = ctx.slug,
-                                        "DockerEngine wrap_for_external_spawn returned None — running unwrapped"
+                                        "isolation enforced: DockerEngine (sidecar over v1)"
                                     );
                                 }
                             }
@@ -598,10 +626,20 @@ impl JobExecutor for ProcessExecutor {
             subscribe_namespaces: vec![],
         };
 
-        let handle = spawn_actor(profile)?;
-        // Attach the sandbox owner if we prepared one. ActorHandle is
-        // cloneable; the underlying Arc<SandboxOwner> shares ownership
-        // across clones, and the last drop fires shutdown.
+        // Spawn through the resolved runtime. Tier 2+ (DockerEngine,
+        // future youki/lima/fly) routes through a SidecarActorRuntime —
+        // the harness runs inside the sandbox's container, controlled
+        // over ship.sidecar.v1. Tier 0/1 forks in-process via
+        // spawn_actor. Either way the returned ActorHandle has the
+        // same surface.
+        let handle = if let Some(runtime) = remote_runtime.take() {
+            runtime.spawn(profile).await?
+        } else {
+            spawn_actor(profile)?
+        };
+        // Attach the sandbox owner if we prepared one (Tier 1 wrap
+        // path). For Tier 2+ the owner lives on the dispatcher's
+        // Sandbox; nothing to attach here.
         let handle = match sandbox_owner.take() {
             Some(owner) => handle.with_sandbox(owner),
             None => handle,

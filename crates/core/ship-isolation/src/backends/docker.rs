@@ -23,14 +23,22 @@
 //! - `ResourceLimits` translate to `--memory`, `--cpus`, `--pids-limit`.
 
 use async_trait::async_trait;
+use std::path::PathBuf;
 use std::process::Stdio;
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::process::Command;
 use tokio::sync::Mutex;
 
 use ship_substrate::isolation::{ExecHandle, SandboxHandle, SandboxId};
 use ship_substrate::isolation::{MountMode, NetworkPolicy, SandboxPolicy};
 use ship_substrate::isolation::{Isolator, IsolatorError, LaunchCommand};
+
+/// The path the host `ship-sidecar` binary is bind-mounted to inside
+/// the container. Matches the youki sidecar convention.
+const SIDECAR_INSIDE: &str = "/usr/local/bin/ship-sidecar";
+/// Port the sidecar's v1 listener binds inside the container.
+const SIDECAR_PORT_INSIDE: u16 = 2468;
 
 #[derive(Debug, Clone)]
 pub struct DockerConfig {
@@ -42,6 +50,13 @@ pub struct DockerConfig {
     pub image: String,
     /// Container name prefix (`ship-agent-<nanoid>` by default).
     pub name_prefix: String,
+    /// When set, the container runs this `ship-sidecar` binary
+    /// (bind-mounted in) as PID 1 with its v1 listener published to a
+    /// host port. The supervisor then drives the actor over
+    /// ship.sidecar.v1 — same mechanism as `youki_sidecar`. When
+    /// `None`, the container runs `sleep infinity` (legacy probe /
+    /// test path).
+    pub sidecar_bin: Option<PathBuf>,
 }
 
 impl Default for DockerConfig {
@@ -50,6 +65,7 @@ impl Default for DockerConfig {
             engine_bin: "docker".into(),
             image: "ghcr.io/ship/agent-runner:latest".into(),
             name_prefix: "ship-agent".into(),
+            sidecar_bin: None,
         }
     }
 }
@@ -64,6 +80,17 @@ impl Docker {
     pub fn new(cfg: DockerConfig) -> Self {
         Self { cfg }
     }
+
+    /// The sidecar's v1 endpoint for a sandbox prepared in sidecar
+    /// mode (`http://127.0.0.1:<published-port>`). `None` when the
+    /// sandbox wasn't prepared by this backend, or was prepared in
+    /// legacy `sleep infinity` mode. The supervisor reads this to
+    /// build a `SidecarActorRuntime`.
+    pub fn sidecar_endpoint(sandbox: &SandboxHandle) -> Option<String> {
+        let st = sandbox.state.downcast_ref::<DockerState>()?;
+        st.sidecar_port
+            .map(|p| format!("http://127.0.0.1:{p}"))
+    }
 }
 
 /// Per-container state stashed in `SandboxHandle.state`. `exec()` and
@@ -74,6 +101,35 @@ struct DockerState {
     /// Once the container exits, the daemon GCs it; we record that we've
     /// asked for shutdown so a double-shutdown doesn't bubble an error.
     shut_down: Mutex<bool>,
+    /// Host port the sidecar's v1 listener is published on, when the
+    /// container was prepared in sidecar mode. `None` for legacy
+    /// `sleep infinity` containers.
+    sidecar_port: Option<u16>,
+}
+
+/// Pick a free localhost TCP port to publish the sidecar on.
+async fn pick_free_port() -> Result<u16, IsolatorError> {
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+        .await
+        .map_err(IsolatorError::from)?;
+    let port = listener.local_addr().map_err(IsolatorError::from)?.port();
+    drop(listener);
+    Ok(port)
+}
+
+/// Poll a TCP connect to the published sidecar port until it accepts
+/// (sidecar is listening) or the deadline elapses.
+async fn wait_until_listening(port: u16) -> Result<(), IsolatorError> {
+    let deadline = tokio::time::Instant::now() + Duration::from_secs(15);
+    while tokio::time::Instant::now() < deadline {
+        if tokio::net::TcpStream::connect(("127.0.0.1", port)).await.is_ok() {
+            return Ok(());
+        }
+        tokio::time::sleep(Duration::from_millis(150)).await;
+    }
+    Err(IsolatorError::Sidecar(format!(
+        "sidecar did not accept connections on 127.0.0.1:{port} within 15s"
+    )))
 }
 
 #[async_trait]
@@ -130,11 +186,34 @@ impl Isolator for Docker {
             argv.push(format!("{k}={v}"));
         }
 
+        // Sidecar mode: bind-mount the host ship-sidecar binary, publish
+        // its v1 listener to a host port, and make it PID 1. The
+        // supervisor drives the actor over ship.sidecar.v1 — no
+        // `docker exec`. Legacy mode (sidecar_bin = None) runs
+        // `sleep infinity` for the probe / test path.
+        let sidecar_port = if let Some(bin) = &self.cfg.sidecar_bin {
+            let port = pick_free_port().await?;
+            argv.push("-v".into());
+            argv.push(format!("{}:{SIDECAR_INSIDE}:ro", bin.display()));
+            argv.push("-p".into());
+            argv.push(format!("127.0.0.1:{port}:{SIDECAR_PORT_INSIDE}"));
+            Some(port)
+        } else {
+            None
+        };
+
         argv.push(self.cfg.image.clone());
-        // Long-lived sleep — exec runs commands inside. Matches youki
-        // sidecar pattern where PID 1 just waits.
-        argv.push("sleep".into());
-        argv.push("infinity".into());
+        match sidecar_port {
+            Some(_) => {
+                argv.push(SIDECAR_INSIDE.into());
+                argv.push("--addr".into());
+                argv.push(format!("0.0.0.0:{SIDECAR_PORT_INSIDE}"));
+            }
+            None => {
+                argv.push("sleep".into());
+                argv.push("infinity".into());
+            }
+        }
 
         let out = Command::new(&self.cfg.engine_bin)
             .args(&argv)
@@ -166,6 +245,13 @@ impl Isolator for Docker {
             )));
         }
 
+        // In sidecar mode, wait for the published port to accept before
+        // returning — the supervisor will immediately connect a v1
+        // client against it.
+        if let Some(port) = sidecar_port {
+            wait_until_listening(port).await?;
+        }
+
         Ok(SandboxHandle {
             id: SandboxId::new(),
             backend: "docker",
@@ -174,6 +260,7 @@ impl Isolator for Docker {
                 name,
                 cfg: self.cfg.clone(),
                 shut_down: Mutex::new(false),
+                sidecar_port,
             }),
         })
     }
@@ -240,30 +327,6 @@ impl Isolator for Docker {
             .status()
             .await;
         Ok(())
-    }
-
-    /// Translate a launch into `docker exec <name> <bin> <args>`. The
-    /// supervisor's PTY transport wraps THIS command; the agent runs
-    /// inside the container via docker's own exec channel.
-    ///
-    /// Returns None when the sandbox handle doesn't belong to this
-    /// backend (defensive — orchestrator should keep handles + isolators
-    /// paired, but mistakes happen).
-    fn wrap_for_external_spawn(
-        &self,
-        sandbox: &SandboxHandle,
-        bin: &std::path::Path,
-        args: &[String],
-    ) -> Option<(std::path::PathBuf, Vec<String>)> {
-        let state = sandbox.state.downcast_ref::<DockerState>()?;
-        let mut argv: Vec<String> = vec![
-            "exec".into(),
-            "-i".into(),
-            state.name.clone(),
-            bin.to_string_lossy().into_owned(),
-        ];
-        argv.extend(args.iter().cloned());
-        Some((std::path::PathBuf::from(&state.cfg.engine_bin), argv))
     }
 }
 

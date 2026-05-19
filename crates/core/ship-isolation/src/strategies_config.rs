@@ -48,6 +48,11 @@ pub struct DockerSettings {
     /// "no limit"; defaults pick conservative values appropriate for
     /// a typical agent workload. See threat-model.md §7.3.
     pub resources: DockerResources,
+    /// Host path to the `ship-sidecar` binary bind-mounted into the
+    /// container. Empty = auto-resolve (next to the daemon binary,
+    /// then `/usr/local/bin/ship-sidecar`). The container runs this
+    /// as PID 1 and the supervisor drives actors over ship.sidecar.v1.
+    pub sidecar_bin: String,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
@@ -70,6 +75,7 @@ impl Default for DockerSettings {
             image: "ghcr.io/ship/agent-runner:latest".into(),
             name_prefix: "ship-agent".into(),
             resources: DockerResources::default(),
+            sidecar_bin: String::new(),
         }
     }
 }

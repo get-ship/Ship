@@ -52,6 +52,7 @@ async fn dropping_owner_tears_down_container() {
         engine_bin: engine.into(),
         image,
         name_prefix: prefix.clone(),
+        ..DockerConfig::default()
     };
 
     let isolator: Arc<dyn Isolator> = Arc::new(Docker::new(cfg));
@@ -102,62 +103,3 @@ async fn dropping_owner_tears_down_container() {
     let _ = std::fs::remove_dir_all(&workspace);
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn wrap_for_external_spawn_rewrites_to_docker_exec() {
-    let engine = if engine_available("docker") {
-        "docker"
-    } else if engine_available("podman") {
-        "podman"
-    } else {
-        eprintln!("docker_lifecycle: skipping wrap test — no engine");
-        return;
-    };
-
-    let image =
-        std::env::var("SHIP_DOCKER_IMAGE").unwrap_or_else(|_| "alpine:3".into());
-    let prefix = format!("ship-wrap-{}-", std::process::id());
-    let cfg = DockerConfig {
-        engine_bin: engine.into(),
-        image,
-        name_prefix: prefix.clone(),
-    };
-    let isolator: Arc<dyn Isolator> = Arc::new(Docker::new(cfg.clone()));
-    if isolator.available().await.is_err() {
-        return;
-    }
-    let workspace = std::env::temp_dir().join(format!("ship-wrap-work-{}", std::process::id()));
-    std::fs::create_dir_all(&workspace).unwrap();
-    let policy = SandboxPolicy {
-        label: "wrap".into(),
-        mounts: vec![ship_substrate::isolation::FsMount {
-            host_path: workspace.clone(),
-            sandbox_path: PathBuf::from("/work"),
-            mode: ship_substrate::isolation::MountMode::ReadWrite,
-        }],
-        ..SandboxPolicy::default()
-    };
-    let handle = match isolator.prepare(&policy).await {
-        Ok(h) => h,
-        Err(_) => {
-            let _ = std::fs::remove_dir_all(&workspace);
-            return;
-        }
-    };
-
-    let bin = std::path::Path::new("/usr/local/bin/claude");
-    let args = vec!["-p".to_string(), "hello".to_string()];
-    let wrapped = isolator.wrap_for_external_spawn(&handle, bin, &args);
-    assert!(wrapped.is_some(), "wrap should return Some");
-    let (new_bin, new_args) = wrapped.unwrap();
-    assert_eq!(new_bin, PathBuf::from(engine));
-    assert_eq!(new_args[0], "exec");
-    assert_eq!(new_args[1], "-i");
-    assert!(new_args[2].starts_with(&prefix));
-    assert_eq!(new_args[3], "/usr/local/bin/claude");
-    assert_eq!(new_args[4], "-p");
-    assert_eq!(new_args[5], "hello");
-
-    // Clean up.
-    isolator.shutdown(handle).await.expect("shutdown");
-    let _ = std::fs::remove_dir_all(&workspace);
-}

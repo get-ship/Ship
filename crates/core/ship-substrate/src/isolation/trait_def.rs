@@ -45,24 +45,4 @@ pub trait Isolator: Send + Sync {
     ) -> Result<ExecHandle, IsolatorError>;
 
     async fn shutdown(&self, sandbox: SandboxHandle) -> Result<(), IsolatorError>;
-
-    /// Argv-rewrite hook for supervisors that own their own PTY/process
-    /// lifecycle (ship-supervisor's ProcessExecutor). Returns the
-    /// rewritten `(bin, args)` that, when spawned, runs the original
-    /// command inside the already-prepared sandbox.
-    ///
-    /// Backends that don't support argv-rewrite (or that don't make
-    /// sense without their own exec channel — sidecar-based, cloud,
-    /// etc.) return `None`. The supervisor then either falls back to
-    /// `exec()` (its own PTY discarded) or refuses to enforce.
-    ///
-    /// Default returns `None` — backends opt in.
-    fn wrap_for_external_spawn(
-        &self,
-        _sandbox: &SandboxHandle,
-        _bin: &std::path::Path,
-        _args: &[String],
-    ) -> Option<(std::path::PathBuf, Vec<String>)> {
-        None
-    }
 }

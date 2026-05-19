@@ -41,6 +41,7 @@ async fn docker_prepare_exec_and_shutdown_against_real_engine() {
         engine_bin: bin.into(),
         image: image.clone(),
         name_prefix: "ship-docker-live".into(),
+        ..DockerConfig::default()
     };
     let backend = Docker::new(cfg);
 
