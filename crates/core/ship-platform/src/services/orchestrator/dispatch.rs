@@ -530,6 +530,60 @@ fn start_agent_session_exit_handler(
     });
 }
 
+/// Emit the observability pair (started + dispatched) for a pipeline
+/// step's agent session. Composed sessions share the agent_sessions
+/// read model with bare dispatches; `parent_pipeline_run_id` ties the
+/// session to its pipeline run, and the composer (not this handler)
+/// owns the spawn — `handle_agent_session_started` skips events with
+/// that field set. The session slug is `<job_slug>::<step_id>` so it
+/// stays unique under the agent_sessions.slug constraint (the job slug
+/// is reused across all steps).
+#[allow(clippy::too_many_arguments)]
+pub(crate) async fn emit_composed_step_session(
+    kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
+    job: &crate::projections::job::PipelineRun,
+    step: &ship_substrate::events::pipeline::PipelineStep,
+    agent: &str,
+    worktree: &str,
+    pid: Option<u32>,
+) {
+    let step_session_id = ship_substrate::gen_ulid();
+    let session_slug = format!("{}::{}", job.slug, step.id);
+    let invocation = resolve_step_invocation(step.invocation.as_deref(), job.headless);
+    let started = AgentSessionStartedPayload {
+        session_id: step_session_id.clone(),
+        slug: session_slug.clone(),
+        agent: agent.to_string(),
+        harness: step.harness.clone(),
+        model: step.model.clone(),
+        workspace: job.branch.clone(),
+        branch: job.branch.clone(),
+        source_spec_path: job.source_spec_path.clone(),
+        open_tab: !job.headless,
+        invocation,
+        keepalive: false,
+        prompt: None,
+        spec: None,
+        resume: false,
+        resume_session_id: None,
+        depends_on: None,
+        vars: job.vars.clone(),
+        baseline_sha: job.baseline_sha.clone(),
+        parent_pipeline_run_id: Some(job.job_id.clone()),
+    };
+    emit_agent_session_started_for_pipeline_step(kernel, &started).await;
+    emit_agent_session_dispatched(
+        kernel,
+        &step_session_id,
+        &session_slug,
+        worktree,
+        step.harness.as_deref().unwrap_or("claude"),
+        step.model.as_deref(),
+        pid,
+    )
+    .await;
+}
+
 pub(crate) async fn emit_agent_session_started_for_pipeline_step(
     kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
     payload: &AgentSessionStartedPayload,
