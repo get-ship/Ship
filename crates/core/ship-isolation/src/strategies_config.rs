@@ -44,6 +44,23 @@ pub struct DockerSettings {
     pub image: String,
     /// Container name prefix (`ship-agent-<slug>-<nanoid>`).
     pub name_prefix: String,
+    /// Resource caps applied to the container. None per field means
+    /// "no limit"; defaults pick conservative values appropriate for
+    /// a typical agent workload. See threat-model.md §7.3.
+    pub resources: DockerResources,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+#[serde(default)]
+pub struct DockerResources {
+    /// Memory cap in bytes. Default 4 GiB.
+    pub memory_bytes: Option<u64>,
+    /// CPU quota in microseconds per period. Default = 2 cpus
+    /// (`2_000_000` μs per `1_000_000` μs period; the backend
+    /// converts to docker's `--cpus` decimal form).
+    pub cpu_quota_micros: Option<u64>,
+    /// Max process count. Default 1024.
+    pub pids_max: Option<u32>,
 }
 
 impl Default for DockerSettings {
@@ -52,6 +69,17 @@ impl Default for DockerSettings {
             engine_bin: "docker".into(),
             image: "ghcr.io/ship/agent-runner:latest".into(),
             name_prefix: "ship-agent".into(),
+            resources: DockerResources::default(),
+        }
+    }
+}
+
+impl Default for DockerResources {
+    fn default() -> Self {
+        Self {
+            memory_bytes: Some(4 * 1024 * 1024 * 1024),
+            cpu_quota_micros: Some(2_000_000),
+            pids_max: Some(1024),
         }
     }
 }

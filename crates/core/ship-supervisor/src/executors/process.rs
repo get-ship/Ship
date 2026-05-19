@@ -194,7 +194,7 @@ async fn prepare_docker_sandbox(
     ctx: &JobContext,
 ) -> Result<PreparedSandbox, ship_substrate::isolation::IsolatorError> {
     use ship_isolation::backends::{Docker, DockerConfig};
-    use ship_substrate::isolation::{FsMount, MountMode, NetworkPolicy, SandboxPolicy};
+    use ship_substrate::isolation::{FsMount, MountMode, NetworkPolicy, ResourceLimits, SandboxPolicy};
 
     let settings = ship_platform::isolation::strategies_settings()
         .map_err(|e| ship_substrate::isolation::IsolatorError::Other(e))?;
@@ -222,6 +222,13 @@ async fn prepare_docker_sandbox(
         sandbox_path: ctx.work_dir.clone(),
         mode: MountMode::ReadWrite,
     }];
+    // Conservative resource caps from settings (threat-model.md §7.3).
+    // Users override via `isolation.strategies.docker.resources.*`.
+    policy.limits = ResourceLimits {
+        memory_bytes: settings.docker.resources.memory_bytes,
+        cpu_quota_micros: settings.docker.resources.cpu_quota_micros,
+        pids_max: settings.docker.resources.pids_max,
+    };
     // Default network policy follows threat-model.md §7.1: if the
     // harness is known and has a `default_allowlist`, route through
     // the host-side proxy and deny everything else. Otherwise fall
