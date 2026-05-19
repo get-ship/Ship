@@ -182,25 +182,30 @@ struct PreparedSandbox {
     sandbox: ship_substrate::isolation::SandboxHandle,
 }
 
-/// Build a Docker isolator from defaults + the agent's work dir
-/// bind-mount, call available(), prepare(). Returns the live isolator
-/// + sandbox handle on success.
+/// Build a Docker isolator from `isolation.strategies.docker` settings
+/// + the agent's work dir bind-mount, call available(), prepare().
+/// Returns the live isolator + sandbox handle on success.
 ///
-/// Today the image and engine_bin are hard-defaults (`docker` engine,
-/// the placeholder image from strategy.md §3). The next chunk pulls
-/// these from `isolation.strategies.docker` once the nested settings
-/// restructure (task #42) lands.
+/// Settings fall back to sensible defaults
+/// (`StrategiesSettings::default()` — `docker` engine,
+/// `ghcr.io/ship/agent-runner:latest`). Power users override via
+/// `daemon_settings :: isolation.strategies = {...}`.
 async fn prepare_docker_sandbox(
     ctx: &JobContext,
 ) -> Result<PreparedSandbox, ship_substrate::isolation::IsolatorError> {
     use ship_isolation::backends::{Docker, DockerConfig};
     use ship_substrate::isolation::{FsMount, MountMode, NetworkPolicy, SandboxPolicy};
 
+    let settings = ship_platform::isolation::strategies_settings()
+        .map_err(|e| ship_substrate::isolation::IsolatorError::Other(e))?;
     let cfg = DockerConfig {
-        engine_bin: std::env::var("SHIP_DOCKER_ENGINE_BIN").unwrap_or_else(|_| "docker".into()),
-        image: std::env::var("SHIP_DOCKER_IMAGE")
-            .unwrap_or_else(|_| "ghcr.io/ship/agent-runner:latest".into()),
-        name_prefix: format!("ship-agent-{}", ctx.slug.replace('/', "_")),
+        engine_bin: settings.docker.engine_bin.clone(),
+        image: settings.docker.image.clone(),
+        name_prefix: format!(
+            "{}-{}",
+            settings.docker.name_prefix,
+            ctx.slug.replace('/', "_")
+        ),
     };
     let isolator: std::sync::Arc<dyn ship_substrate::isolation::Isolator> =
         std::sync::Arc::new(Docker::new(cfg));

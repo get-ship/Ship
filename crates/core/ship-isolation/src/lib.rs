@@ -26,6 +26,7 @@ pub mod recommender;
 pub mod registry;
 pub mod settings;
 pub mod sidecar;
+pub mod strategies_config;
 pub mod tier;
 
 pub use capabilities::{Capabilities, HostOs};

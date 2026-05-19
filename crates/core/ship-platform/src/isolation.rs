@@ -190,6 +190,27 @@ pub fn decide_for_agent(
     decide(agent_override.as_ref(), run_override)
 }
 
+/// Read the nested per-strategy settings blob. Returns defaults when
+/// the key isn't set; only returns an error on actual DB failure.
+pub fn strategies_settings()
+-> Result<ship_isolation::strategies_config::StrategiesSettings> {
+    let raw = get_setting(ship_isolation::strategies_config::SETTINGS_KEY)?;
+    match raw {
+        Some(value) => Ok(serde_json::from_value(value).unwrap_or_default()),
+        None => Ok(Default::default()),
+    }
+}
+
+/// Write the nested per-strategy settings blob. Mirrors set_setting
+/// semantics; emits no kernel event (callers that want one use
+/// set_setting_and_emit directly).
+pub fn set_strategies_settings(
+    value: &ship_isolation::strategies_config::StrategiesSettings,
+) -> Result<()> {
+    let json = serde_json::to_value(value)?;
+    set_setting(ship_isolation::strategies_config::SETTINGS_KEY, json)
+}
+
 fn string_setting(key: &str) -> Result<Option<String>> {
     Ok(match get_setting(key)? {
         Some(serde_json::Value::String(s)) => Some(s),
