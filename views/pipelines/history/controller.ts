@@ -1,4 +1,6 @@
-import { controller, signal, derived, live, unwrap } from '@ship/sui-runtime'
+import { controller, signal, derived, live, chrome } from '@ship/sui-runtime'
+import { route as routeFactory } from '@ship/sui-runtime/route'
+import { liveExpr } from '@ship/sdk-client'
 import type { Scope } from './page.sui'
 
 type HistoryRow = {
@@ -15,27 +17,45 @@ const EMPTY: HistoryCtx = {
   q: '', pipeline_filter: '', rows: [], total: 0,
   offset: 0, limit: 50, has_prev: false, has_next: false, pipelines: [],
 }
-const read = (ctx: unknown): HistoryCtx => (unwrap(ctx as any) as HistoryCtx | undefined) ?? EMPTY
+
+// The `/sui/<name>` view-host mounts views without a `ship` SDK client in
+// ctx, so `ship.<x>.<y>()` calls stick on `loading`. Wire the live source
+// directly to `/_sui/data?expr=…` via `liveExpr`, matching views/events.
+interface HistoryArgs { q: string; pipeline: string; offset: number; limit: number }
+function historyExpr(args: HistoryArgs): string {
+  const lit: Record<string, string | number> = { offset: args.offset, limit: args.limit }
+  if (args.q) lit.q = args.q
+  if (args.pipeline) lit.pipeline = args.pipeline
+  return `ship.pipelines.history(${JSON.stringify(lit)})`
+}
+// `envelope` is the read LiveSignal value (`ctx()`): pull the `ok` value,
+// falling back to EMPTY while loading / on error.
+const read = (envelope: unknown): HistoryCtx => {
+  const env = envelope as { kind?: string; value?: HistoryCtx } | undefined
+  return env?.kind === 'ok' && env.value ? env.value : EMPTY
+}
 
 export default controller<Scope>({
-  scope: ({ ship, route }) => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const s = ship as any
-    const q = derived(() => String((route().query as any)?.q ?? ''))
-    const pipelineFilter = derived(() => String((route().query as any)?.pipeline ?? ''))
-    const offset = derived(() => parseInt(String((route().query as any)?.offset ?? '0'), 10))
-    const limit = derived(() => parseInt(String((route().query as any)?.limit ?? '50'), 10))
-    const ctx = live(() => s.pipelines.history({
+  scope: () => {
+    const route = routeFactory()
+    const q = derived(() => String(route.query.q() ?? ''))
+    const pipelineFilter = derived(() => String(route.query.pipeline() ?? ''))
+    const offset = derived(() => parseInt(String(route.query.offset() ?? '0'), 10))
+    const limit = derived(() => parseInt(String(route.query.limit() ?? '50'), 10))
+    const historyData = live(() => liveExpr<HistoryCtx>(historyExpr({
       q: q(), pipeline: pipelineFilter(), offset: offset(), limit: limit(),
-    }))
-    const rows = derived(() => read(ctx()).rows)
-    const total = derived(() => read(ctx()).total)
-    const hasPrev = derived(() => read(ctx()).has_prev)
-    const hasNext = derived(() => read(ctx()).has_next)
-    const pipelines = derived(() => read(ctx()).pipelines)
-    const qInput = signal(String((route().query as any)?.q ?? ''))
-    const pipelineInput = signal(String((route().query as any)?.pipeline ?? ''))
-    return { ctx, q, pipelineFilter, offset, limit, rows, total, hasPrev, hasNext, pipelines, qInput, pipelineInput }
+    })))
+    const rows = derived(() => read(historyData()).rows)
+    const total = derived(() => read(historyData()).total)
+    const hasPrev = derived(() => read(historyData()).has_prev)
+    const hasNext = derived(() => read(historyData()).has_next)
+    const pipelines = derived(() => read(historyData()).pipelines)
+    const qInput = signal(String(route.query.q() ?? ''))
+    const pipelineInput = signal(String(route.query.pipeline() ?? ''))
+    // The view-host doesn't inject `navigate` into ctx; route through the
+    // runtime chrome bridge (matches views/home).
+    const navigate = (path: string): void => chrome.navigate(path)
+    return { historyData, q, pipelineFilter, offset, limit, rows, total, hasPrev, hasNext, pipelines, qInput, pipelineInput, navigate }
   },
   on: {
     applyFilter: ({ navigate, qInput, pipelineInput }: any) => {
