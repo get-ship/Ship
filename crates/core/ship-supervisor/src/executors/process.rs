@@ -222,9 +222,24 @@ async fn prepare_docker_sandbox(
         sandbox_path: ctx.work_dir.clone(),
         mode: MountMode::ReadWrite,
     }];
-    // Default network: allow host network for now; future work routes
-    // through the host-side allowlist proxy.
-    policy.network = NetworkPolicy::Open;
+    // Default network policy follows threat-model.md §7.1: if the
+    // harness is known and has a `default_allowlist`, route through
+    // the host-side proxy and deny everything else. Otherwise fall
+    // through to Open (the historical default) since we have no
+    // signal about which endpoints the harness actually needs.
+    let allowlist = ctx
+        .launch
+        .harness
+        .as_deref()
+        .map(ship_isolation::harness::HarnessSandboxMechanism::default_allowlist)
+        .unwrap_or_default();
+    policy.network = if allowlist.is_empty() {
+        NetworkPolicy::Open
+    } else {
+        NetworkPolicy::Allowlist {
+            hosts: allowlist.into_iter().map(|s| s.to_string()).collect(),
+        }
+    };
     let sandbox = isolator.prepare(&policy).await?;
     Ok(PreparedSandbox { isolator, sandbox })
 }
