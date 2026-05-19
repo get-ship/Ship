@@ -24,11 +24,6 @@ export type Token =
   | { kind: 'open-while-error'; src: string; loc: string }
   | { kind: 'close-while-loading'; loc: string }
   | { kind: 'close-while-error'; loc: string }
-  | { kind: 'open-async'; src: string; loc: string }
-  | { kind: 'async-loading'; loc: string }
-  | { kind: 'async-error'; src: string; loc: string }
-  | { kind: 'async-ok'; loc: string }
-  | { kind: 'close-async'; loc: string }
 
 /** Walk `parent`'s children and produce the flat token stream. */
 export function tokenizeChildren(parent: Node): Token[] {
@@ -141,14 +136,5 @@ function classifyBrace(inner: string, raw: string): Token {
   }
   if (inner === '/while-loading') return { kind: 'close-while-loading', loc }
   if (inner === '/while-error') return { kind: 'close-while-error', loc }
-  if (inner.startsWith('#async')) {
-    return { kind: 'open-async', src: inner.slice(6).trim(), loc }
-  }
-  if (inner === ':loading') return { kind: 'async-loading', loc }
-  if (inner === ':ok') return { kind: 'async-ok', loc }
-  if (inner.startsWith(':error')) {
-    return { kind: 'async-error', src: inner.slice(6).trim(), loc }
-  }
-  if (inner === '/async') return { kind: 'close-async', loc }
   return { kind: 'expr', src: inner, loc }
 }

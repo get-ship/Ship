@@ -10,7 +10,6 @@ import { bindText, effect, type Disposer } from '@ship/sui-runtime'
 import type { Instr } from './compile'
 import { applyAttr } from './render-attrs'
 import { renderFor } from './render-for'
-import { renderLet } from './render-let'
 import { renderWhileLoading, renderWhileError } from './render-while'
 
 /** Scope is a plain object; child scopes inherit via prototype chain. */
@@ -93,8 +92,6 @@ function renderOne(instr: Instr, scope: Scope, doc: Document): OneRender {
         scope,
         doc,
       )
-    case 'let':
-      return renderLet(instr.name, instr.value, instr.body, scope, doc)
   }
 }
 
