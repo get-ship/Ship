@@ -234,6 +234,41 @@ fn parse_tool_use_extracts_tool_name() {
 }
 
 #[test]
+fn parse_result_event_with_usage_emits_turn_usage() {
+    let adapter = ClaudeAdapter;
+    let line = r#"{"type":"result","subtype":"success","is_error":false,"duration_ms":1500,"duration_api_ms":1200,"num_turns":3,"result":"done","session_id":"s1","stop_reason":"end_turn","usage":{"input_tokens":250,"output_tokens":75,"cache_creation_input_tokens":10,"cache_read_input_tokens":1000}}"#;
+    match adapter.parse_output(line) {
+        Some(HarnessEvent::TurnUsage {
+            input_tokens,
+            output_tokens,
+            cache_creation_tokens,
+            cache_read_tokens,
+            stop_reason,
+            ..
+        }) => {
+            assert_eq!(input_tokens, 250);
+            assert_eq!(output_tokens, 75);
+            assert_eq!(cache_creation_tokens, 10);
+            assert_eq!(cache_read_tokens, 1000);
+            assert_eq!(stop_reason.as_deref(), Some("end_turn"));
+        }
+        other => panic!("expected TurnUsage, got {other:?}"),
+    }
+}
+
+#[test]
+fn parse_result_event_without_usage_falls_back_to_turn_complete() {
+    let adapter = ClaudeAdapter;
+    let line = r#"{"type":"result","stop_reason":"end_turn"}"#;
+    match adapter.parse_output(line) {
+        Some(HarnessEvent::TurnComplete { stop_reason }) => {
+            assert_eq!(stop_reason, "end_turn");
+        }
+        other => panic!("expected TurnComplete fallback, got {other:?}"),
+    }
+}
+
+#[test]
 fn parse_system_event_becomes_custom() {
     let adapter = ClaudeAdapter;
     let line = r#"{"type":"system","subtype":"api_retry","attempt":1,"max_retries":3,"retry_delay_ms":1000,"error_status":429,"error":"rate_limit","uuid":"u5","session_id":"s1"}"#;

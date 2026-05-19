@@ -55,7 +55,17 @@ for (const h of HARNESSES) {
           });
 
           try {
-            const actor = await waitForActorRow(dispatched.slug);
+            // Poll until transport is populated (not just row present).
+            // There's a projection race: process.spawned can land before
+            // actor.created, creating a stub row with empty transport;
+            // actor.created fills it in. Poll until we see the real value.
+            const deadline = Date.now() + 15_000;
+            let actor = null;
+            while (Date.now() < deadline) {
+              actor = await waitForActorRow(dispatched.slug);
+              if (actor && actor.transport && actor.transport.length > 0) break;
+              await new Promise((r) => setTimeout(r, 250));
+            }
             if (!actor) {
               tierFailure(h.tier, h.id, "actor row never materialised", {
                 slug: dispatched.slug,

@@ -602,6 +602,35 @@ impl JobExecutor for ProcessExecutor {
                                             preview,
                                         );
                                     }
+                                    // TurnUsage fires regardless of harness — token counts
+                                    // aren't in any harness's hook config, so there's no
+                                    // double-fire risk. claude emits from `result` events in
+                                    // -p stream-json; opencode from `step_finish`. Both land
+                                    // in analytics_turns via the projection.
+                                    HarnessEvent::TurnUsage {
+                                        model,
+                                        input_tokens,
+                                        output_tokens,
+                                        reasoning_tokens,
+                                        cache_creation_tokens,
+                                        cache_read_tokens,
+                                        stop_reason,
+                                        harness_reported_cost_usd,
+                                    } => {
+                                        let _ = ship_substrate::db::hook_events::emit_turn_observed_synth(
+                                            &synth_actor_id,
+                                            None,
+                                            None,
+                                            model.as_deref(),
+                                            input_tokens,
+                                            output_tokens,
+                                            reasoning_tokens,
+                                            cache_creation_tokens,
+                                            cache_read_tokens,
+                                            stop_reason.as_deref(),
+                                            harness_reported_cost_usd,
+                                        );
+                                    }
                                     _ => {}
                                 }
                             }

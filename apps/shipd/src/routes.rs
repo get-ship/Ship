@@ -914,6 +914,10 @@ pub enum Route {
     /// @auth scope ReadWorkspace
     AnalyticsToolUsage,
 
+    /// @route GET "/api/v1/analytics/sessions/{session_key}/turns"
+    /// @auth scope ReadWorkspace
+    AnalyticsSessionTurns { session_key: String },
+
     // ── Collections ──────────────────────────────────────────────────────
 
     /// @route GET "/api/v1/collections"

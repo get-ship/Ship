@@ -53,6 +53,25 @@ describe("ui endpoints / analytics", () => {
     expect(typeof res.body.data.count).toBe("number");
   });
 
+  test("GET /api/v1/analytics/sessions/{key}/turns returns turn shape", async () => {
+    // No-data check — endpoint must respond even when the session has
+    // no turns yet (e.g. brand-new session_key, or a session that ran
+    // tools but never reached a turn boundary with token data).
+    const res = await api<
+      Envelope<{
+        session_key: string;
+        summary: unknown;
+        count: number;
+        turns: unknown[];
+      }>
+    >(`/api/v1/analytics/sessions/no-turns-${Date.now()}/turns`);
+    expect(res.status).toBe(200);
+    expect(res.body.ok).toBe(true);
+    expect(Array.isArray(res.body.data.turns)).toBe(true);
+    expect(typeof res.body.data.count).toBe("number");
+    expect(res.body.data.count).toBe(res.body.data.turns.length);
+  });
+
   test("GET /api/v1/analytics/tool-usage with time window doesn't 500", async () => {
     // RFC3339 timestamps — projection's SQL filters on them as strings.
     const since = "2026-01-01T00:00:00+00:00";

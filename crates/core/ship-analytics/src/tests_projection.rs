@@ -496,6 +496,92 @@ mod analytics_tests {
         assert_eq!(r.reason.as_deref(), Some("normal"), "hook reason preserved");
     }
 
+    // ── Token-usage analytics_turns ─────────────────────────────────
+
+    fn turn_observed_event(
+        actor_id: &str,
+        model: Option<&str>,
+        input: u64,
+        output: u64,
+        cache_w: u64,
+        cache_r: u64,
+    ) -> EventEnvelope {
+        let payload = ship_substrate::events::hooks::HookTurnObservedPayload {
+            actor_id: actor_id.to_string(),
+            session_id: None,
+            turn_idx: None,
+            model: model.map(String::from),
+            input_tokens: input,
+            output_tokens: output,
+            reasoning_tokens: 0,
+            cache_creation_tokens: cache_w,
+            cache_read_tokens: cache_r,
+            stop_reason: Some("end_turn".to_string()),
+            harness_reported_cost_usd: None,
+            observed_at: "2026-05-19T10:00:00+00:00".to_string(),
+        };
+        EventEnvelope::new(
+            ship_substrate::events::hooks::event_types::HOOK_TURN_OBSERVED,
+            actor_id,
+            &payload,
+        )
+        .unwrap()
+        .with_actor_id(actor_id)
+    }
+
+    #[test]
+    fn turn_observed_inserts_analytics_turns_row() {
+        let (_dir, mut conn) = setup();
+        let bus = bus();
+        bus.dispatch(
+            &turn_observed_event("actor-tu-tokens", Some("claude-opus"), 250, 75, 10, 1000),
+            &mut conn,
+        );
+        let summary =
+            crate::queries::session_token_summary(&mut conn, "actor-tu-tokens")
+                .unwrap()
+                .expect("summary row");
+        assert_eq!(summary.turn_count, 1);
+        assert_eq!(summary.input_tokens, 250);
+        assert_eq!(summary.output_tokens, 75);
+        assert_eq!(summary.cache_creation_tokens, 10);
+        assert_eq!(summary.cache_read_tokens, 1000);
+    }
+
+    #[test]
+    fn turn_observed_backfills_session_model_when_absent() {
+        let (_dir, mut conn) = setup();
+        let bus = bus();
+        bus.dispatch(
+            &turn_observed_event("actor-bf", Some("claude-sonnet"), 100, 50, 0, 0),
+            &mut conn,
+        );
+        let row = query_session(&mut conn, "actor-bf").expect("session stub created");
+        assert_eq!(row.model.as_deref(), Some("claude-sonnet"));
+    }
+
+    #[test]
+    fn turn_observed_does_not_overwrite_existing_session_model() {
+        let (_dir, mut conn) = setup();
+        let bus = bus();
+        bus.dispatch(
+            &session_started_event(
+                "actor-noov",
+                None,
+                Some("claude"),
+                Some("opus"),
+                "2026-05-19T09:00:00+00:00",
+            ),
+            &mut conn,
+        );
+        bus.dispatch(
+            &turn_observed_event("actor-noov", Some("sonnet"), 100, 50, 0, 0),
+            &mut conn,
+        );
+        let row = query_session(&mut conn, "actor-noov").expect("session row");
+        assert_eq!(row.model.as_deref(), Some("opus"), "hook model preserved");
+    }
+
     #[test]
     fn truncate_clears_both_tables() {
         let (_dir, mut conn) = setup();
