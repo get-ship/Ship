@@ -71,6 +71,43 @@ pub enum IsolationCommands {
         #[arg(long)]
         json: bool,
     },
+    /// Verify the current isolation configuration is sound (decision
+    /// resolves, backend implemented, no silent downgrade).
+    Verify {
+        #[arg(long)]
+        json: bool,
+    },
+    /// Per-tier availability + previews for the UI picker (also useful
+    /// for scripting). Returns what would happen if each tier were
+    /// pinned.
+    Recommendations {
+        #[arg(long)]
+        json: bool,
+    },
+    /// Show what would happen if a hypothetical tier / strategy were
+    /// chosen, without persisting anything.
+    Preview {
+        /// Tier id: none / process / container / vm / cloud / auto
+        #[arg(long)]
+        tier: Option<String>,
+        /// Strategy id: noop / harness / docker / youki / wsl2 / lima / fly
+        #[arg(long)]
+        strategy: Option<String>,
+        #[arg(long)]
+        json: bool,
+    },
+    /// Apply isolation settings atomically. When `--enforce` is set,
+    /// verify must pass before settings persist.
+    Init {
+        #[arg(long)]
+        tier: Option<String>,
+        #[arg(long)]
+        strategy: Option<String>,
+        #[arg(long)]
+        enforce: bool,
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 #[derive(Subcommand, Debug)]

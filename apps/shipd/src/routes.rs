@@ -985,6 +985,22 @@ pub enum Route {
     /// @auth scope WriteWorkspace
     IsolationRescan,
 
+    /// @route GET "/api/v1/isolation/recommendations"
+    /// @auth scope ReadWorkspace
+    IsolationRecommendations,
+
+    /// @route POST "/api/v1/isolation/preview"
+    /// @auth scope ReadWorkspace
+    IsolationPreview,
+
+    /// @route POST "/api/v1/isolation/verify"
+    /// @auth scope WriteWorkspace
+    IsolationVerify,
+
+    /// @route POST "/api/v1/isolation/init"
+    /// @auth scope WriteWorkspace
+    IsolationInit,
+
     // ── Command bar registry ─────────────────────────────────────────────
 
     /// @route GET "/api/v1/commands"

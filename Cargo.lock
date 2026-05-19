@@ -4645,6 +4645,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_yaml",
+ "ship-isolation",
  "ship-pipelines",
  "ship-platform",
  "ship-substrate",

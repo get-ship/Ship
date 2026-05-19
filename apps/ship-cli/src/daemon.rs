@@ -986,7 +986,7 @@ fn announce_daemon_url() {
 }
 
 /// Try to read daemon info and verify it responds to /api/v1/health.
-fn daemon_info_if_healthy() -> Option<(u16, String)> {
+pub fn daemon_info_if_healthy() -> Option<(u16, String)> {
     let cwd = std::env::current_dir().ok()?;
     let handle = ship_substrate::home::discover_running_daemon(&cwd)?;
     let port = handle.port;

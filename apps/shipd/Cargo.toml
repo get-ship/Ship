@@ -20,6 +20,7 @@ path = "src/main.rs"
 [dependencies]
 ship-substrate = { path = "../../crates/core/ship-substrate" }
 ship-platform = { path = "../../crates/core/ship-platform" }
+ship-isolation = { path = "../../crates/core/ship-isolation", default-features = false }
 ship-pipelines = { path = "../../crates/core/ship-pipelines" }
 ship-supervisor = { path = "../../crates/ship-supervisor" }
 ship-types = { path = "../../crates/core/ship-types" }

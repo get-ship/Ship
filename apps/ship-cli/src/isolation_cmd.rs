@@ -1,54 +1,226 @@
-//! `ship isolation status` / `rescan` — surfaces capability probe +
-//! recommender result for human and JSON consumption.
+//! `ship isolation …` — daemon-mediated by default, falls back to
+//! in-process when shipd isn't running.
 //!
-//! Talks to the platform's `isolation::decide()` / `rescan_capabilities()`
-//! directly — no daemon round-trip. That keeps this command available
-//! even when the daemon is down.
+//! Tries shipd's `/api/v1/isolation/*` first so the CLI sees the same
+//! cached capability snapshot the UI does. If the daemon isn't up the
+//! same operations run in-process (they share `daemon_settings` so the
+//! outcome is identical).
 
 use anyhow::Result;
 use ship_isolation::capabilities::{Capabilities, HostOs};
 use ship_isolation::recommender::{ResolutionReason, ResolvedIsolation};
-use ship_platform::isolation;
+use ship_platform::{isolation, isolation_ops};
 
 use crate::commands::IsolationCommands;
 
 pub fn run(action: IsolationCommands) -> Result<()> {
     match action {
-        IsolationCommands::Status { json } => render(false, json),
-        IsolationCommands::Rescan { json } => render(true, json),
+        IsolationCommands::Status { json } => render_status(false, json),
+        IsolationCommands::Rescan { json } => render_status(true, json),
+        IsolationCommands::Verify { json } => render_verify(json),
+        IsolationCommands::Recommendations { json } => render_recommendations(json),
+        IsolationCommands::Preview { tier, strategy, json } => {
+            render_preview(tier.as_deref(), strategy.as_deref(), json)
+        }
+        IsolationCommands::Init { tier, strategy, enforce, json } => {
+            render_init(tier.as_deref(), strategy.as_deref(), enforce, json)
+        }
     }
 }
 
-fn render(rescan: bool, as_json: bool) -> Result<()> {
+// ── status / rescan ──────────────────────────────────────────────────────────
+
+fn render_status(rescan: bool, as_json: bool) -> Result<()> {
+    // Daemon path: GET /api/v1/isolation/status or POST /rescan return
+    // the same shape, so we use whichever matches the verb.
+    let payload = if let Some((port, token)) = crate::daemon::daemon_info_if_healthy() {
+        let path = if rescan { "/api/v1/isolation/rescan" } else { "/api/v1/isolation/status" };
+        if let Ok(v) = call_daemon(port, &token, path, rescan, None) {
+            v
+        } else {
+            in_process_status(rescan)?
+        }
+    } else {
+        in_process_status(rescan)?
+    };
+
+    if as_json {
+        println!("{}", serde_json::to_string_pretty(&payload)?);
+        return Ok(());
+    }
+    print_status_human(&payload);
+    Ok(())
+}
+
+fn in_process_status(rescan: bool) -> Result<serde_json::Value> {
     let caps = if rescan {
         isolation::rescan_capabilities()?
     } else {
         isolation::cached_capabilities()?
     };
-
     let decision = isolation::decide(None, None);
+    Ok(serde_json::json!({
+        "capabilities": &caps,
+        "decision": match &decision {
+            Ok(d) => serde_json::to_value(d)?,
+            Err(e) => serde_json::json!({ "error": e.to_string() }),
+        },
+    }))
+}
 
+// ── verify / recommendations / preview / init ────────────────────────────────
+
+fn render_verify(as_json: bool) -> Result<()> {
+    let v = if let Some((port, token)) = crate::daemon::daemon_info_if_healthy() {
+        match call_daemon(port, &token, "/api/v1/isolation/verify", true, None) {
+            Ok(v) => v,
+            Err(_) => serde_json::to_value(&isolation_ops::verify_decision())?,
+        }
+    } else {
+        serde_json::to_value(&isolation_ops::verify_decision())?
+    };
     if as_json {
-        let payload = serde_json::json!({
-            "capabilities": &caps,
-            "decision": match &decision {
-                Ok(d) => serde_json::to_value(d)?,
-                Err(e) => serde_json::json!({ "error": e.to_string() }),
-            },
-        });
-        println!("{}", serde_json::to_string_pretty(&payload)?);
+        println!("{}", serde_json::to_string_pretty(&v)?);
         return Ok(());
     }
-
-    print_human(&caps, decision.as_ref().ok());
-    if let Err(e) = decision {
-        println!();
-        println!("decision: {e}");
-    }
+    print_verify_human(&v);
     Ok(())
 }
 
-fn print_human(caps: &Capabilities, decision: Option<&isolation::IsolationDecision>) {
+fn render_recommendations(as_json: bool) -> Result<()> {
+    let v = if let Some((port, token)) = crate::daemon::daemon_info_if_healthy() {
+        match call_daemon(port, &token, "/api/v1/isolation/recommendations", false, None) {
+            Ok(v) => v,
+            Err(_) => serde_json::to_value(&isolation_ops::recommendations()?)?,
+        }
+    } else {
+        serde_json::to_value(&isolation_ops::recommendations()?)?
+    };
+    if as_json {
+        println!("{}", serde_json::to_string_pretty(&v)?);
+        return Ok(());
+    }
+    print_recommendations_human(&v);
+    Ok(())
+}
+
+fn render_preview(tier: Option<&str>, strategy: Option<&str>, as_json: bool) -> Result<()> {
+    let body = serde_json::json!({ "tier": tier, "strategy": strategy });
+    let v = if let Some((port, token)) = crate::daemon::daemon_info_if_healthy() {
+        match call_daemon(port, &token, "/api/v1/isolation/preview", true, Some(&body)) {
+            Ok(v) => v,
+            Err(_) => preview_in_process(tier, strategy)?,
+        }
+    } else {
+        preview_in_process(tier, strategy)?
+    };
+    if as_json {
+        println!("{}", serde_json::to_string_pretty(&v)?);
+        return Ok(());
+    }
+    println!("{}", serde_json::to_string_pretty(&v)?);
+    Ok(())
+}
+
+fn preview_in_process(tier: Option<&str>, strategy: Option<&str>) -> Result<serde_json::Value> {
+    let profile = ship_isolation::tier::IsolationProfile {
+        tier: tier.and_then(ship_isolation::tier::IsolationTier::from_id),
+        strategy: strategy.and_then(ship_isolation::tier::IsolationStrategy::from_id),
+        policy: None,
+    };
+    let decision = isolation_ops::preview(profile)?;
+    Ok(serde_json::to_value(&decision)?)
+}
+
+fn render_init(
+    tier: Option<&str>,
+    strategy: Option<&str>,
+    enforce: bool,
+    as_json: bool,
+) -> Result<()> {
+    let body = serde_json::json!({
+        "tier": tier,
+        "strategy": strategy,
+        "enforce": enforce,
+    });
+    let v = if let Some((port, token)) = crate::daemon::daemon_info_if_healthy() {
+        match call_daemon(port, &token, "/api/v1/isolation/init", true, Some(&body)) {
+            Ok(v) => v,
+            Err(_) => init_in_process(tier, strategy, enforce)?,
+        }
+    } else {
+        init_in_process(tier, strategy, enforce)?
+    };
+    if as_json {
+        println!("{}", serde_json::to_string_pretty(&v)?);
+        return Ok(());
+    }
+    print_init_human(&v);
+    Ok(())
+}
+
+fn init_in_process(
+    tier: Option<&str>,
+    strategy: Option<&str>,
+    enforce: bool,
+) -> Result<serde_json::Value> {
+    let req = isolation_ops::InitRequest {
+        tier: tier.map(str::to_string),
+        strategy: strategy.map(str::to_string),
+        enforce: Some(enforce),
+    };
+    let result = isolation_ops::init(req)?;
+    Ok(serde_json::to_value(&result)?)
+}
+
+// ── daemon HTTP client ───────────────────────────────────────────────────────
+
+fn call_daemon(
+    port: u16,
+    token: &str,
+    path: &str,
+    post: bool,
+    body: Option<&serde_json::Value>,
+) -> Result<serde_json::Value> {
+    let url = format!("http://127.0.0.1:{port}{path}");
+    let client = crate::http::daemon_client();
+    let request = if post {
+        let mut req = client.post(&url);
+        if let Some(b) = body {
+            req = req.json(b);
+        }
+        req
+    } else {
+        client.get(&url)
+    };
+    let resp = request
+        .header("Authorization", format!("Bearer {token}"))
+        .timeout(std::time::Duration::from_secs(5))
+        .send()?;
+    if !resp.status().is_success() {
+        anyhow::bail!("daemon returned {}", resp.status());
+    }
+    let envelope: serde_json::Value = resp.json()?;
+    // Shipd wraps responses in MeshResponse { ok, data }. Unwrap data.
+    Ok(envelope
+        .get("data")
+        .cloned()
+        .unwrap_or(serde_json::Value::Null))
+}
+
+// ── rendering ────────────────────────────────────────────────────────────────
+
+fn print_status_human(payload: &serde_json::Value) {
+    let caps: Option<Capabilities> = payload
+        .get("capabilities")
+        .and_then(|v| serde_json::from_value(v.clone()).ok());
+    let decision: Option<isolation::IsolationDecision> = payload
+        .get("decision")
+        .and_then(|v| serde_json::from_value(v.clone()).ok());
+    let Some(caps) = caps else {
+        println!("{}", serde_json::to_string_pretty(payload).unwrap_or_default());
+        return;
+    };
     println!("Host OS: {}", os_label(caps.os));
     println!("Inside a sandbox already: {}", yes_no(caps.in_sandbox));
     println!();
@@ -84,6 +256,76 @@ fn print_human(caps: &Capabilities, decision: Option<&isolation::IsolationDecisi
     }
 }
 
+fn print_verify_human(payload: &serde_json::Value) {
+    let ok = payload.get("ok").and_then(|v| v.as_bool()).unwrap_or(false);
+    println!("{} overall", if ok { "✓" } else { "✗" });
+    if let Some(steps) = payload.get("steps").and_then(|s| s.as_array()) {
+        for step in steps {
+            let name = step.get("name").and_then(|v| v.as_str()).unwrap_or("?");
+            let ok = step.get("ok").and_then(|v| v.as_bool()).unwrap_or(false);
+            let detail = step.get("detail").and_then(|v| v.as_str()).unwrap_or("");
+            println!("  {} {name}: {detail}", if ok { "✓" } else { "✗" });
+        }
+    }
+}
+
+fn print_recommendations_human(payload: &serde_json::Value) {
+    let host_os = payload
+        .get("host_os")
+        .and_then(|v| v.as_str())
+        .unwrap_or("?");
+    let default_tier = payload
+        .get("os_default_tier")
+        .and_then(|v| v.as_str())
+        .unwrap_or("?");
+    println!("Host OS: {host_os}");
+    println!("Per-OS default tier: {default_tier}");
+    println!();
+    if let Some(tiers) = payload.get("tiers").and_then(|t| t.as_array()) {
+        for tier in tiers {
+            let id = tier.get("tier").and_then(|v| v.as_str()).unwrap_or("?");
+            let label = tier.get("label").and_then(|v| v.as_str()).unwrap_or("?");
+            let recommended = tier.get("recommended").and_then(|v| v.as_bool()).unwrap_or(false);
+            let marker = if recommended { " (recommended)" } else { "" };
+            println!("{id}: {label}{marker}");
+            if let Some(strategies) = tier.get("strategies").and_then(|s| s.as_array()) {
+                for strat in strategies {
+                    let s_id = strat.get("strategy").and_then(|v| v.as_str()).unwrap_or("?");
+                    let avail = strat.get("available").and_then(|v| v.as_bool()).unwrap_or(false);
+                    let dot = if avail { "✓" } else { "✗" };
+                    let reason = strat
+                        .get("unavailable_reason")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("");
+                    if reason.is_empty() {
+                        println!("  {dot} {s_id}");
+                    } else {
+                        println!("  {dot} {s_id} — {reason}");
+                    }
+                }
+            }
+            println!();
+        }
+    }
+}
+
+fn print_init_human(payload: &serde_json::Value) {
+    let ok = payload.get("ok").and_then(|v| v.as_bool()).unwrap_or(false);
+    println!("{} {}", if ok { "✓" } else { "✗" }, if ok { "applied" } else { "refused" });
+    if let Some(applied) = payload.get("applied").and_then(|a| a.as_array()) {
+        for entry in applied {
+            if let Some(s) = entry.as_str() {
+                println!("  + {s}");
+            }
+        }
+    }
+    if let Some(verify) = payload.get("verify") {
+        println!();
+        println!("verify:");
+        print_verify_human(verify);
+    }
+}
+
 fn primitive(present: bool, name: &str) {
     let mark = if present { "yes" } else { "no" };
     println!("  - {name}: {mark}");
@@ -110,9 +352,7 @@ fn reason_label(r: &ResolvedIsolation) -> String {
         ResolutionReason::AgentOverride => "set in the agent profile".into(),
         ResolutionReason::UserDefault => "your daemon default".into(),
         ResolutionReason::OsDefault { os } => format!("OS default for {}", os_label(*os)),
-        ResolutionReason::Downgrade { from, why } => {
-            format!("downgraded from {from}: {why}")
-        }
+        ResolutionReason::Downgrade { from, why } => format!("downgraded from {from}: {why}"),
         ResolutionReason::AlreadyInSandbox => {
             "already inside someone else's sandbox; not double-wrapping".into()
         }

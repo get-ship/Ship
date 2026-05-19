@@ -413,9 +413,17 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::KillTree_template(), actors_api::kill_tree_handler)
         // Capabilities (no state required; ok against a stateful router)
         .ship_route(Route::Capabilities, rest_api::capabilities)
-        // Isolation — agent sandbox capability probe + recommender
+        // Isolation — agent sandbox capability probe + recommender +
+        // wizard endpoints (recommendations / preview / verify / init)
         .ship_route(Route::IsolationStatus, isolation_api::isolation_status)
         .ship_route(Route::IsolationRescan, isolation_api::isolation_rescan)
+        .ship_route(
+            Route::IsolationRecommendations,
+            isolation_api::isolation_recommendations,
+        )
+        .ship_route(Route::IsolationPreview, isolation_api::isolation_preview)
+        .ship_route(Route::IsolationVerify, isolation_api::isolation_verify)
+        .ship_route(Route::IsolationInit, isolation_api::isolation_init)
         // Runtime
         .ship_route(Route::ListSessions, runtime_api::list_workspace_sessions)
         .ship_route(Route::ListAgents, runtime_api::list_agents)

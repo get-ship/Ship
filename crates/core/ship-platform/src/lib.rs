@@ -8,6 +8,7 @@ pub mod collections;
 pub mod commands;
 pub mod config;
 pub mod isolation;
+pub mod isolation_ops;
 pub mod triggers;
 pub mod kv;
 pub mod projections;
