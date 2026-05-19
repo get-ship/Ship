@@ -76,7 +76,7 @@ Skipping any step ships stale bytes. The `include_str!` call sites are `apps/shi
 Don't commit. Don't be surprised by:
 
 - `views/<name>/dist/page.compiled.js` — view emit. The paired controller is `views/<name>/controller.ts`; legacy directories still use `view.sui` / `view.controller.ts` and emit `view.compiled.js`. Vitest resolves `.ts` first via `packages/ui-dom/vitest.config.ts::resolve.extensions`.
-- `packages/ship-components/ui-components/src/<tag>/dist/<tag>.compiled.js` — component emit; `packages/ship-components/ui-components/src/index.ts` side-effect-imports each one to register the custom element.
+- `packages/components/ui-components/src/<tag>/dist/<tag>.compiled.js` — component emit; `packages/components/ui-components/src/index.ts` side-effect-imports each one to register the custom element.
 - `**/dist/*.sui.d.ts` — type declarations the compiler emits alongside the JS module.
 
 ## Adding a runtime export to `@ship/ui-runtime`

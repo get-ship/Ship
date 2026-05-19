@@ -1,23 +1,32 @@
-// JSDOM polyfills for Web APIs used by primitive components but absent
-// in jsdom. Intentionally minimal — these suppress uncaught errors
-// without simulating real behavior. Tests only care about DOM
-// structure / ARIA / event flow.
-
-import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
-import { setIconRegistry } from '../src/sui-icon/registry'
+// JSDOM polyfills for Web APIs used by components but absent in jsdom.
+// Intentionally minimal — these suppress uncaught errors without simulating
+// real behavior. Tests only care about DOM structure / ARIA / event flow.
 
 // Prime the lucide icon registry from the on-disk asset. Production
-// `<sui-icon>` lazy-fetches the registry from `/_sui/lucide-icons.json`;
-// tests don't have that endpoint and assert synchronously, so we inject
-// the same map at startup so resolution is sync.
+// `<sui-icon>` lazy-fetches the registry from `/_sui/lucide-icons.json`
+// (R4 of the components-bundle audit); tests don't have that endpoint
+// and assert synchronously, so we inject the same map at startup so
+// resolution is sync. The JSON is the canonical source — the prior
+// generated `.ts` re-export was removed when the bundle moved out.
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+// sui-icon lives in @ship/primitives — its registry primer is still
+// needed here because chrome tests render `<sui-icon>` inside nav-top,
+// status-bar, etc.
+import { setIconRegistry } from '../../primitives/src/sui-icon/registry'
+
+// Vitest runs from the package root; the bundle asset is checked into
+// the Rust server crate alongside the rest of the SUI bundle.
 const ICON_REGISTRY_PATH = resolve(
   process.cwd(),
-  '../../../crates/sui/ship-sui-server/assets/lucide-icons.json',
+  '../../../crates/ship/ship-sui-server/assets/lucide-icons.json',
 )
 setIconRegistry(JSON.parse(readFileSync(ICON_REGISTRY_PATH, 'utf8')))
 
+
 if (typeof ResizeObserver === 'undefined') {
+  // xterm's fit addon calls it but jsdom has no layout engine, so the
+  // callback never fires.
   // @ts-expect-error — JSDOM stub only
   global.ResizeObserver = class ResizeObserver {
     observe() {}
@@ -27,6 +36,7 @@ if (typeof ResizeObserver === 'undefined') {
 }
 
 if (typeof window !== 'undefined' && typeof window.matchMedia === 'undefined') {
+  // xterm.js calls matchMedia for DPR detection; stub returns a minimal object.
   Object.defineProperty(window, 'matchMedia', {
     writable: true,
     value: (_query: string) => ({
@@ -43,12 +53,27 @@ if (typeof window !== 'undefined' && typeof window.matchMedia === 'undefined') {
 }
 
 if (typeof HTMLCanvasElement !== 'undefined') {
-  // JSDOM's getContext throws "Not implemented". Override to return null.
+  // JSDOM's getContext throws "Not implemented" which propagates as an uncaught
+  // exception through xterm.js's error handler. Override to return null so
+  // xterm gracefully skips canvas/WebGL rendering in the test environment.
   HTMLCanvasElement.prototype.getContext = () => null
+}
+
+// xterm.js's WebGL addon throws "WebGL2 not supported null" inside rAF callbacks
+// in JSDOM. Patch rAF to swallow errors from third-party library init; the
+// terminal test guards xterm availability with explicit `if (el.write !== undefined)`
+// checks, so swallowing these throws doesn't mask real assertion failures.
+if (typeof requestAnimationFrame !== 'undefined') {
+  const _origRaf = globalThis.requestAnimationFrame.bind(globalThis)
+  globalThis.requestAnimationFrame = (cb: FrameRequestCallback): number =>
+    _origRaf((...args: Parameters<FrameRequestCallback>) => {
+      try { cb(...args) } catch { /* suppress third-party init errors in JSDOM */ }
+    })
 }
 
 // ── Overlay component polyfills (jsdom 25 lacks these) ────────────────────
 
+// ToggleEvent — fired by dialog and popover on open/close transitions.
 if (typeof ToggleEvent === 'undefined') {
   // @ts-expect-error — JSDOM stub
   globalThis.ToggleEvent = class ToggleEvent extends Event {
@@ -62,24 +87,7 @@ if (typeof ToggleEvent === 'undefined') {
   }
 }
 
-if (typeof PointerEvent === 'undefined') {
-  // JSDOM 25 ships MouseEvent but not PointerEvent. Anchor-position
-  // primitives (sui-hover-card, sui-tooltip) dispatch synthetic
-  // pointerenter/leave in tests; subclass MouseEvent so the same
-  // event shape (button, clientX, …) is available without a real
-  // pointer device emulation.
-  // @ts-expect-error — JSDOM stub
-  globalThis.PointerEvent = class PointerEvent extends MouseEvent {
-    pointerId: number
-    pointerType: string
-    constructor(type: string, init: PointerEventInit = {}) {
-      super(type, init)
-      this.pointerId = init.pointerId ?? 0
-      this.pointerType = init.pointerType ?? 'mouse'
-    }
-  }
-}
-
+// Popover API — showPopover / hidePopover / togglePopover on HTMLElement.
 if (typeof HTMLElement !== 'undefined' && !('showPopover' in HTMLElement.prototype)) {
   const _openPopovers = new WeakSet<HTMLElement>()
 
@@ -116,6 +124,7 @@ if (typeof HTMLElement !== 'undefined' && !('showPopover' in HTMLElement.prototy
   })
 }
 
+// HTMLDialogElement.showModal / close — jsdom 25 does not implement them.
 if (typeof HTMLElement !== 'undefined') {
   const dlgProto = (typeof HTMLDialogElement !== 'undefined')
     ? HTMLDialogElement.prototype

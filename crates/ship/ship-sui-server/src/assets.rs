@@ -27,7 +27,7 @@ fn read_asset(rel: &str) -> Option<String> {
 
 // Baked-in fallbacks (production / no-workspace).
 //
-// Canonical asset layout under `crates/sui/ship-sui-server/assets/`:
+// Canonical asset layout under `crates/ship/ship-sui-server/assets/`:
 //   * top-level (`assets/<name>.js`) — always-loaded framework bundles
 //     (sui-runtime, sui-dom, sui-sdk-client, sui-components) and
 //     out-of-band assets (lucide-icons.json).

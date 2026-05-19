@@ -7,7 +7,7 @@ How to author a SUI view, a SUI component, and the controller that pairs with ea
 | Trait | View | Component |
 |---|---|---|
 | Filename stem | `page.sui` (manifest-keyed route) | `<tag>.sui` (registers a custom element) |
-| Lives under | `views/<name>/`, `.ship/views/<name>/` | `packages/ship-components/ui-components/src/<tag>/`, `_components/<view>-<tag>/` |
+| Lives under | `views/<name>/`, `.ship/views/<name>/` | `packages/components/ui-components/src/<tag>/`, `_components/<view>-<tag>/` |
 | Has `manifest.jsonc`? | Yes — required | No |
 | Has `<prop>` directives? | No | Yes — declares the public attribute / property contract |
 | Has slots? | No | Yes — `<slot>` / `<slot name="…">` |
@@ -17,7 +17,7 @@ How to author a SUI view, a SUI component, and the controller that pairs with ea
 | `customElements.define`? | n/a | Compiler-emitted; never written by hand |
 | Used by | Other views, the shell, deep links from `<a>` | Composed inside views or other components |
 
-A view that wants reusable markup pulls a component in (`packages/ship-components/ui-components/` for first-party, `_components/` for view-private). The reverse is illegal — components don't mount routes.
+A view that wants reusable markup pulls a component in (`packages/components/ui-components/` for first-party, `_components/` for view-private). The reverse is illegal — components don't mount routes.
 
 ## The 2-file bet
 
@@ -89,7 +89,7 @@ For HTML-blob cases (markdown rendering, third-party SVG generators, icon-pack s
 | `form-value` | Mark this prop as the form-association value. Compiler emits `static formAssociated = true`. |
 | `form-disabled` | Wires `formDisabledCallback` to this prop. |
 
-Form-association example: `packages/ship-components/ui-components/src/sui-input/sui-input.sui` (real `<prop name="value" type="string" default="" form-value />` line). Full contract: see the `ship-views` skill's `references/form-association.md`.
+Form-association example: `packages/components/ui-components/src/sui-input/sui-input.sui` (real `<prop name="value" type="string" default="" form-value />` line). Full contract: see the `ship-views` skill's `references/form-association.md`.
 
 ## Refs — `bind:this`
 
@@ -145,7 +145,7 @@ node scripts/scaffold-view.mjs settings --component settings-toolbar
 node scripts/scaffold-sui-component.mjs my-widget --controller
 ```
 
-The first generates `views/settings/` with `page.sui` + `controller.ts` + `style.css` + `manifest.jsonc`. The `--component` flag also scaffolds `_components/settings-toolbar/`. The component scaffold drops `packages/ship-components/ui-components/src/my-widget/` with `<tag>.sui`; `--controller` adds the paired controller.
+The first generates `views/settings/` with `page.sui` + `controller.ts` + `style.css` + `manifest.jsonc`. The `--component` flag also scaffolds `_components/settings-toolbar/`. The component scaffold drops `packages/components/ui-components/src/my-widget/` with `<tag>.sui`; `--controller` adds the paired controller.
 
 ## User-app views — authoring outside the Ship repo
 

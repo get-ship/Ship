@@ -4,7 +4,7 @@ Depth reference for `ship-components`. The contract lives in `../SKILL.md`.
 
 ## The distribution test
 
-An element earns a spot in `packages/ship-components/ui-components/src/` only if at least one applies:
+An element earns a spot in `packages/components/ui-components/src/` only if at least one applies:
 
 1. **Semantic primitive** — `<sui-button>`, `<sui-input>`, `<sui-select>`, `<sui-dialog>`. Maps to a familiar HTML/ARIA concept; reusable across products.
 2. **Platform concept** — `<sui-rail>`, `<sui-nav-top>`, `<sui-panel-dock>`, `<sui-status-bar>`. Models a Ship-specific shell concept that multiple views share.

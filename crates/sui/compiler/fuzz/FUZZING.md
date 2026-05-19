@@ -17,7 +17,7 @@ rustup toolchain install nightly   # libfuzzer-sys requires nightly
 ## Running
 
 Quick 60-second smoke run, seeded from every `.sui` in
-`packages/ship-components/ui-components/src`:
+`packages/components/ui-components/src`:
 
 ```sh
 just fuzz-parser
@@ -55,7 +55,7 @@ cargo +nightly fuzz tmin parse_fragment fuzz/artifacts/parse_fragment/<file>
 ## Corpus
 
 `fuzz/corpus/parse_fragment/` is gitignored. The runner script reseeds it
-from `packages/ship-components/ui-components/src/**/*.sui` on every invocation so the
+from `packages/components/ui-components/src/**/*.sui` on every invocation so the
 fuzzer mutates from real inputs rather than random bytes. Inputs the
 fuzzer discovers stay in the corpus dir between runs (until you
 `rm -rf fuzz/corpus`).

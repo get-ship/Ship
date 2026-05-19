@@ -1,7 +1,7 @@
 // Aggregator integration test — synthesizes a tiny fixture monorepo on
 // disk, runs `buildCatalogs`, and asserts on the resulting workspace +
 // published documents. Covers:
-//   - workspace glob expansion (`packages/*` + `packages/ship-components/*`)
+//   - workspace glob expansion (`packages/*` + `packages/components/*`)
 //   - published filter (private packages excluded)
 //   - origin tagging for non-packaged components (view-local + shell-local)
 //   - missing-CEM resilience (package with `customElements` field but no
@@ -60,22 +60,22 @@ describe('buildCatalogs', () => {
       JSON.stringify({
         name: 'fixture-root',
         private: true,
-        workspaces: { packages: ['packages/*', 'packages/ship-components/*'] },
+        workspaces: { packages: ['packages/*', 'packages/components/*'] },
       }),
     )
     // Public pack: `@fx/widgets` (not private + customElements field)
     await write(
-      'packages/ship-components/widgets/package.json',
+      'packages/components/widgets/package.json',
       JSON.stringify({
         name: '@fx/widgets',
         customElements: 'dist/custom-elements.json',
       }),
     )
     await write(
-      'packages/ship-components/widgets/dist/custom-elements.json',
+      'packages/components/widgets/dist/custom-elements.json',
       cem('fx-button', 'FxButton', 'A button.\nSecond line.'),
     )
-    await write('packages/ship-components/widgets/dist/fx-widgets.js', '/* bundle */')
+    await write('packages/components/widgets/dist/fx-widgets.js', '/* bundle */')
     // Private umbrella: `@fx/umbrella` (private: true + customElements field)
     // It MUST appear in workspace.json but NOT in published.json.
     await write(
@@ -94,7 +94,7 @@ describe('buildCatalogs', () => {
     // Package with customElements field but no manifest on disk —
     // must not throw, must not add entries.
     await write(
-      'packages/ship-components/empty/package.json',
+      'packages/components/empty/package.json',
       JSON.stringify({ name: '@fx/empty', customElements: 'dist/custom-elements.json' }),
     )
 
@@ -110,7 +110,7 @@ describe('buildCatalogs', () => {
     expect(button.bundleUrl).toBe('/_sui/packs/widgets/fx-widgets.js')
     expect(button.manifestUrl).toBe('/_sui/packs/widgets/custom-elements.json')
     expect(button.sourcePath).toBe(
-      'packages/ship-components/widgets/src/fx-button/fx-button.sui',
+      'packages/components/widgets/src/fx-button/fx-button.sui',
     )
     expect(button.attributes).toHaveLength(1)
     expect(button.firstDesc).toBe('A button.')

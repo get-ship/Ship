@@ -53,7 +53,7 @@ Three things that are good to know:
 
 Ship used to ship a single `@ship/ui-components` package. That's been
 decomposed into **independent workspace packs** under
-`packages/ship-components/<pack>/`, each with its own `package.json`,
+`packages/components/<pack>/`, each with its own `package.json`,
 bundle, and `custom-elements.json`. Two projections:
 
 | Catalog | Contents | Use |

@@ -45,7 +45,7 @@ interface BundleManifest {
 
 const repoRoot = process.env.SHIP_REPO_ROOT ?? process.cwd()
 const litAssetsDir = resolve(repoRoot, 'apps/shipd/assets')
-const suiAssetsDir = resolve(repoRoot, 'crates/sui/ship-sui-server/assets')
+const suiAssetsDir = resolve(repoRoot, 'crates/ship/ship-sui-server/assets')
 
 // User-project workspace, distinct from `repoRoot` for end-user installs.
 // `repoRoot` is the ship monorepo (where `packages/`, framework sources, and
@@ -97,7 +97,7 @@ interface BundleTarget {
 // `sui-components.js`).
 //
 // Two source roots are scanned:
-//   * `packages/ship-components/ui-components/src` — domain components umbrella
+//   * `packages/components/ui-components/src` — domain components umbrella
 //   * `apps/shell/src/components`  — shell chrome (relocated from the
 //     ui-components umbrella as phase 3 of the pack architecture).
 //
@@ -108,7 +108,7 @@ interface BundleTarget {
 // No precompile-to-disk step is needed.
 const BUNDLE_SEPARATE_RE = /<bundle\s+separate(\s|\/|>)/
 const SEPARATE_BUNDLE_ROOTS = [
-  'packages/ship-components/ui-components/src',
+  'packages/components/ui-components/src',
   'apps/shell/src/components',
 ]
 function discoverSeparateBundles(): BundleTarget[] {
@@ -193,7 +193,7 @@ const TARGETS: BundleTarget[] = [
   { name: 'sui-sdk-client', entry: 'packages/deck/sdk-client/src/index.ts', external: ['@ship/sui-runtime'] },
   {
     name: 'sui-components',
-    entry: 'packages/ship-components/ui-components/src/index.ts',
+    entry: 'packages/components/ui-components/src/index.ts',
     external: ['@ship/sui-runtime'],
   },
   // Shell chrome aggregate — non-separate chrome tags (view-picker,
@@ -218,17 +218,17 @@ const TARGETS: BundleTarget[] = [
     entry: '<virtual>',
     virtualEntry: [
       // @ship/primitives — 8 of 94 tags marketing actually mounts.
-      `import ${JSON.stringify(resolve(repoRoot, 'packages/ship-components/primitives/src/sui-badge/sui-badge.sui'))}`,
-      `import ${JSON.stringify(resolve(repoRoot, 'packages/ship-components/primitives/src/sui-button/sui-button.sui'))}`,
-      `import ${JSON.stringify(resolve(repoRoot, 'packages/ship-components/primitives/src/sui-progress/sui-progress.sui'))}`,
-      `import ${JSON.stringify(resolve(repoRoot, 'packages/ship-components/primitives/src/sui-separator/sui-separator.sui'))}`,
-      `import ${JSON.stringify(resolve(repoRoot, 'packages/ship-components/primitives/src/sui-stat/sui-stat.sui'))}`,
-      `import ${JSON.stringify(resolve(repoRoot, 'packages/ship-components/primitives/src/sui-status-dot/sui-status-dot.sui'))}`,
-      `import ${JSON.stringify(resolve(repoRoot, 'packages/ship-components/primitives/src/sui-table/sui-table.sui'))}`,
-      `import ${JSON.stringify(resolve(repoRoot, 'packages/ship-components/primitives/src/sui-toolbar/sui-toolbar.sui'))}`,
+      `import ${JSON.stringify(resolve(repoRoot, 'packages/components/primitives/src/sui-badge/sui-badge.sui'))}`,
+      `import ${JSON.stringify(resolve(repoRoot, 'packages/components/primitives/src/sui-button/sui-button.sui'))}`,
+      `import ${JSON.stringify(resolve(repoRoot, 'packages/components/primitives/src/sui-progress/sui-progress.sui'))}`,
+      `import ${JSON.stringify(resolve(repoRoot, 'packages/components/primitives/src/sui-separator/sui-separator.sui'))}`,
+      `import ${JSON.stringify(resolve(repoRoot, 'packages/components/primitives/src/sui-stat/sui-stat.sui'))}`,
+      `import ${JSON.stringify(resolve(repoRoot, 'packages/components/primitives/src/sui-status-dot/sui-status-dot.sui'))}`,
+      `import ${JSON.stringify(resolve(repoRoot, 'packages/components/primitives/src/sui-table/sui-table.sui'))}`,
+      `import ${JSON.stringify(resolve(repoRoot, 'packages/components/primitives/src/sui-toolbar/sui-toolbar.sui'))}`,
       // @ship/charts — 2 viz tags used on landing and the data section.
-      `import ${JSON.stringify(resolve(repoRoot, 'packages/ship-components/charts/src/sui-bar-chart/sui-bar-chart.sui'))}`,
-      `import ${JSON.stringify(resolve(repoRoot, 'packages/ship-components/charts/src/sui-sparkline/sui-sparkline.sui'))}`,
+      `import ${JSON.stringify(resolve(repoRoot, 'packages/components/charts/src/sui-bar-chart/sui-bar-chart.sui'))}`,
+      `import ${JSON.stringify(resolve(repoRoot, 'packages/components/charts/src/sui-sparkline/sui-sparkline.sui'))}`,
       // apps/shell — brand mark + theme picker live in the shell pack
       // today but the marketing site references them. Long-term these
       // should move to a shared chrome package; short-term we include
@@ -361,7 +361,7 @@ async function refreshCatalog(): Promise<{ workspace: number; published: number 
 // ── Bun plugin for .sui + virtual entries ────────────────────────────────────
 
 const COMPONENT_ROOTS = [
-  resolve(repoRoot, 'packages/ship-components/ui-components/src'),
+  resolve(repoRoot, 'packages/components/ui-components/src'),
   resolve(repoRoot, 'apps/shell/src/components'),
 ]
 
@@ -631,7 +631,7 @@ function emit(msg: Response | Event) {
 // ── Main loop ─────────────────────────────────────────────────────────────────
 
 // CLI mode: `--all` runs a one-shot build of the sui-* family + views and
-// exits. This is the asset set `crates/sui/ship-sui-server/build.rs` requires
+// exits. This is the asset set `crates/ship/ship-sui-server/build.rs` requires
 // via its ASSETS const, so the root `bun run build:bundles` script can fan
 // out here in CI without scripting the stdin/stdout JSON protocol.
 //

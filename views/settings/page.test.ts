@@ -5,9 +5,9 @@
 //
 // To run view tests from the repo root:
 //   1. Extend root vitest.config.ts `include` with 'views/**/*.test.ts'
-//   2. Add the @ship/sui-runtime alias (see packages/ship-components/ui-components/vitest.config.ts)
+//   2. Add the @ship/sui-runtime alias (see packages/components/ui-components/vitest.config.ts)
 // Until the view test pipeline is formalised, run them manually:
-//   cd packages/ship-components/ui-components && bunx vitest run views/settings/page.test.ts
+//   cd packages/components/ui-components && bunx vitest run views/settings/page.test.ts
 
 import { describe, it, expect } from 'vitest'
 import { signal } from '@ship/sui-runtime'

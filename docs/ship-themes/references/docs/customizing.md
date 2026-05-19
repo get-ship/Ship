@@ -47,7 +47,7 @@ Five steps. Two files.
 
 Ship is OKLCH-native. No hex, no rgba. At minimum define `--background`, `--foreground`, `--card`, `--primary`, `--accent`, `--muted`, `--border`, and the status bases (`--success`, `--warning`, `--info`, `--destructive`).
 
-### 2. Register the theme in `packages/ship-components/ui-components/src/tokens/themes.ts`
+### 2. Register the theme in `packages/components/ui-components/src/tokens/themes.ts`
 
 Add an entry to the `THEMES` array and widen the `ThemeId` union. Swatches are the four squares the picker card shows — background, card, primary, accent.
 

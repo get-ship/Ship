@@ -10,9 +10,9 @@
   },
   "scripts": {
     "build:all": "bun index.ts --all",
-    "test": "vitest run"
+    "test": "bun test test/"
   },
   "devDependencies": {
-    "vitest": "^4.1.5"
+    "@types/bun": "latest"
   }
 }

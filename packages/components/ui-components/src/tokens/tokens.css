@@ -92,7 +92,18 @@
   --duration-slow: 280ms;
   --duration-deliberate: 420ms;
 
-  /* Focus ring */
+  /* Focus ring.
+   *
+   * `--focus-ring` + `--focus-ring-offset` are the canonical pair every
+   * primitive consumes — single source of truth so the keyboard tab
+   * sequence doesn't visually "snap" between styles. Uses outline (not
+   * stacked box-shadow) so `forced-colors: active` still draws a
+   * system-colour ring and so the ring doesn't get clipped by z-stacking
+   * against neighbouring shadows. The older `--ring-*` triple is kept
+   * for chip-style halo overlays that need separate width/offset/opacity
+   * control. */
+  --focus-ring: 2px solid var(--ring-color, var(--primary));
+  --focus-ring-offset: 2px;
   --ring-width: 3px;
   --ring-offset: 2px;
   --ring-opacity: 25%;

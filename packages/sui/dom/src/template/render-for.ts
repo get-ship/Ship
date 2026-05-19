@@ -66,10 +66,23 @@ function mountFor(
     if (instr.indexName) additions[instr.indexName] = i
     const childScope = extendScope(scope, additions)
     const r: Rendered = render(instr.body, childScope, doc)
-    // bindFor inserts r.nodes after producing them. We mount bindings
-    // here; pure leaf bindings (bindText, bindAttr) work on detached
-    // nodes, so mounting before insert is safe for the typical row.
-    const cleanup = r.mount()
+    // Defer mount until after bindFor has inserted r.nodes into the DOM.
+    // Leaf bindings (bindText, bindAttr) work on detached nodes, but
+    // nested blocks ({#if}, {#for}, {#match}, while-loading/error) read
+    // their anchor's parentNode at mount time to do insertBefore — that
+    // parent is null until bindFor places the row, so we'd silently lose
+    // the nested content. Microtasks drain after the current sync block,
+    // by which point bindFor has inserted the row.
+    let mounted: Disposer | null = null
+    let aborted = false
+    queueMicrotask(() => {
+      if (aborted) return
+      mounted = r.mount()
+    })
+    const cleanup = () => {
+      aborted = true
+      mounted?.()
+    }
     return { nodes: r.nodes, cleanup }
   }
 

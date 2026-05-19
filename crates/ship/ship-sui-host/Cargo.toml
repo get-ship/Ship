@@ -14,8 +14,8 @@ default = []
 specta = ["dep:specta"]
 
 [dependencies]
-sui-compiler = { path = "../compiler" }
-sui-signals = { path = "../signals" }
+sui-compiler = { path = "../../sui/compiler" }
+sui-signals = { path = "../../sui/signals" }
 
 serde = { workspace = true }
 serde_json = { workspace = true }

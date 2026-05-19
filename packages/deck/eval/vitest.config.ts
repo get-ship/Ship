@@ -14,5 +14,10 @@ export default defineConfig({
   test: {
     include: ['test/**/*.test.ts'],
     environment: 'jsdom',
+    // Tests touch the shared `tasks/` directory tree (read-only) and a few
+    // shared module-level constants. Running test files serially within
+    // the package eliminates the rare cross-file race we observed under
+    // heavy load when multiple packages ran in parallel.
+    fileParallelism: false,
   },
 })

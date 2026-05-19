@@ -1,7 +1,7 @@
 //! Shared static assets embedded at compile time + their serve handlers.
 //!
 //! Post-j2/Lit deletion: only SUI-era assets remain. SUI bundles live under
-//! `crates/sui/ship-sui-server/assets/` and are served via
+//! `crates/ship/ship-sui-server/assets/` and are served via
 //! `ship_sui_server`; this module owns view-tokens.css (design tokens +
 //! themes). The aggregated CEM was retired in favour of
 //! `/api/sui/catalog/{workspace,published}` served by `ship_sui_server`'s
@@ -15,13 +15,13 @@ use axum::http::StatusCode;
 /// so SUI components, daemon views, and theme studio can never drift.
 /// View-scoped base rules live alongside in `assets/view-tokens.css`.
 const VIEW_TOKENS_CSS: &str = concat!(
-    include_str!("../../../../packages/ship-components/ui-components/src/tokens/tokens.css"),
+    include_str!("../../../../packages/components/ui-components/src/tokens/tokens.css"),
     "\n",
     include_str!("../../assets/view-tokens.css"),
     "\n",
     // Per-theme overrides — :root[data-theme='paper'] etc. Applied by
     // the theme picker toggling `data-theme` on <html>.
-    include_str!("../../../../packages/ship-components/ui-components/src/tokens/themes.css"),
+    include_str!("../../../../packages/components/ui-components/src/tokens/themes.css"),
 );
 
 /// GET /api/v1/runtime/assets/view-tokens.css

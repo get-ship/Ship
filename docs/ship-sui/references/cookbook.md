@@ -442,7 +442,7 @@ parent has. See `references/authoring-patterns.md` § Passing complex
 values into components for the full table.
 
 To CREATE a new component (not just consume one), drop a pair under
-`packages/ship-components/ui-components/src/<tag>/`:
+`packages/components/ui-components/src/<tag>/`:
 
 ```sh
 node scripts/scaffold-sui-component.mjs my-widget --controller
@@ -451,7 +451,7 @@ node scripts/scaffold-sui-component.mjs my-widget --controller
 The scaffold lays out:
 
 ```
-packages/ship-components/ui-components/src/my-widget/
+packages/components/ui-components/src/my-widget/
   my-widget.sui            # <prop> directives + body + <slot>
   my-widget.controller.ts  # optional
   my-widget.css            # optional

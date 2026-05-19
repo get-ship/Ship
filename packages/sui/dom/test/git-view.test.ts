@@ -126,9 +126,18 @@ describe('views/git — non-clean tree', () => {
     const handle = hydrate(TEMPLATE, gitView.setup, { container, ship })
     await flush()
 
-    const lines = Array.from(container.querySelectorAll('.git-fileline')).map(
-      (n) => n.textContent,
+    const rows = Array.from(
+      container.querySelectorAll<HTMLButtonElement>('[data-test="git-file-row"]'),
     )
+    // The row is `<span class="git-file-status">glyph</span>{f.path}` — the
+    // path is the text node that comes right after the status span, not
+    // the full textContent (which would include the glyph and surrounding
+    // whitespace from the template's indentation).
+    const lines = rows.map((n) => {
+      const span = n.querySelector('.git-file-status')
+      const after = span?.nextSibling
+      return after?.nodeType === 3 ? (after.textContent ?? '').trim() : ''
+    })
     expect(lines).toEqual(['a.ts', 'b.ts', 'c.ts'])
     handle.dispose()
   })

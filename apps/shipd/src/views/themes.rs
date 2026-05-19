@@ -16,7 +16,7 @@ use std::path::Path;
 // ── Built-in themes ──────────────────────────────────────────────────
 //
 // The canonical theme catalog lives in
-// `packages/ship-components/ui-components/src/tokens/themes.css` (`ship-light`,
+// `packages/components/ui-components/src/tokens/themes.css` (`ship-light`,
 // `ship-dark`, `paper`, `halo`, `console`, `contrast`) and ships to the
 // browser via `view-tokens.css`. The daemon-side theme.css endpoint is a
 // power-user override hook — project/global CSS files merge with the

@@ -25,7 +25,7 @@ ship-supervisor = { path = "../../crates/ship-supervisor" }
 ship-types = { path = "../../crates/core/ship-types" }
 compiler = { path = "../../crates/core/compiler" }
 build-info = { path = "../../crates/core/build-info" }
-ship-sui = { path = "../../crates/sui/ship-sui" }
+ship-sui = { path = "../../crates/ship/ship-sui" }
 sui-compiler = { path = "../../crates/sui/compiler" }
 sui-signals = { path = "../../crates/sui/signals" }
 chrono = { workspace = true }

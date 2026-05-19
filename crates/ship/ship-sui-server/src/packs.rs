@@ -42,7 +42,7 @@ struct PackRecord {
 static PACK_INDEX: OnceLock<HashMap<String, PackRecord>> = OnceLock::new();
 
 fn repo_root() -> Option<PathBuf> {
-    // ship-sui-server lives at crates/sui/ship-sui-server. Repo root is
+    // ship-sui-server lives at crates/ship/ship-sui-server. Repo root is
     // three parents up from CARGO_MANIFEST_DIR. Used as the workspace
     // discovery anchor and the catalog directory base.
     StdPath::new(env!("CARGO_MANIFEST_DIR"))

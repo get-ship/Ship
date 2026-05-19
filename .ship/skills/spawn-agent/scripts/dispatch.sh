@@ -181,30 +181,30 @@ if [[ -f "$WORKTREE_PATH/bun.lock" ]]; then
     fi
     # SUI framework bundles + view bundles + lucide registry, emitted by the
     # in-daemon Bun worker and `bun run --filter '@ship/ui-components' build`. Embedded
-    # by crates/sui/ship-sui-server/src/assets.rs; build.rs panics if any are
+    # by crates/ship/ship-sui-server/src/assets.rs; build.rs panics if any are
     # missing or empty.
-    if [[ -d "$LAUNCH_REPO_ROOT/crates/sui/ship-sui-server/assets" ]]; then
-      mkdir -p "$WORKTREE_PATH/crates/sui/ship-sui-server/assets/sui-components" \
-               "$WORKTREE_PATH/crates/sui/ship-sui-server/assets/views"
-      cp "$LAUNCH_REPO_ROOT"/crates/sui/ship-sui-server/assets/sui-*.js \
-         "$LAUNCH_REPO_ROOT"/crates/sui/ship-sui-server/assets/sui-custom-elements.json \
-         "$LAUNCH_REPO_ROOT"/crates/sui/ship-sui-server/assets/lucide-icons.json \
-         "$WORKTREE_PATH/crates/sui/ship-sui-server/assets/" 2>/dev/null || true
+    if [[ -d "$LAUNCH_REPO_ROOT/crates/ship/ship-sui-server/assets" ]]; then
+      mkdir -p "$WORKTREE_PATH/crates/ship/ship-sui-server/assets/sui-components" \
+               "$WORKTREE_PATH/crates/ship/ship-sui-server/assets/views"
+      cp "$LAUNCH_REPO_ROOT"/crates/ship/ship-sui-server/assets/sui-*.js \
+         "$LAUNCH_REPO_ROOT"/crates/ship/ship-sui-server/assets/sui-custom-elements.json \
+         "$LAUNCH_REPO_ROOT"/crates/ship/ship-sui-server/assets/lucide-icons.json \
+         "$WORKTREE_PATH/crates/ship/ship-sui-server/assets/" 2>/dev/null || true
       # Code-split component bundles — sui-components/ replaced the old
       # sui-islands/ dir after the islands-rename merge. Copy whichever
       # one(s) exist in the launch repo (defensive against half-migrated
       # checkouts).
-      if [[ -d "$LAUNCH_REPO_ROOT/crates/sui/ship-sui-server/assets/sui-components" ]]; then
-        cp -r "$LAUNCH_REPO_ROOT"/crates/sui/ship-sui-server/assets/sui-components/. \
-              "$WORKTREE_PATH/crates/sui/ship-sui-server/assets/sui-components/" 2>/dev/null || true
+      if [[ -d "$LAUNCH_REPO_ROOT/crates/ship/ship-sui-server/assets/sui-components" ]]; then
+        cp -r "$LAUNCH_REPO_ROOT"/crates/ship/ship-sui-server/assets/sui-components/. \
+              "$WORKTREE_PATH/crates/ship/ship-sui-server/assets/sui-components/" 2>/dev/null || true
       fi
-      if [[ -d "$LAUNCH_REPO_ROOT/crates/sui/ship-sui-server/assets/sui-islands" ]]; then
-        mkdir -p "$WORKTREE_PATH/crates/sui/ship-sui-server/assets/sui-islands"
-        cp -r "$LAUNCH_REPO_ROOT"/crates/sui/ship-sui-server/assets/sui-islands/. \
-              "$WORKTREE_PATH/crates/sui/ship-sui-server/assets/sui-islands/" 2>/dev/null || true
+      if [[ -d "$LAUNCH_REPO_ROOT/crates/ship/ship-sui-server/assets/sui-islands" ]]; then
+        mkdir -p "$WORKTREE_PATH/crates/ship/ship-sui-server/assets/sui-islands"
+        cp -r "$LAUNCH_REPO_ROOT"/crates/ship/ship-sui-server/assets/sui-islands/. \
+              "$WORKTREE_PATH/crates/ship/ship-sui-server/assets/sui-islands/" 2>/dev/null || true
       fi
-      cp -r "$LAUNCH_REPO_ROOT"/crates/sui/ship-sui-server/assets/views/. \
-            "$WORKTREE_PATH/crates/sui/ship-sui-server/assets/views/" 2>/dev/null || true
+      cp -r "$LAUNCH_REPO_ROOT"/crates/ship/ship-sui-server/assets/views/. \
+            "$WORKTREE_PATH/crates/ship/ship-sui-server/assets/views/" 2>/dev/null || true
     fi
     # SDK manifests emitted by `cargo run -p xtask -- gen-sdk`, embedded by
     # apps/shipd/src/routes/sdk_manifest.rs.
@@ -227,7 +227,7 @@ if [[ -f "$WORKTREE_PATH/bun.lock" ]]; then
 
   # Rebuild fallback: if any required artifact still missing, regenerate it
   # locally so a fresh clone (no launch repo) still boots cleanly.
-  if [[ ! -s "$WORKTREE_PATH/crates/sui/ship-sui-server/assets/sui-runtime.js" ]]; then
+  if [[ ! -s "$WORKTREE_PATH/crates/ship/ship-sui-server/assets/sui-runtime.js" ]]; then
     echo "Regenerating SUI framework bundles (slow path; launch-repo copy was unavailable)"
     (cd "$WORKTREE_PATH" && \
        bun run --filter '@ship/sui-runtime' bundle && \

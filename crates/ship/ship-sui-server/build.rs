@@ -47,7 +47,7 @@ const ASSETS: &[&str] = &[
 const COARSE_SOURCE_ROOTS: &[&str] = &[
     "packages/sui/runtime/src",
     "packages/sui/dom/src",
-    "packages/ship-components/ui-components/src",
+    "packages/components/ui-components/src",
     "apps/shell/src/components",
     "packages/deck/sdk-client/src",
     "packages/deck/bundler/index.ts",
@@ -63,7 +63,7 @@ fn main() {
         .parent()
         .and_then(|p| p.parent())
         .and_then(|p| p.parent())
-        .expect("repo root (three levels above crates/sui/ship-sui-server)")
+        .expect("repo root (three levels above crates/ship/ship-sui-server)")
         .to_path_buf();
 
     fs::create_dir_all(assets.join("sui-components"))
@@ -92,7 +92,7 @@ fn main() {
             .join("\n");
         panic!(
             "build.rs: SUI bundle assets are missing or empty.\n{lines}\n\n\
-             Every asset under crates/sui/ship-sui-server/assets/ is gitignored.\n\
+             Every asset under crates/ship/ship-sui-server/assets/ is gitignored.\n\
              On fresh worktrees, dispatch.sh bootstraps them automatically.\n\
              For a standalone cargo build, regenerate by running (in order):\n\n  \
              bun install --frozen-lockfile\n  \

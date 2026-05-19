@@ -97,7 +97,7 @@ URI templates read via `mcp__ship__ReadMcpResource`. Read-only context.
 ### 1.7 Component packs (post-decomposition)
 
 Components are decomposed into independent workspace packs under
-`packages/ship-components/<pack>/`. Two published packs today:
+`packages/components/<pack>/`. Two published packs today:
 
 | Pack | Tags | Bundle |
 |---|---|---|

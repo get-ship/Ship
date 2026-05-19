@@ -8,7 +8,7 @@ page.sui + controller.ts     (authoring — what humans write)
 .js + .sui.d.ts + .ssr.html  (compiler output — gitignored under dist/)
     ↓ packages/sui/runtime/  (reactive primitives + DOM bindings + attach())
 runtime in the browser       (signals, control-flow, transitions, error-boundary)
-    ↓ crates/sui/ship-sui-server (daemon view-host — resolver + assets + SSR + SSE)
+    ↓ crates/ship/ship-sui-server (daemon view-host — resolver + assets + SSR + SSE)
 HTTP /_sui/* + /view-host    (apps/shipd routes wire it together)
 ```
 
@@ -68,9 +68,9 @@ The dev-only leak detector lives at the subpath `@ship/sui-runtime/dev` so it do
 
 `<sui-if>`, `<sui-for>`, `<sui-match>` custom elements register on module load (`import './boundary-elements'` at the bottom of `index.ts`).
 
-## Layer 3 — Daemon view-host (`crates/sui/ship-sui-server/`, `apps/shipd/`)
+## Layer 3 — Daemon view-host (`crates/ship/ship-sui-server/`, `apps/shipd/`)
 
-Crate layout (`crates/sui/ship-sui-server/src/`):
+Crate layout (`crates/ship/ship-sui-server/src/`):
 
 | File | Owns |
 |---|---|
@@ -88,10 +88,10 @@ Daemon-side route table (`apps/shipd/src/router.rs`) mounts the surface:
 
 | Route | Handler |
 |---|---|
-| `GET /_sui/runtime.js` / `dom.js` / `sdk-client.js` / `components.js` / `lucide-icons.json` | `crates/sui/ship-sui-server/src/assets.rs` |
+| `GET /_sui/runtime.js` / `dom.js` / `sdk-client.js` / `components.js` / `lucide-icons.json` | `crates/ship/ship-sui-server/src/assets.rs` |
 | `GET /_sui/sui-components/{name}.js` | separate-bundle component |
-| `GET /_sui/views/{name}/view.sui` / `view.js` / `view.css` | `crates/sui/ship-sui-server/src/view.rs` (route segment stems are `view.*` regardless of on-disk `page.sui`/`controller.ts`/`style.css`) |
-| `GET /_sui/views/{name}` | `crates/sui/ship-sui-server/src/view_payload.rs` |
+| `GET /_sui/views/{name}/view.sui` / `view.js` / `view.css` | `crates/ship/ship-sui-server/src/view.rs` (route segment stems are `view.*` regardless of on-disk `page.sui`/`controller.ts`/`style.css`) |
+| `GET /_sui/views/{name}` | `crates/ship/ship-sui-server/src/view_payload.rs` |
 | `GET /_sui/views/{name}/sse` | `apps/shipd/src/views/sui_patch_channel.rs` |
 | `GET /_sui/hmr` / `hmr-client.js` / `dev/hmr` | `apps/shipd/src/views/sui_hmr.rs` |
 | `GET /_sui/data` | `apps/shipd/src/views/sui_data.rs` (the `<data live>` SSE channel) |
@@ -101,7 +101,7 @@ Daemon-side route table (`apps/shipd/src/router.rs`) mounts the surface:
 
 The router wiring is in `apps/shipd/src/router.rs`. Signal-backed sources (tighter wake-up than the default `config` kernel namespace) live under `apps/shipd/src/views/sui_data_resolvers/` and `apps/shipd/src/views/git_signal.rs`; `sui_sse.rs::is_signal_backed_expr` picks them up by registry name.
 
-## Layer 4 — Authoring (`views/<name>/`, `packages/ship-components/ui-components/src/<tag>/`)
+## Layer 4 — Authoring (`views/<name>/`, `packages/components/ui-components/src/<tag>/`)
 
 Directory shapes:
 
@@ -118,12 +118,12 @@ views/<name>/                    # first-party views
 
 .ship/views/<name>/              # project-local extension views; same shape
 
-packages/ship-components/ui-components/src/<tag>/   # first-party components
+packages/components/ui-components/src/<tag>/   # first-party components
   <tag>.sui
   <tag>.controller.ts            # optional
   <tag>.css                      # optional
 
-packages/ship-components/ui-components/src/<tag>/   # separate-bundle (lazy) components also live here;
+packages/components/ui-components/src/<tag>/   # separate-bundle (lazy) components also live here;
                                     # they opt in via `<bundle separate />` in their .sui
 ```
 
