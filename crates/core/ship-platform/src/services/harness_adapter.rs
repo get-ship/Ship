@@ -27,6 +27,19 @@ pub enum HarnessEvent {
     Message { text: String },
     SessionStarted { session_id: String },
     TurnComplete { stop_reason: String },
+    /// Per-turn token usage observation. All counts absolute for this
+    /// turn (not cumulative). Synthesized by adapters from their
+    /// harness's structured stream — see HookTurnObservedPayload for
+    /// the kernel-event shape this maps onto.
+    TurnUsage {
+        model: Option<String>,
+        input_tokens: u64,
+        output_tokens: u64,
+        reasoning_tokens: u64,
+        cache_creation_tokens: u64,
+        cache_read_tokens: u64,
+        stop_reason: Option<String>,
+    },
     Custom {
         #[serde(rename = "subtype")]
         kind: String,

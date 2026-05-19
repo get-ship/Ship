@@ -14,7 +14,9 @@ use axum::{
 use serde::Deserialize;
 use serde_json::json;
 
-use ship_analytics::queries::{get_session, list_recent_sessions, tool_usage};
+use ship_analytics::queries::{
+    get_session, list_recent_sessions, list_session_turns, session_token_summary, tool_usage,
+};
 use ship_substrate::db::open_db;
 
 use crate::auth::AuthContext;
@@ -105,6 +107,38 @@ pub async fn tool_usage_handler(
             .into_response(),
         Err(e) => err_response(format!("tool_usage: {e}")),
     }
+}
+
+/// `GET /api/v1/analytics/sessions/{session_key}/turns` — per-turn token
+/// observations chronologically. Pairs with a session_token_summary
+/// aggregate so the dashboard can render both views off one call.
+pub async fn session_turns_handler(
+    State(_state): State<ApiState>,
+    Extension(_auth): Extension<AuthContext>,
+    Path(session_key): Path<String>,
+) -> impl IntoResponse {
+    let mut conn = match open_db() {
+        Ok(c) => c,
+        Err(e) => return err_response(format!("open_db: {e}")),
+    };
+    let turns = match list_session_turns(&mut conn, &session_key) {
+        Ok(t) => t,
+        Err(e) => return err_response(format!("list_session_turns: {e}")),
+    };
+    let summary = session_token_summary(&mut conn, &session_key).unwrap_or(None);
+    (
+        StatusCode::OK,
+        Json(MeshResponse {
+            ok: true,
+            data: json!({
+                "session_key": session_key,
+                "summary": summary,
+                "count": turns.len(),
+                "turns": turns,
+            }),
+        }),
+    )
+        .into_response()
 }
 
 fn err_response(msg: String) -> axum::response::Response {

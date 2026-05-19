@@ -424,6 +424,10 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
             Route::AnalyticsToolUsage,
             analytics_api::tool_usage_handler,
         )
+        .ship_route(
+            Route::AnalyticsSessionTurns_template(),
+            analytics_api::session_turns_handler,
+        )
         // Capabilities (no state required; ok against a stateful router)
         .ship_route(Route::Capabilities, rest_api::capabilities)
         // Runtime

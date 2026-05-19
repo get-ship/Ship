@@ -25,6 +25,11 @@ pub mod event_types {
     pub const HOOK_SESSION_ENDED: &str = "hook.session_ended";
     pub const HOOK_TOOL_USE_STARTED: &str = "hook.tool_use_started";
     pub const HOOK_TOOL_USE_COMPLETED: &str = "hook.tool_use_completed";
+    /// Per-turn token usage. Synthesized by the supervisor from the
+    /// harness's structured output stream (claude stream-json,
+    /// opencode --format json, codex --json). Source of truth for
+    /// token counts. Cost is derived on read.
+    pub const HOOK_TURN_OBSERVED: &str = "hook.turn_observed";
 }
 
 /// Fired when a harness reports the start of an interactive session.
@@ -125,4 +130,44 @@ pub struct HookToolUseCompletedPayload {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub response_preview: Option<String>,
     pub ended_at: String,
+}
+
+/// Per-turn token usage observation. Synthesized by the supervisor
+/// when the harness's structured stream reports a turn boundary with
+/// usage info. Universal across harnesses — tokens are provider-emitted,
+/// don't go stale, and don't conflate with subscription-vs-API-key
+/// pricing concerns (cost is computed on read, never stored).
+///
+/// All counts are absolute for THIS turn (not cumulative). Zero is a
+/// valid value; null/missing means the harness didn't surface that
+/// category (e.g. claude pre-cache-API doesn't have cache_creation).
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct HookTurnObservedPayload {
+    pub actor_id: String,
+    /// Harness-native session id when available, else None.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub session_id: Option<String>,
+    /// Ordinal of this turn within the session, when the harness
+    /// surfaces it. Optional; analytics_turns can still order by
+    /// observed_at.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub turn_idx: Option<u32>,
+    /// Model used for THIS turn — may differ from the session's
+    /// initial model on fallback.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub model: Option<String>,
+    #[serde(default)]
+    pub input_tokens: u64,
+    #[serde(default)]
+    pub output_tokens: u64,
+    #[serde(default)]
+    pub reasoning_tokens: u64,
+    #[serde(default)]
+    pub cache_creation_tokens: u64,
+    #[serde(default)]
+    pub cache_read_tokens: u64,
+    /// "end_turn" | "max_tokens" | "tool_use" | "stop" | harness-specific.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stop_reason: Option<String>,
+    pub observed_at: String,
 }

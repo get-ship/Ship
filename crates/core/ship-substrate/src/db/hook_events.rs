@@ -23,7 +23,7 @@ use crate::db::block_on_anyhow;
 use crate::events::EventEnvelope;
 use crate::events::hooks::{
     event_types, HookSessionEndedPayload, HookSessionStartedPayload,
-    HookToolUseStartedPayload,
+    HookToolUseStartedPayload, HookTurnObservedPayload,
 };
 use crate::persistence::event_store::{EventStore, SqliteEventStore};
 
@@ -99,6 +99,40 @@ pub fn emit_tool_use_started_synth(
         started_at: now_iso8601(),
     };
     emit(actor_id, event_types::HOOK_TOOL_USE_STARTED, &payload)
+}
+
+/// Fire `hook.turn_observed` from the supervisor when the harness's
+/// stream surfaces a turn boundary with usage info. Universal across
+/// harnesses — counts are provider-emitted (claude `message.usage`,
+/// opencode `step_finish.tokens`, codex `turn.completed`). Cost is
+/// NOT stored here — computed on read against a current rate table.
+#[allow(clippy::too_many_arguments)]
+pub fn emit_turn_observed_synth(
+    actor_id: &str,
+    session_id: Option<&str>,
+    turn_idx: Option<u32>,
+    model: Option<&str>,
+    input_tokens: u64,
+    output_tokens: u64,
+    reasoning_tokens: u64,
+    cache_creation_tokens: u64,
+    cache_read_tokens: u64,
+    stop_reason: Option<&str>,
+) -> Result<()> {
+    let payload = HookTurnObservedPayload {
+        actor_id: actor_id.to_string(),
+        session_id: session_id.map(str::to_string),
+        turn_idx,
+        model: model.map(str::to_string),
+        input_tokens,
+        output_tokens,
+        reasoning_tokens,
+        cache_creation_tokens,
+        cache_read_tokens,
+        stop_reason: stop_reason.map(str::to_string),
+        observed_at: now_iso8601(),
+    };
+    emit(actor_id, event_types::HOOK_TURN_OBSERVED, &payload)
 }
 
 #[cfg(test)]

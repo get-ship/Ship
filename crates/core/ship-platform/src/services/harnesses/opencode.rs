@@ -149,6 +149,38 @@ impl HarnessAdapter for OpenCodeAdapter {
         }
 
         match ty {
+            "step_finish" => {
+                // step_finish carries token usage for the turn.
+                // Shape: part.tokens = { total, input, output, reasoning,
+                //   cache: { write, read } }. reason field gives stop_reason.
+                let tokens = part.and_then(|p| p.get("tokens"))?;
+                let input_tokens = tokens.get("input").and_then(|n| n.as_u64()).unwrap_or(0);
+                let output_tokens = tokens.get("output").and_then(|n| n.as_u64()).unwrap_or(0);
+                let reasoning_tokens =
+                    tokens.get("reasoning").and_then(|n| n.as_u64()).unwrap_or(0);
+                let cache = tokens.get("cache");
+                let cache_creation_tokens = cache
+                    .and_then(|c| c.get("write"))
+                    .and_then(|n| n.as_u64())
+                    .unwrap_or(0);
+                let cache_read_tokens = cache
+                    .and_then(|c| c.get("read"))
+                    .and_then(|n| n.as_u64())
+                    .unwrap_or(0);
+                let stop_reason = part
+                    .and_then(|p| p.get("reason"))
+                    .and_then(|r| r.as_str())
+                    .map(String::from);
+                Some(HarnessEvent::TurnUsage {
+                    model: None,
+                    input_tokens,
+                    output_tokens,
+                    reasoning_tokens,
+                    cache_creation_tokens,
+                    cache_read_tokens,
+                    stop_reason,
+                })
+            }
             "tool_use" => {
                 let tool = part
                     .and_then(|p| p.get("tool"))

@@ -73,18 +73,15 @@ describe("analytics integration / actor.created fallback", () => {
       });
 
       try {
-        // The actor projection must show the row before we expect
-        // analytics — actor.created flows through both projections.
-        const actor = await waitForActorRow(dispatched.slug);
-        expect(actor).not.toBeNull();
-        expect(actor!.harness).toBe("claude");
-
-        // analytics_sessions is populated by the same event. Allow a
-        // generous window for projection apply.
-        const row = await waitFor(
-          () => getAnalyticsSession(dispatched.slug),
-          15_000,
-        );
+        // Wait for analytics_sessions to populate with harness set —
+        // there's a known race where the actor row materialises BEFORE
+        // actor.created has been applied to the analytics projection,
+        // so polling for "any row" can see harness empty. Poll until
+        // harness is non-empty (or window expires).
+        const row = await waitFor(async () => {
+          const r = await getAnalyticsSession(dispatched.slug);
+          return r && r.harness && r.harness.length > 0 ? r : null;
+        }, 15_000);
         expect(row).not.toBeNull();
         expect(row!.session_key).toBe(dispatched.slug);
         expect(row!.actor_id).toBe(dispatched.slug);
@@ -95,6 +92,49 @@ describe("analytics integration / actor.created fallback", () => {
       }
     },
     45_000,
+  );
+
+  test(
+    "dispatched opencode session populates analytics_turns with tokens",
+    async () => {
+      if (!binaryOnPath("opencode")) {
+        console.log("SKIPPED: opencode binary not on PATH");
+        return;
+      }
+
+      const dispatched = await dispatch({
+        agent: COMPAT_AGENT,
+        harness: "opencode",
+        auto: true,
+        workspace: COMPAT_WORKSPACE,
+        prompt: "say hi",
+      });
+
+      try {
+        const turns = await waitFor(async () => {
+          const res = await api<
+            Envelope<{
+              summary: { input_tokens: number; output_tokens: number } | null;
+              count: number;
+              turns: { input_tokens: number; output_tokens: number }[];
+            }>
+          >(`/api/v1/analytics/sessions/${dispatched.slug}/turns`);
+          if (res.body.data.count > 0) return res.body.data;
+          return null;
+        }, 60_000);
+        expect(turns).not.toBeNull();
+        // At least one turn observed with non-zero input + output tokens.
+        // Cache tokens can be zero (cold session); we don't gate on those.
+        const t = turns!.turns[0]!;
+        expect(t.input_tokens).toBeGreaterThan(0);
+        expect(t.output_tokens).toBeGreaterThan(0);
+        expect(turns!.summary).not.toBeNull();
+        expect(turns!.summary!.input_tokens).toBeGreaterThanOrEqual(t.input_tokens);
+      } finally {
+        await cancelSession(dispatched.slug);
+      }
+    },
+    90_000,
   );
 
   test(

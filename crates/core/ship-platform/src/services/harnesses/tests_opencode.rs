@@ -135,6 +135,32 @@ fn parse_output_emits_message_for_text() {
 }
 
 #[test]
+fn parse_output_emits_turn_usage_from_step_finish() {
+    use crate::services::harness_adapter::HarnessEvent;
+    let adapter = OpenCodeAdapter;
+    let line = r#"{"type":"step_finish","sessionID":"ses_x","part":{"type":"step-finish","reason":"stop","tokens":{"total":19596,"input":100,"output":73,"reasoning":95,"cache":{"write":12,"read":19328}}}}"#;
+    match adapter.parse_output(line) {
+        Some(HarnessEvent::TurnUsage {
+            input_tokens,
+            output_tokens,
+            reasoning_tokens,
+            cache_creation_tokens,
+            cache_read_tokens,
+            stop_reason,
+            ..
+        }) => {
+            assert_eq!(input_tokens, 100);
+            assert_eq!(output_tokens, 73);
+            assert_eq!(reasoning_tokens, 95);
+            assert_eq!(cache_creation_tokens, 12);
+            assert_eq!(cache_read_tokens, 19328);
+            assert_eq!(stop_reason.as_deref(), Some("stop"));
+        }
+        other => panic!("expected TurnUsage, got {other:?}"),
+    }
+}
+
+#[test]
 fn parse_output_emits_tool_use_for_tool_part() {
     use crate::services::harness_adapter::HarnessEvent;
     let adapter = OpenCodeAdapter;

@@ -135,6 +135,113 @@ pub fn tool_usage(
     })
 }
 
+/// One row from analytics_turns — per-turn token observation.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TurnObservation {
+    pub id: String,
+    pub session_key: String,
+    pub actor_id: String,
+    pub turn_idx: Option<i64>,
+    pub model: Option<String>,
+    pub input_tokens: i64,
+    pub output_tokens: i64,
+    pub reasoning_tokens: i64,
+    pub cache_creation_tokens: i64,
+    pub cache_read_tokens: i64,
+    pub stop_reason: Option<String>,
+    pub observed_at: String,
+}
+
+/// Per-session turn history, oldest first. Useful for rendering a
+/// chronological view of token usage within one session.
+pub fn list_session_turns(
+    conn: &mut SqliteConnection,
+    session_key: &str,
+) -> Result<Vec<TurnObservation>> {
+    block_on(async {
+        let rows: Vec<(
+            String, String, String, Option<i64>, Option<String>,
+            i64, i64, i64, i64, i64, Option<String>, String,
+        )> = sqlx::query_as(
+            "SELECT id, session_key, actor_id, turn_idx, model, \
+                    input_tokens, output_tokens, reasoning_tokens, \
+                    cache_creation_tokens, cache_read_tokens, \
+                    stop_reason, observed_at \
+             FROM analytics_turns WHERE session_key = ? \
+             ORDER BY observed_at ASC",
+        )
+        .bind(session_key)
+        .fetch_all(&mut *conn)
+        .await?;
+        Ok(rows
+            .into_iter()
+            .map(|r| TurnObservation {
+                id: r.0,
+                session_key: r.1,
+                actor_id: r.2,
+                turn_idx: r.3,
+                model: r.4,
+                input_tokens: r.5,
+                output_tokens: r.6,
+                reasoning_tokens: r.7,
+                cache_creation_tokens: r.8,
+                cache_read_tokens: r.9,
+                stop_reason: r.10,
+                observed_at: r.11,
+            })
+            .collect())
+    })
+}
+
+/// Per-session aggregate token totals across all turns. Cheap for the
+/// dashboard summary card; the per-turn breakdown lives in
+/// list_session_turns.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SessionTokenSummary {
+    pub session_key: String,
+    pub turn_count: i64,
+    pub input_tokens: i64,
+    pub output_tokens: i64,
+    pub reasoning_tokens: i64,
+    pub cache_creation_tokens: i64,
+    pub cache_read_tokens: i64,
+}
+
+pub fn session_token_summary(
+    conn: &mut SqliteConnection,
+    session_key: &str,
+) -> Result<Option<SessionTokenSummary>> {
+    block_on(async {
+        let row: Option<(i64, i64, i64, i64, i64, i64)> = sqlx::query_as(
+            "SELECT COUNT(*), \
+                    COALESCE(SUM(input_tokens), 0), \
+                    COALESCE(SUM(output_tokens), 0), \
+                    COALESCE(SUM(reasoning_tokens), 0), \
+                    COALESCE(SUM(cache_creation_tokens), 0), \
+                    COALESCE(SUM(cache_read_tokens), 0) \
+             FROM analytics_turns WHERE session_key = ?",
+        )
+        .bind(session_key)
+        .fetch_optional(&mut *conn)
+        .await?;
+        Ok(row.and_then(|(turn_count, input, output, reasoning, cache_w, cache_r)| {
+            if turn_count == 0 {
+                None
+            } else {
+                Some(SessionTokenSummary {
+                    session_key: session_key.to_string(),
+                    turn_count,
+                    input_tokens: input,
+                    output_tokens: output,
+                    reasoning_tokens: reasoning,
+                    cache_creation_tokens: cache_w,
+                    cache_read_tokens: cache_r,
+                })
+            }
+        }))
+    })
+}
+
 fn row_to_session(
     r: (
         String,

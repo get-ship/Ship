@@ -29,7 +29,7 @@ use ship_substrate::events::EventEnvelope;
 use ship_substrate::events::hooks::{
     event_types,
     HookSessionEndedPayload, HookSessionStartedPayload, HookToolUseCompletedPayload,
-    HookToolUseStartedPayload, ToolStatus,
+    HookToolUseStartedPayload, HookTurnObservedPayload, ToolStatus,
 };
 use ship_substrate::projections::Projection;
 use ship_types::event_types::{ACTOR_CREATED, ACTOR_STOPPED};
@@ -54,6 +54,7 @@ const HANDLED: &[&str] = &[
     event_types::HOOK_SESSION_ENDED,
     event_types::HOOK_TOOL_USE_STARTED,
     event_types::HOOK_TOOL_USE_COMPLETED,
+    event_types::HOOK_TURN_OBSERVED,
     // Actor lifecycle as a fallback session signal. Some harness/dispatch
     // combinations don't fire SessionStart hooks (e.g. dispatched
     // keepalive claude, cursor — which lacks a session-start event upstream
@@ -80,6 +81,7 @@ impl Projection for AnalyticsProjection {
             event_types::HOOK_SESSION_ENDED => apply_session_ended(event, conn),
             event_types::HOOK_TOOL_USE_STARTED => apply_tool_use_started(event, conn),
             event_types::HOOK_TOOL_USE_COMPLETED => apply_tool_use_completed(event, conn),
+            event_types::HOOK_TURN_OBSERVED => apply_turn_observed(event, conn),
             ACTOR_CREATED => apply_actor_created(event, conn),
             ACTOR_STOPPED => apply_actor_stopped(event, conn),
             _ => Ok(()),
@@ -90,6 +92,7 @@ impl Projection for AnalyticsProjection {
         block_on(async {
             sqlx::query("DELETE FROM analytics_sessions").execute(&mut *conn).await?;
             sqlx::query("DELETE FROM analytics_tool_uses").execute(&mut *conn).await?;
+            sqlx::query("DELETE FROM analytics_turns").execute(&mut *conn).await?;
             Ok(())
         })
     }
@@ -267,6 +270,56 @@ fn apply_tool_use_completed(event: &EventEnvelope, conn: &mut SqliteConnection) 
                  WHERE session_key = ?",
             )
             .bind(&key)
+            .execute(&mut *conn)
+            .await?;
+        }
+        Ok(())
+    })
+}
+
+fn apply_turn_observed(event: &EventEnvelope, conn: &mut SqliteConnection) -> Result<()> {
+    let p: HookTurnObservedPayload = serde_json::from_str(&event.payload_json)?;
+    let key = session_key(&p.actor_id, p.session_id.as_deref());
+    block_on(async {
+        // analytics_turns row per observation. id = event.id so re-applies
+        // are idempotent (INSERT OR IGNORE).
+        sqlx::query(
+            "INSERT OR IGNORE INTO analytics_turns \
+               (id, session_key, actor_id, turn_idx, model, \
+                input_tokens, output_tokens, reasoning_tokens, \
+                cache_creation_tokens, cache_read_tokens, \
+                stop_reason, observed_at) \
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        )
+        .bind(&event.id)
+        .bind(&key)
+        .bind(&p.actor_id)
+        .bind(p.turn_idx.map(|n| n as i64))
+        .bind(&p.model)
+        .bind(p.input_tokens as i64)
+        .bind(p.output_tokens as i64)
+        .bind(p.reasoning_tokens as i64)
+        .bind(p.cache_creation_tokens as i64)
+        .bind(p.cache_read_tokens as i64)
+        .bind(&p.stop_reason)
+        .bind(&p.observed_at)
+        .execute(&mut *conn)
+        .await?;
+        // Backfill session model when the row didn't have one and this
+        // turn carries it (e.g. claude in -p mode where SessionStart
+        // payload omitted model). Stub-insert if no session row exists.
+        if let Some(model) = p.model.as_deref() {
+            sqlx::query(
+                "INSERT INTO analytics_sessions \
+                   (session_key, actor_id, model, started_at) \
+                 VALUES (?, ?, ?, ?) \
+                 ON CONFLICT(session_key) DO UPDATE SET \
+                   model = COALESCE(analytics_sessions.model, excluded.model)",
+            )
+            .bind(&key)
+            .bind(&p.actor_id)
+            .bind(model)
+            .bind(&p.observed_at)
             .execute(&mut *conn)
             .await?;
         }
