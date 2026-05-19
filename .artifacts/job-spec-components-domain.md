@@ -1,4 +1,4 @@
-# Job Spec: components domain — `/components` + `/components/[id]` (folds `/ship-ui-studio`)
+# Job Spec: components domain — `/studio/components` + `/studio/components/[id]` (folds `/ship-ui-studio`)
 
 **Branch:** `job/components-domain`
 **Agent:** ship-designer
@@ -7,31 +7,38 @@
 
 ## Goal
 
-Replace `/ship-ui-studio` with `/components` + `/components/[id]`. List is a grouped index (Actions / Inputs / Layout / Feedback / Indicators / Overlays / Data). Detail is the storybook: variant×tone matrix preview, knobs playground with segmented controls per prop and live render, props table, slots, used-by surfaces, source path.
+Replace `/ship-ui-studio` with `/studio/components` + `/studio/components/[id]`. List is a grouped index (Actions / Inputs / Layout / Feedback / Indicators / Overlays / Data). Detail is the storybook: variant×tone matrix preview, knobs playground with segmented controls per prop and live render, props table, slots, used-by surfaces, source path.
 
 Independent of keystone — components detail has its own shape (matrix + playground, not the 880px single-column form). Compatible with all currently-running parallel jobs.
 
-The eventual URL after `studio-surface` lands is `/studio/components`. For this job, ship at `/components` + `/components/[id]` and migrate later.
+**Studio is shell-internal.** Not a generic SDK-authored view — a first-class shell surface that ships with the shell. The components section lives in `apps/shell/src/studio/components/` and is reachable only at the protected `/studio/components` route namespace. There is NO top-level `/components` route.
 
 ## File scope
 
 ```
-views/components/page.sui                # NEW — grouped index
-views/components/controller.ts           # NEW — list state, category grouping
-views/components/style.css               # NEW — grouped index styles
-views/components/[id]/page.sui           # NEW — component detail (matrix + playground)
-views/components/[id]/controller.ts      # NEW — knob state, code-snippet emission
-views/components/[id]/style.css          # NEW — matrix + playground styles
+apps/shell/src/studio/components/page.sui                # NEW — grouped index
+apps/shell/src/studio/components/controller.ts           # NEW — list state, category grouping
+apps/shell/src/studio/components/style.css               # NEW — grouped index styles
+apps/shell/src/studio/components/[id]/page.sui           # NEW — component detail (matrix + playground)
+apps/shell/src/studio/components/[id]/controller.ts      # NEW — knob state, code-snippet emission
+apps/shell/src/studio/components/[id]/style.css          # NEW — matrix + playground styles
 ```
 
+PORT, don't fork: the existing `/ship-ui-studio` catalog logic lives in `views/ship-ui-studio/` today. Carry it into the new shell-internal location. The old `views/ship-ui-studio/` is retired by the separate `old-routes-cleanup` job after this lands. Do NOT leave a parallel implementation.
+
+## Coordination
+
+`studio-surface` builds the Studio shell (rail + router) at `apps/shell/src/studio/`. THIS job fills in the `components` section content. studio-surface owns the rail entry + router for `/studio/components`; this job owns the section's view files.
+
 DO NOT touch:
-- `views/ship-ui-studio/**` — keep alive for backward compat. Cleanup job retires it later.
-- `apps/shell/**`, `views/studio/**`, `views/agents/**`, `views/themes/**` — parallel jobs.
+- `apps/shell/src/studio/page.sui` + Studio chrome/rail — studio-surface job.
+- `apps/shell/src/chrome/**`, `apps/shell/src/components/**` — shell-chrome job.
+- `views/agents/**`, other studio sections — separate jobs.
 - `packages/components/primitives/**` — no primitive changes.
 
 ## What to change
 
-### List view (`views/components/page.sui`)
+### List view (`apps/shell/src/studio/components/page.sui`)
 
 Reference: `.artifacts/studio-design/components-list.html`. Grouped index style — section headers + rows, scannable.
 
@@ -53,7 +60,7 @@ Each row in a category:
 
 Header: "Components" h1 + subtitle ("Built-in primitives. Click for variants, props, and source.")
 
-### Detail view (`views/components/[id]/page.sui`)
+### Detail view (`apps/shell/src/studio/components/[id]/page.sui`)
 
 Reference: `.artifacts/studio-design/component-detail.html`. Multi-section layout:
 
@@ -94,7 +101,7 @@ Reference: `.artifacts/studio-design/component-detail.html`. Multi-section layou
 
 ## Acceptance criteria
 
-1. `/components` renders the grouped index matching `components-list.html`.
+1. `/studio/components` renders the grouped index matching `components-list.html`.
 2. `/components/<tag>` resolves for every registered primitive and renders the storybook.
 3. The variant × tone matrix renders correctly for at least sui-button (the canonical case).
 4. The playground knobs work — changing a knob updates the live render AND the code snippet.
@@ -103,8 +110,8 @@ Reference: `.artifacts/studio-design/component-detail.html`. Multi-section layou
 7. `/ship-ui-studio` (old route) still works — no regression.
 8. `bun run build` passes. Bundler succeeds.
 9. Tests:
-    - `views/components/page.test.ts` — list smoke + category presence
-    - `views/components/[id]/page.test.ts` — detail smoke + knob change updates render
+    - `apps/shell/src/studio/components/page.test.ts` — list smoke + category presence
+    - `apps/shell/src/studio/components/[id]/page.test.ts` — detail smoke + knob change updates render
 10. Visual QA artifact at `.artifacts/web-qa/components-domain/<timestamp>/`. Cover list + at least sui-button detail + sui-input detail across ship-light, ship-dark.
 
 ## Pin

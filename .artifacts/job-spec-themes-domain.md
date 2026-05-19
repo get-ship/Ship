@@ -1,4 +1,4 @@
-# Job Spec: themes domain — `/themes` + `/themes/[id]` (folds `/theme-studio`)
+# Job Spec: themes domain — `/studio/themes` + `/studio/themes/[id]` (folds `/theme-studio`)
 
 **Branch:** `job/themes-domain`
 **Agent:** ship-designer
@@ -7,35 +7,42 @@
 
 ## Goal
 
-Replace `/theme-studio` with the unified `/themes` + `/themes/[id]` route family. The detail page IS the token editor — list view is swatch-led and brief; detail does the work: a categorized token editor on the left, a live preview frame on the right.
+Replace `/theme-studio` with the unified `/studio/themes` + `/studio/themes/[id]` route family. The detail page IS the token editor — list view is swatch-led and brief; detail does the work: a categorized token editor on the left, a live preview frame on the right.
 
 This is independent of the keystone agent-detail polish (running in parallel). Themes has its own visual shape (swatches + preview) — it does not mirror the 880px single-column detail page.
 
-The eventual URL after `studio-surface` lands is `/studio/themes` + `/studio/themes/[id]`. For this job, ship at `/themes` + `/themes/[id]` and let the routing migration happen when Studio absorbs all domains in a later round.
+**Studio is shell-internal.** This is NOT a generic view authored against the SDK — it's a first-class shell surface that ships with the shell. The themes section lives in `apps/shell/src/studio/themes/` and is reachable only at the protected `/studio/themes` route namespace. There is NO top-level `/themes` route.
 
 ## File scope
 
 ```
-views/themes/page.sui                     # NEW — themes list view (swatch-led cards)
-views/themes/controller.ts                # NEW — list state, signal subscriptions
-views/themes/style.css                    # NEW — list view styles
-views/themes/[id]/page.sui                # NEW — theme detail (editor + preview)
-views/themes/[id]/controller.ts           # NEW — editor state, override tracking, preview iframe
-views/themes/[id]/style.css               # NEW — editor + preview layout
+apps/shell/src/studio/themes/page.sui              # NEW — themes list (swatch-led cards)
+apps/shell/src/studio/themes/controller.ts         # NEW — list state, signal subscriptions
+apps/shell/src/studio/themes/style.css             # NEW — list view styles
+apps/shell/src/studio/themes/[id]/page.sui         # NEW — theme detail (editor + preview)
+apps/shell/src/studio/themes/[id]/controller.ts    # NEW — editor state, override tracking
+apps/shell/src/studio/themes/[id]/style.css        # NEW — editor + preview layout
 ```
 
 OPTIONAL (if needed):
-- `crates/sui/compiler/tokens.json` — register any new tokens the design adds (verify whether `themes-list.html` / `theme-detail.html` introduce token names not yet in the registry)
+- `crates/sui/compiler/tokens.json` — register any new tokens the design adds
 - `packages/components/ui-components/src/tokens/tokens.css` — add token values
 
+PORT, don't fork: the existing `/theme-studio` token-editor logic lives in `views/theme-studio/` today. Carry that logic into the new shell-internal location. The old `views/theme-studio/` is retired by the separate `old-routes-cleanup` job after this lands. Do NOT leave a parallel implementation.
+
 DO NOT touch:
-- `views/theme-studio/**` — keep the old view alive for now as a backward-compatibility route. A follow-up job will redirect `/theme-studio` → `/themes` and delete the old view. This job ships the new domain without sun-setting the old.
-- `apps/shell/**`, `views/studio/**`, `views/agents/**` — separate parallel jobs.
+- `apps/shell/src/studio/page.sui` + the Studio rail/chrome — that's the `studio-surface` job's territory. You add the `themes` section content; studio-surface wires it into the rail + router.
+- `apps/shell/src/chrome/**`, `apps/shell/src/components/**` — shell-chrome job's territory.
+- `views/agents/**`, other studio sections — separate jobs.
 - `packages/components/primitives/**` — no primitive changes.
+
+## Coordination
+
+The `studio-surface` job builds the Studio shell (rail + top + content slot + router) at `apps/shell/src/studio/`. THIS job fills in the `themes` section content. Coordinate: studio-surface owns the router + rail entry for `/studio/themes`; this job owns the section's view files. On merge, studio-surface's rail "Themes" item routes to this job's `apps/shell/src/studio/themes/page.sui`.
 
 ## What to change
 
-### List view (`views/themes/page.sui`)
+### List view (`apps/shell/src/studio/themes/page.sui`)
 
 Reference: `.artifacts/studio-design/themes-list.html`.
 
@@ -51,7 +58,7 @@ Shape:
 
 Data source: enumerate the 7 token packs (ship-light, ship-dark, paper, halo, glass, console, contrast). Override counts can be computed from `crates/sui/compiler/tokens.json` + the theme's defining file (each theme's CSS overrides are countable). If this is expensive, ship a hardcoded count map for now and TODO the derivation.
 
-### Detail view (`views/themes/[id]/page.sui`)
+### Detail view (`apps/shell/src/studio/themes/[id]/page.sui`)
 
 Reference: `.artifacts/studio-design/theme-detail.html`. This is the **token editor + live preview** — absorbs the existing `/theme-studio` functionality.
 
@@ -104,14 +111,14 @@ The preview re-renders whenever the editor changes a token. Easiest implementati
 ## Architectural context
 
 - Charter: L3 view code. Consumes SDK. No reaching into compiler internals.
-- File cap: 300 lines per `.sui`/`.ts`. The detail page editor will be long — split into helper modules: `views/themes/[id]/editor.ts` (state) + `views/themes/[id]/preview.ts` (preview rendering) is fine.
+- File cap: 300 lines per `.sui`/`.ts`. The detail page editor will be long — split into helper modules: `apps/shell/src/studio/themes/[id]/editor.ts` (state) + `apps/shell/src/studio/themes/[id]/preview.ts` (preview rendering) is fine.
 - The theme editor today (`/theme-studio`) is the source for behavioral parity. Read `views/theme-studio/controller.ts` and `views/theme-studio/page.sui` to inherit the editing logic, then re-style to match the new mockup.
 - This is a **port + restyle**, not a from-scratch build. Carry over logic; restyle UI.
 
 ## Acceptance criteria
 
-1. `/themes` renders a 7-card grid matching `themes-list.html` visually.
-2. `/themes/[id]` resolves for each of the 7 token packs and renders the editor + live preview matching `theme-detail.html`.
+1. `/studio/themes` renders a 7-card grid matching `themes-list.html` visually.
+2. `/studio/themes/[id]` resolves for each of the 7 token packs and renders the editor + live preview matching `theme-detail.html`.
 3. Editing a token in the editor live-updates the preview frame.
 4. Override indicators show correctly (a dot when the token deviates from base, none when matching).
 5. Import / Export work (Export emits CSS or JSON; Import parses and applies).
@@ -119,8 +126,8 @@ The preview re-renders whenever the editor changes a token. Easiest implementati
 7. `/theme-studio` (the old route) still works — no regression. A follow-up will redirect and delete.
 8. `bun run build` passes. `bun packages/deck/bundler/index.ts --all` succeeds.
 9. Tests:
-    - `views/themes/page.test.ts` (new) — list view smoke test
-    - `views/themes/[id]/page.test.ts` (new) — editor + preview test
+    - `apps/shell/src/studio/themes/page.test.ts` (new) — list view smoke test
+    - `apps/shell/src/studio/themes/[id]/page.test.ts` (new) — editor + preview test
 10. Visual QA artifact at `.artifacts/web-qa/themes-domain/<timestamp>/`. Cover the list view + at least 2 detail views (ship-light, ship-dark) at 1280x720.
 
 ## Pin
