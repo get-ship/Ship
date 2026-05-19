@@ -25,9 +25,9 @@ export default defineConfig({
         'packages/sui/runtime/src/dev.ts',
       ),
       '@ship/sui-runtime': resolve(repoRoot, 'packages/sui/runtime/src/index.ts'),
-      '@ship/sui-dom/legacy': resolve(
+      '@ship/sui-dom/test-utils': resolve(
         repoRoot,
-        'packages/sui/dom/src/legacy/index.ts',
+        'packages/sui/dom/src/test-utils/compile-sui.ts',
       ),
       '@ship/sui-dom': resolve(repoRoot, 'packages/sui/dom/src/index.ts'),
       '@ship/sdk-client': resolve(

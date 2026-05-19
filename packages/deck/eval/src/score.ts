@@ -9,34 +9,26 @@
 import { typeCheckSetup } from './typecheck.ts'
 import { createMockShip } from './mock-ship.ts'
 
-// Lazy because @ship/sui-dom uses extensionless intra-package imports
-// that Node's strip-types loader can't resolve unless followed via a
-// bundler. Tests (vitest) and runtime (built dist) both work fine;
-// CLI --help and dispatch-only paths don't need it loaded.
+// Lazy because @ship/sui-dom/test-utils boots a wasm compiler that
+// only matters when we actually score a template. CLI --help and
+// dispatch-only paths don't need it loaded.
 async function loadDom(): Promise<{
-  hydrate: (
-    template: string,
-    setup?: (() => unknown) | undefined,
-    opts?: {
-      container: HTMLElement
-      route?: Record<string, string>
-      ship?: unknown
-    },
+  compileSui: (source: string) => { js: string }
+  compileAndMount: (
+    source: string,
+    setup: undefined,
+    opts: { container: HTMLElement; ship?: unknown },
   ) => { dispose: () => void }
-  parseSetSource: (source: string) => unknown
 }> {
-  return (await import('@ship/sui-dom/legacy')) as {
-    hydrate: (
-      template: string,
-      setup?: (() => unknown) | undefined,
-      opts?: {
-        container: HTMLElement
-        route?: Record<string, string>
-        ship?: unknown
-      },
+  const mod = (await import('@ship/sui-dom/test-utils')) as {
+    compileSui: (source: string, opts?: unknown) => { js: string }
+    compileAndMount: (
+      source: string,
+      setup: undefined,
+      opts: { container: HTMLElement; ship?: unknown },
     ) => { dispose: () => void }
-    parseSetSource: (source: string) => unknown
   }
+  return { compileSui: mod.compileSui, compileAndMount: mod.compileAndMount }
 }
 
 export interface ScoreInput {
@@ -101,8 +93,8 @@ interface Outcome {
 
 async function checkCompile(template: string, setup?: string): Promise<Outcome> {
   try {
-    const { parseSetSource } = await loadDom()
-    parseSetSource(template)
+    const { compileSui } = await loadDom()
+    compileSui(template)
   } catch (err) {
     return { ok: false, error: `parse: ${describe(err)}` }
   }
@@ -151,8 +143,8 @@ async function runBehavioral(input: ScoreInput): Promise<Outcome> {
   const ship = input.ship ?? createMockShip()
   let handle: { dispose: () => void }
   try {
-    const { hydrate } = await loadDom()
-    handle = hydrate(input.template, undefined, {
+    const { compileAndMount } = await loadDom()
+    handle = compileAndMount(input.template, undefined, {
       container,
       ship,
     })

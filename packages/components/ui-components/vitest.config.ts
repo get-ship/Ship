@@ -1,7 +1,7 @@
 import { defineConfig } from 'vitest/config'
 import { resolve, dirname, basename, relative } from 'node:path'
-import { existsSync, readFileSync } from 'node:fs'
-import { SHIP_VITEST_DEFAULTS } from '../../../vitest.shared'
+import { existsSync } from 'node:fs'
+import { SHIP_VITEST_DEFAULTS, compileSuiToJs } from '../../../vitest.shared'
 // @ts-expect-error — JS module, no .d.ts.
 import { spawnBoundedOrThrow } from '../../../scripts/spawn-bounded.mjs'
 
@@ -36,8 +36,6 @@ export default defineConfig({
     alias: {
       '@ship/sui-runtime': resolve(__dirname, '../../sui/runtime/src/index.ts'),
       '@ship/primitives': resolve(__dirname, '../primitives/src/index.ts'),
-      // @ship/sui-dom/legacy is aliased for the test-only `*.compiled.js` shim; not bundled into production.
-      '@ship/sui-dom/legacy': resolve(__dirname, '../../sui/dom/src/legacy/index.ts'),
       '@ship/sui-dom': resolve(__dirname, '../../sui/dom/src/index.ts'),
       // No-op stub: WebGL addon throws "WebGL2 not supported" in JSDOM.
       '@xterm/addon-webgl': resolve(__dirname, 'test/__mocks__/addon-webgl.ts'),
@@ -53,31 +51,14 @@ export default defineConfig({
   // emitted by the Rust sui-compiler into the project mirror tree at
   // `<repo-root>/.ship/sui-out/<src-rel>/`.
   // For tests, an `import '.../<stem>.compiled.js'` is resolved as:
-  //   (a) `<mirror-root>/<src-rel>/<stem>.compiled.js` if it already exists
-  //       (built by build-bundles, the pretest precompile hook, or a prior
-  //       test run).
-  //   (b) Otherwise, if a sibling `<stem>.sui` source file exists, compile
-  //       it on-demand via the Rust binary (or `cargo run` fallback). The
-  //       compiler emits to the mirror tree automatically.
-  //   (c) Otherwise fall back to the legacy `.html.set` hydrate path.
+  //   (a) `<mirror-root>/<src-rel>/<stem>.compiled.js` if it already exists.
+  //   (b) Otherwise, CLI-compile the sibling `<stem>.sui`.
+  //   (c) Otherwise, wasm-compile inline (watch-mode HMR fallback).
   plugins: [
-    {
-      name: 'html-set-text-loader',
-      transform(_code: string, id: string) {
-        if (!id.endsWith('.html.set')) return null
-        const source = readFileSync(id, 'utf8')
-        return {
-          code: `export default ${JSON.stringify(source)}`,
-          map: null,
-        }
-      },
-    },
     {
       name: 'compiled-js-test-shim',
       resolveId(id: string, importer?: string) {
         if (!id.endsWith('.compiled.js') || !importer) return null
-        // Resolve the import against the importer's directory to recover
-        // the source-tree location, then look up the mirror-tree artifact.
         const importerDir = resolve(importer, '..')
         const sourceArtifact = resolve(importerDir, id)
         const sourceDir = dirname(sourceArtifact)
@@ -86,29 +67,20 @@ export default defineConfig({
 
         if (existsSync(mirrorFile)) return mirrorFile
 
-        // No mirror artifact yet — compile on-demand if a sibling .sui exists.
         const suiFile = resolve(sourceDir, `${stem}.sui`)
         if (existsSync(suiFile)) {
           compileSui(suiFile, stem)
           if (existsSync(mirrorFile)) return mirrorFile
+          return `\0compiled-js-shim:${suiFile}`
         }
 
-        // Legacy fallback: virtual module using the old hydrate path.
-        return `\0compiled-js-shim:${resolve(sourceDir, stem)}`
+        return null
       },
       load(id: string) {
         const prefix = '\0compiled-js-shim:'
         if (!id.startsWith(prefix)) return null
-        const base = id.slice(prefix.length)
-        const htmlSet = `${base}.html.set`
-        return [
-          `import { hydrate } from '@ship/sui-dom/legacy'`,
-          `import template from ${JSON.stringify(htmlSet)}`,
-          `if (typeof document !== 'undefined') {`,
-          `  const __c = document.createElement('div')`,
-          `  hydrate(template, undefined, { container: __c })`,
-          `}`,
-        ].join('\n')
+        const suiPath = id.slice(prefix.length)
+        return compileSuiToJs(suiPath)
       },
     },
   ],
