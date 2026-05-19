@@ -3,6 +3,7 @@
 **Branch:** `job/themes-domain`
 **Agent:** ship-designer
 **Mode:** autonomous
+**Depends on:** `studio-surface` must merge first — it establishes how shell-internal studio sections are built (shell vite bundle, not daemon view-bundler) and mounted (local intercept in main.ts, not `/_sui/views`). Follow its established pattern; do not invent a parallel build path.
 **Design source:** `.artifacts/studio-design/themes-list.html` (list) + `theme-detail.html` (detail, absorbs the old `/theme-studio` token editor + live preview)
 
 ## Goal
