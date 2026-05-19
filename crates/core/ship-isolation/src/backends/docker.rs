@@ -241,6 +241,30 @@ impl Isolator for Docker {
             .await;
         Ok(())
     }
+
+    /// Translate a launch into `docker exec <name> <bin> <args>`. The
+    /// supervisor's PTY transport wraps THIS command; the agent runs
+    /// inside the container via docker's own exec channel.
+    ///
+    /// Returns None when the sandbox handle doesn't belong to this
+    /// backend (defensive — orchestrator should keep handles + isolators
+    /// paired, but mistakes happen).
+    fn wrap_for_external_spawn(
+        &self,
+        sandbox: &SandboxHandle,
+        bin: &std::path::Path,
+        args: &[String],
+    ) -> Option<(std::path::PathBuf, Vec<String>)> {
+        let state = sandbox.state.downcast_ref::<DockerState>()?;
+        let mut argv: Vec<String> = vec![
+            "exec".into(),
+            "-i".into(),
+            state.name.clone(),
+            bin.to_string_lossy().into_owned(),
+        ];
+        argv.extend(args.iter().cloned());
+        Some((std::path::PathBuf::from(&state.cfg.engine_bin), argv))
+    }
 }
 
 fn network_args(policy: &NetworkPolicy) -> Vec<String> {

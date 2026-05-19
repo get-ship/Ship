@@ -174,6 +174,56 @@ fn write_srt_settings(path: &std::path::Path, work_dir: &std::path::Path) -> any
     Ok(())
 }
 
+/// Result of `prepare_docker_sandbox` — the live isolator + its handle,
+/// kept together so the caller can both wrap the launch and stash the
+/// owner on `ActorHandle.with_sandbox(...)` so drop fires shutdown.
+struct PreparedSandbox {
+    isolator: std::sync::Arc<dyn ship_substrate::isolation::Isolator>,
+    sandbox: ship_substrate::isolation::SandboxHandle,
+}
+
+/// Build a Docker isolator from defaults + the agent's work dir
+/// bind-mount, call available(), prepare(). Returns the live isolator
+/// + sandbox handle on success.
+///
+/// Today the image and engine_bin are hard-defaults (`docker` engine,
+/// the placeholder image from strategy.md §3). The next chunk pulls
+/// these from `isolation.strategies.docker` once the nested settings
+/// restructure (task #42) lands.
+async fn prepare_docker_sandbox(
+    ctx: &JobContext,
+) -> Result<PreparedSandbox, ship_substrate::isolation::IsolatorError> {
+    use ship_isolation::backends::{Docker, DockerConfig};
+    use ship_substrate::isolation::{FsMount, MountMode, NetworkPolicy, SandboxPolicy};
+
+    let cfg = DockerConfig {
+        engine_bin: std::env::var("SHIP_DOCKER_ENGINE_BIN").unwrap_or_else(|_| "docker".into()),
+        image: std::env::var("SHIP_DOCKER_IMAGE")
+            .unwrap_or_else(|_| "ghcr.io/ship/agent-runner:latest".into()),
+        name_prefix: format!("ship-agent-{}", ctx.slug.replace('/', "_")),
+    };
+    let isolator: std::sync::Arc<dyn ship_substrate::isolation::Isolator> =
+        std::sync::Arc::new(Docker::new(cfg));
+    isolator.available().await?;
+
+    let mut policy = SandboxPolicy {
+        label: format!("agent:{}", ctx.slug),
+        ..SandboxPolicy::default()
+    };
+    // Workspace bind-mount at identical path so paths agents see match
+    // host paths.
+    policy.mounts = vec![FsMount {
+        host_path: ctx.work_dir.clone(),
+        sandbox_path: ctx.work_dir.clone(),
+        mode: MountMode::ReadWrite,
+    }];
+    // Default network: allow host network for now; future work routes
+    // through the host-side allowlist proxy.
+    policy.network = NetworkPolicy::Open;
+    let sandbox = isolator.prepare(&policy).await?;
+    Ok(PreparedSandbox { isolator, sandbox })
+}
+
 #[async_trait]
 impl JobExecutor for ProcessExecutor {
     async fn spawn(&self, ctx: &JobContext) -> Result<ExecutorHandle> {
@@ -214,6 +264,10 @@ impl JobExecutor for ProcessExecutor {
         let ship_dir = ctx.work_dir.join(".ship");
         let decision = ship_platform::isolation::decide_for_agent(&ship_dir, &ctx.agent, None);
         let enforce = ship_platform::isolation::enforcement_enabled();
+        // Optional sandbox owner — attached to ActorHandle after spawn
+        // so its Drop fires isolator.shutdown() when the actor dies.
+        let mut sandbox_owner: Option<std::sync::Arc<ship_substrate::isolation::SandboxOwner>> =
+            None;
         if let Ok(d) = &decision {
             tracing::info!(
                 slug = ctx.slug,
@@ -345,6 +399,50 @@ impl JobExecutor for ProcessExecutor {
                         // resolved to Unavailable for this (harness,
                         // OS). Already logged at decision time.
                     }
+                    IsolationStrategy::DockerEngine => {
+                        // Wire the container lifecycle: prepare() spins
+                        // a container, wrap_for_external_spawn rewrites
+                        // launch as `docker exec ...`, the resulting
+                        // SandboxOwner attaches to ActorHandle later so
+                        // shutdown fires on agent exit.
+                        match prepare_docker_sandbox(&ctx).await {
+                            Ok(prepared) => {
+                                if let Some((new_bin, new_args)) =
+                                    prepared.isolator.wrap_for_external_spawn(
+                                        &prepared.sandbox,
+                                        std::path::Path::new(&launch.bin),
+                                        &launch.args,
+                                    )
+                                {
+                                    launch.bin = new_bin.to_string_lossy().into_owned();
+                                    launch.args = new_args;
+                                    active = "1";
+                                    sandbox_owner = Some(std::sync::Arc::new(
+                                        ship_substrate::isolation::SandboxOwner::new(
+                                            prepared.isolator,
+                                            prepared.sandbox,
+                                        ),
+                                    ));
+                                    tracing::info!(
+                                        slug = ctx.slug,
+                                        "isolation enforced: DockerEngine"
+                                    );
+                                } else {
+                                    tracing::warn!(
+                                        slug = ctx.slug,
+                                        "DockerEngine prepare() succeeded but wrap_for_external_spawn returned None — running unwrapped"
+                                    );
+                                }
+                            }
+                            Err(e) => {
+                                tracing::warn!(
+                                    slug = ctx.slug,
+                                    error = %e,
+                                    "DockerEngine prepare failed; running unwrapped"
+                                );
+                            }
+                        }
+                    }
                     other => {
                         tracing::warn!(
                             slug = ctx.slug,
@@ -392,6 +490,13 @@ impl JobExecutor for ProcessExecutor {
         };
 
         let handle = spawn_actor(profile)?;
+        // Attach the sandbox owner if we prepared one. ActorHandle is
+        // cloneable; the underlying Arc<SandboxOwner> shares ownership
+        // across clones, and the last drop fires shutdown.
+        let handle = match sandbox_owner.take() {
+            Some(owner) => handle.with_sandbox(owner),
+            None => handle,
+        };
         let pid = handle.pid();
 
         tracing::info!(

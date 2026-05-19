@@ -172,7 +172,7 @@ fn synthesize(template: &str) -> String {
         out.push_str(&rest[..start]);
         let after = &rest[start + 1..];
         let end = after.find('}').expect("matching brace");
-        out.push_str("x");
+        out.push('x');
         rest = &after[end + 1..];
     }
     out.push_str(rest);
