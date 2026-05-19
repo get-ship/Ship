@@ -60,9 +60,26 @@ pub fn build_dispatch_body(
 
     let workspace = workspace_label_from_path(effective_path);
 
+    // Translate the legacy `--auto` CLI flag to the new orthogonal-axes
+    // shape the daemon now requires (the inversion plan in
+    // .artifacts/agents-arc/discussions/ explains why `auto` was wrong).
+    // Phase 7 of the inversion replaces this CLI surface with explicit
+    // -i/-t/-d flags; this is the minimum shim to keep `ship use
+    // [--auto]` dispatching against the new endpoint until then.
+    let (open_tab, keepalive) = if opts.auto {
+        // Old `--auto` semantic: no UI tab, batch invocation.
+        // New equivalent that preserves subscription billing: PTY
+        // one-shot (no keepalive). API-billed --print stays opt-in via
+        // the new CLI; never silently selected here.
+        (false, false)
+    } else {
+        (true, true)
+    };
     let mut body = serde_json::json!({
         "agent": opts.agent,
-        "auto": opts.auto,
+        "open_tab": open_tab,
+        "invocation": "pty",
+        "keepalive": keepalive,
         "resume": opts.resume,
         "workspace": workspace,
     });
