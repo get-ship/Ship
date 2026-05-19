@@ -75,6 +75,21 @@ directly.
 
 Invalidated if: image size becomes a real constraint (CLI is ~15MB).
 
+## Shipped since last update
+
+- ✅ ship-sidecar-proto crate extracted (substrate can depend on
+  the wire types without cycle)
+- ✅ SandboxRegistry + state machine (14 tests)
+- ✅ ActorRuntime trait + InProcessActorRuntime
+- ✅ ChildHandle factored behind ChildBackend trait
+- ✅ SidecarChildBackend + SidecarActorRuntime (live tested)
+- ✅ SandboxDispatcher (10 tests including singleton contract)
+- ✅ ProcessExecutor wires through dispatcher (cutover)
+- ✅ Background sandbox-reaper task
+- ✅ Per-sandbox SandboxOwner — reap fires backend shutdown
+- ✅ DockerEngine prep migrated from per-actor to per-sandbox
+- ✅ GET /api/v1/sandboxes + ship isolation sandboxes CLI
+
 ## Open — not blocking but needs an answer before each chunk lands
 
 ### Hook synthesis vs hook scripts (Chunk C)

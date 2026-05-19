@@ -1,23 +1,44 @@
 # ship-isolation — status
 
-**Phase:** Phase B complete; entering Phase C. Tier 1 honest
-(HarnessNative + SrtWrapper, per-(harness × OS) adapter table,
-supervisor enforcement). Tier 2 has one strategy lifecycle-wired
-end-to-end (DockerEngine via SandboxOwner). Protocol v1 frozen
-in protobuf via ConnectRPC, and the in-sandbox **sidecar binary
-now speaks it natively** — `bin/ship-sidecar/` rewritten around
-`Handshake` + `Processes` + `Events.Stream` ConnectRPC handlers
-with 8 end-to-end client tests.
+**Phase:** Phase C complete (sandbox-as-runtime architecture).
+The runtime-architecture target shape is real code.
 
-**Host driver cutover complete.** `backends::youki_sidecar`
-drives the sidecar through the generated `ProcessesClient` +
-`EventsClient`. `sidecar::protocol` (the deprecated JSON
-shape) is deleted. The `sidecar-mode` Cargo feature now only
-pulls in `reqwest` (for the `/v1/health` probe).
+The sandbox model is now the spawn unit:
+- `SandboxRegistry` + `SandboxDispatcher` (ship-platform) are the
+  orchestrator's source of truth for actor-to-sandbox membership.
+- Project = default sandbox; pipeline / agent overrides supported
+  via `ensure_sandbox(name, lifetime)`.
+- `ActorRuntime` trait + `InProcessActorRuntime` (substrate) and
+  `SidecarChildBackend` + `SidecarActorRuntime` (isolation) are
+  the two impls; the trait is the seam between in-process Tier
+  0/1 and v1-wire Tier 2+.
+- `ChildHandle` factored behind `ChildBackend` trait — same
+  public API, polymorphic backing (PTY today, sidecar tomorrow).
+- `Sandbox.sandbox_owner: Option<Arc<SandboxOwner>>` — reap drops
+  the Arc; SandboxOwner::Drop spawns isolator.shutdown() on the
+  tokio runtime. Backend teardown happens via registry-level reap.
 
-**Next chunk:** wrap `SidecarSandbox` in an `Isolator` impl
-plus `prepare/exec/shutdown` so YoukiRootless lifecycle binds
-to `ActorHandle.sandbox` the same way DockerEngine does today.
+**Production cutover landed:**
+- ProcessExecutor calls `dispatcher.ensure_default_sandbox` +
+  `register_actor` on every spawn; `notify_actor_exit` on actor
+  exit. Tier 0/1 actors are now tracked per-project in the
+  registry.
+- DockerEngine prep migrated from per-actor to per-sandbox.
+  N actors in a project share one container (cost amortized).
+  First actor pays the `docker run` cost; subsequent actors
+  reuse via `docker exec`.
+- shipd starts a `sandbox-reaper` background task that scans
+  for idle-past-timeout sandboxes (default 15 min) and reaps —
+  state transition + SandboxOwner drop = automatic backend
+  teardown.
+- `GET /api/v1/sandboxes` + `ship isolation sandboxes` surface
+  the registry state for users + UI.
+
+**Next bounded chunks (independent):**
+- E — scoped-token model (per-pod auth, BYOC enforcement)
+- D — daemon HTTP MCP endpoint (`/api/v1/mcp/*`)
+- F — `<sui-isolation-wizard>` + image build pipeline +
+  shipd-restart reconcile.
 
 See:
 - `docs/runtime-architecture.md` — target shape we're building toward (canonical)
