@@ -23,13 +23,18 @@
 //! The point of landing this in isolation: get the abstraction
 //! reviewed and tested before the wiring chunk that depends on it.
 
+pub mod dispatcher;
 pub mod registry;
 pub mod types;
 
 #[cfg(test)]
+mod dispatcher_tests;
+#[cfg(test)]
 mod tests;
 
+pub use dispatcher::SandboxDispatcher;
 pub use registry::SandboxRegistry;
 pub use types::{
-    Sandbox, SandboxError, SandboxId, SandboxLifetime, SandboxName, SandboxState,
+    RuntimeEndpoint, Sandbox, SandboxError, SandboxId, SandboxLifetime, SandboxName,
+    SandboxState,
 };
