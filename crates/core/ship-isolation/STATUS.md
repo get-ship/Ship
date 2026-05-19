@@ -1,202 +1,151 @@
 # ship-isolation — status
 
-**Phase:** Phase A complete (tier model + recommender + Docker backend +
-settings + CLI + shipd API + MCP tool). `ship-platform` now depends on
-this crate (`default-features` off — youki + sidecar stay opt-in via
-the daemon's feature flags). Supervisor integration (Phase B) is next:
-hook the Decision into `ProcessExecutor::spawn` so launches actually
-go through the Isolator.
+**Phase:** Phase B near-complete. Tier 1 honest (HarnessNative +
+SrtWrapper, per-(harness × OS) adapter table, supervisor enforcement).
+Tier 2 has one strategy lifecycle-wired end-to-end (DockerEngine via
+SandboxOwner). Protocol v1 frozen in protobuf via ConnectRPC; sidecar
+handler rewrite is the next chunk.
 
-See `docs/strategy.md` for the design, `docs/sidecar-parity.md` for
-the per-feature audit, and `.artifacts/local-sandbox-spec/settings-
-and-envs.md` for the canonical settings + env-var list.
+See:
+- `docs/strategy.md` — design intent
+- `docs/sidecar-protocol.md` — v1 protocol RFC
+- `docs/sidecar-parity.md` — per-feature audit
+- `proto/ship/sidecar/v1/sidecar.proto` — the canonical schema
+- `.artifacts/local-sandbox-spec/settings-and-envs.md` — settings/envs
 
-## Verified working (live tests, real binaries)
+## Verified working
 
-- **`SandboxRuntime` backend** — `tests/srt_live.rs` against installed
-  `@anthropic-ai/sandbox-runtime@0.0.51`:
-  - Blocks a write to a host path outside the workspace allowlist.
-  - Allows a write to a host path inside the workspace allowlist.
-  - Settings JSON schema matches `srt`'s zod validator
-    (`denyRead`/`allowWrite`/`denyWrite` all required even when empty).
-- **`Youki` backend** — `tests/youki_live.rs` against `youki v0.6.0`
-  with an Alpine 3.19 rootfs:
-  - Materializes a rootless OCI bundle from a `youki spec --rootless`
-    template + the policy DSL.
-  - Spawns `youki run`; container starts.
-  - Bind-mounted workspace passes through (write inside container
-    appears on host).
-- **Claude Code inside a Ship container with real OAuth** —
-  `examples/run_claude.rs` + `tests/run_claude_live.rs`:
-  - Ubuntu-24.04-base rootfs with `bun` + `@anthropic-ai/claude-code`
-    preinstalled (build via `scripts/build_agent_rootfs.sh`).
-  - Workspace + `~/.claude/.credentials.json` + `/etc/resolv.conf`
-    bind-mounted; `NetworkPolicy::Open` (shares host net).
-  - Claude Code 2.1.143 boots in the container, reads its OAuth
-    credentials from the bind mount, calls the Anthropic API, returns
-    a response, writes to the workspace, exits clean.
-  - Integration test takes ~8s end-to-end.
-  - Direct probe (`/tmp/probe-bundle`) confirms container's `/home`
-    is the rootfs's `/home` (not the host's): host `~/.bashrc` is
-    invisible from inside; only what the policy mounts is visible.
-- **`ship-sidecar` binary** — `bin/ship-sidecar/tests/{health,exec}.rs`:
-  - Boots on a free port via axum.
-  - `/v1/health` returns the `HealthResponse` shape.
-  - `/v1/exec` spawns a child with piped stdio, returns exec_id + pid.
-  - `/v1/stdin` writes base64 bytes to a running exec.
-  - `/v1/signal` dispatches kill(2) with caller-specified signal.
-  - `/v1/events` SSE streams Stdout/Stderr/Exited events.
-  - `/v1/shutdown` triggers graceful axum shutdown.
-- **`SidecarSandbox` wrapper** (feature `sidecar-mode`, Linux only) —
-  `src/backends/youki_sidecar.rs`:
-  - Spawns a long-lived youki container with `ship-sidecar` as PID 1.
-  - Drives exec / stdin / signal / wait via HTTP against the
-    sidecar's free TCP port (host network namespace shared for the
-    spike).
-  - Bind-mounts the host's `ship-sidecar` binary into the container
-    at `/usr/local/bin/ship-sidecar` — no rootfs rebuild needed per
-    sidecar change. Production should bake the sidecar into the
-    rootfs.
-  - `run_capture()` convenience: exec + collect stdout/stderr/exit
-    via the SSE stream in one call.
-- **Allowlist network mediation** — `src/net/proxy.rs`:
-  - Small Rust HTTP CONNECT proxy that listens on a free TCP port.
-  - `HostMatcher` supports exact + `*.suffix` glob.
-  - When `NetworkPolicy::Allowlist { hosts }` is set on a
-    `SidecarSandbox`, the wrapper spawns a proxy task, injects
-    `HTTPS_PROXY` / `HTTP_PROXY` / `NO_PROXY` env into the sidecar's
-    process, child execs inherit them. Denied CONNECTs get 403.
-  - Live-verified by `tests/network_live.rs`: in-container curl gets
-    blocked by the host proxy and the deny is recorded in the proxy
-    log. ~400ms end-to-end.
-  - **Scope limitations:** HTTP CONNECT only (sufficient for HTTPS);
-    no MITM/body inspection; plain HTTP via absolute-URI form is not
-    proxied; SOCKS5 not implemented. Production wants `srt`'s
-    proxy or a fuller proxy implementation.
-
-Live tests skip if their external dependency isn't on PATH. They are
-NOT marked `#[ignore]` — they auto-run when the tooling is present,
-which means a real CI box with the deps installed exercises them.
-
-## Bugs the live tests caught and fixed
-
-1. `srt`'s settings schema requires `denyRead` and `denyWrite` even when
-   empty. The Rust backend originally used `skip_serializing_if =
-   "Vec::is_empty"` and emitted `{"filesystem": {"allowWrite": ["..."]}}`
-   → zod rejected with `denyRead: Required` / `denyWrite: Required`. Fixed
-   by always serializing the four fs fields.
-2. youki refuses to start a container without `PATH` in `process.env`.
-   The original patcher overwrote the template's env with the cmd's env;
-   when cmd had no env, PATH disappeared. Fixed by merging cmd env into
-   template env and defaulting `PATH` if absent.
-3. `Youki::exec()` re-patched the spec from the template using a
-   default empty policy — wiping the mounts that `prepare()` had baked
-   in. Fixed by stashing the policy in `YoukiState` and reusing it on
-   exec.
+- **Recommender + capability probe** — pure-Rust pipeline from host
+  detection to resolved strategy + tier + reason. 81 unit tests in
+  ship-isolation.
+- **Tier 1 split** — HarnessNative passes the harness's own sandbox
+  flag (claude `--sandbox`, gemini `--yolo`, codex Seatbelt no flag);
+  SrtWrapper wraps with `@anthropic-ai/sandbox-runtime` only when the
+  harness has no native mechanism. Per-(harness × OS) adapter table
+  picks per agent run. No double-wrapping.
+- **DockerEngine** — `prepare()` spins a container, `wrap_for_external_spawn`
+  rewrites the launch to `docker exec`, `SandboxOwner::Drop` fires
+  `shutdown()` on actor exit. Tested live in `tests/docker_lifecycle.rs`
+  (auto-skip when no engine).
+- **Sidecar v1 protocol** — `.proto` schema with Handshake / Processes
+  (Create/Run/List/Get/Stop/Kill/WriteInput/ResizeTerminal/AttachPty) /
+  Events.Stream (bidi envelope for stdout/exit/permission/secret/setting/
+  hook/log_progress). 7 codegen smoke tests; per-tier transport
+  documented (unix socket / vsock / TCP+TLS).
+- **Daemon API** — 6 endpoints under `/api/v1/isolation/*` (status,
+  rescan, recommendations, preview, verify, init); 13 integration tests
+  cover wire shapes + the init+verify atomic contract.
+- **CLI** — `ship isolation status|rescan|verify|recommendations|preview|init`
+  with `--json`. Daemon-mediated when shipd is up, falls back in-process.
+- **MCP tool** — `isolation_status` for agent self-introspection.
+- **Agent profile** — optional `isolation:` block on agent jsonc;
+  `ship validate` catches malformed blocks at config-load time.
+- **Per-strategy settings** — single typed JSON blob
+  `isolation.strategies` (docker/youki/harness_native/srt/lima/fly)
+  replaces the sprawl of flat per-key knobs. Power users override only
+  what they care about; defaults backfill.
+- **UI** — `<sui-isolation-badge>` reusable component for any actor/
+  agent view. 15 vitest cases. Picker / detail / verify components
+  follow the same pattern (not yet built).
 
 ## Known gaps
 
-1. **Network policy on `Youki` is binary** — Open shares host net (with
-   `/etc/resolv.conf` bind-mounted), DenyAll creates an empty netns
-   (nothing routes out). `Allowlist` / `Proxy` not enforced. The
-   `sandbox-runtime` pattern (HTTP+SOCKS5 host proxy + unix socket
-   bind-mounted into container netns) is the eventual answer.
-2. **Sidecar bring-up inside the container.** `Youki::exec()` and
-   `run_to_completion()` run the caller's command directly via
-   `youki run`. The sidecar would be PID 1 *instead*, with the
-   caller's command driven via the sidecar HTTP API. Not wired.
-3. **Sidecar surface beyond `/v1/health`.** All other endpoints exist
-   as wire types in `sidecar::protocol`; no handlers yet.
-4. **Credentials approach is bind-mount-the-host-file (option A)**
-   today. The token never goes to disk inside the container *rootfs*,
-   but the host's real `~/.claude/.credentials.json` is the source of
-   the mount — a container exploit during the session has read-access
-   to the host token. Option B (copy-to-per-sandbox-tmpfs on
-   `prepare()`, destroy on `shutdown()`) is ~50 lines from here.
-   Option C (full credential bridge: shipd reads OS keychain, sidecar
-   proxies requests via `/v1/secret/get`, token never leaves shipd)
-   is the production design.
-5. **Fly / cloud spike** — bootstrap doc only (`docs/fly-bootstrap.md`).
-   No `MachinesClient` Rust code, no live test.
-6. **Toolchain install path** — `SandboxRuntime` and `Youki` both take
-   explicit paths to their dependencies. Ship's installer would
-   download `youki`, run `scripts/build_agent_rootfs.sh`, and pull
-   the npm packages.
-7. **Linux runtime deps for `SandboxRuntime`** — `bubblewrap` and
-   `socat` must be installed by the user.
-8. **Rootfs distribution.** The ~200 MB Ubuntu+bun+claude-code rootfs
-   is built once locally via `scripts/build_agent_rootfs.sh`; for
-   production, ship a prebuilt tarball over HTTP with version
-   pinning and integrity check.
-9. **macOS path** for `SandboxRuntime` — should work (sandbox-exec is
-   built in) but untested on this branch.
-10. **Orchestrator wiring** — out of scope. The trait plugs into
-    `ship_platform::services::orchestrator` alongside the existing
-    `IsolationStrategy` (worktree) and `JobExecutor`. Not wired.
-11. **PTY attach convergence.** Main now ships PTY-backed agent sessions
-    via `ship_substrate::supervisor::ActorHandle`
-    (`subscribe_output()` broadcast + `write_input()`) and a
-    `/api/v1/agent_sessions/{slug}/attach` WebSocket route
-    (`apps/shipd/src/routes/agent_sessions_attach.rs`). The sidecar's
-    pipe-based stdio + SSE event surface will need to converge on this
-    shape: the sidecar process inside the container should expose a
-    PTY-backed `ActorHandle` equivalent and shipd's attach route should
-    transparently bridge to it whether the agent runs on host or in a
-    sandbox. Not done — flagged as the natural next merge-in.
+1. **Sidecar handlers still use legacy JSON.** `bin/ship-sidecar/`
+   speaks the hand-typed protocol. Rewriting handlers to ConnectRPC
+   routing against the v1 .proto is the next chunk.
+2. **No host-side ConnectRPC client** in backends. Sidecar protocol is
+   defined; the Docker/Youki/Fly backends will use it once the sidecar
+   handlers are ported. Today DockerEngine drives via `docker exec`
+   (no sidecar — see `wrap_for_external_spawn`).
+3. **YoukiRootless lifecycle not yet SandboxOwner-attached.** Same
+   pattern as DockerEngine but the existing `bin/ship-sidecar/` build
+   process needs the protocol port first.
+4. **WSL2 / LimaVm / FlyMachines** — strategies declared, capability-
+   probed, no backend implementations yet. Each is a separate chunk.
+5. **Tier 1 supervisor enforcement matrix** — exercises HarnessNative
+   for claude `--sandbox` and SrtWrapper for opencode via the adapter
+   table. Full (harness × OS) integration matrix in CI is the
+   verification chunk.
+6. **UI components beyond badge** — picker, detail, verify each
+   ~equivalent in size to the badge. Wiring the wizard + settings
+   panel that compose them is the next UI tranche.
+7. **PTY in sidecar** — proto defines `AttachPty` server-stream; no
+   handler impl. Convergence with main's PTY-WS attach happens here.
+8. **Credential broker** — proto defines `SecretRequest` /
+   `SecretReply` envelope variants; no handler. Wires to shipd's
+   keychain bridge.
+9. **Threat model doc** — separate doc when Phase G starts.
+10. **Image distribution + signing** — `ghcr.io/ship/agent-runner`
+    is referenced but not yet published. Build + sign + version-pin
+    pipeline is its own work.
 
-## Naming
-
-`Isolator` was chosen to avoid collision with the existing
-`IsolationStrategy` trait in
-`crates/core/ship-substrate/src/services/dispatch_ports.rs:248`,
-which prepares the worktree directory. Distinct concerns.
-
-## Files
+## Architecture map (current state)
 
 ```
-crates/core/ship-isolation/
-├── Cargo.toml
-├── README.md
-├── STATUS.md                      — this file
-├── bin/ship-sidecar/
-│   ├── Cargo.toml
-│   ├── src/{main,server}.rs
-│   └── tests/health.rs            — live HTTP integration test
-├── docs/
-│   ├── sidecar-protocol.md
-│   └── fly-bootstrap.md
-├── src/
-│   ├── lib.rs
-│   ├── trait_def.rs               — Isolator + LaunchCommand + errors
-│   ├── handle.rs                  — SandboxId / Handle / ExecHandle
-│   ├── policy.rs                  — SandboxPolicy DSL
-│   ├── sidecar/
-│   │   ├── mod.rs
-│   │   └── protocol.rs            — wire types, round-trip tested
-│   └── backends/
-│       ├── mod.rs
-│       ├── noop.rs
-│       ├── sandbox_runtime.rs     — verified live
-│       └── youki.rs               — verified live (feature gated, Linux)
-└── tests/
-    ├── srt_live.rs                — verified live
-    └── youki_live.rs              — verified live (feature gated, Linux)
+ship-substrate (L0)
+  isolation/
+    trait_def.rs   — Isolator trait + wrap_for_external_spawn hook
+    policy.rs      — SandboxPolicy, NetworkPolicy, ResourceLimits
+    handle.rs      — SandboxHandle, ExecHandle, SandboxId
+    owner.rs       — SandboxOwner (Drop fires shutdown)
+    noop.rs        — baseline Isolator (always-available)
+  supervisor/
+    ActorHandle.sandbox: Option<Arc<SandboxOwner>>  ← lifetime binding
+
+ship-isolation (L1)
+  proto/sidecar.proto   — v1 wire schema
+  src/
+    sidecar/proto.rs       — generated Rust bindings
+    sidecar/protocol.rs    — legacy JSON (deprecated)
+    backends/
+      docker.rs            — Docker/Podman; wrap_for_external_spawn impl
+      youki.rs             — Youki rootless (legacy sidecar path)
+      youki_sidecar.rs     — sidecar-driven youki
+      sandbox_runtime.rs   — srt wrapper
+    capabilities.rs        — host probe (docker/podman/youki/lima/...)
+    harness.rs             — per-(harness × OS) Tier 1 table
+    tier.rs                — IsolationTier + IsolationStrategy enums
+    recommender.rs         — pure (caps, overrides) -> resolved
+    registry.rs            — Strategy -> Arc<dyn Isolator> factory map
+    settings.rs            — wrap_launch + WrapContext
+    strategies_config.rs   — per-strategy nested settings blob
+    net/proxy.rs           — host-side allowlist HTTP proxy
+
+ship-platform (L1)
+  src/
+    isolation.rs           — decide(), decide_for_agent(),
+                             enforcement_enabled(), cached_capabilities,
+                             strategies_settings reader/writer
+    isolation_ops.rs       — recommendations(), preview(),
+                             verify_decision(), init()
+
+ship-supervisor (L1)
+  src/executors/process.rs — observe + enforce + wrap + attach
+                             SandboxOwner
+
+apps/shipd
+  src/routes/isolation_api.rs       — 6 HTTP endpoints
+  src/routes/isolation_api_tests.rs — 13 integration tests
+
+apps/ship-cli
+  src/isolation_cmd.rs              — daemon-mediated CLI with
+                                     in-process fallback
+  src/validate.rs                   — isolation block check
+
+apps/mcp
+  src/server/mod.rs                 — isolation_status MCP tool
+
+packages/ui-components
+  src/sui-isolation-badge/          — reusable agent-domain component
+  test/sui-isolation-badge.test.ts  — 15 vitest cases
 ```
 
-## How to run the live tests locally
+## Test counts (all green)
 
-```bash
-# srt backend
-bun add -g @anthropic-ai/sandbox-runtime
-sudo apt install bubblewrap socat            # Linux only
-cargo test -p ship-isolation --test srt_live -- --nocapture
-
-# youki backend (Linux only)
-# install youki to /tmp/youki (or set SHIP_YOUKI_BIN)
-# generate a spec template + alpine rootfs (or set SHIP_YOUKI_SPEC + SHIP_YOUKI_ROOTFS)
-cargo test -p ship-isolation --features youki-backend --test youki_live -- --nocapture
-
-# sidecar
-cargo build -p ship-sidecar
-cargo test -p ship-sidecar
-```
+- 81  ship-isolation lib + 7 proto smoke + 6 docker (live, skip)
+- 361 ship-substrate lib (includes 2 SandboxOwner Drop tests)
+- 33  ship-supervisor lib
+- 1055 ship-platform lib
+- 665 shipd lib (includes 13 new isolation endpoint tests)
+- 19 ship-cli validate (includes 5 new isolation block tests)
+- 15 sui-isolation-badge component tests
