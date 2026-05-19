@@ -623,6 +623,42 @@ pub(crate) async fn emit_composed_step_session(
     .await;
 }
 
+/// Emit the terminal event for a pipeline step's composed agent
+/// session, so it reaches a terminal status in the agent_sessions
+/// read model rather than sitting at Dispatched forever. Called by
+/// the StepMonitor when it emits `pipeline.step.observed`.
+///
+/// The composed session slug is `<job_slug>::<step_name>` (set by
+/// emit_composed_step_session). Look it up to recover the session_id;
+/// best-effort — if the row isn't found (e.g. a step whose started
+/// event didn't land), we simply skip rather than fail the step.
+pub(crate) async fn emit_composed_session_terminal(
+    kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
+    job_slug: &str,
+    step_name: &str,
+    is_failure: bool,
+    exit_code: Option<i32>,
+) {
+    let session_slug = format!("{job_slug}::{step_name}");
+    let session = match crate::projections::agent_session::load_session_by_slug(&session_slug) {
+        Ok(Some(s)) => s,
+        _ => return,
+    };
+    if is_failure {
+        emit_agent_session_failed(
+            kernel,
+            &session.session_id,
+            &session_slug,
+            "pipeline step did not advance",
+            exit_code,
+            "step_observed_fail",
+        )
+        .await;
+    } else {
+        emit_agent_session_completed(kernel, &session.session_id, &session_slug, exit_code).await;
+    }
+}
+
 pub(crate) async fn emit_agent_session_started_for_pipeline_step(
     kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
     payload: &AgentSessionStartedPayload,
