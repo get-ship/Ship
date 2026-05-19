@@ -20,10 +20,12 @@ plus `prepare/exec/shutdown` so YoukiRootless lifecycle binds
 to `ActorHandle.sandbox` the same way DockerEngine does today.
 
 See:
+- `docs/runtime-architecture.md` — target shape we're building toward (canonical)
 - `docs/strategy.md` — design intent
 - `docs/sidecar-protocol.md` — v1 protocol RFC
 - `docs/sidecar-parity.md` — per-feature audit
 - `docs/threat-model.md` — what we defend against per tier
+- `docs/architecture.md` — crate layout as it stands today
 - `proto/ship/sidecar/v1/sidecar.proto` — the canonical schema
 - `.artifacts/local-sandbox-spec/settings-and-envs.md` — settings/envs
 
