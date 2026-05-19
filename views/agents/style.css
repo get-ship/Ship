@@ -102,17 +102,6 @@
   background: var(--primary);
   border-color: var(--primary);
 }
-.agents-pill-count {
-  font-variant-numeric: tabular-nums;
-  font-size: var(--text-xs);
-  padding: 1px 6px;
-  border-radius: var(--radius-full);
-  background: color-mix(in oklch, currentColor 18%, transparent);
-}
-.agents-pill.is-active .agents-pill-count {
-  background: color-mix(in oklch, var(--primary-foreground) 20%, transparent);
-}
-
 .agents-card-tile[data-active] {
   outline: 2px solid var(--primary);
   outline-offset: -2px;
