@@ -326,7 +326,17 @@ async fn advance_pipeline_inner(
                         // dispatches share one read model. See
                         // dispatch::emit_composed_step_session.
                         super::dispatch::emit_composed_step_session(
-                            kernel, &job, step, agent,
+                            kernel,
+                            &super::dispatch::ComposedRunCtx {
+                                job_id: &job.job_id,
+                                job_slug: &job.slug,
+                                branch: &job.branch,
+                                source_spec_path: job.source_spec_path.as_deref(),
+                                vars: job.vars.as_ref(),
+                                baseline_sha: job.baseline_sha.as_deref(),
+                                run_headless: job.headless,
+                            },
+                            step, agent,
                             &worktree_path.to_string_lossy(), pid,
                         ).await;
 

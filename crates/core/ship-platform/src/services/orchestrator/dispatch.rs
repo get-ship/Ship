@@ -231,7 +231,32 @@ pub async fn dispatch_job_internal(
         executor_kind, job_ctx_with_dir.step.as_ref().map(|s| s.id.as_str()),
     ).await;
 
+    let pid = handle.pid;
     octx.registry.register(slug, handle).await;
+
+    // First step of a pipeline run also surfaces as an agent_session row
+    // (consistency with advance_pipeline_inner, which emits for steps
+    // 2+). Without this, step 1 of every pipeline would be absent from
+    // the agent_sessions read model.
+    if let Some(root_step) = payload.steps.as_ref().and_then(|s| s.root_steps().first().copied()) {
+        emit_composed_step_session(
+            kernel,
+            &ComposedRunCtx {
+                job_id: &payload.job_id,
+                job_slug: &payload.slug,
+                branch: &payload.branch,
+                source_spec_path: payload.source_spec_path.as_deref(),
+                vars: payload.vars.as_ref(),
+                baseline_sha: payload.baseline_sha.as_deref(),
+                run_headless: payload.headless,
+            },
+            root_step,
+            agent,
+            &worktree_path.to_string_lossy(),
+            pid,
+        )
+        .await;
+    }
 
     let is_multi_step = payload.steps.as_ref().is_some_and(|s| s.steps.len() > 1);
     if is_multi_step {
@@ -538,28 +563,42 @@ fn start_agent_session_exit_handler(
 /// that field set. The session slug is `<job_slug>::<step_id>` so it
 /// stays unique under the agent_sessions.slug constraint (the job slug
 /// is reused across all steps).
-#[allow(clippy::too_many_arguments)]
+/// Run-level context shared by every composed step of a pipeline.
+/// Built from a `PipelineRun` (advance_pipeline path) or directly from
+/// a `PipelineRunStartedPayload` (first-step dispatch path) — both
+/// expose the same fields, so the emit helper takes this rather than
+/// either concrete type.
+pub(crate) struct ComposedRunCtx<'a> {
+    pub job_id: &'a str,
+    pub job_slug: &'a str,
+    pub branch: &'a str,
+    pub source_spec_path: Option<&'a str>,
+    pub vars: Option<&'a std::collections::HashMap<String, String>>,
+    pub baseline_sha: Option<&'a str>,
+    pub run_headless: bool,
+}
+
 pub(crate) async fn emit_composed_step_session(
     kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
-    job: &crate::projections::job::PipelineRun,
+    run: &ComposedRunCtx<'_>,
     step: &ship_substrate::events::pipeline::PipelineStep,
     agent: &str,
     worktree: &str,
     pid: Option<u32>,
 ) {
     let step_session_id = ship_substrate::gen_ulid();
-    let session_slug = format!("{}::{}", job.slug, step.id);
-    let invocation = resolve_step_invocation(step.invocation.as_deref(), job.headless);
+    let session_slug = format!("{}::{}", run.job_slug, step.id);
+    let invocation = resolve_step_invocation(step.invocation.as_deref(), run.run_headless);
     let started = AgentSessionStartedPayload {
         session_id: step_session_id.clone(),
         slug: session_slug.clone(),
         agent: agent.to_string(),
         harness: step.harness.clone(),
         model: step.model.clone(),
-        workspace: job.branch.clone(),
-        branch: job.branch.clone(),
-        source_spec_path: job.source_spec_path.clone(),
-        open_tab: !job.headless,
+        workspace: run.branch.to_string(),
+        branch: run.branch.to_string(),
+        source_spec_path: run.source_spec_path.map(str::to_string),
+        open_tab: !run.run_headless,
         invocation,
         keepalive: false,
         prompt: None,
@@ -567,9 +606,9 @@ pub(crate) async fn emit_composed_step_session(
         resume: false,
         resume_session_id: None,
         depends_on: None,
-        vars: job.vars.clone(),
-        baseline_sha: job.baseline_sha.clone(),
-        parent_pipeline_run_id: Some(job.job_id.clone()),
+        vars: run.vars.cloned(),
+        baseline_sha: run.baseline_sha.map(str::to_string),
+        parent_pipeline_run_id: Some(run.job_id.to_string()),
     };
     emit_agent_session_started_for_pipeline_step(kernel, &started).await;
     emit_agent_session_dispatched(
