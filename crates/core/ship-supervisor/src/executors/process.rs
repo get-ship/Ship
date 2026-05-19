@@ -200,13 +200,22 @@ impl JobExecutor for ProcessExecutor {
             .unwrap_or_else(|| "claude".to_string());
         let agent_for_session = ctx.agent.clone();
         let adapter_for_session = adapter_for_or_default(ctx.launch.harness.as_deref()).ok();
+        // Harnesses without a hook config (opencode is plugins-only; the
+        // plugin bridge isn't wired) need hook.* synthesis from their
+        // structured output stream. Today: opencode only. Others
+        // (claude/codex/gemini) fire hook.* via their own hook config
+        // — synthesizing here would double-count.
+        let synth_hooks_from_stream = harness_for_session == "opencode";
+        let synth_actor_id = ctx.slug.clone();
+        let synth_harness = harness_for_session.clone();
         tokio::spawn(async move {
             let mut line_buf = String::new();
             let mut session_written = false;
+            let mut hooks_session_synthed = false;
             loop {
                 match rx.recv().await {
                     Ok(chunk) => {
-                        if !session_written && let Some(ref adapter) = adapter_for_session {
+                        if let Some(ref adapter) = adapter_for_session {
                             line_buf.push_str(&String::from_utf8_lossy(&chunk));
                             while let Some(nl) = line_buf.find('\n') {
                                 let line: String = line_buf.drain(..=nl).collect();
@@ -214,34 +223,58 @@ impl JobExecutor for ProcessExecutor {
                                 if trimmed.is_empty() {
                                     continue;
                                 }
-                                if let Some(ev) = adapter.parse_output(trimmed)
-                                    && let ship_platform::services::harness_adapter::HarnessEvent::SessionStarted { session_id } = ev
-                                {
-                                    if let Err(e) = ship_platform::services::harnesses::session_file::write_session_file(
-                                        &work_dir_for_session,
-                                        &harness_for_session,
-                                        &session_id,
-                                        &agent_for_session,
-                                    ) {
-                                        tracing::warn!(
-                                            slug = %slug,
-                                            harness = %harness_for_session,
-                                            "session_file write failed: {e}"
-                                        );
-                                    } else {
-                                        tracing::info!(
-                                            slug = %slug,
-                                            harness = %harness_for_session,
-                                            session_id = %session_id,
-                                            "session_file written"
+                                let Some(ev) = adapter.parse_output(trimmed) else {
+                                    continue;
+                                };
+                                use ship_platform::services::harness_adapter::HarnessEvent;
+                                match ev {
+                                    HarnessEvent::SessionStarted { session_id } => {
+                                        if !session_written {
+                                            if let Err(e) = ship_platform::services::harnesses::session_file::write_session_file(
+                                                &work_dir_for_session,
+                                                &harness_for_session,
+                                                &session_id,
+                                                &agent_for_session,
+                                            ) {
+                                                tracing::warn!(
+                                                    slug = %slug,
+                                                    harness = %harness_for_session,
+                                                    "session_file write failed: {e}"
+                                                );
+                                            } else {
+                                                tracing::info!(
+                                                    slug = %slug,
+                                                    harness = %harness_for_session,
+                                                    session_id = %session_id,
+                                                    "session_file written"
+                                                );
+                                            }
+                                            session_written = true;
+                                        }
+                                        if synth_hooks_from_stream && !hooks_session_synthed {
+                                            let _ = ship_substrate::db::hook_events::emit_session_started_synth(
+                                                &synth_actor_id,
+                                                &synth_harness,
+                                                None,
+                                                Some(&session_id),
+                                            );
+                                            hooks_session_synthed = true;
+                                        }
+                                    }
+                                    HarnessEvent::ToolUse { tool, input_preview } if synth_hooks_from_stream => {
+                                        let preview = if input_preview.is_empty() {
+                                            None
+                                        } else {
+                                            Some(input_preview.as_str())
+                                        };
+                                        let _ = ship_substrate::db::hook_events::emit_tool_use_started_synth(
+                                            &synth_actor_id,
+                                            &tool,
+                                            preview,
                                         );
                                     }
-                                    session_written = true;
-                                    break;
+                                    _ => {}
                                 }
-                            }
-                            if session_written {
-                                line_buf.clear();
                             }
                         }
                         continue;
@@ -249,6 +282,19 @@ impl JobExecutor for ProcessExecutor {
                     Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => continue,
                     Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
                 }
+            }
+            // Emit a synthesized session_ended for stream-synth harnesses
+            // so analytics_sessions.ended_at + duration_ms get populated
+            // even when no hook fired (opencode plugin bridge TBD). The
+            // actor.stopped fallback (in AnalyticsProjection) catches the
+            // case where this thread exits without ever seeing a session;
+            // this just makes the close more semantically precise when
+            // we DID see one.
+            if synth_hooks_from_stream && hooks_session_synthed {
+                let _ = ship_substrate::db::hook_events::emit_session_ended_synth(
+                    &synth_actor_id,
+                    "process-exit",
+                );
             }
             // Reader exited; child should be reapable within a beat.
             let exit_code = (0..40).find_map(|_| {
