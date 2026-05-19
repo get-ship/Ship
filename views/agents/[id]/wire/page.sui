@@ -1,10 +1,11 @@
-{#while-loading of wireCtx}
+{#async wireCtx}
+  {:loading}
   <sui-spinner size="md" centered></sui-spinner>
-{/while-loading}
-{#while-error err of wireCtx}
-  <p style="padding:var(--space-4); color:var(--destructive)">{err.message}</p>
-{/while-error}
 
+  {:error err}
+  <p style="padding:var(--space-4); color:var(--destructive)">{err.message}</p>
+
+  {:ok}
 {#if wireData()}
   <sui-view-chrome title={wireData().agent.name}>
     <sui-segmented slot="actions" value="wire" size="sm">
@@ -204,3 +205,4 @@
 
   </div>
 {/if}
+{/async}

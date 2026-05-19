@@ -16,11 +16,12 @@
         <span>Collections</span>
       </a>
 
-      {#while-loading of colDetail}
+      {#async colDetail}
+        {:loading}
         <div class="cd-loading">Loading {collectionId()}&hellip;</div>
-      {/while-loading}
-
-      {#if detailValue()}
+      
+        {:ok}
+{#if detailValue()}
         <div class="cd-identity">
           <span class="cd-icon"><sui-icon name="database" size="sm"></sui-icon></span>
           <h1 class="cd-name">{detailValue().schema.name || collectionId()}</h1>
@@ -54,6 +55,7 @@
           </sui-button>
         </sui-cluster>
       {/if}
+      {/async}
 
       {#if colDetail().kind === 'error'}
         <div class="cd-error">

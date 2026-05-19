@@ -1,7 +1,8 @@
-{#while-loading of wireCtx}
+{#async wireCtx}
+  {:loading}
   <sui-spinner size="md" centered></sui-spinner>
-{/while-loading}
-{#while-error err of wireCtx}
+
+  {:error err}
   <sui-view-chrome title={'Agent: ' + agentId()}>
     <sui-button slot="actions" variant="ghost" size="sm" on:click={goBack}>
       <sui-icon slot="leading" name="chevron-left" size="xs"></sui-icon>
@@ -20,8 +21,8 @@
       </sui-empty-state>
     </div>
   </div>
-{/while-error}
 
+  {:ok}
 {#if notFound()}
   <sui-view-chrome title={'Agent: ' + agentId()}>
     <sui-button slot="actions" variant="ghost" size="sm" on:click={goBack}>
@@ -42,6 +43,7 @@
     </div>
   </div>
 {/if}
+{/async}
 
 {#if wireData() && wireData().agent}
   <sui-view-chrome title={wireData().agent.name}>

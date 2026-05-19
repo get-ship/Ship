@@ -19,11 +19,11 @@
       </div>
     </div>
 
-    {#while-loading of collections}
+    {#async collections}
+      {:loading}
       <div style="padding:var(--space-5);color:var(--muted-foreground)">Loading&hellip;</div>
-    {/while-loading}
-
-    {#if collections().kind === 'ok'}
+    
+      {:ok}
       <div class="data-card-grid">
         {#for c of collections().value.items key={c.id}}
           <a class="data-card" attr:href={'/collections?collection=' + c.id}
@@ -56,7 +56,8 @@
           </a>
         {/for}
       </div>
-    {/if}
+    
+    {/async}
   </div>
 
   <sui-drawer attr:open={newColOpen() ? '' : null} size="md"

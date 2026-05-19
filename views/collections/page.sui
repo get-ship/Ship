@@ -164,10 +164,12 @@
 
         {#if tab() === 'rows'}
           <div class="col-tab-panel rows-panel">
-            {#while-loading of colDetail}
+            {#async colDetail}
+              {:loading}
               <div role="status" aria-live="polite" aria-busy="true" style="padding:var(--space-4);color:var(--muted-foreground)">Loading&hellip;</div>
-            {/while-loading}
-            {#if colDetail().kind === 'ok' && colDetail().value}
+            
+              {:ok}
+{#if colDetail().kind === 'ok' && colDetail().value}
               {#if filteredRows().length === 0 && colDetail().value.items.length === 0}
                 <sui-empty-state role="status" style="padding:var(--space-8)">
                   <span slot="title">No items in {colDetail().value.schema.name || activeId()}</span>
@@ -223,6 +225,7 @@
                 </table>
               {/if}
             {/if}
+            {/async}
           </div>
         {/if}
 

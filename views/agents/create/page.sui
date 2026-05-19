@@ -20,11 +20,11 @@
     {/for}
   </div>
 
-  {#while-loading of createCtx}
+  {#async createCtx}
+    {:loading}
     <sui-spinner size="md" centered></sui-spinner>
-  {/while-loading}
-
-  {#if createCtx().kind === 'ok'}
+  
+    {:ok}
 
     {#if step() === 0}
       <h2 class="create-h">Start from a template</h2>
@@ -181,7 +181,8 @@
       {/if}
     {/if}
 
-  {/if}
+  
+  {/async}
 
   <div class="actions-row">
     {#if step() > 0}
