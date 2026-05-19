@@ -2,11 +2,11 @@
 // route-param coercion, rail group composition, breadcrumb fallback,
 // and the chrome event dispatchers.
 //
-// Run manually until the view test pipeline is formalised:
-//   cd packages/components/ui-components &&
-//     bunx vitest run ../../../views/studio/page.test.ts
+// Studio is shell-owned (apps/shell/src/studio); these run under the
+// shell's vitest config:
+//   cd apps/shell && bunx vitest run src/studio/page.test.ts
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 
 // Replicate the controller's pure helpers + section schema. The
 // production controller wires these into a SUI scope, but they are

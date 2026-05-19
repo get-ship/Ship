@@ -4,15 +4,17 @@
 // counts populate the rail badges where data exists; everything else
 // displays a dash until a follow-up job lands the backing data.
 
-import { controller, unwrap } from '@ship/sui-runtime'
-import { defineRoutes, navigate } from '@ship/sui-runtime/route'
+import { controller, unwrap, chrome } from '@ship/sui-runtime'
+import type { LiveSignal, ViewScope, MutableState } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
 
-defineRoutes([
-  { pattern: '/studio' },
-  { pattern: '/studio/:section' },
-  { pattern: '/studio/:section/:sub' },
-])
+interface ListEnvelope { items?: unknown[] }
+
+// Route patterns for `/studio/:section/:sub?` are registered by the shell
+// (apps/shell/src/main.ts) so the shared routeSignals resolve `section`
+// and `sub` from the URL. This controller reads them via `route.params`
+// and navigates through `chrome.navigate`, which the shell routes through
+// its same-shell handling (no remount between sections).
 
 export type RailGroup = 'project' | 'configure' | 'library'
 
@@ -86,11 +88,11 @@ export default controller<Scope>({
     section: ({ route }) => resolveSection(route.params.section()),
     subitem: ({ route }) => route.params.sub() ?? '',
     agentCount: ({ agentSummaries }) => {
-      const v = unwrap(agentSummaries) as { items?: unknown[] } | undefined
+      const v = unwrap(agentSummaries as LiveSignal<ListEnvelope>)
       return v?.items?.length ?? 0
     },
     skillCount: ({ skillsList }) => {
-      const v = unwrap(skillsList) as { items?: unknown[] } | undefined
+      const v = unwrap(skillsList as LiveSignal<ListEnvelope>)
       return v?.items?.length ?? 0
     },
     projectSubs: () => PROJECT_SUBS,
@@ -116,9 +118,9 @@ export default controller<Scope>({
   },
 
   on: {
-    goSection: (_state, section: string, sub?: string) => {
+    goSection: (_state: MutableState<Scope>, section: string, sub?: string) => {
       const target = sub ? `/studio/${section}/${sub}` : `/studio/${section}`
-      navigate(target)
+      chrome.navigate(target)
     },
     closeStudio: () => {
       dispatchStudioEvent('sui-close-studio')
@@ -126,7 +128,7 @@ export default controller<Scope>({
     openPalette: () => {
       dispatchStudioEvent('sui-open-studio-palette')
     },
-    newInSection: ({ route }) => {
+    newInSection: ({ route }: ViewScope<Scope>) => {
       const section = resolveSection(route.params.section())
       dispatchStudioEvent('sui-studio-new', { section })
     },
