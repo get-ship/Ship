@@ -39,6 +39,13 @@ pub enum HarnessEvent {
         cache_creation_tokens: u64,
         cache_read_tokens: u64,
         stop_reason: Option<String>,
+        /// Cost as REPORTED by the harness, in USD. None when the
+        /// harness doesn't compute its own (most don't). Source of
+        /// truth for "what the harness thinks this turn cost" —
+        /// captured verbatim; we never recompute. Subscription users
+        /// may see harness-side values that don't reflect their plan
+        /// (claude reports API-equivalent cost even on Max plans).
+        harness_reported_cost_usd: Option<f64>,
     },
     Custom {
         #[serde(rename = "subtype")]

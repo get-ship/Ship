@@ -1,0 +1,11 @@
+-- Add harness-reported cost column to analytics_turns.
+--
+-- Source of truth: whatever the harness itself emits for this turn
+-- (claude reports total_cost_usd in result events; opencode reports
+-- `cost` on step_finish; others vary). We capture verbatim and NEVER
+-- compute our own — Ship's value prop assumes users on subscription
+-- plans where Ship-computed dollar amounts would mislead.
+--
+-- The dashboard should label this as "harness-reported" and not
+-- present it as authoritative cost-to-user.
+ALTER TABLE analytics_turns ADD COLUMN harness_reported_cost_usd REAL;

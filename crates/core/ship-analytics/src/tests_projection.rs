@@ -517,6 +517,7 @@ mod analytics_tests {
             cache_creation_tokens: cache_w,
             cache_read_tokens: cache_r,
             stop_reason: Some("end_turn".to_string()),
+            harness_reported_cost_usd: None,
             observed_at: "2026-05-19T10:00:00+00:00".to_string(),
         };
         EventEnvelope::new(

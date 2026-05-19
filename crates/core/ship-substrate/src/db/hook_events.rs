@@ -118,6 +118,7 @@ pub fn emit_turn_observed_synth(
     cache_creation_tokens: u64,
     cache_read_tokens: u64,
     stop_reason: Option<&str>,
+    harness_reported_cost_usd: Option<f64>,
 ) -> Result<()> {
     let payload = HookTurnObservedPayload {
         actor_id: actor_id.to_string(),
@@ -130,6 +131,7 @@ pub fn emit_turn_observed_synth(
         cache_creation_tokens,
         cache_read_tokens,
         stop_reason: stop_reason.map(str::to_string),
+        harness_reported_cost_usd,
         observed_at: now_iso8601(),
     };
     emit(actor_id, event_types::HOOK_TURN_OBSERVED, &payload)

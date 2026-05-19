@@ -169,5 +169,13 @@ pub struct HookTurnObservedPayload {
     /// "end_turn" | "max_tokens" | "tool_use" | "stop" | harness-specific.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub stop_reason: Option<String>,
+    /// Cost in USD as reported by the harness (claude's
+    /// total_cost_usd in result events). Source of truth for "what
+    /// the harness thinks this turn cost" — captured verbatim, never
+    /// computed by Ship. None when the harness didn't surface it.
+    /// Subscription users may see API-equivalent values that don't
+    /// reflect their plan; the dashboard should label this clearly.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub harness_reported_cost_usd: Option<f64>,
     pub observed_at: String,
 }

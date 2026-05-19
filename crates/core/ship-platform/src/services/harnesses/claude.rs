@@ -262,6 +262,13 @@ impl HarnessAdapter for ClaudeAdapter {
                 // (claude has emitted bare `result` events without
                 // usage in some shapes — staying robust).
                 if input_tokens + output_tokens + cache_creation_tokens + cache_read_tokens > 0 {
+                    // claude reports total_cost_usd in result events
+                    // (API-key sessions report a real number; subscription
+                    // sessions may report 0 or the API-equivalent value).
+                    // We capture verbatim — never recompute.
+                    let harness_reported_cost_usd = v
+                        .get("total_cost_usd")
+                        .and_then(|c| c.as_f64());
                     Some(HarnessEvent::TurnUsage {
                         model: None,
                         input_tokens,
@@ -270,6 +277,7 @@ impl HarnessAdapter for ClaudeAdapter {
                         cache_creation_tokens,
                         cache_read_tokens,
                         stop_reason: Some(stop),
+                        harness_reported_cost_usd,
                     })
                 } else {
                     Some(HarnessEvent::TurnComplete { stop_reason: stop })

@@ -149,6 +149,10 @@ pub struct TurnObservation {
     pub cache_creation_tokens: i64,
     pub cache_read_tokens: i64,
     pub stop_reason: Option<String>,
+    /// Cost as REPORTED by the harness, in USD. None when the harness
+    /// didn't surface it. Captured verbatim — Ship never computes
+    /// cost.
+    pub harness_reported_cost_usd: Option<f64>,
     pub observed_at: String,
 }
 
@@ -161,12 +165,12 @@ pub fn list_session_turns(
     block_on(async {
         let rows: Vec<(
             String, String, String, Option<i64>, Option<String>,
-            i64, i64, i64, i64, i64, Option<String>, String,
+            i64, i64, i64, i64, i64, Option<String>, Option<f64>, String,
         )> = sqlx::query_as(
             "SELECT id, session_key, actor_id, turn_idx, model, \
                     input_tokens, output_tokens, reasoning_tokens, \
                     cache_creation_tokens, cache_read_tokens, \
-                    stop_reason, observed_at \
+                    stop_reason, harness_reported_cost_usd, observed_at \
              FROM analytics_turns WHERE session_key = ? \
              ORDER BY observed_at ASC",
         )
@@ -187,7 +191,8 @@ pub fn list_session_turns(
                 cache_creation_tokens: r.8,
                 cache_read_tokens: r.9,
                 stop_reason: r.10,
-                observed_at: r.11,
+                harness_reported_cost_usd: r.11,
+                observed_at: r.12,
             })
             .collect())
     })
@@ -205,6 +210,9 @@ pub struct SessionTokenSummary {
     pub reasoning_tokens: i64,
     pub cache_creation_tokens: i64,
     pub cache_read_tokens: i64,
+    /// Sum of harness-reported per-turn costs. None when no turn
+    /// surfaced one. Source of truth = harness; never recomputed.
+    pub harness_reported_cost_usd: Option<f64>,
 }
 
 pub fn session_token_summary(
@@ -212,19 +220,20 @@ pub fn session_token_summary(
     session_key: &str,
 ) -> Result<Option<SessionTokenSummary>> {
     block_on(async {
-        let row: Option<(i64, i64, i64, i64, i64, i64)> = sqlx::query_as(
+        let row: Option<(i64, i64, i64, i64, i64, i64, Option<f64>)> = sqlx::query_as(
             "SELECT COUNT(*), \
                     COALESCE(SUM(input_tokens), 0), \
                     COALESCE(SUM(output_tokens), 0), \
                     COALESCE(SUM(reasoning_tokens), 0), \
                     COALESCE(SUM(cache_creation_tokens), 0), \
-                    COALESCE(SUM(cache_read_tokens), 0) \
+                    COALESCE(SUM(cache_read_tokens), 0), \
+                    SUM(harness_reported_cost_usd) \
              FROM analytics_turns WHERE session_key = ?",
         )
         .bind(session_key)
         .fetch_optional(&mut *conn)
         .await?;
-        Ok(row.and_then(|(turn_count, input, output, reasoning, cache_w, cache_r)| {
+        Ok(row.and_then(|(turn_count, input, output, reasoning, cache_w, cache_r, cost)| {
             if turn_count == 0 {
                 None
             } else {
@@ -236,6 +245,7 @@ pub fn session_token_summary(
                     reasoning_tokens: reasoning,
                     cache_creation_tokens: cache_w,
                     cache_read_tokens: cache_r,
+                    harness_reported_cost_usd: cost,
                 })
             }
         }))

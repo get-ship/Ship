@@ -286,6 +286,7 @@ impl JobExecutor for ProcessExecutor {
                                         cache_creation_tokens,
                                         cache_read_tokens,
                                         stop_reason,
+                                        harness_reported_cost_usd,
                                     } => {
                                         let _ = ship_substrate::db::hook_events::emit_turn_observed_synth(
                                             &synth_actor_id,
@@ -298,6 +299,7 @@ impl JobExecutor for ProcessExecutor {
                                             cache_creation_tokens,
                                             cache_read_tokens,
                                             stop_reason.as_deref(),
+                                            harness_reported_cost_usd,
                                         );
                                     }
                                     _ => {}

@@ -171,6 +171,11 @@ impl HarnessAdapter for OpenCodeAdapter {
                     .and_then(|p| p.get("reason"))
                     .and_then(|r| r.as_str())
                     .map(String::from);
+                // opencode emits `cost` (number) on step_finish when the
+                // provider returns cost info. We capture it as-is.
+                let harness_reported_cost_usd = part
+                    .and_then(|p| p.get("cost"))
+                    .and_then(|c| c.as_f64());
                 Some(HarnessEvent::TurnUsage {
                     model: None,
                     input_tokens,
@@ -179,6 +184,7 @@ impl HarnessAdapter for OpenCodeAdapter {
                     cache_creation_tokens,
                     cache_read_tokens,
                     stop_reason,
+                    harness_reported_cost_usd,
                 })
             }
             "tool_use" => {

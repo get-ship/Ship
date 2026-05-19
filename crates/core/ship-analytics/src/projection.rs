@@ -288,8 +288,8 @@ fn apply_turn_observed(event: &EventEnvelope, conn: &mut SqliteConnection) -> Re
                (id, session_key, actor_id, turn_idx, model, \
                 input_tokens, output_tokens, reasoning_tokens, \
                 cache_creation_tokens, cache_read_tokens, \
-                stop_reason, observed_at) \
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                stop_reason, harness_reported_cost_usd, observed_at) \
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         )
         .bind(&event.id)
         .bind(&key)
@@ -302,6 +302,7 @@ fn apply_turn_observed(event: &EventEnvelope, conn: &mut SqliteConnection) -> Re
         .bind(p.cache_creation_tokens as i64)
         .bind(p.cache_read_tokens as i64)
         .bind(&p.stop_reason)
+        .bind(p.harness_reported_cost_usd)
         .bind(&p.observed_at)
         .execute(&mut *conn)
         .await?;
