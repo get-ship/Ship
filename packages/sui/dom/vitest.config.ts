@@ -18,6 +18,14 @@ export default defineConfig({
         replacement: resolve(__dirname, '../runtime/src/index.ts'),
       },
       { find: '@ship/sui-dom', replacement: resolve(__dirname, 'src/index.ts') },
+      // The wasm-backed test helper (src/test-utils/compile-sui.ts) imports
+      // the compiler-wasm package. Its `pkg/` is gitignored build output, so
+      // bun's workspace linker can't symlink it reliably across worktrees.
+      // Alias straight at the built artifact; `just sui-wasm` produces it.
+      {
+        find: '@ship/sui-compiler-wasm',
+        replacement: resolve(__dirname, '../compiler-wasm/pkg/sui_compiler.js'),
+      },
     ],
     // sui-compiler emits `view.js` next to `view.sui` and the paired `view.ts`
     // (see scripts/build-bundles.mjs::compileSui). Tests target the controller
