@@ -37,13 +37,6 @@
 .ship-hist-empty { text-align: center; padding: var(--space-8) var(--space-4); color: var(--muted-foreground); }
 </style>
 
-{#while-loading of ctx}
-  <sui-spinner size="md" centered></sui-spinner>
-{/while-loading}
-{#while-error err of ctx}
-  <sui-alert tone="destructive">Failed to load history: {err.message}</sui-alert>
-{/while-error}
-
 <div class="ship-view ship-view-pipelines-history">
   <div class="ship-hist-wrap">
     <header class="ship-hist-head">
@@ -78,6 +71,14 @@
       {/if}
     </div>
 
+    {#async historyData}
+      {:loading}
+      <sui-spinner size="md" centered></sui-spinner>
+
+      {:error err}
+      <sui-alert tone="destructive">Failed to load history: {err.message}</sui-alert>
+
+      {:ok}
     <div class="ship-hist-table-wrap">
       {#if rows().length > 0}
       <table class="ship-hist-table">
@@ -124,5 +125,6 @@
       </div>
     </nav>
     {/if}
+    {/async}
   </div>
 </div>
