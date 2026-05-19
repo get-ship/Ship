@@ -1,0 +1,178 @@
+<!--
+  <sui-help-overlay> — keyboard-shortcut reference.
+
+  The receiver for the shell-chrome `sui-open-help` intent (⌘?). A small
+  centred modal that lists the keyboard shortcuts the shell actually binds.
+  Pure reference content — no backing data shape, no SDK calls.
+
+  Structure
+  ──────────────────────────────────────────────────────────────────────
+  - Native <dialog> for top-layer modal semantics, ::backdrop, Esc-close
+    and inert background — same approach as <sui-command-palette>.
+  - Header ("Keyboard shortcuts") + a scrollable body of grouped rows.
+  - Each row: one or more <sui-kbd> keys (joined by +) on the left, a
+    plain-language description on the right.
+
+  Content lives in the controller's `groups` signal. Every shortcut here
+  is one the shell's document-level keydown handler in main.ts emits — the
+  list is verified against the source, not aspirational. As new surfaces
+  land their bindings, extend `groups`.
+
+  Events
+  ──────────────────────────────────────────────────────────────────────
+  - sui-help-close — Esc / backdrop click / hide(). The shell clears its
+    open state in response.
+
+  ARIA: dialog[role=dialog][aria-modal][aria-label]; each group is a
+  labelled section; rows are a description list (dt = keys, dd = action).
+-->
+
+<prop name="open" type="bool" default="false" reflect />
+
+<style>
+  :host { display: contents; }
+  :host([hidden]) { display: none; }
+
+  dialog:not([open]) { display: none; }
+  dialog[open] {
+    position: fixed;
+    inset: 0;
+    margin: auto;
+    padding: 0;
+    width: calc(100vw - 32px);
+    max-width: 520px;
+    max-height: 80vh;
+    border: 1px solid var(--border-subtle, var(--border));
+    border-radius: var(--radius-lg, 12px);
+    background: var(--popover);
+    color: var(--popover-foreground);
+    box-shadow: var(--shadow-xl, 0 20px 60px color-mix(in oklch, var(--foreground) 30%, transparent));
+    font-family: var(--font-body, system-ui);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  dialog::backdrop {
+    background: var(--backdrop, oklch(0 0 0 / 40%));
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+    opacity: 0;
+    transition: opacity var(--duration-medium, 200ms) var(--ease-out, ease-out);
+  }
+  dialog[open]::backdrop { opacity: 1; }
+
+  .head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border-subtle, var(--border));
+    flex: 0 0 auto;
+  }
+  .head sui-icon { color: var(--muted-foreground); flex: 0 0 auto; }
+  .head h2 {
+    margin: 0;
+    flex: 1;
+    font-size: var(--text-base, 15px);
+    font-weight: var(--font-weight-semibold, 600);
+    color: var(--foreground);
+  }
+  .close {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    color: var(--muted-foreground);
+    cursor: pointer;
+    font: inherit;
+    line-height: 1;
+    font-size: 16px;
+    padding: 4px 8px;
+    border-radius: var(--radius-sm);
+    flex: 0 0 auto;
+  }
+  .close:hover { background: var(--muted); color: var(--foreground); }
+  .close:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px color-mix(in oklch, var(--primary) 50%, transparent);
+  }
+
+  .body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 8px 16px 16px;
+    scrollbar-width: thin;
+  }
+
+  .group { margin-top: 14px; }
+  .group:first-child { margin-top: 6px; }
+  .group-h {
+    font-size: var(--text-xs, 10px);
+    font-weight: var(--font-weight-semibold, 600);
+    letter-spacing: var(--tracking-wide, 0.04em);
+    text-transform: uppercase;
+    color: var(--muted-foreground);
+    margin: 0 0 4px;
+  }
+
+  dl { margin: 0; }
+  .row {
+    display: grid;
+    grid-template-columns: 132px 1fr;
+    align-items: baseline;
+    gap: 12px;
+    padding: 6px 0;
+  }
+  .row + .row { border-top: 1px solid color-mix(in oklch, var(--border-subtle, var(--border)) 60%, transparent); }
+  .keys {
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 3px;
+  }
+  .keys .plus { color: var(--muted-foreground); font-size: var(--text-xs, 10px); }
+  .desc {
+    margin: 0;
+    font-size: var(--text-sm, 13.5px);
+    color: var(--foreground);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    dialog::backdrop { transition: none; }
+  }
+  @media (forced-colors: active) {
+    dialog[open] { border: 1px solid CanvasText; }
+  }
+</style>
+
+<dialog part="dialog" role="dialog" aria-modal="true" aria-label="Keyboard shortcuts" bind:this={dialogEl}>
+  <div class="head" part="head">
+    <sui-icon name="keyboard" size="sm" aria-hidden="true"></sui-icon>
+    <h2 part="title">Keyboard shortcuts</h2>
+    <button type="button" class="close" part="close" aria-label="Close" on:click={onClose}>×</button>
+  </div>
+
+  <div class="body" part="body">
+    {#for g of groups() key={g.label}}
+      <section class="group" part="group" aria-label={g.label}>
+        <h3 class="group-h">{g.label}</h3>
+        <dl>
+          {#for r of g.rows key={r.desc}}
+            <div class="row" part="row">
+              <dt class="keys">
+                {#for (k, i) of r.keys key={k}}
+                  {#if i > 0}<span class="plus" aria-hidden="true">+</span>{/if}
+                  <sui-kbd size="sm">{k}</sui-kbd>
+                {/for}
+              </dt>
+              <dd class="desc">{r.desc}</dd>
+            </div>
+          {/for}
+        </dl>
+      </section>
+    {/for}
+  </div>
+</dialog>
