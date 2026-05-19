@@ -223,3 +223,83 @@ fn run_validate_passes_on_valid_config() {
     let result = run_validate(None, false, tmp.path());
     assert!(result.is_ok(), "{:?}", result);
 }
+
+// ── isolation: block validation ─────────────────────────────────────────────
+
+fn agent_with_isolation(block: &str) -> String {
+    format!(
+        r#"{{
+  "agent": {{ "id": "test", "name": "test", "harnesses": ["claude"] }},
+  "skills": {{ "refs": [] }},
+  "mcp": {{ "servers": [] }},
+  "permissions": {{ "preset": "ship-standard" }},
+  "isolation": {block}
+}}"#
+    )
+}
+
+#[test]
+fn valid_isolation_block_passes() {
+    let (tmp, agents_dir) = setup();
+    let body = agent_with_isolation(r#"{ "tier": "container", "strategy": "docker" }"#);
+    write(tmp.path(), ".ship/agents/test.jsonc", &body);
+    let report = validate_agent("test", &agents_dir.join("test.jsonc"), &agents_dir);
+    assert!(
+        report.errors.iter().all(|e| !e.error.contains("isolation:")),
+        "{:?}",
+        report.errors
+    );
+}
+
+#[test]
+fn null_isolation_passes() {
+    let (tmp, agents_dir) = setup();
+    let body = agent_with_isolation("null");
+    write(tmp.path(), ".ship/agents/test.jsonc", &body);
+    let report = validate_agent("test", &agents_dir.join("test.jsonc"), &agents_dir);
+    assert!(
+        report.errors.iter().all(|e| !e.error.contains("isolation:")),
+        "{:?}",
+        report.errors
+    );
+}
+
+#[test]
+fn unknown_tier_id_is_flagged() {
+    let (tmp, agents_dir) = setup();
+    let body = agent_with_isolation(r#"{ "tier": "totally-not-real" }"#);
+    write(tmp.path(), ".ship/agents/test.jsonc", &body);
+    let report = validate_agent("test", &agents_dir.join("test.jsonc"), &agents_dir);
+    assert!(
+        report.errors.iter().any(|e| e.error.contains("isolation:")),
+        "expected isolation error; got {:?}",
+        report.errors
+    );
+}
+
+#[test]
+fn unknown_strategy_id_is_flagged() {
+    let (tmp, agents_dir) = setup();
+    let body = agent_with_isolation(r#"{ "strategy": "fake-engine" }"#);
+    write(tmp.path(), ".ship/agents/test.jsonc", &body);
+    let report = validate_agent("test", &agents_dir.join("test.jsonc"), &agents_dir);
+    assert!(
+        report.errors.iter().any(|e| e.error.contains("isolation:")),
+        "expected isolation error; got {:?}",
+        report.errors
+    );
+}
+
+#[test]
+fn missing_isolation_field_is_fine() {
+    // The default (no isolation: block) is always valid — agents inherit
+    // user defaults from daemon_settings at run time.
+    let (tmp, agents_dir) = setup();
+    write(tmp.path(), ".ship/agents/test.jsonc", valid_agent_jsonc());
+    let report = validate_agent("test", &agents_dir.join("test.jsonc"), &agents_dir);
+    assert!(
+        report.errors.iter().all(|e| !e.error.contains("isolation:")),
+        "{:?}",
+        report.errors
+    );
+}
