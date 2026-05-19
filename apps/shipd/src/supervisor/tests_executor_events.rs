@@ -80,22 +80,6 @@ async fn drive_single_signal_until(
     }
 }
 
-/// Back-compat shim for the few callers that don't care about a
-/// specific terminal event (e.g. the orphan-emit and cleanup tests
-/// that observe side effects via tmux, not the event log).
-async fn drive_single_signal(
-    kernel: Arc<Mutex<KernelRouter>>,
-    signal: ExitSignal,
-) {
-    let registry = Arc::new(Mutex::new(ProcessRegistry::new()));
-    let port: Arc<dyn ship_platform::services::dispatch_ports::ProcessRegistryPort> =
-        Arc::new(SharedRegistry(registry));
-    let (tx, rx) = tokio::sync::mpsc::unbounded_channel::<ExitSignal>();
-    exit_handler::start(kernel, port, rx);
-    tx.send(signal).expect("channel accepts signal");
-    tokio::time::sleep(Duration::from_millis(150)).await;
-}
-
 // ── The bug-fix test ─────────────────────────────────────────────────────────
 
 /// Operator-killed tmux windows must surface as `job.failed` with an
