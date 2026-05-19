@@ -7,12 +7,19 @@
       <div class="agents-head-titles">
         <h1 class="agents-title">Agents</h1>
         <p class="agents-sub">
-          {filteredItems().length} of {items().length} agent{items().length === 1 ? '' : 's'}
+          <strong>{items().length}</strong> agent{items().length === 1 ? '' : 's'}
+          <span class="agents-sub-sep" aria-hidden="true"></span>
+          <strong>{kindFilters()[1].count}</strong> project
+          <span class="agents-sub-sep" aria-hidden="true"></span>
+          <strong>{kindFilters()[2].count}</strong> library
+          <span class="agents-sub-sep" aria-hidden="true"></span>
+          <code class="agents-sub-code">.ship/agents/</code>
           {#if activeId()}
-            <span class="agents-sub-sep">·</span>
+            <span class="agents-sub-sep" aria-hidden="true"></span>
             <span class="agents-sub-active" data-test="active-summary">active: {activeId()}</span>
           {/if}
         </p>
+        <div class="agents-rule" aria-hidden="true"></div>
       </div>
       <sui-button tone="primary" variant="solid" on:click={goCreate} data-test="cta-new">
         <sui-icon slot="leading" name="plus"></sui-icon>
@@ -96,7 +103,7 @@
                             data-test="agent"
                             attr:data-id={a.id}
                             attr:data-active={a.active ? '' : null}>
-              <div class="agents-card-icon-tile" slot="leading">
+              <div class={'agents-card-icon-tile hue-' + a.hue} slot="leading" aria-hidden="true" data-test="hue-tile">
                 <span class="agents-card-letter">{a.letter}</span>
               </div>
               <div class="agents-card-body">
