@@ -214,6 +214,10 @@ pub async fn run_network(
     rt.session_scanner().await;
     // Start the artifact GC loop (runs now then every hour).
     rt.start_artifact_gc();
+    // Sandbox reaper: idle-past-timeout sandboxes get marked Stopped.
+    // Per-sandbox backend teardown folds in once SandboxOwner moves
+    // from per-actor to per-sandbox.
+    rt.start_sandbox_reaper();
     daemon::human_gateway::spawn_human_gateway(rt.kernel(), rt.health_registry()).await;
     rt.start_hook_engine().await;
     rt.start_config_watcher();
