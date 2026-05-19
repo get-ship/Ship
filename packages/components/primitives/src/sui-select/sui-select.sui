@@ -198,7 +198,11 @@
         color-mix(in oklch, var(--destructive) var(--ring-opacity), transparent);
   }
 
-  :host([disabled]) { opacity: 0.6; cursor: not-allowed; }
+  :host([disabled]) {
+    color: var(--muted-foreground);
+    filter: saturate(0.4);
+    cursor: not-allowed;
+  }
   :host([disabled]) .field {
     background: var(--muted);
     border-color: color-mix(in oklch, var(--border) 80%, transparent);

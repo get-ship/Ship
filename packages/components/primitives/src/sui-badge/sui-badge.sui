@@ -71,7 +71,7 @@
     font-size: var(--bdg-fs);
     font-weight: var(--font-weight-semibold);
     line-height: 1;
-    letter-spacing: 0.04em;
+    letter-spacing: var(--tracking-wide);
     text-transform: uppercase;
     border-radius: var(--bdg-radius);
     /* soft is the default — base .badge renders as soft */

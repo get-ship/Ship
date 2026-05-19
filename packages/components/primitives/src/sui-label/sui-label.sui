@@ -35,7 +35,7 @@
     font-family: var(--font-body);
     font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.06em;
+    letter-spacing: var(--tracking-wide);
     color: var(--muted-foreground);
     cursor: pointer;
   }
@@ -47,7 +47,7 @@
 
   .req {
     color: var(--destructive);
-    margin-left: 2px;
+    margin-inline-start: 2px;
   }
 </style>
 

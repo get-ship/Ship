@@ -34,7 +34,7 @@
           <div class="palette-item">
             <sui-icon name="check-circle" size="xs" style="color:var(--tone-success-fg)"></sui-icon>
             <span class="mono">{s}</span>
-            <span style="margin-left:auto; font-size:10px">wired</span>
+            <span style="margin-left:auto; font-size:var(--text-xs)">wired</span>
           </div>
         {/for}
       {/if}

@@ -83,7 +83,7 @@
   }
   .ext {
     display: inline-block;
-    margin-left: 2px;
+    margin-inline-start: 2px;
     font-size: 0.9em;
     opacity: 0.8;
     vertical-align: -0.1em;

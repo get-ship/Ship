@@ -12,14 +12,14 @@
             on:input={(e) => q.set(e.target.value)} />
         </div>
         {#if rail().kind === 'ok' && rail().value}
-          <sui-cluster gap="1" role="group" aria-label="Filter by kind">
+          <sui-segmented value={kind()} size="sm" aria-label="Filter by kind"
+            on:sui-change={(e) => kind.set(e.detail.value)}>
             {#for kc of (rail().value.kind_counts || []) key={kc.id}}
-              <button class="se-pill" class:is-active={kind() === kc.id}
-                on:click={() => kind.set(kc.id)}>
+              <sui-segmented-option attr:value={kc.id}>
                 {kc.label} <span class="se-pill-count">{kc.count}</span>
-              </button>
+              </sui-segmented-option>
             {/for}
-          </sui-cluster>
+          </sui-segmented>
         {/if}
       </div>
 

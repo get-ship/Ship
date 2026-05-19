@@ -111,7 +111,7 @@
     flex-direction: row;
     align-items: center;
     justify-content: flex-start;
-    text-align: left;
+    text-align: start;
   }
 
   .icon {
@@ -187,7 +187,7 @@
   }
   :host([variant='inline']) .actions {
     margin-top: 0;
-    margin-left: auto;
+    margin-inline-start: auto;
     justify-content: flex-end;
   }
 

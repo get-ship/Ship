@@ -118,7 +118,7 @@ export default controller<Scope>({
           chev.className = 'sui-sort-indicator'
           chev.setAttribute('aria-hidden', 'true')
           chev.style.cssText =
-            'margin-left:4px;display:inline-block;opacity:0.5;transition:transform 120ms var(--ease-out),opacity 120ms var(--ease-out);vertical-align:middle;'
+            'margin-inline-start:4px;display:inline-block;opacity:0.5;transition:transform 120ms var(--ease-out),opacity 120ms var(--ease-out);vertical-align:middle;'
           const svgNS = 'http://www.w3.org/2000/svg'
           const svg = document.createElementNS(svgNS, 'svg')
           svg.setAttribute('width', '10')
@@ -227,7 +227,7 @@ const SUI_TABLE_LIGHT_DOM_CSS = `
 
   sui-table th,
   sui-table td {
-    text-align: left;
+    text-align: start;
     padding: var(--row-py, 10px) var(--row-px, 12px);
     vertical-align: middle;
     border-bottom: 1px solid var(--sui-table-border-soft);

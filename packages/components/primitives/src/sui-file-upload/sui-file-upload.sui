@@ -40,7 +40,11 @@
     --tone-ring: var(--primary);
   }
   :host([hidden]) { display: none; }
-  :host([disabled]) { opacity: 0.5; pointer-events: none; }
+  :host([disabled]) {
+    color: var(--muted-foreground);
+    filter: saturate(0.4);
+    pointer-events: none;
+  }
 
   :host([tone='primary'])     { --tone-ring: var(--primary);     --tone-bg: color-mix(in oklch, var(--primary) 10%, transparent); }
   :host([tone='info'])        { --tone-ring: var(--info);         --tone-bg: color-mix(in oklch, var(--info) 10%, transparent); }

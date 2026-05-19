@@ -34,12 +34,12 @@
   :host([hidden]) { display: none; }
   :host([orientation='vertical']) { flex-direction: column; }
 
-  ::slotted(sui-toggle:not(:first-child)) { margin-left: -1px; }
+  ::slotted(sui-toggle:not(:first-child)) { margin-inline-start: -1px; }
   ::slotted(sui-toggle:first-child) { border-radius: var(--radius, 6px) 0 0 var(--radius, 6px); }
   ::slotted(sui-toggle:last-child) { border-radius: 0 var(--radius, 6px) var(--radius, 6px) 0; }
   ::slotted(sui-toggle:not(:first-child):not(:last-child)) { border-radius: 0; }
 
-  :host([orientation='vertical']) ::slotted(sui-toggle:not(:first-child)) { margin-left: 0; margin-top: -1px; }
+  :host([orientation='vertical']) ::slotted(sui-toggle:not(:first-child)) { margin-inline-start: 0; margin-top: -1px; }
   :host([orientation='vertical']) ::slotted(sui-toggle:first-child) { border-radius: var(--radius, 6px) var(--radius, 6px) 0 0; }
   :host([orientation='vertical']) ::slotted(sui-toggle:last-child) { border-radius: 0 0 var(--radius, 6px) var(--radius, 6px); }
   :host([orientation='vertical']) ::slotted(sui-toggle:not(:first-child):not(:last-child)) { border-radius: 0; }

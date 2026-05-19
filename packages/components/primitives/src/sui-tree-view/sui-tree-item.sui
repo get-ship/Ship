@@ -78,12 +78,12 @@
     overflow: hidden;
     text-overflow: ellipsis;
   }
-  .trailing { margin-left: auto; color: var(--muted-foreground); font-size: var(--text-xs); }
+  .trailing { margin-inline-start: auto; color: var(--muted-foreground); font-size: var(--text-xs); }
 
   .children {
-    margin-left: 16px;
+    margin-inline-start: 16px;
     border-left: 1px dashed var(--border);
-    padding-left: 6px;
+    padding-inline-start: 6px;
   }
   :host(:not([expanded])) .children { display: none; }
 </style>

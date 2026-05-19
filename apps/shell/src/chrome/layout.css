@@ -257,7 +257,7 @@ body.focus-mode #ship-breadcrumb-slot {
   width: calc(100vw - 32px);
   box-shadow: var(--shadow-xl, 0 20px 60px rgba(0,0,0,0.3));
 }
-.ship-modal-queue::backdrop { background: hsl(0 0% 0% / 0.5); }
+.ship-modal-queue::backdrop { background: var(--backdrop); }
 .ship-modal-title {
   margin: 0 0 8px;
   font-size: 16px;

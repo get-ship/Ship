@@ -39,9 +39,9 @@
 
   .node { display: block; }
   .branch {
-    margin-left: 12px;
+    margin-inline-start: 12px;
     border-left: 1px dashed var(--border);
-    padding-left: 10px;
+    padding-inline-start: 10px;
   }
   details > summary {
     list-style: none;
@@ -64,7 +64,7 @@
   .n { color: var(--info); }
   .b { color: var(--accent); font-weight: var(--font-weight-medium); }
   .null { color: var(--muted-foreground); font-style: italic; }
-  .meta { color: var(--muted-foreground); font-size: var(--text-xs); margin-left: 4px; }
+  .meta { color: var(--muted-foreground); font-size: var(--text-xs); margin-inline-start: 4px; }
   .error { color: var(--destructive); }
 </style>
 

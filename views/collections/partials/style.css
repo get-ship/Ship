@@ -38,7 +38,7 @@
   background: var(--card);
   text-decoration: none;
   color: var(--foreground);
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  transition: border-color var(--duration-fast) var(--ease-out), box-shadow var(--duration-fast) var(--ease-out);
 }
 .data-card:hover {
   border-color: color-mix(in oklch, var(--primary) 40%, var(--border));
@@ -47,15 +47,15 @@
 .data-card-icon { color: var(--muted-foreground); }
 .data-card-identity { flex: 1; min-width: 0; }
 .data-card-name { font-size: var(--text-sm); font-weight: var(--font-weight-medium); }
-.data-card-id { font-size: 10px; color: var(--muted-foreground); margin-top: 1px; }
+.data-card-id { font-size: var(--text-xs); color: var(--muted-foreground); margin-top: 1px; }
 .data-card-count { font-size: var(--text-xs); color: var(--muted-foreground); flex-shrink: 0; }
-.data-card-field { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; }
-.data-card-req { color: var(--destructive); font-size: 10px; }
-.data-card-field-more { color: var(--muted-foreground); font-size: 11px; }
+.data-card-field { display: inline-flex; align-items: center; gap: 4px; font-size: var(--text-xs); }
+.data-card-req { color: var(--destructive); font-size: var(--text-xs); }
+.data-card-field-more { color: var(--muted-foreground); font-size: var(--text-xs); }
 .data-card-footer {
   border-top: 1px solid color-mix(in oklch, var(--border) 50%, transparent);
   padding-top: var(--space-2);
-  font-size: 11px;
+  font-size: var(--text-xs);
   color: var(--muted-foreground);
   display: flex;
   align-items: center;
@@ -72,7 +72,7 @@
 .drawer-req { color: var(--destructive); }
 .drawer-type {
   margin-left: auto;
-  font-size: 10px;
+  font-size: var(--text-xs);
   color: var(--muted-foreground);
   font-family: var(--font-mono);
 }

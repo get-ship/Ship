@@ -8,7 +8,7 @@
 .settings-header { margin-bottom: 24px; position: relative; }
 .settings-header h1 {
   font-family: var(--heading-font);
-  font-size: 20px;
+  font-size: var(--text-xl);
   font-weight: var(--heading-weight);
   letter-spacing: var(--heading-tracking);
   line-height: 28px;
@@ -25,7 +25,7 @@
   background: linear-gradient(90deg, var(--primary), transparent);
 }
 .settings-header p {
-  font-size: 13px;
+  font-size: var(--text-base);
   line-height: 19.5px;
   color: var(--muted-foreground);
   margin: 2px 0 0;
@@ -127,7 +127,7 @@ sui-input { width: 160px; }
 .s-account-avatar-fallback {
   width: 28px;
   height: 28px;
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   display: inline-flex;
   align-items: center;
   justify-content: center;

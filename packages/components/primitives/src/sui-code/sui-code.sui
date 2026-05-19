@@ -55,7 +55,7 @@
     background: color-mix(in oklch, var(--muted) 60%, var(--background));
     border-bottom: 1px solid var(--border);
     text-transform: uppercase;
-    letter-spacing: 0.04em;
+    letter-spacing: var(--tracking-wide);
     font-weight: var(--font-weight-medium);
   }
   pre {

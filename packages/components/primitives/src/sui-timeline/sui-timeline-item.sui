@@ -91,7 +91,7 @@
   .at {
     color: var(--muted-foreground);
     font-size: var(--text-xs);
-    margin-left: auto;
+    margin-inline-start: auto;
   }
 
   .content {

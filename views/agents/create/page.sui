@@ -61,7 +61,7 @@
       <p class="create-sub">A human name plus a machine id. The id matches the filename stem — <code>rust-compiler.jsonc</code> has id <code>rust-compiler</code>.</p>
       <div class="id-grid">
         <div>
-          <div attr:class={'hue-tile ' + 'hue-' + hue()} style="width:64px; height:64px; font-size:24px">
+          <div attr:class={'hue-tile ' + 'hue-' + hue()} style="width:64px; height:64px; font-size:var(--text-2xl)">
             {(id() && id()[0] ? id()[0] : (name() && name()[0] ? name()[0] : '?')).toUpperCase()}
           </div>
           <div class="hue-pick">

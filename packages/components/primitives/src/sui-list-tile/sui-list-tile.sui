@@ -56,7 +56,7 @@
 
   .tile {
     width: 100%;
-    text-align: left;
+    text-align: start;
     background: transparent;
     border: 1px solid transparent;
     border-radius: var(--radius-md);
@@ -165,7 +165,7 @@
    * body-coloured stripe — meaningless decoration with emphasis weight. */
   :host([tone]:not([tone='default'])) .tile {
     border-left: 3px solid var(--tone-fg);
-    padding-left: calc(var(--pad-x) - 2px);
+    padding-inline-start: calc(var(--pad-x) - 2px);
   }
 
   /* tone-fg mapping */

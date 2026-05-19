@@ -102,7 +102,7 @@
    * weight of an emphasis cue). Default tone hides the rail. */
   :host([status-rail]) {
     border-left: 3px solid var(--tone-fg);
-    padding-left: calc(var(--card-px) - 3px);
+    padding-inline-start: calc(var(--card-px) - 3px);
   }
   :host([status-rail]:not([tone])),
   :host([status-rail][tone='default']) {
