@@ -16,7 +16,7 @@ import {
   type LiveSource,
   type LiveState,
 } from '@ship/sui-runtime'
-import gitView from '../../../views/git/controller'
+import gitView from '../../../../views/git/controller'
 import type { GitOverview } from '@ship/sdk-client'
 
 const containers: HTMLElement[] = []

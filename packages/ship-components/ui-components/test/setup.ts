@@ -13,13 +13,13 @@ import { resolve } from 'node:path'
 // sui-icon lives in @ship/primitives — its registry primer is still
 // needed here because chrome tests render `<sui-icon>` inside nav-top,
 // status-bar, etc.
-import { setIconRegistry } from '../../components/primitives/src/sui-icon/registry'
+import { setIconRegistry } from '../../primitives/src/sui-icon/registry'
 
 // Vitest runs from the package root; the bundle asset is checked into
 // the Rust server crate alongside the rest of the SUI bundle.
 const ICON_REGISTRY_PATH = resolve(
   process.cwd(),
-  '../../crates/sui/ship-sui-server/assets/lucide-icons.json',
+  '../../../crates/sui/ship-sui-server/assets/lucide-icons.json',
 )
 setIconRegistry(JSON.parse(readFileSync(ICON_REGISTRY_PATH, 'utf8')))
 

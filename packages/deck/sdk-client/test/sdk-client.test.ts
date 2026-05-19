@@ -107,7 +107,7 @@ describe('createClient', () => {
     live(() => ship.events.list({ q: 'foo', event_type: 'job.completed' }))
     const url = FakeEventSource.instances[0]!.url
     expect(decodeURIComponent(url.split('expr=')[1]!)).toBe(
-      'ship.events.list({"q":"foo","event_type":"pipeline.run.completed"})',
+      'ship.events.list({"q":"foo","event_type":"job.completed"})',
     )
   })
 
