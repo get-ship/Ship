@@ -356,6 +356,16 @@ fn visit_instr(instr: &Instr, v: &mut Visitor) {
             visit_instrs(&we.body, v);
             v.scope.names.remove(&we.error_var);
         }
+        Instr::Let(l) => {
+            // `{#async X as v}` binds `v` inside the `{:ok}` body.
+            check_expr(&l.value, v, &[]);
+            if v.error.is_some() {
+                return;
+            }
+            v.scope.names.insert(l.name.clone());
+            visit_instrs(&l.body, v);
+            v.scope.names.remove(&l.name);
+        }
     }
 }
 

@@ -24,7 +24,7 @@
 //! `walk_block` for the active case (which emits the HTML body and also
 //! advances the counter).
 
-use crate::ir::{IfInstr, MatchInstr, WhileErrorInstr, WhileLoadingInstr};
+use crate::ir::{IfInstr, LetInstr, MatchInstr, WhileErrorInstr, WhileLoadingInstr};
 
 use super::eval::{eval, strict_eq, truthy};
 use super::render_for;
@@ -48,6 +48,28 @@ fn is_error(bind: &str, walker: &Walker<'_>) -> bool {
     match eval(&format!("{bind}.kind"), &walker.scope) {
         Ok(v) => matches!(v, serde_json::Value::String(s) if s == "error"),
         Err(_) => false,
+    }
+}
+
+/// `Instr::Let` (from `{#async X as v}`) — bind a snapshot of the value
+/// expression into the walker's scope for the body. The binding is
+/// evaluated at SSR time; if the expression fails to evaluate (signal
+/// is in `loading`/`error`), we walk the body silently like a
+/// non-active branch.
+pub(super) fn render_let(walker: &mut Walker<'_>, instr: &LetInstr) {
+    match eval(&instr.value.source, &walker.scope) {
+        Ok(value) => {
+            let previous = walker.scope.insert(instr.name.clone(), value);
+            walker.walk_block(&instr.body);
+            if let Some(prev) = previous {
+                walker.scope.insert(instr.name.clone(), prev);
+            } else {
+                walker.scope.remove(&instr.name);
+            }
+        }
+        Err(_) => {
+            walker.walk_block_silent(&instr.body);
+        }
     }
 }
 

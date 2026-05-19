@@ -401,6 +401,25 @@ impl TemplateEmitter {
             Instr::WhileError(we) => {
                 self.emit_while_error_block(w, we, parent_var, cleanups_var)
             }
+            Instr::Let(l) => self.emit_let_block(w, l, parent_var, cleanups_var),
+        }
+    }
+
+    /// `Instr::Let` — snapshot a value expression into `$scope.<name>`
+    /// before emitting the body, so body references like `<name>.field`
+    /// (rewritten to `$scope.<name>.field` by `rewrite_for_scope`)
+    /// resolve correctly. Only emitted by `{#async X as v}`.
+    fn emit_let_block(
+        &mut self,
+        w: &mut Writer,
+        instr: &crate::ir::LetInstr,
+        parent_var: &str,
+        cleanups_var: &str,
+    ) {
+        let value_rw = rewrite_for_scope(&instr.value.source, &[]);
+        w.line(&format!("$scope.{name} = ({value_rw});", name = instr.name));
+        for child in &instr.body {
+            self.emit_one(w, child, parent_var, cleanups_var);
         }
     }
 
