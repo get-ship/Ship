@@ -19,7 +19,7 @@
 -->
 
 <prop name="value" type="string" default="" reflect />
-<prop name="size" values="sm|md" default="md" reflect />
+<prop name="size" values="sm|md|lg" default="md" reflect />
 <prop name="disabled" type="bool" default="false" reflect />
 <prop name="name" type="string" default="" />
 
@@ -65,6 +65,10 @@
   :host([size='sm']) .btn {
     padding: 4px var(--space-2, 8px);
     font-size: var(--text-xs, 11px);
+  }
+  :host([size='lg']) .btn {
+    padding: 8px var(--space-4, 16px);
+    font-size: var(--text-md, 14px);
   }
 
   .btn[aria-checked='true'] {

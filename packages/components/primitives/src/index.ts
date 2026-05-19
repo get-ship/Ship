@@ -98,3 +98,32 @@ import './sui-toolbar/sui-toolbar.compiled.js'
 import './sui-tooltip/sui-tooltip.compiled.js'
 import './sui-tree-view/sui-tree-view.compiled.js'
 import './sui-tree-view/sui-tree-item.compiled.js'
+
+// ── Canonical type unions ────────────────────────────────────────────
+//
+// Every primitive with a `tone` or `size` prop draws from these unions.
+// Catalog hygiene: a single source of truth keeps the prop catalogs
+// from drifting (e.g. one primitive ships `tone="default|primary|info"`
+// while another adds `accent` and drops `muted`). Authors writing
+// primitives MUST type their tone/size props from these unions; the
+// audit at workbench/Primitives Audit.html flagged 5 divergences before
+// this was published.
+
+/** The canonical tone union — every Ship primitive that surfaces a
+ *  semantic colour signal draws from this set. `default` is the unset
+ *  baseline (foreground-on-background); `muted` is the inert grey. */
+export type Tone =
+  | 'default'
+  | 'primary'
+  | 'info'
+  | 'success'
+  | 'warning'
+  | 'destructive'
+  | 'accent'
+  | 'muted'
+
+/** The canonical size union. `md` is always the default. Primitives
+ *  needing finer granularity declare additional values explicitly with
+ *  rationale — sui-avatar (xs|sm|md|lg|xl), sui-dialog (sm|md|lg|full). */
+export type Size = 'sm' | 'md' | 'lg'
+

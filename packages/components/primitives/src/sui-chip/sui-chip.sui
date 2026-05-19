@@ -43,9 +43,9 @@
   ─────────────────────────────────────────────────────────────────────────────
 -->
 
-<prop name="tone" values="default|primary|info|success|warning|destructive|accent|muted" default="muted" reflect />
+<prop name="tone" values="default|primary|info|success|warning|destructive|accent|muted" default="default" reflect />
 <prop name="variant" values="solid|soft|outline|ghost" default="soft" reflect />
-<prop name="size" values="sm|md|lg" default="sm" reflect />
+<prop name="size" values="sm|md|lg" default="md" reflect />
 <prop name="selected" type="bool" default="false" reflect />
 <prop name="removable" type="bool" default="false" reflect />
 <prop name="disabled" type="bool" default="false" reflect />
@@ -131,27 +131,33 @@
   :host([selected]:not([disabled])) .chip:hover {
     background: color-mix(in oklch, var(--tone) 92%, var(--background) 8%);
   }
+  /* Selected without a tone (or with the catalog "muted" tone — the
+   * unbranded baseline) inherits the brand. Material's filter chips
+   * fill primary, shadcn's go with primary, GitHub uses accent — Ship
+   * leans on the same convention so a row of selected filters reads
+   * as branded emphasis, not monochrome ink. Authors who want the old
+   * raw-foreground fill set tone='default' explicitly. */
   :host([selected]:not([tone])) .chip,
   :host([selected][tone='muted']) .chip {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: var(--primary-foreground);
+  }
+  :host([selected][tone='default']) .chip {
     background: var(--foreground);
     border-color: var(--foreground);
     color: var(--background);
   }
 
   /* Keyboard-only focus ring — host carries focus (role=button,
-   * tabindex=0 from controller). Outline gives a robust ring across
-   * themes; the stacked box-shadow keeps the soft halo for parity
-   * with sui-button. */
+   * tabindex=0 from controller). Consume the canonical --focus-ring
+   * token; the old stacked outline+box-shadow halo was tone-tinted
+   * and visibly snapped against the button/input rings during tab
+   * sequences. */
   :host(:focus-visible) {
-    outline: 2px solid color-mix(in oklch, var(--tone) 75%, var(--ring-color));
-    outline-offset: 2px;
+    outline: var(--focus-ring);
+    outline-offset: var(--focus-ring-offset);
     border-radius: var(--chip-radius);
-  }
-  :host(:focus-visible) .chip {
-    box-shadow:
-      0 0 0 var(--ring-offset) var(--background),
-      0 0 0 calc(var(--ring-offset) + var(--ring-width))
-        color-mix(in oklch, var(--tone) var(--ring-opacity), transparent);
   }
   :host([disabled]:focus-visible) { outline: none; }
 

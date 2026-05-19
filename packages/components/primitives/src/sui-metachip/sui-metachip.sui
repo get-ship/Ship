@@ -33,7 +33,7 @@
   :host(:last-of-type) { border-right: 0; padding-right: 0; }
   :host(:first-of-type) { padding-left: 0; }
   .k {
-    font-size: 10px;
+    font-size: var(--text-xs);
     font-weight: var(--font-weight-semibold);
     color: var(--muted-foreground);
     text-transform: uppercase;

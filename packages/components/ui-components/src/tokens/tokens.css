@@ -102,7 +102,7 @@
    * against neighbouring shadows. The older `--ring-*` triple is kept
    * for chip-style halo overlays that need separate width/offset/opacity
    * control. */
-  --focus-ring: 2px solid var(--ring-color, var(--primary));
+  --focus-ring: 2px solid var(--ring-color);
   --focus-ring-offset: 2px;
   --ring-width: 3px;
   --ring-offset: 2px;

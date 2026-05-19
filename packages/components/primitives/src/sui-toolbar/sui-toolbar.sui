@@ -23,7 +23,7 @@
   ─────────────────────────────────────────────────────────────────────────────
 -->
 
-<prop name="justify" values="start|center|end|between" default="start" reflect />
+<prop name="justify" values="start|center|end|between|split" default="start" reflect />
 <prop name="align" values="center|start|end|baseline" default="center" reflect />
 <prop name="gap" values="sm|md|lg" default="md" reflect />
 <prop name="variant" values="default|bordered" default="default" reflect />
@@ -40,6 +40,11 @@
   :host([justify='center']) { justify-content: center; }
   :host([justify='end']) { justify-content: flex-end; }
   :host([justify='between']) { justify-content: space-between; }
+  /* `split` — implicit spacer pushes the first child to the left and
+   * the rest to the right, without requiring an explicit
+   * <span slot="spacer"></span> in the markup. */
+  :host([justify='split']) { justify-content: flex-start; }
+  :host([justify='split']) ::slotted(:first-child) { margin-right: auto; }
   :host([align='start']) { align-items: flex-start; }
   :host([align='end']) { align-items: flex-end; }
   :host([align='baseline']) { align-items: baseline; }

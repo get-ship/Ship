@@ -155,11 +155,12 @@
 
   /* Keyboard-only focus ring — drawn on the inner input so it is
    * visible even when the wrap container's :focus-within tint is
-   * suppressed by themes that flatten ring tokens. Mirrors the
-   * sui-button pattern: 2px outline + 2px offset, tone-tinted. */
+   * suppressed by themes that flatten ring tokens. Consumes the
+   * canonical --focus-ring token; per-tone tinting is via the local
+   * --ring-color override (e.g. [invalid] sets --destructive). */
   input:focus-visible {
-    outline: 2px solid var(--tone-ring);
-    outline-offset: 2px;
+    outline: var(--focus-ring);
+    outline-offset: var(--focus-ring-offset);
   }
   @media (forced-colors: active) {
     input:focus-visible { outline: 2px solid CanvasText; outline-offset: 2px; }
@@ -190,7 +191,7 @@
 
   .error {
     font-family: var(--font-body);
-    font-size: 12px;
+    font-size: var(--text-sm);
     color: var(--destructive);
     line-height: 1.4;
   }
