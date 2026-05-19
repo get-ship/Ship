@@ -52,7 +52,7 @@
     padding: 4px 8px;
     font: inherit;
     font-size: var(--text-base, 14px);
-    color: var(--foreground, #111);
+    color: var(--foreground);
     cursor: pointer;
     display: inline-flex;
     align-items: center;
@@ -66,14 +66,14 @@
   }
   .trigger:focus-visible {
     outline: none;
-    box-shadow: 0 0 0 2px color-mix(in oklch, var(--primary, #3b82f6) 50%, transparent);
+    box-shadow: 0 0 0 2px color-mix(in oklch, var(--primary) 50%, transparent);
   }
 
   .dot {
     width: 10px; height: 10px;
     border-radius: 999px;
-    background: var(--primary, #3b82f6);
-    box-shadow: 0 0 0 1px color-mix(in oklch, var(--foreground, #111) 15%, transparent);
+    background: var(--primary);
+    box-shadow: 0 0 0 1px color-mix(in oklch, var(--foreground) 15%, transparent);
     flex: 0 0 auto;
   }
 
@@ -89,7 +89,7 @@
   .caret {
     width: 10px; height: 6px;
     flex: 0 0 auto;
-    color: var(--muted-foreground, #888);
+    color: var(--muted-foreground);
   }
 
   /* Native popover panel. Reset the UA's default centering and let
@@ -100,11 +100,11 @@
     margin: 0;
     border: 0;
     padding: 4px;
-    background: var(--popover, var(--card, #fff));
-    color: var(--popover-foreground, var(--card-foreground, #111));
-    border: 1px solid var(--border, #e5e5e5);
+    background: var(--popover, var(--card));
+    color: var(--popover-foreground, var(--card-foreground));
+    border: 1px solid var(--border);
     border-radius: var(--radius-md, 6px);
-    box-shadow: var(--shadow-lg, 0 8px 24px rgba(0,0,0,0.12));
+    box-shadow: var(--shadow-lg);
     opacity: 0;
     transform: translateY(-4px) scale(0.97);
     transition:
@@ -133,14 +133,14 @@
     appearance: none;
     background: transparent;
     border: 0;
-    border-top: 1px solid var(--border, #e5e5e5);
+    border-top: 1px solid var(--border);
     margin-top: 4px;
     padding: 10px 12px;
     cursor: pointer;
     text-align: left;
     font: inherit;
     font-size: 12.5px;
-    color: var(--foreground, #111);
+    color: var(--foreground);
     display: flex;
     align-items: center;
     gap: 8px;
@@ -152,15 +152,15 @@
   }
   .customize:focus-visible {
     outline: none;
-    box-shadow: inset 0 0 0 2px color-mix(in oklch, var(--primary, #3b82f6) 50%, transparent);
+    box-shadow: inset 0 0 0 2px color-mix(in oklch, var(--primary) 50%, transparent);
   }
   .customize-meta {
     flex: 1;
-    color: var(--muted-foreground, #888);
+    color: var(--muted-foreground);
     font-size: 11px;
   }
   .customize-chev {
-    color: var(--muted-foreground, #888);
+    color: var(--muted-foreground);
     flex: 0 0 auto;
   }
 
@@ -170,7 +170,7 @@
     font-size: 9px;
     text-transform: uppercase;
     letter-spacing: 0.12em;
-    color: var(--muted-foreground, #888);
+    color: var(--muted-foreground);
     padding: 0 8px 2px;
     opacity: 0.7;
   }
@@ -199,10 +199,10 @@
   }
   .card:focus-visible {
     background: var(--hover-bg, var(--muted, color-mix(in oklch, currentColor 6%, transparent)));
-    box-shadow: 0 0 0 2px color-mix(in oklch, var(--primary, #3b82f6) 50%, transparent);
+    box-shadow: 0 0 0 2px color-mix(in oklch, var(--primary) 50%, transparent);
   }
   .card[aria-selected='true'] {
-    background: color-mix(in oklch, var(--primary, #3b82f6) 10%, transparent);
+    background: color-mix(in oklch, var(--primary) 10%, transparent);
   }
 
   .row {
@@ -214,7 +214,7 @@
     font-family: var(--font-body, system-ui);
     font-size: 12.5px;
     font-weight: 500;
-    color: var(--foreground, #111);
+    color: var(--foreground);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -222,18 +222,18 @@
   .radio {
     width: 12px; height: 12px;
     border-radius: 999px;
-    border: 1.5px solid color-mix(in oklch, var(--foreground, #111) 40%, transparent);
+    border: 1.5px solid color-mix(in oklch, var(--foreground) 40%, transparent);
     background: transparent;
     position: relative;
     flex-shrink: 0;
   }
-  .card[aria-selected='true'] .radio { border-color: var(--primary, #3b82f6); }
+  .card[aria-selected='true'] .radio { border-color: var(--primary); }
   .card[aria-selected='true'] .radio::after {
     content: '';
     position: absolute;
     inset: 2px;
     border-radius: 999px;
-    background: var(--primary, #3b82f6);
+    background: var(--primary);
   }
 
   /* Mini card preview tile. Each .tc-bg carries data-theme-preview="<id>",
@@ -276,7 +276,7 @@
     color: var(--card-foreground);
     border: 1px solid var(--border);
     border-radius: var(--radius-md, 6px);
-    box-shadow: var(--shadow-card-rest, var(--shadow-sm, 0 1px 2px oklch(0 0 0 / 8%)));
+    box-shadow: var(--shadow-card-rest, var(--shadow-sm));
     backdrop-filter: var(--card-backdrop-filter, none);
     -webkit-backdrop-filter: var(--card-backdrop-filter, none);
   }

@@ -93,7 +93,7 @@
     top: 0;
     z-index: 1;
     appearance: none;
-    background: color-mix(in oklch, var(--background, #fff) 92%, var(--foreground, #000));
+    background: color-mix(in oklch, var(--background) 92%, var(--foreground));
     border: 0;
     border-bottom: 1px solid var(--border);
     color: var(--muted-foreground);
@@ -216,7 +216,7 @@
   .footer button {
     appearance: none;
     background: var(--primary);
-    color: var(--primary-foreground, #fff);
+    color: var(--primary-foreground);
     border: 0;
     padding: 4px 10px;
     border-radius: var(--radius-sm);

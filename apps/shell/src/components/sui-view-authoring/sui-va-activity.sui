@@ -34,9 +34,9 @@
     background: var(--muted-foreground);
     justify-self: center;
   }
-  .dot[data-kind="annotation"] { background: var(--accent, #f97316); }
-  .dot[data-kind="compiled"]   { background: var(--success, #22c55e); }
-  .dot[data-kind="errored"]    { background: var(--destructive, #ef4444); }
+  .dot[data-kind="annotation"] { background: var(--accent); }
+  .dot[data-kind="compiled"]   { background: var(--success); }
+  .dot[data-kind="errored"]    { background: var(--destructive); }
   .label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .ts {
     color: var(--muted-foreground);

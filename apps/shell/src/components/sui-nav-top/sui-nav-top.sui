@@ -72,11 +72,11 @@
     gap: var(--space-2, 8px);
     height: var(--ship-top-bar-h, 40px);
     padding: 0 var(--space-3, 12px);
-    border-bottom: 1px solid var(--border, #e5e5e5);
-    background: var(--muted, #f6f6f6);
+    border-bottom: 1px solid var(--border);
+    background: var(--muted);
     font-family: var(--font-body, system-ui, sans-serif);
     font-size: var(--text-sm, 13px);
-    color: var(--foreground, #111);
+    color: var(--foreground);
     user-select: none;
     -webkit-user-select: none;
     overflow: hidden;
@@ -92,7 +92,7 @@
     width: 28px;
     height: 28px;
     border-radius: var(--radius-sm, 4px);
-    color: var(--foreground, #111);
+    color: var(--foreground);
     text-decoration: none;
     flex-shrink: 0;
     transition: background-color var(--duration-fast, 100ms) var(--ease-out, ease-out);
@@ -104,13 +104,13 @@
   .brand:hover { background: color-mix(in oklch, var(--foreground) 8%, transparent); }
   .brand:focus-visible {
     outline: none;
-    box-shadow: 0 0 0 2px color-mix(in oklch, var(--primary, #3b82f6) 50%, transparent);
+    box-shadow: 0 0 0 2px color-mix(in oklch, var(--primary) 50%, transparent);
   }
 
   .sep {
     width: 1px;
     height: 16px;
-    background: var(--border, #e5e5e5);
+    background: var(--border);
     flex-shrink: 0;
   }
 
@@ -124,7 +124,7 @@
     font-size: var(--text-sm, 13px);
   }
   .crumbs a {
-    color: var(--muted-foreground, #888);
+    color: var(--muted-foreground);
     text-decoration: none;
     white-space: nowrap;
     overflow: hidden;
@@ -132,10 +132,10 @@
     max-width: 120px;
     display: block;
   }
-  .crumbs a:hover { color: var(--foreground, #111); text-decoration: underline; }
-  .crumbs .chevron { color: var(--muted-foreground, #888); flex-shrink: 0; }
+  .crumbs a:hover { color: var(--foreground); text-decoration: underline; }
+  .crumbs .chevron { color: var(--muted-foreground); flex-shrink: 0; }
   .crumbs .current {
-    color: var(--foreground, #111);
+    color: var(--foreground);
     font-weight: var(--font-weight-medium, 500);
     white-space: nowrap;
     overflow: hidden;

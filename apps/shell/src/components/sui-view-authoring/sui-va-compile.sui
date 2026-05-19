@@ -18,7 +18,7 @@
     font-size: 12px;
   }
   .empty .ok {
-    color: var(--success, #16a34a);
+    color: var(--success);
     font-weight: var(--font-weight-medium, 500);
     display: block;
     margin-bottom: 4px;
@@ -46,8 +46,8 @@
     font-family: var(--font-mono);
     white-space: pre-wrap;
   }
-  .row[data-severity="warning"] .loc { color: var(--warning, #ca8a04); }
-  .row[data-severity="error"]   .loc { color: var(--destructive, #ef4444); }
+  .row[data-severity="warning"] .loc { color: var(--warning); }
+  .row[data-severity="error"]   .loc { color: var(--destructive); }
 </style>
 
 {#if errors().length === 0}

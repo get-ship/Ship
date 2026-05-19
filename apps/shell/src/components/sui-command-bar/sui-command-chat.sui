@@ -82,7 +82,7 @@
     background: transparent; border: none; cursor: pointer;
     color: var(--muted-foreground); font-size: 14px; padding: 0 2px;
   }
-  .cb-session-end:hover { color: var(--destructive, red); }
+  .cb-session-end:hover { color: var(--destructive); }
   .cb-session-sep { height: 1px; background: var(--border); margin: 4px 0; }
   .cb-session-action {
     display: flex; align-items: center; gap: 8px;
@@ -138,7 +138,7 @@
   }
   .cb-chat-turn[data-sender='user'] .cb-chat-bubble {
     background: var(--primary);
-    color: var(--primary-foreground, #fff);
+    color: var(--primary-foreground);
   }
   .cb-chat-turn[data-sender='agent'] .cb-chat-bubble {
     background: var(--muted);
@@ -178,7 +178,7 @@
     font-size: 13px;
     padding: 0 6px;
   }
-  .cb-spawn-error { font-size: 12px; color: var(--destructive, red); margin-bottom: 8px; }
+  .cb-spawn-error { font-size: 12px; color: var(--destructive); margin-bottom: 8px; }
   .cb-spawn-start {
     margin-top: 4px;
     height: 32px;
@@ -186,7 +186,7 @@
     border: none;
     border-radius: var(--radius-sm, 4px);
     background: var(--primary);
-    color: var(--primary-foreground, #fff);
+    color: var(--primary-foreground);
     font: inherit;
     font-size: 13px;
     cursor: pointer;
@@ -204,12 +204,12 @@
     flex: 0 0 auto;
   }
   .cb-banner.warn {
-    background: color-mix(in oklch, var(--warning,#d97706) 12%, var(--background));
-    color: var(--warning,#d97706);
+    background: color-mix(in oklch, var(--warning) 12%, var(--background));
+    color: var(--warning);
   }
   .cb-banner.error {
-    background: color-mix(in oklch, var(--destructive,#dc2626) 12%, var(--background));
-    color: var(--destructive,#dc2626);
+    background: color-mix(in oklch, var(--destructive) 12%, var(--background));
+    color: var(--destructive);
   }
   .cb-banner button.dismiss {
     background: transparent;
@@ -251,7 +251,7 @@
     border: none;
     border-radius: var(--radius-sm, 4px);
     background: var(--primary);
-    color: var(--primary-foreground, #fff);
+    color: var(--primary-foreground);
     font: inherit;
     font-size: 13px;
     cursor: pointer;
@@ -280,7 +280,7 @@
             role="option"
             on:click={() => selectSession(s.id)}
           >
-            <span class="cb-dot" style:background={s.status === 'thinking' ? 'var(--warning,#d97706)' : 'var(--success,#16a34a)'}></span>
+            <span class="cb-dot" style:background={s.status === 'thinking' ? 'var(--warning)' : 'var(--success)'}></span>
             <span><strong>{s.agent_id ?? ''}</strong><span class="meta"> · {s.harness ?? ''} · {s.workspace_id}</span></span>
             <button class="cb-session-end" type="button" aria-label="End session" on:click={(e) => { e.stopPropagation(); endSession(s.id) }}>×</button>
           </div>

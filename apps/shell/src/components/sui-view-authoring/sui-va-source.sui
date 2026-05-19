@@ -31,11 +31,11 @@
     color: var(--muted-foreground);
   }
   .header .state[data-dirty="true"] {
-    background: color-mix(in oklab, var(--warning, #ca8a04) 24%, var(--muted));
+    background: color-mix(in oklab, var(--warning) 24%, var(--muted));
     color: var(--foreground);
   }
   .header .state[data-saved="true"] {
-    background: color-mix(in oklab, var(--success, #16a34a) 22%, var(--muted));
+    background: color-mix(in oklab, var(--success) 22%, var(--muted));
     color: var(--foreground);
   }
   .editor-host { flex: 1; min-height: 0; display: flex; }
