@@ -1,0 +1,648 @@
+<!doctype html>
+<html lang="en" data-theme="ship-light">
+<head>
+  <meta charset="utf-8" />
+  <title>Ship · home</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="../../../../sui/ship.css" />
+  <style>
+    html, body { margin: 0; height: 100%; }
+    body {
+      background:
+        radial-gradient(circle at 1px 1px, var(--border-subtle) 1px, transparent 0)
+        0 0 / 28px 28px,
+        var(--background);
+      color: var(--foreground);
+      font-family: var(--font-body);
+      -webkit-font-smoothing: antialiased;
+      overflow: hidden;
+    }
+    .icon    { width: 14px; height: 14px; }
+    .icon-xs { width: 12px; height: 12px; }
+    .icon-md { width: 16px; height: 16px; }
+
+    /* The whole viewport is the canvas. Cards are positioned, lines connect. */
+    .home { position: relative; width: 100vw; height: 100vh; }
+
+    /* ── Connection lines (SVG layer behind cards) ────────── */
+    .links {
+      position: absolute; inset: 0;
+      width: 100%; height: 100%;
+      pointer-events: none;
+      z-index: 1;
+    }
+    .link {
+      fill: none;
+      stroke: var(--border);
+      stroke-width: 1.5;
+      stroke-dasharray: 4 4;
+      opacity: 0.6;
+    }
+    .link.is-active {
+      stroke: var(--primary);
+      stroke-width: 2;
+      stroke-dasharray: 6 3;
+      opacity: 0.85;
+      animation: flow 1.5s linear infinite;
+    }
+    @keyframes flow { to { stroke-dashoffset: -18; } }
+
+    /* ── Workspace badge ──────────────────────────────────── */
+    .ws {
+      position: absolute;
+      top: 24px; left: 24px;
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 6px 12px 6px 10px;
+      background: color-mix(in oklch, var(--surface-1) 86%, transparent);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-full);
+      backdrop-filter: blur(8px);
+      z-index: 10;
+      font-size: 12px;
+      color: var(--muted-foreground);
+    }
+    .ws-mark {
+      width: 18px; height: 18px;
+      border-radius: var(--radius-sm);
+      background: var(--primary);
+      color: var(--primary-foreground);
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 11px;
+    }
+    .ws strong { color: var(--foreground); font-family: var(--font-mono); font-weight: var(--font-weight-semibold); }
+    .ws-status {
+      display: inline-flex; align-items: center; gap: 4px;
+      font-family: var(--font-mono);
+      font-size: 10.5px;
+      color: var(--success);
+      letter-spacing: 0.06em;
+    }
+    .ws-status-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--success);
+      box-shadow: 0 0 0 2px color-mix(in oklch, var(--success) 22%, transparent);
+    }
+
+    /* ── Floating cards (nodes) ───────────────────────────── */
+    .node {
+      position: absolute;
+      background: var(--card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-md);
+      z-index: 5;
+      cursor: pointer;
+      transition: transform 160ms cubic-bezier(.2,.7,.3,1), box-shadow 160ms, border-color 160ms;
+      text-decoration: none;
+      color: var(--foreground);
+    }
+    .node:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-lg);
+      border-color: var(--border);
+      z-index: 6;
+    }
+
+    /* Hero — Right Now (pipeline running) */
+    .node-hero {
+      width: 480px;
+      left: calc(50% - 280px);
+      top: 240px;
+      padding: 22px;
+      background: var(--card);
+      border-color: color-mix(in oklch, var(--primary) 26%, var(--border-subtle));
+      box-shadow:
+        var(--shadow-lg),
+        0 0 0 4px color-mix(in oklch, var(--primary) 10%, transparent);
+    }
+    .node-hero-h {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-family: var(--font-mono);
+      font-size: 9.5px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--primary);
+      margin-bottom: 12px;
+    }
+    .node-hero-h-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--primary);
+      animation: pulse 1.8s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 0 0 0 color-mix(in oklch, var(--primary) 60%, transparent); }
+      50%      { box-shadow: 0 0 0 6px color-mix(in oklch, var(--primary) 0%, transparent); }
+    }
+    .node-hero-row { display: flex; align-items: center; gap: 14px; }
+    .node-hero-tile {
+      width: 52px; height: 52px;
+      border-radius: var(--radius-md);
+      display: inline-flex; align-items: center; justify-content: center;
+      color: white;
+      font-family: var(--font-mono);
+      font-size: 22px;
+      font-weight: var(--font-weight-bold);
+      background: #2a8a8a;
+      box-shadow:
+        inset 0 1px 0 color-mix(in oklch, white 22%, transparent),
+        0 3px 10px color-mix(in oklch, #2a8a8a 28%, transparent);
+    }
+    .node-hero-body { flex: 1; min-width: 0; }
+    .node-hero-name {
+      font-family: var(--heading-font);
+      font-size: 22px;
+      font-weight: var(--heading-weight);
+      letter-spacing: var(--heading-tracking);
+      line-height: 1;
+      margin: 0 0 4px;
+    }
+    .node-hero-desc {
+      font-size: 12.5px;
+      color: var(--muted-foreground);
+      margin: 0;
+      line-height: 1.4;
+    }
+    .node-hero-prog {
+      margin-top: 14px;
+      display: flex; align-items: center; gap: 8px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--muted-foreground);
+    }
+    .prog-bar {
+      flex: 1;
+      height: 4px;
+      background: var(--muted);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .prog-fill {
+      height: 100%;
+      width: 40%;
+      background: var(--primary);
+      border-radius: 2px;
+    }
+
+    /* Agent nodes */
+    .node-agent {
+      padding: 12px 14px;
+      width: 200px;
+      display: grid;
+      grid-template-columns: 32px 1fr;
+      gap: 10px;
+      align-items: center;
+    }
+    .node-agent-tile {
+      width: 32px; height: 32px;
+      border-radius: var(--radius-sm);
+      display: inline-flex; align-items: center; justify-content: center;
+      color: white;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      font-weight: var(--font-weight-bold);
+    }
+    .node-agent-body { min-width: 0; }
+    .node-agent-name {
+      font-family: var(--font-mono);
+      font-size: 12.5px;
+      font-weight: var(--font-weight-semibold);
+      color: var(--foreground);
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .node-agent-meta {
+      font-size: 10.5px;
+      color: var(--muted-foreground);
+      margin-top: 1px;
+    }
+    .node-agent.is-running {
+      border-color: color-mix(in oklch, var(--primary) 30%, var(--border-subtle));
+    }
+    .node-agent.is-running::after {
+      content: '';
+      position: absolute;
+      top: 8px; right: 8px;
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--primary);
+      box-shadow: 0 0 0 3px color-mix(in oklch, var(--primary) 22%, transparent);
+      animation: pulse 1.8s ease-in-out infinite;
+    }
+
+    /* Today timeline — tall card on the right */
+    .node-today {
+      width: 280px;
+      right: 32px;
+      top: 88px;
+      padding: 14px;
+      cursor: default;
+    }
+    .node-today:hover { transform: none; }
+    .node-today-h {
+      display: flex; align-items: baseline; gap: 8px;
+      font-size: 10px;
+      font-weight: var(--font-weight-semibold);
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--muted-foreground);
+      margin-bottom: 10px;
+    }
+    .node-today-h-aux {
+      font-family: var(--font-mono);
+      font-weight: normal;
+      letter-spacing: 0;
+      text-transform: none;
+      font-size: 10px;
+    }
+    .today-rows { display: flex; flex-direction: column; gap: 1px; }
+    .today-row {
+      display: grid;
+      grid-template-columns: 28px 1fr;
+      gap: 8px;
+      align-items: start;
+      padding: 6px 4px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      text-decoration: none;
+      color: var(--foreground);
+    }
+    .today-row:hover { background: var(--surface-1); }
+    .today-when {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--muted-foreground);
+    }
+    .today-text {
+      font-size: 11.5px;
+      color: var(--foreground);
+      line-height: 1.4;
+    }
+    .today-text b {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: var(--font-weight-semibold);
+    }
+    .today-text .m { color: var(--muted-foreground); }
+
+    /* Pinned scatter — small tiles bottom-left */
+    .node-pin {
+      width: 132px;
+      padding: 8px 10px 8px 8px;
+      display: grid;
+      grid-template-columns: 24px 1fr;
+      gap: 8px;
+      align-items: center;
+      background: color-mix(in oklch, var(--surface-1) 92%, transparent);
+      backdrop-filter: blur(4px);
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-sm);
+    }
+    .node-pin-tile {
+      width: 24px; height: 24px;
+      border-radius: var(--radius-sm);
+      display: inline-flex; align-items: center; justify-content: center;
+      color: white;
+      font-family: var(--font-mono);
+      font-size: 11.5px;
+      font-weight: var(--font-weight-bold);
+    }
+    .node-pin-body { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+    .node-pin-name {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--foreground);
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .node-pin-kind {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted-foreground);
+    }
+
+    .pin-cluster-label {
+      position: absolute;
+      bottom: 218px; left: 32px;
+      font-size: 10px;
+      font-weight: var(--font-weight-semibold);
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--muted-foreground);
+      z-index: 4;
+    }
+
+    /* Apps dock — floating bottom center */
+    .apps {
+      position: absolute;
+      bottom: 28px; left: 50%;
+      transform: translateX(-50%);
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 6px;
+      background: color-mix(in oklch, var(--surface-1) 88%, transparent);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      backdrop-filter: blur(10px);
+      box-shadow: var(--shadow-md);
+      z-index: 10;
+    }
+    .app {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 5px 10px;
+      border-radius: var(--radius-md);
+      text-decoration: none;
+      color: var(--foreground);
+      transition: background 120ms;
+      cursor: pointer;
+    }
+    .app:hover { background: var(--background); }
+    .app-glyph {
+      width: 22px; height: 22px;
+      border-radius: var(--radius-sm);
+      display: inline-flex; align-items: center; justify-content: center;
+      color: white;
+    }
+    .app-label {
+      font-family: var(--font-mono);
+      font-size: 11.5px;
+      color: var(--foreground);
+    }
+    .app.is-studio .app-glyph {
+      background: var(--primary);
+      color: var(--primary-foreground);
+    }
+    .app-divider { width: 1px; height: 18px; background: var(--border-subtle); margin: 0 2px; }
+
+    /* Canvas toolbar — top-right, zoom-y look */
+    .toolbar {
+      position: absolute;
+      top: 24px; right: 24px;
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 4px;
+      background: color-mix(in oklch, var(--surface-1) 86%, transparent);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      backdrop-filter: blur(8px);
+      z-index: 10;
+    }
+    .tool-btn {
+      width: 24px; height: 24px;
+      display: inline-flex; align-items: center; justify-content: center;
+      border: 0; background: transparent;
+      color: var(--muted-foreground);
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+    }
+    .tool-btn:hover { color: var(--foreground); background: var(--background); }
+    .tool-zoom {
+      padding: 2px 8px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--muted-foreground);
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+    }
+    .tool-zoom:hover { background: var(--background); color: var(--foreground); }
+    .tool-divider { width: 1px; height: 14px; background: var(--border-subtle); margin: 0 2px; }
+
+    /* Mini-map (decorative) bottom right */
+    .minimap {
+      position: absolute;
+      bottom: 24px; right: 24px;
+      width: 200px; height: 140px;
+      background: color-mix(in oklch, var(--surface-1) 88%, transparent);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-sm);
+      backdrop-filter: blur(6px);
+      z-index: 10;
+      overflow: hidden;
+    }
+    .minimap-canvas {
+      position: absolute; inset: 8px;
+      background:
+        radial-gradient(circle at 1px 1px, var(--border-subtle) 1px, transparent 0)
+        0 0 / 8px 8px;
+      border-radius: var(--radius-sm);
+    }
+    .minimap-node {
+      position: absolute;
+      background: var(--muted-foreground);
+      opacity: 0.5;
+      border-radius: 2px;
+    }
+    .minimap-node.is-hero { background: var(--primary); opacity: 0.85; height: 14px !important; }
+    .minimap-view {
+      position: absolute;
+      inset: 16px 24px 32px 16px;
+      border: 1.5px solid var(--primary);
+      border-radius: 3px;
+      pointer-events: none;
+    }
+
+    /* Hues */
+    .h-orange { background: #d97757; }
+    .h-amber  { background: #c98a2c; }
+    .h-violet { background: #7a5cd6; }
+    .h-blue   { background: #4376d6; }
+    .h-teal   { background: #2a8a8a; }
+    .h-green  { background: #4f9e54; }
+    .h-pink   { background: #c25a8e; }
+    .h-slate  { background: #5b6878; }
+  </style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-activity" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></symbol>
+    <symbol id="i-radio" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"/></symbol>
+    <symbol id="i-git" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></symbol>
+    <symbol id="i-dash" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></symbol>
+    <symbol id="i-minus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/></symbol>
+    <symbol id="i-fit" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/></symbol>
+  </defs>
+</svg>
+
+<main class="home">
+
+  <!-- Connection lines (SVG, behind cards) -->
+  <svg class="links" preserveAspectRatio="none">
+    <!-- rust-compiler (top-left) → release (hero) -->
+    <path class="link is-active" d="M 240 200 C 380 200, 380 320, 540 320" />
+    <!-- test-runner (top-center) → release (hero) -->
+    <path class="link is-active" d="M 590 170 C 590 230, 590 240, 590 320" />
+    <!-- doc-reviewer (top-right) → release (hero) -->
+    <path class="link" d="M 940 220 C 800 220, 800 320, 740 320" />
+    <!-- pin cluster faintly connected to hero -->
+    <path class="link" d="M 200 580 C 280 540, 420 480, 540 420" />
+  </svg>
+
+  <!-- Workspace badge -->
+  <div class="ws">
+    <span class="ws-mark">◐</span>
+    <strong>ship-monorepo</strong>
+    <span class="ws-status"><span class="ws-status-dot"></span>local · running</span>
+  </div>
+
+  <!-- Canvas toolbar (top-right) -->
+  <div class="toolbar">
+    <button class="tool-btn" type="button" title="Zoom out"><svg class="icon-xs"><use href="#i-minus"/></svg></button>
+    <button class="tool-zoom" type="button" title="Reset">100%</button>
+    <button class="tool-btn" type="button" title="Zoom in"><svg class="icon-xs"><use href="#i-plus"/></svg></button>
+    <span class="tool-divider"></span>
+    <button class="tool-btn" type="button" title="Fit"><svg class="icon-xs"><use href="#i-fit"/></svg></button>
+  </div>
+
+  <!-- ── Nodes ────────────────────────────────────────────── -->
+
+  <!-- rust-compiler (top-left, running) -->
+  <a class="node node-agent is-running" style="left: 80px; top: 168px" href="#agents/rust-compiler">
+    <span class="node-agent-tile h-orange">R</span>
+    <div class="node-agent-body">
+      <div class="node-agent-name">rust-compiler</div>
+      <div class="node-agent-meta">building · 14 crates</div>
+    </div>
+  </a>
+
+  <!-- test-runner (top-center) -->
+  <a class="node node-agent" style="left: 490px; top: 100px" href="#agents/test-runner">
+    <span class="node-agent-tile h-green">T</span>
+    <div class="node-agent-body">
+      <div class="node-agent-name">test-runner</div>
+      <div class="node-agent-meta">queued · awaits build</div>
+    </div>
+  </a>
+
+  <!-- doc-reviewer (top-right) -->
+  <a class="node node-agent" style="left: 860px; top: 188px" href="#agents/doc-reviewer">
+    <span class="node-agent-tile h-blue">D</span>
+    <div class="node-agent-body">
+      <div class="node-agent-name">doc-reviewer</div>
+      <div class="node-agent-meta">idle · 1h ago</div>
+    </div>
+  </a>
+
+  <!-- HERO — Right Now (release pipeline) -->
+  <a class="node node-hero" href="#pipelines/release">
+    <div class="node-hero-h">
+      <span class="node-hero-h-dot"></span>
+      Right now · running
+    </div>
+    <div class="node-hero-row">
+      <span class="node-hero-tile">R</span>
+      <div class="node-hero-body">
+        <h2 class="node-hero-name">release</h2>
+        <p class="node-hero-desc">step 2 of 5 — <strong>build</strong> · 3 of 14 crates · started 4m ago</p>
+      </div>
+    </div>
+    <div class="node-hero-prog">
+      <div class="prog-bar"><div class="prog-fill"></div></div>
+      <span>40% · ~6m left</span>
+    </div>
+  </a>
+
+  <!-- Today (right side) -->
+  <div class="node node-today">
+    <div class="node-today-h">
+      Today
+      <span class="node-today-h-aux">· 7 events</span>
+    </div>
+    <div class="today-rows">
+      <a class="today-row" href="#agents/rust-compiler/settings">
+        <span class="today-when">9:14</span>
+        <div class="today-text">edited <b>rust-compiler</b><br /><span class="m">permissions widened</span></div>
+      </a>
+      <a class="today-row" href="#skills/tdd/invoke">
+        <span class="today-when">9:09</span>
+        <div class="today-text">invoked <b>tdd</b><br /><span class="m">target = scheduler.rs · ok</span></div>
+      </a>
+      <a class="today-row" href="#pipelines/release">
+        <span class="today-when">9:09</span>
+        <div class="today-text">triggered <b>release</b><br /><span class="m">sha 8b3f2c1</span></div>
+      </a>
+      <a class="today-row" href="#themes/paper">
+        <span class="today-when">8:32</span>
+        <div class="today-text">edited <b>paper</b><br /><span class="m">3 token overrides</span></div>
+      </a>
+      <a class="today-row" href="#agents/etl-runner">
+        <span class="today-when">yest</span>
+        <div class="today-text">added <b>postgres</b> mcp<br /><span class="m">to etl-runner</span></div>
+      </a>
+    </div>
+  </div>
+
+  <!-- Pinned cluster (bottom-left) -->
+  <div class="pin-cluster-label">Pinned</div>
+  <a class="node node-pin" style="left: 32px; bottom: 168px" href="#skills/tdd">
+    <span class="node-pin-tile h-violet">T</span>
+    <div class="node-pin-body"><span class="node-pin-name">tdd</span><span class="node-pin-kind">skill</span></div>
+  </a>
+  <a class="node node-pin" style="left: 174px; bottom: 168px" href="#skills/code-review">
+    <span class="node-pin-tile h-blue">C</span>
+    <div class="node-pin-body"><span class="node-pin-name">code-review</span><span class="node-pin-kind">skill</span></div>
+  </a>
+  <a class="node node-pin" style="left: 32px; bottom: 120px" href="#agents/etl-runner">
+    <span class="node-pin-tile h-violet">E</span>
+    <div class="node-pin-body"><span class="node-pin-name">etl-runner</span><span class="node-pin-kind">agent</span></div>
+  </a>
+  <a class="node node-pin" style="left: 174px; bottom: 120px" href="#themes/paper">
+    <span class="node-pin-tile h-amber">p</span>
+    <div class="node-pin-body"><span class="node-pin-name">paper</span><span class="node-pin-kind">theme</span></div>
+  </a>
+
+  <!-- Apps dock (bottom center) -->
+  <div class="apps">
+    <a class="app is-studio" href="#studio">
+      <span class="app-glyph" style="font-size:13px">◐</span>
+      <span class="app-label">Studio</span>
+    </a>
+    <span class="app-divider"></span>
+    <a class="app" href="#sessions">
+      <span class="app-glyph h-green"><svg class="icon"><use href="#i-activity"/></svg></span>
+      <span class="app-label">Sessions</span>
+    </a>
+    <a class="app" href="#events">
+      <span class="app-glyph h-violet"><svg class="icon"><use href="#i-radio"/></svg></span>
+      <span class="app-label">Events</span>
+    </a>
+    <a class="app" href="#git">
+      <span class="app-glyph h-slate"><svg class="icon"><use href="#i-git"/></svg></span>
+      <span class="app-label">Git</span>
+    </a>
+    <a class="app" href="#dashboard">
+      <span class="app-glyph h-amber"><svg class="icon"><use href="#i-dash"/></svg></span>
+      <span class="app-label">Dashboard</span>
+    </a>
+  </div>
+
+  <!-- Minimap (decorative) -->
+  <div class="minimap">
+    <div class="minimap-canvas">
+      <div class="minimap-node" style="left: 16px; top: 32px; width: 28px; height: 12px"></div>
+      <div class="minimap-node" style="left: 70px; top: 24px; width: 28px; height: 12px"></div>
+      <div class="minimap-node" style="left: 130px; top: 38px; width: 28px; height: 12px"></div>
+      <div class="minimap-node is-hero" style="left: 70px; top: 56px; width: 60px; height: 14px"></div>
+      <div class="minimap-node" style="right: 12px; top: 18px; width: 40px; height: 56px"></div>
+      <div class="minimap-node" style="left: 12px; bottom: 22px; width: 36px; height: 14px"></div>
+      <div class="minimap-node" style="left: 12px; bottom: 6px; width: 36px; height: 6px"></div>
+      <div class="minimap-view"></div>
+    </div>
+  </div>
+
+</main>
+
+<script>
+  window.addEventListener('message', (e) => {
+    if (e.data?.type === 'theme') {
+      const DARK = new Set(['ship-dark', 'console', 'contrast']);
+      const h = document.documentElement;
+      h.setAttribute('data-theme', e.data.theme);
+      h.classList.toggle('dark', DARK.has(e.data.theme));
+    }
+  });
+</script>
+
+</body>
+</html>

@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en" data-theme="ship-light">
+<head>
+  <meta charset="utf-8" />
+  <title>Studio · Ship</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <link rel="stylesheet" href="../../sui/ship.css" />
+
+  <script type="importmap">
+  {
+    "imports": {
+      "@ship/sui-runtime": "../../sui/sui-runtime.js",
+      "@ship/sui-dom":     "../../sui/sui-dom.js",
+      "@ship/sdk-client":  "../../sui/sui-sdk-client.js"
+    }
+  }
+  </script>
+  <script type="module" src="../../sui/sui-components.js"></script>
+
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<main class="library" data-domain="agents">
+
+  <!-- ───────────────  TOP BAR  ─────────────── -->
+  <header class="lib-top">
+    <div class="lib-top-brand">
+      <span class="lib-mark" aria-hidden="true">◐</span>
+      <div class="lib-top-titles">
+        <div class="lib-top-title">Studio</div>
+        <div class="lib-top-sub">Configure agents, skills, MCPs, pipelines, themes — everything Ship runs on.</div>
+      </div>
+    </div>
+    <div class="lib-top-actions">
+      <button class="lib-cmdk" type="button">
+        <span class="lib-cmdk-dot" aria-hidden="true"></span>
+        <span class="lib-cmdk-text">Search agents, skills, MCPs, pipelines…</span>
+        <kbd class="lib-cmdk-kbd">⌘K</kbd>
+      </button>
+      <sui-theme-picker label-style="compact" class="lib-theme-picker"></sui-theme-picker>
+    </div>
+  </header>
+
+  <!-- ───────────────  RAIL (JS-rendered)  ─────────────── -->
+  <nav class="lib-rail" id="rail" aria-label="Asset types"></nav>
+
+  <!-- ───────────────  BROWSE PANE (JS-rendered)  ─────────────── -->
+  <section class="lib-browse" id="browse" aria-label="Browse"></section>
+
+  <!-- ───────────────  DETAIL PANE (JS-rendered)  ─────────────── -->
+  <section class="lib-detail" id="detail" aria-label="Detail"></section>
+
+</main>
+
+<script src="studio-data.js"></script>
+<script src="studio-render.js"></script>
+
+</body>
+</html>

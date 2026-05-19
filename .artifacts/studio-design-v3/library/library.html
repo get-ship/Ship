@@ -1,0 +1,552 @@
+<!doctype html>
+<html lang="en" data-theme="ship-light">
+<head>
+  <meta charset="utf-8" />
+  <title>Library · Library · Studio · Ship</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="../../../sui/ship.css" />
+  <style>
+    html, body { margin: 0; }
+    body {
+      background: var(--background);
+      color: var(--foreground);
+      font-family: var(--font-body);
+      font-size: var(--text-base);
+      -webkit-font-smoothing: antialiased;
+    }
+    .icon    { width: 14px; height: 14px; }
+    .icon-xs { width: 12px; height: 12px; }
+    .icon-md { width: 16px; height: 16px; }
+
+    .page { max-width: 1100px; margin: 0 auto; padding: 56px var(--space-6) 96px; box-sizing: border-box; }
+
+    .back { display: inline-flex; align-items: center; gap: 4px; font-size: 12.5px; color: var(--muted-foreground); text-decoration: none; margin-bottom: var(--space-6); }
+    .back:hover { color: var(--foreground); }
+
+    .head { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--space-4); margin-bottom: var(--space-6); }
+    .title {
+      font-family: var(--heading-font);
+      font-size: var(--text-3xl);
+      font-weight: var(--heading-weight);
+      letter-spacing: var(--heading-tracking);
+      line-height: 1.05;
+      margin: 0 0 var(--space-2);
+    }
+    .sub { display: flex; align-items: center; gap: 8px; font-size: 13.5px; color: var(--muted-foreground); margin: 0; max-width: 60ch; line-height: 1.5; }
+    .sub strong { color: var(--foreground); font-weight: var(--font-weight-semibold); }
+    .sub-sep { width: 3px; height: 3px; border-radius: 50%; background: var(--border); }
+    .rule { width: 96px; height: 4px; border-radius: 2px; background: linear-gradient(90deg, var(--primary), transparent); margin-top: var(--space-3); }
+
+    /* Status banner — promotable count */
+    .banner {
+      display: flex; align-items: center; gap: var(--space-3);
+      padding: 12px 16px;
+      background: color-mix(in oklch, var(--primary) 6%, var(--surface-1));
+      border: 1px solid color-mix(in oklch, var(--primary) 22%, var(--border-subtle));
+      border-radius: var(--radius-md);
+      margin-bottom: var(--space-5);
+    }
+    .banner-mark {
+      width: 28px; height: 28px;
+      border-radius: var(--radius-sm);
+      background: var(--primary);
+      color: var(--primary-foreground);
+      display: inline-flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .banner-body { flex: 1; }
+    .banner-h { font-family: var(--heading-font); font-size: 14px; font-weight: var(--heading-weight); margin: 0 0 2px; }
+    .banner-sub { font-size: 12.5px; color: var(--muted-foreground); }
+    .banner-act {
+      padding: 5px 12px;
+      border: 1px solid var(--primary);
+      background: var(--background);
+      color: var(--primary);
+      border-radius: var(--radius-sm);
+      font: inherit; font-size: 12.5px;
+      font-weight: var(--font-weight-semibold);
+      cursor: pointer;
+    }
+    .banner-act:hover { background: color-mix(in oklch, var(--primary) 8%, var(--background)); }
+
+    /* Filters */
+    .filters { display: flex; flex-wrap: wrap; gap: var(--space-3); margin-bottom: var(--space-5); align-items: center; }
+    .search {
+      display: inline-flex; align-items: center; gap: 8px;
+      flex: 1 1 280px; min-width: 240px;
+      padding: 6px 10px;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      background: var(--surface-1);
+    }
+    .search:focus-within { border-color: var(--primary); box-shadow: 0 0 0 3px var(--tone-primary-ring); background: var(--background); }
+    .search input { flex: 1; border: 0; outline: 0; background: transparent; font: inherit; font-size: 13px; color: var(--foreground); }
+    .pills { display: inline-flex; gap: 4px; flex-wrap: wrap; }
+    .pill {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 4px 10px;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-full);
+      background: var(--surface-1);
+      color: var(--muted-foreground);
+      font: inherit; font-size: 12px;
+      cursor: pointer;
+    }
+    .pill:hover { color: var(--foreground); border-color: var(--border); }
+    .pill.is-active { color: var(--primary-foreground); background: var(--primary); border-color: var(--primary); }
+    .pill-count { font-variant-numeric: tabular-nums; font-size: 10px; padding: 1px 6px; border-radius: var(--radius-full); background: color-mix(in oklch, currentColor 18%, transparent); }
+
+    .filter-divider { width: 1px; height: 20px; background: var(--border-subtle); margin: 0 4px; }
+
+    /* Table */
+    .table-h {
+      display: grid;
+      grid-template-columns: 36px 1.8fr 0.9fr 0.7fr 0.9fr 0.7fr auto;
+      gap: var(--space-3);
+      padding: 0 14px 8px;
+      font-size: 10.5px;
+      font-weight: var(--font-weight-semibold);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted-foreground);
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    .rows { display: flex; flex-direction: column; gap: 1px; padding: 4px 0; }
+    .row {
+      display: grid;
+      grid-template-columns: 36px 1.8fr 0.9fr 0.7fr 0.9fr 0.7fr auto;
+      gap: var(--space-3);
+      align-items: center;
+      padding: 10px 14px;
+      border-radius: var(--radius-sm);
+      transition: background 120ms;
+    }
+    .row:hover { background: var(--surface-1); }
+    .row-tile {
+      width: 36px; height: 36px;
+      border-radius: var(--radius-sm);
+      display: inline-flex; align-items: center; justify-content: center;
+      color: white;
+      font-family: var(--font-mono);
+      font-size: 15px; font-weight: var(--font-weight-bold);
+      position: relative; isolation: isolate;
+      box-shadow:
+        inset 0 1px 0 color-mix(in oklch, white 22%, transparent),
+        0 1px 4px color-mix(in oklch, var(--g-color, var(--primary)) 22%, transparent);
+    }
+    .row-tile::before {
+      content: '';
+      position: absolute; inset: 0; border-radius: inherit;
+      background: linear-gradient(160deg, color-mix(in oklch, white 14%, transparent) 0%, transparent 55%);
+    }
+    .row-body { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+    .row-name { font-family: var(--font-mono); font-size: 13px; color: var(--foreground); }
+    .row-desc {
+      font-size: 12px; color: var(--muted-foreground);
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .row-type {
+      font-family: var(--font-mono); font-size: 10.5px;
+      padding: 1px 7px;
+      border-radius: var(--radius-sm);
+      background: var(--surface-2);
+      color: var(--muted-foreground);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      width: max-content;
+    }
+    .row-ver { font-family: var(--font-mono); font-size: 11.5px; color: var(--muted-foreground); }
+    .row-vis {
+      display: inline-flex; align-items: center; gap: 5px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      padding: 1px 8px;
+      border-radius: var(--radius-full);
+      letter-spacing: 0.04em;
+      width: max-content;
+    }
+    .row-vis-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+    .row-vis.is-proj   { background: var(--surface-2); color: var(--muted-foreground); }
+    .row-vis.is-pers   { background: color-mix(in oklch, var(--info) 14%, transparent); color: var(--info); }
+    .row-vis.is-public { background: color-mix(in oklch, var(--success) 14%, transparent); color: var(--success); }
+    .row-vis.is-draft  { background: color-mix(in oklch, var(--warning) 16%, transparent); color: var(--warning); }
+    .row-dep { font-family: var(--font-mono); font-size: 11px; color: var(--muted-foreground); }
+    .row-dep strong { color: var(--foreground); font-weight: var(--font-weight-semibold); }
+
+    .row-act {
+      display: flex; gap: 2px;
+      opacity: 0;
+      transition: opacity 120ms;
+    }
+    .row:hover .row-act { opacity: 1; }
+    .row-btn {
+      padding: 4px 10px;
+      border: 1px solid var(--border-subtle);
+      background: var(--background);
+      border-radius: var(--radius-sm);
+      font: inherit; font-size: 11.5px;
+      font-family: var(--font-mono);
+      color: var(--foreground);
+      cursor: pointer;
+    }
+    .row-btn:hover { background: var(--surface-2); }
+    .row-btn.is-pri {
+      background: var(--primary);
+      color: var(--primary-foreground);
+      border-color: var(--primary);
+    }
+    .row-btn-icon {
+      width: 26px; height: 26px;
+      display: inline-flex; align-items: center; justify-content: center;
+      border: 1px solid var(--border-subtle);
+      background: var(--background);
+      border-radius: var(--radius-sm);
+      color: var(--muted-foreground);
+      cursor: pointer;
+    }
+    .row-btn-icon:hover { color: var(--foreground); }
+
+    /* Sections — group by status */
+    .sec-h {
+      display: flex; align-items: baseline; gap: 8px;
+      font-size: 11px; font-weight: var(--font-weight-semibold);
+      letter-spacing: 0.16em; text-transform: uppercase;
+      color: var(--muted-foreground);
+      margin: var(--space-6) 0 var(--space-3);
+      padding-bottom: 6px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    .sec-h-count {
+      font-family: var(--font-mono); font-weight: normal;
+      letter-spacing: 0; text-transform: none; font-size: 11px;
+    }
+    .sec-h-act {
+      margin-left: auto;
+      font-size: 11.5px;
+      color: var(--primary);
+      text-decoration: none;
+      letter-spacing: 0; text-transform: none; font-weight: normal;
+    }
+
+    /* Visibility helper text (footnote) */
+    .legend {
+      display: flex; gap: 16px;
+      margin-top: var(--space-6);
+      padding: 12px 14px;
+      border: 1px dashed var(--border-subtle);
+      border-radius: var(--radius-md);
+      background: transparent;
+      font-size: 11.5px;
+      color: var(--muted-foreground);
+      flex-wrap: wrap;
+    }
+    .legend-cell { display: inline-flex; align-items: center; gap: 6px; }
+    .legend-cell code {
+      font-family: var(--font-mono);
+      font-size: 10.5px;
+      padding: 1px 6px;
+      background: var(--muted);
+      border-radius: var(--radius-sm);
+      color: var(--foreground);
+    }
+
+    /* Hues */
+    .h-orange { --g-color: #d97757; background: #d97757; }
+    .h-amber  { --g-color: #c98a2c; background: #c98a2c; }
+    .h-red    { --g-color: #b94a4a; background: #b94a4a; }
+    .h-violet { --g-color: #7a5cd6; background: #7a5cd6; }
+    .h-blue   { --g-color: #4376d6; background: #4376d6; }
+    .h-teal   { --g-color: #2a8a8a; background: #2a8a8a; }
+    .h-green  { --g-color: #4f9e54; background: #4f9e54; }
+    .h-pink   { --g-color: #c25a8e; background: #c25a8e; }
+    .h-slate  { --g-color: #5b6878; background: #5b6878; }
+  </style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-chev-left" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></symbol>
+    <symbol id="i-up" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"/><polyline points="5 12 12 5 19 12"/></symbol>
+    <symbol id="i-more" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></symbol>
+  </defs>
+</svg>
+
+<main class="page">
+
+  <a class="back" href="#studio">
+    <svg class="icon-xs"><use href="#i-chev-left"/></svg>
+    Library
+  </a>
+
+  <header class="head">
+    <div>
+      <h1 class="title">Library</h1>
+      <p class="sub">
+        <strong>11</strong> creations in <code style="font-family:var(--font-mono);font-size:12px;padding:1px 6px;background:var(--muted);border-radius:var(--radius-sm);color:var(--foreground)">ship-monorepo</code>
+        <span class="sub-sep"></span>
+        promote to your personal library or publish to marketplace
+      </p>
+      <div class="rule"></div>
+    </div>
+  </header>
+
+  <!-- Promotable banner -->
+  <div class="banner">
+    <span class="banner-mark"><svg class="icon"><use href="#i-up"/></svg></span>
+    <div class="banner-body">
+      <h2 class="banner-h">3 creations look ready to promote</h2>
+      <p class="banner-sub">Stable for 2+ weeks · no unsaved edits · all references resolve · used in this project</p>
+    </div>
+    <button class="banner-act" type="button">Review →</button>
+  </div>
+
+  <!-- Filters -->
+  <div class="filters">
+    <div class="search">
+      <svg class="icon-xs" style="color:var(--muted-foreground)"><use href="#i-search"/></svg>
+      <input placeholder="Filter by name, type, or tag…" />
+    </div>
+    <div class="pills">
+      <button class="pill is-active" type="button">All <span class="pill-count">11</span></button>
+      <button class="pill" type="button">Agents <span class="pill-count">3</span></button>
+      <button class="pill" type="button">Skills <span class="pill-count">4</span></button>
+      <button class="pill" type="button">Components <span class="pill-count">2</span></button>
+      <button class="pill" type="button">Themes <span class="pill-count">1</span></button>
+      <button class="pill" type="button">Pipelines <span class="pill-count">1</span></button>
+    </div>
+    <div class="filter-divider"></div>
+    <div class="pills">
+      <button class="pill" type="button">Project <span class="pill-count">6</span></button>
+      <button class="pill" type="button">Personal <span class="pill-count">3</span></button>
+      <button class="pill" type="button">Public <span class="pill-count">2</span></button>
+    </div>
+  </div>
+
+  <!-- ── PUBLISHED PUBLIC ── -->
+  <h2 class="sec-h">
+    Public <span class="sec-h-count">· 2 · on marketplace</span>
+    <a class="sec-h-act" href="#">View on marketplace →</a>
+  </h2>
+  <div class="table-h">
+    <span></span>
+    <span>Name</span>
+    <span>Type</span>
+    <span>Version</span>
+    <span>Visibility</span>
+    <span>Dependents</span>
+    <span>Actions</span>
+  </div>
+  <div class="rows">
+    <div class="row">
+      <span class="row-tile h-violet">T</span>
+      <div class="row-body">
+        <span class="row-name">tdd</span>
+        <span class="row-desc">Use when implementing new behaviour — write failing test first.</span>
+      </div>
+      <span class="row-type">skill</span>
+      <span class="row-ver">1.2.0</span>
+      <span class="row-vis is-public"><span class="row-vis-dot"></span>public</span>
+      <span class="row-dep"><strong>14</strong> installs</span>
+      <div class="row-act">
+        <button class="row-btn" type="button">Publish update</button>
+        <button class="row-btn-icon" type="button"><svg class="icon-xs"><use href="#i-more"/></svg></button>
+      </div>
+    </div>
+    <div class="row">
+      <span class="row-tile h-amber">p</span>
+      <div class="row-body">
+        <span class="row-name">paper</span>
+        <span class="row-desc">Cream + terracotta. Heavier body type, slower motion.</span>
+      </div>
+      <span class="row-type">theme</span>
+      <span class="row-ver">2.0.0</span>
+      <span class="row-vis is-public"><span class="row-vis-dot"></span>public</span>
+      <span class="row-dep"><strong>87</strong> installs</span>
+      <div class="row-act">
+        <button class="row-btn" type="button">Publish update</button>
+        <button class="row-btn-icon" type="button"><svg class="icon-xs"><use href="#i-more"/></svg></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── PROMOTED to personal library ── -->
+  <h2 class="sec-h">
+    Personal <span class="sec-h-count">· 3 · across your projects</span>
+  </h2>
+  <div class="table-h">
+    <span></span><span>Name</span><span>Type</span><span>Version</span><span>Visibility</span><span>Used in</span><span>Actions</span>
+  </div>
+  <div class="rows">
+    <div class="row">
+      <span class="row-tile h-orange">R</span>
+      <div class="row-body">
+        <span class="row-name">rust-compiler</span>
+        <span class="row-desc">Compiles Rust workspaces, reports clippy spans inline.</span>
+      </div>
+      <span class="row-type">agent</span>
+      <span class="row-ver">0.4.2</span>
+      <span class="row-vis is-pers"><span class="row-vis-dot"></span>personal</span>
+      <span class="row-dep"><strong>2</strong> projects</span>
+      <div class="row-act">
+        <button class="row-btn is-pri" type="button">Publish</button>
+        <button class="row-btn-icon" type="button"><svg class="icon-xs"><use href="#i-more"/></svg></button>
+      </div>
+    </div>
+    <div class="row">
+      <span class="row-tile h-blue">C</span>
+      <div class="row-body">
+        <span class="row-name">code-review</span>
+        <span class="row-desc">Use when reading diffs — comments on intent drift.</span>
+      </div>
+      <span class="row-type">skill</span>
+      <span class="row-ver">1.4.0</span>
+      <span class="row-vis is-pers"><span class="row-vis-dot"></span>personal</span>
+      <span class="row-dep"><strong>3</strong> projects</span>
+      <div class="row-act">
+        <button class="row-btn is-pri" type="button">Publish</button>
+        <button class="row-btn-icon" type="button"><svg class="icon-xs"><use href="#i-more"/></svg></button>
+      </div>
+    </div>
+    <div class="row">
+      <span class="row-tile h-pink">P</span>
+      <div class="row-body">
+        <span class="row-name">sui-pipeline-graph</span>
+        <span class="row-desc">DAG visualizer component, draggable nodes.</span>
+      </div>
+      <span class="row-type">component</span>
+      <span class="row-ver">0.3.1</span>
+      <span class="row-vis is-pers"><span class="row-vis-dot"></span>personal</span>
+      <span class="row-dep"><strong>1</strong> project</span>
+      <div class="row-act">
+        <button class="row-btn" type="button">Publish</button>
+        <button class="row-btn-icon" type="button"><svg class="icon-xs"><use href="#i-more"/></svg></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── PROJECT-ONLY ── -->
+  <h2 class="sec-h">
+    Project-only <span class="sec-h-count">· 6 · scoped to ship-monorepo</span>
+  </h2>
+  <div class="table-h">
+    <span></span><span>Name</span><span>Type</span><span>Version</span><span>Visibility</span><span>Used by</span><span>Actions</span>
+  </div>
+  <div class="rows">
+    <div class="row">
+      <span class="row-tile h-green">T</span>
+      <div class="row-body">
+        <span class="row-name">test-runner</span>
+        <span class="row-desc">Runs unit + integration suites with auto-retry.</span>
+      </div>
+      <span class="row-type">agent</span>
+      <span class="row-ver">1.0.0</span>
+      <span class="row-vis is-proj"><span class="row-vis-dot"></span>project</span>
+      <span class="row-dep"><strong>release</strong> pipeline</span>
+      <div class="row-act">
+        <button class="row-btn is-pri" type="button">Promote</button>
+        <button class="row-btn-icon" type="button"><svg class="icon-xs"><use href="#i-more"/></svg></button>
+      </div>
+    </div>
+    <div class="row">
+      <span class="row-tile h-violet">E</span>
+      <div class="row-body">
+        <span class="row-name">etl-runner</span>
+        <span class="row-desc">Daily extract + load on warehouse partitions.</span>
+      </div>
+      <span class="row-type">agent</span>
+      <span class="row-ver">0.6.0</span>
+      <span class="row-vis is-proj"><span class="row-vis-dot"></span>project</span>
+      <span class="row-dep"><strong>etl-daily</strong> pipeline</span>
+      <div class="row-act">
+        <button class="row-btn" type="button">Promote</button>
+        <button class="row-btn-icon" type="button"><svg class="icon-xs"><use href="#i-more"/></svg></button>
+      </div>
+    </div>
+    <div class="row">
+      <span class="row-tile h-amber">L</span>
+      <div class="row-body">
+        <span class="row-name">lint</span>
+        <span class="row-desc">Apply clippy lints with project severity overrides.</span>
+      </div>
+      <span class="row-type">skill</span>
+      <span class="row-ver">0.8.0</span>
+      <span class="row-vis is-proj"><span class="row-vis-dot"></span>project</span>
+      <span class="row-dep"><strong>1</strong> agent</span>
+      <div class="row-act">
+        <button class="row-btn" type="button">Promote</button>
+        <button class="row-btn-icon" type="button"><svg class="icon-xs"><use href="#i-more"/></svg></button>
+      </div>
+    </div>
+    <div class="row">
+      <span class="row-tile h-orange">B</span>
+      <div class="row-body">
+        <span class="row-name">build</span>
+        <span class="row-desc">Cargo build with cache-aware artifact upload.</span>
+      </div>
+      <span class="row-type">skill</span>
+      <span class="row-ver">2.0.0</span>
+      <span class="row-vis is-proj"><span class="row-vis-dot"></span>project</span>
+      <span class="row-dep"><strong>1</strong> agent</span>
+      <div class="row-act">
+        <button class="row-btn is-pri" type="button">Promote</button>
+        <button class="row-btn-icon" type="button"><svg class="icon-xs"><use href="#i-more"/></svg></button>
+      </div>
+    </div>
+    <div class="row">
+      <span class="row-tile h-teal">R</span>
+      <div class="row-body">
+        <span class="row-name">release</span>
+        <span class="row-desc">Build → test → review → tag → publish.</span>
+      </div>
+      <span class="row-type">pipeline</span>
+      <span class="row-ver">0.6.0</span>
+      <span class="row-vis is-proj"><span class="row-vis-dot"></span>project</span>
+      <span class="row-dep">—</span>
+      <div class="row-act">
+        <button class="row-btn" type="button">Promote</button>
+        <button class="row-btn-icon" type="button"><svg class="icon-xs"><use href="#i-more"/></svg></button>
+      </div>
+    </div>
+    <div class="row">
+      <span class="row-tile h-slate">d</span>
+      <div class="row-body">
+        <span class="row-name">sui-agent-card</span>
+        <span class="row-desc">Compact agent identity card with provider blobs.</span>
+      </div>
+      <span class="row-type">component</span>
+      <span class="row-ver">0.1.0 <span style="color:var(--warning)">· draft</span></span>
+      <span class="row-vis is-draft"><span class="row-vis-dot"></span>draft</span>
+      <span class="row-dep">—</span>
+      <div class="row-act">
+        <button class="row-btn" type="button">Promote</button>
+        <button class="row-btn-icon" type="button"><svg class="icon-xs"><use href="#i-more"/></svg></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Visibility legend -->
+  <div class="legend">
+    <div class="legend-cell">
+      <span class="row-vis is-proj" style="padding:0 6px"><span class="row-vis-dot"></span>project</span>
+      <span>scoped to <code>ship-monorepo</code></span>
+    </div>
+    <div class="legend-cell">
+      <span class="row-vis is-pers" style="padding:0 6px"><span class="row-vis-dot"></span>personal</span>
+      <span>available across all your projects</span>
+    </div>
+    <div class="legend-cell">
+      <span class="row-vis is-public" style="padding:0 6px"><span class="row-vis-dot"></span>public</span>
+      <span>on the marketplace · others can install</span>
+    </div>
+    <div class="legend-cell">
+      <span class="row-vis is-draft" style="padding:0 6px"><span class="row-vis-dot"></span>draft</span>
+      <span>not yet promotable · missing version or refs</span>
+    </div>
+  </div>
+
+</main>
+
+</body>
+</html>

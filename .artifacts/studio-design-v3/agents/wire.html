@@ -1,0 +1,604 @@
+<!doctype html>
+<html lang="en" data-theme="ship-light">
+<head>
+  <meta charset="utf-8" />
+  <title>rust-compiler · wire · Ship</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <link rel="stylesheet" href="../../../sui/ship.css" />
+
+  <script type="importmap">
+  {
+    "imports": {
+      "@ship/sui-runtime": "../../../sui/sui-runtime.js",
+      "@ship/sui-dom":     "../../../sui/sui-dom.js",
+      "@ship/sdk-client":  "../../../sui/sui-sdk-client.js"
+    }
+  }
+  </script>
+  <script type="module" src="../../../sui/sui-components.js"></script>
+
+  <style>
+    html, body { margin: 0; }
+    body {
+      background: var(--background);
+      color: var(--foreground);
+      font-family: var(--font-body);
+      font-size: var(--text-base);
+      line-height: var(--leading-normal);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .wire {
+      max-width: 1024px;
+      margin: 0 auto;
+      padding: 56px var(--space-6) 96px;
+      box-sizing: border-box;
+    }
+
+    .wire-back {
+      display: inline-flex; align-items: center; gap: 4px;
+      font-size: 12.5px;
+      color: var(--muted-foreground);
+      text-decoration: none;
+      margin-bottom: var(--space-6);
+    }
+    .wire-back:hover { color: var(--foreground); }
+
+    .wire-head {
+      display: grid;
+      grid-template-columns: 64px 1fr;
+      gap: var(--space-4);
+      align-items: start;
+      margin-bottom: var(--space-6);
+    }
+    .wire-tile {
+      width: 64px; height: 64px;
+      border-radius: var(--radius-lg);
+      display: inline-flex; align-items: center; justify-content: center;
+      color: white;
+      font-family: var(--font-mono);
+      font-size: 26px;
+      font-weight: var(--font-weight-bold);
+      letter-spacing: -0.02em;
+      position: relative;
+      isolation: isolate;
+      box-shadow:
+        inset 0 1px 0 color-mix(in oklch, white 22%, transparent),
+        inset 0 -1px 0 color-mix(in oklch, black 8%, transparent),
+        0 3px 10px color-mix(in oklch, var(--tile-color, var(--primary)) 25%, transparent);
+    }
+    .wire-tile::before {
+      content: '';
+      position: absolute; inset: 0;
+      border-radius: inherit;
+      background: linear-gradient(160deg, color-mix(in oklch, white 14%, transparent) 0%, transparent 55%);
+      pointer-events: none;
+    }
+    .wire-name {
+      font-family: var(--heading-font);
+      font-size: var(--text-2xl);
+      font-weight: var(--heading-weight);
+      letter-spacing: var(--heading-tracking);
+      line-height: 1.1;
+      margin: 0 0 4px;
+    }
+    .wire-meta {
+      font-size: 13px;
+      color: var(--muted-foreground);
+    }
+    .wire-meta code {
+      font-family: var(--font-mono);
+      font-size: 11.5px;
+      padding: 1px 6px;
+      background: var(--muted);
+      color: var(--foreground);
+      border-radius: var(--radius-sm);
+    }
+    .wire-rule {
+      width: 80px; height: 4px;
+      border-radius: 2px;
+      background: linear-gradient(90deg, var(--primary), transparent);
+      margin-top: var(--space-3);
+    }
+
+    /* Harness picker */
+    .harn {
+      display: flex; align-items: center; gap: var(--space-3);
+      margin-bottom: var(--space-5);
+      padding-bottom: var(--space-3);
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    .harn-label {
+      font-size: 11px;
+      font-weight: var(--font-weight-semibold);
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted-foreground);
+    }
+    .harn-tabs {
+      display: inline-flex;
+      gap: 0;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 2px;
+      background: var(--surface-1);
+    }
+    .harn-tab {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 5px 12px;
+      border: 0;
+      background: transparent;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      font: inherit;
+      font-size: 12.5px;
+      font-family: var(--font-mono);
+      color: var(--muted-foreground);
+    }
+    .harn-tab:hover { color: var(--foreground); }
+    .harn-tab.is-active {
+      background: var(--background);
+      color: var(--foreground);
+      font-weight: var(--font-weight-semibold);
+      box-shadow: var(--shadow-xs);
+    }
+    .harn-tab.is-off { opacity: 0.4; cursor: not-allowed; }
+    .harn-dot {
+      width: 8px; height: 8px;
+      border-radius: 2px;
+    }
+    .harn-aside {
+      margin-left: auto;
+      font-size: 12px;
+      color: var(--muted-foreground);
+      display: inline-flex; align-items: center; gap: 8px;
+    }
+    .harn-aside code {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      padding: 1px 5px;
+      background: var(--muted);
+      border-radius: var(--radius-sm);
+    }
+
+    /* Two-column body */
+    .wire-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: var(--space-4);
+    }
+    @media (min-width: 880px) {
+      .wire-grid { grid-template-columns: 2fr 1fr; }
+    }
+
+    /* Compiled output stack */
+    .stack {
+      display: flex; flex-direction: column;
+      gap: var(--space-4);
+      min-width: 0;
+    }
+    .block {
+      background: var(--card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: var(--space-4);
+      box-shadow: var(--shadow-xs);
+    }
+    .block-h {
+      display: flex; align-items: baseline; gap: 8px;
+      margin: 0 0 var(--space-3);
+      font-size: 11px;
+      font-weight: var(--font-weight-semibold);
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted-foreground);
+    }
+    .block-h-aux {
+      font-family: var(--font-mono);
+      font-weight: var(--font-weight-normal);
+      font-size: 11px;
+      letter-spacing: 0;
+      text-transform: none;
+    }
+    .block-h-act {
+      margin-left: auto;
+      font-size: 11px;
+      color: var(--primary);
+      cursor: pointer;
+      background: transparent;
+      border: 0;
+      font: inherit; font-size: 11px;
+      padding: 2px 6px;
+      border-radius: var(--radius-sm);
+      text-transform: none;
+      letter-spacing: 0;
+    }
+    .block-h-act:hover { background: color-mix(in oklch, var(--primary) 10%, transparent); }
+
+    /* code-y preview */
+    .code {
+      font-family: var(--font-mono);
+      font-size: 12.5px;
+      line-height: 1.65;
+      background: var(--muted);
+      color: var(--foreground);
+      border-radius: var(--radius-md);
+      padding: 12px 14px;
+      margin: 0;
+      white-space: pre-wrap;
+      word-break: break-word;
+      overflow-x: auto;
+    }
+    .code .c { color: var(--muted-foreground); font-style: italic; }
+    .code .k { color: color-mix(in oklch, var(--foreground) 100%, transparent); }
+    .code .s { color: var(--success); }
+    .code .n { color: var(--info); }
+    .code .e { color: var(--accent, var(--primary)); }
+    .code .src-skill { background: color-mix(in oklch, var(--success) 12%, transparent); padding: 1px 4px; border-radius: 2px; }
+    .code .src-rule  { background: color-mix(in oklch, var(--warning) 14%, transparent); padding: 1px 4px; border-radius: 2px; }
+    .code .src-agent { background: color-mix(in oklch, var(--primary) 10%, transparent); padding: 1px 4px; border-radius: 2px; }
+
+    .code-legend {
+      display: flex; gap: 12px;
+      font-size: 11px;
+      color: var(--muted-foreground);
+      margin-top: 8px;
+    }
+    .code-legend-sw { display: inline-flex; align-items: center; gap: 5px; }
+    .code-legend-sw i {
+      display: inline-block;
+      width: 10px; height: 10px;
+      border-radius: 2px;
+    }
+
+    /* tools list */
+    .tools-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 4px;
+    }
+    .tool {
+      display: flex; align-items: center; gap: 6px;
+      padding: 5px 8px;
+      border-radius: var(--radius-sm);
+      background: var(--surface-1);
+      font-family: var(--font-mono);
+      font-size: 11.5px;
+      color: var(--foreground);
+    }
+    .tool-src {
+      font-size: 9.5px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted-foreground);
+      padding: 1px 4px;
+      border-radius: 2px;
+      margin-left: auto;
+    }
+    .tool-src.is-preset { background: color-mix(in oklch, var(--success) 14%, transparent); color: var(--success); }
+    .tool-src.is-override { background: color-mix(in oklch, var(--info) 14%, transparent); color: var(--info); }
+    .tool-src.is-mcp { background: color-mix(in oklch, var(--accent, var(--primary)) 14%, transparent); color: var(--accent, var(--primary)); }
+
+    /* aside cards */
+    .aside-card {
+      background: var(--surface-1);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 14px 16px;
+    }
+    .aside-card-h {
+      font-size: 10.5px;
+      font-weight: var(--font-weight-semibold);
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted-foreground);
+      margin: 0 0 8px;
+    }
+    .aside-kv {
+      display: grid;
+      grid-template-columns: 1fr;
+      row-gap: 8px;
+      margin: 0;
+      font-size: 12.5px;
+    }
+    .aside-kv dt {
+      font-family: var(--font-mono);
+      font-size: 10.5px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted-foreground);
+      margin-bottom: 1px;
+    }
+    .aside-kv dd {
+      margin: 0;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--foreground);
+      word-break: break-all;
+    }
+    .aside-cite {
+      display: flex; flex-direction: column;
+      gap: 2px;
+    }
+    .aside-cite-row {
+      display: flex; align-items: center; gap: 6px;
+      padding: 4px 6px;
+      border-radius: var(--radius-sm);
+      font-size: 12px;
+      text-decoration: none;
+      color: var(--foreground);
+      transition: background 120ms;
+    }
+    .aside-cite-row:hover { background: var(--background); }
+    .aside-cite-icon {
+      display: inline-flex; width: 14px; height: 14px;
+      align-items: center; justify-content: center;
+      color: var(--muted-foreground);
+    }
+    .aside-cite-name {
+      font-family: var(--font-mono);
+      color: var(--foreground);
+    }
+    .aside-cite-count {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--muted-foreground);
+      margin-left: auto;
+    }
+
+    /* hue presets */
+    .hue-orange { --tile-color: #d97757; background: #d97757; }
+    .h-claude   { background: #d97757; }
+    .h-codex    { background: #0a8a6b; }
+    .h-gemini   { background: #4f7fff; }
+    .h-cursor   { background: #2b2b2b; }
+    .h-opencode { background: #1f7ad4; }
+  </style>
+</head>
+<body>
+
+<main class="wire">
+
+  <a class="wire-back" href="#agents/rust-compiler">
+    <sui-icon name="chevron-left" size="xs"></sui-icon>
+    rust-compiler
+  </a>
+
+  <header class="wire-head">
+    <span class="wire-tile hue-orange">R</span>
+    <div>
+      <h1 class="wire-name">Wire</h1>
+      <p class="wire-meta">
+        What the agent compiles to. Source for what Ship writes to each harness's config file.
+        <br />
+        SDK: <code>ship.agents.wire({ id: "rust-compiler" })</code>
+      </p>
+      <div class="wire-rule"></div>
+    </div>
+  </header>
+
+  <!-- Harness picker -->
+  <div class="harn">
+    <span class="harn-label">Harness</span>
+    <div class="harn-tabs" role="tablist">
+      <button class="harn-tab is-active" type="button">
+        <span class="harn-dot h-claude"></span>claude
+      </button>
+      <button class="harn-tab" type="button">
+        <span class="harn-dot h-codex"></span>codex
+      </button>
+      <button class="harn-tab is-off" type="button" disabled>
+        <span class="harn-dot h-gemini"></span>gemini
+      </button>
+      <button class="harn-tab is-off" type="button" disabled>
+        <span class="harn-dot h-cursor"></span>cursor
+      </button>
+      <button class="harn-tab is-off" type="button" disabled>
+        <span class="harn-dot h-opencode"></span>opencode
+      </button>
+    </div>
+    <span class="harn-aside">
+      writes <code>~/.claude/agents/rust-compiler.json</code>
+    </span>
+  </div>
+
+  <div class="wire-grid">
+
+    <!-- Left stack: compiled output -->
+    <div class="stack">
+
+      <!-- System message -->
+      <section class="block">
+        <div class="block-h">
+          System message
+          <span class="block-h-aux">· post-template · 1,284 chars</span>
+          <button class="block-h-act" type="button">Copy</button>
+        </div>
+        <pre class="code"><span class="c">// agent · rules · skills</span>
+
+<span class="src-agent">You are <b>rust-compiler</b>. Compiles Rust workspaces, reports clippy
+spans inline, blocks PRs on warnings. Pairs with test-runner on the
+release pipeline so a failing test surfaces against the same diagnostic
+surface as a failing build.</span>
+
+<span class="c">// rules:</span>
+
+<span class="src-rule">When the diff touches crates/runtime/, always run cargo test --workspace
+--all-features.
+Never silence clippy::pedantic at the crate level — annotate at the call
+site instead.</span>
+
+<span class="src-rule">## Style
+Tabs are 2 spaces. Trailing newline. Use `Self::` over the type name
+inside impl blocks.</span>
+
+<span class="src-rule">## Git flow
+Branch names: <code>fx/&lt;ticket&gt;</code>. Commit subjects under 72 chars.
+Never force-push to <code>main</code>.</span>
+
+<span class="c">// skills:</span>
+
+<span class="src-skill">## tdd
+Use when implementing new behaviour — write failing test first,
+then iterate to green. Refactor only on green.</span>
+
+<span class="src-skill">## lint
+Apply clippy lints with project-defined severity overrides.
+Emit fixable diffs grouped by file.</span>
+
+<span class="src-skill">## build
+Cargo build with cache-aware artifact upload to the run scope.</span></pre>
+        <div class="code-legend">
+          <span class="code-legend-sw"><i style="background:color-mix(in oklch, var(--primary) 30%, transparent)"></i>agent</span>
+          <span class="code-legend-sw"><i style="background:color-mix(in oklch, var(--warning) 30%, transparent)"></i>rule files + inline</span>
+          <span class="code-legend-sw"><i style="background:color-mix(in oklch, var(--success) 30%, transparent)"></i>skill body</span>
+        </div>
+      </section>
+
+      <!-- Resolved tools -->
+      <section class="block">
+        <div class="block-h">
+          Resolved tools
+          <span class="block-h-aux">· 11 total · preset + overrides + MCP</span>
+        </div>
+        <div class="tools-grid">
+          <div class="tool"><code>Read</code><span class="tool-src is-preset">preset</span></div>
+          <div class="tool"><code>Edit</code><span class="tool-src is-preset">preset</span></div>
+          <div class="tool"><code>Write</code><span class="tool-src is-preset">preset</span></div>
+          <div class="tool"><code>Glob</code><span class="tool-src is-preset">preset</span></div>
+          <div class="tool"><code>Grep</code><span class="tool-src is-preset">preset</span></div>
+          <div class="tool"><code>Bash(cargo *)</code><span class="tool-src is-override">add</span></div>
+          <div class="tool"><code>Bash(git *)</code><span class="tool-src is-override">add</span></div>
+          <div class="tool"><code>mcp__filesystem__*</code><span class="tool-src is-mcp">mcp</span></div>
+          <div class="tool"><code>mcp__github__*</code><span class="tool-src is-mcp">mcp</span></div>
+        </div>
+      </section>
+
+      <!-- Raw config -->
+      <section class="block">
+        <div class="block-h">
+          Raw config
+          <span class="block-h-aux">· deep-merged, schema-validated</span>
+          <button class="block-h-act" type="button">Copy</button>
+        </div>
+        <pre class="code">{
+  <span class="k">"name"</span>: <span class="s">"rust-compiler"</span>,
+  <span class="k">"model"</span>: <span class="s">"claude-sonnet-4-5"</span>,         <span class="c">// override</span>
+  <span class="k">"maxThinkingTokens"</span>: <span class="n">16000</span>,          <span class="c">// override</span>
+  <span class="k">"theme"</span>: <span class="s">"dark"</span>,                    <span class="c">// ship.jsonc</span>
+  <span class="k">"defaultSubagentModel"</span>: <span class="s">"sonnet"</span>,    <span class="c">// ship.jsonc</span>
+  <span class="k">"includeCoAuthoredBy"</span>: <span class="n">true</span>,        <span class="c">// ship.jsonc</span>
+  <span class="k">"systemPrompt"</span>: <span class="s">"You are rust-compiler. …"</span>,
+  <span class="k">"allowedTools"</span>: [<span class="s">"Read"</span>, <span class="s">"Edit"</span>, <span class="s">"Write"</span>, <span class="s">"Glob"</span>, <span class="s">"Grep"</span>, <span class="s">"Bash(cargo *)"</span>, <span class="s">"Bash(git *)"</span>],
+  <span class="k">"askTools"</span>: [<span class="s">"Bash(rm *)"</span>],
+  <span class="k">"deniedTools"</span>: [<span class="s">"mcp__github__delete*"</span>],
+  <span class="k">"mcpServers"</span>: {
+    <span class="k">"filesystem"</span>: { <span class="k">"command"</span>: <span class="s">"npx"</span>, <span class="k">"args"</span>: [<span class="s">"-y"</span>, <span class="s">"@ship/mcp-filesystem"</span>] },
+    <span class="k">"github"</span>:     { <span class="k">"url"</span>: <span class="s">"https://mcp.github.com/v1"</span> }
+  },
+  <span class="k">"env"</span>: { <span class="k">"CARGO_TERM_COLOR"</span>: <span class="s">"always"</span> }
+}</pre>
+      </section>
+
+    </div>
+
+    <!-- Right aside -->
+    <aside class="stack">
+
+      <div class="aside-card">
+        <h3 class="aside-card-h">Destination</h3>
+        <dl class="aside-kv">
+          <div>
+            <dt>file</dt>
+            <dd>~/.claude/agents/rust-compiler.json</dd>
+          </div>
+          <div>
+            <dt>format</dt>
+            <dd>claude-code-settings</dd>
+          </div>
+          <div>
+            <dt>writer</dt>
+            <dd>ship compile · on save</dd>
+          </div>
+          <div>
+            <dt>size</dt>
+            <dd>2.4 KB</dd>
+          </div>
+        </dl>
+      </div>
+
+      <div class="aside-card">
+        <h3 class="aside-card-h">Model</h3>
+        <dl class="aside-kv">
+          <div>
+            <dt>id</dt>
+            <dd>claude-sonnet-4-5</dd>
+          </div>
+          <div>
+            <dt>source</dt>
+            <dd style="color:var(--primary)">agent override</dd>
+          </div>
+          <div>
+            <dt>provider</dt>
+            <dd>anthropic</dd>
+          </div>
+        </dl>
+      </div>
+
+      <div class="aside-card">
+        <h3 class="aside-card-h">Source materials</h3>
+        <div class="aside-cite">
+          <a class="aside-cite-row" href="#agents/rust-compiler#identity">
+            <span class="aside-cite-icon"><sui-icon name="user" size="xs"></sui-icon></span>
+            <span class="aside-cite-name">identity</span>
+            <span class="aside-cite-count">name + desc</span>
+          </a>
+          <a class="aside-cite-row" href="#agents/rust-compiler#skills">
+            <span class="aside-cite-icon"><sui-icon name="zap" size="xs"></sui-icon></span>
+            <span class="aside-cite-name">skills</span>
+            <span class="aside-cite-count">3 refs</span>
+          </a>
+          <a class="aside-cite-row" href="#agents/rust-compiler#mcp">
+            <span class="aside-cite-icon"><sui-icon name="terminal" size="xs"></sui-icon></span>
+            <span class="aside-cite-name">mcp</span>
+            <span class="aside-cite-count">2 servers</span>
+          </a>
+          <a class="aside-cite-row" href="#agents/rust-compiler#rules">
+            <span class="aside-cite-icon"><sui-icon name="file-text" size="xs"></sui-icon></span>
+            <span class="aside-cite-name">rules</span>
+            <span class="aside-cite-count">3 + inline</span>
+          </a>
+          <a class="aside-cite-row" href="#agents/rust-compiler#permissions">
+            <span class="aside-cite-icon"><sui-icon name="shield" size="xs"></sui-icon></span>
+            <span class="aside-cite-name">permissions</span>
+            <span class="aside-cite-count">project-write</span>
+          </a>
+          <a class="aside-cite-row" href="#agents/rust-compiler/settings#harness=claude">
+            <span class="aside-cite-icon"><sui-icon name="sliders" size="xs"></sui-icon></span>
+            <span class="aside-cite-name">harness settings</span>
+            <span class="aside-cite-count">2 overrides</span>
+          </a>
+        </div>
+      </div>
+
+      <div class="aside-card" style="background:transparent;border-style:dashed">
+        <h3 class="aside-card-h" style="color:var(--muted-foreground)">Stale</h3>
+        <p style="font-size:12px;color:var(--muted-foreground);margin:0;line-height:1.5">
+          Authored config changed 4m ago.
+          <br />Run <code style="font-family:var(--font-mono);font-size:11px;padding:1px 5px;background:var(--surface-1);border-radius:var(--radius-sm)">ship compile</code> or click below to refresh.
+        </p>
+        <sui-button variant="outline" size="sm" style="margin-top:8px">
+          <sui-icon slot="leading" name="refresh-cw" size="xs"></sui-icon>
+          Recompile
+        </sui-button>
+      </div>
+
+    </aside>
+
+  </div>
+
+</main>
+
+</body>
+</html>
