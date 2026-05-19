@@ -45,12 +45,16 @@ See:
   Events.Stream (bidi envelope for stdout/exit/permission/secret/setting/
   hook/log_progress). 7 codegen smoke tests; per-tier transport
   documented (unix socket / vsock / TCP+TLS).
-- **Sidecar binary** — `bin/ship-sidecar/` rewritten around the v1
-  proto. Three handler impls (Handshake / Processes / Events) over
-  a process registry keyed by string id with a broadcast envelope
-  bus. 8 end-to-end tests drive the generated ConnectRPC clients
-  against the spawned binary; PTY paths return Unimplemented for
-  v1.0 (no pty-backed processes yet).
+- **Sidecar binary** — `bin/ship-sidecar/` speaks the v1 proto
+  natively. Three handler impls (Handshake / Processes / Events)
+  over a process registry keyed by string id, with a broadcast
+  envelope bus. **PTY support is live**: `ProcessCreate{ pty: true }`
+  allocates a portable_pty pair, `WriteInput` writes to the master
+  end, `ResizeTerminal` propagates SIGWINCH to the slave, and
+  `AttachPty` server-streams `PtyChunk` frames from a per-process
+  broadcast channel. `Handshake.Hello` advertises
+  `{processes, pty, events.acp}`. 10 end-to-end tests drive the
+  generated ConnectRPC clients against the spawned binary.
 - **Daemon API** — 6 endpoints under `/api/v1/isolation/*` (status,
   rescan, recommendations, preview, verify, init); 13 integration tests
   cover wire shapes + the init+verify atomic contract.
@@ -87,15 +91,13 @@ See:
 6. **UI components beyond badge** — picker, detail, verify each
    ~equivalent in size to the badge. Wiring the wizard + settings
    panel that compose them is the next UI tranche.
-7. **PTY in sidecar** — proto defines `AttachPty` server-stream; no
-   handler impl. Convergence with main's PTY-WS attach happens here.
-8. **Credential broker** — proto defines `SecretRequest` /
+7. **Credential broker** — proto defines `SecretRequest` /
    `SecretReply` envelope variants; no handler. Wires to shipd's
    keychain bridge.
-9. **Threat model doc** — separate doc when Phase G starts.
-10. **Image distribution + signing** — `ghcr.io/ship/agent-runner`
-    is referenced but not yet published. Build + sign + version-pin
-    pipeline is its own work.
+8. **Threat model doc** — separate doc when Phase G starts.
+9. **Image distribution + signing** — `ghcr.io/ship/agent-runner`
+   is referenced but not yet published. Build + sign + version-pin
+   pipeline is its own work.
 
 ## Architecture map (current state)
 
@@ -160,7 +162,7 @@ packages/ui-components
 ## Test counts (all green)
 
 - 81  ship-isolation lib + 7 proto smoke + 6 docker (live, skip)
-- 8  ship-sidecar v1 end-to-end (ConnectRPC clients vs spawned binary)
+- 10 ship-sidecar v1 end-to-end (incl. PTY attach + resize)
 - 361 ship-substrate lib (includes 2 SandboxOwner Drop tests)
 - 33  ship-supervisor lib
 - 1055 ship-platform lib

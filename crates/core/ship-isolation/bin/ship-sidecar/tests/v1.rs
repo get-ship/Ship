@@ -76,6 +76,7 @@ async fn handshake_returns_v1_capabilities() {
     assert!(!view.sidecar_version.is_empty());
     let caps: Vec<&str> = view.capabilities.iter().copied().collect();
     assert!(caps.contains(&"processes"), "missing processes capability");
+    assert!(caps.contains(&"pty"), "missing pty capability");
     assert!(caps.contains(&"events.acp"), "missing events.acp capability");
 
 }
@@ -307,16 +308,80 @@ async fn get_after_exit_returns_exited_state_with_code() {
 }
 
 #[tokio::test]
-async fn pty_create_returns_unimplemented_in_v1() {
+async fn attach_pty_streams_output_and_echoes_back_input() {
+    let (_child, addr) = start_sidecar().await;
+    let (_, procs, _) = clients(&addr);
+
+    // Spawn a pty-backed `cat`. cat with no args reads stdin, writes
+    // to stdout — gives us a deterministic echo channel through the
+    // pty's master/slave.
+    let mut req = ProcessCreateRequest::default();
+    req.bin = "/bin/cat".into();
+    req.cwd = "/".into();
+    req.pty = true;
+    req.id_hint = "proc-pty".into();
+    let mut size = PtySize::default();
+    size.cols = 80;
+    size.rows = 24;
+    req.pty_size = ::buffa::MessageField::some(size);
+    let info = procs.create(req).await.expect("create pty");
+    let v = info.into_view();
+    assert!(v.pty_backed, "ProcessInfo must report pty_backed=true");
+
+    // Subscribe to AttachPty stream BEFORE writing.
+    let mut attach_req = ProcessAttachPtyRequest::default();
+    attach_req.id = "proc-pty".into();
+    let mut response_stream = procs.attach_pty(attach_req).await.expect("attach_pty");
+
+    // Tiny delay so the subscriber attaches.
+    tokio::time::sleep(Duration::from_millis(100)).await;
+
+    let mut w = ProcessWriteInputRequest::default();
+    w.id = "proc-pty".into();
+    w.data = b"hello-pty\n".to_vec();
+    procs.write_input(w).await.expect("write_input pty");
+
+    let mut saw_echo = false;
+    let deadline = tokio::time::Instant::now() + Duration::from_secs(5);
+    while tokio::time::Instant::now() < deadline {
+        let msg = tokio::time::timeout(Duration::from_millis(500), response_stream.message()).await;
+        let Ok(Ok(Some(chunk))) = msg else { continue };
+        let data: &[u8] = chunk.data;
+        if std::str::from_utf8(data).unwrap_or_default().contains("hello-pty") {
+            saw_echo = true;
+            break;
+        }
+    }
+    assert!(saw_echo, "did not see echoed input through pty stream");
+
+    // Cleanup: kill the cat so the sidecar can shut down.
+    let mut kill = ProcessKillRequest::default();
+    kill.id = "proc-pty".into();
+    let _ = procs.kill(kill).await;
+}
+
+#[tokio::test]
+async fn resize_terminal_against_non_pty_fails_cleanly() {
     let (_child, addr) = start_sidecar().await;
     let (_, procs, _) = clients(&addr);
 
     let mut req = ProcessCreateRequest::default();
     req.bin = "/bin/sh".into();
-    req.args = vec!["-c".into(), "echo nope".into()];
+    req.args = vec!["-c".into(), "sleep 5".into()];
     req.cwd = "/".into();
-    req.pty = true;
-    let err = procs.create(req).await.expect_err("expected unimplemented");
-    assert_eq!(err.code, connectrpc::ErrorCode::Unimplemented);
+    req.id_hint = "proc-not-pty".into();
+    procs.create(req).await.expect("create");
 
+    let mut resize = ProcessResizeTerminalRequest::default();
+    resize.id = "proc-not-pty".into();
+    let mut size = PtySize::default();
+    size.cols = 100;
+    size.rows = 40;
+    resize.size = ::buffa::MessageField::some(size);
+    let err = procs.resize_terminal(resize).await.expect_err("resize on non-pty must error");
+    let msg = err.message.clone().unwrap_or_default();
+    assert!(
+        msg.contains("pty"),
+        "expected pty-related error, got: {msg:?}"
+    );
 }

@@ -14,6 +14,7 @@ use crate::session::Session;
 use connectrpc::{ConnectError, ErrorCode, RequestContext, Response, ServiceResult, ServiceStream};
 use futures_util::StreamExt;
 use ship_isolation::sidecar::proto::*;
+extern crate portable_pty;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio_stream::wrappers::BroadcastStream;
@@ -31,7 +32,11 @@ impl handshake_service::Handshake for HandshakeImpl {
         let mut resp = HelloResponse::default();
         resp.protocol_version = "1.0".into();
         resp.sidecar_version = VERSION.into();
-        resp.capabilities = vec!["processes".into(), "events.acp".into()];
+        resp.capabilities = vec![
+            "processes".into(),
+            "pty".into(),
+            "events.acp".into(),
+        ];
         Response::ok(resp)
     }
 }
@@ -46,23 +51,24 @@ impl processes_service::Processes for ProcessesImpl {
         _ctx: RequestContext,
         req: OwnedProcessCreateRequestView,
     ) -> ServiceResult<ProcessInfo> {
-        if req.pty {
-            return Err(ConnectError::new(
-                ErrorCode::Unimplemented,
-                "pty processes are not implemented in v1.0",
-            ));
-        }
         let bin = req.bin.to_string();
         let args = req.args.iter().map(|s| s.to_string()).collect();
         let env = view_env_to_map(&req.env);
         let cwd = req.cwd.to_string();
         let id_hint = req.id_hint.to_string();
 
-        let info = self
-            .session
-            .create(bin, args, env, cwd, id_hint)
-            .await
-            .map_err(io_to_connect)?;
+        let info = if req.pty {
+            let size = pty_size_from_view(&req.pty_size);
+            self.session
+                .create_pty(bin, args, env, cwd, id_hint, size)
+                .await
+                .map_err(io_to_connect)?
+        } else {
+            self.session
+                .create(bin, args, env, cwd, id_hint)
+                .await
+                .map_err(io_to_connect)?
+        };
         Response::ok(info)
     }
 
@@ -161,24 +167,53 @@ impl processes_service::Processes for ProcessesImpl {
     async fn resize_terminal<'a>(
         &'a self,
         _ctx: RequestContext,
-        _req: OwnedProcessResizeTerminalRequestView,
+        req: OwnedProcessResizeTerminalRequestView,
     ) -> ServiceResult<ProcessActionResponse> {
-        Err(ConnectError::new(
-            ErrorCode::Unimplemented,
-            "pty resize is not supported in v1.0 (no pty-backed processes)",
-        ))
+        let id = req.id.to_string();
+        let size = pty_size_from_view(&req.size);
+        self.session.resize_pty(&id, size).await.map_err(io_to_connect)?;
+        let mut resp = ProcessActionResponse::default();
+        resp.ok = true;
+        Response::ok(resp)
     }
 
     async fn attach_pty(
         &self,
         _ctx: RequestContext,
-        _req: OwnedProcessAttachPtyRequestView,
+        req: OwnedProcessAttachPtyRequestView,
     ) -> ServiceResult<ServiceStream<PtyChunk>> {
-        Err(ConnectError::new(
-            ErrorCode::Unimplemented,
-            "pty attach is not supported in v1.0 (no pty-backed processes)",
-        ))
+        let id = req.id.to_string();
+        let proc = self.session.get(&id).await.ok_or_else(|| {
+            ConnectError::new(ErrorCode::NotFound, format!("no such process: {id}"))
+        })?;
+        let pty = proc.pty.as_ref().ok_or_else(|| {
+            ConnectError::new(
+                ErrorCode::FailedPrecondition,
+                "process is not pty-backed; pass pty=true to Create",
+            )
+        })?;
+        let rx = pty.output.subscribe();
+        let stream = BroadcastStream::new(rx).filter_map(|r| async move { r.ok().map(Ok) });
+        let stream: ServiceStream<PtyChunk> = Box::pin(stream);
+        Response::ok(stream)
     }
+}
+
+fn pty_size_from_view(
+    view: &::buffa::MessageFieldView<
+        ship_isolation::sidecar::proto::__buffa::view::PtySizeView<'_>,
+    >,
+) -> portable_pty::PtySize {
+    let mut size = portable_pty::PtySize::default();
+    if let Some(v) = view.as_option() {
+        if v.cols > 0 {
+            size.cols = v.cols as u16;
+        }
+        if v.rows > 0 {
+            size.rows = v.rows as u16;
+        }
+    }
+    size
 }
 
 pub struct EventsImpl {

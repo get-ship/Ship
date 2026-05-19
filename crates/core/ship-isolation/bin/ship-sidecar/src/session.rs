@@ -4,8 +4,10 @@
 //! push `Envelope::ProcessOutput` / `Envelope::ProcessExited` onto a
 //! broadcast channel; `Events.Stream` handlers subscribe to it.
 
+use portable_pty::{CommandBuilder, MasterPty, PtySize as PortablePtySize, native_pty_system};
 use ship_isolation::sidecar::proto::*;
 use std::collections::HashMap;
+use std::io::Write;
 use std::process::Stdio;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -14,7 +16,18 @@ use tokio::process::{Child, ChildStdin, Command};
 use tokio::sync::{Mutex, RwLock, broadcast};
 
 const EVENT_CHANNEL_CAP: usize = 1024;
+const PTY_OUTPUT_CAP: usize = 1024;
 const READ_CHUNK: usize = 4096;
+
+/// PTY-backed process resources. Held inline on `Process` when
+/// `pty_backed` is true. `pty_output` is broadcast to subscribers
+/// of `AttachPty`; `writer` is the master end used by `WriteInput`;
+/// `master` keeps the master fd alive (drop closes the slave side).
+pub struct PtyState {
+    pub master: Arc<Mutex<Option<Box<dyn MasterPty + Send>>>>,
+    pub writer: Arc<Mutex<Option<Box<dyn Write + Send>>>>,
+    pub output: broadcast::Sender<PtyChunk>,
+}
 
 pub struct Process {
     pub id: String,
@@ -24,8 +37,11 @@ pub struct Process {
     pub created_at_unix_ms: i64,
     pub pty_backed: bool,
     state: RwLock<ProcessRecord>,
+    // Non-PTY path.
     stdin: Mutex<Option<ChildStdin>>,
     child: Mutex<Option<Child>>,
+    // PTY path. Either both `pty_*` fields are set, or both are None.
+    pub pty: Option<PtyState>,
 }
 
 struct ProcessRecord {
@@ -121,6 +137,7 @@ impl Session {
             }),
             stdin: Mutex::new(stdin),
             child: Mutex::new(Some(child)),
+            pty: None,
         });
 
         self.procs.write().await.insert(id.clone(), proc.clone());
@@ -168,6 +185,143 @@ impl Session {
             env.sequence = watcher_self.next_sequence();
             env.payload = Some(envelope::Payload::ProcessExited(Box::new(exited)));
             let _ = watcher_self.events.send(env);
+        });
+
+        Ok(proc.info().await)
+    }
+
+    /// Spawn a long-lived PTY-backed child. The slave's output is
+    /// fanned out to subscribers of `Events::AttachPty`; writes from
+    /// `Processes.WriteInput` go to the master end. Resize requests
+    /// from `Processes.ResizeTerminal` flow through to the kernel
+    /// via `MasterPty::resize`.
+    pub async fn create_pty(
+        self: &Arc<Self>,
+        bin: String,
+        args: Vec<String>,
+        env: HashMap<String, String>,
+        cwd: String,
+        id_hint: String,
+        size: PortablePtySize,
+    ) -> std::io::Result<ProcessInfo> {
+        let id = if id_hint.is_empty() {
+            format!("proc_{}", nanoid::nanoid!(10))
+        } else {
+            id_hint
+        };
+
+        // portable_pty is synchronous — set up off the runtime to keep
+        // the openpty + spawn syscalls off any executor thread.
+        let bin_for_thread = bin.clone();
+        let args_for_thread = args.clone();
+        let cwd_for_thread = if cwd.is_empty() { ".".to_string() } else { cwd.clone() };
+        let env_for_thread = env.clone();
+        let setup = tokio::task::spawn_blocking(move || -> std::io::Result<_> {
+            let pty = native_pty_system();
+            let pair = pty
+                .openpty(size)
+                .map_err(|e| std::io::Error::other(format!("openpty: {e}")))?;
+
+            let mut cmd = CommandBuilder::new(&bin_for_thread);
+            for a in &args_for_thread {
+                cmd.arg(a);
+            }
+            cmd.cwd(&cwd_for_thread);
+            for (k, v) in &env_for_thread {
+                cmd.env(k, v);
+            }
+
+            let child = pair
+                .slave
+                .spawn_command(cmd)
+                .map_err(|e| std::io::Error::other(format!("spawn_command: {e}")))?;
+            drop(pair.slave);
+
+            let reader = pair
+                .master
+                .try_clone_reader()
+                .map_err(|e| std::io::Error::other(format!("try_clone_reader: {e}")))?;
+            let writer = pair
+                .master
+                .take_writer()
+                .map_err(|e| std::io::Error::other(format!("take_writer: {e}")))?;
+
+            Ok((pair.master, reader, writer, child))
+        })
+        .await
+        .map_err(|e| std::io::Error::other(format!("blocking task: {e}")))??;
+        let (master, reader, writer, mut child) = setup;
+        let pid = child.process_id();
+
+        let (pty_output_tx, _) = broadcast::channel(PTY_OUTPUT_CAP);
+        let proc = Arc::new(Process {
+            id: id.clone(),
+            bin,
+            args,
+            pid,
+            created_at_unix_ms: now_unix_ms(),
+            pty_backed: true,
+            state: RwLock::new(ProcessRecord {
+                state: ProcessState::PROCESS_STATE_RUNNING,
+                exit_code: 0,
+            }),
+            stdin: Mutex::new(None),
+            child: Mutex::new(None),
+            pty: Some(PtyState {
+                master: Arc::new(Mutex::new(Some(master))),
+                writer: Arc::new(Mutex::new(Some(writer))),
+                output: pty_output_tx.clone(),
+            }),
+        });
+
+        self.procs.write().await.insert(id.clone(), proc.clone());
+
+        // Reader thread — blocking std::io::Read from the PTY master.
+        // Each chunk lands as a PtyChunk on the per-process broadcast
+        // channel that AttachPty subscribers read from.
+        let reader_id = id.clone();
+        let reader_output = pty_output_tx.clone();
+        std::thread::spawn(move || {
+            pty_reader_loop(reader, reader_output, reader_id);
+        });
+
+        // Watcher thread — blocking std::sync wait on the portable_pty
+        // child handle. Fires ProcessExited on the session event bus
+        // when the child reaps; matches the tokio path's behavior.
+        let watcher_self = self.clone();
+        let watcher_proc = proc.clone();
+        let watcher_id = id.clone();
+        std::thread::spawn(move || {
+            let status = child.wait();
+            let (code, signal) = match status {
+                Ok(s) if s.success() => (0i32, String::new()),
+                Ok(s) => {
+                    let sig = s.signal().map(|n| n.to_string()).unwrap_or_default();
+                    (s.exit_code() as i32, sig)
+                }
+                Err(_) => (-1, String::new()),
+            };
+            // Block-on the tokio runtime via spawning a small task —
+            // we're on a std::thread so we can't use .await directly.
+            // Use a tokio::sync::oneshot semaphore via Handle::current()
+            // doesn't work cross-runtime; just use blocking_lock paths
+            // available on tokio::sync::Mutex/RwLock.
+            let mut rec = watcher_proc.state.blocking_write();
+            rec.exit_code = code;
+            rec.state = if signal.is_empty() {
+                ProcessState::PROCESS_STATE_EXITED
+            } else {
+                ProcessState::PROCESS_STATE_KILLED
+            };
+            drop(rec);
+            let mut exited = ProcessExited::default();
+            exited.process_id = watcher_id;
+            exited.exit_code = code;
+            exited.signal = signal;
+            let mut envp = Envelope::default();
+            envp.sequence = watcher_self.next_sequence();
+            envp.payload = Some(envelope::Payload::ProcessExited(Box::new(exited)));
+            let _ = watcher_self.events.send(envp);
         });
 
         Ok(proc.info().await)
@@ -249,6 +403,29 @@ impl Session {
             .get(id)
             .await
             .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "no such process"))?;
+
+        if let Some(pty) = &proc.pty {
+            let writer = pty.writer.clone();
+            let data = data.to_vec();
+            tokio::task::spawn_blocking(move || -> std::io::Result<()> {
+                let mut guard = writer.blocking_lock();
+                match guard.as_mut() {
+                    Some(w) => {
+                        w.write_all(&data)?;
+                        w.flush()?;
+                        Ok(())
+                    }
+                    None => Err(std::io::Error::new(
+                        std::io::ErrorKind::BrokenPipe,
+                        "pty writer is closed",
+                    )),
+                }
+            })
+            .await
+            .map_err(|e| std::io::Error::other(format!("blocking task: {e}")))??;
+            return Ok(());
+        }
+
         let mut guard = proc.stdin.lock().await;
         match guard.as_mut() {
             Some(stdin) => {
@@ -261,6 +438,33 @@ impl Session {
                 "process stdin is closed",
             )),
         }
+    }
+
+    /// Apply a window-size update to a PTY-backed process. No-op (with
+    /// an error code) on non-PTY processes — callers should check
+    /// `pty_backed` first.
+    pub async fn resize_pty(&self, id: &str, size: PortablePtySize) -> std::io::Result<()> {
+        let proc = self
+            .get(id)
+            .await
+            .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "no such process"))?;
+        let pty = proc.pty.as_ref().ok_or_else(|| {
+            std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "process is not pty-backed",
+            )
+        })?;
+        let master = pty.master.clone();
+        tokio::task::spawn_blocking(move || -> std::io::Result<()> {
+            let guard = master.blocking_lock();
+            if let Some(m) = guard.as_ref() {
+                m.resize(size)
+                    .map_err(|e| std::io::Error::other(format!("pty resize: {e}")))?;
+            }
+            Ok(())
+        })
+        .await
+        .map_err(|e| std::io::Error::other(format!("blocking task: {e}")))?
     }
 
     /// Hard-kill via tokio. Used as the escalation step in Stop's
@@ -293,6 +497,29 @@ impl Session {
         }
         Ok(())
     }
+}
+
+fn pty_reader_loop(
+    mut reader: Box<dyn std::io::Read + Send>,
+    output: broadcast::Sender<PtyChunk>,
+    process_id: String,
+) {
+    let mut buf = vec![0u8; READ_CHUNK];
+    loop {
+        let n = match reader.read(&mut buf) {
+            Ok(0) => break,
+            Ok(n) => n,
+            Err(_) => break,
+        };
+        let mut chunk = PtyChunk::default();
+        chunk.data = buf[..n].to_vec();
+        if output.send(chunk).is_err() {
+            // No subscribers right now — still keep draining the master
+            // so the kernel doesn't block on a full pipe.
+            continue;
+        }
+    }
+    let _ = process_id; // reserved for future per-stream telemetry
 }
 
 async fn forward_stream<R>(reader: R, session: Arc<Session>, process_id: String, stream: u32)

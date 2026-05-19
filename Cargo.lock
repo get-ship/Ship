@@ -4498,6 +4498,7 @@ dependencies = [
  "http",
  "libc",
  "nanoid",
+ "portable-pty",
  "ship-isolation",
  "tokio",
  "tokio-stream",

@@ -22,6 +22,7 @@ libc = "0.2"
 connectrpc = { version = "0.4", features = ["axum"] }
 buffa = { version = "0.5" }
 http = "1"
+portable-pty = "0.9"
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["rt-multi-thread", "macros", "process", "time", "net", "io-util", "sync"] }
