@@ -233,4 +233,18 @@ impl SandboxRegistry {
     pub fn is_empty(&self) -> bool {
         self.sandboxes.is_empty()
     }
+
+    /// All unique project ids currently in the registry.
+    pub fn all_projects(&self) -> Vec<String> {
+        let mut seen = std::collections::BTreeSet::new();
+        for s in self.sandboxes.values() {
+            seen.insert(s.project.clone());
+        }
+        seen.into_iter().collect()
+    }
+
+    /// All sandboxes across all projects.
+    pub fn all_sandboxes(&self) -> impl Iterator<Item = &Sandbox> {
+        self.sandboxes.values()
+    }
 }

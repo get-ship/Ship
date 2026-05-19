@@ -22,7 +22,7 @@ use crate::routes::{
     artifacts_api, collection_api, commands_api, create_api, feedback_api, git_api,
     hooks_api, human_webhook, isolation_api, logs_api, mcp_api, openapi, permissions_api,
     pipelines_api, projects_api, registry_api, rest_api, rules_api, runtime_api,
-    sdk_manifest, search_api, settings_api, skills_api, specs_api, themes_api,
+    sandbox_api, sdk_manifest, search_api, settings_api, skills_api, specs_api, themes_api,
     view_edit_mode_api, view_edit_tool_api, view_errors_api, view_sessions_api,
     webhook_ext,
 };
@@ -441,6 +441,8 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::IsolationPreview, isolation_api::isolation_preview)
         .ship_route(Route::IsolationVerify, isolation_api::isolation_verify)
         .ship_route(Route::IsolationInit, isolation_api::isolation_init)
+        .ship_route(Route::SandboxList, sandbox_api::sandbox_list)
+        .ship_route(Route::SandboxGet_template(), sandbox_api::sandbox_get)
         // Runtime
         .ship_route(Route::ListSessions, runtime_api::list_workspace_sessions)
         .ship_route(Route::ListAgents, runtime_api::list_agents)

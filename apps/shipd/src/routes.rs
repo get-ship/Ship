@@ -60,6 +60,9 @@ pub mod human_webhook;
 pub mod isolation_api;
 #[cfg(test)]
 mod isolation_api_tests;
+pub mod sandbox_api;
+#[cfg(test)]
+mod sandbox_api_tests;
 pub mod logs_api;
 pub mod mcp_api;
 pub mod openapi;
@@ -1021,6 +1024,14 @@ pub enum Route {
     /// @route POST "/api/v1/isolation/init"
     /// @auth scope WriteWorkspace
     IsolationInit,
+
+    /// @route GET "/api/v1/sandboxes"
+    /// @auth scope ReadWorkspace
+    SandboxList,
+
+    /// @route GET "/api/v1/sandboxes/{id}"
+    /// @auth scope ReadWorkspace
+    SandboxGet { id: String },
 
     // ── Command bar registry ─────────────────────────────────────────────
 

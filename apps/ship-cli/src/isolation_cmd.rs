@@ -25,6 +25,52 @@ pub fn run(action: IsolationCommands) -> Result<()> {
         IsolationCommands::Init { tier, strategy, enforce, json } => {
             render_init(tier.as_deref(), strategy.as_deref(), enforce, json)
         }
+        IsolationCommands::Sandboxes { json } => render_sandboxes(json),
+    }
+}
+
+// ── sandboxes ────────────────────────────────────────────────────────────────
+
+fn render_sandboxes(as_json: bool) -> Result<()> {
+    let Some((port, token)) = crate::daemon::daemon_info_if_healthy() else {
+        anyhow::bail!(
+            "ship sandbox list requires the daemon to be running — \
+             start it with: ship daemon start"
+        );
+    };
+    let payload = call_daemon(port, &token, "/api/v1/sandboxes", false, None)?;
+    if as_json {
+        println!("{}", serde_json::to_string_pretty(&payload)?);
+        return Ok(());
+    }
+    print_sandboxes_human(&payload);
+    Ok(())
+}
+
+fn print_sandboxes_human(payload: &serde_json::Value) {
+    let empty = Vec::new();
+    let sandboxes = payload["data"]["sandboxes"].as_array().unwrap_or(&empty);
+    if sandboxes.is_empty() {
+        println!("No sandboxes registered. Sandboxes are created lazily on first actor spawn.");
+        return;
+    }
+    println!("{:<32} {:<16} {:<10} {:<12} {:<6} ACTORS",
+        "ID", "PROJECT", "NAME", "STATE", "OWNER");
+    for s in sandboxes {
+        let id = s["id"].as_str().unwrap_or("?");
+        let project = s["project"].as_str().unwrap_or("?");
+        let name = s["name"].as_str().unwrap_or("?");
+        let state = s["state"].as_str().unwrap_or("?");
+        let owner = if s["has_owner"].as_bool().unwrap_or(false) { "yes" } else { "no" };
+        let n_actors = s["actors"].as_array().map(|a| a.len()).unwrap_or(0);
+        // Truncate project to fit; users with long paths can pass --json
+        let project_disp = if project.len() > 14 {
+            format!("…{}", &project[project.len() - 13..])
+        } else {
+            project.to_string()
+        };
+        println!("{:<32} {:<16} {:<10} {:<12} {:<6} {}",
+            id, project_disp, name, state, owner, n_actors);
     }
 }
 

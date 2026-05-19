@@ -108,6 +108,12 @@ pub enum IsolationCommands {
         #[arg(long)]
         json: bool,
     },
+    /// List sandboxes the daemon is currently tracking (per
+    /// project, including which actors are inside each).
+    Sandboxes {
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 #[derive(Subcommand, Debug)]
