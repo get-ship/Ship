@@ -23,6 +23,7 @@ See:
 - `docs/strategy.md` — design intent
 - `docs/sidecar-protocol.md` — v1 protocol RFC
 - `docs/sidecar-parity.md` — per-feature audit
+- `docs/threat-model.md` — what we defend against per tier
 - `proto/ship/sidecar/v1/sidecar.proto` — the canonical schema
 - `.artifacts/local-sandbox-spec/settings-and-envs.md` — settings/envs
 
@@ -101,7 +102,10 @@ See:
 7. **Credential broker** — proto defines `SecretRequest` /
    `SecretReply` envelope variants; no handler. Wires to shipd's
    keychain bridge.
-8. **Threat model doc** — separate doc when Phase G starts.
+8. **Threat model doc** — landed at `docs/threat-model.md`. Covers
+   6 categories (T-EXEC / T-FS-READ / T-FS-WRITE / T-NET-EGRESS /
+   T-CRED / T-RES) × every tier + strategy, with v1 mitigations,
+   known gaps, and a reduction path for making the matrix denser.
 9. **Image distribution + signing** — `ghcr.io/ship/agent-runner`
    is referenced but not yet published. Build + sign + version-pin
    pipeline is its own work.
