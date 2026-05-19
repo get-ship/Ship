@@ -300,6 +300,29 @@ async fn attach_sandbox_owner_then_reap_fires_isolator_shutdown() {
 }
 
 #[tokio::test]
+async fn reap_all_stops_every_non_stopped_sandbox() {
+    let dispatcher = SandboxDispatcher::new();
+    let a = dispatcher
+        .ensure_default_sandbox("proj-a", none_profile())
+        .await
+        .unwrap();
+    let b = dispatcher
+        .ensure_default_sandbox("proj-b", none_profile())
+        .await
+        .unwrap();
+    // Pre-stop one so reap_all skips it.
+    dispatcher.reap(&b).await.unwrap();
+
+    let reaped = dispatcher.reap_all().await;
+    assert_eq!(reaped, 1, "only the non-stopped sandbox should be reaped");
+
+    let registry = dispatcher.registry();
+    let reg = registry.read().await;
+    assert_eq!(reg.get(&a).unwrap().state, SandboxState::Stopped);
+    assert_eq!(reg.get(&b).unwrap().state, SandboxState::Stopped);
+}
+
+#[tokio::test]
 async fn reap_without_owner_is_clean_noop() {
     let dispatcher = SandboxDispatcher::new();
     let id = dispatcher

@@ -486,6 +486,15 @@ pub async fn run_network(
     } else {
         0
     };
+
+    // Reap all sandboxes so a clean restart doesn't orphan backend
+    // containers. Each reap fires the SandboxOwner shutdown
+    // (docker rm / youki delete). Best-effort — a reap failure here
+    // shouldn't block shutdown.
+    let sandboxes_reaped = ship_platform::sandbox::dispatcher().reap_all().await;
+    if sandboxes_reaped > 0 {
+        tracing::info!(sandboxes_reaped, "reaped sandboxes on shutdown");
+    }
     let uptime_secs = rt.uptime().as_secs();
     rt.shutdown().await;
     emit_daemon_event(

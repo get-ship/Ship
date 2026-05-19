@@ -177,6 +177,27 @@ impl SandboxDispatcher {
         reg.reap_candidates(now)
     }
 
+    /// Reap every non-stopped sandbox. Called on graceful shutdown so
+    /// clean restarts don't orphan backend containers. Each reap fires
+    /// the sandbox's SandboxOwner shutdown (docker rm / youki delete).
+    /// Returns the number of sandboxes reaped.
+    pub async fn reap_all(&self) -> usize {
+        let ids: Vec<SandboxId> = {
+            let reg = self.registry.read().await;
+            reg.all_sandboxes()
+                .filter(|s| s.state != SandboxState::Stopped)
+                .map(|s| s.id.clone())
+                .collect()
+        };
+        let mut reaped = 0;
+        for id in &ids {
+            if self.reap(id).await.is_ok() {
+                reaped += 1;
+            }
+        }
+        reaped
+    }
+
     /// Tear down a sandbox. Transitions Idle/Running → Reaping →
     /// Stopped, then drops the `sandbox_owner` (if any) — its `Drop`
     /// impl spawns the isolator's `shutdown()` on the tokio runtime,
