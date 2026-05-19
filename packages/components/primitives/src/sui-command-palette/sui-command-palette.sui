@@ -1,0 +1,274 @@
+<!--
+  <sui-command-palette> — modal command launcher.
+
+  The shell's primary navigation surface: ⌘K opens it centered over the
+  canvas. Generic L2 primitive — it renders whatever command groups it is
+  handed and reports the user's pick; it knows nothing about routes or the
+  SDK. The shell (L3) supplies the groups and acts on the selection.
+
+  Structure
+  ──────────────────────────────────────────────────────────────────────
+  - Native <dialog> for top-layer modal semantics, ::backdrop, Esc-close,
+    and inert background — same approach as <sui-dialog>.
+  - Filter input at the top; a scrollable group list below; a footer hint.
+  - Each group: small-caps header + N rows. Each row: optional leading
+    <sui-icon>, label, and an optional trailing hotkey kbd or meta text.
+  - Empty state when the filter matches nothing; spinner while `loading`.
+
+  Commands
+  ──────────────────────────────────────────────────────────────────────
+  Set the `commands` JS property to an array of groups:
+    el.commands = [{ label: 'Open', items: [
+      { id: 'studio', label: 'Open Studio', icon: 'grid',
+        hotkey: '⌘.', meta: 'configure agents…', value: '/studio' },
+    ] }]
+  The property is the source of truth; there is no string-attribute form
+  (the data is structured and only ever set from script).
+
+  Keyboard
+  ──────────────────────────────────────────────────────────────────────
+  - ↑ / ↓ move the highlight across the flat (cross-group) item list.
+  - Enter activates the highlighted row.
+  - Esc closes (native dialog) and emits sui-command-close.
+  - Typing filters rows by case-insensitive substring on label + meta.
+
+  Events
+  ──────────────────────────────────────────────────────────────────────
+  - sui-command-select { detail: { id, value } } — a row was chosen.
+  - sui-command-close                            — Esc / backdrop click.
+
+  ARIA: dialog[role=dialog][aria-modal]; input[role=combobox] drives the
+  listbox of rows via aria-activedescendant; a polite live region reports
+  the visible result count.
+-->
+
+<prop name="open" type="bool" default="false" reflect />
+<prop name="placeholder" type="string" default="Search…" />
+<prop name="loading" type="bool" default="false" reflect />
+
+<style>
+  :host { display: contents; }
+  :host([hidden]) { display: none; }
+
+  dialog:not([open]) { display: none; }
+  dialog[open] {
+    position: fixed;
+    inset: 0;
+    margin: 10vh auto auto;
+    padding: 0;
+    width: calc(100vw - 32px);
+    max-width: 640px;
+    max-height: 70vh;
+    border: 1px solid var(--border-subtle, var(--border));
+    border-radius: var(--radius-lg, 12px);
+    background: var(--popover);
+    color: var(--popover-foreground);
+    box-shadow: var(--shadow-xl, 0 20px 60px color-mix(in oklch, var(--foreground) 30%, transparent));
+    font-family: var(--font-body, system-ui);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  dialog::backdrop {
+    background: var(--backdrop, oklch(0 0 0 / 40%));
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+    opacity: 0;
+    transition: opacity var(--duration-medium, 200ms) var(--ease-out, ease-out);
+  }
+  dialog[open]::backdrop { opacity: 1; }
+
+  .search {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border-subtle, var(--border));
+    flex: 0 0 auto;
+  }
+  .search sui-icon { color: var(--muted-foreground); flex: 0 0 auto; }
+  .search input {
+    flex: 1;
+    min-width: 0;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    padding: 0;
+    font: inherit;
+    font-family: var(--font-body, system-ui);
+    font-size: var(--text-base, 15px);
+    color: var(--foreground);
+  }
+  .search input::placeholder { color: var(--muted-foreground); }
+  .search kbd {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs, 10.5px);
+    padding: 1px 6px;
+    background: var(--muted);
+    border-radius: var(--radius-sm);
+    color: var(--muted-foreground);
+    flex: 0 0 auto;
+  }
+
+  .list {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 6px;
+    scrollbar-width: thin;
+  }
+
+  .group-h {
+    font-size: var(--text-xs, 10px);
+    font-weight: var(--font-weight-semibold, 600);
+    letter-spacing: var(--tracking-wide, 0.04em);
+    text-transform: uppercase;
+    color: var(--muted-foreground);
+    padding: 8px 10px 4px;
+  }
+
+  .row {
+    display: grid;
+    grid-template-columns: 22px 1fr auto;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    color: var(--foreground);
+    text-align: start;
+    width: 100%;
+    border: 0;
+    background: transparent;
+    font: inherit;
+  }
+  .row:hover { background: color-mix(in oklch, var(--primary) 8%, transparent); }
+  .row.hl { background: color-mix(in oklch, var(--primary) 12%, transparent); }
+  .row-icon { color: var(--muted-foreground); display: inline-flex; }
+  .row.hl .row-icon { color: var(--primary); }
+  .row-label {
+    font-size: var(--text-sm, 13.5px);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .row-hint {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs, 10.5px);
+    color: var(--muted-foreground);
+  }
+
+  .empty, .spinner-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 32px 16px;
+    color: var(--muted-foreground);
+    font-size: var(--text-sm, 13px);
+  }
+
+  .foot {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 6px 14px;
+    font-size: var(--text-xs, 10.5px);
+    color: var(--muted-foreground);
+    border-top: 1px solid var(--border-subtle, var(--border));
+    background: var(--surface-1, var(--muted));
+    flex: 0 0 auto;
+  }
+  .foot kbd {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs, 10px);
+    padding: 1px 5px;
+    background: var(--background);
+    border: 1px solid var(--border-subtle, var(--border));
+    border-radius: var(--radius-sm);
+  }
+  .foot-spacer { flex: 1; }
+
+  .sr-only {
+    position: absolute;
+    width: 1px; height: 1px;
+    padding: 0; margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    dialog::backdrop { transition: none; }
+  }
+  @media (forced-colors: active) {
+    dialog[open] { border: 1px solid CanvasText; }
+    .row.hl { background: Highlight; color: HighlightText; }
+    .row.hl .row-icon { color: HighlightText; }
+  }
+</style>
+
+<dialog part="dialog" role="dialog" aria-modal="true" aria-label="Command palette" bind:this={dialogEl}>
+  <div class="search" part="search">
+    <sui-icon name="search" size="sm" aria-hidden="true"></sui-icon>
+    <input
+      type="text"
+      part="input"
+      role="combobox"
+      aria-expanded="true"
+      aria-controls={listId()}
+      aria-autocomplete="list"
+      aria-activedescendant={activeId()}
+      autocomplete="off"
+      autocapitalize="off"
+      spellcheck="false"
+      placeholder={placeholder()}
+      bind:value={query}
+      bind:this={inputEl}
+    />
+    <kbd>esc</kbd>
+  </div>
+
+  <div class="list" part="list" role="listbox" id={listId()} bind:this={listEl}>
+    {#if loading() && flatCount() === 0}
+      <div class="spinner-wrap"><sui-spinner size="sm"></sui-spinner><span>Loading…</span></div>
+    {/if}
+    {#for r of rows() key={r.key}}
+      {#if r.kind === 'header'}
+        <div class="group-h" role="presentation">{r.label}</div>
+      {:else}
+        <button
+          type="button"
+          class="row"
+          part="row"
+          role="option"
+          id={r.rowId}
+          class:hl={r.flatIdx === highlight()}
+          aria-selected={r.flatIdx === highlight() ? 'true' : 'false'}
+          data-flat={r.flatIdx}
+        >
+          <span class="row-icon">
+            {#if r.icon}<sui-icon name={r.icon} size="sm" aria-hidden="true"></sui-icon>{/if}
+          </span>
+          <span class="row-label">{r.label}</span>
+          <span class="row-hint">{r.hint}</span>
+        </button>
+      {/if}
+    {/for}
+    {#if flatCount() === 0 && !loading()}
+      <div class="empty" part="empty">No matching commands</div>
+    {/if}
+  </div>
+
+  <div class="foot" part="foot">
+    <span><kbd>↑↓</kbd> nav</span>
+    <span><kbd>⏎</kbd> select</span>
+    <span class="foot-spacer"></span>
+    <span>Primary nav — replaces the rail.</span>
+  </div>
+
+  <span class="sr-only" role="status" aria-live="polite">{resultLabel()}</span>
+</dialog>
