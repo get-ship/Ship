@@ -275,6 +275,38 @@ async fn get_unknown_id_returns_not_found() {
 }
 
 #[tokio::test]
+async fn get_after_exit_returns_exited_state_with_code() {
+    // Regression: the host-side `wait_for_exit` driver subscribes to
+    // events AFTER calling Create — if the process exits in between,
+    // the broadcast channel doesn't replay. Get must be the
+    // race-closing fallback: it must return PROCESS_STATE_EXITED +
+    // exit_code for a process that completed before any subscription.
+    let (_child, addr) = start_sidecar().await;
+    let (_, procs, _) = clients(&addr);
+
+    let mut req = ProcessCreateRequest::default();
+    req.bin = "/bin/sh".into();
+    req.args = vec!["-c".into(), "exit 3".into()];
+    req.cwd = "/".into();
+    req.id_hint = "proc-fast-exit".into();
+    let _ = procs.create(req).await.expect("create");
+
+    // Give the watcher a moment to reap.
+    tokio::time::sleep(Duration::from_millis(200)).await;
+
+    let mut get = ProcessGetRequest::default();
+    get.id = "proc-fast-exit".into();
+    let info = procs.get(get).await.expect("get");
+    let v = info.into_view();
+    assert_eq!(
+        v.state.as_known(),
+        Some(ProcessState::PROCESS_STATE_EXITED),
+        "Get must report EXITED state after the process completed"
+    );
+    assert_eq!(v.exit_code, 3, "Get must surface the exit code");
+}
+
+#[tokio::test]
 async fn pty_create_returns_unimplemented_in_v1() {
     let (_child, addr) = start_sidecar().await;
     let (_, procs, _) = clients(&addr);

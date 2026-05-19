@@ -9,12 +9,15 @@ now speaks it natively** — `bin/ship-sidecar/` rewritten around
 `Handshake` + `Processes` + `Events.Stream` ConnectRPC handlers
 with 8 end-to-end client tests.
 
-**Next chunk:** port the host-side `backends::youki_sidecar`
-driver from its legacy reqwest+SSE wrapper over the old JSON
-protocol to the generated `ProcessesClient` / `EventsClient`.
-That cutover lets us delete `sidecar::protocol` entirely and
-unblocks YoukiRootless lifecycle wiring via the same
-SandboxOwner pattern DockerEngine uses today.
+**Host driver cutover complete.** `backends::youki_sidecar`
+drives the sidecar through the generated `ProcessesClient` +
+`EventsClient`. `sidecar::protocol` (the deprecated JSON
+shape) is deleted. The `sidecar-mode` Cargo feature now only
+pulls in `reqwest` (for the `/v1/health` probe).
+
+**Next chunk:** wrap `SidecarSandbox` in an `Isolator` impl
+plus `prepare/exec/shutdown` so YoukiRootless lifecycle binds
+to `ActorHandle.sandbox` the same way DockerEngine does today.
 
 See:
 - `docs/strategy.md` — design intent
@@ -66,20 +69,15 @@ See:
 
 ## Known gaps
 
-1. **Host-side `youki_sidecar` driver still uses legacy JSON.** The
-   sidecar binary speaks ConnectRPC but `backends::youki_sidecar`
-   still wraps it via reqwest + SSE against the deprecated
-   `sidecar::protocol` types. Port to `ProcessesClient` +
-   `EventsClient` is the next chunk; that lets us delete
-   `sidecar::protocol` entirely.
-2. **DockerEngine has no host-side ConnectRPC client.** Today it
+1. **DockerEngine has no host-side ConnectRPC client.** Today it
    drives via `docker exec` (no sidecar — see
    `wrap_for_external_spawn`). Adding the ConnectRPC client path
    is the option for richer in-container control (e.g., per-process
    stop/kill without a fresh exec).
-3. **YoukiRootless lifecycle not yet SandboxOwner-attached.** Same
-   pattern as DockerEngine; gated on the youki_sidecar driver
-   port (#1) since youki's prepared container *is* the sidecar.
+2. **YoukiRootless lifecycle not yet SandboxOwner-attached.** Same
+   pattern as DockerEngine. Host driver now speaks ConnectRPC; the
+   remaining piece is wrapping the driver in an `Isolator` impl
+   + supervisor wiring.
 4. **WSL2 / LimaVm / FlyMachines** — strategies declared, capability-
    probed, no backend implementations yet. Each is a separate chunk.
 5. **Tier 1 supervisor enforcement matrix** — exercises HarnessNative
@@ -116,11 +114,10 @@ ship-isolation (L1)
   proto/sidecar.proto   — v1 wire schema
   src/
     sidecar/proto.rs       — generated Rust bindings
-    sidecar/protocol.rs    — legacy JSON (deprecated)
     backends/
       docker.rs            — Docker/Podman; wrap_for_external_spawn impl
-      youki.rs             — Youki rootless (legacy sidecar path)
-      youki_sidecar.rs     — sidecar-driven youki
+      youki.rs             — Youki rootless (legacy one-shot path)
+      youki_sidecar.rs     — sidecar-driven youki (ConnectRPC client)
       sandbox_runtime.rs   — srt wrapper
     capabilities.rs        — host probe (docker/podman/youki/lima/...)
     harness.rs             — per-(harness × OS) Tier 1 table

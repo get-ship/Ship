@@ -17,7 +17,8 @@ use ship_substrate::isolation::{FsMount, MountMode};
 /// content; it can't open the host's original file.
 ///
 /// The production answer is option C (in-sidecar credential broker) —
-/// that lives in `sidecar::protocol::SecretGet` and is unimplemented.
+/// wired through the v1 `Envelope::SecretRequest` / `SecretReply`
+/// pair (see `sidecar::proto`); no handler yet.
 #[derive(Debug)]
 pub struct EphemeralFile {
     path: PathBuf,

@@ -8,7 +8,10 @@ description = "Ship-specific isolation strategies. The Isolator trait + abstract
 [features]
 default = []
 youki-backend = ["dep:libc"]
-sidecar-mode = ["dep:reqwest", "dep:base64", "dep:futures-util"]
+# sidecar-mode pulls in the host-side youki_sidecar driver. The
+# generated ConnectRPC client (used to drive Processes/Events) is
+# always available; reqwest is here for the /v1/health probe only.
+sidecar-mode = ["dep:reqwest"]
 
 [dependencies]
 ship-substrate = { path = "../ship-substrate" }
@@ -21,12 +24,10 @@ tokio = { workspace = true, features = ["sync", "process", "io-util", "macros", 
 tracing = { workspace = true }
 nanoid = { workspace = true }
 libc = { version = "0.2", optional = true }
-reqwest = { version = "0.12", default-features = false, optional = true, features = ["json", "stream"] }
-base64 = { version = "0.22", optional = true }
-futures-util = { workspace = true, optional = true }
+reqwest = { version = "0.12", default-features = false, optional = true, features = ["json"] }
 # v1 protocol bindings — codegen via build.rs from proto/ship/sidecar/v1.
 # Matches the gateway-client setup so both crates share the toolchain.
-connectrpc = { version = "0.4" }
+connectrpc = { version = "0.4", features = ["client"] }
 buffa = { version = "0.5", features = ["json"] }
 http-body = "1"
 http = "1"

@@ -1,43 +1,55 @@
-//! Long-lived `Youki` sandbox driven through the in-container `ship-sidecar`
-//! over HTTP. Container PID 1 is the sidecar; the agent is its child,
-//! launched via `POST /v1/exec`. Multiple execs may run against one
-//! sandbox; stdout / stderr / exited stream out over SSE.
+//! Long-lived `Youki` sandbox driven through the in-container
+//! `ship-sidecar` over ConnectRPC. Container PID 1 is the sidecar;
+//! the agent is one of its children, launched via
+//! `Processes.Create`. Multiple processes may run against one
+//! sandbox; stdout / stderr / exit stream out over `Events.Stream`.
 //!
-//! **Status: spike.** Uses shared host network namespace + free TCP port
-//! for the sidecar transport (`HTTPS_PROXY` story is a separate problem).
-//! Production wants a Unix-socket-or-vsock transport bind-mounted into
-//! the container netns, so the host can talk to the sidecar without
-//! sharing host network.
+//! **Transport.** TCP over the shared host network namespace + a
+//! free port. Production wants a Unix-socket-or-vsock bind-mounted
+//! into the container netns so the host can talk to the sidecar
+//! without sharing the host network — separate chunk.
 //!
 //! Lifecycle:
-//!   1. `start(policy)` patches the bundle: sidecar bin bind-mounted in,
-//!      `process.args` overridden to launch the sidecar on a free port.
-//!      Spawns `youki run` as a detached child, polls `/v1/health` until
-//!      the sidecar answers.
-//!   2. `exec(...)`, `wait_for_exec(...)`, `signal(...)`, `write_stdin(...)`
-//!      hit the sidecar's HTTP API.
-//!   3. `shutdown()` POSTs `/v1/shutdown`, then `youki delete --force`.
+//!   1. `start(policy)` patches the OCI bundle: sidecar bin
+//!      bind-mounted in, `process.args` overridden to launch the
+//!      sidecar on a free port. Spawns `youki run` as a detached
+//!      child, polls `GET /v1/health` until the sidecar answers.
+//!   2. `exec(...)`, `wait_for_exit(...)`, `signal(...)`,
+//!      `write_stdin(...)` drive the in-container sidecar through
+//!      the generated `ProcessesClient`. `run_capture(...)` uses
+//!      the unary `Processes.Run` RPC (which captures full output
+//!      in one round-trip).
+//!   3. `shutdown()` tears the container down via
+//!      `youki delete --force` (no separate sidecar shutdown RPC
+//!      in v1 — youki's SIGKILL to PID 1 reaps everything).
 
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
-use base64::Engine;
-use futures_util::StreamExt;
-use serde::Deserialize;
+use connectrpc::client::{ClientConfig, HttpClient};
 use serde_json::Value;
 use tokio::net::TcpListener;
 use tokio::process::{Child, Command};
 
-use crate::backends::youki::{patch_spec, Youki, YoukiConfig};
-use ship_substrate::isolation::SandboxId;
+use crate::backends::youki::{Youki, YoukiConfig, patch_spec};
 use crate::net::{HostMatcher, ProxyHandle, spawn_allowlist_proxy};
-use ship_substrate::isolation::{FsMount, MountMode, NetworkPolicy, SandboxPolicy};
-use crate::sidecar::protocol::{ExecRequest, ExecResponse};
-use ship_substrate::isolation::IsolatorError;
+use crate::sidecar::proto::*;
+use crate::sidecar::proto::__buffa::view::oneof::envelope as env_view;
+use ship_substrate::isolation::{
+    FsMount, IsolatorError, MountMode, NetworkPolicy, SandboxId, SandboxPolicy,
+};
 
 const SIDECAR_INSIDE: &str = "/usr/local/bin/ship-sidecar";
+
+/// Host-facing exec receipt. Mirrors the v1 `ProcessInfo` slice
+/// callers care about so live tests don't need to touch buffa views.
+#[derive(Debug, Clone)]
+pub struct ExecHandle {
+    pub exec_id: String,
+    pub pid: Option<u32>,
+}
 
 #[derive(Debug, Clone)]
 pub struct SidecarConfig {
@@ -64,7 +76,9 @@ pub struct SidecarSandbox {
     container_id: String,
     port: u16,
     child: Option<Child>,
-    http: reqwest::Client,
+    procs: Option<ProcessesClient<HttpClient>>,
+    events: Option<EventsClient<HttpClient>>,
+    health: reqwest::Client,
     proxy: Option<ProxyHandle>,
 }
 
@@ -84,7 +98,9 @@ impl SidecarSandbox {
             container_id,
             port: 0,
             child: None,
-            http: reqwest::Client::new(),
+            procs: None,
+            events: None,
+            health: reqwest::Client::new(),
             proxy: None,
         }
     }
@@ -156,10 +172,7 @@ impl SidecarSandbox {
             sidecar_env.insert("HTTPS_PROXY".into(), url.clone());
             sidecar_env.insert("http_proxy".into(), url.clone());
             sidecar_env.insert("https_proxy".into(), url.clone());
-            sidecar_env.insert(
-                "NO_PROXY".into(),
-                "localhost,127.0.0.1,::1".into(),
-            );
+            sidecar_env.insert("NO_PROXY".into(), "localhost,127.0.0.1,::1".into());
         }
 
         let sidecar_cmd = ship_substrate::isolation::LaunchCommand {
@@ -167,8 +180,6 @@ impl SidecarSandbox {
             args: vec![
                 "--addr".into(),
                 format!("{}:{}", self.side_cfg.bind_addr, port),
-                "--label".into(),
-                policy.label.clone(),
             ],
             env: sidecar_env,
             cwd: PathBuf::from("/"),
@@ -214,17 +225,27 @@ impl SidecarSandbox {
             .spawn()?;
         self.child = Some(child);
 
-        self.wait_until_healthy().await
+        self.wait_until_healthy().await?;
+
+        let http = HttpClient::plaintext();
+        let uri: ::http::Uri = self
+            .base_url()
+            .parse()
+            .map_err(|e: ::http::uri::InvalidUri| IsolatorError::Sidecar(e.to_string()))?;
+        let config = ClientConfig::new(uri);
+        self.procs = Some(ProcessesClient::new(http.clone(), config.clone()));
+        self.events = Some(EventsClient::new(http, config));
+        Ok(())
     }
 
     async fn wait_until_healthy(&self) -> Result<(), IsolatorError> {
         let url = format!("{}/v1/health", self.base_url());
         let deadline = tokio::time::Instant::now() + Duration::from_secs(15);
         while tokio::time::Instant::now() < deadline {
-            if let Ok(r) = self.http.get(&url).send().await {
-                if r.status().is_success() {
-                    return Ok(());
-                }
+            if let Ok(r) = self.health.get(&url).send().await
+                && r.status().is_success()
+            {
+                return Ok(());
             }
             tokio::time::sleep(Duration::from_millis(150)).await;
         }
@@ -233,77 +254,135 @@ impl SidecarSandbox {
         ))
     }
 
+    fn procs_client(&self) -> Result<&ProcessesClient<HttpClient>, IsolatorError> {
+        self.procs
+            .as_ref()
+            .ok_or_else(|| IsolatorError::Sidecar("sidecar not started".into()))
+    }
+
+    fn events_client(&self) -> Result<&EventsClient<HttpClient>, IsolatorError> {
+        self.events
+            .as_ref()
+            .ok_or_else(|| IsolatorError::Sidecar("sidecar not started".into()))
+    }
+
+    /// Spawn a long-lived process via `Processes.Create`. Caller is
+    /// expected to follow up with `wait_for_exit` if it cares about
+    /// the exit code or wants to drain output via the event stream.
     pub async fn exec(
         &self,
         bin: impl Into<String>,
         args: Vec<String>,
         env: HashMap<String, String>,
         cwd: impl Into<String>,
-    ) -> Result<ExecResponse, IsolatorError> {
-        let req = ExecRequest {
-            session_id: "ses_default".into(),
-            bin: bin.into(),
-            args,
-            env,
-            cwd: cwd.into(),
-        };
+    ) -> Result<ExecHandle, IsolatorError> {
+        let mut req = ProcessCreateRequest::default();
+        req.bin = bin.into();
+        req.args = args;
+        req.env.extend(env);
+        req.cwd = cwd.into();
         let resp = self
-            .http
-            .post(format!("{}/v1/exec", self.base_url()))
-            .json(&req)
-            .send()
+            .procs_client()?
+            .create(req)
             .await
-            .map_err(|e| IsolatorError::Sidecar(e.to_string()))?;
-        if !resp.status().is_success() {
-            return Err(IsolatorError::Sidecar(format!(
-                "exec returned {}",
-                resp.status()
-            )));
-        }
-        resp.json::<ExecResponse>()
-            .await
-            .map_err(|e| IsolatorError::Sidecar(e.to_string()))
+            .map_err(|e| IsolatorError::Sidecar(format!("create: {e}")))?;
+        let v = resp.into_view();
+        Ok(ExecHandle {
+            exec_id: v.id.to_string(),
+            pid: if v.pid == 0 { None } else { Some(v.pid) },
+        })
     }
 
     pub async fn signal(&self, exec_id: &str, signal: u8) -> Result<(), IsolatorError> {
-        let resp = self
-            .http
-            .post(format!("{}/v1/signal", self.base_url()))
-            .json(&serde_json::json!({"exec_id": exec_id, "signal": signal}))
-            .send()
-            .await
-            .map_err(|e| IsolatorError::Sidecar(e.to_string()))?;
-        if !resp.status().is_success() {
-            return Err(IsolatorError::Sidecar(format!(
-                "signal returned {}",
-                resp.status()
-            )));
+        let procs = self.procs_client()?;
+        match signal {
+            9 => {
+                let mut req = ProcessKillRequest::default();
+                req.id = exec_id.into();
+                procs
+                    .kill(req)
+                    .await
+                    .map_err(|e| IsolatorError::Sidecar(format!("kill: {e}")))?;
+            }
+            _ => {
+                let mut req = ProcessStopRequest::default();
+                req.id = exec_id.into();
+                procs
+                    .stop(req)
+                    .await
+                    .map_err(|e| IsolatorError::Sidecar(format!("stop: {e}")))?;
+            }
         }
         Ok(())
     }
 
     pub async fn write_stdin(&self, exec_id: &str, data: &[u8]) -> Result<(), IsolatorError> {
-        let b64 = base64::engine::general_purpose::STANDARD.encode(data);
-        let resp = self
-            .http
-            .post(format!("{}/v1/stdin", self.base_url()))
-            .json(&serde_json::json!({"exec_id": exec_id, "data_b64": b64}))
-            .send()
+        let mut req = ProcessWriteInputRequest::default();
+        req.id = exec_id.into();
+        req.data = data.to_vec();
+        self.procs_client()?
+            .write_input(req)
             .await
-            .map_err(|e| IsolatorError::Sidecar(e.to_string()))?;
-        if !resp.status().is_success() {
-            return Err(IsolatorError::Sidecar(format!(
-                "stdin returned {}",
-                resp.status()
-            )));
-        }
+            .map_err(|e| IsolatorError::Sidecar(format!("write_input: {e}")))?;
         Ok(())
     }
 
-    /// Convenience: exec + capture all stdout/stderr until Exited, then
-    /// return (exit_code, stdout, stderr). Bounded by a 60s overall
-    /// deadline and a 5s inter-chunk timeout. Subscribes to events first
-    /// to avoid broadcast races.
+    /// Block until the named process exits, return its exit code.
+    ///
+    /// Subscribe-then-Get to close the race window: the broadcast
+    /// channel doesn't replay, so a process that exits before the
+    /// subscription is established would otherwise time out. We
+    /// subscribe first, then check current state — any exit
+    /// before the subscription is caught by the Get, any exit
+    /// after is caught by the stream.
+    pub async fn wait_for_exit(&self, exec_id: &str) -> Result<Option<i32>, IsolatorError> {
+        let mut stream = self
+            .events_client()?
+            .stream()
+            .await
+            .map_err(|e| IsolatorError::Sidecar(format!("events.stream: {e}")))?;
+
+        // Check current state. The sidecar retains process records
+        // after exit so Get always returns ProcessInfo, even for a
+        // process that completed before we subscribed.
+        let mut get_req = ProcessGetRequest::default();
+        get_req.id = exec_id.into();
+        let info = self
+            .procs_client()?
+            .get(get_req)
+            .await
+            .map_err(|e| IsolatorError::Sidecar(format!("get: {e}")))?;
+        let view = info.into_view();
+        if matches!(
+            view.state.as_known(),
+            Some(ProcessState::PROCESS_STATE_EXITED) | Some(ProcessState::PROCESS_STATE_KILLED)
+        ) {
+            return Ok(Some(view.exit_code));
+        }
+
+        let deadline = tokio::time::Instant::now() + Duration::from_secs(600);
+        while tokio::time::Instant::now() < deadline {
+            let msg = tokio::time::timeout(Duration::from_secs(60), stream.message()).await;
+            let env = match msg {
+                Ok(Ok(Some(env))) => env,
+                Ok(Ok(None)) => return Ok(None),
+                Ok(Err(e)) => {
+                    return Err(IsolatorError::Sidecar(format!("events.stream: {e}")));
+                }
+                Err(_) => continue,
+            };
+            if let Some(env_view::Payload::ProcessExited(x)) = env.payload.as_ref()
+                && x.process_id == exec_id
+            {
+                return Ok(Some(x.exit_code));
+            }
+        }
+        Err(IsolatorError::Sidecar("wait_for_exit timed out".into()))
+    }
+
+    /// One-shot run + full capture. Uses the unary `Processes.Run`
+    /// RPC — no event subscription needed, no SSE chunk parsing,
+    /// no inter-chunk timing fragility.
     pub async fn run_capture(
         &self,
         bin: impl Into<String>,
@@ -311,137 +390,33 @@ impl SidecarSandbox {
         env: HashMap<String, String>,
         cwd: impl Into<String>,
     ) -> Result<(Option<i32>, Vec<u8>, Vec<u8>), IsolatorError> {
+        let mut req = ProcessRunRequest::default();
+        req.bin = bin.into();
+        req.args = args;
+        req.env.extend(env);
+        req.cwd = cwd.into();
         let resp = self
-            .http
-            .get(format!("{}/v1/events", self.base_url()))
-            .send()
+            .procs_client()?
+            .run(req)
             .await
-            .map_err(|e| IsolatorError::Sidecar(e.to_string()))?;
-        let mut stream = resp.bytes_stream();
-        tokio::time::sleep(Duration::from_millis(50)).await;
-
-        let exec = self.exec(bin, args, env, cwd).await?;
-
-        let mut stdout = Vec::new();
-        let mut stderr = Vec::new();
-        let mut exit = None;
-        let deadline = tokio::time::Instant::now() + Duration::from_secs(60);
-        while tokio::time::Instant::now() < deadline {
-            let chunk =
-                tokio::time::timeout(Duration::from_secs(5), stream.next()).await;
-            let chunk = match chunk {
-                Ok(Some(Ok(c))) => c,
-                Ok(Some(Err(e))) => {
-                    return Err(IsolatorError::Sidecar(format!("event stream: {e}")));
-                }
-                Ok(None) => break,
-                Err(_) => continue,
-            };
-            for line in std::str::from_utf8(&chunk).unwrap_or("").lines() {
-                let Some(data) = line.strip_prefix("data: ") else { continue };
-                let v: Value = match serde_json::from_str(data) {
-                    Ok(v) => v,
-                    Err(_) => continue,
-                };
-                let ty = v["type"].as_str().unwrap_or("");
-                let id = v["exec_id"].as_str().unwrap_or("");
-                if id != exec.exec_id {
-                    continue;
-                }
-                match ty {
-                    "stdout" => {
-                        if let Some(b) = v["data_b64"].as_str() {
-                            if let Ok(bytes) =
-                                base64::engine::general_purpose::STANDARD.decode(b)
-                            {
-                                stdout.extend_from_slice(&bytes);
-                            }
-                        }
-                    }
-                    "stderr" => {
-                        if let Some(b) = v["data_b64"].as_str() {
-                            if let Ok(bytes) =
-                                base64::engine::general_purpose::STANDARD.decode(b)
-                            {
-                                stderr.extend_from_slice(&bytes);
-                            }
-                        }
-                    }
-                    "exited" => {
-                        exit = v["code"].as_i64().map(|c| c as i32);
-                    }
-                    _ => {}
-                }
-            }
-            if exit.is_some() {
-                break;
-            }
-        }
-        Ok((exit, stdout, stderr))
+            .map_err(|e| IsolatorError::Sidecar(format!("run: {e}")))?;
+        let v = resp.into_view();
+        let exit = if v.exit_code == -1 {
+            None
+        } else {
+            Some(v.exit_code)
+        };
+        Ok((exit, v.stdout.to_vec(), v.stderr.to_vec()))
     }
 
-    pub async fn proxy_log_entries(
-        &self,
-    ) -> Option<Vec<(String, crate::net::ProxyDecision)>> {
+    pub async fn proxy_log_entries(&self) -> Option<Vec<(String, crate::net::ProxyDecision)>> {
         let proxy = self.proxy.as_ref()?;
         Some(proxy.log.lock().await.entries().to_vec())
     }
 
-    pub async fn wait_for_exec(&self, exec_id: &str) -> Result<Option<i32>, IsolatorError> {
-        let resp = self
-            .http
-            .get(format!("{}/v1/events", self.base_url()))
-            .send()
-            .await
-            .map_err(|e| IsolatorError::Sidecar(e.to_string()))?;
-        let mut stream = resp.bytes_stream();
-        let deadline = tokio::time::Instant::now() + Duration::from_secs(600);
-        while tokio::time::Instant::now() < deadline {
-            let chunk = tokio::time::timeout(Duration::from_secs(60), stream.next()).await;
-            let chunk = match chunk {
-                Ok(Some(Ok(c))) => c,
-                Ok(Some(Err(e))) => {
-                    return Err(IsolatorError::Sidecar(format!("event stream: {e}")))
-                }
-                Ok(None) => return Ok(None),
-                Err(_) => continue,
-            };
-            for line in std::str::from_utf8(&chunk).unwrap_or("").lines() {
-                let Some(data) = line.strip_prefix("data: ") else {
-                    continue;
-                };
-                #[derive(Deserialize)]
-                #[serde(tag = "type", rename_all = "snake_case")]
-                enum Ev {
-                    Exited { exec_id: String, code: Option<i32> },
-                    #[serde(other)]
-                    Other,
-                }
-                if let Ok(Ev::Exited { exec_id: id, code }) =
-                    serde_json::from_str::<Ev>(data)
-                {
-                    if id == exec_id {
-                        return Ok(code);
-                    }
-                }
-            }
-        }
-        Err(IsolatorError::Sidecar("wait_for_exec timed out".into()))
-    }
-
     pub async fn shutdown(mut self) -> Result<(), IsolatorError> {
-        let _ = self
-            .http
-            .post(format!("{}/v1/shutdown", self.base_url()))
-            .json(&serde_json::json!({"session_id": "ses_default"}))
-            .send()
-            .await;
-
-        if let Some(mut child) = self.child.take() {
-            let _ = tokio::time::timeout(Duration::from_secs(5), child.wait()).await;
-            let _ = child.kill().await;
-        }
-
+        // The v1 sidecar has no Shutdown RPC — youki's SIGKILL to PID 1
+        // tears down the sidecar and reaps every child.
         let _ = Command::new(&self.youki_cfg.youki_bin)
             .arg("-r")
             .arg(&self.state_dir)
@@ -450,6 +425,11 @@ impl SidecarSandbox {
             .arg(&self.container_id)
             .status()
             .await;
+
+        if let Some(mut child) = self.child.take() {
+            let _ = tokio::time::timeout(Duration::from_secs(5), child.wait()).await;
+            let _ = child.kill().await;
+        }
 
         if let Some(proxy) = self.proxy.take() {
             proxy.shutdown().await;

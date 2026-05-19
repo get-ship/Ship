@@ -110,7 +110,7 @@ async fn sidecar_runs_exec_and_returns_exit_via_http() {
         .expect("exec");
     eprintln!("youki_sidecar_live: exec returned, exec_id={}", resp.exec_id);
     let code = sandbox
-        .wait_for_exec(&resp.exec_id)
+        .wait_for_exit(&resp.exec_id)
         .await
         .expect("wait");
     eprintln!("youki_sidecar_live: wait returned, code={code:?}");

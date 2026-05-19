@@ -4390,11 +4390,9 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
- "base64",
  "buffa",
  "connectrpc",
  "connectrpc-build",
- "futures-util",
  "http",
  "http-body",
  "libc",

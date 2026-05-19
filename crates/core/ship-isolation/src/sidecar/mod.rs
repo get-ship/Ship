@@ -8,20 +8,13 @@
 //! See `docs/sidecar-protocol.md` for the wire contract and
 //! `proto/ship/sidecar/v1/sidecar.proto` for the schema.
 //!
-//! ## v1 (canonical) vs legacy
-//!
 //! [`proto`] is the canonical v1 protocol — generated from
 //! `proto/ship/sidecar/v1/sidecar.proto` via ConnectRPC. The
-//! `bin/ship-sidecar/` binary speaks this. Every new host-side
-//! caller should use the generated `ProcessesClient` / `EventsClient`
-//! / `HandshakeClient`.
+//! in-sandbox `bin/ship-sidecar/` binary serves it; the
+//! host-side `backends::youki_sidecar` driver drives it via the
+//! generated `ProcessesClient` / `EventsClient`.
 //!
-//! [`protocol`] is the hand-typed JSON shape from before the
-//! ConnectRPC cutover. Kept alive only for the host-side
-//! `backends::youki_sidecar` driver, which still drives the
-//! sidecar via reqwest + SSE. That backend's port to the v1
-//! `ProcessesClient` is the next chunk and will let us delete
-//! `protocol` entirely.
+//! There is no legacy protocol module — the JSON shape that
+//! preceded the cutover has been removed.
 
 pub mod proto;
-pub mod protocol;
