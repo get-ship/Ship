@@ -4,8 +4,15 @@
 
 use super::dispatcher::SandboxDispatcher;
 use super::types::{RuntimeEndpoint, SandboxLifetime, SandboxName, SandboxState};
+use async_trait::async_trait;
 use chrono::Utc;
 use ship_isolation::tier::{IsolationProfile, IsolationStrategy, IsolationTier};
+use ship_substrate::isolation::{
+    ExecHandle, Isolator, IsolatorError, LaunchCommand, SandboxHandle, SandboxId,
+    SandboxOwner, SandboxPolicy,
+};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 fn container_profile() -> IsolationProfile {
     IsolationProfile {
@@ -212,6 +219,98 @@ async fn global_dispatcher_singleton_returns_same_instance() {
     let d2 = crate::sandbox::dispatcher();
     // Pointer equality on the &'static reference — same singleton.
     assert!(std::ptr::eq(d1 as *const _, d2 as *const _));
+}
+
+/// Test isolator that just counts shutdown calls. Mirrors the
+/// counting fixture in `ship-substrate::isolation::owner` tests.
+struct CountingIsolator {
+    shutdown_count: Arc<AtomicUsize>,
+}
+
+#[async_trait]
+impl Isolator for CountingIsolator {
+    fn name(&self) -> &'static str {
+        "counter"
+    }
+    async fn available(&self) -> Result<(), IsolatorError> {
+        Ok(())
+    }
+    async fn prepare(&self, _: &SandboxPolicy) -> Result<SandboxHandle, IsolatorError> {
+        unreachable!()
+    }
+    async fn exec(
+        &self,
+        _: &SandboxHandle,
+        _: LaunchCommand,
+    ) -> Result<ExecHandle, IsolatorError> {
+        unreachable!()
+    }
+    async fn shutdown(&self, _: SandboxHandle) -> Result<(), IsolatorError> {
+        self.shutdown_count.fetch_add(1, Ordering::SeqCst);
+        Ok(())
+    }
+}
+
+fn counting_owner(counter: Arc<AtomicUsize>) -> Arc<SandboxOwner> {
+    let isolator: Arc<dyn Isolator> = Arc::new(CountingIsolator {
+        shutdown_count: counter,
+    });
+    let handle = SandboxHandle {
+        id: SandboxId::new(),
+        backend: "counter",
+        root: std::env::temp_dir(),
+        state: Arc::new(()),
+    };
+    Arc::new(SandboxOwner::new(isolator, handle))
+}
+
+#[tokio::test]
+async fn attach_sandbox_owner_then_reap_fires_isolator_shutdown() {
+    let dispatcher = SandboxDispatcher::new();
+    let id = dispatcher
+        .ensure_default_sandbox("my-project", container_profile())
+        .await
+        .unwrap();
+    // Tier 2 stays Pending; mark it Running so reap exercises the
+    // full Idle → Reaping → Stopped path. The endpoint addr is mock.
+    dispatcher
+        .mark_remote_running(&id, "http://127.0.0.1:9999", "http")
+        .await
+        .unwrap();
+
+    let counter = Arc::new(AtomicUsize::new(0));
+    let owner = counting_owner(counter.clone());
+    dispatcher
+        .attach_sandbox_owner(&id, owner)
+        .await
+        .expect("attach owner");
+
+    // No subscribers; reap should drop the owner and fire shutdown
+    // on the tokio runtime.
+    dispatcher.reap(&id).await.expect("reap");
+
+    // Drop is async (spawn on runtime). Yield + small sleep.
+    tokio::task::yield_now().await;
+    tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    assert_eq!(
+        counter.load(Ordering::SeqCst),
+        1,
+        "reap must fire the isolator's shutdown exactly once"
+    );
+}
+
+#[tokio::test]
+async fn reap_without_owner_is_clean_noop() {
+    let dispatcher = SandboxDispatcher::new();
+    let id = dispatcher
+        .ensure_default_sandbox("my-project", none_profile())
+        .await
+        .unwrap();
+    // No owner attached (Tier 0/1 path). Reap should still succeed.
+    dispatcher.reap(&id).await.expect("reap without owner");
+    let registry = dispatcher.registry();
+    let reg = registry.read().await;
+    assert_eq!(reg.get(&id).unwrap().state, SandboxState::Stopped);
 }
 
 #[tokio::test]

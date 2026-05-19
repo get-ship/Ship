@@ -30,6 +30,7 @@ use super::types::{
     RuntimeEndpoint, SandboxId, SandboxLifetime, SandboxName, SandboxState,
 };
 use ship_isolation::tier::{IsolationProfile, IsolationTier};
+use ship_substrate::isolation::SandboxOwner;
 use ship_substrate::supervisor::{ActorRuntime, InProcessActorRuntime};
 
 pub struct SandboxDispatcher {
@@ -107,6 +108,29 @@ impl SandboxDispatcher {
         Ok(id)
     }
 
+    /// Attach the backend lifecycle owner to a sandbox. The owner's
+    /// `Drop` fires the isolator's `shutdown()` — when [`Self::reap`]
+    /// takes the owner out of the sandbox struct, dropping the Arc
+    /// triggers backend teardown (docker rm, youki delete, ...).
+    ///
+    /// Idempotent — calling on a sandbox that already has an owner
+    /// keeps the existing owner (orchestrator's job not to double-
+    /// prepare).
+    pub async fn attach_sandbox_owner(
+        &self,
+        sandbox_id: &SandboxId,
+        owner: Arc<SandboxOwner>,
+    ) -> Result<()> {
+        let mut reg = self.registry.write().await;
+        let sandbox = reg
+            .get_mut(sandbox_id)
+            .ok_or_else(|| anyhow!("no sandbox with id '{}'", sandbox_id.0))?;
+        if sandbox.sandbox_owner.is_none() {
+            sandbox.sandbox_owner = Some(owner);
+        }
+        Ok(())
+    }
+
     /// Transition a Tier 2+ sandbox to Running once the orchestrator
     /// has prepared the underlying container/VM and stood up the
     /// in-sandbox runtime's v1 listener.
@@ -154,18 +178,34 @@ impl SandboxDispatcher {
     }
 
     /// Tear down a sandbox. Transitions Idle/Running → Reaping →
-    /// Stopped. For Tier 2+ sandboxes the orchestrator should perform
-    /// the actual backend teardown (Docker rm, youki delete) before
-    /// calling this — the dispatcher only owns the registry side.
+    /// Stopped, then drops the `sandbox_owner` (if any) — its `Drop`
+    /// impl spawns the isolator's `shutdown()` on the tokio runtime,
+    /// which is how registry-level reap translates to backend
+    /// teardown (docker rm, youki delete) without ship-platform
+    /// depending on any specific backend.
     pub async fn reap(&self, sandbox_id: &SandboxId) -> Result<()> {
-        let mut reg = self.registry.write().await;
-        // From Pending we can go straight to Stopped (never ran).
-        let state = reg.get(sandbox_id).map(|s| s.state);
-        if matches!(state, Some(SandboxState::Pending)) {
-            return reg.mark_stopped(sandbox_id).map_err(|e| anyhow!("{e}"));
+        let owner_to_drop: Option<Arc<SandboxOwner>>;
+        {
+            let mut reg = self.registry.write().await;
+            let state = reg.get(sandbox_id).map(|s| s.state);
+            if matches!(state, Some(SandboxState::Pending)) {
+                // Never ran. Take the owner (if any) and mark stopped.
+                owner_to_drop = reg
+                    .get_mut(sandbox_id)
+                    .and_then(|s| s.sandbox_owner.take());
+                reg.mark_stopped(sandbox_id).map_err(|e| anyhow!("{e}"))?;
+            } else {
+                reg.mark_reaping(sandbox_id).map_err(|e| anyhow!("{e}"))?;
+                owner_to_drop = reg
+                    .get_mut(sandbox_id)
+                    .and_then(|s| s.sandbox_owner.take());
+                reg.mark_stopped(sandbox_id).map_err(|e| anyhow!("{e}"))?;
+            }
         }
-        reg.mark_reaping(sandbox_id).map_err(|e| anyhow!("{e}"))?;
-        reg.mark_stopped(sandbox_id).map_err(|e| anyhow!("{e}"))
+        // Drop the owner OUTSIDE the registry lock so the spawned
+        // shutdown task can't deadlock on it.
+        drop(owner_to_drop);
+        Ok(())
     }
 
     /// Look up the ActorRuntime that services a sandbox. Tier 0/1 →

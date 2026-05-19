@@ -2,10 +2,12 @@
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 use std::time::Duration;
 use thiserror::Error;
 
 use ship_isolation::tier::IsolationProfile;
+use ship_substrate::isolation::SandboxOwner;
 
 /// Opaque, stable id for a sandbox. Minted by the registry; survives
 /// shipd restart (Chunk F adds the persistence).
@@ -109,7 +111,17 @@ pub enum RuntimeEndpoint {
 
 /// One sandbox. Holds its identity, isolation profile, lifecycle
 /// state, and the actors currently assigned to it.
-#[derive(Debug, Clone)]
+///
+/// `sandbox_owner` holds the optional backend lifecycle binding —
+/// the `Arc<SandboxOwner>` whose `Drop` fires the isolator's
+/// `shutdown()`. Populated for sandboxes whose backend needs
+/// teardown (Docker / Youki / etc.); `None` for in-process /
+/// no-backend sandboxes (Tier 0/1).
+///
+/// Reaping drops the Arc, which fires shutdown on the tokio
+/// runtime — that's how the registry's idle-reap loop translates
+/// to "docker rm" without ship-platform depending on Docker.
+#[derive(Clone)]
 pub struct Sandbox {
     pub id: SandboxId,
     pub project: String,
@@ -124,6 +136,20 @@ pub struct Sandbox {
     /// is running. Used by the reaper to decide if `Idle{timeout}`
     /// has elapsed.
     pub idle_since: Option<DateTime<Utc>>,
+    pub sandbox_owner: Option<Arc<SandboxOwner>>,
+}
+
+impl std::fmt::Debug for Sandbox {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Sandbox")
+            .field("id", &self.id)
+            .field("project", &self.project)
+            .field("name", &self.name)
+            .field("state", &self.state)
+            .field("actors", &self.actors)
+            .field("has_owner", &self.sandbox_owner.is_some())
+            .finish()
+    }
 }
 
 impl Sandbox {
@@ -145,6 +171,7 @@ impl Sandbox {
             state: SandboxState::Pending,
             created_at: Utc::now(),
             idle_since: None,
+            sandbox_owner: None,
         }
     }
 
