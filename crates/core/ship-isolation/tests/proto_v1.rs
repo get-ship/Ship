@@ -9,6 +9,12 @@
 //! idiom; tests build values via `Default` + field assignment instead
 //! of struct literals.
 
+// Tests intentionally use `Default::default()` then mutate; the clippy
+// lint for "field reassign with default" doesn't apply when each test
+// asserts the post-mutation shape and the struct has private
+// `__buffa_unknown_fields` that prevent struct-literal construction.
+#![allow(clippy::field_reassign_with_default)]
+
 use ship_isolation::sidecar::proto::*;
 
 #[test]

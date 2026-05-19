@@ -167,6 +167,8 @@ pub fn verify_decision() -> VerifyResult {
     let strategy = decision.resolved.strategy;
     let has_impl = match strategy {
         IsolationStrategy::Noop => true,
+        IsolationStrategy::HarnessNative => true,
+        IsolationStrategy::SrtWrapper => true,
         IsolationStrategy::HarnessSandbox => true,
         IsolationStrategy::DockerEngine => true,
         IsolationStrategy::YoukiRootless => true,
@@ -287,7 +289,10 @@ pub fn init(req: InitRequest) -> Result<InitResult> {
 fn strategies_for_tier(tier: IsolationTier, os: HostOs) -> Vec<IsolationStrategy> {
     match tier {
         IsolationTier::None => vec![IsolationStrategy::Noop],
-        IsolationTier::Process => vec![IsolationStrategy::HarnessSandbox],
+        IsolationTier::Process => vec![
+            IsolationStrategy::HarnessNative,
+            IsolationStrategy::SrtWrapper,
+        ],
         IsolationTier::Container => match os {
             HostOs::Windows => {
                 vec![IsolationStrategy::DockerEngine, IsolationStrategy::Wsl2]
@@ -305,6 +310,20 @@ fn strategies_for_tier(tier: IsolationTier, os: HostOs) -> Vec<IsolationStrategy
 fn unavailable_reason(strategy: IsolationStrategy, caps: &ship_isolation::Capabilities) -> String {
     match strategy {
         IsolationStrategy::Noop => "always available".into(),
+        IsolationStrategy::HarnessNative => {
+            if matches!(caps.os, HostOs::Windows | HostOs::Unknown) {
+                "no harness supports native sandbox on this OS".into()
+            } else {
+                "unknown".into()
+            }
+        }
+        IsolationStrategy::SrtWrapper => {
+            if !caps.srt {
+                "sandbox-runtime not installed (bun add -g @anthropic-ai/sandbox-runtime)".into()
+            } else {
+                "unknown".into()
+            }
+        }
         IsolationStrategy::HarnessSandbox => {
             if !caps.srt {
                 "sandbox-runtime not installed (bun add -g @anthropic-ai/sandbox-runtime)".into()

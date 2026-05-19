@@ -132,9 +132,16 @@ pub fn parse_allowlist(raw: &str) -> Vec<String> {
 /// (Docker, Youki, Lima, Fly — those need `prepare`/`shutdown`). Callers
 /// treat `None` as "supervisor should keep its existing launch".
 ///
-/// For HarnessSandbox: returns the bun + srt invocation. Requires a
-/// `bun_bin` resolved by the capability probe (or settings) and a
-/// settings-file path the caller writes the srt JSON to.
+/// For `SrtWrapper` / legacy `HarnessSandbox`: returns the bun + srt
+/// invocation. Requires `bun_bin` resolved by the capability probe (or
+/// settings) and a settings-file path the caller writes the srt JSON
+/// to.
+///
+/// For `HarnessNative`: appends the harness's native sandbox flag (if
+/// any) to args. The flag is resolved per (harness, OS) via
+/// `harness::tier1_mechanism_for` — supervisor passes the right flag
+/// via `WrapContext.harness_native_flag`. When `None`, no flag is
+/// needed (e.g. codex on macOS uses Seatbelt internally).
 pub fn wrap_launch(
     strategy: crate::tier::IsolationStrategy,
     bin: std::path::PathBuf,
@@ -144,7 +151,21 @@ pub fn wrap_launch(
     use crate::tier::IsolationStrategy::*;
     match strategy {
         Noop => None,
-        HarnessSandbox => {
+        HarnessNative => {
+            // No bin/args rewrite — harness binary stays put. Append
+            // the native flag (if any) to args. When the flag is None
+            // (e.g. codex on macOS), there's nothing to do; the
+            // harness sandboxes itself by default.
+            match ctx.harness_native_flag {
+                Some(flag) => {
+                    let mut new_args = args;
+                    new_args.push(flag.to_string());
+                    Some(WrappedLaunch { bin, args: new_args })
+                }
+                None => Some(WrappedLaunch { bin, args }),
+            }
+        }
+        SrtWrapper | HarnessSandbox => {
             let bun = ctx.bun_bin?;
             let srt = ctx.srt_entry?;
             let settings = ctx.srt_settings_path?;
@@ -165,14 +186,19 @@ pub fn wrap_launch(
     }
 }
 
-/// Pre-resolved paths the caller hands to `wrap_launch`. Each field is
-/// optional because not every strategy needs every path; the wrapper
-/// returns `None` when a required path is missing.
+/// Pre-resolved paths + flags the caller hands to `wrap_launch`. Each
+/// field is optional because not every strategy needs every value; the
+/// wrapper returns `None` when a required path is missing.
 #[derive(Debug, Default, Clone, Copy)]
 pub struct WrapContext<'a> {
     pub bun_bin: Option<&'a std::path::Path>,
     pub srt_entry: Option<&'a std::path::Path>,
     pub srt_settings_path: Option<&'a std::path::Path>,
+    /// CLI flag for `HarnessNative`. `None` means "no flag" (codex on
+    /// macOS) — still a valid wrap. The wrapper distinguishes
+    /// `Some(None)` (no flag needed) from `Some(_)` (flag to add) by
+    /// reading the WrapContext's literal `harness_native_flag` field.
+    pub harness_native_flag: Option<&'a str>,
 }
 
 #[derive(Debug, Clone)]
@@ -268,6 +294,7 @@ mod tests {
                 bun_bin: Some(&bun),
                 srt_entry: Some(&srt),
                 srt_settings_path: Some(&settings),
+                harness_native_flag: None,
             },
         )
         .expect("should wrap");
@@ -293,9 +320,73 @@ mod tests {
                 bun_bin: Some(&bun),
                 srt_entry: None,
                 srt_settings_path: None,
+                harness_native_flag: None,
             },
         );
         assert!(out.is_none(), "missing srt_entry should yield None");
+    }
+
+    #[test]
+    fn wrap_harness_native_with_flag_appends_to_args() {
+        use crate::tier::IsolationStrategy;
+        let out = wrap_launch(
+            IsolationStrategy::HarnessNative,
+            std::path::PathBuf::from("/usr/local/bin/claude"),
+            vec!["-p".into(), "hello".into()],
+            &WrapContext {
+                harness_native_flag: Some("--sandbox"),
+                ..Default::default()
+            },
+        )
+        .expect("should wrap");
+        // Binary unchanged; flag appended to args.
+        assert_eq!(out.bin, std::path::PathBuf::from("/usr/local/bin/claude"));
+        assert_eq!(out.args, vec!["-p", "hello", "--sandbox"]);
+    }
+
+    #[test]
+    fn wrap_harness_native_without_flag_is_passthrough() {
+        // codex on macOS sandboxes itself with Seatbelt — no flag needed.
+        use crate::tier::IsolationStrategy;
+        let out = wrap_launch(
+            IsolationStrategy::HarnessNative,
+            std::path::PathBuf::from("/usr/local/bin/codex"),
+            vec!["exec".into(), "hi".into()],
+            &WrapContext::default(),
+        )
+        .expect("should wrap");
+        assert_eq!(out.bin, std::path::PathBuf::from("/usr/local/bin/codex"));
+        assert_eq!(out.args, vec!["exec", "hi"]);
+    }
+
+    #[test]
+    fn wrap_srt_wrapper_matches_legacy_harness_sandbox() {
+        use crate::tier::IsolationStrategy;
+        let bun = std::path::PathBuf::from("/usr/local/bin/bun");
+        let srt = std::path::PathBuf::from("/opt/srt/bin.js");
+        let settings = std::path::PathBuf::from("/tmp/srt-x.json");
+        let ctx = WrapContext {
+            bun_bin: Some(&bun),
+            srt_entry: Some(&srt),
+            srt_settings_path: Some(&settings),
+            harness_native_flag: None,
+        };
+        let a = wrap_launch(
+            IsolationStrategy::SrtWrapper,
+            std::path::PathBuf::from("/usr/local/bin/opencode"),
+            vec!["go".into()],
+            &ctx,
+        )
+        .expect("srt wrap");
+        let b = wrap_launch(
+            IsolationStrategy::HarnessSandbox,
+            std::path::PathBuf::from("/usr/local/bin/opencode"),
+            vec!["go".into()],
+            &ctx,
+        )
+        .expect("legacy wrap");
+        assert_eq!(a.bin, b.bin);
+        assert_eq!(a.args, b.args);
     }
 
     #[test]

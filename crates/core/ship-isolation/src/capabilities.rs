@@ -99,9 +99,29 @@ impl Capabilities {
     }
 
     /// Which strategies are usable on this host? Order-independent.
+    ///
+    /// `HarnessNative` is always listed for non-Windows hosts because
+    /// availability is per-harness, not per-host — the recommender's
+    /// adapter table decides at agent-run time. The Capabilities probe
+    /// stays host-level; per-harness probing happens in
+    /// `harness::tier1_mechanism_for` driven by the resolved agent's
+    /// harness id.
     pub fn available_strategies(&self) -> Vec<IsolationStrategy> {
         let mut out = vec![IsolationStrategy::Noop];
+        // HarnessNative — at least some harness on this OS can sandbox
+        // itself; the recommender narrows per agent.
+        if !matches!(self.os, HostOs::Windows | HostOs::Unknown) {
+            out.push(IsolationStrategy::HarnessNative);
+        }
         if self.srt {
+            out.push(IsolationStrategy::SrtWrapper);
+            // Legacy alias: HarnessSandbox is the "pick whichever Tier 1
+            // works for this harness" strategy. Listed when at least one
+            // Tier 1 mechanism is reachable.
+            out.push(IsolationStrategy::HarnessSandbox);
+        } else if !matches!(self.os, HostOs::Windows | HostOs::Unknown) {
+            // Even without srt, HarnessSandbox is reachable via
+            // HarnessNative path for harnesses that support it.
             out.push(IsolationStrategy::HarnessSandbox);
         }
         if self.docker || self.podman {

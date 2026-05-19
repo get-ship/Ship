@@ -237,52 +237,122 @@ impl JobExecutor for ProcessExecutor {
             // HarnessSandbox".
             let mut active = "0";
             if enforce {
+                use ship_isolation::harness::{HarnessSandboxMechanism, tier1_mechanism_for};
                 use ship_isolation::settings::{WrapContext, wrap_launch};
                 use ship_isolation::tier::IsolationStrategy;
-                if d.resolved.strategy == IsolationStrategy::HarnessSandbox {
-                    let bun = which_bin("bun");
-                    let srt = resolve_srt_entry();
-                    let settings_path = ctx.work_dir.join(".artifacts").join(format!(
-                        "srt-{}.json",
-                        ctx.slug.replace('/', "_")
-                    ));
-                    if let (Some(bun_path), Some(srt_path)) = (bun.as_ref(), srt.as_ref()) {
-                        if let Err(e) = write_srt_settings(&settings_path, &ctx.work_dir) {
-                            tracing::warn!(
-                                slug = ctx.slug,
-                                error = %e,
-                                "srt settings write failed; running unwrapped"
-                            );
-                        } else if let Some(w) = wrap_launch(
-                            IsolationStrategy::HarnessSandbox,
+
+                let harness_id = ctx
+                    .launch
+                    .harness
+                    .as_deref()
+                    .unwrap_or("claude");
+
+                // Resolve the actual Tier 1 strategy if the decision
+                // landed on Process tier. The legacy HarnessSandbox
+                // alias resolves to one of HarnessNative / SrtWrapper
+                // depending on per-harness support.
+                let resolved_strategy = match d.resolved.strategy {
+                    IsolationStrategy::HarnessSandbox => {
+                        match tier1_mechanism_for(harness_id, d.capabilities.os) {
+                            HarnessSandboxMechanism::Native { .. } => {
+                                IsolationStrategy::HarnessNative
+                            }
+                            HarnessSandboxMechanism::SrtWrapper { .. } => {
+                                IsolationStrategy::SrtWrapper
+                            }
+                            HarnessSandboxMechanism::Unavailable { .. } => {
+                                IsolationStrategy::Noop
+                            }
+                        }
+                    }
+                    other => other,
+                };
+
+                match resolved_strategy {
+                    IsolationStrategy::HarnessNative => {
+                        // Look up the flag for this (harness, OS).
+                        let mech =
+                            tier1_mechanism_for(harness_id, d.capabilities.os);
+                        let flag = match &mech {
+                            HarnessSandboxMechanism::Native { flag, .. } => *flag,
+                            _ => None,
+                        };
+                        if let Some(w) = wrap_launch(
+                            IsolationStrategy::HarnessNative,
                             std::path::PathBuf::from(&launch.bin),
                             launch.args.clone(),
                             &WrapContext {
-                                bun_bin: Some(bun_path),
-                                srt_entry: Some(srt_path),
-                                srt_settings_path: Some(&settings_path),
+                                harness_native_flag: flag,
+                                ..Default::default()
                             },
                         ) {
                             launch.bin = w.bin.to_string_lossy().into_owned();
                             launch.args = w.args;
                             active = "1";
-                            tracing::info!(slug = ctx.slug, "isolation enforced: HarnessSandbox");
+                            tracing::info!(
+                                slug = ctx.slug,
+                                harness = harness_id,
+                                flag = ?flag,
+                                "isolation enforced: HarnessNative"
+                            );
                         }
-                    } else {
+                    }
+                    IsolationStrategy::SrtWrapper => {
+                        let bun = which_bin("bun");
+                        let srt = resolve_srt_entry();
+                        let settings_path = ctx.work_dir.join(".artifacts").join(format!(
+                            "srt-{}.json",
+                            ctx.slug.replace('/', "_")
+                        ));
+                        if let (Some(bun_path), Some(srt_path)) = (bun.as_ref(), srt.as_ref()) {
+                            if let Err(e) = write_srt_settings(&settings_path, &ctx.work_dir) {
+                                tracing::warn!(
+                                    slug = ctx.slug,
+                                    error = %e,
+                                    "srt settings write failed; running unwrapped"
+                                );
+                            } else if let Some(w) = wrap_launch(
+                                IsolationStrategy::SrtWrapper,
+                                std::path::PathBuf::from(&launch.bin),
+                                launch.args.clone(),
+                                &WrapContext {
+                                    bun_bin: Some(bun_path),
+                                    srt_entry: Some(srt_path),
+                                    srt_settings_path: Some(&settings_path),
+                                    harness_native_flag: None,
+                                },
+                            ) {
+                                launch.bin = w.bin.to_string_lossy().into_owned();
+                                launch.args = w.args;
+                                active = "1";
+                                tracing::info!(
+                                    slug = ctx.slug,
+                                    "isolation enforced: SrtWrapper"
+                                );
+                            }
+                        } else {
+                            tracing::warn!(
+                                slug = ctx.slug,
+                                bun = bun.is_some(),
+                                srt = srt.is_some(),
+                                "SrtWrapper enforce requested but bun / srt missing"
+                            );
+                        }
+                    }
+                    IsolationStrategy::Noop => {
+                        // No-op intentionally — either the original
+                        // decision was Noop, or HarnessSandbox
+                        // resolved to Unavailable for this (harness,
+                        // OS). Already logged at decision time.
+                    }
+                    other => {
                         tracing::warn!(
                             slug = ctx.slug,
-                            bun = bun.is_some(),
-                            srt = srt.is_some(),
-                            "HarnessSandbox enforce requested but bun / srt missing"
+                            strategy = %other,
+                            "isolation enforce on but {} requires lifecycle support not yet wired",
+                            other
                         );
                     }
-                } else if !matches!(d.resolved.strategy, IsolationStrategy::Noop) {
-                    tracing::warn!(
-                        slug = ctx.slug,
-                        strategy = %d.resolved.strategy,
-                        "isolation enforce on but {} requires lifecycle support not yet wired",
-                        d.resolved.strategy
-                    );
                 }
             }
             launch

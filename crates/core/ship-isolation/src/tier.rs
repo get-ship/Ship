@@ -78,11 +78,31 @@ impl fmt::Display for IsolationTier {
 ///
 /// Serde uses the same short ids as `as_id()` / `from_id()` (e.g.
 /// "docker", "youki") — what users type in YAML, what the CLI prints.
+///
+/// Tier 1 split (see `docs/strategy.md` §3.1):
+///   - `HarnessNative` — harness sandboxes itself (claude `--sandbox`,
+///     codex Seatbelt, gemini `--yolo`). Preferred where supported.
+///   - `SrtWrapper` — Ship wraps with `@anthropic-ai/sandbox-runtime`
+///     when the harness has no native mechanism.
+///   - `HarnessSandbox` (legacy alias) — kept for backwards
+///     compatibility with config files; new code uses one of the two
+///     above. Recommender treats it as a request for the per-harness
+///     best-fit and dispatches accordingly.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum IsolationStrategy {
     #[serde(rename = "noop")]
     Noop,
-    #[serde(rename = "harness", alias = "harness_sandbox", alias = "srt", alias = "sandbox-runtime")]
+    /// Harness sandboxes itself; Ship passes the appropriate flag.
+    #[serde(rename = "harness_native", alias = "native", alias = "harness-native")]
+    HarnessNative,
+    /// Ship wraps with `@anthropic-ai/sandbox-runtime`.
+    #[serde(rename = "srt", alias = "srt_wrapper", alias = "sandbox-runtime", alias = "srt-wrapper")]
+    SrtWrapper,
+    /// Legacy: "pick the right Tier 1 for this harness." Kept so old
+    /// configs don't break. New code uses HarnessNative or SrtWrapper
+    /// directly. Recommender resolves to one of those via the
+    /// `ship_isolation::harness::tier1_mechanism_for` table.
+    #[serde(rename = "harness", alias = "harness_sandbox")]
     HarnessSandbox,
     #[serde(rename = "docker", alias = "docker_engine", alias = "podman")]
     DockerEngine,
@@ -100,6 +120,8 @@ impl IsolationStrategy {
     pub fn as_id(&self) -> &'static str {
         match self {
             Self::Noop => "noop",
+            Self::HarnessNative => "harness_native",
+            Self::SrtWrapper => "srt",
             Self::HarnessSandbox => "harness",
             Self::DockerEngine => "docker",
             Self::YoukiRootless => "youki",
@@ -112,11 +134,15 @@ impl IsolationStrategy {
     pub fn from_id(s: &str) -> Option<Self> {
         match s {
             "noop" | "none" => Some(Self::Noop),
-            "harness" | "srt" | "sandbox-runtime" => Some(Self::HarnessSandbox),
-            "docker" | "podman" => Some(Self::DockerEngine),
-            "youki" => Some(Self::YoukiRootless),
+            "harness_native" | "native" | "harness-native" => Some(Self::HarnessNative),
+            "srt" | "sandbox-runtime" | "srt-wrapper" | "srt_wrapper" => {
+                Some(Self::SrtWrapper)
+            }
+            "harness" | "harness_sandbox" => Some(Self::HarnessSandbox),
+            "docker" | "docker_engine" | "podman" => Some(Self::DockerEngine),
+            "youki" | "youki_rootless" => Some(Self::YoukiRootless),
             "wsl2" | "wsl" => Some(Self::Wsl2),
-            "lima" | "tart" | "vz" => Some(Self::LimaVm),
+            "lima" | "lima_vm" | "tart" | "vz" => Some(Self::LimaVm),
             "fly" | "fly_machines" | "flyio" => Some(Self::FlyMachines),
             _ => None,
         }
@@ -125,10 +151,29 @@ impl IsolationStrategy {
     pub fn tier(&self) -> IsolationTier {
         match self {
             Self::Noop => IsolationTier::None,
-            Self::HarnessSandbox => IsolationTier::Process,
+            Self::HarnessNative | Self::SrtWrapper | Self::HarnessSandbox => {
+                IsolationTier::Process
+            }
             Self::DockerEngine | Self::YoukiRootless | Self::Wsl2 => IsolationTier::Container,
             Self::LimaVm => IsolationTier::Vm,
             Self::FlyMachines => IsolationTier::Cloud,
+        }
+    }
+
+    /// Display-friendly label for UI surfaces. "Sandboxed by Claude"
+    /// reads better than "harness_native" — but we keep the id stable
+    /// for serde / scripting.
+    pub fn label(&self) -> &'static str {
+        match self {
+            Self::Noop => "Not sandboxed",
+            Self::HarnessNative => "Harness-native sandbox",
+            Self::SrtWrapper => "Process sandbox (srt)",
+            Self::HarnessSandbox => "Process sandbox (auto)",
+            Self::DockerEngine => "Container (Docker)",
+            Self::YoukiRootless => "Container (youki)",
+            Self::Wsl2 => "Container (WSL2)",
+            Self::LimaVm => "Virtual machine (Lima)",
+            Self::FlyMachines => "Cloud (Fly)",
         }
     }
 }
@@ -209,8 +254,19 @@ mod tests {
 
     #[test]
     fn strategy_aliases_resolve() {
+        // Post-split: "sandbox-runtime" maps to SrtWrapper (the new
+        // canonical name). Legacy "harness" stays bound to
+        // HarnessSandbox so old configs don't surprise users.
         assert_eq!(
             IsolationStrategy::from_id("sandbox-runtime"),
+            Some(IsolationStrategy::SrtWrapper)
+        );
+        assert_eq!(
+            IsolationStrategy::from_id("native"),
+            Some(IsolationStrategy::HarnessNative)
+        );
+        assert_eq!(
+            IsolationStrategy::from_id("harness"),
             Some(IsolationStrategy::HarnessSandbox)
         );
         assert_eq!(

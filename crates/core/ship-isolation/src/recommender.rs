@@ -214,13 +214,24 @@ fn try_profile(
 
 /// Within a tier, the preference order is per-OS-context-aware. We pick
 /// the smallest-surface strategy that's actually available.
+///
+/// Tier 1 preference order is HarnessNative → SrtWrapper → legacy
+/// HarnessSandbox alias. Recommender doesn't know the agent's harness
+/// id here; that narrowing happens one layer up via
+/// `ship_platform::isolation::decide_for_agent`, which consults
+/// `harness::tier1_mechanism_for(harness_id, os)` and pins the
+/// resulting strategy as `run_override`.
 fn preferred_strategy_in_tier(
     caps: &Capabilities,
     tier: IsolationTier,
 ) -> Option<IsolationStrategy> {
     let candidates: &[IsolationStrategy] = match tier {
         IsolationTier::None => &[IsolationStrategy::Noop],
-        IsolationTier::Process => &[IsolationStrategy::HarnessSandbox],
+        IsolationTier::Process => &[
+            IsolationStrategy::HarnessNative,
+            IsolationStrategy::SrtWrapper,
+            IsolationStrategy::HarnessSandbox,
+        ],
         IsolationTier::Container => match caps.os {
             HostOs::Windows => &[IsolationStrategy::DockerEngine, IsolationStrategy::Wsl2],
             _ => &[IsolationStrategy::DockerEngine, IsolationStrategy::YoukiRootless],
@@ -343,10 +354,15 @@ mod tests {
 
     #[test]
     fn user_pref_downgrades_silently_if_tier_unavailable() {
+        // empty_caps() has Linux OS + no docker/youki. Container tier
+        // is unavailable; recommender walks down to Process tier where
+        // HarnessNative is always-available on Linux (per-harness
+        // narrowing happens one layer up in decide_for_agent).
         let caps = empty_caps();
         let profile = IsolationProfile::pin_tier(IsolationTier::Container);
         let out = recommend(RecommendInput::new(&caps).with_user_pref(&profile)).unwrap();
-        assert_eq!(out.strategy, IsolationStrategy::Noop);
+        assert_eq!(out.tier, IsolationTier::Process);
+        assert_eq!(out.strategy, IsolationStrategy::HarnessNative);
         assert!(out.downgraded);
     }
 
@@ -374,19 +390,33 @@ mod tests {
         };
         let out = recommend(RecommendInput::new(&caps)).unwrap();
         assert_eq!(out.tier, IsolationTier::Process);
-        assert_eq!(out.strategy, IsolationStrategy::HarnessSandbox);
+        // Tier 1 preference order: HarnessNative wins over SrtWrapper
+        // and the legacy HarnessSandbox alias.
+        assert_eq!(out.strategy, IsolationStrategy::HarnessNative);
     }
 
     #[test]
-    fn no_fallback_when_tier_0_disallowed_and_nothing_available() {
-        let caps = empty_caps();
+    fn no_fallback_when_tier_0_disallowed_and_no_tier_1_either() {
+        // Windows + no caps -> no Tier 1 (HarnessNative gated off
+        // Windows; no srt) and no Tier 2+. allow_tier_0=false should
+        // refuse outright.
+        let caps = Capabilities {
+            os: HostOs::Windows,
+            ..Capabilities::default()
+        };
         let err = recommend(RecommendInput::new(&caps).with_allow_tier_0(false)).unwrap_err();
         assert!(matches!(err, RecommenderError::NoFallback));
     }
 
     #[test]
     fn downgrade_reason_carries_from_tier() {
-        let caps = empty_caps();
+        // Use Windows + empty caps so Container is unreachable AND
+        // there's no Tier 1 fallback — recommender ends at Noop with
+        // the downgrade reason chained back to the OS default tier.
+        let caps = Capabilities {
+            os: HostOs::Windows,
+            ..Capabilities::default()
+        };
         let out = recommend(RecommendInput::new(&caps)).unwrap();
         match out.reason {
             ResolutionReason::Downgrade { from, .. } => {
