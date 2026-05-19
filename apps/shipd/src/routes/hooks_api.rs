@@ -459,6 +459,11 @@ mod tests {
             actor_id: actor_id.map(str::to_string),
             workspace: None,
             session_id: None,
+            harness: None,
+            model: None,
+            tool_status: None,
+            tool_error: None,
+            reason: None,
         }
     }
 

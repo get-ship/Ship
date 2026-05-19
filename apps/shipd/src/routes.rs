@@ -58,6 +58,8 @@ pub mod git_api;
 pub mod hooks_api;
 pub mod human_webhook;
 pub mod isolation_api;
+#[cfg(test)]
+mod isolation_api_tests;
 pub mod logs_api;
 pub mod mcp_api;
 pub mod openapi;

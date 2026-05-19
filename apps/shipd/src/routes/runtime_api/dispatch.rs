@@ -399,7 +399,7 @@ mod tests {
             agent_id: None,
             workspace_id: None,
             session_id: None,
-            scopes: vec![Scope::Full],
+            scopes: vec![crate::auth::Scope::Full],
         })
     }
 
@@ -427,6 +427,7 @@ mod tests {
             source_spec_path: None,
             depends_on: None,
             vars: None,
+            keepalive: false,
         };
         let resp = dispatch_agent_session(State(state), full_auth(), Json(req))
             .await
@@ -538,6 +539,7 @@ mod tests {
             source_spec_path: None,
             depends_on: None,
             vars: None,
+            keepalive: false,
         };
         let resp = dispatch_agent_session(State(state), full_auth(), Json(req))
             .await
@@ -570,6 +572,7 @@ mod tests {
             source_spec_path: None,
             depends_on: None,
             vars: None,
+            keepalive: false,
         };
         let resp = dispatch_agent_session(State(state), full_auth(), Json(req))
             .await
