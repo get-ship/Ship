@@ -8,13 +8,35 @@ use ship_substrate::events::supervisor::{
     SweepCompletedPayload, SweepStartedPayload,
 };
 use ship_substrate::events::EventEnvelope;
+use crate::projections::agent_session::{load_sessions, AgentSession};
 use crate::projections::job::{load_jobs, PipelineRun, JobStatus};
+use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::Mutex;
 
 use super::emit::persist_and_route;
 use super::OrchestratorContext;
+
+/// Is this slug owned by ANY known intentional dispatch? Source of
+/// truth combines two projections:
+///   - `jobs` (pipeline composition runs)
+///   - `agent_sessions` (the dispatch primitive — bare ship use,
+///     ship dispatch, MCP dispatch_agent, future pipeline steps)
+///
+/// True orphan processes — registered with no record in either
+/// projection — are the only legitimate stray-kill targets. Phase 6
+/// of the agent-primitive inversion: previously this check only
+/// looked at jobs.status=Dispatched|GatePending, which false-flagged
+/// every bare agent session that travels through agent_sessions.
+fn is_known_dispatch(
+    jobs: &HashMap<String, PipelineRun>,
+    sessions: &HashMap<String, AgentSession>,
+    slug: &str,
+) -> bool {
+    jobs.values().any(|j| j.slug == slug)
+        || sessions.values().any(|s| s.slug == slug)
+}
 
 /// Spawn the coherence sweep loop — runs every 30s, first tick immediate.
 pub async fn start_coherence_sweep(
@@ -38,6 +60,11 @@ pub async fn run_sweep(
     let start = std::time::Instant::now();
 
     let jobs = load_jobs()?;
+    // The agent_sessions projection is the dispatch-primitive read
+    // model. Sweep needs to consult it to avoid false-positive
+    // stray-process kills for bare ship use / dispatch flows. See
+    // is_known_dispatch above for the rule.
+    let sessions = load_sessions().unwrap_or_default();
 
     // Evict dead handles from the registry before reading live_slugs. The
     // registry tracks "what was registered"; this drains anything the
@@ -163,18 +190,29 @@ pub async fn run_sweep(
         actions_taken += 1;
     }
 
-    // Check B: Stray processes in registry with no matching active job
+    // Check B: ORPHAN processes — registered but unknown to any
+    // dispatch record (neither jobs nor agent_sessions). Sweep is the
+    // safety net for true orphans (stale handles from a daemon
+    // restart, registry entries from spawn paths that didn't emit a
+    // dispatch event). It is NOT for cleaning up processes whose
+    // session/job has completed/failed — those are owned by the
+    // exit-handler / step-monitor and will be reaped when the harness
+    // actually exits.
+    //
+    // The previous check (`Dispatched | GatePending` only) reaped
+    // legitimate processes whose status had transitioned (Completed,
+    // Failed, etc.) but whose process was still cleaning up — the
+    // ship-use-auto false-positive bug.
     for slug in &live_slugs {
-        let has_active_job = jobs.values().any(|j| {
-            j.slug == *slug
-                && matches!(j.status, JobStatus::Dispatched | JobStatus::GatePending)
-        });
-        if has_active_job {
+        if is_known_dispatch(&jobs, &sessions, slug) {
+            // Lifecycle owns this process. Don't interfere.
             continue;
         }
 
         drift_count += 1;
 
+        // Best-effort job_id for the drift payload; empty when no
+        // record (true orphan).
         let job_id = jobs
             .values()
             .find(|j| j.slug == *slug)
@@ -190,7 +228,9 @@ pub async fn run_sweep(
                 job_id: job_id.clone(),
                 expected_status: "none_or_terminal".to_string(),
                 actual_state: "stray_process".to_string(),
-                detail: "process registered but no active job".to_string(),
+                detail: "process registered but no dispatch record \
+                         (orphan: not in jobs or agent_sessions)"
+                    .to_string(),
             },
         )
         .await;
