@@ -22,9 +22,11 @@
 
 pub mod process_stats;
 pub mod profile;
+pub mod runtime;
 pub mod transport;
 
 pub use profile::{ActorKind, ActorProfile, Transport as TransportKind};
+pub use runtime::{ActorRuntime, InProcessActorRuntime};
 pub use transport::{ChildHandle, HeadlessTransport, PtyTransport, Transport};
 
 use std::path::Path;
