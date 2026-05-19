@@ -68,6 +68,7 @@ mod tests {
             write_namespaces: vec!["job.".to_string()],
             read_namespaces: vec![],
             subscribe_namespaces: vec![],
+            see_directed_events: false,
         };
         assert!(cfg.write_namespaces.contains(&"job.".to_string()));
         assert!(cfg.read_namespaces.is_empty());

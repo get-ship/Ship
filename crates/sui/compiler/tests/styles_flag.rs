@@ -91,7 +91,7 @@ fn styles_opt_merges_with_existing_inline_style_block() {
     // source order.
     let src = r#"<prop name="x" type="string" default="" />
 <style>
-  .inline { color: red; }
+  .inline { color: var(--foreground); }
 </style>
 <span class="inline">hi</span>"#;
     let out = compile(
@@ -100,15 +100,15 @@ fn styles_opt_merges_with_existing_inline_style_block() {
             setup_url: None,
             mode: CompileMode::Component,
             source_path: None,
-            styles: Some(".external { color: blue; }".into()),
+            styles: Some(".external { color: var(--muted-foreground); }".into()),
             component_meta: Some(ComponentMeta { name: "ship-mixed-test".into(), shadow: false }),
             emit_dts: false,
             emit_ssr: false,
         },
     )
     .expect("compile mixed inline + external styles");
-    assert!(out.js.contains(".inline { color: red; }"), "inline style lost: {}", out.js);
-    assert!(out.js.contains(".external { color: blue; }"), "external style lost: {}", out.js);
+    assert!(out.js.contains(".inline { color: var(--foreground); }"), "inline style lost: {}", out.js);
+    assert!(out.js.contains(".external { color: var(--muted-foreground); }"), "external style lost: {}", out.js);
 }
 
 #[test]

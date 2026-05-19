@@ -30,6 +30,12 @@ export function mirrorResolverPlugin(packageRoot: string): any {
   const repoRoot = findWorkspaceRoot(packageRoot)
   const mirrorRoot = join(repoRoot, '.ship/sui-out')
   const packagesRoot = join(repoRoot, 'packages')
+  // Workspace package dirs are nested one or two levels under packages/
+  // (e.g. packages/sui/runtime, packages/deck/build, packages/ship-components/primitives,
+  // packages/assets). The original importer can't see these via node_modules
+  // walk when bundling from the mirror tree, so resolve @ship/<name> by
+  // probing the known umbrella dirs in order.
+  const umbrellaDirs = ['', 'sui', 'deck', 'ship-components']
   return {
     name: 'sui-compiled-mirror',
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -55,15 +61,26 @@ export function mirrorResolverPlugin(packageRoot: string): any {
           if (!importer.startsWith(mirrorRoot)) return null
           const m = id.match(/^@ship\/([^/]+)(\/.*)?$/)
           if (!m) return null
-          const pkgName = m[1]!
+          const rawName = m[1]!
           const subpath = m[2] ?? ''
-          const pkgRoot = join(packagesRoot, pkgName)
-          const candidate = subpath
-            ? join(pkgRoot, 'src', subpath.replace(/^\//, '')) + '.ts'
-            : join(pkgRoot, 'src/index.ts')
-          if (existsSync(candidate)) return { path: candidate }
-          const fallback = join(pkgRoot, 'src/index.ts')
-          if (existsSync(fallback)) return { path: fallback }
+          // Npm names like `@ship/sui-runtime` correspond to dir `runtime`
+          // under the `sui` umbrella (the `sui-` prefix was dropped from
+          // dir names during the deck restructure). Try both forms.
+          const dirCandidates = rawName.startsWith('sui-')
+            ? [rawName.slice(4), rawName]
+            : [rawName]
+          for (const dirName of dirCandidates) {
+            for (const umbrella of umbrellaDirs) {
+              const pkgRoot = umbrella ? join(packagesRoot, umbrella, dirName) : join(packagesRoot, dirName)
+              if (!existsSync(join(pkgRoot, 'package.json'))) continue
+              const candidate = subpath
+                ? join(pkgRoot, 'src', subpath.replace(/^\//, '')) + '.ts'
+                : join(pkgRoot, 'src/index.ts')
+              if (existsSync(candidate)) return { path: candidate }
+              const fallback = join(pkgRoot, 'src/index.ts')
+              if (existsSync(fallback)) return { path: fallback }
+            }
+          }
           return null
         },
       )
