@@ -12,6 +12,7 @@
 use ship_substrate::events::agent_session::{
     event_types as agent_session_event_types, AgentSessionCompletedPayload,
     AgentSessionDispatchedPayload, AgentSessionFailedPayload, AgentSessionStartedPayload,
+    InvocationMode,
 };
 use ship_substrate::events::EventEnvelope;
 use ship_substrate::events::pipeline::{PipelineRunStartedPayload, StepType};
@@ -26,6 +27,25 @@ use super::emit::{
 use super::pipeline_loader::ensure_pipeline;
 use super::step_monitor::StepMonitor;
 use super::OrchestratorContext;
+
+/// Resolve the harness invocation mode for a pipeline step.
+///
+/// Per-step `invocation` (5b-1) is the source of truth; falls back to
+/// the run-level `headless` flag during the transition (the run-level
+/// flag is removed in a follow-up — see the 5b plan). `headless == true`
+/// historically meant `-p` print mode, so it maps to `Print`.
+pub(crate) fn resolve_step_invocation(
+    step_invocation: Option<&str>,
+    run_headless: bool,
+) -> InvocationMode {
+    match step_invocation {
+        Some("print") => InvocationMode::Print,
+        Some("stream") => InvocationMode::Stream,
+        Some("pty") => InvocationMode::Pty,
+        _ if run_headless => InvocationMode::Print,
+        _ => InvocationMode::Pty,
+    }
+}
 
 pub async fn handle_job_created(
     kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
@@ -138,7 +158,10 @@ pub async fn dispatch_job_internal(
             ..Default::default()
         },
         step: first_step_info,
-        headless: payload.headless,
+        invocation: resolve_step_invocation(
+            first_step.as_ref().and_then(|s| s.invocation.as_deref()),
+            payload.headless,
+        ),
         keepalive: payload.keepalive,
     };
 
@@ -316,12 +339,12 @@ async fn dispatch_agent_session_internal(
         "agent-session-dispatch: dispatching"
     );
 
-    // The new orthogonal axes pick the executor mode. `headless` here
-    // is the supervisor's existing field that drives RoutingExecutor
-    // (process vs tmux) — for a session the right value is "use process
-    // when there's no UI tab; use tmux/PTY for attach-target sessions".
-    // open_tab maps directly.
-    let headless = !payload.open_tab;
+    // The agent-session payload carries invocation directly — it's the
+    // source of truth for how the executor launches the harness.
+    // RoutingExecutor routes Pty → TmuxWindow/Process, Print → Process,
+    // Stream → Server. `keepalive` is orthogonal (forces Process +
+    // build_interactive).
+    let invocation = payload.invocation;
 
     let job_ctx = JobContext {
         job_id: payload.session_id.clone(), // routes use session_id as the job_id-shape ulid
@@ -341,7 +364,7 @@ async fn dispatch_agent_session_internal(
             ..Default::default()
         },
         step: None,
-        headless,
+        invocation,
         keepalive: payload.keepalive,
     };
 
@@ -389,7 +412,11 @@ async fn dispatch_agent_session_internal(
     // dispatched event can carry it.
     let pid = handle.pid;
 
-    let executor_kind = if headless { "process" } else { "pty" };
+    let executor_kind = match invocation {
+        InvocationMode::Pty => "pty",
+        InvocationMode::Print => "process",
+        InvocationMode::Stream => "stream",
+    };
     let cmd_label = payload.harness.as_deref().unwrap_or("claude");
     let resolved_harness = cmd_label.to_string();
     emit_process_spawned(
@@ -645,7 +672,10 @@ async fn dispatch_first_run_step_inner(
             index: 0,
             id: step_id.to_string(),
         }),
-        headless: payload.headless,
+        // Run steps execute a shell command (not a harness CLI); the
+        // executor field is moot, but derive from the run-level flag
+        // for the executor-routing label.
+        invocation: resolve_step_invocation(None, payload.headless),
         keepalive: payload.keepalive,
     };
 

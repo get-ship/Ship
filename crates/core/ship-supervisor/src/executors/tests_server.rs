@@ -45,7 +45,7 @@ fn fresh_ctx(harness: Option<&str>) -> JobContext {
         },
         exit_tx: None,
         step: None,
-        headless: true,
+        invocation: ship_platform::services::dispatch_ports::InvocationMode::Print,
         keepalive: false,
     }
 }

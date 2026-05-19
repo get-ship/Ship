@@ -28,7 +28,7 @@ use std::sync::Arc;
 use anyhow::Result;
 use async_trait::async_trait;
 use ship_substrate::events::KernelRouter;
-use ship_platform::services::dispatch_ports::{ExecutorHandle, JobContext, JobExecutor};
+use ship_platform::services::dispatch_ports::{ExecutorHandle, InvocationMode, JobContext, JobExecutor};
 use ship_platform::services::harness_adapter::adapter_for_or_default;
 use ship_platform::services::harnesses::codex_session::CodexSession;
 use ship_platform::services::harnesses::opencode_session::OpenCodeSession;
@@ -193,7 +193,7 @@ impl RoutingExecutor {
         if self.try_server_executor(ctx).is_some() {
             return RouteKind::Server;
         }
-        if !ctx.headless && self.tmux_window.is_some() {
+        if ctx.invocation == InvocationMode::Pty && self.tmux_window.is_some() {
             return RouteKind::TmuxWindow;
         }
         RouteKind::Process
@@ -220,7 +220,11 @@ impl JobExecutor for RoutingExecutor {
         let workspace_id = ctx.branch.clone();
         let agent_id = ctx.agent.clone();
         let harness = ctx.launch.harness.clone();
-        let transport = if ctx.headless { "headless" } else { "pty" };
+        let transport = match ctx.invocation {
+            InvocationMode::Print => "headless",
+            InvocationMode::Pty => "pty",
+            InvocationMode::Stream => "stream",
+        };
         let transport = transport.to_string();
         std::thread::spawn(move || {
             let _ = ship_substrate::db::actor_events::emit_actor_created_simple(
@@ -282,7 +286,10 @@ impl JobExecutor for RoutingExecutor {
                 "routing: keepalive — forcing ProcessExecutor with build_interactive");
             return self.process.spawn(ctx).await;
         }
-        if !ctx.headless
+        // PTY invocation routes to TmuxWindow (interactive attach) when
+        // available. Print routes to ProcessExecutor (one-shot `-p`).
+        // Stream was handled above by the ServerExecutor branch.
+        if ctx.invocation == InvocationMode::Pty
             && let Some(ref tmux_window) = self.tmux_window
         {
             return tmux_window.spawn(ctx).await;

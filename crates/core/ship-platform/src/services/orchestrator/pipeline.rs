@@ -304,7 +304,10 @@ async fn advance_pipeline_inner(
                         ..Default::default()
                     },
                     step: Some(crate::services::dispatch_ports::StepInfo { index: step_idx, id: step.id.clone() }),
-                    headless: job.headless,
+                    invocation: super::dispatch::resolve_step_invocation(
+                        step.invocation.as_deref(),
+                        job.headless,
+                    ),
                     // Pipeline steps are always per-turn, never keepalive.
                     keepalive: false,
                 };
