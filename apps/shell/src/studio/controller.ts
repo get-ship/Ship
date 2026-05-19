@@ -8,6 +8,22 @@ import { controller, unwrap, chrome } from '@ship/sui-runtime'
 import type { LiveSignal, ViewScope, MutableState } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
 
+// ── Studio section elements ──────────────────────────────────────────
+// Each Studio section renders as a registered `<sui-studio-<name>>`
+// custom element. Side-importing the element here bundles it into
+// sui-studio.js and triggers its `customElements.define()`, so
+// `page.sui`'s content slot can dispatch on `section()` to the matching
+// tag (one `{#if}` arm per section). Sections without an element fall
+// back to the shared "Coming soon" placeholder.
+//
+// To add a section: author the element in its own tag-named directory
+// `apps/shell/src/studio/<name>/sui-studio-<name>/sui-studio-<name>.sui`
+// (the dir name MUST match the tag so the compiler builds it in
+// component mode), add its import below, and add a
+// `{:else if section() === '<name>'}` arm in page.sui's content slot.
+// Nothing else in the shell needs to change.
+import './themes/sui-studio-themes/sui-studio-themes.sui'
+
 interface ListEnvelope { items?: unknown[] }
 
 // Route patterns for `/studio/:section/:sub?` are registered by the shell
