@@ -27,7 +27,10 @@ pub mod transport;
 
 pub use profile::{ActorKind, ActorProfile, Transport as TransportKind};
 pub use runtime::{ActorRuntime, InProcessActorRuntime};
-pub use transport::{ChildHandle, HeadlessTransport, PtyTransport, Transport};
+pub use transport::{
+    ChildBackend, ChildHandle, HeadlessChildBackend, HeadlessTransport, PtyChildBackend,
+    PtyTransport, Transport,
+};
 
 use std::path::Path;
 use std::sync::OnceLock;
