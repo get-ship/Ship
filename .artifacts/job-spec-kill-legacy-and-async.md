@@ -9,6 +9,41 @@
 
 Eliminate the parallel JS-side template compiler in `packages/sui/dom/src/template/` and the legacy hydrate path in `packages/sui/dom/src/legacy/`. Route the 4 test packages (sui-dom, primitives, charts, ui-components, plus apps/shell) through the WASM-built Rust compiler so tests parse `.sui` files the same way production does. Then add the `{#async}` block directive to the Rust compiler so views can replace the repetitive `{#while-loading}` + `{#while-error}` + `{#if X().kind === 'ok'}` triple with a single block.
 
+## Validation findings (probed during session, retain for the agent)
+
+1. **WASM compiler builds cleanly** — `just sui-wasm` reproducible. Output at `packages/sui/compiler-wasm/pkg/` (gitignored).
+2. **Wasm API**: `compile(source: string, opts_json: string): { kind: 'ok', js, css, dts, ssr_html } | { kind: 'err', message, line, col, category }`. Opts use snake_case (`component_name`, `setup_url`, not camelCase).
+3. **`mode: 'auto'` is essential** for arbitrary .sui inputs — `mode: 'component'` panics on a template lacking `<component>`; `mode: 'view'` panics on a primitive with `<prop>`. Pass `auto` to defer mode detection to the source.
+4. **Emitted JS shape** for a view (`mode='view'` or auto-detected as view):
+   ```js
+   import { view } from "@ship/sui-runtime";
+   export default Object.assign(view((ctx) => {
+     const { ship, route, navigate } = ctx;
+     const $scope = Object.create(null); /* ...$scope.ship = ship etc... */
+     return Object.assign({}, $scope, {
+       __mount(container) { /* ...DOM construction... */
+         return () => { /* disposer */ };
+       },
+       hydrate(root, ctx) { /* ...SSR resume... */ },
+     });
+   }), { _compilerVersion: {...} });
+   ```
+5. **Setup wiring**: views with paired `.ts` controllers thread setup via `setup_url` opt, which becomes an `import` in the emitted module. Test fixtures already follow this convention (`fixtures/counter.sui` + `fixtures/counter.ts`).
+6. **Test eval mechanism** — wasm emits real ESM. In vitest (bun runtime), the cleanest path is:
+   ```ts
+   import { writeFileSync, mkdtempSync } from 'node:fs'
+   import { tmpdir } from 'node:os'
+   import { pathToFileURL } from 'node:url'
+
+   const tmp = mkdtempSync(join(tmpdir(), 'sui-test-'))
+   const file = join(tmp, 'mod.mjs')
+   writeFileSync(file, compiled.js)
+   const mod = await import(pathToFileURL(file).href)
+   const instance = mod.default({ ship: {}, route: makeRoute(), navigate: () => {} })
+   const dispose = instance.__mount(container)
+   ```
+   `setup_url` should be rewritten to a `file://` of the paired `.ts` before write.
+
 ## Background
 
 The Rust `sui-compiler` (in `crates/sui/compiler/`) is the production source of truth. It emits `.compiled.js` files via `sui-build` ahead of time; the client runtime never sees `.sui` source. The `legacy/hydrate.ts` path exists only to support tests that import `.sui` as raw strings and parse at test time — every directive currently has to be implemented in both the TS template module *and* the Rust compiler, and the TS implementation is never used in production. The user has explicitly directed that we remove this duplication: *"if this does not exist in rust then it does not exist at all… testing parallel impl is insane!"*
