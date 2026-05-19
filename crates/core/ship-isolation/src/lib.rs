@@ -24,6 +24,7 @@ pub mod helpers;
 pub mod net;
 pub mod recommender;
 pub mod registry;
+pub mod runtime;
 pub mod settings;
 pub mod sidecar;
 pub mod strategies_config;
