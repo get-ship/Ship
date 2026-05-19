@@ -38,3 +38,15 @@ pub use types::{
     RuntimeEndpoint, Sandbox, SandboxError, SandboxId, SandboxLifetime, SandboxName,
     SandboxState,
 };
+
+/// Process-wide singleton dispatcher. Lazy-initialized on first
+/// access. Each shipd has one — the orchestrator + introspection
+/// surfaces (`ship sandbox list`, UI sandbox views) all share it.
+///
+/// Per-actor / per-spawn callers should reach for [`dispatcher()`]
+/// rather than constructing their own — sandbox state needs to be
+/// consistent across spawn/exit/reap calls.
+pub fn dispatcher() -> &'static SandboxDispatcher {
+    static D: std::sync::OnceLock<SandboxDispatcher> = std::sync::OnceLock::new();
+    D.get_or_init(SandboxDispatcher::new)
+}

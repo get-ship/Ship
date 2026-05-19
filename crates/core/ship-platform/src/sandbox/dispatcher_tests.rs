@@ -207,6 +207,14 @@ async fn runtime_for_returns_none_for_remote_endpoint_caller_resolves_sidecar() 
 }
 
 #[tokio::test]
+async fn global_dispatcher_singleton_returns_same_instance() {
+    let d1 = crate::sandbox::dispatcher();
+    let d2 = crate::sandbox::dispatcher();
+    // Pointer equality on the &'static reference — same singleton.
+    assert!(std::ptr::eq(d1 as *const _, d2 as *const _));
+}
+
+#[tokio::test]
 async fn reap_marks_stopped_and_clears_endpoint() {
     let dispatcher = SandboxDispatcher::new();
     let id = dispatcher

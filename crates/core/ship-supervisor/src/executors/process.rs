@@ -526,6 +526,46 @@ impl JobExecutor for ProcessExecutor {
         };
         let pid = handle.pid();
 
+        // Sandbox-registry attachment (Chunk C4 observability cutover).
+        // The dispatcher is single source of truth for actor↔sandbox
+        // membership and idle-reap eligibility. Today we register
+        // every spawn; sandbox lifecycle (per-pod SandboxOwner) folds
+        // in once the rest of the system relies on the registry's
+        // view. Failure here is non-fatal — log and continue so a
+        // dispatcher hiccup never blocks a spawn that succeeded.
+        if let Ok(d) = &decision {
+            let project_key = ctx.work_dir.to_string_lossy().to_string();
+            let isolation_profile = ship_isolation::tier::IsolationProfile {
+                tier: Some(d.resolved.tier),
+                strategy: Some(d.resolved.strategy),
+                policy: None,
+            };
+            let dispatcher = ship_platform::sandbox::dispatcher();
+            match dispatcher
+                .ensure_default_sandbox(project_key, isolation_profile)
+                .await
+            {
+                Ok(sandbox_id) => {
+                    if let Err(e) = dispatcher
+                        .register_actor(&sandbox_id, &handle.actor_id)
+                        .await
+                    {
+                        tracing::warn!(
+                            slug = ctx.slug,
+                            actor_id = %handle.actor_id,
+                            "sandbox dispatcher register_actor failed: {e}"
+                        );
+                    }
+                }
+                Err(e) => {
+                    tracing::warn!(
+                        slug = ctx.slug,
+                        "sandbox dispatcher ensure_default_sandbox failed: {e}"
+                    );
+                }
+            }
+        }
+
         tracing::info!(
             slug = ctx.slug,
             pid,
@@ -686,6 +726,21 @@ impl JobExecutor for ProcessExecutor {
                 }
             });
             tracing::info!(slug, pid, exit_code, "process-executor: agent exited");
+
+            // Detach from sandbox registry. Non-fatal on error so a
+            // dispatcher hiccup never blocks the exit signal that
+            // downstream consumers (job lifecycle, telemetry) need.
+            if let Err(e) = ship_platform::sandbox::dispatcher()
+                .notify_actor_exit(&handle_for_exit.actor_id)
+                .await
+            {
+                tracing::debug!(
+                    slug,
+                    actor_id = %handle_for_exit.actor_id,
+                    "sandbox dispatcher notify_actor_exit: {e}"
+                );
+            }
+
             if let Some(tx) = exit_tx {
                 let _ = tx.send(ExitSignal {
                     slug,
