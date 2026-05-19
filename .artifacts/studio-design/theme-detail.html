@@ -1,0 +1,495 @@
+<!doctype html>
+<html lang="en" data-theme="ship-light">
+<head>
+  <meta charset="utf-8" />
+  <title>ship-light · Themes · Ship</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="../../sui/ship.css" />
+  <script type="importmap">
+  { "imports": { "@ship/sui-runtime": "../../sui/sui-runtime.js", "@ship/sui-dom": "../../sui/sui-dom.js", "@ship/sdk-client": "../../sui/sui-sdk-client.js" } }
+  </script>
+  <script type="module" src="../../sui/sui-components.js"></script>
+  <style>
+    html, body { margin: 0; }
+    body {
+      background: var(--background); color: var(--foreground);
+      font-family: var(--font-body); font-size: var(--text-base);
+      line-height: var(--leading-normal); -webkit-font-smoothing: antialiased;
+    }
+
+    .detail { max-width: 1280px; margin: 0 auto; padding: 56px var(--space-6) 96px; box-sizing: border-box; }
+
+    .back {
+      display: inline-flex; align-items: center; gap: 4px;
+      font-size: 12.5px; color: var(--muted-foreground);
+      text-decoration: none; margin-bottom: var(--space-6);
+    }
+    .back:hover { color: var(--foreground); }
+
+    .head { display: grid; grid-template-columns: 80px 1fr auto; gap: var(--space-5); align-items: start; margin-bottom: var(--space-7); }
+    .tile-swatch {
+      width: 80px; height: 80px;
+      border-radius: var(--radius-lg);
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: 1fr 1fr;
+      overflow: hidden;
+      box-shadow:
+        inset 0 1px 0 color-mix(in oklch, white 18%, transparent),
+        0 3px 10px rgba(0,0,0,0.1);
+    }
+    .tile-swatch span { display: block; }
+
+    .name {
+      font-family: var(--heading-font);
+      font-size: var(--text-3xl);
+      font-weight: var(--heading-weight);
+      letter-spacing: var(--heading-tracking);
+      line-height: 1.05;
+      margin: 0 0 var(--space-2);
+    }
+    .meta { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted-foreground); flex-wrap: wrap; }
+    .meta code { font-family: var(--font-mono); font-size: 12px; padding: 1px 6px; background: var(--muted); border-radius: var(--radius-sm); color: var(--foreground); }
+    .meta-sep { width: 3px; height: 3px; border-radius: 50%; background: var(--border); display: inline-block; }
+    .kind-chip {
+      font-family: var(--font-mono); font-size: 10px;
+      padding: 1px 6px; border-radius: var(--radius-sm);
+      letter-spacing: 0.08em; text-transform: uppercase;
+      background: color-mix(in oklch, #c98a2c 14%, transparent); color: #c98a2c;
+    }
+    .rule { width: 96px; height: 4px; border-radius: 2px; background: linear-gradient(90deg, var(--primary), transparent); margin-top: var(--space-3); }
+    .actions { display: flex; gap: var(--space-2); }
+
+    .prose {
+      font-size: 15.5px; line-height: 1.6;
+      color: color-mix(in oklch, var(--foreground) 85%, transparent);
+      margin: 0 0 var(--space-7); max-width: 70ch;
+    }
+
+    /* Editor + preview grid */
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: var(--space-4);
+    }
+    @media (min-width: 1024px) {
+      .grid { grid-template-columns: 1fr 1fr; }
+    }
+
+    .panel {
+      background: var(--card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: var(--space-4);
+      display: flex; flex-direction: column;
+      gap: var(--space-3);
+      min-width: 0;
+    }
+    .panel-h {
+      display: flex; align-items: baseline; gap: 8px;
+      margin: 0;
+      font-size: 11px;
+      font-weight: var(--font-weight-semibold);
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted-foreground);
+    }
+    .panel-h-aux { font-family: var(--font-mono); font-weight: normal; letter-spacing: 0; text-transform: none; font-size: 11px; }
+    .panel-h-action { margin-left: auto; font-size: 11px; text-transform: none; letter-spacing: 0; }
+    .panel-h-action button {
+      border: 0; background: transparent; color: var(--primary);
+      font: inherit; font-size: 11px;
+      cursor: pointer; padding: 2px 6px; border-radius: var(--radius-sm);
+    }
+    .panel-h-action button:hover { background: color-mix(in oklch, var(--primary) 10%, transparent); }
+
+    /* Token editor */
+    .tok-cats { display: flex; gap: 0; padding: 2px; background: var(--surface-1); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); flex-wrap: wrap; }
+    .tok-cat {
+      padding: 4px 10px; border: 0; background: transparent;
+      font: inherit; font-size: 11.5px; font-family: var(--font-mono);
+      color: var(--muted-foreground); border-radius: var(--radius-sm);
+      cursor: pointer;
+    }
+    .tok-cat.is-active { background: var(--background); color: var(--foreground); font-weight: var(--font-weight-semibold); box-shadow: var(--shadow-xs); }
+
+    .tok-rows {
+      display: flex; flex-direction: column;
+      gap: 2px;
+      max-height: 540px;
+      overflow-y: auto;
+    }
+    .tok-group-h {
+      font-size: 10px; font-weight: var(--font-weight-semibold);
+      letter-spacing: 0.14em; text-transform: uppercase;
+      color: var(--muted-foreground);
+      padding: 12px 8px 6px;
+    }
+    .tok {
+      display: grid;
+      grid-template-columns: 1fr 22px 140px;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 8px;
+      border-radius: var(--radius-sm);
+      transition: background 120ms;
+    }
+    .tok:hover { background: var(--surface-1); }
+    .tok-name {
+      font-family: var(--font-mono); font-size: 11.5px; color: var(--foreground);
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .tok-name .o { font-size: 9px; color: var(--primary); margin-left: 4px; vertical-align: 2px; }
+    .tok-swatch { width: 22px; height: 22px; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle); }
+    .tok-val {
+      font-family: var(--font-mono); font-size: 11.5px;
+      padding: 4px 8px;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      background: var(--background); color: var(--foreground);
+      min-width: 0;
+    }
+    .tok-val:focus { outline: 0; border-color: var(--primary); box-shadow: 0 0 0 2px var(--tone-primary-ring); }
+
+    .tok-row-text { grid-template-columns: 1fr 0 220px; }
+    .tok-row-len  { grid-template-columns: 1fr 0 100px; }
+    .tok-row-text .tok-swatch, .tok-row-len .tok-swatch { display: none; }
+
+    /* Live preview frame — uses the theme tokens */
+    .preview-frame {
+      background: var(--p-bg, #f6f4ef);
+      color: var(--p-fg, #3d3a32);
+      border-radius: var(--radius-md);
+      padding: var(--space-5);
+      display: flex; flex-direction: column;
+      gap: var(--space-4);
+      min-height: 540px;
+      border: 1px solid color-mix(in oklch, var(--p-fg, #3d3a32) 12%, transparent);
+    }
+    .pv-h {
+      font-family: var(--heading-font);
+      font-size: 22px;
+      font-weight: var(--heading-weight);
+      letter-spacing: var(--heading-tracking);
+      margin: 0;
+    }
+    .pv-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    .pv-btn {
+      font: inherit; font-size: 13px;
+      padding: 6px 14px;
+      border-radius: 8px;
+      border: 1px solid transparent;
+      cursor: pointer;
+    }
+    .pv-btn-primary { background: var(--p-pr, #d97757); color: white; border-color: var(--p-pr, #d97757); }
+    .pv-btn-outline { background: transparent; color: var(--p-fg, #3d3a32); border-color: color-mix(in oklch, var(--p-fg, #3d3a32) 25%, transparent); }
+    .pv-btn-ghost   { background: transparent; color: var(--p-fg, #3d3a32); }
+
+    .pv-card {
+      padding: 14px 16px;
+      border-radius: 10px;
+      background: color-mix(in oklch, var(--p-bg, #f6f4ef) 88%, var(--p-fg, #3d3a32));
+      border: 1px solid color-mix(in oklch, var(--p-fg, #3d3a32) 10%, transparent);
+    }
+    .pv-card strong { display: block; margin-bottom: 4px; font-size: 14px; font-family: var(--heading-font); font-weight: var(--heading-weight); }
+    .pv-card p { margin: 0; font-size: 13px; color: var(--p-mu, #7e7a72); line-height: 1.55; }
+
+    .pv-input {
+      padding: 7px 12px;
+      border-radius: 8px;
+      border: 1px solid color-mix(in oklch, var(--p-fg, #3d3a32) 18%, transparent);
+      background: color-mix(in oklch, var(--p-bg, #f6f4ef) 94%, var(--p-fg, #3d3a32));
+      font-size: 13px;
+      color: var(--p-mu, #7e7a72);
+    }
+
+    .pv-nav { display: flex; gap: 2px; }
+    .pv-nav a {
+      padding: 6px 12px; border-radius: 6px;
+      color: var(--p-mu, #7e7a72);
+      text-decoration: none; font-size: 13px;
+      cursor: pointer;
+    }
+    .pv-nav a.is-active {
+      background: color-mix(in oklch, var(--p-pr, #d97757) 18%, transparent);
+      color: var(--p-fg, #3d3a32);
+    }
+
+    .pv-toasts { display: flex; flex-direction: column; gap: 6px; }
+    .pv-toast {
+      padding: 8px 12px; border-radius: 8px; font-size: 12.5px;
+      background: color-mix(in oklch, #4376d6 14%, var(--p-bg, #f6f4ef));
+      color: var(--p-fg, #3d3a32);
+      border: 1px solid color-mix(in oklch, #4376d6 30%, transparent);
+    }
+    .pv-toast.is-ok  { background: color-mix(in oklch, #4f9e54 14%, var(--p-bg)); border-color: color-mix(in oklch, #4f9e54 30%, transparent); }
+    .pv-toast.is-err { background: color-mix(in oklch, #b94a4a 14%, var(--p-bg)); border-color: color-mix(in oklch, #b94a4a 30%, transparent); }
+
+    .pv-stat-row { display: flex; gap: var(--space-3); }
+    .pv-stat {
+      flex: 1;
+      padding: 10px 14px;
+      border-radius: 8px;
+      background: color-mix(in oklch, var(--p-bg, #f6f4ef) 88%, var(--p-fg, #3d3a32));
+    }
+    .pv-stat-n {
+      font-family: var(--heading-font);
+      font-size: 22px;
+      font-weight: var(--heading-weight);
+      letter-spacing: var(--heading-tracking);
+    }
+    .pv-stat-l {
+      font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase;
+      color: var(--p-mu, #7e7a72); margin-top: 2px;
+    }
+
+    /* Below — source + actions */
+    .sec { padding-top: var(--space-6); margin-bottom: var(--space-6); border-top: 1px solid var(--border-subtle); }
+    .sec-h { font-size: 11px; font-weight: var(--font-weight-semibold); letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted-foreground); margin: 0 0 var(--space-3); }
+    .source { font-family: var(--font-mono); font-size: 13px; color: var(--foreground); background: var(--muted); padding: 10px 14px; border-radius: var(--radius-md); }
+
+    .ie-bar {
+      display: flex; align-items: center; gap: var(--space-2);
+      padding: 10px 12px;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      background: var(--surface-1);
+    }
+    .ie-hint { flex: 1; font-size: 12.5px; color: var(--muted-foreground); }
+    .ie-hint code { font-family: var(--font-mono); font-size: 11.5px; padding: 1px 5px; background: var(--background); border-radius: var(--radius-sm); }
+  </style>
+</head>
+<body>
+
+<article class="detail" style="--p-bg:#f6f4ef; --p-fg:#3d3a32; --p-pr:#d97757; --p-mu:#7e7a72;">
+
+  <a class="back" href="#themes">
+    <sui-icon name="chevron-left" size="xs"></sui-icon>
+    Themes
+  </a>
+
+  <header class="head">
+    <span class="tile-swatch">
+      <span style="background:#f6f4ef"></span><span style="background:#d97757"></span>
+      <span style="background:#3d3a32"></span><span style="background:#7e7a72"></span>
+    </span>
+    <div>
+      <h1 class="name">ship-light</h1>
+      <div class="meta">
+        <code>ship-light</code>
+        <span class="meta-sep"></span>
+        <span class="kind-chip">light</span>
+        <span class="meta-sep"></span>
+        <span>12 token overrides</span>
+        <span class="meta-sep"></span>
+        <span>base pack</span>
+      </div>
+      <div class="rule"></div>
+    </div>
+    <div class="actions">
+      <sui-button variant="ghost" size="sm">
+        <sui-icon slot="leading" name="copy" size="xs"></sui-icon>Duplicate
+      </sui-button>
+      <sui-button tone="primary" variant="solid" size="sm">
+        <sui-icon slot="leading" name="save" size="xs"></sui-icon>Save
+      </sui-button>
+    </div>
+  </header>
+
+  <p class="prose">
+    Default Ship theme. Warm off-white surfaces with amber primary; designed to feel like
+    a printed page that quietly steps aside for content. Heading font has slight negative
+    tracking; motion uses <code style="font-family:var(--font-mono);font-size:13.5px;background:var(--muted);padding:1px 5px;border-radius:var(--radius-sm)">--ease-out-soft</code>.
+  </p>
+
+  <div class="grid">
+
+    <!-- Token editor -->
+    <section class="panel">
+      <div class="panel-h">
+        Tokens
+        <span class="panel-h-aux">· 12 overridden vs Ship defaults</span>
+        <span class="panel-h-action"><button type="button">Reset to defaults</button></span>
+      </div>
+      <div class="tok-cats" role="tablist">
+        <button class="tok-cat is-active" type="button">All</button>
+        <button class="tok-cat" type="button">Foundation</button>
+        <button class="tok-cat" type="button">Tone</button>
+        <button class="tok-cat" type="button">Typography</button>
+        <button class="tok-cat" type="button">Motion</button>
+        <button class="tok-cat" type="button">Radii</button>
+      </div>
+      <div class="tok-rows">
+        <div class="tok-group-h">Foundation</div>
+        <div class="tok">
+          <span class="tok-name"><code>--background</code><span class="o">●</span></span>
+          <span class="tok-swatch" style="background:#f6f4ef"></span>
+          <input class="tok-val" value="#f6f4ef" />
+        </div>
+        <div class="tok">
+          <span class="tok-name"><code>--foreground</code><span class="o">●</span></span>
+          <span class="tok-swatch" style="background:#3d3a32"></span>
+          <input class="tok-val" value="#3d3a32" />
+        </div>
+        <div class="tok">
+          <span class="tok-name"><code>--muted</code></span>
+          <span class="tok-swatch" style="background:#ece8de"></span>
+          <input class="tok-val" value="#ece8de" />
+        </div>
+        <div class="tok">
+          <span class="tok-name"><code>--muted-foreground</code><span class="o">●</span></span>
+          <span class="tok-swatch" style="background:#7e7a72"></span>
+          <input class="tok-val" value="#7e7a72" />
+        </div>
+        <div class="tok">
+          <span class="tok-name"><code>--border-subtle</code></span>
+          <span class="tok-swatch" style="background:#e2ddd1"></span>
+          <input class="tok-val" value="#e2ddd1" />
+        </div>
+
+        <div class="tok-group-h">Tone</div>
+        <div class="tok">
+          <span class="tok-name"><code>--primary</code><span class="o">●</span></span>
+          <span class="tok-swatch" style="background:#d97757"></span>
+          <input class="tok-val" value="#d97757" />
+        </div>
+        <div class="tok">
+          <span class="tok-name"><code>--accent</code></span>
+          <span class="tok-swatch" style="background:#4376d6"></span>
+          <input class="tok-val" value="#4376d6" />
+        </div>
+        <div class="tok">
+          <span class="tok-name"><code>--success</code></span>
+          <span class="tok-swatch" style="background:#4f9e54"></span>
+          <input class="tok-val" value="#4f9e54" />
+        </div>
+        <div class="tok">
+          <span class="tok-name"><code>--warning</code></span>
+          <span class="tok-swatch" style="background:#c98a2c"></span>
+          <input class="tok-val" value="#c98a2c" />
+        </div>
+        <div class="tok">
+          <span class="tok-name"><code>--destructive</code></span>
+          <span class="tok-swatch" style="background:#b94a4a"></span>
+          <input class="tok-val" value="#b94a4a" />
+        </div>
+
+        <div class="tok-group-h">Typography</div>
+        <div class="tok tok-row-text">
+          <span class="tok-name"><code>--font-body</code><span class="o">●</span></span>
+          <span class="tok-swatch"></span>
+          <input class="tok-val" value='"Söhne", system-ui' />
+        </div>
+        <div class="tok tok-row-text">
+          <span class="tok-name"><code>--heading-font</code><span class="o">●</span></span>
+          <span class="tok-swatch"></span>
+          <input class="tok-val" value='"Söhne Breit", sans-serif' />
+        </div>
+        <div class="tok tok-row-text">
+          <span class="tok-name"><code>--font-mono</code></span>
+          <span class="tok-swatch"></span>
+          <input class="tok-val" value='"IBM Plex Mono"' />
+        </div>
+        <div class="tok tok-row-len">
+          <span class="tok-name"><code>--heading-tracking</code><span class="o">●</span></span>
+          <span class="tok-swatch"></span>
+          <input class="tok-val" value="-0.018em" />
+        </div>
+
+        <div class="tok-group-h">Radii</div>
+        <div class="tok tok-row-len">
+          <span class="tok-name"><code>--radius-sm</code></span>
+          <span class="tok-swatch"></span>
+          <input class="tok-val" value="4px" />
+        </div>
+        <div class="tok tok-row-len">
+          <span class="tok-name"><code>--radius-md</code></span>
+          <span class="tok-swatch"></span>
+          <input class="tok-val" value="8px" />
+        </div>
+        <div class="tok tok-row-len">
+          <span class="tok-name"><code>--radius-lg</code></span>
+          <span class="tok-swatch"></span>
+          <input class="tok-val" value="12px" />
+        </div>
+
+        <div class="tok-group-h">Motion</div>
+        <div class="tok tok-row-len">
+          <span class="tok-name"><code>--duration-medium</code><span class="o">●</span></span>
+          <span class="tok-swatch"></span>
+          <input class="tok-val" value="220ms" />
+        </div>
+        <div class="tok tok-row-text">
+          <span class="tok-name"><code>--ease-out-soft</code></span>
+          <span class="tok-swatch"></span>
+          <input class="tok-val" value="cubic-bezier(.2,.7,.3,1)" />
+        </div>
+      </div>
+    </section>
+
+    <!-- Live preview -->
+    <section class="panel">
+      <div class="panel-h">
+        Live preview
+        <span class="panel-h-aux">· updates as you type</span>
+      </div>
+      <div class="preview-frame">
+        <h3 class="pv-h">Heading sets the tone</h3>
+        <div class="pv-row">
+          <button class="pv-btn pv-btn-primary">Primary</button>
+          <button class="pv-btn pv-btn-outline">Outline</button>
+          <button class="pv-btn pv-btn-ghost">Ghost</button>
+        </div>
+        <div class="pv-card">
+          <strong>Card sits on background</strong>
+          <p>Body text reads against the foreground token. Muted text uses --muted-foreground.</p>
+        </div>
+        <div class="pv-input">Search agents, skills, MCPs…</div>
+        <div class="pv-nav">
+          <a class="is-active">Dashboard</a>
+          <a>Agents</a>
+          <a>Pipelines</a>
+          <a>Settings</a>
+        </div>
+        <div class="pv-stat-row">
+          <div class="pv-stat"><div class="pv-stat-n">8</div><div class="pv-stat-l">agents</div></div>
+          <div class="pv-stat"><div class="pv-stat-n">14</div><div class="pv-stat-l">skills</div></div>
+          <div class="pv-stat"><div class="pv-stat-n">5</div><div class="pv-stat-l">MCP</div></div>
+        </div>
+        <div class="pv-toasts">
+          <div class="pv-toast">Info — preview reflects the tone ramp</div>
+          <div class="pv-toast is-ok">Success — token saved</div>
+          <div class="pv-toast is-err">Error — invalid value</div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- Import / export bar -->
+  <section class="sec">
+    <h2 class="sec-h">Import / export</h2>
+    <div class="ie-bar">
+      <span class="ie-hint">
+        Export as <code>tokens.json</code> or paste a CSS variables block to import.
+        Saves write to <code>packs/themes/ship-light.css</code>.
+      </span>
+      <sui-button variant="outline" size="sm">
+        <sui-icon slot="leading" name="download" size="xs"></sui-icon>Export
+      </sui-button>
+      <sui-button variant="outline" size="sm">
+        <sui-icon slot="leading" name="upload" size="xs"></sui-icon>Import
+      </sui-button>
+    </div>
+  </section>
+
+  <!-- Source -->
+  <section class="sec">
+    <h2 class="sec-h">Source</h2>
+    <div class="source">packs/themes/ship-light.css · also rendered as <code style="font-family:var(--font-mono);font-size:11.5px;background:var(--background);padding:1px 5px;border-radius:var(--radius-sm)">[data-theme="ship-light"]</code> in the global stylesheet.</div>
+  </section>
+
+</article>
+
+</body>
+</html>

@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="en" data-theme="ship-light">
+<head>
+  <meta charset="utf-8" />
+  <title>Components · Ship</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="../../sui/ship.css" />
+  <script type="importmap">
+  { "imports": { "@ship/sui-runtime": "../../sui/sui-runtime.js", "@ship/sui-dom": "../../sui/sui-dom.js", "@ship/sdk-client": "../../sui/sui-sdk-client.js" } }
+  </script>
+  <script type="module" src="../../sui/sui-components.js"></script>
+  <style>
+    html, body { margin: 0; }
+    body {
+      background: var(--background); color: var(--foreground);
+      font-family: var(--font-body); font-size: var(--text-base);
+      line-height: var(--leading-normal); -webkit-font-smoothing: antialiased;
+    }
+    .list { max-width: 1024px; margin: 0 auto; padding: 56px var(--space-6) 96px; box-sizing: border-box; }
+
+    .head { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--space-4); margin-bottom: var(--space-7); }
+    .title { font-family: var(--heading-font); font-size: var(--text-3xl); font-weight: var(--heading-weight); letter-spacing: var(--heading-tracking); line-height: 1.05; margin: 0 0 var(--space-2); }
+    .sub { display: flex; align-items: center; gap: 8px; font-size: 13.5px; color: var(--muted-foreground); margin: 0; }
+    .sub strong { font-weight: var(--font-weight-semibold); color: var(--foreground); }
+    .sub-sep { width: 3px; height: 3px; border-radius: 50%; background: var(--border); display: inline-block; }
+    .sub code { font-family: var(--font-mono); font-size: 12px; padding: 1px 6px; background: var(--muted); border-radius: var(--radius-sm); color: var(--foreground); }
+    .rule { width: 96px; height: 4px; border-radius: 2px; background: linear-gradient(90deg, var(--primary), transparent); margin-top: var(--space-3); }
+
+    .filters { display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-5); flex-wrap: wrap; }
+    .search { display: inline-flex; align-items: center; gap: 8px; flex: 1 1 320px; min-width: 240px; padding: 7px var(--space-3); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); background: var(--surface-1); }
+    .search:focus-within { border-color: var(--primary); box-shadow: 0 0 0 3px var(--tone-primary-ring); background: var(--background); }
+    .search input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; font: inherit; font-size: 13.5px; color: var(--foreground); }
+    .search kbd { font-family: var(--font-mono); font-size: 10.5px; padding: 1px 5px; background: var(--muted); border-radius: var(--radius-sm); color: var(--muted-foreground); }
+    .pills { display: inline-flex; gap: 4px; }
+    .pill { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border: 1px solid var(--border-subtle); border-radius: var(--radius-full); background: var(--surface-1); color: var(--muted-foreground); font: inherit; font-size: 12.5px; cursor: pointer; }
+    .pill:hover { color: var(--foreground); border-color: var(--border); }
+    .pill.is-active { color: var(--primary-foreground); background: var(--primary); border-color: var(--primary); }
+    .pill-count { font-variant-numeric: tabular-nums; font-size: 10.5px; padding: 1px 6px; border-radius: var(--radius-full); background: color-mix(in oklch, currentColor 18%, transparent); }
+
+    /* Grouped index — section per category */
+    .groups { display: flex; flex-direction: column; gap: var(--space-7); }
+    .group-h {
+      display: flex; align-items: baseline; gap: 8px;
+      font-size: 11px; font-weight: var(--font-weight-semibold);
+      letter-spacing: 0.16em; text-transform: uppercase;
+      color: var(--muted-foreground);
+      padding-bottom: var(--space-2);
+      border-bottom: 1px solid var(--border-subtle);
+      margin-bottom: var(--space-3);
+    }
+    .group-h-count { font-family: var(--font-mono); font-weight: normal; letter-spacing: 0; text-transform: none; font-size: 11px; }
+    .group-h-desc { margin-left: auto; font-size: 12px; text-transform: none; letter-spacing: 0; font-weight: normal; color: var(--muted-foreground); }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 2px;
+    }
+
+    .cell {
+      display: flex; align-items: baseline; gap: 8px;
+      padding: 6px 10px;
+      border-radius: var(--radius-sm);
+      text-decoration: none;
+      color: var(--foreground);
+      transition: background 120ms;
+    }
+    .cell:hover { background: var(--surface-1); }
+    .cell-tag {
+      font-family: var(--font-mono);
+      font-size: 12.5px;
+      color: var(--foreground);
+    }
+    .cell-tag::before { content: '<'; color: var(--muted-foreground); }
+    .cell-tag::after  { content: '>'; color: var(--muted-foreground); }
+    .cell-desc {
+      font-size: 11.5px;
+      color: var(--muted-foreground);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      flex: 1;
+      min-width: 0;
+    }
+  </style>
+</head>
+<body>
+
+<main class="list">
+
+  <header class="head">
+    <div>
+      <h1 class="title">Components</h1>
+      <p class="sub">
+        <strong>80</strong> primitives
+        <span class="sub-sep"></span>
+        <strong>8</strong> charts
+        <span class="sub-sep"></span>
+        <strong>22</strong> chrome
+        <span class="sub-sep"></span>
+        <code>packs/</code>
+      </p>
+      <div class="rule"></div>
+    </div>
+    <sui-button tone="primary" variant="solid" size="md">
+      <sui-icon slot="leading" name="plus" size="xs"></sui-icon>
+      New component
+    </sui-button>
+  </header>
+
+  <div class="filters">
+    <div class="search">
+      <sui-icon name="search" size="sm" tone="muted"></sui-icon>
+      <input type="search" placeholder="Filter by tag, group, or prop…" />
+      <kbd>⌘K</kbd>
+    </div>
+    <div class="pills">
+      <button class="pill is-active" type="button">All <span class="pill-count">110</span></button>
+      <button class="pill" type="button">Primitives <span class="pill-count">80</span></button>
+      <button class="pill" type="button">Charts <span class="pill-count">8</span></button>
+      <button class="pill" type="button">Chrome <span class="pill-count">22</span></button>
+    </div>
+  </div>
+
+  <div class="groups">
+
+    <section>
+      <div class="group-h">
+        Actions <span class="group-h-count">· 4</span>
+        <span class="group-h-desc">user-triggered changes; buttons, toolbars, segmented controls</span>
+      </div>
+      <div class="grid">
+        <a class="cell" href="#components/sui-button"><span class="cell-tag">sui-button</span><span class="cell-desc">primary action surface</span></a>
+        <a class="cell" href="#components/sui-toolbar"><span class="cell-tag">sui-toolbar</span><span class="cell-desc">action group container</span></a>
+        <a class="cell" href="#components/sui-segmented"><span class="cell-tag">sui-segmented</span><span class="cell-desc">multi-option pill</span></a>
+        <a class="cell" href="#components/sui-toggle-group"><span class="cell-tag">sui-toggle-group</span><span class="cell-desc">multi-select toolbar</span></a>
+      </div>
+    </section>
+
+    <section>
+      <div class="group-h">
+        Inputs <span class="group-h-count">· 9</span>
+        <span class="group-h-desc">form fields and selection controls</span>
+      </div>
+      <div class="grid">
+        <a class="cell" href="#components/sui-input"><span class="cell-tag">sui-input</span><span class="cell-desc">single-line text</span></a>
+        <a class="cell" href="#components/sui-textarea"><span class="cell-tag">sui-textarea</span><span class="cell-desc">multi-line text</span></a>
+        <a class="cell" href="#components/sui-select"><span class="cell-tag">sui-select</span><span class="cell-desc">native dropdown</span></a>
+        <a class="cell" href="#components/sui-checkbox"><span class="cell-tag">sui-checkbox</span><span class="cell-desc">boolean toggle</span></a>
+        <a class="cell" href="#components/sui-radio-group"><span class="cell-tag">sui-radio-group</span><span class="cell-desc">single-option radio</span></a>
+        <a class="cell" href="#components/sui-switch"><span class="cell-tag">sui-switch</span><span class="cell-desc">on/off toggle</span></a>
+        <a class="cell" href="#components/sui-slider"><span class="cell-tag">sui-slider</span><span class="cell-desc">numeric range</span></a>
+        <a class="cell" href="#components/sui-file-upload"><span class="cell-tag">sui-file-upload</span><span class="cell-desc">file picker / drop zone</span></a>
+        <a class="cell" href="#components/sui-field"><span class="cell-tag">sui-field</span><span class="cell-desc">label + input + hint composer</span></a>
+      </div>
+    </section>
+
+    <section>
+      <div class="group-h">
+        Layout <span class="group-h-count">· 7</span>
+        <span class="group-h-desc">structural containers and dividers</span>
+      </div>
+      <div class="grid">
+        <a class="cell" href="#components/sui-card"><span class="cell-tag">sui-card</span><span class="cell-desc">elevated content container</span></a>
+        <a class="cell" href="#components/sui-divider"><span class="cell-tag">sui-divider</span><span class="cell-desc">horizontal rule with label slot</span></a>
+        <a class="cell" href="#components/sui-separator"><span class="cell-tag">sui-separator</span><span class="cell-desc">thin rule</span></a>
+        <a class="cell" href="#components/sui-tabs"><span class="cell-tag">sui-tabs</span><span class="cell-desc">tab nav + panels</span></a>
+        <a class="cell" href="#components/sui-accordion"><span class="cell-tag">sui-accordion</span><span class="cell-desc">vertical collapse group</span></a>
+        <a class="cell" href="#components/sui-collapsible"><span class="cell-tag">sui-collapsible</span><span class="cell-desc">single disclosure</span></a>
+        <a class="cell" href="#components/sui-scroll-area"><span class="cell-tag">sui-scroll-area</span><span class="cell-desc">styled scroll container</span></a>
+      </div>
+    </section>
+
+    <section>
+      <div class="group-h">
+        Feedback <span class="group-h-count">· 7</span>
+        <span class="group-h-desc">status, loading, errors, transient messages</span>
+      </div>
+      <div class="grid">
+        <a class="cell" href="#components/sui-alert"><span class="cell-tag">sui-alert</span><span class="cell-desc">inline tone-coded message</span></a>
+        <a class="cell" href="#components/sui-toast"><span class="cell-tag">sui-toast</span><span class="cell-desc">transient overlay message</span></a>
+        <a class="cell" href="#components/sui-progress"><span class="cell-tag">sui-progress</span><span class="cell-desc">linear / radial progress</span></a>
+        <a class="cell" href="#components/sui-spinner"><span class="cell-tag">sui-spinner</span><span class="cell-desc">indeterminate loading</span></a>
+        <a class="cell" href="#components/sui-skeleton"><span class="cell-tag">sui-skeleton</span><span class="cell-desc">loading placeholder shapes</span></a>
+        <a class="cell" href="#components/sui-empty-state"><span class="cell-tag">sui-empty-state</span><span class="cell-desc">no-content scaffold</span></a>
+        <a class="cell" href="#components/sui-error-state"><span class="cell-tag">sui-error-state</span><span class="cell-desc">error scaffold</span></a>
+      </div>
+    </section>
+
+    <section>
+      <div class="group-h">
+        Indicators <span class="group-h-count">· 6</span>
+        <span class="group-h-desc">small visual tags and badges</span>
+      </div>
+      <div class="grid">
+        <a class="cell" href="#components/sui-badge"><span class="cell-tag">sui-badge</span><span class="cell-desc">tone-coded label</span></a>
+        <a class="cell" href="#components/sui-chip"><span class="cell-tag">sui-chip</span><span class="cell-desc">interactive tag with leading/trailing slots</span></a>
+        <a class="cell" href="#components/sui-status-dot"><span class="cell-tag">sui-status-dot</span><span class="cell-desc">tiny tone-coded dot</span></a>
+        <a class="cell" href="#components/sui-stat"><span class="cell-tag">sui-stat</span><span class="cell-desc">number + label tile</span></a>
+        <a class="cell" href="#components/sui-avatar"><span class="cell-tag">sui-avatar</span><span class="cell-desc">user / identity tile</span></a>
+        <a class="cell" href="#components/sui-app-icon"><span class="cell-tag">sui-app-icon</span><span class="cell-desc">app / surface mark</span></a>
+      </div>
+    </section>
+
+    <section>
+      <div class="group-h">
+        Overlays <span class="group-h-count">· 8</span>
+        <span class="group-h-desc">modals, popovers, menus, tooltips</span>
+      </div>
+      <div class="grid">
+        <a class="cell" href="#components/sui-dialog"><span class="cell-tag">sui-dialog</span><span class="cell-desc">modal sheet</span></a>
+        <a class="cell" href="#components/sui-alert-dialog"><span class="cell-tag">sui-alert-dialog</span><span class="cell-desc">confirm/destructive prompt</span></a>
+        <a class="cell" href="#components/sui-drawer"><span class="cell-tag">sui-drawer</span><span class="cell-desc">side-anchored panel</span></a>
+        <a class="cell" href="#components/sui-popover"><span class="cell-tag">sui-popover</span><span class="cell-desc">anchored floating content</span></a>
+        <a class="cell" href="#components/sui-tooltip"><span class="cell-tag">sui-tooltip</span><span class="cell-desc">hover label</span></a>
+        <a class="cell" href="#components/sui-hover-card"><span class="cell-tag">sui-hover-card</span><span class="cell-desc">rich hover preview</span></a>
+        <a class="cell" href="#components/sui-dropdown-menu"><span class="cell-tag">sui-dropdown-menu</span><span class="cell-desc">click-triggered menu</span></a>
+        <a class="cell" href="#components/sui-context-menu"><span class="cell-tag">sui-context-menu</span><span class="cell-desc">right-click menu</span></a>
+      </div>
+    </section>
+
+    <section>
+      <div class="group-h">
+        Data <span class="group-h-count">· 7</span>
+        <span class="group-h-desc">tables, lists, json, diffs, timelines</span>
+      </div>
+      <div class="grid">
+        <a class="cell" href="#components/sui-table"><span class="cell-tag">sui-table</span><span class="cell-desc">tabular data</span></a>
+        <a class="cell" href="#components/sui-list-tile"><span class="cell-tag">sui-list-tile</span><span class="cell-desc">multi-line list row</span></a>
+        <a class="cell" href="#components/sui-tree-view"><span class="cell-tag">sui-tree-view</span><span class="cell-desc">nested hierarchy</span></a>
+        <a class="cell" href="#components/sui-json-view"><span class="cell-tag">sui-json-view</span><span class="cell-desc">collapsible JSON inspector</span></a>
+        <a class="cell" href="#components/sui-diff"><span class="cell-tag">sui-diff</span><span class="cell-desc">line-by-line diff</span></a>
+        <a class="cell" href="#components/sui-timeline"><span class="cell-tag">sui-timeline</span><span class="cell-desc">event sequence</span></a>
+        <a class="cell" href="#components/sui-history-row"><span class="cell-tag">sui-history-row</span><span class="cell-desc">version-history entry</span></a>
+      </div>
+    </section>
+
+  </div>
+
+</main>
+
+</body>
+</html>
