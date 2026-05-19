@@ -57,7 +57,10 @@ fn headless_emits_exec_subcommand() {
     let cmd = adapter.build_headless("test-slug", &profile);
     assert_eq!(cmd.bin, "codex");
     assert_eq!(cmd.args[0], "exec");
-    assert!(cmd.args.contains(&"--full-auto".to_string()));
+    assert!(cmd.args.contains(&"--sandbox".to_string()));
+    assert!(cmd.args.contains(&"workspace-write".to_string()));
+    // Guard against regressing to the deprecated flag.
+    assert!(!cmd.args.contains(&"--full-auto".to_string()));
     assert!(cmd.args.contains(&"--skip-git-repo-check".to_string()));
     assert!(cmd.args.contains(&"--json".to_string()));
     assert!(cmd.args.contains(&"--ephemeral".to_string()));
@@ -199,7 +202,9 @@ fn build_resume_args_emits_exec_resume() {
     assert_eq!(cmd.args[0], "exec");
     assert_eq!(cmd.args[1], "resume");
     assert_eq!(cmd.args[2], "thr-abc-789");
-    assert!(cmd.args.contains(&"--full-auto".to_string()));
+    assert!(cmd.args.contains(&"--sandbox".to_string()));
+    assert!(cmd.args.contains(&"workspace-write".to_string()));
+    assert!(!cmd.args.contains(&"--full-auto".to_string()));
     assert!(cmd.args.contains(&"--json".to_string()));
     // Resume should not pass --ephemeral; the rollout we're resuming has
     // to exist on disk.
