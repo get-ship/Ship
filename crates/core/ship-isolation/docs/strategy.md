@@ -45,9 +45,10 @@ that requires Docker won't be picked on a host without Docker.
 | Strategy id | Tier | Substrate | Bundle add | Notes |
 |---|---|---|---|---|
 | `Noop` | 0 | host process | 0 | Baseline; for tests and "opt out". |
-| `HarnessSandbox` | 1 | `@anthropic-ai/sandbox-runtime` (srt) | npm dep | Seatbelt on macOS, bwrap+seccomp on Linux. The same surface claude/codex CLIs use natively. |
-| `DockerEngine` | 2 | host `docker` or `podman` | 0 (BYO) | Smallest surface — daemon does everything. The preferred Tier 2 when present. |
-| `YoukiRootless` | 2 | bundled `youki` + Ubuntu rootfs | 6 MB binary + ~200 MB rootfs lazy-fetched | Gap-fill for users without Docker. Linux + WSL2. |
+| `HarnessNative` | 1 | harness's own sandbox flag | 0 | The harness sandboxes itself — claude `--sandbox`, codex Seatbelt, gemini `--yolo`. Ship trusts the harness's claim and does no wrapping. **Preferred Tier 1 when the harness supports it.** |
+| `SrtWrapper` | 1 | `@anthropic-ai/sandbox-runtime` (srt) | npm dep | Gap-fill — we wrap with srt when the harness has no native sandbox (e.g. opencode, cursor-agent, codex on Linux). |
+| `DockerEngine` | 2 | host `docker` or `podman` + our agent-runner image | 0 (BYO) | Container with our sidecar baked in. Smallest surface when user has Docker. |
+| `YoukiRootless` | 2 | bundled `youki` + our agent-runner rootfs | 6 MB binary + ~500 MB image lazy-fetched | Gap-fill for Linux/WSL2 users without Docker. |
 | `LimaVm` | 3 | bundled `lima` (Apple Vz on arm64 Mac) | ~30 MB + ~500 MB image | macOS arm64 path. Intel Mac falls through to cloud. |
 | `Wsl2` | 2 | host WSL2 distro | 0 (BYO WSL) | Windows path when WSL2 present. |
 | `FlyMachines` | 4 | Fly.io API | 0 | Cloud Tier 4. Same sidecar; vendor brings the kernel. |
@@ -56,6 +57,33 @@ Adding a strategy means: implement `Isolator`, declare the
 `StrategyCapabilities` it needs (e.g. `docker_or_podman_present`),
 register it. The recommender takes it from there.
 
+### 3.1 Tier 1: HarnessNative vs SrtWrapper
+
+The two Tier 1 strategies look interchangeable to the user but are very
+different in practice. The recommender's per-(harness, OS) table picks:
+
+| Harness | macOS | Linux | WSL2 | Windows |
+|---|---|---|---|---|
+| claude | HarnessNative | HarnessNative | HarnessNative | n/a |
+| codex | HarnessNative (Seatbelt) | SrtWrapper | SrtWrapper | n/a |
+| gemini | HarnessNative (`--yolo`) | HarnessNative | HarnessNative | n/a |
+| opencode | SrtWrapper | SrtWrapper | SrtWrapper | SrtWrapper |
+| cursor-agent | SrtWrapper | SrtWrapper | SrtWrapper | SrtWrapper |
+
+**Why we don't always wrap with srt:** double-wrapping (we wrap with
+srt, harness invokes srt internally) is fragile and silently degrades
+to the inner sandbox's policies. For harnesses that ship their own
+sandbox, we let them do it. For those that don't, we fill the gap.
+
+Per-harness capability is probed via `<harness> --help` once at startup
+and cached under `daemon_settings :: isolation.harness_capabilities`.
+The probe is idempotent and re-runs on `ship isolation rescan`.
+
+Ship's value here is the table itself — knowing which (harness, OS)
+combinations have native sandboxing, which need wrapping, and which
+are unsandboxable. We make the choice; the user sees "Sandboxed by
+Claude" or "Sandboxed by Ship (srt)" in the UI, never the strategy id.
+
 ## 4. Per-OS default matrix
 
 The recommender's out-of-box pick, given no user pref and a fresh
@@ -63,16 +91,35 @@ install. Each row prefers the leftmost available strategy.
 
 | OS / device | Tier 0 | Tier 1 | Tier 2 | Tier 3 | Tier 4 | Default tier |
 |---|---|---|---|---|---|---|
-| Linux x64/arm64 | Noop | HarnessSandbox | DockerEngine → YoukiRootless | — | FlyMachines | **2** |
-| WSL2 | Noop | HarnessSandbox | DockerEngine → YoukiRootless | — | FlyMachines | **2** |
-| macOS arm64 | Noop | HarnessSandbox | DockerEngine | LimaVm | FlyMachines | **1** (jump to 3 if user opts up) |
-| macOS Intel | Noop | HarnessSandbox | DockerEngine | — (Lima/QEMU is too slow) | FlyMachines | **1** |
+| Linux x64/arm64 | Noop | HarnessNative → SrtWrapper | DockerEngine → YoukiRootless | — | FlyMachines | **`none`** (Phase A); **1** target (Phase D) |
+| WSL2 | Noop | HarnessNative → SrtWrapper | DockerEngine → YoukiRootless | — | FlyMachines | **`none`** (Phase A); **1** target (Phase D) |
+| macOS arm64 | Noop | HarnessNative → SrtWrapper | DockerEngine | LimaVm | FlyMachines | **`none`** (Phase A); **1** target (Phase D) |
+| macOS Intel | Noop | HarnessNative → SrtWrapper | DockerEngine | — (Lima/QEMU is too slow) | FlyMachines | **`none`** (Phase A); **1** target (Phase D) |
 | Windows 11 | Noop | — | DockerEngine → Wsl2 | — | FlyMachines | **2** if Docker/WSL2 present, else **4** |
 | Windows 10 | Noop | — | Wsl2 if present | — | FlyMachines | **4** if no WSL2, **2** if WSL2 present |
 | Detected-in-sandbox (CI, container, codespace) | Noop | — | — | — | — | **0** (already in a sandbox; no double-wrap) |
 
 The default tier is per-OS, not per-strategy. Within a tier, the
 recommender picks the first available strategy in preference order.
+
+### 4.1 Rollout phases
+
+The "target" column in §4 is where we want to land, not where we ship
+on day one. The "Phase A" default is `none` everywhere — same as
+today, no behavior change, users opt in explicitly.
+
+| Phase | Default tier | Gating work |
+|---|---|---|
+| **A** (now) | `none` | nothing — users opt in; loud-fail on enforcement |
+| **B** | `none` | Tier 1 split (HarnessNative + SrtWrapper) lands; per-harness adapter table populated |
+| **C** | `none` | Tier 1 verified across all supported `(harness, OS)` pairs in CI |
+| **D** | `auto` (resolves to Tier 1 per-OS) | flip default; release notes; migration path |
+| **E** | `auto` | Tier 2+ verified flawless on its supported OSes; user can opt into Container default without surprise |
+
+We do not commit to "never default to Container." If the Tier 2
+implementation lands flawlessly across the supported OSes, Container
+default becomes defensible. The phasing exists to make sure we don't
+flip a default that breaks half our users.
 
 ## 5. Capability detection
 
