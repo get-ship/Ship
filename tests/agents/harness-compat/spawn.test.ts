@@ -17,7 +17,7 @@ import {
   binaryOnPath,
   cancelSession,
   dispatch,
-  waitForActorRow,
+  waitForActorField,
 } from "../_helpers";
 import {
   COMPAT_AGENT,
@@ -68,7 +68,14 @@ for (const h of HARNESSES) {
           // shortly after the process spawns. Mesh (/api/v1/mesh) is the
           // mesh.register registry for agent-to-agent messaging; dispatched
           // sessions don't register there — they live in /api/v1/actors.
-          const actor = await waitForActorRow(dispatched.slug);
+          //
+          // Projection race: process.spawned can land before actor.created,
+          // creating a stub row with harness="". Use waitForActorField to
+          // poll until the field we'll assert on is populated.
+          const actor = await waitForActorField(
+            dispatched.slug,
+            (a) => !!a.harness && a.harness.length > 0,
+          );
           if (!actor) {
             tierFailure(
               h.tier,

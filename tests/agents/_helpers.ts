@@ -247,6 +247,35 @@ export async function waitForActorRow(
   return null;
 }
 
+/**
+ * Poll for an actor row where a specific field becomes populated. Use
+ * this instead of `waitForActorRow` when you intend to assert on
+ * harness, transport, pid, etc. The bare row arrives as soon as
+ * `process.spawned` lands, but those fields only fill in once
+ * `actor.created` projects, and the two events race. Predicate
+ * polling closes the gap.
+ *
+ * Returns the row once `predicate(row)` is true, or the last observed
+ * row if the deadline expires (test asserts on it and fails clearly).
+ * Null if the row never materialises at all.
+ */
+export async function waitForActorField(
+  slug: string,
+  predicate: (a: ActorRow) => boolean,
+  opts: { timeoutMs?: number; intervalMs?: number } = {},
+): Promise<ActorRow | null> {
+  const timeout = opts.timeoutMs ?? 15_000;
+  const interval = opts.intervalMs ?? 250;
+  const deadline = Date.now() + timeout;
+  let last: ActorRow | null = null;
+  while (Date.now() < deadline) {
+    last = await getActorRow(slug);
+    if (last && predicate(last)) return last;
+    await new Promise((r) => setTimeout(r, interval));
+  }
+  return last;
+}
+
 /** Fetch the current actor row without polling (returns null on 404). */
 export async function getActorRow(slug: string): Promise<ActorRow | null> {
   const { status, body } = await api<{
