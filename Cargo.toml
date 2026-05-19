@@ -8,6 +8,7 @@ members = [
     "crates/core/ship-platform",
     "crates/core/ship-isolation",
     "crates/core/ship-isolation/bin/ship-sidecar",
+    "crates/core/ship-sidecar-proto",
     "crates/core/ship-kernel",
     "crates/core/ship-pipelines",
     "crates/core/ship-types",

@@ -3,7 +3,7 @@ name = "ship-isolation"
 version = "0.1.0"
 edition = "2024"
 publish = false
-description = "Ship-specific isolation strategies. The Isolator trait + abstract policy types live in ship-substrate; this crate provides the concrete backends (Docker, Youki, SandboxRuntime, sidecar) plus the recommender + registry + settings layer."
+description = "Ship-specific isolation strategies. The Isolator trait + abstract policy types live in ship-substrate; this crate provides the concrete backends (Docker, Youki, SandboxRuntime, sidecar) plus the recommender + registry + settings layer. v1 proto bindings live in ship-sidecar-proto and are consumed via that crate."
 
 [features]
 default = []
@@ -15,6 +15,7 @@ sidecar-mode = ["dep:reqwest"]
 
 [dependencies]
 ship-substrate = { path = "../ship-substrate" }
+ship-sidecar-proto = { path = "../ship-sidecar-proto" }
 anyhow = { workspace = true }
 thiserror = { workspace = true }
 async-trait = { workspace = true }
@@ -25,16 +26,12 @@ tracing = { workspace = true }
 nanoid = { workspace = true }
 libc = { version = "0.2", optional = true }
 reqwest = { version = "0.12", default-features = false, optional = true, features = ["json"] }
-# v1 protocol bindings — codegen via build.rs from proto/ship/sidecar/v1.
-# Matches the gateway-client setup so both crates share the toolchain.
+# ConnectRPC runtime types still needed at the call sites that wire
+# clients (host driver). Proto-generated types come from
+# ship-sidecar-proto.
 connectrpc = { version = "0.4", features = ["client"] }
 buffa = { version = "0.5", features = ["json"] }
-http-body = "1"
 http = "1"
-
-[build-dependencies]
-connectrpc-build = "0.4"
-protoc-bin-vendored = "3"
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["rt-multi-thread", "macros", "sync", "process", "time"] }

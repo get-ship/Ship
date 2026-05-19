@@ -4392,15 +4392,13 @@ dependencies = [
  "async-trait",
  "buffa",
  "connectrpc",
- "connectrpc-build",
  "http",
- "http-body",
  "libc",
  "nanoid",
- "protoc-bin-vendored",
  "reqwest 0.12.28",
  "serde",
  "serde_json",
+ "ship-sidecar-proto",
  "ship-substrate",
  "thiserror 2.0.18",
  "tokio",
@@ -4503,6 +4501,19 @@ dependencies = [
  "tokio",
  "tokio-stream",
  "tracing",
+]
+
+[[package]]
+name = "ship-sidecar-proto"
+version = "0.1.0"
+dependencies = [
+ "buffa",
+ "connectrpc",
+ "connectrpc-build",
+ "http",
+ "http-body",
+ "protoc-bin-vendored",
+ "serde",
 ]
 
 [[package]]

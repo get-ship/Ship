@@ -1,6 +1,6 @@
 //! Codegen for the v1 sidecar protocol. Inputs at
 //! `proto/ship/sidecar/v1/*.proto` (workspace root). Output lands in
-//! OUT_DIR; `src/sidecar/proto.rs` `include!`s it.
+//! OUT_DIR; `src/lib.rs` `include!`s it.
 //!
 //! Same pattern as `ship-gateway-client` — protoc via
 //! `protoc-bin-vendored` so fresh clones don't need a system install.
