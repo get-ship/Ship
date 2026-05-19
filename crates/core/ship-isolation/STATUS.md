@@ -67,9 +67,14 @@ See:
   `isolation.strategies` (docker/youki/harness_native/srt/lima/fly)
   replaces the sprawl of flat per-key knobs. Power users override only
   what they care about; defaults backfill.
-- **UI** — `<sui-isolation-badge>` reusable component for any actor/
-  agent view. 15 vitest cases. Picker / detail / verify components
-  follow the same pattern (not yet built).
+- **UI** — three reusable components for any actor/agent view:
+  `<sui-isolation-badge>` (compact chip; auto-fetches status),
+  `<sui-isolation-detail>` (full decision card with tier, strategy,
+  reason, downgraded-from), `<sui-isolation-verify>` (probe results
+  list with per-check pass/fail tone). All three auto-fetch from
+  `/api/v1/isolation/*` when no props supplied; pass-through props
+  for views that already hold the data. 33 vitest cases. Picker
+  remains separate — design-heavier, paused for visual pairing.
 
 ## Known gaps
 
@@ -88,9 +93,11 @@ See:
    for claude `--sandbox` and SrtWrapper for opencode via the adapter
    table. Full (harness × OS) integration matrix in CI is the
    verification chunk.
-6. **UI components beyond badge** — picker, detail, verify each
-   ~equivalent in size to the badge. Wiring the wizard + settings
-   panel that compose them is the next UI tranche.
+6. **UI picker + wizard + settings panel** — `<sui-isolation-picker>`
+   is design-heavier (radio cards with availability dots per tier,
+   hover-to-preview); awaits visual pairing. The wizard + settings
+   page that compose badge + detail + verify + picker is the next
+   UI tranche after picker lands.
 7. **Credential broker** — proto defines `SecretRequest` /
    `SecretReply` envelope variants; no handler. Wires to shipd's
    keychain bridge.
