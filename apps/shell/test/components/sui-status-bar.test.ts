@@ -22,7 +22,7 @@ describe('<sui-status-bar>', () => {
     const { el } = mount(reg, 'sui-status-bar')
     expect(shadow(el).querySelector('[part~="branch"]')).not.toBeNull()
     expect(shadow(el).querySelector('[part~="agents"]')).not.toBeNull()
-    expect(shadow(el).querySelector('[part~="theme"]')).not.toBeNull()
+    expect(shadow(el).querySelector('[part~="theme-btn"]')).not.toBeNull()
   })
 
   it('online=false by default — attribute absent', () => {
@@ -52,7 +52,7 @@ describe('<sui-status-bar>', () => {
   it('theme prop sets theme text content', async () => {
     const { el } = mount(reg, 'sui-status-bar', { theme: 'ship-dark' })
     await flush()
-    const themeEl = shadow(el).querySelector('[part~="theme"]')!
+    const themeEl = shadow(el).querySelector('[part~="theme-btn"]')!
     expect(themeEl.textContent?.trim()).toBe('ship-dark')
   })
 

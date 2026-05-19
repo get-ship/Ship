@@ -58,21 +58,21 @@
            provider-blob, auth-dialog, graph-canvas; primitives
            transitively via @ship/primitives).
          • /_sui/sui-chrome.js  — apps/shell chrome aggregate
-           (non-separate chrome: view-picker, theme-picker,
-           status-bar, brand-mark, view-chrome, edit-overlay,
-           edit-mode-pill, annotation-layer/-marker/-list).
+           (non-separate chrome: shell-top, shell-bottom, blank-
+           canvas, view-picker, theme-picker, status-bar, brand-mark,
+           view-chrome, edit-overlay, edit-mode-pill, annotation-*).
          • /_sui/sui-components/<tag>.js — heavy chrome that opts
            into its own separate bundle via `<bundle separate />`
-           (rail, nav-top, launcher, panel-dock, command-bar,
-           devtools). Loaded eagerly here because the shell paints
-           them on first paint. -->
+           (launcher, panel-dock, command-bar, devtools, account-
+           menu). The rail + nav-top live in this list for code
+           paths that still mount them (Studio's internal rail),
+           but the shell itself no longer paints them on first
+           load. -->
   <script>
     (function () {
       var bundles = [
         '/_sui/components.js',
         '/_sui/sui-components/sui-chrome.js',
-        '/_sui/sui-components/sui-rail.js',
-        '/_sui/sui-components/sui-nav-top.js',
         '/_sui/sui-components/sui-launcher.js',
         '/_sui/sui-components/sui-panel-dock.js',
         '/_sui/sui-components/sui-command-bar.js',
@@ -113,30 +113,15 @@
 </head>
 <body>
   <div id="ship-app">
-    <!-- Top bar: brand, breadcrumbs, view actions, theme picker, chrome controls -->
-    <sui-nav-top id="ship-nav-top">
-      <sui-command-bar slot="command-bar" id="ship-command-bar"></sui-command-bar>
-    </sui-nav-top>
+    <!-- Top strip: brand · ⌘K pill · theme/notifications/avatar -->
+    <sui-shell-top id="ship-shell-top"></sui-shell-top>
 
-    <!-- Left rail: icon-only vertical nav. Items link to real view names
-         under views/<name>/page.sui. Each label flows through to the
-         anchor's `title` attribute (rendered by sui-rail-item) so hovering
-         a collapsed icon reveals its destination. -->
-    <sui-rail id="ship-rail">
-      <sui-rail-item icon="image" label="Canvas" href="/canvas" data-view="canvas"></sui-rail-item>
-      <sui-rail-item icon="database" label="Collections" href="/collections" data-view="collections"></sui-rail-item>
-      <sui-rail-item icon="file" label="Artifacts" href="/artifacts" data-view="artifacts"></sui-rail-item>
-      <sui-rail-item icon="bot" label="Agents" href="/agents" data-view="agents"></sui-rail-item>
-      <sui-rail-item icon="layers" label="Skills" href="/skills" data-view="skills"></sui-rail-item>
-      <sui-rail-item icon="git-branch" label="Git" href="/git" data-view="git"></sui-rail-item>
-      <sui-rail-item icon="sparkles" label="UI Studio" href="/ship-ui-studio" data-view="ship-ui-studio"></sui-rail-item>
-      <sui-rail-item icon="settings" label="Settings" href="/settings" data-view="settings" slot="footer"></sui-rail-item>
-    </sui-rail>
-
-    <!-- Main content: view mounts here -->
+    <!-- Main canvas: view mounts here. Empty by default — shell paints
+         <sui-blank-canvas> when no route is active. -->
     <main id="ship-content" class="ship-content"></main>
 
-    <!-- Bottom panel dock: terminal + devtools tabs -->
+    <!-- Bottom panel dock: terminal + devtools tabs. Floats above the
+         bottom strip when open; collapsed otherwise. -->
     <sui-panel-dock id="ship-panel-dock" active-tab="terminal">
       <!-- slot="terminal" left empty — terminal loads as island bundle on demand -->
       <sui-devtools-source slot="source"></sui-devtools-source>
@@ -145,9 +130,12 @@
       <sui-devtools-components slot="components"></sui-devtools-components>
     </sui-panel-dock>
 
-    <!-- Bottom status bar: connection, branch, theme -->
-    <sui-status-bar id="ship-status-bar" branch="" theme="" agents=""></sui-status-bar>
+    <!-- Bottom strip: connection · branch · workspace · tools · theme · version · mode -->
+    <sui-shell-bottom id="ship-shell-bottom" branch="" workspace="" theme="" version=""></sui-shell-bottom>
   </div>
+
+  <!-- Floating command bar — opened by ⌘K via main.ts. -->
+  <sui-command-bar id="ship-command-bar"></sui-command-bar>
 
   <!-- App launcher: floating panel, opened via sui:launcher:open event or the [open] attribute -->
   <sui-launcher id="ship-launcher"></sui-launcher>

@@ -1,0 +1,219 @@
+<!--
+  <sui-shell-top> — Ship's 36px top strip.
+
+  Three zones:
+    [brand] [spacer] [⌘K pill] [spacer] [theme btn · notifications btn · avatar]
+
+  The brand is themed via <sui-brand-mark> + the wordmark "Ship" + an
+  optional workspace name in mono, separated by a hairline. The center
+  ⌘K pill is a button that dispatches `sui-open-command-palette` on
+  document; palette wiring is a separate job. The right cluster's
+  theme + notifications icon buttons dispatch `sui:theme-picker:open`
+  and `sui:notifications:open` respectively.
+
+  Prop surface
+  ─────────────────────────────────────────────────────────────────────
+  workspace  (string, '')  — workspace label in mono (e.g. ship-monorepo)
+  initials   (string, 'S') — avatar initials
+  ─────────────────────────────────────────────────────────────────────
+-->
+
+<prop name="workspace" type="string" default="" />
+<prop name="initials" type="string" default="S" />
+
+<style>
+  :host {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3, 12px);
+    height: 36px;
+    padding: 0 var(--space-4, 16px);
+    box-sizing: border-box;
+    background: color-mix(in oklch, var(--surface-1) 88%, transparent);
+    border-bottom: 1px solid var(--border-subtle);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    color: var(--foreground);
+    font-family: var(--font-body, system-ui, sans-serif);
+  }
+  :host([hidden]) { display: none; }
+
+  /* ── Brand ───────────────────────────────────────────────── */
+  .brand {
+    display: inline-flex; align-items: center; gap: 8px;
+    cursor: pointer;
+    color: var(--foreground);
+    text-decoration: none;
+  }
+  .mark {
+    width: 22px; height: 22px;
+    border-radius: var(--radius-sm, 4px);
+    display: inline-flex; align-items: center; justify-content: center;
+    background: var(--primary);
+    color: var(--primary-foreground);
+    font-family: var(--heading-font, var(--font-body));
+    font-size: 13px;
+    font-weight: var(--heading-weight, 600);
+    line-height: 1;
+    position: relative;
+    isolation: isolate;
+    box-shadow:
+      inset 0 1px 0 color-mix(in oklch, var(--primary-foreground) 22%, transparent),
+      0 1px 4px color-mix(in oklch, var(--primary) 28%, transparent);
+  }
+  .mark::before {
+    content: '';
+    position: absolute; inset: 0;
+    border-radius: inherit;
+    background: linear-gradient(160deg, color-mix(in oklch, var(--primary-foreground) 16%, transparent) 0%, transparent 55%);
+  }
+  .name {
+    font-family: var(--heading-font, var(--font-body));
+    font-size: 13px;
+    font-weight: var(--heading-weight, 600);
+    letter-spacing: var(--heading-tracking, -0.01em);
+  }
+  .ws {
+    font-family: var(--font-mono, ui-monospace, monospace);
+    font-size: 10.5px;
+    color: var(--muted-foreground);
+    padding-left: 8px;
+    margin-left: 8px;
+    border-left: 1px solid var(--border-subtle);
+  }
+  .ws:empty { display: none; padding: 0; margin: 0; border: 0; }
+
+  /* ── Spacers ────────────────────────────────────────────── */
+  .spacer { flex: 1; }
+
+  /* ── ⌘K command pill ─────────────────────────────────────── */
+  .cmdk {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 4px 10px;
+    border: 1px solid var(--border-subtle);
+    background: var(--background);
+    border-radius: var(--radius-md, 6px);
+    color: var(--muted-foreground);
+    font: inherit;
+    font-size: 12px;
+    cursor: text;
+    min-width: 320px;
+    max-width: 480px;
+    flex: 1;
+    transition: border-color var(--duration-fast, 120ms);
+  }
+  .cmdk:hover { border-color: var(--border); }
+  .cmdk:focus-visible {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px color-mix(in oklch, var(--primary) 22%, transparent);
+  }
+  .cmdk-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--primary);
+    box-shadow: 0 0 0 3px color-mix(in oklch, var(--primary) 22%, transparent);
+    flex-shrink: 0;
+    animation: cmdk-pulse 2.4s var(--ease-in-out, ease-in-out) infinite;
+  }
+  @keyframes cmdk-pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50%      { opacity: 0.55; transform: scale(0.7); }
+  }
+  @media (prefers-reduced-motion: reduce) { .cmdk-dot { animation: none; } }
+  .cmdk-text { flex: 1; text-align: left; }
+  .cmdk-kbd {
+    font-family: var(--font-mono, ui-monospace, monospace);
+    font-size: 10px;
+    padding: 1px 5px;
+    border-radius: var(--radius-sm, 4px);
+    background: var(--surface-1);
+    border: 1px solid var(--border-subtle);
+    color: var(--muted-foreground);
+    flex-shrink: 0;
+  }
+
+  /* ── Right cluster ──────────────────────────────────────── */
+  .actions { display: flex; align-items: center; gap: 2px; }
+  .btn {
+    width: 26px; height: 26px;
+    display: inline-flex; align-items: center; justify-content: center;
+    color: var(--muted-foreground);
+    border: 0; background: transparent;
+    border-radius: var(--radius-sm, 4px);
+    cursor: pointer;
+    transition: background-color var(--duration-fast, 120ms),
+                color var(--duration-fast, 120ms);
+  }
+  .btn:hover { background: var(--hover-bg, color-mix(in oklch, var(--foreground) 8%, transparent)); color: var(--foreground); }
+  .btn:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px color-mix(in oklch, var(--primary) 50%, transparent);
+  }
+
+  .avatar {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: linear-gradient(135deg,
+      var(--primary),
+      color-mix(in oklch, var(--primary) 40%, var(--accent, var(--destructive))));
+    color: var(--primary-foreground);
+    display: inline-flex; align-items: center; justify-content: center;
+    font-family: var(--font-mono, ui-monospace, monospace);
+    font-size: 10px;
+    font-weight: var(--font-weight-bold, 600);
+    cursor: pointer;
+    margin-left: 4px;
+    border: 0;
+  }
+  .avatar:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px color-mix(in oklch, var(--primary) 50%, transparent);
+  }
+
+  @media (forced-colors: active) {
+    :host { background: Canvas; border-bottom-color: CanvasText; }
+    .mark, .avatar { background: Highlight; color: HighlightText; forced-color-adjust: none; }
+    .cmdk { background: Canvas; border-color: CanvasText; color: CanvasText; }
+    .cmdk-kbd { background: Canvas; border-color: CanvasText; color: CanvasText; }
+    .btn { color: CanvasText; }
+  }
+</style>
+
+<a class="brand" part="brand" href="/" on:click={onBrandClick} title="Ship — home" aria-label="Ship — home">
+  <span class="mark" aria-hidden="true">S</span>
+  <span class="name">Ship</span>
+  <span class="ws" part="workspace">{workspace()}</span>
+</a>
+
+<div class="spacer"></div>
+
+<button class="cmdk" part="cmdk" type="button"
+  on:click={onCmdKClick}
+  title="Open command palette (⌘K)"
+  aria-label="Open command palette">
+  <span class="cmdk-dot" aria-hidden="true"></span>
+  <span class="cmdk-text">Search, open, run, navigate…</span>
+  <span class="cmdk-kbd" aria-hidden="true">⌘K</span>
+</button>
+
+<div class="spacer"></div>
+
+<div class="actions" part="actions">
+  <button class="btn" part="theme-btn" type="button"
+    on:click={onThemeClick}
+    title="Toggle theme"
+    aria-label="Toggle theme">
+    <sui-icon name="palette" size="sm"></sui-icon>
+  </button>
+  <button class="btn" part="notifications-btn" type="button"
+    on:click={onNotificationsClick}
+    title="Notifications"
+    aria-label="Notifications">
+    <sui-icon name="bell" size="sm"></sui-icon>
+  </button>
+  <button class="avatar" part="avatar" type="button"
+    on:click={onAvatarClick}
+    title="Account"
+    aria-label="Account">{initials()}</button>
+</div>

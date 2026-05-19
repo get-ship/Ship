@@ -40,14 +40,18 @@ describe('<sui-rail>', () => {
     expect(customElements.get('sui-rail')).toBeDefined()
   })
 
-  it('renders nav, footer, project-badge, launcher, create parts', async () => {
+  it('renders nav, footer, picker, create parts', async () => {
+    // Project switcher + launcher moved off the rail's footer when the
+    // rail was condensed; the picker-btn now opens a <sui-view-picker>
+    // that owns both. Tests for the legacy `.project-badge` and
+    // `[part~="launcher-btn"]` are no longer applicable — see the
+    // sui-view-picker tests for picker coverage.
     const { el } = mount(reg, 'sui-rail')
     await flush()
     const s = shadow(el)
     expect(s.querySelector('[part~="nav"]')).not.toBeNull()
     expect(s.querySelector('[part~="footer"]')).not.toBeNull()
-    expect(s.querySelector('[part~="project-badge"]')).not.toBeNull()
-    expect(s.querySelector('[part~="launcher-btn"]')).not.toBeNull()
+    expect(s.querySelector('[part~="picker-btn"]')).not.toBeNull()
     expect(s.querySelector('[part~="create-btn"]')).not.toBeNull()
   })
 
@@ -94,100 +98,22 @@ describe('<sui-rail>', () => {
   })
 })
 
-// ─────────────────────────────────────────────────────────────────────────────
-describe('<sui-rail> project switcher', () => {
-  beforeEach(() => {
-    mockFetch({
-      '/api/v1/projects': {
-        projects: [
-          { id: 'a', name: 'Alpha', path: '/work/alpha' },
-          { id: 'b', name: 'Beta', path: '/work/beta', label: 'Beta!' },
-        ],
-        active: 'b',
-      },
-    })
-  })
+// Project switcher tests removed: the project-switcher + launcher-button
+// affordances were lifted off the rail's footer when the rail was
+// condensed (the picker-btn now opens a <sui-view-picker> that owns
+// project switching, and the launcher is opened via the command bar).
+// Switcher coverage lives in sui-view-picker tests; launcher coverage
+// lives in sui-launcher tests.
 
-  it('loads projects on mount and renders initial in badge', async () => {
-    const { el } = mount(reg, 'sui-rail')
-    // Two flushes — one for fetch microtask, one for effect.
-    await flush()
-    await flush()
-    await flush()
-    const badge = shadow(el).querySelector<HTMLButtonElement>('.project-badge')!
-    expect(badge.textContent?.trim()).toBe('B')
-  })
-
-  it('badge click opens portaled popover with project rows', async () => {
-    const { el } = mount(reg, 'sui-rail')
-    await flush()
-    await flush()
-    const badge = shadow(el).querySelector<HTMLButtonElement>('.project-badge')!
-    badge.click()
-    await flush()
-    await flush()
-    const popover = document.body.querySelector('.sui-rail-project-popover')
-    expect(popover).not.toBeNull()
-    const rows = popover!.querySelectorAll('[data-project-id]')
-    expect(rows.length).toBe(2)
-    const activeRow = popover!.querySelector('[data-project-id="b"]')!
-    expect(activeRow.classList.contains('active')).toBe(true)
-  })
-
-  it('second badge click closes the popover', async () => {
-    const { el } = mount(reg, 'sui-rail')
-    await flush()
-    await flush()
-    const badge = shadow(el).querySelector<HTMLButtonElement>('.project-badge')!
-    badge.click()
-    await flush()
-    badge.click()
-    await flush()
-    await flush()
-    expect(document.body.querySelector('.sui-rail-project-popover')).toBeNull()
-  })
-
-  it('clicking a project row dispatches ship:project:change and closes', async () => {
-    const { el } = mount(reg, 'sui-rail')
-    await flush()
-    await flush()
-    const events: CustomEvent[] = []
-    el.addEventListener('ship:project:change', (e) => events.push(e as CustomEvent))
-    const badge = shadow(el).querySelector<HTMLButtonElement>('.project-badge')!
-    badge.click()
-    await flush()
-    await flush()
-    const row = document.body.querySelector<HTMLElement>('[data-project-id="a"]')!
-    row.click()
-    await flush()
-    await flush()
-    expect(events).toHaveLength(1)
-    expect(events[0].detail.id).toBe('a')
-    expect(document.body.querySelector('.sui-rail-project-popover')).toBeNull()
-  })
-})
-
-// Mission Control rail item was removed in bb65d04c; the session-count
-// polling + badge wiring went with it in this commit. Future per-item
-// badges should be driven by props on slotted <sui-rail-item>s.
+// Mission Control rail item was removed earlier; the session-count
+// polling + badge wiring went with it.
 
 // ─────────────────────────────────────────────────────────────────────────────
-describe('<sui-rail> launcher / create buttons', () => {
+describe('<sui-rail> create button', () => {
   beforeEach(() => {
     mockFetch({
       '/api/v1/projects': { projects: [], active: null },
     })
-  })
-
-  it('launcher button dispatches ship:launcher:open', async () => {
-    const { el } = mount(reg, 'sui-rail')
-    await flush()
-    const events: CustomEvent[] = []
-    el.addEventListener('ship:launcher:open', (e) => events.push(e as CustomEvent))
-    const btn = shadow(el).querySelector<HTMLButtonElement>('[part~="launcher-btn"]')!
-    btn.click()
-    await flush()
-    expect(events).toHaveLength(1)
   })
 
   it('create button dispatches ship:create:open', async () => {

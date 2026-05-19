@@ -18,7 +18,10 @@ export function ensureBreadcrumbHost(): HTMLElement {
   host.id = HOST_ID
   host.setAttribute('aria-label', 'Breadcrumb')
   host.hidden = true
-  const anchor = document.getElementById('ship-nav-top')
+  // Insert just below the top strip so chrome breadcrumbs stamped by a
+  // view appear above the canvas. Falls back to document.body when the
+  // strip isn't mounted (e.g. focus mode).
+  const anchor = document.getElementById('ship-shell-top')
   if (anchor?.parentNode) {
     anchor.parentNode.insertBefore(host, anchor.nextSibling)
   } else {
