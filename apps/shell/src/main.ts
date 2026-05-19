@@ -927,6 +927,11 @@ initChromeRegistry()
 // `sui-open-command-palette` → open, and `sui-command-select` → navigate
 // or dispatch a run intent. Primary navigation surface of the shell.
 initCommandPalette({ sdk: shipClient, navigate })
+// Help overlay — mount the `<sui-help-overlay>` chrome element once on
+// body and toggle it from the `sui-open-help` intent the ⌘? binding (and
+// the shell-top help affordance) emit. The element owns Esc / backdrop
+// dismissal; we only flip its reflected `open` attribute open.
+initHelpOverlay()
 // View-authoring chrome — installs the real __viewMcp + edit-mode
 // signal wiring. The prior initViewMocks() + mocks/ dir was deleted
 // when the backend (view_edit_tool_api) shipped — its leftover
@@ -988,6 +993,23 @@ document.addEventListener('sui:theme-picker:open', () => {
   const trigger = picker?.shadowRoot?.querySelector<HTMLButtonElement>('.trigger')
   trigger?.click()
 })
+
+// Help overlay wiring — mount `<sui-help-overlay>` once on body, then
+// open it on the `sui-open-help` intent. The element reflects its own
+// `open` state and dismisses itself on Esc / backdrop click, so the
+// shell only has to flip it open. Idempotent for HMR: the element is
+// reused if already present.
+function initHelpOverlay(): void {
+  const HELP_ID = 'ship-help-overlay'
+  let el = document.getElementById(HELP_ID)
+  if (!el) {
+    el = document.createElement('sui-help-overlay')
+    el.id = HELP_ID
+    document.body.appendChild(el)
+  }
+  const host = el
+  document.addEventListener('sui-open-help', () => host.setAttribute('open', ''))
+}
 
 const initial = readRoute()
 if (initial) {
