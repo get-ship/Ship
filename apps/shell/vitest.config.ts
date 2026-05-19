@@ -26,10 +26,10 @@ function mirrorArtifactFor(sourceDir: string, stem: string): string {
 export default defineConfig({
   resolve: {
     alias: {
-      '@ship/sui-runtime': resolve(__dirname, '../../packages/sui-runtime/src/index.ts'),
+      '@ship/sui-runtime': resolve(__dirname, '../../packages/sui/runtime/src/index.ts'),
       '@ship/primitives': resolve(__dirname, '../../packages/components/primitives/src/index.ts'),
-      '@ship/sui-dom/legacy': resolve(__dirname, '../../packages/sui-dom/src/legacy/index.ts'),
-      '@ship/sui-dom': resolve(__dirname, '../../packages/sui-dom/src/index.ts'),
+      '@ship/sui-dom/legacy': resolve(__dirname, '../../packages/sui/dom/src/legacy/index.ts'),
+      '@ship/sui-dom': resolve(__dirname, '../../packages/sui/dom/src/index.ts'),
       '@xterm/addon-webgl': resolve(__dirname, 'test/__mocks__/addon-webgl.ts'),
     },
   },

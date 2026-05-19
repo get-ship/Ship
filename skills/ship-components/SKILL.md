@@ -213,8 +213,8 @@ standalone language server.
 |---|---|
 | **MCP** (agents) | `mcp__ship__sui_diagnostics` / `_hover` / `_dependencies`. See above. |
 | **VS Code** | `apps/vscode/` extension auto-launches the server on `.sui` open. |
-| **Other editors over stdio** | `node packages/sui-lsp/bin/sui-lsp.js --stdio` (build first: `bun run --filter @ship/sui-lsp build`). Map `sui` language ID to that command for `*.sui`. |
-| **LSP CLI** (any shell) | `bun packages/sui-lsp/src/cli.ts diagnostics|hover|dependencies <file>` — JSON to stdout. |
+| **Other editors over stdio** | `node packages/deck/lsp/bin/sui-lsp.js --stdio` (build first: `bun run --filter @ship/sui-lsp build`). Map `sui` language ID to that command for `*.sui`. |
+| **LSP CLI** (any shell) | `bun packages/deck/lsp/src/cli.ts diagnostics|hover|dependencies <file>` — JSON to stdout. |
 | **Browser** | Not yet — the LSP is Node-only. Tracking: a thin browser port so the shell + docs playground get hover and scope-aware completion without shelling out. |
 
 ## What's available in a view

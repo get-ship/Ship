@@ -10,7 +10,7 @@
   For this spike the "editor" is a read-only code viewer (CodeMirror
   comes next). The preview is a sandboxed iframe loading a pre-built
   example bundle from /playground/example.html — same shape as
-  packages/sui-runtime/example/sui-app/. A v2 with in-browser compile-on-edit needs the
+  packages/sui/runtime/example/sui-app/. A v2 with in-browser compile-on-edit needs the
   sui-compiler built to WASM (`just wasm` recipe targets a different
   compiler today; sui-compiler doesn't have a WASM build yet).
 */
@@ -23,11 +23,11 @@ import { fileURLToPath } from 'node:url'
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const repoRoot = resolve(__dirname, '../../../../..')
 const exampleSrc = readFileSync(
-  resolve(repoRoot, 'packages/sui-runtime/example/sui-app/src/sui-app.sui'),
+  resolve(repoRoot, 'packages/sui/runtime/example/sui-app/src/sui-app.sui'),
   'utf8',
 )
 const exampleController = readFileSync(
-  resolve(repoRoot, 'packages/sui-runtime/example/sui-app/src/sui-app.controller.ts'),
+  resolve(repoRoot, 'packages/sui/runtime/example/sui-app/src/sui-app.controller.ts'),
   'utf8',
 )
 ---
@@ -43,7 +43,7 @@ const exampleController = readFileSync(
   <div class="pg-root">
     <header class="pg-head">
       <div>
-        <p class="pg-blurb">Side-by-side editor and live preview. The right pane is a sandboxed iframe loading the same standalone example shipped under <code>packages/sui-runtime/example/sui-app/</code>.</p>
+        <p class="pg-blurb">Side-by-side editor and live preview. The right pane is a sandboxed iframe loading the same standalone example shipped under <code>packages/sui/runtime/example/sui-app/</code>.</p>
       </div>
       <div class="pg-meta">
         <span class="pg-badge">read-only · v0</span>

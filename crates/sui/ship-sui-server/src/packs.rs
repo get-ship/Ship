@@ -14,7 +14,7 @@
 //!
 //! Workspace-catalog endpoints (`/api/sui/catalog/{workspace,published}`)
 //! read pre-aggregated JSON from `.ship/sui-out/catalogs/` (emitted by
-//! `bun packages/sui-catalog/src/cli.ts`). They live in this module so
+//! `bun packages/deck/catalog/src/cli.ts`). They live in this module so
 //! all pack-discovery + catalog plumbing sits together.
 
 use axum::{

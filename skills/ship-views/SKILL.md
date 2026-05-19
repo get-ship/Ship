@@ -346,7 +346,7 @@ A new `ship.<domain>.<op>(...)` live source needs three things:
 1. **Registry entry** — `apps/shipd/src/services/registry/<domain>.rs` returns
    the current value synchronously. The dispatcher in `registry.rs` and the
    schema row in `services/schema.rs` keep the catalog honest.
-2. **SDK method** — `packages/ship-sdk-client/src/index.ts` exposes the
+2. **SDK method** — `packages/deck/sdk-client/src/index.ts` exposes the
    method returning `makeSseSource(...)` against `/_sui/data?expr=…`.
 3. **(Optional) signal-backed source** — if the data has a tighter wake-up
    surface than the default `config` kernel namespace, mirror the pattern in
@@ -487,8 +487,8 @@ language server.
 |---|---|
 | **MCP** (agents) | `mcp__ship__sui_diagnostics` / `_hover` / `_dependencies`. See above. |
 | **VS Code** | `apps/vscode/` extension auto-launches the server on `.sui` open. |
-| **Other editors over stdio** | `node packages/sui-lsp/bin/sui-lsp.js --stdio` (build first: `bun run --filter @ship/sui-lsp build`). Map the `sui` language ID to that command for `*.sui`. |
-| **LSP CLI** (any shell) | `bun packages/sui-lsp/src/cli.ts diagnostics|hover|dependencies <file>`. JSON to stdout. |
+| **Other editors over stdio** | `node packages/deck/lsp/bin/sui-lsp.js --stdio` (build first: `bun run --filter @ship/sui-lsp build`). Map the `sui` language ID to that command for `*.sui`. |
+| **LSP CLI** (any shell) | `bun packages/deck/lsp/src/cli.ts diagnostics|hover|dependencies <file>`. JSON to stdout. |
 | **Browser** | Not yet — the LSP is Node-only. Tracking issue: thin browser port that the shell editor + docs playground can consume. |
 
 ## Components

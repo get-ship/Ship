@@ -5,7 +5,7 @@
 // slotting, which JSDOM only partially implements: `assignedNodes`
 // returns `[]` regardless of light-DOM content because no real
 // distribution algorithm runs. So the unit tests in
-// `packages/sui-runtime/test/slot-empty.test.ts` cover the
+// `packages/sui/runtime/test/slot-empty.test.ts` cover the
 // `bindSlotEmpty` helper directly with stubbed `assignedNodes`,
 // and the in-browser probe at `.artifacts/sui-button-probe.html`
 // exercises the end-to-end shadow-tree behavior.

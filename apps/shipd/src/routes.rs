@@ -5,7 +5,7 @@
 //! - `$OUT_DIR/routes_generated.rs` — Rust URL builders (`Route::method()`,
 //!   `Route::full_path()`) and the `ShipRouterExt::ship_route(Route, handler)`
 //!   trait extension used by `lib.rs` to register routes.
-//! - `packages/sdk/src/generated/routes.ts` — typed TypeScript route
+//! - `packages/deck/sdk/src/generated/routes.ts` — typed TypeScript route
 //!   catalog for SDK / web consumers. Relative URLs (cookie-authenticated).
 //!
 //! # Variant syntax

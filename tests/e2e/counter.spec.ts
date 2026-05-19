@@ -12,7 +12,7 @@
  * What remains is residue, not registration:
  *   - a stale `crates/ship-sui-server/assets/views/counter/view.js`
  *     bundle (no matching `.sui` source — dead artifact), and
- *   - `packages/sui-runtime/fixtures/views/counter/` (a runtime test
+ *   - `packages/sui/runtime/fixtures/views/counter/` (a runtime test
  *     fixture, exercised by `bun run test:parity`, not a shell view).
  *
  * The same applies to `demos` and `sui-demo`. Restoring them would mean

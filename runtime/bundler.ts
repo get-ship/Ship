@@ -188,9 +188,9 @@ function discoverViewBundles(): BundleTarget[] {
 }
 
 const TARGETS: BundleTarget[] = [
-  { name: 'sui-runtime', entry: 'packages/sui-runtime/src/index.ts' },
-  { name: 'sui-dom', entry: 'packages/sui-dom/src/index.ts', external: ['@ship/sui-runtime'] },
-  { name: 'sui-sdk-client', entry: 'packages/ship-sdk-client/src/index.ts', external: ['@ship/sui-runtime'] },
+  { name: 'sui-runtime', entry: 'packages/sui/runtime/src/index.ts' },
+  { name: 'sui-dom', entry: 'packages/sui/dom/src/index.ts', external: ['@ship/sui-runtime'] },
+  { name: 'sui-sdk-client', entry: 'packages/deck/sdk-client/src/index.ts', external: ['@ship/sui-runtime'] },
   {
     name: 'sui-components',
     entry: 'packages/ui-components/src/index.ts',
@@ -280,7 +280,7 @@ const cemCache = new Map<string, unknown>()
 // path because this script ships to `~/.ship/runtime/bundler.ts` outside
 // the workspace's node_modules — the aggregator file itself only depends
 // on `node:` modules, so a direct path import keeps the daemon-side dev
-// loop and the `bun packages/sui-catalog/src/cli.ts` CLI on identical code.
+// loop and the `bun packages/deck/catalog/src/cli.ts` CLI on identical code.
 interface SuiCatalogLib {
   buildCatalogs(opts: { repoRoot: string }): Promise<{
     workspace: { schemaVersion: '1'; count: number; entries: unknown[] }
@@ -291,7 +291,7 @@ interface SuiCatalogLib {
 let suiCatalogLib: SuiCatalogLib | null = null
 async function loadSuiCatalogLib(): Promise<SuiCatalogLib> {
   if (!suiCatalogLib) {
-    const mod = await import(resolve(repoRoot, 'packages/sui-catalog/src/index.ts'))
+    const mod = await import(resolve(repoRoot, 'packages/deck/catalog/src/index.ts'))
     suiCatalogLib = mod as SuiCatalogLib
   }
   return suiCatalogLib

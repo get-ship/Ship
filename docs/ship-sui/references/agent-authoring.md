@@ -253,7 +253,7 @@ The `kind === 'ok'` guard is **mandatory** before reading
 ## 5. Wiring to the daemon
 
 `ship.<domain>.<op>(args)` resolves through `@ship/sdk-client`
-(`packages/ship-sdk-client/src/index.ts`). Available domains today —
+(`packages/deck/sdk-client/src/index.ts`). Available domains today —
 **exhaustively**, as of the SDK source:
 
 | Domain | Ops (live = SSE source; mutate = HTTP) |
@@ -269,7 +269,7 @@ The `kind === 'ok'` guard is **mandatory** before reading
 | `settings` | `state()` |
 | `sessions` | `list()` (live); `start({workspace_id, kind})` / `end({id})` (mutate) |
 | `workspaces` | `list()`, `active()` (live); `activate({id})` (mutate) |
-| `skills` | `list()`, `summaries({q?, kind?, tag?})`, `detail({id})`, `invoke({id, vars?, workspace_id?})` (mutate — **known gap:** the daemon route may return `not_implemented`; callers must handle that code as a first-class state, see the `skills.invoke` op in `packages/ship-sdk-client/src/index.ts`) |
+| `skills` | `list()`, `summaries({q?, kind?, tag?})`, `detail({id})`, `invoke({id, vars?, workspace_id?})` (mutate — **known gap:** the daemon route may return `not_implemented`; callers must handle that code as a first-class state, see the `skills.invoke` op in `packages/deck/sdk-client/src/index.ts`) |
 
 **Adding a new live source** requires three coordinated edits — see
 `references/runtime-primitives.md` § Live SSE end-to-end loop. The
@@ -278,7 +278,7 @@ short form:
 1. Registry entry in `apps/shipd/src/services/registry/<domain>.rs`
    (synchronous current-value resolver) + dispatcher row in
    `registry.rs` + schema row in `services/schema.rs`.
-2. SDK method in `packages/ship-sdk-client/src/index.ts`.
+2. SDK method in `packages/deck/sdk-client/src/index.ts`.
 3. (Optional) signal-backed source in
    `apps/shipd/src/views/sui_data_resolvers/` for tighter wake-up than
    the default `config` kernel namespace; mirror `git_signal.rs`.

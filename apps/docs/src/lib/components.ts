@@ -2,7 +2,7 @@
  * Build-time loader over the workspace SUI catalog.
  *
  * Reads `.ship/sui-out/catalogs/workspace.json` — the canonical catalog
- * produced by `@ship/sui-catalog` (CLI: `bun packages/sui-catalog/src/cli.ts`)
+ * produced by `@ship/sui-catalog` (CLI: `bun packages/deck/catalog/src/cli.ts`)
  * which walks every workspace package's `customElements` manifest plus
  * the per-component CEMs in `.ship/sui-out/`. Emits the typed record per
  * `<sui-*>` primitive that the docs site renders.

@@ -51,19 +51,19 @@ check_rust() {
 
 # Framework TS packages.
 for d in \
-  packages/sui-runtime/src \
-  packages/sui-dom/src \
-  packages/sui-eval/src \
-  packages/sui-lsp/src \
+  packages/sui/runtime/src \
+  packages/sui/dom/src \
+  packages/deck/eval/src \
+  packages/deck/lsp/src \
 ; do
   [ -d "$d" ] && check_ts "$d"
 done
 
 # Framework Rust crates.
 for d in \
-  crates/sui/sui-compiler/src \
-  crates/sui/sui-signals/src \
-  crates/sui/sui-lint/src \
+  crates/sui/compiler/src \
+  crates/sui/signals/src \
+  crates/sui/lint/src \
 ; do
   [ -d "$d" ] && check_rust "$d"
 done

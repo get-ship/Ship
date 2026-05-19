@@ -208,7 +208,7 @@
         "vitest": "^4.1.5",
       },
     },
-    "packages/sdk": {
+    "packages/deck/sdk": {
       "name": "@ship/sdk",
       "version": "0.2.0",
       "devDependencies": {
@@ -225,7 +225,7 @@
         "react",
       ],
     },
-    "packages/ship-sdk-client": {
+    "packages/deck/sdk-client": {
       "name": "@ship/sdk-client",
       "version": "0.1.0",
       "dependencies": {
@@ -236,7 +236,7 @@
         "vitest": "^4.1.5",
       },
     },
-    "packages/sui-build": {
+    "packages/deck/build": {
       "name": "@ship/sui-build",
       "version": "0.1.0",
       "bin": {
@@ -251,7 +251,7 @@
         "vitest": "^4.1.5",
       },
     },
-    "packages/sui-catalog": {
+    "packages/deck/catalog": {
       "name": "@ship/sui-catalog",
       "version": "0.1.0",
       "bin": {
@@ -263,11 +263,11 @@
         "vitest": "^4.1.5",
       },
     },
-    "packages/sui-compiler-wasm": {
+    "packages/sui/compiler-wasm": {
       "name": "@ship/sui-compiler-wasm",
       "version": "0.1.0",
     },
-    "packages/sui-dom": {
+    "packages/sui/dom": {
       "name": "@ship/sui-dom",
       "version": "0.1.0",
       "dependencies": {
@@ -279,7 +279,7 @@
         "vitest": "^4.1.5",
       },
     },
-    "packages/sui-eval": {
+    "packages/deck/eval": {
       "name": "@ship/sui-eval",
       "version": "0.1.0",
       "bin": {
@@ -296,7 +296,7 @@
         "vitest": "^4.1.5",
       },
     },
-    "packages/sui-grammar": {
+    "packages/sui/grammar": {
       "name": "tree-sitter-sui",
       "version": "0.1.0",
       "dependencies": {
@@ -306,7 +306,7 @@
         "tree-sitter-cli": "^0.26.0",
       },
     },
-    "packages/sui-lsp": {
+    "packages/deck/lsp": {
       "name": "@ship/sui-lsp",
       "version": "0.1.0",
       "bin": {
@@ -322,7 +322,7 @@
         "vitest": "^4.1.5",
       },
     },
-    "packages/sui-lsp-browser": {
+    "packages/deck/lsp-browser": {
       "name": "@ship/sui-lsp-browser",
       "version": "0.1.0",
       "dependencies": {
@@ -333,7 +333,7 @@
         "vitest": "^4.1.5",
       },
     },
-    "packages/sui-runtime": {
+    "packages/sui/runtime": {
       "name": "@ship/sui-runtime",
       "version": "0.1.0",
       "devDependencies": {
@@ -976,25 +976,25 @@
 
     "@ship/sdk": ["@ship/sdk@workspace:packages/sdk"],
 
-    "@ship/sdk-client": ["@ship/sdk-client@workspace:packages/ship-sdk-client"],
+    "@ship/sdk-client": ["@ship/sdk-client@workspace:packages/deck/sdk-client"],
 
     "@ship/site": ["@ship/site@workspace:apps/site"],
 
-    "@ship/sui-build": ["@ship/sui-build@workspace:packages/sui-build"],
+    "@ship/sui-build": ["@ship/sui-build@workspace:packages/deck/build"],
 
-    "@ship/sui-catalog": ["@ship/sui-catalog@workspace:packages/sui-catalog"],
+    "@ship/sui-catalog": ["@ship/sui-catalog@workspace:packages/deck/catalog"],
 
-    "@ship/sui-compiler-wasm": ["@ship/sui-compiler-wasm@workspace:packages/sui-compiler-wasm"],
+    "@ship/sui-compiler-wasm": ["@ship/sui-compiler-wasm@workspace:packages/sui/compiler-wasm"],
 
-    "@ship/sui-dom": ["@ship/sui-dom@workspace:packages/sui-dom"],
+    "@ship/sui-dom": ["@ship/sui-dom@workspace:packages/sui/dom"],
 
-    "@ship/sui-eval": ["@ship/sui-eval@workspace:packages/sui-eval"],
+    "@ship/sui-eval": ["@ship/sui-eval@workspace:packages/deck/eval"],
 
-    "@ship/sui-lsp": ["@ship/sui-lsp@workspace:packages/sui-lsp"],
+    "@ship/sui-lsp": ["@ship/sui-lsp@workspace:packages/deck/lsp"],
 
-    "@ship/sui-lsp-browser": ["@ship/sui-lsp-browser@workspace:packages/sui-lsp-browser"],
+    "@ship/sui-lsp-browser": ["@ship/sui-lsp-browser@workspace:packages/deck/lsp-browser"],
 
-    "@ship/sui-runtime": ["@ship/sui-runtime@workspace:packages/sui-runtime"],
+    "@ship/sui-runtime": ["@ship/sui-runtime@workspace:packages/sui/runtime"],
 
     "@ship/ui-components": ["@ship/ui-components@workspace:packages/ui-components"],
 
@@ -2022,7 +2022,7 @@
 
     "tree-sitter-cli": ["tree-sitter-cli@0.26.8", "", { "bin": { "tree-sitter": "cli.js" } }, "sha512-teQFMF5V/g8aIdakZ0M/eZoedCM3MuBt1JuDOICLloA2hy7QfeOInb99U6wiML4qXcBHWREwf0U1TWzw7p67YA=="],
 
-    "tree-sitter-sui": ["tree-sitter-sui@workspace:packages/sui-grammar"],
+    "tree-sitter-sui": ["tree-sitter-sui@workspace:packages/sui/grammar"],
 
     "trim-lines": ["trim-lines@3.0.1", "", {}, "sha512-kRj8B+YHZCc9kQYdWfJB2/oUl9rA99qbowYYBtr4ui4mZyAQ2JpvVBd/6U2YloATfqBhBTSMhTpgBHtU0Mf3Rg=="],
 

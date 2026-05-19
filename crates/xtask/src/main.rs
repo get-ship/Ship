@@ -1,7 +1,7 @@
 //! Dev-time task runner.
 //!
 //! Usage:
-//!   cargo xtask gen-types          # regenerate packages/sdk/src/generated.ts
+//!   cargo xtask gen-types          # regenerate packages/deck/sdk/src/generated.ts
 //!   cargo xtask gen-types --check  # verify generated file is up-to-date (CI)
 
 mod gen_sdk;
@@ -20,7 +20,7 @@ fn repo_root() -> PathBuf {
         .to_path_buf()
 }
 
-/// Types whose canonical home is `packages/sdk/src/generated.ts`:
+/// Types whose canonical home is `packages/deck/sdk/src/generated.ts`:
 /// project config, permissions, skills, agent profiles, runtime workspace +
 /// job/event projections. Consumers (sdk/types.ts) import from this file
 /// directly; do not move members out of this set without updating consumers.
@@ -151,7 +151,7 @@ fn collect_types() -> TypeCollection {
 }
 
 /// Framework data types that cross the daemon ↔ ui-runtime boundary.
-/// Output lands at `packages/sui-runtime/src/generated.ts` and is
+/// Output lands at `packages/sui/runtime/src/generated.ts` and is
 /// re-exported from `@ship/sui-runtime`. Add new entries here whenever a
 /// daemon HTTP/SSE response or a runtime payload struct gains a
 /// `#[derive(Type)]`. Drift between Rust and these registrations is
@@ -253,9 +253,9 @@ fn main() {
             eprintln!("Usage: cargo xtask <command>");
             eprintln!();
             eprintln!("Commands:");
-            eprintln!("  gen-types          Regenerate packages/sdk/src/generated.ts");
+            eprintln!("  gen-types          Regenerate packages/deck/sdk/src/generated.ts");
             eprintln!("  gen-types --check  Verify generated file is up-to-date (CI)");
-            eprintln!("  gen-sdk            Emit packages/sdk/src/generated/sdk-*.json + TS bindings");
+            eprintln!("  gen-sdk            Emit packages/deck/sdk/src/generated/sdk-*.json + TS bindings");
             eprintln!("  lint-layers        Verify substrate/platform/application boundaries");
         }
         other => {
@@ -279,7 +279,7 @@ fn gen_types(check: bool) {
     let cloud_out = repo_root().join("packages/cloud-types/src/generated.ts");
     let cloud_content = build_cloud_types(&ts);
 
-    let framework_out = repo_root().join("packages/sui-runtime/src/generated.ts");
+    let framework_out = repo_root().join("packages/sui/runtime/src/generated.ts");
     let framework_content = ts
         .export(&collect_framework_types())
         .expect("specta-typescript export failed (framework)");

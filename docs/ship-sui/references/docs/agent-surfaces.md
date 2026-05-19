@@ -13,9 +13,9 @@ exercise SUI views or components. Three planes:
 | Plane | Use it for | Lives in |
 |---|---|---|
 | **MCP tools** | Live operations against an active project (scaffold, edit, mount, snapshot, diagnose) | `apps/mcp/src/server/mod.rs`, `apps/mcp/src/tools/*.rs` |
-| **LSP CLI** | One-shot diagnostics / hover / dependencies on a single `.sui` file from any shell | `packages/sui-lsp/src/cli.ts` |
-| **`@ship/sui-lsp-browser`** | Browser-only structural analyser + completion sources. Web worker, no Node deps, no `typescript` package. Used by the docs playground; the shell editor can adopt it too. | `packages/sui-lsp-browser/src/` |
-| **`@ship/sui-eval`** | Regression-quality scoring of agent-produced SUI against a behavioural spec | `packages/sui-eval/src/index.ts` |
+| **LSP CLI** | One-shot diagnostics / hover / dependencies on a single `.sui` file from any shell | `packages/deck/lsp/src/cli.ts` |
+| **`@ship/sui-lsp-browser`** | Browser-only structural analyser + completion sources. Web worker, no Node deps, no `typescript` package. Used by the docs playground; the shell editor can adopt it too. | `packages/deck/lsp-browser/src/` |
+| **`@ship/sui-eval`** | Regression-quality scoring of agent-produced SUI against a behavioural spec | `packages/deck/eval/src/index.ts` |
 
 Read this alongside `SKILL.md` (the four-layer overview) and
 `agent-authoring.md` (the do-now checklist for shipping a view in one
@@ -125,17 +125,17 @@ daemon serves per-pack bundles at `/_sui/packs/<pack>/<bundle>.js`.
 ## 2. LSP CLI
 
 For agents that don't have the MCP server attached but do have a shell.
-Lives at `packages/sui-lsp/src/cli.ts`.
+Lives at `packages/deck/lsp/src/cli.ts`.
 
 ```sh
 # Diagnostics for a single file → JSON array on stdout
-bun packages/sui-lsp/src/cli.ts diagnostics views/tasks/page.sui
+bun packages/deck/lsp/src/cli.ts diagnostics views/tasks/page.sui
 
 # Hover info at a cursor
-bun packages/sui-lsp/src/cli.ts hover views/tasks/page.sui --line 12 --col 8
+bun packages/deck/lsp/src/cli.ts hover views/tasks/page.sui --line 12 --col 8
 
 # Tag / signal / route deps used by the file
-bun packages/sui-lsp/src/cli.ts dependencies views/tasks/page.sui
+bun packages/deck/lsp/src/cli.ts dependencies views/tasks/page.sui
 ```
 
 Output shape (diagnostics):
@@ -155,7 +155,7 @@ wraps — use whichever surface is closer to your runtime.
 ## 3. `@ship/sui-eval` — regression scoring
 
 When an agent authors a `.sui` view, `sui-eval` runs it against a spec
-and scores the output. Source: `packages/sui-eval/src/index.ts`.
+and scores the output. Source: `packages/deck/eval/src/index.ts`.
 
 ```ts
 import { runEval, type EvalTask } from '@ship/sui-eval'

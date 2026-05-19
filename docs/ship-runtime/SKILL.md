@@ -9,7 +9,7 @@ audience: internal
 
 # Ship Runtime (Daemon Internals)
 
-> **Boundary:** This is the **daemon** runtime — shipd, the DB, kernel, event store, workspace state, pipelines. For the **SUI** runtime (signals, bindings, transitions, mount, attach), see `docs/ship-sui/SKILL.md` and `packages/sui-runtime/src/`. Different package, different concerns.
+> **Boundary:** This is the **daemon** runtime — shipd, the DB, kernel, event store, workspace state, pipelines. For the **SUI** runtime (signals, bindings, transitions, mount, attach), see `docs/ship-sui/SKILL.md` and `packages/sui/runtime/src/`. Different package, different concerns.
 
 Ship's runtime layer owns all persistent state, pipeline execution, and inter-agent communication. It is split across three layered crates — `crates/core/ship-substrate/` (L0: kernel, events, persistence, db, home, env, data, plus the `mesh` and `human_gateway` service actors and low-level projections), `crates/core/ship-platform/` (L1: config, collections, artifacts, registry, hooks, agents, the `orchestrator` service, sessions, and high-level projections), and `crates/core/ship-application/` (L2: bundler, toolchain, project). The daemon binary lives in `apps/shipd/`.
 

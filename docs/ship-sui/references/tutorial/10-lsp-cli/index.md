@@ -17,7 +17,7 @@ feedback surface.
 ## diagnostics
 
 ```sh
-bun packages/sui-lsp/src/cli.ts diagnostics views/tasks/page.sui
+bun packages/deck/lsp/src/cli.ts diagnostics views/tasks/page.sui
 ```
 
 Returns one JSON line per issue:
@@ -37,7 +37,7 @@ mapping to your editor's diagnostic provider.
 ## hover
 
 ```sh
-bun packages/sui-lsp/src/cli.ts hover views/tasks/page.sui --line 12 --col 8
+bun packages/deck/lsp/src/cli.ts hover views/tasks/page.sui --line 12 --col 8
 ```
 
 Returns the type, signature, or directive doc under the cursor. Use
@@ -59,7 +59,7 @@ union or a boolean, or what the difference between `bind:value` and
 ## dependencies
 
 ```sh
-bun packages/sui-lsp/src/cli.ts dependencies views/tasks/page.sui
+bun packages/deck/lsp/src/cli.ts dependencies views/tasks/page.sui
 ```
 
 What does this file actually reach into? Tags, signals, routes, data
@@ -94,7 +94,7 @@ The same diagnostic signal flows through three surfaces:
 - The CLI → JSON for any shell-bound agent
 - The MCP tool `sui_diagnostics` → for agents with the MCP server attached
 
-One source of truth (`packages/sui-lsp/src/diagnostics.ts`), three
+One source of truth (`packages/deck/lsp/src/diagnostics.ts`), three
 delivery channels. An agent writing in CI can use the CLI; an agent
 inside Claude Desktop can use the MCP tool; a human typing in the
 docs site sees the wasm version.

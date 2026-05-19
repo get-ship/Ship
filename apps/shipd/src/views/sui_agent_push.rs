@@ -11,7 +11,7 @@
 //!    The auth middleware in `crate::auth` runs before this handler.
 //! 2. **View-root scoping** is enforced by the runtime, not the daemon.
 //!    The selector is forwarded verbatim. The runtime in
-//!    `packages/sui-dom/src/attach.ts` queries against
+//!    `packages/sui/dom/src/attach.ts` queries against
 //!    `[data-sui-root][data-view="<name>"]`, never `document` — so a
 //!    selector like `body > .ship-shell` finds no match and the patch
 //!    is dropped with a console warning.

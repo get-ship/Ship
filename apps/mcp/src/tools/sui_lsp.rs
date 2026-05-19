@@ -1,7 +1,7 @@
 //! MCP bridge for the `@ship/sui-lsp` TypeScript analyzers.
 //!
 //! Tools — `sui_diagnostics`, `sui_hover`, `sui_dependencies` — spawn `bun`
-//! against the one-shot CLI at `packages/sui-lsp/src/cli.ts` and parse its
+//! against the one-shot CLI at `packages/deck/lsp/src/cli.ts` and parse its
 //! JSON output. Agents that can't speak LSP get the same feedback the VS
 //! Code extension surfaces without embedding an LSP client.
 
@@ -11,7 +11,7 @@ use ship_substrate::env::{self, Var};
 use std::path::{Path, PathBuf};
 use tokio::process::Command;
 
-/// Locate `packages/sui-lsp/src/cli.ts` relative to the project workspace.
+/// Locate `packages/deck/lsp/src/cli.ts` relative to the project workspace.
 ///
 /// Lookup order:
 ///   1. `SHIP_REPO_DIR` env var (`Var::RepoDir`) — the repo root override
@@ -21,14 +21,14 @@ use tokio::process::Command;
 ///   2. Walk upward from CWD looking for `bun.lock`.
 pub fn resolve_cli_path() -> Result<PathBuf> {
     if let Some(repo) = env::read(Var::RepoDir) {
-        let candidate = PathBuf::from(repo).join("packages/sui-lsp/src/cli.ts");
+        let candidate = PathBuf::from(repo).join("packages/deck/lsp/src/cli.ts");
         if candidate.exists() {
             return Ok(candidate);
         }
     }
     let cwd = std::env::current_dir().map_err(|e| anyhow!("cwd unavailable: {e}"))?;
     if let Some(root) = find_workspace_root(&cwd) {
-        let candidate = root.join("packages/sui-lsp/src/cli.ts");
+        let candidate = root.join("packages/deck/lsp/src/cli.ts");
         if candidate.exists() {
             return Ok(candidate);
         }
@@ -175,7 +175,7 @@ mod tests {
     fn resolve_cli_path_finds_workspace() {
         // The test crate is inside the workspace; resolve should succeed.
         let path = resolve_cli_path().expect("cli path resolves");
-        assert!(path.ends_with("packages/sui-lsp/src/cli.ts"));
+        assert!(path.ends_with("packages/deck/lsp/src/cli.ts"));
         assert!(path.exists(), "resolved path should exist: {}", path.display());
     }
 

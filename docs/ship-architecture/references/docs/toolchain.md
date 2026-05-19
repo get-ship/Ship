@@ -7,7 +7,7 @@ Ship ships with a bundled JS toolchain at `~/.ship/runtime/`. It mirrors what `r
 ```
 ~/.ship/runtime/
   bun                 # Bun static binary (~100 MB)
-  sui-compiler        # Rust release build of crates/sui/sui-compiler
+  sui-compiler        # Rust release build of crates/sui/compiler
   bundler.ts          # Bun worker script — the asset bundler
 ```
 
@@ -30,7 +30,7 @@ Executes `bundler.ts`. Also used for ad-hoc dev scripts. Pinned to the Ship vers
 
 ### `sui-compiler`
 
-The Rust ahead-of-time compiler for `.sui` files. Invoked by `bundler.ts` via `Bun.spawn` to transform `.sui` source to JavaScript. Same binary as `crates/sui/sui-compiler` ships under `target/release/sui-compiler` for in-repo dev.
+The Rust ahead-of-time compiler for `.sui` files. Invoked by `bundler.ts` via `Bun.spawn` to transform `.sui` source to JavaScript. Same binary as `crates/sui/compiler` ships under `target/release/sui-compiler` for in-repo dev.
 
 ### `bundler.ts`
 

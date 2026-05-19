@@ -45,11 +45,11 @@ const ASSETS: &[&str] = &[
 ];
 
 const COARSE_SOURCE_ROOTS: &[&str] = &[
-    "packages/sui-runtime/src",
-    "packages/sui-dom/src",
+    "packages/sui/runtime/src",
+    "packages/sui/dom/src",
     "packages/ui-components/src",
     "apps/shell/src/components",
-    "packages/ship-sdk-client/src",
+    "packages/deck/sdk-client/src",
     "runtime/bundler.ts",
     "scripts/codegen/generate-lucide-registry.mjs",
 ];

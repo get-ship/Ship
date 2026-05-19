@@ -4,8 +4,8 @@ The chain from `.sui` source on disk to a live, hot-reloaded view in the browser
 
 ## `sui-compiler` — the Rust ahead-of-time compiler
 
-- **Library:** `crates/sui/sui-compiler/src/lib.rs`. Pure transformation; no filesystem walk, no daemon, no network. The `compile(source, opts) -> CompileOutput` entry is documented in `references/4-layer-overview.md` § Layer 1.
-- **Binary:** `crates/sui/sui-compiler/src/bin/sui-compiler.rs` — the `sui-compiler` Cargo bin. One subcommand today: `build`.
+- **Library:** `crates/sui/compiler/src/lib.rs`. Pure transformation; no filesystem walk, no daemon, no network. The `compile(source, opts) -> CompileOutput` entry is documented in `references/4-layer-overview.md` § Layer 1.
+- **Binary:** `crates/sui/compiler/src/bin/sui-compiler.rs` — the `sui-compiler` Cargo bin. One subcommand today: `build`.
 
 ```sh
 # Compile a single file. Emits to the project mirror tree
@@ -21,7 +21,7 @@ cargo run -q -p sui-compiler -- build packages/ui-components/src/sui-button/sui-
   --styles packages/ui-components/src/sui-button/sui-button.css
 ```
 
-Flags (from `crates/sui/sui-compiler/src/bin/sui-compiler.rs`):
+Flags (from `crates/sui/compiler/src/bin/sui-compiler.rs`):
 
 | Flag | Purpose |
 |---|---|
@@ -37,7 +37,7 @@ The binary is also exposed as a `cdylib` (`crate-type = ["lib", "cdylib"]` in `C
 
 ## `@ship/sui-build` — the package-level CI bundler
 
-The Node/Bun-driven build pipeline that wraps `sui-compiler` for one package at a time. Source: `packages/sui-build/`.
+The Node/Bun-driven build pipeline that wraps `sui-compiler` for one package at a time. Source: `packages/deck/build/`.
 
 ```sh
 sui-build                          # one-shot production build (cwd's sui.config.ts)
@@ -48,7 +48,7 @@ sui-build --config path/to/sui.config.ts
 sui-build --mode development       # passes through to compile flags + bundler env
 ```
 
-Entry: `packages/sui-build/bin/sui-build.mjs` → `dist/cli.js` via Bun. The runner (`src/runner.ts`) walks the configured source globs, invokes `sui-compiler` (preferring the in-repo FFI build of `libsui_compiler`, falling back to `target/debug/sui-compiler` or `cargo run --quiet -p sui-compiler`), and feeds the emitted JS / CSS / CEM through the chosen bundler adapter (`adapters/bun.ts`, `adapters/esbuild.ts`).
+Entry: `packages/deck/build/bin/sui-build.mjs` → `dist/cli.js` via Bun. The runner (`src/runner.ts`) walks the configured source globs, invokes `sui-compiler` (preferring the in-repo FFI build of `libsui_compiler`, falling back to `target/debug/sui-compiler` or `cargo run --quiet -p sui-compiler`), and feeds the emitted JS / CSS / CEM through the chosen bundler adapter (`adapters/bun.ts`, `adapters/esbuild.ts`).
 
 Configuration: `<package>/sui.config.ts`. Each package opts in by adding a `build` script — currently `packages/ui-components/` (writes `crates/sui/ship-sui-server/assets/`) and `packages/ship-set/` (writes `apps/shipd/assets/`).
 
@@ -56,20 +56,20 @@ Configuration: `<package>/sui.config.ts`. Each package opts in by adding a `buil
 
 ## `@ship/sui-lsp` — the language server
 
-Source: `packages/sui-lsp/`. Provides diagnostics, hover, and completions for `.sui` files.
+Source: `packages/deck/lsp/`. Provides diagnostics, hover, and completions for `.sui` files.
 
 ```sh
 bun run --filter @ship/sui-lsp build           # compile TS to dist/
 
 # Native LSP stdio (point a generic editor at this):
-node packages/sui-lsp/bin/sui-lsp.js --stdio
+node packages/deck/lsp/bin/sui-lsp.js --stdio
 
 # One-shot CLI (what MCP shims wrap):
-bun packages/sui-lsp/src/cli.ts diagnostics views/home/page.sui
-bun packages/sui-lsp/src/cli.ts hover views/home/page.sui --line 12 --col 4
+bun packages/deck/lsp/src/cli.ts diagnostics views/home/page.sui
+bun packages/deck/lsp/src/cli.ts hover views/home/page.sui --line 12 --col 4
 ```
 
-Analyzers live one-per-file under `packages/sui-lsp/src/`:
+Analyzers live one-per-file under `packages/deck/lsp/src/`:
 
 | File | Owns |
 |---|---|
@@ -82,7 +82,7 @@ Analyzers live one-per-file under `packages/sui-lsp/src/`:
 | `server.ts` | LSP plumbing — `TextDocuments`, `onDidChangeContent`, `onHover`, `onCompletion` |
 | `cli.ts` | JSON-emitting CLI; used by MCP shims |
 
-VS Code: `apps/vscode/` auto-launches the server on `.sui` open (recommended via `.vscode/extensions.json`). Other editors map the `sui` language ID to `node packages/sui-lsp/bin/sui-lsp.js --stdio`.
+VS Code: `apps/vscode/` auto-launches the server on `.sui` open (recommended via `.vscode/extensions.json`). Other editors map the `sui` language ID to `node packages/deck/lsp/bin/sui-lsp.js --stdio`.
 
 ## MCP shims — agents that don't speak LSP
 
@@ -94,7 +94,7 @@ VS Code: `apps/vscode/` auto-launches the server on `.sui` open (recommended via
 | `mcp__ship__sui_hover` | Same content the VS Code extension shows for a `(line, col)` position |
 | `mcp__ship__sui_dependencies` | Per-view signal / tag / event dependency graph (`apps/mcp/src/tools/sui_lsp.rs:152`) |
 
-Both spawn `bun` against `packages/sui-lsp/src/cli.ts` and parse its JSON output. CLI path resolution: `SHIP_WORKSPACE` env var, else walks upward looking for `bun.lock`. Registration: `apps/mcp/src/server/mod.rs:783` (`sui_diagnostics`) and `:796` (`sui_hover`).
+Both spawn `bun` against `packages/deck/lsp/src/cli.ts` and parse its JSON output. CLI path resolution: `SHIP_WORKSPACE` env var, else walks upward looking for `bun.lock`. Registration: `apps/mcp/src/server/mod.rs:783` (`sui_diagnostics`) and `:796` (`sui_hover`).
 
 ```ts
 // Before declaring a `.sui` edit done:

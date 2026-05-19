@@ -27,7 +27,7 @@ client-server loop against a mock daemon. From here:
 
 ## Tooling reach
 
-- **LSP**: `bun packages/sui-lsp/src/cli.ts diagnostics <file>` runs
+- **LSP**: `bun packages/deck/lsp/src/cli.ts diagnostics <file>` runs
   the same analyser the editor uses. JSON to stdout. Great for CI
   hooks and one-off scripts.
 - **MCP** (if your agent has it attached): every authoring surface
@@ -36,7 +36,7 @@ client-server loop against a mock daemon. From here:
   CI to gate PRs that touch `.sui` files.
 - **VS Code extension** at `apps/vscode/` — auto-launches the LSP on
   `.sui` open. Other editors can spawn `node
-  packages/sui-lsp/bin/sui-lsp.js --stdio` directly.
+  packages/deck/lsp/bin/sui-lsp.js --stdio` directly.
 
 ## Where to read next
 

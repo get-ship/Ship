@@ -26,7 +26,7 @@ template files (`.sui`, `.set`).
   `:`, `=` as trigger characters).
 
 The TextMate grammar is the floor; the tree-sitter grammar in
-`packages/sui-grammar/` provides richer semantic highlighting
+`packages/sui/grammar/` provides richer semantic highlighting
 once the LSP picks it up.
 
 ## Requirements
@@ -89,7 +89,7 @@ code --install-extension ship-ui-0.1.0.vsix
   (diagnostics, hover, completion), language configuration.
 - **v2 (planned)**: tree-sitter grammar via WebAssembly for richer
   semantic highlighting using the queries in
-  `packages/sui-grammar/queries/highlights.scm`.
+  `packages/sui/grammar/queries/highlights.scm`.
 - The LSP server itself advertises `codeAction` and `definition`
   capabilities, but the handlers currently return empty results;
   upstream those land in `crates/sui-lsp`.

@@ -153,7 +153,7 @@ pub fn build_router(
         // `/api/assets/sui-custom-elements.json` umbrella. Two
         // projections (workspace = every component, published = only
         // non-private packaged components) emitted by
-        // `bun packages/sui-catalog/src/cli.ts` to
+        // `bun packages/deck/catalog/src/cli.ts` to
         // `.ship/sui-out/catalogs/{workspace,published}.json`.
         .ship_public_route(Route::SuiCatalogWorkspace, ship_sui::serve_catalog_workspace)
         .ship_public_route(Route::SuiCatalogPublished, ship_sui::serve_catalog_published)

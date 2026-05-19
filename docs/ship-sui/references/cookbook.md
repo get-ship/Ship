@@ -167,7 +167,7 @@ Declarative-form alternative (no optimistic overlay):
 
 `$mutation` is auto-injected into scope by the compiler when a
 `<form mutation="…">` is present (see
-`packages/sui-runtime/src/index.ts` `wireFormMutation` and
+`packages/sui/runtime/src/index.ts` `wireFormMutation` and
 `references/runtime-primitives.md` § Mutations).
 
 ---

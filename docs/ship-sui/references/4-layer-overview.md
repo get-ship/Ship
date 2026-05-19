@@ -4,17 +4,17 @@ SUI splits cleanly into four layers. Each owns one concern and exposes a narrow 
 
 ```
 page.sui + controller.ts     (authoring — what humans write)
-    ↓ crates/sui/sui-compiler/ (AOT compile — emits ESM + .d.ts + .ssr.html)
+    ↓ crates/sui/compiler/ (AOT compile — emits ESM + .d.ts + .ssr.html)
 .js + .sui.d.ts + .ssr.html  (compiler output — gitignored under dist/)
-    ↓ packages/sui-runtime/  (reactive primitives + DOM bindings + attach())
+    ↓ packages/sui/runtime/  (reactive primitives + DOM bindings + attach())
 runtime in the browser       (signals, control-flow, transitions, error-boundary)
     ↓ crates/sui/ship-sui-server (daemon view-host — resolver + assets + SSR + SSE)
 HTTP /_sui/* + /view-host    (apps/shipd routes wire it together)
 ```
 
-## Layer 1 — Compiler (`crates/sui/sui-compiler/`)
+## Layer 1 — Compiler (`crates/sui/compiler/`)
 
-Pure transformation. No filesystem walk, no daemon, no network. Library entry: `crates/sui/sui-compiler/src/lib.rs`.
+Pure transformation. No filesystem walk, no daemon, no network. Library entry: `crates/sui/compiler/src/lib.rs`.
 
 ```rust
 pub fn compile(source: &str, opts: CompileOpts) -> Result<CompileOutput, CompileError>
@@ -36,11 +36,11 @@ pub fn compile(source: &str, opts: CompileOpts) -> Result<CompileOutput, Compile
 
 Pipeline (`src/lib.rs:165` `compile()`): `parse::parse` → `check::run` → `bindings::build` → `lower::lower` → `emit::js::emit_module` (+ `emit::cem`, `emit::schema`, `emit::dts`, `emit::meta`, `emit::ssr`). Diagnostics carry byte spans (`src/diagnostics.rs`).
 
-Binary: `crates/sui/sui-compiler/src/bin/sui-compiler.rs` (the `sui-compiler` Cargo bin). Used by `@ship/sui-build` and editor extensions for one-shot compiles.
+Binary: `crates/sui/compiler/src/bin/sui-compiler.rs` (the `sui-compiler` Cargo bin). Used by `@ship/sui-build` and editor extensions for one-shot compiles.
 
-## Layer 2 — Runtime (`packages/sui-runtime/`)
+## Layer 2 — Runtime (`packages/sui/runtime/`)
 
-Public API barrel: `packages/sui-runtime/src/index.ts`. Anything not re-exported there is internal.
+Public API barrel: `packages/sui/runtime/src/index.ts`. Anything not re-exported there is internal.
 
 | Surface | Symbols |
 |---|---|

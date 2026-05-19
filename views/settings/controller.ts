@@ -5,7 +5,7 @@
 // `ctx.ship`) sticks on `loading`. Wire the live source directly to
 // `/_sui/data?expr=ship.settings.state()` instead.
 //
-// Per-row save state: `wireFormMutation` (in packages/sui-runtime) writes
+// Per-row save state: `wireFormMutation` (in packages/sui/runtime) writes
 // `scope.$mutation` for *every* form, so a single shared `$mutation`
 // signal binds all save badges together — and worse, its initial
 // `{ kind: 'ok' }` state makes every badge render "Saved" before the

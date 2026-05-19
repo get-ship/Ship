@@ -1,4 +1,4 @@
-//! Emit `packages/sdk/src/generated/data.ts` — typed TypeScript bindings
+//! Emit `packages/deck/sdk/src/generated/data.ts` — typed TypeScript bindings
 //! for the `ship.<domain>.<op>` data surface, generated from the same
 //! `services::schema::OPS` catalog the Jinja SDK reads.
 //!
