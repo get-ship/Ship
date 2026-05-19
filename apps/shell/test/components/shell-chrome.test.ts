@@ -8,7 +8,33 @@ import { afterEach, describe, expect, it } from 'vitest'
 import '../../src/components/sui-shell-top/sui-shell-top.compiled.js'
 import '../../src/components/sui-shell-bottom/sui-shell-bottom.compiled.js'
 import '../../src/components/sui-blank-canvas/sui-blank-canvas.compiled.js'
+// Palette primitive lives in @ship/primitives; pull in the compiled
+// element + the two primitives its template references so the shell's
+// ⌘K → palette flow can be exercised end to end.
+import '../../../../packages/components/primitives/src/sui-command-palette/sui-command-palette.compiled.js'
+import '../../../../packages/components/primitives/src/sui-icon/sui-icon.compiled.js'
+import '../../../../packages/components/primitives/src/sui-spinner/sui-spinner.compiled.js'
+import { initCommandPalette, type PaletteSdk } from '../../src/chrome/command-palette'
 import { createContainerRegistry, flush, mount } from '../test-utils'
+
+import type { LiveSignal, LiveSource } from '@ship/sui-runtime'
+
+// A LiveSource that emits one `ok` frame synchronously on subscribe.
+function okSource<T>(value: T): LiveSource<T> {
+  return {
+    subscribe(sig: LiveSignal<T>) {
+      sig.set({ kind: 'ok', value })
+      return () => {}
+    },
+  }
+}
+
+function fakeSdk(): PaletteSdk {
+  return {
+    agents: { summaries: () => okSource({ items: [{ id: 'rust-compiler' }, { id: 'gatekeeper' }] }) },
+    skills: { list: () => okSource({ items: [{ id: 'tdd' }, { id: 'review' }] }) },
+  }
+}
 
 const reg = createContainerRegistry()
 afterEach(() => reg.cleanup())
@@ -206,5 +232,67 @@ describe('shell three-zone layout', () => {
     const canvas = slot.querySelector('sui-blank-canvas') as HTMLElement
     expect(canvas).not.toBeNull()
     expect(canvas.shadowRoot?.querySelector('[part~="title"]')?.textContent?.trim()).toBe('Blank canvas')
+  })
+})
+
+describe('⌘K command palette wiring', () => {
+  let dispose: (() => void) | null = null
+  afterEach(() => {
+    dispose?.()
+    dispose = null
+    document.getElementById('ship-command-palette')?.remove()
+  })
+
+  const palette = () => document.getElementById('ship-command-palette') as HTMLElement
+  const rows = (el: HTMLElement) => Array.from(el.shadowRoot!.querySelectorAll('button.row')) as HTMLButtonElement[]
+  const headers = (el: HTMLElement) =>
+    Array.from(el.shadowRoot!.querySelectorAll('.group-h')).map((h) => h.textContent?.trim())
+
+  it('mounts a single palette element on body with the static groups', async () => {
+    dispose = initCommandPalette({ sdk: fakeSdk(), navigate: () => {} })
+    await flush()
+    expect(document.querySelectorAll('#ship-command-palette').length).toBe(1)
+    expect(headers(palette())).toEqual(['Open', 'Settings'])
+  })
+
+  it('sui-open-command-palette opens the palette and loads the dynamic Run group', async () => {
+    dispose = initCommandPalette({ sdk: fakeSdk(), navigate: () => {} })
+    await flush()
+    expect(palette().hasAttribute('open')).toBe(false)
+    document.dispatchEvent(new CustomEvent('sui-open-command-palette', { bubbles: true }))
+    await flush()
+    expect(palette().hasAttribute('open')).toBe(true)
+    // Run group is inserted between Open and Settings, populated from SDK.
+    expect(headers(palette())).toEqual(['Open', 'Run', 'Settings'])
+    const labels = rows(palette()).map((r) => r.querySelector('.row-label')?.textContent?.trim())
+    expect(labels).toContain('Run agent rust-compiler')
+    expect(labels).toContain('Invoke skill tdd')
+  })
+
+  it('selecting a nav row calls navigate with its path', async () => {
+    const visited: string[] = []
+    dispose = initCommandPalette({ sdk: fakeSdk(), navigate: (p) => visited.push(p) })
+    await flush()
+    document.dispatchEvent(new CustomEvent('sui-open-command-palette', { bubbles: true }))
+    await flush()
+    // First Open row is Studio.
+    rows(palette())[0]!.click()
+    await flush()
+    expect(visited).toEqual(['/studio'])
+  })
+
+  it('selecting a Run row dispatches sui:run with kind + id', async () => {
+    dispose = initCommandPalette({ sdk: fakeSdk(), navigate: () => {} })
+    await flush()
+    document.dispatchEvent(new CustomEvent('sui-open-command-palette', { bubbles: true }))
+    await flush()
+    const runs: Array<{ kind: string; id: string }> = []
+    document.addEventListener('sui:run', (e) => runs.push((e as CustomEvent).detail), { once: true })
+    const agentRow = rows(palette()).find(
+      (r) => r.querySelector('.row-label')?.textContent?.trim() === 'Run agent rust-compiler',
+    )!
+    agentRow.click()
+    await flush()
+    expect(runs).toEqual([{ kind: 'agent', id: 'rust-compiler' }])
   })
 })
