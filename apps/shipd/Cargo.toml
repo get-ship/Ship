@@ -22,8 +22,9 @@ ship-substrate = { path = "../../crates/core/ship-substrate" }
 ship-platform = { path = "../../crates/core/ship-platform" }
 ship-isolation = { path = "../../crates/core/ship-isolation", default-features = false }
 ship-pipelines = { path = "../../crates/core/ship-pipelines" }
-ship-supervisor = { path = "../../crates/ship-supervisor" }
+ship-supervisor = { path = "../../crates/core/ship-supervisor" }
 ship-types = { path = "../../crates/core/ship-types" }
+ship-analytics = { path = "../../crates/core/ship-analytics" }
 compiler = { path = "../../crates/core/compiler" }
 build-info = { path = "../../crates/core/build-info" }
 ship-sui = { path = "../../crates/sui/ship-sui" }

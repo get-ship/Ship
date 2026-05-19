@@ -28,19 +28,19 @@
         {#for c of collections().value.items key={c.id}}
           <a class="data-card" attr:href={'/collections?collection=' + c.id}
             on:click={(e) => { e.preventDefault(); navigate('/collections?collection=' + c.id) }}>
-            <div class="data-card-head">
+            <sui-cluster gap="2" align="center">
               <span class="data-card-icon"><sui-icon name="database"></sui-icon></span>
               <div class="data-card-identity">
                 <div class="data-card-name">{c.name || c.id}</div>
                 <div class="data-card-id mono-snip">.ship/collections/{c.id}.jsonc</div>
               </div>
               <span class="data-card-count">{c.field_count} field{c.field_count !== 1 ? 's' : ''}</span>
-            </div>
+            </sui-cluster>
             {#if c.fields && c.fields.length > 0}
-              <div class="data-card-fields">
+              <sui-cluster gap="1">
                 {#for f of c.fields.slice(0, 5) key={f.name}}
                   <span class="data-card-field">
-                    <sui-badge variant="secondary" size="sm">{f.type}</sui-badge>
+                    <sui-badge variant="soft" size="sm">{f.type}</sui-badge>
                     <span class="mono-snip">{f.name}</span>
                     {#if f.required}<span class="data-card-req">*</span>{/if}
                   </span>
@@ -48,7 +48,7 @@
                 {#if c.fields.length > 5}
                   <span class="data-card-field data-card-field-more">+{c.fields.length - 5} more</span>
                 {/if}
-              </div>
+              </sui-cluster>
             {/if}
             <div class="data-card-footer">
               <span><sui-icon name="eye" size="sm"></sui-icon> 1 view</span>
@@ -63,23 +63,23 @@
     on:sui-close={() => { newColOpen.set(false); drawerError.set('') }}>
     <span slot="title">New collection</span>
     <span slot="description">Define a typed dataset stored in data.db</span>
-    <div class="drawer-form">
-      <div class="drawer-field">
+    <sui-stack gap="3">
+      <sui-stack gap="1">
         <label class="drawer-label">
           Collection ID <span class="drawer-req">*</span>
           <span class="drawer-type">snake_case</span>
         </label>
         <sui-input bind:value={newColId} placeholder="my_collection" required
           style="font-family:var(--font-mono)"></sui-input>
-      </div>
-      <div class="drawer-field">
+      </sui-stack>
+      <sui-stack gap="1">
         <label class="drawer-label">Display name</label>
         <sui-input bind:value={newColName} placeholder="My Collection"></sui-input>
-      </div>
+      </sui-stack>
       {#if drawerError()}
         <div class="drawer-error">{drawerError()}</div>
       {/if}
-    </div>
+    </sui-stack>
     <div slot="footer">
       <sui-button variant="ghost" on:click={() => { newColOpen.set(false); drawerError.set('') }}>Cancel</sui-button>
       <sui-button tone="accent" variant="solid" on:click={createCollection}>Create collection</sui-button>

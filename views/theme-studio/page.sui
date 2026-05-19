@@ -51,7 +51,7 @@
           <h2 class="ts-layer-title">{layer.label}</h2>
           <p class="ts-layer-blurb">{layer.blurb}</p>
         </header>
-        <div class="ts-layer-rows">
+        <sui-grid>
           {#for tok of layer.tokens key={tok.name}}
             <div class="ts-row" attr:data-token={tok.name} attr:data-token-type={tok.type}>
               <label class="ts-row-name" attr:for={'ts-in-' + tok.name}>
@@ -68,7 +68,7 @@
                 on:input={(e) => setToken(tok.name, e.target.value)} />
             </div>
           {/for}
-        </div>
+        </sui-grid>
       </section>
     {/for}
   </aside>
@@ -84,11 +84,11 @@
 
       <article class="ts-pv-card">
         <h3 class="ts-pv-h">Buttons</h3>
-        <div class="ts-pv-row">
+        <sui-cluster>
           <button type="button" class="ts-pv-btn ts-tone-primary">Primary</button>
           <button type="button" class="ts-pv-btn ts-tone-accent">Accent</button>
           <button type="button" class="ts-pv-btn ts-tone-destructive">Destructive</button>
-        </div>
+        </sui-cluster>
       </article>
 
       <article class="ts-pv-card">
@@ -137,12 +137,12 @@
 
       <article class="ts-pv-card ts-pv-wide">
         <h3 class="ts-pv-h">Toast tones</h3>
-        <div class="ts-pv-toasts">
+        <sui-grid>
           <div class="ts-pv-toast ts-tone-info">Info — preview tones reflect tone-ramp tokens.</div>
           <div class="ts-pv-toast ts-tone-success">Success — saved.</div>
           <div class="ts-pv-toast ts-tone-warning">Warning — check your inputs.</div>
           <div class="ts-pv-toast ts-tone-destructive">Error — something went wrong.</div>
-        </div>
+        </sui-grid>
       </article>
 
     </div>

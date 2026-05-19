@@ -18,13 +18,13 @@ use crate::{
     sessions, views,
 };
 use crate::routes::{
-    account_api, actor_api, actors_api, agents_api, annotations_api, artifacts_api,
-    collection_api, commands_api, create_api, feedback_api, git_api, hooks_api,
-    human_webhook, isolation_api, logs_api, mcp_api, openapi, permissions_api, pipelines_api,
-    projects_api,
-    registry_api, rest_api, rules_api, runtime_api, sdk_manifest, search_api, settings_api,
-    skills_api, specs_api, themes_api, view_edit_mode_api, view_edit_tool_api, view_errors_api,
-    view_sessions_api, webhook_ext,
+    account_api, actor_api, actors_api, agents_api, analytics_api, annotations_api,
+    artifacts_api, collection_api, commands_api, create_api, feedback_api, git_api,
+    hooks_api, human_webhook, isolation_api, logs_api, mcp_api, openapi, permissions_api,
+    pipelines_api, projects_api, registry_api, rest_api, rules_api, runtime_api,
+    sdk_manifest, search_api, settings_api, skills_api, specs_api, themes_api,
+    view_edit_mode_api, view_edit_tool_api, view_errors_api, view_sessions_api,
+    webhook_ext,
 };
 use crate::auth::{attest, pairing, session};
 use crate::transport::{cors, pty as pty_handler};
@@ -411,6 +411,19 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::MeshSnapshot, actors_api::mesh_snapshot_handler)
         .ship_route(Route::MeshEventsStream, actors_api::mesh_events_handler)
         .ship_route(Route::KillTree_template(), actors_api::kill_tree_handler)
+        // Analytics (read-only — AnalyticsProjection)
+        .ship_route(
+            Route::ListAnalyticsSessions,
+            analytics_api::list_sessions_handler,
+        )
+        .ship_route(
+            Route::GetAnalyticsSession_template(),
+            analytics_api::get_session_handler,
+        )
+        .ship_route(
+            Route::AnalyticsToolUsage,
+            analytics_api::tool_usage_handler,
+        )
         // Capabilities (no state required; ok against a stateful router)
         .ship_route(Route::Capabilities, rest_api::capabilities)
         // Isolation — agent sandbox capability probe + recommender +

@@ -3,6 +3,14 @@ import type { Scope } from './sui-dropdown-menu.sui'
 
 let _seq = 0
 
+// Browsers without CSS Anchor Positioning fall back to JS rect math.
+// Cached at module load — there's no platform path that toggles this
+// at runtime, so re-checking per mount is wasted work.
+const anchorSupported =
+  typeof CSS !== 'undefined' &&
+  typeof CSS.supports === 'function' &&
+  CSS.supports('anchor-name', '--x')
+
 type PopoverEl = HTMLElement & {
   showPopover?: () => void
   hidePopover?: () => void
@@ -11,7 +19,15 @@ type PopoverEl = HTMLElement & {
 export default controller<Scope>({
   mount(state, host) {
     const scope = state as unknown as Scope
-    const panelId = `sui-dropdown-menu-panel-${++_seq}`
+    const seq = ++_seq
+    const panelId = `sui-dropdown-menu-panel-${seq}`
+    const anchorName = `--sui-dd-${seq}`
+
+    // Per-instance anchor so multiple dropdowns on a page don't collide.
+    // CSS reads `--sui-dd-anchor` from the host; the @supports block in
+    // the .sui forwards that to the slotted trigger's anchor-name and
+    // the panel's position-anchor.
+    host.style.setProperty('--sui-dd-anchor', anchorName)
 
     const triggerWrap = scope.triggerWrap() as HTMLElement | null
     const triggerSlot = scope.triggerSlot() as HTMLSlotElement | null
@@ -77,7 +93,10 @@ export default controller<Scope>({
     // ── Open/close ───────────────────────────────────────────────────────
     function openPanel() {
       const trigger = (triggerSlot?.assignedElements({ flatten: true }) as HTMLElement[])?.[0]
-      if (trigger && panelEl) {
+      // CSS Anchor Positioning owns the placement when the browser
+      // supports it (Chromium 125+, Safari 26+, Firefox 145+). Only
+      // fall back to inline-style positioning on older engines.
+      if (trigger && panelEl && !anchorSupported) {
         const r = trigger.getBoundingClientRect()
         panelEl.style.top = `${r.bottom + 4}px`
         panelEl.style.left = `${r.left}px`

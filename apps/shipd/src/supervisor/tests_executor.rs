@@ -9,7 +9,7 @@ use ship_platform::services::harness_adapter::{adapter_for, adapter_for_or_defau
 
 fn executor_sources() -> String {
     let base = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../crates/ship-supervisor/src/executors");
+        .join("../../crates/core/ship-supervisor/src/executors");
     let mut combined = String::new();
     for name in &["tmux.rs", "process.rs", "pty.rs", "routing.rs", "mod.rs"] {
         let path = base.join(name);
@@ -22,7 +22,7 @@ fn executor_sources() -> String {
 
 fn lifecycle_src() -> String {
     let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../crates/ship-supervisor/src/agent_lifecycle.rs");
+        .join("../../crates/core/ship-supervisor/src/agent_lifecycle.rs");
     std::fs::read_to_string(&path)
         .unwrap_or_else(|e| panic!("could not read agent_lifecycle.rs: {e}"))
 }

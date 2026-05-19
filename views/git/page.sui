@@ -62,7 +62,7 @@
           <span class="git-mono">{headShort()}</span>
         </p>
       </div>
-      <div class="git-head-actions">
+      <sui-cluster align="center">
         <sui-button variant="ghost" size="sm" data-test="git-fetch"
           attr:loading={busy() === 'fetch' ? '' : null}
           attr:disabled={busy() ? '' : null}
@@ -85,7 +85,7 @@
           <sui-icon name="refresh-cw" size="sm"></sui-icon>
         </sui-button>
         <sui-chip tone={clean() ? 'success' : 'warning'} variant="soft" size="sm">{clean() ? 'clean' : totalChanged() + ' changed'}</sui-chip>
-      </div>
+      </sui-cluster>
     </header>
 
     <div class="git-tabs-row">
@@ -269,11 +269,11 @@
 
       {#if tab() === 'history'}
         <div class="git-history">
-          <div class="git-history-search">
+          <sui-cluster align="center">
             <input class="git-search" placeholder="Filter by subject, sha, or author"
               bind:value={commitFilter.query} />
             <span class="git-history-count">{commitFilter.filtered().length} of {commitsCount()}</span>
-          </div>
+          </sui-cluster>
           {#if commitFilter.filtered().length === 0}
             <sui-empty-state tone="muted" size="md">
               {#if commitsCount() === 0}

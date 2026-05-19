@@ -45,7 +45,6 @@ import { initHmr } from './hmr'
 import { initProjectSwitch } from './project-switch'
 import { initChromeRegistry } from './chrome/registry'
 import { initEditModeChrome, setEditModeView, toggleEditMode, toggleAnnotationMode } from './chrome/edit-mode'
-import { ensureSetupOrRedirect } from './setup-wizard'
 import { bridgeDockTerminal, disposeDockTerminal } from './chrome/terminal-bridge'
 
 interface MountFn {
@@ -713,6 +712,12 @@ document.addEventListener('keydown', (e: KeyboardEvent) => {
     return
   }
 
+  if (mod && key === 'n') {
+    e.preventDefault()
+    document.dispatchEvent(new CustomEvent('ship:create:open', { bubbles: true }))
+    return
+  }
+
   if (e.key === 'Escape') {
     // Native <dialog> handles Esc already. Backstop: close any open
     // sui-dialog or sui-drawer that may not be using the native dialog element.
@@ -914,11 +919,6 @@ document.addEventListener('sui:theme-picker:open', () => {
   trigger?.click()
 })
 
-// First-run check: if setup hasn't been completed, rewrite the URL to
-// `/setup` so the wizard takes over. `ensureSetupOrRedirect` returns
-// true when it applied a redirect, in which case the boot route is
-// recomputed before mount.
-ensureSetupOrRedirect()
 const initial = readRoute()
 if (initial) {
   // `/` IS home — keep the URL bare. The rail no longer carries a

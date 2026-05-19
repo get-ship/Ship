@@ -46,7 +46,7 @@
     --graph-aspect: 5 / 3;
     --node-w: 180px;
     --edge-default: var(--border);
-    --edge-agent: var(--tone-primary-fg, var(--foreground));
+    --edge-agent: var(--tone-primary-fg);
     --edge-skill: var(--tone-success-fg);
     --edge-mcp: var(--tone-info-fg);
     --edge-rule: var(--tone-warning-fg);

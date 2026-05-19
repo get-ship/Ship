@@ -3,6 +3,8 @@
 //! Lints `*.controller.ts` (paired SUI controllers) and `*.sui` templates.
 //! Rule IDs are prefixed `sui-<descriptor>`.
 
+pub mod prop_extract;
+pub mod prop_registry;
 pub mod report;
 pub mod rules;
 pub mod source;

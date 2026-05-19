@@ -6,7 +6,14 @@ let _seq = 0
 export default controller<Scope>({
   mount(state, host) {
     const scope = state as unknown as Scope
-    const bubbleId = `sui-tooltip-${++_seq}`
+    const seq = ++_seq
+    const bubbleId = `sui-tooltip-${seq}`
+    const anchorName = `--sui-tooltip-${seq}`
+
+    // Per-instance anchor name so multiple tooltips on the page each
+    // resolve to their own host — without this every bubble would
+    // collide on the shared default anchor and clip together.
+    host.style.setProperty('--sui-tooltip-anchor', anchorName)
 
     const stopBubbleId = effect(() => {
       const bubble = scope.bubbleEl() as HTMLElement | null

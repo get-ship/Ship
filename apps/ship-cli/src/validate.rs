@@ -8,6 +8,7 @@ use crate::profile::load_agent_profile;
 use crate::loader::load_permission_preset;
 use crate::mcp::{McpEntry, McpFile};
 use crate::profile::find_agent_file;
+use crate::skill::loader::load_skills;
 
 #[cfg(test)]
 #[path = "validate_tests.rs"]
@@ -184,15 +185,36 @@ pub fn validate_agent(agent_id: &str, agent_path: &Path, agents_dir: &Path) -> A
 
     let agent_file = agent_path.display().to_string();
 
-    // 2. Skill refs exist in agents/skills/
-    let skills_dir = agents_dir.join("skills");
+    // Canonical layout: `.ship/` is the parent of `agents/`. Skills
+    // live at `.ship/skills/` (NOT under `agents/skills/`), and the
+    // `project.skill_paths` setting in `ship.jsonc` can add more roots
+    // (typically `docs/`, `skills/`). Use the compiler's loader so the
+    // validator's notion of "skill exists" matches the loader's exactly
+    // — same set of resolved IDs, same precedence rules, same flat-vs-
+    // directory tolerance.
+    //
+    // Previously this used `agents_dir.join("skills")` and only checked
+    // for `.ship/agents/skills/<id>.md` or `<id>/SKILL.md` — neither
+    // location anyone actually uses — so every skill ref failed and
+    // `ship validate` produced N false positives.
+    let ship_dir = agents_dir
+        .parent()
+        .map(|p| p.to_path_buf())
+        .unwrap_or_else(|| agents_dir.to_path_buf());
+
+    // 2. Skill refs resolve through the same loader the compiler uses.
+    let resolved_skill_ids: std::collections::HashSet<String> = load_skills(&ship_dir)
+        .map(|skills| skills.into_iter().map(|s| s.id).collect())
+        .unwrap_or_default();
     for skill_id in &agent.skills.refs {
-        if !skill_ref_exists(&skills_dir, skill_id) {
+        if !resolved_skill_ids.contains(skill_id) {
             errors.push(ValidationError {
                 agent: agent_id.to_string(),
                 file: agent_file.clone(),
                 error: format!(
-                    "skill '{}' not found in agents/skills/. Create it at .ship/skills/{}.md or run `ship install`",
+                    "skill '{}' not found via skill_paths. Add it to .ship/skills/{}/SKILL.md, \
+                     declare a `project.skill_paths` entry in ship.jsonc that contains it, or \
+                     run `ship install`",
                     skill_id, skill_id,
                 ),
             });
@@ -205,10 +227,6 @@ pub fn validate_agent(agent_id: &str, agent_path: &Path, agents_dir: &Path) -> A
     //    which looked at `.ship/agents/mcp.jsonc` and silently never
     //    found any servers — the validator was effectively a no-op for
     //    MCP entries written via `ship mcp add`.
-    let ship_dir = agents_dir
-        .parent()
-        .map(|p| p.to_path_buf())
-        .unwrap_or_else(|| agents_dir.to_path_buf());
     let mcp_path = ship_dir.join("mcp.jsonc");
     let mcp_file = load_mcp_file(&mcp_path);
     for server_id in &agent.mcp.servers {
@@ -273,21 +291,6 @@ pub fn validate_agent(agent_id: &str, agent_path: &Path, agents_dir: &Path) -> A
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-
-fn skill_ref_exists(skills_dir: &Path, skill_id: &str) -> bool {
-    if !skills_dir.exists() {
-        return false;
-    }
-    // Flat: skills/<id>.md
-    if skills_dir.join(format!("{}.md", skill_id)).exists() {
-        return true;
-    }
-    // Dir: skills/<id>/SKILL.md
-    if skills_dir.join(skill_id).join("SKILL.md").exists() {
-        return true;
-    }
-    false
-}
 
 fn load_mcp_file(path: &Path) -> McpFile {
     McpFile::load(path).unwrap_or_default()

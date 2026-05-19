@@ -20,5 +20,5 @@ This doc-skill is the published reference. Pages:
 
 ## See also
 
-- `.ship/skills/ship-design-system/SKILL.md` — impl skill for authoring tokens/themes inside `packages/ship-set/` (anti-smells, tone-ramp rules, theme quality bar).
-- `.ship/skills/ship-components/SKILL.md` — component-author charter; the "which token for which intent" table lives there.
+- `skills/ship-design-system/SKILL.md` — impl skill for authoring tokens/themes inside `packages/ship-set/` (anti-smells, tone-ramp rules, theme quality bar).
+- `skills/ship-components/SKILL.md` — component-author charter; the "which token for which intent" table lives there.

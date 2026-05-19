@@ -54,9 +54,33 @@ fn write_to_dot_git_denied() {
 }
 
 #[test]
-fn write_to_dot_claude_denied() {
+fn write_to_dot_claude_settings_denied() {
     let d = check(&write_payload(".claude/settings.json"), &ctx());
     assert!(matches!(d, Decision::Deny(_)));
+}
+
+#[test]
+fn write_to_dot_claude_local_settings_denied() {
+    let d = check(&write_payload(".claude/settings.local.json"), &ctx());
+    assert!(matches!(d, Decision::Deny(_)));
+}
+
+#[test]
+fn write_to_dot_claude_hooks_dir_denied() {
+    let d = check(&write_payload(".claude/hooks/before.sh"), &ctx());
+    assert!(matches!(d, Decision::Deny(_)));
+}
+
+#[test]
+fn write_to_dot_claude_skill_allowed() {
+    let d = check(&write_payload(".claude/skills/ship-sdk/SKILL.md"), &ctx());
+    assert_eq!(d, Decision::Allow);
+}
+
+#[test]
+fn write_to_dot_claude_command_allowed() {
+    let d = check(&write_payload(".claude/commands/foo.md"), &ctx());
+    assert_eq!(d, Decision::Allow);
 }
 
 #[test]

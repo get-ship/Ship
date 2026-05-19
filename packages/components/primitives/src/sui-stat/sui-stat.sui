@@ -77,7 +77,7 @@
     flex-wrap: wrap;
   }
   .value {
-    font-family: var(--heading-font, var(--font-body));
+    font-family: var(--heading-font);
     font-weight: var(--font-weight-bold);
     font-variant-numeric: tabular-nums;
     letter-spacing: -0.02em;

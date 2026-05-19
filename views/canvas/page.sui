@@ -4,13 +4,13 @@
 <div class="ship-view canvas-shell">
 
   <header class="canvas-header">
-    <div class="canvas-header-title">
+    <sui-cluster gap="2" align="center">
       <sui-icon name="image" aria-hidden="true"></sui-icon>
       <h1>Canvas</h1>
       <span class="canvas-id-chip" title="canvas session id">{shortId()}</span>
-    </div>
+    </sui-cluster>
 
-    <div class="canvas-header-actions">
+    <sui-cluster gap="2" align="center">
       {#if pairedAgentId()}
         <span class="canvas-pair-chip">
           <sui-icon name="user" aria-hidden="true"></sui-icon>
@@ -35,7 +35,7 @@
         <sui-icon name="save" aria-hidden="true"></sui-icon>
         Save
       </button>
-    </div>
+    </sui-cluster>
 
     {#if recentOpen()}
       <div class="canvas-recent-popover" role="dialog" aria-label="Recent canvases">
@@ -100,7 +100,7 @@
         <aside class="canvas-side-rail">
           <div class="canvas-rail-section">
             <div class="canvas-rail-section-title">Annotate</div>
-            <div class="canvas-rail-mode-row">
+            <sui-cluster gap="1">
               <button type="button" class="canvas-mode-btn"
                 class:active={annMode() === 'point'}
                 on:click={() => setAnnMode('point')}>Point</button>
@@ -110,7 +110,7 @@
               <button type="button" class="canvas-mode-btn"
                 class:active={annMode() === 'off'}
                 on:click={() => setAnnMode('off')}>Off</button>
-            </div>
+            </sui-cluster>
           </div>
 
           <div class="canvas-rail-section canvas-rail-thread">
@@ -120,14 +120,14 @@
             {#if annCount() === 0}
               <div class="canvas-rail-empty">No annotations queued.</div>
             {:else}
-              <div class="canvas-rail-thread-items">
+              <sui-stack gap="2">
                 {#for ann of annThread() key={ann.id}}
                   <div class="canvas-rail-thread-item">
                     <div class="canvas-rail-thread-kind">{ann.kind}</div>
                     <div class="canvas-rail-thread-note">{ann.note || '(no note)'}</div>
                   </div>
                 {/for}
-              </div>
+              </sui-stack>
             {/if}
           </div>
 

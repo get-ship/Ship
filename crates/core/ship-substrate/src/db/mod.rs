@@ -7,6 +7,7 @@
 
 pub mod actor_events;
 pub mod cursors;
+pub mod hook_events;
 pub mod daemon_settings;
 pub mod envelope;
 pub mod events;

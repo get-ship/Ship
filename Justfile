@@ -50,10 +50,10 @@ shell-dev:
 
 # Force a one-shot rebuild of every asset bundle served by the daemon
 # (sui-runtime, sui-dom, sui-components, islands, ship-elements, views/*).
-# Runs `runtime-assets/bundler.ts --all` against the installed bun toolchain.
+# Runs `runtime/bundler.ts --all` against the installed bun toolchain.
 [group('daily')]
 dev-build-all:
-    @bun runtime-assets/bundler.ts --all
+    @bun runtime/bundler.ts --all
 
 # Stop, rebuild, re-stash, start. Use after Rust changes.
 [group('daily')]
@@ -265,8 +265,8 @@ build:
     bun run --filter @ship/charts build
     echo "[4/8] ui-components build (sui-build → crates/sui/ship-sui-server/assets/)"
     bun run --filter @ship/ui-components build
-    echo "[5/8] view bundles + sui-* bundles (runtime-assets/bundler.ts --all)"
-    bun runtime-assets/bundler.ts --all
+    echo "[5/8] view bundles + sui-* bundles (runtime/bundler.ts --all)"
+    bun runtime/bundler.ts --all
     echo "[6/8] sui-catalog walk (→ .ship/sui-out/catalogs/{workspace,published}.json)"
     bun run --filter @ship/sui-catalog build
     bun packages/sui-catalog/src/cli.ts

@@ -45,6 +45,7 @@ pub mod agent_sessions_attach;
 mod agent_sessions_attach_tests;
 pub mod mcp_registry;
 pub mod agents_api;
+pub mod analytics_api;
 pub mod annotations_api;
 pub mod artifacts_api;
 pub mod collection_api;
@@ -896,6 +897,20 @@ pub enum Route {
     /// @route POST "/api/v1/actors/{actor_id}/kill-tree"
     /// @auth scope MeshSend
     KillTree { actor_id: String },
+
+    // ── Analytics (ship-analytics projection) ────────────────────────────
+
+    /// @route GET "/api/v1/analytics/sessions"
+    /// @auth scope ReadWorkspace
+    ListAnalyticsSessions,
+
+    /// @route GET "/api/v1/analytics/sessions/{session_key}"
+    /// @auth scope ReadWorkspace
+    GetAnalyticsSession { session_key: String },
+
+    /// @route GET "/api/v1/analytics/tool-usage"
+    /// @auth scope ReadWorkspace
+    AnalyticsToolUsage,
 
     // ── Collections ──────────────────────────────────────────────────────
 

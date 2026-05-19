@@ -53,14 +53,14 @@
     inset: 0;
     margin: auto;
     padding: 0;
-    border: 1px solid var(--border, #e5e5e5);
+    border: 1px solid var(--border);
     border-radius: var(--radius-lg, 8px);
-    background: var(--card, #fff);
-    color: var(--card-foreground, #111);
+    background: var(--card);
+    color: var(--card-foreground);
     width: calc(100vw - 32px);
     max-width: var(--dlg-max-w, 500px);
     max-height: min(calc(100vh - 32px), 85vh);
-    box-shadow: var(--shadow-xl, 0 20px 60px rgba(0,0,0,0.3));
+    box-shadow: var(--shadow-xl, 0 20px 60px color-mix(in oklch, var(--foreground) 30%, transparent));
     font-family: var(--font-body, system-ui);
     overflow: visible;
     display: flex;
@@ -82,7 +82,7 @@
   }
   dialog[open]::backdrop { opacity: 1; }
   :host([backdrop='blur']) dialog::backdrop { backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
-  :host([backdrop='solid']) dialog::backdrop { background: var(--background, #fff); }
+  :host([backdrop='solid']) dialog::backdrop { background: var(--background); }
 
   .sentinel { position: fixed; width: 1px; height: 1px; pointer-events: none; opacity: 0; }
 
@@ -92,7 +92,7 @@
     flex: 0 0 auto;
     font-size: var(--text-lg, 16px);
     font-weight: var(--font-weight-semibold, 600);
-    color: var(--foreground, #111);
+    color: var(--foreground);
   }
   :host([no-header]) .header { display: none; }
 
@@ -109,7 +109,7 @@
 
   .footer {
     padding: var(--dlg-fpy, 16px) var(--dlg-px, 24px);
-    border-top: 1px solid var(--border, #e5e5e5);
+    border-top: 1px solid var(--border);
     display: flex;
     gap: var(--space-2, 8px);
     justify-content: flex-end;
@@ -127,12 +127,12 @@
     background: transparent;
     border: 1px solid transparent;
     border-radius: var(--radius-md, 6px);
-    color: var(--muted-foreground, #888);
+    color: var(--muted-foreground);
     cursor: pointer; padding: 0; font: inherit; z-index: 1;
     transition: background-color var(--duration-fast, 120ms) var(--ease-out, ease-out),
       color var(--duration-fast, 120ms) var(--ease-out, ease-out);
   }
-  .close:hover { background: var(--muted, #f5f5f5); color: var(--foreground, #111); }
+  .close:hover { background: var(--muted); color: var(--foreground); }
   .close svg { width: 14px; height: 14px; display: block; }
   :host([no-close-button]) .close { display: none; }
 
