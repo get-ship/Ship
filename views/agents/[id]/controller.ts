@@ -1,5 +1,6 @@
 import { controller, derived, effect, live, signal, unwrap } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
+import { HUES, pickHue, pickInitials } from './hue'
 
 type Permissions = {
   preset?: string
@@ -30,31 +31,6 @@ type AgentDetail = {
 
 type WireResp = { agent?: AgentDetail } | null | undefined
 type Banner = { ok: true; msg: string } | { ok: false; msg: string } | null
-
-// Single source of truth for the per-agent hue palette. Mirrors the
-// 9-hue selection used in views/agents/create — keeping detail/create
-// in sync means the tile colour an author picked at create time also
-// shows up here without an extra mapping step.
-const HUES = [
-  'orange', 'amber', 'red', 'violet', 'blue',
-  'teal', 'green', 'pink', 'slate',
-] as const
-
-export function pickHue(id: string): string {
-  if (!id) return 'slate'
-  let h = 0
-  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) | 0
-  return HUES[Math.abs(h) % HUES.length]
-}
-
-export function pickInitials(id: string, name?: string): string {
-  const src = (id || name || '').trim()
-  if (!src) return '?'
-  const parts = src.split(/[-_\s]+/).filter(Boolean)
-  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase()
-  const head = parts[0] || src
-  return (head.length >= 2 ? head.slice(0, 2) : head).toUpperCase()
-}
 
 async function readActiveAgent(): Promise<string> {
   try {
