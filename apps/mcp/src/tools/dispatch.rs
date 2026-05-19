@@ -6,8 +6,14 @@
 
 use crate::requests::{DispatchAgentRequest, SteerAgentRequest, StopAgentRequest};
 
-/// Create a job via the daemon — the orchestrator handles worktree creation,
-/// agent compilation, and process spawning.
+/// Dispatch a single agent session via the daemon — the orchestrator
+/// handles worktree creation, agent compilation, and process spawning.
+///
+/// Uses the agent-session primitive (`/api/v1/agent_sessions/dispatch`,
+/// emits `agent.session.started`). A programmatic MCP dispatch is a
+/// background batch: no UI tab, PTY invocation (subscription-billed),
+/// one-shot (no keepalive). Operators wanting an interactive or
+/// keepalive session use the `ship use` CLI surface.
 pub async fn dispatch_agent(req: DispatchAgentRequest) -> String {
     let harness = req.harness.as_deref().unwrap_or("claude");
     let branch = format!("job/{}", req.slug);
@@ -16,12 +22,14 @@ pub async fn dispatch_agent(req: DispatchAgentRequest) -> String {
         "slug": req.slug,
         "agent": req.agent_profile,
         "branch": branch,
-        "spec_path": ".artifacts/job-spec.md",
         "harness": harness,
-        "spec_content": req.job_spec,
+        "spec": req.job_spec,
+        "open_tab": false,
+        "invocation": "pty",
+        "keepalive": false,
     });
 
-    match crate::network_client::create_job_via_daemon(body).await {
+    match crate::network_client::dispatch_agent_session_via_daemon(body).await {
         Ok(resp) => resp,
         Err(e) => format!("Error: {e}"),
     }

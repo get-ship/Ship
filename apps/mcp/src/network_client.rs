@@ -164,8 +164,18 @@ pub async fn actor_spawn(
         .ok_or_else(|| anyhow!("actor_spawn response missing data.actor_id: {body}"))
 }
 
-/// Create a job via the daemon's REST API. The daemon handles pipeline
-/// enrichment, persistence, kernel routing, and dispatch.
+/// Dispatch a single agent session via the daemon's agent-session
+/// primitive (`POST /api/v1/agent_sessions/dispatch`). The daemon emits
+/// `agent.session.started`; the orchestrator owns spawn + lifecycle.
+/// Used by the `dispatch_agent` tool (single-agent dispatch).
+pub async fn dispatch_agent_session_via_daemon(body: serde_json::Value) -> Result<String> {
+    post("/agent_sessions/dispatch", body).await
+}
+
+/// Create a multi-step / DAG job via the daemon (`POST /runtime/jobs`).
+/// Used by the `create_job` tool, which carries `depends_on` and is the
+/// pipeline-composition surface — distinct from single-agent dispatch.
+/// This legitimately stays on the pipeline-run primitive.
 pub async fn create_job_via_daemon(body: serde_json::Value) -> Result<String> {
     post("/runtime/jobs", body).await
 }
