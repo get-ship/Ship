@@ -1,10 +1,10 @@
-/* Shell 2.0 chrome layout — top bar + rail + content + status bar. */
+/* Shell chrome — three-zone layout: top strip (36px) + canvas (1fr) +
+   bottom strip (28px). The rail is gone from the shell mount; the chrome
+   stays out of the way of the canvas. */
 
 :root {
-  --ship-top-bar-h: 40px;
-  --ship-status-bar-h: 24px;
-  --ship-rail-w: 200px;
-  --ship-rail-w-collapsed: 48px;
+  --ship-top-bar-h: 36px;
+  --ship-status-bar-h: 28px;
   --ship-dock-height: 240px;
 }
 
@@ -15,42 +15,31 @@ html, body {
   background: var(--background, #fff);
   color: var(--foreground, #111);
   font-family: var(--font-body, system-ui, sans-serif);
+  overflow: hidden;
 }
 
-/* Five-area chrome grid:
-     cols: [rail] [content]
-     rows: [top-bar] [main] [dock] [status-bar]
-   Top bar, dock, and status bar span full width (1/-1).
-   Rail sits in row 2, col 1. Content in row 2, col 2.
-   Dock is row 3, spanning both columns; height 0 unless body.dock-open. */
+/* Three-row chrome grid:
+     row 1: top strip
+     row 2: canvas (the active view OR <sui-blank-canvas>)
+     row 3: optional panel dock (height 0 unless body.dock-open)
+     row 4: bottom strip
+   Dock floats in row 3 so opening it doesn't push the bottom strip off-
+   screen; collapsed it's height: 0. */
 #ship-app {
   display: grid;
-  grid-template-columns: auto 1fr;
+  grid-template-columns: 1fr;
   grid-template-rows: var(--ship-top-bar-h) 1fr auto var(--ship-status-bar-h);
-  column-gap: 6px;
   height: 100vh;
   overflow: hidden;
 }
 
-/* Legacy placeholder selector kept so existing inline styles degrade gracefully. */
-.ship-top-bar {
-  grid-column: 1 / -1;
-  grid-row: 1;
-}
-
-/* sui-nav-top grid placement — intrinsic styles live in :host */
-#ship-nav-top {
-  grid-column: 1 / -1;
-  grid-row: 1;
-}
-
-#ship-rail {
+#ship-shell-top {
   grid-column: 1;
-  grid-row: 2;
+  grid-row: 1;
 }
 
 .ship-content {
-  grid-column: 2;
+  grid-column: 1;
   grid-row: 2;
   display: flex;
   flex-direction: column;
@@ -65,7 +54,7 @@ html, body {
 }
 
 #ship-panel-dock {
-  grid-column: 1 / -1;
+  grid-column: 1;
   grid-row: 3;
   height: 0;
   overflow: hidden;
@@ -79,9 +68,9 @@ html, body {
 
 /* The dock's :host paints var(--shadow-edge-top), which includes a 1px
    top-edge component. box-shadow renders outside the box, so the line is
-   visible even when the host is height:0 / overflow:hidden — it reads as a
-   faint horizontal rule across the chrome. Suppress while collapsed; the
-   open state draws its own explicit border-top above. */
+   visible even when the host is height:0 / overflow:hidden — it reads as
+   a faint horizontal rule across the chrome. Suppress while collapsed;
+   the open state draws its own explicit border-top above. */
 body:not(.dock-open) #ship-panel-dock { --shadow-edge-top: none; }
 
 body.dock-open #ship-panel-dock {
@@ -91,12 +80,8 @@ body.dock-open #ship-panel-dock {
   transform: none;
 }
 
-/* Rail is icon-only (48px) when visible, display:none when hidden.
-   body.rail-hidden mirrors the rail's [collapsed] attribute so other
-   chrome surfaces (status bar, dock) can key off it without querying
-   the component directly. */
-body.rail-hidden #ship-rail {
-  display: none;
+body.dock-open.dock-popout #ship-panel-dock {
+  height: calc(100vh - var(--ship-top-bar-h) - var(--ship-status-bar-h));
 }
 
 /* body.edit-mode — set when edit mode is on for the active view.
@@ -106,30 +91,23 @@ body.edit-mode {}
 
 /* body.annotation-mode — sub-toggle inside edit mode. sui-edit-overlay
    watches this via MutationObserver and binds hover/click handlers.
-   Toggled by Shift+Alt+E or the crosshair button on the corner pill.
 
-   Crosshair is SCOPED to #ship-content (the view area) so the rail,
-   nav-top, dock, status bar, and corner pill keep their normal
-   pointers — pre-fix the crosshair leaked over chrome and confused
-   users about what was annotatable. */
+   Crosshair is SCOPED to #ship-content so the rest of the chrome keeps
+   normal pointers. */
 body.annotation-mode #ship-content,
 body.annotation-mode #ship-content * {
   cursor: crosshair !important;
 }
 
-/* Annotation mode also paints a subtle inner outline on the view
-   content area so the boundary between "thing I can annotate" and
-   "chrome" is unmistakable. */
+/* Annotation mode also paints a subtle inner outline on the view content
+   area so the boundary between "thing I can annotate" and "chrome" is
+   unmistakable. */
 body.annotation-mode #ship-content {
   outline: 2px dashed color-mix(in oklch, var(--warning, #d97706) 60%, transparent);
   outline-offset: -2px;
   background:
     linear-gradient(color-mix(in oklch, var(--warning, #d97706) 4%, transparent),
                     color-mix(in oklch, var(--warning, #d97706) 4%, transparent));
-}
-
-body.dock-open.dock-popout #ship-panel-dock {
-  height: calc(100vh - var(--ship-top-bar-h) - var(--ship-status-bar-h));
 }
 
 /* Suppress height transition during interactive resize drag. */
@@ -139,85 +117,16 @@ body.dock-open.dock-popout #ship-panel-dock {
   #ship-panel-dock { transition: none; transform: none; }
 }
 
-#ship-status-bar {
-  grid-column: 1 / -1;
+#ship-shell-bottom {
+  grid-column: 1;
   grid-row: 4;
 }
 
-.ship-brand-mark {
-  font-size: 18px;
-  color: var(--primary, #c46);
-  line-height: 1;
-}
-
-.ship-brand-title {
-  font-weight: 600;
-  letter-spacing: -0.01em;
-}
-
-.ship-top-nav {
-  flex: 1;
-  display: flex;
-  gap: var(--space-2, 8px);
-  align-items: center;
-}
-
-.ship-theme-toggle {
-  appearance: none;
-  border: 1px solid var(--border, #e5e5e5);
-  background: var(--background, #fff);
-  color: var(--foreground, #111);
-  font: inherit;
-  font-size: 13px;
-  width: 28px;
-  height: 28px;
-  border-radius: var(--radius-md, 6px);
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.ship-theme-toggle:hover {
-  background: var(--muted, #f0f0f0);
-}
-
-.shell-error {
-  display: grid;
-  place-items: center;
-  padding: 4rem 2rem;
-  min-height: 50vh;
-  color: var(--muted-foreground);
-  text-align: center;
-  gap: 1rem;
-}
-.shell-error h2 { font-size: 1.5rem; color: var(--foreground); margin: 0; }
-.shell-error p  { margin: 0; }
-.shell-error a  { color: var(--primary); text-decoration: none; }
-.shell-error a:hover { text-decoration: underline; }
-
-.shell-empty {
-  padding: 2rem;
-  text-align: center;
-  color: var(--muted-foreground, #666);
-}
-.shell-empty h2 {
-  margin: 0 0 0.5rem;
-  font-size: 1.25rem;
-  color: var(--foreground, #111);
-}
-.shell-empty a {
-  color: var(--primary, #c46);
-  text-decoration: none;
-}
-.shell-empty a:hover {
-  text-decoration: underline;
-}
-
 /* Chrome IPC breadcrumb slot — populated by `chrome.breadcrumb.set(...)`.
-   Hidden when no items are claimed. */
+   Inserted just below #ship-shell-top so view-stamped breadcrumbs appear
+   between the top strip and the canvas. Hidden when no items are claimed. */
 #ship-breadcrumb-slot {
-  grid-column: 1 / -1;
+  grid-column: 1;
   display: flex;
   align-items: center;
   gap: var(--space-1, 4px);
@@ -237,11 +146,24 @@ body.dock-open.dock-popout #ship-panel-dock {
 .ship-breadcrumb-link:hover { color: var(--foreground, #111); }
 .ship-breadcrumb-current { color: var(--foreground, #111); font-weight: 500; }
 
-/* Focus mode — `chrome.focus.enter()` hides rail + status, letting the
+.shell-error {
+  display: grid;
+  place-items: center;
+  padding: 4rem 2rem;
+  min-height: 50vh;
+  color: var(--muted-foreground);
+  text-align: center;
+  gap: 1rem;
+}
+.shell-error h2 { font-size: 1.5rem; color: var(--foreground); margin: 0; }
+.shell-error p  { margin: 0; }
+.shell-error a  { color: var(--primary); text-decoration: none; }
+.shell-error a:hover { text-decoration: underline; }
+
+/* Focus mode — `chrome.focus.enter()` hides the strips, letting the
    active view take the whole chrome canvas. */
-body.focus-mode #ship-rail,
-body.focus-mode #ship-status-bar,
-body.focus-mode #ship-breadcrumb-slot {
+body.focus-mode #ship-shell-top,
+body.focus-mode #ship-shell-bottom {
   display: none;
 }
 
