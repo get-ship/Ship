@@ -28,6 +28,7 @@
     gap: var(--space-3, 12px);
     height: 36px;
     padding: 0 var(--space-4, 16px);
+    box-sizing: border-box;
     background: color-mix(in oklch, var(--surface-1) 88%, transparent);
     border-bottom: 1px solid var(--border-subtle);
     backdrop-filter: blur(10px);
