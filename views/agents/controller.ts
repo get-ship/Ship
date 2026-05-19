@@ -1,5 +1,10 @@
 import { controller, signal, unwrap, live, derived } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
+// Reuse the agent-detail hue derivation so a card's tile and the detail
+// page it links to land on the same colour — one source of truth, no
+// parallel palette. (Reading a sibling route's helper, not editing it.)
+import { pickHue } from './[id]/hue'
+import { matchesKind, matchesQuery } from './filter'
 
 type AgentStatus = 'running' | 'completed' | 'errored'
 
@@ -15,26 +20,6 @@ interface AgentSummary {
 interface EventRow { event_type: string; actor: string; timestamp: string }
 interface EventsEnvelope { groups: Array<{ rows: EventRow[] }> }
 interface KindFilter { id: 'all' | 'project' | 'user'; label: string; count: number }
-
-function matchesKind(a: AgentSummary, kind: KindFilter['id']): boolean {
-  if (kind === 'all') return true
-  if (kind === 'project') return a.source === 'PROJECT AGENTS'
-  if (kind === 'user') return a.source === 'USER AGENTS'
-  return true
-}
-
-function matchesQuery(a: AgentSummary, q: string): boolean {
-  if (!q) return true
-  const needle = q.toLowerCase().trim()
-  if (!needle) return true
-  if (a.name.toLowerCase().includes(needle)) return true
-  if (a.id.toLowerCase().includes(needle)) return true
-  if ((a.description || '').toLowerCase().includes(needle)) return true
-  for (const t of a.tags ?? []) {
-    if (t.toLowerCase().includes(needle)) return true
-  }
-  return false
-}
 
 export default controller<Scope>({
   scope: ({ ship }) => {
@@ -71,7 +56,11 @@ export default controller<Scope>({
       // Call them before using; cast assertions don't unwrap at runtime.
       const k = (typeof kind === 'function' ? kind() : kind) as KindFilter['id']
       const term = (typeof q === 'function' ? q() : q) as string
-      return all.filter((a) => matchesKind(a, k) && matchesQuery(a, term ?? ''))
+      // Attach the tile hue here: renderable expressions can't call a
+      // helper with args, so the card reads `a.hue` as a plain field.
+      return all
+        .filter((a) => matchesKind(a, k) && matchesQuery(a, term ?? ''))
+        .map((a) => ({ ...a, hue: pickHue(a.id) }))
     },
     activeId: ({ agents }) => {
       const all = (unwrap(agents)?.items ?? []) as AgentSummary[]
