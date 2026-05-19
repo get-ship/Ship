@@ -333,9 +333,28 @@ async fn advance_pipeline_inner(
                         // the gate/retry/output lifecycle. Full inversion
                         // (composer becomes pure emit) is a follow-up.
                         let step_session_id = ship_substrate::gen_ulid();
+                        // Composed-session slug must be unique per step —
+                        // agent_sessions.slug is UNIQUE, and a multi-step
+                        // pipeline reuses the SAME job slug across steps.
+                        // Derive `<job_slug>::<step_id>` so each step's
+                        // session row has its own identity; the routing /
+                        // worktree key stays the job slug (used for
+                        // registry.register below). The composed slug is
+                        // informational — the row's PK is session_id.
+                        let session_slug = format!("{slug}::{}", step.id);
+                        // Invocation: per-step field (5b-1) is the source of
+                        // truth; fall back to the run-level headless flag
+                        // during the transition (removed in 5b-5).
+                        let invocation = match step.invocation.as_deref() {
+                            Some("print") => InvocationMode::Print,
+                            Some("stream") => InvocationMode::Stream,
+                            Some("pty") => InvocationMode::Pty,
+                            _ if job.headless => InvocationMode::Print,
+                            _ => InvocationMode::Pty,
+                        };
                         let started_payload = AgentSessionStartedPayload {
                             session_id: step_session_id.clone(),
-                            slug: slug.clone(),
+                            slug: session_slug.clone(),
                             agent: agent.to_string(),
                             harness: step.harness.clone(),
                             model: step.model.clone(),
@@ -343,11 +362,7 @@ async fn advance_pipeline_inner(
                             branch: job.branch.clone(),
                             source_spec_path: job.source_spec_path.clone(),
                             open_tab: !job.headless,
-                            invocation: if job.headless {
-                                InvocationMode::Print
-                            } else {
-                                InvocationMode::Pty
-                            },
+                            invocation,
                             keepalive: false,
                             prompt: None,
                             spec: None,
@@ -362,7 +377,7 @@ async fn advance_pipeline_inner(
                         emit_agent_session_dispatched(
                             kernel,
                             &step_session_id,
-                            slug,
+                            &session_slug,
                             &worktree_path.to_string_lossy(),
                             cmd_label,
                             step.model.as_deref(),

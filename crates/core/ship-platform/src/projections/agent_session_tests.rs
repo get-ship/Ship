@@ -1,9 +1,10 @@
-//! Pure-fold tests for the agent-session projection. SQL-backed
-//! variant lives in tests under `apps/shipd/src/supervisor/`.
+//! Pure-fold tests for the agent-session projection, plus a SQL-backed
+//! slug-uniqueness regression.
 
-use super::{project, AgentSessionStatus, status_for};
+use super::{project, AgentSession, AgentSessionProjection, AgentSessionStatus, status_for};
 use ship_substrate::events::EventEnvelope;
 use ship_substrate::events::agent_session::{event_types, InvocationMode};
+use ship_substrate::projections::registry::Projection;
 
 fn started(session_id: &str, slug: &str) -> EventEnvelope {
     EventEnvelope::new(
@@ -277,4 +278,77 @@ fn terminal_states() {
     assert!(!AgentSessionStatus::Pending.is_terminal());
     assert!(!AgentSessionStatus::Dispatched.is_terminal());
     assert!(!AgentSessionStatus::AwaitingPush.is_terminal());
+}
+
+// ── SQL-backed: slug-uniqueness regression (Phase 5b) ───────────────
+//
+// agent_sessions.slug is UNIQUE. A multi-step pipeline composes N
+// sessions that all share the SAME job slug. Phase 5's first cut
+// emitted each step's agent.session.started with the bare job slug —
+// the second step would violate the UNIQUE constraint inside the
+// event-append transaction, potentially rolling back the event write.
+// The fix derives a per-step slug (`<job_slug>::<step_id>`). These
+// tests pin both halves: same-slug collides (proving the constraint
+// is real), distinct-slug both land (proving the fix works).
+
+fn started_full(session_id: &str, slug: &str) -> EventEnvelope {
+    EventEnvelope::new(
+        event_types::AGENT_SESSION_STARTED,
+        session_id,
+        &serde_json::json!({
+            "session_id": session_id,
+            "slug": slug,
+            "agent": "rust-lane",
+            "workspace": "ws",
+            "branch": "job/ws",
+            "open_tab": false,
+            "invocation": "pty",
+            "keepalive": false,
+            "parent_pipeline_run_id": "01HV-PIPELINE",
+        }),
+    )
+    .unwrap()
+}
+
+fn fresh_conn() -> (tempfile::TempDir, sqlx::SqliteConnection) {
+    let tmp = tempfile::tempdir().unwrap();
+    ship_substrate::db::ensure_db_at(tmp.path()).unwrap();
+    let conn =
+        ship_substrate::db::open_db_at(&ship_substrate::db::platform_db_path(tmp.path())).unwrap();
+    (tmp, conn)
+}
+
+#[test]
+fn sql_two_sessions_same_slug_collide() {
+    let (_tmp, mut conn) = fresh_conn();
+    let proj = AgentSessionProjection;
+    // First step's session — succeeds.
+    proj.apply(&started_full("01HV-S1", "ws-job"), &mut conn)
+        .expect("first row inserts");
+    // Second step reuses the bare job slug — UNIQUE(slug) rejects it.
+    let err = proj
+        .apply(&started_full("01HV-S2", "ws-job"), &mut conn)
+        .expect_err("second row with duplicate slug must violate UNIQUE(slug)");
+    let msg = err.to_string().to_lowercase();
+    assert!(
+        msg.contains("unique") || msg.contains("constraint"),
+        "expected a UNIQUE-constraint error, got: {err}"
+    );
+}
+
+#[test]
+fn sql_two_sessions_distinct_slug_both_land() {
+    let (tmp, mut conn) = fresh_conn();
+    let proj = AgentSessionProjection;
+    // The fix: each composed step gets `<job_slug>::<step_id>`.
+    proj.apply(&started_full("01HV-S1", "ws-job::implement"), &mut conn)
+        .expect("step 1 inserts");
+    proj.apply(&started_full("01HV-S2", "ws-job::review"), &mut conn)
+        .expect("step 2 inserts — distinct slug, no collision");
+
+    let sessions: std::collections::HashMap<String, AgentSession> =
+        super::load_sessions_at(tmp.path()).unwrap();
+    assert_eq!(sessions.len(), 2, "both composed-step sessions persisted");
+    assert!(sessions.contains_key("01HV-S1"));
+    assert!(sessions.contains_key("01HV-S2"));
 }
