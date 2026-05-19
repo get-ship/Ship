@@ -1,12 +1,11 @@
-//! Sidecar wire protocol — request/response/event types.
+//! **Legacy sidecar wire protocol** — kept only for the host-side
+//! `backends::youki_sidecar` driver.
 //!
-//! All messages are JSON. Requests are HTTP POST to `/v1/<verb>`. Events
-//! stream from `GET /v1/events` as Server-Sent Events with one JSON object
-//! per `data:` line. Health probe is `GET /v1/health` → `200 OK` with
-//! `{"status":"ok","version":"<sidecar semver>"}`.
-//!
-//! Endpoints intentionally mirror the trait surface in `ship_substrate::isolation`
-//! so the same types serialize to either local transport or cloud HTTPS.
+//! The canonical sidecar protocol is now ship.sidecar.v1 over
+//! ConnectRPC; see [`super::proto`]. The in-sandbox daemon
+//! (`bin/ship-sidecar/`) speaks that. Once `youki_sidecar` is
+//! ported to the `ProcessesClient` + `EventsClient` shape, this
+//! module deletes.
 
 use serde::{Deserialize, Serialize};
 

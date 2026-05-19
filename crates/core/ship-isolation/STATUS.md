@@ -1,10 +1,20 @@
 # ship-isolation — status
 
-**Phase:** Phase B near-complete. Tier 1 honest (HarnessNative +
-SrtWrapper, per-(harness × OS) adapter table, supervisor enforcement).
-Tier 2 has one strategy lifecycle-wired end-to-end (DockerEngine via
-SandboxOwner). Protocol v1 frozen in protobuf via ConnectRPC; sidecar
-handler rewrite is the next chunk.
+**Phase:** Phase B complete; entering Phase C. Tier 1 honest
+(HarnessNative + SrtWrapper, per-(harness × OS) adapter table,
+supervisor enforcement). Tier 2 has one strategy lifecycle-wired
+end-to-end (DockerEngine via SandboxOwner). Protocol v1 frozen
+in protobuf via ConnectRPC, and the in-sandbox **sidecar binary
+now speaks it natively** — `bin/ship-sidecar/` rewritten around
+`Handshake` + `Processes` + `Events.Stream` ConnectRPC handlers
+with 8 end-to-end client tests.
+
+**Next chunk:** port the host-side `backends::youki_sidecar`
+driver from its legacy reqwest+SSE wrapper over the old JSON
+protocol to the generated `ProcessesClient` / `EventsClient`.
+That cutover lets us delete `sidecar::protocol` entirely and
+unblocks YoukiRootless lifecycle wiring via the same
+SandboxOwner pattern DockerEngine uses today.
 
 See:
 - `docs/strategy.md` — design intent
@@ -32,6 +42,12 @@ See:
   Events.Stream (bidi envelope for stdout/exit/permission/secret/setting/
   hook/log_progress). 7 codegen smoke tests; per-tier transport
   documented (unix socket / vsock / TCP+TLS).
+- **Sidecar binary** — `bin/ship-sidecar/` rewritten around the v1
+  proto. Three handler impls (Handshake / Processes / Events) over
+  a process registry keyed by string id with a broadcast envelope
+  bus. 8 end-to-end tests drive the generated ConnectRPC clients
+  against the spawned binary; PTY paths return Unimplemented for
+  v1.0 (no pty-backed processes yet).
 - **Daemon API** — 6 endpoints under `/api/v1/isolation/*` (status,
   rescan, recommendations, preview, verify, init); 13 integration tests
   cover wire shapes + the init+verify atomic contract.
@@ -50,16 +66,20 @@ See:
 
 ## Known gaps
 
-1. **Sidecar handlers still use legacy JSON.** `bin/ship-sidecar/`
-   speaks the hand-typed protocol. Rewriting handlers to ConnectRPC
-   routing against the v1 .proto is the next chunk.
-2. **No host-side ConnectRPC client** in backends. Sidecar protocol is
-   defined; the Docker/Youki/Fly backends will use it once the sidecar
-   handlers are ported. Today DockerEngine drives via `docker exec`
-   (no sidecar — see `wrap_for_external_spawn`).
+1. **Host-side `youki_sidecar` driver still uses legacy JSON.** The
+   sidecar binary speaks ConnectRPC but `backends::youki_sidecar`
+   still wraps it via reqwest + SSE against the deprecated
+   `sidecar::protocol` types. Port to `ProcessesClient` +
+   `EventsClient` is the next chunk; that lets us delete
+   `sidecar::protocol` entirely.
+2. **DockerEngine has no host-side ConnectRPC client.** Today it
+   drives via `docker exec` (no sidecar — see
+   `wrap_for_external_spawn`). Adding the ConnectRPC client path
+   is the option for richer in-container control (e.g., per-process
+   stop/kill without a fresh exec).
 3. **YoukiRootless lifecycle not yet SandboxOwner-attached.** Same
-   pattern as DockerEngine but the existing `bin/ship-sidecar/` build
-   process needs the protocol port first.
+   pattern as DockerEngine; gated on the youki_sidecar driver
+   port (#1) since youki's prepared container *is* the sidecar.
 4. **WSL2 / LimaVm / FlyMachines** — strategies declared, capability-
    probed, no backend implementations yet. Each is a separate chunk.
 5. **Tier 1 supervisor enforcement matrix** — exercises HarnessNative
@@ -143,6 +163,7 @@ packages/ui-components
 ## Test counts (all green)
 
 - 81  ship-isolation lib + 7 proto smoke + 6 docker (live, skip)
+- 8  ship-sidecar v1 end-to-end (ConnectRPC clients vs spawned binary)
 - 361 ship-substrate lib (includes 2 SandboxOwner Drop tests)
 - 33  ship-supervisor lib
 - 1055 ship-platform lib
