@@ -3,6 +3,7 @@
 //! A pipeline is a DAG of steps. Each step declares dependencies via `after`.
 //! When a step completes, unblocked steps are found and dispatched.
 
+use ship_substrate::events::agent_session::{AgentSessionStartedPayload, InvocationMode};
 use ship_substrate::events::pipeline::StepType;
 use ship_substrate::events::EventEnvelope;
 use crate::projections::job::load_jobs_at;
@@ -10,6 +11,7 @@ use crate::services::dispatch_ports::{JobContext, LaunchProfile};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
+use super::dispatch::{emit_agent_session_dispatched, emit_agent_session_started_for_pipeline_step};
 use super::emit::{
     emit_job_dispatched_with_meta, emit_process_spawned, emit_step_dispatched_event,
     emit_step_failed,
@@ -310,12 +312,64 @@ async fn advance_pipeline_inner(
                     Ok(handle) => {
                         let exec_kind = if job.headless { "process" } else { "pty" };
                         let cmd_label = step.harness.as_deref().unwrap_or("claude");
+                        let pid = handle.pid;
                         emit_process_spawned(
-                            kernel, slug, &job.job_id, handle.pid,
+                            kernel, slug, &job.job_id, pid,
                             cmd_label, &[], &[],
                             &worktree_path.to_string_lossy(),
                             exec_kind, Some(&step.id),
                         ).await;
+
+                        // Phase 5 of the agent-primitive inversion: every
+                        // dispatched step also surfaces as an agent_session
+                        // row so bare and pipeline-composed dispatches
+                        // share one read model. parent_pipeline_run_id ties
+                        // the session back to its composing pipeline run;
+                        // handle_agent_session_started skips events with
+                        // this field set (the composer here owns spawn).
+                        //
+                        // Conservative version: emits started + dispatched
+                        // for observability; pipeline.step.* still carries
+                        // the gate/retry/output lifecycle. Full inversion
+                        // (composer becomes pure emit) is a follow-up.
+                        let step_session_id = ship_substrate::gen_ulid();
+                        let started_payload = AgentSessionStartedPayload {
+                            session_id: step_session_id.clone(),
+                            slug: slug.clone(),
+                            agent: agent.to_string(),
+                            harness: step.harness.clone(),
+                            model: step.model.clone(),
+                            workspace: job.branch.clone(),
+                            branch: job.branch.clone(),
+                            source_spec_path: job.source_spec_path.clone(),
+                            open_tab: !job.headless,
+                            invocation: if job.headless {
+                                InvocationMode::Print
+                            } else {
+                                InvocationMode::Pty
+                            },
+                            keepalive: false,
+                            prompt: None,
+                            spec: None,
+                            resume: false,
+                            resume_session_id: None,
+                            depends_on: None,
+                            vars: job.vars.clone(),
+                            baseline_sha: job.baseline_sha.clone(),
+                            parent_pipeline_run_id: Some(job.job_id.clone()),
+                        };
+                        emit_agent_session_started_for_pipeline_step(kernel, &started_payload).await;
+                        emit_agent_session_dispatched(
+                            kernel,
+                            &step_session_id,
+                            slug,
+                            &worktree_path.to_string_lossy(),
+                            cmd_label,
+                            step.model.as_deref(),
+                            pid,
+                        )
+                        .await;
+
                         octx.registry.register(slug, handle).await;
                         let monitor = StepMonitor::new(
                             job.job_id.clone(),

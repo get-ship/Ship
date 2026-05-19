@@ -267,6 +267,22 @@ pub async fn handle_agent_session_started(
         }
     };
 
+    // Pipeline-composed sessions: the pipeline runner spawns the
+    // harness itself (it has step-monitor concerns this handler
+    // doesn't cover — gates, retries, output promotion, fanout). The
+    // agent.session.started emitted by the composer is purely for
+    // observability — it populates agent_sessions so bare and
+    // composed dispatches share one read model. Skip the spawn here
+    // to avoid double-spawn.
+    if payload.parent_pipeline_run_id.is_some() {
+        tracing::debug!(
+            slug = payload.slug, session_id = payload.session_id,
+            parent = ?payload.parent_pipeline_run_id,
+            "agent-session-dispatch: composed by pipeline — skip spawn (composer owns it)"
+        );
+        return;
+    }
+
     if let Some(deps) = &payload.depends_on
         && !deps.is_empty()
     {
@@ -487,7 +503,21 @@ fn start_agent_session_exit_handler(
     });
 }
 
-async fn emit_agent_session_dispatched(
+pub(crate) async fn emit_agent_session_started_for_pipeline_step(
+    kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
+    payload: &AgentSessionStartedPayload,
+) {
+    if let Ok(env) = EventEnvelope::new(
+        agent_session_event_types::AGENT_SESSION_STARTED,
+        &payload.session_id,
+        payload,
+    ) {
+        let env = env.with_actor_id("service.pipeline-composer");
+        persist_and_route(kernel, env, &payload.slug, None).await;
+    }
+}
+
+pub(crate) async fn emit_agent_session_dispatched(
     kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
     session_id: &str,
     slug: &str,
