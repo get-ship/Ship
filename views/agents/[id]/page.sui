@@ -1,5 +1,5 @@
 {#while-loading of wireCtx}
-  <sui-spinner size="md" style="margin: var(--space-8) auto; display:block"></sui-spinner>
+  <sui-spinner size="md" centered></sui-spinner>
 {/while-loading}
 {#while-error err of wireCtx}
   <sui-view-chrome title={'Agent: ' + agentId()}>

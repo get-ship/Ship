@@ -1,5 +1,5 @@
 {#while-loading of settings}
-  <sui-spinner size="md" style="margin: var(--space-8) auto; display:block"></sui-spinner>
+  <sui-spinner size="md" centered></sui-spinner>
 {/while-loading}
 {#while-error err of settings}
   <p style="padding:var(--space-4); color:var(--destructive)">{err.message}</p>

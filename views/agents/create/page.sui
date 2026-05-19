@@ -21,7 +21,7 @@
   </div>
 
   {#while-loading of createCtx}
-    <sui-spinner size="md" style="margin: var(--space-8) auto; display:block"></sui-spinner>
+    <sui-spinner size="md" centered></sui-spinner>
   {/while-loading}
 
   {#if createCtx().kind === 'ok'}
