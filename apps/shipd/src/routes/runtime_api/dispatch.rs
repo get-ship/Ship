@@ -382,6 +382,7 @@ fn load_and_validate_session_file(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::auth::Scope;
     use std::sync::Arc;
     use tempfile::TempDir;
 
@@ -427,6 +428,7 @@ mod tests {
             source_spec_path: None,
             depends_on: None,
             vars: None,
+            keepalive: false,
         };
         let resp = dispatch_agent_session(State(state), full_auth(), Json(req))
             .await
@@ -538,6 +540,7 @@ mod tests {
             source_spec_path: None,
             depends_on: None,
             vars: None,
+            keepalive: false,
         };
         let resp = dispatch_agent_session(State(state), full_auth(), Json(req))
             .await
@@ -570,6 +573,7 @@ mod tests {
             source_spec_path: None,
             depends_on: None,
             vars: None,
+            keepalive: false,
         };
         let resp = dispatch_agent_session(State(state), full_auth(), Json(req))
             .await

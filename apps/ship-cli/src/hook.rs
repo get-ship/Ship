@@ -185,6 +185,16 @@ pub fn run_before_tool() -> Result<()> {
             .map(|h| h.port),
     };
     if let tool_gate::Decision::Deny(reason) = tool_gate::check(&stdin, &ctx) {
+        // Best-effort log the denial to the daemon so analytics +
+        // dashboards can surface blocked tool attempts. Failures here
+        // must not affect the deny semantics — print the deny shape
+        // either way so the harness still blocks.
+        let mut body = normalize_stdin(&stdin, "permission-denied");
+        body["reason"] = serde_json::Value::String(reason.clone());
+        body["denied_by"] = serde_json::Value::String("ship-gate".to_string());
+        if let Err(e) = post_to_daemon("permission-denied", &body) {
+            eprintln!("ship hook: permission-denied log failed ({e})");
+        }
         println!(
             "{}",
             serde_json::json!({

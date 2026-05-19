@@ -419,6 +419,7 @@ mod tests {
             resume: false,
             resume_session_id: None,
             baseline_sha: None,
+            keepalive: false,
         };
         let env = EventEnvelope::new(event_types::PIPELINE_RUN_STARTED, &job_id, &payload)
             .unwrap()
