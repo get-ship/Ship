@@ -164,6 +164,20 @@ pub struct PipelineStep {
     /// When present, run K parallel lanes instead of a single agent.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub fanout: Option<FanoutSpec>,
+    /// Harness invocation mode for this step: `"pty"` (default;
+    /// subscription-billed for claude), `"print"` (one-shot, API-billed
+    /// for claude post-2026-06), or `"stream"` (server-mode, codex /
+    /// opencode only). When unset, the runner falls back to the
+    /// run-level default (legacy `headless` flag during transition;
+    /// `pty` once that field is removed in Phase 5b-5).
+    ///
+    /// Wire shape is a lowercase string so JSONC pipelines stay
+    /// human-editable without referencing the substrate enum.
+    /// `ship-platform::services::orchestrator` converts to
+    /// `ship_substrate::events::agent_session::InvocationMode` at
+    /// spawn time.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub invocation: Option<String>,
 }
 
 impl<'de> serde::Deserialize<'de> for PipelineStep {
@@ -197,6 +211,8 @@ impl<'de> serde::Deserialize<'de> for PipelineStep {
             promotes: Vec<StepPromote>,
             #[serde(default)]
             fanout: Option<FanoutSpec>,
+            #[serde(default)]
+            invocation: Option<String>,
         }
         let raw = Raw::deserialize(d)?;
         let step_type = raw.step_type.unwrap_or_else(|| {
@@ -206,6 +222,16 @@ impl<'de> serde::Deserialize<'de> for PipelineStep {
                 StepType::Agent
             }
         });
+        // Validate invocation if present — caller-friendly error
+        // surfaces here rather than letting a downstream enum-parse
+        // fail with a less informative message.
+        if let Some(ref inv) = raw.invocation
+            && !matches!(inv.as_str(), "pty" | "print" | "stream")
+        {
+            return Err(serde::de::Error::custom(format!(
+                "invocation must be one of: pty, print, stream (got `{inv}`)"
+            )));
+        }
         Ok(PipelineStep {
             id: raw.id,
             step_type,
@@ -221,6 +247,7 @@ impl<'de> serde::Deserialize<'de> for PipelineStep {
             consumes: raw.consumes,
             promotes: raw.promotes,
             fanout: raw.fanout,
+            invocation: raw.invocation,
         })
     }
 }
@@ -313,6 +340,67 @@ mod tests {
         assert!(serde_json::from_str::<PipelineStep>(json).is_err());
     }
 
+    #[test]
+    fn invocation_field_defaults_to_none() {
+        // Pipelines without an invocation field stay None — the
+        // pipeline runner falls back to the run-level default
+        // (transitional via headless flag; will become pty once
+        // 5b-5 removes the run-level field).
+        let json = r#"{ "id": "review", "type": "agent", "agent": "reviewer" }"#;
+        let s: PipelineStep = serde_json::from_str(json).unwrap();
+        assert!(s.invocation.is_none());
+    }
+
+    #[test]
+    fn invocation_field_accepts_pty_print_stream() {
+        for mode in ["pty", "print", "stream"] {
+            let json = format!(
+                r#"{{ "id": "x", "type": "agent", "agent": "a", "invocation": "{mode}" }}"#
+            );
+            let s: PipelineStep = serde_json::from_str(&json)
+                .unwrap_or_else(|e| panic!("must parse invocation={mode}: {e}"));
+            assert_eq!(s.invocation.as_deref(), Some(mode));
+        }
+    }
+
+    #[test]
+    fn invocation_field_rejects_invalid_value() {
+        let json = r#"{ "id": "x", "type": "agent", "agent": "a", "invocation": "bogus" }"#;
+        let err = serde_json::from_str::<PipelineStep>(json)
+            .err()
+            .expect("must reject invalid invocation");
+        let msg = err.to_string();
+        assert!(
+            msg.contains("invocation") && msg.contains("pty, print, stream"),
+            "error must surface valid options, got: {msg}"
+        );
+    }
+
+    #[test]
+    fn invocation_field_roundtrips_in_serialize() {
+        let step = PipelineStep {
+            id: "x".into(),
+            step_type: StepType::Agent,
+            agent: Some("a".into()),
+            goal: None,
+            after: vec![],
+            model: None,
+            harness: None,
+            command: None,
+            max_retries: None,
+            gate: None,
+            produces: vec![],
+            consumes: vec![],
+            promotes: vec![],
+            fanout: None,
+            invocation: Some("print".into()),
+        };
+        let json = serde_json::to_string(&step).unwrap();
+        assert!(json.contains("\"invocation\":\"print\""));
+        let parsed: PipelineStep = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.invocation.as_deref(), Some("print"));
+    }
+
     fn step(id: &str, after: &[&str]) -> PipelineStep {
         PipelineStep {
             id: id.into(),
@@ -329,6 +417,7 @@ mod tests {
             consumes: vec![],
             promotes: vec![],
             fanout: None,
+            invocation: None,
         }
     }
 }

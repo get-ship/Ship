@@ -61,6 +61,8 @@ pub fn interpolate_step(
         consumes: step.consumes.clone(),
         promotes: step.promotes.clone(),
         fanout: step.fanout.clone(),
+        // invocation is a closed-set enum string; no interpolation.
+        invocation: step.invocation.clone(),
     })
 }
 
@@ -85,6 +87,7 @@ mod tests {
             consumes: vec![],
             promotes: vec![],
             fanout: None,
+            invocation: None,
         }
     }
 

@@ -297,6 +297,7 @@ fn one_step_pipeline(step_id: &str, step_type: ship_substrate::events::pipeline:
             consumes: vec![],
             promotes: vec![],
             fanout: None,
+            invocation: None,
         }],
     }
 }
