@@ -7,14 +7,19 @@ fn opts(agent: &str) -> LaunchOpts {
         agent: agent.to_string(),
         path: None,
         launch: false,
-        auto: false,
         resume: false,
         prompt: None,
         spec: None,
         harness: None,
         model: None,
+        detach: false,
+        transport: None,
+        keepalive: false,
+        no_keepalive: false,
     }
 }
+
+// ── should_launch contract ─────────────────────────────────────────
 
 #[test]
 fn no_launch_flags_means_no_dispatch() {
@@ -29,9 +34,9 @@ fn explicit_launch_triggers_dispatch() {
 }
 
 #[test]
-fn auto_implies_launch() {
+fn detach_implies_launch() {
     let mut o = opts("rust-lane");
-    o.auto = true;
+    o.detach = true;
     assert!(should_launch(&o));
 }
 
@@ -57,35 +62,103 @@ fn spec_implies_launch() {
 }
 
 #[test]
+fn transport_implies_launch() {
+    let mut o = opts("rust-lane");
+    o.transport = Some("print".into());
+    assert!(should_launch(&o));
+}
+
+#[test]
+fn keepalive_implies_launch() {
+    let mut o = opts("rust-lane");
+    o.keepalive = true;
+    assert!(should_launch(&o));
+}
+
+#[test]
 fn path_alone_does_not_imply_launch() {
     let mut o = opts("rust-lane");
     o.path = Some(PathBuf::from("/tmp/proj"));
     assert!(!should_launch(&o));
 }
 
+// ── build_dispatch_body / new orthogonal axes ──────────────────────
+
 #[test]
-fn body_for_bare_launch_sets_interactive_defaults() {
+fn bare_launch_defaults_to_foreground_chat() {
+    // No flags: chat shape — open_tab=true, invocation=pty, keepalive=true.
     let mut o = opts("rust-lane");
     o.launch = true;
     let body = build_dispatch_body(&o, &PathBuf::from("/tmp/proj")).unwrap();
     assert_eq!(body["agent"], "rust-lane");
-    assert_eq!(body["auto"], false);
+    assert_eq!(body["open_tab"], true);
+    assert_eq!(body["invocation"], "pty");
+    assert_eq!(body["keepalive"], true);
     assert_eq!(body["resume"], false);
     assert_eq!(body["workspace"], "proj");
-    assert!(body.get("prompt").is_none());
-    assert!(body.get("spec").is_none());
-    assert!(body.get("harness").is_none());
-    assert!(body.get("model").is_none());
 }
 
 #[test]
-fn body_for_auto_with_prompt() {
+fn detach_alone_is_background_batch() {
+    // --detach without --keepalive: PTY one-shot. No tab, no keepalive,
+    // subscription-billed. The canonical "fire and forget" combination.
     let mut o = opts("rust-lane");
-    o.auto = true;
-    o.prompt = Some("hi".into());
-    let body = build_dispatch_body(&o, &PathBuf::from("/tmp/x")).unwrap();
-    assert_eq!(body["auto"], true);
-    assert_eq!(body["prompt"], "hi");
+    o.detach = true;
+    let body = build_dispatch_body(&o, &PathBuf::from("/tmp/proj")).unwrap();
+    assert_eq!(body["open_tab"], false);
+    assert_eq!(body["invocation"], "pty");
+    assert_eq!(body["keepalive"], false);
+}
+
+#[test]
+fn detach_with_keepalive_is_background_worker() {
+    // --detach --keepalive (-di): background subscription worker. Push
+    // turns later via the daemon API. Old --auto-and-keepalive mutex
+    // is gone; this combination is canonical now.
+    let mut o = opts("rust-lane");
+    o.detach = true;
+    o.keepalive = true;
+    let body = build_dispatch_body(&o, &PathBuf::from("/tmp/proj")).unwrap();
+    assert_eq!(body["open_tab"], false);
+    assert_eq!(body["keepalive"], true);
+}
+
+#[test]
+fn detach_with_transport_print_is_api_billed() {
+    // --detach --transport print: API-billed claude -p batch. The
+    // daemon returns a billing_warning in the response.
+    let mut o = opts("rust-lane");
+    o.detach = true;
+    o.transport = Some("print".into());
+    let body = build_dispatch_body(&o, &PathBuf::from("/tmp/proj")).unwrap();
+    assert_eq!(body["open_tab"], false);
+    assert_eq!(body["invocation"], "print");
+    assert_eq!(body["keepalive"], false);
+}
+
+#[test]
+fn no_keepalive_overrides_default() {
+    // Foreground default is keepalive=true. --no-keepalive forces false
+    // for the rare "open a chat tab but exit on first stop" case.
+    let mut o = opts("rust-lane");
+    o.launch = true;
+    o.no_keepalive = true;
+    let body = build_dispatch_body(&o, &PathBuf::from("/tmp/proj")).unwrap();
+    assert_eq!(body["open_tab"], true);
+    assert_eq!(body["keepalive"], false);
+}
+
+#[test]
+fn invalid_transport_value_errors() {
+    let mut o = opts("rust-lane");
+    o.launch = true;
+    o.transport = Some("bogus".into());
+    let err = build_dispatch_body(&o, &PathBuf::from("/tmp/proj")).unwrap_err();
+    let msg = err.to_string();
+    assert!(
+        msg.contains("--transport") && msg.contains("pty, print, stream"),
+        "error must list valid transports, got: {msg}"
+    );
 }
 
 #[test]
@@ -135,6 +208,8 @@ fn body_rejects_prompt_and_spec_together() {
     assert!(err.to_string().contains("mutually exclusive"));
 }
 
+// ── clap CLI surface ────────────────────────────────────────────────
+
 #[test]
 fn clap_rejects_prompt_and_spec_together() {
     use clap::Parser;
@@ -150,30 +225,91 @@ fn clap_rejects_prompt_and_spec_together() {
 }
 
 #[test]
-fn clap_accepts_launch_flags() {
+fn clap_accepts_detach_short_flag() {
     use clap::Parser;
     let cli = crate::cli::Cli::try_parse_from([
-        "ship", "use", "rust-lane", "--auto", "--prompt", "go",
-        "--harness", "codex", "--model", "sonnet",
+        "ship", "use", "rust-lane", "-d",
     ])
-    .expect("clap parses launch flags");
+    .expect("clap parses -d");
     match cli.command {
-        Some(crate::cli::Commands::Use {
-            agent_id,
-            auto,
-            prompt,
-            harness,
-            model,
-            ..
-        }) => {
-            assert_eq!(agent_id, "rust-lane");
-            assert!(auto);
-            assert_eq!(prompt.as_deref(), Some("go"));
-            assert_eq!(harness.as_deref(), Some("codex"));
-            assert_eq!(model.as_deref(), Some("sonnet"));
+        Some(crate::cli::Commands::Use { detach, .. }) => assert!(detach),
+        _ => panic!("expected Use command"),
+    }
+}
+
+#[test]
+fn clap_accepts_keepalive_short_flag() {
+    use clap::Parser;
+    let cli = crate::cli::Cli::try_parse_from([
+        "ship", "use", "rust-lane", "-i",
+    ])
+    .expect("clap parses -i (keepalive)");
+    match cli.command {
+        Some(crate::cli::Commands::Use { keepalive, .. }) => assert!(keepalive),
+        _ => panic!("expected Use command"),
+    }
+}
+
+#[test]
+fn clap_accepts_combined_short_flags_di() {
+    use clap::Parser;
+    let cli = crate::cli::Cli::try_parse_from([
+        "ship", "use", "rust-lane", "-di",
+    ])
+    .expect("clap parses combined -di");
+    match cli.command {
+        Some(crate::cli::Commands::Use { detach, keepalive, .. }) => {
+            assert!(detach);
+            assert!(keepalive);
         }
         _ => panic!("expected Use command"),
     }
+}
+
+#[test]
+fn clap_accepts_transport_flag() {
+    use clap::Parser;
+    let cli = crate::cli::Cli::try_parse_from([
+        "ship", "use", "rust-lane", "-d", "--transport", "print",
+    ])
+    .expect("clap parses --transport");
+    match cli.command {
+        Some(crate::cli::Commands::Use { detach, transport, .. }) => {
+            assert!(detach);
+            assert_eq!(transport.as_deref(), Some("print"));
+        }
+        _ => panic!("expected Use command"),
+    }
+}
+
+#[test]
+fn clap_keepalive_conflicts_with_no_keepalive() {
+    use clap::Parser;
+    let err = crate::cli::Cli::try_parse_from([
+        "ship", "use", "rust-lane", "--keepalive", "--no-keepalive",
+    ])
+    .expect_err("clap must reject --keepalive + --no-keepalive");
+    let msg = err.to_string();
+    assert!(
+        msg.contains("cannot be used with") || msg.contains("conflicts"),
+        "expected conflict error, got: {msg}"
+    );
+}
+
+#[test]
+fn clap_rejects_old_auto_flag() {
+    // --auto is gone (the old conflation). Reject explicitly so
+    // operators see the change rather than silently dropping the flag.
+    use clap::Parser;
+    let err = crate::cli::Cli::try_parse_from([
+        "ship", "use", "rust-lane", "--auto",
+    ])
+    .expect_err("--auto must be rejected (renamed to -d/--detach + invocation)");
+    let msg = err.to_string();
+    assert!(
+        msg.contains("auto") || msg.contains("unexpected"),
+        "expected auto-flag rejection, got: {msg}"
+    );
 }
 
 #[test]

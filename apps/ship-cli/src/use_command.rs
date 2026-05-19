@@ -8,27 +8,44 @@ use anyhow::{Result, bail};
 use std::path::{Path, PathBuf};
 
 /// Inputs forwarded from the CLI `Use` variant for the launch path.
+///
+/// The three dispatch axes (detach / transport / keepalive) replace
+/// the old single `auto: bool`. See the agent-primitive-inversion
+/// plan in `.artifacts/agents-arc/discussions/` for the rationale.
 pub struct LaunchOpts {
     pub agent: String,
     pub path: Option<PathBuf>,
     pub launch: bool,
-    pub auto: bool,
     pub resume: bool,
     pub prompt: Option<String>,
     pub spec: Option<PathBuf>,
     pub harness: Option<String>,
     pub model: Option<String>,
+
+    // Dispatch axes
+    /// -d / --detach. Background dispatch — no foreground tab/PTY
+    /// attach. Returns a slug + studio_url.
+    pub detach: bool,
+    /// --transport <pty|print|stream>. None = pty (default).
+    pub transport: Option<String>,
+    /// -i / --keepalive. Default true for foreground, false for
+    /// detached. `no_keepalive` overrides to false.
+    pub keepalive: bool,
+    pub no_keepalive: bool,
 }
 
 /// True when any flag in the launch family is set. Implements the
-/// implicit-launch contract: `--auto`, `--resume`, `--prompt`, `--spec`
-/// each turn `ship use` into a dispatch.
+/// implicit-launch contract: `--detach`, `--resume`, `--prompt`,
+/// `--spec`, `--transport`, `--keepalive` each turn `ship use` into
+/// a dispatch.
 pub fn should_launch(opts: &LaunchOpts) -> bool {
     opts.launch
-        || opts.auto
+        || opts.detach
         || opts.resume
         || opts.prompt.is_some()
         || opts.spec.is_some()
+        || opts.transport.is_some()
+        || opts.keepalive
 }
 
 /// Build the JSON body for `POST /api/v1/agent_sessions/dispatch`.
@@ -60,25 +77,39 @@ pub fn build_dispatch_body(
 
     let workspace = workspace_label_from_path(effective_path);
 
-    // Translate the legacy `--auto` CLI flag to the new orthogonal-axes
-    // shape the daemon now requires (the inversion plan in
-    // .artifacts/agents-arc/discussions/ explains why `auto` was wrong).
-    // Phase 7 of the inversion replaces this CLI surface with explicit
-    // -i/-t/-d flags; this is the minimum shim to keep `ship use
-    // [--auto]` dispatching against the new endpoint until then.
-    let (open_tab, keepalive) = if opts.auto {
-        // Old `--auto` semantic: no UI tab, batch invocation.
-        // New equivalent that preserves subscription billing: PTY
-        // one-shot (no keepalive). API-billed --print stays opt-in via
-        // the new CLI; never silently selected here.
-        (false, false)
+    // The three orthogonal dispatch axes, derived from the new flag
+    // shape. Each one defaults to the no-surprise value for the
+    // operator's intent (chat in foreground, batch when detached).
+    //
+    // open_tab: --detach → false, otherwise true
+    // invocation: --transport overrides, defaults to "pty"
+    // keepalive: --keepalive → true, --no-keepalive → false,
+    //            otherwise true when foreground / false when detached
+    let open_tab = !opts.detach;
+    let invocation = opts
+        .transport
+        .as_deref()
+        .unwrap_or("pty")
+        .to_string();
+    let keepalive = if opts.keepalive {
+        true
+    } else if opts.no_keepalive {
+        false
     } else {
-        (true, true)
+        // Default: foreground keeps alive (chat); detached doesn't (batch).
+        open_tab
     };
+
+    if invocation != "pty" && invocation != "print" && invocation != "stream" {
+        bail!(
+            "--transport must be one of: pty, print, stream (got `{invocation}`)"
+        );
+    }
+
     let mut body = serde_json::json!({
         "agent": opts.agent,
         "open_tab": open_tab,
-        "invocation": "pty",
+        "invocation": invocation,
         "keepalive": keepalive,
         "resume": opts.resume,
         "workspace": workspace,
@@ -126,7 +157,7 @@ pub fn effective_path(opts: &LaunchOpts) -> Result<PathBuf> {
 pub fn run_launch(opts: LaunchOpts) -> Result<()> {
     let path = effective_path(&opts)?;
     let body = build_dispatch_body(&opts, &path)?;
-    let mode = if opts.auto { "auto" } else { "interactive" };
+    let mode = mode_label(&opts);
     let resp = post_dispatch(&body)?;
 
     let ok = resp.get("ok").and_then(|v| v.as_bool()).unwrap_or(false);
@@ -138,13 +169,43 @@ pub fn run_launch(opts: LaunchOpts) -> Result<()> {
         bail!("dispatch rejected: {err}");
     }
 
-    let slug = resp
-        .get("data")
+    let data = resp.get("data");
+    let slug = data
         .and_then(|d| d.get("slug"))
         .and_then(|v| v.as_str())
         .unwrap_or("?");
-    println!("→ launched {slug} ({mode}) — tail with: ship procs --slug {slug}");
+    let studio_url = data
+        .and_then(|d| d.get("studio_url"))
+        .and_then(|v| v.as_str());
+    let billing_warning = data
+        .and_then(|d| d.get("billing_warning"))
+        .and_then(|v| v.as_str());
+
+    println!("→ session: {slug} ({mode})");
+    if let Some(url) = studio_url {
+        println!("→ open in Studio: {url}");
+    }
+    println!("→ tail: ship procs --slug {slug}");
+    if let Some(warn) = billing_warning {
+        eprintln!("\n⚠  {warn}");
+    }
     Ok(())
+}
+
+/// Operator-friendly summary of the dispatch axes — one word that
+/// captures the (open_tab × invocation × keepalive) intent.
+fn mode_label(opts: &LaunchOpts) -> &'static str {
+    let detached = opts.detach;
+    let print = opts.transport.as_deref() == Some("print");
+    let stream = opts.transport.as_deref() == Some("stream");
+    let ka = opts.keepalive || (!opts.no_keepalive && !detached);
+    match (detached, print, stream, ka) {
+        (false, _, _, _) => "foreground-chat",
+        (true, true, _, _) => "background-api",
+        (true, _, true, _) => "background-stream",
+        (true, _, _, true) => "background-worker",
+        (true, _, _, false) => "background-batch",
+    }
 }
 
 /// POST the dispatch body to the running daemon, auto-starting if needed.

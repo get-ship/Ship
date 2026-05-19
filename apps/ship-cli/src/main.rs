@@ -113,23 +113,29 @@ fn dispatch(command: Option<Commands>) -> Result<()> {
                 compile: _,
                 with_skills,
                 launch,
-                auto,
                 resume,
                 prompt,
                 spec,
                 harness,
                 model,
+                detach,
+                transport,
+                no_keepalive,
+                keepalive,
             } => {
                 let opts = use_command::LaunchOpts {
                     agent: agent_id.clone(),
                     path: path.clone(),
                     launch,
-                    auto,
                     resume,
                     prompt,
                     spec,
                     harness,
                     model,
+                    detach,
+                    transport,
+                    keepalive,
+                    no_keepalive,
                 };
                 run_use(Some(&agent_id), path, with_skills)?;
                 if use_command::should_launch(&opts) {
