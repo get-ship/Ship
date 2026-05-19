@@ -8,8 +8,8 @@ import { resolve, join } from 'node:path'
 import { mkdtempSync, writeFileSync, mkdirSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 
-const workerPath = resolve(import.meta.dir, '../bundler.ts')
-const repoRoot = resolve(import.meta.dir, '../..')
+const workerPath = resolve(import.meta.dir, '../index.ts')
+const repoRoot = resolve(import.meta.dir, '../../../..')
 
 // ── Test helpers ──────────────────────────────────────────────────────────────
 

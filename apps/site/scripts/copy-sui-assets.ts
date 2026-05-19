@@ -27,7 +27,7 @@ const SUI_BUNDLES = [
   // The full `sui-components.js` umbrella (~740 KB) was 5× larger and
   // contained 80+ tags the marketing pages never instantiate. If a new
   // tag is added to apps/site/src, append it to the `sui-marketing`
-  // bundle target in `runtime/bundler.ts`.
+  // bundle target in `packages/deck/bundler/index.ts`.
   'sui-marketing.js',
 ] as const;
 

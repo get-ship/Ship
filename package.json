@@ -34,7 +34,7 @@
     "workerd"
   ],
   "scripts": {
-    "build:bundles": "bun run runtime/bundler.ts --all",
+    "build:bundles": "bun run packages/deck/bundler/index.ts --all",
     "test:rust": "cargo test",
     "wasm": "wasm-pack build crates/core/compiler --target web --out-dir ../../../packages/compiler --out-name compiler -- --features wasm",
     "lint": "vp lint",

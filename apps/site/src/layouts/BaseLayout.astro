@@ -98,7 +98,7 @@ const themePreloadPayload = JSON.stringify({
       `sui-components.js` umbrella (~740 KB) registers all 94 primitives
       + ship-domain components, none of which marketing uses outside
       that 12-tag set. See the `sui-marketing` target in
-      `runtime/bundler.ts` — add to its imports when introducing a new
+      `packages/deck/bundler/index.ts` — add to its imports when introducing a new
       `<sui-*>` tag in apps/site/src.
     -->
     <link rel="modulepreload" href="/sui-runtime.js" fetchpriority="high" />

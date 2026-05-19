@@ -9,7 +9,7 @@ use axum::{
 use crate::{DaemonMode, asset_cache, compute_etag, mode_from_ext};
 
 // Per-tag island bundles are served by file existence under
-// `assets/sui-components/`. The bundler (runtime/bundler.ts +
+// `assets/sui-components/`. The bundler (packages/deck/bundler/index.ts +
 // packages/deck/build via the umbrella's sui.config.ts `lazyOutSubdir`)
 // is the source of truth for what lands there. The previous
 // hand-maintained `is_known_island` allowlist was retired alongside
@@ -33,7 +33,7 @@ fn read_asset(rel: &str) -> Option<String> {
 //     out-of-band assets (lucide-icons.json).
 //   * `assets/sui-components/<name>.js` — every code-split component bundle
 //     (opted in via `<bundle separate />` in the component's .sui source).
-//     Both writers (runtime/bundler.ts and packages/deck/build via
+//     Both writers (packages/deck/bundler/index.ts and packages/deck/build via
 //     ui-components/sui.config.ts `lazyOutSubdir`) emit here. Adding a
 //     second location is forbidden; see job/bundle-output-canonical.
 //   * `assets/views/<name>/view.js` — per-view bundles.
@@ -148,7 +148,7 @@ pub async fn serve_sui_island(mode: Option<Extension<DaemonMode>>, Path(file): P
     // Strip the `.js` to recover the bundle name.
     let bundle = file.strip_suffix(".js").unwrap_or(&file).to_string();
     // Single canonical path: `assets/sui-components/<bundle>.js`. Both
-    // writers (runtime/bundler.ts + packages/deck/build) target it.
+    // writers (packages/deck/bundler/index.ts + packages/deck/build) target it.
     // Try the on-disk bundle first — that's the live-rebuilt artifact in
     // development and the canonical install layout in production.
     let rel = format!("sui-components/{bundle}.js");
@@ -172,7 +172,7 @@ pub async fn serve_sui_island(mode: Option<Extension<DaemonMode>>, Path(file): P
     };
     match embedded {
         Some(js) => js_response_mode(js.to_string(), mode),
-        None => not_found("island bundle missing — run `bun run runtime/bundler.ts --all`"),
+        None => not_found("island bundle missing — run `bun run packages/deck/bundler/index.ts --all`"),
     }
 }
 

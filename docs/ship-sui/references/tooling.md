@@ -52,7 +52,7 @@ Entry: `packages/deck/build/bin/sui-build.mjs` → `dist/cli.js` via Bun. The ru
 
 Configuration: `<package>/sui.config.ts`. Each package opts in by adding a `build` script — currently `packages/ship-components/ui-components/` (writes `crates/sui/ship-sui-server/assets/`) and `packages/ship-set/` (writes `apps/shipd/assets/`).
 
-**Role.** `@ship/sui-build` is the CI / pre-merge bundler — it's what `smoke-deploy.sh` runs and what `just cem` invokes. It is *not* what shipd uses at dev time. The dev-time bundler is `runtime/bundler.ts`, a Bun worker spawned by the daemon (see [end-to-end dev loop](#end-to-end-edit-loop-in-dev) below). Both pipelines target the same on-disk asset trees that the release binary later `include_str!`s.
+**Role.** `@ship/sui-build` is the CI / pre-merge bundler — it's what `smoke-deploy.sh` runs and what `just cem` invokes. It is *not* what shipd uses at dev time. The dev-time bundler is `packages/deck/bundler/index.ts`, a Bun worker spawned by the daemon (see [end-to-end dev loop](#end-to-end-edit-loop-in-dev) below). Both pipelines target the same on-disk asset trees that the release binary later `include_str!`s.
 
 ## `@ship/sui-lsp` — the language server
 

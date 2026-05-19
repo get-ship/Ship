@@ -182,22 +182,24 @@ const compileDynamicAttr = (
   value: string,
   loc: string,
 ): AttrInstr => {
-  // `attr:{name-expr}={value-expr}` — the part after `attr:` is the
-  // dynamic-name expression, surrounded by literal braces in source.
+  // Two accepted forms:
+  //   `attr:{name-expr}={value-expr}` — dynamic name evaluated at render
+  //   `attr:literal-name={value-expr}` — static literal name (sugar for
+  //                                       attr:{'literal-name'}=…)
+  // The value MUST be a `{expr}` — that's how `null` can remove the
+  // attribute and an empty string can set a boolean attribute.
   const rawNameExpr = name.slice(5)
-  if (!isExprValue(rawNameExpr)) {
-    throw new Error(
-      `[ship-set-dom] attr: expects attr:{nameExpr} (at ${loc})`,
-    )
-  }
   if (!isExprValue(value)) {
     throw new Error(
-      `[ship-set-dom] attr:{...} expects ={valueExpr} (at ${loc})`,
+      `[ship-set-dom] attr:${rawNameExpr} expects ={valueExpr} (at ${loc})`,
     )
   }
+  const nameExpr = isExprValue(rawNameExpr)
+    ? compileExpr(stripBraces(rawNameExpr), { location: loc })
+    : compileExpr(JSON.stringify(rawNameExpr), { location: loc })
   return {
     kind: 'attr-dynamic',
-    nameExpr: compileExpr(stripBraces(rawNameExpr), { location: loc }),
+    nameExpr,
     expr: compileExpr(stripBraces(value), { location: loc }),
   }
 }

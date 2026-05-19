@@ -7,7 +7,12 @@ afterEach(() => reg.cleanup())
 
 // Helpers
 const shadow = (el: HTMLElement) => el.shadowRoot!
-const svg = (el: HTMLElement) => shadow(el).querySelector('svg.sui-icon-svg') as SVGSVGElement | null
+// JSDOM doesn't match class selectors on SVG elements (the SVG namespace
+// element doesn't get the HTMLElement class-attribute behavior). Use an
+// attribute selector so the same code matches in both jsdom and real
+// browsers — `<sui-icon>` only ever renders one `<svg>` child anyway.
+const svg = (el: HTMLElement) =>
+  shadow(el).querySelector('svg[part="svg"]') as SVGSVGElement | null
 
 describe('<sui-icon>', () => {
   it('registers the custom element', () => {

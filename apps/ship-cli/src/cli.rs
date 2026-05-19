@@ -471,7 +471,7 @@ pub enum ConfigCommands {
 #[derive(Subcommand, Debug)]
 pub enum RuntimeCommands {
     /// Install or repair ~/.ship/runtime/ from local sources (Bun on PATH +
-    /// in-repo target/release/sui-compiler + runtime/bundler.ts by
+    /// in-repo target/release/sui-compiler + packages/deck/bundler/index.ts by
     /// default; override with --bun / --sui-compiler).
     Install {
         /// Path to the Bun binary to copy in. Defaults to `which bun`.
