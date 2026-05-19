@@ -54,10 +54,23 @@ which categories that tier defends against.
 | 1 | HarnessNative (Codex Seatbelt) | ⚠️ | ⚠️ | ⚠️ | ❌ | ❌ | ❌ |
 | 1 | HarnessNative (Gemini `--yolo`) | ⚠️ | ⚠️ | ⚠️ | ❌ | ❌ | ❌ |
 | 1 | SrtWrapper | ⚠️ | ⚠️ | ⚠️ | ❌ | ❌ | ❌ |
-| 2 | DockerEngine | ✅ | ✅ | ✅ | ⚠️ | ⚠️ | ⚠️ |
+| 2 | DockerEngine | ✅ | ✅ | ✅ | ✅[1] | ⚠️ | ✅[2] |
 | 2 | YoukiRootless | ✅ | ✅ | ✅ | ⚠️ | ⚠️ | ⚠️ |
 | 3 | LimaVm / WSL2 | ✅ | ✅ | ✅ | ⚠️ | ✅ | ⚠️ |
 | 4 | FlyMachines | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+
+Footnotes:
+
+- **[1]** Tier 2 DockerEngine defaults to `NetworkPolicy::Allowlist`
+  populated with the harness's known endpoints when the harness is
+  known. Unknown / harness-less runs still inherit the `Open`
+  default — surfaced as `⚠️` if the user is on a workload Ship
+  can't identify.
+- **[2]** Tier 2 DockerEngine ships with default resource caps
+  (4 GiB / 2 cpus / 1024 pids) translated into Docker's
+  `--memory` / `--cpus` / `--pids-limit`. Tier 3 (VM) still
+  inherits the host VM's pid table for the first process and is
+  rated `⚠️` until VM-side cgroup limits are wired.
 
 Reading the matrix:
 
@@ -239,24 +252,29 @@ src/executors/process.rs`'s `enforce` block and in `shipd`'s
 
 ## 7. Reduction path: making the matrix denser
 
-The asymmetry between Tier 1 and Tier 2 is the headline gap. The
-**direction** of work that moves more cells from `⚠️` to `✅`:
+The asymmetry between Tier 1 and Tier 2 was the headline gap.
+The **direction** of work that moves more cells from `⚠️` to `✅`:
 
-1. Default network policy to `Allowlist { hosts: harness_endpoints }`
-   instead of `Open` for Tier 2+ when an agent's harness is known.
-   The `default_allowlist(harness_id)` table already exists in
-   `crates/core/ship-isolation/src/harness.rs` — wiring it as the
-   default for `prepare_docker_sandbox` is a small change.
+1. ✅ **Default network policy = harness allowlist for Tier 2+.**
+   Shipped: `prepare_docker_sandbox` looks up
+   `HarnessSandboxMechanism::default_allowlist(harness_id)` and
+   sets `NetworkPolicy::Allowlist` when the harness is known.
+   T-NET-EGRESS at the default Tier 2 path narrows from open to
+   "harness's own API endpoints" without user configuration.
 2. Ship the credential broker so secrets never enter the sandbox
    filesystem. Today most secrets reach the harness via env vars
    or bind-mounted credential files; both are recoverable from a
-   process dump.
-3. Default `policy.resources` on Tier 2 to reflect a typical
-   agent workload (currently unset until the operator configures
-   `isolation.strategies.docker.resources`).
+   process dump. Awaits design pairing on the keychain bridge.
+3. ✅ **Default `policy.resources` on Tier 2.** Shipped: 4 GiB
+   memory / 2 cpus / 1024 pids defaulted into
+   `isolation.strategies.docker.resources`; supervisor reads them
+   into `SandboxPolicy.limits`, Docker backend translates to
+   `--memory` / `--cpus` / `--pids-limit`. T-RES at the default
+   Tier 2 path is defended.
 4. Sidecar TCP listener: bind to a Ship-owned unix socket
    bind-mounted into the container, eliminating the in-netns
    attack surface and the "no auth" caveat in §5.
 
-None of these is blocking; they're the obvious wins once Phase B
-+ Phase C settle.
+(1) and (3) landed in the same tranche as this doc; (2) and (4)
+are the remaining bounded reductions. None blocking — they're the
+next-best wins once the YoukiRootless wiring decision settles.
