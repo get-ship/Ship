@@ -23,7 +23,26 @@ impl ClaudeAdapter {
         let inline_mcp = r#"{"mcpServers":{"ship-bridge":{"command":"ship","args":["mcp","serve"]}}}"#;
         let mut args = vec![
             "--dangerously-skip-permissions".to_string(),
-            "--dangerously-load-development-channels".to_string(),
+            // Claude channel state — CURRENTLY DEGRADED. See
+            // .artifacts/agents-arc/discussions/claude-channel-dialog-blocker.md
+            //
+            // Short version: `server:` channels (used for Ship's push-to-
+            // agent Channel mechanism) require
+            // --dangerously-load-development-channels, which triggers an
+            // interactive confirmation dialog that blocks the TUI in
+            // dispatched-keepalive mode (no user to press Enter).
+            //
+            // Today we pass --channels server:ship alone: claude survives,
+            // channel is declared, but server: entries are inactive
+            // (claude logs "server: entries need
+            // --dangerously-load-development-channels"). Push via Channel
+            // mechanism HTTP-202s and emits studio.chat_turn, but
+            // delivery to claude's MCP subscriber doesn't actually
+            // happen.
+            //
+            // Proper fix: PTY-side dialog auto-dismissal in the
+            // supervisor when keepalive=true. Substantial work; tracked.
+            "--channels".to_string(),
             "server:ship".to_string(),
             "--mcp-config".to_string(),
             inline_mcp.to_string(),
@@ -208,14 +227,61 @@ impl HarnessAdapter for ClaudeAdapter {
                 None
             }
 
-            // Turn completion + metadata.
+            // Turn completion + metadata + token usage.
+            //
+            // In `-p` stream-json mode the result event carries aggregate
+            // usage for the whole run plus claude's own cost calc
+            // (total_cost_usd) — we capture tokens and let cost stay
+            // a derived view (subscription users shouldn't see dollar
+            // amounts for sessions that have no marginal cost).
             "result" => {
+                let usage = v.get("usage");
+                let input_tokens = usage
+                    .and_then(|u| u.get("input_tokens"))
+                    .and_then(|n| n.as_u64())
+                    .unwrap_or(0);
+                let output_tokens = usage
+                    .and_then(|u| u.get("output_tokens"))
+                    .and_then(|n| n.as_u64())
+                    .unwrap_or(0);
+                let cache_creation_tokens = usage
+                    .and_then(|u| u.get("cache_creation_input_tokens"))
+                    .and_then(|n| n.as_u64())
+                    .unwrap_or(0);
+                let cache_read_tokens = usage
+                    .and_then(|u| u.get("cache_read_input_tokens"))
+                    .and_then(|n| n.as_u64())
+                    .unwrap_or(0);
                 let stop = v
                     .get("stop_reason")
                     .and_then(|s| s.as_str())
                     .unwrap_or("end_turn")
                     .to_string();
-                Some(HarnessEvent::TurnComplete { stop_reason: stop })
+                // Only surface as TurnUsage when at least one token count
+                // is non-zero; otherwise fall back to TurnComplete
+                // (claude has emitted bare `result` events without
+                // usage in some shapes — staying robust).
+                if input_tokens + output_tokens + cache_creation_tokens + cache_read_tokens > 0 {
+                    // claude reports total_cost_usd in result events
+                    // (API-key sessions report a real number; subscription
+                    // sessions may report 0 or the API-equivalent value).
+                    // We capture verbatim — never recompute.
+                    let harness_reported_cost_usd = v
+                        .get("total_cost_usd")
+                        .and_then(|c| c.as_f64());
+                    Some(HarnessEvent::TurnUsage {
+                        model: None,
+                        input_tokens,
+                        output_tokens,
+                        reasoning_tokens: 0,
+                        cache_creation_tokens,
+                        cache_read_tokens,
+                        stop_reason: Some(stop),
+                        harness_reported_cost_usd,
+                    })
+                } else {
+                    Some(HarnessEvent::TurnComplete { stop_reason: stop })
+                }
             }
 
             _ => None,

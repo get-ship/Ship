@@ -46,6 +46,7 @@ fn fresh_ctx(harness: Option<&str>) -> JobContext {
         exit_tx: None,
         step: None,
         headless: true,
+        keepalive: false,
     }
 }
 
@@ -152,4 +153,50 @@ async fn server_executor_stop_delegates_to_session_cancel() {
     <ServerExecutor as JobExecutor>::stop(&executor, &handle)
         .await
         .expect("stop on unknown handle is a no-op");
+}
+
+#[tokio::test]
+async fn routing_pre_flight_fails_cleanly_when_binary_missing() {
+    // Pick a harness id we know is mapped (real adapter) but a binary
+    // name we know cannot be on PATH. We test the contract by setting
+    // PATH to a directory that definitely doesn't contain the binary.
+    //
+    // Process-path dispatch (headless=true, no server session bound,
+    // non-existent binary) MUST surface a clear "not on PATH" error
+    // before any actor spawn / PTY allocation runs. The user's first
+    // signal of a misconfiguration shouldn't be a cryptic exit-127.
+    //
+    // We pick "claude" (always mapped) and isolate PATH to an empty
+    // tempdir for the duration of this test. std::env::set_var is
+    // process-global; this test mustn't run in parallel with anything
+    // else that depends on PATH. Bun integration tests use a separate
+    // process so we're safe here.
+    let routing = RoutingExecutor::with_registry(None, ServerSessionRegistry::new());
+    let ctx = fresh_ctx(Some("claude"));
+
+    let empty = tempfile::tempdir().expect("tempdir");
+    let saved_path = std::env::var_os("PATH");
+    // SAFETY: process-global; not safe with parallel tests touching PATH.
+    unsafe {
+        std::env::set_var("PATH", empty.path());
+    }
+    let result = <RoutingExecutor as JobExecutor>::spawn(&routing, &ctx).await;
+    // Restore PATH before assertion so a panic doesn't poison later tests.
+    unsafe {
+        match saved_path {
+            Some(p) => std::env::set_var("PATH", p),
+            None => std::env::remove_var("PATH"),
+        }
+    }
+
+    let err = match result {
+        Err(e) => e,
+        Ok(_) => panic!("missing binary must surface as a Result::Err"),
+    };
+    let msg = err.to_string();
+    assert!(msg.contains("claude"), "msg should name the binary, was: {msg}");
+    assert!(
+        msg.contains("not on PATH"),
+        "msg should say not on PATH, was: {msg}"
+    );
 }

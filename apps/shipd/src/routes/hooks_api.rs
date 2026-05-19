@@ -9,11 +9,42 @@
 
 use axum::{extract::State, Extension, Json, http::StatusCode, response::{IntoResponse, Response}};
 use ship_substrate::events::EventEnvelope;
+use ship_substrate::events::hooks::{
+    event_types as hook_event_types, HookPermissionDeniedPayload, HookSessionEndedPayload,
+    HookSessionStartedPayload, HookToolUseCompletedPayload, HookToolUseStartedPayload, ToolStatus,
+};
 use serde::{Deserialize, Serialize};
+#[allow(unused_imports)]
 use serde_json::json;
 
 use crate::auth::{AuthContext, Scope, enforce_mcp_identity, require_scope};
 use crate::routes::rest_api::ApiState;
+
+/// Truncate a JSON value to a printable preview ≤400 chars. Legacy
+/// consumers of `input_preview` / `response_preview` expect a string.
+fn preview(v: &serde_json::Value) -> String {
+    let s = v.to_string();
+    if s.len() > 400 {
+        s.chars().take(400).collect()
+    } else {
+        s
+    }
+}
+
+/// Parse the optional `tool_status` body field into the typed enum.
+/// Defaults to `Unknown` when absent or unrecognized — harnesses
+/// without status reporting still emit valid completion events.
+fn parse_tool_status(s: Option<&str>) -> ToolStatus {
+    match s {
+        Some("ok") => ToolStatus::Ok,
+        Some("error") | Some("err") => ToolStatus::Error,
+        _ => ToolStatus::Unknown,
+    }
+}
+
+fn now_iso8601() -> String {
+    chrono::Utc::now().to_rfc3339()
+}
 
 /// Normalized hook event sent by Claude HTTP hooks or the `ship hook` adapter.
 #[derive(Debug, Deserialize, utoipa::ToSchema)]
@@ -37,6 +68,33 @@ pub struct ShipHookEvent {
     pub workspace: Option<String>,
     #[serde(default)]
     pub session_id: Option<String>,
+    /// Harness identifier (claude/codex/cursor/gemini/opencode) the
+    /// hook originates from. `ship hook` CLI populates this via
+    /// `detect_harness()`; direct HTTP callers can pass it explicitly.
+    #[serde(default)]
+    pub harness: Option<String>,
+    /// Model name the harness reports for this session. Populated by
+    /// adapters that surface model info on session-start.
+    #[serde(default)]
+    pub model: Option<String>,
+    /// Tool-completion status. Convention: "ok" | "error" | "unknown".
+    /// Defaults to "unknown" when the harness doesn't expose it on
+    /// PostToolUse.
+    #[serde(default)]
+    pub tool_status: Option<String>,
+    /// Error message when tool_status = "error".
+    #[serde(default)]
+    pub tool_error: Option<String>,
+    /// Reason a session ended ("operator-cancelled", "stop-hook",
+    /// "process-exit", etc.). Carried on session-end payloads.
+    /// Also carries the deny reason on permission-denied payloads.
+    #[serde(default)]
+    pub reason: Option<String>,
+    /// Origin of a permission denial: "ship-gate" (today, always),
+    /// "operator" (future approval UI), "harness" (provider-side
+    /// permission check). Only meaningful on /hooks/permission-denied.
+    #[serde(default)]
+    pub denied_by: Option<String>,
 }
 
 /// Hook response: allow or block with reason.
@@ -115,16 +173,25 @@ pub async fn hook_session_start(
     // entity_id + actor_id all carry the session id so observers can
     // filter to a specific dispatch.
     let target = session.as_deref().unwrap_or(actor.as_str());
+    tracing::info!(target, "hook.session_started: about to emit");
     if target != "unknown" {
-        let payload = json!({
-            "actor_id": actor,
-            "session_id": session,
-        });
-        if let Ok(env) = EventEnvelope::new("hook.session_started", target, &payload) {
-            let env = env.with_target(target).with_actor_id(target);
-            let ctx = auth.to_daemon_emit_context();
-            if let Err(e) = state.kernel().lock().await.emit(env, &ctx).await {
-                tracing::warn!(target, "hook.session_started emit failed: {e}");
+        let payload = HookSessionStartedPayload {
+            actor_id: actor.clone(),
+            session_id: session.clone(),
+            harness: event.harness.clone(),
+            model: event.model.clone(),
+            started_at: now_iso8601(),
+        };
+        match EventEnvelope::new(hook_event_types::HOOK_SESSION_STARTED, target, &payload) {
+            Ok(env) => {
+                let env = env.with_target(target).with_actor_id(target);
+                let ctx = auth.to_daemon_emit_context();
+                if let Err(e) = state.kernel().lock().await.emit(env, &ctx).await {
+                    tracing::warn!(target, "hook.session_started emit failed: {e}");
+                }
+            }
+            Err(e) => {
+                tracing::warn!(target, "hook.session_started envelope build failed: {e}");
             }
         }
     }
@@ -179,14 +246,14 @@ pub async fn hook_before_tool(
     // broadcast_tool_use silently dropping when the registry doesn't
     // have a matching harness_session_id.
     if actor != "unknown" {
-        let payload = json!({
-            "tool": tool,
-            "input_preview": event.tool_input.as_ref().map(|v| {
-                let s = v.to_string();
-                if s.len() > 400 { s.chars().take(400).collect::<String>() } else { s }
-            }),
-        });
-        if let Ok(env) = EventEnvelope::new("hook.tool_use_started", &actor, &payload) {
+        let payload = HookToolUseStartedPayload {
+            actor_id: actor.clone(),
+            tool: tool.to_string(),
+            input: event.tool_input.clone(),
+            input_preview: event.tool_input.as_ref().map(preview),
+            started_at: now_iso8601(),
+        };
+        if let Ok(env) = EventEnvelope::new(hook_event_types::HOOK_TOOL_USE_STARTED, &actor, &payload) {
             let env = env.with_target(&actor).with_actor_id(&actor);
             let ctx = auth.to_daemon_emit_context();
             if let Err(e) = state.kernel().lock().await.emit(env, &ctx).await {
@@ -272,14 +339,16 @@ pub async fn hook_after_tool(
     // before-tool emission. Threads / dashboards transition the tool
     // card from "running" to "done" by arrival order.
     if actor != "unknown" {
-        let payload = json!({
-            "tool": tool,
-            "response_preview": event.tool_response.as_ref().map(|v| {
-                let s = v.to_string();
-                if s.len() > 400 { s.chars().take(400).collect::<String>() } else { s }
-            }),
-        });
-        if let Ok(env) = EventEnvelope::new("hook.tool_use_completed", &actor, &payload) {
+        let payload = HookToolUseCompletedPayload {
+            actor_id: actor.clone(),
+            tool: tool.to_string(),
+            status: parse_tool_status(event.tool_status.as_deref()),
+            error: event.tool_error.clone(),
+            response: event.tool_response.clone(),
+            response_preview: event.tool_response.as_ref().map(preview),
+            ended_at: now_iso8601(),
+        };
+        if let Ok(env) = EventEnvelope::new(hook_event_types::HOOK_TOOL_USE_COMPLETED, &actor, &payload) {
             let env = env.with_target(&actor).with_actor_id(&actor);
             let ctx = auth.to_daemon_emit_context();
             if let Err(e) = state.kernel().lock().await.emit(env, &ctx).await {
@@ -333,15 +402,85 @@ pub async fn hook_session_end(
     // "session truly ended."
     let target = session.as_deref().unwrap_or(actor.as_str());
     if target != "unknown" {
-        let payload = json!({
-            "actor_id": actor,
-            "session_id": session,
-        });
-        if let Ok(env) = EventEnvelope::new("hook.session_ended", target, &payload) {
+        let payload = HookSessionEndedPayload {
+            actor_id: actor.clone(),
+            session_id: session.clone(),
+            ended_at: now_iso8601(),
+            reason: event.reason.clone(),
+        };
+        if let Ok(env) = EventEnvelope::new(hook_event_types::HOOK_SESSION_ENDED, target, &payload) {
             let env = env.with_target(target).with_actor_id(target);
             let ctx = auth.to_daemon_emit_context();
             if let Err(e) = state.kernel().lock().await.emit(env, &ctx).await {
                 tracing::warn!(target, "hook.session_ended emit failed: {e}");
+            }
+        }
+    }
+
+    (StatusCode::OK, Json(HookResponse::allow())).into_response()
+}
+
+/// POST /api/v1/hooks/permission-denied
+///
+/// Emitted by `ship hook before-tool` when its fail-closed integrity
+/// gate (cli-framework::hooks::tool_gate) denies a call before the
+/// daemon roundtrip. The CLI still returns the harness's expected
+/// deny shape on stdout so the tool never runs; this endpoint just
+/// logs the denial as a kernel event so analytics + dashboards can
+/// show "denied" alongside "succeeded" / "errored".
+#[utoipa::path(
+    operation_id = "hookPermissionDenied",
+    post,
+    path = "/api/v1/hooks/permission-denied",
+    request_body = ShipHookEvent,
+    responses(
+        (status = 200, description = "Hook processed", body = HookResponse),
+        (status = 400, description = "Invalid payload", body = crate::wire::ErrorResponse),
+        (status = 401, description = "Unauthenticated", body = crate::wire::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::wire::ErrorResponse),
+    ),
+    tag = "hooks"
+)]
+pub async fn hook_permission_denied(
+    State(state): State<ApiState>,
+    Extension(auth): Extension<AuthContext>,
+    Json(event): Json<ShipHookEvent>,
+) -> Response {
+    if let Err(e) = require_scope(&auth, Scope::EmitEvents) {
+        return e.into_response();
+    }
+    let actor = match resolve_actor(&event, &auth) {
+        Ok(a) => a,
+        Err(e) => return e,
+    };
+    let session = resolve_session(&event, &auth);
+    let tool = event.tool_name.as_deref().unwrap_or("unknown");
+    let reason = event
+        .reason
+        .clone()
+        .unwrap_or_else(|| "denied (no reason)".to_string());
+
+    tracing::debug!(actor = %actor, tool = %tool, "hook: permission-denied");
+
+    if actor != "unknown" {
+        let payload = HookPermissionDeniedPayload {
+            actor_id: actor.clone(),
+            session_id: session.clone(),
+            harness: event.harness.clone(),
+            tool: tool.to_string(),
+            input: event.tool_input.clone(),
+            input_preview: event.tool_input.as_ref().map(preview),
+            reason,
+            denied_by: event.denied_by.clone().unwrap_or_else(|| "ship-gate".to_string()),
+            denied_at: now_iso8601(),
+        };
+        if let Ok(env) =
+            EventEnvelope::new(hook_event_types::HOOK_PERMISSION_DENIED, &actor, &payload)
+        {
+            let env = env.with_target(&actor).with_actor_id(&actor);
+            let ctx = auth.to_daemon_emit_context();
+            if let Err(e) = state.kernel().lock().await.emit(env, &ctx).await {
+                tracing::warn!(actor, "hook.permission_denied emit failed: {e}");
             }
         }
     }
@@ -393,6 +532,12 @@ mod tests {
             actor_id: actor_id.map(str::to_string),
             workspace: None,
             session_id: None,
+            harness: None,
+            model: None,
+            tool_status: None,
+            tool_error: None,
+            reason: None,
+            denied_by: None,
         }
     }
 

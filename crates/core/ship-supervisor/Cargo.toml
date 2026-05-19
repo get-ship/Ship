@@ -6,9 +6,9 @@ publish = false
 description = "OS-level agent supervision — executors, isolation, terminal launching, graceful exit. Consumes the platform's orchestrator traits and provides the concrete daemon-side implementations."
 
 [dependencies]
-ship-substrate = { path = "../core/ship-substrate" }
-ship-platform = { path = "../core/ship-platform" }
-ship-types = { path = "../core/ship-types" }
+ship-substrate = { path = "../ship-substrate" }
+ship-platform = { path = "../ship-platform" }
+ship-types = { path = "../ship-types" }
 
 anyhow = { workspace = true }
 async-trait = { workspace = true }

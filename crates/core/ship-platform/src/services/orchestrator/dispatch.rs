@@ -124,6 +124,7 @@ pub async fn dispatch_job_internal(
         },
         step: first_step_info,
         headless: payload.headless,
+        keepalive: payload.keepalive,
     };
 
     let worktree_path = match octx.isolation.prepare(&job_ctx).await {
@@ -283,6 +284,7 @@ async fn dispatch_first_run_step_inner(
             id: step_id.to_string(),
         }),
         headless: payload.headless,
+        keepalive: payload.keepalive,
     };
 
     let worktree_path = match octx.isolation.prepare(&job_ctx).await {

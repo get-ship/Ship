@@ -42,6 +42,11 @@ pub fn install_defaults() {
             Box::new(projections::AuthSessionsProjection),
             Box::new(projections::DaemonOwnerProjection),
             Box::new(projections::JobProjection),
+            // ship-analytics — folds hook.* into rollup tables. Lives
+            // in its own crate (queries, cost, mining) so downstream
+            // dashboard / billing / harness-mining work has a home
+            // outside the platform crate.
+            Box::new(ship_analytics::AnalyticsProjection::new()),
         ]
     }));
     ship_substrate::supervisor::install_project_id_resolver(Box::new(|path| {

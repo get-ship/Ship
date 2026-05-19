@@ -95,18 +95,23 @@ describe("hooks / daemon emit", () => {
         expect(res.status).toBe(200);
 
         // Generous timeout: poll endpoint scans recent events list +
-        // filters in-process. With a busy DB the first page may not
-        // include our event; widen the window.
-        //
-        // tool_use events use actor_id (resolve_actor) as the entity_id,
-        // not session_id. Filter on either to match both shapes.
+        // filters in-process. Server-side slug filter narrows the
+        // response so we don't have to walk thousands of unrelated
+        // events on a busy daemon. The poll endpoint matches slug
+        // against entity_id OR payload.slug — our typed payload
+        // doesn't carry a `slug` field today, so we rely on entity_id.
         const events = await pollForEvents(
           (e) =>
             e.event_type === c.eventType &&
             (e.entity_id === probeActor ||
               e.target_actor_id === probeActor ||
               e.actor_id === probeActor),
-          { sinceId, timeoutMs: 10_000, stopAfter: 1 },
+          {
+            sinceId,
+            slug: probeActor,
+            timeoutMs: 10_000,
+            stopAfter: 1,
+          },
         );
         expect(events.length).toBe(1);
         const e = events[0]!;
@@ -146,55 +151,65 @@ for (const h of HARNESSES) {
           console.log(`SKIPPED: ${h.id} — ${skipReason}`);
           return;
         }
-        if (h.id === "opencode") {
-          console.log(
-            `INFO: ${h.id} uses plugins (hooks=false); plugin → ship hook bridge is a separate follow-up`,
-          );
-          return;
-        }
 
         const sinceId = await latestEventId();
+        // Opencode hook synth fires from the structured output stream
+        // of `opencode run --format json`, which only flows when auto
+        // (headless) is true. For other harnesses we use auto:false to
+        // keep them interactive (then cancel) — they fire hooks from
+        // their own .hooks config regardless.
+        const auto = h.id === "opencode";
         const dispatched = await dispatch({
           agent: COMPAT_AGENT,
           harness: h.id,
-          auto: false, // intent: interactive — but TmuxWindow + ProcessExecutor
-          // both use build_headless today (see discussion doc).
+          auto,
           workspace: COMPAT_WORKSPACE,
+          prompt: auto ? "say hi" : undefined,
         });
 
         try {
           await waitForActorRow(dispatched.slug);
           await new Promise((r) => setTimeout(r, 2_000));
-          await cancelSession(dispatched.slug);
+          if (!auto) await cancelSession(dispatched.slug);
 
+          // Longer window for auto:true — the harness has to boot,
+          // process the prompt, and emit events. Hard-assert for
+          // opencode (T1 reliability gate); INFO-log for others where
+          // keepalive Channel delivery is still the unresolved gap.
           const events = await pollForEvents(
             (e) =>
               (e.actor_id === dispatched.slug ||
                 e.target_actor_id === dispatched.slug ||
                 e.entity_id === dispatched.slug) &&
               e.event_type.startsWith("hook."),
-            { sinceId, timeoutMs: 5_000 },
+            { sinceId, slug: dispatched.slug, timeoutMs: auto ? 30_000 : 5_000 },
           );
 
-          if (events.length === 0) {
-            console.log(
-              `INFO: ${h.id} — no hook.* events observed for dispatched session ${dispatched.slug}. ` +
-                `Expected today: dispatch routes to build_headless (no harness session → no SessionStart). ` +
-                `Unblocks when keepalive dispatch mode lands. ` +
-                `See .artifacts/agents-arc/discussions/dispatch-modes-vs-session-hooks.md`,
-            );
-            return;
+          if (h.id === "opencode") {
+            // Hard assertion — the supervisor synthesizes hook.* from
+            // opencode's --format json stream. session_started + at
+            // least one tool_use_started must fire.
+            const types = events.map((e) => e.event_type);
+            expect(types).toContain("hook.session_started");
+            expect(types).toContain("hook.tool_use_started");
+          } else {
+            if (events.length === 0) {
+              console.log(
+                `INFO: ${h.id} — no hook.* events observed for dispatched session ${dispatched.slug}. ` +
+                  `Expected today: dispatch routes to build_headless (no harness session → no SessionStart). ` +
+                  `Unblocks when keepalive dispatch mode lands. ` +
+                  `See .artifacts/agents-arc/discussions/dispatch-modes-vs-session-hooks.md`,
+              );
+              return;
+            }
+            const types = [...new Set(events.map((e) => e.event_type))];
+            console.log(`INFO: ${h.id} observed hook events: ${types.join(", ")}`);
           }
-
-          // If we did observe hooks, surface them — useful for spotting
-          // when the keepalive path lands and starts producing events.
-          const types = [...new Set(events.map((e) => e.event_type))];
-          console.log(`INFO: ${h.id} observed hook events: ${types.join(", ")}`);
         } finally {
           await cancelSession(dispatched.slug);
         }
       },
-      30_000,
+      60_000,
     );
   });
 }

@@ -52,6 +52,15 @@ fn headless_emits_run_command_with_prompt() {
         !cmd.args.contains(&"--yolo".to_string()),
         "opencode CLI has no --yolo flag; removed in April 2026",
     );
+    assert!(
+        cmd.args.contains(&"--dangerously-skip-permissions".to_string()),
+        "opencode 0.x has --dangerously-skip-permissions for auto-approve",
+    );
+    assert!(
+        cmd.args.contains(&"--format".to_string())
+            && cmd.args.contains(&"json".to_string()),
+        "opencode headless uses --format json for structured stream",
+    );
     assert_eq!(cmd.args.last().unwrap(), "test prompt");
     assert_eq!(
         cmd.env.get("SHIP_ACTOR_ID").map(String::as_str),
@@ -95,9 +104,71 @@ fn id_is_opencode() {
 }
 
 #[test]
-fn parse_output_returns_none() {
+fn parse_output_returns_none_for_garbage() {
     let adapter = OpenCodeAdapter;
     assert!(adapter.parse_output("anything").is_none());
+    assert!(adapter.parse_output("{}").is_none());
+}
+
+#[test]
+fn parse_output_captures_session_id_from_step_start() {
+    use crate::services::harness_adapter::HarnessEvent;
+    let adapter = OpenCodeAdapter;
+    let line = r#"{"type":"step_start","sessionID":"ses_abc123","part":{"id":"prt_x","type":"step-start"}}"#;
+    match adapter.parse_output(line) {
+        Some(HarnessEvent::SessionStarted { session_id }) => {
+            assert_eq!(session_id, "ses_abc123");
+        }
+        other => panic!("expected SessionStarted, got {other:?}"),
+    }
+}
+
+#[test]
+fn parse_output_emits_message_for_text() {
+    use crate::services::harness_adapter::HarnessEvent;
+    let adapter = OpenCodeAdapter;
+    let line = r#"{"type":"text","sessionID":"ses_x","part":{"type":"text","text":"hello"}}"#;
+    match adapter.parse_output(line) {
+        Some(HarnessEvent::Message { text }) => assert_eq!(text, "hello"),
+        other => panic!("expected Message, got {other:?}"),
+    }
+}
+
+#[test]
+fn parse_output_emits_turn_usage_from_step_finish() {
+    use crate::services::harness_adapter::HarnessEvent;
+    let adapter = OpenCodeAdapter;
+    let line = r#"{"type":"step_finish","sessionID":"ses_x","part":{"type":"step-finish","reason":"stop","tokens":{"total":19596,"input":100,"output":73,"reasoning":95,"cache":{"write":12,"read":19328}}}}"#;
+    match adapter.parse_output(line) {
+        Some(HarnessEvent::TurnUsage {
+            input_tokens,
+            output_tokens,
+            reasoning_tokens,
+            cache_creation_tokens,
+            cache_read_tokens,
+            stop_reason,
+            ..
+        }) => {
+            assert_eq!(input_tokens, 100);
+            assert_eq!(output_tokens, 73);
+            assert_eq!(reasoning_tokens, 95);
+            assert_eq!(cache_creation_tokens, 12);
+            assert_eq!(cache_read_tokens, 19328);
+            assert_eq!(stop_reason.as_deref(), Some("stop"));
+        }
+        other => panic!("expected TurnUsage, got {other:?}"),
+    }
+}
+
+#[test]
+fn parse_output_emits_tool_use_for_tool_part() {
+    use crate::services::harness_adapter::HarnessEvent;
+    let adapter = OpenCodeAdapter;
+    let line = r#"{"type":"tool_use","sessionID":"ses_x","part":{"type":"tool","tool":"Bash","state":{"status":"completed","input":{"command":"ls"}}}}"#;
+    match adapter.parse_output(line) {
+        Some(HarnessEvent::ToolUse { tool, .. }) => assert_eq!(tool, "Bash"),
+        other => panic!("expected ToolUse, got {other:?}"),
+    }
 }
 
 // ── Capabilities ────────────────────────────────────────────────────────────

@@ -77,6 +77,7 @@ async fn tmux_window_spawn_captures_window_id_and_survives_name_collision() {
         },
         step: Some(StepInfo { index: 0, id: "tests".into() }),
         headless: false,
+        keepalive: false,
     };
 
     let exec = TmuxWindowExecutor::new().unwrap();
@@ -130,11 +131,61 @@ async fn resume_handle_refuses_ambiguous_name() {
         },
         step: Some(StepInfo { index: 0, id: "tests".into() }),
         headless: false,
+        keepalive: false,
     };
 
     let exec = TmuxWindowExecutor::new().unwrap();
-    let _h1 = exec.spawn(&make_ctx()).await.expect("spawn 1");
-    let _h2 = exec.spawn(&make_ctx()).await.expect("spawn 2");
+    let h1 = exec.spawn(&make_ctx()).await.expect("spawn 1");
+    let h2 = exec.spawn(&make_ctx()).await.expect("spawn 2");
+    let w1 = h1
+        .inner
+        .downcast_ref::<TmuxWindowState>()
+        .expect("h1 state")
+        .window
+        .clone();
+    let w2 = h2
+        .inner
+        .downcast_ref::<TmuxWindowState>()
+        .expect("h2 state")
+        .window
+        .clone();
+
+    // Defeat tmux's two renaming mechanisms:
+    //   - `automatic-rename` (default on): rename based on the running
+    //     process — replaces our `-n tests` with e.g. `zsh` once the
+    //     shell starts.
+    //   - `allow-rename` (default on): honor shell-emitted OSC 0
+    //     escape codes that set the window title.
+    //
+    // Under workspace-test parallelism the shells in these windows
+    // occasionally race-rename one of the two windows before we get
+    // to the assertion, making find_unique_window_by_name see exactly
+    // one "tests" window and return Some(...). Then the test fails
+    // ("ambiguous name must not resume"). Pinning both options off
+    // per-window AND re-renaming right before the query gives the
+    // assertion deterministic state.
+    let pin = |w: &str| {
+        for opt in ["automatic-rename", "allow-rename"] {
+            let _ = std::process::Command::new("tmux")
+                .args([
+                    "set-window-option",
+                    "-t",
+                    &format!("{session}:{w}"),
+                    opt,
+                    "off",
+                ])
+                .status();
+        }
+        let _ = std::process::Command::new("tmux")
+            .args(["rename-window", "-t", &format!("{session}:{w}"), "tests"])
+            .status();
+    };
+    pin(&w1);
+    pin(&w2);
+    // Re-pin immediately before the assertion to close any TOCTOU
+    // between option-set and the list-windows query.
+    pin(&w1);
+    pin(&w2);
 
     // Two windows named "tests" — rehydration must refuse rather than guess.
     let resumed = exec.resume_handle(&slug, None, Some("tests")).await;
@@ -143,4 +194,6 @@ async fn resume_handle_refuses_ambiguous_name() {
     let _ = std::process::Command::new("tmux")
         .args(["kill-session", "-t", &session])
         .status();
+    drop(h1);
+    drop(h2);
 }

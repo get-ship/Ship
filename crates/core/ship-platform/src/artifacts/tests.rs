@@ -362,19 +362,31 @@ async fn concurrent_store_same_bytes_dedup_to_one_blob() {
         }));
     }
     let mut records = Vec::with_capacity(n);
-    for h in handles {
-        records.push(h.await.unwrap().unwrap());
+    for (i, h) in handles.into_iter().enumerate() {
+        let joined = h.await.unwrap_or_else(|e| panic!("task {i} join failed: {e}"));
+        let rec = joined.unwrap_or_else(|e| {
+            // Better diagnostics than .unwrap().unwrap(): if a store
+            // returns Err (e.g. sqlite busy timeout under parallel
+            // workspace-test load), surface the underlying error.
+            panic!("task {i} store returned Err: {e:#}")
+        });
+        records.push(rec);
     }
 
     // All N rows share a single path — dedup held under contention.
     let first = records[0].path.clone();
-    for r in &records[1..] {
-        assert_eq!(r.path, first, "concurrent dedup must converge on one blob path");
+    for (i, r) in records.iter().enumerate().skip(1) {
+        assert_eq!(
+            r.path, first,
+            "concurrent dedup must converge on one blob path \
+             (task {i} got {:?}, task 0 got {:?})",
+            r.path, first
+        );
     }
 
     // And only one blob file exists on disk under that path.
     let abs = ship_dir.join(&first);
-    assert!(abs.exists(), "blob must exist at the shared path");
+    assert!(abs.exists(), "blob must exist at the shared path: {abs:?}");
 }
 
 /// Concurrent stores of *different* bytes must each write their own blob —

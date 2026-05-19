@@ -63,12 +63,26 @@ pub(crate) fn step_log_rel(index: usize, step_id: &str) -> String {
 }
 
 /// Is the tmux binary on PATH and responsive to `-V`?
+///
+/// One retry on failure: under heavy parallel subprocess load
+/// (workspace-wide test runs, dispatching many agents in parallel)
+/// the bare `tmux -V` occasionally fails to fork / start and returns
+/// non-success. This is a transient OS-level resource hiccup, not a
+/// real "tmux is unavailable" signal. We retry once with a small
+/// pause; if the second attempt also fails, tmux truly isn't usable.
 pub(crate) fn tmux_available() -> bool {
-    ship_substrate::spawn_bounded::Cmd::new("tmux")
-        .arg("-V")
-        .output()
-        .map(|o| o.status.success())
-        .unwrap_or(false)
+    fn check() -> bool {
+        ship_substrate::spawn_bounded::Cmd::new("tmux")
+            .arg("-V")
+            .output()
+            .map(|o| o.status.success())
+            .unwrap_or(false)
+    }
+    if check() {
+        return true;
+    }
+    std::thread::sleep(std::time::Duration::from_millis(50));
+    check()
 }
 
 /// Does a tmux session by this name already exist?

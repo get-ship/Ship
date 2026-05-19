@@ -88,7 +88,7 @@ fn cleanup_resolves_slug_from_event_payload() {
 /// (idempotent cleanup).
 #[test]
 fn cleanup_is_idempotent() {
-    let source = include_str!("../../../../crates/ship-supervisor/src/helpers.rs");
+    let source = include_str!("../../../../crates/core/ship-supervisor/src/helpers.rs");
     assert!(
         source.contains("exists()"),
         "remove_worktree must check existence — cleanup must be idempotent"
@@ -153,10 +153,10 @@ fn shutdown_sends_exit_before_kill() {
     // The executor's stop() should use the adapter's exit_command
     // before resorting to SIGTERM/SIGKILL.
     let process_src = std::fs::read_to_string(
-        concat!(env!("CARGO_MANIFEST_DIR"), "/../../crates/ship-supervisor/src/executors/process.rs")
+        concat!(env!("CARGO_MANIFEST_DIR"), "/../../crates/core/ship-supervisor/src/executors/process.rs")
     ).unwrap();
     let lifecycle_src = std::fs::read_to_string(
-        concat!(env!("CARGO_MANIFEST_DIR"), "/../../crates/ship-supervisor/src/agent_lifecycle.rs")
+        concat!(env!("CARGO_MANIFEST_DIR"), "/../../crates/core/ship-supervisor/src/agent_lifecycle.rs")
     ).unwrap();
 
     // At least one path must use the adapter's exit command
@@ -175,7 +175,7 @@ fn shutdown_sends_exit_before_kill() {
 #[test]
 fn process_executor_monitors_child() {
     let source = std::fs::read_to_string(
-        concat!(env!("CARGO_MANIFEST_DIR"), "/../../crates/ship-supervisor/src/executors/process.rs")
+        concat!(env!("CARGO_MANIFEST_DIR"), "/../../crates/core/ship-supervisor/src/executors/process.rs")
     ).unwrap();
     assert!(
         source.contains("wait()") || source.contains("child.wait"),
@@ -188,7 +188,7 @@ fn process_executor_monitors_child() {
 #[test]
 fn process_executor_signals_on_exit() {
     let source = std::fs::read_to_string(
-        concat!(env!("CARGO_MANIFEST_DIR"), "/../../crates/ship-supervisor/src/executors/process.rs")
+        concat!(env!("CARGO_MANIFEST_DIR"), "/../../crates/core/ship-supervisor/src/executors/process.rs")
     ).unwrap();
     assert!(
         source.contains("job") && (source.contains("end") || source.contains("completed") || source.contains("failed")),

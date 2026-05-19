@@ -118,7 +118,7 @@ The daemon binary (`apps/shipd/`) hosts the `ShipRuntime`:
 
 - `ship_runtime.rs` — `ShipRuntime` struct with lazy `OnceCell` managers
 - `routes/` — all HTTP route modules (`rest_api.rs` for mesh, `runtime_api.rs` read-only API for Studio, plus per-domain APIs)
-- `supervisor/` — integration-test scaffolding only; production supervisor code lives in the `crates/ship-supervisor/` crate
+- `supervisor/` — integration-test scaffolding only; production supervisor code lives in the `crates/core/ship-supervisor/` crate
 - `transport/pty.rs` — WebSocket-to-tmux PTY bridge
 - `transport/connections.rs` — per-connection lifecycle and the mesh service spawn
 - `auth/scopes.rs` — re-exports `DaemonSession`, `Scope` from `ship_platform::auth::scopes`; role-based capability enforcement

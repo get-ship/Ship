@@ -25,6 +25,16 @@ fn interactive_sets_mesh_id_env() {
 }
 
 #[test]
+fn interactive_includes_yolo() {
+    let adapter = GeminiAdapter;
+    let cmd = adapter.build_interactive("j", &default_profile());
+    assert!(
+        cmd.args.contains(&"--yolo".to_string()),
+        "keepalive dispatches use build_interactive; without --yolo every tool call blocks"
+    );
+}
+
+#[test]
 fn interactive_model_flag_maps_correctly() {
     let adapter = GeminiAdapter;
     let profile = LaunchProfile {

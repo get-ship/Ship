@@ -129,6 +129,7 @@ export interface DispatchInput {
   auto?: boolean;
   workspace?: string;
   model?: string;
+  keepalive?: boolean;
 }
 
 export interface DispatchResponse {
@@ -161,6 +162,7 @@ export async function dispatch(input: DispatchInput): Promise<{
         auto: input.auto ?? true,
         workspace: input.workspace,
         model: input.model,
+        keepalive: input.keepalive ?? false,
       }),
     },
   );
@@ -243,6 +245,35 @@ export async function waitForActorRow(
     await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
   }
   return null;
+}
+
+/**
+ * Poll for an actor row where a specific field becomes populated. Use
+ * this instead of `waitForActorRow` when you intend to assert on
+ * harness, transport, pid, etc. The bare row arrives as soon as
+ * `process.spawned` lands, but those fields only fill in once
+ * `actor.created` projects, and the two events race. Predicate
+ * polling closes the gap.
+ *
+ * Returns the row once `predicate(row)` is true, or the last observed
+ * row if the deadline expires (test asserts on it and fails clearly).
+ * Null if the row never materialises at all.
+ */
+export async function waitForActorField(
+  slug: string,
+  predicate: (a: ActorRow) => boolean,
+  opts: { timeoutMs?: number; intervalMs?: number } = {},
+): Promise<ActorRow | null> {
+  const timeout = opts.timeoutMs ?? 15_000;
+  const interval = opts.intervalMs ?? 250;
+  const deadline = Date.now() + timeout;
+  let last: ActorRow | null = null;
+  while (Date.now() < deadline) {
+    last = await getActorRow(slug);
+    if (last && predicate(last)) return last;
+    await new Promise((r) => setTimeout(r, interval));
+  }
+  return last;
 }
 
 /** Fetch the current actor row without polling (returns null on 404). */
@@ -414,12 +445,19 @@ export async function pollForEvents(
   return collected;
 }
 
-/** Latest persisted event id — use as a `sinceId` cursor anchor. */
+/** Latest persisted event id — use as a `sinceId` cursor anchor.
+ *  The poll endpoint returns events ASC (oldest of the recent 5000
+ *  first — `list_recent_events_at` does `ORDER BY id DESC LIMIT 5000`
+ *  then `.reverse()`). To get the newest, ask for the full recent
+ *  window and read the LAST element. Skipping the workaround would
+ *  put the cursor 5000 events in the past — making tests miss newly
+ *  emitted events on busy daemons. */
 export async function latestEventId(): Promise<string | undefined> {
   const { body } = await api<{ data?: { events?: EventEnvelope[] } }>(
-    `/api/v1/events/poll?limit=1`,
+    `/api/v1/events/poll?limit=5000`,
   );
-  return body.data?.events?.[0]?.id;
+  const evs = body.data?.events;
+  return evs && evs.length > 0 ? evs[evs.length - 1]!.id : undefined;
 }
 
 /**

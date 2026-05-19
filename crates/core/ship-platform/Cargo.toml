@@ -4,9 +4,11 @@ version = "0.1.0"
 edition = "2024"
 license-file = "LICENSE"
 publish = false
+description = "L1 platform primitives — agents, collections, artifacts, triggers, projections, auth, config, registry, sessions, search, view-authoring, toolchain. Built on `ship-substrate`; consumed by the daemon and any L2 app."
 
 [dependencies]
 ship-substrate = { path = "../ship-substrate" }
+ship-analytics = { path = "../ship-analytics" }
 ship-kernel = { path = "../ship-kernel" }
 ship-types = { path = "../ship-types" }
 ship-pipelines = { path = "../ship-pipelines", features = ["specta"] }

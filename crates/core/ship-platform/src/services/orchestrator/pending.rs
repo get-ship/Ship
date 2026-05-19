@@ -79,6 +79,7 @@ pub async fn dispatch_ready_pending_jobs(
             spec_content: None,
             step_specs: None,
             headless: job.headless,
+            keepalive: false,
             prompt: None,
             resume: false,
             resume_session_id: None,

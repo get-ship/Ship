@@ -100,6 +100,8 @@ pub async fn dispatch_fanout_step(
             },
             step: Some(StepInfo { index: step_idx, id: lane_step_id.clone() }),
             headless: job.headless,
+            // Fanout lanes are pipeline steps, never long-running.
+            keepalive: false,
         };
 
         let lane_wt = match octx.isolation.prepare(&lane_ctx).await {
