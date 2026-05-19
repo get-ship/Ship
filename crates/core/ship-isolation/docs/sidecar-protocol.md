@@ -1,152 +1,149 @@
-# Sidecar Protocol — RFC
+# Sidecar Protocol — v1 RFC
 
-**Status: draft.** Wire shape committed in `src/sidecar/protocol.rs`.
-Handlers not yet implemented. This document is the contract the
-in-sandbox daemon (`ship-sidecar`) will speak and the host-side
-isolator backends will speak to. Modeled on `rivet-dev/sandbox-agent`
-with our policy types.
+**Status:** schema frozen, scaffold landed, sidecar handler rewrite
+pending.
 
-## Transport
+**Schema:** [`proto/ship/sidecar/v1/sidecar.proto`](../../../../proto/ship/sidecar/v1/sidecar.proto)
+(canonical). Rust + TS bindings generated via ConnectRPC + Buf.
 
-- **HTTP/1.1** for control-plane requests.
-- **Server-Sent Events (SSE)** for the event stream.
-- One transport binding per backend topology:
-  - **Local container backend** — Unix socket bind-mounted into the
-    container at `/run/ship-sidecar.sock`.
-  - **Local microVM backend** — `vsock` listener; host connects on the
-    VM's CID.
-  - **Cloud backend (Fly, E2B, etc.)** — TCP+TLS on the public
-    address of the sandbox VM, bearer-token auth via
-    `Authorization: Bearer $SHIP_SIDECAR_TOKEN`.
+**Wire path:** `/ship.sidecar.v1.<Service>/<Method>` per Connect convention.
 
-The HTTP request shape and JSON payloads are identical across all
-three transports.
+## Why ConnectRPC
 
-## Authentication
+The host ↔ sidecar channel is bidirectional and long-lived. PTY needs
+binary streaming both ways, permission requests need request/reply
+correlation, hook callbacks are server-initiated, credential fetches
+are client-initiated. Three real options surveyed:
 
-- Local Unix-socket / vsock — transport is the auth (per-sandbox
-  socket, no other process can connect).
-- Cloud / TCP — `Authorization: Bearer <token>` against
-  `SHIP_SIDECAR_TOKEN` set in the sandbox's env at spawn time.
-  Missing or wrong token returns `401`.
+| | HTTP+JSON+SSE+WS | tarpc | **ConnectRPC** |
+|---|---|---|---|
+| Bidi streaming | WS only (separate transport) | Native | First-class |
+| Schema | Hand-typed JSON | Rust types | Protobuf |
+| Polyglot SDK | Yes (multi-codebase types) | Rust only | Yes (any language) |
+| Already in repo? | Partial | No | **Yes** (gateway-client) |
+| Versioning hygiene | Manual | Manual | Protobuf field-number rules |
 
-## Endpoints
+The polyglot story matters because tier-3 integration ("ADD
+`ship-sidecar` to my Dockerfile") implies users will drive sidecars
+from non-Rust stacks — TS/Python/Go cloud functions, CI workflows,
+internal PaaSes. Connect gives that for free via Buf-generated
+clients in any language. Hand-typed JSON would re-type every shape
+per language; tarpc would lock the wire format to Rust.
 
-### `GET /v1/health` → `200`
+The codegen cost is amortized because we already pay it on the
+gateway-client side.
 
-Liveness probe. Response:
+## Tier coverage
 
-```json
-{ "status": "ok", "version": "0.1.0" }
+```
+Tier 1  HarnessNative / SrtWrapper    → in-process; no sidecar
+Tier 2  DockerEngine / YoukiRootless  → sidecar in container; unix socket
+Tier 3  LimaVm                        → sidecar in microVM; vsock
+Tier 4  FlyMachines + other vendors   → sidecar in vendor sandbox; TCP+TLS
 ```
 
-### `POST /v1/session/start` → `200`
+One protocol; the host adapts the transport. Same generated Rust
+client wraps each.
 
-Initialize a sandbox session inside the sidecar. The sidecar applies
-the policy (mounts, env, network namespace shape) and returns the
-session id used by every subsequent call.
+## Transport per tier
 
-```jsonc
-// request
-{
-  "label": "claude-job-abc",
-  "policy": { /* SandboxPolicy */ }
-}
-// response
-{ "session_id": "ses_..." }
-```
+| Tier | Transport | Auth |
+|---|---|---|
+| 2 (local container) | Unix socket bind-mounted at `/run/ship-sidecar.sock` | per-socket — the socket itself is the auth |
+| 3 (local microVM) | vsock listener; host connects on the VM's CID | per-CID |
+| 4 (cloud) | TCP + TLS on the sandbox's public address | `Authorization: Bearer $SHIP_SIDECAR_TOKEN` |
 
-### `POST /v1/exec` → `200`
+The HTTP layer and the protobuf payloads are identical across all
+three.
 
-Start a child process inside the session.
+## Versioning discipline
 
-```jsonc
-// request
-{
-  "session_id": "ses_...",
-  "bin": "/usr/bin/claude",
-  "args": ["-p", "go"],
-  "env": { "FOO": "bar" },
-  "cwd": "/work"
-}
-// response
-{ "exec_id": "exe_...", "pid": 12345 }
-```
+Sidecars MUST report their `protocol_version` and `capabilities` in
+the `Handshake.Hello` response. Hosts:
 
-### `POST /v1/signal` → `204`
+- read the version; refuse to connect if the major mismatches
+- read capabilities; never call a method whose capability isn't listed
+- ignore unknown fields in any response (forward-compatible reads)
 
-Send a signal to a running exec.
+Protocol changes:
 
-```json
-{ "exec_id": "exe_...", "signal": 15 }
-```
+- **Additive** — new fields with new field numbers, new methods, new
+  enum values (with `_UNSPECIFIED = 0` sentinel maintained). v1 stays
+  v1; old hosts/sidecars work unchanged.
+- **Breaking** — only under a new package (`ship.sidecar.v2`).
+  Sidecars supporting both versions advertise both in `capabilities`;
+  hosts negotiate down. Overlap window lasts at least one minor
+  release cycle.
 
-### `POST /v1/stdin` → `204`
+This means **we do not need dynamic protocol fetch at handshake.** The
+schema is stable by discipline, not by runtime indirection.
 
-Write bytes to a running exec's stdin.
+## What's intentionally NOT in v1
 
-```json
-{ "exec_id": "exe_...", "data_b64": "..." }
-```
+These were considered and excluded:
 
-### `POST /v1/mount` → `204`
+- **`/fs/*` endpoints.** Workspace + creds bind-mount from host to
+  container/VM. Cloud Tier 4 uses the vendor's equivalent volume
+  primitive. No filesystem-over-the-wire surface.
+- **Agent install.** The container image bakes harness CLIs. "BYO
+  image" power users add `ship-sidecar` to their Dockerfile via
+  `ADD https://github.com/ship/.../releases/.../ship-sidecar-...`;
+  the sidecar doesn't install anything at runtime.
+- **Desktop / X11 / WebRTC.** Out of scope.
+- **`/metrics/*`.** Process state is `Processes.Get`/`List`. Richer
+  metrics belong in the daemon's analytics path, not the sidecar.
 
-Add a runtime mount to a session.
+## Surfaces in v1
 
-### `POST /v1/policy` → `204`
+See the .proto for canonical signatures. Summary:
 
-Replace the network/env policy on a live session. Mount-set changes
-require `POST /v1/mount` calls.
+| Service | RPC | Direction | Stream | Purpose |
+|---|---|---|---|---|
+| `Handshake` | `Hello` | host→sc | unary | capability negotiation |
+| `Processes` | `Create` | host→sc | unary | spawn long-lived child |
+| `Processes` | `Run` | host→sc | unary | one-shot exec with stdout/stderr/exit |
+| `Processes` | `List` / `Get` | host→sc | unary | enumerate / inspect |
+| `Processes` | `Stop` / `Kill` | host→sc | unary | lifecycle |
+| `Processes` | `WriteInput` | host→sc | unary | stdin / PTY master writes |
+| `Processes` | `ResizeTerminal` | host→sc | unary | PTY resize |
+| `Processes` | `AttachPty` | host→sc | server-stream | PTY output as `PtyChunk`s |
+| `Events` | `Stream` | both | bidi | universal envelope channel (stdout, exit, permission, secret, settings, hooks, log_progress) |
 
-### `POST /v1/port-publish` → `200`
+## The `Envelope` channel
 
-Publish an internal port to the host. Response includes the assigned
-external port.
+Replaces what would have been 5+ separate endpoints
+(`/v1/permission/*`, `/v1/secret/*`, `/v1/hook/*`,
+`/v1/log_progress`, `/v1/settings/*`). Single bidi stream multiplexed
+via `Envelope.request_id` for request/reply pairs. Sequence numbers
+for replay/audit.
 
-```jsonc
-// request
-{ "session_id": "ses_...", "internal_port": 3000, "external_port": null }
-// response
-{ "external_port": 17234 }
-```
+Sender-initiated payload types (sidecar → host):
+- `process_output` — non-PTY stdout/stderr chunks
+- `process_exited` — exit code or signal
+- `permission_request` — agent asks before running a risky tool
+- `secret_request` — agent needs a credential (broker resolves via
+  shipd's keychain bridge; secret never lands in container disk)
+- `setting_request` — agent reads a daemon setting via shipd
+- `hook_fired` — sidecar dispatches a configured hook back to shipd
+- `log_progress` — structured progress note (via MCP today)
 
-### `POST /v1/shutdown` → `204`
+Host-initiated payload types (host → sidecar):
+- `permission_reply` — `allow` / `allow_once` / `deny`
+- `secret_reply` — resolved value, never logged
+- `setting_reply` — JSON value
+- `hook_return` — shipd's hook handler response
 
-Gracefully tear down a session.
+The `request_id` field correlates pairs without requiring per-concern
+endpoints. Adding a new request/reply pair is a `oneof` variant in
+the proto, not a new HTTP route.
 
-### `GET /v1/events` — text/event-stream
+## Implementation map
 
-SSE feed of every event the session emits. One JSON object per
-`data:` line. Event types:
-
-- `stdout` — `{ "exec_id", "data_b64" }`
-- `stderr` — `{ "exec_id", "data_b64" }`
-- `exited` — `{ "exec_id", "code", "signal" }`
-- `policy_denied` — `{ "session_id", "kind", "detail" }`
-- `network_blocked` — `{ "session_id", "host" }`
-- `sidecar_shutdown` — `{ "reason" }`
-
-All events carry a `type` discriminator (serde tag).
-
-## Versioning
-
-The path prefix is `/v1`. Breaking changes bump to `/v2`. Additive
-fields land in `/v1` and are tolerated by older sidecars (use
-`#[serde(default)]` for new optional fields).
-
-## Open questions
-
-- **Backpressure.** Should `stdout`/`stderr` events ever be dropped
-  under load, or always queued? Currently undecided; default to
-  queued with a generous bound and document the bound.
-- **Multi-exec stdio multiplexing.** Today every exec's stdout flows
-  through a single SSE stream tagged by `exec_id`. Reasonable for
-  observability; clients filter by id.
-- **Reauth.** If the sandbox lives long enough that the bearer token
-  rotates, how does the host hand the sidecar a new token? Open.
-  Probably a `POST /v1/auth-rotate` endpoint with the old token in
-  the header and the new one in the body.
-- **Bulk file transfer.** `data_b64` over JSON is fine for stdio but
-  bad for copying multi-MB blobs. A separate `POST /v1/files` with
-  raw body and `Content-Type: application/octet-stream` likely belongs
-  in v2.
+| Piece | Status |
+|---|---|
+| `proto/ship/sidecar/v1/sidecar.proto` | landed |
+| Rust client + server bindings (codegen) | landed; 7 smoke tests in `tests/proto_v1.rs` |
+| TS bindings | wire via Buf when the SDK consumer lands |
+| Sidecar binary handlers (`bin/ship-sidecar/`) | uses legacy hand-typed JSON; rewrite to Connect routing is the next chunk |
+| Host-side ConnectRPC client in backends | not yet — pending sidecar handler rewrite |
+| Versioning policy | this document |

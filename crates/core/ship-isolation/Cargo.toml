@@ -24,6 +24,16 @@ libc = { version = "0.2", optional = true }
 reqwest = { version = "0.12", default-features = false, optional = true, features = ["json", "stream"] }
 base64 = { version = "0.22", optional = true }
 futures-util = { workspace = true, optional = true }
+# v1 protocol bindings — codegen via build.rs from proto/ship/sidecar/v1.
+# Matches the gateway-client setup so both crates share the toolchain.
+connectrpc = { version = "0.4" }
+buffa = { version = "0.5", features = ["json"] }
+http-body = "1"
+http = "1"
+
+[build-dependencies]
+connectrpc-build = "0.4"
+protoc-bin-vendored = "3"
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["rt-multi-thread", "macros", "sync", "process", "time"] }
