@@ -532,7 +532,7 @@ fn collect_kbd_shortcuts(children: &[Instr]) -> String {
     let mut items: Vec<String> = Vec::new();
     for child in children {
         let Instr::Element(el) = child else { continue };
-        if el.tag.to_ascii_lowercase() != "on" {
+        if !el.tag.eq_ignore_ascii_case("on") {
             continue;
         }
         let mut key: Option<String> = None;

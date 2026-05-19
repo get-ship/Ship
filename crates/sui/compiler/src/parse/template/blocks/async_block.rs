@@ -119,23 +119,24 @@ pub(crate) fn parse_async(
         body: ok_wrapped,
     };
 
-    let mut out: Vec<Instr> = Vec::new();
-    out.push(Instr::WhileLoading(WhileLoadingInstr {
-        bind: header.signal.clone(),
-        body: loading_body.unwrap_or_else(default_loading_body),
-        span: head_span,
-    }));
-    out.push(Instr::WhileError(WhileErrorInstr {
-        bind: header.signal.clone(),
-        error_var: error_var.clone(),
-        body: error_body.unwrap_or_else(|| default_error_body(&error_var, head_span)),
-        span: head_span,
-    }));
-    out.push(Instr::If(IfInstr {
-        branches: vec![if_branch],
-        else_body: None,
-        span: head_span,
-    }));
+    let out: Vec<Instr> = vec![
+        Instr::WhileLoading(WhileLoadingInstr {
+            bind: header.signal.clone(),
+            body: loading_body.unwrap_or_else(default_loading_body),
+            span: head_span,
+        }),
+        Instr::WhileError(WhileErrorInstr {
+            bind: header.signal.clone(),
+            error_var: error_var.clone(),
+            body: error_body.unwrap_or_else(|| default_error_body(&error_var, head_span)),
+            span: head_span,
+        }),
+        Instr::If(IfInstr {
+            branches: vec![if_branch],
+            else_body: None,
+            span: head_span,
+        }),
+    ];
 
     Ok(InstrsResult { instrs: out, end: i })
 }
