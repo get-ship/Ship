@@ -5,7 +5,7 @@
 import { compileExpr, type CompiledExpr } from './expr'
 import { compileAttrs, type AttrInstr } from '../bindings/attr-compile'
 import { tokenizeChildren, type Token } from './tokenize'
-import { parseIf, parseFor, parseMatch, parseWhileLoading, parseWhileError, type ParseScope } from './compile-blocks'
+import { parseIf, parseFor, parseMatch, parseWhileLoading, parseWhileError, parseAsync, type ParseScope } from './compile-blocks'
 
 /** One unit of rendered output. */
 export type Instr =
@@ -35,6 +35,14 @@ export type Instr =
     }
   | { kind: 'while-loading'; bind: string; body: Instr[] }
   | { kind: 'while-error'; bind: string; errorVar: string; body: Instr[] }
+  /**
+   * `let` — extend the scope with a single named getter for the duration
+   * of `body`. Used internally by the `{#async X as v}` desugar to make
+   * `v.field` references inside `{:ok}` resolve to `X().value.field`;
+   * the getter form keeps the binding reactive (every read re-evaluates
+   * the underlying expression). No user-facing template syntax.
+   */
+  | { kind: 'let'; name: string; value: CompiledExpr; body: Instr[] }
 
 /** Compile the children of `parent` into an instruction list. */
 export function compileChildren(parent: Node): Instr[] {
@@ -117,6 +125,16 @@ function parseTokens(
     if (tok.kind === 'open-while-error') {
       const { instr, end } = parseWhileError(tokens, i, blockScope)
       instrs.push(instr)
+      i = end
+      continue
+    }
+    if (tok.kind === 'open-async') {
+      // {#async} desugars to a synthetic sequence of the three existing
+      // block kinds (while-loading + while-error + if) — see parseAsync
+      // for the expansion. It returns multiple top-level instrs which
+      // we splice into the current scope.
+      const { instrs: asyncInstrs, end } = parseAsync(tokens, i, blockScope)
+      for (const ins of asyncInstrs) instrs.push(ins)
       i = end
       continue
     }
