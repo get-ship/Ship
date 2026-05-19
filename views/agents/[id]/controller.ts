@@ -1,5 +1,6 @@
 import { controller, derived, effect, live, signal, unwrap } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
+import { HUES, pickHue, pickInitials } from './hue'
 
 type Permissions = {
   preset?: string
@@ -13,6 +14,7 @@ type AgentDetail = {
   name: string
   description: string
   letter: string
+  hue?: string | null
   icon?: string | null
   version?: string | null
   tags?: string[]
@@ -29,34 +31,6 @@ type AgentDetail = {
 
 type WireResp = { agent?: AgentDetail } | null | undefined
 type Banner = { ok: true; msg: string } | { ok: false; msg: string } | null
-
-type SectionId =
-  | 'description'
-  | 'skills'
-  | 'mcp'
-  | 'rules'
-  | 'permissions'
-  | 'providers'
-  | 'source'
-
-const SECTIONS: SectionId[] = [
-  'description', 'skills', 'mcp', 'rules', 'permissions', 'providers', 'source',
-]
-
-function readSectionFromUrl(): SectionId {
-  if (typeof location === 'undefined') return 'description'
-  const params = new URLSearchParams(location.search)
-  const s = params.get('section')
-  return (SECTIONS as string[]).includes(s ?? '') ? (s as SectionId) : 'description'
-}
-
-function writeSectionToUrl(section: SectionId): void {
-  if (typeof window === 'undefined') return
-  const url = new URL(window.location.href)
-  if (section === 'description') url.searchParams.delete('section')
-  else url.searchParams.set('section', section)
-  window.history.replaceState(null, '', url.toString())
-}
 
 async function readActiveAgent(): Promise<string> {
   try {
@@ -92,6 +66,24 @@ export default controller<Scope>({
       return !(d && d.agent && typeof d.agent.id === 'string')
     })
 
+    // Hue: prefer the value the author saved on the agent record so
+    // the keystone tile matches the tile that was picked during
+    // create. Fall back to a deterministic hash so older agents that
+    // pre-date the hue field still get a stable colour.
+    const hue = derived(() => {
+      const a = agent()
+      const saved = a && typeof a.hue === 'string' ? a.hue.trim() : ''
+      if (saved.length > 0 && (HUES as readonly string[]).includes(saved)) return saved
+      return pickHue(a?.id ?? agentId())
+    })
+
+    const initials = derived(() => {
+      const a = agent()
+      const letter = a && typeof a.letter === 'string' ? a.letter.trim() : ''
+      if (letter.length > 0) return letter.slice(0, 2).toUpperCase()
+      return pickInitials(a?.id ?? agentId(), a?.name)
+    })
+
     const description = derived(() => {
       const a = agent()
       const d = a && typeof a.description === 'string' ? a.description.trim() : ''
@@ -110,10 +102,13 @@ export default controller<Scope>({
       const a = agent()
       return a && Array.isArray(a.rules) ? a.rules : []
     })
-    const hasInlineRules = derived(() => {
+    const inlineRulesText = derived(() => {
       const a = agent()
-      return !!(a && typeof a.inline_rules === 'string' && a.inline_rules.trim().length > 0)
+      return (a && typeof a.inline_rules === 'string') ? a.inline_rules : ''
     })
+    const hasInlineRules = derived(() => inlineRulesText().trim().length > 0)
+    const rulesTotal = derived(() => rulesList().length + (hasInlineRules() ? 1 : 0))
+
     const providerList = derived<{ id: string; label: string; isDefault: boolean }[]>(() => {
       const a = agent()
       if (!a || !Array.isArray(a.providers)) return []
@@ -162,21 +157,22 @@ export default controller<Scope>({
       return `${root}${id}.jsonc`
     })
 
-    // Edit state — drafts seeded from the loaded agent; baselines track
-    // last-saved values so the dirty flag stays honest across re-renders.
-    const descDraft = signal('')
-    const descBaseline = signal('')
-    const rulesDraft = signal('')
-    const rulesBaseline = signal('')
-    const saving = signal(false)
-    const banner = signal<Banner>(null)
+    // Meta separators are rendered conditionally; this captures the
+    // fields the detail header shows beside the id chip so the
+    // template can emit a separator between each present value.
+    const metaBits = derived(() => {
+      const a = agent()
+      if (!a) return []
+      const bits: string[] = []
+      if (a.source) bits.push(a.source)
+      if (a.version) bits.push(`v${a.version}`)
+      return bits
+    })
 
     // Active-agent — workspace-scoped via the `shell.agent.active` setting.
-    // Polled on mount + refreshed after every activate/deactivate. Could be
-    // pushed via SSE on `config.changed` later; today the activate handler
-    // emits the event so other views see it.
     const activeAgentId = signal('')
     const activating = signal(false)
+    const banner = signal<Banner>(null)
     void readActiveAgent().then((id) => activeAgentId.set(id))
 
     const isActive = derived(() => {
@@ -184,46 +180,18 @@ export default controller<Scope>({
       return id !== '' && activeAgentId() === id
     })
 
-    // Seed editor baselines + drafts whenever the loaded agent changes.
+    // Clear stale banners when the loaded agent changes.
     effect(() => {
-      const a = agent()
-      if (!a) return
-      const desc = a.description ?? ''
-      const rules = a.inline_rules ?? ''
-      descBaseline.set(desc)
-      descDraft.set(desc)
-      rulesBaseline.set(rules)
-      rulesDraft.set(rules)
+      void agent()
       banner.set(null)
     })
 
-    const descDirty = derived(() => descDraft() !== descBaseline())
-    const rulesDirty = derived(() => rulesDraft() !== rulesBaseline())
-
-    const openSection = signal<SectionId>(readSectionFromUrl())
-
-    // Keep section state in sync with browser back/forward, which lets
-    // deep-linked URLs like /agents/foo?section=permissions land on the
-    // right tab even after popstate.
-    effect(() => {
-      if (typeof window === 'undefined') return
-      const onPop = () => openSection.set(readSectionFromUrl())
-      window.addEventListener('popstate', onPop)
-      window.addEventListener('sui:navigate', onPop)
-      return () => {
-        window.removeEventListener('popstate', onPop)
-        window.removeEventListener('sui:navigate', onPop)
-      }
-    })
-
     return {
-      agentId, wireCtx, wireData, agent, notFound, description,
-      skillsList, mcpList, rulesList, hasInlineRules, providerList,
-      stats, permPreset, permLists, permTotalCount, sourcePath,
-      descDraft, descBaseline, rulesDraft, rulesBaseline,
-      descDirty, rulesDirty, saving, banner,
-      activeAgentId, activating, isActive,
-      openSection,
+      agentId, wireCtx, wireData, agent, notFound,
+      hue, initials, description, metaBits,
+      skillsList, mcpList, rulesList, hasInlineRules, inlineRulesText, rulesTotal,
+      providerList, stats, permPreset, permLists, permTotalCount, sourcePath,
+      activeAgentId, activating, isActive, banner,
     }
   },
   on: {
@@ -231,85 +199,6 @@ export default controller<Scope>({
     goSettings: ({ navigate, agentId }) => navigate(`/agents/${agentId}/settings`),
     goBack: ({ navigate }) => navigate('/agents'),
     goSkill: ({ navigate }, id: string) => navigate(`/skills/${id}`),
-
-    toggleSection: (s, id: SectionId) => {
-      const next = s.openSection === id ? 'description' : id
-      s.openSection = next
-      writeSectionToUrl(next as SectionId)
-    },
-
-    onDescInput: (s, e: Event) => {
-      const target = e.target as HTMLTextAreaElement & { value?: string }
-      const detail = (e as CustomEvent<{ value?: string }>).detail
-      const next = typeof detail?.value === 'string' ? detail.value : target?.value ?? ''
-      s.descDraft = next
-    },
-    resetDesc: (s) => { s.descDraft = s.descBaseline },
-    saveDesc: async (s) => {
-      if (s.saving || !s.descDirty) return
-      s.saving = true
-      s.banner = null
-      const next = s.descDraft as string
-      try {
-        const resp = await fetch(`/api/v1/agents/${encodeURIComponent(s.agentId as string)}`, {
-          method: 'PATCH',
-          credentials: 'same-origin',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify([
-            { op: 'replace', path: '/agent/description', value: next },
-          ]),
-        })
-        if (!resp.ok) {
-          const text = await resp.text().catch(() => '')
-          s.banner = { ok: false, msg: text || `Save failed (${resp.status})` }
-          return
-        }
-        s.descBaseline = next
-        s.banner = { ok: true, msg: 'Description saved.' }
-      } catch (err) {
-        s.banner = { ok: false, msg: (err as Error).message ?? 'Save failed.' }
-      } finally {
-        s.saving = false
-      }
-    },
-
-    onRulesInput: (s, e: Event) => {
-      const target = e.target as HTMLTextAreaElement & { value?: string }
-      const detail = (e as CustomEvent<{ value?: string }>).detail
-      const next = typeof detail?.value === 'string' ? detail.value : target?.value ?? ''
-      s.rulesDraft = next
-    },
-    resetRules: (s) => { s.rulesDraft = s.rulesBaseline },
-    saveRules: async (s) => {
-      if (s.saving || !s.rulesDirty) return
-      s.saving = true
-      s.banner = null
-      const next = s.rulesDraft as string
-      // `add` doubles as "create or replace" for json-patch object members,
-      // which avoids a 422 when `rules` or `rules.inline` doesn't yet exist
-      // on the document.
-      try {
-        const resp = await fetch(`/api/v1/agents/${encodeURIComponent(s.agentId as string)}`, {
-          method: 'PATCH',
-          credentials: 'same-origin',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify([
-            { op: 'add', path: '/rules', value: { inline: next } },
-          ]),
-        })
-        if (!resp.ok) {
-          const text = await resp.text().catch(() => '')
-          s.banner = { ok: false, msg: text || `Save failed (${resp.status})` }
-          return
-        }
-        s.rulesBaseline = next
-        s.banner = { ok: true, msg: 'Rules saved.' }
-      } catch (err) {
-        s.banner = { ok: false, msg: (err as Error).message ?? 'Save failed.' }
-      } finally {
-        s.saving = false
-      }
-    },
 
     activate: async (s) => {
       if (s.activating) return
