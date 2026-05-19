@@ -331,6 +331,33 @@ body::after {
   --sidebar-ring: oklch(0.67 0.16 58 / 20%);
 }
 
+/* ─── Hue palette — canonical identity colors ─────────────────────────
+ * A 16-hue ramp around the OKLCH wheel. These are IDENTITY colors, not
+ * semantic ones: agent hue tiles, project hue dots, profile-color
+ * affordances. Theme-neutral by default (themes may override individual
+ * hues — e.g. console's cyan-monochrome — but the base palette stands
+ * alone). Tuned for medium saturation + lightness so each hue is
+ * distinct from its neighbours AND readable with white text + a drop
+ * shadow on both light (--background) and dark surfaces. */
+:root {
+  --hue-red:      oklch(0.62 0.21 25);
+  --hue-orange:   oklch(0.68 0.18 50);
+  --hue-amber:    oklch(0.74 0.16 75);
+  --hue-yellow:   oklch(0.82 0.16 95);
+  --hue-lime:     oklch(0.78 0.18 130);
+  --hue-green:    oklch(0.62 0.16 150);
+  --hue-teal:     oklch(0.62 0.13 185);
+  --hue-cyan:     oklch(0.68 0.13 220);
+  --hue-sky:      oklch(0.65 0.16 235);
+  --hue-blue:     oklch(0.55 0.20 260);
+  --hue-indigo:   oklch(0.50 0.20 280);
+  --hue-violet:   oklch(0.55 0.22 295);
+  --hue-purple:   oklch(0.55 0.22 310);
+  --hue-fuchsia:  oklch(0.60 0.25 330);
+  --hue-pink:     oklch(0.68 0.20 345);
+  --hue-rose:     oklch(0.62 0.21 5);
+}
+
 /* ─── Semantic surface stack ──────────────────────────────────────────
  * Components read --surface-{N} for depth; brand palette slots map the
  * canonical values. A theme that wants a warmer card can shift
