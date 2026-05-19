@@ -1,6 +1,7 @@
 <div class="ship-view ship-mesh">
 
-  {#while-loading of snap}
+  {#async snap}
+    {:loading}
     <sui-stack gap="5" aria-busy="true" aria-label="Loading mesh">
       <div class="mesh-skel-head">
         <sui-skeleton shape="line" size="lg" style="width:120px"></sui-skeleton>
@@ -18,15 +19,13 @@
         </section>
       {/for}
     </sui-stack>
-  {/while-loading}
-
-  {#while-error err of snap}
+  
+    {:error err}
     <sui-error-state variant="default" size="md" title="Couldn't load mesh">
       {err.message}
     </sui-error-state>
-  {/while-error}
-
-  {#if snap().kind === 'ok'}
+  
+    {:ok}
     <header class="mesh-head">
       <h1>Mesh</h1>
       <div class="mesh-sub">what Ship is running on this machine, right now</div>
@@ -132,7 +131,8 @@
         </tbody>
       </table>
     </section>
-  {/if}
+  
+  {/async}
 
   <sui-drawer
     size="lg"

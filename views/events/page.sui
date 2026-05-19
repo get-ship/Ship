@@ -10,7 +10,8 @@
       </div>
     </div>
 
-    {#while-loading of eventsData}
+    {#async eventsData}
+      {:loading}
       <div class="events-skel" aria-busy="true" aria-label="Loading events">
         <div class="events-skel-filters">
           <sui-skeleton shape="line" size="md" style="width:60px"></sui-skeleton>
@@ -23,15 +24,13 @@
           </div>
         {/for}
       </div>
-    {/while-loading}
-
-    {#while-error err of eventsData}
+    
+      {:error err}
       <sui-error-state variant="inline" size="sm" title="Couldn't load events">
         {err.message}
       </sui-error-state>
-    {/while-error}
-
-    {#if eventsData().kind === 'ok'}
+    
+      {:ok}
       <div class="events-filters" role="group" aria-label="Filter events">
         <sui-chip size="sm"
           attr:data-active={eventType() === '' ? '' : null}
@@ -88,7 +87,8 @@
           {/for}
         {/if}
       </div>
-    {/if}
+    
+    {/async}
 
   </div>
 </div>

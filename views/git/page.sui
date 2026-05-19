@@ -7,15 +7,16 @@
 </use-kbd>
 
 <div class="ship-view git-view">
-  {#while-loading of overview}
+  {#async overview}
+    {:loading}
     <div class="git-skel" data-test="loading" aria-busy="true">
       <sui-skeleton shape="line" size="lg"></sui-skeleton>
       {#for n of [0, 1, 2] key={n}}
         <sui-skeleton shape="line" size="md"></sui-skeleton>
       {/for}
     </div>
-  {/while-loading}
-  {#while-error err of overview}
+  
+    {:error err}
     {#if isNoRepo()}
       <div class="git-no-repo" data-test="no-repo">
         <sui-empty-state tone="muted" size="lg">
@@ -35,9 +36,8 @@
     {:else}
       <sui-error-state size="md" title="Couldn't load repo" data-test="error">{err.message}</sui-error-state>
     {/if}
-  {/while-error}
-
-  {#if overview().kind === 'ok'}
+  
+    {:ok}
     {#if opError()}
       <sui-alert tone="destructive" data-test="git-op-error" dismissible on:sui-dismiss={dismissError}>
         <sui-icon slot="icon" name="alert-circle" size="sm"></sui-icon>
@@ -456,5 +456,6 @@
           on:click={submitBranchDelete}>Delete</sui-button>
       </sui-toolbar>
     </sui-dialog>
-  {/if}
+  
+  {/async}
 </div>

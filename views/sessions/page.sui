@@ -24,7 +24,8 @@
       </sui-error-state>
     {/if}
 
-    {#while-loading of sessions}
+    {#async sessions}
+      {:loading}
       <ul class="ses-list" data-test="loading" aria-label="Loading sessions">
         {#for n of [0,1,2,3] key={n}}
           <li class="ses-skel-row" aria-hidden="true">
@@ -37,17 +38,15 @@
           </li>
         {/for}
       </ul>
-    {/while-loading}
-
-    {#while-error err of sessions}
+    
+      {:error err}
       <sui-error-state title="Couldn't load sessions" data-test="error">
         {err.message}
         <sui-button slot="action" tone="primary" variant="solid"
           on:click={() => window.location.reload()}>Retry</sui-button>
       </sui-error-state>
-    {/while-error}
-
-    {#if sessions().kind === 'ok'}
+    
+      {:ok}
       {#if items().length === 0}
         <sui-empty-state variant="default" size="sm" data-test="empty">
           <sui-icon slot="icon" name="terminal"></sui-icon>
@@ -87,6 +86,7 @@
           {/for}
         </ul>
       {/if}
-    {/if}
+    
+    {/async}
   </div>
 </div>
