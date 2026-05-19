@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { hydrate } from '../src/legacy'
+import { compileAndMount as hydrate } from '../src/test-utils/compile-sui'
 import { state, signal, type Signal } from '@ship/sui-runtime'
 
 const counterSetup = (): { count: Signal<number> } => ({ count: signal(0) })
@@ -167,7 +167,10 @@ describe('hydrate — agents (live data + while + if + for)', () => {
 describe('hydrate — ship-button (component + props + reflect)', () => {
   it('registers a custom element and reflects bool prop changes', async () => {
     const container = mkContainer()
-    hydrate(loadFixture('ship-button.sui'), undefined, { container })
+    hydrate(loadFixture('ship-button.sui'), undefined, {
+      container,
+      componentName: 'ship-button-test',
+    })
 
     const el = document.createElement('ship-button-test')
     el.setAttribute('label', 'Save')
@@ -219,25 +222,6 @@ describe('hydrate — disposer fully tears down', () => {
   })
 })
 
-describe('hydrate — expression guards', () => {
-  it('rejects assignments inside {expr}', () => {
-    const container = mkContainer()
-    expect(() =>
-      hydrate('<div>{x = 1}</div>', undefined, { container }),
-    ).toThrow(/assignments are not allowed/)
-  })
-
-  it('rejects statements inside {expr}', () => {
-    const container = mkContainer()
-    expect(() =>
-      hydrate('<div>{a; b}</div>', undefined, { container }),
-    ).toThrow(/statements are not allowed/)
-  })
-
-  it('rejects arrows in non-handler contexts', () => {
-    const container = mkContainer()
-    expect(() =>
-      hydrate('<div>{() => 1}</div>', undefined, { container }),
-    ).toThrow(/arrow functions are not allowed/)
-  })
-})
+// Expression-guard tests (rejecting assignments, statements, and
+// non-handler arrows inside `{expr}`) moved to the Rust compiler's
+// diagnostics suite — see `crates/sui/compiler/tests/diagnostics.rs`.

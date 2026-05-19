@@ -122,7 +122,6 @@ fn write_tsconfig(temp_dir: &Path, repo: &Path) {
     let runtime_route = repo.join("packages/sui/runtime/src/route/index.ts");
     let runtime_dev = repo.join("packages/sui/runtime/src/dev.ts");
     let ui_dom_index = repo.join("packages/sui/dom/src/index.ts");
-    let ui_dom_legacy = repo.join("packages/sui/dom/src/legacy/index.ts");
 
     // tsconfig: allowJs without checkJs. tsc resolves the named
     // imports against the runtime / ui-dom public surface and reports
@@ -164,7 +163,6 @@ fn write_tsconfig(temp_dir: &Path, repo: &Path) {
                 "@ship/sui-runtime/route": [runtime_route.to_string_lossy()],
                 "@ship/sui-runtime/dev": [runtime_dev.to_string_lossy()],
                 "@ship/sui-dom": [ui_dom_index.to_string_lossy()],
-                "@ship/sui-dom/legacy": [ui_dom_legacy.to_string_lossy()],
             },
         },
         "include": ["**/*.js"],

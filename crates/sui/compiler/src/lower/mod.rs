@@ -159,6 +159,9 @@ fn walk_instr(instr: &Instr, out: &mut Lowered, is_view: bool, depth: &mut usize
         Instr::Element(el) => {
             if el.tag.starts_with("use-") {
                 out.uses_template_hooks = true;
+                // Hook activation needs `getTemplateHook` to look the
+                // factory up in the registry at mount time.
+                out.runtime_imports.insert("getTemplateHook");
             }
             for a in &el.attrs {
                 if is_view {

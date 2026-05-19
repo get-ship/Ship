@@ -6,9 +6,9 @@
  * now exists only to publish the per-kind hydrators the compiler-
  * emitted `hydrate(root, ctx)` calls during SSR resume.
  *
- * The parser (`hydrate`, `parse`, `directives/`) lives in the
- * `@ship/sui-dom/legacy` subpath for tests and external callers only.
- * Never import legacy from a production view — it adds ~5 KB gzip.
+ * The legacy parse-on-the-client subpath has been deleted; every
+ * `.sui` file goes through the Rust sui-compiler ahead of time. Tests
+ * compile via the wasm-backed `@ship/sui-dom/test-utils` helper.
  *
  * @packageDocumentation
  */

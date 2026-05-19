@@ -134,6 +134,11 @@ export interface MountOpts {
   ship?: unknown
   route?: RouteSignals
   navigate?: (path: string) => void
+  /** When the source declares `<prop>`s, compile as a custom element
+   *  with this tag name. The compiled module's top-level
+   *  `customElements.define(<name>, …)` registers the element; the
+   *  test then instantiates it via `document.createElement(<name>)`. */
+  componentName?: string
 }
 
 export interface MountHandle {
@@ -143,7 +148,22 @@ export interface MountHandle {
 /** Compile + eval + mount in one call. Mirrors the legacy `hydrate(template, setup, opts)` shape. */
 export function compileAndMount(source: string, setup: UserSetup, opts: MountOpts): MountHandle {
   const usesSetup = setup != null
-  const compiled = compileSui(source, usesSetup ? { setupMarker: SETUP_MARKER } : {})
+  const compileOpts: CompileOpts = usesSetup ? { setupMarker: SETUP_MARKER } : {}
+  if (opts.componentName) {
+    compileOpts.componentName = opts.componentName
+    compileOpts.mode = 'component'
+  }
+  const compiled = compileSui(source, compileOpts)
+
+  // Component mode: the compiled module is a side-effecting
+  // `component(tag, def)` call that registers a custom element. No
+  // setup/mount cycle — the test instantiates the element directly
+  // via `document.createElement(tag)`.
+  if (opts.componentName) {
+    evalCompiledJs(compiled.js, setup)
+    return { dispose: () => {} }
+  }
+
   const def = evalCompiledJs(compiled.js, setup)
   const ctx = {
     ship: (opts.ship ?? {}) as suiRuntime.ShipSDK,
