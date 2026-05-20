@@ -125,7 +125,6 @@ export const TAG_META: Record<string, TagMeta> = {
   'sui-context-menu':    { category: 'overlays', blurb: 'right-click menu' },
   'sui-navigation-menu': { category: 'overlays', blurb: 'nested nav menu' },
   'sui-navigation-item': { category: 'overlays', blurb: 'nav menu entry' },
-  'sui-command-palette': { category: 'overlays', blurb: 'fuzzy command launcher' },
   'sui-accordion':       { category: 'overlays', blurb: 'vertical collapse group' },
   'sui-accordion-item':  { category: 'overlays', blurb: 'accordion section' },
   'sui-collapsible':     { category: 'overlays', blurb: 'single disclosure' },

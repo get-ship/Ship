@@ -240,7 +240,6 @@ const ISLAND_TAGS = new Set([
   'sui-code-editor',
   'sui-command-bar',
   'sui-command-chat',
-  'sui-command-palette',
   'sui-devtools-components',
   'sui-devtools-schema',
   'sui-devtools-signals',
