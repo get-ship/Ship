@@ -174,6 +174,10 @@ crates/deck/deck-server/assets/sui-custom-elements.json
 crates/sui/ship-ui-framework/
 # Same — bundler used to mis-target this path; nothing consumes it.
 crates/deck/deck/assets/
+# Stale wrong-path: a pre-reorg daemon bundler emitted view bundles here
+# (the crate is now crates/deck/deck-server). Ignored so stray writes from an
+# un-updated runtime bundler never get committed again.
+crates/sui/ship-sui-server/
 
 # Stale sui-* dupes that used to be emitted into apps/shipd/assets/ — the
 # bundle scripts now target crates/deck/deck-server/assets/ exclusively.
