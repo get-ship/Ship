@@ -1,4 +1,3 @@
-import * as path from 'path';
 import { ExtensionContext, window, workspace } from 'vscode';
 import {
   LanguageClient,
@@ -9,16 +8,16 @@ import {
 
 let client: LanguageClient | undefined;
 
-export async function activate(context: ExtensionContext): Promise<void> {
+export async function activate(_context: ExtensionContext): Promise<void> {
   const config = workspace.getConfiguration('sui');
-  const serverPath = config.get<string>('serverPath') ?? '';
-
-  const serverOptions: ServerOptions = serverPath
-    ? {
-        run: { command: serverPath, transport: TransportKind.stdio },
-        debug: { command: serverPath, transport: TransportKind.stdio },
-      }
-    : nodeServer(context);
+  // The server is the native `sui-lsp` Rust binary (one grammar, shared with
+  // the compiler + agent tooling). `sui.serverPath` overrides the location;
+  // otherwise we rely on `sui-lsp` being on PATH (`just install-dev`).
+  const command = config.get<string>('serverPath')?.trim() || 'sui-lsp';
+  const serverOptions: ServerOptions = {
+    run: { command, transport: TransportKind.stdio },
+    debug: { command, transport: TransportKind.stdio },
+  };
 
   const clientOptions: LanguageClientOptions = {
     documentSelector: [{ scheme: 'file', language: 'sui' }],
@@ -35,23 +34,9 @@ export async function activate(context: ExtensionContext): Promise<void> {
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     window.showErrorMessage(
-      `Failed to start SUI LSP. Set "sui.serverPath" to override. ${message}`,
+      `Failed to start SUI LSP (\`${command}\`). Install it with \`just install-dev\` or set "sui.serverPath". ${message}`,
     );
   }
-}
-
-function nodeServer(context: ExtensionContext): ServerOptions {
-  const module = context.asAbsolutePath(
-    path.join('..', '..', 'packages', 'sui-lsp', 'dist', 'server.js'),
-  );
-  return {
-    run: { module, transport: TransportKind.ipc },
-    debug: {
-      module,
-      transport: TransportKind.ipc,
-      options: { execArgv: ['--nolazy', '--inspect=6009'] },
-    },
-  };
 }
 
 export function deactivate(): Thenable<void> | undefined {

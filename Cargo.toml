@@ -14,6 +14,7 @@ members = [
     "crates/core/ship-supervisor",
     "crates/sui/compiler",
     "crates/sui/lint",
+    "crates/sui/lsp",
     "crates/sui/signals",
     "crates/ship/ship-sui-host",
     "crates/ship/ship-sui-server",

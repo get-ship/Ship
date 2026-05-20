@@ -31,6 +31,7 @@
 use std::path::PathBuf;
 
 pub mod bindings;
+pub mod analysis;
 pub mod check;
 pub mod diagnostics;
 pub mod emit;
@@ -46,7 +47,8 @@ pub mod render;
 #[cfg(target_arch = "wasm32")]
 pub mod wasm;
 
-pub use diagnostics::{CompileError, Span};
+pub use diagnostics::{CompileError, DiagSeverity, Diagnostic, Span};
+pub use analysis::{analyze, completions_at, hover_at, Analysis, Hover, Symbol};
 
 /// Identity stamp embedded in every emitted artifact (JS leading
 /// comment, CEM, schema, meta sidecar) so the daemon and runtime can
@@ -162,6 +164,21 @@ pub struct CompileOutput {
     /// true and mode is `View`. Written to the project mirror tree as
     /// `<repo-root>/.ship/sui-out/<src-rel>/<stem>.ssr.html` by the CLI.
     pub ssr_html: Option<String>,
+}
+
+/// Check a `.sui` source string and return **every** diagnostic, not just
+/// the first. This is the entry point for the LSP + agent tooling — it
+/// parses, runs all check passes collecting (rather than short-circuiting
+/// like [`compile`]), and merges the full `sui-lint` findings.
+///
+/// A fatal parse error returns a single diagnostic (nothing else can run
+/// without an AST). `source_path` locates the paired `.controller.ts` for
+/// the controller-aware passes; pass `None` for an unsaved/synthetic buffer.
+pub fn check_all(source: &str, source_path: Option<&std::path::Path>) -> Vec<Diagnostic> {
+    match parse::parse(source) {
+        Ok(program) => check::collect(&program, source, source_path),
+        Err(e) => vec![Diagnostic::from_compile_error(&e, source)],
+    }
 }
 
 /// Compile a `.sui` source string.

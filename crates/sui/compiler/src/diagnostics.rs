@@ -96,6 +96,59 @@ impl CompileError {
     }
 }
 
+/// Severity of a [`Diagnostic`]. `Error` blocks the build; `Warning`
+/// surfaces in LSP / agent feedback without failing compilation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum DiagSeverity {
+    Error,
+    Warning,
+}
+
+/// One diagnostic with a resolved **1-based** line/col range. This is the
+/// shared currency of [`crate::check_all`] — it merges compiler check-pass
+/// errors ([`CompileError`]) and `sui-lint` findings into one stream so an
+/// LSP server or MCP tool reports every issue at once, not just the first.
+///
+/// Positions are 1-based (matching the rest of the compiler + CLI output).
+/// The LSP transport subtracts 1 to produce 0-based protocol positions.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct Diagnostic {
+    pub line: usize,
+    pub col: usize,
+    pub end_line: usize,
+    pub end_col: usize,
+    pub severity: DiagSeverity,
+    pub message: String,
+    /// Lint rule id (`sui-for-key`) or check category (`<data>`), when known.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub rule: Option<String>,
+}
+
+impl Diagnostic {
+    /// Build from a compiler [`CompileError`], resolving its byte span to a
+    /// 1-based line/col range against `source`. Span-less errors point at 1:1.
+    pub fn from_compile_error(err: &CompileError, source: &str) -> Self {
+        let (line, col, end_line, end_col) = match err.span {
+            Some(s) => {
+                let (l, c) = line_col(source, s.start);
+                let (el, ec) = line_col(source, s.end);
+                (l, c, el, ec)
+            }
+            None => (1, 1, 1, 1),
+        };
+        Self {
+            line,
+            col,
+            end_line,
+            end_col,
+            severity: DiagSeverity::Error,
+            message: err.message.clone(),
+            rule: err.category.clone(),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

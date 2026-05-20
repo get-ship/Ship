@@ -30,7 +30,7 @@ pub mod for_iterable;
 
 use std::path::Path;
 
-use crate::diagnostics::CompileError;
+use crate::diagnostics::{CompileError, DiagSeverity, Diagnostic};
 use crate::ir::*;
 
 /// Run every post-parse check. Returns the first error, or `Ok(())`.
@@ -77,6 +77,101 @@ pub fn run(
         on_callable::check(program, controller.as_ref())?;
     }
     Ok(())
+}
+
+/// Run every post-parse check **collecting all diagnostics** instead of
+/// stopping at the first. This is the intelligence behind the LSP + agent
+/// tooling: a `.sui` author (or agent) sees every issue in one pass.
+///
+/// `run()` (above) stays the build-time gate — it short-circuits because a
+/// failed build only needs one reason. `collect()` is the editor/agent view.
+///
+/// Coverage today: every `expr-subset` violation (the common class) plus the
+/// first error from each remaining structural/semantic pass, merged with the
+/// full multi-finding `sui-lint` stream. `css_token` / `controller_purity`
+/// are not run here — they delegate to `sui-lint`, collected below, so
+/// running them too would double-report. Per-pass full collection (e.g. all
+/// unbound identifiers, not just the first) is a future refinement; the
+/// structure here makes it additive.
+pub fn collect(program: &Program, source: &str, source_path: Option<&Path>) -> Vec<Diagnostic> {
+    let mut diags: Vec<Diagnostic> = Vec::new();
+
+    // expr-subset — collect EVERY offending interpolation, not just the first.
+    // Closure always returns Ok, so `visit_program` walks the whole tree.
+    let _ = visit_program(program, &mut |e: &Expr| {
+        if !e.allow_arrow
+            && let Err(err) = expr_subset::check(e)
+        {
+            diags.push(Diagnostic::from_compile_error(&err, source));
+        }
+        Ok::<(), CompileError>(())
+    });
+
+    // Structural / semantic passes — first error from each, continuing past
+    // failures so one bad pass doesn't mask the rest.
+    let controller = controller_parse::read_paired_controller(source_path);
+    push(check_mutations(program), source, &mut diags);
+    push(handler_complexity::check(program, source_path), source, &mut diags);
+    if let Some(c) = controller.as_ref() {
+        push(closed_sections::check(c), source, &mut diags);
+        push(pure_derived::check(c), source, &mut diags);
+    }
+    if source_path.is_some() {
+        push(scope_bound::check(program, controller.as_ref()), source, &mut diags);
+    }
+    push(key_identity::check(program), source, &mut diags);
+    push(for_iterable::check(program), source, &mut diags);
+    if source_path.is_some() {
+        push(scope_member::check(program, controller.as_ref()), source, &mut diags);
+        push(bind_this_target::check(program, controller.as_ref()), source, &mut diags);
+        push(on_callable::check(program, controller.as_ref()), source, &mut diags);
+    }
+
+    // Full `sui-lint` pass — the multi-finding source of truth for
+    // css_token / css_literal / for_key / event_name / prop_value (template)
+    // and controller_purity (the paired `.ts`).
+    let lint_path = source_path.unwrap_or_else(|| Path::new("<synthetic>.sui"));
+    for f in sui_lint::lint_sui_template_source(lint_path, source) {
+        diags.push(finding_to_diag(&f));
+    }
+    if let Some(c) = controller.as_ref() {
+        for f in sui_lint::lint_controller_source(&c.path, &c.source) {
+            diags.push(finding_to_diag(&f));
+        }
+    }
+
+    diags.sort_by(|a, b| a.line.cmp(&b.line).then(a.col.cmp(&b.col)));
+    diags.dedup_by(|a, b| a.line == b.line && a.col == b.col && a.message == b.message);
+    diags
+}
+
+/// Push a check pass's `Err` (if any) onto `diags` as a [`Diagnostic`].
+fn push(r: Result<(), CompileError>, source: &str, diags: &mut Vec<Diagnostic>) {
+    if let Err(e) = r {
+        diags.push(Diagnostic::from_compile_error(&e, source));
+    }
+}
+
+/// Convert a `sui-lint` finding to a [`Diagnostic`], folding any `suggest`
+/// hint into the message (same rendering the CLI/MCP used).
+fn finding_to_diag(f: &sui_lint::Finding) -> Diagnostic {
+    let mut message = f.message.clone();
+    if let Some(s) = &f.suggest {
+        message.push_str("\n  suggest: ");
+        message.push_str(s);
+    }
+    Diagnostic {
+        line: f.line,
+        col: f.col,
+        end_line: f.line,
+        end_col: f.col,
+        severity: match f.severity {
+            sui_lint::Severity::Error => DiagSeverity::Error,
+            sui_lint::Severity::Warn => DiagSeverity::Warning,
+        },
+        message,
+        rule: Some(f.rule.to_string()),
+    }
 }
 
 /// Validate that every `mutation=` attribute contains a valid `ship.X.Y` chain.

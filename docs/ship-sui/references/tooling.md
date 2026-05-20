@@ -54,22 +54,36 @@ Configuration: `<package>/sui.config.ts`. Each package opts in by adding a `buil
 
 **Role.** `@ship/sui-build` is the CI / pre-merge bundler — it's what `smoke-deploy.sh` runs and what `just cem` invokes. It is *not* what shipd uses at dev time. The dev-time bundler is `packages/deck/bundler/index.ts`, a Bun worker spawned by the daemon (see [end-to-end dev loop](#end-to-end-edit-loop-in-dev) below). Both pipelines target the same on-disk asset trees that the release binary later `include_str!`s.
 
-## `@ship/sui-lsp` — the language server
+## `sui-lsp` — the language server
 
-Source: `packages/deck/lsp/`. Provides diagnostics, hover, and completions for `.sui` files.
+Source: `crates/sui/lsp/` (Rust). A thin LSP/stdio shell over the `sui-compiler`
+analysis facade — **one grammar, no TypeScript, no WASM, no Node**. The same
+Rust intelligence serves three consumers:
+
+- **Ship agents** — `apps/mcp` calls `sui_compiler::analyze` / `hover_at`
+  *in-process* (the `sui_diagnostics` / `sui_hover` / `sui_dependencies` MCP
+  tools). No subprocess, no bun.
+- **Claude Code** — `.lsp.json` at the repo root points the editor's LSP
+  client at the `sui-lsp` binary (`extensionToLanguage: { ".sui": "sui" }`).
+- **VS Code / any editor** — `apps/vscode` launches `sui-lsp` over stdio
+  (override with the `sui.serverPath` setting).
 
 ```sh
-bun run --filter @ship/sui-lsp build           # compile TS to dist/
-
-# Native LSP stdio (point a generic editor at this):
-node packages/deck/lsp/bin/sui-lsp.js --stdio
-
-# One-shot CLI (what MCP shims wrap):
-bun packages/deck/lsp/src/cli.ts diagnostics views/home/page.sui
-bun packages/deck/lsp/src/cli.ts hover views/home/page.sui --line 12 --col 4
+just install-dev        # builds + installs `sui-lsp` to ~/.local/bin
+sui-lsp                 # LSP server on stdio (what editors + .lsp.json launch)
 ```
 
-Analyzers live one-per-file under `packages/deck/lsp/src/`:
+Intelligence is the Rust compiler: `sui_compiler::check_all` (multi-diagnostic),
+`SymbolTable` (scope names + kinds + declaration offsets, byte-walked from the
+paired `.controller.ts` — no `typescript` package), and an IR walk for the
+tag/event dependency surface (`sui_compiler::analyze`).
+
+> **Legacy:** the former TypeScript LSP (`packages/deck/lsp`, ex-`ship-set-lsp`)
+> is off every launch path. Its pure parser still backs the docs-playground
+> browser analyzer (`packages/deck/lsp-browser`); deleting the package is gated
+> on migrating that analyzer to the WASM grammar.
+
+The retired TS analyzers lived one-per-file under `packages/deck/lsp/src/`:
 
 | File | Owns |
 |---|---|

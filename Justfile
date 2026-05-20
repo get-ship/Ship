@@ -297,7 +297,7 @@ build:
 # Build CLI + MCP + shipd (unstable dev build).
 [group('occasional')]
 build-dev:
-    cargo build --features unstable -p ship-cli -p mcp -p shipd
+    cargo build --features unstable -p ship-cli -p mcp -p shipd -p sui-lsp
 
 # Cargo-only release build (no front-end). Use `just build` for the full
 # production artifact set; this recipe is the cargo subset.
@@ -313,7 +313,8 @@ install-dev: build-dev
     target=$(cargo metadata --format-version 1 --no-deps --offline | grep -o '"target_directory":"[^"]*"' | cut -d'"' -f4)
     cp -f "$target/debug/ship" ~/.local/bin/ship.new && mv ~/.local/bin/ship.new ~/.local/bin/ship
     cp -f "$target/debug/shipd" ~/.local/bin/shipd
-    echo "Installed: ship + shipd → ~/.local/bin"
+    cp -f "$target/debug/sui-lsp" ~/.local/bin/sui-lsp
+    echo "Installed: ship + shipd + sui-lsp → ~/.local/bin"
 
 # Install stable binary to ~/.cargo/bin.
 [group('occasional')]
