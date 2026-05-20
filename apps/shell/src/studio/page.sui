@@ -139,6 +139,8 @@
       <sui-studio-themes></sui-studio-themes>
     {:else if section() === 'components'}
       <sui-studio-components></sui-studio-components>
+    {:else if section() === 'skills'}
+      <sui-studio-skills></sui-studio-skills>
     {:else}
       <section class="studio-section">
         <h1 class="studio-section-h1" data-test="section-title">{sectionTitle()}</h1>

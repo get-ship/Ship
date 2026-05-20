@@ -24,6 +24,7 @@ import type { Scope } from './page.sui'
 // Nothing else in the shell needs to change.
 import './themes/sui-studio-themes/sui-studio-themes.sui'
 import './components/sui-studio-components/sui-studio-components.sui'
+import './skills/sui-studio-skills/sui-studio-skills.sui'
 
 interface ListEnvelope { items?: unknown[] }
 
