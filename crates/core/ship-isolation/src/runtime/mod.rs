@@ -21,8 +21,10 @@
 //! The PtyChildBackend / HeadlessChildBackend / InProcessActorRuntime
 //! types are unchanged — sidecar simply slots in alongside.
 
+pub mod secret_broker;
 pub mod sidecar_backend;
 pub mod sidecar_runtime;
 
+pub use secret_broker::{SecretResolver, secret_reply};
 pub use sidecar_backend::SidecarChildBackend;
 pub use sidecar_runtime::SidecarActorRuntime;
