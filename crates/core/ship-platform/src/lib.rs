@@ -41,7 +41,12 @@ pub fn install_defaults() {
             Box::new(projections::ProjectsProjection),
             Box::new(projections::AuthSessionsProjection),
             Box::new(projections::DaemonOwnerProjection),
-            Box::new(projections::JobProjection),
+            Box::new(projections::PipelineRunProjection),
+            // Agent-session primitive — sibling of jobs. Tracks
+            // single-agent dispatches (bare ship use, MCP dispatch,
+            // pipeline-step sessions). jobs now scopes to pipeline
+            // composition runs only.
+            Box::new(projections::AgentSessionProjection),
             // ship-analytics — folds hook.* into rollup tables. Lives
             // in its own crate (queries, cost, mining) so downstream
             // dashboard / billing / harness-mining work has a home

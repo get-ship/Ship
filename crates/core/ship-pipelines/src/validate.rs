@@ -273,6 +273,7 @@ mod tests {
             consumes: vec![],
             promotes: vec![],
             fanout: None,
+            invocation: None,
         }
     }
 

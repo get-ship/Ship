@@ -8,7 +8,7 @@ use tokio::sync::Mutex;
 
 use ship_substrate::events::pipeline::{PipelineStepObservedPayload, StepTrigger, StepVerdict, event_types};
 use ship_substrate::events::{EventEnvelope, KernelRouter};
-use crate::services::dispatch_ports::{JobExecutor, ProcessRegistryPort};
+use crate::services::dispatch_ports::{SessionExecutor, ProcessRegistryPort};
 
 use super::StepMonitor;
 
@@ -20,7 +20,7 @@ use super::StepMonitor;
 pub(super) async fn kill_spawned_process(
     kernel: &Arc<Mutex<KernelRouter>>,
     registry: &Arc<dyn ProcessRegistryPort>,
-    executor: &Arc<dyn JobExecutor>,
+    executor: &Arc<dyn SessionExecutor>,
     slug: &str,
 ) {
     let Some(handle) = registry.take(slug).await else {
@@ -58,6 +58,8 @@ pub(super) async fn emit_and_finish(
     );
     let duration_secs = monitor.started_at.elapsed().as_secs();
     let succeeded = verdict == StepVerdict::Advance;
+    // Captured before `verdict` moves into the payload below.
+    let step_is_failure = verdict == StepVerdict::Failed;
 
     tracing::info!(
         slug = monitor.slug, step = monitor.step_name,
@@ -101,6 +103,18 @@ pub(super) async fn emit_and_finish(
     ).await;
 
     emit_step_observed(kernel, &monitor.job_id, &monitor.slug, &payload).await;
+
+    // Terminalize the composed agent_session so it doesn't sit at
+    // Dispatched forever. Failed verdict → session failed; Advance /
+    // Inconclusive (both let the pipeline proceed) → completed.
+    crate::services::orchestrator::dispatch::emit_composed_session_terminal(
+        kernel,
+        &monitor.slug,
+        &monitor.step_name,
+        step_is_failure,
+        exit_code,
+    )
+    .await;
 }
 
 /// Scan git state in a worktree, counting commits since `start_sha`.

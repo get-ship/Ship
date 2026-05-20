@@ -9,6 +9,8 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use tokio::sync::mpsc::UnboundedSender;
 
+pub use crate::events::agent_session::InvocationMode;
+
 /// Why an executor is signalling exit. Forces each call site to declare
 /// semantics: we either observed the agent's own exit, or the substrate
 /// (tmux session/window, PTY, ...) went away without us seeing it.
@@ -24,7 +26,7 @@ pub enum ExitCause {
 
 /// Signal sent from an executor monitor when an agent's run ends.
 ///
-/// Executors send this on `JobContext::exit_tx` so the dispatch handler can
+/// Executors send this on `SessionContext::exit_tx` so the dispatch handler can
 /// emit `job.completed` or `job.failed` without waiting for the SessionEnd hook.
 ///
 /// `cause` is exhaustive — every executor must declare whether it observed
@@ -41,7 +43,7 @@ pub struct ExitSignal {
 
 /// Context for a job being dispatched. Carries everything an executor needs.
 #[derive(Clone, Debug)]
-pub struct JobContext {
+pub struct SessionContext {
     pub job_id: String,
     pub slug: String,
     pub agent: String,
@@ -63,11 +65,17 @@ pub struct JobContext {
     /// name and per-step log path. `None` for single-step jobs — the executor
     /// falls back to using `slug` as the window name.
     pub step: Option<StepInfo>,
-    /// When true, dispatch forces the headless ProcessExecutor path even if
-    /// the executor in `OrchestratorContext` is TmuxWindowExecutor. Surfaced
-    /// through to the executor so it can fall back without its own flag
-    /// check.
-    pub headless: bool,
+    /// Harness invocation mode — the source of truth for how the
+    /// executor launches the harness. Replaces the old `headless: bool`
+    /// (the three-axis model: see agent-primitive-inversion plan).
+    ///   - `Pty`: PTY-attached (routes to TmuxWindow when available,
+    ///     else ProcessExecutor with a PTY).
+    ///   - `Print`: one-shot non-interactive (ProcessExecutor, `-p`).
+    ///   - `Stream`: server-mode (ServerExecutor) — routed before this
+    ///     field is consulted.
+    /// `keepalive` (below) is orthogonal and forces ProcessExecutor +
+    /// build_interactive regardless of invocation.
+    pub invocation: InvocationMode,
     /// Long-running interactive session — not a pipeline step. Routes to
     /// ProcessExecutor with `adapter.build_interactive` (no `-p`, no
     /// `--print`). The harness stays at its TUI prompt waiting for stdin
@@ -93,7 +101,7 @@ pub struct StepInfo {
 
 /// Everything about *how* to run the harness process.
 ///
-/// Separated from JobContext so launch configuration is composable —
+/// Separated from SessionContext so launch configuration is composable —
 /// harness defaults + pipeline step overrides + user preferences.
 #[derive(Clone, Debug, Default)]
 pub struct LaunchProfile {
@@ -128,7 +136,7 @@ pub struct LaunchProfile {
     pub append_system_prompt: Option<String>,
 }
 
-/// Handle returned by a `JobExecutor` after spawning an agent.
+/// Handle returned by a `SessionExecutor` after spawning an agent.
 pub struct ExecutorHandle {
     pub pid: Option<u32>,
     /// Opaque adapter-specific state.
@@ -259,16 +267,16 @@ mod shell_quote_tests {
 #[async_trait]
 pub trait IsolationStrategy: Send + Sync {
     /// Prepare an isolated working directory. Returns the path.
-    async fn prepare(&self, job: &JobContext) -> Result<PathBuf>;
+    async fn prepare(&self, job: &SessionContext) -> Result<PathBuf>;
     /// Clean up after job completion or failure.
-    async fn cleanup(&self, job: &JobContext) -> Result<()>;
+    async fn cleanup(&self, job: &SessionContext) -> Result<()>;
 }
 
 /// Port: spawns and manages the agent process lifecycle.
 #[async_trait]
-pub trait JobExecutor: Send + Sync {
+pub trait SessionExecutor: Send + Sync {
     /// Spawn the agent process in the prepared work directory.
-    async fn spawn(&self, ctx: &JobContext) -> Result<ExecutorHandle>;
+    async fn spawn(&self, ctx: &SessionContext) -> Result<ExecutorHandle>;
     /// Check if the agent process is still running.
     async fn is_alive(&self, handle: &ExecutorHandle) -> bool;
     /// Terminate the agent process.
@@ -350,7 +358,7 @@ pub trait ProcessRegistryPort: Send + Sync {
     /// return the slugs whose handles are no longer alive. Used by the
     /// coherence sweep to evict dead handles before the drift checks run.
     /// Default `vec![]` for registries that don't track handles.
-    async fn drain_dead(&self, _executor: &dyn JobExecutor) -> Vec<String> { vec![] }
+    async fn drain_dead(&self, _executor: &dyn SessionExecutor) -> Vec<String> { vec![] }
 }
 
 /// Sample of the liveness state of a dispatched process tree.

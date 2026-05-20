@@ -2,7 +2,7 @@
 //!
 //! Called on startup and after job.completed/job.merged to unblock queued jobs.
 
-use crate::projections::job::{load_jobs, JobStatus};
+use crate::projections::pipeline_run::{load_pipeline_runs, PipelineRunStatus};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
@@ -16,7 +16,7 @@ pub async fn dispatch_ready_pending_jobs(
     kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
     octx: &OrchestratorContext,
 ) {
-    let jobs = match load_jobs() {
+    let jobs = match load_pipeline_runs() {
         Ok(j) => j,
         Err(e) => {
             tracing::warn!("job-dispatch: failed to load jobs for pending scan: {e}");
@@ -25,12 +25,12 @@ pub async fn dispatch_ready_pending_jobs(
     };
 
     let done_slugs: std::collections::HashSet<&str> = jobs.values()
-        .filter(|j| matches!(j.status, JobStatus::Completed | JobStatus::GatePending | JobStatus::Merged))
+        .filter(|j| matches!(j.status, PipelineRunStatus::Completed | PipelineRunStatus::GatePending | PipelineRunStatus::Merged))
         .map(|j| j.slug.as_str())
         .collect();
 
     let running_count = jobs.values()
-        .filter(|j| j.status == JobStatus::Dispatched)
+        .filter(|j| j.status == PipelineRunStatus::Dispatched)
         .count();
 
     const MAX_CONCURRENT: usize = 3;
@@ -41,7 +41,7 @@ pub async fn dispatch_ready_pending_jobs(
     }
 
     let ready: Vec<_> = jobs.values()
-        .filter(|j| j.status == JobStatus::Pending)
+        .filter(|j| j.status == PipelineRunStatus::Pending)
         .filter(|j| {
             match &j.depends_on {
                 None => true,

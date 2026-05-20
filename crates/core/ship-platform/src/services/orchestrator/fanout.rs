@@ -16,8 +16,8 @@ use ship_substrate::events::pipeline::{
     FanoutSpec, PipelineStep, PipelineStepObservedPayload, StepTrigger, StepType, StepVerdict, event_types,
 };
 use ship_substrate::events::{EventEnvelope, KernelRouter};
-use crate::projections::job::PipelineRun;
-use crate::services::dispatch_ports::{JobContext, LaunchProfile, StepInfo};
+use crate::projections::pipeline_run::PipelineRun;
+use crate::services::dispatch_ports::{SessionContext, LaunchProfile, StepInfo};
 use crate::services::orchestrator::emit::{
     emit_process_spawned, emit_step_dispatched_event, emit_step_failed, persist_and_route,
 };
@@ -82,7 +82,7 @@ pub async fn dispatch_fanout_step(
             .or_else(|| step.model.clone())
             .or_else(|| job.model.clone());
 
-        let lane_ctx = JobContext {
+        let lane_ctx = SessionContext {
             job_id: job.job_id.clone(),
             slug: lane_slug.clone(),
             agent: lane.agent.clone(),
@@ -99,7 +99,10 @@ pub async fn dispatch_fanout_step(
                 ..Default::default()
             },
             step: Some(StepInfo { index: step_idx, id: lane_step_id.clone() }),
-            headless: job.headless,
+            invocation: super::dispatch::resolve_step_invocation(
+                step.invocation.as_deref(),
+                job.headless,
+            ),
             // Fanout lanes are pipeline steps, never long-running.
             keepalive: false,
         };
@@ -121,7 +124,7 @@ pub async fn dispatch_fanout_step(
         }
 
         let (exit_tx, exit_rx) = tokio::sync::mpsc::unbounded_channel();
-        let lane_ctx_with_exit = JobContext { exit_tx: Some(exit_tx), work_dir: lane_wt.clone(), ..lane_ctx };
+        let lane_ctx_with_exit = SessionContext { exit_tx: Some(exit_tx), work_dir: lane_wt.clone(), ..lane_ctx };
 
         let handle = match octx.executor.spawn(&lane_ctx_with_exit).await {
             Ok(h) => h,
@@ -277,11 +280,11 @@ pub async fn dispatch_fanout_step(
 /// Returns `false` when the projection can't be loaded so we never
 /// swallow a genuine fanout failure.
 fn parent_job_is_terminal(job_id: &str) -> bool {
-    use crate::projections::job::{JobStatus, load_job_by_id};
-    match load_job_by_id(job_id) {
+    use crate::projections::pipeline_run::{PipelineRunStatus, load_pipeline_run_by_id};
+    match load_pipeline_run_by_id(job_id) {
         Ok(Some(job)) => matches!(
             job.status,
-            JobStatus::Cancelled | JobStatus::Failed | JobStatus::Merged
+            PipelineRunStatus::Cancelled | PipelineRunStatus::Failed | PipelineRunStatus::Merged
         ),
         _ => false,
     }

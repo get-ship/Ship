@@ -5,7 +5,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use ship_substrate::events::executor::DestructionCause;
 use ship_substrate::events::KernelRouter;
-use ship_platform::services::dispatch_ports::{AgentPlatform, JobExecutor};
+use ship_platform::services::dispatch_ports::{AgentPlatform, SessionExecutor};
 use ship_platform::services::orchestrator::emit::emit_executor_session_destroyed;
 use ship_platform::services::process_registry::ProcessRegistry;
 use std::path::{Path, PathBuf};
@@ -20,7 +20,7 @@ use super::helpers;
 /// behind the trait boundary so the runtime orchestrator can call back.
 pub struct ShipdPlatform {
     pub registry: Arc<Mutex<ProcessRegistry>>,
-    pub executor: Arc<dyn JobExecutor>,
+    pub executor: Arc<dyn SessionExecutor>,
     pub kernel: Arc<Mutex<KernelRouter>>,
 }
 

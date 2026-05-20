@@ -24,6 +24,7 @@ import {
   cancelSession,
   daemonToken,
   dispatch,
+  waitForActorGone,
   waitForActorRow,
 } from "../_helpers";
 import {
@@ -52,10 +53,15 @@ for (const h of HARNESSES) {
           return;
         }
 
+        // keepalive PTY: routing.rs forces ProcessExecutor (PTY-backed)
+        // for keepalive sessions and the harness stays alive awaiting a
+        // push, so the WS attach has a live PTY to upgrade onto. This is
+        // the dispatch mode the earlier 404-INFO branch was waiting for.
         const dispatched = await dispatch({
           agent: COMPAT_AGENT,
           harness: h.id,
-          auto: true,
+          invocation: "pty",
+          keepalive: true,
           workspace: COMPAT_WORKSPACE,
         });
 
@@ -117,6 +123,9 @@ for (const h of HARNESSES) {
           expect(upgradeResult.upgraded).toBe(true);
         } finally {
           await cancelSession(dispatched.slug);
+          // Confirm the keepalive PTY child exits before yielding so its
+          // teardown load doesn't bleed into later test files.
+          await waitForActorGone(dispatched.slug);
         }
       },
       30_000,

@@ -3,10 +3,10 @@
 
 use super::{filter_and_sort, partition_runs, status_token, Filter, RunCategory};
 use chrono::{TimeZone, Utc};
-use ship_platform::projections::job::{PipelineRun, JobStatus};
+use ship_platform::projections::pipeline_run::{PipelineRun, PipelineRunStatus};
 use std::collections::HashMap;
 
-fn mk(slug: &str, agent: &str, status: JobStatus, ts_secs: i64) -> PipelineRun {
+fn mk(slug: &str, agent: &str, status: PipelineRunStatus, ts_secs: i64) -> PipelineRun {
     PipelineRun {
         job_id: format!("job-{slug}"),
         slug: slug.into(),
@@ -38,15 +38,15 @@ fn mk(slug: &str, agent: &str, status: JobStatus, ts_secs: i64) -> PipelineRun {
 
 #[test]
 fn status_token_is_stable() {
-    assert_eq!(status_token(&JobStatus::GatePending), "gate-pending");
-    assert_eq!(status_token(&JobStatus::Completed), "completed");
+    assert_eq!(status_token(&PipelineRunStatus::GatePending), "gate-pending");
+    assert_eq!(status_token(&PipelineRunStatus::Completed), "completed");
 }
 
 #[test]
 fn run_category_splits_correctly() {
-    assert_eq!(RunCategory::of(&JobStatus::Dispatched), RunCategory::Active);
-    assert_eq!(RunCategory::of(&JobStatus::Failed), RunCategory::History);
-    assert_eq!(RunCategory::of(&JobStatus::Merged), RunCategory::History);
+    assert_eq!(RunCategory::of(&PipelineRunStatus::Dispatched), RunCategory::Active);
+    assert_eq!(RunCategory::of(&PipelineRunStatus::Failed), RunCategory::History);
+    assert_eq!(RunCategory::of(&PipelineRunStatus::Merged), RunCategory::History);
 }
 
 #[test]
@@ -60,7 +60,7 @@ fn filter_is_empty_when_all_fields_none() {
 
 #[test]
 fn filter_matches_q_across_slug_and_agent() {
-    let job = mk("spec-42", "reviewer", JobStatus::Dispatched, 1);
+    let job = mk("spec-42", "reviewer", PipelineRunStatus::Dispatched, 1);
     let mut f = Filter { q: Some("review".into()), ..Default::default() };
     assert!(f.matches(&job));
     f.q = Some("42".into());
@@ -71,7 +71,7 @@ fn filter_matches_q_across_slug_and_agent() {
 
 #[test]
 fn filter_agent_requires_exact_match() {
-    let job = mk("a", "builder", JobStatus::Dispatched, 1);
+    let job = mk("a", "builder", PipelineRunStatus::Dispatched, 1);
     let mut f = Filter { agent: Some("builder".into()), ..Default::default() };
     assert!(f.matches(&job));
     f.agent = Some("other".into());
@@ -80,7 +80,7 @@ fn filter_agent_requires_exact_match() {
 
 #[test]
 fn filter_status_uses_tokens() {
-    let job = mk("a", "x", JobStatus::GatePending, 1);
+    let job = mk("a", "x", PipelineRunStatus::GatePending, 1);
     let mut f = Filter { status: Some("gate-pending".into()), ..Default::default() };
     assert!(f.matches(&job));
     f.status = Some("failed".into());
@@ -90,9 +90,9 @@ fn filter_status_uses_tokens() {
 #[test]
 fn filter_and_sort_orders_newest_first() {
     let mut map = HashMap::new();
-    map.insert("a".into(), mk("a", "x", JobStatus::Dispatched, 10));
-    map.insert("b".into(), mk("b", "x", JobStatus::Dispatched, 20));
-    map.insert("c".into(), mk("c", "x", JobStatus::Dispatched, 5));
+    map.insert("a".into(), mk("a", "x", PipelineRunStatus::Dispatched, 10));
+    map.insert("b".into(), mk("b", "x", PipelineRunStatus::Dispatched, 20));
+    map.insert("c".into(), mk("c", "x", PipelineRunStatus::Dispatched, 5));
     let sorted = filter_and_sort(map, &Filter::default());
     let slugs: Vec<_> = sorted.iter().map(|j| j.slug.as_str()).collect();
     assert_eq!(slugs, vec!["b", "a", "c"]);
@@ -101,10 +101,10 @@ fn filter_and_sort_orders_newest_first() {
 #[test]
 fn partition_runs_splits_active_and_history() {
     let runs = vec![
-        mk("r1", "x", JobStatus::Dispatched, 3),
-        mk("r2", "x", JobStatus::Completed, 2),
-        mk("r3", "x", JobStatus::Failed, 1),
-        mk("r4", "x", JobStatus::GatePending, 4),
+        mk("r1", "x", PipelineRunStatus::Dispatched, 3),
+        mk("r2", "x", PipelineRunStatus::Completed, 2),
+        mk("r3", "x", PipelineRunStatus::Failed, 1),
+        mk("r4", "x", PipelineRunStatus::GatePending, 4),
     ];
     let (active, history) = partition_runs(runs);
     let active_slugs: Vec<_> = active.iter().map(|j| j.slug.as_str()).collect();

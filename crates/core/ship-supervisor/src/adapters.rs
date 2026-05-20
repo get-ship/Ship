@@ -5,7 +5,7 @@
 
 use anyhow::Result;
 use async_trait::async_trait;
-use ship_platform::services::dispatch_ports::{IsolationStrategy, JobContext};
+use ship_platform::services::dispatch_ports::{IsolationStrategy, SessionContext};
 use ship_platform::services::orchestrator::isolation::write_phase_spec_from_context;
 use std::path::PathBuf;
 
@@ -16,7 +16,7 @@ pub(crate) struct GitWorktreeIsolation;
 
 #[async_trait]
 impl IsolationStrategy for GitWorktreeIsolation {
-    async fn prepare(&self, job: &JobContext) -> Result<PathBuf> {
+    async fn prepare(&self, job: &SessionContext) -> Result<PathBuf> {
         let worktree_path = worktrees_dir().join(&job.slug);
         create_worktree(&worktree_path, &job.branch, None)?;
         let session_dir = worktree_path.join(".artifacts");
@@ -27,11 +27,17 @@ impl IsolationStrategy for GitWorktreeIsolation {
         // project root never has this marker.
         let _ = std::fs::write(session_dir.join(".dispatched"), &job.slug);
         write_phase_spec_from_context(&worktree_path, job)?;
-        compile_agent_config(&worktree_path, &job.agent)?;
+        // Run steps (pure shell) carry no agent — there's nothing to
+        // compile, and an empty/placeholder agent would fail profile
+        // resolution. Only compile when a real agent is named (every
+        // agent step and bare dispatch sets one).
+        if !job.agent.is_empty() {
+            compile_agent_config(&worktree_path, &job.agent)?;
+        }
         Ok(worktree_path)
     }
 
-    async fn cleanup(&self, job: &JobContext) -> Result<()> {
+    async fn cleanup(&self, job: &SessionContext) -> Result<()> {
         let worktree_path = worktrees_dir().join(&job.slug);
         if worktree_path.exists() {
             super::helpers::remove_worktree(&worktree_path)?;

@@ -79,13 +79,12 @@ for (const h of HARNESSES) {
           return;
         }
 
-        // Interactive (auto=false would route to TmuxWindow which the
-        // dev daemon may not have set up). Stick with headless: the
-        // session is short-lived but actor_sessions does register it.
+        // Default axes (PTY, no attach, no keepalive). The session is
+        // short-lived but actor_sessions registers it, which is all the
+        // message endpoint needs to look it up.
         const dispatched = await dispatch({
           agent: COMPAT_AGENT,
           harness: h.id,
-          auto: true,
           workspace: COMPAT_WORKSPACE,
         });
 

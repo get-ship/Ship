@@ -74,7 +74,7 @@ mod tests_fanout_cancel;
 mod tests_fanout_recover;
 
 use crate::services::dispatch_ports::{
-    AgentPlatform, IsolationStrategy, JobExecutor, ProcessRegistryPort, ProcessTreeProbe,
+    AgentPlatform, IsolationStrategy, SessionExecutor, ProcessRegistryPort, ProcessTreeProbe,
 };
 use std::collections::HashMap;
 use std::sync::atomic::AtomicBool;
@@ -111,7 +111,7 @@ pub struct FanoutLaneRef {
 #[derive(Clone)]
 pub struct OrchestratorContext {
     pub isolation: Arc<dyn IsolationStrategy>,
-    pub executor: Arc<dyn JobExecutor>,
+    pub executor: Arc<dyn SessionExecutor>,
     pub platform: Arc<dyn AgentPlatform>,
     pub registry: Arc<dyn ProcessRegistryPort>,
     /// Subprocess-tree heartbeat probe used by `StepMonitor` to distinguish

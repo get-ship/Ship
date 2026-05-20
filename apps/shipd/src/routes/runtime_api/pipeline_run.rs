@@ -148,21 +148,23 @@ pub async fn run_pipeline(
         }
     };
 
+    // Run-level default agent = the first step's agent. A pure-shell
+    // (run) first step has none; leave it empty rather than falling back
+    // to a bogus "default" profile — worktree prep skips agent
+    // compilation for empty agents (a real agent step always names one).
     let first_agent = steps
         .first()
         .and_then(|s| s.get("agent"))
         .and_then(|a| a.as_str())
-        .unwrap_or("default")
+        .unwrap_or("")
         .to_string();
 
     let pipeline_name = meta.name.clone().unwrap_or_else(|| req.pipeline.clone());
     let workspace_label = req.workspace.unwrap_or_else(|| pipeline_name.clone());
     let slug = req.slug.unwrap_or_else(|| {
-        format!(
-            "{}-{}",
-            workspace_label,
-            &ship_substrate::gen_ulid()[..8].to_lowercase()
-        )
+        // Random-tail suffix; a ULID prefix is pure timestamp and
+        // collides for rapid same-workspace dispatches (gen_slug_suffix).
+        format!("{}-{}", workspace_label, ship_substrate::gen_slug_suffix())
     });
     let branch = format!("job/{slug}");
     let job_id = ship_substrate::gen_ulid();

@@ -1,16 +1,51 @@
 //! Initial job dispatch — prepares isolation, spawns the first agent step.
 //!
 //! Also handles pipelines whose first step is `run:` (skips agent spawning).
+//!
+//! Two entry points:
+//!   - `handle_job_created` → pipeline composition (multi-step pipelines).
+//!     Dispatches the first step; subsequent steps run via advance_pipeline.
+//!   - `handle_agent_session_started` → the dispatch PRIMITIVE. Owns the
+//!     spawn / register / exit-handler-attach atom for bare single-agent
+//!     dispatches (and, when phase 5 lands, every pipeline step too).
 
+use ship_substrate::events::agent_session::{
+    event_types as agent_session_event_types, AgentSessionCompletedPayload,
+    AgentSessionDispatchedPayload, AgentSessionFailedPayload, AgentSessionStartedPayload,
+    InvocationMode,
+};
+use ship_substrate::events::EventEnvelope;
 use ship_substrate::events::pipeline::{PipelineRunStartedPayload, StepType};
-use crate::services::dispatch_ports::{JobContext, LaunchProfile};
+use crate::services::dispatch_ports::{ExitCause, ExitSignal, SessionContext, LaunchProfile};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-use super::emit::{emit_job_dispatched, emit_job_dispatched_with_meta, emit_job_failed, emit_process_spawned, emit_spawn_failed};
+use super::emit::{
+    emit_job_dispatched, emit_job_dispatched_with_meta, emit_job_failed, emit_process_spawned,
+    emit_spawn_failed, persist_and_route,
+};
 use super::pipeline_loader::ensure_pipeline;
 use super::step_monitor::StepMonitor;
 use super::OrchestratorContext;
+
+/// Resolve the harness invocation mode for a pipeline step.
+///
+/// Per-step `invocation` (5b-1) is the source of truth; falls back to
+/// the run-level `headless` flag during the transition (the run-level
+/// flag is removed in a follow-up — see the 5b plan). `headless == true`
+/// historically meant `-p` print mode, so it maps to `Print`.
+pub(crate) fn resolve_step_invocation(
+    step_invocation: Option<&str>,
+    run_headless: bool,
+) -> InvocationMode {
+    match step_invocation {
+        Some("print") => InvocationMode::Print,
+        Some("stream") => InvocationMode::Stream,
+        Some("pty") => InvocationMode::Pty,
+        _ if run_headless => InvocationMode::Print,
+        _ => InvocationMode::Pty,
+    }
+}
 
 pub async fn handle_job_created(
     kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
@@ -100,7 +135,7 @@ pub async fn dispatch_job_internal(
         .and_then(|s| s.model.clone())
         .or_else(|| payload.model.clone());
 
-    let job_ctx = JobContext {
+    let job_ctx = SessionContext {
         job_id: payload.job_id.clone(),
         slug: slug.clone(),
         agent: agent.to_string(),
@@ -123,7 +158,10 @@ pub async fn dispatch_job_internal(
             ..Default::default()
         },
         step: first_step_info,
-        headless: payload.headless,
+        invocation: resolve_step_invocation(
+            first_step.as_ref().and_then(|s| s.invocation.as_deref()),
+            payload.headless,
+        ),
         keepalive: payload.keepalive,
     };
 
@@ -171,7 +209,7 @@ pub async fn dispatch_job_internal(
     }
 
     let (exit_tx, exit_rx) = tokio::sync::mpsc::unbounded_channel();
-    let job_ctx_with_dir = JobContext {
+    let job_ctx_with_dir = SessionContext {
         work_dir: worktree_path.clone(),
         exit_tx: Some(exit_tx),
         ..job_ctx
@@ -193,7 +231,32 @@ pub async fn dispatch_job_internal(
         executor_kind, job_ctx_with_dir.step.as_ref().map(|s| s.id.as_str()),
     ).await;
 
+    let pid = handle.pid;
     octx.registry.register(slug, handle).await;
+
+    // First step of a pipeline run also surfaces as an agent_session row
+    // (consistency with advance_pipeline_inner, which emits for steps
+    // 2+). Without this, step 1 of every pipeline would be absent from
+    // the agent_sessions read model.
+    if let Some(root_step) = payload.steps.as_ref().and_then(|s| s.root_steps().first().copied()) {
+        emit_composed_step_session(
+            kernel,
+            &ComposedRunCtx {
+                job_id: &payload.job_id,
+                job_slug: &payload.slug,
+                branch: &payload.branch,
+                source_spec_path: payload.source_spec_path.as_deref(),
+                vars: payload.vars.as_ref(),
+                baseline_sha: payload.baseline_sha.as_deref(),
+                run_headless: payload.headless,
+            },
+            root_step,
+            agent,
+            &worktree_path.to_string_lossy(),
+            pid,
+        )
+        .await;
+    }
 
     let is_multi_step = payload.steps.as_ref().is_some_and(|s| s.steps.len() > 1);
     if is_multi_step {
@@ -226,6 +289,461 @@ pub async fn dispatch_job_internal(
     }
 
     emit_job_dispatched(kernel, &payload.job_id, &worktree_path, slug).await;
+}
+
+// ── Agent-session primitive ─────────────────────────────────────────
+//
+// New in the agent-primitive inversion. Owns dispatch for bare agent
+// sessions (and, when phase 5 lands, every pipeline step too). Parallel
+// to `dispatch_job_internal` above; the two will reconverge once the
+// pipeline runner emits agent.session.started per step.
+
+/// Entry point for `agent.session.started` events. Resolves
+/// dependencies, prepares the worktree, spawns the harness, registers
+/// the process, attaches the exit handler, and emits
+/// `agent.session.dispatched`.
+pub async fn handle_agent_session_started(
+    kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
+    envelope: &ship_substrate::events::EventEnvelope,
+    octx: &OrchestratorContext,
+) {
+    let payload: AgentSessionStartedPayload = match serde_json::from_str(&envelope.payload_json) {
+        Ok(p) => p,
+        Err(e) => {
+            tracing::warn!("agent-session-dispatch: malformed payload: {e}");
+            return;
+        }
+    };
+
+    // Pipeline-composed sessions: the pipeline runner spawns the
+    // harness itself (it has step-monitor concerns this handler
+    // doesn't cover — gates, retries, output promotion, fanout). The
+    // agent.session.started emitted by the composer is purely for
+    // observability — it populates agent_sessions so bare and
+    // composed dispatches share one read model. Skip the spawn here
+    // to avoid double-spawn.
+    if payload.parent_pipeline_run_id.is_some() {
+        tracing::debug!(
+            slug = payload.slug, session_id = payload.session_id,
+            parent = ?payload.parent_pipeline_run_id,
+            "agent-session-dispatch: composed by pipeline — skip spawn (composer owns it)"
+        );
+        return;
+    }
+
+    if let Some(deps) = &payload.depends_on
+        && !deps.is_empty()
+    {
+        // Dependencies are session slugs. Pending-dispatch (the
+        // equivalent of `dispatch_ready_pending_jobs` for sessions)
+        // will pick this up once parents complete. For now we just
+        // skip — the session record is in Pending status and the
+        // pending dispatcher (a phase-5 addition) will surface it.
+        tracing::info!(
+            slug = payload.slug, session_id = payload.session_id,
+            deps = ?deps,
+            "agent-session-dispatch: deferring until dependencies complete"
+        );
+        return;
+    }
+
+    dispatch_agent_session_internal(kernel, &payload, octx).await;
+}
+
+async fn dispatch_agent_session_internal(
+    kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
+    payload: &AgentSessionStartedPayload,
+    octx: &OrchestratorContext,
+) {
+    let slug = &payload.slug;
+    let branch = &payload.branch;
+
+    tracing::info!(
+        slug, branch, agent = payload.agent, session_id = payload.session_id,
+        invocation = ?payload.invocation, keepalive = payload.keepalive,
+        "agent-session-dispatch: dispatching"
+    );
+
+    // The agent-session payload carries invocation directly — it's the
+    // source of truth for how the executor launches the harness.
+    // RoutingExecutor routes Pty → TmuxWindow/Process, Print → Process,
+    // Stream → Server. `keepalive` is orthogonal (forces Process +
+    // build_interactive).
+    let invocation = payload.invocation;
+
+    let job_ctx = SessionContext {
+        job_id: payload.session_id.clone(), // routes use session_id as the job_id-shape ulid
+        slug: slug.clone(),
+        agent: payload.agent.clone(),
+        branch: branch.clone(),
+        spec_path: ".artifacts/job-spec.md".to_string(),
+        spec_content: payload.spec.clone(),
+        work_dir: octx.platform.worktrees_dir().join(slug),
+        env: [("SHIP_ACTOR_ID".to_string(), slug.to_string())].into(),
+        exit_tx: None,
+        launch: LaunchProfile {
+            harness: payload.harness.clone(),
+            model: payload.model.clone(),
+            persist_session: true,
+            resume_session: payload.resume_session_id.clone(),
+            ..Default::default()
+        },
+        step: None,
+        invocation,
+        keepalive: payload.keepalive,
+    };
+
+    let worktree_path = match octx.isolation.prepare(&job_ctx).await {
+        Ok(p) => p,
+        Err(e) => {
+            tracing::error!(slug, "agent-session-dispatch: isolation prepare failed: {e}");
+            emit_agent_session_failed(
+                kernel,
+                &payload.session_id,
+                slug,
+                &format!("isolation prepare failed: {e}"),
+                None,
+                "isolation_prepare",
+            )
+            .await;
+            return;
+        }
+    };
+
+    let (exit_tx, exit_rx) = tokio::sync::mpsc::unbounded_channel();
+    let job_ctx_with_dir = SessionContext {
+        work_dir: worktree_path.clone(),
+        exit_tx: Some(exit_tx),
+        ..job_ctx
+    };
+
+    let handle = match octx.executor.spawn(&job_ctx_with_dir).await {
+        Ok(h) => h,
+        Err(e) => {
+            tracing::error!(slug, "agent-session-dispatch: executor spawn failed: {e}");
+            emit_agent_session_failed(
+                kernel,
+                &payload.session_id,
+                slug,
+                &format!("executor spawn failed: {e}"),
+                None,
+                "executor_spawn",
+            )
+            .await;
+            return;
+        }
+    };
+    // Capture PID before moving the handle into the registry so the
+    // dispatched event can carry it.
+    let pid = handle.pid;
+
+    let executor_kind = match invocation {
+        InvocationMode::Pty => "pty",
+        InvocationMode::Print => "process",
+        InvocationMode::Stream => "stream",
+    };
+    let cmd_label = payload.harness.as_deref().unwrap_or("claude");
+    let resolved_harness = cmd_label.to_string();
+    emit_process_spawned(
+        kernel,
+        slug,
+        &payload.session_id,
+        pid,
+        cmd_label,
+        &[],
+        &[],
+        &worktree_path.to_string_lossy(),
+        executor_kind,
+        None,
+    )
+    .await;
+
+    octx.registry.register(slug, handle).await;
+
+    // Start the agent-session exit handler. Distinct from the
+    // pipeline exit_handler — emits agent.session.{completed,failed}
+    // tied to session_id, not pipeline.run.* tied to job_id. The
+    // pipeline composer (phase 5) will sit on top of these events to
+    // advance multi-step pipelines.
+    start_agent_session_exit_handler(
+        kernel.clone(),
+        octx.registry.clone(),
+        payload.session_id.clone(),
+        payload.slug.clone(),
+        exit_rx,
+    );
+
+    // Emit agent.session.dispatched — flips the projection's status
+    // to Dispatched and tells observers the harness is live.
+    emit_agent_session_dispatched(
+        kernel,
+        &payload.session_id,
+        slug,
+        &worktree_path.to_string_lossy(),
+        &resolved_harness,
+        payload.model.as_deref(),
+        pid,
+    )
+    .await;
+}
+
+/// Spawn the agent-session exit handler task. Waits for the executor's
+/// ExitSignal, classifies it, and emits the matching session lifecycle
+/// event (completed for clean exit; failed for non-zero / no-code /
+/// session destroyed).
+fn start_agent_session_exit_handler(
+    kernel: Arc<Mutex<ship_substrate::events::KernelRouter>>,
+    registry: Arc<dyn crate::services::dispatch_ports::ProcessRegistryPort>,
+    session_id: String,
+    slug: String,
+    mut exit_rx: tokio::sync::mpsc::UnboundedReceiver<ExitSignal>,
+) {
+    tokio::spawn(async move {
+        if let Some(signal) = exit_rx.recv().await {
+            tracing::info!(
+                slug, session_id, exit_code = ?signal.exit_code, cause = ?signal.cause,
+                "agent-session-exit: signal received",
+            );
+            registry.unregister(&signal.slug).await;
+            match signal.cause {
+                ExitCause::AgentExited => match signal.exit_code {
+                    Some(0) => {
+                        emit_agent_session_completed(
+                            &kernel,
+                            &session_id,
+                            &slug,
+                            Some(0),
+                        )
+                        .await;
+                    }
+                    Some(code) => {
+                        emit_agent_session_failed(
+                            &kernel,
+                            &session_id,
+                            &slug,
+                            &format!("harness exited with code {code}"),
+                            Some(code),
+                            "exit_nonzero",
+                        )
+                        .await;
+                    }
+                    None => {
+                        emit_agent_session_failed(
+                            &kernel,
+                            &session_id,
+                            &slug,
+                            "harness exited with no captured exit code",
+                            None,
+                            "exit_no_code",
+                        )
+                        .await;
+                    }
+                },
+                ExitCause::SessionDestroyed => {
+                    emit_agent_session_failed(
+                        &kernel,
+                        &session_id,
+                        &slug,
+                        "executor session destroyed externally",
+                        None,
+                        "session_destroyed",
+                    )
+                    .await;
+                }
+            }
+        }
+    });
+}
+
+/// Emit the observability pair (started + dispatched) for a pipeline
+/// step's agent session. Composed sessions share the agent_sessions
+/// read model with bare dispatches; `parent_pipeline_run_id` ties the
+/// session to its pipeline run, and the composer (not this handler)
+/// owns the spawn — `handle_agent_session_started` skips events with
+/// that field set. The session slug is `<job_slug>::<step_id>` so it
+/// stays unique under the agent_sessions.slug constraint (the job slug
+/// is reused across all steps).
+/// Run-level context shared by every composed step of a pipeline.
+/// Built from a `PipelineRun` (advance_pipeline path) or directly from
+/// a `PipelineRunStartedPayload` (first-step dispatch path) — both
+/// expose the same fields, so the emit helper takes this rather than
+/// either concrete type.
+pub(crate) struct ComposedRunCtx<'a> {
+    pub job_id: &'a str,
+    pub job_slug: &'a str,
+    pub branch: &'a str,
+    pub source_spec_path: Option<&'a str>,
+    pub vars: Option<&'a std::collections::HashMap<String, String>>,
+    pub baseline_sha: Option<&'a str>,
+    pub run_headless: bool,
+}
+
+pub(crate) async fn emit_composed_step_session(
+    kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
+    run: &ComposedRunCtx<'_>,
+    step: &ship_substrate::events::pipeline::PipelineStep,
+    agent: &str,
+    worktree: &str,
+    pid: Option<u32>,
+) {
+    let step_session_id = ship_substrate::gen_ulid();
+    let session_slug = format!("{}::{}", run.job_slug, step.id);
+    let invocation = resolve_step_invocation(step.invocation.as_deref(), run.run_headless);
+    let started = AgentSessionStartedPayload {
+        session_id: step_session_id.clone(),
+        slug: session_slug.clone(),
+        agent: agent.to_string(),
+        harness: step.harness.clone(),
+        model: step.model.clone(),
+        workspace: run.branch.to_string(),
+        branch: run.branch.to_string(),
+        source_spec_path: run.source_spec_path.map(str::to_string),
+        open_tab: !run.run_headless,
+        invocation,
+        keepalive: false,
+        prompt: None,
+        spec: None,
+        resume: false,
+        resume_session_id: None,
+        depends_on: None,
+        vars: run.vars.cloned(),
+        baseline_sha: run.baseline_sha.map(str::to_string),
+        parent_pipeline_run_id: Some(run.job_id.to_string()),
+    };
+    emit_agent_session_started_for_pipeline_step(kernel, &started).await;
+    emit_agent_session_dispatched(
+        kernel,
+        &step_session_id,
+        &session_slug,
+        worktree,
+        step.harness.as_deref().unwrap_or("claude"),
+        step.model.as_deref(),
+        pid,
+    )
+    .await;
+}
+
+/// Emit the terminal event for a pipeline step's composed agent
+/// session, so it reaches a terminal status in the agent_sessions
+/// read model rather than sitting at Dispatched forever. Called by
+/// the StepMonitor when it emits `pipeline.step.observed`.
+///
+/// The composed session slug is `<job_slug>::<step_name>` (set by
+/// emit_composed_step_session). Look it up to recover the session_id;
+/// best-effort — if the row isn't found (e.g. a step whose started
+/// event didn't land), we simply skip rather than fail the step.
+pub(crate) async fn emit_composed_session_terminal(
+    kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
+    job_slug: &str,
+    step_name: &str,
+    is_failure: bool,
+    exit_code: Option<i32>,
+) {
+    let session_slug = format!("{job_slug}::{step_name}");
+    let session = match crate::projections::agent_session::load_session_by_slug(&session_slug) {
+        Ok(Some(s)) => s,
+        _ => return,
+    };
+    if is_failure {
+        emit_agent_session_failed(
+            kernel,
+            &session.session_id,
+            &session_slug,
+            "pipeline step did not advance",
+            exit_code,
+            "step_observed_fail",
+        )
+        .await;
+    } else {
+        emit_agent_session_completed(kernel, &session.session_id, &session_slug, exit_code).await;
+    }
+}
+
+pub(crate) async fn emit_agent_session_started_for_pipeline_step(
+    kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
+    payload: &AgentSessionStartedPayload,
+) {
+    if let Ok(env) = EventEnvelope::new(
+        agent_session_event_types::AGENT_SESSION_STARTED,
+        &payload.session_id,
+        payload,
+    ) {
+        let env = env.with_actor_id("service.pipeline-composer");
+        persist_and_route(kernel, env, &payload.slug, None).await;
+    }
+}
+
+pub(crate) async fn emit_agent_session_dispatched(
+    kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
+    session_id: &str,
+    slug: &str,
+    worktree: &str,
+    harness: &str,
+    model: Option<&str>,
+    pid: Option<u32>,
+) {
+    let payload = AgentSessionDispatchedPayload {
+        session_id: session_id.to_string(),
+        slug: slug.to_string(),
+        worktree: worktree.to_string(),
+        harness: harness.to_string(),
+        model: model.map(str::to_string),
+        pid,
+    };
+    if let Ok(env) = EventEnvelope::new(
+        agent_session_event_types::AGENT_SESSION_DISPATCHED,
+        session_id,
+        &payload,
+    ) {
+        let env = env.with_actor_id("service.agent-session-dispatch");
+        persist_and_route(kernel, env, slug, None).await;
+    }
+}
+
+async fn emit_agent_session_completed(
+    kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
+    session_id: &str,
+    slug: &str,
+    exit_code: Option<i32>,
+) {
+    let payload = AgentSessionCompletedPayload {
+        session_id: session_id.to_string(),
+        slug: slug.to_string(),
+        exit_code,
+    };
+    if let Ok(env) = EventEnvelope::new(
+        agent_session_event_types::AGENT_SESSION_COMPLETED,
+        session_id,
+        &payload,
+    ) {
+        let env = env.with_actor_id("service.agent-session-dispatch");
+        persist_and_route(kernel, env, slug, None).await;
+    }
+}
+
+async fn emit_agent_session_failed(
+    kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
+    session_id: &str,
+    slug: &str,
+    error: &str,
+    exit_code: Option<i32>,
+    stage: &str,
+) {
+    let payload = AgentSessionFailedPayload {
+        session_id: session_id.to_string(),
+        slug: slug.to_string(),
+        error: error.to_string(),
+        exit_code,
+        stage: stage.to_string(),
+    };
+    if let Ok(env) = EventEnvelope::new(
+        agent_session_event_types::AGENT_SESSION_FAILED,
+        session_id,
+        &payload,
+    ) {
+        let env = env.with_actor_id("service.agent-session-dispatch");
+        persist_and_route(kernel, env, slug, None).await;
+    }
 }
 
 /// Test-friendly variant with explicit ship_dir for event store.
@@ -263,7 +781,7 @@ async fn dispatch_first_run_step_inner(
 
     tracing::info!(slug, branch, step_id, %command, "job-dispatch: first step is run — executing directly");
 
-    let job_ctx = JobContext {
+    let job_ctx = SessionContext {
         job_id: payload.job_id.clone(),
         slug: slug.clone(),
         agent: payload.agent.to_string(),
@@ -283,7 +801,10 @@ async fn dispatch_first_run_step_inner(
             index: 0,
             id: step_id.to_string(),
         }),
-        headless: payload.headless,
+        // Run steps execute a shell command (not a harness CLI); the
+        // executor field is moot, but derive from the run-level flag
+        // for the executor-routing label.
+        invocation: resolve_step_invocation(None, payload.headless),
         keepalive: payload.keepalive,
     };
 

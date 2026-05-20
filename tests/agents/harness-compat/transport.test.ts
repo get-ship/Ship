@@ -2,10 +2,16 @@
 // the actor projection's `transport` field correctly per dispatch mode.
 //
 // Source of truth: crates/ship-supervisor/src/executors/routing.rs
-//   let transport = if ctx.headless { "headless" } else { "pty" };
+//   let transport = match ctx.invocation {
+//       Print  => "headless",
+//       Pty    => "pty",
+//       Stream => "stream",
+//   };
 //
-// auto:true (headless) → ProcessExecutor → transport = "headless"
-// auto:false (interactive) → TmuxWindow (if tmux) → transport = "pty"
+// Post-inversion the transport label derives purely from `invocation`
+// (open_tab is a UX axis and doesn't affect routing):
+//   invocation:"print" → ProcessExecutor one-shot → transport = "headless"
+//   invocation:"pty"   → TmuxWindow (if tmux) / Process → transport = "pty"
 //
 // The transport field drives downstream UX (attach button enabled?
 // chat shape choice?), so a regression here breaks the UI silently.
@@ -15,7 +21,7 @@ import {
   binaryOnPath,
   cancelSession,
   dispatch,
-  waitForActorField,
+  pollForEvents,
 } from "../_helpers";
 import {
   COMPAT_AGENT,
@@ -36,8 +42,20 @@ for (const h of HARNESSES) {
     })();
 
     for (const mode of [
-      { label: "headless", auto: true, expected: "headless" as const },
-      { label: "interactive", auto: false, expected: "pty" as const },
+      {
+        label: "headless",
+        invocation: "print" as const,
+        open_tab: false,
+        keepalive: false,
+        expected: "headless" as const,
+      },
+      {
+        label: "interactive",
+        invocation: "pty" as const,
+        open_tab: true,
+        keepalive: false,
+        expected: "pty" as const,
+      },
     ]) {
       test(
         `${mode.label} dispatch records transport="${mode.expected}"`,
@@ -50,25 +68,46 @@ for (const h of HARNESSES) {
           const dispatched = await dispatch({
             agent: COMPAT_AGENT,
             harness: h.id,
-            auto: mode.auto,
+            invocation: mode.invocation,
+            open_tab: mode.open_tab,
+            keepalive: mode.keepalive,
             workspace: COMPAT_WORKSPACE,
           });
 
           try {
-            // Projection race: process.spawned can land before actor.created,
-            // creating a stub row with empty transport. waitForActorField
-            // polls until the field we assert on is populated.
-            const actor = await waitForActorField(
-              dispatched.slug,
-              (a) => !!a.transport && a.transport.length > 0,
+            // Read the transport label from the PERSISTED actor.created
+            // event, not the projection row: a print session exits in
+            // ~1s and cleanup deletes the row, racing the poll under
+            // load. The event log is append-only and survives teardown.
+            //
+            // No since_id cursor: the slug is unique per dispatch, so it
+            // already scopes to this run. A cursor would be wrong here —
+            // actor.created is emitted on a separate thread (routing.rs)
+            // with its own ULID generator, so its id isn't reliably
+            // greater than a sinceId captured on the main thread, and the
+            // `id > since_id` filter can drop it under load.
+            // Read the transport label from the persisted actor.created
+            // event (slug-scoped, no cursor — see the unique-slug note
+            // above). 20s is ample at normal load; under the full
+            // 4-harness suite's artificial peak the orchestrator mailbox
+            // backs up and dispatch latency can blow past any timeout —
+            // that load-latency limit is a documented orchestrator
+            // follow-up, not a transport-label bug.
+            const events = await pollForEvents(
+              (e) =>
+                e.event_type === "actor.created" &&
+                (e.entity_id === dispatched.slug ||
+                  e.actor_id === dispatched.slug),
+              { slug: dispatched.slug, stopAfter: 1, timeoutMs: 20_000 },
             );
-            if (!actor) {
-              tierFailure(h.tier, h.id, "actor row never materialised", {
+            if (events.length === 0) {
+              tierFailure(h.tier, h.id, "actor.created event never emitted", {
                 slug: dispatched.slug,
               });
               return;
             }
-            expect(actor.transport).toBe(mode.expected);
+            const transport = JSON.parse(events[0]!.payload_json).transport;
+            expect(transport).toBe(mode.expected);
           } finally {
             await cancelSession(dispatched.slug);
           }

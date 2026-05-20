@@ -1,14 +1,14 @@
 //! Status transition table for job events.
 //!
-//! The single place that says "which events change `JobStatus`, and to
-//! what." Payload extraction stays in [`super::job::apply`]. This module
+//! The single place that says "which events change `PipelineRunStatus`, and to
+//! what." Payload extraction stays in [`super::pipeline_run::apply`]. This module
 //! only answers: given an event type, what is the new status?
 //!
 //! Events not listed here either don't mutate status, or the transition
 //! is conditional on payload (e.g. `PIPELINE_STEP_OBSERVED`). Those stay inline
 //! in `apply` until a follow-up pass extracts them too.
 
-use super::job::JobStatus;
+use super::pipeline_run::PipelineRunStatus;
 use ship_substrate::events::pipeline::event_types;
 
 /// Unconditional status transition for an event type.
@@ -16,21 +16,21 @@ use ship_substrate::events::pipeline::event_types;
 /// Returns `None` if the event does not mutate status, or if the
 /// transition depends on payload. Callers that care about payload-driven
 /// transitions (PIPELINE_STEP_OBSERVED, PIPELINE_STEP_COMPLETED) handle them separately.
-pub fn status_for(event_type: &str) -> Option<JobStatus> {
+pub fn status_for(event_type: &str) -> Option<PipelineRunStatus> {
     match event_type {
-        event_types::PIPELINE_RUN_DISPATCHED => Some(JobStatus::Dispatched),
-        event_types::PIPELINE_GATE_REQUESTED => Some(JobStatus::GatePending),
-        event_types::PIPELINE_GATE_PASSED => Some(JobStatus::Pending),
-        event_types::PIPELINE_GATE_FAILED => Some(JobStatus::Failed),
-        event_types::PIPELINE_RUN_COMPLETED => Some(JobStatus::Completed),
-        event_types::PIPELINE_RUN_BLOCKED => Some(JobStatus::Blocked),
-        event_types::PIPELINE_RUN_MERGED => Some(JobStatus::Merged),
-        event_types::PIPELINE_RUN_FAILED => Some(JobStatus::Failed),
-        event_types::PIPELINE_STEP_SPAWN_FAILED => Some(JobStatus::Failed),
-        event_types::PIPELINE_RUN_CANCELLED => Some(JobStatus::Cancelled),
-        event_types::PIPELINE_STEP_STARTED => Some(JobStatus::Dispatched),
-        event_types::PIPELINE_STEP_FAILED => Some(JobStatus::Failed),
-        event_types::PIPELINE_STEP_RETRY => Some(JobStatus::Dispatched),
+        event_types::PIPELINE_RUN_DISPATCHED => Some(PipelineRunStatus::Dispatched),
+        event_types::PIPELINE_GATE_REQUESTED => Some(PipelineRunStatus::GatePending),
+        event_types::PIPELINE_GATE_PASSED => Some(PipelineRunStatus::Pending),
+        event_types::PIPELINE_GATE_FAILED => Some(PipelineRunStatus::Failed),
+        event_types::PIPELINE_RUN_COMPLETED => Some(PipelineRunStatus::Completed),
+        event_types::PIPELINE_RUN_BLOCKED => Some(PipelineRunStatus::Blocked),
+        event_types::PIPELINE_RUN_MERGED => Some(PipelineRunStatus::Merged),
+        event_types::PIPELINE_RUN_FAILED => Some(PipelineRunStatus::Failed),
+        event_types::PIPELINE_STEP_SPAWN_FAILED => Some(PipelineRunStatus::Failed),
+        event_types::PIPELINE_RUN_CANCELLED => Some(PipelineRunStatus::Cancelled),
+        event_types::PIPELINE_STEP_STARTED => Some(PipelineRunStatus::Dispatched),
+        event_types::PIPELINE_STEP_FAILED => Some(PipelineRunStatus::Failed),
+        event_types::PIPELINE_STEP_RETRY => Some(PipelineRunStatus::Dispatched),
         _ => None,
     }
 }
@@ -41,67 +41,67 @@ mod tests {
 
     #[test]
     fn job_dispatched_sets_dispatched() {
-        assert_eq!(status_for(event_types::PIPELINE_RUN_DISPATCHED), Some(JobStatus::Dispatched));
+        assert_eq!(status_for(event_types::PIPELINE_RUN_DISPATCHED), Some(PipelineRunStatus::Dispatched));
     }
 
     #[test]
     fn job_gate_requested_sets_gate_pending() {
-        assert_eq!(status_for(event_types::PIPELINE_GATE_REQUESTED), Some(JobStatus::GatePending));
+        assert_eq!(status_for(event_types::PIPELINE_GATE_REQUESTED), Some(PipelineRunStatus::GatePending));
     }
 
     #[test]
     fn job_gate_passed_sets_pending() {
-        assert_eq!(status_for(event_types::PIPELINE_GATE_PASSED), Some(JobStatus::Pending));
+        assert_eq!(status_for(event_types::PIPELINE_GATE_PASSED), Some(PipelineRunStatus::Pending));
     }
 
     #[test]
     fn job_gate_failed_sets_failed() {
-        assert_eq!(status_for(event_types::PIPELINE_GATE_FAILED), Some(JobStatus::Failed));
+        assert_eq!(status_for(event_types::PIPELINE_GATE_FAILED), Some(PipelineRunStatus::Failed));
     }
 
     #[test]
     fn job_completed_sets_completed() {
-        assert_eq!(status_for(event_types::PIPELINE_RUN_COMPLETED), Some(JobStatus::Completed));
+        assert_eq!(status_for(event_types::PIPELINE_RUN_COMPLETED), Some(PipelineRunStatus::Completed));
     }
 
     #[test]
     fn job_blocked_sets_blocked() {
-        assert_eq!(status_for(event_types::PIPELINE_RUN_BLOCKED), Some(JobStatus::Blocked));
+        assert_eq!(status_for(event_types::PIPELINE_RUN_BLOCKED), Some(PipelineRunStatus::Blocked));
     }
 
     #[test]
     fn job_merged_sets_merged() {
-        assert_eq!(status_for(event_types::PIPELINE_RUN_MERGED), Some(JobStatus::Merged));
+        assert_eq!(status_for(event_types::PIPELINE_RUN_MERGED), Some(PipelineRunStatus::Merged));
     }
 
     #[test]
     fn job_failed_sets_failed() {
-        assert_eq!(status_for(event_types::PIPELINE_RUN_FAILED), Some(JobStatus::Failed));
+        assert_eq!(status_for(event_types::PIPELINE_RUN_FAILED), Some(PipelineRunStatus::Failed));
     }
 
     #[test]
     fn step_dispatched_sets_dispatched() {
-        assert_eq!(status_for(event_types::PIPELINE_STEP_STARTED), Some(JobStatus::Dispatched));
+        assert_eq!(status_for(event_types::PIPELINE_STEP_STARTED), Some(PipelineRunStatus::Dispatched));
     }
 
     #[test]
     fn step_failed_sets_failed() {
-        assert_eq!(status_for(event_types::PIPELINE_STEP_FAILED), Some(JobStatus::Failed));
+        assert_eq!(status_for(event_types::PIPELINE_STEP_FAILED), Some(PipelineRunStatus::Failed));
     }
 
     #[test]
     fn job_spawn_failed_sets_failed() {
-        assert_eq!(status_for(event_types::PIPELINE_STEP_SPAWN_FAILED), Some(JobStatus::Failed));
+        assert_eq!(status_for(event_types::PIPELINE_STEP_SPAWN_FAILED), Some(PipelineRunStatus::Failed));
     }
 
     #[test]
     fn job_cancelled_sets_cancelled() {
-        assert_eq!(status_for(event_types::PIPELINE_RUN_CANCELLED), Some(JobStatus::Cancelled));
+        assert_eq!(status_for(event_types::PIPELINE_RUN_CANCELLED), Some(PipelineRunStatus::Cancelled));
     }
 
     #[test]
     fn step_retry_sets_dispatched() {
-        assert_eq!(status_for(event_types::PIPELINE_STEP_RETRY), Some(JobStatus::Dispatched));
+        assert_eq!(status_for(event_types::PIPELINE_STEP_RETRY), Some(PipelineRunStatus::Dispatched));
     }
 
     #[test]

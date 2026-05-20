@@ -121,14 +121,26 @@ export function binaryOnPath(name: string): boolean {
 
 // ── Dispatch ───────────────────────────────────────────────────────────────
 
+export type Invocation = "pty" | "print" | "stream";
+
+// The dispatch primitive replaced the old `auto: bool` with three
+// orthogonal axes (see runtime_api/dispatch.rs::DispatchRequest):
+//   - open_tab:   does this open an attachable PTY surface? (UX)
+//   - invocation: how the harness is invoked — pty/print/stream
+//   - keepalive:  stay alive awaiting the next push after the turn?
+// Defaults here match the common compat-test case: a background PTY
+// harness that comes up, idles, and is cancelled — no terminal attach,
+// no keepalive. Tests that need a different shape (transport, push)
+// set the axes explicitly.
 export interface DispatchInput {
   agent: string;
   harness: string;
   prompt?: string;
   spec?: string;
-  auto?: boolean;
   workspace?: string;
   model?: string;
+  open_tab?: boolean;
+  invocation?: Invocation;
   keepalive?: boolean;
 }
 
@@ -136,20 +148,24 @@ export interface DispatchResponse {
   ok: boolean;
   data:
     | {
-        job_id: string;
+        session_id: string;
         slug: string;
         branch: string;
         resume: boolean;
+        studio_url?: string;
+        billing_warning?: string | null;
       }
     | string;
 }
 
-export async function dispatch(input: DispatchInput): Promise<{
+export interface Dispatched {
   status: number;
   slug: string;
-  jobId: string;
+  sessionId: string;
   branch: string;
-}> {
+}
+
+export async function dispatch(input: DispatchInput): Promise<Dispatched> {
   const { status, body } = await api<DispatchResponse>(
     "/api/v1/agent_sessions/dispatch",
     {
@@ -159,9 +175,10 @@ export async function dispatch(input: DispatchInput): Promise<{
         harness: input.harness,
         prompt: input.prompt,
         spec: input.spec,
-        auto: input.auto ?? true,
         workspace: input.workspace,
         model: input.model,
+        open_tab: input.open_tab ?? false,
+        invocation: input.invocation ?? "pty",
         keepalive: input.keepalive ?? false,
       }),
     },
@@ -174,7 +191,7 @@ export async function dispatch(input: DispatchInput): Promise<{
   return {
     status,
     slug: body.data.slug,
-    jobId: body.data.job_id,
+    sessionId: body.data.session_id,
     branch: body.data.branch,
   };
 }
@@ -300,6 +317,27 @@ export async function getActorRow(slug: string): Promise<ActorRow | null> {
   };
 }
 
+/**
+ * Poll until the actor row for `slug` is gone or no longer live — i.e.
+ * the dispatched process has actually exited. Use after cancelSession
+ * in keepalive tests so a long-lived harness child is confirmed dead
+ * before the test yields; otherwise its teardown load bleeds into the
+ * next test file and starves later dispatches (the actor.created emit
+ * is a fire-and-forget thread sensitive to machine load). Best-effort:
+ * returns when clear or when the deadline passes.
+ */
+export async function waitForActorGone(
+  slug: string,
+  opts: { timeoutMs?: number } = {},
+): Promise<void> {
+  const deadline = Date.now() + (opts.timeoutMs ?? 10_000);
+  while (Date.now() < deadline) {
+    const row = await getActorRow(slug);
+    if (!row || row.live === false) return;
+    await new Promise((r) => setTimeout(r, 250));
+  }
+}
+
 export async function waitForMeshClear(
   slug: string,
   opts: { maxAttempts?: number } = {},
@@ -359,11 +397,7 @@ export async function sendSessionMessage(
  */
 export async function withSession<T>(
   input: DispatchInput,
-  fn: (s: {
-    slug: string;
-    jobId: string;
-    branch: string;
-  }) => Promise<T>,
+  fn: (s: Dispatched) => Promise<T>,
 ): Promise<T> {
   const dispatched = await dispatch(input);
   try {

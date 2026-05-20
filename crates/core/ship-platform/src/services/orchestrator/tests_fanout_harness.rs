@@ -33,13 +33,13 @@ pub struct NoopIsolation;
 impl crate::services::dispatch_ports::IsolationStrategy for NoopIsolation {
     async fn prepare(
         &self,
-        _job: &crate::services::dispatch_ports::JobContext,
+        _job: &crate::services::dispatch_ports::SessionContext,
     ) -> anyhow::Result<std::path::PathBuf> {
         Ok(std::path::PathBuf::from("/tmp"))
     }
     async fn cleanup(
         &self,
-        _job: &crate::services::dispatch_ports::JobContext,
+        _job: &crate::services::dispatch_ports::SessionContext,
     ) -> anyhow::Result<()> {
         Ok(())
     }
@@ -47,10 +47,10 @@ impl crate::services::dispatch_ports::IsolationStrategy for NoopIsolation {
 
 pub struct NoopExecutor;
 #[async_trait]
-impl crate::services::dispatch_ports::JobExecutor for NoopExecutor {
+impl crate::services::dispatch_ports::SessionExecutor for NoopExecutor {
     async fn spawn(
         &self,
-        _ctx: &crate::services::dispatch_ports::JobContext,
+        _ctx: &crate::services::dispatch_ports::SessionContext,
     ) -> anyhow::Result<ExecutorHandle> {
         Err(anyhow::anyhow!("noop"))
     }
@@ -150,6 +150,7 @@ pub fn mk_step(id: &str, agent: &str) -> PipelineStep {
         model: None, harness: None, command: None,
         max_retries: None, gate: None,
         produces: vec![], consumes: vec![], promotes: vec![], fanout: None,
+            invocation: None,
     }
 }
 

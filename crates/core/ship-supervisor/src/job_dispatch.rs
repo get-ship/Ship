@@ -4,7 +4,7 @@
 //! isolation strategy, and platform implementations, then delegates all
 //! event handling to `ship_platform::services::orchestrator::router`.
 
-use ship_platform::services::dispatch_ports::JobExecutor;
+use ship_platform::services::dispatch_ports::SessionExecutor;
 use ship_platform::services::orchestrator::OrchestratorContext;
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -22,7 +22,7 @@ use ship_platform::services::process_registry::SharedRegistry;
 /// to active step monitors.
 pub struct DispatchHandle {
     pub registry: Arc<Mutex<ProcessRegistry>>,
-    pub executor: Arc<dyn JobExecutor>,
+    pub executor: Arc<dyn SessionExecutor>,
     /// Shared with OrchestratorContext — allows API handlers to send
     /// activity signals (e.g. TurnEnded from Stop hook) to step monitors.
     pub activity_txs: Arc<Mutex<HashMap<String, tokio::sync::mpsc::UnboundedSender<ship_platform::services::orchestrator::StepActivity>>>>,
@@ -45,7 +45,7 @@ pub async fn subscribe_job_events(
     // RoutingExecutor transparently falls back to ProcessExecutor for every
     // job with a single warning line.
     tracing::info!("job-dispatch: using RoutingExecutor (tmux-window default, headless on flag)");
-    let executor: Arc<dyn JobExecutor> =
+    let executor: Arc<dyn SessionExecutor> =
         Arc::new(super::executors::RoutingExecutor::new(Some(kernel.clone())));
 
     let registry = Arc::new(Mutex::new(ProcessRegistry::new()));

@@ -29,14 +29,16 @@ pub async fn start_orchestrator(
     octx: Arc<OrchestratorContext>,
 ) {
     let actor_id = "service.job-dispatch".to_string();
-    // Post JobRecord→PipelineRun rename: dispatch emits `pipeline.run.started`
-    // and friends under the `pipeline.` namespace. The orchestrator subscribes
-    // there. Bare `job.` / `step.` namespaces are dead (no live emitters).
+    // Subscribes to two namespaces:
+    //   - `pipeline.*` for composition lifecycle (multi-step pipeline runs)
+    //   - `agent.session.*` for the dispatch primitive (single-agent
+    //     sessions, including those composed within pipelines)
+    // The router below switches on the event type to pick the handler.
     let config = ship_substrate::events::ActorConfig {
         namespace: actor_id.clone(),
-        write_namespaces: vec!["pipeline.".to_string()],
+        write_namespaces: vec!["pipeline.".to_string(), "agent.session.".to_string()],
         read_namespaces: vec![],
-        subscribe_namespaces: vec!["pipeline.".to_string()],
+        subscribe_namespaces: vec!["pipeline.".to_string(), "agent.session.".to_string()],
         see_directed_events: false,
     };
 
@@ -107,9 +109,9 @@ pub async fn handle_job_event(
         && let Some(record) = load_pipeline_run(&envelope.entity_id)
         && matches!(
             record.status,
-            crate::projections::job::JobStatus::Failed
-                | crate::projections::job::JobStatus::Merged
-                | crate::projections::job::JobStatus::Cancelled
+            crate::projections::pipeline_run::PipelineRunStatus::Failed
+                | crate::projections::pipeline_run::PipelineRunStatus::Merged
+                | crate::projections::pipeline_run::PipelineRunStatus::Cancelled
         )
     {
         tracing::warn!(
@@ -122,9 +124,20 @@ pub async fn handle_job_event(
     }
 
     match envelope.event_type.as_str() {
+        // The agent-session dispatch primitive — owns the spawn /
+        // register / exit-handler-attach atom. Both bare `ship use`
+        // and pipeline steps (when phase 5 lands) flow through here.
+        "agent.session.started" => super::dispatch::handle_agent_session_started(
+            kernel, envelope, octx,
+        ).await,
         "pipeline.run.started" => handle_job_created(kernel, envelope, octx).await,
         "pipeline.run.updated" => handle_job_update(kernel, envelope).await,
         et::PIPELINE_RUN_CANCELLED => handle_job_cancelled(kernel, envelope, octx).await,
+        // Bare agent-session cancel. handle_job_cancelled is slug-keyed
+        // and harness-agnostic — it kills via the registry handle and
+        // emits process.killed, identical to a pipeline-run cancel. The
+        // payload carries `slug`, so the same handler drives both.
+        "agent.session.cancelled" => handle_job_cancelled(kernel, envelope, octx).await,
         "pipeline.run.completed" => {
             tracing::info!(entity_id = %envelope.entity_id, "job-dispatch: handling job.completed");
             let slug = extract_slug(envelope);
@@ -303,7 +316,7 @@ async fn maybe_auto_merge(
 ) -> bool {
     let payload: serde_json::Value = serde_json::from_str(&envelope.payload_json).unwrap_or_default();
     let job_id = payload["job_id"].as_str().unwrap_or(envelope.entity_id.as_str()).to_string();
-    let Some(job) = crate::projections::job::load_job_by_id(&job_id)
+    let Some(job) = crate::projections::pipeline_run::load_pipeline_run_by_id(&job_id)
         .ok()
         .flatten()
     else {
@@ -344,8 +357,8 @@ fn is_operator_event(event_type: &str) -> bool {
 /// Used by the terminal-state guard. Returns `None` if the projection
 /// can't be loaded or the job doesn't exist — callers treat that as
 /// "not terminal, proceed" so startup races don't drop events.
-fn load_pipeline_run(entity_id: &str) -> Option<crate::projections::job::PipelineRun> {
-    crate::projections::job::load_job_by_id(entity_id).ok().flatten()
+fn load_pipeline_run(entity_id: &str) -> Option<crate::projections::pipeline_run::PipelineRun> {
+    crate::projections::pipeline_run::load_pipeline_run_by_id(entity_id).ok().flatten()
 }
 
 /// Extract the slug from an event envelope payload.
@@ -360,7 +373,7 @@ async fn check_and_fail_missing_outputs(
     kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
     declared: &PipelineStepDoneDeclaredPayload,
 ) {
-    let Some(job) = crate::projections::job::load_job_by_id(&declared.job_id)
+    let Some(job) = crate::projections::pipeline_run::load_pipeline_run_by_id(&declared.job_id)
         .ok()
         .flatten()
     else {
@@ -387,7 +400,7 @@ async fn run_promotes_for_step(
     kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
     payload: &PipelineStepObservedPayload,
 ) {
-    let Some(job) = crate::projections::job::load_job_by_id(&payload.job_id)
+    let Some(job) = crate::projections::pipeline_run::load_pipeline_run_by_id(&payload.job_id)
         .ok()
         .flatten()
     else {
@@ -410,7 +423,7 @@ async fn evaluate_step_gate(
 ) -> Option<String> {
     use super::gate_rules::{diff_paths, evaluate, GateOutcome};
 
-    let job = crate::projections::job::load_job_by_id(&payload.job_id)
+    let job = crate::projections::pipeline_run::load_pipeline_run_by_id(&payload.job_id)
         .ok()
         .flatten()?;
     let pipeline = job.steps.as_ref()?;

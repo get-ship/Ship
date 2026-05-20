@@ -58,6 +58,19 @@ pub fn gen_ulid() -> String {
     })
 }
 
+/// Generate a short, collision-free lowercase slug suffix (8 chars).
+///
+/// Drawn from the ULID's RANDOM tail, never its timestamp head. A
+/// ULID's first 10 chars encode the millisecond timestamp, so any
+/// prefix slice (`gen_ulid()[..8]`) is pure time — rapid dispatches in
+/// the same workspace land in the same ms bucket and collide. The last
+/// 8 chars are the random component, so suffixes are unique even for
+/// back-to-back generation. Use this for `<workspace>-<suffix>` slugs.
+pub fn gen_slug_suffix() -> String {
+    let ulid = gen_ulid();
+    ulid[ulid.len() - 8..].to_lowercase()
+}
+
 pub fn gen_nanoid() -> String {
     let alphabet: [char; 56] = [
         '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'J', 'K',
@@ -66,4 +79,25 @@ pub fn gen_nanoid() -> String {
         'y', 'z',
     ];
     nanoid::format(nanoid::rngs::default, &alphabet, 8)
+}
+
+#[cfg(test)]
+mod slug_suffix_tests {
+    use super::gen_slug_suffix;
+    use std::collections::HashSet;
+
+    #[test]
+    fn rapid_suffixes_are_unique() {
+        // Regression: slugs were built from gen_ulid()[..8] (the
+        // millisecond-timestamp head), so back-to-back same-ms dispatches
+        // collided, sharing a worktree + tmux session. Drawing from the
+        // random tail must make tight loops collision-free.
+        let mut seen = HashSet::new();
+        for _ in 0..1000 {
+            let s = gen_slug_suffix();
+            assert_eq!(s.len(), 8, "suffix must be 8 chars: {s}");
+            assert_eq!(s, s.to_lowercase(), "suffix must be lowercase: {s}");
+            assert!(seen.insert(s.clone()), "duplicate suffix in tight loop: {s}");
+        }
+    }
 }

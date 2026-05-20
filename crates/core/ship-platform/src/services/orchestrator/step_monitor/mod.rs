@@ -17,7 +17,7 @@ mod evidence;
 use ship_substrate::events::pipeline::{StepTrigger, StepType};
 use ship_substrate::events::KernelRouter;
 use crate::services::dispatch_ports::{
-    ExitSignal, JobExecutor, ProcessRegistryPort, ProcessTreeProbe, TreeSample,
+    ExitSignal, SessionExecutor, ProcessRegistryPort, ProcessTreeProbe, TreeSample,
 };
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -112,7 +112,7 @@ pub fn start_step_monitor(
     monitor: StepMonitor,
     kernel: Arc<Mutex<KernelRouter>>,
     registry: Arc<dyn ProcessRegistryPort>,
-    executor: Arc<dyn JobExecutor>,
+    executor: Arc<dyn SessionExecutor>,
     probe: Arc<dyn ProcessTreeProbe>,
     mut exit_rx: UnboundedReceiver<ExitSignal>,
     mut activity_rx: UnboundedReceiver<StepActivity>,

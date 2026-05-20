@@ -12,8 +12,8 @@ use ship_substrate::events::pipeline::event_types;
 use ship_substrate::events::kernel_router::{ActorConfig, KernelRouter};
 use ship_substrate::events::store::{EventStore, SqliteEventStore};
 use ship_substrate::events::EventEnvelope;
-use ship_platform::projections::job::{load_jobs_at, JobStatus};
-use ship_platform::services::dispatch_ports::{ExecutorHandle, IsolationStrategy, JobContext, JobExecutor};
+use ship_platform::projections::pipeline_run::{load_pipeline_runs_at, PipelineRunStatus};
+use ship_platform::services::dispatch_ports::{ExecutorHandle, IsolationStrategy, SessionContext, SessionExecutor};
 use ship_platform::services::orchestrator::OrchestratorContext;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -32,7 +32,7 @@ struct MockIsolation {
 
 #[async_trait]
 impl IsolationStrategy for MockIsolation {
-    async fn prepare(&self, _job: &JobContext) -> anyhow::Result<PathBuf> {
+    async fn prepare(&self, _job: &SessionContext) -> anyhow::Result<PathBuf> {
         std::fs::create_dir_all(self.work_dir.join(".artifacts")).ok();
         std::fs::write(
             self.work_dir.join(".artifacts/job-spec.md"),
@@ -40,7 +40,7 @@ impl IsolationStrategy for MockIsolation {
         ).ok();
         Ok(self.work_dir.clone())
     }
-    async fn cleanup(&self, _job: &JobContext) -> anyhow::Result<()> { Ok(()) }
+    async fn cleanup(&self, _job: &SessionContext) -> anyhow::Result<()> { Ok(()) }
 }
 
 struct MockExecutor {
@@ -52,8 +52,8 @@ impl MockExecutor {
 }
 
 #[async_trait]
-impl JobExecutor for MockExecutor {
-    async fn spawn(&self, _ctx: &JobContext) -> anyhow::Result<ExecutorHandle> {
+impl SessionExecutor for MockExecutor {
+    async fn spawn(&self, _ctx: &SessionContext) -> anyhow::Result<ExecutorHandle> {
         self.spawn_count.fetch_add(1, Ordering::SeqCst);
         Ok(ExecutorHandle { pid: Some(99999), inner: Box::new(()) })
     }
@@ -97,8 +97,8 @@ async fn simple_job_lifecycle_through_event_store() {
         }),
     ).unwrap()).unwrap();
 
-    let jobs = load_jobs_at(&ship_dir).unwrap();
-    assert_eq!(jobs.get(job_id).unwrap().status, JobStatus::Pending);
+    let jobs = load_pipeline_runs_at(&ship_dir).unwrap();
+    assert_eq!(jobs.get(job_id).unwrap().status, PipelineRunStatus::Pending);
 
     // 2. Dispatch
     store.append(&EventEnvelope::new(
@@ -111,8 +111,8 @@ async fn simple_job_lifecycle_through_event_store() {
         }),
     ).unwrap()).unwrap();
 
-    let jobs = load_jobs_at(&ship_dir).unwrap();
-    assert_eq!(jobs.get(job_id).unwrap().status, JobStatus::Dispatched);
+    let jobs = load_pipeline_runs_at(&ship_dir).unwrap();
+    assert_eq!(jobs.get(job_id).unwrap().status, PipelineRunStatus::Dispatched);
 
     // 3. Complete
     store.append(&EventEnvelope::new(
@@ -121,8 +121,8 @@ async fn simple_job_lifecycle_through_event_store() {
         &serde_json::json!({ "job_id": job_id, "slug": slug }),
     ).unwrap()).unwrap();
 
-    let jobs = load_jobs_at(&ship_dir).unwrap();
-    assert_eq!(jobs.get(job_id).unwrap().status, JobStatus::Completed);
+    let jobs = load_pipeline_runs_at(&ship_dir).unwrap();
+    assert_eq!(jobs.get(job_id).unwrap().status, PipelineRunStatus::Completed);
 
     // 4. Merge
     store.append(&EventEnvelope::new(
@@ -131,9 +131,9 @@ async fn simple_job_lifecycle_through_event_store() {
         &serde_json::json!({ "job_id": job_id, "slug": slug }),
     ).unwrap()).unwrap();
 
-    let jobs = load_jobs_at(&ship_dir).unwrap();
+    let jobs = load_pipeline_runs_at(&ship_dir).unwrap();
     let rec = jobs.get(job_id).unwrap();
-    assert_eq!(rec.status, JobStatus::Merged);
+    assert_eq!(rec.status, PipelineRunStatus::Merged);
     assert_eq!(rec.worktree.as_deref(), Some("/tmp/wt/e2e-simple"));
     assert!(rec.error.is_none());
 }
@@ -230,9 +230,9 @@ async fn pipeline_advances_through_all_steps() {
     );
 
     // Verify projection shows progress
-    let jobs = load_jobs_at(&ship_dir).unwrap();
+    let jobs = load_pipeline_runs_at(&ship_dir).unwrap();
     let rec = jobs.get(job_id).unwrap();
-    assert_eq!(rec.status, JobStatus::Dispatched, "job should be re-dispatched for gate step");
+    assert_eq!(rec.status, PipelineRunStatus::Dispatched, "job should be re-dispatched for gate step");
     assert!(
         rec.completed_steps.contains(&"implement".to_string()),
         "implement step must be in completed_steps"
@@ -273,11 +273,11 @@ async fn dependent_job_dispatches_after_upstream_completes() {
     ).unwrap()).unwrap();
 
     // Verify downstream is pending with unresolved deps
-    let jobs = load_jobs_at(&ship_dir).unwrap();
-    assert_eq!(jobs.get("j-downstream").unwrap().status, JobStatus::Pending);
+    let jobs = load_pipeline_runs_at(&ship_dir).unwrap();
+    assert_eq!(jobs.get("j-downstream").unwrap().status, PipelineRunStatus::Pending);
 
     let done_slugs: std::collections::HashSet<&str> = jobs.values()
-        .filter(|j| matches!(j.status, JobStatus::Completed | JobStatus::Merged))
+        .filter(|j| matches!(j.status, PipelineRunStatus::Completed | PipelineRunStatus::Merged))
         .map(|j| j.slug.as_str())
         .collect();
     let deps = jobs.get("j-downstream").unwrap().depends_on.as_ref().unwrap();
@@ -296,9 +296,9 @@ async fn dependent_job_dispatches_after_upstream_completes() {
     ).unwrap()).unwrap();
 
     // Now downstream deps should be resolved
-    let jobs = load_jobs_at(&ship_dir).unwrap();
+    let jobs = load_pipeline_runs_at(&ship_dir).unwrap();
     let done_slugs: std::collections::HashSet<&str> = jobs.values()
-        .filter(|j| matches!(j.status, JobStatus::Completed | JobStatus::Merged))
+        .filter(|j| matches!(j.status, PipelineRunStatus::Completed | PipelineRunStatus::Merged))
         .map(|j| j.slug.as_str())
         .collect();
     let deps = jobs.get("j-downstream").unwrap().depends_on.as_ref().unwrap();
@@ -349,13 +349,13 @@ async fn restart_recovery_finds_stale_jobs() {
     ).unwrap()).unwrap();
 
     // Simulate restart: load projection and find stale jobs
-    let jobs = load_jobs_at(&ship_dir).unwrap();
+    let jobs = load_pipeline_runs_at(&ship_dir).unwrap();
 
     let stale_dispatched: Vec<_> = jobs.values()
-        .filter(|j| j.status == JobStatus::Dispatched)
+        .filter(|j| j.status == PipelineRunStatus::Dispatched)
         .collect();
     let stale_completed: Vec<_> = jobs.values()
-        .filter(|j| j.status == JobStatus::Completed)
+        .filter(|j| j.status == PipelineRunStatus::Completed)
         .collect();
 
     assert_eq!(stale_dispatched.len(), 1, "must detect stuck dispatched job");
@@ -467,7 +467,7 @@ async fn run_step_advances_to_agent_step() {
 
     // Projection should show the verify step is in completed_steps
     // and the implement step is now being dispatched
-    let jobs = load_jobs_at(&ship_dir).unwrap();
+    let jobs = load_pipeline_runs_at(&ship_dir).unwrap();
     let rec = jobs.get(job_id).unwrap();
     assert!(
         rec.completed_steps.contains(&"verify".to_string()),
@@ -475,7 +475,7 @@ async fn run_step_advances_to_agent_step() {
     );
     assert_eq!(
         rec.status,
-        JobStatus::Dispatched,
+        PipelineRunStatus::Dispatched,
         "job must be Dispatched for the implement step"
     );
 }
@@ -556,9 +556,9 @@ async fn first_step_run_executes_without_agent() {
     );
 
     // The projection should show the job as dispatched with step events
-    let jobs = load_jobs_at(&ship_dir).unwrap();
+    let jobs = load_pipeline_runs_at(&ship_dir).unwrap();
     let rec = jobs.get(job_id).unwrap();
-    assert_eq!(rec.status, JobStatus::Dispatched, "job must be dispatched");
+    assert_eq!(rec.status, PipelineRunStatus::Dispatched, "job must be dispatched");
 
     // step_dispatched and step_completed events should exist for the run step
     assert!(

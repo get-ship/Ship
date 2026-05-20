@@ -26,7 +26,7 @@ use tokio::sync::Mutex;
 use ship_substrate::events::EventEnvelope;
 use ship_substrate::events::pipeline::event_types;
 use ship_substrate::events::KernelRouter;
-use crate::projections::job::{PipelineRun, JobStatus};
+use crate::projections::pipeline_run::{PipelineRun, PipelineRunStatus};
 use crate::services::orchestrator::OrchestratorContext;
 use crate::services::orchestrator::emit::persist_and_route;
 use crate::services::orchestrator::fanout_aggregate::emit_failed_marker;
@@ -154,7 +154,7 @@ pub async fn reconcile_fanout_lanes(
         return;
     }
 
-    let jobs = match crate::projections::job::load_jobs() {
+    let jobs = match crate::projections::pipeline_run::load_pipeline_runs() {
         Ok(j) => j,
         Err(e) => {
             tracing::warn!("fanout-recover: failed to load jobs projection: {e}");
@@ -171,7 +171,7 @@ pub async fn reconcile_fanout_lanes(
         let parent = jobs.values().find(|j| j.job_id == lane.job_id);
         let terminal = matches!(
             parent.map(|j| &j.status),
-            Some(JobStatus::Cancelled) | Some(JobStatus::Failed) | Some(JobStatus::Merged)
+            Some(PipelineRunStatus::Cancelled) | Some(PipelineRunStatus::Failed) | Some(PipelineRunStatus::Merged)
         );
         if terminal {
             let branch = lane_branch(parent, &lane.parent_slug, &lane.fanout_step_id, &lane.lane_id);

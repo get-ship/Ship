@@ -6,7 +6,7 @@
 
 use ship_substrate::events::pipeline::event_types;
 use ship_substrate::events::EventEnvelope;
-use ship_platform::projections::job::{project, JobStatus};
+use ship_platform::projections::pipeline_run::{project, PipelineRunStatus};
 
 fn ev(event_type: &str, payload: serde_json::Value) -> EventEnvelope {
     let job_id = payload["job_id"].as_str().unwrap_or("test");
@@ -69,7 +69,7 @@ fn reconcile_before_dispatch_in_startup_order() {
 fn reconciliation_scans_dispatched_jobs() {
     let source = include_str!("../../../../crates/core/ship-platform/src/services/orchestrator/replay.rs");
     assert!(
-        source.contains("JobStatus::Dispatched"),
+        source.contains("PipelineRunStatus::Dispatched"),
         "reconciliation must filter for Dispatched status jobs"
     );
 }
@@ -161,7 +161,7 @@ fn stale_completions_are_detected() {
     ];
     let map = project(&events);
     let stale: Vec<_> = map.values()
-        .filter(|j| j.status == JobStatus::Completed)
+        .filter(|j| j.status == PipelineRunStatus::Completed)
         .collect();
     assert_eq!(stale.len(), 1, "stale completed jobs must be detectable");
 }
@@ -171,7 +171,7 @@ fn stale_completions_are_detected() {
 fn replay_filters_completed_jobs() {
     let source = include_str!("../../../../crates/core/ship-platform/src/services/orchestrator/replay.rs");
     assert!(
-        source.contains("JobStatus::Completed"),
+        source.contains("PipelineRunStatus::Completed"),
         "replay must filter for Completed status jobs"
     );
 }
@@ -267,7 +267,7 @@ fn reconcile_keeps_orphaned_jobs_dispatched() {
     let job = map.get("j-orphan").unwrap();
     assert_eq!(
         job.status,
-        JobStatus::Dispatched,
+        PipelineRunStatus::Dispatched,
         "reconcile must not flip orphaned jobs to Failed — that is liveness' call"
     );
     assert!(
@@ -306,7 +306,7 @@ fn liveness_sweep_retains_terminal_authority() {
     let job = map.get("j-late").unwrap();
     assert_eq!(
         job.status,
-        JobStatus::Failed,
+        PipelineRunStatus::Failed,
         "liveness sweep still owns the eventual Failed transition"
     );
 }
@@ -385,7 +385,7 @@ fn reconcile_skips_completed_jobs() {
     // Completed jobs are NOT Dispatched, so reconcile_dispatched_inner skips them.
     assert_eq!(
         job.status,
-        JobStatus::Completed,
+        PipelineRunStatus::Completed,
         "completed jobs must not be touched by reconciliation"
     );
 }

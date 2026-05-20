@@ -5,8 +5,8 @@
 
 use ship_substrate::events::pipeline::StepType;
 use ship_substrate::events::EventEnvelope;
-use crate::projections::job::load_jobs_at;
-use crate::services::dispatch_ports::{JobContext, LaunchProfile};
+use crate::projections::pipeline_run::load_pipeline_runs_at;
+use crate::services::dispatch_ports::{SessionContext, LaunchProfile};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
@@ -50,7 +50,7 @@ async fn advance_pipeline_inner(
 ) -> bool {
     // First pass: resolve the job_id so we can acquire the per-job lock.
     // Lookups are index-backed: entity_id (PK), payload job_id (PK),
-    // payload slug (idx_jobs_slug). Test paths use load_jobs_at to honor
+    // payload slug (idx_jobs_slug). Test paths use load_pipeline_runs_at to honor
     // ship_dir_override; production paths use the O(1) single-row helpers.
     let job_id = {
         let payload: serde_json::Value =
@@ -60,7 +60,7 @@ async fn advance_pipeline_inner(
         let entity_id = &envelope.entity_id;
 
         let record = match ship_dir_override {
-            Some(dir) => match load_jobs_at(dir) {
+            Some(dir) => match load_pipeline_runs_at(dir) {
                 Ok(jobs) => jobs
                     .values()
                     .find(|j| j.job_id == *entity_id)
@@ -72,17 +72,17 @@ async fn advance_pipeline_inner(
                     return false;
                 }
             },
-            None => crate::projections::job::load_job_by_id(entity_id)
+            None => crate::projections::pipeline_run::load_pipeline_run_by_id(entity_id)
                 .ok()
                 .flatten()
                 .or_else(|| {
                     (!payload_job_id.is_empty())
-                        .then(|| crate::projections::job::load_job_by_id(payload_job_id).ok().flatten())
+                        .then(|| crate::projections::pipeline_run::load_pipeline_run_by_id(payload_job_id).ok().flatten())
                         .flatten()
                 })
                 .or_else(|| {
                     (!payload_slug.is_empty())
-                        .then(|| crate::projections::job::load_job_by_slug(payload_slug).ok().flatten())
+                        .then(|| crate::projections::pipeline_run::load_pipeline_run_by_slug(payload_slug).ok().flatten())
                         .flatten()
                 }),
         };
@@ -105,7 +105,7 @@ async fn advance_pipeline_inner(
 
     // Reload projection under lock so we see the latest state.
     let job = match ship_dir_override {
-        Some(dir) => match load_jobs_at(dir) {
+        Some(dir) => match load_pipeline_runs_at(dir) {
             Ok(jobs) => match jobs.get(&job_id) {
                 Some(j) => j.clone(),
                 None => {
@@ -118,7 +118,7 @@ async fn advance_pipeline_inner(
                 return false;
             }
         },
-        None => match crate::projections::job::load_job_by_id(&job_id) {
+        None => match crate::projections::pipeline_run::load_pipeline_run_by_id(&job_id) {
             Ok(Some(j)) => j,
             Ok(None) => {
                 tracing::warn!(job_id, "pipeline: job disappeared between lock acquire and reload");
@@ -285,7 +285,7 @@ async fn advance_pipeline_inner(
 
                 let persist = step.step_type != StepType::Review;
                 let (exit_tx, exit_rx) = tokio::sync::mpsc::unbounded_channel();
-                let job_ctx = JobContext {
+                let job_ctx = SessionContext {
                     job_id: job.job_id.clone(),
                     slug: slug.clone(),
                     agent: agent.to_string(),
@@ -302,7 +302,10 @@ async fn advance_pipeline_inner(
                         ..Default::default()
                     },
                     step: Some(crate::services::dispatch_ports::StepInfo { index: step_idx, id: step.id.clone() }),
-                    headless: job.headless,
+                    invocation: super::dispatch::resolve_step_invocation(
+                        step.invocation.as_deref(),
+                        job.headless,
+                    ),
                     // Pipeline steps are always per-turn, never keepalive.
                     keepalive: false,
                 };
@@ -310,12 +313,33 @@ async fn advance_pipeline_inner(
                     Ok(handle) => {
                         let exec_kind = if job.headless { "process" } else { "pty" };
                         let cmd_label = step.harness.as_deref().unwrap_or("claude");
+                        let pid = handle.pid;
                         emit_process_spawned(
-                            kernel, slug, &job.job_id, handle.pid,
+                            kernel, slug, &job.job_id, pid,
                             cmd_label, &[], &[],
                             &worktree_path.to_string_lossy(),
                             exec_kind, Some(&step.id),
                         ).await;
+
+                        // Every dispatched step also surfaces as an
+                        // agent_session row so bare and pipeline-composed
+                        // dispatches share one read model. See
+                        // dispatch::emit_composed_step_session.
+                        super::dispatch::emit_composed_step_session(
+                            kernel,
+                            &super::dispatch::ComposedRunCtx {
+                                job_id: &job.job_id,
+                                job_slug: &job.slug,
+                                branch: &job.branch,
+                                source_spec_path: job.source_spec_path.as_deref(),
+                                vars: job.vars.as_ref(),
+                                baseline_sha: job.baseline_sha.as_deref(),
+                                run_headless: job.headless,
+                            },
+                            step, agent,
+                            &worktree_path.to_string_lossy(), pid,
+                        ).await;
+
                         octx.registry.register(slug, handle).await;
                         let monitor = StepMonitor::new(
                             job.job_id.clone(),

@@ -5,7 +5,7 @@
 
 use ship_substrate::events::EventEnvelope;
 use ship_substrate::events::pipeline::event_types;
-use ship_platform::projections::job::{JobStatus, project};
+use ship_platform::projections::pipeline_run::{PipelineRunStatus, project};
 
 fn ev(event_type: &str, payload: serde_json::Value) -> EventEnvelope {
     EventEnvelope::new(event_type, "entity", &payload).unwrap()
@@ -95,7 +95,7 @@ fn single_step_job_starts_pending() {
     let events = vec![created_with_steps("j-p1", serde_json::json!({
         "steps": [{ "id": "only", "type": "agent", "agent": "rust-runtime", "after": [] }]
     }))];
-    assert_eq!(project(&events).get("j-p1").unwrap().status, JobStatus::Pending);
+    assert_eq!(project(&events).get("j-p1").unwrap().status, PipelineRunStatus::Pending);
 }
 
 /// Single-step job transitions to Dispatched after first dispatch event.
@@ -108,7 +108,7 @@ fn single_step_job_dispatches_from_pending() {
         dispatched("j-p2"),
     ];
     let rec = project(&events).remove("j-p2").unwrap();
-    assert_eq!(rec.status, JobStatus::Dispatched);
+    assert_eq!(rec.status, PipelineRunStatus::Dispatched);
     assert_eq!(rec.current_step.as_deref(), Some("impl"));
 }
 
@@ -123,7 +123,7 @@ fn single_step_job_completes_from_dispatched() {
         dispatched("j-p3"),
         completed("j-p3"),
     ];
-    assert_eq!(project(&events).get("j-p3").unwrap().status, JobStatus::Completed);
+    assert_eq!(project(&events).get("j-p3").unwrap().status, PipelineRunStatus::Completed);
 }
 
 /// Single-step job with merge reaches Merged.
@@ -138,7 +138,7 @@ fn single_step_job_reaches_merged() {
         completed("j-p4"),
         merged("j-p4"),
     ];
-    assert_eq!(project(&events).get("j-p4").unwrap().status, JobStatus::Merged);
+    assert_eq!(project(&events).get("j-p4").unwrap().status, PipelineRunStatus::Merged);
 }
 
 // ── Two-step linear lifecycle ─────────────────────────────────────────────────
@@ -161,7 +161,7 @@ fn two_step_job_first_step_completes() {
         dispatched("j-2b"),
         completed("j-2b"),
     ];
-    assert_eq!(project(&events).get("j-2b").unwrap().status, JobStatus::Completed);
+    assert_eq!(project(&events).get("j-2b").unwrap().status, PipelineRunStatus::Completed);
 }
 
 /// Two-step pipeline: step-b becomes current after step-a completes and pipeline advances.
@@ -215,7 +215,7 @@ fn two_step_job_reaches_merged() {
         completed("j-2f"),
         merged("j-2f"),
     ];
-    assert_eq!(project(&events).get("j-2f").unwrap().status, JobStatus::Merged);
+    assert_eq!(project(&events).get("j-2f").unwrap().status, PipelineRunStatus::Merged);
 }
 
 // ── Three-step linear lifecycle ───────────────────────────────────────────────
@@ -281,7 +281,7 @@ fn pipeline_full_lifecycle_reaches_merged() {
         merged("j-full"),
     ];
     let rec = project(&events).remove("j-full").unwrap();
-    assert_eq!(rec.status, JobStatus::Merged, "final status must be Merged");
+    assert_eq!(rec.status, PipelineRunStatus::Merged, "final status must be Merged");
     assert_eq!(rec.completed_steps.len(), 3, "all 3 steps must be tracked");
     assert!(rec.completed_steps.contains(&"spec".to_string()), "spec must be tracked");
     assert!(rec.completed_steps.contains(&"tests".to_string()), "tests must be tracked");
@@ -318,7 +318,7 @@ fn pipeline_blocked_mid_lifecycle_retains_state() {
         blocked("j-blk", "waiting for human"),
     ];
     let rec = project(&events).remove("j-blk").unwrap();
-    assert_eq!(rec.status, JobStatus::Blocked);
+    assert_eq!(rec.status, PipelineRunStatus::Blocked);
     assert_eq!(rec.current_step.as_deref(), Some("step-a"));
     assert!(rec.completed_steps.is_empty());
 }

@@ -60,7 +60,7 @@ pub fn run(opts: RunOptions) -> Result<()> {
     }
 
     // Post to daemon
-    let slug = format!("{}-{}", workspace_name, &ship_substrate::gen_ulid()[..8].to_lowercase());
+    let slug = format!("{}-{}", workspace_name, ship_substrate::gen_slug_suffix());
     let branch = format!("job/{slug}");
     let spec_path = ".artifacts/job-spec.md".to_string();
 

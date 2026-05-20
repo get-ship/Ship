@@ -837,9 +837,9 @@ fn daemon_repair_migrations(reset: bool) -> Result<()> {
 }
 
 fn daemon_cleanup() -> Result<()> {
-    use ship_platform::projections::job::{load_jobs, JobStatus};
+    use ship_platform::projections::pipeline_run::{load_pipeline_runs, PipelineRunStatus};
 
-    let jobs = load_jobs().context("failed to load job projection")?;
+    let jobs = load_pipeline_runs().context("failed to load job projection")?;
 
     let repo_dir = if let Ok(dir) = ship_substrate::env::read_raw(ship_substrate::env::Var::RepoDir) {
         PathBuf::from(dir)
@@ -856,7 +856,7 @@ fn daemon_cleanup() -> Result<()> {
 
     let orphans: Vec<_> = jobs
         .values()
-        .filter(|j| matches!(j.status, JobStatus::Merged | JobStatus::Failed))
+        .filter(|j| matches!(j.status, PipelineRunStatus::Merged | PipelineRunStatus::Failed))
         .filter(|j| {
             let path = j
                 .worktree

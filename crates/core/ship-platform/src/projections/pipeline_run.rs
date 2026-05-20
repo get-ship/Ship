@@ -5,13 +5,13 @@
 //! 1. **Pure fold** ([`project`], [`apply`]) — operates on `Vec<EventEnvelope>`.
 //!    Used by tests and by the one-shot hydration path. Kept stable so existing
 //!    test fixtures don't churn when the storage layer changes.
-//! 2. **SQL-backed projection** ([`JobProjection`]) — implements the
-//!    `Projection` trait and maintains the `jobs` table in `platform.db`.
+//! 2. **SQL-backed projection** ([`PipelineRunProjection`]) — implements the
+//!    `Projection` trait and maintains the `pipeline_runs` table in `platform.db`.
 //!    `apply()` UPDATEs the row inside the dispatch transaction; reads
-//!    ([`load_jobs`], [`load_job_by_id`]) hit the table directly.
+//!    ([`load_pipeline_runs`], [`load_pipeline_run_by_id`]) hit the table directly.
 //!
 //! The pure-fold path is the source of truth for status-transition semantics.
-//! `JobProjection::apply` loads the row, calls the pure `apply()` to mutate
+//! `PipelineRunProjection::apply` loads the row, calls the pure `apply()` to mutate
 //! it, then writes the row back. One implementation of the rules; two
 //! materializations.
 
@@ -32,7 +32,7 @@ use ship_substrate::projections::registry::Projection;
 /// Current status of a job, derived from its event sequence.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Type)]
 #[serde(rename_all = "snake_case")]
-pub enum JobStatus {
+pub enum PipelineRunStatus {
     Pending,
     Dispatched,
     Completed,
@@ -45,31 +45,31 @@ pub enum JobStatus {
     Cancelled,
 }
 
-impl JobStatus {
+impl PipelineRunStatus {
     fn as_db_str(&self) -> &'static str {
         match self {
-            JobStatus::Pending => "pending",
-            JobStatus::Dispatched => "dispatched",
-            JobStatus::Completed => "completed",
-            JobStatus::GatePending => "gate_pending",
-            JobStatus::Blocked => "blocked",
-            JobStatus::Merged => "merged",
-            JobStatus::Failed => "failed",
-            JobStatus::Cancelled => "cancelled",
+            PipelineRunStatus::Pending => "pending",
+            PipelineRunStatus::Dispatched => "dispatched",
+            PipelineRunStatus::Completed => "completed",
+            PipelineRunStatus::GatePending => "gate_pending",
+            PipelineRunStatus::Blocked => "blocked",
+            PipelineRunStatus::Merged => "merged",
+            PipelineRunStatus::Failed => "failed",
+            PipelineRunStatus::Cancelled => "cancelled",
         }
     }
 
-    fn from_db_str(s: &str) -> JobStatus {
+    fn from_db_str(s: &str) -> PipelineRunStatus {
         match s {
-            "pending" => JobStatus::Pending,
-            "dispatched" => JobStatus::Dispatched,
-            "completed" => JobStatus::Completed,
-            "gate_pending" => JobStatus::GatePending,
-            "blocked" => JobStatus::Blocked,
-            "merged" => JobStatus::Merged,
-            "failed" => JobStatus::Failed,
-            "cancelled" => JobStatus::Cancelled,
-            _ => JobStatus::Pending,
+            "pending" => PipelineRunStatus::Pending,
+            "dispatched" => PipelineRunStatus::Dispatched,
+            "completed" => PipelineRunStatus::Completed,
+            "gate_pending" => PipelineRunStatus::GatePending,
+            "blocked" => PipelineRunStatus::Blocked,
+            "merged" => PipelineRunStatus::Merged,
+            "failed" => PipelineRunStatus::Failed,
+            "cancelled" => PipelineRunStatus::Cancelled,
+            _ => PipelineRunStatus::Pending,
         }
     }
 }
@@ -88,7 +88,7 @@ pub struct PipelineRun {
     #[serde(default)]
     pub source_spec_path: Option<String>,
     pub depends_on: Option<Vec<String>>,
-    pub status: JobStatus,
+    pub status: PipelineRunStatus,
     pub worktree: Option<String>,
     pub blocker: Option<String>,
     pub error: Option<String>,
@@ -161,7 +161,7 @@ pub fn apply(record: &mut PipelineRun, event: &EventEnvelope) {
                     record.harness_meta = Some(meta.clone());
                 }
             }
-            if record.status == JobStatus::Completed
+            if record.status == PipelineRunStatus::Completed
                 && let Some(current) = record.current_step.clone()
             {
                 if !record.completed_steps.contains(&current) {
@@ -174,7 +174,7 @@ pub fn apply(record: &mut PipelineRun, event: &EventEnvelope) {
                 record.current_step = next.first().map(|s| s.id.clone());
             }
             if record.pipeline.is_some() {
-                if record.status == JobStatus::Completed {
+                if record.status == PipelineRunStatus::Completed {
                     record.current_phase = Some(record.current_phase.map_or(1, |p| p + 1));
                 } else if record.current_phase.is_none() {
                     record.current_phase = Some(0);
@@ -286,7 +286,7 @@ pub fn apply(record: &mut PipelineRun, event: &EventEnvelope) {
                     }
                 } else {
                     record.error = p["reason"].as_str().map(str::to_string);
-                    record.status = JobStatus::Failed;
+                    record.status = PipelineRunStatus::Failed;
                 }
             }
             record.updated_at = ts;
@@ -321,7 +321,7 @@ fn record_from_created(event: &EventEnvelope) -> Option<PipelineRun> {
         spec_path: p["spec_path"].as_str().unwrap_or("").to_string(),
         source_spec_path: p["source_spec_path"].as_str().map(str::to_string),
         depends_on,
-        status: JobStatus::Pending,
+        status: PipelineRunStatus::Pending,
         worktree: None,
         blocker: None,
         error: None,
@@ -373,7 +373,7 @@ pub fn project(events: &[EventEnvelope]) -> HashMap<String, PipelineRun> {
 /// Materialized `jobs` projection. Replaces the previous full-event-log scan
 /// pattern. Registered by `ship_platform::install_defaults`; maintained
 /// inside `SqliteEventStore::append`'s dispatch transaction.
-pub struct JobProjection;
+pub struct PipelineRunProjection;
 
 const JOB_EVENT_TYPES: &[&str] = &[
     event_types::PIPELINE_RUN_STARTED,
@@ -397,8 +397,12 @@ const JOB_EVENT_TYPES: &[&str] = &[
     event_types::PIPELINE_STEP_OBSERVED,
 ];
 
-impl Projection for JobProjection {
+impl Projection for PipelineRunProjection {
     fn name(&self) -> &str {
+        // Cursor-tracking key (cursors table), NOT the SQL table name
+        // (which is `pipeline_runs`). Kept as "jobs" deliberately:
+        // renaming it would orphan the existing cursor and force a full
+        // from-zero replay on upgrade.
         "jobs"
     }
 
@@ -426,7 +430,7 @@ impl Projection for JobProjection {
     }
 
     fn truncate(&self, conn: &mut SqliteConnection) -> Result<()> {
-        block_on(async { sqlx::query("DELETE FROM jobs").execute(conn).await })?;
+        block_on(async { sqlx::query("DELETE FROM pipeline_runs").execute(conn).await })?;
         Ok(())
     }
 }
@@ -484,7 +488,7 @@ fn row_to_record(row: &sqlx::sqlite::SqliteRow) -> Result<PipelineRun> {
         spec_path: row.get(4),
         source_spec_path: row.try_get(5).ok().flatten(),
         depends_on,
-        status: JobStatus::from_db_str(&status),
+        status: PipelineRunStatus::from_db_str(&status),
         worktree: row.try_get(8).ok().flatten(),
         blocker: row.try_get(9).ok().flatten(),
         error: row.try_get(10).ok().flatten(),
@@ -543,7 +547,7 @@ fn upsert_record(record: &PipelineRun, conn: &mut SqliteConnection) -> Result<()
 
     block_on(async {
         sqlx::query(
-            "INSERT INTO jobs (\
+            "INSERT INTO pipeline_runs (\
               job_id, slug, agent, branch, spec_path, source_spec_path, \
               depends_on_json, status, worktree, blocker, error, model, harness, \
               created_at, updated_at, harness_meta_json, pipeline_json, steps_json, \
@@ -596,7 +600,7 @@ fn upsert_record(record: &PipelineRun, conn: &mut SqliteConnection) -> Result<()
 
 fn load_row(job_id: &str, conn: &mut SqliteConnection) -> Result<Option<PipelineRun>> {
     let row = block_on(async {
-        sqlx::query(&format!("SELECT {ROW_COLS} FROM jobs WHERE job_id = ?"))
+        sqlx::query(&format!("SELECT {ROW_COLS} FROM pipeline_runs WHERE job_id = ?"))
             .bind(job_id)
             .fetch_optional(conn)
             .await
@@ -606,7 +610,7 @@ fn load_row(job_id: &str, conn: &mut SqliteConnection) -> Result<Option<Pipeline
 
 fn load_all_rows(conn: &mut SqliteConnection) -> Result<HashMap<String, PipelineRun>> {
     let rows = block_on(async {
-        sqlx::query(&format!("SELECT {ROW_COLS} FROM jobs"))
+        sqlx::query(&format!("SELECT {ROW_COLS} FROM pipeline_runs"))
             .fetch_all(conn)
             .await
     })?;
@@ -624,7 +628,7 @@ fn load_all_rows(conn: &mut SqliteConnection) -> Result<HashMap<String, Pipeline
 ///
 /// Backed by the `jobs` table. On installs that predate the projection table,
 /// hydrates from the event log on first call (idempotent).
-pub fn load_jobs() -> Result<HashMap<String, PipelineRun>> {
+pub fn load_pipeline_runs() -> Result<HashMap<String, PipelineRun>> {
     use ship_substrate::db::{db_path, ensure_db, open_db_at};
 
     ensure_db()?;
@@ -634,7 +638,7 @@ pub fn load_jobs() -> Result<HashMap<String, PipelineRun>> {
 }
 
 /// Load all jobs from an explicit `ship_dir` path. Preferred in tests.
-pub fn load_jobs_at(ship_dir: &std::path::Path) -> Result<HashMap<String, PipelineRun>> {
+pub fn load_pipeline_runs_at(ship_dir: &std::path::Path) -> Result<HashMap<String, PipelineRun>> {
     use ship_substrate::db::{ensure_db_at, open_db_at};
 
     ensure_db_at(ship_dir)?;
@@ -647,7 +651,7 @@ pub fn load_jobs_at(ship_dir: &std::path::Path) -> Result<HashMap<String, Pipeli
 ///
 /// Used by the orchestrator's terminal-state guard and other hot-path callers
 /// that previously fetched every job to filter for one.
-pub fn load_job_by_id(job_id: &str) -> Result<Option<PipelineRun>> {
+pub fn load_pipeline_run_by_id(job_id: &str) -> Result<Option<PipelineRun>> {
     use ship_substrate::db::{db_path, ensure_db, open_db_at};
 
     ensure_db()?;
@@ -656,9 +660,9 @@ pub fn load_job_by_id(job_id: &str) -> Result<Option<PipelineRun>> {
     load_row(job_id, &mut conn)
 }
 
-/// Test-/HTTP-handler-facing variant of [`load_job_by_id`] that takes an
-/// explicit `ship_dir`. Mirrors the pattern of [`load_jobs_at`].
-pub fn load_job_by_id_at(
+/// Test-/HTTP-handler-facing variant of [`load_pipeline_run_by_id`] that takes an
+/// explicit `ship_dir`. Mirrors the pattern of [`load_pipeline_runs_at`].
+pub fn load_pipeline_run_by_id_at(
     ship_dir: &std::path::Path,
     job_id: &str,
 ) -> Result<Option<PipelineRun>> {
@@ -673,17 +677,17 @@ pub fn load_job_by_id_at(
 /// Index-backed lookup for a single job by its `slug`. Returns the most
 /// recently updated match (slug isn't unique across job lifetimes — re-runs
 /// of the same logical job get a fresh job_id but reuse the slug).
-pub fn load_job_by_slug(slug: &str) -> Result<Option<PipelineRun>> {
+pub fn load_pipeline_run_by_slug(slug: &str) -> Result<Option<PipelineRun>> {
     use ship_substrate::db::{db_path, ensure_db, open_db_at};
 
     ensure_db()?;
     let mut conn = open_db_at(&db_path()?)?;
-    load_job_by_slug_on(&mut conn, slug)
+    load_pipeline_run_by_slug_on(&mut conn, slug)
 }
 
-/// Test-/HTTP-handler-facing variant of [`load_job_by_slug`] that takes an
+/// Test-/HTTP-handler-facing variant of [`load_pipeline_run_by_slug`] that takes an
 /// explicit `ship_dir`.
-pub fn load_job_by_slug_at(
+pub fn load_pipeline_run_by_slug_at(
     ship_dir: &std::path::Path,
     slug: &str,
 ) -> Result<Option<PipelineRun>> {
@@ -691,17 +695,17 @@ pub fn load_job_by_slug_at(
 
     ensure_db_at(ship_dir)?;
     let mut conn = open_db_at(&ship_substrate::db::platform_db_path(ship_dir))?;
-    load_job_by_slug_on(&mut conn, slug)
+    load_pipeline_run_by_slug_on(&mut conn, slug)
 }
 
-fn load_job_by_slug_on(
+fn load_pipeline_run_by_slug_on(
     conn: &mut SqliteConnection,
     slug: &str,
 ) -> Result<Option<PipelineRun>> {
     hydrate_if_needed(conn)?;
     let row = block_on(async {
         sqlx::query(&format!(
-            "SELECT {ROW_COLS} FROM jobs WHERE slug = ? \
+            "SELECT {ROW_COLS} FROM pipeline_runs WHERE slug = ? \
              ORDER BY updated_at DESC LIMIT 1"
         ))
         .bind(slug)
@@ -719,11 +723,11 @@ fn load_job_by_slug_on(
 ///
 /// Why on-read rather than on-startup: the projection cursor is the canonical
 /// "have we caught up?" signal, but no startup hook owns the call site.
-/// Anchoring hydration at `load_jobs*` keeps the migration self-contained —
+/// Anchoring hydration at `load_pipeline_runs*` keeps the migration self-contained —
 /// no caller has to remember to invoke it.
 fn hydrate_if_needed(conn: &mut SqliteConnection) -> Result<()> {
     let row_count: i64 = block_on(async {
-        sqlx::query_scalar("SELECT COUNT(*) FROM jobs")
+        sqlx::query_scalar("SELECT COUNT(*) FROM pipeline_runs")
             .fetch_one(&mut *conn)
             .await
     })?;

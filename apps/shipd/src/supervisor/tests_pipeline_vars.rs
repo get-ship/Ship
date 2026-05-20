@@ -29,6 +29,7 @@ fn agent_step(agent: &str) -> PipelineStep {
         consumes: vec![],
         promotes: vec![],
         fanout: None,
+            invocation: None,
     }
 }
 
@@ -48,6 +49,7 @@ fn agent_step_with_model(agent: &str, model: &str) -> PipelineStep {
         consumes: vec![],
         promotes: vec![],
         fanout: None,
+            invocation: None,
     }
 }
 
@@ -67,6 +69,7 @@ fn run_step(command: &str) -> PipelineStep {
         consumes: vec![],
         promotes: vec![],
         fanout: None,
+            invocation: None,
     }
 }
 
@@ -105,6 +108,7 @@ fn step_goal_interpolated_from_job_vars() {
         consumes: vec![],
         promotes: vec![],
         fanout: None,
+            invocation: None,
     };
     let job_vars = vars(&[("feature_name", "config split")]);
     let resolved = interpolate_step(&step, &job_vars, &HashMap::new())
