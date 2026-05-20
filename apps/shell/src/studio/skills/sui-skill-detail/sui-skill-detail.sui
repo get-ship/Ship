@@ -1,0 +1,280 @@
+<!--
+  <sui-skill-detail> — SKILL.md-shaped detail: frontmatter, body, tags,
+  used-by chips, and an inline invoke panel. Data from ship.skills.detail().
+-->
+
+<style>
+  :host { display: block; }
+  .detail { max-width: 880px; margin: 0 auto; padding: 8px 0 64px; }
+
+  .detail-back { display: inline-flex; align-items: center; gap: 4px; font-size: 12.5px; color: var(--muted-foreground); background: none; border: 0; padding: 0; cursor: pointer; margin-bottom: var(--space-6); }
+  .detail-back:hover { color: var(--foreground); }
+
+  .detail-head { display: grid; grid-template-columns: 80px 1fr; gap: var(--space-5); align-items: start; margin-bottom: var(--space-5); }
+  .detail-tile { width: 80px; height: 80px; border-radius: var(--radius-lg); display: inline-flex; align-items: center; justify-content: center; color: var(--primary-foreground); font-family: var(--font-mono); font-size: 32px; font-weight: var(--font-weight-bold); letter-spacing: -0.02em; position: relative; isolation: isolate; box-shadow: inset 0 1px 0 color-mix(in oklch, var(--primary-foreground) 22%, transparent), inset 0 -1px 0 color-mix(in oklch, var(--foreground) 8%, transparent), 0 4px 12px color-mix(in oklch, var(--foreground) 16%, transparent); }
+  .detail-tile::before { content: ''; position: absolute; inset: 0; border-radius: inherit; background: linear-gradient(160deg, color-mix(in oklch, var(--primary-foreground) 14%, transparent) 0%, transparent 55%); pointer-events: none; }
+  .detail-name { font-family: var(--heading-font); font-size: var(--text-3xl); font-weight: var(--heading-weight); letter-spacing: var(--heading-tracking); line-height: 1.05; margin: 0 0 var(--space-2); }
+  .detail-meta { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted-foreground); flex-wrap: wrap; }
+  .detail-meta-sep { width: 3px; height: 3px; border-radius: 50%; background: var(--border); }
+  .detail-rule { width: 96px; height: 4px; border-radius: 2px; background: linear-gradient(90deg, var(--primary), transparent); margin-top: var(--space-3); }
+
+  .detail-desc { font-size: 15px; line-height: 1.65; color: var(--muted-foreground); margin: var(--space-4) 0 var(--space-3); max-width: 60ch; text-wrap: pretty; }
+  .detail-tags { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: var(--space-5); }
+
+  .invoke-card { display: flex; align-items: center; gap: var(--space-4); padding: 14px 18px; border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); background: var(--surface-1); text-align: left; font: inherit; cursor: pointer; color: inherit; margin-bottom: var(--space-6); transition: border-color 120ms, background 120ms; }
+  .invoke-card:hover { border-color: var(--primary); background: color-mix(in oklch, var(--primary) 4%, var(--surface-1)); }
+  .invoke-card-icon { width: 36px; height: 36px; border-radius: var(--radius-md); background: color-mix(in oklch, var(--primary) 14%, transparent); color: var(--primary); display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .invoke-card-body { flex: 1; min-width: 0; }
+  .invoke-card-h { font-family: var(--heading-font); font-size: 15px; font-weight: var(--heading-weight); letter-spacing: var(--heading-tracking); margin: 0 0 2px; }
+  .invoke-card-sub { font-size: 12.5px; color: var(--muted-foreground); margin: 0; }
+
+  .invoke-panel { border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); background: var(--card); padding: var(--space-4); margin-bottom: var(--space-6); }
+  .invoke-panel-h { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-4); }
+  .invoke-panel-title { font-size: 11px; font-weight: var(--font-weight-semibold); letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted-foreground); }
+  .invoke-vars { display: flex; flex-direction: column; gap: 6px; margin-bottom: var(--space-3); }
+  .invoke-var { display: grid; grid-template-columns: 1fr 2fr 28px; gap: 6px; align-items: center; }
+  .invoke-var input { font-family: var(--font-mono); font-size: 12.5px; padding: 5px 8px; border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); background: var(--background); color: var(--foreground); min-width: 0; }
+  .invoke-var input:focus { outline: 0; border-color: var(--primary); }
+  .invoke-var-remove { width: 28px; height: 28px; border: 0; background: transparent; color: var(--muted-foreground); border-radius: var(--radius-sm); cursor: pointer; font-size: 16px; line-height: 1; display: inline-flex; align-items: center; justify-content: center; }
+  .invoke-var-remove:hover { color: var(--destructive); background: var(--hover-bg); }
+  .invoke-add { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border: 1px dashed var(--border-subtle); border-radius: var(--radius-sm); background: transparent; font: inherit; font-size: 12px; color: var(--muted-foreground); cursor: pointer; margin-bottom: var(--space-4); }
+  .invoke-add:hover { color: var(--foreground); border-color: var(--border); }
+  .invoke-actions { display: flex; align-items: center; justify-content: flex-end; gap: var(--space-2); padding-top: var(--space-3); border-top: 1px dashed var(--border-subtle); }
+  .invoke-result { margin-top: var(--space-4); padding: var(--space-3); border-radius: var(--radius-md); background: color-mix(in oklch, var(--success) 8%, var(--surface-1)); border: 1px solid color-mix(in oklch, var(--success) 24%, transparent); font-family: var(--font-mono); font-size: 12px; color: var(--foreground); }
+  .invoke-error { margin-top: var(--space-4); padding: var(--space-3); border-radius: var(--radius-md); background: color-mix(in oklch, var(--destructive) 8%, var(--surface-1)); border: 1px solid color-mix(in oklch, var(--destructive) 24%, transparent); font-size: 13px; color: var(--destructive); }
+
+  .section { padding-top: var(--space-6); margin-bottom: var(--space-6); border-top: 1px solid var(--border-subtle); }
+  .section-h { display: flex; align-items: baseline; gap: var(--space-2); margin-bottom: var(--space-3); }
+  .section-title { font-size: 11px; font-weight: var(--font-weight-semibold); letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted-foreground); margin: 0; }
+  .section-count { font-family: var(--font-mono); font-weight: var(--font-weight-normal); font-size: 11px; letter-spacing: 0; color: var(--muted-foreground); text-transform: none; }
+
+  .fm { display: grid; grid-template-columns: 140px 1fr; row-gap: 8px; margin: 0; }
+  .fm dt { font-family: var(--font-mono); font-size: 11.5px; color: var(--muted-foreground); }
+  .fm dd { margin: 0; font-family: var(--font-mono); font-size: 12.5px; color: var(--foreground); }
+  .fm-chips { display: inline-flex; gap: 4px; flex-wrap: wrap; }
+  .fm-chip { font-family: var(--font-mono); font-size: 11px; padding: 1px 6px; background: var(--surface-2); border-radius: var(--radius-sm); }
+
+  .body-pre { font-family: var(--font-mono); font-size: 13px; line-height: 1.65; color: var(--foreground); background: var(--muted); border-radius: var(--radius-md); padding: var(--space-4); white-space: pre-wrap; word-break: break-word; max-height: 480px; overflow-y: auto; margin: 0; }
+
+  .uses-row { display: flex; flex-wrap: wrap; gap: 6px; }
+  .uses-chip { font-family: var(--font-mono); font-size: 12px; padding: 3px 10px; border-radius: var(--radius-sm); background: var(--surface-2); color: var(--muted-foreground); }
+
+  .detail-loading { display: flex; flex-direction: column; gap: var(--space-4); padding: var(--space-4) 0; }
+</style>
+
+<div class="detail" data-test="skill-detail">
+
+  <button type="button" class="detail-back" data-test="detail-back"
+    on:click={() => back()}>
+    <sui-icon name="chevron-left" size="xs"></sui-icon>
+    Skills
+  </button>
+
+  {#async detail}
+    {:loading}
+    <div class="detail-loading" role="status" aria-busy="true" aria-label="Loading skill">
+      <sui-skeleton shape="line" size="lg"></sui-skeleton>
+      <sui-skeleton shape="line" size="md"></sui-skeleton>
+      <sui-skeleton shape="line" size="md"></sui-skeleton>
+    </div>
+
+    {:error err}
+    <sui-error-state variant="inline" size="md" title="Couldn't load skill" role="alert">
+      {err.message}
+    </sui-error-state>
+
+    {:ok}
+    {#if skill()}
+      <header class="detail-head">
+        <span class="detail-tile"
+          style:background={skill().color}
+          aria-hidden="true">
+          {skill().char}
+        </span>
+        <div>
+          <h1 class="detail-name" data-test="detail-name">{skill().name}</h1>
+          <div class="detail-meta">
+            {#if skill().kind}
+              <span>{skill().kind}</span>
+            {/if}
+            {#if skill().sourceStr}
+              <span class="detail-meta-sep"></span>
+              <span>{skill().sourceStr}</span>
+            {/if}
+            {#if skill().authorsText}
+              <span class="detail-meta-sep"></span>
+              <span>{skill().authorsText}</span>
+            {/if}
+          </div>
+          <div class="detail-rule"></div>
+        </div>
+      </header>
+
+      {#if skill().description}
+        <p class="detail-desc" data-test="detail-desc">{skill().description}</p>
+      {/if}
+
+      {#if skill().tags.length > 0}
+        <div class="detail-tags" data-test="detail-tags">
+          {#for tag of skill().tags key={tag}}
+            <sui-chip tone="muted" variant="soft" size="sm">{tag}</sui-chip>
+          {/for}
+        </div>
+      {/if}
+
+      <!-- Invoke toggle card -->
+      <button type="button" class="invoke-card" data-test="invoke-card"
+        on:click={() => toggleInvoke()}>
+        <span class="invoke-card-icon">
+          <sui-icon name="play" size="md"></sui-icon>
+        </span>
+        <div class="invoke-card-body">
+          <h2 class="invoke-card-h">Invoke this skill</h2>
+          <p class="invoke-card-sub">
+            Posts to
+            <code>POST /api/v1/skills/{skill().id}/invoke</code>
+            with optional vars.
+          </p>
+        </div>
+        <sui-icon
+          attr:name={showInvoke() ? 'chevron-up' : 'chevron-down'}
+          size="sm" tone="muted">
+        </sui-icon>
+      </button>
+
+      <!-- Inline invoke panel -->
+      {#if showInvoke()}
+        <div class="invoke-panel" data-test="invoke-panel">
+          <div class="invoke-panel-h">
+            <span class="invoke-panel-title">Invoke · {skill().id}</span>
+          </div>
+
+          <div class="invoke-vars">
+            {#for kv of invokeVars() key={kv.id}}
+              <div class="invoke-var">
+                <input type="text" placeholder="key" aria-label="Variable key"
+                  attr:value={kv.key}
+                  on:input={(e) => setVarKey(kv.id, e)} />
+                <input type="text" placeholder="value" aria-label="Variable value"
+                  attr:value={kv.value}
+                  on:input={(e) => setVarVal(kv.id, e)} />
+                <button type="button" class="invoke-var-remove" aria-label="Remove var"
+                  on:click={() => removeVar(kv.id)}>
+                  ×
+                </button>
+              </div>
+            {/for}
+          </div>
+
+          <button type="button" class="invoke-add" on:click={() => addVar()}>
+            <sui-icon name="plus" size="xs"></sui-icon>
+            Add var
+          </button>
+
+          <div class="invoke-actions">
+            <sui-button variant="ghost" size="sm" data-test="invoke-reset"
+              on:click={() => resetInvoke()}>
+              Reset
+            </sui-button>
+            <sui-button tone="primary" variant="solid" size="md" data-test="invoke-submit"
+              attr:disabled={invokeStatus() === 'loading' ? '' : null}
+              on:click={() => invoke()}>
+              <sui-icon slot="leading" name="play" size="xs"></sui-icon>
+              {invokeStatus() === 'loading' ? 'Running…' : 'Invoke'}
+            </sui-button>
+          </div>
+
+          {#if invokeStatus() === 'ok' && invokeResult()}
+            <div class="invoke-result" data-test="invoke-result">
+              run_id: {invokeResult().run_id}
+              · session: {invokeResult().session_id}
+            </div>
+          {/if}
+
+          {#if invokeStatus() === 'error'}
+            <div class="invoke-error" data-test="invoke-error" role="alert">
+              {invokeError()}
+            </div>
+          {/if}
+        </div>
+      {/if}
+
+      <!-- Body section -->
+      {#if skill().body}
+        <section class="section" style:border-top={'none'} style:padding-top={'0'} data-test="detail-body">
+          <div class="section-h">
+            <h2 class="section-title">Body <span class="section-count">· SKILL.md</span></h2>
+          </div>
+          <pre class="body-pre">{skill().body}</pre>
+        </section>
+      {/if}
+
+      <!-- Frontmatter -->
+      <section class="section" data-test="detail-frontmatter">
+        <div class="section-h">
+          <h2 class="section-title">Frontmatter</h2>
+        </div>
+        <dl class="fm">
+          <dt>name</dt>
+          <dd>{skill().name}</dd>
+          {#if skill().kind}
+            <dt>kind</dt>
+            <dd>{skill().kind}</dd>
+          {/if}
+          {#if skill().sourceStr}
+            <dt>source</dt>
+            <dd>{skill().sourceStr}</dd>
+          {/if}
+          {#if skill().tags.length > 0}
+            <dt>tags</dt>
+            <dd>
+              <span class="fm-chips">
+                {#for tag of skill().tags key={tag}}
+                  <span class="fm-chip">{tag}</span>
+                {/for}
+              </span>
+            </dd>
+          {/if}
+          {#if skill().authorsText}
+            <dt>authors</dt>
+            <dd>{skill().authorsText}</dd>
+          {/if}
+          {#if skill().variables.length > 0}
+            <dt>variables</dt>
+            <dd>
+              <span class="fm-chips">
+                {#for v of skill().variables key={v}}
+                  <span class="fm-chip">{v}</span>
+                {/for}
+              </span>
+            </dd>
+          {/if}
+        </dl>
+      </section>
+
+      <!-- Used by -->
+      {#if skill().usedByCount > 0}
+        <section class="section" data-test="detail-used-by">
+          <div class="section-h">
+            <h2 class="section-title">Used by
+              <span class="section-count">· {skill().usedByCount} agents</span>
+            </h2>
+          </div>
+          <div class="uses-row">
+            {#for agent of skill().usedBy key={agent}}
+              <span class="uses-chip">{agent}</span>
+            {/for}
+          </div>
+        </section>
+      {/if}
+
+    {:else}
+      <sui-empty-state variant="placeholder" size="md" data-test="detail-not-found">
+        <sui-icon slot="icon" name="zap"></sui-icon>
+        <span slot="title">Skill not found</span>
+        This skill may have been removed or the id is invalid.
+      </sui-empty-state>
+    {/if}
+  {/async}
+
+</div>

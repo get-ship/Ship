@@ -137,6 +137,8 @@
            Other sections add a `{:else if}` arm here as they land. See
            controller.ts § "Studio section elements". -->
       <sui-studio-themes></sui-studio-themes>
+    {:else if section() === 'skills'}
+      <sui-studio-skills></sui-studio-skills>
     {:else}
       <section class="studio-section">
         <h1 class="studio-section-h1" data-test="section-title">{sectionTitle()}</h1>

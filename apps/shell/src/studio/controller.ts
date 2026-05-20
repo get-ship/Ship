@@ -23,6 +23,7 @@ import type { Scope } from './page.sui'
 // `{:else if section() === '<name>'}` arm in page.sui's content slot.
 // Nothing else in the shell needs to change.
 import './themes/sui-studio-themes/sui-studio-themes.sui'
+import './skills/sui-studio-skills/sui-studio-skills.sui'
 
 interface ListEnvelope { items?: unknown[] }
 

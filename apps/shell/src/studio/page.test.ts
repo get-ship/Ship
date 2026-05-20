@@ -154,3 +154,101 @@ describe('studio: rail group counts', () => {
     for (const k of configureKeys) expect(VALID.has(k)).toBe(true)
   })
 })
+
+// ── Skills list helpers ──────────────────────────────────────────────────────
+// Pure functions extracted from sui-skills-list.controller.ts; exercised
+// without any reactive runtime so tests run fast in jsdom.
+
+import { tileColor, tileChar, computeCounts } from './skills/sui-skills-list/sui-skills-list.controller'
+
+interface SkillGroup {
+  source: string
+  skills: Array<{ id: string; name: string; description?: string }>
+}
+
+describe('skills list: tile helpers', () => {
+  it('tileChar uppercases the first character of the skill name', () => {
+    expect(tileChar('tdd')).toBe('T')
+    expect(tileChar('code-review')).toBe('C')
+    expect(tileChar('')).toBe('?')
+  })
+
+  it('tileColor returns a deterministic hex color for a given id', () => {
+    const c = tileColor('tdd')
+    expect(c).toMatch(/^#[0-9a-f]{6}$/i)
+    expect(tileColor('tdd')).toBe(tileColor('tdd'))
+  })
+
+  it('tileColor produces different colors for different first chars', () => {
+    const colors = new Set(['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i'].map(tileColor))
+    expect(colors.size).toBeGreaterThan(1)
+  })
+})
+
+describe('skills list: computeCounts', () => {
+  const groups: SkillGroup[] = [
+    { source: 'PROJECT SKILLS', skills: [{ id: 'tdd', name: 'tdd' }, { id: 'lint', name: 'lint' }] },
+    { source: 'USER SKILLS', skills: [{ id: 'sql', name: 'sql' }] },
+  ]
+
+  it('all count is the sum of all groups', () => {
+    expect(computeCounts(groups).all).toBe(3)
+  })
+
+  it('project count matches PROJECT SKILLS group', () => {
+    expect(computeCounts(groups).project).toBe(2)
+  })
+
+  it('user count matches USER SKILLS group', () => {
+    expect(computeCounts(groups).user).toBe(1)
+  })
+
+  it('returns zero counts for empty groups', () => {
+    expect(computeCounts([])).toEqual({ all: 0, project: 0, user: 0 })
+  })
+
+  it('returns zero user count when no user group exists', () => {
+    const projectOnly: SkillGroup[] = [
+      { source: 'PROJECT SKILLS', skills: [{ id: 'a', name: 'a' }] },
+    ]
+    expect(computeCounts(projectOnly).user).toBe(0)
+    expect(computeCounts(projectOnly).all).toBe(1)
+  })
+})
+
+describe('skills list: filter state', () => {
+  type ScopeKind = 'all' | 'project' | 'user'
+
+  const testGroups: SkillGroup[] = [
+    { source: 'PROJECT SKILLS', skills: [{ id: 'tdd', name: 'tdd' }, { id: 'lint', name: 'lint' }] },
+    { source: 'USER SKILLS', skills: [{ id: 'sql', name: 'sql' }] },
+  ]
+
+  function applyKindFilter(gs: SkillGroup[], kind: ScopeKind): SkillGroup[] {
+    if (kind === 'all') return gs
+    const source = kind === 'project' ? 'PROJECT SKILLS' : 'USER SKILLS'
+    return gs.filter((g) => g.source === source)
+  }
+
+  it('all filter returns every group', () => {
+    expect(applyKindFilter(testGroups, 'all')).toHaveLength(2)
+  })
+
+  it('project filter returns only PROJECT SKILLS group', () => {
+    const filtered = applyKindFilter(testGroups, 'project')
+    expect(filtered).toHaveLength(1)
+    expect(filtered[0].source).toBe('PROJECT SKILLS')
+  })
+
+  it('user filter returns only USER SKILLS group', () => {
+    const filtered = applyKindFilter(testGroups, 'user')
+    expect(filtered).toHaveLength(1)
+    expect(filtered[0].source).toBe('USER SKILLS')
+  })
+
+  it('empty groups produce empty state for all filter kinds', () => {
+    expect(applyKindFilter([], 'all')).toHaveLength(0)
+    expect(applyKindFilter([], 'project')).toHaveLength(0)
+    expect(applyKindFilter([], 'user')).toHaveLength(0)
+  })
+})
