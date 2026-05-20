@@ -93,7 +93,7 @@
               <sui-card interactive padding="md" role="radio"
                 attr:data-test={'provider-' + p.id}
                 attr:aria-checked={provider() === p.id ? 'true' : 'false'}
-                prop:tone={provider() === p.id ? 'accent' : ''}
+                prop:tone={provider() === p.id ? 'primary' : ''}
                 prop:fill={provider() === p.id}
                 on:click={() => selectProvider(p.id)}>
                 <div class="setup-provider-row">
@@ -243,7 +243,7 @@
             and the rest of Ship.
           </p>
           <div class="setup-actions setup-actions--end">
-            <sui-button tone="accent" variant="solid" size="lg"
+            <sui-button tone="primary" variant="solid" size="lg"
               data-test="step-done-finish"
               on:click={finish}>
               Open Ship

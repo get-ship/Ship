@@ -50,7 +50,7 @@
             <sui-segmented-option value="rows" icon="list-check">Rows</sui-segmented-option>
             <sui-segmented-option value="jsonc" icon="file">JSONC</sui-segmented-option>
           </sui-segmented>
-          <sui-button size="sm" tone="accent" variant="solid" on:click={openNewRow}>
+          <sui-button size="sm" tone="primary" variant="solid" on:click={openNewRow}>
             <sui-icon slot="leading" name="plus"></sui-icon>New row
           </sui-button>
         </sui-cluster>
@@ -186,7 +186,7 @@
         </sui-stack>
         <div slot="footer">
           <sui-button variant="ghost" on:click={closeNewRow}>Cancel</sui-button>
-          <sui-button tone="accent" variant="solid" on:click={saveNewRow}>Save</sui-button>
+          <sui-button tone="primary" variant="solid" on:click={saveNewRow}>Save</sui-button>
         </div>
       {/if}
     </sui-drawer>

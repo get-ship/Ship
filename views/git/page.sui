@@ -230,7 +230,7 @@
                 </sui-empty-state>
               {:else}
                 <sui-toolbar variant="bordered" class="git-diff-toolbar">
-                  <sui-badge tone="warning" variant="soft" size="sm">diff</sui-badge>
+                  <sui-badge tone="info" variant="soft" size="sm">diff</sui-badge>
                   <span class="git-mono git-diff-path" data-test="diff-path">{diffFiles()[0].path}</span>
                   <span slot="spacer"></span>
                   <span class="git-mono"><span class="git-add">+{diffFiles()[0].additions}</span> <span class="git-del">−{diffFiles()[0].deletions}</span></span>
@@ -320,7 +320,7 @@
                 {#for b of branches() key={b.name}}
                   <sui-list-tile interactive density="compact"
                     data-test="git-branch-tile"
-                    attr:tone={b.active ? 'accent' : null}
+                    attr:tone={b.active ? 'primary' : null}
                     attr:selected={activeBranchName() === b.name ? '' : null}
                     on:sui-select={() => selectBranch(b.name)}>
                     <sui-status-dot slot="leading"

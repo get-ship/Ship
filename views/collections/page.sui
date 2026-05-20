@@ -12,7 +12,7 @@
           </div>
         </div>
         <div class="data-index-actions">
-          <sui-button size="sm" tone="accent" variant="solid" on:click={() => newColOpen.set(true)}>
+          <sui-button size="sm" tone="primary" variant="solid" on:click={() => newColOpen.set(true)}>
             <sui-icon slot="leading" name="plus"></sui-icon>New collection
           </sui-button>
         </div>
@@ -155,7 +155,7 @@
               <sui-segmented-option value="schema" icon="columns">Schema</sui-segmented-option>
             </sui-segmented>
             <span class="col-head-sep" aria-hidden="true"></span>
-            <sui-button size="sm" tone="accent" variant="solid"
+            <sui-button size="sm" tone="primary" variant="solid"
               on:click={() => { rowDraft.set({}); newRowOpen.set(true) }}>
               <sui-icon slot="leading" name="plus"></sui-icon>New row
             </sui-button>
@@ -303,7 +303,7 @@
       </sui-stack>
       <div slot="footer">
         <sui-button variant="ghost" on:click={() => { newRowOpen.set(false); drawerError.set('') }}>Cancel</sui-button>
-        <sui-button tone="accent" variant="solid" on:click={saveNewRow}>Save</sui-button>
+        <sui-button tone="primary" variant="solid" on:click={saveNewRow}>Save</sui-button>
       </div>
     {/if}
   </sui-drawer>
@@ -340,7 +340,7 @@
         <sui-button tone="destructive" variant="soft" style="margin-right:auto"
           on:click={deleteRow}>Delete</sui-button>
         <sui-button variant="ghost" on:click={() => { editOpen.set(false); drawerError.set('') }}>Cancel</sui-button>
-        <sui-button tone="accent" variant="solid" on:click={saveEdit}>Save</sui-button>
+        <sui-button tone="primary" variant="solid" on:click={saveEdit}>Save</sui-button>
       </div>
     {/if}
   </sui-drawer>
@@ -366,7 +366,7 @@
     </sui-stack>
     <div slot="footer">
       <sui-button variant="ghost" on:click={() => { newColOpen.set(false); drawerError.set('') }}>Cancel</sui-button>
-      <sui-button tone="accent" variant="solid" on:click={createCollection}>Create collection</sui-button>
+      <sui-button tone="primary" variant="solid" on:click={createCollection}>Create collection</sui-button>
     </div>
   </sui-drawer>
 

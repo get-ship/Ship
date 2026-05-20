@@ -13,7 +13,7 @@
         </p>
       </div>
       <sui-cluster gap="2" align="center">
-        <sui-button tone="accent" variant="solid" size="sm"
+        <sui-button tone="primary" variant="solid" size="sm"
           on:click={openUpload} data-test="upload-button">
           <sui-icon slot="leading" name="upload"></sui-icon>Upload
         </sui-button>
@@ -45,7 +45,7 @@
         <span slot="description">
           Run a workflow, or drop a file onto this page to upload one.
         </span>
-        <sui-button slot="action" tone="accent" variant="solid"
+        <sui-button slot="action" tone="primary" variant="solid"
           on:click={openUpload}>
           <sui-icon slot="leading" name="upload"></sui-icon>Upload an artifact
         </sui-button>
@@ -267,7 +267,7 @@
       <div slot="footer">
         <sui-button variant="ghost" on:click={closeUpload}
           attr:disabled={uploading() ? '' : null}>Cancel</sui-button>
-        <sui-button tone="accent" variant="solid" on:click={submitUpload}
+        <sui-button tone="primary" variant="solid" on:click={submitUpload}
           attr:disabled={(uploadFiles().length === 0 || uploading()) ? '' : null}
           attr:loading={uploading() ? '' : null}
           data-test="upload-submit">Upload</sui-button>

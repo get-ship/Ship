@@ -145,7 +145,7 @@
     <sui-field><sui-checkbox bind:checked={dispatchHeadless}>Headless (run without tmux)</sui-checkbox></sui-field>
     <sui-toolbar slot="footer">
       <sui-button variant="outline" on:click={closeDispatch}>Cancel</sui-button>
-      <sui-button tone="accent" variant="solid" on:click={dispatchRun}>
+      <sui-button tone="primary" variant="solid" on:click={dispatchRun}>
         <sui-icon slot="leading" name="play" size="sm"></sui-icon>Dispatch
       </sui-button>
     </sui-toolbar>
