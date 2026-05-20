@@ -496,12 +496,23 @@ async function buildTarget(
     entrypoint = resolve(repoRoot, target.entry)
   }
 
+  // Enforce the runtime singleton structurally: every bundle EXCEPT the
+  // runtime itself must externalize `@ship/sui-runtime`. If a bundle inlines
+  // its own copy, its signals/effects live in a second instance that the
+  // shared importmap-resolved runtime can't see — cross-bundle reactivity
+  // silently breaks (the studio remount workaround was a symptom). Injecting
+  // it here means a new target author cannot forget.
+  const external =
+    target.name === 'sui-runtime'
+      ? target.external
+      : Array.from(new Set([...(target.external ?? []), '@ship/sui-runtime']))
+
   try {
     let result: Awaited<ReturnType<typeof Bun.build>>
     try {
       result = await Bun.build({
         entrypoints: [entrypoint],
-        external: target.external,
+        external,
         format: 'esm',
         target: 'browser',
         minify: false,

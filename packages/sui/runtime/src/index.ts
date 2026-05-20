@@ -31,6 +31,27 @@
  * @packageDocumentation
  */
 
+// Singleton guard. The whole runtime depends on exactly ONE instance: signals,
+// effects, and the context/route registries are module-level state. Every
+// bundle externalizes `@ship/sui-runtime` so the importmap resolves them all to
+// one `/_sui/runtime.js`. If this module evaluates twice, some bundle inlined
+// its own copy — its effects will never react to the shared instance's signals
+// (split-brain). Fail loud rather than debug silent dead reactivity later.
+{
+  const g = globalThis as unknown as { __suiRuntimeInstances?: number }
+  g.__suiRuntimeInstances = (g.__suiRuntimeInstances ?? 0) + 1
+  if (g.__suiRuntimeInstances > 1) {
+    console.error(
+      '[sui-runtime] loaded %d times — a bundle is not externalizing ' +
+        '@ship/sui-runtime, so its signals/effects live in a separate instance ' +
+        'and cross-bundle reactivity will silently fail. The deck bundler ' +
+        'externalizes the runtime for every target; a non-bundler loader (raw ' +
+        '<script>, a second importmap entry) is the usual cause.',
+      g.__suiRuntimeInstances,
+    )
+  }
+}
+
 export { signal, derived, effect, batch, untrack, selector } from './signal'
 export type { Signal, Derived } from './signal'
 
