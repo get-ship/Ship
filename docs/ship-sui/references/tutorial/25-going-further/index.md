@@ -27,16 +27,16 @@ client-server loop against a mock daemon. From here:
 
 ## Tooling reach
 
-- **LSP**: `bun packages/deck/lsp/src/cli.ts diagnostics <file>` runs
-  the same analyser the editor uses. JSON to stdout. Great for CI
-  hooks and one-off scripts.
-- **MCP** (if your agent has it attached): every authoring surface
+- **LSP**: the native `sui-lsp` binary (`crates/sui/lsp/`, on PATH after
+  `just install-dev`) — diagnostics/hover/completion over stdio, the same
+  `sui-compiler` grammar the build uses.
+- **MCP** (if your agent has it attached): `sui_diagnostics` / `sui_hover` /
+  `sui_dependencies` run in-process — no subprocess. Every authoring surface is
   documented in `docs/ship-sui/references/docs/agent-surfaces.md`.
 - **`@ship/sui-eval`**: programmatic behavioural scoring. Wire into
   CI to gate PRs that touch `.sui` files.
-- **VS Code extension** at `apps/vscode/` — auto-launches the LSP on
-  `.sui` open. Other editors can spawn `node
-  packages/deck/lsp/bin/sui-lsp.js --stdio` directly.
+- **VS Code extension** at `apps/vscode/` — auto-launches `sui-lsp` on
+  `.sui` open; other editors map the `sui` language id to the same binary.
 
 ## Where to read next
 

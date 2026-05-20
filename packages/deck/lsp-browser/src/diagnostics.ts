@@ -1,16 +1,15 @@
-// Browser-safe structural diagnostics.
+// Browser-safe diagnostics — backed by the Rust grammar via WASM.
 //
-// Wraps `@ship/sui-lsp/parse` (a pure parser with zero Node deps)
-// and converts its `ParseError[]` into the `SuiDiagnostic[]` shape
-// `<sui-code-editor>.setDiagnostics()` expects.
+// Calls `@ship/sui-compiler-wasm`'s `analyze` (the same `sui_compiler::analyze`
+// the native LSP + agent tooling use), so the docs playground reports the SAME
+// diagnostics as `cargo build` / `sui-lsp` — one grammar, no TypeScript parser
+// fork. The compiler resolves positions (1-based line/col) already.
 //
-// "Structural" here means: parse errors, block-balance errors,
-// malformed attributes, unterminated braces. Things the parser
-// itself catches. Type-aware diagnostics (identifier resolution,
-// signal scope) live in the Node LSP and are not yet ported.
+// `analyze` runs without a paired controller (the browser has no `.ts` on
+// disk), so this covers template parse + semantic + lint diagnostics.
 
-import { parse } from '@ship/sui-lsp/parse'
-import type { ParseError } from '@ship/sui-lsp/parse-types'
+import initWasm, { analyze as wasmAnalyze } from '@ship/sui-compiler-wasm'
+import wasmUrl from '@ship/sui-compiler-wasm/sui_compiler_bg.wasm?url'
 
 /** Shape consumed by `<sui-code-editor>.setDiagnostics()`. */
 export interface SuiDiagnostic {
@@ -23,35 +22,38 @@ export interface SuiDiagnostic {
   source?: string
 }
 
-/** Convert a byte offset to a 1-based line/col pair against the
- *  original source. Tracks newline counts; no allocation per call. */
-function offsetToLineCol(source: string, offset: number): { line: number; column: number } {
-  const safe = Math.max(0, Math.min(offset, source.length))
-  let line = 1
-  let lastNewline = -1
-  for (let i = 0; i < safe; i++) {
-    if (source.charCodeAt(i) === 10 /* \n */) {
-      line++
-      lastNewline = i
-    }
-  }
-  return { line, column: safe - lastNewline }
+/** One diagnostic as the WASM `analyze` serializes it (1-based positions). */
+interface WasmDiagnostic {
+  line: number
+  col: number
+  end_line: number
+  end_col: number
+  severity: 'error' | 'warning'
+  message: string
+  rule?: string
+}
+interface WasmAnalysis {
+  diagnostics: WasmDiagnostic[]
 }
 
-/** Parse a `.sui` document and emit one diagnostic per ParseError. */
-export function diagnose(source: string): SuiDiagnostic[] {
-  const { errors } = parse(source)
-  return errors.map((e: ParseError) => {
-    const start = offsetToLineCol(source, e.range.start)
-    const end = offsetToLineCol(source, e.range.end)
-    return {
-      line: start.line,
-      column: start.column,
-      endLine: end.line,
-      endColumn: end.column,
-      severity: 'error',
-      message: e.message,
-      source: 'sui-parse',
-    }
-  })
+// Lazy one-time WASM init — the worker is long-lived; init once, reuse.
+let wasmReady: Promise<unknown> | null = null
+function ensureWasm(): Promise<unknown> {
+  if (!wasmReady) wasmReady = initWasm(wasmUrl)
+  return wasmReady
+}
+
+/** Analyse a `.sui` document and map every diagnostic to the editor shape. */
+export async function diagnose(source: string): Promise<SuiDiagnostic[]> {
+  await ensureWasm()
+  const analysis = wasmAnalyze(source) as WasmAnalysis
+  return (analysis.diagnostics ?? []).map((d) => ({
+    line: d.line,
+    column: d.col,
+    endLine: d.end_line,
+    endColumn: d.end_col,
+    severity: d.severity === 'warning' ? 'warning' : 'error',
+    message: d.message,
+    source: 'sui',
+  }))
 }

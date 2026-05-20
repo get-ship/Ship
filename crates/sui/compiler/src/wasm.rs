@@ -114,6 +114,19 @@ pub fn compile(source: &str, opts_json: &str) -> Result<JsValue, JsValue> {
         .map_err(|e| JsValue::from_str(&format!("serialize result: {e}")))
 }
 
+/// Browser analysis surface for the docs-playground LSP worker: the full
+/// multi-diagnostic stream + scope symbols + tag/event dependencies from one
+/// `.sui` source, off the same Rust grammar the compiler + native LSP use.
+/// `source_path` is `None` (the browser has no paired `.controller.ts` on
+/// disk), so controller-aware passes are skipped — template parse/semantic
+/// checks + lint still run. Mirrors `sui_compiler::analyze`.
+#[wasm_bindgen]
+pub fn analyze(source: &str) -> Result<JsValue, JsValue> {
+    let analysis = crate::analyze(source, None);
+    serde_wasm_bindgen::to_value(&analysis)
+        .map_err(|e| JsValue::from_str(&format!("serialize analysis: {e}")))
+}
+
 /// Convert a byte offset into a 1-based line number. Mirrors the
 /// formatting the CLI uses for error messages so the playground can
 /// surface the same coordinates.

@@ -54,8 +54,11 @@ addEventListener('message', (event: MessageEvent<Request>) => {
   try {
     switch (req.kind) {
       case 'diagnose': {
-        const diags = diagnose(req.text)
-        reply<SuiDiagnostic[]>(req.id, diags)
+        // WASM-backed now → async (lazy one-time module init in diagnose()).
+        diagnose(req.text).then(
+          (diags) => reply<SuiDiagnostic[]>(req.id, diags),
+          (e) => fail(req.id, e),
+        )
         break
       }
       case 'completeAt': {

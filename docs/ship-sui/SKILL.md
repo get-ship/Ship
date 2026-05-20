@@ -159,7 +159,7 @@ Mutations are HTTP POST/DELETE through the same client (e.g. `ship.sessions.star
 |---|---|---|
 | `sui-compiler` (bin) | One-shot compile of a `.sui` file. Used by `sui-build` and editor extensions. | `crates/sui/compiler/src/bin/sui-compiler.rs` (`cargo run -p sui-compiler -- build <file>`) |
 | `@ship/sui-build` | Project bundler — discovers `.sui` sources, calls the compiler, runs Bun/esbuild adapter, optional `--watch`. | `packages/deck/build/bin/sui-build.mjs` |
-| `@ship/sui-lsp` | LSP server — diagnostics + hover for `.sui`. Used by `apps/vscode/`. Stdio: `node packages/deck/lsp/bin/sui-lsp.js --stdio`. | `packages/deck/lsp/src/` |
+| `sui-lsp` | Native Rust LSP — diagnostics + hover + completion for `.sui`. Used by `apps/vscode/` + Claude Code (`.lsp.json`). Stdio: `sui-lsp`. | `crates/sui/lsp/` |
 | UI Studio | Browse and exercise every registered component with prop knobs, slot compositions, deep links. | `views/ship-ui-studio/` (mounted at `/ship-ui-studio`) |
 | Devtools panes | In-page panels: template source, components tree, signals, lint, schema. | `packages/components/ui-components/src/sui-devtools/` |
 | `dispatch.sh` | Worktree + job-spec + agent compile + terminal-open script. | `.ship/skills/spawn-agent/scripts/dispatch.sh` |

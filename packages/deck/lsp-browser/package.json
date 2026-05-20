@@ -18,8 +18,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@ship/sui-lsp": "workspace:*",
-    "oxc-parser": "^0.131.0"
+    "@ship/sui-compiler-wasm": "workspace:*"
   },
   "devDependencies": {
     "vitest": "^4.1.5"

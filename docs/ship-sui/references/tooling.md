@@ -78,25 +78,15 @@ Intelligence is the Rust compiler: `sui_compiler::check_all` (multi-diagnostic),
 paired `.controller.ts` — no `typescript` package), and an IR walk for the
 tag/event dependency surface (`sui_compiler::analyze`).
 
-> **Legacy:** the former TypeScript LSP (`packages/deck/lsp`, ex-`ship-set-lsp`)
-> is off every launch path. Its pure parser still backs the docs-playground
-> browser analyzer (`packages/deck/lsp-browser`); deleting the package is gated
-> on migrating that analyzer to the WASM grammar.
+> **Retired:** the former TypeScript LSP (`packages/deck/lsp`, ex-`ship-set-lsp`)
+> — a fork of the `.sui` grammar that also bundled the full `typescript` package
+> — has been deleted. Its grammar duplicated `sui-compiler`; agents now use the
+> in-process MCP tools, editors use the `sui-lsp` binary, and the docs-playground
+> browser analyzer (`packages/deck/lsp-browser`) calls the WASM `analyze`. One
+> grammar, no TS fork.
 
-The retired TS analyzers lived one-per-file under `packages/deck/lsp/src/`:
-
-| File | Owns |
-|---|---|
-| `parse.ts` (+ `parse-attrs.ts`, `parse-blocks.ts`, `parse-braces.ts`, `parse-types.ts`) | `.sui` parser |
-| `diagnostics.ts` | Compile-grammar issues, missing bindings, unstable-key warnings |
-| `setup.ts` + `setup-controller.ts` + `setup-diagnostics.ts` | Paired-controller resolution + cross-file diagnostics |
-| `hover.ts` | Type + binding info at a point |
-| `completions.ts` | `<sui-*>`, prop names, control-flow blocks |
-| `bindings.ts` | Reactive identifier resolution against scope |
-| `server.ts` | LSP plumbing — `TextDocuments`, `onDidChangeContent`, `onHover`, `onCompletion` |
-| `cli.ts` | JSON-emitting CLI; used by MCP shims |
-
-VS Code: `apps/vscode/` auto-launches the server on `.sui` open (recommended via `.vscode/extensions.json`). Other editors map the `sui` language ID to `node packages/deck/lsp/bin/sui-lsp.js --stdio`.
+VS Code: `apps/vscode/` auto-launches `sui-lsp` on `.sui` open. Other editors map
+the `sui` language ID to the `sui-lsp` binary over stdio.
 
 ## MCP shims — agents that don't speak LSP
 
