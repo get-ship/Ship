@@ -42,6 +42,7 @@ The sandbox model is now the spawn unit:
 
 See:
 - `docs/runtime-architecture.md` — target shape we're building toward (canonical)
+- `docs/vm-substrate.md` — youki+VM as the PRIMARY Tier 2 path (intent capture)
 - `docs/strategy.md` — design intent
 - `docs/sidecar-protocol.md` — v1 protocol RFC
 - `docs/sidecar-parity.md` — per-feature audit
