@@ -59,6 +59,7 @@ fn main() {
         .join("..")
         .join("..")
         .join("packages")
+        .join("deck")
         .join("sdk")
         .join("src")
         .join("generated");
