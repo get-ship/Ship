@@ -74,10 +74,33 @@ pub async fn start_orchestrator(
     let kr = kernel.clone();
     let mut mb = mailbox;
     while let Some(envelope) = mb.recv().await {
-        handle_orchestrator_event(&kr, &envelope, &octx).await;
+        // `agent.session.started` does slow per-session prep (git worktree
+        // add + harness spawn). Run it OFF the mailbox so one slow dispatch
+        // doesn't stall every other event (pre-fix, a burst of dispatches
+        // serialized and a single dispatch could take tens of seconds to
+        // spawn). DISPATCH_GATE bounds concurrency so we don't spawn a
+        // thundering herd of harness processes; the worktree-add step is
+        // separately serialized (GitWorktreeIsolation::WORKTREE_LOCK).
+        // Other event types stay inline — they're fast and order-sensitive
+        // (advancement, cancel, completion).
+        if envelope.event_type == "agent.session.started" {
+            let kr2 = kr.clone();
+            let octx2 = octx.clone();
+            tokio::spawn(async move {
+                let _permit = DISPATCH_GATE.acquire().await;
+                handle_orchestrator_event(&kr2, &envelope, &octx2).await;
+            });
+        } else {
+            handle_orchestrator_event(&kr, &envelope, &octx).await;
+        }
     }
     tracing::info!("job-dispatch: mailbox closed");
 }
+
+/// Bounds concurrent agent-session dispatch preps so a burst doesn't spawn
+/// a thundering herd of harness processes at once. 8 is a starting point —
+/// instrument dispatch latency under load and tune if needed.
+static DISPATCH_GATE: tokio::sync::Semaphore = tokio::sync::Semaphore::const_new(8);
 
 /// Handle a single job/step event.
 ///
