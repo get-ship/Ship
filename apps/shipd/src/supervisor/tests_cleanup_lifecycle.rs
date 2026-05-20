@@ -35,7 +35,7 @@ fn cleanup_handler_exists_for_merged_events() {
 
 /// The orchestrator event router must route job.merged to cleanup.
 #[test]
-fn job_merged_routes_to_cleanup() {
+fn run_merged_routes_to_cleanup() {
     // Orchestration logic moved to ship_platform::services::orchestrator::router
     let source = include_str!("../../../../crates/core/ship-platform/src/services/orchestrator/router.rs");
     assert!(
@@ -50,7 +50,7 @@ fn job_merged_routes_to_cleanup() {
 
 /// Cleanup must remove the process registry entry.
 #[test]
-fn job_merged_unregisters_from_process_registry() {
+fn run_merged_unregisters_from_process_registry() {
     let source = include_str!("../../../../crates/core/ship-platform/src/services/orchestrator/router.rs");
     assert!(
         source.contains("unregister"),
@@ -73,7 +73,7 @@ fn cleanup_delegates_to_platform() {
 /// Failed jobs must NOT trigger automatic cleanup — worktrees are kept
 /// for post-mortem investigation.
 #[test]
-fn job_failed_does_not_trigger_cleanup() {
+fn run_failed_does_not_trigger_cleanup() {
     let source = include_str!("../../../../crates/core/ship-platform/src/services/orchestrator/router.rs");
     // Find the job.failed handler and verify it doesn't call cleanup
     let lines: Vec<&str> = source.lines().collect();

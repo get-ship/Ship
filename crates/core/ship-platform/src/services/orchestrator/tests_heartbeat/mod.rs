@@ -14,7 +14,7 @@ use tokio::sync::Mutex;
 use tokio::sync::mpsc;
 
 use ship_substrate::events::pipeline::{
-    event_types as job_event_types, PipelineStepObservedPayload, StepTrigger, StepType,
+    event_types as run_event_types, PipelineStepObservedPayload, StepTrigger, StepType,
 };
 use ship_substrate::events::kernel_router::{ActorConfig, KernelRouter};
 use crate::services::dispatch_ports::{ExitSignal, ProcessTreeProbe};
@@ -121,7 +121,7 @@ fn find_observed(pipeline_run_id: &str) -> Option<PipelineStepObservedPayload> {
         .into_iter()
         .rev()
         .find_map(|e| {
-            if e.entity_id == pipeline_run_id && e.event_type == job_event_types::PIPELINE_STEP_OBSERVED {
+            if e.entity_id == pipeline_run_id && e.event_type == run_event_types::PIPELINE_STEP_OBSERVED {
                 serde_json::from_str(&e.payload_json).ok()
             } else {
                 None

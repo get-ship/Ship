@@ -178,11 +178,11 @@ pub async fn emit_step_failed(
         error: reason.to_string(),
     };
     emit_job_dispatch_event(kernel, event_types::PIPELINE_STEP_FAILED, pipeline_run_id, slug, &step_fail, None).await;
-    let job_fail = PipelineRunFailedPayload {
+    let run_fail = PipelineRunFailedPayload {
         pipeline_run_id: pipeline_run_id.to_string(),
         error: format!("step `{step_id}` failed: {reason}"),
     };
-    emit_job_dispatch_event(kernel, event_types::PIPELINE_RUN_FAILED, pipeline_run_id, slug, &job_fail, None).await;
+    emit_job_dispatch_event(kernel, event_types::PIPELINE_RUN_FAILED, pipeline_run_id, slug, &run_fail, None).await;
 }
 
 /// Emit a `job.failed` event when a job cannot be dispatched or encounters a fatal error.

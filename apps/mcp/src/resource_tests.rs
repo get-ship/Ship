@@ -35,7 +35,7 @@ async fn resolve(uri: &str, dir: &std::path::Path) -> Option<String> {
 
 // ── Job resources (event-sourced) ────────────────────────────────
 
-fn job_created_event(pipeline_run_id: &str, slug: &str, agent: &str) -> EventEnvelope {
+fn run_created_event(pipeline_run_id: &str, slug: &str, agent: &str) -> EventEnvelope {
     EventEnvelope::new(
         "pipeline.run.started",
         pipeline_run_id,
@@ -65,8 +65,8 @@ async fn jobs_list_empty() {
 async fn jobs_list_returns_created_jobs() {
     let (_tmp, ship_dir) = setup_with_db();
 
-    append_event(&ship_dir, &job_created_event("j-res-1", "auth-tests", "test-writer"));
-    append_event(&ship_dir, &job_created_event("j-res-2", "cli-errors", "rust-runtime"));
+    append_event(&ship_dir, &run_created_event("j-res-1", "auth-tests", "test-writer"));
+    append_event(&ship_dir, &run_created_event("j-res-2", "cli-errors", "rust-runtime"));
 
     let result = resolve("ship://jobs", &ship_dir).await.unwrap();
     let parsed: serde_json::Value = serde_json::from_str(&result)
@@ -87,7 +87,7 @@ async fn jobs_list_returns_created_jobs() {
 async fn jobs_get_by_id() {
     let (_tmp, ship_dir) = setup_with_db();
 
-    append_event(&ship_dir, &job_created_event("j-detail", "mcp-resources", "test-writer"));
+    append_event(&ship_dir, &run_created_event("j-detail", "mcp-resources", "test-writer"));
 
     let result = resolve("ship://jobs/j-detail", &ship_dir).await.unwrap();
     let parsed: serde_json::Value = serde_json::from_str(&result)
@@ -108,7 +108,7 @@ async fn jobs_get_nonexistent_returns_none() {
 async fn jobs_get_reflects_status_changes() {
     let (_tmp, ship_dir) = setup_with_db();
 
-    append_event(&ship_dir, &job_created_event("j-status", "status-test", "rust-runtime"));
+    append_event(&ship_dir, &run_created_event("j-status", "status-test", "rust-runtime"));
     append_event(
         &ship_dir,
         &EventEnvelope::new(

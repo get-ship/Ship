@@ -482,11 +482,11 @@ async fn emit_step_gate_failure(
         Some(tail) => format!("{base_error}\n\nagent log tail:\n{tail}"),
         None => base_error,
     };
-    let job_fail = PipelineRunFailedPayload {
+    let run_fail = PipelineRunFailedPayload {
         pipeline_run_id: payload.pipeline_run_id.clone(),
         error,
     };
-    if let Ok(env) = EventEnvelope::new(event_types::PIPELINE_RUN_FAILED, &payload.pipeline_run_id, &job_fail) {
+    if let Ok(env) = EventEnvelope::new(event_types::PIPELINE_RUN_FAILED, &payload.pipeline_run_id, &run_fail) {
         let env = env.with_actor_id("service.orchestrator");
         super::emit::persist_and_route(kernel, env, &payload.slug, None).await;
     }

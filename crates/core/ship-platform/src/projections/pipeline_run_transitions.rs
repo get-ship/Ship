@@ -40,7 +40,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn job_dispatched_sets_dispatched() {
+    fn run_dispatched_sets_dispatched() {
         assert_eq!(status_for(event_types::PIPELINE_RUN_DISPATCHED), Some(PipelineRunStatus::Dispatched));
     }
 
@@ -60,7 +60,7 @@ mod tests {
     }
 
     #[test]
-    fn job_completed_sets_completed() {
+    fn run_completed_sets_completed() {
         assert_eq!(status_for(event_types::PIPELINE_RUN_COMPLETED), Some(PipelineRunStatus::Completed));
     }
 
@@ -70,12 +70,12 @@ mod tests {
     }
 
     #[test]
-    fn job_merged_sets_merged() {
+    fn run_merged_sets_merged() {
         assert_eq!(status_for(event_types::PIPELINE_RUN_MERGED), Some(PipelineRunStatus::Merged));
     }
 
     #[test]
-    fn job_failed_sets_failed() {
+    fn run_failed_sets_failed() {
         assert_eq!(status_for(event_types::PIPELINE_RUN_FAILED), Some(PipelineRunStatus::Failed));
     }
 

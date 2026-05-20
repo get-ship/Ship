@@ -1,7 +1,7 @@
 //! Periodic coherence sweep — detects and resolves drift between job
 //! projections and live processes every 30 seconds.
 
-use ship_substrate::events::pipeline::{event_types as job_events, PipelineRunFailedPayload, StepType};
+use ship_substrate::events::pipeline::{event_types as run_events, PipelineRunFailedPayload, StepType};
 use ship_substrate::events::process::{event_types as proc_events, ProcessKilledPayload};
 use ship_substrate::events::supervisor::{
     event_types as sup_events, CoherenceRestoredPayload, DriftDetectedPayload,
@@ -80,7 +80,7 @@ pub async fn run_sweep(
                 error: "coherence sweep: process died without completing".to_string(),
             };
             if let Ok(env) =
-                EventEnvelope::new(job_events::PIPELINE_RUN_FAILED, &job.pipeline_run_id, &fail_payload)
+                EventEnvelope::new(run_events::PIPELINE_RUN_FAILED, &job.pipeline_run_id, &fail_payload)
             {
                 let env = env.with_actor_id("service.coherence-sweep");
                 persist_and_route(kernel, env, &job.slug, None).await;
@@ -170,7 +170,7 @@ pub async fn run_sweep(
             pipeline_run_id: job.pipeline_run_id.clone(),
             error: "coherence sweep: process missing for dispatched job".to_string(),
         };
-        if let Ok(env) = EventEnvelope::new(job_events::PIPELINE_RUN_FAILED, &job.pipeline_run_id, &fail_payload) {
+        if let Ok(env) = EventEnvelope::new(run_events::PIPELINE_RUN_FAILED, &job.pipeline_run_id, &fail_payload) {
             let env = env.with_actor_id("service.coherence-sweep");
             persist_and_route(kernel, env, &job.slug, None).await;
         }

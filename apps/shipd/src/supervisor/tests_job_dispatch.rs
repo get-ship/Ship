@@ -79,7 +79,7 @@ fn noop_dctx() -> DispatchContext {
 
 /// Kernel routing delivers `job.created` to an actor subscribed to `job.`.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn job_created_delivered_to_subscriber() {
+async fn run_created_delivered_to_subscriber() {
     let (_dir, mut router) = setup();
     let (_store, mut mb) = router
         .spawn_actor("service.orchestrator", orchestrator_actor_config())
@@ -143,7 +143,7 @@ async fn job_update_delivered_to_subscriber() {
 
 /// `job.completed` is delivered to job-dispatch subscriber.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn job_completed_delivered_to_subscriber() {
+async fn run_completed_delivered_to_subscriber() {
     let (_dir, mut router) = setup();
     let (_store, mut mb) = router
         .spawn_actor("service.orchestrator", orchestrator_actor_config())
@@ -164,7 +164,7 @@ async fn job_completed_delivered_to_subscriber() {
 
 /// `job.merged` is delivered to job-dispatch subscriber.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn job_merged_delivered_to_subscriber() {
+async fn run_merged_delivered_to_subscriber() {
     let (_dir, mut router) = setup();
     let (_store, mut mb) = router
         .spawn_actor("service.orchestrator", orchestrator_actor_config())
@@ -613,7 +613,7 @@ fn ship_mesh_id_env_overrides_derived_actor_id() {
 
 /// Jobs with depends_on are deferred (not dispatched immediately).
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn job_with_depends_on_is_deferred() {
+async fn run_with_depends_on_is_deferred() {
     let (_dir, router) = setup();
     let kernel = Arc::new(tokio::sync::Mutex::new(router));
 
@@ -639,7 +639,7 @@ async fn job_with_depends_on_is_deferred() {
 
 /// Jobs without depends_on are dispatched immediately.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn job_without_depends_on_not_deferred() {
+async fn run_without_depends_on_not_deferred() {
     let (_dir, router) = setup();
     let kernel = Arc::new(tokio::sync::Mutex::new(router));
 

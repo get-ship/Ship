@@ -119,7 +119,7 @@ fn completed_job_frees_slot_for_pending() {
 
 /// A job depending on a pending job must stay pending.
 #[test]
-fn job_with_unresolved_dep_stays_pending() {
+fn run_with_unresolved_dep_stays_pending() {
     let events = vec![
         created("j1", "upstream"),
         created_with_deps("j2", "downstream", vec!["upstream"]),
@@ -130,7 +130,7 @@ fn job_with_unresolved_dep_stays_pending() {
 
 /// A job depending on a completed job is dispatchable.
 #[test]
-fn job_with_resolved_dep_is_dispatchable() {
+fn run_with_resolved_dep_is_dispatchable() {
     let events = vec![
         created("j1", "upstream"),
         dispatched("j1"),
@@ -153,7 +153,7 @@ fn job_with_resolved_dep_is_dispatchable() {
 
 /// A job with multiple dependencies waits for ALL of them.
 #[test]
-fn job_with_multiple_deps_waits_for_all() {
+fn run_with_multiple_deps_waits_for_all() {
     let events = vec![
         created("j1", "dep-a"),
         created("j2", "dep-b"),
@@ -174,7 +174,7 @@ fn job_with_multiple_deps_waits_for_all() {
 
 /// A job with no dependencies is immediately dispatchable.
 #[test]
-fn job_without_deps_is_immediately_dispatchable() {
+fn run_without_deps_is_immediately_dispatchable() {
     let events = vec![created("j1", "no-deps")];
     let map = project(&events);
     let j1 = map.get("j1").unwrap();

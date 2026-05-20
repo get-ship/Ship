@@ -512,7 +512,7 @@ mod idempotent {
     }
 
     #[test]
-    fn job_dispatched_replay_does_not_corrupt_completed_steps() {
+    fn run_dispatched_replay_does_not_corrupt_completed_steps() {
         // The old `.take()` pattern would destructively read current_step on
         // the first pass, then silently skip the "move to completed" block
         // on replay, producing a different final state. This test guards the

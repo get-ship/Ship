@@ -158,7 +158,7 @@ mod tests {
     }
 
     #[test]
-    fn job_events_become_system_messages() {
+    fn run_events_become_system_messages() {
         let m = to_message(&env(
             "pipeline.run.completed",
             serde_json::json!({ "slug": "my-job" }),

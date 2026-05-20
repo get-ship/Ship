@@ -473,7 +473,7 @@ pub mod event_types {
 }
 
 #[cfg(test)]
-mod job_created_payload_tests {
+mod run_created_payload_tests {
     use super::*;
 
     #[test]

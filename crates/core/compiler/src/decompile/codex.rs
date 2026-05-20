@@ -95,7 +95,7 @@ fn parse_codex_config(library: &mut ProjectLibrary, table: &toml::Table) {
         if let Some(toml::Value::Integer(v)) = agents.get("max_depth") {
             library.codex_max_depth = Some(*v as u32);
         }
-        if let Some(toml::Value::Integer(v)) = agents.get("job_max_runtime_seconds") {
+        if let Some(toml::Value::Integer(v)) = agents.get("run_max_runtime_seconds") {
             library.codex_job_max_runtime_seconds = Some(*v as u64);
         }
     }

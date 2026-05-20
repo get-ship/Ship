@@ -66,7 +66,7 @@ fn helpers_under_line_limit() {
 }
 
 #[test]
-fn job_dispatch_under_line_limit() {
+fn run_dispatch_under_line_limit() {
     let lines = include_str!("../../../../crates/core/ship-supervisor/src/job_dispatch.rs").lines().count();
     assert!(
         lines <= LINE_LIMIT,

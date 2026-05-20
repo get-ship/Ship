@@ -9,7 +9,7 @@ use std::sync::Arc;
 use tempfile::TempDir;
 use tokio::sync::Mutex;
 
-use ship_substrate::events::pipeline::{event_types as job_event_types, PipelineRunCancelledPayload};
+use ship_substrate::events::pipeline::{event_types as run_event_types, PipelineRunCancelledPayload};
 use ship_substrate::events::kernel_router::{ActorConfig, KernelRouter};
 use ship_substrate::events::process::event_types as process_event_types;
 use ship_substrate::events::process::ProcessKilledPayload;
@@ -151,7 +151,7 @@ async fn cancel_stops_registered_handle_and_emits_process_killed() {
         reason: "operator test".into(),
         requested_by: "operator".into(),
     };
-    let envelope = EventEnvelope::new(job_event_types::PIPELINE_RUN_CANCELLED, pipeline_run_id, &payload)
+    let envelope = EventEnvelope::new(run_event_types::PIPELINE_RUN_CANCELLED, pipeline_run_id, &payload)
         .unwrap()
         .with_actor_id("test");
 
@@ -213,7 +213,7 @@ async fn cancel_without_registered_handle_still_cleans_and_emits() {
         reason: "registry miss".into(),
         requested_by: "operator".into(),
     };
-    let envelope = EventEnvelope::new(job_event_types::PIPELINE_RUN_CANCELLED, pipeline_run_id, &payload)
+    let envelope = EventEnvelope::new(run_event_types::PIPELINE_RUN_CANCELLED, pipeline_run_id, &payload)
         .unwrap()
         .with_actor_id("test");
 

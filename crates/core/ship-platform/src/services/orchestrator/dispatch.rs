@@ -209,12 +209,12 @@ pub async fn dispatch_job_internal(
     }
 
     let (exit_tx, exit_rx) = tokio::sync::mpsc::unbounded_channel();
-    let job_ctx_with_dir = SessionContext {
+    let session_ctx_with_dir = SessionContext {
         work_dir: worktree_path.clone(),
         exit_tx: Some(exit_tx),
         ..session_ctx
     };
-    let handle = match octx.executor.spawn(&job_ctx_with_dir).await {
+    let handle = match octx.executor.spawn(&session_ctx_with_dir).await {
         Ok(h) => h,
         Err(e) => {
             tracing::error!(slug, "job-dispatch: executor spawn failed: {e}");
@@ -228,7 +228,7 @@ pub async fn dispatch_job_internal(
     emit_process_spawned(
         kernel, slug, &payload.pipeline_run_id, handle.pid,
         cmd_label, &[], &[], &worktree_path.to_string_lossy(),
-        executor_kind, job_ctx_with_dir.step.as_ref().map(|s| s.id.as_str()),
+        executor_kind, session_ctx_with_dir.step.as_ref().map(|s| s.id.as_str()),
     ).await;
 
     let pid = handle.pid;
@@ -411,13 +411,13 @@ async fn dispatch_agent_session_internal(
     };
 
     let (exit_tx, exit_rx) = tokio::sync::mpsc::unbounded_channel();
-    let job_ctx_with_dir = SessionContext {
+    let session_ctx_with_dir = SessionContext {
         work_dir: worktree_path.clone(),
         exit_tx: Some(exit_tx),
         ..session_ctx
     };
 
-    let handle = match octx.executor.spawn(&job_ctx_with_dir).await {
+    let handle = match octx.executor.spawn(&session_ctx_with_dir).await {
         Ok(h) => h,
         Err(e) => {
             tracing::error!(slug, "agent-session-dispatch: executor spawn failed: {e}");
