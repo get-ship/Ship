@@ -16,7 +16,7 @@ use crate::routes::rest_api::{ApiState, MeshResponse};
     "status": "dispatched",
     "worktree": "/tmp/ws-write-readme"
 }))]
-pub struct JobStatusReq {
+pub struct RunStatusReq {
     /// One of: dispatched, gate_requested, gate_passed, gate_failed, blocked,
     /// completed, merged, failed.
     pub status: String,
@@ -31,7 +31,7 @@ pub struct JobStatusReq {
     operation_id = "updateJobStatus",
     post,
     path = "/api/v1/agent_sessions/{pipeline_run_id}/status",
-    request_body = JobStatusReq,
+    request_body = RunStatusReq,
     params(("pipeline_run_id" = String, Path, description = "Job ULID")),
     responses(
         (status = 200, description = "Job status event emitted", body = MeshResponse),
@@ -46,7 +46,7 @@ pub async fn update_job_status(
     State(state): State<ApiState>,
     _auth: Option<axum::Extension<crate::auth::AuthContext>>,
     Path(pipeline_run_id): Path<String>,
-    Json(body): Json<JobStatusReq>,
+    Json(body): Json<RunStatusReq>,
 ) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
 
     use ship_substrate::events::EventEnvelope;

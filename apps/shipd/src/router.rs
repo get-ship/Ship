@@ -442,8 +442,8 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::GetJob_template(), runtime_api::get_job_detail)
         .ship_route(Route::EndJob, runtime_api::end_job)
         .ship_route(Route::CancelJob_template(), runtime_api::cancel_job)
-        .ship_route(Route::JobStatusUpdate_template(), project_api::update_job_status)
-        .ship_route(Route::JobStepDone_template(), project_api::step_done)
+        .ship_route(Route::RunStatusUpdate_template(), project_api::update_job_status)
+        .ship_route(Route::StepDoneSignal_template(), project_api::step_done)
         .ship_route(Route::StreamJobLog_template(), logs_api::stream_job_log)
         .ship_route(
             Route::AttachAgentSession_template(),

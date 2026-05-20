@@ -664,11 +664,11 @@ pub enum Route {
 
     /// @route POST "/api/v1/agent_sessions/{pipeline_run_id}/status"
     /// @auth scope EmitEvents
-    JobStatusUpdate { pipeline_run_id: String },
+    RunStatusUpdate { pipeline_run_id: String },
 
     /// @route POST "/api/v1/agent_sessions/{slug}/step-done"
     /// @auth scope EmitEvents
-    JobStepDone { slug: String },
+    StepDoneSignal { slug: String },
 
     /// @route GET "/api/v1/agent_sessions/{slug}/log/stream"
     /// @auth scope ReadJobs

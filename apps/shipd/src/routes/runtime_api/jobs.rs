@@ -630,7 +630,7 @@ async fn cancel_agent_session(
 
 #[derive(Deserialize, utoipa::ToSchema)]
 #[schema(example = json!({ "slug": "write-readme" }))]
-pub struct JobEndRequest {
+pub struct TurnEndRequest {
     pub slug: String,
 }
 
@@ -644,7 +644,7 @@ pub struct JobEndRequest {
     operation_id = "endJob",
     post,
     path = "/api/v1/agent_sessions/end",
-    request_body = JobEndRequest,
+    request_body = TurnEndRequest,
     responses(
         (status = 200, body = MeshResponse),
         (status = 400, description = "bad request", body = crate::wire::ErrorResponse),
@@ -656,7 +656,7 @@ pub struct JobEndRequest {
 pub async fn end_job(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
-    Json(req): Json<JobEndRequest>,
+    Json(req): Json<TurnEndRequest>,
 ) -> impl IntoResponse {
     // Slug isn't unique across job lifetimes, but the SQL projection
     // returns the most-recently-updated row — that's the live one when a

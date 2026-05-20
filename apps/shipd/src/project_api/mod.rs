@@ -9,7 +9,7 @@ pub mod agents_skills_write;
 pub mod jobs_status;
 pub mod session_files;
 
-pub use jobs_status::{JobStatusReq, StepDoneReq, step_done, update_job_status};
+pub use jobs_status::{RunStatusReq, StepDoneReq, step_done, update_job_status};
 
 pub use agents_skills::{list_agents, list_skills};
 pub use agents_skills_write::{

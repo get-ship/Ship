@@ -9,7 +9,7 @@ use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use tempfile::TempDir;
 
-use super::{JobStatusReq, StepDoneReq, step_done, update_job_status};
+use super::{RunStatusReq, StepDoneReq, step_done, update_job_status};
 use crate::project_api::EmitEventReq;
 
 fn make_api_state(dir: &TempDir) -> crate::routes::rest_api::ApiState {
@@ -69,7 +69,7 @@ async fn update_job_status_dispatched_advances_projection() {
         State(state.clone()),
         None,
         Path(pipeline_run_id.clone()),
-        axum::Json(JobStatusReq {
+        axum::Json(RunStatusReq {
             status: "dispatched".to_string(),
             worktree: Some("/tmp/ws-demo".to_string()),
             pid: Some(4321),
@@ -106,7 +106,7 @@ async fn update_job_status_rejects_unknown_value() {
         State(state),
         None,
         Path(pipeline_run_id),
-        axum::Json(JobStatusReq {
+        axum::Json(RunStatusReq {
             status: "invented".to_string(),
             worktree: None,
             pid: None,
@@ -130,7 +130,7 @@ async fn update_job_status_requires_worktree_when_dispatched() {
         State(state),
         None,
         Path(pipeline_run_id),
-        axum::Json(JobStatusReq {
+        axum::Json(RunStatusReq {
             status: "dispatched".to_string(),
             worktree: None,
             pid: None,

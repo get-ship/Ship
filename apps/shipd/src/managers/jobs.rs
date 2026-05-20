@@ -1,4 +1,4 @@
-//! JobManager — owns the job dispatch subscription.
+//! RunManager — owns the job dispatch subscription.
 //!
 //! On init, subscribes to job events and reconciles orphaned dispatched jobs.
 //! The reconciliation runs inside `subscribe_job_events`, which detects jobs
@@ -11,11 +11,11 @@ use tokio::sync::Mutex;
 use crate::supervisor::job_dispatch::{self, DispatchHandle};
 
 /// Manages the job dispatch lifecycle.
-pub struct JobManager {
+pub struct RunManager {
     pub dispatch_handle: Option<DispatchHandle>,
 }
 
-impl JobManager {
+impl RunManager {
     /// Initialize the job manager: subscribe to job events and reconcile
     /// orphaned dispatched jobs from the previous daemon run.
     ///
