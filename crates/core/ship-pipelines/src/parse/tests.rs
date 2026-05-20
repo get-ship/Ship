@@ -36,7 +36,7 @@ fn test_mixed_steps() {
     assert_eq!(steps[0]["type"], "agent");
     assert_eq!(steps[0]["agent"], "researcher");
     assert_eq!(steps[2]["type"], "run");
-    assert_eq!(steps[2]["command"], "echo review");
+    assert_eq!(steps[2]["run"], "echo review");
     assert_eq!(steps[3]["after"][0].as_str().unwrap(), steps[2]["id"].as_str().unwrap());
 }
 
@@ -70,7 +70,30 @@ fn test_run_step() {
     let (val, _) = normalize_pipeline(src).unwrap();
     let steps = val["steps"].as_array().unwrap();
     assert_eq!(steps[1]["type"], "run");
-    assert_eq!(steps[1]["command"], "cargo test --workspace");
+    assert_eq!(steps[1]["run"], "cargo test --workspace");
+}
+
+#[test]
+fn run_step_survives_deserialization_into_pipeline_step() {
+    // Regression: normalize_single_step emitted the legacy `command`
+    // wire key for id-less run steps, but PipelineStep's deserializer
+    // reads `run` and rejects `command` — so the shell command was
+    // silently dropped and the pipeline failed with "run step missing
+    // command". Assert the FULL round-trip: normalize -> deserialize ->
+    // command populated. (The other tests only check the intermediate
+    // Value, which is what let the bug hide.)
+    use crate::types::{PipelineStep, StepType};
+    let src = r#"{ "name": "smoke", "steps": [ { "run": "echo hi" } ] }"#;
+    let (val, _) = normalize_pipeline(src).unwrap();
+    let steps: Vec<PipelineStep> =
+        serde_json::from_value(val["steps"].clone()).expect("steps must deserialize");
+    assert_eq!(steps.len(), 1);
+    assert_eq!(steps[0].step_type, StepType::Run);
+    assert_eq!(
+        steps[0].command.as_deref(),
+        Some("echo hi"),
+        "id-less run step must carry its shell command after the normalize→deserialize round-trip"
+    );
 }
 
 #[test]
