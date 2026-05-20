@@ -45,17 +45,17 @@ mod tests {
     }
 
     #[test]
-    fn job_gate_requested_sets_gate_pending() {
+    fn run_gate_requested_sets_gate_pending() {
         assert_eq!(status_for(event_types::PIPELINE_GATE_REQUESTED), Some(PipelineRunStatus::GatePending));
     }
 
     #[test]
-    fn job_gate_passed_sets_pending() {
+    fn run_gate_passed_sets_pending() {
         assert_eq!(status_for(event_types::PIPELINE_GATE_PASSED), Some(PipelineRunStatus::Pending));
     }
 
     #[test]
-    fn job_gate_failed_sets_failed() {
+    fn run_gate_failed_sets_failed() {
         assert_eq!(status_for(event_types::PIPELINE_GATE_FAILED), Some(PipelineRunStatus::Failed));
     }
 

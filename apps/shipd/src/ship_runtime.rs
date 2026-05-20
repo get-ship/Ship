@@ -14,7 +14,7 @@ use tokio::sync::Mutex;
 use crate::auth::SessionRegistry;
 use crate::managers::{RunManager, MeshManager, SessionScanner};
 use ship_substrate::task_health::HealthRegistry;
-use crate::supervisor::job_dispatch::DispatchHandle;
+use crate::supervisor::run_dispatch::DispatchHandle;
 
 // ---- Config types ----
 

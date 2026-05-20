@@ -327,7 +327,7 @@ pub async fn get_job_detail(
 /// POST /api/v1/runtime/jobs — emit job.created event through the kernel.
 ///
 /// The kernel persists the event and routes it to subscribers.
-/// The job_dispatch service handles all heavy lifting (worktree creation,
+/// The run_dispatch service handles all heavy lifting (worktree creation,
 /// dependency resolution, agent spawning).
 #[utoipa::path(
     operation_id = "createJob",

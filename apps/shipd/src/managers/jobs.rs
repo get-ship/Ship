@@ -8,7 +8,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-use crate::supervisor::job_dispatch::{self, DispatchHandle};
+use crate::supervisor::run_dispatch::{self, DispatchHandle};
 
 /// Manages the job dispatch lifecycle.
 pub struct RunManager {
@@ -27,7 +27,7 @@ impl RunManager {
         health_registry: &ship_substrate::task_health::HealthRegistry,
     ) -> Self {
         let dispatch_handle =
-            job_dispatch::subscribe_job_events(kernel, ship_dir, health_registry).await;
+            run_dispatch::subscribe_job_events(kernel, ship_dir, health_registry).await;
         Self { dispatch_handle }
     }
 }

@@ -23,7 +23,7 @@ pub async fn dispatch_agent(req: DispatchAgentRequest) -> String {
         "agent": req.agent_profile,
         "branch": branch,
         "harness": harness,
-        "spec": req.job_spec,
+        "spec": req.run_spec,
         "open_tab": false,
         "invocation": "pty",
         "keepalive": false,

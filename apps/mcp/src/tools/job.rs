@@ -61,7 +61,7 @@ pub async fn step_done(req: StepDoneRequest) -> String {
         "summary": req.summary,
         "outputs": req.outputs,
     });
-    match network_client::job_step_done_via_daemon(&slug, body).await {
+    match network_client::step_done_via_daemon(&slug, body).await {
         Ok(_) => format!("Step marked done for job '{slug}'"),
         Err(e) => format!("Error marking step done: {e}"),
     }

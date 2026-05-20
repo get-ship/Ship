@@ -97,11 +97,11 @@ async fn advance_pipeline_inner(
 
     // Acquire per-job lock to prevent double-dispatch when concurrent events
     // (e.g. step.observed + job.completed) both try to advance the same job.
-    let job_lock = {
+    let run_lock = {
         let mut locks = octx.run_locks.lock().await;
         locks.entry(pipeline_run_id.clone()).or_insert_with(|| Arc::new(tokio::sync::Mutex::new(()))).clone()
     };
-    let _guard = job_lock.lock().await;
+    let _guard = run_lock.lock().await;
 
     // Reload projection under lock so we see the latest state.
     let job = match ship_dir_override {

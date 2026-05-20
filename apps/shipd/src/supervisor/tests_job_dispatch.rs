@@ -110,7 +110,7 @@ async fn run_created_delivered_to_subscriber() {
 
 /// Kernel routing delivers `job.update` with correct payload to subscriber.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn job_update_delivered_to_subscriber() {
+async fn run_update_delivered_to_subscriber() {
     let (_dir, mut router) = setup();
     let (_store, mut mb) = router
         .spawn_actor("service.orchestrator", orchestrator_actor_config())
@@ -1033,7 +1033,7 @@ fn projection_completed_status() {
 // New API required — the implementation agent must create:
 //
 //   1. `reconcile_dispatched_jobs_at(kernel, dctx, ship_dir)` in dispatch_replay.rs
-//      Re-export in job_dispatch.rs with:
+//      Re-export in run_dispatch.rs with:
 //        #[cfg(test)]
 //        pub(crate) use super::dispatch_replay::reconcile_dispatched_jobs_at;
 //
@@ -1043,13 +1043,13 @@ fn projection_completed_status() {
 //      - `shutdown_all(executor: &dyn SessionExecutor) -> Vec<String>` (async)
 //      - `len() -> usize`
 //      - `is_empty() -> bool`
-//      Re-export in job_dispatch.rs with:
+//      Re-export in run_dispatch.rs with:
 //        #[cfg(test)]
 //        pub(crate) use super::ProcessRegistry;
 //
 //   3. `graceful_shutdown(kernel, registry, executor)` in supervisor
 //      Emits `supervisor.shutting_down` event, then drains the registry.
-//      Re-export in job_dispatch.rs with:
+//      Re-export in run_dispatch.rs with:
 //        #[cfg(test)]
 //        pub(crate) use super::graceful_shutdown;
 //

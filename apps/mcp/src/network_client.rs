@@ -287,7 +287,7 @@ pub async fn update_job_status_via_daemon(pipeline_run_id: &str, body: Value) ->
 /// Declare a job's current pipeline step complete via the daemon. The
 /// daemon resolves the active step from its projection and emits the
 /// `step.done_declared` event through the kernel.
-pub async fn job_step_done_via_daemon(slug: &str, body: Value) -> Result<String> {
+pub async fn step_done_via_daemon(slug: &str, body: Value) -> Result<String> {
     post(&format!("/jobs/{slug}/step-done"), body).await
 }
 

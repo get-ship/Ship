@@ -148,7 +148,7 @@ fn step_vars_provide_defaults() {
 
 /// Job vars take priority over step vars for the same key.
 #[test]
-fn job_vars_override_step_vars() {
+fn run_vars_override_step_vars() {
     let step = agent_step("{{ impl_agent }}");
     let run_vars = vars(&[("impl_agent", "rust-lane")]);
     let step_vars = vars(&[("impl_agent", "default")]);

@@ -115,7 +115,7 @@ mod tests {
     }
 
     #[test]
-    fn job_vars_override_step_vars_for_same_key() {
+    fn run_vars_override_step_vars_for_same_key() {
         let step = step_with_harness("{{ harness }}");
         let job: HashMap<String, String> =
             [("harness".into(), "claude".into())].into_iter().collect();
