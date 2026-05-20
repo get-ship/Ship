@@ -158,11 +158,9 @@ pub async fn run_pipeline(
     let pipeline_name = meta.name.clone().unwrap_or_else(|| req.pipeline.clone());
     let workspace_label = req.workspace.unwrap_or_else(|| pipeline_name.clone());
     let slug = req.slug.unwrap_or_else(|| {
-        format!(
-            "{}-{}",
-            workspace_label,
-            &ship_substrate::gen_ulid()[..8].to_lowercase()
-        )
+        // Random-tail suffix; a ULID prefix is pure timestamp and
+        // collides for rapid same-workspace dispatches (gen_slug_suffix).
+        format!("{}-{}", workspace_label, ship_substrate::gen_slug_suffix())
     });
     let branch = format!("job/{slug}");
     let job_id = ship_substrate::gen_ulid();

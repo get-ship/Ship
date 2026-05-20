@@ -246,11 +246,10 @@ pub async fn dispatch_agent_session(
         .clone()
         .or_else(|| resume_outcome.as_ref().map(|s| s.slug.clone()))
         .unwrap_or_else(|| {
-            format!(
-                "{}-{}",
-                workspace_label,
-                &ship_substrate::gen_ulid()[..8].to_lowercase()
-            )
+            // Collision-free suffix from the ULID's random tail — a
+            // `[..8]` prefix is pure timestamp and collides for rapid
+            // same-workspace dispatches. See gen_slug_suffix.
+            format!("{}-{}", workspace_label, ship_substrate::gen_slug_suffix())
         });
     let branch = req
         .branch
