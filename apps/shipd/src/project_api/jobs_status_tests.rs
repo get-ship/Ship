@@ -9,7 +9,7 @@ use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use tempfile::TempDir;
 
-use super::{JobStatusReq, StepDoneReq, job_step_done, update_job_status};
+use super::{JobStatusReq, StepDoneReq, step_done, update_job_status};
 use crate::project_api::EmitEventReq;
 
 fn make_api_state(dir: &TempDir) -> crate::routes::rest_api::ApiState {
@@ -149,7 +149,7 @@ async fn step_done_404_when_job_missing() {
     let dir = TempDir::new().unwrap();
     let state = make_api_state(&dir);
 
-    let err = job_step_done(
+    let err = step_done(
         State(state),
         None,
         Path("ghost-slug".to_string()),

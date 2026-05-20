@@ -94,7 +94,7 @@ impl ProcessRegistryPort for NoopRegistry {
 
 // ── Harness ────────────────────────────────────────────────────────────────
 
-fn job_payload(pipeline_run_id: &str, slug: &str) -> PipelineRunStartedPayload {
+fn run_payload(pipeline_run_id: &str, slug: &str) -> PipelineRunStartedPayload {
     PipelineRunStartedPayload {
         pipeline_run_id: pipeline_run_id.into(),
         slug: slug.into(),
@@ -180,7 +180,7 @@ async fn isolation_prepare_failure_emits_spawn_failed() {
         tmp.path().join("worktrees"),
     );
 
-    let payload = job_payload("j-spawn-iso", "spawn-iso");
+    let payload = run_payload("j-spawn-iso", "spawn-iso");
     // Seed job.created so the projection reaches Pending first.
     let created = ship_substrate::events::EventEnvelope::new(
         event_types::PIPELINE_RUN_STARTED,
@@ -232,7 +232,7 @@ async fn executor_spawn_failure_emits_spawn_failed() {
         tmp.path().join("worktrees"),
     );
 
-    let payload = job_payload("j-spawn-exec", "spawn-exec");
+    let payload = run_payload("j-spawn-exec", "spawn-exec");
     let created = ship_substrate::events::EventEnvelope::new(
         event_types::PIPELINE_RUN_STARTED,
         &payload.pipeline_run_id,

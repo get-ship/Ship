@@ -206,7 +206,7 @@ pub struct StepDoneReq {
     ),
     tag = "runtime"
 )]
-pub async fn job_step_done(
+pub async fn step_done(
     State(state): State<ApiState>,
     _auth: Option<axum::Extension<crate::auth::AuthContext>>,
     Path(slug): Path<String>,

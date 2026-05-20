@@ -229,7 +229,7 @@ pub(crate) fn load_recent_events_by_type(
 // ---- Job detail response types ----
 
 #[derive(serde::Serialize)]
-pub struct JobDetailResponse {
+pub struct PipelineRunDetailResponse {
     job: ship_platform::projections::pipeline_run::PipelineRun,
     step_observations: Vec<ship_substrate::events::pipeline::PipelineStepObservedPayload>,
     recent_events: Vec<EventSummary>,
@@ -313,7 +313,7 @@ pub async fn get_job_detail(
         })
         .collect::<Vec<_>>();
 
-    let detail = JobDetailResponse { job, step_observations, recent_events };
+    let detail = PipelineRunDetailResponse { job, step_observations, recent_events };
     (
         StatusCode::OK,
         Json(MeshResponse {

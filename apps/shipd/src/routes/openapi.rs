@@ -56,7 +56,7 @@ impl Modify for SecurityAndServer {
         crate::routes::actor_api::event_route,
         crate::project_api::emit_event,
         crate::project_api::jobs_status::update_job_status,
-        crate::project_api::jobs_status::job_step_done,
+        crate::project_api::jobs_status::step_done,
         crate::routes::settings_api::list_settings,
         crate::routes::settings_api::update_setting,
         crate::routes::settings_api::get_setting,

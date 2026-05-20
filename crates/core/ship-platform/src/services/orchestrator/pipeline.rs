@@ -285,7 +285,7 @@ async fn advance_pipeline_inner(
 
                 let persist = step.step_type != StepType::Review;
                 let (exit_tx, exit_rx) = tokio::sync::mpsc::unbounded_channel();
-                let job_ctx = SessionContext {
+                let session_ctx = SessionContext {
                     pipeline_run_id: job.pipeline_run_id.clone(),
                     slug: slug.clone(),
                     agent: agent.to_string(),
@@ -309,7 +309,7 @@ async fn advance_pipeline_inner(
                     // Pipeline steps are always per-turn, never keepalive.
                     keepalive: false,
                 };
-                match octx.executor.spawn(&job_ctx).await {
+                match octx.executor.spawn(&session_ctx).await {
                     Ok(handle) => {
                         let exec_kind = if job.headless { "process" } else { "pty" };
                         let cmd_label = step.harness.as_deref().unwrap_or("claude");
@@ -329,7 +329,7 @@ async fn advance_pipeline_inner(
                             kernel,
                             &super::dispatch::ComposedRunCtx {
                                 pipeline_run_id: &job.pipeline_run_id,
-                                job_slug: &job.slug,
+                                run_slug: &job.slug,
                                 branch: &job.branch,
                                 source_spec_path: job.source_spec_path.as_deref(),
                                 vars: job.vars.as_ref(),

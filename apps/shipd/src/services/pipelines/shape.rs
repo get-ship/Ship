@@ -155,7 +155,7 @@ pub fn derive_segments(job: &PipelineRun) -> Vec<&'static str> {
 /// Build a `RunView` for a single job record. When `include_stats`,
 /// shells out for per-worktree `BranchStats`; otherwise zero-defaults.
 pub fn to_run_view(job: &PipelineRun, include_stats: bool) -> RunView {
-    let job_failed = matches!(job.status, PipelineRunStatus::Failed);
+    let run_failed = matches!(job.status, PipelineRunStatus::Failed);
     let steps = job
         .steps
         .as_ref()
@@ -166,7 +166,7 @@ pub fn to_run_view(job: &PipelineRun, include_stats: bool) -> RunView {
                     let state = if job.completed_steps.contains(&step.id) {
                         "completed"
                     } else if job.current_step.as_deref() == Some(step.id.as_str()) {
-                        if job_failed { "failed" } else { "running" }
+                        if run_failed { "failed" } else { "running" }
                     } else {
                         "pending"
                     };

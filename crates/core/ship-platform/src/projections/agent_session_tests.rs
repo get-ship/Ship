@@ -287,7 +287,7 @@ fn terminal_states() {
 // emitted each step's agent.session.started with the bare job slug —
 // the second step would violate the UNIQUE constraint inside the
 // event-append transaction, potentially rolling back the event write.
-// The fix derives a per-step slug (`<job_slug>::<step_id>`). These
+// The fix derives a per-step slug (`<run_slug>::<step_id>`). These
 // tests pin both halves: same-slug collides (proving the constraint
 // is real), distinct-slug both land (proving the fix works).
 
@@ -340,7 +340,7 @@ fn sql_two_sessions_same_slug_collide() {
 fn sql_two_sessions_distinct_slug_both_land() {
     let (tmp, mut conn) = fresh_conn();
     let proj = AgentSessionProjection;
-    // The fix: each composed step gets `<job_slug>::<step_id>`.
+    // The fix: each composed step gets `<run_slug>::<step_id>`.
     proj.apply(&started_full("01HV-S1", "ws-job::implement"), &mut conn)
         .expect("step 1 inserts");
     proj.apply(&started_full("01HV-S2", "ws-job::review"), &mut conn)
