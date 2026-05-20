@@ -15,9 +15,10 @@ use crate::ir::Expr;
 /// resolve. `extra_locals` are additional bound names from a parent
 /// scope (e.g. a `{#for}` item).
 pub(super) fn check_expr(expr: &Expr, v: &mut Visitor, extra_locals: &[&str]) {
-    if v.error.is_some() {
-        return;
-    }
+    // Collect across the whole template (the outer visitor no longer
+    // short-circuits), but at most one diagnostic per expression: once THIS
+    // call has pushed an error, stop scanning the rest of this expression.
+    let start = v.errors.len();
     let bytes = expr.source.as_bytes();
     let mut i = 0;
     let mut prev_dot = false;
@@ -44,7 +45,7 @@ pub(super) fn check_expr(expr: &Expr, v: &mut Visitor, extra_locals: &[&str]) {
         }
         if c == b'`' {
             i = scan_template_literal(&expr.source, i, expr.span, v, &local_stack);
-            if v.error.is_some() { return; }
+            if v.errors.len() > start { return; }
             prev_dot = false;
             continue;
         }
@@ -105,7 +106,7 @@ pub(super) fn check_expr(expr: &Expr, v: &mut Visitor, extra_locals: &[&str]) {
             continue;
         }
         if !v.scope.contains(word) && !local_stack.iter().any(|s| s == word) {
-            v.error = Some(
+            v.errors.push(
                 CompileError::new(format!(
                     "Identifier '{}' is not declared in scope. Available: {}.",
                     word,

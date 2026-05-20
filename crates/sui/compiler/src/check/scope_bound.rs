@@ -61,12 +61,25 @@ pub fn check(
     controller: Option<&ParsedController>,
 ) -> Result<(), CompileError> {
     let scope = build_scope(program, controller);
-    let mut visitor = Visitor { scope, error: None };
+    let mut visitor = Visitor { scope, errors: Vec::new() };
     visit_program(program, &mut visitor);
-    match visitor.error {
-        Some(e) => Err(e),
-        None => Ok(()),
-    }
+    // Errors are pushed in traversal order, so the first is the same one the
+    // old short-circuiting visitor returned — the build gate's behaviour is
+    // unchanged.
+    visitor.errors.into_iter().next().map_or(Ok(()), Err)
+}
+
+/// Collect EVERY out-of-scope reference (one diagnostic per expression), for
+/// the LSP / agent multi-diagnostic surface. Unlike [`check`] (the build gate,
+/// which needs only the first reason), this walks the whole template.
+pub fn collect(
+    program: &Program,
+    controller: Option<&ParsedController>,
+) -> Vec<CompileError> {
+    let scope = build_scope(program, controller);
+    let mut visitor = Visitor { scope, errors: Vec::new() };
+    visit_program(program, &mut visitor);
+    visitor.errors
 }
 
 #[derive(Debug)]
@@ -274,13 +287,18 @@ fn expression_body_object(bytes: &[u8], start: usize, end: usize) -> Option<usiz
 
 pub(super) struct Visitor {
     pub(super) scope: Scope,
-    /// First failure wins.
-    pub(super) error: Option<CompileError>,
+    /// Every out-of-scope reference (one per expression). `check()` returns
+    /// the first; `collect()` returns all.
+    pub(super) errors: Vec<CompileError>,
 }
 
+// The walk no longer short-circuits on the first error — `check_expr` pushes
+// one diagnostic per offending expression and the traversal continues, so
+// `collect()` sees every out-of-scope reference. `{#for}` / `{#while-error}` /
+// `{#async … as}` locals are still added before the body and removed after, so
+// the scope stays balanced regardless of how many errors were found.
 fn visit_program(program: &Program, v: &mut Visitor) {
     for d in &program.data {
-        if v.error.is_some() { return; }
         check_expr(&d.source, v, &[]);
     }
     visit_instrs(&program.template, v);
@@ -288,7 +306,6 @@ fn visit_program(program: &Program, v: &mut Visitor) {
 
 fn visit_instrs(instrs: &[Instr], v: &mut Visitor) {
     for instr in instrs {
-        if v.error.is_some() { return; }
         visit_instr(instr, v);
     }
 }
@@ -299,7 +316,6 @@ fn visit_instr(instr: &Instr, v: &mut Visitor) {
         Instr::DynamicText { expr } => check_expr(expr, v, &[]),
         Instr::Element(el) => {
             for a in &el.attrs {
-                if v.error.is_some() { return; }
                 visit_attr(a, v);
             }
             visit_instrs(&el.children, v);
@@ -307,9 +323,7 @@ fn visit_instr(instr: &Instr, v: &mut Visitor) {
         Instr::If(IfInstr { branches, else_body, .. }) => {
             for b in branches {
                 check_expr(&b.cond, v, &[]);
-                if v.error.is_some() { return; }
                 visit_instrs(&b.body, v);
-                if v.error.is_some() { return; }
             }
             if let Some(eb) = else_body {
                 visit_instrs(eb, v);
@@ -317,7 +331,6 @@ fn visit_instr(instr: &Instr, v: &mut Visitor) {
         }
         Instr::For(ForInstr { iterable, key, body, else_body, var_name, index_name, .. }) => {
             check_expr(iterable, v, &[]);
-            if v.error.is_some() { return; }
             // Inside the loop body, the iteration var (and optional
             // index var) are bound.
             let mut locals: Vec<String> = vec![var_name.clone()];
@@ -326,14 +339,12 @@ fn visit_instr(instr: &Instr, v: &mut Visitor) {
             }
             if let Some(k) = key {
                 check_expr(k, v, locals.iter().map(|s| s.as_str()).collect::<Vec<_>>().as_slice());
-                if v.error.is_some() { return; }
             }
             v.scope.names.extend(locals.iter().cloned());
             visit_instrs(body, v);
             for l in &locals {
                 v.scope.names.remove(l);
             }
-            if v.error.is_some() { return; }
             if let Some(eb) = else_body {
                 visit_instrs(eb, v);
             }
@@ -341,7 +352,6 @@ fn visit_instr(instr: &Instr, v: &mut Visitor) {
         Instr::Match(MatchInstr { discriminant, cases, default, .. }) => {
             check_expr(discriminant, v, &[]);
             for c in cases {
-                if v.error.is_some() { return; }
                 check_expr(&c.test, v, &[]);
                 visit_instrs(&c.body, v);
             }
@@ -359,9 +369,6 @@ fn visit_instr(instr: &Instr, v: &mut Visitor) {
         Instr::Let(l) => {
             // `{#async X as v}` binds `v` inside the `{:ok}` body.
             check_expr(&l.value, v, &[]);
-            if v.error.is_some() {
-                return;
-            }
             v.scope.names.insert(l.name.clone());
             visit_instrs(&l.body, v);
             v.scope.names.remove(&l.name);
@@ -380,9 +387,7 @@ fn visit_attr(attr: &AttrInstr, v: &mut Visitor) {
         | AttrInstr::Prop { expr, .. } => check_expr(expr, v, &[]),
         AttrInstr::DynamicAttr { name_expr, expr, .. } => {
             check_expr(name_expr, v, &[]);
-            if v.error.is_none() {
-                check_expr(expr, v, &[]);
-            }
+            check_expr(expr, v, &[]);
         }
         AttrInstr::On { handler, .. } => check_expr(handler, v, &[]),
         AttrInstr::Mutation { .. } => {}
@@ -391,5 +396,22 @@ fn visit_attr(attr: &AttrInstr, v: &mut Visitor) {
                 check_expr(e, v, &[]);
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod collect_tests {
+    use super::{check, collect};
+
+    #[test]
+    fn collect_reports_every_unbound_identifier() {
+        // Three unbound idents across three expressions. `collect()` returns
+        // all three (the LSP/agent view); `check()` returns only the first
+        // (the build gate needs one reason).
+        let src = "<p>{alpha}</p><p>{beta}</p><p>{gamma}</p>";
+        let program = crate::parse::parse(src).expect("parses");
+        let all = collect(&program, None);
+        assert_eq!(all.len(), 3, "want 3 unbound, got {}: {all:?}", all.len());
+        assert!(check(&program, None).is_err(), "check() still flags the first");
     }
 }

@@ -29,6 +29,24 @@ pub fn check(
     super::visit_exprs(program, &mut |expr| check_one(expr, &table))
 }
 
+/// Collect EVERY invalid member access (one per expression), for the LSP /
+/// agent multi-diagnostic surface. `check()` returns only the first.
+pub fn collect(
+    program: &Program,
+    controller: Option<&ParsedController>,
+) -> Vec<CompileError> {
+    let table = SymbolTable::build(program, controller);
+    let mut errs = Vec::new();
+    // Closure always returns Ok so the walk visits every expression.
+    let _ = super::visit_exprs(program, &mut |expr| {
+        if let Err(e) = check_one(expr, &table) {
+            errs.push(e);
+        }
+        Ok::<(), CompileError>(())
+    });
+    errs
+}
+
 fn check_one(
     expr: &crate::ir::Expr,
     table: &SymbolTable,

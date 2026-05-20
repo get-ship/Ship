@@ -117,12 +117,14 @@ pub fn collect(program: &Program, source: &str, source_path: Option<&Path>) -> V
         push(pure_derived::check(c), source, &mut diags);
     }
     if source_path.is_some() {
-        push(scope_bound::check(program, controller.as_ref()), source, &mut diags);
+        // Collect ALL out-of-scope references (one per expression), not just the
+        // first — the common "I have three typos" case.
+        push_all(scope_bound::collect(program, controller.as_ref()), source, &mut diags);
     }
     push(key_identity::check(program), source, &mut diags);
     push(for_iterable::check(program), source, &mut diags);
     if source_path.is_some() {
-        push(scope_member::check(program, controller.as_ref()), source, &mut diags);
+        push_all(scope_member::collect(program, controller.as_ref()), source, &mut diags);
         push(bind_this_target::check(program, controller.as_ref()), source, &mut diags);
         push(on_callable::check(program, controller.as_ref()), source, &mut diags);
     }
@@ -146,6 +148,13 @@ pub fn collect(program: &Program, source: &str, source_path: Option<&Path>) -> V
 }
 
 /// Push a check pass's `Err` (if any) onto `diags` as a [`Diagnostic`].
+/// Push every collected [`CompileError`] from a multi-error pass.
+fn push_all(errs: Vec<CompileError>, source: &str, diags: &mut Vec<Diagnostic>) {
+    for e in errs {
+        diags.push(Diagnostic::from_compile_error(&e, source));
+    }
+}
+
 fn push(r: Result<(), CompileError>, source: &str, diags: &mut Vec<Diagnostic>) {
     if let Err(e) = r {
         diags.push(Diagnostic::from_compile_error(&e, source));
