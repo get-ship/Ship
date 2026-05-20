@@ -38,11 +38,13 @@ import { shipFetch, gitStatus } from '@ship/sdk'
 // to have produced `dist/sui-charts.js`.
 import '@ship/charts/bundle'
 // Primitives pack — generic `<sui-*>` UI elements (button, input, dialog,
-// popover, tooltip, tabs, etc.). Same shape as charts: pre-built bundle
-// served by the daemon; one workspace import registers every primitive
-// before the first view mounts. Requires `bun run --filter @ship/primitives
-// build` to have produced `dist/sui-primitives.js`.
-import '@ship/primitives/bundle'
+// popover, tooltip, tabs, etc.) — is registered by the eager
+// `/_sui/components.js` umbrella loaded in index.html (its `@ship/ui-components`
+// entry side-effect-imports `@ship/primitives`). That bundle loads in <head>
+// before this module mounts, so a second `import '@ship/primitives/bundle'`
+// here only re-ran every `customElements.define()` as a no-op — the source of
+// ~90 "called twice" warnings. Custom elements upgrade lazily, so there's no
+// need to register them a second time from the shell entry.
 import { route as createRoute, defineRoutes } from '@ship/sui-runtime/route'
 import { chrome, notifyViewUnmount } from '@ship/sui-runtime'
 import { KernelBridge } from './kernel-bridge'
