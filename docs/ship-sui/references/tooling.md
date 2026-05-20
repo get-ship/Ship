@@ -65,8 +65,12 @@ Rust intelligence serves three consumers:
   tools). No subprocess, no bun.
 - **Claude Code** — `.lsp.json` at the repo root points the editor's LSP
   client at the `sui-lsp` binary (`extensionToLanguage: { ".sui": "sui" }`).
+- **opencode** — add to the (user-local, gitignored) `opencode.json`:
+  `"lsp": { "sui": { "command": ["sui-lsp"], "extensions": [".sui"] } }`. The
+  binary ignores extra args, so opencode's `--stdio` convention is harmless.
 - **VS Code / any editor** — `apps/vscode` launches `sui-lsp` over stdio
-  (override with the `sui.serverPath` setting).
+  (override with the `sui.serverPath` setting); any LSP-capable editor maps the
+  `sui` language id to the `sui-lsp` binary the same way.
 
 ```sh
 just install-dev        # builds + installs `sui-lsp` to ~/.local/bin
