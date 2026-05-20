@@ -341,7 +341,15 @@ async function compileSuiFile(
   const out = await mkdtemp(join(tmpdir(), 'sui-bun-'))
   try {
     const args = ['build', filePath, '--out', out, '--no-dts']
-    if (mode === 'component') args.push('--component-name', stem)
+    if (mode === 'component') {
+      args.push('--component-name', stem)
+      // Separate-bundle components keep their styles in a sibling
+      // `<stem>.css` (e.g. sui-account-menu.css). The compiler doesn't
+      // auto-discover it, so link it explicitly — otherwise the component
+      // ships unstyled (renders with default UA sizing).
+      const siblingCss = join(dirname(filePath), `${stem}.css`)
+      if (existsSync(siblingCss)) args.push('--styles', siblingCss)
+    }
     const proc = Bun.spawn({ cmd: [compilerPath, ...args], stdout: 'pipe', stderr: 'pipe', stdin: 'ignore' })
     const [stderr, code] = await Promise.all([new Response(proc.stderr).text(), proc.exited])
     if (code !== 0) {
