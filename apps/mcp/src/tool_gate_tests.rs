@@ -14,7 +14,6 @@ fn worker_preset_contains_platform_tools() {
 #[test]
 fn worker_preset_excludes_orchestration_tools() {
     let tools = ShipServer::tools_for_preset("worker");
-    assert!(!tools.contains(&"create_job"), "worker must not have create_job");
     assert!(
         !tools.contains(&"discover_mesh_agents"),
         "worker must not have discover_mesh_agents"
@@ -35,7 +34,6 @@ fn orchestrator_preset_extends_worker() {
             "orchestrator should inherit worker tool {tool}"
         );
     }
-    assert!(orchestrator.contains(&"create_job"), "orchestrator missing create_job");
     assert!(
         orchestrator.contains(&"discover_mesh_agents"),
         "orchestrator missing discover_mesh_agents"
@@ -112,7 +110,7 @@ fn is_platform_tool_recognizes_step_done() {
 
 #[test]
 fn is_platform_tool_rejects_orchestration() {
-    assert!(!ShipServer::is_platform_tool("create_job"));
+    assert!(!ShipServer::is_platform_tool("update_mesh_status"));
     assert!(!ShipServer::is_platform_tool("discover_mesh_agents"));
 }
 
@@ -249,8 +247,8 @@ fn orchestrator_effective_tool_set_count() {
     all.extend(preset.iter().copied());
     all.sort_unstable();
     all.dedup();
-    // 15 worker + 3 orchestration (create_job, discover_mesh_agents,
-    // update_mesh_status) = 18.
-    let expected = 18;
+    // 15 worker + 2 orchestration (discover_mesh_agents,
+    // update_mesh_status) = 17.
+    let expected = 17;
     assert_eq!(all.len(), expected, "orchestrator effective set mismatch: {all:?}");
 }

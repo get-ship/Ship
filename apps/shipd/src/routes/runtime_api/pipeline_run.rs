@@ -78,7 +78,7 @@ pub async fn run_pipeline(
     Extension(auth): Extension<AuthContext>,
     Json(req): Json<PipelineRunRequest>,
 ) -> impl IntoResponse {
-    if let Err(e) = require_scope(&auth, Scope::CreateJobs) {
+    if let Err(e) = require_scope(&auth, Scope::CreateRuns) {
         return e;
     }
 

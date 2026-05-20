@@ -204,8 +204,8 @@ pub use daemon::{daemon_status, rebuild_projections};
 pub use dispatch::{DispatchRequest, dispatch_agent_session};
 pub use events::{EventsPollQuery, event_stream, poll_events};
 pub use jobs::{
-    CancelJobRequest, CreateJobRequest, EventSummary, PipelineRunDetailResponse, TurnEndRequest,
-    cancel_job, create_job, end_job, get_job_detail, list_jobs,
+    CancelJobRequest, EventSummary, PipelineRunDetailResponse, TurnEndRequest,
+    cancel_job, end_job, get_job_detail, list_jobs,
 };
 pub use pipeline_run::{PipelineRunRequest, run_pipeline};
 pub use procs::{ProcsQuery, list_procs};

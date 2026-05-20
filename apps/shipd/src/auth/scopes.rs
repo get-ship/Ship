@@ -157,7 +157,7 @@ pub struct SessionRegisterRequest {
 #[derive(serde::Serialize, utoipa::ToSchema)]
 #[schema(example = json!({
     "session_token": "ses_01J3Z5ZQXAM3E4T7W",
-    "scopes": ["read_workspace", "read_jobs", "emit_events"]
+    "scopes": ["read_workspace", "read_runs", "emit_events"]
 }))]
 pub struct SessionRegisterResponse {
     pub session_token: String,

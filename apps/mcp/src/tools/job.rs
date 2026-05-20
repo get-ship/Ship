@@ -7,22 +7,7 @@
 //! on the same single rail used by every other writer.
 
 use crate::network_client;
-use crate::requests::{CreateJobRequest, StepDoneRequest, UpdateJobRequest};
-
-/// Create a job by delegating to the daemon's REST API.
-pub async fn create_job(req: CreateJobRequest) -> String {
-    let body = serde_json::json!({
-        "slug": req.slug,
-        "agent": req.agent,
-        "branch": req.branch,
-        "spec_path": req.spec_path,
-        "depends_on": req.depends_on,
-    });
-    match network_client::create_job_via_daemon(body).await {
-        Ok(resp) => resp,
-        Err(e) => format!("Error creating job: {e}"),
-    }
-}
+use crate::requests::{StepDoneRequest, UpdateJobRequest};
 
 /// Forward a job-status transition to the daemon. The daemon validates the
 /// status, builds the appropriate `job.*` envelope, persists it, and routes

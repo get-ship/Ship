@@ -400,11 +400,7 @@ const JOB_EVENT_TYPES: &[&str] = &[
 
 impl Projection for PipelineRunProjection {
     fn name(&self) -> &str {
-        // Cursor-tracking key (cursors table), NOT the SQL table name
-        // (which is `pipeline_runs`). Kept as "jobs" deliberately:
-        // renaming it would orphan the existing cursor and force a full
-        // from-zero replay on upgrade.
-        "jobs"
+        "pipeline_runs"
     }
 
     fn event_types(&self) -> &[&str] {

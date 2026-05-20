@@ -24,7 +24,7 @@ pub struct AgentProfile {
     /// can see before `active_tools` is applied. Known presets:
     ///   "worker" → platform protocol tools only (step_done, log_progress,
     ///              update_job, write_session_file)
-    ///   "orchestrator" → worker tools + create_job + mesh_* tools
+    ///   "orchestrator" → worker tools + mesh_* tools
     /// Unset falls back to `role` mapping, then to "worker".
     #[serde(default)]
     pub tools_preset: Option<String>,

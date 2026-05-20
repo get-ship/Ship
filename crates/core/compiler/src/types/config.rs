@@ -61,7 +61,7 @@ pub struct AgentConfig {
     /// Tool preset name. Controls which platform-shipped tools this agent
     /// sees before `active_tools` is applied. Known presets:
     ///   "worker" → platform protocol tools only
-    ///   "orchestrator" → worker tools + create_job + mesh_* tools
+    ///   "orchestrator" → worker tools + mesh_* tools
     /// Unset falls back to `role` mapping, then to "worker".
     #[serde(default)]
     pub tools_preset: Option<String>,

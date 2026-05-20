@@ -172,14 +172,6 @@ pub async fn dispatch_agent_session_via_daemon(body: serde_json::Value) -> Resul
     post("/agent_sessions/dispatch", body).await
 }
 
-/// Create a multi-step / DAG job via the daemon (`POST /runtime/jobs`).
-/// Used by the `create_job` tool, which carries `depends_on` and is the
-/// pipeline-composition surface — distinct from single-agent dispatch.
-/// This legitimately stays on the pipeline-run primitive.
-pub async fn create_job_via_daemon(body: serde_json::Value) -> Result<String> {
-    post("/runtime/jobs", body).await
-}
-
 /// List running agents via the daemon's REST API.
 pub async fn list_agents_via_daemon() -> Result<String> {
     get("/runtime/agents").await

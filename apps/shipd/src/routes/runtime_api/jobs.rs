@@ -7,63 +7,12 @@ use axum::{
     response::IntoResponse,
 };
 use ship_substrate::events::EventEnvelope;
-use ship_substrate::events::pipeline::{PipelineRunStartedPayload, event_types};
+use ship_substrate::events::pipeline::event_types;
 use serde::Deserialize;
 
 use crate::auth::{AuthContext};
 use crate::routes::rest_api::{ApiState, MeshResponse};
 
-// ---- Job request types ----
-
-#[derive(Deserialize, utoipa::ToSchema)]
-#[schema(example = json!({
-    "slug": "write-readme",
-    "agent": "writer",
-    "branch": "job/write-readme",
-    "spec_path": ".ship/specs/write-readme.md",
-    "source_spec_path": "/home/me/project/.ship/specs/write-readme.md",
-    "spec_content": "# Write README\n\nSummarize the project.\n",
-    "vars": { "topic": "ship" },
-    "headless": false
-}))]
-pub struct CreateJobRequest {
-    pub slug: String,
-    pub agent: String,
-    pub branch: String,
-    pub spec_path: String,
-    /// Operator-facing path to the spec file (absolute when resolvable).
-    /// Plumbed into the PipelineRun so `ship jobs` can distinguish which
-    /// spec each job was dispatched from. Distinct from `spec_path`
-    /// (daemon-side worktree destination). Optional: `--spec-text`
-    /// dispatches and legacy callers send `None`.
-    #[serde(default)]
-    pub source_spec_path: Option<String>,
-    pub depends_on: Option<Vec<String>>,
-    pub pipeline: Option<String>,
-    pub harness: Option<String>,
-    /// Inline spec content. Travels in the JobCreated event; the worktree
-    /// adapter writes it to `spec_path` at dispatch time.
-    pub spec_content: Option<String>,
-    /// Pipeline variables for `{{ var }}` interpolation in step fields.
-    /// Merged over pipeline-file defaults; CLI `--var` flags land here.
-    #[serde(default)]
-    pub vars: Option<std::collections::HashMap<String, String>>,
-    /// When true, force the headless (ProcessExecutor) path. When false or
-    /// absent, the default TmuxWindowExecutor (tmux-window) path is used.
-    #[serde(default)]
-    pub headless: bool,
-}
-
-/// Strict slug validator — used to gate `create_job` before the slug
-/// lands in a worktree path / branch name / log filename. Without this
-/// a caller could pass `../../tmp/escape` and bust out of `worktrees_dir`.
-fn is_safe_slug(slug: &str) -> bool {
-    !slug.is_empty()
-        && slug.len() <= 128
-        && slug
-            .chars()
-            .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
-}
 
 /// GET /api/v1/runtime/jobs
 ///
@@ -324,111 +273,6 @@ pub async fn get_job_detail(
         .into_response()
 }
 
-/// POST /api/v1/runtime/jobs — emit job.created event through the kernel.
-///
-/// The kernel persists the event and routes it to subscribers.
-/// The run_dispatch service handles all heavy lifting (worktree creation,
-/// dependency resolution, agent spawning).
-#[utoipa::path(
-    operation_id = "createJob",
-    post,
-    path = "/api/v1/agent_sessions",
-    request_body = CreateJobRequest,
-    responses(
-        (status = 200, body = MeshResponse),
-        (status = 400, description = "bad request", body = crate::wire::ErrorResponse),
-        (status = 401, description = "unauthorized", body = crate::wire::ErrorResponse),
-        (status = 409, description = "job slug already exists", body = crate::wire::ErrorResponse),
-        (status = 500, description = "server error", body = crate::wire::ErrorResponse),
-    ),
-    tag = "runtime"
-)]
-pub async fn create_job(
-    State(state): State<ApiState>,
-    Extension(_auth): Extension<AuthContext>,
-    Json(req): Json<CreateJobRequest>,
-) -> impl IntoResponse {
-    if !is_safe_slug(&req.slug) {
-        return (
-            StatusCode::BAD_REQUEST,
-            Json(MeshResponse {
-                ok: false,
-                data: serde_json::json!(
-                    "slug must be 1..=128 chars and contain only ASCII alphanumerics, '-', or '_'"
-                ),
-            }),
-        );
-    }
-    let pipeline_run_id = ship_substrate::gen_ulid();
-    let baseline_sha = super::resolve_project_head_sha();
-    let payload = PipelineRunStartedPayload {
-        pipeline_run_id: pipeline_run_id.clone(),
-        slug: req.slug,
-        agent: req.agent,
-        branch: req.branch,
-        spec_path: req.spec_path,
-        source_spec_path: req.source_spec_path,
-        plan_id: None,
-        model: None,
-        harness: req.harness,
-        depends_on: req.depends_on,
-        pipeline: None,
-        steps: None,
-        pipeline_name: req.pipeline,
-        vars: req.vars,
-        spec_content: req.spec_content,
-        step_specs: None,
-        headless: req.headless,
-        keepalive: false,
-        prompt: None,
-        resume: false,
-        resume_session_id: None,
-        baseline_sha,
-    };
-
-    // Enrich with pipeline BEFORE persisting — the persisted event must include steps
-    // so projections can track pipeline state.
-    let payload = match ship_platform::services::orchestrator::pipeline_loader::ensure_pipeline(payload) {
-        Ok(p) => p,
-        Err(e) => {
-            return (
-                StatusCode::BAD_REQUEST,
-                Json(MeshResponse { ok: false, data: serde_json::json!(e) }),
-            );
-        }
-    };
-
-    let envelope = match EventEnvelope::new(event_types::PIPELINE_RUN_STARTED, &pipeline_run_id, &payload)
-        .map(|e| e.with_actor_id("studio"))
-    {
-        Ok(e) => e,
-        Err(e) => {
-            return (
-                StatusCode::BAD_REQUEST,
-                Json(MeshResponse {
-                    ok: false,
-                    data: serde_json::json!(e.to_string()),
-                }),
-            );
-        }
-    };
-    match state.persist_and_route(&envelope).await {
-        Ok(()) => (
-            StatusCode::OK,
-            Json(MeshResponse {
-                ok: true,
-                data: serde_json::json!({ "pipeline_run_id": &pipeline_run_id }),
-            }),
-        ),
-        Err(e) => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(MeshResponse {
-                ok: false,
-                data: serde_json::json!(e.to_string()),
-            }),
-        ),
-    }
-}
 
 // ---- Cancel ----
 

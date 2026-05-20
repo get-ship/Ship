@@ -102,6 +102,6 @@ mod tests {
             scopes: vec![Scope::ReadWorkspace, Scope::LogProgress],
         };
         assert!(auth.has_scope(Scope::ReadWorkspace));
-        assert!(!auth.has_scope(Scope::CreateJobs));
+        assert!(!auth.has_scope(Scope::CreateRuns));
     }
 }

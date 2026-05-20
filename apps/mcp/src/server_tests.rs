@@ -217,7 +217,6 @@ fn registers_canonical_verb_first_tool_names() {
         "log_progress",
         "set_skill_var",
         "write_session_file",
-        "create_job",
         "update_job",
         "send_mesh_message",
         "broadcast_mesh_message",
