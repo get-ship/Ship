@@ -168,7 +168,7 @@ pub async fn update_job_status(
 }
 
 fn resolve_slug(ship_dir: &std::path::Path, job_id: &str) -> String {
-    ship_platform::projections::job::load_jobs_at(ship_dir)
+    ship_platform::projections::pipeline_run::load_pipeline_runs_at(ship_dir)
         .ok()
         .and_then(|jobs| jobs.get(job_id).map(|r| r.slug.clone()))
         .unwrap_or_default()
@@ -213,7 +213,7 @@ pub async fn job_step_done(
     Json(body): Json<StepDoneReq>,
 ) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
 
-    let jobs = ship_platform::projections::job::load_jobs_at(state.ship_dir())
+    let jobs = ship_platform::projections::pipeline_run::load_pipeline_runs_at(state.ship_dir())
         .map_err(|e| err_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
     let job = jobs
         .values()

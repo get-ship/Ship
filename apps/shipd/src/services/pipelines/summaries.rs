@@ -9,7 +9,7 @@ use serde::Serialize;
 use std::collections::BTreeSet;
 use std::path::Path;
 
-use ship_platform::projections::job::JobStatus;
+use ship_platform::projections::pipeline_run::PipelineRunStatus;
 
 use crate::views::state::{
     Filter, PipelineDef, aggregate_pipeline_stats, list_pipeline_defs, list_pipeline_runs,
@@ -90,11 +90,11 @@ pub fn build(
 
     let completed = history
         .iter()
-        .filter(|j| matches!(j.status, JobStatus::Completed | JobStatus::Merged))
+        .filter(|j| matches!(j.status, PipelineRunStatus::Completed | PipelineRunStatus::Merged))
         .count();
     let failed = history
         .iter()
-        .filter(|j| matches!(j.status, JobStatus::Failed))
+        .filter(|j| matches!(j.status, PipelineRunStatus::Failed))
         .count();
 
     let stats = Stats {
@@ -106,7 +106,7 @@ pub fn build(
     };
     let stats_subtitle = build_subtitle(&stats);
 
-    let all_by_status = |want: JobStatus| -> usize {
+    let all_by_status = |want: PipelineRunStatus| -> usize {
         active
             .iter()
             .chain(history.iter())
@@ -114,13 +114,13 @@ pub fn build(
             .count()
     };
     let status_pills = vec![
-        StatusPill { label: "Pending",  tone: "muted",       count: all_by_status(JobStatus::Pending) },
-        StatusPill { label: "Running",  tone: "info",        count: all_by_status(JobStatus::Dispatched) },
-        StatusPill { label: "Gate",     tone: "warning",     count: all_by_status(JobStatus::GatePending) },
-        StatusPill { label: "Done",     tone: "success",     count: all_by_status(JobStatus::Completed) },
-        StatusPill { label: "Merged",   tone: "accent",      count: all_by_status(JobStatus::Merged) },
-        StatusPill { label: "Blocked",  tone: "warning",     count: all_by_status(JobStatus::Blocked) },
-        StatusPill { label: "Failed",   tone: "destructive", count: all_by_status(JobStatus::Failed) },
+        StatusPill { label: "Pending",  tone: "muted",       count: all_by_status(PipelineRunStatus::Pending) },
+        StatusPill { label: "Running",  tone: "info",        count: all_by_status(PipelineRunStatus::Dispatched) },
+        StatusPill { label: "Gate",     tone: "warning",     count: all_by_status(PipelineRunStatus::GatePending) },
+        StatusPill { label: "Done",     tone: "success",     count: all_by_status(PipelineRunStatus::Completed) },
+        StatusPill { label: "Merged",   tone: "accent",      count: all_by_status(PipelineRunStatus::Merged) },
+        StatusPill { label: "Blocked",  tone: "warning",     count: all_by_status(PipelineRunStatus::Blocked) },
+        StatusPill { label: "Failed",   tone: "destructive", count: all_by_status(PipelineRunStatus::Failed) },
     ];
 
     let agent_filter = filter.agent.clone().unwrap_or_default();

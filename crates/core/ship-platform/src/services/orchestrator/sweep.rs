@@ -9,7 +9,7 @@ use ship_substrate::events::supervisor::{
 };
 use ship_substrate::events::EventEnvelope;
 use crate::projections::agent_session::{load_sessions, AgentSession};
-use crate::projections::job::{load_jobs, PipelineRun, JobStatus};
+use crate::projections::pipeline_run::{load_pipeline_runs, PipelineRun, PipelineRunStatus};
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
@@ -59,7 +59,7 @@ pub async fn run_sweep(
 ) -> anyhow::Result<()> {
     let start = std::time::Instant::now();
 
-    let jobs = load_jobs()?;
+    let jobs = load_pipeline_runs()?;
     // The agent_sessions projection is the dispatch-primitive read
     // model. Sweep needs to consult it to avoid false-positive
     // stray-process kills for bare ship use / dispatch flows. See
@@ -98,7 +98,7 @@ pub async fn run_sweep(
     // Emit sweep_started
     let in_scope: Vec<_> = jobs
         .values()
-        .filter(|j| matches!(j.status, JobStatus::Dispatched | JobStatus::GatePending))
+        .filter(|j| matches!(j.status, PipelineRunStatus::Dispatched | PipelineRunStatus::GatePending))
         .collect();
 
     emit_event(

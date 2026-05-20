@@ -20,7 +20,7 @@ pub async fn try_review_retry(
     octx: &OrchestratorContext,
     payload: &PipelineStepObservedPayload,
 ) -> bool {
-    let jobs = match crate::projections::job::load_jobs() {
+    let jobs = match crate::projections::pipeline_run::load_pipeline_runs() {
         Ok(j) => j,
         Err(_) => return false,
     };
@@ -113,7 +113,7 @@ pub async fn emit_job_failed_for_review(
     kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
     payload: &PipelineStepObservedPayload,
 ) {
-    let jobs = match crate::projections::job::load_jobs() {
+    let jobs = match crate::projections::pipeline_run::load_pipeline_runs() {
         Ok(j) => j,
         Err(_) => return,
     };

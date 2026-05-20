@@ -5,7 +5,7 @@
 
 use ship_substrate::events::pipeline::StepType;
 use ship_substrate::events::EventEnvelope;
-use crate::projections::job::load_jobs_at;
+use crate::projections::pipeline_run::load_pipeline_runs_at;
 use crate::services::dispatch_ports::{JobContext, LaunchProfile};
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -50,7 +50,7 @@ async fn advance_pipeline_inner(
 ) -> bool {
     // First pass: resolve the job_id so we can acquire the per-job lock.
     // Lookups are index-backed: entity_id (PK), payload job_id (PK),
-    // payload slug (idx_jobs_slug). Test paths use load_jobs_at to honor
+    // payload slug (idx_jobs_slug). Test paths use load_pipeline_runs_at to honor
     // ship_dir_override; production paths use the O(1) single-row helpers.
     let job_id = {
         let payload: serde_json::Value =
@@ -60,7 +60,7 @@ async fn advance_pipeline_inner(
         let entity_id = &envelope.entity_id;
 
         let record = match ship_dir_override {
-            Some(dir) => match load_jobs_at(dir) {
+            Some(dir) => match load_pipeline_runs_at(dir) {
                 Ok(jobs) => jobs
                     .values()
                     .find(|j| j.job_id == *entity_id)
@@ -72,17 +72,17 @@ async fn advance_pipeline_inner(
                     return false;
                 }
             },
-            None => crate::projections::job::load_job_by_id(entity_id)
+            None => crate::projections::pipeline_run::load_pipeline_run_by_id(entity_id)
                 .ok()
                 .flatten()
                 .or_else(|| {
                     (!payload_job_id.is_empty())
-                        .then(|| crate::projections::job::load_job_by_id(payload_job_id).ok().flatten())
+                        .then(|| crate::projections::pipeline_run::load_pipeline_run_by_id(payload_job_id).ok().flatten())
                         .flatten()
                 })
                 .or_else(|| {
                     (!payload_slug.is_empty())
-                        .then(|| crate::projections::job::load_job_by_slug(payload_slug).ok().flatten())
+                        .then(|| crate::projections::pipeline_run::load_pipeline_run_by_slug(payload_slug).ok().flatten())
                         .flatten()
                 }),
         };
@@ -105,7 +105,7 @@ async fn advance_pipeline_inner(
 
     // Reload projection under lock so we see the latest state.
     let job = match ship_dir_override {
-        Some(dir) => match load_jobs_at(dir) {
+        Some(dir) => match load_pipeline_runs_at(dir) {
             Ok(jobs) => match jobs.get(&job_id) {
                 Some(j) => j.clone(),
                 None => {
@@ -118,7 +118,7 @@ async fn advance_pipeline_inner(
                 return false;
             }
         },
-        None => match crate::projections::job::load_job_by_id(&job_id) {
+        None => match crate::projections::pipeline_run::load_pipeline_run_by_id(&job_id) {
             Ok(Some(j)) => j,
             Ok(None) => {
                 tracing::warn!(job_id, "pipeline: job disappeared between lock acquire and reload");

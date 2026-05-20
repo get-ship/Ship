@@ -16,7 +16,7 @@ use ship_substrate::events::pipeline::{
     FanoutSpec, PipelineStep, PipelineStepObservedPayload, StepTrigger, StepType, StepVerdict, event_types,
 };
 use ship_substrate::events::{EventEnvelope, KernelRouter};
-use crate::projections::job::PipelineRun;
+use crate::projections::pipeline_run::PipelineRun;
 use crate::services::dispatch_ports::{JobContext, LaunchProfile, StepInfo};
 use crate::services::orchestrator::emit::{
     emit_process_spawned, emit_step_dispatched_event, emit_step_failed, persist_and_route,
@@ -280,11 +280,11 @@ pub async fn dispatch_fanout_step(
 /// Returns `false` when the projection can't be loaded so we never
 /// swallow a genuine fanout failure.
 fn parent_job_is_terminal(job_id: &str) -> bool {
-    use crate::projections::job::{JobStatus, load_job_by_id};
-    match load_job_by_id(job_id) {
+    use crate::projections::pipeline_run::{PipelineRunStatus, load_pipeline_run_by_id};
+    match load_pipeline_run_by_id(job_id) {
         Ok(Some(job)) => matches!(
             job.status,
-            JobStatus::Cancelled | JobStatus::Failed | JobStatus::Merged
+            PipelineRunStatus::Cancelled | PipelineRunStatus::Failed | PipelineRunStatus::Merged
         ),
         _ => false,
     }

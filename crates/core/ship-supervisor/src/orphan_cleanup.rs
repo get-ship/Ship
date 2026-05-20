@@ -8,7 +8,7 @@ use std::sync::Arc;
 
 use ship_substrate::events::executor::DestructionCause;
 use ship_substrate::events::KernelRouter;
-use ship_platform::projections::job::{load_jobs, JobStatus};
+use ship_platform::projections::pipeline_run::{load_pipeline_runs, PipelineRunStatus};
 use ship_platform::services::orchestrator::emit::emit_executor_session_destroyed;
 use tokio::sync::Mutex;
 
@@ -20,7 +20,7 @@ use super::helpers::worktrees_dir;
 /// that still have a worktree directory on disk. Cleans up each one using the
 /// standard cleanup handler so cleanup is consistent and idempotent.
 pub(crate) async fn cleanup_orphaned_worktrees(kernel: &Arc<Mutex<KernelRouter>>) {
-    let jobs = match load_jobs() {
+    let jobs = match load_pipeline_runs() {
         Ok(j) => j,
         Err(e) => {
             tracing::warn!("job-dispatch: orphan scan failed to load jobs: {e}");
@@ -30,7 +30,7 @@ pub(crate) async fn cleanup_orphaned_worktrees(kernel: &Arc<Mutex<KernelRouter>>
 
     let orphans: Vec<_> = jobs
         .values()
-        .filter(|j| matches!(j.status, JobStatus::Merged | JobStatus::Failed))
+        .filter(|j| matches!(j.status, PipelineRunStatus::Merged | PipelineRunStatus::Failed))
         .filter(|j| {
             let path = j
                 .worktree

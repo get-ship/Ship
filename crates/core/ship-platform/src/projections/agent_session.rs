@@ -4,7 +4,7 @@
 //! Single-agent dispatches — bare `ship use`, `ship dispatch`, MCP
 //! `dispatch_agent`, a pipeline step — project here.
 //!
-//! Two surfaces (same split as JobProjection):
+//! Two surfaces (same split as PipelineRunProjection):
 //!
 //! 1. **Pure fold** ([`project`], [`apply`]) — operates on `Vec<EventEnvelope>`.
 //!    Source of truth for status-transition semantics.
@@ -29,7 +29,7 @@ use ship_substrate::events::agent_session::{
 use ship_substrate::projections::registry::Projection;
 
 /// Current status of an agent session, derived from its event
-/// sequence. Smaller than `JobStatus` — pipeline-specific states
+/// sequence. Smaller than `PipelineRunStatus` — pipeline-specific states
 /// (`GatePending`, `Blocked`, `Merged`) live on the composition
 /// layer, not on individual sessions.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Copy, Type)]
@@ -452,7 +452,7 @@ pub fn load_sessions() -> Result<HashMap<String, AgentSession>> {
 }
 
 /// Test variant — load from an explicit ship_dir. Mirrors
-/// [`super::job::load_jobs_at`].
+/// [`super::pipeline_run::load_pipeline_runs_at`].
 pub fn load_sessions_at(ship_dir: &std::path::Path) -> Result<HashMap<String, AgentSession>> {
     let mut conn = ship_substrate::db::open_db_at(&ship_substrate::db::platform_db_path(ship_dir))?;
     load_all_rows(&mut conn)

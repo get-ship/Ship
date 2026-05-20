@@ -6,7 +6,7 @@
 
 use ship_substrate::events::pipeline::event_types;
 use ship_substrate::events::EventEnvelope;
-use ship_platform::projections::job::{project, JobStatus};
+use ship_platform::projections::pipeline_run::{project, PipelineRunStatus};
 
 fn ev(event_type: &str, payload: serde_json::Value) -> EventEnvelope {
     let job_id = payload["job_id"].as_str().unwrap_or("test");
@@ -111,7 +111,7 @@ fn projection_populates_all_fields_from_events() {
     assert!(rec.steps.is_some());
 
     // From job.dispatched
-    assert_eq!(rec.status, JobStatus::Dispatched);
+    assert_eq!(rec.status, PipelineRunStatus::Dispatched);
     assert_eq!(rec.worktree.as_deref(), Some("/wt/auth-fix"));
     assert!(rec.harness_meta.is_some());
     assert_eq!(
@@ -133,7 +133,7 @@ fn projection_handles_minimal_created_event() {
     }))];
     let map = project(&events);
     let rec = map.get("j-min").unwrap();
-    assert_eq!(rec.status, JobStatus::Pending);
+    assert_eq!(rec.status, PipelineRunStatus::Pending);
     assert!(rec.model.is_none());
     assert!(rec.harness.is_none());
     assert!(rec.depends_on.is_none());

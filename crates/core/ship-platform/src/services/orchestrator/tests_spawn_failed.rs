@@ -13,7 +13,7 @@ use tokio::sync::Mutex;
 
 use ship_substrate::events::pipeline::{event_types, PipelineRunStartedPayload, PipelineStepSpawnFailedPayload};
 use ship_substrate::events::kernel_router::{ActorConfig, KernelRouter};
-use crate::projections::job::{load_jobs, JobStatus};
+use crate::projections::pipeline_run::{load_pipeline_runs, PipelineRunStatus};
 use crate::services::dispatch_ports::{
     AgentPlatform, ExecutorHandle, IsolationStrategy, JobContext, JobExecutor,
     ProcessRegistryPort,
@@ -207,10 +207,10 @@ async fn isolation_prepare_failure_emits_spawn_failed() {
         emitted.error
     );
 
-    let jobs = load_jobs().unwrap();
+    let jobs = load_pipeline_runs().unwrap();
     assert_eq!(
         jobs.get(&payload.job_id).unwrap().status,
-        JobStatus::Failed,
+        PipelineRunStatus::Failed,
         "projection must transition to Failed after spawn_failed"
     );
 }
@@ -257,9 +257,9 @@ async fn executor_spawn_failure_emits_spawn_failed() {
         emitted.error
     );
 
-    let jobs = load_jobs().unwrap();
+    let jobs = load_pipeline_runs().unwrap();
     assert_eq!(
         jobs.get(&payload.job_id).unwrap().status,
-        JobStatus::Failed
+        PipelineRunStatus::Failed
     );
 }

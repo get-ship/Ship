@@ -14,7 +14,7 @@ use tokio::sync::Mutex;
 use ship_substrate::events::pipeline::{event_types, PipelineStepObservedPayload, StepTrigger, StepVerdict};
 use ship_substrate::events::kernel_router::{ActorConfig, KernelRouter};
 use ship_substrate::events::EventEnvelope;
-use crate::projections::job::{load_jobs, JobStatus};
+use crate::projections::pipeline_run::{load_pipeline_runs, PipelineRunStatus};
 use crate::services::dispatch_ports::{
     AgentPlatform, ExecutorHandle, IsolationStrategy, JobContext, JobExecutor,
     ProcessRegistryPort,
@@ -207,8 +207,8 @@ async fn step_observed_ignored_when_job_failed() {
     let kernel = seed_terminal(job_id, "guard-failed", event_types::PIPELINE_RUN_FAILED).await;
 
     assert_eq!(
-        load_jobs().unwrap().get(job_id).unwrap().status,
-        JobStatus::Failed
+        load_pipeline_runs().unwrap().get(job_id).unwrap().status,
+        PipelineRunStatus::Failed
     );
 
     let env = observed_advance(job_id, "guard-failed");
@@ -249,8 +249,8 @@ async fn step_observed_ignored_when_job_cancelled() {
     let kernel = seed_terminal(job_id, "guard-cancelled", event_types::PIPELINE_RUN_CANCELLED).await;
 
     assert_eq!(
-        load_jobs().unwrap().get(job_id).unwrap().status,
-        JobStatus::Cancelled
+        load_pipeline_runs().unwrap().get(job_id).unwrap().status,
+        PipelineRunStatus::Cancelled
     );
 
     let env = observed_advance(job_id, "guard-cancelled");
@@ -286,7 +286,7 @@ async fn operator_events_bypass_terminal_guard() {
 
     // The guard must not swallow operator events; the job stays Failed.
     assert_eq!(
-        load_jobs().unwrap().get(job_id).unwrap().status,
-        JobStatus::Failed
+        load_pipeline_runs().unwrap().get(job_id).unwrap().status,
+        PipelineRunStatus::Failed
     );
 }

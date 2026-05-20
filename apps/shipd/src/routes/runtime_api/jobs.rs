@@ -86,7 +86,7 @@ fn is_safe_slug(slug: &str) -> bool {
     tag = "runtime"
 )]
 pub async fn list_jobs(State(state): State<ApiState>) -> impl IntoResponse {
-    let jobs = match ship_platform::projections::job::load_jobs_at(state.ship_dir()) {
+    let jobs = match ship_platform::projections::pipeline_run::load_pipeline_runs_at(state.ship_dir()) {
         Ok(j) => j,
         Err(e) => {
             return (
@@ -118,16 +118,16 @@ pub async fn list_jobs(State(state): State<ApiState>) -> impl IntoResponse {
 
 /// Annotate a job with `process_state` + `notes` for `ship jobs`.
 pub(crate) fn annotate_job(
-    job: &ship_platform::projections::job::PipelineRun,
+    job: &ship_platform::projections::pipeline_run::PipelineRun,
     processes: &[ship_substrate::projections::process::ProcessRecord],
     supervisor_events: &[ship_substrate::events::EventEnvelope],
 ) -> serde_json::Value {
-    use ship_platform::projections::job::JobStatus;
+    use ship_platform::projections::pipeline_run::PipelineRunStatus;
     use ship_substrate::projections::process::ProcessStatus;
 
     let terminal = matches!(
         job.status,
-        JobStatus::Failed | JobStatus::Merged | JobStatus::Cancelled | JobStatus::Completed
+        PipelineRunStatus::Failed | PipelineRunStatus::Merged | PipelineRunStatus::Cancelled | PipelineRunStatus::Completed
     );
 
     // Most recent process for this slug, by spawned_at.
@@ -198,7 +198,7 @@ pub(crate) fn truncate(s: &str, max: usize) -> String {
 }
 
 /// Project process events from an explicit ship_dir without going through
-/// the global db_path. Mirrors `load_jobs_at` for jobs.
+/// the global db_path. Mirrors `load_pipeline_runs_at` for jobs.
 pub(crate) fn list_processes_at(
     ship_dir: &std::path::Path,
     slug: Option<&str>,
@@ -230,7 +230,7 @@ pub(crate) fn load_recent_events_by_type(
 
 #[derive(serde::Serialize)]
 pub struct JobDetailResponse {
-    job: ship_platform::projections::job::PipelineRun,
+    job: ship_platform::projections::pipeline_run::PipelineRun,
     step_observations: Vec<ship_substrate::events::pipeline::PipelineStepObservedPayload>,
     recent_events: Vec<EventSummary>,
 }
@@ -260,7 +260,7 @@ pub async fn get_job_detail(
     Extension(_auth): Extension<AuthContext>,
     Path(job_id): Path<String>,
 ) -> axum::response::Response {
-    let job = match ship_platform::projections::job::load_job_by_id_at(state.ship_dir(), &job_id) {
+    let job = match ship_platform::projections::pipeline_run::load_pipeline_run_by_id_at(state.ship_dir(), &job_id) {
         Ok(Some(j)) => j,
         Ok(None) => {
             return (
@@ -474,7 +474,7 @@ pub async fn cancel_job(
     // against both projections and emit the matching cancelled event.
     // Jobs win the lookup (a composed pipeline step has a `::`-suffixed
     // session slug that operators don't cancel directly).
-    let job = match ship_platform::projections::job::load_job_by_slug_at(state.ship_dir(), &slug) {
+    let job = match ship_platform::projections::pipeline_run::load_pipeline_run_by_slug_at(state.ship_dir(), &slug) {
         Ok(Some(j)) => j,
         Ok(None) => {
             return cancel_agent_session(&state, &slug, req).await;
@@ -487,10 +487,10 @@ pub async fn cancel_job(
         }
     };
 
-    use ship_platform::projections::job::JobStatus;
+    use ship_platform::projections::pipeline_run::PipelineRunStatus;
     if matches!(
         job.status,
-        JobStatus::Failed | JobStatus::Merged | JobStatus::Cancelled | JobStatus::Completed
+        PipelineRunStatus::Failed | PipelineRunStatus::Merged | PipelineRunStatus::Cancelled | PipelineRunStatus::Completed
     ) {
         return (
             StatusCode::CONFLICT,
@@ -661,9 +661,9 @@ pub async fn end_job(
     // Slug isn't unique across job lifetimes, but the SQL projection
     // returns the most-recently-updated row — that's the live one when a
     // dispatched job exists. Filter by status to confirm before steering.
-    let job = match ship_platform::projections::job::load_job_by_slug(&req.slug) {
+    let job = match ship_platform::projections::pipeline_run::load_pipeline_run_by_slug(&req.slug) {
         Ok(Some(j))
-            if j.status == ship_platform::projections::job::JobStatus::Dispatched =>
+            if j.status == ship_platform::projections::pipeline_run::PipelineRunStatus::Dispatched =>
         {
             j
         }

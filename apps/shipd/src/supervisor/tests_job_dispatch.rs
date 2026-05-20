@@ -3,7 +3,7 @@ use ship_substrate::events::pipeline::event_types;
 use ship_substrate::events::kernel_router::{ActorConfig, KernelRouter};
 use ship_substrate::events::validator::{CallerKind, EmitContext};
 use ship_substrate::events::EventEnvelope;
-use ship_platform::projections::job::{project, JobStatus};
+use ship_platform::projections::pipeline_run::{project, PipelineRunStatus};
 use ship_platform::services::dispatch_ports::{ExecutorHandle, IsolationStrategy, JobContext, JobExecutor};
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -576,7 +576,7 @@ fn job_projection_handles_model_and_harness_payload() {
 
     let map = project(&events);
     let rec = map.get("j-model-1").expect("job record must be created");
-    assert_eq!(rec.status, JobStatus::Pending);
+    assert_eq!(rec.status, PipelineRunStatus::Pending);
     assert_eq!(rec.slug, "typed-api");
     assert_eq!(rec.agent, "rust-runtime");
     assert_eq!(rec.branch, "job/typed-api");
@@ -700,9 +700,9 @@ fn projection_resolves_pending_deps() {
     )).unwrap();
 
     // Before upstream completes: downstream is Pending with unresolved deps
-    let jobs = ship_platform::projections::job::load_jobs_at(&ship_dir).unwrap();
+    let jobs = ship_platform::projections::pipeline_run::load_pipeline_runs_at(&ship_dir).unwrap();
     let done: std::collections::HashSet<&str> = jobs.values()
-        .filter(|j| matches!(j.status, JobStatus::Completed | JobStatus::Merged))
+        .filter(|j| matches!(j.status, PipelineRunStatus::Completed | PipelineRunStatus::Merged))
         .map(|j| j.slug.as_str())
         .collect();
     let downstream = jobs.get("j-down").unwrap();
@@ -721,9 +721,9 @@ fn projection_resolves_pending_deps() {
     )).unwrap();
 
     // After upstream completes: downstream deps are resolved
-    let jobs = ship_platform::projections::job::load_jobs_at(&ship_dir).unwrap();
+    let jobs = ship_platform::projections::pipeline_run::load_pipeline_runs_at(&ship_dir).unwrap();
     let done: std::collections::HashSet<&str> = jobs.values()
-        .filter(|j| matches!(j.status, JobStatus::Completed | JobStatus::Merged))
+        .filter(|j| matches!(j.status, PipelineRunStatus::Completed | PipelineRunStatus::Merged))
         .map(|j| j.slug.as_str())
         .collect();
     let downstream = jobs.get("j-down").unwrap();
@@ -763,11 +763,11 @@ fn pending_jobs_recoverable_from_event_store() {
     }
 
     // Simulate restart: load projection from the same DB path
-    let jobs = ship_platform::projections::job::load_jobs_at(&ship_dir).unwrap();
+    let jobs = ship_platform::projections::pipeline_run::load_pipeline_runs_at(&ship_dir).unwrap();
 
     let pending_count = jobs
         .values()
-        .filter(|j| j.status == JobStatus::Pending)
+        .filter(|j| j.status == PipelineRunStatus::Pending)
         .count();
     assert_eq!(pending_count, 3, "all 3 pending jobs must survive restart");
 
@@ -866,22 +866,22 @@ fn projection_detects_stale_dispatched_jobs() {
         ))
         .unwrap();
 
-    let jobs = ship_platform::projections::job::load_jobs_at(&ship_dir).unwrap();
+    let jobs = ship_platform::projections::pipeline_run::load_pipeline_runs_at(&ship_dir).unwrap();
 
-    assert_eq!(jobs.get("j-pending").unwrap().status, JobStatus::Pending);
+    assert_eq!(jobs.get("j-pending").unwrap().status, PipelineRunStatus::Pending);
     assert_eq!(
         jobs.get("j-dispatched").unwrap().status,
-        JobStatus::Dispatched
+        PipelineRunStatus::Dispatched
     );
     assert_eq!(
         jobs.get("j-completed").unwrap().status,
-        JobStatus::Completed
+        PipelineRunStatus::Completed
     );
 
     // Key query for reconciliation: find only stale Dispatched jobs
     let stale_dispatched: Vec<_> = jobs
         .values()
-        .filter(|j| j.status == JobStatus::Dispatched)
+        .filter(|j| j.status == PipelineRunStatus::Dispatched)
         .collect();
     assert_eq!(stale_dispatched.len(), 1);
     assert_eq!(stale_dispatched[0].slug, "dispatched-slug");
@@ -922,7 +922,7 @@ fn failed_event_transitions_dispatched_to_failed() {
 
     let map = project(&events);
     let job = map.get("j-fail-test").unwrap();
-    assert_eq!(job.status, JobStatus::Failed);
+    assert_eq!(job.status, PipelineRunStatus::Failed);
     assert_eq!(
         job.error.as_deref(),
         Some("daemon restart, process not found"),
@@ -1020,7 +1020,7 @@ fn projection_completed_status() {
         ),
     ];
     let map = project(&events);
-    assert_eq!(map.get("j-proj-comp").unwrap().status, JobStatus::Completed);
+    assert_eq!(map.get("j-proj-comp").unwrap().status, PipelineRunStatus::Completed);
 }
 
 // ── Supervisor Reliability: Startup Reconciliation & Graceful Shutdown ──────
@@ -1158,10 +1158,10 @@ mod reliability {
 
         seed_dispatched_job(&store, "j-stale", "stale-running");
 
-        let jobs_before = ship_platform::projections::job::load_jobs_at(&ship_dir).unwrap();
+        let jobs_before = ship_platform::projections::pipeline_run::load_pipeline_runs_at(&ship_dir).unwrap();
         assert_eq!(
             jobs_before.get("j-stale").unwrap().status,
-            JobStatus::Dispatched
+            PipelineRunStatus::Dispatched
         );
 
         let mut router =
@@ -1183,11 +1183,11 @@ mod reliability {
 
         super::super::reconcile_dispatched_jobs_at(&kernel, &dctx, &ship_dir).await;
 
-        let jobs_after = ship_platform::projections::job::load_jobs_at(&ship_dir).unwrap();
+        let jobs_after = ship_platform::projections::pipeline_run::load_pipeline_runs_at(&ship_dir).unwrap();
         let job = jobs_after.get("j-stale").unwrap();
         assert_eq!(
             job.status,
-            JobStatus::Failed,
+            PipelineRunStatus::Failed,
             "orphaned dispatched job must be Failed after step_failed"
         );
         assert!(
@@ -1283,10 +1283,10 @@ mod reliability {
 
         super::super::reconcile_dispatched_jobs_at(&kernel, &dctx, &ship_dir).await;
 
-        let jobs = ship_platform::projections::job::load_jobs_at(&ship_dir).unwrap();
+        let jobs = ship_platform::projections::pipeline_run::load_pipeline_runs_at(&ship_dir).unwrap();
         assert_eq!(
             jobs.get("j-alive").unwrap().status,
-            JobStatus::Dispatched,
+            PipelineRunStatus::Dispatched,
             "dispatched job with live process must stay Dispatched"
         );
     }
@@ -1459,7 +1459,7 @@ mod reliability {
         let job = map.get("j-redispatch").unwrap();
         assert_eq!(
             job.status,
-            JobStatus::Dispatched,
+            PipelineRunStatus::Dispatched,
             "failed job must be re-dispatchable"
         );
     }

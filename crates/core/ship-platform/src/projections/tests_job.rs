@@ -1,4 +1,4 @@
-use super::{JobStatus, project};
+use super::{PipelineRunStatus, project};
 use ship_substrate::events::EventEnvelope;
 use ship_substrate::events::pipeline::event_types;
 
@@ -25,7 +25,7 @@ fn project_creates_pending_record() {
     let events = vec![created_event("j1")];
     let map = project(&events);
     let rec = map.get("j1").unwrap();
-    assert_eq!(rec.status, JobStatus::Pending);
+    assert_eq!(rec.status, PipelineRunStatus::Pending);
     assert_eq!(rec.slug, "auth-tests");
     assert_eq!(rec.agent, "rust-runtime");
     // Legacy `created_event` does not set source_spec_path — projection must
@@ -102,7 +102,7 @@ fn project_dispatched_sets_worktree() {
     ];
     let map = project(&events);
     let rec = map.get("j2").unwrap();
-    assert_eq!(rec.status, JobStatus::Dispatched);
+    assert_eq!(rec.status, PipelineRunStatus::Dispatched);
     assert_eq!(rec.worktree.as_deref(), Some("/tmp/wt"));
 }
 
@@ -120,7 +120,7 @@ fn project_gate_requested_then_passed() {
         ),
     ];
     let map = project(&events);
-    assert_eq!(map.get("j3").unwrap().status, JobStatus::Pending);
+    assert_eq!(map.get("j3").unwrap().status, PipelineRunStatus::Pending);
 }
 
 #[test]
@@ -134,7 +134,7 @@ fn project_gate_failed_stores_reason() {
     ];
     let map = project(&events);
     let rec = map.get("j4").unwrap();
-    assert_eq!(rec.status, JobStatus::Failed);
+    assert_eq!(rec.status, PipelineRunStatus::Failed);
     assert_eq!(rec.error.as_deref(), Some("tests failed"));
 }
 
@@ -149,7 +149,7 @@ fn project_blocked_stores_blocker() {
     ];
     let map = project(&events);
     let rec = map.get("j5").unwrap();
-    assert_eq!(rec.status, JobStatus::Blocked);
+    assert_eq!(rec.status, PipelineRunStatus::Blocked);
     assert_eq!(rec.blocker.as_deref(), Some("waiting for infra"));
 }
 
@@ -163,7 +163,7 @@ fn project_merged() {
         ),
     ];
     let map = project(&events);
-    assert_eq!(map.get("j6").unwrap().status, JobStatus::Merged);
+    assert_eq!(map.get("j6").unwrap().status, PipelineRunStatus::Merged);
 }
 
 #[test]
@@ -177,7 +177,7 @@ fn project_failed_stores_error() {
     ];
     let map = project(&events);
     let rec = map.get("j7").unwrap();
-    assert_eq!(rec.status, JobStatus::Failed);
+    assert_eq!(rec.status, PipelineRunStatus::Failed);
     assert_eq!(rec.error.as_deref(), Some("panic in build"));
 }
 
@@ -191,7 +191,7 @@ fn project_completed_status() {
         ),
     ];
     let map = project(&events);
-    assert_eq!(map.get("j-comp").unwrap().status, JobStatus::Completed);
+    assert_eq!(map.get("j-comp").unwrap().status, PipelineRunStatus::Completed);
 }
 
 #[test]
@@ -282,7 +282,7 @@ fn project_pipeline_phase_tracking() {
     ];
     let map = project(&events);
     let rec = map.get("j-pipe").unwrap();
-    assert_eq!(rec.status, JobStatus::Dispatched);
+    assert_eq!(rec.status, PipelineRunStatus::Dispatched);
     assert_eq!(rec.current_phase, Some(1), "current_phase must be 1 after pipeline advance");
     assert!(rec.pipeline.is_some());
     assert_eq!(rec.pipeline.as_ref().unwrap().len(), 2);
@@ -322,7 +322,7 @@ fn project_pipeline_full_lifecycle() {
     ];
     let map = project(&events);
     let rec = map.get("j-3p").unwrap();
-    assert_eq!(rec.status, JobStatus::Merged);
+    assert_eq!(rec.status, PipelineRunStatus::Merged);
     assert_eq!(rec.current_phase, Some(2), "current_phase must be 2 after 3 pipeline advances");
 }
 
@@ -371,7 +371,7 @@ fn project_step_retry_tracks_attempt() {
     assert_eq!(rec.step_retries.get("implement"), Some(&1));
     assert!(!rec.completed_steps.contains(&"implement".to_string()),
         "step must be removed from completed on retry");
-    assert_eq!(rec.status, JobStatus::Dispatched);
+    assert_eq!(rec.status, PipelineRunStatus::Dispatched);
     assert!(rec.error.is_none(), "error must be cleared on retry");
 }
 
@@ -438,7 +438,7 @@ fn project_non_pipeline_job_has_no_phase() {
 
 mod idempotent {
     use super::*;
-    use crate::projections::job::apply;
+    use crate::projections::pipeline_run::apply;
 
     fn pipeline_events(job_id: &str) -> Vec<EventEnvelope> {
         vec![
@@ -568,7 +568,7 @@ mod idempotent {
         ];
         let map = project(&events);
         let rec = map.get("js1").unwrap();
-        assert_eq!(rec.status, JobStatus::Failed);
+        assert_eq!(rec.status, PipelineRunStatus::Failed);
         assert_eq!(rec.error.as_deref(), Some("tmux: command not found"));
     }
 
@@ -588,7 +588,7 @@ mod idempotent {
         ];
         let map = project(&events);
         let rec = map.get("jc1").unwrap();
-        assert_eq!(rec.status, JobStatus::Cancelled);
+        assert_eq!(rec.status, PipelineRunStatus::Cancelled);
         assert_eq!(rec.error.as_deref(), Some("superseded by rerun"));
     }
 }

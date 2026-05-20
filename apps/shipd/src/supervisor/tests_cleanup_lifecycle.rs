@@ -9,7 +9,7 @@
 
 use ship_substrate::events::pipeline::event_types;
 use ship_substrate::events::EventEnvelope;
-use ship_platform::projections::job::{project, JobStatus};
+use ship_platform::projections::pipeline_run::{project, PipelineRunStatus};
 
 fn ev(event_type: &str, payload: serde_json::Value) -> EventEnvelope {
     let job_id = payload["job_id"].as_str().unwrap_or("test");
@@ -151,7 +151,7 @@ fn terminal_jobs_with_worktrees_are_orphan_candidates() {
     ];
     let map = project(&events);
     let orphan_candidates: Vec<_> = map.values()
-        .filter(|j| matches!(j.status, JobStatus::Merged | JobStatus::Failed))
+        .filter(|j| matches!(j.status, PipelineRunStatus::Merged | PipelineRunStatus::Failed))
         .filter(|j| j.worktree.is_some())
         .collect();
     assert_eq!(orphan_candidates.len(), 1);

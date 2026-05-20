@@ -8,9 +8,9 @@ use ship_platform::sessions::{
     get_active_session as runtime_get_active_session, list_sessions as runtime_list_sessions,
 };
 use ship_substrate::log::read_log;
-use ship_platform::projections::job::load_jobs_at;
+use ship_platform::projections::pipeline_run::load_pipeline_runs_at;
 
-use ship_platform::projections::job::load_jobs;
+use ship_platform::projections::pipeline_run::load_pipeline_runs;
 
 use crate::resources::render_events_resource;
 
@@ -64,13 +64,13 @@ pub async fn resolve_resource_uri(
         });
     }
     if uri == "ship://jobs" {
-        let jobs = load_jobs_at(dir).unwrap_or_default();
+        let jobs = load_pipeline_runs_at(dir).unwrap_or_default();
         let mut records: Vec<_> = jobs.into_values().collect();
         records.sort_by(|a, b| a.created_at.cmp(&b.created_at));
         return serde_json::to_string_pretty(&records).ok();
     }
     if let Some(id) = uri.strip_prefix("ship://jobs/") {
-        let jobs = load_jobs_at(dir).unwrap_or_default();
+        let jobs = load_pipeline_runs_at(dir).unwrap_or_default();
         return jobs.get(id).and_then(|j| serde_json::to_string_pretty(j).ok());
     }
     // ship://mesh deferred to v0.3 — needs SharedMeshRegistry wired into resolver
@@ -123,7 +123,7 @@ fn resolve_components_uri(uri: &str) -> Option<String> {
 }
 
 fn resolve_jobs_list() -> Option<String> {
-    match load_jobs() {
+    match load_pipeline_runs() {
         Ok(jobs) if jobs.is_empty() => Some("[]".to_string()),
         Ok(jobs) => {
             let records: Vec<_> = jobs.into_values().collect();
@@ -134,7 +134,7 @@ fn resolve_jobs_list() -> Option<String> {
 }
 
 fn resolve_job_by_id(id: &str) -> Option<String> {
-    match ship_platform::projections::job::load_job_by_id(id) {
+    match ship_platform::projections::pipeline_run::load_pipeline_run_by_id(id) {
         Ok(Some(job)) => serde_json::to_string_pretty(&job).ok(),
         Ok(None) => Some(format!("Job '{}' not found", id)),
         Err(err) => Some(format!("Error: {}", err)),

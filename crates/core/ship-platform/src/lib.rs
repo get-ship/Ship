@@ -41,7 +41,7 @@ pub fn install_defaults() {
             Box::new(projections::ProjectsProjection),
             Box::new(projections::AuthSessionsProjection),
             Box::new(projections::DaemonOwnerProjection),
-            Box::new(projections::JobProjection),
+            Box::new(projections::PipelineRunProjection),
             // Agent-session primitive — sibling of jobs. Tracks
             // single-agent dispatches (bare ship use, MCP dispatch,
             // pipeline-step sessions). jobs now scopes to pipeline

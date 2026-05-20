@@ -354,7 +354,7 @@ mod tests {
         let dir = TempDir::new().unwrap();
         let state = make_api_state(&dir);
 
-        // Emit a job.created event so load_jobs() finds it.
+        // Emit a job.created event so load_pipeline_runs() finds it.
         let job_id = ship_substrate::gen_ulid();
         let payload = ship_substrate::events::pipeline::PipelineRunStartedPayload {
             job_id: job_id.clone(),
@@ -445,9 +445,9 @@ mod tests {
         .into_response();
         assert_eq!(response.status(), StatusCode::OK);
 
-        let jobs = ship_platform::projections::job::load_jobs_at(state.ship_dir()).unwrap();
+        let jobs = ship_platform::projections::pipeline_run::load_pipeline_runs_at(state.ship_dir()).unwrap();
         let job = jobs.get(&job_id).unwrap();
-        assert_eq!(job.status, ship_platform::projections::job::JobStatus::Cancelled);
+        assert_eq!(job.status, ship_platform::projections::pipeline_run::PipelineRunStatus::Cancelled);
 
         // Confirm the cancelled event actually landed.
         let events = ship_substrate::db::events::query_recent_events_for_entity_at(

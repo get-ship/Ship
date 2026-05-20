@@ -109,9 +109,9 @@ pub async fn handle_job_event(
         && let Some(record) = load_pipeline_run(&envelope.entity_id)
         && matches!(
             record.status,
-            crate::projections::job::JobStatus::Failed
-                | crate::projections::job::JobStatus::Merged
-                | crate::projections::job::JobStatus::Cancelled
+            crate::projections::pipeline_run::PipelineRunStatus::Failed
+                | crate::projections::pipeline_run::PipelineRunStatus::Merged
+                | crate::projections::pipeline_run::PipelineRunStatus::Cancelled
         )
     {
         tracing::warn!(
@@ -316,7 +316,7 @@ async fn maybe_auto_merge(
 ) -> bool {
     let payload: serde_json::Value = serde_json::from_str(&envelope.payload_json).unwrap_or_default();
     let job_id = payload["job_id"].as_str().unwrap_or(envelope.entity_id.as_str()).to_string();
-    let Some(job) = crate::projections::job::load_job_by_id(&job_id)
+    let Some(job) = crate::projections::pipeline_run::load_pipeline_run_by_id(&job_id)
         .ok()
         .flatten()
     else {
@@ -357,8 +357,8 @@ fn is_operator_event(event_type: &str) -> bool {
 /// Used by the terminal-state guard. Returns `None` if the projection
 /// can't be loaded or the job doesn't exist — callers treat that as
 /// "not terminal, proceed" so startup races don't drop events.
-fn load_pipeline_run(entity_id: &str) -> Option<crate::projections::job::PipelineRun> {
-    crate::projections::job::load_job_by_id(entity_id).ok().flatten()
+fn load_pipeline_run(entity_id: &str) -> Option<crate::projections::pipeline_run::PipelineRun> {
+    crate::projections::pipeline_run::load_pipeline_run_by_id(entity_id).ok().flatten()
 }
 
 /// Extract the slug from an event envelope payload.
@@ -373,7 +373,7 @@ async fn check_and_fail_missing_outputs(
     kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
     declared: &PipelineStepDoneDeclaredPayload,
 ) {
-    let Some(job) = crate::projections::job::load_job_by_id(&declared.job_id)
+    let Some(job) = crate::projections::pipeline_run::load_pipeline_run_by_id(&declared.job_id)
         .ok()
         .flatten()
     else {
@@ -400,7 +400,7 @@ async fn run_promotes_for_step(
     kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
     payload: &PipelineStepObservedPayload,
 ) {
-    let Some(job) = crate::projections::job::load_job_by_id(&payload.job_id)
+    let Some(job) = crate::projections::pipeline_run::load_pipeline_run_by_id(&payload.job_id)
         .ok()
         .flatten()
     else {
@@ -423,7 +423,7 @@ async fn evaluate_step_gate(
 ) -> Option<String> {
     use super::gate_rules::{diff_paths, evaluate, GateOutcome};
 
-    let job = crate::projections::job::load_job_by_id(&payload.job_id)
+    let job = crate::projections::pipeline_run::load_pipeline_run_by_id(&payload.job_id)
         .ok()
         .flatten()?;
     let pipeline = job.steps.as_ref()?;

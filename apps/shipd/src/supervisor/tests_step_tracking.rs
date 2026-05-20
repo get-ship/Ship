@@ -5,7 +5,7 @@
 
 use ship_substrate::events::EventEnvelope;
 use ship_substrate::events::pipeline::event_types;
-use ship_platform::projections::job::{JobStatus, project};
+use ship_platform::projections::pipeline_run::{PipelineRunStatus, project};
 
 fn ev(event_type: &str, payload: serde_json::Value) -> EventEnvelope {
     EventEnvelope::new(event_type, "test-entity", &payload).unwrap()
@@ -211,7 +211,7 @@ fn completion_without_subsequent_dispatch_still_trackable() {
     ];
     let map = project(&events);
     let rec = map.get("j-no-redispatch").unwrap();
-    assert_eq!(rec.status, JobStatus::Merged);
+    assert_eq!(rec.status, PipelineRunStatus::Merged);
     assert!(
         rec.completed_steps.contains(&"final-step".to_string()),
         "final-step must be in completed_steps even when PIPELINE_RUN_MERGED fires without a second PIPELINE_RUN_DISPATCHED"
@@ -247,7 +247,7 @@ fn three_steps_completed_before_merge() {
     ];
     let map = project(&events);
     let rec = map.get("j-3steps").unwrap();
-    assert_eq!(rec.status, JobStatus::Merged);
+    assert_eq!(rec.status, PipelineRunStatus::Merged);
     assert!(
         rec.completed_steps.contains(&"spec".to_string()),
         "step 'spec' must be in completed_steps"
