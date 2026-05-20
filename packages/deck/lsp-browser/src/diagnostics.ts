@@ -9,7 +9,6 @@
 // disk), so this covers template parse + semantic + lint diagnostics.
 
 import initWasm, { analyze as wasmAnalyze } from '@ship/sui-compiler-wasm'
-import wasmUrl from '@ship/sui-compiler-wasm/sui_compiler_bg.wasm?url'
 
 /** Shape consumed by `<sui-code-editor>.setDiagnostics()`. */
 export interface SuiDiagnostic {
@@ -37,9 +36,13 @@ interface WasmAnalysis {
 }
 
 // Lazy one-time WASM init — the worker is long-lived; init once, reuse.
+// Called with no argument so the wasm-bindgen shim self-resolves the wasm via
+// `new URL('sui_compiler_bg.wasm', import.meta.url)` — works under both Vite
+// (docs playground) and Bun.build (the shell's sui-code-editor bundle); a
+// Vite-only `?url` import broke the latter.
 let wasmReady: Promise<unknown> | null = null
 function ensureWasm(): Promise<unknown> {
-  if (!wasmReady) wasmReady = initWasm(wasmUrl)
+  if (!wasmReady) wasmReady = initWasm()
   return wasmReady
 }
 
