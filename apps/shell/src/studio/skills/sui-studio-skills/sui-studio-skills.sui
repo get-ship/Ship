@@ -4,7 +4,7 @@
   Registered as the section keystone: studio/page.sui's content slot
   renders this element when section() === 'skills'. It reads the URL and
   routes between the filterable index (no sub) and the SKILL.md detail
-  with inline invoke (`/studio/skills/<id>`).
+  with inline dry-run (`/studio/skills/<id>`).
 -->
 
 <style>

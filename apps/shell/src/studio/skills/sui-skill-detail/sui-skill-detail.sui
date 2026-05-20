@@ -129,11 +129,10 @@
           <sui-icon name="play" size="md"></sui-icon>
         </span>
         <div class="invoke-card-body">
-          <h2 class="invoke-card-h">Invoke this skill</h2>
+          <h2 class="invoke-card-h">Dry run</h2>
           <p class="invoke-card-sub">
-            Posts to
-            <code>POST /api/v1/skills/{skill().id}/invoke</code>
-            with optional vars.
+            Test this skill with sample vars to inspect its output.
+            Dev affordance — agents invoke skills automatically at runtime.
           </p>
         </div>
         <sui-icon
@@ -146,7 +145,7 @@
       {#if showInvoke()}
         <div class="invoke-panel" data-test="invoke-panel">
           <div class="invoke-panel-h">
-            <span class="invoke-panel-title">Invoke · {skill().id}</span>
+            <span class="invoke-panel-title">Dry run · {skill().id}</span>
           </div>
 
           <div class="invoke-vars">
@@ -180,7 +179,7 @@
               attr:disabled={invokeStatus() === 'loading' ? '' : null}
               on:click={() => invoke()}>
               <sui-icon slot="leading" name="play" size="xs"></sui-icon>
-              {invokeStatus() === 'loading' ? 'Running…' : 'Invoke'}
+              {invokeStatus() === 'loading' ? 'Running…' : 'Dry run'}
             </sui-button>
           </div>
 
