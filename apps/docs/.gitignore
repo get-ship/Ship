@@ -1,7 +1,7 @@
 dist/
 .astro/
 node_modules/
-# SUI bundles copied from crates/ship/ship-sui-server/assets by scripts/collect-skill-docs.ts.
+# SUI bundles copied from crates/deck/deck-server/assets by scripts/collect-skill-docs.ts.
 public/sui-runtime.js
 public/sui-dom.js
 public/sui-sdk-client.js

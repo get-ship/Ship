@@ -22,7 +22,7 @@ import type { ViewPayload as GeneratedViewPayload } from './generated'
 
 /**
  * Wire shape returned by `GET /_sui/views/<name>[/<sub>]`. The base type
- * is generated from `crates/ship/ship-sui-server/src/view_payload.rs::ViewPayload`
+ * is generated from `crates/deck/deck-server/src/view_payload.rs::ViewPayload`
  * via `cargo xtask gen-types`. The local generic specializes `scope` —
  * Rust ships it as untyped JSON; per-view modules narrow it here.
  */

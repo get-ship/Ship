@@ -1084,6 +1084,52 @@ dependencies = [
 ]
 
 [[package]]
+name = "deck"
+version = "0.1.0"
+dependencies = [
+ "deck-host",
+ "deck-server",
+ "specta",
+]
+
+[[package]]
+name = "deck-host"
+version = "0.1.0"
+dependencies = [
+ "filetime",
+ "serde",
+ "serde_json",
+ "specta",
+ "sui-compiler",
+ "sui-signals",
+ "tempfile",
+]
+
+[[package]]
+name = "deck-server"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "axum",
+ "datastar",
+ "deck-host",
+ "filetime",
+ "futures-util",
+ "notify",
+ "serde",
+ "serde_json",
+ "ship-substrate",
+ "specta",
+ "sui-compiler",
+ "sui-signals",
+ "tempfile",
+ "tokio",
+ "tokio-stream",
+ "tracing",
+]
+
+[[package]]
 name = "der"
 version = "0.7.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4458,52 +4504,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ship-sui"
-version = "0.1.0"
-dependencies = [
- "ship-sui-host",
- "ship-sui-server",
- "specta",
-]
-
-[[package]]
-name = "ship-sui-host"
-version = "0.1.0"
-dependencies = [
- "filetime",
- "serde",
- "serde_json",
- "specta",
- "sui-compiler",
- "sui-signals",
- "tempfile",
-]
-
-[[package]]
-name = "ship-sui-server"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "axum",
- "datastar",
- "filetime",
- "futures-util",
- "notify",
- "serde",
- "serde_json",
- "ship-substrate",
- "ship-sui-host",
- "specta",
- "sui-compiler",
- "sui-signals",
- "tempfile",
- "tokio",
- "tokio-stream",
- "tracing",
-]
-
-[[package]]
 name = "ship-supervisor"
 version = "0.1.0"
 dependencies = [
@@ -4550,6 +4550,7 @@ dependencies = [
  "compiler",
  "ctor",
  "datastar",
+ "deck",
  "form_urlencoded",
  "futures",
  "futures-util",
@@ -4574,7 +4575,6 @@ dependencies = [
  "ship-pipelines",
  "ship-platform",
  "ship-substrate",
- "ship-sui",
  "ship-supervisor",
  "ship-types",
  "specta",
@@ -6661,12 +6661,12 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "compiler",
+ "deck",
  "regex",
  "serde",
  "serde_json",
  "ship-platform",
  "ship-substrate",
- "ship-sui",
  "ship-types",
  "shipd",
  "specta",

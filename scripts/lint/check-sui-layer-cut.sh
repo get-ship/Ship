@@ -11,8 +11,8 @@
 # Allowed: cross-framework imports (sui-runtime -> sui-dom, etc.),
 # stdlib, third-party deps.
 # Forbidden: `@ship/sdk-client`, `@ship/sdk`, `@ship/ship-sdk-client`,
-# `@ship/ui-components`, `ship-sui-host`, `ship-sui-server`,
-# `ship-sui`, `shipd`.
+# `@ship/ui-components`, `deck-host`, `deck-server`,
+# `deck`, `shipd`.
 #
 # Run from repo root.
 
@@ -40,7 +40,7 @@ check_rust() {
   local dir="$1"
   local hits
   hits=$(grep -rEn \
-    "^\s*use\s+(shipd|ship_sui_host|ship_sui_server|ship_sui|ship_application|ship_platform|ship_substrate)::" \
+    "^\s*use\s+(shipd|deck_host|deck_server|deck|ship_application|ship_platform|ship_substrate)::" \
     "$dir" 2>/dev/null || true)
   if [ -n "$hits" ]; then
     echo "FAIL: $dir imports a Ship-host or product-layer crate:" >&2

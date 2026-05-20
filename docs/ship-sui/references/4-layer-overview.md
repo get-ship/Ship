@@ -8,7 +8,7 @@ page.sui + controller.ts     (authoring — what humans write)
 .js + .sui.d.ts + .ssr.html  (compiler output — gitignored under dist/)
     ↓ packages/sui/runtime/  (reactive primitives + DOM bindings + attach())
 runtime in the browser       (signals, control-flow, transitions, error-boundary)
-    ↓ crates/ship/ship-sui-server (daemon view-host — resolver + assets + SSR + SSE)
+    ↓ crates/deck/deck-server (daemon view-host — resolver + assets + SSR + SSE)
 HTTP /_sui/* + /view-host    (apps/shipd routes wire it together)
 ```
 
@@ -68,9 +68,9 @@ The dev-only leak detector lives at the subpath `@ship/sui-runtime/dev` so it do
 
 `<sui-if>`, `<sui-for>`, `<sui-match>` custom elements register on module load (`import './boundary-elements'` at the bottom of `index.ts`).
 
-## Layer 3 — Daemon view-host (`crates/ship/ship-sui-server/`, `apps/shipd/`)
+## Layer 3 — Daemon view-host (`crates/deck/deck-server/`, `apps/shipd/`)
 
-Crate layout (`crates/ship/ship-sui-server/src/`):
+Crate layout (`crates/deck/deck-server/src/`):
 
 | File | Owns |
 |---|---|
@@ -88,10 +88,10 @@ Daemon-side route table (`apps/shipd/src/router.rs`) mounts the surface:
 
 | Route | Handler |
 |---|---|
-| `GET /_sui/runtime.js` / `dom.js` / `sdk-client.js` / `components.js` / `lucide-icons.json` | `crates/ship/ship-sui-server/src/assets.rs` |
+| `GET /_sui/runtime.js` / `dom.js` / `sdk-client.js` / `components.js` / `lucide-icons.json` | `crates/deck/deck-server/src/assets.rs` |
 | `GET /_sui/sui-components/{name}.js` | separate-bundle component |
-| `GET /_sui/views/{name}/view.sui` / `view.js` / `view.css` | `crates/ship/ship-sui-server/src/view.rs` (route segment stems are `view.*` regardless of on-disk `page.sui`/`controller.ts`/`style.css`) |
-| `GET /_sui/views/{name}` | `crates/ship/ship-sui-server/src/view_payload.rs` |
+| `GET /_sui/views/{name}/view.sui` / `view.js` / `view.css` | `crates/deck/deck-server/src/view.rs` (route segment stems are `view.*` regardless of on-disk `page.sui`/`controller.ts`/`style.css`) |
+| `GET /_sui/views/{name}` | `crates/deck/deck-server/src/view_payload.rs` |
 | `GET /_sui/views/{name}/sse` | `apps/shipd/src/views/sui_patch_channel.rs` |
 | `GET /_sui/hmr` / `hmr-client.js` / `dev/hmr` | `apps/shipd/src/views/sui_hmr.rs` |
 | `GET /_sui/data` | `apps/shipd/src/views/sui_data.rs` (the `<data live>` SSE channel) |

@@ -159,10 +159,10 @@ fn collect_types() -> TypeCollection {
 fn collect_framework_types() -> TypeCollection {
     let mut c = TypeCollection::default();
 
-    // ship-sui — view payload + resolver.
-    c.register::<ship_sui::view_payload::ViewPayload>();
-    c.register::<ship_sui::resolver::ResolvedView>();
-    c.register::<ship_sui::resolver::ResolveError>();
+    // deck — view payload + resolver.
+    c.register::<deck::view_payload::ViewPayload>();
+    c.register::<deck::resolver::ResolvedView>();
+    c.register::<deck::resolver::ResolveError>();
 
     // shipd::views — view list / manifest / source / write APIs.
     c.register::<shipd::views::ViewManifest>();

@@ -223,7 +223,7 @@ Components fall into three buckets:
 
 - **Primitives** — generic `<sui-*>` in **`@ship/primitives`** (`packages/components/primitives/src/`). Charts in **`@ship/charts`** (`packages/components/charts/src/`). Both are decomposed workspace packs with their own bundle + `custom-elements.json`. Always registered, available in any view.
 - **Chrome + domain** — the rest (sui-code-editor, sui-terminal, sui-markdown-editor, picker, nav, devtools, view-authoring) stays in the `@ship/ui-components` umbrella at `packages/components/ui-components/src/`. Ships as the daemon's `sui-components.js` aggregate.
-- **Islands** — heavy components that lazy-load their engine only when mounted (terminal, code-editor, markdown-editor). The umbrella bundle code-splits these; lazy chunks live under `crates/ship/ship-sui-server/assets/sui-components/<tag>.js`.
+- **Islands** — heavy components that lazy-load their engine only when mounted (terminal, code-editor, markdown-editor). The umbrella bundle code-splits these; lazy chunks live under `crates/deck/deck-server/assets/sui-components/<tag>.js`.
 
 The `@ship/sui-catalog` walker emits two projections under `.ship/sui-out/catalogs/`:
 - `workspace.json` — every pack, public + private. Use for authoring.

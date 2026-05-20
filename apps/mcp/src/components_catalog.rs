@@ -18,7 +18,7 @@ const CATALOG_REL: &str = ".ship/sui-out/catalogs/workspace.json";
 
 fn repo_root() -> PathBuf {
     // apps/mcp lives at apps/mcp. Repo root is two parents up from
-    // CARGO_MANIFEST_DIR. Distinct from ship-sui-server's three-level
+    // CARGO_MANIFEST_DIR. Distinct from deck-server's three-level
     // walk-up (it's nested under crates/sui/).
     Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()

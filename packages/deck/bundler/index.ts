@@ -45,7 +45,7 @@ interface BundleManifest {
 
 const repoRoot = process.env.SHIP_REPO_ROOT ?? process.cwd()
 const litAssetsDir = resolve(repoRoot, 'apps/shipd/assets')
-const suiAssetsDir = resolve(repoRoot, 'crates/ship/ship-sui-server/assets')
+const suiAssetsDir = resolve(repoRoot, 'crates/deck/deck-server/assets')
 
 // User-project workspace, distinct from `repoRoot` for end-user installs.
 // `repoRoot` is the ship monorepo (where `packages/`, framework sources, and
@@ -694,7 +694,7 @@ function emit(msg: Response | Event) {
 // ── Main loop ─────────────────────────────────────────────────────────────────
 
 // CLI mode: `--all` runs a one-shot build of the sui-* family + views and
-// exits. This is the asset set `crates/ship/ship-sui-server/build.rs` requires
+// exits. This is the asset set `crates/deck/deck-server/build.rs` requires
 // via its ASSETS const, so the root `bun run build:bundles` script can fan
 // out here in CI without scripting the stdin/stdout JSON protocol.
 //

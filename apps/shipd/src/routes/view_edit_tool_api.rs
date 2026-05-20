@@ -342,11 +342,11 @@ async fn op_theme_tokens() -> Response {
 }
 
 async fn op_preview_snapshot(name: &str) -> Response {
-    let resolved = match ship_sui::resolver::resolve(name, None) {
+    let resolved = match deck::resolver::resolve(name, None) {
         Ok(r) => r,
         Err(e) => return err(StatusCode::NOT_FOUND, "view_not_found", &e.message),
     };
-    match ship_sui::resolver::render_resolved(&resolved, name) {
+    match deck::resolver::render_resolved(&resolved, name) {
         Ok(rendered) => ok(&ViewPreviewSnapshotResponse {
             html: rendered.html,
             computed_styles: None,
@@ -504,7 +504,7 @@ fn project_root() -> Option<std::path::PathBuf> {
     reason = "axum::Response is the canonical error vehicle for handler helpers"
 )]
 fn resolve_view(name: &str) -> Result<(String, std::path::PathBuf), Response> {
-    let resolved = ship_sui::resolver::resolve(name, None)
+    let resolved = deck::resolver::resolve(name, None)
         .map_err(|e| err(StatusCode::NOT_FOUND, "view_not_found", &e.message))?;
     let path = resolved
         .source_path

@@ -13,7 +13,7 @@ import { setIconRegistry } from '../src/sui-icon/registry'
 // the same map at startup so resolution is sync.
 const ICON_REGISTRY_PATH = resolve(
   process.cwd(),
-  '../../../crates/ship/ship-sui-server/assets/lucide-icons.json',
+  '../../../crates/deck/deck-server/assets/lucide-icons.json',
 )
 setIconRegistry(JSON.parse(readFileSync(ICON_REGISTRY_PATH, 'utf8')))
 

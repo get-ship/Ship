@@ -26,7 +26,7 @@ pub mod events_state;
 // Moving them needs a `ship-runtime` extraction first; tracked separately.
 // Truly framework-level pieces (view_payload, view_host, asset bundles,
 // resolver, render_helpers, bundle, runtime asset) live in
-// crates/ship-sui/.
+// crates/deck/.
 pub mod sui_data;
 pub mod sui_data_resolvers;
 pub mod sui_hmr;

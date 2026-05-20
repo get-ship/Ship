@@ -26,7 +26,7 @@ ship-types = { path = "../../crates/core/ship-types" }
 ship-analytics = { path = "../../crates/core/ship-analytics" }
 compiler = { path = "../../crates/core/compiler" }
 build-info = { path = "../../crates/core/build-info" }
-ship-sui = { path = "../../crates/ship/ship-sui" }
+deck = { path = "../../crates/deck/deck" }
 sui-compiler = { path = "../../crates/sui/compiler" }
 sui-signals = { path = "../../crates/sui/signals" }
 chrono = { workspace = true }
@@ -87,7 +87,7 @@ specta = { workspace = true, features = ["chrono", "serde_json"], optional = tru
 
 [features]
 unstable = ["ship-platform/unstable"]
-specta = ["dep:specta", "ship-sui/specta"]
+specta = ["dep:specta", "deck/specta"]
 
 [dev-dependencies]
 tempfile = { workspace = true }

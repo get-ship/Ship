@@ -50,7 +50,7 @@ sui-build --mode development       # passes through to compile flags + bundler e
 
 Entry: `packages/deck/build/bin/sui-build.mjs` → `dist/cli.js` via Bun. The runner (`src/runner.ts`) walks the configured source globs, invokes `sui-compiler` (preferring the in-repo FFI build of `libsui_compiler`, falling back to `target/debug/sui-compiler` or `cargo run --quiet -p sui-compiler`), and feeds the emitted JS / CSS / CEM through the chosen bundler adapter (`adapters/bun.ts`, `adapters/esbuild.ts`).
 
-Configuration: `<package>/sui.config.ts`. Each package opts in by adding a `build` script — currently `packages/components/ui-components/` (writes `crates/ship/ship-sui-server/assets/`) and `packages/ship-set/` (writes `apps/shipd/assets/`).
+Configuration: `<package>/sui.config.ts`. Each package opts in by adding a `build` script — currently `packages/components/ui-components/` (writes `crates/deck/deck-server/assets/`) and `packages/ship-set/` (writes `apps/shipd/assets/`).
 
 **Role.** `@ship/sui-build` is the CI / pre-merge bundler — it's what `smoke-deploy.sh` runs and what `just cem` invokes. It is *not* what shipd uses at dev time. The dev-time bundler is `packages/deck/bundler/index.ts`, a Bun worker spawned by the daemon (see [end-to-end dev loop](#end-to-end-edit-loop-in-dev) below). Both pipelines target the same on-disk asset trees that the release binary later `include_str!`s.
 
@@ -193,7 +193,7 @@ Both scaffolds emit the manifest / template / controller / style files documente
 just dev                              # daemon + embedded Bun bundler worker
 # (optional) just shell-dev          # vite outer shell at :3200, proxies to daemon
 # edit views/home/page.sui or controller.ts
-#  → bundler.ts re-runs Bun.build, writes to crates/ship/ship-sui-server/assets/...
+#  → bundler.ts re-runs Bun.build, writes to crates/deck/deck-server/assets/...
 #  → emits module_changed over JSON stdout to shipd
 #  → shipd republishes on /_sui/dev/hmr (SSE)
 #  → apps/shell/src/hmr.ts cache-busts /_sui/views/home/view.js
@@ -222,7 +222,7 @@ Shipd has two operating modes, selected via `--mode <development|production>` (o
 | Error detail | Full error bodies | Redacted; only the kind of failure leaks to the client |
 | Status bar | `<sui-status-bar mode="development">` shows a hairline `DEV` badge between the connection dot and the branch | Badge hidden; same component, no chrome |
 
-The mode is exposed to the browser via `<meta name="ship-mode">` in the shell HTML. shell's `main.ts` reads it into `window.__shipMode` (`'Production'` | `'Development'`) at boot and reflects it onto the status bar's `mode` attribute. When shipd serves the prebuilt shell itself, `ship_sui::inject_mode_meta` rewrites the meta to match the daemon's actual mode; the static default in `apps/shell/index.html` is `development` so the Vite dev server doesn't need any special handling.
+The mode is exposed to the browser via `<meta name="ship-mode">` in the shell HTML. shell's `main.ts` reads it into `window.__shipMode` (`'Production'` | `'Development'`) at boot and reflects it onto the status bar's `mode` attribute. When shipd serves the prebuilt shell itself, `deck::inject_mode_meta` rewrites the meta to match the daemon's actual mode; the static default in `apps/shell/index.html` is `development` so the Vite dev server doesn't need any special handling.
 
 Producing a deployable artifact set:
 
@@ -232,4 +232,4 @@ just build       # one-shot: gen-types → ship-set icons → ship-set build →
 ship build       # equivalent CLI wrapper for users without `just` installed
 ```
 
-Both write release binaries to `target/release/{ship,shipd,mcp}` and rebuild the front-end asset trees that shipd's `include_str!` directives consume (`crates/ship/ship-sui-server/assets/`, `apps/shipd/assets/`). After `just build`, run `shipd --mode production` to serve them.
+Both write release binaries to `target/release/{ship,shipd,mcp}` and rebuild the front-end asset trees that shipd's `include_str!` directives consume (`crates/deck/deck-server/assets/`, `apps/shipd/assets/`). After `just build`, run `shipd --mode production` to serve them.

@@ -54,7 +54,7 @@ use serde::Serialize;
 
 use super::sui_patch_channel;
 use super::sui_patches::{PatchElements, format_patch_elements};
-use ship_sui::render_helpers::is_valid_view_name;
+use deck::render_helpers::is_valid_view_name;
 
 /// Response body for a successful patch-elements publish.
 #[derive(Debug, Serialize)]

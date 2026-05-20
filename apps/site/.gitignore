@@ -4,7 +4,7 @@ node_modules/
 .wrangler/
 *.tsbuildinfo
 
-# SUI bundles copied from crates/ship/ship-sui-server/assets by scripts/copy-sui-assets.ts.
+# SUI bundles copied from crates/deck/deck-server/assets by scripts/copy-sui-assets.ts.
 public/sui-runtime.js
 public/sui-dom.js
 public/sui-sdk-client.js

@@ -45,7 +45,7 @@ Toggles for tests, debugging, and development workflows. Not intended for produc
 
 | Var | Read at | Purpose |
 |---|---|---|
-| `SHIP_DEV_PROJECT_DIR` | Per-call (project resolution, SUI server) | Override the project root returned by `get_project_dir(None)`. Used by tests and the dev SUI workflow to isolate parallel runs. Read by `crates/core/ship-substrate/src/project/discovery.rs:246`, `crates/ship/ship-sui-server/src/resolver.rs:38`, `apps/shipd/src/lib.rs:180`. Never set in production. |
+| `SHIP_DEV_PROJECT_DIR` | Per-call (project resolution, SUI server) | Override the project root returned by `get_project_dir(None)`. Used by tests and the dev SUI workflow to isolate parallel runs. Read by `crates/core/ship-substrate/src/project/discovery.rs:246`, `crates/deck/deck-server/src/resolver.rs:38`, `apps/shipd/src/lib.rs:180`. Never set in production. |
 | `SHIP_DEV_DB_DIR` | Per-call (db path resolver) | Override the directory for machine SQLite stores (`platform.db`, `kv.db`, etc.). Lets a dev worktree's daemon point at an isolated DB to iterate migrations without colliding with the canonical store. Read by `crates/core/ship-substrate/src/db/mod.rs:86`. Never set in production. |
 | `SHIP_RESPECT_WORKTREE` | Per-call (project discovery) | When `=1`, project-root resolution honors a worktree's local `.ship/` instead of redirecting to the main checkout. Used by dev tooling that iterates per-worktree views/themes. Read by `crates/core/ship-substrate/src/project/discovery.rs:182`. |
 | `SHIP_NO_BROWSER` | Daemon first-run | Suppresses the automatic browser open on `shipd` first run. Read by `apps/shipd/src/daemon/first_run.rs:18`. |

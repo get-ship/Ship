@@ -84,7 +84,7 @@ pub async fn list_view_files(
 }
 
 fn resolve_view_dir(name: &str) -> Option<PathBuf> {
-    let resolved = ship_sui::resolver::resolve(name, None).ok()?;
+    let resolved = deck::resolver::resolve(name, None).ok()?;
     if let Some(p) = resolved.source_path {
         return p.parent().map(PathBuf::from);
     }

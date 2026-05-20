@@ -3,7 +3,7 @@
  * static Astro build can serve them at the paths the importmap (in
  * src/layouts/BaseLayout.astro) expects.
  *
- * Source of truth: crates/ship/ship-sui-server/assets/ — the same bundles
+ * Source of truth: crates/deck/deck-server/assets/ — the same bundles
  * the daemon serves at /api/assets/. This mirrors apps/docs's
  * collect-skill-docs.ts SUI copy step (without the markdoc collection).
  */
@@ -15,7 +15,7 @@ import { fileURLToPath } from 'node:url';
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(SCRIPT_DIR, '../../..');
 const PUBLIC_DIR = join(SCRIPT_DIR, '../public');
-const SUI_ASSETS_DIR = join(REPO_ROOT, 'crates/ship/ship-sui-server/assets');
+const SUI_ASSETS_DIR = join(REPO_ROOT, 'crates/deck/deck-server/assets');
 const SHIPD_ASSETS_DIR = join(REPO_ROOT, 'apps/shipd/assets');
 
 const SUI_BUNDLES = [
