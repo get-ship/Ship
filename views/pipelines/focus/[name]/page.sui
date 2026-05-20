@@ -124,7 +124,7 @@
         <h3 class="ship-focus-section-label">Edit {format()}</h3>
         <div style="display: flex; align-items: center; gap: var(--space-2);">
           <span class="ship-focus-kbd-hint"><kbd class="ship-focus-kbd">⌘S</kbd> save · <kbd class="ship-focus-kbd">Esc</kbd> cancel</span>
-          <sui-chip size="sm" tone="warning">editing</sui-chip>
+          <sui-chip size="sm" tone="info">editing</sui-chip>
         </div>
       </div>
       {#if editError()}
@@ -155,8 +155,8 @@
             attr:command={step.run}>
             {#if step.gate}
             <div slot="gate">
-              {#if step.gate.require_changed}<sui-chip size="sm" tone="warning">require{step.gate.require_changed.match ? ' ' + step.gate.require_changed.match : ''}{step.gate.require_changed.min !== undefined ? ' ≥ ' + step.gate.require_changed.min : ''}</sui-chip>{/if}
-              {#if step.gate.forbid_changed}<sui-chip size="sm" tone="destructive">forbid{step.gate.forbid_changed.match ? ' ' + step.gate.forbid_changed.match : ''}{step.gate.forbid_changed.min !== undefined ? ' > ' + step.gate.forbid_changed.min : ''}</sui-chip>{/if}
+              {#if step.gate.require_changed}<sui-chip size="sm" tone="info">require{step.gate.require_changed.match ? ' ' + step.gate.require_changed.match : ''}{step.gate.require_changed.min !== undefined ? ' ≥ ' + step.gate.require_changed.min : ''}</sui-chip>{/if}
+              {#if step.gate.forbid_changed}<sui-chip size="sm" tone="warning">forbid{step.gate.forbid_changed.match ? ' ' + step.gate.forbid_changed.match : ''}{step.gate.forbid_changed.min !== undefined ? ' > ' + step.gate.forbid_changed.min : ''}</sui-chip>{/if}
             </div>
             {/if}
           </ship-pipeline-step-def>
@@ -214,7 +214,7 @@
     <sui-field><sui-checkbox bind:checked={dispatchHeadless}>Headless (run without tmux)</sui-checkbox></sui-field>
     <sui-toolbar slot="footer">
       <sui-button variant="outline" on:click={closeDispatch}>Cancel</sui-button>
-      <sui-button tone="accent" variant="solid" on:click={dispatchRun}>
+      <sui-button tone="primary" variant="solid" on:click={dispatchRun}>
         <sui-icon slot="leading" name="play" size="sm"></sui-icon>Dispatch
       </sui-button>
     </sui-toolbar>

@@ -356,7 +356,7 @@
                   <span class="s-row-label">Daemon status</span>
                   <span slot="trailing" class="s-row-trailing">
                     <sui-status-dot
-                      tone={settings().kind === 'ok' ? 'success' : 'danger'}
+                      tone={settings().kind === 'ok' ? 'success' : 'destructive'}
                       label={settings().kind === 'ok' ? 'Connected' : 'Disconnected'}></sui-status-dot>
                     <span class="s-status-text">{settings().kind === 'ok' ? 'Connected' : 'Disconnected'}</span>
                   </span>
