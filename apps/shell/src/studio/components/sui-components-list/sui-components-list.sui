@@ -69,12 +69,12 @@
       />
     </label>
     <div class="pills">
-      {#for pill of pills() key={pill.id}}
+      {#for pill of pills() key={pill.id + (pill.active ? ':on' : ':off')}}
         <button
           type="button"
           class="pill"
           data-test="package-pill"
-          attr:data-active={pkg() === pill.id ? '' : null}
+          attr:data-active={pill.active ? 'true' : null}
           on:click={() => setPkg(pill.id)}
         >{pill.label} <span class="pill-count">{pill.count}</span></button>
       {/for}
@@ -89,7 +89,7 @@
     <div class="state" data-test="components-empty">No components match.</div>
   {:else}
     <div class="groups">
-      {#for group of groups() key={group.id}}
+      {#for group of groups() key={group.key}}
         <section data-test="component-group" attr:data-group={group.id}>
           <div class="group-h">
             {group.label} <span class="group-h-count">· {group.items.length}</span>

@@ -1,5 +1,6 @@
-import { controller, signal, effect, ref, chrome, route } from '@ship/sui-runtime'
+import { controller, signal, effect, ref, chrome } from '@ship/sui-runtime'
 import type { Scope } from './sui-component-detail.sui'
+import { currentComponentTag } from '../route-tag'
 import {
   loadComponents,
   findEntry,
@@ -18,12 +19,11 @@ import { SLOT_COMPOSITIONS } from '../slot-compositions'
 import { buildSnippet } from '../snippet'
 import { seedDefaults, createLiveNode, applyProps, isBoolType } from '../render'
 
-// Lazy global route — deferred past module eval (SSR-safe). The tag id of
-// the component being inspected is the `:sub` segment of
-// `/studio/components/<tag>`.
-let _route: ReturnType<typeof route> | null = null
-const rt = (): ReturnType<typeof route> => (_route ??= route())
-const currentTag = (): string => rt().params.sub() ?? ''
+// The tag id of the component being inspected is the `<tag>` segment of
+// `/studio/components/<tag>`, read reactively from the URL (see
+// route-tag.ts) so per-tag effects re-run when the user navigates
+// detail → detail without this element remounting.
+const currentTag = (): string => currentComponentTag()
 
 export type KnobKind = 'enum' | 'bool' | 'text'
 export interface Knob {

@@ -9,7 +9,7 @@ import {
 
 type PkgFilter = 'all' | string
 
-export interface Pill { id: PkgFilter; label: string; count: number }
+export interface Pill { id: PkgFilter; label: string; count: number; active: boolean }
 
 // Project an npm package name to the short pill label, e.g.
 // `@ship/primitives` → `primitives`. Unscoped names pass through.
@@ -31,16 +31,22 @@ export default controller<Scope>({
     totalCount: ({ entries }) => (entries() as ComponentEntry[]).length,
 
     // Package pills: All + one per distinct owning package, with counts.
-    pills: ({ entries }): Pill[] => {
+    // `active` is baked in (rather than compared per-pill in the template)
+    // so it tracks `pkg` reactively — a per-item binding inside a keyed
+    // `{#for}` doesn't re-read an external signal on its own.
+    pills: ({ entries, pkg }): Pill[] => {
+      const sel = pkg()
       const all = entries() as ComponentEntry[]
       const counts = new Map<string, number>()
       for (const e of all) {
         const id = pkgLabel(e.package)
         counts.set(id, (counts.get(id) ?? 0) + 1)
       }
-      const out: Pill[] = [{ id: 'all', label: 'All', count: all.length }]
+      const out: Pill[] = [
+        { id: 'all', label: 'All', count: all.length, active: sel === 'all' },
+      ]
       for (const [id, count] of [...counts].sort((a, b) => b[1] - a[1])) {
-        out.push({ id, label: id, count })
+        out.push({ id, label: id, count, active: sel === id })
       }
       return out
     },

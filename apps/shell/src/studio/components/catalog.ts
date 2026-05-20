@@ -37,6 +37,11 @@ export interface CategoryGroup {
   label: string
   blurb: string
   items: ComponentEntry[]
+  /** Content key (id + member tags). Used as the template `{#for}` key so
+   *  a group whose membership shrinks under a filter rebuilds its row list
+   *  instead of leaving stale rows — the nested keyed `{#for}` reconciles
+   *  the group list but not a *reused* group's inner item list. */
+  key: string
 }
 
 // ── Wire shapes (subset of the published catalog) ────────────────────
@@ -130,7 +135,8 @@ export function groupByCategory(entries: readonly ComponentEntry[]): CategoryGro
   for (const c of CATEGORIES) {
     const items = byCat.get(c.id)
     if (!items || items.length === 0) continue
-    groups.push({ id: c.id, label: c.label, blurb: c.blurb, items })
+    const key = `${c.id}#${items.map((e) => e.tag).join(',')}`
+    groups.push({ id: c.id, label: c.label, blurb: c.blurb, items, key })
   }
   return groups
 }
