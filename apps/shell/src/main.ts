@@ -977,8 +977,9 @@ async function syncProject(): Promise<void> {
     const body = (await resp.json()) as { active?: { name?: string; label?: string } | null }
     const name = body.active?.label || body.active?.name || ''
     if (shellBottom) shellBottom.setAttribute('workspace', name)
-    const navTop = document.getElementById('ship-nav-top')
-    if (navTop) navTop.setAttribute('project', name)
+    // Project identity in the top bar is now owned by <sui-project-switcher>
+    // (it fetches + renders the active project itself); nav-top no longer takes
+    // a `project` breadcrumb prefix.
   } catch { /* leave workspace blank when the API is unreachable */ }
 }
 void syncProject()

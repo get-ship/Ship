@@ -1,0 +1,166 @@
+<bundle separate />
+<!--
+  <sui-project-switcher> — active-project affordance for the chrome strip.
+  Trigger shows the project's identity hue dot + name + caret; clicking opens a
+  native-popover menu listing every project (hue dot + name + path, active one
+  marked) and switches via POST /api/v1/projects/{id}/activate.
+
+  Mirrors the popover-anchor pattern of <sui-account-menu>: a `popover="auto"`
+  panel, anchored with getBoundingClientRect() on open, `toggle` event drives
+  aria-expanded.
+
+  Data is the daemon's project registry (GET /api/v1/projects) — a plain REST
+  surface, not a ship.* SDK call, so it's fetched in the controller. The hue is
+  derived deterministically from the project id (no daemon field for it). The
+  design's isolation + status indicators are intentionally omitted: the projects
+  endpoint exposes neither, and we don't fabricate data.
+
+  Events: sui:project-switcher:ready {} once after mount.
+  Parts: trigger, dot, name, menu.
+-->
+
+<style>
+  :host { display: inline-flex; align-items: center; }
+
+  .trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2, 8px);
+    height: 28px;
+    max-width: 220px;
+    padding: 0 var(--space-2, 8px);
+    border: 0;
+    border-radius: var(--radius-sm, 4px);
+    background: transparent;
+    color: var(--foreground);
+    font: inherit;
+    cursor: pointer;
+  }
+  .trigger:hover { background: color-mix(in oklch, var(--foreground) 6%, transparent); }
+  .trigger:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px color-mix(in oklch, var(--primary) 50%, transparent);
+  }
+
+  .dot {
+    width: 10px;
+    height: 10px;
+    flex: 0 0 auto;
+    border-radius: 50%;
+    background: var(--dot, var(--muted-foreground));
+  }
+  .dot[data-hue="red"]    { --dot: var(--hue-red); }
+  .dot[data-hue="orange"] { --dot: var(--hue-orange); }
+  .dot[data-hue="amber"]  { --dot: var(--hue-amber); }
+  .dot[data-hue="green"]  { --dot: var(--hue-green); }
+  .dot[data-hue="teal"]   { --dot: var(--hue-teal); }
+  .dot[data-hue="blue"]   { --dot: var(--hue-blue); }
+  .dot[data-hue="violet"] { --dot: var(--hue-violet); }
+  .dot[data-hue="pink"]   { --dot: var(--hue-pink); }
+  .dot[data-hue="slate"]  { --dot: var(--muted-foreground); }
+
+  .name {
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1;
+  }
+  .chev {
+    width: 10px;
+    height: 6px;
+    flex: 0 0 auto;
+    color: var(--muted-foreground);
+  }
+
+  .menu {
+    position: fixed;
+    inset: auto;
+    margin: 0;
+    padding: var(--space-1, 4px) 0;
+    min-width: 240px;
+    max-width: 360px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md, 8px);
+    background: var(--popover, var(--card));
+    color: var(--popover-foreground, var(--card-foreground));
+    box-shadow: var(--shadow-lg);
+    overflow: hidden;
+  }
+  .menu-title {
+    padding: var(--space-2, 8px) var(--space-3, 12px) var(--space-1, 4px);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: var(--muted-foreground);
+  }
+  .row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2, 8px);
+    width: 100%;
+    padding: var(--space-2, 8px) var(--space-3, 12px);
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+  .row:hover { background: color-mix(in oklch, var(--foreground) 6%, transparent); }
+  .row[data-active] { background: color-mix(in oklch, var(--primary) 12%, transparent); }
+  .row-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .row-name {
+    font-size: 13px;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .row-path {
+    font-size: 11px;
+    color: var(--muted-foreground);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .menu-empty {
+    padding: var(--space-3, 12px);
+    text-align: center;
+    font-size: 12px;
+    color: var(--muted-foreground);
+  }
+</style>
+
+<button class="trigger" part="trigger" type="button" bind:this={triggerBtn}
+  aria-haspopup="menu"
+  aria-expanded={menuOpen() ? 'true' : 'false'}
+  aria-label={triggerAria()}
+  title={activeName()}
+  on:click={() => toggleMenu()}>
+  <span class="dot" part="dot" attr:data-hue={activeHue()}></span>
+  <span class="name" part="name">{activeName()}</span>
+  <svg class="chev" viewBox="0 0 10 6" aria-hidden="true">
+    <path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+  </svg>
+</button>
+
+<div class="menu" part="menu" popover="auto" bind:this={menuEl} role="menu" aria-label="Switch project">
+  <div class="menu-title">Switch project</div>
+  {#for p of rows() key={p.id}}
+    <button class="row" type="button" role="menuitemradio"
+      attr:aria-checked={p.id === activeId() ? 'true' : 'false'}
+      attr:data-active={p.id === activeId() ? 'true' : null}
+      on:click={() => pick(p.id)}>
+      <span class="dot" attr:data-hue={p.hue}></span>
+      <span class="row-main">
+        <span class="row-name">{p.name}</span>
+        <span class="row-path">{p.path}</span>
+      </span>
+    </button>
+  {/for}
+  {#if rows().length === 0}
+    <div class="menu-empty">No projects found.</div>
+  {/if}
+</div>
