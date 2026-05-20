@@ -26,6 +26,37 @@ function repoRoot(): string {
   return process.cwd();
 }
 
+// Resolve the SUI runtime + its importmap siblings to the daemon's /_sui URLs
+// in dev. Vite would otherwise resolve bare `@ship/sui-*` specifiers to the
+// workspace SOURCE (served via @fs) — a SECOND runtime instance alongside the
+// daemon's bundled /_sui/runtime.js that the importmap-resolved view bundles
+// use (split-brain signals; the runtime guard fires "loaded 2 times"). By
+// rewriting the import to the same `/_sui/*` URL the importmap targets — served
+// through the existing /_sui proxy — shell code and view bundles share ONE
+// runtime instance, so dev matches production.
+//
+// Mirrors the importmap in `index.html`. Returning a servable URL as `external`
+// (not the bare specifier — vite can't load that in serve mode) leaves the
+// import for the browser, which fetches it through the proxy.
+function suiRuntimeToDaemonUrl(): Plugin {
+  const MAP: Record<string, string> = {
+    "@ship/sui-runtime": "/_sui/runtime.js",
+    "@ship/sui-runtime/route": "/_sui/runtime.js",
+    "@ship/sui-runtime/template-hooks": "/_sui/runtime.js",
+    "@ship/sui-runtime/patch": "/_sui/runtime.js",
+    "@ship/sui-dom": "/_sui/dom.js",
+    "@ship/sdk-client": "/_sui/sdk-client.js",
+  };
+  return {
+    name: "ship:sui-runtime-to-daemon",
+    enforce: "pre",
+    resolveId(id) {
+      const url = MAP[id];
+      return url ? { id: url, external: true } : null;
+    },
+  };
+}
+
 function resolveDaemonDir(): string | null {
   const root = repoRoot();
   const candidates = [join(root, "target", "debug", "ship"), join(root, "target", "release", "ship")];
@@ -128,7 +159,20 @@ export default defineConfig(({ mode }) => {
 
   return {
     base: "/",
-    plugins: [vitePidPlugin(daemonDir)],
+    plugins: [vitePidPlugin(daemonDir), suiRuntimeToDaemonUrl()],
+    // The SUI runtime specifiers resolve to daemon `/_sui/*` URLs (see
+    // suiRuntimeToDaemonUrl); keep vite's dep pre-scanner from trying to read
+    // them off disk.
+    optimizeDeps: {
+      exclude: [
+        "@ship/sui-runtime",
+        "@ship/sui-runtime/route",
+        "@ship/sui-runtime/template-hooks",
+        "@ship/sui-runtime/patch",
+        "@ship/sui-dom",
+        "@ship/sdk-client",
+      ],
+    },
     server: {
       port: vitePort,
       strictPort: true,
