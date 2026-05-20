@@ -1,12 +1,12 @@
 # ship-isolation
 
-Agent-process isolation primitives for Ship. **Experimental spike** — no
-existing L1+ crate depends on this yet. Orchestrator integration is a
-separate branch and a separate conversation.
+Agent-process isolation primitives for Ship. Wired through the
+supervisor as sandbox-as-runtime (Phase C); Tier 0/1 in-process and
+Tier 2 sidecar-driven containers both land here.
 
 See [`docs/architecture.md`](./docs/architecture.md) for the elevator
-pitch and component map. See [`STATUS.md`](./STATUS.md) for what's
-verified and what's left.
+pitch and component map. See [`docs/open-issues.md`](./docs/open-issues.md)
+for locked decisions, the backlog, and what's left.
 
 ## What it is
 
