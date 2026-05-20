@@ -236,7 +236,11 @@ fn resolve_local_binding(
                         let after_params = skip_trivia(bytes, pclose, end);
                         let ret = if after_params < end && bytes[after_params] == b':' {
                             let ret_start = after_params + 1;
-                            let ret_end = skip_type_annotation(bytes, ret_start, end);
+                            // A function-declaration return type ends at the
+                            // body's `{` — NOT `skip_type_annotation`, which
+                            // treats that brace as an object type and swallows
+                            // the whole body into the `.d.ts` (invalid TS).
+                            let ret_end = skip_fn_return_type(bytes, ret_start, end);
                             let ts = std::str::from_utf8(&bytes[ret_start..ret_end])
                                 .unwrap_or("")
                                 .trim()
@@ -495,6 +499,37 @@ fn match_angle(bytes: &[u8], start: usize, end: usize) -> usize {
     start
 }
 
+/// Walk a **function-declaration** return-type annotation (after the `:`),
+/// stopping at the body's opening `{` (depth 0) or a top-level separator.
+/// Unlike [`skip_type_annotation`], a top-level `{` ends the type — it begins
+/// the function body — rather than being consumed as an object type. Without
+/// this, `function f(): void { body }` leaked its body into the `.d.ts`.
+fn skip_fn_return_type(bytes: &[u8], start: usize, end: usize) -> usize {
+    let mut k = start;
+    let mut depth: i32 = 0;
+    while k < end {
+        let c = bytes[k];
+        if depth == 0 {
+            if c == b'{' {
+                return k; // function body begins
+            }
+            if matches!(c, b',' | b';' | b'=' | b')' | b'}' | b']') {
+                return k;
+            }
+        }
+        match c {
+            b'<' | b'(' | b'[' => depth += 1,
+            b'>' | b')' | b']' => depth -= 1,
+            _ => {}
+        }
+        if depth < 0 {
+            return k;
+        }
+        k += 1;
+    }
+    end
+}
+
 /// Walk a TS return-type annotation starting after the leading `:`.
 /// Stops at the next `=>` token or top-level boundary (`,` `;` `=` `)` `}` `]`).
 fn skip_type_annotation(bytes: &[u8], start: usize, end: usize) -> usize {
@@ -710,6 +745,28 @@ mod tests {
         assert!(map.contains(&("caughtError", "Signal<Error | null>")), "{map:?}");
         let reset = v.iter().find(|(n, _)| n == "reset").expect("reset present");
         assert!(reset.1.ends_with("=> void"), "got {}", reset.1);
+    }
+
+    #[test]
+    fn block_body_function_decl_does_not_leak_body() {
+        // Regression: `function NAME(): void { body }` referenced via shorthand
+        // leaked its entire body into the .d.ts return type (invalid TS).
+        let c = ctrl(
+            "export default controller({\n  \
+               scope: (_, host) => {\n    \
+                 function endSession(id: string): void {\n      \
+                   void fetch(`/x/${id}`)\n      \
+                   if (true) { return }\n    \
+                 }\n    \
+                 function reset(): void { state.clear() }\n    \
+                 return { endSession, reset }\n  \
+               },\n});",
+        );
+        let v = extract(&c);
+        let es = v.iter().find(|(n, _)| n == "endSession").expect("endSession present");
+        assert_eq!(es.1, "(id: string) => void", "body leaked: {}", es.1);
+        let reset = v.iter().find(|(n, _)| n == "reset").expect("reset present");
+        assert_eq!(reset.1, "() => void", "body leaked: {}", reset.1);
     }
 
     #[test]
