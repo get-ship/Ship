@@ -31,22 +31,28 @@
  * @packageDocumentation
  */
 
-// Singleton guard. The whole runtime depends on exactly ONE instance: signals,
-// effects, and the context/route registries are module-level state. Every
-// bundle externalizes `@ship/sui-runtime` so the importmap resolves them all to
-// one `/_sui/runtime.js`. If this module evaluates twice, some bundle inlined
-// its own copy — its effects will never react to the shared instance's signals
-// (split-brain). Fail loud rather than debug silent dead reactivity later.
+// Singleton diagnostic. The whole runtime depends on exactly ONE instance:
+// signals, effects, and the context/route registries are module-level state.
+// The hard guarantee is structural — the deck bundler externalizes
+// `@ship/sui-runtime` for every target so the importmap resolves them all to
+// one `/_sui/runtime.js`. This load-time counter is the belt-and-suspenders
+// heads-up: a second instance means signals/effects in one copy can't react to
+// the other's (split-brain).
+//
+// In a daemon-served (production) shell this should always be 1 — a 2 there is
+// a real bundler-externalization regression. Under the vite shell-dev server it
+// can legitimately be 2, because vite serves this module's SOURCE via `@fs`
+// alongside the daemon's bundled `/_sui/runtime.js`; that's a dev-server
+// artifact, not a bundler bug. Warn (don't throw) so it's visible without
+// crying wolf in dev.
 {
   const g = globalThis as unknown as { __suiRuntimeInstances?: number }
   g.__suiRuntimeInstances = (g.__suiRuntimeInstances ?? 0) + 1
   if (g.__suiRuntimeInstances > 1) {
-    console.error(
-      '[sui-runtime] loaded %d times — a bundle is not externalizing ' +
-        '@ship/sui-runtime, so its signals/effects live in a separate instance ' +
-        'and cross-bundle reactivity will silently fail. The deck bundler ' +
-        'externalizes the runtime for every target; a non-bundler loader (raw ' +
-        '<script>, a second importmap entry) is the usual cause.',
+    console.warn(
+      '[sui-runtime] loaded %d times. In production this means a bundle is not ' +
+        'externalizing @ship/sui-runtime (split-brain signals); under vite ' +
+        'shell-dev it is the expected @fs-source + /_sui-bundle duplication.',
       g.__suiRuntimeInstances,
     )
   }
