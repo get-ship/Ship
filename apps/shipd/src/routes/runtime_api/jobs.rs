@@ -467,16 +467,17 @@ pub async fn cancel_job(
     Json(req): Json<CancelJobRequest>,
 ) -> impl IntoResponse {
 
+    // Pipeline runs live in the jobs projection; bare agent sessions
+    // live in the agent_sessions projection. The agent-primitive
+    // inversion made single-agent dispatch emit only an
+    // `agent.session.*` lifecycle (no jobs row), so cancel must resolve
+    // against both projections and emit the matching cancelled event.
+    // Jobs win the lookup (a composed pipeline step has a `::`-suffixed
+    // session slug that operators don't cancel directly).
     let job = match ship_platform::projections::job::load_job_by_slug_at(state.ship_dir(), &slug) {
         Ok(Some(j)) => j,
         Ok(None) => {
-            return (
-                StatusCode::NOT_FOUND,
-                Json(MeshResponse {
-                    ok: false,
-                    data: serde_json::json!(format!("no job with slug '{slug}'")),
-                }),
-            );
+            return cancel_agent_session(&state, &slug, req).await;
         }
         Err(e) => {
             return (
@@ -532,6 +533,90 @@ pub async fn cancel_job(
             Json(MeshResponse {
                 ok: true,
                 data: serde_json::json!({ "slug": &slug, "status": "cancelling" }),
+            }),
+        ),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(MeshResponse { ok: false, data: serde_json::json!(e.to_string()) }),
+        ),
+    }
+}
+
+/// Cancel a bare agent session (no jobs row). Emits
+/// `agent.session.cancelled`, which the orchestrator router turns into a
+/// process kill + `process.killed`. Idempotent: 409 when already
+/// terminal, 404 when no session exists for the slug.
+async fn cancel_agent_session(
+    state: &ApiState,
+    slug: &str,
+    req: CancelJobRequest,
+) -> (StatusCode, Json<MeshResponse>) {
+    use ship_platform::projections::agent_session::load_session_by_slug_at;
+    use ship_substrate::events::agent_session::{
+        event_types as agent_event_types, AgentSessionCancelledPayload,
+    };
+
+    let session = match load_session_by_slug_at(state.ship_dir(), slug) {
+        Ok(Some(s)) => s,
+        Ok(None) => {
+            return (
+                StatusCode::NOT_FOUND,
+                Json(MeshResponse {
+                    ok: false,
+                    data: serde_json::json!(format!(
+                        "no job or agent session with slug '{slug}'"
+                    )),
+                }),
+            );
+        }
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(MeshResponse { ok: false, data: serde_json::json!(e.to_string()) }),
+            );
+        }
+    };
+
+    if session.status.is_terminal() {
+        return (
+            StatusCode::CONFLICT,
+            Json(MeshResponse {
+                ok: false,
+                data: serde_json::json!({
+                    "slug": slug,
+                    "status": format!("{:?}", session.status).to_lowercase(),
+                }),
+            }),
+        );
+    }
+
+    let payload = AgentSessionCancelledPayload {
+        session_id: session.session_id.clone(),
+        slug: slug.to_string(),
+        reason: Some(req.reason),
+    };
+    let envelope = match EventEnvelope::new(
+        agent_event_types::AGENT_SESSION_CANCELLED,
+        &session.session_id,
+        &payload,
+    )
+    .map(|e| e.with_actor_id("operator"))
+    {
+        Ok(e) => e,
+        Err(e) => {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(MeshResponse { ok: false, data: serde_json::json!(e.to_string()) }),
+            );
+        }
+    };
+
+    match state.persist_and_route(&envelope).await {
+        Ok(()) => (
+            StatusCode::OK,
+            Json(MeshResponse {
+                ok: true,
+                data: serde_json::json!({ "slug": slug, "status": "cancelling" }),
             }),
         ),
         Err(e) => (

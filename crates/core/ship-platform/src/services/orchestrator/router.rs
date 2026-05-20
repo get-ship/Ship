@@ -133,6 +133,11 @@ pub async fn handle_job_event(
         "pipeline.run.started" => handle_job_created(kernel, envelope, octx).await,
         "pipeline.run.updated" => handle_job_update(kernel, envelope).await,
         et::PIPELINE_RUN_CANCELLED => handle_job_cancelled(kernel, envelope, octx).await,
+        // Bare agent-session cancel. handle_job_cancelled is slug-keyed
+        // and harness-agnostic — it kills via the registry handle and
+        // emits process.killed, identical to a pipeline-run cancel. The
+        // payload carries `slug`, so the same handler drives both.
+        "agent.session.cancelled" => handle_job_cancelled(kernel, envelope, octx).await,
         "pipeline.run.completed" => {
             tracing::info!(entity_id = %envelope.entity_id, "job-dispatch: handling job.completed");
             let slug = extract_slug(envelope);

@@ -188,10 +188,19 @@ pub async fn handle_job_cancelled(
 
     // Ensure tmux session + worktree are gone. Look up branch from the
     // projection so delete_branch can run.
+    // Branch for cleanup: pipeline runs carry it on the jobs row; bare
+    // agent sessions carry it on the agent_sessions row. Try jobs first,
+    // fall back to the session projection (agent.session.cancelled).
     let branch = crate::projections::job::load_job_by_slug(&slug)
         .ok()
         .flatten()
         .map(|j| j.branch)
+        .or_else(|| {
+            crate::projections::agent_session::load_session_by_slug(&slug)
+                .ok()
+                .flatten()
+                .map(|s| s.branch)
+        })
         .unwrap_or_default();
     octx.platform.cleanup_job(&slug, &branch).await;
 
