@@ -6,7 +6,7 @@
 //!    Used by tests and by the one-shot hydration path. Kept stable so existing
 //!    test fixtures don't churn when the storage layer changes.
 //! 2. **SQL-backed projection** ([`PipelineRunProjection`]) — implements the
-//!    `Projection` trait and maintains the `jobs` table in `platform.db`.
+//!    `Projection` trait and maintains the `pipeline_runs` table in `platform.db`.
 //!    `apply()` UPDATEs the row inside the dispatch transaction; reads
 //!    ([`load_pipeline_runs`], [`load_pipeline_run_by_id`]) hit the table directly.
 //!
@@ -399,6 +399,10 @@ const JOB_EVENT_TYPES: &[&str] = &[
 
 impl Projection for PipelineRunProjection {
     fn name(&self) -> &str {
+        // Cursor-tracking key (cursors table), NOT the SQL table name
+        // (which is `pipeline_runs`). Kept as "jobs" deliberately:
+        // renaming it would orphan the existing cursor and force a full
+        // from-zero replay on upgrade.
         "jobs"
     }
 
@@ -426,7 +430,7 @@ impl Projection for PipelineRunProjection {
     }
 
     fn truncate(&self, conn: &mut SqliteConnection) -> Result<()> {
-        block_on(async { sqlx::query("DELETE FROM jobs").execute(conn).await })?;
+        block_on(async { sqlx::query("DELETE FROM pipeline_runs").execute(conn).await })?;
         Ok(())
     }
 }
@@ -543,7 +547,7 @@ fn upsert_record(record: &PipelineRun, conn: &mut SqliteConnection) -> Result<()
 
     block_on(async {
         sqlx::query(
-            "INSERT INTO jobs (\
+            "INSERT INTO pipeline_runs (\
               job_id, slug, agent, branch, spec_path, source_spec_path, \
               depends_on_json, status, worktree, blocker, error, model, harness, \
               created_at, updated_at, harness_meta_json, pipeline_json, steps_json, \
@@ -596,7 +600,7 @@ fn upsert_record(record: &PipelineRun, conn: &mut SqliteConnection) -> Result<()
 
 fn load_row(job_id: &str, conn: &mut SqliteConnection) -> Result<Option<PipelineRun>> {
     let row = block_on(async {
-        sqlx::query(&format!("SELECT {ROW_COLS} FROM jobs WHERE job_id = ?"))
+        sqlx::query(&format!("SELECT {ROW_COLS} FROM pipeline_runs WHERE job_id = ?"))
             .bind(job_id)
             .fetch_optional(conn)
             .await
@@ -606,7 +610,7 @@ fn load_row(job_id: &str, conn: &mut SqliteConnection) -> Result<Option<Pipeline
 
 fn load_all_rows(conn: &mut SqliteConnection) -> Result<HashMap<String, PipelineRun>> {
     let rows = block_on(async {
-        sqlx::query(&format!("SELECT {ROW_COLS} FROM jobs"))
+        sqlx::query(&format!("SELECT {ROW_COLS} FROM pipeline_runs"))
             .fetch_all(conn)
             .await
     })?;
@@ -701,7 +705,7 @@ fn load_pipeline_run_by_slug_on(
     hydrate_if_needed(conn)?;
     let row = block_on(async {
         sqlx::query(&format!(
-            "SELECT {ROW_COLS} FROM jobs WHERE slug = ? \
+            "SELECT {ROW_COLS} FROM pipeline_runs WHERE slug = ? \
              ORDER BY updated_at DESC LIMIT 1"
         ))
         .bind(slug)
@@ -723,7 +727,7 @@ fn load_pipeline_run_by_slug_on(
 /// no caller has to remember to invoke it.
 fn hydrate_if_needed(conn: &mut SqliteConnection) -> Result<()> {
     let row_count: i64 = block_on(async {
-        sqlx::query_scalar("SELECT COUNT(*) FROM jobs")
+        sqlx::query_scalar("SELECT COUNT(*) FROM pipeline_runs")
             .fetch_one(&mut *conn)
             .await
     })?;
