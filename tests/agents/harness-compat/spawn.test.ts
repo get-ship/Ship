@@ -49,16 +49,16 @@ for (const h of HARNESSES) {
         const dispatched = await dispatch({
           agent: COMPAT_AGENT,
           harness: h.id,
-          auto: true, // headless; we never send a turn
           workspace: COMPAT_WORKSPACE,
-          // No prompt / spec → harness comes up to its ready prompt and
+          // Default axes: PTY invocation, no attach, no keepalive. No
+          // prompt / spec → harness comes up to its ready prompt and
           // sits idle until we cancel. Avoids any model API call.
         });
 
         try {
           // ── Slug + ids ────────────────────────────────────────────────
           expect(dispatched.slug.startsWith(`${COMPAT_WORKSPACE}-`)).toBe(true);
-          expect(dispatched.jobId).toMatch(ULID_RE);
+          expect(dispatched.sessionId).toMatch(ULID_RE);
           expect(dispatched.branch).toBe(`job/${dispatched.slug}`);
 
           // ── Actor projection materialised ─────────────────────────────

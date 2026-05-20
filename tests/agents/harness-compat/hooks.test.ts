@@ -154,25 +154,25 @@ for (const h of HARNESSES) {
 
         const sinceId = await latestEventId();
         // Opencode hook synth fires from the structured output stream
-        // of `opencode run --format json`, which only flows when auto
-        // (headless) is true. For other harnesses we use auto:false to
-        // keep them interactive (then cancel) — they fire hooks from
-        // their own .hooks config regardless.
-        const auto = h.id === "opencode";
+        // of `opencode run --format json`, which only flows in print
+        // (one-shot, headless) invocation. For other harnesses we use a
+        // PTY session (then cancel) — they fire hooks from their own
+        // .hooks config regardless.
+        const headless = h.id === "opencode";
         const dispatched = await dispatch({
           agent: COMPAT_AGENT,
           harness: h.id,
-          auto,
+          invocation: headless ? "print" : "pty",
           workspace: COMPAT_WORKSPACE,
-          prompt: auto ? "say hi" : undefined,
+          prompt: headless ? "say hi" : undefined,
         });
 
         try {
           await waitForActorRow(dispatched.slug);
           await new Promise((r) => setTimeout(r, 2_000));
-          if (!auto) await cancelSession(dispatched.slug);
+          if (!headless) await cancelSession(dispatched.slug);
 
-          // Longer window for auto:true — the harness has to boot,
+          // Longer window for the print run — the harness has to boot,
           // process the prompt, and emit events. Hard-assert for
           // opencode (T1 reliability gate); INFO-log for others where
           // keepalive Channel delivery is still the unresolved gap.
@@ -182,7 +182,7 @@ for (const h of HARNESSES) {
                 e.target_actor_id === dispatched.slug ||
                 e.entity_id === dispatched.slug) &&
               e.event_type.startsWith("hook."),
-            { sinceId, slug: dispatched.slug, timeoutMs: auto ? 30_000 : 5_000 },
+            { sinceId, slug: dispatched.slug, timeoutMs: headless ? 30_000 : 5_000 },
           );
 
           if (h.id === "opencode") {

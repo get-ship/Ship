@@ -5,13 +5,13 @@
 //
 //   spawn-phase events (any order; some are emitted on a separate
 //   thread, so strict ordering would be flaky):
-//     pipeline.run.started     ← daemon dispatch handler
-//     pipeline.run.dispatched  ← orchestrator after executor.spawn
+//     agent.session.started    ← daemon dispatch handler (the primitive)
+//     agent.session.dispatched ← orchestrator after executor.spawn
 //     process.spawned          ← orchestrator after spawn registration
 //     actor.created            ← RoutingExecutor::spawn (fire-and-forget thread)
 //
 //   teardown-phase events (after cancel):
-//     pipeline.run.cancelled   ← cancel handler
+//     agent.session.cancelled  ← cancel route (agent_sessions projection)
 //     process.killed           ← orchestrator handlers::handle_job_cancelled
 //
 // We don't assert strict order (actor.created is on its own thread;
@@ -40,14 +40,14 @@ import {
 const SKIPPED = skipped();
 
 const SPAWN_PHASE_EVENTS = [
-  "pipeline.run.started",
-  "pipeline.run.dispatched",
+  "agent.session.started",
+  "agent.session.dispatched",
   "process.spawned",
   "actor.created",
 ] as const;
 
 const TEARDOWN_PHASE_EVENTS = [
-  "pipeline.run.cancelled",
+  "agent.session.cancelled",
   "process.killed",
 ] as const;
 
@@ -72,7 +72,6 @@ for (const h of HARNESSES) {
         const dispatched = await dispatch({
           agent: COMPAT_AGENT,
           harness: h.id,
-          auto: true,
           workspace: COMPAT_WORKSPACE,
         });
 
@@ -90,7 +89,7 @@ for (const h of HARNESSES) {
         const events = await pollForEvents(
           (e) =>
             e.entity_id === dispatched.slug ||
-            e.entity_id === dispatched.jobId ||
+            e.entity_id === dispatched.sessionId ||
             e.actor_id === dispatched.slug ||
             e.target_actor_id === dispatched.slug,
           {
