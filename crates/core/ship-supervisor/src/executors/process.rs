@@ -29,7 +29,7 @@ use async_trait::async_trait;
 use ship_substrate::events::process::{event_types as proc_events, ProcessKilledPayload};
 use ship_substrate::events::{EventEnvelope, KernelRouter};
 use ship_platform::services::dispatch_ports::{
-    ExecutorHandle, ExitCause, ExitSignal, JobContext, JobExecutor, LaunchCommand, LaunchProfile,
+    ExecutorHandle, ExitCause, ExitSignal, SessionContext, SessionExecutor, LaunchCommand, LaunchProfile,
 };
 use ship_platform::services::orchestrator::emit::persist_and_route;
 use ship_platform::services::harness_adapter::{adapter_for_or_default, HarnessAdapter};
@@ -120,8 +120,8 @@ impl ProcessState {
 }
 
 #[async_trait]
-impl JobExecutor for ProcessExecutor {
-    async fn spawn(&self, ctx: &JobContext) -> Result<ExecutorHandle> {
+impl SessionExecutor for ProcessExecutor {
+    async fn spawn(&self, ctx: &SessionContext) -> Result<ExecutorHandle> {
         // Non-interactive launch. Dispatch to the harness adapter so each
         // harness owns its own flags and prompt shape — Claude consumes the
         // autostart prompt via `-p`, Codex via `codex exec "<prompt>"`, etc.
@@ -539,7 +539,7 @@ mod tests {
     // ── emission tests ─────────────────────────────────────────────────────
     //
     // These tests drive `stop()` end-to-end by constructing a real PTY child
-    // + ProcessState and invoking the JobExecutor trait. They assert the
+    // + ProcessState and invoking the SessionExecutor trait. They assert the
     // event store actually contains a `process.killed` envelope afterward,
     // not just that the call site fires — matches the spec's acceptance
     // criterion for event-store reads.

@@ -15,7 +15,7 @@ use ship_substrate::events::pipeline::{event_types, PipelineRunStartedPayload, P
 use ship_substrate::events::kernel_router::{ActorConfig, KernelRouter};
 use crate::projections::pipeline_run::{load_pipeline_runs, PipelineRunStatus};
 use crate::services::dispatch_ports::{
-    AgentPlatform, ExecutorHandle, IsolationStrategy, JobContext, JobExecutor,
+    AgentPlatform, ExecutorHandle, IsolationStrategy, SessionContext, SessionExecutor,
     ProcessRegistryPort,
 };
 use crate::services::orchestrator::dispatch::dispatch_job_internal;
@@ -27,10 +27,10 @@ struct FailingIsolation;
 
 #[async_trait]
 impl IsolationStrategy for FailingIsolation {
-    async fn prepare(&self, _job: &JobContext) -> anyhow::Result<PathBuf> {
+    async fn prepare(&self, _job: &SessionContext) -> anyhow::Result<PathBuf> {
         Err(anyhow::anyhow!("isolation boom: worktree conflict"))
     }
-    async fn cleanup(&self, _job: &JobContext) -> anyhow::Result<()> {
+    async fn cleanup(&self, _job: &SessionContext) -> anyhow::Result<()> {
         Ok(())
     }
 }
@@ -39,11 +39,11 @@ struct OkIsolation(PathBuf);
 
 #[async_trait]
 impl IsolationStrategy for OkIsolation {
-    async fn prepare(&self, _job: &JobContext) -> anyhow::Result<PathBuf> {
+    async fn prepare(&self, _job: &SessionContext) -> anyhow::Result<PathBuf> {
         std::fs::create_dir_all(&self.0).ok();
         Ok(self.0.clone())
     }
-    async fn cleanup(&self, _job: &JobContext) -> anyhow::Result<()> {
+    async fn cleanup(&self, _job: &SessionContext) -> anyhow::Result<()> {
         Ok(())
     }
 }
@@ -51,8 +51,8 @@ impl IsolationStrategy for OkIsolation {
 struct FailingExecutor;
 
 #[async_trait]
-impl JobExecutor for FailingExecutor {
-    async fn spawn(&self, _ctx: &JobContext) -> anyhow::Result<ExecutorHandle> {
+impl SessionExecutor for FailingExecutor {
+    async fn spawn(&self, _ctx: &SessionContext) -> anyhow::Result<ExecutorHandle> {
         Err(anyhow::anyhow!("spawn boom: tmux missing"))
     }
     async fn is_alive(&self, _h: &ExecutorHandle) -> bool {
@@ -133,7 +133,7 @@ fn dispatch_config() -> ActorConfig {
 
 fn octx(
     isolation: Arc<dyn IsolationStrategy>,
-    executor: Arc<dyn JobExecutor>,
+    executor: Arc<dyn SessionExecutor>,
     worktrees: PathBuf,
 ) -> OrchestratorContext {
     OrchestratorContext {

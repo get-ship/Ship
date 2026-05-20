@@ -4,7 +4,7 @@ use ship_substrate::events::kernel_router::{ActorConfig, KernelRouter};
 use ship_substrate::events::validator::{CallerKind, EmitContext};
 use ship_substrate::events::EventEnvelope;
 use ship_platform::projections::pipeline_run::{project, PipelineRunStatus};
-use ship_platform::services::dispatch_ports::{ExecutorHandle, IsolationStrategy, JobContext, JobExecutor};
+use ship_platform::services::dispatch_ports::{ExecutorHandle, IsolationStrategy, SessionContext, SessionExecutor};
 use std::path::PathBuf;
 use std::sync::Arc;
 use tempfile::TempDir;
@@ -45,10 +45,10 @@ struct NoopIsolation;
 
 #[async_trait]
 impl IsolationStrategy for NoopIsolation {
-    async fn prepare(&self, job: &JobContext) -> anyhow::Result<PathBuf> {
+    async fn prepare(&self, job: &SessionContext) -> anyhow::Result<PathBuf> {
         Ok(job.work_dir.clone())
     }
-    async fn cleanup(&self, _job: &JobContext) -> anyhow::Result<()> {
+    async fn cleanup(&self, _job: &SessionContext) -> anyhow::Result<()> {
         Ok(())
     }
 }
@@ -57,8 +57,8 @@ impl IsolationStrategy for NoopIsolation {
 struct NoopExecutor;
 
 #[async_trait]
-impl JobExecutor for NoopExecutor {
-    async fn spawn(&self, _ctx: &JobContext) -> anyhow::Result<ExecutorHandle> {
+impl SessionExecutor for NoopExecutor {
+    async fn spawn(&self, _ctx: &SessionContext) -> anyhow::Result<ExecutorHandle> {
         Ok(ExecutorHandle { pid: None, inner: Box::new(()) })
     }
     async fn is_alive(&self, _handle: &ExecutorHandle) -> bool { false }
@@ -321,11 +321,11 @@ mod ports {
 
     #[async_trait]
     impl IsolationStrategy for RecordingIsolation {
-        async fn prepare(&self, _job: &JobContext) -> anyhow::Result<PathBuf> {
+        async fn prepare(&self, _job: &SessionContext) -> anyhow::Result<PathBuf> {
             self.prepare_count.fetch_add(1, Ordering::SeqCst);
             Ok(self.work_dir.clone())
         }
-        async fn cleanup(&self, _job: &JobContext) -> anyhow::Result<()> {
+        async fn cleanup(&self, _job: &SessionContext) -> anyhow::Result<()> {
             self.cleanup_count.fetch_add(1, Ordering::SeqCst);
             Ok(())
         }
@@ -346,8 +346,8 @@ mod ports {
     }
 
     #[async_trait]
-    impl JobExecutor for RecordingExecutor {
-        async fn spawn(&self, _ctx: &JobContext) -> anyhow::Result<ExecutorHandle> {
+    impl SessionExecutor for RecordingExecutor {
+        async fn spawn(&self, _ctx: &SessionContext) -> anyhow::Result<ExecutorHandle> {
             self.spawn_count.fetch_add(1, Ordering::SeqCst);
             Ok(ExecutorHandle { pid: Some(99999), inner: Box::new(()) })
         }
@@ -363,8 +363,8 @@ mod ports {
         }
     }
 
-    fn test_ctx(slug: &str, work_dir: PathBuf) -> JobContext {
-        JobContext {
+    fn test_ctx(slug: &str, work_dir: PathBuf) -> SessionContext {
+        SessionContext {
             job_id: format!("j-{slug}"),
             slug: slug.to_string(),
             agent: "rust-runtime".to_string(),
@@ -443,7 +443,7 @@ mod ports {
         );
     }
 
-    /// Dispatch delegates to JobExecutor::spawn during job creation.
+    /// Dispatch delegates to SessionExecutor::spawn during job creation.
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn dispatch_delegates_to_executor() {
         let dir = TempDir::new().unwrap();
@@ -478,11 +478,11 @@ mod ports {
 
         assert!(
             executor.spawn_count.load(Ordering::SeqCst) > 0,
-            "JobExecutor::spawn must be called during dispatch"
+            "SessionExecutor::spawn must be called during dispatch"
         );
     }
 
-    /// Pipeline advancement uses JobExecutor::spawn for the next phase.
+    /// Pipeline advancement uses SessionExecutor::spawn for the next phase.
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn pipeline_advance_uses_executor() {
         use ship_substrate::events::store::{EventStore, SqliteEventStore};
@@ -551,7 +551,7 @@ mod ports {
 
         assert!(
             executor.spawn_count.load(Ordering::SeqCst) > 0,
-            "JobExecutor::spawn must be called during pipeline advancement"
+            "SessionExecutor::spawn must be called during pipeline advancement"
         );
     }
 }
@@ -1040,7 +1040,7 @@ fn projection_completed_status() {
 //   2. `ProcessRegistry` struct in supervisor (new file or mod.rs)
 //      - `new() -> Self`
 //      - `register(slug: &str, handle: ExecutorHandle)`
-//      - `shutdown_all(executor: &dyn JobExecutor) -> Vec<String>` (async)
+//      - `shutdown_all(executor: &dyn SessionExecutor) -> Vec<String>` (async)
 //      - `len() -> usize`
 //      - `is_empty() -> bool`
 //      Re-export in job_dispatch.rs with:
@@ -1075,8 +1075,8 @@ mod reliability {
     }
 
     #[async_trait]
-    impl JobExecutor for ShutdownTrackingExecutor {
-        async fn spawn(&self, _ctx: &JobContext) -> anyhow::Result<ExecutorHandle> {
+    impl SessionExecutor for ShutdownTrackingExecutor {
+        async fn spawn(&self, _ctx: &SessionContext) -> anyhow::Result<ExecutorHandle> {
             Ok(ExecutorHandle { pid: Some(11111), inner: Box::new(()) })
         }
         async fn is_alive(&self, _handle: &ExecutorHandle) -> bool {
@@ -1091,8 +1091,8 @@ mod reliability {
         }
     }
 
-    fn test_job_ctx(slug: &str) -> JobContext {
-        JobContext {
+    fn test_job_ctx(slug: &str) -> SessionContext {
+        SessionContext {
             job_id: format!("j-{slug}"),
             slug: slug.to_string(),
             agent: "rust-runtime".to_string(),
@@ -1243,8 +1243,8 @@ mod reliability {
         struct AliveProcessExecutor;
 
         #[async_trait]
-        impl JobExecutor for AliveProcessExecutor {
-            async fn spawn(&self, _ctx: &JobContext) -> anyhow::Result<ExecutorHandle> {
+        impl SessionExecutor for AliveProcessExecutor {
+            async fn spawn(&self, _ctx: &SessionContext) -> anyhow::Result<ExecutorHandle> {
                 Ok(ExecutorHandle { pid: Some(1), inner: Box::new(()) })
             }
             async fn is_alive(&self, _handle: &ExecutorHandle) -> bool {
@@ -1302,8 +1302,8 @@ mod reliability {
         struct AliveProcessExecutor;
 
         #[async_trait]
-        impl JobExecutor for AliveProcessExecutor {
-            async fn spawn(&self, _ctx: &JobContext) -> anyhow::Result<ExecutorHandle> {
+        impl SessionExecutor for AliveProcessExecutor {
+            async fn spawn(&self, _ctx: &SessionContext) -> anyhow::Result<ExecutorHandle> {
                 Ok(ExecutorHandle { pid: Some(1), inner: Box::new(()) })
             }
             async fn is_alive(&self, _handle: &ExecutorHandle) -> bool {
@@ -1368,7 +1368,7 @@ mod reliability {
 
         assert_eq!(registry.len(), 3);
 
-        let stopped = registry.shutdown_all(Arc::clone(&executor) as Arc<dyn ship_platform::services::dispatch_ports::JobExecutor>).await;
+        let stopped = registry.shutdown_all(Arc::clone(&executor) as Arc<dyn ship_platform::services::dispatch_ports::SessionExecutor>).await;
 
         assert_eq!(stopped.len(), 3, "shutdown must stop all 3 agents");
         assert_eq!(
@@ -1402,7 +1402,7 @@ mod reliability {
         let handle = executor.spawn(&test_job_ctx("evt-test")).await.unwrap();
         registry.register("evt-test", handle);
 
-        super::super::graceful_shutdown(&kernel, &mut registry, Arc::clone(&executor) as Arc<dyn ship_platform::services::dispatch_ports::JobExecutor>).await;
+        super::super::graceful_shutdown(&kernel, &mut registry, Arc::clone(&executor) as Arc<dyn ship_platform::services::dispatch_ports::SessionExecutor>).await;
 
         let event = mb
             .try_recv()

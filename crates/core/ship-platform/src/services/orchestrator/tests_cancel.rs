@@ -15,7 +15,7 @@ use ship_substrate::events::process::event_types as process_event_types;
 use ship_substrate::events::process::ProcessKilledPayload;
 use ship_substrate::events::EventEnvelope;
 use crate::services::dispatch_ports::{
-    AgentPlatform, ExecutorHandle, JobContext, JobExecutor, ProcessRegistryPort,
+    AgentPlatform, ExecutorHandle, SessionContext, SessionExecutor, ProcessRegistryPort,
 };
 use crate::services::orchestrator::router::handle_job_event;
 use crate::services::orchestrator::OrchestratorContext;
@@ -27,8 +27,8 @@ struct RecordingExecutor {
 }
 
 #[async_trait]
-impl JobExecutor for RecordingExecutor {
-    async fn spawn(&self, _ctx: &JobContext) -> anyhow::Result<ExecutorHandle> {
+impl SessionExecutor for RecordingExecutor {
+    async fn spawn(&self, _ctx: &SessionContext) -> anyhow::Result<ExecutorHandle> {
         Err(anyhow::anyhow!("not used"))
     }
     async fn is_alive(&self, _h: &ExecutorHandle) -> bool { true }
@@ -230,8 +230,8 @@ async fn cancel_without_registered_handle_still_cleans_and_emits() {
 struct NoopIsolation;
 #[async_trait]
 impl crate::services::dispatch_ports::IsolationStrategy for NoopIsolation {
-    async fn prepare(&self, _job: &JobContext) -> anyhow::Result<PathBuf> {
+    async fn prepare(&self, _job: &SessionContext) -> anyhow::Result<PathBuf> {
         Ok(PathBuf::from("/tmp"))
     }
-    async fn cleanup(&self, _job: &JobContext) -> anyhow::Result<()> { Ok(()) }
+    async fn cleanup(&self, _job: &SessionContext) -> anyhow::Result<()> { Ok(()) }
 }

@@ -11,7 +11,7 @@ use ship_substrate::events::kernel_router::{ActorConfig, KernelRouter};
 use ship_substrate::events::supervisor::event_types as sup_events;
 use ship_substrate::events::EventEnvelope;
 use crate::services::dispatch_ports::{
-    AgentPlatform, ExecutorHandle, IsolationStrategy, JobContext, JobExecutor,
+    AgentPlatform, ExecutorHandle, IsolationStrategy, SessionContext, SessionExecutor,
     ProcessRegistryPort,
 };
 use crate::services::orchestrator::sweep::run_sweep;
@@ -22,10 +22,10 @@ use crate::services::orchestrator::OrchestratorContext;
 struct NoopIsolation;
 #[async_trait]
 impl IsolationStrategy for NoopIsolation {
-    async fn prepare(&self, _job: &JobContext) -> anyhow::Result<PathBuf> {
+    async fn prepare(&self, _job: &SessionContext) -> anyhow::Result<PathBuf> {
         Ok(PathBuf::from("/tmp"))
     }
-    async fn cleanup(&self, _job: &JobContext) -> anyhow::Result<()> {
+    async fn cleanup(&self, _job: &SessionContext) -> anyhow::Result<()> {
         Ok(())
     }
 }
@@ -44,8 +44,8 @@ impl AgentPlatform for NoopPlatform {
 /// Executor that always returns None from resume_handle (process missing).
 struct DeadExecutor;
 #[async_trait]
-impl JobExecutor for DeadExecutor {
-    async fn spawn(&self, _: &JobContext) -> anyhow::Result<ExecutorHandle> {
+impl SessionExecutor for DeadExecutor {
+    async fn spawn(&self, _: &SessionContext) -> anyhow::Result<ExecutorHandle> {
         Err(anyhow::anyhow!("unused"))
     }
     async fn is_alive(&self, _: &ExecutorHandle) -> bool { false }
@@ -59,8 +59,8 @@ impl JobExecutor for DeadExecutor {
 /// Executor that always finds a live process.
 struct AliveExecutor;
 #[async_trait]
-impl JobExecutor for AliveExecutor {
-    async fn spawn(&self, _: &JobContext) -> anyhow::Result<ExecutorHandle> {
+impl SessionExecutor for AliveExecutor {
+    async fn spawn(&self, _: &SessionContext) -> anyhow::Result<ExecutorHandle> {
         Err(anyhow::anyhow!("unused"))
     }
     async fn is_alive(&self, _: &ExecutorHandle) -> bool { true }
@@ -76,8 +76,8 @@ struct RecordingStopExecutor {
     stop_calls: Arc<AtomicUsize>,
 }
 #[async_trait]
-impl JobExecutor for RecordingStopExecutor {
-    async fn spawn(&self, _: &JobContext) -> anyhow::Result<ExecutorHandle> {
+impl SessionExecutor for RecordingStopExecutor {
+    async fn spawn(&self, _: &SessionContext) -> anyhow::Result<ExecutorHandle> {
         Err(anyhow::anyhow!("unused"))
     }
     async fn is_alive(&self, _: &ExecutorHandle) -> bool { false }
@@ -136,7 +136,7 @@ fn make_kernel() -> Arc<Mutex<KernelRouter>> {
 }
 
 fn make_octx(
-    executor: Arc<dyn JobExecutor>,
+    executor: Arc<dyn SessionExecutor>,
     registry: Arc<dyn ProcessRegistryPort>,
 ) -> Arc<OrchestratorContext> {
     Arc::new(OrchestratorContext {
@@ -619,7 +619,7 @@ impl ProcessRegistryPort for RegistryWithLiveSlug {
     async fn unregister(&self, _slug: &str) {}
     async fn live_slugs(&self) -> Vec<String> { vec![self.0.to_string()] }
     async fn take(&self, _slug: &str) -> Option<ExecutorHandle> { None }
-    async fn drain_dead(&self, _executor: &dyn JobExecutor) -> Vec<String> { vec![] }
+    async fn drain_dead(&self, _executor: &dyn SessionExecutor) -> Vec<String> { vec![] }
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

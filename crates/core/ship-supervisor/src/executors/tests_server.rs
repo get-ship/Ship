@@ -17,20 +17,20 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use ship_platform::services::dispatch_ports::{ExecutorHandle, JobContext, JobExecutor, LaunchProfile};
+use ship_platform::services::dispatch_ports::{ExecutorHandle, SessionContext, SessionExecutor, LaunchProfile};
 use ship_platform::services::harness_adapter::capabilities;
 use ship_platform::services::server_session::StubSession;
 
 use super::routing::{RouteKind, RoutingExecutor, ServerSessionRegistry};
 use super::server::ServerExecutor;
 
-fn fresh_ctx(harness: Option<&str>) -> JobContext {
+fn fresh_ctx(harness: Option<&str>) -> SessionContext {
     let tmp = tempfile::tempdir().expect("tempdir");
     // Work dir must survive the test body — leak via keep() so the
-    // returned JobContext references a valid path. The OS cleans up
+    // returned SessionContext references a valid path. The OS cleans up
     // /tmp entries eventually; tests are short-lived.
     let work_dir = tmp.keep();
-    JobContext {
+    SessionContext {
         job_id: "job-test".to_string(),
         slug: "slug-test".to_string(),
         agent: "test-agent".to_string(),
@@ -56,7 +56,7 @@ async fn server_executor_spawn_with_stub_session_errors_clearly() {
     let executor = ServerExecutor::new(None, session);
     let ctx = fresh_ctx(Some("codex"));
 
-    let result = <ServerExecutor as JobExecutor>::spawn(&executor, &ctx).await;
+    let result = <ServerExecutor as SessionExecutor>::spawn(&executor, &ctx).await;
     let err = match result {
         Err(e) => e,
         Ok(_) => panic!("StubSession must fail start_turn"),
@@ -79,7 +79,7 @@ async fn routing_picks_server_executor_when_harness_supports_and_session_bound()
 
     // End-to-end: the spawn itself hits the bound StubSession and
     // surfaces its error, confirming the route reached the executor.
-    let err = match <RoutingExecutor as JobExecutor>::spawn(&routing, &ctx).await {
+    let err = match <RoutingExecutor as SessionExecutor>::spawn(&routing, &ctx).await {
         Err(e) => e,
         Ok(_) => panic!("stub must fail start_turn"),
     };
@@ -150,7 +150,7 @@ async fn server_executor_stop_delegates_to_session_cancel() {
     let session = Arc::new(StubSession::new("codex"));
     let executor = ServerExecutor::new(None, session);
     let handle = ExecutorHandle { pid: None, inner: Box::new(42u32) };
-    <ServerExecutor as JobExecutor>::stop(&executor, &handle)
+    <ServerExecutor as SessionExecutor>::stop(&executor, &handle)
         .await
         .expect("stop on unknown handle is a no-op");
 }
@@ -180,7 +180,7 @@ async fn routing_pre_flight_fails_cleanly_when_binary_missing() {
     unsafe {
         std::env::set_var("PATH", empty.path());
     }
-    let result = <RoutingExecutor as JobExecutor>::spawn(&routing, &ctx).await;
+    let result = <RoutingExecutor as SessionExecutor>::spawn(&routing, &ctx).await;
     // Restore PATH before assertion so a panic doesn't poison later tests.
     unsafe {
         match saved_path {

@@ -13,7 +13,7 @@ use ship_substrate::events::kernel_router::{ActorConfig, KernelRouter};
 use ship_substrate::events::{EventEnvelope, EventSink};
 use ship_substrate::persistence::event_store::SqliteEventStore;
 use crate::services::dispatch_ports::{
-    AgentPlatform, ExecutorHandle, IsolationStrategy, JobContext, JobExecutor,
+    AgentPlatform, ExecutorHandle, IsolationStrategy, SessionContext, SessionExecutor,
     ProcessRegistryPort,
 };
 use crate::services::orchestrator::fanout_recover::reconcile_fanout_lanes;
@@ -40,8 +40,8 @@ impl AgentPlatform for CountingPlatform {
 
 struct NoopExecutor;
 #[async_trait]
-impl JobExecutor for NoopExecutor {
-    async fn spawn(&self, _: &JobContext) -> anyhow::Result<ExecutorHandle> {
+impl SessionExecutor for NoopExecutor {
+    async fn spawn(&self, _: &SessionContext) -> anyhow::Result<ExecutorHandle> {
         Err(anyhow::anyhow!("unused"))
     }
     async fn is_alive(&self, _: &ExecutorHandle) -> bool { false }
@@ -59,8 +59,8 @@ impl ProcessRegistryPort for NoopRegistry {
 struct NoopIsolation;
 #[async_trait]
 impl IsolationStrategy for NoopIsolation {
-    async fn prepare(&self, _: &JobContext) -> anyhow::Result<PathBuf> { Ok(PathBuf::from("/tmp")) }
-    async fn cleanup(&self, _: &JobContext) -> anyhow::Result<()> { Ok(()) }
+    async fn prepare(&self, _: &SessionContext) -> anyhow::Result<PathBuf> { Ok(PathBuf::from("/tmp")) }
+    async fn cleanup(&self, _: &SessionContext) -> anyhow::Result<()> { Ok(()) }
 }
 
 fn make_kernel() -> Arc<Mutex<KernelRouter>> {

@@ -5,7 +5,7 @@
 
 use anyhow::Result;
 use async_trait::async_trait;
-use ship_platform::services::dispatch_ports::{IsolationStrategy, JobContext};
+use ship_platform::services::dispatch_ports::{IsolationStrategy, SessionContext};
 use ship_platform::services::orchestrator::isolation::write_phase_spec_from_context;
 use std::path::PathBuf;
 
@@ -16,7 +16,7 @@ pub(crate) struct GitWorktreeIsolation;
 
 #[async_trait]
 impl IsolationStrategy for GitWorktreeIsolation {
-    async fn prepare(&self, job: &JobContext) -> Result<PathBuf> {
+    async fn prepare(&self, job: &SessionContext) -> Result<PathBuf> {
         let worktree_path = worktrees_dir().join(&job.slug);
         create_worktree(&worktree_path, &job.branch, None)?;
         let session_dir = worktree_path.join(".artifacts");
@@ -37,7 +37,7 @@ impl IsolationStrategy for GitWorktreeIsolation {
         Ok(worktree_path)
     }
 
-    async fn cleanup(&self, job: &JobContext) -> Result<()> {
+    async fn cleanup(&self, job: &SessionContext) -> Result<()> {
         let worktree_path = worktrees_dir().join(&job.slug);
         if worktree_path.exists() {
             super::helpers::remove_worktree(&worktree_path)?;

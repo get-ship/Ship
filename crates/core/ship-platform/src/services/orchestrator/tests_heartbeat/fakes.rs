@@ -8,7 +8,7 @@ use async_trait::async_trait;
 use tokio::sync::Mutex;
 
 use crate::services::dispatch_ports::{
-    ExecutorHandle, JobContext, JobExecutor, ProcessRegistryPort, ProcessTreeProbe, TreeSample,
+    ExecutorHandle, SessionContext, SessionExecutor, ProcessRegistryPort, ProcessTreeProbe, TreeSample,
 };
 
 /// Advancing probe: every call returns a sample whose `cpu_ticks` is
@@ -98,8 +98,8 @@ impl ProcessRegistryPort for StubRegistry {
 pub(super) struct NoopExecutor;
 
 #[async_trait]
-impl JobExecutor for NoopExecutor {
-    async fn spawn(&self, _: &JobContext) -> anyhow::Result<ExecutorHandle> {
+impl SessionExecutor for NoopExecutor {
+    async fn spawn(&self, _: &SessionContext) -> anyhow::Result<ExecutorHandle> {
         Err(anyhow::anyhow!("unused"))
     }
     async fn is_alive(&self, _: &ExecutorHandle) -> bool { true }

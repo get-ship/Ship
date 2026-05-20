@@ -16,7 +16,7 @@ use ship_substrate::events::pipeline::{
 };
 use ship_substrate::events::kernel_router::{ActorConfig, KernelRouter};
 use crate::services::dispatch_ports::{
-    AgentPlatform, ExecutorHandle, IsolationStrategy, JobContext, JobExecutor,
+    AgentPlatform, ExecutorHandle, IsolationStrategy, SessionContext, SessionExecutor,
     ProcessRegistryPort,
 };
 use crate::services::orchestrator::dispatch::dispatch_job_internal;
@@ -26,11 +26,11 @@ struct OkIsolation(PathBuf);
 
 #[async_trait]
 impl IsolationStrategy for OkIsolation {
-    async fn prepare(&self, _: &JobContext) -> anyhow::Result<PathBuf> {
+    async fn prepare(&self, _: &SessionContext) -> anyhow::Result<PathBuf> {
         std::fs::create_dir_all(&self.0).ok();
         Ok(self.0.clone())
     }
-    async fn cleanup(&self, _: &JobContext) -> anyhow::Result<()> {
+    async fn cleanup(&self, _: &SessionContext) -> anyhow::Result<()> {
         Ok(())
     }
 }
@@ -44,8 +44,8 @@ struct RecordingExecutor {
 }
 
 #[async_trait]
-impl JobExecutor for RecordingExecutor {
-    async fn spawn(&self, ctx: &JobContext) -> anyhow::Result<ExecutorHandle> {
+impl SessionExecutor for RecordingExecutor {
+    async fn spawn(&self, ctx: &SessionContext) -> anyhow::Result<ExecutorHandle> {
         *self.captured.lock().unwrap() =
             Some((ctx.launch.harness.clone(), ctx.launch.model.clone()));
         Err(anyhow::anyhow!("recording executor: refusing to spawn"))
@@ -87,7 +87,7 @@ fn dispatch_config() -> ActorConfig {
 
 fn octx_with(
     isolation: Arc<dyn IsolationStrategy>,
-    executor: Arc<dyn JobExecutor>,
+    executor: Arc<dyn SessionExecutor>,
     worktrees: PathBuf,
 ) -> OrchestratorContext {
     OrchestratorContext {

@@ -1,7 +1,7 @@
 //! RoutingExecutor — per-job selection between Server, TmuxWindow, and
 //! Process executors.
 //!
-//! The orchestrator receives a single `Arc<dyn JobExecutor>`, but we
+//! The orchestrator receives a single `Arc<dyn SessionExecutor>`, but we
 //! want the routing decision (server-mode session vs. interactive tmux
 //! vs. headless child process) made **per job** based on (a) the
 //! harness's declared capabilities and (b) the `headless` flag that
@@ -28,7 +28,7 @@ use std::sync::Arc;
 use anyhow::Result;
 use async_trait::async_trait;
 use ship_substrate::events::KernelRouter;
-use ship_platform::services::dispatch_ports::{ExecutorHandle, InvocationMode, JobContext, JobExecutor};
+use ship_platform::services::dispatch_ports::{ExecutorHandle, InvocationMode, SessionContext, SessionExecutor};
 use ship_platform::services::harness_adapter::adapter_for_or_default;
 use ship_platform::services::harnesses::codex_session::CodexSession;
 use ship_platform::services::harnesses::opencode_session::OpenCodeSession;
@@ -112,7 +112,7 @@ impl RoutingExecutor {
     /// Returns a `ServerExecutor` if the harness has `server_mode` AND
     /// a session is bound. Otherwise `None` — caller falls through to
     /// the existing Process/TmuxWindow selection.
-    fn try_server_executor(&self, ctx: &JobContext) -> Option<ServerExecutor> {
+    fn try_server_executor(&self, ctx: &SessionContext) -> Option<ServerExecutor> {
         let adapter = adapter_for_or_default(ctx.launch.harness.as_deref()).ok()?;
         if !adapter.caps().server_mode {
             return None;
@@ -126,7 +126,7 @@ impl RoutingExecutor {
     /// handshake stalls, etc.) we log a warning and leave the registry
     /// untouched — the caller then falls through to Process/TmuxWindow,
     /// preserving the one-shot `codex exec` path as graceful degradation.
-    async fn ensure_codex_session(&self, ctx: &JobContext) {
+    async fn ensure_codex_session(&self, ctx: &SessionContext) {
         let Some(harness) = ctx.launch.harness.as_deref() else {
             return;
         };
@@ -157,7 +157,7 @@ impl RoutingExecutor {
     /// Lazy-spawn an `OpenCodeSession` on first opencode dispatch, caching
     /// the binding in the session registry. Mirrors `ensure_codex_session`:
     /// binary-absence + spawn-failure both degrade cleanly to Process.
-    async fn ensure_opencode_session(&self, ctx: &JobContext) {
+    async fn ensure_opencode_session(&self, ctx: &SessionContext) {
         let Some(harness) = ctx.launch.harness.as_deref() else {
             return;
         };
@@ -189,7 +189,7 @@ impl RoutingExecutor {
     /// given this context? Avoids actually spawning a harness process
     /// in routing tests.
     #[cfg(test)]
-    pub(crate) fn route_kind(&self, ctx: &JobContext) -> RouteKind {
+    pub(crate) fn route_kind(&self, ctx: &SessionContext) -> RouteKind {
         if self.try_server_executor(ctx).is_some() {
             return RouteKind::Server;
         }
@@ -209,8 +209,8 @@ pub(crate) enum RouteKind {
 }
 
 #[async_trait]
-impl JobExecutor for RoutingExecutor {
-    async fn spawn(&self, ctx: &JobContext) -> Result<ExecutorHandle> {
+impl SessionExecutor for RoutingExecutor {
+    async fn spawn(&self, ctx: &SessionContext) -> Result<ExecutorHandle> {
         // Register the pipeline step as an actor so it surfaces in the
         // unified dashboard alongside chat agents and shell sessions.
         // Fire-and-forget on a std::thread to avoid the kernel-route

@@ -14,7 +14,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-use crate::services::dispatch_ports::{ExecutorHandle, JobExecutor, ProcessRegistryPort};
+use crate::services::dispatch_ports::{ExecutorHandle, SessionExecutor, ProcessRegistryPort};
 
 /// Tracks spawned agent processes by slug → handle mapping.
 pub struct ProcessRegistry {
@@ -79,7 +79,7 @@ impl ProcessRegistry {
 
     /// Check every registered handle via `executor.is_alive()`; remove
     /// and return slugs whose handles are no longer alive.
-    pub async fn drain_dead(&mut self, executor: &dyn JobExecutor) -> Vec<String> {
+    pub async fn drain_dead(&mut self, executor: &dyn SessionExecutor) -> Vec<String> {
         let mut dead = Vec::new();
         for (slug, handle) in &self.handles {
             if !executor.is_alive(handle).await {
@@ -97,7 +97,7 @@ impl ProcessRegistry {
     /// before force-kill — the per-handle deadline lives in the executor
     /// impl, not here, so shutdown stays bounded even under unresponsive
     /// agents.
-    pub async fn shutdown_all(&mut self, executor: Arc<dyn JobExecutor>) -> Vec<String> {
+    pub async fn shutdown_all(&mut self, executor: Arc<dyn SessionExecutor>) -> Vec<String> {
         let handles: Vec<(String, ExecutorHandle)> = self.handles.drain().collect();
         let slugs: Vec<String> = handles.iter().map(|(s, _)| s.clone()).collect();
 
@@ -145,7 +145,7 @@ impl ProcessRegistryPort for SharedRegistry {
         self.0.lock().await.get_pid(slug)
     }
 
-    async fn drain_dead(&self, executor: &dyn JobExecutor) -> Vec<String> {
+    async fn drain_dead(&self, executor: &dyn SessionExecutor) -> Vec<String> {
         self.0.lock().await.drain_dead(executor).await
     }
 }
@@ -159,7 +159,7 @@ impl ProcessRegistryPort for SharedRegistry {
 pub async fn graceful_shutdown(
     kernel: &Arc<Mutex<KernelRouter>>,
     registry: &mut ProcessRegistry,
-    executor: Arc<dyn JobExecutor>,
+    executor: Arc<dyn SessionExecutor>,
 ) {
     let envelope = match EventEnvelope::new(
         ship_substrate::events::types::event_types::SUPERVISOR_SHUTTING_DOWN,

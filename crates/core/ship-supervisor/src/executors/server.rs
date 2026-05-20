@@ -24,7 +24,7 @@ use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use ship_substrate::events::KernelRouter;
 use ship_platform::services::dispatch_ports::{
-    ExecutorHandle, ExitCause, ExitSignal, JobContext, JobExecutor,
+    ExecutorHandle, ExitCause, ExitSignal, SessionContext, SessionExecutor,
 };
 use ship_platform::services::server_session::{ServerSession, SessionEvent};
 use tokio::sync::Mutex as TokioMutex;
@@ -70,8 +70,8 @@ impl ServerState {
 }
 
 #[async_trait]
-impl JobExecutor for ServerExecutor {
-    async fn spawn(&self, ctx: &JobContext) -> Result<ExecutorHandle> {
+impl SessionExecutor for ServerExecutor {
+    async fn spawn(&self, ctx: &SessionContext) -> Result<ExecutorHandle> {
         let prompt = build_prompt(ctx);
         let turn_id = self
             .session
@@ -141,7 +141,7 @@ impl JobExecutor for ServerExecutor {
 /// Read `.artifacts/job-spec.md` from the work dir; fall back to a
 /// generic instruction if absent. Mirrors `ProcessExecutor`'s default
 /// autostart prompt so the two paths submit the same work.
-fn build_prompt(ctx: &JobContext) -> String {
+fn build_prompt(ctx: &SessionContext) -> String {
     let spec = ctx.work_dir.join(&ctx.spec_path);
     std::fs::read_to_string(&spec).unwrap_or_else(|_| FALLBACK_PROMPT.to_string())
 }

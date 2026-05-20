@@ -11,7 +11,7 @@
 //!                        session (codex app-server / opencode serve).
 //!                        Picked when the harness advertises `server_mode`
 //!                        AND a session is bound in the registry.
-//! `RoutingExecutor`    — dispatches each JobContext to Server, TmuxWindow,
+//! `RoutingExecutor`    — dispatches each SessionContext to Server, TmuxWindow,
 //!                        or Process based on harness capabilities +
 //!                        `ctx.headless`.
 

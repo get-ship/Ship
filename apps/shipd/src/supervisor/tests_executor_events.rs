@@ -243,7 +243,7 @@ async fn agent_exited_unknown_code_emits_job_failed() {
 use async_trait::async_trait;
 use ship_substrate::events::executor::EXECUTOR_SESSION_DESTROYED;
 use ship_platform::services::dispatch_ports::{
-    AgentPlatform, ExecutorHandle, JobContext, JobExecutor,
+    AgentPlatform, ExecutorHandle, SessionContext, SessionExecutor,
 };
 
 /// Stub executor so ShipdPlatform can be constructed in tests without
@@ -251,8 +251,8 @@ use ship_platform::services::dispatch_ports::{
 struct NoopJobExecutor;
 
 #[async_trait]
-impl JobExecutor for NoopJobExecutor {
-    async fn spawn(&self, _ctx: &JobContext) -> anyhow::Result<ExecutorHandle> {
+impl SessionExecutor for NoopJobExecutor {
+    async fn spawn(&self, _ctx: &SessionContext) -> anyhow::Result<ExecutorHandle> {
         Ok(ExecutorHandle { pid: None, inner: Box::new(()) })
     }
     async fn is_alive(&self, _handle: &ExecutorHandle) -> bool { false }

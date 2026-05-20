@@ -7,7 +7,7 @@
 use anyhow::Result;
 use std::path::Path;
 
-use crate::services::dispatch_ports::JobContext;
+use crate::services::dispatch_ports::SessionContext;
 
 /// Materialize the job spec inside a prepared worktree.
 ///
@@ -26,7 +26,7 @@ use crate::services::dispatch_ports::JobContext;
 /// dispatch flows that call only the adapter see something sensible.
 pub fn write_phase_spec_from_context(
     worktree_path: &Path,
-    job: &JobContext,
+    job: &SessionContext,
 ) -> Result<()> {
     let dst_spec = worktree_path.join(&job.spec_path);
     if let Some(parent) = dst_spec.parent() {

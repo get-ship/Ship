@@ -16,7 +16,7 @@ use ship_substrate::events::kernel_router::{ActorConfig, KernelRouter};
 use ship_substrate::events::EventEnvelope;
 use crate::projections::pipeline_run::{load_pipeline_runs, PipelineRunStatus};
 use crate::services::dispatch_ports::{
-    AgentPlatform, ExecutorHandle, IsolationStrategy, JobContext, JobExecutor,
+    AgentPlatform, ExecutorHandle, IsolationStrategy, SessionContext, SessionExecutor,
     ProcessRegistryPort,
 };
 use crate::services::orchestrator::router::handle_job_event;
@@ -28,10 +28,10 @@ struct NoopIsolation;
 
 #[async_trait]
 impl IsolationStrategy for NoopIsolation {
-    async fn prepare(&self, job: &JobContext) -> anyhow::Result<PathBuf> {
+    async fn prepare(&self, job: &SessionContext) -> anyhow::Result<PathBuf> {
         Ok(job.work_dir.clone())
     }
-    async fn cleanup(&self, _job: &JobContext) -> anyhow::Result<()> {
+    async fn cleanup(&self, _job: &SessionContext) -> anyhow::Result<()> {
         Ok(())
     }
 }
@@ -44,8 +44,8 @@ struct TrackingExecutor {
 }
 
 #[async_trait]
-impl JobExecutor for TrackingExecutor {
-    async fn spawn(&self, _ctx: &JobContext) -> anyhow::Result<ExecutorHandle> {
+impl SessionExecutor for TrackingExecutor {
+    async fn spawn(&self, _ctx: &SessionContext) -> anyhow::Result<ExecutorHandle> {
         self.spawned
             .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
         Ok(ExecutorHandle {

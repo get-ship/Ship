@@ -15,7 +15,7 @@ use tokio::sync::Mutex;
 
 use ship_substrate::events::kernel_router::{ActorConfig, KernelRouter};
 use crate::services::dispatch_ports::{
-    AgentPlatform, ExecutorHandle, IsolationStrategy, JobContext, JobExecutor,
+    AgentPlatform, ExecutorHandle, IsolationStrategy, SessionContext, SessionExecutor,
     ProcessRegistryPort,
 };
 use crate::services::orchestrator::replay::reconcile_dispatched_jobs;
@@ -24,8 +24,8 @@ use crate::services::orchestrator::OrchestratorContext;
 struct NoopIsolation;
 #[async_trait]
 impl IsolationStrategy for NoopIsolation {
-    async fn prepare(&self, _: &JobContext) -> anyhow::Result<PathBuf> { Ok(PathBuf::from("/tmp")) }
-    async fn cleanup(&self, _: &JobContext) -> anyhow::Result<()> { Ok(()) }
+    async fn prepare(&self, _: &SessionContext) -> anyhow::Result<PathBuf> { Ok(PathBuf::from("/tmp")) }
+    async fn cleanup(&self, _: &SessionContext) -> anyhow::Result<()> { Ok(()) }
 }
 
 struct NoopPlatform;
@@ -42,8 +42,8 @@ impl AgentPlatform for NoopPlatform {
 /// `resume_handle` always returns `None` — simulates a missing process.
 struct MissingExecutor;
 #[async_trait]
-impl JobExecutor for MissingExecutor {
-    async fn spawn(&self, _: &JobContext) -> anyhow::Result<ExecutorHandle> { Err(anyhow::anyhow!("unused")) }
+impl SessionExecutor for MissingExecutor {
+    async fn spawn(&self, _: &SessionContext) -> anyhow::Result<ExecutorHandle> { Err(anyhow::anyhow!("unused")) }
     async fn is_alive(&self, _: &ExecutorHandle) -> bool { false }
     async fn stop(&self, _: &ExecutorHandle) -> anyhow::Result<()> { Ok(()) }
     async fn send(&self, _: &ExecutorHandle, _: &str) -> anyhow::Result<()> { Ok(()) }

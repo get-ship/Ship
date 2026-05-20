@@ -6,7 +6,7 @@
 use ship_substrate::events::pipeline::StepType;
 use ship_substrate::events::EventEnvelope;
 use crate::projections::pipeline_run::load_pipeline_runs_at;
-use crate::services::dispatch_ports::{JobContext, LaunchProfile};
+use crate::services::dispatch_ports::{SessionContext, LaunchProfile};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
@@ -285,7 +285,7 @@ async fn advance_pipeline_inner(
 
                 let persist = step.step_type != StepType::Review;
                 let (exit_tx, exit_rx) = tokio::sync::mpsc::unbounded_channel();
-                let job_ctx = JobContext {
+                let job_ctx = SessionContext {
                     job_id: job.job_id.clone(),
                     slug: slug.clone(),
                     agent: agent.to_string(),

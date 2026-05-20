@@ -16,7 +16,7 @@ use ship_substrate::events::agent_session::{
 };
 use ship_substrate::events::EventEnvelope;
 use ship_substrate::events::pipeline::{PipelineRunStartedPayload, StepType};
-use crate::services::dispatch_ports::{ExitCause, ExitSignal, JobContext, LaunchProfile};
+use crate::services::dispatch_ports::{ExitCause, ExitSignal, SessionContext, LaunchProfile};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
@@ -135,7 +135,7 @@ pub async fn dispatch_job_internal(
         .and_then(|s| s.model.clone())
         .or_else(|| payload.model.clone());
 
-    let job_ctx = JobContext {
+    let job_ctx = SessionContext {
         job_id: payload.job_id.clone(),
         slug: slug.clone(),
         agent: agent.to_string(),
@@ -209,7 +209,7 @@ pub async fn dispatch_job_internal(
     }
 
     let (exit_tx, exit_rx) = tokio::sync::mpsc::unbounded_channel();
-    let job_ctx_with_dir = JobContext {
+    let job_ctx_with_dir = SessionContext {
         work_dir: worktree_path.clone(),
         exit_tx: Some(exit_tx),
         ..job_ctx
@@ -371,7 +371,7 @@ async fn dispatch_agent_session_internal(
     // build_interactive).
     let invocation = payload.invocation;
 
-    let job_ctx = JobContext {
+    let job_ctx = SessionContext {
         job_id: payload.session_id.clone(), // routes use session_id as the job_id-shape ulid
         slug: slug.clone(),
         agent: payload.agent.clone(),
@@ -411,7 +411,7 @@ async fn dispatch_agent_session_internal(
     };
 
     let (exit_tx, exit_rx) = tokio::sync::mpsc::unbounded_channel();
-    let job_ctx_with_dir = JobContext {
+    let job_ctx_with_dir = SessionContext {
         work_dir: worktree_path.clone(),
         exit_tx: Some(exit_tx),
         ..job_ctx
@@ -781,7 +781,7 @@ async fn dispatch_first_run_step_inner(
 
     tracing::info!(slug, branch, step_id, %command, "job-dispatch: first step is run — executing directly");
 
-    let job_ctx = JobContext {
+    let job_ctx = SessionContext {
         job_id: payload.job_id.clone(),
         slug: slug.clone(),
         agent: payload.agent.to_string(),

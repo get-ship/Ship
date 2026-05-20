@@ -13,7 +13,7 @@ use ship_substrate::events::kernel_router::{ActorConfig, KernelRouter};
 use ship_substrate::events::store::{EventStore, SqliteEventStore};
 use ship_substrate::events::EventEnvelope;
 use ship_platform::projections::pipeline_run::{load_pipeline_runs_at, PipelineRunStatus};
-use ship_platform::services::dispatch_ports::{ExecutorHandle, IsolationStrategy, JobContext, JobExecutor};
+use ship_platform::services::dispatch_ports::{ExecutorHandle, IsolationStrategy, SessionContext, SessionExecutor};
 use ship_platform::services::orchestrator::OrchestratorContext;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -32,7 +32,7 @@ struct MockIsolation {
 
 #[async_trait]
 impl IsolationStrategy for MockIsolation {
-    async fn prepare(&self, _job: &JobContext) -> anyhow::Result<PathBuf> {
+    async fn prepare(&self, _job: &SessionContext) -> anyhow::Result<PathBuf> {
         std::fs::create_dir_all(self.work_dir.join(".artifacts")).ok();
         std::fs::write(
             self.work_dir.join(".artifacts/job-spec.md"),
@@ -40,7 +40,7 @@ impl IsolationStrategy for MockIsolation {
         ).ok();
         Ok(self.work_dir.clone())
     }
-    async fn cleanup(&self, _job: &JobContext) -> anyhow::Result<()> { Ok(()) }
+    async fn cleanup(&self, _job: &SessionContext) -> anyhow::Result<()> { Ok(()) }
 }
 
 struct MockExecutor {
@@ -52,8 +52,8 @@ impl MockExecutor {
 }
 
 #[async_trait]
-impl JobExecutor for MockExecutor {
-    async fn spawn(&self, _ctx: &JobContext) -> anyhow::Result<ExecutorHandle> {
+impl SessionExecutor for MockExecutor {
+    async fn spawn(&self, _ctx: &SessionContext) -> anyhow::Result<ExecutorHandle> {
         self.spawn_count.fetch_add(1, Ordering::SeqCst);
         Ok(ExecutorHandle { pid: Some(99999), inner: Box::new(()) })
     }

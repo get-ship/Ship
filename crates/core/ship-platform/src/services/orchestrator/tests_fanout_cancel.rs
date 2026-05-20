@@ -11,7 +11,7 @@ use tokio::sync::Mutex;
 
 use ship_substrate::events::kernel_router::{ActorConfig, KernelRouter};
 use crate::services::dispatch_ports::{
-    AgentPlatform, ExecutorHandle, IsolationStrategy, JobContext, JobExecutor,
+    AgentPlatform, ExecutorHandle, IsolationStrategy, SessionContext, SessionExecutor,
     ProcessRegistryPort,
 };
 use crate::services::orchestrator::fanout_cancel::cancel_job_fanout_lanes;
@@ -38,8 +38,8 @@ struct RecordingExecutor {
     stop_calls: Arc<AtomicUsize>,
 }
 #[async_trait]
-impl JobExecutor for RecordingExecutor {
-    async fn spawn(&self, _: &JobContext) -> anyhow::Result<ExecutorHandle> {
+impl SessionExecutor for RecordingExecutor {
+    async fn spawn(&self, _: &SessionContext) -> anyhow::Result<ExecutorHandle> {
         Err(anyhow::anyhow!("unused"))
     }
     async fn is_alive(&self, _: &ExecutorHandle) -> bool { false }
@@ -66,8 +66,8 @@ impl ProcessRegistryPort for SeededRegistry {
 struct NoopIsolation;
 #[async_trait]
 impl IsolationStrategy for NoopIsolation {
-    async fn prepare(&self, _: &JobContext) -> anyhow::Result<PathBuf> { Ok(PathBuf::from("/tmp")) }
-    async fn cleanup(&self, _: &JobContext) -> anyhow::Result<()> { Ok(()) }
+    async fn prepare(&self, _: &SessionContext) -> anyhow::Result<PathBuf> { Ok(PathBuf::from("/tmp")) }
+    async fn cleanup(&self, _: &SessionContext) -> anyhow::Result<()> { Ok(()) }
 }
 
 fn dispatch_actor_config() -> ActorConfig {

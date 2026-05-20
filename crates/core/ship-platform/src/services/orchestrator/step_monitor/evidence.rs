@@ -8,7 +8,7 @@ use tokio::sync::Mutex;
 
 use ship_substrate::events::pipeline::{PipelineStepObservedPayload, StepTrigger, StepVerdict, event_types};
 use ship_substrate::events::{EventEnvelope, KernelRouter};
-use crate::services::dispatch_ports::{JobExecutor, ProcessRegistryPort};
+use crate::services::dispatch_ports::{SessionExecutor, ProcessRegistryPort};
 
 use super::StepMonitor;
 
@@ -20,7 +20,7 @@ use super::StepMonitor;
 pub(super) async fn kill_spawned_process(
     kernel: &Arc<Mutex<KernelRouter>>,
     registry: &Arc<dyn ProcessRegistryPort>,
-    executor: &Arc<dyn JobExecutor>,
+    executor: &Arc<dyn SessionExecutor>,
     slug: &str,
 ) {
     let Some(handle) = registry.take(slug).await else {

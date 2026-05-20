@@ -16,7 +16,7 @@
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use ship_platform::services::dispatch_ports::{
-    ExecutorHandle, ExitCause, ExitSignal, JobContext, JobExecutor,
+    ExecutorHandle, ExitCause, ExitSignal, SessionContext, SessionExecutor,
 };
 use ship_platform::services::harness_adapter::adapter_for_or_default;
 
@@ -171,8 +171,8 @@ fn find_unique_window_by_name(session: &str, name: &str) -> Option<String> {
 }
 
 #[async_trait]
-impl JobExecutor for TmuxWindowExecutor {
-    async fn spawn(&self, ctx: &JobContext) -> Result<ExecutorHandle> {
+impl SessionExecutor for TmuxWindowExecutor {
+    async fn spawn(&self, ctx: &SessionContext) -> Result<ExecutorHandle> {
         let session = session_name(&ctx.slug);
         let (step_idx, step_id) = ctx
             .step
