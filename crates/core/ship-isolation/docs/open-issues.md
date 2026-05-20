@@ -6,6 +6,84 @@ default we're taking, what would invalidate the default. Append-only.
 Vocabulary: "sandbox" externally; internal struct `Sandbox` (was `Pod`
 in earlier drafts — k8s baggage avoided).
 
+## Backlog — ordered (10 items)
+
+Roughly dependency-ordered. The token foundation (1) underpins MCP (2),
+hooks (3), and credentials (4) — those three are one transport problem:
+an in-container process reaching the daemon's HTTP API under a scoped
+identity. Items 5–6 are the proof-and-primary-path work; 7–10 harden
+and broaden.
+
+1. **Scoped tokens — the foundation.** *Decision locked:* per-process
+   token minting — supervisor mints a scoped session token per actor
+   and pushes it via `Processes.Create.env`, NOT container env.
+   Push-not-pull identity; root `[Full]` token never enters a
+   container; intra-pod is a trust boundary (pod, not actor, is the
+   unit). Build: programmatic `mint_session(agent_id, workspace_id,
+   scopes, ttl)`; per-project enforcement teeth (token bound to
+   project X hard-rejected for project-Y resources).
+
+2. **MCP transport for containers.** *Decision locked:* one shared
+   HTTP MCP server, per-connection actor identity via the scoped
+   bearer token. `build_mcp_app`/`run_http_server` already exist
+   (same `ShipServer`/tools as stdio — confirmed not a vestige);
+   `enforce_mcp_identity` gates per-actor. Build: make it reachable
+   from sandboxes; compiler points harness MCP config at the daemon
+   MCP URL (`ship_server_entry_http`) for sandboxed actors. Keep it a
+   thin module — do NOT absorb MCP into the daemon.
+
+3. **Hooks transport for containers.** Hooks are transport-agnostic
+   normalization → `/api/v1/hooks/{session-start,before-tool,
+   after-tool,session-end}` taking `ShipHookEvent`; `ship hook X` is
+   just an HTTP POST. Build: compile cURL-style hook scripts that POST
+   to `$SHIP_DAEMON_URL/api/v1/hooks/X` with the injected token — no
+   `ship` CLI required in the container. (Server-mode harnesses
+   opencode/codex also feed hooks via stream-synthesis through the
+   broadcast the sidecar already pipes — ONE of four transports, not
+   the general mechanism.)
+
+4. **Credentials broker.** `Envelope::SecretRequest`/`SecretReply`
+   defined in the proto; no handler. Today: env vars + `EphemeralFile`
+   bind-mount (recoverable from a process dump). Target: secrets never
+   touch the container fs — sidecar asks the daemon at runtime, daemon
+   answers from its keychain bridge, secret stays in-memory in the
+   harness. T-CRED in the threat model.
+
+5. **Container vertical proof.** Install rootless podman; static-musl
+   sidecar build (erases the glibc-ABI / bind-mount caveat — wire is
+   the contract, not the binary format); `podman_sidecar_live` e2e:
+   prepare → v1 health → spawn actor → output over AttachPty → reap.
+   First proof an agent actually runs inside a real container.
+
+6. **VM substrate — the PRIMARY Tier 2 path.** Intent captured in
+   `vm-substrate.md`; buildable spec refines from there. youki + a
+   Ship-managed Linux VM = zero-install isolation for non-technical
+   users. Build: VM-provider abstraction (Lima / Apple-Virtualization
+   on mac, WSL2 / Hyper-V on win), VM lifecycle, Linux VM image
+   (youki + sidecar), vsock / forwarded-port transport
+   (`RuntimeEndpoint::Remote` already accommodates), detect-or-bundle
+   recommender (detect docker/podman → adaptor; else bundled youki+VM).
+
+7. **agent-runner image (deliverable).** `ghcr.io/ship/agent-runner`:
+   baked sidecar + harness CLIs + common stdio MCP servers. Build /
+   sign / version-pin / publish pipeline.
+
+8. **Crash-recovery reconcile.** Persist sandbox state to
+   `platform.db` (id, runtime endpoint, state); on shipd restart,
+   enumerate running containers, match by name, reconnect v1
+   endpoints, reattach observers. (Graceful-shutdown reap is done.)
+
+9. **Hardening.** PTY backpressure (bounded-broadcast drop policy /
+   per-subscriber lag), v1 reconnect-on-drop, capability-skew
+   detection via `Handshake.Hello.protocol_version`, image-staleness
+   surfacing.
+
+10. **Broaden — backends, wizard, CI.** WSL2 / LimaVm / FlyMachines
+    impls (declared, no code; cloud = Tier 4, protocol-ready);
+    `<sui-isolation-wizard>` + per-OS install helper for non-coders;
+    Tier 1 (harness × OS) enforcement matrix in CI. Folds in the
+    deferred A1 (harness-adapter relocation into the unified runtime).
+
 ## Decided defaults (revisit only on real signal)
 
 ### Override semantics — stronger isolation than the project default
