@@ -128,6 +128,45 @@ scope per request.
 Invalidated if: per-tool permission gating needs finer credentials
 than per-actor (probably needs per-call token rotation).
 
+### Local token model: stateful `ship_sess_*`, not macaroons (M1)
+
+The actor↔daemon token is a stateful `ship_sess_*` session, minted
+per-process host-side and pushed via `Processes.Create.env`
+(`SHIP_TOKEN`); the daemon validates by registry lookup and revokes by
+dropping from the registry. **This matches the Ship team's macaroon
+spec, which explicitly scopes macaroons to delegation *edges* and keeps
+`ship_sess_*` for local agent↔daemon** (see `Ship/.artifacts/specs/
+cloud-specs/03-capabilities-macaroons.md` — "MCP agent talking to local
+daemon… existing `ship_sess_*` works fine… not in M1", and open
+question #4: defer the migration).
+
+Why stateful locally: issuer == verifier == the always-present daemon,
+so the round-trip is architectural (the actor is an HTTP client of the
+daemon regardless of token format) and statefulness is free — instant
+revoke, live scope control, no key management. Macaroons earn their
+complexity only when the verifier isn't the daemon (cloud/peer), where
+offline signature verification avoids a round-trip to an absent issuer.
+
+The seam that keeps the cloud path open: the actor only ever holds an
+**opaque bearer** and calls a **configurable `$SHIP_DAEMON_URL`**.
+Behind that, validation can become macaroon-aware and the URL can point
+at a Ship Cloud relay — without touching the actor or the wire.
+Tier-4 sandbox-on-cloud tokens become per-job macaroons (consuming the
+planned `crates/core/macaroon`) per cloud-spec 08; **not built now,
+purely additive.**
+
+Implemented (A1): `mint_session`/`drop_session` + a process-global
+`session_registry()` accessor (mirrors `dispatcher()`), shipd installs
+it at boot, the supervisor mints in the docker branch and drops on
+actor exit. Per-project enforcement teeth: `mcp_workspace_violation` /
+`enforce_mcp_workspace`, wired into `dispatch_agent_session`. NOT yet
+done: workspace caveat on sandbox-minted tokens (supervisor lacks the
+daemon workspace id), `$SHIP_DAEMON_URL` injection + MCP config (A3),
+hook scripts (A4).
+
+Invalidated if: the local round-trip per call becomes a measured
+bottleneck (then revisit offline verification locally too).
+
 ### Default `idle_timeout_minutes` for project sandboxes
 
 15 minutes. Long enough to cover think-time between agent runs; short

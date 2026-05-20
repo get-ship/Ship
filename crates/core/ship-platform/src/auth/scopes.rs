@@ -278,6 +278,32 @@ pub async fn hydrate_sessions(registry: &SessionRegistry) {
 /// Thread-safe session registry shared across the daemon.
 pub type SessionRegistry = Arc<Mutex<HashMap<String, DaemonSession>>>;
 
+/// Process-wide handle to the daemon's session registry.
+///
+/// shipd installs a clone of the runtime's registry `Arc` at boot via
+/// [`set_session_registry`]. The host-side spawn path (supervisor) reads
+/// it through [`session_registry`] to mint a per-process token for a
+/// sandboxed actor — the token is minted in the ephemeral spawn path, so
+/// it never crosses the event-persistence boundary. Mirrors the
+/// `sandbox::dispatcher()` singleton: the spawn path needs the one
+/// process-wide authority without threading a handle through every layer.
+static SESSION_REGISTRY: std::sync::OnceLock<SessionRegistry> = std::sync::OnceLock::new();
+
+/// Install the process-wide session registry. Called once by shipd at boot
+/// with a clone of the runtime's registry `Arc` (so the global is a *view*
+/// of the one registry, not a second source of truth). Subsequent calls
+/// are no-ops.
+pub fn set_session_registry(registry: SessionRegistry) {
+    let _ = SESSION_REGISTRY.set(registry);
+}
+
+/// The process-wide session registry, if shipd has installed one. Returns
+/// `None` in processes that never booted the daemon (CLI, tests) — callers
+/// degrade gracefully rather than panic.
+pub fn session_registry() -> Option<SessionRegistry> {
+    SESSION_REGISTRY.get().cloned()
+}
+
 /// Generate a session token with the `ship_sess_` prefix.
 ///
 /// Returns an error if the OS entropy source is unavailable.
@@ -290,6 +316,46 @@ pub fn generate_session_token() -> Result<String, getrandom::Error> {
 /// Returns true if the token is a session token (ship_sess_ prefix).
 pub fn is_session_token(token: &str) -> bool {
     token.starts_with("ship_sess_")
+}
+
+/// Mint and register a scoped session token programmatically.
+///
+/// Both the HTTP `session_register` handler and the sandbox supervisor
+/// call this. The supervisor mints a **per-process** token at sandbox
+/// prepare and pushes it into the actor via `Processes.Create.env` — the
+/// root daemon token never enters a container. The session is bound to
+/// `workspace_id`, which the daemon's per-project guard enforces.
+///
+/// `ttl_secs = Some(n)` expires the session n seconds out; `None` = no
+/// expiry. Minted sessions are ephemeral (in-memory only): the supervisor
+/// mints fresh per process and drops the token on actor exit, so there's
+/// nothing to persist.
+pub async fn mint_session(
+    registry: &SessionRegistry,
+    agent_id: String,
+    workspace_id: Option<String>,
+    role: Option<&str>,
+    ttl_secs: Option<i64>,
+) -> Result<(String, Vec<Scope>), getrandom::Error> {
+    let scopes = scopes_for_role(role);
+    let token = generate_session_token()?;
+    let session = DaemonSession {
+        token: token.clone(),
+        agent_id,
+        scopes: scopes.clone(),
+        workspace_id,
+        created_at: std::time::Instant::now(),
+        expires_at_unix: ttl_secs.map(|s| now_unix() + s),
+        ephemeral: true,
+    };
+    registry.lock().await.insert(token.clone(), session);
+    Ok((token, scopes))
+}
+
+/// Remove a minted session from the registry — called when a sandbox
+/// actor exits so its per-process token stops working immediately.
+pub async fn drop_session(registry: &SessionRegistry, token: &str) {
+    registry.lock().await.remove(token);
 }
 
 /// Hex-encode a byte slice with lowercase ASCII. Used by token formatters
@@ -359,6 +425,60 @@ mod tests {
     fn session_token_format() {
         let token = generate_session_token().unwrap();
         assert!(is_session_token(&token));
+    }
+
+    #[tokio::test]
+    async fn mint_session_registers_scoped_bound_token() {
+        let registry: SessionRegistry =
+            Arc::new(Mutex::new(std::collections::HashMap::new()));
+        let (token, scopes) = mint_session(
+            &registry,
+            "rust-lane".into(),
+            Some("proj-a".into()),
+            Some("worker"),
+            Some(3600),
+        )
+        .await
+        .unwrap();
+
+        assert!(is_session_token(&token));
+        assert!(Scope::ReadWorkspace.is_granted_by(&scopes));
+        assert!(!Scope::Full.is_granted_by(&scopes)); // per-process != root
+
+        let reg = registry.lock().await;
+        let session = reg.get(&token).expect("registered");
+        assert_eq!(session.workspace_id.as_deref(), Some("proj-a"));
+        assert_eq!(session.agent_id, "rust-lane");
+        assert!(session.ephemeral);
+        assert!(session.expires_at_unix.is_some());
+    }
+
+    #[tokio::test]
+    async fn global_registry_set_then_mint_visible() {
+        // Order-independent across the test binary: whoever wins the
+        // OnceLock::set, `session_registry()` returns *a* registry; minting
+        // into that handle and reading it back must hold.
+        let reg: SessionRegistry = Arc::new(Mutex::new(std::collections::HashMap::new()));
+        set_session_registry(reg.clone());
+        let installed = session_registry().expect("a registry is installed");
+        let (token, _) =
+            mint_session(&installed, "a".into(), Some("p".into()), Some("worker"), None)
+                .await
+                .unwrap();
+        assert!(installed.lock().await.contains_key(&token));
+    }
+
+    #[tokio::test]
+    async fn drop_session_invalidates_token() {
+        let registry: SessionRegistry =
+            Arc::new(Mutex::new(std::collections::HashMap::new()));
+        let (token, _) =
+            mint_session(&registry, "a".into(), None, Some("worker"), None)
+                .await
+                .unwrap();
+        assert!(registry.lock().await.contains_key(&token));
+        drop_session(&registry, &token).await;
+        assert!(!registry.lock().await.contains_key(&token));
     }
 
     #[test]

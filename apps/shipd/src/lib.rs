@@ -347,6 +347,10 @@ pub async fn run_network(
     tokio::spawn(async move { daemon::shutdown_signal().await; ct2.cancel(); });
 
     let session_registry = rt.session_registry().clone();
+    // Install the process-wide registry handle so the host-side spawn path
+    // (supervisor) can mint per-process tokens for sandboxed actors without
+    // threading a registry through the event→orchestrator→executor chain.
+    ship_platform::auth::scopes::set_session_registry(session_registry.clone());
     // Hydrate any persisted paired sessions from a previous daemon lifetime.
     // Dev mode starts fresh — don't carry prior sessions across dev restarts.
     if !dev {

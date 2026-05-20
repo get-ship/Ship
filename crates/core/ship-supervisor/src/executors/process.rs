@@ -334,6 +334,10 @@ impl JobExecutor for ProcessExecutor {
         let mut remote_runtime: Option<
             std::sync::Arc<dyn ship_substrate::supervisor::ActorRuntime>,
         > = None;
+        // Per-process scoped token for a sandboxed actor — minted host-side
+        // and pushed via env (never the root daemon token). Captured here so
+        // the exit monitor can drop it from the registry when the actor dies.
+        let mut minted_token: Option<String> = None;
         if let Ok(d) = &decision {
             tracing::info!(
                 slug = ctx.slug,
@@ -564,6 +568,47 @@ impl JobExecutor for ProcessExecutor {
                                         ),
                                     );
                                     active = "1";
+                                    // Mint a per-process scoped session token
+                                    // and push it to the in-container actor via
+                                    // env. The root daemon token never enters
+                                    // the sandbox; this token is bound to the
+                                    // agent, validated centrally by the daemon
+                                    // registry, and dropped on actor exit.
+                                    // Workspace caveat is a follow-up (the
+                                    // supervisor doesn't yet hold the daemon's
+                                    // workspace id); until then
+                                    // enforce_mcp_workspace passes — no false
+                                    // rejections.
+                                    match ship_platform::auth::scopes::session_registry() {
+                                        Some(registry) => {
+                                            match ship_platform::auth::scopes::mint_session(
+                                                &registry,
+                                                ctx.agent.clone(),
+                                                None,
+                                                Some("worker"),
+                                                None,
+                                            )
+                                            .await
+                                            {
+                                                Ok((token, _)) => {
+                                                    launch.env.insert(
+                                                        "SHIP_TOKEN".into(),
+                                                        token.clone(),
+                                                    );
+                                                    minted_token = Some(token);
+                                                }
+                                                Err(e) => tracing::warn!(
+                                                    slug = ctx.slug,
+                                                    "sandbox token mint failed: {e}"
+                                                ),
+                                            }
+                                        }
+                                        None => tracing::warn!(
+                                            slug = ctx.slug,
+                                            "no session registry installed; \
+                                             sandboxed actor has no scoped token"
+                                        ),
+                                    }
                                     tracing::info!(
                                         slug = ctx.slug,
                                         sandbox_id = %sandbox_id.0,
@@ -719,6 +764,7 @@ impl JobExecutor for ProcessExecutor {
         let synth_hooks_from_stream = harness_for_session == "opencode";
         let synth_actor_id = ctx.slug.clone();
         let synth_harness = harness_for_session.clone();
+        let minted_token = minted_token.take();
         tokio::spawn(async move {
             let mut line_buf = String::new();
             let mut session_written = false;
@@ -859,6 +905,14 @@ impl JobExecutor for ProcessExecutor {
                     actor_id = %handle_for_exit.actor_id,
                     "sandbox dispatcher notify_actor_exit: {e}"
                 );
+            }
+
+            // Drop the per-process scoped token so it stops validating the
+            // instant the actor exits — central, immediate revocation.
+            if let (Some(token), Some(registry)) =
+                (&minted_token, ship_platform::auth::scopes::session_registry())
+            {
+                ship_platform::auth::scopes::drop_session(&registry, token).await;
             }
 
             if let Some(tx) = exit_tx {

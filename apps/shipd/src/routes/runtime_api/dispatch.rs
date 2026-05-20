@@ -197,9 +197,24 @@ fn billing_warning_for_axes(
 )]
 pub async fn dispatch_agent_session(
     State(state): State<ApiState>,
-    Extension(_auth): Extension<AuthContext>,
+    Extension(auth): Extension<AuthContext>,
     Json(req): Json<DispatchRequest>,
 ) -> impl IntoResponse {
+    // Per-project enforcement teeth: an MCP session bound to project A
+    // cannot dispatch work into project B. Trusted (CLI/SDK) callers and
+    // unbound sessions pass through. See auth::identity.
+    if let Some(message) =
+        crate::auth::identity::mcp_workspace_violation(&auth, req.workspace.as_deref())
+    {
+        return (
+            StatusCode::FORBIDDEN,
+            Json(MeshResponse {
+                ok: false,
+                data: serde_json::json!(message),
+            }),
+        );
+    }
+
     // Validate the (open_tab × invocation × keepalive) matrix.
     if let Err(message) = validate_axes(&req) {
         return (
@@ -569,6 +584,29 @@ mod tests {
             depends_on: None,
             vars: None,
         }
+    }
+
+    fn mcp_auth(workspace: &str) -> Extension<AuthContext> {
+        Extension(AuthContext {
+            caller_kind: ship_substrate::events::CallerKind::Mcp,
+            agent_id: Some("rust-lane".into()),
+            workspace_id: Some(workspace.into()),
+            session_id: None,
+            scopes: vec![crate::auth::Scope::Full],
+        })
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn mcp_cross_project_dispatch_rejected() {
+        use axum::response::IntoResponse;
+        let dir = TempDir::new().unwrap();
+        let state = make_state(&dir);
+        // Session bound to proj-a; request dispatches into proj-b.
+        let req = bare_req("rust-lane", "proj-b");
+        let resp = dispatch_agent_session(State(state), mcp_auth("proj-a"), Json(req))
+            .await
+            .into_response();
+        assert_eq!(resp.status(), StatusCode::FORBIDDEN);
     }
 
     #[tokio::test(flavor = "multi_thread")]
