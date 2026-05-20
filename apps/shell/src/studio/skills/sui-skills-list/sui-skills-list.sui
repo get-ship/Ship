@@ -86,17 +86,17 @@
     </label>
     <div class="list-pills" role="tablist">
       <button class="list-pill" type="button" data-test="pill-all"
-        attr:data-active={activeKind() === 'all' ? '' : null}
+        attr:data-active={activeKind() === 'all'}
         on:click={() => setKind('all')}>
         All <span class="list-pill-count">{counts().all}</span>
       </button>
       <button class="list-pill" type="button" data-test="pill-project"
-        attr:data-active={activeKind() === 'project' ? '' : null}
+        attr:data-active={activeKind() === 'project'}
         on:click={() => setKind('project')}>
         Project <span class="list-pill-count">{counts().project}</span>
       </button>
       <button class="list-pill" type="button" data-test="pill-user"
-        attr:data-active={activeKind() === 'user' ? '' : null}
+        attr:data-active={activeKind() === 'user'}
         on:click={() => setKind('user')}>
         User <span class="list-pill-count">{counts().user}</span>
       </button>

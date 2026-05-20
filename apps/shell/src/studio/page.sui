@@ -19,7 +19,7 @@
           data-test="rail-item"
           attr:data-section={'project'}
           attr:data-sub={item.sub}
-          attr:data-active={section() === 'project' && subitem() === item.sub ? '' : null}
+          attr:data-active={section() === 'project' && subitem() === item.sub}
           on:click={() => goSection('project', item.sub)}>
           <span class="studio-rail-item-icon" aria-hidden="true">
             <sui-icon attr:name={item.icon} size="xs"></sui-icon>
@@ -37,7 +37,7 @@
         <button type="button" class="studio-rail-item"
           data-test="rail-item"
           attr:data-section={item.section}
-          attr:data-active={section() === item.section && !subitem() ? '' : null}
+          attr:data-active={section() === item.section && !subitem()}
           on:click={() => goSection(item.section)}>
           <span class="studio-rail-item-icon" aria-hidden="true">
             <sui-icon attr:name={item.icon} size="xs"></sui-icon>
@@ -65,7 +65,7 @@
           data-test="rail-item"
           attr:data-section={'library'}
           attr:data-sub={item.sub}
-          attr:data-active={section() === 'library' && subitem() === item.sub ? '' : null}
+          attr:data-active={section() === 'library' && subitem() === item.sub}
           on:click={() => goSection('library', item.sub)}>
           <span class="studio-rail-item-icon" aria-hidden="true">
             <sui-icon attr:name={item.icon} size="xs"></sui-icon>

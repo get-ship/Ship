@@ -151,7 +151,7 @@
   {#for p of rows() key={p.id}}
     <button class="row" type="button" role="menuitemradio"
       attr:aria-checked={p.id === activeId() ? 'true' : 'false'}
-      attr:data-active={p.id === activeId() ? 'true' : null}
+      attr:data-active={p.id === activeId()}
       on:click={() => pick(p.id)}>
       <span class="dot" attr:data-hue={p.hue}></span>
       <span class="row-main">

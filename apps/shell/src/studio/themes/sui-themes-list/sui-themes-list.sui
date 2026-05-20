@@ -75,16 +75,16 @@
     </label>
     <div class="list-pills" role="tablist">
       <button class="list-pill" type="button" data-test="pill-all"
-        attr:data-active={activeKind() === 'all' ? '' : null}
+        attr:data-active={activeKind() === 'all'}
         on:click={() => setKind('all')}>All <span class="list-pill-count">{counts().all}</span></button>
       <button class="list-pill" type="button"
-        attr:data-active={activeKind() === 'light' ? '' : null}
+        attr:data-active={activeKind() === 'light'}
         on:click={() => setKind('light')}>Light <span class="list-pill-count">{counts().light}</span></button>
       <button class="list-pill" type="button"
-        attr:data-active={activeKind() === 'dark' ? '' : null}
+        attr:data-active={activeKind() === 'dark'}
         on:click={() => setKind('dark')}>Dark <span class="list-pill-count">{counts().dark}</span></button>
       <button class="list-pill" type="button"
-        attr:data-active={activeKind() === 'special' ? '' : null}
+        attr:data-active={activeKind() === 'special'}
         on:click={() => setKind('special')}>Special <span class="list-pill-count">{counts().special}</span></button>
     </div>
   </div>

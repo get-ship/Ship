@@ -176,7 +176,7 @@
               Reset
             </sui-button>
             <sui-button tone="primary" variant="solid" size="md" data-test="invoke-submit"
-              attr:disabled={invokeStatus() === 'loading' ? '' : null}
+              attr:disabled={invokeStatus() === 'loading'}
               on:click={() => invoke()}>
               <sui-icon slot="leading" name="play" size="xs"></sui-icon>
               {invokeStatus() === 'loading' ? 'Running…' : 'Dry run'}

@@ -121,7 +121,7 @@
         {#for tab of tabs() key={tab.id}}
           <button class="tok-cat" type="button" data-test="tok-tab"
             attr:data-tab={tab.id}
-            attr:data-active={activeTab() === tab.id ? '' : null}
+            attr:data-active={activeTab() === tab.id}
             on:click={() => setTab(tab.id)}>{tab.label}</button>
         {/for}
       </div>
