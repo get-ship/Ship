@@ -182,7 +182,7 @@
   title="Toggle navigation (⌘B)" aria-label="Toggle navigation" on:click={onRailToggle}>
   <sui-icon slot="leading" name="menu"></sui-icon>
 </sui-button>
-<sui-theme-picker placement="bottom-end" part="theme-picker"></sui-theme-picker>
+<sui-theme-picker placement="bottom-end" part="theme-picker" label-style="compact"></sui-theme-picker>
 <sui-account-menu placement="bottom-end" part="account-menu"></sui-account-menu>
 <sui-button variant="ghost" size="sm" part="dock-toggle"
   title="Toggle CLI / debug panel (⌘J)" aria-label="Toggle CLI / debug panel"

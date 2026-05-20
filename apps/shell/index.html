@@ -7,6 +7,15 @@
   <link rel="icon" type="image/x-icon" href="/favicon.ico" />
   <link rel="icon" type="image/svg+xml" href="/ship-logo.svg" />
 
+  <!-- Ship typeface stack: Syne (display/headings), DM Sans (body),
+       JetBrains Mono (mono). The token layer (tokens.css) references these
+       families by name; without loading them the shell fell back to system
+       fonts after the SUI transition. Matches apps/site's font loading. -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Syne:wght@500;600;700;800&display=swap" />
+
   <!-- Daemon operating mode. Static default is `development` (Vite dev
        server can't know what shipd is doing). When shipd serves this
        HTML directly in production it rewrites the content to
@@ -73,6 +82,7 @@
       var bundles = [
         '/_sui/components.js',
         '/_sui/sui-components/sui-chrome.js',
+        '/_sui/sui-components/sui-nav-top.js',
         '/_sui/sui-components/sui-launcher.js',
         '/_sui/sui-components/sui-panel-dock.js',
         '/_sui/sui-components/sui-command-bar.js',
@@ -113,8 +123,12 @@
 </head>
 <body>
   <div id="ship-app">
-    <!-- Top strip: brand · ⌘K pill · theme/notifications/avatar -->
-    <sui-shell-top id="ship-shell-top"></sui-shell-top>
+    <!-- Top bar: brand · breadcrumbs · view actions · command-bar ·
+         theme picker · account · dock/fullscreen. The wired nav-top
+         hosts the real command-bar in its `command-bar` slot. -->
+    <sui-nav-top id="ship-nav-top">
+      <sui-command-bar slot="command-bar" id="ship-command-bar"></sui-command-bar>
+    </sui-nav-top>
 
     <!-- Main canvas: view mounts here. Empty by default — shell paints
          <sui-blank-canvas> when no route is active. -->
@@ -133,9 +147,6 @@
     <!-- Bottom strip: connection · branch · workspace · tools · theme · version · mode -->
     <sui-shell-bottom id="ship-shell-bottom" branch="" workspace="" theme="" version=""></sui-shell-bottom>
   </div>
-
-  <!-- Floating command bar — opened by ⌘K via main.ts. -->
-  <sui-command-bar id="ship-command-bar"></sui-command-bar>
 
   <!-- App launcher: floating panel, opened via sui:launcher:open event or the [open] attribute -->
   <sui-launcher id="ship-launcher"></sui-launcher>

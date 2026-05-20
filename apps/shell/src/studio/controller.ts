@@ -4,7 +4,7 @@
 // counts populate the rail badges where data exists; everything else
 // displays a dash until a follow-up job lands the backing data.
 
-import { controller, unwrap, chrome } from '@ship/sui-runtime'
+import { controller, unwrap, chrome, signal, live } from '@ship/sui-runtime'
 import type { LiveSignal, ViewScope, MutableState } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
 
@@ -46,27 +46,33 @@ export interface ConfigureItem {
   staticCount?: string
 }
 
+// Project sub-nav. Only surfaces backed by a real daemon capability or an
+// acknowledged-future one. Overview reads workspace/settings; Isolation is
+// coming-soon (no API yet). Network/Collaborators/Lifecycle were designer
+// mockup feels with no backing — cut.
 const PROJECT_SUBS: ReadonlyArray<ProjectSub> = [
-  { sub: 'overview',      label: 'Overview',      icon: 'circle' },
-  { sub: 'isolation',     label: 'Isolation',     icon: 'box' },
-  { sub: 'network',       label: 'Network',       icon: 'globe' },
-  { sub: 'collaborators', label: 'Collaborators', icon: 'users' },
-  { sub: 'lifecycle',     label: 'Lifecycle',     icon: 'activity' },
+  { sub: 'overview',  label: 'Overview',  icon: 'circle' },
+  { sub: 'isolation', label: 'Isolation', icon: 'box' },
 ]
 
+// Library — a real concept, but no backend yet, so every sub is coming-soon
+// (no fabricated counts). "Authored" → "Publishing" (the eventual flow).
 const LIBRARY_SUBS: ReadonlyArray<LibrarySub> = [
-  { sub: 'installed',   label: 'Installed',   icon: 'package', staticCount: '22' },
+  { sub: 'installed',   label: 'Installed',   icon: 'package', staticCount: '—' },
   { sub: 'marketplace', label: 'Marketplace', icon: 'store',   staticCount: '—' },
-  { sub: 'authored',    label: 'Authored',    icon: 'pen',     staticCount: '4' },
+  { sub: 'publishing',  label: 'Publishing',  icon: 'upload',  staticCount: '—' },
 ]
 
+// Configuration sections. Real + built first (no count rather than a stale
+// fabricated one); deferred-but-real APIs (pipelines/mcp/permissions) follow
+// and render the honest "Coming soon" stub until their UI lands.
 const CONFIGURE_ITEMS: ReadonlyArray<ConfigureItem> = [
   { id: 'agents',      label: 'Agents',      icon: 'bot',      section: 'agents' },
   { id: 'skills',      label: 'Skills',      icon: 'zap',      section: 'skills' },
-  { id: 'mcp',         label: 'MCP servers', icon: 'terminal', section: 'mcp',         staticCount: '—' },
+  { id: 'components',  label: 'Components',  icon: 'layers',   section: 'components' },
+  { id: 'themes',      label: 'Themes',      icon: 'palette',  section: 'themes' },
   { id: 'pipelines',   label: 'Pipelines',   icon: 'workflow', section: 'pipelines',   staticCount: '—' },
-  { id: 'components',  label: 'Components',  icon: 'layers',   section: 'components',  staticCount: '94' },
-  { id: 'themes',      label: 'Themes',      icon: 'palette',  section: 'themes',      staticCount: '7' },
+  { id: 'mcp',         label: 'MCP servers', icon: 'terminal', section: 'mcp',         staticCount: '—' },
   { id: 'permissions', label: 'Permissions', icon: 'shield',   section: 'permissions', staticCount: '—' },
 ]
 
@@ -79,7 +85,7 @@ const SECTION_META: Record<string, { label: string; sub: string }> = {
   components:  { label: 'Components',   sub: 'SUI primitives available to views.' },
   themes:      { label: 'Themes',       sub: 'Visual themes for the workspace.' },
   permissions: { label: 'Permissions',  sub: 'Tool, network, and filesystem permissions.' },
-  library:     { label: 'Library',      sub: 'Installed, marketplace, and authored extensions.' },
+  library:     { label: 'Library',      sub: 'Installed, marketplace, and published extensions.' },
 }
 
 const DEFAULT_SECTION = 'agents'
@@ -90,6 +96,23 @@ function resolveSection(raw: string | undefined): string {
   return VALID_SECTIONS.has(raw) ? raw : DEFAULT_SECTION
 }
 
+// Parse `/studio/<section>/<sub>` directly off a pathname. The studio
+// bundle owns its own signal universe, so reading the shell-injected
+// `route` signal can't drive reactivity across the bundle boundary (the
+// global route updater iterates only the installing bundle's instances).
+// Deriving from a local path signal — fed by the shell's `sui:navigate`
+// event + popstate in mount() — keeps section reactivity inside this
+// bundle, so rail clicks actually swap the content.
+function sectionFromPath(pathname: string): string {
+  const segs = pathname.split('/').filter(Boolean)
+  // ['studio', '<section>', '<sub>']
+  return resolveSection(segs[1])
+}
+function subFromPath(pathname: string): string {
+  const segs = pathname.split('/').filter(Boolean)
+  return segs[2] ?? ''
+}
+
 function dispatchStudioEvent(name: string, detail?: Record<string, unknown>): void {
   if (typeof window === 'undefined') return
   window.dispatchEvent(new CustomEvent(name, { detail: detail ?? {} }))
@@ -97,14 +120,20 @@ function dispatchStudioEvent(name: string, detail?: Record<string, unknown>): vo
 
 export default controller<Scope>({
   scope: ({ ship }) => {
-    const agentSummaries = ship.agents.summaries()
-    const skillsList = ship.skills.list()
-    return { agentSummaries, skillsList }
+    // `ship.*.()` returns a LiveSource (an SSE channel), not a LiveSignal.
+    // `live()` subscribes it into a readable signal so `unwrap()` works —
+    // calling unwrap on the raw source threw `sig is not a function`.
+    const agentSummaries = live(() => ship.agents.summaries())
+    const skillsList = live(() => ship.skills.list())
+    const studioPath = signal(
+      typeof location !== 'undefined' ? location.pathname : '/studio',
+    )
+    return { agentSummaries, skillsList, studioPath }
   },
 
   derived: {
-    section: ({ route }) => resolveSection(route.params.section()),
-    subitem: ({ route }) => route.params.sub() ?? '',
+    section: ({ studioPath }) => sectionFromPath(studioPath()),
+    subitem: ({ studioPath }) => subFromPath(studioPath()),
     agentCount: ({ agentSummaries }) => {
       const v = unwrap(agentSummaries as LiveSignal<ListEnvelope>)
       return v?.items?.length ?? 0
@@ -116,22 +145,22 @@ export default controller<Scope>({
     projectSubs: () => PROJECT_SUBS,
     librarySubs: () => LIBRARY_SUBS,
     configureItems: () => CONFIGURE_ITEMS,
-    sectionTitle: ({ route }) => {
-      const s = resolveSection(route.params.section())
+    sectionTitle: ({ studioPath }) => {
+      const s = sectionFromPath(studioPath())
       return SECTION_META[s]?.label ?? 'Studio'
     },
-    sectionSubtitle: ({ route }) => {
-      const s = resolveSection(route.params.section())
+    sectionSubtitle: ({ studioPath }) => {
+      const s = sectionFromPath(studioPath())
       return SECTION_META[s]?.sub ?? ''
     },
-    breadcrumbCurrent: ({ route }) => {
-      const sub = route.params.sub() ?? ''
+    breadcrumbCurrent: ({ studioPath }) => {
+      const sub = subFromPath(studioPath())
       if (sub) return sub
-      const s = resolveSection(route.params.section())
+      const s = sectionFromPath(studioPath())
       return SECTION_META[s]?.label ?? 'Studio'
     },
     // The CONFIGURE group header shows the static count of configurable
-    // section types (7). Static — the rail entries are a fixed schema.
+    // section types. Static — the rail entries are a fixed schema.
     configureCount: () => CONFIGURE_ITEMS.length,
   },
 
@@ -143,12 +172,9 @@ export default controller<Scope>({
     closeStudio: () => {
       dispatchStudioEvent('sui-close-studio')
     },
-    openPalette: () => {
-      dispatchStudioEvent('sui-open-studio-palette')
-    },
-    newInSection: ({ route }: ViewScope<Scope>) => {
-      const section = resolveSection(route.params.section())
-      dispatchStudioEvent('sui-studio-new', { section })
+    newInSection: (state: ViewScope<Scope>) => {
+      const studioPath = (state as unknown as { studioPath: () => string }).studioPath
+      dispatchStudioEvent('sui-studio-new', { section: sectionFromPath(studioPath()) })
     },
   },
 })

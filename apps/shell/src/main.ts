@@ -49,7 +49,6 @@ import { KernelBridge } from './kernel-bridge'
 import { initHmr } from './hmr'
 import { initProjectSwitch } from './project-switch'
 import { initChromeRegistry } from './chrome/registry'
-import { initCommandPalette } from './chrome/command-palette'
 import { initEditModeChrome, setEditModeView, toggleEditMode, toggleAnnotationMode } from './chrome/edit-mode'
 import { bridgeDockTerminal, disposeDockTerminal } from './chrome/terminal-bridge'
 
@@ -235,7 +234,14 @@ function routeToPath(r: Route): string {
 // (/studio/agents → /studio/themes) only kicks routeSignals — the
 // surface stays mounted and re-renders in place. `studio` is also
 // shell-owned: it never round-trips to the daemon's view resolver.
-const SAME_SHELL_VIEWS = new Set(['skills', 'studio'])
+// `studio` is intentionally NOT same-shell: its bundle owns a separate
+// signal universe, so the shell's route-signal kick can't drive the
+// section swap across the bundle boundary (the global route updater only
+// iterates the installing bundle's instances). Remounting on each section
+// nav re-runs studio setup against the fresh URL — the bundle is cached
+// (loadStudioBundle memoizes), so it's a cheap in-place re-render, not a
+// network round-trip.
+const SAME_SHELL_VIEWS = new Set(['skills'])
 
 // Shell-owned surfaces mounted from a local bundle rather than a daemon
 // view payload. `/studio/*` is a protected namespace — only this
@@ -693,11 +699,10 @@ document.addEventListener('keydown', (e: KeyboardEvent) => {
 
   if (mod && key === 'k') {
     e.preventDefault()
-    // ⌘K is the command palette — the shell's primary navigation surface
-    // (it replaces the rail). Fire the bare `sui-open-command-palette`
-    // intent; initCommandPalette() receives it and opens the overlay. The
-    // shell-top pill and blank-canvas hint emit the same event. The older
-    // `<sui-command-bar>` find mode keeps its own binding on ⌘P.
+    // ⌘K is the command palette — the shell's primary action surface. It
+    // and the blank-canvas hint emit the bare `sui-open-command-palette`
+    // intent, which the shell routes to the one `<sui-command-bar>` (see
+    // its listener near init). ⌘P opens the same bar in `find` mode.
     document.dispatchEvent(new CustomEvent('sui-open-command-palette', { bubbles: true }))
     return
   }
@@ -923,10 +928,17 @@ document.addEventListener('sui:navigate', (e: Event) => {
 })
 
 initChromeRegistry()
-// Command palette — mount once on body and wire ⌘K / chrome-emitted
-// `sui-open-command-palette` → open, and `sui-command-select` → navigate
-// or dispatch a run intent. Primary navigation surface of the shell.
-initCommandPalette({ sdk: shipClient, navigate })
+// Command palette — there is ONE command surface: the `<sui-command-bar>`
+// slotted into `<sui-nav-top>` (id `ship-command-bar`). It owns its own
+// dialog, hosts `<sui-command-palette>`/`<sui-command-chat>` via shared
+// scope, loads its own SDK data, and self-navigates through `sui:navigate`.
+// ⌘K and the blank-canvas hint emit `sui-open-command-palette`; route that
+// intent to the bar's `command` mode rather than mounting a second, parent-
+// less palette on <body> (which threw because its `useShared` lookup found
+// no `sui-command-bar` ancestor).
+document.addEventListener('sui-open-command-palette', () => {
+  getCommandBar()?.show('command')
+})
 // Help overlay — mount the `<sui-help-overlay>` chrome element once on
 // body and toggle it from the `sui-open-help` intent the ⌘? binding (and
 // the shell-top help affordance) emit. The element owns Esc / backdrop
@@ -963,8 +975,8 @@ async function syncProject(): Promise<void> {
     const body = (await resp.json()) as { active?: { name?: string; label?: string } | null }
     const name = body.active?.label || body.active?.name || ''
     if (shellBottom) shellBottom.setAttribute('workspace', name)
-    const shellTop = document.getElementById('ship-shell-top')
-    if (shellTop) shellTop.setAttribute('workspace', name)
+    const navTop = document.getElementById('ship-nav-top')
+    if (navTop) navTop.setAttribute('project', name)
   } catch { /* leave workspace blank when the API is unreachable */ }
 }
 void syncProject()

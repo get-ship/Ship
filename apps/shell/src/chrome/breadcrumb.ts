@@ -21,7 +21,7 @@ export function ensureBreadcrumbHost(): HTMLElement {
   // Insert just below the top strip so chrome breadcrumbs stamped by a
   // view appear above the canvas. Falls back to document.body when the
   // strip isn't mounted (e.g. focus mode).
-  const anchor = document.getElementById('ship-shell-top')
+  const anchor = document.getElementById('ship-nav-top')
   if (anchor?.parentNode) {
     anchor.parentNode.insertBefore(host, anchor.nextSibling)
   } else {

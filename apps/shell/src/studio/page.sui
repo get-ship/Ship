@@ -87,31 +87,8 @@
 
   </aside>
 
-  <div class="studio-top" role="toolbar" aria-label="Studio chrome">
-    <nav class="studio-crumb" aria-label="Studio breadcrumb">
-      <span class="studio-crumb-studio">Studio</span>
-      <span class="studio-crumb-sep" aria-hidden="true">/</span>
-      <button type="button" class="studio-crumb-link"
-        data-test="crumb-section"
-        on:click={() => goSection(section())}>
-        {sectionTitle()}
-      </button>
-      {#if subitem()}
-        <span class="studio-crumb-sep" aria-hidden="true">/</span>
-        <span class="studio-crumb-current" data-test="crumb-current">{breadcrumbCurrent()}</span>
-      {/if}
-    </nav>
-
+  <div class="studio-top" role="toolbar" aria-label="Studio actions">
     <div class="studio-top-spacer"></div>
-
-    <button type="button" class="studio-top-cmdk"
-      data-test="cmdk-pill"
-      title="Search across Studio"
-      on:click={() => openPalette()}>
-      <sui-icon name="search" size="xs"></sui-icon>
-      <span class="studio-top-cmdk-text">Search Studio…</span>
-      <span class="studio-top-cmdk-kbd">⌘K</span>
-    </button>
 
     <button type="button" class="studio-top-btn"
       data-test="studio-new"

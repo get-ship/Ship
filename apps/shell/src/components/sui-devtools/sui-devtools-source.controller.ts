@@ -1,5 +1,6 @@
 import { chrome, controller, signal, derived, effect, ref } from '@ship/sui-runtime'
 import type { Scope } from './sui-devtools-source.sui'
+import { isShellLocalView } from '../../chrome/shell-surfaces'
 
 interface ViewFile {
   path: string
@@ -265,6 +266,14 @@ export default controller<Scope>({
     async function loadFiles(name: string): Promise<void> {
       if (!name || lastLoadedView === name) return
       lastLoadedView = name
+      // Shell-local surfaces (e.g. studio) have no daemon source — their
+      // files are bundled into the shell. Skip the fetch so it doesn't 404.
+      if (isShellLocalView(name)) {
+        s.files = []
+        s.selectedPath = ''
+        s.loadError = 'shell-local surface — source is bundled into the shell'
+        return
+      }
       s.loading = true
       s.loadError = null
       s.files = []
