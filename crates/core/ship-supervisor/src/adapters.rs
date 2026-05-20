@@ -27,7 +27,13 @@ impl IsolationStrategy for GitWorktreeIsolation {
         // project root never has this marker.
         let _ = std::fs::write(session_dir.join(".dispatched"), &job.slug);
         write_phase_spec_from_context(&worktree_path, job)?;
-        compile_agent_config(&worktree_path, &job.agent)?;
+        // Run steps (pure shell) carry no agent — there's nothing to
+        // compile, and an empty/placeholder agent would fail profile
+        // resolution. Only compile when a real agent is named (every
+        // agent step and bare dispatch sets one).
+        if !job.agent.is_empty() {
+            compile_agent_config(&worktree_path, &job.agent)?;
+        }
         Ok(worktree_path)
     }
 
