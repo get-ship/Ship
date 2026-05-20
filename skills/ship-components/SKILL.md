@@ -212,10 +212,9 @@ standalone language server.
 | Surface | How |
 |---|---|
 | **MCP** (agents) | `mcp__ship__sui_diagnostics` / `_hover` / `_dependencies`. See above. |
-| **VS Code** | `apps/vscode/` extension auto-launches the server on `.sui` open. |
-| **Other editors over stdio** | `node packages/deck/lsp/bin/sui-lsp.js --stdio` (build first: `bun run --filter @ship/sui-lsp build`). Map `sui` language ID to that command for `*.sui`. |
-| **LSP CLI** (any shell) | `bun packages/deck/lsp/src/cli.ts diagnostics|hover|dependencies <file>` — JSON to stdout. |
-| **Browser** | Not yet — the LSP is Node-only. Tracking: a thin browser port so the shell + docs playground get hover and scope-aware completion without shelling out. |
+| **VS Code** | `apps/vscode/` auto-launches the `sui-lsp` binary on `.sui` open. |
+| **Any editor / Claude Code / opencode** | Point the LSP client at the `sui-lsp` binary (`crates/sui/lsp/`, on PATH via `just install-dev`) over stdio. Claude Code uses the repo `.lsp.json`. |
+| **Browser** | `@ship/sui-lsp-browser` runs the WASM `analyze` (same Rust grammar) for diagnostics in the docs playground; hover/completion are static-dictionary for now. |
 
 ## What's available in a view
 

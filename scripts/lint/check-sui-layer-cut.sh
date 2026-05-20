@@ -54,7 +54,6 @@ for d in \
   packages/sui/runtime/src \
   packages/sui/dom/src \
   packages/deck/eval/src \
-  packages/deck/lsp/src \
 ; do
   [ -d "$d" ] && check_ts "$d"
 done
