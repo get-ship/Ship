@@ -30,6 +30,13 @@ pub mod event_types {
     /// opencode --format json, codex --json). Source of truth for
     /// token counts. Cost is derived on read.
     pub const HOOK_TURN_OBSERVED: &str = "hook.turn_observed";
+    /// A tool call was denied before execution. Emitted today by the
+    /// Ship-integrity gate in `ship hook before-tool` when its
+    /// fail-closed checks reject a tool call; future operator-approval
+    /// flows will emit the same event with denied_by="operator".
+    /// Distinct from hook.tool_use_completed{status:error} because the
+    /// tool never ran — there is no started/completed pair to roll up.
+    pub const HOOK_PERMISSION_DENIED: &str = "hook.permission_denied";
 }
 
 /// Fired when a harness reports the start of an interactive session.
@@ -178,4 +185,37 @@ pub struct HookTurnObservedPayload {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub harness_reported_cost_usd: Option<f64>,
     pub observed_at: String,
+}
+
+/// A tool call was rejected before invocation. Today emitted from
+/// `ship hook before-tool` when the fail-closed integrity gate
+/// (`cli-framework/src/hooks/tool_gate.rs`) returns `Decision::Deny`;
+/// the deny response is sent back to the harness so the tool never
+/// runs. Captured separately from hook.tool_use_* because the call
+/// never produced a started/completed pair.
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct HookPermissionDeniedPayload {
+    pub actor_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub session_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub harness: Option<String>,
+    /// Tool name the harness was about to invoke.
+    pub tool: String,
+    /// Structured tool input the gate inspected. Useful for forensics
+    /// ("which Bash command did we block?"). Optional in case the
+    /// harness didn't surface input.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub input: Option<serde_json::Value>,
+    /// Truncated preview (≤400 chars) for legacy renderers.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub input_preview: Option<String>,
+    /// Operator-readable reason from the gate. Carries the exact rule
+    /// message ("ship hook: blocked write inside .git/ …").
+    pub reason: String,
+    /// Origin of the denial. Today always "ship-gate"; later
+    /// "operator" (UI approval flow) or "harness" (provider-side
+    /// permission check) once those wire up.
+    pub denied_by: String,
+    pub denied_at: String,
 }

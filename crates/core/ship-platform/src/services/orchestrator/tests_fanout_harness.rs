@@ -150,6 +150,7 @@ pub fn mk_step(id: &str, agent: &str) -> PipelineStep {
         model: None, harness: None, command: None,
         max_retries: None, gate: None,
         produces: vec![], consumes: vec![], promotes: vec![], fanout: None,
+            invocation: None,
     }
 }
 

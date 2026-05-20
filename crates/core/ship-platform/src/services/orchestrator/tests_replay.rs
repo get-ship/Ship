@@ -205,6 +205,7 @@ mod replay_filter {
             consumes: vec![],
             promotes: vec![],
             fanout: None,
+            invocation: None,
         }
     }
 

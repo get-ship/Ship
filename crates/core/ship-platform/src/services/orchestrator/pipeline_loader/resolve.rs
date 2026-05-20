@@ -91,6 +91,7 @@ pub(super) fn resolve_steps(payload: &mut PipelineRunStartedPayload) {
             consumes: vec![],
             promotes: vec![],
             fanout: None,
+            invocation: None,
         }],
         auto_merge: false,
     });

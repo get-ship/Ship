@@ -128,6 +128,7 @@ fn payload_with_first_step(
         consumes: vec![],
         promotes: vec![],
         fanout: None,
+            invocation: None,
     };
     PipelineRunStartedPayload {
         job_id: job_id.into(),

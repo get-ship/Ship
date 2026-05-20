@@ -67,6 +67,7 @@ pub fn build_router(
         .route("/hooks/before-tool", axum::routing::post(hooks_api::hook_before_tool))
         .route("/hooks/after-tool", axum::routing::post(hooks_api::hook_after_tool))
         .route("/hooks/session-end", axum::routing::post(hooks_api::hook_session_end))
+        .route("/hooks/permission-denied", axum::routing::post(hooks_api::hook_permission_denied))
         .with_state(st.clone());
     // Enumerated routes — one `ApiState`-typed router, registered via
     // `ship_route(Route::X, handler)` against the canonical full paths.

@@ -302,7 +302,10 @@ async fn advance_pipeline_inner(
                         ..Default::default()
                     },
                     step: Some(crate::services::dispatch_ports::StepInfo { index: step_idx, id: step.id.clone() }),
-                    headless: job.headless,
+                    invocation: super::dispatch::resolve_step_invocation(
+                        step.invocation.as_deref(),
+                        job.headless,
+                    ),
                     // Pipeline steps are always per-turn, never keepalive.
                     keepalive: false,
                 };
@@ -310,12 +313,33 @@ async fn advance_pipeline_inner(
                     Ok(handle) => {
                         let exec_kind = if job.headless { "process" } else { "pty" };
                         let cmd_label = step.harness.as_deref().unwrap_or("claude");
+                        let pid = handle.pid;
                         emit_process_spawned(
-                            kernel, slug, &job.job_id, handle.pid,
+                            kernel, slug, &job.job_id, pid,
                             cmd_label, &[], &[],
                             &worktree_path.to_string_lossy(),
                             exec_kind, Some(&step.id),
                         ).await;
+
+                        // Every dispatched step also surfaces as an
+                        // agent_session row so bare and pipeline-composed
+                        // dispatches share one read model. See
+                        // dispatch::emit_composed_step_session.
+                        super::dispatch::emit_composed_step_session(
+                            kernel,
+                            &super::dispatch::ComposedRunCtx {
+                                job_id: &job.job_id,
+                                job_slug: &job.slug,
+                                branch: &job.branch,
+                                source_spec_path: job.source_spec_path.as_deref(),
+                                vars: job.vars.as_ref(),
+                                baseline_sha: job.baseline_sha.as_deref(),
+                                run_headless: job.headless,
+                            },
+                            step, agent,
+                            &worktree_path.to_string_lossy(), pid,
+                        ).await;
+
                         octx.registry.register(slug, handle).await;
                         let monitor = StepMonitor::new(
                             job.job_id.clone(),

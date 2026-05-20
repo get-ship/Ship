@@ -6,12 +6,19 @@
 //! `ship_substrate::projections`; this module hosts the implementations
 //! that encode platform domain facts.
 
+pub mod agent_session;
 pub mod auth;
 pub mod compile_state;
 pub mod job;
 pub mod job_transitions;
 pub mod projects;
 
+pub use agent_session::{
+    AgentSession, AgentSessionProjection, AgentSessionStatus,
+    load_session_by_id, load_session_by_id_at, load_session_by_slug,
+    load_session_by_slug_at, load_sessions, load_sessions_at,
+    load_sessions_by_parent, project as project_agent_sessions,
+};
 pub use auth::{
     AuthSessionRow, AuthSessionsProjection, DaemonOwnerProjection, DaemonOwnerRow,
 };

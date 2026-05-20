@@ -9,6 +9,8 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use tokio::sync::mpsc::UnboundedSender;
 
+pub use crate::events::agent_session::InvocationMode;
+
 /// Why an executor is signalling exit. Forces each call site to declare
 /// semantics: we either observed the agent's own exit, or the substrate
 /// (tmux session/window, PTY, ...) went away without us seeing it.
@@ -63,11 +65,17 @@ pub struct JobContext {
     /// name and per-step log path. `None` for single-step jobs — the executor
     /// falls back to using `slug` as the window name.
     pub step: Option<StepInfo>,
-    /// When true, dispatch forces the headless ProcessExecutor path even if
-    /// the executor in `OrchestratorContext` is TmuxWindowExecutor. Surfaced
-    /// through to the executor so it can fall back without its own flag
-    /// check.
-    pub headless: bool,
+    /// Harness invocation mode — the source of truth for how the
+    /// executor launches the harness. Replaces the old `headless: bool`
+    /// (the three-axis model: see agent-primitive-inversion plan).
+    ///   - `Pty`: PTY-attached (routes to TmuxWindow when available,
+    ///     else ProcessExecutor with a PTY).
+    ///   - `Print`: one-shot non-interactive (ProcessExecutor, `-p`).
+    ///   - `Stream`: server-mode (ServerExecutor) — routed before this
+    ///     field is consulted.
+    /// `keepalive` (below) is orthogonal and forces ProcessExecutor +
+    /// build_interactive regardless of invocation.
+    pub invocation: InvocationMode,
     /// Long-running interactive session — not a pipeline step. Routes to
     /// ProcessExecutor with `adapter.build_interactive` (no `-p`, no
     /// `--print`). The harness stays at its TUI prompt waiting for stdin

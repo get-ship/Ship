@@ -30,11 +30,22 @@ fn types_of(events: &[EventEnvelope]) -> Vec<String> {
     events.iter().map(|e| e.event_type.clone()).collect()
 }
 
-/// Send a single ExitSignal through the handler and wait for processing to
-/// finish. 150ms is generous — the handler does at most two kernel emits.
-async fn drive_single_signal(
+/// Send a single ExitSignal and wait until the handler's expected
+/// terminal event lands in the persisted log (or `terminal_type` is
+/// `None`, in which case we wait the minimum interval).
+///
+/// Pre-hardening this used a flat `sleep(150ms)`. Under workspace-test
+/// parallelism the two kernel emits sometimes took longer than 150ms
+/// to land on disk, and the assertion ran against an incomplete log
+/// — manifesting as "got [\"process.exited\"]" with no job event. The
+/// fix mirrors what we did for the bun-side actor-projection race:
+/// poll for the condition you're going to assert on rather than
+/// guessing a sleep duration.
+async fn drive_single_signal_until(
+    base: &std::path::Path,
     kernel: Arc<Mutex<KernelRouter>>,
     signal: ExitSignal,
+    terminal_type: Option<&str>,
 ) {
     let registry = Arc::new(Mutex::new(ProcessRegistry::new()));
     let port: Arc<dyn ship_platform::services::dispatch_ports::ProcessRegistryPort> =
@@ -42,7 +53,31 @@ async fn drive_single_signal(
     let (tx, rx) = tokio::sync::mpsc::unbounded_channel::<ExitSignal>();
     exit_handler::start(kernel, port, rx);
     tx.send(signal).expect("channel accepts signal");
-    tokio::time::sleep(Duration::from_millis(150)).await;
+
+    // 3s is generous; the handler does at most two kernel emits + a
+    // disk write. Real workload completes in <50ms; the budget exists
+    // for adversarial parallel scheduling.
+    let deadline = std::time::Instant::now() + Duration::from_secs(3);
+    loop {
+        let events = list_recent_events_at(base, 50).unwrap_or_default();
+        match terminal_type {
+            Some(t) => {
+                if events.iter().any(|e| e.event_type == t) {
+                    return;
+                }
+            }
+            None => {
+                // No terminal sentinel — wait long enough for the
+                // handler to finish its emits, then return.
+                tokio::time::sleep(Duration::from_millis(150)).await;
+                return;
+            }
+        }
+        if std::time::Instant::now() >= deadline {
+            return;
+        }
+        tokio::time::sleep(Duration::from_millis(25)).await;
+    }
 }
 
 // ── The bug-fix test ─────────────────────────────────────────────────────────
@@ -54,7 +89,8 @@ async fn drive_single_signal(
 async fn session_destroyed_emits_job_failed_not_completed() {
     let (_dir, base, kernel) = setup();
 
-    drive_single_signal(
+    drive_single_signal_until(
+        &base,
         Arc::clone(&kernel),
         ExitSignal {
             slug: "op-killed".to_string(),
@@ -62,6 +98,7 @@ async fn session_destroyed_emits_job_failed_not_completed() {
             exit_code: None,
             cause: ExitCause::SessionDestroyed,
         },
+        Some("pipeline.run.failed"),
     )
     .await;
 
@@ -99,7 +136,8 @@ async fn session_destroyed_emits_job_failed_not_completed() {
 async fn agent_exited_clean_still_emits_job_completed() {
     let (_dir, base, kernel) = setup();
 
-    drive_single_signal(
+    drive_single_signal_until(
+        &base,
         Arc::clone(&kernel),
         ExitSignal {
             slug: "ok-job".to_string(),
@@ -107,6 +145,7 @@ async fn agent_exited_clean_still_emits_job_completed() {
             exit_code: Some(0),
             cause: ExitCause::AgentExited,
         },
+        Some("pipeline.run.completed"),
     )
     .await;
 
@@ -132,7 +171,8 @@ async fn agent_exited_clean_still_emits_job_completed() {
 async fn agent_exited_nonzero_emits_job_failed() {
     let (_dir, base, kernel) = setup();
 
-    drive_single_signal(
+    drive_single_signal_until(
+        &base,
         Arc::clone(&kernel),
         ExitSignal {
             slug: "err-job".to_string(),
@@ -140,6 +180,7 @@ async fn agent_exited_nonzero_emits_job_failed() {
             exit_code: Some(1),
             cause: ExitCause::AgentExited,
         },
+        Some("pipeline.run.failed"),
     )
     .await;
 
@@ -162,7 +203,8 @@ async fn agent_exited_nonzero_emits_job_failed() {
 async fn agent_exited_unknown_code_emits_job_failed() {
     let (_dir, base, kernel) = setup();
 
-    drive_single_signal(
+    drive_single_signal_until(
+        &base,
         Arc::clone(&kernel),
         ExitSignal {
             slug: "unknown-job".to_string(),
@@ -170,6 +212,7 @@ async fn agent_exited_unknown_code_emits_job_failed() {
             exit_code: None,
             cause: ExitCause::AgentExited,
         },
+        Some("pipeline.run.failed"),
     )
     .await;
 

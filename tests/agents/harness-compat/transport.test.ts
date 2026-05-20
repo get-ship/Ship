@@ -15,7 +15,7 @@ import {
   binaryOnPath,
   cancelSession,
   dispatch,
-  waitForActorRow,
+  waitForActorField,
 } from "../_helpers";
 import {
   COMPAT_AGENT,
@@ -55,17 +55,13 @@ for (const h of HARNESSES) {
           });
 
           try {
-            // Poll until transport is populated (not just row present).
-            // There's a projection race: process.spawned can land before
-            // actor.created, creating a stub row with empty transport;
-            // actor.created fills it in. Poll until we see the real value.
-            const deadline = Date.now() + 15_000;
-            let actor = null;
-            while (Date.now() < deadline) {
-              actor = await waitForActorRow(dispatched.slug);
-              if (actor && actor.transport && actor.transport.length > 0) break;
-              await new Promise((r) => setTimeout(r, 250));
-            }
+            // Projection race: process.spawned can land before actor.created,
+            // creating a stub row with empty transport. waitForActorField
+            // polls until the field we assert on is populated.
+            const actor = await waitForActorField(
+              dispatched.slug,
+              (a) => !!a.transport && a.transport.length > 0,
+            );
             if (!actor) {
               tierFailure(h.tier, h.id, "actor row never materialised", {
                 slug: dispatched.slug,

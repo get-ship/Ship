@@ -48,6 +48,7 @@ pub use crate::persistence::{
 // Backward-compatible module aliases for consumers.
 pub use crate::persistence::event_store as store;
 // Modules kept here (implement runtime-specific logic)
+pub mod agent_session;
 pub mod annotation;
 pub mod daemon;
 pub mod executor;

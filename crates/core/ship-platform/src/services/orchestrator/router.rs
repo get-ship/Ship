@@ -29,14 +29,16 @@ pub async fn start_orchestrator(
     octx: Arc<OrchestratorContext>,
 ) {
     let actor_id = "service.job-dispatch".to_string();
-    // Post JobRecord→PipelineRun rename: dispatch emits `pipeline.run.started`
-    // and friends under the `pipeline.` namespace. The orchestrator subscribes
-    // there. Bare `job.` / `step.` namespaces are dead (no live emitters).
+    // Subscribes to two namespaces:
+    //   - `pipeline.*` for composition lifecycle (multi-step pipeline runs)
+    //   - `agent.session.*` for the dispatch primitive (single-agent
+    //     sessions, including those composed within pipelines)
+    // The router below switches on the event type to pick the handler.
     let config = ship_substrate::events::ActorConfig {
         namespace: actor_id.clone(),
-        write_namespaces: vec!["pipeline.".to_string()],
+        write_namespaces: vec!["pipeline.".to_string(), "agent.session.".to_string()],
         read_namespaces: vec![],
-        subscribe_namespaces: vec!["pipeline.".to_string()],
+        subscribe_namespaces: vec!["pipeline.".to_string(), "agent.session.".to_string()],
         see_directed_events: false,
     };
 
@@ -122,6 +124,12 @@ pub async fn handle_job_event(
     }
 
     match envelope.event_type.as_str() {
+        // The agent-session dispatch primitive — owns the spawn /
+        // register / exit-handler-attach atom. Both bare `ship use`
+        // and pipeline steps (when phase 5 lands) flow through here.
+        "agent.session.started" => super::dispatch::handle_agent_session_started(
+            kernel, envelope, octx,
+        ).await,
         "pipeline.run.started" => handle_job_created(kernel, envelope, octx).await,
         "pipeline.run.updated" => handle_job_update(kernel, envelope).await,
         et::PIPELINE_RUN_CANCELLED => handle_job_cancelled(kernel, envelope, octx).await,

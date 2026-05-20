@@ -10,8 +10,8 @@
 use axum::{extract::State, Extension, Json, http::StatusCode, response::{IntoResponse, Response}};
 use ship_substrate::events::EventEnvelope;
 use ship_substrate::events::hooks::{
-    event_types as hook_event_types, HookSessionEndedPayload, HookSessionStartedPayload,
-    HookToolUseCompletedPayload, HookToolUseStartedPayload, ToolStatus,
+    event_types as hook_event_types, HookPermissionDeniedPayload, HookSessionEndedPayload,
+    HookSessionStartedPayload, HookToolUseCompletedPayload, HookToolUseStartedPayload, ToolStatus,
 };
 use serde::{Deserialize, Serialize};
 #[allow(unused_imports)]
@@ -87,8 +87,14 @@ pub struct ShipHookEvent {
     pub tool_error: Option<String>,
     /// Reason a session ended ("operator-cancelled", "stop-hook",
     /// "process-exit", etc.). Carried on session-end payloads.
+    /// Also carries the deny reason on permission-denied payloads.
     #[serde(default)]
     pub reason: Option<String>,
+    /// Origin of a permission denial: "ship-gate" (today, always),
+    /// "operator" (future approval UI), "harness" (provider-side
+    /// permission check). Only meaningful on /hooks/permission-denied.
+    #[serde(default)]
+    pub denied_by: Option<String>,
 }
 
 /// Hook response: allow or block with reason.
@@ -415,6 +421,74 @@ pub async fn hook_session_end(
     (StatusCode::OK, Json(HookResponse::allow())).into_response()
 }
 
+/// POST /api/v1/hooks/permission-denied
+///
+/// Emitted by `ship hook before-tool` when its fail-closed integrity
+/// gate (cli-framework::hooks::tool_gate) denies a call before the
+/// daemon roundtrip. The CLI still returns the harness's expected
+/// deny shape on stdout so the tool never runs; this endpoint just
+/// logs the denial as a kernel event so analytics + dashboards can
+/// show "denied" alongside "succeeded" / "errored".
+#[utoipa::path(
+    operation_id = "hookPermissionDenied",
+    post,
+    path = "/api/v1/hooks/permission-denied",
+    request_body = ShipHookEvent,
+    responses(
+        (status = 200, description = "Hook processed", body = HookResponse),
+        (status = 400, description = "Invalid payload", body = crate::wire::ErrorResponse),
+        (status = 401, description = "Unauthenticated", body = crate::wire::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::wire::ErrorResponse),
+    ),
+    tag = "hooks"
+)]
+pub async fn hook_permission_denied(
+    State(state): State<ApiState>,
+    Extension(auth): Extension<AuthContext>,
+    Json(event): Json<ShipHookEvent>,
+) -> Response {
+    if let Err(e) = require_scope(&auth, Scope::EmitEvents) {
+        return e.into_response();
+    }
+    let actor = match resolve_actor(&event, &auth) {
+        Ok(a) => a,
+        Err(e) => return e,
+    };
+    let session = resolve_session(&event, &auth);
+    let tool = event.tool_name.as_deref().unwrap_or("unknown");
+    let reason = event
+        .reason
+        .clone()
+        .unwrap_or_else(|| "denied (no reason)".to_string());
+
+    tracing::debug!(actor = %actor, tool = %tool, "hook: permission-denied");
+
+    if actor != "unknown" {
+        let payload = HookPermissionDeniedPayload {
+            actor_id: actor.clone(),
+            session_id: session.clone(),
+            harness: event.harness.clone(),
+            tool: tool.to_string(),
+            input: event.tool_input.clone(),
+            input_preview: event.tool_input.as_ref().map(preview),
+            reason,
+            denied_by: event.denied_by.clone().unwrap_or_else(|| "ship-gate".to_string()),
+            denied_at: now_iso8601(),
+        };
+        if let Ok(env) =
+            EventEnvelope::new(hook_event_types::HOOK_PERMISSION_DENIED, &actor, &payload)
+        {
+            let env = env.with_target(&actor).with_actor_id(&actor);
+            let ctx = auth.to_daemon_emit_context();
+            if let Err(e) = state.kernel().lock().await.emit(env, &ctx).await {
+                tracing::warn!(actor, "hook.permission_denied emit failed: {e}");
+            }
+        }
+    }
+
+    (StatusCode::OK, Json(HookResponse::allow())).into_response()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -464,6 +538,7 @@ mod tests {
             tool_status: None,
             tool_error: None,
             reason: None,
+            denied_by: None,
         }
     }
 

@@ -28,6 +28,7 @@ fn agent_step(id: &str, agent: &str) -> PipelineStep {
         consumes: vec![],
         promotes: vec![],
         fanout: None,
+            invocation: None,
     }
 }
 

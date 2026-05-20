@@ -28,7 +28,7 @@ use std::sync::Arc;
 use anyhow::Result;
 use async_trait::async_trait;
 use ship_substrate::events::KernelRouter;
-use ship_platform::services::dispatch_ports::{ExecutorHandle, JobContext, JobExecutor};
+use ship_platform::services::dispatch_ports::{ExecutorHandle, InvocationMode, JobContext, JobExecutor};
 use ship_platform::services::harness_adapter::adapter_for_or_default;
 use ship_platform::services::harnesses::codex_session::CodexSession;
 use ship_platform::services::harnesses::opencode_session::OpenCodeSession;
@@ -193,7 +193,7 @@ impl RoutingExecutor {
         if self.try_server_executor(ctx).is_some() {
             return RouteKind::Server;
         }
-        if !ctx.headless && self.tmux_window.is_some() {
+        if ctx.invocation == InvocationMode::Pty && self.tmux_window.is_some() {
             return RouteKind::TmuxWindow;
         }
         RouteKind::Process
@@ -220,7 +220,11 @@ impl JobExecutor for RoutingExecutor {
         let workspace_id = ctx.branch.clone();
         let agent_id = ctx.agent.clone();
         let harness = ctx.launch.harness.clone();
-        let transport = if ctx.headless { "headless" } else { "pty" };
+        let transport = match ctx.invocation {
+            InvocationMode::Print => "headless",
+            InvocationMode::Pty => "pty",
+            InvocationMode::Stream => "stream",
+        };
         let transport = transport.to_string();
         std::thread::spawn(move || {
             let _ = ship_substrate::db::actor_events::emit_actor_created_simple(
@@ -240,6 +244,36 @@ impl JobExecutor for RoutingExecutor {
         self.ensure_codex_session(ctx).await;
         self.ensure_opencode_session(ctx).await;
 
+        // Server-mode dispatch reuses an already-bound session — its
+        // binary was checked at session-spawn time (ensure_*_session
+        // above), so skip the pre-flight here and route directly.
+        if let Some(server) = self.try_server_executor(ctx) {
+            tracing::info!(slug = ctx.slug,
+                harness = ?ctx.launch.harness,
+                "routing: dispatching to ServerExecutor");
+            return server.spawn(ctx).await;
+        }
+
+        // From here we're about to exec a fresh harness binary
+        // (keepalive ProcessExecutor, TmuxWindowExecutor, or one-shot
+        // ProcessExecutor). Pre-flight the binary so the user gets a
+        // clear "install it first" message instead of an opaque
+        // exit-127 / "No such file" from a few layers down.
+        // Harness id doubles as binary name today for all 5 known
+        // adapters; revisit if that stops being true.
+        if let Some(harness) = ctx.launch.harness.as_deref()
+            && let Ok(adapter) = adapter_for_or_default(Some(harness))
+        {
+            let bin = adapter.id();
+            if !binary_on_path(bin) {
+                anyhow::bail!(
+                    "dispatch: {bin} binary not on PATH. \
+                     Install the {bin} CLI before dispatching agents that use it. \
+                     (Check `which {bin}`; ensure the install dir is in PATH.)"
+                );
+            }
+        }
+
         // Keepalive sessions need PTY for the harness to recognize a
         // TTY (claude/codex/etc downgrade output when there isn't one)
         // AND need the WS attach surface (only ProcessExecutor exposes
@@ -252,13 +286,10 @@ impl JobExecutor for RoutingExecutor {
                 "routing: keepalive — forcing ProcessExecutor with build_interactive");
             return self.process.spawn(ctx).await;
         }
-        if let Some(server) = self.try_server_executor(ctx) {
-            tracing::info!(slug = ctx.slug,
-                harness = ?ctx.launch.harness,
-                "routing: dispatching to ServerExecutor");
-            return server.spawn(ctx).await;
-        }
-        if !ctx.headless
+        // PTY invocation routes to TmuxWindow (interactive attach) when
+        // available. Print routes to ProcessExecutor (one-shot `-p`).
+        // Stream was handled above by the ServerExecutor branch.
+        if ctx.invocation == InvocationMode::Pty
             && let Some(ref tmux_window) = self.tmux_window
         {
             return tmux_window.spawn(ctx).await;

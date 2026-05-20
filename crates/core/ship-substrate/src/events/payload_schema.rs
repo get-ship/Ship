@@ -100,6 +100,13 @@ fn schema_for_event_type(
         // executor
         "executor.session_destroyed" => Some(check::<crate::events::executor::ExecutorSessionDestroyedPayload>),
         "executor.window_destroyed" => Some(check::<crate::events::executor::ExecutorWindowDestroyedPayload>),
+        // agent session (the dispatch primitive)
+        "agent.session.started" => Some(check::<crate::events::agent_session::AgentSessionStartedPayload>),
+        "agent.session.dispatched" => Some(check::<crate::events::agent_session::AgentSessionDispatchedPayload>),
+        "agent.session.completed" => Some(check::<crate::events::agent_session::AgentSessionCompletedPayload>),
+        "agent.session.failed" => Some(check::<crate::events::agent_session::AgentSessionFailedPayload>),
+        "agent.session.cancelled" => Some(check::<crate::events::agent_session::AgentSessionCancelledPayload>),
+        "agent.session.turn_ended" => Some(check::<crate::events::agent_session::AgentSessionTurnEndedPayload>),
         // supervisor
         "supervisor.shutting_down" => Some(check::<SupervisorShuttingDown>),
         "supervisor.sweep_started" => Some(check::<crate::events::supervisor::SweepStartedPayload>),

@@ -96,12 +96,9 @@ pub enum Commands {
         with_skills: Vec<String>,
 
         // ── launch ──
-        /// Spawn an interactive agent session after compiling.
+        /// Spawn an agent session after compiling.
         #[arg(long)]
         launch: bool,
-        /// Spawn an autonomous (headless) session after compiling. Implies --launch.
-        #[arg(long)]
-        auto: bool,
         /// Re-enter the last session for this (agent, path) pair. Implies --launch.
         #[arg(long)]
         resume: bool,
@@ -117,6 +114,31 @@ pub enum Commands {
         /// Per-launch model override (e.g. sonnet, opus).
         #[arg(long)]
         model: Option<String>,
+
+        // ── dispatch axes (three orthogonal concerns, replaces the
+        // old single `--auto` flag — see agent-primitive-inversion
+        // plan in .artifacts/agents-arc/discussions/) ──
+        //
+        /// Background dispatch: don't open an interactive tab/PTY
+        /// attach surface. The dispatch returns a slug + studio_url;
+        /// observe / push via separate commands. Implies --launch.
+        #[arg(short = 'd', long = "detach")]
+        detach: bool,
+        /// Harness invocation mode: pty (default; subscription-billed
+        /// for claude) | print (one-shot, API-billed for claude
+        /// post-2026-06) | stream (server-mode, codex/opencode only).
+        #[arg(long, value_name = "MODE")]
+        transport: Option<String>,
+        /// Don't keep the harness alive after current work. By default
+        /// foreground sessions keep alive (chat shape); detached
+        /// sessions do not (batch shape). This flag overrides for the
+        /// rare combinations.
+        #[arg(long = "no-keepalive")]
+        no_keepalive: bool,
+        /// Keep the harness alive after current work (push more turns
+        /// later via the daemon API). Default for foreground sessions.
+        #[arg(short = 'i', long = "keepalive", conflicts_with = "no_keepalive")]
+        keepalive: bool,
     },
 
     /// Show the active agent and compilation status
