@@ -3301,6 +3301,10 @@
             ],
             "description": "Harness override for this dispatch. None → project/user default chain."
           },
+          "keepalive": {
+            "type": "boolean",
+            "description": "Long-running interactive session — NOT a pipeline step. The\nharness sits at its TUI prompt waiting for stdin pushes\n(`/api/v1/sessions/{slug}/message`) or WebSocket attach. Cancel\nis the only exit. Mutually exclusive with `auto`. Drives\ncmdb-modal chat, reliable PTY attach, and harness-fires-hook\nobservability (SessionStart only exists in interactive mode)."
+          },
           "model": {
             "type": [
               "string",
