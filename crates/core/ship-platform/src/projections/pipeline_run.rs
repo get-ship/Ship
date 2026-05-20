@@ -77,7 +77,8 @@ impl PipelineRunStatus {
 /// Projected state of a single job.
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct PipelineRun {
-    pub job_id: String,
+    #[serde(alias = "job_id")]
+    pub pipeline_run_id: String,
     pub slug: String,
     pub agent: String,
     pub branch: String,
@@ -300,10 +301,10 @@ pub fn apply(record: &mut PipelineRun, event: &EventEnvelope) {
 }
 
 /// Build the initial PipelineRun from a `job.created` event payload.
-/// Returns `None` if the payload doesn't carry a `job_id`.
+/// Returns `None` if the payload doesn't carry a `pipeline_run_id`.
 fn record_from_created(event: &EventEnvelope) -> Option<PipelineRun> {
     let p = serde_json::from_str::<serde_json::Value>(&event.payload_json).ok()?;
-    let job_id = p["job_id"].as_str()?.to_string();
+    let pipeline_run_id = p["pipeline_run_id"].as_str()?.to_string();
     let depends_on = p["depends_on"].as_array().map(|arr| {
         arr.iter()
             .filter_map(|v| v.as_str().map(str::to_string))
@@ -314,7 +315,7 @@ fn record_from_created(event: &EventEnvelope) -> Option<PipelineRun> {
     let steps: Option<ship_substrate::events::pipeline::Pipeline> =
         serde_json::from_value(p["steps"].clone()).ok();
     Some(PipelineRun {
-        job_id,
+        pipeline_run_id,
         slug: p["slug"].as_str().unwrap_or("").to_string(),
         agent: p["agent"].as_str().unwrap_or("").to_string(),
         branch: p["branch"].as_str().unwrap_or("").to_string(),
@@ -342,7 +343,7 @@ fn record_from_created(event: &EventEnvelope) -> Option<PipelineRun> {
     })
 }
 
-/// Fold a slice of events into a map of `job_id → PipelineRun`.
+/// Fold a slice of events into a map of `pipeline_run_id → PipelineRun`.
 ///
 /// Events must be ordered by `created_at` ascending. Non-`job.*` / `step.*`
 /// events are silently skipped. Used by tests and the one-shot hydration path.
@@ -354,13 +355,13 @@ pub fn project(events: &[EventEnvelope]) -> HashMap<String, PipelineRun> {
         }
         if event.event_type == event_types::PIPELINE_RUN_STARTED {
             if let Some(record) = record_from_created(event) {
-                map.insert(record.job_id.clone(), record);
+                map.insert(record.pipeline_run_id.clone(), record);
             }
             continue;
         }
         if let Ok(p) = serde_json::from_str::<serde_json::Value>(&event.payload_json)
-            && let Some(job_id) = p["job_id"].as_str()
-            && let Some(record) = map.get_mut(job_id)
+            && let Some(pipeline_run_id) = p["pipeline_run_id"].as_str()
+            && let Some(record) = map.get_mut(pipeline_run_id)
         {
             apply(record, event);
         }
@@ -419,10 +420,10 @@ impl Projection for PipelineRunProjection {
         }
         let p: serde_json::Value =
             serde_json::from_str(&event.payload_json).unwrap_or(serde_json::Value::Null);
-        let Some(job_id) = p["job_id"].as_str() else {
+        let Some(pipeline_run_id) = p["pipeline_run_id"].as_str() else {
             return Ok(());
         };
-        if let Some(mut record) = load_row(job_id, conn)? {
+        if let Some(mut record) = load_row(pipeline_run_id, conn)? {
             apply(&mut record, event);
             upsert_record(&record, conn)?;
         }
@@ -437,7 +438,7 @@ impl Projection for PipelineRunProjection {
 
 // ── Row I/O ─────────────────────────────────────────────────────────────────
 
-const ROW_COLS: &str = "job_id, slug, agent, branch, spec_path, source_spec_path, \
+const ROW_COLS: &str = "pipeline_run_id, slug, agent, branch, spec_path, source_spec_path, \
     depends_on_json, status, worktree, blocker, error, model, harness, \
     created_at, updated_at, harness_meta_json, pipeline_json, steps_json, \
     current_phase, completed_steps_json, current_step, vars_json, \
@@ -481,7 +482,7 @@ fn row_to_record(row: &sqlx::sqlite::SqliteRow) -> Result<PipelineRun> {
     let headless: i64 = row.get(23);
 
     Ok(PipelineRun {
-        job_id: row.get(0),
+        pipeline_run_id: row.get(0),
         slug: row.get(1),
         agent: row.get(2),
         branch: row.get(3),
@@ -548,13 +549,13 @@ fn upsert_record(record: &PipelineRun, conn: &mut SqliteConnection) -> Result<()
     block_on(async {
         sqlx::query(
             "INSERT INTO pipeline_runs (\
-              job_id, slug, agent, branch, spec_path, source_spec_path, \
+              pipeline_run_id, slug, agent, branch, spec_path, source_spec_path, \
               depends_on_json, status, worktree, blocker, error, model, harness, \
               created_at, updated_at, harness_meta_json, pipeline_json, steps_json, \
               current_phase, completed_steps_json, current_step, vars_json, \
               step_retries_json, headless, baseline_sha) \
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) \
-             ON CONFLICT(job_id) DO UPDATE SET \
+             ON CONFLICT(pipeline_run_id) DO UPDATE SET \
               slug=excluded.slug, agent=excluded.agent, branch=excluded.branch, \
               spec_path=excluded.spec_path, source_spec_path=excluded.source_spec_path, \
               depends_on_json=excluded.depends_on_json, status=excluded.status, \
@@ -567,7 +568,7 @@ fn upsert_record(record: &PipelineRun, conn: &mut SqliteConnection) -> Result<()
               vars_json=excluded.vars_json, step_retries_json=excluded.step_retries_json, \
               headless=excluded.headless, baseline_sha=excluded.baseline_sha",
         )
-        .bind(&record.job_id)
+        .bind(&record.pipeline_run_id)
         .bind(&record.slug)
         .bind(&record.agent)
         .bind(&record.branch)
@@ -598,10 +599,10 @@ fn upsert_record(record: &PipelineRun, conn: &mut SqliteConnection) -> Result<()
     Ok(())
 }
 
-fn load_row(job_id: &str, conn: &mut SqliteConnection) -> Result<Option<PipelineRun>> {
+fn load_row(pipeline_run_id: &str, conn: &mut SqliteConnection) -> Result<Option<PipelineRun>> {
     let row = block_on(async {
-        sqlx::query(&format!("SELECT {ROW_COLS} FROM pipeline_runs WHERE job_id = ?"))
-            .bind(job_id)
+        sqlx::query(&format!("SELECT {ROW_COLS} FROM pipeline_runs WHERE pipeline_run_id = ?"))
+            .bind(pipeline_run_id)
             .fetch_optional(conn)
             .await
     })?;
@@ -617,14 +618,14 @@ fn load_all_rows(conn: &mut SqliteConnection) -> Result<HashMap<String, Pipeline
     let mut out = HashMap::with_capacity(rows.len());
     for row in &rows {
         let record = row_to_record(row)?;
-        out.insert(record.job_id.clone(), record);
+        out.insert(record.pipeline_run_id.clone(), record);
     }
     Ok(out)
 }
 
 // ── Public read API ─────────────────────────────────────────────────────────
 
-/// Load all jobs from the platform DB. Returns a `job_id → PipelineRun` map.
+/// Load all jobs from the platform DB. Returns a `pipeline_run_id → PipelineRun` map.
 ///
 /// Backed by the `jobs` table. On installs that predate the projection table,
 /// hydrates from the event log on first call (idempotent).
@@ -651,32 +652,32 @@ pub fn load_pipeline_runs_at(ship_dir: &std::path::Path) -> Result<HashMap<Strin
 ///
 /// Used by the orchestrator's terminal-state guard and other hot-path callers
 /// that previously fetched every job to filter for one.
-pub fn load_pipeline_run_by_id(job_id: &str) -> Result<Option<PipelineRun>> {
+pub fn load_pipeline_run_by_id(pipeline_run_id: &str) -> Result<Option<PipelineRun>> {
     use ship_substrate::db::{db_path, ensure_db, open_db_at};
 
     ensure_db()?;
     let mut conn = open_db_at(&db_path()?)?;
     hydrate_if_needed(&mut conn)?;
-    load_row(job_id, &mut conn)
+    load_row(pipeline_run_id, &mut conn)
 }
 
 /// Test-/HTTP-handler-facing variant of [`load_pipeline_run_by_id`] that takes an
 /// explicit `ship_dir`. Mirrors the pattern of [`load_pipeline_runs_at`].
 pub fn load_pipeline_run_by_id_at(
     ship_dir: &std::path::Path,
-    job_id: &str,
+    pipeline_run_id: &str,
 ) -> Result<Option<PipelineRun>> {
     use ship_substrate::db::{ensure_db_at, open_db_at};
 
     ensure_db_at(ship_dir)?;
     let mut conn = open_db_at(&ship_substrate::db::platform_db_path(ship_dir))?;
     hydrate_if_needed(&mut conn)?;
-    load_row(job_id, &mut conn)
+    load_row(pipeline_run_id, &mut conn)
 }
 
 /// Index-backed lookup for a single job by its `slug`. Returns the most
 /// recently updated match (slug isn't unique across job lifetimes — re-runs
-/// of the same logical job get a fresh job_id but reuse the slug).
+/// of the same logical job get a fresh pipeline_run_id but reuse the slug).
 pub fn load_pipeline_run_by_slug(slug: &str) -> Result<Option<PipelineRun>> {
     use ship_substrate::db::{db_path, ensure_db, open_db_at};
 

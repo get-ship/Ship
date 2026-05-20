@@ -65,7 +65,7 @@ impl Cfg {
 }
 
 struct Launch {
-    job_id: String,
+    pipeline_run_id: String,
     exit_tx: mpsc::UnboundedSender<ExitSignal>,
     activity_tx: mpsc::UnboundedSender<StepActivity>,
 }
@@ -88,7 +88,7 @@ fn launch(
     monitor.hard_cap = cfg.hard_cap;
     monitor.probe_interval = cfg.probe_interval;
     monitor.settle_duration = cfg.settle_duration;
-    let job_id = monitor.job_id.clone();
+    let pipeline_run_id = monitor.pipeline_run_id.clone();
 
     let (exit_tx, exit_rx) = mpsc::unbounded_channel::<ExitSignal>();
     let (activity_tx, activity_rx) = mpsc::unbounded_channel::<StepActivity>();
@@ -101,13 +101,13 @@ fn launch(
         exit_rx,
         activity_rx,
     );
-    Launch { job_id, exit_tx, activity_tx }
+    Launch { pipeline_run_id, exit_tx, activity_tx }
 }
 
-async fn wait_observed(job_id: &str, deadline: Duration) -> Option<PipelineStepObservedPayload> {
+async fn wait_observed(pipeline_run_id: &str, deadline: Duration) -> Option<PipelineStepObservedPayload> {
     let start = std::time::Instant::now();
     while start.elapsed() < deadline {
-        if let Some(p) = find_observed(job_id) {
+        if let Some(p) = find_observed(pipeline_run_id) {
             return Some(p);
         }
         tokio::time::sleep(Duration::from_millis(25)).await;
@@ -115,13 +115,13 @@ async fn wait_observed(job_id: &str, deadline: Duration) -> Option<PipelineStepO
     None
 }
 
-fn find_observed(job_id: &str) -> Option<PipelineStepObservedPayload> {
+fn find_observed(pipeline_run_id: &str) -> Option<PipelineStepObservedPayload> {
     ship_substrate::db::events::list_all_events()
         .ok()?
         .into_iter()
         .rev()
         .find_map(|e| {
-            if e.entity_id == job_id && e.event_type == job_event_types::PIPELINE_STEP_OBSERVED {
+            if e.entity_id == pipeline_run_id && e.event_type == job_event_types::PIPELINE_STEP_OBSERVED {
                 serde_json::from_str(&e.payload_json).ok()
             } else {
                 None
@@ -142,7 +142,7 @@ async fn idle_subprocess_kills_with_idle_timeout_reason() {
         Cfg::fast("heartbeat-idle"),
         Arc::new(IdleProbe),
     );
-    let observed = wait_observed(&l.job_id, Duration::from_secs(3))
+    let observed = wait_observed(&l.pipeline_run_id, Duration::from_secs(3))
         .await
         .expect("idle monitor must emit step.observed");
     assert_eq!(observed.trigger, StepTrigger::Timeout);
@@ -162,7 +162,7 @@ async fn runaway_subprocess_kills_with_hard_cap_reason() {
         settle_duration: Duration::from_millis(100),
     };
     let l = launch(kernel, tmp.path().to_path_buf(), cfg, Arc::new(AdvancingProbe::new()));
-    let observed = wait_observed(&l.job_id, Duration::from_secs(3))
+    let observed = wait_observed(&l.pipeline_run_id, Duration::from_secs(3))
         .await
         .expect("runaway monitor must emit step.observed");
     assert_eq!(observed.trigger, StepTrigger::Timeout);
@@ -185,19 +185,19 @@ async fn active_subprocess_keeps_step_alive_past_idle_budget() {
 
     // 4x the idle budget — active CPU must have kept the monitor alive.
     tokio::time::sleep(Duration::from_millis(800)).await;
-    assert!(find_observed(&l.job_id).is_none());
+    assert!(find_observed(&l.pipeline_run_id).is_none());
 
     // Freeze (tree "died") and send exit; settle fires, emit ProcessExit.
     freeze.store(true, std::sync::atomic::Ordering::Relaxed);
     l.exit_tx
         .send(ExitSignal {
             slug: "heartbeat-active".into(),
-            job_id: l.job_id.clone(),
+            pipeline_run_id: l.pipeline_run_id.clone(),
             exit_code: Some(0),
             cause: crate::services::dispatch_ports::ExitCause::AgentExited,
         })
         .unwrap();
-    let observed = wait_observed(&l.job_id, Duration::from_secs(6))
+    let observed = wait_observed(&l.pipeline_run_id, Duration::from_secs(6))
         .await
         .expect("exit signal must produce a step.observed");
     assert_eq!(observed.trigger, StepTrigger::ProcessExit);
@@ -215,7 +215,7 @@ async fn probe_none_does_not_spuriously_reset_idle_timer() {
         Cfg::fast("heartbeat-none"),
         Arc::new(NullProbe),
     );
-    let observed = wait_observed(&l.job_id, Duration::from_secs(3))
+    let observed = wait_observed(&l.pipeline_run_id, Duration::from_secs(3))
         .await
         .expect("null-probe path still falls through to idle timeout");
     assert_eq!(observed.trigger, StepTrigger::Timeout);
@@ -241,7 +241,7 @@ async fn turn_end_plus_active_cpu_extends_settle() {
     // 4x the settle budget; CPU keeps climbing every 50ms → settle resets.
     tokio::time::sleep(Duration::from_millis(800)).await;
     assert!(
-        find_observed(&l.job_id).is_none(),
+        find_observed(&l.pipeline_run_id).is_none(),
         "settle must be extended while CPU is still climbing"
     );
 }

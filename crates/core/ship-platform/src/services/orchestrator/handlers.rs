@@ -36,7 +36,7 @@ pub async fn handle_pipeline_run_updated(
             "to": slug,
             "body": {
                 "type": "pipeline.run.updated",
-                "job_id": entity_id,
+                "pipeline_run_id": entity_id,
                 "payload": payload,
             }
         }),
@@ -73,13 +73,13 @@ pub async fn handle_cleanup(
         }
     };
 
-    let job_id = payload["job_id"].as_str().unwrap_or(&envelope.entity_id);
+    let pipeline_run_id = payload["pipeline_run_id"].as_str().unwrap_or(&envelope.entity_id);
     let payload_slug = payload["slug"].as_str().unwrap_or("");
 
     let slug = if !payload_slug.is_empty() {
         payload_slug.to_string()
     } else {
-        crate::projections::pipeline_run::load_pipeline_run_by_id(job_id)
+        crate::projections::pipeline_run::load_pipeline_run_by_id(pipeline_run_id)
             .ok()
             .flatten()
             .or_else(|| {
@@ -88,13 +88,13 @@ pub async fn handle_cleanup(
                     .flatten()
             })
             .map(|j| j.slug)
-            .unwrap_or_else(|| job_id.to_string())
+            .unwrap_or_else(|| pipeline_run_id.to_string())
     };
 
     let branch = format!("job/{slug}");
-    tracing::info!(slug, job_id, branch = %branch, "job-dispatch: cleaning up job resources");
+    tracing::info!(slug, pipeline_run_id, branch = %branch, "job-dispatch: cleaning up job resources");
     platform.cleanup_job(&slug, &branch).await;
-    tracing::info!(slug, job_id, "job-dispatch: cleanup complete");
+    tracing::info!(slug, pipeline_run_id, "job-dispatch: cleanup complete");
 }
 
 /// After `advance_pipeline` returns false on a `job.step_completed` event, emit
@@ -105,7 +105,7 @@ pub async fn finalize_pipeline_if_done(
 ) {
     let payload: serde_json::Value =
         serde_json::from_str(&envelope.payload_json).unwrap_or_default();
-    let job_id = match payload["job_id"].as_str()
+    let pipeline_run_id = match payload["pipeline_run_id"].as_str()
         .or(Some(envelope.entity_id.as_str()))
         .filter(|s| !s.is_empty())
     {
@@ -113,7 +113,7 @@ pub async fn finalize_pipeline_if_done(
         None => return,
     };
 
-    let job = match crate::projections::pipeline_run::load_pipeline_run_by_id(&job_id) {
+    let job = match crate::projections::pipeline_run::load_pipeline_run_by_id(&pipeline_run_id) {
         Ok(Some(j)) => j,
         _ => return,
     };
@@ -127,11 +127,11 @@ pub async fn finalize_pipeline_if_done(
     }
 
     let slug = payload["slug"].as_str().unwrap_or(job.slug.as_str()).to_string();
-    tracing::info!(job_id, slug, "job-dispatch: all pipeline steps done, emitting job.completed");
+    tracing::info!(pipeline_run_id, slug, "job-dispatch: all pipeline steps done, emitting job.completed");
     let env = match EventEnvelope::new(
         event_types::PIPELINE_RUN_COMPLETED,
-        &job_id,
-        &serde_json::json!({ "job_id": &job_id, "slug": &slug }),
+        &pipeline_run_id,
+        &serde_json::json!({ "pipeline_run_id": &pipeline_run_id, "slug": &slug }),
     ) {
         Ok(e) => e.with_actor_id("service.orchestrator"),
         Err(_) => return,
@@ -243,7 +243,7 @@ pub async fn handle_cancelled(
 /// Returns `true` if the merge succeeded.
 pub async fn execute_merge_step(
     kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
-    job_id: &str,
+    pipeline_run_id: &str,
     slug: &str,
     branch: &str,
     platform: &dyn AgentPlatform,
@@ -252,12 +252,12 @@ pub async fn execute_merge_step(
         Ok(true) => {
             tracing::info!(slug, branch, "pipeline: merge successful");
             let merged_payload = ship_substrate::events::pipeline::PipelineRunMergedPayload {
-                job_id: job_id.to_string(),
+                pipeline_run_id: pipeline_run_id.to_string(),
                 slug: slug.to_string(),
             };
             let merged_envelope = EventEnvelope::new(
                 event_types::PIPELINE_RUN_MERGED,
-                job_id,
+                pipeline_run_id,
                 &merged_payload,
             );
             match merged_envelope {

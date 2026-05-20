@@ -115,28 +115,28 @@ fn emit_event(
 
 pub fn emit_lane_step_done(
     ship_dir: &std::path::Path,
-    job_id: &str,
+    pipeline_run_id: &str,
     lane_step_id: &str,
     outputs: std::collections::BTreeMap<String, String>,
 ) {
     let payload = PipelineStepDoneDeclaredPayload {
-        job_id: job_id.into(),
+        pipeline_run_id: pipeline_run_id.into(),
         slug: "test-slug".into(),
         step_id: lane_step_id.into(),
         summary: Some("ok".into()),
         outputs,
     };
     emit_event(
-        ship_dir, "pipeline.step.done_declared", job_id,
+        ship_dir, "pipeline.step.done_declared", pipeline_run_id,
         serde_json::to_value(&payload).unwrap(),
     );
 }
 
-pub fn seed_job_created(ship_dir: &std::path::Path, job_id: &str, pipeline: &Pipeline) {
+pub fn seed_job_created(ship_dir: &std::path::Path, pipeline_run_id: &str, pipeline: &Pipeline) {
     emit_event(
-        ship_dir, "pipeline.run.started", job_id,
+        ship_dir, "pipeline.run.started", pipeline_run_id,
         serde_json::json!({
-            "job_id": job_id, "slug": "test-slug",
+            "pipeline_run_id": pipeline_run_id, "slug": "test-slug",
             "agent": "orchestrator", "branch": "test",
             "spec_path": ".artifacts/job-spec.md", "steps": pipeline,
         }),
@@ -180,9 +180,9 @@ pub fn mk_pipeline_with_three_lanes() -> Pipeline {
     Pipeline { steps: vec![fanout_step, judge], auto_merge: false }
 }
 
-pub fn mk_lane_ref(job_id: &str, parent_slug: &str, lane_id: &str) -> FanoutLaneRef {
+pub fn mk_lane_ref(pipeline_run_id: &str, parent_slug: &str, lane_id: &str) -> FanoutLaneRef {
     FanoutLaneRef {
-        job_id: job_id.into(), parent_slug: parent_slug.into(),
+        pipeline_run_id: pipeline_run_id.into(), parent_slug: parent_slug.into(),
         fanout_step_id: "draft".into(),
         fanout_step_index: 0,
         lane_id: lane_id.into(),
@@ -196,7 +196,7 @@ pub fn mk_observed(
     reason: Option<&str>,
 ) -> PipelineStepObservedPayload {
     PipelineStepObservedPayload {
-        job_id: "".into(),
+        pipeline_run_id: "".into(),
         slug: slug.into(),
         step_index: 0,
         step_name: step_name.into(),
@@ -220,7 +220,7 @@ pub fn mk_observed(
 pub async fn seed_lane_success(
     ship_dir: &std::path::Path,
     kernel: &Arc<Mutex<ship_substrate::events::kernel_router::KernelRouter>>,
-    job_id: &str,
+    pipeline_run_id: &str,
     run_scope: &ArtifactScope,
     lane_id: &str,
     body: &[u8],
@@ -237,7 +237,7 @@ pub async fn seed_lane_success(
         .await
         .unwrap();
     emit_lane_step_done(
-        ship_dir, job_id,
+        ship_dir, pipeline_run_id,
         &format!("draft.{lane_id}"),
         [("draft".to_string(), rec.id.clone())].into(),
     );

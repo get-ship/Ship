@@ -79,7 +79,7 @@ pub(super) async fn emit_and_finish(
     };
 
     let payload = PipelineStepObservedPayload {
-        job_id: monitor.job_id.clone(),
+        pipeline_run_id: monitor.pipeline_run_id.clone(),
         slug: monitor.slug.clone(),
         step_index: monitor.step_index,
         step_name: monitor.step_name.clone(),
@@ -102,7 +102,7 @@ pub(super) async fn emit_and_finish(
         duration_secs * 1000, "unknown",
     ).await;
 
-    emit_step_observed(kernel, &monitor.job_id, &monitor.slug, &payload).await;
+    emit_step_observed(kernel, &monitor.pipeline_run_id, &monitor.slug, &payload).await;
 
     // Terminalize the composed agent_session so it doesn't sit at
     // Dispatched forever. Failed verdict → session failed; Advance /
@@ -237,11 +237,11 @@ pub(super) fn resolve_head_sha(work_dir: &std::path::Path) -> Option<String> {
 
 async fn emit_step_observed(
     kernel: &Arc<Mutex<KernelRouter>>,
-    job_id: &str,
+    pipeline_run_id: &str,
     slug: &str,
     payload: &PipelineStepObservedPayload,
 ) {
-    let envelope = match EventEnvelope::new(event_types::PIPELINE_STEP_OBSERVED, job_id, payload) {
+    let envelope = match EventEnvelope::new(event_types::PIPELINE_STEP_OBSERVED, pipeline_run_id, payload) {
         Ok(e) => e.with_actor_id("service.orchestrator"),
         Err(e) => {
             tracing::warn!(slug, "step-monitor: failed to build envelope: {e}");

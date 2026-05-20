@@ -27,7 +27,7 @@ fn named_variant_substitutes_params() {
     assert_eq!(url, "/api/v1/specs/spec-42");
 
     let url = Route::GetJob {
-        job_id: "job-xyz".to_string(),
+        pipeline_run_id: "job-xyz".to_string(),
     }
     .full_path();
     assert_eq!(url, "/api/v1/agent_sessions/job-xyz");

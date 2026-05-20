@@ -21,7 +21,7 @@ use super::emit::persist_and_route;
 /// On success: emits `job.step_output` + `job.step_completed`.
 /// On failure: emits `job.step_output` + `job.step_failed`.
 pub async fn execute_run_step(
-    job_id: &str,
+    pipeline_run_id: &str,
     slug: &str,
     step_id: &str,
     command: &str,
@@ -33,10 +33,10 @@ pub async fn execute_run_step(
 
     // Emit step_dispatched
     let dispatched_payload = serde_json::json!({
-        "job_id": job_id, "slug": slug,
+        "pipeline_run_id": pipeline_run_id, "slug": slug,
         "step_id": step_id, "step_type": "run",
     });
-    if let Ok(env) = EventEnvelope::new(event_types::PIPELINE_STEP_STARTED, job_id, &dispatched_payload) {
+    if let Ok(env) = EventEnvelope::new(event_types::PIPELINE_STEP_STARTED, pipeline_run_id, &dispatched_payload) {
         persist_and_route(kernel, env.with_actor_id("service.orchestrator"), slug, ship_dir).await;
     }
 
@@ -55,20 +55,20 @@ pub async fn execute_run_step(
 
             // Emit step_output
             let output_payload = serde_json::json!({
-                "job_id": job_id, "step_id": step_id,
+                "pipeline_run_id": pipeline_run_id, "step_id": step_id,
                 "stdout": if stdout.is_empty() { serde_json::Value::Null } else { serde_json::Value::String(stdout) },
                 "stderr": if stderr.is_empty() { serde_json::Value::Null } else { serde_json::Value::String(stderr) },
             });
-            if let Ok(env) = EventEnvelope::new(event_types::PIPELINE_STEP_OUTPUT, job_id, &output_payload) {
+            if let Ok(env) = EventEnvelope::new(event_types::PIPELINE_STEP_OUTPUT, pipeline_run_id, &output_payload) {
                 persist_and_route(kernel, env.with_actor_id("service.orchestrator"), slug, ship_dir).await;
             }
 
             if out.status.success() {
                 tracing::info!(slug, step_id, "run-step: completed successfully");
                 let payload = serde_json::json!({
-                    "job_id": job_id, "slug": slug, "step_id": step_id,
+                    "pipeline_run_id": pipeline_run_id, "slug": slug, "step_id": step_id,
                 });
-                if let Ok(env) = EventEnvelope::new(event_types::PIPELINE_STEP_COMPLETED, job_id, &payload) {
+                if let Ok(env) = EventEnvelope::new(event_types::PIPELINE_STEP_COMPLETED, pipeline_run_id, &payload) {
                     persist_and_route(kernel, env.with_actor_id("service.orchestrator"), slug, ship_dir).await;
                 }
             } else {
@@ -76,10 +76,10 @@ pub async fn execute_run_step(
                 let stderr_str = String::from_utf8_lossy(&out.stderr);
                 tracing::warn!(slug, step_id, exit_code, "run-step: command failed");
                 let payload = serde_json::json!({
-                    "job_id": job_id, "slug": slug, "step_id": step_id,
+                    "pipeline_run_id": pipeline_run_id, "slug": slug, "step_id": step_id,
                     "error": format!("command exited with code {exit_code}: {stderr_str}"),
                 });
-                if let Ok(env) = EventEnvelope::new(event_types::PIPELINE_STEP_FAILED, job_id, &payload) {
+                if let Ok(env) = EventEnvelope::new(event_types::PIPELINE_STEP_FAILED, pipeline_run_id, &payload) {
                     persist_and_route(kernel, env.with_actor_id("service.orchestrator"), slug, ship_dir).await;
                 }
             }
@@ -87,10 +87,10 @@ pub async fn execute_run_step(
         Err(e) => {
             tracing::error!(slug, step_id, "run-step: failed to spawn command: {e}");
             let payload = serde_json::json!({
-                "job_id": job_id, "slug": slug, "step_id": step_id,
+                "pipeline_run_id": pipeline_run_id, "slug": slug, "step_id": step_id,
                 "error": format!("failed to spawn sh: {e}"),
             });
-            if let Ok(env) = EventEnvelope::new(event_types::PIPELINE_STEP_FAILED, job_id, &payload) {
+            if let Ok(env) = EventEnvelope::new(event_types::PIPELINE_STEP_FAILED, pipeline_run_id, &payload) {
                 persist_and_route(kernel, env.with_actor_id("service.orchestrator"), slug, ship_dir).await;
             }
         }

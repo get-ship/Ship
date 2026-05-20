@@ -189,7 +189,7 @@ impl SessionExecutor for ProcessExecutor {
         // and detect exit when the stream closes.
         let mut rx = handle.subscribe_output();
         let slug = ctx.slug.clone();
-        let job_id = ctx.job_id.clone();
+        let pipeline_run_id = ctx.pipeline_run_id.clone();
         let exit_tx = ctx.exit_tx.clone();
         let handle_for_exit = handle.clone();
         let work_dir_for_session = ctx.work_dir.clone();
@@ -338,7 +338,7 @@ impl SessionExecutor for ProcessExecutor {
             if let Some(tx) = exit_tx {
                 let _ = tx.send(ExitSignal {
                     slug,
-                    job_id,
+                    pipeline_run_id,
                     exit_code,
                     cause: ExitCause::AgentExited,
                 });

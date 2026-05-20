@@ -9,8 +9,8 @@ use ship_substrate::events::EventEnvelope;
 use ship_platform::projections::pipeline_run::{project, PipelineRunStatus};
 
 fn ev(event_type: &str, payload: serde_json::Value) -> EventEnvelope {
-    let job_id = payload["job_id"].as_str().unwrap_or("test");
-    EventEnvelope::new(event_type, job_id, &payload).unwrap()
+    let pipeline_run_id = payload["pipeline_run_id"].as_str().unwrap_or("test");
+    EventEnvelope::new(event_type, pipeline_run_id, &payload).unwrap()
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -25,12 +25,12 @@ fn ev(event_type: &str, payload: serde_json::Value) -> EventEnvelope {
 fn apply_does_not_mutate_events() {
     let events = vec![
         ev(event_types::PIPELINE_RUN_STARTED, serde_json::json!({
-            "job_id": "j1", "slug": "s",
+            "pipeline_run_id": "j1", "slug": "s",
             "agent": "r", "branch": "job/s",
             "spec_path": "spec.md", "plan_id": null,
         })),
         ev(event_types::PIPELINE_RUN_DISPATCHED, serde_json::json!({
-            "job_id": "j1", "worktree": "/w", "pid": 42,
+            "pipeline_run_id": "j1", "worktree": "/w", "pid": 42,
         })),
     ];
     let payload_before: Vec<String> = events.iter()
@@ -47,12 +47,12 @@ fn apply_does_not_mutate_events() {
 #[test]
 fn events_have_unique_ids() {
     let e1 = ev(event_types::PIPELINE_RUN_STARTED, serde_json::json!({
-        "job_id": "j1", "slug": "s",
+        "pipeline_run_id": "j1", "slug": "s",
         "agent": "r", "branch": "job/s",
         "spec_path": "spec.md", "plan_id": null,
     }));
     let e2 = ev(event_types::PIPELINE_RUN_STARTED, serde_json::json!({
-        "job_id": "j2", "slug": "t",
+        "pipeline_run_id": "j2", "slug": "t",
         "agent": "r", "branch": "job/t",
         "spec_path": "spec.md", "plan_id": null,
     }));
@@ -63,7 +63,7 @@ fn events_have_unique_ids() {
 #[test]
 fn events_have_timestamps() {
     let e = ev(event_types::PIPELINE_RUN_STARTED, serde_json::json!({
-        "job_id": "j1", "slug": "s",
+        "pipeline_run_id": "j1", "slug": "s",
         "agent": "r", "branch": "job/s",
         "spec_path": "spec.md", "plan_id": null,
     }));
@@ -82,7 +82,7 @@ fn events_have_timestamps() {
 fn projection_populates_all_fields_from_events() {
     let events = vec![
         ev(event_types::PIPELINE_RUN_STARTED, serde_json::json!({
-            "job_id": "j1", "slug": "auth-fix",
+            "pipeline_run_id": "j1", "slug": "auth-fix",
             "agent": "rust-runtime", "branch": "job/auth-fix",
             "spec_path": "specs/auth.md", "plan_id": "plan-1",
             "model": "opus", "harness": "claude",
@@ -92,7 +92,7 @@ fn projection_populates_all_fields_from_events() {
             ]}
         })),
         ev(event_types::PIPELINE_RUN_DISPATCHED, serde_json::json!({
-            "job_id": "j1", "worktree": "/wt/auth-fix", "pid": 9999,
+            "pipeline_run_id": "j1", "worktree": "/wt/auth-fix", "pid": 9999,
             "harness_meta": { "session_id": "sess-1" },
         })),
     ];
@@ -100,7 +100,7 @@ fn projection_populates_all_fields_from_events() {
     let rec = map.get("j1").unwrap();
 
     // From job.created
-    assert_eq!(rec.job_id, "j1");
+    assert_eq!(rec.pipeline_run_id, "j1");
     assert_eq!(rec.slug, "auth-fix");
     assert_eq!(rec.agent, "rust-runtime");
     assert_eq!(rec.branch, "job/auth-fix");
@@ -127,7 +127,7 @@ fn projection_populates_all_fields_from_events() {
 #[test]
 fn projection_handles_minimal_created_event() {
     let events = vec![ev(event_types::PIPELINE_RUN_STARTED, serde_json::json!({
-        "job_id": "j-min", "slug": "minimal",
+        "pipeline_run_id": "j-min", "slug": "minimal",
         "agent": "default", "branch": "job/minimal",
         "spec_path": "spec.md",
     }))];
@@ -157,7 +157,7 @@ fn event_envelope_has_entity_id() {
     let e = EventEnvelope::new(
         event_types::PIPELINE_RUN_STARTED,
         "j-entity",
-        &serde_json::json!({"job_id": "j-entity", "slug": "s", "agent": "r", "branch": "b", "spec_path": "s.md"}),
+        &serde_json::json!({"pipeline_run_id": "j-entity", "slug": "s", "agent": "r", "branch": "b", "spec_path": "s.md"}),
     ).unwrap();
     assert_eq!(e.entity_id, "j-entity");
 }
@@ -168,7 +168,7 @@ fn event_envelope_supports_actor_id() {
     let e = EventEnvelope::new(
         event_types::PIPELINE_RUN_DISPATCHED,
         "j1",
-        &serde_json::json!({"job_id": "j1", "worktree": "/w", "pid": null}),
+        &serde_json::json!({"pipeline_run_id": "j1", "worktree": "/w", "pid": null}),
     ).unwrap().with_actor_id("service.orchestrator");
     assert_eq!(e.actor_id.as_deref(), Some("service.orchestrator"));
 }
@@ -185,24 +185,24 @@ fn event_envelope_supports_actor_id() {
 fn multi_job_projection_is_deterministic() {
     let events = vec![
         ev(event_types::PIPELINE_RUN_STARTED, serde_json::json!({
-            "job_id": "j1", "slug": "a",
+            "pipeline_run_id": "j1", "slug": "a",
             "agent": "r", "branch": "job/a", "spec_path": "s.md",
         })),
         ev(event_types::PIPELINE_RUN_STARTED, serde_json::json!({
-            "job_id": "j2", "slug": "b",
+            "pipeline_run_id": "j2", "slug": "b",
             "agent": "r", "branch": "job/b", "spec_path": "s.md",
         })),
         ev(event_types::PIPELINE_RUN_DISPATCHED, serde_json::json!({
-            "job_id": "j1", "worktree": "/w/a", "pid": null,
+            "pipeline_run_id": "j1", "worktree": "/w/a", "pid": null,
         })),
         ev(event_types::PIPELINE_RUN_COMPLETED, serde_json::json!({
-            "job_id": "j1", "slug": "a",
+            "pipeline_run_id": "j1", "slug": "a",
         })),
         ev(event_types::PIPELINE_RUN_DISPATCHED, serde_json::json!({
-            "job_id": "j2", "worktree": "/w/b", "pid": null,
+            "pipeline_run_id": "j2", "worktree": "/w/b", "pid": null,
         })),
         ev(event_types::PIPELINE_RUN_FAILED, serde_json::json!({
-            "job_id": "j2", "error": "timeout",
+            "pipeline_run_id": "j2", "error": "timeout",
         })),
     ];
     let a = project(&events);

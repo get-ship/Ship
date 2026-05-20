@@ -650,9 +650,9 @@ pub enum Route {
     /// @auth scope CreateJobs
     DispatchPipeline,
 
-    /// @route GET "/api/v1/agent_sessions/{job_id}"
+    /// @route GET "/api/v1/agent_sessions/{pipeline_run_id}"
     /// @auth scope ReadJobs
-    GetJob { job_id: String },
+    GetJob { pipeline_run_id: String },
 
     /// @route POST "/api/v1/agent_sessions/end"
     /// @auth scope ManageJobs
@@ -662,9 +662,9 @@ pub enum Route {
     /// @auth scope ManageJobs
     CancelJob { slug: String },
 
-    /// @route POST "/api/v1/agent_sessions/{job_id}/status"
+    /// @route POST "/api/v1/agent_sessions/{pipeline_run_id}/status"
     /// @auth scope EmitEvents
-    JobStatusUpdate { job_id: String },
+    JobStatusUpdate { pipeline_run_id: String },
 
     /// @route POST "/api/v1/agent_sessions/{slug}/step-done"
     /// @auth scope EmitEvents

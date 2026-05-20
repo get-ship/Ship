@@ -91,7 +91,7 @@ pub fn build(slug: &str, ship_dir: &Path) -> Option<RunDetailCtx> {
     let run = to_run_view(job, true);
     let events = ship_substrate::db::events::query_recent_events_for_entity_at(
         &ship_substrate::db::platform_db_path(ship_dir),
-        &job.job_id,
+        &job.pipeline_run_id,
         500,
     )
     .unwrap_or_default();

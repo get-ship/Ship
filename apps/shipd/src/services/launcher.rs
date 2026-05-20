@@ -52,7 +52,7 @@ pub async fn launch_collection_item(
     let item = collections.get_item(collection, id).await?;
     let spec = spec_from_item(item);
 
-    let job_id = ship_substrate::gen_ulid();
+    let pipeline_run_id = ship_substrate::gen_ulid();
     let slug = format!("spec-{}", &spec.id);
     let branch = format!("job/{slug}");
     let baseline_sha = ship_substrate::project::get_project_dir(None)
@@ -61,7 +61,7 @@ pub async fn launch_collection_item(
         .and_then(|root| ship_platform::services::orchestrator::git_helpers::resolve_head_sha(&root));
     let agent = spec.agent.clone().unwrap_or_else(|| "claude".to_string());
     let payload = PipelineRunStartedPayload {
-        job_id: job_id.clone(),
+        pipeline_run_id: pipeline_run_id.clone(),
         slug,
         agent,
         branch,
@@ -86,7 +86,7 @@ pub async fn launch_collection_item(
     };
     let payload = ship_platform::services::orchestrator::pipeline_loader::ensure_pipeline(payload)
         .map_err(LaunchError::Validation)?;
-    let envelope = EventEnvelope::new(event_types::PIPELINE_RUN_STARTED, &job_id, &payload)
+    let envelope = EventEnvelope::new(event_types::PIPELINE_RUN_STARTED, &pipeline_run_id, &payload)
         .map(|e| e.with_actor_id("studio"))
         .map_err(|e| LaunchError::Validation(e.to_string()))?;
     let ctx = EmitContext {
@@ -112,5 +112,5 @@ pub async fn launch_collection_item(
         })
         .await;
 
-    Ok(job_id)
+    Ok(pipeline_run_id)
 }

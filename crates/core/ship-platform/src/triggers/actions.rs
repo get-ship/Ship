@@ -161,17 +161,17 @@ async fn pipeline_trigger(
         Some(v) => render::render_value(v, render_ctx)?,
         None => Value::Null,
     };
-    let job_id = ship_substrate::gen_ulid();
+    let pipeline_run_id = ship_substrate::gen_ulid();
     let slug = render_ctx
         .get("event")
         .and_then(|e| e.get("entity_id"))
         .and_then(|v| v.as_str())
         .map(|s| format!("hook-{}-{}", ctx.hook_name, s))
-        .unwrap_or_else(|| format!("hook-{}-{}", ctx.hook_name, &job_id));
+        .unwrap_or_else(|| format!("hook-{}-{}", ctx.hook_name, &pipeline_run_id));
 
     let vars = extract_vars(&rendered_args);
     let payload = json!({
-        "job_id": job_id,
+        "pipeline_run_id": pipeline_run_id,
         "slug": slug,
         "agent": "runtime",
         "branch": format!("hook/{slug}"),
@@ -184,7 +184,7 @@ async fn pipeline_trigger(
         "headless": true,
         "_hook_depth": ctx.depth,
     });
-    let envelope = EventEnvelope::new("pipeline.run.started", &job_id, &payload)?
+    let envelope = EventEnvelope::new("pipeline.run.started", &pipeline_run_id, &payload)?
         .with_causation(ctx.trigger_event_id)
         .with_actor_id(&format!("hook:{}", ctx.hook_name));
     let emit_ctx = EmitContext {
@@ -195,7 +195,7 @@ async fn pipeline_trigger(
     };
     ctx.kernel.lock().await.emit(envelope.clone(), &emit_ctx).await?;
     Ok(json!({
-        "job_id": job_id,
+        "pipeline_run_id": pipeline_run_id,
         "pipeline": pipeline,
         "event_id": envelope.id,
     }))

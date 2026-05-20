@@ -16,10 +16,11 @@ pub use ship_pipelines::types::{
     StepOutput, StepPromote, StepType,
 };
 
-/// Emitted when a job is created. `entity_id` in the envelope is the job_id.
+/// Emitted when a job is created. `entity_id` in the envelope is the pipeline_run_id.
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct PipelineRunStartedPayload {
-    pub job_id: String,
+    #[serde(alias = "job_id")]
+    pub pipeline_run_id: String,
     pub slug: String,
     pub agent: String,
     pub branch: String,
@@ -100,10 +101,11 @@ pub struct PipelineRunStartedPayload {
 /// Emitted when the job is assigned to a worktree and (optionally) a process.
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct PipelineRunDispatchedPayload {
-    pub job_id: String,
+    #[serde(alias = "job_id")]
+    pub pipeline_run_id: String,
     /// Worktree slug for the dispatched session. Required for observers
     /// filtering by `slug` (e.g. /api/v1/events/poll?slug=) — the
-    /// envelope's entity_id is the job_id (a ULID), not the slug.
+    /// envelope's entity_id is the pipeline_run_id (a ULID), not the slug.
     /// Optional with serde default for forward compat with older
     /// persisted envelopes that pre-date this field.
     #[serde(default)]
@@ -118,27 +120,31 @@ pub struct PipelineRunDispatchedPayload {
 /// Emitted when a gate review is requested for the job.
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct PipelineGateRequestedPayload {
-    pub job_id: String,
+    #[serde(alias = "job_id")]
+    pub pipeline_run_id: String,
     pub gate_agent: String,
 }
 
 /// Emitted when the gate review passes.
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct PipelineGatePassedPayload {
-    pub job_id: String,
+    #[serde(alias = "job_id")]
+    pub pipeline_run_id: String,
 }
 
 /// Emitted when the gate review fails.
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct PipelineGateFailedPayload {
-    pub job_id: String,
+    #[serde(alias = "job_id")]
+    pub pipeline_run_id: String,
     pub reason: String,
 }
 
 /// Emitted when the job is blocked and cannot proceed without resolution.
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct PipelineRunBlockedPayload {
-    pub job_id: String,
+    #[serde(alias = "job_id")]
+    pub pipeline_run_id: String,
     /// Human-readable description of what is blocking progress.
     pub blocker: String,
     pub needs_human: bool,
@@ -147,21 +153,24 @@ pub struct PipelineRunBlockedPayload {
 /// Emitted when the agent signals the job is done but before gate/merge.
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct PipelineRunCompletedPayload {
-    pub job_id: String,
+    #[serde(alias = "job_id")]
+    pub pipeline_run_id: String,
     pub slug: String,
 }
 
 /// Emitted when the job's branch is merged.
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct PipelineRunMergedPayload {
-    pub job_id: String,
+    #[serde(alias = "job_id")]
+    pub pipeline_run_id: String,
     pub slug: String,
 }
 
 /// Emitted when the job terminates with an error.
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct PipelineRunFailedPayload {
-    pub job_id: String,
+    #[serde(alias = "job_id")]
+    pub pipeline_run_id: String,
     pub error: String,
 }
 
@@ -172,7 +181,8 @@ pub struct PipelineRunFailedPayload {
 /// right layer.
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct PipelineStepSpawnFailedPayload {
-    pub job_id: String,
+    #[serde(alias = "job_id")]
+    pub pipeline_run_id: String,
     pub slug: String,
     /// Which dispatch phase failed: "isolation_prepare" |
     /// "agent_compile" | "executor_spawn".
@@ -184,7 +194,8 @@ pub struct PipelineStepSpawnFailedPayload {
 /// Emitted when an operator (or system policy) cancels a job. Terminal.
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct PipelineRunCancelledPayload {
-    pub job_id: String,
+    #[serde(alias = "job_id")]
+    pub pipeline_run_id: String,
     pub slug: String,
     /// Free-form reason. UI surfaces this verbatim.
     pub reason: String,
@@ -198,7 +209,8 @@ pub struct PipelineRunCancelledPayload {
 /// agent's mailbox.
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct PipelineRunUpdatedPayload {
-    pub job_id: String,
+    #[serde(alias = "job_id")]
+    pub pipeline_run_id: String,
     pub message: String,
     /// Who sent this update — e.g. "human", "commander", agent mesh ID.
     pub sender: String,
@@ -207,7 +219,8 @@ pub struct PipelineRunUpdatedPayload {
 /// Emitted when a pipeline step begins executing.
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct PipelineStepStartedPayload {
-    pub job_id: String,
+    #[serde(alias = "job_id")]
+    pub pipeline_run_id: String,
     pub slug: String,
     pub step_id: String,
     pub step_type: String,
@@ -216,7 +229,8 @@ pub struct PipelineStepStartedPayload {
 /// Emitted when a pipeline step finishes successfully.
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct PipelineStepCompletedPayload {
-    pub job_id: String,
+    #[serde(alias = "job_id")]
+    pub pipeline_run_id: String,
     pub slug: String,
     pub step_id: String,
 }
@@ -224,7 +238,8 @@ pub struct PipelineStepCompletedPayload {
 /// Emitted when a pipeline step fails. Halts pipeline advancement.
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct PipelineStepFailedPayload {
-    pub job_id: String,
+    #[serde(alias = "job_id")]
+    pub pipeline_run_id: String,
     pub slug: String,
     pub step_id: String,
     pub error: String,
@@ -233,7 +248,8 @@ pub struct PipelineStepFailedPayload {
 /// Emitted by run steps to capture stdout/stderr output.
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct PipelineStepOutputPayload {
-    pub job_id: String,
+    #[serde(alias = "job_id")]
+    pub pipeline_run_id: String,
     pub step_id: String,
     pub stdout: Option<String>,
     pub stderr: Option<String>,
@@ -242,7 +258,8 @@ pub struct PipelineStepOutputPayload {
 /// Emitted by an agent via the `step_done` MCP tool to declare step completion.
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct PipelineStepDoneDeclaredPayload {
-    pub job_id: String,
+    #[serde(alias = "job_id")]
+    pub pipeline_run_id: String,
     pub slug: String,
     pub step_id: String,
     pub summary: Option<String>,
@@ -255,7 +272,8 @@ pub struct PipelineStepDoneDeclaredPayload {
 /// Emitted when a gated step is retried after gate failure.
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct PipelineStepRetryPayload {
-    pub job_id: String,
+    #[serde(alias = "job_id")]
+    pub pipeline_run_id: String,
     pub slug: String,
     pub step_id: String,
     pub step_name: String,
@@ -298,7 +316,8 @@ pub enum StepVerdict {
 /// router decides what to do based on the full picture.
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct PipelineStepObservedPayload {
-    pub job_id: String,
+    #[serde(alias = "job_id")]
+    pub pipeline_run_id: String,
     pub slug: String,
     pub step_index: usize,
     pub step_name: String,
@@ -460,7 +479,7 @@ mod job_created_payload_tests {
     #[test]
     fn source_spec_path_round_trips_when_present() {
         let json = r#"{
-            "job_id": "01XXX",
+            "pipeline_run_id": "01XXX",
             "slug": "test",
             "agent": "rust-runtime",
             "branch": "job/test",
@@ -484,7 +503,7 @@ mod job_created_payload_tests {
         // — without that, the reviewer step's gate can't see commits made
         // by earlier pipeline steps and fails with an empty diff range.
         let json = r#"{
-            "job_id": "01ZZZ",
+            "pipeline_run_id": "01ZZZ",
             "slug": "test",
             "agent": "rust-runtime",
             "branch": "job/test",
@@ -506,7 +525,7 @@ mod job_created_payload_tests {
         // when None, so the event log doesn't grow explicit nulls on
         // every new write.
         let legacy_json = r#"{
-            "job_id": "01WWW",
+            "pipeline_run_id": "01WWW",
             "slug": "old",
             "agent": "rust-runtime",
             "branch": "job/old",
@@ -530,7 +549,7 @@ mod job_created_payload_tests {
         // field must serialize away when None (skip_serializing_if) so the
         // event log doesn't grow explicit nulls on every new write either.
         let legacy_json = r#"{
-            "job_id": "01YYY",
+            "pipeline_run_id": "01YYY",
             "slug": "old",
             "agent": "rust-runtime",
             "branch": "job/old",

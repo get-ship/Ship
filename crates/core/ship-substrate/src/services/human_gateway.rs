@@ -20,7 +20,7 @@ use crate::services::ServiceHandler;
 /// Outbound message sent to a human via a notification adapter.
 pub struct OutboundMessage {
     pub text: String,
-    pub job_id: Option<String>,
+    pub pipeline_run_id: Option<String>,
     pub metadata: serde_json::Value,
 }
 
@@ -101,7 +101,7 @@ impl NotificationAdapter for TelegramAdapter {
 
 #[derive(Debug, Deserialize)]
 struct PipelineRunBlockedPayload {
-    job_id: Option<String>,
+    pipeline_run_id: Option<String>,
     slug: Option<String>,
     blocker: Option<String>,
     needs_human: Option<bool>,
@@ -137,17 +137,17 @@ impl HumanGatewayService {
             return;
         }
 
-        let job_id = payload.job_id.clone();
+        let pipeline_run_id = payload.pipeline_run_id.clone();
         let text = format!(
             "\u{1f6a7} Blocked: {}\nJob: {} ({})",
             payload.blocker.as_deref().unwrap_or("unknown"),
             payload.slug.as_deref().unwrap_or("unknown"),
-            job_id.as_deref().unwrap_or("unknown"),
+            pipeline_run_id.as_deref().unwrap_or("unknown"),
         );
 
         let msg = OutboundMessage {
             text,
-            job_id,
+            pipeline_run_id,
             metadata: serde_json::json!({}),
         };
 
@@ -182,15 +182,15 @@ mod tests {
 
     #[test]
     fn test_job_blocked_payload_needs_human_false() {
-        let json = r#"{"job_id":"j1","slug":"my-job","blocker":"waiting","needs_human":false}"#;
+        let json = r#"{"pipeline_run_id":"j1","slug":"my-job","blocker":"waiting","needs_human":false}"#;
         let p: PipelineRunBlockedPayload = serde_json::from_str(json).unwrap();
         assert_eq!(p.needs_human, Some(false));
-        assert_eq!(p.job_id.as_deref(), Some("j1"));
+        assert_eq!(p.pipeline_run_id.as_deref(), Some("j1"));
     }
 
     #[test]
     fn test_job_blocked_payload_needs_human_true() {
-        let json = r#"{"job_id":"j2","slug":"deploy","blocker":"needs approval","needs_human":true}"#;
+        let json = r#"{"pipeline_run_id":"j2","slug":"deploy","blocker":"needs approval","needs_human":true}"#;
         let p: PipelineRunBlockedPayload = serde_json::from_str(json).unwrap();
         assert_eq!(p.needs_human, Some(true));
         assert_eq!(p.blocker.as_deref(), Some("needs approval"));
@@ -199,7 +199,7 @@ mod tests {
     #[test]
     fn test_outbound_message_format() {
         let payload = PipelineRunBlockedPayload {
-            job_id: Some("abc".to_string()),
+            pipeline_run_id: Some("abc".to_string()),
             slug: Some("release".to_string()),
             blocker: Some("manual review required".to_string()),
             needs_human: Some(true),
@@ -208,7 +208,7 @@ mod tests {
             "\u{1f6a7} Blocked: {}\nJob: {} ({})",
             payload.blocker.as_deref().unwrap_or("unknown"),
             payload.slug.as_deref().unwrap_or("unknown"),
-            payload.job_id.as_deref().unwrap_or("unknown"),
+            payload.pipeline_run_id.as_deref().unwrap_or("unknown"),
         );
         assert!(text.contains("manual review required"));
         assert!(text.contains("release"));

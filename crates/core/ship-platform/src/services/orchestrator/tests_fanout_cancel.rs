@@ -104,7 +104,7 @@ fn make_octx(
 
 async fn seed_lanes(
     octx: &OrchestratorContext,
-    job_id: &str,
+    pipeline_run_id: &str,
     parent_slug: &str,
     lanes: &[&str],
 ) -> Vec<tokio::sync::oneshot::Receiver<LaneOutcome>> {
@@ -118,7 +118,7 @@ async fn seed_lanes(
         refs.insert(
             lane_slug.clone(),
             FanoutLaneRef {
-                job_id: job_id.into(),
+                pipeline_run_id: pipeline_run_id.into(),
                 parent_slug: parent_slug.into(),
                 fanout_step_id: "draft".into(),
                 fanout_step_index: 0,

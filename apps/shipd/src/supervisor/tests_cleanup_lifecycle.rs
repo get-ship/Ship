@@ -12,8 +12,8 @@ use ship_substrate::events::EventEnvelope;
 use ship_platform::projections::pipeline_run::{project, PipelineRunStatus};
 
 fn ev(event_type: &str, payload: serde_json::Value) -> EventEnvelope {
-    let job_id = payload["job_id"].as_str().unwrap_or("test");
-    EventEnvelope::new(event_type, job_id, &payload).unwrap()
+    let pipeline_run_id = payload["pipeline_run_id"].as_str().unwrap_or("test");
+    EventEnvelope::new(event_type, pipeline_run_id, &payload).unwrap()
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -135,18 +135,18 @@ fn cleanup_tolerates_missing_branch() {
 fn terminal_jobs_with_worktrees_are_orphan_candidates() {
     let events = vec![
         ev(event_types::PIPELINE_RUN_STARTED, serde_json::json!({
-            "job_id": "j1", "slug": "done",
+            "pipeline_run_id": "j1", "slug": "done",
             "agent": "r", "branch": "job/done",
             "spec_path": "s.md", "plan_id": null,
         })),
         ev(event_types::PIPELINE_RUN_DISPATCHED, serde_json::json!({
-            "job_id": "j1", "worktree": "/tmp/wt/done", "pid": null,
+            "pipeline_run_id": "j1", "worktree": "/tmp/wt/done", "pid": null,
         })),
         ev(event_types::PIPELINE_RUN_COMPLETED, serde_json::json!({
-            "job_id": "j1", "slug": "done",
+            "pipeline_run_id": "j1", "slug": "done",
         })),
         ev(event_types::PIPELINE_RUN_MERGED, serde_json::json!({
-            "job_id": "j1", "slug": "done",
+            "pipeline_run_id": "j1", "slug": "done",
         })),
     ];
     let map = project(&events);

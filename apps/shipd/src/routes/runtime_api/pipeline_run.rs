@@ -167,10 +167,10 @@ pub async fn run_pipeline(
         format!("{}-{}", workspace_label, ship_substrate::gen_slug_suffix())
     });
     let branch = format!("job/{slug}");
-    let job_id = ship_substrate::gen_ulid();
+    let pipeline_run_id = ship_substrate::gen_ulid();
 
     let payload = PipelineRunStartedPayload {
-        job_id: job_id.clone(),
+        pipeline_run_id: pipeline_run_id.clone(),
         slug,
         agent: first_agent,
         branch,
@@ -194,7 +194,7 @@ pub async fn run_pipeline(
         baseline_sha: super::resolve_project_head_sha(),
     };
 
-    dispatch_one(&state, payload, &job_id).await
+    dispatch_one(&state, payload, &pipeline_run_id).await
 }
 
 #[cfg(test)]

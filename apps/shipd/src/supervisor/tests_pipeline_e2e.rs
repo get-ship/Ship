@@ -83,56 +83,56 @@ async fn simple_job_lifecycle_through_event_store() {
     std::fs::create_dir_all(&ship_dir).unwrap();
     let store = SqliteEventStore::new_at(&ship_dir).unwrap();
 
-    let job_id = "j-e2e-simple";
+    let pipeline_run_id = "j-e2e-simple";
     let slug = "e2e-simple";
 
     // 1. Create job
     store.append(&EventEnvelope::new(
         event_types::PIPELINE_RUN_STARTED,
-        job_id,
+        pipeline_run_id,
         &serde_json::json!({
-            "job_id": job_id, "slug": slug,
+            "pipeline_run_id": pipeline_run_id, "slug": slug,
             "agent": "rust-runtime", "branch": format!("job/{slug}"),
             "spec_path": "spec.md", "plan_id": null,
         }),
     ).unwrap()).unwrap();
 
     let jobs = load_pipeline_runs_at(&ship_dir).unwrap();
-    assert_eq!(jobs.get(job_id).unwrap().status, PipelineRunStatus::Pending);
+    assert_eq!(jobs.get(pipeline_run_id).unwrap().status, PipelineRunStatus::Pending);
 
     // 2. Dispatch
     store.append(&EventEnvelope::new(
         event_types::PIPELINE_RUN_DISPATCHED,
-        job_id,
+        pipeline_run_id,
         &serde_json::json!({
-            "job_id": job_id,
+            "pipeline_run_id": pipeline_run_id,
             "worktree": "/tmp/wt/e2e-simple",
             "pid": 12345,
         }),
     ).unwrap()).unwrap();
 
     let jobs = load_pipeline_runs_at(&ship_dir).unwrap();
-    assert_eq!(jobs.get(job_id).unwrap().status, PipelineRunStatus::Dispatched);
+    assert_eq!(jobs.get(pipeline_run_id).unwrap().status, PipelineRunStatus::Dispatched);
 
     // 3. Complete
     store.append(&EventEnvelope::new(
         event_types::PIPELINE_RUN_COMPLETED,
-        job_id,
-        &serde_json::json!({ "job_id": job_id, "slug": slug }),
+        pipeline_run_id,
+        &serde_json::json!({ "pipeline_run_id": pipeline_run_id, "slug": slug }),
     ).unwrap()).unwrap();
 
     let jobs = load_pipeline_runs_at(&ship_dir).unwrap();
-    assert_eq!(jobs.get(job_id).unwrap().status, PipelineRunStatus::Completed);
+    assert_eq!(jobs.get(pipeline_run_id).unwrap().status, PipelineRunStatus::Completed);
 
     // 4. Merge
     store.append(&EventEnvelope::new(
         event_types::PIPELINE_RUN_MERGED,
-        job_id,
-        &serde_json::json!({ "job_id": job_id, "slug": slug }),
+        pipeline_run_id,
+        &serde_json::json!({ "pipeline_run_id": pipeline_run_id, "slug": slug }),
     ).unwrap()).unwrap();
 
     let jobs = load_pipeline_runs_at(&ship_dir).unwrap();
-    let rec = jobs.get(job_id).unwrap();
+    let rec = jobs.get(pipeline_run_id).unwrap();
     assert_eq!(rec.status, PipelineRunStatus::Merged);
     assert_eq!(rec.worktree.as_deref(), Some("/tmp/wt/e2e-simple"));
     assert!(rec.error.is_none());
@@ -157,15 +157,15 @@ async fn pipeline_advances_through_all_steps() {
 
     let store = SqliteEventStore::new_at(&ship_dir).unwrap();
 
-    let job_id = "j-e2e-pipe";
+    let pipeline_run_id = "j-e2e-pipe";
     let slug = "e2e-pipe";
 
     // Create job with 2-step pipeline: implement → gate
     store.append(&EventEnvelope::new(
         event_types::PIPELINE_RUN_STARTED,
-        job_id,
+        pipeline_run_id,
         &serde_json::json!({
-            "job_id": job_id, "slug": slug,
+            "pipeline_run_id": pipeline_run_id, "slug": slug,
             "agent": "rust-runtime", "branch": format!("job/{slug}"),
             "spec_path": "spec.md", "plan_id": null,
             "steps": { "steps": [
@@ -178,9 +178,9 @@ async fn pipeline_advances_through_all_steps() {
     // Dispatch first step
     store.append(&EventEnvelope::new(
         event_types::PIPELINE_RUN_DISPATCHED,
-        job_id,
+        pipeline_run_id,
         &serde_json::json!({
-            "job_id": job_id,
+            "pipeline_run_id": pipeline_run_id,
             "worktree": worktree_path.to_string_lossy(),
             "pid": null,
         }),
@@ -209,8 +209,8 @@ async fn pipeline_advances_through_all_steps() {
     // First step completes — simulate agent finishing
     let completed_event = EventEnvelope::new(
         event_types::PIPELINE_RUN_COMPLETED,
-        job_id,
-        &serde_json::json!({ "job_id": job_id, "slug": slug }),
+        pipeline_run_id,
+        &serde_json::json!({ "pipeline_run_id": pipeline_run_id, "slug": slug }),
     ).unwrap();
     store.append(&completed_event).unwrap();
 
@@ -231,7 +231,7 @@ async fn pipeline_advances_through_all_steps() {
 
     // Verify projection shows progress
     let jobs = load_pipeline_runs_at(&ship_dir).unwrap();
-    let rec = jobs.get(job_id).unwrap();
+    let rec = jobs.get(pipeline_run_id).unwrap();
     assert_eq!(rec.status, PipelineRunStatus::Dispatched, "job should be re-dispatched for gate step");
     assert!(
         rec.completed_steps.contains(&"implement".to_string()),
@@ -254,7 +254,7 @@ async fn dependent_job_dispatches_after_upstream_completes() {
         event_types::PIPELINE_RUN_STARTED,
         "j-upstream",
         &serde_json::json!({
-            "job_id": "j-upstream", "slug": "upstream",
+            "pipeline_run_id": "j-upstream", "slug": "upstream",
             "agent": "test-writer", "branch": "job/upstream",
             "spec_path": "spec.md", "plan_id": null,
         }),
@@ -265,7 +265,7 @@ async fn dependent_job_dispatches_after_upstream_completes() {
         event_types::PIPELINE_RUN_STARTED,
         "j-downstream",
         &serde_json::json!({
-            "job_id": "j-downstream", "slug": "downstream",
+            "pipeline_run_id": "j-downstream", "slug": "downstream",
             "agent": "rust-runtime", "branch": "job/downstream",
             "spec_path": "spec.md", "plan_id": null,
             "depends_on": ["upstream"],
@@ -287,12 +287,12 @@ async fn dependent_job_dispatches_after_upstream_completes() {
     store.append(&EventEnvelope::new(
         event_types::PIPELINE_RUN_DISPATCHED,
         "j-upstream",
-        &serde_json::json!({ "job_id": "j-upstream", "worktree": "/tmp/wt/up", "pid": null }),
+        &serde_json::json!({ "pipeline_run_id": "j-upstream", "worktree": "/tmp/wt/up", "pid": null }),
     ).unwrap()).unwrap();
     store.append(&EventEnvelope::new(
         event_types::PIPELINE_RUN_COMPLETED,
         "j-upstream",
-        &serde_json::json!({ "job_id": "j-upstream", "slug": "upstream" }),
+        &serde_json::json!({ "pipeline_run_id": "j-upstream", "slug": "upstream" }),
     ).unwrap()).unwrap();
 
     // Now downstream deps should be resolved
@@ -320,32 +320,32 @@ async fn restart_recovery_finds_stale_jobs() {
     store.append(&EventEnvelope::new(
         event_types::PIPELINE_RUN_STARTED, "j-stuck",
         &serde_json::json!({
-            "job_id": "j-stuck", "slug": "stuck",
+            "pipeline_run_id": "j-stuck", "slug": "stuck",
             "agent": "r", "branch": "job/stuck",
             "spec_path": "s.md", "plan_id": null,
         }),
     ).unwrap()).unwrap();
     store.append(&EventEnvelope::new(
         event_types::PIPELINE_RUN_DISPATCHED, "j-stuck",
-        &serde_json::json!({ "job_id": "j-stuck", "worktree": "/tmp/wt/stuck", "pid": 1234 }),
+        &serde_json::json!({ "pipeline_run_id": "j-stuck", "worktree": "/tmp/wt/stuck", "pid": 1234 }),
     ).unwrap()).unwrap();
 
     // Job stuck in completed (pipeline didn't advance)
     store.append(&EventEnvelope::new(
         event_types::PIPELINE_RUN_STARTED, "j-stalled",
         &serde_json::json!({
-            "job_id": "j-stalled", "slug": "stalled",
+            "pipeline_run_id": "j-stalled", "slug": "stalled",
             "agent": "r", "branch": "job/stalled",
             "spec_path": "s.md", "plan_id": null,
         }),
     ).unwrap()).unwrap();
     store.append(&EventEnvelope::new(
         event_types::PIPELINE_RUN_DISPATCHED, "j-stalled",
-        &serde_json::json!({ "job_id": "j-stalled", "worktree": "/tmp/wt/stalled", "pid": null }),
+        &serde_json::json!({ "pipeline_run_id": "j-stalled", "worktree": "/tmp/wt/stalled", "pid": null }),
     ).unwrap()).unwrap();
     store.append(&EventEnvelope::new(
         event_types::PIPELINE_RUN_COMPLETED, "j-stalled",
-        &serde_json::json!({ "job_id": "j-stalled", "slug": "stalled" }),
+        &serde_json::json!({ "pipeline_run_id": "j-stalled", "slug": "stalled" }),
     ).unwrap()).unwrap();
 
     // Simulate restart: load projection and find stale jobs
@@ -393,15 +393,15 @@ async fn run_step_advances_to_agent_step() {
     ).unwrap();
 
     let store = SqliteEventStore::new_at(&ship_dir).unwrap();
-    let job_id = "j-run-advance";
+    let pipeline_run_id = "j-run-advance";
     let slug = "run-advance";
 
     // Create job with 2-step pipeline: run step then agent step
     store.append(&EventEnvelope::new(
         event_types::PIPELINE_RUN_STARTED,
-        job_id,
+        pipeline_run_id,
         &serde_json::json!({
-            "job_id": job_id, "slug": slug,
+            "pipeline_run_id": pipeline_run_id, "slug": slug,
             "agent": "rust-lane", "branch": format!("job/{slug}"),
             "spec_path": "spec.md", "plan_id": null,
             "steps": { "steps": [
@@ -414,9 +414,9 @@ async fn run_step_advances_to_agent_step() {
     // Dispatch — sets current_step to the first step ("verify")
     store.append(&EventEnvelope::new(
         event_types::PIPELINE_RUN_DISPATCHED,
-        job_id,
+        pipeline_run_id,
         &serde_json::json!({
-            "job_id": job_id,
+            "pipeline_run_id": pipeline_run_id,
             "worktree": worktree_path.to_string_lossy(),
             "pid": null,
         }),
@@ -425,9 +425,9 @@ async fn run_step_advances_to_agent_step() {
     // Simulate run step completing successfully: emit job.step_completed for "verify"
     let step_completed_event = EventEnvelope::new(
         event_types::PIPELINE_STEP_COMPLETED,
-        job_id,
+        pipeline_run_id,
         &serde_json::json!({
-            "job_id": job_id,
+            "pipeline_run_id": pipeline_run_id,
             "slug": slug,
             "step_id": "verify",
         }),
@@ -468,7 +468,7 @@ async fn run_step_advances_to_agent_step() {
     // Projection should show the verify step is in completed_steps
     // and the implement step is now being dispatched
     let jobs = load_pipeline_runs_at(&ship_dir).unwrap();
-    let rec = jobs.get(job_id).unwrap();
+    let rec = jobs.get(pipeline_run_id).unwrap();
     assert!(
         rec.completed_steps.contains(&"verify".to_string()),
         "verify (run step) must be in completed_steps"
@@ -500,12 +500,12 @@ async fn first_step_run_executes_without_agent() {
     std::fs::create_dir_all(&worktree_path).unwrap();
 
     let store = SqliteEventStore::new_at(&ship_dir).unwrap();
-    let job_id = "j-run-first";
+    let pipeline_run_id = "j-run-first";
     let slug = "run-first";
 
     // Create job with pipeline: [run: "echo hello", agent: "rust-lane"]
     let created_payload = serde_json::json!({
-        "job_id": job_id, "slug": slug,
+        "pipeline_run_id": pipeline_run_id, "slug": slug,
         "agent": "rust-lane", "branch": format!("job/{slug}"),
         "spec_path": "spec.md", "plan_id": null,
         "steps": { "steps": [
@@ -516,7 +516,7 @@ async fn first_step_run_executes_without_agent() {
 
     // Persist job.created so the projection sees it
     store.append(&EventEnvelope::new(
-        event_types::PIPELINE_RUN_STARTED, job_id, &created_payload,
+        event_types::PIPELINE_RUN_STARTED, pipeline_run_id, &created_payload,
     ).unwrap()).unwrap();
 
     // Parse the payload for dispatch_job_internal
@@ -557,7 +557,7 @@ async fn first_step_run_executes_without_agent() {
 
     // The projection should show the job as dispatched with step events
     let jobs = load_pipeline_runs_at(&ship_dir).unwrap();
-    let rec = jobs.get(job_id).unwrap();
+    let rec = jobs.get(pipeline_run_id).unwrap();
     assert_eq!(rec.status, PipelineRunStatus::Dispatched, "job must be dispatched");
 
     // step_dispatched and step_completed events should exist for the run step

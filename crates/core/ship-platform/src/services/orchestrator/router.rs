@@ -246,7 +246,7 @@ pub async fn handle_orchestrator_event(
                 if let Some(slug) = &slug {
                     octx.registry.unregister(slug).await;
                 }
-                octx.run_locks.lock().await.remove(&payload.job_id);
+                octx.run_locks.lock().await.remove(&payload.pipeline_run_id);
                 return;
             }
 
@@ -315,8 +315,8 @@ async fn maybe_auto_merge(
     octx: &OrchestratorContext,
 ) -> bool {
     let payload: serde_json::Value = serde_json::from_str(&envelope.payload_json).unwrap_or_default();
-    let job_id = payload["job_id"].as_str().unwrap_or(envelope.entity_id.as_str()).to_string();
-    let Some(job) = crate::projections::pipeline_run::load_pipeline_run_by_id(&job_id)
+    let pipeline_run_id = payload["pipeline_run_id"].as_str().unwrap_or(envelope.entity_id.as_str()).to_string();
+    let Some(job) = crate::projections::pipeline_run::load_pipeline_run_by_id(&pipeline_run_id)
         .ok()
         .flatten()
     else {
@@ -329,13 +329,13 @@ async fn maybe_auto_merge(
         return false;
     }
     tracing::info!(
-        job_id = %job.job_id, slug = %job.slug, branch = %job.branch,
+        pipeline_run_id = %job.pipeline_run_id, slug = %job.slug, branch = %job.branch,
         "job-dispatch: auto_merge — running merge after final step"
     );
     octx.platform.graceful_agent_exit(&job.slug, None).await;
     super::handlers::execute_merge_step(
         kernel,
-        &job.job_id,
+        &job.pipeline_run_id,
         &job.slug,
         &job.branch,
         &*octx.platform,
@@ -373,7 +373,7 @@ async fn check_and_fail_missing_outputs(
     kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
     declared: &PipelineStepDoneDeclaredPayload,
 ) {
-    let Some(job) = crate::projections::pipeline_run::load_pipeline_run_by_id(&declared.job_id)
+    let Some(job) = crate::projections::pipeline_run::load_pipeline_run_by_id(&declared.pipeline_run_id)
         .ok()
         .flatten()
     else {
@@ -385,11 +385,11 @@ async fn check_and_fail_missing_outputs(
     };
     if let Some(reason) = check_required_outputs(&step.produces, &declared.outputs) {
         tracing::warn!(
-            job_id = declared.job_id, step_id = declared.step_id,
+            pipeline_run_id = declared.pipeline_run_id, step_id = declared.step_id,
             "job-dispatch: required output missing: {reason}"
         );
         emit_step_failed(
-            kernel, &declared.job_id, &declared.slug, &declared.step_id, &reason,
+            kernel, &declared.pipeline_run_id, &declared.slug, &declared.step_id, &reason,
         ).await;
     }
 }
@@ -400,7 +400,7 @@ async fn run_promotes_for_step(
     kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
     payload: &PipelineStepObservedPayload,
 ) {
-    let Some(job) = crate::projections::pipeline_run::load_pipeline_run_by_id(&payload.job_id)
+    let Some(job) = crate::projections::pipeline_run::load_pipeline_run_by_id(&payload.pipeline_run_id)
         .ok()
         .flatten()
     else {
@@ -411,7 +411,7 @@ async fn run_promotes_for_step(
         return;
     };
     if !step.promotes.is_empty() {
-        run_step_promotes(kernel, &payload.job_id, step).await;
+        run_step_promotes(kernel, &payload.pipeline_run_id, step).await;
     }
 }
 
@@ -423,7 +423,7 @@ async fn evaluate_step_gate(
 ) -> Option<String> {
     use super::gate_rules::{diff_paths, evaluate, GateOutcome};
 
-    let job = crate::projections::pipeline_run::load_pipeline_run_by_id(&payload.job_id)
+    let job = crate::projections::pipeline_run::load_pipeline_run_by_id(&payload.pipeline_run_id)
         .ok()
         .flatten()?;
     let pipeline = job.steps.as_ref()?;
@@ -467,12 +467,12 @@ async fn emit_step_gate_failure(
     use ship_substrate::events::pipeline::{event_types, PipelineRunFailedPayload, PipelineStepFailedPayload};
 
     let step_fail = PipelineStepFailedPayload {
-        job_id: payload.job_id.clone(),
+        pipeline_run_id: payload.pipeline_run_id.clone(),
         slug: payload.slug.clone(),
         step_id: payload.step_name.clone(),
         error: reason.to_string(),
     };
-    if let Ok(env) = EventEnvelope::new(event_types::PIPELINE_STEP_FAILED, &payload.job_id, &step_fail) {
+    if let Ok(env) = EventEnvelope::new(event_types::PIPELINE_STEP_FAILED, &payload.pipeline_run_id, &step_fail) {
         let env = env.with_actor_id("service.orchestrator");
         super::emit::persist_and_route(kernel, env, &payload.slug, None).await;
     }
@@ -483,10 +483,10 @@ async fn emit_step_gate_failure(
         None => base_error,
     };
     let job_fail = PipelineRunFailedPayload {
-        job_id: payload.job_id.clone(),
+        pipeline_run_id: payload.pipeline_run_id.clone(),
         error,
     };
-    if let Ok(env) = EventEnvelope::new(event_types::PIPELINE_RUN_FAILED, &payload.job_id, &job_fail) {
+    if let Ok(env) = EventEnvelope::new(event_types::PIPELINE_RUN_FAILED, &payload.pipeline_run_id, &job_fail) {
         let env = env.with_actor_id("service.orchestrator");
         super::emit::persist_and_route(kernel, env, &payload.slug, None).await;
     }

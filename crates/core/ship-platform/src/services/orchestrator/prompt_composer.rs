@@ -19,7 +19,7 @@ pub struct SessionContextFromEvents {
 /// Load (`user_spec_body`, `pipeline_name`) from the `job.created` event for
 /// this job. Returns defaults if the event isn't found — step dispatch never
 /// blocks on event-log lookups.
-pub fn load_job_context(job_id: &str) -> SessionContextFromEvents {
+pub fn load_job_context(pipeline_run_id: &str) -> SessionContextFromEvents {
     let mut out = SessionContextFromEvents {
         user_spec_body: String::new(),
         pipeline_name: None,
@@ -29,7 +29,7 @@ pub fn load_job_context(job_id: &str) -> SessionContextFromEvents {
     };
     let envelopes = store
         .query(&EventFilter {
-            entity_id: Some(job_id.to_string()),
+            entity_id: Some(pipeline_run_id.to_string()),
             event_type: Some("pipeline.run.started".to_string()),
             ..Default::default()
         })

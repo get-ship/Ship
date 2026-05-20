@@ -121,7 +121,7 @@ fn octx(executor: Arc<TrackingExecutor>, worktrees: PathBuf) -> OrchestratorCont
 /// Seed the event log with `job.created` + a terminal event so the projection
 /// reports the requested status. Returns the kernel wired to the global DB.
 async fn seed_terminal(
-    job_id: &str,
+    pipeline_run_id: &str,
     slug: &str,
     terminal_event_type: &str,
 ) -> Arc<Mutex<KernelRouter>> {
@@ -133,7 +133,7 @@ async fn seed_terminal(
     let kernel = Arc::new(Mutex::new(router));
 
     let created = ship_substrate::events::pipeline::PipelineRunStartedPayload {
-        job_id: job_id.into(),
+        pipeline_run_id: pipeline_run_id.into(),
         slug: slug.into(),
         agent: "rust-runtime".into(),
         branch: format!("job/{slug}"),
@@ -156,26 +156,26 @@ async fn seed_terminal(
         resume_session_id: None,
         baseline_sha: None,
     };
-    let env = EventEnvelope::new(event_types::PIPELINE_RUN_STARTED, job_id, &created).unwrap();
+    let env = EventEnvelope::new(event_types::PIPELINE_RUN_STARTED, pipeline_run_id, &created).unwrap();
     crate::services::orchestrator::emit::persist_and_route(&kernel, env, slug, None).await;
 
     let terminal_payload = serde_json::json!({
-        "job_id": job_id,
+        "pipeline_run_id": pipeline_run_id,
         "slug": slug,
         "error": "preexisting terminal state",
         "reason": "test",
         "initiated_by": "test",
         "stage": "executor_spawn",
     });
-    let env = EventEnvelope::new(terminal_event_type, job_id, &terminal_payload).unwrap();
+    let env = EventEnvelope::new(terminal_event_type, pipeline_run_id, &terminal_payload).unwrap();
     crate::services::orchestrator::emit::persist_and_route(&kernel, env, slug, None).await;
 
     kernel
 }
 
-fn observed_advance(job_id: &str, slug: &str) -> EventEnvelope {
+fn observed_advance(pipeline_run_id: &str, slug: &str) -> EventEnvelope {
     let payload = PipelineStepObservedPayload {
-        job_id: job_id.into(),
+        pipeline_run_id: pipeline_run_id.into(),
         slug: slug.into(),
         step_index: 0,
         step_name: "step-0".into(),
@@ -192,7 +192,7 @@ fn observed_advance(job_id: &str, slug: &str) -> EventEnvelope {
         start_sha: None,
         log_tail: None,
     };
-    EventEnvelope::new(event_types::PIPELINE_STEP_OBSERVED, job_id, &payload).unwrap()
+    EventEnvelope::new(event_types::PIPELINE_STEP_OBSERVED, pipeline_run_id, &payload).unwrap()
 }
 
 // ── Tests ──────────────────────────────────────────────────────────────────
@@ -203,15 +203,15 @@ async fn step_observed_ignored_when_job_failed() {
     let executor = Arc::new(TrackingExecutor::default());
     let ctx = octx(executor.clone(), tmp.path().into());
 
-    let job_id = "j-guard-failed";
-    let kernel = seed_terminal(job_id, "guard-failed", event_types::PIPELINE_RUN_FAILED).await;
+    let pipeline_run_id = "j-guard-failed";
+    let kernel = seed_terminal(pipeline_run_id, "guard-failed", event_types::PIPELINE_RUN_FAILED).await;
 
     assert_eq!(
-        load_pipeline_runs().unwrap().get(job_id).unwrap().status,
+        load_pipeline_runs().unwrap().get(pipeline_run_id).unwrap().status,
         PipelineRunStatus::Failed
     );
 
-    let env = observed_advance(job_id, "guard-failed");
+    let env = observed_advance(pipeline_run_id, "guard-failed");
     handle_orchestrator_event(&kernel, &env, &ctx).await;
 
     assert_eq!(
@@ -227,10 +227,10 @@ async fn step_observed_ignored_when_job_merged() {
     let executor = Arc::new(TrackingExecutor::default());
     let ctx = octx(executor.clone(), tmp.path().into());
 
-    let job_id = "j-guard-merged";
-    let kernel = seed_terminal(job_id, "guard-merged", event_types::PIPELINE_RUN_MERGED).await;
+    let pipeline_run_id = "j-guard-merged";
+    let kernel = seed_terminal(pipeline_run_id, "guard-merged", event_types::PIPELINE_RUN_MERGED).await;
 
-    let env = observed_advance(job_id, "guard-merged");
+    let env = observed_advance(pipeline_run_id, "guard-merged");
     handle_orchestrator_event(&kernel, &env, &ctx).await;
 
     assert_eq!(
@@ -245,15 +245,15 @@ async fn step_observed_ignored_when_job_cancelled() {
     let executor = Arc::new(TrackingExecutor::default());
     let ctx = octx(executor.clone(), tmp.path().into());
 
-    let job_id = "j-guard-cancelled";
-    let kernel = seed_terminal(job_id, "guard-cancelled", event_types::PIPELINE_RUN_CANCELLED).await;
+    let pipeline_run_id = "j-guard-cancelled";
+    let kernel = seed_terminal(pipeline_run_id, "guard-cancelled", event_types::PIPELINE_RUN_CANCELLED).await;
 
     assert_eq!(
-        load_pipeline_runs().unwrap().get(job_id).unwrap().status,
+        load_pipeline_runs().unwrap().get(pipeline_run_id).unwrap().status,
         PipelineRunStatus::Cancelled
     );
 
-    let env = observed_advance(job_id, "guard-cancelled");
+    let env = observed_advance(pipeline_run_id, "guard-cancelled");
     handle_orchestrator_event(&kernel, &env, &ctx).await;
 
     assert_eq!(
@@ -272,21 +272,21 @@ async fn operator_events_bypass_terminal_guard() {
     let executor = Arc::new(TrackingExecutor::default());
     let ctx = octx(executor.clone(), tmp.path().into());
 
-    let job_id = "j-guard-operator";
-    let kernel = seed_terminal(job_id, "guard-operator", event_types::PIPELINE_RUN_FAILED).await;
+    let pipeline_run_id = "j-guard-operator";
+    let kernel = seed_terminal(pipeline_run_id, "guard-operator", event_types::PIPELINE_RUN_FAILED).await;
 
     let update_payload = serde_json::json!({
-        "job_id": job_id,
+        "pipeline_run_id": pipeline_run_id,
         "slug": "guard-operator",
         "status": "failed",
         "note": "operator commented after failure",
     });
-    let env = EventEnvelope::new(event_types::PIPELINE_RUN_UPDATED, job_id, &update_payload).unwrap();
+    let env = EventEnvelope::new(event_types::PIPELINE_RUN_UPDATED, pipeline_run_id, &update_payload).unwrap();
     handle_orchestrator_event(&kernel, &env, &ctx).await;
 
     // The guard must not swallow operator events; the job stays Failed.
     assert_eq!(
-        load_pipeline_runs().unwrap().get(job_id).unwrap().status,
+        load_pipeline_runs().unwrap().get(pipeline_run_id).unwrap().status,
         PipelineRunStatus::Failed
     );
 }

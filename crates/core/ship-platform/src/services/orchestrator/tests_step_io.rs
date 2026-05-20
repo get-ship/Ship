@@ -60,9 +60,9 @@ fn emit_event(ship_dir: &std::path::Path, event_type: &str, entity: &str, payloa
     store.persist(&env).expect("persist");
 }
 
-fn emit_job_created(ship_dir: &std::path::Path, job_id: &str, pipeline: &Pipeline) {
-    emit_event(ship_dir, "pipeline.run.started", job_id, serde_json::json!({
-        "job_id": job_id,
+fn emit_job_created(ship_dir: &std::path::Path, pipeline_run_id: &str, pipeline: &Pipeline) {
+    emit_event(ship_dir, "pipeline.run.started", pipeline_run_id, serde_json::json!({
+        "pipeline_run_id": pipeline_run_id,
         "slug": "test-slug",
         "agent": "orchestrator",
         "branch": "test",
@@ -73,12 +73,12 @@ fn emit_job_created(ship_dir: &std::path::Path, job_id: &str, pipeline: &Pipelin
 
 fn emit_step_done(
     ship_dir: &std::path::Path,
-    job_id: &str,
+    pipeline_run_id: &str,
     step_id: &str,
     outputs: std::collections::BTreeMap<String, String>,
 ) {
     let payload = PipelineStepDoneDeclaredPayload {
-        job_id: job_id.into(),
+        pipeline_run_id: pipeline_run_id.into(),
         slug: "test-slug".into(),
         step_id: step_id.into(),
         summary: Some("ok".into()),
@@ -87,7 +87,7 @@ fn emit_step_done(
     emit_event(
         ship_dir,
         "pipeline.step.done_declared",
-        job_id,
+        pipeline_run_id,
         serde_json::to_value(&payload).unwrap(),
     );
 }
@@ -97,7 +97,7 @@ async fn three_step_flow_resolves_consumes_and_promotes_patch() {
     let ship_dir = fresh_ship_dir();
 
     let project_id = "test-proj";
-    let job_id = "job-three-step";
+    let pipeline_run_id = "job-three-step";
     let run_id = "run-001";
     let run_scope = ArtifactScope::Run {
         project_id: project_id.into(),
@@ -117,11 +117,11 @@ async fn three_step_flow_resolves_consumes_and_promotes_patch() {
                None, None, Some("test-writer"), None)
         .await
         .unwrap();
-    emit_step_done(&ship_dir, job_id, "write-tests",
+    emit_step_done(&ship_dir, pipeline_run_id, "write-tests",
         [("failing_tests".to_string(), tests_art.id.clone())].into());
 
-    // Resolver finds the upstream artifact by (job_id, step_id, name).
-    let resolved = find_artifact_id_in_events(job_id, "write-tests", "failing_tests")
+    // Resolver finds the upstream artifact by (pipeline_run_id, step_id, name).
+    let resolved = find_artifact_id_in_events(pipeline_run_id, "write-tests", "failing_tests")
         .expect("resolver must find the tests artifact emitted by write-tests");
     assert_eq!(resolved, tests_art.id);
 
@@ -132,7 +132,7 @@ async fn three_step_flow_resolves_consumes_and_promotes_patch() {
                &run_scope, None, None, Some("implementer"), None)
         .await
         .unwrap();
-    emit_step_done(&ship_dir, job_id, "implement",
+    emit_step_done(&ship_dir, pipeline_run_id, "implement",
         [("patch".to_string(), patch_art.id.clone())].into());
 
     // Step 3 — gate consumes patch, promotes it to project scope.
@@ -170,9 +170,9 @@ async fn three_step_flow_resolves_consumes_and_promotes_patch() {
         ],
         auto_merge: false,
     };
-    emit_job_created(&ship_dir, job_id, &pipeline);
+    emit_job_created(&ship_dir, pipeline_run_id, &pipeline);
 
-    run_step_promotes(&kernel, job_id, &gate_step).await;
+    run_step_promotes(&kernel, pipeline_run_id, &gate_step).await;
 
     // Verify the patch now lives in project scope with the same bytes.
     let mut data = ship_substrate::data::DataService::open(&ship_dir).unwrap();

@@ -98,7 +98,7 @@ pub async fn dispatch_job_internal(
             Some(c) => c.clone(),
             None => {
                 tracing::error!(slug, step_id = first.id, "job-dispatch: run step missing command");
-                emit_job_failed(kernel, &payload.job_id, slug, "run step missing command").await;
+                emit_job_failed(kernel, &payload.pipeline_run_id, slug, "run step missing command").await;
                 return;
             }
         };
@@ -136,7 +136,7 @@ pub async fn dispatch_job_internal(
         .or_else(|| payload.model.clone());
 
     let job_ctx = SessionContext {
-        job_id: payload.job_id.clone(),
+        pipeline_run_id: payload.pipeline_run_id.clone(),
         slug: slug.clone(),
         agent: agent.to_string(),
         branch: branch.clone(),
@@ -169,7 +169,7 @@ pub async fn dispatch_job_internal(
         Ok(p) => p,
         Err(e) => {
             tracing::error!(slug, "job-dispatch: isolation prepare failed: {e}");
-            emit_spawn_failed(kernel, &payload.job_id, slug, "isolation_prepare", &e).await;
+            emit_spawn_failed(kernel, &payload.pipeline_run_id, slug, "isolation_prepare", &e).await;
             return;
         }
     };
@@ -218,7 +218,7 @@ pub async fn dispatch_job_internal(
         Ok(h) => h,
         Err(e) => {
             tracing::error!(slug, "job-dispatch: executor spawn failed: {e}");
-            emit_spawn_failed(kernel, &payload.job_id, slug, "executor_spawn", &e).await;
+            emit_spawn_failed(kernel, &payload.pipeline_run_id, slug, "executor_spawn", &e).await;
             return;
         }
     };
@@ -226,7 +226,7 @@ pub async fn dispatch_job_internal(
     let executor_kind = if payload.headless { "process" } else { "pty" };
     let cmd_label = launch_harness.as_deref().unwrap_or("claude");
     emit_process_spawned(
-        kernel, slug, &payload.job_id, handle.pid,
+        kernel, slug, &payload.pipeline_run_id, handle.pid,
         cmd_label, &[], &[], &worktree_path.to_string_lossy(),
         executor_kind, job_ctx_with_dir.step.as_ref().map(|s| s.id.as_str()),
     ).await;
@@ -242,7 +242,7 @@ pub async fn dispatch_job_internal(
         emit_composed_step_session(
             kernel,
             &ComposedRunCtx {
-                job_id: &payload.job_id,
+                pipeline_run_id: &payload.pipeline_run_id,
                 job_slug: &payload.slug,
                 branch: &payload.branch,
                 source_spec_path: payload.source_spec_path.as_deref(),
@@ -265,7 +265,7 @@ pub async fn dispatch_job_internal(
             .map(|r| (r.id, r.step_type))
             .unwrap_or_else(|| (String::new(), ship_substrate::events::pipeline::StepType::Agent));
         let monitor = StepMonitor::new(
-            payload.job_id.clone(),
+            payload.pipeline_run_id.clone(),
             0,
             slug.clone(),
             step_name,
@@ -288,7 +288,7 @@ pub async fn dispatch_job_internal(
         super::exit_handler::start(kernel.clone(), octx.registry.clone(), exit_rx);
     }
 
-    emit_job_dispatched(kernel, &payload.job_id, &worktree_path, slug).await;
+    emit_job_dispatched(kernel, &payload.pipeline_run_id, &worktree_path, slug).await;
 }
 
 // ── Agent-session primitive ─────────────────────────────────────────
@@ -372,7 +372,7 @@ async fn dispatch_agent_session_internal(
     let invocation = payload.invocation;
 
     let job_ctx = SessionContext {
-        job_id: payload.session_id.clone(), // routes use session_id as the job_id-shape ulid
+        pipeline_run_id: payload.session_id.clone(), // routes use session_id as the pipeline_run_id-shape ulid
         slug: slug.clone(),
         agent: payload.agent.clone(),
         branch: branch.clone(),
@@ -462,7 +462,7 @@ async fn dispatch_agent_session_internal(
 
     // Start the agent-session exit handler. Distinct from the
     // pipeline exit_handler — emits agent.session.{completed,failed}
-    // tied to session_id, not pipeline.run.* tied to job_id. The
+    // tied to session_id, not pipeline.run.* tied to pipeline_run_id. The
     // pipeline composer (phase 5) will sit on top of these events to
     // advance multi-step pipelines.
     start_agent_session_exit_handler(
@@ -569,7 +569,7 @@ fn start_agent_session_exit_handler(
 /// expose the same fields, so the emit helper takes this rather than
 /// either concrete type.
 pub(crate) struct ComposedRunCtx<'a> {
-    pub job_id: &'a str,
+    pub pipeline_run_id: &'a str,
     pub job_slug: &'a str,
     pub branch: &'a str,
     pub source_spec_path: Option<&'a str>,
@@ -608,7 +608,7 @@ pub(crate) async fn emit_composed_step_session(
         depends_on: None,
         vars: run.vars.cloned(),
         baseline_sha: run.baseline_sha.map(str::to_string),
-        parent_pipeline_run_id: Some(run.job_id.to_string()),
+        parent_pipeline_run_id: Some(run.pipeline_run_id.to_string()),
     };
     emit_agent_session_started_for_pipeline_step(kernel, &started).await;
     emit_agent_session_dispatched(
@@ -782,7 +782,7 @@ async fn dispatch_first_run_step_inner(
     tracing::info!(slug, branch, step_id, %command, "job-dispatch: first step is run — executing directly");
 
     let job_ctx = SessionContext {
-        job_id: payload.job_id.clone(),
+        pipeline_run_id: payload.pipeline_run_id.clone(),
         slug: slug.clone(),
         agent: payload.agent.to_string(),
         branch: branch.clone(),
@@ -812,15 +812,15 @@ async fn dispatch_first_run_step_inner(
         Ok(p) => p,
         Err(e) => {
             tracing::error!(slug, "job-dispatch: isolation prepare failed: {e}");
-            emit_spawn_failed(kernel, &payload.job_id, slug, "isolation_prepare", &e).await;
+            emit_spawn_failed(kernel, &payload.pipeline_run_id, slug, "isolation_prepare", &e).await;
             return;
         }
     };
 
-    emit_job_dispatched_with_meta(kernel, &payload.job_id, &worktree_path, slug, None, ship_dir).await;
+    emit_job_dispatched_with_meta(kernel, &payload.pipeline_run_id, &worktree_path, slug, None, ship_dir).await;
 
     super::run_step::execute_run_step(
-        &payload.job_id, slug, step_id, command,
+        &payload.pipeline_run_id, slug, step_id, command,
         &worktree_path, kernel, ship_dir,
     ).await;
 }

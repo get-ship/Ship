@@ -124,7 +124,7 @@ mod actor_tests {
             slug,
             &serde_json::json!({
                 "slug": slug,
-                "job_id": format!("job-{slug}"),
+                "pipeline_run_id": format!("job-{slug}"),
                 "pid": pid,
                 "cmd": "test-cmd",
                 "argv": [],

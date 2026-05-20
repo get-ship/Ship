@@ -207,7 +207,7 @@ fn non_agent_session_events_skipped() {
     let pipeline_event = EventEnvelope::new(
         "pipeline.run.started",
         "j1",
-        &serde_json::json!({"job_id": "j1", "slug": "auth-001"}),
+        &serde_json::json!({"pipeline_run_id": "j1", "slug": "auth-001"}),
     )
     .unwrap();
     let map = project(&[started("01HV-S1", "auth-001"), pipeline_event]);

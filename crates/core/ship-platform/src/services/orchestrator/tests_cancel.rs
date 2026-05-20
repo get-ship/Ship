@@ -143,15 +143,15 @@ async fn cancel_stops_registered_handle_and_emits_process_killed() {
         fanout_lane_refs: Arc::new(Mutex::new(std::collections::HashMap::new())),
     };
 
-    let job_id = "j-cancel-1";
+    let pipeline_run_id = "j-cancel-1";
     let slug = "cancel-1";
     let payload = PipelineRunCancelledPayload {
-        job_id: job_id.to_string(),
+        pipeline_run_id: pipeline_run_id.to_string(),
         slug: slug.to_string(),
         reason: "operator test".into(),
         requested_by: "operator".into(),
     };
-    let envelope = EventEnvelope::new(job_event_types::PIPELINE_RUN_CANCELLED, job_id, &payload)
+    let envelope = EventEnvelope::new(job_event_types::PIPELINE_RUN_CANCELLED, pipeline_run_id, &payload)
         .unwrap()
         .with_actor_id("test");
 
@@ -205,15 +205,15 @@ async fn cancel_without_registered_handle_still_cleans_and_emits() {
         fanout_lane_refs: Arc::new(Mutex::new(std::collections::HashMap::new())),
     };
 
-    let job_id = "j-cancel-2";
+    let pipeline_run_id = "j-cancel-2";
     let slug = "cancel-2";
     let payload = PipelineRunCancelledPayload {
-        job_id: job_id.to_string(),
+        pipeline_run_id: pipeline_run_id.to_string(),
         slug: slug.to_string(),
         reason: "registry miss".into(),
         requested_by: "operator".into(),
     };
-    let envelope = EventEnvelope::new(job_event_types::PIPELINE_RUN_CANCELLED, job_id, &payload)
+    let envelope = EventEnvelope::new(job_event_types::PIPELINE_RUN_CANCELLED, pipeline_run_id, &payload)
         .unwrap()
         .with_actor_id("test");
 

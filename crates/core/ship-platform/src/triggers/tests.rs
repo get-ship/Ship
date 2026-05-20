@@ -52,7 +52,7 @@ fn job_failed_envelope() -> EventEnvelope {
     EventEnvelope::new(
         "pipeline.run.failed",
         "job-1",
-        &json!({ "job_id": "job-1", "error": "boom", "status": "failed" }),
+        &json!({ "pipeline_run_id": "job-1", "error": "boom", "status": "failed" }),
     )
     .unwrap()
 }
@@ -61,7 +61,7 @@ fn job_completed_envelope() -> EventEnvelope {
     EventEnvelope::new(
         "pipeline.run.completed",
         "job-1",
-        &json!({ "job_id": "job-1", "slug": "job-1", "status": "ok" }),
+        &json!({ "pipeline_run_id": "job-1", "slug": "job-1", "status": "ok" }),
     )
     .unwrap()
 }
@@ -378,7 +378,7 @@ async fn recursion_guard_blocks_deep_hooks() {
         "trigger": { "event": "pipeline.run.failed" },
         "actions": [
             { "type": "event.emit", "event_type": "pipeline.run.failed", "payload": {
-                "job_id": "child", "error": "x", "status": "failed"
+                "pipeline_run_id": "child", "error": "x", "status": "failed"
             } }
         ]
     }"#);

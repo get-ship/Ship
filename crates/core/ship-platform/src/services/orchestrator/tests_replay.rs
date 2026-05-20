@@ -97,12 +97,12 @@ fn make_kernel() -> Arc<Mutex<KernelRouter>> {
     Arc::new(Mutex::new(router))
 }
 
-async fn seed_dispatched_job(kernel: &Arc<Mutex<KernelRouter>>, job_id: &str, slug: &str) {
+async fn seed_dispatched_job(kernel: &Arc<Mutex<KernelRouter>>, pipeline_run_id: &str, slug: &str) {
     use ship_substrate::events::pipeline::{event_types, PipelineRunStartedPayload, PipelineRunDispatchedPayload};
     use ship_substrate::events::{CallerKind, EmitContext, EventEnvelope};
     let ctx = EmitContext { caller_kind: CallerKind::Runtime, skill_id: None, project_id: None, session_id: None };
     let created = PipelineRunStartedPayload {
-        job_id: job_id.to_string(),
+        pipeline_run_id: pipeline_run_id.to_string(),
         slug: slug.to_string(),
         agent: "test-agent".to_string(),
         branch: format!("job/{slug}"),
@@ -117,16 +117,16 @@ async fn seed_dispatched_job(kernel: &Arc<Mutex<KernelRouter>>, job_id: &str, sl
         baseline_sha: None,
         keepalive: false,
     };
-    let env = EventEnvelope::new(event_types::PIPELINE_RUN_STARTED, job_id, &created).unwrap().with_actor_id("test");
+    let env = EventEnvelope::new(event_types::PIPELINE_RUN_STARTED, pipeline_run_id, &created).unwrap().with_actor_id("test");
     kernel.lock().await.emit(env, &ctx).await.unwrap();
     let dispatched = PipelineRunDispatchedPayload {
-        job_id: job_id.to_string(),
+        pipeline_run_id: pipeline_run_id.to_string(),
         slug: slug.to_string(),
         worktree: format!("/tmp/test-worktrees-replay/{slug}"),
         pid: None,
         harness_meta: None,
     };
-    let env = EventEnvelope::new(event_types::PIPELINE_RUN_DISPATCHED, job_id, &dispatched).unwrap().with_actor_id("test");
+    let env = EventEnvelope::new(event_types::PIPELINE_RUN_DISPATCHED, pipeline_run_id, &dispatched).unwrap().with_actor_id("test");
     kernel.lock().await.emit(env, &ctx).await.unwrap();
 }
 
@@ -218,7 +218,7 @@ mod replay_filter {
     ) -> PipelineRun {
         let now = Utc::now();
         PipelineRun {
-            job_id: id.to_string(),
+            pipeline_run_id: id.to_string(),
             slug: id.to_string(),
             agent: "test-agent".to_string(),
             branch: format!("job/{id}"),
@@ -303,13 +303,13 @@ mod replay_filter {
             );
             // Higher i → more recent. Oldest five must be dropped.
             job.updated_at = base + Duration::seconds(i64::from(i));
-            jobs.insert(job.job_id.clone(), job);
+            jobs.insert(job.pipeline_run_id.clone(), job);
         }
 
         let selected = select_replay_targets(&jobs);
 
         assert_eq!(selected.len(), MAX_REPLAYS_PER_STARTUP);
-        let ids: Vec<_> = selected.iter().map(|j| j.job_id.clone()).collect();
+        let ids: Vec<_> = selected.iter().map(|j| j.pipeline_run_id.clone()).collect();
         for i in 5..15 {
             assert!(ids.contains(&format!("j{i:02}")), "expected recent j{i:02} in replay set");
         }
@@ -326,7 +326,7 @@ mod replay_filter {
         // Fully-advanced no-merge job is filtered out — select returns empty.
         let mut jobs = HashMap::new();
         let terminal = make_job("j", &["a", "b"], &["a", "b"], false, None);
-        jobs.insert(terminal.job_id.clone(), terminal);
+        jobs.insert(terminal.pipeline_run_id.clone(), terminal);
         assert!(select_replay_targets(&jobs).is_empty());
     }
 }

@@ -106,7 +106,7 @@ fn octx_with(
 }
 
 fn payload_with_first_step(
-    job_id: &str,
+    pipeline_run_id: &str,
     slug: &str,
     step_harness: Option<&str>,
     step_model: Option<&str>,
@@ -131,7 +131,7 @@ fn payload_with_first_step(
             invocation: None,
     };
     PipelineRunStartedPayload {
-        job_id: job_id.into(),
+        pipeline_run_id: pipeline_run_id.into(),
         slug: slug.into(),
         agent: "rust-lane".into(),
         branch: format!("job/{slug}"),
@@ -174,7 +174,7 @@ async fn run_dispatch(
     );
 
     let created = ship_substrate::events::EventEnvelope::new(
-        event_types::PIPELINE_RUN_STARTED, &payload.job_id, payload,
+        event_types::PIPELINE_RUN_STARTED, &payload.pipeline_run_id, payload,
     ).unwrap();
     crate::services::orchestrator::emit::persist_and_route(
         &kernel, created, &payload.slug, None,

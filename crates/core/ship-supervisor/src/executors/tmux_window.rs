@@ -221,12 +221,12 @@ impl SessionExecutor for TmuxWindowExecutor {
         );
 
         let slug = ctx.slug.clone();
-        let job_id = ctx.job_id.clone();
+        let pipeline_run_id = ctx.pipeline_run_id.clone();
         let exit_tx = ctx.exit_tx.clone();
         let session_mon = session.clone();
         let window_mon = window_id.clone();
         std::thread::spawn(move || {
-            monitor_window(&session_mon, &window_mon, &slug, &job_id, exit_tx);
+            monitor_window(&session_mon, &window_mon, &slug, &pipeline_run_id, exit_tx);
         });
 
         Ok(ExecutorHandle {
@@ -294,7 +294,7 @@ fn monitor_window(
     session: &str,
     window_id: &str,
     slug: &str,
-    job_id: &str,
+    pipeline_run_id: &str,
     exit_tx: Option<tokio::sync::mpsc::UnboundedSender<ExitSignal>>,
 ) {
     loop {
@@ -305,7 +305,7 @@ fn monitor_window(
             if let Some(tx) = exit_tx {
                 let _ = tx.send(ExitSignal {
                     slug: slug.to_string(),
-                    job_id: job_id.to_string(),
+                    pipeline_run_id: pipeline_run_id.to_string(),
                     exit_code: None,
                     cause: ExitCause::SessionDestroyed,
                 });

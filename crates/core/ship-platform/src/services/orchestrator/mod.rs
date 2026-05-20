@@ -96,7 +96,7 @@ pub use ship_pipelines::fanout::LaneOutcome;
 /// Reference that links a lane slug back to its parent fanout step.
 #[derive(Debug, Clone)]
 pub struct FanoutLaneRef {
-    pub job_id: String,
+    pub pipeline_run_id: String,
     pub parent_slug: String,
     pub fanout_step_id: String,
     pub fanout_step_index: usize,

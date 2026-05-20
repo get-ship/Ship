@@ -37,8 +37,8 @@ pub async fn update_job(req: UpdateJobRequest) -> String {
         "blocker": req.blocker,
         "error": req.error,
     });
-    match network_client::update_job_status_via_daemon(&req.job_id, body).await {
-        Ok(_) => format!("Job {} updated to status '{}'", req.job_id, req.status),
+    match network_client::update_job_status_via_daemon(&req.pipeline_run_id, body).await {
+        Ok(_) => format!("Job {} updated to status '{}'", req.pipeline_run_id, req.status),
         Err(e) => format!("Error updating job: {e}"),
     }
 }

@@ -37,7 +37,8 @@ pub struct StepView {
 
 #[derive(Serialize, Clone)]
 pub struct RunView {
-    pub job_id: String,
+    #[serde(alias = "job_id")]
+    pub pipeline_run_id: String,
     pub slug: String,
     pub agent: String,
     pub branch: String,
@@ -191,7 +192,7 @@ pub fn to_run_view(job: &PipelineRun, include_stats: bool) -> RunView {
     };
 
     RunView {
-        job_id: job.job_id.clone(),
+        pipeline_run_id: job.pipeline_run_id.clone(),
         slug: job.slug.clone(),
         agent: job.agent.clone(),
         branch: job.branch.clone(),

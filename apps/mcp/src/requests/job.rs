@@ -27,7 +27,8 @@ pub struct CreateJobRequest {
 #[derive(Deserialize, JsonSchema)]
 pub struct UpdateJobRequest {
     /// Job ID returned by create_job.
-    pub job_id: String,
+    #[serde(alias = "job_id")]
+    pub pipeline_run_id: String,
     /// Target status: dispatched | gate_requested | gate_passed | gate_failed | blocked | completed | merged | failed
     pub status: String,
     /// Worktree path — required when status is "dispatched".
@@ -51,7 +52,8 @@ pub struct ListJobsRequest {
 #[derive(Deserialize, JsonSchema)]
 pub struct GetJobRequest {
     /// Job ID to retrieve.
-    pub job_id: String,
+    #[serde(alias = "job_id")]
+    pub pipeline_run_id: String,
 }
 
 #[derive(Deserialize, JsonSchema)]

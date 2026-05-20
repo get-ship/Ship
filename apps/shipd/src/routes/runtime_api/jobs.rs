@@ -242,11 +242,11 @@ pub struct EventSummary {
     payload_preview: String,
 }
 
-/// GET /api/v1/runtime/jobs/{job_id}
+/// GET /api/v1/runtime/jobs/{pipeline_run_id}
 #[utoipa::path(
     operation_id = "getJobDetail",
     get,
-    path = "/api/v1/agent_sessions/{job_id}",
+    path = "/api/v1/agent_sessions/{pipeline_run_id}",
     responses(
         (status = 200, body = MeshResponse),
         (status = 401, description = "unauthorized", body = crate::wire::ErrorResponse),
@@ -258,16 +258,16 @@ pub struct EventSummary {
 pub async fn get_job_detail(
     State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
-    Path(job_id): Path<String>,
+    Path(pipeline_run_id): Path<String>,
 ) -> axum::response::Response {
-    let job = match ship_platform::projections::pipeline_run::load_pipeline_run_by_id_at(state.ship_dir(), &job_id) {
+    let job = match ship_platform::projections::pipeline_run::load_pipeline_run_by_id_at(state.ship_dir(), &pipeline_run_id) {
         Ok(Some(j)) => j,
         Ok(None) => {
             return (
                 StatusCode::NOT_FOUND,
                 Json(MeshResponse {
                     ok: false,
-                    data: serde_json::json!(format!("job '{job_id}' not found")),
+                    data: serde_json::json!(format!("job '{pipeline_run_id}' not found")),
                 }),
             ).into_response();
         }
@@ -281,7 +281,7 @@ pub async fn get_job_detail(
 
     let platform_db = ship_substrate::db::platform_db_path(state.ship_dir());
     let step_observations = ship_substrate::db::events::query_events_by_entity_and_type_at(
-        &platform_db, &job_id, "pipeline.step.observed",
+        &platform_db, &pipeline_run_id, "pipeline.step.observed",
     )
     .unwrap_or_default()
     .into_iter()
@@ -290,7 +290,7 @@ pub async fn get_job_detail(
     })
     .collect::<Vec<_>>();
 
-    let recent_events = ship_substrate::db::events::query_recent_events_for_entity_at(&platform_db, &job_id, 50)
+    let recent_events = ship_substrate::db::events::query_recent_events_for_entity_at(&platform_db, &pipeline_run_id, 50)
         .unwrap_or_default()
         .into_iter()
         .map(|env| {
@@ -359,10 +359,10 @@ pub async fn create_job(
             }),
         );
     }
-    let job_id = ship_substrate::gen_ulid();
+    let pipeline_run_id = ship_substrate::gen_ulid();
     let baseline_sha = super::resolve_project_head_sha();
     let payload = PipelineRunStartedPayload {
-        job_id: job_id.clone(),
+        pipeline_run_id: pipeline_run_id.clone(),
         slug: req.slug,
         agent: req.agent,
         branch: req.branch,
@@ -398,7 +398,7 @@ pub async fn create_job(
         }
     };
 
-    let envelope = match EventEnvelope::new(event_types::PIPELINE_RUN_STARTED, &job_id, &payload)
+    let envelope = match EventEnvelope::new(event_types::PIPELINE_RUN_STARTED, &pipeline_run_id, &payload)
         .map(|e| e.with_actor_id("studio"))
     {
         Ok(e) => e,
@@ -417,7 +417,7 @@ pub async fn create_job(
             StatusCode::OK,
             Json(MeshResponse {
                 ok: true,
-                data: serde_json::json!({ "job_id": &job_id }),
+                data: serde_json::json!({ "pipeline_run_id": &pipeline_run_id }),
             }),
         ),
         Err(e) => (
@@ -505,7 +505,7 @@ pub async fn cancel_job(
     }
 
     let payload = ship_substrate::events::pipeline::PipelineRunCancelledPayload {
-        job_id: job.job_id.clone(),
+        pipeline_run_id: job.pipeline_run_id.clone(),
         slug: slug.clone(),
         reason: req.reason,
         requested_by: "operator".to_string(),
@@ -513,7 +513,7 @@ pub async fn cancel_job(
 
     let envelope = match EventEnvelope::new(
         event_types::PIPELINE_RUN_CANCELLED,
-        &job.job_id,
+        &job.pipeline_run_id,
         &payload,
     )
     .map(|e| e.with_actor_id("operator"))
@@ -708,11 +708,11 @@ pub async fn end_job(
 
     // Single-step job or fallback: emit job.completed directly.
     let payload = ship_substrate::events::pipeline::PipelineRunCompletedPayload {
-        job_id: job.job_id.clone(),
+        pipeline_run_id: job.pipeline_run_id.clone(),
         slug: job.slug.clone(),
     };
 
-    let envelope = match EventEnvelope::new(event_types::PIPELINE_RUN_COMPLETED, &job.job_id, &payload)
+    let envelope = match EventEnvelope::new(event_types::PIPELINE_RUN_COMPLETED, &job.pipeline_run_id, &payload)
         .map(|e| e.with_actor_id("hook"))
     {
         Ok(e) => e,

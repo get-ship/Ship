@@ -147,7 +147,7 @@ async fn exit_handler_emits_job_completed_for_clean_exit() {
     exit_tx
         .send(ExitSignal {
             slug: "test-job".to_string(),
-            job_id: "j-clean-1".to_string(),
+            pipeline_run_id: "j-clean-1".to_string(),
             exit_code: Some(0),
             cause: ExitCause::AgentExited,
         })
@@ -177,7 +177,7 @@ async fn exit_handler_does_not_panic_for_failed_exit() {
     exit_tx
         .send(ExitSignal {
             slug: "failing-job".to_string(),
-            job_id: "j-fail-1".to_string(),
+            pipeline_run_id: "j-fail-1".to_string(),
             exit_code: Some(1),
             cause: ExitCause::AgentExited,
         })

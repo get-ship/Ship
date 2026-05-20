@@ -9,39 +9,39 @@ use ship_substrate::events::EventEnvelope;
 use ship_platform::projections::pipeline_run::{project, PipelineRunStatus};
 
 fn ev(event_type: &str, payload: serde_json::Value) -> EventEnvelope {
-    let job_id = payload["job_id"].as_str().unwrap_or("test");
-    EventEnvelope::new(event_type, job_id, &payload).unwrap()
+    let pipeline_run_id = payload["pipeline_run_id"].as_str().unwrap_or("test");
+    EventEnvelope::new(event_type, pipeline_run_id, &payload).unwrap()
 }
 
-fn created(job_id: &str, slug: &str) -> EventEnvelope {
+fn created(pipeline_run_id: &str, slug: &str) -> EventEnvelope {
     ev(event_types::PIPELINE_RUN_STARTED, serde_json::json!({
-        "job_id": job_id, "slug": slug,
+        "pipeline_run_id": pipeline_run_id, "slug": slug,
         "agent": "rust-runtime", "branch": format!("job/{slug}"),
         "spec_path": "spec.md", "plan_id": null,
     }))
 }
 
-fn dispatched(job_id: &str) -> EventEnvelope {
+fn dispatched(pipeline_run_id: &str) -> EventEnvelope {
     ev(event_types::PIPELINE_RUN_DISPATCHED, serde_json::json!({
-        "job_id": job_id, "worktree": format!("/tmp/wt/{job_id}"), "pid": 1234
+        "pipeline_run_id": pipeline_run_id, "worktree": format!("/tmp/wt/{pipeline_run_id}"), "pid": 1234
     }))
 }
 
-fn completed(job_id: &str, slug: &str) -> EventEnvelope {
+fn completed(pipeline_run_id: &str, slug: &str) -> EventEnvelope {
     ev(event_types::PIPELINE_RUN_COMPLETED, serde_json::json!({
-        "job_id": job_id, "slug": slug
+        "pipeline_run_id": pipeline_run_id, "slug": slug
     }))
 }
 
-fn merged(job_id: &str, slug: &str) -> EventEnvelope {
+fn merged(pipeline_run_id: &str, slug: &str) -> EventEnvelope {
     ev(event_types::PIPELINE_RUN_MERGED, serde_json::json!({
-        "job_id": job_id, "slug": slug
+        "pipeline_run_id": pipeline_run_id, "slug": slug
     }))
 }
 
-fn failed(job_id: &str, error: &str) -> EventEnvelope {
+fn failed(pipeline_run_id: &str, error: &str) -> EventEnvelope {
     ev(event_types::PIPELINE_RUN_FAILED, serde_json::json!({
-        "job_id": job_id, "error": error
+        "pipeline_run_id": pipeline_run_id, "error": error
     }))
 }
 
@@ -224,7 +224,7 @@ fn all_non_terminal_states_recoverable() {
         created("j-blocked", "blocked"),
         dispatched("j-blocked"),
         ev(event_types::PIPELINE_RUN_BLOCKED, serde_json::json!({
-            "job_id": "j-blocked", "blocker": "needs key", "needs_human": true
+            "pipeline_run_id": "j-blocked", "blocker": "needs key", "needs_human": true
         })),
     ];
     let map = project(&events);
@@ -281,7 +281,7 @@ fn job_full_lifecycle_all_events_present() {
 fn pipeline_full_lifecycle_all_steps_tracked() {
     let events = vec![
         ev(event_types::PIPELINE_RUN_STARTED, serde_json::json!({
-            "job_id": "j1", "slug": "pipe",
+            "pipeline_run_id": "j1", "slug": "pipe",
             "agent": "test-writer", "branch": "job/pipe",
             "spec_path": "spec.md", "plan_id": null,
             "steps": {
@@ -312,7 +312,7 @@ fn pipeline_full_lifecycle_all_steps_tracked() {
 fn pipeline_failure_preserves_completed_steps() {
     let events = vec![
         ev(event_types::PIPELINE_RUN_STARTED, serde_json::json!({
-            "job_id": "j1", "slug": "pipe",
+            "pipeline_run_id": "j1", "slug": "pipe",
             "agent": "test-writer", "branch": "job/pipe",
             "spec_path": "spec.md", "plan_id": null,
             "steps": { "steps": [

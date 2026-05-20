@@ -280,8 +280,8 @@ pub async fn emit_event_via_daemon(body: Value) -> Result<String> {
 /// Update a job's status through the daemon. The daemon builds the
 /// appropriate `job.*` envelope server-side, persists it, and routes via
 /// the kernel so projections (jobs table, pipeline state, dispatch) advance.
-pub async fn update_job_status_via_daemon(job_id: &str, body: Value) -> Result<String> {
-    post(&format!("/jobs/{job_id}/status"), body).await
+pub async fn update_job_status_via_daemon(pipeline_run_id: &str, body: Value) -> Result<String> {
+    post(&format!("/jobs/{pipeline_run_id}/status"), body).await
 }
 
 /// Declare a job's current pipeline step complete via the daemon. The

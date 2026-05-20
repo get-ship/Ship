@@ -24,7 +24,7 @@ pub async fn try_review_retry(
         Ok(j) => j,
         Err(_) => return false,
     };
-    let job = match jobs.values().find(|j| j.job_id == payload.job_id) {
+    let job = match jobs.values().find(|j| j.pipeline_run_id == payload.pipeline_run_id) {
         Some(j) => j.clone(),
         None => return false,
     };
@@ -72,7 +72,7 @@ pub async fn try_review_retry(
 
     // Emit step.retry event
     let retry_payload = ship_substrate::events::pipeline::PipelineStepRetryPayload {
-        job_id: payload.job_id.clone(),
+        pipeline_run_id: payload.pipeline_run_id.clone(),
         slug: payload.slug.clone(),
         step_id: gated_step_id.clone(),
         step_name: gated_step_id.clone(),
@@ -81,7 +81,7 @@ pub async fn try_review_retry(
     };
     let retry_envelope = match EventEnvelope::new(
         ship_substrate::events::pipeline::event_types::PIPELINE_STEP_RETRY,
-        &payload.job_id,
+        &payload.pipeline_run_id,
         &retry_payload,
     ) {
         Ok(e) => e.with_actor_id("service.orchestrator"),
@@ -98,8 +98,8 @@ pub async fn try_review_retry(
     // Build synthetic envelope for advance_pipeline
     let synthetic = match EventEnvelope::new(
         "pipeline.step.retry",
-        &payload.job_id,
-        &serde_json::json!({ "job_id": &payload.job_id, "slug": &payload.slug }),
+        &payload.pipeline_run_id,
+        &serde_json::json!({ "pipeline_run_id": &payload.pipeline_run_id, "slug": &payload.slug }),
     ) {
         Ok(e) => e.with_actor_id("service.orchestrator"),
         Err(_) => return false,
@@ -117,7 +117,7 @@ pub async fn emit_job_failed_for_review(
         Ok(j) => j,
         Err(_) => return,
     };
-    let job = match jobs.values().find(|j| j.job_id == payload.job_id) {
+    let job = match jobs.values().find(|j| j.pipeline_run_id == payload.pipeline_run_id) {
         Some(j) => j,
         None => return,
     };
@@ -143,12 +143,12 @@ pub async fn emit_job_failed_for_review(
         None => reason,
     };
     let fail_payload = ship_substrate::events::pipeline::PipelineRunFailedPayload {
-        job_id: payload.job_id.clone(),
+        pipeline_run_id: payload.pipeline_run_id.clone(),
         error,
     };
     let env = match EventEnvelope::new(
         ship_substrate::events::pipeline::event_types::PIPELINE_RUN_FAILED,
-        &payload.job_id,
+        &payload.pipeline_run_id,
         &fail_payload,
     ) {
         Ok(e) => e.with_actor_id("service.orchestrator"),

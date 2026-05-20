@@ -9,36 +9,36 @@ use ship_substrate::events::EventEnvelope;
 use ship_platform::projections::pipeline_run::{project, PipelineRunStatus};
 
 fn ev(event_type: &str, payload: serde_json::Value) -> EventEnvelope {
-    let job_id = payload["job_id"].as_str().unwrap_or("test");
-    EventEnvelope::new(event_type, job_id, &payload).unwrap()
+    let pipeline_run_id = payload["pipeline_run_id"].as_str().unwrap_or("test");
+    EventEnvelope::new(event_type, pipeline_run_id, &payload).unwrap()
 }
 
-fn created(job_id: &str, slug: &str) -> EventEnvelope {
+fn created(pipeline_run_id: &str, slug: &str) -> EventEnvelope {
     ev(event_types::PIPELINE_RUN_STARTED, serde_json::json!({
-        "job_id": job_id, "slug": slug,
+        "pipeline_run_id": pipeline_run_id, "slug": slug,
         "agent": "rust-runtime", "branch": format!("job/{slug}"),
         "spec_path": "spec.md", "plan_id": null,
     }))
 }
 
-fn created_with_deps(job_id: &str, slug: &str, deps: Vec<&str>) -> EventEnvelope {
+fn created_with_deps(pipeline_run_id: &str, slug: &str, deps: Vec<&str>) -> EventEnvelope {
     ev(event_types::PIPELINE_RUN_STARTED, serde_json::json!({
-        "job_id": job_id, "slug": slug,
+        "pipeline_run_id": pipeline_run_id, "slug": slug,
         "agent": "rust-runtime", "branch": format!("job/{slug}"),
         "spec_path": "spec.md", "plan_id": null,
         "depends_on": deps,
     }))
 }
 
-fn dispatched(job_id: &str) -> EventEnvelope {
+fn dispatched(pipeline_run_id: &str) -> EventEnvelope {
     ev(event_types::PIPELINE_RUN_DISPATCHED, serde_json::json!({
-        "job_id": job_id, "worktree": format!("/tmp/wt/{job_id}"), "pid": null,
+        "pipeline_run_id": pipeline_run_id, "worktree": format!("/tmp/wt/{pipeline_run_id}"), "pid": null,
     }))
 }
 
-fn completed(job_id: &str) -> EventEnvelope {
+fn completed(pipeline_run_id: &str) -> EventEnvelope {
     ev(event_types::PIPELINE_RUN_COMPLETED, serde_json::json!({
-        "job_id": job_id, "slug": "s",
+        "pipeline_run_id": pipeline_run_id, "slug": "s",
     }))
 }
 
