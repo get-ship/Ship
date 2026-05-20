@@ -3,7 +3,7 @@
 //! Also handles pipelines whose first step is `run:` (skips agent spawning).
 //!
 //! Two entry points:
-//!   - `handle_job_created` → pipeline composition (multi-step pipelines).
+//!   - `handle_pipeline_run_started` → pipeline composition (multi-step pipelines).
 //!     Dispatches the first step; subsequent steps run via advance_pipeline.
 //!   - `handle_agent_session_started` → the dispatch PRIMITIVE. Owns the
 //!     spawn / register / exit-handler-attach atom for bare single-agent
@@ -47,7 +47,7 @@ pub(crate) fn resolve_step_invocation(
     }
 }
 
-pub async fn handle_job_created(
+pub async fn handle_pipeline_run_started(
     kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
     envelope: &ship_substrate::events::EventEnvelope,
     octx: &OrchestratorContext,

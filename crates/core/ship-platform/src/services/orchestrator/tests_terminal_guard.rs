@@ -19,7 +19,7 @@ use crate::services::dispatch_ports::{
     AgentPlatform, ExecutorHandle, IsolationStrategy, SessionContext, SessionExecutor,
     ProcessRegistryPort,
 };
-use crate::services::orchestrator::router::handle_job_event;
+use crate::services::orchestrator::router::handle_orchestrator_event;
 use crate::services::orchestrator::OrchestratorContext;
 
 // ── Mocks ──────────────────────────────────────────────────────────────────
@@ -94,7 +94,7 @@ impl ProcessRegistryPort for NoopRegistry {
 
 fn dispatch_config() -> ActorConfig {
     ActorConfig {
-        namespace: "service.job-dispatch".to_string(),
+        namespace: "service.orchestrator".to_string(),
         write_namespaces: vec!["job.".to_string(), "step.".to_string()],
         read_namespaces: vec![],
         subscribe_namespaces: vec!["pipeline.".to_string()],
@@ -111,7 +111,7 @@ fn octx(executor: Arc<TrackingExecutor>, worktrees: PathBuf) -> OrchestratorCont
         probe: Arc::new(crate::services::process_tree_probe::SysinfoProcessTreeProbe::new()),
         done_flags: Arc::new(Mutex::new(std::collections::HashMap::new())),
         activity_txs: Arc::new(Mutex::new(std::collections::HashMap::new())),
-        job_locks: Arc::new(Mutex::new(std::collections::HashMap::new())),
+        run_locks: Arc::new(Mutex::new(std::collections::HashMap::new())),
         event_dedup: Arc::new(crate::services::orchestrator::dedup::EventDedup::new()),
         fanout_lane_txs: Arc::new(Mutex::new(std::collections::HashMap::new())),
         fanout_lane_refs: Arc::new(Mutex::new(std::collections::HashMap::new())),
@@ -128,7 +128,7 @@ async fn seed_terminal(
     let base = ship_substrate::project::get_global_dir().unwrap();
     let mut router = KernelRouter::new(base).unwrap();
     router
-        .spawn_actor("service.job-dispatch", dispatch_config())
+        .spawn_actor("service.orchestrator", dispatch_config())
         .unwrap();
     let kernel = Arc::new(Mutex::new(router));
 
@@ -212,7 +212,7 @@ async fn step_observed_ignored_when_job_failed() {
     );
 
     let env = observed_advance(job_id, "guard-failed");
-    handle_job_event(&kernel, &env, &ctx).await;
+    handle_orchestrator_event(&kernel, &env, &ctx).await;
 
     assert_eq!(
         executor.spawned.load(std::sync::atomic::Ordering::SeqCst),
@@ -231,7 +231,7 @@ async fn step_observed_ignored_when_job_merged() {
     let kernel = seed_terminal(job_id, "guard-merged", event_types::PIPELINE_RUN_MERGED).await;
 
     let env = observed_advance(job_id, "guard-merged");
-    handle_job_event(&kernel, &env, &ctx).await;
+    handle_orchestrator_event(&kernel, &env, &ctx).await;
 
     assert_eq!(
         executor.spawned.load(std::sync::atomic::Ordering::SeqCst),
@@ -254,7 +254,7 @@ async fn step_observed_ignored_when_job_cancelled() {
     );
 
     let env = observed_advance(job_id, "guard-cancelled");
-    handle_job_event(&kernel, &env, &ctx).await;
+    handle_orchestrator_event(&kernel, &env, &ctx).await;
 
     assert_eq!(
         executor.spawned.load(std::sync::atomic::Ordering::SeqCst),
@@ -265,7 +265,7 @@ async fn step_observed_ignored_when_job_cancelled() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn operator_events_bypass_terminal_guard() {
     // A job.update for a Failed job must still pass the guard and reach
-    // handle_job_update. We check "passed the guard" indirectly: the
+    // handle_pipeline_run_updated. We check "passed the guard" indirectly: the
     // function completes without panicking and the projection remains
     // Failed (job.update doesn't transition status in the projection).
     let tmp = TempDir::new().unwrap();
@@ -282,7 +282,7 @@ async fn operator_events_bypass_terminal_guard() {
         "note": "operator commented after failure",
     });
     let env = EventEnvelope::new(event_types::PIPELINE_RUN_UPDATED, job_id, &update_payload).unwrap();
-    handle_job_event(&kernel, &env, &ctx).await;
+    handle_orchestrator_event(&kernel, &env, &ctx).await;
 
     // The guard must not swallow operator events; the job stays Failed.
     assert_eq!(

@@ -156,9 +156,9 @@ pub(super) fn parse_pipeline_content(content: &str) -> Result<(Pipeline, Pipelin
 
 pub(super) fn merge_meta_vars(payload: &mut PipelineRunStartedPayload, meta: &PipelineMeta) {
     if let Some(pipeline_vars) = &meta.vars {
-        let job_vars = payload.vars.get_or_insert_with(Default::default);
+        let run_vars = payload.vars.get_or_insert_with(Default::default);
         for (k, v) in pipeline_vars {
-            job_vars.entry(k.clone()).or_insert_with(|| v.clone());
+            run_vars.entry(k.clone()).or_insert_with(|| v.clone());
         }
     }
     if payload.step_specs.is_none()

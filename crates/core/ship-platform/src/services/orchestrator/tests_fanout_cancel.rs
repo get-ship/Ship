@@ -72,7 +72,7 @@ impl IsolationStrategy for NoopIsolation {
 
 fn dispatch_actor_config() -> ActorConfig {
     ActorConfig {
-        namespace: "service.job-dispatch".into(),
+        namespace: "service.orchestrator".into(),
         write_namespaces: vec!["job.".into(), "step.".into(), "process.".into()],
         read_namespaces: vec![],
         subscribe_namespaces: vec!["pipeline.".into()],
@@ -95,7 +95,7 @@ fn make_octx(
         activity_txs: Arc::new(Mutex::new(HashMap::<
             String, tokio::sync::mpsc::UnboundedSender<StepActivity>,
         >::new())),
-        job_locks: Arc::new(Mutex::new(HashMap::new())),
+        run_locks: Arc::new(Mutex::new(HashMap::new())),
         event_dedup: Arc::new(crate::services::orchestrator::dedup::EventDedup::new()),
         fanout_lane_txs: Arc::new(Mutex::new(HashMap::new())),
         fanout_lane_refs: Arc::new(Mutex::new(HashMap::new())),
@@ -136,7 +136,7 @@ async fn seed_lanes(
 async fn cancel_walks_every_lane_and_wakes_the_aggregator() {
     let base = ship_substrate::project::get_global_dir().unwrap();
     let mut router = KernelRouter::new(base).unwrap();
-    router.spawn_actor("service.job-dispatch", dispatch_actor_config()).unwrap();
+    router.spawn_actor("service.orchestrator", dispatch_actor_config()).unwrap();
     let kernel = Arc::new(Mutex::new(router));
 
     let cleanup_slugs = Arc::new(Mutex::new(Vec::new()));
@@ -197,7 +197,7 @@ async fn cancel_walks_every_lane_and_wakes_the_aggregator() {
 async fn cancel_is_idempotent_when_no_lanes_are_registered() {
     let base = ship_substrate::project::get_global_dir().unwrap();
     let mut router = KernelRouter::new(base).unwrap();
-    router.spawn_actor("service.job-dispatch", dispatch_actor_config()).unwrap();
+    router.spawn_actor("service.orchestrator", dispatch_actor_config()).unwrap();
     let kernel = Arc::new(Mutex::new(router));
 
     let cleanup_slugs = Arc::new(Mutex::new(Vec::new()));

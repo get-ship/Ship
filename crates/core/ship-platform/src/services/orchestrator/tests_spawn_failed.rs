@@ -123,7 +123,7 @@ fn job_payload(job_id: &str, slug: &str) -> PipelineRunStartedPayload {
 
 fn dispatch_config() -> ActorConfig {
     ActorConfig {
-        namespace: "service.job-dispatch".to_string(),
+        namespace: "service.orchestrator".to_string(),
         write_namespaces: vec!["job.".to_string(), "step.".to_string()],
         read_namespaces: vec![],
         subscribe_namespaces: vec!["pipeline.".to_string()],
@@ -144,7 +144,7 @@ fn octx(
         probe: Arc::new(crate::services::process_tree_probe::SysinfoProcessTreeProbe::new()),
         done_flags: Arc::new(Mutex::new(std::collections::HashMap::new())),
         activity_txs: Arc::new(Mutex::new(std::collections::HashMap::new())),
-        job_locks: Arc::new(Mutex::new(std::collections::HashMap::new())),
+        run_locks: Arc::new(Mutex::new(std::collections::HashMap::new())),
         event_dedup: Arc::new(crate::services::orchestrator::dedup::EventDedup::new()),
         fanout_lane_txs: Arc::new(Mutex::new(std::collections::HashMap::new())),
         fanout_lane_refs: Arc::new(Mutex::new(std::collections::HashMap::new())),
@@ -170,7 +170,7 @@ async fn isolation_prepare_failure_emits_spawn_failed() {
     let base = ship_substrate::project::get_global_dir().unwrap();
     let mut router = KernelRouter::new(base.clone()).unwrap();
     router
-        .spawn_actor("service.job-dispatch", dispatch_config())
+        .spawn_actor("service.orchestrator", dispatch_config())
         .unwrap();
     let kernel = Arc::new(Mutex::new(router));
 
@@ -221,7 +221,7 @@ async fn executor_spawn_failure_emits_spawn_failed() {
     let base = ship_substrate::project::get_global_dir().unwrap();
     let mut router = KernelRouter::new(base.clone()).unwrap();
     router
-        .spawn_actor("service.job-dispatch", dispatch_config())
+        .spawn_actor("service.orchestrator", dispatch_config())
         .unwrap();
     let kernel = Arc::new(Mutex::new(router));
 

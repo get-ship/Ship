@@ -261,7 +261,7 @@ pub async fn dispatch_fanout_step(
             log_tail: None,
         };
         if let Ok(env) = EventEnvelope::new(event_types::PIPELINE_STEP_OBSERVED, &job_id, &payload) {
-            let env = env.with_actor_id("service.job-dispatch");
+            let env = env.with_actor_id("service.orchestrator");
             persist_and_route(&kernel_clone, env, &parent_slug, None).await;
         }
     });

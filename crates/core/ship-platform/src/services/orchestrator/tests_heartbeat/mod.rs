@@ -27,7 +27,7 @@ use fakes::{AdvancingProbe, IdleProbe, NoopExecutor, NullProbe, StubRegistry, To
 
 fn dispatch_actor_config() -> ActorConfig {
     ActorConfig {
-        namespace: "service.job-dispatch".into(),
+        namespace: "service.orchestrator".into(),
         write_namespaces: vec!["job.".into(), "step.".into(), "process.".into()],
         read_namespaces: vec![],
         subscribe_namespaces: vec!["pipeline.".into()],
@@ -39,7 +39,7 @@ async fn fresh_kernel() -> Arc<Mutex<KernelRouter>> {
     let base = ship_substrate::project::get_global_dir().unwrap();
     let mut router = KernelRouter::new(base).unwrap();
     router
-        .spawn_actor("service.job-dispatch", dispatch_actor_config())
+        .spawn_actor("service.orchestrator", dispatch_actor_config())
         .unwrap();
     Arc::new(Mutex::new(router))
 }

@@ -20,9 +20,9 @@ fn runtime_ctx() -> EmitContext {
     }
 }
 
-fn job_dispatch_config() -> ActorConfig {
+fn orchestrator_actor_config() -> ActorConfig {
     ActorConfig {
-        namespace: "service.job-dispatch".to_string(),
+        namespace: "service.orchestrator".to_string(),
         write_namespaces: vec!["job.".to_string()],
         read_namespaces: vec![],
         subscribe_namespaces: vec!["job.".to_string()],
@@ -82,7 +82,7 @@ fn noop_dctx() -> DispatchContext {
 async fn job_created_delivered_to_subscriber() {
     let (_dir, mut router) = setup();
     let (_store, mut mb) = router
-        .spawn_actor("service.job-dispatch", job_dispatch_config())
+        .spawn_actor("service.orchestrator", orchestrator_actor_config())
         .unwrap();
 
     let event = ev(
@@ -113,7 +113,7 @@ async fn job_created_delivered_to_subscriber() {
 async fn job_update_delivered_to_subscriber() {
     let (_dir, mut router) = setup();
     let (_store, mut mb) = router
-        .spawn_actor("service.job-dispatch", job_dispatch_config())
+        .spawn_actor("service.orchestrator", orchestrator_actor_config())
         .unwrap();
 
     let event = ev(
@@ -146,7 +146,7 @@ async fn job_update_delivered_to_subscriber() {
 async fn job_completed_delivered_to_subscriber() {
     let (_dir, mut router) = setup();
     let (_store, mut mb) = router
-        .spawn_actor("service.job-dispatch", job_dispatch_config())
+        .spawn_actor("service.orchestrator", orchestrator_actor_config())
         .unwrap();
 
     let event = ev(
@@ -167,7 +167,7 @@ async fn job_completed_delivered_to_subscriber() {
 async fn job_merged_delivered_to_subscriber() {
     let (_dir, mut router) = setup();
     let (_store, mut mb) = router
-        .spawn_actor("service.job-dispatch", job_dispatch_config())
+        .spawn_actor("service.orchestrator", orchestrator_actor_config())
         .unwrap();
 
     let event = ev(
@@ -188,7 +188,7 @@ async fn job_merged_delivered_to_subscriber() {
 async fn non_job_events_not_delivered_to_subscriber() {
     let (_dir, mut router) = setup();
     let (_store, mut mb) = router
-        .spawn_actor("service.job-dispatch", job_dispatch_config())
+        .spawn_actor("service.orchestrator", orchestrator_actor_config())
         .unwrap();
 
     let event = ev(
@@ -268,7 +268,7 @@ async fn pipeline_advances_to_next_phase() {
     // Set up kernel with a subscriber to capture routed events
     let mut router = KernelRouter::new(ship_substrate::ShipHome::project_ship_dir(dir.path())).unwrap();
     let (_actor_store, mut mb) = router
-        .spawn_actor("service.job-dispatch", job_dispatch_config())
+        .spawn_actor("service.orchestrator", orchestrator_actor_config())
         .unwrap();
     let kernel = Arc::new(tokio::sync::Mutex::new(router));
 
@@ -435,7 +435,7 @@ mod ports {
             }),
         );
 
-        super::super::handle_job_created(&kernel, &event, &dctx).await;
+        super::super::handle_pipeline_run_started(&kernel, &event, &dctx).await;
 
         assert!(
             isolation.prepare_count.load(Ordering::SeqCst) > 0,
@@ -474,7 +474,7 @@ mod ports {
             }),
         );
 
-        super::super::handle_job_created(&kernel, &event, &dctx).await;
+        super::super::handle_pipeline_run_started(&kernel, &event, &dctx).await;
 
         assert!(
             executor.spawn_count.load(Ordering::SeqCst) > 0,
@@ -539,7 +539,7 @@ mod ports {
 
         let mut router = KernelRouter::new(ship_substrate::ShipHome::project_ship_dir(dir.path())).unwrap();
         let (_s, _mb) = router
-            .spawn_actor("service.job-dispatch", ship_supervisor::job_dispatch_config())
+            .spawn_actor("service.orchestrator", ship_supervisor::orchestrator_actor_config())
             .unwrap();
         let kernel = Arc::new(tokio::sync::Mutex::new(router));
 
@@ -631,8 +631,8 @@ async fn job_with_depends_on_is_deferred() {
         }),
     );
 
-    // handle_job_created should return without dispatching (no spawn call)
-    super::handle_job_created(&kernel, &event, &dctx).await;
+    // handle_pipeline_run_started should return without dispatching (no spawn call)
+    super::handle_pipeline_run_started(&kernel, &event, &dctx).await;
     // The job stays as Pending in the projection — dispatch_ready_pending_jobs
     // will pick it up when deps resolve. No assertion on in-memory state needed.
 }
@@ -656,7 +656,7 @@ async fn job_without_depends_on_not_deferred() {
         }),
     );
 
-    super::handle_job_created(&kernel, &event, &dctx).await;
+    super::handle_pipeline_run_started(&kernel, &event, &dctx).await;
     // With NoopExecutor + NoopIsolation, dispatch proceeds without error.
     // The handle is registered in the registry.
     assert_eq!(dctx.registry.lock().await.len(), 1);
@@ -969,7 +969,7 @@ async fn single_dispatch_path_one_subscriber() {
 
     // Spawn the canonical job-dispatch actor
     let (_store, mut mb) = router
-        .spawn_actor("service.job-dispatch", job_dispatch_config())
+        .spawn_actor("service.orchestrator", orchestrator_actor_config())
         .unwrap();
 
     let event = ev(
@@ -1167,7 +1167,7 @@ mod reliability {
         let mut router =
             ship_substrate::events::kernel_router::KernelRouter::new(ship_dir.clone()).unwrap();
         let (_s, _mb) = router
-            .spawn_actor("service.job-dispatch", ship_supervisor::job_dispatch_config())
+            .spawn_actor("service.orchestrator", ship_supervisor::orchestrator_actor_config())
             .unwrap();
         let kernel = Arc::new(tokio::sync::Mutex::new(router));
 
@@ -1213,7 +1213,7 @@ mod reliability {
         let mut router =
             ship_substrate::events::kernel_router::KernelRouter::new(ship_dir.clone()).unwrap();
         let (_s, _mb) = router
-            .spawn_actor("service.job-dispatch", ship_supervisor::job_dispatch_config())
+            .spawn_actor("service.orchestrator", ship_supervisor::orchestrator_actor_config())
             .unwrap();
         let kernel = Arc::new(tokio::sync::Mutex::new(router));
 
@@ -1268,7 +1268,7 @@ mod reliability {
         let mut router =
             ship_substrate::events::kernel_router::KernelRouter::new(ship_dir.clone()).unwrap();
         let (_s, _mb) = router
-            .spawn_actor("service.job-dispatch", ship_supervisor::job_dispatch_config())
+            .spawn_actor("service.orchestrator", ship_supervisor::orchestrator_actor_config())
             .unwrap();
         let kernel = Arc::new(tokio::sync::Mutex::new(router));
 
@@ -1327,7 +1327,7 @@ mod reliability {
         let mut router =
             ship_substrate::events::kernel_router::KernelRouter::new(ship_dir.clone()).unwrap();
         let (_s, _mb) = router
-            .spawn_actor("service.job-dispatch", ship_supervisor::job_dispatch_config())
+            .spawn_actor("service.orchestrator", ship_supervisor::orchestrator_actor_config())
             .unwrap();
         let kernel = Arc::new(tokio::sync::Mutex::new(router));
 

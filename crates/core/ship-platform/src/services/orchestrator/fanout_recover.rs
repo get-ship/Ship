@@ -55,7 +55,7 @@ pub async fn emit_fanout_lane_dispatched(
         "lane_slug": lane_slug,
     });
     let envelope = match EventEnvelope::new(event_types::PIPELINE_STEP_STARTED, job_id, &payload) {
-        Ok(e) => e.with_actor_id("service.job-dispatch"),
+        Ok(e) => e.with_actor_id("service.orchestrator"),
         Err(e) => {
             tracing::warn!(parent_slug, lane_id, "fanout: failed to build lane step_dispatched: {e}");
             return;

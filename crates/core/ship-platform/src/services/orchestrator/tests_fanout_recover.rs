@@ -68,9 +68,9 @@ fn make_kernel() -> Arc<Mutex<KernelRouter>> {
     let mut router = KernelRouter::new(base).unwrap();
     router
         .spawn_actor(
-            "service.job-dispatch",
+            "service.orchestrator",
             ActorConfig {
-                namespace: "service.job-dispatch".into(),
+                namespace: "service.orchestrator".into(),
                 write_namespaces: vec!["job.".into(), "step.".into(), "artifact.".into()],
                 read_namespaces: vec![],
                 subscribe_namespaces: vec!["pipeline.".into()],
@@ -92,7 +92,7 @@ fn make_octx(platform: Arc<CountingPlatform>) -> OrchestratorContext {
         activity_txs: Arc::new(Mutex::new(HashMap::<
             String, tokio::sync::mpsc::UnboundedSender<StepActivity>,
         >::new())),
-        job_locks: Arc::new(Mutex::new(HashMap::new())),
+        run_locks: Arc::new(Mutex::new(HashMap::new())),
         event_dedup: Arc::new(crate::services::orchestrator::dedup::EventDedup::new()),
         fanout_lane_txs: Arc::new(Mutex::new(HashMap::new())),
         fanout_lane_refs: Arc::new(Mutex::new(HashMap::new())),

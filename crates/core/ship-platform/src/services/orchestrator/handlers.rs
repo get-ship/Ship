@@ -10,7 +10,7 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 /// Forward `job.update` messages to the agent via mesh routing.
-pub async fn handle_job_update(
+pub async fn handle_pipeline_run_updated(
     kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
     envelope: &EventEnvelope,
 ) {
@@ -30,9 +30,9 @@ pub async fn handle_job_update(
 
     let mesh_envelope = match EventEnvelope::new(
         "mesh.send",
-        "service.job-dispatch",
+        "service.orchestrator",
         &serde_json::json!({
-            "from": "service.job-dispatch",
+            "from": "service.orchestrator",
             "to": slug,
             "body": {
                 "type": "pipeline.run.updated",
@@ -41,7 +41,7 @@ pub async fn handle_job_update(
             }
         }),
     ) {
-        Ok(e) => e.with_actor_id("service.job-dispatch"),
+        Ok(e) => e.with_actor_id("service.orchestrator"),
         Err(e) => {
             tracing::warn!(entity_id, "job-dispatch: failed to build mesh.send: {e}");
             return;
@@ -61,7 +61,7 @@ pub async fn handle_job_update(
 }
 
 /// Clean up worktree, tmux session, and branch for a completed/merged job.
-pub async fn handle_job_cleanup(
+pub async fn handle_cleanup(
     envelope: &EventEnvelope,
     platform: &dyn AgentPlatform,
 ) {
@@ -133,7 +133,7 @@ pub async fn finalize_pipeline_if_done(
         &job_id,
         &serde_json::json!({ "job_id": &job_id, "slug": &slug }),
     ) {
-        Ok(e) => e.with_actor_id("service.job-dispatch"),
+        Ok(e) => e.with_actor_id("service.orchestrator"),
         Err(_) => return,
     };
     persist_and_route(kernel, env, &slug, None).await;
@@ -143,7 +143,7 @@ pub async fn finalize_pipeline_if_done(
 /// tmux session, and emit `process.killed` for audit. The projection
 /// has already transitioned the job to Cancelled via the transition
 /// table; this handler's job is to stop the running work.
-pub async fn handle_job_cancelled(
+pub async fn handle_cancelled(
     kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
     envelope: &EventEnvelope,
     octx: &OrchestratorContext,
@@ -214,7 +214,7 @@ pub async fn handle_job_cancelled(
     };
     match EventEnvelope::new(process_event_types::PROCESS_KILLED, &slug, &killed) {
         Ok(env) => {
-            let env = env.with_actor_id("service.job-dispatch");
+            let env = env.with_actor_id("service.orchestrator");
             persist_and_route(kernel, env, &slug, None).await;
         }
         Err(e) => {
@@ -235,7 +235,7 @@ pub async fn handle_job_cancelled(
     // isn't confused by stale state.
     octx.done_flags.lock().await.remove(slug.as_str());
     octx.activity_txs.lock().await.remove(slug.as_str());
-    octx.job_locks.lock().await.remove(&envelope.entity_id);
+    octx.run_locks.lock().await.remove(&envelope.entity_id);
 }
 
 

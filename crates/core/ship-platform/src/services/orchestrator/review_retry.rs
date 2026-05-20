@@ -84,7 +84,7 @@ pub async fn try_review_retry(
         &payload.job_id,
         &retry_payload,
     ) {
-        Ok(e) => e.with_actor_id("service.job-dispatch"),
+        Ok(e) => e.with_actor_id("service.orchestrator"),
         Err(e) => {
             tracing::warn!(slug = %payload.slug, "gate-retry: failed to build event: {e}");
             return false;
@@ -101,7 +101,7 @@ pub async fn try_review_retry(
         &payload.job_id,
         &serde_json::json!({ "job_id": &payload.job_id, "slug": &payload.slug }),
     ) {
-        Ok(e) => e.with_actor_id("service.job-dispatch"),
+        Ok(e) => e.with_actor_id("service.orchestrator"),
         Err(_) => return false,
     };
 
@@ -151,7 +151,7 @@ pub async fn emit_job_failed_for_review(
         &payload.job_id,
         &fail_payload,
     ) {
-        Ok(e) => e.with_actor_id("service.job-dispatch"),
+        Ok(e) => e.with_actor_id("service.orchestrator"),
         Err(_) => return,
     };
     crate::services::orchestrator::emit::persist_and_route(

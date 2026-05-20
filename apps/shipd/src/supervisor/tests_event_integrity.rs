@@ -169,8 +169,8 @@ fn event_envelope_supports_actor_id() {
         event_types::PIPELINE_RUN_DISPATCHED,
         "j1",
         &serde_json::json!({"job_id": "j1", "worktree": "/w", "pid": null}),
-    ).unwrap().with_actor_id("service.job-dispatch");
-    assert_eq!(e.actor_id.as_deref(), Some("service.job-dispatch"));
+    ).unwrap().with_actor_id("service.orchestrator");
+    assert_eq!(e.actor_id.as_deref(), Some("service.orchestrator"));
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

@@ -10,11 +10,11 @@ use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-use super::dispatch::handle_job_created;
+use super::dispatch::handle_pipeline_run_started;
 use super::emit::emit_step_failed;
 use super::review_retry::{emit_job_failed_for_review, try_review_retry};
 use super::handlers::{
-    finalize_pipeline_if_done, handle_job_cancelled, handle_job_cleanup, handle_job_update,
+    finalize_pipeline_if_done, handle_cancelled, handle_cleanup, handle_pipeline_run_updated,
 };
 use super::pipeline::advance_pipeline;
 use super::step_io::{check_required_outputs, run_step_promotes};
@@ -28,7 +28,7 @@ pub async fn start_orchestrator(
     kernel: Arc<Mutex<ship_substrate::events::KernelRouter>>,
     octx: Arc<OrchestratorContext>,
 ) {
-    let actor_id = "service.job-dispatch".to_string();
+    let actor_id = "service.orchestrator".to_string();
     // Subscribes to two namespaces:
     //   - `pipeline.*` for composition lifecycle (multi-step pipeline runs)
     //   - `agent.session.*` for the dispatch primitive (single-agent
@@ -74,7 +74,7 @@ pub async fn start_orchestrator(
     let kr = kernel.clone();
     let mut mb = mailbox;
     while let Some(envelope) = mb.recv().await {
-        handle_job_event(&kr, &envelope, &octx).await;
+        handle_orchestrator_event(&kr, &envelope, &octx).await;
     }
     tracing::info!("job-dispatch: mailbox closed");
 }
@@ -82,7 +82,7 @@ pub async fn start_orchestrator(
 /// Handle a single job/step event.
 ///
 /// Called from the mailbox receive loop for each `job.*` or `step.*` event.
-pub async fn handle_job_event(
+pub async fn handle_orchestrator_event(
     kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
     envelope: &EventEnvelope,
     octx: &OrchestratorContext,
@@ -130,14 +130,14 @@ pub async fn handle_job_event(
         "agent.session.started" => super::dispatch::handle_agent_session_started(
             kernel, envelope, octx,
         ).await,
-        "pipeline.run.started" => handle_job_created(kernel, envelope, octx).await,
-        "pipeline.run.updated" => handle_job_update(kernel, envelope).await,
-        et::PIPELINE_RUN_CANCELLED => handle_job_cancelled(kernel, envelope, octx).await,
-        // Bare agent-session cancel. handle_job_cancelled is slug-keyed
+        "pipeline.run.started" => handle_pipeline_run_started(kernel, envelope, octx).await,
+        "pipeline.run.updated" => handle_pipeline_run_updated(kernel, envelope).await,
+        et::PIPELINE_RUN_CANCELLED => handle_cancelled(kernel, envelope, octx).await,
+        // Bare agent-session cancel. handle_cancelled is slug-keyed
         // and harness-agnostic — it kills via the registry handle and
         // emits process.killed, identical to a pipeline-run cancel. The
         // payload carries `slug`, so the same handler drives both.
-        "agent.session.cancelled" => handle_job_cancelled(kernel, envelope, octx).await,
+        "agent.session.cancelled" => handle_cancelled(kernel, envelope, octx).await,
         "pipeline.run.completed" => {
             tracing::info!(entity_id = %envelope.entity_id, "job-dispatch: handling job.completed");
             let slug = extract_slug(envelope);
@@ -151,7 +151,7 @@ pub async fn handle_job_event(
                 if maybe_auto_merge(kernel, envelope, octx).await {
                     // Merge dispatched — lock stays held until job.merged arrives.
                 } else {
-                    octx.job_locks.lock().await.remove(&envelope.entity_id);
+                    octx.run_locks.lock().await.remove(&envelope.entity_id);
                     super::pending::dispatch_ready_pending_jobs(kernel, octx).await;
                 }
             }
@@ -176,8 +176,8 @@ pub async fn handle_job_event(
             if let Some(slug) = &slug {
                 octx.registry.unregister(slug).await;
             }
-            octx.job_locks.lock().await.remove(&envelope.entity_id);
-            handle_job_cleanup(envelope, &*octx.platform).await;
+            octx.run_locks.lock().await.remove(&envelope.entity_id);
+            handle_cleanup(envelope, &*octx.platform).await;
             super::pending::dispatch_ready_pending_jobs(kernel, octx).await;
         }
         "pipeline.run.failed" => {
@@ -187,7 +187,7 @@ pub async fn handle_job_event(
                 octx.done_flags.lock().await.remove(slug.as_str());
                 octx.activity_txs.lock().await.remove(slug.as_str());
             }
-            octx.job_locks.lock().await.remove(&envelope.entity_id);
+            octx.run_locks.lock().await.remove(&envelope.entity_id);
         }
         "pipeline.step.done_declared" => {
             let slug = extract_slug(envelope);
@@ -246,7 +246,7 @@ pub async fn handle_job_event(
                 if let Some(slug) = &slug {
                     octx.registry.unregister(slug).await;
                 }
-                octx.job_locks.lock().await.remove(&payload.job_id);
+                octx.run_locks.lock().await.remove(&payload.job_id);
                 return;
             }
 
@@ -473,7 +473,7 @@ async fn emit_step_gate_failure(
         error: reason.to_string(),
     };
     if let Ok(env) = EventEnvelope::new(event_types::PIPELINE_STEP_FAILED, &payload.job_id, &step_fail) {
-        let env = env.with_actor_id("service.job-dispatch");
+        let env = env.with_actor_id("service.orchestrator");
         super::emit::persist_and_route(kernel, env, &payload.slug, None).await;
     }
 
@@ -487,7 +487,7 @@ async fn emit_step_gate_failure(
         error,
     };
     if let Ok(env) = EventEnvelope::new(event_types::PIPELINE_RUN_FAILED, &payload.job_id, &job_fail) {
-        let env = env.with_actor_id("service.job-dispatch");
+        let env = env.with_actor_id("service.orchestrator");
         super::emit::persist_and_route(kernel, env, &payload.slug, None).await;
     }
 }

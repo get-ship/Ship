@@ -66,7 +66,7 @@ fn make_octx() -> Arc<OrchestratorContext> {
         probe: Arc::new(crate::services::process_tree_probe::SysinfoProcessTreeProbe::new()),
         done_flags: Arc::new(Mutex::new(std::collections::HashMap::new())),
         activity_txs: Arc::new(Mutex::new(std::collections::HashMap::new())),
-        job_locks: Arc::new(Mutex::new(std::collections::HashMap::new())),
+        run_locks: Arc::new(Mutex::new(std::collections::HashMap::new())),
         event_dedup: Arc::new(crate::services::orchestrator::dedup::EventDedup::new()),
         fanout_lane_txs: Arc::new(Mutex::new(std::collections::HashMap::new())),
         fanout_lane_refs: Arc::new(Mutex::new(std::collections::HashMap::new())),
@@ -78,9 +78,9 @@ fn make_kernel() -> Arc<Mutex<KernelRouter>> {
     let mut router = KernelRouter::new(base).unwrap();
     router
         .spawn_actor(
-            "service.job-dispatch",
+            "service.orchestrator",
             ActorConfig {
-                namespace: "service.job-dispatch".to_string(),
+                namespace: "service.orchestrator".to_string(),
                 write_namespaces: vec![
                     "job.".to_string(),
                     "step.".to_string(),

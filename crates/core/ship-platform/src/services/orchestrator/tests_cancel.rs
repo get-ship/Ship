@@ -17,7 +17,7 @@ use ship_substrate::events::EventEnvelope;
 use crate::services::dispatch_ports::{
     AgentPlatform, ExecutorHandle, SessionContext, SessionExecutor, ProcessRegistryPort,
 };
-use crate::services::orchestrator::router::handle_job_event;
+use crate::services::orchestrator::router::handle_orchestrator_event;
 use crate::services::orchestrator::OrchestratorContext;
 
 // ── Mocks ──────────────────────────────────────────────────────────────────
@@ -86,7 +86,7 @@ impl ProcessRegistryPort for SeededRegistry {
 
 fn dispatch_actor_config() -> ActorConfig {
     ActorConfig {
-        namespace: "service.job-dispatch".to_string(),
+        namespace: "service.orchestrator".to_string(),
         write_namespaces: vec![
             "job.".to_string(),
             "step.".to_string(),
@@ -117,7 +117,7 @@ async fn cancel_stops_registered_handle_and_emits_process_killed() {
     let base = ship_substrate::project::get_global_dir().unwrap();
     let mut router = KernelRouter::new(base.clone()).unwrap();
     router
-        .spawn_actor("service.job-dispatch", dispatch_actor_config())
+        .spawn_actor("service.orchestrator", dispatch_actor_config())
         .unwrap();
     let kernel = Arc::new(Mutex::new(router));
 
@@ -137,7 +137,7 @@ async fn cancel_stops_registered_handle_and_emits_process_killed() {
         probe: Arc::new(crate::services::process_tree_probe::SysinfoProcessTreeProbe::new()),
         done_flags: Arc::new(Mutex::new(std::collections::HashMap::new())),
         activity_txs: Arc::new(Mutex::new(std::collections::HashMap::new())),
-        job_locks: Arc::new(Mutex::new(std::collections::HashMap::new())),
+        run_locks: Arc::new(Mutex::new(std::collections::HashMap::new())),
         event_dedup: Arc::new(crate::services::orchestrator::dedup::EventDedup::new()),
         fanout_lane_txs: Arc::new(Mutex::new(std::collections::HashMap::new())),
         fanout_lane_refs: Arc::new(Mutex::new(std::collections::HashMap::new())),
@@ -155,7 +155,7 @@ async fn cancel_stops_registered_handle_and_emits_process_killed() {
         .unwrap()
         .with_actor_id("test");
 
-    handle_job_event(&kernel, &envelope, &octx).await;
+    handle_orchestrator_event(&kernel, &envelope, &octx).await;
 
     assert_eq!(stop_calls.load(Ordering::SeqCst), 1, "executor.stop called exactly once");
     assert_eq!(cleanup_calls.load(Ordering::SeqCst), 1, "platform.cleanup_job called exactly once");
@@ -173,7 +173,7 @@ async fn cancel_without_registered_handle_still_cleans_and_emits() {
     let base = ship_substrate::project::get_global_dir().unwrap();
     let mut router = KernelRouter::new(base.clone()).unwrap();
     router
-        .spawn_actor("service.job-dispatch", dispatch_actor_config())
+        .spawn_actor("service.orchestrator", dispatch_actor_config())
         .unwrap();
     let kernel = Arc::new(Mutex::new(router));
 
@@ -199,7 +199,7 @@ async fn cancel_without_registered_handle_still_cleans_and_emits() {
         probe: Arc::new(crate::services::process_tree_probe::SysinfoProcessTreeProbe::new()),
         done_flags: Arc::new(Mutex::new(std::collections::HashMap::new())),
         activity_txs: Arc::new(Mutex::new(std::collections::HashMap::new())),
-        job_locks: Arc::new(Mutex::new(std::collections::HashMap::new())),
+        run_locks: Arc::new(Mutex::new(std::collections::HashMap::new())),
         event_dedup: Arc::new(crate::services::orchestrator::dedup::EventDedup::new()),
         fanout_lane_txs: Arc::new(Mutex::new(std::collections::HashMap::new())),
         fanout_lane_refs: Arc::new(Mutex::new(std::collections::HashMap::new())),
@@ -217,7 +217,7 @@ async fn cancel_without_registered_handle_still_cleans_and_emits() {
         .unwrap()
         .with_actor_id("test");
 
-    handle_job_event(&kernel, &envelope, &octx).await;
+    handle_orchestrator_event(&kernel, &envelope, &octx).await;
 
     assert_eq!(stop_calls.load(Ordering::SeqCst), 0, "no handle → no stop call");
     assert_eq!(cleanup_calls.load(Ordering::SeqCst), 1, "cleanup_job still runs");

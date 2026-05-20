@@ -144,7 +144,7 @@ impl PipelineRun {
 ///
 /// Unknown event types are silently ignored so the projection remains forward-compatible.
 ///
-/// Status transitions are table-driven via [`super::job_transitions::status_for`].
+/// Status transitions are table-driven via [`super::pipeline_run_transitions::status_for`].
 /// Match arms below own only payload extraction and field-level bookkeeping;
 /// the final `if let Some(next) = status_for(...)` applies the new status.
 /// PIPELINE_STEP_OBSERVED is the one payload-conditional case — its `Failed` branch
@@ -294,7 +294,7 @@ pub fn apply(record: &mut PipelineRun, event: &EventEnvelope) {
         _ => {}
     }
 
-    if let Some(next) = super::job_transitions::status_for(&event.event_type) {
+    if let Some(next) = super::pipeline_run_transitions::status_for(&event.event_type) {
         record.status = next;
     }
 }

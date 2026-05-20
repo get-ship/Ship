@@ -98,7 +98,7 @@ async fn advance_pipeline_inner(
     // Acquire per-job lock to prevent double-dispatch when concurrent events
     // (e.g. step.observed + job.completed) both try to advance the same job.
     let job_lock = {
-        let mut locks = octx.job_locks.lock().await;
+        let mut locks = octx.run_locks.lock().await;
         locks.entry(job_id.clone()).or_insert_with(|| Arc::new(tokio::sync::Mutex::new(()))).clone()
     };
     let _guard = job_lock.lock().await;
@@ -183,13 +183,13 @@ async fn advance_pipeline_inner(
     let worktree_path = wt_root.join(slug);
 
     // Dispatch each unblocked step
-    let job_vars = job.vars.clone().unwrap_or_default();
+    let run_vars = job.vars.clone().unwrap_or_default();
     let mut dispatched_any = false;
     for (step_idx, step) in pipeline.steps.iter().enumerate().filter_map(|(i, s)| {
         next_steps.iter().find(|ns| ns.id == s.id).map(|ns| (i, *ns))
     }) {
         // Interpolate {{ var }} references before dispatch.
-        let step = match ship_pipelines::variables::interpolate_step(step, &job_vars, &Default::default()) {
+        let step = match ship_pipelines::variables::interpolate_step(step, &run_vars, &Default::default()) {
             Ok(s) => s,
             Err(missing) => {
                 tracing::error!(slug, step_id = step.id, "pipeline: unresolved pipeline var: {missing} in step {}", step.id);

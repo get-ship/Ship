@@ -10,7 +10,7 @@ use tokio::sync::Mutex;
 
 // ── Generic typed emit helpers ────────────────────────────────────────────────
 
-/// Build + persist an event under the `service.job-dispatch` actor.
+/// Build + persist an event under the `service.orchestrator` actor.
 /// Logs failures at WARN; failures don't propagate (most orchestrator
 /// callers can't recover from an emit failure).
 async fn emit_job_dispatch_event<P: serde::Serialize>(
@@ -22,7 +22,7 @@ async fn emit_job_dispatch_event<P: serde::Serialize>(
     ship_dir: Option<&std::path::Path>,
 ) {
     let envelope = match EventEnvelope::new(event_type, job_id, payload) {
-        Ok(e) => e.with_actor_id("service.job-dispatch"),
+        Ok(e) => e.with_actor_id("service.orchestrator"),
         Err(e) => {
             tracing::warn!(
                 slug, event_type,

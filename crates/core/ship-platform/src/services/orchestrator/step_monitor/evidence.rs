@@ -242,7 +242,7 @@ async fn emit_step_observed(
     payload: &PipelineStepObservedPayload,
 ) {
     let envelope = match EventEnvelope::new(event_types::PIPELINE_STEP_OBSERVED, job_id, payload) {
-        Ok(e) => e.with_actor_id("service.job-dispatch"),
+        Ok(e) => e.with_actor_id("service.orchestrator"),
         Err(e) => {
             tracing::warn!(slug, "step-monitor: failed to build envelope: {e}");
             return;

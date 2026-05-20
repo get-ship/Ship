@@ -64,7 +64,7 @@ impl SessionExecutor for MockExecutor {
 
 fn dispatch_config() -> ActorConfig {
     ActorConfig {
-        namespace: "service.job-dispatch".to_string(),
+        namespace: "service.orchestrator".to_string(),
         write_namespaces: vec!["job.".to_string()],
         read_namespaces: vec![],
         subscribe_namespaces: vec!["job.".to_string()],
@@ -188,7 +188,7 @@ async fn pipeline_advances_through_all_steps() {
 
     // Set up kernel + dispatch context with mock executor
     let mut router = KernelRouter::new(ship_dir.clone()).unwrap();
-    let (_s, _mb) = router.spawn_actor("service.job-dispatch", dispatch_config()).unwrap();
+    let (_s, _mb) = router.spawn_actor("service.orchestrator", dispatch_config()).unwrap();
     let kernel = Arc::new(Mutex::new(router));
 
     let executor = Arc::new(MockExecutor::new());
@@ -200,7 +200,7 @@ async fn pipeline_advances_through_all_steps() {
         probe: Arc::new(ship_platform::services::process_tree_probe::SysinfoProcessTreeProbe::new()),
         done_flags: Arc::new(Mutex::new(std::collections::HashMap::new())),
         activity_txs: Arc::new(Mutex::new(std::collections::HashMap::new())),
-        job_locks: Arc::new(Mutex::new(std::collections::HashMap::new())),
+        run_locks: Arc::new(Mutex::new(std::collections::HashMap::new())),
         event_dedup: Arc::new(ship_platform::services::orchestrator::dedup::EventDedup::new()),
         fanout_lane_txs: Arc::new(Mutex::new(std::collections::HashMap::new())),
         fanout_lane_refs: Arc::new(Mutex::new(std::collections::HashMap::new())),
@@ -436,7 +436,7 @@ async fn run_step_advances_to_agent_step() {
 
     // Set up kernel and dispatch context
     let mut router = KernelRouter::new(ship_dir.clone()).unwrap();
-    let (_s, _mb) = router.spawn_actor("service.job-dispatch", dispatch_config()).unwrap();
+    let (_s, _mb) = router.spawn_actor("service.orchestrator", dispatch_config()).unwrap();
     let kernel = Arc::new(Mutex::new(router));
 
     let executor = Arc::new(MockExecutor::new());
@@ -448,7 +448,7 @@ async fn run_step_advances_to_agent_step() {
         probe: Arc::new(ship_platform::services::process_tree_probe::SysinfoProcessTreeProbe::new()),
         done_flags: Arc::new(Mutex::new(std::collections::HashMap::new())),
         activity_txs: Arc::new(Mutex::new(std::collections::HashMap::new())),
-        job_locks: Arc::new(Mutex::new(std::collections::HashMap::new())),
+        run_locks: Arc::new(Mutex::new(std::collections::HashMap::new())),
         event_dedup: Arc::new(ship_platform::services::orchestrator::dedup::EventDedup::new()),
         fanout_lane_txs: Arc::new(Mutex::new(std::collections::HashMap::new())),
         fanout_lane_refs: Arc::new(Mutex::new(std::collections::HashMap::new())),
@@ -525,7 +525,7 @@ async fn first_step_run_executes_without_agent() {
 
     // Set up kernel + dispatch context with mock executor
     let mut router = KernelRouter::new(ship_dir.clone()).unwrap();
-    let (_s, _mb) = router.spawn_actor("service.job-dispatch", dispatch_config()).unwrap();
+    let (_s, _mb) = router.spawn_actor("service.orchestrator", dispatch_config()).unwrap();
     let kernel = Arc::new(Mutex::new(router));
 
     let executor = Arc::new(MockExecutor::new());
@@ -537,7 +537,7 @@ async fn first_step_run_executes_without_agent() {
         probe: Arc::new(ship_platform::services::process_tree_probe::SysinfoProcessTreeProbe::new()),
         done_flags: Arc::new(Mutex::new(std::collections::HashMap::new())),
         activity_txs: Arc::new(Mutex::new(std::collections::HashMap::new())),
-        job_locks: Arc::new(Mutex::new(std::collections::HashMap::new())),
+        run_locks: Arc::new(Mutex::new(std::collections::HashMap::new())),
         event_dedup: Arc::new(ship_platform::services::orchestrator::dedup::EventDedup::new()),
         fanout_lane_txs: Arc::new(Mutex::new(std::collections::HashMap::new())),
         fanout_lane_refs: Arc::new(Mutex::new(std::collections::HashMap::new())),

@@ -32,15 +32,15 @@ pub fn interpolate(template: &str, vars: &HashMap<String, String>) -> Result<Str
 
 /// Interpolate all template fields in `step`.
 ///
-/// `job_vars` take priority over `step_vars` for the same key.
+/// `run_vars` take priority over `step_vars` for the same key.
 /// Returns `Err(missing_var_name)` if any `{{ var }}` reference is unresolved.
 pub fn interpolate_step(
     step: &PipelineStep,
-    job_vars: &HashMap<String, String>,
+    run_vars: &HashMap<String, String>,
     step_vars: &HashMap<String, String>,
 ) -> Result<PipelineStep, String> {
     let mut merged: HashMap<String, String> = step_vars.clone();
-    for (k, v) in job_vars {
+    for (k, v) in run_vars {
         merged.insert(k.clone(), v.clone());
     }
 

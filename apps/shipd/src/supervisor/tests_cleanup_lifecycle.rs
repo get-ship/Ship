@@ -28,7 +28,7 @@ fn ev(event_type: &str, payload: serde_json::Value) -> EventEnvelope {
 fn cleanup_handler_exists_for_merged_events() {
     let source = include_str!("../../../../crates/core/ship-platform/src/services/orchestrator/handlers.rs");
     assert!(
-        source.contains("job_cleanup") || source.contains("handle_job_cleanup"),
+        source.contains("job_cleanup") || source.contains("handle_cleanup"),
         "a cleanup handler must exist for merged job events"
     );
 }
@@ -43,7 +43,7 @@ fn job_merged_routes_to_cleanup() {
         "orchestrator router must handle pipeline.run.merged events"
     );
     assert!(
-        source.contains("cleanup") || source.contains("handle_job_cleanup"),
+        source.contains("cleanup") || source.contains("handle_cleanup"),
         "job.merged handler must trigger cleanup"
     );
 }
@@ -84,7 +84,7 @@ fn job_failed_does_not_trigger_cleanup() {
         let handler_block: String = lines[idx..std::cmp::min(idx + 10, lines.len())]
             .join("\n");
         assert!(
-            !handler_block.contains("handle_job_cleanup"),
+            !handler_block.contains("handle_cleanup"),
             "job.failed must not trigger cleanup — keep resources for investigation"
         );
     }

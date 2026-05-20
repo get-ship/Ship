@@ -124,7 +124,7 @@ pub struct OrchestratorContext {
     pub activity_txs: Arc<Mutex<HashMap<String, tokio::sync::mpsc::UnboundedSender<StepActivity>>>>,
     /// Per-job advancement lock. Prevents two concurrent events from
     /// double-dispatching the same next step.
-    pub job_locks: Arc<Mutex<HashMap<String, Arc<tokio::sync::Mutex<()>>>>>,
+    pub run_locks: Arc<Mutex<HashMap<String, Arc<tokio::sync::Mutex<()>>>>>,
     /// Event-id dedup at the router entry point. Prevents a replayed
     /// envelope (mailbox redelivery, startup replay race, test replay)
     /// from advancing the pipeline twice.
