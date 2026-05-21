@@ -37,6 +37,8 @@ export default controller<Scope>({
       }).then(() => { s.pickerOpen = false; s.pickerSelected = []; window.location.reload() })
     },
     goSettings: ({ navigate, agentId }) => navigate(`/studio/agents/${agentId}/settings`),
+    goTab: ({ navigate, agentId }, value: string) =>
+      navigate(value === 'overview' ? `/studio/agents/${agentId}` : `/studio/agents/${agentId}/${value}`),
     goBack: ({ navigate }) => navigate('/studio/agents'),
   },
   mount: (state, _el) => {

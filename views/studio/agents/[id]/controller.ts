@@ -197,6 +197,10 @@ export default controller<Scope>({
   on: {
     goWire: ({ navigate, agentId }) => navigate(`/studio/agents/${agentId}/wire`),
     goSettings: ({ navigate, agentId }) => navigate(`/studio/agents/${agentId}/settings`),
+    // Segmented tabs: the control swallows per-option clicks, so navigate off
+    // its sui-change event instead. overview → detail root; else → sub-route.
+    goTab: ({ navigate, agentId }, value: string) =>
+      navigate(value === 'overview' ? `/studio/agents/${agentId}` : `/studio/agents/${agentId}/${value}`),
     goBack: ({ navigate }) => navigate('/studio/agents'),
     goSkill: ({ navigate }, id: string) => navigate(`/skills/${id}`),
 

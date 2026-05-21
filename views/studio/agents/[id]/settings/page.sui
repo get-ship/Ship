@@ -11,8 +11,9 @@
   {:ok}
 {#if agent()}
   <sui-view-chrome title={agent().name}>
-    <sui-segmented slot="actions" value="settings" size="sm">
-      <sui-segmented-option value="wire" on:click={goWire}>Wire</sui-segmented-option>
+    <sui-segmented slot="actions" value="settings" size="sm" on:sui-change={(e) => goTab(e.detail.value)}>
+      <sui-segmented-option value="overview">Overview</sui-segmented-option>
+      <sui-segmented-option value="wire">Wire</sui-segmented-option>
       <sui-segmented-option value="settings">Settings</sui-segmented-option>
     </sui-segmented>
     <sui-button slot="actions" variant="ghost" size="sm" on:click={goBack}>

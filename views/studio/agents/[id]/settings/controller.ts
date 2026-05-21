@@ -36,6 +36,8 @@ export default controller<Scope>({
   },
   on: {
     goWire: ({ navigate, agentId }) => navigate(`/studio/agents/${agentId}/wire`),
+    goTab: ({ navigate, agentId }, value: string) =>
+      navigate(value === 'overview' ? `/studio/agents/${agentId}` : `/studio/agents/${agentId}/${value}`),
     goBack: ({ navigate }) => navigate('/studio/agents'),
     openPicker: (s, kind: string) => { s.pickerKind = kind; s.pickerSelected = []; s.pickerOpen = true },
     closePicker: (s) => { s.pickerOpen = false; s.pickerSelected = [] },

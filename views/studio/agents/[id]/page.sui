@@ -70,10 +70,10 @@
       </div>
 
       <div class="detail-actions">
-        <sui-segmented value="overview" size="sm">
+        <sui-segmented value="overview" size="sm" on:sui-change={(e) => goTab(e.detail.value)}>
           <sui-segmented-option value="overview">Overview</sui-segmented-option>
-          <sui-segmented-option value="wire" on:click={goWire}>Wire</sui-segmented-option>
-          <sui-segmented-option value="settings" on:click={goSettings}>Settings</sui-segmented-option>
+          <sui-segmented-option value="wire">Wire</sui-segmented-option>
+          <sui-segmented-option value="settings">Settings</sui-segmented-option>
         </sui-segmented>
         {#if isActive()}
           <sui-button tone="success" variant="outline" size="sm" data-test="deactivate-btn"
