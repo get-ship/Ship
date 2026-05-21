@@ -68,9 +68,18 @@ is the substrate mechanism.
 
 | Tier | macOS | Linux | Windows |
 |---|---|---|---|
-| **T2 — container** | 🟡 podman/docker (own VM) · Apple Container (Apple Silicon) | ✅ **podman** (`podman_sidecar_live` + `container_reach_live`, rootless ubuntu:24.04, **unix-socket control plane**) · 🟡 docker (same backend, not separately live-tested since `docker_live` was cut) · 🟡 youki (`youki_sidecar_live`, feature-gated) | 🟡 podman/docker in WSL2 / Docker Desktop |
+| **T2 — container** | 🟡 podman/docker (own VM) · Apple Container (Apple Silicon) | ✅ **podman** — runs (`podman_sidecar_live`) · reaches host plane (`container_reach_live`) · **confines fs** (`podman_fs_confinement_live`) · **blocks egress** (`podman_zero_egress_live`); rootless ubuntu:24.04, unix-socket control plane · 🟡 docker (same backend, untested since `docker_live` cut) · 🟡 youki (gated) | 🟡 podman/docker in WSL2 / Docker Desktop |
 | **T3 — Ship VM/distro** | ⬜ Lima VM + bubblewrap | ⬜ (Firecracker microVM for strong; else T1 covers) | ⬜ Ship WSL distro + bubblewrap |
 | **T4 — cloud** | ⬜ protocol-ready (`RuntimeEndpoint::Remote`), Firecracker on a cloud host | ⬜ same | ⬜ same |
+
+**Tier-2 confinement is now asserted, not assumed.** Beyond "the actor
+runs," the Linux/podman cell proves the security properties: T-FS-READ
+(can read the workspace mount, cannot read a host file outside it) and
+T-NET-EGRESS (`DenyAll` → `--network none` blocks outbound TCP) — and the
+egress test doubles as proof that the unix-socket control plane keeps the
+sidecar reachable *with no network at all* (the hardened-tier payoff).
+Remaining Tier-2 properties without a live test: T-RES (cgroup caps) and
+T-CRED (the deferred broker).
 
 **Substrate caveats:**
 - **bubblewrap *inside* a container** (Tier-1-wrap-in-Tier-2) needs
