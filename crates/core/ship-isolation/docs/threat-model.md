@@ -216,13 +216,16 @@ the host.
 - **Persistent host compromise via storage delivered before the
   agent ran.** The host is already trusted. Ship doesn't scan the
   workspace for malware that the user pulled before invoking us.
-- **Network attacks on the sidecar from inside the sandbox.** The
-  sidecar exposes a TCP listener inside the container; in v1.0 it
-  has no auth. A compromised agent in the same container could
-  drive the sidecar's `Processes.Create` to spawn anything it
-  could spawn directly anyway. Lifting this requires a credential
-  on the sidecar TCP listener — deferred when we move to unix-
-  socket transport (no shared netns to MITM).
+- **Network attacks on the sidecar from inside the sandbox.**
+  **Closed for Tier 2 (container):** the sidecar no longer exposes a TCP
+  listener in the container's netns — it binds a **Ship-owned unix socket**
+  in a host-bind-mounted dir (`docker.rs`; `--addr unix:<sock>`), so there
+  is nothing on the network to reach or MITM, and access is gated by the
+  socket's host-side file ownership. Tier 3 (VM) uses vsock (point-to-point,
+  non-routable); Tier 4 (cloud) is TCP+TLS where a listener credential is
+  still required. (Co-resident actors inside one sandbox remain mutually
+  trusted by the trust-domain invariant — the socket closes the *netns*
+  attack surface, not intra-sandbox trust.)
 - **Supply chain compromise.** A trojaned `ghcr.io/ship/agent-runner`
   image or a malicious `srt` npm release is out of scope. We
   document image signing as a Phase F requirement; until then,
@@ -271,10 +274,13 @@ The **direction** of work that moves more cells from `⚠️` to `✅`:
    into `SandboxPolicy.limits`, Docker backend translates to
    `--memory` / `--cpus` / `--pids-limit`. T-RES at the default
    Tier 2 path is defended.
-4. Sidecar TCP listener: bind to a Ship-owned unix socket
-   bind-mounted into the container, eliminating the in-netns
-   attack surface and the "no auth" caveat in §5.
+4. ✅ **Sidecar unix socket (Tier 2).** Shipped: `docker.rs` bind-mounts a
+   Ship-owned dir and runs the sidecar with `--addr unix:<sock>` instead of
+   a published TCP port; the supervisor dials it via connectrpc's
+   `Http2Connection::lazy_unix`. Eliminates the in-netns attack surface and
+   the "no auth" caveat in §5. Live-verified (`podman_sidecar_live`,
+   `container_reach_live`). vsock (Tier 3) / TLS (Tier 4) follow behind the
+   same `RuntimeEndpoint::scheme`.
 
-(1) and (3) landed in the same tranche as this doc; (2) and (4)
-are the remaining bounded reductions. None blocking — they're the
-next-best wins once the YoukiRootless wiring decision settles.
+(1), (3), (4) landed; (2) (credential broker) is the remaining bounded
+reduction. None blocking.

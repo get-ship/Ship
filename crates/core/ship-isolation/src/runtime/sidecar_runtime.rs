@@ -25,7 +25,7 @@
 
 use anyhow::{Result, anyhow};
 use async_trait::async_trait;
-use connectrpc::client::{ClientConfig, HttpClient};
+use connectrpc::client::{ClientConfig, Http2Connection, SharedHttp2Connection};
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::broadcast;
@@ -67,16 +67,40 @@ impl SidecarActorRuntime {
 
     fn build_clients(
         &self,
-    ) -> Result<(ProcessesClient<HttpClient>, EventsClient<HttpClient>)> {
-        let uri: ::http::Uri = self
-            .endpoint
-            .parse()
-            .map_err(|e: ::http::uri::InvalidUri| anyhow!("sidecar endpoint: {e}"))?;
-        let http = HttpClient::plaintext();
+    ) -> Result<(
+        ProcessesClient<SharedHttp2Connection>,
+        EventsClient<SharedHttp2Connection>,
+    )> {
+        // The control plane is HTTP/2 (h2c) over either a unix socket — the
+        // hardened container/VM path, `unix:<sock>` — or plaintext TCP
+        // (in-process / dev / cloud-TLS-terminated). connectrpc's unix
+        // support lives on `Http2Connection`; `SharedHttp2Connection` wraps
+        // either so the typed clients share one transport type.
+        const CONN_BUFFER: usize = 1024;
+        let (conn, uri) = if let Some(path) = self.endpoint.strip_prefix("unix:") {
+            // `:authority` is cosmetic over a unix socket; a stable
+            // placeholder keeps request-path construction valid.
+            let authority: ::http::Uri = "http://ship-sidecar.local"
+                .parse()
+                .map_err(|e: ::http::uri::InvalidUri| anyhow!("sidecar authority: {e}"))?;
+            (
+                Http2Connection::lazy_unix(path, authority.clone()).shared(CONN_BUFFER),
+                authority,
+            )
+        } else {
+            let uri: ::http::Uri = self
+                .endpoint
+                .parse()
+                .map_err(|e: ::http::uri::InvalidUri| anyhow!("sidecar endpoint: {e}"))?;
+            (
+                Http2Connection::lazy_plaintext(uri.clone()).shared(CONN_BUFFER),
+                uri,
+            )
+        };
         let config = ClientConfig::new(uri);
         Ok((
-            ProcessesClient::new(http.clone(), config.clone()),
-            EventsClient::new(http, config),
+            ProcessesClient::new(conn.clone(), config.clone()),
+            EventsClient::new(conn, config),
         ))
     }
 }

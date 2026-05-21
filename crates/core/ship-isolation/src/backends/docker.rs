@@ -38,8 +38,15 @@ use ship_substrate::isolation::{Isolator, IsolatorError};
 /// The path the host `ship-sidecar` binary is bind-mounted to inside
 /// the container. Matches the youki sidecar convention.
 const SIDECAR_INSIDE: &str = "/usr/local/bin/ship-sidecar";
-/// Port the sidecar's v1 listener binds inside the container.
-const SIDECAR_PORT_INSIDE: u16 = 2468;
+/// Directory (host dir bind-mounted into the container) the sidecar's
+/// unix-socket listener lives in. A host-owned dir is bind-mounted here
+/// rw; the sidecar binds the socket inside it, and it appears on the host
+/// side of the mount for the supervisor to dial. No published TCP port —
+/// nothing for an in-container process to reach on the netns (threat-model
+/// §5/§7.4).
+const SIDECAR_SOCK_DIR_INSIDE: &str = "/run/ship-sidecar";
+/// Socket filename inside `SIDECAR_SOCK_DIR_INSIDE`.
+const SIDECAR_SOCK_NAME: &str = "sidecar.sock";
 /// Hostname injected into the container (`--add-host`) that resolves to
 /// the host's gateway, so an in-container agent can reach the host
 /// daemon's HTTP plane (MCP / hooks / log_progress). `host-gateway` is
@@ -91,13 +98,13 @@ impl Docker {
         Self { cfg }
     }
 
-    /// The sidecar's v1 endpoint (`http://127.0.0.1:<published-port>`).
+    /// The sidecar's v1 endpoint as a `unix:<host-socket-path>` URL.
     /// `None` only when the sandbox wasn't prepared by this backend
     /// (downcast miss). The supervisor reads this to build a
-    /// `SidecarActorRuntime`.
+    /// `SidecarActorRuntime`, which dials the bind-mounted socket.
     pub fn sidecar_endpoint(sandbox: &SandboxHandle) -> Option<String> {
         let st = sandbox.state.downcast_ref::<DockerState>()?;
-        Some(format!("http://127.0.0.1:{}", st.sidecar_port))
+        Some(format!("unix:{}", st.sock_dir.join(SIDECAR_SOCK_NAME).display()))
     }
 
     /// Rewrite a host-loopback daemon origin into a URL an actor *inside*
@@ -140,32 +147,25 @@ struct DockerState {
     /// Once the container exits, the daemon GCs it; we record that we've
     /// asked for shutdown so a double-shutdown doesn't bubble an error.
     shut_down: Mutex<bool>,
-    /// Host port the sidecar's v1 listener is published on.
-    sidecar_port: u16,
+    /// Host directory bind-mounted into the container at
+    /// `SIDECAR_SOCK_DIR_INSIDE`; holds the sidecar's unix socket. Removed
+    /// on shutdown.
+    sock_dir: PathBuf,
 }
 
-/// Pick a free localhost TCP port to publish the sidecar on.
-async fn pick_free_port() -> Result<u16, IsolatorError> {
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
-        .await
-        .map_err(IsolatorError::from)?;
-    let port = listener.local_addr().map_err(IsolatorError::from)?.port();
-    drop(listener);
-    Ok(port)
-}
-
-/// Poll a TCP connect to the published sidecar port until it accepts
-/// (sidecar is listening) or the deadline elapses.
-async fn wait_until_listening(port: u16) -> Result<(), IsolatorError> {
+/// Poll a unix-socket connect to the sidecar's bind-mounted socket until
+/// it accepts (sidecar is listening) or the deadline elapses.
+async fn wait_until_listening(sock: &std::path::Path) -> Result<(), IsolatorError> {
     let deadline = tokio::time::Instant::now() + Duration::from_secs(15);
     while tokio::time::Instant::now() < deadline {
-        if tokio::net::TcpStream::connect(("127.0.0.1", port)).await.is_ok() {
+        if tokio::net::UnixStream::connect(sock).await.is_ok() {
             return Ok(());
         }
         tokio::time::sleep(Duration::from_millis(150)).await;
     }
     Err(IsolatorError::Sidecar(format!(
-        "sidecar did not accept connections on 127.0.0.1:{port} within 15s"
+        "sidecar did not accept connections on {} within 15s",
+        sock.display()
     )))
 }
 
@@ -226,19 +226,26 @@ impl Isolator for Docker {
             argv.push(format!("{k}={v}"));
         }
 
-        // Bind-mount the host ship-sidecar binary, publish its v1 listener
-        // to a host port, and make it PID 1. The supervisor drives the
-        // actor over ship.sidecar.v1 — no `docker exec`.
-        let sidecar_port = pick_free_port().await?;
+        // Bind-mount (1) the host ship-sidecar binary read-only as PID 1,
+        // and (2) a host-owned dir for the sidecar's unix socket. The
+        // sidecar binds the socket inside the mounted dir, so it surfaces
+        // on the host side for the supervisor to dial — no published TCP
+        // port, nothing reachable on the container's netns. The supervisor
+        // drives the actor over ship.sidecar.v1 — no `docker exec`.
+        let sock_dir = std::env::temp_dir().join(format!("ship-sidecar-{}", nanoid::nanoid!(10)));
+        tokio::fs::create_dir_all(&sock_dir).await?;
         argv.push("-v".into());
         argv.push(format!("{}:{SIDECAR_INSIDE}:ro", self.cfg.sidecar_bin.display()));
-        argv.push("-p".into());
-        argv.push(format!("127.0.0.1:{sidecar_port}:{SIDECAR_PORT_INSIDE}"));
+        argv.push("--mount".into());
+        argv.push(format!(
+            "type=bind,source={},target={SIDECAR_SOCK_DIR_INSIDE}",
+            sock_dir.display()
+        ));
 
         argv.push(self.cfg.image.clone());
         argv.push(SIDECAR_INSIDE.into());
         argv.push("--addr".into());
-        argv.push(format!("0.0.0.0:{SIDECAR_PORT_INSIDE}"));
+        argv.push(format!("unix:{SIDECAR_SOCK_DIR_INSIDE}/{SIDECAR_SOCK_NAME}"));
 
         let out = Command::new(&self.cfg.engine_bin)
             .args(&argv)
@@ -270,9 +277,10 @@ impl Isolator for Docker {
             )));
         }
 
-        // Wait for the published port to accept before returning — the
-        // supervisor will immediately connect a v1 client against it.
-        wait_until_listening(sidecar_port).await?;
+        // Wait for the socket to accept before returning — the supervisor
+        // will immediately connect a v1 client against it.
+        let sock_path = sock_dir.join(SIDECAR_SOCK_NAME);
+        wait_until_listening(&sock_path).await?;
 
         Ok(SandboxHandle {
             id: SandboxId::new(),
@@ -282,7 +290,7 @@ impl Isolator for Docker {
                 name,
                 cfg: self.cfg.clone(),
                 shut_down: Mutex::new(false),
-                sidecar_port,
+                sock_dir,
             }),
         })
     }
@@ -309,6 +317,8 @@ impl Isolator for Docker {
             .stderr(Stdio::null())
             .status()
             .await;
+        // Drop the host-side socket dir (and the socket inside it).
+        let _ = tokio::fs::remove_dir_all(&state.sock_dir).await;
         Ok(())
     }
 }

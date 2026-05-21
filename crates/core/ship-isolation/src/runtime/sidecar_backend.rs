@@ -12,7 +12,7 @@
 //! `ChildHandle::subscribe_output` exactly as for local backends.
 
 use anyhow::{Result, anyhow};
-use connectrpc::client::HttpClient;
+use connectrpc::client::SharedHttp2Connection;
 use std::sync::Arc;
 
 use ship_sidecar_proto::{
@@ -33,14 +33,14 @@ use ship_substrate::supervisor::ChildBackend;
 /// process's PID. `is_alive()` overrides the default `/proc` probe
 /// with a `Processes.Get` round-trip.
 pub struct SidecarChildBackend {
-    client: Arc<ProcessesClient<HttpClient>>,
+    client: Arc<ProcessesClient<SharedHttp2Connection>>,
     process_id: String,
     handle: tokio::runtime::Handle,
 }
 
 impl SidecarChildBackend {
     pub fn new(
-        client: Arc<ProcessesClient<HttpClient>>,
+        client: Arc<ProcessesClient<SharedHttp2Connection>>,
         process_id: String,
         handle: tokio::runtime::Handle,
     ) -> Self {
@@ -167,7 +167,7 @@ impl ChildBackend for SidecarChildBackend {
 /// orchestrator can call this directly after `stop()` times out.
 #[allow(dead_code)]
 pub async fn force_kill(
-    client: &ProcessesClient<HttpClient>,
+    client: &ProcessesClient<SharedHttp2Connection>,
     process_id: &str,
 ) -> Result<()> {
     let mut req = ProcessKillRequest::default();
