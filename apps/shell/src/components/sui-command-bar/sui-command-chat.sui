@@ -27,7 +27,7 @@
     border-radius: 999px;
     flex-shrink: 0;
   }
-  .cb-chat-header .title { font-size: 13px; font-weight: 600; }
+  .cb-chat-header .title { font-size: var(--text-base); font-weight: 600; }
   .cb-chat-header .sub { font-size: 11px; color: var(--muted-foreground); }
   .cb-chip-wrap { position: relative; flex-shrink: 0; }
   .cb-session-chip {
@@ -63,7 +63,7 @@
     border: 1px solid var(--border);
     border-radius: var(--radius-md, 6px);
     box-shadow: var(--shadow-lg);
-    z-index: 10;
+    z-index: var(--z-dropdown);
     padding: var(--space-1) 0;
   }
   .cb-session-row {
@@ -73,20 +73,20 @@
     gap: var(--space-2);
     padding: 7px var(--space-3);
     cursor: pointer;
-    font-size: 12px;
+    font-size: var(--text-sm);
   }
   .cb-session-row:hover { background: var(--muted); }
   .cb-session-row.current { background: color-mix(in oklch, var(--primary) 8%, transparent); }
   .cb-session-row .meta { color: var(--muted-foreground); font-size: 11px; }
   .cb-session-end {
     background: transparent; border: none; cursor: pointer;
-    color: var(--muted-foreground); font-size: 14px; padding: 0 2px;
+    color: var(--muted-foreground); font-size: var(--text-md); padding: 0 2px;
   }
   .cb-session-end:hover { color: var(--destructive); }
   .cb-session-sep { height: 1px; background: var(--border); margin: var(--space-1) 0; }
   .cb-session-action {
     display: flex; align-items: center; gap: var(--space-2);
-    padding: 7px var(--space-3); cursor: pointer; font-size: 12px;
+    padding: 7px var(--space-3); cursor: pointer; font-size: var(--text-sm);
     color: var(--muted-foreground);
   }
   .cb-session-action:hover { background: var(--muted); color: var(--foreground); }
@@ -107,7 +107,7 @@
   /* ── Messages ─────────────────────────────────────────────────── */
   .cb-chat-empty {
     color: var(--muted-foreground);
-    font-size: 13px;
+    font-size: var(--text-base);
     text-align: center;
     margin-top: var(--space-6);
     padding: 0 var(--space-4);
@@ -131,7 +131,7 @@
     max-width: 80%;
     padding: 7px 10px;
     border-radius: var(--radius-md, 6px);
-    font-size: 13px;
+    font-size: var(--text-base);
     line-height: 1.5;
     white-space: pre-wrap;
     word-break: break-word;
@@ -159,7 +159,7 @@
     border-radius: var(--radius-md, 6px);
     background: var(--muted);
   }
-  .cb-spawn-title { font-weight: 600; font-size: 13px; margin-bottom: var(--space-3); }
+  .cb-spawn-title { font-weight: 600; font-size: var(--text-base); margin-bottom: var(--space-3); }
   .cb-spawn-row {
     display: grid;
     grid-template-columns: 72px 1fr;
@@ -167,7 +167,7 @@
     gap: var(--space-2);
     margin-bottom: var(--space-2);
   }
-  .cb-spawn-row label { font-size: 12px; color: var(--muted-foreground); }
+  .cb-spawn-row label { font-size: var(--text-sm); color: var(--muted-foreground); }
   .cb-spawn-row select {
     height: 30px;
     border: 1px solid var(--border);
@@ -175,10 +175,10 @@
     background: var(--background);
     color: var(--foreground);
     font: inherit;
-    font-size: 13px;
+    font-size: var(--text-base);
     padding: 0 6px;
   }
-  .cb-spawn-error { font-size: 12px; color: var(--destructive); margin-bottom: var(--space-2); }
+  .cb-spawn-error { font-size: var(--text-sm); color: var(--destructive); margin-bottom: var(--space-2); }
   .cb-spawn-start {
     margin-top: var(--space-1);
     height: 32px;
@@ -188,7 +188,7 @@
     background: var(--primary);
     color: var(--primary-foreground);
     font: inherit;
-    font-size: 13px;
+    font-size: var(--text-base);
     cursor: pointer;
   }
   .cb-spawn-start:disabled { opacity: 0.5; cursor: not-allowed; }
@@ -199,7 +199,7 @@
     align-items: center;
     gap: var(--space-2);
     padding: 6px 14px;
-    font-size: 12px;
+    font-size: var(--text-sm);
     border-bottom: 1px solid var(--border);
     flex: 0 0 auto;
   }
@@ -237,7 +237,7 @@
     background: var(--background);
     color: var(--foreground);
     font: inherit;
-    font-size: 13px;
+    font-size: var(--text-base);
     padding: 6px var(--space-2);
     resize: none;
     line-height: 1.4;
@@ -253,7 +253,7 @@
     background: var(--primary);
     color: var(--primary-foreground);
     font: inherit;
-    font-size: 13px;
+    font-size: var(--text-base);
     cursor: pointer;
     flex-shrink: 0;
     align-self: flex-end;

@@ -24,7 +24,7 @@
   .header .state {
     margin-left: auto;
     font-family: var(--font-mono);
-    font-size: 10.5px;
+    font-size: var(--text-xs);
     padding: 1px 6px;
     border-radius: var(--radius-sm);
     background: var(--muted);

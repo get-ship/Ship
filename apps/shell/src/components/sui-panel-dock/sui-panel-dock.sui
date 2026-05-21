@@ -161,7 +161,7 @@
     color: var(--muted-foreground);
     border-radius: var(--radius-full, 999px);
     font: inherit;
-    font-size: 10.5px;
+    font-size: var(--text-xs);
     padding: 1px 9px 1px 7px;
     margin-right: 6px;
     display: inline-flex;

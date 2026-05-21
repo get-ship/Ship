@@ -25,12 +25,12 @@
   .pill { display: inline-flex; align-items: center; gap: 6px; padding: 5px var(--space-3); border: 1px solid var(--border-subtle); border-radius: var(--radius-full); background: var(--surface-1); color: var(--muted-foreground); font: inherit; font-size: 12.5px; cursor: pointer; }
   .pill:hover { color: var(--foreground); border-color: var(--border); }
   .pill[data-active] { color: var(--primary-foreground); background: var(--primary); border-color: var(--primary); }
-  .pill-count { font-variant-numeric: tabular-nums; font-size: 10.5px; padding: 1px 6px; border-radius: var(--radius-full); background: color-mix(in oklch, currentColor 18%, transparent); }
+  .pill-count { font-variant-numeric: tabular-nums; font-size: var(--text-xs); padding: 1px 6px; border-radius: var(--radius-full); background: color-mix(in oklch, currentColor 18%, transparent); }
 
   .groups { display: flex; flex-direction: column; gap: var(--space-7); }
   .group-h { display: flex; align-items: baseline; gap: var(--space-2); font-size: 11px; font-weight: var(--font-weight-semibold); letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted-foreground); padding-bottom: var(--space-2); border-bottom: 1px solid var(--border-subtle); margin-bottom: var(--space-3); }
   .group-h-count { font-family: var(--font-mono); font-weight: normal; letter-spacing: 0; text-transform: none; font-size: 11px; }
-  .group-h-desc { margin-left: auto; font-size: 12px; text-transform: none; letter-spacing: 0; font-weight: normal; color: var(--muted-foreground); }
+  .group-h-desc { margin-left: auto; font-size: var(--text-sm); text-transform: none; letter-spacing: 0; font-weight: normal; color: var(--muted-foreground); }
 
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 2px; }
   .cell { display: flex; align-items: baseline; gap: var(--space-2); padding: 6px 10px; border-radius: var(--radius-sm); text-decoration: none; color: var(--foreground); cursor: pointer; transition: background 120ms; text-align: left; border: 0; background: transparent; font: inherit; width: 100%; }

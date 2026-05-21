@@ -24,7 +24,7 @@
   .list-pill { display: inline-flex; align-items: center; gap: 6px; padding: 5px var(--space-3); border: 1px solid var(--border-subtle); border-radius: var(--radius-full); background: var(--surface-1); color: var(--muted-foreground); font: inherit; font-size: 12.5px; cursor: pointer; }
   .list-pill:hover { color: var(--foreground); border-color: var(--border); }
   .list-pill[data-active] { color: var(--primary-foreground); background: var(--primary); border-color: var(--primary); }
-  .list-pill-count { font-variant-numeric: tabular-nums; font-size: 10.5px; padding: 1px 6px; border-radius: var(--radius-full); background: color-mix(in oklch, currentColor 18%, transparent); }
+  .list-pill-count { font-variant-numeric: tabular-nums; font-size: var(--text-xs); padding: 1px 6px; border-radius: var(--radius-full); background: color-mix(in oklch, currentColor 18%, transparent); }
 
   .themes-grid { display: grid; grid-template-columns: 1fr; gap: var(--space-3); }
   @media (min-width: 720px) { .themes-grid { grid-template-columns: repeat(2, 1fr); } }

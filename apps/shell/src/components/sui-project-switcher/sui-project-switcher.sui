@@ -112,7 +112,7 @@
   .row[data-active] { background: color-mix(in oklch, var(--primary) 12%, transparent); }
   .row-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
   .row-name {
-    font-size: 13px;
+    font-size: var(--text-base);
     font-weight: 500;
     white-space: nowrap;
     overflow: hidden;
@@ -128,7 +128,7 @@
   .menu-empty {
     padding: var(--space-3, 12px);
     text-align: center;
-    font-size: 12px;
+    font-size: var(--text-sm);
     color: var(--muted-foreground);
   }
 </style>

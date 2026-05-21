@@ -15,7 +15,7 @@
     padding: var(--space-6);
     text-align: center;
     color: var(--muted-foreground);
-    font-size: 12px;
+    font-size: var(--text-sm);
   }
   .empty .ok {
     color: var(--success);
@@ -32,7 +32,7 @@
     padding: var(--space-2) var(--space-3);
     border-bottom: 1px solid color-mix(in oklab, var(--border) 40%, transparent);
     cursor: pointer;
-    font-size: 12px;
+    font-size: var(--text-sm);
   }
   .row:hover { background: var(--hover-bg, var(--sidebar-accent)); }
   .row .loc {

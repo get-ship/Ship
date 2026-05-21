@@ -86,7 +86,7 @@
     cursor: pointer;
     font: inherit;
     line-height: 1;
-    font-size: 16px;
+    font-size: var(--text-lg);
     padding: var(--space-1) var(--space-2);
     border-radius: var(--radius-sm);
     flex: 0 0 auto;

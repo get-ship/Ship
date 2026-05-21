@@ -53,7 +53,7 @@
     background: color-mix(in oklch, var(--card) 50%, transparent);
     flex-shrink: 0;
   }
-  .count { font-size: 12px; color: var(--muted-foreground); }
+  .count { font-size: var(--text-sm); color: var(--muted-foreground); }
   .adds { font-size: 11px; color: var(--success); }
   .dels { font-size: 11px; color: var(--destructive); }
   .spacer { flex: 1; }
@@ -80,7 +80,7 @@
     justify-content: center;
     padding: 48px var(--space-4);
     color: var(--muted-foreground);
-    font-size: 13px;
+    font-size: var(--text-base);
   }
 </style>
 

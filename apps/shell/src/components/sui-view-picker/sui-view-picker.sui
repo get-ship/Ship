@@ -78,7 +78,7 @@
     flex-shrink: 0;
   }
   .vp-project-name {
-    font-size: 13px;
+    font-size: var(--text-base);
     font-weight: 600;
     color: var(--foreground);
     overflow: hidden;
@@ -180,7 +180,7 @@
   .vp-project-swatch {
     width: 14px;
     height: 14px;
-    border-radius: 4px;
+    border-radius: var(--radius-sm);
     flex-shrink: 0;
     background: color-mix(in oklch, var(--foreground) 18%, transparent);
     border: 1px solid var(--border, transparent);
@@ -198,7 +198,7 @@
     gap: 1px;
   }
   .vp-row-label {
-    font-size: 13px;
+    font-size: var(--text-base);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -221,7 +221,7 @@
     padding: 18px;
     text-align: center;
     color: var(--muted-foreground);
-    font-size: 12px;
+    font-size: var(--text-sm);
   }
 
   /* ── footer ─────────────────────────────────────────────────────── */
@@ -239,7 +239,7 @@
     gap: var(--space-1);
     color: var(--primary);
     text-decoration: none;
-    font-size: 12px;
+    font-size: var(--text-sm);
     font-weight: 500;
   }
   .vp-install:hover { text-decoration: underline; }

@@ -83,7 +83,7 @@
     font-family: var(--font-mono);
     background: color-mix(in oklch, var(--muted) 40%, transparent);
     padding: 1px 5px;
-    border-radius: 4px;
+    border-radius: var(--radius-sm);
     font-size: var(--text-xs);
   }
   .chips { display: flex; gap: 6px; flex-wrap: wrap; }

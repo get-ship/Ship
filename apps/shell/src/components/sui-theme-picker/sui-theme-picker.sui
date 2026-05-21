@@ -183,7 +183,7 @@
     appearance: none;
     background: transparent;
     border: 0;
-    border-radius: 10px;
+    border-radius: var(--radius-lg);
     padding: 6px;
     cursor: pointer;
     text-align: left;
@@ -261,7 +261,7 @@
     background: var(--surface-overlay, none);
     mix-blend-mode: var(--surface-overlay-blend, normal);
     opacity: var(--surface-overlay-opacity, 1);
-    z-index: 1;
+    z-index: var(--z-elevated);
   }
   @media (prefers-reduced-motion: reduce) {
     .tc-overlay { display: none; }
@@ -293,7 +293,7 @@
   .tc-heading {
     font-family: var(--heading-font, var(--font-body));
     font-weight: var(--heading-weight, 600);
-    font-size: 13px; line-height: 1.05;
+    font-size: var(--text-base); line-height: 1.05;
     color: var(--card-foreground);
   }
   .tc-typo {

@@ -16,7 +16,7 @@
   .wrap { display: flex; flex-direction: column; padding: 6px 0; }
   details {
     border-bottom: 1px solid color-mix(in oklab, var(--border) 40%, transparent);
-    font-size: 12px;
+    font-size: var(--text-sm);
   }
   summary {
     list-style: none;
@@ -41,7 +41,7 @@
   .ts {
     color: var(--muted-foreground);
     font-family: var(--font-mono);
-    font-size: 10.5px;
+    font-size: var(--text-xs);
     font-variant-numeric: tabular-nums;
   }
   .detail {

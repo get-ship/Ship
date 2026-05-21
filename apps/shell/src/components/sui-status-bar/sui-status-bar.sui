@@ -140,7 +140,7 @@
     color: var(--muted-foreground);
     white-space: nowrap;
     flex-shrink: 0;
-    font-size: 10.5px;
+    font-size: var(--text-xs);
   }
   .ext-chip[data-tone="info"]    { color: var(--primary); border-color: color-mix(in oklch, var(--primary) 30%, transparent); }
   .ext-chip[data-tone="success"] { color: var(--success);          border-color: color-mix(in oklch, var(--success) 30%, transparent); }
