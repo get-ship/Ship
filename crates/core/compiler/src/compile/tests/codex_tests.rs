@@ -138,7 +138,10 @@ fn codex_model_emitted_in_config_patch() {
 #[test]
 fn codex_sandbox_key_is_sandbox_mode() {
     let r = ResolvedConfig {
-        codex_sandbox: Some("network-only".to_string()),
+        codex: crate::compile::CodexSettings {
+            sandbox: Some("network-only".to_string()),
+            ..Default::default()
+        },
         ..resolved(vec![])
     };
     let out = compile(&r, "codex").unwrap();
@@ -167,7 +170,10 @@ fn codex_sandbox_values_translated_correctly() {
     ];
     for (input, expected) in cases {
         let r = ResolvedConfig {
-            codex_sandbox: Some(input.to_string()),
+            codex: crate::compile::CodexSettings {
+                sandbox: Some(input.to_string()),
+                ..Default::default()
+            },
             ..resolved(vec![])
         };
         let out = compile(&r, "codex").unwrap();
@@ -205,7 +211,10 @@ fn codex_sandbox_none_omitted() {
 #[test]
 fn codex_sandbox_not_emitted_for_other_harnesses() {
     let r = ResolvedConfig {
-        codex_sandbox: Some("full".to_string()),
+        codex: crate::compile::CodexSettings {
+            sandbox: Some("full".to_string()),
+            ..Default::default()
+        },
         ..resolved(vec![])
     };
     for harness in &["claude", "gemini", "cursor"] {
@@ -249,7 +258,10 @@ fn codex_approval_policy_translated() {
     ];
     for (input, expected) in cases {
         let r = ResolvedConfig {
-            codex_approval_policy: Some(input.to_string()),
+            codex: crate::compile::CodexSettings {
+                approval_policy: Some(input.to_string()),
+                ..Default::default()
+            },
             ..resolved(vec![])
         };
         let out = compile(&r, "codex").unwrap();
@@ -270,7 +282,10 @@ fn codex_approval_policy_translated() {
 #[test]
 fn codex_reasoning_effort_emitted() {
     let r = ResolvedConfig {
-        codex_reasoning_effort: Some("high".to_string()),
+        codex: crate::compile::CodexSettings {
+            reasoning_effort: Some("high".to_string()),
+            ..Default::default()
+        },
         ..resolved(vec![])
     };
     let out = compile(&r, "codex").unwrap();
@@ -285,9 +300,12 @@ fn codex_reasoning_effort_emitted() {
 #[test]
 fn codex_agents_table_emitted() {
     let r = ResolvedConfig {
-        codex_max_threads: Some(4),
-        codex_max_depth: Some(3),
-        codex_job_max_runtime_seconds: Some(300),
+        codex: crate::compile::CodexSettings {
+            max_threads: Some(4),
+            max_depth: Some(3),
+            job_max_runtime_seconds: Some(300),
+            ..Default::default()
+        },
         ..resolved(vec![])
     };
     let out = compile(&r, "codex").unwrap();
@@ -302,7 +320,10 @@ fn codex_agents_table_emitted() {
 #[test]
 fn codex_shell_environment_policy_emitted() {
     let r = ResolvedConfig {
-        codex_shell_env_policy: Some("inherit".to_string()),
+        codex: crate::compile::CodexSettings {
+            shell_env_policy: Some("inherit".to_string()),
+            ..Default::default()
+        },
         ..resolved(vec![])
     };
     let out = compile(&r, "codex").unwrap();
@@ -317,7 +338,10 @@ fn codex_shell_environment_policy_emitted() {
 #[test]
 fn codex_notify_emitted() {
     let r = ResolvedConfig {
-        codex_notify: Some(serde_json::json!(true)),
+        codex: crate::compile::CodexSettings {
+            notify: Some(serde_json::json!(true)),
+            ..Default::default()
+        },
         ..resolved(vec![])
     };
     let out = compile(&r, "codex").unwrap();
@@ -344,7 +368,10 @@ fn codex_mcp_server_tool_filters_emitted() {
 #[test]
 fn codex_settings_extra_merged_verbatim() {
     let r = ResolvedConfig {
-        codex_settings_extra: Some(serde_json::json!({ "custom_key": "custom_value" })),
+        codex: crate::compile::CodexSettings {
+            settings_extra: Some(serde_json::json!({ "custom_key": "custom_value" })),
+            ..Default::default()
+        },
         ..resolved(vec![])
     };
     let out = compile(&r, "codex").unwrap();

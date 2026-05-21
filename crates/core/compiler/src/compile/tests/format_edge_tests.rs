@@ -15,9 +15,12 @@ use super::fixtures::*;
 #[test]
 fn codex_settings_extra_nested_object_becomes_toml_table() {
     let r = ResolvedConfig {
-        codex_settings_extra: Some(serde_json::json!({
-            "agents": { "max_threads": 8, "max_depth": 5 }
-        })),
+        codex: crate::compile::CodexSettings {
+            settings_extra: Some(serde_json::json!({
+                "agents": { "max_threads": 8, "max_depth": 5 }
+            })),
+            ..Default::default()
+        },
         ..resolved(vec![])
     };
     let out = compile(&r, "codex").unwrap();
@@ -31,9 +34,12 @@ fn codex_settings_extra_nested_object_becomes_toml_table() {
 #[test]
 fn codex_settings_extra_array_becomes_toml_array() {
     let r = ResolvedConfig {
-        codex_settings_extra: Some(serde_json::json!({
-            "allowed_hosts": ["github.com", "npmjs.org"]
-        })),
+        codex: crate::compile::CodexSettings {
+            settings_extra: Some(serde_json::json!({
+                "allowed_hosts": ["github.com", "npmjs.org"]
+            })),
+            ..Default::default()
+        },
         ..resolved(vec![])
     };
     let out = compile(&r, "codex").unwrap();
@@ -47,10 +53,13 @@ fn codex_settings_extra_array_becomes_toml_array() {
 #[test]
 fn codex_settings_extra_null_value_dropped() {
     let r = ResolvedConfig {
-        codex_settings_extra: Some(serde_json::json!({
-            "keep": "yes",
-            "drop": null
-        })),
+        codex: crate::compile::CodexSettings {
+            settings_extra: Some(serde_json::json!({
+                "keep": "yes",
+                "drop": null
+            })),
+            ..Default::default()
+        },
         ..resolved(vec![])
     };
     let out = compile(&r, "codex").unwrap();
@@ -66,7 +75,10 @@ fn codex_settings_extra_null_value_dropped() {
 #[test]
 fn codex_settings_extra_float_preserved() {
     let r = ResolvedConfig {
-        codex_settings_extra: Some(serde_json::json!({ "temperature": 0.7 })),
+        codex: crate::compile::CodexSettings {
+            settings_extra: Some(serde_json::json!({ "temperature": 0.7 })),
+            ..Default::default()
+        },
         ..resolved(vec![])
     };
     let out = compile(&r, "codex").unwrap();

@@ -71,13 +71,14 @@ pub(super) fn build_gemini_settings_patch(resolved: &ResolvedConfig) -> Option<J
 
     let has_hooks = !by_trigger.is_empty();
     let has_model_name = model.is_some();
-    let has_approval_mode = resolved.gemini_default_approval_mode.is_some();
-    let has_max_session_turns = resolved.gemini_max_session_turns.is_some();
-    let has_disable_yolo = resolved.gemini_disable_yolo_mode.is_some();
-    let has_disable_always_allow = resolved.gemini_disable_always_allow.is_some();
-    let has_tools_sandbox = resolved.gemini_tools_sandbox.is_some();
+    let has_approval_mode = resolved.gemini.default_approval_mode.is_some();
+    let has_max_session_turns = resolved.gemini.max_session_turns.is_some();
+    let has_disable_yolo = resolved.gemini.disable_yolo_mode.is_some();
+    let has_disable_always_allow = resolved.gemini.disable_always_allow.is_some();
+    let has_tools_sandbox = resolved.gemini.tools_sandbox.is_some();
     let has_extra = resolved
-        .gemini_settings_extra
+        .gemini
+        .settings_extra
         .as_ref()
         .is_some_and(|v| !v.is_null());
 
@@ -104,11 +105,11 @@ pub(super) fn build_gemini_settings_patch(resolved: &ResolvedConfig) -> Option<J
     let has_general = has_approval_mode || has_max_session_turns;
     if has_general {
         let mut general = serde_json::json!({});
-        if let Some(mode) = resolved.gemini_default_approval_mode.as_deref() {
+        if let Some(mode) = resolved.gemini.default_approval_mode.as_deref() {
             general["defaultApprovalMode"] =
                 Json::String(translate_approval_mode(mode).to_string());
         }
-        if let Some(turns) = resolved.gemini_max_session_turns {
+        if let Some(turns) = resolved.gemini.max_session_turns {
             general["maxSessionTurns"] = serde_json::json!(turns);
         }
         patch["general"] = general;
@@ -118,17 +119,17 @@ pub(super) fn build_gemini_settings_patch(resolved: &ResolvedConfig) -> Option<J
     let has_security = has_disable_yolo || has_disable_always_allow;
     if has_security {
         let mut security = serde_json::json!({});
-        if let Some(v) = resolved.gemini_disable_yolo_mode {
+        if let Some(v) = resolved.gemini.disable_yolo_mode {
             security["disableYoloMode"] = serde_json::json!(v);
         }
-        if let Some(v) = resolved.gemini_disable_always_allow {
+        if let Some(v) = resolved.gemini.disable_always_allow {
             security["disableAlwaysAllow"] = serde_json::json!(v);
         }
         patch["security"] = security;
     }
 
     // tools.sandbox
-    if let Some(sandbox) = resolved.gemini_tools_sandbox.as_deref() {
+    if let Some(sandbox) = resolved.gemini.tools_sandbox.as_deref() {
         patch["tools"] = serde_json::json!({ "sandbox": sandbox });
     }
 
@@ -142,7 +143,7 @@ pub(super) fn build_gemini_settings_patch(resolved: &ResolvedConfig) -> Option<J
     }
 
     // settings_extra — merged verbatim last
-    if let Some(extra) = &resolved.gemini_settings_extra
+    if let Some(extra) = &resolved.gemini.settings_extra
         && let Some(obj) = extra.as_object()
     {
         for (k, v) in obj {
@@ -384,4 +385,15 @@ pub(super) fn build_settings(
         .get_or_insert_with(|| serde_json::json!({}));
     inject_ship_lifecycle_hooks(patch);
     out.gemini_policy_patch = build_gemini_policy_patch(&resolved.permissions);
+}
+
+/// Gemini's typed settings delta from the Ship agent.
+#[derive(Debug, Clone, Default)]
+pub struct GeminiSettings {
+    pub default_approval_mode: Option<String>,
+    pub max_session_turns: Option<u32>,
+    pub disable_yolo_mode: Option<bool>,
+    pub disable_always_allow: Option<bool>,
+    pub tools_sandbox: Option<String>,
+    pub settings_extra: Option<serde_json::Value>,
 }

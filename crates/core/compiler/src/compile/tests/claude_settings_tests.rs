@@ -257,10 +257,13 @@ fn agent_profiles_compiled_into_agent_files() {
 #[test]
 fn claude_team_agents_passed_through_to_agent_files() {
     let r = ResolvedConfig {
-        claude_team_agents: vec![(
-            "lead.md".to_string(),
-            "# Team Lead\nYou lead the team.".to_string(),
-        )],
+        claude: crate::compile::ClaudeSettings {
+            team_agents: vec![(
+                "lead.md".to_string(),
+                "# Team Lead\nYou lead the team.".to_string(),
+            )],
+            ..Default::default()
+        },
         ..resolved(vec![])
     };
     let out = compile(&r, "claude").unwrap();
@@ -274,7 +277,10 @@ fn claude_team_agents_passed_through_to_agent_files() {
 #[test]
 fn team_agents_only_for_claude() {
     let r = ResolvedConfig {
-        claude_team_agents: vec![("lead.md".to_string(), "content".to_string())],
+        claude: crate::compile::ClaudeSettings {
+            team_agents: vec![("lead.md".to_string(), "content".to_string())],
+            ..Default::default()
+        },
         ..resolved(vec![])
     };
     for harness in &["gemini", "codex", "cursor"] {
@@ -291,7 +297,10 @@ fn team_agents_only_for_claude() {
 #[test]
 fn claude_theme_emitted_in_settings_patch() {
     let r = ResolvedConfig {
-        claude_theme: Some("dark".to_string()),
+        claude: crate::compile::ClaudeSettings {
+            theme: Some("dark".to_string()),
+            ..Default::default()
+        },
         ..resolved(vec![])
     };
     let out = compile(&r, "claude").unwrap();
@@ -302,7 +311,10 @@ fn claude_theme_emitted_in_settings_patch() {
 #[test]
 fn claude_auto_updates_emitted_in_settings_patch() {
     let r = ResolvedConfig {
-        claude_auto_updates: Some(false),
+        claude: crate::compile::ClaudeSettings {
+            auto_updates: Some(false),
+            ..Default::default()
+        },
         ..resolved(vec![])
     };
     let out = compile(&r, "claude").unwrap();
@@ -315,7 +327,10 @@ fn claude_auto_updates_emitted_in_settings_patch() {
 #[test]
 fn claude_include_co_authored_by_emitted() {
     let r = ResolvedConfig {
-        claude_include_co_authored_by: Some(true),
+        claude: crate::compile::ClaudeSettings {
+            include_co_authored_by: Some(true),
+            ..Default::default()
+        },
         ..resolved(vec![])
     };
     let out = compile(&r, "claude").unwrap();
@@ -329,8 +344,11 @@ fn claude_include_co_authored_by_emitted() {
 #[test]
 fn claude_settings_extra_is_last_and_can_override() {
     let r = ResolvedConfig {
-        claude_theme: Some("light".to_string()),
-        claude_settings_extra: Some(serde_json::json!({ "theme": "dark" })),
+        claude: crate::compile::ClaudeSettings {
+            theme: Some("light".to_string()),
+            settings_extra: Some(serde_json::json!({ "theme": "dark" })),
+            ..Default::default()
+        },
         ..resolved(vec![])
     };
     let out = compile(&r, "claude").unwrap();

@@ -8,6 +8,14 @@ mod cursor;
 mod gemini;
 mod mcp;
 mod opencode;
+
+// Per-harness settings types live in their harness modules (cohesion);
+// re-export so `resolve::ResolvedConfig` can hold them as typed fields.
+pub(crate) use claude::ClaudeSettings;
+pub(crate) use codex::CodexSettings;
+pub(crate) use cursor::CursorSettings;
+pub(crate) use gemini::GeminiSettings;
+pub(crate) use opencode::OpenCodeSettings;
 mod plugins;
 mod skills;
 

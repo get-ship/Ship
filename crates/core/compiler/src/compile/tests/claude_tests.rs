@@ -275,9 +275,12 @@ fn max_turns_emits_to_settings() {
 #[test]
 fn claude_settings_extra_merged_into_patch() {
     let r = ResolvedConfig {
-        claude_settings_extra: Some(
-            serde_json::json!({ "customFeature": true, "experimentalMode": "fast" }),
-        ),
+        claude: crate::compile::ClaudeSettings {
+            settings_extra: Some(
+                serde_json::json!({ "customFeature": true, "experimentalMode": "fast" }),
+            ),
+            ..Default::default()
+        },
         ..resolved(vec![])
     };
     let out = compile(&r, "claude").unwrap();
@@ -291,7 +294,10 @@ fn claude_settings_extra_merged_into_patch() {
 #[test]
 fn claude_settings_extra_null_no_patch() {
     let r = ResolvedConfig {
-        claude_settings_extra: Some(serde_json::Value::Null),
+        claude: crate::compile::ClaudeSettings {
+            settings_extra: Some(serde_json::Value::Null),
+            ..Default::default()
+        },
         ..resolved(vec![])
     };
     let out = compile(&r, "claude").unwrap();

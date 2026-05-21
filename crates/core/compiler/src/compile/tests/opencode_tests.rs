@@ -284,10 +284,13 @@ fn opencode_permissions_omitted_when_default() {
 #[test]
 fn opencode_settings_extra_merged() {
     let r = ResolvedConfig {
-        opencode_settings_extra: Some(serde_json::json!({
-            "theme": "dark",
-            "autoupdate": false
-        })),
+        opencode: crate::compile::OpenCodeSettings {
+            settings_extra: Some(serde_json::json!({
+                "theme": "dark",
+                "autoupdate": false
+            })),
+            ..Default::default()
+        },
         ..resolved(vec![])
     };
     let patch = opencode_patch(&r);
@@ -300,7 +303,10 @@ fn opencode_settings_extra_merged_last() {
     // settings_extra should overwrite Ship-managed keys (escape hatch)
     let r = ResolvedConfig {
         model: Some("anthropic/claude-sonnet-4-5".to_string()),
-        opencode_settings_extra: Some(serde_json::json!({ "model": "openai/o3" })),
+        opencode: crate::compile::OpenCodeSettings {
+            settings_extra: Some(serde_json::json!({ "model": "openai/o3" })),
+            ..Default::default()
+        },
         ..resolved(vec![])
     };
     let patch = opencode_patch(&r);

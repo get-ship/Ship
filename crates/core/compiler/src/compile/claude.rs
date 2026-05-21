@@ -264,21 +264,32 @@ pub(super) fn build_settings(
         &resolved.permissions,
         &resolved.hooks,
         resolved.model.as_deref(),
-        resolved.claude_settings_extra.as_ref(),
+        resolved.claude.settings_extra.as_ref(),
         &resolved.env,
         &resolved.available_models,
-        resolved.claude_theme.as_deref(),
-        resolved.claude_auto_updates,
-        resolved.claude_include_co_authored_by,
+        resolved.claude.theme.as_deref(),
+        resolved.claude.auto_updates,
+        resolved.claude.include_co_authored_by,
     );
     if let Some(ref mut patch) = out.claude_settings_patch {
         inject_ship_lifecycle_hooks(patch);
     }
     out.claude_lsp_config = Some(build_claude_lsp_config());
     if let Some(base) = desc.agents_dir.base_path() {
-        for (filename, content) in &resolved.claude_team_agents {
+        for (filename, content) in &resolved.claude.team_agents {
             out.agent_files
                 .insert(format!("{base}/{filename}"), content.clone());
         }
     }
+}
+
+/// Claude's typed settings delta from the Ship agent.
+#[derive(Debug, Clone, Default)]
+pub struct ClaudeSettings {
+    pub settings_extra: Option<serde_json::Value>,
+    /// Legacy team-agent passthrough: `.ship/agents/teams/claude/<n>.md`.
+    pub team_agents: Vec<(String, String)>,
+    pub theme: Option<String>,
+    pub auto_updates: Option<bool>,
+    pub include_co_authored_by: Option<bool>,
 }

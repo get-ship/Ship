@@ -216,7 +216,7 @@ pub(super) fn build_cursor_cli_permissions(permissions: &Permissions) -> Option<
 /// Build the `.cursor/environment.json` content from `cursor_environment`.
 /// Returns `None` when not set.
 pub(super) fn build_cursor_environment(resolved: &ResolvedConfig) -> Option<Json> {
-    resolved.cursor_environment.clone()
+    resolved.cursor.environment.clone()
 }
 
 // ─── Cursor cli.json (settings_extra merge) ───────────────────────────────────
@@ -225,7 +225,8 @@ pub(super) fn build_cursor_environment(resolved: &ResolvedConfig) -> Option<Json
 pub(super) fn build_cursor_cli_json(resolved: &ResolvedConfig) -> Option<Json> {
     let permissions_json = build_cursor_cli_permissions(&resolved.permissions);
     let has_extra = resolved
-        .cursor_settings_extra
+        .cursor
+        .settings_extra
         .as_ref()
         .is_some_and(|v| !v.is_null());
 
@@ -236,7 +237,7 @@ pub(super) fn build_cursor_cli_json(resolved: &ResolvedConfig) -> Option<Json> {
     let mut out = permissions_json.unwrap_or_else(|| serde_json::json!({ "version": 1 }));
 
     // Merge cursor_settings_extra verbatim.
-    if let Some(extra) = &resolved.cursor_settings_extra
+    if let Some(extra) = &resolved.cursor.settings_extra
         && let Some(obj) = extra.as_object()
     {
         for (k, v) in obj {
@@ -343,4 +344,11 @@ pub(super) fn build_settings(
     inject_ship_lifecycle_hooks(patch);
     out.cursor_cli_permissions = build_cursor_cli_json(resolved);
     out.cursor_environment_json = build_cursor_environment(resolved);
+}
+
+/// Cursor's typed settings delta from the Ship agent.
+#[derive(Debug, Clone, Default)]
+pub struct CursorSettings {
+    pub environment: Option<serde_json::Value>,
+    pub settings_extra: Option<serde_json::Value>,
 }

@@ -238,7 +238,10 @@ fn cursor_raw_event_bypasses_trigger_mapping() {
 fn cursor_environment_json_populated() {
     let env = serde_json::json!({ "NODE_ENV": "production", "API_URL": "https://api.example.com" });
     let r = ResolvedConfig {
-        cursor_environment: Some(env.clone()),
+        cursor: crate::compile::CursorSettings {
+            environment: Some(env.clone()),
+            ..Default::default()
+        },
         ..resolved(vec![])
     };
     let out = compile(&r, "cursor").unwrap();
@@ -267,7 +270,10 @@ fn cursor_mcp_env_file_emitted_for_stdio() {
 #[test]
 fn cursor_settings_extra_merged_into_cli_json() {
     let r = ResolvedConfig {
-        cursor_settings_extra: Some(serde_json::json!({ "customSetting": true })),
+        cursor: crate::compile::CursorSettings {
+            settings_extra: Some(serde_json::json!({ "customSetting": true })),
+            ..Default::default()
+        },
         ..resolved(vec![])
     };
     let out = compile(&r, "cursor").unwrap();

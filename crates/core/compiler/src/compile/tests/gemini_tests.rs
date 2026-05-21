@@ -153,7 +153,10 @@ fn gemini_default_approval_mode_translate() {
     ];
     for (input, expected) in cases {
         let r = ResolvedConfig {
-            gemini_default_approval_mode: Some(input.to_string()),
+            gemini: crate::compile::GeminiSettings {
+                default_approval_mode: Some(input.to_string()),
+                ..Default::default()
+            },
             ..resolved(vec![])
         };
         let out = compile(&r, "gemini").unwrap();
@@ -170,7 +173,10 @@ fn gemini_default_approval_mode_translate() {
 #[test]
 fn gemini_max_session_turns_emitted() {
     let r = ResolvedConfig {
-        gemini_max_session_turns: Some(50),
+        gemini: crate::compile::GeminiSettings {
+            max_session_turns: Some(50),
+            ..Default::default()
+        },
         ..resolved(vec![])
     };
     let out = compile(&r, "gemini").unwrap();
@@ -183,8 +189,11 @@ fn gemini_max_session_turns_emitted() {
 #[test]
 fn gemini_security_flags_emitted() {
     let r = ResolvedConfig {
-        gemini_disable_yolo_mode: Some(true),
-        gemini_disable_always_allow: Some(false),
+        gemini: crate::compile::GeminiSettings {
+            disable_yolo_mode: Some(true),
+            disable_always_allow: Some(false),
+            ..Default::default()
+        },
         ..resolved(vec![])
     };
     let out = compile(&r, "gemini").unwrap();
@@ -198,7 +207,10 @@ fn gemini_security_flags_emitted() {
 #[test]
 fn gemini_tools_sandbox_emitted() {
     let r = ResolvedConfig {
-        gemini_tools_sandbox: Some("docker".to_string()),
+        gemini: crate::compile::GeminiSettings {
+            tools_sandbox: Some("docker".to_string()),
+            ..Default::default()
+        },
         ..resolved(vec![])
     };
     let out = compile(&r, "gemini").unwrap();
@@ -211,7 +223,10 @@ fn gemini_tools_sandbox_emitted() {
 #[test]
 fn gemini_settings_extra_merged_last() {
     let r = ResolvedConfig {
-        gemini_settings_extra: Some(serde_json::json!({ "telemetry": { "enabled": false } })),
+        gemini: crate::compile::GeminiSettings {
+            settings_extra: Some(serde_json::json!({ "telemetry": { "enabled": false } })),
+            ..Default::default()
+        },
         ..resolved(vec![])
     };
     let out = compile(&r, "gemini").unwrap();
