@@ -1,0 +1,77 @@
+<div class="studio-view" data-test="studio-view">
+  <sui-studio-rail></sui-studio-rail>
+  <main class="studio-content" data-test="studio-content">
+    <article class="skill-detail">
+      <a class="detail-back" href="/studio/skills" data-test="skills-back">
+        <sui-icon name="chevron-left" size="xs"></sui-icon>
+        Skills
+      </a>
+
+      {#if loading()}
+        <sui-spinner size="md" centered></sui-spinner>
+      {:else if !skill()}
+        <sui-empty-state icon="search-x" variant="default" size="md" data-test="skill-not-found">
+          <span slot="title">No such skill</span>
+          <span>{'No skill with id "' + skillId() + '" was found.'}</span>
+          <sui-button slot="action" tone="primary" variant="solid" on:click={goBack}>Back to skills</sui-button>
+        </sui-empty-state>
+      {:else}
+        <header class="sd-head">
+          <span class="sd-art" attr:data-kind={skill().kind} aria-hidden="true">
+            <sui-icon name={skill().kind === 'docs' ? 'file-text' : 'sparkles'} size="md"></sui-icon>
+          </span>
+          <div class="sd-head-body">
+            <h1 class="sd-name" data-test="skill-name">{skill().name}</h1>
+            <div class="sd-meta">
+              <sui-badge tone="muted" variant="outline" size="sm">{skill().kind}</sui-badge>
+              <span class="sd-meta-sep"></span>
+              <span class="sd-source">{skill().source}</span>
+              {#if (skill().authors || []).length > 0}
+                <span class="sd-meta-sep"></span>
+                <span>by {authorsLabel()}</span>
+              {/if}
+            </div>
+            <div class="sd-rule"></div>
+          </div>
+        </header>
+
+        <p class="sd-description">{skill().description}</p>
+
+        {#if (skill().tags || []).length > 0}
+          <div class="sd-tags">
+            {#for t of skill().tags key={t}}
+              <sui-chip tone="muted" variant="soft" size="sm">{t}</sui-chip>
+            {/for}
+          </div>
+        {/if}
+
+        {#if (skill().variables || []).length > 0}
+          <section class="sd-section" data-test="section-variables">
+            <h2 class="sd-section-h">Variables <span class="sd-section-count">· {skill().variables.length}</span></h2>
+            <div class="sd-chips">
+              {#for v of skill().variables key={v}}
+                <code class="sd-var">{v}</code>
+              {/for}
+            </div>
+          </section>
+        {/if}
+
+        {#if (skill().files || []).length > 0}
+          <section class="sd-section" data-test="section-files">
+            <h2 class="sd-section-h">Files <span class="sd-section-count">· {skill().files.length}</span></h2>
+            <div class="sd-chips">
+              {#for f of skill().files key={f}}
+                <code class="sd-file">{f}</code>
+              {/for}
+            </div>
+          </section>
+        {/if}
+
+        <section class="sd-section" data-test="section-body">
+          <h2 class="sd-section-h">Content</h2>
+          <pre class="sd-body">{skill().body}</pre>
+        </section>
+      {/if}
+    </article>
+  </main>
+</div>
