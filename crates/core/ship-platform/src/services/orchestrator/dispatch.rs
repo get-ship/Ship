@@ -208,6 +208,13 @@ pub async fn dispatch_job_internal(
         }
     }
 
+    // A cancel processed before this dispatch ran tombstoned the slug — bail
+    // before spawning. The projection has already marked the run cancelled.
+    if octx.registry.take_if_cancelled(slug).await {
+        tracing::info!(slug, "job-dispatch: run already cancelled — skipping spawn");
+        return;
+    }
+
     let (exit_tx, exit_rx) = tokio::sync::mpsc::unbounded_channel();
     let session_ctx_with_dir = SessionContext {
         work_dir: worktree_path.clone(),
@@ -233,6 +240,19 @@ pub async fn dispatch_job_internal(
 
     let pid = handle.pid;
     octx.registry.register(slug, handle).await;
+
+    // Close the cancel-during-spawn window (see handle_cancelled): a cancel
+    // that raced this spawn tombstoned the slug rather than leaking the child.
+    // register-then-check is race-free via the registry mutex.
+    if octx.registry.take_if_cancelled(slug).await {
+        if let Some(h) = octx.registry.take(slug).await {
+            tracing::info!(slug, "job-dispatch: cancel raced the spawn — stopping just-spawned child");
+            if let Err(e) = octx.executor.stop(&h).await {
+                tracing::warn!(slug, "job-dispatch: post-spawn cancel stop failed: {e}");
+            }
+        }
+        return;
+    }
 
     // First step of a pipeline run also surfaces as an agent_session row
     // (consistency with advance_pipeline_inner, which emits for steps
@@ -364,6 +384,14 @@ async fn dispatch_agent_session_internal(
         "agent-session-dispatch: dispatching"
     );
 
+    // A cancel processed before this dispatch ran leaves a tombstone (the
+    // cancel found no handle to stop). Bail before spawning anything — the
+    // projection has already marked the session cancelled.
+    if octx.registry.take_if_cancelled(slug).await {
+        tracing::info!(slug, "agent-session-dispatch: session already cancelled — skipping spawn");
+        return;
+    }
+
     // The agent-session payload carries invocation directly — it's the
     // source of truth for how the executor launches the harness.
     // RoutingExecutor routes Pty → TmuxWindow/Process, Print → Process,
@@ -459,6 +487,21 @@ async fn dispatch_agent_session_internal(
     .await;
 
     octx.registry.register(slug, handle).await;
+
+    // Close the cancel-during-spawn window: if a cancel landed while we were
+    // spawning (it found no handle and tombstoned the slug), tear the child
+    // down now instead of leaving it orphaned. register-then-check is
+    // race-free because the registry mutex serializes our register() against
+    // the cancel's take().
+    if octx.registry.take_if_cancelled(slug).await {
+        if let Some(h) = octx.registry.take(slug).await {
+            tracing::info!(slug, "agent-session-dispatch: cancel raced the spawn — stopping just-spawned child");
+            if let Err(e) = octx.executor.stop(&h).await {
+                tracing::warn!(slug, "agent-session-dispatch: post-spawn cancel stop failed: {e}");
+            }
+        }
+        return;
+    }
 
     // Start the agent-session exit handler. Distinct from the
     // pipeline exit_handler — emits agent.session.{completed,failed}

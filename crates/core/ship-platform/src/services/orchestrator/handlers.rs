@@ -182,7 +182,13 @@ pub async fn handle_cancelled(
         }
         pid
     } else {
-        tracing::info!(slug, "job-dispatch: cancel — no live handle found; proceeding to tmux cleanup");
+        // No handle to stop — but a dispatch for this slug may be spawning
+        // right now (cancel raced the spawn). Drop a tombstone so the
+        // in-flight dispatch tears the child down after it registers instead
+        // of leaking it. Also covers a cancel processed entirely before the
+        // dispatch handler runs.
+        octx.registry.mark_cancelled(&slug).await;
+        tracing::info!(slug, "job-dispatch: cancel — no live handle found; tombstoned for in-flight spawn, proceeding to tmux cleanup");
         None
     };
 
