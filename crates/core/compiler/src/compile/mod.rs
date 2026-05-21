@@ -70,17 +70,6 @@ pub struct CompileOutput {
     /// Merge into `.codex/config.toml`.
     pub codex_config_patch: Option<String>,
 
-    /// Gemini settings patch: `hooks` section for `.gemini/settings.json`.
-    /// Only populated for the `gemini` harness when hooks are present.
-    /// Merge alongside `mcpServers` in `.gemini/settings.json`.
-    pub gemini_settings_patch: Option<Json>,
-
-    /// Gemini policy file content for `.gemini/policies/ship.toml`.
-    /// Only populated for the `gemini` harness when permissions are non-default.
-    /// Decisions: `allow`, `deny`, `ask_user`. Tool names: `shell`, `mcp`,
-    /// `file_read`, `file_write`, `web_fetch`.
-    pub gemini_policy_patch: Option<String>,
-
     /// Cursor hooks file: full `.cursor/hooks.json` content.
     /// Only populated for the `cursor` harness when hooks are present.
     pub cursor_hooks_patch: Option<Json>,

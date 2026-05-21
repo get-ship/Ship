@@ -17,10 +17,6 @@ pub fn make_server(id: &str) -> McpServerConfig {
         timeout_secs: None,
         codex_enabled_tools: vec![],
         codex_disabled_tools: vec![],
-        gemini_trust: None,
-        gemini_include_tools: vec![],
-        gemini_exclude_tools: vec![],
-        gemini_timeout_ms: None,
         cursor_env_file: None,
     }
 }
@@ -49,7 +45,6 @@ pub fn make_hook(trigger: HookTrigger, command: &str, matcher: Option<&str>) -> 
         matcher: matcher.map(str::to_string),
         command: command.to_string(),
         cursor_event: None,
-        gemini_event: None,
     }
 }
 

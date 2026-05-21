@@ -22,7 +22,7 @@ pub use compile::{
 };
 pub use decompile::{
     DetectedProviders, decompile_all, decompile_claude, decompile_codex, decompile_cursor,
-    decompile_gemini, decompile_opencode, detect_harnesses,
+    decompile_opencode, detect_harnesses,
 };
 pub use resolve::{ProjectLibrary, ResolvedConfig, WorkspaceOverrides, resolve, resolve_library};
 pub use schemas::{HARNESS_MANAGED_KEYS, HARNESS_SCHEMAS, managed_keys, schema_url};
@@ -81,10 +81,6 @@ mod wasm {
         claude_settings_patch: Option<serde_json::Value>,
         /// Codex-only: `[mcp_servers.*]` TOML tables for `.codex/config.toml`.
         codex_config_patch: Option<String>,
-        /// Gemini-only: `hooks` section for `.gemini/settings.json`.
-        gemini_settings_patch: Option<serde_json::Value>,
-        /// Gemini-only: `.gemini/policies/ship.toml` content.
-        gemini_policy_patch: Option<String>,
         /// Cursor-only: full `.cursor/hooks.json` content.
         cursor_hooks_patch: Option<serde_json::Value>,
         /// Cursor-only: `.cursor/cli.json` permissions (CLI-only, not IDE).
@@ -135,8 +131,6 @@ mod wasm {
             rule_files: output.rule_files,
             claude_settings_patch: output.claude_settings_patch,
             codex_config_patch: output.codex_config_patch,
-            gemini_settings_patch: output.gemini_settings_patch,
-            gemini_policy_patch: output.gemini_policy_patch,
             cursor_hooks_patch: output.cursor_hooks_patch,
             cursor_cli_permissions: output.cursor_cli_permissions,
             cursor_environment_json: output.cursor_environment_json,
@@ -175,8 +169,6 @@ mod wasm {
                     rule_files: output.rule_files,
                     claude_settings_patch: output.claude_settings_patch,
                     codex_config_patch: output.codex_config_patch,
-                    gemini_settings_patch: output.gemini_settings_patch,
-                    gemini_policy_patch: output.gemini_policy_patch,
                     cursor_hooks_patch: output.cursor_hooks_patch,
                     cursor_cli_permissions: output.cursor_cli_permissions,
                     cursor_environment_json: output.cursor_environment_json,

@@ -99,10 +99,6 @@ fn mcp_schema_has_per_server_harness_fields() {
     let required_fields = [
         "codex_enabled_tools",
         "codex_disabled_tools",
-        "gemini_trust",
-        "gemini_include_tools",
-        "gemini_exclude_tools",
-        "gemini_timeout_ms",
         "cursor_env_file",
     ];
 

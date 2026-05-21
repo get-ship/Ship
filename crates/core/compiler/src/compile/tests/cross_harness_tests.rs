@@ -103,11 +103,6 @@ fn all_harnesses_are_idempotent() {
             "{harness}: codex_config_patch not idempotent"
         );
         assert_eq!(
-            serde_json::to_string(&a.gemini_settings_patch).unwrap(),
-            serde_json::to_string(&b.gemini_settings_patch).unwrap(),
-            "{harness}: gemini_settings_patch not idempotent"
-        );
-        assert_eq!(
             serde_json::to_string(&a.cursor_hooks_patch).unwrap(),
             serde_json::to_string(&b.cursor_hooks_patch).unwrap(),
             "{harness}: cursor_hooks_patch not idempotent"
@@ -120,10 +115,6 @@ fn all_harnesses_are_idempotent() {
         assert_eq!(
             a.rule_files, b.rule_files,
             "{harness}: rule_files not idempotent"
-        );
-        assert_eq!(
-            a.gemini_policy_patch, b.gemini_policy_patch,
-            "{harness}: gemini_policy_patch not idempotent"
         );
     }
 }

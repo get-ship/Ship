@@ -48,8 +48,6 @@ impl McpKey {
 pub enum ContextFile {
     /// `CLAUDE.md` — Claude Code
     ClaudeMd,
-    /// `GEMINI.md` — Gemini CLI
-    GeminiMd,
     /// `AGENTS.md` — Codex, Roo, Amp, Goose
     AgentsMd,
     /// Harness does not use a context file
@@ -60,7 +58,6 @@ impl ContextFile {
     pub fn file_name(self) -> Option<&'static str> {
         match self {
             Self::ClaudeMd => Some("CLAUDE.md"),
-            Self::GeminiMd => Some("GEMINI.md"),
             Self::AgentsMd => Some("AGENTS.md"),
             Self::None => None,
         }
@@ -72,9 +69,7 @@ impl ContextFile {
 pub enum SkillsDir {
     /// `.claude/skills/<id>/SKILL.md`
     Claude,
-    /// `.agents/skills/<id>/SKILL.md` (Gemini CLI, Cursor fallback, universal)
-    Gemini,
-    /// `.agents/skills/<id>/SKILL.md`
+    /// `.agents/skills/<id>/SKILL.md` (Codex, Pi, Cursor fallback, universal)
     Agents,
     /// `.cursor/skills/<id>/SKILL.md`
     Cursor,
@@ -87,7 +82,6 @@ impl SkillsDir {
     pub fn base_path(self) -> Option<&'static str> {
         match self {
             Self::Claude => Some(".claude/skills"),
-            Self::Gemini => Some(".agents/skills"),
             Self::Agents => Some(".agents/skills"),
             Self::Cursor => Some(".cursor/skills"),
             Self::OpenCode => Some(".opencode/skills"),
@@ -101,8 +95,6 @@ impl SkillsDir {
 pub enum AgentsDir {
     /// `.claude/agents/<id>.md`
     Claude,
-    /// `.gemini/agents/<id>.md`
-    Gemini,
     /// `.codex/agents/<id>.toml`
     Codex,
     /// `.cursor/agents/<id>.md`
@@ -118,7 +110,6 @@ impl AgentsDir {
     pub fn base_path(self) -> Option<&'static str> {
         match self {
             Self::Claude => Some(".claude/agents"),
-            Self::Gemini => Some(".gemini/agents"),
             Self::Codex => Some(".codex/agents"),
             Self::Cursor => Some(".cursor/agents"),
             Self::OpenCode => Some(".opencode/agents"),
@@ -129,7 +120,6 @@ impl AgentsDir {
     pub fn ext(self) -> Option<&'static str> {
         match self {
             Self::Claude => Some("md"),
-            Self::Gemini => Some("md"),
             Self::Codex => Some("toml"),
             Self::Cursor => Some("md"),
             Self::OpenCode => Some("md"),

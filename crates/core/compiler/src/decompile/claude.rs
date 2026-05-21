@@ -229,7 +229,6 @@ fn parse_hooks(hooks_val: &Json) -> Vec<HookConfig> {
                     command,
                     matcher: matcher.clone(),
                     cursor_event: None,
-                    gemini_event: None,
                 });
             }
         }

@@ -216,7 +216,6 @@ fn cursor_raw_event_bypasses_trigger_mapping() {
         matcher: None,
         command: "ship log".to_string(),
         cursor_event: Some("customEvent".to_string()),
-        gemini_event: None,
     };
     let r = ResolvedConfig {
         hooks: vec![hook],

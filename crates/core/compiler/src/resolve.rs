@@ -132,19 +132,6 @@ pub struct ProjectLibrary {
     /// Shared model override used by Gemini + Codex when no feature override present.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub model: Option<String>,
-    // ── Gemini harness settings ───────────────────────────────────────────────
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub gemini_default_approval_mode: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub gemini_max_session_turns: Option<u32>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub gemini_disable_yolo_mode: Option<bool>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub gemini_disable_always_allow: Option<bool>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub gemini_tools_sandbox: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub gemini_settings_extra: Option<serde_json::Value>,
     // ── Codex harness settings ────────────────────────────────────────────────
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub codex_approval_policy: Option<String>,
@@ -495,10 +482,6 @@ mod tests {
             timeout_secs: None,
             codex_enabled_tools: vec![],
             codex_disabled_tools: vec![],
-            gemini_trust: None,
-            gemini_include_tools: vec![],
-            gemini_exclude_tools: vec![],
-            gemini_timeout_ms: None,
             cursor_env_file: None,
         }
     }
