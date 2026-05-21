@@ -4,9 +4,9 @@
 //! behind `cfg(test)` / the `fixtures` feature.
 //!
 //! Covers every structurally-fixed `ship.*` data op assembled in the daemon.
-//! The inherently-dynamic ops (`collections.*`, `dashboard.state`,
-//! `skills.summaries`, `git.annotations`) have `Value`-shaped returns and stay
-//! `DataHandle<unknown>`, so they carry no struct-derived fixture.
+//! The remaining `DataHandle<unknown>` ops (`collections.*`, `dashboard.state`,
+//! `skills.summaries`) have `Value`-shaped returns; they still get a fixture
+//! where a representative shape exists, but carry no struct-derived TS type.
 
 mod git;
 mod pipelines;
@@ -40,7 +40,7 @@ mod tests {
             assert!(value.is_object() || value.is_array(), "{op} example is structured");
         }
         // chat/sessions/events/artifacts + workspaces(2) + settings + skills(4)
-        // + git(5) + pipelines(6) + specs(4) = 26 daemon-side data ops.
-        assert_eq!(ex.len(), 26, "expected 26 daemon-side fixtures, got {}", ex.len());
+        // + git(6) + pipelines(6) + specs(4) = 27 daemon-side data ops.
+        assert_eq!(ex.len(), 27, "expected 27 daemon-side fixtures, got {}", ex.len());
     }
 }

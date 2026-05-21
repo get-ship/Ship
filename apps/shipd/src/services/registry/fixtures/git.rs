@@ -1,11 +1,12 @@
-//! `git.*` fixtures (status / log / branches / overview / diff). `git.annotations`
-//! is a bare line→annotations map and stays `unknown` (no struct fixture).
+//! `git.*` fixtures (status / log / branches / overview / diff / annotations).
 
 use serde_json::Value;
+use std::collections::BTreeMap;
 
 use crate::services::registry::wire::{
     GitBranchesResponse, GitDiffResponse, GitLogResponse, GitOverviewResponse,
 };
+use ship_platform::services::git::annotations::{AnnotationsByLine, GitAnnotation};
 use ship_platform::services::git::diff::parse_unified_diff;
 use ship_platform::services::git::state::{BranchSummary, CommitSummary, StatusBuckets, StatusFile};
 
@@ -98,6 +99,22 @@ impl GitDiffResponse {
     }
 }
 
+fn annotations_by_line() -> AnnotationsByLine {
+    let mut by_line = BTreeMap::new();
+    by_line.insert(
+        "a1b2c3d:42".to_string(),
+        vec![GitAnnotation {
+            id: "ann_01".to_string(),
+            selector: "a1b2c3d:42".to_string(),
+            note: Some("Is this reading from the typed op surface?".to_string()),
+            intent: Some("question".to_string()),
+            author_kind: "human".to_string(),
+            created_at: "2026-01-01T10:00:00Z".to_string(),
+        }],
+    );
+    by_line
+}
+
 pub fn examples() -> Vec<(&'static str, Value)> {
     fn v<T: serde::Serialize>(t: T) -> Value {
         serde_json::to_value(t).expect("example serializes")
@@ -108,5 +125,6 @@ pub fn examples() -> Vec<(&'static str, Value)> {
         ("git.branches", v(GitBranchesResponse::example())),
         ("git.overview", v(GitOverviewResponse::example())),
         ("git.diff", v(GitDiffResponse::example())),
+        ("git.annotations", v(annotations_by_line())),
     ]
 }
