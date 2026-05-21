@@ -1,0 +1,8 @@
+// Route metadata for views/studio/components/[name]/ — the component detail/playground.
+{
+  "name": "components-detail",
+  "path": "/studio/components/[name]",
+  "title": "Component",
+  "layout": "default",
+  "auth": "user"
+}

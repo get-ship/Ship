@@ -1,0 +1,135 @@
+<div class="studio-view" data-test="studio-view">
+  <sui-studio-rail></sui-studio-rail>
+  <main class="studio-content" data-test="studio-content">
+    <a class="cmp-back" href="/studio/components" data-test="components-back">
+      <sui-icon name="chevron-left" size="xs"></sui-icon>
+      Components
+    </a>
+    <div class="studio-main studio-detail-main">
+    {#if loading()}
+      <div class="studio-loading">
+        <sui-spinner size="md"></sui-spinner>
+      </div>
+    {:else if entry()}
+      <header class="detail-header">
+        <div class="detail-header-meta">
+          <code class="detail-tag">{entry().tag}</code>
+          <sui-badge tone={entry().kind === 'sui' ? 'primary' : 'info'} variant="soft" size="sm">{entry().kind}</sui-badge>
+          {#if entry().kind === 'sui'}
+            <a
+              class="detail-source-link"
+              href={'/_sui/source/' + entry().tag}
+              target="_blank"
+              rel="noopener"
+              data-test="source-link"
+            >
+              <sui-icon name="file-code" size="sm"></sui-icon>
+              <span>View source</span>
+            </a>
+          {/if}
+        </div>
+        {#if entry().description}
+          <p class="detail-description">{entry().description}</p>
+        {/if}
+      </header>
+
+      <div class="detail-body">
+        {#if hasProps()}
+          <aside class="detail-props" data-test="props-panel">
+            <h3 class="props-heading">Props</h3>
+            {#for prop of entry().props key={prop.name}}
+              <div class="prop-row" data-test="prop-row">
+                <label class="prop-meta" for={'prop-' + prop.name}>
+                  <span class="prop-name">{prop.name}</span>
+                  {#if prop.values && prop.values.length > 0}
+                    <span class="prop-type">enum</span>
+                  {:else}
+                    <span class="prop-type">{prop.type}</span>
+                  {/if}
+                </label>
+                {#if prop.type === 'boolean' || prop.type === 'Boolean'}
+                  <input
+                    class="prop-checkbox"
+                    type="checkbox"
+                    id={'prop-' + prop.name}
+                    checked={propValues()[prop.name] === 'true' || propValues()[prop.name] === true}
+                    on:change={(e) => setProp(prop.name, e.target.checked ? 'true' : 'false')}
+                  />
+                {:else if prop.values && prop.values.length > 0}
+                  <select
+                    class="prop-select"
+                    id={'prop-' + prop.name}
+                    value={(propValues()[prop.name] ?? prop.default ?? '') + ''}
+                    on:change={(e) => setProp(prop.name, e.target.value)}
+                  >
+                    {#for v of prop.values key={v}}
+                      <option value={v}>{v}</option>
+                    {/for}
+                  </select>
+                {:else}
+                  <input
+                    class="prop-input"
+                    type="text"
+                    id={'prop-' + prop.name}
+                    value={(propValues()[prop.name] ?? prop.default ?? '') + ''}
+                    on:input={(e) => setProp(prop.name, e.target.value)}
+                    placeholder={prop.default ?? ''}
+                  />
+                {/if}
+              </div>
+            {/for}
+          </aside>
+        {/if}
+
+        <div class="detail-render-wrap">
+          {#if entry().kind === 'sui'}
+            <div class="detail-render-toolbar">
+              <button
+                type="button"
+                class="copy-code-btn"
+                data-test="copy-code"
+                data-copied={copyFeedback() ? 'true' : 'false'}
+                on:click={() => copyCode(entry())}
+              >{copyFeedback() ? 'Copied' : 'Copy code'}</button>
+            </div>
+          {/if}
+          <div class="detail-render-stage" data-stage-kind={entry().kind}>
+            <div class="detail-render" data-render-slot data-test="render-slot" morph></div>
+          </div>
+          {#if entry().kind === 'sui'}
+            <div class="detail-render-caption">Live preview · default slot text: <code>example</code></div>
+          {:else}
+            <div class="detail-render-caption">Live view · <code>/sui/{entry().id}</code></div>
+          {/if}
+          {#if matrixCells().length > 0}
+            <section class="detail-matrix-section" data-test="state-matrix">
+              <header class="detail-matrix-header">
+                <h3 class="detail-matrix-title">State matrix</h3>
+                <span class="detail-matrix-meta">{matrixAxesLabel()} · {matrixCells().length} cells</span>
+              </header>
+              <div class="detail-matrix">
+                {#for cell of matrixCells() key={cell.id}}
+                  <div class="matrix-cell" data-test="matrix-cell" data-label={cell.label}>
+                    <div
+                      class="matrix-cell-host"
+                      data-matrix-tag={entry().tag}
+                      data-matrix-cell={cell.id}
+                      data-props={cell.propsJson}
+                      morph
+                    ></div>
+                    <div class="matrix-cell-label">{cell.label}</div>
+                  </div>
+                {/for}
+              </div>
+            </section>
+          {/if}
+        </div>
+      </div>
+    {:else}
+      <div class="studio-welcome">
+        <p class="detail-not-found">Component not found.</p>
+      </div>
+    {/if}
+    </div>
+  </main>
+</div>
