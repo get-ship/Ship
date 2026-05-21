@@ -9,9 +9,11 @@ use super::fixtures::*;
 #[test]
 fn ship_server_args_include_serve_subcommand() {
     // Regression: ship use was generating args: ["mcp"] — missing "serve".
-    // The correct command is `ship mcp serve`.
+    // The correct command is `ship mcp serve`. Only stdio-fallback harnesses
+    // emit a command — claude now compiles to a daemon-hosted authed-HTTP
+    // entry (covered in compile::mcp tests), so it's excluded here.
     let r = resolved(vec![]);
-    for harness_id in &["claude", "codex", "cursor"] {
+    for harness_id in &["codex", "cursor"] {
         let out = compile(&r, harness_id).unwrap();
         let ship = &out.mcp_servers["ship"];
         assert_eq!(

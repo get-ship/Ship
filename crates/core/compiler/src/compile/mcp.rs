@@ -7,16 +7,20 @@ use super::harness::HarnessDescriptor;
 pub(super) fn build_mcp_servers(
     desc: &HarnessDescriptor,
     servers: &[McpServerConfig],
-    studio_url: Option<&str>,
     ship_home_dir: Option<&str>,
 ) -> Json {
     let mut map = serde_json::Map::new();
 
-    // Ship's own self-hosted MCP server is always injected first.
-    // When Studio integration is active, emit HTTP transport instead of stdio.
-    let ship_entry = match studio_url {
-        Some(url) => ship_server_entry_http(url, desc.emit_type_field),
-        None => ship_server_entry(desc.emit_type_field, ship_home_dir),
+    // Ship's own self-hosted MCP server is always injected first. Harnesses
+    // that can carry a bearer in static config get the daemon-hosted authed
+    // HTTP entry (`${SHIP_DAEMON_URL}/mcp` + `Bearer ${SHIP_TOKEN}`); the rest
+    // fall back to the local stdio shim. The env references are resolved by the
+    // harness at launch from the env the daemon/dispatcher (and sandbox path)
+    // provision — no live credential is written to disk.
+    let ship_entry = if desc.supports_authed_http_mcp {
+        ship_server_entry_authed_http(desc)
+    } else {
+        ship_server_entry(desc.emit_type_field, ship_home_dir)
     };
     map.insert("ship".to_string(), ship_entry);
 
@@ -91,12 +95,22 @@ pub(super) fn ship_server_entry(emit_type: bool, ship_home_dir: Option<&str>) ->
     e
 }
 
-/// Emit an HTTP streamable-http transport entry pointing at Studio's agent endpoint.
-pub(super) fn ship_server_entry_http(url: &str, emit_type: bool) -> Json {
-    let mut e = serde_json::json!({ "url": url });
-    if emit_type {
-        e["type"] = Json::String("http".to_string());
-    }
+/// Emit a daemon-hosted streamable-HTTP entry for the self-hosted `ship`
+/// server, authenticated by the scoped session token.
+///
+/// The url and token are `${ENV}` references the harness resolves at launch
+/// from the environment the daemon/dispatcher injects (`SHIP_DAEMON_URL`,
+/// `SHIP_TOKEN`) — one compiled shape for local + sandboxed agents, with no
+/// live credential written to a config file. Only emitted for harnesses with
+/// `supports_authed_http_mcp = true` (verified to express `headers` + `${ENV}`
+/// expansion). `type: "http"` is required to declare the remote transport;
+/// harnesses with a different remote-type token are not yet enabled.
+pub(super) fn ship_server_entry_authed_http(desc: &HarnessDescriptor) -> Json {
+    let mut e = serde_json::json!({
+        "type": "http",
+        "headers": { "Authorization": "Bearer ${SHIP_TOKEN}" },
+    });
+    e[desc.http_url_field] = Json::String("${SHIP_DAEMON_URL}/mcp".to_string());
     e
 }
 
@@ -121,29 +135,40 @@ mod tests {
     }
 
     #[test]
-    fn ship_server_entry_http_has_url_no_command() {
-        let entry = ship_server_entry_http("http://localhost:51741/agent", false);
-        assert_eq!(entry["url"], "http://localhost:51741/agent");
-        assert!(entry.get("command").is_none());
-        assert!(entry.get("args").is_none());
+    fn authed_http_entry_uses_env_references_no_disk_secret() {
+        use crate::compile::harness::get_harness;
+        let desc = get_harness("claude").unwrap();
+        let entry = ship_server_entry_authed_http(desc);
+        assert_eq!(entry["type"], "http");
+        assert_eq!(entry["url"], "${SHIP_DAEMON_URL}/mcp");
+        assert_eq!(entry["headers"]["Authorization"], "Bearer ${SHIP_TOKEN}");
+        assert!(entry.get("command").is_none(), "authed HTTP entry has no command");
+        // No live token baked into the config — only an env reference.
+        let serialized = serde_json::to_string(&entry).unwrap();
+        assert!(serialized.contains("${SHIP_TOKEN}"));
+        assert!(!serialized.contains("ship_sess_"), "no minted token on disk");
     }
 
     #[test]
-    fn build_mcp_servers_no_studio_uses_stdio() {
+    fn supported_harness_emits_daemon_hosted_http() {
         use crate::compile::harness::get_harness;
+        // Claude is verified for authed HTTP → daemon-hosted entry, no stdio.
         let desc = get_harness("claude").unwrap();
-        let result = build_mcp_servers(desc, &[], None, None);
+        let result = build_mcp_servers(desc, &[], Some("/var/lib/ship"));
+        let ship = &result["ship"];
+        assert_eq!(ship["url"], "${SHIP_DAEMON_URL}/mcp");
+        assert!(ship.get("command").is_none());
+    }
+
+    #[test]
+    fn unsupported_harness_falls_back_to_stdio_shim() {
+        use crate::compile::harness::get_harness;
+        // Codex is not yet verified for authed HTTP → stdio shim fallback.
+        let desc = get_harness("codex").unwrap();
+        let result = build_mcp_servers(desc, &[], Some("/var/lib/ship"));
         let ship = &result["ship"];
         assert_eq!(ship["command"], "ship");
-    }
-
-    #[test]
-    fn build_mcp_servers_with_studio_uses_http() {
-        use crate::compile::harness::get_harness;
-        let desc = get_harness("claude").unwrap();
-        let result = build_mcp_servers(desc, &[], Some("http://localhost:51741/agent"), None);
-        let ship = &result["ship"];
-        assert_eq!(ship["url"], "http://localhost:51741/agent");
-        assert!(ship.get("command").is_none());
+        assert_eq!(ship["env"]["SHIP_HOME"], "/var/lib/ship");
+        assert!(ship.get("headers").is_none());
     }
 }

@@ -271,15 +271,17 @@ pub(super) fn build_cursor_server_entry(
 pub(super) fn build_cursor_mcp_servers(
     desc: &super::harness::HarnessDescriptor,
     servers: &[McpServerConfig],
-    studio_url: Option<&str>,
     ship_home_dir: Option<&str>,
 ) -> Json {
     let mut map = serde_json::Map::new();
 
-    // Ship server always first.
-    let ship_entry = match studio_url {
-        Some(url) => super::mcp::ship_server_entry_http(url, desc.emit_type_field),
-        None => super::mcp::ship_server_entry(desc.emit_type_field, ship_home_dir),
+    // Ship server always first: daemon-hosted authed HTTP where the harness
+    // supports it, else the local stdio shim. (Cursor is not yet verified for
+    // authed HTTP → stdio.)
+    let ship_entry = if desc.supports_authed_http_mcp {
+        super::mcp::ship_server_entry_authed_http(desc)
+    } else {
+        super::mcp::ship_server_entry(desc.emit_type_field, ship_home_dir)
     };
     map.insert("ship".to_string(), ship_entry);
 
