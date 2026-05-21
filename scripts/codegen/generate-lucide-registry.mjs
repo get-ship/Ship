@@ -14,7 +14,8 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const here = dirname(fileURLToPath(import.meta.url))
-const repoRoot = dirname(here)
+// here = scripts/codegen → repo root is two levels up.
+const repoRoot = dirname(dirname(here))
 const lucideDir = join(
   repoRoot,
   'node_modules/.bun/lucide-static@1.14.0/node_modules/lucide-static/icons',

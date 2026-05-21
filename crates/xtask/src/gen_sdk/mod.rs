@@ -24,7 +24,7 @@ const HEADER: &str = "just gen-sdk — DO NOT EDIT";
 /// the JSON artifacts alongside the typed TS bindings. Each is a complete
 /// top-level object with `_generated`, `version`, and `$schema`.
 pub fn run(repo_root: &Path) -> Result<()> {
-    let out_dir = repo_root.join("packages/sdk/src/generated");
+    let out_dir = repo_root.join("packages/deck/sdk/src/generated");
     fs::create_dir_all(&out_dir)
         .with_context(|| format!("create {}", out_dir.display()))?;
 
