@@ -25,7 +25,11 @@ pub fn check(path: &Path, source: &str) -> Vec<Finding> {
     let mut i = 0;
 
     while i < bytes.len() {
-        if !source[i..].starts_with("attr:") {
+        // Match on the byte slice, not `source[i..]`: `i` walks byte-by-byte,
+        // so a string slice here panics the moment it lands inside a multibyte
+        // char (e.g. an em-dash in a comment). The needle is ASCII, so a byte
+        // compare is equivalent and boundary-safe — same idiom the helpers use.
+        if !bytes[i..].starts_with(b"attr:") {
             i += 1;
             continue;
         }
@@ -247,6 +251,17 @@ mod tests {
     fn question_inside_string_does_not_trip() {
         let f = lint(r#"<div attr:title={label === "a ? '' : b" ? label() : null}></div>"#);
         assert_eq!(f.len(), 0, "{f:?}");
+    }
+
+    #[test]
+    fn multibyte_chars_do_not_panic() {
+        // `i` walks byte-by-byte; a string slice at a non-char-boundary used to
+        // panic. An em-dash (3 bytes) in a comment before a real binding must
+        // both not panic and still let the binding be flagged.
+        let f = lint(
+            "<!-- progress — bar -->\n<div attr:data-active={active() ? '' : null}></div>",
+        );
+        assert_eq!(f.len(), 1, "{f:?}");
     }
 
     #[test]
