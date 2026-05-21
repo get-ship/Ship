@@ -157,11 +157,37 @@ pub fn build_claude_settings_patch(
     Some(patch)
 }
 
+/// Hook command that works on the host *and* inside a sandbox, from one
+/// compiled config. The compiler can't know at compile time whether this
+/// agent will run sandboxed (the isolation tier is resolved per-spawn), so
+/// the command branches at run time on `$SHIP_DAEMON_URL`:
+///
+/// - **In a sandbox** the supervisor injects `$SHIP_DAEMON_URL` (rewritten
+///   to a container-reachable host) + a scoped `$SHIP_TOKEN`; the hook
+///   `curl`s its harness-native payload straight at the daemon — no `ship`
+///   CLI in the container. The daemon derives identity from the token and
+///   deserializes the raw payload via `ShipHookEvent`'s field aliases.
+/// - **On the host** `$SHIP_DAEMON_URL` is unset, so it falls back to
+///   `ship hook <phase>` (CLI + `~/.ship/daemon.token`) — unchanged.
+///
+/// Note: `before-tool` *blocking* is observability-only in the curl branch
+/// (raw curl can't translate the daemon's allow/block response into
+/// Claude's hook-block protocol); host blocking via `ship hook` is intact.
+fn ship_hook_command(endpoint: &str) -> String {
+    format!(
+        "if [ -n \"$SHIP_DAEMON_URL\" ]; then \
+curl -sS -X POST \"$SHIP_DAEMON_URL/api/v1/hooks/{endpoint}\" \
+-H \"Authorization: Bearer $SHIP_TOKEN\" -H \"Content-Type: application/json\" \
+--data-binary @- >/dev/null 2>&1; \
+else ship hook {endpoint}; fi"
+    )
+}
+
 /// Inject Ship lifecycle hooks for the daemon into Claude's hooks patch.
 ///
-/// Always emits command hooks via `ship hook <phase>`. The CLI authenticates
-/// to the daemon using the local `~/.ship/daemon.token`, so harness settings
-/// stay stable across daemon restarts.
+/// Emits hybrid command hooks (see `ship_hook_command`) that POST to the
+/// daemon over HTTP inside a sandbox and fall back to the `ship hook` CLI
+/// on the host — one config, stable across daemon restarts and tiers.
 pub fn inject_ship_lifecycle_hooks(patch: &mut Json) {
     let Some(obj) = patch.as_object_mut() else {
         return;
@@ -188,12 +214,13 @@ pub fn inject_ship_lifecycle_hooks(patch: &mut Json) {
     //   in hooks_api.rs::hook_session_end. A future job will split
     //   turn-end from session-end into separate Ship signals.
     let lifecycle = [
-        ("PreToolUse", "ship hook before-tool"),
-        ("PostToolUse", "ship hook after-tool"),
-        ("Stop", "ship hook session-end"),
+        ("PreToolUse", "before-tool"),
+        ("PostToolUse", "after-tool"),
+        ("Stop", "session-end"),
     ];
 
-    for (trigger, command) in lifecycle {
+    for (trigger, endpoint) in lifecycle {
+        let command = ship_hook_command(endpoint);
         let hook_obj = serde_json::json!({ "type": "command", "command": command });
         let entry = serde_json::json!({ "hooks": [hook_obj] });
         if let Some(arr) = hooks_obj.get_mut(trigger).and_then(|v| v.as_array_mut()) {
@@ -204,13 +231,14 @@ pub fn inject_ship_lifecycle_hooks(patch: &mut Json) {
     }
 
     // SessionStart needs one entry per source matcher to register.
+    let session_start_cmd = ship_hook_command("session-start");
     let session_start_sources = ["startup", "resume", "clear", "compact"];
     let session_start_entries: Vec<Json> = session_start_sources
         .iter()
         .map(|src| {
             serde_json::json!({
                 "matcher": src,
-                "hooks": [{ "type": "command", "command": "ship hook session-start" }],
+                "hooks": [{ "type": "command", "command": session_start_cmd }],
             })
         })
         .collect();

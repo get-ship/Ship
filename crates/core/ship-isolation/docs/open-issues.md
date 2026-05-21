@@ -40,10 +40,18 @@ and broaden.
    normalization → `/api/v1/hooks/{session-start,before-tool,
    after-tool,session-end}` taking `ShipHookEvent`; `ship hook X` is
    just an HTTP POST. `$SHIP_DAEMON_URL` + the scoped token are now
-   injected into sandboxed actors (see item 2). *Remaining:* compile
-   cURL-style hook scripts that POST to `$SHIP_DAEMON_URL/api/v1/hooks/X`
-   with the injected token — no `ship` CLI required in the container.
-   (Server-mode harnesses
+   injected into sandboxed actors (see item 2). **Landed for claude:** the
+   compiler emits hybrid lifecycle hook commands — `if [ -n
+   "$SHIP_DAEMON_URL" ]; then curl …Bearer $SHIP_TOKEN… --data-binary @-;
+   else ship hook X; fi` — so the in-pod path curls the daemon (no CLI) and
+   the host path keeps the CLI, from one config. `ShipHookEvent` gained
+   field aliases so raw harness payloads deserialize directly; identity
+   comes from the scoped token (`resolve_actor`). *Boundary:* `before-tool`
+   *blocking* is observability-only in the curl branch (raw curl can't
+   translate the daemon's allow/block into Claude's hook-block protocol —
+   a small response-translator is the follow-up); host blocking is intact.
+   *Remaining:* apply the same helper to codex (the other command-hook
+   darling). (Server-mode harnesses
    opencode/codex also feed hooks via stream-synthesis through the
    broadcast the sidecar already pipes — ONE of four transports, not
    the general mechanism.)

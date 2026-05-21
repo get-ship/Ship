@@ -56,11 +56,16 @@ fn now_iso8601() -> String {
     "session_id": "sess-2f9c"
 }))]
 pub struct ShipHookEvent {
-    #[serde(default)]
+    // Aliases let a RAW harness hook payload deserialize directly — so a
+    // sandboxed agent can `curl` its harness's native payload at the daemon
+    // with no `ship hook` CLI in the container to normalize it first. Claude
+    // is already snake_case; codex/gemini/opencode use the camelCase / short
+    // variants. Mirrors the field-aliasing the CLI's normalize_stdin did.
+    #[serde(default, alias = "toolName", alias = "name")]
     pub tool_name: Option<String>,
-    #[serde(default)]
+    #[serde(default, alias = "toolInput", alias = "input")]
     pub tool_input: Option<serde_json::Value>,
-    #[serde(default)]
+    #[serde(default, alias = "toolResponse", alias = "output")]
     pub tool_response: Option<serde_json::Value>,
     #[serde(default)]
     pub actor_id: Option<String>,
@@ -507,6 +512,24 @@ mod tests {
         let event: ShipHookEvent = serde_json::from_str(json).unwrap();
         assert!(event.tool_name.is_none());
         assert!(event.actor_id.is_none());
+    }
+
+    #[test]
+    fn hook_event_deserializes_raw_harness_payloads_via_aliases() {
+        // A sandboxed agent curls its harness-native payload straight at the
+        // daemon (no `ship hook` CLI to normalize first). Claude is already
+        // snake_case; the camelCase / short variants from codex/gemini/
+        // opencode must deserialize via the field aliases.
+        let camel = r#"{ "toolName": "Bash", "toolInput": {"command": "ls"} }"#;
+        let e: ShipHookEvent = serde_json::from_str(camel).unwrap();
+        assert_eq!(e.tool_name.as_deref(), Some("Bash"));
+        assert_eq!(e.tool_input.as_ref().unwrap()["command"], "ls");
+
+        let short = r#"{ "name": "Edit", "input": {"path": "/x"}, "output": {"ok": true} }"#;
+        let e: ShipHookEvent = serde_json::from_str(short).unwrap();
+        assert_eq!(e.tool_name.as_deref(), Some("Edit"));
+        assert_eq!(e.tool_input.as_ref().unwrap()["path"], "/x");
+        assert_eq!(e.tool_response.as_ref().unwrap()["ok"], true);
     }
 
     #[test]
