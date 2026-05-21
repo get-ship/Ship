@@ -285,19 +285,25 @@ Invalidated if: image size becomes a real constraint (CLI is ~15MB).
   (docker_live, srt_live, youki_live, run_claude*). Sidecar path (podman
   live cells, youki_sidecar) unaffected.
 
-## Residual shadow surfaced by the exec cut (decide later)
+## Tier model — settled by the exec cut
 
-- **`SandboxRuntime` is now unreachable.** It kept `prepare`/`render_settings`
-  but production Tier-1 srt goes through `wrap_launch` + `process.rs`'s own
-  inline `write_srt_settings` — `render_settings` has no prod caller. Either
-  delete `SandboxRuntime` and make `wrap_launch` the single srt path, or
-  route `wrap_launch` through `render_settings` to dedup the two srt-settings
-  writers. (Kept for now per explicit instruction; flagged honestly.)
-- **`isolation::registry::Registry` is fully unwired.** Its doc says "the
-  daemon constructs a Registry at startup," but nothing outside the crate
-  references it — the supervisor constructs `Docker::new` directly and uses
-  `wrap_launch` for Tier 1. Either wire the registry as the real
-  strategy→backend dispatch, or delete it.
+The two tiers have fundamentally different shapes, and the code now reflects it:
+
+- **Tier 1 (host OS-level: srt / bubblewrap / Seatbelt / harness-native)** is an
+  **argv transformation at spawn** — `settings::wrap_launch` rewrites the harness
+  command and `spawn_actor` runs it in-process. No container, so no
+  `prepare`/`shutdown` lifecycle. The shared piece is srt *settings rendering*,
+  now the single `backends::srt::render_settings` (used by the supervisor's
+  Tier-1 path; the old inline writer is gone).
+- **Tier 2+ (container / VM)** is the `Isolator` contract (`available` /
+  `prepare` / `shutdown`) + the sidecar driving the actor over v1. Docker is the
+  one wired backend; youki_sidecar is the host-side driver for the youki path.
+
+Resolved here: `SandboxRuntime` (an attempt to force Tier-1 srt into the
+container-shaped `Isolator`) is **deleted** — `wrap_launch` is the Tier-1 story.
+The unwired `isolation::registry::Registry` is **deleted** — premature
+abstraction for a single wired Isolator; reintroduce a registry if/when multiple
+Tier-2 backends need strategy→backend dispatch.
 
 ## Open — not blocking but needs an answer before each chunk lands
 

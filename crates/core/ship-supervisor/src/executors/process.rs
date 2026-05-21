@@ -149,28 +149,28 @@ fn resolve_srt_entry() -> Option<std::path::PathBuf> {
     if p.is_dir() { Some(p) } else { None }
 }
 
-/// Write the srt settings JSON for a wrapped HarnessSandbox launch. The
-/// schema matches `@anthropic-ai/sandbox-runtime`'s zod validator — see
-/// `ship_isolation::backends::sandbox_runtime`. For now we grant write
-/// to the workspace and deny everything else; per-agent overrides land
-/// when the agent profile's isolation.policy field is plumbed through.
+/// Write the srt settings JSON for a wrapped Tier-1 (srt) launch. Builds a
+/// `SandboxPolicy` and renders it through the single srt renderer
+/// (`ship_isolation::backends::render_settings`) so there's one source of
+/// truth for the schema. For now we grant write to the workspace and allow
+/// the Anthropic API; per-agent overrides land when the agent profile's
+/// isolation.policy field is plumbed through.
 fn write_srt_settings(path: &std::path::Path, work_dir: &std::path::Path) -> anyhow::Result<()> {
+    use ship_substrate::isolation::{FsMount, MountMode, NetworkPolicy, SandboxPolicy};
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;
     }
-    let payload = serde_json::json!({
-        "filesystem": {
-            "denyRead": [],
-            "allowRead": [],
-            "allowWrite": [work_dir.to_string_lossy()],
-            "denyWrite": [],
-        },
-        "network": {
-            "allowedDomains": ["api.anthropic.com", "console.anthropic.com"],
-            "deniedDomains": [],
-        },
-    });
-    std::fs::write(path, serde_json::to_vec_pretty(&payload)?)?;
+    let mut policy = SandboxPolicy::workspace_default(work_dir.to_path_buf());
+    policy.mounts = vec![FsMount {
+        host_path: work_dir.to_path_buf(),
+        sandbox_path: work_dir.to_path_buf(),
+        mode: MountMode::ReadWrite,
+    }];
+    policy.network = NetworkPolicy::Allowlist {
+        hosts: vec!["api.anthropic.com".into(), "console.anthropic.com".into()],
+    };
+    let rendered = ship_isolation::backends::render_settings(&policy);
+    std::fs::write(path, serde_json::to_vec_pretty(&rendered)?)?;
     Ok(())
 }
 

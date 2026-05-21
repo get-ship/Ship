@@ -23,7 +23,6 @@ pub mod harness;
 pub mod helpers;
 pub mod net;
 pub mod recommender;
-pub mod registry;
 pub mod runtime;
 pub mod settings;
 pub mod sidecar;
@@ -34,10 +33,6 @@ pub use capabilities::{Capabilities, HostOs};
 pub use helpers::EphemeralFile;
 pub use recommender::{
     RecommendInput, RecommenderError, ResolutionReason, ResolvedIsolation, recommend,
-};
-pub use registry::{
-    IsolatorFactory, Registry, default_registry, register_default_noop, register_docker,
-    register_harness_sandbox,
 };
 pub use tier::{IsolationProfile, IsolationStrategy, IsolationTier};
 

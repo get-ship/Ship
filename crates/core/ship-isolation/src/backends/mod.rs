@@ -1,5 +1,5 @@
 pub mod docker;
-pub mod sandbox_runtime;
+pub mod srt;
 
 #[cfg(all(feature = "youki-backend", target_os = "linux"))]
 pub mod youki;
@@ -8,7 +8,7 @@ pub mod youki;
 pub mod youki_sidecar;
 
 pub use docker::{Docker, DockerConfig};
-pub use sandbox_runtime::{SandboxRuntime, SandboxRuntimeConfig};
+pub use srt::{render_settings, SrtSettings};
 // Noop now lives in substrate alongside the trait — re-export so
 // existing call sites keep working.
 pub use ship_substrate::isolation::Noop;
