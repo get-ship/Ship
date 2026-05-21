@@ -3,7 +3,7 @@ import type { Scope } from './page.sui'
 
 export default controller<Scope>({
   scope: ({ ship, route }) => {
-    const agentId = derived(() => route().params.id)
+    const agentId = derived(() => route.params.id() ?? '')
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const s = ship as any
     const settings = live(() => s.agents.settings({ id: agentId() }))
