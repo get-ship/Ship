@@ -49,7 +49,7 @@
         },
         "role": {
           "type": "string",
-          "description": "Role for tool-gating defaults — 'worker', 'lead', or 'commander'. Maps to a `tools_preset` when that field is unset (worker → 'worker'; lead/commander → 'orchestrator'). `tools_preset` takes precedence when both are set."
+          "description": "Role for tool-gating defaults — 'worker', 'lead', 'commander', or 'designer'. Maps to a `tools_preset` when that field is unset (worker → 'worker'; lead/commander → 'orchestrator'). The daemon also resolves the role into capability scopes at MCP session-register (e.g. 'designer' → the SuiAuthoring tool-group). `tools_preset` takes precedence for the local stdio gate when both are set."
         },
         "tools_preset": {
           "type": "string",

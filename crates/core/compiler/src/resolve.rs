@@ -55,17 +55,21 @@ pub struct ResolvedConfig {
     pub codex: crate::compile::CodexSettings,
     pub opencode: crate::compile::OpenCodeSettings,
     pub cursor: crate::compile::CursorSettings,
-    // ── Studio integration ─────────────────────────────────────────────────────
-    /// When the active agent profile declares `[apps] studio = true`, this is
-    /// set to the Studio MCP URL (e.g. `http://localhost:51741/agent`).
-    /// The compiler uses it to emit HTTP transport config instead of stdio.
-    pub studio_mcp_url: Option<String>,
     /// Absolute path to the ship home (e.g. `/home/alice/.ship`). Injected
     /// by callers (CLI/daemon) that resolve via `ship_substrate::ShipHome`. The
     /// compiler is WASM-safe and does not read environment variables —
     /// when this is `None` (e.g. WASM frontends), the compiler emits an
     /// MCP entry without the `SHIP_HOME` env injection.
     pub ship_home_dir: Option<String>,
+    /// Whether this config is compiled for a daemon-spawned, scoped launch
+    /// (dispatch / command-bar / sandbox) rather than a manual `ship use`.
+    /// Set true by the dispatcher/daemon, which inject `$SHIP_TOKEN` +
+    /// `$SHIP_DAEMON_URL` into the agent's env. When true, the self-hosted
+    /// `ship` server compiles to the daemon-hosted authed-HTTP entry
+    /// (scope-enforced); when false (manual local dev), it stays the
+    /// trusted-local stdio shim — the human is the host, full local access
+    /// is fine and there is no spawner to provision the token env.
+    pub scoped_launch: bool,
 }
 
 /// Resolve the effective agent config from pre-loaded project data.
@@ -264,16 +268,6 @@ pub fn resolve_library(
             library.cursor_settings_extra.as_ref(),
         ),
     };
-    // Studio integration: if active agent declares apps.studio = true, set HTTP transport URL.
-    let active_id = resolved.active_agent.as_deref().unwrap_or("");
-    let studio_active = library
-        .agent_profiles
-        .iter()
-        .any(|p| p.agent.id == active_id && p.apps.studio);
-    if studio_active {
-        let port = library.studio_port.unwrap_or(51741);
-        resolved.studio_mcp_url = Some(format!("http://localhost:{port}/agent"));
-    }
     resolved
 }
 
@@ -377,8 +371,8 @@ pub fn resolve(
         codex: crate::compile::CodexSettings::default(),
         opencode: crate::compile::OpenCodeSettings::default(),
         cursor: crate::compile::CursorSettings::default(),
-        studio_mcp_url: None,
         ship_home_dir: None,
+        scoped_launch: false,
     }
 }
 

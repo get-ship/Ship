@@ -73,8 +73,12 @@ pub(crate) fn compile_agent_config(
         .parent()
         .map(|dir| dir.join("ship"))
         .unwrap_or_else(|| std::path::PathBuf::from("ship"));
+    // `--scoped`: this is a daemon-spawned launch, so the dispatcher injects
+    // $SHIP_TOKEN + $SHIP_DAEMON_URL into the agent's env. Compile the
+    // daemon-hosted authed-HTTP `ship` MCP entry (scope-enforced) rather than
+    // the trusted-local stdio shim.
     let output = std::process::Command::new(&ship_bin)
-        .args(["use", agent_id])
+        .args(["use", agent_id, "--scoped"])
         .current_dir(worktree_path)
         .output()
         .map_err(|e| anyhow::anyhow!("failed to run ship: {e}"))?;

@@ -1,4 +1,3 @@
-pub mod http;
 pub mod push;
 pub mod network_client;
 mod components_catalog;
@@ -11,7 +10,6 @@ mod tools;
 use anyhow::Result;
 use async_trait::async_trait;
 
-pub use http::run_http_server;
 pub use server::{ShipServer, run_server};
 
 pub struct ShipMcpApp;

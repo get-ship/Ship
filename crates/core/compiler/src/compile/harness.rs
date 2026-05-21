@@ -17,8 +17,10 @@ use crate::types::{AgentProfile, McpServerConfig};
 /// Compile one agent profile into this harness's native agent-file body.
 pub type CompileAgentFn = fn(&AgentProfile) -> String;
 /// Build this harness's MCP server config block.
+/// Args: descriptor, project MCP servers, resolved ship-home dir, whether this
+/// is a daemon-spawned scoped launch (gates the authed-HTTP `ship` entry).
 pub type BuildMcpFn =
-    fn(&HarnessDescriptor, &[McpServerConfig], Option<&str>, Option<&str>) -> Json;
+    fn(&HarnessDescriptor, &[McpServerConfig], Option<&str>, bool) -> Json;
 /// Populate this harness's native settings/policy/hook outputs.
 pub type BuildSettingsFn = fn(&HarnessDescriptor, &ResolvedConfig, &mut CompileOutput);
 
@@ -153,6 +155,15 @@ pub struct HarnessDescriptor {
     /// Field name used for streamable HTTP transport URL entries.
     /// Gemini uses "httpUrl"; others use "url".
     pub http_url_field: &'static str,
+    /// Whether this harness can authenticate to a streamable-HTTP MCP server
+    /// from static config — i.e. it expresses request `headers` (for the
+    /// `Authorization: Bearer` token) AND expands `${ENV}` references in config
+    /// values. When true, the self-hosted `ship` server compiles to a
+    /// daemon-hosted HTTP entry (`${SHIP_DAEMON_URL}/mcp` + `Bearer
+    /// ${SHIP_TOKEN}`); when false it falls back to the local stdio shim.
+    /// Verified per harness — default false (stdio) when unconfirmed, so an
+    /// unverified harness never silently ships a broken authed-HTTP entry.
+    pub supports_authed_http_mcp: bool,
     /// Project-relative path where the MCP config file is written.
     /// `None` when the MCP config is merged into a larger settings file.
     pub mcp_config_path: Option<&'static str>,
@@ -180,6 +191,9 @@ pub(super) static HARNESSES: &[HarnessDescriptor] = &[
         emit_type_field: false,
         sse_url_field: "url",
         http_url_field: "url",
+        // Verified: .mcp.json supports { "type": "http", "url", "headers" }
+        // and expands ${VAR} in values — so it carries Bearer ${SHIP_TOKEN}.
+        supports_authed_http_mcp: true,
         // Project-level MCP for Claude Code lives in .mcp.json
         mcp_config_path: Some(".mcp.json"),
         features: ProviderFeatureFlags {
@@ -207,6 +221,9 @@ pub(super) static HARNESSES: &[HarnessDescriptor] = &[
         emit_type_field: false,
         sse_url_field: "url",
         http_url_field: "url",
+        // Unverified: TOML config — static request headers + ${ENV} expansion
+        // for HTTP MCP not confirmed. Defaults to the stdio shim until verified.
+        supports_authed_http_mcp: false,
         mcp_config_path: Some(".codex/config.toml"),
         features: ProviderFeatureFlags {
             supports_mcp: true,
@@ -230,6 +247,9 @@ pub(super) static HARNESSES: &[HarnessDescriptor] = &[
         emit_type_field: false,
         sse_url_field: "url",
         http_url_field: "url",
+        // Unverified: mcp.json takes headers for remote servers, but ${ENV}
+        // expansion in those values isn't confirmed. Stdio shim until verified.
+        supports_authed_http_mcp: false,
         mcp_config_path: Some(".cursor/mcp.json"),
         features: ProviderFeatureFlags {
             supports_mcp: true,
@@ -258,6 +278,9 @@ pub(super) static HARNESSES: &[HarnessDescriptor] = &[
         emit_type_field: true, // OpenCode uses "type": "local"/"remote"
         sse_url_field: "url",
         http_url_field: "url",
+        // Unverified: type:"remote" entries take headers, but ${ENV} expansion
+        // in opencode.json values isn't confirmed. Stdio shim until verified.
+        supports_authed_http_mcp: false,
         // MCP is nested inside opencode.json — no separate file.
         mcp_config_path: None,
         features: ProviderFeatureFlags {
@@ -284,6 +307,8 @@ pub(super) static HARNESSES: &[HarnessDescriptor] = &[
         emit_type_field: false,
         sse_url_field: "url",
         http_url_field: "url",
+        // Pi has no MCP at all (supports_mcp = false) — it can't do authed HTTP.
+        supports_authed_http_mcp: false,
         mcp_config_path: None,
         features: ProviderFeatureFlags {
             // No MCP, no compiled hooks/permissions file; model/tools are

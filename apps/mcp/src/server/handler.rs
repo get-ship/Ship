@@ -120,10 +120,30 @@ impl ServerHandler for ShipServer {
         context: RequestContext<RoleServer>,
     ) -> Result<CallToolResult, ErrorData> {
         let tool_name = request.name.to_string();
-        if let Ok(project_dir) = self.get_effective_project_dir().await
-            && let Err(message) = Self::enforce_mode_tool_gate(&ship_substrate::ShipHome::project_ship_dir(project_dir), &tool_name)
-        {
-            return Ok(CallToolResult::error(vec![Content::text(message)]));
+        // Transport-keyed gate. `Parts` present ⇒ daemon-hosted HTTP `/mcp`;
+        // absent ⇒ local stdio shim. Over HTTP the token's `McpAuth` scopes
+        // are authoritative and mandatory (fail closed); only stdio may fall
+        // back to the local active-agent gate. See `classify_gate`.
+        let parts = context.extensions.get::<axum::http::request::Parts>();
+        let over_http = parts.is_some();
+        let mcp_auth = parts
+            .and_then(|p| p.extensions.get::<ship_platform::auth::scopes::McpAuth>())
+            .cloned();
+        match Self::classify_gate(over_http, mcp_auth.as_ref(), &tool_name) {
+            super::tool_gate::GateOutcome::Allow => {}
+            super::tool_gate::GateOutcome::Deny(message) => {
+                return Ok(CallToolResult::error(vec![Content::text(message)]));
+            }
+            super::tool_gate::GateOutcome::TrustedLocalFallback => {
+                if let Ok(project_dir) = self.get_effective_project_dir().await
+                    && let Err(message) = Self::enforce_mode_tool_gate(
+                        &ship_substrate::ShipHome::project_ship_dir(project_dir),
+                        &tool_name,
+                    )
+                {
+                    return Ok(CallToolResult::error(vec![Content::text(message)]));
+                }
+            }
         }
         // Track activity and increment tool call count for session analytics.
         if let Some(sid) = self.session_id.lock().await.as_deref() {
@@ -152,10 +172,29 @@ impl ServerHandler for ShipServer {
     async fn list_tools(
         &self,
         _request: Option<PaginatedRequestParams>,
-        _context: RequestContext<RoleServer>,
+        context: RequestContext<RoleServer>,
     ) -> Result<ListToolsResult, ErrorData> {
         let all_tools = self.tool_router.list_all();
         let dispatched = Self::is_dispatched_context();
+        // Daemon-hosted HTTP path: a tool is visible iff `classify_gate`
+        // permits it for this connection's token scopes. Over HTTP without an
+        // injected identity this lists nothing (fail closed) — no gated tool
+        // leaks to an unauthenticated network caller, mirroring `call_tool`.
+        let parts = context.extensions.get::<axum::http::request::Parts>();
+        if parts.is_some() {
+            let auth = parts
+                .and_then(|p| p.extensions.get::<ship_platform::auth::scopes::McpAuth>());
+            let visible = all_tools
+                .into_iter()
+                .filter(|t| {
+                    matches!(
+                        Self::classify_gate(true, auth, t.name.as_ref()),
+                        super::tool_gate::GateOutcome::Allow
+                    )
+                })
+                .collect();
+            return Ok(ListToolsResult::with_all_items(visible));
+        }
         let visible = if let Ok(project_dir) = self.get_effective_project_dir().await {
             let ship_dir = ship_substrate::ShipHome::project_ship_dir(project_dir);
             let active_agent = get_active_agent(Some(ship_dir)).unwrap_or(None);

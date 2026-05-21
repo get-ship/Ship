@@ -43,6 +43,7 @@ fn compile_worktree_output_root_separates_from_project_root() {
         active_agent: None,
         extra_skills: vec![],
             plugins_installed: vec![],
+            scoped_launch: false,
     })
     .unwrap();
 

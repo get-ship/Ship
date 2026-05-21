@@ -29,6 +29,7 @@ fn compile_with_deny_writes_claude_settings() {
         active_agent: None,
         extra_skills: vec![],
         plugins_installed: vec![],
+            scoped_launch: false,
     })
     .unwrap();
     let settings_path = tmp.path().join(".claude/settings.json");
@@ -57,6 +58,7 @@ fn compile_with_mode_applies_permissions() {
         active_agent: Some("readonly"),
         extra_skills: vec![],
         plugins_installed: vec![],
+            scoped_launch: false,
     })
     .unwrap();
     let v: serde_json::Value = serde_json::from_str(
@@ -86,6 +88,7 @@ fn compile_with_mode_inline_rules_adds_to_context() {
         active_agent: Some("strict"),
         extra_skills: vec![],
         plugins_installed: vec![],
+            scoped_launch: false,
     })
     .unwrap();
     let content = std::fs::read_to_string(tmp.path().join("CLAUDE.md")).unwrap();
@@ -111,6 +114,7 @@ fn compile_with_profile_stop_hook_emits_to_settings() {
         active_agent: Some("commander"),
         extra_skills: vec![],
         plugins_installed: vec![],
+            scoped_launch: false,
     })
     .unwrap();
     let v: serde_json::Value = serde_json::from_str(
@@ -161,6 +165,7 @@ fn compile_with_mode_uses_permissions_jsonc_preset() {
         active_agent: Some("fast"),
         extra_skills: vec![],
         plugins_installed: vec![],
+            scoped_launch: false,
     })
     .unwrap();
     let v: serde_json::Value = serde_json::from_str(
@@ -197,6 +202,7 @@ fn compile_with_bypass_permissions_mode_writes_default_mode() {
         active_agent: Some("autonomous"),
         extra_skills: vec![],
         plugins_installed: vec![],
+            scoped_launch: false,
     })
     .unwrap();
     let v: serde_json::Value = serde_json::from_str(

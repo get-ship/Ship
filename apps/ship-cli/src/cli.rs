@@ -89,6 +89,12 @@ pub enum Commands {
         /// Compile immediately after activating
         #[arg(long, default_value_t = true)]
         compile: bool,
+        /// Compile for a daemon-spawned scoped launch (dispatch / command-bar /
+        /// sandbox): emit the daemon-hosted authed-HTTP `ship` MCP entry
+        /// (scope-enforced) instead of the trusted-local stdio shim. The
+        /// dispatcher sets this; a manual `ship use` omits it.
+        #[arg(long)]
+        scoped: bool,
         /// Extra skill IDs to inject at compile time (repeatable)
         #[arg(long = "with", value_name = "SKILL_ID")]
         with_skills: Vec<String>,

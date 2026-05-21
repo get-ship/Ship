@@ -5,7 +5,7 @@ use std::path::Path;
 use base64::Engine;
 use serde::Serialize;
 
-use crate::requests::{ReadSessionFileRequest, WriteSessionFileRequest};
+use crate::requests::ReadSessionFileRequest;
 
 const SESSION_DIR: &str = ".artifacts";
 
@@ -131,39 +131,6 @@ pub fn read_session_file(project_dir: &Path, req: ReadSessionFileRequest) -> Str
         match std::fs::read_to_string(&file_path) {
             Ok(content) => content,
             Err(e) => format!("Error: {}", e),
-        }
-    }
-}
-
-pub fn write_session_file(project_dir: &Path, req: WriteSessionFileRequest) -> String {
-    if let Err(e) = validate_path(&req.path) {
-        return format!("Error: {}", e);
-    }
-    let file_path = project_dir.join(SESSION_DIR).join(&req.path);
-    if let Some(parent) = file_path.parent()
-        && let Err(e) = std::fs::create_dir_all(parent)
-    {
-        return format!("Error creating directories: {}", e);
-    }
-    let file_type = file_type_from_extension(&req.path);
-    if is_binary_type(&file_type) {
-        // Try to decode as data URI or raw base64
-        let b64_data = req
-            .content
-            .find(";base64,")
-            .map(|i| &req.content[i + 8..])
-            .unwrap_or(&req.content);
-        match base64::engine::general_purpose::STANDARD.decode(b64_data) {
-            Ok(bytes) => match std::fs::write(&file_path, bytes) {
-                Ok(()) => format!("Wrote {}", req.path),
-                Err(e) => format!("Error writing file: {}", e),
-            },
-            Err(e) => format!("Error decoding base64: {}", e),
-        }
-    } else {
-        match std::fs::write(&file_path, &req.content) {
-            Ok(()) => format!("Wrote {}", req.path),
-            Err(e) => format!("Error writing file: {}", e),
         }
     }
 }

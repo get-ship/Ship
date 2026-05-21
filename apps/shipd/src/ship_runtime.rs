@@ -694,9 +694,18 @@ impl ShipRuntime {
     /// dispatched jobs from previous daemon runs.
     pub async fn jobs(&self) -> &RunManager {
         let hr = self.health_registry.clone();
+        let registry = self.session_registry.clone();
+        let daemon_url = self.daemon_origin();
         self.jobs
             .get_or_init(|| async {
-                RunManager::init(self.kernel.clone(), self.ship_dir.clone(), &hr).await
+                RunManager::init(
+                    self.kernel.clone(),
+                    self.ship_dir.clone(),
+                    &hr,
+                    registry,
+                    daemon_url,
+                )
+                .await
             })
             .await
     }

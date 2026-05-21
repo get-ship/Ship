@@ -330,6 +330,23 @@ pub trait AgentPlatform: Send + Sync {
 
     /// Clean up orphaned worktrees from previous daemon runs.
     async fn cleanup_orphaned_worktrees(&self);
+
+    /// Mint a scoped session token for a daemon-spawned agent (`agent_id`,
+    /// optional `role`), to inject as `$SHIP_TOKEN` so the agent authenticates
+    /// to the daemon-hosted MCP server with role-appropriate scopes.
+    ///
+    /// Default `None` — hosts that don't issue tokens (tests, mocks) need no
+    /// impl, and a `None` token simply means the agent's compiled config falls
+    /// back to the stdio shim. Only the real daemon platform mints.
+    async fn mint_session_token(&self, _agent_id: &str, _role: Option<&str>) -> Option<String> {
+        None
+    }
+
+    /// The daemon's own base URL (e.g. `http://127.0.0.1:8080`), to inject as
+    /// `$SHIP_DAEMON_URL`. Default `None` (no daemon-hosted endpoint to point at).
+    fn daemon_url(&self) -> Option<String> {
+        None
+    }
 }
 
 /// Port: process handle registry for tracking spawned agents.

@@ -10,7 +10,7 @@ use serde_json::json;
 // Re-export the platform's policy primitives so existing
 // `crate::auth::scopes::Scope` import paths continue to resolve.
 pub use ship_platform::auth::scopes::{
-    DaemonSession, RequiredAuth, Scope, SessionRegistry, generate_session_token,
+    DaemonSession, McpAuth, RequiredAuth, Scope, SessionRegistry, generate_session_token,
     hydrate_sessions, is_session_token, persist_session, remove_persisted_session,
     scopes_for_role,
 };

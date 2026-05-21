@@ -5,9 +5,5 @@
 //! internals; transport stays independent of services / routes.
 
 pub mod connections;
-pub mod handler;
 pub mod cors;
 pub mod pty;
-pub mod server;
-
-pub use server::NetworkServer;

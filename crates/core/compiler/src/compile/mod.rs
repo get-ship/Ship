@@ -137,11 +137,13 @@ pub fn compile(resolved: &ResolvedConfig, harness_id: &str) -> Option<CompileOut
 
     // Only emit MCP config for harnesses that support it.
     if flags.supports_mcp {
-        let studio_url = resolved.studio_mcp_url.as_deref();
         let ship_home = resolved.ship_home_dir.as_deref();
-        // MCP builder is carried on the descriptor (gemini/cursor have
-        // per-server-field variants; the rest share mcp::build_mcp_servers).
-        out.mcp_servers = (desc.build_mcp)(desc, &resolved.mcp_servers, studio_url, ship_home);
+        // MCP builder is carried on the descriptor (cursor has a per-server-
+        // field variant; the rest share mcp::build_mcp_servers). The self-
+        // hosted `ship` entry is authed-HTTP or stdio per the descriptor's
+        // `supports_authed_http_mcp` flag — no studio_url branch.
+        out.mcp_servers =
+            (desc.build_mcp)(desc, &resolved.mcp_servers, ship_home, resolved.scoped_launch);
         out.mcp_config_path = desc.mcp_config_path.map(String::from);
     } else {
         out.mcp_servers = serde_json::json!({});

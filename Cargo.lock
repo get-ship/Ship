@@ -4562,6 +4562,7 @@ dependencies = [
  "jsonschema",
  "jsonwebtoken",
  "libc",
+ "mcp",
  "minijinja",
  "notify",
  "portable-pty",
