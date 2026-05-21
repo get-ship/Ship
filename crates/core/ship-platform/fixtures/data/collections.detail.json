@@ -1,0 +1,43 @@
+{
+  "schema": {
+    "id": "notes",
+    "name": "Notes",
+    "fields": [
+      {
+        "name": "title",
+        "type": "string",
+        "field_type": "string",
+        "required": true,
+        "values": null,
+        "default": null
+      },
+      {
+        "name": "content",
+        "type": "markdown",
+        "field_type": "markdown",
+        "required": false,
+        "values": null,
+        "default": null
+      },
+      {
+        "name": "tags",
+        "type": "array",
+        "field_type": "array",
+        "required": false,
+        "values": null,
+        "default": null
+      },
+      {
+        "name": "category",
+        "type": "string",
+        "field_type": "string",
+        "required": false,
+        "values": null,
+        "default": null
+      }
+    ],
+    "builtin": true
+  },
+  "items": [],
+  "total_items": 0
+}

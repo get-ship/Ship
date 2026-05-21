@@ -1,21 +1,25 @@
-//! Registry dispatcher for `events.*` ops. Split off from
-//! services/registry.rs (mr-04 follow-up).
+//! Single-source `events.*` ops — descriptors + dispatch via `ship_ops!`.
 
-use serde_json::{Value, json};
+use super::optional_usize;
+use super::wire::EventsListResponse;
+use crate::services::schema::ArgDescriptor;
 
-use super::{RegistryError, optional_usize};
-use crate::ship_runtime::ApiState;
-use ship_platform::services::files::FilesService;
-
-
-pub(super) fn try_dispatch(
-    name: &str,
-    args: &Value,
-    state: &ApiState,
-    _files: &FilesService,
-) -> Result<Option<Value>, RegistryError> {
-    let value: Result<Value, RegistryError> = match name {
-        "events.list" => {
+ship_ops! {
+    EVENTS_OPS;
+    {
+        name: "events.list",
+        desc: "Kernel events with filters, grouped by entity.",
+        perm: "ship.events.read",
+        args: &[
+            ArgDescriptor { name: "limit", kind: "number?", required: false },
+            ArgDescriptor { name: "event_type", kind: "string?", required: false },
+            ArgDescriptor { name: "actor", kind: "string?", required: false },
+            ArgDescriptor { name: "entity", kind: "string?", required: false },
+            ArgDescriptor { name: "q", kind: "string?", required: false },
+        ],
+        ret: EventsListResponse,
+        sensitive: true,
+        run: |args, state, _files| {
             let limit = optional_usize(args, "limit", 200);
             let filter = crate::views::events_state::EventFilter {
                 event_type: args.get("event_type").and_then(|v| v.as_str()).map(String::from),
@@ -27,14 +31,7 @@ pub(super) fn try_dispatch(
             let types = crate::views::events_state::distinct_types(&rows);
             let actors = crate::views::events_state::distinct_actors(&rows);
             let groups = crate::views::events_state::group_by_entity(rows);
-            Ok(json!({
-                "groups": groups,
-                "types": types,
-                "actors": actors,
-            }))
-        }
-
-        _ => return Ok(None),
-    };
-    Ok(Some(value?))
+            Ok(EventsListResponse { groups, types, actors })
+        },
+    },
 }

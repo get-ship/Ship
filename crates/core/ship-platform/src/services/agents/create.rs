@@ -9,6 +9,7 @@ use serde::Serialize;
 /// A starter template for the create-wizard. Pre-wires skills + MCP +
 /// a permission preset so a user can produce a working agent fast.
 #[derive(Serialize, Clone)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct AgentTemplate {
     pub id: &'static str,
     pub label: &'static str,
@@ -22,6 +23,7 @@ pub struct AgentTemplate {
 }
 
 #[derive(Serialize, Clone)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct PermissionPreset {
     pub id: &'static str,
     pub label: &'static str,
@@ -58,6 +60,7 @@ pub fn builtin_harnesses() -> Vec<String> {
 /// Full create-wizard payload. Registered as `agents.create_ctx` so the
 /// file-routed `/agents/create` template has one call rather than three.
 #[derive(Serialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct AgentsCreateCtx {
     pub templates: Vec<AgentTemplate>,
     pub permission_presets: Vec<PermissionPreset>,

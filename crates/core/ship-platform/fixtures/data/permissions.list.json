@@ -1,0 +1,12 @@
+{
+  "items": [
+    {
+      "id": "ship-standard",
+      "scope": "project"
+    },
+    {
+      "id": "ship-readonly",
+      "scope": "user"
+    }
+  ]
+}

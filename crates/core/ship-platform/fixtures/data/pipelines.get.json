@@ -1,0 +1,14 @@
+{
+  "name": "ship-feature",
+  "scope": "project",
+  "format": "yaml",
+  "doc": {
+    "steps": [
+      {
+        "id": "build",
+        "type": "agent",
+        "agent": "rust-lane"
+      }
+    ]
+  }
+}

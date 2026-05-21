@@ -1,0 +1,13 @@
+{
+  "id": "ship",
+  "scope": "project",
+  "entry": {
+    "name": "ship",
+    "type": "stdio",
+    "command": "ship",
+    "args": [
+      "mcp",
+      "serve"
+    ]
+  }
+}

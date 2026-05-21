@@ -37,6 +37,7 @@ use std::path::Path;
 /// Definition of a pipeline parsed from a `.ship/pipelines/*.jsonc` file,
 /// plus usage stats aggregated from PipelineRuns referencing it.
 #[derive(Clone, Debug, Serialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct PipelineDef {
     pub name: String,
     pub description: String,
@@ -102,6 +103,7 @@ impl RunCategory {
 /// optional so callers can pass an empty [`Filter::default`] for unfiltered
 /// results.
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct Filter {
     /// Case-insensitive substring match applied to slug, agent, and
     /// pipeline name where relevant.

@@ -17,6 +17,7 @@ use serde::{Deserialize, Serialize};
 use ship_platform::collections::store;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct Spec {
     pub id: String,
     pub title: String,

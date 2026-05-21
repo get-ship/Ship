@@ -1,0 +1,49 @@
+{
+  "items": [
+    {
+      "id": "notes",
+      "name": "Notes",
+      "field_count": 4,
+      "fields": [
+        {
+          "name": "title",
+          "type": "string",
+          "field_type": "string",
+          "required": true,
+          "values": null,
+          "default": null
+        },
+        {
+          "name": "content",
+          "type": "markdown",
+          "field_type": "markdown",
+          "required": false,
+          "values": null,
+          "default": null
+        },
+        {
+          "name": "tags",
+          "type": "array",
+          "field_type": "array",
+          "required": false,
+          "values": null,
+          "default": null
+        },
+        {
+          "name": "category",
+          "type": "string",
+          "field_type": "string",
+          "required": false,
+          "values": null,
+          "default": null
+        }
+      ],
+      "builtin": true,
+      "item_count": 0,
+      "status_field": null,
+      "status_values": [],
+      "status_counts": {},
+      "last_activity": null
+    }
+  ]
+}

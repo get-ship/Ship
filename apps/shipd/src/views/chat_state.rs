@@ -13,6 +13,7 @@ pub const DEFAULT_LIMIT: usize = 200;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub enum Sender {
     User,
     Agent,
@@ -20,6 +21,7 @@ pub enum Sender {
 }
 
 #[derive(Clone, Debug, Serialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct ChatMessage {
     pub id: String,
     pub sender: Sender,

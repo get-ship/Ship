@@ -61,6 +61,7 @@ impl EventFilter {
 }
 
 #[derive(Clone, Debug, Serialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct EventRow {
     pub id: String,
     pub event_type: String,
@@ -73,6 +74,7 @@ pub struct EventRow {
 }
 
 #[derive(Clone, Debug, Serialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct EntityGroup {
     pub entity_id: String,
     pub count: usize,

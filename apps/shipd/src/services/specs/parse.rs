@@ -11,6 +11,7 @@ use serde::Serialize;
 
 /// One acceptance checklist item from the `## Acceptance` section.
 #[derive(Debug, Clone, Serialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct AcceptanceItem {
     pub text: String,
     pub done: bool,

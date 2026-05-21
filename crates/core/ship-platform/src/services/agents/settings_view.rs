@@ -10,6 +10,7 @@ use std::path::Path;
 use super::view_state::{AgentCatalogs, AgentDetail, list_agent_catalogs, load_agent};
 
 #[derive(Serialize, Clone)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct TierRow {
     pub id: &'static str,
     pub label: &'static str,
@@ -34,6 +35,7 @@ pub fn build_tiers(selected: &str) -> Vec<TierRow> {
 }
 
 #[derive(Serialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct AgentSettingsCtx {
     pub agent: AgentDetail,
     pub tiers: Vec<TierRow>,

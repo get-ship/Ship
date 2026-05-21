@@ -1,27 +1,15 @@
-//! Registry dispatcher for `settings.*` ops. Split off from
-//! services/registry.rs (mr-04 follow-up).
+//! Single-source `settings.*` ops — descriptors + dispatch via `ship_ops!`.
 
-use serde_json::Value;
+use crate::services::settings::view_state::{build_ctx, SettingsCtx};
 
-use super::RegistryError;
-use crate::ship_runtime::ApiState;
-use ship_platform::services::files::FilesService;
-
-
-pub(super) fn try_dispatch(
-    name: &str,
-    _args: &Value,
-    _state: &ApiState,
-    _files: &FilesService,
-) -> Result<Option<Value>, RegistryError> {
-    let value: Result<Value, RegistryError> = match name {
-        "settings.state" => {
-            let ctx = crate::services::settings::view_state::build_ctx();
-            serde_json::to_value(&ctx)
-                .map_err(|e| RegistryError::service(e.to_string()))
-        }
-
-        _ => return Ok(None),
-    };
-    Ok(Some(value?))
+ship_ops! {
+    SETTINGS_OPS;
+    {
+        name: "settings.state",
+        desc: "Harnesses, defaults, terminal, about — everything the settings view renders.",
+        perm: "ship.settings.read",
+        args: &[],
+        ret: SettingsCtx,
+        run: |_args, _state, _files| Ok(build_ctx()),
+    },
 }

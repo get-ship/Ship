@@ -1,0 +1,15 @@
+{
+  "clean": false,
+  "total": 1,
+  "staged": [
+    {
+      "path": "apps/shipd/src/services/registry.rs",
+      "basename": "registry.rs",
+      "status": "M",
+      "tone": "warning",
+      "label": "modified"
+    }
+  ],
+  "modified": [],
+  "untracked": []
+}

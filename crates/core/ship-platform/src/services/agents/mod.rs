@@ -9,5 +9,6 @@ pub mod settings_view;
 pub mod state;
 pub mod view_state;
 #[cfg(any(test, feature = "fixtures"))]
-mod view_state_fixtures;
+pub mod fixtures;
 pub mod wire;
+pub mod wire_types;

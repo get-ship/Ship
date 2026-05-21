@@ -1,0 +1,138 @@
+{
+  "items": [
+    {
+      "id": "code-review",
+      "name": "Code Review",
+      "description": "Code Review skill.",
+      "kind": "smart",
+      "source": "PROJECT SKILLS",
+      "tags": [
+        "review"
+      ],
+      "files": [
+        "SKILL.md"
+      ],
+      "has_vars": true,
+      "has_refs": false,
+      "has_evals": false
+    },
+    {
+      "id": "ship-architecture",
+      "name": "Ship Architecture",
+      "description": "Ship Architecture skill.",
+      "kind": "docs",
+      "source": "PROJECT SKILLS",
+      "tags": [
+        "docs"
+      ],
+      "files": [
+        "SKILL.md"
+      ],
+      "has_vars": false,
+      "has_refs": false,
+      "has_evals": false
+    }
+  ],
+  "filtered": [
+    {
+      "id": "code-review",
+      "name": "Code Review",
+      "description": "Code Review skill.",
+      "kind": "smart",
+      "source": "PROJECT SKILLS",
+      "tags": [
+        "review"
+      ],
+      "files": [
+        "SKILL.md"
+      ],
+      "has_vars": true,
+      "has_refs": false,
+      "has_evals": false
+    },
+    {
+      "id": "ship-architecture",
+      "name": "Ship Architecture",
+      "description": "Ship Architecture skill.",
+      "kind": "docs",
+      "source": "PROJECT SKILLS",
+      "tags": [
+        "docs"
+      ],
+      "files": [
+        "SKILL.md"
+      ],
+      "has_vars": false,
+      "has_refs": false,
+      "has_evals": false
+    }
+  ],
+  "groups": [
+    {
+      "source": "PROJECT SKILLS",
+      "skills": [
+        {
+          "id": "code-review",
+          "name": "Code Review",
+          "description": "Code Review skill.",
+          "kind": "smart",
+          "source": "PROJECT SKILLS",
+          "tags": [
+            "review"
+          ],
+          "files": [
+            "SKILL.md"
+          ],
+          "has_vars": true,
+          "has_refs": false,
+          "has_evals": false
+        },
+        {
+          "id": "ship-architecture",
+          "name": "Ship Architecture",
+          "description": "Ship Architecture skill.",
+          "kind": "docs",
+          "source": "PROJECT SKILLS",
+          "tags": [
+            "docs"
+          ],
+          "files": [
+            "SKILL.md"
+          ],
+          "has_vars": false,
+          "has_refs": false,
+          "has_evals": false
+        }
+      ]
+    }
+  ],
+  "kind_counts": [
+    {
+      "id": "all",
+      "label": "All",
+      "count": 2,
+      "selected": true
+    },
+    {
+      "id": "smart",
+      "label": "Smart",
+      "count": 1,
+      "selected": false
+    },
+    {
+      "id": "docs",
+      "label": "Docs",
+      "count": 1,
+      "selected": false
+    }
+  ],
+  "tags": [
+    "docs",
+    "review"
+  ],
+  "total": 2,
+  "filtered_count": 2,
+  "q": "",
+  "active_kind": "all",
+  "active_tag": ""
+}
