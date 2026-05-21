@@ -37,7 +37,7 @@ const PROJECT: ReadonlyArray<RailEntry> = [
 // placeholders rather than links into the void.
 const CONFIGURE: ReadonlyArray<RailEntry> = [
   { id: 'agents', label: 'Agents', icon: 'bot', href: '/studio/agents' },
-  { id: 'skills', label: 'Skills', icon: 'zap' },
+  { id: 'skills', label: 'Skills', icon: 'zap', href: '/studio/skills' },
   { id: 'components', label: 'Components', icon: 'layers', href: '/studio/components' },
   { id: 'themes', label: 'Themes', icon: 'palette', href: '/studio/themes' },
   { id: 'pipelines', label: 'Pipelines', icon: 'workflow' },
