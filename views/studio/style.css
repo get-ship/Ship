@@ -1,0 +1,62 @@
+/* Studio layout — the rail + content grid shared by every studio route.
+   The daemon's view-payload builder folds the top-level view dir's
+   style.css into every nested route under views/studio/, so this layout
+   applies to /studio, /studio/agents, /studio/agents/[id], … without each
+   leaf re-declaring it. The rail itself (<sui-studio-rail>) carries its own
+   styles in shadow DOM; this file owns only the surrounding frame. */
+
+.studio-view {
+  display: grid;
+  height: 100%;
+  min-height: 0;
+  grid-template-columns: 220px 1fr;
+  grid-template-areas: "rail content";
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-body);
+  font-size: var(--text-base);
+}
+
+sui-studio-rail { grid-area: rail; min-height: 0; }
+
+.studio-content {
+  grid-area: content;
+  overflow: auto;
+  position: relative;
+  background: var(--background);
+  min-height: 0;
+}
+
+/* ── /studio landing ────────────────────────────────────── */
+
+.studio-landing {
+  padding: var(--space-6) var(--space-5);
+  max-width: 64rem;
+  margin: 0 auto;
+}
+.studio-landing-h1 {
+  font-family: var(--heading-font);
+  font-size: var(--text-3xl);
+  font-weight: var(--heading-weight);
+  letter-spacing: -0.02em;
+  margin: 0 0 var(--space-2);
+  color: var(--foreground);
+}
+.studio-landing-sub {
+  font-size: var(--text-sm);
+  color: var(--muted-foreground);
+  margin: 0 0 var(--space-5);
+  max-width: 56ch;
+  line-height: 1.5;
+}
+.studio-landing-link {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 12px;
+  border-radius: var(--radius-md);
+  background: var(--primary);
+  color: var(--primary-foreground);
+  text-decoration: none;
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-semibold);
+}
+.studio-landing-link:hover { background: color-mix(in oklch, var(--primary) 88%, black); }

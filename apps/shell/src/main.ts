@@ -80,20 +80,17 @@ const shipClient: ShipSDK = createClient()
 // `routeSignals` proxy never sees them. Registering here at the shell
 // layer means params get seeded against the SHAPES the shell knows.
 defineRoutes([
-  { pattern: '/agents/:id' },
+  // Studio is a deck view (views/studio/). Its nested tool routes carry
+  // dynamic params the shell seeds for `route.params.id()` reads in the
+  // agents detail/settings/wire controllers.
+  { pattern: '/studio/agents/:id' },
+  { pattern: '/studio/agents/:id/settings' },
+  { pattern: '/studio/agents/:id/wire' },
   { pattern: '/skills/:id' },
   { pattern: '/collections/:id' },
   { pattern: '/artifacts/:id' },
   { pattern: '/workspaces/:id' },
   { pattern: '/ship-ui-studio/:component' },
-  // `/studio` is the shell-owned Studio surface (apps/shell/src/studio).
-  // It is NOT a daemon-resolved view — the shell mounts its bundle
-  // locally (see mountStudioLocal). Register the patterns here so the
-  // shell's shared routeSignals resolve `section`/`sub` from the URL;
-  // the studio controller reads `route.params.section()`.
-  { pattern: '/studio' },
-  { pattern: '/studio/:section' },
-  { pattern: '/studio/:section/:sub' },
 ])
 
 // Shared route signal. Views that declare dynamic params read
@@ -232,50 +229,12 @@ function routeToPath(r: Route): string {
 // the URL changes, routeSignals fire, the controller reacts in place.
 // Without this, every sibling click re-fetches the payload + rebuilds
 // the entire DOM, which the user perceives as a "page reload" flash.
-// `studio` joins this set so that navigating between sections
-// (/studio/agents → /studio/themes) only kicks routeSignals — the
-// surface stays mounted and re-renders in place. `studio` is also
-// shell-owned: it never round-trips to the daemon's view resolver.
-// `studio` is intentionally NOT same-shell: its bundle owns a separate
-// signal universe, so the shell's route-signal kick can't drive the
-// section swap across the bundle boundary (the global route updater only
-// iterates the installing bundle's instances). Remounting on each section
-// nav re-runs studio setup against the fresh URL — the bundle is cached
-// (loadStudioBundle memoizes), so it's a cheap in-place re-render, not a
-// network round-trip.
+// `studio` is intentionally NOT in this set: it's a deck view whose tool
+// routes (/studio/agents, /studio/agents/:id, …) are distinct daemon
+// payloads resolved from `views/studio/**`, so each nav is a normal
+// mountRoute — the shared rail (<sui-studio-rail>) re-renders against the
+// fresh URL. Same-shell would suppress that fetch and pin the first leaf.
 const SAME_SHELL_VIEWS = new Set(['skills'])
-
-// Shell-owned surfaces mounted from a local bundle rather than a daemon
-// view payload. `/studio/*` is a protected namespace — only this
-// shell-owned code claims it.
-const STUDIO_BUNDLE_URL = '/_sui/sui-components/sui-studio.js'
-
-interface StudioBundle {
-  default: unknown
-  __html: string
-  __css: string
-}
-let studioBundlePromise: Promise<StudioBundle> | null = null
-function loadStudioBundle(): Promise<StudioBundle> {
-  if (!studioBundlePromise) {
-    // @vite-ignore — the bundle is a daemon-served artifact, resolved at
-    // runtime against /_sui (proxied to shipd in dev, same-origin in prod).
-    studioBundlePromise = import(/* @vite-ignore */ STUDIO_BUNDLE_URL) as Promise<StudioBundle>
-  }
-  return studioBundlePromise
-}
-
-// Parse `/studio/<section>/<sub>` segments into route params. The shell's
-// registered `/studio/:section[/:sub]` patterns already resolve these from
-// the live URL, but seeding the payload keeps the first paint in sync
-// before the first reactive tick.
-function studioParams(r: Route): Record<string, string> {
-  const parts = (r.sub ?? '').split('/').filter(Boolean)
-  const params: Record<string, string> = {}
-  if (parts[0]) params['section'] = parts[0]
-  if (parts[1]) params['sub'] = parts[1]
-  return params
-}
 
 function payloadUrl(r: Route): string {
   if (SAME_SHELL_VIEWS.has(r.view)) return `/_sui/views/${r.view}`
@@ -331,39 +290,19 @@ async function mountRoute(r: Route, opts: { module?: unknown } = {}): Promise<vo
   if (!runtime?.mount) throw new Error('shell: SUI runtime did not load')
 
   try {
-    let payload: unknown
-    let moduleOverride: unknown = opts.module
-    if (r.view === 'studio') {
-      // Shell-owned surface: assemble the ViewPayload from the local
-      // bundle (module + embedded SSR html + css) instead of fetching a
-      // daemon view payload. The daemon never resolves `/studio`.
-      const bundle = await loadStudioBundle()
-      payload = {
-        name: 'studio',
-        ...(r.sub ? { sub: r.sub } : {}),
-        html: bundle.__html,
-        css: bundle.__css,
-        scope: {},
-        moduleUrl: STUDIO_BUNDLE_URL,
-        islands: [],
-        params: studioParams(r),
-      }
-      // mount() reads `module.default.setup` — pass the whole bundle.
-      moduleOverride = bundle
-    } else {
-      const res = await fetch(payloadUrl(r), { credentials: 'same-origin' })
-      if (!res.ok) {
-        disposeCurrentMount()
-        const viewPath = escapeHtml(`${r.view}${r.sub ? '/' + r.sub : ''}`)
-        slot.innerHTML = `<div class="shell-error">
+    const moduleOverride: unknown = opts.module
+    const res = await fetch(payloadUrl(r), { credentials: 'same-origin' })
+    if (!res.ok) {
+      disposeCurrentMount()
+      const viewPath = escapeHtml(`${r.view}${r.sub ? '/' + r.sub : ''}`)
+      slot.innerHTML = `<div class="shell-error">
   <h2>Page not found</h2>
   <p>The view <code>${viewPath}</code> isn't registered.</p>
   <a href="/">← Home</a>
 </div>`
-        return
-      }
-      payload = await res.json()
+      return
     }
+    const payload: unknown = await res.json()
 
     // Mount the next view BEFORE disposing the previous. mount() writes
     // `target.innerHTML = payload.html` and inserts the new <style> as
@@ -390,10 +329,9 @@ async function mountRoute(r: Route, opts: { module?: unknown } = {}): Promise<vo
       // crash with `route is not a function`.
       route: routeSignals,
       navigate,
-      // HMR path passes a cache-busted, freshly-imported view module;
-      // the shell-owned studio surface passes its local bundle. Without
-      // this, dynamic-import returns the cached old module and the
-      // rebuilt .sui never takes effect until a hard reload.
+      // HMR path passes a cache-busted, freshly-imported view module so
+      // dynamic-import doesn't return the cached old module and leave the
+      // rebuilt .sui stale until a hard reload.
       ...(moduleOverride !== undefined ? { module: moduleOverride } : {}),
     })
 
@@ -715,8 +653,7 @@ document.addEventListener('keydown', (e: KeyboardEvent) => {
     return
   }
 
-  // ⌘. / Ctrl+. — open Studio. Studio surface is built in a sibling job;
-  // 404 here is fine for now (the spec calls this out).
+  // ⌘. / Ctrl+. — open Studio (the views/studio deck view).
   if (mod && e.key === '.') {
     e.preventDefault()
     navigate('/studio')

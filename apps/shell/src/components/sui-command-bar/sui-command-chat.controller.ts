@@ -50,7 +50,7 @@ export default controller<Scope>({
     }
 
     function goToAgents(): void {
-      void navigateTo('/agents')
+      void navigateTo('/studio/agents')
       bar!.open.set(false)
     }
 

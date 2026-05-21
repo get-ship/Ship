@@ -1,0 +1,287 @@
+.agents-view {
+  color: var(--foreground);
+  font-family: var(--font-body);
+  /* Containing block — prevents wide card content (long provider names,
+     tags, etc.) from forcing the host viewport to scroll horizontally.
+     The shell's main panel already supplies vertical scroll. */
+  width: 100%;
+  min-width: 0;
+  overflow-x: hidden;
+}
+
+.agents-wrap {
+  max-width: 1024px;
+  margin: 0 auto;
+  padding: 48px var(--space-6) 80px;
+  box-sizing: border-box;
+  min-width: 0;
+}
+
+.agents-head {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  gap: var(--space-4); margin-bottom: var(--space-7);
+  min-width: 0;
+}
+.agents-title {
+  font-family: var(--heading-font);
+  font-size: var(--text-3xl);
+  font-weight: var(--heading-weight);
+  line-height: 1.05;
+  letter-spacing: var(--heading-tracking);
+  margin: 0 0 var(--space-2);
+  color: var(--foreground);
+}
+.agents-head-titles { position: relative; min-width: 0; }
+.agents-rule {
+  width: 96px; height: 4px;
+  margin-top: var(--space-3);
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--primary), transparent);
+}
+.agents-sub {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 8px;
+  font-size: 13.5px; color: var(--muted-foreground); margin: 0;
+}
+.agents-sub strong { font-weight: var(--font-weight-semibold); color: var(--foreground); }
+.agents-sub-sep {
+  width: 3px; height: 3px; border-radius: 50%;
+  background: var(--border);
+}
+.agents-sub-code {
+  font-family: var(--font-mono); font-size: 12px;
+  padding: 1px 6px;
+  background: var(--muted); border-radius: var(--radius-sm);
+  color: var(--foreground);
+}
+.agents-sub-active { color: var(--foreground); font-family: var(--font-mono); font-size: var(--text-sm); }
+
+.agents-filters {
+  display: flex; gap: var(--space-3);
+  align-items: center;
+  margin-bottom: var(--space-5);
+  flex-wrap: wrap;
+}
+.agents-search {
+  display: inline-flex; align-items: center; gap: var(--space-2);
+  flex: 1 1 320px; min-width: 240px;
+  padding: 7px var(--space-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+  transition: border-color var(--duration-fast), box-shadow var(--duration-fast);
+}
+.agents-search:focus-within { border-color: var(--primary); box-shadow: 0 0 0 3px var(--tone-primary-ring); background: var(--background); }
+.agents-search input {
+  flex: 1; border: 0; outline: 0; background: transparent;
+  color: var(--foreground); font: inherit; font-size: 13.5px;
+  min-width: 0;
+}
+.agents-search input::placeholder { color: var(--muted-foreground); }
+.agents-search-clear {
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 0; background: transparent; padding: 2px;
+  color: var(--muted-foreground); cursor: pointer; border-radius: var(--radius-sm);
+}
+.agents-search-clear:hover { color: var(--foreground); background: var(--muted); }
+
+.agents-pills { display: inline-flex; gap: 4px; }
+.agents-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px var(--space-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-full);
+  background: var(--surface-1);
+  color: var(--muted-foreground);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  transition: color var(--duration-fast), background var(--duration-fast), border-color var(--duration-fast);
+}
+.agents-pill:hover { color: var(--foreground); border-color: var(--border); }
+.agents-pill.is-active {
+  color: var(--primary-foreground);
+  background: var(--primary);
+  border-color: var(--primary);
+}
+.agents-card-tile[data-active] {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+  box-shadow: 0 0 0 4px var(--tone-primary-ring);
+}
+
+/* Grid layout — 1 / 2 / 3 columns. `minmax(0, 1fr)` is the key fix:
+   bare `1fr` resolves to `minmax(auto, 1fr)`, and `auto` lets a track
+   grow past its share if its content's min-content is wider. Long
+   provider names, source paths, or untruncated tags then push the row
+   past the viewport, producing the horizontal-scroll bug. `minmax(0,
+   1fr)` forces each track to honour its share so children with
+   `min-width: 0` actually shrink. */
+.agents-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-3);
+  align-items: stretch;
+  grid-auto-rows: 1fr;
+  min-width: 0;
+}
+@media (min-width: 720px) {
+  .agents-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (min-width: 1024px) {
+  .agents-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+/* Grid children must allow shrink below min-content so flex truncation
+   inside the tile (title ellipsis, desc clamp) takes effect. */
+.agents-grid > sui-list-tile { min-width: 0; }
+ship-list-tile.agents-card-tile::part(primary),
+sui-list-tile.agents-card-tile::part(primary) { min-width: 0; }
+
+.agents-card-tile .agents-card-body {
+  display: flex; flex-direction: column; gap: 6px;
+  min-width: 0; flex: 1;
+}
+.agents-card-tile .agents-card-head { min-width: 0; }
+.agents-card-tile .agents-card-title {
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--text-md);
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.agents-card-tile .agents-card-desc {
+  font-size: var(--text-xs);
+  color: var(--muted-foreground);
+  line-height: 1.4;
+  margin: 2px 0 0;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+}
+.agents-card-tile .agents-card-stats {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-xs);
+  color: var(--muted-foreground);
+  flex-wrap: wrap;
+}
+.agents-card-tile .agents-card-sep { color: var(--border); }
+.agents-card-tile .agents-card-badges {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+  min-height: 22px;
+  margin-top: auto;
+}
+
+.agents-card-body {
+  display: flex; flex-direction: column; gap: var(--space-2);
+  min-width: 0; flex: 1;
+}
+
+.agents-card-head { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.agents-card-title {
+  font-size: var(--text-md);
+  font-weight: var(--font-weight-semibold);
+  color: var(--foreground);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.agents-card-desc {
+  font-size: var(--text-xs);
+  color: var(--muted-foreground);
+  margin: 0; line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.agents-card-stats {
+  display: flex; align-items: center; gap: var(--space-2);
+  font-size: var(--text-xs); color: var(--muted-foreground);
+  flex-wrap: wrap;
+}
+.agents-card-sep { color: var(--border); }
+
+.agents-card-badges {
+  display: flex; align-items: center; gap: var(--radius-md);
+  flex-wrap: wrap; margin-top: auto;
+}
+
+/* Hue tile — 40px sibling of the detail page's 80px .detail-tile. Same
+   recipe (inner highlight + bottom shade + soft coloured shadow, plus a
+   diagonal sheen ::before) so a card's tile reads as the same object as
+   the header tile on the page it links to. Hue classes mirror
+   views/agents/[id]/style.css exactly. */
+.agents-card-icon-tile {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 40px; height: 40px;
+  border-radius: var(--radius-md);
+  color: white;
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: -0.02em;
+  position: relative;
+  isolation: isolate;
+  box-shadow:
+    inset 0 1px 0 color-mix(in oklch, white 22%, transparent),
+    inset 0 -1px 0 color-mix(in oklch, black 8%, transparent),
+    0 2px 8px color-mix(in oklch, var(--tile-color, var(--primary)) 25%, transparent);
+}
+.agents-card-icon-tile::before {
+  content: '';
+  position: absolute; inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(160deg,
+    color-mix(in oklch, white 14%, transparent) 0%,
+    transparent 55%);
+  pointer-events: none;
+}
+.agents-card-icon-tile sui-icon { width: 20px; height: 20px; }
+.agents-card-letter {
+  font-size: var(--text-md);
+  line-height: 1;
+  position: relative;
+}
+
+.agents-card-icon-tile.hue-slate  { --tile-color: oklch(0.55 0.04 260); background: conic-gradient(from 220deg, oklch(0.72 0.03 260), oklch(0.50 0.04 260)); }
+.agents-card-icon-tile.hue-red    { --tile-color: oklch(0.60 0.22 18);  background: conic-gradient(from 220deg, oklch(0.70 0.22 20),  oklch(0.55 0.22 15)); }
+.agents-card-icon-tile.hue-amber  { --tile-color: oklch(0.75 0.18 62);  background: conic-gradient(from 220deg, oklch(0.82 0.17 70),  oklch(0.70 0.18 55)); }
+.agents-card-icon-tile.hue-orange { --tile-color: oklch(0.70 0.19 35);  background: conic-gradient(from 220deg, oklch(0.78 0.18 40),  oklch(0.62 0.20 30)); }
+.agents-card-icon-tile.hue-green  { --tile-color: oklch(0.65 0.17 152); background: conic-gradient(from 220deg, oklch(0.76 0.17 155), oklch(0.60 0.18 150)); }
+.agents-card-icon-tile.hue-teal   { --tile-color: oklch(0.68 0.13 192); background: conic-gradient(from 220deg, oklch(0.75 0.12 195), oklch(0.60 0.14 190)); }
+.agents-card-icon-tile.hue-blue   { --tile-color: oklch(0.65 0.17 250); background: conic-gradient(from 220deg, oklch(0.72 0.16 245), oklch(0.58 0.18 255)); }
+.agents-card-icon-tile.hue-violet { --tile-color: oklch(0.60 0.23 303); background: conic-gradient(from 220deg, oklch(0.68 0.22 300), oklch(0.55 0.25 305)); }
+.agents-card-icon-tile.hue-pink   { --tile-color: oklch(0.68 0.19 353); background: conic-gradient(from 220deg, oklch(0.78 0.17 350), oklch(0.62 0.20 355)); }
+
+.loading-copy {
+  font-size: var(--text-md); color: var(--muted-foreground);
+  padding: var(--space-4) 0; margin: 0;
+}
+
+.agents-skel-card {
+  display: flex; gap: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--card);
+  min-height: 120px;
+  min-width: 0;
+}
+.agents-skel-icon { width: 40px; height: 40px; border-radius: var(--radius-sm); flex-shrink: 0; }
+.agents-skel-body { display: flex; flex-direction: column; gap: 8px; flex: 1; min-width: 0; }
+.agents-skel-body sui-skeleton { display: block; }
+
+.agents-empty-code {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  padding: 2px var(--radius-md);
+  border-radius: var(--radius-sm);
+  background: var(--muted);
+  color: var(--foreground);
+}

@@ -172,7 +172,7 @@ export const NAV_DESTINATIONS: NavDest[] = [
   { label: 'Canvas',                path: '/canvas',       icon: 'image',    keywords: 'docs visual feedback'      },
   { label: 'Collections',           path: '/collections',  icon: 'folder',   keywords: 'data items query'          },
   { label: 'Artifacts',             path: '/artifacts',    icon: 'file',     keywords: 'outputs files exports'     },
-  { label: 'Agents',                path: '/agents',       icon: 'users',    keywords: 'configure profiles'        },
+  { label: 'Agents',                path: '/studio/agents', icon: 'users',   keywords: 'configure profiles studio' },
   { label: 'Skills',                path: '/skills',       icon: 'zap',      keywords: 'browse edit files'         },
   { label: 'Git',                   path: '/git',          icon: 'git',      keywords: 'status diff commit branch' },
   { label: 'UI Studio',             path: '/ship-ui-studio', icon: 'sparkles', keywords: 'components design tokens' },
