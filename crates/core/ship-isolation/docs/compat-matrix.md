@@ -40,16 +40,26 @@ The dimension that varies most (harness-native flags + "does it even run").
 | Harness | macOS | Linux | Windows (native) |
 |---|---|---|---|
 | **claude** | 🟡 Seatbelt / `--sandbox`. 🔴 **Intel Macs: claude-code doesn't run.** | 🟡 `--sandbox` (sandbox-runtime/bubblewrap) | 🔴 no OS-level sandbox primitive → use WSL (Linux row) |
-| **codex** | 🟡 Seatbelt (`--sandbox workspace-write`) | 🟡 Seatbelt n/a → SrtWrapper (bubblewrap) | 🔴 → WSL |
-| **opencode** | 🟡 no native mechanism → SrtWrapper (sandbox-exec) | 🟡 SrtWrapper (bubblewrap + seccomp) | 🔴 sandbox-runtime has **no Windows support** → WSL |
+| **codex** | 🟡 Seatbelt (`--sandbox workspace-write`) | ✅ SrtWrapper (bubblewrap) — confinement live-verified | 🔴 → WSL |
+| **opencode** | 🟡 no native mechanism → SrtWrapper (sandbox-exec) | ✅ SrtWrapper (bubblewrap + seccomp) — confinement live-verified | 🔴 sandbox-runtime has **no Windows support** → WSL |
 
 **Tier-1 takeaways / caveats:**
+- **SrtWrapper confinement is live-verified on Linux** —
+  `tier1_srt_confinement_live` drives the production path
+  (`render_settings` → `wrap_launch(SrtWrapper)` → spawn) and asserts the
+  property, not just startup: a write outside the workspace is **blocked**
+  (`Read-only file system`), a write inside **succeeds**. This is the
+  mechanism codex + opencode route to on Linux, so those cells are ✅. It
+  replaces the deleted `srt_live` (which tested the removed `SandboxRuntime`,
+  never the production path).
+- **`HarnessNative` cells stay 🟡** — claude `--sandbox` / codex Seatbelt
+  use the *harness's own* sandbox (we pass the flag, don't wrap), so
+  verifying them needs the actual harness installed + an escape assertion.
+  That's the next live target.
 - **Windows-native has no Tier-1 story** — `@anthropic-ai/sandbox-runtime`
   is mac+Linux only, and there's no portable Windows sandbox primitive. The
   Windows path *is* WSL (a Linux substrate) → it inherits the Linux column.
 - **Intel Macs**: claude-code unavailable (hard 🔴 for that harness there).
-- Verified today = the adapter *selection* logic (unit tests). 🟡 = the
-  harness actually running sandboxed on that OS is **not** in CI.
 
 ## Grid 2 — Tiers 2/3/4 (substrate): OS × tier
 
@@ -100,8 +110,8 @@ is the substrate mechanism.
 ~~Immediate next: podman → `podman_sidecar_live`.~~ **Done** ✅.
 ~~Then: container→host reachability.~~ **Done** ✅ (`container_reach_live`).
 ~~Then: unix-socket control plane.~~ **Done** ✅ (§5/§7.4 hardening).
-Next: **a Tier-1 live test against `wrap_launch`** on Linux (install
-`bubblewrap` + `socat`; assert the wrapped harness is actually confined —
-write-outside-workspace blocked). NB this is a *new* test: the old
-`srt_live` tested the deleted `SandboxRuntime` and is gone. Then mac
-(Seatbelt) + the mac/win substrate provisioners (Tier 3).
+~~Then: a Tier-1 live test against `wrap_launch`.~~ **Done** ✅ —
+`tier1_srt_confinement_live` (SrtWrapper write-escape blocked). Next:
+**HarnessNative confinement** (claude `--sandbox` / codex Seatbelt with the
+harness installed — assert its escape is blocked too), then **mac Seatbelt**
+(real-hardware/CI) + the mac/win **Tier-3** substrate provisioners.
