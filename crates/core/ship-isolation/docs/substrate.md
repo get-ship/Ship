@@ -44,8 +44,13 @@ provider on macOS/Windows.
 | Tier | Substrate | Audience | Inner isolation |
 |---|---|---|---|
 | **T1** | host, no substrate | Linux / mac power users | bubblewrap / Seatbelt / harness-native |
-| **T2 — container** | podman · docker · Apple Container · youki | users who **already run** a runtime | the container is the boundary |
-| **T3 — Ship VM/distro** | Lima (mac) · Ship WSL distro (win) | **consumer default** | bubblewrap per actor (shared substrate) |
+| **T2 — container** | podman · docker · youki | users who **already run** a runtime | the container is the boundary (shared host kernel) |
+| **T3 — VM** | **Firecracker** (Linux, KVM) · **Apple Container** (mac, microVM-per-container) · **Lima** (mac, shared VM + bubblewrap) · Ship **WSL** distro (win) | **consumer default** | own guest kernel — hypervisor boundary |
+
+**Tier-3 inner-isolation strength varies (all are T3 vs the host, but differ between co-resident actors):**
+- **Firecracker / Apple Container** — **microVM *per sandbox/actor***: each agent gets its own guest kernel. Strongest. Firecracker is the Linux/cloud model; Apple Container is its mac equivalent (Virtualization.framework).
+- **Lima / WSL** — **one shared Ship VM**, actors separated *inside* it by bubblewrap (shared VM-kernel between co-resident actors). Strong vs the host, weaker between actors. The fallback for Intel/older macs (Lima) and Windows (WSL, which is inclusive — Hyper-V excludes Home).
+- So **Apple Container is not weaker than Lima — it's stronger** (per-actor microVM vs bubblewrap-in-shared-VM); they compete at T3 on mac and we support both, detect-and-prefer Apple Container.
 
 **Recommender (detect-or-bundle):** probe for a container runtime → use it
 (T2, no download but the agent image). Else → the **bundled Ship
@@ -130,20 +135,22 @@ isolation, the docker/podman backend (container path), youki-on-Linux.
 - vsock / forwarded-port transport wiring (`RuntimeEndpoint::Remote`).
 - Recommender extension: substrate detection + detect-or-bundle + the
   "escalate consumers to T3" policy. **Decided per-OS ladder (2026-05):**
-  mac → **Apple Container** (T2, microVM-per-container) if present, else
-  **Lima** (T3 VM); win → **WSL** distro (not Hyper-V — it excludes Home);
-  linux → native podman/youki. Detect-and-prefer: Apple Container only when
-  the `container` binary + macOS 15+/Apple-Silicon are present.
+  linux → **Firecracker** microVM (KVM) for strong T3, else native
+  podman/youki (T2); mac → **Apple Container** (T3, microVM-per-container)
+  if present, else **Lima** (T3 shared VM + bubblewrap, Intel/older); win →
+  **WSL** distro (not Hyper-V — it excludes Home). Detect-and-prefer: Apple
+  Container only when the `container` binary + macOS 15+/Apple-Silicon present.
 - bubblewrap-as-inner-isolation inside the shared substrate (reuse Tier 1).
 
 ## Radar (watch, no critical-path change)
 
-- **Apple Container** — promoted from radar to a **decided** provider
-  (2026-05): the preferred mac T2 path when present (Apple Silicon, macOS
-  15+), Lima T3 the fallback. Native containerization, microVM-per-container
-  under the hood (VM-grade isolation, container ergonomics); a detected T2
-  adapter, zero sidecar change. Lives in the recommender's detect-and-prefer
-  ladder.
+- **Apple Container** — promoted from radar to a **decided T3 provider**
+  (2026-05): microVM-per-container (Virtualization.framework) = own guest
+  kernel per agent, so it's T3 (VM boundary) with container ergonomics —
+  *stronger* inter-actor isolation than Lima's shared-VM-bubblewrap, not
+  weaker. Preferred mac path when present (Apple Silicon, macOS 15+); Lima
+  the Intel/older fallback. Zero sidecar change; lives in the recommender's
+  detect-and-prefer ladder.
 
 ## One-line intent
 
