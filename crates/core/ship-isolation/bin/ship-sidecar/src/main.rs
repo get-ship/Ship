@@ -10,8 +10,16 @@
 //! Auxiliary:
 //!   GET  /v1/health  — tiny axum liveness probe for healthchecks
 //!
-//! Transport: TCP for local containers; vsock-wrapped for microVMs;
-//! TCP+TLS for cloud. The wire protocol is the same in all three.
+//! Transport: a Ship-owned **unix socket** (bind-mounted from the host)
+//! for local containers — no published TCP port, nothing for an
+//! in-container process to reach on the network namespace (threat-model
+//! §5/§7.4). vsock for microVMs, TCP+TLS for cloud. TCP stays supported
+//! for the in-process/dev path and as the fallback default. The wire
+//! protocol (ship.sidecar.v1 over Connect) is identical across all of
+//! them — only the listener binding differs.
+//!
+//! `--addr` accepts either `host:port` (TCP) or `unix:/path/to.sock`
+//! (unix domain socket).
 
 mod handlers;
 mod session;
@@ -23,10 +31,13 @@ use handlers::{EventsImpl, HandshakeImpl, ProcessesImpl};
 use ship_isolation::sidecar::proto::{EventsExt, HandshakeExt, ProcessesExt};
 use std::env;
 use std::sync::Arc;
-use tokio::net::TcpListener;
+use tokio::net::{TcpListener, UnixListener};
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 const DEFAULT_ADDR: &str = "0.0.0.0:2468";
+/// `--addr` values with this prefix bind a unix domain socket at the
+/// remainder path instead of a TCP listener.
+const UNIX_PREFIX: &str = "unix:";
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -55,14 +66,28 @@ async fn main() -> anyhow::Result<()> {
         .route("/v1/health", routing::get(|| async { (StatusCode::OK, VERSION) }))
         .fallback_service(connect.into_axum_service());
 
-    let listener = TcpListener::bind(&addr).await?;
-    eprintln!("ship-sidecar listening on {addr}");
+    let shutdown = || async {
+        let _ = tokio::signal::ctrl_c().await;
+    };
 
-    axum::serve(listener, app)
-        .with_graceful_shutdown(async {
-            let _ = tokio::signal::ctrl_c().await;
-        })
-        .await?;
+    // Unix socket (the hardened container/VM path) vs TCP (dev / cloud).
+    // Connect is identical over both; only the listener changes.
+    if let Some(path) = addr.strip_prefix(UNIX_PREFIX) {
+        // A stale socket file from a prior run blocks bind(); the path is
+        // Ship-owned (bind-mounted from the host) so removing it is safe.
+        let _ = std::fs::remove_file(path);
+        let listener = UnixListener::bind(path)?;
+        eprintln!("ship-sidecar listening on unix:{path}");
+        axum::serve(listener, app)
+            .with_graceful_shutdown(shutdown())
+            .await?;
+    } else {
+        let listener = TcpListener::bind(&addr).await?;
+        eprintln!("ship-sidecar listening on {addr}");
+        axum::serve(listener, app)
+            .with_graceful_shutdown(shutdown())
+            .await?;
+    }
     eprintln!("ship-sidecar shutting down");
     Ok(())
 }

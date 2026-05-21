@@ -16,7 +16,7 @@ tokio = { workspace = true, features = ["rt-multi-thread", "macros", "net", "io-
 tokio-stream = { version = "0.1", features = ["sync"] }
 tracing = { workspace = true }
 nanoid = { workspace = true }
-axum = { version = "0.7", features = ["macros"] }
+axum = { version = "0.8", features = ["macros"] }
 futures-util = { workspace = true }
 libc = "0.2"
 connectrpc = { version = "0.4", features = ["axum"] }
