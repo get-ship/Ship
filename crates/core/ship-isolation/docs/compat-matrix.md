@@ -13,16 +13,21 @@ lets us honestly tell a user "isolation works on your setup."
 - ⬜ **not built.**
 
 Baseline (2026-05): the sidecar v1 protocol is ✅ (10 e2e tests vs the
-spawned binary). **First container cell is now ✅** — an actor runs inside
-a real rootless **podman** container driven over v1
-(`podman_sidecar_live`), on Linux/Ubuntu-24.04. That test caught a real
-bug en route (`--detach` passed to `create`, which both docker and podman
-reject — the container path had never actually worked). `docker_live` +
-`docker_lifecycle` also pass against podman now. The **app-plane
-reachability keystone** is also ✅ — `container_reach_live` proves an
-in-container actor opens a connection back to the host daemon plane (the
-`SHIP_DAEMON_URL` path). Remaining cells are 🟡/⬜; the grind continues
-(bubblewrap T1 next, then mac/win substrates).
+spawned binary). **Linux × T2 (podman) is ✅** — an actor runs inside a
+real rootless **podman** container driven over v1 (`podman_sidecar_live`,
+Ubuntu-24.04). The **app-plane reachability keystone** is ✅ too —
+`container_reach_live` proves an in-container actor reaches the host daemon
+plane (`SHIP_DAEMON_URL` + `--add-host`). As of the §5/§7.4 hardening, both
+cells run over a **bind-mounted unix socket** control plane (no published
+TCP port); `docker_lifecycle` covers prepare→reap. Remaining cells are
+🟡/⬜.
+
+Two test deletions to note (legacy-path cut): `docker_live` and `srt_live`
+are **gone** — they exercised the removed `Isolator::exec` / `SandboxRuntime`
+paths. `docker_lifecycle` (prepare/shutdown, no exec) survives. Production
+Tier-1 is `wrap_launch` (argv transform), which **never had** a live test —
+so Tier-1 live verification is a *new* test against `wrap_launch`, not the
+deleted `srt_live`.
 
 Scope: harnesses are the three darlings — **claude, codex, opencode**
 (gemini/cursor deprioritized, see harness strategy). OS = macOS / Linux /
@@ -53,7 +58,7 @@ is the substrate mechanism.
 
 | Tier | macOS | Linux | Windows |
 |---|---|---|---|
-| **T2 — container** | 🟡 podman/docker (own VM) · Apple Container (Apple Silicon) | ✅ **podman** (`podman_sidecar_live` runs an actor; `container_reach_live` proves it reaches the host daemon plane — rootless, ubuntu:24.04) · 🟡 docker/youki | 🟡 podman/docker in WSL2 / Docker Desktop |
+| **T2 — container** | 🟡 podman/docker (own VM) · Apple Container (Apple Silicon) | ✅ **podman** (`podman_sidecar_live` + `container_reach_live`, rootless ubuntu:24.04, **unix-socket control plane**) · 🟡 docker (same backend, not separately live-tested since `docker_live` was cut) · 🟡 youki (`youki_sidecar_live`, feature-gated) | 🟡 podman/docker in WSL2 / Docker Desktop |
 | **T3 — Ship VM/distro** | ⬜ Lima VM + bubblewrap | ⬜ (Firecracker microVM for strong; else T1 covers) | ⬜ Ship WSL distro + bubblewrap |
 | **T4 — cloud** | ⬜ protocol-ready (`RuntimeEndpoint::Remote`), Firecracker on a cloud host | ⬜ same | ⬜ same |
 
@@ -92,11 +97,11 @@ is the substrate mechanism.
    fs scoped, etc.).
 4. Mark ✅ with the test name; on failure, mark 🔴 with the reason.
 
-~~Immediate next: podman → `podman_sidecar_live`.~~ **Done** ✅ (2026-05-21).
-~~Then: container→host reachability.~~ **Done** ✅ — `container_reach_live`
-proves an in-container actor reaches the host daemon plane via
-`--add-host=host.docker.internal:host-gateway` + the
-`Docker::container_reachable_url` rewrite (the `SHIP_DAEMON_URL` keystone).
-Next: **bubblewrap T1 on Linux** (needs `bubblewrap` + `socat` via apt —
-`srt_live` is written and auto-skips until they're installed), then mac
-(Seatbelt) + the mac/win substrate provisioners.
+~~Immediate next: podman → `podman_sidecar_live`.~~ **Done** ✅.
+~~Then: container→host reachability.~~ **Done** ✅ (`container_reach_live`).
+~~Then: unix-socket control plane.~~ **Done** ✅ (§5/§7.4 hardening).
+Next: **a Tier-1 live test against `wrap_launch`** on Linux (install
+`bubblewrap` + `socat`; assert the wrapped harness is actually confined —
+write-outside-workspace blocked). NB this is a *new* test: the old
+`srt_live` tested the deleted `SandboxRuntime` and is gone. Then mac
+(Seatbelt) + the mac/win substrate provisioners (Tier 3).
