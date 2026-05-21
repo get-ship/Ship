@@ -207,6 +207,7 @@ const REGISTRY: &[&dyn HarnessAdapter] = &[
     &super::harnesses::codex::CodexAdapter,
     &super::harnesses::cursor::CursorAdapter,
     &super::harnesses::opencode::OpenCodeAdapter,
+    &super::harnesses::pi::PiAdapter,
 ];
 
 /// Comma-separated list of canonical harness ids, for error messages.
@@ -253,7 +254,7 @@ mod adapter_for_tests {
         // turns. If a new harness lands without persistent_session=true,
         // it'd quietly fall to the legacy per-turn-respawn path; this
         // test pins the parity contract.
-        for name in ["claude", "codex", "cursor", "opencode"] {
+        for name in ["claude", "codex", "cursor", "opencode", "pi"] {
             let adapter = adapter_for(name).unwrap();
             assert!(
                 adapter.caps().persistent_session,
@@ -272,6 +273,7 @@ mod adapter_for_tests {
             ("codex", Stdin),
             ("cursor", Stdin),
             ("opencode", Stdin),
+            ("pi", Stdin),
         ];
         for (name, want) in expected {
             assert_eq!(
@@ -349,7 +351,7 @@ mod adapter_for_tests {
     fn capabilities_lists_registered_harnesses() {
         let caps = capabilities();
         let ids: Vec<&str> = caps.iter().map(|(id, _)| *id).collect();
-        assert_eq!(ids, vec!["claude", "codex", "cursor", "opencode"]);
+        assert_eq!(ids, vec!["claude", "codex", "cursor", "opencode", "pi"]);
     }
 
     #[test]

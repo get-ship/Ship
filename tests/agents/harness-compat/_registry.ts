@@ -34,6 +34,9 @@ export const HARNESSES: HarnessSpec[] = [
   // "cursor-agent" (the `agent` alias symlinks to it). Keep in sync with
   // crates/core/ship-platform/src/services/harnesses/cursor.rs.
   { id: "cursor", binary: "cursor-agent", tier: "T3", emitsSessionStarted: false },
+  // Pi (pi.dev): JSON event stream emits a session header → SessionStarted.
+  // binary mirrors the Rust adapter (PiAdapter.binary() defaults to id).
+  { id: "pi", binary: "pi", tier: "T3", emitsSessionStarted: true },
 ];
 
 /** Harnesses skipped via SKIP_HARNESSES env (comma-separated ids). */
