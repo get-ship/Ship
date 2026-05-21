@@ -135,11 +135,34 @@ Connect. The Firecracker `Isolator` is now a *transcription* of this recipe.
 ## Open issues
 
 - ~~**Host uds-CONNECT connector**~~ ✅ wired (`SidecarActorRuntime`, `fcvsock:`).
-- **Workspace into the microVM** — the actor runs but has **no workspace**: a
-  microVM has no shared fs, so the bind-mount trick (Docker) doesn't apply.
-  Needs virtio-fs (firecracker has it) or a second data drive synced to the
-  workspace. The `firecracker_live` actor only echoes; real agents need their
-  files. This is the next functional gap for T3.
+- **Workspace into the microVM** — the actor runs but has **no workspace**, and
+  **Firecracker has NO virtio-fs** (confirmed: device model is drives/vsock/net
+  only, by design) — so no live host-fs mount. The options:
+  1. **data-drive snapshot** — `mke2fs -d <workspace>` → attach as a 2nd drive →
+     guest mounts it; extract back at shutdown via `debugfs rdump` (rootless).
+     Self-contained, testable here; snapshot (not live) semantics.
+  2. **git/work-unit copy** — agent clones in + pushes out over a net device
+     (needs firecracker networking; cloud-aligned).
+  3. **architectural split (recommended):** **live-FS is the Lima/WSL/Apple-
+     Container tier** (shared dir / virtio-fs on mac/win); **Firecracker is the
+     strong *ephemeral* tier** — work-unit copy (option 1 for local, option 2
+     for cloud). The microVM too isolated for a live mount is exactly the one
+     you pick when you want that isolation. Reconciles substrate.md's
+     "live FS is Tier-≤3 / Tier-4 is work-unit copy": Firecracker behaves like
+     the cloud tier on the fs axis.
+  ✅ **DONE (option 3, data-drive work-unit copy).** `firecracker_live`'s
+  `microvm_workspace_round_trips`: a host dir is seeded into the microVM
+  (`mke2fs -d` → `/dev/vdb`), the guest `/init` mounts it at the
+  `ship.workspace=` cmdline path (+ `busybox --install -s` for a real
+  userland), the agent reads a seeded file + writes a new one, and the new
+  file copies back out via `debugfs rdump` at shutdown — **no agent `sync`
+  required**. Flush mechanism: Firecracker buffers guest block writes until a
+  virtio flush, so the guest runs a 1s periodic `sync` and the Isolator waits
+  one interval before the hard stop.
+  *Refinements:* deletions don't propagate via rdump; the periodic-sync +
+  flush-wait is a v1 — a cooperative **ACPI graceful shutdown** (firecracker
+  API `SendCtrlAltDel` + an init that syncs/unmounts on signal) is the clean
+  follow-up; dynamic data-image sizing (fixed 512M today).
 - **rootfs/image as tooling** — the rootfs is baked ad hoc by the dev spike;
   productionize as a pinned, signed image (Phase F) + a baking step the
   Isolator/CI runs (currently `FirecrackerConfig.rootfs` is a supplied path).

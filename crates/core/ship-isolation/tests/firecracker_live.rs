@@ -23,7 +23,7 @@ use std::time::Duration;
 
 use ship_isolation::backends::{Firecracker, FirecrackerConfig};
 use ship_isolation::runtime::SidecarActorRuntime;
-use ship_isolation::{Isolator, NetworkPolicy, SandboxPolicy};
+use ship_isolation::{FsMount, Isolator, MountMode, NetworkPolicy, SandboxPolicy};
 use ship_substrate::supervisor::{ActorKind, ActorProfile, ActorRuntime, TransportKind};
 
 fn fc_base() -> PathBuf {
@@ -130,5 +130,99 @@ async fn actor_runs_inside_firecracker_microvm() {
         exit_code,
         Some(0),
         "actor inside the Firecracker microVM must exit cleanly"
+    );
+}
+
+/// Work-unit-copy workspace: a host dir is seeded into the microVM (data
+/// drive), the agent reads a seeded file + writes a new one inside the
+/// guest, and the new file copies back out to the host at shutdown.
+/// Firecracker has no virtio-fs, so this proves the snapshot-in/copy-out
+/// model (see `docs/tier3-build.md`).
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn microvm_workspace_round_trips() {
+    if !kvm_accessible() {
+        eprintln!("firecracker_live: skipping — /dev/kvm not accessible");
+        return;
+    }
+    let Some(cfg) = assets() else {
+        eprintln!("firecracker_live: skipping — dev assets missing");
+        return;
+    };
+    let backend = Firecracker::new(cfg);
+    if backend.available().await.is_err() {
+        return;
+    }
+
+    let work = std::env::temp_dir().join(format!("ship-fcws-{}", std::process::id()));
+    std::fs::create_dir_all(&work).unwrap();
+    std::fs::write(work.join("seed.txt"), b"SEED-DATA").unwrap();
+    let out = work.join("out.txt");
+    let _ = std::fs::remove_file(&out);
+
+    // identical-path workspace mount (host == guest path).
+    let policy = SandboxPolicy {
+        label: "fc-workspace".into(),
+        mounts: vec![FsMount {
+            host_path: work.clone(),
+            sandbox_path: work.clone(),
+            mode: MountMode::ReadWrite,
+        }],
+        network: NetworkPolicy::DenyAll,
+        env: HashMap::new(),
+        limits: Default::default(),
+    };
+
+    let handle = backend.prepare(&policy).await.expect("boot microVM w/ workspace");
+    let endpoint = Firecracker::sidecar_endpoint(&handle).unwrap();
+    let runtime = SidecarActorRuntime::new(endpoint);
+
+    let log_dir = std::env::temp_dir().join("ship-fcws-live");
+    std::fs::create_dir_all(&log_dir).ok();
+    // Read the seeded file AND write a new one — both inside the microVM.
+    let profile = ActorProfile {
+        actor_id_hint: Some("fcws-actor".into()),
+        kind: ActorKind::PipelineStep,
+        transport: TransportKind::Headless,
+        one_shot: true,
+        bin: "/bin/sh".into(),
+        args: vec![
+            "-c".into(),
+            // No explicit `sync` — the guest's periodic sync + the
+            // Isolator's shutdown flush-wait must carry the write back, the
+            // way a real agent (which won't sync) relies on.
+            format!(
+                "cat {seed} && echo AGENT_WAS_HERE > {out}",
+                seed = work.join("seed.txt").display(),
+                out = out.display()
+            ),
+        ],
+        env: HashMap::new(),
+        work_dir: work.clone(),
+        workspace_id: None,
+        agent_id: None,
+        harness: None,
+        parent_actor_id: None,
+        log_dir: Some(log_dir),
+        subscribe_namespaces: vec![],
+    };
+
+    let actor = runtime.spawn(profile).await.expect("spawn actor in microVM");
+    let deadline = std::time::Instant::now() + Duration::from_secs(15);
+    while std::time::Instant::now() < deadline {
+        if actor.child.try_exit().is_some() {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(150)).await;
+    }
+
+    // shutdown flushes the guest + copies the workspace back (debugfs rdump).
+    backend.shutdown(handle).await.expect("shutdown + copy back");
+
+    let copied = std::fs::read_to_string(&out).unwrap_or_default();
+    let _ = std::fs::remove_dir_all(&work);
+    assert_eq!(
+        copied.trim(),
+        "AGENT_WAS_HERE",
+        "a file the agent wrote inside the microVM must copy back to the host workspace"
     );
 }

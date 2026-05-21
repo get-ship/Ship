@@ -52,6 +52,10 @@ struct FcState {
     /// vsock uds. Removed on shutdown.
     vm_dir: PathBuf,
     uds: PathBuf,
+    /// Work-unit-copy workspace: `(data_image, host_workspace_dir)`. The
+    /// image is seeded from the host dir at prepare and copied back at
+    /// shutdown (Firecracker has no live shared fs — see tier3-build.md).
+    workspace: Option<(PathBuf, PathBuf)>,
 }
 
 impl Firecracker {
@@ -139,17 +143,55 @@ impl Isolator for Firecracker {
             .map(|q| (q / 100_000).max(1))
             .unwrap_or(1);
 
+        let mut boot_args =
+            "console=ttyS0 reboot=k panic=1 pci=off root=/dev/vda rw init=/init".to_string();
+        let mut drives = vec![serde_json::json!({
+            "drive_id": "rootfs",
+            "path_on_host": rootfs,
+            "is_root_device": true,
+            "is_read_only": false
+        })];
+
+        // Work-unit-copy workspace: seed an ext4 from the policy's workspace
+        // mount (rootless `mke2fs -d`), attach as /dev/vdb, and tell the
+        // guest init where to mount it. Firecracker has no virtio-fs, so
+        // this is snapshot-in / copy-out, not a live mount.
+        let workspace = match policy.mounts.first() {
+            Some(m) => {
+                let data = vm_dir.join("workspace.ext4");
+                let out = Command::new("mke2fs")
+                    .args(["-q", "-t", "ext4", "-d"])
+                    .arg(&m.host_path)
+                    .arg(&data)
+                    .arg("512M")
+                    .output()
+                    .await
+                    .map_err(|e| IsolatorError::SpawnFailed(format!("mke2fs: {e}")))?;
+                if !out.status.success() {
+                    let _ = tokio::fs::remove_dir_all(&vm_dir).await;
+                    return Err(IsolatorError::SpawnFailed(format!(
+                        "mke2fs workspace: {}",
+                        String::from_utf8_lossy(&out.stderr).trim()
+                    )));
+                }
+                drives.push(serde_json::json!({
+                    "drive_id": "workspace",
+                    "path_on_host": data,
+                    "is_root_device": false,
+                    "is_read_only": false
+                }));
+                boot_args.push_str(&format!(" ship.workspace={}", m.sandbox_path.display()));
+                Some((data, m.host_path.clone()))
+            }
+            None => None,
+        };
+
         let vm_json = serde_json::json!({
             "boot-source": {
                 "kernel_image_path": self.cfg.kernel,
-                "boot_args": "console=ttyS0 reboot=k panic=1 pci=off root=/dev/vda rw init=/init"
+                "boot_args": boot_args
             },
-            "drives": [{
-                "drive_id": "rootfs",
-                "path_on_host": rootfs,
-                "is_root_device": true,
-                "is_read_only": false
-            }],
+            "drives": drives,
             "vsock": { "guest_cid": GUEST_CID, "uds_path": uds },
             "machine-config": { "vcpu_count": vcpus, "mem_size_mib": mem_mib }
         });
@@ -188,14 +230,35 @@ impl Isolator for Firecracker {
                 child: Mutex::new(Some(child)),
                 vm_dir,
                 uds,
+                workspace,
             }),
         })
     }
 
     async fn shutdown(&self, sandbox: SandboxHandle) -> Result<(), IsolatorError> {
         if let Some(st) = sandbox.state.downcast_ref::<FcState>() {
+            // Firecracker buffers guest block writes until a virtio flush;
+            // the guest runs a 1s periodic `sync`. Before the hard stop,
+            // wait just over one interval so the actor's final workspace
+            // edits flush to the data image, then copy back. (A cooperative
+            // ACPI graceful-shutdown is the refinement — see tier3-build.md.)
+            if st.workspace.is_some() {
+                tokio::time::sleep(Duration::from_millis(1300)).await;
+            }
             if let Some(mut child) = st.child.lock().await.take() {
                 let _ = child.kill().await;
+            }
+            // Copy the workspace back out (the VM is stopped → the data
+            // image is consistent). `debugfs rdump` extracts rootlessly.
+            // Caveat: rdump writes the image's tree over the host dir; it
+            // doesn't propagate deletions (documented v1 limitation).
+            if let Some((data, host_ws)) = &st.workspace {
+                let _ = Command::new("debugfs")
+                    .arg("-R")
+                    .arg(format!("rdump / {}", host_ws.display()))
+                    .arg(data)
+                    .output()
+                    .await;
             }
             let _ = tokio::fs::remove_dir_all(&st.vm_dir).await;
         }
