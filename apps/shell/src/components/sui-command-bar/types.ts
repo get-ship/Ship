@@ -173,7 +173,7 @@ export const NAV_DESTINATIONS: NavDest[] = [
   { label: 'Collections',           path: '/collections',  icon: 'folder',   keywords: 'data items query'          },
   { label: 'Artifacts',             path: '/artifacts',    icon: 'file',     keywords: 'outputs files exports'     },
   { label: 'Agents',                path: '/studio/agents', icon: 'users',   keywords: 'configure profiles studio' },
-  { label: 'Skills',                path: '/skills',       icon: 'zap',      keywords: 'browse edit files'         },
+  { label: 'Skills',                path: '/studio/skills', icon: 'zap',     keywords: 'browse edit files'         },
   { label: 'Git',                   path: '/git',          icon: 'git',      keywords: 'status diff commit branch' },
   { label: 'Components',            path: '/studio/components', icon: 'sparkles', keywords: 'components design tokens ui studio catalog' },
   { label: 'Settings',              path: '/settings',     icon: 'settings', keywords: 'config theme harness'     },

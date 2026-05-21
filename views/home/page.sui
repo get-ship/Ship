@@ -46,7 +46,7 @@
               <sui-icon slot="leading" name="user-plus"></sui-icon>
               Add an agent
             </sui-button>
-            <sui-button variant="outline" on:click={() => navigate('/skills')} data-test="home-empty-skill">
+            <sui-button variant="outline" on:click={() => navigate('/studio/skills')} data-test="home-empty-skill">
               <sui-icon slot="leading" name="book"></sui-icon>
               Browse skills
             </sui-button>

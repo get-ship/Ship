@@ -202,7 +202,7 @@ export default controller<Scope>({
     goTab: ({ navigate, agentId }, value: string) =>
       navigate(value === 'overview' ? `/studio/agents/${agentId}` : `/studio/agents/${agentId}/${value}`),
     goBack: ({ navigate }) => navigate('/studio/agents'),
-    goSkill: ({ navigate }, id: string) => navigate(`/skills/${id}`),
+    goSkill: ({ navigate }, id: string) => navigate(`/studio/skills/${id}`),
 
     activate: async (s) => {
       if (s.activating) return

@@ -89,7 +89,6 @@ defineRoutes([
   { pattern: '/studio/themes/:id' },
   { pattern: '/studio/components/:name' },
   { pattern: '/studio/skills/:id' },
-  { pattern: '/skills/:id' },
   { pattern: '/collections/:id' },
   { pattern: '/artifacts/:id' },
   { pattern: '/workspaces/:id' },
@@ -236,7 +235,9 @@ function routeToPath(r: Route): string {
 // payloads resolved from `views/studio/**`, so each nav is a normal
 // mountRoute — the shared rail (<sui-studio-rail>) re-renders against the
 // fresh URL. Same-shell would suppress that fetch and pin the first leaf.
-const SAME_SHELL_VIEWS = new Set(['skills'])
+// Empty since skills moved to deck-routed /studio/skills (list + [id] detail);
+// no view now needs the same-shell no-remount hack.
+const SAME_SHELL_VIEWS = new Set<string>([])
 
 function payloadUrl(r: Route): string {
   if (SAME_SHELL_VIEWS.has(r.view)) return `/_sui/views/${r.view}`
