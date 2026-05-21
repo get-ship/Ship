@@ -7,10 +7,6 @@
 
   {:error err}
   <article class="detail">
-    <a class="detail-back" href="#" on:click={goBack}>
-      <sui-icon name="chevron-left" size="xs"></sui-icon>
-      Agents
-    </a>
     <sui-empty-state icon="search-x" variant="default" size="md" data-test="agent-not-found">
       <span slot="title">No such agent</span>
       <span>{'No agent with id "' + agentId() + '" was found. ' + (err.message || '')}</span>
@@ -24,10 +20,6 @@
   {:ok}
   {#if notFound()}
     <article class="detail">
-      <a class="detail-back" href="#" on:click={goBack}>
-        <sui-icon name="chevron-left" size="xs"></sui-icon>
-        Agents
-      </a>
       <sui-empty-state icon="search-x" variant="default" size="md" data-test="agent-not-found">
         <span slot="title">No such agent</span>
         <span>{'No agent with id "' + agentId() + '" exists in this workspace or your library.'}</span>
@@ -42,10 +34,6 @@
 
 {#if wireData() && wireData().agent}
   <article class="detail" data-test="agent-detail">
-    <a class="detail-back" href="#" on:click={goBack}>
-      <sui-icon name="chevron-left" size="xs"></sui-icon>
-      Agents
-    </a>
 
     <header class="detail-head">
       <span attr:class={'detail-tile hue-' + hue()} aria-hidden="true" data-test="detail-tile">{initials()}</span>

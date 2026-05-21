@@ -1,10 +1,6 @@
 <div class="studio-view" data-test="studio-view">
   <sui-studio-rail></sui-studio-rail>
   <main class="studio-content" data-test="studio-content">
-    <a class="cmp-back" href="/studio/components" data-test="components-back">
-      <sui-icon name="chevron-left" size="xs"></sui-icon>
-      Components
-    </a>
     <div class="studio-main studio-detail-main">
     {#if loading()}
       <div class="studio-loading">

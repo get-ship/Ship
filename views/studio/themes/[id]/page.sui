@@ -1,10 +1,6 @@
 <div class="studio-view" data-test="studio-view">
   <sui-studio-rail></sui-studio-rail>
   <main class="studio-content" data-test="studio-content">
-    <a class="ts-back" href="/studio/themes" data-test="themes-back">
-      <sui-icon name="chevron-left" size="xs"></sui-icon>
-      Themes
-    </a>
 <div class="ship-view ship-theme-studio">
 
   <!-- Top bar: pack picker + actions -->
