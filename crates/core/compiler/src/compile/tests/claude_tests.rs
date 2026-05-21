@@ -417,7 +417,7 @@ fn claude_lsp_config_is_always_emitted() {
 
 #[test]
 fn lsp_config_not_emitted_for_other_harnesses() {
-    for p in ["codex", "cursor", "opencode"] {
+    for p in others("claude") {
         assert!(
             compile(&resolved(vec![]), p)
                 .unwrap()

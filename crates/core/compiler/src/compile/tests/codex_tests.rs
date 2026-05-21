@@ -216,7 +216,7 @@ fn codex_sandbox_not_emitted_for_other_harnesses() {
         },
         ..resolved(vec![])
     };
-    for harness in &["claude", "cursor"] {
+    for harness in others("codex") {
         let out = compile(&r, harness).unwrap();
         assert!(
             out.codex_config_patch.is_none(),

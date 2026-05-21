@@ -3,6 +3,28 @@ use crate::types::{
     HookConfig, HookTrigger, McpServerConfig, McpServerType, Permissions, Rule, Skill,
 };
 
+/// Every registered harness id, sourced from the compiler registry — for tests
+/// that assert a property across the whole roster. Add/drop a harness and these
+/// loops update with no edits.
+#[allow(dead_code)]
+pub fn all_harness_ids() -> Vec<&'static str> {
+    crate::compile::list_harnesses()
+        .iter()
+        .map(|d| d.id)
+        .collect()
+}
+
+/// Every harness except `owner` — for "owned output must not leak to other
+/// harnesses" checks. Registry-driven, so a newly registered harness is
+/// automatically held to the no-leak contract (the old hardcoded subsets
+/// silently skipped harnesses added after they were written).
+pub fn others(owner: &str) -> Vec<&'static str> {
+    all_harness_ids()
+        .into_iter()
+        .filter(|id| *id != owner)
+        .collect()
+}
+
 pub fn make_server(id: &str) -> McpServerConfig {
     McpServerConfig {
         id: id.to_string(),
