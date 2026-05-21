@@ -58,7 +58,7 @@
   }
   :host([collapsed]),
   :host([hidden]) { display: none; }
-  .rail-footer { padding: 4px; }
+  .rail-footer { padding: var(--space-1); }
 
   /* Rail-top region — hosts the unified project + view picker trigger.
      A four-cell grid icon (not a user/account-style monogram avatar —
@@ -125,8 +125,8 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 4px;
-    padding: 8px 6px 10px;
+    gap: var(--space-1);
+    padding: var(--space-2) 6px 10px;
     border-top: 1px solid var(--border-subtle, var(--border));
     flex-shrink: 0;
   }
@@ -135,7 +135,7 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 4px;
+    gap: var(--space-1);
     width: auto;
   }
 

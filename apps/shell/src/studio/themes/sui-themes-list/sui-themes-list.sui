@@ -7,21 +7,21 @@
 
 <style>
   :host { display: block; }
-  .list { max-width: 1100px; margin: 0 auto; padding: 8px 0 64px; }
+  .list { max-width: 1100px; margin: 0 auto; padding: var(--space-2) 0 64px; }
 
   .list-head { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--space-4); margin-bottom: var(--space-6); }
   .list-title { font-family: var(--heading-font); font-size: var(--text-3xl); font-weight: var(--heading-weight); letter-spacing: var(--heading-tracking); line-height: 1.05; margin: 0 0 var(--space-2); }
-  .list-sub { display: flex; align-items: center; gap: 8px; font-size: 13.5px; color: var(--muted-foreground); margin: 0; flex-wrap: wrap; }
+  .list-sub { display: flex; align-items: center; gap: var(--space-2); font-size: 13.5px; color: var(--muted-foreground); margin: 0; flex-wrap: wrap; }
   .list-sub strong { font-weight: var(--font-weight-semibold); color: var(--foreground); }
   .list-sub-sep { width: 3px; height: 3px; border-radius: 50%; background: var(--border); display: inline-block; }
   .list-rule { width: 96px; height: 4px; border-radius: 2px; background: linear-gradient(90deg, var(--primary), transparent); margin-top: var(--space-3); }
 
   .list-filters { display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-5); flex-wrap: wrap; }
-  .list-search { display: inline-flex; align-items: center; gap: 8px; flex: 1 1 280px; min-width: 220px; padding: 7px var(--space-3); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); background: var(--surface-1); }
+  .list-search { display: inline-flex; align-items: center; gap: var(--space-2); flex: 1 1 280px; min-width: 220px; padding: 7px var(--space-3); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); background: var(--surface-1); }
   .list-search:focus-within { border-color: var(--primary); background: var(--background); }
   .list-search input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; font: inherit; font-size: 13.5px; color: var(--foreground); }
-  .list-pills { display: inline-flex; gap: 4px; flex-wrap: wrap; }
-  .list-pill { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border: 1px solid var(--border-subtle); border-radius: var(--radius-full); background: var(--surface-1); color: var(--muted-foreground); font: inherit; font-size: 12.5px; cursor: pointer; }
+  .list-pills { display: inline-flex; gap: var(--space-1); flex-wrap: wrap; }
+  .list-pill { display: inline-flex; align-items: center; gap: 6px; padding: 5px var(--space-3); border: 1px solid var(--border-subtle); border-radius: var(--radius-full); background: var(--surface-1); color: var(--muted-foreground); font: inherit; font-size: 12.5px; cursor: pointer; }
   .list-pill:hover { color: var(--foreground); border-color: var(--border); }
   .list-pill[data-active] { color: var(--primary-foreground); background: var(--primary); border-color: var(--primary); }
   .list-pill-count { font-variant-numeric: tabular-nums; font-size: 10.5px; padding: 1px 6px; border-radius: var(--radius-full); background: color-mix(in oklch, currentColor 18%, transparent); }
@@ -38,7 +38,7 @@
   .theme-swatch span { display: block; }
 
   .theme-body { min-width: 0; display: flex; flex-direction: column; gap: 6px; }
-  .theme-head { display: flex; align-items: baseline; gap: 8px; }
+  .theme-head { display: flex; align-items: baseline; gap: var(--space-2); }
   .theme-name { font-family: var(--font-mono); font-size: 15px; font-weight: var(--font-weight-semibold); }
   .theme-kind { font-family: var(--font-mono); font-size: 10px; padding: 1px 6px; border-radius: var(--radius-sm); letter-spacing: 0.08em; text-transform: uppercase; }
   .theme-kind[data-kind="light"] { background: var(--muted); color: var(--muted-foreground); }

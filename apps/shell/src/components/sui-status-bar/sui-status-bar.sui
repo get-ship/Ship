@@ -65,7 +65,7 @@
     cursor: pointer;
     display: inline-flex;
     align-items: center;
-    gap: 4px;
+    gap: var(--space-1);
     flex-shrink: 0;
     border-radius: var(--radius-sm, 4px);
     transition:
@@ -81,7 +81,7 @@
     box-shadow: 0 0 0 2px color-mix(in oklch, var(--primary) 50%, transparent);
   }
 
-  .dot-btn { padding: 0 4px; height: 18px; }
+  .dot-btn { padding: 0 var(--space-1); height: 18px; }
   .dot {
     width: 7px;
     height: 7px;
@@ -116,7 +116,7 @@
 
   .slot-wrap {
     display: inline-flex;
-    gap: 8px;
+    gap: var(--space-2);
     align-items: center;
   }
 
@@ -131,7 +131,7 @@
   .ext-chip {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
+    gap: var(--space-1);
     padding: 0 6px;
     height: 18px;
     border-radius: var(--radius-sm, 4px);

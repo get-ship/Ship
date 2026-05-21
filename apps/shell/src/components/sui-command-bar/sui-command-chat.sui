@@ -34,7 +34,7 @@
     display: inline-flex;
     align-items: center;
     gap: 5px;
-    padding: 2px 8px;
+    padding: 2px var(--space-2);
     border: 1px solid var(--border);
     border-radius: 999px;
     font-size: 11px;
@@ -64,14 +64,14 @@
     border-radius: var(--radius-md, 6px);
     box-shadow: var(--shadow-lg);
     z-index: 10;
-    padding: 4px 0;
+    padding: var(--space-1) 0;
   }
   .cb-session-row {
     display: grid;
     grid-template-columns: 14px 1fr auto;
     align-items: center;
-    gap: 8px;
-    padding: 7px 12px;
+    gap: var(--space-2);
+    padding: 7px var(--space-3);
     cursor: pointer;
     font-size: 12px;
   }
@@ -83,10 +83,10 @@
     color: var(--muted-foreground); font-size: 14px; padding: 0 2px;
   }
   .cb-session-end:hover { color: var(--destructive); }
-  .cb-session-sep { height: 1px; background: var(--border); margin: 4px 0; }
+  .cb-session-sep { height: 1px; background: var(--border); margin: var(--space-1) 0; }
   .cb-session-action {
-    display: flex; align-items: center; gap: 8px;
-    padding: 7px 12px; cursor: pointer; font-size: 12px;
+    display: flex; align-items: center; gap: var(--space-2);
+    padding: 7px var(--space-3); cursor: pointer; font-size: 12px;
     color: var(--muted-foreground);
   }
   .cb-session-action:hover { background: var(--muted); color: var(--foreground); }
@@ -98,10 +98,10 @@
     overflow-y: auto;
     overscroll-behavior: contain;
     scrollbar-width: thin;
-    padding: 12px 14px;
+    padding: var(--space-3) 14px;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: var(--space-2);
   }
 
   /* ── Messages ─────────────────────────────────────────────────── */
@@ -109,8 +109,8 @@
     color: var(--muted-foreground);
     font-size: 13px;
     text-align: center;
-    margin-top: 24px;
-    padding: 0 16px;
+    margin-top: var(--space-6);
+    padding: 0 var(--space-4);
     line-height: 1.5;
   }
   .cb-chat-empty .title { color: var(--foreground); font-weight: 600; margin-bottom: 6px; }
@@ -153,19 +153,19 @@
 
   /* ── Inline spawn picker ──────────────────────────────────────── */
   .cb-spawn-card {
-    margin: 8px 0;
+    margin: var(--space-2) 0;
     padding: 14px;
     border: 1px solid var(--border);
     border-radius: var(--radius-md, 6px);
     background: var(--muted);
   }
-  .cb-spawn-title { font-weight: 600; font-size: 13px; margin-bottom: 12px; }
+  .cb-spawn-title { font-weight: 600; font-size: 13px; margin-bottom: var(--space-3); }
   .cb-spawn-row {
     display: grid;
     grid-template-columns: 72px 1fr;
     align-items: center;
-    gap: 8px;
-    margin-bottom: 8px;
+    gap: var(--space-2);
+    margin-bottom: var(--space-2);
   }
   .cb-spawn-row label { font-size: 12px; color: var(--muted-foreground); }
   .cb-spawn-row select {
@@ -178,9 +178,9 @@
     font-size: 13px;
     padding: 0 6px;
   }
-  .cb-spawn-error { font-size: 12px; color: var(--destructive); margin-bottom: 8px; }
+  .cb-spawn-error { font-size: 12px; color: var(--destructive); margin-bottom: var(--space-2); }
   .cb-spawn-start {
-    margin-top: 4px;
+    margin-top: var(--space-1);
     height: 32px;
     width: 100%;
     border: none;
@@ -197,7 +197,7 @@
   .cb-banner {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--space-2);
     padding: 6px 14px;
     font-size: 12px;
     border-bottom: 1px solid var(--border);
@@ -217,14 +217,14 @@
     cursor: pointer;
     color: inherit;
     font: inherit;
-    padding: 0 4px;
+    padding: 0 var(--space-1);
     margin-left: auto;
   }
 
   /* ── Composer ─────────────────────────────────────────────────── */
   .cb-chat-composer {
     display: flex;
-    gap: 8px;
+    gap: var(--space-2);
     align-items: flex-end;
     padding: 10px 14px;
     border-top: 1px solid var(--border);
@@ -238,7 +238,7 @@
     color: var(--foreground);
     font: inherit;
     font-size: 13px;
-    padding: 6px 8px;
+    padding: 6px var(--space-2);
     resize: none;
     line-height: 1.4;
     min-height: 56px;

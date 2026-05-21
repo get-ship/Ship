@@ -25,7 +25,7 @@
     display: grid;
     grid-template-columns: 20px 1fr auto;
     align-items: center;
-    gap: 8px;
+    gap: var(--space-2);
     color: var(--foreground);
   }
   summary::-webkit-details-marker { display: none; }
@@ -45,7 +45,7 @@
     font-variant-numeric: tabular-nums;
   }
   .detail {
-    padding: 4px 16px 10px 42px;
+    padding: var(--space-1) var(--space-4) 10px 42px;
     font-size: 11px;
     color: var(--muted-foreground);
     font-family: var(--font-mono);

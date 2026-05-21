@@ -35,9 +35,9 @@
   .header {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--space-2);
     width: 100%;
-    padding: 6px 12px;
+    padding: 6px var(--space-3);
     background: transparent;
     border: 0;
     border-bottom: 1px solid var(--border-subtle);
@@ -59,7 +59,7 @@
     overflow: hidden;
     text-overflow: ellipsis;
   }
-  .stats { display: inline-flex; align-items: center; gap: 8px; flex-shrink: 0; }
+  .stats { display: inline-flex; align-items: center; gap: var(--space-2); flex-shrink: 0; }
   .adds, .dels {
     display: inline-flex;
     align-items: center;

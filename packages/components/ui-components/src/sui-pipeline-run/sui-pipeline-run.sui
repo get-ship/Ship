@@ -38,8 +38,8 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 12px;
-    gap: 12px;
+    margin-bottom: var(--space-3);
+    gap: var(--space-3);
     flex-wrap: wrap;
   }
   .left {

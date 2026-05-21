@@ -78,7 +78,7 @@
   :host([disabled]) .shell { background: var(--muted); opacity: 0.6; cursor: not-allowed; }
   .toolbar {
     display: flex; align-items: center; flex-wrap: wrap; gap: 2px;
-    padding: 4px 6px; min-height: var(--ed-tb-h);
+    padding: var(--space-1) 6px; min-height: var(--ed-tb-h);
     background: color-mix(in oklch, var(--muted) 40%, var(--card));
     border-bottom: 1px solid var(--border);
   }
@@ -97,7 +97,7 @@
   .toolbar button[aria-pressed='true'], .toolbar button.is-active { background: color-mix(in oklch, var(--primary) 18%, var(--muted)); color: var(--foreground); }
   .toolbar button:disabled { opacity: 0.4; cursor: not-allowed; }
   .toolbar sui-icon::part(svg) { width: 14px; height: 14px; }
-  .toolbar .divider { width: 1px; height: 18px; background: var(--border); margin: 0 4px; flex-shrink: 0; }
+  .toolbar .divider { width: 1px; height: 18px; background: var(--border); margin: 0 var(--space-1); flex-shrink: 0; }
   .surface { flex: 1; min-height: 0; overflow: auto; }
   @media (forced-colors: active) {
     .shell:focus-within { outline: 2px solid CanvasText; outline-offset: 2px; }

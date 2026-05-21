@@ -117,7 +117,7 @@
   .crumbs {
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: var(--space-1);
     overflow: hidden;
     flex: 0 0 auto;
     max-width: 300px;
@@ -146,7 +146,7 @@
 
   .view-actions {
     display: inline-flex;
-    gap: 4px;
+    gap: var(--space-1);
     align-items: center;
     flex-shrink: 0;
   }

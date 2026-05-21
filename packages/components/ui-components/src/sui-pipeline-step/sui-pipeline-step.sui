@@ -35,7 +35,7 @@
   :host {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: var(--space-1);
     border: 1px solid var(--border);
     border-radius: 8px;
     padding: 10px 14px;
@@ -74,7 +74,7 @@
     font-family: var(--font-mono);
     font-size: 11.5px;
     font-weight: 600;
-    padding-right: 16px;
+    padding-right: var(--space-4);
     color: var(--foreground);
   }
   .type {

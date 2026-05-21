@@ -50,7 +50,7 @@
     align-items: center;
     gap: 6px;
     height: 28px;
-    padding: 0 4px 0 10px;
+    padding: 0 var(--space-1) 0 10px;
     border-radius: 999px;
     background: color-mix(in oklch, var(--warning) 14%, var(--card));
     color: var(--warning);
@@ -79,7 +79,7 @@
     font-family: var(--font-mono, ui-monospace, monospace);
     font-size: 10.5px;
     padding: 1px 5px;
-    margin-left: 4px;
+    margin-left: var(--space-1);
     background: color-mix(in oklch, var(--warning) 22%, transparent);
     border-radius: var(--radius-sm, 4px);
   }
@@ -88,7 +88,7 @@
     width: 1px;
     align-self: stretch;
     background: color-mix(in oklch, var(--warning) 28%, transparent);
-    margin: 4px 2px;
+    margin: var(--space-1) 2px;
   }
 
   .btn {
@@ -105,7 +105,7 @@
     opacity: 0.85;
     display: inline-flex;
     align-items: center;
-    gap: 4px;
+    gap: var(--space-1);
   }
   .btn:hover { opacity: 1; background: color-mix(in oklch, var(--foreground) 10%, transparent); }
   .btn:focus-visible { outline: none; box-shadow: 0 0 0 2px color-mix(in oklch, var(--warning) 50%, transparent); }
@@ -130,13 +130,13 @@
     color: var(--primary);
     font-family: var(--font-mono);
     font-size: 10.5px;
-    padding: 1px 8px;
+    padding: 1px var(--space-2);
     font-weight: 500;
   }
   .qcount-btn:hover { background: color-mix(in oklch, var(--primary) 32%, transparent); }
   .qcount-btn[aria-expanded="true"] { background: var(--primary); color: var(--primary-foreground); }
 
-  .close-btn { padding: 0 8px; font-size: 14px; line-height: 1; }
+  .close-btn { padding: 0 var(--space-2); font-size: 14px; line-height: 1; }
 
   /* ── Expanded queue panel ───────────────────────────────────────── */
   .queue {
@@ -155,7 +155,7 @@
     display: flex;
     align-items: center;
     gap: 6px;
-    padding: 8px 12px;
+    padding: var(--space-2) var(--space-3);
     border-bottom: 1px solid var(--border);
     font-size: var(--text-xs);
     color: var(--muted-foreground);
@@ -169,13 +169,13 @@
     text-transform: none; letter-spacing: 0;
   }
   .q-head .clear-all:hover { color: var(--destructive); }
-  .q-empty { padding: 12px; text-align: center; color: var(--muted-foreground); font-size: 11px; }
+  .q-empty { padding: var(--space-3); text-align: center; color: var(--muted-foreground); font-size: 11px; }
   .q-list { list-style: none; margin: 0; padding: 0; }
   .q-row {
     display: grid;
     grid-template-columns: 1fr auto;
-    gap: 4px 6px;
-    padding: 8px 10px 10px;
+    gap: var(--space-1) 6px;
+    padding: var(--space-2) 10px 10px;
     border-bottom: 1px solid color-mix(in oklch, var(--border) 60%, transparent);
   }
   .q-row .selector {
@@ -200,19 +200,19 @@
     grid-column: 1 / -1;
     font: inherit;
     font-size: 11px;
-    padding: 4px 6px;
+    padding: var(--space-1) 6px;
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
     background: var(--background);
     color: var(--foreground);
     resize: vertical;
     min-height: 28px;
-    margin-top: 4px;
+    margin-top: var(--space-1);
   }
   .q-row .comment:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 2px color-mix(in oklch, var(--primary) 22%, transparent); }
   .q-foot {
     display: flex; justify-content: flex-end; gap: 6px;
-    padding: 8px 10px;
+    padding: var(--space-2) 10px;
     border-top: 1px solid var(--border);
     background: color-mix(in oklch, var(--muted) 40%, transparent);
   }
@@ -222,7 +222,7 @@
     background: var(--primary);
     color: var(--primary-foreground);
     border-radius: var(--radius-sm);
-    padding: 4px 12px;
+    padding: var(--space-1) var(--space-3);
     font: inherit;
     font-weight: 500;
     cursor: pointer;

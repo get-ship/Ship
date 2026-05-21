@@ -60,7 +60,7 @@
     font-weight: var(--heading-weight, 600);
     letter-spacing: var(--heading-tracking, -0.02em);
     line-height: 1.05;
-    margin: 0 0 8px;
+    margin: 0 0 var(--space-2);
     color: var(--foreground);
   }
 
@@ -98,7 +98,7 @@
   .hint {
     appearance: none;
     display: inline-flex; align-items: center; gap: 6px;
-    padding: 5px 12px;
+    padding: 5px var(--space-3);
     border: 1px solid var(--border-subtle);
     border-radius: var(--radius-full, 9999px);
     background: var(--surface-1);
