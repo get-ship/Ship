@@ -1,6 +1,9 @@
 pub mod docker;
 pub mod srt;
 
+#[cfg(target_os = "linux")]
+pub mod firecracker;
+
 #[cfg(all(feature = "youki-backend", target_os = "linux"))]
 pub mod youki;
 
@@ -9,6 +12,9 @@ pub mod youki_sidecar;
 
 pub use docker::{Docker, DockerConfig};
 pub use srt::{render_settings, SrtSettings};
+
+#[cfg(target_os = "linux")]
+pub use firecracker::{Firecracker, FirecrackerConfig};
 // Noop now lives in substrate alongside the trait — re-export so
 // existing call sites keep working.
 pub use ship_substrate::isolation::Noop;

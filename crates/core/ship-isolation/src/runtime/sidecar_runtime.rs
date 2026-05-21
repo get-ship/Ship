@@ -77,7 +77,55 @@ impl SidecarActorRuntime {
         // support lives on `Http2Connection`; `SharedHttp2Connection` wraps
         // either so the typed clients share one transport type.
         const CONN_BUFFER: usize = 1024;
-        let (conn, uri) = if let Some(path) = self.endpoint.strip_prefix("unix:") {
+        let (conn, uri) = if let Some(rest) = self.endpoint.strip_prefix("fcvsock:") {
+            // Tier-3 Firecracker: the host reaches the in-guest sidecar's
+            // vsock via firecracker's host-side uds — connect to the uds and
+            // send `CONNECT <port>\n`, then speak Connect over the bridged
+            // stream. Endpoint shape: `fcvsock:<port>:<uds_path>`.
+            let (port_s, uds) = rest
+                .split_once(':')
+                .ok_or_else(|| anyhow!("fcvsock endpoint must be fcvsock:<port>:<uds>"))?;
+            let port: u32 = port_s
+                .parse()
+                .map_err(|e| anyhow!("fcvsock port: {e}"))?;
+            let uds = std::path::PathBuf::from(uds);
+            let authority: ::http::Uri = "http://ship-sidecar.local"
+                .parse()
+                .map_err(|e: ::http::uri::InvalidUri| anyhow!("sidecar authority: {e}"))?;
+            let connector = tower::service_fn(move |_uri: ::http::Uri| {
+                let uds = uds.clone();
+                async move {
+                    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+                    let mut s = tokio::net::UnixStream::connect(&uds).await?;
+                    s.write_all(format!("CONNECT {port}\n").as_bytes()).await?;
+                    // firecracker acks with `OK <host_port>\n` on success.
+                    let mut line = Vec::new();
+                    let mut b = [0u8; 1];
+                    loop {
+                        s.read_exact(&mut b).await?;
+                        if b[0] == b'\n' {
+                            break;
+                        }
+                        line.push(b[0]);
+                    }
+                    if !line.starts_with(b"OK") {
+                        return Err(std::io::Error::new(
+                            std::io::ErrorKind::ConnectionRefused,
+                            format!(
+                                "firecracker vsock CONNECT refused: {}",
+                                String::from_utf8_lossy(&line)
+                            ),
+                        ));
+                    }
+                    Ok::<_, std::io::Error>(hyper_util::rt::TokioIo::new(s))
+                }
+            });
+            (
+                Http2Connection::lazy_with_connector(connector, authority.clone())
+                    .shared(CONN_BUFFER),
+                authority,
+            )
+        } else if let Some(path) = self.endpoint.strip_prefix("unix:") {
             // `:authority` is cosmetic over a unix socket; a stable
             // placeholder keeps request-path construction valid.
             let authority: ::http::Uri = "http://ship-sidecar.local"

@@ -4354,6 +4354,7 @@ dependencies = [
  "buffa",
  "connectrpc",
  "http",
+ "hyper-util",
  "libc",
  "nanoid",
  "reqwest 0.12.28",
@@ -4363,6 +4364,7 @@ dependencies = [
  "ship-substrate",
  "thiserror 2.0.18",
  "tokio",
+ "tower",
  "tracing",
 ]
 

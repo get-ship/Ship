@@ -122,20 +122,30 @@ Connect. The Firecracker `Isolator` is now a *transcription* of this recipe.
 - ✅ vsock viable; sidecar `--addr vsock:` committed (`534550135`).
 - ✅ **Firecracker microVM + sidecar + vsock + host↔guest Connect 200 OK —
   proven end-to-end on KVM.**
-- ⬜ **Next: Firecracker `Isolator`** (Rust) — `prepare` bakes/boots the microVM
-  per the recipe + polls readiness; `shutdown` SIGKILLs. Plus the host-side
-  uds-CONNECT connectrpc connector so `SidecarActorRuntime` drives it.
+- ✅ **Firecracker `Isolator` landed + live-tested** (`backends/firecracker.rs`,
+  `firecracker_live`): `prepare` copies the rootfs per-VM, writes the fc config,
+  boots firecracker, polls the sidecar over the vsock uds; `shutdown` SIGKILLs +
+  cleans up. The host uds-CONNECT connector is wired into `SidecarActorRuntime`
+  (`fcvsock:<port>:<uds>` endpoint). An actor runs inside the microVM, exits 0.
+  TCP/unix/podman transports unregressed.
 - ⬜ Then: rootfs/image baking as real tooling (vs the dev spike), pinned +
-  signed; recommender ladder (with backend); per-sandbox microVM lifecycle;
-  per-OS legs (Apple Container/Lima/WSL on your hardware).
+  signed; recommender ladder (with backend); per-OS legs (Apple Container/Lima/
+  WSL on your hardware).
 
-## Open issues (new, from the spike)
+## Open issues
 
-- **Host uds-CONNECT connector** — connectrpc has `lazy_with_connector`; need a
-  connector that does the firecracker `CONNECT <port>\n` preamble over the uds.
-  Untested until wired (the spike proved the protocol via raw Python).
-- **rootfs/image as tooling** — the spike bakes the rootfs ad hoc; productionize
-  as a pinned, signed image (Phase F) + a baking step the Isolator/CI runs.
-- **per-sandbox vs shared microVM** — Firecracker favors one microVM per sandbox
-  (cheap boot); decide the lifecycle (warm pool for cold-start?).
+- ~~**Host uds-CONNECT connector**~~ ✅ wired (`SidecarActorRuntime`, `fcvsock:`).
+- **Workspace into the microVM** — the actor runs but has **no workspace**: a
+  microVM has no shared fs, so the bind-mount trick (Docker) doesn't apply.
+  Needs virtio-fs (firecracker has it) or a second data drive synced to the
+  workspace. The `firecracker_live` actor only echoes; real agents need their
+  files. This is the next functional gap for T3.
+- **rootfs/image as tooling** — the rootfs is baked ad hoc by the dev spike;
+  productionize as a pinned, signed image (Phase F) + a baking step the
+  Isolator/CI runs (currently `FirecrackerConfig.rootfs` is a supplied path).
+- **per-sandbox vs shared microVM + cold-start** — today one microVM per
+  `prepare` (per-VM rootfs copy). Cheap boot, but a warm pool may be wanted;
+  measure.
 - **enforce-refuse-on-unwired** still required before the recommender picks T3.
+- **Recommender** doesn't pick Firecracker yet (land with the ladder, gated by
+  `available()` + the enforce-refuse fix).
