@@ -89,8 +89,7 @@ mod tests {
     use super::*;
     use crate::isolation::handle::SandboxId;
     use crate::isolation::policy::SandboxPolicy;
-    use crate::isolation::trait_def::{IsolatorError, LaunchCommand};
-    use crate::isolation::ExecHandle;
+    use crate::isolation::trait_def::IsolatorError;
     use async_trait::async_trait;
     use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -110,13 +109,6 @@ mod tests {
             &self,
             _policy: &SandboxPolicy,
         ) -> Result<SandboxHandle, IsolatorError> {
-            unreachable!()
-        }
-        async fn exec(
-            &self,
-            _sandbox: &SandboxHandle,
-            _cmd: LaunchCommand,
-        ) -> Result<ExecHandle, IsolatorError> {
             unreachable!()
         }
         async fn shutdown(&self, _sandbox: SandboxHandle) -> Result<(), IsolatorError> {

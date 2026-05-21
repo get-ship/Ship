@@ -92,7 +92,7 @@ async fn container_actor_reaches_host_daemon_plane() {
         engine_bin: "podman".into(),
         image: "ubuntu:24.04".into(),
         name_prefix: "ship-podman-reach-live".into(),
-        sidecar_bin: Some(sidecar.clone()),
+        sidecar_bin: sidecar.clone(),
         ..DockerConfig::default()
     };
     let backend = Docker::new(cfg);

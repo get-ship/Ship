@@ -8,8 +8,7 @@ use async_trait::async_trait;
 use chrono::Utc;
 use ship_isolation::tier::{IsolationProfile, IsolationStrategy, IsolationTier};
 use ship_substrate::isolation::{
-    ExecHandle, Isolator, IsolatorError, LaunchCommand, SandboxHandle, SandboxId,
-    SandboxOwner, SandboxPolicy,
+    Isolator, IsolatorError, SandboxHandle, SandboxId, SandboxOwner, SandboxPolicy,
 };
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -236,13 +235,6 @@ impl Isolator for CountingIsolator {
         Ok(())
     }
     async fn prepare(&self, _: &SandboxPolicy) -> Result<SandboxHandle, IsolatorError> {
-        unreachable!()
-    }
-    async fn exec(
-        &self,
-        _: &SandboxHandle,
-        _: LaunchCommand,
-    ) -> Result<ExecHandle, IsolatorError> {
         unreachable!()
     }
     async fn shutdown(&self, _: SandboxHandle) -> Result<(), IsolatorError> {

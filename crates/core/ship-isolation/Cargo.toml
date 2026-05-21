@@ -37,10 +37,6 @@ http = "1"
 tokio = { workspace = true, features = ["rt-multi-thread", "macros", "sync", "process", "time"] }
 
 [[example]]
-name = "run_claude"
-required-features = ["youki-backend"]
-
-[[example]]
 name = "run_claude_sidecar"
 required-features = ["youki-backend", "sidecar-mode"]
 

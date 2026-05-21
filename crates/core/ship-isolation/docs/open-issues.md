@@ -277,6 +277,27 @@ Invalidated if: image size becomes a real constraint (CLI is ~15MB).
 - ✅ App-plane reachability keystone — `--add-host` + URL rewrite +
   `SHIP_DAEMON_URL` injection; `container_reach_live` proves a container
   actor reaches the host daemon plane
+- ✅ Legacy spawn-path cut (no-shadow-code) — removed `Isolator::exec`
+  (the trait is now `available`/`prepare`/`shutdown`; the sidecar owns all
+  in-container exec), the docker `exec` + sleep-infinity legacy mode
+  (`sidecar_bin` is now required), `Youki::exec` + `run_to_completion`
+  one-shot, and the dead `ExecHandle`. Deleted the exec-path tests
+  (docker_live, srt_live, youki_live, run_claude*). Sidecar path (podman
+  live cells, youki_sidecar) unaffected.
+
+## Residual shadow surfaced by the exec cut (decide later)
+
+- **`SandboxRuntime` is now unreachable.** It kept `prepare`/`render_settings`
+  but production Tier-1 srt goes through `wrap_launch` + `process.rs`'s own
+  inline `write_srt_settings` — `render_settings` has no prod caller. Either
+  delete `SandboxRuntime` and make `wrap_launch` the single srt path, or
+  route `wrap_launch` through `render_settings` to dedup the two srt-settings
+  writers. (Kept for now per explicit instruction; flagged honestly.)
+- **`isolation::registry::Registry` is fully unwired.** Its doc says "the
+  daemon constructs a Registry at startup," but nothing outside the crate
+  references it — the supervisor constructs `Docker::new` directly and uses
+  `wrap_launch` for Tier 1. Either wire the registry as the real
+  strategy→backend dispatch, or delete it.
 
 ## Open — not blocking but needs an answer before each chunk lands
 

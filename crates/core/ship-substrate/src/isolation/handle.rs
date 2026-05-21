@@ -25,13 +25,6 @@ pub struct SandboxHandle {
     pub state: Arc<dyn std::any::Any + Send + Sync>,
 }
 
-#[derive(Debug, Clone)]
-pub struct ExecHandle {
-    pub sandbox: SandboxId,
-    pub pid: Option<u32>,
-    pub started_at: std::time::SystemTime,
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

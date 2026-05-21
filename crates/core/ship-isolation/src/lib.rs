@@ -46,7 +46,7 @@ pub use tier::{IsolationProfile, IsolationStrategy, IsolationTier};
 // types — substrate is the canonical location now because ActorHandle
 // owns the sandbox lifetime.
 pub use ship_substrate::isolation::{
-    ExecHandle, FsMount, Isolator, IsolatorError, LaunchCommand, MountMode, NetworkPolicy,
+    FsMount, Isolator, IsolatorError, LaunchCommand, MountMode, NetworkPolicy,
     ResourceLimits, SandboxHandle, SandboxId, SandboxPolicy,
 };
 

@@ -28,7 +28,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::process::Command;
 
-use ship_substrate::isolation::{ExecHandle, SandboxHandle, SandboxId};
+use ship_substrate::isolation::{SandboxHandle, SandboxId};
 use ship_substrate::isolation::{MountMode, NetworkPolicy, SandboxPolicy};
 use ship_substrate::isolation::{Isolator, IsolatorError, LaunchCommand};
 
@@ -48,43 +48,6 @@ pub struct Youki {
 impl Youki {
     pub fn new(config: YoukiConfig) -> Self {
         Self { config }
-    }
-
-    /// Run the agent inside the prepared sandbox, inheriting stdio from the
-    /// caller and waiting for completion. Returns the exit code if available.
-    ///
-    /// This is a convenience for examples / one-shot demos; the long-term
-    /// shape is `exec()` + streaming events through the sidecar. Until that
-    /// lands, callers that want output and an exit status go through here.
-    pub async fn run_to_completion(
-        &self,
-        sandbox: &SandboxHandle,
-        cmd: LaunchCommand,
-    ) -> Result<Option<i32>, IsolatorError> {
-        let state = sandbox
-            .state
-            .downcast_ref::<YoukiState>()
-            .ok_or_else(|| IsolatorError::Sidecar("sandbox state shape mismatch".into()))?;
-
-        let template_bytes = tokio::fs::read(&self.config.spec_template).await?;
-        let template: Value = serde_json::from_slice(&template_bytes)
-            .map_err(|e| IsolatorError::PolicyRejected(e.to_string()))?;
-        let patched = patch_spec(&template, &state.policy, &self.config.rootfs, Some(&cmd));
-        let body = serde_json::to_vec_pretty(&patched)
-            .map_err(|e| IsolatorError::PolicyRejected(e.to_string()))?;
-        tokio::fs::write(state.bundle_dir.join("config.json"), &body).await?;
-
-        let status = Command::new(&self.config.youki_bin)
-            .arg("-r")
-            .arg(&state.state_dir)
-            .arg("run")
-            .arg("--bundle")
-            .arg(&state.bundle_dir)
-            .arg(&state.container_id)
-            .status()
-            .await
-            .map_err(IsolatorError::from)?;
-        Ok(status.code())
     }
 }
 
@@ -266,39 +229,6 @@ impl Isolator for Youki {
                 state_dir,
                 policy: policy.clone(),
             }),
-        })
-    }
-
-    async fn exec(
-        &self,
-        sandbox: &SandboxHandle,
-        cmd: LaunchCommand,
-    ) -> Result<ExecHandle, IsolatorError> {
-        let state = sandbox
-            .state
-            .downcast_ref::<YoukiState>()
-            .ok_or_else(|| IsolatorError::Sidecar("sandbox state shape mismatch".into()))?;
-
-        let template_bytes = tokio::fs::read(&self.config.spec_template).await?;
-        let template: Value = serde_json::from_slice(&template_bytes)
-            .map_err(|e| IsolatorError::PolicyRejected(e.to_string()))?;
-        let patched = patch_spec(&template, &state.policy, &self.config.rootfs, Some(&cmd));
-        let body = serde_json::to_vec_pretty(&patched)
-            .map_err(|e| IsolatorError::PolicyRejected(e.to_string()))?;
-        tokio::fs::write(state.bundle_dir.join("config.json"), &body).await?;
-
-        let mut c = Command::new(&self.config.youki_bin);
-        c.arg("-r")
-            .arg(&state.state_dir)
-            .arg("run")
-            .arg("--bundle")
-            .arg(&state.bundle_dir)
-            .arg(&state.container_id);
-        let child = c.spawn().map_err(IsolatorError::from)?;
-        Ok(ExecHandle {
-            sandbox: sandbox.id.clone(),
-            pid: child.id(),
-            started_at: std::time::SystemTime::now(),
         })
     }
 

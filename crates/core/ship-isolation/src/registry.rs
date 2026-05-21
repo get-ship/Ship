@@ -94,9 +94,9 @@ pub fn register_harness_sandbox(r: &mut Registry, cfg: backends::SandboxRuntimeC
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ship_substrate::isolation::{ExecHandle, SandboxHandle};
+    use ship_substrate::isolation::SandboxHandle;
     use ship_substrate::isolation::SandboxPolicy;
-    use ship_substrate::isolation::{IsolatorError, LaunchCommand};
+    use ship_substrate::isolation::IsolatorError;
     use async_trait::async_trait;
 
     struct DummyIsolator(&'static str);
@@ -113,13 +113,6 @@ mod tests {
             &self,
             _policy: &SandboxPolicy,
         ) -> Result<SandboxHandle, IsolatorError> {
-            unreachable!()
-        }
-        async fn exec(
-            &self,
-            _sandbox: &SandboxHandle,
-            _cmd: LaunchCommand,
-        ) -> Result<ExecHandle, IsolatorError> {
             unreachable!()
         }
         async fn shutdown(&self, _sandbox: SandboxHandle) -> Result<(), IsolatorError> {

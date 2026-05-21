@@ -31,11 +31,10 @@ use async_trait::async_trait;
 use serde::Serialize;
 use std::path::PathBuf;
 use std::sync::Arc;
-use tokio::process::Command;
 
-use ship_substrate::isolation::{ExecHandle, SandboxHandle, SandboxId};
+use ship_substrate::isolation::{SandboxHandle, SandboxId};
 use ship_substrate::isolation::{MountMode, NetworkPolicy, SandboxPolicy};
-use ship_substrate::isolation::{Isolator, IsolatorError, LaunchCommand};
+use ship_substrate::isolation::{Isolator, IsolatorError};
 
 #[derive(Debug, Clone)]
 pub struct SandboxRuntimeConfig {
@@ -159,34 +158,6 @@ impl Isolator for SandboxRuntime {
         })
     }
 
-    async fn exec(
-        &self,
-        sandbox: &SandboxHandle,
-        cmd: LaunchCommand,
-    ) -> Result<ExecHandle, IsolatorError> {
-        let state = sandbox
-            .state
-            .downcast_ref::<SandboxRuntimeState>()
-            .ok_or_else(|| IsolatorError::Sidecar("sandbox state shape mismatch".into()))?;
-
-        let mut c = Command::new(&self.config.bun_bin);
-        c.arg("run")
-            .arg(&self.config.srt_entry)
-            .arg("--settings")
-            .arg(&state.settings_path)
-            .arg(&cmd.bin)
-            .args(&cmd.args)
-            .envs(&cmd.env)
-            .current_dir(&cmd.cwd);
-
-        let child = c.spawn().map_err(IsolatorError::from)?;
-        Ok(ExecHandle {
-            sandbox: sandbox.id.clone(),
-            pid: child.id(),
-            started_at: std::time::SystemTime::now(),
-        })
-    }
-
     async fn shutdown(&self, sandbox: SandboxHandle) -> Result<(), IsolatorError> {
         if let Some(state) = sandbox.state.downcast_ref::<SandboxRuntimeState>() {
             let _ = tokio::fs::remove_dir_all(&state.dir).await;
@@ -213,7 +184,6 @@ fn which_on_path(name: &str) -> Option<PathBuf> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::HashMap;
     use std::path::PathBuf;
 
     fn cfg() -> SandboxRuntimeConfig {
@@ -271,20 +241,5 @@ mod tests {
         assert!(body.contains("\"allowWrite\""));
         assert!(body.contains("\"allowedDomains\""));
         sb.shutdown(h).await.unwrap();
-    }
-
-    #[tokio::test]
-    async fn exec_errors_when_bun_missing() {
-        let sb = SandboxRuntime::new(cfg());
-        let pol = SandboxPolicy::workspace_default(PathBuf::from("/tmp/x"));
-        let h = sb.prepare(&pol).await.unwrap();
-        let cmd = LaunchCommand {
-            bin: PathBuf::from("/bin/true"),
-            args: Vec::new(),
-            env: HashMap::new(),
-            cwd: std::env::temp_dir(),
-        };
-        let err = sb.exec(&h, cmd).await.unwrap_err();
-        assert!(matches!(err, IsolatorError::Io(_)));
     }
 }

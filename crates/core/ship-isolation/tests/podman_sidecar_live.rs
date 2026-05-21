@@ -61,7 +61,7 @@ async fn actor_runs_inside_real_podman_container_over_v1() {
         image: "ubuntu:24.04".into(),
         name_prefix: "ship-podman-sidecar-live".into(),
         // Sidecar mode: bind-mount this binary as PID 1, publish v1.
-        sidecar_bin: Some(sidecar.clone()),
+        sidecar_bin: sidecar.clone(),
         ..DockerConfig::default()
     };
     let backend = Docker::new(cfg);

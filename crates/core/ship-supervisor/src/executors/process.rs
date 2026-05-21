@@ -235,7 +235,7 @@ async fn prepare_docker_sandbox(
         // Sidecar mode: the container runs ship-sidecar as PID 1 and
         // the supervisor drives the actor over ship.sidecar.v1. Same
         // mechanism youki_sidecar uses.
-        sidecar_bin: Some(resolve_sidecar_bin()),
+        sidecar_bin: resolve_sidecar_bin(),
     };
     let isolator: std::sync::Arc<dyn ship_substrate::isolation::Isolator> =
         std::sync::Arc::new(Docker::new(cfg));

@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use thiserror::Error;
 
-use super::handle::{ExecHandle, SandboxHandle};
+use super::handle::SandboxHandle;
 use super::policy::SandboxPolicy;
 
 #[derive(Debug, Clone)]
@@ -37,12 +37,6 @@ pub trait Isolator: Send + Sync {
     async fn available(&self) -> Result<(), IsolatorError>;
 
     async fn prepare(&self, policy: &SandboxPolicy) -> Result<SandboxHandle, IsolatorError>;
-
-    async fn exec(
-        &self,
-        sandbox: &SandboxHandle,
-        cmd: LaunchCommand,
-    ) -> Result<ExecHandle, IsolatorError>;
 
     async fn shutdown(&self, sandbox: SandboxHandle) -> Result<(), IsolatorError>;
 }

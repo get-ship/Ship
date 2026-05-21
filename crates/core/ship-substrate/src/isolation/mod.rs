@@ -16,7 +16,7 @@ pub mod owner;
 pub mod policy;
 pub mod trait_def;
 
-pub use handle::{ExecHandle, SandboxHandle, SandboxId};
+pub use handle::{SandboxHandle, SandboxId};
 pub use noop::Noop;
 pub use owner::SandboxOwner;
 pub use policy::{FsMount, MountMode, NetworkPolicy, ResourceLimits, SandboxPolicy};

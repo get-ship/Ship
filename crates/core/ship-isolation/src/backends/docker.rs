@@ -1,9 +1,11 @@
 //! Docker / Podman backend.
 //!
-//! Smallest-surface Tier 2 strategy: the daemon does everything. We
-//! translate `SandboxPolicy` into `docker run` arguments, exec the
-//! command inside, and let the daemon clean up on exit. No rootfs to
-//! ship, no youki binary to bundle — just "Docker is installed".
+//! Smallest-surface Tier 2 strategy: `prepare()` creates a container
+//! running `ship-sidecar` as PID 1 (bind-mounted in, v1 listener
+//! published to a host port); the supervisor drives the actor over
+//! ship.sidecar.v1. No rootfs to ship, no youki binary to bundle — just
+//! "Docker is installed". No `docker exec` — the sidecar owns all
+//! in-container execution.
 //!
 //! Same code path covers Podman: `podman` is CLI-compatible with the
 //! arguments we use, and the recommender treats Podman as a
@@ -12,8 +14,7 @@
 //!
 //! What's intentionally minimal:
 //!
-//! - One container per `prepare()`; `exec()` runs commands inside it
-//!   with `docker exec`.
+//! - One container per `prepare()`, running the sidecar.
 //! - Bind-mounts from `policy.mounts`, identical-path passthrough by
 //!   convention.
 //! - `NetworkPolicy::DenyAll` → `--network none`; `Open` → host
@@ -30,9 +31,9 @@ use std::time::Duration;
 use tokio::process::Command;
 use tokio::sync::Mutex;
 
-use ship_substrate::isolation::{ExecHandle, SandboxHandle, SandboxId};
+use ship_substrate::isolation::{SandboxHandle, SandboxId};
 use ship_substrate::isolation::{MountMode, NetworkPolicy, SandboxPolicy};
-use ship_substrate::isolation::{Isolator, IsolatorError, LaunchCommand};
+use ship_substrate::isolation::{Isolator, IsolatorError};
 
 /// The path the host `ship-sidecar` binary is bind-mounted to inside
 /// the container. Matches the youki sidecar convention.
@@ -59,13 +60,13 @@ pub struct DockerConfig {
     pub image: String,
     /// Container name prefix (`ship-agent-<nanoid>` by default).
     pub name_prefix: String,
-    /// When set, the container runs this `ship-sidecar` binary
-    /// (bind-mounted in) as PID 1 with its v1 listener published to a
-    /// host port. The supervisor then drives the actor over
-    /// ship.sidecar.v1 — same mechanism as `youki_sidecar`. When
-    /// `None`, the container runs `sleep infinity` (legacy probe /
-    /// test path).
-    pub sidecar_bin: Option<PathBuf>,
+    /// The host `ship-sidecar` binary, bind-mounted in as PID 1 with its
+    /// v1 listener published to a host port. The supervisor drives the
+    /// actor over ship.sidecar.v1 — same mechanism as `youki_sidecar`.
+    /// This is the only mode: the container always runs the sidecar (no
+    /// `docker exec`). Defaults to the conventional install path; tests
+    /// and the daemon override it.
+    pub sidecar_bin: PathBuf,
 }
 
 impl Default for DockerConfig {
@@ -74,7 +75,7 @@ impl Default for DockerConfig {
             engine_bin: "docker".into(),
             image: "ghcr.io/ship/agent-runner:latest".into(),
             name_prefix: "ship-agent".into(),
-            sidecar_bin: None,
+            sidecar_bin: PathBuf::from("/usr/local/bin/ship-sidecar"),
         }
     }
 }
@@ -90,15 +91,13 @@ impl Docker {
         Self { cfg }
     }
 
-    /// The sidecar's v1 endpoint for a sandbox prepared in sidecar
-    /// mode (`http://127.0.0.1:<published-port>`). `None` when the
-    /// sandbox wasn't prepared by this backend, or was prepared in
-    /// legacy `sleep infinity` mode. The supervisor reads this to
-    /// build a `SidecarActorRuntime`.
+    /// The sidecar's v1 endpoint (`http://127.0.0.1:<published-port>`).
+    /// `None` only when the sandbox wasn't prepared by this backend
+    /// (downcast miss). The supervisor reads this to build a
+    /// `SidecarActorRuntime`.
     pub fn sidecar_endpoint(sandbox: &SandboxHandle) -> Option<String> {
         let st = sandbox.state.downcast_ref::<DockerState>()?;
-        st.sidecar_port
-            .map(|p| format!("http://127.0.0.1:{p}"))
+        Some(format!("http://127.0.0.1:{}", st.sidecar_port))
     }
 
     /// Rewrite a host-loopback daemon origin into a URL an actor *inside*
@@ -133,18 +132,16 @@ fn host_gateway_args(policy: &NetworkPolicy) -> Vec<String> {
     }
 }
 
-/// Per-container state stashed in `SandboxHandle.state`. `exec()` and
-/// `shutdown()` reach in via `Arc::downcast`.
+/// Per-container state stashed in `SandboxHandle.state`. `shutdown()`
+/// reaches in via `Arc::downcast`.
 struct DockerState {
     name: String,
     cfg: DockerConfig,
     /// Once the container exits, the daemon GCs it; we record that we've
     /// asked for shutdown so a double-shutdown doesn't bubble an error.
     shut_down: Mutex<bool>,
-    /// Host port the sidecar's v1 listener is published on, when the
-    /// container was prepared in sidecar mode. `None` for legacy
-    /// `sleep infinity` containers.
-    sidecar_port: Option<u16>,
+    /// Host port the sidecar's v1 listener is published on.
+    sidecar_port: u16,
 }
 
 /// Pick a free localhost TCP port to publish the sidecar on.
@@ -229,34 +226,19 @@ impl Isolator for Docker {
             argv.push(format!("{k}={v}"));
         }
 
-        // Sidecar mode: bind-mount the host ship-sidecar binary, publish
-        // its v1 listener to a host port, and make it PID 1. The
-        // supervisor drives the actor over ship.sidecar.v1 — no
-        // `docker exec`. Legacy mode (sidecar_bin = None) runs
-        // `sleep infinity` for the probe / test path.
-        let sidecar_port = if let Some(bin) = &self.cfg.sidecar_bin {
-            let port = pick_free_port().await?;
-            argv.push("-v".into());
-            argv.push(format!("{}:{SIDECAR_INSIDE}:ro", bin.display()));
-            argv.push("-p".into());
-            argv.push(format!("127.0.0.1:{port}:{SIDECAR_PORT_INSIDE}"));
-            Some(port)
-        } else {
-            None
-        };
+        // Bind-mount the host ship-sidecar binary, publish its v1 listener
+        // to a host port, and make it PID 1. The supervisor drives the
+        // actor over ship.sidecar.v1 — no `docker exec`.
+        let sidecar_port = pick_free_port().await?;
+        argv.push("-v".into());
+        argv.push(format!("{}:{SIDECAR_INSIDE}:ro", self.cfg.sidecar_bin.display()));
+        argv.push("-p".into());
+        argv.push(format!("127.0.0.1:{sidecar_port}:{SIDECAR_PORT_INSIDE}"));
 
         argv.push(self.cfg.image.clone());
-        match sidecar_port {
-            Some(_) => {
-                argv.push(SIDECAR_INSIDE.into());
-                argv.push("--addr".into());
-                argv.push(format!("0.0.0.0:{SIDECAR_PORT_INSIDE}"));
-            }
-            None => {
-                argv.push("sleep".into());
-                argv.push("infinity".into());
-            }
-        }
+        argv.push(SIDECAR_INSIDE.into());
+        argv.push("--addr".into());
+        argv.push(format!("0.0.0.0:{SIDECAR_PORT_INSIDE}"));
 
         let out = Command::new(&self.cfg.engine_bin)
             .args(&argv)
@@ -288,12 +270,9 @@ impl Isolator for Docker {
             )));
         }
 
-        // In sidecar mode, wait for the published port to accept before
-        // returning — the supervisor will immediately connect a v1
-        // client against it.
-        if let Some(port) = sidecar_port {
-            wait_until_listening(port).await?;
-        }
+        // Wait for the published port to accept before returning — the
+        // supervisor will immediately connect a v1 client against it.
+        wait_until_listening(sidecar_port).await?;
 
         Ok(SandboxHandle {
             id: SandboxId::new(),
@@ -305,45 +284,6 @@ impl Isolator for Docker {
                 shut_down: Mutex::new(false),
                 sidecar_port,
             }),
-        })
-    }
-
-    async fn exec(
-        &self,
-        sandbox: &SandboxHandle,
-        cmd: LaunchCommand,
-    ) -> Result<ExecHandle, IsolatorError> {
-        let state = sandbox
-            .state
-            .downcast_ref::<DockerState>()
-            .ok_or_else(|| {
-                IsolatorError::PolicyRejected("sandbox was not prepared by Docker backend".into())
-            })?;
-
-        let mut argv: Vec<String> = vec![
-            "exec".into(),
-            "--workdir".into(),
-            cmd.cwd.display().to_string(),
-        ];
-        for (k, v) in &cmd.env {
-            argv.push("--env".into());
-            argv.push(format!("{k}={v}"));
-        }
-        argv.push(state.name.clone());
-        argv.push(cmd.bin.display().to_string());
-        argv.extend(cmd.args.iter().cloned());
-
-        let child = Command::new(&state.cfg.engine_bin)
-            .args(&argv)
-            .stdin(Stdio::null())
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .spawn()
-            .map_err(IsolatorError::from)?;
-        Ok(ExecHandle {
-            sandbox: sandbox.id.clone(),
-            pid: child.id(),
-            started_at: std::time::SystemTime::now(),
         })
     }
 
@@ -379,7 +319,7 @@ fn network_args(policy: &NetworkPolicy) -> Vec<String> {
         // Allowlist/Proxy: container keeps default network so it can
         // reach the host-side proxy on 127.0.0.1. The caller is
         // responsible for spawning `ProxyHandle` and passing
-        // HTTPS_PROXY/HTTP_PROXY via `LaunchCommand.env`.
+        // HTTPS_PROXY/HTTP_PROXY via the actor's spawn env.
         NetworkPolicy::Allowlist { .. } | NetworkPolicy::Proxy { .. } => Vec::new(),
         NetworkPolicy::Open => Vec::new(),
     }
