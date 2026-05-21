@@ -3,9 +3,9 @@
 #
 # Guard against drift between primitive `<prop>` declarations
 # (packages/components/primitives/src/**/*.sui,
-#  packages/ui-components/src/**/*.sui)
+#  packages/components/ui-components/src/**/*.sui)
 # and the registry sui-lint's `sui-prop-value` rule loads from
-# crates/sui/sui-compiler/primitives.json.
+# crates/sui/compiler/primitives.json.
 #
 # If a primitive adds, removes, or changes an enum-typed prop and the
 # author forgets to regenerate, the lint rule silently misses the
@@ -14,7 +14,7 @@
 #
 # Fix when this fails:
 #   cargo run -p sui-lint --example regen_primitives
-#   git add crates/sui/sui-compiler/primitives.json
+#   git add crates/sui/compiler/primitives.json
 #   git commit
 
 set -euo pipefail

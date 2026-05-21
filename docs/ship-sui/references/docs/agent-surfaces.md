@@ -13,9 +13,9 @@ exercise SUI views or components. Three planes:
 | Plane | Use it for | Lives in |
 |---|---|---|
 | **MCP tools** | Live operations against an active project (scaffold, edit, mount, snapshot, diagnose) | `apps/mcp/src/server/mod.rs`, `apps/mcp/src/tools/*.rs` |
-| **LSP CLI** | One-shot diagnostics / hover / dependencies on a single `.sui` file from any shell | `packages/sui-lsp/src/cli.ts` |
-| **`@ship/sui-lsp-browser`** | Browser-only structural analyser + completion sources. Web worker, no Node deps, no `typescript` package. Used by the docs playground; the shell editor can adopt it too. | `packages/sui-lsp-browser/src/` |
-| **`@ship/sui-eval`** | Regression-quality scoring of agent-produced SUI against a behavioural spec | `packages/sui-eval/src/index.ts` |
+| **`sui-lsp` binary** | Native Rust LSP over stdio for editors + Claude Code (`.lsp.json`). Same grammar as the build/MCP. | `crates/sui/lsp/` |
+| **`@ship/sui-lsp-browser`** | Browser-only structural analyser + completion sources. Web worker, no Node deps, no `typescript` package. Used by the docs playground; the shell editor can adopt it too. | `packages/deck/lsp-browser/src/` |
+| **`@ship/sui-eval`** | Regression-quality scoring of agent-produced SUI against a behavioural spec | `packages/deck/eval/src/index.ts` |
 
 Read this alongside `SKILL.md` (the four-layer overview) and
 `agent-authoring.md` (the do-now checklist for shipping a view in one
@@ -122,21 +122,16 @@ daemon serves per-pack bundles at `/_sui/packs/<pack>/<bundle>.js`.
 
 ---
 
-## 2. LSP CLI
+## 2. `sui-lsp` binary (editors + Claude Code)
 
-For agents that don't have the MCP server attached but do have a shell.
-Lives at `packages/sui-lsp/src/cli.ts`.
+The native Rust language server (`crates/sui/lsp`, on PATH after
+`just install-dev`). Speaks LSP over stdio — Claude Code launches it via the
+repo's `.lsp.json`, VS Code via `sui.serverPath`, any editor via the `sui`
+language id. Same `sui-compiler` grammar as the build + the MCP tools.
 
-```sh
-# Diagnostics for a single file → JSON array on stdout
-bun packages/sui-lsp/src/cli.ts diagnostics views/tasks/page.sui
-
-# Hover info at a cursor
-bun packages/sui-lsp/src/cli.ts hover views/tasks/page.sui --line 12 --col 8
-
-# Tag / signal / route deps used by the file
-bun packages/sui-lsp/src/cli.ts dependencies views/tasks/page.sui
-```
+The old one-shot TypeScript CLI (`packages/deck/lsp/src/cli.ts`) is gone; agents
+without an editor use the in-process MCP tools above (`sui_diagnostics` /
+`sui_hover` / `sui_dependencies`) — no `bun`, no subprocess.
 
 Output shape (diagnostics):
 
@@ -155,7 +150,7 @@ wraps — use whichever surface is closer to your runtime.
 ## 3. `@ship/sui-eval` — regression scoring
 
 When an agent authors a `.sui` view, `sui-eval` runs it against a spec
-and scores the output. Source: `packages/sui-eval/src/index.ts`.
+and scores the output. Source: `packages/deck/eval/src/index.ts`.
 
 ```ts
 import { runEval, type EvalTask } from '@ship/sui-eval'
@@ -204,7 +199,7 @@ Activate via `mcp__ship__set_skill_var({ stable_id: 'ship-sui', key: 'active', v
 What an agent might reasonably expect but does NOT exist:
 
 - **No formatter for `.sui`.** `prettier --plugin sui` is not implemented. Agents emit hand-formatted output.
-- **No browser-side LSP.** `@ship/sui-lsp` is Node/CommonJS only. The tutorial editor in `apps/docs/` shows compile diagnostics but cannot offer hover or autocomplete sourced from the LSP.
+- **Browser diagnostics via WASM.** `@ship/sui-lsp-browser` (the docs-playground worker) calls the WASM `analyze` from `@ship/sui-compiler-wasm` — the same Rust grammar as the build — for parse + semantic + lint diagnostics. Hover/autocomplete in the browser are still the static-dictionary sources, not yet identifier-aware.
 - **No multi-file scaffold mutation tool.** `scaffold_view` produces the skeleton once; subsequent multi-file edits go through `view_write_source` one file at a time.
 - **No live-edit collision detection.** Two agents writing to the same view concurrently get last-writer-wins. Use mesh status (`update_mesh_status`) to coordinate.
 - **No assertion-style step gate for `sui-eval`.** The scoring is informational; you have to read the score yourself and decide whether to retry.

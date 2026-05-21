@@ -63,7 +63,7 @@
     padding: 8px 14px;
     font: inherit;
     font-family: var(--font-body);
-    font-size: 13px;
+    font-size: var(--text-sm);
     font-weight: var(--font-weight-medium, 500);
     color: var(--muted-foreground);
     background: transparent;
@@ -99,7 +99,7 @@
   .leading:has(::slotted(*)) { display: inline-flex; }
 
   .count {
-    font-size: 11px;
+    font-size: var(--text-xs);
     font-weight: var(--font-weight-medium, 500);
     color: var(--muted-foreground);
     padding: 0 6px;

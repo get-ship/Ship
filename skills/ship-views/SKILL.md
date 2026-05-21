@@ -49,7 +49,7 @@ views/<name>/                 # first-party view, baked into shipd
 
 Five rules:
 
-1. **`page.sui` is the route entry.** The filename stem says what the file IS — a page, not a reusable widget. Reusable widgets live under `packages/ui-components/src/sui-*/`.
+1. **`page.sui` is the route entry.** The filename stem says what the file IS — a page, not a reusable widget. Reusable widgets live under `packages/components/ui-components/src/sui-*/`.
 2. **`controller.ts`, no stem prefix.** The directory IS the view; pairing is unambiguous. Inside `_components/<tag>/`, the `<tag>.controller.ts` rule from `ship-components` applies.
 3. **`style.css` for page-scoped styles.** Linked automatically. Use `<style>` blocks inside `.sui` for component-scoped styles.
 4. **`manifest.jsonc` is required.** JSONC, not YAML. See "Manifest" below.
@@ -224,7 +224,7 @@ Component `.sui` files only — views don't participate in form submission. When
 
 The compiler emits `static formAssociated = true` and the runtime auto-wires `setFormValue`, `formResetCallback`, `formStateRestoreCallback`, and `formDisabledCallback`. Drop any hand-rolled `ElementInternals` plumbing — the runtime owns it. The setup ctx still surfaces `internals?: ElementInternals` for `setValidity()` / `checkValidity()` paths.
 
-Worked examples: `packages/ui-components/src/sui-input/sui-input.sui`, `packages/ui-components/src/sui-select/sui-select.sui`. Full contract and constraints: `references/form-association.md`.
+Worked examples: `packages/components/ui-components/src/sui-input/sui-input.sui`, `packages/components/ui-components/src/sui-select/sui-select.sui`. Full contract and constraints: `references/form-association.md`.
 
 ## Live data envelope
 
@@ -346,7 +346,7 @@ A new `ship.<domain>.<op>(...)` live source needs three things:
 1. **Registry entry** — `apps/shipd/src/services/registry/<domain>.rs` returns
    the current value synchronously. The dispatcher in `registry.rs` and the
    schema row in `services/schema.rs` keep the catalog honest.
-2. **SDK method** — `packages/ship-sdk-client/src/index.ts` exposes the
+2. **SDK method** — `packages/deck/sdk-client/src/index.ts` exposes the
    method returning `makeSseSource(...)` against `/_sui/data?expr=…`.
 3. **(Optional) signal-backed source** — if the data has a tighter wake-up
    surface than the default `config` kernel namespace, mirror the pattern in
@@ -486,14 +486,13 @@ language server.
 | Surface | How |
 |---|---|
 | **MCP** (agents) | `mcp__ship__sui_diagnostics` / `_hover` / `_dependencies`. See above. |
-| **VS Code** | `apps/vscode/` extension auto-launches the server on `.sui` open. |
-| **Other editors over stdio** | `node packages/sui-lsp/bin/sui-lsp.js --stdio` (build first: `bun run --filter @ship/sui-lsp build`). Map the `sui` language ID to that command for `*.sui`. |
-| **LSP CLI** (any shell) | `bun packages/sui-lsp/src/cli.ts diagnostics|hover|dependencies <file>`. JSON to stdout. |
-| **Browser** | Not yet — the LSP is Node-only. Tracking issue: thin browser port that the shell editor + docs playground can consume. |
+| **VS Code** | `apps/vscode/` auto-launches the `sui-lsp` binary on `.sui` open. |
+| **Any editor / Claude Code / opencode** | Point the LSP client at the `sui-lsp` binary (`crates/sui/lsp/`, on PATH via `just install-dev`) over stdio. Claude Code uses the repo `.lsp.json`. |
+| **Browser** | `@ship/sui-lsp-browser` runs the WASM `analyze` (same Rust grammar) for diagnostics in the docs playground; hover/completion are static-dictionary for now. |
 
 ## Components
 
-Views compose `<sui-*>` components from `packages/ui-components/`. See the `ship-components` skill for the component contract.
+Views compose `<sui-*>` components from `packages/components/ui-components/`. See the `ship-components` skill for the component contract.
 
 ## Error handling
 

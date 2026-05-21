@@ -20,9 +20,9 @@ violations=0
 matches=$(rg -n --no-heading \
     --glob '!apps/docs/**' \
     --glob '!docs/**' \
-    --glob '!crates/sui/ship-sui/**' \
-    --glob '!crates/sui/ship-sui-host/**' \
-    --glob '!crates/sui/ship-sui-server/**' \
+    --glob '!crates/deck/deck/**' \
+    --glob '!crates/deck/deck-host/**' \
+    --glob '!crates/deck/deck-server/**' \
     "$PATTERN" "${SEARCH_PATHS[@]}" 2>/dev/null || true)
 if [ -n "$matches" ]; then
     while IFS= read -r line; do

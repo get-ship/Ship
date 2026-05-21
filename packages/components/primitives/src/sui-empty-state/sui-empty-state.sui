@@ -42,7 +42,7 @@
 
 <prop name="variant" values="default|inline|placeholder|connecting" default="default" reflect />
 <prop name="size" values="sm|md|lg" default="md" reflect />
-<prop name="tone" values="default|primary|info|success|warning|destructive|accent|muted" default="muted" reflect />
+<prop name="tone" values="default|primary|info|success|warning|destructive|accent|muted" default="default" reflect />
 
 <style>
   :host {
@@ -111,7 +111,7 @@
     flex-direction: row;
     align-items: center;
     justify-content: flex-start;
-    text-align: left;
+    text-align: start;
   }
 
   .icon {
@@ -187,7 +187,7 @@
   }
   :host([variant='inline']) .actions {
     margin-top: 0;
-    margin-left: auto;
+    margin-inline-start: auto;
     justify-content: flex-end;
   }
 

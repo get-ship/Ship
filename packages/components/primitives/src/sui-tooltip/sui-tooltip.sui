@@ -52,7 +52,7 @@
     background: var(--foreground);
     color: var(--background);
     font-family: var(--font-body);
-    font-size: 11px;
+    font-size: var(--text-xs);
     font-weight: var(--font-weight-medium, 500);
     border-radius: var(--radius-sm);
     white-space: nowrap;

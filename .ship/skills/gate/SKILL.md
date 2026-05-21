@@ -138,7 +138,7 @@ screenshot in plan-mode is not QA.
 # Match touched files to surface roots
 git diff main...HEAD --name-only | awk '
   /^apps\/shell\//                              { print "chrome/"; next }
-  /^packages\/ui-components\/src\/sui-[^/]+\//  { sub("^packages/ui-components/src/", ""); sub("/.*$", ""); print "components/" $0; next }
+  /^packages\/ui-components\/src\/sui-[^/]+\//  { sub("^packages/components/ui-components/src/", ""); sub("/.*$", ""); print "components/" $0; next }
   /^views\/[^/]+\//                             { sub("^views/", ""); sub("/.*$", ""); print "views/" $0; next }
   /^crates\/sui\//                              { print "runtime/"; next }
 ' | sort -u > /tmp/gate-surfaces.txt
@@ -164,7 +164,7 @@ while read surface; do
   [ "${cerr:-0}" -eq 0 ] || { echo "Unwaived console_errors=$cerr in $latest"; FAIL=1; }
   [ "${nfail:-0}" -eq 0 ] || { echo "Unwaived network_failures=$nfail in $latest"; FAIL=1; }
   # Report must be newer than the latest commit touching the surface
-  surf_path="$(echo "$surface" | sed -E 's|^chrome/$|apps/shell/|; s|^components/(.+)$|packages/ui-components/src/\1/|; s|^views/(.+)$|views/\1/|; s|^runtime/$|crates/sui/|')"
+  surf_path="$(echo "$surface" | sed -E 's|^chrome/$|apps/shell/|; s|^components/(.+)$|packages/components/ui-components/src/\1/|; s|^views/(.+)$|views/\1/|; s|^runtime/$|crates/sui/|')"
   last_commit_ts="$(git log -1 --format=%ct -- "$surf_path" 2>/dev/null)"
   report_ts="$(stat -c %Y "$latest" 2>/dev/null || stat -f %m "$latest")"
   if [ -n "$last_commit_ts" ] && [ "$report_ts" -lt "$last_commit_ts" ]; then

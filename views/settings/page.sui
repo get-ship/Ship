@@ -11,7 +11,8 @@
       <p>CLI and studio configuration</p>
     </header>
 
-    {#while-loading of settings}
+    {#async settings}
+      {:loading}
       <sui-stack gap="4" aria-busy="true" aria-label="Loading settings">
         {#for n of [0, 1, 2] key={n}}
           <sui-stack class="s-skel-card" gap="3">
@@ -26,15 +27,13 @@
           </sui-stack>
         {/for}
       </sui-stack>
-    {/while-loading}
-
-    {#while-error err of settings}
+    
+      {:error err}
       <sui-error-state variant="default" size="md" title="Couldn't load settings">
         {err.message}
       </sui-error-state>
-    {/while-error}
-
-    {#if settings().kind === 'ok'}
+    
+      {:ok}
       <sui-stack gap="4">
 
         <!-- Account -->
@@ -357,7 +356,7 @@
                   <span class="s-row-label">Daemon status</span>
                   <span slot="trailing" class="s-row-trailing">
                     <sui-status-dot
-                      tone={settings().kind === 'ok' ? 'success' : 'danger'}
+                      tone={settings().kind === 'ok' ? 'success' : 'destructive'}
                       label={settings().kind === 'ok' ? 'Connected' : 'Disconnected'}></sui-status-dot>
                     <span class="s-status-text">{settings().kind === 'ok' ? 'Connected' : 'Disconnected'}</span>
                   </span>
@@ -477,6 +476,7 @@
         </sui-card>
 
       </sui-stack>
-    {/if}
+    
+    {/async}
   </main>
 </div>

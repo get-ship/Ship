@@ -12,19 +12,20 @@
             on:input={(e) => q.set(e.target.value)} />
         </div>
         {#if rail().kind === 'ok' && rail().value}
-          <sui-cluster gap="1" role="group" aria-label="Filter by kind">
+          <sui-segmented value={kind()} size="sm" aria-label="Filter by kind"
+            on:sui-change={(e) => kind.set(e.detail.value)}>
             {#for kc of (rail().value.kind_counts || []) key={kc.id}}
-              <button class="se-pill" class:is-active={kind() === kc.id}
-                on:click={() => kind.set(kc.id)}>
+              <sui-segmented-option attr:value={kc.id}>
                 {kc.label} <span class="se-pill-count">{kc.count}</span>
-              </button>
+              </sui-segmented-option>
             {/for}
-          </sui-cluster>
+          </sui-segmented>
         {/if}
       </div>
 
       <div class="se-body" role="tree" aria-label="Skills tree">
-        {#while-loading of rail}
+        {#async rail}
+          {:loading}
           <div class="se-skel" role="status" aria-live="polite" aria-busy="true" aria-label="Loading skills">
             {#for n of [0, 1, 2, 3, 4, 5] key={n}}
               <sui-cluster align="center">
@@ -32,13 +33,14 @@
               </sui-cluster>
             {/for}
           </div>
-        {/while-loading}
-        {#while-error err of rail}
+        
+          {:error err}
           <sui-error-state variant="inline" size="sm" title="Couldn't load skills" role="alert" aria-live="assertive">
             {err.message}
           </sui-error-state>
-        {/while-error}
-        {#if rail().kind === 'ok' && rail().value}
+        
+          {:ok}
+{#if rail().kind === 'ok' && rail().value}
           {#if (rail().value.groups || []).length === 0}
             <div class="se-empty">{q() ? 'No skills match "' + q() + '".' : 'No skills discovered.'}</div>
           {:else}
@@ -93,6 +95,7 @@
             {/for}
           {/if}
         {/if}
+        {/async}
       </div>
     </aside>
 
@@ -144,22 +147,24 @@
               </sui-alert>
             {/if}
             <div class="se-editor-body">
-              {#while-loading of fileContent}
+              {#async fileContent}
+                {:loading}
                 {#if selectedFile()}
                   <div class="se-empty-state" role="status" aria-live="polite" aria-busy="true">
                     <sui-spinner size="md"></sui-spinner>
                     <span class="se-empty-desc">Loading file…</span>
                   </div>
                 {/if}
-              {/while-loading}
-              {#while-error err of fileContent}
+              
+                {:error err}
                 {#if selectedFile()}
                   <sui-error-state variant="inline" size="sm" title="Couldn't load file" role="alert" aria-live="assertive">
                     {err.message}
                   </sui-error-state>
                 {/if}
-              {/while-error}
-              {#if selectedFile() && fileContent().kind === 'ok' && fileContent().value && fileContent().value.path === selectedFile()}
+              
+                {:ok}
+{#if selectedFile() && fileContent().kind === 'ok' && fileContent().value && fileContent().value.path === selectedFile()}
                 <div class="se-editor-content">
                   {#if fileContent().value.ext === 'md'}
                     <sui-markdown-editor data-testid="skill-editor" full-height
@@ -185,6 +190,7 @@
                   </div>
                 {/if}
               {/if}
+              {/async}
             </div>
           </div>
 

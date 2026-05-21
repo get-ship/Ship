@@ -49,7 +49,7 @@ fn main() -> anyhow::Result<()> {
     let mode_str = extract_str_arg(&args, "--mode")
         .or_else(|| ship_substrate::env::read(ship_substrate::env::Var::DaemonMode))
         .unwrap_or_else(|| "development".to_string());
-    let daemon_mode = ship_sui::DaemonMode::parse(&mode_str);
+    let daemon_mode = deck::DaemonMode::parse(&mode_str);
 
     // Project resolution:
     //   1. `--dev-worktree <path>` (dev-only; routes the daemon into a

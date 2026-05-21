@@ -20,7 +20,7 @@
  * Consumed by:
  *   - apps/web/src/styles.css (Studio shell)
  *   - apps/shipd/assets/view-tokens.css (daemon-served runtime views)
- *   - packages/ui-components/src/* (via var(--foo) in shadow DOM)
+ *   - packages/components/ui-components/src/* (via var(--foo) in shadow DOM)
  */
 
 /* ─── Primitives: these never change per theme ────────────────────── */

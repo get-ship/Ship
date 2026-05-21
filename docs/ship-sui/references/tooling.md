@@ -4,8 +4,8 @@ The chain from `.sui` source on disk to a live, hot-reloaded view in the browser
 
 ## `sui-compiler` — the Rust ahead-of-time compiler
 
-- **Library:** `crates/sui/sui-compiler/src/lib.rs`. Pure transformation; no filesystem walk, no daemon, no network. The `compile(source, opts) -> CompileOutput` entry is documented in `references/4-layer-overview.md` § Layer 1.
-- **Binary:** `crates/sui/sui-compiler/src/bin/sui-compiler.rs` — the `sui-compiler` Cargo bin. One subcommand today: `build`.
+- **Library:** `crates/sui/compiler/src/lib.rs`. Pure transformation; no filesystem walk, no daemon, no network. The `compile(source, opts) -> CompileOutput` entry is documented in `references/4-layer-overview.md` § Layer 1.
+- **Binary:** `crates/sui/compiler/src/bin/sui-compiler.rs` — the `sui-compiler` Cargo bin. One subcommand today: `build`.
 
 ```sh
 # Compile a single file. Emits to the project mirror tree
@@ -16,12 +16,12 @@ cargo run -q -p sui-compiler -- build views/home/page.sui
 cargo run -q -p sui-compiler -- build views --out target/sui-debug --clean
 
 # Component mode — implied by --component-name:
-cargo run -q -p sui-compiler -- build packages/ui-components/src/sui-button/sui-button.sui \
+cargo run -q -p sui-compiler -- build packages/components/ui-components/src/sui-button/sui-button.sui \
   --component-name sui-button \
-  --styles packages/ui-components/src/sui-button/sui-button.css
+  --styles packages/components/ui-components/src/sui-button/sui-button.css
 ```
 
-Flags (from `crates/sui/sui-compiler/src/bin/sui-compiler.rs`):
+Flags (from `crates/sui/compiler/src/bin/sui-compiler.rs`):
 
 | Flag | Purpose |
 |---|---|
@@ -37,7 +37,7 @@ The binary is also exposed as a `cdylib` (`crate-type = ["lib", "cdylib"]` in `C
 
 ## `@ship/sui-build` — the package-level CI bundler
 
-The Node/Bun-driven build pipeline that wraps `sui-compiler` for one package at a time. Source: `packages/sui-build/`.
+The Node/Bun-driven build pipeline that wraps `sui-compiler` for one package at a time. Source: `packages/deck/build/`.
 
 ```sh
 sui-build                          # one-shot production build (cwd's sui.config.ts)
@@ -48,41 +48,49 @@ sui-build --config path/to/sui.config.ts
 sui-build --mode development       # passes through to compile flags + bundler env
 ```
 
-Entry: `packages/sui-build/bin/sui-build.mjs` → `dist/cli.js` via Bun. The runner (`src/runner.ts`) walks the configured source globs, invokes `sui-compiler` (preferring the in-repo FFI build of `libsui_compiler`, falling back to `target/debug/sui-compiler` or `cargo run --quiet -p sui-compiler`), and feeds the emitted JS / CSS / CEM through the chosen bundler adapter (`adapters/bun.ts`, `adapters/esbuild.ts`).
+Entry: `packages/deck/build/bin/sui-build.mjs` → `dist/cli.js` via Bun. The runner (`src/runner.ts`) walks the configured source globs, invokes `sui-compiler` (preferring the in-repo FFI build of `libsui_compiler`, falling back to `target/debug/sui-compiler` or `cargo run --quiet -p sui-compiler`), and feeds the emitted JS / CSS / CEM through the chosen bundler adapter (`adapters/bun.ts`, `adapters/esbuild.ts`).
 
-Configuration: `<package>/sui.config.ts`. Each package opts in by adding a `build` script — currently `packages/ui-components/` (writes `crates/sui/ship-sui-server/assets/`) and `packages/ship-set/` (writes `apps/shipd/assets/`).
+Configuration: `<package>/sui.config.ts`. Each package opts in by adding a `build` script — currently `packages/components/ui-components/` (writes `crates/deck/deck-server/assets/`) and `packages/ship-set/` (writes `apps/shipd/assets/`).
 
-**Role.** `@ship/sui-build` is the CI / pre-merge bundler — it's what `smoke-deploy.sh` runs and what `just cem` invokes. It is *not* what shipd uses at dev time. The dev-time bundler is `runtime/bundler.ts`, a Bun worker spawned by the daemon (see [end-to-end dev loop](#end-to-end-edit-loop-in-dev) below). Both pipelines target the same on-disk asset trees that the release binary later `include_str!`s.
+**Role.** `@ship/sui-build` is the CI / pre-merge bundler — it's what `smoke-deploy.sh` runs and what `just cem` invokes. It is *not* what shipd uses at dev time. The dev-time bundler is `packages/deck/bundler/index.ts`, a Bun worker spawned by the daemon (see [end-to-end dev loop](#end-to-end-edit-loop-in-dev) below). Both pipelines target the same on-disk asset trees that the release binary later `include_str!`s.
 
-## `@ship/sui-lsp` — the language server
+## `sui-lsp` — the language server
 
-Source: `packages/sui-lsp/`. Provides diagnostics, hover, and completions for `.sui` files.
+Source: `crates/sui/lsp/` (Rust). A thin LSP/stdio shell over the `sui-compiler`
+analysis facade — **one grammar, no TypeScript, no WASM, no Node**. The same
+Rust intelligence serves three consumers:
+
+- **Ship agents** — `apps/mcp` calls `sui_compiler::analyze` / `hover_at`
+  *in-process* (the `sui_diagnostics` / `sui_hover` / `sui_dependencies` MCP
+  tools). No subprocess, no bun.
+- **Claude Code** — `.lsp.json` at the repo root points the editor's LSP
+  client at the `sui-lsp` binary (`extensionToLanguage: { ".sui": "sui" }`).
+- **opencode** — add to the (user-local, gitignored) `opencode.json`:
+  `"lsp": { "sui": { "command": ["sui-lsp"], "extensions": [".sui"] } }`. The
+  binary ignores extra args, so opencode's `--stdio` convention is harmless.
+- **VS Code / any editor** — `apps/vscode` launches `sui-lsp` over stdio
+  (override with the `sui.serverPath` setting); any LSP-capable editor maps the
+  `sui` language id to the `sui-lsp` binary the same way.
 
 ```sh
-bun run --filter @ship/sui-lsp build           # compile TS to dist/
-
-# Native LSP stdio (point a generic editor at this):
-node packages/sui-lsp/bin/sui-lsp.js --stdio
-
-# One-shot CLI (what MCP shims wrap):
-bun packages/sui-lsp/src/cli.ts diagnostics views/home/page.sui
-bun packages/sui-lsp/src/cli.ts hover views/home/page.sui --line 12 --col 4
+just install-dev        # builds + installs `sui-lsp` to ~/.local/bin
+sui-lsp                 # LSP server on stdio (what editors + .lsp.json launch)
 ```
 
-Analyzers live one-per-file under `packages/sui-lsp/src/`:
+Intelligence is the Rust compiler: `sui_compiler::check_all` (multi-diagnostic),
+`SymbolTable` (scope names + kinds + declaration offsets, byte-walked from the
+paired `.controller.ts` — no `typescript` package), and an IR walk for the
+tag/event dependency surface (`sui_compiler::analyze`).
 
-| File | Owns |
-|---|---|
-| `parse.ts` (+ `parse-attrs.ts`, `parse-blocks.ts`, `parse-braces.ts`, `parse-types.ts`) | `.sui` parser |
-| `diagnostics.ts` | Compile-grammar issues, missing bindings, unstable-key warnings |
-| `setup.ts` + `setup-controller.ts` + `setup-diagnostics.ts` | Paired-controller resolution + cross-file diagnostics |
-| `hover.ts` | Type + binding info at a point |
-| `completions.ts` | `<sui-*>`, prop names, control-flow blocks |
-| `bindings.ts` | Reactive identifier resolution against scope |
-| `server.ts` | LSP plumbing — `TextDocuments`, `onDidChangeContent`, `onHover`, `onCompletion` |
-| `cli.ts` | JSON-emitting CLI; used by MCP shims |
+> **Retired:** the former TypeScript LSP (`packages/deck/lsp`, ex-`ship-set-lsp`)
+> — a fork of the `.sui` grammar that also bundled the full `typescript` package
+> — has been deleted. Its grammar duplicated `sui-compiler`; agents now use the
+> in-process MCP tools, editors use the `sui-lsp` binary, and the docs-playground
+> browser analyzer (`packages/deck/lsp-browser`) calls the WASM `analyze`. One
+> grammar, no TS fork.
 
-VS Code: `apps/vscode/` auto-launches the server on `.sui` open (recommended via `.vscode/extensions.json`). Other editors map the `sui` language ID to `node packages/sui-lsp/bin/sui-lsp.js --stdio`.
+VS Code: `apps/vscode/` auto-launches `sui-lsp` on `.sui` open. Other editors map
+the `sui` language ID to the `sui-lsp` binary over stdio.
 
 ## MCP shims — agents that don't speak LSP
 
@@ -94,7 +102,7 @@ VS Code: `apps/vscode/` auto-launches the server on `.sui` open (recommended via
 | `mcp__ship__sui_hover` | Same content the VS Code extension shows for a `(line, col)` position |
 | `mcp__ship__sui_dependencies` | Per-view signal / tag / event dependency graph (`apps/mcp/src/tools/sui_lsp.rs:152`) |
 
-Both spawn `bun` against `packages/sui-lsp/src/cli.ts` and parse its JSON output. CLI path resolution: `SHIP_WORKSPACE` env var, else walks upward looking for `bun.lock`. Registration: `apps/mcp/src/server/mod.rs:783` (`sui_diagnostics`) and `:796` (`sui_hover`).
+Both spawn `bun` against `packages/deck/lsp/src/cli.ts` and parse its JSON output. CLI path resolution: `SHIP_WORKSPACE` env var, else walks upward looking for `bun.lock`. Registration: `apps/mcp/src/server/mod.rs:783` (`sui_diagnostics`) and `:796` (`sui_hover`).
 
 ```ts
 // Before declaring a `.sui` edit done:
@@ -120,7 +128,7 @@ Use it to find a component, browse its props (including enum values from `<prop 
 
 ## Devtools panes — in-page introspection
 
-`packages/ui-components/src/sui-devtools/` ships five panes that share a separate bundle (opted in via `<bundle separate />` in each `.sui` source). Each is a `.sui` + `.controller.ts` pair, lazy-loaded on first mount via the `sui-devtools.js` bundle.
+`packages/components/ui-components/src/sui-devtools/` ships five panes that share a separate bundle (opted in via `<bundle separate />` in each `.sui` source). Each is a `.sui` + `.controller.ts` pair, lazy-loaded on first mount via the `sui-devtools.js` bundle.
 
 | Tag | What it shows |
 |---|---|
@@ -179,7 +187,7 @@ Both scaffolds emit the manifest / template / controller / style files documente
 just dev                              # daemon + embedded Bun bundler worker
 # (optional) just shell-dev          # vite outer shell at :3200, proxies to daemon
 # edit views/home/page.sui or controller.ts
-#  → bundler.ts re-runs Bun.build, writes to crates/sui/ship-sui-server/assets/...
+#  → bundler.ts re-runs Bun.build, writes to crates/deck/deck-server/assets/...
 #  → emits module_changed over JSON stdout to shipd
 #  → shipd republishes on /_sui/dev/hmr (SSE)
 #  → apps/shell/src/hmr.ts cache-busts /_sui/views/home/view.js
@@ -208,7 +216,7 @@ Shipd has two operating modes, selected via `--mode <development|production>` (o
 | Error detail | Full error bodies | Redacted; only the kind of failure leaks to the client |
 | Status bar | `<sui-status-bar mode="development">` shows a hairline `DEV` badge between the connection dot and the branch | Badge hidden; same component, no chrome |
 
-The mode is exposed to the browser via `<meta name="ship-mode">` in the shell HTML. shell's `main.ts` reads it into `window.__shipMode` (`'Production'` | `'Development'`) at boot and reflects it onto the status bar's `mode` attribute. When shipd serves the prebuilt shell itself, `ship_sui::inject_mode_meta` rewrites the meta to match the daemon's actual mode; the static default in `apps/shell/index.html` is `development` so the Vite dev server doesn't need any special handling.
+The mode is exposed to the browser via `<meta name="ship-mode">` in the shell HTML. shell's `main.ts` reads it into `window.__shipMode` (`'Production'` | `'Development'`) at boot and reflects it onto the status bar's `mode` attribute. When shipd serves the prebuilt shell itself, `deck::inject_mode_meta` rewrites the meta to match the daemon's actual mode; the static default in `apps/shell/index.html` is `development` so the Vite dev server doesn't need any special handling.
 
 Producing a deployable artifact set:
 
@@ -218,4 +226,4 @@ just build       # one-shot: gen-types → ship-set icons → ship-set build →
 ship build       # equivalent CLI wrapper for users without `just` installed
 ```
 
-Both write release binaries to `target/release/{ship,shipd,mcp}` and rebuild the front-end asset trees that shipd's `include_str!` directives consume (`crates/sui/ship-sui-server/assets/`, `apps/shipd/assets/`). After `just build`, run `shipd --mode production` to serve them.
+Both write release binaries to `target/release/{ship,shipd,mcp}` and rebuild the front-end asset trees that shipd's `include_str!` directives consume (`crates/deck/deck-server/assets/`, `apps/shipd/assets/`). After `just build`, run `shipd --mode production` to serve them.

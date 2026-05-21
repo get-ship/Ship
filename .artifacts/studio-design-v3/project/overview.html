@@ -1,0 +1,582 @@
+<!doctype html>
+<html lang="en" data-theme="ship-light">
+<head>
+  <meta charset="utf-8" />
+  <title>ship-monorepo · Project · Studio · Ship</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="../../../sui/ship.css" />
+  <style>
+    html, body { margin: 0; }
+    body {
+      background: var(--background);
+      color: var(--foreground);
+      font-family: var(--font-body);
+      font-size: var(--text-base);
+      -webkit-font-smoothing: antialiased;
+    }
+    .icon { width: 14px; height: 14px; flex-shrink: 0; }
+    .icon-xs { width: 12px; height: 12px; }
+    .icon-md { width: 16px; height: 16px; }
+
+    .detail { max-width: 880px; margin: 0 auto; padding: 56px var(--space-6) 96px; box-sizing: border-box; }
+
+    .back { display: inline-flex; align-items: center; gap: 4px; font-size: 12.5px; color: var(--muted-foreground); text-decoration: none; margin-bottom: var(--space-6); }
+    .back:hover { color: var(--foreground); }
+
+    .head { display: grid; grid-template-columns: 80px 1fr auto; gap: var(--space-5); align-items: start; margin-bottom: var(--space-5); }
+    .tile {
+      width: 80px; height: 80px;
+      border-radius: var(--radius-lg);
+      display: inline-flex; align-items: center; justify-content: center;
+      color: white;
+      font-family: var(--font-mono);
+      font-size: 32px; font-weight: var(--font-weight-bold);
+      letter-spacing: -0.02em;
+      position: relative; isolation: isolate;
+      box-shadow:
+        inset 0 1px 0 color-mix(in oklch, white 22%, transparent),
+        inset 0 -1px 0 color-mix(in oklch, black 8%, transparent),
+        0 4px 12px color-mix(in oklch, var(--g-color, var(--primary)) 30%, transparent);
+    }
+    .tile::before {
+      content: '';
+      position: absolute; inset: 0; border-radius: inherit;
+      background: linear-gradient(160deg, color-mix(in oklch, white 14%, transparent) 0%, transparent 55%);
+    }
+    .name {
+      font-family: var(--heading-font);
+      font-size: var(--text-3xl);
+      font-weight: var(--heading-weight);
+      letter-spacing: var(--heading-tracking);
+      line-height: 1.05;
+      margin: 0 0 var(--space-2);
+    }
+    .meta { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted-foreground); flex-wrap: wrap; }
+    .meta code { font-family: var(--font-mono); font-size: 12px; background: var(--muted); padding: 2px 8px; border-radius: var(--radius-sm); color: var(--foreground); }
+    .meta-sep { width: 3px; height: 3px; border-radius: 50%; background: var(--border); }
+    .meta-status {
+      display: inline-flex; align-items: center; gap: 5px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      padding: 1px 8px;
+      border-radius: var(--radius-sm);
+      background: color-mix(in oklch, var(--success) 14%, transparent);
+      color: var(--success);
+    }
+    .meta-status-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+    .rule { width: 96px; height: 4px; border-radius: 2px; background: linear-gradient(90deg, var(--primary), transparent); margin-top: var(--space-3); }
+    .actions { display: flex; gap: var(--space-2); }
+    .btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 5px 10px;
+      border: 1px solid var(--border-subtle);
+      background: var(--background);
+      border-radius: var(--radius-sm);
+      font: inherit;
+      font-size: 12.5px;
+      color: var(--foreground);
+      cursor: pointer;
+    }
+    .btn:hover { background: var(--surface-1); }
+    .btn-pri {
+      background: var(--primary);
+      color: var(--primary-foreground);
+      border-color: var(--primary);
+    }
+    .btn-pri:hover { filter: brightness(1.04); background: var(--primary); }
+
+    .prose {
+      font-size: 16px; line-height: 1.65;
+      color: color-mix(in oklch, var(--foreground) 85%, transparent);
+      margin: var(--space-5) 0 var(--space-7);
+      max-width: 60ch; text-wrap: pretty;
+    }
+
+    /* sections */
+    .sec { padding-top: var(--space-6); margin-bottom: var(--space-6); border-top: 1px solid var(--border-subtle); }
+    .sec:first-of-type { border-top: 0; padding-top: 0; }
+    .sec-head { display: flex; align-items: baseline; gap: var(--space-3); margin-bottom: var(--space-3); }
+    .sec-h { font-size: 11px; font-weight: var(--font-weight-semibold); letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted-foreground); margin: 0; }
+    .sec-h-aux { font-family: var(--font-mono); font-weight: normal; letter-spacing: 0; text-transform: none; color: var(--muted-foreground); font-size: 11px; }
+    .sec-h-act { margin-left: auto; font-size: 12px; color: var(--primary); text-decoration: none; opacity: 0; transition: opacity 120ms; }
+    .sec:hover .sec-h-act { opacity: 1; }
+
+    /* Identity grid — name/slug + glyph/hue */
+    .id-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); }
+    .field { display: flex; flex-direction: column; gap: 6px; }
+    .field-label { font-size: 11px; font-weight: var(--font-weight-medium); color: var(--muted-foreground); font-family: var(--font-mono); letter-spacing: 0.06em; text-transform: uppercase; }
+    .input {
+      font-family: var(--font-body); font-size: 13.5px;
+      padding: 6px 10px;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      background: var(--background);
+      color: var(--foreground);
+    }
+    .input:focus { outline: 0; border-color: var(--primary); box-shadow: 0 0 0 3px var(--tone-primary-ring); }
+    .input.is-mono { font-family: var(--font-mono); }
+    .input.is-ro { background: var(--muted); color: var(--muted-foreground); cursor: not-allowed; }
+    .field-hint { font-size: 11px; color: var(--muted-foreground); }
+    .field-hint code { font-family: var(--font-mono); font-size: 11px; padding: 1px 5px; background: var(--muted); border-radius: var(--radius-sm); color: var(--foreground); }
+
+    /* Hue picker */
+    .hue-picker { display: inline-flex; gap: 5px; padding: 4px; background: var(--surface-1); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); }
+    .hue-sw {
+      width: 22px; height: 22px;
+      border-radius: var(--radius-sm);
+      border: 0; cursor: pointer;
+      position: relative;
+      transition: transform 120ms;
+    }
+    .hue-sw:hover { transform: scale(1.1); }
+    .hue-sw.is-on { box-shadow: 0 0 0 2px var(--background), 0 0 0 4px var(--primary); }
+
+    /* Glyph picker — single char selector */
+    .glyph-row { display: flex; gap: 6px; align-items: center; }
+    .glyph-input {
+      width: 56px;
+      text-align: center;
+      font-family: var(--heading-font);
+      font-size: 24px;
+      font-weight: var(--heading-weight);
+      padding: 6px;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      background: var(--background);
+      color: var(--foreground);
+    }
+    .glyph-input:focus { outline: 0; border-color: var(--primary); box-shadow: 0 0 0 3px var(--tone-primary-ring); }
+    .glyph-suggest { display: inline-flex; gap: 2px; }
+    .glyph-suggest button {
+      width: 28px; height: 28px;
+      border: 1px solid var(--border-subtle);
+      background: var(--background);
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      font-family: var(--heading-font);
+      font-size: 14px;
+      color: var(--muted-foreground);
+    }
+    .glyph-suggest button:hover { color: var(--foreground); border-color: var(--border); }
+
+    /* Theme picker — pick from packs (closed set) */
+    .themes {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 8px;
+    }
+    .theme {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      background: var(--surface-1);
+      cursor: pointer;
+      transition: border-color 120ms, background 120ms;
+    }
+    .theme:hover { border-color: var(--border); }
+    .theme.is-on {
+      border-color: var(--primary);
+      background: color-mix(in oklch, var(--primary) 5%, var(--surface-1));
+      box-shadow: 0 0 0 2px var(--tone-primary-ring);
+    }
+    .theme-sw {
+      width: 36px; height: 36px;
+      border-radius: var(--radius-sm);
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: 1fr 1fr;
+      overflow: hidden;
+      box-shadow: inset 0 1px 0 color-mix(in oklch, white 18%, transparent), 0 1px 3px rgba(0,0,0,0.08);
+    }
+    .theme-sw span { display: block; }
+    .theme-body { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+    .theme-name { font-family: var(--font-mono); font-size: 12px; color: var(--foreground); }
+    .theme-kind { font-family: var(--font-mono); font-size: 10px; color: var(--muted-foreground); letter-spacing: 0.06em; text-transform: uppercase; }
+    .themes-foot {
+      margin-top: var(--space-2);
+      font-size: 11.5px;
+      color: var(--muted-foreground);
+    }
+    .themes-foot code { font-family: var(--font-mono); font-size: 11px; padding: 1px 5px; background: var(--muted); border-radius: var(--radius-sm); }
+
+    /* Iso card — Isolation summary, links to /isolation */
+    .iso {
+      display: grid;
+      grid-template-columns: 56px 1fr auto;
+      gap: var(--space-3);
+      align-items: center;
+      padding: 14px 16px;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      background: var(--surface-1);
+      cursor: pointer;
+      text-decoration: none;
+      color: var(--foreground);
+      transition: border-color 120ms, background 120ms;
+    }
+    .iso:hover { border-color: var(--border); background: var(--background); }
+    .iso-glyph {
+      width: 56px; height: 56px;
+      border-radius: var(--radius-md);
+      display: inline-flex; align-items: center; justify-content: center;
+      background: color-mix(in oklch, var(--iso-color, var(--muted-foreground)) 14%, transparent);
+      color: var(--iso-color, var(--muted-foreground));
+    }
+    .iso-glyph svg { width: 28px; height: 28px; }
+    .iso-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+    .iso-h { display: flex; align-items: baseline; gap: 8px; }
+    .iso-mode {
+      font-family: var(--font-mono);
+      font-size: 14px;
+      font-weight: var(--font-weight-semibold);
+      color: var(--foreground);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    .iso-status {
+      display: inline-flex; align-items: center; gap: 5px;
+      font-family: var(--font-mono);
+      font-size: 10.5px;
+      color: var(--success);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+    .iso-status-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; box-shadow: 0 0 0 2px color-mix(in oklch, currentColor 22%, transparent); }
+    .iso-desc { font-size: 12.5px; color: var(--muted-foreground); }
+    .iso-stats {
+      display: flex; gap: 14px;
+      margin-top: 4px;
+      font-family: var(--font-mono);
+      font-size: 10.5px;
+      color: var(--muted-foreground);
+    }
+    .iso-stats strong { color: var(--foreground); font-weight: var(--font-weight-semibold); }
+
+    /* Compact link cards */
+    .link-card {
+      display: grid;
+      grid-template-columns: 36px 1fr auto 14px;
+      gap: var(--space-3);
+      align-items: center;
+      padding: 10px 14px;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      background: var(--surface-1);
+      text-decoration: none;
+      color: var(--foreground);
+      cursor: pointer;
+      transition: border-color 120ms, background 120ms;
+    }
+    .link-card:hover { border-color: var(--border); background: var(--background); }
+    .link-card-icon {
+      width: 36px; height: 36px;
+      border-radius: var(--radius-sm);
+      background: color-mix(in oklch, var(--muted-foreground) 12%, transparent);
+      color: var(--muted-foreground);
+      display: inline-flex; align-items: center; justify-content: center;
+    }
+    .link-card-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+    .link-card-h { font-family: var(--heading-font); font-size: 14px; font-weight: var(--heading-weight); }
+    .link-card-sub { font-size: 12px; color: var(--muted-foreground); }
+    .link-card-meta {
+      font-family: var(--font-mono); font-size: 11.5px;
+      padding: 1px 6px;
+      background: var(--muted);
+      border-radius: var(--radius-sm);
+      color: var(--foreground);
+    }
+    .link-card-chev { color: var(--muted-foreground); }
+
+    /* Lifecycle */
+    .lc { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: var(--space-3); }
+    .lc-cell {
+      padding: 10px 14px;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      background: var(--surface-1);
+    }
+    .lc-cell-n { font-family: var(--heading-font); font-size: 18px; font-weight: var(--heading-weight); letter-spacing: var(--heading-tracking); color: var(--foreground); }
+    .lc-cell-l { font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted-foreground); margin-top: 2px; }
+
+    .danger-zone {
+      margin-top: var(--space-4);
+      padding: 12px 16px;
+      border: 1px solid color-mix(in oklch, var(--destructive) 28%, var(--border-subtle));
+      border-radius: var(--radius-md);
+      background: color-mix(in oklch, var(--destructive) 4%, var(--surface-1));
+      display: flex; align-items: center; gap: var(--space-3);
+    }
+    .danger-zone-body { flex: 1; }
+    .danger-zone-h { font-family: var(--heading-font); font-size: 13px; font-weight: var(--heading-weight); color: var(--destructive); margin: 0 0 2px; }
+    .danger-zone-sub { font-size: 12px; color: var(--muted-foreground); }
+    .btn-danger {
+      background: transparent;
+      color: var(--destructive);
+      border: 1px solid color-mix(in oklch, var(--destructive) 40%, transparent);
+      padding: 5px 10px;
+      border-radius: var(--radius-sm);
+      font: inherit; font-size: 12px;
+      cursor: pointer;
+    }
+    .btn-danger:hover { background: color-mix(in oklch, var(--destructive) 8%, transparent); }
+
+    /* Source line */
+    .source { font-family: var(--font-mono); font-size: 13px; color: var(--foreground); background: var(--muted); padding: 10px 14px; border-radius: var(--radius-md); }
+
+    /* Hue presets — for swatches + tile */
+    .h-orange { --g-color: #d97757; background: #d97757; }
+    .h-amber  { --g-color: #c98a2c; background: #c98a2c; }
+    .h-red    { --g-color: #b94a4a; background: #b94a4a; }
+    .h-violet { --g-color: #7a5cd6; background: #7a5cd6; }
+    .h-blue   { --g-color: #4376d6; background: #4376d6; }
+    .h-teal   { --g-color: #2a8a8a; background: #2a8a8a; }
+    .h-green  { --g-color: #4f9e54; background: #4f9e54; }
+    .h-pink   { --g-color: #c25a8e; background: #c25a8e; }
+    .h-slate  { --g-color: #5b6878; background: #5b6878; }
+
+    .iso-local { --iso-color: var(--muted-foreground); }
+    .iso-vm    { --iso-color: #4376d6; }
+    .iso-cont  { --iso-color: #2a8a8a; }
+    .iso-cloud { --iso-color: #7a5cd6; }
+  </style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-chev-left" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></symbol>
+    <symbol id="i-chev-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></symbol>
+    <symbol id="i-local" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="14" rx="2"/><path d="M8 21h8"/><path d="M12 18v3"/></symbol>
+    <symbol id="i-network" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="6" rx="1"/><rect x="3" y="16" width="6" height="6" rx="1"/><rect x="15" y="16" width="6" height="6" rx="1"/><path d="M6 16v-3a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v3M12 8v3"/></symbol>
+    <symbol id="i-users" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></symbol>
+    <symbol id="i-archive" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></symbol>
+    <symbol id="i-edit" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></symbol>
+  </defs>
+</svg>
+
+<article class="detail">
+
+  <a class="back" href="#studio">
+    <svg class="icon-xs"><use href="#i-chev-left"/></svg>
+    Studio
+  </a>
+
+  <header class="head">
+    <span class="tile h-orange">M</span>
+    <div>
+      <h1 class="name">ship-monorepo</h1>
+      <div class="meta">
+        <code>ship-monorepo</code>
+        <span class="meta-sep"></span>
+        <span>local</span>
+        <span class="meta-sep"></span>
+        <span>theme · <code>ship-light</code></span>
+        <span class="meta-sep"></span>
+        <span class="meta-status"><span class="meta-status-dot"></span>running</span>
+      </div>
+      <div class="rule"></div>
+    </div>
+    <div class="actions">
+      <button class="btn" type="button">
+        <svg class="icon-xs"><use href="#i-edit"/></svg>Edit
+      </button>
+    </div>
+  </header>
+
+  <p class="prose">
+    The Ship monorepo — runtime, primitives, chrome, and reference views. Everything below is
+    scoped to this project: agents, skills, MCP servers, pipelines, themes, components, and
+    the workspace's runtime isolation.
+  </p>
+
+  <!-- ── IDENTITY ── -->
+  <section class="sec">
+    <div class="sec-head">
+      <h2 class="sec-h">Identity</h2>
+      <a class="sec-h-act" href="#">Edit →</a>
+    </div>
+    <div class="id-grid">
+      <div class="field">
+        <label class="field-label">Name</label>
+        <input class="input" value="ship-monorepo" />
+      </div>
+      <div class="field">
+        <label class="field-label">Slug · immutable</label>
+        <input class="input is-mono is-ro" value="ship-monorepo" readonly />
+        <span class="field-hint">URL segment · matches <code>~/.ship/projects/&lt;slug&gt;</code></span>
+      </div>
+      <div class="field">
+        <label class="field-label">Glyph</label>
+        <div class="glyph-row">
+          <input class="glyph-input" value="M" maxlength="2" />
+          <div class="glyph-suggest">
+            <button type="button">M</button>
+            <button type="button">S</button>
+            <button type="button">◐</button>
+            <button type="button">⌘</button>
+          </div>
+        </div>
+        <span class="field-hint">1–2 chars · paints the project's tile</span>
+      </div>
+      <div class="field">
+        <label class="field-label">Hue</label>
+        <div class="hue-picker">
+          <button class="hue-sw h-orange is-on" type="button" aria-label="orange"></button>
+          <button class="hue-sw h-amber" type="button"></button>
+          <button class="hue-sw h-red" type="button"></button>
+          <button class="hue-sw h-violet" type="button"></button>
+          <button class="hue-sw h-blue" type="button"></button>
+          <button class="hue-sw h-teal" type="button"></button>
+          <button class="hue-sw h-green" type="button"></button>
+          <button class="hue-sw h-pink" type="button"></button>
+          <button class="hue-sw h-slate" type="button"></button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── THEME ── -->
+  <section class="sec">
+    <div class="sec-head">
+      <h2 class="sec-h">Theme <span class="sec-h-aux">· pick from 7 packs · per-project</span></h2>
+    </div>
+    <div class="themes">
+      <div class="theme is-on">
+        <span class="theme-sw"><span style="background:#f6f4ef"></span><span style="background:#d97757"></span><span style="background:#3d3a32"></span><span style="background:#7e7a72"></span></span>
+        <div class="theme-body"><span class="theme-name">ship-light</span><span class="theme-kind">light · default</span></div>
+      </div>
+      <div class="theme">
+        <span class="theme-sw"><span style="background:#1e2230"></span><span style="background:#d97757"></span><span style="background:#e8e6e1"></span><span style="background:#a09b8f"></span></span>
+        <div class="theme-body"><span class="theme-name">ship-dark</span><span class="theme-kind">dark</span></div>
+      </div>
+      <div class="theme">
+        <span class="theme-sw"><span style="background:#f1ebe0"></span><span style="background:#c0573e"></span><span style="background:#2a2520"></span><span style="background:#7a6f60"></span></span>
+        <div class="theme-body"><span class="theme-name">paper</span><span class="theme-kind">light</span></div>
+      </div>
+      <div class="theme">
+        <span class="theme-sw"><span style="background:#eaf0fa"></span><span style="background:#4f7fff"></span><span style="background:#1e2640"></span><span style="background:#6b7796"></span></span>
+        <div class="theme-body"><span class="theme-name">halo</span><span class="theme-kind">light</span></div>
+      </div>
+      <div class="theme">
+        <span class="theme-sw"><span style="background:#0a0e0a"></span><span style="background:#7cf38c"></span><span style="background:#c5e3ca"></span><span style="background:#4f7e57"></span></span>
+        <div class="theme-body"><span class="theme-name">console</span><span class="theme-kind">dark</span></div>
+      </div>
+      <div class="theme">
+        <span class="theme-sw"><span style="background:#0c0c0e"></span><span style="background:#f5a623"></span><span style="background:#fafafa"></span><span style="background:#a8a8a8"></span></span>
+        <div class="theme-body"><span class="theme-name">contrast</span><span class="theme-kind">dark</span></div>
+      </div>
+      <div class="theme">
+        <span class="theme-sw"><span style="background:#f6f0f4"></span><span style="background:#c25a8e"></span><span style="background:#2e2434"></span><span style="background:#8b7080"></span></span>
+        <div class="theme-body"><span class="theme-name">glass</span><span class="theme-kind">special</span></div>
+      </div>
+    </div>
+    <p class="themes-foot">
+      Theme is project-scoped — switching propagates to chrome + all open views. For
+      custom palettes, install a theme pack from <code>marketplace</code>.
+    </p>
+  </section>
+
+  <!-- ── ISOLATION (summary; deep config at /studio/project/isolation) ── -->
+  <section class="sec">
+    <div class="sec-head">
+      <h2 class="sec-h">Isolation <span class="sec-h-aux">· runtime sandbox + resource budget</span></h2>
+      <a class="sec-h-act" href="#studio/project/isolation">Configure →</a>
+    </div>
+    <a class="iso iso-local" href="#studio/project/isolation">
+      <span class="iso-glyph"><svg><use href="#i-local"/></svg></span>
+      <div class="iso-body">
+        <div class="iso-h">
+          <span class="iso-mode">local</span>
+          <span class="iso-status"><span class="iso-status-dot"></span>running</span>
+        </div>
+        <div class="iso-desc">Runs in this Ship process. No sandbox.</div>
+        <div class="iso-stats">
+          <span><strong>4.2 GB</strong> mem</span>
+          <span><strong>11%</strong> cpu</span>
+          <span><strong>—</strong> auto-suspend</span>
+          <span><strong>2</strong> snapshots</span>
+        </div>
+      </div>
+      <svg class="icon" style="color:var(--muted-foreground)"><use href="#i-chev-right"/></svg>
+    </a>
+  </section>
+
+  <!-- ── NETWORK + COLLABORATORS — compact link cards ── -->
+  <section class="sec">
+    <div class="sec-head">
+      <h2 class="sec-h">Network &amp; Access</h2>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <a class="link-card" href="#studio/project/network">
+        <span class="link-card-icon"><svg class="icon-md"><use href="#i-network"/></svg></span>
+        <div class="link-card-body">
+          <div class="link-card-h">Network policy</div>
+          <div class="link-card-sub">7 outbound hosts allowed · 3 credential scopes</div>
+        </div>
+        <span class="link-card-meta">configure</span>
+        <svg class="icon-xs link-card-chev"><use href="#i-chev-right"/></svg>
+      </a>
+      <a class="link-card" href="#studio/project/collaborators">
+        <span class="link-card-icon"><svg class="icon-md"><use href="#i-users"/></svg></span>
+        <div class="link-card-body">
+          <div class="link-card-h">Collaborators</div>
+          <div class="link-card-sub">2 owners · 1 contributor · invite via Studio</div>
+        </div>
+        <span class="link-card-meta">3</span>
+        <svg class="icon-xs link-card-chev"><use href="#i-chev-right"/></svg>
+      </a>
+    </div>
+  </section>
+
+  <!-- ── LIFECYCLE ── -->
+  <section class="sec">
+    <div class="sec-head">
+      <h2 class="sec-h">Lifecycle</h2>
+    </div>
+    <div class="lc">
+      <div class="lc-cell">
+        <div class="lc-cell-n">May 19 ’26</div>
+        <div class="lc-cell-l">created</div>
+      </div>
+      <div class="lc-cell">
+        <div class="lc-cell-n">12s ago</div>
+        <div class="lc-cell-l">last active</div>
+      </div>
+      <div class="lc-cell">
+        <div class="lc-cell-n">v 0.6.0</div>
+        <div class="lc-cell-l">ship version</div>
+      </div>
+      <div class="lc-cell">
+        <div class="lc-cell-n">8 · 14 · 6</div>
+        <div class="lc-cell-l">agents · skills · pipelines</div>
+      </div>
+    </div>
+
+    <div class="danger-zone">
+      <span style="color:var(--destructive)"><svg class="icon-md"><use href="#i-archive"/></svg></span>
+      <div class="danger-zone-body">
+        <div class="danger-zone-h">Archive or delete</div>
+        <div class="danger-zone-sub">
+          Archiving suspends + freezes the project (configs preserved). Deleting removes everything under
+          <code style="font-family:var(--font-mono);font-size:11.5px;padding:1px 5px;background:var(--background);border-radius:var(--radius-sm);color:var(--foreground)">~/.ship/projects/ship-monorepo</code>.
+        </div>
+      </div>
+      <button class="btn-danger" type="button">Archive…</button>
+    </div>
+  </section>
+
+  <!-- ── SOURCE ── -->
+  <section class="sec">
+    <div class="sec-head">
+      <h2 class="sec-h">Source</h2>
+    </div>
+    <div class="source">~/.ship/projects/ship-monorepo/project.jsonc</div>
+  </section>
+
+</article>
+
+</body>
+</html>

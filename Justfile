@@ -32,7 +32,7 @@ bootstrap:
     bun run --filter @ship/charts build
     bun run --filter @ship/ui-components build
     bun run --filter @ship/sui-catalog build
-    bun packages/sui-catalog/src/cli.ts
+    bun packages/deck/catalog/src/cli.ts
     just dev-runtime-install
     echo "bootstrap complete — 'just dev' to start the daemon"
 
@@ -50,10 +50,10 @@ shell-dev:
 
 # Force a one-shot rebuild of every asset bundle served by the daemon
 # (sui-runtime, sui-dom, sui-components, islands, ship-elements, views/*).
-# Runs `runtime/bundler.ts --all` against the installed bun toolchain.
+# Runs `packages/deck/bundler/index.ts --all` against the installed bun toolchain.
 [group('daily')]
 dev-build-all:
-    @bun runtime/bundler.ts --all
+    @bun packages/deck/bundler/index.ts --all
 
 # Stop, rebuild, re-stash, start. Use after Rust changes.
 [group('daily')]
@@ -213,8 +213,8 @@ lint-views:
     cargo run --features unstable -p ship-cli --quiet -- lint views --format json
 
 # Regenerate the aggregated SUI Custom Elements Manifest from per-component
-# CEMs under packages/ui-components/src/. Writes
-# crates/ship-sui/assets/sui-custom-elements.json which apps/shipd embeds.
+# CEMs under packages/components/ui-components/src/. Writes
+# crates/deck/deck-server/assets/sui-custom-elements.json which apps/shipd embeds.
 [group('occasional')]
 cem:
     bun run --filter @ship/ui-components build
@@ -263,13 +263,13 @@ build:
     bun run --filter @ship/primitives build
     echo "[3/8] charts build (@ship/charts → packages/components/charts/dist/)"
     bun run --filter @ship/charts build
-    echo "[4/8] ui-components build (sui-build → crates/sui/ship-sui-server/assets/)"
+    echo "[4/8] ui-components build (sui-build → crates/deck/deck-server/assets/)"
     bun run --filter @ship/ui-components build
-    echo "[5/8] view bundles + sui-* bundles (runtime/bundler.ts --all)"
-    bun runtime/bundler.ts --all
+    echo "[5/8] view bundles + sui-* bundles (packages/deck/bundler/index.ts --all)"
+    bun packages/deck/bundler/index.ts --all
     echo "[6/8] sui-catalog walk (→ .ship/sui-out/catalogs/{workspace,published}.json)"
     bun run --filter @ship/sui-catalog build
-    bun packages/sui-catalog/src/cli.ts
+    bun packages/deck/catalog/src/cli.ts
     echo "[7/8] cargo build --release (ship-cli + shipd + mcp)"
     cargo build --release -p ship-cli -p shipd -p mcp
     echo "[8/8] verify outputs"
@@ -283,7 +283,7 @@ build:
             echo "  ✓ $target_dir/release/$bin"
         fi
     done
-    for asset in crates/sui/ship-sui-server/assets/sui-runtime.js crates/sui/ship-sui-server/assets/sui-components.js packages/components/primitives/dist/sui-primitives.js packages/components/charts/dist/sui-charts.js .ship/sui-out/catalogs/workspace.json .ship/sui-out/catalogs/published.json; do
+    for asset in crates/deck/deck-server/assets/sui-runtime.js crates/deck/deck-server/assets/sui-components.js packages/components/primitives/dist/sui-primitives.js packages/components/charts/dist/sui-charts.js .ship/sui-out/catalogs/workspace.json .ship/sui-out/catalogs/published.json; do
         if [ ! -s "$asset" ]; then
             echo "  ✗ $asset missing or empty" >&2
             missing=1
@@ -297,7 +297,7 @@ build:
 # Build CLI + MCP + shipd (unstable dev build).
 [group('occasional')]
 build-dev:
-    cargo build --features unstable -p ship-cli -p mcp -p shipd
+    cargo build --features unstable -p ship-cli -p mcp -p shipd -p sui-lsp
 
 # Cargo-only release build (no front-end). Use `just build` for the full
 # production artifact set; this recipe is the cargo subset.
@@ -313,7 +313,8 @@ install-dev: build-dev
     target=$(cargo metadata --format-version 1 --no-deps --offline | grep -o '"target_directory":"[^"]*"' | cut -d'"' -f4)
     cp -f "$target/debug/ship" ~/.local/bin/ship.new && mv ~/.local/bin/ship.new ~/.local/bin/ship
     cp -f "$target/debug/shipd" ~/.local/bin/shipd
-    echo "Installed: ship + shipd → ~/.local/bin"
+    cp -f "$target/debug/sui-lsp" ~/.local/bin/sui-lsp
+    echo "Installed: ship + shipd + sui-lsp → ~/.local/bin"
 
 # Install stable binary to ~/.cargo/bin.
 [group('occasional')]
@@ -330,7 +331,7 @@ wasm:
     wasm-pack build crates/core/compiler --target web --out-dir ../../../packages/compiler --out-name compiler -- --features wasm
 
 # Rebuild the in-browser SUI template compiler. wasm-pack writes into
-# `packages/sui-compiler-wasm/pkg/` (gitignored) so the package's own
+# `packages/sui/compiler-wasm/pkg/` (gitignored) so the package's own
 # package.json + .gitignore stay intact; the workspace re-exports the
 # generated entry via `main` / `exports`. Required before
 # `bun run --filter @ship/docs build` — the docs playground imports
@@ -338,7 +339,7 @@ wasm:
 # edits without a server round-trip. ~640KB wasm + ~9KB JS shim.
 [group('occasional')]
 sui-wasm:
-    wasm-pack build crates/sui/sui-compiler --target web --out-dir ../../../packages/sui-compiler-wasm/pkg --out-name sui_compiler -- --features wasm
+    wasm-pack build crates/sui/compiler --target web --out-dir ../../../packages/sui/compiler-wasm/pkg --out-name sui_compiler -- --features wasm
 
 # Regenerate Specta types (Rust → generated TS bindings).
 [group('occasional')]

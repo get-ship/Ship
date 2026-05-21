@@ -1,10 +1,11 @@
-{#while-loading of ctx}
-  <sui-spinner size="md" style="margin: var(--space-8) auto; display: block"></sui-spinner>
-{/while-loading}
-{#while-error err of ctx}
-  <sui-alert tone="destructive">Failed to load pipelines: {err.message}</sui-alert>
-{/while-error}
+{#async ctx}
+  {:loading}
+  <sui-spinner size="md" centered></sui-spinner>
 
+  {:error err}
+  <sui-alert tone="destructive">Failed to load pipelines: {err.message}</sui-alert>
+
+  {:ok}
 {#if defs() !== undefined}
 <div class="ship-view ship-view-pipelines">
   <div class="ship-pipelines-wrap">
@@ -144,7 +145,7 @@
     <sui-field><sui-checkbox bind:checked={dispatchHeadless}>Headless (run without tmux)</sui-checkbox></sui-field>
     <sui-toolbar slot="footer">
       <sui-button variant="outline" on:click={closeDispatch}>Cancel</sui-button>
-      <sui-button tone="accent" variant="solid" on:click={dispatchRun}>
+      <sui-button tone="primary" variant="solid" on:click={dispatchRun}>
         <sui-icon slot="leading" name="play" size="sm"></sui-icon>Dispatch
       </sui-button>
     </sui-toolbar>
@@ -159,7 +160,7 @@
     {#if newPipeError()}<sui-alert tone="destructive" compact>{newPipeError()}</sui-alert>{/if}
     <sui-toolbar slot="footer">
       <sui-button variant="outline" on:click={closeNewPipe}>Cancel</sui-button>
-      <sui-button tone="primary" variant="solid" attr:loading={newPipeCreating() ? '' : null} attr:disabled={newPipeCreating() ? '' : null} on:click={createPipeline}>
+      <sui-button tone="primary" variant="solid" attr:loading={newPipeCreating()} attr:disabled={newPipeCreating()} on:click={createPipeline}>
         <sui-icon slot="leading" name="plus" size="sm"></sui-icon>Create
       </sui-button>
     </sui-toolbar>
@@ -167,3 +168,4 @@
   {/if}
 </div>
 {/if}
+{/async}

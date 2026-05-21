@@ -10,7 +10,8 @@
       </div>
     </div>
 
-    {#while-loading of eventsData}
+    {#async eventsData}
+      {:loading}
       <div class="events-skel" aria-busy="true" aria-label="Loading events">
         <div class="events-skel-filters">
           <sui-skeleton shape="line" size="md" style="width:60px"></sui-skeleton>
@@ -23,32 +24,30 @@
           </div>
         {/for}
       </div>
-    {/while-loading}
-
-    {#while-error err of eventsData}
+    
+      {:error err}
       <sui-error-state variant="inline" size="sm" title="Couldn't load events">
         {err.message}
       </sui-error-state>
-    {/while-error}
-
-    {#if eventsData().kind === 'ok'}
+    
+      {:ok}
       <div class="events-filters" role="group" aria-label="Filter events">
         <sui-chip size="sm"
-          attr:data-active={eventType() === '' ? '' : null}
+          attr:data-active={eventType() === ''}
           on:click={() => eventType.set('')}>All types</sui-chip>
         {#for t of eventsData().value.types key={t}}
           <sui-chip size="sm"
-            attr:data-active={eventType() === t ? '' : null}
+            attr:data-active={eventType() === t}
             on:click={() => eventType.set(t)}>{t}</sui-chip>
         {/for}
         {#if eventsData().value.actors.length > 0}
           <span class="events-sep" aria-hidden="true"></span>
           <sui-chip size="sm"
-            attr:data-active={actor() === '' ? '' : null}
+            attr:data-active={actor() === ''}
             on:click={() => actor.set('')}>All actors</sui-chip>
           {#for a of eventsData().value.actors key={a}}
             <sui-chip size="sm"
-              attr:data-active={actor() === a ? '' : null}
+              attr:data-active={actor() === a}
               on:click={() => actor.set(a)}>{a}</sui-chip>
           {/for}
         {/if}
@@ -65,7 +64,7 @@
           </sui-empty-state>
         {:else}
           {#for g of eventsData().value.groups key={g.entity_id}}
-            <details attr:open={!g.collapsed ? '' : null}>
+            <details attr:open={!g.collapsed}>
               <summary>
                 <span class="entity">{g.entity_id}</span>
                 <span class="count">{g.count} event{g.count !== 1 ? 's' : ''}</span>
@@ -88,7 +87,8 @@
           {/for}
         {/if}
       </div>
-    {/if}
+    
+    {/async}
 
   </div>
 </div>

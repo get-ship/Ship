@@ -1,0 +1,19 @@
+[package]
+name = "deck"
+version = "0.1.0"
+edition = "2024"
+publish = false
+description = "Thin re-export facade over deck-host + deck-server."
+
+[lib]
+name = "deck"
+path = "src/lib.rs"
+
+[features]
+default = []
+specta = ["dep:specta", "deck-server/specta"]
+
+[dependencies]
+deck-host = { path = "../deck-host" }
+deck-server = { path = "../deck-server" }
+specta = { workspace = true, features = ["serde_json"], optional = true }

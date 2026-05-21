@@ -1,0 +1,138 @@
+<div class="ship-view studio-view" data-test="studio-view">
+
+  <aside class="studio-rail" aria-label="Studio navigation">
+
+    <div class="studio-rail-h">
+      <span class="studio-rail-h-mark" aria-hidden="true">
+        <sui-icon name="grid" size="sm"></sui-icon>
+      </span>
+      <span class="studio-rail-h-text">Studio</span>
+      <span class="studio-rail-h-rule" aria-hidden="true"></span>
+    </div>
+
+    <div class="studio-rail-section">
+      <div class="studio-rail-section-h">
+        Project <span class="studio-rail-section-h-count">{projectSubs().length}</span>
+      </div>
+      {#for item of projectSubs() key={item.sub}}
+        <button type="button" class="studio-rail-item"
+          data-test="rail-item"
+          attr:data-section={'project'}
+          attr:data-sub={item.sub}
+          attr:data-active={section() === 'project' && subitem() === item.sub}
+          on:click={() => goSection('project', item.sub)}>
+          <span class="studio-rail-item-icon" aria-hidden="true">
+            <sui-icon attr:name={item.icon} size="xs"></sui-icon>
+          </span>
+          <span class="studio-rail-item-label">{item.label}</span>
+        </button>
+      {/for}
+    </div>
+
+    <div class="studio-rail-section">
+      <div class="studio-rail-section-h">
+        Configure <span class="studio-rail-section-h-count">{configureCount()}</span>
+      </div>
+      {#for item of configureItems() key={item.id}}
+        <button type="button" class="studio-rail-item"
+          data-test="rail-item"
+          attr:data-section={item.section}
+          attr:data-active={section() === item.section && !subitem()}
+          on:click={() => goSection(item.section)}>
+          <span class="studio-rail-item-icon" aria-hidden="true">
+            <sui-icon attr:name={item.icon} size="xs"></sui-icon>
+          </span>
+          <span class="studio-rail-item-label">{item.label}</span>
+          <span class="studio-rail-item-count">
+            {#if item.id === 'agents'}
+              {agentCount()}
+            {:else if item.id === 'skills'}
+              {skillCount()}
+            {:else}
+              {item.staticCount ?? '—'}
+            {/if}
+          </span>
+        </button>
+      {/for}
+    </div>
+
+    <div class="studio-rail-section">
+      <div class="studio-rail-section-h">
+        Library <span class="studio-rail-section-h-count">{librarySubs().length}</span>
+      </div>
+      {#for item of librarySubs() key={item.sub}}
+        <button type="button" class="studio-rail-item"
+          data-test="rail-item"
+          attr:data-section={'library'}
+          attr:data-sub={item.sub}
+          attr:data-active={section() === 'library' && subitem() === item.sub}
+          on:click={() => goSection('library', item.sub)}>
+          <span class="studio-rail-item-icon" aria-hidden="true">
+            <sui-icon attr:name={item.icon} size="xs"></sui-icon>
+          </span>
+          <span class="studio-rail-item-label">{item.label}</span>
+          <span class="studio-rail-item-count">{item.staticCount}</span>
+        </button>
+      {/for}
+    </div>
+
+    <div class="studio-rail-foot">
+      <button type="button" class="studio-rail-exit"
+        data-test="rail-close"
+        on:click={() => closeStudio()}>
+        <sui-icon name="chevron-left" size="xs"></sui-icon>
+        <span>Close Studio</span>
+      </button>
+    </div>
+
+  </aside>
+
+  <div class="studio-top" role="toolbar" aria-label="Studio actions">
+    <div class="studio-top-spacer"></div>
+
+    <button type="button" class="studio-top-btn"
+      data-test="studio-new"
+      title="New in this section"
+      aria-label="New in this section"
+      on:click={() => newInSection()}>
+      <sui-icon name="plus" size="xs"></sui-icon>
+    </button>
+
+    <button type="button" class="studio-top-btn"
+      data-test="studio-close"
+      title="Close Studio"
+      aria-label="Close Studio"
+      on:click={() => closeStudio()}>
+      <sui-icon name="x" size="xs"></sui-icon>
+    </button>
+  </div>
+
+  <main class="studio-content" data-test="studio-content"
+    attr:data-section={section()}>
+    {#if section() === 'themes'}
+      <!-- Section keystone: dispatch to the registered section element.
+           Other sections add a `{:else if}` arm here as they land. See
+           controller.ts § "Studio section elements". -->
+      <sui-studio-themes></sui-studio-themes>
+    {:else if section() === 'components'}
+      <sui-studio-components></sui-studio-components>
+    {:else if section() === 'skills'}
+      <sui-studio-skills></sui-studio-skills>
+    {:else}
+      <section class="studio-section">
+        <h1 class="studio-section-h1" data-test="section-title">{sectionTitle()}</h1>
+        <p class="studio-section-sub" data-test="section-sub">{sectionSubtitle()}</p>
+
+        <div class="studio-section-empty">
+          <sui-empty-state variant="placeholder" size="md" data-test="section-empty">
+            <sui-icon slot="icon" name="sparkles"></sui-icon>
+            <span slot="title">Coming soon</span>
+            This section's interior is coming in a follow-up. Other tracks are
+            landing the per-section content.
+          </sui-empty-state>
+        </div>
+      </section>
+    {/if}
+  </main>
+
+</div>

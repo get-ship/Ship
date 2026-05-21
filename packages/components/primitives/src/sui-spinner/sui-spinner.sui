@@ -31,6 +31,7 @@
 <prop name="size" values="xs|sm|md|lg" default="md" reflect />
 <prop name="tone" values="default|primary|info|success|warning|destructive|accent|muted" default="default" reflect />
 <prop name="label" type="string" default="Loading" />
+<prop name="centered" type="bool" default="false" reflect />
 
 <style>
   :host {
@@ -44,6 +45,14 @@
   :host([size='sm']) { --sz: 12px; --bw: 1.5px; }
   :host([size='md']) { --sz: 16px; --bw: 2px; }
   :host([size='lg']) { --sz: 24px; --bw: 2.5px; }
+
+  /* `centered` — block-level wrapper with vertical breathing room.
+   * The 8-place inline pattern `style="margin: var(--space-8) auto;
+   * display: block"` is now a one-attribute opt-in. */
+  :host([centered]) {
+    display: block;
+    margin: var(--space-8) auto;
+  }
 
   .ring {
     display: inline-block;

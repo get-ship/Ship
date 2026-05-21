@@ -1,0 +1,20 @@
+<!--
+  <sui-studio-skills> — the Skills Studio section element.
+
+  Registered as the section keystone: studio/page.sui's content slot
+  renders this element when section() === 'skills'. It reads the URL and
+  routes between the filterable index (no sub) and the SKILL.md detail
+  with inline dry-run (`/studio/skills/<id>`).
+-->
+
+<style>
+  :host { display: block; min-height: 100%; }
+</style>
+
+<div class="studio-skills-root" data-test="studio-skills">
+  {#if detailId()}
+    <sui-skill-detail data-test="skill-detail-host"></sui-skill-detail>
+  {:else}
+    <sui-skills-list data-test="skills-list-host"></sui-skills-list>
+  {/if}
+</div>

@@ -38,7 +38,7 @@ Ship gives you seven primitives. You define them in `.ship/`; the runtime makes 
 - **Artifacts** — typed working files agents read and write
 - **Collections** — structured, queryable data (ADRs, systems, anything you schema)
 - **Pipelines** — declarative multi-step work; the runtime dispatches and routes completion
-- **Views** — daemon-served UI surfaces (Jinja + Datastar) for inspection and authoring
+- **Views** — daemon-served UI surfaces (`.sui`, compiled to ESM on a signal-graph runtime) for inspection and authoring
 - **Triggers** — event-sourced reactions that fire on runtime state changes
 
 ## Smart Skills

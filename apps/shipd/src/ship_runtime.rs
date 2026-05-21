@@ -632,9 +632,9 @@ impl ShipRuntime {
     /// that's where `packages/` and `views/` live.
     ///
     /// Dev-mode override: if the workspace contains a checked-in
-    /// `runtime/bundler.ts`, point the worker at *that* copy instead of
+    /// `packages/deck/bundler/index.ts`, point the worker at *that* copy instead of
     /// the one stashed under `~/.ship/runtime/`. Without this, contributors
-    /// editing `runtime/bundler.ts` in the repo see no effect until
+    /// editing `packages/deck/bundler/index.ts` in the repo see no effect until
     /// they re-run `ship runtime install` — a footgun that has bitten more
     /// than one debugging session.
     pub fn bundler(&self) -> &ship_platform::bundler::Bundler {

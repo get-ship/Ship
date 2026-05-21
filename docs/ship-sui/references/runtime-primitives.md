@@ -1,6 +1,6 @@
 # SUI — Runtime Primitives
 
-All symbols below are re-exported from `packages/sui-runtime/src/index.ts`. Anything not in that barrel is internal.
+All symbols below are re-exported from `packages/sui/runtime/src/index.ts`. Anything not in that barrel is internal.
 
 ## Reactivity
 
@@ -64,7 +64,7 @@ Runtime helpers behind these: `bindIf`, `bindFor`, `bindForSignal`, `bindAwait`,
 <data name="agent" source="ship.agents.detail({id: $scope.selectedId()})" live />
 ```
 
-The compiler turns each `source=` into a literal expression inside `live(() => …)`. The expression must resolve to a `LiveSource<T>` (anything with `.subscribe(sig)`) — every SDK method in `packages/ship-sdk-client/src/index.ts` returns this shape, so `ship.<domain>.<op>(args)` is the idiomatic form. Do **not** hand-roll an `EventSource` in the controller.
+The compiler turns each `source=` into a literal expression inside `live(() => …)`. The expression must resolve to a `LiveSource<T>` (anything with `.subscribe(sig)`) — every SDK method in `packages/deck/sdk-client/src/index.ts` returns this shape, so `ship.<domain>.<op>(args)` is the idiomatic form. Do **not** hand-roll an `EventSource` in the controller.
 
 ```ts
 type LiveState<T> = { kind: 'loading' }
@@ -111,7 +111,7 @@ git restore --staged CHANGE_ME && rm CHANGE_ME  # back to "clean"
 **Adding a new live source** needs three things:
 
 1. **Registry entry** — `apps/shipd/src/services/registry/<domain>.rs` returns the current value synchronously. Dispatcher in `registry.rs` + schema row in `services/schema.rs` keep the catalog honest.
-2. **SDK method** — `packages/ship-sdk-client/src/index.ts` exposes the method returning the SSE source.
+2. **SDK method** — `packages/deck/sdk-client/src/index.ts` exposes the method returning the SSE source.
 3. **(Optional) signal-backed source** — if the data has a tighter wake-up surface than the default `config` kernel namespace, mirror `apps/shipd/src/views/git_signal.rs`: `Signal<Value>` plus a singleton background task that updates it. `sui_sse.rs::is_signal_backed_expr` picks it up by registry name.
 
 ## Mutations — `<form mutation>` and `wireFormMutation`

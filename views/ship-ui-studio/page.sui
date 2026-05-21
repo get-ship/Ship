@@ -15,11 +15,13 @@
       autocomplete="off"
     ></sui-input>
 
-    <div class="studio-filter" role="tablist">
-      <button class="studio-filter-pill" data-active={filterKind() === 'all'} on:click={() => filterKind.set('all')}>All</button>
-      <button class="studio-filter-pill" data-active={filterKind() === 'sui'} on:click={() => filterKind.set('sui')}>Components</button>
-      <button class="studio-filter-pill" data-active={filterKind() === 'view'} on:click={() => filterKind.set('view')}>Views</button>
-    </div>
+    <sui-segmented class="studio-filter" value={filterKind()} size="sm"
+      aria-label="Filter catalog"
+      on:sui-change={(e) => filterKind.set(e.detail.value)}>
+      <sui-segmented-option value="all">All</sui-segmented-option>
+      <sui-segmented-option value="sui">Components</sui-segmented-option>
+      <sui-segmented-option value="view">Views</sui-segmented-option>
+    </sui-segmented>
 
     <nav class="studio-catalog-nav" aria-label="Component catalog">
       {#if loading()}

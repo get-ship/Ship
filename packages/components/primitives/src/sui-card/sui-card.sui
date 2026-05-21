@@ -48,7 +48,7 @@
 <prop name="variant" values="default|outline" default="default" reflect />
 <prop name="padding" values="none|sm|md|lg" default="md" reflect />
 <prop name="interactive" type="bool" default="false" reflect />
-<prop name="accent-bar" type="bool" default="false" reflect />
+<prop name="accent-bar" values="off|hover|static" default="off" reflect />
 <prop name="status-rail" type="bool" default="false" reflect />
 <prop name="fill" type="bool" default="false" reflect />
 
@@ -59,7 +59,9 @@
     background: var(--card);
     color: var(--card-foreground);
     border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
+    --card-radius: var(--radius-lg);
+    border-radius: var(--card-radius);
+    overflow: clip;
     box-shadow: var(--shadow-card-rest);
     --card-px: 20px;
     --card-py: 16px;
@@ -94,23 +96,41 @@
 
   :host([variant='outline']) { background: transparent; box-shadow: none; }
 
+  /* Tone-rail. The rail is only meaningful when a tone is explicitly set
+   * — otherwise --tone-fg resolves to --foreground and we'd draw a
+   * 3-px body-text-coloured stripe (meaningless decoration with the
+   * weight of an emphasis cue). Default tone hides the rail. */
   :host([status-rail]) {
     border-left: 3px solid var(--tone-fg);
-    padding-left: calc(var(--card-px) - 3px);
+    padding-inline-start: calc(var(--card-px) - 3px);
+  }
+  :host([status-rail]:not([tone])),
+  :host([status-rail][tone='default']) {
+    border-left-color: var(--border-strong);
   }
 
-  :host([accent-bar])::before {
+  /* Accent bar. Two modes:
+   *   hover  — fades in on hover (the default, preserves prior behaviour
+   *            on interactive cards).
+   *   static — always-visible at full opacity (right for hero cards,
+   *            print exports, touch contexts where hover never fires).
+   * Bar clips to the card's border-radius via inherit/match — when
+   * `padding="none"` flattens the card, the bar still respects the
+   * top-corner radius via the same token. */
+  :host([accent-bar='hover'])::before,
+  :host([accent-bar='static'])::before {
     content: '';
     position: absolute;
     top: 0; left: 0; right: 0;
     height: 2px;
     background: linear-gradient(90deg, var(--primary), var(--accent));
     opacity: 0;
-    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    border-radius: var(--card-radius) var(--card-radius) 0 0;
     transition: opacity var(--duration-medium) var(--ease-out);
     pointer-events: none;
   }
-  :host([accent-bar]:hover)::before { opacity: 1; }
+  :host([accent-bar='hover']:hover)::before { opacity: 1; }
+  :host([accent-bar='static'])::before { opacity: 1; }
 
   :host([interactive]) { cursor: pointer; -webkit-tap-highlight-color: transparent; }
   :host([interactive]:hover) {

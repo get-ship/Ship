@@ -1,10 +1,11 @@
-{#while-loading of wireCtx}
-  <sui-spinner size="md" style="margin: var(--space-8) auto; display:block"></sui-spinner>
-{/while-loading}
-{#while-error err of wireCtx}
-  <p style="padding:var(--space-4); color:var(--destructive)">{err.message}</p>
-{/while-error}
+{#async wireCtx}
+  {:loading}
+  <sui-spinner size="md" centered></sui-spinner>
 
+  {:error err}
+  <p style="padding:var(--space-4); color:var(--destructive)">{err.message}</p>
+
+  {:ok}
 {#if wireData()}
   <sui-view-chrome title={wireData().agent.name}>
     <sui-segmented slot="actions" value="wire" size="sm">
@@ -34,7 +35,7 @@
           <div class="palette-item">
             <sui-icon name="check-circle" size="xs" style="color:var(--tone-success-fg)"></sui-icon>
             <span class="mono">{s}</span>
-            <span style="margin-left:auto; font-size:10px">wired</span>
+            <span style="margin-left:auto; font-size:var(--text-xs)">wired</span>
           </div>
         {/for}
       {/if}
@@ -81,7 +82,7 @@
         <div attr:class={'node ' + n.kind}
           style:left={`${n.x / 10}%`} style:top={`${n.y / 6}%`}
           style:width={`${n.w / 10}%`} style:min-width={`${n.w * 0.7}px`}
-          attr:data-selected={selectedKind() === n.kind && selectedId() === n.id ? '' : null}
+          attr:data-selected={selectedKind() === n.kind && selectedId() === n.id}
           on:click={() => selectNode(n.kind, n.id)}>
           <div class="node-h"><span class="swatch"></span>
             <span>{n.kind === 'agent' ? 'AGENT' : n.kind === 'skill' ? 'SKILL' : n.kind === 'mcp' ? 'MCP SERVER' : n.kind === 'rule' ? 'RULES' : n.kind === 'perm' ? 'PERMISSIONS' : 'PROVIDER'}</span>
@@ -197,10 +198,11 @@
         <span style="flex:1; font-size:var(--text-xs); color:var(--muted-foreground)">{pickerSelected().length} selected</span>
         <sui-button variant="ghost" size="sm" on:click={closePicker}>Cancel</sui-button>
         <sui-button tone="primary" variant="solid" size="sm"
-          attr:disabled={pickerSelected().length === 0 ? '' : null}
+          attr:disabled={pickerSelected().length === 0}
           on:click={savePicker}>Add</sui-button>
       </sui-toolbar>
     </sui-dialog>
 
   </div>
 {/if}
+{/async}

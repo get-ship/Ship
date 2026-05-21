@@ -136,7 +136,7 @@
   }
   .opt[aria-selected='true'] { font-weight: var(--font-weight-semibold); }
   .opt.hl {
-    background: color-mix(in oklch, var(--tone-ring) 14%, transparent);
+    background: color-mix(in oklch, var(--tone-ring) var(--selected-strength), transparent);
   }
   .empty {
     padding: 8px;

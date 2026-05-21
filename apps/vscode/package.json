@@ -41,7 +41,7 @@
         "sui.serverPath": {
           "type": "string",
           "default": "",
-          "description": "Optional override path to the sui-lsp executable (absolute path or PATH-resolved name). When empty, the extension launches the bundled `@ship/sui-lsp` server module directly."
+          "description": "Optional override path to the sui-lsp executable (absolute path or PATH-resolved name). When empty, the extension launches `sui-lsp` from PATH (install with `just install-dev`)."
         },
         "sui.trace.server": {
           "type": "string",

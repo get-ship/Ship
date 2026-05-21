@@ -14,13 +14,14 @@
 .ship-timeline-scroll { max-height: 28rem; overflow-y: auto; }
 </style>
 
-{#while-loading of ctx}
-  <sui-spinner size="md" style="margin: var(--space-8) auto; display: block"></sui-spinner>
-{/while-loading}
-{#while-error err of ctx}
-  <sui-alert tone="destructive">Failed to load run: {err.message}</sui-alert>
-{/while-error}
+{#async ctx}
+  {:loading}
+  <sui-spinner size="md" centered></sui-spinner>
 
+  {:error err}
+  <sui-alert tone="destructive">Failed to load run: {err.message}</sui-alert>
+
+  {:ok}
 {#if run().slug}
 <div class="ship-view ship-view-run-detail">
   <div class="ship-run-detail-wrap">
@@ -123,3 +124,4 @@
   </div>
 </div>
 {/if}
+{/async}

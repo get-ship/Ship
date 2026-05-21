@@ -22,6 +22,9 @@ import './sui-annotation/sui-annotation-marker.compiled.js'
 import './sui-annotation/sui-annotation-list.compiled.js'
 import './sui-view-chrome/sui-view-chrome.compiled.js'
 import './sui-brand-mark/sui-brand-mark.compiled.js'
+import './sui-shell-bottom/sui-shell-bottom.compiled.js'
+import './sui-blank-canvas/sui-blank-canvas.compiled.js'
+import './sui-help-overlay/sui-help-overlay.compiled.js'
 
 // Single source of truth for slot compositions used by the component
 // picker. Exported so future shell-internal pickers (cmd-bar insert,

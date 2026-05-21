@@ -23,7 +23,7 @@
 -->
 
 <prop name="values" type="string" default="" reflect />
-<prop name="size" values="sm|md" default="sm" reflect />
+<prop name="size" values="sm|md|lg" default="md" reflect />
 
 <style>
   :host { display: inline-flex; vertical-align: middle; }
@@ -40,7 +40,10 @@
     background: color-mix(in oklch, var(--muted-foreground) 28%, transparent);
   }
 
+  :host([size='sm']) .seg { width: 18px; height: 6px; border-radius: 2px; }
+  :host(:not([size])) .seg,
   :host([size='md']) .seg { width: 24px; height: 8px; border-radius: 3px; }
+  :host([size='lg']) .seg { width: 32px; height: 10px; border-radius: 4px; }
 
   .seg[data-state='done']    { background: var(--success); }
   .seg[data-state='failed']  { background: var(--destructive); }

@@ -40,7 +40,11 @@
     --tone-ring: var(--primary);
   }
   :host([hidden]) { display: none; }
-  :host([disabled]) { opacity: 0.5; pointer-events: none; }
+  :host([disabled]) {
+    color: var(--muted-foreground);
+    filter: saturate(0.4);
+    pointer-events: none;
+  }
 
   :host([tone='primary'])     { --tone-ring: var(--primary);     --tone-bg: color-mix(in oklch, var(--primary) 10%, transparent); }
   :host([tone='info'])        { --tone-ring: var(--info);         --tone-bg: color-mix(in oklch, var(--info) 10%, transparent); }
@@ -66,12 +70,12 @@
       background-color var(--duration-fast, 150ms) var(--ease-out, ease-out);
     color: var(--muted-foreground);
     font-family: var(--font-body);
-    font-size: 13px;
+    font-size: var(--text-sm);
     user-select: none;
   }
   .dropzone:focus-visible {
-    outline: 2px solid var(--tone-ring);
-    outline-offset: 2px;
+    outline: var(--focus-ring);
+    outline-offset: var(--focus-ring-offset);
   }
   .dropzone.over {
     border-style: solid;
@@ -103,7 +107,7 @@
     border-radius: var(--radius-sm, 4px);
     background: var(--muted);
     font-family: var(--font-body);
-    font-size: 13px;
+    font-size: var(--text-sm);
     color: var(--foreground);
   }
 
@@ -129,7 +133,7 @@
     padding: 2px;
     line-height: 1;
     border-radius: var(--radius-sm, 4px);
-    font-size: 16px;
+    font-size: var(--text-lg);
     font-family: inherit;
   }
   .remove:hover {
@@ -137,13 +141,13 @@
     background: var(--border);
   }
   .remove:focus-visible {
-    outline: 2px solid var(--tone-ring);
-    outline-offset: 1px;
+    outline: var(--focus-ring);
+    outline-offset: var(--focus-ring-offset);
   }
 
   .error {
     font-family: var(--font-body);
-    font-size: 12px;
+    font-size: var(--text-sm);
     color: var(--destructive);
     margin-top: 4px;
     padding: 0 2px;

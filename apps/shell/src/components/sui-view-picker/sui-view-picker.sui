@@ -73,21 +73,21 @@
     display: flex;
     flex-direction: column;
     gap: 2px;
-    padding: 10px 12px 8px;
-    border-bottom: 1px solid var(--border, #e5e5e5);
+    padding: 10px var(--space-3) var(--space-2);
+    border-bottom: 1px solid var(--border);
     flex-shrink: 0;
   }
   .vp-project-name {
-    font-size: 13px;
+    font-size: var(--text-base);
     font-weight: 600;
-    color: var(--foreground, #111);
+    color: var(--foreground);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
   .vp-project-path {
     font-size: 11px;
-    color: var(--muted-foreground, #888);
+    color: var(--muted-foreground);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -99,25 +99,25 @@
     align-items: center;
     gap: 6px;
     padding: 6px 10px;
-    border-bottom: 1px solid var(--border, #e5e5e5);
+    border-bottom: 1px solid var(--border);
     flex-shrink: 0;
   }
-  .vp-filter sui-icon { color: var(--muted-foreground, #888); flex-shrink: 0; }
+  .vp-filter sui-icon { color: var(--muted-foreground); flex-shrink: 0; }
   .vp-filter input {
     flex: 1;
     appearance: none;
     border: none;
     background: transparent;
-    color: var(--foreground, #111);
+    color: var(--foreground);
     font: inherit;
     font-size: var(--text-sm, 13px);
     outline: none;
     min-width: 0;
   }
-  .vp-filter input::placeholder { color: var(--muted-foreground, #888); }
+  .vp-filter input::placeholder { color: var(--muted-foreground); }
   .vp-count {
     font-size: 11px;
-    color: var(--muted-foreground, #888);
+    color: var(--muted-foreground);
     font-variant-numeric: tabular-nums;
     flex-shrink: 0;
   }
@@ -134,11 +134,11 @@
   .vp-section-h {
     display: flex;
     align-items: center;
-    gap: 4px;
-    padding: 10px 12px 4px;
+    gap: var(--space-1);
+    padding: 10px var(--space-3) var(--space-1);
     font-size: 10px;
     font-weight: 600;
-    color: var(--muted-foreground, #888);
+    color: var(--muted-foreground);
     text-transform: uppercase;
     letter-spacing: 0.06em;
   }
@@ -147,48 +147,48 @@
     margin-left: auto;
     font-weight: 400;
     font-size: 10px;
-    color: var(--muted-foreground, #888);
+    color: var(--muted-foreground);
     text-transform: none;
     letter-spacing: normal;
   }
   .vp-row {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 6px 12px;
+    gap: var(--space-2);
+    padding: 6px var(--space-3);
     cursor: pointer;
     transition: background-color var(--duration-fast, 100ms) var(--ease-out, ease-out);
     user-select: none;
   }
   .vp-row:hover,
   .vp-row.is-cursor {
-    background: color-mix(in oklch, var(--primary, #f97316) 12%, transparent);
+    background: color-mix(in oklch, var(--primary) 12%, transparent);
   }
   .vp-row.is-active {
-    color: var(--primary, #f97316);
+    color: var(--primary);
   }
   .vp-row.is-drag-over {
-    outline: 2px solid var(--primary, #f97316);
+    outline: 2px solid var(--primary);
     outline-offset: -2px;
   }
   .vp-row.is-dragging { opacity: 0.5; }
 
   /* Project rows — the unified picker shows projects above views. */
   .vp-row-project {
-    padding: 8px 12px;
+    padding: var(--space-2) var(--space-3);
   }
   .vp-project-swatch {
     width: 14px;
     height: 14px;
-    border-radius: 4px;
+    border-radius: var(--radius-sm);
     flex-shrink: 0;
     background: color-mix(in oklch, var(--foreground) 18%, transparent);
     border: 1px solid var(--border, transparent);
   }
   .vp-project-swatch.is-active {
-    background: var(--primary, #f97316);
-    border-color: color-mix(in oklch, var(--primary, #f97316) 70%, transparent);
-    box-shadow: 0 0 0 2px color-mix(in oklch, var(--primary, #f97316) 22%, transparent);
+    background: var(--primary);
+    border-color: color-mix(in oklch, var(--primary) 70%, transparent);
+    box-shadow: 0 0 0 2px color-mix(in oklch, var(--primary) 22%, transparent);
   }
   .vp-row-text {
     flex: 1;
@@ -198,14 +198,14 @@
     gap: 1px;
   }
   .vp-row-label {
-    font-size: 13px;
+    font-size: var(--text-base);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
   .vp-row-sub {
     font-size: 11px;
-    color: var(--muted-foreground, #888);
+    color: var(--muted-foreground);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -214,14 +214,14 @@
     min-height: 6px;
   }
   .vp-drop-zone.is-drag-over {
-    background: color-mix(in oklch, var(--primary, #f97316) 18%, transparent);
+    background: color-mix(in oklch, var(--primary) 18%, transparent);
     min-height: 12px;
   }
   .vp-empty {
     padding: 18px;
     text-align: center;
-    color: var(--muted-foreground, #888);
-    font-size: 12px;
+    color: var(--muted-foreground);
+    font-size: var(--text-sm);
   }
 
   /* ── footer ─────────────────────────────────────────────────────── */
@@ -229,17 +229,17 @@
     display: flex;
     align-items: center;
     gap: 6px;
-    padding: 8px 12px;
-    border-top: 1px solid var(--border, #e5e5e5);
+    padding: var(--space-2) var(--space-3);
+    border-top: 1px solid var(--border);
     flex-shrink: 0;
   }
   .vp-install {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
-    color: var(--primary, #f97316);
+    gap: var(--space-1);
+    color: var(--primary);
     text-decoration: none;
-    font-size: 12px;
+    font-size: var(--text-sm);
     font-weight: 500;
   }
   .vp-install:hover { text-decoration: underline; }

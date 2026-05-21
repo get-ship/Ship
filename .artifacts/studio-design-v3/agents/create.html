@@ -1,0 +1,550 @@
+<!doctype html>
+<html lang="en" data-theme="ship-light">
+<head>
+  <meta charset="utf-8" />
+  <title>New agent · Ship</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <link rel="stylesheet" href="../../../sui/ship.css" />
+
+  <script type="importmap">
+  {
+    "imports": {
+      "@ship/sui-runtime": "../../../sui/sui-runtime.js",
+      "@ship/sui-dom":     "../../../sui/sui-dom.js",
+      "@ship/sdk-client":  "../../../sui/sui-sdk-client.js"
+    }
+  }
+  </script>
+  <script type="module" src="../../../sui/sui-components.js"></script>
+
+  <style>
+    html, body { margin: 0; }
+    body {
+      background: var(--background);
+      color: var(--foreground);
+      font-family: var(--font-body);
+      font-size: var(--text-base);
+      line-height: var(--leading-normal);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .create {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 56px var(--space-6) 96px;
+      box-sizing: border-box;
+    }
+
+    .create-back {
+      display: inline-flex; align-items: center; gap: 4px;
+      font-size: 12.5px;
+      color: var(--muted-foreground);
+      text-decoration: none;
+      margin-bottom: var(--space-6);
+      transition: color 120ms;
+    }
+    .create-back:hover { color: var(--foreground); }
+
+    .create-head { margin-bottom: var(--space-7); }
+    .create-title {
+      font-family: var(--heading-font);
+      font-size: var(--text-3xl);
+      font-weight: var(--heading-weight);
+      letter-spacing: var(--heading-tracking);
+      line-height: 1.05;
+      margin: 0 0 var(--space-2);
+    }
+    .create-sub {
+      font-size: 15px;
+      color: var(--muted-foreground);
+      margin: 0;
+      max-width: 64ch;
+      line-height: 1.55;
+    }
+    .create-rule {
+      width: 96px; height: 4px;
+      border-radius: 2px;
+      background: linear-gradient(90deg, var(--primary), transparent);
+      margin-top: var(--space-3);
+    }
+
+    /* ── steps indicator ── */
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0;
+      margin-bottom: var(--space-8);
+      border-top: 1px solid var(--border-subtle);
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    .step {
+      position: relative;
+      padding: var(--space-3) var(--space-4);
+      display: flex; align-items: center; gap: 10px;
+      cursor: pointer;
+      transition: background 120ms;
+      border-right: 1px solid var(--border-subtle);
+    }
+    .step:last-child { border-right: 0; }
+    .step:hover { background: var(--surface-1); }
+    .step-n {
+      width: 22px; height: 22px;
+      border-radius: 50%;
+      display: inline-flex; align-items: center; justify-content: center;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: var(--font-weight-semibold);
+      background: var(--surface-2);
+      color: var(--muted-foreground);
+      flex-shrink: 0;
+      transition: background 120ms, color 120ms;
+    }
+    .step.is-active .step-n {
+      background: var(--primary);
+      color: var(--primary-foreground);
+      box-shadow: 0 0 0 4px var(--tone-primary-ring);
+    }
+    .step.is-done .step-n {
+      background: color-mix(in oklch, var(--success) 18%, transparent);
+      color: var(--success);
+    }
+    .step-l {
+      display: flex; flex-direction: column;
+      gap: 2px;
+      min-width: 0;
+    }
+    .step-l-lbl {
+      font-size: 9.5px;
+      font-weight: var(--font-weight-semibold);
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted-foreground);
+    }
+    .step-l-name {
+      font-size: 13px;
+      font-weight: var(--font-weight-medium);
+      color: var(--foreground);
+    }
+    .step.is-active .step-l-name { color: var(--primary); }
+    .step.is-active::after {
+      content: '';
+      position: absolute;
+      bottom: -1px; left: 0; right: 0;
+      height: 2px;
+      background: var(--primary);
+    }
+
+    /* ── step body ── */
+    .body-h {
+      display: flex; align-items: baseline; justify-content: space-between;
+      gap: var(--space-3);
+      margin-bottom: var(--space-5);
+    }
+    .body-title {
+      font-family: var(--heading-font);
+      font-size: var(--text-xl);
+      font-weight: var(--heading-weight);
+      letter-spacing: var(--heading-tracking);
+      margin: 0;
+      color: var(--foreground);
+    }
+    .body-sub {
+      font-size: 13.5px;
+      color: var(--muted-foreground);
+      margin: 4px 0 0;
+      max-width: 64ch;
+      line-height: 1.5;
+    }
+
+    /* Template gallery */
+    .tpls {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: var(--space-3);
+      margin-bottom: var(--space-8);
+    }
+    @media (min-width: 720px) {
+      .tpls { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    .tpl {
+      display: grid;
+      grid-template-columns: 48px 1fr;
+      gap: var(--space-3);
+      align-items: start;
+      padding: 16px;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      background: var(--surface-1);
+      cursor: pointer;
+      text-align: left;
+      font: inherit;
+      color: var(--foreground);
+      transition: border-color 120ms, background 120ms, box-shadow 120ms;
+    }
+    .tpl:hover {
+      border-color: var(--border);
+      background: var(--background);
+    }
+    .tpl.is-selected {
+      border-color: var(--primary);
+      background: color-mix(in oklch, var(--primary) 5%, var(--surface-1));
+      box-shadow: 0 0 0 2px var(--tone-primary-ring);
+    }
+    .tpl-tile {
+      width: 48px; height: 48px;
+      border-radius: var(--radius-md);
+      display: inline-flex; align-items: center; justify-content: center;
+      color: white;
+      font-family: var(--font-mono);
+      font-size: 19px;
+      font-weight: var(--font-weight-bold);
+      letter-spacing: -0.02em;
+      position: relative;
+      isolation: isolate;
+      box-shadow:
+        inset 0 1px 0 color-mix(in oklch, white 22%, transparent),
+        inset 0 -1px 0 color-mix(in oklch, black 8%, transparent),
+        0 2px 6px color-mix(in oklch, var(--tile-color, var(--primary)) 22%, transparent);
+    }
+    .tpl-tile::before {
+      content: '';
+      position: absolute; inset: 0;
+      border-radius: inherit;
+      background: linear-gradient(160deg, color-mix(in oklch, white 14%, transparent) 0%, transparent 55%);
+      pointer-events: none;
+    }
+    .tpl-body { min-width: 0; }
+    .tpl-name {
+      font-family: var(--heading-font);
+      font-size: 15px;
+      font-weight: var(--heading-weight);
+      letter-spacing: var(--heading-tracking);
+      color: var(--foreground);
+      margin: 0;
+      line-height: 1.2;
+    }
+    .tpl-id {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--muted-foreground);
+      margin-top: 1px;
+    }
+    .tpl-desc {
+      margin: 8px 0 10px;
+      font-size: 13px;
+      color: var(--muted-foreground);
+      line-height: 1.5;
+    }
+    .tpl-wires {
+      display: flex; flex-direction: column; gap: 4px;
+      font-size: 11.5px;
+      color: var(--muted-foreground);
+    }
+    .tpl-wire { display: flex; align-items: center; gap: 6px; }
+    .tpl-wire-label {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted-foreground);
+      width: 56px;
+      flex-shrink: 0;
+    }
+    .tpl-wire-vals {
+      display: inline-flex; gap: 4px; flex-wrap: wrap;
+    }
+    .tpl-wire-vals code {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      padding: 1px 5px;
+      background: var(--surface-2);
+      color: var(--foreground);
+      border-radius: var(--radius-sm);
+    }
+    .tpl.is-selected .tpl-wire-vals code {
+      background: var(--background);
+    }
+
+    /* "Start from blank" card — different aesthetic */
+    .tpl.is-blank {
+      border-style: dashed;
+      background: transparent;
+    }
+    .tpl-blank-tile {
+      width: 48px; height: 48px;
+      border-radius: var(--radius-md);
+      display: inline-flex; align-items: center; justify-content: center;
+      color: var(--muted-foreground);
+      background: var(--surface-1);
+      border: 1px dashed var(--border-subtle);
+    }
+
+    /* ── action bar ── */
+    .actions {
+      display: flex; align-items: center;
+      gap: var(--space-2);
+      padding-top: var(--space-5);
+      border-top: 1px solid var(--border-subtle);
+    }
+    .actions-spacer { flex: 1; }
+    .actions-hint {
+      font-size: 12px;
+      color: var(--muted-foreground);
+      margin-right: var(--space-3);
+    }
+    .actions-hint code {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      padding: 1px 5px;
+      background: var(--muted);
+      border-radius: var(--radius-sm);
+      color: var(--foreground);
+    }
+
+    /* Hue presets */
+    .hue-orange { --tile-color: #d97757; background: #d97757; }
+    .hue-amber  { --tile-color: #c98a2c; background: #c98a2c; }
+    .hue-red    { --tile-color: #b94a4a; background: #b94a4a; }
+    .hue-violet { --tile-color: #7a5cd6; background: #7a5cd6; }
+    .hue-blue   { --tile-color: #4376d6; background: #4376d6; }
+    .hue-teal   { --tile-color: #2a8a8a; background: #2a8a8a; }
+    .hue-green  { --tile-color: #4f9e54; background: #4f9e54; }
+    .hue-pink   { --tile-color: #c25a8e; background: #c25a8e; }
+    .hue-slate  { --tile-color: #5b6878; background: #5b6878; }
+  </style>
+</head>
+<body>
+
+<main class="create">
+
+  <a class="create-back" href="#agents">
+    <sui-icon name="chevron-left" size="xs"></sui-icon>
+    Agents
+  </a>
+
+  <header class="create-head">
+    <h1 class="create-title">New agent</h1>
+    <p class="create-sub">
+      Pick a pre-wired starting point. Templates pre-select skills, MCP servers, and a
+      permission preset — you can change everything in the next steps.
+    </p>
+    <div class="create-rule"></div>
+  </header>
+
+  <!-- Steps indicator -->
+  <nav class="steps" aria-label="Wizard steps">
+    <button class="step is-active" type="button">
+      <span class="step-n">1</span>
+      <span class="step-l">
+        <span class="step-l-lbl">step 1</span>
+        <span class="step-l-name">Template</span>
+      </span>
+    </button>
+    <button class="step" type="button">
+      <span class="step-n">2</span>
+      <span class="step-l">
+        <span class="step-l-lbl">step 2</span>
+        <span class="step-l-name">Identity</span>
+      </span>
+    </button>
+    <button class="step" type="button">
+      <span class="step-n">3</span>
+      <span class="step-l">
+        <span class="step-l-lbl">step 3</span>
+        <span class="step-l-name">Wiring</span>
+      </span>
+    </button>
+    <button class="step" type="button">
+      <span class="step-n">4</span>
+      <span class="step-l">
+        <span class="step-l-lbl">step 4</span>
+        <span class="step-l-name">Review</span>
+      </span>
+    </button>
+  </nav>
+
+  <!-- Step body — Step 1: Template -->
+  <div class="body-h">
+    <h2 class="body-title">Start from a template</h2>
+  </div>
+  <p class="body-sub" style="margin: -16px 0 var(--space-5)">
+    Each template pre-wires a sensible default. Skills, MCP servers, permission preset,
+    and harness preset are seeded; nothing is locked.
+  </p>
+
+  <div class="tpls">
+
+    <button class="tpl is-selected" type="button">
+      <span class="tpl-tile hue-orange">R</span>
+      <div class="tpl-body">
+        <h3 class="tpl-name">Rust workflow</h3>
+        <div class="tpl-id">rust-workflow</div>
+        <p class="tpl-desc">Compile, lint, and test Rust crates. Pairs well with a release pipeline.</p>
+        <div class="tpl-wires">
+          <div class="tpl-wire">
+            <span class="tpl-wire-label">skills</span>
+            <span class="tpl-wire-vals">
+              <code>tdd</code><code>lint</code><code>build</code>
+            </span>
+          </div>
+          <div class="tpl-wire">
+            <span class="tpl-wire-label">mcp</span>
+            <span class="tpl-wire-vals">
+              <code>filesystem</code><code>github</code>
+            </span>
+          </div>
+          <div class="tpl-wire">
+            <span class="tpl-wire-label">preset</span>
+            <span class="tpl-wire-vals"><code>project-write</code></span>
+          </div>
+          <div class="tpl-wire">
+            <span class="tpl-wire-label">harness</span>
+            <span class="tpl-wire-vals"><code>claude</code><code>codex</code></span>
+          </div>
+        </div>
+      </div>
+    </button>
+
+    <button class="tpl" type="button">
+      <span class="tpl-tile hue-blue">D</span>
+      <div class="tpl-body">
+        <h3 class="tpl-name">Doc reviewer</h3>
+        <div class="tpl-id">doc-reviewer</div>
+        <p class="tpl-desc">Reviews PRs and proposes edits for clarity, structure, and missing context.</p>
+        <div class="tpl-wires">
+          <div class="tpl-wire">
+            <span class="tpl-wire-label">skills</span>
+            <span class="tpl-wire-vals">
+              <code>code-review</code><code>format-md</code><code>doc-pdf</code>
+            </span>
+          </div>
+          <div class="tpl-wire">
+            <span class="tpl-wire-label">mcp</span>
+            <span class="tpl-wire-vals"><code>github</code></span>
+          </div>
+          <div class="tpl-wire">
+            <span class="tpl-wire-label">preset</span>
+            <span class="tpl-wire-vals"><code>project-read</code></span>
+          </div>
+          <div class="tpl-wire">
+            <span class="tpl-wire-label">harness</span>
+            <span class="tpl-wire-vals"><code>claude</code></span>
+          </div>
+        </div>
+      </div>
+    </button>
+
+    <button class="tpl" type="button">
+      <span class="tpl-tile hue-green">T</span>
+      <div class="tpl-body">
+        <h3 class="tpl-name">Test runner</h3>
+        <div class="tpl-id">test-runner</div>
+        <p class="tpl-desc">Runs unit + integration suites with auto-retry on flaky failures.</p>
+        <div class="tpl-wires">
+          <div class="tpl-wire">
+            <span class="tpl-wire-label">skills</span>
+            <span class="tpl-wire-vals"><code>tdd</code><code>perf-trace</code></span>
+          </div>
+          <div class="tpl-wire">
+            <span class="tpl-wire-label">mcp</span>
+            <span class="tpl-wire-vals"><code>filesystem</code></span>
+          </div>
+          <div class="tpl-wire">
+            <span class="tpl-wire-label">preset</span>
+            <span class="tpl-wire-vals"><code>project-write</code></span>
+          </div>
+          <div class="tpl-wire">
+            <span class="tpl-wire-label">harness</span>
+            <span class="tpl-wire-vals"><code>claude</code><code>gemini</code></span>
+          </div>
+        </div>
+      </div>
+    </button>
+
+    <button class="tpl" type="button">
+      <span class="tpl-tile hue-violet">E</span>
+      <div class="tpl-body">
+        <h3 class="tpl-name">Data ETL</h3>
+        <div class="tpl-id">etl-runner</div>
+        <p class="tpl-desc">Daily extract + load on warehouse partitions; emits collection.* events.</p>
+        <div class="tpl-wires">
+          <div class="tpl-wire">
+            <span class="tpl-wire-label">skills</span>
+            <span class="tpl-wire-vals"><code>sql-optimize</code><code>db-migrate</code></span>
+          </div>
+          <div class="tpl-wire">
+            <span class="tpl-wire-label">mcp</span>
+            <span class="tpl-wire-vals"><code>postgres</code><code>filesystem</code></span>
+          </div>
+          <div class="tpl-wire">
+            <span class="tpl-wire-label">preset</span>
+            <span class="tpl-wire-vals"><code>project-write</code></span>
+          </div>
+          <div class="tpl-wire">
+            <span class="tpl-wire-label">harness</span>
+            <span class="tpl-wire-vals"><code>claude</code></span>
+          </div>
+        </div>
+      </div>
+    </button>
+
+    <button class="tpl" type="button">
+      <span class="tpl-tile hue-teal">O</span>
+      <div class="tpl-body">
+        <h3 class="tpl-name">Operator</h3>
+        <div class="tpl-id">operator</div>
+        <p class="tpl-desc">Read-mostly ops sentinel. Watches infra, flags anomalies, never writes without ask.</p>
+        <div class="tpl-wires">
+          <div class="tpl-wire">
+            <span class="tpl-wire-label">skills</span>
+            <span class="tpl-wire-vals"><code>threat-model</code></span>
+          </div>
+          <div class="tpl-wire">
+            <span class="tpl-wire-label">mcp</span>
+            <span class="tpl-wire-vals"><code>filesystem</code><code>brave-search</code></span>
+          </div>
+          <div class="tpl-wire">
+            <span class="tpl-wire-label">preset</span>
+            <span class="tpl-wire-vals"><code>ops</code></span>
+          </div>
+          <div class="tpl-wire">
+            <span class="tpl-wire-label">harness</span>
+            <span class="tpl-wire-vals"><code>codex</code></span>
+          </div>
+        </div>
+      </div>
+    </button>
+
+    <button class="tpl is-blank" type="button">
+      <span class="tpl-blank-tile">
+        <sui-icon name="plus" size="md"></sui-icon>
+      </span>
+      <div class="tpl-body">
+        <h3 class="tpl-name" style="color: var(--muted-foreground)">Start from blank</h3>
+        <div class="tpl-id">— no skills, no MCP, no preset</div>
+        <p class="tpl-desc">Skip presets entirely. You'll fill in identity, wiring, and permissions manually.</p>
+      </div>
+    </button>
+
+  </div>
+
+  <!-- Action bar -->
+  <div class="actions">
+    <sui-button variant="ghost" size="sm">
+      <sui-icon slot="leading" name="x" size="xs"></sui-icon>
+      Cancel
+    </sui-button>
+    <span class="actions-spacer"></span>
+    <span class="actions-hint">Saves to <code>.ship/agents/&lt;id&gt;.jsonc</code> on the last step</span>
+    <sui-button tone="primary" variant="solid" size="md">
+      Continue
+      <sui-icon slot="trailing" name="chevron-right" size="xs"></sui-icon>
+    </sui-button>
+  </div>
+
+</main>
+
+</body>
+</html>

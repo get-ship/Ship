@@ -19,11 +19,11 @@
       </div>
     </div>
 
-    {#while-loading of collections}
+    {#async collections}
+      {:loading}
       <div style="padding:var(--space-5);color:var(--muted-foreground)">Loading&hellip;</div>
-    {/while-loading}
-
-    {#if collections().kind === 'ok'}
+    
+      {:ok}
       <div class="data-card-grid">
         {#for c of collections().value.items key={c.id}}
           <a class="data-card" attr:href={'/collections?collection=' + c.id}
@@ -56,10 +56,11 @@
           </a>
         {/for}
       </div>
-    {/if}
+    
+    {/async}
   </div>
 
-  <sui-drawer attr:open={newColOpen() ? '' : null} size="md"
+  <sui-drawer attr:open={newColOpen()} size="md"
     on:sui-close={() => { newColOpen.set(false); drawerError.set('') }}>
     <span slot="title">New collection</span>
     <span slot="description">Define a typed dataset stored in data.db</span>
@@ -82,7 +83,7 @@
     </sui-stack>
     <div slot="footer">
       <sui-button variant="ghost" on:click={() => { newColOpen.set(false); drawerError.set('') }}>Cancel</sui-button>
-      <sui-button tone="accent" variant="solid" on:click={createCollection}>Create collection</sui-button>
+      <sui-button tone="primary" variant="solid" on:click={createCollection}>Create collection</sui-button>
     </div>
   </sui-drawer>
 </div>

@@ -20,11 +20,11 @@
     {/for}
   </div>
 
-  {#while-loading of createCtx}
-    <sui-spinner size="md" style="margin: var(--space-8) auto; display:block"></sui-spinner>
-  {/while-loading}
-
-  {#if createCtx().kind === 'ok'}
+  {#async createCtx}
+    {:loading}
+    <sui-spinner size="md" centered></sui-spinner>
+  
+    {:ok}
 
     {#if step() === 0}
       <h2 class="create-h">Start from a template</h2>
@@ -61,7 +61,7 @@
       <p class="create-sub">A human name plus a machine id. The id matches the filename stem — <code>rust-compiler.jsonc</code> has id <code>rust-compiler</code>.</p>
       <div class="id-grid">
         <div>
-          <div attr:class={'hue-tile ' + 'hue-' + hue()} style="width:64px; height:64px; font-size:24px">
+          <div attr:class={'hue-tile ' + 'hue-' + hue()} style="width:64px; height:64px; font-size:var(--text-2xl)">
             {(id() && id()[0] ? id()[0] : (name() && name()[0] ? name()[0] : '?')).toUpperCase()}
           </div>
           <div class="hue-pick">
@@ -82,7 +82,7 @@
             <div class="field">
               <label>ID</label>
               <sui-input value={id()} on:sui-input={idInput} placeholder="rust-compiler"
-                attr:invalid={!idValid() && id() ? '' : null}
+                attr:invalid={!idValid() && id()}
                 attr:error-message={idError()}
                 data-test="id-input"></sui-input>
               {#if !idValid() && id()}
@@ -181,7 +181,8 @@
       {/if}
     {/if}
 
-  {/if}
+  
+  {/async}
 
   <div class="actions-row">
     {#if step() > 0}
@@ -193,7 +194,7 @@
     <sui-button variant="ghost" size="sm" on:click={cancel}>Cancel</sui-button>
     {#if step() !== 3}
       <sui-button tone="primary" variant="solid" size="sm"
-        attr:disabled={!stepValid() ? '' : null}
+        attr:disabled={!stepValid()}
         on:click={next}
         data-test="continue">
         Continue
@@ -201,7 +202,7 @@
       </sui-button>
     {:else}
       <sui-button tone="primary" variant="solid" size="sm"
-        attr:disabled={creating() || !stepValid() ? '' : null}
+        attr:disabled={creating() || !stepValid()}
         on:click={create}
         data-test="create">
         <sui-icon slot="leading" name="check" size="xs"></sui-icon>

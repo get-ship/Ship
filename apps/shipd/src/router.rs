@@ -39,7 +39,7 @@ pub fn build_router(
     pairing_registry: pairing::SharedPairingRegistry,
     attestation_verifier: attest::AttestationVerifier,
     mcp_ct: CancellationToken,
-    daemon_mode: ship_sui::DaemonMode,
+    daemon_mode: deck::DaemonMode,
 ) -> Router {
     use crate::routes::{Route, ShipRouterExt};
     let kernel_factory = rt.kernel().clone();
@@ -128,13 +128,13 @@ pub fn build_router(
         // phase2-substrate-split merge dropped (originally from 0f679ca0).
         .route("/api/_meta", axum::routing::get({
             let bi = build_info::build_info!();
-            let dbi = ship_sui::DaemonBuildInfo {
+            let dbi = deck::DaemonBuildInfo {
                 cargo: env!("CARGO_PKG_VERSION"),
                 git: bi.git_sha,
                 dirty: bi.git_dirty,
                 built_at: bi.timestamp,
             };
-            move || ship_sui::serve_meta(Some(axum::Extension(dbi)))
+            move || deck::serve_meta(Some(axum::Extension(dbi)))
         }))
         // Shared static assets — no user-specific data, safe to serve unauth.
         .ship_public_route(Route::AssetViewTokensCss, views::serve_view_tokens)
@@ -143,7 +143,7 @@ pub fn build_router(
         // SUI framework hosting — runtime/dom/sdk/components bundles +
         // per-view template/payload/css + data/mutation/patch endpoints.
         // These sit under `/_sui/*` (plus `/view-host` and `/sui/{name}`);
-        // the handlers live in `ship_sui` (asset serving) and
+        // the handlers live in `deck` (asset serving) and
         // `apps/shipd/src/views/sui_*.rs` (project-scoped, state-aware).
         // State plumbs through `with_state(rt.clone())` at the bottom of
         // this builder. HMR routes stay dev-only — see further below.
@@ -155,42 +155,42 @@ pub fn build_router(
         // `/api/assets/sui-custom-elements.json` umbrella. Two
         // projections (workspace = every component, published = only
         // non-private packaged components) emitted by
-        // `bun packages/sui-catalog/src/cli.ts` to
+        // `bun packages/deck/catalog/src/cli.ts` to
         // `.ship/sui-out/catalogs/{workspace,published}.json`.
-        .ship_public_route(Route::SuiCatalogWorkspace, ship_sui::serve_catalog_workspace)
-        .ship_public_route(Route::SuiCatalogPublished, ship_sui::serve_catalog_published)
+        .ship_public_route(Route::SuiCatalogWorkspace, deck::serve_catalog_workspace)
+        .ship_public_route(Route::SuiCatalogPublished, deck::serve_catalog_published)
         // Generalized pack-bundle handler — serves
         // `/_sui/packs/<pack-id>/<bundle>` for any workspace package
         // with a `customElements` field in package.json. Index built
         // lazily by walking the root workspaces glob.
-        .ship_public_route(Route::SuiPackAsset_template(), ship_sui::serve_pack_asset)
-        .ship_public_route(Route::SuiRuntimeJs, ship_sui::serve_sui_runtime)
-        .ship_public_route(Route::SuiDomJs, ship_sui::serve_sui_dom)
-        .ship_public_route(Route::SuiSdkClientJs, ship_sui::serve_sui_sdk_client)
-        .ship_public_route(Route::SuiComponentsJs, ship_sui::serve_sui_components)
-        .ship_public_route(Route::SuiLucideIconsJson, ship_sui::serve_sui_lucide_icons)
-        .ship_public_route(Route::SuiComponentBundle_template(), ship_sui::serve_sui_island)
+        .ship_public_route(Route::SuiPackAsset_template(), deck::serve_pack_asset)
+        .ship_public_route(Route::SuiRuntimeJs, deck::serve_sui_runtime)
+        .ship_public_route(Route::SuiDomJs, deck::serve_sui_dom)
+        .ship_public_route(Route::SuiSdkClientJs, deck::serve_sui_sdk_client)
+        .ship_public_route(Route::SuiComponentsJs, deck::serve_sui_components)
+        .ship_public_route(Route::SuiLucideIconsJson, deck::serve_sui_lucide_icons)
+        .ship_public_route(Route::SuiComponentBundle_template(), deck::serve_sui_island)
         .ship_public_route(
             Route::SuiViewTemplate_template(),
-            ship_sui::serve_sui_view_template,
+            deck::serve_sui_view_template,
         )
         .ship_public_route(
             Route::SuiViewSetup_template(),
-            ship_sui::serve_sui_view_setup,
+            deck::serve_sui_view_setup,
         )
         .ship_public_route(
             Route::SuiViewPayload_template(),
-            ship_sui::serve_view_payload,
+            deck::serve_view_payload,
         )
         .ship_public_route(
             Route::SuiViewCss_template(),
-            ship_sui::serve_sui_view_css,
+            deck::serve_sui_view_css,
         )
         .ship_public_route(Route::SuiViewSse_template(), views::sui_sse::serve_sui_sse)
-        .ship_public_route(Route::SuiViewHost, ship_sui::serve_view_host)
+        .ship_public_route(Route::SuiViewHost, deck::serve_view_host)
         .ship_public_route(
             Route::SuiViewHostForName_template(),
-            ship_sui::serve_view_host,
+            deck::serve_view_host,
         )
         .ship_public_route(Route::SuiData, views::sui_data::serve_data)
         .ship_public_route(
@@ -212,15 +212,15 @@ pub fn build_router(
         // surface (view-host + payload sub-path + studio /sui/{name}/{*sub_path}).
         .route(
             "/_sui/views/{name}/{*sub_path}",
-            axum::routing::get(ship_sui::serve_view_payload_subpath),
+            axum::routing::get(deck::serve_view_payload_subpath),
         )
         .route(
             "/view-host/{*rest}",
-            axum::routing::get(ship_sui::serve_view_host),
+            axum::routing::get(deck::serve_view_host),
         )
         .route(
             "/sui/{name}/{*sub_path}",
-            axum::routing::get(ship_sui::serve_view_host),
+            axum::routing::get(deck::serve_view_host),
         )
         // First-run flow — both routes are unauthenticated so a fresh
         // install can reach the setup wizard before any browser is paired.
@@ -316,7 +316,7 @@ pub fn build_router(
         }))
         .merge(authenticated_routes);
     // HMR routes are development-only; not registered in production mode.
-    if daemon_mode == ship_sui::DaemonMode::Development {
+    if daemon_mode == deck::DaemonMode::Development {
         let hmr_routes: Router<()> = Router::new()
             .ship_public_route(Route::SuiHmr, views::sui_hmr::serve_hmr)
             .ship_public_route(Route::SuiHmrClientJs, views::sui_hmr::serve_hmr_client_js)

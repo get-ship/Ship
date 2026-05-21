@@ -3,8 +3,8 @@ use serde::Deserialize;
 
 #[derive(Deserialize, JsonSchema)]
 pub struct ViewScaffoldRequest {
-    /// View name — used in the suggested path (.ship/views/<name>/) and the
-    /// generated chrome title. Required.
+    /// View name — used in the suggested path (views/<name>/), the route
+    /// (`/<name>`), and the generated view title. Required.
     pub name: String,
     /// Collection id the view operates against. Required for the list,
     /// list-edit-delete, form, and detail shapes.

@@ -5,7 +5,7 @@
   <prop name="disabled" type="bool" default="false" reflect />
   <prop name="loading" type="bool" default="false" reflect />
   <prop name="label" type="string" default="" />
-  <prop name="pressed" type="string" default="" reflect />
+  <prop name="pressed" values="true|false|mixed" default="false" reflect />
   <prop name="expanded" type="string" default="" reflect />
 
   <style>
@@ -114,6 +114,12 @@
     :host([variant='ghost']) button:hover:not(:disabled) {
       background: color-mix(in oklch, var(--tone) 12%, transparent);
     }
+    /* Default-tone ghost hover lightens because `--tone` resolves to
+     * `--foreground` — 12% foreground reads heavy on light themes. */
+    :host([variant='ghost']:not([tone])) button:hover:not(:disabled),
+    :host([variant='ghost'][tone='default']) button:hover:not(:disabled) {
+      background: color-mix(in oklch, var(--tone) 8%, transparent);
+    }
 
     /* Active press — feels clicked across all variants. */
     :host(:not([disabled]):not([loading])) button:active:not(:disabled) {
@@ -124,12 +130,12 @@
       button:active { transform: none !important; }
     }
 
-    /* Focus ring */
+    /* Focus ring — consume the system token. Outline (not stacked
+     * box-shadow) so `forced-colors: active` still draws a system
+     * ring and the ring isn't clipped by neighbouring shadows. */
     button:focus-visible {
-      outline: none;
-      box-shadow:
-        0 0 0 2px var(--background),
-        0 0 0 4px color-mix(in oklch, var(--tone) 55%, transparent);
+      outline: var(--focus-ring);
+      outline-offset: var(--focus-ring-offset);
     }
 
     /* Disabled */

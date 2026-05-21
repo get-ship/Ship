@@ -1,0 +1,838 @@
+<!doctype html>
+<html lang="en" data-theme="ship-light">
+<head>
+  <meta charset="utf-8" />
+  <title>rust-compiler · settings · Ship</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <link rel="stylesheet" href="../../../sui/ship.css" />
+
+  <script type="importmap">
+  {
+    "imports": {
+      "@ship/sui-runtime": "../../../sui/sui-runtime.js",
+      "@ship/sui-dom":     "../../../sui/sui-dom.js",
+      "@ship/sdk-client":  "../../../sui/sui-sdk-client.js"
+    }
+  }
+  </script>
+  <script type="module" src="../../../sui/sui-components.js"></script>
+
+  <style>
+    html, body { margin: 0; }
+    body {
+      background: var(--background);
+      color: var(--foreground);
+      font-family: var(--font-body);
+      font-size: var(--text-base);
+      line-height: var(--leading-normal);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .settings {
+      max-width: 880px;
+      margin: 0 auto;
+      padding: 0 var(--space-6) 96px;
+      box-sizing: border-box;
+    }
+
+    /* sticky save bar */
+    .save-bar {
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      margin: 0 calc(-1 * var(--space-6));
+      padding: 12px var(--space-6);
+      background: color-mix(in oklch, var(--background) 92%, transparent);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex; align-items: center; gap: var(--space-3);
+      margin-bottom: var(--space-7);
+    }
+    .save-back {
+      display: inline-flex; align-items: center; gap: 4px;
+      font-size: 12.5px;
+      color: var(--muted-foreground);
+      text-decoration: none;
+    }
+    .save-back:hover { color: var(--foreground); }
+    .save-bar-title {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      color: var(--foreground);
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .save-bar-state {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 12px;
+      padding: 3px 8px;
+      border-radius: var(--radius-full);
+    }
+    .save-bar-state.is-dirty {
+      background: color-mix(in oklch, var(--warning) 14%, transparent);
+      color: var(--warning);
+    }
+    .save-bar-state.is-clean {
+      background: color-mix(in oklch, var(--success) 14%, transparent);
+      color: var(--success);
+    }
+    .save-bar-state-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+    .save-bar-actions {
+      display: flex; align-items: center; gap: 6px;
+    }
+
+    .settings-pad { padding-top: 28px; }
+
+    /* header */
+    .settings-head {
+      display: grid;
+      grid-template-columns: 64px 1fr;
+      gap: var(--space-4);
+      align-items: start;
+      margin-bottom: var(--space-6);
+    }
+    .settings-tile {
+      width: 64px; height: 64px;
+      border-radius: var(--radius-lg);
+      display: inline-flex; align-items: center; justify-content: center;
+      color: white;
+      font-family: var(--font-mono);
+      font-size: 26px;
+      font-weight: var(--font-weight-bold);
+      letter-spacing: -0.02em;
+      position: relative;
+      isolation: isolate;
+      box-shadow:
+        inset 0 1px 0 color-mix(in oklch, white 22%, transparent),
+        inset 0 -1px 0 color-mix(in oklch, black 8%, transparent),
+        0 3px 10px color-mix(in oklch, var(--tile-color, var(--primary)) 25%, transparent);
+    }
+    .settings-tile::before {
+      content: '';
+      position: absolute; inset: 0;
+      border-radius: inherit;
+      background: linear-gradient(160deg, color-mix(in oklch, white 14%, transparent) 0%, transparent 55%);
+      pointer-events: none;
+    }
+    .settings-head-body { min-width: 0; }
+    .settings-name {
+      font-family: var(--heading-font);
+      font-size: var(--text-2xl);
+      font-weight: var(--heading-weight);
+      letter-spacing: var(--heading-tracking);
+      line-height: 1.1;
+      margin: 0 0 2px;
+    }
+    .settings-meta {
+      font-size: 12.5px;
+      color: var(--muted-foreground);
+    }
+    .settings-meta code {
+      font-family: var(--font-mono);
+      font-size: 11.5px;
+      background: var(--muted);
+      padding: 1px 6px;
+      border-radius: var(--radius-sm);
+      color: var(--foreground);
+    }
+    .settings-rule {
+      width: 80px; height: 4px;
+      border-radius: 2px;
+      background: linear-gradient(90deg, var(--primary), transparent);
+      margin-top: var(--space-3);
+    }
+
+    /* sections */
+    .sec {
+      padding-top: var(--space-6);
+      margin-bottom: var(--space-6);
+      border-top: 1px solid var(--border-subtle);
+    }
+    .sec-h {
+      font-size: 11px;
+      font-weight: var(--font-weight-semibold);
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--muted-foreground);
+      margin: 0 0 var(--space-4);
+    }
+
+    /* form rows */
+    .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: var(--space-4); }
+    .field:last-child { margin-bottom: 0; }
+    .field-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--space-3);
+      margin-bottom: var(--space-4);
+    }
+    .field-label {
+      display: flex; align-items: baseline; gap: 8px;
+      font-size: 12px;
+      font-weight: var(--font-weight-medium);
+      color: var(--foreground);
+    }
+    .field-label-aux {
+      font-size: 11px;
+      font-weight: var(--font-weight-normal);
+      color: var(--muted-foreground);
+      font-family: var(--font-mono);
+    }
+    .field-hint {
+      font-size: 11.5px;
+      color: var(--muted-foreground);
+      margin-top: 2px;
+    }
+    .field-hint code {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      background: var(--muted);
+      padding: 1px 5px;
+      border-radius: var(--radius-sm);
+      color: var(--foreground);
+    }
+    .input {
+      font-family: var(--font-body);
+      font-size: 13.5px;
+      padding: 7px 10px;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      background: var(--background);
+      color: var(--foreground);
+      min-width: 0;
+    }
+    .input:focus {
+      outline: 0;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px var(--tone-primary-ring);
+    }
+    .input.is-mono { font-family: var(--font-mono); }
+    .input.is-readonly {
+      background: var(--muted);
+      color: var(--muted-foreground);
+      cursor: not-allowed;
+    }
+    .textarea {
+      font-family: var(--font-body);
+      font-size: 13.5px;
+      padding: 8px 10px;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      background: var(--background);
+      color: var(--foreground);
+      resize: vertical;
+      min-height: 72px;
+      line-height: 1.5;
+    }
+    .textarea:focus {
+      outline: 0;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px var(--tone-primary-ring);
+    }
+    .textarea.is-mono {
+      font-family: var(--font-mono);
+      font-size: 12.5px;
+      line-height: 1.6;
+    }
+
+    /* tags input — chips inline + add button at end */
+    .tags-input {
+      display: flex; flex-wrap: wrap; gap: 4px;
+      padding: 5px 6px;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      background: var(--background);
+      min-height: 36px;
+      align-items: center;
+    }
+    .tags-input:focus-within {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px var(--tone-primary-ring);
+    }
+    .tag {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 2px 4px 2px 8px;
+      background: var(--surface-2);
+      border-radius: var(--radius-sm);
+      font-size: 12px;
+      color: var(--foreground);
+    }
+    .tag-rm {
+      width: 16px; height: 16px;
+      border: 0; background: transparent;
+      color: var(--muted-foreground);
+      border-radius: 2px;
+      cursor: pointer;
+      font-size: 12px;
+      line-height: 1;
+    }
+    .tag-rm:hover { color: var(--destructive); }
+    .tags-input input {
+      flex: 1; min-width: 80px;
+      border: 0; outline: 0;
+      background: transparent;
+      font: inherit;
+      font-size: 12.5px;
+      color: var(--foreground);
+      padding: 2px 4px;
+    }
+
+    /* hue picker (icon = hue choice) */
+    .hue-picker {
+      display: inline-flex; gap: 6px;
+      padding: 4px;
+      background: var(--surface-1);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+    }
+    .hue-swatch {
+      width: 24px; height: 24px;
+      border-radius: var(--radius-sm);
+      border: 0;
+      cursor: pointer;
+      transition: transform 120ms, box-shadow 120ms;
+      position: relative;
+    }
+    .hue-swatch:hover { transform: scale(1.08); }
+    .hue-swatch.is-selected {
+      box-shadow: 0 0 0 2px var(--background), 0 0 0 4px var(--primary);
+    }
+
+    /* role select pill group (segmented) */
+    .seg {
+      display: inline-flex;
+      padding: 2px;
+      background: var(--surface-1);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      gap: 0;
+    }
+    .seg button {
+      padding: 5px 14px;
+      border: 0; background: transparent;
+      font: inherit;
+      font-size: 12.5px;
+      font-family: var(--font-mono);
+      color: var(--muted-foreground);
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+    }
+    .seg button.is-active {
+      background: var(--background);
+      color: var(--foreground);
+      font-weight: var(--font-weight-semibold);
+      box-shadow: var(--shadow-xs);
+    }
+
+    /* picker rows (skills / mcp) — checkbox + name + desc */
+    .pickr {
+      display: flex; flex-direction: column;
+      gap: 1px;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 6px;
+      max-height: 280px;
+      overflow-y: auto;
+      background: var(--background);
+    }
+    .pickr-row {
+      display: grid;
+      grid-template-columns: 22px 1fr auto;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 8px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: background 120ms;
+    }
+    .pickr-row:hover { background: var(--surface-1); }
+    .pickr-row.is-on { background: color-mix(in oklch, var(--primary) 6%, transparent); }
+    .pickr-check {
+      width: 16px; height: 16px;
+      border-radius: 4px;
+      border: 1.5px solid var(--border);
+      display: inline-flex; align-items: center; justify-content: center;
+      color: white;
+      font-size: 10px;
+    }
+    .pickr-row.is-on .pickr-check {
+      background: var(--primary);
+      border-color: var(--primary);
+    }
+    .pickr-body { min-width: 0; }
+    .pickr-name {
+      font-family: var(--font-mono);
+      font-size: 12.5px;
+      color: var(--foreground);
+    }
+    .pickr-desc {
+      font-size: 11.5px;
+      color: var(--muted-foreground);
+      margin-top: 1px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .pickr-meta {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--muted-foreground);
+    }
+    .pickr-search {
+      display: flex; align-items: center; gap: 6px;
+      padding: 5px 8px;
+      margin-bottom: 4px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    .pickr-search input {
+      flex: 1; border: 0; outline: 0;
+      background: transparent;
+      font-family: var(--font-mono);
+      font-size: 12.5px;
+      color: var(--foreground);
+      min-width: 0;
+    }
+    .pickr-foot {
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 4px 2px;
+      font-size: 11.5px;
+      color: var(--muted-foreground);
+    }
+    .pickr-foot strong {
+      color: var(--foreground);
+      font-weight: var(--font-weight-semibold);
+    }
+
+    /* preset chooser */
+    .preset-list {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .preset-card {
+      padding: 10px 12px;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      background: var(--surface-1);
+      cursor: pointer;
+      transition: border-color 120ms, background 120ms;
+    }
+    .preset-card:hover { border-color: var(--border); }
+    .preset-card.is-on {
+      border-color: var(--primary);
+      background: color-mix(in oklch, var(--primary) 5%, var(--surface-1));
+      box-shadow: 0 0 0 2px var(--tone-primary-ring);
+    }
+    .preset-card-h {
+      display: flex; align-items: center; gap: 8px;
+      margin-bottom: 4px;
+    }
+    .preset-card-name {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      font-weight: var(--font-weight-semibold);
+      color: var(--foreground);
+    }
+    .preset-card-counts {
+      display: inline-flex; gap: 4px;
+      margin-left: auto;
+      font-family: var(--font-mono);
+      font-size: 10px;
+    }
+    .preset-card-counts span {
+      padding: 1px 5px;
+      border-radius: var(--radius-sm);
+    }
+    .pc-allow { background: color-mix(in oklch, var(--success) 14%, transparent); color: var(--success); }
+    .pc-ask   { background: color-mix(in oklch, var(--warning) 16%, transparent); color: var(--warning); }
+    .pc-deny  { background: color-mix(in oklch, var(--destructive) 14%, transparent); color: var(--destructive); }
+    .preset-card-desc {
+      font-size: 12px;
+      color: var(--muted-foreground);
+      line-height: 1.4;
+    }
+
+    /* delta editor link card (light) */
+    .link-card {
+      display: flex; align-items: center; gap: var(--space-3);
+      padding: 14px 16px;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      background: var(--surface-1);
+      cursor: pointer;
+      text-decoration: none;
+      color: inherit;
+      transition: border-color 120ms, background 120ms;
+    }
+    .link-card:hover {
+      border-color: var(--border);
+      background: var(--background);
+    }
+    .link-card-body { flex: 1; }
+    .link-card-h {
+      font-family: var(--heading-font);
+      font-size: 14px;
+      font-weight: var(--heading-weight);
+      margin: 0 0 2px;
+    }
+    .link-card-sub {
+      font-size: 12.5px;
+      color: var(--muted-foreground);
+    }
+
+    /* hue presets */
+    .hue-orange { --tile-color: #d97757; background: #d97757; }
+    .hue-amber  { --tile-color: #c98a2c; background: #c98a2c; }
+    .hue-red    { --tile-color: #b94a4a; background: #b94a4a; }
+    .hue-violet { --tile-color: #7a5cd6; background: #7a5cd6; }
+    .hue-blue   { --tile-color: #4376d6; background: #4376d6; }
+    .hue-teal   { --tile-color: #2a8a8a; background: #2a8a8a; }
+    .hue-green  { --tile-color: #4f9e54; background: #4f9e54; }
+    .hue-pink   { --tile-color: #c25a8e; background: #c25a8e; }
+    .hue-slate  { --tile-color: #5b6878; background: #5b6878; }
+  </style>
+</head>
+<body>
+
+<main class="settings">
+
+  <!-- Sticky save bar -->
+  <div class="save-bar">
+    <a class="save-back" href="#agents/rust-compiler">
+      <sui-icon name="chevron-left" size="xs"></sui-icon>
+      rust-compiler
+    </a>
+    <span class="save-bar-title">.ship/agents/rust-compiler.jsonc</span>
+    <span class="save-bar-state is-dirty">
+      <span class="save-bar-state-dot"></span>
+      2 unsaved
+    </span>
+    <div class="save-bar-actions">
+      <sui-button variant="ghost" size="sm">Discard</sui-button>
+      <sui-button tone="primary" variant="solid" size="sm">
+        <sui-icon slot="leading" name="save" size="xs"></sui-icon>
+        Save
+      </sui-button>
+    </div>
+  </div>
+
+  <div class="settings-pad"></div>
+
+  <header class="settings-head">
+    <span class="settings-tile hue-orange">R</span>
+    <div class="settings-head-body">
+      <h1 class="settings-name">Settings</h1>
+      <div class="settings-meta">Editing <code>rust-compiler</code> — Ship-managed fields are filtered out of pass-through forms.</div>
+      <div class="settings-rule"></div>
+    </div>
+  </header>
+
+  <!-- ── IDENTITY ── -->
+  <section class="sec" style="border-top:0;padding-top:0">
+    <h2 class="sec-h">Identity</h2>
+
+    <div class="field-row">
+      <div class="field">
+        <label class="field-label">Name</label>
+        <input class="input" value="Rust Compiler" />
+      </div>
+      <div class="field">
+        <label class="field-label">ID <span class="field-label-aux">filename stem · immutable</span></label>
+        <input class="input is-mono is-readonly" value="rust-compiler" readonly />
+      </div>
+    </div>
+
+    <div class="field-row">
+      <div class="field">
+        <label class="field-label">Version <span class="field-label-aux">semver</span></label>
+        <input class="input is-mono" value="0.4.2" />
+      </div>
+      <div class="field">
+        <label class="field-label">Role</label>
+        <div class="seg" role="tablist">
+          <button class="is-active" type="button">worker</button>
+          <button type="button">lead</button>
+          <button type="button">commander</button>
+        </div>
+        <span class="field-hint">Drives default <code>tools_preset</code> when unset.</span>
+      </div>
+    </div>
+
+    <div class="field">
+      <label class="field-label">Description</label>
+      <textarea class="textarea">Compiles Rust workspaces, reports clippy spans inline, and blocks PRs on warnings. Pairs with test-runner on the release pipeline so a failing test surfaces against the same diagnostic surface as a failing build.</textarea>
+    </div>
+
+    <div class="field-row">
+      <div class="field">
+        <label class="field-label">Tags <span class="field-label-aux">for registry discovery</span></label>
+        <div class="tags-input">
+          <span class="tag">workflow <button class="tag-rm" type="button">×</button></span>
+          <span class="tag">rust <button class="tag-rm" type="button">×</button></span>
+          <span class="tag">build <button class="tag-rm" type="button">×</button></span>
+          <span class="tag">review <button class="tag-rm" type="button">×</button></span>
+          <input placeholder="add tag…" />
+        </div>
+      </div>
+      <div class="field">
+        <label class="field-label">Icon hue</label>
+        <div class="hue-picker">
+          <button class="hue-swatch hue-orange is-selected" type="button" aria-label="orange"></button>
+          <button class="hue-swatch hue-amber" type="button" aria-label="amber"></button>
+          <button class="hue-swatch hue-red" type="button" aria-label="red"></button>
+          <button class="hue-swatch hue-violet" type="button" aria-label="violet"></button>
+          <button class="hue-swatch hue-blue" type="button" aria-label="blue"></button>
+          <button class="hue-swatch hue-teal" type="button" aria-label="teal"></button>
+          <button class="hue-swatch hue-green" type="button" aria-label="green"></button>
+          <button class="hue-swatch hue-pink" type="button" aria-label="pink"></button>
+          <button class="hue-swatch hue-slate" type="button" aria-label="slate"></button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── SKILLS ── -->
+  <section class="sec">
+    <h2 class="sec-h">Skills <span style="font-family:var(--font-mono);font-weight:normal;text-transform:none;letter-spacing:0;color:var(--muted-foreground)">· 3 of 14 selected</span></h2>
+    <div class="pickr">
+      <div class="pickr-search">
+        <sui-icon name="search" size="xs" tone="muted"></sui-icon>
+        <input placeholder="Filter skills…" />
+      </div>
+      <div class="pickr-row is-on">
+        <span class="pickr-check">✓</span>
+        <div class="pickr-body">
+          <div class="pickr-name">tdd</div>
+          <div class="pickr-desc">Use when implementing new behaviour — write failing test first.</div>
+        </div>
+        <span class="pickr-meta">v 1.2</span>
+      </div>
+      <div class="pickr-row is-on">
+        <span class="pickr-check">✓</span>
+        <div class="pickr-body">
+          <div class="pickr-name">lint</div>
+          <div class="pickr-desc">Apply clippy lints with project-defined severity overrides.</div>
+        </div>
+        <span class="pickr-meta">v 0.8</span>
+      </div>
+      <div class="pickr-row is-on">
+        <span class="pickr-check">✓</span>
+        <div class="pickr-body">
+          <div class="pickr-name">build</div>
+          <div class="pickr-desc">Cargo build with cache-aware artifact upload to run scope.</div>
+        </div>
+        <span class="pickr-meta">v 2.0</span>
+      </div>
+      <div class="pickr-row">
+        <span class="pickr-check"></span>
+        <div class="pickr-body">
+          <div class="pickr-name">code-review</div>
+          <div class="pickr-desc">Use when reading diffs — comments on intent drift, edge cases, missing tests.</div>
+        </div>
+        <span class="pickr-meta">v 1.4</span>
+      </div>
+      <div class="pickr-row">
+        <span class="pickr-check"></span>
+        <div class="pickr-body">
+          <div class="pickr-name">perf-trace</div>
+          <div class="pickr-desc">Use when a benchmark regresses — annotate the slow span.</div>
+        </div>
+        <span class="pickr-meta">v 0.2</span>
+      </div>
+      <div class="pickr-row">
+        <span class="pickr-check"></span>
+        <div class="pickr-body">
+          <div class="pickr-name">format-md</div>
+          <div class="pickr-desc">Normalize markdown — heading levels, table alignment, fences.</div>
+        </div>
+        <span class="pickr-meta">v 1.1</span>
+      </div>
+    </div>
+    <div class="pickr-foot">
+      <span><strong>3</strong> selected</span>
+      <span>·</span>
+      <span>11 available</span>
+      <span style="margin-left:auto">refs stored as id strings in <code style="font-family:var(--font-mono);font-size:11px;background:var(--muted);padding:1px 5px;border-radius:var(--radius-sm);color:var(--foreground)">skills.refs[]</code></span>
+    </div>
+  </section>
+
+  <!-- ── MCP ── -->
+  <section class="sec">
+    <h2 class="sec-h">MCP servers <span style="font-family:var(--font-mono);font-weight:normal;text-transform:none;letter-spacing:0;color:var(--muted-foreground)">· 2 of 5 active</span></h2>
+    <div class="pickr">
+      <div class="pickr-row is-on">
+        <span class="pickr-check">✓</span>
+        <div class="pickr-body">
+          <div class="pickr-name">filesystem</div>
+          <div class="pickr-desc">Sandboxed FS read/write for the active workspace root.</div>
+        </div>
+        <span class="pickr-meta">stdio · project</span>
+      </div>
+      <div class="pickr-row is-on">
+        <span class="pickr-check">✓</span>
+        <div class="pickr-body">
+          <div class="pickr-name">github</div>
+          <div class="pickr-desc">Issues, PRs, repo metadata via GitHub REST + GraphQL.</div>
+        </div>
+        <span class="pickr-meta">http · global</span>
+      </div>
+      <div class="pickr-row">
+        <span class="pickr-check"></span>
+        <div class="pickr-body">
+          <div class="pickr-name">postgres</div>
+          <div class="pickr-desc">Read-only SQL on the warehouse replica; rejects DDL.</div>
+        </div>
+        <span class="pickr-meta">stdio · project</span>
+      </div>
+      <div class="pickr-row">
+        <span class="pickr-check"></span>
+        <div class="pickr-body">
+          <div class="pickr-name">brave-search</div>
+          <div class="pickr-desc">Web search; cached results, rate-limited per workspace.</div>
+        </div>
+        <span class="pickr-meta">http · global</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── PERMISSIONS ── -->
+  <section class="sec">
+    <h2 class="sec-h">Permissions</h2>
+
+    <div class="field">
+      <label class="field-label">Preset <span class="field-label-aux">base tier · merged on top of</span></label>
+      <div class="preset-list">
+        <button class="preset-card" type="button">
+          <div class="preset-card-h">
+            <span class="preset-card-name">project-read</span>
+            <div class="preset-card-counts">
+              <span class="pc-allow">3</span><span class="pc-ask">2</span><span class="pc-deny">3</span>
+            </div>
+          </div>
+          <p class="preset-card-desc">Read-only on the project. Safe for review/inspect agents.</p>
+        </button>
+        <button class="preset-card is-on" type="button">
+          <div class="preset-card-h">
+            <span class="preset-card-name">project-write</span>
+            <div class="preset-card-counts">
+              <span class="pc-allow">7</span><span class="pc-ask">3</span><span class="pc-deny">2</span>
+            </div>
+          </div>
+          <p class="preset-card-desc">Read + write within the project; ask for shell side-effects.</p>
+        </button>
+        <button class="preset-card" type="button">
+          <div class="preset-card-h">
+            <span class="preset-card-name">ops</span>
+            <div class="preset-card-counts">
+              <span class="pc-allow">3</span><span class="pc-ask">2</span><span class="pc-deny">4</span>
+            </div>
+          </div>
+          <p class="preset-card-desc">Operator preset — production reads + advisory writes only.</p>
+        </button>
+        <button class="preset-card" type="button">
+          <div class="preset-card-h">
+            <span class="preset-card-name">dangerous</span>
+            <div class="preset-card-counts">
+              <span class="pc-allow">1</span><span class="pc-ask">0</span><span class="pc-deny">0</span>
+            </div>
+          </div>
+          <p class="preset-card-desc">Unrestricted. One-off escape hatches only.</p>
+        </button>
+      </div>
+    </div>
+
+    <div class="field" style="margin-top: var(--space-4)">
+      <a class="link-card" href="#agents/rust-compiler/permissions">
+        <sui-icon name="shield" size="md" tone="muted"></sui-icon>
+        <div class="link-card-body">
+          <div class="link-card-h">Edit override matrix →</div>
+          <div class="link-card-sub">Add or remove allow / ask / deny patterns on top of the preset (4 additions, 1 override today).</div>
+        </div>
+      </a>
+    </div>
+  </section>
+
+  <!-- ── RULES ── -->
+  <section class="sec">
+    <h2 class="sec-h">Rules</h2>
+
+    <div class="field">
+      <label class="field-label">Files <span class="field-label-aux">.ship/rules/*.md · always-on context</span></label>
+      <div class="pickr" style="max-height:160px">
+        <div class="pickr-row is-on">
+          <span class="pickr-check">✓</span>
+          <div class="pickr-body">
+            <div class="pickr-name">style.md</div>
+            <div class="pickr-desc">Project-wide style + naming conventions.</div>
+          </div>
+        </div>
+        <div class="pickr-row is-on">
+          <span class="pickr-check">✓</span>
+          <div class="pickr-body">
+            <div class="pickr-name">git-flow.md</div>
+            <div class="pickr-desc">Branching, PR titling, merge policy.</div>
+          </div>
+        </div>
+        <div class="pickr-row is-on">
+          <span class="pickr-check">✓</span>
+          <div class="pickr-body">
+            <div class="pickr-name">rust-patterns.md</div>
+            <div class="pickr-desc">Preferred idioms, allocation-aware patterns, error handling.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="field">
+      <label class="field-label">Inline rules <span class="field-label-aux">appended after files · supports \\n</span></label>
+      <textarea class="textarea is-mono" rows="4">When the diff touches crates/runtime/, always run cargo test --workspace --all-features.
+Never silence clippy::pedantic at the crate level — annotate at the call site instead.</textarea>
+      <span class="field-hint">Concatenated to the agent's system prompt at compile time.</span>
+    </div>
+  </section>
+
+  <!-- ── HARNESS SETTINGS ── -->
+  <section class="sec">
+    <h2 class="sec-h">Harness settings</h2>
+    <a class="link-card" href="#agents/rust-compiler#harness-settings">
+      <sui-icon name="sliders" size="md" tone="muted"></sui-icon>
+      <div class="link-card-body">
+        <div class="link-card-h">Open delta editor →</div>
+        <div class="link-card-sub">Per-harness overrides (claude · codex · gemini · cursor · opencode), schema-typed picker, optional raw JSON. Currently 2 overrides on <code style="font-family:var(--font-mono);font-size:11px;background:var(--muted);padding:1px 5px;border-radius:var(--radius-sm);color:var(--foreground)">claude</code>.</div>
+      </div>
+    </a>
+  </section>
+
+  <!-- ── SOURCE ── -->
+  <section class="sec">
+    <h2 class="sec-h">Source</h2>
+    <pre style="font-family:var(--font-mono);font-size:12px;line-height:1.6;background:var(--muted);padding:14px 16px;border-radius:var(--radius-md);margin:0;overflow-x:auto"><span style="color:var(--muted-foreground)">// .ship/agents/rust-compiler.jsonc</span>
+{
+  "agent": {
+    "name": "Rust Compiler",
+    "id": "rust-compiler",
+    "version": "0.4.2",
+    "description": "Compiles Rust workspaces…",
+    "tags": ["workflow", "rust", "build", "review"],
+    "role": "worker"
+  },
+  "skills":      { "refs": ["tdd", "lint", "build"] },
+  "mcp":         { "servers": ["filesystem", "github"] },
+  "permissions": { "preset": "project-write", "tools_allow": [<span style="color:var(--muted-foreground)">/* … */</span>] },
+  "rules":       { "inline": "<span style="color:var(--muted-foreground)">…</span>" }
+}</pre>
+  </section>
+
+</main>
+
+</body>
+</html>

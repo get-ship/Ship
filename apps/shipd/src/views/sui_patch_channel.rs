@@ -16,7 +16,7 @@
 //!
 //! The publish side requires `Scope::Full` (enforced upstream). The
 //! frames flowing through here are SSE-formatted text — the runtime
-//! handler in `packages/sui-dom/src/attach.ts` is responsible for
+//! handler in `packages/sui/dom/src/attach.ts` is responsible for
 //! validating selectors and applying patches against the view-scoped
 //! root. This registry is a transport, not a policy enforcer.
 

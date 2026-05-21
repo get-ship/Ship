@@ -21,7 +21,7 @@
     display: flex;
     align-items: center;
     gap: var(--space-2, 8px);
-    padding: 4px var(--space-3, 12px);
+    padding: var(--space-1) var(--space-3, 12px);
     border-bottom: 1px solid var(--border);
     background: var(--sidebar);
     color: var(--muted-foreground);
@@ -34,7 +34,7 @@
     color: var(--foreground);
     border: 1px solid var(--border);
     border-radius: var(--radius-sm, 4px);
-    padding: 2px 8px;
+    padding: 2px var(--space-2);
     font: inherit;
     flex: 1;
     max-width: 280px;
@@ -59,7 +59,7 @@
     background: transparent;
     border: 1px solid var(--border);
     border-radius: var(--radius-sm, 4px);
-    padding: 1px 8px;
+    padding: 1px var(--space-2);
     font: inherit;
     font-size: 10px;
     color: var(--muted-foreground);
@@ -69,7 +69,7 @@
   .panel {
     padding: 0 var(--space-3, 12px) 10px calc(var(--space-3, 12px) + 14px);
     display: grid;
-    gap: 8px;
+    gap: var(--space-2);
     font-size: var(--text-xs);
     color: var(--muted-foreground);
   }
@@ -84,7 +84,7 @@
     font-size: 11px;
     overflow-x: auto;
   }
-  .attrs { display: grid; grid-template-columns: auto 1fr; gap: 2px 12px; }
+  .attrs { display: grid; grid-template-columns: auto 1fr; gap: 2px var(--space-3); }
   .attrs dt { font-family: var(--font-mono); color: var(--foreground); }
   .attrs dd { margin: 0; }
 </style>

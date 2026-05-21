@@ -20,7 +20,7 @@ mod view_contexts;
 const VERSION: &str = "0.1.0";
 const HEADER: &str = "just gen-sdk — DO NOT EDIT";
 
-/// Entry point. Creates `packages/sdk/src/generated/` if missing and writes
+/// Entry point. Creates `packages/deck/sdk/src/generated/` if missing and writes
 /// the JSON artifacts alongside the typed TS bindings. Each is a complete
 /// top-level object with `_generated`, `version`, and `$schema`.
 pub fn run(repo_root: &Path) -> Result<()> {

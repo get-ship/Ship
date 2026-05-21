@@ -181,7 +181,7 @@ views/<name>/
 The compiler emits `<file>.sui.d.ts` into the `.ship/sui-out/` mirror tree (not next to the source). Component files use the same directory-pairing convention. The file IS the component; the directory name IS the tag; shadow is always on; `<prop>` directives at the top declare the element's API:
 
 ```
-packages/ui-components/src/sui-button/
+packages/components/ui-components/src/sui-button/
   sui-button.sui            # template + <prop> directives
   sui-button.controller.ts  # controller(def) (only if needed)
   sui-button.css            # extracted styles (optional)

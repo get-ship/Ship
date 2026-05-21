@@ -9,6 +9,8 @@
       "apps/gateway",
       "packages/*",
       "packages/components/*",
+      "packages/deck/*",
+      "packages/sui/*",
       "apps/workers/*"
     ],
     "catalog": {
@@ -32,14 +34,14 @@
     "workerd"
   ],
   "scripts": {
-    "build:bundles": "bun run runtime/bundler.ts --all",
+    "build:bundles": "bun run packages/deck/bundler/index.ts --all",
     "test:rust": "cargo test",
     "wasm": "wasm-pack build crates/core/compiler --target web --out-dir ../../../packages/compiler --out-name compiler -- --features wasm",
     "lint": "vp lint",
     "lint:fix": "vp lint --fix",
     "test:e2e": "playwright test --config tests/e2e/playwright.config.ts",
     "test:e2e:visual": "node node_modules/@playwright/test/cli.js test --config tests/e2e/visual/playwright.config.ts",
-    "test:parity": "node packages/sui-runtime/fixtures/e2e/parity.mjs"
+    "test:parity": "node packages/sui/runtime/fixtures/e2e/parity.mjs"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "^1.25.1",

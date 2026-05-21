@@ -28,19 +28,24 @@
   ─────────────────────────────────────────────────────────────────────────────
 -->
 
-<prop name="tone" values="info|success|warning|destructive|muted" default="info" reflect />
+<prop name="tone" values="default|info|success|warning|destructive|muted" default="default" reflect />
 <prop name="dismissible" type="bool" default="false" reflect />
 
 <style>
   :host {
     display: block;
-    --tone: var(--info);
-    --tone-fg: var(--info);
-    --alert-bg: color-mix(in oklch, var(--tone) 12%, var(--background));
-    --alert-border: color-mix(in oklch, var(--tone) 30%, transparent);
+    /* Default tone — neutral "heads-up" banner. The runtime's adopted
+     * tones.css sets --tone / --tone-fg per [tone=...] selector; these
+     * fallbacks fire when no tone attr is present (the catalog's
+     * `default` value). */
+    --tone: var(--foreground);
+    --tone-fg: var(--foreground);
+    --alert-bg: color-mix(in oklch, var(--tone) 8%, var(--background));
+    --alert-border: color-mix(in oklch, var(--tone) 25%, transparent);
   }
   :host([hidden]) { display: none; }
 
+  :host([tone='info'])        { --tone: var(--info);             --tone-fg: var(--info); }
   :host([tone='success'])     { --tone: var(--success);          --tone-fg: var(--success); }
   :host([tone='warning'])     { --tone: var(--warning);          --tone-fg: var(--warning); }
   :host([tone='destructive']) { --tone: var(--destructive);      --tone-fg: var(--destructive); }
@@ -57,7 +62,7 @@
     background: var(--alert-bg);
     color: var(--tone-fg);
     font-family: var(--font-body);
-    font-size: 13px;
+    font-size: var(--text-sm);
     line-height: 1.5;
   }
 
@@ -68,9 +73,12 @@
     min-width: 0;
   }
 
-  .title { font-weight: 600; }
-
-  .body { color: var(--foreground); }
+  /* Title + body both speak in tone — the surface carries one voice,
+   * not two. Prior split (title=tone-fg, body=foreground) read as
+   * mixed signal. Tone-fg defaults to foreground for the default tone,
+   * so the unset-tone case still looks neutral. */
+  .title { font-weight: 600; color: var(--tone-fg); }
+  .body { color: var(--tone-fg); }
 
   .actions {
     display: flex;
@@ -84,18 +92,25 @@
     border: 0;
     color: inherit;
     cursor: pointer;
-    font-size: 14px;
-    padding: 2px 6px;
-    border-radius: 4px;
+    padding: 4px;
+    width: 24px;
+    height: 24px;
+    border-radius: var(--radius-sm);
     align-items: center;
     justify-content: center;
     line-height: 1;
+    flex-shrink: 0;
   }
+  .close svg { width: 100%; height: 100%; display: block; }
   :host([dismissible]) .close {
     display: inline-flex;
   }
   .close:hover {
     background: color-mix(in oklch, var(--tone-fg) 12%, transparent);
+  }
+  .close:focus-visible {
+    outline: var(--focus-ring);
+    outline-offset: var(--focus-ring-offset);
   }
 
   ::slotted([slot='icon']) { display: inline-flex; }
@@ -112,5 +127,10 @@
     <div class="body"><slot></slot></div>
     <div class="actions"><slot name="actions"></slot></div>
   </div>
-  <button class="close" part="close" aria-label="Dismiss" bind:this={closeBtn}>&#215;</button>
+  <button class="close" part="close" type="button" aria-label="Dismiss" bind:this={closeBtn}>
+    <svg viewBox="0 0 10 10" aria-hidden="true">
+      <path d="M2 2 L8 8 M8 2 L2 8" stroke="currentColor"
+            stroke-width="1.75" stroke-linecap="round" fill="none"/>
+    </svg>
+  </button>
 </div>

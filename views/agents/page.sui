@@ -7,12 +7,19 @@
       <div class="agents-head-titles">
         <h1 class="agents-title">Agents</h1>
         <p class="agents-sub">
-          {filteredItems().length} of {items().length} agent{items().length === 1 ? '' : 's'}
+          <strong>{items().length}</strong> agent{items().length === 1 ? '' : 's'}
+          <span class="agents-sub-sep" aria-hidden="true"></span>
+          <strong>{kindFilters()[1].count}</strong> project
+          <span class="agents-sub-sep" aria-hidden="true"></span>
+          <strong>{kindFilters()[2].count}</strong> library
+          <span class="agents-sub-sep" aria-hidden="true"></span>
+          <code class="agents-sub-code">.ship/agents/</code>
           {#if activeId()}
-            <span class="agents-sub-sep">·</span>
+            <span class="agents-sub-sep" aria-hidden="true"></span>
             <span class="agents-sub-active" data-test="active-summary">active: {activeId()}</span>
           {/if}
         </p>
+        <div class="agents-rule" aria-hidden="true"></div>
       </div>
       <sui-button tone="primary" variant="solid" on:click={goCreate} data-test="cta-new">
         <sui-icon slot="leading" name="plus"></sui-icon>
@@ -36,20 +43,18 @@
           </button>
         {/if}
       </div>
-      <div class="agents-pills" role="group" aria-label="Filter by source">
+      <sui-segmented value={kind()} size="sm" aria-label="Filter by source"
+        on:sui-change={(e) => kind.set(e.detail.value)}>
         {#for f of kindFilters() key={f.id}}
-          <button type="button" class="agents-pill"
-            class:is-active={kind() === f.id}
-            data-test="filter"
-            attr:data-filter={f.id}
-            on:click={() => kind.set(f.id)}>
-            {f.label} <span class="agents-pill-count">{f.count}</span>
-          </button>
+          <sui-segmented-option attr:value={f.id} data-test="filter" attr:data-filter={f.id}>
+            {f.label}
+          </sui-segmented-option>
         {/for}
-      </div>
+      </sui-segmented>
     </div>
 
-    {#while-loading of agents}
+    {#async agents}
+      {:loading}
       <div class="agents-grid" data-test="loading" role="status" aria-live="polite" aria-busy="true" aria-label="Loading agents">
         {#for n of [0,1,2,3,4,5] key={n}}
           <div class="agents-skel-card" aria-hidden="true">
@@ -62,16 +67,14 @@
           </div>
         {/for}
       </div>
-    {/while-loading}
-
-    {#while-error err of agents}
+    
+      {:error err}
       <sui-error-state title="Couldn't load agents" data-test="error" role="alert" aria-live="assertive">
         {err.message}
         <sui-button slot="action" tone="primary" variant="solid" on:click={() => window.location.reload()}>Retry</sui-button>
       </sui-error-state>
-    {/while-error}
-
-    {#if agents().kind === 'ok'}
+    
+      {:ok}
       {#if items().length === 0}
         <sui-empty-state icon="sparkles" variant="default" size="sm" data-test="empty" role="status">
           <span slot="title">No agents yet</span>
@@ -99,8 +102,8 @@
                             class="agents-card-tile"
                             data-test="agent"
                             attr:data-id={a.id}
-                            attr:data-active={a.active ? '' : null}>
-              <div class="agents-card-icon-tile" slot="leading">
+                            attr:data-active={a.active}>
+              <div class={'agents-card-icon-tile hue-' + a.hue} slot="leading" aria-hidden="true" data-test="hue-tile">
                 <span class="agents-card-letter">{a.letter}</span>
               </div>
               <div class="agents-card-body">
@@ -144,7 +147,7 @@
                           slot="leading"
                           tone={agentStatus()[a.id] === 'errored' ? 'destructive' : agentStatus()[a.id] === 'completed' ? 'success' : 'primary'}
                           size="sm"
-                          attr:pulse={agentStatus()[a.id] === 'running' ? '' : null}
+                          attr:pulse={agentStatus()[a.id] === 'running'}
                           label={agentStatus()[a.id]}></sui-status-dot>
                       {agentStatus()[a.id]}
                     </sui-chip>
@@ -161,7 +164,8 @@
           {/for}
         </div>
       {/if}
-    {/if}
+    
+    {/async}
 
   </div>
 </div>

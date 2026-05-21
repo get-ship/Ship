@@ -714,10 +714,11 @@ impl ShipServer {
     }
 
     #[tool(
-        description = "Generate a starter Ship view template for a given shape. Returns Jinja source \
-        + manifest JSON — the caller writes them. Prefer this over authoring a view from scratch; \
-        idioms stay consistent. \
-        Args: name (required), collection (required for list/form/detail shapes), \
+        description = "Generate a starter SUI view for a given shape. Returns a `.sui` page, an \
+        optional `controller.ts`, and a `manifest.jsonc` as strings (the caller writes them to \
+        views/<name>/). Prefer this over authoring a view from scratch; idioms stay consistent \
+        with the compiler + sui-lsp. Run sui_diagnostics on the written page before declaring done. \
+        Args: name (required), collection (required for list/list-edit-delete/form/detail shapes), \
         shape ('blank'|'list'|'list-edit-delete'|'form'|'detail'|'tabs', default 'blank')."
     )]
     async fn scaffold_view(

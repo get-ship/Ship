@@ -40,13 +40,13 @@
      black blobs that disappear against a dark --background (the
      original mix-with-black variants were invisible on console theme).
      Tint pulls toward --background for highlight pops. */
-  .c-base            { fill: color-mix(in oklch, var(--primary, #f59e0b) 14%, var(--background, #fff)); }
-  .c-primary         { fill: var(--primary, #f59e0b); }
-  .c-primary-deep    { fill: color-mix(in oklch, var(--primary, #f59e0b) 88%, var(--foreground, #111)); }
-  .c-primary-dark    { fill: color-mix(in oklch, var(--primary, #f59e0b) 78%, var(--foreground, #111)); }
-  .c-primary-darker  { fill: color-mix(in oklch, var(--primary, #f59e0b) 65%, var(--foreground, #111)); }
-  .c-primary-tint    { fill: color-mix(in oklch, var(--primary, #f59e0b) 75%, var(--background, #fff)); }
-  .c-highlight       { fill: color-mix(in oklch, var(--primary, #f59e0b) 35%, var(--background, #fff)); }
+  .c-base            { fill: color-mix(in oklch, var(--primary) 14%, var(--background)); }
+  .c-primary         { fill: var(--primary); }
+  .c-primary-deep    { fill: color-mix(in oklch, var(--primary) 88%, var(--foreground)); }
+  .c-primary-dark    { fill: color-mix(in oklch, var(--primary) 78%, var(--foreground)); }
+  .c-primary-darker  { fill: color-mix(in oklch, var(--primary) 65%, var(--foreground)); }
+  .c-primary-tint    { fill: color-mix(in oklch, var(--primary) 75%, var(--background)); }
+  .c-highlight       { fill: color-mix(in oklch, var(--primary) 35%, var(--background)); }
 </style>
 
 <svg part="svg" viewBox="-260.519 -293.795 520.039 579.462" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">

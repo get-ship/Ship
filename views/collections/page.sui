@@ -12,7 +12,7 @@
           </div>
         </div>
         <div class="data-index-actions">
-          <sui-button size="sm" tone="accent" variant="solid" on:click={() => newColOpen.set(true)}>
+          <sui-button size="sm" tone="primary" variant="solid" on:click={() => newColOpen.set(true)}>
             <sui-icon slot="leading" name="plus"></sui-icon>New collection
           </sui-button>
         </div>
@@ -155,7 +155,7 @@
               <sui-segmented-option value="schema" icon="columns">Schema</sui-segmented-option>
             </sui-segmented>
             <span class="col-head-sep" aria-hidden="true"></span>
-            <sui-button size="sm" tone="accent" variant="solid"
+            <sui-button size="sm" tone="primary" variant="solid"
               on:click={() => { rowDraft.set({}); newRowOpen.set(true) }}>
               <sui-icon slot="leading" name="plus"></sui-icon>New row
             </sui-button>
@@ -164,10 +164,12 @@
 
         {#if tab() === 'rows'}
           <div class="col-tab-panel rows-panel">
-            {#while-loading of colDetail}
+            {#async colDetail}
+              {:loading}
               <div role="status" aria-live="polite" aria-busy="true" style="padding:var(--space-4);color:var(--muted-foreground)">Loading&hellip;</div>
-            {/while-loading}
-            {#if colDetail().kind === 'ok' && colDetail().value}
+            
+              {:ok}
+{#if colDetail().kind === 'ok' && colDetail().value}
               {#if filteredRows().length === 0 && colDetail().value.items.length === 0}
                 <sui-empty-state role="status" style="padding:var(--space-8)">
                   <span slot="title">No items in {colDetail().value.schema.name || activeId()}</span>
@@ -223,6 +225,7 @@
                 </table>
               {/if}
             {/if}
+            {/async}
           </div>
         {/if}
 
@@ -270,7 +273,7 @@
     </div>
   {/if}
 
-  <sui-drawer attr:open={newRowOpen() ? '' : null} size="md"
+  <sui-drawer attr:open={newRowOpen()} size="md"
     on:sui-close={() => { newRowOpen.set(false); drawerError.set('') }}>
     <span slot="title">New row</span>
     {#if colDetail().kind === 'ok' && colDetail().value}
@@ -283,7 +286,7 @@
               <span class="drawer-type">{f.field_type}</span>
             </label>
             {#if f.field_type === 'boolean'}
-              <sui-switch attr:checked={rowDraft()[f.name] ? '' : null}
+              <sui-switch attr:checked={rowDraft()[f.name]}
                 on:change={(e) => setDraftField('row', f.name, e.target.checked)}></sui-switch>
             {:else if f.field_type === 'markdown'}
               <sui-textarea rows="4" attr:placeholder={f.name + '…'}
@@ -300,12 +303,12 @@
       </sui-stack>
       <div slot="footer">
         <sui-button variant="ghost" on:click={() => { newRowOpen.set(false); drawerError.set('') }}>Cancel</sui-button>
-        <sui-button tone="accent" variant="solid" on:click={saveNewRow}>Save</sui-button>
+        <sui-button tone="primary" variant="solid" on:click={saveNewRow}>Save</sui-button>
       </div>
     {/if}
   </sui-drawer>
 
-  <sui-drawer attr:open={editOpen() ? '' : null} size="md"
+  <sui-drawer attr:open={editOpen()} size="md"
     on:sui-close={() => { editOpen.set(false); drawerError.set('') }}>
     <span slot="title">Edit row</span>
     {#if colDetail().kind === 'ok' && colDetail().value}
@@ -318,7 +321,7 @@
               <span class="drawer-type">{f.field_type}</span>
             </label>
             {#if f.field_type === 'boolean'}
-              <sui-switch attr:checked={editDraft()[f.name] ? '' : null}
+              <sui-switch attr:checked={editDraft()[f.name]}
                 on:change={(e) => setDraftField('edit', f.name, e.target.checked)}></sui-switch>
             {:else if f.field_type === 'markdown'}
               <sui-textarea rows="4" attr:placeholder={f.name + '…'}
@@ -337,12 +340,12 @@
         <sui-button tone="destructive" variant="soft" style="margin-right:auto"
           on:click={deleteRow}>Delete</sui-button>
         <sui-button variant="ghost" on:click={() => { editOpen.set(false); drawerError.set('') }}>Cancel</sui-button>
-        <sui-button tone="accent" variant="solid" on:click={saveEdit}>Save</sui-button>
+        <sui-button tone="primary" variant="solid" on:click={saveEdit}>Save</sui-button>
       </div>
     {/if}
   </sui-drawer>
 
-  <sui-drawer attr:open={newColOpen() ? '' : null} size="md"
+  <sui-drawer attr:open={newColOpen()} size="md"
     on:sui-close={() => { newColOpen.set(false); drawerError.set('') }}>
     <span slot="title">New collection</span>
     <span slot="description">Define a typed dataset stored in data.db</span>
@@ -363,7 +366,7 @@
     </sui-stack>
     <div slot="footer">
       <sui-button variant="ghost" on:click={() => { newColOpen.set(false); drawerError.set('') }}>Cancel</sui-button>
-      <sui-button tone="accent" variant="solid" on:click={createCollection}>Create collection</sui-button>
+      <sui-button tone="primary" variant="solid" on:click={createCollection}>Create collection</sui-button>
     </div>
   </sui-drawer>
 

@@ -20,7 +20,7 @@
   ─────────────────────────────────────────────────────────────────────────────
 -->
 
-<prop name="tone" values="default|primary|info|success|warning|destructive|accent|muted" default="success" reflect />
+<prop name="tone" values="default|primary|info|success|warning|destructive|accent|muted" default="default" reflect />
 <prop name="pulse" type="bool" default="false" reflect />
 <prop name="size" values="sm|md" default="md" reflect />
 <prop name="label" type="string" default="" />

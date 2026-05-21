@@ -34,7 +34,7 @@ use super::sui_data_resolvers::{parse_expr, resolve as resolve_value, subscribe_
 use super::sui_patch_channel;
 use super::sui_patches::format_patch_signals;
 use super::git_signal;
-use ship_sui::render_helpers::{is_valid_view_name, render_view_source};
+use deck::render_helpers::{is_valid_view_name, render_view_source};
 
 /// Buffer for SSE events across all spawned data-source tasks.
 const CHANNEL_BUFFER: usize = 64;

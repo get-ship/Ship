@@ -49,7 +49,7 @@ mod ship_runtime_tests;
 
 pub use daemon::{network_status, network_stop};
 pub use transport::NetworkServer;
-pub use ship_sui::DaemonMode;
+pub use deck::DaemonMode;
 
 /// Test-only: build a minimal router with the CORS middleware for testing.
 #[cfg(test)]
@@ -87,7 +87,7 @@ pub async fn run_network(
     port: Option<u16>,
     dev: bool,
     workspace_dir: Option<std::path::PathBuf>,
-    daemon_mode: ship_sui::DaemonMode,
+    daemon_mode: deck::DaemonMode,
 ) -> Result<()> {
     if dev {
         tracing::warn!(
@@ -160,7 +160,7 @@ pub async fn run_network(
     if let Some(ref w) = workspace_dir {
         tracing::info!(workspace = %w.display(), daemon_dir = %daemon_dir.display(), "shipd: project-scoped mode");
         // Make `--workspace` authoritative for the SUI resolver chain
-        // (ship-sui-server's resolver consults `SHIP_DEV_PROJECT_DIR`
+        // (deck-server's resolver consults `SHIP_DEV_PROJECT_DIR`
         // first; without this it falls back to CWD + worktree-aware
         // resolution, which redirects into the parent checkout's
         // `views/` when the workspace lives inside a git worktree).
@@ -254,7 +254,7 @@ pub async fn run_network(
                                 .await;
                             });
                         }
-                        if mode == ship_sui::DaemonMode::Development {
+                        if mode == deck::DaemonMode::Development {
                             views::sui_hmr::publish_bundle_event(views::sui_hmr::BundleModuleEvent {
                                 kind: views::sui_hmr::BundleModuleEventKind::ModuleChanged,
                                 target,
@@ -288,7 +288,7 @@ pub async fn run_network(
                                 .await;
                             });
                         }
-                        if mode == ship_sui::DaemonMode::Development {
+                        if mode == deck::DaemonMode::Development {
                             views::sui_hmr::publish_bundle_event(views::sui_hmr::BundleModuleEvent {
                                 kind: views::sui_hmr::BundleModuleEventKind::CompileError,
                                 target,

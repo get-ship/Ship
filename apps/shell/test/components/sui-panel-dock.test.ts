@@ -26,13 +26,13 @@ describe('<sui-panel-dock>', () => {
     expect(bodies(el)).not.toBeNull()
   })
 
-  it('renders 6 default tab buttons', async () => {
+  it('renders 5 default tab buttons', async () => {
     const { el } = mount(reg, 'sui-panel-dock')
     await flush()
     const btns = tabstrip(el).querySelectorAll('[data-tab]')
-    expect(btns.length).toBe(6)
+    expect(btns.length).toBe(5)
     const ids = Array.from(btns).map(b => (b as HTMLElement).dataset.tab)
-    expect(ids).toEqual(['terminal', 'source', 'signals', 'lint', 'schema', 'components'])
+    expect(ids).toEqual(['terminal', 'source', 'signals', 'schema', 'components'])
   })
 
   it('active-tab defaults to "terminal" — first tab aria-selected=true', async () => {
@@ -48,7 +48,7 @@ describe('<sui-panel-dock>', () => {
   it('other tabs have aria-selected=false', async () => {
     const { el } = mount(reg, 'sui-panel-dock')
     await flush()
-    for (const id of ['source', 'signals', 'lint', 'schema', 'components']) {
+    for (const id of ['source', 'signals', 'schema', 'components']) {
       expect(tabBtn(el, id)?.getAttribute('aria-selected')).toBe('false')
     }
   })
@@ -75,13 +75,13 @@ describe('<sui-panel-dock>', () => {
     const events: CustomEvent[] = []
     el.addEventListener('sui:dock:activate', e => events.push(e as CustomEvent))
 
-    tabBtn(el, 'lint')?.click()
+    tabBtn(el, 'schema')?.click()
     await flush()
 
-    expect(el.getAttribute('active-tab')).toBe('lint')
+    expect(el.getAttribute('active-tab')).toBe('schema')
     expect(events).toHaveLength(1)
-    expect(events[0]!.detail.tab).toBe('lint')
-    expect(activeSlot(el)?.getAttribute('name')).toBe('lint')
+    expect(events[0]!.detail.tab).toBe('schema')
+    expect(activeSlot(el)?.getAttribute('name')).toBe('schema')
   })
 
   it('clicking active tab does not re-fire event', async () => {
@@ -94,15 +94,9 @@ describe('<sui-panel-dock>', () => {
     expect(events).toHaveLength(0)
   })
 
-  it('clear button dispatches sui:dock:clear with active tab', async () => {
-    const { el } = mount(reg, 'sui-panel-dock', { 'active-tab': 'lint' })
-    await flush()
-    const events: CustomEvent[] = []
-    el.addEventListener('sui:dock:clear', e => events.push(e as CustomEvent))
-    toolBtn(el, 'clear')?.click()
-    expect(events).toHaveLength(1)
-    expect(events[0]!.detail.tab).toBe('lint')
-  })
+  // clear button + sui:dock:clear were removed from the dock toolbar
+  // when the panel-dock action set was condensed (only popout + close
+  // + edit-mode-toggle remain on the right cluster).
 
   it('popout button dispatches sui:dock:popout', async () => {
     const { el } = mount(reg, 'sui-panel-dock')
@@ -175,11 +169,11 @@ describe('<sui-panel-dock>', () => {
     expect((btns[0] as HTMLElement).dataset.tab).toBe('custom')
   })
 
-  it('renders 6 toolbar slots for toolbar:* names', async () => {
+  it('renders 5 toolbar slots for toolbar:* names', async () => {
     const { el } = mount(reg, 'sui-panel-dock')
     await flush()
     const sr = shadow(el)
-    const ids = ['terminal', 'source', 'signals', 'lint', 'schema', 'components']
+    const ids = ['terminal', 'source', 'signals', 'schema', 'components']
     for (const id of ids) {
       expect(sr.querySelector(`slot[name="toolbar:${id}"]`)).not.toBeNull()
     }
@@ -228,9 +222,9 @@ describe('<sui-panel-dock>', () => {
   it('clicking a tab writes the new active tab to localStorage', async () => {
     const { el } = mount(reg, 'sui-panel-dock')
     await flush()
-    tabBtn(el, 'lint')?.click()
+    tabBtn(el, 'schema')?.click()
     await flush()
-    expect(localStorage.getItem('ship-dock-active')).toBe('lint')
+    expect(localStorage.getItem('ship-dock-active')).toBe('schema')
   })
 
   it('imperative activate() also writes the new tab to localStorage', async () => {
