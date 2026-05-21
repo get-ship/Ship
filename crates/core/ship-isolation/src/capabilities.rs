@@ -32,6 +32,11 @@ pub struct Capabilities {
     pub srt: bool,
     pub sandbox_exec: bool,
     pub vz_framework: bool,
+    /// `/dev/kvm` is readable+writable — the Firecracker microVM substrate
+    /// is reachable (Ship bundles the firecracker binary + kernel + rootfs,
+    /// so KVM access is the capability signal). Linux/WSL2 only.
+    #[serde(default)]
+    pub firecracker: bool,
     pub fly_cli: bool,
     pub fly_authed: bool,
 }
@@ -93,6 +98,7 @@ impl Capabilities {
             srt: probe_srt(),
             sandbox_exec: probe_path("sandbox-exec").is_some(),
             vz_framework: matches!(os, HostOs::MacosArm),
+            firecracker: probe_kvm_accessible(),
             fly_cli: probe_path("flyctl").is_some() || probe_path("fly").is_some(),
             fly_authed: probe_fly_authed(),
         }
@@ -135,6 +141,9 @@ impl Capabilities {
         }
         if self.lima.is_some() && matches!(self.os, HostOs::MacosArm) {
             out.push(IsolationStrategy::LimaVm);
+        }
+        if self.firecracker && matches!(self.os, HostOs::Linux | HostOs::Wsl2) {
+            out.push(IsolationStrategy::Firecracker);
         }
         if self.fly_cli && self.fly_authed {
             out.push(IsolationStrategy::FlyMachines);
@@ -241,6 +250,20 @@ fn probe_wsl2(os: HostOs) -> bool {
         .status()
         .map(|s| s.success())
         .unwrap_or(false)
+}
+
+/// `/dev/kvm` openable read+write — the real signal that Firecracker can
+/// boot a microVM here (the node existing isn't enough; it's often
+/// `root:kvm 0660`). Linux/WSL2 only.
+fn probe_kvm_accessible() -> bool {
+    if !cfg!(target_os = "linux") {
+        return false;
+    }
+    std::fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .open("/dev/kvm")
+        .is_ok()
 }
 
 fn probe_srt() -> bool {

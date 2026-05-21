@@ -236,7 +236,13 @@ fn preferred_strategy_in_tier(
             HostOs::Windows => &[IsolationStrategy::DockerEngine, IsolationStrategy::Wsl2],
             _ => &[IsolationStrategy::DockerEngine, IsolationStrategy::YoukiRootless],
         },
-        IsolationTier::Vm => &[IsolationStrategy::LimaVm],
+        IsolationTier::Vm => match caps.os {
+            // Linux/WSL2 → Firecracker microVM (own kernel, cheap boot).
+            HostOs::Linux | HostOs::Wsl2 => &[IsolationStrategy::Firecracker],
+            // mac → Lima (Apple Container detect-and-prefer lands with its
+            // backend; until then Lima is the mac VM path).
+            _ => &[IsolationStrategy::LimaVm],
+        },
         IsolationTier::Cloud => &[IsolationStrategy::FlyMachines],
     };
     let available = caps.available_strategies();
@@ -379,6 +385,29 @@ mod tests {
         let caps = caps_with_youki();
         let out = recommend(RecommendInput::new(&caps)).unwrap();
         assert_eq!(out.strategy, IsolationStrategy::YoukiRootless);
+    }
+
+    #[test]
+    fn firecracker_picked_for_vm_tier_on_linux() {
+        // KVM-accessible Linux + a Vm-tier request → Firecracker (the Linux
+        // microVM). LimaVm is the mac path, so it must NOT be chosen here.
+        let caps = Capabilities { firecracker: true, ..empty_caps() };
+        let profile = IsolationProfile::pin_tier(IsolationTier::Vm);
+        let out = recommend(RecommendInput::new(&caps).with_user_pref(&profile)).unwrap();
+        assert_eq!(out.tier, IsolationTier::Vm);
+        assert_eq!(out.strategy, IsolationStrategy::Firecracker);
+    }
+
+    #[test]
+    fn vm_tier_unavailable_without_kvm_downgrades() {
+        // No firecracker capability on Linux → Vm tier has no available
+        // strategy; a soft Vm preference walks down rather than picking an
+        // unspawnable strategy.
+        let caps = empty_caps();
+        let profile = IsolationProfile::pin_tier(IsolationTier::Vm);
+        let out = recommend(RecommendInput::new(&caps).with_user_pref(&profile)).unwrap();
+        assert_ne!(out.strategy, IsolationStrategy::Firecracker);
+        assert!(out.downgraded);
     }
 
     #[test]

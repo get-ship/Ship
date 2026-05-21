@@ -112,6 +112,10 @@ pub enum IsolationStrategy {
     Wsl2,
     #[serde(rename = "lima", alias = "lima_vm", alias = "tart", alias = "vz")]
     LimaVm,
+    /// Firecracker microVM (Linux/KVM) — own-kernel per sandbox; the strong
+    /// Tier-3 local path and the cloud model.
+    #[serde(rename = "firecracker", alias = "fc")]
+    Firecracker,
     #[serde(rename = "fly", alias = "fly_machines", alias = "flyio")]
     FlyMachines,
 }
@@ -127,6 +131,7 @@ impl IsolationStrategy {
             Self::YoukiRootless => "youki",
             Self::Wsl2 => "wsl2",
             Self::LimaVm => "lima",
+            Self::Firecracker => "firecracker",
             Self::FlyMachines => "fly",
         }
     }
@@ -143,6 +148,7 @@ impl IsolationStrategy {
             "youki" | "youki_rootless" => Some(Self::YoukiRootless),
             "wsl2" | "wsl" => Some(Self::Wsl2),
             "lima" | "lima_vm" | "tart" | "vz" => Some(Self::LimaVm),
+            "firecracker" | "fc" => Some(Self::Firecracker),
             "fly" | "fly_machines" | "flyio" => Some(Self::FlyMachines),
             _ => None,
         }
@@ -155,7 +161,7 @@ impl IsolationStrategy {
                 IsolationTier::Process
             }
             Self::DockerEngine | Self::YoukiRootless | Self::Wsl2 => IsolationTier::Container,
-            Self::LimaVm => IsolationTier::Vm,
+            Self::LimaVm | Self::Firecracker => IsolationTier::Vm,
             Self::FlyMachines => IsolationTier::Cloud,
         }
     }
@@ -173,6 +179,7 @@ impl IsolationStrategy {
             Self::YoukiRootless => "Container (youki)",
             Self::Wsl2 => "Container (WSL2)",
             Self::LimaVm => "Virtual machine (Lima)",
+            Self::Firecracker => "microVM (Firecracker)",
             Self::FlyMachines => "Cloud (Fly)",
         }
     }

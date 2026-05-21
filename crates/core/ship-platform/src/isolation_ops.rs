@@ -174,6 +174,13 @@ pub fn verify_decision() -> VerifyResult {
         IsolationStrategy::YoukiRootless => true,
         IsolationStrategy::Wsl2 => false,
         IsolationStrategy::LimaVm => false,
+        // The Firecracker Isolator exists + is live-tested
+        // (`firecracker_live`), but the orchestrator spawn-wiring (a
+        // process.rs branch / generic Isolator-driver) isn't landed — so
+        // not yet spawnable end-to-end. `false` keeps verify honest: `init`
+        // won't flip enforce on for Firecracker until it's wired
+        // (threat-model §6); the spawn path refuses it loudly regardless.
+        IsolationStrategy::Firecracker => false,
         IsolationStrategy::FlyMachines => false,
     };
     steps.push(VerifyStep {
@@ -354,6 +361,13 @@ fn unavailable_reason(strategy: IsolationStrategy, caps: &ship_isolation::Capabi
                 "WSL2 not installed / not configured".into()
             } else {
                 "unknown".into()
+            }
+        }
+        IsolationStrategy::Firecracker => {
+            if !caps.firecracker {
+                "/dev/kvm not accessible (Linux/KVM only; check the kvm group)".into()
+            } else {
+                "Isolator live-tested; orchestrator spawn-wiring pending".into()
             }
         }
         IsolationStrategy::LimaVm => {

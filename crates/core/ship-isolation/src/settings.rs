@@ -182,7 +182,7 @@ pub fn wrap_launch(
                 args: new_args,
             })
         }
-        DockerEngine | YoukiRootless | Wsl2 | LimaVm | FlyMachines => None,
+        DockerEngine | YoukiRootless | Wsl2 | LimaVm | Firecracker | FlyMachines => None,
     }
 }
 

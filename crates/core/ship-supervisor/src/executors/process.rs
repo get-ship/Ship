@@ -644,12 +644,20 @@ impl JobExecutor for ProcessExecutor {
                         }
                     }
                     other => {
-                        tracing::warn!(
-                            slug = ctx.slug,
-                            strategy = %other,
-                            "isolation enforce on but {} requires lifecycle support not yet wired",
+                        // enforce is ON and this strategy has no wired spawn
+                        // backend. Refuse loudly — running unwrapped here
+                        // would silently drop isolation the user demanded
+                        // (threat-model §6 loud-fail). The recommender may
+                        // pick a strategy whose Isolator exists but isn't
+                        // wired into this spawn path yet (e.g. Firecracker
+                        // until the generic Isolator-driver lands); better a
+                        // refused run than a fake-sandboxed one.
+                        return Err(anyhow::anyhow!(
+                            "isolation.enforce is on but strategy '{}' has no wired \
+                             spawn backend — refusing to run rather than execute \
+                             unsandboxed. Pick a supported strategy or wire the backend.",
                             other
-                        );
+                        ));
                     }
                 }
             }

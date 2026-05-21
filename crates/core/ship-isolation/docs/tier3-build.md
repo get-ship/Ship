@@ -169,6 +169,18 @@ Connect. The Firecracker `Isolator` is now a *transcription* of this recipe.
 - **per-sandbox vs shared microVM + cold-start** — today one microVM per
   `prepare` (per-VM rootfs copy). Cheap boot, but a warm pool may be wanted;
   measure.
-- **enforce-refuse-on-unwired** still required before the recommender picks T3.
-- **Recommender** doesn't pick Firecracker yet (land with the ladder, gated by
-  `available()` + the enforce-refuse fix).
+- ~~**enforce-refuse-on-unwired**~~ ✅ done — `process.rs`'s `other =>` branch now
+  REFUSES (returns Err) under enforce instead of running unwrapped (threat-model
+  §6 loud-fail).
+- ~~**Recommender doesn't pick Firecracker**~~ ✅ recommendable — `Firecracker`
+  is a `Vm`-tier `IsolationStrategy`, detected via the `firecracker` capability
+  (`/dev/kvm` openable r+w), and the recommender picks it for `Vm` tier on
+  Linux/WSL2 (Lima stays the mac path). Unit-tested
+  (`firecracker_picked_for_vm_tier_on_linux`, `vm_tier_unavailable_without_kvm_downgrades`).
+- **Orchestrator spawn-wiring (the remaining T3 piece)** — `has_impl(Firecracker)`
+  is `false`: the Isolator is live-tested but `process.rs` has no Firecracker
+  spawn branch, so verify gates enforce off it and the spawn path refuses it.
+  Wiring it should **de-dup the DockerEngine branch into a generic
+  Isolator-driver** (prepare → mark_remote_running → SidecarActorRuntime → token
+  → SHIP_DAEMON_URL), used by Docker + Firecracker, NOT a copied branch. That
+  refactor touches the proven Docker path → its own focused change.
