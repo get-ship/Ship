@@ -4,6 +4,10 @@
 //! without knowing which harness they're running.
 
 use std::path::Path;
+use std::sync::Arc;
+
+use async_trait::async_trait;
+use ship_substrate::services::server_session::ServerSession;
 
 use super::dispatch_ports::{LaunchCommand, LaunchProfile};
 
@@ -118,6 +122,7 @@ impl HarnessCapabilities {
 }
 
 /// Complete lifecycle adapter for a harness CLI.
+#[async_trait]
 pub trait HarnessAdapter: Send + Sync {
     /// Harness identifier (e.g. "claude", "codex").
     fn id(&self) -> &str;
@@ -169,6 +174,17 @@ pub trait HarnessAdapter: Send + Sync {
 
     /// Extract session metadata from the work directory after launch.
     fn extract_session_meta(&self, _work_dir: &Path) -> Option<serde_json::Value> { None }
+
+    /// Spawn a fresh server-mode session for this harness (codex app-server,
+    /// opencode serve). Returns `None` for harnesses without server mode and
+    /// when the spawn fails — the caller then falls through to the one-shot
+    /// Process/Tmux path. The adapter owns *how* to spawn its session; the
+    /// caller (RoutingExecutor) owns caching and registry placement. This is
+    /// what lets routing select server mode generically over the registry
+    /// instead of branching per harness id.
+    async fn spawn_server_session(&self) -> Option<Arc<dyn ServerSession>> {
+        None
+    }
 }
 
 /// The single source of truth for which harnesses exist. `adapter_for`, the

@@ -8,6 +8,7 @@ use crate::services::harness_adapter::{HarnessAdapter, HarnessCapabilities, Harn
 
 pub struct GeminiAdapter;
 
+#[async_trait::async_trait]
 impl HarnessAdapter for GeminiAdapter {
     fn id(&self) -> &str { "gemini" }
 

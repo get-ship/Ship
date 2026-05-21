@@ -30,8 +30,6 @@ use async_trait::async_trait;
 use ship_substrate::events::KernelRouter;
 use ship_platform::services::dispatch_ports::{ExecutorHandle, InvocationMode, SessionContext, SessionExecutor};
 use ship_platform::services::harness_adapter::adapter_for_or_default;
-use ship_platform::services::harnesses::codex_session::CodexSession;
-use ship_platform::services::harnesses::opencode_session::OpenCodeSession;
 use ship_platform::services::server_session::ServerSession;
 use tokio::sync::Mutex;
 
@@ -121,67 +119,31 @@ impl RoutingExecutor {
         Some(ServerExecutor::new(self.kernel.clone(), session))
     }
 
-    /// Lazy-spawn a `CodexSession` on first codex dispatch, caching the
-    /// binding in the session registry. On spawn failure (binary missing,
-    /// handshake stalls, etc.) we log a warning and leave the registry
-    /// untouched — the caller then falls through to Process/TmuxWindow,
-    /// preserving the one-shot `codex exec` path as graceful degradation.
-    async fn ensure_codex_session(&self, ctx: &SessionContext) {
+    /// Lazy-spawn a server-mode session on first dispatch for any harness
+    /// that declares one, caching the binding in the session registry. The
+    /// adapter owns *how* to spawn (`spawn_server_session`); routing stays
+    /// generic over the registry instead of branching per harness id. On
+    /// missing binary or spawn failure we leave the registry untouched, so
+    /// the caller falls through to Process/TmuxWindow — preserving the
+    /// one-shot path as graceful degradation.
+    async fn ensure_server_session(&self, ctx: &SessionContext) {
         let Some(harness) = ctx.launch.harness.as_deref() else {
             return;
         };
-        if harness != "codex" {
-            return;
-        }
-        if self.sessions.get("codex").is_some() {
-            return;
-        }
-        if !binary_on_path("codex") {
-            tracing::debug!(
-                "routing: codex binary not on PATH; skipping CodexSession lazy-spawn"
-            );
-            return;
-        }
-        match CodexSession::spawn().await {
-            Ok(session) => {
-                tracing::info!("routing: lazy-spawned CodexSession for harness=codex");
-                self.sessions.bind("codex", Arc::new(session));
-            }
-            Err(err) => {
-                tracing::warn!(%err,
-                    "routing: CodexSession lazy-spawn failed; falling back to ProcessExecutor");
-            }
-        }
-    }
-
-    /// Lazy-spawn an `OpenCodeSession` on first opencode dispatch, caching
-    /// the binding in the session registry. Mirrors `ensure_codex_session`:
-    /// binary-absence + spawn-failure both degrade cleanly to Process.
-    async fn ensure_opencode_session(&self, ctx: &SessionContext) {
-        let Some(harness) = ctx.launch.harness.as_deref() else {
+        let Ok(adapter) = adapter_for_or_default(Some(harness)) else {
             return;
         };
-        if harness != "opencode" {
+        if !adapter.caps().server_mode || self.sessions.get(adapter.id()).is_some() {
             return;
         }
-        if self.sessions.get("opencode").is_some() {
+        if !binary_on_path(adapter.id()) {
+            tracing::debug!(harness = adapter.id(),
+                "routing: binary not on PATH; skipping server-session lazy-spawn");
             return;
         }
-        if !binary_on_path("opencode") {
-            tracing::debug!(
-                "routing: opencode binary not on PATH; skipping OpenCodeSession lazy-spawn"
-            );
-            return;
-        }
-        match OpenCodeSession::spawn().await {
-            Ok(session) => {
-                tracing::info!("routing: lazy-spawned OpenCodeSession for harness=opencode");
-                self.sessions.bind("opencode", Arc::new(session));
-            }
-            Err(err) => {
-                tracing::warn!(%err,
-                    "routing: OpenCodeSession lazy-spawn failed; falling back to ProcessExecutor");
-            }
+        if let Some(session) = adapter.spawn_server_session().await {
+            tracing::info!(harness = adapter.id(), "routing: lazy-spawned server session");
+            self.sessions.bind(adapter.id(), session);
         }
     }
 
@@ -241,8 +203,7 @@ impl SessionExecutor for RoutingExecutor {
         // Server-mode harnesses route to a persistent session when the
         // registry has a binding. The first dispatch per harness lazy-
         // spawns the child; subsequent dispatches reuse the cached Arc.
-        self.ensure_codex_session(ctx).await;
-        self.ensure_opencode_session(ctx).await;
+        self.ensure_server_session(ctx).await;
 
         // Server-mode dispatch reuses an already-bound session — its
         // binary was checked at session-spawn time (ensure_*_session

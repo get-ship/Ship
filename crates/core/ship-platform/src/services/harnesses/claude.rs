@@ -105,6 +105,7 @@ impl ClaudeAdapter {
     }
 }
 
+#[async_trait::async_trait]
 impl HarnessAdapter for ClaudeAdapter {
     fn id(&self) -> &str { "claude" }
 
