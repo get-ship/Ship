@@ -136,8 +136,8 @@ impl RoutingExecutor {
         if !adapter.caps().server_mode || self.sessions.get(adapter.id()).is_some() {
             return;
         }
-        if !binary_on_path(adapter.id()) {
-            tracing::debug!(harness = adapter.id(),
+        if !binary_on_path(adapter.binary()) {
+            tracing::debug!(harness = adapter.id(), binary = adapter.binary(),
                 "routing: binary not on PATH; skipping server-session lazy-spawn");
             return;
         }
@@ -220,12 +220,13 @@ impl SessionExecutor for RoutingExecutor {
         // ProcessExecutor). Pre-flight the binary so the user gets a
         // clear "install it first" message instead of an opaque
         // exit-127 / "No such file" from a few layers down.
-        // Harness id doubles as binary name today for all 5 known
-        // adapters; revisit if that stops being true.
+        // The executable name comes from the adapter (`binary()`), not the
+        // harness id — they diverge for cursor (id "cursor", bin
+        // "cursor-agent").
         if let Some(harness) = ctx.launch.harness.as_deref()
             && let Ok(adapter) = adapter_for_or_default(Some(harness))
         {
-            let bin = adapter.id();
+            let bin = adapter.binary();
             if !binary_on_path(bin) {
                 anyhow::bail!(
                     "dispatch: {bin} binary not on PATH. \

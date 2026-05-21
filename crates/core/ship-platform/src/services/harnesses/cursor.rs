@@ -12,6 +12,11 @@ pub struct CursorAdapter;
 impl HarnessAdapter for CursorAdapter {
     fn id(&self) -> &str { "cursor" }
 
+    /// Cursor's CLI installs as `cursor-agent` (the `agent` alias is a
+    /// symlink to the same binary). Verified against cursor-agent
+    /// v2026.05.20. Configs key it as "cursor"; the executable is this.
+    fn binary(&self) -> &str { "cursor-agent" }
+
     fn caps(&self) -> HarnessCapabilities {
         HarnessCapabilities {
             headless: true,

@@ -134,6 +134,15 @@ pub trait HarnessAdapter: Send + Sync {
         id == self.id()
     }
 
+    /// Executable name to look up on PATH / invoke. Defaults to the harness
+    /// id — claude/codex/gemini/opencode ship binaries named exactly that.
+    /// Cursor's CLI installs as `cursor-agent`, so it overrides; without this
+    /// the PATH pre-flight checks for a `cursor` binary that never exists and
+    /// rejects a working install.
+    fn binary(&self) -> &str {
+        self.id()
+    }
+
     /// Declarative capability flags — what this harness supports.
     fn caps(&self) -> HarnessCapabilities;
 
@@ -313,6 +322,18 @@ mod adapter_for_tests {
     fn adapter_for_or_default_propagates_unknown_err() {
         let result = adapter_for_or_default(Some("nonexistent"));
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn binary_defaults_to_id_except_cursor() {
+        // The PATH pre-flight + server-session spawn look up binary(), not
+        // id(). cursor diverges (id "cursor", executable "cursor-agent");
+        // every other harness's binary is its id. Drift here is a dispatch
+        // bug (rejecting an installed harness), so pin it.
+        for (id, _) in capabilities() {
+            let want = if id == "cursor" { "cursor-agent" } else { id };
+            assert_eq!(adapter_for(id).unwrap().binary(), want, "binary() wrong for {id}");
+        }
     }
 
     #[test]
