@@ -8,6 +8,8 @@
 //! `skills.summaries`) have `Value`-shaped returns; they still get a fixture
 //! where a representative shape exists, but carry no struct-derived TS type.
 
+mod collections;
+mod dashboard;
 mod git;
 mod pipelines;
 mod skills;
@@ -24,6 +26,8 @@ pub fn examples() -> Vec<(&'static str, Value)> {
     out.extend(git::examples());
     out.extend(pipelines::examples());
     out.extend(specs::examples());
+    out.extend(collections::examples());
+    out.extend(dashboard::examples());
     out
 }
 
@@ -39,8 +43,9 @@ mod tests {
             assert!(seen.insert(*op), "duplicate fixture op: {op}");
             assert!(value.is_object() || value.is_array(), "{op} example is structured");
         }
-        // chat/sessions/events/artifacts + workspaces(2) + settings + skills(4)
-        // + git(6) + pipelines(6) + specs(4) = 27 daemon-side data ops.
-        assert_eq!(ex.len(), 27, "expected 27 daemon-side fixtures, got {}", ex.len());
+        // chat/sessions/events/artifacts + workspaces(2) + settings + skills(5)
+        // + git(6) + pipelines(6) + specs(4) + collections(4) + dashboard(1)
+        // = 33 daemon-side data ops (every op assembled in the daemon).
+        assert_eq!(ex.len(), 33, "expected 33 daemon-side fixtures, got {}", ex.len());
     }
 }

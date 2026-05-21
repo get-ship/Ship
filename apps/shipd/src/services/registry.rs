@@ -101,7 +101,10 @@ pub(super) fn optional_usize(args: &Value, field: &str, default: usize) -> usize
 #[macro_use]
 mod op_macro;
 pub mod wire;
-#[cfg(any(test, feature = "fixtures"))]
+// Behind `fixtures` only (not `test`): the daemon-side fixtures reuse
+// ship-platform `example()` builders, which need `ship-platform/fixtures`
+// — a plain `cargo test -p shipd` doesn't enable that cross-crate feature.
+#[cfg(feature = "fixtures")]
 pub mod fixtures;
 
 pub mod agents;

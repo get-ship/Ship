@@ -1,0 +1,92 @@
+{
+  "collections": [
+    {
+      "id": "notes",
+      "name": "Notes",
+      "field_count": 4,
+      "fields": [
+        [
+          "title",
+          {
+            "field_type": "string",
+            "required": true,
+            "values": null,
+            "default": null
+          }
+        ],
+        [
+          "content",
+          {
+            "field_type": "markdown",
+            "required": false,
+            "values": null,
+            "default": null
+          }
+        ],
+        [
+          "tags",
+          {
+            "field_type": "array",
+            "required": false,
+            "values": null,
+            "default": null
+          }
+        ],
+        [
+          "category",
+          {
+            "field_type": "string",
+            "required": false,
+            "values": null,
+            "default": null
+          }
+        ]
+      ]
+    }
+  ],
+  "active_collection": "notes",
+  "schema": {
+    "id": "notes",
+    "name": "Notes",
+    "fields": [
+      [
+        "title",
+        {
+          "field_type": "string",
+          "required": true,
+          "values": null,
+          "default": null
+        }
+      ],
+      [
+        "content",
+        {
+          "field_type": "markdown",
+          "required": false,
+          "values": null,
+          "default": null
+        }
+      ],
+      [
+        "tags",
+        {
+          "field_type": "array",
+          "required": false,
+          "values": null,
+          "default": null
+        }
+      ],
+      [
+        "category",
+        {
+          "field_type": "string",
+          "required": false,
+          "values": null,
+          "default": null
+        }
+      ]
+    ]
+  },
+  "items": [],
+  "total_items": 0
+}

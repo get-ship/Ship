@@ -14,7 +14,7 @@ use crate::services::schema::ArgDescriptor;
 // Field tuples + field-record builders share one source so `collections.state`
 // (tuples for templates) and `collections.list` / `collections.detail` (records
 // for view controllers) can't drift.
-fn fields_tuples(s: &ship_platform::collections::schema::CollectionSchema) -> Vec<Value> {
+pub(crate) fn fields_tuples(s: &ship_platform::collections::schema::CollectionSchema) -> Vec<Value> {
     s.fields.iter().map(|(k, v)| json!([k, {
         "field_type": format!("{:?}", v.field_type).to_lowercase(),
         "required": v.required,
@@ -23,7 +23,7 @@ fn fields_tuples(s: &ship_platform::collections::schema::CollectionSchema) -> Ve
     }])).collect()
 }
 
-fn fields_records(s: &ship_platform::collections::schema::CollectionSchema) -> Vec<Value> {
+pub(crate) fn fields_records(s: &ship_platform::collections::schema::CollectionSchema) -> Vec<Value> {
     s.fields.iter().map(|(k, v)| {
         let ty = format!("{:?}", v.field_type).to_lowercase();
         json!({
@@ -48,7 +48,7 @@ fn load_schemas(state: &ApiState) -> Vec<ship_platform::collections::schema::Col
     schemas
 }
 
-fn is_builtin(id: &str) -> bool {
+pub(crate) fn is_builtin(id: &str) -> bool {
     ship_platform::collections::builtin::user_schemas()
         .iter()
         .any(|s| s.id == id)

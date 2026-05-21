@@ -54,8 +54,9 @@ fn sessions() -> SessionsListResponse {
     }
 }
 
-fn events() -> EventsListResponse {
-    let row = EventRow {
+/// Shared `EventRow` builder — reused by the dashboard fixture's events feed.
+pub(super) fn event_row() -> EventRow {
+    EventRow {
         id: "evt-1".to_string(),
         event_type: "pipeline.run.merged".to_string(),
         entity_id: "typed-ops-a1b2c3d".to_string(),
@@ -64,13 +65,16 @@ fn events() -> EventsListResponse {
         session_id: "sess-1".to_string(),
         timestamp: "2026-01-01T09:04:12Z".to_string(),
         payload_pretty: "{\n  \"slug\": \"typed-ops-a1b2c3d\"\n}".to_string(),
-    };
+    }
+}
+
+fn events() -> EventsListResponse {
     EventsListResponse {
         groups: vec![EntityGroup {
             entity_id: "typed-ops-a1b2c3d".to_string(),
             count: 1,
             collapsed: false,
-            rows: vec![row],
+            rows: vec![event_row()],
         }],
         types: vec!["pipeline.run.merged".to_string()],
         actors: vec!["rust-lane".to_string()],
