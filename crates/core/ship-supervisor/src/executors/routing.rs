@@ -175,10 +175,15 @@ impl SessionExecutor for RoutingExecutor {
     async fn spawn(&self, ctx: &SessionContext) -> Result<ExecutorHandle> {
         // Register the pipeline step as an actor so it surfaces in the
         // unified dashboard alongside chat agents and shell sessions.
-        // Fire-and-forget on a std::thread to avoid the kernel-route
-        // block_on path deadlocking the tokio runtime.
+        //
+        // The persist runs on a bare std::thread (no ambient runtime — so the
+        // durable write's block_on and the deliver's blocking_lock are both
+        // safe), and we AWAIT it via a oneshot before spawning the child. The
+        // old code detached the thread and discarded its result, so an
+        // ultra-short Print session could spawn → run → exit before the row
+        // committed (dropping it entirely), and a swallowed error left no
+        // trace — the root of the transport-canary flake. Errors are logged.
         let actor_id = ctx.slug.clone();
-        let kind = "pipeline-step";
         let workspace_id = ctx.branch.clone();
         let agent_id = ctx.agent.clone();
         let harness = ctx.launch.harness.clone();
@@ -186,19 +191,28 @@ impl SessionExecutor for RoutingExecutor {
             InvocationMode::Print => "headless",
             InvocationMode::Pty => "pty",
             InvocationMode::Stream => "stream",
-        };
-        let transport = transport.to_string();
+        }
+        .to_string();
+        let (tx, rx) = tokio::sync::oneshot::channel();
         std::thread::spawn(move || {
-            let _ = ship_substrate::db::actor_events::emit_actor_created_simple(
+            let res = ship_substrate::db::actor_events::persist_actor_created_simple(
                 &actor_id,
-                kind,
+                "pipeline-step",
                 Some(&workspace_id),
                 Some(&agent_id),
                 harness.as_deref(),
                 Some(&transport),
                 None,
             );
+            let _ = tx.send(res);
         });
+        match rx.await {
+            Ok(Ok(())) => {}
+            Ok(Err(e)) => tracing::warn!(slug = ctx.slug, %e,
+                "routing: actor.created persist failed (dashboard row will be missing)"),
+            Err(_) => tracing::warn!(slug = ctx.slug,
+                "routing: actor.created persist thread panicked before reporting"),
+        }
 
         // Server-mode harnesses route to a persistent session when the
         // registry has a binding. The first dispatch per harness lazy-

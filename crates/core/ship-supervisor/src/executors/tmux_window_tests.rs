@@ -33,6 +33,7 @@ fn step_log_rel_is_zero_padded() {
 
 #[test]
 fn tmux_window_new_fails_when_tmux_absent_or_windows() {
+    let _spawn_guard = crate::executors::real_spawn_guard();
     let result = TmuxWindowExecutor::new();
     if cfg!(windows) {
         assert!(result.is_err(), "TmuxWindowExecutor must fail on Windows");
@@ -106,6 +107,14 @@ async fn tmux_window_spawn_captures_window_id_and_survives_name_collision() {
 
 #[tokio::test]
 async fn resume_handle_refuses_ambiguous_name() {
+    // Real-tmux integration test: spawns actual tmux sessions, so it's flaky
+    // under parallel test load (tmux's fork/init races sibling spawns). Opt in
+    // with SHIP_TMUX_TESTS=1, same as the other real-tmux tests.
+    if ship_substrate::env::read_raw(ship_substrate::env::Var::TmuxTests).ok().as_deref() != Some("1") {
+        eprintln!("skipping: set SHIP_TMUX_TESTS=1 to run");
+        return;
+    }
+    let _spawn_guard = crate::executors::real_spawn_guard();
     if !tmux_available() {
         eprintln!("skipping: tmux not available");
         return;

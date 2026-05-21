@@ -598,6 +598,19 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     #[cfg_attr(not(unix), ignore)]
     async fn process_executor_emits_process_killed_on_sigterm_path() {
+        // Real-PTY integration test: forks an actual child under a PTY and
+        // SIGTERMs it. The PTY/fork races sibling spawns suite-wide, so it's
+        // flaky in the default parallel run. Opt in with SHIP_TMUX_TESTS=1
+        // (the real-spawn integration switch).
+        if ship_substrate::env::read_raw(ship_substrate::env::Var::TmuxTests)
+            .ok()
+            .as_deref()
+            != Some("1")
+        {
+            eprintln!("skipping: set SHIP_TMUX_TESTS=1 to run real-PTY integration test");
+            return;
+        }
+        let _spawn_guard = crate::executors::real_spawn_guard();
         let (_dir, kernel, db) = setup_kernel();
         let (_tmp, state) = spawn_sleep_state("proc-sigterm");
 

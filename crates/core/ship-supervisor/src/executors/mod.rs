@@ -37,6 +37,19 @@ pub fn pty_actor_handle(
     process::ProcessState::actor_handle_from(&eh.inner)
 }
 
+/// Serializes tests that fork real OS processes — tmux windows, PTY children,
+/// `tmux -V` probes. They contend on fork/PTY resources, and a concurrent
+/// burst triggers transient fork failures (see `tmux_window::tmux_available`,
+/// which already retries once for the same reason). `cargo test` runs tests in
+/// parallel by default, so any such test must hold this guard for its duration
+/// to keep the suite deterministic. Poison-tolerant: a panicking test must not
+/// wedge the rest.
+#[cfg(test)]
+pub(crate) fn real_spawn_guard() -> std::sync::MutexGuard<'static, ()> {
+    static LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    LOCK.lock().unwrap_or_else(|poisoned| poisoned.into_inner())
+}
+
 /// Build a PTY-backed `ExecutorHandle` directly from a substrate
 /// `ActorHandle`. Used by tests that want to register a PTY child into the
 /// `ProcessRegistry` without going through the full ProcessExecutor spawn
