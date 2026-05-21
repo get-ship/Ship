@@ -78,14 +78,43 @@ pub(crate) const PROJECT_SCOPE: ArgDescriptor = ArgDescriptor { name: "scope", k
 /// `names()` output is unchanged. `OpDescriptor: Copy`, so the assembly is a
 /// cheap one-time concat.
 ///
-/// Migrated domains (declared via `ship_ops!`, descriptors live with dispatch):
-///   - agents → `registry::agents::AGENTS_OPS`
-pub static OPS: LazyLock<Vec<OpDescriptor>> = LazyLock::new(|| {
+/// Migrated domains declare their ops via `ship_ops!` (descriptors live with
+/// dispatch); unmigrated domains keep entries in `LEGACY_OPS`. Assembly walks
+/// `DOMAIN_ORDER` and pulls each domain's slice from whichever source owns it,
+/// so the catalog order is identical to the original hand-written array.
+pub static OPS: LazyLock<Vec<OpDescriptor>> = LazyLock::new(build_ops);
+
+/// Domain emit order — matches the original `OPS` array exactly.
+const DOMAIN_ORDER: &[&str] = &[
+    "agents", "skills", "rules", "mcp", "permissions", "pipelines", "events", "specs", "git",
+    "settings", "dashboard", "collections", "artifacts", "chat", "sessions", "workspaces",
+    "account",
+];
+
+fn build_ops() -> Vec<OpDescriptor> {
+    use crate::services::registry as reg;
+    // Migrated per-domain slices (one declaration per op → descriptor + dispatch).
+    let migrated: &[(&str, &[OpDescriptor])] = &[
+        ("agents", reg::agents::AGENTS_OPS),
+        ("rules", reg::rules::RULES_OPS),
+        ("mcp", reg::mcp::MCP_OPS),
+        ("permissions", reg::permissions::PERMISSIONS_OPS),
+    ];
     let mut ops: Vec<OpDescriptor> = Vec::new();
-    ops.extend_from_slice(crate::services::registry::agents::AGENTS_OPS);
-    ops.extend_from_slice(LEGACY_OPS);
+    for domain in DOMAIN_ORDER {
+        if let Some((_, slice)) = migrated.iter().find(|(d, _)| d == domain) {
+            ops.extend_from_slice(slice);
+        } else {
+            ops.extend(
+                LEGACY_OPS
+                    .iter()
+                    .filter(|o| o.name.split('.').next() == Some(*domain))
+                    .copied(),
+            );
+        }
+    }
     ops
-});
+}
 
 /// Hand-written descriptors for domains not yet migrated to `ship_ops!`.
 /// Shrinks to empty as each domain moves its ops next to its dispatch.
@@ -131,57 +160,6 @@ const LEGACY_OPS: &[OpDescriptor] = &[
         args: &[ArgDescriptor { name: "id", kind: "string", required: true }, PROJECT_SCOPE],
         returns: "SkillDetail",
         permission: "ship.skills.read", sensitive: false,
-    },
-
-    // ── rules ─────────────────────────────────────────────────────
-    OpDescriptor {
-        name: "rules.list",
-        description: "List markdown rules across scopes.",
-        args: &[], returns: "{items: [IndexEntry]}",
-        permission: "ship.rules.read", sensitive: false,
-    },
-    OpDescriptor {
-        name: "rules.get",
-        description: "Raw rule body at the requested scope.",
-        args: &[ArgDescriptor { name: "id", kind: "string", required: true }, PROJECT_SCOPE],
-        returns: "{id, scope, body}",
-        permission: "ship.rules.read", sensitive: false,
-    },
-
-    // ── mcp ───────────────────────────────────────────────────────
-    OpDescriptor {
-        name: "mcp.list",
-        description: "List MCP server entries across scopes.",
-        args: &[], returns: "{items: [IndexEntry]}",
-        permission: "ship.mcp.read", sensitive: false,
-    },
-    OpDescriptor {
-        name: "mcp.get",
-        description: "Raw MCP entry at the requested scope.",
-        args: &[ArgDescriptor { name: "id", kind: "string", required: true }, PROJECT_SCOPE],
-        returns: "{id, scope, entry}",
-        permission: "ship.mcp.read", sensitive: false,
-    },
-
-    // ── permissions ──────────────────────────────────────────────
-    OpDescriptor {
-        name: "permissions.list",
-        description: "List permission presets across scopes.",
-        args: &[], returns: "{items: [IndexEntry]}",
-        permission: "ship.permissions.read", sensitive: false,
-    },
-    OpDescriptor {
-        name: "permissions.get",
-        description: "Raw permission preset at the requested scope.",
-        args: &[ArgDescriptor { name: "id", kind: "string", required: true }, PROJECT_SCOPE],
-        returns: "{id, scope, entry}",
-        permission: "ship.permissions.read", sensitive: false,
-    },
-    OpDescriptor {
-        name: "permissions.tool_patterns",
-        description: "Enumerate tool-pattern capability names (for agent builders).",
-        args: &[], returns: "{patterns: [ToolPattern]}",
-        permission: "ship.permissions.read", sensitive: false,
     },
 
     // ── pipelines ─────────────────────────────────────────────────

@@ -33,6 +33,14 @@ const MIGRATED_RETURN_TYPES: &[&str] = &[
     "PermissionPresetsResponse",
     "HarnessesResponse",
     "AgentsCreateCtx",
+    // rules.* / mcp.* / permissions.*
+    "RulesIndexResponse",
+    "RuleGetResponse",
+    "McpIndexResponse",
+    "McpGetResponse",
+    "PermissionsIndexResponse",
+    "PermissionGetResponse",
+    "ToolPatternsResponse",
 ];
 
 /// The TS type a handle resolves to: a migrated named type, or `unknown`.

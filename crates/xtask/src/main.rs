@@ -176,6 +176,22 @@ fn collect_types() -> TypeCollection {
     c.register::<ship_platform::services::agents::wire_types::PermissionPresetsResponse>();
     c.register::<ship_platform::services::agents::wire_types::HarnessesResponse>();
 
+    // rules.* / mcp.* / permissions.* — file-backed index/get trio.
+    c.register::<ship_platform::services::rules::state::IndexEntry>();
+    c.register::<ship_platform::services::rules::state::ScopeTag>();
+    c.register::<ship_platform::services::rules::wire_types::RulesIndexResponse>();
+    c.register::<ship_platform::services::rules::wire_types::RuleGetResponse>();
+    c.register::<ship_platform::services::mcp::state::IndexEntry>();
+    c.register::<ship_platform::services::mcp::state::ScopeTag>();
+    c.register::<ship_platform::services::mcp::wire_types::McpIndexResponse>();
+    c.register::<ship_platform::services::mcp::wire_types::McpGetResponse>();
+    c.register::<ship_platform::services::permissions::state::IndexEntry>();
+    c.register::<ship_platform::services::permissions::state::ScopeTag>();
+    c.register::<ship_platform::services::permissions::wire_types::PermissionsIndexResponse>();
+    c.register::<ship_platform::services::permissions::wire_types::PermissionGetResponse>();
+    c.register::<ship_platform::services::permissions::wire_types::ToolPattern>();
+    c.register::<ship_platform::services::permissions::wire_types::ToolPatternsResponse>();
+
     c
 }
 
