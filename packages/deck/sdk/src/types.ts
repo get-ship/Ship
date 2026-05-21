@@ -4,7 +4,7 @@
 
 export type {
   PipelineRun,
-  JobStatus,
+  PipelineRunStatus,
   Pipeline,
   PipelineStep,
   StepType,
