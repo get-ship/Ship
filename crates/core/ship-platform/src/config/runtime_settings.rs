@@ -305,8 +305,8 @@ mod tests {
             "project override beats KV"
         );
         assert_eq!(
-            resolve_str("harness.default", Some("gemini"), &project),
-            Some("gemini".into()),
+            resolve_str("harness.default", Some("codex"), &project),
+            Some("codex".into()),
             "per-launch beats project"
         );
     }

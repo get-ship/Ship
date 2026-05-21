@@ -58,7 +58,7 @@ fn normalize_harness_ids(ids: &[String]) -> Vec<String> {
             continue;
         }
         // Keep harness IDs aligned with registered harness descriptors.
-        if !matches!(id.as_str(), "claude" | "gemini" | "codex") {
+        if !matches!(id.as_str(), "claude" | "codex" | "cursor" | "opencode") {
             continue;
         }
         if seen.insert(id.clone()) {
@@ -250,7 +250,7 @@ mod tests {
         create_skill(&ship_dir, "rt-beta-skill", "Beta", "beta body")?;
 
         let config = ProjectConfig {
-            harnesses: vec!["claude".to_string(), "gemini".to_string()],
+            harnesses: vec!["claude".to_string(), "cursor".to_string()],
             mcp_servers: vec![stdio_server("github", "github-bin")],
             ..Default::default()
         };
@@ -449,7 +449,7 @@ mod tests {
         // exercise the project-harnesses fallback path.
         std::fs::write(
             ship_dir.join("ship.jsonc"),
-            "{\"harnesses\": [\"claude\", \"gemini\"]}\n",
+            "{\"harnesses\": [\"claude\", \"cursor\"]}\n",
         )?;
 
         let feature_agent = WorkspaceAgentSettings {
@@ -462,7 +462,7 @@ mod tests {
         let resolved = resolve_harness_settings(&ship_dir, Some(&feature_agent))?;
         assert_eq!(
             resolved.harnesses,
-            vec!["claude".to_string(), "gemini".to_string()]
+            vec!["claude".to_string(), "cursor".to_string()]
         );
         assert_eq!(resolved.model.as_deref(), Some("feature-model"));
         Ok(())
@@ -474,7 +474,7 @@ mod tests {
         let ship_dir = init_project(tmp.path())?;
 
         let config = ProjectConfig {
-            harnesses: vec!["gemini".to_string()],
+            harnesses: vec!["cursor".to_string()],
             ..Default::default()
         };
         save_config(&config, Some(ship_dir.clone()))?;
@@ -505,7 +505,7 @@ mod tests {
         let ship_dir = init_project(tmp.path())?;
 
         let config = ProjectConfig {
-            harnesses: vec!["gemini".to_string(), "claude".to_string()],
+            harnesses: vec!["cursor".to_string(), "claude".to_string()],
             ..Default::default()
         };
         save_config(&config, Some(ship_dir.clone()))?;

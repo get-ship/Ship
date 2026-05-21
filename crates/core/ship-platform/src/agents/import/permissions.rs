@@ -3,7 +3,6 @@
 //!
 //! - **Claude** — `.claude/settings.json`'s `permissions.allow` becomes
 //!   `tools.allow`. Anything else is left to the user.
-//! - **Gemini** — `.gemini/policies/ship-permissions.toml`'s `[[rule]]`
 //!   entries map decisions (allow / deny / ask_user) onto Ship's
 //!   `tools` and `commands` lists. Composite rules (tool × mcp) are
 //!   expanded with the `mcp__tool` separator.
@@ -31,7 +30,6 @@ use super::home;
 pub fn import_permissions_from_harness(harness_id: &str, project_dir: PathBuf) -> Result<bool> {
     let imported = match harness_id {
         "claude" => import_permissions_from_claude(&project_dir)?,
-        "gemini" => import_permissions_from_gemini(&project_dir)?,
         "codex" => import_permissions_from_codex(&project_dir)?,
         _ => return Err(anyhow!("Unsupported harness '{}'", harness_id)),
     };
@@ -85,123 +83,6 @@ fn import_permissions_from_claude(project_dir: &Path) -> Result<Option<Permissio
     }))
 }
 
-fn import_permissions_from_gemini(project_dir: &Path) -> Result<Option<Permissions>> {
-    let Some(project_root) = project_dir.parent() else {
-        return Ok(None);
-    };
-    let path = project_root
-        .join(".gemini")
-        .join("policies")
-        .join("ship-permissions.toml");
-    if !path.exists() {
-        return Ok(None);
-    }
-
-    let root: toml::Value = toml::from_str(&fs::read_to_string(path)?)?;
-    let rules = root
-        .get("rule")
-        .and_then(|v| v.as_array())
-        .cloned()
-        .unwrap_or_default();
-    if rules.is_empty() {
-        return Ok(None);
-    }
-
-    let mut permissions = Permissions {
-        tools: ToolPermissions {
-            allow: vec![],
-            deny: vec![],
-        },
-        commands: CommandPermissions {
-            allow: vec![],
-            deny: vec![],
-        },
-        agent: AgentLimits {
-            require_confirmation: vec![],
-        },
-        ..Default::default()
-    };
-
-    for value in rules {
-        let Some(rule) = value.as_table() else {
-            continue;
-        };
-        let decision = rule
-            .get("decision")
-            .and_then(|v| v.as_str())
-            .unwrap_or("")
-            .to_ascii_lowercase();
-        if decision.is_empty() {
-            continue;
-        }
-
-        let tool_names = value_to_string_list(rule.get("toolName"));
-        let mcp_names = value_to_string_list(rule.get("mcpName"));
-        let command_prefixes = value_to_string_list(rule.get("commandPrefix"));
-        let command_regexes = value_to_string_list(rule.get("commandRegex"));
-
-        for command in command_prefixes {
-            match decision.as_str() {
-                "allow" => permissions.commands.allow.push(format!("{}*", command)),
-                "deny" => permissions.commands.deny.push(format!("{}*", command)),
-                "ask_user" => permissions
-                    .agent
-                    .require_confirmation
-                    .push(format!("{}*", command)),
-                _ => {}
-            }
-        }
-        for regex in command_regexes {
-            let pattern = format!("regex:{}", regex);
-            match decision.as_str() {
-                "allow" => permissions.commands.allow.push(pattern),
-                "deny" => permissions.commands.deny.push(pattern),
-                "ask_user" => permissions.agent.require_confirmation.push(pattern),
-                _ => {}
-            }
-        }
-
-        let mut composite_tools = Vec::new();
-        if tool_names.is_empty() && mcp_names.is_empty() {
-            continue;
-        }
-        if tool_names.is_empty() {
-            for mcp_name in &mcp_names {
-                composite_tools.push(format!("{}__*", mcp_name));
-            }
-        } else if mcp_names.is_empty() {
-            composite_tools.extend(tool_names.clone());
-        } else {
-            for mcp_name in &mcp_names {
-                for tool_name in &tool_names {
-                    composite_tools.push(format!("{}__{}", mcp_name, tool_name));
-                }
-            }
-        }
-
-        for tool in composite_tools {
-            if tool == "run_shell_command" {
-                continue;
-            }
-            match decision.as_str() {
-                "allow" => permissions.tools.allow.push(tool),
-                "deny" => permissions.tools.deny.push(tool),
-                _ => {}
-            }
-        }
-    }
-
-    dedupe_strings(&mut permissions.tools.allow);
-    dedupe_strings(&mut permissions.tools.deny);
-    dedupe_strings(&mut permissions.commands.allow);
-    dedupe_strings(&mut permissions.commands.deny);
-    dedupe_strings(&mut permissions.agent.require_confirmation);
-
-    if permissions.tools.allow.is_empty() {
-        permissions.tools.allow.push("*".to_string());
-    }
-    Ok(Some(permissions))
-}
 
 fn import_permissions_from_codex(project_dir: &Path) -> Result<Option<Permissions>> {
     let Some(project_root) = project_dir.parent() else {

@@ -108,7 +108,6 @@ pub(super) fn try_dispatch(
                 ("claude", "claude"),
                 ("codex", "codex"),
                 ("opencode", "opencode"),
-                ("gemini", "gemini"),
                 ("cursor", "cursor"),
             ];
             if let Ok(entries) = std::fs::read_dir("/proc") {

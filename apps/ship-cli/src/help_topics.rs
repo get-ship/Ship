@@ -109,7 +109,7 @@ Available keys:
   terminal.program    Terminal for dispatch: wt, iterm, tmux, gnome, vscode, manual
   dispatch.confirm    Show spec and ask y/n before launching agent (true/false)
   worktrees.dir       Base directory for worktrees (default: ~/dev/<project>-worktrees)
-  defaults.harness   Default compilation harness (claude, gemini, codex, cursor)
+  defaults.harness   Default compilation harness (claude, codex, cursor, opencode)
   defaults.mode       Default agent permission mode
   identity.name       Your display name
   identity.email      Your email
@@ -150,10 +150,9 @@ Ship compiles agent config to harness-native formats:
   claude    CLAUDE.md + .mcp.json
   cursor    .cursor/ directory
   codex     .codex/ directory + AGENTS.md
-  gemini    .gemini/ directory + GEMINI.md
 
 Set harnesses in your agent JSONC:
-  \"agent\": { \"harnesses\": [\"claude\", \"gemini\"] }
+  \"agent\": { \"harnesses\": [\"claude\", \"codex\"] }
 
 Or compile for one harness at a time:
   ship compile --harness claude

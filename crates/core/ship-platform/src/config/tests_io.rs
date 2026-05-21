@@ -111,7 +111,7 @@ fn get_config_round_trips_agent_sidecars() -> anyhow::Result<()> {
     fs::create_dir_all(&ship_dir)?;
 
     let config = ProjectConfig {
-        harnesses: vec!["gemini".to_string()],
+        harnesses: vec!["cursor".to_string()],
         agents: vec![AgentProfile {
             id: "focus".to_string(),
             name: "Focus".to_string(),
@@ -139,11 +139,11 @@ fn get_config_round_trips_agent_sidecars() -> anyhow::Result<()> {
     // sidecar-canonical and DO round-trip through save_config.)
     fs::write(
         ship_dir.join("ship.jsonc"),
-        "{\"harnesses\": [\"gemini\"]}\n",
+        "{\"harnesses\": [\"cursor\"]}\n",
     )?;
     let loaded = get_config(Some(ship_dir))?;
 
-    assert_eq!(loaded.harnesses, vec!["gemini".to_string()]);
+    assert_eq!(loaded.harnesses, vec!["cursor".to_string()]);
     assert!(loaded.agent.skills.is_empty());
     assert_eq!(loaded.agents.len(), 1);
     assert_eq!(loaded.agents[0].id, "focus");

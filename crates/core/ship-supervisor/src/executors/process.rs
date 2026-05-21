@@ -515,18 +515,18 @@ mod tests {
 
     #[test]
     fn dispatch_surfaces_resume_unsupported_error() {
-        // Gemini has no resume — the adapter returns Err and the executor
+        // Cursor has no resume — the adapter returns Err and the executor
         // bubbles that up rather than silently falling back to a fresh
         // launch.
         let profile = LaunchProfile {
-            harness: Some("gemini".to_string()),
+            harness: Some("cursor".to_string()),
             resume_session: Some("anything".to_string()),
             persist_session: true,
             ..Default::default()
         };
         let adapter = adapter_for_or_default(profile.harness.as_deref()).unwrap();
         let err = build_headless_with_default_prompt(adapter, "s", &profile)
-            .expect_err("gemini resume must fail");
+            .expect_err("cursor resume must fail");
         let msg = err.to_string();
         assert!(msg.contains("does not support session resume"), "got: {msg}");
     }

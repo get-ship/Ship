@@ -394,7 +394,7 @@ fn normalize_harnesses(ids: &[String]) -> Vec<String> {
         }
         if !matches!(
             id.as_str(),
-            "claude" | "gemini" | "codex" | "cursor" | "opencode"
+            "claude" | "codex" | "cursor" | "opencode" | "pi"
         ) {
             continue;
         }
@@ -496,7 +496,7 @@ mod tests {
     #[test]
     fn feature_overrides_harnesses() {
         let config = ProjectConfig {
-            harnesses: vec!["gemini".to_string()],
+            harnesses: vec!["cursor".to_string()],
             ..Default::default()
         };
         let feature = WorkspaceOverrides {
@@ -549,11 +549,11 @@ mod tests {
     #[test]
     fn harnesses_normalized_to_lowercase() {
         let config = ProjectConfig {
-            harnesses: vec!["CLAUDE".to_string(), "Gemini".to_string()],
+            harnesses: vec!["CLAUDE".to_string(), "Codex".to_string()],
             ..Default::default()
         };
         let resolved = resolve(&config, &[], &[], &Permissions::default(), &[], None, None);
-        assert_eq!(resolved.harnesses, vec!["claude", "gemini"]);
+        assert_eq!(resolved.harnesses, vec!["claude", "codex"]);
     }
 
     #[test]
@@ -609,7 +609,7 @@ mod tests {
     #[test]
     fn agent_target_agents_does_not_override_project_harnesses() {
         let config = ProjectConfig {
-            harnesses: vec!["gemini".to_string()],
+            harnesses: vec!["codex".to_string()],
             agents: vec![AgentConfig {
                 id: "any-agent".to_string(),
                 name: "Any Agent".to_string(),
@@ -619,7 +619,7 @@ mod tests {
             ..Default::default()
         };
         let resolved = resolve(&config, &[], &[], &Permissions::default(), &[], None, Some("any-agent"));
-        assert_eq!(resolved.harnesses, vec!["gemini"]);
+        assert_eq!(resolved.harnesses, vec!["codex"]);
     }
 
     // ── Rule normalization ────────────────────────────────────────────────
