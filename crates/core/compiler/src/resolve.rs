@@ -38,17 +38,9 @@ pub struct ResolvedConfig {
     /// Plugin install intent declared by the active preset.
     /// Passed through unchanged from `ProjectLibrary::plugins`.
     pub plugins: PluginsManifest,
-    /// Arbitrary extra settings for the Claude harness.
-    /// Pass-through from `[harness_settings.claude]` in the preset TOML.
-    /// Merged verbatim into `.claude/settings.json`.
-    pub claude_settings_extra: Option<serde_json::Value>,
     /// Agent profiles parsed from `.ship/agents/*.toml`.
     /// Compiled into harness-native subagent definitions.
     pub agent_profiles: Vec<AgentProfile>,
-    /// Team agent files for the Claude harness (legacy passthrough).
-    /// Source: `.ship/agents/teams/claude/<name>.md`.
-    /// Output: `.claude/agents/<name>.md`.
-    pub claude_team_agents: Vec<(String, String)>,
     /// Environment variables to inject into harness settings.
     /// Source: `agents/env.toml` or `[env]` in preset TOML.
     /// Claude: `env` field in `.claude/settings.json`.
@@ -56,33 +48,13 @@ pub struct ResolvedConfig {
     /// Restrict the model picker to these model IDs.
     /// Claude: `availableModels` in `.claude/settings.json`.
     pub available_models: Vec<String>,
-    /// Codex sandbox mode — translated key/value before emit.
-    pub codex_sandbox: Option<String>,
-    // ── Gemini harness settings ───────────────────────────────────────────────
-    pub gemini_default_approval_mode: Option<String>,
-    pub gemini_max_session_turns: Option<u32>,
-    pub gemini_disable_yolo_mode: Option<bool>,
-    pub gemini_disable_always_allow: Option<bool>,
-    pub gemini_tools_sandbox: Option<String>,
-    pub gemini_settings_extra: Option<serde_json::Value>,
-    // ── Codex harness settings ────────────────────────────────────────────────
-    pub codex_approval_policy: Option<String>,
-    pub codex_reasoning_effort: Option<String>,
-    pub codex_max_threads: Option<u32>,
-    pub codex_max_depth: Option<u32>,
-    pub codex_job_max_runtime_seconds: Option<u64>,
-    pub codex_shell_env_policy: Option<String>,
-    pub codex_notify: Option<serde_json::Value>,
-    pub codex_settings_extra: Option<serde_json::Value>,
-    // ── OpenCode harness settings ────────────────────────────────────────────
-    pub opencode_settings_extra: Option<serde_json::Value>,
-    // ── Cursor harness settings ───────────────────────────────────────────────
-    pub cursor_environment: Option<serde_json::Value>,
-    pub cursor_settings_extra: Option<serde_json::Value>,
-    // ── Claude harness settings ───────────────────────────────────────────────
-    pub claude_theme: Option<String>,
-    pub claude_auto_updates: Option<bool>,
-    pub claude_include_co_authored_by: Option<bool>,
+    // ── Per-harness settings (typed deltas from the Ship-agent core) ───────────
+    // Each is owned by its harness module; resolve() maps the flat library
+    // fields into these. Dropping a harness = delete its module + one field.
+    pub claude: crate::compile::ClaudeSettings,
+    pub codex: crate::compile::CodexSettings,
+    pub opencode: crate::compile::OpenCodeSettings,
+    pub cursor: crate::compile::CursorSettings,
     // ── Studio integration ─────────────────────────────────────────────────────
     /// When the active agent profile declares `[apps] studio = true`, this is
     /// set to the Studio MCP URL (e.g. `http://localhost:51741/agent`).
@@ -160,19 +132,6 @@ pub struct ProjectLibrary {
     /// Shared model override used by Gemini + Codex when no feature override present.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub model: Option<String>,
-    // ── Gemini harness settings ───────────────────────────────────────────────
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub gemini_default_approval_mode: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub gemini_max_session_turns: Option<u32>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub gemini_disable_yolo_mode: Option<bool>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub gemini_disable_always_allow: Option<bool>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub gemini_tools_sandbox: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub gemini_settings_extra: Option<serde_json::Value>,
     // ── Codex harness settings ────────────────────────────────────────────────
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub codex_approval_policy: Option<String>,
@@ -259,58 +218,52 @@ pub fn resolve_library(
         active_agent_override.as_deref(),
     );
     resolved.plugins = library.plugins.clone();
-    // Merge harness_defaults with agent-level *_settings_extra.
-    // harness_defaults is the base; *_settings_extra is the agent override.
-    resolved.claude_settings_extra = merge_harness_extra(
-        library.harness_defaults.get("claude"),
-        library.claude_settings_extra.as_ref(),
-    );
     resolved.agent_profiles = library.agent_profiles.clone();
-    resolved.claude_team_agents = library.claude_team_agents.clone();
     resolved.env = library.env.clone();
     resolved.available_models = library.available_models.clone();
-    resolved.codex_sandbox = library.codex_sandbox.clone();
     // Phase 1A: model falls back to library.model when no feature/project override
     if resolved.model.is_none() {
         resolved.model = library.model.clone();
     }
-    // Gemini settings
-    resolved.gemini_default_approval_mode = library.gemini_default_approval_mode.clone();
-    resolved.gemini_max_session_turns = library.gemini_max_session_turns;
-    resolved.gemini_disable_yolo_mode = library.gemini_disable_yolo_mode;
-    resolved.gemini_disable_always_allow = library.gemini_disable_always_allow;
-    resolved.gemini_tools_sandbox = library.gemini_tools_sandbox.clone();
-    resolved.gemini_settings_extra = merge_harness_extra(
-        library.harness_defaults.get("gemini"),
-        library.gemini_settings_extra.as_ref(),
-    );
-    // Codex settings
-    resolved.codex_approval_policy = library.codex_approval_policy.clone();
-    resolved.codex_reasoning_effort = library.codex_reasoning_effort.clone();
-    resolved.codex_max_threads = library.codex_max_threads;
-    resolved.codex_max_depth = library.codex_max_depth;
-    resolved.codex_job_max_runtime_seconds = library.codex_job_max_runtime_seconds;
-    resolved.codex_shell_env_policy = library.codex_shell_env_policy.clone();
-    resolved.codex_notify = library.codex_notify.clone();
-    resolved.codex_settings_extra = merge_harness_extra(
-        library.harness_defaults.get("codex"),
-        library.codex_settings_extra.as_ref(),
-    );
-    // OpenCode settings
-    resolved.opencode_settings_extra = merge_harness_extra(
-        library.harness_defaults.get("opencode"),
-        library.opencode_settings_extra.as_ref(),
-    );
-    // Cursor settings
-    resolved.cursor_environment = library.cursor_environment.clone();
-    resolved.cursor_settings_extra = merge_harness_extra(
-        library.harness_defaults.get("cursor"),
-        library.cursor_settings_extra.as_ref(),
-    );
-    // Claude settings
-    resolved.claude_theme = library.claude_theme.clone();
-    resolved.claude_auto_updates = library.claude_auto_updates;
-    resolved.claude_include_co_authored_by = library.claude_include_co_authored_by;
+    // Per-harness settings: map flat library fields into typed deltas.
+    // harness_defaults is the base; agent-level *_settings_extra overrides.
+    resolved.claude = crate::compile::ClaudeSettings {
+        settings_extra: merge_harness_extra(
+            library.harness_defaults.get("claude"),
+            library.claude_settings_extra.as_ref(),
+        ),
+        team_agents: library.claude_team_agents.clone(),
+        theme: library.claude_theme.clone(),
+        auto_updates: library.claude_auto_updates,
+        include_co_authored_by: library.claude_include_co_authored_by,
+    };
+    resolved.codex = crate::compile::CodexSettings {
+        sandbox: library.codex_sandbox.clone(),
+        approval_policy: library.codex_approval_policy.clone(),
+        reasoning_effort: library.codex_reasoning_effort.clone(),
+        max_threads: library.codex_max_threads,
+        max_depth: library.codex_max_depth,
+        job_max_runtime_seconds: library.codex_job_max_runtime_seconds,
+        shell_env_policy: library.codex_shell_env_policy.clone(),
+        notify: library.codex_notify.clone(),
+        settings_extra: merge_harness_extra(
+            library.harness_defaults.get("codex"),
+            library.codex_settings_extra.as_ref(),
+        ),
+    };
+    resolved.opencode = crate::compile::OpenCodeSettings {
+        settings_extra: merge_harness_extra(
+            library.harness_defaults.get("opencode"),
+            library.opencode_settings_extra.as_ref(),
+        ),
+    };
+    resolved.cursor = crate::compile::CursorSettings {
+        environment: library.cursor_environment.clone(),
+        settings_extra: merge_harness_extra(
+            library.harness_defaults.get("cursor"),
+            library.cursor_settings_extra.as_ref(),
+        ),
+    };
     // Studio integration: if active agent declares apps.studio = true, set HTTP transport URL.
     let active_id = resolved.active_agent.as_deref().unwrap_or("");
     let studio_active = library
@@ -415,32 +368,15 @@ pub fn resolve(
         hooks: hooks.to_vec(),
         active_agent,
         plugins: PluginsManifest::default(),
-        claude_settings_extra: None,
         agent_profiles: Vec::new(),
-        claude_team_agents: Vec::new(),
         env: std::collections::HashMap::new(),
         available_models: Vec::new(),
-        codex_sandbox: None,
-        gemini_default_approval_mode: None,
-        gemini_max_session_turns: None,
-        gemini_disable_yolo_mode: None,
-        gemini_disable_always_allow: None,
-        gemini_tools_sandbox: None,
-        gemini_settings_extra: None,
-        codex_approval_policy: None,
-        codex_reasoning_effort: None,
-        codex_max_threads: None,
-        codex_max_depth: None,
-        codex_job_max_runtime_seconds: None,
-        codex_shell_env_policy: None,
-        codex_notify: None,
-        codex_settings_extra: None,
-        opencode_settings_extra: None,
-        cursor_environment: None,
-        cursor_settings_extra: None,
-        claude_theme: None,
-        claude_auto_updates: None,
-        claude_include_co_authored_by: None,
+        // Per-harness deltas default to empty here; resolve_library() fills
+        // them from the flat ProjectLibrary fields.
+        claude: crate::compile::ClaudeSettings::default(),
+        codex: crate::compile::CodexSettings::default(),
+        opencode: crate::compile::OpenCodeSettings::default(),
+        cursor: crate::compile::CursorSettings::default(),
         studio_mcp_url: None,
         ship_home_dir: None,
     }
@@ -458,7 +394,7 @@ fn normalize_harnesses(ids: &[String]) -> Vec<String> {
         }
         if !matches!(
             id.as_str(),
-            "claude" | "gemini" | "codex" | "cursor" | "opencode"
+            "claude" | "codex" | "cursor" | "opencode" | "pi"
         ) {
             continue;
         }
@@ -546,10 +482,6 @@ mod tests {
             timeout_secs: None,
             codex_enabled_tools: vec![],
             codex_disabled_tools: vec![],
-            gemini_trust: None,
-            gemini_include_tools: vec![],
-            gemini_exclude_tools: vec![],
-            gemini_timeout_ms: None,
             cursor_env_file: None,
         }
     }
@@ -564,7 +496,7 @@ mod tests {
     #[test]
     fn feature_overrides_harnesses() {
         let config = ProjectConfig {
-            harnesses: vec!["gemini".to_string()],
+            harnesses: vec!["cursor".to_string()],
             ..Default::default()
         };
         let feature = WorkspaceOverrides {
@@ -617,11 +549,11 @@ mod tests {
     #[test]
     fn harnesses_normalized_to_lowercase() {
         let config = ProjectConfig {
-            harnesses: vec!["CLAUDE".to_string(), "Gemini".to_string()],
+            harnesses: vec!["CLAUDE".to_string(), "Codex".to_string()],
             ..Default::default()
         };
         let resolved = resolve(&config, &[], &[], &Permissions::default(), &[], None, None);
-        assert_eq!(resolved.harnesses, vec!["claude", "gemini"]);
+        assert_eq!(resolved.harnesses, vec!["claude", "codex"]);
     }
 
     #[test]
@@ -677,7 +609,7 @@ mod tests {
     #[test]
     fn agent_target_agents_does_not_override_project_harnesses() {
         let config = ProjectConfig {
-            harnesses: vec!["gemini".to_string()],
+            harnesses: vec!["codex".to_string()],
             agents: vec![AgentConfig {
                 id: "any-agent".to_string(),
                 name: "Any Agent".to_string(),
@@ -687,7 +619,7 @@ mod tests {
             ..Default::default()
         };
         let resolved = resolve(&config, &[], &[], &Permissions::default(), &[], None, Some("any-agent"));
-        assert_eq!(resolved.harnesses, vec!["gemini"]);
+        assert_eq!(resolved.harnesses, vec!["codex"]);
     }
 
     // ── Rule normalization ────────────────────────────────────────────────
@@ -939,11 +871,11 @@ mod tests {
 
         assert_eq!(resolved.plugins.install.len(), 1);
         assert_eq!(resolved.plugins.install[0].id, "test-plugin");
-        assert!(resolved.claude_settings_extra.is_some());
+        assert!(resolved.claude.settings_extra.is_some());
         assert_eq!(resolved.agent_profiles.len(), 1);
         assert_eq!(resolved.agent_profiles[0].agent.id, "test-agent");
-        assert_eq!(resolved.claude_team_agents.len(), 1);
-        assert_eq!(resolved.claude_team_agents[0].0, "team-lead.md");
+        assert_eq!(resolved.claude.team_agents.len(), 1);
+        assert_eq!(resolved.claude.team_agents[0].0, "team-lead.md");
         assert_eq!(resolved.env.get("KEY").map(String::as_str), Some("VALUE"));
         assert_eq!(resolved.available_models, vec!["model-a"]);
     }
@@ -1003,15 +935,12 @@ mod tests {
             "claude".to_string(),
             json!({"theme": "dark", "autoUpdates": true, "nested": {"a": 1, "b": 2}}),
         );
-        defaults.insert("gemini".to_string(), json!({"yoloMode": false}));
 
         let library = ProjectLibrary {
             harness_defaults: defaults,
             claude_settings_extra: Some(
                 json!({"theme": "light", "newKey": "hello", "nested": {"b": 99, "c": 3}}),
             ),
-            // gemini: no agent override — defaults should pass through
-            gemini_settings_extra: None,
             // codex: agent override but no defaults — agent wins
             codex_settings_extra: Some(json!({"policy": "suggest"})),
             ..Default::default()
@@ -1020,7 +949,7 @@ mod tests {
         let resolved = super::resolve_library(&library, None, None);
 
         // Claude: agent override wins on "theme", base kept for "autoUpdates", deep merge on "nested"
-        let claude = resolved.claude_settings_extra.unwrap();
+        let claude = resolved.claude.settings_extra.unwrap();
         assert_eq!(claude["theme"], "light");
         assert_eq!(claude["autoUpdates"], true);
         assert_eq!(claude["newKey"], "hello");
@@ -1028,15 +957,11 @@ mod tests {
         assert_eq!(claude["nested"]["b"], 99);
         assert_eq!(claude["nested"]["c"], 3);
 
-        // Gemini: defaults pass through when no agent override
-        let gemini = resolved.gemini_settings_extra.unwrap();
-        assert_eq!(gemini["yoloMode"], false);
-
         // Codex: agent override only, no defaults
-        let codex = resolved.codex_settings_extra.unwrap();
+        let codex = resolved.codex.settings_extra.unwrap();
         assert_eq!(codex["policy"], "suggest");
 
         // Cursor: neither defaults nor agent — should be None
-        assert!(resolved.cursor_settings_extra.is_none());
+        assert!(resolved.cursor.settings_extra.is_none());
     }
 }

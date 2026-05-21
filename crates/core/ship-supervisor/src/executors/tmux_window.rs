@@ -64,12 +64,15 @@ pub(crate) fn step_log_rel(index: usize, step_id: &str) -> String {
 
 /// Is the tmux binary on PATH and responsive to `-V`?
 ///
-/// One retry on failure: under heavy parallel subprocess load
-/// (workspace-wide test runs, dispatching many agents in parallel)
-/// the bare `tmux -V` occasionally fails to fork / start and returns
-/// non-success. This is a transient OS-level resource hiccup, not a
-/// real "tmux is unavailable" signal. We retry once with a small
-/// pause; if the second attempt also fails, tmux truly isn't usable.
+/// Retries with backoff before concluding tmux is unusable. Under heavy
+/// parallel subprocess load (workspace-wide test runs, dispatching many agents
+/// at once) the bare `tmux -V` intermittently fails to fork/start — a
+/// transient OS-level resource hiccup, not a real "tmux is gone" signal.
+/// A single probe was flaky enough to make the dispatcher mis-route to the
+/// headless fallback (and to make detection disagree with itself between two
+/// calls in the same code path). Four attempts with 50/100/200ms backoff make
+/// a false negative vanishingly unlikely while costing nothing on the common
+/// first-try success.
 pub(crate) fn tmux_available() -> bool {
     fn check() -> bool {
         ship_substrate::spawn_bounded::Cmd::new("tmux")
@@ -78,10 +81,12 @@ pub(crate) fn tmux_available() -> bool {
             .map(|o| o.status.success())
             .unwrap_or(false)
     }
-    if check() {
-        return true;
+    for backoff_ms in [50u64, 100, 200] {
+        if check() {
+            return true;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(backoff_ms));
     }
-    std::thread::sleep(std::time::Duration::from_millis(50));
     check()
 }
 
@@ -142,6 +147,24 @@ fn window_id_exists(session: &str, window_id: &str) -> bool {
     String::from_utf8_lossy(&out.stdout)
         .lines()
         .any(|l| l == window_id)
+}
+
+/// The pid of the shell in `window_target`'s pane (e.g. `ship-foo:@29`).
+/// Used to give tmux-backed actors a real pid for `/proc` liveness. Returns
+/// `None` if tmux can't report it — callers fall back to activity-based
+/// liveness, exactly as before.
+fn pane_pid(window_target: &str) -> Option<u32> {
+    let out = ship_substrate::spawn_bounded::Cmd::new("tmux")
+        .args(["list-panes", "-t", window_target, "-F", "#{pane_pid}"])
+        .output()
+        .ok()?;
+    if !out.status.success() {
+        return None;
+    }
+    String::from_utf8_lossy(&out.stdout)
+        .lines()
+        .next()
+        .and_then(|l| l.trim().parse::<u32>().ok())
 }
 
 /// Find a window id by name in the session. Returns `None` if there are
@@ -229,8 +252,16 @@ impl SessionExecutor for TmuxWindowExecutor {
             monitor_window(&session_mon, &window_mon, &slug, &pipeline_run_id, exit_tx);
         });
 
+        // Record the pane's pid so the actor projection's /proc liveness probe
+        // works for tmux steps too. Without it, pid is None and `actor.live`
+        // falls back to a 90s activity timer — an idle-but-alive tmux agent
+        // reads as dead. The pane pid (the shell running the tee'd agent) is
+        // alive exactly while the window is, so it tracks liveness honestly.
+        // Flows through `handle.pid` → `process.spawned` → the projection.
+        let pid = pane_pid(&window_target);
+
         Ok(ExecutorHandle {
-            pid: None,
+            pid,
             inner: Box::new(TmuxWindowState { session, window: window_id }),
         })
     }

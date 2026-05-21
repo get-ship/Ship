@@ -146,12 +146,6 @@ fn settings_patch_only_for_claude() {
         ..resolved(vec![])
     };
     assert!(
-        compile(&r, "gemini")
-            .unwrap()
-            .claude_settings_patch
-            .is_none()
-    );
-    assert!(
         compile(&r, "codex")
             .unwrap()
             .claude_settings_patch
@@ -275,9 +269,12 @@ fn max_turns_emits_to_settings() {
 #[test]
 fn claude_settings_extra_merged_into_patch() {
     let r = ResolvedConfig {
-        claude_settings_extra: Some(
-            serde_json::json!({ "customFeature": true, "experimentalMode": "fast" }),
-        ),
+        claude: crate::compile::ClaudeSettings {
+            settings_extra: Some(
+                serde_json::json!({ "customFeature": true, "experimentalMode": "fast" }),
+            ),
+            ..Default::default()
+        },
         ..resolved(vec![])
     };
     let out = compile(&r, "claude").unwrap();
@@ -291,7 +288,10 @@ fn claude_settings_extra_merged_into_patch() {
 #[test]
 fn claude_settings_extra_null_no_patch() {
     let r = ResolvedConfig {
-        claude_settings_extra: Some(serde_json::Value::Null),
+        claude: crate::compile::ClaudeSettings {
+            settings_extra: Some(serde_json::Value::Null),
+            ..Default::default()
+        },
         ..resolved(vec![])
     };
     let out = compile(&r, "claude").unwrap();
@@ -385,12 +385,6 @@ fn ask_tier_not_emitted_for_other_harnesses() {
         ..resolved(vec![])
     };
     assert!(
-        compile(&r, "gemini")
-            .unwrap()
-            .claude_settings_patch
-            .is_none()
-    );
-    assert!(
         compile(&r, "codex")
             .unwrap()
             .claude_settings_patch
@@ -423,7 +417,7 @@ fn claude_lsp_config_is_always_emitted() {
 
 #[test]
 fn lsp_config_not_emitted_for_other_harnesses() {
-    for p in ["gemini", "codex", "cursor", "opencode"] {
+    for p in others("claude") {
         assert!(
             compile(&resolved(vec![]), p)
                 .unwrap()

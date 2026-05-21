@@ -2,6 +2,25 @@
 // Authoritative path reference, support matrix, and compatibility dates:
 // → crates/core/compiler/HARNESSES.md
 // Update that file before changing any HarnessDescriptor field.
+//
+// This table is the single source of truth for harness onboarding: data
+// (paths, MCP keys, feature flags) AND behaviour (agent/MCP/settings
+// compilation, carried as fn pointers). Adding a harness is one entry here
+// plus its compile module; the compile flow never matches on harness id.
+
+use serde_json::Value as Json;
+
+use super::CompileOutput;
+use crate::resolve::ResolvedConfig;
+use crate::types::{AgentProfile, McpServerConfig};
+
+/// Compile one agent profile into this harness's native agent-file body.
+pub type CompileAgentFn = fn(&AgentProfile) -> String;
+/// Build this harness's MCP server config block.
+pub type BuildMcpFn =
+    fn(&HarnessDescriptor, &[McpServerConfig], Option<&str>, Option<&str>) -> Json;
+/// Populate this harness's native settings/policy/hook outputs.
+pub type BuildSettingsFn = fn(&HarnessDescriptor, &ResolvedConfig, &mut CompileOutput);
 
 /// How MCP servers are keyed in the target config file.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -29,8 +48,6 @@ impl McpKey {
 pub enum ContextFile {
     /// `CLAUDE.md` — Claude Code
     ClaudeMd,
-    /// `GEMINI.md` — Gemini CLI
-    GeminiMd,
     /// `AGENTS.md` — Codex, Roo, Amp, Goose
     AgentsMd,
     /// Harness does not use a context file
@@ -41,7 +58,6 @@ impl ContextFile {
     pub fn file_name(self) -> Option<&'static str> {
         match self {
             Self::ClaudeMd => Some("CLAUDE.md"),
-            Self::GeminiMd => Some("GEMINI.md"),
             Self::AgentsMd => Some("AGENTS.md"),
             Self::None => None,
         }
@@ -53,9 +69,7 @@ impl ContextFile {
 pub enum SkillsDir {
     /// `.claude/skills/<id>/SKILL.md`
     Claude,
-    /// `.agents/skills/<id>/SKILL.md` (Gemini CLI, Cursor fallback, universal)
-    Gemini,
-    /// `.agents/skills/<id>/SKILL.md`
+    /// `.agents/skills/<id>/SKILL.md` (Codex, Pi, Cursor fallback, universal)
     Agents,
     /// `.cursor/skills/<id>/SKILL.md`
     Cursor,
@@ -68,7 +82,6 @@ impl SkillsDir {
     pub fn base_path(self) -> Option<&'static str> {
         match self {
             Self::Claude => Some(".claude/skills"),
-            Self::Gemini => Some(".agents/skills"),
             Self::Agents => Some(".agents/skills"),
             Self::Cursor => Some(".cursor/skills"),
             Self::OpenCode => Some(".opencode/skills"),
@@ -82,8 +95,6 @@ impl SkillsDir {
 pub enum AgentsDir {
     /// `.claude/agents/<id>.md`
     Claude,
-    /// `.gemini/agents/<id>.md`
-    Gemini,
     /// `.codex/agents/<id>.toml`
     Codex,
     /// `.cursor/agents/<id>.md`
@@ -99,7 +110,6 @@ impl AgentsDir {
     pub fn base_path(self) -> Option<&'static str> {
         match self {
             Self::Claude => Some(".claude/agents"),
-            Self::Gemini => Some(".gemini/agents"),
             Self::Codex => Some(".codex/agents"),
             Self::Cursor => Some(".cursor/agents"),
             Self::OpenCode => Some(".opencode/agents"),
@@ -110,7 +120,6 @@ impl AgentsDir {
     pub fn ext(self) -> Option<&'static str> {
         match self {
             Self::Claude => Some("md"),
-            Self::Gemini => Some("md"),
             Self::Codex => Some("toml"),
             Self::Cursor => Some("md"),
             Self::OpenCode => Some("md"),
@@ -147,6 +156,17 @@ pub struct HarnessDescriptor {
     /// Project-relative path where the MCP config file is written.
     /// `None` when the MCP config is merged into a larger settings file.
     pub mcp_config_path: Option<&'static str>,
+    /// What the compiler emits for this harness (MCP/hooks/permissions/
+    /// memory). Lives on the descriptor so the one HARNESSES table is the
+    /// single source of truth — no `match self.id` to keep in sync.
+    pub features: ProviderFeatureFlags,
+    /// Compile an agent profile into this harness's native agent file.
+    pub compile_agent: CompileAgentFn,
+    /// Build this harness's MCP server config (most use the shared builder;
+    /// gemini/cursor have per-server-field variants).
+    pub build_mcp: BuildMcpFn,
+    /// Populate this harness's settings/policy/hook outputs on CompileOutput.
+    pub build_settings: BuildSettingsFn,
 }
 
 pub(super) static HARNESSES: &[HarnessDescriptor] = &[
@@ -162,22 +182,15 @@ pub(super) static HARNESSES: &[HarnessDescriptor] = &[
         http_url_field: "url",
         // Project-level MCP for Claude Code lives in .mcp.json
         mcp_config_path: Some(".mcp.json"),
-    },
-    HarnessDescriptor {
-        id: "gemini",
-        name: "Gemini CLI",
-        mcp_key: McpKey::McpServers,
-        context_file: ContextFile::GeminiMd,
-        skills_dir: SkillsDir::Gemini,
-        agents_dir: AgentsDir::Gemini,
-        // Source: https://geminicli.com/docs/tools/mcp-server/
-        // No "type" field — transport inferred from field presence.
-        emit_type_field: false,
-        // SSE → "url", streamable HTTP → "httpUrl"
-        sse_url_field: "url",
-        http_url_field: "httpUrl",
-        // MCP is nested under mcpServers inside settings.json (not a separate file)
-        mcp_config_path: Some(".gemini/settings.json"),
+        features: ProviderFeatureFlags {
+            supports_mcp: true,
+            supports_hooks: true,
+            supports_tool_permissions: true,
+            supports_memory: true,
+        },
+        compile_agent: super::agents::compile_claude_agent,
+        build_mcp: super::mcp::build_mcp_servers,
+        build_settings: super::claude::build_settings,
     },
     HarnessDescriptor {
         id: "codex",
@@ -195,6 +208,15 @@ pub(super) static HARNESSES: &[HarnessDescriptor] = &[
         sse_url_field: "url",
         http_url_field: "url",
         mcp_config_path: Some(".codex/config.toml"),
+        features: ProviderFeatureFlags {
+            supports_mcp: true,
+            supports_hooks: true,
+            supports_tool_permissions: false,
+            supports_memory: true,
+        },
+        compile_agent: super::agents::compile_codex_agent,
+        build_mcp: super::mcp::build_mcp_servers,
+        build_settings: super::codex::build_settings,
     },
     HarnessDescriptor {
         id: "cursor",
@@ -209,6 +231,15 @@ pub(super) static HARNESSES: &[HarnessDescriptor] = &[
         sse_url_field: "url",
         http_url_field: "url",
         mcp_config_path: Some(".cursor/mcp.json"),
+        features: ProviderFeatureFlags {
+            supports_mcp: true,
+            supports_hooks: true,
+            supports_tool_permissions: true,
+            supports_memory: false,
+        },
+        compile_agent: super::agents::compile_cursor_agent,
+        build_mcp: super::cursor::build_cursor_mcp_servers,
+        build_settings: super::cursor::build_settings,
     },
     HarnessDescriptor {
         id: "opencode",
@@ -229,6 +260,42 @@ pub(super) static HARNESSES: &[HarnessDescriptor] = &[
         http_url_field: "url",
         // MCP is nested inside opencode.json — no separate file.
         mcp_config_path: None,
+        features: ProviderFeatureFlags {
+            supports_mcp: true,
+            supports_hooks: true,
+            supports_tool_permissions: true,
+            supports_memory: true,
+        },
+        compile_agent: super::agents::compile_opencode_agent,
+        build_mcp: super::mcp::build_mcp_servers,
+        build_settings: super::opencode::build_settings,
+    },
+    HarnessDescriptor {
+        id: "pi",
+        name: "Pi",
+        // Pi has no built-in MCP; this is unused (supports_mcp = false).
+        mcp_key: McpKey::McpServers,
+        // Pi reads AGENTS.md for context and .agents/skills for skills —
+        // the same universal outputs Ship already emits. Source: pi.dev/docs.
+        context_file: ContextFile::AgentsMd,
+        skills_dir: SkillsDir::Agents,
+        // Pi has no native subagent file format (uses TS extensions instead).
+        agents_dir: AgentsDir::None,
+        emit_type_field: false,
+        sse_url_field: "url",
+        http_url_field: "url",
+        mcp_config_path: None,
+        features: ProviderFeatureFlags {
+            // No MCP, no compiled hooks/permissions file; model/tools are
+            // CLI/env. Memory = context file (AGENTS.md).
+            supports_mcp: false,
+            supports_hooks: false,
+            supports_tool_permissions: false,
+            supports_memory: true,
+        },
+        compile_agent: super::pi::compile_pi_agent,
+        build_mcp: super::mcp::build_mcp_servers,
+        build_settings: super::pi::build_settings,
     },
 ];
 
@@ -254,47 +321,10 @@ pub struct ProviderFeatureFlags {
 }
 
 impl HarnessDescriptor {
-    /// Return the feature flags for this harness.
+    /// Return the feature flags for this harness. Stored on the descriptor —
+    /// adding a harness sets them in the table entry, not in a match arm.
     pub fn feature_flags(&self) -> ProviderFeatureFlags {
-        match self.id {
-            "claude" => ProviderFeatureFlags {
-                supports_mcp: true,
-                supports_hooks: true,
-                supports_tool_permissions: true,
-                supports_memory: true,
-            },
-            "gemini" => ProviderFeatureFlags {
-                supports_mcp: true,
-                supports_hooks: true,
-                supports_tool_permissions: true,
-                supports_memory: true,
-            },
-            "codex" => ProviderFeatureFlags {
-                supports_mcp: true,
-                supports_hooks: true,
-                supports_tool_permissions: false,
-                supports_memory: true,
-            },
-            "cursor" => ProviderFeatureFlags {
-                supports_mcp: true,
-                supports_hooks: true,
-                supports_tool_permissions: true,
-                supports_memory: false,
-            },
-            "opencode" => ProviderFeatureFlags {
-                supports_mcp: true,
-                supports_hooks: true,
-                supports_tool_permissions: true,
-                supports_memory: true,
-            },
-            // Unknown harnesses: conservative defaults
-            _ => ProviderFeatureFlags {
-                supports_mcp: false,
-                supports_hooks: false,
-                supports_tool_permissions: false,
-                supports_memory: false,
-            },
-        }
+        self.features
     }
 }
 

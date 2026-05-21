@@ -1,10 +1,5 @@
 use anyhow::Result;
-use ship_platform::agents::import::{
-    import_from_harness, import_permissions_from_harness, import_skills_from_harness,
-};
-use ship_platform::agents::harnesses::{
-    autodetect_harnesses, disable_harness, enable_harness, list_models, list_harnesses,
-};
+use ship_platform::agents::import::import_from_harness;
 use ship_platform::agents::skill::{
     SkillInstallScope, create_skill, create_user_skill, delete_skill, delete_user_skill,
     get_effective_skill, list_effective_skills, list_skills, list_user_skills, update_skill,
@@ -92,23 +87,6 @@ pub enum McpAction {
     Remove {
         id: String,
     },
-}
-
-#[derive(Debug, Clone)]
-pub enum ProviderAction {
-    List,
-    Connect { id: String },
-    Disconnect { id: String },
-    Detect,
-    Models { id: String },
-    Import { id: Option<String> },
-}
-
-#[derive(Debug, Clone, Copy, Default)]
-pub struct ProviderImportSummary {
-    pub mcp_servers_added: usize,
-    pub skills_added: usize,
-    pub permissions_imported: bool,
 }
 
 pub fn parse_skill_read_scope(raw: &str) -> Result<SkillReadScope> {
@@ -382,130 +360,6 @@ pub fn handle_mcp_action(action: McpAction, project_dir: &Path) -> Result<()> {
         }
     }
     Ok(())
-}
-
-pub fn handle_harness_action(action: ProviderAction, project_dir: &Path) -> Result<()> {
-    match action {
-        ProviderAction::List => {
-            let harnesses = list_harnesses(project_dir)?;
-            println!(
-                "{:<12} {:<20} {:<10} {:<10} VERSION",
-                "ID", "NAME", "INSTALLED", "CONNECTED"
-            );
-            println!("{}", "-".repeat(70));
-            for harness in harnesses {
-                println!(
-                    "{:<12} {:<20} {:<10} {:<10} {}",
-                    harness.id,
-                    harness.name,
-                    if harness.installed { "yes" } else { "no" },
-                    if harness.enabled { "yes" } else { "no" },
-                    harness.version.as_deref().unwrap_or("-"),
-                );
-            }
-        }
-        ProviderAction::Connect { id } => {
-            if enable_harness(project_dir, &id)? {
-                println!("Connected harness: {}", id);
-            } else {
-                println!("Harness '{}' is already connected.", id);
-            }
-            let summary = import_harness_surface(project_dir, &id)?;
-            println!(
-                "Imported from {}: mcp_servers={}, skills={}, permissions={}",
-                id,
-                summary.mcp_servers_added,
-                summary.skills_added,
-                if summary.permissions_imported {
-                    "yes"
-                } else {
-                    "no"
-                }
-            );
-        }
-        ProviderAction::Disconnect { id } => {
-            if disable_harness(project_dir, &id)? {
-                println!("Disconnected harness: {}", id);
-            } else {
-                println!("Harness '{}' was not connected.", id);
-            }
-        }
-        ProviderAction::Detect => {
-            let found = autodetect_harnesses(project_dir)?;
-            if found.is_empty() {
-                println!("No new harnesses detected.");
-            } else {
-                println!("Detected and connected: {}", found.join(", "));
-            }
-        }
-        ProviderAction::Models { id } => {
-            let models = list_models(&id)?;
-            println!("{:<30} {:<14}", "MODEL", "CONTEXT");
-            println!("{}", "-".repeat(60));
-            for model in models {
-                let context = if model.context_window == 0 {
-                    "-".to_string()
-                } else {
-                    format!("{}k", model.context_window / 1000)
-                };
-                println!(
-                    "{:<30} {:<14} {}",
-                    model.id,
-                    context,
-                    if model.recommended {
-                        "(recommended)"
-                    } else {
-                        ""
-                    },
-                );
-            }
-        }
-        ProviderAction::Import { id } => {
-            let targets: Vec<String> = if let Some(harness_id) = id {
-                vec![harness_id.to_ascii_lowercase()]
-            } else {
-                list_harnesses(project_dir)?
-                    .into_iter()
-                    .filter(|harness| harness.enabled)
-                    .map(|harness| harness.id)
-                    .collect()
-            };
-
-            if targets.is_empty() {
-                println!(
-                    "No connected harnesses to import from. Connect one with `ship harnesses connect <id>`."
-                );
-            } else {
-                for harness in targets {
-                    let summary = import_harness_surface(project_dir, &harness)?;
-                    println!(
-                        "Imported from {}: mcp_servers={}, skills={}, permissions={}",
-                        harness,
-                        summary.mcp_servers_added,
-                        summary.skills_added,
-                        if summary.permissions_imported {
-                            "yes"
-                        } else {
-                            "no"
-                        }
-                    );
-                }
-            }
-        }
-    }
-    Ok(())
-}
-
-fn import_harness_surface(project_dir: &Path, harness_id: &str) -> Result<ProviderImportSummary> {
-    let mcp_servers_added = import_from_harness(harness_id, project_dir.to_path_buf())?;
-    let skills_added = import_skills_from_harness(harness_id, project_dir.to_path_buf())?;
-    let permissions_imported =
-        import_permissions_from_harness(harness_id, project_dir.to_path_buf())?;
-    Ok(ProviderImportSummary {
-        mcp_servers_added,
-        skills_added,
-        permissions_imported,
-    })
 }
 
 fn require_project_dir(project_dir: Option<&Path>) -> Result<&Path> {

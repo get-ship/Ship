@@ -147,7 +147,7 @@ pub const OPS: &[OpDescriptor] = &[
     },
     OpDescriptor {
         name: "agents.harnesses",
-        description: "Enumerate known harnesses (claude, openai, gemini, ...).",
+        description: "Enumerate known harnesses (claude, codex, cursor, ...).",
         args: &[],
         returns: "{items: [string]}",
         permission: "ship.agents.read",

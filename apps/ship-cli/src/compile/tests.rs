@@ -106,44 +106,6 @@ fn compile_dry_run_writes_nothing() {
     assert!(!tmp.path().join(".mcp.json").exists());
 }
 
-#[test]
-fn compile_gemini_writes_settings_json_with_mcp_and_context() {
-    let tmp = TempDir::new().unwrap();
-    setup_minimal_project(&tmp);
-    run_compile(CompileOptions {
-        project_root: tmp.path(),
-        output_root: None,
-        harness: Some("gemini"),
-        dry_run: false,
-        active_agent: None,
-        extra_skills: vec![],
-            plugins_installed: vec![],
-    })
-    .unwrap();
-    let path = tmp.path().join(".gemini/settings.json");
-    assert!(path.exists(), ".gemini/settings.json must be written for gemini");
-    let parsed: serde_json::Value =
-        serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
-    assert!(parsed["mcpServers"]["ship"].is_object());
-}
-
-#[test]
-fn compile_gemini_writes_gemini_md_with_rules() {
-    let tmp = TempDir::new().unwrap();
-    setup_minimal_project(&tmp);
-    run_compile(CompileOptions {
-        project_root: tmp.path(),
-        output_root: None,
-        harness: Some("gemini"),
-        dry_run: false,
-        active_agent: None,
-        extra_skills: vec![],
-            plugins_installed: vec![],
-    })
-    .unwrap();
-    let content = std::fs::read_to_string(tmp.path().join("GEMINI.md")).unwrap();
-    assert!(content.contains("Use explicit types."), "GEMINI.md must contain rules");
-}
 
 #[test]
 fn compile_codex_writes_agents_md_with_rules() {

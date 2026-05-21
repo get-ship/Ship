@@ -23,11 +23,6 @@ fn detect_harness() -> &'static str {
     if std::env::var("CODEX_SESSION_ID").is_ok() {
         return "codex";
     }
-    if std::env::var("GEMINI_SESSION_ID").is_ok()
-        || std::env::var("GEMINI_CLI").is_ok()
-    {
-        return "gemini";
-    }
     if std::env::var("CURSOR_SESSION_ID").is_ok()
         || std::env::var("CURSOR_HOOK_EVENT").is_ok()
     {

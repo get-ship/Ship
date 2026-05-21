@@ -22,9 +22,7 @@ use ship_platform::registry::dep_skills::resolve_dep_skills;
 use crate::loader::load_library;
 
 use agent::{apply_agent_to_library, collect_all_skill_refs};
-use mcp_allowlist::{
-    ensure_ship_mcp_allowed_claude, ensure_ship_mcp_allowed_cursor, ensure_ship_mcp_allowed_gemini,
-};
+use mcp_allowlist::{ensure_ship_mcp_allowed_claude, ensure_ship_mcp_allowed_cursor};
 use output::{ensure_session_gitignored, print_dry_run};
 
 // Re-export the public API so `use crate::compile::{CompileOptions, run_compile}` works.
@@ -149,7 +147,6 @@ pub fn run_compile(opts: CompileOptions<'_>) -> Result<()> {
         for harness in &harnesses {
             let result = match harness.as_str() {
                 "claude" => ensure_ship_mcp_allowed_claude(),
-                "gemini" => ensure_ship_mcp_allowed_gemini(),
                 "cursor" => ensure_ship_mcp_allowed_cursor(output_root),
                 _ => Ok(()),
             };

@@ -15,9 +15,12 @@ use super::fixtures::*;
 #[test]
 fn codex_settings_extra_nested_object_becomes_toml_table() {
     let r = ResolvedConfig {
-        codex_settings_extra: Some(serde_json::json!({
-            "agents": { "max_threads": 8, "max_depth": 5 }
-        })),
+        codex: crate::compile::CodexSettings {
+            settings_extra: Some(serde_json::json!({
+                "agents": { "max_threads": 8, "max_depth": 5 }
+            })),
+            ..Default::default()
+        },
         ..resolved(vec![])
     };
     let out = compile(&r, "codex").unwrap();
@@ -31,9 +34,12 @@ fn codex_settings_extra_nested_object_becomes_toml_table() {
 #[test]
 fn codex_settings_extra_array_becomes_toml_array() {
     let r = ResolvedConfig {
-        codex_settings_extra: Some(serde_json::json!({
-            "allowed_hosts": ["github.com", "npmjs.org"]
-        })),
+        codex: crate::compile::CodexSettings {
+            settings_extra: Some(serde_json::json!({
+                "allowed_hosts": ["github.com", "npmjs.org"]
+            })),
+            ..Default::default()
+        },
         ..resolved(vec![])
     };
     let out = compile(&r, "codex").unwrap();
@@ -47,10 +53,13 @@ fn codex_settings_extra_array_becomes_toml_array() {
 #[test]
 fn codex_settings_extra_null_value_dropped() {
     let r = ResolvedConfig {
-        codex_settings_extra: Some(serde_json::json!({
-            "keep": "yes",
-            "drop": null
-        })),
+        codex: crate::compile::CodexSettings {
+            settings_extra: Some(serde_json::json!({
+                "keep": "yes",
+                "drop": null
+            })),
+            ..Default::default()
+        },
         ..resolved(vec![])
     };
     let out = compile(&r, "codex").unwrap();
@@ -66,7 +75,10 @@ fn codex_settings_extra_null_value_dropped() {
 #[test]
 fn codex_settings_extra_float_preserved() {
     let r = ResolvedConfig {
-        codex_settings_extra: Some(serde_json::json!({ "temperature": 0.7 })),
+        codex: crate::compile::CodexSettings {
+            settings_extra: Some(serde_json::json!({ "temperature": 0.7 })),
+            ..Default::default()
+        },
         ..resolved(vec![])
     };
     let out = compile(&r, "codex").unwrap();
@@ -74,149 +86,6 @@ fn codex_settings_extra_float_preserved() {
     let parsed: toml::Table = toml::from_str(patch).expect("must be valid TOML");
     let temp = parsed["temperature"].as_float().unwrap();
     assert!((temp - 0.7).abs() < 0.001);
-}
-
-// ── glob_to_regex edge cases (tested via Gemini policy) ─────────────────────
-
-#[test]
-fn gemini_policy_regex_metacharacters_escaped() {
-    // A path like "src/foo.bar" must escape the dot so it doesn't match any char
-    let r = ResolvedConfig {
-        permissions: Permissions {
-            tools: ToolPermissions {
-                deny: vec!["Read(src/config.json)".to_string()],
-                ..Default::default()
-            },
-            ..Default::default()
-        },
-        ..resolved(vec![])
-    };
-    let out = compile(&r, "gemini").unwrap();
-    let toml_str = out.gemini_policy_patch.unwrap();
-    let parsed: toml::Table = toml::from_str(&toml_str).unwrap();
-    let pattern = parsed["tool_policies"].as_array().unwrap()[0]["pattern"]
-        .as_str()
-        .unwrap();
-    assert!(
-        pattern.contains("\\."),
-        "dots in paths must be escaped in regex: {pattern}"
-    );
-    assert!(
-        !pattern.contains("config.json") || pattern.contains("config\\.json"),
-        "literal dot must be escaped: {pattern}"
-    );
-}
-
-#[test]
-fn gemini_policy_bash_glob_with_braces_escaped() {
-    let r = ResolvedConfig {
-        permissions: Permissions {
-            tools: ToolPermissions {
-                deny: vec!["Bash(echo ${HOME})".to_string()],
-                ..Default::default()
-            },
-            ..Default::default()
-        },
-        ..resolved(vec![])
-    };
-    let out = compile(&r, "gemini").unwrap();
-    let toml_str = out.gemini_policy_patch.unwrap();
-    let parsed: toml::Table = toml::from_str(&toml_str).unwrap();
-    let pattern = parsed["tool_policies"].as_array().unwrap()[0]["pattern"]
-        .as_str()
-        .unwrap();
-    assert!(
-        pattern.contains("\\{") && pattern.contains("\\}"),
-        "braces must be escaped in regex: {pattern}"
-    );
-}
-
-// ── Gemini permission translation edge cases ────────────────────────────────
-
-#[test]
-fn gemini_policy_edit_maps_to_file_write() {
-    let r = ResolvedConfig {
-        permissions: Permissions {
-            tools: ToolPermissions {
-                deny: vec!["Edit".to_string()],
-                ..Default::default()
-            },
-            ..Default::default()
-        },
-        ..resolved(vec![])
-    };
-    let out = compile(&r, "gemini").unwrap();
-    let toml_str = out.gemini_policy_patch.unwrap();
-    let parsed: toml::Table = toml::from_str(&toml_str).unwrap();
-    let tool = parsed["tool_policies"].as_array().unwrap()[0]["tool"]
-        .as_str()
-        .unwrap();
-    assert_eq!(tool, "file_write", "Edit → file_write");
-}
-
-#[test]
-fn gemini_policy_glob_maps_to_file_read() {
-    let r = ResolvedConfig {
-        permissions: Permissions {
-            tools: ToolPermissions {
-                deny: vec!["Glob".to_string()],
-                ..Default::default()
-            },
-            ..Default::default()
-        },
-        ..resolved(vec![])
-    };
-    let out = compile(&r, "gemini").unwrap();
-    let toml_str = out.gemini_policy_patch.unwrap();
-    let parsed: toml::Table = toml::from_str(&toml_str).unwrap();
-    let tool = parsed["tool_policies"].as_array().unwrap()[0]["tool"]
-        .as_str()
-        .unwrap();
-    assert_eq!(tool, "file_read", "Glob → file_read");
-}
-
-#[test]
-fn gemini_policy_parameterized_write_has_pattern() {
-    let r = ResolvedConfig {
-        permissions: Permissions {
-            tools: ToolPermissions {
-                deny: vec!["Write(*.env)".to_string()],
-                ..Default::default()
-            },
-            ..Default::default()
-        },
-        ..resolved(vec![])
-    };
-    let out = compile(&r, "gemini").unwrap();
-    let toml_str = out.gemini_policy_patch.unwrap();
-    let parsed: toml::Table = toml::from_str(&toml_str).unwrap();
-    let entry = &parsed["tool_policies"].as_array().unwrap()[0];
-    assert_eq!(entry["tool"].as_str().unwrap(), "file_write");
-    let pattern = entry["pattern"].as_str().unwrap();
-    assert!(
-        pattern.contains(".*\\.env"),
-        "Write(*.env) pattern must have glob expansion: {pattern}"
-    );
-}
-
-#[test]
-fn gemini_policy_webfetch_with_url_pattern() {
-    let r = ResolvedConfig {
-        permissions: Permissions {
-            tools: ToolPermissions {
-                allow: vec!["WebFetch(https://api.example.com/*)".to_string()],
-                ..Default::default()
-            },
-            ..Default::default()
-        },
-        ..resolved(vec![])
-    };
-    let out = compile(&r, "gemini").unwrap();
-    let toml_str = out.gemini_policy_patch.unwrap();
-    let parsed: toml::Table = toml::from_str(&toml_str).unwrap();
-    let entry = &parsed["tool_policies"].as_array().unwrap()[0];
-    assert_eq!(entry["tool"].as_str().unwrap(), "web_fetch");
-    assert_eq!(entry["decision"].as_str().unwrap(), "allow");
 }
 
 // ── OpenCode permission translation edge cases ──────────────────────────────

@@ -183,10 +183,6 @@ fn parse_codex_mcp_server(id: &str, table: &toml::Table) -> Option<McpServerConf
         timeout_secs,
         codex_enabled_tools: enabled_tools,
         codex_disabled_tools: disabled_tools,
-        gemini_trust: None,
-        gemini_include_tools: vec![],
-        gemini_exclude_tools: vec![],
-        gemini_timeout_ms: None,
         cursor_env_file: None,
     })
 }

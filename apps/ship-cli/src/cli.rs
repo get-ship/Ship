@@ -44,7 +44,7 @@ pub enum Commands {
         /// Configure ~/.ship/ identity and defaults instead of current project
         #[arg(long)]
         global: bool,
-        /// Default harness target (claude, gemini, codex, cursor)
+        /// Default harness target (claude, codex, cursor, opencode)
         #[arg(long)]
         harness: Option<String>,
         /// Overwrite existing .ship/ configuration
@@ -106,7 +106,7 @@ pub enum Commands {
         /// Path to a job spec markdown; copied to .artifacts/job-spec.md. Implies --launch.
         #[arg(long, conflicts_with = "prompt")]
         spec: Option<PathBuf>,
-        /// Per-launch harness override (claude, codex, gemini, cursor).
+        /// Per-launch harness override (claude, codex, cursor, opencode).
         #[arg(long)]
         harness: Option<String>,
         /// Per-launch model override (e.g. sonnet, opus).
@@ -147,7 +147,7 @@ pub enum Commands {
 
     /// Compile the active agent to harness-native config files
     Compile {
-        /// Compile for a specific harness only (claude, gemini, codex, cursor)
+        /// Compile for a specific harness only (claude, codex, cursor, opencode)
         #[arg(long)]
         harness: Option<String>,
         /// Preview output without writing any files

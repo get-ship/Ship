@@ -8,8 +8,6 @@ mod claude_mcp;
 mod codex;
 mod cursor;
 mod cursor_helpers;
-mod gemini;
-mod gemini_policies;
 mod opencode;
 mod opencode_agents;
 
@@ -45,7 +43,6 @@ pub(super) fn json_string_array(val: Option<&Json>) -> Vec<String> {
 pub use claude::decompile_claude;
 pub use codex::decompile_codex;
 pub use cursor::decompile_cursor;
-pub use gemini::decompile_gemini;
 pub use opencode::decompile_opencode;
 
 /// Which harnesses were detected in a project directory.
@@ -53,14 +50,13 @@ pub use opencode::decompile_opencode;
 pub struct DetectedProviders {
     pub claude: bool,
     pub codex: bool,
-    pub gemini: bool,
     pub cursor: bool,
     pub opencode: bool,
 }
 
 impl DetectedProviders {
     pub fn any(&self) -> bool {
-        self.claude || self.codex || self.gemini || self.cursor || self.opencode
+        self.claude || self.codex || self.cursor || self.opencode
     }
 
     pub fn as_list(&self) -> Vec<&'static str> {
@@ -70,9 +66,6 @@ impl DetectedProviders {
         }
         if self.codex {
             v.push("codex");
-        }
-        if self.gemini {
-            v.push("gemini");
         }
         if self.cursor {
             v.push("cursor");
@@ -91,7 +84,6 @@ pub fn detect_harnesses(project_root: &Path) -> DetectedProviders {
             || project_root.join("CLAUDE.md").exists()
             || project_root.join(".mcp.json").exists(),
         codex: project_root.join(".codex").is_dir() || project_root.join("AGENTS.md").exists(),
-        gemini: project_root.join(".gemini").is_dir() || project_root.join("GEMINI.md").exists(),
         cursor: project_root.join(".cursor").is_dir(),
         opencode: project_root.join(".opencode").is_dir()
             || project_root.join("opencode.json").exists(),
@@ -115,11 +107,6 @@ pub fn decompile_all(project_root: &Path) -> ProjectLibrary {
     if detected.codex {
         let partial = decompile_codex(project_root);
         merge_into(&mut library, partial, "codex");
-    }
-
-    if detected.gemini {
-        let partial = decompile_gemini(project_root);
-        merge_into(&mut library, partial, "gemini");
     }
 
     if detected.cursor {
@@ -204,16 +191,6 @@ fn merge_into(target: &mut ProjectLibrary, source: ProjectLibrary, harness_id: &
         target.codex_job_max_runtime_seconds = source.codex_job_max_runtime_seconds;
         target.codex_shell_env_policy = source.codex_shell_env_policy;
         target.codex_notify = source.codex_notify;
-    }
-
-    // Gemini-specific fields
-    if harness_id == "gemini" {
-        target.gemini_settings_extra = source.gemini_settings_extra;
-        target.gemini_default_approval_mode = source.gemini_default_approval_mode;
-        target.gemini_max_session_turns = source.gemini_max_session_turns;
-        target.gemini_disable_yolo_mode = source.gemini_disable_yolo_mode;
-        target.gemini_disable_always_allow = source.gemini_disable_always_allow;
-        target.gemini_tools_sandbox = source.gemini_tools_sandbox;
     }
 
     // Cursor-specific fields

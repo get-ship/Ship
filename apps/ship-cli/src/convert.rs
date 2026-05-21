@@ -117,7 +117,7 @@ fn convert_from_path(source: &str) -> Result<()> {
     if !detected.any() {
         anyhow::bail!(
             "No harness configs found in {}\n\
-             Looking for: CLAUDE.md, .claude/, .mcp.json, .codex/, .gemini/, .cursor/",
+             Looking for: CLAUDE.md, .claude/, .mcp.json, .codex/, .cursor/",
             source
         );
     }

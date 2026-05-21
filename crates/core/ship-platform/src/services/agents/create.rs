@@ -49,7 +49,7 @@ pub fn builtin_permission_presets() -> Vec<PermissionPreset> {
 }
 
 pub fn builtin_harnesses() -> Vec<String> {
-    vec!["claude", "codex", "cursor", "gemini", "opencode"]
+    vec!["claude", "codex", "cursor", "opencode"]
         .into_iter()
         .map(String::from)
         .collect()

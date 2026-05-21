@@ -8,7 +8,6 @@ use tempfile::TempDir;
 use super::claude::decompile_claude;
 use super::codex::decompile_codex;
 use super::cursor::decompile_cursor;
-use super::gemini::decompile_gemini;
 use super::opencode::decompile_opencode;
 use super::{decompile_all, detect_harnesses};
 use crate::types::HookTrigger;
@@ -62,13 +61,9 @@ fn detect_multiple_harnesses() {
     let tmp = TempDir::new().unwrap();
     write_file(&tmp, "CLAUDE.md", "# Claude rules");
     std::fs::create_dir_all(tmp.path().join(".codex")).unwrap();
-    std::fs::create_dir_all(tmp.path().join(".gemini")).unwrap();
     std::fs::create_dir_all(tmp.path().join(".cursor")).unwrap();
     let detected = detect_harnesses(tmp.path());
-    assert_eq!(
-        detected.as_list(),
-        vec!["claude", "codex", "gemini", "cursor"]
-    );
+    assert_eq!(detected.as_list(), vec!["claude", "codex", "cursor"]);
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -404,125 +399,6 @@ custom_flag = true
     let defaults = lib.harness_defaults.get("codex").unwrap();
     assert_eq!(defaults["custom_flag"], true);
     assert!(defaults.get("model").is_none());
-}
-
-// ══════════════════════════════════════════════════════════════════════════════
-// Gemini CLI
-// ══════════════════════════════════════════════════════════════════════════════
-
-#[test]
-fn gemini_settings_model_and_general() {
-    let tmp = TempDir::new().unwrap();
-    let settings = json!({
-        "model": {"name": "gemini-2.5-pro"},
-        "general": {
-            "defaultApprovalMode": "yolo",
-            "maxSessionTurns": 50
-        },
-        "security": {
-            "disableYoloMode": false,
-            "disableAlwaysAllow": true
-        },
-        "tools": {"sandbox": "docker"}
-    });
-    write_file(
-        &tmp,
-        ".gemini/settings.json",
-        &serde_json::to_string(&settings).unwrap(),
-    );
-
-    let lib = decompile_gemini(tmp.path());
-
-    assert_eq!(lib.model.as_deref(), Some("gemini-2.5-pro"));
-    assert_eq!(lib.gemini_default_approval_mode.as_deref(), Some("plan"));
-    assert_eq!(lib.gemini_max_session_turns, Some(50));
-    assert_eq!(lib.gemini_disable_yolo_mode, Some(false));
-    assert_eq!(lib.gemini_disable_always_allow, Some(true));
-    assert_eq!(lib.gemini_tools_sandbox.as_deref(), Some("docker"));
-}
-
-#[test]
-fn gemini_mcp_servers_with_harness_fields() {
-    let tmp = TempDir::new().unwrap();
-    let settings = json!({
-        "mcpServers": {
-            "ship": {
-                "command": "ship",
-                "args": ["mcp", "serve"]
-            },
-            "trusted": {
-                "command": "mcp-trusted",
-                "trust": true,
-                "includeTools": ["read"],
-                "excludeTools": ["delete"],
-                "timeout": 5000
-            },
-            "remote": {
-                "httpUrl": "https://api.example.com/mcp"
-            }
-        }
-    });
-    write_file(
-        &tmp,
-        ".gemini/settings.json",
-        &serde_json::to_string(&settings).unwrap(),
-    );
-
-    let lib = decompile_gemini(tmp.path());
-
-    assert_eq!(lib.mcp_servers.len(), 3);
-
-    let trusted = lib.mcp_servers.iter().find(|s| s.id == "trusted").unwrap();
-    assert_eq!(trusted.gemini_trust, Some(true));
-    assert_eq!(trusted.gemini_include_tools, vec!["read"]);
-    assert_eq!(trusted.gemini_exclude_tools, vec!["delete"]);
-    assert_eq!(trusted.gemini_timeout_ms, Some(5000));
-
-    let remote = lib.mcp_servers.iter().find(|s| s.id == "remote").unwrap();
-    assert_eq!(remote.url.as_deref(), Some("https://api.example.com/mcp"));
-    assert_eq!(remote.server_type, crate::types::McpServerType::Http);
-}
-
-#[test]
-fn gemini_md_imported() {
-    let tmp = TempDir::new().unwrap();
-    write_file(
-        &tmp,
-        "GEMINI.md",
-        "# Gemini Rules\n\nUse structured output.",
-    );
-
-    let lib = decompile_gemini(tmp.path());
-
-    assert_eq!(lib.rules.len(), 1);
-    assert_eq!(lib.rules[0].file_name, "GEMINI.md");
-}
-
-#[test]
-fn gemini_policy_file_parsed() {
-    let tmp = TempDir::new().unwrap();
-    let policy = r#"
-[[tool_policies]]
-tool = "shell"
-pattern = "rm.*"
-decision = "deny"
-
-[[tool_policies]]
-tool = "file_read"
-decision = "allow"
-"#;
-    write_file(&tmp, ".gemini/policies/ship.toml", policy);
-
-    let lib = decompile_gemini(tmp.path());
-
-    assert!(
-        lib.permissions
-            .tools
-            .deny
-            .iter()
-            .any(|p| p.contains("Bash"))
-    );
-    assert!(lib.permissions.tools.allow.contains(&"Read".to_string()));
 }
 
 // ══════════════════════════════════════════════════════════════════════════════

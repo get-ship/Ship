@@ -51,10 +51,6 @@ fn make_server(id: &str) -> McpServerConfig {
         timeout_secs: None,
         codex_enabled_tools: vec![],
         codex_disabled_tools: vec![],
-        gemini_trust: None,
-        gemini_include_tools: vec![],
-        gemini_exclude_tools: vec![],
-        gemini_timeout_ms: None,
         cursor_env_file: None,
     }
 }
@@ -75,7 +71,7 @@ fn rich_library() -> ProjectLibrary {
 #[test]
 fn compile_is_deterministic() {
     let library = rich_library();
-    let harnesses = ["claude", "gemini", "codex", "cursor"];
+    let harnesses = ["claude", "codex", "cursor"];
 
     for harness in harnesses {
         let resolved = resolve_library(&library, None, None);
@@ -174,24 +170,6 @@ fn cursor_output_contains_rule_files() {
     }
 }
 
-/// Compiling for `gemini` must emit a context file and MCP config path.
-#[test]
-fn gemini_output_has_context_and_mcp_path() {
-    let library = rich_library();
-    let resolved = resolve_library(&library, None, None);
-    let output = compile(&resolved, "gemini").unwrap();
-
-    assert!(
-        output.context_content.is_some(),
-        "gemini must emit context_content"
-    );
-    assert_eq!(
-        output.mcp_config_path.as_deref(),
-        Some(".gemini/settings.json"),
-        "gemini mcp_config_path mismatch"
-    );
-}
-
 /// Compiling for `codex` must emit an AGENTS.md context and a TOML config patch.
 #[test]
 fn codex_output_has_agents_md_and_config_patch() {
@@ -212,7 +190,7 @@ fn codex_output_has_agents_md_and_config_patch() {
 /// MCP servers object always contains the built-in `ship` server key.
 #[test]
 fn mcp_servers_always_includes_ship_entry() {
-    let harnesses = ["claude", "gemini", "codex", "cursor"];
+    let harnesses = ["claude", "codex", "cursor"];
     let library = ProjectLibrary::default();
     let resolved = resolve_library(&library, None, None);
 

@@ -184,13 +184,13 @@ let err = start_session(
             "feature/harness-deny",
             None,
             None,
-            Some("gemini".to_string()),
+            Some("unsupported-harness".to_string()),
         )
         .expect_err("harness outside allowed targets should be rejected");
 
         assert!(
             err.to_string()
-                .contains("Harness 'gemini' not allowed for branch")
+                .contains("Harness 'unsupported-harness' not allowed for branch")
         );
         Ok(())
     }

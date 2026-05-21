@@ -94,25 +94,6 @@
           "items": { "type": "string" },
           "description": "Codex-only: tool names to disable for this server."
         },
-        "gemini_trust": {
-          "type": "boolean",
-          "description": "Gemini-only: whether this server is trusted."
-        },
-        "gemini_include_tools": {
-          "type": "array",
-          "items": { "type": "string" },
-          "description": "Gemini-only: tool names to include from this server."
-        },
-        "gemini_exclude_tools": {
-          "type": "array",
-          "items": { "type": "string" },
-          "description": "Gemini-only: tool names to exclude from this server."
-        },
-        "gemini_timeout_ms": {
-          "type": "integer",
-          "minimum": 1,
-          "description": "Gemini-only: per-server timeout in milliseconds."
-        },
         "cursor_env_file": {
           "type": "string",
           "description": "Cursor-only: path to an env file to load for this stdio server."

@@ -359,6 +359,16 @@ pub trait ProcessRegistryPort: Send + Sync {
     /// coherence sweep to evict dead handles before the drift checks run.
     /// Default `vec![]` for registries that don't track handles.
     async fn drain_dead(&self, _executor: &dyn SessionExecutor) -> Vec<String> { vec![] }
+    /// Record that `slug` was cancelled while no handle was registered — i.e.
+    /// a cancel that may have landed mid-spawn. A dispatch that's currently
+    /// spawning consults [`take_if_cancelled`] after it registers (and before
+    /// it spawns) so it can tear down the just-spawned child instead of
+    /// leaking it. Tombstones are TTL-bounded. Default: no-op (test doubles
+    /// don't need the window-closing logic).
+    async fn mark_cancelled(&self, _slug: &str) {}
+    /// Consume the cancellation tombstone for `slug`, returning true if one
+    /// was set. Default: false.
+    async fn take_if_cancelled(&self, _slug: &str) -> bool { false }
 }
 
 /// Sample of the liveness state of a dispatched process tree.

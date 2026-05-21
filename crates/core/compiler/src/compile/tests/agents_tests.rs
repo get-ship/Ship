@@ -56,19 +56,6 @@ fn claude_agent_output() {
 }
 
 #[test]
-fn gemini_agent_output() {
-    let p = make_profile("reviewer", "Code Reviewer");
-    let files = compile_agent_profiles(&[p], "gemini");
-    assert_eq!(files.len(), 1);
-    let content = &files[".gemini/agents/reviewer.md"];
-    assert!(content.starts_with("---\n"));
-    assert!(content.contains("name: reviewer"));
-    assert!(content.contains("kind: local"));
-    assert!(content.contains("tools:"));
-    assert!(content.contains("You are a specialist."));
-}
-
-#[test]
 fn cursor_agent_output() {
     let p = make_profile("reviewer", "Code Reviewer");
     let files = compile_agent_profiles(&[p], "cursor");
@@ -129,7 +116,7 @@ fn yaml_quoting() {
 #[test]
 fn profile_with_no_harnesses_field_compiles_for_every_harness() {
     let p = make_profile("anything", "Anything");
-    for harness in ["claude", "gemini", "cursor", "codex", "opencode"] {
+    for harness in ["claude", "cursor", "codex", "opencode"] {
         let files = compile_agent_profiles(std::slice::from_ref(&p), harness);
         assert_eq!(
             files.len(),
@@ -140,29 +127,28 @@ fn profile_with_no_harnesses_field_compiles_for_every_harness() {
 }
 
 // ── harness_settings is the per-agent OVERRIDE mechanism (acceptance #7).
-// A profile with `harness_settings.gemini.model = "X"` emits `model: X`
-// ONLY in the gemini file — not claude/codex/cursor/opencode.
+// A profile with `harness_settings.codex.model = "X"` emits `model: X`
+// ONLY in the codex file — not claude/cursor/opencode.
 
 #[test]
 fn harness_settings_model_override_only_lands_in_matching_harness() {
     let mut p = make_profile("specialist", "Specialist");
     p.harness_settings.insert(
-        "gemini".to_string(),
-        serde_json::json!({ "model": "gemini-test-model" }),
+        "codex".to_string(),
+        serde_json::json!({ "model": "codex-test-model" }),
     );
 
-    // Gemini receives the model override.
-    let gemini_files = compile_agent_profiles(&[p.clone()], "gemini");
-    let gemini = &gemini_files[".gemini/agents/specialist.md"];
+    // Codex receives the model override.
+    let codex_files = compile_agent_profiles(&[p.clone()], "codex");
+    let codex = &codex_files[".codex/agents/specialist.toml"];
     assert!(
-        gemini.contains("model: gemini-test-model"),
-        "gemini file must carry the model override; got:\n{gemini}"
+        codex.contains("model = \"codex-test-model\""),
+        "codex file must carry the model override; got:\n{codex}"
     );
 
-    // Other harnesses MUST NOT carry the gemini-only override.
+    // Other harnesses MUST NOT carry the codex-only override.
     let expected_paths: &[(&str, &str)] = &[
         ("claude", ".claude/agents/specialist.md"),
-        ("codex", ".codex/agents/specialist.toml"),
         ("cursor", ".cursor/agents/specialist.md"),
         ("opencode", ".opencode/agents/specialist.md"),
     ];
@@ -172,8 +158,8 @@ fn harness_settings_model_override_only_lands_in_matching_harness() {
             .get(*path)
             .unwrap_or_else(|| panic!("expected {path} to exist for harness {harness}"));
         assert!(
-            !content.contains("gemini-test-model"),
-            "harness '{harness}' must NOT receive the gemini-only model override; \
+            !content.contains("codex-test-model"),
+            "harness '{harness}' must NOT receive the codex-only model override; \
              content was:\n{content}"
         );
     }
