@@ -52,7 +52,7 @@ shell-dev:
 # (sui-runtime, sui-dom, sui-components, islands, ship-elements, views/*).
 # Runs `packages/deck/bundler/index.ts --all` against the installed bun toolchain.
 [group('daily')]
-dev-build-all:
+dev-build-all: _sui-compiler-lib
     @bun packages/deck/bundler/index.ts --all
 
 # Stop, rebuild, re-stash, start. Use after Rust changes.
@@ -249,11 +249,18 @@ docs-regen:
 docs-check-drift:
     cd apps/docs && bun run docs:check-drift
 
+# The sui-compiler cdylib that sui-build/the bundler dlopen for FFI compilation.
+# A real build-graph dependency, not a remembered step — so a compiler/lint
+# source change always reaches every consumer (build, dev-build-all). cargo
+# no-ops in ~2s when fresh, so it's effectively free.
+_sui-compiler-lib:
+    cargo build -p sui-compiler
+
 # One-shot production build: gen-types, every pack + ui-components rebuild,
 # catalog regeneration, cargo --release, then verify outputs. Equivalent to
 # `ship build`.
 [group('daily')]
-build:
+build: _sui-compiler-lib
     #!/usr/bin/env bash
     set -euo pipefail
     command -v bun >/dev/null || { echo "build: bun not on PATH" >&2; exit 1; }
