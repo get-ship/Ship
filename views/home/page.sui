@@ -42,7 +42,7 @@
           This workspace is empty. Start by adding an agent or scaffolding a view —
           everything else fills in as you work.
           <sui-cluster slot="action" gap="2" justify="center" class="home-empty-actions">
-            <sui-button tone="primary" variant="solid" on:click={() => navigate('/agents/create')} data-test="home-empty-agent">
+            <sui-button tone="primary" variant="solid" on:click={() => navigate('/studio/agents/create')} data-test="home-empty-agent">
               <sui-icon slot="leading" name="user-plus"></sui-icon>
               Add an agent
             </sui-button>
@@ -168,7 +168,7 @@
                 Agents
                 <sui-badge tone="muted" variant="soft" size="sm">{agentCount()}</sui-badge>
               </h2>
-              <a class="home-section-link" href="/agents" on:click={(e) => goNav(e, '/agents')}>
+              <a class="home-section-link" href="/studio/agents" on:click={(e) => goNav(e, '/studio/agents')}>
                 Manage <sui-icon name="chevron-right" size="xs" aria-hidden="true"></sui-icon>
               </a>
             </div>
@@ -177,7 +177,7 @@
                 <div class="home-agents-grid" data-view-enter>
                   {#for agent of agentSlice() key={agent.id}}
                     <sui-list-tile variant="card" density="compact" interactive
-                      navigable={'/agents/' + agent.id}
+                      navigable={'/studio/agents/' + agent.id}
                       class="home-agent-tile" data-test="home-agent">
                       <sui-avatar slot="leading" size="md" shape="square"
                         attr:name={agent.name ?? agent.id}
@@ -194,7 +194,7 @@
               {:else}
                 <sui-empty-state variant="placeholder" size="sm" icon="user-plus" data-test="home-agents-empty">
                   <span slot="title">No agents configured</span>
-                  <sui-button slot="action" size="sm" tone="primary" variant="solid" on:click={() => navigate('/agents/create')}>
+                  <sui-button slot="action" size="sm" tone="primary" variant="solid" on:click={() => navigate('/studio/agents/create')}>
                     <sui-icon slot="leading" name="plus"></sui-icon>
                     Add an agent
                   </sui-button>

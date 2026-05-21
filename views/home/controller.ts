@@ -69,7 +69,7 @@ const EMPTY_GIT: GitOverview = {
 
 const LINKS: readonly QuickLink[] = [
   { key: 'workflows', label: 'Workflows', icon: 'workflow', href: '/pipelines'   },
-  { key: 'agents',    label: 'Agents',    icon: 'users',    href: '/agents'      },
+  { key: 'agents',    label: 'Agents',    icon: 'users',    href: '/studio/agents'      },
   { key: 'skills',    label: 'Skills',    icon: 'book',     href: '/skills'      },
   { key: 'data',      label: 'Data',      icon: 'database', href: '/collections' },
   { key: 'events',    label: 'Events',    icon: 'activity', href: '/events'      },

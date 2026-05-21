@@ -87,14 +87,6 @@ interface BundleTarget {
    *  as its contents. Imports inside should use absolute paths so they resolve
    *  regardless of where the virtual id "lives". */
   virtualEntry?: string
-  /** Shell-owned routable surface (e.g. `/studio`). When set, the built
-   *  module is a view-shaped bundle the shell mounts locally — the daemon
-   *  never resolves it as a `views/<name>` payload. The bundler appends
-   *  `__html` (server-rendered markup the controller hydrates) and `__css`
-   *  exports so `mountStudioLocal` in apps/shell/src/main.ts can assemble a
-   *  ViewPayload without a daemon round-trip. The value is the absolute path
-   *  to the surface's leaf `.sui`. */
-  embedSurface?: string
 }
 
 // Separate-bundle discovery. Walks every top-level `<root>/<tag>/`
@@ -195,33 +187,6 @@ function discoverViewBundles(): BundleTarget[] {
   return out
 }
 
-// Shell-owned routable surfaces. These are view-shaped `.sui` trees that
-// SHIP WITH THE SHELL rather than living under `views/` (where the daemon
-// resolver would treat them as user-overridable SDK views). `/studio` is
-// the first: its chrome + section stubs live under `apps/shell/src/studio`,
-// and the shell mounts the bundle locally (see `mountStudioLocal`). Each
-// surface emits one `sui-components/<name>.js` bundle the daemon serves via
-// `serve_sui_island`, carrying `__html` + `__css` so the shell can assemble
-// a ViewPayload without a daemon view round-trip.
-const SHELL_SURFACES: Array<{ name: string; entry: string }> = [
-  { name: 'sui-studio', entry: 'apps/shell/src/studio/page.sui' },
-]
-function discoverShellSurfaceBundles(): BundleTarget[] {
-  const out: BundleTarget[] = []
-  for (const s of SHELL_SURFACES) {
-    const abs = resolve(repoRoot, s.entry)
-    if (!existsSync(abs)) continue
-    out.push({
-      name: `sui-components/${s.name}`,
-      entry: s.entry,
-      external: ['@ship/sui-runtime', '@ship/sui-runtime/template-hooks', '@ship/sui-dom', '@ship/sdk-client'],
-      outFile: `sui-components/${s.name}.js`,
-      embedSurface: abs,
-    })
-  }
-  return out
-}
-
 const TARGETS: BundleTarget[] = [
   { name: 'sui-runtime', entry: 'packages/sui/runtime/src/index.ts' },
   { name: 'sui-dom', entry: 'packages/sui/dom/src/index.ts', external: ['@ship/sui-runtime'] },
@@ -277,7 +242,6 @@ const TARGETS: BundleTarget[] = [
   },
   ...discoverSeparateBundles(),
   ...discoverViewBundles(),
-  ...discoverShellSurfaceBundles(),
 ]
 
 // ── sui-compiler integration ──────────────────────────────────────────────────
@@ -451,29 +415,6 @@ function suiPlugin() {
   }
 }
 
-// Compile a shell surface's leaf `.sui` to a temp dir and read back the
-// server-rendered markup plus the sibling stylesheet. The shell hydrates
-// `__html` (it can't client-render — compiled views are hydrate-only) and
-// injects `__css` when mounting the surface locally.
-async function readSurfacePayload(suiPath: string): Promise<{ html: string; css: string }> {
-  const out = await mkdtemp(join(tmpdir(), 'sui-surface-'))
-  try {
-    const proc = Bun.spawn({
-      cmd: [compilerPath, 'build', suiPath, '--out', out, '--no-dts'],
-      stdout: 'pipe', stderr: 'pipe', stdin: 'ignore',
-    })
-    const [stderr, code] = await Promise.all([new Response(proc.stderr).text(), proc.exited])
-    if (code !== 0) throw new Error(`sui-compiler exit ${code} for ${suiPath}\n${stderr.trim()}`)
-    const stem = basename(suiPath, '.sui')
-    const html = await Bun.file(join(out, `${stem}.ssr.html`)).text().catch(() => '')
-    const cssPath = join(dirname(suiPath), 'style.css')
-    const css = existsSync(cssPath) ? await Bun.file(cssPath).text() : ''
-    return { html, css }
-  } finally {
-    await rm(out, { recursive: true, force: true })
-  }
-}
-
 // ── Build a single target ─────────────────────────────────────────────────────
 
 const inMemoryBundles = new Map<string, { bytes: number; content: string; outPath: string }>()
@@ -549,11 +490,7 @@ async function buildTarget(
     const [artifact] = result.outputs
     if (!artifact) throw new Error(`Bun.build produced no output for ${target.name}`)
 
-    let content = await artifact.text()
-    if (target.embedSurface) {
-      const { html, css } = await readSurfacePayload(target.embedSurface)
-      content += `\nexport const __html = ${JSON.stringify(html)};\nexport const __css = ${JSON.stringify(css)};\n`
-    }
+    const content = await artifact.text()
     const bytes = content.length
     await Bun.write(outPath, content)
 
