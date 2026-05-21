@@ -1,21 +1,30 @@
 //! Registry dispatcher for `mesh.*` ops. Split off from
 //! services/registry.rs (mr-04 follow-up).
 
-use serde_json::{Value, json};
+use serde_json::json;
 
+use super::wire::MeshSnapshotResponse;
 use super::RegistryError;
 use crate::ship_runtime::ApiState;
-use ship_platform::services::files::FilesService;
 
+ship_ops! {
+    MESH_OPS;
+    {
+        name: "mesh.snapshot",
+        desc: "Kernel actors + Ship processes + integrations — Mission Control mesh view.",
+        perm: "ship.mesh.read",
+        args: &[],
+        ret: MeshSnapshotResponse,
+        run: |_args, state, _files| snapshot(state),
+    },
+}
 
-pub(super) fn try_dispatch(
-    name: &str,
-    _args: &Value,
-    state: &ApiState,
-    _files: &FilesService,
-) -> Result<Option<Value>, RegistryError> {
-    let value: Result<Value, RegistryError> = match name {
-        "mesh.snapshot" => {
+/// Build the mesh snapshot: kernel actors merged with projection metadata,
+/// Ship system processes from /proc, and known integrations. `mesh.snapshot`
+/// is dispatchable but intentionally absent from `schema::OPS`.
+fn snapshot(state: &ApiState) -> Result<MeshSnapshotResponse, RegistryError> {
+    let value: Result<MeshSnapshotResponse, RegistryError> = {
+        {
             // 1. Kernel actor list (mesh truth) merged with projection
             //    metadata where available.
             let kernel_actors: Vec<(String, ship_substrate::events::ActorConfig)> = {
@@ -213,19 +222,13 @@ pub(super) fn try_dispatch(
                 "hint": "Ship MCP declares experimental.claude/channel capability",
             }));
 
-            Ok(json!({
-                "actors": actors,
-                "processes": processes,
-                "integrations": integrations,
-                "counts": {
-                    "actors": actors.len(),
-                    "processes": processes.len(),
-                    "integrations": integrations.iter().filter(|i| i["active"] == true).count(),
-                },
-            }))
+            let counts = json!({
+                "actors": actors.len(),
+                "processes": processes.len(),
+                "integrations": integrations.iter().filter(|i| i["active"] == true).count(),
+            });
+            Ok(MeshSnapshotResponse { actors, processes, integrations, counts })
         }
-
-        _ => return Ok(None),
     };
-    Ok(Some(value?))
+    value
 }

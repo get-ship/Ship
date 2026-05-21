@@ -402,16 +402,12 @@ mod tests {
             out.contains("data agents = ship.agents.summaries()"),
             "missing .set declaration in @example",
         );
-        // The for-loop usage heuristic fires for ops whose `returns` is still
-        // an inline `{items: [...]}` shape (unmigrated domains). `skills.list`
-        // is one such op.
+        // Every op now returns a named type, so the template-usage heuristic
+        // renders the guarded read pattern (JSON.stringify of the bound signal)
+        // rather than the inline-shape for-loop.
         assert!(
-            out.contains("data skills = ship.skills.list()"),
-            "missing .set declaration for inline-shape op",
-        );
-        assert!(
-            out.contains("{#for item of (skills()?.items || [])}"),
-            "missing for-loop usage in @example",
+            out.contains("JSON.stringify(agents(), null, 2)"),
+            "missing named-type usage in @example",
         );
     }
 

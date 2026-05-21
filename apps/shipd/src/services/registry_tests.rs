@@ -241,6 +241,66 @@ fn chat_sessions_events_wire_identical_to_anonymous_json() {
     assert_eq!(got, json!({ "groups": [], "types": [], "actors": [] }));
 }
 
+// ── remaining domains: structural / byte-identical smoke ──────────────
+
+#[test]
+fn skills_pipelines_specs_list_shapes_preserved() {
+    let state = temp_state();
+    for op in ["skills.list", "pipelines.list", "specs.list", "collections.list"] {
+        let v = call(op, &json!({}), &state).unwrap_or_else(|e| panic!("{op}: {e}"));
+        assert!(v.get("items").and_then(|i| i.as_array()).is_some(), "{op} has items[]");
+    }
+}
+
+#[test]
+fn skills_summaries_has_rail_fields() {
+    let state = temp_state();
+    let v = call("skills.summaries", &json!({}), &state).expect("skills.summaries ok");
+    for key in ["items", "filtered", "groups", "kind_counts", "tags", "total", "q"] {
+        assert!(v.get(key).is_some(), "skills.summaries missing `{key}`");
+    }
+    assert_eq!(v["active_kind"], "all");
+}
+
+#[test]
+fn git_and_dashboard_and_settings_dispatch() {
+    let state = temp_state();
+    // git ops resolve against the worktree (the repo this test runs in).
+    let log = call("git.log", &json!({ "limit": 1 }), &state).expect("git.log ok");
+    assert!(log.get("commits").and_then(|c| c.as_array()).is_some());
+
+    let dash = call("dashboard.state", &json!({}), &state).expect("dashboard.state ok");
+    for key in ["stats", "recent_runs", "events", "agents", "collections"] {
+        assert!(dash.get(key).is_some(), "dashboard.state missing `{key}`");
+    }
+
+    let settings = call("settings.state", &json!({}), &state).expect("settings.state ok");
+    assert!(settings.is_object(), "settings.state is an object");
+}
+
+#[test]
+fn workspaces_active_shape_preserved() {
+    let state = temp_state();
+    let v = call("workspaces.active", &json!({}), &state).expect("workspaces.active ok");
+    assert!(v.as_object().map(|o| o.contains_key("id")).unwrap_or(false), "has id key");
+    let list = call("workspaces.list", &json!({}), &state).expect("workspaces.list ok");
+    assert!(list.get("items").and_then(|i| i.as_array()).is_some(), "list has items[]");
+    assert!(list.as_object().unwrap().contains_key("active"), "list has active key");
+}
+
+#[test]
+fn actors_and_mesh_dispatch_but_absent_from_catalog() {
+    // Both are dispatchable read ops but intentionally NOT in the schema
+    // catalog — `names()` must not advertise them (byte-identical schema).
+    let n = names();
+    assert!(!n.contains(&"actors.list"), "actors.list must stay out of OPS");
+    assert!(!n.contains(&"mesh.snapshot"), "mesh.snapshot must stay out of OPS");
+
+    let state = temp_state();
+    let actors = call("actors.list", &json!({}), &state).expect("actors.list ok");
+    assert!(actors.get("items").and_then(|i| i.as_array()).is_some());
+}
+
 #[test]
 fn account_state_carries_state_tag() {
     // Behaviour-preserving: serializes the AccountState enum verbatim. A fresh

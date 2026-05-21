@@ -1,67 +1,54 @@
-//! Registry dispatcher for `workspaces.*` ops. Surfaces the project
-//! registry through the `_sui/data` SSE plane so `views/workspaces/`
-//! and `views/sessions/` don't need to one-shot `GET /api/v1/projects`
-//! out of band. Active-project switches emit `config.changed`
-//! (`shell.project.active`), which already wakes the resolver.
+//! Single-source `workspaces.*` ops — descriptors + dispatch via `ship_ops!`.
 //!
-//! Two registries feed the list:
-//! * Event-sourced `ship_platform::projects` (preferred — drives switching,
-//!   `last_seen_at` recency, archive lifecycle).
-//! * Legacy `~/.ship/projects.json` via `ship_substrate::project` (fallback
-//!   for installs where the event projection is empty / startup
-//!   registration failed). Entries from the legacy file are synthesised
-//!   with `path_hash`-derived ids so they line up with the event-sourced
-//!   keying scheme.
+//! Surfaces the project registry through the `_sui/data` SSE plane. Two
+//! registries feed the list: the event-sourced `ship_platform::projects`
+//! (preferred) and the legacy `~/.ship/projects.json` (fallback for installs
+//! where the projection is empty). Legacy entries get `path_hash`-derived ids
+//! so they line up with the event-sourced keying scheme.
 
 use std::collections::HashSet;
 use std::path::PathBuf;
 
-use serde_json::{Value, json};
+use serde_json::Value;
 
 use ship_substrate::home::path_hash;
 use ship_substrate::project::{get_registry_path, load_registry};
 
+use super::wire::{WorkspaceActiveResponse, WorkspaceRow, WorkspacesListResponse};
 use super::RegistryError;
-use crate::ship_runtime::ApiState;
-use ship_platform::services::files::FilesService;
 
-#[allow(unused_imports, unused_variables)]
-pub(super) fn try_dispatch(
-    name: &str,
-    args: &Value,
-    state: &ApiState,
-    files: &FilesService,
-) -> Result<Option<Value>, RegistryError> {
-    let value: Result<Value, RegistryError> = match name {
-        "workspaces.list" => {
+ship_ops! {
+    WORKSPACES_OPS;
+    {
+        name: "workspaces.list",
+        desc: "Known project workspaces with active flag per row.",
+        perm: "ship.workspaces.read",
+        args: &[],
+        ret: WorkspacesListResponse,
+        run: |_args, _state, _files| {
             let active = active_id();
             let records = ship_platform::projects::list()
                 .map_err(|e| RegistryError::service(e.to_string()))?;
             let mut seen_paths: HashSet<String> = HashSet::new();
-            let mut items: Vec<Value> = records
+            let mut items: Vec<WorkspaceRow> = records
                 .into_iter()
                 .map(|r| {
                     let is_active = active.as_deref() == Some(r.id.as_str());
                     seen_paths.insert(r.path.clone());
-                    json!({
-                        "id": r.id,
-                        "name": r.name,
-                        "path": r.path,
-                        "created_at": r.created_at,
-                        "last_seen_at": r.last_seen_at,
-                        "active": is_active,
-                    })
+                    WorkspaceRow {
+                        id: r.id,
+                        name: r.name,
+                        path: r.path,
+                        created_at: serde_json::to_value(r.created_at).unwrap_or(Value::Null),
+                        last_seen_at: serde_json::to_value(r.last_seen_at).unwrap_or(Value::Null),
+                        active: is_active,
+                    }
                 })
                 .collect();
 
-            // Merge in any entries from `~/.ship/projects.json` that the
-            // event projection hasn't materialised. Keeps the workspaces
-            // view populated when startup registration failed (e.g. a
-            // pending migration) or for installs that only ever used the
-            // legacy CLI registry. We bypass `list_registered_projects`'s
-            // worktree filter — Ship-feat-sail itself is a linked worktree
-            // (the only entry the user has registered), and the view's
-            // whole purpose is to surface those.
+            // Merge in any `~/.ship/projects.json` entries the projection
+            // hasn't materialised (keeps the view populated when startup
+            // registration failed or for legacy-only installs).
             for entry in load_legacy_entries() {
                 let path_str = entry.path.to_string_lossy().to_string();
                 if seen_paths.contains(&path_str) {
@@ -70,26 +57,27 @@ pub(super) fn try_dispatch(
                 let id = path_hash(&entry.path);
                 let is_active = active.as_deref() == Some(id.as_str());
                 seen_paths.insert(path_str.clone());
-                items.push(json!({
-                    "id": id,
-                    "name": entry.name,
-                    "path": path_str,
-                    "created_at": Value::Null,
-                    "last_seen_at": Value::Null,
-                    "active": is_active,
-                }));
+                items.push(WorkspaceRow {
+                    id,
+                    name: entry.name,
+                    path: path_str,
+                    created_at: Value::Null,
+                    last_seen_at: Value::Null,
+                    active: is_active,
+                });
             }
 
-            Ok(json!({
-                "items": items,
-                "active": active,
-            }))
-        }
-        "workspaces.active" => Ok(json!({ "id": active_id() })),
-
-        _ => return Ok(None),
-    };
-    Ok(Some(value?))
+            Ok(WorkspacesListResponse { items, active })
+        },
+    },
+    {
+        name: "workspaces.active",
+        desc: "Currently-active workspace id (null if none).",
+        perm: "ship.workspaces.read",
+        args: &[],
+        ret: WorkspaceActiveResponse,
+        run: |_args, _state, _files| Ok(WorkspaceActiveResponse { id: active_id() }),
+    },
 }
 
 fn active_id() -> Option<String> {
@@ -104,24 +92,14 @@ struct LegacyEntry {
     path: PathBuf,
 }
 
-/// Tolerant reader for `~/.ship/projects.json`. Accepts two on-disk shapes:
-///
-/// 1. The canonical `{"projects": [{"name", "path"}, ...]}` written by
-///    `ship_substrate::project::save_registry`.
-/// 2. A bare `[{"name", "path", ...}, ...]` array — the shape produced by
-///    older CLI builds and still present in many active installs. Without
-///    this fallback the strict `serde_json::from_str::<ProjectRegistry>`
-///    deserialize errors out and the workspaces view goes blank even
-///    though `projects.json` clearly has entries.
+/// Tolerant reader for `~/.ship/projects.json`. Accepts the canonical
+/// `{"projects": [...]}` shape and a bare `[...]` array (older CLI builds).
 fn load_legacy_entries() -> Vec<LegacyEntry> {
     if let Ok(reg) = load_registry() {
         return reg
             .projects
             .into_iter()
-            .map(|e| LegacyEntry {
-                name: e.name,
-                path: e.path,
-            })
+            .map(|e| LegacyEntry { name: e.name, path: e.path })
             .collect();
     }
     let Ok(path) = get_registry_path() else {
@@ -150,10 +128,7 @@ fn load_legacy_entries() -> Vec<LegacyEntry> {
                         .map(str::to_string)
                 })
                 .unwrap_or_else(|| path.to_string());
-            Some(LegacyEntry {
-                name,
-                path: PathBuf::from(path),
-            })
+            Some(LegacyEntry { name, path: PathBuf::from(path) })
         })
         .collect()
 }

@@ -1,111 +1,135 @@
-//! Registry dispatcher for `git.*` ops. Split off from
-//! services/registry.rs (mr-04 follow-up).
+//! Single-source `git.*` ops — descriptors + dispatch via `ship_ops!`.
 
-use serde_json::{Value, json};
+use super::wire::{GitBranchesResponse, GitDiffResponse, GitLogResponse, GitOverviewResponse};
+use super::{optional_usize, required_str, RegistryError};
+use crate::services::schema::ArgDescriptor;
 
-use super::{RegistryError, optional_usize, required_str};
-use crate::ship_runtime::ApiState;
-use ship_platform::services::files::FilesService;
+use ship_platform::services::git::annotations::AnnotationsByLine;
+use ship_platform::services::git::read;
+use ship_platform::services::git::state::{resolve_root, StatusBuckets};
+use ship_platform::services::git::{annotations, diff};
 
-
-pub(super) fn try_dispatch(
-    name: &str,
-    args: &Value,
-    state: &ApiState,
-    _files: &FilesService,
-) -> Result<Option<Value>, RegistryError> {
-    let value: Result<Value, RegistryError> = match name {
-        "git.status" => {
-            let root = ship_platform::services::git::state::resolve_root(state.ship_dir(), None)
-                .map_err(RegistryError::service)?;
-            Ok(serde_json::to_value(ship_platform::services::git::read::load_status_buckets(&root))
-                .map_err(|e| RegistryError::service(e.to_string()))?)
-        }
-        "git.log" => {
-            let root = ship_platform::services::git::state::resolve_root(state.ship_dir(), None)
-                .map_err(RegistryError::service)?;
+ship_ops! {
+    GIT_OPS;
+    {
+        name: "git.status",
+        desc: "Working tree + index status buckets.",
+        perm: "ship.git.read",
+        args: &[],
+        ret: StatusBuckets,
+        sensitive: true,
+        run: |_args, state, _files| {
+            let root = resolve_root(state.ship_dir(), None).map_err(RegistryError::service)?;
+            Ok(read::load_status_buckets(&root))
+        },
+    },
+    {
+        name: "git.log",
+        desc: "Commit log up to `limit` entries.",
+        perm: "ship.git.read",
+        args: &[ArgDescriptor { name: "limit", kind: "number?", required: false }],
+        ret: GitLogResponse,
+        sensitive: true,
+        run: |args, state, _files| {
+            let root = resolve_root(state.ship_dir(), None).map_err(RegistryError::service)?;
             let limit = optional_usize(args, "limit", 50);
-            Ok(json!({ "commits": ship_platform::services::git::read::load_log(&root, None, limit) }))
-        }
-        "git.branches" => {
-            let root = ship_platform::services::git::state::resolve_root(state.ship_dir(), None)
-                .map_err(RegistryError::service)?;
-            let (ahead, behind) = ship_platform::services::git::read::load_ahead_behind(&root)
-                .unwrap_or((0, 0));
-            Ok(json!({
-                "branches": ship_platform::services::git::read::load_branches(&root),
-                "ahead": ahead,
-                "behind": behind,
-            }))
-        }
-        "git.overview" => {
+            Ok(GitLogResponse { commits: read::load_log(&root, None, limit) })
+        },
+    },
+    {
+        name: "git.branches",
+        desc: "Local + remote branches with ahead/behind vs upstream.",
+        perm: "ship.git.read",
+        args: &[],
+        ret: GitBranchesResponse,
+        sensitive: true,
+        run: |_args, state, _files| {
+            let root = resolve_root(state.ship_dir(), None).map_err(RegistryError::service)?;
+            let (ahead, behind) = read::load_ahead_behind(&root).unwrap_or((0, 0));
+            Ok(GitBranchesResponse { branches: read::load_branches(&root), ahead, behind })
+        },
+    },
+    {
+        name: "git.overview",
+        desc: "One-call shape for the git view's default route.",
+        perm: "ship.git.read",
+        args: &[
+            ArgDescriptor { name: "workspace_id", kind: "string?", required: false },
+            ArgDescriptor { name: "limit", kind: "number?", required: false },
+        ],
+        ret: GitOverviewResponse,
+        sensitive: true,
+        run: |args, state, _files| {
             let workspace_id = args.get("workspace_id").and_then(|v| v.as_str());
-            let root = ship_platform::services::git::state::resolve_root(state.ship_dir(), workspace_id)
-                .map_err(RegistryError::service)?;
+            let root = resolve_root(state.ship_dir(), workspace_id).map_err(RegistryError::service)?;
             let limit = optional_usize(args, "limit", ship_platform::config::resolve_git_log_limit());
-            let buckets = ship_platform::services::git::read::load_status_buckets(&root);
-            let (ahead, behind) = ship_platform::services::git::read::load_ahead_behind(&root)
-                .unwrap_or((0, 0));
-            Ok(json!({
-                "workspace_id": workspace_id,
-                "branch": ship_platform::services::git::read::load_branch(&root),
-                "head_short": ship_platform::services::git::read::load_head_short(&root),
-                "clean": buckets.clean,
-                "total_changed": buckets.total,
-                "staged": buckets.staged,
-                "modified": buckets.modified,
-                "untracked": buckets.untracked,
-                "commits": ship_platform::services::git::read::load_log(&root, None, limit),
-                "branches": ship_platform::services::git::read::load_branches(&root),
-                "ahead": ahead,
-                "behind": behind,
-            }))
-        }
-        "git.diff" => {
+            let buckets = read::load_status_buckets(&root);
+            let (ahead, behind) = read::load_ahead_behind(&root).unwrap_or((0, 0));
+            Ok(GitOverviewResponse {
+                workspace_id: workspace_id.map(String::from),
+                branch: read::load_branch(&root),
+                head_short: read::load_head_short(&root),
+                clean: buckets.clean,
+                total_changed: buckets.total,
+                staged: buckets.staged,
+                modified: buckets.modified,
+                untracked: buckets.untracked,
+                commits: read::load_log(&root, None, limit),
+                branches: read::load_branches(&root),
+                ahead,
+                behind,
+            })
+        },
+    },
+    {
+        name: "git.diff",
+        desc: "Diff for a commit or 'WORKING'.",
+        perm: "ship.git.read",
+        args: &[
+            ArgDescriptor { name: "commit", kind: "string", required: true },
+            ArgDescriptor { name: "workspace_id", kind: "string?", required: false },
+        ],
+        ret: GitDiffResponse,
+        sensitive: true,
+        run: |args, state, _files| {
             let commit = required_str(args, "commit")?.trim();
             if commit.is_empty() {
                 return Err(RegistryError::bad_args("commit must be non-empty"));
             }
             let workspace_id = args.get("workspace_id").and_then(|v| v.as_str());
-            let root = ship_platform::services::git::state::resolve_root(state.ship_dir(), workspace_id)
-                .map_err(RegistryError::service)?;
+            let root = resolve_root(state.ship_dir(), workspace_id).map_err(RegistryError::service)?;
             let is_working = commit.eq_ignore_ascii_case("WORKING");
             let diff_text = if is_working {
-                ship_platform::services::git::read::load_working_diff(&root)
+                read::load_working_diff(&root)
             } else {
-                let text = ship_platform::services::git::read::load_commit_diff(&root, commit);
+                let text = read::load_commit_diff(&root, commit);
                 if text.is_empty() {
                     return Err(RegistryError::not_found(format!("commit `{commit}`")));
                 }
                 text
             };
-            let parsed = ship_platform::services::git::diff::parse_unified_diff(&diff_text);
+            let parsed = diff::parse_unified_diff(&diff_text);
             let (sha, short_sha): (String, String) = if is_working {
                 ("WORKING".into(), "working".into())
             } else {
                 (commit.to_string(), commit.chars().take(7).collect())
             };
-            Ok(json!({
-                "sha": sha,
-                "short_sha": short_sha,
-                "is_working": is_working,
-                "diff_text": diff_text,
-                "parsed": parsed,
-            }))
-        }
-        "git.annotations" => {
+            Ok(GitDiffResponse { sha, short_sha, is_working, diff_text, parsed })
+        },
+    },
+    {
+        name: "git.annotations",
+        desc: "AnnotationsByLine for the active diff file.",
+        perm: "ship.git.read",
+        args: &[
+            ArgDescriptor { name: "file", kind: "string", required: true },
+            ArgDescriptor { name: "workspace_id", kind: "string?", required: false },
+        ],
+        ret: AnnotationsByLine,
+        run: |args, state, _files| {
             let file = required_str(args, "file")?;
             let workspace_id = args.get("workspace_id").and_then(|v| v.as_str());
-            let annotations = ship_platform::services::git::annotations::load_file_annotations(
-                state.ship_dir(),
-                file,
-                workspace_id,
-            );
-            Ok(serde_json::to_value(&annotations)
-                .map_err(|e| RegistryError::service(e.to_string()))?)
-        }
-
-        _ => return Ok(None),
-    };
-    Ok(Some(value?))
+            Ok(annotations::load_file_annotations(state.ship_dir(), file, workspace_id))
+        },
+    },
 }

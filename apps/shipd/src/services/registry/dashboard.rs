@@ -1,21 +1,18 @@
-//! Registry dispatcher for `dashboard.*` ops. Split off from
-//! services/registry.rs (mr-04 follow-up).
+//! Single-source `dashboard.*` ops — descriptors + dispatch via `ship_ops!`.
 
-use serde_json::{Value, json};
+use serde_json::json;
 
-use super::RegistryError;
-use crate::ship_runtime::ApiState;
-use ship_platform::services::files::FilesService;
+use super::wire::DashboardStateResponse;
 
-
-pub(super) fn try_dispatch(
-    name: &str,
-    _args: &Value,
-    state: &ApiState,
-    _files: &FilesService,
-) -> Result<Option<Value>, RegistryError> {
-    let value: Result<Value, RegistryError> = match name {
-        "dashboard.state" => {
+ship_ops! {
+    DASHBOARD_OPS;
+    {
+        name: "dashboard.state",
+        desc: "Aggregate stats + recent runs + events + agents + collections.",
+        perm: "ship.dashboard.read",
+        args: &[],
+        ret: DashboardStateResponse,
+        run: |_args, state, _files| {
             let ship_dir = state.ship_dir();
             // Jobs: split into active / history for stats + recent feed.
             let runs = crate::views::state::list_pipeline_runs(
@@ -24,7 +21,7 @@ pub(super) fn try_dispatch(
             );
             let (active, history) = crate::views::state::partition_runs(runs);
             let stats = json!({ "active": active.len(), "history": history.len() });
-            let recent_runs: Vec<_> = if !active.is_empty() {
+            let recent_runs = if !active.is_empty() {
                 active.iter().take(5).cloned().collect()
             } else {
                 history.iter().take(5).cloned().collect()
@@ -41,20 +38,18 @@ pub(super) fn try_dispatch(
                 ship_platform::collections::schema::load_schemas_merged(ship_dir, project_dir.as_deref())
                     .unwrap_or_default(),
             );
-            let collections: Vec<_> = schemas.iter().map(|s| json!({
-                "id": s.id, "name": s.name, "field_count": s.fields.len(),
-            })).collect();
-            Ok(json!({
-                "stats": stats,
-                "recent_runs": recent_runs,
-                "events": events,
-                "total_events": total_events,
-                "agents": agents,
-                "collections": collections,
-            }))
-        }
-
-        _ => return Ok(None),
-    };
-    Ok(Some(value?))
+            let collections: Vec<_> = schemas
+                .iter()
+                .map(|s| json!({ "id": s.id, "name": s.name, "field_count": s.fields.len() }))
+                .collect();
+            Ok(DashboardStateResponse {
+                stats,
+                recent_runs,
+                events,
+                total_events,
+                agents,
+                collections,
+            })
+        },
+    },
 }
