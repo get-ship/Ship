@@ -1,0 +1,103 @@
+# Tier 3 — build tracker
+
+The VM-substrate tier. Providers are `Isolator` impls (same contract as
+Docker): `prepare` boots a VM/microVM running `ship-sidecar`, returns a
+`RuntimeEndpoint::Remote` (vsock); `shutdown` reaps it. The sidecar is
+constant — only the substrate boot + transport differ per provider.
+
+**Providers (decided 2026-05):**
+- **Firecracker** (Linux, KVM) — microVM per sandbox, own kernel. Strongest;
+  also the cloud (Fly) model. *Build+test locally once KVM is accessible.*
+- **Apple Container** (mac, Apple Silicon + macOS 15+) — microVM-per-container,
+  own kernel. T3, stronger inter-actor than Lima. *Contacts test.*
+- **Lima** (mac, Intel/older) — one shared VM + bubblewrap inside. *Intel-mac.*
+- **WSL** (win 10/11) — Ship distro hosts the sidecar; inclusive (not Hyper-V).
+
+## Build sequence (Firecracker first — it's the locally-testable leg)
+
+1. **vsock transport** ⬜ — sidecar `--addr vsock:<port>` (bind `VsockListener`);
+   connectrpc client dials via `lazy_with_connector` + a vsock connector
+   (mirror the `lazy_unix` work). `RuntimeEndpoint::Remote { scheme: vsock }`.
+   *Untestable without a VM — lands with the Firecracker Isolator.*
+2. **Guest kernel** ⬜ — a firecracker-compatible `vmlinux` (download from the
+   firecracker CI bucket, pin the version). Staged under `target/fc/` for dev;
+   the shipped path bakes/pins it.
+3. **Rootfs + init** ⬜ — minimal ext4 with `ship-sidecar` as init (PID 1),
+   launching it on vsock. Build rootlessly (`mke2fs -d <dir>` — no mount/root).
+4. **Firecracker `Isolator`** ⬜ — `prepare`: configure the microVM (kernel +
+   rootfs + vsock device) via the firecracker API/config, boot, poll the
+   sidecar handshake over vsock, return the endpoint. `shutdown`: SIGKILL the
+   firecracker process. Model on `youki_sidecar` (the existing sidecar-substrate
+   Isolator) + the Docker backend's sidecar mode.
+5. **Recommender ladder** ⬜ — add Firecracker/AppleContainer/Lima/WSL detection
+   + per-OS preference. **Land each pick WITH its backend** (no recommend-without-
+   driver). Also: enforce-path must REFUSE an unwired strategy (loud-fail), not
+   silently run unwrapped.
+6. **Per-OS Isolators** ⬜ — Apple Container (`container run`), Lima (`limactl`),
+   WSL (`wsl --import`), each against the same seam. Validated on hardware.
+
+## Open issues / not done
+
+- **[BLOCKER] KVM access for this dev box** — `/dev/kvm` is `root:kvm 0660`;
+  the dev user isn't in `kvm`. Unblock: `sudo setfacl -m u:$USER:rw /dev/kvm`
+  (immediate) or `sudo usermod -aG kvm $USER` (relogin). Until then, NO
+  Firecracker code can be live-tested → none is committed (no untested stubs).
+- **Guest kernel + rootfs not yet staged** — kernel download + rootless rootfs
+  bake are the next concrete steps (KVM-independent to *build*, KVM to *boot*).
+- ~~**vsock on WSL2**~~ ✅ **viable** — `/dev/vhost-vsock` present, `/dev/vsock`
+  is world-rw, AF_VSOCK sockets are creatable. Transport = **vsock** (no
+  forwarded-port fallback needed). NB `/dev/vhost-vsock` is `root:kvm 0660`,
+  so the host side of vsock is gated by the same kvm-group access as KVM.
+- **Rootfs: static sidecar vs glibc assembly** — the rootfs needs `ship-sidecar`
+  + its deps. A **static-musl** sidecar makes the rootfs trivial (one binary, no
+  libc/loader to assemble) AND erases the glibc bind-mount caveat the container
+  cells carry. Recommend building `ship-sidecar` for
+  `x86_64-unknown-linux-musl`; verify the dep tree (portable-pty, libc,
+  connectrpc) builds on musl first.
+- **VM-sharing granularity** — one VM for all sandboxes vs per-project vs
+  per-actor microVM. Firecracker/Apple Container favor per-sandbox microVM;
+  Lima/WSL favor one shared VM. Decide per-provider during the build.
+- **Cold-start budget** — microVM boot latency; may need a warm pool. Measure
+  once booting works.
+- **Baked image signing/pinning** — the kernel + rootfs (and the Apple Container
+  agent image) must be version-pinned + signed before shipping (Phase F).
+- **enforce-path refuse-on-unwired** — today `process.rs`'s `other =>` branch
+  warns + runs unwrapped; with `enforce=true` it must refuse (threat-model §6
+  loud-fail). Fix before the recommender can pick T3 strategies.
+
+## Dev-box unblock (two sudo one-liners, then I build+test Firecracker)
+
+Paste in your session — both are needed before any Firecracker code is
+live-testable here:
+
+```
+! sudo setfacl -m u:$USER:rw /dev/kvm /dev/vhost-vsock   # boot + vsock
+! sudo apt-get install -y musl-tools                      # static-musl sidecar → trivial rootfs
+```
+
+`musl` rust target adds without sudo (`rustup target add
+x86_64-unknown-linux-musl`); `mke2fs` is present so the rootfs bakes
+rootlessly (`mke2fs -d`). Alternative if you'd rather not install musl-tools:
+a glibc rootfs (assemble libc + loader) — more work, avoid if possible.
+
+## Test gates (who validates what)
+
+| Leg | Substrate | Tested by |
+|---|---|---|
+| Firecracker | Linux/KVM | dev box (once KVM granted) |
+| Apple Container | mac 15+/Apple Silicon | newer-mac contacts |
+| Lima | Intel/older mac | maintainer's Intel mac |
+| WSL | win 10/11 | maintainer's Windows |
+
+## Status
+
+- ✅ Providers decided (substrate.md, tranches.md).
+- ✅ firecracker binary staged (`v1.15.1`, `target/fc/`).
+- ✅ Guest kernel staged (`vmlinux-6.1.102`, `target/fc/vmlinux`).
+- ✅ vsock confirmed viable on the dev box → transport = vsock.
+- ✅ Transport seam exists (`RuntimeEndpoint`, `SidecarActorRuntime`); sidecar
+  proven over unix socket; vsock is the next variant (gated on kvm-group for
+  vhost-vsock).
+- ⬜ rootfs (static-musl sidecar bake), vsock transport code, Firecracker
+  Isolator, recommender ladder, per-OS legs — gated on KVM access (boot/test)
+  + hardware (per-OS). No untested microVM code committed until KVM is open.
