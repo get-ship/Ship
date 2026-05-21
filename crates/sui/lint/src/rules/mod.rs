@@ -13,6 +13,7 @@ use crate::report::Finding;
 pub mod attr_presence;
 pub mod controller_purity;
 pub mod css_literal;
+pub mod dimension_literal;
 pub mod css_token;
 pub mod event_name;
 pub mod for_key;
@@ -40,4 +41,5 @@ pub const SUI_TEMPLATE_RULES: &[(&str, RuleFn)] = &[
     (attr_presence::RULE_ID, attr_presence::check),
     (space_literal::RULE_ID, space_literal::check),
     (layout_primitive::RULE_ID, layout_primitive::check),
+    (dimension_literal::RULE_ID, dimension_literal::check),
 ];
