@@ -25,7 +25,11 @@ pub fn check(path: &Path, source: &str) -> Vec<Finding> {
     let mut i = 0;
 
     while i < bytes.len() {
-        if !source[i..].starts_with("attr:") {
+        // Compare on bytes, not a `source[i..]` str-slice: `i` walks every
+        // byte, so a str-slice panics when it lands inside a multi-byte char
+        // (em-dash in a comment, `°`/`§`, …). A `b"attr:"` match implies `i`
+        // is a char boundary, so the slices below are safe.
+        if !bytes[i..].starts_with(b"attr:") {
             i += 1;
             continue;
         }
@@ -261,5 +265,17 @@ mod tests {
             r#"<div attr:data-a={x() ? '' : null} attr:data-b={y()}></div>"#,
         );
         assert_eq!(f.len(), 1, "only the first is the misuse: {f:?}");
+    }
+
+    #[test]
+    fn multibyte_chars_do_not_panic() {
+        // Em-dashes in comments (and `°`/`§`, etc.) put non-char-boundary
+        // bytes in the byte-walk; the scan must not str-slice into them.
+        let f = lint(
+            "<!-- a comment — with em-dashes — and °/§ -->\n\
+             <div attr:data-active={active() ? '' : null}>x—y</div>",
+        );
+        assert_eq!(f.len(), 1, "still detects after multibyte content: {f:?}");
+        assert_eq!(f[0].rule, RULE_ID);
     }
 }
