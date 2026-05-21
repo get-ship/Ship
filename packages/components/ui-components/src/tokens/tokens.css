@@ -26,7 +26,7 @@
 /* ─── Primitives: these never change per theme ────────────────────── */
 :root {
   /* Radii */
-  --radius: 0.625rem;
+  --radius: 10px;
   --radius-sm: 4px;
   --radius-md: 6px;
   --radius-lg: 10px;
@@ -54,7 +54,7 @@
   --z-max: 100;
 
   /* Typography scale */
-  --text-xs: 10.5px;
+  --text-xs: 11px;
   --text-sm: 12px;
   --text-base: 13px;
   --text-md: 14px;
@@ -80,7 +80,8 @@
   --tracking-wider: 0.1em;
 
   /* Motion curves — expressive by default, soft for surface changes,
-   * spring for tactile feedback, linear for utility. */
+   * spring for tactile feedback. Components that need a true linear
+   * curve write the CSS keyword directly. */
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-out-soft: cubic-bezier(0.33, 1, 0.68, 1);
   --ease-in: cubic-bezier(0.7, 0, 0.84, 0);
@@ -134,6 +135,8 @@
   --heading-weight: var(--font-weight-semibold);
   --heading-tracking: var(--tracking-tight);
   --body-font: var(--font-body);
+  --body-weight: var(--font-weight-normal);
+  --body-tracking: var(--tracking-normal);
   --mono-font: var(--font-mono);
   --label-font: var(--font-body);
   --label-weight: var(--font-weight-semibold);
@@ -175,10 +178,6 @@
    *     surfaces (cards, popovers, dialogs, card-variant tiles). Default
    *     `none` so no surface gets a filter unless a theme opts in (e.g. a
    *     glass theme setting `blur(24px) saturate(180%)`).
-   *   --card-shadow-style — descriptive flag a theme sets when its shadow
-   *     recipe departs from the default outset stack (e.g. `dual` for a
-   *     neumorph theme using inset+outset). Components do not read this;
-   *     it documents the theme's intent for debugging.
    *   --surface-overlay — a body-level texture (gradient, data-URI SVG,
    *     repeating-linear-gradient). `body::after` reads this. Default
    *     `none`; per-theme overrides reinstate the existing grain/scanline
@@ -187,7 +186,6 @@
    *     multiply, ship-light/dark use overlay) can opt in.
    */
   --card-backdrop-filter: none;
-  --card-shadow-style: outset;
   --surface-overlay: none;
   --surface-overlay-blend: overlay;
   --surface-overlay-opacity: 1;
@@ -368,16 +366,21 @@ body::after {
    * the pure-white card. Matches the brand-id-2 polish pass. */
   --surface-0: oklch(0.97 0.004 80);
   --surface-1: oklch(1 0 0);
-  --surface-2: oklch(0.99 0.005 80);
+  /* Light-mode ceiling: surface-1..3 plateau at pure white. Elevation
+   * above the card is communicated by --shadow-md / --shadow-lg and
+   * border tokens, not by lightness — there is no L headroom above 1.0. */
+  --surface-2: oklch(1 0 0);
   --surface-3: oklch(1 0 0);
   --surface-inverse: var(--foreground);
 
   --backdrop: oklch(0 0 0 / 40%);
   --scrim: oklch(0 0 0 / 20%);
 
-  /* Border variants */
+  /* Border variants. --border-strong derives from --foreground (not
+   * --border) because color-mix percentages are clamped to [0,100] —
+   * "--border at 150%" is invalid CSS and silently unsets the property. */
   --border-subtle: color-mix(in oklch, var(--border) 60%, transparent);
-  --border-strong: color-mix(in oklch, var(--border) 150%, transparent);
+  --border-strong: color-mix(in oklch, var(--foreground) 55%, transparent);
   --divider: var(--border-subtle);
 
   /* Interaction surfaces — use these for hover/pressed states instead

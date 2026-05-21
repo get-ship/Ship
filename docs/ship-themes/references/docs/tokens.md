@@ -29,13 +29,15 @@ These are guaranteed within v1.x.
 For each tone in `{default, muted, info, success, warning, destructive, accent, primary}`: `--tone-{name}-fg`, `--tone-{name}-bg`, `--tone-{name}-bg-solid`, `--tone-{name}-border`, `--tone-{name}-ring`. Forty tokens total. New tones may be added; existing names frozen.
 
 ### Typography roles + scale
-Roles: `--heading-font`, `--heading-weight`, `--heading-tracking`, `--body-font`, `--mono-font`, `--label-font`, `--label-weight`, `--label-tracking`, plus the resolved stacks `--font-display`, `--font-body`, `--font-mono`. Scale: `--text-xs..4xl`, `--leading-{tight,normal,relaxed}`, `--font-weight-{normal,medium,semibold,bold}`, `--tracking-{tight,normal,wide,wider}`.
+Roles: `--heading-font`, `--heading-weight`, `--heading-tracking`, `--body-font`, `--body-weight`, `--body-tracking`, `--mono-font`, `--label-font`, `--label-weight`, `--label-tracking`, plus the resolved stacks `--font-display`, `--font-body`, `--font-mono`. Scale: `--text-xs..4xl`, `--leading-{tight,normal,relaxed}`, `--font-weight-{normal,medium,semibold,bold}`, `--tracking-{tight,normal,wide,wider}`.
 
 ### Spacing, radii, z-index
 `--space-1..8`, `--radius`, `--radius-{sm,md,lg,xl,full}`, `--z-{base,elevated,dropdown,sticky,popover,dialog,toast,max}`.
 
 ### Motion + focus
-`--ease-{out,out-soft,in,in-out,spring}`, `--duration-{instant,fast,medium,slow,deliberate}`, `--ring-width`, `--ring-offset`, `--ring-opacity`. The `prefers-reduced-motion` collapse is part of the contract.
+`--ease-{out,out-soft,in,in-out,spring}`, `--duration-{instant,fast,medium,slow,deliberate}`, `--ring-width`, `--ring-offset`, `--ring-opacity`, `--ring`, `--ring-color`, `--focus-ring`, `--focus-ring-offset`. The `prefers-reduced-motion` collapse is part of the contract.
+
+`--focus-ring` (a composite `width style color` string) + `--focus-ring-offset` are the canonical pair every primitive consumes for keyboard focus — `outline: var(--focus-ring); outline-offset: var(--focus-ring-offset);`. `--ring` is the pre-baked focus halo color used directly as a `box-shadow` color in chip-style overlays. `--ring-color` is the solid hue feeding `color-mix()` so callers can dial their own alpha via `--ring-opacity`. All four are stable; pick the one whose role matches.
 
 ### Density + elevation
 Density: `:root[data-density={compact,comfortable,spacious}]` and the `--density-row-py`, `--density-row-px`, `--density-row-gap`, `--density-text`, `--density-icon` tokens. Elevation: `--shadow-{xs,sm,md,lg,xl}`, `--shadow-hover`, `--shadow-sticky`, `--shadow-accent`.
@@ -50,7 +52,6 @@ Names exist in `tokens.css` today but carry **no compatibility promise**. Themes
 - **Tooltip delays** — `--tooltip-show-delay`, `--tooltip-hide-delay`. Read by the tooltip primitive only.
 - **Legacy tone-mix percentages** — `--tone-bg-mix`, `--tone-border-mix`, `--tone-hover-mix`. Will be removed when `util.toneVars()` callers migrate to the named ramps.
 - **Font-stack aliases** — `--font-display-app`, `--font-body-app`, `--font-mono-app`. Wiring detail; the unsuffixed roles are the contract.
-- **`--ring-color`** — alias of `--primary`; subject to removal.
 
 ## Stability policy
 

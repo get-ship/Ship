@@ -5,7 +5,7 @@
 //!
 //! Each dimension maps a raw value to a *named* token (the scales aren't 1..N):
 //! - radius:    4px→--radius-sm, 6→md, 10→lg, 14→xl, 9999→full
-//! - font-size: 10.5px→--text-xs, 12→sm, 13→base, 14→md, 16→lg, 20→xl,
+//! - font-size: 11px→--text-xs, 12→sm, 13→base, 14→md, 16→lg, 20→xl,
 //!              24→2xl, 28→3xl, 36→4xl
 //! - z-index:   0→--z-base, 1→elevated, 10→dropdown, 20→sticky, 30→popover,
 //!              40→dialog, 50→toast, 100→max
@@ -59,7 +59,7 @@ const DIMENSIONS: &[Dim] = &[
         properties: &["font-size"],
         px: true,
         scale: &[
-            (1050, "--text-xs"),
+            (1100, "--text-xs"),
             (1200, "--text-sm"),
             (1300, "--text-base"),
             (1400, "--text-md"),
@@ -357,8 +357,8 @@ mod tests {
     }
 
     #[test]
-    fn font_size_fractional_token() {
-        let f = run("<style>.x { font-size: 10.5px; }</style>");
+    fn font_size_xs_token() {
+        let f = run("<style>.x { font-size: 11px; }</style>");
         assert_eq!(f.len(), 1);
         assert!(f[0].suggest.as_ref().unwrap().contains("--text-xs"), "{:?}", f[0].suggest);
     }

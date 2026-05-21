@@ -35,6 +35,12 @@
  * ─────────────────────────────────────────────────────────────────── */
 :root[data-theme='ship-dark'],
 [data-theme-preview='ship-dark'] {
+  /* Sibling theme, on purpose: shares ship-light's motion, radii, and
+   * typography. Earns its slot via cool-blue shadow tinting + heavier
+   * --selected-strength (see the ship-dark personality block below),
+   * plus the full .dark palette flip in tokens.css. Don't "upgrade" it
+   * with more bends — the point is that night ship-light feels the same
+   * as day ship-light. */
   --surface-2: oklch(0.22 0.012 50);
   --border-subtle: oklch(1 0 0 / 8%);
   --border-strong: oklch(1 0 0 / 22%);
@@ -70,10 +76,11 @@
   --ring: oklch(0.50 0.16 30 / 35%);
 
   /* Paper surfaces: slightly brighter than the page so cards lift
-   * off the pulp. surface-3 is the brightest "fresh-page" tone. */
+   * off the pulp. Light mode plateaus at 1.0 — surface-1..3 do not
+   * undercut each other, depth above the card comes from shadow. */
   --surface-0: oklch(0.985 0.020 75);
   --surface-1: oklch(0.995 0.012 75);
-  --surface-2: oklch(0.990 0.018 75);
+  --surface-2: oklch(1.000 0.000 75);
   --surface-3: oklch(1.000 0.000 75);
   --border-subtle: oklch(0.20 0.015 60 / 8%);
   --border-strong: oklch(0.20 0.015 60 / 30%);
@@ -112,14 +119,15 @@
   --sidebar-border: oklch(0.20 0.015 60 / 14%);
 
   /* Editorial voice: demote display, body for headings; heavier
-   * book-print body weight so text reads like a printed page. */
+   * book-print body weight via the role token so the primitive scale
+   * stays canonical across every other theme. */
   --heading-font: var(--font-body);
   --heading-weight: var(--font-weight-semibold);
   --heading-tracking: var(--tracking-tight);
   --label-font: var(--font-body);
   --label-weight: var(--font-weight-medium);
   --label-tracking: var(--tracking-normal);
-  --font-weight-medium: 600;
+  --body-weight: var(--font-weight-semibold);
 
   /* Calm tints — don't fight the paper. */
   --hover-strength: 4%;

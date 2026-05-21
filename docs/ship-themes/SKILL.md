@@ -8,12 +8,12 @@ authors: [ship]
 
 # Ship Design System
 
-Ship themes are full aesthetic bundles, comparable in depth to Material or Apple HIG. Each theme bends surfaces, radii, shadows, motion, typography, and interaction strength — not just hue. Six themes ship today, selected from a flat picker in the shell topbar.
+Ship themes are full aesthetic bundles, comparable in depth to Material or Apple HIG. Each theme bends surfaces, radii, shadows, motion, typography, and interaction strength — not just hue. Seven themes ship today, selected from a flat picker in the shell topbar.
 
 This doc-skill is the published reference. Pages:
 
 - **[Design System](./references/docs/index.md)** — positioning and tour.
-- **[Themes](./references/docs/themes.md)** — the six-theme catalog, what a theme changes, how to switch.
+- **[Themes](./references/docs/themes.md)** — the seven-theme catalog, what a theme changes, how to switch.
 - **[Tokens](./references/docs/tokens.md)** — four-layer token system at an integrator level.
 - **[Customizing](./references/docs/customizing.md)** — override individual tokens or author a full custom theme.
 - **[Roadmap](./references/docs/roadmap.md)** — agent-only punch list of known gaps.
