@@ -82,6 +82,9 @@ doctor:
 dev-runtime-install:
     #!/usr/bin/env bash
     set -euo pipefail
+    # Activate the tracked git hooks (.artifacts boundary guard). Local config,
+    # so a fresh clone needs this once — hence here.
+    git config core.hooksPath .githooks
     cargo build -p sui-compiler --release
     cargo build -p ship-cli
     BUN_BIN="${BUN_PATH:-$(command -v bun || true)}"
