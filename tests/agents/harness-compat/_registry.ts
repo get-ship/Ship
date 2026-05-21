@@ -33,7 +33,10 @@ export const HARNESSES: HarnessSpec[] = [
   { id: "gemini", binary: "gemini", tier: "T2", emitsSessionStarted: false },
 
   // ── T3: evaluate-as-we-go; human owns drop decisions ────────────────────
-  { id: "cursor", binary: "agent", tier: "T3", emitsSessionStarted: false },
+  // `binary` mirrors the Rust adapter's binary() — CursorAdapter returns
+  // "cursor-agent" (the `agent` alias symlinks to it). Keep in sync with
+  // crates/core/ship-platform/src/services/harnesses/cursor.rs.
+  { id: "cursor", binary: "cursor-agent", tier: "T3", emitsSessionStarted: false },
 ];
 
 /** Harnesses skipped via SKIP_HARNESSES env (comma-separated ids). */
