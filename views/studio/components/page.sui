@@ -8,9 +8,9 @@
           <div class="components-head-titles">
             <h1 class="components-title">Components</h1>
             <p class="components-sub">
-              <strong>{filteredCount()}</strong> of {totalCount()}
+              <strong>{filteredCount()}</strong> {mode() === 'dev' ? 'of ' + totalCount() + ' elements' : 'published packs'}
               <span class="components-sub-sep" aria-hidden="true"></span>
-              the SUI component catalog
+              {mode() === 'dev' ? 'all components + subcomponents' : 'what ships to users'}
             </p>
             <div class="components-rule" aria-hidden="true"></div>
           </div>
@@ -32,6 +32,11 @@
             <sui-segmented-option value="all">All</sui-segmented-option>
             <sui-segmented-option value="sui">Components</sui-segmented-option>
             <sui-segmented-option value="view">Views</sui-segmented-option>
+          </sui-segmented>
+          <sui-segmented value={mode()} size="sm" aria-label="Catalog mode"
+            on:sui-change={(e) => setMode(e.detail.value)} data-test="mode">
+            <sui-segmented-option value="user">User</sui-segmented-option>
+            <sui-segmented-option value="dev">Dev</sui-segmented-option>
           </sui-segmented>
         </div>
 
@@ -56,12 +61,20 @@
                   {#if item.description}
                     <p class="component-card-desc">{item.description}</p>
                   {/if}
-                  {#if item.props && item.props.length > 0}
-                    <div class="component-card-meta">
-                      <sui-icon name="sliders-horizontal" size="xs" tone="muted"></sui-icon>
-                      {item.props.length} prop{item.props.length === 1 ? '' : 's'}
-                    </div>
-                  {/if}
+                  <div class="component-card-meta">
+                    {#if item.props && item.props.length > 0}
+                      <span class="component-card-meta-item">
+                        <sui-icon name="sliders-horizontal" size="xs" tone="muted"></sui-icon>
+                        {item.props.length} prop{item.props.length === 1 ? '' : 's'}
+                      </span>
+                    {/if}
+                    {#if item.parts > 0}
+                      <span class="component-card-meta-item">
+                        <sui-icon name="layers" size="xs" tone="muted"></sui-icon>
+                        {item.parts} subcomponent{item.parts === 1 ? '' : 's'}
+                      </span>
+                    {/if}
+                  </div>
                 </a>
               {/for}
             </div>
