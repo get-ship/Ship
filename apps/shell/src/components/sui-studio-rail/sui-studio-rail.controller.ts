@@ -39,7 +39,7 @@ const CONFIGURE: ReadonlyArray<RailEntry> = [
   { id: 'agents', label: 'Agents', icon: 'bot', href: '/studio/agents' },
   { id: 'skills', label: 'Skills', icon: 'zap' },
   { id: 'components', label: 'Components', icon: 'layers' },
-  { id: 'themes', label: 'Themes', icon: 'palette' },
+  { id: 'themes', label: 'Themes', icon: 'palette', href: '/studio/themes' },
   { id: 'pipelines', label: 'Pipelines', icon: 'workflow' },
   { id: 'mcp', label: 'MCP servers', icon: 'terminal' },
   { id: 'permissions', label: 'Permissions', icon: 'shield' },

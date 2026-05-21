@@ -1,0 +1,13 @@
+// Route metadata for views/studio/themes/. See
+// docs/ship-adrs/references/docs/view-directory-convention.md.
+{
+  "name": "themes",
+  "path": "/studio/themes",
+  "title": "Themes",
+  "layout": "default",
+  "auth": "user",
+  "rail": {
+    "label": "Themes",
+    "icon": "palette"
+  }
+}

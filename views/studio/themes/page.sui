@@ -1,0 +1,78 @@
+<div class="studio-view" data-test="studio-view">
+  <sui-studio-rail></sui-studio-rail>
+  <main class="studio-content" data-test="studio-content">
+    <div class="ship-view themes-view">
+      <div class="themes-wrap">
+
+        <header class="themes-head">
+          <div class="themes-head-titles">
+            <h1 class="themes-title">Themes</h1>
+            <p class="themes-sub">
+              <strong>{themes().length}</strong> theme{themes().length === 1 ? '' : 's'}
+              <span class="themes-sub-sep" aria-hidden="true"></span>
+              active: <span class="themes-sub-active" data-test="active-theme">{activeLabel()}</span>
+            </p>
+            <div class="themes-rule" aria-hidden="true"></div>
+          </div>
+        </header>
+
+        <div class="themes-filters">
+          <div class="themes-search">
+            <sui-icon name="search" size="sm" tone="muted"></sui-icon>
+            <input type="text" placeholder="Search themes…" aria-label="Search themes"
+              spellcheck="false" data-test="search" value={q()} on:input={onSearchInput} />
+            {#if q()}
+              <button type="button" class="themes-search-clear" aria-label="Clear search" on:click={clearSearch}>
+                <sui-icon name="x" size="xs"></sui-icon>
+              </button>
+            {/if}
+          </div>
+          <sui-segmented value={filter()} size="sm" aria-label="Filter by mode"
+            on:sui-change={(e) => setFilter(e.detail.value)}>
+            {#for f of filters() key={f.id}}
+              <sui-segmented-option attr:value={f.id} data-test="filter">{f.label}</sui-segmented-option>
+            {/for}
+          </sui-segmented>
+        </div>
+
+        {#if themes().length === 0}
+          <sui-empty-state icon="search-x" variant="default" size="sm" data-test="empty">
+            <span slot="title">No matching themes</span>
+            Nothing matches your search.
+            <sui-button slot="action" variant="outline" size="sm" on:click={clearSearch}>Clear search</sui-button>
+          </sui-empty-state>
+        {:else}
+          <div class="themes-grid" data-test="themes-grid">
+            {#for t of themes() key={t.id}}
+              <button class="theme-card" type="button" data-test="theme-card"
+                attr:data-id={t.id} attr:data-active={t.isActive}
+                on:click={() => apply(t.id)}>
+                <div class="theme-swatch" aria-hidden="true">
+                  {#for c of t.swatches key={c}}
+                    <span class="theme-swatch-chip" attr:style={'background:' + c}></span>
+                  {/for}
+                </div>
+                <div class="theme-card-body">
+                  <div class="theme-card-head">
+                    <span class="theme-card-name">{t.label}</span>
+                    {#if t.isActive}
+                      <sui-chip tone="success" variant="soft" size="sm" data-test="active-chip">
+                        <sui-status-dot slot="leading" tone="success" size="sm" label="Active"></sui-status-dot>
+                        active
+                      </sui-chip>
+                    {/if}
+                  </div>
+                  <div class="theme-card-meta">
+                    <sui-badge tone="muted" variant="outline" size="sm">{t.dark ? 'Dark' : 'Light'}</sui-badge>
+                    <code class="theme-card-id">{t.id}</code>
+                  </div>
+                </div>
+              </button>
+            {/for}
+          </div>
+        {/if}
+
+      </div>
+    </div>
+  </main>
+</div>
