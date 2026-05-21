@@ -170,12 +170,14 @@ impl Isolator for Docker {
             .map(|m| m.host_path.clone())
             .unwrap_or_else(std::env::temp_dir);
 
+        // NB: `create` + `start` (below), not `run` — so no `--detach`
+        // here; it's a `run`-only flag and both docker and podman reject
+        // it on `create`.
         let mut argv: Vec<String> = vec![
             "create".into(),
             "--name".into(),
             name.clone(),
             "--init".into(),
-            "--detach".into(),
         ];
 
         argv.extend(network_args(&policy.network));

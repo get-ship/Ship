@@ -12,12 +12,14 @@ lets us honestly tell a user "isolation works on your setup."
 - 🔴 **blocked** — a known caveat prevents it; reason documented.
 - ⬜ **not built.**
 
-Honest baseline (2026-05): the sidecar v1 protocol is ✅ (10 e2e tests vs
-the spawned binary); the Tier-1 adapter *table* and the docker backend are
-🟡 (unit-tested logic, but **no agent has run live in a real container/VM
-yet** — the live tests auto-skip with no engine installed). So most cells
-below are 🟡/⬜. The grind is turning 🟡 → ✅ by installing substrates and
-running live tests, starting with podman on Linux.
+Baseline (2026-05): the sidecar v1 protocol is ✅ (10 e2e tests vs the
+spawned binary). **First container cell is now ✅** — an actor runs inside
+a real rootless **podman** container driven over v1
+(`podman_sidecar_live`), on Linux/Ubuntu-24.04. That test caught a real
+bug en route (`--detach` passed to `create`, which both docker and podman
+reject — the container path had never actually worked). `docker_live` +
+`docker_lifecycle` also pass against podman now. Remaining cells are
+🟡/⬜; the grind continues (bubblewrap T1 next, then mac/win substrates).
 
 Scope: harnesses are the three darlings — **claude, codex, opencode**
 (gemini/cursor deprioritized, see harness strategy). OS = macOS / Linux /
@@ -48,7 +50,7 @@ is the substrate mechanism.
 
 | Tier | macOS | Linux | Windows |
 |---|---|---|---|
-| **T2 — container** | 🟡 podman/docker (own VM) · Apple Container (Apple Silicon) | 🟡 podman/docker/youki (native) | 🟡 docker/podman in WSL2 / Docker Desktop |
+| **T2 — container** | 🟡 podman/docker (own VM) · Apple Container (Apple Silicon) | ✅ **podman** (`podman_sidecar_live`, rootless, ubuntu:24.04) · 🟡 docker/youki | 🟡 podman/docker in WSL2 / Docker Desktop |
 | **T3 — Ship VM/distro** | ⬜ Lima VM + bubblewrap | ⬜ (Firecracker microVM for strong; else T1 covers) | ⬜ Ship WSL distro + bubblewrap |
 | **T4 — cloud** | ⬜ protocol-ready (`RuntimeEndpoint::Remote`), Firecracker on a cloud host | ⬜ same | ⬜ same |
 
@@ -87,6 +89,6 @@ is the substrate mechanism.
    fs scoped, etc.).
 4. Mark ✅ with the test name; on failure, mark 🔴 with the reason.
 
-Immediate next: **podman on a Linux runner → `podman_sidecar_live`** — the
-first real green cell, and the proof an agent runs in a real container at
-all.
+~~Immediate next: podman → `podman_sidecar_live`.~~ **Done** ✅ (2026-05-21).
+Next: **bubblewrap T1 on Linux** (install `bubblewrap`, live-verify the
+SrtWrapper path), then mac (Seatbelt) + the mac/win substrate provisioners.
