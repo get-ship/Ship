@@ -8,6 +8,7 @@ mod cursor;
 mod gemini;
 mod mcp;
 mod opencode;
+mod pi;
 
 // Per-harness settings types live in their harness modules (cohesion);
 // re-export so `resolve::ResolvedConfig` can hold them as typed fields.

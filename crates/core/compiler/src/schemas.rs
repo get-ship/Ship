@@ -33,6 +33,9 @@ pub const HARNESS_SCHEMAS: &[(&str, Option<&str>)] = &[
     ("gemini", Some(GEMINI_SCHEMA_URL)),
     ("cursor", None),
     ("opencode", Some(OPENCODE_SCHEMA_URL)),
+    // Pi has no settings-file schema (model/tools are CLI/env; config is
+    // user-authored TS extensions). Source: pi.dev/docs.
+    ("pi", None),
 ];
 
 /// Look up the upstream schema URL for a harness.

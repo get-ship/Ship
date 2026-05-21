@@ -305,6 +305,33 @@ pub(super) static HARNESSES: &[HarnessDescriptor] = &[
         build_mcp: super::mcp::build_mcp_servers,
         build_settings: super::opencode::build_settings,
     },
+    HarnessDescriptor {
+        id: "pi",
+        name: "Pi",
+        // Pi has no built-in MCP; this is unused (supports_mcp = false).
+        mcp_key: McpKey::McpServers,
+        // Pi reads AGENTS.md for context and .agents/skills for skills —
+        // the same universal outputs Ship already emits. Source: pi.dev/docs.
+        context_file: ContextFile::AgentsMd,
+        skills_dir: SkillsDir::Agents,
+        // Pi has no native subagent file format (uses TS extensions instead).
+        agents_dir: AgentsDir::None,
+        emit_type_field: false,
+        sse_url_field: "url",
+        http_url_field: "url",
+        mcp_config_path: None,
+        features: ProviderFeatureFlags {
+            // No MCP, no compiled hooks/permissions file; model/tools are
+            // CLI/env. Memory = context file (AGENTS.md).
+            supports_mcp: false,
+            supports_hooks: false,
+            supports_tool_permissions: false,
+            supports_memory: true,
+        },
+        compile_agent: super::pi::compile_pi_agent,
+        build_mcp: super::mcp::build_mcp_servers,
+        build_settings: super::pi::build_settings,
+    },
 ];
 
 /// Feature support flags for a harness.
