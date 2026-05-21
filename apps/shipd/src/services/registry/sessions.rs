@@ -1,27 +1,17 @@
-//! Registry dispatcher for `sessions.*` ops. Split off from
-//! services/registry.rs (mr-04 follow-up).
+//! Single-source `sessions.*` ops — descriptors + dispatch via `ship_ops!`.
 
-use serde_json::{Value, json};
+use super::wire::SessionsListResponse;
 
-use super::RegistryError;
-use crate::ship_runtime::ApiState;
-use ship_platform::services::files::FilesService;
-
-
-pub(super) fn try_dispatch(
-    name: &str,
-    _args: &Value,
-    state: &ApiState,
-    _files: &FilesService,
-) -> Result<Option<Value>, RegistryError> {
-    let value: Result<Value, RegistryError> = match name {
-        "sessions.list" => {
-            Ok(json!({
-                "items": state.pty_sessions().list(),
-            }))
-        }
-
-        _ => return Ok(None),
-    };
-    Ok(Some(value?))
+ship_ops! {
+    SESSIONS_OPS;
+    {
+        name: "sessions.list",
+        desc: "All live PTY sessions (agent chats, pipeline runs, shells) — Mission Control data.",
+        perm: "ship.sessions.read",
+        args: &[],
+        ret: SessionsListResponse,
+        run: |_args, state, _files| {
+            Ok(SessionsListResponse { items: state.pty_sessions().list() })
+        },
+    },
 }

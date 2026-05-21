@@ -1,35 +1,33 @@
-//! Registry dispatcher for `chat.*` ops. Split off from
-//! services/registry.rs (mr-04 follow-up).
+//! Single-source `chat.*` ops — descriptors + dispatch via `ship_ops!`.
 
-use serde_json::{Value, json};
+use super::wire::ChatStateResponse;
+use crate::services::schema::ArgDescriptor;
 
-use super::RegistryError;
-use crate::ship_runtime::ApiState;
-use ship_platform::services::files::FilesService;
-
-
-pub(super) fn try_dispatch(
-    name: &str,
-    args: &Value,
-    state: &ApiState,
-    _files: &FilesService,
-) -> Result<Option<Value>, RegistryError> {
-    let value: Result<Value, RegistryError> = match name {
-        "chat.state" => {
-            let ship_dir = state.ship_dir();
-            let ws_arg = args.get("workspace_id").and_then(|v| v.as_str())
+ship_ops! {
+    CHAT_OPS;
+    {
+        name: "chat.state",
+        desc: "Recent messages for the chat drawer, scoped by workspace.",
+        perm: "ship.chat.read",
+        args: &[ArgDescriptor { name: "workspace_id", kind: "string?", required: false }],
+        ret: ChatStateResponse,
+        sensitive: true,
+        run: |args, state, _files| {
+            let ws_arg = args
+                .get("workspace_id")
+                .and_then(|v| v.as_str())
                 .filter(|s| !s.is_empty());
             let messages = crate::views::chat_state::list_messages(
-                ship_dir, ws_arg, crate::views::chat_state::DEFAULT_LIMIT,
+                state.ship_dir(),
+                ws_arg,
+                crate::views::chat_state::DEFAULT_LIMIT,
             );
-            Ok(json!({
-                "workspace_id": ws_arg.unwrap_or(""),
-                "messages": messages.clone(),
-                "total": messages.len(),
-            }))
-        }
-
-        _ => return Ok(None),
-    };
-    Ok(Some(value?))
+            let total = messages.len();
+            Ok(ChatStateResponse {
+                workspace_id: ws_arg.unwrap_or("").to_string(),
+                messages,
+                total,
+            })
+        },
+    },
 }

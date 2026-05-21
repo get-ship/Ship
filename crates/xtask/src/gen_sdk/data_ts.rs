@@ -41,6 +41,8 @@ const MIGRATED_RETURN_TYPES: &[&str] = &[
     "PermissionsIndexResponse",
     "PermissionGetResponse",
     "ToolPatternsResponse",
+    // account.*
+    "AccountState",
 ];
 
 /// The TS type a handle resolves to: a migrated named type, or `unknown`.

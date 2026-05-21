@@ -192,6 +192,11 @@ fn collect_types() -> TypeCollection {
     c.register::<ship_platform::services::permissions::wire_types::ToolPattern>();
     c.register::<ship_platform::services::permissions::wire_types::ToolPatternsResponse>();
 
+    // account.* — Ship Cloud account snapshot (also exported in the framework
+    // collection for the chrome chip; registered here for the data.ts surface).
+    c.register::<ship_platform::account::types::AccountState>();
+    c.register::<ship_platform::account::types::MeView>();
+
     c
 }
 

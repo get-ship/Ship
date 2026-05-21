@@ -100,6 +100,7 @@ pub(super) fn optional_usize(args: &Value, field: &str, default: usize) -> usize
 
 #[macro_use]
 mod op_macro;
+pub mod wire;
 
 pub mod agents;
 pub mod skills;

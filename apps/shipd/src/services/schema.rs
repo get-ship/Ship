@@ -99,6 +99,11 @@ fn build_ops() -> Vec<OpDescriptor> {
         ("rules", reg::rules::RULES_OPS),
         ("mcp", reg::mcp::MCP_OPS),
         ("permissions", reg::permissions::PERMISSIONS_OPS),
+        ("events", reg::events::EVENTS_OPS),
+        ("chat", reg::chat::CHAT_OPS),
+        ("sessions", reg::sessions::SESSIONS_OPS),
+        ("artifacts", reg::artifacts::ARTIFACTS_OPS),
+        ("account", reg::account::ACCOUNT_OPS),
     ];
     let mut ops: Vec<OpDescriptor> = Vec::new();
     for domain in DOMAIN_ORDER {
@@ -206,21 +211,6 @@ const LEGACY_OPS: &[OpDescriptor] = &[
         ],
         returns: "HistoryCtx",
         permission: "ship.pipelines.read", sensitive: false,
-    },
-
-    // ── events ────────────────────────────────────────────────────
-    OpDescriptor {
-        name: "events.list",
-        description: "Kernel events with filters, grouped by entity.",
-        args: &[
-            ArgDescriptor { name: "limit", kind: "number?", required: false },
-            ArgDescriptor { name: "event_type", kind: "string?", required: false },
-            ArgDescriptor { name: "actor", kind: "string?", required: false },
-            ArgDescriptor { name: "entity", kind: "string?", required: false },
-            ArgDescriptor { name: "q", kind: "string?", required: false },
-        ],
-        returns: "{groups, types, actors}",
-        permission: "ship.events.read", sensitive: true,
     },
 
     // ── specs ─────────────────────────────────────────────────────
@@ -347,37 +337,6 @@ const LEGACY_OPS: &[OpDescriptor] = &[
         returns: "{items, total_items}",
         permission: "ship.collections.read", sensitive: false,
     },
-    OpDescriptor {
-        name: "artifacts.list",
-        description: "Artifact metadata records, filterable by scope/mime/collection/item/owner.",
-        args: &[
-            ArgDescriptor { name: "scope", kind: "string?", required: false },
-            ArgDescriptor { name: "mime", kind: "string?", required: false },
-            ArgDescriptor { name: "collection_id", kind: "string?", required: false },
-            ArgDescriptor { name: "item_id", kind: "string?", required: false },
-            ArgDescriptor { name: "owner_actor", kind: "string?", required: false },
-            ArgDescriptor { name: "content_hash", kind: "string?", required: false },
-            ArgDescriptor { name: "sort", kind: "string?", required: false },
-            ArgDescriptor { name: "limit", kind: "number?", required: false },
-            ArgDescriptor { name: "offset", kind: "number?", required: false },
-        ],
-        returns: "{items: [ArtifactRecord], count, scope}",
-        permission: "ship.artifacts.read", sensitive: false,
-    },
-    OpDescriptor {
-        name: "chat.state",
-        description: "Recent messages for the chat drawer, scoped by workspace.",
-        args: &[ArgDescriptor { name: "workspace_id", kind: "string?", required: false }],
-        returns: "{workspace_id, messages, total}",
-        permission: "ship.chat.read", sensitive: true,
-    },
-    OpDescriptor {
-        name: "sessions.list",
-        description: "All live PTY sessions (agent chats, pipeline runs, shells) — Mission Control data.",
-        args: &[],
-        returns: "{items: [SessionMeta]}",
-        permission: "ship.sessions.read", sensitive: false,
-    },
     // ── workspaces ────────────────────────────────────────────────
     OpDescriptor {
         name: "workspaces.list",
@@ -393,16 +352,6 @@ const LEGACY_OPS: &[OpDescriptor] = &[
         args: &[],
         returns: "{id: string?}",
         permission: "ship.workspaces.read",
-        sensitive: false,
-    },
-
-    // ── account ──────────────────────────────────────────────────
-    OpDescriptor {
-        name: "account.state",
-        description: "Ship Cloud account snapshot — logged_out / pending / logged_in.",
-        args: &[],
-        returns: "AccountState",
-        permission: "ship.account.read",
         sensitive: false,
     },
 ];

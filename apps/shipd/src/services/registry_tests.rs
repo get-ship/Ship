@@ -224,3 +224,37 @@ fn file_backed_get_missing_is_not_found() {
         assert_eq!(err.code, "not_found", "{op} on missing id");
     }
 }
+
+// ── shipd-orchestrated domains (chat/sessions/events/artifacts/account) ──
+
+#[test]
+fn chat_sessions_events_wire_identical_to_anonymous_json() {
+    let state = temp_state();
+
+    let got = call("chat.state", &json!({}), &state).expect("chat.state ok");
+    assert_eq!(got, json!({ "workspace_id": "", "messages": [], "total": 0 }));
+
+    let got = call("sessions.list", &json!({}), &state).expect("sessions.list ok");
+    assert_eq!(got, json!({ "items": [] }));
+
+    let got = call("events.list", &json!({}), &state).expect("events.list ok");
+    assert_eq!(got, json!({ "groups": [], "types": [], "actors": [] }));
+}
+
+#[test]
+fn account_state_carries_state_tag() {
+    // Behaviour-preserving: serializes the AccountState enum verbatim. A fresh
+    // daemon is logged out — the snapshot must carry the `state` discriminant.
+    // `account.state` bridges async via `block_in_place`, so it must run on a
+    // multi-thread runtime worker (as it does live inside axum).
+    let state = temp_state();
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(2)
+        .enable_all()
+        .build()
+        .unwrap();
+    let v = rt
+        .block_on(async move { call("account.state", &json!({}), &state) })
+        .expect("account.state ok");
+    assert!(v.get("state").is_some(), "AccountState serializes its `state` tag");
+}
