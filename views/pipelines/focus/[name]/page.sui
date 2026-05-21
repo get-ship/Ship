@@ -54,7 +54,7 @@
           {/if}
           {#if editMode()}
           <sui-button variant="outline" on:click={cancelEdit}>Cancel</sui-button>
-          <sui-button tone="primary" variant="solid" attr:loading={editSaving() ? '' : null} attr:disabled={editSaving() ? '' : null} on:click={savePipeline}>
+          <sui-button tone="primary" variant="solid" attr:loading={editSaving()} attr:disabled={editSaving()} on:click={savePipeline}>
             <sui-icon slot="leading" name="check" size="sm"></sui-icon>Save
           </sui-button>
           <sui-button variant="outline" tone="destructive" size="sm" on:click={openDelete}>

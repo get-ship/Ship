@@ -60,7 +60,7 @@
     {/async}
   </div>
 
-  <sui-drawer attr:open={newColOpen() ? '' : null} size="md"
+  <sui-drawer attr:open={newColOpen()} size="md"
     on:sui-close={() => { newColOpen.set(false); drawerError.set('') }}>
     <span slot="title">New collection</span>
     <span slot="description">Define a typed dataset stored in data.db</span>

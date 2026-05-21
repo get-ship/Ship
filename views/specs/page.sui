@@ -42,11 +42,11 @@
                 <sui-stack>
                   {#for spec of group.items key={spec.id}}
                     <sui-list-tile interactive
-                      attr:selected={selectedId() === spec.id ? '' : null}
+                      attr:selected={selectedId() === spec.id}
                       on:click={() => selectSpec(spec.id)}>
                       <sui-status-dot slot="leading" size="sm"
                         attr:tone={spec.tone}
-                        attr:pulse={group.key === 'launched' ? '' : null}></sui-status-dot>
+                        attr:pulse={group.key === 'launched'}></sui-status-dot>
                       <div class="spec-row-main">
                         <span class="spec-row-name">{spec.title}</span>
                         <span class="spec-row-when">{spec.when}</span>
@@ -97,7 +97,7 @@
                     variant="outline" size="sm" on:click={cancelEdit}>Cancel</sui-button>
                   <sui-button data-testid="specs-save"
                     variant="solid" tone="accent" size="sm"
-                    attr:disabled={saving() ? '' : null}
+                    attr:disabled={saving()}
                     on:click={saveEdit}>{saving() ? 'Saving…' : 'Save'}</sui-button>
                 {:else}
                   <sui-button data-testid="specs-edit"
@@ -124,7 +124,7 @@
                   on:sui-change={setAgent}>
                   <option value="">— none —</option>
                   {#for a of agentsList() key={a.id}}
-                    <option value={a.id} attr:selected={a.id === selected().value.agent_id ? '' : null}>{a.id}</option>
+                    <option value={a.id} attr:selected={a.id === selected().value.agent_id}>{a.id}</option>
                   {/for}
                 </sui-select>
               </label>
@@ -150,7 +150,7 @@
                 <ul class="specs-acceptance">
                   {#for item of selected().value.acceptance key={item.text}}
                     <li class:done={item.done}>
-                      <sui-checkbox attr:checked={item.done ? '' : null} disabled></sui-checkbox>
+                      <sui-checkbox attr:checked={item.done} disabled></sui-checkbox>
                       <span class="acc-text">{item.text}</span>
                     </li>
                   {/for}
@@ -174,7 +174,7 @@
           <div class="specs-launch-bar-inner">
             <sui-button data-testid="specs-launch"
               variant="solid" tone="primary" size="lg"
-              attr:disabled={(!selected().value.pipeline && !selected().value.agent_id) || editing() ? '' : null}
+              attr:disabled={(!selected().value.pipeline && !selected().value.agent_id) || editing()}
               on:click={launchSpec}>
               {selected().value.launch_label}
             </sui-button>
@@ -182,7 +182,7 @@
           </div>
         </div>
         <sui-alert-dialog tone="destructive" confirm-label="Delete" cancel-label="Cancel"
-          attr:open={confirmDelete() ? '' : null}
+          attr:open={confirmDelete()}
           on:sui-cancel={() => confirmDelete.set(false)}
           on:sui-confirm={deleteSpec}>
           <span slot="title">Delete spec</span>

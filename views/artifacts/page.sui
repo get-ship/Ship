@@ -3,7 +3,7 @@
   on:dragover={onDragOver}
   on:dragleave={onDragLeave}
   on:drop={onDrop}>
-  <div class="art-wrap" attr:data-drag-active={dragActive() ? '' : null}>
+  <div class="art-wrap" attr:data-drag-active={dragActive()}>
 
     <header class="art-head">
       <div class="art-head-titles">
@@ -171,7 +171,7 @@
       </div>
     {/if}
 
-    <sui-drawer attr:open={detailOpen() ? '' : null} size="lg"
+    <sui-drawer attr:open={detailOpen()} size="lg"
       on:sui-close={closeDetail} data-test="detail-drawer">
       {#if detailItem()}
         <span slot="title">{detailItem().name || detailItem().id}</span>
@@ -237,11 +237,11 @@
       {/if}
     </sui-drawer>
 
-    <sui-dialog attr:open={uploadOpen() ? '' : null} size="md"
+    <sui-dialog attr:open={uploadOpen()} size="md"
       on:sui-close={closeUpload} data-test="upload-dialog">
       <span slot="header">Upload artifact</span>
       <sui-stack gap="3">
-        <sui-file-upload accept="" attr:disabled={uploading() ? '' : null}
+        <sui-file-upload accept="" attr:disabled={uploading()}
           on:sui-change={(e) => onUploadFiles(e.detail.files)}
           data-test="upload-files"></sui-file-upload>
 
@@ -251,7 +251,7 @@
           </label>
           <sui-select size="sm" attr:value={uploadCollection()}
             on:sui-change={(e) => onUploadCollection(e.detail.value)}
-            attr:disabled={uploading() ? '' : null}
+            attr:disabled={uploading()}
             data-test="upload-collection">
             <option value="">No collection</option>
             {#for c of collectionOptions() key={c.id}}
@@ -266,10 +266,10 @@
       </sui-stack>
       <div slot="footer">
         <sui-button variant="ghost" on:click={closeUpload}
-          attr:disabled={uploading() ? '' : null}>Cancel</sui-button>
+          attr:disabled={uploading()}>Cancel</sui-button>
         <sui-button tone="primary" variant="solid" on:click={submitUpload}
-          attr:disabled={(uploadFiles().length === 0 || uploading()) ? '' : null}
-          attr:loading={uploading() ? '' : null}
+          attr:disabled={(uploadFiles().length === 0 || uploading())}
+          attr:loading={uploading()}
           data-test="upload-submit">Upload</sui-button>
       </div>
     </sui-dialog>

@@ -74,14 +74,14 @@
         </sui-segmented>
         {#if isActive()}
           <sui-button tone="success" variant="outline" size="sm" data-test="deactivate-btn"
-            attr:disabled={activating() ? '' : null}
+            attr:disabled={activating()}
             on:click={deactivate}>
             <sui-icon slot="leading" name="check" size="xs"></sui-icon>
             {activating() ? 'Saving…' : 'Active · clear'}
           </sui-button>
         {:else}
           <sui-button tone="primary" variant="solid" size="sm" data-test="activate-btn"
-            attr:disabled={activating() ? '' : null}
+            attr:disabled={activating()}
             on:click={activate}>
             <sui-icon slot="leading" name="zap" size="xs"></sui-icon>
             {activating() ? 'Activating…' : 'Activate'}

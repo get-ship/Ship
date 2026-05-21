@@ -160,7 +160,7 @@
     {#if newPipeError()}<sui-alert tone="destructive" compact>{newPipeError()}</sui-alert>{/if}
     <sui-toolbar slot="footer">
       <sui-button variant="outline" on:click={closeNewPipe}>Cancel</sui-button>
-      <sui-button tone="primary" variant="solid" attr:loading={newPipeCreating() ? '' : null} attr:disabled={newPipeCreating() ? '' : null} on:click={createPipeline}>
+      <sui-button tone="primary" variant="solid" attr:loading={newPipeCreating()} attr:disabled={newPipeCreating()} on:click={createPipeline}>
         <sui-icon slot="leading" name="plus" size="sm"></sui-icon>Create
       </sui-button>
     </sui-toolbar>

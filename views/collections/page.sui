@@ -273,7 +273,7 @@
     </div>
   {/if}
 
-  <sui-drawer attr:open={newRowOpen() ? '' : null} size="md"
+  <sui-drawer attr:open={newRowOpen()} size="md"
     on:sui-close={() => { newRowOpen.set(false); drawerError.set('') }}>
     <span slot="title">New row</span>
     {#if colDetail().kind === 'ok' && colDetail().value}
@@ -286,7 +286,7 @@
               <span class="drawer-type">{f.field_type}</span>
             </label>
             {#if f.field_type === 'boolean'}
-              <sui-switch attr:checked={rowDraft()[f.name] ? '' : null}
+              <sui-switch attr:checked={rowDraft()[f.name]}
                 on:change={(e) => setDraftField('row', f.name, e.target.checked)}></sui-switch>
             {:else if f.field_type === 'markdown'}
               <sui-textarea rows="4" attr:placeholder={f.name + '…'}
@@ -308,7 +308,7 @@
     {/if}
   </sui-drawer>
 
-  <sui-drawer attr:open={editOpen() ? '' : null} size="md"
+  <sui-drawer attr:open={editOpen()} size="md"
     on:sui-close={() => { editOpen.set(false); drawerError.set('') }}>
     <span slot="title">Edit row</span>
     {#if colDetail().kind === 'ok' && colDetail().value}
@@ -321,7 +321,7 @@
               <span class="drawer-type">{f.field_type}</span>
             </label>
             {#if f.field_type === 'boolean'}
-              <sui-switch attr:checked={editDraft()[f.name] ? '' : null}
+              <sui-switch attr:checked={editDraft()[f.name]}
                 on:change={(e) => setDraftField('edit', f.name, e.target.checked)}></sui-switch>
             {:else if f.field_type === 'markdown'}
               <sui-textarea rows="4" attr:placeholder={f.name + '…'}
@@ -345,7 +345,7 @@
     {/if}
   </sui-drawer>
 
-  <sui-drawer attr:open={newColOpen() ? '' : null} size="md"
+  <sui-drawer attr:open={newColOpen()} size="md"
     on:sui-close={() => { newColOpen.set(false); drawerError.set('') }}>
     <span slot="title">New collection</span>
     <span slot="description">Define a typed dataset stored in data.db</span>

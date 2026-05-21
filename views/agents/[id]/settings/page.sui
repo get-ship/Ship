@@ -71,7 +71,7 @@
           <div slot="header" class="ad-section-head">
             <h2 class="ad-section-title"><sui-icon name="lock"></sui-icon>Permissions</h2>
             <sui-button variant="outline" size="sm"
-              attr:disabled={!pDirty() || pSaving() ? '' : null}
+              attr:disabled={!pDirty() || pSaving()}
               on:click={savePermissions}>
               <sui-icon slot="leading" name="check"></sui-icon>Save
             </sui-button>
@@ -81,7 +81,7 @@
               <sui-label>Preset</sui-label>
               <sui-select size="sm" value={pPreset()} on:sui-change={(e) => { pPreset.set(e.detail.value); pDirty.set(true) }}>
                 {#for p of (catalogs()?.presets ?? []) key={p.id}}
-                  <option value={p.id} attr:selected={p.id === pPreset() ? '' : null}>{p.name}</option>
+                  <option value={p.id} attr:selected={p.id === pPreset()}>{p.name}</option>
                 {/for}
               </sui-select>
             </sui-field>
@@ -103,7 +103,7 @@
                       on:input={(e) => (col[0] === 'allow' ? allowDraft : col[0] === 'ask' ? askDraft : denyDraft).set(e.target.value)}
                       on:keydown={(e) => addPerm(e, col[0])} />
                     <sui-button variant="ghost" size="sm" aria-label="Add"
-                      attr:disabled={!(col[0] === 'allow' ? allowDraft() : col[0] === 'ask' ? askDraft() : denyDraft()).trim() ? '' : null}
+                      attr:disabled={!(col[0] === 'allow' ? allowDraft() : col[0] === 'ask' ? askDraft() : denyDraft()).trim()}
                       on:click={() => commitPerm(col[0])}>
                       <sui-icon name="plus" size="xs"></sui-icon>
                     </sui-button>
@@ -203,7 +203,7 @@
     <sui-toolbar slot="footer">
       <span style="flex:1; font-size:var(--text-xs); color:var(--muted-foreground)">{pickerSelected().length} selected</span>
       <sui-button variant="ghost" size="sm" on:click={closePicker}>Cancel</sui-button>
-      <sui-button tone="primary" variant="solid" size="sm" attr:disabled={pickerSelected().length === 0 ? '' : null} on:click={savePicker}>Add</sui-button>
+      <sui-button tone="primary" variant="solid" size="sm" attr:disabled={pickerSelected().length === 0} on:click={savePicker}>Add</sui-button>
     </sui-toolbar>
   </sui-dialog>
 {/if}

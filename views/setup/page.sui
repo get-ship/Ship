@@ -1,6 +1,6 @@
 <div class="ship-view setup-view" data-test="setup-view">
   <sui-dialog
-    attr:open={open() ? '' : null}
+    attr:open={open()}
     backdrop="blur"
     size="lg"
     no-close-button
@@ -257,7 +257,7 @@
   </sui-dialog>
 
   <sui-alert-dialog
-    attr:open={confirmingExit() ? '' : null}
+    attr:open={confirmingExit()}
     tone="default"
     confirm-label="Skip setup"
     cancel-label="Keep going"

@@ -8,7 +8,7 @@
         data-test="theme-studio-pack-select"
         on:change={(e) => selectPack(e.target.value)}>
         {#for p of packs() key={p.id}}
-          <option value={p.id} attr:selected={activePack() === p.id ? '' : null}>{p.label}</option>
+          <option value={p.id} attr:selected={activePack() === p.id}>{p.label}</option>
         {/for}
       </select>
     </div>

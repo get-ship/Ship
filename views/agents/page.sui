@@ -102,7 +102,7 @@
                             class="agents-card-tile"
                             data-test="agent"
                             attr:data-id={a.id}
-                            attr:data-active={a.active ? '' : null}>
+                            attr:data-active={a.active}>
               <div class={'agents-card-icon-tile hue-' + a.hue} slot="leading" aria-hidden="true" data-test="hue-tile">
                 <span class="agents-card-letter">{a.letter}</span>
               </div>
@@ -147,7 +147,7 @@
                           slot="leading"
                           tone={agentStatus()[a.id] === 'errored' ? 'destructive' : agentStatus()[a.id] === 'completed' ? 'success' : 'primary'}
                           size="sm"
-                          attr:pulse={agentStatus()[a.id] === 'running' ? '' : null}
+                          attr:pulse={agentStatus()[a.id] === 'running'}
                           label={agentStatus()[a.id]}></sui-status-dot>
                       {agentStatus()[a.id]}
                     </sui-chip>

@@ -133,10 +133,10 @@
 
           <div class="canvas-rail-footer">
             <button type="button" class="canvas-btn"
-              attr:disabled={annCount() === 0 ? '' : null}
+              attr:disabled={annCount() === 0}
               on:click={clearAnnotations}>Clear</button>
             <button type="button" class="canvas-btn canvas-btn-primary"
-              attr:disabled={annCount() === 0 ? '' : null}
+              attr:disabled={annCount() === 0}
               on:click={sendAnnotations}>Send to agent</button>
           </div>
         </aside>

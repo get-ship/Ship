@@ -25,8 +25,8 @@
           <span slot="description">{err.message}</span>
           <div slot="actions">
             <sui-button tone="primary" variant="solid" data-test="git-init"
-              attr:loading={busy() === 'init' ? '' : null}
-              attr:disabled={busy() === 'init' ? '' : null}
+              attr:loading={busy() === 'init'}
+              attr:disabled={busy() === 'init'}
               on:click={initRepo}>
               <sui-icon slot="leading" name="plus" size="sm"></sui-icon>Initialize repository
             </sui-button>
@@ -64,20 +64,20 @@
       </div>
       <sui-cluster align="center">
         <sui-button variant="ghost" size="sm" data-test="git-fetch"
-          attr:loading={busy() === 'fetch' ? '' : null}
-          attr:disabled={busy() ? '' : null}
+          attr:loading={busy() === 'fetch'}
+          attr:disabled={busy()}
           on:click={fetchOrigin}>
           <sui-icon slot="leading" name="download" size="xs"></sui-icon>Fetch
         </sui-button>
         <sui-button variant="ghost" size="sm" data-test="git-pull"
-          attr:loading={busy() === 'pull' ? '' : null}
-          attr:disabled={busy() ? '' : null}
+          attr:loading={busy() === 'pull'}
+          attr:disabled={busy()}
           on:click={pullCurrent}>
           <sui-icon slot="leading" name="arrow-down" size="xs"></sui-icon>Pull
         </sui-button>
         <sui-button variant="ghost" size="sm" data-test="git-push"
-          attr:loading={busy() === 'push' ? '' : null}
-          attr:disabled={busy() ? '' : null}
+          attr:loading={busy() === 'push'}
+          attr:disabled={busy()}
           on:click={pushCurrent}>
           <sui-icon slot="leading" name="arrow-up" size="xs"></sui-icon>Push
         </sui-button>
@@ -166,18 +166,18 @@
               </sui-toolbar>
               <div class="git-bulk-row">
                 <sui-button size="xs" variant="outline" data-test="git-stage-all"
-                  attr:disabled={unstagedCount() === 0 || busy() ? '' : null}
+                  attr:disabled={unstagedCount() === 0 || busy()}
                   on:click={stageAll}>
                   <sui-icon slot="leading" name="plus" size="xs"></sui-icon>Stage all
                 </sui-button>
                 <sui-button size="xs" variant="outline" data-test="git-unstage-all"
-                  attr:disabled={stagedCount() === 0 || busy() ? '' : null}
+                  attr:disabled={stagedCount() === 0 || busy()}
                   on:click={unstageAll}>
                   <sui-icon slot="leading" name="minus" size="xs"></sui-icon>Unstage all
                 </sui-button>
                 <span class="git-bulk-spacer"></span>
                 <sui-button size="xs" variant="solid" tone="primary" data-test="git-open-commit"
-                  attr:disabled={!canCommit() || busy() ? '' : null}
+                  attr:disabled={!canCommit() || busy()}
                   on:click={openCommit}>
                   <sui-icon slot="leading" name="git-commit" size="xs"></sui-icon>Commit ({stagedCount()})
                 </sui-button>
@@ -191,7 +191,7 @@
                 {#for g of fileGroups() key={g.key}}
                   <div class="git-file-group-head">{g.label}</div>
                   {#for f of g.items key={f.path}}
-                    <div class="git-file-row-wrap" attr:data-active={selectedFile() === f.path ? '' : null}>
+                    <div class="git-file-row-wrap" attr:data-active={selectedFile() === f.path}>
                       <button class="git-file-row git-mono" type="button"
                         data-test="git-file-row"
                         on:click={() => selectFile(f)}>
@@ -304,7 +304,7 @@
         <div class="git-branches">
         <div class="git-branches-actions">
           <sui-button size="sm" variant="solid" tone="primary" data-test="git-open-branch-create"
-            attr:disabled={busy() ? '' : null}
+            attr:disabled={busy()}
             on:click={openBranchCreate}>
             <sui-icon slot="leading" name="plus" size="xs"></sui-icon>New branch
           </sui-button>
@@ -321,11 +321,11 @@
                   <sui-list-tile interactive density="compact"
                     data-test="git-branch-tile"
                     attr:tone={b.active ? 'primary' : null}
-                    attr:selected={activeBranchName() === b.name ? '' : null}
+                    attr:selected={activeBranchName() === b.name}
                     on:sui-select={() => selectBranch(b.name)}>
                     <sui-status-dot slot="leading"
                       attr:tone={b.active ? 'success' : 'muted'}
-                      attr:pulse={b.active ? '' : null}></sui-status-dot>
+                      attr:pulse={b.active}></sui-status-dot>
                     <span class="git-mono git-branch-name">{b.name}</span>
                     <span slot="meta">{b.upstream ? b.upstream : 'local only'}</span>
                     <span slot="trailing" class="git-mono git-branch-deltas">
@@ -349,13 +349,13 @@
                     <sui-toolbar>
                       {#if !activeBranch().active}
                         <sui-button size="sm" variant="solid" tone="primary" data-test="git-checkout"
-                          attr:loading={busy() === 'checkout' ? '' : null}
-                          attr:disabled={busy() ? '' : null}
+                          attr:loading={busy() === 'checkout'}
+                          attr:disabled={busy()}
                           on:click={() => checkoutBranch(activeBranch().name)}>
                           <sui-icon slot="leading" name="git-branch" size="xs"></sui-icon>Checkout
                         </sui-button>
                         <sui-button size="sm" variant="ghost" tone="destructive" data-test="git-delete-branch"
-                          attr:disabled={busy() ? '' : null}
+                          attr:disabled={busy()}
                           on:click={() => openBranchDelete(activeBranch().name)}>
                           <sui-icon slot="leading" name="trash" size="xs"></sui-icon>Delete
                         </sui-button>
@@ -375,18 +375,18 @@
                     <sui-card>
                       <div slot="header" class="git-card-head">Actions</div>
                       <sui-button variant="ghost" size="sm" on:click={pullCurrent}
-                        attr:loading={busy() === 'pull' ? '' : null}
-                        attr:disabled={busy() ? '' : null}>
+                        attr:loading={busy() === 'pull'}
+                        attr:disabled={busy()}>
                         <sui-icon slot="leading" name="arrow-down" size="xs"></sui-icon>Pull latest
                       </sui-button>
                       <sui-button variant="ghost" size="sm" on:click={pushCurrent}
-                        attr:loading={busy() === 'push' ? '' : null}
-                        attr:disabled={busy() ? '' : null}>
+                        attr:loading={busy() === 'push'}
+                        attr:disabled={busy()}>
                         <sui-icon slot="leading" name="arrow-up" size="xs"></sui-icon>Push changes
                       </sui-button>
                       <sui-button variant="ghost" size="sm" on:click={fetchOrigin}
-                        attr:loading={busy() === 'fetch' ? '' : null}
-                        attr:disabled={busy() ? '' : null}>
+                        attr:loading={busy() === 'fetch'}
+                        attr:disabled={busy()}>
                         <sui-icon slot="leading" name="download" size="xs"></sui-icon>Fetch
                       </sui-button>
                     </sui-card>
@@ -413,8 +413,8 @@
       <sui-toolbar slot="footer">
         <sui-button variant="outline" on:click={closeCommit}>Cancel</sui-button>
         <sui-button tone="primary" variant="solid" data-test="git-commit-submit"
-          attr:loading={busy() === 'commit' ? '' : null}
-          attr:disabled={busy() === 'commit' ? '' : null}
+          attr:loading={busy() === 'commit'}
+          attr:disabled={busy() === 'commit'}
           on:click={submitCommit}>
           <sui-icon slot="leading" name="git-commit" size="sm"></sui-icon>Commit
         </sui-button>
@@ -434,8 +434,8 @@
       <sui-toolbar slot="footer">
         <sui-button variant="outline" on:click={closeBranchCreate}>Cancel</sui-button>
         <sui-button tone="primary" variant="solid" data-test="git-branch-create-submit"
-          attr:loading={busy() === 'branch create' ? '' : null}
-          attr:disabled={busy() === 'branch create' ? '' : null}
+          attr:loading={busy() === 'branch create'}
+          attr:disabled={busy() === 'branch create'}
           on:click={submitBranchCreate}>Create</sui-button>
       </sui-toolbar>
     </sui-dialog>
@@ -451,8 +451,8 @@
       <sui-toolbar slot="footer">
         <sui-button variant="outline" on:click={closeBranchDelete}>Cancel</sui-button>
         <sui-button tone="destructive" variant="solid" data-test="git-branch-delete-submit"
-          attr:loading={busy() === 'branch delete' ? '' : null}
-          attr:disabled={busy() === 'branch delete' ? '' : null}
+          attr:loading={busy() === 'branch delete'}
+          attr:disabled={busy() === 'branch delete'}
           on:click={submitBranchDelete}>Delete</sui-button>
       </sui-toolbar>
     </sui-dialog>
