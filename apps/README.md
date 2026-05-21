@@ -13,16 +13,14 @@ and both coexist over this same directory.
 | `docs/` | TS | Astro-based docs site at getship.dev/docs. Consumes `docs/` content via `apps/docs/src/content/`. |
 | `site/` | TS | Marketing site at getship.dev. |
 | `shell/` | TS | Web shell — the daemon-served UI shell that hosts views. |
-| `shell/` | TS | Next-gen shell (work in progress). |
 | `gateway/` | TS | Public ingress for Ship Cloud — auth, routing, billing. |
-| `workers/` | TS | Cloudflare Workers monorepo. Per-worker subdirs. |
+| `workers/` | TS | Cloudflare Workers monorepo. Per-worker subdirs (`platform/`, `project/`, shared `drizzle/`, `types/`). |
 | `vscode/` | TS | VS Code extension for `.ship/` config editing. |
-| `ship-set-vscode/` | TS | VS Code extension for `<ship-*>` web-component packs. |
 
 ## Workspace membership
 
 - Rust members are listed in `/Cargo.toml` `[workspace] members`.
-- TS members are picked up by `pnpm-workspace.yaml`'s `apps/{docs,shell,site,gateway,workers/*}` globs.
+- TS members are picked up by the `workspaces` array in the root `package.json` (`apps/{docs,shell,site,gateway,workers/*}`, `packages/*`, `packages/components/*`).
 
 ## Where to put what
 
