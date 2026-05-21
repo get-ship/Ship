@@ -129,14 +129,21 @@ isolation, the docker/podman backend (container path), youki-on-Linux.
 - The baked substrate image/rootfs (sidecar + tools), built/signed/pinned.
 - vsock / forwarded-port transport wiring (`RuntimeEndpoint::Remote`).
 - Recommender extension: substrate detection + detect-or-bundle + the
-  "escalate consumers to T3" policy.
+  "escalate consumers to T3" policy. **Decided per-OS ladder (2026-05):**
+  mac → **Apple Container** (T2, microVM-per-container) if present, else
+  **Lima** (T3 VM); win → **WSL** distro (not Hyper-V — it excludes Home);
+  linux → native podman/youki. Detect-and-prefer: Apple Container only when
+  the `container` binary + macOS 15+/Apple-Silicon are present.
 - bubblewrap-as-inner-isolation inside the shared substrate (reuse Tier 1).
 
 ## Radar (watch, no critical-path change)
 
-- **Apple Container** (Apple Silicon, recent macOS): native
-  containerization, VM-per-container under the hood. A detected **T2
-  adapter** on capable Macs; zero sidecar change.
+- **Apple Container** — promoted from radar to a **decided** provider
+  (2026-05): the preferred mac T2 path when present (Apple Silicon, macOS
+  15+), Lima T3 the fallback. Native containerization, microVM-per-container
+  under the hood (VM-grade isolation, container ergonomics); a detected T2
+  adapter, zero sidecar change. Lives in the recommender's detect-and-prefer
+  ladder.
 
 ## One-line intent
 
