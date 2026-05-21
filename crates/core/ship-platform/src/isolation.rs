@@ -220,6 +220,26 @@ fn string_setting(key: &str) -> Result<Option<String>> {
     })
 }
 
+/// Process-wide handle to the daemon's own HTTP origin
+/// (`http://<host>:<port>`), installed once by shipd at boot. The
+/// supervisor reads it to inject `SHIP_DAEMON_URL` into a sandboxed
+/// actor's env so the in-container agent can reach the app plane. Mirrors
+/// the `session_registry()` singleton: the spawn path needs the one
+/// process-wide value without threading the runtime config through every
+/// layer. `None` outside the daemon (CLI, tests).
+static DAEMON_ORIGIN: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+
+/// Install the daemon's reachable origin. Called once by shipd at boot
+/// with `runtime.daemon_origin()`. Subsequent calls are no-ops.
+pub fn set_daemon_origin(origin: String) {
+    let _ = DAEMON_ORIGIN.set(origin);
+}
+
+/// The daemon's HTTP origin, if shipd has installed one.
+pub fn daemon_origin() -> Option<String> {
+    DAEMON_ORIGIN.get().cloned()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

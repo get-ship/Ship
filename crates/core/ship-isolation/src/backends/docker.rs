@@ -39,6 +39,15 @@ use ship_substrate::isolation::{Isolator, IsolatorError, LaunchCommand};
 const SIDECAR_INSIDE: &str = "/usr/local/bin/ship-sidecar";
 /// Port the sidecar's v1 listener binds inside the container.
 const SIDECAR_PORT_INSIDE: u16 = 2468;
+/// Hostname injected into the container (`--add-host`) that resolves to
+/// the host's gateway, so an in-container agent can reach the host
+/// daemon's HTTP plane (MCP / hooks / log_progress). `host-gateway` is
+/// honored by both docker and rootless podman; verified live against
+/// rootless podman on Linux. The zero-egress hardened tier
+/// (`NetworkPolicy::DenyAll`, `--network none`) has no interface at all
+/// and carries the daemon plane over the v1 typed Envelope instead — so
+/// we only inject this when the container actually has a network.
+const HOST_GATEWAY_ALIAS: &str = "host.docker.internal";
 
 #[derive(Debug, Clone)]
 pub struct DockerConfig {
@@ -90,6 +99,37 @@ impl Docker {
         let st = sandbox.state.downcast_ref::<DockerState>()?;
         st.sidecar_port
             .map(|p| format!("http://127.0.0.1:{p}"))
+    }
+
+    /// Rewrite a host-loopback daemon origin into a URL an actor *inside*
+    /// the container can reach. The host daemon binds loopback
+    /// (`127.0.0.1`/`localhost`, or `0.0.0.0` in non-dev), which inside a
+    /// container points at the container's own loopback — not the host.
+    /// We swap the host segment for `host.docker.internal`, which resolves
+    /// to the host gateway via the `--add-host` the container is created
+    /// with. A non-loopback host (already-remote daemon) is returned
+    /// unchanged — it's reachable as-is.
+    pub fn container_reachable_url(host_origin: &str) -> String {
+        let replacement = format!("://{HOST_GATEWAY_ALIAS}");
+        for loopback in ["://127.0.0.1", "://localhost", "://0.0.0.0"] {
+            if host_origin.contains(loopback) {
+                return host_origin.replacen(loopback, &replacement, 1);
+            }
+        }
+        host_origin.to_string()
+    }
+}
+
+/// `--add-host` args making `host.docker.internal` resolve to the host
+/// gateway. Empty for `DenyAll` — that tier has no interface and uses the
+/// v1 Envelope plane for daemon traffic (see `HOST_GATEWAY_ALIAS`).
+fn host_gateway_args(policy: &NetworkPolicy) -> Vec<String> {
+    match policy {
+        NetworkPolicy::DenyAll => Vec::new(),
+        _ => vec![
+            "--add-host".into(),
+            format!("{HOST_GATEWAY_ALIAS}:host-gateway"),
+        ],
     }
 }
 
@@ -181,6 +221,7 @@ impl Isolator for Docker {
         ];
 
         argv.extend(network_args(&policy.network));
+        argv.extend(host_gateway_args(&policy.network));
         argv.extend(limit_args(policy));
         argv.extend(mount_args(policy));
         for (k, v) in &policy.env {
@@ -407,6 +448,45 @@ mod tests {
     fn deny_all_emits_network_none() {
         let args = network_args(&NetworkPolicy::DenyAll);
         assert_eq!(args, vec!["--network", "none"]);
+    }
+
+    #[test]
+    fn reachable_url_rewrites_loopback_to_host_gateway() {
+        assert_eq!(
+            Docker::container_reachable_url("http://127.0.0.1:9315"),
+            "http://host.docker.internal:9315"
+        );
+        assert_eq!(
+            Docker::container_reachable_url("http://localhost:9315"),
+            "http://host.docker.internal:9315"
+        );
+        assert_eq!(
+            Docker::container_reachable_url("http://0.0.0.0:9315"),
+            "http://host.docker.internal:9315"
+        );
+    }
+
+    #[test]
+    fn reachable_url_leaves_remote_host_untouched() {
+        // An already-remote daemon (cloud / LAN peer) is reachable as-is.
+        assert_eq!(
+            Docker::container_reachable_url("https://ship.example.com:443"),
+            "https://ship.example.com:443"
+        );
+    }
+
+    #[test]
+    fn host_gateway_added_when_networked_omitted_when_denied() {
+        // DenyAll has no interface → no add-host (v1 Envelope plane instead).
+        assert!(host_gateway_args(&NetworkPolicy::DenyAll).is_empty());
+        // Open / Allowlist get the host-gateway alias so the daemon URL resolves.
+        let open = host_gateway_args(&NetworkPolicy::Open);
+        assert_eq!(open[0], "--add-host");
+        assert_eq!(open[1], "host.docker.internal:host-gateway");
+        assert_eq!(
+            host_gateway_args(&NetworkPolicy::Allowlist { hosts: vec![] }),
+            open
+        );
     }
 
     #[test]

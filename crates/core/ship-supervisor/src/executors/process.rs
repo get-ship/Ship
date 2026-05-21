@@ -568,6 +568,24 @@ impl JobExecutor for ProcessExecutor {
                                         ),
                                     );
                                     active = "1";
+                                    // App-plane reachability: hand the actor the
+                                    // daemon's HTTP URL, rewritten so an
+                                    // in-container agent resolves the host
+                                    // (host.docker.internal via the backend's
+                                    // --add-host). With SHIP_TOKEN below this is
+                                    // the agent's authenticated path to MCP /
+                                    // hooks / log_progress. None outside the
+                                    // daemon (tests) — the actor simply has no
+                                    // daemon URL then.
+                                    if let Some(origin) =
+                                        ship_platform::isolation::daemon_origin()
+                                    {
+                                        let url =
+                                            ship_isolation::backends::Docker::container_reachable_url(
+                                                &origin,
+                                            );
+                                        launch.env.insert("SHIP_DAEMON_URL".into(), url);
+                                    }
                                     // Mint a per-process scoped session token
                                     // and push it to the in-container actor via
                                     // env. The root daemon token never enters

@@ -18,8 +18,11 @@ a real rootless **podman** container driven over v1
 (`podman_sidecar_live`), on Linux/Ubuntu-24.04. That test caught a real
 bug en route (`--detach` passed to `create`, which both docker and podman
 reject — the container path had never actually worked). `docker_live` +
-`docker_lifecycle` also pass against podman now. Remaining cells are
-🟡/⬜; the grind continues (bubblewrap T1 next, then mac/win substrates).
+`docker_lifecycle` also pass against podman now. The **app-plane
+reachability keystone** is also ✅ — `container_reach_live` proves an
+in-container actor opens a connection back to the host daemon plane (the
+`SHIP_DAEMON_URL` path). Remaining cells are 🟡/⬜; the grind continues
+(bubblewrap T1 next, then mac/win substrates).
 
 Scope: harnesses are the three darlings — **claude, codex, opencode**
 (gemini/cursor deprioritized, see harness strategy). OS = macOS / Linux /
@@ -50,7 +53,7 @@ is the substrate mechanism.
 
 | Tier | macOS | Linux | Windows |
 |---|---|---|---|
-| **T2 — container** | 🟡 podman/docker (own VM) · Apple Container (Apple Silicon) | ✅ **podman** (`podman_sidecar_live`, rootless, ubuntu:24.04) · 🟡 docker/youki | 🟡 podman/docker in WSL2 / Docker Desktop |
+| **T2 — container** | 🟡 podman/docker (own VM) · Apple Container (Apple Silicon) | ✅ **podman** (`podman_sidecar_live` runs an actor; `container_reach_live` proves it reaches the host daemon plane — rootless, ubuntu:24.04) · 🟡 docker/youki | 🟡 podman/docker in WSL2 / Docker Desktop |
 | **T3 — Ship VM/distro** | ⬜ Lima VM + bubblewrap | ⬜ (Firecracker microVM for strong; else T1 covers) | ⬜ Ship WSL distro + bubblewrap |
 | **T4 — cloud** | ⬜ protocol-ready (`RuntimeEndpoint::Remote`), Firecracker on a cloud host | ⬜ same | ⬜ same |
 
@@ -90,5 +93,10 @@ is the substrate mechanism.
 4. Mark ✅ with the test name; on failure, mark 🔴 with the reason.
 
 ~~Immediate next: podman → `podman_sidecar_live`.~~ **Done** ✅ (2026-05-21).
-Next: **bubblewrap T1 on Linux** (install `bubblewrap`, live-verify the
-SrtWrapper path), then mac (Seatbelt) + the mac/win substrate provisioners.
+~~Then: container→host reachability.~~ **Done** ✅ — `container_reach_live`
+proves an in-container actor reaches the host daemon plane via
+`--add-host=host.docker.internal:host-gateway` + the
+`Docker::container_reachable_url` rewrite (the `SHIP_DAEMON_URL` keystone).
+Next: **bubblewrap T1 on Linux** (needs `bubblewrap` + `socat` via apt —
+`srt_live` is written and auto-skips until they're installed), then mac
+(Seatbelt) + the mac/win substrate provisioners.

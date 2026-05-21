@@ -351,6 +351,11 @@ pub async fn run_network(
     // (supervisor) can mint per-process tokens for sandboxed actors without
     // threading a registry through the event→orchestrator→executor chain.
     ship_platform::auth::scopes::set_session_registry(session_registry.clone());
+    // Install the daemon's reachable origin so the spawn path can inject
+    // SHIP_DAEMON_URL into sandboxed actors (rewritten to a
+    // container-reachable host for Tier 2+). Same boot-install pattern as
+    // the session registry above.
+    ship_platform::isolation::set_daemon_origin(rt.daemon_origin());
     // Hydrate any persisted paired sessions from a previous daemon lifetime.
     // Dev mode starts fresh — don't carry prior sessions across dev restarts.
     if !dev {

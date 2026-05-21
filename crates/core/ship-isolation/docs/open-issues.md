@@ -27,17 +27,23 @@ and broaden.
    HTTP MCP server, per-connection actor identity via the scoped
    bearer token. `build_mcp_app`/`run_http_server` already exist
    (same `ShipServer`/tools as stdio — confirmed not a vestige);
-   `enforce_mcp_identity` gates per-actor. Build: make it reachable
-   from sandboxes; compiler points harness MCP config at the daemon
-   MCP URL (`ship_server_entry_http`) for sandboxed actors. Keep it a
-   thin module — do NOT absorb MCP into the daemon.
+   `enforce_mcp_identity` gates per-actor. **Reachability landed** —
+   `--add-host=host.docker.internal:host-gateway` +
+   `Docker::container_reachable_url` rewrite + `SHIP_DAEMON_URL`
+   injection in the DockerEngine spawn branch; `container_reach_live`
+   proves a container actor connects back to the host plane. *Remaining:*
+   compiler points harness MCP config at `$SHIP_DAEMON_URL` /
+   `ship_server_entry_http` for sandboxed actors. Keep it a thin module —
+   do NOT absorb MCP into the daemon.
 
 3. **Hooks transport for containers.** Hooks are transport-agnostic
    normalization → `/api/v1/hooks/{session-start,before-tool,
    after-tool,session-end}` taking `ShipHookEvent`; `ship hook X` is
-   just an HTTP POST. Build: compile cURL-style hook scripts that POST
-   to `$SHIP_DAEMON_URL/api/v1/hooks/X` with the injected token — no
-   `ship` CLI required in the container. (Server-mode harnesses
+   just an HTTP POST. `$SHIP_DAEMON_URL` + the scoped token are now
+   injected into sandboxed actors (see item 2). *Remaining:* compile
+   cURL-style hook scripts that POST to `$SHIP_DAEMON_URL/api/v1/hooks/X`
+   with the injected token — no `ship` CLI required in the container.
+   (Server-mode harnesses
    opencode/codex also feed hooks via stream-synthesis through the
    broadcast the sidecar already pipes — ONE of four transports, not
    the general mechanism.)
@@ -265,6 +271,12 @@ Invalidated if: image size becomes a real constraint (CLI is ~15MB).
 - ✅ Per-sandbox SandboxOwner — reap fires backend shutdown
 - ✅ DockerEngine prep migrated from per-actor to per-sandbox
 - ✅ GET /api/v1/sandboxes + ship isolation sandboxes CLI
+- ✅ First live container cell — actor runs in a real rootless podman
+  container over v1 (`podman_sidecar_live`); caught the `--detach`-on-
+  `create` bug en route
+- ✅ App-plane reachability keystone — `--add-host` + URL rewrite +
+  `SHIP_DAEMON_URL` injection; `container_reach_live` proves a container
+  actor reaches the host daemon plane
 
 ## Open — not blocking but needs an answer before each chunk lands
 
