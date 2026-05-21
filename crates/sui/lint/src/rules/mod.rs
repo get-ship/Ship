@@ -17,6 +17,7 @@ pub mod css_token;
 pub mod event_name;
 pub mod for_key;
 pub mod prop_value;
+pub mod space_literal;
 
 /// Function signature every rule conforms to.
 pub type RuleFn = fn(&Path, &str) -> Vec<Finding>;
@@ -36,4 +37,5 @@ pub const SUI_TEMPLATE_RULES: &[(&str, RuleFn)] = &[
     (event_name::RULE_ID, event_name::check),
     (prop_value::RULE_ID, prop_value::check),
     (attr_presence::RULE_ID, attr_presence::check),
+    (space_literal::RULE_ID, space_literal::check),
 ];
