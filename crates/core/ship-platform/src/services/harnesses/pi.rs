@@ -9,7 +9,25 @@ use std::collections::HashMap;
 use std::path::Path;
 
 use crate::services::dispatch_ports::{LaunchCommand, LaunchProfile};
-use crate::services::harness_adapter::{HarnessAdapter, HarnessCapabilities, HarnessEvent};
+use crate::services::harness_adapter::{HarnessAdapter, HarnessCapabilities, HarnessEvent, ResumeError};
+
+/// Shared headless arg prefix: non-interactive (`--print`) + JSON event
+/// stream (`--mode json`). Verified against pi v0.75.4.
+fn headless_base(profile: &LaunchProfile) -> Vec<String> {
+    let mut args = vec![
+        "--print".to_string(),
+        "--mode".to_string(),
+        "json".to_string(),
+    ];
+    // Pi's --model accepts "provider/id" patterns; provider defaults to
+    // google otherwise. Model selection still resolves a provider API key
+    // from the environment.
+    if let Some(model) = &profile.model {
+        args.push("--model".to_string());
+        args.push(model.clone());
+    }
+    args
+}
 
 pub struct PiAdapter;
 
@@ -28,33 +46,69 @@ impl HarnessAdapter for PiAdapter {
             // conservatively until verified.
             mcp: false,
             hooks: false,
-            // Pi has sessions, but the resume CLI flag is unverified; keep
-            // resume off so dispatch 400s rather than silently fresh-launch.
-            session_resume: false,
+            // Pi persists sessions and resumes them by id (`--session <id>`,
+            // also -c/-r). Verified in `pi --help` v0.75.4.
+            session_resume: true,
             persistent_session: true,
             push_mechanism: super::super::harness_adapter::PushMechanism::Stdin,
         }
     }
 
-    fn build_interactive(&self, slug: &str, _profile: &LaunchProfile) -> LaunchCommand {
-        // Pi selects its model via config + provider API key env (e.g.
-        // ANTHROPIC_API_KEY), not a CLI flag we can rely on yet.
-        let mut env = HashMap::new();
-        env.insert("SHIP_ACTOR_ID".to_string(), slug.to_string());
-        LaunchCommand { bin: "pi".to_string(), args: Vec::new(), env }
-    }
-
-    fn build_headless(&self, slug: &str, profile: &LaunchProfile) -> LaunchCommand {
-        // `--mode json` runs non-interactively and emits the JSON event
-        // stream parse_output consumes; the prompt is the positional arg.
-        let prompt = profile
-            .autostart_prompt
-            .clone()
-            .unwrap_or_else(|| "Read .artifacts/job-spec.md and execute it.".to_string());
-        let args = vec!["--mode".to_string(), "json".to_string(), prompt];
+    fn build_interactive(&self, slug: &str, profile: &LaunchProfile) -> LaunchCommand {
+        // Interactive TUI — no --print. Model still selectable via --model.
+        let mut args = Vec::new();
+        if let Some(model) = &profile.model {
+            args.push("--model".to_string());
+            args.push(model.clone());
+        }
         let mut env = HashMap::new();
         env.insert("SHIP_ACTOR_ID".to_string(), slug.to_string());
         LaunchCommand { bin: "pi".to_string(), args, env }
+    }
+
+    fn build_headless(&self, slug: &str, profile: &LaunchProfile) -> LaunchCommand {
+        // `--print` exits after the prompt (non-interactive); `--mode json`
+        // emits the event stream parse_output consumes. The prompt is the
+        // positional arg. Both flags required — `--mode json` alone leaves
+        // the TUI running.
+        let mut args = headless_base(profile);
+        args.push(
+            profile
+                .autostart_prompt
+                .clone()
+                .unwrap_or_else(|| "Read .artifacts/job-spec.md and execute it.".to_string()),
+        );
+        let mut env = HashMap::new();
+        env.insert("SHIP_ACTOR_ID".to_string(), slug.to_string());
+        LaunchCommand { bin: "pi".to_string(), args, env }
+    }
+
+    fn build_resume_args(
+        &self,
+        slug: &str,
+        session_id: &str,
+        profile: &LaunchProfile,
+    ) -> Result<LaunchCommand, ResumeError> {
+        if session_id.trim().is_empty() {
+            return Err(ResumeError::BadSession {
+                harness: self.id().to_string(),
+                reason: "empty session id".to_string(),
+            });
+        }
+        // `--session <id>` resumes a saved session by (partial) UUID; pair
+        // with the headless flags and feed the next turn as the prompt.
+        let mut args = headless_base(profile);
+        args.push("--session".to_string());
+        args.push(session_id.to_string());
+        args.push(
+            profile
+                .autostart_prompt
+                .clone()
+                .unwrap_or_else(|| "Continue.".to_string()),
+        );
+        let mut env = HashMap::new();
+        env.insert("SHIP_ACTOR_ID".to_string(), slug.to_string());
+        Ok(LaunchCommand { bin: "pi".to_string(), args, env })
     }
 
     fn ready_pattern(&self) -> &str { "› " }

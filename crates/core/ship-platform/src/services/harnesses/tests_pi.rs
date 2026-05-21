@@ -27,7 +27,7 @@ fn interactive_sets_mesh_id_env() {
 }
 
 #[test]
-fn headless_runs_mode_json_with_prompt() {
+fn headless_runs_print_mode_json_with_prompt() {
     let profile = LaunchProfile {
         autostart_prompt: Some("do the thing".to_string()),
         persist_session: true,
@@ -35,6 +35,9 @@ fn headless_runs_mode_json_with_prompt() {
     };
     let cmd = PiAdapter.build_headless("slug-x", &profile);
     assert_eq!(cmd.bin, "pi");
+    // --print is required for non-interactive exit; --mode json alone keeps
+    // the TUI running.
+    assert!(cmd.args.contains(&"--print".to_string()), "missing --print: {:?}", cmd.args);
     let mode = cmd.args.iter().position(|a| a == "--mode").expect("--mode flag");
     assert_eq!(cmd.args[mode + 1], "json");
     assert_eq!(cmd.args.last().unwrap(), "do the thing");
@@ -42,9 +45,41 @@ fn headless_runs_mode_json_with_prompt() {
 }
 
 #[test]
+fn headless_includes_model_when_specified() {
+    let profile = LaunchProfile {
+        model: Some("anthropic/claude-sonnet-4".to_string()),
+        autostart_prompt: Some("p".to_string()),
+        persist_session: true,
+        ..Default::default()
+    };
+    let cmd = PiAdapter.build_headless("s", &profile);
+    let m = cmd.args.iter().position(|a| a == "--model").expect("--model flag");
+    assert_eq!(cmd.args[m + 1], "anthropic/claude-sonnet-4");
+}
+
+#[test]
 fn headless_falls_back_to_default_prompt() {
     let cmd = PiAdapter.build_headless("s", &default_profile());
     assert_eq!(cmd.args.last().unwrap(), "Read .artifacts/job-spec.md and execute it.");
+}
+
+#[test]
+fn resume_uses_session_flag() {
+    let cmd = PiAdapter
+        .build_resume_args("s", "019e49eb-8a84", &default_profile())
+        .expect("pi supports resume");
+    let sess = cmd.args.iter().position(|a| a == "--session").expect("--session flag");
+    assert_eq!(cmd.args[sess + 1], "019e49eb-8a84");
+    assert!(cmd.args.contains(&"--print".to_string()));
+}
+
+#[test]
+fn resume_rejects_empty_session_id() {
+    use crate::services::harness_adapter::ResumeError;
+    let err = PiAdapter
+        .build_resume_args("s", "  ", &default_profile())
+        .expect_err("empty session id must error");
+    matches!(err, ResumeError::BadSession { .. });
 }
 
 // ── Capabilities ─────────────────────────────────────────────────────────────
@@ -55,7 +90,7 @@ fn caps_match_declared() {
     assert!(c.headless);
     assert!(c.json_stream);
     assert!(!c.server_mode, "RPC server mode not wired yet");
-    assert!(!c.session_resume, "resume flag unverified");
+    assert!(c.session_resume, "pi resumes via --session");
     assert!(c.persistent_session);
 }
 
