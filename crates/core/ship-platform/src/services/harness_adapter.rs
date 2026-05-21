@@ -122,6 +122,13 @@ pub trait HarnessAdapter: Send + Sync {
     /// Harness identifier (e.g. "claude", "codex").
     fn id(&self) -> &str;
 
+    /// True when `id` names this harness — its canonical `id()` or an alias
+    /// (e.g. claude also answers to "claude-code"). Single place an adapter
+    /// declares the names it owns; `adapter_for` resolves through it.
+    fn matches(&self, id: &str) -> bool {
+        id == self.id()
+    }
+
     /// Declarative capability flags — what this harness supports.
     fn caps(&self) -> HarnessCapabilities;
 
@@ -164,44 +171,52 @@ pub trait HarnessAdapter: Send + Sync {
     fn extract_session_meta(&self, _work_dir: &Path) -> Option<serde_json::Value> { None }
 }
 
+/// The single source of truth for which harnesses exist. `adapter_for`, the
+/// `Known:` error string, and `capabilities()` all derive from this slice —
+/// adding or dropping a harness is one edit here plus the adapter module, not
+/// a sweep across parallel match arms and enumerations. Adapters are zero-
+/// sized unit structs, so this is a `&'static` slice of const-promoted refs
+/// with no allocation.
+const REGISTRY: &[&dyn HarnessAdapter] = &[
+    &super::harnesses::claude::ClaudeAdapter,
+    &super::harnesses::codex::CodexAdapter,
+    &super::harnesses::cursor::CursorAdapter,
+    &super::harnesses::gemini::GeminiAdapter,
+    &super::harnesses::opencode::OpenCodeAdapter,
+];
+
+/// Comma-separated list of canonical harness ids, for error messages.
+fn known_ids() -> String {
+    REGISTRY
+        .iter()
+        .map(|a| a.id())
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
 /// Resolve a harness name to its adapter.
 /// Returns Err for unknown harnesses (no silent default) so a `foo-typo`
 /// config doesn't silently run as Claude with weird flags.
-pub fn adapter_for(harness: &str) -> Result<Box<dyn HarnessAdapter>, String> {
-    match harness {
-        "claude" | "claude-code" => Ok(Box::new(super::harnesses::claude::ClaudeAdapter)),
-        "codex" => Ok(Box::new(super::harnesses::codex::CodexAdapter)),
-        "cursor" => Ok(Box::new(super::harnesses::cursor::CursorAdapter)),
-        "gemini" => Ok(Box::new(super::harnesses::gemini::GeminiAdapter)),
-        "opencode" => Ok(Box::new(super::harnesses::opencode::OpenCodeAdapter)),
-        unknown => Err(format!(
-            "unknown harness '{unknown}'. Known: claude, codex, cursor, gemini, opencode."
-        )),
-    }
+pub fn adapter_for(harness: &str) -> Result<&'static dyn HarnessAdapter, String> {
+    REGISTRY
+        .iter()
+        .copied()
+        .find(|a| a.matches(harness))
+        .ok_or_else(|| format!("unknown harness '{harness}'. Known: {}.", known_ids()))
 }
 
 /// Convenience: resolve an Option<&str>, falling back to "claude" when None.
 /// Used by executors that want a default for unconfigured pipelines.
 pub fn adapter_for_or_default(
     harness: Option<&str>,
-) -> Result<Box<dyn HarnessAdapter>, String> {
+) -> Result<&'static dyn HarnessAdapter, String> {
     adapter_for(harness.unwrap_or("claude"))
 }
 
 /// Enumerate all known harnesses and their capabilities.
 /// Used by `ship status --harnesses` and Studio's harness picker.
 pub fn capabilities() -> Vec<(&'static str, HarnessCapabilities)> {
-    use super::harnesses::{
-        claude::ClaudeAdapter, codex::CodexAdapter, cursor::CursorAdapter,
-        gemini::GeminiAdapter, opencode::OpenCodeAdapter,
-    };
-    vec![
-        ("claude", ClaudeAdapter.caps()),
-        ("codex", CodexAdapter.caps()),
-        ("cursor", CursorAdapter.caps()),
-        ("gemini", GeminiAdapter.caps()),
-        ("opencode", OpenCodeAdapter.caps()),
-    ]
+    REGISTRY.iter().map(|a| (a.id(), a.caps())).collect()
 }
 
 #[cfg(test)]
@@ -282,6 +297,22 @@ mod adapter_for_tests {
     fn adapter_for_or_default_propagates_unknown_err() {
         let result = adapter_for_or_default(Some("nonexistent"));
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn registry_is_single_source_of_truth() {
+        // adapter_for, capabilities(), and the Known: error string all derive
+        // from REGISTRY. Pin the invariant: every id capabilities() reports
+        // resolves back through adapter_for to an adapter with that id, and
+        // shows up in the unknown-harness error list. Adding a harness to the
+        // slice satisfies all three at once — no parallel list to forget.
+        let known = adapter_for("definitely-not-a-harness")
+            .err()
+            .expect("unknown harness must error");
+        for (id, _caps) in capabilities() {
+            assert_eq!(adapter_for(id).unwrap().id(), id, "adapter_for disagrees for {id}");
+            assert!(known.contains(id), "Known: list missing {id}: {known}");
+        }
     }
 
     #[test]

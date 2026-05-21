@@ -108,6 +108,10 @@ impl ClaudeAdapter {
 impl HarnessAdapter for ClaudeAdapter {
     fn id(&self) -> &str { "claude" }
 
+    /// Claude Code's CLI is invoked as `claude`; configs also name it
+    /// "claude-code". Both resolve to this adapter.
+    fn matches(&self, id: &str) -> bool { id == "claude" || id == "claude-code" }
+
     fn caps(&self) -> HarnessCapabilities {
         HarnessCapabilities {
             headless: true,
