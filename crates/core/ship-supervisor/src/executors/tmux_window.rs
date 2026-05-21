@@ -149,6 +149,24 @@ fn window_id_exists(session: &str, window_id: &str) -> bool {
         .any(|l| l == window_id)
 }
 
+/// The pid of the shell in `window_target`'s pane (e.g. `ship-foo:@29`).
+/// Used to give tmux-backed actors a real pid for `/proc` liveness. Returns
+/// `None` if tmux can't report it — callers fall back to activity-based
+/// liveness, exactly as before.
+fn pane_pid(window_target: &str) -> Option<u32> {
+    let out = ship_substrate::spawn_bounded::Cmd::new("tmux")
+        .args(["list-panes", "-t", window_target, "-F", "#{pane_pid}"])
+        .output()
+        .ok()?;
+    if !out.status.success() {
+        return None;
+    }
+    String::from_utf8_lossy(&out.stdout)
+        .lines()
+        .next()
+        .and_then(|l| l.trim().parse::<u32>().ok())
+}
+
 /// Find a window id by name in the session. Returns `None` if there are
 /// zero or multiple matches — on rehydration we would rather mark the job
 /// failed than risk attaching to the wrong window.
@@ -234,8 +252,16 @@ impl SessionExecutor for TmuxWindowExecutor {
             monitor_window(&session_mon, &window_mon, &slug, &pipeline_run_id, exit_tx);
         });
 
+        // Record the pane's pid so the actor projection's /proc liveness probe
+        // works for tmux steps too. Without it, pid is None and `actor.live`
+        // falls back to a 90s activity timer — an idle-but-alive tmux agent
+        // reads as dead. The pane pid (the shell running the tee'd agent) is
+        // alive exactly while the window is, so it tracks liveness honestly.
+        // Flows through `handle.pid` → `process.spawned` → the projection.
+        let pid = pane_pid(&window_target);
+
         Ok(ExecutorHandle {
-            pid: None,
+            pid,
             inner: Box::new(TmuxWindowState { session, window: window_id }),
         })
     }
