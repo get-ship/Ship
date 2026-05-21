@@ -16,6 +16,7 @@ pub mod css_literal;
 pub mod css_token;
 pub mod event_name;
 pub mod for_key;
+pub mod layout_primitive;
 pub mod prop_value;
 pub mod space_literal;
 
@@ -38,4 +39,5 @@ pub const SUI_TEMPLATE_RULES: &[(&str, RuleFn)] = &[
     (prop_value::RULE_ID, prop_value::check),
     (attr_presence::RULE_ID, attr_presence::check),
     (space_literal::RULE_ID, space_literal::check),
+    (layout_primitive::RULE_ID, layout_primitive::check),
 ];
