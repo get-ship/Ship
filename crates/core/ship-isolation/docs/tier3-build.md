@@ -177,10 +177,18 @@ Connect. The Firecracker `Isolator` is now a *transcription* of this recipe.
   (`/dev/kvm` openable r+w), and the recommender picks it for `Vm` tier on
   Linux/WSL2 (Lima stays the mac path). Unit-tested
   (`firecracker_picked_for_vm_tier_on_linux`, `vm_tier_unavailable_without_kvm_downgrades`).
-- **Orchestrator spawn-wiring (the remaining T3 piece)** — `has_impl(Firecracker)`
-  is `false`: the Isolator is live-tested but `process.rs` has no Firecracker
-  spawn branch, so verify gates enforce off it and the spawn path refuses it.
-  Wiring it should **de-dup the DockerEngine branch into a generic
-  Isolator-driver** (prepare → mark_remote_running → SidecarActorRuntime → token
-  → SHIP_DAEMON_URL), used by Docker + Firecracker, NOT a copied branch. That
-  refactor touches the proven Docker path → its own focused change.
+- ~~**Orchestrator spawn-wiring**~~ ✅ done — the DockerEngine branch was
+  de-duped into a generic `wire_sidecar_sandbox` (ensure_default_sandbox →
+  reuse-or-prepare → attach owner → mark_remote_running → SidecarActorRuntime →
+  scoped token → `SHIP_DAEMON_URL`); Docker and Firecracker both call it with
+  their `prepare` fn + daemon-url rewriter + transport scheme. `has_impl(Firecracker)`
+  is now `true`. Docker path unregressed (supervisor + `podman_sidecar_live`
+  green); `FirecrackerSettings` (bin/kernel/rootfs/resources) added to
+  `isolation.strategies`.
+- **App-plane over vsock (new T3 gap)** — a Firecracker microVM has no network
+  device, so the in-VM agent can't reach the daemon over HTTP: `SHIP_DAEMON_URL`
+  is `None` and the lifecycle hooks/MCP/log_progress don't work there (and
+  there's no `ship` CLI in the rootfs for the host fallback). The actor still
+  runs; closing this needs a **vsock-bridged app-plane** (proxy the daemon HTTP
+  over a second vsock port, or a net device). Tracked alongside the workspace
+  work-unit-copy model — both are the "microVM is deliberately isolated" tax.

@@ -31,6 +31,7 @@ pub struct StrategiesSettings {
     pub harness_native: HarnessNativeSettings,
     pub srt: SrtSettings,
     pub lima: LimaSettings,
+    pub firecracker: FirecrackerSettings,
     pub fly: FlySettings,
 }
 
@@ -158,6 +159,32 @@ impl Default for LimaSettings {
         Self {
             bin: "limactl".into(),
             instance: "ship-default".into(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(default)]
+pub struct FirecrackerSettings {
+    /// Path to the `firecracker` binary. Empty = auto-resolve (next to the
+    /// daemon binary, then `firecracker` on PATH).
+    pub bin: String,
+    /// Guest kernel (`vmlinux`). Empty until a pinned/signed image ships
+    /// (Phase F); the Isolator's `available()` refuses if absent.
+    pub kernel: String,
+    /// Pre-baked rootfs (ext4) with `ship-sidecar` as init on vsock.
+    pub rootfs: String,
+    /// Resource caps (mem/cpu) for the microVM. Reuses the docker shape.
+    pub resources: DockerResources,
+}
+
+impl Default for FirecrackerSettings {
+    fn default() -> Self {
+        Self {
+            bin: String::new(),
+            kernel: String::new(),
+            rootfs: String::new(),
+            resources: DockerResources::default(),
         }
     }
 }

@@ -282,6 +282,202 @@ async fn prepare_docker_sandbox(
     Ok(PreparedSandbox { isolator, sandbox, endpoint })
 }
 
+/// Build a Firecracker microVM isolator from `isolation.strategies.firecracker`
+/// settings + the agent's work dir (work-unit-copy data drive), call
+/// available(), prepare(). Linux/KVM only; `available()` refuses if KVM or
+/// the kernel/rootfs assets are missing. The endpoint is `fcvsock:<port>:<uds>`
+/// — the host dials the firecracker vsock uds (see `SidecarActorRuntime`).
+#[cfg(target_os = "linux")]
+async fn prepare_firecracker_sandbox(
+    ctx: &JobContext,
+) -> Result<PreparedSandbox, ship_substrate::isolation::IsolatorError> {
+    use ship_isolation::backends::{Firecracker, FirecrackerConfig};
+    use ship_substrate::isolation::{FsMount, MountMode, NetworkPolicy, ResourceLimits, SandboxPolicy};
+
+    let settings = ship_platform::isolation::strategies_settings()
+        .map_err(ship_substrate::isolation::IsolatorError::Other)?;
+    let fc = &settings.firecracker;
+    let firecracker_bin = if !fc.bin.is_empty() {
+        std::path::PathBuf::from(&fc.bin)
+    } else {
+        std::env::current_exe()
+            .ok()
+            .and_then(|e| e.parent().map(|d| d.join("firecracker")))
+            .filter(|p| p.is_file())
+            .unwrap_or_else(|| std::path::PathBuf::from("firecracker"))
+    };
+    let cfg = FirecrackerConfig {
+        firecracker_bin,
+        kernel: std::path::PathBuf::from(&fc.kernel),
+        rootfs: std::path::PathBuf::from(&fc.rootfs),
+    };
+    let isolator: std::sync::Arc<dyn ship_substrate::isolation::Isolator> =
+        std::sync::Arc::new(Firecracker::new(cfg));
+    isolator.available().await?;
+
+    let mut policy = SandboxPolicy {
+        label: format!("agent:{}", ctx.slug),
+        ..SandboxPolicy::default()
+    };
+    // Work-unit-copy workspace (no virtio-fs): seeded into a data drive,
+    // copied back at shutdown. Identical-path so agent paths match.
+    policy.mounts = vec![FsMount {
+        host_path: ctx.work_dir.clone(),
+        sandbox_path: ctx.work_dir.clone(),
+        mode: MountMode::ReadWrite,
+    }];
+    policy.limits = ResourceLimits {
+        memory_bytes: fc.resources.memory_bytes,
+        cpu_quota_micros: fc.resources.cpu_quota_micros,
+        pids_max: fc.resources.pids_max,
+    };
+    // The microVM has no network device today, so egress is moot — DenyAll
+    // is the honest policy. App-plane reachability over vsock is a follow-up.
+    policy.network = NetworkPolicy::DenyAll;
+
+    let sandbox = isolator.prepare(&policy).await?;
+    let endpoint = ship_isolation::backends::Firecracker::sidecar_endpoint(&sandbox);
+    Ok(PreparedSandbox { isolator, sandbox, endpoint })
+}
+
+/// Mint a per-process scoped session token and push it to the sandboxed
+/// actor via `SHIP_TOKEN` (never the root daemon token). Returns the token
+/// so the exit monitor can drop it from the registry. Best-effort: logs +
+/// returns None if no registry is installed or the mint fails.
+async fn mint_scoped_token(ctx: &JobContext, launch: &mut LaunchCommand) -> Option<String> {
+    match ship_platform::auth::scopes::session_registry() {
+        Some(registry) => {
+            match ship_platform::auth::scopes::mint_session(
+                &registry,
+                ctx.agent.clone(),
+                None,
+                Some("worker"),
+                None,
+            )
+            .await
+            {
+                Ok((token, _)) => {
+                    launch.env.insert("SHIP_TOKEN".into(), token.clone());
+                    Some(token)
+                }
+                Err(e) => {
+                    tracing::warn!(slug = ctx.slug, "sandbox token mint failed: {e}");
+                    None
+                }
+            }
+        }
+        None => {
+            tracing::warn!(
+                slug = ctx.slug,
+                "no session registry installed; sandboxed actor has no scoped token"
+            );
+            None
+        }
+    }
+}
+
+/// Common control-plane wiring for any sidecar-backed substrate (container
+/// or microVM): ensure the project's sandbox, reuse-or-prepare it, attach
+/// the owner so its Drop reaps the substrate, mark it running, and return a
+/// `SidecarActorRuntime` + the minted scoped token (env already applied to
+/// `launch`: `SHIP_DAEMON_URL` via `daemon_url`, `SHIP_TOKEN`).
+///
+/// `prepare` is the strategy-specific boot; `scheme` labels the endpoint
+/// transport ("http" for containers, "vsock" for Firecracker); `daemon_url`
+/// rewrites the daemon origin to a sandbox-reachable URL (None = no
+/// app-plane reachability, e.g. a no-network microVM).
+///
+/// `Ok(None)` only when `ensure_default_sandbox` fails — caller logs + runs
+/// unwrapped, preserving the historical container behavior. A prepare
+/// failure is a hard `Err` (refuse).
+async fn wire_sidecar_sandbox<F, Fut>(
+    ctx: &JobContext,
+    tier: ship_isolation::tier::IsolationTier,
+    strategy: ship_isolation::IsolationStrategy,
+    launch: &mut LaunchCommand,
+    scheme: &'static str,
+    daemon_url: fn(&str) -> Option<String>,
+    prepare: F,
+) -> Result<Option<(std::sync::Arc<dyn ship_substrate::supervisor::ActorRuntime>, Option<String>)>>
+where
+    F: FnOnce() -> Fut,
+    Fut: std::future::Future<
+        Output = Result<PreparedSandbox, ship_substrate::isolation::IsolatorError>,
+    >,
+{
+    let project_key = ctx.work_dir.to_string_lossy().to_string();
+    let dispatcher = ship_platform::sandbox::dispatcher();
+    let isolation_profile = ship_isolation::tier::IsolationProfile {
+        tier: Some(tier),
+        strategy: Some(strategy),
+        policy: None,
+    };
+    let sandbox_id = match dispatcher
+        .ensure_default_sandbox(project_key, isolation_profile)
+        .await
+    {
+        Ok(id) => id,
+        Err(e) => {
+            tracing::warn!(
+                slug = ctx.slug,
+                error = %e,
+                "ensure_default_sandbox failed for {strategy}; running unwrapped"
+            );
+            return Ok(None);
+        }
+    };
+
+    // Reuse the running sidecar's endpoint if the project already prepared
+    // a sandbox; else boot a fresh one via `prepare`.
+    let existing = dispatcher.endpoint_for(&sandbox_id).await.and_then(|e| match e {
+        ship_platform::sandbox::RuntimeEndpoint::Remote { addr, .. } => Some(addr),
+        _ => None,
+    });
+    let endpoint = if let Some(addr) = existing {
+        addr
+    } else {
+        let prepared = prepare()
+            .await
+            .map_err(|e| anyhow::anyhow!("{strategy} prepare: {e}"))?;
+        let Some(endpoint) = prepared.endpoint.clone() else {
+            return Err(anyhow::anyhow!("{strategy} prepared without a sidecar endpoint"));
+        };
+        let owner = std::sync::Arc::new(ship_substrate::isolation::SandboxOwner::new(
+            prepared.isolator.clone(),
+            prepared.sandbox.clone(),
+        ));
+        if let Err(e) = dispatcher.attach_sandbox_owner(&sandbox_id, owner).await {
+            tracing::warn!(slug = ctx.slug, "attach_sandbox_owner failed: {e}");
+        }
+        if let Err(e) = dispatcher
+            .mark_remote_running(&sandbox_id, endpoint.clone(), scheme)
+            .await
+        {
+            tracing::warn!(slug = ctx.slug, "mark_remote_running failed: {e}");
+        }
+        endpoint
+    };
+
+    let runtime = ship_isolation::runtime::SidecarActorRuntime::shared(endpoint);
+    // App-plane reachability: hand the actor the daemon URL, rewritten so the
+    // sandboxed agent resolves the host. With SHIP_TOKEN this is the agent's
+    // authenticated path to MCP / hooks / log_progress. None when there's no
+    // daemon (tests) or no in-sandbox reachability (no-network microVM).
+    if let Some(origin) = ship_platform::isolation::daemon_origin() {
+        if let Some(url) = daemon_url(&origin) {
+            launch.env.insert("SHIP_DAEMON_URL".into(), url);
+        }
+    }
+    let minted = mint_scoped_token(ctx, launch).await;
+    tracing::info!(
+        slug = ctx.slug,
+        sandbox_id = %sandbox_id.0,
+        strategy = %strategy,
+        "isolation enforced: sidecar over v1"
+    );
+    Ok(Some((runtime, minted)))
+}
+
 #[async_trait]
 impl JobExecutor for ProcessExecutor {
     async fn spawn(&self, ctx: &JobContext) -> Result<ExecutorHandle> {
@@ -470,177 +666,50 @@ impl JobExecutor for ProcessExecutor {
                         // OS). Already logged at decision time.
                     }
                     IsolationStrategy::DockerEngine => {
-                        // Per-sandbox docker container running the
-                        // sidecar as PID 1. Project-scoped, shared across
-                        // N actors. The harness runs INSIDE the container;
-                        // the supervisor drives it over ship.sidecar.v1
-                        // via a SidecarActorRuntime — NOT docker exec.
-                        // Same mechanism as youki_sidecar; one protocol
-                        // across every container/VM substrate.
-                        //
-                        // First actor in the project prepares the
-                        // container (sidecar PID 1, v1 port published) and
-                        // attaches the SandboxOwner to the dispatcher's
-                        // Sandbox. Subsequent actors reuse the running
-                        // sidecar's endpoint. Reaper tears the container
-                        // down when the project sandbox is idle past
-                        // timeout (SandboxOwner drop → docker rm).
-                        let project_key = ctx.work_dir.to_string_lossy().to_string();
-                        let dispatcher = ship_platform::sandbox::dispatcher();
-                        let isolation_profile = ship_isolation::tier::IsolationProfile {
-                            tier: Some(d.resolved.tier),
-                            strategy: Some(d.resolved.strategy),
-                            policy: None,
-                        };
-                        match dispatcher
-                            .ensure_default_sandbox(project_key, isolation_profile)
-                            .await
+                        // Per-sandbox container running the sidecar as PID 1,
+                        // project-scoped, shared across N actors. The harness
+                        // runs INSIDE the container; the supervisor drives it
+                        // over ship.sidecar.v1 (not docker exec). The agent
+                        // reaches the daemon via host.docker.internal (the
+                        // backend's --add-host); SHIP_TOKEN is its scoped key.
+                        if let Some((runtime, token)) = wire_sidecar_sandbox(
+                            &ctx,
+                            d.resolved.tier,
+                            d.resolved.strategy,
+                            &mut launch,
+                            "http",
+                            |o| Some(ship_isolation::backends::Docker::container_reachable_url(o)),
+                            || prepare_docker_sandbox(&ctx),
+                        )
+                        .await?
                         {
-                            Ok(sandbox_id) => {
-                                // Reuse the running sidecar's endpoint if
-                                // the project already has a prepared
-                                // sandbox; else prepare a fresh container.
-                                let existing_endpoint =
-                                    dispatcher.endpoint_for(&sandbox_id).await.and_then(|e| {
-                                        match e {
-                                            ship_platform::sandbox::RuntimeEndpoint::Remote {
-                                                addr, ..
-                                            } => Some(addr),
-                                            _ => None,
-                                        }
-                                    });
-                                let endpoint = if let Some(addr) = existing_endpoint {
-                                    Some(addr)
-                                } else {
-                                    match prepare_docker_sandbox(&ctx).await {
-                                        Ok(prepared) => {
-                                            let Some(endpoint) = prepared.endpoint.clone() else {
-                                                return Err(anyhow::anyhow!(
-                                                    "DockerEngine prepared without a sidecar endpoint"
-                                                ));
-                                            };
-                                            let owner = std::sync::Arc::new(
-                                                ship_substrate::isolation::SandboxOwner::new(
-                                                    prepared.isolator.clone(),
-                                                    prepared.sandbox.clone(),
-                                                ),
-                                            );
-                                            if let Err(e) = dispatcher
-                                                .attach_sandbox_owner(&sandbox_id, owner)
-                                                .await
-                                            {
-                                                tracing::warn!(
-                                                    slug = ctx.slug,
-                                                    "attach_sandbox_owner failed: {e}"
-                                                );
-                                            }
-                                            if let Err(e) = dispatcher
-                                                .mark_remote_running(
-                                                    &sandbox_id,
-                                                    endpoint.clone(),
-                                                    "http",
-                                                )
-                                                .await
-                                            {
-                                                tracing::warn!(
-                                                    slug = ctx.slug,
-                                                    "mark_remote_running failed: {e}"
-                                                );
-                                            }
-                                            Some(endpoint)
-                                        }
-                                        Err(e) => {
-                                            tracing::warn!(
-                                                slug = ctx.slug,
-                                                error = %e,
-                                                "DockerEngine prepare failed"
-                                            );
-                                            return Err(anyhow::anyhow!(
-                                                "DockerEngine prepare: {e}"
-                                            ));
-                                        }
-                                    }
-                                };
-                                if let Some(endpoint) = endpoint {
-                                    remote_runtime = Some(
-                                        ship_isolation::runtime::SidecarActorRuntime::shared(
-                                            endpoint,
-                                        ),
-                                    );
-                                    active = "1";
-                                    // App-plane reachability: hand the actor the
-                                    // daemon's HTTP URL, rewritten so an
-                                    // in-container agent resolves the host
-                                    // (host.docker.internal via the backend's
-                                    // --add-host). With SHIP_TOKEN below this is
-                                    // the agent's authenticated path to MCP /
-                                    // hooks / log_progress. None outside the
-                                    // daemon (tests) — the actor simply has no
-                                    // daemon URL then.
-                                    if let Some(origin) =
-                                        ship_platform::isolation::daemon_origin()
-                                    {
-                                        let url =
-                                            ship_isolation::backends::Docker::container_reachable_url(
-                                                &origin,
-                                            );
-                                        launch.env.insert("SHIP_DAEMON_URL".into(), url);
-                                    }
-                                    // Mint a per-process scoped session token
-                                    // and push it to the in-container actor via
-                                    // env. The root daemon token never enters
-                                    // the sandbox; this token is bound to the
-                                    // agent, validated centrally by the daemon
-                                    // registry, and dropped on actor exit.
-                                    // Workspace caveat is a follow-up (the
-                                    // supervisor doesn't yet hold the daemon's
-                                    // workspace id); until then
-                                    // enforce_mcp_workspace passes — no false
-                                    // rejections.
-                                    match ship_platform::auth::scopes::session_registry() {
-                                        Some(registry) => {
-                                            match ship_platform::auth::scopes::mint_session(
-                                                &registry,
-                                                ctx.agent.clone(),
-                                                None,
-                                                Some("worker"),
-                                                None,
-                                            )
-                                            .await
-                                            {
-                                                Ok((token, _)) => {
-                                                    launch.env.insert(
-                                                        "SHIP_TOKEN".into(),
-                                                        token.clone(),
-                                                    );
-                                                    minted_token = Some(token);
-                                                }
-                                                Err(e) => tracing::warn!(
-                                                    slug = ctx.slug,
-                                                    "sandbox token mint failed: {e}"
-                                                ),
-                                            }
-                                        }
-                                        None => tracing::warn!(
-                                            slug = ctx.slug,
-                                            "no session registry installed; \
-                                             sandboxed actor has no scoped token"
-                                        ),
-                                    }
-                                    tracing::info!(
-                                        slug = ctx.slug,
-                                        sandbox_id = %sandbox_id.0,
-                                        "isolation enforced: DockerEngine (sidecar over v1)"
-                                    );
-                                }
-                            }
-                            Err(e) => {
-                                tracing::warn!(
-                                    slug = ctx.slug,
-                                    error = %e,
-                                    "ensure_default_sandbox failed for DockerEngine; running unwrapped"
-                                );
-                            }
+                            remote_runtime = Some(runtime);
+                            minted_token = token;
+                            active = "1";
+                        }
+                    }
+                    #[cfg(target_os = "linux")]
+                    IsolationStrategy::Firecracker => {
+                        // Per-sandbox Firecracker microVM (own kernel) running
+                        // the sidecar as init; driven over ship.sidecar.v1 via
+                        // vsock. No app-plane URL yet — the microVM has no
+                        // network device, so MCP/hooks-over-HTTP isn't reachable
+                        // (a vsock-bridged app-plane is the follow-up). The
+                        // actor still runs; workspace is work-unit copy.
+                        if let Some((runtime, token)) = wire_sidecar_sandbox(
+                            &ctx,
+                            d.resolved.tier,
+                            d.resolved.strategy,
+                            &mut launch,
+                            "vsock",
+                            |_| None,
+                            || prepare_firecracker_sandbox(&ctx),
+                        )
+                        .await?
+                        {
+                            remote_runtime = Some(runtime);
+                            minted_token = token;
+                            active = "1";
                         }
                     }
                     other => {
