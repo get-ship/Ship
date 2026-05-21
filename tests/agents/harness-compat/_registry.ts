@@ -29,9 +29,6 @@ export const HARNESSES: HarnessSpec[] = [
   { id: "codex", binary: "codex", tier: "T1", emitsSessionStarted: true },
   { id: "opencode", binary: "opencode", tier: "T1", emitsSessionStarted: false },
 
-  // ── T2: should pass, T2-FLAKY warning if not ────────────────────────────
-  { id: "gemini", binary: "gemini", tier: "T2", emitsSessionStarted: false },
-
   // ── T3: evaluate-as-we-go; human owns drop decisions ────────────────────
   // `binary` mirrors the Rust adapter's binary() — CursorAdapter returns
   // "cursor-agent" (the `agent` alias symlinks to it). Keep in sync with

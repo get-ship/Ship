@@ -772,12 +772,12 @@ mod tests {
 
     #[test]
     fn load_session_file_unsupported_harness_returns_400() {
-        // Gemini/cursor: session.json on disk but adapter refuses resume.
+        // Cursor: session.json on disk but adapter refuses resume.
         // Dispatch must surface a 400 — never silently fresh-launch.
         let tmp = TempDir::new().unwrap();
-        write_session_file(tmp.path(), "gemini", "anything", "rust-lane").unwrap();
+        write_session_file(tmp.path(), "cursor", "anything", "rust-lane").unwrap();
         let err = load_and_validate_session_file(tmp.path(), "slug-x", None)
-            .expect_err("gemini resume must 400");
+            .expect_err("cursor resume must 400");
         match err {
             ResumeResolveError::Status { status, message } => {
                 assert_eq!(status, StatusCode::BAD_REQUEST);

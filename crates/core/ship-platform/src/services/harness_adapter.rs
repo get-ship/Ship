@@ -135,7 +135,7 @@ pub trait HarnessAdapter: Send + Sync {
     }
 
     /// Executable name to look up on PATH / invoke. Defaults to the harness
-    /// id — claude/codex/gemini/opencode ship binaries named exactly that.
+    /// id — claude/codex/opencode ship binaries named exactly that.
     /// Cursor's CLI installs as `cursor-agent`, so it overrides; without this
     /// the PATH pre-flight checks for a `cursor` binary that never exists and
     /// rejects a working install.
@@ -206,7 +206,6 @@ const REGISTRY: &[&dyn HarnessAdapter] = &[
     &super::harnesses::claude::ClaudeAdapter,
     &super::harnesses::codex::CodexAdapter,
     &super::harnesses::cursor::CursorAdapter,
-    &super::harnesses::gemini::GeminiAdapter,
     &super::harnesses::opencode::OpenCodeAdapter,
 ];
 
@@ -254,7 +253,7 @@ mod adapter_for_tests {
         // turns. If a new harness lands without persistent_session=true,
         // it'd quietly fall to the legacy per-turn-respawn path; this
         // test pins the parity contract.
-        for name in ["claude", "codex", "cursor", "gemini", "opencode"] {
+        for name in ["claude", "codex", "cursor", "opencode"] {
             let adapter = adapter_for(name).unwrap();
             assert!(
                 adapter.caps().persistent_session,
@@ -272,7 +271,6 @@ mod adapter_for_tests {
             ("claude", Channel),
             ("codex", Stdin),
             ("cursor", Stdin),
-            ("gemini", Stdin),
             ("opencode", Stdin),
         ];
         for (name, want) in expected {
@@ -287,11 +285,6 @@ mod adapter_for_tests {
     #[test]
     fn adapter_for_cursor_returns_cursor_adapter() {
         assert_eq!(adapter_for("cursor").unwrap().id(), "cursor");
-    }
-
-    #[test]
-    fn adapter_for_gemini_returns_gemini_adapter() {
-        assert_eq!(adapter_for("gemini").unwrap().id(), "gemini");
     }
 
     #[test]
@@ -353,10 +346,10 @@ mod adapter_for_tests {
     }
 
     #[test]
-    fn capabilities_lists_all_five_harnesses() {
+    fn capabilities_lists_registered_harnesses() {
         let caps = capabilities();
         let ids: Vec<&str> = caps.iter().map(|(id, _)| *id).collect();
-        assert_eq!(ids, vec!["claude", "codex", "cursor", "gemini", "opencode"]);
+        assert_eq!(ids, vec!["claude", "codex", "cursor", "opencode"]);
     }
 
     #[test]

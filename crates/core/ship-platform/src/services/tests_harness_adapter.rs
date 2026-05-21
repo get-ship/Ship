@@ -41,7 +41,6 @@ fn adapter_for_unknown_errors_with_known_list() {
     assert!(err.contains("claude"), "err: {err}");
     assert!(err.contains("codex"), "err: {err}");
     assert!(err.contains("cursor"), "err: {err}");
-    assert!(err.contains("gemini"), "err: {err}");
     assert!(err.contains("opencode"), "err: {err}");
 }
 
