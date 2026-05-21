@@ -167,6 +167,29 @@ hook scripts (A4).
 Invalidated if: the local round-trip per call becomes a measured
 bottleneck (then revisit offline verification locally too).
 
+### Secrets transport: HTTP-to-daemon (default), v1 envelope = hardened tier
+
+When we build secrets (we will — tied to the OAuth vault, cloud-spec 05 /
+pl-06, NOT yet built), the **default** path is **HTTP to the daemon with
+the scoped token**, same as MCP and hooks — secrets are app-plane. The
+agent asks the daemon's vault endpoint; the value travels in the response,
+in memory; never on the container fs or in spawn env. Provider API keys
+(the common case) ride **spawn env** (`Processes.Create.env`, like the A1
+token), not the broker.
+
+The v1 `Envelope::SecretRequest`/`SecretReply` variants (reserved in the
+proto) are the **zero-egress hardened-tier** mechanism — for a sandbox with
+NO network, where the control socket is the only back-channel. NOT the
+default; not the first thing to build.
+
+**The other half is not ready.** A host-side reference broker for the v1
+envelope path (`SecretResolver` trait + `secret_reply` + `run_broker`) was
+built then reverted as premature — no secret manager exists and nothing
+emits `SecretRequest`. The impl is recoverable from git at `5f0ba19da`
+(reverted by `59f8d0891`) if the hardened tier ever needs it. Note from
+that exercise: keep wire `Envelope`s at the stream boundary, not as the
+broker's internal channel currency (decode→domain→encode).
+
 ### Default `idle_timeout_minutes` for project sandboxes
 
 15 minutes. Long enough to cover think-time between agent runs; short
