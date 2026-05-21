@@ -24,5 +24,10 @@ regex = { workspace = true }
 anyhow = { workspace = true }
 utoipa = { version = "5", features = ["axum_extras"] }
 
+[features]
+# Compile the `example()` fixture constructors into ship-platform so
+# `cargo xtask gen-fixtures` can serialize them to committed JSON.
+fixtures = ["ship-platform/fixtures"]
+
 [lints]
 workspace = true

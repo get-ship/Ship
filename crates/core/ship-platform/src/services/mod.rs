@@ -38,6 +38,17 @@ pub mod path_tolerant;
 pub mod rules;
 pub mod sessions;
 
+/// Aggregated `ship.<domain>.<op>` → example-JSON pairs across every domain
+/// migrated to the typed-op single source. Drives `cargo xtask gen-fixtures`,
+/// which writes one committed JSON file per entry. Behind the `fixtures`
+/// feature (the `example()` constructors compile only then or under test).
+#[cfg(any(test, feature = "fixtures"))]
+pub fn data_op_examples() -> Vec<(&'static str, serde_json::Value)> {
+    let mut out: Vec<(&'static str, serde_json::Value)> = Vec::new();
+    out.extend(agents::fixtures::examples());
+    out
+}
+
 // Cross-component integration tests spanning substrate + platform service
 // actors. They live here (rather than in a separate crate) so neither
 // substrate nor platform needs a dev-dependency on the other.

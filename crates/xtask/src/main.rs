@@ -147,6 +147,35 @@ fn collect_types() -> TypeCollection {
     c.register::<ship_platform::sessions::ProviderMatrix>();
     c.register::<ship_platform::sessions::ProviderMatrixRepairReport>();
 
+    // ── Typed-op return types (ship.<domain>.<op> data surface) ─────────────
+    // These back `DataHandle<T>` in `generated/data.ts` — every name here must
+    // also appear in `gen_sdk::data_ts::MIGRATED_RETURN_TYPES`. Migrated domain
+    // by domain; see `schema::OPS` assembly.
+
+    // agents.* — single-source via `registry::agents::AGENTS_OPS`.
+    c.register::<ship_platform::services::agents::state::IndexEntry>();
+    c.register::<ship_platform::services::agents::state::ScopeTag>();
+    c.register::<ship_platform::services::agents::view_state::AgentDetail>();
+    c.register::<ship_platform::services::agents::view_state::Permissions>();
+    c.register::<ship_platform::services::agents::view_state::CatalogEntry>();
+    c.register::<ship_platform::services::agents::view_state::ToolPatternEntry>();
+    c.register::<ship_platform::services::agents::view_state::AgentCatalogs>();
+    c.register::<ship_platform::services::agents::view_state::AgentSummary>();
+    c.register::<ship_platform::services::agents::view_state::AgentsSummariesResponse>();
+    c.register::<ship_platform::services::agents::wire::WireNode>();
+    c.register::<ship_platform::services::agents::wire::WireEdge>();
+    c.register::<ship_platform::services::agents::wire::AgentWireCtx>();
+    c.register::<ship_platform::services::agents::settings_view::TierRow>();
+    c.register::<ship_platform::services::agents::settings_view::AgentSettingsCtx>();
+    c.register::<ship_platform::services::agents::create::AgentTemplate>();
+    c.register::<ship_platform::services::agents::create::PermissionPreset>();
+    c.register::<ship_platform::services::agents::create::AgentsCreateCtx>();
+    c.register::<ship_platform::services::agents::wire_types::AgentIndexResponse>();
+    c.register::<ship_platform::services::agents::wire_types::AgentGetResponse>();
+    c.register::<ship_platform::services::agents::wire_types::AgentTemplatesResponse>();
+    c.register::<ship_platform::services::agents::wire_types::PermissionPresetsResponse>();
+    c.register::<ship_platform::services::agents::wire_types::HarnessesResponse>();
+
     c
 }
 
@@ -249,6 +278,21 @@ fn main() {
                 std::process::exit(1);
             }
         }
+        "gen-fixtures" => {
+            #[cfg(feature = "fixtures")]
+            {
+                if let Err(e) = gen_fixtures(&repo_root()) {
+                    eprintln!("gen-fixtures failed: {e:#}");
+                    std::process::exit(1);
+                }
+            }
+            #[cfg(not(feature = "fixtures"))]
+            {
+                eprintln!("gen-fixtures requires the `fixtures` feature:");
+                eprintln!("  cargo run -p xtask --features fixtures -- gen-fixtures");
+                std::process::exit(1);
+            }
+        }
         "help" | "--help" | "-h" => {
             eprintln!("Usage: cargo xtask <command>");
             eprintln!();
@@ -256,6 +300,7 @@ fn main() {
             eprintln!("  gen-types          Regenerate packages/deck/sdk/src/generated.ts");
             eprintln!("  gen-types --check  Verify generated file is up-to-date (CI)");
             eprintln!("  gen-sdk            Emit packages/deck/sdk/src/generated/sdk-*.json + TS bindings");
+            eprintln!("  gen-fixtures       Emit committed JSON per data op (needs --features fixtures)");
             eprintln!("  lint-layers        Verify substrate/platform/application boundaries");
         }
         other => {
@@ -312,6 +357,27 @@ fn gen_types(check: bool) {
     std::fs::write(&framework_out, &framework_content)
         .expect("failed to write framework generated.ts");
     eprintln!("Wrote {}", framework_out.display());
+}
+
+/// Emit one committed JSON fixture per `ship.<domain>.<op>` data op, generated
+/// from the Rust `example()` constructors (the type is the schema). Consumed by
+/// the sandboxed view designer and asserted by `cargo test -p ship-platform`.
+#[cfg(feature = "fixtures")]
+fn gen_fixtures(repo_root: &Path) -> anyhow::Result<()> {
+    use anyhow::Context;
+    let out_dir = repo_root.join("crates/core/ship-platform/fixtures/data");
+    std::fs::create_dir_all(&out_dir)
+        .with_context(|| format!("create {}", out_dir.display()))?;
+    let mut count = 0usize;
+    for (op, value) in ship_platform::services::data_op_examples() {
+        let json = serde_json::to_string_pretty(&value)?;
+        let path = out_dir.join(format!("{op}.json"));
+        std::fs::write(&path, format!("{json}\n"))
+            .with_context(|| format!("write {}", path.display()))?;
+        count += 1;
+    }
+    eprintln!("gen-fixtures: wrote {count} fixtures to {}", out_dir.display());
+    Ok(())
 }
 
 /// Build the cloud-side generated.ts: EventEnvelope struct + all event-type

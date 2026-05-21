@@ -1,0 +1,102 @@
+{
+  "agent": {
+    "id": "code-reviewer",
+    "name": "Code Reviewer",
+    "description": "Reviews diffs for security, correctness, and architecture drift.",
+    "letter": "C",
+    "icon": "shield-check",
+    "version": "1.0.0",
+    "tags": [
+      "review",
+      "workflow"
+    ],
+    "skills": [
+      "diff-review",
+      "a11y-audit"
+    ],
+    "mcp_servers": [
+      "ship"
+    ],
+    "rules": [
+      "no-placeholders"
+    ],
+    "inline_rules": "Prefer minimal diffs.",
+    "permissions_tier": "standard",
+    "permissions": {
+      "preset": "ship-standard",
+      "tools_allow": [
+        "Read",
+        "Edit",
+        "Bash(git *)"
+      ],
+      "tools_ask": [
+        "Bash(rm -rf *)"
+      ],
+      "tools_deny": []
+    },
+    "source": "PROJECT AGENTS"
+  },
+  "nodes": [
+    {
+      "kind": "agent",
+      "id": "code-reviewer",
+      "title": "Code Reviewer",
+      "sub": "agent",
+      "x": 400.0,
+      "y": 240.0,
+      "w": 160.0
+    },
+    {
+      "kind": "skill",
+      "id": "diff-review",
+      "title": "Diff Review",
+      "sub": "skill",
+      "x": 120.0,
+      "y": 120.0,
+      "w": 140.0
+    }
+  ],
+  "edges": [
+    {
+      "kind": "skill",
+      "id": "diff-review",
+      "path_d": "M400,240 C260,180 200,140 120,120",
+      "dashed": false
+    }
+  ],
+  "catalogs": {
+    "skills": [
+      {
+        "id": "diff-review",
+        "name": "Diff Review",
+        "description": "Structured review of a unified diff."
+      }
+    ],
+    "mcp": [
+      {
+        "id": "ship",
+        "name": "Ship"
+      }
+    ],
+    "rules": [
+      {
+        "id": "no-placeholders",
+        "name": "no-placeholders"
+      }
+    ],
+    "presets": [
+      {
+        "id": "ship-standard",
+        "name": "ship-standard",
+        "description": "Human confirms risky actions."
+      }
+    ],
+    "tool_patterns": [
+      {
+        "pattern": "Bash(git *)",
+        "label": "Bash git · all git subcommands",
+        "source": "bash"
+      }
+    ]
+  }
+}

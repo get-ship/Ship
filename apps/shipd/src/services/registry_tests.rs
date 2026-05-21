@@ -109,3 +109,80 @@ fn skills_list_returns_array() {
     let v = call("skills.list", &json!({}), &state).expect("skills.list ok");
     assert!(v.get("items").and_then(|i| i.as_array()).is_some(), "skills.list returns items[]");
 }
+
+// ── agents byte-identical gate ────────────────────────────────────────
+//
+// Load-bearing test for the typed-op migration: each `agents.*` op is now
+// declared once (descriptor + dispatch via `ship_ops!`) and returns a named
+// `Serialize` type instead of an anonymous `json!`. These assertions dispatch
+// through the real `ApiState` and prove the serialized `Value` is byte-identical
+// to the object the pre-refactor dispatch hand-built from the same state fns.
+
+use ship_platform::services::agents::{create, state as agents_state, view_state};
+use ship_platform::services::files::FilesService;
+
+#[test]
+fn agents_list_wire_identical_to_anonymous_json() {
+    let state = temp_state();
+    let files = FilesService::resolve_roots(state.ship_dir());
+    let old = json!({ "items": agents_state::list(&files) });
+    let got = call("agents.list", &json!({}), &state).expect("agents.list ok");
+    assert_eq!(got, old);
+}
+
+#[test]
+fn agents_summaries_wire_identical_to_anonymous_json() {
+    let state = temp_state();
+    let old = json!({ "items": view_state::list_agents(state.ship_dir()) });
+    let got = call("agents.summaries", &json!({}), &state).expect("agents.summaries ok");
+    assert_eq!(got, old);
+}
+
+#[test]
+fn agents_templates_presets_harnesses_wire_identical() {
+    let state = temp_state();
+
+    let got = call("agents.templates", &json!({}), &state).expect("agents.templates ok");
+    assert_eq!(got, json!({ "items": create::builtin_templates() }));
+
+    let got = call("agents.permission_presets", &json!({}), &state)
+        .expect("agents.permission_presets ok");
+    assert_eq!(got, json!({ "items": create::builtin_permission_presets() }));
+
+    let got = call("agents.harnesses", &json!({}), &state).expect("agents.harnesses ok");
+    assert_eq!(got, json!({ "items": create::builtin_harnesses() }));
+}
+
+#[test]
+fn agents_catalogs_wire_identical_to_to_value() {
+    let state = temp_state();
+    let old = serde_json::to_value(view_state::list_agent_catalogs(state.ship_dir())).unwrap();
+    let got = call("agents.catalogs", &json!({}), &state).expect("agents.catalogs ok");
+    assert_eq!(got, old);
+}
+
+#[test]
+fn agents_get_response_serializes_like_anonymous_json() {
+    // `agents.get`'s success shape needs an agent on disk; prove the named
+    // wrapper is wire-identical to the old `json!({id, scope, doc})` at the
+    // serialization boundary instead.
+    use ship_platform::services::agents::state::ScopeTag;
+    use ship_platform::services::agents::wire_types::AgentGetResponse;
+    let doc = json!({ "agent": { "name": "X" } });
+    let typed = AgentGetResponse {
+        id: "x".to_string(),
+        scope: ScopeTag::Project,
+        doc: doc.clone(),
+    };
+    let from_struct = serde_json::to_value(&typed).unwrap();
+    let from_anon = json!({ "id": "x", "scope": ScopeTag::Project, "doc": doc });
+    assert_eq!(from_struct, from_anon);
+}
+
+#[test]
+fn agents_detail_missing_is_not_found() {
+    // Behaviour-preserving: unknown id → not_found, same as before.
+    let state = temp_state();
+    let err = call("agents.detail", &json!({ "id": "nope" }), &state).unwrap_err();
+    assert_eq!(err.code, "not_found");
+}

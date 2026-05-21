@@ -98,6 +98,9 @@ pub(super) fn optional_usize(args: &Value, field: &str, default: usize) -> usize
 }
 
 
+#[macro_use]
+mod op_macro;
+
 pub mod agents;
 pub mod skills;
 pub mod rules;
@@ -117,8 +120,6 @@ pub mod dashboard;
 pub mod git;
 pub mod workspaces;
 pub mod account;
-#[cfg(test)]
-mod agents_typed_proof;
 
 // ── Dispatch ─────────────────────────────────────────────────────────
 
