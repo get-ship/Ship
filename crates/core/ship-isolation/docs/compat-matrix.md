@@ -69,7 +69,7 @@ is the substrate mechanism.
 | Tier | macOS | Linux | Windows |
 |---|---|---|---|
 | **T2 — container** | 🟡 podman/docker (own VM) · Apple Container (Apple Silicon) | ✅ **podman** — runs (`podman_sidecar_live`) · reaches host plane (`container_reach_live`) · **confines fs** (`podman_fs_confinement_live`) · **blocks egress** (`podman_zero_egress_live`); rootless ubuntu:24.04, unix-socket control plane · 🟡 docker (same backend, untested since `docker_live` cut) · 🟡 youki (gated) | 🟡 podman/docker in WSL2 / Docker Desktop |
-| **T3 — VM** | ⬜ Apple Container (microVM-per-container) · ⬜ Lima VM + bubblewrap | ✅ **Firecracker** microVM (`firecracker_live`: boots, sidecar-as-init over vsock, actor exits 0, **+ workspace round-trips** via data-drive work-unit copy) | ⬜ Ship WSL distro + bubblewrap |
+| **T3 — VM** | ⬜ Apple Container (microVM-per-container) · ⬜ Lima VM + bubblewrap | ✅ **Firecracker** microVM (`firecracker_live`: boots, sidecar-as-init over vsock, actor exits 0, **workspace round-trips** via data-drive work-unit copy, **agent reaches the daemon over a vsock app-plane**) | ⬜ Ship WSL distro + bubblewrap |
 | **T4 — cloud** | ⬜ protocol-ready (`RuntimeEndpoint::Remote`), Firecracker on a cloud host | ⬜ same | ⬜ same |
 
 **Tier-2 confinement is now asserted, not assumed.** Beyond "the actor

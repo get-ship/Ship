@@ -306,10 +306,19 @@ async fn prepare_firecracker_sandbox(
             .filter(|p| p.is_file())
             .unwrap_or_else(|| std::path::PathBuf::from("firecracker"))
     };
+    // App-plane: splice the in-VM proxy to the daemon's host:port (scheme
+    // stripped) so a no-network microVM agent reaches MCP / hooks /
+    // log_progress. None when there's no daemon (tests wire it directly).
+    let app_plane_daemon = ship_platform::isolation::daemon_origin().and_then(|o| {
+        o.strip_prefix("http://")
+            .or_else(|| o.strip_prefix("https://"))
+            .map(|s| s.trim_end_matches('/').to_string())
+    });
     let cfg = FirecrackerConfig {
         firecracker_bin,
         kernel: std::path::PathBuf::from(&fc.kernel),
         rootfs: std::path::PathBuf::from(&fc.rootfs),
+        app_plane_daemon,
     };
     let isolator: std::sync::Arc<dyn ship_substrate::isolation::Isolator> =
         std::sync::Arc::new(Firecracker::new(cfg));
@@ -692,17 +701,20 @@ impl JobExecutor for ProcessExecutor {
                     IsolationStrategy::Firecracker => {
                         // Per-sandbox Firecracker microVM (own kernel) running
                         // the sidecar as init; driven over ship.sidecar.v1 via
-                        // vsock. No app-plane URL yet — the microVM has no
-                        // network device, so MCP/hooks-over-HTTP isn't reachable
-                        // (a vsock-bridged app-plane is the follow-up). The
-                        // actor still runs; workspace is work-unit copy.
+                        // vsock. The agent reaches the daemon over the vsock
+                        // app-plane bridge: SHIP_DAEMON_URL points at the in-VM
+                        // proxy (127.0.0.1:8088), which the sidecar forwards to
+                        // the host (see prepare_firecracker_sandbox). Workspace
+                        // is work-unit copy.
                         if let Some((runtime, token)) = wire_sidecar_sandbox(
                             &ctx,
                             d.resolved.tier,
                             d.resolved.strategy,
                             &mut launch,
                             "vsock",
-                            |_| None,
+                            // Guest-side app-plane proxy port (matches the
+                            // rootfs init's `--app-plane 8088:2469`).
+                            |_| Some("http://127.0.0.1:8088".to_string()),
                             || prepare_firecracker_sandbox(&ctx),
                         )
                         .await?

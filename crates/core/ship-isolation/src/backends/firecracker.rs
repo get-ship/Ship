@@ -31,6 +31,11 @@ use ship_substrate::isolation::{Isolator, IsolatorError, SandboxHandle, SandboxI
 const SIDECAR_VSOCK_PORT: u32 = 2468;
 /// Guest context id assigned to the microVM.
 const GUEST_CID: u32 = 3;
+/// vsock port the in-guest app-plane bridge dials on the host (guest→host).
+/// Firecracker forwards a guest connection to `(host, this)` to the host
+/// unix socket `<uds>_<this>`, where this Isolator listens and splices to
+/// the daemon. Matches the sidecar's `--app-plane <local>:2469`.
+const APP_PLANE_VSOCK_PORT: u32 = 2469;
 
 #[derive(Debug, Clone)]
 pub struct FirecrackerConfig {
@@ -40,6 +45,11 @@ pub struct FirecrackerConfig {
     /// per-VM in `prepare` (a shared rw root would corrupt under concurrent
     /// VMs). Pinned/signed image baking is a follow-up.
     pub rootfs: PathBuf,
+    /// Daemon `host:port` to splice the in-VM app plane to (so the agent can
+    /// reach MCP / hooks / log_progress despite the microVM having no network
+    /// device). `None` = no app-plane bridge. The supervisor sets this from
+    /// the daemon origin.
+    pub app_plane_daemon: Option<String>,
 }
 
 pub struct Firecracker {
@@ -56,6 +66,30 @@ struct FcState {
     /// image is seeded from the host dir at prepare and copied back at
     /// shutdown (Firecracker has no live shared fs — see tier3-build.md).
     workspace: Option<(PathBuf, PathBuf)>,
+    /// App-plane bridge accept-loop (host side); aborted on shutdown.
+    app_plane: Option<tokio::task::JoinHandle<()>>,
+}
+
+/// App-plane bridge (host side): firecracker forwards each guest→host vsock
+/// connection on `APP_PLANE_VSOCK_PORT` to the unix socket `<uds>_<port>`.
+/// Accept on an already-bound listener and splice every connection to the
+/// daemon's `host:port`. The listener is bound in `prepare` (before it
+/// returns) so it's up before the agent runs.
+async fn accept_host_app_plane(listener: tokio::net::UnixListener, daemon: String) {
+    loop {
+        let Ok((mut ux, _)) = listener.accept().await else {
+            break;
+        };
+        let daemon = daemon.clone();
+        tokio::spawn(async move {
+            match tokio::net::TcpStream::connect(&daemon).await {
+                Ok(mut tcp) => {
+                    let _ = tokio::io::copy_bidirectional(&mut ux, &mut tcp).await;
+                }
+                Err(e) => tracing::warn!("firecracker app-plane daemon dial {daemon}: {e}"),
+            }
+        });
+    }
 }
 
 impl Firecracker {
@@ -222,6 +256,24 @@ impl Isolator for Firecracker {
             )));
         }
 
+        // App-plane bridge: bind the firecracker guest→host vsock uds for
+        // this port (synchronously, so it's up before the agent runs) and
+        // splice each connection to the daemon — the in-VM agent reaches
+        // MCP / hooks / log_progress over `http://127.0.0.1:<local>`.
+        let app_plane = if let Some(daemon) = self.cfg.app_plane_daemon.clone() {
+            let sock = PathBuf::from(format!("{}_{}", uds.display(), APP_PLANE_VSOCK_PORT));
+            let _ = std::fs::remove_file(&sock);
+            match tokio::net::UnixListener::bind(&sock) {
+                Ok(listener) => Some(tokio::spawn(accept_host_app_plane(listener, daemon))),
+                Err(e) => {
+                    tracing::warn!("firecracker app-plane bind {} failed: {e}", sock.display());
+                    None
+                }
+            }
+        } else {
+            None
+        };
+
         Ok(SandboxHandle {
             id,
             backend: "firecracker",
@@ -231,12 +283,16 @@ impl Isolator for Firecracker {
                 vm_dir,
                 uds,
                 workspace,
+                app_plane,
             }),
         })
     }
 
     async fn shutdown(&self, sandbox: SandboxHandle) -> Result<(), IsolatorError> {
         if let Some(st) = sandbox.state.downcast_ref::<FcState>() {
+            if let Some(h) = &st.app_plane {
+                h.abort();
+            }
             // Firecracker buffers guest block writes until a virtio flush;
             // the guest runs a 1s periodic `sync`. Before the hard stop,
             // wait just over one interval so the actor's final workspace

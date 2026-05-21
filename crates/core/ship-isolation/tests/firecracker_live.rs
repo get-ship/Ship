@@ -21,6 +21,8 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::time::Duration;
 
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
 use ship_isolation::backends::{Firecracker, FirecrackerConfig};
 use ship_isolation::runtime::SidecarActorRuntime;
 use ship_isolation::{FsMount, Isolator, MountMode, NetworkPolicy, SandboxPolicy};
@@ -42,6 +44,7 @@ fn assets() -> Option<FirecrackerConfig> {
         firecracker_bin: fc,
         kernel,
         rootfs,
+        app_plane_daemon: None,
     })
 }
 
@@ -224,5 +227,113 @@ async fn microvm_workspace_round_trips() {
         copied.trim(),
         "AGENT_WAS_HERE",
         "a file the agent wrote inside the microVM must copy back to the host workspace"
+    );
+}
+
+/// App-plane bridge: a no-network microVM agent reaches a host "daemon"
+/// over vsock. The agent `wget`s `http://127.0.0.1:8088/ping` (the in-VM
+/// proxy port), which the sidecar forwards over vsock → the Isolator's host
+/// uds → a mock daemon; the response is written into the workspace and
+/// copied back out. Proves an isolated microVM agent can still call MCP /
+/// hooks / log_progress despite having no network device.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn microvm_agent_reaches_daemon_over_app_plane() {
+    if !kvm_accessible() {
+        eprintln!("firecracker_live: skipping — /dev/kvm not accessible");
+        return;
+    }
+    let Some(mut cfg) = assets() else {
+        eprintln!("firecracker_live: skipping — dev assets missing");
+        return;
+    };
+
+    // Mock daemon: answer any request with `PONG`.
+    let mock = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let mock_addr = mock.local_addr().unwrap().to_string();
+    tokio::spawn(async move {
+        loop {
+            let Ok((mut s, _)) = mock.accept().await else { break };
+            tokio::spawn(async move {
+                let mut buf = [0u8; 1024];
+                let _ = s.read(&mut buf).await;
+                let _ = s
+                    .write_all(
+                        b"HTTP/1.1 200 OK\r\nContent-Length: 4\r\nConnection: close\r\n\r\nPONG",
+                    )
+                    .await;
+            });
+        }
+    });
+    cfg.app_plane_daemon = Some(mock_addr);
+
+    let backend = Firecracker::new(cfg);
+    if backend.available().await.is_err() {
+        return;
+    }
+
+    let work = std::env::temp_dir().join(format!("ship-fcap-{}", std::process::id()));
+    std::fs::create_dir_all(&work).unwrap();
+    let resp = work.join("resp.txt");
+    let _ = std::fs::remove_file(&resp);
+
+    let policy = SandboxPolicy {
+        label: "fc-appplane".into(),
+        mounts: vec![FsMount {
+            host_path: work.clone(),
+            sandbox_path: work.clone(),
+            mode: MountMode::ReadWrite,
+        }],
+        network: NetworkPolicy::DenyAll,
+        env: HashMap::new(),
+        limits: Default::default(),
+    };
+
+    let handle = backend.prepare(&policy).await.expect("boot microVM w/ app-plane");
+    let endpoint = Firecracker::sidecar_endpoint(&handle).unwrap();
+    let runtime = SidecarActorRuntime::new(endpoint);
+
+    let log_dir = std::env::temp_dir().join("ship-fcap-live");
+    std::fs::create_dir_all(&log_dir).ok();
+    // Agent has no network, but the app-plane proxy (127.0.0.1:8088) reaches
+    // the host daemon over vsock. Write the response into the workspace.
+    let profile = ActorProfile {
+        actor_id_hint: Some("fcap-actor".into()),
+        kind: ActorKind::PipelineStep,
+        transport: TransportKind::Headless,
+        one_shot: true,
+        bin: "/bin/sh".into(),
+        args: vec![
+            "-c".into(),
+            format!(
+                "wget -q -O {out} http://127.0.0.1:8088/ping",
+                out = resp.display()
+            ),
+        ],
+        env: HashMap::new(),
+        work_dir: work.clone(),
+        workspace_id: None,
+        agent_id: None,
+        harness: None,
+        parent_actor_id: None,
+        log_dir: Some(log_dir),
+        subscribe_namespaces: vec![],
+    };
+
+    let actor = runtime.spawn(profile).await.expect("spawn actor in microVM");
+    let deadline = std::time::Instant::now() + Duration::from_secs(15);
+    while std::time::Instant::now() < deadline {
+        if actor.child.try_exit().is_some() {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(150)).await;
+    }
+    backend.shutdown(handle).await.expect("shutdown + copy back");
+
+    let got = std::fs::read_to_string(&resp).unwrap_or_default();
+    let _ = std::fs::remove_dir_all(&work);
+    assert_eq!(
+        got.trim(),
+        "PONG",
+        "the in-VM agent must reach the host daemon over the vsock app-plane"
     );
 }

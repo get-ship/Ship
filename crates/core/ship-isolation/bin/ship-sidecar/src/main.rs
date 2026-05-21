@@ -44,6 +44,30 @@ const VSOCK_PREFIX: &str = "vsock:";
 /// `VMADDR_CID_ANY` — bind on any context id (the guest doesn't know its
 /// own CID; the host assigns it when booting the VM). Equals -1 as u32.
 const VMADDR_CID_ANY: u32 = u32::MAX;
+/// `VMADDR_CID_HOST` — the host's context id, dialed from inside the guest
+/// for the app-plane bridge.
+const VMADDR_CID_HOST: u32 = 2;
+
+/// App-plane bridge (guest side): accept local TCP connections from the
+/// in-VM agent and splice each to a fresh vsock connection to the host. The
+/// host end (firecracker uds) forwards on to the daemon. One vsock
+/// connection per TCP connection so concurrent agent requests don't block.
+async fn run_app_plane(local_port: u16, vsock_port: u32) -> std::io::Result<()> {
+    let listener = tokio::net::TcpListener::bind(("127.0.0.1", local_port)).await?;
+    eprintln!("ship-sidecar: app-plane 127.0.0.1:{local_port} -> vsock(host,{vsock_port})");
+    loop {
+        let (mut tcp, _) = listener.accept().await?;
+        tokio::spawn(async move {
+            let addr = tokio_vsock::VsockAddr::new(VMADDR_CID_HOST, vsock_port);
+            match tokio_vsock::VsockStream::connect(addr).await {
+                Ok(mut vsock) => {
+                    let _ = tokio::io::copy_bidirectional(&mut tcp, &mut vsock).await;
+                }
+                Err(e) => eprintln!("ship-sidecar: app-plane vsock dial failed: {e}"),
+            }
+        });
+    }
+}
 
 /// Adapts a `tokio_vsock::VsockListener` to axum 0.8's `Listener` trait so
 /// the same Connect router serves over vsock exactly as over TCP/unix.
@@ -74,10 +98,33 @@ impl axum::serve::Listener for VsockAxumListener {
 async fn main() -> anyhow::Result<()> {
     let mut args = env::args().skip(1);
     let mut addr = DEFAULT_ADDR.to_string();
+    let mut app_plane: Option<(u16, u32)> = None;
     while let Some(a) = args.next() {
         if a == "--addr" {
             addr = args.next().unwrap_or_else(|| DEFAULT_ADDR.to_string());
+        } else if a == "--app-plane" {
+            // `<local_tcp>:<host_vsock>` — bridge the in-VM app plane to the
+            // host daemon: listen on 127.0.0.1:<local_tcp> inside the guest,
+            // forward each connection to vsock(host, <host_vsock>). The host
+            // side (firecracker uds) forwards on to the daemon. Lets a
+            // microVM agent reach MCP / hooks / log_progress despite having
+            // no network device.
+            if let Some(spec) = args.next() {
+                if let Some((l, v)) = spec.split_once(':') {
+                    if let (Ok(l), Ok(v)) = (l.parse::<u16>(), v.parse::<u32>()) {
+                        app_plane = Some((l, v));
+                    }
+                }
+            }
         }
+    }
+
+    if let Some((local, vsock_port)) = app_plane {
+        tokio::spawn(async move {
+            if let Err(e) = run_app_plane(local, vsock_port).await {
+                eprintln!("ship-sidecar: app-plane bridge exited: {e}");
+            }
+        });
     }
 
     let session = Arc::new(session::Session::new());

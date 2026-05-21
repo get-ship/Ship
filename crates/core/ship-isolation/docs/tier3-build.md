@@ -185,10 +185,15 @@ Connect. The Firecracker `Isolator` is now a *transcription* of this recipe.
   is now `true`. Docker path unregressed (supervisor + `podman_sidecar_live`
   green); `FirecrackerSettings` (bin/kernel/rootfs/resources) added to
   `isolation.strategies`.
-- **App-plane over vsock (new T3 gap)** — a Firecracker microVM has no network
-  device, so the in-VM agent can't reach the daemon over HTTP: `SHIP_DAEMON_URL`
-  is `None` and the lifecycle hooks/MCP/log_progress don't work there (and
-  there's no `ship` CLI in the rootfs for the host fallback). The actor still
-  runs; closing this needs a **vsock-bridged app-plane** (proxy the daemon HTTP
-  over a second vsock port, or a net device). Tracked alongside the workspace
-  work-unit-copy model — both are the "microVM is deliberately isolated" tax.
+- ~~**App-plane over vsock**~~ ✅ done — a no-network microVM agent reaches the
+  daemon over a vsock bridge. Path: agent → guest `127.0.0.1:8088` (sidecar
+  `--app-plane 8088:2469` forwarder) → `vsock(host, 2469)` → firecracker uds
+  `<uds>_2469` → the Isolator's host accept-loop → daemon `host:port`. The
+  supervisor sets `SHIP_DAEMON_URL=http://127.0.0.1:8088` + `FirecrackerConfig
+  .app_plane_daemon` from the daemon origin. Verified by
+  `firecracker_live::microvm_agent_reaches_daemon_over_app_plane` (agent `wget`s
+  a mock daemon; `PONG` returns through the workspace). **Two rootfs `/init`
+  requirements** this needed (don't drop): bring **`lo` up** (a no-network
+  microVM leaves loopback down → `127.0.0.1` unreachable) and pass
+  `--app-plane`. MCP/hooks now reachable in-VM; the rootfs still has no `ship`
+  CLI, so command-hooks use the curl branch (which now resolves).
