@@ -92,7 +92,6 @@ defineRoutes([
   { pattern: '/collections/:id' },
   { pattern: '/artifacts/:id' },
   { pattern: '/workspaces/:id' },
-  { pattern: '/ship-ui-studio/:component' },
 ])
 
 // Shared route signal. Views that declare dynamic params read

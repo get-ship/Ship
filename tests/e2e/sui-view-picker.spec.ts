@@ -83,7 +83,7 @@ test.describe('<sui-view-picker> behavioral surface', () => {
     expect(shape.hasFooter).toBe(true)
     // Either section may be empty depending on pin state; both elements should mount.
     expect(shape.hasPinned || shape.hasAll).toBe(true)
-    expect(shape.installHref).toBe('/ship-ui-studio')
+    expect(shape.installHref).toBe('/studio/components')
     expect(shape.projectName.length).toBeGreaterThan(0)
   })
 
@@ -151,7 +151,7 @@ test.describe('<sui-view-picker> behavioral surface', () => {
       .toBe(false)
   })
 
-  test('"+ Install view" link targets /ship-ui-studio', async ({ page }) => {
+  test('"+ Install view" link targets /studio/components', async ({ page }) => {
     await page.goto(`${SHELL2_URL}/`)
     await page.waitForSelector('sui-rail#ship-rail')
     await openPicker(page)
@@ -160,7 +160,7 @@ test.describe('<sui-view-picker> behavioral surface', () => {
       const picker = sr.querySelector('sui-view-picker') as HTMLElement & { shadowRoot: ShadowRoot | null }
       return (picker.shadowRoot!.querySelector('[part~="install-link"]') as HTMLAnchorElement).getAttribute('href')
     })
-    expect(href).toBe('/ship-ui-studio')
+    expect(href).toBe('/studio/components')
   })
 
   test('active view marks the matching row with is-active + aria-current', async ({ page }) => {

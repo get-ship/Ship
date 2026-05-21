@@ -175,7 +175,7 @@ export const NAV_DESTINATIONS: NavDest[] = [
   { label: 'Agents',                path: '/studio/agents', icon: 'users',   keywords: 'configure profiles studio' },
   { label: 'Skills',                path: '/skills',       icon: 'zap',      keywords: 'browse edit files'         },
   { label: 'Git',                   path: '/git',          icon: 'git',      keywords: 'status diff commit branch' },
-  { label: 'UI Studio',             path: '/ship-ui-studio', icon: 'sparkles', keywords: 'components design tokens' },
+  { label: 'Components',            path: '/studio/components', icon: 'sparkles', keywords: 'components design tokens ui studio catalog' },
   { label: 'Settings',              path: '/settings',     icon: 'settings', keywords: 'config theme harness'     },
   { label: 'Theme Studio',          path: '/theme-studio', icon: 'palette',  keywords: 'design tokens'             },
 ]

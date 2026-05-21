@@ -14,14 +14,11 @@ import { readSearchParams, writeSearchParams, highlightActiveCell } from './deep
 
 type StudioFilterKind = 'all' | 'sui' | 'view'
 
-// Until shell 2.0 ports the studio in, the canonical access path is
-// /sui/ship-ui-studio/:name (view-host static mount). Both patterns
-// are registered so route.params.name resolves under either prefix.
-// When shell 2.0 lands, the /sui/ prefix entry can drop.
+// Canonical access path is /studio/components/:name (the shell route) and
+// /sui/studio/components/:name (view-host standalone, e.g. dev-panel popouts).
 defineRoutes([
   { pattern: '/studio/components/:name' },
-  { pattern: '/ship-ui-studio/:name' },
-  { pattern: '/sui/ship-ui-studio/:name' },
+  { pattern: '/sui/studio/components/:name' },
 ])
 
 // Shared across mounts. Each rapid catalog click previously created a
@@ -74,8 +71,6 @@ export default controller<Scope>({
     loading: signal(true),
     propValues: signal<Record<string, unknown>>({}),
     _dispose: signal<(() => void) | null>(null),
-    filterKind: signal<StudioFilterKind>('all'),
-    filterText: signal(''),
     copyFeedback: signal(false),
     // Authoritative subroute slug — seeded from `location.pathname` at
     // mount() rather than `route.params.name()`. The shell pre-registers
@@ -99,17 +94,6 @@ export default controller<Scope>({
       const e = entry() as CatalogEntry | null
       return e !== null && (e.props ?? []).length > 0
     },
-    filteredCatalog: ({ allCatalog, filterKind, filterText }) => {
-      const kind = filterKind()
-      const text = filterText().toLowerCase()
-      return allCatalog().filter(e => {
-        const kindMatch = kind === 'all' || e.kind === kind
-        const textMatch = !text || e.id.toLowerCase().includes(text)
-        return kindMatch && textMatch
-      })
-    },
-    totalCount: ({ allCatalog }) => allCatalog().length,
-    filteredCount: ({ filteredCatalog }) => (filteredCatalog() as CatalogEntry[]).length,
     matrixAxes: ({ entry }) => {
       const e = entry() as CatalogEntry | null
       // Skip the matrix for view-kind entries (iframe previews) and any

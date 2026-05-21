@@ -21,18 +21,18 @@ import { test, expect } from '@playwright/test'
 import { waitForAttach } from './_helpers'
 
 test('studio: catalog items render with item.id text content', async ({ page }) => {
-  await page.goto('/sui/ship-ui-studio')
+  await page.goto('/sui/studio/components')
   await waitForAttach(page)
 
-  const items = page.locator('[data-test="catalog-item"]')
+  const items = page.locator('[data-test="component-card"]')
   await expect(items.first()).toBeVisible({ timeout: 20_000 })
 
   const count = await items.count()
   expect(count).toBeGreaterThan(10)
 
   // Every catalog item must have non-empty text in its `<code>`
-  // (rendered from `{item.id}`). Pre-Phase-2 these were blank.
-  const ids = await items.locator('code.catalog-item-name').allTextContents()
+  // (rendered from `{item.tag}`). Pre-Phase-2 these were blank.
+  const ids = await items.locator('code.component-card-tag').allTextContents()
   expect(ids.length).toBe(count)
   const empty = ids.filter((s) => s.trim() === '')
   expect(empty.length).toBe(0)

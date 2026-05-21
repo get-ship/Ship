@@ -34,7 +34,7 @@
 
 <prop name="open" type="bool" default="false" reflect />
 <prop name="placement" type="string" default="right" />
-<prop name="install-href" type="string" default="/ship-ui-studio" />
+<prop name="install-href" type="string" default="/studio/components" />
 <prop name="views-url" type="string" default="/api/v1/views" />
 <prop name="projects-url" type="string" default="/api/v1/projects" />
 <prop name="settings-url" type="string" default="/api/v1/settings" />

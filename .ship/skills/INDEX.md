@@ -51,12 +51,6 @@ gated.
 | [`diff-review`](diff-review/SKILL.md) | Render a git diff or PR as an interactive review surface in Ship Studio's session canvas. |
 | [`web-qa`](../../skills/web-qa/SKILL.md) | **Gate-required** for UI work. Every interactive element pressed, multi-theme + multi-viewport, console + network captured, visibility asserted (not just DOM-presence). Output to `.artifacts/web-qa/<surface>/<timestamp>/`. Lives in the publish-ready `skills/` tree; loaded by commander, web-lane, ship-designer, gatekeeper. |
 
-## Workflow
-
-| Skill | One-liner |
-| --- | --- |
-| [`design-workflow`](design-workflow/SKILL.md) | Design pipeline — brainstorm HTML mockup, preview in browser, extract spec, dispatch implementation. |
-
 ## Dev tools (session-rendered)
 
 Each starts a local server and surfaces its UI in the Ship Studio

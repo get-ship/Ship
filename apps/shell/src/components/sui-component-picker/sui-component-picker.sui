@@ -288,7 +288,7 @@
       </div>
       <div class="footer">
         <span class="browse-link">
-          <slot name="browse-link"><a href="/ship-ui-studio">Browse full catalog →</a></slot>
+          <slot name="browse-link"><a href="/studio/components">Browse full catalog →</a></slot>
         </span>
         {#if selectMode() === 'multi'}
           <span class="queue">{queue().length} queued</span>
@@ -339,7 +339,7 @@
     </div>
     <div class="footer">
       <span class="browse-link">
-        <slot name="browse-link"><a href="/ship-ui-studio">Browse full catalog →</a></slot>
+        <slot name="browse-link"><a href="/studio/components">Browse full catalog →</a></slot>
       </span>
       {#if selectMode() === 'multi'}
         <span class="queue">{queue().length} queued</span>

@@ -50,7 +50,7 @@
               <sui-icon slot="leading" name="book"></sui-icon>
               Browse skills
             </sui-button>
-            <sui-button variant="ghost" on:click={() => navigate('/ship-ui-studio')} data-test="home-empty-studio">
+            <sui-button variant="ghost" on:click={() => navigate('/studio/components')} data-test="home-empty-studio">
               <sui-icon slot="leading" name="sparkles"></sui-icon>
               Open Studio
             </sui-button>
