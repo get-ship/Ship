@@ -93,7 +93,7 @@
             <div class="detail-render" data-render-slot data-test="render-slot" morph></div>
           </div>
           {#if entry().kind === 'sui'}
-            <div class="detail-render-caption">Live preview · default slot text: <code>example</code></div>
+            <div class="detail-render-caption">Live preview — edit props above</div>
           {:else}
             <div class="detail-render-caption">Live view · <code>/sui/{entry().id}</code></div>
           {/if}

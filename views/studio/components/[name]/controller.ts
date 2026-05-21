@@ -8,7 +8,7 @@ import {
   mountMatrixCells,
   type MatrixAxis,
 } from './matrix'
-import { SLOT_COMPOSITIONS } from './slot-compositions'
+import { SLOT_COMPOSITIONS, slotLabel } from './slot-compositions'
 import { buildSnippet } from './snippet'
 import { readSearchParams, writeSearchParams, highlightActiveCell } from './deep-link'
 
@@ -231,7 +231,7 @@ export default controller<Scope>({
       const frag = range.createContextualFragment(compose)
       node.replaceChildren(frag)
     } else {
-      node.replaceChildren(document.createTextNode('example'))
+      node.replaceChildren(document.createTextNode(slotLabel(entry.tag)))
     }
     if (node.parentElement !== slot) {
       node.parentElement?.removeChild(node)

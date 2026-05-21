@@ -6,6 +6,7 @@
 // through the prop panel one combination at a time.
 
 import type { PropEntry } from '../catalog'
+import { slotLabel } from './slot-compositions'
 
 export interface MatrixAxis {
   name: string
@@ -125,7 +126,7 @@ export function mountMatrixCells(
       range.selectNodeContents(cellNode)
       cellNode.replaceChildren(range.createContextualFragment(compose))
     } else {
-      cellNode.replaceChildren(document.createTextNode('example'))
+      cellNode.replaceChildren(document.createTextNode(slotLabel(cellTag)))
     }
     applyCellProps(cellNode, cellProps)
     host.replaceChildren(cellNode)

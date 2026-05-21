@@ -4,6 +4,7 @@
 // compound components use their slot composition as inner content.
 
 import type { PropEntry } from '../catalog'
+import { slotLabel } from './slot-compositions'
 
 const BOOL_TYPES = new Set(['boolean', 'Boolean', 'bool'])
 
@@ -37,6 +38,6 @@ export function buildSnippet(
     attrs.push(`${p.name}="${escapeAttr(str)}"`)
   }
   const attrStr = attrs.length ? ' ' + attrs.join(' ') : ''
-  const inner = slotHtml !== undefined ? slotHtml.trim() : 'example'
+  const inner = slotHtml !== undefined ? slotHtml.trim() : slotLabel(tag)
   return `<${tag}${attrStr}>${inner}</${tag}>`
 }

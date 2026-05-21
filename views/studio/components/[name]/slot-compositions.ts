@@ -1,8 +1,16 @@
 // Default-slot fillers for compound components — atomic ones render
-// fine with just an "example" text node, but compounds need real
+// fine with a humanized label (slotLabel), but compounds need real
 // child elements to show their layout (sui-rail empty looks like a
 // blank rectangle). Keyed by host tag, shared by the single preview
 // and every matrix cell.
+
+// Atomic-component default slot text: the humanized tag, so each
+// component shows its own name (sui-button → "Button") instead of a
+// repeated "example".
+export function slotLabel(tag: string): string {
+  const base = tag.replace(/^sui-/, '').replace(/-/g, ' ').trim()
+  return base ? base.charAt(0).toUpperCase() + base.slice(1) : 'Preview'
+}
 
 export const SLOT_COMPOSITIONS: Record<string, string> = {
   'sui-rail': `
