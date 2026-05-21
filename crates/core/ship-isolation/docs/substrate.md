@@ -72,16 +72,41 @@ In all cases: bake the sidecar + minimal tools, drive it headless, expose
 the v1 endpoint (vsock / forwarded port), tear down on reap. Same
 `Isolator`-shaped contract, a substrate lifecycle wrapped around it.
 
-## Isolation ceiling per substrate (be honest about it)
+## Strength dial: bubblewrap (shared-kernel) vs microVM (own-kernel)
 
-- **Container / WSL distro / shared VM** = shared-kernel isolation
-  (namespaces + cgroups, or bubblewrap). A second WSL distro is *not*
-  stronger than a container — both share the WSL2 kernel.
-- **Hypervisor-per-actor** (a separate VM/microVM per sandbox) is the
-  strong boundary. On macOS a dedicated Lima VM gives it; on Windows it
-  needs Hyper-V (Pro) — WSL's single-VM model can't. For genuinely
-  untrusted code beyond shared-kernel strength, the escalation is a
-  **cloud machine (Tier 4)**, not more local distros.
+The inner isolation has two strengths, picked by trust:
+
+- **bubblewrap** — namespaces + seccomp + userns. Shared kernel: a kernel
+  exploit escapes the sandbox (to the VM's kernel on mac/win, or the host
+  on Linux-direct). Light, fast, no hypervisor. Default for *trusted* work.
+- **microVM** — a separate guest kernel per sandbox (hypervisor boundary).
+  A kernel exploit is contained. For *genuinely untrusted* code.
+
+**microVMs need a hypervisor, and which one is per-OS — this constrains
+where per-sandbox microVMs are even affordable:**
+
+| Host | Hypervisor | Per-sandbox microVM? |
+|---|---|---|
+| **Linux** | KVM | **Yes — Firecracker / Cloud-Hypervisor per sandbox.** Fast, strong. The Fly model. |
+| **macOS** | Virtualization.framework | Not per-sandbox cheaply. Firecracker needs KVM; you'd run N native Vz VMs (heavy) or nested virt (immature on Apple Silicon). → one minimal Ship VM + bubblewrap. |
+| **Windows** | Hyper-V | Nested virt *works* (WSL2 can nest KVM) but slow/fragile. → one Ship distro + bubblewrap; Hyper-V (Pro) for a real per-VM boundary. |
+
+So: **Linux gets microVM-per-sandbox (Firecracker) for the untrusted
+tier; mac/win realistically run one *minimal, fast-booting* Ship VM +
+bubblewrap per actor.** The "micro, not fat" lesson (Fly) applies to *that*
+Ship VM regardless — minimal rootfs, sidecar as init, fast boot. Beyond
+shared-kernel strength on mac/win, the escalation is a **cloud machine
+(Tier 4)** running Firecracker, not nested virt locally.
+
+## Fleet networking: WireGuard mesh (forward reference)
+
+When multiple user-controlled daemons + mobile clients exist, the
+substrate↔host and node↔node reachability is a **private WireGuard mesh**
+(Fly's 6PN / Tailscale's model): each node gets a private address,
+NAT-traversed, e2e-encrypted; a thin coordinator (Ship Cloud) does
+NAT-traversal signaling but **never sees the data**. WireGuard keys tie to
+the device-key / macaroon identity. This is the sovereign relay — not in
+scope for single-device isolation, but it's where the transport grows.
 
 ## Reachability follows from this (simpler than per-container)
 

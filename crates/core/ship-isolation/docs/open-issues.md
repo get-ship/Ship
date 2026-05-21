@@ -192,6 +192,40 @@ emits `SecretRequest`. The impl is recoverable from git at `5f0ba19da`
 that exercise: keep wire `Envelope`s at the stream boundary, not as the
 broker's internal channel currency (decode→domain→encode).
 
+### Egress enforcement: cooperative proxy (trusted) vs transparent (untrusted)
+
+`HTTP_PROXY`/`HTTPS_PROXY` pointing at the host allowlist proxy is
+**cooperative** — a malicious agent simply ignores it. Fine for *trusted*
+dev agents. For *untrusted* agents the egress must be **transparent**:
+intercept at the netns/iptables level (Istio's model) so the agent can't
+bypass the policy. Another tier dial; not built. Daemon-reachability is a
+*separate, narrow, always-on* path — do not conflate it with the
+broad/tiered general-egress policy (see the transport discussion).
+
+### Prior-art lessons (mined, applicable)
+
+- **Fly Machines / Firecracker** — Tier 3 = *minimal fast-boot microVM*,
+  not a fat VM; Firecracker-per-sandbox is a Linux/KVM luxury (mac/win →
+  one minimal VM + bubblewrap). `flyd` (per-host Rust orchestrator) is a
+  direct sidecar reference. See `substrate.md`.
+- **DAPR** — capability-as-sidecar-API with pluggable backends is the
+  proven shape for Ship-control/Ship-local capabilities; its *secrets*
+  building block is the credential-broker pattern (validated, just
+  premature for us without a store). Take the API shape, not the k8s
+  weight.
+- **Istio / SPIFFE** — transparent interception (above) + per-workload
+  cryptographic identity (= scoped tokens / macaroons; SPIRE is the
+  issuance reference for the fleet).
+- **Fly WireGuard / Tailscale** — the fleet/mobile/relay mesh (e2e,
+  NAT-traversed, coordinator-can't-read). Forward-referenced in
+  `substrate.md`.
+- **WASM / WASI** — wrong for native harnesses (can't run native, same
+  wall as V8 isolates), *right* for the plugin/capability-server layer
+  (WASI's capability model matches ours). Long-game: own-harness in WASM
+  (reasoning sandboxed, effects via the capability kernel).
+- **BEAM** — the model for the actor/fleet/supervision/distribution layer
+  (steal OTP patterns in Rust; don't adopt the runtime). Not for agents.
+
 ### Default `idle_timeout_minutes` for project sandboxes
 
 15 minutes. Long enough to cover think-time between agent runs; short
