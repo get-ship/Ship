@@ -734,7 +734,7 @@ fn hydrate_if_needed(conn: &mut SqliteConnection) -> Result<()> {
     let event_count: i64 = block_on(async {
         sqlx::query_scalar(
             "SELECT COUNT(*) FROM events \
-             WHERE event_type LIKE 'job.%' OR event_type LIKE 'step.%'",
+             WHERE event_type LIKE 'pipeline.%'",
         )
         .fetch_one(&mut *conn)
         .await
@@ -748,7 +748,7 @@ fn hydrate_if_needed(conn: &mut SqliteConnection) -> Result<()> {
                     causation_id, project_id, session_id, \
                     actor_id, parent_actor_id, elevated, created_at \
              FROM events \
-             WHERE event_type LIKE 'job.%' OR event_type LIKE 'step.%' \
+             WHERE event_type LIKE 'pipeline.%' \
              ORDER BY id ASC",
         )
         .fetch_all(&mut *conn)
