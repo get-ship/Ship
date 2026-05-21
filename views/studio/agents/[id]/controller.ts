@@ -195,8 +195,8 @@ export default controller<Scope>({
     }
   },
   on: {
-    goWire: ({ navigate, agentId }) => navigate(`/studio/agents/${agentId}/wire`),
-    goSettings: ({ navigate, agentId }) => navigate(`/studio/agents/${agentId}/settings`),
+    goWire: ({ navigate, agentId }) => navigate(`/studio/agents/${agentId()}/wire`),
+    goSettings: ({ navigate, agentId }) => navigate(`/studio/agents/${agentId()}/settings`),
     goBack: ({ navigate }) => navigate('/studio/agents'),
     goSkill: ({ navigate }, id: string) => navigate(`/skills/${id}`),
 
