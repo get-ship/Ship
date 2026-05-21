@@ -26,6 +26,12 @@ pub enum Scope {
     LogProgress,
     StepDone,
     AdminDaemon,
+    /// SUI / view authoring tool-group — the structured compiler/LSP, live
+    /// canvas, and snapshot tools. Granted to design agents (the `designer`
+    /// role); invisible to every other agent. This is the one gated MCP
+    /// tool-group; the daemon binds it at session-register time. Not a
+    /// self-declared role at call time — a capability the daemon mints.
+    SuiAuthoring,
     /// Fine-grained artifact grants — granted in addition to workspace grants.
     ReadArtifactsRun,
     WriteArtifactsRun,
@@ -46,6 +52,29 @@ impl Scope {
     /// Returns true if `granted` contains this scope or `Full`.
     pub fn is_granted_by(self, granted: &[Scope]) -> bool {
         granted.contains(&Scope::Full) || granted.contains(&self)
+    }
+}
+
+/// Per-connection MCP identity, threaded from the daemon's `AuthContext` into
+/// the in-daemon-mounted MCP server's tool gate.
+///
+/// `apps/mcp` cannot depend on `apps/shipd` (that would cycle: shipd → mcp →
+/// shipd), so the gate can't read shipd's `AuthContext` directly. Instead shipd
+/// projects the gate's needs into this `ship-platform` type, inserts it as a
+/// request extension before the `/mcp` nest-service, and the MCP gate reads it
+/// from `Extension<http::request::Parts>`. The token is the source of truth —
+/// scopes are daemon-minted at session-register, never self-declared.
+#[derive(Debug, Clone)]
+pub struct McpAuth {
+    pub agent_id: String,
+    pub scopes: Vec<Scope>,
+    pub workspace_id: Option<String>,
+}
+
+impl McpAuth {
+    /// True when the connection's token grants `scope` (or `Full`).
+    pub fn allows(&self, scope: Scope) -> bool {
+        scope.is_granted_by(&self.scopes)
     }
 }
 
@@ -115,6 +144,22 @@ pub fn scopes_for_role(role: Option<&str>) -> Vec<Scope> {
                 Scope::StepDone,
                 Scope::MeshSend,
                 Scope::EmitEvents,
+            ];
+            s.extend(pipeline_agent_artifact_scopes());
+            s
+        }
+        Some("designer") => {
+            // Design agents (shipwright, ship-designer) author Ship's own
+            // views. They get the workspace read/write surface plus the
+            // gated SuiAuthoring tool-group. Not orchestrators — no
+            // CreateRuns/ManageRuns.
+            let mut s = vec![
+                Scope::ReadWorkspace,
+                Scope::WriteWorkspace,
+                Scope::ReadRuns,
+                Scope::EmitEvents,
+                Scope::LogProgress,
+                Scope::SuiAuthoring,
             ];
             s.extend(pipeline_agent_artifact_scopes());
             s
@@ -346,6 +391,24 @@ mod tests {
         let scopes = scopes_for_role(Some("contributor"));
         assert!(Scope::Full.is_granted_by(&scopes));
         assert!(Scope::AdminDaemon.is_granted_by(&scopes));
+    }
+
+    #[test]
+    fn designer_role_grants_sui_authoring_but_not_orchestration() {
+        let scopes = scopes_for_role(Some("designer"));
+        assert!(Scope::SuiAuthoring.is_granted_by(&scopes));
+        assert!(Scope::WriteWorkspace.is_granted_by(&scopes));
+        // Designers are not orchestrators.
+        assert!(!Scope::CreateRuns.is_granted_by(&scopes));
+        assert!(!Scope::ManageRuns.is_granted_by(&scopes));
+    }
+
+    #[test]
+    fn non_designer_roles_lack_sui_authoring() {
+        assert!(!Scope::SuiAuthoring.is_granted_by(&scopes_for_role(Some("worker"))));
+        assert!(!Scope::SuiAuthoring.is_granted_by(&scopes_for_role(Some("commander"))));
+        // Full bypasses, so contributor implicitly has it.
+        assert!(Scope::SuiAuthoring.is_granted_by(&scopes_for_role(Some("contributor"))));
     }
 
     #[test]

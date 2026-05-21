@@ -2,6 +2,7 @@
   "$schema": "../../schemas/agent.schema.json",
   "agent": {
     "id": "shipwright",
+    "role": "designer",
     "name": "Shipwright",
     "icon": "wrench",
     "version": "0.1.0",

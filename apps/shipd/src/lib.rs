@@ -48,7 +48,6 @@ mod integration_tests;
 mod ship_runtime_tests;
 
 pub use daemon::{network_status, network_stop};
-pub use transport::NetworkServer;
 pub use deck::DaemonMode;
 
 /// Test-only: build a minimal router with the CORS middleware for testing.

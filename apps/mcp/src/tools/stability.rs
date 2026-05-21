@@ -52,7 +52,6 @@ pub const RENAMES: &[(&str, &str)] = &[];
 /// as experimental. They are always registered (no compile-time gating).
 pub const EXPERIMENTAL_TOOLS: &[&str] = &[
     "dispatch_agent",
-    "list_agents",
     "stop_agent",
     "steer_agent",
     "emit_event",
@@ -182,7 +181,7 @@ mod tests {
 
     #[test]
     fn canonical_name_is_identity_when_no_aliases_registered() {
-        assert_eq!(canonical_name("send_mesh_message"), "send_mesh_message");
+        assert_eq!(canonical_name("log_progress"), "log_progress");
         assert_eq!(canonical_name("unknown_tool"), "unknown_tool");
     }
 }

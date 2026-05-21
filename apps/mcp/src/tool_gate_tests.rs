@@ -7,7 +7,6 @@ fn worker_preset_contains_platform_tools() {
     let tools = ShipServer::tools_for_preset("worker");
     assert!(tools.contains(&"log_progress"), "worker missing log_progress");
     assert!(tools.contains(&"update_job"), "worker missing update_job");
-    assert!(tools.contains(&"write_session_file"), "worker missing write_session_file");
     assert!(tools.contains(&"step_done"), "worker missing step_done — pipelines depend on it");
 }
 
@@ -25,7 +24,7 @@ fn worker_preset_excludes_orchestration_tools() {
 }
 
 #[test]
-fn orchestrator_preset_extends_worker() {
+fn orchestrator_preset_inherits_worker() {
     let worker = ShipServer::tools_for_preset("worker");
     let orchestrator = ShipServer::tools_for_preset("orchestrator");
     for tool in worker {
@@ -34,14 +33,8 @@ fn orchestrator_preset_extends_worker() {
             "orchestrator should inherit worker tool {tool}"
         );
     }
-    assert!(
-        orchestrator.contains(&"discover_mesh_agents"),
-        "orchestrator missing discover_mesh_agents"
-    );
-    assert!(
-        orchestrator.contains(&"update_mesh_status"),
-        "orchestrator missing update_mesh_status"
-    );
+    // ORCHESTRATION_TOOLS is empty since mesh observe/status moved to the
+    // CLI — the orchestrator preset currently adds nothing over worker.
 }
 
 #[test]
@@ -105,13 +98,106 @@ fn is_platform_tool_recognizes_step_done() {
     assert!(ShipServer::is_platform_tool("step_done"));
     assert!(ShipServer::is_platform_tool("log_progress"));
     assert!(ShipServer::is_platform_tool("update_job"));
-    assert!(ShipServer::is_platform_tool("write_session_file"));
 }
 
 #[test]
 fn is_platform_tool_rejects_orchestration() {
     assert!(!ShipServer::is_platform_tool("update_mesh_status"));
     assert!(!ShipServer::is_platform_tool("discover_mesh_agents"));
+}
+
+// ── Token-scope gate (daemon-hosted path) ──────────────────────────
+
+#[test]
+fn sui_tools_require_sui_authoring_scope() {
+    use ship_platform::auth::scopes::{McpAuth, Scope};
+
+    assert_eq!(
+        ShipServer::tool_required_scope("sui"),
+        Some(Scope::SuiAuthoring)
+    );
+    assert_eq!(
+        ShipServer::tool_required_scope("view_compile_check"),
+        Some(Scope::SuiAuthoring)
+    );
+    // Default surface — no scope required.
+    assert_eq!(ShipServer::tool_required_scope("log_progress"), None);
+    assert_eq!(ShipServer::tool_required_scope("chat_reply"), None);
+
+    let designer = McpAuth {
+        agent_id: "d".into(),
+        scopes: vec![Scope::SuiAuthoring],
+        workspace_id: None,
+    };
+    let worker = McpAuth {
+        agent_id: "w".into(),
+        scopes: vec![Scope::ReadWorkspace],
+        workspace_id: None,
+    };
+    // Designer token reaches the gated group; worker token does not.
+    assert!(ShipServer::enforce_scope_gate(&designer, "sui").is_ok());
+    assert!(ShipServer::enforce_scope_gate(&worker, "sui").is_err());
+    // The default surface is open to every authenticated token.
+    assert!(ShipServer::enforce_scope_gate(&worker, "log_progress").is_ok());
+}
+
+#[test]
+fn http_path_requires_scopes_no_trusted_local_bypass() {
+    use super::tool_gate::GateOutcome;
+    use ship_platform::auth::scopes::{McpAuth, Scope};
+
+    // An HTTP connection (`over_http = true`) with NO injected identity must
+    // FAIL CLOSED — never fall through to the trusted-local active-agent gate.
+    // This is the silent network scope-bypass guard.
+    assert!(matches!(
+        ShipServer::classify_gate(true, None, "log_progress"),
+        GateOutcome::Deny(_)
+    ));
+    assert!(matches!(
+        ShipServer::classify_gate(true, None, "sui"),
+        GateOutcome::Deny(_)
+    ));
+
+    // HTTP + designer token → the SuiAuthoring group is allowed.
+    let designer = McpAuth {
+        agent_id: "d".into(),
+        scopes: vec![Scope::SuiAuthoring],
+        workspace_id: None,
+    };
+    assert_eq!(
+        ShipServer::classify_gate(true, Some(&designer), "sui"),
+        GateOutcome::Allow
+    );
+
+    // HTTP + worker token → gated tool denied by scope; default tool allowed.
+    let worker = McpAuth {
+        agent_id: "w".into(),
+        scopes: vec![Scope::ReadWorkspace],
+        workspace_id: None,
+    };
+    assert!(matches!(
+        ShipServer::classify_gate(true, Some(&worker), "sui"),
+        GateOutcome::Deny(_)
+    ));
+    assert_eq!(
+        ShipServer::classify_gate(true, Some(&worker), "log_progress"),
+        GateOutcome::Allow
+    );
+}
+
+#[test]
+fn trusted_local_fallback_is_stdio_only() {
+    use super::tool_gate::GateOutcome;
+    // Only a non-HTTP (stdio, same-machine) connection without an injected
+    // identity defers to the active-agent CWD gate. HTTP never does.
+    assert_eq!(
+        ShipServer::classify_gate(false, None, "anything"),
+        GateOutcome::TrustedLocalFallback
+    );
+    assert!(!matches!(
+        ShipServer::classify_gate(true, None, "anything"),
+        GateOutcome::TrustedLocalFallback
+    ));
 }
 
 #[test]
@@ -183,7 +269,7 @@ fn emit_event_not_in_any_preset() {
 
 #[test]
 fn core_tools_bypass_gating() {
-    let core = ["set_skill_var", "chat_reply", "view_lint"];
+    let core = ["set_skill_var", "chat_reply", "sdk_query"];
     for tool in core {
         assert!(
             ShipServer::is_core_tool(tool),
@@ -230,12 +316,11 @@ fn worker_effective_tool_set_count() {
     all.extend(preset.iter().copied());
     all.sort_unstable();
     all.dedup();
-    // 6 core (set_skill_var, chat_reply, view_lint, view_scaffold,
-    // sdk_query, view_errors) + 4 protocol (step_done, log_progress,
-    // update_job, write_session_file) + 5 view canvas (open/patch/
-    // append/signal/close_view) = 15. View tools are experimental but
-    // always part of the platform set.
-    let expected = 15;
+    // 3 core (set_skill_var, chat_reply, sdk_query) + 3 protocol (step_done,
+    // log_progress, update_job) + 5 view canvas (open/patch/append/signal/
+    // close_view) = 11. CORE_TOOLS was pruned (view_lint/view_scaffold retired,
+    // view_errors moved to the SuiAuthoring group).
+    let expected = 11;
     assert_eq!(all.len(), expected, "worker effective set mismatch: {all:?}");
 }
 
@@ -247,8 +332,8 @@ fn orchestrator_effective_tool_set_count() {
     all.extend(preset.iter().copied());
     all.sort_unstable();
     all.dedup();
-    // 15 worker + 2 orchestration (discover_mesh_agents,
-    // update_mesh_status) = 17.
-    let expected = 17;
+    // Mesh observe/status tools left MCP for the CLI, so ORCHESTRATION_TOOLS
+    // is empty and the orchestrator set equals the worker set (11).
+    let expected = 11;
     assert_eq!(all.len(), expected, "orchestrator effective set mismatch: {all:?}");
 }

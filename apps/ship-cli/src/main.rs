@@ -433,7 +433,7 @@ fn dispatch_workspace(action: WorkspaceCommands) -> Result<()> {
 
 fn dispatch_mcp(action: McpCommands) -> Result<()> {
     match action {
-        McpCommands::Serve { http, port } => mcp_serve::run(http, port),
+        McpCommands::Serve {} => mcp_serve::run(),
         McpCommands::List => mcp::list(),
         McpCommands::Add { id, name, url, .. } => {
             let url =
