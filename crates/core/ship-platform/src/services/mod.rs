@@ -49,6 +49,13 @@ pub fn data_op_examples() -> Vec<(&'static str, serde_json::Value)> {
     out.extend(rules::fixtures::examples());
     out.extend(mcp::fixtures::examples());
     out.extend(permissions::fixtures::examples());
+    // account.* — the AccountState enum lives in ship-platform; a fresh daemon
+    // is logged out.
+    out.push((
+        "account.state",
+        serde_json::to_value(crate::account::types::AccountState::LoggedOut)
+            .expect("AccountState serializes"),
+    ));
     out
 }
 

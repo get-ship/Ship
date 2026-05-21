@@ -1,0 +1,6 @@
+{
+  "path": "SKILL.md",
+  "name": "SKILL.md",
+  "ext": "md",
+  "content": "# Code Review\n\nReview a unified diff for correctness."
+}

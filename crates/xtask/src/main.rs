@@ -469,7 +469,9 @@ fn gen_fixtures(repo_root: &Path) -> anyhow::Result<()> {
     std::fs::create_dir_all(&out_dir)
         .with_context(|| format!("create {}", out_dir.display()))?;
     let mut count = 0usize;
-    for (op, value) in ship_platform::services::data_op_examples() {
+    let mut all = ship_platform::services::data_op_examples();
+    all.extend(shipd::services::registry::fixtures::examples());
+    for (op, value) in all {
         let json = serde_json::to_string_pretty(&value)?;
         let path = out_dir.join(format!("{op}.json"));
         std::fs::write(&path, format!("{json}\n"))

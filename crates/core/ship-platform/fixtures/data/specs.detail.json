@@ -1,0 +1,33 @@
+{
+  "id": "typed-ops",
+  "title": "Typed-op single source",
+  "body": "# Typed-op single source\n\nKill the shadow registry.",
+  "status": "completed",
+  "status_label": "Completed",
+  "pipeline": "ship-feature",
+  "pipeline_label": "ship-feature",
+  "agent": "Rust Lane",
+  "agent_id": "rust-lane",
+  "vars_display": "area=daemon",
+  "branch": "job/typed-ops",
+  "tone": "success",
+  "goal_md": "Make the typed operation the single source.",
+  "scope_md": "apps/shipd, ship-platform services, xtask",
+  "linked_md": "",
+  "acceptance": [
+    {
+      "text": "Every op declared once",
+      "done": true
+    },
+    {
+      "text": "No anonymous json!",
+      "done": true
+    }
+  ],
+  "other_md": "",
+  "launch_label": "Re-run",
+  "launch_hint": "Dispatch ship-feature for this spec",
+  "title_js": "Typed-op single source",
+  "body_js": "# Typed-op single source",
+  "pipeline_js": "ship-feature"
+}

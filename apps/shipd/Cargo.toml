@@ -88,6 +88,9 @@ specta = { workspace = true, features = ["chrono", "serde_json"], optional = tru
 [features]
 unstable = ["ship-platform/unstable"]
 specta = ["dep:specta", "deck/specta"]
+# Compile the `example()` fixture constructors for the daemon-side wire
+# shapes so `cargo xtask gen-fixtures` can serialize them to committed JSON.
+fixtures = []
 
 [dev-dependencies]
 tempfile = { workspace = true }
