@@ -9,10 +9,11 @@
 //! "Linux × T3(firecracker) × sidecar".
 //!
 //! Auto-skips unless KVM is accessible AND the dev assets exist under
-//! `target/fc/` (firecracker binary, `vmlinux`, `rootfs.ext4`) — produced
-//! by the Tier-3 spike (see `docs/tier3-build.md`). Productionizing the
-//! rootfs/image baking + pinning is a follow-up; this proves the Isolator
-//! against the spike assets.
+//! `target/fc/` (firecracker binary, `vmlinux`, `rootfs.ext4`). Build them
+//! reproducibly with `scripts/build-firecracker-rootfs.sh`; booting also
+//! needs `/dev/kvm` + `/dev/vhost-vsock` accessible to your user. A
+//! pinned/signed shipped image is a follow-up (Phase F); this proves the
+//! Isolator against the script-built dev assets.
 
 #![cfg(target_os = "linux")]
 #![allow(clippy::field_reassign_with_default)]

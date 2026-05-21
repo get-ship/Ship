@@ -163,9 +163,11 @@ Connect. The Firecracker `Isolator` is now a *transcription* of this recipe.
   flush-wait is a v1 — a cooperative **ACPI graceful shutdown** (firecracker
   API `SendCtrlAltDel` + an init that syncs/unmounts on signal) is the clean
   follow-up; dynamic data-image sizing (fixed 512M today).
-- **rootfs/image as tooling** — the rootfs is baked ad hoc by the dev spike;
-  productionize as a pinned, signed image (Phase F) + a baking step the
-  Isolator/CI runs (currently `FirecrackerConfig.rootfs` is a supplied path).
+- **rootfs/image as tooling** — ✅ reproducible: `scripts/build-firecracker-rootfs.sh`
+  builds the binary + kernel + busybox + static-musl sidecar + rootfs (the full
+  `/init` recipe), rootless. `firecracker_live` passes against its output. Still
+  a *dev* builder — a pinned, signed, bundled image is the Phase-F follow-up
+  (`FirecrackerConfig.rootfs` is a supplied path today).
 - **per-sandbox vs shared microVM + cold-start** — today one microVM per
   `prepare` (per-VM rootfs copy). Cheap boot, but a warm pool may be wanted;
   measure.

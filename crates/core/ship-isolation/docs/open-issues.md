@@ -6,6 +6,44 @@ default we're taking, what would invalidate the default. Append-only.
 Vocabulary: "sandbox" externally; internal struct `Sandbox` (was `Pod`
 in earlier drafts — k8s baggage avoided).
 
+## Where we are + next steps (2026-05)
+
+**Done + live-tested on Linux (the whole stack is proven):**
+- Sidecar v1 protocol + unified transport (TCP / unix socket / vsock).
+- **T1** SrtWrapper confinement (write-escape blocked; read-open is the
+  intentional dev-agent posture, pinned).
+- **T2** container: fs isolation + zero-egress confinement, hardened
+  bind-mounted unix-socket control plane, app-plane reachability.
+- **T3** Firecracker microVM — full vertical: boots, runs actors over
+  vsock, **workspace** (work-unit copy in/out), **app-plane** (agent
+  reaches the daemon over vsock), spawn-wired via the generic
+  `wire_sidecar_sandbox` driver, recommendable, enforce-refuse-safe,
+  and **reproducible** (`scripts/build-firecracker-rootfs.sh`).
+- Recommender + capability detection + enforce-refuse loud-fail chain.
+
+**Next steps, prioritized:**
+1. **Per-OS legs (mac/Windows) — biggest gap.** Apple Container / Lima /
+   WSL as sibling `Isolator`s against the generic driver (each ≈ "write
+   the `prepare()`"). Needs that hardware: maintainer's win10/11 + Intel
+   mac, contacts' Apple-Silicon mac.
+2. **CI coverage.** The live cells auto-skip without a substrate/KVM, so
+   the ✅ grid isn't continuously protected. Add a Linux CI job (podman +
+   a KVM runner for Firecracker) so regressions surface.
+3. **Credential broker.** Still parked — no runtime-fetch consumer. The
+   substrate cred-defense (T2/T3 don't mount `$HOME`) is done + tested;
+   the broker covers T1 + secrets-off-fs. Revisit when a consumer exists.
+4. **HarnessNative confinement test** (needs a live LLM run — the mac/Linux
+   launch-default tier's property is still unverified).
+5. **Phase-F image** — pinned/signed/bundled Firecracker kernel+rootfs +
+   Docker agent image (the script is a *dev* builder).
+6. **Refinements** — ACPI graceful shutdown (vs periodic-sync flush), a
+   T-RES test (cgroup caps actually cap).
+
+**Explicitly other branches (not isolation):** tool-gating / permissions
+(lean on the harness's auto-mode *classifier* + the filesystem deny-floor —
+not a brittle command parser; isolation is the real boundary); daemon
+transport hygiene / codegen sprawl; the MCP redesign.
+
 ## Backlog — ordered (10 items)
 
 Roughly dependency-ordered. The token foundation (1) underpins MCP (2),
