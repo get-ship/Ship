@@ -72,6 +72,10 @@ export default controller<Scope>({
     const overrides = signal<Record<string, string>>({})
     const savedSnapshot = signal<OverridePayload | null>(null)
     const status = signal<{ tone: 'idle' | 'saved' | 'error'; msg: string }>({ tone: 'idle', msg: '' })
+    // True once the user explicitly "Set active" — stops the editor from
+    // restoring the previous theme on unmount.
+    const committed = signal(false)
+    const isActive = derived(() => committed() || readStoredTheme() === activePack())
 
     const layers = derived(() => LAYERS)
     const packs = derived(() => THEME_PACKS)
@@ -188,12 +192,23 @@ export default controller<Scope>({
       }
     }
 
+    // Commit this theme as the user's active theme (explicit, vs the preview
+    // on open). Persists + flips committed so unmount won't restore.
+    function setActive(): void {
+      persistTheme(activePack())
+      committed.set(true)
+      status.set({ tone: 'saved', msg: 'Set as active theme.' })
+    }
+
     return {
       activePack,
       packDefaults,
       overrides,
       savedSnapshot,
       status,
+      committed,
+      isActive,
+      setActive,
       layers,
       packs,
       values,
@@ -215,12 +230,15 @@ export default controller<Scope>({
       overrides: Record<string, string>
       savedSnapshot: OverridePayload | null
       activePack: ThemeId
+      committed: boolean
     }
 
-    // Apply the theme being edited (from the route) so the document reflects
-    // it, then snapshot its computed token values for the editor inputs.
+    // Preview the theme being edited so the document reflects it and we can
+    // snapshot its computed tokens — but do NOT persist. Opening the editor
+    // shouldn't permanently swap the user's active theme; "Set active" commits
+    // it, and leaving without committing restores their previous theme.
+    const previousActive = readStoredTheme()
     applyTheme(scope.activePack)
-    persistTheme(scope.activePack)
     requestAnimationFrame(() => { scope.packDefaults = snapshotPack() })
 
     // Pull any saved overrides from the daemon and apply them.
@@ -245,6 +263,8 @@ export default controller<Scope>({
 
     return () => {
       document.removeEventListener('ship:theme:change', onThemeChange)
+      // Restore the user's theme if they edited without committing.
+      if (!scope.committed) applyTheme(previousActive)
     }
   },
 })

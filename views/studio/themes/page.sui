@@ -46,7 +46,7 @@
             {#for t of themes() key={t.id}}
               <button class="theme-card" type="button" data-test="theme-card"
                 attr:data-id={t.id} attr:data-active={t.isActive}
-                on:click={() => apply(t.id)}>
+                on:click={() => open(t.id)}>
                 <div class="theme-swatch" aria-hidden="true">
                   {#for c of t.swatches key={c}}
                     <span class="theme-swatch-chip" attr:style={'background:' + c}></span>

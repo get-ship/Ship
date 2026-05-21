@@ -29,8 +29,16 @@
     </div>
 
     <div class="ts-actions">
-      <button type="button" class="ts-btn ts-btn-primary"
-        data-test="theme-studio-save" on:click={savePersist}>Save</button>
+      {#if isActive()}
+        <button type="button" class="ts-btn ts-btn-active" disabled data-test="theme-active">
+          ✓ Active
+        </button>
+      {:else}
+        <button type="button" class="ts-btn ts-btn-primary"
+          data-test="theme-set-active" on:click={setActive}>Set active</button>
+      {/if}
+      <button type="button" class="ts-btn"
+        data-test="theme-studio-save" on:click={savePersist}>Save tokens</button>
       <button type="button" class="ts-btn"
         data-test="theme-studio-reset" on:click={resetToSaved}>Reset</button>
       <button type="button" class="ts-btn"

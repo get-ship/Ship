@@ -6,8 +6,6 @@
 import { controller, signal, derived, onCleanup } from '@ship/sui-runtime'
 import {
   THEMES,
-  applyTheme,
-  persistTheme,
   readStoredTheme,
   type ThemeId,
 } from '../../../packages/components/ui-components/src/tokens/themes'
@@ -65,13 +63,10 @@ export default controller<Scope>({
     },
   },
   on: {
-    // Clicking a theme applies it immediately AND opens its editor (the
-    // detail). The editor re-applies on mount, so apply here just makes the
-    // gallery feel instant before the route transition.
-    apply: (s, id: string) => {
-      applyTheme(id as ThemeId)
-      persistTheme(id as ThemeId)
-      s.active = id as ThemeId
+    // Clicking a theme opens its editor — it does NOT swap your live theme
+    // (browsing shouldn't lose your active theme). Applying is an explicit
+    // "Set active" action inside the editor.
+    open: (s, id: string) => {
       s.navigate(`/studio/themes/${id}`)
     },
     onSearchInput: (s, e: Event) => {
