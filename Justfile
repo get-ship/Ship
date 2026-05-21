@@ -15,19 +15,35 @@ default:
 
 # ── Daily ────────────────────────────────────────────────────────────────────
 
-# One-shot fresh-clone setup. Order matters: gen-types feeds the workspace,
-# pack builds populate the asset trees that shipd's include_str! consumes,
-# sui-catalog walks the resulting CEMs into workspace+published catalogs,
-# and dev-runtime-install copies bun + sui-compiler + bundler.ts into
-# ~/.ship/runtime/.
+# One-shot fresh-clone setup. Order matters and is dependency-driven: the
+# gitignored generated assets (lucide registry, sdk-*.json, the FFI cdylib,
+# the wasm pkg) must exist before the cargo + bun builds that consume them,
+# or a cold clone fails at compile/bundle time. On dispatched worktrees these
+# are copied from the launch repo by dispatch.sh; this recipe generates them.
 [group('daily')]
 bootstrap:
     #!/usr/bin/env bash
     set -euo pipefail
     command -v bun  >/dev/null || { echo "bun not on PATH — install via 'curl -fsSL https://bun.sh/install | bash'" >&2; exit 1; }
-    cargo run -p xtask --quiet -- gen-types
-    cargo build -p ship-cli
     bun install
+    cargo run -p xtask --quiet -- gen-types
+    # lucide-icons.json — deck-server's build.rs panics without it, so it must
+    # land before any cargo build that compiles deck-server (incl. gen-sdk).
+    bun scripts/codegen/generate-lucide-registry.mjs
+    # sdk-*.json bootstrap cycle: shipd include_str!s these, and gen-sdk runs
+    # *through* shipd (via xtask). Seed empty placeholders so shipd compiles,
+    # then gen-sdk overwrites them with real content.
+    mkdir -p packages/deck/sdk/src/generated
+    for f in sdk-urls sdk-view-contexts sdk-views sdk-collections sdk-triggers; do
+        [ -s "packages/deck/sdk/src/generated/$f.json" ] || echo '{}' > "packages/deck/sdk/src/generated/$f.json"
+    done
+    cargo run -p xtask --quiet -- gen-sdk
+    # sui-compiler cdylib — the .so the bun asset builds load over FFI.
+    cargo build -p sui-compiler
+    # sui-compiler-wasm pkg — the in-browser compiler the sui-code-editor
+    # component bundles against.
+    bun run wasm
+    cargo build -p ship-cli
     bun run --filter @ship/primitives build
     bun run --filter @ship/charts build
     bun run --filter @ship/ui-components build
@@ -257,22 +273,28 @@ build:
     #!/usr/bin/env bash
     set -euo pipefail
     command -v bun >/dev/null || { echo "build: bun not on PATH" >&2; exit 1; }
-    echo "[1/8] gen-types"
+    echo "[1/9] gen-types"
     cargo run -p xtask --quiet -- gen-types
-    echo "[2/8] primitives build (@ship/primitives → packages/components/primitives/dist/)"
+    echo "[2/9] sui-compiler cdylib (target/debug/libsui_compiler.so — FFI lib the bun builds load)"
+    # Steps 3-6 drive the SUI compiler over Bun FFI against this .so. Nothing
+    # in cargo's graph forces it to rebuild (the JS bundler consumes it
+    # out-of-band), so without this step it silently goes stale and bundles
+    # compile against an old token registry / lint set. Cheap no-op when fresh.
+    cargo build -p sui-compiler
+    echo "[3/9] primitives build (@ship/primitives → packages/components/primitives/dist/)"
     bun run --filter @ship/primitives build
-    echo "[3/8] charts build (@ship/charts → packages/components/charts/dist/)"
+    echo "[4/9] charts build (@ship/charts → packages/components/charts/dist/)"
     bun run --filter @ship/charts build
-    echo "[4/8] ui-components build (sui-build → crates/deck/deck-server/assets/)"
+    echo "[5/9] ui-components build (sui-build → crates/deck/deck-server/assets/)"
     bun run --filter @ship/ui-components build
-    echo "[5/8] view bundles + sui-* bundles (packages/deck/bundler/index.ts --all)"
+    echo "[6/9] view bundles + sui-* bundles (packages/deck/bundler/index.ts --all)"
     bun packages/deck/bundler/index.ts --all
-    echo "[6/8] sui-catalog walk (→ .ship/sui-out/catalogs/{workspace,published}.json)"
+    echo "[7/9] sui-catalog walk (→ .ship/sui-out/catalogs/{workspace,published}.json)"
     bun run --filter @ship/sui-catalog build
     bun packages/deck/catalog/src/cli.ts
-    echo "[7/8] cargo build --release (ship-cli + shipd + mcp)"
+    echo "[8/9] cargo build --release (ship-cli + shipd + mcp)"
     cargo build --release -p ship-cli -p shipd -p mcp
-    echo "[8/8] verify outputs"
+    echo "[9/9] verify outputs"
     target_dir=$(cargo metadata --format-version 1 --no-deps --offline | grep -o '"target_directory":"[^"]*"' | cut -d'"' -f4)
     missing=0
     for bin in ship shipd; do
