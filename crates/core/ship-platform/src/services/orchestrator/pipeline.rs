@@ -293,7 +293,7 @@ async fn advance_pipeline_inner(
                     spec_path: job.spec_path.clone(),
                     spec_content: None,
                     work_dir: worktree_path.clone(),
-                    env: [("SHIP_ACTOR_ID".to_string(), slug.clone())].into(),
+                    env: super::dispatch::build_spawn_env(&slug, octx.platform.as_ref()).await,
                     exit_tx: Some(exit_tx),
                     launch: LaunchProfile {
                         harness: step.harness.clone(),

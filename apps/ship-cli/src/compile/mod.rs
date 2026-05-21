@@ -49,6 +49,11 @@ pub struct CompileOptions<'a> {
     /// Recorded on the emitted `compile.completed` event so the
     /// `project_compile_state` projection knows which plugins are live.
     pub plugins_installed: Vec<String>,
+    /// Compile for a daemon-spawned scoped launch (dispatch/command-bar/
+    /// sandbox): emit the daemon-hosted authed-HTTP `ship` MCP entry instead
+    /// of the trusted-local stdio shim. Set by `ship use --scoped` (the
+    /// dispatcher); a manual `ship use` leaves it false.
+    pub scoped_launch: bool,
 }
 
 pub fn run_compile(opts: CompileOptions<'_>) -> Result<()> {
@@ -116,6 +121,8 @@ pub fn run_compile(opts: CompileOptions<'_>) -> Result<()> {
     // with `SHIP_HOME` without reading env directly (it is WASM-safe).
     let ship_home: ship_substrate::ShipHome = ship_substrate::ShipHome::from_env();
     resolved.ship_home_dir = Some(ship_home.root().to_string_lossy().into_owned());
+    // Daemon-spawned scoped launch → emit the authed-HTTP `ship` MCP entry.
+    resolved.scoped_launch = opts.scoped_launch;
 
     // 4. Determine harnesses to compile for
     let harnesses: Vec<String> = match opts.harness {

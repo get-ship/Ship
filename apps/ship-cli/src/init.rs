@@ -240,6 +240,7 @@ fn run_project(harness: Option<String>) -> Result<()> {
             &project_root,
             None,
             vec![],
+            false,
         ) {
             eprintln!("warning: could not auto-activate dev agent: {}", e);
             println!("\nNext steps:");

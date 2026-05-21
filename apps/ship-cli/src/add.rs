@@ -183,6 +183,7 @@ fn do_add(project_root: &Path, pkg_path: &str, _version: &str) -> Result<()> {
         active_agent: state.active_agent.as_deref(),
         extra_skills: vec![],
         plugins_installed: state.plugins_installed.clone(),
+            scoped_launch: false,
     })
     .context("compiling after add")?;
 

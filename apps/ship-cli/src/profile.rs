@@ -65,6 +65,7 @@ pub fn activate_agent(
     project_root: &Path,
     output_root: Option<&Path>,
     extra_skills: Vec<String>,
+    scoped: bool,
 ) -> Result<()> {
     let ship_dir = ship_substrate::ShipHome::project_ship_dir(project_root);
     let state = ProjectState::load(&ship_dir);
@@ -110,6 +111,7 @@ pub fn activate_agent(
         active_agent: Some(&id),
         extra_skills: extra_skills.clone(),
         plugins_installed: now_plugins,
+        scoped_launch: scoped,
     })?;
     if extra_skills.is_empty() {
         println!("✓ activated agent '{}'", id);
