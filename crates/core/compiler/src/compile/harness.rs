@@ -17,9 +17,10 @@ use crate::types::{AgentProfile, McpServerConfig};
 /// Compile one agent profile into this harness's native agent-file body.
 pub type CompileAgentFn = fn(&AgentProfile) -> String;
 /// Build this harness's MCP server config block.
-/// Args: descriptor, project MCP servers, resolved ship-home dir.
+/// Args: descriptor, project MCP servers, resolved ship-home dir, whether this
+/// is a daemon-spawned scoped launch (gates the authed-HTTP `ship` entry).
 pub type BuildMcpFn =
-    fn(&HarnessDescriptor, &[McpServerConfig], Option<&str>) -> Json;
+    fn(&HarnessDescriptor, &[McpServerConfig], Option<&str>, bool) -> Json;
 /// Populate this harness's native settings/policy/hook outputs.
 pub type BuildSettingsFn = fn(&HarnessDescriptor, &ResolvedConfig, &mut CompileOutput);
 

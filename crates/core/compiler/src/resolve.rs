@@ -61,6 +61,15 @@ pub struct ResolvedConfig {
     /// when this is `None` (e.g. WASM frontends), the compiler emits an
     /// MCP entry without the `SHIP_HOME` env injection.
     pub ship_home_dir: Option<String>,
+    /// Whether this config is compiled for a daemon-spawned, scoped launch
+    /// (dispatch / command-bar / sandbox) rather than a manual `ship use`.
+    /// Set true by the dispatcher/daemon, which inject `$SHIP_TOKEN` +
+    /// `$SHIP_DAEMON_URL` into the agent's env. When true, the self-hosted
+    /// `ship` server compiles to the daemon-hosted authed-HTTP entry
+    /// (scope-enforced); when false (manual local dev), it stays the
+    /// trusted-local stdio shim — the human is the host, full local access
+    /// is fine and there is no spawner to provision the token env.
+    pub scoped_launch: bool,
 }
 
 /// Resolve the effective agent config from pre-loaded project data.
@@ -363,6 +372,7 @@ pub fn resolve(
         opencode: crate::compile::OpenCodeSettings::default(),
         cursor: crate::compile::CursorSettings::default(),
         ship_home_dir: None,
+        scoped_launch: false,
     }
 }
 

@@ -142,7 +142,8 @@ pub fn compile(resolved: &ResolvedConfig, harness_id: &str) -> Option<CompileOut
         // field variant; the rest share mcp::build_mcp_servers). The self-
         // hosted `ship` entry is authed-HTTP or stdio per the descriptor's
         // `supports_authed_http_mcp` flag — no studio_url branch.
-        out.mcp_servers = (desc.build_mcp)(desc, &resolved.mcp_servers, ship_home);
+        out.mcp_servers =
+            (desc.build_mcp)(desc, &resolved.mcp_servers, ship_home, resolved.scoped_launch);
         out.mcp_config_path = desc.mcp_config_path.map(String::from);
     } else {
         out.mcp_servers = serde_json::json!({});

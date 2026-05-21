@@ -8,16 +8,18 @@ pub(super) fn build_mcp_servers(
     desc: &HarnessDescriptor,
     servers: &[McpServerConfig],
     ship_home_dir: Option<&str>,
+    scoped_launch: bool,
 ) -> Json {
     let mut map = serde_json::Map::new();
 
-    // Ship's own self-hosted MCP server is always injected first. Harnesses
-    // that can carry a bearer in static config get the daemon-hosted authed
-    // HTTP entry (`${SHIP_DAEMON_URL}/mcp` + `Bearer ${SHIP_TOKEN}`); the rest
-    // fall back to the local stdio shim. The env references are resolved by the
-    // harness at launch from the env the daemon/dispatcher (and sandbox path)
-    // provision — no live credential is written to disk.
-    let ship_entry = if desc.supports_authed_http_mcp {
+    // Ship's own self-hosted MCP server is always injected first. On a
+    // daemon-spawned scoped launch (dispatch/command-bar/sandbox) where the
+    // spawner injects `$SHIP_TOKEN` + `$SHIP_DAEMON_URL` AND scope-enforcement
+    // matters, a capable harness gets the daemon-hosted authed-HTTP entry. A
+    // manual `ship use` (no spawner, human is the host) keeps the trusted-local
+    // stdio shim. The env references are resolved by the harness at launch — no
+    // live credential is written to disk.
+    let ship_entry = if scoped_launch && desc.supports_authed_http_mcp {
         ship_server_entry_authed_http(desc)
     } else {
         ship_server_entry(desc.emit_type_field, ship_home_dir)
@@ -150,22 +152,34 @@ mod tests {
     }
 
     #[test]
-    fn supported_harness_emits_daemon_hosted_http() {
+    fn scoped_launch_supported_harness_emits_daemon_hosted_http() {
         use crate::compile::harness::get_harness;
-        // Claude is verified for authed HTTP → daemon-hosted entry, no stdio.
+        // Claude on a scoped (daemon-spawned) launch → daemon-hosted HTTP.
         let desc = get_harness("claude").unwrap();
-        let result = build_mcp_servers(desc, &[], Some("/var/lib/ship"));
+        let result = build_mcp_servers(desc, &[], Some("/var/lib/ship"), true);
         let ship = &result["ship"];
         assert_eq!(ship["url"], "${SHIP_DAEMON_URL}/mcp");
         assert!(ship.get("command").is_none());
     }
 
     #[test]
-    fn unsupported_harness_falls_back_to_stdio_shim() {
+    fn manual_launch_uses_stdio_even_for_supported_harness() {
         use crate::compile::harness::get_harness;
-        // Codex is not yet verified for authed HTTP → stdio shim fallback.
+        // Claude on a manual `ship use` (scoped_launch = false) → stdio shim.
+        // The human is the host; there's no spawner to provision $SHIP_TOKEN.
+        let desc = get_harness("claude").unwrap();
+        let result = build_mcp_servers(desc, &[], Some("/var/lib/ship"), false);
+        let ship = &result["ship"];
+        assert_eq!(ship["command"], "ship");
+        assert!(ship.get("headers").is_none());
+    }
+
+    #[test]
+    fn unsupported_harness_falls_back_to_stdio_even_when_scoped() {
+        use crate::compile::harness::get_harness;
+        // Codex is not yet verified for authed HTTP → stdio even on a scoped launch.
         let desc = get_harness("codex").unwrap();
-        let result = build_mcp_servers(desc, &[], Some("/var/lib/ship"));
+        let result = build_mcp_servers(desc, &[], Some("/var/lib/ship"), true);
         let ship = &result["ship"];
         assert_eq!(ship["command"], "ship");
         assert_eq!(ship["env"]["SHIP_HOME"], "/var/lib/ship");

@@ -101,5 +101,6 @@ pub fn resolved(servers: Vec<McpServerConfig>) -> ResolvedConfig {
         opencode: Default::default(),
         cursor: Default::default(),
         ship_home_dir: None,
+        scoped_launch: false,
     }
 }
