@@ -45,9 +45,11 @@ construction, with no shadowing and no undocumented load-bearing skills.
 4. **The sidecar *is* the supervisor.** Every agent — Tier 0 host included — runs
    behind a per-agent sidecar that holds the credential and is the only path to
    the daemon.
-5. **Skills are credential-free API clients.** A skill is *disclosure* (prose) +
-   *endpoint bindings* (op id + transport + required scope). A skill never carries
-   a token.
+5. **Skills are API clients — disclosure (prose) + endpoint bindings (op id +
+   transport + required scope).** *Where the credential lives is an open question*
+   (see decisions): the default is the sidecar holds it and the skill carries none;
+   a self-contained skill that hosts a short-lived scoped token is on the table but
+   carries copy-leak risk.
 6. **Per-agent capability = compile-time skill set + runtime scope** (defence in
    depth).
 
@@ -95,10 +97,13 @@ endpoints:               # what it calls — the API-client contract (new)
 
 - The skill **references** the op by id; it does **not** re-declare schema or
   scopes — those live in the registry, validated once.
-- **No credential in the skill.** Skills are copied per agent and per worktree; a
-  token in a skill file would leak. The credential lives in the sidecar (below)
-  and is supplied at invocation. A copied skill carries only prose + op references
-  — safe to copy anywhere.
+- **Where the credential lives — open.** Skills get copied per agent and per
+  worktree, so a *long-lived* token in a skill file would leak. Two options are on
+  the table: (a) the credential lives in the sidecar and the skill carries none —
+  copies are pure prose + op refs, safe anywhere (default); (b) a skill hosts a
+  short-lived, per-agent-minted scoped token for self-containment/portability —
+  viable only with mitigations (short TTL, minted at compile/spawn, never
+  committed). This is a real tradeoff, not a settled invariant — see decisions.
 - **Progressive disclosure is the context win.** Only the in-use skill's prose
   enters the agent's context; the typed contract was never in context (it lives in
   the registry, the sidecar resolves it). MCP would force the whole tool-schema
@@ -146,8 +151,10 @@ bypassing the model (which is how agents ended up on the `Full` token).
 
 ## Security model (the must-get-right)
 
-- **Skills carry no secret.** Credential lives in the sidecar, injected per-spawn.
-  Copying a skill copies prose + op references, never a token.
+- **Credential location is an open security call (see decisions).** Default: the
+  sidecar holds the credential and skills carry none, so a copied skill is pure
+  prose + op refs. *If* a skill ever hosts a token it must be short-lived,
+  per-agent, and never committed — because skills propagate.
 - **No escalation.** Macaroon caveats prevent a sandbox/subagent from minting a
   broader credential; the registry's per-op required scope is the floor.
 - **Human-only ops** stay on the CLI and are denied to agents by the tool-gate
@@ -172,9 +179,17 @@ bypassing the model (which is how agents ended up on the `Full` token).
 
 ## Open decisions (must close before building)
 
-1. **Does the one operation-descriptor registry exist today, or are ops declared
-   per-surface?** This decides whether the work is "extend the skill schema" or
-   "first build the registry, then extend." (Charter says it should exist; verify.)
+1. **RESOLVED — the registry exists.** It is the `ship_ops!` macro →
+   `schema::OPS`, where each op is an `OpDescriptor { name, description, args,
+   returns, permission, sensitive }` declared once and dispatched once
+   (`try_dispatch`), in `apps/shipd/src/services/registry/` (~45 typed ops across
+   account/chat/sessions/mesh/workspaces/…). **MCP is already a projection**
+   (`registry/mcp.rs`), and it **already carries the per-op `permission`** — the
+   scope this design needs. It lives on `job/typed-ops` (merged into sui-framework
+   today; **cleanly separable** from the SUI rename — 0 rename-coupled files).
+   Remaining work is *not* "build the registry": it's (a) land `job/typed-ops` on
+   main, (b) add a `transport` axis to `OpDescriptor`, (c) project to skill
+   `endpoints[]`.
 2. **Sidecar→agent channel:** stdio vs `ship`-shim on `PATH` vs `remoc` — likely
    all exposed, with one wire protocol (`remoc`) to the daemon.
 3. **Is the human CLI a privileged path, or also a scoped principal** (an
@@ -182,10 +197,16 @@ bypassing the model (which is how agents ended up on the `Full` token).
    dies entirely.
 4. **Macaroon library + verification location** (daemon-only vs offline at the
    edge for sandboxes).
+5. **Where does the agent credential live — sidecar-only, or may a skill host a
+   short-lived scoped token?** Sidecar-only keeps skills pure-prose and copy-safe;
+   a token-in-skill buys self-containment/portability at copy-leak risk, and would
+   demand short TTL + per-agent minting + never-committed. Genuinely open — do not
+   treat as decided.
 
 ## Migration sketch (incremental, behavior-preserving)
 
-1. Confirm/build the operation-descriptor registry as the single source.
+1. Registry is done (`ship_ops!`/`OpDescriptor`). Land `job/typed-ops` on main
+   (cleanly separable), then add a `transport` axis to `OpDescriptor`.
 2. Add `endpoints[]` to `skill.schema.json` — declaration only, no behavior change.
 3. Introduce the `Sidecar` abstraction for Tier 0/1 (supervisor spawns
    sidecar→agent); inject the macaroon; expose the invoke channel.
