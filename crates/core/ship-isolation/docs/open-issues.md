@@ -55,14 +55,16 @@ and broaden.
    prepare → v1 health → spawn actor → output over AttachPty → reap.
    First proof an agent actually runs inside a real container.
 
-6. **VM substrate — the PRIMARY Tier 2 path.** Intent captured in
-   `vm-substrate.md`; buildable spec refines from there. youki + a
-   Ship-managed Linux VM = zero-install isolation for non-technical
-   users. Build: VM-provider abstraction (Lima / Apple-Virtualization
-   on mac, WSL2 / Hyper-V on win), VM lifecycle, Linux VM image
-   (youki + sidecar), vsock / forwarded-port transport
-   (`RuntimeEndpoint::Remote` already accommodates), detect-or-bundle
-   recommender (detect docker/podman → adaptor; else bundled youki+VM).
+6. **Ship-managed substrate (T3) — the consumer default.** Model in
+   `substrate.md`. A dedicated, headless Linux substrate — **Lima VM**
+   (mac) / **Ship WSL distro** (win) — with **bubblewrap per actor**
+   inside (reuses Tier 1; NO container runtime, no nesting). The sidecar
+   runs in it identically to a container. Build: substrate provisioners +
+   lifecycle, the baked substrate image, vsock/forwarded-port transport
+   (`RuntimeEndpoint::Remote`), detect-or-bundle recommender (container
+   runtime present → T2 adapter; else → bundled T3, escalate consumers
+   here). Hypervisor-per-actor ceiling: dedicated VM (mac) / Hyper-V
+   (win-Pro) / cloud (T4).
 
 7. **agent-runner image (deliverable).** `ghcr.io/ship/agent-runner`:
    baked sidecar + harness CLIs + common stdio MCP servers. Build /
