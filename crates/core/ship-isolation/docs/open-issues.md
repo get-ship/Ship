@@ -282,6 +282,13 @@ Invalidated if: image size becomes a real constraint (CLI is ~15MB).
 - ✅ First live container cell — actor runs in a real rootless podman
   container over v1 (`podman_sidecar_live`); caught the `--detach`-on-
   `create` bug en route
+- ✅ Async dispatch off the mailbox — `dispatch_agent_session_internal` is
+  now `tokio::spawn`'d so Tier-2 sandbox prep (docker run + sidecar-up)
+  never stalls the orchestrator's single sequential mailbox loop (the
+  spec's risk #7, which was live: prep ran synchronously inside
+  `executor.spawn`). Session stays observably Pending until `dispatched`.
+  Cancel-during-prep hard-abort + `IsolationPolicy`-on-payload are
+  documented follow-ups (see dispatch.rs).
 - ✅ App-plane reachability keystone — `--add-host` + URL rewrite +
   `SHIP_DAEMON_URL` injection; `container_reach_live` proves a container
   actor reaches the host daemon plane

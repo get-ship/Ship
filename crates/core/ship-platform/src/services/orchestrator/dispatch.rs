@@ -347,7 +347,38 @@ pub async fn handle_agent_session_started(
         return;
     }
 
-    dispatch_agent_session_internal(kernel, &payload, octx).await;
+    // Dispatch OFF the mailbox loop. The orchestrator router is a single
+    // sequential mailbox loop (`router.rs`: `while let Some(env) =
+    // mb.recv().await { handle_job_event(...).await }`). Sandbox prep for
+    // Tier 2+ runs synchronously inside `executor.spawn` (docker run +
+    // sidecar-up — seconds; minutes for VM boot in Tranche C), so awaiting
+    // it here would stall EVERY other session/pipeline event for the whole
+    // prep. We detach the dispatch+prep into a task instead: the mailbox
+    // returns immediately, and the session row stays in its post-`started`
+    // Pending state until this task emits `agent.session.dispatched` (or
+    // `.failed`) — exactly the observable "preparing sandbox" window we
+    // want, without a fake "running".
+    //
+    // Concurrency tradeoff (deliberate): this trades strict sequential
+    // dispatch for per-session concurrency. Safe because (a) event dedup +
+    // the terminal-state guard already ran synchronously in
+    // `handle_job_event` BEFORE this point, and (b) sessions are mutually
+    // independent (a sandbox is a per-project trust domain). Pipeline-
+    // composed sessions never reach here (returned above).
+    //
+    // KNOWN LIMITATION (follow-up): a cancel arriving *during* prep does not
+    // hard-abort this task — the projection flips the row to Cancelled but
+    // the actor may still spawn, then is stoppable via the normal registry
+    // path. The window is small for container prep. A JoinHandle-stash +
+    // `agent.session.cancelled` router arm (true abort + SandboxOwner
+    // teardown) lands with the Tranche C VM work, where prep is long enough
+    // for abort to matter. Today's blocking path couldn't cancel during prep
+    // either (mailbox was stalled), so this is not a regression.
+    let kernel = kernel.clone();
+    let octx = octx.clone();
+    tokio::spawn(async move {
+        dispatch_agent_session_internal(&kernel, &payload, &octx).await;
+    });
 }
 
 async fn dispatch_agent_session_internal(
