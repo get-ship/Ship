@@ -211,28 +211,30 @@ pub(super) fn build_codex_config_patch(resolved: &ResolvedConfig) -> Option<Stri
 
 /// Build the `.codex/hooks.json` content.
 ///
-/// Codex fires hooks for all four lifecycle events. The `SessionStart` hook
-/// runs `ship hook session-start` (no stdin). Tool hooks run `ship hook
-/// before-tool` / `ship hook after-tool` with a JSON payload on stdin.
-/// `Stop` maps to `ship hook session-end`.
+/// Codex fires hooks for all four lifecycle events. Each runs the shared
+/// hybrid command (`super::ship_hook_command`): in a sandbox it curls the
+/// daemon with the injected `$SHIP_DAEMON_URL` + scoped `$SHIP_TOKEN` (no
+/// `ship` CLI in the container); on the host it falls back to
+/// `ship hook <phase>`. `SessionStart`→session-start, `PreToolUse`→
+/// before-tool, `PostToolUse`→after-tool, `Stop`→session-end.
 pub(super) fn build_codex_hooks_json() -> Json {
     serde_json::json!({
         "hooks": [
             {
                 "event": "SessionStart",
-                "hooks": [{ "type": "command", "command": "ship hook session-start" }]
+                "hooks": [{ "type": "command", "command": super::ship_hook_command("session-start") }]
             },
             {
                 "event": "PreToolUse",
-                "hooks": [{ "type": "command", "command": "ship hook before-tool" }]
+                "hooks": [{ "type": "command", "command": super::ship_hook_command("before-tool") }]
             },
             {
                 "event": "PostToolUse",
-                "hooks": [{ "type": "command", "command": "ship hook after-tool" }]
+                "hooks": [{ "type": "command", "command": super::ship_hook_command("after-tool") }]
             },
             {
                 "event": "Stop",
-                "hooks": [{ "type": "command", "command": "ship hook session-end" }]
+                "hooks": [{ "type": "command", "command": super::ship_hook_command("session-end") }]
             }
         ]
     })

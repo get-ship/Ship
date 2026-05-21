@@ -50,8 +50,9 @@ and broaden.
    *blocking* is observability-only in the curl branch (raw curl can't
    translate the daemon's allow/block into Claude's hook-block protocol —
    a small response-translator is the follow-up); host blocking is intact.
-   *Remaining:* apply the same helper to codex (the other command-hook
-   darling). (Server-mode harnesses
+   Codex now uses the same hybrid helper (shared
+   `compile::ship_hook_command`), so both command-hook darlings are
+   pod-reachable. (Server-mode harnesses
    opencode/codex also feed hooks via stream-synthesis through the
    broadcast the sidecar already pipes — ONE of four transports, not
    the general mechanism.)

@@ -3,6 +3,28 @@ use crate::resolve::ResolvedConfig;
 
 use super::fixtures::*;
 
+/// Codex lifecycle hooks use the same pod/host hybrid command as claude:
+/// curl the daemon over `$SHIP_DAEMON_URL` with the scoped `$SHIP_TOKEN`
+/// inside a sandbox, fall back to `ship hook` on the host. One config,
+/// both tiers — the isolation tier is only known per-spawn.
+#[test]
+fn codex_hooks_are_pod_and_host_hybrid() {
+    let out = compile(&resolved(vec![]), "codex").unwrap();
+    let hooks = out.codex_hooks_json.expect("codex emits hooks.json");
+    // Find the PreToolUse entry's command.
+    let cmd = hooks["hooks"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|e| e["event"] == "PreToolUse")
+        .expect("PreToolUse hook")["hooks"][0]["command"]
+        .as_str()
+        .expect("command string");
+    assert!(cmd.contains("$SHIP_DAEMON_URL/api/v1/hooks/before-tool"), "got: {cmd}");
+    assert!(cmd.contains("Authorization: Bearer $SHIP_TOKEN"), "got: {cmd}");
+    assert!(cmd.contains("ship hook before-tool"), "host fallback: {cmd}");
+}
+
 /// Source: https://developers.openai.com/codex/mcp
 /// Codex config is TOML — codex_config_patch must be a valid TOML string.
 #[test]

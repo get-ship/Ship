@@ -157,31 +157,7 @@ pub fn build_claude_settings_patch(
     Some(patch)
 }
 
-/// Hook command that works on the host *and* inside a sandbox, from one
-/// compiled config. The compiler can't know at compile time whether this
-/// agent will run sandboxed (the isolation tier is resolved per-spawn), so
-/// the command branches at run time on `$SHIP_DAEMON_URL`:
-///
-/// - **In a sandbox** the supervisor injects `$SHIP_DAEMON_URL` (rewritten
-///   to a container-reachable host) + a scoped `$SHIP_TOKEN`; the hook
-///   `curl`s its harness-native payload straight at the daemon — no `ship`
-///   CLI in the container. The daemon derives identity from the token and
-///   deserializes the raw payload via `ShipHookEvent`'s field aliases.
-/// - **On the host** `$SHIP_DAEMON_URL` is unset, so it falls back to
-///   `ship hook <phase>` (CLI + `~/.ship/daemon.token`) — unchanged.
-///
-/// Note: `before-tool` *blocking* is observability-only in the curl branch
-/// (raw curl can't translate the daemon's allow/block response into
-/// Claude's hook-block protocol); host blocking via `ship hook` is intact.
-fn ship_hook_command(endpoint: &str) -> String {
-    format!(
-        "if [ -n \"$SHIP_DAEMON_URL\" ]; then \
-curl -sS -X POST \"$SHIP_DAEMON_URL/api/v1/hooks/{endpoint}\" \
--H \"Authorization: Bearer $SHIP_TOKEN\" -H \"Content-Type: application/json\" \
---data-binary @- >/dev/null 2>&1; \
-else ship hook {endpoint}; fi"
-    )
-}
+use super::ship_hook_command;
 
 /// Inject Ship lifecycle hooks for the daemon into Claude's hooks patch.
 ///
