@@ -1,272 +1,132 @@
-// Theme Studio controller.
+// Theme editor — faithful to .artifacts/studio-design-v3/themes/detail.html.
 //
-// Reads the canonical token catalog (token-catalog.ts), exposes per-layer
-// editor rows, and writes live edits through `chrome.theme.set(token, value)`
-// — the IPC wrapper persists into the shell's per-view claim registry and
-// drops them on unmount. Pack changes drive `applyTheme(id)` which flips
-// `data-theme` on <html>, then re-reads each token's resolved value into
-// the draft signal so the editor inputs reflect the active pack. User
-// overrides ride on top of pack values until "Reset to pack."
-//
-// Persistence:
-//   PUT /api/v1/settings { key: 'theme.overrides', value: <JSON> }
-// Round-trip is plain JSON so Export/Import use the same shape.
-
-import { controller, signal, derived, chrome } from '@ship/sui-runtime'
-import { applyTheme, readStoredTheme, persistTheme, isValidTheme, type ThemeId } from '../../../../packages/components/ui-components/src/tokens/themes'
+// Design intent that the old port missed:
+//  • The live preview is SCOPED — a container with data-theme={id} plus the
+//    in-flight overrides as inline CSS vars. Editing never swaps the user's
+//    global theme; "Set active" is the only thing that does.
+//  • Tokens are grouped by category (tabs), each row typed (color → swatch +
+//    picker, length/number/font → appropriate control), with an override dot.
+import { controller, signal, derived, effect, onCleanup } from '@ship/sui-runtime'
+import {
+  THEMES,
+  applyTheme,
+  persistTheme,
+  readStoredTheme,
+  isValidTheme,
+  type ThemeId,
+} from '../../../../packages/components/ui-components/src/tokens/themes'
+import { LAYERS, ALL_TOKENS, type TokenType } from './token-catalog'
 import type { Scope } from './page.sui'
-import { LAYERS, THEME_PACKS, ALL_TOKENS } from './token-catalog'
 
-const STORAGE_KEY = 'theme.overrides'
+const CATEGORIES = [{ id: 'all', label: 'All' }, ...LAYERS.map((l) => ({ id: l.id, label: l.label }))]
+// Common font-weight options for the number control.
+const WEIGHTS = ['300', '400', '500', '600', '700', '800']
 
-interface OverridePayload {
-  pack: ThemeId
-  values: Record<string, string>
+interface Row {
+  name: string
+  type: TokenType
+  value: string
+  overridden: boolean
 }
-
-function readResolved(token: string): string {
-  if (typeof window === 'undefined') return ''
-  return getComputedStyle(document.documentElement).getPropertyValue(token).trim()
-}
-
-function snapshotPack(): Record<string, string> {
-  const out: Record<string, string> = {}
-  for (const t of ALL_TOKENS) out[t.name] = readResolved(t.name)
-  return out
-}
-
-async function loadOverrides(): Promise<OverridePayload | null> {
-  try {
-    const res = await fetch(`/api/v1/settings/${encodeURIComponent(STORAGE_KEY)}`, {
-      credentials: 'same-origin',
-    })
-    if (!res.ok) return null
-    const body = (await res.json()) as { data?: { value?: unknown } } | { value?: unknown }
-    const raw = 'data' in body ? body.data?.value : (body as { value?: unknown }).value
-    if (typeof raw !== 'string') return null
-    const parsed = JSON.parse(raw) as Partial<OverridePayload>
-    if (!parsed || typeof parsed !== 'object' || !parsed.values) return null
-    const pack = isValidTheme(parsed.pack) ? parsed.pack : readStoredTheme()
-    return { pack, values: parsed.values as Record<string, string> }
-  } catch {
-    return null
-  }
-}
-
-async function saveOverrides(payload: OverridePayload): Promise<void> {
-  await fetch('/api/v1/settings', {
-    method: 'PUT',
-    credentials: 'same-origin',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ key: STORAGE_KEY, value: JSON.stringify(payload) }),
-  })
+interface Group {
+  id: string
+  label: string
+  tokens: Row[]
 }
 
 export default controller<Scope>({
   scope: ({ route }) => {
-    // The theme being edited comes from the route (/studio/themes/:id); fall
-    // back to the stored theme if the param isn't a valid theme id.
-    const routeId = route.params.id()
-    const activePack = signal<ThemeId>(isValidTheme(routeId) ? routeId : readStoredTheme())
-    const packDefaults = signal<Record<string, string>>({})
+    const themeId = derived<ThemeId>(() => {
+      const id = route.params.id()
+      return isValidTheme(id) ? id : readStoredTheme()
+    })
+    const theme = derived(() => THEMES.find((t) => t.id === themeId()) ?? null)
+    const activeCat = signal('all')
+    // Base token values for this theme, read from a scoped probe at mount.
+    const base = signal<Record<string, string>>({})
+    // In-flight edits, layered over the base.
     const overrides = signal<Record<string, string>>({})
-    const savedSnapshot = signal<OverridePayload | null>(null)
-    const status = signal<{ tone: 'idle' | 'saved' | 'error'; msg: string }>({ tone: 'idle', msg: '' })
-    // True once the user explicitly "Set active" — stops the editor from
-    // restoring the previous theme on unmount.
     const committed = signal(false)
-    const isActive = derived(() => committed() || readStoredTheme() === activePack())
 
-    const layers = derived(() => LAYERS)
-    const packs = derived(() => THEME_PACKS)
+    // themes.css scopes tokens to :root[data-theme], so a theme's values only
+    // resolve when applied to <html>. Apply it (preview), read its tokens, and
+    // restore the user's theme on leave unless they Set active. Edits live in
+    // `overrides` and only paint the preview pane, so the rest of the app keeps
+    // the unedited theme while you work.
+    const previousActive = readStoredTheme()
+    effect(() => {
+      const id = themeId()
+      if (typeof document === 'undefined') return
+      applyTheme(id)
+      const cs = getComputedStyle(document.documentElement)
+      const map: Record<string, string> = {}
+      for (const t of ALL_TOKENS) map[t.name] = cs.getPropertyValue(t.name).trim()
+      base.set(map)
+    })
+    onCleanup(() => {
+      if (!committed()) applyTheme(previousActive)
+    })
 
-    // Resolved-value lookup table for inputs: override wins, then pack
-    // default, then the computed style (covers tokens we haven't snapshotted
-    // yet). Re-derives whenever overrides or pack-defaults change. Templates
-    // read via `values()[tok.name]` — sui-compiler rejects parameterised
-    // function calls inside expressions, so we materialise the whole map.
-    const values = derived<Record<string, string>>(() => {
-      const o = overrides()
-      const d = packDefaults()
+    const resolved = derived<Record<string, string>>(() => {
+      const b = base() as Record<string, string>
+      const o = overrides() as Record<string, string>
       const out: Record<string, string> = {}
-      for (const t of ALL_TOKENS) {
-        if (t.name in o) out[t.name] = o[t.name] ?? ''
-        else if (t.name in d) out[t.name] = d[t.name] ?? ''
-        else out[t.name] = readResolved(t.name)
-      }
+      for (const t of ALL_TOKENS) out[t.name] = o[t.name] ?? b[t.name] ?? ''
       return out
     })
 
-    function setToken(token: string, value: string): void {
-      const next = { ...overrides(), [token]: value }
-      overrides.set(next)
-      chrome.theme.set(token, value)
-    }
-
-    function applyAllOverrides(values: Record<string, string>): void {
-      for (const [k, v] of Object.entries(values)) {
-        chrome.theme.set(k, v)
-      }
-    }
-
-    function clearAllOverrides(values: Record<string, string>): void {
-      for (const k of Object.keys(values)) chrome.theme.clear(k)
-    }
-
-    function selectPack(idRaw: string): void {
-      if (!isValidTheme(idRaw)) return
-      const id = idRaw as ThemeId
-      clearAllOverrides(overrides())
-      const next = applyTheme(id)
-      persistTheme(next)
-      activePack.set(next)
-      overrides.set({})
-      // Re-snapshot defaults after data-theme flips. Defer one frame so
-      // the cascade settles before getComputedStyle reads.
-      requestAnimationFrame(() => packDefaults.set(snapshotPack()))
-    }
-
-    function resetToPack(): void {
-      clearAllOverrides(overrides())
-      overrides.set({})
-      status.set({ tone: 'idle', msg: 'Reset to pack defaults.' })
-    }
-
-    function resetToSaved(): void {
-      const saved = savedSnapshot()
-      clearAllOverrides(overrides())
-      if (!saved) {
-        overrides.set({})
-        status.set({ tone: 'idle', msg: 'Reverted (no saved overrides).' })
-        return
-      }
-      overrides.set({ ...saved.values })
-      applyAllOverrides(saved.values)
-      status.set({ tone: 'idle', msg: 'Reverted to last saved.' })
-    }
-
-    async function savePersist(): Promise<void> {
-      const payload: OverridePayload = { pack: activePack(), values: { ...overrides() } }
-      try {
-        await saveOverrides(payload)
-        savedSnapshot.set(payload)
-        status.set({ tone: 'saved', msg: 'Saved.' })
-        setTimeout(() => {
-          if (status().tone === 'saved') status.set({ tone: 'idle', msg: '' })
-        }, 1600)
-      } catch (err) {
-        status.set({ tone: 'error', msg: `Save failed: ${(err as Error).message}` })
-      }
-    }
-
-    function exportJson(): void {
-      const payload: OverridePayload = { pack: activePack(), values: { ...overrides() } }
-      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `theme-${payload.pack}-overrides.json`
-      a.click()
-      URL.revokeObjectURL(url)
-    }
-
-    async function importFiles(files: FileList | null): Promise<void> {
-      if (!files || files.length === 0) return
-      const file = files[0]
-      if (!file) return
-      try {
-        const text = await file.text()
-        const parsed = JSON.parse(text) as Partial<OverridePayload>
-        if (!parsed.values || typeof parsed.values !== 'object') {
-          throw new Error('missing "values" object')
-        }
-        const pack: ThemeId = isValidTheme(parsed.pack) ? parsed.pack : activePack()
-        if (pack !== activePack()) selectPack(pack)
-        clearAllOverrides(overrides())
-        const values = parsed.values as Record<string, string>
-        overrides.set({ ...values })
-        applyAllOverrides(values)
-        status.set({ tone: 'saved', msg: `Imported ${Object.keys(values).length} overrides.` })
-      } catch (err) {
-        status.set({ tone: 'error', msg: `Import failed: ${(err as Error).message}` })
-      }
-    }
-
-    // Commit this theme as the user's active theme (explicit, vs the preview
-    // on open). Persists + flips committed so unmount won't restore.
-    function setActive(): void {
-      persistTheme(activePack())
-      committed.set(true)
-      status.set({ tone: 'saved', msg: 'Set as active theme.' })
-    }
-
-    return {
-      activePack,
-      packDefaults,
-      overrides,
-      savedSnapshot,
-      status,
-      committed,
-      isActive,
-      setActive,
-      layers,
-      packs,
-      values,
-      setToken,
-      selectPack,
-      resetToPack,
-      resetToSaved,
-      savePersist,
-      exportJson,
-      importFiles,
-    }
-  },
-
-  mount(state: unknown) {
-    // The runtime's scope proxy auto-unwraps signals on read, so we
-    // assign to mutate (proxy intercepts SET → calls signal.set).
-    const scope = state as {
-      packDefaults: Record<string, string>
-      overrides: Record<string, string>
-      savedSnapshot: OverridePayload | null
-      activePack: ThemeId
-      committed: boolean
-    }
-
-    // Preview the theme being edited so the document reflects it and we can
-    // snapshot its computed tokens — but do NOT persist. Opening the editor
-    // shouldn't permanently swap the user's active theme; "Set active" commits
-    // it, and leaving without committing restores their previous theme.
-    const previousActive = readStoredTheme()
-    applyTheme(scope.activePack)
-    requestAnimationFrame(() => { scope.packDefaults = snapshotPack() })
-
-    // Pull any saved overrides from the daemon and apply them.
-    void loadOverrides().then((saved) => {
-      if (!saved) return
-      scope.savedSnapshot = saved
-      if (saved.pack !== scope.activePack) {
-        applyTheme(saved.pack)
-        scope.activePack = saved.pack
-        requestAnimationFrame(() => { scope.packDefaults = snapshotPack() })
-      }
-      scope.overrides = { ...saved.values }
-      for (const [k, v] of Object.entries(saved.values)) chrome.theme.set(k, v)
+    const groups = derived<Group[]>(() => {
+      const cat = activeCat() as string
+      const r = resolved() as Record<string, string>
+      const o = overrides() as Record<string, string>
+      return LAYERS.filter((l) => cat === 'all' || l.id === cat).map((l) => ({
+        id: l.id,
+        label: l.label,
+        tokens: l.tokens.map((t) => ({
+          name: t.name,
+          type: t.type,
+          value: r[t.name] ?? '',
+          overridden: t.name in o,
+        })),
+      }))
     })
 
-    // Re-snapshot pack defaults whenever the document theme changes
-    // out-of-band (e.g. via the top-bar theme picker).
-    const onThemeChange = () => {
-      requestAnimationFrame(() => { scope.packDefaults = snapshotPack() })
-    }
-    document.addEventListener('ship:theme:change', onThemeChange)
+    const categories = derived(() =>
+      CATEGORIES.map((c) => ({ ...c, active: c.id === (activeCat() as string) })),
+    )
+    // Scoped preview: inline CSS vars for the in-flight overrides, layered on
+    // the container's data-theme. Empty when nothing's overridden yet.
+    const previewStyle = derived(() =>
+      Object.entries(overrides() as Record<string, string>)
+        .map(([k, v]) => `${k}: ${v}`)
+        .join('; '),
+    )
+    const overrideCount = derived(() => Object.keys(overrides() as Record<string, string>).length)
+    const isActive = derived(() => committed() || readStoredTheme() === themeId())
+    const swatches = derived<string[]>(() => (theme()?.swatches ?? []) as string[])
+    const kindLabel = derived(() => (theme()?.dark ? 'dark' : 'light'))
+    const weights = derived(() => WEIGHTS)
 
-    return () => {
-      document.removeEventListener('ship:theme:change', onThemeChange)
-      // Restore the user's theme if they edited without committing.
-      if (!scope.committed) applyTheme(previousActive)
+    return {
+      // base/overrides/committed must be exposed so mount() can seed base +
+      // track commit, and the handlers can mutate via the scope proxy.
+      base, overrides, committed,
+      themeId, theme, activeCat, categories, groups, resolved,
+      previewStyle, overrideCount, isActive, swatches, kindLabel, weights,
     }
   },
-})
 
-export type { TokenDef } from './token-catalog'
+  on: {
+    setCat: (s, id: string) => { s.activeCat = id },
+    setToken: (s, name: string, value: string) => {
+      s.overrides = { ...(s.overrides as Record<string, string>), [name]: value }
+    },
+    resetAll: (s) => { s.overrides = {} },
+    setActive: (s) => {
+      applyTheme(s.themeId as ThemeId)
+      persistTheme(s.themeId as ThemeId)
+      s.committed = true
+    },
+  },
+
+})
