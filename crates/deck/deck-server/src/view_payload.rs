@@ -51,7 +51,15 @@ fn serve(name: &str, sub_path: Option<&str>, mode: DaemonMode) -> Response {
         Err(err) => return compile_error_response(name, &resolved.source, err, mode),
     };
     let registry = bindings::build(&program);
-    let opts = render::RenderOpts { view_name: name.to_string() };
+    // For a nested route (e.g. /studio/agents) the live-data SSE channel lives
+    // at /_sui/views/<name>/<sub>/sse, not /_sui/views/<name>/sse. Fold the sub
+    // into the resolved view_name so render_split emits the right __subscribe__
+    // URL (mirrors the module_url ?sub= handling just below).
+    let view_name = match sub_path {
+        Some(s) => format!("{name}/{s}"),
+        None => name.to_string(),
+    };
+    let opts = render::RenderOpts { view_name };
     let split = match render::render_split(&program, &registry, &opts) {
         Ok(r) => r,
         Err(err) => return compile_error_response(name, &resolved.source, err, mode),
