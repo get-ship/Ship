@@ -8,7 +8,7 @@ use crate::services::schema::{ArgDescriptor, PROJECT_SCOPE};
 
 use ship_platform::services::skills::state;
 use ship_platform::services::skills::state::SkillDetail as RawSkillDetail;
-use ship_platform::services::skills::view_state::SkillDetail as ViewSkillDetail;
+use ship_platform::services::skills::view_state::SkillDetail;
 
 ship_ops! {
     SKILLS_OPS;
@@ -37,7 +37,7 @@ ship_ops! {
         desc: "Full view-shaped skill detail — authors, variables, files.",
         perm: "ship.skills.read",
         args: &[ArgDescriptor { name: "id", kind: "string", required: true }],
-        ret: ViewSkillDetail,
+        ret: SkillDetail,
         run: |args, state, _files| {
             let id = required_str(args, "id")?;
             crate::views::state::load_skill(state.ship_dir(), id)

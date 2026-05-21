@@ -17,6 +17,8 @@ use super::shape::{
 };
 
 #[derive(Serialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+#[cfg_attr(feature = "specta", specta(rename = "PipelineFocusCtx"))]
 pub struct FocusCtx {
     pub name: String,
     pub def: PipelineDef,

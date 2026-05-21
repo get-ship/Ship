@@ -29,6 +29,7 @@ use ship_substrate::projections::actor::ActorRow;
 
 /// Wire shape of `ship.chat.state()`.
 #[derive(Serialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct ChatStateResponse {
     pub workspace_id: String,
     pub messages: Vec<ChatMessage>,
@@ -37,12 +38,14 @@ pub struct ChatStateResponse {
 
 /// Wire shape of `ship.sessions.list()`.
 #[derive(Serialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct SessionsListResponse {
     pub items: Vec<SessionMeta>,
 }
 
 /// Wire shape of `ship.events.list()`.
 #[derive(Serialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct EventsListResponse {
     pub groups: Vec<EntityGroup>,
     pub types: Vec<String>,
@@ -51,6 +54,7 @@ pub struct EventsListResponse {
 
 /// Wire shape of `ship.artifacts.list()`.
 #[derive(Serialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct ArtifactsListResponse {
     pub items: Vec<ArtifactRecord>,
     pub count: usize,
@@ -61,6 +65,7 @@ pub struct ArtifactsListResponse {
 
 /// Wire shape of `ship.skills.list()`.
 #[derive(Serialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct SkillsIndexResponse {
     pub items: Vec<skills_state::IndexEntry>,
 }
@@ -82,6 +87,7 @@ pub struct SkillsSummariesResponse {
 
 /// Wire shape of `ship.skills.file()` — HTML-escaped file content.
 #[derive(Serialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct SkillFileResponse {
     pub path: String,
     pub name: String,
@@ -93,12 +99,14 @@ pub struct SkillFileResponse {
 
 /// Wire shape of `ship.pipelines.list()`.
 #[derive(Serialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct PipelinesIndexResponse {
     pub items: Vec<pipelines_state::IndexEntry>,
 }
 
 /// Wire shape of `ship.pipelines.get()` — raw pipeline doc at a scope.
 #[derive(Serialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct PipelineGetResponse {
     pub name: String,
     pub scope: pipelines_state::ScopeTag,
@@ -110,12 +118,14 @@ pub struct PipelineGetResponse {
 
 /// Wire shape of `ship.specs.list()`.
 #[derive(Serialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct SpecsListResponse {
     pub items: Vec<crate::services::specs::shape::Spec>,
 }
 
 /// Wire shape of `ship.specs.get()`.
 #[derive(Serialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct SpecGetResponse {
     pub spec: crate::services::specs::shape::Spec,
     pub body: String,
@@ -125,12 +135,14 @@ pub struct SpecGetResponse {
 
 /// Wire shape of `ship.git.log()`.
 #[derive(Serialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct GitLogResponse {
     pub commits: Vec<CommitSummary>,
 }
 
 /// Wire shape of `ship.git.branches()`.
 #[derive(Serialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct GitBranchesResponse {
     pub branches: Vec<BranchSummary>,
     pub ahead: usize,
@@ -139,6 +151,7 @@ pub struct GitBranchesResponse {
 
 /// Wire shape of `ship.git.overview()` — one-call default-route payload.
 #[derive(Serialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct GitOverviewResponse {
     pub workspace_id: Option<String>,
     pub branch: Option<String>,
@@ -156,6 +169,7 @@ pub struct GitOverviewResponse {
 
 /// Wire shape of `ship.git.diff()`.
 #[derive(Serialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct GitDiffResponse {
     pub sha: String,
     pub short_sha: String,
@@ -181,6 +195,7 @@ pub struct DashboardStateResponse {
 
 /// One project-registry row for the workspaces view.
 #[derive(Serialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct WorkspaceRow {
     pub id: String,
     pub name: String,
@@ -192,6 +207,7 @@ pub struct WorkspaceRow {
 
 /// Wire shape of `ship.workspaces.list()`.
 #[derive(Serialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct WorkspacesListResponse {
     pub items: Vec<WorkspaceRow>,
     pub active: Option<String>,
@@ -199,6 +215,7 @@ pub struct WorkspacesListResponse {
 
 /// Wire shape of `ship.workspaces.active()`.
 #[derive(Serialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct WorkspaceActiveResponse {
     pub id: Option<String>,
 }

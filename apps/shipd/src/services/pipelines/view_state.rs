@@ -33,6 +33,7 @@ fn run_git(root: &Path, args: &[&str]) -> Result<String, String> {
 /// or git returns an error — callers render `0` as "clean / up to date"
 /// rather than a failure.
 #[derive(serde::Serialize, Clone, Debug, Default)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct BranchStats {
     pub commits_ahead: u32,
     pub dirty_files: u32,

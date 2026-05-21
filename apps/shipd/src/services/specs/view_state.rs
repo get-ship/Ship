@@ -17,6 +17,7 @@ use super::parse::{
 
 /// Row in the left rail.
 #[derive(Debug, Clone, Serialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct SpecSummary {
     pub id: String,
     pub title: String,
@@ -27,6 +28,7 @@ pub struct SpecSummary {
 }
 
 #[derive(Debug, Clone, Default, Serialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct Counts {
     pub draft: usize,
     pub ready: usize,
@@ -35,6 +37,7 @@ pub struct Counts {
 }
 
 #[derive(Debug, Clone, Serialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct RailGroup {
     pub key: &'static str,
     pub label: &'static str,
@@ -43,6 +46,8 @@ pub struct RailGroup {
 }
 
 #[derive(Debug, Clone, Serialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+#[cfg_attr(feature = "specta", specta(rename = "SpecsSummariesCtx"))]
 pub struct SummariesCtx {
     pub selected_id: Option<String>,
     pub q: String,
@@ -53,6 +58,7 @@ pub struct SummariesCtx {
 }
 
 #[derive(Debug, Clone, Serialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct SpecDetail {
     pub id: String,
     pub title: String,

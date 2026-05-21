@@ -197,6 +197,85 @@ fn collect_types() -> TypeCollection {
     c.register::<ship_platform::account::types::AccountState>();
     c.register::<ship_platform::account::types::MeView>();
 
+    // chat.* / sessions.* / events.* / artifacts.* — daemon-assembled shapes.
+    c.register::<shipd::views::chat_state::Sender>();
+    c.register::<shipd::views::chat_state::ChatMessage>();
+    c.register::<shipd::services::registry::wire::ChatStateResponse>();
+    c.register::<ship_platform::services::sessions::types::SessionKind>();
+    c.register::<ship_platform::services::sessions::types::SessionStatus>();
+    c.register::<ship_platform::services::sessions::types::SessionMeta>();
+    c.register::<shipd::services::registry::wire::SessionsListResponse>();
+    c.register::<shipd::views::events_state::EventRow>();
+    c.register::<shipd::views::events_state::EntityGroup>();
+    c.register::<shipd::services::registry::wire::EventsListResponse>();
+    c.register::<ship_platform::artifacts::ArtifactRecord>();
+    c.register::<shipd::services::registry::wire::ArtifactsListResponse>();
+
+    // skills.* (list / detail / file / get — summaries stays dynamic/unknown).
+    c.register::<ship_platform::services::skills::state::ScopeTag>();
+    c.register::<ship_platform::services::skills::state::IndexEntry>();
+    c.register::<ship_platform::services::skills::state::SkillDetail>();
+    c.register::<ship_platform::services::skills::view_state::SkillKind>();
+    c.register::<ship_platform::services::skills::view_state::SkillDetail>();
+    c.register::<shipd::services::registry::wire::SkillsIndexResponse>();
+    c.register::<shipd::services::registry::wire::SkillFileResponse>();
+
+    // pipelines.* (list / get + summaries / focus / run / history ctx).
+    c.register::<ship_platform::services::pipelines::state::ScopeTag>();
+    c.register::<ship_platform::services::pipelines::state::IndexEntry>();
+    c.register::<shipd::services::registry::wire::PipelinesIndexResponse>();
+    c.register::<shipd::services::registry::wire::PipelineGetResponse>();
+    c.register::<shipd::services::pipelines::shape::Stats>();
+    c.register::<shipd::services::pipelines::shape::StatusPill>();
+    c.register::<shipd::services::pipelines::shape::StepView>();
+    c.register::<shipd::services::pipelines::shape::RunView>();
+    c.register::<shipd::services::pipelines::view_state::BranchStats>();
+    c.register::<shipd::views::state::PipelineDef>();
+    c.register::<shipd::views::state::Filter>();
+    c.register::<shipd::services::pipelines::summaries::SummariesCtx>();
+    c.register::<shipd::services::pipelines::focus::FocusCtx>();
+    c.register::<shipd::services::pipelines::run_detail::RunDetailCtx>();
+    c.register::<shipd::services::pipelines::run_detail::StepObservationRow>();
+    c.register::<shipd::services::pipelines::run_detail::TimelineRow>();
+    c.register::<shipd::services::pipelines::history::HistoryCtx>();
+    c.register::<shipd::services::pipelines::history::HistoryRow>();
+
+    // specs.* (list / get / summaries / detail).
+    c.register::<shipd::services::specs::shape::Spec>();
+    c.register::<shipd::services::specs::view_state::SpecSummary>();
+    c.register::<shipd::services::specs::view_state::Counts>();
+    c.register::<shipd::services::specs::view_state::RailGroup>();
+    c.register::<shipd::services::specs::view_state::SummariesCtx>();
+    c.register::<shipd::services::specs::view_state::SpecDetail>();
+    c.register::<shipd::services::specs::parse::AcceptanceItem>();
+    c.register::<shipd::services::registry::wire::SpecsListResponse>();
+    c.register::<shipd::services::registry::wire::SpecGetResponse>();
+
+    // git.* (status / log / branches / overview / diff — annotations is a
+    // bare line→annotations map, left as unknown).
+    c.register::<ship_platform::services::git::state::StatusBuckets>();
+    c.register::<ship_platform::services::git::state::StatusFile>();
+    c.register::<ship_platform::services::git::state::CommitSummary>();
+    c.register::<ship_platform::services::git::state::BranchSummary>();
+    c.register::<ship_platform::services::git::diff::ParsedDiff>();
+    c.register::<shipd::services::registry::wire::GitLogResponse>();
+    c.register::<shipd::services::registry::wire::GitBranchesResponse>();
+    c.register::<shipd::services::registry::wire::GitOverviewResponse>();
+    c.register::<shipd::services::registry::wire::GitDiffResponse>();
+
+    // settings.*
+    c.register::<shipd::services::settings::view_state::ProviderRow>();
+    c.register::<shipd::services::settings::view_state::TerminalConfig>();
+    c.register::<shipd::services::settings::view_state::SelectOption>();
+    c.register::<shipd::services::settings::view_state::FeatureFlag>();
+    c.register::<shipd::services::settings::view_state::AboutInfo>();
+    c.register::<shipd::services::settings::view_state::SettingsCtx>();
+
+    // workspaces.*
+    c.register::<shipd::services::registry::wire::WorkspaceRow>();
+    c.register::<shipd::services::registry::wire::WorkspacesListResponse>();
+    c.register::<shipd::services::registry::wire::WorkspaceActiveResponse>();
+
     c
 }
 
@@ -337,7 +416,7 @@ fn gen_types(check: bool) {
         .header("// This file is auto-generated by `cargo xtask gen-types`. Do not edit.")
         .framework_header("");
 
-    let ui_out = repo_root().join("packages/sdk/src/generated.ts");
+    let ui_out = repo_root().join("packages/deck/sdk/src/generated.ts");
     let ui_content = ts
         .export(&collect_types())
         .expect("specta-typescript export failed (ui)");

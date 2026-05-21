@@ -24,6 +24,7 @@ use super::schema::{ARTIFACTS_COLLECTION_ID, artifacts_schema, ensure_artifacts_
 
 /// Metadata record returned by all service methods.
 #[derive(Debug, Clone, Serialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct ArtifactRecord {
     pub id: String,
     pub name: String,

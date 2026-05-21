@@ -43,6 +43,39 @@ const MIGRATED_RETURN_TYPES: &[&str] = &[
     "ToolPatternsResponse",
     // account.*
     "AccountState",
+    // chat / sessions / events / artifacts
+    "ChatStateResponse",
+    "SessionsListResponse",
+    "EventsListResponse",
+    "ArtifactsListResponse",
+    // skills (summaries stays dynamic → unknown)
+    "SkillsIndexResponse",
+    "SkillFileResponse",
+    "SkillDetail",
+    "RawSkillDetail",
+    // pipelines
+    "PipelinesIndexResponse",
+    "PipelineGetResponse",
+    "PipelinesSummariesCtx",
+    "PipelineFocusCtx",
+    "RunDetailCtx",
+    "HistoryCtx",
+    // specs
+    "SpecsListResponse",
+    "SpecGetResponse",
+    "SpecsSummariesCtx",
+    "SpecDetail",
+    // git (annotations is a bare map → unknown)
+    "GitLogResponse",
+    "GitBranchesResponse",
+    "GitOverviewResponse",
+    "GitDiffResponse",
+    "StatusBuckets",
+    // settings
+    "SettingsCtx",
+    // workspaces
+    "WorkspacesListResponse",
+    "WorkspaceActiveResponse",
 ];
 
 /// The TS type a handle resolves to: a migrated named type, or `unknown`.
