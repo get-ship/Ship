@@ -80,7 +80,6 @@ pub fn resolved(servers: Vec<McpServerConfig>) -> ResolvedConfig {
         env: Default::default(),
         available_models: vec![],
         claude: Default::default(),
-        gemini: Default::default(),
         codex: Default::default(),
         opencode: Default::default(),
         cursor: Default::default(),

@@ -99,12 +99,6 @@ fn cursor_cli_permissions_only_for_cursor() {
             .is_none()
     );
     assert!(
-        compile(&r, "gemini")
-            .unwrap()
-            .cursor_cli_permissions
-            .is_none()
-    );
-    assert!(
         compile(&r, "codex")
             .unwrap()
             .cursor_cli_permissions
@@ -299,6 +293,5 @@ fn other_harnesses_have_no_rule_files() {
         ..resolved(vec![])
     };
     assert!(compile(&r, "claude").unwrap().rule_files.is_empty());
-    assert!(compile(&r, "gemini").unwrap().rule_files.is_empty());
     assert!(compile(&r, "codex").unwrap().rule_files.is_empty());
 }

@@ -184,7 +184,6 @@ fn cursor_hooks_not_emitted_for_other_harnesses() {
         ..resolved(vec![])
     };
     assert!(compile(&r, "claude").unwrap().cursor_hooks_patch.is_none());
-    assert!(compile(&r, "gemini").unwrap().cursor_hooks_patch.is_none());
     assert!(compile(&r, "codex").unwrap().cursor_hooks_patch.is_none());
 }
 
@@ -291,6 +290,6 @@ fn cursor_env_file_not_emitted_for_other_harnesses() {
     // Only cursor gets envFile; others should not have it.
     let claude_out = compile(&r, "claude").unwrap();
     assert!(claude_out.mcp_servers["my-server"].get("envFile").is_none());
-    let gemini_out = compile(&r, "gemini").unwrap();
-    assert!(gemini_out.mcp_servers["my-server"].get("envFile").is_none());
+    let codex_out = compile(&r, "codex").unwrap();
+    assert!(codex_out.mcp_servers["my-server"].get("envFile").is_none());
 }

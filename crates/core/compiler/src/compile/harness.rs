@@ -203,31 +203,6 @@ pub(super) static HARNESSES: &[HarnessDescriptor] = &[
         build_settings: super::claude::build_settings,
     },
     HarnessDescriptor {
-        id: "gemini",
-        name: "Gemini CLI",
-        mcp_key: McpKey::McpServers,
-        context_file: ContextFile::GeminiMd,
-        skills_dir: SkillsDir::Gemini,
-        agents_dir: AgentsDir::Gemini,
-        // Source: https://geminicli.com/docs/tools/mcp-server/
-        // No "type" field — transport inferred from field presence.
-        emit_type_field: false,
-        // SSE → "url", streamable HTTP → "httpUrl"
-        sse_url_field: "url",
-        http_url_field: "httpUrl",
-        // MCP is nested under mcpServers inside settings.json (not a separate file)
-        mcp_config_path: Some(".gemini/settings.json"),
-        features: ProviderFeatureFlags {
-            supports_mcp: true,
-            supports_hooks: true,
-            supports_tool_permissions: true,
-            supports_memory: true,
-        },
-        compile_agent: super::agents::compile_gemini_agent,
-        build_mcp: super::gemini::build_gemini_mcp_servers,
-        build_settings: super::gemini::build_settings,
-    },
-    HarnessDescriptor {
         id: "codex",
         name: "OpenAI Codex",
         // Source: https://developers.openai.com/codex/mcp

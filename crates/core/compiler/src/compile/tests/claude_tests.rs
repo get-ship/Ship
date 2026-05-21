@@ -146,12 +146,6 @@ fn settings_patch_only_for_claude() {
         ..resolved(vec![])
     };
     assert!(
-        compile(&r, "gemini")
-            .unwrap()
-            .claude_settings_patch
-            .is_none()
-    );
-    assert!(
         compile(&r, "codex")
             .unwrap()
             .claude_settings_patch
@@ -391,12 +385,6 @@ fn ask_tier_not_emitted_for_other_harnesses() {
         ..resolved(vec![])
     };
     assert!(
-        compile(&r, "gemini")
-            .unwrap()
-            .claude_settings_patch
-            .is_none()
-    );
-    assert!(
         compile(&r, "codex")
             .unwrap()
             .claude_settings_patch
@@ -429,7 +417,7 @@ fn claude_lsp_config_is_always_emitted() {
 
 #[test]
 fn lsp_config_not_emitted_for_other_harnesses() {
-    for p in ["gemini", "codex", "cursor", "opencode"] {
+    for p in ["codex", "cursor", "opencode"] {
         assert!(
             compile(&resolved(vec![]), p)
                 .unwrap()

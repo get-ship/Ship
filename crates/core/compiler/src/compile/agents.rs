@@ -92,43 +92,6 @@ pub(super) fn compile_claude_agent(profile: &AgentProfile) -> String {
     format!("---\n{}\n---\n\n{}\n", fm.join("\n"), body.trim())
 }
 
-// ─── Gemini CLI ──────────────────────────────────────────────────────────────
-// Format: `.gemini/agents/<id>.md`
-// Frontmatter: name, description, kind, tools, model, max_turns
-
-pub(super) fn compile_gemini_agent(profile: &AgentProfile) -> String {
-    let mut fm = Vec::new();
-    fm.push(format!("name: {}", profile.agent.id));
-    if let Some(desc) = &profile.agent.description {
-        fm.push(format!("description: {}", yaml_quote(desc)));
-    }
-    fm.push("kind: local".to_string());
-
-    // Model
-    if let Some(model) = gemini_setting(profile, "model") {
-        fm.push(format!("model: {model}"));
-    }
-
-    // Tools — Gemini uses tool name list; `*` = all, `mcp_*` = all MCP
-    let mut tools = Vec::new();
-    if !profile.mcp.servers.is_empty() {
-        tools.push("mcp_*".to_string());
-    }
-    // Default to all tools if no restrictions specified
-    if profile.permissions.tools_allow.is_empty() && tools.is_empty() {
-        tools.push("*".to_string());
-    } else if !profile.permissions.tools_allow.is_empty() {
-        tools.extend(profile.permissions.tools_allow.iter().cloned());
-    } else {
-        tools.push("*".to_string());
-    }
-    let tool_strs: Vec<String> = tools.iter().map(|t| yaml_quote(t)).collect();
-    fm.push(format!("tools:\n{}", yaml_list(&tool_strs)));
-
-    let body = profile.rules.inline.as_deref().unwrap_or_default();
-    format!("---\n{}\n---\n\n{}\n", fm.join("\n"), body.trim())
-}
-
 // ─── Cursor ──────────────────────────────────────────────────────────────────
 // Format: `.cursor/agents/<id>.md`
 // Frontmatter: name, description, model
@@ -210,10 +173,6 @@ pub(super) fn compile_opencode_agent(profile: &AgentProfile) -> String {
 
 fn claude_setting(profile: &AgentProfile, key: &str) -> Option<String> {
     harness_setting(profile, "claude", key)
-}
-
-fn gemini_setting(profile: &AgentProfile, key: &str) -> Option<String> {
-    harness_setting(profile, "gemini", key)
 }
 
 fn cursor_setting(profile: &AgentProfile, key: &str) -> Option<String> {

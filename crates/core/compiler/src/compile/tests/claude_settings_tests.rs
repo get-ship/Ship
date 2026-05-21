@@ -73,12 +73,6 @@ fn model_only_for_claude_not_other_harnesses() {
         ..resolved(vec![])
     };
     assert!(
-        compile(&r, "gemini")
-            .unwrap()
-            .claude_settings_patch
-            .is_none()
-    );
-    assert!(
         compile(&r, "codex")
             .unwrap()
             .claude_settings_patch
@@ -164,7 +158,7 @@ fn env_only_for_claude_not_other_harnesses() {
         env,
         ..resolved(vec![])
     };
-    for harness in &["gemini", "codex", "cursor"] {
+    for harness in &["codex", "cursor"] {
         let out = compile(&r, harness).unwrap();
         assert!(
             out.claude_settings_patch.is_none(),
@@ -283,7 +277,7 @@ fn team_agents_only_for_claude() {
         },
         ..resolved(vec![])
     };
-    for harness in &["gemini", "codex", "cursor"] {
+    for harness in &["codex", "cursor"] {
         let out = compile(&r, harness).unwrap();
         assert!(
             !out.agent_files.contains_key(".claude/agents/lead.md"),

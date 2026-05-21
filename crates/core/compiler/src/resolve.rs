@@ -52,7 +52,6 @@ pub struct ResolvedConfig {
     // Each is owned by its harness module; resolve() maps the flat library
     // fields into these. Dropping a harness = delete its module + one field.
     pub claude: crate::compile::ClaudeSettings,
-    pub gemini: crate::compile::GeminiSettings,
     pub codex: crate::compile::CodexSettings,
     pub opencode: crate::compile::OpenCodeSettings,
     pub cursor: crate::compile::CursorSettings,
@@ -251,17 +250,6 @@ pub fn resolve_library(
         auto_updates: library.claude_auto_updates,
         include_co_authored_by: library.claude_include_co_authored_by,
     };
-    resolved.gemini = crate::compile::GeminiSettings {
-        default_approval_mode: library.gemini_default_approval_mode.clone(),
-        max_session_turns: library.gemini_max_session_turns,
-        disable_yolo_mode: library.gemini_disable_yolo_mode,
-        disable_always_allow: library.gemini_disable_always_allow,
-        tools_sandbox: library.gemini_tools_sandbox.clone(),
-        settings_extra: merge_harness_extra(
-            library.harness_defaults.get("gemini"),
-            library.gemini_settings_extra.as_ref(),
-        ),
-    };
     resolved.codex = crate::compile::CodexSettings {
         sandbox: library.codex_sandbox.clone(),
         approval_policy: library.codex_approval_policy.clone(),
@@ -399,7 +387,6 @@ pub fn resolve(
         // Per-harness deltas default to empty here; resolve_library() fills
         // them from the flat ProjectLibrary fields.
         claude: crate::compile::ClaudeSettings::default(),
-        gemini: crate::compile::GeminiSettings::default(),
         codex: crate::compile::CodexSettings::default(),
         opencode: crate::compile::OpenCodeSettings::default(),
         cursor: crate::compile::CursorSettings::default(),
@@ -965,15 +952,12 @@ mod tests {
             "claude".to_string(),
             json!({"theme": "dark", "autoUpdates": true, "nested": {"a": 1, "b": 2}}),
         );
-        defaults.insert("gemini".to_string(), json!({"yoloMode": false}));
 
         let library = ProjectLibrary {
             harness_defaults: defaults,
             claude_settings_extra: Some(
                 json!({"theme": "light", "newKey": "hello", "nested": {"b": 99, "c": 3}}),
             ),
-            // gemini: no agent override — defaults should pass through
-            gemini_settings_extra: None,
             // codex: agent override but no defaults — agent wins
             codex_settings_extra: Some(json!({"policy": "suggest"})),
             ..Default::default()
@@ -989,10 +973,6 @@ mod tests {
         assert_eq!(claude["nested"]["a"], 1);
         assert_eq!(claude["nested"]["b"], 99);
         assert_eq!(claude["nested"]["c"], 3);
-
-        // Gemini: defaults pass through when no agent override
-        let gemini = resolved.gemini.settings_extra.unwrap();
-        assert_eq!(gemini["yoloMode"], false);
 
         // Codex: agent override only, no defaults
         let codex = resolved.codex.settings_extra.unwrap();

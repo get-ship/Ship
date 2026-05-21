@@ -77,7 +77,7 @@ fn all_harnesses_are_idempotent() {
         )],
         ..resolved(vec![])
     };
-    for harness in &["claude", "gemini", "codex", "cursor"] {
+    for harness in &["claude", "codex", "cursor"] {
         let a = compile(&r, harness).unwrap();
         let b = compile(&r, harness).unwrap();
         assert_eq!(
@@ -144,12 +144,6 @@ fn all_harnesses_emit_skills() {
             .contains_key(".claude/skills/refactor/SKILL.md")
     );
     assert!(
-        compile(&r, "gemini")
-            .unwrap()
-            .skill_files
-            .contains_key(".agents/skills/refactor/SKILL.md")
-    );
-    assert!(
         compile(&r, "codex")
             .unwrap()
             .skill_files
@@ -180,10 +174,6 @@ fn all_harnesses_emit_context_file() {
     assert!(
         compile(&r, "claude").unwrap().context_content.is_some(),
         "claude needs CLAUDE.md"
-    );
-    assert!(
-        compile(&r, "gemini").unwrap().context_content.is_some(),
-        "gemini needs GEMINI.md"
     );
     assert!(
         compile(&r, "codex").unwrap().context_content.is_some(),
@@ -227,7 +217,7 @@ fn patch_outputs_are_harness_exclusive() {
             .claude_settings_patch
             .is_some()
     );
-    for p in &["gemini", "codex", "cursor"] {
+    for p in &["codex", "cursor"] {
         assert!(
             compile(&r, p).unwrap().claude_settings_patch.is_none(),
             "{p} must not get claude patch"
@@ -235,28 +225,15 @@ fn patch_outputs_are_harness_exclusive() {
     }
     // codex_config_patch: codex only
     assert!(compile(&r, "codex").unwrap().codex_config_patch.is_some());
-    for p in &["claude", "gemini", "cursor"] {
+    for p in &["claude", "cursor"] {
         assert!(
             compile(&r, p).unwrap().codex_config_patch.is_none(),
             "{p} must not get codex patch"
         );
     }
-    // gemini_settings_patch: gemini only
-    assert!(
-        compile(&r, "gemini")
-            .unwrap()
-            .gemini_settings_patch
-            .is_some()
-    );
-    for p in &["claude", "codex", "cursor"] {
-        assert!(
-            compile(&r, p).unwrap().gemini_settings_patch.is_none(),
-            "{p} must not get gemini patch"
-        );
-    }
     // cursor_hooks_patch: cursor only
     assert!(compile(&r, "cursor").unwrap().cursor_hooks_patch.is_some());
-    for p in &["claude", "gemini", "codex"] {
+    for p in &["claude", "codex"] {
         assert!(
             compile(&r, p).unwrap().cursor_hooks_patch.is_none(),
             "{p} must not get cursor patch"
@@ -269,7 +246,7 @@ fn patch_outputs_are_harness_exclusive() {
             .cursor_cli_permissions
             .is_some()
     );
-    for p in &["claude", "gemini", "codex"] {
+    for p in &["claude", "codex"] {
         assert!(
             compile(&r, p).unwrap().cursor_cli_permissions.is_none(),
             "{p} must not get cursor cli permissions"
@@ -280,7 +257,7 @@ fn patch_outputs_are_harness_exclusive() {
         !compile(&r, "cursor").unwrap().rule_files.is_empty(),
         "cursor must have rule_files"
     );
-    for p in &["claude", "gemini", "codex"] {
+    for p in &["claude", "codex"] {
         assert!(
             compile(&r, p).unwrap().rule_files.is_empty(),
             "{p} must not get rule_files"

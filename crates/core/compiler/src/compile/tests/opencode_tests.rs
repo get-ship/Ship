@@ -44,12 +44,6 @@ fn opencode_patch_only_for_opencode_harness() {
             .is_none()
     );
     assert!(
-        compile(&r, "gemini")
-            .unwrap()
-            .opencode_config_patch
-            .is_none()
-    );
-    assert!(
         compile(&r, "cursor")
             .unwrap()
             .opencode_config_patch

@@ -111,7 +111,6 @@ fn codex_no_json_mcp_key_confusion() {
     assert!(compile(&r, "codex").unwrap().codex_config_patch.is_some());
     assert!(compile(&r, "claude").unwrap().codex_config_patch.is_none());
     assert!(compile(&r, "cursor").unwrap().codex_config_patch.is_none());
-    assert!(compile(&r, "gemini").unwrap().codex_config_patch.is_none());
 }
 
 #[test]
@@ -217,7 +216,7 @@ fn codex_sandbox_not_emitted_for_other_harnesses() {
         },
         ..resolved(vec![])
     };
-    for harness in &["claude", "gemini", "cursor"] {
+    for harness in &["claude", "cursor"] {
         let out = compile(&r, harness).unwrap();
         assert!(
             out.codex_config_patch.is_none(),

@@ -206,30 +206,23 @@ fn codex_roundtrip_preserves_model_and_mcp() {
 
 #[test]
 fn gemini_roundtrip_preserves_model_and_mcp() {
-    let mut library = test_library();
-    library.gemini_default_approval_mode = Some("default".to_string());
-    library.gemini_max_session_turns = Some(50);
-
-    let resolved = resolve_library(&library, None, None);
-    let output = compile(&resolved, "gemini").unwrap();
-
+    // The compiler no longer emits gemini output, but the decompiler still
+    // reads on-disk gemini config (graceful import of existing projects).
+    // Construct the gemini files directly to exercise the decompiler.
     let tmp = TempDir::new().unwrap();
 
-    // GEMINI.md
-    if let Some(content) = &output.context_content {
-        write_file(&tmp, "GEMINI.md", content);
-    }
+    write_file(&tmp, "GEMINI.md", "# Project Rules\n\nKeep it clean.\n");
 
-    // .gemini/settings.json — merge MCP servers + settings patch
-    let mut settings = json!({});
-    settings["mcpServers"] = output.mcp_servers.clone();
-    if let Some(patch) = &output.gemini_settings_patch
-        && let Some(obj) = patch.as_object()
-    {
-        for (k, v) in obj {
-            settings[k] = v.clone();
+    let settings = json!({
+        "model": { "name": "test-model" },
+        "general": {
+            "defaultApprovalMode": "default",
+            "maxSessionTurns": 50
+        },
+        "mcpServers": {
+            "ship": { "command": "ship", "args": ["mcp", "serve"] }
         }
-    }
+    });
     write_file(
         &tmp,
         ".gemini/settings.json",
