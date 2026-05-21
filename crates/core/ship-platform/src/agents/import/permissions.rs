@@ -18,7 +18,7 @@
 //! private to this module since no other importer needs them.
 
 use crate::permissions::{
-    AgentLimits, CommandPermissions, NetworkPolicy, Permissions, ToolPermissions, save_permissions,
+    NetworkPolicy, Permissions, ToolPermissions, save_permissions,
 };
 use anyhow::{Result, anyhow};
 use std::collections::HashSet;
@@ -166,17 +166,6 @@ fn import_permissions_from_codex(project_dir: &Path) -> Result<Option<Permission
 }
 
 // ── Private helpers ─────────────────────────────────────────────────────────
-
-fn value_to_string_list(value: Option<&toml::Value>) -> Vec<String> {
-    match value {
-        Some(toml::Value::String(s)) => vec![s.to_string()],
-        Some(toml::Value::Array(values)) => values
-            .iter()
-            .filter_map(|v| v.as_str().map(str::to_string))
-            .collect(),
-        _ => Vec::new(),
-    }
-}
 
 fn read_codex_prefix_rules_from_value(root: &toml::Value) -> Vec<(String, String)> {
     root.get("rules")
