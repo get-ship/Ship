@@ -89,15 +89,53 @@ a glibc rootfs (assemble libc + loader) — more work, avoid if possible.
 | Lima | Intel/older mac | maintainer's Intel mac |
 | WSL | win 10/11 | maintainer's Windows |
 
+## 🎯 Firecracker leg PROVEN end-to-end (spike, on this KVM box)
+
+A Firecracker microVM boots, runs `ship-sidecar` as init, binds vsock, and the
+host reaches it over vsock and gets **`HTTP/1.1 200 OK`, body `0.1.0`** from the
+sidecar's Connect server. Reproducible. The whole VM-substrate model works:
+boot → static-musl sidecar-as-init → rootless rootfs → vsock → host↔guest
+Connect. The Firecracker `Isolator` is now a *transcription* of this recipe.
+
+**The proven recipe (what the Isolator must encode):**
+1. **static-musl sidecar** — `cargo build -p ship-sidecar --target
+   x86_64-unknown-linux-musl` (`CC_x86_64_unknown_linux_musl=musl-gcc`),
+   stripped (~11M). Static-pie, no libc in the rootfs.
+2. **rootfs** (rootless `mke2fs -d <dir> rootfs.ext4 256M`): `/usr/bin/ship-sidecar`,
+   `/bin/busybox` (+ `sh` symlink), an `/init` that mounts proc/sys/devtmpfs,
+   sets a hostname, then `exec /usr/bin/ship-sidecar --addr vsock:2468`, AND
+   **`/etc/hosts` + `/etc/resolv.conf`** (REQUIRED — without them musl startup
+   name-resolution fails `EAI_AGAIN: Try again` and the sidecar exits → kernel
+   panic; this cost real debugging time, don't drop it).
+3. **firecracker config**: kernel (`vmlinux`), rootfs as `/dev/vda` root,
+   `vsock { guest_cid: 3, uds_path }`, boot args `console=ttyS0 reboot=k
+   panic=1 pci=off root=/dev/vda rw init=/init`, 1 vcpu / 256 MiB.
+4. **host client transport** (the new connector): connect to the firecracker
+   vsock **uds**, send `CONNECT <port>\n`, read `OK <n>\n`, *then* speak Connect
+   over that stream. So the host-side connectrpc client uses
+   `Http2Connection::lazy_with_connector` with a connector that opens the uds +
+   does the CONNECT handshake (NOT raw AF_VSOCK — firecracker bridges via the uds).
+
 ## Status
 
-- ✅ Providers decided (substrate.md, tranches.md).
-- ✅ firecracker binary staged (`v1.15.1`, `target/fc/`).
-- ✅ Guest kernel staged (`vmlinux-6.1.102`, `target/fc/vmlinux`).
-- ✅ vsock confirmed viable on the dev box → transport = vsock.
-- ✅ Transport seam exists (`RuntimeEndpoint`, `SidecarActorRuntime`); sidecar
-  proven over unix socket; vsock is the next variant (gated on kvm-group for
-  vhost-vsock).
-- ⬜ rootfs (static-musl sidecar bake), vsock transport code, Firecracker
-  Isolator, recommender ladder, per-OS legs — gated on KVM access (boot/test)
-  + hardware (per-OS). No untested microVM code committed until KVM is open.
+- ✅ Providers decided; firecracker `v1.15.1` + kernel `vmlinux-6.1.102` staged.
+- ✅ vsock viable; sidecar `--addr vsock:` committed (`534550135`).
+- ✅ **Firecracker microVM + sidecar + vsock + host↔guest Connect 200 OK —
+  proven end-to-end on KVM.**
+- ⬜ **Next: Firecracker `Isolator`** (Rust) — `prepare` bakes/boots the microVM
+  per the recipe + polls readiness; `shutdown` SIGKILLs. Plus the host-side
+  uds-CONNECT connectrpc connector so `SidecarActorRuntime` drives it.
+- ⬜ Then: rootfs/image baking as real tooling (vs the dev spike), pinned +
+  signed; recommender ladder (with backend); per-sandbox microVM lifecycle;
+  per-OS legs (Apple Container/Lima/WSL on your hardware).
+
+## Open issues (new, from the spike)
+
+- **Host uds-CONNECT connector** — connectrpc has `lazy_with_connector`; need a
+  connector that does the firecracker `CONNECT <port>\n` preamble over the uds.
+  Untested until wired (the spike proved the protocol via raw Python).
+- **rootfs/image as tooling** — the spike bakes the rootfs ad hoc; productionize
+  as a pinned, signed image (Phase F) + a baking step the Isolator/CI runs.
+- **per-sandbox vs shared microVM** — Firecracker favors one microVM per sandbox
+  (cheap boot); decide the lifecycle (warm pool for cold-start?).
+- **enforce-refuse-on-unwired** still required before the recommender picks T3.
