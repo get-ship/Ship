@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 #[allow(unused_imports)]
 use serde_json::json;
 
-use crate::auth::{AuthContext, Scope, enforce_mcp_identity, require_scope};
+use crate::auth::{AuthContext, Scope, enforce_mcp_identity, enforce_mcp_workspace, require_scope};
 use crate::routes::rest_api::ApiState;
 
 /// Truncate a JSON value to a printable preview ≤400 chars. Legacy
@@ -122,9 +122,18 @@ impl HookResponse {
 /// the body's `actor_id` is bound to `auth.agent_id` — workers can't
 /// claim another agent's identity. Daemon-token callers keep their
 /// trusted preference for the body value.
+///
+/// Also enforces cross-project scope: a workspace-bound scoped token
+/// (e.g. a sandboxed agent's `ship_sess_*`) cannot post a hook tagged
+/// for a different project — the same `enforce_mcp_workspace` guard
+/// dispatch + MCP use. Latent until sandbox tokens carry a workspace id
+/// (mints with `None` today → passes), but closes the forge here so it's
+/// covered the moment workspace-binding lands. Bites only on a definite
+/// cross-project mismatch.
 #[allow(clippy::result_large_err)] // axum Response is the contract here
 fn resolve_actor(event: &ShipHookEvent, auth: &AuthContext) -> Result<String, Response> {
     enforce_mcp_identity(auth, event.actor_id.as_deref())?;
+    enforce_mcp_workspace(auth, event.workspace.as_deref())?;
     Ok(event
         .actor_id
         .clone()
