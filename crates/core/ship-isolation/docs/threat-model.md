@@ -133,6 +133,12 @@ syscall filter that denies path-traversal (Tier 1).
 
 - **v1 mitigations**: bind-mounts honored across all containerized
   strategies; SRT applies a default-deny syscall filter.
+- **Empirically confirmed (Tier 1 reads are NOT confined):**
+  `tier1_srt_confinement_live` proves the SrtWrapper path blocks *writes*
+  outside the workspace but **allows reads** of host files outside it
+  (`render_settings` emits empty `denyRead`; the process runs as the host
+  user). So Tier-1 T-FS-READ is ⚠️ by design — read/credential confinement
+  is a Tier-2 (container) property. The test pins this boundary.
 - **Known gaps**: harness-native sandboxes vary in strength.
   Claude `--sandbox` and codex Seatbelt are well-tested; Gemini
   `--yolo` is documented as a developer-preview "trust the

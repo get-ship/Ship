@@ -138,3 +138,63 @@ async fn srt_wrapper_blocks_write_outside_workspace() {
         "SrtWrapper must ALLOW a write inside the workspace"
     );
 }
+
+/// Characterization test (pins a documented LIMITATION, not a guarantee):
+/// Tier-1 SrtWrapper confines *writes* but **not reads** — a wrapped
+/// process can read a host file outside the workspace and copy it in.
+/// Verified empirically here. This is the threat model's Tier-1
+/// **T-FS-READ ⚠️ / T-CRED ❌**: process sandboxes run as the host user and
+/// `render_settings` emits empty `denyRead`, so read confinement is a
+/// Tier-2 (container) property, not a Tier-1 one. Use Tier 2+ for read /
+/// credential confinement.
+///
+/// This test exists to *pin* that boundary: if it ever flips (reads start
+/// being blocked — e.g. someone adds a default-deny `denyRead`), that's a
+/// deliberate posture change and the threat model + matrix must be
+/// re-evaluated. It is NOT a license to leak — it documents why Tier 1 is
+/// the weaker tier.
+#[tokio::test]
+async fn srt_wrapper_does_not_confine_reads_tier1_limitation() {
+    let Some(bun) = which("bun") else {
+        return skip("bun not on PATH");
+    };
+    let Some(srt) = locate_srt() else {
+        return skip("srt entry not found");
+    };
+    if which("bwrap").is_none() || which("socat").is_none() {
+        return skip("bwrap / socat not installed");
+    }
+
+    let work = std::env::temp_dir().join(format!("ship-t1r-ws-{}", std::process::id()));
+    std::fs::create_dir_all(&work).unwrap();
+    let settings = work.join("srt-settings.json");
+    let secret =
+        std::env::temp_dir().join(format!("ship-t1r-secret-{}.txt", std::process::id()));
+    std::fs::write(&secret, b"TOPSECRET").unwrap();
+    let exfil = work.join("exfil.txt");
+    let _ = std::fs::remove_file(&exfil);
+
+    // Read the outside secret, write it inside the workspace (writing
+    // inside is allowed; the question is whether the READ succeeds).
+    let cmd = wrap(
+        &bun,
+        &srt,
+        &settings,
+        &work,
+        &format!("cat {} > {} 2>/dev/null || true", secret.display(), exfil.display()),
+    );
+    run(&cmd, &work).await;
+    let leaked = std::fs::read_to_string(&exfil).unwrap_or_default();
+
+    let _ = std::fs::remove_file(&secret);
+    let _ = std::fs::remove_dir_all(&work);
+
+    assert!(
+        leaked.contains("TOPSECRET"),
+        "EXPECTED Tier-1 limitation: SrtWrapper does not confine reads, so \
+         the host secret should be readable. If this assertion fails, reads \
+         are now being blocked — a deliberate posture change; update the \
+         threat model (T-FS-READ/T-CRED) + compat-matrix and flip this test \
+         to assert confinement."
+    );
+}
