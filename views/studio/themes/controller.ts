@@ -65,10 +65,14 @@ export default controller<Scope>({
     },
   },
   on: {
+    // Clicking a theme applies it immediately AND opens its editor (the
+    // detail). The editor re-applies on mount, so apply here just makes the
+    // gallery feel instant before the route transition.
     apply: (s, id: string) => {
       applyTheme(id as ThemeId)
       persistTheme(id as ThemeId)
       s.active = id as ThemeId
+      s.navigate(`/studio/themes/${id}`)
     },
     onSearchInput: (s, e: Event) => {
       s.q = (e.target as HTMLInputElement).value ?? ''

@@ -86,6 +86,7 @@ defineRoutes([
   { pattern: '/studio/agents/:id' },
   { pattern: '/studio/agents/:id/settings' },
   { pattern: '/studio/agents/:id/wire' },
+  { pattern: '/studio/themes/:id' },
   { pattern: '/skills/:id' },
   { pattern: '/collections/:id' },
   { pattern: '/artifacts/:id' },
