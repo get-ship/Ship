@@ -117,6 +117,8 @@ pub mod dashboard;
 pub mod git;
 pub mod workspaces;
 pub mod account;
+#[cfg(test)]
+mod agents_typed_proof;
 
 // ── Dispatch ─────────────────────────────────────────────────────────
 
