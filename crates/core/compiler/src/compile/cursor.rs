@@ -328,3 +328,19 @@ fn format_cursor_rule(rule: &Rule) -> String {
     fm.push_str(rule.content.trim());
     fm
 }
+
+/// Populate Cursor-native outputs (rules, hooks + lifecycle, cli perms, env).
+pub(super) fn build_settings(
+    _desc: &super::harness::HarnessDescriptor,
+    resolved: &crate::resolve::ResolvedConfig,
+    out: &mut super::CompileOutput,
+) {
+    out.rule_files = build_cursor_rule_files(&resolved.rules);
+    out.cursor_hooks_patch = build_cursor_hooks_patch(&resolved.hooks);
+    let patch = out
+        .cursor_hooks_patch
+        .get_or_insert_with(|| serde_json::json!({}));
+    inject_ship_lifecycle_hooks(patch);
+    out.cursor_cli_permissions = build_cursor_cli_json(resolved);
+    out.cursor_environment_json = build_cursor_environment(resolved);
+}

@@ -33,14 +33,8 @@ pub fn compile_agent_profiles(
             Some(p) => p,
             None => continue,
         };
-        let content = match harness_id {
-            "claude" => compile_claude_agent(profile),
-            "gemini" => compile_gemini_agent(profile),
-            "cursor" => compile_cursor_agent(profile),
-            "codex" => compile_codex_agent(profile),
-            "opencode" => compile_opencode_agent(profile),
-            _ => continue,
-        };
+        // Dispatch via the descriptor's fn pointer — no harness-id match.
+        let content = (desc.compile_agent)(profile);
         out.insert(path, content);
     }
     out
@@ -50,7 +44,7 @@ pub fn compile_agent_profiles(
 // Format: `.claude/agents/<id>.md`
 // Frontmatter: name, description, model, tools, permissionMode, mcpServers, skills
 
-fn compile_claude_agent(profile: &AgentProfile) -> String {
+pub(super) fn compile_claude_agent(profile: &AgentProfile) -> String {
     let mut fm = Vec::new();
     // Use id as name so Claude Code can match it as a subagent_type by filename
     fm.push(format!("name: {}", profile.agent.id));
@@ -102,7 +96,7 @@ fn compile_claude_agent(profile: &AgentProfile) -> String {
 // Format: `.gemini/agents/<id>.md`
 // Frontmatter: name, description, kind, tools, model, max_turns
 
-fn compile_gemini_agent(profile: &AgentProfile) -> String {
+pub(super) fn compile_gemini_agent(profile: &AgentProfile) -> String {
     let mut fm = Vec::new();
     fm.push(format!("name: {}", profile.agent.id));
     if let Some(desc) = &profile.agent.description {
@@ -139,7 +133,7 @@ fn compile_gemini_agent(profile: &AgentProfile) -> String {
 // Format: `.cursor/agents/<id>.md`
 // Frontmatter: name, description, model
 
-fn compile_cursor_agent(profile: &AgentProfile) -> String {
+pub(super) fn compile_cursor_agent(profile: &AgentProfile) -> String {
     let mut fm = Vec::new();
     fm.push(format!("name: {}", profile.agent.id));
     if let Some(desc) = &profile.agent.description {
@@ -159,7 +153,7 @@ fn compile_cursor_agent(profile: &AgentProfile) -> String {
 // Format: `.codex/agents/<id>.toml`
 // Schema: name, model, description + config keys
 
-fn compile_codex_agent(profile: &AgentProfile) -> String {
+pub(super) fn compile_codex_agent(profile: &AgentProfile) -> String {
     let mut lines = Vec::new();
     lines.push(format!("name = {}", toml_quote(&profile.agent.name)));
     if let Some(desc) = &profile.agent.description {
@@ -192,7 +186,7 @@ fn compile_codex_agent(profile: &AgentProfile) -> String {
 // agents under `@`-autocomplete as subagents (invokable from a primary
 // agent), matching the Claude `.claude/agents/<id>.md` semantics.
 
-fn compile_opencode_agent(profile: &AgentProfile) -> String {
+pub(super) fn compile_opencode_agent(profile: &AgentProfile) -> String {
     let mut fm = Vec::new();
     // `description` is required by OpenCode's schema; fall back to the
     // agent id when no description is set in the profile.

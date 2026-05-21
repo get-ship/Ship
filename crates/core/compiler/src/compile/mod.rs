@@ -143,16 +143,9 @@ pub fn compile(resolved: &ResolvedConfig, harness_id: &str) -> Option<CompileOut
     if flags.supports_mcp {
         let studio_url = resolved.studio_mcp_url.as_deref();
         let ship_home = resolved.ship_home_dir.as_deref();
-        // Use harness-specific MCP builders when available (for per-server fields).
-        out.mcp_servers = match harness_id {
-            "gemini" => gemini::build_gemini_mcp_servers(
-                desc, &resolved.mcp_servers, studio_url, ship_home,
-            ),
-            "cursor" => cursor::build_cursor_mcp_servers(
-                desc, &resolved.mcp_servers, studio_url, ship_home,
-            ),
-            _ => mcp::build_mcp_servers(desc, &resolved.mcp_servers, studio_url, ship_home),
-        };
+        // MCP builder is carried on the descriptor (gemini/cursor have
+        // per-server-field variants; the rest share mcp::build_mcp_servers).
+        out.mcp_servers = (desc.build_mcp)(desc, &resolved.mcp_servers, studio_url, ship_home);
         out.mcp_config_path = desc.mcp_config_path.map(String::from);
     } else {
         out.mcp_servers = serde_json::json!({});
@@ -165,60 +158,10 @@ pub fn compile(resolved: &ResolvedConfig, harness_id: &str) -> Option<CompileOut
     let profile_agents = agents::compile_agent_profiles(&resolved.agent_profiles, harness_id);
     out.agent_files.extend(profile_agents);
 
-    if harness_id == "claude" {
-        out.claude_settings_patch = claude::build_claude_settings_patch(
-            &resolved.permissions,
-            &resolved.hooks,
-            resolved.model.as_deref(),
-            resolved.claude_settings_extra.as_ref(),
-            &resolved.env,
-            &resolved.available_models,
-            resolved.claude_theme.as_deref(),
-            resolved.claude_auto_updates,
-            resolved.claude_include_co_authored_by,
-        );
-        // Inject Ship lifecycle hooks (HTTP when daemon is running, command otherwise).
-        if let Some(ref mut patch) = out.claude_settings_patch {
-            claude::inject_ship_lifecycle_hooks(patch);
-        }
-        out.claude_lsp_config = Some(claude::build_claude_lsp_config());
-        // Legacy team agents (passthrough from .ship/agents/teams/claude/)
-        if let Some(base) = desc.agents_dir.base_path() {
-            for (filename, content) in &resolved.claude_team_agents {
-                out.agent_files
-                    .insert(format!("{base}/{filename}"), content.clone());
-            }
-        }
-    }
-
-    if harness_id == "codex" {
-        out.codex_config_patch = codex::build_codex_config_patch(resolved);
-        out.codex_hooks_json = Some(codex::build_codex_hooks_json());
-        out.codex_policy_content = codex::build_codex_execpolicy(&resolved.permissions);
-    }
-
-    if harness_id == "gemini" {
-        out.gemini_settings_patch = gemini::build_gemini_settings_patch(resolved);
-        // Ensure a patch exists so we can inject lifecycle hooks.
-        let patch = out.gemini_settings_patch.get_or_insert_with(|| serde_json::json!({}));
-        gemini::inject_ship_lifecycle_hooks(patch);
-        out.gemini_policy_patch = gemini::build_gemini_policy_patch(&resolved.permissions);
-    }
-
-    if harness_id == "cursor" {
-        out.rule_files = cursor::build_cursor_rule_files(&resolved.rules);
-        out.cursor_hooks_patch = cursor::build_cursor_hooks_patch(&resolved.hooks);
-        // Inject Ship lifecycle hooks (always command-based for Cursor).
-        let patch = out.cursor_hooks_patch.get_or_insert_with(|| serde_json::json!({}));
-        cursor::inject_ship_lifecycle_hooks(patch);
-        // cursor_cli_permissions is now merged with cursor_settings_extra via build_cursor_cli_json
-        out.cursor_cli_permissions = cursor::build_cursor_cli_json(resolved);
-        out.cursor_environment_json = cursor::build_cursor_environment(resolved);
-    }
-
-    if harness_id == "opencode" {
-        out.opencode_config_patch = opencode::build_opencode_config_patch(resolved);
-    }
+    // Harness-native settings/policy/hook outputs — dispatched via the
+    // descriptor's fn pointer, no harness-id branch. Runs after agent
+    // profiles so claude's team-agent passthrough lands in out.agent_files.
+    (desc.build_settings)(desc, resolved, &mut out);
 
     out.plugins_manifest = plugins::build_plugins_manifest(&resolved.plugins, harness_id);
 

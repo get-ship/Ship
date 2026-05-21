@@ -250,3 +250,12 @@ pub(super) fn build_opencode_config_patch(resolved: &ResolvedConfig) -> Option<J
 
     Some(root)
 }
+
+/// Populate OpenCode-native outputs (config patch).
+pub(super) fn build_settings(
+    _desc: &super::harness::HarnessDescriptor,
+    resolved: &crate::resolve::ResolvedConfig,
+    out: &mut super::CompileOutput,
+) {
+    out.opencode_config_patch = build_opencode_config_patch(resolved);
+}

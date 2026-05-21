@@ -321,3 +321,14 @@ fn json_to_toml(v: &serde_json::Value) -> Option<toml::Value> {
         }
     }
 }
+
+/// Populate Codex-native outputs (config patch, hooks json, exec policy).
+pub(super) fn build_settings(
+    _desc: &super::harness::HarnessDescriptor,
+    resolved: &crate::resolve::ResolvedConfig,
+    out: &mut super::CompileOutput,
+) {
+    out.codex_config_patch = build_codex_config_patch(resolved);
+    out.codex_hooks_json = Some(build_codex_hooks_json());
+    out.codex_policy_content = build_codex_execpolicy(&resolved.permissions);
+}

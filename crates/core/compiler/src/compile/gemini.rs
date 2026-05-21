@@ -371,3 +371,17 @@ pub(super) fn build_gemini_policy_patch(permissions: &Permissions) -> Option<Str
 
     Some(toml)
 }
+
+/// Populate Gemini-native outputs (settings patch + lifecycle hooks, policy).
+pub(super) fn build_settings(
+    _desc: &super::harness::HarnessDescriptor,
+    resolved: &crate::resolve::ResolvedConfig,
+    out: &mut super::CompileOutput,
+) {
+    out.gemini_settings_patch = build_gemini_settings_patch(resolved);
+    let patch = out
+        .gemini_settings_patch
+        .get_or_insert_with(|| serde_json::json!({}));
+    inject_ship_lifecycle_hooks(patch);
+    out.gemini_policy_patch = build_gemini_policy_patch(&resolved.permissions);
+}
