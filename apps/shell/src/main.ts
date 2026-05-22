@@ -288,6 +288,20 @@ async function mountRoute(r: Route, opts: { module?: unknown } = {}): Promise<vo
     return showLanding(slot)
   }
 
+  // home is first-party CHROME (apps/shell/src/components/sui-home), not a
+  // daemon-served view. Render the registered <sui-home> element directly —
+  // it self-mounts via customElements + the SUI runtime. The shell hides the
+  // status strip for body[data-view="home"] (layout.css).
+  if (r.view === 'home' && !r.sub) {
+    disposeCurrentMount()
+    publishScope(null)
+    slot.innerHTML = '<sui-home></sui-home>'
+    document.body.dataset.view = 'home'
+    currentRoute = r
+    currentViewId = null
+    return
+  }
+
   const w = window as WindowWithSui
   const runtime = await (w.__suiRuntimeReady ?? Promise.resolve(w.__suiRuntime))
   if (!runtime?.mount) throw new Error('shell: SUI runtime did not load')
