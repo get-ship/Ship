@@ -173,7 +173,10 @@ pub fn verify_decision() -> VerifyResult {
         IsolationStrategy::DockerEngine => true,
         IsolationStrategy::YoukiRootless => true,
         IsolationStrategy::Wsl2 => false,
-        IsolationStrategy::LimaVm => false,
+        // Lima is spawn-wired (process.rs `wire_sidecar_sandbox`) and Linux
+        // POC-verified; live-green on macOS is gated on a Mac. `lima`
+        // capability + macOS gate selection.
+        IsolationStrategy::LimaVm => true,
         // Firecracker is spawn-wired (process.rs `wire_sidecar_sandbox`) +
         // live-tested (`firecracker_live`). Linux/KVM only; the `firecracker`
         // capability gates actual selection.
@@ -369,9 +372,9 @@ fn unavailable_reason(strategy: IsolationStrategy, caps: &ship_isolation::Capabi
         }
         IsolationStrategy::LimaVm => {
             if caps.lima.is_none() {
-                "lima not installed".into()
-            } else if !matches!(caps.os, HostOs::MacosArm) {
-                "Lima/Vz only supported on macOS arm64".into()
+                "limactl not installed".into()
+            } else if !matches!(caps.os, HostOs::MacosArm | HostOs::MacosIntel) {
+                "Lima is the macOS substrate (arm64 via vz, Intel via qemu)".into()
             } else {
                 "unknown".into()
             }

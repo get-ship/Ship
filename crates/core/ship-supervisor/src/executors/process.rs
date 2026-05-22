@@ -349,6 +349,39 @@ async fn prepare_firecracker_sandbox(
     Ok(PreparedSandbox { isolator, sandbox, endpoint })
 }
 
+/// Build a Lima isolator from `isolation.strategies.lima` settings, call
+/// available() (requires the instance Running), prepare(). The macOS
+/// substrate — compiles everywhere but only selected on mac. Endpoint is
+/// plaintext http over Lima's forwarded loopback port. Workspace + resource
+/// caps are not yet applied by the Lima Isolator (the instance mounts the
+/// host home; per-run caps are a follow-up).
+async fn prepare_lima_sandbox(
+    ctx: &JobContext,
+) -> Result<PreparedSandbox, ship_substrate::isolation::IsolatorError> {
+    use ship_isolation::backends::{Lima, LimaConfig};
+    use ship_substrate::isolation::SandboxPolicy;
+
+    let settings = ship_platform::isolation::strategies_settings()
+        .map_err(ship_substrate::isolation::IsolatorError::Other)?;
+    let lima = &settings.lima;
+    let cfg = LimaConfig {
+        limactl_bin: std::path::PathBuf::from(&lima.bin),
+        instance: lima.instance.clone(),
+        sidecar_path: lima.sidecar_path.clone(),
+    };
+    let isolator: std::sync::Arc<dyn ship_substrate::isolation::Isolator> =
+        std::sync::Arc::new(Lima::new(cfg));
+    isolator.available().await?;
+
+    let policy = SandboxPolicy {
+        label: format!("agent:{}", ctx.slug),
+        ..SandboxPolicy::default()
+    };
+    let sandbox = isolator.prepare(&policy).await?;
+    let endpoint = ship_isolation::backends::Lima::sidecar_endpoint(&sandbox);
+    Ok(PreparedSandbox { isolator, sandbox, endpoint })
+}
+
 /// Mint a per-process scoped session token and push it to the sandboxed
 /// actor via `SHIP_TOKEN` (never the root daemon token). Returns the token
 /// so the exit monitor can drop it from the registry. Best-effort: logs +
@@ -716,6 +749,28 @@ impl JobExecutor for ProcessExecutor {
                             // rootfs init's `--app-plane 8088:2469`).
                             |_| Some("http://127.0.0.1:8088".to_string()),
                             || prepare_firecracker_sandbox(&ctx),
+                        )
+                        .await?
+                        {
+                            remote_runtime = Some(runtime);
+                            minted_token = token;
+                            active = "1";
+                        }
+                    }
+                    IsolationStrategy::LimaVm => {
+                        // Per-project Lima VM (macOS substrate) running the
+                        // sidecar; driven over ship.sidecar.v1 via Lima's
+                        // forwarded loopback port. The agent reaches the daemon
+                        // at host.lima.internal (SHIP_DAEMON_URL). Compiles on
+                        // all targets; only selected on mac.
+                        if let Some((runtime, token)) = wire_sidecar_sandbox(
+                            &ctx,
+                            d.resolved.tier,
+                            d.resolved.strategy,
+                            &mut launch,
+                            "http",
+                            |o| Some(ship_isolation::backends::Lima::guest_reachable_url(o)),
+                            || prepare_lima_sandbox(&ctx),
                         )
                         .await?
                         {

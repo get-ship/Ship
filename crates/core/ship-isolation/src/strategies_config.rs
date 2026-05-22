@@ -152,6 +152,9 @@ pub struct LimaSettings {
     /// Instance name. The same instance is reused across agent runs;
     /// destroying it requires `limactl delete`.
     pub instance: String,
+    /// Absolute path to the sidecar binary inside the Lima instance (baked
+    /// into the Ship substrate image).
+    pub sidecar_path: String,
 }
 
 impl Default for LimaSettings {
@@ -159,6 +162,7 @@ impl Default for LimaSettings {
         Self {
             bin: "limactl".into(),
             instance: "ship-default".into(),
+            sidecar_path: "/usr/bin/ship-sidecar".into(),
         }
     }
 }

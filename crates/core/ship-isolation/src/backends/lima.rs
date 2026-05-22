@@ -77,6 +77,15 @@ impl Lima {
         let st = sandbox.state.downcast_ref::<LimaState>()?;
         Some(format!("http://127.0.0.1:{}", st.port))
     }
+
+    /// Rewrite a daemon origin to a guest-reachable URL. Lima exposes the
+    /// host to the guest as `host.lima.internal`, so the in-VM agent reaches
+    /// the daemon there (mirrors Docker's `host.docker.internal`).
+    pub fn guest_reachable_url(origin: &str) -> String {
+        origin
+            .replace("127.0.0.1", "host.lima.internal")
+            .replace("localhost", "host.lima.internal")
+    }
 }
 
 /// Reserve an ephemeral loopback port (bind :0, read it back, drop). The
@@ -109,7 +118,10 @@ impl Isolator for Lima {
     }
 
     async fn available(&self) -> Result<(), IsolatorError> {
-        if !self.cfg.limactl_bin.exists() {
+        // Only file-check an absolute path; a bare `limactl` is resolved on
+        // PATH by the subsequent `limactl list` (which fails → Unavailable if
+        // it's not installed).
+        if self.cfg.limactl_bin.is_absolute() && !self.cfg.limactl_bin.exists() {
             return Err(IsolatorError::Unavailable(format!(
                 "limactl not found at {}",
                 self.cfg.limactl_bin.display()

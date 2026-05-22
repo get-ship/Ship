@@ -139,7 +139,7 @@ impl Capabilities {
         if self.wsl2 {
             out.push(IsolationStrategy::Wsl2);
         }
-        if self.lima.is_some() && matches!(self.os, HostOs::MacosArm) {
+        if self.lima.is_some() && matches!(self.os, HostOs::MacosArm | HostOs::MacosIntel) {
             out.push(IsolationStrategy::LimaVm);
         }
         if self.firecracker && matches!(self.os, HostOs::Linux | HostOs::Wsl2) {
