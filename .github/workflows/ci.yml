@@ -52,6 +52,18 @@ jobs:
       # `crates/sui/sui-compiler/tests/shape_conformance.rs`). The tsc gate
       # inside that test depends on the earlier `bun install` step
       # populating `node_modules/.bin/tsc`.
+      # Isolation live cells (T1/T2) run as part of `cargo test --workspace`
+      # but skip without a substrate. Installing podman + building the sidecar
+      # bin makes the Linux podman cells (podman_sidecar/fs/zero_egress/pids,
+      # container_reach, docker_lifecycle) execute for real — cheap, reusing
+      # the compile this job already pays for. T3 (Firecracker/KVM) and
+      # mac/Windows stay manual: no nested KVM / expensive runners here.
+      - name: Install podman + pull test image (isolation live cells)
+        run: |
+          sudo apt-get update && sudo apt-get install -y podman
+          podman pull ubuntu:24.04
+      - name: Build ship-sidecar (the live cells drive it)
+        run: cargo build -p ship-sidecar
       - name: Cargo test
         run: cargo test --workspace --features unstable
       # Resource symmetry: every checked-in view mounts + disposes in
