@@ -256,6 +256,16 @@ fn preferred_strategy_in_tier(
         .find(|s| available.contains(s))
 }
 
+/// Does this OS provide an in-place Tier 1 (host process-level) sandbox?
+/// Windows has none — `@anthropic-ai/sandbox-runtime` is mac+Linux only and
+/// there's no portable Win32 primitive — so isolation on Windows means
+/// escalating to the WSL substrate. The per-OS default already routes Windows
+/// to Container (WSL/Docker); this names the policy and drives the nudge when
+/// no substrate is installed.
+pub fn os_provides_tier1(os: HostOs) -> bool {
+    !matches!(os, HostOs::Windows | HostOs::Unknown)
+}
+
 /// Per-OS default tier table. Mirrors `strategy.md` §4.
 pub fn default_tier_for_os(os: HostOs) -> IsolationTier {
     match os {
@@ -284,13 +294,20 @@ fn downgrade_chain(
             continue;
         }
         if let Some(strategy) = preferred_strategy_in_tier(caps, tier) {
+            // Landing on Noop on Windows = the user got no isolation because
+            // Windows has no Tier 1 and no substrate is installed. Nudge WSL2
+            // rather than present host-process as a normal fallback.
+            let why = if tier == IsolationTier::None && matches!(caps.os, HostOs::Windows) {
+                "no isolation strategy available — Windows has no Tier 1; enable WSL2 to get \
+                 the Ship substrate"
+                    .to_string()
+            } else {
+                format!("no {} strategy available", from_tier.as_id())
+            };
             return Ok(ResolvedIsolation {
                 strategy,
                 tier,
-                reason: ResolutionReason::Downgrade {
-                    from: from_tier,
-                    why: format!("no {} strategy available", from_tier.as_id()),
-                },
+                reason: ResolutionReason::Downgrade { from: from_tier, why },
                 downgraded: true,
             });
         }
@@ -456,6 +473,53 @@ mod tests {
                 assert_eq!(from, IsolationTier::Container);
             }
             other => panic!("expected Downgrade, got {other:?}"),
+        }
+    }
+
+    fn windows_caps_with_wsl2() -> Capabilities {
+        Capabilities { os: HostOs::Windows, wsl2: true, ..empty_caps() }
+    }
+
+    #[test]
+    fn windows_has_no_tier1() {
+        assert!(!os_provides_tier1(HostOs::Windows));
+        assert!(os_provides_tier1(HostOs::Linux));
+        assert!(os_provides_tier1(HostOs::MacosArm));
+    }
+
+    #[test]
+    fn windows_pushes_to_wsl_substrate_not_noop() {
+        // No Tier 1 on Windows → the OS default is the WSL substrate, not a
+        // silent drop to Noop.
+        let caps = windows_caps_with_wsl2();
+        let out = recommend(RecommendInput::new(&caps)).unwrap();
+        assert_eq!(out.tier, IsolationTier::Container);
+        assert_eq!(out.strategy, IsolationStrategy::Wsl2);
+        assert!(!out.downgraded);
+    }
+
+    #[test]
+    fn windows_soft_process_pref_escalates_to_wsl() {
+        // A soft preference for Tier 1 (which Windows lacks) must not error
+        // or drop to Noop — it lands in the WSL substrate (the push).
+        let caps = windows_caps_with_wsl2();
+        let pref = IsolationProfile::pin_tier(IsolationTier::Process);
+        let out = recommend(RecommendInput::new(&caps).with_user_pref(&pref)).unwrap();
+        assert_eq!(out.strategy, IsolationStrategy::Wsl2);
+    }
+
+    #[test]
+    fn windows_without_substrate_nudges_wsl() {
+        // No WSL2, no Docker → Noop, but the reason nudges enabling WSL2
+        // rather than presenting host-process as a normal fallback.
+        let caps = Capabilities { os: HostOs::Windows, ..empty_caps() };
+        let out = recommend(RecommendInput::new(&caps).with_allow_tier_0(true)).unwrap();
+        assert_eq!(out.strategy, IsolationStrategy::Noop);
+        match out.reason {
+            ResolutionReason::Downgrade { why, .. } => {
+                assert!(why.contains("WSL2"), "expected a WSL2 nudge, got: {why}");
+            }
+            other => panic!("expected Downgrade reason, got {other:?}"),
         }
     }
 }

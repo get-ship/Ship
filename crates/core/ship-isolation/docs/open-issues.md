@@ -37,10 +37,13 @@ in earlier drafts — k8s baggage avoided).
      runs natively on Windows; WSL is the tier-strategy substrate it reaches
      for the higher tiers (symmetric with Lima/Firecracker). Isolator written
      + wired + recommendable; launch + Windows→distro localhost-forward
-     POC-verified on a WSL2 box. Remaining: run `wsl_sidecar_live` on Windows
-     (forwarding is host↔distro, so the cell only greens on the Windows host),
-     publish the `ship-substrate` rootfs + the installer that imports it, and
-     the "push to WSL when no Tier 1" recommender policy.
+     POC-verified on a WSL2 box. The "push to WSL when no Tier 1" recommender
+     policy is **done** — Windows defaults to the WSL substrate, a soft Tier-1
+     preference escalates to it, and a host with no substrate nudges enabling
+     WSL2 (`os_provides_tier1` + tests). Remaining: run `wsl_sidecar_live` on
+     Windows (forwarding is host↔distro, so the cell only greens on the
+     Windows host), and publish the `ship-substrate` rootfs + the installer
+     that imports it.
 2. **CI coverage.** The live cells auto-skip without a substrate/KVM, so
    the ✅ grid isn't continuously protected. Add a Linux CI job (podman +
    a KVM runner for Firecracker) so regressions surface.
