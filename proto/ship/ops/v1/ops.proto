@@ -131,6 +131,16 @@ service CommandOpsService {
     option (ship.ops.v1.capability) = "ship.views.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
   }
+
+  // Grant / revoke a session's view-edit mode. C1.
+  rpc EnterViewEditMode(ViewEditModeRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.views.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc ExitViewEditMode(ViewEditModeRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.views.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
 }
 
 message UpdateJobStatusRequest {
@@ -228,4 +238,9 @@ message ViewSignalRequest {
   string name = 2;
   // Signal value, serialized as JSON.
   string value_json = 3;
+}
+
+message ViewEditModeRequest {
+  string view = 1;
+  string session_id = 2;
 }

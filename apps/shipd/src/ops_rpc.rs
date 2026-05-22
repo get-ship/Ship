@@ -16,8 +16,8 @@ use ship_ops_rpc::{
     OwnedGitPathsRequestView, OwnedGitPushRequestView, OwnedGitRemoteRequestView,
     OwnedMeshBroadcastRequestView, OwnedMeshSendRequestView, OwnedMetaRequestView,
     OwnedStepDoneRequestView, OwnedSteerAgentRequestView, OwnedStopAgentRequestView,
-    OwnedUpdateJobStatusRequestView, OwnedViewPatchRequestView, OwnedViewSignalRequestView,
-    ReadOpsServiceExt,
+    OwnedUpdateJobStatusRequestView, OwnedViewEditModeRequestView, OwnedViewPatchRequestView,
+    OwnedViewSignalRequestView, ReadOpsServiceExt,
 };
 
 use ship_substrate::events::CallerKind;
@@ -530,6 +530,50 @@ impl CommandOpsService for OpsImpl {
             .map_err(|e| ConnectError::internal(e.to_string()))?;
         Ok(Response::new(JsonResponse {
             json: serde_json::json!({ "ok": true }).to_string(),
+            ..Default::default()
+        }))
+    }
+
+    // Grant the session view-edit mode for a view. C1.
+    #[allow(refining_impl_trait)]
+    async fn enter_view_edit_mode(
+        &self,
+        _ctx: RequestContext,
+        req: OwnedViewEditModeRequestView,
+    ) -> ServiceResult<JsonResponse> {
+        if !crate::routes::view_edit_mode_api::is_valid_view_name_pub(req.view) {
+            return Err(ConnectError::invalid_argument("invalid view name"));
+        }
+        let session_id = req.session_id.trim();
+        if session_id.is_empty() {
+            return Err(ConnectError::invalid_argument("session_id must be non-empty"));
+        }
+        ship_platform::view_authoring::grant(session_id, req.view);
+        Ok(Response::new(JsonResponse {
+            json: serde_json::json!({ "view": req.view, "session_id": session_id, "granted": true })
+                .to_string(),
+            ..Default::default()
+        }))
+    }
+
+    // Revoke the session's view-edit grant (idempotent). C1.
+    #[allow(refining_impl_trait)]
+    async fn exit_view_edit_mode(
+        &self,
+        _ctx: RequestContext,
+        req: OwnedViewEditModeRequestView,
+    ) -> ServiceResult<JsonResponse> {
+        if !crate::routes::view_edit_mode_api::is_valid_view_name_pub(req.view) {
+            return Err(ConnectError::invalid_argument("invalid view name"));
+        }
+        let session_id = req.session_id.trim();
+        if session_id.is_empty() {
+            return Err(ConnectError::invalid_argument("session_id must be non-empty"));
+        }
+        ship_platform::view_authoring::revoke(session_id, req.view);
+        Ok(Response::new(JsonResponse {
+            json: serde_json::json!({ "view": req.view, "session_id": session_id, "granted": false })
+                .to_string(),
             ..Default::default()
         }))
     }
