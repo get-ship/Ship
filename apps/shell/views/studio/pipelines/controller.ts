@@ -49,7 +49,18 @@ export default controller<Scope>({
   },
   derived: {
     defs: ({ summaries }) => read(summaries).defs.map((d) => ({
-      ...d, success_pct: Math.floor(d.success_rate * 100),
+      ...d,
+      success_pct: Math.floor(d.success_rate * 100),
+      // Map run tone → the sui-pipeline-card state taxonomy (ok/running/awaiting/err/none).
+      card_state: d.active_runs > 0
+        ? 'running'
+        : d.last_run_tone === 'success'
+          ? 'ok'
+          : d.last_run_tone === 'destructive'
+            ? 'err'
+            : d.last_run_tone === 'warning'
+              ? 'awaiting'
+              : 'none',
     })),
     activeRuns: ({ summaries }) => read(summaries).active_runs.map((r) => ({
       ...r,

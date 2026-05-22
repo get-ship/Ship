@@ -76,38 +76,15 @@
       {#if defs().length > 0}
       <div class="ship-pipelines-def-list">
         {#for def of defs() key={def.name}}
-          <sui-card interactive status-rail attr:tone={def.active_runs > 0 ? 'info' : (def.last_run_tone ?? 'muted')} on:click={() => navigate('/studio/pipelines/focus/' + def.name)}>
-            <div class="ship-def-title">
-              <span class="ship-def-name">{def.name}</span>
-              {#if def.active_runs > 0}<sui-badge tone="info">{def.active_runs} running</sui-badge>{/if}
-            </div>
-            {#if def.description}<p class="ship-def-desc">{def.description}</p>{/if}
-            <div class="ship-def-chips">
+          <sui-pipeline-card interactive attr:state={def.card_state} on:click={() => navigate('/studio/pipelines/focus/' + def.name)}>
+            {def.name}
+            {#if def.description}<span slot="desc">{def.description}</span>{/if}
+            <span slot="steps">
               <sui-chip size="sm" tone="muted">{def.step_count} step{def.step_count !== 1 ? 's' : ''}</sui-chip>
-              {#if def.last_run_status}<sui-chip size="sm" attr:tone={def.last_run_tone ?? 'muted'}>{def.last_run_status}</sui-chip>{/if}
-              {#if def.recent_outcomes}<span class="ship-def-spark" aria-label={'Last ' + def.recent_outcomes.length + ' run outcomes'}></span>{/if}
-            </div>
-            <sui-cluster gap="5" align="baseline" slot="footer">
-              {#if def.total_runs > 0}
-                <span class="ship-def-stat">
-                  <span class="ship-def-stat-value">{def.total_runs}</span>
-                  <span class="ship-def-stat-label">runs</span>
-                </span>
-                <span class="ship-def-stat">
-                  <span class="ship-def-stat-value">{def.success_pct}<span class="ship-def-stat-unit">%</span></span>
-                  <span class="ship-def-stat-label">success</span>
-                </span>
-                {#if def.last_run_at}
-                <span class="ship-def-stat ship-def-stat-grow">
-                  <span class="ship-def-stat-value ship-def-stat-time"><sui-timestamp attr:value={def.last_run_at} relative></sui-timestamp></span>
-                  <span class="ship-def-stat-label">last run</span>
-                </span>
-                {/if}
-              {:else}
-                <span class="ship-def-stat-empty">No runs yet — click to dispatch</span>
-              {/if}
-            </sui-cluster>
-          </sui-card>
+              {#if def.total_runs > 0}<sui-chip size="sm" tone="muted">{def.total_runs} run{def.total_runs !== 1 ? 's' : ''} · {def.success_pct}%</sui-chip>{/if}
+              {#if def.last_run_at}<sui-timestamp attr:value={def.last_run_at} relative></sui-timestamp>{/if}
+            </span>
+          </sui-pipeline-card>
         {/for}
       </div>
       {:else}
