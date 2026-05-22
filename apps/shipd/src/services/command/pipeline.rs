@@ -32,6 +32,27 @@ pub async fn try_dispatch(
             .map_err(CommandError::from_core)?;
             Ok(Some(value))
         }
+        "pipeline.step_done" => {
+            let slug = req_str(args, "slug")?;
+            let outputs = args
+                .get("outputs")
+                .and_then(|v| v.as_object())
+                .map(|m| {
+                    m.iter()
+                        .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
+                        .collect()
+                })
+                .unwrap_or_default();
+            let body = crate::project_api::jobs_status::StepDoneReq {
+                summary: opt_str(args, "summary"),
+                outputs,
+            };
+            let value =
+                crate::project_api::jobs_status::step_done_core(ctx.state, &slug, body)
+                    .await
+                    .map_err(CommandError::from_core)?;
+            Ok(Some(value))
+        }
         _ => Ok(None),
     }
 }

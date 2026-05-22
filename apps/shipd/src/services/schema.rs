@@ -106,6 +106,18 @@ pub const COMMANDS: &[CommandDescriptor] = &[
         blast_radius: "C1_WORKSPACE",
         sensitive: false,
     },
+    CommandDescriptor {
+        name: "pipeline.step_done",
+        description: "Agent declares the current pipeline step complete.",
+        args: &[
+            ArgDescriptor { name: "slug", kind: "string", required: true },
+            ArgDescriptor { name: "summary", kind: "string?", required: false },
+            ArgDescriptor { name: "outputs", kind: "map", required: false },
+        ],
+        permission: "ship.runtime.write",
+        blast_radius: "C1_WORKSPACE",
+        sensitive: false,
+    },
     // ── project ───────────────────────────────────────────────────
     CommandDescriptor {
         name: "project.activate",
@@ -123,6 +135,18 @@ pub const COMMANDS: &[CommandDescriptor] = &[
             ArgDescriptor { name: "from", kind: "string", required: true },
             ArgDescriptor { name: "to", kind: "string", required: true },
             ArgDescriptor { name: "body_json", kind: "string?", required: false },
+        ],
+        permission: "ship.mesh.write",
+        blast_radius: "C1_WORKSPACE",
+        sensitive: false,
+    },
+    CommandDescriptor {
+        name: "mesh.broadcast",
+        description: "Broadcast a mesh message (optional capability filter; caller-as-self).",
+        args: &[
+            ArgDescriptor { name: "from", kind: "string", required: true },
+            ArgDescriptor { name: "body_json", kind: "string?", required: false },
+            ArgDescriptor { name: "capability_filter", kind: "string?", required: false },
         ],
         permission: "ship.mesh.write",
         blast_radius: "C1_WORKSPACE",
