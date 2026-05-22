@@ -1,9 +1,14 @@
 // The Ship operation surface as ConnectRPC. Projected per decisions #1/#67:
-// proto owns shapes + policy; the daemon implements the generated OpsService
-// trait (compile-time 1-1 conformance); CLI/GUI are generated clients. Mounts
+// proto owns shapes + policy; the daemon implements the generated service
+// traits (compile-time 1-1 conformance); CLI/GUI are generated clients. Mounts
 // additively beside the existing axum REST/SSE — nothing else moves.
 //
-// Wire path: /ship.ops.v1.OpsService/<Method> (Connect convention).
+// This file is hand-authored and minimal: the base OpsService (Meta) + the
+// shared JsonResponse. The op surface is GENERATED from the registries:
+//   - reads    → ReadOpsService    (reads.gen.proto    from schema::OPS)
+//   - commands → CommandOpsService (commands.gen.proto from schema::COMMANDS)
+// Don't hand-add ops here — add a descriptor + a dispatch entry and re-run
+// `cargo xtask gen-ops`.
 syntax = "proto3";
 
 package ship.ops.v1;
@@ -11,14 +16,11 @@ package ship.ops.v1;
 import "ship/ops/v1/policy.proto";
 
 service OpsService {
-  // Daemon build/version metadata. The first op — proves the proto → codegen
-  // → trait → mount → gate pipeline end to end. C0: safe for any caller.
+  // Daemon build/version metadata. C0: safe for any caller.
   rpc Meta(MetaRequest) returns (MetaResponse) {
     option (ship.ops.v1.capability) = "ship.meta.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
-  // Read ops (the registry projections) live in ReadOpsService, generated from
-  // schema::OPS — see reads.gen.proto. Commands (typed) will be added here.
 }
 
 message MetaRequest {}
@@ -30,266 +32,9 @@ message MetaResponse {
   string build = 2;
 }
 
-// Migration shape for ported read ops: the op's projection serialized as JSON.
-// Typed messages replace this per-op where a stable contract earns it. Used by
-// the generated ReadOpsService.
+// Shared response shape for generated read + command ops: the op's result
+// serialized as JSON. Typed messages replace this per-op where a stable
+// contract earns it.
 message JsonResponse {
   string json = 1;
-}
-
-// Commands (mutations) — hand-authored typed methods, the agent surface for
-// state changes. Each takes a typed request, calls a shared core (one logic,
-// both transports), returns JsonResponse for now. C1/C2 per the blast-radius
-// audit; the gate enforces the class.
-service CommandOpsService {
-  // Agent-driven lifecycle update for the agent's own run (gate verdict,
-  // blocked, completed, …). The REST handler + this share one core. C1.
-  rpc UpdateJobStatus(UpdateJobStatusRequest) returns (JsonResponse) {
-    option (ship.ops.v1.capability) = "ship.runtime.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
-  }
-
-  // Switch the daemon's active project. C1 — the user's own daemon state.
-  rpc ActivateProject(ActivateProjectRequest) returns (JsonResponse) {
-    option (ship.ops.v1.capability) = "ship.projects.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
-  }
-
-  // Stop a running agent by slug. C1 — cross-actor control, space-bound.
-  rpc StopAgent(StopAgentRequest) returns (JsonResponse) {
-    option (ship.ops.v1.capability) = "ship.agents.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
-  }
-
-  // Inject a message into a running agent. C1.
-  rpc SteerAgent(SteerAgentRequest) returns (JsonResponse) {
-    option (ship.ops.v1.capability) = "ship.agents.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
-  }
-
-  // Dispatch a single agent session — the canonical agent command. C1.
-  rpc DispatchAgent(DispatchAgentRequest) returns (JsonResponse) {
-    option (ship.ops.v1.capability) = "ship.runtime.dispatch";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
-  }
-
-  // Agent declares the current pipeline step complete. C1 — the agent's own run.
-  rpc StepDone(StepDoneRequest) returns (JsonResponse) {
-    option (ship.ops.v1.capability) = "ship.runtime.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
-  }
-
-  // Send a directed mesh message to another actor (agent→agent / chat_reply).
-  // The caller may only send as itself. C1.
-  rpc MeshSend(MeshSendRequest) returns (JsonResponse) {
-    option (ship.ops.v1.capability) = "ship.mesh.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
-  }
-
-  // Broadcast a mesh message (optionally capability-filtered). Caller-as-self. C1.
-  rpc MeshBroadcast(MeshBroadcastRequest) returns (JsonResponse) {
-    option (ship.ops.v1.capability) = "ship.mesh.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
-  }
-
-  // Git: push / fetch / pull in the caller's worktree. C1 — the user's repo.
-  rpc GitPush(GitPushRequest) returns (JsonResponse) {
-    option (ship.ops.v1.capability) = "ship.git.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
-  }
-  rpc GitFetch(GitRemoteRequest) returns (JsonResponse) {
-    option (ship.ops.v1.capability) = "ship.git.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
-  }
-  rpc GitPull(GitRemoteRequest) returns (JsonResponse) {
-    option (ship.ops.v1.capability) = "ship.git.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
-  }
-  rpc GitStage(GitPathsRequest) returns (JsonResponse) {
-    option (ship.ops.v1.capability) = "ship.git.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
-  }
-  rpc GitUnstage(GitPathsRequest) returns (JsonResponse) {
-    option (ship.ops.v1.capability) = "ship.git.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
-  }
-  rpc GitCommit(GitCommitRequest) returns (JsonResponse) {
-    option (ship.ops.v1.capability) = "ship.git.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
-  }
-
-  // View-session edits (the agent's own SUI session). Caller identity required. C1.
-  rpc PatchViewSession(ViewPatchRequest) returns (JsonResponse) {
-    option (ship.ops.v1.capability) = "ship.views.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
-  }
-  rpc AppendViewSession(ViewPatchRequest) returns (JsonResponse) {
-    option (ship.ops.v1.capability) = "ship.views.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
-  }
-  rpc SignalViewSession(ViewSignalRequest) returns (JsonResponse) {
-    option (ship.ops.v1.capability) = "ship.views.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
-  }
-
-  // Grant / revoke a session's view-edit mode. C1.
-  rpc EnterViewEditMode(ViewEditModeRequest) returns (JsonResponse) {
-    option (ship.ops.v1.capability) = "ship.views.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
-  }
-  rpc ExitViewEditMode(ViewEditModeRequest) returns (JsonResponse) {
-    option (ship.ops.v1.capability) = "ship.views.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
-  }
-
-  // Post an annotation (canvas/observation). Identity-bound. C1.
-  rpc PostAnnotation(PostAnnotationRequest) returns (JsonResponse) {
-    option (ship.ops.v1.capability) = "ship.annotations.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
-  }
-
-  // Post feedback (canvas/observation; rate-limited). Identity-bound. C1.
-  rpc PostFeedback(PostFeedbackRequest) returns (JsonResponse) {
-    option (ship.ops.v1.capability) = "ship.feedback.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
-  }
-
-  // Scaffold a new surface (view | skill). C1 — workspace authoring.
-  rpc CreateSurface(CreateSurfaceRequest) returns (JsonResponse) {
-    option (ship.ops.v1.capability) = "ship.surfaces.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
-  }
-
-  // View-authoring tool dispatch (write_source/compile_check/restore/…) for a
-  // session in view-edit mode. C1.
-  rpc DispatchViewTool(ViewToolRequest) returns (JsonResponse) {
-    option (ship.ops.v1.capability) = "ship.views.write";
-    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
-  }
-}
-
-message UpdateJobStatusRequest {
-  string pipeline_run_id = 1;
-  string status = 2;
-  // Optional (empty/0 = unset); required only for specific statuses.
-  string worktree = 3;
-  uint32 pid = 4;
-  string gate_agent = 5;
-  string blocker = 6;
-  string error = 7;
-}
-
-message ActivateProjectRequest {
-  string id = 1;
-}
-
-message StopAgentRequest {
-  string slug = 1;
-}
-
-message SteerAgentRequest {
-  string slug = 1;
-  string message = 2;
-}
-
-message DispatchAgentRequest {
-  string agent = 1;
-  string spec = 2;
-  string prompt = 3;
-  bool resume = 4;
-  string harness = 5;
-  string model = 6;
-  optional bool open_tab = 7;   // defaults true when unset (REST default)
-  string invocation = 8;        // "pty" (default) | "print" | "stream"
-  optional bool keepalive = 9;  // defaults true when unset
-  string workspace = 10;
-  string slug = 11;
-  string branch = 12;
-  string source_spec_path = 13;
-  repeated string depends_on = 14;
-  map<string, string> vars = 15;
-}
-
-message StepDoneRequest {
-  string slug = 1;
-  string summary = 2;
-  map<string, string> outputs = 3;
-}
-
-message MeshSendRequest {
-  string from = 1;
-  string to = 2;
-  // Arbitrary JSON message body, serialized as a string.
-  string body_json = 3;
-}
-
-message MeshBroadcastRequest {
-  string from = 1;
-  string body_json = 2;
-  // Optional capability filter (empty = all actors).
-  string capability_filter = 3;
-}
-
-message GitPushRequest {
-  string workspace_id = 1;
-  string remote = 2;
-  bool force = 3;
-}
-
-message GitRemoteRequest {
-  string workspace_id = 1;
-  string remote = 2;
-}
-
-message GitPathsRequest {
-  string workspace_id = 1;
-  repeated string paths = 2;
-}
-
-message GitCommitRequest {
-  string workspace_id = 1;
-  string message = 2;
-  string author = 3;
-}
-
-message ViewPatchRequest {
-  string id = 1;
-  string selector = 2;
-  string html = 3;
-}
-
-message ViewSignalRequest {
-  string id = 1;
-  string name = 2;
-  // Signal value, serialized as JSON.
-  string value_json = 3;
-}
-
-message ViewEditModeRequest {
-  string view = 1;
-  string session_id = 2;
-}
-
-message PostAnnotationRequest {
-  // AnnotationEvent, serialized as JSON (nested target/intent/note/etc.).
-  string event_json = 1;
-}
-
-message PostFeedbackRequest {
-  // FeedbackEvent, serialized as JSON.
-  string event_json = 1;
-}
-
-message CreateSurfaceRequest {
-  string surface = 1;  // "view" | "skill"
-  string name = 2;     // kebab-case id
-  string shape = 3;
-  string purpose = 4;  // optional (empty = none)
-}
-
-message ViewToolRequest {
-  string view = 1;
-  string session_id = 2;
-  string op = 3;          // read_source | write_source | compile_check | …
-  string args_json = 4;   // op args, serialized as JSON (empty = none)
 }
