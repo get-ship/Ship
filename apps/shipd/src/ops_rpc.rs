@@ -12,7 +12,8 @@ use buffa_descriptor::generated::descriptor::FileDescriptorSet;
 use connectrpc::{ConnectError, RequestContext, Response, ServiceResult};
 use ship_ops_rpc::{
     CommandOpsService, CommandOpsServiceExt, JsonResponse, MetaResponse, OpsService, OpsServiceExt,
-    OwnedActivateProjectRequestView, OwnedDispatchAgentRequestView, OwnedGitCommitRequestView,
+    OwnedActivateProjectRequestView, OwnedCreateSurfaceRequestView, OwnedDispatchAgentRequestView,
+    OwnedGitCommitRequestView,
     OwnedGitPathsRequestView, OwnedGitPushRequestView, OwnedGitRemoteRequestView,
     OwnedMeshBroadcastRequestView, OwnedMeshSendRequestView, OwnedMetaRequestView,
     OwnedStepDoneRequestView, OwnedSteerAgentRequestView, OwnedStopAgentRequestView,
@@ -618,6 +619,27 @@ impl CommandOpsService for OpsImpl {
                 .map_err(|e| ConnectError::invalid_argument(format!("event_json: {e}")))?;
         let resp =
             crate::routes::feedback_api::post_feedback_core(&self.state, auth, guard, ev).await;
+        bridge_axum_response(resp).await
+    }
+
+    // Scaffold a new surface (view | skill). C1.
+    #[allow(refining_impl_trait)]
+    async fn create_surface(
+        &self,
+        _ctx: RequestContext,
+        req: OwnedCreateSurfaceRequestView,
+    ) -> ServiceResult<JsonResponse> {
+        let create_req = crate::routes::create_api::CreateRequest {
+            name: req.name.to_string(),
+            purpose: (!req.purpose.is_empty()).then(|| req.purpose.to_string()),
+            shape: req.shape.to_string(),
+        };
+        let resp = crate::routes::create_api::create_surface_core(
+            &self.state,
+            req.surface.to_string(),
+            create_req,
+        )
+        .await;
         bridge_axum_response(resp).await
     }
 }

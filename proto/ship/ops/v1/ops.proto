@@ -153,6 +153,12 @@ service CommandOpsService {
     option (ship.ops.v1.capability) = "ship.feedback.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
   }
+
+  // Scaffold a new surface (view | skill). C1 — workspace authoring.
+  rpc CreateSurface(CreateSurfaceRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.surfaces.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
 }
 
 message UpdateJobStatusRequest {
@@ -265,4 +271,11 @@ message PostAnnotationRequest {
 message PostFeedbackRequest {
   // FeedbackEvent, serialized as JSON.
   string event_json = 1;
+}
+
+message CreateSurfaceRequest {
+  string surface = 1;  // "view" | "skill"
+  string name = 2;     // kebab-case id
+  string shape = 3;
+  string purpose = 4;  // optional (empty = none)
 }

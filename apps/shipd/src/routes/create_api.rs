@@ -104,13 +104,23 @@ pub async fn create_surface(
     Path(surface): Path<String>,
     Json(req): Json<CreateRequest>,
 ) -> axum::response::Response {
+    create_surface_core(&state, surface, req).await
+}
+
+/// Shared core for the REST handler and the Connect command (#78 will give it a
+/// typed result + move it into a service).
+pub(crate) async fn create_surface_core(
+    state: &ApiState,
+    surface: String,
+    req: CreateRequest,
+) -> axum::response::Response {
     if !valid_name(&req.name) {
         return err(StatusCode::BAD_REQUEST, "name must be kebab-case");
     }
 
     let resp = match surface.as_str() {
-        "view" => scaffold_view(&state, &req),
-        "skill" => scaffold_skill(&state, &req),
+        "view" => scaffold_view(state, &req),
+        "skill" => scaffold_skill(state, &req),
         "agent" | "pipeline" | "trigger" | "theme" => err(
             StatusCode::NOT_IMPLEMENTED,
             format!("surface '{surface}' scaffolding lands in a later commit"),
