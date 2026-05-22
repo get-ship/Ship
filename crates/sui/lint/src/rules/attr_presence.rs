@@ -279,7 +279,7 @@ mod tests {
     }
 
     #[test]
-    fn multibyte_chars_do_not_panic() {
+    fn multibyte_chars_with_symbols_do_not_panic() {
         // Em-dashes in comments (and `°`/`§`, etc.) put non-char-boundary
         // bytes in the byte-walk; the scan must not str-slice into them.
         let f = lint(

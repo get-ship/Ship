@@ -12,6 +12,7 @@ use crate::report::Finding;
 
 pub mod attr_presence;
 pub mod controller_purity;
+pub mod css_content_text;
 pub mod css_literal;
 pub mod dimension_literal;
 pub mod css_token;
@@ -34,6 +35,7 @@ pub const CONTROLLER_RULES: &[(&str, RuleFn)] = &[
 /// `lib.rs::lint_sui_template_source` walks this slice in order.
 pub const SUI_TEMPLATE_RULES: &[(&str, RuleFn)] = &[
     (css_literal::RULE_ID, css_literal::check),
+    (css_content_text::RULE_ID, css_content_text::check),
     (css_token::RULE_ID, css_token::check),
     (for_key::RULE_ID, for_key::check),
     (event_name::RULE_ID, event_name::check),
