@@ -4,6 +4,7 @@
 //!   cargo xtask gen-types          # regenerate packages/deck/sdk/src/generated.ts
 //!   cargo xtask gen-types --check  # verify generated file is up-to-date (CI)
 
+mod gen_ops;
 mod gen_sdk;
 mod lint_layers;
 
@@ -249,6 +250,12 @@ fn main() {
                 std::process::exit(1);
             }
         }
+        "gen-ops" => {
+            if let Err(e) = gen_ops::run() {
+                eprintln!("gen-ops failed: {e:#}");
+                std::process::exit(1);
+            }
+        }
         "help" | "--help" | "-h" => {
             eprintln!("Usage: cargo xtask <command>");
             eprintln!();
@@ -257,6 +264,7 @@ fn main() {
             eprintln!("  gen-types --check  Verify generated file is up-to-date (CI)");
             eprintln!("  gen-sdk            Emit packages/deck/sdk/src/generated/sdk-*.json + TS bindings");
             eprintln!("  lint-layers        Verify substrate/platform/application boundaries");
+            eprintln!("  gen-ops            Generate the read-op Connect surface from schema::OPS");
         }
         other => {
             eprintln!("Unknown command: {other}");

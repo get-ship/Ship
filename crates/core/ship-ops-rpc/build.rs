@@ -29,6 +29,7 @@ fn main() {
         .arg("-I.")
         .arg("ship/ops/v1/policy.proto")
         .arg("ship/ops/v1/ops.proto")
+        .arg("ship/ops/v1/reads.gen.proto")
         .status()
         .expect("failed to spawn protoc");
     assert!(status.success(), "protoc descriptor compile failed");
@@ -38,7 +39,7 @@ fn main() {
     //    and are read by the gate via reflection.
     connectrpc_build::Config::new()
         .descriptor_set(&descriptor)
-        .files(&["ship/ops/v1/ops.proto"])
+        .files(&["ship/ops/v1/ops.proto", "ship/ops/v1/reads.gen.proto"])
         .compile()
         .expect("connectrpc-build codegen failed");
 

@@ -11,8 +11,7 @@ use buffa::{Message, UnknownFieldData};
 use buffa_descriptor::generated::descriptor::FileDescriptorSet;
 use connectrpc::{ConnectError, RequestContext, Response, ServiceResult};
 use ship_ops_rpc::{
-    JsonResponse, MetaResponse, OpsService, OpsServiceExt, OwnedAccountStateRequestView,
-    OwnedMetaRequestView,
+    JsonResponse, MetaResponse, OpsService, OpsServiceExt, OwnedMetaRequestView, ReadOpsServiceExt,
 };
 
 use crate::ship_runtime::ApiState;
@@ -54,26 +53,21 @@ impl OpsService for OpsImpl {
             ..Default::default()
         }))
     }
-
-    // Account/session snapshot. First ported read op — delegates to the
-    // existing registry dispatch and returns its JSON projection.
-    #[allow(refining_impl_trait)]
-    async fn account_state(
-        &self,
-        _ctx: RequestContext,
-        _request: OwnedAccountStateRequestView,
-    ) -> ServiceResult<JsonResponse> {
-        self.dispatch_json("account.state")
-    }
 }
+
+// Generated read ops (`ReadOpsService`) — projected from `schema::OPS` by
+// `cargo xtask gen-ops`. Each delegates to the registry via `dispatch_json`.
+// Regenerate after changing the read-op set; do not hand-edit the .rs.
+include!("ops_reads_gen.rs");
 
 /// The ConnectRPC op surface as an `axum::Router`, merged into the daemon's
 /// authenticated routes so `auth_middleware` wraps it (the gate will read the
 /// injected `AuthContext`). Wire paths: `/ship.ops.v1.OpsService/<Method>`.
 pub fn router(state: ApiState) -> axum::Router {
-    Arc::new(OpsImpl { state })
-        .register(connectrpc::Router::new())
-        .into_axum_router()
+    let svc = Arc::new(OpsImpl { state });
+    let router = OpsServiceExt::register(svc.clone(), connectrpc::Router::new());
+    let router = ReadOpsServiceExt::register(svc, router);
+    router.into_axum_router()
 }
 
 // ── Policy gate ─────────────────────────────────────────────────────────────
@@ -194,7 +188,7 @@ mod tests {
     #[test]
     fn ported_read_op_carries_its_policy() {
         // account.state ported as a per-op method keeps its own proto policy.
-        let p = policy_for("ship.ops.v1.OpsService/AccountState")
+        let p = policy_for("ship.ops.v1.ReadOpsService/AccountState")
             .expect("AccountState policy must be present");
         assert_eq!(p.capability, "ship.account.read");
         assert_eq!(p.blast_radius, BlastRadius::C0Safe);
