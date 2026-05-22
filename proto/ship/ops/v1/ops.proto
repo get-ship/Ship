@@ -159,6 +159,13 @@ service CommandOpsService {
     option (ship.ops.v1.capability) = "ship.surfaces.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
   }
+
+  // View-authoring tool dispatch (write_source/compile_check/restore/…) for a
+  // session in view-edit mode. C1.
+  rpc DispatchViewTool(ViewToolRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.views.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
 }
 
 message UpdateJobStatusRequest {
@@ -278,4 +285,11 @@ message CreateSurfaceRequest {
   string name = 2;     // kebab-case id
   string shape = 3;
   string purpose = 4;  // optional (empty = none)
+}
+
+message ViewToolRequest {
+  string view = 1;
+  string session_id = 2;
+  string op = 3;          // read_source | write_source | compile_check | …
+  string args_json = 4;   // op args, serialized as JSON (empty = none)
 }

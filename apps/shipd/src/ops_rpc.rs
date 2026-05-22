@@ -19,7 +19,7 @@ use ship_ops_rpc::{
     OwnedStepDoneRequestView, OwnedSteerAgentRequestView, OwnedStopAgentRequestView,
     OwnedPostAnnotationRequestView, OwnedPostFeedbackRequestView, OwnedUpdateJobStatusRequestView,
     OwnedViewEditModeRequestView, OwnedViewPatchRequestView, OwnedViewSignalRequestView,
-    ReadOpsServiceExt,
+    OwnedViewToolRequestView, ReadOpsServiceExt,
 };
 
 use ship_substrate::events::CallerKind;
@@ -638,6 +638,33 @@ impl CommandOpsService for OpsImpl {
             &self.state,
             req.surface.to_string(),
             create_req,
+        )
+        .await;
+        bridge_axum_response(resp).await
+    }
+
+    // View-authoring tool dispatch for a session in view-edit mode. C1.
+    #[allow(refining_impl_trait)]
+    async fn dispatch_view_tool(
+        &self,
+        _ctx: RequestContext,
+        req: OwnedViewToolRequestView,
+    ) -> ServiceResult<JsonResponse> {
+        let args: serde_json::Value = if req.args_json.is_empty() {
+            serde_json::Value::Null
+        } else {
+            serde_json::from_str(req.args_json)
+                .map_err(|e| ConnectError::invalid_argument(format!("args_json: {e}")))?
+        };
+        let body = crate::routes::view_edit_tool_api::ToolBody {
+            session_id: req.session_id.to_string(),
+            op: req.op.to_string(),
+            args,
+        };
+        let resp = crate::routes::view_edit_tool_api::dispatch_tool_core(
+            &self.state,
+            req.view.to_string(),
+            body,
         )
         .await;
         bridge_axum_response(resp).await
