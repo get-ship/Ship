@@ -103,6 +103,10 @@ dist/
 .ship/platform.db-*
 .ship/*.db
 .ship/*.db-journal
+
+# Stray project-local trash — canonical trash lives in ~/.ship/trash/ (substrate
+# trash.rs). Nothing should write trash into the committed .ship/ config dir.
+.ship/.trash/
 .ship/*.db-wal
 .ship/*.db-shm
 
