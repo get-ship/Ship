@@ -30,7 +30,6 @@
   }
   :host([streaming]) .streaming { display: inline-flex; }
   .streaming::before { content: '●'; }
-  .streaming::after { content: 'streaming'; }
 
   .body { display: flex; flex-direction: column; gap: 2px; min-height: 0; }
 </style>
@@ -39,7 +38,7 @@
   <div class="header" part="header">
     <span class="step"><slot name="step"></slot></span>
     <span class="meta"><slot name="meta"></slot></span>
-    <span class="streaming"></span>
+    <span class="streaming">streaming</span>
   </div>
   <div class="body" part="body"><slot></slot></div>
 </div>

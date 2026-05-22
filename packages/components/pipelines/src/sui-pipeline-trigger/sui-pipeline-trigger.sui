@@ -46,10 +46,6 @@
     font-family: var(--font-mono); font-size: 9.5px; text-transform: uppercase;
     letter-spacing: 0.1em; font-weight: 700; color: var(--hue);
   }
-  :host([kind='webhook']) .kind::before { content: 'webhook'; }
-  :host([kind='cron'])    .kind::before { content: 'cron'; }
-  :host([kind='file'])    .kind::before { content: 'file'; }
-  :host([kind='manual'])  .kind::before { content: 'manual'; }
 
   .label { font-family: var(--font-mono); font-size: 11px; color: var(--foreground); }
   .sub { font-family: var(--font-mono); font-size: 9.5px; color: var(--muted-foreground); }
@@ -59,7 +55,7 @@
 <div class="trigger" part="trigger">
   <span class="glyph" part="glyph"></span>
   <div class="body">
-    <div class="kind" part="kind"></div>
+    <div class="kind" part="kind">{kindLabel()}</div>
     <div class="label"><slot></slot></div>
     <div class="sub"><slot name="sub"></slot></div>
   </div>

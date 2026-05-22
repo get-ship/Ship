@@ -20,9 +20,9 @@
   :host([hidden]) { display: none; }
   .dag { width: 100%; }
   .dag svg { width: 100%; height: auto; display: block; }
-  .dag:empty::after {
-    content: 'no steps'; display: block; padding: 16px;
-    font-family: var(--font-mono); font-size: 11px; color: var(--muted-foreground); text-align: center;
+  .dag-empty {
+    padding: 16px; font-family: var(--font-mono); font-size: 11px;
+    color: var(--muted-foreground); text-align: center;
   }
 </style>
 

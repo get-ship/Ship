@@ -57,10 +57,6 @@
     font-family: var(--font-mono); font-size: 9.5px; font-weight: 700;
     letter-spacing: 0.1em; text-transform: uppercase; color: var(--type);
   }
-  :host([type='agent']) .kind::before { content: 'agent'; }
-  :host([type='gate'])  .kind::before { content: 'gate'; }
-  :host([type='merge']) .kind::before { content: 'merge'; }
-  :host([type='human']) .kind::before { content: 'human'; }
 
   .id { font-family: var(--font-mono); font-size: 12.5px; font-weight: 600; color: var(--foreground); }
 
@@ -72,13 +68,9 @@
     color: var(--state); border-color: color-mix(in oklch, var(--state) 35%, transparent);
   }
   :host(:not([state='none'])) .chip { display: inline-flex; }
-  .chip::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
-  :host([state='ok'])       .chip::after { content: 'ok'; }
-  :host([state='running'])  .chip::after { content: 'running'; }
-  :host([state='awaiting']) .chip::after { content: 'review'; }
-  :host([state='err'])      .chip::after { content: 'err'; }
-  :host([state='running']) .chip::before,
-  :host([state='awaiting']) .chip::before { animation: pl-pulse 1.6s ease-in-out infinite; }
+  .chip .dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+  :host([state='running']) .chip .dot,
+  :host([state='awaiting']) .chip .dot { animation: pl-pulse 1.6s ease-in-out infinite; }
   @keyframes pl-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
 
   .sub { font-family: var(--font-mono); font-size: 10.5px; color: var(--muted-foreground); margin-top: 3px; }
@@ -93,9 +85,9 @@
     <span class="accent" part="accent"></span>
     <div class="content">
       <div class="meta">
-        <span class="kind" part="kind"></span>
+        <span class="kind" part="kind">{kindLabel()}</span>
         <span class="id"><slot></slot></span>
-        <span class="chip" part="chip"></span>
+        <span class="chip" part="chip"><span class="dot"></span>{stateLabel()}</span>
       </div>
       <div class="sub"><slot name="sub"></slot></div>
       <div class="arts"><slot name="arts"></slot></div>

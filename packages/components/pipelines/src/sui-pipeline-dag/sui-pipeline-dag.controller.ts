@@ -22,8 +22,10 @@ function esc(s: string): string {
   return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c] ?? c)
 }
 
+const EMPTY_HTML = '<div class="dag-empty">no steps</div>'
+
 function render(steps: Step[]): string {
-  if (!Array.isArray(steps) || steps.length === 0) return ''
+  if (!Array.isArray(steps) || steps.length === 0) return EMPTY_HTML
   const byId = new Map(steps.map((s) => [s.id, s]))
 
   // level = longest dependency path from a root (cycle-safe).
@@ -106,7 +108,7 @@ export default controller<Scope>({
       try {
         return render(JSON.parse(scope.steps() || '[]') as Step[])
       } catch {
-        return ''
+        return EMPTY_HTML
       }
     })
   },
