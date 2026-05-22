@@ -66,7 +66,7 @@ export default controller<Scope>({
       const segs = view
         ? [view]
         : path().split('/').filter(Boolean)
-      if (segs.length === 0) segs.push('dashboard')
+      // Home (`/`) shows no view crumb — the brand logo is the home button.
 
       const out: Crumb[] = []
       if (project) {
