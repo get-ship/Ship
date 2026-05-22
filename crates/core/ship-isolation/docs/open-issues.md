@@ -36,8 +36,10 @@ in earlier drafts — k8s baggage avoided).
    launch-default tier's property is still unverified).
 5. **Phase-F image** — pinned/signed/bundled Firecracker kernel+rootfs +
    Docker agent image (the script is a *dev* builder).
-6. **Refinements** — ACPI graceful shutdown (vs periodic-sync flush), a
-   T-RES test (cgroup caps actually cap).
+6. **Refinements** — ACPI graceful shutdown (vs periodic-sync flush).
+   ~~T-RES test~~ ✅ `podman_pids_cap_live` proves the pids cap reaches the
+   kernel cgroup and is enforced (reads `pids.max`, then bursts past it and
+   confirms `pids.current` never exceeds the limit).
 
 **Explicitly other branches (not isolation):** tool-gating / permissions
 (lean on the harness's auto-mode *classifier* + the filesystem deny-floor —
