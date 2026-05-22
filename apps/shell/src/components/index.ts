@@ -29,6 +29,7 @@ import './sui-activity/sui-activity.compiled.js'
 import './sui-account/sui-account.compiled.js'
 import './sui-library/sui-library.compiled.js'
 import './sui-setup/sui-setup.compiled.js'
+import './sui-settings/sui-settings.compiled.js'
 import './sui-help-overlay/sui-help-overlay.compiled.js'
 // Studio rail — reused by every studio deck route (views/studio/**). Eager
 // so on-demand-compiled nested leaves can drop the tag without importing it.
