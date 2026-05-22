@@ -4,135 +4,125 @@
 <div class="ship-view home-desktop" data-test="home-desktop">
   <div class="home-bg" aria-hidden="true"></div>
 
-  <div class="home-desk">
-    {#async dash}
-      {:loading}
-      <div class="home-widgets" data-test="home-loading" aria-busy="true" aria-label="Loading workspace">
-        {#for n of [0, 1, 2, 3, 4] key={n}}
-          <sui-skeleton shape="block" size="md"></sui-skeleton>
-        {/for}
+  {#async dash}
+    {:loading}
+    <div class="home-grid" data-test="home-loading" aria-busy="true" aria-label="Loading workspace">
+      {#for n of [0, 1, 2, 3, 4] key={n}}
+        <sui-skeleton shape="block" size="md"></sui-skeleton>
+      {/for}
+    </div>
+
+    {:error err}
+    <sui-error-state title="Couldn't load workspace" data-test="home-error" role="alert" aria-live="assertive">
+      {err.message}
+      <sui-button slot="action" tone="primary" variant="solid" on:click={() => window.location.reload()}>Retry</sui-button>
+    </sui-error-state>
+
+    {:ok}
+    {#if isFirstRun()}
+      <sui-empty-state icon="sparkles" variant="default" size="lg" data-test="home-empty" role="status" class="home-empty">
+        <span slot="title">Welcome to Ship</span>
+        This space is empty.
+        <sui-button slot="action" tone="primary" variant="solid" on:click={() => navigate('/studio/agents/create')} data-test="home-empty-agent">
+          <sui-icon slot="leading" name="user-plus"></sui-icon>
+          Add an agent
+        </sui-button>
+      </sui-empty-state>
+    {:else}
+      <div class="home-grid" data-test="home-widgets" data-view-enter>
+
+        <article class="hw hw-greet" style="grid-column: 1 / span 8; grid-row: 1 / span 2;">
+          <h1 class="hw-greet-line" data-test="home-hero">{greeting()}.</h1>
+          <p class="hw-greet-sub">{heroLine()}</p>
+        </article>
+
+        <article class="hw" style="grid-column: 9 / span 4; grid-row: 1 / span 2;">
+          <h2 class="hw-h">Workspace</h2>
+          <div class="hw-stat-row">
+            <div class="hw-stat"><span class="hw-n">{totalJobs()}</span><span class="hw-l">jobs</span></div>
+            <div class="hw-stat"><span class="hw-n">{agentCount()}</span><span class="hw-l">agents</span></div>
+            <div class="hw-stat"><span class="hw-n">{totalEvents()}</span><span class="hw-l">events</span></div>
+            <div class="hw-stat"><span class="hw-n">{collectionsCount()}</span><span class="hw-l">colls</span></div>
+          </div>
+        </article>
+
+        <article class="hw" style="grid-column: 1 / span 5; grid-row: 3 / span 2;">
+          <h2 class="hw-h">Recent jobs<a class="hw-link" href="/pipelines" on:click={(e) => goNav(e, '/pipelines')}>all</a></h2>
+          {#if recentJobs().length > 0}
+            <ul class="hw-list">
+              {#for run of recentJobs() key={run.id}}
+                <li class="hw-row" data-test="home-job">
+                  <sui-status-dot prop:tone={run.tone ?? 'muted'} size="sm"></sui-status-dot>
+                  <span class="hw-name">{run.slug ?? run.id}</span>
+                </li>
+              {/for}
+            </ul>
+          {:else}
+            <span class="hw-muted">No jobs yet.</span>
+          {/if}
+        </article>
+
+        <article class="hw" style="grid-column: 6 / span 3; grid-row: 3 / span 2;">
+          <h2 class="hw-h">Git<a class="hw-link" href="/git" on:click={(e) => goNav(e, '/git')}>open</a></h2>
+          {#async git}
+            {:loading}
+            <span class="hw-muted" data-test="git-loading">Loading&hellip;</span>
+            {:error err}
+            <span class="hw-muted" data-test="git-error">offline</span>
+            {:ok}
+            <div class="hw-git" data-test="git-summary">
+              <span class="home-glance-dot" data-clean={isClean() ? '1' : '0'} aria-hidden="true"></span>
+              <strong class="hw-mono" data-test="git-branch">{branchName()}</strong>
+              <span class="hw-mono hw-muted" data-test="git-head">{headShort()}</span>
+              <span class="hw-mono hw-muted" data-test="git-status">{isClean() ? 'clean' : changedSummary()}</span>
+            </div>
+          {/async}
+        </article>
+
+        <article class="hw" style="grid-column: 9 / span 4; grid-row: 3 / span 2;">
+          <h2 class="hw-h">Agents<a class="hw-link" href="/studio/agents" on:click={(e) => goNav(e, '/studio/agents')}>manage</a></h2>
+          {#if agentSlice().length > 0}
+            <ul class="hw-list">
+              {#for agent of agentSlice() key={agent.id}}
+                <li class="hw-row" data-test="home-agent">
+                  <sui-avatar size="sm" shape="square" attr:name={agent.name ?? agent.id} attr:initials={agent.initials}></sui-avatar>
+                  <span class="hw-name">{agent.name ?? agent.id}</span>
+                </li>
+              {/for}
+            </ul>
+          {:else}
+            <span class="hw-muted">No agents.</span>
+          {/if}
+        </article>
+
+        <article class="hw" style="grid-column: 1 / span 12; grid-row: 5 / span 2;">
+          <h2 class="hw-h">Activity<a class="hw-link" href="/activity" on:click={(e) => goNav(e, '/activity')}>stream</a></h2>
+          {#if recentEvents().length > 0}
+            <ul class="hw-list hw-list-wide">
+              {#for r of recentEvents() key={r.id ?? r.timestamp}}
+                <li class="hw-row" data-test="home-activity-row">
+                  <span class="hw-mono hw-muted">{r.timestamp}</span>
+                  <span class="hw-name">{r.event_type}</span>
+                </li>
+              {/for}
+            </ul>
+          {:else}
+            <span class="hw-muted">Waiting for activity.</span>
+          {/if}
+        </article>
+
       </div>
 
-      {:error err}
-      <sui-error-state title="Couldn't load workspace" data-test="home-error" role="alert" aria-live="assertive">
-        {err.message}
-        <sui-button slot="action" tone="primary" variant="solid" on:click={() => window.location.reload()}>Retry</sui-button>
-      </sui-error-state>
-
-      {:ok}
-      {#if isFirstRun()}
-        <sui-empty-state icon="sparkles" variant="default" size="lg" data-test="home-empty" role="status" class="home-empty">
-          <span slot="title">Welcome to Ship</span>
-          This space is empty.
-          <sui-cluster slot="action" gap="2" justify="center">
-            <sui-button tone="primary" variant="solid" on:click={() => navigate('/studio/agents/create')} data-test="home-empty-agent">
-              <sui-icon slot="leading" name="user-plus"></sui-icon>
-              Add an agent
-            </sui-button>
-          </sui-cluster>
-        </sui-empty-state>
-      {:else}
-        <header class="home-greeting" data-view-enter>
-          <h1 class="home-greet-line" data-test="home-hero">{greeting()}.</h1>
-          <p class="home-greet-sub">{heroLine()}</p>
-        </header>
-
-        <section class="home-launchpad" data-test="home-launchpad" aria-label="Apps" data-view-enter>
+      <footer class="home-dock">
+        <div class="home-dock-tray">
           {#for app of apps() key={app.href}}
-            <a class="home-launch" href={app.href} on:click={(e) => goNav(e, app.href)} data-test="home-launch">
-              <span class="home-launch-ico"><sui-icon name={app.icon} aria-hidden="true"></sui-icon></span>
-              <span class="home-launch-label">{app.name}</span>
-            </a>
+            <button class="d-app" on:click={() => navigate(app.href)} data-test="home-launch">
+              <span class="d-ico"><sui-icon name={app.icon} aria-hidden="true"></sui-icon></span>
+              <span class="d-tip">{app.name}</span>
+            </button>
           {/for}
-        </section>
-
-        <div class="home-widgets" data-test="home-widgets" data-view-enter>
-
-          <article class="home-widget home-widget--stats">
-            <h2 class="home-widget-h">Workspace</h2>
-            <div class="home-widget-stats">
-              <div class="hw-stat"><span class="hw-n">{totalJobs()}</span><span class="hw-l">jobs</span></div>
-              <div class="hw-stat"><span class="hw-n">{agentCount()}</span><span class="hw-l">agents</span></div>
-              <div class="hw-stat"><span class="hw-n">{totalEvents()}</span><span class="hw-l">events</span></div>
-              <div class="hw-stat"><span class="hw-n">{collectionsCount()}</span><span class="hw-l">collections</span></div>
-            </div>
-          </article>
-
-          <article class="home-widget home-widget--git">
-            <h2 class="home-widget-h">Git
-              <a class="hw-link" href="/git" on:click={(e) => goNav(e, '/git')}>open</a>
-            </h2>
-            {#async git}
-              {:loading}
-              <span class="hw-muted" data-test="git-loading">Loading&hellip;</span>
-              {:error err}
-              <span class="hw-muted" data-test="git-error">stream offline</span>
-              {:ok}
-              <div class="hw-git" data-test="git-summary">
-                <span class="home-glance-dot" data-clean={isClean() ? '1' : '0'} aria-hidden="true"></span>
-                <strong class="hw-mono" data-test="git-branch">{branchName()}</strong>
-                <span class="hw-mono hw-muted" data-test="git-head">{headShort()}</span>
-                <span class="hw-status" data-test="git-status">{isClean() ? 'clean' : changedSummary()}</span>
-              </div>
-            {/async}
-          </article>
-
-          <article class="home-widget home-widget--jobs">
-            <h2 class="home-widget-h">Recent jobs
-              <a class="hw-link" href="/pipelines" on:click={(e) => goNav(e, '/pipelines')}>all</a>
-            </h2>
-            {#if recentJobs().length > 0}
-              <ul class="hw-list">
-                {#for run of recentJobs() key={run.id}}
-                  <li class="hw-row" data-test="home-job">
-                    <sui-status-dot prop:tone={run.tone ?? 'muted'} size="sm"></sui-status-dot>
-                    <span class="hw-name">{run.slug ?? run.id}</span>
-                  </li>
-                {/for}
-              </ul>
-            {:else}
-              <span class="hw-muted">No jobs yet.</span>
-            {/if}
-          </article>
-
-          <article class="home-widget home-widget--agents">
-            <h2 class="home-widget-h">Agents
-              <a class="hw-link" href="/studio/agents" on:click={(e) => goNav(e, '/studio/agents')}>manage</a>
-            </h2>
-            {#if agentSlice().length > 0}
-              <ul class="hw-list">
-                {#for agent of agentSlice() key={agent.id}}
-                  <li class="hw-row" data-test="home-agent">
-                    <sui-avatar size="sm" shape="square" attr:name={agent.name ?? agent.id} attr:initials={agent.initials}></sui-avatar>
-                    <span class="hw-name">{agent.name ?? agent.id}</span>
-                  </li>
-                {/for}
-              </ul>
-            {:else}
-              <span class="hw-muted">No agents configured.</span>
-            {/if}
-          </article>
-
-          <article class="home-widget home-widget--activity">
-            <h2 class="home-widget-h">Activity
-              <a class="hw-link" href="/activity" on:click={(e) => goNav(e, '/activity')}>stream</a>
-            </h2>
-            {#if recentEvents().length > 0}
-              <ul class="hw-list">
-                {#for r of recentEvents() key={r.id ?? r.timestamp}}
-                  <li class="hw-row hw-event" data-test="home-activity-row">
-                    <span class="hw-mono hw-muted">{r.timestamp}</span>
-                    <span class="hw-name">{r.event_type}</span>
-                  </li>
-                {/for}
-              </ul>
-            {:else}
-              <span class="hw-muted">Waiting for activity.</span>
-            {/if}
-          </article>
-
         </div>
-      {/if}
-    {/async}
-  </div>
+      </footer>
+    {/if}
+  {/async}
 </div>
