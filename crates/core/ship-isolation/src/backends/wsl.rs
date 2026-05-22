@@ -10,10 +10,18 @@
 //! substrate (a WSL distro) and the launch mechanism differ.
 //!
 //! Transport: plain TCP. The sidecar binds `0.0.0.0:<port>` in the distro;
-//! WSL2 puts every distro and the Windows host on one network namespace with
-//! localhost forwarding, so the supervisor reaches it on `127.0.0.1:<port>`.
-//! That maps onto the sidecar's TCP listener and `SidecarActorRuntime`'s
-//! plaintext-http client — no vsock shim.
+//! WSL2 forwards distro ports to the Windows host's `127.0.0.1`, so the
+//! supervisor (shipd, native on Windows) reaches it there. Maps onto the
+//! sidecar's TCP listener and `SidecarActorRuntime`'s plaintext-http client —
+//! no vsock shim.
+//!
+//! POC-verified on a WSL2 box: `wsl.exe -d <distro> -- ship-sidecar` runs the
+//! sidecar in-distro and `Test-NetConnection 127.0.0.1 <port>` from the
+//! Windows side returns True. Crucial finding: WSL2's localhost forwarding is
+//! **host↔distro, not sibling-distro↔distro** — a supervisor in a *different*
+//! WSL distro cannot reach the target distro's port. That's fine: production
+//! shipd is on the Windows host. It does mean the Rust live cell
+//! (`wsl_sidecar_live`) only goes green when run *on Windows*.
 //!
 //! **Never touches the user's own distro.** The substrate distro name is
 //! explicit config; Ship imports its own and runs only there.

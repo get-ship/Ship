@@ -33,11 +33,14 @@ in earlier drafts — k8s baggage avoided).
      (`has_impl=false` → refuses under enforce); the `container`-CLI backend
      needs an Apple-Silicon Mac (untestable on Intel/Linux) — build test-first
      there.
-   - **WSL (Windows): topology undecided.** The Linux substrate already runs
-     in WSL2 (the cells above were verified there); the open question is where
-     `shipd` runs (Windows-native + a thin `wsl.exe` launch shim, vs daemon-in-
-     WSL with no shim). Decide before writing code — a WSL *Isolator* is only
-     needed in the Windows-native-daemon topology.
+   - **WSL (Windows): 🟡 done-pending-Windows.** Topology decided — `shipd`
+     runs natively on Windows; WSL is the tier-strategy substrate it reaches
+     for the higher tiers (symmetric with Lima/Firecracker). Isolator written
+     + wired + recommendable; launch + Windows→distro localhost-forward
+     POC-verified on a WSL2 box. Remaining: run `wsl_sidecar_live` on Windows
+     (forwarding is host↔distro, so the cell only greens on the Windows host),
+     publish the `ship-substrate` rootfs + the installer that imports it, and
+     the "push to WSL when no Tier 1" recommender policy.
 2. **CI coverage.** The live cells auto-skip without a substrate/KVM, so
    the ✅ grid isn't continuously protected. Add a Linux CI job (podman +
    a KVM runner for Firecracker) so regressions surface.
