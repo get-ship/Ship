@@ -177,6 +177,9 @@ pub fn verify_decision() -> VerifyResult {
         // POC-verified; live-green on macOS is gated on a Mac. `lima`
         // capability + macOS gate selection.
         IsolationStrategy::LimaVm => true,
+        // Apple Container backend is deferred (no `container` CLI driver yet) —
+        // recommendable but refuses under enforce until built on Apple Silicon.
+        IsolationStrategy::AppleContainer => false,
         // Firecracker is spawn-wired (process.rs `wire_sidecar_sandbox`) +
         // live-tested (`firecracker_live`). Linux/KVM only; the `firecracker`
         // capability gates actual selection.
@@ -377,6 +380,13 @@ fn unavailable_reason(strategy: IsolationStrategy, caps: &ship_isolation::Capabi
                 "Lima is the macOS substrate (arm64 via vz, Intel via qemu)".into()
             } else {
                 "unknown".into()
+            }
+        }
+        IsolationStrategy::AppleContainer => {
+            if !caps.apple_container {
+                "Apple `container` CLI not present (macOS 15+ Apple Silicon)".into()
+            } else {
+                "Apple Container backend not yet wired".into()
             }
         }
         IsolationStrategy::FlyMachines => {

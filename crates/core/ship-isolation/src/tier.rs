@@ -112,6 +112,11 @@ pub enum IsolationStrategy {
     Wsl2,
     #[serde(rename = "lima", alias = "lima_vm", alias = "tart", alias = "vz")]
     LimaVm,
+    /// Apple Container — microVM-per-container on Apple Silicon (own kernel,
+    /// stronger inter-actor isolation than a shared Lima VM). macOS 15+ arm64.
+    /// Recommendable; backend deferred until built + tested on real hardware.
+    #[serde(rename = "apple_container", alias = "apple", alias = "container")]
+    AppleContainer,
     /// Firecracker microVM (Linux/KVM) — own-kernel per sandbox; the strong
     /// Tier-3 local path and the cloud model.
     #[serde(rename = "firecracker", alias = "fc")]
@@ -131,6 +136,7 @@ impl IsolationStrategy {
             Self::YoukiRootless => "youki",
             Self::Wsl2 => "wsl2",
             Self::LimaVm => "lima",
+            Self::AppleContainer => "apple_container",
             Self::Firecracker => "firecracker",
             Self::FlyMachines => "fly",
         }
@@ -148,6 +154,7 @@ impl IsolationStrategy {
             "youki" | "youki_rootless" => Some(Self::YoukiRootless),
             "wsl2" | "wsl" => Some(Self::Wsl2),
             "lima" | "lima_vm" | "tart" | "vz" => Some(Self::LimaVm),
+            "apple_container" | "apple" | "container" => Some(Self::AppleContainer),
             "firecracker" | "fc" => Some(Self::Firecracker),
             "fly" | "fly_machines" | "flyio" => Some(Self::FlyMachines),
             _ => None,
@@ -161,7 +168,7 @@ impl IsolationStrategy {
                 IsolationTier::Process
             }
             Self::DockerEngine | Self::YoukiRootless | Self::Wsl2 => IsolationTier::Container,
-            Self::LimaVm | Self::Firecracker => IsolationTier::Vm,
+            Self::LimaVm | Self::Firecracker | Self::AppleContainer => IsolationTier::Vm,
             Self::FlyMachines => IsolationTier::Cloud,
         }
     }
@@ -180,6 +187,7 @@ impl IsolationStrategy {
             Self::Wsl2 => "Container (WSL2)",
             Self::LimaVm => "Virtual machine (Lima)",
             Self::Firecracker => "microVM (Firecracker)",
+            Self::AppleContainer => "microVM (Apple Container)",
             Self::FlyMachines => "Cloud (Fly)",
         }
     }

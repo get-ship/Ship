@@ -239,8 +239,12 @@ fn preferred_strategy_in_tier(
         IsolationTier::Vm => match caps.os {
             // Linux/WSL2 → Firecracker microVM (own kernel, cheap boot).
             HostOs::Linux | HostOs::Wsl2 => &[IsolationStrategy::Firecracker],
-            // mac → Lima (Apple Container detect-and-prefer lands with its
-            // backend; until then Lima is the mac VM path).
+            // mac arm64 → Lima (wired) first, Apple Container (stronger:
+            // microVM-per-container) second. The order flips to prefer Apple
+            // Container once its backend is wired — today has_impl=false, so
+            // auto-preferring it would refuse under enforce.
+            HostOs::MacosArm => &[IsolationStrategy::LimaVm, IsolationStrategy::AppleContainer],
+            // Intel mac (+ anything else) → Lima via qemu.
             _ => &[IsolationStrategy::LimaVm],
         },
         IsolationTier::Cloud => &[IsolationStrategy::FlyMachines],

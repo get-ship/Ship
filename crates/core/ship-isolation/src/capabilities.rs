@@ -37,6 +37,11 @@ pub struct Capabilities {
     /// so KVM access is the capability signal). Linux/WSL2 only.
     #[serde(default)]
     pub firecracker: bool,
+    /// Apple's `container` CLI is present — microVM-per-container substrate on
+    /// Apple Silicon. macOS only. Recognized + recommendable; the backend is
+    /// not yet wired (verify reports it unimplemented).
+    #[serde(default)]
+    pub apple_container: bool,
     pub fly_cli: bool,
     pub fly_authed: bool,
 }
@@ -99,6 +104,7 @@ impl Capabilities {
             sandbox_exec: probe_path("sandbox-exec").is_some(),
             vz_framework: matches!(os, HostOs::MacosArm),
             firecracker: probe_kvm_accessible(),
+            apple_container: cfg!(target_os = "macos") && probe_path("container").is_some(),
             fly_cli: probe_path("flyctl").is_some() || probe_path("fly").is_some(),
             fly_authed: probe_fly_authed(),
         }
@@ -141,6 +147,9 @@ impl Capabilities {
         }
         if self.lima.is_some() && matches!(self.os, HostOs::MacosArm | HostOs::MacosIntel) {
             out.push(IsolationStrategy::LimaVm);
+        }
+        if self.apple_container && matches!(self.os, HostOs::MacosArm) {
+            out.push(IsolationStrategy::AppleContainer);
         }
         if self.firecracker && matches!(self.os, HostOs::Linux | HostOs::Wsl2) {
             out.push(IsolationStrategy::Firecracker);
