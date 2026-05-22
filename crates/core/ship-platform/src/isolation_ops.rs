@@ -172,7 +172,9 @@ pub fn verify_decision() -> VerifyResult {
         IsolationStrategy::HarnessSandbox => true,
         IsolationStrategy::DockerEngine => true,
         IsolationStrategy::YoukiRootless => true,
-        IsolationStrategy::Wsl2 => false,
+        // WSL is spawn-wired (process.rs `wire_sidecar_sandbox`); the Windows
+        // substrate. Selection is Windows-gated; the code compiles everywhere.
+        IsolationStrategy::Wsl2 => true,
         // Lima is spawn-wired (process.rs `wire_sidecar_sandbox`) and Linux
         // POC-verified; live-green on macOS is gated on a Mac. `lima`
         // capability + macOS gate selection.

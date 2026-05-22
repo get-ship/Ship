@@ -1,6 +1,7 @@
 pub mod docker;
 pub mod lima;
 pub mod srt;
+pub mod wsl;
 
 #[cfg(target_os = "linux")]
 pub mod firecracker;
@@ -14,6 +15,7 @@ pub mod youki_sidecar;
 pub use docker::{Docker, DockerConfig};
 pub use lima::{Lima, LimaConfig};
 pub use srt::{render_settings, SrtSettings};
+pub use wsl::{Wsl, WslConfig};
 
 #[cfg(target_os = "linux")]
 pub use firecracker::{Firecracker, FirecrackerConfig};

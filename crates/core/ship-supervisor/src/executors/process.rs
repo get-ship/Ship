@@ -382,6 +382,38 @@ async fn prepare_lima_sandbox(
     Ok(PreparedSandbox { isolator, sandbox, endpoint })
 }
 
+/// Build a WSL isolator from `isolation.strategies.wsl` settings, call
+/// available() (requires the substrate distro registered), prepare(). The
+/// Windows substrate — compiles everywhere but only selected on Windows.
+/// Endpoint is plaintext http over WSL2's shared loopback. Workspace +
+/// resource caps are not yet applied (follow-up).
+async fn prepare_wsl_sandbox(
+    ctx: &JobContext,
+) -> Result<PreparedSandbox, ship_substrate::isolation::IsolatorError> {
+    use ship_isolation::backends::{Wsl, WslConfig};
+    use ship_substrate::isolation::SandboxPolicy;
+
+    let settings = ship_platform::isolation::strategies_settings()
+        .map_err(ship_substrate::isolation::IsolatorError::Other)?;
+    let wsl = &settings.wsl;
+    let cfg = WslConfig {
+        wsl_bin: std::path::PathBuf::from(&wsl.bin),
+        distro: wsl.distro.clone(),
+        sidecar_path: wsl.sidecar_path.clone(),
+    };
+    let isolator: std::sync::Arc<dyn ship_substrate::isolation::Isolator> =
+        std::sync::Arc::new(Wsl::new(cfg));
+    isolator.available().await?;
+
+    let policy = SandboxPolicy {
+        label: format!("agent:{}", ctx.slug),
+        ..SandboxPolicy::default()
+    };
+    let sandbox = isolator.prepare(&policy).await?;
+    let endpoint = ship_isolation::backends::Wsl::sidecar_endpoint(&sandbox);
+    Ok(PreparedSandbox { isolator, sandbox, endpoint })
+}
+
 /// Mint a per-process scoped session token and push it to the sandboxed
 /// actor via `SHIP_TOKEN` (never the root daemon token). Returns the token
 /// so the exit monitor can drop it from the registry. Best-effort: logs +
@@ -771,6 +803,31 @@ impl JobExecutor for ProcessExecutor {
                             "http",
                             |o| Some(ship_isolation::backends::Lima::guest_reachable_url(o)),
                             || prepare_lima_sandbox(&ctx),
+                        )
+                        .await?
+                        {
+                            remote_runtime = Some(runtime);
+                            minted_token = token;
+                            active = "1";
+                        }
+                    }
+                    IsolationStrategy::Wsl2 => {
+                        // Windows substrate: the sidecar runs in the Ship WSL
+                        // distro, driven over ship.sidecar.v1 via WSL2's shared
+                        // loopback. shipd is native on Windows; this is the
+                        // tier-strategy substrate it reaches for the higher
+                        // tiers. The agent reaches the daemon over WSL2 host
+                        // networking (mirrored mode → localhost; NAT mode →
+                        // gateway, a follow-up). Compiles everywhere; only
+                        // selected on Windows.
+                        if let Some((runtime, token)) = wire_sidecar_sandbox(
+                            &ctx,
+                            d.resolved.tier,
+                            d.resolved.strategy,
+                            &mut launch,
+                            "http",
+                            |o| Some(o.to_string()),
+                            || prepare_wsl_sandbox(&ctx),
                         )
                         .await?
                         {

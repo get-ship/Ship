@@ -31,6 +31,7 @@ pub struct StrategiesSettings {
     pub harness_native: HarnessNativeSettings,
     pub srt: SrtSettings,
     pub lima: LimaSettings,
+    pub wsl: WslSettings,
     pub firecracker: FirecrackerSettings,
     pub fly: FlySettings,
 }
@@ -162,6 +163,29 @@ impl Default for LimaSettings {
         Self {
             bin: "limactl".into(),
             instance: "ship-default".into(),
+            sidecar_path: "/usr/bin/ship-sidecar".into(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(default)]
+pub struct WslSettings {
+    /// Path to `wsl.exe` (defaults to `wsl.exe` on PATH).
+    pub bin: String,
+    /// The dedicated Ship substrate distro — imported from a published
+    /// rootfs; reused across runs. NEVER the user's own distro.
+    pub distro: String,
+    /// Absolute path to the sidecar binary inside the distro (baked into the
+    /// substrate rootfs).
+    pub sidecar_path: String,
+}
+
+impl Default for WslSettings {
+    fn default() -> Self {
+        Self {
+            bin: "wsl.exe".into(),
+            distro: "ship-substrate".into(),
             sidecar_path: "/usr/bin/ship-sidecar".into(),
         }
     }
