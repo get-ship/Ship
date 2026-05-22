@@ -12,10 +12,11 @@ use buffa_descriptor::generated::descriptor::FileDescriptorSet;
 use connectrpc::{ConnectError, RequestContext, Response, ServiceResult};
 use ship_ops_rpc::{
     CommandOpsService, CommandOpsServiceExt, JsonResponse, MetaResponse, OpsService, OpsServiceExt,
-    OwnedActivateProjectRequestView, OwnedDispatchAgentRequestView, OwnedGitPushRequestView,
-    OwnedGitRemoteRequestView, OwnedMeshBroadcastRequestView, OwnedMeshSendRequestView,
-    OwnedMetaRequestView, OwnedStepDoneRequestView, OwnedSteerAgentRequestView,
-    OwnedStopAgentRequestView, OwnedUpdateJobStatusRequestView, ReadOpsServiceExt,
+    OwnedActivateProjectRequestView, OwnedDispatchAgentRequestView, OwnedGitCommitRequestView,
+    OwnedGitPathsRequestView, OwnedGitPushRequestView, OwnedGitRemoteRequestView,
+    OwnedMeshBroadcastRequestView, OwnedMeshSendRequestView, OwnedMetaRequestView,
+    OwnedStepDoneRequestView, OwnedSteerAgentRequestView, OwnedStopAgentRequestView,
+    OwnedUpdateJobStatusRequestView, ReadOpsServiceExt,
 };
 
 use ship_substrate::events::CallerKind;
@@ -406,6 +407,69 @@ impl CommandOpsService for OpsImpl {
             .map_err(|e| ConnectError::internal(e.to_string()))?;
         Ok(Response::new(JsonResponse {
             json: serde_json::json!({ "ok": true, "sha": sha }).to_string(),
+            ..Default::default()
+        }))
+    }
+
+    // Git stage. C1.
+    #[allow(refining_impl_trait)]
+    async fn git_stage(
+        &self,
+        _ctx: RequestContext,
+        req: OwnedGitPathsRequestView,
+    ) -> ServiceResult<JsonResponse> {
+        let ws = (!req.workspace_id.is_empty()).then_some(req.workspace_id);
+        let paths: Vec<String> = req.paths.iter().map(|s| s.to_string()).collect();
+        let n = self
+            .state
+            .git()
+            .stage(ws, &paths)
+            .map_err(|e| ConnectError::internal(e.to_string()))?;
+        Ok(Response::new(JsonResponse {
+            json: serde_json::json!({ "ok": true, "staged": n }).to_string(),
+            ..Default::default()
+        }))
+    }
+
+    // Git unstage. C1.
+    #[allow(refining_impl_trait)]
+    async fn git_unstage(
+        &self,
+        _ctx: RequestContext,
+        req: OwnedGitPathsRequestView,
+    ) -> ServiceResult<JsonResponse> {
+        let ws = (!req.workspace_id.is_empty()).then_some(req.workspace_id);
+        let paths: Vec<String> = req.paths.iter().map(|s| s.to_string()).collect();
+        let n = self
+            .state
+            .git()
+            .unstage(ws, &paths)
+            .map_err(|e| ConnectError::internal(e.to_string()))?;
+        Ok(Response::new(JsonResponse {
+            json: serde_json::json!({ "ok": true, "unstaged": n }).to_string(),
+            ..Default::default()
+        }))
+    }
+
+    // Git commit. C1.
+    #[allow(refining_impl_trait)]
+    async fn git_commit(
+        &self,
+        _ctx: RequestContext,
+        req: OwnedGitCommitRequestView,
+    ) -> ServiceResult<JsonResponse> {
+        let opt = |s: &str| (!s.is_empty()).then(|| s.to_string());
+        let res = self
+            .state
+            .git()
+            .commit(ship_platform::services::git::service::CommitArgs {
+                workspace_id: opt(req.workspace_id),
+                message: req.message.to_string(),
+                author: opt(req.author),
+            })
+            .map_err(|e| ConnectError::internal(e.to_string()))?;
+        Ok(Response::new(JsonResponse {
+            json: serde_json::json!({ "ok": true, "sha": res.sha, "branch": res.branch }).to_string(),
             ..Default::default()
         }))
     }

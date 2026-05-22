@@ -105,6 +105,18 @@ service CommandOpsService {
     option (ship.ops.v1.capability) = "ship.git.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
   }
+  rpc GitStage(GitPathsRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.git.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc GitUnstage(GitPathsRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.git.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc GitCommit(GitCommitRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.git.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
 }
 
 message UpdateJobStatusRequest {
@@ -178,4 +190,15 @@ message GitPushRequest {
 message GitRemoteRequest {
   string workspace_id = 1;
   string remote = 2;
+}
+
+message GitPathsRequest {
+  string workspace_id = 1;
+  repeated string paths = 2;
+}
+
+message GitCommitRequest {
+  string workspace_id = 1;
+  string message = 2;
+  string author = 3;
 }
