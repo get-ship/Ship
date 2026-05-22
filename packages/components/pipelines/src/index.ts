@@ -4,3 +4,5 @@
 import './sui-pipeline-step/sui-pipeline-step.compiled.js'
 import './sui-pipeline-trigger/sui-pipeline-trigger.compiled.js'
 import './sui-pipeline-card/sui-pipeline-card.compiled.js'
+import './sui-pipeline-run/sui-pipeline-run.compiled.js'
+import './sui-pipeline-history/sui-pipeline-history.compiled.js'
