@@ -353,6 +353,11 @@ async function mountRoute(r: Route, opts: { module?: unknown } = {}): Promise<vo
     currentHandle = handle
     currentRoute = r
     currentViewId = nextViewId
+    // Tag the body with the active view so chrome CSS can adapt per-surface.
+    // home is chrome-like (owns its own dock) — layout.css hides the status
+    // strip there. NB: the view payload doesn't carry the manifest `layout`,
+    // so this is view-name-keyed for now (see PLATFORM-GAPS GAP-5).
+    document.body.dataset.view = r.view
     publishScope(handle.scope as unknown as Record<string, unknown>)
     // View-authoring chrome subscribes per (project, view). Pass the
     // view name; the chrome reads the persisted edit-mode signal and

@@ -167,6 +167,12 @@ body.focus-mode #ship-shell-bottom {
   display: none;
 }
 
+/* Home is a chrome-like surface — it owns its own dock, so the shell status
+   strip is redundant there. Keeps nav-top (cmdk · spaces · account). */
+body[data-view="home"] #ship-shell-bottom {
+  display: none;
+}
+
 /* Chrome modal queue — minimal native <dialog> rendered by
    `chrome.modal.request(...)`. */
 .ship-modal-queue {
