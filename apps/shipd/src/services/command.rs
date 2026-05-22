@@ -16,7 +16,9 @@ use serde_json::Value;
 use crate::auth::AuthContext;
 use crate::ship_runtime::ApiState;
 
+mod mesh;
 mod pipeline;
+mod project;
 
 /// Ambient context for a command: the runtime + the authenticated caller
 /// (identity + emit context). The write-side analog of passing `&ApiState` to
@@ -50,6 +52,20 @@ impl CommandError {
             message: format!("unknown command `{name}`"),
         }
     }
+    pub fn forbidden(msg: impl Into<String>) -> Self {
+        Self {
+            status: axum::http::StatusCode::FORBIDDEN,
+            code: "forbidden",
+            message: msg.into(),
+        }
+    }
+    pub fn service(msg: impl Into<String>) -> Self {
+        Self {
+            status: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            code: "service_error",
+            message: msg.into(),
+        }
+    }
     /// Convert a route-core `(StatusCode, String)` error into a `CommandError`.
     pub fn from_core((status, message): (axum::http::StatusCode, String)) -> Self {
         let code = if status.is_client_error() { "bad_args" } else { "service_error" };
@@ -68,6 +84,12 @@ impl std::error::Error for CommandError {}
 /// `Ok(Some(value))` when it owns `name`, `Ok(None)` to fall through.
 pub async fn call(name: &str, args: &Value, ctx: &CommandCtx<'_>) -> Result<Value, CommandError> {
     if let Some(value) = pipeline::try_dispatch(name, args, ctx).await? {
+        return Ok(value);
+    }
+    if let Some(value) = project::try_dispatch(name, args, ctx).await? {
+        return Ok(value);
+    }
+    if let Some(value) = mesh::try_dispatch(name, args, ctx).await? {
         return Ok(value);
     }
     Err(CommandError::unknown_command(name))

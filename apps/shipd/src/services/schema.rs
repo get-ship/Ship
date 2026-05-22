@@ -106,6 +106,28 @@ pub const COMMANDS: &[CommandDescriptor] = &[
         blast_radius: "C1_WORKSPACE",
         sensitive: false,
     },
+    // ── project ───────────────────────────────────────────────────
+    CommandDescriptor {
+        name: "project.activate",
+        description: "Switch the daemon's active project.",
+        args: &[ArgDescriptor { name: "id", kind: "string", required: true }],
+        permission: "ship.projects.write",
+        blast_radius: "C1_WORKSPACE",
+        sensitive: false,
+    },
+    // ── mesh ──────────────────────────────────────────────────────
+    CommandDescriptor {
+        name: "mesh.send",
+        description: "Send a directed mesh message to another actor (caller-as-self).",
+        args: &[
+            ArgDescriptor { name: "from", kind: "string", required: true },
+            ArgDescriptor { name: "to", kind: "string", required: true },
+            ArgDescriptor { name: "body_json", kind: "string?", required: false },
+        ],
+        permission: "ship.mesh.write",
+        blast_radius: "C1_WORKSPACE",
+        sensitive: false,
+    },
 ];
 
 /// The full registry op catalog. Order mirrors `services::registry::call`'s
