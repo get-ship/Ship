@@ -5,6 +5,7 @@
 //!   cargo xtask gen-types --check  # verify generated file is up-to-date (CI)
 
 mod gen_ops;
+mod gen_skills;
 mod gen_sdk;
 mod lint_layers;
 
@@ -253,6 +254,12 @@ fn main() {
         "gen-ops" => {
             if let Err(e) = gen_ops::run() {
                 eprintln!("gen-ops failed: {e:#}");
+                std::process::exit(1);
+            }
+        }
+        "gen-skills" => {
+            if let Err(e) = gen_skills::run() {
+                eprintln!("gen-skills failed: {e:#}");
                 std::process::exit(1);
             }
         }

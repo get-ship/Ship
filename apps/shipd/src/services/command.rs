@@ -154,18 +154,6 @@ pub(crate) fn str_array(args: &Value, key: &str) -> Vec<String> {
         .unwrap_or_default()
 }
 
-/// `<string,string>` map arg (e.g. `vars`, `outputs`).
-pub(crate) fn str_map(args: &Value, key: &str) -> std::collections::BTreeMap<String, String> {
-    args.get(key)
-        .and_then(|v| v.as_object())
-        .map(|m| {
-            m.iter()
-                .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
-                .collect()
-        })
-        .unwrap_or_default()
-}
-
 /// Bridge an interim axum-`Response` core into a command `Value`/error. The #78
 /// service-lift removes this once those cores return typed values directly.
 pub(crate) async fn response_to_value(
