@@ -17,12 +17,49 @@ impl ::ship_ops_rpc::ReadOpsService for OpsImpl {
     ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::JsonResponse> {
         self.dispatch_json("agents.summaries")
     }
+    async fn agents_detail(
+        &self,
+        _ctx: ::connectrpc::RequestContext,
+        req: ::ship_ops_rpc::OwnedAgentsDetailRequestView,
+    ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::JsonResponse> {
+        let mut args = ::serde_json::Map::new();
+        args.insert("id".to_string(), ::serde_json::json!(req.id));
+        self.dispatch_json_args("agents.detail", ::serde_json::Value::Object(args))
+    }
     async fn agents_catalogs(
         &self,
         _ctx: ::connectrpc::RequestContext,
         _req: ::ship_ops_rpc::OwnedAgentsCatalogsRequestView,
     ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::JsonResponse> {
         self.dispatch_json("agents.catalogs")
+    }
+    async fn agents_get(
+        &self,
+        _ctx: ::connectrpc::RequestContext,
+        req: ::ship_ops_rpc::OwnedAgentsGetRequestView,
+    ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::JsonResponse> {
+        let mut args = ::serde_json::Map::new();
+        args.insert("id".to_string(), ::serde_json::json!(req.id));
+        if !req.scope.is_empty() { args.insert("scope".to_string(), ::serde_json::json!(req.scope)); }
+        self.dispatch_json_args("agents.get", ::serde_json::Value::Object(args))
+    }
+    async fn agents_wire(
+        &self,
+        _ctx: ::connectrpc::RequestContext,
+        req: ::ship_ops_rpc::OwnedAgentsWireRequestView,
+    ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::JsonResponse> {
+        let mut args = ::serde_json::Map::new();
+        args.insert("id".to_string(), ::serde_json::json!(req.id));
+        self.dispatch_json_args("agents.wire", ::serde_json::Value::Object(args))
+    }
+    async fn agents_settings(
+        &self,
+        _ctx: ::connectrpc::RequestContext,
+        req: ::ship_ops_rpc::OwnedAgentsSettingsRequestView,
+    ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::JsonResponse> {
+        let mut args = ::serde_json::Map::new();
+        args.insert("id".to_string(), ::serde_json::json!(req.id));
+        self.dispatch_json_args("agents.settings", ::serde_json::Value::Object(args))
     }
     async fn agents_templates(
         &self,
@@ -62,9 +99,42 @@ impl ::ship_ops_rpc::ReadOpsService for OpsImpl {
     async fn skills_summaries(
         &self,
         _ctx: ::connectrpc::RequestContext,
-        _req: ::ship_ops_rpc::OwnedSkillsSummariesRequestView,
+        req: ::ship_ops_rpc::OwnedSkillsSummariesRequestView,
     ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::JsonResponse> {
-        self.dispatch_json("skills.summaries")
+        let mut args = ::serde_json::Map::new();
+        if !req.q.is_empty() { args.insert("q".to_string(), ::serde_json::json!(req.q)); }
+        if !req.kind.is_empty() { args.insert("kind".to_string(), ::serde_json::json!(req.kind)); }
+        if !req.tag.is_empty() { args.insert("tag".to_string(), ::serde_json::json!(req.tag)); }
+        self.dispatch_json_args("skills.summaries", ::serde_json::Value::Object(args))
+    }
+    async fn skills_detail(
+        &self,
+        _ctx: ::connectrpc::RequestContext,
+        req: ::ship_ops_rpc::OwnedSkillsDetailRequestView,
+    ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::JsonResponse> {
+        let mut args = ::serde_json::Map::new();
+        args.insert("id".to_string(), ::serde_json::json!(req.id));
+        self.dispatch_json_args("skills.detail", ::serde_json::Value::Object(args))
+    }
+    async fn skills_file(
+        &self,
+        _ctx: ::connectrpc::RequestContext,
+        req: ::ship_ops_rpc::OwnedSkillsFileRequestView,
+    ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::JsonResponse> {
+        let mut args = ::serde_json::Map::new();
+        args.insert("id".to_string(), ::serde_json::json!(req.id));
+        args.insert("path".to_string(), ::serde_json::json!(req.path));
+        self.dispatch_json_args("skills.file", ::serde_json::Value::Object(args))
+    }
+    async fn skills_get(
+        &self,
+        _ctx: ::connectrpc::RequestContext,
+        req: ::ship_ops_rpc::OwnedSkillsGetRequestView,
+    ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::JsonResponse> {
+        let mut args = ::serde_json::Map::new();
+        args.insert("id".to_string(), ::serde_json::json!(req.id));
+        if !req.scope.is_empty() { args.insert("scope".to_string(), ::serde_json::json!(req.scope)); }
+        self.dispatch_json_args("skills.get", ::serde_json::Value::Object(args))
     }
     async fn rules_list(
         &self,
@@ -73,6 +143,16 @@ impl ::ship_ops_rpc::ReadOpsService for OpsImpl {
     ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::JsonResponse> {
         self.dispatch_json("rules.list")
     }
+    async fn rules_get(
+        &self,
+        _ctx: ::connectrpc::RequestContext,
+        req: ::ship_ops_rpc::OwnedRulesGetRequestView,
+    ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::JsonResponse> {
+        let mut args = ::serde_json::Map::new();
+        args.insert("id".to_string(), ::serde_json::json!(req.id));
+        if !req.scope.is_empty() { args.insert("scope".to_string(), ::serde_json::json!(req.scope)); }
+        self.dispatch_json_args("rules.get", ::serde_json::Value::Object(args))
+    }
     async fn mcp_list(
         &self,
         _ctx: ::connectrpc::RequestContext,
@@ -80,12 +160,32 @@ impl ::ship_ops_rpc::ReadOpsService for OpsImpl {
     ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::JsonResponse> {
         self.dispatch_json("mcp.list")
     }
+    async fn mcp_get(
+        &self,
+        _ctx: ::connectrpc::RequestContext,
+        req: ::ship_ops_rpc::OwnedMcpGetRequestView,
+    ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::JsonResponse> {
+        let mut args = ::serde_json::Map::new();
+        args.insert("id".to_string(), ::serde_json::json!(req.id));
+        if !req.scope.is_empty() { args.insert("scope".to_string(), ::serde_json::json!(req.scope)); }
+        self.dispatch_json_args("mcp.get", ::serde_json::Value::Object(args))
+    }
     async fn permissions_list(
         &self,
         _ctx: ::connectrpc::RequestContext,
         _req: ::ship_ops_rpc::OwnedPermissionsListRequestView,
     ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::JsonResponse> {
         self.dispatch_json("permissions.list")
+    }
+    async fn permissions_get(
+        &self,
+        _ctx: ::connectrpc::RequestContext,
+        req: ::ship_ops_rpc::OwnedPermissionsGetRequestView,
+    ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::JsonResponse> {
+        let mut args = ::serde_json::Map::new();
+        args.insert("id".to_string(), ::serde_json::json!(req.id));
+        if !req.scope.is_empty() { args.insert("scope".to_string(), ::serde_json::json!(req.scope)); }
+        self.dispatch_json_args("permissions.get", ::serde_json::Value::Object(args))
     }
     async fn permissions_tool_patterns(
         &self,
@@ -101,6 +201,16 @@ impl ::ship_ops_rpc::ReadOpsService for OpsImpl {
     ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::JsonResponse> {
         self.dispatch_json("pipelines.list")
     }
+    async fn pipelines_get(
+        &self,
+        _ctx: ::connectrpc::RequestContext,
+        req: ::ship_ops_rpc::OwnedPipelinesGetRequestView,
+    ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::JsonResponse> {
+        let mut args = ::serde_json::Map::new();
+        args.insert("name".to_string(), ::serde_json::json!(req.name));
+        if !req.scope.is_empty() { args.insert("scope".to_string(), ::serde_json::json!(req.scope)); }
+        self.dispatch_json_args("pipelines.get", ::serde_json::Value::Object(args))
+    }
     async fn pipelines_summaries(
         &self,
         _ctx: ::connectrpc::RequestContext,
@@ -108,19 +218,47 @@ impl ::ship_ops_rpc::ReadOpsService for OpsImpl {
     ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::JsonResponse> {
         self.dispatch_json("pipelines.summaries")
     }
+    async fn pipelines_focus(
+        &self,
+        _ctx: ::connectrpc::RequestContext,
+        req: ::ship_ops_rpc::OwnedPipelinesFocusRequestView,
+    ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::JsonResponse> {
+        let mut args = ::serde_json::Map::new();
+        args.insert("name".to_string(), ::serde_json::json!(req.name));
+        self.dispatch_json_args("pipelines.focus", ::serde_json::Value::Object(args))
+    }
+    async fn pipelines_run(
+        &self,
+        _ctx: ::connectrpc::RequestContext,
+        req: ::ship_ops_rpc::OwnedPipelinesRunRequestView,
+    ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::JsonResponse> {
+        let mut args = ::serde_json::Map::new();
+        args.insert("slug".to_string(), ::serde_json::json!(req.slug));
+        self.dispatch_json_args("pipelines.run", ::serde_json::Value::Object(args))
+    }
     async fn pipelines_history(
         &self,
         _ctx: ::connectrpc::RequestContext,
-        _req: ::ship_ops_rpc::OwnedPipelinesHistoryRequestView,
+        req: ::ship_ops_rpc::OwnedPipelinesHistoryRequestView,
     ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::JsonResponse> {
-        self.dispatch_json("pipelines.history")
+        let mut args = ::serde_json::Map::new();
+        if req.limit != 0 { args.insert("limit".to_string(), ::serde_json::json!(req.limit)); }
+        if req.offset != 0 { args.insert("offset".to_string(), ::serde_json::json!(req.offset)); }
+        if !req.pipeline.is_empty() { args.insert("pipeline".to_string(), ::serde_json::json!(req.pipeline)); }
+        self.dispatch_json_args("pipelines.history", ::serde_json::Value::Object(args))
     }
     async fn events_list(
         &self,
         _ctx: ::connectrpc::RequestContext,
-        _req: ::ship_ops_rpc::OwnedEventsListRequestView,
+        req: ::ship_ops_rpc::OwnedEventsListRequestView,
     ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::JsonResponse> {
-        self.dispatch_json("events.list")
+        let mut args = ::serde_json::Map::new();
+        if req.limit != 0 { args.insert("limit".to_string(), ::serde_json::json!(req.limit)); }
+        if !req.event_type.is_empty() { args.insert("event_type".to_string(), ::serde_json::json!(req.event_type)); }
+        if !req.actor.is_empty() { args.insert("actor".to_string(), ::serde_json::json!(req.actor)); }
+        if !req.entity.is_empty() { args.insert("entity".to_string(), ::serde_json::json!(req.entity)); }
+        if !req.q.is_empty() { args.insert("q".to_string(), ::serde_json::json!(req.q)); }
+        self.dispatch_json_args("events.list", ::serde_json::Value::Object(args))
     }
     async fn specs_list(
         &self,
@@ -129,12 +267,33 @@ impl ::ship_ops_rpc::ReadOpsService for OpsImpl {
     ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::JsonResponse> {
         self.dispatch_json("specs.list")
     }
+    async fn specs_get(
+        &self,
+        _ctx: ::connectrpc::RequestContext,
+        req: ::ship_ops_rpc::OwnedSpecsGetRequestView,
+    ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::JsonResponse> {
+        let mut args = ::serde_json::Map::new();
+        args.insert("id".to_string(), ::serde_json::json!(req.id));
+        self.dispatch_json_args("specs.get", ::serde_json::Value::Object(args))
+    }
     async fn specs_summaries(
         &self,
         _ctx: ::connectrpc::RequestContext,
-        _req: ::ship_ops_rpc::OwnedSpecsSummariesRequestView,
+        req: ::ship_ops_rpc::OwnedSpecsSummariesRequestView,
     ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::JsonResponse> {
-        self.dispatch_json("specs.summaries")
+        let mut args = ::serde_json::Map::new();
+        if !req.q.is_empty() { args.insert("q".to_string(), ::serde_json::json!(req.q)); }
+        if !req.selected.is_empty() { args.insert("selected".to_string(), ::serde_json::json!(req.selected)); }
+        self.dispatch_json_args("specs.summaries", ::serde_json::Value::Object(args))
+    }
+    async fn specs_detail(
+        &self,
+        _ctx: ::connectrpc::RequestContext,
+        req: ::ship_ops_rpc::OwnedSpecsDetailRequestView,
+    ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::JsonResponse> {
+        let mut args = ::serde_json::Map::new();
+        args.insert("id".to_string(), ::serde_json::json!(req.id));
+        self.dispatch_json_args("specs.detail", ::serde_json::Value::Object(args))
     }
     async fn git_status(
         &self,
@@ -146,9 +305,11 @@ impl ::ship_ops_rpc::ReadOpsService for OpsImpl {
     async fn git_log(
         &self,
         _ctx: ::connectrpc::RequestContext,
-        _req: ::ship_ops_rpc::OwnedGitLogRequestView,
+        req: ::ship_ops_rpc::OwnedGitLogRequestView,
     ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::JsonResponse> {
-        self.dispatch_json("git.log")
+        let mut args = ::serde_json::Map::new();
+        if req.limit != 0 { args.insert("limit".to_string(), ::serde_json::json!(req.limit)); }
+        self.dispatch_json_args("git.log", ::serde_json::Value::Object(args))
     }
     async fn git_branches(
         &self,
@@ -160,9 +321,32 @@ impl ::ship_ops_rpc::ReadOpsService for OpsImpl {
     async fn git_overview(
         &self,
         _ctx: ::connectrpc::RequestContext,
-        _req: ::ship_ops_rpc::OwnedGitOverviewRequestView,
+        req: ::ship_ops_rpc::OwnedGitOverviewRequestView,
     ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::JsonResponse> {
-        self.dispatch_json("git.overview")
+        let mut args = ::serde_json::Map::new();
+        if !req.workspace_id.is_empty() { args.insert("workspace_id".to_string(), ::serde_json::json!(req.workspace_id)); }
+        if req.limit != 0 { args.insert("limit".to_string(), ::serde_json::json!(req.limit)); }
+        self.dispatch_json_args("git.overview", ::serde_json::Value::Object(args))
+    }
+    async fn git_diff(
+        &self,
+        _ctx: ::connectrpc::RequestContext,
+        req: ::ship_ops_rpc::OwnedGitDiffRequestView,
+    ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::JsonResponse> {
+        let mut args = ::serde_json::Map::new();
+        args.insert("commit".to_string(), ::serde_json::json!(req.commit));
+        if !req.workspace_id.is_empty() { args.insert("workspace_id".to_string(), ::serde_json::json!(req.workspace_id)); }
+        self.dispatch_json_args("git.diff", ::serde_json::Value::Object(args))
+    }
+    async fn git_annotations(
+        &self,
+        _ctx: ::connectrpc::RequestContext,
+        req: ::ship_ops_rpc::OwnedGitAnnotationsRequestView,
+    ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::JsonResponse> {
+        let mut args = ::serde_json::Map::new();
+        args.insert("file".to_string(), ::serde_json::json!(req.file));
+        if !req.workspace_id.is_empty() { args.insert("workspace_id".to_string(), ::serde_json::json!(req.workspace_id)); }
+        self.dispatch_json_args("git.annotations", ::serde_json::Value::Object(args))
     }
     async fn settings_state(
         &self,
@@ -181,9 +365,11 @@ impl ::ship_ops_rpc::ReadOpsService for OpsImpl {
     async fn collections_state(
         &self,
         _ctx: ::connectrpc::RequestContext,
-        _req: ::ship_ops_rpc::OwnedCollectionsStateRequestView,
+        req: ::ship_ops_rpc::OwnedCollectionsStateRequestView,
     ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::JsonResponse> {
-        self.dispatch_json("collections.state")
+        let mut args = ::serde_json::Map::new();
+        if !req.active.is_empty() { args.insert("active".to_string(), ::serde_json::json!(req.active)); }
+        self.dispatch_json_args("collections.state", ::serde_json::Value::Object(args))
     }
     async fn collections_list(
         &self,
@@ -192,19 +378,49 @@ impl ::ship_ops_rpc::ReadOpsService for OpsImpl {
     ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::JsonResponse> {
         self.dispatch_json("collections.list")
     }
+    async fn collections_detail(
+        &self,
+        _ctx: ::connectrpc::RequestContext,
+        req: ::ship_ops_rpc::OwnedCollectionsDetailRequestView,
+    ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::JsonResponse> {
+        let mut args = ::serde_json::Map::new();
+        args.insert("id".to_string(), ::serde_json::json!(req.id));
+        self.dispatch_json_args("collections.detail", ::serde_json::Value::Object(args))
+    }
+    async fn collections_items(
+        &self,
+        _ctx: ::connectrpc::RequestContext,
+        req: ::ship_ops_rpc::OwnedCollectionsItemsRequestView,
+    ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::JsonResponse> {
+        let mut args = ::serde_json::Map::new();
+        args.insert("collection".to_string(), ::serde_json::json!(req.collection));
+        self.dispatch_json_args("collections.items", ::serde_json::Value::Object(args))
+    }
     async fn artifacts_list(
         &self,
         _ctx: ::connectrpc::RequestContext,
-        _req: ::ship_ops_rpc::OwnedArtifactsListRequestView,
+        req: ::ship_ops_rpc::OwnedArtifactsListRequestView,
     ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::JsonResponse> {
-        self.dispatch_json("artifacts.list")
+        let mut args = ::serde_json::Map::new();
+        if !req.scope.is_empty() { args.insert("scope".to_string(), ::serde_json::json!(req.scope)); }
+        if !req.mime.is_empty() { args.insert("mime".to_string(), ::serde_json::json!(req.mime)); }
+        if !req.collection_id.is_empty() { args.insert("collection_id".to_string(), ::serde_json::json!(req.collection_id)); }
+        if !req.item_id.is_empty() { args.insert("item_id".to_string(), ::serde_json::json!(req.item_id)); }
+        if !req.owner_actor.is_empty() { args.insert("owner_actor".to_string(), ::serde_json::json!(req.owner_actor)); }
+        if !req.content_hash.is_empty() { args.insert("content_hash".to_string(), ::serde_json::json!(req.content_hash)); }
+        if !req.sort.is_empty() { args.insert("sort".to_string(), ::serde_json::json!(req.sort)); }
+        if req.limit != 0 { args.insert("limit".to_string(), ::serde_json::json!(req.limit)); }
+        if req.offset != 0 { args.insert("offset".to_string(), ::serde_json::json!(req.offset)); }
+        self.dispatch_json_args("artifacts.list", ::serde_json::Value::Object(args))
     }
     async fn chat_state(
         &self,
         _ctx: ::connectrpc::RequestContext,
-        _req: ::ship_ops_rpc::OwnedChatStateRequestView,
+        req: ::ship_ops_rpc::OwnedChatStateRequestView,
     ) -> ::connectrpc::ServiceResult<::ship_ops_rpc::JsonResponse> {
-        self.dispatch_json("chat.state")
+        let mut args = ::serde_json::Map::new();
+        if !req.workspace_id.is_empty() { args.insert("workspace_id".to_string(), ::serde_json::json!(req.workspace_id)); }
+        self.dispatch_json_args("chat.state", ::serde_json::Value::Object(args))
     }
     async fn sessions_list(
         &self,

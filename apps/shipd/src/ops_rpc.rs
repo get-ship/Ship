@@ -30,7 +30,13 @@ impl OpsImpl {
     /// Run a registry op by name and wrap its JSON projection in `JsonResponse`
     /// — the migration shape for ported read ops (see ops.proto / the spec).
     fn dispatch_json(&self, op: &str) -> ServiceResult<JsonResponse> {
-        let value = crate::services::registry::call(op, &serde_json::Value::Null, &self.state)
+        self.dispatch_json_args(op, serde_json::Value::Null)
+    }
+
+    /// As [`dispatch_json`] but with JSON `args` for ops that take parameters
+    /// (the generated arg-bearing read methods build these from their request).
+    fn dispatch_json_args(&self, op: &str, args: serde_json::Value) -> ServiceResult<JsonResponse> {
+        let value = crate::services::registry::call(op, &args, &self.state)
             .map_err(|e| ConnectError::internal(format!("{op}: {e}")))?;
         Ok(Response::new(JsonResponse {
             json: value.to_string(),

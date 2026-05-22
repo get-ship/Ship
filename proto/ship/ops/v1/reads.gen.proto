@@ -18,7 +18,23 @@ service ReadOpsService {
     option (ship.ops.v1.capability) = "ship.agents.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
+  rpc AgentsDetail(AgentsDetailRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.agents.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
   rpc AgentsCatalogs(AgentsCatalogsRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.agents.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  rpc AgentsGet(AgentsGetRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.agents.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  rpc AgentsWire(AgentsWireRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.agents.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  rpc AgentsSettings(AgentsSettingsRequest) returns (JsonResponse) {
     option (ship.ops.v1.capability) = "ship.agents.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
@@ -46,7 +62,23 @@ service ReadOpsService {
     option (ship.ops.v1.capability) = "ship.skills.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
+  rpc SkillsDetail(SkillsDetailRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.skills.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  rpc SkillsFile(SkillsFileRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.skills.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  rpc SkillsGet(SkillsGetRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.skills.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
   rpc RulesList(RulesListRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.rules.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  rpc RulesGet(RulesGetRequest) returns (JsonResponse) {
     option (ship.ops.v1.capability) = "ship.rules.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
@@ -54,7 +86,15 @@ service ReadOpsService {
     option (ship.ops.v1.capability) = "ship.mcp.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
+  rpc McpGet(McpGetRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.mcp.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
   rpc PermissionsList(PermissionsListRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.permissions.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  rpc PermissionsGet(PermissionsGetRequest) returns (JsonResponse) {
     option (ship.ops.v1.capability) = "ship.permissions.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
@@ -66,7 +106,19 @@ service ReadOpsService {
     option (ship.ops.v1.capability) = "ship.pipelines.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
+  rpc PipelinesGet(PipelinesGetRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.pipelines.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
   rpc PipelinesSummaries(PipelinesSummariesRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.pipelines.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  rpc PipelinesFocus(PipelinesFocusRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.pipelines.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  rpc PipelinesRun(PipelinesRunRequest) returns (JsonResponse) {
     option (ship.ops.v1.capability) = "ship.pipelines.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
@@ -82,7 +134,15 @@ service ReadOpsService {
     option (ship.ops.v1.capability) = "ship.specs.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
+  rpc SpecsGet(SpecsGetRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.specs.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
   rpc SpecsSummaries(SpecsSummariesRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.specs.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  rpc SpecsDetail(SpecsDetailRequest) returns (JsonResponse) {
     option (ship.ops.v1.capability) = "ship.specs.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
@@ -102,6 +162,14 @@ service ReadOpsService {
     option (ship.ops.v1.capability) = "ship.git.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
+  rpc GitDiff(GitDiffRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.git.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  rpc GitAnnotations(GitAnnotationsRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.git.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
   rpc SettingsState(SettingsStateRequest) returns (JsonResponse) {
     option (ship.ops.v1.capability) = "ship.settings.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
@@ -115,6 +183,14 @@ service ReadOpsService {
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
   rpc CollectionsList(CollectionsListRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.collections.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  rpc CollectionsDetail(CollectionsDetailRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.collections.read";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
+  }
+  rpc CollectionsItems(CollectionsItemsRequest) returns (JsonResponse) {
     option (ship.ops.v1.capability) = "ship.collections.read";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C0_SAFE;
   }
@@ -144,36 +220,213 @@ service ReadOpsService {
   }
 }
 
-message AgentsListRequest {}
-message AgentsSummariesRequest {}
-message AgentsCatalogsRequest {}
-message AgentsTemplatesRequest {}
-message AgentsPermissionPresetsRequest {}
-message AgentsHarnessesRequest {}
-message AgentsCreateCtxRequest {}
-message SkillsListRequest {}
-message SkillsSummariesRequest {}
-message RulesListRequest {}
-message McpListRequest {}
-message PermissionsListRequest {}
-message PermissionsToolPatternsRequest {}
-message PipelinesListRequest {}
-message PipelinesSummariesRequest {}
-message PipelinesHistoryRequest {}
-message EventsListRequest {}
-message SpecsListRequest {}
-message SpecsSummariesRequest {}
-message GitStatusRequest {}
-message GitLogRequest {}
-message GitBranchesRequest {}
-message GitOverviewRequest {}
-message SettingsStateRequest {}
-message DashboardStateRequest {}
-message CollectionsStateRequest {}
-message CollectionsListRequest {}
-message ArtifactsListRequest {}
-message ChatStateRequest {}
-message SessionsListRequest {}
-message WorkspacesListRequest {}
-message WorkspacesActiveRequest {}
-message AccountStateRequest {}
+message AgentsListRequest {
+}
+
+message AgentsSummariesRequest {
+}
+
+message AgentsDetailRequest {
+  string id = 1;
+}
+
+message AgentsCatalogsRequest {
+}
+
+message AgentsGetRequest {
+  string id = 1;
+  string scope = 2;
+}
+
+message AgentsWireRequest {
+  string id = 1;
+}
+
+message AgentsSettingsRequest {
+  string id = 1;
+}
+
+message AgentsTemplatesRequest {
+}
+
+message AgentsPermissionPresetsRequest {
+}
+
+message AgentsHarnessesRequest {
+}
+
+message AgentsCreateCtxRequest {
+}
+
+message SkillsListRequest {
+}
+
+message SkillsSummariesRequest {
+  string q = 1;
+  string kind = 2;
+  string tag = 3;
+}
+
+message SkillsDetailRequest {
+  string id = 1;
+}
+
+message SkillsFileRequest {
+  string id = 1;
+  string path = 2;
+}
+
+message SkillsGetRequest {
+  string id = 1;
+  string scope = 2;
+}
+
+message RulesListRequest {
+}
+
+message RulesGetRequest {
+  string id = 1;
+  string scope = 2;
+}
+
+message McpListRequest {
+}
+
+message McpGetRequest {
+  string id = 1;
+  string scope = 2;
+}
+
+message PermissionsListRequest {
+}
+
+message PermissionsGetRequest {
+  string id = 1;
+  string scope = 2;
+}
+
+message PermissionsToolPatternsRequest {
+}
+
+message PipelinesListRequest {
+}
+
+message PipelinesGetRequest {
+  string name = 1;
+  string scope = 2;
+}
+
+message PipelinesSummariesRequest {
+}
+
+message PipelinesFocusRequest {
+  string name = 1;
+}
+
+message PipelinesRunRequest {
+  string slug = 1;
+}
+
+message PipelinesHistoryRequest {
+  int64 limit = 1;
+  int64 offset = 2;
+  string pipeline = 3;
+}
+
+message EventsListRequest {
+  int64 limit = 1;
+  string event_type = 2;
+  string actor = 3;
+  string entity = 4;
+  string q = 5;
+}
+
+message SpecsListRequest {
+}
+
+message SpecsGetRequest {
+  string id = 1;
+}
+
+message SpecsSummariesRequest {
+  string q = 1;
+  string selected = 2;
+}
+
+message SpecsDetailRequest {
+  string id = 1;
+}
+
+message GitStatusRequest {
+}
+
+message GitLogRequest {
+  int64 limit = 1;
+}
+
+message GitBranchesRequest {
+}
+
+message GitOverviewRequest {
+  string workspace_id = 1;
+  int64 limit = 2;
+}
+
+message GitDiffRequest {
+  string commit = 1;
+  string workspace_id = 2;
+}
+
+message GitAnnotationsRequest {
+  string file = 1;
+  string workspace_id = 2;
+}
+
+message SettingsStateRequest {
+}
+
+message DashboardStateRequest {
+}
+
+message CollectionsStateRequest {
+  string active = 1;
+}
+
+message CollectionsListRequest {
+}
+
+message CollectionsDetailRequest {
+  string id = 1;
+}
+
+message CollectionsItemsRequest {
+  string collection = 1;
+}
+
+message ArtifactsListRequest {
+  string scope = 1;
+  string mime = 2;
+  string collection_id = 3;
+  string item_id = 4;
+  string owner_actor = 5;
+  string content_hash = 6;
+  string sort = 7;
+  int64 limit = 8;
+  int64 offset = 9;
+}
+
+message ChatStateRequest {
+  string workspace_id = 1;
+}
+
+message SessionsListRequest {
+}
+
+message WorkspacesListRequest {
+}
+
+message WorkspacesActiveRequest {
+}
+
+message AccountStateRequest {
+}

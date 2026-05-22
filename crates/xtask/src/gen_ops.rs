@@ -24,6 +24,17 @@ struct ReadOp {
     snake: String,
     /// Required capability string (the op's `permission`).
     capability: String,
+    /// Request parameters (empty for no-arg reads).
+    args: Vec<Arg>,
+}
+
+struct Arg {
+    name: String,
+    /// Proto scalar type for the request field.
+    proto_type: &'static str,
+    /// String-valued (vs numeric) — drives the arg-building + the unset check.
+    is_string: bool,
+    required: bool,
 }
 
 /// PascalCase a dotted/underscored op name: `agents.permission_presets`
@@ -46,14 +57,25 @@ fn collect() -> Vec<ReadOp> {
         if !op.permission.ends_with(".read") {
             continue; // commands get typed messages, not the JSON bridge
         }
-        if op.args.iter().any(|a| a.required) {
-            continue; // arg-bearing reads: later typed-request pass
-        }
+        let args = op
+            .args
+            .iter()
+            .map(|a| {
+                let is_string = !a.kind.starts_with("number");
+                Arg {
+                    name: a.name.to_string(),
+                    proto_type: if is_string { "string" } else { "int64" },
+                    is_string,
+                    required: a.required,
+                }
+            })
+            .collect();
         out.push(ReadOp {
             op: op.name.to_string(),
             method: pascal(op.name),
             snake: op.name.replace('.', "_"),
             capability: op.permission.to_string(),
+            args,
         });
     }
     out
@@ -82,9 +104,19 @@ fn render_proto(ops: &[ReadOp]) -> String {
             cap = o.capability,
         );
     }
-    s.push_str("}\n\n");
+    s.push_str("}\n");
     for o in ops {
-        let _ = write!(s, "message {m}Request {{}}\n", m = o.method);
+        let _ = write!(s, "\nmessage {m}Request {{\n", m = o.method);
+        for (i, arg) in o.args.iter().enumerate() {
+            let _ = write!(
+                s,
+                "  {ty} {name} = {n};\n",
+                ty = arg.proto_type,
+                name = arg.name,
+                n = i + 1
+            );
+        }
+        s.push_str("}\n");
     }
     s
 }
@@ -99,15 +131,38 @@ fn render_rust(ops: &[ReadOp]) -> String {
          impl ::ship_ops_rpc::ReadOpsService for OpsImpl {\n",
     );
     for o in ops {
+        let req_binding = if o.args.is_empty() { "_req" } else { "req" };
         let _ = write!(
             s,
             "    async fn {snake}(\n        &self,\n        \
              _ctx: ::connectrpc::RequestContext,\n        \
-             _req: ::ship_ops_rpc::Owned{m}RequestView,\n    ) -> \
-             ::connectrpc::ServiceResult<::ship_ops_rpc::JsonResponse> {{\n        \
-             self.dispatch_json(\"{op}\")\n    }}\n",
+             {req}: ::ship_ops_rpc::Owned{m}RequestView,\n    ) -> \
+             ::connectrpc::ServiceResult<::ship_ops_rpc::JsonResponse> {{\n",
             snake = o.snake,
             m = o.method,
+            req = req_binding,
+        );
+        if o.args.is_empty() {
+            let _ = write!(s, "        self.dispatch_json(\"{op}\")\n    }}\n", op = o.op);
+            continue;
+        }
+        s.push_str("        let mut args = ::serde_json::Map::new();\n");
+        for arg in &o.args {
+            let insert = format!(
+                "args.insert(\"{n}\".to_string(), ::serde_json::json!(req.{n}));",
+                n = arg.name
+            );
+            if arg.required {
+                let _ = write!(s, "        {insert}\n");
+            } else if arg.is_string {
+                let _ = write!(s, "        if !req.{n}.is_empty() {{ {insert} }}\n", n = arg.name);
+            } else {
+                let _ = write!(s, "        if req.{n} != 0 {{ {insert} }}\n", n = arg.name);
+            }
+        }
+        let _ = write!(
+            s,
+            "        self.dispatch_json_args(\"{op}\", ::serde_json::Value::Object(args))\n    }}\n",
             op = o.op,
         );
     }
