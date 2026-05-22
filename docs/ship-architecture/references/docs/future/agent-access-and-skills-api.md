@@ -47,6 +47,8 @@ adoption, decoupled from the isolation branch.
 
 ## Decision 2 — proto as the single source; `ship_ops!` macro subsumed
 
+**LOCKED: option (a)** — proto owns shapes *and* policy (custom method options).
+
 The win is a codegen **collapse**, and it only pays because Connect already owns two
 planes (gateway + sidecar). Today the daemon runs a *second* codegen world:
 `ship_ops!`/axum (Rust) → **specta** → TS, plus a bespoke OpenAPI + fixtures gen.
@@ -57,7 +59,10 @@ into that one toolchain:
   live in proto; capability / blast-radius / `sensitive` ride as **custom method
   options** — co-located with the method, generated into both the gate and the docs.
   buf generates Rust server+client, the TS client, OpenAPI, and fixtures — replacing
-  specta and the bespoke gens (deleted).
+  specta and the bespoke gens (deleted). **Known cost:** prost drops custom options
+  in normal codegen, so the Rust gate reads them via a `FileDescriptorSet` /
+  prost-reflect step — folded into #74. Upside: capability metadata travels in the
+  proto, visible to every generated client (TS/docs/SDK) for free.
 - **Rust owns implementations + enforcement, not types.** The Connect-generated
   **service trait forces a handler for every method**, so 1-1 dispatch conformance
   is a *compile error*, not a runtime test. The gate reads the method option and
