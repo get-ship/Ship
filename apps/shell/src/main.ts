@@ -37,6 +37,10 @@ import { shipFetch, gitStatus } from '@ship/sdk'
 // Vite can ship as-is. Requires `bun run --filter @ship/charts build`
 // to have produced `dist/sui-charts.js`.
 import '@ship/charts/bundle'
+// Pipelines pack — sui-pipeline-* primitives (card/dag/step/run/history/
+// trigger/output/definition). Same prebuilt-bundle path as charts; requires
+// `bun run --filter @ship/pipelines build` to have produced dist/sui-pipelines.js.
+import '@ship/pipelines/bundle'
 // Primitives pack — generic `<sui-*>` UI elements (button, input, dialog,
 // popover, tooltip, tabs, etc.) — is registered by the eager
 // `/_sui/components.js` umbrella loaded in index.html (its `@ship/ui-components`
