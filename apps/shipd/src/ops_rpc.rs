@@ -11,7 +11,8 @@ use buffa::{Message, UnknownFieldData};
 use buffa_descriptor::generated::descriptor::FileDescriptorSet;
 use connectrpc::{ConnectError, RequestContext, Response, ServiceResult};
 use ship_ops_rpc::{
-    JsonResponse, MetaResponse, OpsService, OpsServiceExt, OwnedMetaRequestView, ReadOpsServiceExt,
+    CommandOpsService, CommandOpsServiceExt, JsonResponse, MetaResponse, OpsService, OpsServiceExt,
+    OwnedMetaRequestView, OwnedUpdateJobStatusRequestView, ReadOpsServiceExt,
 };
 
 use ship_substrate::events::CallerKind;
@@ -63,13 +64,51 @@ impl OpsService for OpsImpl {
 // Regenerate after changing the read-op set; do not hand-edit the .rs.
 include!("ops_reads_gen.rs");
 
+// ── Commands ────────────────────────────────────────────────────────────────
+// Hand-authored typed methods. Each maps the proto request to the existing
+// handler core (one logic, both transports) and returns JsonResponse for now.
+
+impl CommandOpsService for OpsImpl {
+    #[allow(refining_impl_trait)]
+    async fn update_job_status(
+        &self,
+        _ctx: RequestContext,
+        req: OwnedUpdateJobStatusRequestView,
+    ) -> ServiceResult<JsonResponse> {
+        let opt = |s: &str| (!s.is_empty()).then(|| s.to_string());
+        let body = crate::project_api::jobs_status::RunStatusReq {
+            status: req.status.to_string(),
+            worktree: opt(req.worktree),
+            pid: (req.pid != 0).then_some(req.pid),
+            gate_agent: opt(req.gate_agent),
+            blocker: opt(req.blocker),
+            error: opt(req.error),
+        };
+        let value = crate::project_api::jobs_status::update_job_status_core(
+            &self.state,
+            req.pipeline_run_id,
+            body,
+        )
+        .await
+        .map_err(|(code, msg)| {
+            if code == axum::http::StatusCode::BAD_REQUEST {
+                ConnectError::invalid_argument(msg)
+            } else {
+                ConnectError::internal(msg)
+            }
+        })?;
+        Ok(Response::new(JsonResponse { json: value.to_string(), ..Default::default() }))
+    }
+}
+
 /// The ConnectRPC op surface as an `axum::Router`, merged into the daemon's
 /// authenticated routes so `auth_middleware` wraps it (the gate will read the
 /// injected `AuthContext`). Wire paths: `/ship.ops.v1.OpsService/<Method>`.
 pub fn router(state: ApiState) -> axum::Router {
     let svc = Arc::new(OpsImpl { state });
     let router = OpsServiceExt::register(svc.clone(), connectrpc::Router::new());
-    let router = ReadOpsServiceExt::register(svc, router);
+    let router = ReadOpsServiceExt::register(svc.clone(), router);
+    let router = CommandOpsServiceExt::register(svc, router);
     router
         .into_axum_router()
         .layer(axum::middleware::from_fn(gate))
@@ -301,5 +340,29 @@ mod tests {
             .await
             .expect("Meta RPC should succeed over the wire");
         assert_eq!(resp.view().version, env!("CARGO_PKG_VERSION"));
+    }
+
+    // The update_job_status command and the REST handler share one core; this
+    // exercises that core (refactor preserved behavior + it's transport-neutral).
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn update_job_status_core_is_shared_and_emits() {
+        let harness = crate::test_harness::TestDaemon::new().await;
+        let body = crate::project_api::jobs_status::RunStatusReq {
+            status: "gate_passed".to_string(),
+            worktree: None,
+            pid: None,
+            gate_agent: None,
+            blocker: None,
+            error: None,
+        };
+        let v = crate::project_api::jobs_status::update_job_status_core(
+            &harness.state,
+            "run-test",
+            body,
+        )
+        .await
+        .expect("gate_passed has no required fields");
+        assert_eq!(v["pipeline_run_id"], "run-test");
+        assert_eq!(v["status"], "gate_passed");
     }
 }

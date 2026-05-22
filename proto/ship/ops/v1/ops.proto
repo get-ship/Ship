@@ -36,3 +36,27 @@ message MetaResponse {
 message JsonResponse {
   string json = 1;
 }
+
+// Commands (mutations) — hand-authored typed methods, the agent surface for
+// state changes. Each takes a typed request, calls a shared core (one logic,
+// both transports), returns JsonResponse for now. C1/C2 per the blast-radius
+// audit; the gate enforces the class.
+service CommandOpsService {
+  // Agent-driven lifecycle update for the agent's own run (gate verdict,
+  // blocked, completed, …). The REST handler + this share one core. C1.
+  rpc UpdateJobStatus(UpdateJobStatusRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.runtime.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+}
+
+message UpdateJobStatusRequest {
+  string pipeline_run_id = 1;
+  string status = 2;
+  // Optional (empty/0 = unset); required only for specific statuses.
+  string worktree = 3;
+  uint32 pid = 4;
+  string gate_agent = 5;
+  string blocker = 6;
+  string error = 7;
+}
