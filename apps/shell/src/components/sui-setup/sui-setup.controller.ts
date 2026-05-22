@@ -98,6 +98,10 @@ function persistFromState(s: Record<string, unknown>, completed = false): void {
   savePersisted(entry)
 }
 
+// Listener teardown ref (set in mount, called in unmount). Module-local
+// because the chrome scope proxy rejects extra property writes.
+let setupKeyCleanup: (() => void) | null = null
+
 export default controller<Scope>({
   scope: () => {
     const persisted = loadPersisted()
@@ -263,12 +267,12 @@ export default controller<Scope>({
       }
     }
     window.addEventListener('keydown', onKey, true)
-    ;(state as Record<string, unknown>)._cleanup = () => {
-      window.removeEventListener('keydown', onKey, true)
-    }
+    // Chrome scope is a guarded proxy — can't stash _cleanup on it the way the
+    // daemon view host allowed. Keep the listener teardown module-local.
+    setupKeyCleanup = () => window.removeEventListener('keydown', onKey, true)
   },
-  unmount: (state) => {
-    const cleanup = (state as Record<string, unknown>)._cleanup
-    if (typeof cleanup === 'function') cleanup()
+  unmount: () => {
+    setupKeyCleanup?.()
+    setupKeyCleanup = null
   },
 })
