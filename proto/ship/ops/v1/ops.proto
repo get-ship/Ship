@@ -117,6 +117,20 @@ service CommandOpsService {
     option (ship.ops.v1.capability) = "ship.git.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
   }
+
+  // View-session edits (the agent's own SUI session). Caller identity required. C1.
+  rpc PatchViewSession(ViewPatchRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.views.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc AppendViewSession(ViewPatchRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.views.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc SignalViewSession(ViewSignalRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.views.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
 }
 
 message UpdateJobStatusRequest {
@@ -201,4 +215,17 @@ message GitCommitRequest {
   string workspace_id = 1;
   string message = 2;
   string author = 3;
+}
+
+message ViewPatchRequest {
+  string id = 1;
+  string selector = 2;
+  string html = 3;
+}
+
+message ViewSignalRequest {
+  string id = 1;
+  string name = 2;
+  // Signal value, serialized as JSON.
+  string value_json = 3;
 }

@@ -16,7 +16,8 @@ use ship_ops_rpc::{
     OwnedGitPathsRequestView, OwnedGitPushRequestView, OwnedGitRemoteRequestView,
     OwnedMeshBroadcastRequestView, OwnedMeshSendRequestView, OwnedMetaRequestView,
     OwnedStepDoneRequestView, OwnedSteerAgentRequestView, OwnedStopAgentRequestView,
-    OwnedUpdateJobStatusRequestView, ReadOpsServiceExt,
+    OwnedUpdateJobStatusRequestView, OwnedViewPatchRequestView, OwnedViewSignalRequestView,
+    ReadOpsServiceExt,
 };
 
 use ship_substrate::events::CallerKind;
@@ -473,6 +474,65 @@ impl CommandOpsService for OpsImpl {
             ..Default::default()
         }))
     }
+
+    // Patch a fragment in the caller's view session. C1.
+    #[allow(refining_impl_trait)]
+    async fn patch_view_session(
+        &self,
+        ctx: RequestContext,
+        req: OwnedViewPatchRequestView,
+    ) -> ServiceResult<JsonResponse> {
+        let agent = require_agent(&ctx)?;
+        self.state
+            .view_sessions()
+            .patch(req.id, &agent, req.selector, req.html.to_string())
+            .await
+            .map_err(|e| ConnectError::internal(e.to_string()))?;
+        Ok(Response::new(JsonResponse {
+            json: serde_json::json!({ "ok": true }).to_string(),
+            ..Default::default()
+        }))
+    }
+
+    // Append a fragment in the caller's view session. C1.
+    #[allow(refining_impl_trait)]
+    async fn append_view_session(
+        &self,
+        ctx: RequestContext,
+        req: OwnedViewPatchRequestView,
+    ) -> ServiceResult<JsonResponse> {
+        let agent = require_agent(&ctx)?;
+        self.state
+            .view_sessions()
+            .append(req.id, &agent, req.selector, req.html.to_string())
+            .await
+            .map_err(|e| ConnectError::internal(e.to_string()))?;
+        Ok(Response::new(JsonResponse {
+            json: serde_json::json!({ "ok": true }).to_string(),
+            ..Default::default()
+        }))
+    }
+
+    // Deliver a signal to the caller's view session. C1.
+    #[allow(refining_impl_trait)]
+    async fn signal_view_session(
+        &self,
+        ctx: RequestContext,
+        req: OwnedViewSignalRequestView,
+    ) -> ServiceResult<JsonResponse> {
+        let agent = require_agent(&ctx)?;
+        let value: serde_json::Value = serde_json::from_str(req.value_json)
+            .map_err(|e| ConnectError::invalid_argument(format!("value_json: {e}")))?;
+        self.state
+            .view_sessions()
+            .signal(req.id, &agent, req.name, value)
+            .await
+            .map_err(|e| ConnectError::internal(e.to_string()))?;
+        Ok(Response::new(JsonResponse {
+            json: serde_json::json!({ "ok": true }).to_string(),
+            ..Default::default()
+        }))
+    }
 }
 
 /// The ConnectRPC op surface as an `axum::Router`, merged into the daemon's
@@ -498,6 +558,16 @@ pub fn router(state: ApiState) -> axum::Router {
 /// NOTE: a host agent that reads the on-disk daemon token also presents as a
 /// CLI caller — fully closing the C2 boundary needs the human-session
 /// credential of the elevated surface (#72). This is the credential-level gate.
+/// Pull the caller's agent id from the request's `AuthContext` (via `ctx`),
+/// erroring if the caller isn't an identified agent. Used by identity-bound
+/// commands (view-session edits, mesh).
+fn require_agent(ctx: &RequestContext) -> Result<String, ConnectError> {
+    ctx.extensions
+        .get::<AuthContext>()
+        .and_then(|a| a.agent_id.clone())
+        .ok_or_else(|| ConnectError::unauthenticated("agent identity required"))
+}
+
 fn gate_decision(policy: &OpPolicy, auth: &AuthContext) -> Result<(), &'static str> {
     match policy.blast_radius {
         BlastRadius::C2Elevated => {
