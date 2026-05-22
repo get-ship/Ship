@@ -78,6 +78,13 @@ service CommandOpsService {
     option (ship.ops.v1.capability) = "ship.runtime.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
   }
+
+  // Send a directed mesh message to another actor (agent→agent / chat_reply).
+  // The caller may only send as itself. C1.
+  rpc MeshSend(MeshSendRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.mesh.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
 }
 
 message UpdateJobStatusRequest {
@@ -126,4 +133,11 @@ message StepDoneRequest {
   string slug = 1;
   string summary = 2;
   map<string, string> outputs = 3;
+}
+
+message MeshSendRequest {
+  string from = 1;
+  string to = 2;
+  // Arbitrary JSON message body, serialized as a string.
+  string body_json = 3;
 }

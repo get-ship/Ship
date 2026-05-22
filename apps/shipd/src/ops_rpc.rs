@@ -12,9 +12,9 @@ use buffa_descriptor::generated::descriptor::FileDescriptorSet;
 use connectrpc::{ConnectError, RequestContext, Response, ServiceResult};
 use ship_ops_rpc::{
     CommandOpsService, CommandOpsServiceExt, JsonResponse, MetaResponse, OpsService, OpsServiceExt,
-    OwnedActivateProjectRequestView, OwnedDispatchAgentRequestView, OwnedMetaRequestView,
-    OwnedStepDoneRequestView, OwnedSteerAgentRequestView, OwnedStopAgentRequestView,
-    OwnedUpdateJobStatusRequestView, ReadOpsServiceExt,
+    OwnedActivateProjectRequestView, OwnedDispatchAgentRequestView, OwnedMeshSendRequestView,
+    OwnedMetaRequestView, OwnedStepDoneRequestView, OwnedSteerAgentRequestView,
+    OwnedStopAgentRequestView, OwnedUpdateJobStatusRequestView, ReadOpsServiceExt,
 };
 
 use ship_substrate::events::CallerKind;
@@ -258,6 +258,50 @@ impl CommandOpsService for OpsImpl {
                 }
             })?;
         Ok(Response::new(JsonResponse { json: value.to_string(), ..Default::default() }))
+    }
+
+    // Directed mesh message. Reads the caller's AuthContext from the request
+    // extensions (bridged via ctx) to enforce identity: an agent may only send
+    // as itself. C1.
+    #[allow(refining_impl_trait)]
+    async fn mesh_send(
+        &self,
+        ctx: RequestContext,
+        req: OwnedMeshSendRequestView,
+    ) -> ServiceResult<JsonResponse> {
+        let auth = ctx
+            .extensions
+            .get::<AuthContext>()
+            .ok_or_else(|| ConnectError::unauthenticated("missing auth context"))?;
+        if let Some(agent_id) = auth.agent_id.as_deref() {
+            if agent_id != req.from {
+                return Err(ConnectError::permission_denied(format!(
+                    "from '{}' does not match caller '{agent_id}'",
+                    req.from
+                )));
+            }
+        }
+        let body: serde_json::Value = serde_json::from_str(req.body_json)
+            .map_err(|e| ConnectError::invalid_argument(format!("body_json: {e}")))?;
+        let envelope = ship_substrate::events::EventEnvelope::new(
+            "mesh.send",
+            req.to,
+            &serde_json::json!({ "from": req.from, "to": req.to, "body": body }),
+        )
+        .map(|e| e.with_actor_id(req.from))
+        .map_err(|e| ConnectError::invalid_argument(e.to_string()))?;
+        let emit_ctx = auth.to_daemon_emit_context();
+        self.state
+            .kernel()
+            .lock()
+            .await
+            .emit(envelope, &emit_ctx)
+            .await
+            .map_err(|e| ConnectError::internal(e.to_string()))?;
+        Ok(Response::new(JsonResponse {
+            json: serde_json::json!("sent").to_string(),
+            ..Default::default()
+        }))
     }
 }
 
