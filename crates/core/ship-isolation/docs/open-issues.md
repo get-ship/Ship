@@ -22,10 +22,22 @@ in earlier drafts — k8s baggage avoided).
 - Recommender + capability detection + enforce-refuse loud-fail chain.
 
 **Next steps, prioritized:**
-1. **Per-OS legs (mac/Windows) — biggest gap.** Apple Container / Lima /
-   WSL as sibling `Isolator`s against the generic driver (each ≈ "write
-   the `prepare()`"). Needs that hardware: maintainer's win10/11 + Intel
-   mac, contacts' Apple-Silicon mac.
+1. **Per-OS legs (mac/Windows) — in progress.**
+   - **Lima (mac): 🟡 done-pending-Mac.** Isolator written + wired into the
+     spawn path/recommender; Linux POC verified (boots under nested QEMU+KVM
+     in WSL2, `limactl shell` runs the sidecar). Remaining: a Mac to make the
+     host↔guest transport green (needs a substrate Lima template with an
+     explicit `portForwards` range — auto-forward is env-dependent) + a
+     `lima_sidecar_live` cell, and workspace/resource-cap application.
+   - **Apple Container (mac arm): registered, backend deferred.** Recommendable
+     (`has_impl=false` → refuses under enforce); the `container`-CLI backend
+     needs an Apple-Silicon Mac (untestable on Intel/Linux) — build test-first
+     there.
+   - **WSL (Windows): topology undecided.** The Linux substrate already runs
+     in WSL2 (the cells above were verified there); the open question is where
+     `shipd` runs (Windows-native + a thin `wsl.exe` launch shim, vs daemon-in-
+     WSL with no shim). Decide before writing code — a WSL *Isolator* is only
+     needed in the Windows-native-daemon topology.
 2. **CI coverage.** The live cells auto-skip without a substrate/KVM, so
    the ✅ grid isn't continuously protected. Add a Linux CI job (podman +
    a KVM runner for Firecracker) so regressions surface.
