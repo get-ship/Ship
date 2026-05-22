@@ -57,6 +57,10 @@
           </sui-cluster>
         </sui-empty-state>
       {:else}
+        <div class="home-hero" data-view-enter>
+          <h2 class="home-hero-greet" data-test="home-hero">{greeting()}.</h2>
+          <p class="home-hero-sub">{heroLine()}</p>
+        </div>
         <div class="home-stats" role="list" aria-label="Workspace statistics" data-test="home-stats" data-view-enter>
           <div class="home-stat-wrap home-stat-wrap--jobs" role="listitem">
             <sui-stat>
@@ -210,7 +214,7 @@
                 Recent activity
                 <sui-badge tone="muted" variant="soft" size="sm">{recentEvents().length}</sui-badge>
               </h2>
-              <a class="home-section-link" href="/events" on:click={(e) => goNav(e, '/events')}>
+              <a class="home-section-link" href="/activity" on:click={(e) => goNav(e, '/activity')}>
                 Full stream <sui-icon name="chevron-right" size="xs" aria-hidden="true"></sui-icon>
               </a>
             </div>

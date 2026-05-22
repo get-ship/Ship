@@ -72,7 +72,7 @@ const LINKS: readonly QuickLink[] = [
   { key: 'agents',    label: 'Agents',    icon: 'users',    href: '/studio/agents'      },
   { key: 'skills',    label: 'Skills',    icon: 'book',     href: '/studio/skills' },
   { key: 'data',      label: 'Data',      icon: 'database', href: '/collections' },
-  { key: 'events',    label: 'Events',    icon: 'activity', href: '/events'      },
+  { key: 'activity',  label: 'Activity',  icon: 'activity', href: '/activity'    },
   { key: 'settings',  label: 'Settings',  icon: 'settings', href: '/settings'    },
 ]
 
@@ -98,6 +98,12 @@ export default controller<Scope>({
 
   derived: {
     workspaceLabel:   (s) => readDash(s).settings?.workspace_name ?? 'workspace',
+    greeting:         () => { const h = new Date().getHours(); return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening' },
+    heroLine:         (s) => {
+      const d = readDash(s)
+      const running = d.stats.active > 0 ? `${d.stats.active} job${d.stats.active === 1 ? '' : 's'} running` : 'Nothing running'
+      return `${running} · ${d.agents.length} agent${d.agents.length === 1 ? '' : 's'} ready in this space.`
+    },
     totalJobs:        (s) => readDash(s).stats.active + readDash(s).stats.history,
     activeJobs:       (s) => readDash(s).stats.active,
     agentCount:       (s) => readDash(s).agents.length,
