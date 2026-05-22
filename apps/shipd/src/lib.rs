@@ -26,6 +26,7 @@ pub mod managers;
 pub mod project_api;
 pub mod routes;
 pub mod router;
+pub mod ops_rpc;
 // (former shipd/integrations/ — apps_bridge → views/mcp_apps_embed; registry → routes/mcp_registry)
 pub mod views;
 pub mod ship_runtime;

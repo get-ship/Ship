@@ -26,6 +26,8 @@ ship-types = { path = "../../crates/core/ship-types" }
 ship-analytics = { path = "../../crates/core/ship-analytics" }
 compiler = { path = "../../crates/core/compiler" }
 build-info = { path = "../../crates/core/build-info" }
+ship-ops-rpc = { path = "../../crates/core/ship-ops-rpc" }
+connectrpc = { version = "0.4", features = ["axum"] }
 deck = { path = "../../crates/deck/deck" }
 sui-compiler = { path = "../../crates/sui/compiler" }
 sui-signals = { path = "../../crates/sui/signals" }
