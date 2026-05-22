@@ -9,7 +9,7 @@ use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use tempfile::TempDir;
 
-use super::{JobStatusReq, StepDoneReq, job_step_done, update_job_status};
+use super::{RunStatusReq, StepDoneReq, step_done, update_job_status};
 use crate::project_api::EmitEventReq;
 
 fn make_api_state(dir: &TempDir) -> crate::routes::rest_api::ApiState {
@@ -27,9 +27,9 @@ async fn seed_job(state: &crate::routes::rest_api::ApiState, slug: &str) -> Stri
     use ship_substrate::events::EventEnvelope;
     use ship_substrate::events::pipeline::{PipelineRunStartedPayload, event_types};
 
-    let job_id = ship_substrate::gen_ulid();
+    let pipeline_run_id = ship_substrate::gen_ulid();
     let payload = PipelineRunStartedPayload {
-        job_id: job_id.clone(),
+        pipeline_run_id: pipeline_run_id.clone(),
         slug: slug.to_string(),
         agent: "test-agent".to_string(),
         branch: format!("test/{slug}"),
@@ -52,24 +52,24 @@ async fn seed_job(state: &crate::routes::rest_api::ApiState, slug: &str) -> Stri
         resume_session_id: None,
         baseline_sha: None,
     };
-    let env = EventEnvelope::new(event_types::PIPELINE_RUN_STARTED, &job_id, &payload)
+    let env = EventEnvelope::new(event_types::PIPELINE_RUN_STARTED, &pipeline_run_id, &payload)
         .unwrap()
         .with_actor_id("test");
     state.persist_and_route(&env).await.unwrap();
-    job_id
+    pipeline_run_id
 }
 
 #[tokio::test(flavor = "multi_thread")]
 async fn update_job_status_dispatched_advances_projection() {
     let dir = TempDir::new().unwrap();
     let state = make_api_state(&dir);
-    let job_id = seed_job(&state, "demo-dispatch").await;
+    let pipeline_run_id = seed_job(&state, "demo-dispatch").await;
 
     let (status, body) = update_job_status(
         State(state.clone()),
         None,
-        Path(job_id.clone()),
-        axum::Json(JobStatusReq {
+        Path(pipeline_run_id.clone()),
+        axum::Json(RunStatusReq {
             status: "dispatched".to_string(),
             worktree: Some("/tmp/ws-demo".to_string()),
             pid: Some(4321),
@@ -87,7 +87,7 @@ async fn update_job_status_dispatched_advances_projection() {
     // proves the daemon's kernel emit drove the projection update, which
     // is precisely what the old direct-write path skipped.
     let jobs = ship_platform::projections::pipeline_run::load_pipeline_runs_at(state.ship_dir()).unwrap();
-    let rec = jobs.get(&job_id).expect("job projection row missing");
+    let rec = jobs.get(&pipeline_run_id).expect("job projection row missing");
     use ship_platform::projections::pipeline_run::PipelineRunStatus;
     assert!(
         matches!(rec.status, PipelineRunStatus::Dispatched),
@@ -100,13 +100,13 @@ async fn update_job_status_dispatched_advances_projection() {
 async fn update_job_status_rejects_unknown_value() {
     let dir = TempDir::new().unwrap();
     let state = make_api_state(&dir);
-    let job_id = seed_job(&state, "demo-bad").await;
+    let pipeline_run_id = seed_job(&state, "demo-bad").await;
 
     let err = update_job_status(
         State(state),
         None,
-        Path(job_id),
-        axum::Json(JobStatusReq {
+        Path(pipeline_run_id),
+        axum::Json(RunStatusReq {
             status: "invented".to_string(),
             worktree: None,
             pid: None,
@@ -124,13 +124,13 @@ async fn update_job_status_rejects_unknown_value() {
 async fn update_job_status_requires_worktree_when_dispatched() {
     let dir = TempDir::new().unwrap();
     let state = make_api_state(&dir);
-    let job_id = seed_job(&state, "demo-noworktree").await;
+    let pipeline_run_id = seed_job(&state, "demo-noworktree").await;
 
     let err = update_job_status(
         State(state),
         None,
-        Path(job_id),
-        axum::Json(JobStatusReq {
+        Path(pipeline_run_id),
+        axum::Json(RunStatusReq {
             status: "dispatched".to_string(),
             worktree: None,
             pid: None,
@@ -149,7 +149,7 @@ async fn step_done_404_when_job_missing() {
     let dir = TempDir::new().unwrap();
     let state = make_api_state(&dir);
 
-    let err = job_step_done(
+    let err = step_done(
         State(state),
         None,
         Path("ghost-slug".to_string()),

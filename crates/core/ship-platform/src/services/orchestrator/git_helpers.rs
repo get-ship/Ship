@@ -33,10 +33,10 @@ pub fn resolve_head_sha(work_dir: &std::path::Path) -> Option<String> {
 /// Returns an empty string when neither is present — the caller uses
 /// that to short-circuit to `<no baseline>..HEAD` with an empty diff.
 pub fn gate_baseline_sha(
-    job_baseline: Option<&str>,
+    run_baseline: Option<&str>,
     step_start: Option<&str>,
 ) -> String {
-    job_baseline
+    run_baseline
         .map(str::to_string)
         .or_else(|| step_start.map(str::to_string))
         .unwrap_or_default()

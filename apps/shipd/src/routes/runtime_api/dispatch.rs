@@ -351,7 +351,7 @@ pub async fn dispatch_agent_session(
 pub(crate) async fn dispatch_one(
     state: &ApiState,
     payload: PipelineRunStartedPayload,
-    job_id: &str,
+    pipeline_run_id: &str,
 ) -> (StatusCode, Json<MeshResponse>) {
     let payload =
         match ship_platform::services::orchestrator::pipeline_loader::ensure_pipeline(payload) {
@@ -364,7 +364,7 @@ pub(crate) async fn dispatch_one(
             }
         };
 
-    let envelope = match EventEnvelope::new(event_types::PIPELINE_RUN_STARTED, job_id, &payload)
+    let envelope = match EventEnvelope::new(event_types::PIPELINE_RUN_STARTED, pipeline_run_id, &payload)
         .map(|e| e.with_actor_id("studio"))
     {
         Ok(e) => e,
@@ -385,7 +385,7 @@ pub(crate) async fn dispatch_one(
             Json(MeshResponse {
                 ok: true,
                 data: serde_json::json!({
-                    "job_id": job_id,
+                    "pipeline_run_id": pipeline_run_id,
                     "slug": payload.slug,
                     "branch": payload.branch,
                     "resume": payload.resume,

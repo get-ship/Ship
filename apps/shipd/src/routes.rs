@@ -273,7 +273,7 @@ pub enum Route {
     AgentsDelete { id: String },
 
     /// @route POST "/api/v1/agents"
-    /// @auth scope CreateJobs
+    /// @auth scope CreateRuns
     AgentsCreate,
 
     /// @route POST "/api/v1/agents/{id}/rename"
@@ -281,7 +281,7 @@ pub enum Route {
     AgentsRename { id: String },
 
     /// @route POST "/api/v1/agents/{id}/duplicate"
-    /// @auth scope CreateJobs
+    /// @auth scope CreateRuns
     AgentsDuplicate { id: String },
 
     /// @route POST "/api/v1/agents/{id}/move"
@@ -291,11 +291,11 @@ pub enum Route {
     // ── PipelineService — service-shaped CRUD + run ops ──
 
     /// @route GET "/api/v1/pipelines"
-    /// @auth scope ReadJobs
+    /// @auth scope ReadRuns
     PipelinesList,
 
     /// @route GET "/api/v1/pipelines/{name}"
-    /// @auth scope ReadJobs
+    /// @auth scope ReadRuns
     PipelinesGet { name: String },
 
     /// @route PUT "/api/v1/pipelines/{name}"
@@ -311,27 +311,27 @@ pub enum Route {
     PipelinesDelete { name: String },
 
     /// @route POST "/api/v1/pipelines/{name}/dispatch"
-    /// @auth scope CreateJobs
+    /// @auth scope CreateRuns
     PipelinesDispatch { name: String },
 
     /// @route POST "/api/v1/pipelines/run"
-    /// @auth scope CreateJobs
+    /// @auth scope CreateRuns
     PipelinesRun,
 
     /// @route POST "/api/v1/pipelines/runs/{slug}/cancel"
-    /// @auth scope ManageJobs
+    /// @auth scope ManageRuns
     PipelineRunCancel { slug: String },
 
     /// @route GET "/api/v1/pipelines/runs"
-    /// @auth scope ReadJobs
+    /// @auth scope ReadRuns
     PipelineRunsList,
 
     /// @route GET "/api/v1/pipelines/runs/{slug}"
-    /// @auth scope ReadJobs
+    /// @auth scope ReadRuns
     PipelineRunGet { slug: String },
 
     /// @route GET "/api/v1/pipelines/runs/{slug}/log/stream"
-    /// @auth scope ReadJobs
+    /// @auth scope ReadRuns
     PipelineRunLogStream { slug: String },
 
     // ── RuleService — markdown rules at <scope>/rules/<id>.md ──
@@ -353,7 +353,7 @@ pub enum Route {
     RulesDelete { id: String },
 
     /// @route POST "/api/v1/rules"
-    /// @auth scope CreateJobs
+    /// @auth scope CreateRuns
     RulesCreate,
 
     // ── McpService — entries in <scope>/mcp.jsonc ──
@@ -379,7 +379,7 @@ pub enum Route {
     McpDelete { id: String },
 
     /// @route POST "/api/v1/mcp"
-    /// @auth scope CreateJobs
+    /// @auth scope CreateRuns
     McpCreate,
 
     // ── PermissionService — preset entries in <scope>/permissions.jsonc ──
@@ -409,7 +409,7 @@ pub enum Route {
     PermissionsDelete { id: String },
 
     /// @route POST "/api/v1/permissions"
-    /// @auth scope CreateJobs
+    /// @auth scope CreateRuns
     PermissionsCreate,
 
     // ── SkillService — service-shaped CRUD + vars ──
@@ -423,7 +423,7 @@ pub enum Route {
     SkillsGet { id: String },
 
     /// @route POST "/api/v1/skills"
-    /// @auth scope CreateJobs
+    /// @auth scope CreateRuns
     SkillsCreate,
 
     /// @route DELETE "/api/v1/skills/{id}"
@@ -443,7 +443,7 @@ pub enum Route {
     SkillsRename { id: String },
 
     /// @route POST "/api/v1/skills/{id}/duplicate"
-    /// @auth scope CreateJobs
+    /// @auth scope CreateRuns
     SkillsDuplicate { id: String },
 
     /// @route POST "/api/v1/skills/{id}/move"
@@ -463,11 +463,11 @@ pub enum Route {
     SkillsDeleteVar { id: String, key: String },
 
     /// @route POST "/api/v1/skills/{id}/invoke"
-    /// @auth scope ManageJobs
+    /// @auth scope ManageRuns
     SkillsInvoke { id: String },
 
     /// @route POST "/api/v1/chat/send"
-    /// @auth scope ManageJobs
+    /// @auth scope ManageRuns
     ChatSend,
 
     // ── Generic view serving ─────────────────────────────────────────────
@@ -489,7 +489,7 @@ pub enum Route {
     ListViewFiles { name: String },
 
     /// @route POST "/api/v1/create/{surface}"
-    /// @auth scope CreateJobs
+    /// @auth scope CreateRuns
     CreateSurface { surface: String },
 
     /// @route PUT "/api/v1/views/{name}/template"
@@ -509,43 +509,43 @@ pub enum Route {
     ThemeContrast,
 
     /// @route POST "/api/v1/sessions/spawn"
-    /// @auth scope ManageJobs
+    /// @auth scope ManageRuns
     SpawnPtySession,
 
     /// @route GET "/api/v1/pty-sessions"
-    /// @auth scope ReadJobs
+    /// @auth scope ReadRuns
     ListPtySessions,
 
     /// @route GET "/api/v1/sessions/{id}"
-    /// @auth scope ReadJobs
+    /// @auth scope ReadRuns
     GetPtySession { id: String },
 
     /// @route DELETE "/api/v1/sessions/{id}"
-    /// @auth scope ManageJobs
+    /// @auth scope ManageRuns
     StopPtySession { id: String },
 
     /// @route POST "/api/v1/sessions/{id}/input"
-    /// @auth scope ManageJobs
+    /// @auth scope ManageRuns
     PtySessionInput { id: String },
 
     /// @route POST "/api/v1/sessions/{id}/resize"
-    /// @auth scope ManageJobs
+    /// @auth scope ManageRuns
     PtySessionResize { id: String },
 
     /// @route POST "/api/v1/sessions/{id}/message"
-    /// @auth scope ManageJobs
+    /// @auth scope ManageRuns
     PtySessionMessage { id: String },
 
     /// @route POST "/api/v1/sessions/{id}/reply"
-    /// @auth scope ManageJobs
+    /// @auth scope ManageRuns
     PtySessionReply { id: String },
 
     /// @route GET "/api/v1/sessions/{id}/stream"
-    /// @auth scope ManageJobs
+    /// @auth scope ManageRuns
     StreamPtySession { id: String },
 
     /// @route GET "/api/v1/sessions/{id}/events"
-    /// @auth scope ReadJobs
+    /// @auth scope ReadRuns
     StreamPtySessionEvents { id: String },
 
     /// @route GET "/api/v1/harnesses/installed"
@@ -587,23 +587,23 @@ pub enum Route {
     // ── Agent-owned view sessions (Phase 1 canvas framework) ─────────────
 
     /// @route POST "/api/v1/view-sessions"
-    /// @auth scope ManageJobs
+    /// @auth scope ManageRuns
     OpenViewSession,
 
     /// @route POST "/api/v1/view-sessions/{id}/patch"
-    /// @auth scope ManageJobs
+    /// @auth scope ManageRuns
     PatchViewSession { id: String },
 
     /// @route POST "/api/v1/view-sessions/{id}/append"
-    /// @auth scope ManageJobs
+    /// @auth scope ManageRuns
     AppendViewSession { id: String },
 
     /// @route POST "/api/v1/view-sessions/{id}/signal"
-    /// @auth scope ManageJobs
+    /// @auth scope ManageRuns
     SignalViewSession { id: String },
 
     /// @route DELETE "/api/v1/view-sessions/{id}"
-    /// @auth scope ManageJobs
+    /// @auth scope ManageRuns
     CloseViewSession { id: String },
 
     /// @route GET "/api/v1/view-sessions/{id}"
@@ -633,45 +633,45 @@ pub enum Route {
     ListAgents,
 
     /// @route POST "/api/v1/agents/{slug}/stop"
-    /// @auth scope ManageJobs
+    /// @auth scope ManageRuns
     StopAgent { slug: String },
 
     /// @route POST "/api/v1/agents/{slug}/steer"
-    /// @auth scope ManageJobs
+    /// @auth scope ManageRuns
     SteerAgent { slug: String },
 
     // ── Jobs ─────────────────────────────────────────────────────────────
 
     /// @route GET "/api/v1/agent_sessions"
-    /// @auth scope ReadJobs
+    /// @auth scope ReadRuns
     ListJobs,
 
     /// @route POST "/api/v1/agent_sessions/dispatch"
-    /// @auth scope CreateJobs
+    /// @auth scope CreateRuns
     DispatchPipeline,
 
-    /// @route GET "/api/v1/agent_sessions/{job_id}"
-    /// @auth scope ReadJobs
-    GetJob { job_id: String },
+    /// @route GET "/api/v1/agent_sessions/{pipeline_run_id}"
+    /// @auth scope ReadRuns
+    GetJob { pipeline_run_id: String },
 
     /// @route POST "/api/v1/agent_sessions/end"
-    /// @auth scope ManageJobs
+    /// @auth scope ManageRuns
     EndJob,
 
     /// @route POST "/api/v1/agent_sessions/{slug}/cancel"
-    /// @auth scope ManageJobs
+    /// @auth scope ManageRuns
     CancelJob { slug: String },
 
-    /// @route POST "/api/v1/agent_sessions/{job_id}/status"
+    /// @route POST "/api/v1/agent_sessions/{pipeline_run_id}/status"
     /// @auth scope EmitEvents
-    JobStatusUpdate { job_id: String },
+    RunStatusUpdate { pipeline_run_id: String },
 
     /// @route POST "/api/v1/agent_sessions/{slug}/step-done"
     /// @auth scope EmitEvents
-    JobStepDone { slug: String },
+    StepDoneSignal { slug: String },
 
     /// @route GET "/api/v1/agent_sessions/{slug}/log/stream"
-    /// @auth scope ReadJobs
+    /// @auth scope ReadRuns
     StreamJobLog { slug: String },
 
     /// @route GET "/api/v1/agent_sessions/{slug}/attach"
@@ -695,15 +695,15 @@ pub enum Route {
     // ── Specs ────────────────────────────────────────────────────────────
 
     /// @route GET "/api/v1/specs"
-    /// @auth scope ReadJobs
+    /// @auth scope ReadRuns
     ListSpecs,
 
     /// @route POST "/api/v1/specs"
-    /// @auth scope CreateJobs
+    /// @auth scope CreateRuns
     CreateSpec,
 
     /// @route GET "/api/v1/specs/{id}"
-    /// @auth scope ReadJobs
+    /// @auth scope ReadRuns
     GetSpec { id: String },
 
     /// @route PUT "/api/v1/specs/{id}"
@@ -715,7 +715,7 @@ pub enum Route {
     DeleteSpec { id: String },
 
     /// @route POST "/api/v1/specs/{id}/launch"
-    /// @auth scope CreateJobs
+    /// @auth scope CreateRuns
     LaunchSpec { id: String },
 
     // ── Events / projections ─────────────────────────────────────────────
@@ -729,7 +729,7 @@ pub enum Route {
     RebuildProjections,
 
     /// @route GET "/api/v1/projects/{id}/pty"
-    /// @auth scope ManageJobs
+    /// @auth scope ManageRuns
     ProjectPty { id: String },
 
     // ── Settings / harnesses ─────────────────────────────────────────────
@@ -1050,7 +1050,7 @@ pub enum Route {
     ExitViewEditMode { name: String },
 
     /// @route POST "/api/v1/views/{name}/edit/tool"
-    /// @auth scope ManageJobs
+    /// @auth scope ManageRuns
     DispatchViewEditTool { name: String },
 
     // ── Registry (gateway-forwarded) ─────────────────────────────────────

@@ -10,19 +10,19 @@ use tokio::sync::Mutex;
 
 // ── Generic typed emit helpers ────────────────────────────────────────────────
 
-/// Build + persist an event under the `service.job-dispatch` actor.
+/// Build + persist an event under the `service.orchestrator` actor.
 /// Logs failures at WARN; failures don't propagate (most orchestrator
 /// callers can't recover from an emit failure).
 async fn emit_job_dispatch_event<P: serde::Serialize>(
     kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
     event_type: &str,
-    job_id: &str,
+    pipeline_run_id: &str,
     slug: &str,
     payload: &P,
     ship_dir: Option<&std::path::Path>,
 ) {
-    let envelope = match EventEnvelope::new(event_type, job_id, payload) {
-        Ok(e) => e.with_actor_id("service.job-dispatch"),
+    let envelope = match EventEnvelope::new(event_type, pipeline_run_id, payload) {
+        Ok(e) => e.with_actor_id("service.orchestrator"),
         Err(e) => {
             tracing::warn!(
                 slug, event_type,
@@ -73,25 +73,25 @@ async fn emit_executor_event<P: serde::Serialize>(
 /// Emit a `job.dispatched` event using the default store path.
 pub async fn emit_job_dispatched(
     kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
-    job_id: &str,
+    pipeline_run_id: &str,
     worktree_path: &std::path::Path,
     slug: &str,
 ) {
-    emit_job_dispatched_with_meta(kernel, job_id, worktree_path, slug, None, None).await;
+    emit_job_dispatched_with_meta(kernel, pipeline_run_id, worktree_path, slug, None, None).await;
 }
 
 /// Emit a `job.dispatched` event with optional harness metadata.
 /// `ship_dir` overrides the default store path (used in tests).
 pub async fn emit_job_dispatched_with_meta(
     kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
-    job_id: &str,
+    pipeline_run_id: &str,
     worktree_path: &std::path::Path,
     slug: &str,
     harness_meta: Option<serde_json::Value>,
     ship_dir: Option<&std::path::Path>,
 ) {
     let payload = ship_substrate::events::pipeline::PipelineRunDispatchedPayload {
-        job_id: job_id.to_string(),
+        pipeline_run_id: pipeline_run_id.to_string(),
         slug: slug.to_string(),
         worktree: worktree_path.to_string_lossy().into_owned(),
         pid: None,
@@ -100,7 +100,7 @@ pub async fn emit_job_dispatched_with_meta(
     emit_job_dispatch_event(
         kernel,
         ship_substrate::events::pipeline::event_types::PIPELINE_RUN_DISPATCHED,
-        job_id,
+        pipeline_run_id,
         slug,
         &payload,
         ship_dir,
@@ -116,13 +116,13 @@ pub async fn emit_job_dispatched_with_meta(
 /// Distinct from `job.failed` (agent ran and produced a failure).
 pub async fn emit_spawn_failed(
     kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
-    job_id: &str,
+    pipeline_run_id: &str,
     slug: &str,
     stage: &str,
     err: &anyhow::Error,
 ) {
     let payload = ship_substrate::events::pipeline::PipelineStepSpawnFailedPayload {
-        job_id: job_id.to_string(),
+        pipeline_run_id: pipeline_run_id.to_string(),
         slug: slug.to_string(),
         stage: stage.to_string(),
         error: format!("{err:#}"),
@@ -130,7 +130,7 @@ pub async fn emit_spawn_failed(
     emit_job_dispatch_event(
         kernel,
         ship_substrate::events::pipeline::event_types::PIPELINE_STEP_SPAWN_FAILED,
-        job_id,
+        pipeline_run_id,
         slug,
         &payload,
         None,
@@ -141,20 +141,20 @@ pub async fn emit_spawn_failed(
 /// Emit a `job.step_dispatched` event for a specific pipeline step.
 pub async fn emit_step_dispatched_event(
     kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
-    job_id: &str,
+    pipeline_run_id: &str,
     step_id: &str,
     step_type: &str,
     slug: &str,
     ship_dir: Option<&std::path::Path>,
 ) {
     let payload = serde_json::json!({
-        "job_id": job_id, "slug": slug,
+        "pipeline_run_id": pipeline_run_id, "slug": slug,
         "step_id": step_id, "step_type": step_type,
     });
     emit_job_dispatch_event(
         kernel,
         ship_substrate::events::pipeline::event_types::PIPELINE_STEP_STARTED,
-        job_id,
+        pipeline_run_id,
         slug,
         &payload,
         ship_dir,
@@ -165,41 +165,41 @@ pub async fn emit_step_dispatched_event(
 /// Emit `job.step_failed` + `job.failed` for a pipeline step error.
 pub async fn emit_step_failed(
     kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
-    job_id: &str,
+    pipeline_run_id: &str,
     slug: &str,
     step_id: &str,
     reason: &str,
 ) {
     use ship_substrate::events::pipeline::{event_types, PipelineRunFailedPayload, PipelineStepFailedPayload};
     let step_fail = PipelineStepFailedPayload {
-        job_id: job_id.to_string(),
+        pipeline_run_id: pipeline_run_id.to_string(),
         slug: slug.to_string(),
         step_id: step_id.to_string(),
         error: reason.to_string(),
     };
-    emit_job_dispatch_event(kernel, event_types::PIPELINE_STEP_FAILED, job_id, slug, &step_fail, None).await;
-    let job_fail = PipelineRunFailedPayload {
-        job_id: job_id.to_string(),
+    emit_job_dispatch_event(kernel, event_types::PIPELINE_STEP_FAILED, pipeline_run_id, slug, &step_fail, None).await;
+    let run_fail = PipelineRunFailedPayload {
+        pipeline_run_id: pipeline_run_id.to_string(),
         error: format!("step `{step_id}` failed: {reason}"),
     };
-    emit_job_dispatch_event(kernel, event_types::PIPELINE_RUN_FAILED, job_id, slug, &job_fail, None).await;
+    emit_job_dispatch_event(kernel, event_types::PIPELINE_RUN_FAILED, pipeline_run_id, slug, &run_fail, None).await;
 }
 
 /// Emit a `job.failed` event when a job cannot be dispatched or encounters a fatal error.
 pub async fn emit_job_failed(
     kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
-    job_id: &str,
+    pipeline_run_id: &str,
     slug: &str,
     error: &str,
 ) {
     let payload = ship_substrate::events::pipeline::PipelineRunFailedPayload {
-        job_id: job_id.to_string(),
+        pipeline_run_id: pipeline_run_id.to_string(),
         error: error.to_string(),
     };
     emit_job_dispatch_event(
         kernel,
         ship_substrate::events::pipeline::event_types::PIPELINE_RUN_FAILED,
-        job_id,
+        pipeline_run_id,
         slug,
         &payload,
         None,
@@ -214,7 +214,7 @@ pub async fn emit_job_failed(
 pub async fn emit_process_spawned(
     kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
     slug: &str,
-    job_id: &str,
+    pipeline_run_id: &str,
     pid: Option<u32>,
     cmd: &str,
     argv: &[String],
@@ -228,7 +228,7 @@ pub async fn emit_process_spawned(
     };
     let payload = ProcessSpawnedPayload {
         slug: slug.to_string(),
-        job_id: job_id.to_string(),
+        pipeline_run_id: pipeline_run_id.to_string(),
         pid,
         cmd: cmd.to_string(),
         argv: sanitize_argv(argv),

@@ -83,8 +83,8 @@ fn vars(pairs: &[(&str, &str)]) -> HashMap<String, String> {
 #[test]
 fn step_agent_interpolated_from_job_vars() {
     let step = agent_step("{{ impl_agent }}");
-    let job_vars = vars(&[("impl_agent", "rust-lane")]);
-    let resolved = interpolate_step(&step, &job_vars, &HashMap::new())
+    let run_vars = vars(&[("impl_agent", "rust-lane")]);
+    let resolved = interpolate_step(&step, &run_vars, &HashMap::new())
         .expect("interpolation must succeed when var is provided");
     assert_eq!(resolved.agent.as_deref(), Some("rust-lane"));
 }
@@ -110,8 +110,8 @@ fn step_goal_interpolated_from_job_vars() {
         fanout: None,
             invocation: None,
     };
-    let job_vars = vars(&[("feature_name", "config split")]);
-    let resolved = interpolate_step(&step, &job_vars, &HashMap::new())
+    let run_vars = vars(&[("feature_name", "config split")]);
+    let resolved = interpolate_step(&step, &run_vars, &HashMap::new())
         .expect("interpolation must succeed when var is provided");
     assert_eq!(resolved.goal.as_deref(), Some("Implement config split"));
 }
@@ -120,8 +120,8 @@ fn step_goal_interpolated_from_job_vars() {
 #[test]
 fn step_model_interpolated_from_job_vars() {
     let step = agent_step_with_model("rust-lane", "{{ model }}");
-    let job_vars = vars(&[("model", "opus")]);
-    let resolved = interpolate_step(&step, &job_vars, &HashMap::new())
+    let run_vars = vars(&[("model", "opus")]);
+    let resolved = interpolate_step(&step, &run_vars, &HashMap::new())
         .expect("interpolation must succeed when var is provided");
     assert_eq!(resolved.model.as_deref(), Some("opus"));
 }
@@ -130,8 +130,8 @@ fn step_model_interpolated_from_job_vars() {
 #[test]
 fn step_command_interpolated_from_job_vars() {
     let step = run_step("cargo test {{ test_filter }}");
-    let job_vars = vars(&[("test_filter", "config::")]);
-    let resolved = interpolate_step(&step, &job_vars, &HashMap::new())
+    let run_vars = vars(&[("test_filter", "config::")]);
+    let resolved = interpolate_step(&step, &run_vars, &HashMap::new())
         .expect("interpolation must succeed when var is provided");
     assert_eq!(resolved.command.as_deref(), Some("cargo test config::"));
 }
@@ -148,11 +148,11 @@ fn step_vars_provide_defaults() {
 
 /// Job vars take priority over step vars for the same key.
 #[test]
-fn job_vars_override_step_vars() {
+fn run_vars_override_step_vars() {
     let step = agent_step("{{ impl_agent }}");
-    let job_vars = vars(&[("impl_agent", "rust-lane")]);
+    let run_vars = vars(&[("impl_agent", "rust-lane")]);
     let step_vars = vars(&[("impl_agent", "default")]);
-    let resolved = interpolate_step(&step, &job_vars, &step_vars)
+    let resolved = interpolate_step(&step, &run_vars, &step_vars)
         .expect("interpolation must succeed when job var is provided");
     assert_eq!(resolved.agent.as_deref(), Some("rust-lane"), "job var must win over step var");
 }

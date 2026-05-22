@@ -36,7 +36,7 @@ pub enum ExitCause {
 #[derive(Debug)]
 pub struct ExitSignal {
     pub slug: String,
-    pub job_id: String,
+    pub pipeline_run_id: String,
     pub exit_code: Option<i32>,
     pub cause: ExitCause,
 }
@@ -44,7 +44,7 @@ pub struct ExitSignal {
 /// Context for a job being dispatched. Carries everything an executor needs.
 #[derive(Clone, Debug)]
 pub struct SessionContext {
-    pub job_id: String,
+    pub pipeline_run_id: String,
     pub slug: String,
     pub agent: String,
     pub branch: String,

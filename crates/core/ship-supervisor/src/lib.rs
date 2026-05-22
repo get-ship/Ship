@@ -18,7 +18,7 @@ pub mod adapters;
 pub mod agent_lifecycle;
 pub mod executors;
 pub mod helpers;
-pub mod job_dispatch;
+pub mod run_dispatch;
 pub mod orphan_cleanup;
 pub mod platform;
 pub mod process_events;

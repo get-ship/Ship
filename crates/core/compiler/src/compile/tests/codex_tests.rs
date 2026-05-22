@@ -296,7 +296,7 @@ fn codex_agents_table_emitted() {
     let agents = parsed.get("agents").expect("agents table must be present");
     assert_eq!(agents["max_threads"].as_integer().unwrap(), 4);
     assert_eq!(agents["max_depth"].as_integer().unwrap(), 3);
-    assert_eq!(agents["job_max_runtime_seconds"].as_integer().unwrap(), 300);
+    assert_eq!(agents["run_max_runtime_seconds"].as_integer().unwrap(), 300);
 }
 
 #[test]

@@ -172,14 +172,6 @@ pub async fn dispatch_agent_session_via_daemon(body: serde_json::Value) -> Resul
     post("/agent_sessions/dispatch", body).await
 }
 
-/// Create a multi-step / DAG job via the daemon (`POST /runtime/jobs`).
-/// Used by the `create_job` tool, which carries `depends_on` and is the
-/// pipeline-composition surface — distinct from single-agent dispatch.
-/// This legitimately stays on the pipeline-run primitive.
-pub async fn create_job_via_daemon(body: serde_json::Value) -> Result<String> {
-    post("/runtime/jobs", body).await
-}
-
 /// List running agents via the daemon's REST API.
 pub async fn list_agents_via_daemon() -> Result<String> {
     get("/runtime/agents").await
@@ -280,14 +272,14 @@ pub async fn emit_event_via_daemon(body: Value) -> Result<String> {
 /// Update a job's status through the daemon. The daemon builds the
 /// appropriate `job.*` envelope server-side, persists it, and routes via
 /// the kernel so projections (jobs table, pipeline state, dispatch) advance.
-pub async fn update_job_status_via_daemon(job_id: &str, body: Value) -> Result<String> {
-    post(&format!("/jobs/{job_id}/status"), body).await
+pub async fn update_job_status_via_daemon(pipeline_run_id: &str, body: Value) -> Result<String> {
+    post(&format!("/jobs/{pipeline_run_id}/status"), body).await
 }
 
 /// Declare a job's current pipeline step complete via the daemon. The
 /// daemon resolves the active step from its projection and emits the
 /// `step.done_declared` event through the kernel.
-pub async fn job_step_done_via_daemon(slug: &str, body: Value) -> Result<String> {
+pub async fn step_done_via_daemon(slug: &str, body: Value) -> Result<String> {
     post(&format!("/jobs/{slug}/step-done"), body).await
 }
 

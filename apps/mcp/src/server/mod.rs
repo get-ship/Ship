@@ -568,14 +568,6 @@ impl ShipServer {
     // ---- Jobs ----
 
     #[tool(
-        description = "Create a new job. Emits job.created and returns {job_id}. \
-        Jobs are event-sourced — state is derived from the event log, not stored directly."
-    )]
-    async fn create_job(&self, Parameters(req): Parameters<CreateJobRequest>) -> String {
-        job_tools::create_job(req).await
-    }
-
-    #[tool(
         description = "Advance a job to the next status by emitting the appropriate event. \
         status: dispatched (requires worktree), gate_requested (requires gate_agent), \
         gate_passed, gate_failed (requires error), blocked (requires blocker), completed, \
@@ -862,7 +854,7 @@ impl ShipServer {
     #[tool(
         description = "Spawn an agent: creates a git worktree, compiles harness config via \
         `ship use`, launches the agent process, and registers it on the mesh. \
-        Returns the job_id for use with steer_agent, list_agents, stop_agent."
+        Returns the pipeline_run_id for use with steer_agent, list_agents, stop_agent."
     )]
     async fn dispatch_agent(
         &self,

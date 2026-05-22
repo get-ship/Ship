@@ -17,9 +17,9 @@ use tokio::sync::Mutex;
 pub enum Scope {
     ReadWorkspace,
     WriteWorkspace,
-    ReadJobs,
-    CreateJobs,
-    ManageJobs,
+    ReadRuns,
+    CreateRuns,
+    ManageRuns,
     EmitEvents,
     MeshSend,
     MeshBroadcast,
@@ -94,9 +94,9 @@ pub fn scopes_for_role(role: Option<&str>) -> Vec<Scope> {
             let mut s = vec![
                 Scope::ReadWorkspace,
                 Scope::WriteWorkspace,
-                Scope::ReadJobs,
-                Scope::CreateJobs,
-                Scope::ManageJobs,
+                Scope::ReadRuns,
+                Scope::CreateRuns,
+                Scope::ManageRuns,
                 Scope::EmitEvents,
                 Scope::MeshSend,
                 Scope::MeshBroadcast,
@@ -109,8 +109,8 @@ pub fn scopes_for_role(role: Option<&str>) -> Vec<Scope> {
             let mut s = vec![
                 Scope::ReadWorkspace,
                 Scope::WriteWorkspace,
-                Scope::ReadJobs,
-                Scope::CreateJobs,
+                Scope::ReadRuns,
+                Scope::CreateRuns,
                 Scope::LogProgress,
                 Scope::StepDone,
                 Scope::MeshSend,
@@ -123,7 +123,7 @@ pub fn scopes_for_role(role: Option<&str>) -> Vec<Scope> {
         Some("worker") | None => {
             let mut s = vec![
                 Scope::ReadWorkspace,
-                Scope::ReadJobs,
+                Scope::ReadRuns,
                 Scope::LogProgress,
                 Scope::StepDone,
                 Scope::MeshSend,
@@ -132,7 +132,7 @@ pub fn scopes_for_role(role: Option<&str>) -> Vec<Scope> {
             s.extend(pipeline_agent_artifact_scopes());
             s
         }
-        _ => vec![Scope::ReadWorkspace, Scope::ReadJobs, Scope::LogProgress],
+        _ => vec![Scope::ReadWorkspace, Scope::ReadRuns, Scope::LogProgress],
     }
 }
 
@@ -311,7 +311,7 @@ mod tests {
     #[test]
     fn scope_full_grants_everything() {
         let granted = vec![Scope::Full];
-        assert!(Scope::CreateJobs.is_granted_by(&granted));
+        assert!(Scope::CreateRuns.is_granted_by(&granted));
         assert!(Scope::AdminDaemon.is_granted_by(&granted));
         assert!(Scope::MeshBroadcast.is_granted_by(&granted));
     }
@@ -321,7 +321,7 @@ mod tests {
         let granted = vec![Scope::ReadWorkspace, Scope::LogProgress];
         assert!(Scope::ReadWorkspace.is_granted_by(&granted));
         assert!(Scope::LogProgress.is_granted_by(&granted));
-        assert!(!Scope::CreateJobs.is_granted_by(&granted));
+        assert!(!Scope::CreateRuns.is_granted_by(&granted));
     }
 
     #[test]
@@ -329,15 +329,15 @@ mod tests {
         let scopes = scopes_for_role(Some("worker"));
         assert!(Scope::ReadWorkspace.is_granted_by(&scopes));
         assert!(Scope::LogProgress.is_granted_by(&scopes));
-        assert!(!Scope::CreateJobs.is_granted_by(&scopes));
-        assert!(!Scope::ManageJobs.is_granted_by(&scopes));
+        assert!(!Scope::CreateRuns.is_granted_by(&scopes));
+        assert!(!Scope::ManageRuns.is_granted_by(&scopes));
     }
 
     #[test]
     fn scopes_for_commander_role() {
         let scopes = scopes_for_role(Some("commander"));
-        assert!(Scope::CreateJobs.is_granted_by(&scopes));
-        assert!(Scope::ManageJobs.is_granted_by(&scopes));
+        assert!(Scope::CreateRuns.is_granted_by(&scopes));
+        assert!(Scope::ManageRuns.is_granted_by(&scopes));
         assert!(Scope::MeshBroadcast.is_granted_by(&scopes));
     }
 

@@ -54,11 +54,11 @@ pub async fn dispatch_fanout_step(
     // Resolve shared inputs once — all lanes read the same upstream artifacts.
     let shared_inputs = if let Some(pipeline) = &job.steps {
         let parent_wt = wt_root.join(slug);
-        match super::step_io::resolve_consumes(step, pipeline, &job.job_id, &parent_wt) {
+        match super::step_io::resolve_consumes(step, pipeline, &job.pipeline_run_id, &parent_wt) {
             Ok(inputs) => inputs,
             Err(e) => {
                 tracing::error!(slug, step_id = step.id, "fanout: consumes resolution failed: {e}");
-                let _ = emit_step_failed(kernel, &job.job_id, slug, &step.id, &e).await;
+                let _ = emit_step_failed(kernel, &job.pipeline_run_id, slug, &step.id, &e).await;
                 return 0;
             }
         }
@@ -83,7 +83,7 @@ pub async fn dispatch_fanout_step(
             .or_else(|| job.model.clone());
 
         let lane_ctx = SessionContext {
-            job_id: job.job_id.clone(),
+            pipeline_run_id: job.pipeline_run_id.clone(),
             slug: lane_slug.clone(),
             agent: lane.agent.clone(),
             branch: lane_branch,
@@ -118,7 +118,7 @@ pub async fn dispatch_fanout_step(
         // Write pipeline specs + lane dispatch prompt to the lane's worktree.
         if let Some(pipeline) = &job.steps {
             super::pipeline_specs::prepare_step_for_dispatch(
-                &lane_wt, &lane_slug, &job.job_id,
+                &lane_wt, &lane_slug, &job.pipeline_run_id,
                 &job.spec_path, pipeline, step, &shared_inputs,
             );
         }
@@ -136,14 +136,14 @@ pub async fn dispatch_fanout_step(
 
         let exec_kind = if job.headless { "process" } else { "pty" };
         emit_process_spawned(
-            kernel, &lane_slug, &job.job_id, handle.pid,
+            kernel, &lane_slug, &job.pipeline_run_id, handle.pid,
             "claude", &[], &[], &lane_wt.to_string_lossy(),
             exec_kind, Some(&lane_step_id),
         ).await;
         octx.registry.register(&lane_slug, handle).await;
 
         let monitor = StepMonitor::new(
-            job.job_id.clone(),
+            job.pipeline_run_id.clone(),
             step_idx,
             lane_slug.clone(),
             lane_step_id.clone(),
@@ -157,7 +157,7 @@ pub async fn dispatch_fanout_step(
         let (tx, rx) = tokio::sync::oneshot::channel::<LaneOutcome>();
         octx.fanout_lane_txs.lock().await.insert(lane_slug.clone(), tx);
         octx.fanout_lane_refs.lock().await.insert(lane_slug.clone(), FanoutLaneRef {
-            job_id: job.job_id.clone(),
+            pipeline_run_id: job.pipeline_run_id.clone(),
             parent_slug: slug.clone(),
             fanout_step_id: step.id.clone(),
             fanout_step_index: step_idx,
@@ -178,7 +178,7 @@ pub async fn dispatch_fanout_step(
         // + `lane_slug` so the restart reconciler can enumerate lanes
         // after a daemon crash — `fanout_lane_refs` lives in-memory only.
         super::fanout_recover::emit_fanout_lane_dispatched(
-            kernel, &job.job_id, slug, &step.id,
+            kernel, &job.pipeline_run_id, slug, &step.id,
             &lane.id, &lane_slug, &lane_step_id,
         ).await;
 
@@ -187,13 +187,13 @@ pub async fn dispatch_fanout_step(
     }
 
     if spawned == 0 {
-        let _ = emit_step_failed(kernel, &job.job_id, slug, &step.id, "no lanes spawned").await;
+        let _ = emit_step_failed(kernel, &job.pipeline_run_id, slug, &step.id, "no lanes spawned").await;
         return 0;
     }
 
     // Background aggregator: wait for all lane completions, then emit parent step outcome.
     let kernel_clone = kernel.clone();
-    let job_id = job.job_id.clone();
+    let pipeline_run_id = job.pipeline_run_id.clone();
     let parent_slug = slug.clone();
     let step_id = step.id.clone();
     let min_ok = fanout.min_successful_lanes;
@@ -218,9 +218,9 @@ pub async fn dispatch_fanout_step(
         // we emitted anyway, and emitting one would pollute the event
         // log with a misleading "insufficient successful lanes" reason
         // for an operator-initiated cancellation.
-        if outcomes.is_empty() && parent_job_is_terminal(&job_id) {
+        if outcomes.is_empty() && parent_job_is_terminal(&pipeline_run_id) {
             tracing::info!(
-                job_id, step_id,
+                pipeline_run_id, step_id,
                 "fanout: aggregator exiting — parent job is terminal (cancelled or failed)"
             );
             return;
@@ -232,10 +232,10 @@ pub async fn dispatch_fanout_step(
         let ok_count = match decision {
             AggregateDecision::Fail { ok_count, reason } => {
                 tracing::warn!(
-                    job_id, step_id, ok_count, min_ok, total,
+                    pipeline_run_id, step_id, ok_count, min_ok, total,
                     "fanout: insufficient successful lanes — failing fanout step"
                 );
-                emit_step_failed(&kernel_clone, &job_id, &parent_slug, &step_id, &reason).await;
+                emit_step_failed(&kernel_clone, &pipeline_run_id, &parent_slug, &step_id, &reason).await;
                 return;
             }
             AggregateDecision::Advance { ok_count } => ok_count,
@@ -243,7 +243,7 @@ pub async fn dispatch_fanout_step(
 
         // Emit synthetic step.observed(Advance) for the parent fanout step.
         let payload = PipelineStepObservedPayload {
-            job_id: job_id.clone(),
+            pipeline_run_id: pipeline_run_id.clone(),
             slug: parent_slug.clone(),
             step_index: step_idx,
             step_name: step_id.clone(),
@@ -260,28 +260,28 @@ pub async fn dispatch_fanout_step(
             start_sha: None,
             log_tail: None,
         };
-        if let Ok(env) = EventEnvelope::new(event_types::PIPELINE_STEP_OBSERVED, &job_id, &payload) {
-            let env = env.with_actor_id("service.job-dispatch");
+        if let Ok(env) = EventEnvelope::new(event_types::PIPELINE_STEP_OBSERVED, &pipeline_run_id, &payload) {
+            let env = env.with_actor_id("service.orchestrator");
             persist_and_route(&kernel_clone, env, &parent_slug, None).await;
         }
     });
 
     // Emit step_dispatched for the fanout step so the projection sets current_step.
-    emit_step_dispatched_event(kernel, &job.job_id, &step.id, "fanout", slug, ship_dir_override).await;
+    emit_step_dispatched_event(kernel, &job.pipeline_run_id, &step.id, "fanout", slug, ship_dir_override).await;
 
     spawned
 }
 
-/// Peek at the projection to see whether `job_id` is in a terminal state.
+/// Peek at the projection to see whether `pipeline_run_id` is in a terminal state.
 /// Used by the fanout aggregator to suppress misleading `step.failed`
 /// emissions after operator cancellation (or any other path that drops
 /// every lane sender without reporting an outcome).
 ///
 /// Returns `false` when the projection can't be loaded so we never
 /// swallow a genuine fanout failure.
-fn parent_job_is_terminal(job_id: &str) -> bool {
+fn parent_job_is_terminal(pipeline_run_id: &str) -> bool {
     use crate::projections::pipeline_run::{PipelineRunStatus, load_pipeline_run_by_id};
-    match load_pipeline_run_by_id(job_id) {
+    match load_pipeline_run_by_id(pipeline_run_id) {
         Ok(Some(job)) => matches!(
             job.status,
             PipelineRunStatus::Cancelled | PipelineRunStatus::Failed | PipelineRunStatus::Merged

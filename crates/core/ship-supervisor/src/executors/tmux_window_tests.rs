@@ -62,7 +62,7 @@ async fn tmux_window_spawn_captures_window_id_and_survives_name_collision() {
     let session = session_name(&slug);
 
     let make_ctx = || SessionContext {
-        job_id: "j1".into(),
+        pipeline_run_id: "j1".into(),
         slug: slug.clone(),
         agent: "noop".into(),
         branch: "job/test".into(),
@@ -116,7 +116,7 @@ async fn resume_handle_refuses_ambiguous_name() {
     let session = session_name(&slug);
 
     let make_ctx = || SessionContext {
-        job_id: "j1".into(),
+        pipeline_run_id: "j1".into(),
         slug: slug.clone(),
         agent: "noop".into(),
         branch: "job/test".into(),

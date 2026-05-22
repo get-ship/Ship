@@ -332,7 +332,7 @@ shell_environment_policy = "inherit"
 [agents]
 max_threads = 4
 max_depth = 3
-job_max_runtime_seconds = 300
+run_max_runtime_seconds = 300
 "#;
     write_file(&tmp, ".codex/config.toml", config);
 

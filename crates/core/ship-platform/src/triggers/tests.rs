@@ -48,20 +48,20 @@ fn write_schema(ship_dir: &Path, id: &str) {
     std::fs::write(ship_dir.join("collections").join(format!("{id}.jsonc")), schema).unwrap();
 }
 
-fn job_failed_envelope() -> EventEnvelope {
+fn run_failed_envelope() -> EventEnvelope {
     EventEnvelope::new(
         "pipeline.run.failed",
         "job-1",
-        &json!({ "job_id": "job-1", "error": "boom", "status": "failed" }),
+        &json!({ "pipeline_run_id": "job-1", "error": "boom", "status": "failed" }),
     )
     .unwrap()
 }
 
-fn job_completed_envelope() -> EventEnvelope {
+fn run_completed_envelope() -> EventEnvelope {
     EventEnvelope::new(
         "pipeline.run.completed",
         "job-1",
-        &json!({ "job_id": "job-1", "slug": "job-1", "status": "ok" }),
+        &json!({ "pipeline_run_id": "job-1", "slug": "job-1", "status": "ok" }),
     )
     .unwrap()
 }
@@ -175,7 +175,7 @@ fn loader_reads_triggers_dir_and_ignores_legacy_hooks_dir() {
 
 #[test]
 fn filter_matches_dot_paths() {
-    let env = job_failed_envelope();
+    let env = run_failed_envelope();
     let ctx = filter::build_event_context(&env);
     assert!(filter::matches(
         Some(&json!({ "payload.status": "failed" })),
@@ -213,7 +213,7 @@ async fn event_matching_runs_matching_hook_only() {
     assert_eq!(engine.snapshot().await.len(), 2);
 
     let before = recent_hook_events(&ship_dir);
-    engine.dispatch_event(&job_failed_envelope()).await;
+    engine.dispatch_event(&run_failed_envelope()).await;
     let after = recent_hook_events(&ship_dir);
     let emitted = diff(&before, &after);
     assert_eq!(emitted.len(), 1, "only the on-fail hook fires");
@@ -241,7 +241,7 @@ async fn filter_excludes_non_matching_payload() {
     engine.reload().await;
 
     let before = recent_hook_events(&ship_dir);
-    engine.dispatch_event(&job_completed_envelope()).await;
+    engine.dispatch_event(&run_completed_envelope()).await;
     let after = recent_hook_events(&ship_dir);
     assert!(diff(&before, &after).is_empty());
 }
@@ -263,7 +263,7 @@ async fn jinja_renders_event_fields() {
     engine.reload().await;
 
     let before = recent_hook_events(&ship_dir);
-    engine.dispatch_event(&job_failed_envelope()).await;
+    engine.dispatch_event(&run_failed_envelope()).await;
     let after = recent_hook_events(&ship_dir);
     let emitted = diff(&before, &after);
     assert_eq!(emitted.len(), 1);
@@ -288,7 +288,7 @@ async fn when_condition_skips_action() {
     engine.reload().await;
 
     let before = recent_hook_events(&ship_dir);
-    engine.dispatch_event(&job_failed_envelope()).await;
+    engine.dispatch_event(&run_failed_envelope()).await;
     let after = recent_hook_events(&ship_dir);
     assert!(diff(&before, &after).is_empty());
 }
@@ -311,7 +311,7 @@ async fn results_chain_across_actions() {
     engine.reload().await;
 
     let before = recent_hook_events(&ship_dir);
-    engine.dispatch_event(&job_failed_envelope()).await;
+    engine.dispatch_event(&run_failed_envelope()).await;
     let after = recent_hook_events(&ship_dir);
     let emitted = diff(&before, &after);
     assert_eq!(emitted.len(), 2);
@@ -345,7 +345,7 @@ async fn template_file_is_rendered() {
     engine.reload().await;
     assert_eq!(engine.snapshot().await.len(), 1);
 
-    engine.dispatch_event(&job_failed_envelope()).await;
+    engine.dispatch_event(&run_failed_envelope()).await;
 
     let mut svc = crate::collections::store::open_data_db(&ship_dir).unwrap();
     let schema = crate::collections::schema::load_schemas(&ship_dir)
@@ -378,7 +378,7 @@ async fn recursion_guard_blocks_deep_hooks() {
         "trigger": { "event": "pipeline.run.failed" },
         "actions": [
             { "type": "event.emit", "event_type": "pipeline.run.failed", "payload": {
-                "job_id": "child", "error": "x", "status": "failed"
+                "pipeline_run_id": "child", "error": "x", "status": "failed"
             } }
         ]
     }"#);
@@ -387,7 +387,7 @@ async fn recursion_guard_blocks_deep_hooks() {
     let engine = HookEngine::new(kernel.clone(), ship_dir.clone());
     engine.reload().await;
 
-    let mut envelope = job_failed_envelope();
+    let mut envelope = run_failed_envelope();
     let mut payload: Value = serde_json::from_str(&envelope.payload_json).unwrap();
     payload["_hook_depth"] = Value::from(resolve_hooks_max_depth());
     envelope.payload_json = payload.to_string();

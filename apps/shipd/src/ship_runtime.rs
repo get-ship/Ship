@@ -12,9 +12,9 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use crate::auth::SessionRegistry;
-use crate::managers::{JobManager, MeshManager, SessionScanner};
+use crate::managers::{RunManager, MeshManager, SessionScanner};
 use ship_substrate::task_health::HealthRegistry;
-use crate::supervisor::job_dispatch::DispatchHandle;
+use crate::supervisor::run_dispatch::DispatchHandle;
 
 // ---- Config types ----
 
@@ -81,7 +81,7 @@ pub struct ShipRuntime {
     /// `<root>/machine/daemons/<hash>/` per devx-04.
     daemon_dir: PathBuf,
     mesh: tokio::sync::OnceCell<MeshManager>,
-    jobs: tokio::sync::OnceCell<JobManager>,
+    jobs: tokio::sync::OnceCell<RunManager>,
     dispatch_handle: std::sync::OnceLock<DispatchHandle>,
     session_scanner: tokio::sync::OnceCell<SessionScanner>,
     /// Scoped session registry — maps session tokens to DaemonSession.
@@ -692,11 +692,11 @@ impl ShipRuntime {
     ///
     /// On first call, subscribes to job events and reconciles orphaned
     /// dispatched jobs from previous daemon runs.
-    pub async fn jobs(&self) -> &JobManager {
+    pub async fn jobs(&self) -> &RunManager {
         let hr = self.health_registry.clone();
         self.jobs
             .get_or_init(|| async {
-                JobManager::init(self.kernel.clone(), self.ship_dir.clone(), &hr).await
+                RunManager::init(self.kernel.clone(), self.ship_dir.clone(), &hr).await
             })
             .await
     }

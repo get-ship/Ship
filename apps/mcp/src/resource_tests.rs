@@ -35,12 +35,12 @@ async fn resolve(uri: &str, dir: &std::path::Path) -> Option<String> {
 
 // ── Job resources (event-sourced) ────────────────────────────────
 
-fn job_created_event(job_id: &str, slug: &str, agent: &str) -> EventEnvelope {
+fn run_created_event(pipeline_run_id: &str, slug: &str, agent: &str) -> EventEnvelope {
     EventEnvelope::new(
         "pipeline.run.started",
-        job_id,
+        pipeline_run_id,
         &serde_json::json!({
-            "job_id": job_id,
+            "pipeline_run_id": pipeline_run_id,
             "slug": slug,
             "agent": agent,
             "branch": format!("job/{slug}"),
@@ -65,8 +65,8 @@ async fn jobs_list_empty() {
 async fn jobs_list_returns_created_jobs() {
     let (_tmp, ship_dir) = setup_with_db();
 
-    append_event(&ship_dir, &job_created_event("j-res-1", "auth-tests", "test-writer"));
-    append_event(&ship_dir, &job_created_event("j-res-2", "cli-errors", "rust-runtime"));
+    append_event(&ship_dir, &run_created_event("j-res-1", "auth-tests", "test-writer"));
+    append_event(&ship_dir, &run_created_event("j-res-2", "cli-errors", "rust-runtime"));
 
     let result = resolve("ship://jobs", &ship_dir).await.unwrap();
     let parsed: serde_json::Value = serde_json::from_str(&result)
@@ -87,12 +87,12 @@ async fn jobs_list_returns_created_jobs() {
 async fn jobs_get_by_id() {
     let (_tmp, ship_dir) = setup_with_db();
 
-    append_event(&ship_dir, &job_created_event("j-detail", "mcp-resources", "test-writer"));
+    append_event(&ship_dir, &run_created_event("j-detail", "mcp-resources", "test-writer"));
 
     let result = resolve("ship://jobs/j-detail", &ship_dir).await.unwrap();
     let parsed: serde_json::Value = serde_json::from_str(&result)
         .expect("ship://jobs/{id} must return valid JSON");
-    assert_eq!(parsed["job_id"].as_str(), Some("j-detail"));
+    assert_eq!(parsed["pipeline_run_id"].as_str(), Some("j-detail"));
     assert_eq!(parsed["slug"].as_str(), Some("mcp-resources"));
     assert_eq!(parsed["agent"].as_str(), Some("test-writer"));
     assert_eq!(parsed["status"].as_str(), Some("pending"));
@@ -108,13 +108,13 @@ async fn jobs_get_nonexistent_returns_none() {
 async fn jobs_get_reflects_status_changes() {
     let (_tmp, ship_dir) = setup_with_db();
 
-    append_event(&ship_dir, &job_created_event("j-status", "status-test", "rust-runtime"));
+    append_event(&ship_dir, &run_created_event("j-status", "status-test", "rust-runtime"));
     append_event(
         &ship_dir,
         &EventEnvelope::new(
             "pipeline.run.dispatched",
             "j-status",
-            &serde_json::json!({"job_id": "j-status", "worktree": "/tmp/wt"}),
+            &serde_json::json!({"pipeline_run_id": "j-status", "worktree": "/tmp/wt"}),
         )
         .unwrap(),
     );

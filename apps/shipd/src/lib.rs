@@ -206,8 +206,8 @@ pub async fn run_network(
     runtime.set_mesh_registry(mesh_registry);
     let rt = Arc::new(runtime);
 
-    let job_mgr = managers::JobManager::init(rt.kernel().clone(), global_dir.clone(), rt.health_registry()).await;
-    if let Some(dh) = job_mgr.dispatch_handle {
+    let run_mgr = managers::RunManager::init(rt.kernel().clone(), global_dir.clone(), rt.health_registry()).await;
+    if let Some(dh) = run_mgr.dispatch_handle {
         rt.set_dispatch_handle(dh);
     }
     // Start the abandoned session scanner.

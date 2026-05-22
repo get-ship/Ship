@@ -86,11 +86,11 @@ impl SessionExecutor for ServerExecutor {
 
         let exit_tx = ctx.exit_tx.clone();
         let slug = ctx.slug.clone();
-        let job_id = ctx.job_id.clone();
+        let pipeline_run_id = ctx.pipeline_run_id.clone();
         let harness = self.session.harness().to_string();
         let turn_id_mon = turn_id.clone();
         tokio::spawn(async move {
-            translate_events(events, exit_tx, slug, job_id, harness, turn_id_mon).await;
+            translate_events(events, exit_tx, slug, pipeline_run_id, harness, turn_id_mon).await;
         });
 
         tracing::info!(
@@ -155,7 +155,7 @@ async fn translate_events(
     mut events: tokio::sync::mpsc::UnboundedReceiver<SessionEvent>,
     exit_tx: Option<tokio::sync::mpsc::UnboundedSender<ExitSignal>>,
     slug: String,
-    job_id: String,
+    pipeline_run_id: String,
     harness: String,
     turn_id: String,
 ) {
@@ -167,7 +167,7 @@ async fn translate_events(
                 if let Some(tx) = &exit_tx {
                     let _ = tx.send(ExitSignal {
                         slug: slug.clone(),
-                        job_id: job_id.clone(),
+                        pipeline_run_id: pipeline_run_id.clone(),
                         exit_code: Some(0),
                         cause: ExitCause::AgentExited,
                     });
@@ -180,7 +180,7 @@ async fn translate_events(
                 if let Some(tx) = &exit_tx {
                     let _ = tx.send(ExitSignal {
                         slug: slug.clone(),
-                        job_id: job_id.clone(),
+                        pipeline_run_id: pipeline_run_id.clone(),
                         exit_code: Some(1),
                         cause: ExitCause::AgentExited,
                     });
@@ -215,7 +215,7 @@ async fn translate_events(
     if let Some(tx) = &exit_tx {
         let _ = tx.send(ExitSignal {
             slug,
-            job_id,
+            pipeline_run_id,
             exit_code: None,
             cause: ExitCause::SessionDestroyed,
         });

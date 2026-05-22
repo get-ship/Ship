@@ -41,7 +41,8 @@ pub struct StepView {
 #[derive(Serialize, Clone)]
 #[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct RunView {
-    pub job_id: String,
+    #[serde(alias = "job_id")]
+    pub pipeline_run_id: String,
     pub slug: String,
     pub agent: String,
     pub branch: String,
@@ -158,7 +159,7 @@ pub fn derive_segments(job: &PipelineRun) -> Vec<&'static str> {
 /// Build a `RunView` for a single job record. When `include_stats`,
 /// shells out for per-worktree `BranchStats`; otherwise zero-defaults.
 pub fn to_run_view(job: &PipelineRun, include_stats: bool) -> RunView {
-    let job_failed = matches!(job.status, PipelineRunStatus::Failed);
+    let run_failed = matches!(job.status, PipelineRunStatus::Failed);
     let steps = job
         .steps
         .as_ref()
@@ -169,7 +170,7 @@ pub fn to_run_view(job: &PipelineRun, include_stats: bool) -> RunView {
                     let state = if job.completed_steps.contains(&step.id) {
                         "completed"
                     } else if job.current_step.as_deref() == Some(step.id.as_str()) {
-                        if job_failed { "failed" } else { "running" }
+                        if run_failed { "failed" } else { "running" }
                     } else {
                         "pending"
                     };
@@ -195,7 +196,7 @@ pub fn to_run_view(job: &PipelineRun, include_stats: bool) -> RunView {
     };
 
     RunView {
-        job_id: job.job_id.clone(),
+        pipeline_run_id: job.pipeline_run_id.clone(),
         slug: job.slug.clone(),
         agent: job.agent.clone(),
         branch: job.branch.clone(),

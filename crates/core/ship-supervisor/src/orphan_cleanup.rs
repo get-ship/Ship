@@ -54,7 +54,7 @@ pub(crate) async fn cleanup_orphaned_worktrees(kernel: &Arc<Mutex<KernelRouter>>
     for job in orphans {
         tracing::info!(
             slug = job.slug,
-            job_id = job.job_id,
+            pipeline_run_id = job.pipeline_run_id,
             "job-dispatch: removing orphaned worktree"
         );
         cleanup_orphan(&job.slug, kernel).await;

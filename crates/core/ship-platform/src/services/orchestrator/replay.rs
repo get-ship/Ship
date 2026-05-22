@@ -93,12 +93,12 @@ pub async fn replay_unprocessed_completions(
 
     for job in &stale {
         let payload = serde_json::json!({
-            "job_id": job.job_id,
+            "pipeline_run_id": job.pipeline_run_id,
             "slug": job.slug,
         });
         let envelope = match EventEnvelope::new(
             ship_substrate::events::pipeline::event_types::PIPELINE_RUN_COMPLETED,
-            &job.job_id,
+            &job.pipeline_run_id,
             &payload,
         ) {
             Ok(e) => e,
@@ -108,7 +108,7 @@ pub async fn replay_unprocessed_completions(
             }
         };
 
-        tracing::info!(slug = job.slug, job_id = job.job_id, "job-dispatch: replaying job.completed");
+        tracing::info!(slug = job.slug, pipeline_run_id = job.pipeline_run_id, "job-dispatch: replaying job.completed");
 
         if !advance_pipeline(kernel, &envelope, octx).await {
             tracing::info!(slug = job.slug, "job-dispatch: replay — no pipeline to advance, awaiting gate/merge");
@@ -196,7 +196,7 @@ async fn reconcile_dispatched_inner(
             }
             None => {
                 tracing::info!(
-                    slug = job.slug, job_id = job.job_id,
+                    slug = job.slug, pipeline_run_id = job.pipeline_run_id,
                     "job-dispatch: reconcile — no live process, deferring to liveness sweep"
                 );
                 crate::services::orchestrator::emit::emit_executor_session_destroyed(

@@ -94,7 +94,7 @@ async fn session_destroyed_emits_job_failed_not_completed() {
         Arc::clone(&kernel),
         ExitSignal {
             slug: "op-killed".to_string(),
-            job_id: "j-op-1".to_string(),
+            pipeline_run_id: "j-op-1".to_string(),
             exit_code: None,
             cause: ExitCause::SessionDestroyed,
         },
@@ -141,7 +141,7 @@ async fn agent_exited_clean_still_emits_job_completed() {
         Arc::clone(&kernel),
         ExitSignal {
             slug: "ok-job".to_string(),
-            job_id: "j-ok-1".to_string(),
+            pipeline_run_id: "j-ok-1".to_string(),
             exit_code: Some(0),
             cause: ExitCause::AgentExited,
         },
@@ -176,7 +176,7 @@ async fn agent_exited_nonzero_emits_job_failed() {
         Arc::clone(&kernel),
         ExitSignal {
             slug: "err-job".to_string(),
-            job_id: "j-err-1".to_string(),
+            pipeline_run_id: "j-err-1".to_string(),
             exit_code: Some(1),
             cause: ExitCause::AgentExited,
         },
@@ -208,7 +208,7 @@ async fn agent_exited_unknown_code_emits_job_failed() {
         Arc::clone(&kernel),
         ExitSignal {
             slug: "unknown-job".to_string(),
-            job_id: "j-unk-1".to_string(),
+            pipeline_run_id: "j-unk-1".to_string(),
             exit_code: None,
             cause: ExitCause::AgentExited,
         },

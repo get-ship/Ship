@@ -17,7 +17,7 @@ use crate::test_harness::TestDaemon;
 async fn daemon_token_has_full_scope() {
     let auth = TestDaemon::cli_auth();
     assert!(auth.has_scope(Scope::Full));
-    assert!(auth.has_scope(Scope::CreateJobs));
+    assert!(auth.has_scope(Scope::CreateRuns));
     assert!(auth.has_scope(Scope::AdminDaemon));
     assert!(auth.has_scope(Scope::MeshBroadcast));
 }
@@ -26,7 +26,7 @@ async fn daemon_token_has_full_scope() {
 async fn contributor_has_full_scope() {
     let scopes = crate::auth::scopes_for_role(Some("contributor"));
     assert!(Scope::Full.is_granted_by(&scopes));
-    assert!(Scope::CreateJobs.is_granted_by(&scopes));
+    assert!(Scope::CreateRuns.is_granted_by(&scopes));
     assert!(Scope::AdminDaemon.is_granted_by(&scopes));
 }
 
@@ -34,9 +34,9 @@ async fn contributor_has_full_scope() {
 async fn unknown_role_gets_minimal_scopes() {
     let scopes = crate::auth::scopes_for_role(Some("unknown-role"));
     assert!(Scope::ReadWorkspace.is_granted_by(&scopes));
-    assert!(Scope::ReadJobs.is_granted_by(&scopes));
+    assert!(Scope::ReadRuns.is_granted_by(&scopes));
     assert!(Scope::LogProgress.is_granted_by(&scopes));
-    assert!(!Scope::CreateJobs.is_granted_by(&scopes));
+    assert!(!Scope::CreateRuns.is_granted_by(&scopes));
     assert!(!Scope::MeshSend.is_granted_by(&scopes));
     assert!(!Scope::WriteWorkspace.is_granted_by(&scopes));
 }

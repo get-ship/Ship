@@ -10,7 +10,7 @@ pub mod agent_session;
 pub mod auth;
 pub mod compile_state;
 pub mod pipeline_run;
-pub mod job_transitions;
+pub mod pipeline_run_transitions;
 pub mod projects;
 
 pub use agent_session::{

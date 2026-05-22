@@ -98,13 +98,13 @@ pub fn write_dispatch_prompt(
 pub fn prepare_step_for_dispatch(
     worktree_path: &Path,
     slug: &str,
-    job_id: &str,
+    pipeline_run_id: &str,
     spec_path: &str,
     pipeline: &Pipeline,
     current: &PipelineStep,
     resolved_inputs: &[ResolvedInput],
 ) {
-    let ctx = super::prompt_composer::load_job_context(job_id);
+    let ctx = super::prompt_composer::load_job_context(pipeline_run_id);
     let step_specs = ctx
         .pipeline_name
         .as_deref()

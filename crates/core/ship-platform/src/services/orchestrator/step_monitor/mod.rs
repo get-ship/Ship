@@ -52,7 +52,7 @@ pub(crate) const DEFAULT_SETTLE_DURATION: Duration = Duration::from_secs(15);
 
 /// Per-step execution monitor.
 pub struct StepMonitor {
-    pub job_id: String,
+    pub pipeline_run_id: String,
     pub step_index: usize,
     pub slug: String,
     pub step_name: String,
@@ -72,7 +72,7 @@ pub struct StepMonitor {
 
 impl StepMonitor {
     pub fn new(
-        job_id: String,
+        pipeline_run_id: String,
         step_index: usize,
         slug: String,
         step_name: String,
@@ -81,7 +81,7 @@ impl StepMonitor {
     ) -> Self {
         let start_sha = resolve_head_sha(&work_dir);
         Self {
-            job_id,
+            pipeline_run_id,
             step_index,
             slug,
             step_name,

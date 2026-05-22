@@ -183,7 +183,7 @@ pub(super) fn build_codex_config_patch(resolved: &ResolvedConfig) -> Option<Stri
         }
         if let Some(v) = resolved.codex_job_max_runtime_seconds {
             agents.insert(
-                "job_max_runtime_seconds".into(),
+                "run_max_runtime_seconds".into(),
                 toml::Value::Integer(v as i64),
             );
         }

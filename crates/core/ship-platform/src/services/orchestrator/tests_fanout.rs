@@ -46,7 +46,7 @@ fn base_payload(
     steps: Vec<PipelineStep>,
 ) -> ship_substrate::events::pipeline::PipelineRunStartedPayload {
     ship_substrate::events::pipeline::PipelineRunStartedPayload {
-        job_id: "j-test".into(),
+        pipeline_run_id: "j-test".into(),
         slug: slug.into(),
         agent: "implementer".into(),
         branch: "job/test".into(),

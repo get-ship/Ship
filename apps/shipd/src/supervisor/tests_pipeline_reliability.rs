@@ -11,28 +11,28 @@ fn ev(event_type: &str, payload: serde_json::Value) -> EventEnvelope {
     EventEnvelope::new(event_type, "entity", &payload).unwrap()
 }
 
-fn created(job_id: &str) -> EventEnvelope {
+fn created(pipeline_run_id: &str) -> EventEnvelope {
     ev(
         event_types::PIPELINE_RUN_STARTED,
         serde_json::json!({
-            "job_id": job_id,
-            "slug": job_id,
+            "pipeline_run_id": pipeline_run_id,
+            "slug": pipeline_run_id,
             "agent": "rust-runtime",
-            "branch": format!("job/{job_id}"),
+            "branch": format!("job/{pipeline_run_id}"),
             "spec_path": "spec.md",
             "plan_id": null,
         }),
     )
 }
 
-fn created_with_steps(job_id: &str, steps: serde_json::Value) -> EventEnvelope {
+fn created_with_steps(pipeline_run_id: &str, steps: serde_json::Value) -> EventEnvelope {
     ev(
         event_types::PIPELINE_RUN_STARTED,
         serde_json::json!({
-            "job_id": job_id,
-            "slug": job_id,
+            "pipeline_run_id": pipeline_run_id,
+            "slug": pipeline_run_id,
             "agent": "rust-runtime",
-            "branch": format!("job/{job_id}"),
+            "branch": format!("job/{pipeline_run_id}"),
             "spec_path": "spec.md",
             "plan_id": null,
             "steps": steps,
@@ -40,31 +40,31 @@ fn created_with_steps(job_id: &str, steps: serde_json::Value) -> EventEnvelope {
     )
 }
 
-fn dispatched(job_id: &str) -> EventEnvelope {
+fn dispatched(pipeline_run_id: &str) -> EventEnvelope {
     ev(
         event_types::PIPELINE_RUN_DISPATCHED,
-        serde_json::json!({"job_id": job_id, "worktree": "/tmp/wt", "pid": null}),
+        serde_json::json!({"pipeline_run_id": pipeline_run_id, "worktree": "/tmp/wt", "pid": null}),
     )
 }
 
-fn completed(job_id: &str) -> EventEnvelope {
+fn completed(pipeline_run_id: &str) -> EventEnvelope {
     ev(
         event_types::PIPELINE_RUN_COMPLETED,
-        serde_json::json!({"job_id": job_id, "slug": job_id}),
+        serde_json::json!({"pipeline_run_id": pipeline_run_id, "slug": pipeline_run_id}),
     )
 }
 
-fn merged(job_id: &str) -> EventEnvelope {
+fn merged(pipeline_run_id: &str) -> EventEnvelope {
     ev(
         event_types::PIPELINE_RUN_MERGED,
-        serde_json::json!({"job_id": job_id}),
+        serde_json::json!({"pipeline_run_id": pipeline_run_id}),
     )
 }
 
-fn blocked(job_id: &str, reason: &str) -> EventEnvelope {
+fn blocked(pipeline_run_id: &str, reason: &str) -> EventEnvelope {
     ev(
         event_types::PIPELINE_RUN_BLOCKED,
-        serde_json::json!({"job_id": job_id, "blocker": reason}),
+        serde_json::json!({"pipeline_run_id": pipeline_run_id, "blocker": reason}),
     )
 }
 

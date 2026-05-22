@@ -36,7 +36,7 @@
   "scripts": {
     "build:bundles": "bun run packages/deck/bundler/index.ts --all",
     "test:rust": "cargo test",
-    "wasm": "wasm-pack build crates/core/compiler --target web --out-dir ../../../packages/compiler --out-name compiler -- --features wasm",
+    "wasm": "wasm-pack build crates/sui/compiler --target web --out-dir ../../../packages/sui/compiler-wasm/pkg --out-name sui_compiler -- --features wasm",
     "lint": "vp lint",
     "lint:fix": "vp lint --fix",
     "test:e2e": "playwright test --config tests/e2e/playwright.config.ts",

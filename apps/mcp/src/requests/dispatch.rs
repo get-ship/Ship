@@ -8,7 +8,7 @@ pub struct DispatchAgentRequest {
     /// Short slug for the job (e.g. "my-feature"). Used to name the branch and worktree.
     pub slug: String,
     /// Contents of the job spec — written to `.artifacts/job-spec.md`.
-    pub job_spec: String,
+    pub run_spec: String,
     /// Harness to use: "claude" (default) or "codex".
     pub harness: Option<String>,
 }

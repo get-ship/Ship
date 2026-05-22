@@ -1,4 +1,4 @@
-//! POST /api/v1/agent_sessions/{job_id}/status — agent-driven lifecycle updates.
+//! POST /api/v1/agent_sessions/{pipeline_run_id}/status — agent-driven lifecycle updates.
 //!
 //! MCP's `update_job` tool POSTs here instead of writing to the event store
 //! directly. The daemon builds the appropriate `job.*` envelope, persists it
@@ -16,7 +16,7 @@ use crate::routes::rest_api::{ApiState, MeshResponse};
     "status": "dispatched",
     "worktree": "/tmp/ws-write-readme"
 }))]
-pub struct JobStatusReq {
+pub struct RunStatusReq {
     /// One of: dispatched, gate_requested, gate_passed, gate_failed, blocked,
     /// completed, merged, failed.
     pub status: String,
@@ -30,9 +30,9 @@ pub struct JobStatusReq {
 #[utoipa::path(
     operation_id = "updateJobStatus",
     post,
-    path = "/api/v1/agent_sessions/{job_id}/status",
-    request_body = JobStatusReq,
-    params(("job_id" = String, Path, description = "Job ULID")),
+    path = "/api/v1/agent_sessions/{pipeline_run_id}/status",
+    request_body = RunStatusReq,
+    params(("pipeline_run_id" = String, Path, description = "Job ULID")),
     responses(
         (status = 200, description = "Job status event emitted", body = MeshResponse),
         (status = 400, description = "Invalid status or missing field", body = crate::wire::ErrorResponse),
@@ -45,8 +45,8 @@ pub struct JobStatusReq {
 pub async fn update_job_status(
     State(state): State<ApiState>,
     _auth: Option<axum::Extension<crate::auth::AuthContext>>,
-    Path(job_id): Path<String>,
-    Json(body): Json<JobStatusReq>,
+    Path(pipeline_run_id): Path<String>,
+    Json(body): Json<RunStatusReq>,
 ) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
 
     use ship_substrate::events::EventEnvelope;
@@ -63,10 +63,10 @@ pub async fn update_job_status(
             })?;
             EventEnvelope::new(
                 event_types::PIPELINE_RUN_DISPATCHED,
-                &job_id,
+                &pipeline_run_id,
                 &PipelineRunDispatchedPayload {
-                    job_id: job_id.clone(),
-                    // External status-update endpoint only has job_id;
+                    pipeline_run_id: pipeline_run_id.clone(),
+                    // External status-update endpoint only has pipeline_run_id;
                     // slug is unknown here. Consumers that need filtering
                     // by slug should subscribe via the dispatch path or
                     // resolve slug from the pipeline_run record.
@@ -83,17 +83,17 @@ pub async fn update_job_status(
             })?;
             EventEnvelope::new(
                 event_types::PIPELINE_GATE_REQUESTED,
-                &job_id,
+                &pipeline_run_id,
                 &PipelineGateRequestedPayload {
-                    job_id: job_id.clone(),
+                    pipeline_run_id: pipeline_run_id.clone(),
                     gate_agent,
                 },
             )
         }
         "gate_passed" => EventEnvelope::new(
             event_types::PIPELINE_GATE_PASSED,
-            &job_id,
-            &PipelineGatePassedPayload { job_id: job_id.clone() },
+            &pipeline_run_id,
+            &PipelineGatePassedPayload { pipeline_run_id: pipeline_run_id.clone() },
         ),
         "gate_failed" => {
             let reason = body.error.ok_or_else(|| {
@@ -101,8 +101,8 @@ pub async fn update_job_status(
             })?;
             EventEnvelope::new(
                 event_types::PIPELINE_GATE_FAILED,
-                &job_id,
-                &PipelineGateFailedPayload { job_id: job_id.clone(), reason },
+                &pipeline_run_id,
+                &PipelineGateFailedPayload { pipeline_run_id: pipeline_run_id.clone(), reason },
             )
         }
         "blocked" => {
@@ -111,28 +111,28 @@ pub async fn update_job_status(
             })?;
             EventEnvelope::new(
                 event_types::PIPELINE_RUN_BLOCKED,
-                &job_id,
+                &pipeline_run_id,
                 &PipelineRunBlockedPayload {
-                    job_id: job_id.clone(),
+                    pipeline_run_id: pipeline_run_id.clone(),
                     blocker,
                     needs_human: true,
                 },
             )
         }
         "completed" => {
-            let slug = resolve_slug(state.ship_dir(), &job_id);
+            let slug = resolve_slug(state.ship_dir(), &pipeline_run_id);
             EventEnvelope::new(
                 event_types::PIPELINE_RUN_COMPLETED,
-                &job_id,
-                &PipelineRunCompletedPayload { job_id: job_id.clone(), slug },
+                &pipeline_run_id,
+                &PipelineRunCompletedPayload { pipeline_run_id: pipeline_run_id.clone(), slug },
             )
         }
         "merged" => {
-            let slug = resolve_slug(state.ship_dir(), &job_id);
+            let slug = resolve_slug(state.ship_dir(), &pipeline_run_id);
             EventEnvelope::new(
                 event_types::PIPELINE_RUN_MERGED,
-                &job_id,
-                &PipelineRunMergedPayload { job_id: job_id.clone(), slug },
+                &pipeline_run_id,
+                &PipelineRunMergedPayload { pipeline_run_id: pipeline_run_id.clone(), slug },
             )
         }
         "failed" => {
@@ -141,8 +141,8 @@ pub async fn update_job_status(
             })?;
             EventEnvelope::new(
                 event_types::PIPELINE_RUN_FAILED,
-                &job_id,
-                &PipelineRunFailedPayload { job_id: job_id.clone(), error },
+                &pipeline_run_id,
+                &PipelineRunFailedPayload { pipeline_run_id: pipeline_run_id.clone(), error },
             )
         }
         other => {
@@ -164,13 +164,13 @@ pub async fn update_job_status(
         .await
         .map_err(|e| err_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
 
-    Ok(ok_response(json!({ "job_id": job_id, "status": body.status })))
+    Ok(ok_response(json!({ "pipeline_run_id": pipeline_run_id, "status": body.status })))
 }
 
-fn resolve_slug(ship_dir: &std::path::Path, job_id: &str) -> String {
+fn resolve_slug(ship_dir: &std::path::Path, pipeline_run_id: &str) -> String {
     ship_platform::projections::pipeline_run::load_pipeline_runs_at(ship_dir)
         .ok()
-        .and_then(|jobs| jobs.get(job_id).map(|r| r.slug.clone()))
+        .and_then(|jobs| jobs.get(pipeline_run_id).map(|r| r.slug.clone()))
         .unwrap_or_default()
 }
 
@@ -206,7 +206,7 @@ pub struct StepDoneReq {
     ),
     tag = "runtime"
 )]
-pub async fn job_step_done(
+pub async fn step_done(
     State(state): State<ApiState>,
     _auth: Option<axum::Extension<crate::auth::AuthContext>>,
     Path(slug): Path<String>,
@@ -230,13 +230,13 @@ pub async fn job_step_done(
     use ship_substrate::events::pipeline::{PipelineStepDoneDeclaredPayload, event_types};
 
     let payload = PipelineStepDoneDeclaredPayload {
-        job_id: job.job_id.clone(),
+        pipeline_run_id: job.pipeline_run_id.clone(),
         slug: slug.clone(),
         step_id: step_id.clone(),
         summary: body.summary,
         outputs: body.outputs,
     };
-    let envelope = EventEnvelope::new(event_types::PIPELINE_STEP_DONE_DECLARED, &job.job_id, &payload)
+    let envelope = EventEnvelope::new(event_types::PIPELINE_STEP_DONE_DECLARED, &job.pipeline_run_id, &payload)
         .map_err(|e| err_response(StatusCode::BAD_REQUEST, &e.to_string()))?;
     state
         .persist_and_route(&envelope)

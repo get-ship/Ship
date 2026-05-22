@@ -71,7 +71,7 @@ impl ShipServer {
     /// Orchestration tools — spawn child jobs, observe the mesh.
     /// Only agents with an orchestrator preset get these.
     pub const ORCHESTRATION_TOOLS: &[&str] =
-        &["create_job", "discover_mesh_agents", "update_mesh_status"];
+        &["discover_mesh_agents", "update_mesh_status"];
 
     /// Resolve a preset name to its tool set. Unknown presets fall back
     /// to "worker" (platform tools only — the safe default).

@@ -48,23 +48,23 @@ async fn advance_pipeline_inner(
     ship_dir_override: Option<&std::path::Path>,
     worktree_root_override: Option<&std::path::Path>,
 ) -> bool {
-    // First pass: resolve the job_id so we can acquire the per-job lock.
-    // Lookups are index-backed: entity_id (PK), payload job_id (PK),
+    // First pass: resolve the pipeline_run_id so we can acquire the per-job lock.
+    // Lookups are index-backed: entity_id (PK), payload pipeline_run_id (PK),
     // payload slug (idx_jobs_slug). Test paths use load_pipeline_runs_at to honor
     // ship_dir_override; production paths use the O(1) single-row helpers.
-    let job_id = {
+    let pipeline_run_id = {
         let payload: serde_json::Value =
             serde_json::from_str(&envelope.payload_json).unwrap_or_default();
         let payload_slug = payload["slug"].as_str().unwrap_or("");
-        let payload_job_id = payload["job_id"].as_str().unwrap_or("");
+        let payload_job_id = payload["pipeline_run_id"].as_str().unwrap_or("");
         let entity_id = &envelope.entity_id;
 
         let record = match ship_dir_override {
             Some(dir) => match load_pipeline_runs_at(dir) {
                 Ok(jobs) => jobs
                     .values()
-                    .find(|j| j.job_id == *entity_id)
-                    .or_else(|| jobs.values().find(|j| !payload_job_id.is_empty() && j.job_id == payload_job_id))
+                    .find(|j| j.pipeline_run_id == *entity_id)
+                    .or_else(|| jobs.values().find(|j| !payload_job_id.is_empty() && j.pipeline_run_id == payload_job_id))
                     .or_else(|| jobs.values().find(|j| !payload_slug.is_empty() && j.slug == payload_slug))
                     .cloned(),
                 Err(e) => {
@@ -87,7 +87,7 @@ async fn advance_pipeline_inner(
                 }),
         };
         match record {
-            Some(j) => j.job_id,
+            Some(j) => j.pipeline_run_id,
             None => {
                 tracing::warn!(entity_id = %entity_id, "pipeline: job not found in projection");
                 return false;
@@ -97,19 +97,19 @@ async fn advance_pipeline_inner(
 
     // Acquire per-job lock to prevent double-dispatch when concurrent events
     // (e.g. step.observed + job.completed) both try to advance the same job.
-    let job_lock = {
-        let mut locks = octx.job_locks.lock().await;
-        locks.entry(job_id.clone()).or_insert_with(|| Arc::new(tokio::sync::Mutex::new(()))).clone()
+    let run_lock = {
+        let mut locks = octx.run_locks.lock().await;
+        locks.entry(pipeline_run_id.clone()).or_insert_with(|| Arc::new(tokio::sync::Mutex::new(()))).clone()
     };
-    let _guard = job_lock.lock().await;
+    let _guard = run_lock.lock().await;
 
     // Reload projection under lock so we see the latest state.
     let job = match ship_dir_override {
         Some(dir) => match load_pipeline_runs_at(dir) {
-            Ok(jobs) => match jobs.get(&job_id) {
+            Ok(jobs) => match jobs.get(&pipeline_run_id) {
                 Some(j) => j.clone(),
                 None => {
-                    tracing::warn!(job_id, "pipeline: job disappeared between lock acquire and reload");
+                    tracing::warn!(pipeline_run_id, "pipeline: job disappeared between lock acquire and reload");
                     return false;
                 }
             },
@@ -118,10 +118,10 @@ async fn advance_pipeline_inner(
                 return false;
             }
         },
-        None => match crate::projections::pipeline_run::load_pipeline_run_by_id(&job_id) {
+        None => match crate::projections::pipeline_run::load_pipeline_run_by_id(&pipeline_run_id) {
             Ok(Some(j)) => j,
             Ok(None) => {
-                tracing::warn!(job_id, "pipeline: job disappeared between lock acquire and reload");
+                tracing::warn!(pipeline_run_id, "pipeline: job disappeared between lock acquire and reload");
                 return false;
             }
             Err(e) => {
@@ -183,13 +183,13 @@ async fn advance_pipeline_inner(
     let worktree_path = wt_root.join(slug);
 
     // Dispatch each unblocked step
-    let job_vars = job.vars.clone().unwrap_or_default();
+    let run_vars = job.vars.clone().unwrap_or_default();
     let mut dispatched_any = false;
     for (step_idx, step) in pipeline.steps.iter().enumerate().filter_map(|(i, s)| {
         next_steps.iter().find(|ns| ns.id == s.id).map(|ns| (i, *ns))
     }) {
         // Interpolate {{ var }} references before dispatch.
-        let step = match ship_pipelines::variables::interpolate_step(step, &job_vars, &Default::default()) {
+        let step = match ship_pipelines::variables::interpolate_step(step, &run_vars, &Default::default()) {
             Ok(s) => s,
             Err(missing) => {
                 tracing::error!(slug, step_id = step.id, "pipeline: unresolved pipeline var: {missing} in step {}", step.id);
@@ -208,7 +208,7 @@ async fn advance_pipeline_inner(
                 kernel, &job, step, fanout, step_idx, ship_dir_override, octx,
             ).await;
             if spawned > 0 {
-                emit_job_dispatched_with_meta(kernel, &job.job_id, &worktree_path, slug, None, ship_dir_override).await;
+                emit_job_dispatched_with_meta(kernel, &job.pipeline_run_id, &worktree_path, slug, None, ship_dir_override).await;
                 dispatched_any = true;
             }
             continue;
@@ -224,14 +224,14 @@ async fn advance_pipeline_inner(
                     }
                 };
                 let kernel_clone = kernel.clone();
-                let job_id = job.job_id.clone();
+                let pipeline_run_id = job.pipeline_run_id.clone();
                 let slug_clone = slug.clone();
                 let step_id = step.id.clone();
                 let work_dir = worktree_path.clone();
                 let ship_dir_owned = ship_dir_override.map(|p| p.to_path_buf());
                 tokio::spawn(async move {
                     super::run_step::execute_run_step(
-                        &job_id, &slug_clone, &step_id, &command,
+                        &pipeline_run_id, &slug_clone, &step_id, &command,
                         &work_dir, &kernel_clone, ship_dir_owned.as_deref(),
                     ).await;
                 });
@@ -252,7 +252,7 @@ async fn advance_pipeline_inner(
 
                 // Resolve consumes before dispatch — fail fast if inputs are missing.
                 let resolved_inputs = if let Some(pipeline) = &job.steps {
-                    match resolve_consumes(step, pipeline, &job.job_id, &worktree_path) {
+                    match resolve_consumes(step, pipeline, &job.pipeline_run_id, &worktree_path) {
                         Ok(inputs) => inputs,
                         Err(e) => {
                             tracing::error!(
@@ -260,7 +260,7 @@ async fn advance_pipeline_inner(
                                 "pipeline: consumes resolution failed: {e}"
                             );
                             emit_step_failed(
-                                kernel, &job.job_id, slug, &step.id, &e,
+                                kernel, &job.pipeline_run_id, slug, &step.id, &e,
                             ).await;
                             continue;
                         }
@@ -278,15 +278,15 @@ async fn advance_pipeline_inner(
 
                 if let Some(pipeline) = &job.steps {
                     super::pipeline_specs::prepare_step_for_dispatch(
-                        &worktree_path, slug, &job.job_id,
+                        &worktree_path, slug, &job.pipeline_run_id,
                         &job.spec_path, pipeline, step, &resolved_inputs,
                     );
                 }
 
                 let persist = step.step_type != StepType::Review;
                 let (exit_tx, exit_rx) = tokio::sync::mpsc::unbounded_channel();
-                let job_ctx = SessionContext {
-                    job_id: job.job_id.clone(),
+                let session_ctx = SessionContext {
+                    pipeline_run_id: job.pipeline_run_id.clone(),
                     slug: slug.clone(),
                     agent: agent.to_string(),
                     branch: job.branch.clone(),
@@ -309,13 +309,13 @@ async fn advance_pipeline_inner(
                     // Pipeline steps are always per-turn, never keepalive.
                     keepalive: false,
                 };
-                match octx.executor.spawn(&job_ctx).await {
+                match octx.executor.spawn(&session_ctx).await {
                     Ok(handle) => {
                         let exec_kind = if job.headless { "process" } else { "pty" };
                         let cmd_label = step.harness.as_deref().unwrap_or("claude");
                         let pid = handle.pid;
                         emit_process_spawned(
-                            kernel, slug, &job.job_id, pid,
+                            kernel, slug, &job.pipeline_run_id, pid,
                             cmd_label, &[], &[],
                             &worktree_path.to_string_lossy(),
                             exec_kind, Some(&step.id),
@@ -328,8 +328,8 @@ async fn advance_pipeline_inner(
                         super::dispatch::emit_composed_step_session(
                             kernel,
                             &super::dispatch::ComposedRunCtx {
-                                job_id: &job.job_id,
-                                job_slug: &job.slug,
+                                pipeline_run_id: &job.pipeline_run_id,
+                                run_slug: &job.slug,
                                 branch: &job.branch,
                                 source_spec_path: job.source_spec_path.as_deref(),
                                 vars: job.vars.as_ref(),
@@ -342,7 +342,7 @@ async fn advance_pipeline_inner(
 
                         octx.registry.register(slug, handle).await;
                         let monitor = StepMonitor::new(
-                            job.job_id.clone(),
+                            job.pipeline_run_id.clone(),
                             step_idx,
                             slug.clone(),
                             step.id.clone(),
@@ -371,8 +371,8 @@ async fn advance_pipeline_inner(
                     }
                 }
 
-                emit_job_dispatched_with_meta(kernel, &job.job_id, &worktree_path, slug, None, ship_dir_override).await;
-                emit_step_dispatched_event(kernel, &job.job_id, &step.id, "agent", slug, ship_dir_override).await;
+                emit_job_dispatched_with_meta(kernel, &job.pipeline_run_id, &worktree_path, slug, None, ship_dir_override).await;
+                emit_step_dispatched_event(kernel, &job.pipeline_run_id, &step.id, "agent", slug, ship_dir_override).await;
                 dispatched_any = true;
             }
         }

@@ -77,8 +77,8 @@ fn to_message(env: &EventEnvelope) -> Option<ChatMessage> {
         }
         kind if kind.starts_with("pipeline.") => {
             let slug = payload_str(env, "slug").unwrap_or_else(|| env.entity_id.clone());
-            let action = kind.trim_start_matches("job.");
-            Some(base(Sender::System, format!("Job {slug}: {action}"), None))
+            let action = kind.trim_start_matches("pipeline.");
+            Some(base(Sender::System, format!("Run {slug}: {action}"), None))
         }
         _ => None,
     }
@@ -160,7 +160,7 @@ mod tests {
     }
 
     #[test]
-    fn job_events_become_system_messages() {
+    fn run_events_become_system_messages() {
         let m = to_message(&env(
             "pipeline.run.completed",
             serde_json::json!({ "slug": "my-job" }),

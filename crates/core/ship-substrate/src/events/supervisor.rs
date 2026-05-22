@@ -26,7 +26,8 @@ pub struct SweepCompletedPayload {
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct DriftDetectedPayload {
     pub slug: String,
-    pub job_id: String,
+    #[serde(alias = "job_id")]
+    pub pipeline_run_id: String,
     pub expected_status: String,
     /// "no_process" | "stray_process"
     pub actual_state: String,

@@ -68,9 +68,9 @@ fn make_kernel() -> Arc<Mutex<KernelRouter>> {
     let mut router = KernelRouter::new(base).unwrap();
     router
         .spawn_actor(
-            "service.job-dispatch",
+            "service.orchestrator",
             ActorConfig {
-                namespace: "service.job-dispatch".into(),
+                namespace: "service.orchestrator".into(),
                 write_namespaces: vec!["job.".into(), "step.".into(), "artifact.".into()],
                 read_namespaces: vec![],
                 subscribe_namespaces: vec!["pipeline.".into()],
@@ -92,7 +92,7 @@ fn make_octx(platform: Arc<CountingPlatform>) -> OrchestratorContext {
         activity_txs: Arc::new(Mutex::new(HashMap::<
             String, tokio::sync::mpsc::UnboundedSender<StepActivity>,
         >::new())),
-        job_locks: Arc::new(Mutex::new(HashMap::new())),
+        run_locks: Arc::new(Mutex::new(HashMap::new())),
         event_dedup: Arc::new(crate::services::orchestrator::dedup::EventDedup::new()),
         fanout_lane_txs: Arc::new(Mutex::new(HashMap::new())),
         fanout_lane_refs: Arc::new(Mutex::new(HashMap::new())),
@@ -114,20 +114,20 @@ fn persist(ship_dir: &std::path::Path, event_type: &str, entity: &str, payload: 
     store.persist(&env).expect("persist");
 }
 
-fn seed_live_parent_with_three_orphan_lanes(ship_dir: &std::path::Path, job_id: &str, slug: &str) {
+fn seed_live_parent_with_three_orphan_lanes(ship_dir: &std::path::Path, pipeline_run_id: &str, slug: &str) {
     use ship_substrate::events::pipeline::event_types;
     // Parent dispatched, still live (no job.completed/failed/cancelled).
-    persist(ship_dir, event_types::PIPELINE_RUN_STARTED, job_id, serde_json::json!({
-        "job_id": job_id, "slug": slug, "agent": "orchestrator",
+    persist(ship_dir, event_types::PIPELINE_RUN_STARTED, pipeline_run_id, serde_json::json!({
+        "pipeline_run_id": pipeline_run_id, "slug": slug, "agent": "orchestrator",
         "branch": format!("job/{slug}"),
         "spec_path": ".artifacts/job-spec.md", "source_spec_path": null,
     }));
-    persist(ship_dir, event_types::PIPELINE_RUN_DISPATCHED, job_id, serde_json::json!({
-        "job_id": job_id, "worktree": format!("/tmp/{slug}"), "pid": null,
+    persist(ship_dir, event_types::PIPELINE_RUN_DISPATCHED, pipeline_run_id, serde_json::json!({
+        "pipeline_run_id": pipeline_run_id, "worktree": format!("/tmp/{slug}"), "pid": null,
     }));
     for lane in ["a", "b", "c"] {
-        persist(ship_dir, event_types::PIPELINE_STEP_STARTED, job_id, serde_json::json!({
-            "job_id": job_id, "slug": slug,
+        persist(ship_dir, event_types::PIPELINE_STEP_STARTED, pipeline_run_id, serde_json::json!({
+            "pipeline_run_id": pipeline_run_id, "slug": slug,
             "step_id": format!("draft.{lane}"),
             "step_type": "fanout_lane",
             "fanout_parent_step": "draft",
@@ -194,7 +194,7 @@ async fn reconcile_terminal_parent_cleans_up_lane_worktrees() {
     seed_live_parent_with_three_orphan_lanes(&ship_dir, "j-restart-2", "slug-2");
     // Promote parent into a terminal state: emit job.cancelled.
     persist(&ship_dir, event_types::PIPELINE_RUN_CANCELLED, "j-restart-2", serde_json::json!({
-        "job_id": "j-restart-2", "slug": "slug-2",
+        "pipeline_run_id": "j-restart-2", "slug": "slug-2",
         "reason": "operator", "requested_by": "test",
     }));
 
