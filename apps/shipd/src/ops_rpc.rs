@@ -9,10 +9,11 @@ use std::sync::{Arc, LazyLock};
 
 use buffa::{Message, UnknownFieldData};
 use buffa_descriptor::generated::descriptor::FileDescriptorSet;
-use connectrpc::{ConnectError, RequestContext, Response, ServiceResult};
+use connectrpc::{ConnectError, RequestContext, Response, ServiceResult, ServiceStream};
 use ship_ops_rpc::{
     CommandOpsServiceExt, JsonResponse, MetaResponse, OpsService, OpsServiceExt,
-    OwnedMetaRequestView, ReadOpsServiceExt,
+    OwnedEventsRequestView, OwnedMetaRequestView, ReadOpsServiceExt, StreamService,
+    StreamServiceExt,
 };
 
 use ship_substrate::events::CallerKind;
@@ -74,6 +75,55 @@ include!("ops_reads_gen.rs");
 // delegates to `services::command::call`. Do not hand-edit the .rs.
 include!("ops_commands_gen.rs");
 
+// ── Streaming (the Connect-native event bus; retires the SSE event route) ─────
+// Mirrors runtime_api::event_stream: spawn a broadcast subscriber actor, then
+// stream every kernel event as JSON. SSE was just one adapter over this.
+impl StreamService for OpsImpl {
+    #[allow(refining_impl_trait)]
+    async fn events(
+        &self,
+        _ctx: RequestContext,
+        _req: OwnedEventsRequestView,
+    ) -> ServiceResult<ServiceStream<JsonResponse>> {
+        use ship_substrate::events::ActorConfig;
+        let actor_id = format!(
+            "studio-events-{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_nanos())
+                .unwrap_or(0)
+        );
+        let config = ActorConfig {
+            namespace: actor_id.clone(),
+            write_namespaces: vec![],
+            read_namespaces: vec![],
+            subscribe_namespaces: vec!["".to_string()],
+            see_directed_events: true,
+        };
+        let mailbox = {
+            let mut kernel = self.state.kernel().lock().await;
+            kernel
+                .spawn_actor(&actor_id, config)
+                .map(|(_store, mb)| mb)
+                .map_err(|e| ConnectError::internal(e.to_string()))?
+        };
+        let guard = crate::ship_runtime::ActorGuard {
+            actor_id,
+            kernel: self.state.kernel().clone(),
+        };
+        let stream = async_stream::stream! {
+            let _guard = guard;
+            let mut mb = mailbox;
+            while let Some(event) = mb.recv().await {
+                if let Ok(json) = serde_json::to_string(&event) {
+                    yield Ok::<JsonResponse, ConnectError>(JsonResponse { json, ..Default::default() });
+                }
+            }
+        };
+        Ok(Response::new(Box::pin(stream)))
+    }
+}
+
 /// The ConnectRPC op surface as an `axum::Router`, merged into the daemon's
 /// authenticated routes so `auth_middleware` wraps it (the gate will read the
 /// injected `AuthContext`). Wire paths: `/ship.ops.v1.OpsService/<Method>`.
@@ -81,7 +131,8 @@ pub fn router(state: ApiState) -> axum::Router {
     let svc = Arc::new(OpsImpl { state });
     let router = OpsServiceExt::register(svc.clone(), connectrpc::Router::new());
     let router = ReadOpsServiceExt::register(svc.clone(), router);
-    let router = CommandOpsServiceExt::register(svc, router);
+    let router = CommandOpsServiceExt::register(svc.clone(), router);
+    let router = StreamServiceExt::register(svc, router);
     router
         .into_axum_router()
         .layer(axum::middleware::from_fn(gate))
