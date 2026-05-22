@@ -1,5 +1,5 @@
 import { controller, signal } from '@ship/sui-runtime'
-import type { Scope } from './page.sui'
+import type { Scope } from './sui-setup.sui'
 
 const STORAGE_KEY = 'ship-setup-state'
 const TOTAL_STEPS = 6
