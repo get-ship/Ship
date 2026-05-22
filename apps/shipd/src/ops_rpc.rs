@@ -12,10 +12,10 @@ use buffa_descriptor::generated::descriptor::FileDescriptorSet;
 use connectrpc::{ConnectError, RequestContext, Response, ServiceResult};
 use ship_ops_rpc::{
     CommandOpsService, CommandOpsServiceExt, JsonResponse, MetaResponse, OpsService, OpsServiceExt,
-    OwnedActivateProjectRequestView, OwnedDispatchAgentRequestView, OwnedMeshBroadcastRequestView,
-    OwnedMeshSendRequestView, OwnedMetaRequestView, OwnedStepDoneRequestView,
-    OwnedSteerAgentRequestView, OwnedStopAgentRequestView, OwnedUpdateJobStatusRequestView,
-    ReadOpsServiceExt,
+    OwnedActivateProjectRequestView, OwnedDispatchAgentRequestView, OwnedGitPushRequestView,
+    OwnedGitRemoteRequestView, OwnedMeshBroadcastRequestView, OwnedMeshSendRequestView,
+    OwnedMetaRequestView, OwnedStepDoneRequestView, OwnedSteerAgentRequestView,
+    OwnedStopAgentRequestView, OwnedUpdateJobStatusRequestView, ReadOpsServiceExt,
 };
 
 use ship_substrate::events::CallerKind;
@@ -343,6 +343,69 @@ impl CommandOpsService for OpsImpl {
             .map_err(|e| ConnectError::internal(e.to_string()))?;
         Ok(Response::new(JsonResponse {
             json: serde_json::json!("broadcast").to_string(),
+            ..Default::default()
+        }))
+    }
+
+    // Git push in the caller's worktree. C1.
+    #[allow(refining_impl_trait)]
+    async fn git_push(
+        &self,
+        _ctx: RequestContext,
+        req: OwnedGitPushRequestView,
+    ) -> ServiceResult<JsonResponse> {
+        let opt = |s: &str| (!s.is_empty()).then(|| s.to_string());
+        let remote = self
+            .state
+            .git()
+            .push(ship_platform::services::git::service::PushArgs {
+                workspace_id: opt(req.workspace_id),
+                remote: opt(req.remote),
+                force: req.force,
+            })
+            .map_err(|e| ConnectError::internal(e.to_string()))?;
+        Ok(Response::new(JsonResponse {
+            json: serde_json::json!({ "ok": true, "remote": remote, "force": req.force }).to_string(),
+            ..Default::default()
+        }))
+    }
+
+    // Git fetch. C1.
+    #[allow(refining_impl_trait)]
+    async fn git_fetch(
+        &self,
+        _ctx: RequestContext,
+        req: OwnedGitRemoteRequestView,
+    ) -> ServiceResult<JsonResponse> {
+        let ws = (!req.workspace_id.is_empty()).then_some(req.workspace_id);
+        let rm = (!req.remote.is_empty()).then_some(req.remote);
+        let remote = self
+            .state
+            .git()
+            .fetch(ws, rm)
+            .map_err(|e| ConnectError::internal(e.to_string()))?;
+        Ok(Response::new(JsonResponse {
+            json: serde_json::json!({ "ok": true, "remote": remote }).to_string(),
+            ..Default::default()
+        }))
+    }
+
+    // Git pull (ff-only). C1.
+    #[allow(refining_impl_trait)]
+    async fn git_pull(
+        &self,
+        _ctx: RequestContext,
+        req: OwnedGitRemoteRequestView,
+    ) -> ServiceResult<JsonResponse> {
+        let ws = (!req.workspace_id.is_empty()).then_some(req.workspace_id);
+        let rm = (!req.remote.is_empty()).then_some(req.remote);
+        let sha = self
+            .state
+            .git()
+            .pull(ws, rm)
+            .map_err(|e| ConnectError::internal(e.to_string()))?;
+        Ok(Response::new(JsonResponse {
+            json: serde_json::json!({ "ok": true, "sha": sha }).to_string(),
             ..Default::default()
         }))
     }

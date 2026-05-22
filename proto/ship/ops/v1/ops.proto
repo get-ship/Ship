@@ -91,6 +91,20 @@ service CommandOpsService {
     option (ship.ops.v1.capability) = "ship.mesh.write";
     option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
   }
+
+  // Git: push / fetch / pull in the caller's worktree. C1 — the user's repo.
+  rpc GitPush(GitPushRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.git.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc GitFetch(GitRemoteRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.git.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
+  rpc GitPull(GitRemoteRequest) returns (JsonResponse) {
+    option (ship.ops.v1.capability) = "ship.git.write";
+    option (ship.ops.v1.blast_radius) = BLAST_RADIUS_C1_WORKSPACE;
+  }
 }
 
 message UpdateJobStatusRequest {
@@ -153,4 +167,15 @@ message MeshBroadcastRequest {
   string body_json = 2;
   // Optional capability filter (empty = all actors).
   string capability_filter = 3;
+}
+
+message GitPushRequest {
+  string workspace_id = 1;
+  string remote = 2;
+  bool force = 3;
+}
+
+message GitRemoteRequest {
+  string workspace_id = 1;
+  string remote = 2;
 }
